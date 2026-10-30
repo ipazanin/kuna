@@ -13,7 +13,7 @@ const LOANS_CODECS = [BANK_LOAN_CODEC, RATE_PERIOD_CODEC, EXTRA_PAYMENT_CODEC, L
 export function codecOfLoansKind<R>(kind: RecordKind<R>): RecordCodec<R> {
   const codec = LOANS_CODECS.find((candidate) => candidate.kind.name === kind.name)
   if (codec === undefined) {
-    throw new Error(`The Loans file keeps no ${kind.noun.many}.`)
+    throw new Error(`The Loans file keeps no ${kind.noun.en.many}.`)
   }
   return codec as RecordCodec<R>
 }

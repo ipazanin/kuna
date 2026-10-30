@@ -2,13 +2,14 @@ import { EXTRA_PAYMENT_EFFECTS } from './extraPayment'
 import type { ExtraPayment } from './extraPayment'
 import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS } from './loanKinds'
 import { LOAN_FIELD, namedLoanId } from './loanReference'
-import { dayText, labelWords, numberText, withIdField } from '../../../../shared/storage/domain/recordCodec'
+import { withIdField } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
 import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { ownId, positiveMoney, requiredChoice, requiredDate } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
+import { words } from './words'
 
 export function extraPaymentOf(fields: StoredFields, id: RecordId | null): ExtraPayment {
   return {
@@ -20,15 +21,11 @@ export function extraPaymentOf(fields: StoredFields, id: RecordId | null): Extra
   }
 }
 
-export const EXTRA_PAYMENT_CODEC: RecordCodec<ExtraPayment> = withIdField(
-  EXTRA_PAYMENT_RECORDS,
-  (fields) => labelWords([dayText(fields.date), numberText(fields.amount)]),
-  extraPaymentOf,
-  (payment) =>
-    filledFields({
-      [LOAN_FIELD]: keyOfRecordId(BANK_LOAN_RECORDS, payment.loan),
-      date: payment.date,
-      amount: amountText(payment.amount),
-      effect: payment.effect,
-    }),
+export const EXTRA_PAYMENT_CODEC: RecordCodec<ExtraPayment> = withIdField(EXTRA_PAYMENT_RECORDS, words.labels.extraPayment, extraPaymentOf, (payment) =>
+  filledFields({
+    [LOAN_FIELD]: keyOfRecordId(BANK_LOAN_RECORDS, payment.loan),
+    date: payment.date,
+    amount: amountText(payment.amount),
+    effect: payment.effect,
+  }),
 )

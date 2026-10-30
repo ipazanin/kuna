@@ -4,6 +4,8 @@ import { FOLDER_MIME_TYPE } from '../../google/driveClient'
 import type { DriveFile, DriveRevision } from '../../google/driveClient'
 import type { DocumentHome, DocumentSave, Rewrite, StoredDocument } from '../application/documentHome'
 import type { DriveFilePlace } from '../application/workbookPorts'
+import { plural } from '../../text/translation'
+import { words } from './words'
 
 /** What a media upload of the document gave: the revision it made, or Drive's refusal because the file already keeps 200 revisions. */
 export type DocumentUpload = { readonly kind: 'uploaded'; readonly revision: string } | { readonly kind: 'kept-revisions-full' }
@@ -36,7 +38,6 @@ const DAILY_BACKUPS = 30
 const BACKUPS_FOLDER = 'backups'
 /** How often a save lists the revisions before it gives up on a file that keeps changing under it. */
 const POST_CHECKS = 5
-const OUTSIDE_EDIT = 'The file changed outside the app during this save. Check the backups folder.'
 
 /** The file the app's document is kept in, such as `kuna-company.json`. */
 export function documentName(app: string): string {
@@ -79,7 +80,7 @@ export async function createDriveDocument(drive: DocumentDrive, folderId: string
 /** Throws for a file the person picked whose name is a daily backup's, since saves to a backup would never reach the books. */
 export function refuseBackup(name: string, app: string): void {
   if (backupDayOf(app, name) !== null) {
-    throw new Error(`${name} is a backup, so the app does not keep the books in it. Pick ${documentName(app)}, or open the backup with "Open a file" to look at it.`)
+    throw new Error(words.isBackup(name, documentName(app)))
   }
 }
 
@@ -87,7 +88,7 @@ export function refuseBackup(name: string, app: string): void {
 export async function findDriveDocument(drive: DocumentDrive, app: string): Promise<string | null> {
   const found = await drive.findByAppProperty(APP_PROPERTY, app)
   if (found.length > 1) {
-    throw new Error(`Drive holds ${found.length} files the app made as ${documentName(app)}, so it cannot tell which one holds the books. Trash all but one in Drive.`)
+    throw new Error(plural(words.severalFiles(found.length, documentName(app)), found.length))
   }
   return found[0] ?? null
 }
@@ -118,7 +119,7 @@ export function driveDocumentHome(drive: DocumentDrive, fileId: string, app: str
     if (second.kind === 'uploaded') {
       return second.revision
     }
-    throw new Error('Drive keeps 200 revisions of the file and refused this save, although the app let go of its oldest. Try again in a minute.')
+    throw new Error(words.revisions)
   }
 
   async function backupsFolder(): Promise<string> {
@@ -167,14 +168,14 @@ export function driveDocumentHome(drive: DocumentDrive, fileId: string, app: str
       const start = listed.find((revision) => revision.id === since)
       const own = listed.find((revision) => revision.id === latest.revision)
       if (start === undefined) {
-        throw new Error(OUTSIDE_EDIT)
+        throw new Error(words.outsideEdit)
       }
       if (own === undefined || !listed.some((revision) => revision.id === head)) {
         continue
       }
       const others = listed.filter((revision) => !mine.has(revision.id) && byModifiedTime(revision, start) > 0)
       if (others.some((revision) => !revision.keepForever)) {
-        throw new Error(OUTSIDE_EDIT)
+        throw new Error(words.outsideEdit)
       }
       if (others.length === 0 || head !== own.id) {
         await unkeepOldest(listed)
@@ -191,7 +192,7 @@ export function driveDocumentHome(drive: DocumentDrive, fileId: string, app: str
       mine.add(latest.revision)
       since = replaced.id
     }
-    throw new Error('The file kept changing during this save. Sync to see what it holds now.')
+    throw new Error(words.keptChanging)
   }
 
   return {

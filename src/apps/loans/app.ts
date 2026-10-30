@@ -37,7 +37,7 @@ export const loansApp: AppContribution = {
     { path: BANK_LOAN_ROUTE, title: bankLoanWords.bankLoan, icon: 'i-lucide-landmark', component: () => import('./bankLoans/presentation/BankLoanScreen.vue') },
     { path: INFORMAL_LOAN_ROUTE, title: informalLoanWords.informalLoan, icon: 'i-lucide-handshake', component: () => import('./informalLoans/presentation/InformalLoanScreen.vue') },
     SETTINGS,
-    { path: LOANS_START_ROUTE, title: 'Start', icon: 'i-lucide-door-open', component: () => import('./onboarding/presentation/StartScreen.vue'), bare: true },
+    { path: LOANS_START_ROUTE, title: words.start, icon: 'i-lucide-door-open', component: () => import('./onboarding/presentation/StartScreen.vue'), bare: true },
   ],
   menu: () => [OVERVIEW],
   settings: SETTINGS,

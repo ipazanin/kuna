@@ -36,15 +36,18 @@ describe('short months in English', () => {
   })
 })
 
-describe('short months in Croatian', () => {
-  it('keeps Croatian short months', async () => {
+describe('months in Croatian', () => {
+  it('writes a day with the month as a number and a month in running text by its name, each on one line, and keeps the short name on its own', async () => {
     vi.resetModules()
-    vi.doMock('../src/shared/text/language', () => ({ intlLocale: 'hr-HR' }))
+    vi.doMock('../src/shared/text/language', () => ({ language: 'hr', intlLocale: 'hr-HR' }))
     const croatian = await import('../src/shared/calendar/monthLabel')
     const croatianDays = await import('../src/shared/calendar/dayLabel')
+    const croatianFormat = await import('../src/shared/calendar/dateFormat')
     expect(croatian.shortMonthName(september)).toBe('ruj')
-    expect(croatian.monthLabel(september)).toBe('ruj 2026.')
-    expect(croatianDays.dayLabel(twentieth)).toBe('20. ruj 2026.')
+    expect(croatian.monthLabel(september)).toBe('rujan\u00a02026.')
+    expect(croatianDays.dayLabel(twentieth)).toBe('20.\u00a09.\u00a02026.')
+    expect(croatianDays.shortDayLabel(twentieth)).toBe('20.\u00a09.')
+    expect(croatianFormat.dateFormat({ dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' })(Date.UTC(2026, 8, 20, 14, 5))).toBe('20.\u00a09.\u00a02026.\u00a014:05')
     vi.doUnmock('../src/shared/text/language')
   })
 })

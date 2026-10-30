@@ -2,6 +2,7 @@
 import LocalFileStatus from '../../../../shared/storage/presentation/LocalFileStatus.vue'
 import { useLoansBooks } from '../application/loansStore'
 import { useLoansExport } from './useLoansExport'
+import { words } from './words'
 
 /** The Loans file kept in this browser, with its export. */
 withDefaults(
@@ -17,5 +18,5 @@ const { exporting, exportNow } = useLoansExport()
 </script>
 
 <template>
-  <LocalFileStatus :meta="state.snapshot?.meta ?? null" label="Export the Loans file" :exporting="exporting" :compact="compact" @export="exportNow" />
+  <LocalFileStatus :meta="state.snapshot?.meta ?? null" :label="words.exportFile" :exporting="exporting" :compact="compact" @export="exportNow" />
 </template>

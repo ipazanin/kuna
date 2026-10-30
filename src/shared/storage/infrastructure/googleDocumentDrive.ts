@@ -15,6 +15,7 @@ import {
 } from '../../google/driveClient'
 import { GoogleApiError } from '../../google/googleApi'
 import type { DocumentDrive } from './driveDocument'
+import { words } from './words'
 
 /** Drive v3 with a `drive.file` token, which `accessToken` gives for each request, so one drive serves a file for as long as the page holds it. */
 export function googleDocumentDrive(accessToken: () => Promise<string>): DocumentDrive {
@@ -55,7 +56,7 @@ export function googleDocumentDrive(accessToken: () => Promise<string>): Documen
     async parentOf(fileId) {
       const [parentId] = (await getFile(await accessToken(), fileId, ['parents'])).parents
       if (parentId === undefined) {
-        throw new Error('The file has no folder the app can see, so it has nowhere to keep backups.')
+        throw new Error(words.noFolder)
       }
       return parentId
     },

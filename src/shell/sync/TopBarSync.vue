@@ -5,6 +5,8 @@ import { exportReminderDue } from '../../shared/storage/domain/exportReminder'
 import SyncStatus from '../../shared/sync/presentation/SyncStatus.vue'
 import { usePageSync } from '../../shared/sync/presentation/pageSync'
 import { listInWords } from '../../shared/text/listInWords'
+import { plural } from '../../shared/text/translation'
+import { words } from '../ui/words'
 
 /**
  * The top bar's control: the sync for the files on Drive, with a dot while a file kept in this
@@ -25,7 +27,7 @@ const onDrive = computed(() => sync.groups.some((group) => group.store.state.cho
 const inBrowser = computed(() => sync.groups.filter((group) => group.store.state.choice?.source === 'browser'))
 const exportReminder = computed(() => {
   const due = inBrowser.value.filter((group) => exportReminderDue(group.store.state.snapshot?.meta.unexportedSince ?? null, new Date()))
-  return due.length === 0 ? null : `The ${listInWords(due.map((group) => group.name))} books in this browser hold changes in no exported file.`
+  return due.length === 0 ? null : plural(words.unexported(due.length, listInWords(due.map((group) => group.name))), due.length)
 })
 </script>
 

@@ -118,7 +118,9 @@ const addingInformal = ref(false)
         >
           <template #description>
             <ul class="flex flex-col gap-0.5">
-              <li v-for="problem in state.workbook.problems" :key="`${problem.kind} ${problem.label} ${problem.reason}`">{{ problem.kind }} "{{ problem.label }}": {{ problem.reason }}</li>
+              <li v-for="problem in state.workbook.problems" :key="`${problem.kind} ${problem.label} ${problem.reason}`">
+                {{ words.problems.line(problem.noun, problem.label, problem.reason) }}
+              </li>
             </ul>
           </template>
         </UAlert>

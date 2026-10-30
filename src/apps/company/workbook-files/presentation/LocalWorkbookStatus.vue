@@ -2,6 +2,7 @@
 import LocalFileStatus from '../../../../shared/storage/presentation/LocalFileStatus.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { useExport } from './useExport'
+import { words } from './words'
 
 /** The company's books kept in this browser, with their export to Excel. */
 withDefaults(
@@ -17,5 +18,5 @@ const { exporting, exportNow } = useExport()
 </script>
 
 <template>
-  <LocalFileStatus :meta="state.snapshot?.meta ?? null" label="Export to Excel" :exporting="exporting" :compact="compact" @export="exportNow" />
+  <LocalFileStatus :meta="state.snapshot?.meta ?? null" :label="words.exportToExcel" :exporting="exporting" :compact="compact" @export="exportNow" />
 </template>

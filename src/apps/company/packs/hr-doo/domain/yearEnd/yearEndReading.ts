@@ -2,7 +2,7 @@ import { SHARED_ID_REASON, idSharing, problemOf, refusedProblems } from '../../.
 import type { ReadRecord, Reading, RecordProblem, RecordsRead } from '../../../../../../shared/storage/domain/recordsRead'
 import { negateMoney, plainAmount, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
-import { UNNAMED, withIdField } from '../../../../../../shared/storage/domain/recordCodec'
+import { withIdField } from '../../../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../../../shared/storage/domain/recordFields'
 import { newRecordId, recordIdOf } from '../../../../../../shared/storage/domain/recordId'
@@ -10,6 +10,7 @@ import type { RecordId } from '../../../../../../shared/storage/domain/recordId'
 import { sharedKeys } from '../../../../../../shared/storage/domain/sharedKeys'
 import { ownId, refuse, requiredChoice, requiredYear, slugListOf, slugOf, textOf, wholeNumberOf } from '../../../../../../shared/storage/domain/storedFields'
 import type { StoredField, StoredFields } from '../../../../../../shared/storage/domain/storedFields'
+import { words as storedWords } from '../../../../../../shared/storage/domain/words'
 import { YEAR_END_RECORDS } from '../hrDooKinds'
 import { YEAR_END_STATEMENTS, yearEndLineDefinition } from './yearEnd'
 import type { YearEndFigure, YearEndFigureKind, YearEndLine, YearEndLineDefinition } from './yearEnd'
@@ -60,7 +61,7 @@ export const YEAR_END_CODEC: RecordCodec<YearEndLine> = withIdField(
     [fields.year, fields.statement, fields.line]
       .map(textOf)
       .filter((part) => part !== '')
-      .join(' ') || UNNAMED,
+      .join(' ') || storedWords.unnamed,
   yearEndLineOf,
   (line) =>
     filledFields({

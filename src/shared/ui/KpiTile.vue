@@ -18,6 +18,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import AppCard from './AppCard.vue'
 import InfoPopover from './InfoPopover.vue'
 import SparkLine from './SparkLine.vue'
+import { words } from './words'
 
 const props = withDefaults(
   defineProps<{
@@ -39,13 +40,13 @@ const props = withDefaults(
 const deltaPresentation = computed(() => {
   const delta = props.delta
   if (delta === undefined) return null
-  if (delta.change === 0) return { icon: 'i-lucide-minus', tone: 'text-muted', verdict: 'unchanged' }
+  if (delta.change === 0) return { icon: 'i-lucide-minus', tone: 'text-muted', verdict: words.verdict.unchanged }
   const rose = delta.change > 0
   const good = rose === props.higherIsBetter
   return {
     icon: rose ? 'i-lucide-arrow-up-right' : 'i-lucide-arrow-down-right',
     tone: good ? 'text-success' : 'text-error',
-    verdict: good ? 'better' : 'worse',
+    verdict: good ? words.verdict.better : words.verdict.worse,
   }
 })
 </script>

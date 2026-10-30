@@ -19,7 +19,7 @@ export function recordOf<R>(kind: RecordKind<R>, cells: Cells): R {
   const read = readOf(kind, cells)
   const [made] = read.records
   if (made === undefined) {
-    throw new Error(`The fixture's ${kind.noun.one} is refused: ${read.refused[0]?.reason}`)
+    throw new Error(`The fixture's ${kind.noun.en.one} is refused: ${read.refused[0]?.reason}`)
   }
   return made.record
 }
@@ -33,7 +33,7 @@ export function recordsOnScreen<R, Books extends BooksRead = CompanyBooks>(store
 export function recordOnScreen<R, Books extends BooksRead = CompanyBooks>(store: WorkbookStore<Books>, kind: RecordKind<R>, id: RecordId, app = COMPANY as AppUnderTest<Books>): ReadRecord<R> {
   const holding = recordsOnScreen(store, kind, app).records.filter((stored) => stored.id === id)
   if (holding.length !== 1) {
-    throw new Error(`${holding.length} ${kind.noun.many} on screen hold ${id}.`)
+    throw new Error(`${holding.length} ${kind.noun.en.many} on screen hold ${id}.`)
   }
   return holding[0]!
 }

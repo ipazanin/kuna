@@ -9,13 +9,15 @@ import { LATE_INSTALMENT_WRITES, newLateInstalment } from '../application/bankLo
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import type { LateInstalment } from '../../workbook/domain/lateInstalment'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
-import { parseCivilDate } from '../../../../shared/calendar/civilDate'
+import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import { words as loansWords } from '../../words'
+import { words } from './words'
 
 /** An instalment that went out after its due date. Every other instalment counts as paid on its due date. */
 const open = defineModel<boolean>('open', { required: true })
@@ -53,8 +55,8 @@ watch(open, (opened) => {
 const errors = computed(() => {
   const day = parseCivilDate(paid.value)
   return {
-    due: dueItems.value.some((item) => item.value === due.value) ? null : 'Choose the instalment that went out late',
-    paid: day === null ? 'A date, such as 2026-12-08' : due.value !== '' && day <= due.value ? 'After the due date' : null,
+    due: dueItems.value.some((item) => item.value === due.value) ? null : words.lateDialog.dueError,
+    paid: day === null ? loansWords.form.aDate(civilDate(2026, 12, 8)) : due.value !== '' && day <= due.value ? words.lateDialog.afterDue : null,
   }
 })
 
@@ -67,49 +69,54 @@ async function save(): Promise<void> {
   const before = props.editing
   const written =
     before === null
-      ? await writes.write('Late instalment added', (unit) => unit.of(LATE_INSTALMENT_WRITES).add(typed), { failedTitle: 'Not added' })
-      : await writes.write('Late instalment saved', (unit) => unit.of(LATE_INSTALMENT_WRITES).change(before, { ...typed, id: before.id }), { failedTitle: 'Not saved' })
+      ? await writes.write(words.lateDialog.added, (unit) => unit.of(LATE_INSTALMENT_WRITES).add(typed), { failedTitle: loansWords.form.notAdded })
+      : await writes.write(words.lateDialog.saved, (unit) => unit.of(LATE_INSTALMENT_WRITES).change(before, { ...typed, id: before.id }), { failedTitle: loansWords.form.notSaved })
   if (written) open.value = false
 }
 
 async function remove(): Promise<void> {
   const before = props.editing
   if (before === null) return
-  if (await writes.write('Late instalment deleted', (unit) => unit.of(LATE_INSTALMENT_WRITES).remove(before), { failedTitle: 'Not deleted' })) open.value = false
+  if (await writes.write(words.lateDialog.deleted, (unit) => unit.of(LATE_INSTALMENT_WRITES).remove(before), { failedTitle: loansWords.form.notDeleted })) open.value = false
 }
 </script>
 
 <template>
-  <AppDialog
-    v-model:open="open"
-    :title="editing === null ? 'Mark an instalment late' : 'Change the late instalment'"
-    description="The day an instalment actually went out. It changes when the row counts as paid, not the plan."
-  >
+  <AppDialog v-model:open="open" :title="editing === null ? words.lateDialog.addTitle : words.lateDialog.changeTitle" :description="words.lateDialog.description">
     <FormGrid id="late-instalment" as="form" data-testid="late-instalment-form" @submit.prevent="save">
-      <UFormField label="Instalment due" :error="(tried && errors.due) || false">
+      <UFormField :label="words.lateDialog.due" :error="(tried && errors.due) || false">
         <USelectMenu
           v-model="due"
           :items="dueItems"
           value-key="value"
-          placeholder="Choose an instalment"
-          :search-input="{ placeholder: 'Search due dates' }"
+          :placeholder="words.lateDialog.choose"
+          :search-input="{ placeholder: words.lateDialog.search }"
           class="w-full"
           data-testid="late-instalment-due"
         />
       </UFormField>
-      <UFormField label="Paid on" :error="(tried && errors.paid) || false">
+      <UFormField :label="words.lateDialog.paidOn" :error="(tried && errors.paid) || false">
         <UInput v-model="paid" type="date" class="w-full" data-testid="late-instalment-paid" />
       </UFormField>
     </FormGrid>
     <template #start>
-      <UButton v-if="editing !== null" label="Delete" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="late-instalment-delete" @click="remove" />
+      <UButton
+        v-if="editing !== null"
+        :label="words.lateDialog.delete"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="ghost"
+        :disabled="writes.busy.value"
+        data-testid="late-instalment-delete"
+        @click="remove"
+      />
     </template>
     <template #end>
-      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="loansWords.form.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
       <UButton
         type="submit"
         form="late-instalment"
-        :label="editing === null ? 'Mark late' : 'Save'"
+        :label="editing === null ? words.lateDialog.add : words.lateDialog.save"
         :icon="editing === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.busy.value"
         :disabled="writes.busy.value"

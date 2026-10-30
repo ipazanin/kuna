@@ -6,7 +6,9 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import { dateFormat } from '../../calendar/dateFormat'
 import DrillLink from '../../ui/DrillLink.vue'
 import type { RunStep, StepState, SyncRun } from '../application/syncRun'
+import { words as syncWords } from '../application/words'
 import { usePageSync } from './pageSync'
+import { words } from './words'
 
 /** The steps of the last sync, each with its line, and Undo or a link where the step left one. A run over several apps names each app over its steps. */
 const props = defineProps<{
@@ -36,17 +38,17 @@ const ICONS: Readonly<Record<StepState['kind'], { readonly name: string; readonl
 const running = computed(() => props.run !== null && props.run.finishedAt === null)
 const when = computed(() => {
   const run = props.run
-  if (run === null) return 'No sync on this page yet.'
-  return running.value ? `Syncing since ${stamp(new Date(run.startedAt))}` : `Last sync ${stamp(new Date(run.finishedAt ?? run.startedAt))}`
+  if (run === null) return words.steps.none
+  return running.value ? words.steps.since(stamp(new Date(run.startedAt))) : words.steps.last(stamp(new Date(run.finishedAt ?? run.startedAt)))
 })
 
 function lineOf(step: RunStep): string {
   const { state } = step
   switch (state.kind) {
     case 'off':
-      return 'Off in Settings'
+      return words.steps.off
     case 'queued':
-      return 'Waiting to start'
+      return syncWords.waiting
     default:
       return state.line
   }
@@ -81,7 +83,7 @@ function linkOf(step: RunStep) {
               <div v-if="undoable(group.app, step) || linkOf(step)" class="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <UButton
                   v-if="undoable(group.app, step)"
-                  label="Undo"
+                  :label="words.steps.undo"
                   icon="i-lucide-undo-2"
                   color="neutral"
                   variant="outline"
@@ -99,7 +101,7 @@ function linkOf(step: RunStep) {
       </section>
     </div>
     <div v-if="!running" class="flex justify-end">
-      <UButton label="Sync again" icon="i-lucide-refresh-cw" color="neutral" variant="outline" size="sm" data-testid="sync-again" @click="emit('sync')" />
+      <UButton :label="words.steps.again" icon="i-lucide-refresh-cw" color="neutral" variant="outline" size="sm" data-testid="sync-again" @click="emit('sync')" />
     </div>
   </div>
 </template>

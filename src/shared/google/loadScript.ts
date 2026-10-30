@@ -1,3 +1,4 @@
+import { words } from './words'
 const loading = new Map<string, Promise<void>>()
 
 /** Adds a third-party script once per page. Google's GIS and Picker libraries cannot be bundled. */
@@ -14,7 +15,7 @@ export function loadScript(src: string): Promise<void> {
     script.addEventListener('error', () => {
       loading.delete(src)
       script.remove()
-      reject(new Error(`Could not load ${src}. A content blocker or the network may have stopped it.`))
+      reject(new Error(words.notLoaded(src)))
     })
     document.head.append(script)
   })

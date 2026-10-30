@@ -115,7 +115,7 @@ export const LOANS: AppUnderTest<LoansBooks> = {
   recordsOfKind<R>(records: LoansRecords, kind: RecordKind<R>): RecordsRead<R> {
     const part = (Object.keys(LOAN_PARTS) as (keyof LoansRecords)[]).find((candidate) => LOAN_PARTS[candidate].name === kind.name)
     if (part === undefined) {
-      throw new Error(`The Loans file keeps no ${kind.noun.many}.`)
+      throw new Error(`The Loans file keeps no ${kind.noun.en.many}.`)
     }
     return records[part] as RecordsRead<unknown> as RecordsRead<R>
   },

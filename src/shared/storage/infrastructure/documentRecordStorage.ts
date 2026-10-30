@@ -13,6 +13,7 @@ import { refusalOr } from '../domain/storedFields'
 import type { FreshRecords } from '../domain/writeRules'
 import { NEWER_FILE, decodeDocument, encodeDocument, savedByNewerApp, storedFieldsOfDocument } from './documentFormat'
 import type { DocumentRecord, WorkbookDocument } from './documentFormat'
+import { words } from './words'
 
 /** The copy of the workbook the store holds: the document whole, at the revision its home held it. */
 export interface DocumentCopy extends WorkbookCopy {
@@ -63,7 +64,7 @@ function indexOfRecord(kind: RecordKind<unknown>, records: readonly DocumentReco
   }
   const holding = records.flatMap((record, index) => (holds(record) ? [index] : []))
   if (holding.length !== 1) {
-    throw new WorkbookWriteRefused(`Nothing was written. The ${kind.noun.one} the change names is not in the file once, as the write read it. Sync and look again.`)
+    throw new WorkbookWriteRefused(words.notOnce(kind.noun))
   }
   return holding[0]!
 }

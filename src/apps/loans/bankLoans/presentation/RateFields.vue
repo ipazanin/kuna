@@ -2,6 +2,7 @@
 import type { YearlyRate } from '../domain/yearlyRate'
 import { rateOfText } from '../domain/yearlyRate'
 import type { RatePeriod } from '../../workbook/domain/ratePeriod'
+import { words as loansWords } from '../../words'
 import { words } from './words'
 
 export interface RateTexts {
@@ -44,7 +45,7 @@ const RATE_TYPES = [
     <UInput v-model="texts.rate" inputmode="decimal" :placeholder="words.rateFields.ratePlaceholder" class="w-full" data-testid="rate-field" />
   </UFormField>
   <URadioGroup v-model="texts.rateType" :items="RATE_TYPES" :legend="words.rateFields.type" orientation="vertical" data-testid="rate-type" />
-  <UFormField :label="words.rateFields.note" :help="words.rateFields.noteHelp" class="sm:col-span-2">
+  <UFormField :label="loansWords.form.note" :help="words.rateFields.noteHelp" class="sm:col-span-2">
     <UInput v-model="texts.note" class="w-full" />
   </UFormField>
 </template>

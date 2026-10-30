@@ -20,7 +20,7 @@
  * onboarding's first steps on a first run (`?fake=empty`), each tab of the company's Settings and the
  * Year page's editors for a workbook kept in this browser (`?fake=browser`), Settings, Books file for
  * a file a newer app saved (`?fake=newer-file`), the Loans Settings, the Loans Overview with one loan
- * (`?loans=one-loan`) and while its file opens (`?loans=opening`), the Loans screens in Croatian, Salaries for one
+ * (`?loans=one-loan`) and while its file opens (`?loans=opening`), the home, Kuna settings, the Loans first run and every Loans screen in Croatian (`?lang=hr`), Salaries for one
  * made-up employee (`?fake=one-employee`) and for five (`?fake=five-employees`), and the summary
  * of an xlsx file it writes from the fake workbook with two problems added.
  *
@@ -40,7 +40,8 @@
  * invoice and year folders and the month folder made on request, then re-exports it.
  * At 360, 430 and 1440 px it does the same with a pay scenario's component, copies a scenario, and
  * adds the starting scenarios to a workbook without any. At every width it opens each Loans dialog
- * and the Company dialogs whose fields sit two to a row.
+ * in English and Croatian, the Company dialogs whose fields sit two to a row, the app menu in Croatian
+ * and the bank loan's what-if in Croatian.
  * It plans a category for 2027 on Year, Plan, edits, clears and undoes it, and plans a purchase in a
  * workbook without plan rows. On Transactions it splits a payment, edits the split, deletes it and
  * undoes the delete. On Review it does the same from a row of the queue, and dismisses a group of
@@ -107,6 +108,7 @@ import {
   accessClosedFlow,
   advanceFlow,
   appMenuFlow,
+  appMenuFlowIn,
   assetFlow,
   employeeFlow,
   cardSettlementIbansFlow,
@@ -124,11 +126,13 @@ import {
   invoiceRunFlow,
   loansBrowserFlow,
   loansDialogsFlow,
+  loansDialogsFlowIn,
   loansDriveFlow,
   loansEditorFlow,
   loansOpenFlow,
   loansStartOnDriveFlow,
   loansWhatIfFlow,
+  loansWhatIfFlowIn,
   mailAccessFlow,
   mailFailedFlow,
   mailNothingNewFlow,
@@ -316,6 +320,7 @@ const SCREENS = [
     linkedRow: '[data-testid="rule-row"][aria-current="true"]',
   },
   { name: 'home', hash: '#/', title: 'All apps', charts: 0, shows: ['Company', 'Cash on hand', '2 rows to review', 'Loans', 'Set up', 'Kuna settings'], cards: false },
+  { name: 'home-croatian', query: 'lang=hr', hash: '#/', title: 'Sve aplikacije', charts: 0, shows: ['Tvrtka', 'Novac na računima', 'Krediti', 'Postavi'], cards: false },
   { name: 'company-settings', hash: '#/company/settings', title: 'Settings', charts: 0, shows: ['The workbook', 'Mail', 'Company and owner facts', 'Bucket labels', 'Loans to the owner'] },
   {
     name: 'company-settings-loan-rate',
@@ -392,7 +397,17 @@ const SOURCE_SCREENS = [
     shows: ['Set up', "Your company's books from its bank statements", 'Your loans in a file of their own'],
     cards: false,
   },
+  {
+    name: 'home-fresh-croatian',
+    query: 'fake=empty&lang=hr',
+    hash: '#/',
+    title: 'Sve aplikacije',
+    charts: 0,
+    shows: ['Postavi', 'Knjige vaše tvrtke iz bankovnih izvoda', 'Vaši krediti u zasebnoj datoteci'],
+    cards: false,
+  },
   { name: 'home-loans', query: 'loans=sample', hash: '#/', title: 'All apps', charts: 0, shows: ['Cash on hand', 'You owe in all'], cards: false },
+  { name: 'home-loans-croatian', query: 'loans=sample&lang=hr', hash: '#/', title: 'Sve aplikacije', charts: 0, shows: ['Novac na računima', 'Ukupno dugujete'], cards: false },
   { name: 'welcome', query: 'fake=empty', hash: '#/company/start', title: 'Company', charts: 0, shows: ['What brings you here?', 'Start new books', 'Open my books on Google Drive'], cards: false },
   {
     name: 'onboarding-access',
@@ -418,6 +433,7 @@ const SOURCE_SCREENS = [
     cards: false,
   },
   { name: 'kuna-settings-browser', query: 'fake=browser', hash: '#/settings', title: 'Kuna settings', charts: 0, shows: ['Appearance and privacy', 'Browser language'], cards: false },
+  { name: 'kuna-settings-browser-croatian', query: 'fake=browser&lang=hr', hash: '#/settings', title: 'Postavke Kune', charts: 0, shows: ['Izgled i privatnost', 'Jezik preglednika'], cards: false },
   { name: 'year-accountant-browser', query: 'fake=browser', hash: '#/company/year?year=2025', title: 'Year', charts: 1, shows: 'Loans to the owner carry 2.5%' },
   { name: 'year-statements-browser', query: 'fake=browser', hash: '#/company/year?year=2025&tab=statements', title: 'Year', charts: 0, shows: 'Balance paid on', expandedBefore: ['year.tax'] },
   {
@@ -516,8 +532,45 @@ const SOURCE_SCREENS = [
   { name: 'invoicing-clients-browser', query: 'fake=browser', hash: '#/company/invoicing?tab=clients', title: 'Invoicing', charts: 0, shows: 'Save clients' },
   { name: 'invoicing-empty-plan-browser', query: 'fake=browser-no-billing-plan', hash: '#/company/invoicing?tab=plan', title: 'Invoicing', charts: 0, shows: 'Add the first row', cards: false },
   { name: 'loans-start', hash: '#/loans', title: 'Loans', charts: 0, shows: ['Where the Loans file lives', 'A new file on Google Drive', 'My file on Google Drive'], cards: false },
+  {
+    name: 'loans-start-croatian',
+    query: 'lang=hr',
+    hash: '#/loans',
+    title: 'Krediti',
+    charts: 0,
+    shows: ['Gdje se čuva datoteka kredita', 'Nova datoteka na Google Driveu', 'Moja datoteka na Google Driveu', 'Sve aplikacije'],
+    cards: false,
+  },
   { name: 'loans-start-folder', hash: '#/loans/start?step=folder', title: 'Loans', charts: 0, shows: ['Where the Loans file is saved', 'Choose a folder in Google Drive'], cards: false },
+  {
+    name: 'loans-start-folder-croatian',
+    query: 'lang=hr',
+    hash: '#/loans/start?step=folder',
+    title: 'Krediti',
+    charts: 0,
+    shows: ['Gdje se sprema datoteka kredita', 'Odaberi mapu na Google Driveu', 'Natrag'],
+    cards: false,
+  },
+  { name: 'loans-start-find', hash: '#/loans/start?step=find', title: 'Loans', charts: 0, shows: ['Find your Loans file on Drive', 'Pick another file', 'kuna-loans.json'], cards: false },
+  {
+    name: 'loans-start-find-croatian',
+    query: 'lang=hr',
+    hash: '#/loans/start?step=find',
+    title: 'Krediti',
+    charts: 0,
+    shows: ['Pronađite datoteku kredita na Driveu', 'Odaberi drugu datoteku', 'kuna-loans.json'],
+    cards: false,
+  },
   { name: 'loans-overview', query: 'loans=drive', hash: '#/loans', title: 'Overview', charts: 0, shows: ['No loans yet', 'on Google Drive as kuna-loans.json'], cards: false },
+  {
+    name: 'loans-overview-croatian',
+    query: 'loans=drive&lang=hr',
+    hash: '#/loans',
+    title: 'Pregled',
+    charts: 0,
+    shows: ['Još nema kredita ni pozajmica', 'na Google Driveu kao kuna-loans.json', 'Dodaj pozajmicu'],
+    cards: false,
+  },
   {
     name: 'loans-sample',
     query: 'loans=sample',
@@ -537,7 +590,17 @@ const SOURCE_SCREENS = [
     cards: false,
   },
   { name: 'loans-one-loan', query: 'loans=one-loan', hash: '#/loans', title: 'Overview', charts: 0, shows: ['Home loan', 'owed today', 'paid back', 'Subsidy ends'], cards: false },
+  {
+    name: 'loans-one-loan-croatian',
+    query: 'loans=one-loan&lang=hr',
+    hash: '#/loans',
+    title: 'Pregled',
+    charts: 0,
+    shows: ['Home loan', 'dug danas', 'otplaćeno', 'Subvencija završava'],
+    cards: false,
+  },
   { name: 'loans-opening', query: 'loans=opening', hash: '#/loans', title: 'Overview', charts: 0, ready: '[data-testid="loans-loading"]', cards: false },
+  { name: 'loans-opening-croatian', query: 'loans=opening&lang=hr', hash: '#/loans', title: 'Pregled', charts: 0, ready: '[data-testid="loans-loading"]', cards: false },
   {
     name: 'loans-bank-loan-opening',
     query: 'loans=opening',
@@ -548,8 +611,26 @@ const SOURCE_SCREENS = [
     cards: false,
   },
   {
+    name: 'loans-bank-loan-opening-croatian',
+    query: 'loans=opening&lang=hr',
+    hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
+    title: null,
+    charts: 0,
+    ready: '[data-testid="screen-skeleton"]',
+    cards: false,
+  },
+  {
     name: 'loans-informal-loan-opening',
     query: 'loans=opening',
+    hash: `#/loans/informal-loan?loan=${SAMPLE_INFORMAL_LOAN}`,
+    title: null,
+    charts: 0,
+    ready: '[data-testid="screen-skeleton"]',
+    cards: false,
+  },
+  {
+    name: 'loans-informal-loan-opening-croatian',
+    query: 'loans=opening&lang=hr',
     hash: `#/loans/informal-loan?loan=${SAMPLE_INFORMAL_LOAN}`,
     title: null,
     charts: 0,
@@ -570,7 +651,7 @@ const SOURCE_SCREENS = [
     hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
     title: 'Home loan',
     charts: 2,
-    shows: ['Dug danas', 'Ukupno za otplatu', 'Plaća APN', 'Dug kroz vrijeme', 'Kamo idu uplate'],
+    shows: ['Dug danas', 'Ukupno za otplatu', 'Plaća APN', 'Dug kroz vrijeme', 'Kamo idu uplate', 'Što ako uplatim više', 'Procjena', '6M EURIBOR', 'dana nakon dospijeća', 'Razdoblja kamatne stope'],
   },
   {
     name: 'loans-informal-loan',
@@ -586,7 +667,7 @@ const SOURCE_SCREENS = [
     hash: `#/loans/informal-loan?loan=${SAMPLE_INFORMAL_LOAN}`,
     title: 'From Marko',
     charts: 1,
-    shows: ['Dugujete: Marko', 'Posuđeno nakon toga', 'Posuđeno u naravi'],
+    shows: ['Dugujete: Marko', 'Posuđeno nakon toga', 'Posuđeno u naravi', 'Vraćeno u naravi', 'Oprošteno', 'Promjene'],
   },
   {
     name: 'loans-settings',
@@ -599,12 +680,31 @@ const SOURCE_SCREENS = [
     cards: false,
   },
   {
+    name: 'loans-settings-croatian',
+    query: 'loans=drive&lang=hr',
+    hash: '#/loans/settings',
+    title: 'Postavke',
+    charts: 0,
+    ready: '[data-testid="loans-books-card"] [data-testid="drive-file-place"] a',
+    shows: ['Datoteka kredita', 'kuna-loans.json', 'Promijeni mjesto', 'Zadnja sinkronizacija'],
+    cards: false,
+  },
+  {
     name: 'loans-settings-browser',
     query: 'fake=browser&loans=browser',
     hash: '#/loans/settings',
     title: 'Settings',
     charts: 0,
     shows: ['Loans books', 'Fake Loans file', 'Some changes are in no exported file yet'],
+    cards: false,
+  },
+  {
+    name: 'loans-settings-browser-croatian',
+    query: 'fake=browser&loans=browser&lang=hr',
+    hash: '#/loans/settings',
+    title: 'Postavke',
+    charts: 0,
+    shows: ['Datoteka kredita', 'Fake Loans file', 'Neke promjene još nisu ni u jednoj izvezenoj datoteci'],
     cards: false,
   },
   {
@@ -1059,9 +1159,27 @@ const FLOWS = [
   { name: 'loans-start-on-drive', hash: '#/loans/start?step=folder', title: 'Loans', run: loansStartOnDriveFlow, modes: ['drive'], queries: { drive: '&loans=other-device' } },
   { name: 'loans-editor', hash: '#/loans', title: 'Overview', run: loansEditorFlow, modes: ['drive'], queries: { drive: '&loans=sample' } },
   { name: 'loans-what-if', hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, title: 'Home loan', run: loansWhatIfFlow, modes: ['drive'], queries: { drive: '&loans=sample' } },
+  {
+    name: 'loans-what-if-croatian',
+    hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
+    title: 'Home loan',
+    run: loansWhatIfFlowIn('hr'),
+    viewports: EVERY_VIEWPORT,
+    modes: ['drive'],
+    queries: { drive: '&loans=sample&lang=hr' },
+  },
   { name: 'dialogs-loans', hash: '#/loans', title: 'Overview', run: loansDialogsFlow, viewports: EVERY_VIEWPORT, modes: ['drive'], queries: { drive: '&loans=sample' } },
+  { name: 'dialogs-loans-croatian', hash: '#/loans', title: 'Pregled', run: loansDialogsFlowIn('hr'), viewports: EVERY_VIEWPORT, modes: ['drive'], queries: { drive: '&loans=sample&lang=hr' } },
   { name: 'dialogs-company', hash: '#/company/invoicing?p=all', title: 'Invoicing', run: companyDialogsFlow, viewports: EVERY_VIEWPORT, modes: ['drive'] },
   { name: 'app-menu', hash: '#/loans', title: 'Overview', run: appMenuFlow, queries: { drive: '&loans=drive', browser: '&fake=browser&loans=browser' } },
+  {
+    name: 'app-menu-croatian',
+    hash: '#/loans',
+    title: 'Pregled',
+    run: appMenuFlowIn('hr'),
+    viewports: EVERY_VIEWPORT,
+    queries: { drive: '&loans=drive&lang=hr', browser: '&fake=browser&loans=browser&lang=hr' },
+  },
   { name: 'home', hash: '#/', title: 'All apps', run: homeFlow, modes: ['drive'], queries: { drive: '&loans=sample' } },
   { name: 'home-browser', hash: '#/', title: 'All apps', run: homeFlow, modes: ['browser'], queries: { browser: '&fake=browser&loans=sample' } },
   { name: 'home-set-up', hash: '#/', title: 'All apps', run: setUpFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },

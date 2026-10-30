@@ -2,13 +2,14 @@ import { INFORMAL_LOAN_RECORDS, MOVEMENT_RECORDS } from './loanKinds'
 import { LOAN_FIELD, namedLoanId } from './loanReference'
 import { MOVEMENT_KINDS } from './movement'
 import type { Movement } from './movement'
-import { dayText, labelWords, numberText, withIdField } from '../../../../shared/storage/domain/recordCodec'
+import { withIdField } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
 import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { ownId, positiveMoney, requiredChoice, requiredDate, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
+import { words } from './words'
 
 export function movementOf(fields: StoredFields, id: RecordId | null): Movement {
   return {
@@ -21,16 +22,12 @@ export function movementOf(fields: StoredFields, id: RecordId | null): Movement 
   }
 }
 
-export const MOVEMENT_CODEC: RecordCodec<Movement> = withIdField(
-  MOVEMENT_RECORDS,
-  (fields) => labelWords([dayText(fields.date), textOf(fields.kind), numberText(fields.amount)]),
-  movementOf,
-  (movement) =>
-    filledFields({
-      [LOAN_FIELD]: keyOfRecordId(INFORMAL_LOAN_RECORDS, movement.loan),
-      date: movement.date,
-      kind: movement.kind,
-      amount: amountText(movement.amount),
-      note: movement.note,
-    }),
+export const MOVEMENT_CODEC: RecordCodec<Movement> = withIdField(MOVEMENT_RECORDS, words.labels.movement, movementOf, (movement) =>
+  filledFields({
+    [LOAN_FIELD]: keyOfRecordId(INFORMAL_LOAN_RECORDS, movement.loan),
+    date: movement.date,
+    kind: movement.kind,
+    amount: amountText(movement.amount),
+    note: movement.note,
+  }),
 )

@@ -156,7 +156,7 @@ function flaggedByInWords(flaggedBy: string): string {
           <ul v-else class="detail-list">
             <li v-for="(record, index) in write.receipt.records.slice(0, SHOWN_ROWS)" :key="`record-${index}`" class="text-xs text-muted">
               {{ VERBS[record.change.verb] }} <span class="text-toned">{{ record.label }}</span
-              >, {{ record.change.kind.noun.article }} {{ record.change.kind.noun.one }}
+              >, {{ record.change.kind.noun.en.article }} {{ record.change.kind.noun.en.one }}
             </li>
             <li v-if="write.receipt.records.length > SHOWN_ROWS" class="text-xs text-muted">and {{ write.receipt.records.length - SHOWN_ROWS }} more</li>
           </ul>

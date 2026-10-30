@@ -2,6 +2,7 @@ import Dexie from 'dexie'
 import type { EntityTable } from 'dexie'
 
 import type { DocumentHome, StoredDocument } from '../application/documentHome'
+import { words } from './words'
 
 const DOCUMENT_KEY = 'document'
 
@@ -59,7 +60,7 @@ export function browserDocumentHome(documentId: string): DocumentHome {
     async read(cached) {
       const row = await withDatabase(documentId, (database) => database.document.get(DOCUMENT_KEY))
       if (row === undefined) {
-        throw new Error('This browser no longer holds the workbook. Open an Excel file or a backup to start again.')
+        throw new Error(words.browserLost)
       }
       return cached?.revision === row.revision ? cached : storedOf(row)
     },

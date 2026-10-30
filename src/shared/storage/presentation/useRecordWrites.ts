@@ -8,6 +8,7 @@ import type { WriteReceipt } from '../application/recordWrites'
 import type { UnitOfWork } from '../application/repository'
 import { WorkbookWriteRefused } from '../application/workbookWriteRefused'
 import { recordsChangeInWords } from './recordsChangeInWords'
+import { words } from './words'
 
 /** How long a toast with Undo stays, so there is time to reach the button. */
 const UNDO_TOAST_DURATION = 10_000
@@ -50,9 +51,9 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
     try {
       await store.undo(write)
       const undone = store.state.writes[0]
-      toast.add({ title: 'Undone', ...(undone === undefined ? {} : { description: recordsChangeInWords(undone.receipt, undone.undid) }), icon: 'i-lucide-undo-2', color: 'neutral' })
+      toast.add({ title: words.undone, ...(undone === undefined ? {} : { description: recordsChangeInWords(undone.receipt, undone.undid) }), icon: 'i-lucide-undo-2', color: 'neutral' })
     } catch (failure) {
-      refused('Not undone', failure)
+      refused(words.notUndone, failure)
     } finally {
       busy.value = false
     }
@@ -68,7 +69,7 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
       color: 'success',
       duration: UNDO_TOAST_DURATION,
       actions: [
-        ...(canUndo(recorded, store.state.writes) ? [{ label: 'Undo', icon: 'i-lucide-undo-2', color: 'neutral' as const, variant: 'outline' as const, onClick: () => void undo(recorded) }] : []),
+        ...(canUndo(recorded, store.state.writes) ? [{ label: words.undo, icon: 'i-lucide-undo-2', color: 'neutral' as const, variant: 'outline' as const, onClick: () => void undo(recorded) }] : []),
         ...(options.follow === undefined ? [] : [{ label: options.follow.label, icon: options.follow.icon, color: 'neutral' as const, variant: 'ghost' as const, onClick: options.follow.run }]),
       ],
     })
@@ -79,14 +80,14 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
     try {
       const receipt = await store.write(title, work)
       if (receipt === null || store.state.writes[0]?.receipt !== receipt) {
-        toast.add({ title: 'Nothing changed', description: 'The workbook already holds this.', icon: 'i-lucide-info', color: 'neutral' })
+        toast.add({ title: words.nothingChanged, description: words.alreadyHeld, icon: 'i-lucide-info', color: 'neutral' })
         return true
       }
       announce(receipt, options)
       return true
     } catch (failure) {
       // Any other failure may come after the file took the save, such as an edit from outside the app during it.
-      refused(failure instanceof WorkbookWriteRefused ? (options.failedTitle ?? 'Nothing was written') : 'The save may not have finished', failure)
+      refused(failure instanceof WorkbookWriteRefused ? (options.failedTitle ?? words.nothingWritten) : words.mayNotHaveFinished, failure)
       return false
     } finally {
       busy.value = false

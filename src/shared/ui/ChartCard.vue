@@ -30,6 +30,7 @@ import AppCard from './AppCard.vue'
 import ChartCanvas from './ChartCanvas.vue'
 import DrillLink from './DrillLink.vue'
 import FigureTable from './FigureTable.vue'
+import { words } from './words'
 
 const props = withDefaults(
   defineProps<{
@@ -63,8 +64,8 @@ const props = withDefaults(
     linkAt: () => null,
     loading: false,
     empty: false,
-    emptyTitle: 'Nothing to show for this period',
-    emptyDescription: 'Pick a longer period or clear a filter.',
+    emptyTitle: words.chart.emptyTitle,
+    emptyDescription: words.chart.emptyDescription,
     height: 260,
     startCollapsed: false,
     reveal: false,
@@ -127,18 +128,18 @@ function valueOf(point: unknown): number | null {
   >
     <template #title>
       {{ title }}
-      <UIcon v-if="loading" name="i-lucide-loader-circle" class="size-3.5 animate-spin text-muted" aria-label="Loading" />
+      <UIcon v-if="loading" name="i-lucide-loader-circle" class="size-3.5 animate-spin text-muted" :aria-label="words.chart.loading" />
     </template>
     <template v-if="!empty" #actions>
       <UButton
         :icon="showTable ? 'i-lucide-chart-column' : 'i-lucide-table'"
-        :label="showTable ? 'Chart' : 'Table'"
+        :label="showTable ? words.chart.chart : words.chart.table"
         color="neutral"
         variant="ghost"
         size="xs"
         class="-my-1 text-muted"
         :aria-pressed="showTable"
-        :aria-label="`Show ${title} as a table`"
+        :aria-label="words.chart.asTable(title)"
         data-testid="chart-table-toggle"
         @click="showTable = !showTable"
       />
@@ -157,7 +158,9 @@ function valueOf(point: unknown): number | null {
         </caption>
         <thead>
           <tr>
-            <th scope="col" class="text-start"><span class="sr-only">Category</span></th>
+            <th scope="col" class="text-start">
+              <span class="sr-only">{{ words.chart.category }}</span>
+            </th>
             <th v-for="column in table.columns" :key="column" scope="col" class="text-end">{{ column }}</th>
           </tr>
         </thead>
@@ -165,7 +168,7 @@ function valueOf(point: unknown): number | null {
           <tr v-for="row in table.rows" :key="row.label">
             <th scope="row" class="text-start font-normal text-toned">{{ row.label }}</th>
             <td v-for="(cell, index) in row.cells" :key="index" class="figure text-end">
-              <DrillLink v-if="cell.value !== null" :to="cell.to" :label="`${row.label}, ${table.columns[index]}, open the rows`">
+              <DrillLink v-if="cell.value !== null" :to="cell.to" :label="words.chart.openRows(row.label, table.columns[index] ?? '')">
                 {{ formatValue(cell.value) }}
               </DrillLink>
               <span v-else class="text-muted">–</span>

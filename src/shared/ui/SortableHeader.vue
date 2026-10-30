@@ -5,6 +5,7 @@ export type SortDirection = 'ascending' | 'descending'
 <script setup lang="ts">
 import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
+import { words } from './words'
 
 /**
  * The header cell of a plain table's column that sorts. A press sorts ascending, the next
@@ -34,7 +35,7 @@ function press(): void {
       class="-mx-2 font-medium"
       :class="direction === null ? 'text-muted' : 'text-highlighted'"
       :trailing-icon="icon"
-      :aria-label="`Sort by ${label.toLowerCase()}`"
+      :aria-label="words.sortBy(label)"
       data-testid="sort-column"
       @click="press"
     />

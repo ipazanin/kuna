@@ -4,6 +4,7 @@ import type { RecordKind } from './recordKind'
 import type { RecordFields } from './recordFields'
 import { storedFieldsOfValues, textOf } from './storedFields'
 import type { StoredField, StoredFields } from './storedFields'
+import { words } from './words'
 
 /**
  * How one kind's records are stored, whatever the storage: the key or id the stored fields hold,
@@ -53,12 +54,9 @@ export function withIdField<R extends { readonly id: RecordId }>(
   }
 }
 
-/** What names a record that gives nothing to name it by. */
-export const UNNAMED = 'unnamed'
-
 /** A label of the parts that are not blank, comma separated. */
 export function labelWords(parts: readonly string[]): string {
-  return parts.filter((part) => part !== '').join(', ') || UNNAMED
+  return parts.filter((part) => part !== '').join(', ') || words.unnamed
 }
 
 /** "month 3", or blank for a blank field. */

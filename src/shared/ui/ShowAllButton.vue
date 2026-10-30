@@ -6,6 +6,8 @@ export const FIRST_SHOWN = 10
 <script setup lang="ts">
 import UButton from '@nuxt/ui/components/Button.vue'
 
+import { words } from './words'
+
 /** The foot of a long list that shows its first ten entries, with the button that shows the rest. */
 defineProps<{
   /** Every entry of the list. */
@@ -18,7 +20,7 @@ const expanded = defineModel<boolean>('expanded', { required: true })
 <template>
   <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
     <UButton
-      :label="expanded ? 'Show fewer' : `Show all ${total}`"
+      :label="expanded ? words.showFewer : words.showAll(total)"
       :trailing-icon="expanded ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
       color="neutral"
       variant="outline"
@@ -27,6 +29,6 @@ const expanded = defineModel<boolean>('expanded', { required: true })
       data-testid="show-all"
       @click="expanded = !expanded"
     />
-    <span v-if="!expanded" class="figure text-xs text-muted">{{ FIRST_SHOWN }} of {{ total }} shown</span>
+    <span v-if="!expanded" class="figure text-xs text-muted">{{ words.shownOf(FIRST_SHOWN, total) }}</span>
   </div>
 </template>

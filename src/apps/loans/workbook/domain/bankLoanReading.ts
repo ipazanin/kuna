@@ -6,6 +6,8 @@ import { amountText, filledFields } from '../../../../shared/storage/domain/reco
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { optionalDate, optionalMoney, ownId, positiveMoney, refuse, requiredDate, textOf, wholeNumberOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
+import { words as storedWords } from '../../../../shared/storage/domain/words'
+import { words } from './words'
 
 /** Fifty years of monthly instalments, more than any housing loan runs. */
 const MOST_INSTALMENTS = 600
@@ -13,16 +15,16 @@ const MOST_INSTALMENTS = 600
 function countOf(fields: StoredFields, name: string): number | null {
   if (fields[name] === undefined) return null
   const count = wholeNumberOf(fields[name])
-  return count !== null && count >= 1 ? count : refuse(`${name} "${textOf(fields[name])}" is not a whole number above zero`)
+  return count !== null && count >= 1 ? count : refuse(words.notACount(name, textOf(fields[name])))
 }
 
 function interimInterestOf(fields: StoredFields, drawdown: BankLoan['drawdown'], firstInstalment: BankLoan['firstInstalment']): InterimInterest | null {
   const amount = optionalMoney(fields, 'interim_interest')
   const date = optionalDate(fields, 'interim_interest_date')
   if (amount === null && date === null) return null
-  if (amount === null || date === null) refuse('interim_interest and interim_interest_date go together, and only one is filled')
-  if (amount <= 0) refuse('interim_interest must be more than zero')
-  if (date < drawdown || date > firstInstalment) refuse(`interim_interest_date ${date} is not from the drawdown ${drawdown} to the first instalment ${firstInstalment}`)
+  if (amount === null || date === null) refuse(storedWords.reasons.goTogether('interim_interest', 'interim_interest_date'))
+  if (amount <= 0) refuse(storedWords.reasons.notAboveZero('interim_interest'))
+  if (date < drawdown || date > firstInstalment) refuse(words.interimOutside(date, drawdown, firstInstalment))
   return { amount, date }
 }
 
@@ -32,24 +34,24 @@ function subsidyOf(fields: StoredFields, instalments: number): LoanSubsidy | nul
   const count = countOf(fields, 'subsidy_instalments')
   const payer = textOf(fields.subsidy_payer)
   if (monthly === null && firstInstalment === null && count === null) {
-    if (payer !== '') refuse('subsidy_payer names a payer of no subsidy')
+    if (payer !== '') refuse(words.payerWithoutSubsidy)
     return null
   }
-  if (monthly === null || firstInstalment === null || count === null) refuse('subsidy_monthly, subsidy_first_instalment and subsidy_instalments go together, and not all are filled')
-  if (monthly <= 0) refuse('subsidy_monthly must be more than zero')
-  if (firstInstalment + count - 1 > instalments) refuse(`the subsidy runs past instalment ${instalments}, the loan's last`)
+  if (monthly === null || firstInstalment === null || count === null) refuse(words.subsidyIncomplete)
+  if (monthly <= 0) refuse(storedWords.reasons.notAboveZero('subsidy_monthly'))
+  if (firstInstalment + count - 1 > instalments) refuse(words.subsidyPastEnd(instalments))
   return { monthly, firstInstalment, instalments: count, payer }
 }
 
 export function bankLoanOf(fields: StoredFields, id: RecordId | null): BankLoan {
   const name = textOf(fields.name)
-  if (name === '') refuse('no name')
+  if (name === '') refuse(storedWords.reasons.none('name', ''))
   const principal = positiveMoney(fields, 'principal')
   const drawdown = requiredDate(fields, 'drawdown')
   const firstInstalment = requiredDate(fields, 'first_instalment')
-  if (firstInstalment <= drawdown) refuse(`first_instalment ${firstInstalment} is not after the drawdown ${drawdown}`)
-  const instalments = countOf(fields, 'instalments') ?? refuse('no instalments')
-  if (instalments > MOST_INSTALMENTS) refuse(`more than ${MOST_INSTALMENTS} instalments`)
+  if (firstInstalment <= drawdown) refuse(words.firstNotAfterDrawdown(firstInstalment, drawdown))
+  const instalments = countOf(fields, 'instalments') ?? refuse(storedWords.reasons.none('instalments', ''))
+  if (instalments > MOST_INSTALMENTS) refuse(words.tooManyInstalments(MOST_INSTALMENTS))
   return {
     id: ownId(id),
     name,

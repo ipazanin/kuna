@@ -1,14 +1,16 @@
+import { language } from '../text/language'
 import { dateFormat } from './dateFormat'
 import { firstDayOf, parseMonthKey, yearOfMonth } from './monthKey'
 import type { MonthKey } from './monthKey'
 
-const LONG = dateFormat({ month: 'short', year: 'numeric', timeZone: 'UTC' })
+// Croatian names the month in full where there is room, since its short names read as words.
+const LONG = dateFormat({ month: language === 'hr' ? 'long' : 'short', year: 'numeric', timeZone: 'UTC' })
 const SHORT = dateFormat({ month: 'short', year: '2-digit', timeZone: 'UTC' })
 const NAME = dateFormat({ month: 'long', timeZone: 'UTC' })
 const SHORT_NAME = dateFormat({ month: 'short', timeZone: 'UTC' })
 const NAME_AND_YEAR = dateFormat({ month: 'long', year: 'numeric', timeZone: 'UTC' })
 
-/** "Oct 2026", for tooltips and running text. */
+/** "Oct 2026", or "listopad 2026." in Croatian, for tooltips and running text. */
 export function monthLabel(month: MonthKey): string {
   return LONG(new Date(firstDayOf(month)))
 }

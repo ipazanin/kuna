@@ -10,9 +10,9 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
-  description: 'Svaka aplikacija vodi svoje knjige, a jedna sinkronizacija ažurira sve.',
+  description: 'Svaka aplikacija ima svoju datoteku, a jedna sinkronizacija ažurira sve.',
   setUp: 'Postavi',
-  failed: 'Knjige se nisu otvorile. Otvorite aplikaciju da vidite zašto.',
+  failed: 'Datoteka se nije otvorila. Otvorite aplikaciju da vidite zašto.',
 }
 
 export const words = language === 'hr' ? hr : en

@@ -8,11 +8,15 @@ import type { DocumentCopy } from '../../../../shared/storage/infrastructure/doc
 import { documentName } from '../../../../shared/storage/infrastructure/driveDocument'
 import type { LoansBooks } from '../domain/loansBooks'
 import { LOANS_APP, emptyLoansDocument } from '../infrastructure/loansDocument'
+import { words } from './words'
 
 type LoansStore = WorkbookStore<LoansBooks, DocumentCopy, WorkbookDocument>
 
 /** The name of the Loans file on Drive. */
 export const LOANS_FILE_NAME = documentName(LOANS_APP)
+
+/** The title of a Loans file made in this browser. It is stored with the file, so it stays English. */
+export const LOCAL_LOANS_TITLE = 'Loans file'
 
 /** What a new Loans file holds: the document on screen, which moves along to its new home, or an empty one. */
 export function newLoansFileContents(store: LoansStore): WorkbookDocument {
@@ -23,7 +27,7 @@ export function newLoansFileContents(store: LoansStore): WorkbookDocument {
 export async function exportLoansFile(store: LoansStore): Promise<string> {
   const snapshot = store.state.snapshot
   if (snapshot === null) {
-    throw new Error('There is no Loans file to export yet.')
+    throw new Error(words.nothingToExport)
   }
   const fileName = `kuna-${LOANS_APP}-export-${today()}.json`
   downloadFile(encodeDocument(snapshot.document), fileName, JSON_MIME_TYPE)

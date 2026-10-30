@@ -1,5 +1,6 @@
 import { GOOGLE_SCOPES, scopeRequest, scopesIn } from './googleScopes'
 import type { GoogleScope } from './googleScopes'
+import { words } from './words'
 
 /**
  * Google's OAuth 2.0 implicit flow for client-side web apps, as a full-page redirect: for phones and
@@ -144,7 +145,7 @@ export function savePendingRedirect(pending: PendingRedirect): void {
   try {
     localStorage.setItem(PENDING_KEY, JSON.stringify(pending))
   } catch {
-    throw new Error("This browser keeps no site storage, so the app could not check Google's answer. Sign in from an ordinary window.")
+    throw new Error(words.noSiteStorage)
   }
 }
 

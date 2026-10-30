@@ -34,7 +34,7 @@ function installedCodecs(): readonly RecordCodec<unknown>[] {
 export function codecOfKind<R>(kind: RecordKind<R>): RecordCodec<R> {
   const codec = installedCodecs().find((candidate) => candidate.kind.name === kind.name)
   if (codec === undefined) {
-    throw new Error(`Nothing stores ${kind.noun.many}.`)
+    throw new Error(`Nothing stores ${kind.noun.en.many}.`)
   }
   return codec as RecordCodec<R>
 }

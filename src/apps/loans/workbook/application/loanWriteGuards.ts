@@ -5,6 +5,7 @@ import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 import { storedOf } from '../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import type { FreshRecords } from '../../../../shared/storage/domain/writeRules'
+import { words } from '../../../../shared/storage/application/words'
 
 /** The book the records make, with the kind's records as `read` gives them. */
 export function bookWith<R>(kind: RecordKind<R>, read: RecordsRead<R>, records: FreshRecords): LoanBook {
@@ -29,10 +30,9 @@ export function dependentRefusals(parts: readonly (keyof LoansRecords)[], fresh:
       if (stored.id === null || !outcomeOf(before.readings[part], stored.id).kept) return []
       const known = outcomeOf(before.readings[part], stored.id).reasons
       const { kept, reasons } = outcomeOf(later.readings[part], stored.id)
-      const named = `The ${kind.noun.one} "${stored.label}"`
-      if (!kept) return [`${named} would then be left out: ${reasons.join(', ')}.`]
+      if (!kept) return [words.refusals.leftOutThen(kind.noun, stored.label, reasons.join(', '))]
       const introduced = reasons.filter((reason) => !known.includes(reason))
-      return introduced.length === 0 ? [] : [`${named} would then read with a problem: ${introduced.join(', ')}.`]
+      return introduced.length === 0 ? [] : [words.refusals.problemThen(kind.noun, stored.label, introduced.join(', '))]
     })
   })
 }

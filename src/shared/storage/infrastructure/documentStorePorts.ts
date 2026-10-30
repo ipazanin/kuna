@@ -14,6 +14,7 @@ import type { DocumentCopy } from './documentRecordStorage'
 import { createDriveDocument, documentName, driveDocumentHome, findDriveDocument, placeOfDriveDocument, refuseBackup } from './driveDocument'
 import type { DocumentDrive } from './driveDocument'
 import { openWorkbookCache } from './workbookCache'
+import { words } from './words'
 
 /** What an app's document holds: the schema version each contributor writes, the codec of each kind, and the books its records make. */
 export interface AppDocument<Books extends BooksRead> {
@@ -101,7 +102,7 @@ export function documentStorePorts<Books extends BooksRead>(
     }
     const document = decodeDocument(stored.text)
     if (document.app !== app) {
-      throw new Error(`${title} holds the books of another Kuna app, ${document.app}. Choose ${documentName(app)}.`)
+      throw new Error(words.otherApp(title, document.app, documentName(app)))
     }
     return { meta, revision: stored.revision, document }
   }
@@ -132,7 +133,7 @@ export function documentStorePorts<Books extends BooksRead>(
 
     async pickBooksFolder() {
       await refuseSecondFile((await driveAccess()).drive)
-      return pickDriveFolder('Choose the folder for your books')
+      return pickDriveFolder(words.pickFolder)
     },
 
     pickDriveFolder,
@@ -150,7 +151,7 @@ export function documentStorePorts<Books extends BooksRead>(
       const { fileId } = await createDriveDocument(access.drive, folderId, app, encodeDocument(document))
       const created = await readFile(fileId, null, documentName(app))
       if (!sameRecord(created.document.records, contents.records)) {
-        throw new Error(`${documentName(app)} on Drive does not read back with the records it was given, so the app does not use it. Trash the new file in Drive and try again.`)
+        throw new Error(words.notReadBack(documentName(app)))
       }
       return created
     },

@@ -1202,7 +1202,7 @@ async function checkWidth(width) {
         window.location.hash = '#/company/settings?tab=books'
       })
       await page.waitForSelector('[data-testid="data-source-card"]')
-      await expect(shown(), (screen) => screen.lang === 'hr' && /\d{1,2}\. [a-zčćđšž]{3,} \d{4}\./.test(screen.text), 'picking Hrvatski did not load the app again in Croatian, with a Croatian date')
+      await expect(shown(), (screen) => screen.lang === 'hr' && /\d{1,2}\.\s\d{1,2}\.\s\d{4}\./.test(screen.text), 'picking Hrvatski did not load the app again in Croatian, with a Croatian date')
       await page.evaluate(() => {
         window.location.hash = '#/settings'
       })

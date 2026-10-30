@@ -20,6 +20,11 @@ export function rateOfText(text: string): YearlyRate | null {
   return (Number(match[1]) * MILLIONTHS_PER_PERCENT + Number((match[2] ?? '').padEnd(4, '0'))) as YearlyRate
 }
 
+/** The rate as a fraction of one, such as 0.0318 for 3.18%. */
+export function fractionOf(rate: YearlyRate): number {
+  return rate / MILLIONTHS_PER_WHOLE
+}
+
 /** The percent as its shortest text, such as `3.18` for 31_800 and `3` for 30_000. */
 export function rateText(rate: YearlyRate): string {
   const decimals = String(rate % MILLIONTHS_PER_PERCENT)

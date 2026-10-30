@@ -59,7 +59,7 @@ interface StorageUnderTest<Books extends BooksRead> {
 function idOf(app: AppUnderTest<BooksRead>, kind: RecordKind<unknown>, fields: RecordFields): RecordId {
   const key = app.document.codecOf(kind).key(storedFieldsOfValues(filledFields(fields)))
   if (key === null) {
-    throw new Error(`The fixture's ${kind.noun.one} has no key or id.`)
+    throw new Error(`The fixture's ${kind.noun.en.one} has no key or id.`)
   }
   return recordIdOf(kind, key)
 }
@@ -68,7 +68,7 @@ function idOf(app: AppUnderTest<BooksRead>, kind: RecordKind<unknown>, fields: R
 function recordOf<R>(app: AppUnderTest<BooksRead>, kind: RecordKind<R>, fields: RecordFields): R {
   const made = refusalOr(() => app.document.codecOf(kind).make(storedFieldsOfValues(filledFields(fields)), idOf(app, kind, fields)))
   if ('refused' in made) {
-    throw new Error(`The fixture's ${kind.noun.one} is refused: ${made.refused}`)
+    throw new Error(`The fixture's ${kind.noun.en.one} is refused: ${made.refused}`)
   }
   return made.made
 }

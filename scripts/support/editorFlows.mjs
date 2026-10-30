@@ -5,7 +5,50 @@
  * flows that choose where the books are kept. A failure throws with what was missing.
  */
 
+import { en as companyEnglish, hr as companyCroatian } from '../../src/apps/company/words.ts'
+import { en as companySettingsEnglish, hr as companySettingsCroatian } from '../../src/apps/company/settings/presentation/words.ts'
+import { en as bankLoanEnglish, hr as bankLoanCroatian } from '../../src/apps/loans/bankLoans/presentation/words.ts'
+import { en as overviewEnglish, hr as overviewCroatian } from '../../src/apps/loans/overview/presentation/words.ts'
+import { en as loansSettingsEnglish, hr as loansSettingsCroatian } from '../../src/apps/loans/settings/presentation/words.ts'
+import { en as loansEnglish, hr as loansCroatian } from '../../src/apps/loans/words.ts'
+import { en as sharedEnglish, hr as sharedCroatian } from '../../src/shared/app/words.ts'
+import { en as homeEnglish, hr as homeCroatian } from '../../src/shell/home/words.ts'
+import { en as kunaSettingsEnglish, hr as kunaSettingsCroatian } from '../../src/shell/settings/words.ts'
+
 const TOAST = 'li[data-slot="base"]'
+
+/**
+ * What the menus and the Loans screens say in each language, from the app's own words. Company's
+ * screens other than its Settings are English in both until their words land.
+ */
+const SCREEN_WORDS = {
+  en: {
+    allApps: sharedEnglish.allApps,
+    setUp: homeEnglish.setUp,
+    kunaSettings: kunaSettingsEnglish.menu,
+    company: companyEnglish.name,
+    companySettings: companySettingsEnglish.title,
+    loans: loansEnglish.name,
+    overview: overviewEnglish.title,
+    loansSettings: loansSettingsEnglish.title,
+    firstRateHelp: bankLoanEnglish.ratePeriodDialog.firstHelp,
+    laterRateHelp: bankLoanEnglish.ratePeriodDialog.laterHelp,
+    whatIf: bankLoanEnglish.whatIf,
+  },
+  hr: {
+    allApps: sharedCroatian.allApps,
+    setUp: homeCroatian.setUp,
+    kunaSettings: kunaSettingsCroatian.menu,
+    company: companyCroatian.name,
+    companySettings: companySettingsCroatian.title,
+    loans: loansCroatian.name,
+    overview: overviewCroatian.title,
+    loansSettings: loansSettingsCroatian.title,
+    firstRateHelp: bankLoanCroatian.ratePeriodDialog.firstHelp,
+    laterRateHelp: bankLoanCroatian.ratePeriodDialog.laterHelp,
+    whatIf: bankLoanCroatian.whatIf,
+  },
+}
 
 export function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds))
@@ -3048,19 +3091,18 @@ function homeMenu() {
 }
 
 /** The home's sidebar lists the apps of its cards in their order, each tiled in its card's colour, leading where its card does, and named with the badge its state calls for. */
-function sidebarMatchesCards(menu, cards) {
+function sidebarMatchesCards(menu, cards, words = SCREEN_WORDS.en) {
+  const names = { company: words.company, loans: words.loans }
   const want = cards.map((card) => ({
     app: card.app,
     state: card.state,
-    text: card.state === 'set-up' ? `${APP_NAMES[card.app]} Set up` : APP_NAMES[card.app],
+    text: card.state === 'set-up' ? `${names[card.app]} ${words.setUp}` : names[card.app],
     tiled: true,
     colour: card.colour,
     href: card.href,
   }))
   if (JSON.stringify(menu) !== JSON.stringify(want)) throw new Error(`the home's sidebar lists ${JSON.stringify(menu)}, not the cards' apps ${JSON.stringify(want)}`)
 }
-
-const APP_NAMES = { company: 'Company', loans: 'Loans' }
 
 /**
  * Inside an app only its own menu, in the sidebar or the drawer: the quiet Kuna mark first as the link
@@ -3069,58 +3111,63 @@ const APP_NAMES = { company: 'Company', loans: 'Loans' }
  * home, whose sidebar lists both apps over Kuna settings, and the phone's top bar there has no menu
  * button. From the home, Company shows only its own menu.
  */
-export async function appMenuFlow(page, { press, shoot, inspect }) {
-  await openMenu(page, press)
-  const loans = await page.evaluate(menuShown)
-  if (loans.home === null || loans.home.name !== 'Kuna, All apps' || loans.home.tooltip !== 'All apps' || !loans.home.first)
-    throw new Error(`the menu does not start with the link home named Kuna, All apps: ${JSON.stringify(loans.home)}`)
-  if (!loans.tiled) throw new Error('the Loans menu heading has no icon tile')
-  if (loans.groups !== 1 || loans.name !== 'Loans') throw new Error(`the Loans menu shows ${loans.groups} groups, the first ${loans.name}`)
-  headingStandsOut(loans, 'Loans')
-  if (loans.subtitle !== null) throw new Error(`Loans shows "${loans.subtitle}" under its heading`)
-  if (JSON.stringify(loans.entries) !== JSON.stringify(['Overview']) || loans.current !== 'Overview') throw new Error(`Loans lists ${loans.entries.join(', ')} with ${loans.current} marked`)
-  if (JSON.stringify(loans.apart) !== JSON.stringify(['Settings'])) throw new Error(`Loans sets apart ${loans.apart.join(', ')}`)
-  const loansTitle = await page.title()
-  if (loansTitle !== 'Overview, Loans – Kuna') throw new Error(`the browser tab says "${loansTitle}"`)
-  await inspect?.('the Loans menu')
-  await shoot('app-menu-loans')
+export function appMenuFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot, inspect }) => {
+    await openMenu(page, press)
+    const loans = await page.evaluate(menuShown)
+    if (loans.home === null || loans.home.name !== `Kuna, ${words.allApps}` || loans.home.tooltip !== words.allApps || !loans.home.first)
+      throw new Error(`the menu does not start with the link home named Kuna, ${words.allApps}: ${JSON.stringify(loans.home)}`)
+    if (!loans.tiled) throw new Error('the Loans menu heading has no icon tile')
+    if (loans.groups !== 1 || loans.name !== words.loans) throw new Error(`the Loans menu shows ${loans.groups} groups, the first ${loans.name}`)
+    headingStandsOut(loans, words.loans)
+    if (loans.subtitle !== null) throw new Error(`Loans shows "${loans.subtitle}" under its heading`)
+    if (JSON.stringify(loans.entries) !== JSON.stringify([words.overview]) || loans.current !== words.overview) throw new Error(`Loans lists ${loans.entries.join(', ')} with ${loans.current} marked`)
+    if (JSON.stringify(loans.apart) !== JSON.stringify([words.loansSettings])) throw new Error(`Loans sets apart ${loans.apart.join(', ')}`)
+    const loansTitle = await page.title()
+    if (loansTitle !== `${words.overview}, ${words.loans} – Kuna`) throw new Error(`the browser tab says "${loansTitle}"`)
+    await inspect?.('the Loans menu')
+    await shoot(language === 'en' ? 'app-menu-loans' : `app-menu-loans-${language}`)
 
-  await pressSelector(page, press, '[data-testid="home-link"]')
-  await screenTitled(page, 'All apps')
-  const homeTitle = await page.title()
-  if (homeTitle !== 'Kuna') throw new Error(`the browser tab on the home says "${homeTitle}"`)
-  const bar = await page.evaluate(() => ({
-    menuButton: document.querySelector('[data-testid="open-navigation"]') !== null,
-    sidebar: document.querySelector('aside') !== null,
-    topBar: document.querySelector('[data-testid="top-bar-title"]')?.textContent?.trim() ?? null,
-    settings: [...document.querySelectorAll('aside [data-testid="nav-apart"] a, [data-testid="home-kuna-settings"]')]
-      .filter((link) => link.getClientRects().length > 0)
-      .map((link) => link.textContent?.trim()),
-  }))
-  if (bar.menuButton) throw new Error('the home has a menu button')
-  if (!bar.sidebar && bar.topBar !== null && bar.topBar !== 'Kuna') throw new Error(`the phone top bar on the home says "${bar.topBar}"`)
-  if (JSON.stringify(bar.settings) !== JSON.stringify(['Kuna settings'])) throw new Error(`the home offers ${JSON.stringify(bar.settings)} instead of Kuna settings once`)
-  if (bar.sidebar) {
-    const home = await page.evaluate(menuShown)
-    if (home.groups !== 0) throw new Error("the sidebar on the home shows an app's menu")
-    sidebarMatchesCards(await page.evaluate(homeMenu), await page.evaluate(homeCards))
+    await pressSelector(page, press, '[data-testid="home-link"]')
+    await screenTitled(page, words.allApps)
+    const homeTitle = await page.title()
+    if (homeTitle !== 'Kuna') throw new Error(`the browser tab on the home says "${homeTitle}"`)
+    const bar = await page.evaluate(() => ({
+      menuButton: document.querySelector('[data-testid="open-navigation"]') !== null,
+      sidebar: document.querySelector('aside') !== null,
+      topBar: document.querySelector('[data-testid="top-bar-title"]')?.textContent?.trim() ?? null,
+      settings: [...document.querySelectorAll('aside [data-testid="nav-apart"] a, [data-testid="home-kuna-settings"]')]
+        .filter((link) => link.getClientRects().length > 0)
+        .map((link) => link.textContent?.trim()),
+    }))
+    if (bar.menuButton) throw new Error('the home has a menu button')
+    if (!bar.sidebar && bar.topBar !== null && bar.topBar !== 'Kuna') throw new Error(`the phone top bar on the home says "${bar.topBar}"`)
+    if (JSON.stringify(bar.settings) !== JSON.stringify([words.kunaSettings])) throw new Error(`the home offers ${JSON.stringify(bar.settings)} instead of ${words.kunaSettings} once`)
+    if (bar.sidebar) {
+      const home = await page.evaluate(menuShown)
+      if (home.groups !== 0) throw new Error("the sidebar on the home shows an app's menu")
+      sidebarMatchesCards(await page.evaluate(homeMenu), await page.evaluate(homeCards), words)
+    }
+    await inspect?.('the home')
+
+    await pressSelector(page, press, '[data-testid="home-card"][data-app="company"]')
+    await screenTitled(page, 'Overview')
+    await openMenu(page, press)
+    const company = await page.evaluate(menuShown)
+    if (company.groups !== 1 || company.name !== words.company) throw new Error(`the Company menu shows ${company.groups} groups, the first ${company.name}`)
+    headingStandsOut(company, words.company)
+    if (!company.entries.includes('Overview') || !company.entries.some((entry) => entry.startsWith('Transactions')) || company.entries.some((entry) => entry === words.companySettings))
+      throw new Error(`Company lists ${company.entries.join(', ')}`)
+    if (JSON.stringify(company.apart) !== JSON.stringify([words.companySettings])) throw new Error(`Company sets apart ${company.apart.join(', ')}`)
+    const companyTitle = await page.title()
+    if (companyTitle !== `Overview, ${words.company} – Kuna`) throw new Error(`the browser tab says "${companyTitle}"`)
+    await inspect?.('the Company menu')
+    await shoot(language === 'en' ? 'app-menu-company' : `app-menu-company-${language}`)
   }
-  await inspect?.('the home')
-
-  await pressSelector(page, press, '[data-testid="home-card"][data-app="company"]')
-  await screenTitled(page, 'Overview')
-  await openMenu(page, press)
-  const company = await page.evaluate(menuShown)
-  if (company.groups !== 1 || company.name !== 'Company') throw new Error(`the Company menu shows ${company.groups} groups, the first ${company.name}`)
-  headingStandsOut(company, 'Company')
-  if (!company.entries.includes('Overview') || !company.entries.some((entry) => entry.startsWith('Transactions')) || company.entries.some((entry) => entry === 'Settings'))
-    throw new Error(`Company lists ${company.entries.join(', ')}`)
-  if (JSON.stringify(company.apart) !== JSON.stringify(['Settings'])) throw new Error(`Company sets apart ${company.apart.join(', ')}`)
-  const companyTitle = await page.title()
-  if (companyTitle !== 'Overview, Company – Kuna') throw new Error(`the browser tab says "${companyTitle}"`)
-  await inspect?.('the Company menu')
-  await shoot('app-menu-company')
 }
+
+export const appMenuFlow = appMenuFlowIn('en')
 
 /**
  * The home with both apps' books: Company's card leads with the cash on hand Overview shows and opens
@@ -3230,12 +3277,12 @@ async function loanCardShown(page, name, shown) {
     })
 }
 
-/** Opens a loan's page from its card on the Loans Overview. */
-async function openLoanCard(page, press, name) {
+/** Opens a loan's page from its card on the Loans Overview, which the language titles. */
+async function openLoanCard(page, press, name, overview = SCREEN_WORDS.en.overview) {
   await page.evaluate(() => {
     window.location.hash = '#/loans'
   })
-  await screenTitled(page, 'Overview')
+  await screenTitled(page, overview)
   const card = await page
     .waitForFunction(
       (wanted) => [...document.querySelectorAll('[data-testid="loan-card"]')].find((element) => element.querySelector('h2')?.textContent?.trim() === wanted) ?? null,
@@ -3356,24 +3403,30 @@ export async function loansEditorFlow(page, { press, shoot, inspect }) {
 }
 
 /** The bank loan's what-if: an extra payment inside the subsidy's window shows both effects and the warning, and Apply fills the extra payment dialog. */
-export async function loansWhatIfFlow(page, { press, shoot, inspect }) {
-  await fill(page, 'what-if-amount', '10000')
-  await fill(page, 'what-if-date', '2027-06-20')
-  await elementSays(page, '[data-testid="what-if-outcomes"]', ['Shorter term', 'Lower instalment', 'Interest saved', 'New instalment'], 'the what-if does not show both effects')
-  await elementSays(page, '[data-testid="what-if-subsidy"]', ['paying the subsidy back'], 'the what-if does not warn about the subsidy')
-  const panel = await page.$('[data-testid="what-if"]')
-  await panel.evaluate((element) => element.scrollIntoView({ block: 'start' }))
-  await delay(200)
-  await inspect?.('the what-if panel')
-  await shoot('loans-what-if')
-  await pressSelector(page, press, '[data-testid="what-if-apply-lower"]')
-  await page.waitForSelector('[data-testid="extra-payment-form"]', { visible: true })
-  const filled = await page.$eval('[data-testid="extra-payment-amount"]', (input) => input.value)
-  if (filled !== '10000.00') throw new Error(`Apply filled the amount with "${filled}"`)
-  await shoot('loans-what-if-apply')
-  await page.keyboard.press('Escape')
-  await dialogGone(page, '[data-testid="extra-payment-form"]')
+export function loansWhatIfFlowIn(language) {
+  const { whatIf } = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await fill(page, 'what-if-amount', '10000')
+    await fill(page, 'what-if-date', '2027-06-20')
+    await elementSays(page, '[data-testid="what-if-outcomes"]', [whatIf.shorter, whatIf.lower, whatIf.interestSaved, whatIf.newInstalment], 'the what-if does not show both effects')
+    await elementSays(page, '[data-testid="what-if-subsidy"]', [whatIf.subsidyTitle], 'the what-if does not warn about the subsidy')
+    const panel = await page.$('[data-testid="what-if"]')
+    await panel.evaluate((element) => element.scrollIntoView({ block: 'start' }))
+    await delay(200)
+    await inspect?.('the what-if panel')
+    await shoot('loans-what-if')
+    await pressSelector(page, press, '[data-testid="what-if-apply-lower"]')
+    await page.waitForSelector('[data-testid="extra-payment-form"]', { visible: true })
+    const filled = await page.$eval('[data-testid="extra-payment-amount"]', (input) => input.value)
+    if (filled !== '10000.00') throw new Error(`Apply filled the amount with "${filled}"`)
+    await shoot('loans-what-if-apply')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="extra-payment-form"]')
+  }
 }
+
+export const loansWhatIfFlow = loansWhatIfFlowIn('en')
 
 /** Opens a dialog with `opener`, waits for `shown` in it, shoots it under `name` and closes it with Escape. */
 async function lookAtDialog(page, press, shoot, opener, shown, name, says = null) {
@@ -3402,48 +3455,46 @@ async function goTo(page, hash, title) {
  * a subsidy, a new informal loan, each loan's own dialog, and the dialog of each change of the bank
  * loan, the subsidy's showing its payer.
  */
-export async function loansDialogsFlow(page, { press, shoot }) {
-  await lookAtDialog(page, press, shoot, '[data-testid="add-informal-loan"]', '[data-testid="informal-loan-form"]', 'dialog-add-informal-loan')
-  await lookAtDialog(page, press, shoot, '[data-testid="add-bank-loan"]', '[data-testid="bank-loan-form"]', 'dialog-add-bank-loan')
-  await pressSelector(page, press, '[data-testid="add-bank-loan"]')
-  await pressSelector(page, press, ':is([data-testid="bank-loan-subsidised"][role="switch"], [data-testid="bank-loan-subsidised"] [role="switch"])')
-  await switchIs(page, 'bank-loan-subsidised', true)
-  await delay(300)
-  await shoot('dialog-add-bank-loan-subsidy')
-  await page.keyboard.press('Escape')
-  await dialogGone(page, '[data-testid="bank-loan-form"]')
+export function loansDialogsFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await lookAtDialog(page, press, shoot, '[data-testid="add-informal-loan"]', '[data-testid="informal-loan-form"]', 'dialog-add-informal-loan')
+    await lookAtDialog(page, press, shoot, '[data-testid="add-bank-loan"]', '[data-testid="bank-loan-form"]', 'dialog-add-bank-loan')
+    await pressSelector(page, press, '[data-testid="add-bank-loan"]')
+    await pressSelector(page, press, ':is([data-testid="bank-loan-subsidised"][role="switch"], [data-testid="bank-loan-subsidised"] [role="switch"])')
+    await switchIs(page, 'bank-loan-subsidised', true)
+    await delay(300)
+    await shoot('dialog-add-bank-loan-subsidy')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="bank-loan-form"]')
 
-  await openLoanCard(page, press, 'Home loan')
-  await lookAtDialog(page, press, shoot, '[data-testid="bank-loan-edit"]', '[data-testid="bank-loan-form"]', 'dialog-bank-loan')
-  await pressSelector(page, press, '[data-testid="loan-subsidy"] [data-testid="change-edit"]')
-  await page.waitForSelector('[data-testid="subsidy-form"]', { visible: true, timeout: 10_000 })
-  const payer = await page.$eval('[data-testid="subsidy-payer"]', (input) => input.value)
-  if (payer !== 'APN') throw new Error(`the subsidy dialog shows the payer "${payer}", not APN`)
-  await delay(400)
-  await shoot('dialog-subsidy-form')
-  await page.keyboard.press('Escape')
-  await dialogGone(page, '[data-testid="subsidy-form"]')
-  for (const [card, form, says] of [
-    ['rate-periods', 'rate-period-form', 'The first period starts at the first instalment.'],
-    ['extra-payments', 'extra-payment-form', null],
-    ['late-instalments', 'late-instalment-form', null],
-  ]) {
-    await lookAtDialog(page, press, shoot, `[data-testid="${card}"] [data-testid="change-edit"]`, `[data-testid="${form}"]`, `dialog-${form}`, says)
+    await openLoanCard(page, press, 'Home loan', words.overview)
+    await lookAtDialog(page, press, shoot, '[data-testid="bank-loan-edit"]', '[data-testid="bank-loan-form"]', 'dialog-bank-loan')
+    await pressSelector(page, press, '[data-testid="loan-subsidy"] [data-testid="change-edit"]')
+    await page.waitForSelector('[data-testid="subsidy-form"]', { visible: true, timeout: 10_000 })
+    const payer = await page.$eval('[data-testid="subsidy-payer"]', (input) => input.value)
+    if (payer !== 'APN') throw new Error(`the subsidy dialog shows the payer "${payer}", not APN`)
+    await delay(400)
+    await shoot('dialog-subsidy-form')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="subsidy-form"]')
+    for (const [card, form, says] of [
+      ['rate-periods', 'rate-period-form', words.firstRateHelp],
+      ['extra-payments', 'extra-payment-form', null],
+      ['late-instalments', 'late-instalment-form', null],
+    ]) {
+      await lookAtDialog(page, press, shoot, `[data-testid="${card}"] [data-testid="change-edit"]`, `[data-testid="${form}"]`, `dialog-${form}`, says)
+    }
+    await lookAtDialog(page, press, shoot, '[data-testid="rate-periods"] [data-testid="change-add"]', '[data-testid="rate-period-form"]', 'dialog-add-rate-period', words.laterRateHelp)
+
+    await openLoanCard(page, press, 'From Marko', words.overview)
+    await lookAtDialog(page, press, shoot, '[data-testid="informal-loan-edit"]', '[data-testid="informal-loan-form"]', 'dialog-informal-loan')
+    await lookAtDialog(page, press, shoot, '[data-testid="movement-edit"]', '[data-testid="movement-form"]', 'dialog-movement')
   }
-  await lookAtDialog(
-    page,
-    press,
-    shoot,
-    '[data-testid="rate-periods"] [data-testid="change-add"]',
-    '[data-testid="rate-period-form"]',
-    'dialog-add-rate-period',
-    'The rate applies from this due date on.',
-  )
-
-  await openLoanCard(page, press, 'From Marko')
-  await lookAtDialog(page, press, shoot, '[data-testid="informal-loan-edit"]', '[data-testid="informal-loan-form"]', 'dialog-informal-loan')
-  await lookAtDialog(page, press, shoot, '[data-testid="movement-edit"]', '[data-testid="movement-form"]', 'dialog-movement')
 }
+
+export const loansDialogsFlow = loansDialogsFlowIn('en')
 
 /**
  * The Company dialogs whose fields sit two to a row, opened and closed again: an invoice and the

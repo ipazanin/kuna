@@ -29,6 +29,7 @@ interface Formatters {
   readonly compactSmall: Intl.NumberFormat
   readonly compact: Intl.NumberFormat
   readonly percent: Intl.NumberFormat
+  readonly rate: Intl.NumberFormat
   readonly decimal: Intl.NumberFormat
   readonly days: Intl.NumberFormat
   readonly unitName: string
@@ -53,6 +54,7 @@ function formatters(format: MoneyFormat = active.value): Formatters {
       compactSmall: new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: 0 }),
       compact: new Intl.NumberFormat(locale, { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 }),
       percent: new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }),
+      rate: new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 4 }),
       decimal: new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
       days: new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
       unitName: unitNameOf(currency),
@@ -97,6 +99,11 @@ export function formatCompactMoney(cents: number, sign: SignDisplay = 'negative'
 
 export function formatPercent(fraction: number, sign: SignDisplay = 'negative'): string {
   return withSign(fraction, formatters().percent.format(Math.abs(fraction)), sign)
+}
+
+/** An interest rate as a bank writes it, with up to four decimals of a percent, such as 2.99% or 3.1825%. */
+export function formatRate(fraction: number): string {
+  return formatters().rate.format(fraction)
 }
 
 /** A plain number with one decimal, such as a runway of 7.4 months. */

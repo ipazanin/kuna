@@ -3,11 +3,6 @@ import type { ExtraPayment } from '../../workbook/domain/extraPayment'
 
 /** What the form starts on: an extra payment to change, or the one the what-if panel worked out. */
 export type ExtraPaymentStart = Pick<ExtraPayment, 'date' | 'amount' | 'effect'> & { readonly editing: ExtraPayment | null }
-
-export const EFFECT_ITEMS = [
-  { label: 'Shorter term', value: 'shorter-term', description: 'Keep the instalment and finish sooner.' },
-  { label: 'Lower instalment', value: 'lower-instalment', description: 'Keep the end and pay less each month.' },
-]
 </script>
 
 <script setup lang="ts">
@@ -19,13 +14,16 @@ import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 
 import { EXTRA_PAYMENT_WRITES, newExtraPayment } from '../application/bankLoanWrites'
 import { useLoansBooks } from '../../workbook/application/loansStore'
+import { EXTRA_PAYMENT_EFFECTS } from '../../workbook/domain/extraPayment'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
-import { parseCivilDate } from '../../../../shared/calendar/civilDate'
+import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { plainAmount } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import { words as loansWords } from '../../words'
+import { words } from './words'
 
 /** Principal paid back early, and whether the bank shortens the term or lowers the instalment for it. */
 const open = defineModel<boolean>('open', { required: true })
@@ -37,6 +35,8 @@ const props = defineProps<{
 }>()
 
 const writes = useRecordWrites(useLoansBooks())
+
+const EFFECT_ITEMS = EXTRA_PAYMENT_EFFECTS.map((effect) => ({ value: effect, ...words.extraDialog.effects[effect] }))
 
 const date = ref('')
 const amount = ref('')
@@ -61,8 +61,8 @@ const parsedAmount = computed(() => {
 const errors = computed(() => {
   const day = parseCivilDate(date.value)
   return {
-    date: day === null ? 'A date, such as 2027-03-01' : day < props.book.loan.drawdown ? 'On or after the payout' : null,
-    amount: parsedAmount.value === null ? 'An amount above zero with at most two decimals' : null,
+    date: day === null ? loansWords.form.aDate(civilDate(2027, 3, 1)) : day < props.book.loan.drawdown ? words.extraDialog.afterPayout : null,
+    amount: parsedAmount.value === null ? loansWords.form.anAmount : null,
   }
 })
 
@@ -74,42 +74,47 @@ async function save(): Promise<void> {
   const before = editing.value
   const written =
     before === null
-      ? await writes.write('Extra payment added', (unit) => unit.of(EXTRA_PAYMENT_WRITES).add(typed), { failedTitle: 'Not added' })
-      : await writes.write('Extra payment saved', (unit) => unit.of(EXTRA_PAYMENT_WRITES).change(before, { ...typed, id: before.id }), { failedTitle: 'Not saved' })
+      ? await writes.write(words.extraDialog.added, (unit) => unit.of(EXTRA_PAYMENT_WRITES).add(typed), { failedTitle: loansWords.form.notAdded })
+      : await writes.write(words.extraDialog.saved, (unit) => unit.of(EXTRA_PAYMENT_WRITES).change(before, { ...typed, id: before.id }), { failedTitle: loansWords.form.notSaved })
   if (written) open.value = false
 }
 
 async function remove(): Promise<void> {
   const before = editing.value
   if (before === null) return
-  if (await writes.write('Extra payment deleted', (unit) => unit.of(EXTRA_PAYMENT_WRITES).remove(before), { failedTitle: 'Not deleted' })) open.value = false
+  if (await writes.write(words.extraDialog.deleted, (unit) => unit.of(EXTRA_PAYMENT_WRITES).remove(before), { failedTitle: loansWords.form.notDeleted })) open.value = false
 }
 </script>
 
 <template>
-  <AppDialog
-    v-model:open="open"
-    :title="editing === null ? 'Add an extra payment' : 'Change the extra payment'"
-    description="Principal paid back on top of the instalments. A housing loan charges no fee for it."
-  >
+  <AppDialog v-model:open="open" :title="editing === null ? words.extraDialog.addTitle : words.extraDialog.changeTitle" :description="words.extraDialog.description">
     <FormGrid id="extra-payment" as="form" data-testid="extra-payment-form" @submit.prevent="save">
-      <UFormField label="Paid on" :error="(tried && errors.date) || false">
+      <UFormField :label="words.extraDialog.paidOn" :error="(tried && errors.date) || false">
         <UInput v-model="date" type="date" class="w-full" data-testid="extra-payment-date" />
       </UFormField>
-      <UFormField label="Amount" :error="(tried && errors.amount) || false">
-        <UInput v-model="amount" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="extra-payment-amount" />
+      <UFormField :label="words.extraDialog.amount" :error="(tried && errors.amount) || false">
+        <UInput v-model="amount" inputmode="decimal" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="extra-payment-amount" />
       </UFormField>
-      <URadioGroup v-model="effect" :items="EFFECT_ITEMS" legend="What the bank does" data-testid="extra-payment-effect" />
+      <URadioGroup v-model="effect" :items="EFFECT_ITEMS" :legend="words.extraDialog.effect" data-testid="extra-payment-effect" />
     </FormGrid>
     <template #start>
-      <UButton v-if="editing !== null" label="Delete payment" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="extra-payment-delete" @click="remove" />
+      <UButton
+        v-if="editing !== null"
+        :label="words.extraDialog.delete"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="ghost"
+        :disabled="writes.busy.value"
+        data-testid="extra-payment-delete"
+        @click="remove"
+      />
     </template>
     <template #end>
-      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="loansWords.form.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
       <UButton
         type="submit"
         form="extra-payment"
-        :label="editing === null ? 'Add payment' : 'Save payment'"
+        :label="editing === null ? words.extraDialog.add : words.extraDialog.save"
         :icon="editing === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.busy.value"
         :disabled="writes.busy.value"

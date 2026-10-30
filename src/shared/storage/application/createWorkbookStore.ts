@@ -6,6 +6,7 @@ import { changesOf, checkWrite, isUndoable, receiptOf, undoOf } from './recordWr
 import type { RuledChange, WriteReceipt } from './recordWrites'
 import type { UnitOfWork } from './repository'
 import type { CopyMeta, CopyStorage, DriveFileLookup, DriveFilePlace, PickedFolder, WorkbookCache, WorkbookChoice, WorkbookCopy } from './workbookPorts'
+import { words } from './words'
 import { WorkbookWriteRefused } from './workbookWriteRefused'
 
 export type WorkbookStatus = 'opening' | 'ready' | 'syncing' | 'error'
@@ -327,10 +328,10 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
   async function writeRecords(title: string, changes: readonly RuledChange[], undid: WriteReceipt | null): Promise<WriteReceipt | null> {
     const current = state.snapshot
     if (current === null || state.choice === null || state.choice.id !== current.meta.id) {
-      throw new WorkbookWriteRefused('There is no workbook on screen to change.')
+      throw new WorkbookWriteRefused(words.noBooks)
     }
     if (state.writing || state.status === 'syncing') {
-      throw new WorkbookWriteRefused('Another change or a sync is still running. Try again when it finishes.')
+      throw new WorkbookWriteRefused(words.busy)
     }
     const options = { undoing: undid !== null }
     state.writing = true
@@ -359,7 +360,7 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
         }
         sent = false
         if (retry === MOVED_RETRIES) {
-          throw new WorkbookWriteRefused('Nothing was written. Another device kept saving the workbook during this change. Sync and try again.')
+          throw new WorkbookWriteRefused(words.savedElsewhere)
         }
         await ports.pause(backoff(retry))
       }
@@ -457,9 +458,9 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
 
     async undo(write) {
       if (!canUndo(write, state.writes)) {
-        throw new WorkbookWriteRefused('This change cannot be undone from here.')
+        throw new WorkbookWriteRefused(words.notUndoable)
       }
-      await writeRecords('Undone', undoOf(write.receipt), write.receipt)
+      await writeRecords(words.undone, undoOf(write.receipt), write.receipt)
     },
   }
 }

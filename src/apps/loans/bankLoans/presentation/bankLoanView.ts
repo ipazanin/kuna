@@ -9,6 +9,8 @@ import { shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import { lastDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
 import { ZERO, addMoney, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { plural } from '../../../../shared/text/translation'
+import { words } from './words'
 
 /** The figures a bank loan's card and page lead with, on a day. */
 export interface BankLoanFigures {
@@ -76,7 +78,7 @@ export interface PlanLine {
   /** Worked out at a variable rate, so the bank's figure may differ. */
   readonly estimate: boolean
   readonly late: boolean
-  /** "Paid", "Due", "Paid 8 Dec, 18 days late" or "Extra payment". */
+  /** "Paid", "Due", "Paid 8 Dec, 18 days late" or "Extra payment", in the language on screen. */
   readonly status: string
 }
 
@@ -92,10 +94,13 @@ export interface PlanYear {
 }
 
 function statusOf(row: PlanRow, paidLate: CivilDate | undefined, day: CivilDate): string {
-  if (row.kind === 'extra-payment') return 'Extra payment'
-  if (row.kind === 'interim-interest') return row.date <= day ? 'Interim interest, paid' : 'Interim interest, due'
-  if (paidLate !== undefined) return `Paid ${shortDayLabel(paidLate)}, ${daysBetween(row.date, paidLate)} days late`
-  return row.date <= day ? 'Paid' : 'Due'
+  if (row.kind === 'extra-payment') return words.status.extra
+  if (row.kind === 'interim-interest') return row.date <= day ? words.status.interimPaid : words.status.interimDue
+  if (paidLate !== undefined) {
+    const days = daysBetween(row.date, paidLate)
+    return plural(words.status.paidLate(days, shortDayLabel(paidLate)), days)
+  }
+  return row.date <= day ? words.status.paid : words.status.due
 }
 
 const NO_TOTALS: PlanTotals = { payment: ZERO, yourShare: ZERO, interest: ZERO, principal: ZERO, subsidy: ZERO }

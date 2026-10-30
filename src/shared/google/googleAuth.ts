@@ -3,7 +3,7 @@ import { shallowRef } from 'vue'
 import { googleConfig } from './googleConfig'
 import { REDIRECT_SIGN_IN_QUERY, authorizationUrl, redirectFragmentOf, savePendingRedirect, settleRedirect, takePendingRedirect } from './googleRedirect'
 import type { GoogleToken, RedirectAsk, RedirectResume, RedirectReturn } from './googleRedirect'
-import { GOOGLE_SCOPES, NOT_GRANTED, scopeRequest, scopesIn, scopesOf } from './googleScopes'
+import { GOOGLE_SCOPES, scopeRequest, scopesIn, scopesOf } from './googleScopes'
 import type { GoogleScope } from './googleScopes'
 import {
   forgetGoogleDevice,
@@ -18,6 +18,7 @@ import {
   saveSilentRefusal,
 } from './googleSession'
 import { loadScript } from './loadScript'
+import { words } from './words'
 
 const IDENTITY_SERVICES_SRC = 'https://accounts.google.com/gsi/client'
 
@@ -33,12 +34,10 @@ const SILENT_UNDER_WAY = 'unanswered'
 /** Google's answer to a silent trip that needs a person. Firefox gives it for every silent trip, so a token from a tap does not show the trip works there. */
 const INTERACTION_REQUIRED = 'interaction_required'
 
-const STAYS_ON_PAGE = 'This page holds no Google access for this, and asking for it on a phone would leave the page. Sync or Allow access first, then try again.'
-
 /** What a tap's ask says when Google's popup never gave an answer, by the GIS error type. */
 const POPUP_FAILURES: Readonly<Record<string, string>> = {
-  popup_failed_to_open: "The browser blocked Google's window.",
-  popup_closed: "Google's window was closed before access was allowed.",
+  popup_failed_to_open: words.popupBlocked,
+  popup_closed: words.popupClosed,
 }
 
 /** Where this page stands with Google. */
@@ -202,7 +201,7 @@ export async function requestAccess(scopes: readonly GoogleScope[], then: Redire
   }
   if (signsInByRedirect()) {
     if (then === null) {
-      throw new Error(STAYS_ON_PAGE)
+      throw new Error(words.staysOnPage)
     }
     return redirectToGoogle(asked, then, 'tap')
   }
@@ -219,13 +218,13 @@ export async function requestAccess(scopes: readonly GoogleScope[], then: Redire
       ...(loginHint === null ? {} : { login_hint: loginHint }),
       callback: (response) => {
         if (response.error) {
-          reject(new Error(`Google refused access: ${response.error} ${response.error_description ?? ''}`.trim()))
+          reject(new Error(words.refused(response.error, response.error_description ?? '')))
           return
         }
         resolve({ value: response.access_token, scopes: scopesIn(response.scope), expiresAt: requestedAt + Number(response.expires_in) * 1000 })
       },
       error_callback: (failure) => {
-        reject(new Error(POPUP_FAILURES[failure.type] ?? `Google's window did not finish: ${failure.type} ${failure.message}`.trim()))
+        reject(new Error(POPUP_FAILURES[failure.type] ?? words.unfinished(failure.type, failure.message)))
       },
     })
     client.requestAccessToken()
@@ -242,7 +241,7 @@ export async function tokenFor(scope: GoogleScope, then: RedirectResume | null):
   await requestAccess([scope], then)
   const token = currentToken(scope)
   if (token === null) {
-    throw new Error(NOT_GRANTED[scope])
+    throw new Error(words.notGranted[scope])
   }
   return token
 }

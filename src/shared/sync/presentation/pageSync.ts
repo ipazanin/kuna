@@ -10,6 +10,7 @@ import { createSync } from '../application/sync'
 import type { SyncGroup, SyncStep } from '../application/sync'
 import { BOOKS_STEP, oldestRead, pageAccessOf, syncControlOf, withBooksFailure } from '../application/syncRun'
 import type { AccessNeed, SyncControl, SyncRun } from '../application/syncRun'
+import { words as syncWords } from '../application/words'
 
 /** What an app gives the page's one sync. */
 export interface AppSyncGroup {
@@ -69,13 +70,11 @@ function booksStep(store: AppSyncGroup['store']): SyncStep {
   return {
     ...BOOKS_STEP,
     scopes: () => BOOKS_STEP.scopes,
-    startLine: 'Reading the file',
+    startLine: syncWords.reading,
     on: () => true,
     async run() {
       await store.sync()
-      return store.state.status === 'error'
-        ? { kind: 'failed', line: store.state.error ?? 'The file on Drive could not be read.', link: null }
-        : { kind: 'done', line: 'Up to date', writeId: null, link: null }
+      return store.state.status === 'error' ? { kind: 'failed', line: store.state.error ?? syncWords.notRead, link: null } : { kind: 'done', line: syncWords.upToDate, writeId: null, link: null }
     },
   }
 }
@@ -133,7 +132,7 @@ export function startPageSync(apps: readonly Pick<AppContribution, 'id' | 'name'
       if (choice?.source === 'browser' || status !== 'error' || books?.state.kind === 'failed') {
         return shown
       }
-      return withBooksFailure(shown, group, error ?? 'The file on Drive could not be read.', syncedAt ?? new Date().toISOString())
+      return withBooksFailure(shown, group, error ?? syncWords.notRead, syncedAt ?? new Date().toISOString())
     }, sync.state.run),
   )
 

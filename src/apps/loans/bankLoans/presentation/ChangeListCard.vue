@@ -12,7 +12,9 @@ export interface ChangeLine {
 <script setup lang="ts">
 import UButton from '@nuxt/ui/components/Button.vue'
 
+import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import { words } from './words'
 
 /** A card of one kind of change to a bank loan, each record with its Change button, and Add in the header. */
 withDefaults(
@@ -38,7 +40,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <AppCard :title="title" :subtitle="subtitle" :collapse-id="collapseId" :summary="lines.length === 0 ? empty : `${lines.length} on file`">
+  <AppCard :title="title" :subtitle="subtitle" :collapse-id="collapseId" :summary="lines.length === 0 ? empty : plural(words.changes.onFile(lines.length), lines.length)">
     <template v-if="canAdd" #actions>
       <UButton :label="addLabel" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="change-add" @click="emit('add')" />
     </template>
@@ -50,13 +52,13 @@ const emit = defineEmits<{
           <p class="text-xs text-muted">{{ line.detail }}</p>
         </div>
         <UButton
-          label="Change"
+          :label="words.changes.change"
           icon="i-lucide-pencil"
           color="neutral"
           variant="ghost"
           size="sm"
           class="shrink-0"
-          :aria-label="`Change ${line.title}`"
+          :aria-label="words.changes.changeLine(line.title)"
           data-testid="change-edit"
           @click="emit('change', line.key)"
         />

@@ -7,12 +7,14 @@ import { amountText, filledFields } from '../../../../shared/storage/domain/reco
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { ownId, refuse, requiredChoice, requiredDate, requiredMoney, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
+import { words as storedWords } from '../../../../shared/storage/domain/words'
+import { words } from './words'
 
 export function informalLoanOf(fields: StoredFields, id: RecordId | null): InformalLoan {
   const name = textOf(fields.name)
-  if (name === '') refuse('no name')
+  if (name === '') refuse(storedWords.reasons.none('name', ''))
   const openingBalance = requiredMoney(fields, 'opening_balance')
-  if (openingBalance < 0) refuse('opening_balance is below zero')
+  if (openingBalance < 0) refuse(words.openingBelowZero)
   return {
     id: ownId(id),
     name,

@@ -3,6 +3,7 @@ import type { LoanSubsidy } from '../../workbook/domain/bankLoan'
 import { plainAmount } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { typedCount } from './typedCount'
+import { words as loansWords } from '../../words'
 import { words } from './words'
 
 export interface SubsidyTexts {
@@ -28,7 +29,7 @@ export function typedSubsidy(
   const count = typedCount(texts.instalments)
   const pastTheEnd = firstInstalment !== null && count !== null && instalments !== null && firstInstalment + count - 1 > instalments
   const errors = {
-    monthly: monthly === null || monthly <= 0 ? words.subsidyFields.monthlyError : null,
+    monthly: monthly === null || monthly <= 0 ? loansWords.form.anAmount : null,
     firstInstalment: firstInstalment === null ? words.subsidyFields.firstInstalmentError : null,
     instalments: count === null ? words.subsidyFields.instalmentsError : pastTheEnd && instalments !== null ? words.subsidyFields.pastTheEnd(instalments) : null,
   }
@@ -56,7 +57,7 @@ const errors = computed(() => typedSubsidy(texts.value, props.loanInstalments).e
 
 <template>
   <UFormField :label="words.subsidyFields.monthly" :error="(tried && errors.monthly) || false" :help="words.subsidyFields.monthlyHelp">
-    <UInput v-model="texts.monthly" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="subsidy-monthly" />
+    <UInput v-model="texts.monthly" inputmode="decimal" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="subsidy-monthly" />
   </UFormField>
   <UFormField :label="words.subsidyFields.payer" :help="words.subsidyFields.payerHelp">
     <UInput v-model="texts.payer" placeholder="APN" class="w-full" data-testid="subsidy-payer" />

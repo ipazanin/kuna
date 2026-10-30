@@ -111,7 +111,7 @@ function openMovement(movement: Movement | null): void {
           :title="words.movements.title"
           :subtitle="words.movements.subtitle"
           collapse-id="loans.movements"
-          :summary="plural(words.movements.summary(lines.length), lines.length)"
+          :summary="plural(words.tiles.movements(lines.length), lines.length)"
           data-testid="movement-list"
         >
           <p v-if="lines.length === 0" class="px-4 pb-4 text-sm text-muted sm:px-5">{{ words.movements.none(formatMoney(book.loan.openingBalance)) }}</p>

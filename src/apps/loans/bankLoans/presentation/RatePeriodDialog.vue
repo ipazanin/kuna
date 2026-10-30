@@ -17,6 +17,7 @@ import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import RateFields, { rateError, typedRate } from './RateFields.vue'
 import type { RateTexts } from './RateFields.vue'
+import { words as loansWords } from '../../words'
 import { words } from './words'
 
 /** A rate the loan pays from one of its due dates on. The first period always starts at the first instalment. */
@@ -67,15 +68,15 @@ async function save(): Promise<void> {
   const before = props.editing
   const written =
     before === null
-      ? await writes.write(words.ratePeriodDialog.added, (unit) => unit.of(RATE_PERIOD_WRITES).add(typed), { failedTitle: words.ratePeriodDialog.notAdded })
-      : await writes.write(words.ratePeriodDialog.saved, (unit) => unit.of(RATE_PERIOD_WRITES).change(before, { ...typed, id: before.id }), { failedTitle: words.ratePeriodDialog.notSaved })
+      ? await writes.write(words.ratePeriodDialog.added, (unit) => unit.of(RATE_PERIOD_WRITES).add(typed), { failedTitle: loansWords.form.notAdded })
+      : await writes.write(words.ratePeriodDialog.saved, (unit) => unit.of(RATE_PERIOD_WRITES).change(before, { ...typed, id: before.id }), { failedTitle: loansWords.form.notSaved })
   if (written) open.value = false
 }
 
 async function remove(): Promise<void> {
   const before = props.editing
   if (before === null) return
-  if (await writes.write(words.ratePeriodDialog.deleted, (unit) => unit.of(RATE_PERIOD_WRITES).remove(before), { failedTitle: words.ratePeriodDialog.notDeleted })) open.value = false
+  if (await writes.write(words.ratePeriodDialog.deleted, (unit) => unit.of(RATE_PERIOD_WRITES).remove(before), { failedTitle: loansWords.form.notDeleted })) open.value = false
 }
 </script>
 
@@ -114,7 +115,7 @@ async function remove(): Promise<void> {
       />
     </template>
     <template #end>
-      <UButton :label="words.ratePeriodDialog.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="loansWords.form.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
       <UButton
         type="submit"
         form="rate-period"

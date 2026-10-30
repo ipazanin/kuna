@@ -6,8 +6,9 @@ import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 
 import StepCard from '../../../../shared/ui/StepCard.vue'
 import { useLoansBooks } from '../../workbook/application/loansStore'
-import { newLoansFileContents } from '../../workbook/presentation/loansFile'
+import { LOCAL_LOANS_TITLE, newLoansFileContents } from '../../workbook/presentation/loansFile'
 import { useLoansStart } from './useLoansStart'
+import { words } from './words'
 
 type LoansHome = 'drive' | 'browser' | 'open'
 
@@ -16,9 +17,9 @@ const start = useLoansStart()
 const store = useLoansBooks()
 
 const CHOICES: { label: string; description: string; value: LoansHome }[] = [
-  { label: 'A new file on Google Drive', description: 'One file you open on your phone and computer. Backed up daily.', value: 'drive' },
-  { label: 'A new file in this browser', description: 'No Google. One device. Export to keep a copy.', value: 'browser' },
-  { label: 'My file on Google Drive', description: 'Another device already keeps it.', value: 'open' },
+  { label: words.home.drive, description: words.home.driveNote, value: 'drive' },
+  { label: words.home.browser, description: words.home.browserNote, value: 'browser' },
+  { label: words.home.open, description: words.home.openNote, value: 'open' },
 ]
 
 const chosen = ref<LoansHome>('drive')
@@ -39,7 +40,7 @@ async function proceed(): Promise<void> {
   }
   starting.value = true
   failure.value = null
-  await store.replaceLocalWorkbook(newLoansFileContents(store), 'Loans file')
+  await store.replaceLocalWorkbook(newLoansFileContents(store), LOCAL_LOANS_TITLE)
   starting.value = false
   if (store.state.status === 'error') {
     failure.value = store.state.error
@@ -50,19 +51,12 @@ async function proceed(): Promise<void> {
 </script>
 
 <template>
-  <StepCard title="Where the Loans file lives">
-    <URadioGroup v-model="chosen" :items="CHOICES" legend="Where the Loans file lives" variant="card" :ui="{ legend: 'sr-only', fieldset: 'gap-2' }" data-testid="loans-start-home" />
-    <UAlert
-      v-if="dropsBrowserFile"
-      icon="i-lucide-triangle-alert"
-      color="warning"
-      variant="subtle"
-      title="The Loans file in this browser is deleted when the one on Drive opens"
-      description="It exists only here and in the files you exported. Export it first if you want to keep it."
-    />
-    <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" title="The Loans file was not made" :description="failure" />
+  <StepCard :title="words.home.title">
+    <URadioGroup v-model="chosen" :items="CHOICES" :legend="words.home.title" variant="card" :ui="{ legend: 'sr-only', fieldset: 'gap-2' }" data-testid="loans-start-home" />
+    <UAlert v-if="dropsBrowserFile" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="words.home.dropsTitle" :description="words.home.drops" />
+    <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.home.notMade" :description="failure" />
     <template #actions>
-      <UButton label="Continue" trailing-icon="i-lucide-arrow-right" :loading="starting" data-testid="loans-start-continue" @click="proceed" />
+      <UButton :label="words.home.continue" trailing-icon="i-lucide-arrow-right" :loading="starting" data-testid="loans-start-continue" @click="proceed" />
     </template>
   </StepCard>
 </template>

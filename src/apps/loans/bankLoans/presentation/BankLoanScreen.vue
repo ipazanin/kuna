@@ -5,7 +5,7 @@ import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import { subsidyLastCovered } from '../domain/loanFigures'
-import { rateText } from '../domain/yearlyRate'
+import { fractionOf } from '../domain/yearlyRate'
 import { balanceChart } from '../../balances/presentation/balanceChart'
 import { words as balanceWords } from '../../balances/presentation/words'
 import { bankLoanNamed, LOANS_OVERVIEW_ROUTE } from '../../overview/presentation/loanLinks'
@@ -16,7 +16,7 @@ import BankLoanTiles from './BankLoanTiles.vue'
 import { bankLoanFigures, bankLoanMonths, planYears } from './bankLoanView'
 import ChangeListCard from './ChangeListCard.vue'
 import type { ChangeLine } from './ChangeListCard.vue'
-import ExtraPaymentDialog, { EFFECT_ITEMS } from './ExtraPaymentDialog.vue'
+import ExtraPaymentDialog from './ExtraPaymentDialog.vue'
 import type { ExtraPaymentStart } from './ExtraPaymentDialog.vue'
 import LateInstalmentDialog from './LateInstalmentDialog.vue'
 import PaymentsCard from './PaymentsCard.vue'
@@ -32,7 +32,7 @@ import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
-import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { formatMoney, formatRate } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
@@ -68,13 +68,11 @@ const openYear = computed(() => {
   return current < first.year ? first.year : last.year
 })
 
-const effectName = (effect: string): string => EFFECT_ITEMS.find((item) => item.value === effect)?.label ?? effect
-
 const rateLines = computed((): ChangeLine[] =>
   (book.value?.ratePeriods ?? []).map((period) => ({
     key: period.id,
-    title: words.changes.rate(rateText(period.rate), words.changes.rateTypes[period.rateType]),
-    detail: [words.changes.from(dayLabel(period.from)), period.note].filter((part) => part !== '').join('. '),
+    title: words.changes.rate(formatRate(fractionOf(period.rate)), words.changes.rateTypes[period.rateType]),
+    detail: words.changes.rateDetail(dayLabel(period.from), period.note),
   })),
 )
 const subsidyLines = computed((): ChangeLine[] => {
@@ -93,14 +91,14 @@ const subsidyLines = computed((): ChangeLine[] => {
 const extraLines = computed((): ChangeLine[] =>
   [...(book.value?.extraPayments ?? [])]
     .sort((earlier, later) => earlier.date.localeCompare(later.date))
-    .map((payment) => ({ key: payment.id, title: formatMoney(payment.amount), detail: `${dayLabel(payment.date)}, ${effectName(payment.effect).toLowerCase()}` })),
+    .map((payment) => ({ key: payment.id, title: formatMoney(payment.amount), detail: words.changes.extraDetail(dayLabel(payment.date), payment.effect) })),
 )
 const lateLines = computed((): ChangeLine[] =>
   [...(book.value?.lateInstalments ?? [])]
     .sort((earlier, later) => earlier.due.localeCompare(later.due))
     .map((late) => {
       const days = daysBetween(late.due, late.paid)
-      return { key: late.id, title: words.changes.due(dayLabel(late.due)), detail: plural(words.changes.paidLate(days, dayLabel(late.paid)), days) }
+      return { key: late.id, title: words.changes.due(dayLabel(late.due)), detail: plural(words.status.paidLate(days, dayLabel(late.paid)), days) }
     }),
 )
 

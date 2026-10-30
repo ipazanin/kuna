@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { typedAmount } from '../src/shared/money/typedAmount'
 
@@ -42,11 +42,47 @@ describe('typedAmount', () => {
     expect(typedAmount('1 234')).toBeNull()
   })
 
+  it('refuses dots that group thousands, which Croatian reads', () => {
+    expect(typedAmount('1.500')).toBeNull()
+    expect(typedAmount('1.500,00')).toBeNull()
+  })
+
   it('refuses half-written and non-decimal numbers', () => {
     expect(typedAmount('12.')).toBeNull()
     expect(typedAmount('.5')).toBeNull()
     expect(typedAmount('1e3')).toBeNull()
     expect(typedAmount('0x10')).toBeNull()
     expect(typedAmount('€12')).toBeNull()
+  })
+})
+
+describe('typedAmount in Croatian', () => {
+  async function croatian(): Promise<typeof typedAmount> {
+    vi.resetModules()
+    vi.doMock('../src/shared/text/language', () => ({ language: 'hr', intlLocale: 'hr-HR' }))
+    const { typedAmount: croatianAmount } = await import('../src/shared/money/typedAmount')
+    vi.doUnmock('../src/shared/text/language')
+    return croatianAmount
+  }
+
+  it('reads dots between groups of three as thousands', async () => {
+    const amount = await croatian()
+    expect(amount('1.500')).toBe(150000)
+    expect(amount('1.500,00')).toBe(150000)
+    expect(amount('10.000,50')).toBe(1000050)
+  })
+
+  it('reads one or two decimals after a comma or a point', async () => {
+    const amount = await croatian()
+    expect(amount('12,5')).toBe(1250)
+    expect(amount('12.50')).toBe(1250)
+    expect(amount('1.5')).toBe(150)
+  })
+
+  it('refuses dots that do not group thousands', async () => {
+    const amount = await croatian()
+    expect(amount('1.50.000')).toBeNull()
+    expect(amount('1.5000')).toBeNull()
+    expect(amount('1.500.00')).toBeNull()
   })
 })

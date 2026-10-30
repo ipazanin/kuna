@@ -10,9 +10,9 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
-  purpose: 'Vaši zajmovi u zasebnoj datoteci: bankovni krediti s otplatnim planom i zajmovi među ljudima.',
+  purpose: 'Vaši krediti u zasebnoj datoteci: krediti banaka s otplatnim planom i pozajmice među ljudima.',
   owed: 'Ukupno dugujete',
-  owedToYou: 'Duguju vama',
+  owedToYou: 'Duguje vam se',
 }
 
 export const words = language === 'hr' ? hr : en

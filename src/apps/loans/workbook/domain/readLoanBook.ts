@@ -10,10 +10,11 @@ import type { PlanRow } from '../../bankLoans/domain/loanPlan'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayMonthsLater } from '../../../../shared/calendar/monthKey'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
+import type { RecordKind, RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import { SHARED_ID_REASON, idSharing, problemOf, refusedProblems } from '../../../../shared/storage/domain/recordsRead'
 import type { ReadRecord, Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
+import { words } from './words'
 
 /** What the Loans file holds of each kind. */
 export interface LoansRecords {
@@ -64,9 +65,10 @@ export interface InformalLoanBook {
   readonly movements: readonly Movement[]
 }
 
-/** A record problem with the kind of the record it is about. */
+/** A record problem with the kind of the record it is about, by its name and by what a sentence calls it. */
 export interface LoanProblem extends RecordProblem {
   readonly kind: string
+  readonly noun: RecordNoun
 }
 
 export interface LoanBook {
@@ -111,7 +113,6 @@ function sharingDay<R extends { readonly loan: RecordId }>(read: RecordsRead<R>,
 export function readLoanBook(records: LoansRecords): LoanBook {
   const bankLoanReading = readEach(records.bankLoans, () => [])
   const bankLoans = new Map(bankLoanReading.facts.map((loan) => [loan.id, loan]))
-  const missingBankLoan = 'names no bank loan in the file'
 
   const periodsSharingDay = sharingDay(records.ratePeriods, (period) => period.from)
   const earliestFrom = new Map<RecordId, CivilDate>()
@@ -121,19 +122,19 @@ export function readLoanBook(records: LoansRecords): LoanBook {
   }
   const ratePeriods = readEach(records.ratePeriods, ({ record: period }) => {
     const loan = bankLoans.get(period.loan)
-    if (loan === undefined) return [missingBankLoan]
-    if (!dueDates(loan).has(period.from)) return [`from ${period.from} is not a due date of "${loan.name}"`]
-    if (periodsSharingDay.has(`${period.loan} ${period.from}`)) return [`another rate period of "${loan.name}" starts on ${period.from} too`]
+    if (loan === undefined) return [words.noBankLoan]
+    if (!dueDates(loan).has(period.from)) return [words.notADueDate('from', period.from, loan.name)]
+    if (periodsSharingDay.has(`${period.loan} ${period.from}`)) return [words.rateSharesDay(loan.name, period.from)]
     if (period.from === earliestFrom.get(period.loan) && period.from !== loan.firstInstalment) {
-      return [`from ${period.from} leaves the instalments of "${loan.name}" from ${loan.firstInstalment} without a rate`]
+      return [words.leavesWithoutRate(period.from, loan.name, loan.firstInstalment)]
     }
     return []
   })
 
   const extraPayments = readEach(records.extraPayments, ({ record: payment }) => {
     const loan = bankLoans.get(payment.loan)
-    if (loan === undefined) return [missingBankLoan]
-    return payment.date < loan.drawdown ? [`date ${payment.date} is before "${loan.name}" was drawn on ${loan.drawdown}`] : []
+    if (loan === undefined) return [words.noBankLoan]
+    return payment.date < loan.drawdown ? [words.beforeDrawdown(payment.date, loan.name, loan.drawdown)] : []
   })
 
   const plans = new Map(
@@ -152,26 +153,24 @@ export function readLoanBook(records: LoansRecords): LoanBook {
       ] as const
     }),
   )
-  const unplanned = records.bankLoans.records
-    .filter((stored) => plans.get(stored.record.id) === null)
-    .map((stored) => problemOf(stored, `no rate period starts at its first instalment on ${stored.record.firstInstalment}, so its plan cannot be worked out`))
+  const unplanned = records.bankLoans.records.filter((stored) => plans.get(stored.record.id) === null).map((stored) => problemOf(stored, words.noPlan(stored.record.firstInstalment)))
 
   const latesSharingDue = sharingDay(records.lateInstalments, (late) => late.due)
   const lateInstalments = readEach(records.lateInstalments, ({ record: late }) => {
     const loan = bankLoans.get(late.loan)
-    if (loan === undefined) return [missingBankLoan]
+    if (loan === undefined) return [words.noBankLoan]
     const plan = plans.get(loan.id) ?? null
     const due = plan === null ? dueDates(loan) : new Set(plan.filter((row) => row.kind === 'instalment').map((row) => row.date))
-    if (!due.has(late.due)) return [`due ${late.due} is not a due date of "${loan.name}"`]
-    return latesSharingDue.has(`${late.loan} ${late.due}`) ? [`another late instalment of "${loan.name}" names the due date ${late.due} too`] : []
+    if (!due.has(late.due)) return [words.notADueDate('due', late.due, loan.name)]
+    return latesSharingDue.has(`${late.loan} ${late.due}`) ? [words.lateSharesDue(loan.name, late.due)] : []
   })
 
   const informalLoanReading = readEach(records.informalLoans, () => [])
   const informalLoans = new Map(informalLoanReading.facts.map((loan) => [loan.id, loan]))
   const movements = readEach(records.movements, ({ record: movement }) => {
     const loan = informalLoans.get(movement.loan)
-    if (loan === undefined) return ['names no informal loan in the file']
-    return movement.date < loan.start ? [`date ${movement.date} is before "${loan.name}" starts on ${loan.start}`] : []
+    if (loan === undefined) return [words.noInformalLoan]
+    return movement.date < loan.start ? [words.beforeStart(movement.date, loan.name, loan.start)] : []
   })
 
   const readings: LoanReadings = {
@@ -192,6 +191,8 @@ export function readLoanBook(records: LoansRecords): LoanBook {
     })),
     informalLoans: informalLoanReading.facts.map((loan) => ({ loan, movements: movements.facts.filter((movement) => movement.loan === loan.id) })),
     readings,
-    problems: (Object.keys(LOAN_PARTS) as (keyof LoansRecords)[]).flatMap((part) => readings[part].problems.map((problem) => ({ kind: LOAN_PARTS[part].name, ...problem }))),
+    problems: (Object.keys(LOAN_PARTS) as (keyof LoansRecords)[]).flatMap((part) =>
+      readings[part].problems.map((problem) => ({ kind: LOAN_PARTS[part].name, noun: LOAN_PARTS[part].noun, ...problem })),
+    ),
   }
 }

@@ -11,7 +11,9 @@ import { usePhoneLayout } from '../../layout/viewport'
 import { listInWords } from '../../text/listInWords'
 import { SCOPE_WORDS } from '../application/syncRun'
 import type { SyncControl, SyncRun } from '../application/syncRun'
+import { plural } from '../../text/translation'
 import SyncStepList from './SyncStepList.vue'
+import { words } from './words'
 
 /**
  * The sync control: what the sync is doing, Sign in to Google or Allow access while the page lacks
@@ -65,18 +67,18 @@ const syncedAt = computed(() => (props.control.kind === 'ready' && props.control
 
 const asOfText = computed(() => {
   const synced = syncedAt.value
-  if (synced === null) return 'Not synced yet'
-  return `As of ${synced.toDateString() === now.value.toDateString() ? `today, ${timeOnly(synced)}` : dayAndTime(synced)}`
+  if (synced === null) return words.notSynced
+  return synced.toDateString() === now.value.toDateString() ? words.asOfToday(timeOnly(synced)) : words.asOf(dayAndTime(synced))
 })
 
-const problemWords = computed(() => (props.control.kind === 'problems' ? (props.control.count === 1 ? '1 problem' : `${props.control.count} problems`) : ''))
+const problemWords = computed(() => (props.control.kind === 'problems' ? plural(words.problems(props.control.count), props.control.count) : ''))
 
 /** What the steps that need access lack, in a sentence, such as "Statements need your Drive read access". */
 const accessWords = computed(() => {
   const { control } = props
   if (control.kind !== 'allow-access') return ''
   const scopes = listInWords(control.scopes.map((scope) => SCOPE_WORDS[scope]))
-  return `${listInWords([...control.labels])} ${control.labels.length === 1 ? 'needs' : 'need'} ${scopes}`
+  return plural(words.needs(control.labels.length, listInWords([...control.labels]), scopes), control.labels.length)
 })
 
 /** Why the last ask to Google gave no token, and that a tap asks again, or null. */
@@ -84,22 +86,22 @@ const failureWords = computed(() => {
   const { control } = props
   if ((control.kind !== 'allow-access' && control.kind !== 'sign-in') || control.failure === null) return null
   const why = /[.!?]$/.test(control.failure) ? control.failure : `${control.failure}.`
-  return `${why} Tap ${control.kind === 'sign-in' ? 'Sign in to Google' : 'Allow access'} to try again.`
+  return words.tapToRetry(why, control.kind === 'sign-in')
 })
 
 const label = computed(() => {
   const { control } = props
   switch (control.kind) {
     case 'running':
-      return props.compact ? `${control.label} ${control.position}/${control.of}` : 'Syncing'
+      return props.compact ? `${control.label} ${control.position}/${control.of}` : words.syncing
     case 'sign-in':
-      return 'Sign in to Google'
+      return words.signIn
     case 'allow-access':
-      return 'Allow access'
+      return words.allowAccess
     case 'problems':
       return problemWords.value
     case 'ready':
-      return props.compact && syncedAt.value !== null ? syncAge(syncedAt.value, now.value) : 'Sync'
+      return props.compact && syncedAt.value !== null ? syncAge(syncedAt.value, now.value) : words.sync
   }
 })
 
@@ -110,16 +112,16 @@ const controlName = computed(() => {
   const { control } = props
   switch (control.kind) {
     case 'running':
-      return `Syncing, ${control.label}, step ${control.position} of ${control.of}: ${control.line}`
+      return words.syncingStep(control.label, control.position, control.of, control.line)
     case 'sign-in':
-      return failureWords.value === null ? 'Sign in to Google, which the sync needs first' : `Sign in to Google. ${failureWords.value}`
+      return failureWords.value === null ? words.signInFirst : words.signInAgain(failureWords.value)
     case 'allow-access':
-      return `Allow access. ${failureWords.value === null ? '' : `${failureWords.value} `}${accessWords.value}`
+      return words.allowAccessBecause(`${failureWords.value === null ? '' : `${failureWords.value} `}${accessWords.value}`)
     case 'problems':
-      return `${problemWords.value} in the last sync. Show the steps`
+      return words.problemsInLastSync(problemWords.value)
     case 'ready': {
       const synced = syncedAt.value
-      return synced === null ? 'Sync. Not synced yet' : `Synced ${syncAge(synced, now.value)}, ${fullStamp(synced)}. Sync now`
+      return synced === null ? words.syncNotYet : words.syncedAgo(syncAge(synced, now.value), fullStamp(synced))
     }
   }
 })
@@ -139,11 +141,11 @@ const statusLine = computed(() => {
     case 'running':
       return `${control.label} ${control.position}/${control.of}: ${control.line}`
     case 'sign-in':
-      return failureWords.value ?? 'Google asks you to sign in before the sync.'
+      return failureWords.value ?? words.googleAsks
     case 'allow-access':
       return failureWords.value ?? accessWords.value
     case 'problems':
-      return `Look at the ${listInWords([...control.labels])} ${control.labels.length === 1 ? 'step' : 'steps'}`
+      return plural(words.lookAt(control.labels.length, listInWords([...control.labels])), control.labels.length)
     case 'ready':
       return asOfText.value
   }
@@ -213,7 +215,7 @@ function syncAgain(): void {
     <UButton
       v-if="!compact && run !== null && control.kind !== 'running' && control.kind !== 'problems'"
       icon="i-lucide-list-checks"
-      aria-label="The steps of the last sync"
+      :aria-label="words.lastSyncSteps"
       color="neutral"
       variant="ghost"
       size="sm"
@@ -221,7 +223,7 @@ function syncAgain(): void {
       @click="listOpen = true"
     />
   </div>
-  <USlideover v-if="phone" v-model:open="listOpen" side="bottom" title="Sync" :ui="{ content: 'phone-sheet' }">
+  <USlideover v-if="phone" v-model:open="listOpen" side="bottom" :title="words.title" :ui="{ content: 'phone-sheet' }">
     <template #body>
       <SyncStepList :run="run" @sync="syncAgain" />
     </template>

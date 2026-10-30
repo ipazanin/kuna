@@ -16,13 +16,13 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   owedSoFar: 'Dug do sada',
-  stillToCome: 'Tek dolazi, prema planu',
+  stillToCome: 'Tek dolazi, prema otplatnom planu',
   today: 'Danas',
-  variableFrom: 'Odavde promjenjiva stopa, procjena',
-  estimate: 'Procjena po promjenjivoj stopi',
+  variableFrom: 'Odavde promjenjiva kamatna stopa, procjena',
+  estimate: 'Procjena po promjenjivoj kamatnoj stopi',
   noMonths: 'Nema mjeseci za prikaz.',
-  description: (first: string, last: string, now: string, owed: string) => `Dug na kraju svakog mjeseca od ${first} do ${last}. Na kraju ${now} iznosi ${owed}.`,
-  planDescription: (owed: string, month: string) => ` Prema planu pada na ${owed} do ${month}.`,
+  description: (first, last, now, owed) => `Dug na kraju svakog mjeseca, razdoblje ${first} – ${last} Na kraju mjeseca (${now}) dug iznosi ${owed}.`,
+  planDescription: (owed, month) => ` Prema otplatnom planu do kraja razdoblja ${month} pada na ${owed}.`,
 }
 
 export const words = language === 'hr' ? hr : en

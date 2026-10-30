@@ -15,7 +15,7 @@ export function recordIdOf(kind: RecordKind, key: string): RecordId {
 export function keyOfRecordId(kind: RecordKind, id: RecordId): string {
   const prefix = `${kind.name}:`
   if (!id.startsWith(prefix)) {
-    throw new Error(`${id} is not the id of ${kind.noun.article} ${kind.noun.one}.`)
+    throw new Error(`${id} is not the id of ${kind.noun.en.article} ${kind.noun.en.one}.`)
   }
   return id.slice(prefix.length)
 }

@@ -78,7 +78,7 @@ export const CORE_TABS: { readonly [Tab in CoreTab]: SpreadsheetTab<WorkbookReco
 export function spreadsheetTabOfKind<R>(kind: RecordKind<R>): SpreadsheetTab<R> {
   const mapping = [...Object.values(CORE_TABS), ...installedPackTabs()].find((candidate) => candidate.kind.name === kind.name)
   if (mapping === undefined) {
-    throw new Error(`No tab holds ${kind.noun.many}.`)
+    throw new Error(`No tab holds ${kind.noun.en.many}.`)
   }
   return mapping as SpreadsheetTab<unknown> as SpreadsheetTab<R>
 }

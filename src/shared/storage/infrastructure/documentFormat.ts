@@ -1,6 +1,7 @@
 import type { FieldValue } from '../domain/recordFields'
 import { storedFieldOfValue } from '../domain/storedFields'
 import type { StoredFields } from '../domain/storedFields'
+import { words } from './words'
 
 /** One record as the file holds it, by field name: text, or a flag. A field the app does not know is kept as the file gave it. */
 export type DocumentRecord = Readonly<Record<string, unknown>>
@@ -16,7 +17,7 @@ export interface WorkbookDocument {
 
 const FORMAT = 'kuna'
 
-export const NEWER_FILE = 'This file was saved by a newer version of Kuna. Reload to update before you change anything.'
+export const NEWER_FILE = words.newerFile
 
 /** Whether a newer app saved the document: a contributor at a higher version than the app's `installed` schema, or one the app lacks. */
 export function savedByNewerApp(document: WorkbookDocument, installed: WorkbookDocument['schema']): boolean {
@@ -54,15 +55,15 @@ export function decodeDocument(text: string): WorkbookDocument {
   try {
     parsed = JSON.parse(text)
   } catch (failure) {
-    throw new Error('The file is not a Kuna file: it does not read as JSON.', { cause: failure })
+    throw new Error(words.notJson, { cause: failure })
   }
   if (!isObject(parsed) || parsed.format !== FORMAT || typeof parsed.app !== 'string' || !isObject(parsed.schema) || !isObject(parsed.records)) {
-    throw new Error('The file is not a Kuna file.')
+    throw new Error(words.notKuna)
   }
   const schema = Object.entries(parsed.schema)
   const records = Object.entries(parsed.records)
   if (schema.some(([, version]) => typeof version !== 'number') || records.some(([, kind]) => !Array.isArray(kind) || !kind.every(isObject))) {
-    throw new Error('The file is not a Kuna file: its schema or its records are not in the shape the app writes.')
+    throw new Error(words.notInShape)
   }
   return {
     app: parsed.app,

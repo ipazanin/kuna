@@ -29,6 +29,7 @@ import { usePhoneLayout } from '../layout/viewport'
 import { formatMoney } from '../money/moneyFormat'
 import AppCard from './AppCard.vue'
 import DrillLink from './DrillLink.vue'
+import { words } from './words'
 
 /**
  * One snapshot of at most five parts as a ring, with the total in its middle. The list beside it
@@ -55,7 +56,7 @@ const props = withDefaults(
     startCollapsed?: boolean
     reveal?: boolean
   }>(),
-  { formatValue: (value: number) => formatMoney(value), opens: 'the rows', startCollapsed: false, reveal: false },
+  { formatValue: (value: number) => formatMoney(value), opens: words.donut.rows, startCollapsed: false, reveal: false },
 )
 
 const router = useRouter()
@@ -132,7 +133,7 @@ function onSliceClick(event: { dataIndex?: number; name?: string }): void {
           <ul class="flex flex-col" data-testid="donut-legend">
             <li v-for="part in parts" :key="part.key" class="legend-row">
               <span class="swatch" :style="{ background: `var(${part.colour})` }" aria-hidden="true" />
-              <DrillLink :to="part.to" :label="`${part.label}, ${formatValue(part.value)}, open ${opens}`" class="min-w-0 text-toned">
+              <DrillLink :to="part.to" :label="words.donut.open(part.label, formatValue(part.value), opens)" class="min-w-0 text-toned">
                 {{ part.label }}
               </DrillLink>
               <span class="figure text-end text-highlighted">{{ formatValue(part.value) }}</span>

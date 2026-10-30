@@ -1,4 +1,5 @@
 import { listInWords } from '../../text/listInWords'
+import { plural } from '../../text/translation'
 import type { RecordId } from '../domain/recordId'
 import type { RecordKind } from '../domain/recordKind'
 import { sameRecord, storedOf } from '../domain/recordsRead'
@@ -6,6 +7,7 @@ import type { Reading, StoredRecord } from '../domain/recordsRead'
 import type { FreshRecords, KindChange, RecordEdit, WriteRules } from '../domain/writeRules'
 import type { RecordChange, StorageView } from './recordStorage'
 import type { Repository, UnitOfWork } from './repository'
+import { words } from './words'
 import { refuseOn } from './workbookWriteRefused'
 
 /** One change of a write with the rules of its kind. */
@@ -81,17 +83,8 @@ export function undoOf(receipt: WriteReceipt): RuledChange[] {
   })
 }
 
-function capitalised(text: string): string {
-  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`
-}
-
 function isRead(stored: StoredRecord<unknown>): stored is Extract<StoredRecord<unknown>, { readonly record: unknown }> {
   return 'record' in stored
-}
-
-/** "the invoice "1-1-26"", or "an invoice" for a record nothing names yet. */
-function named(kind: RecordKind<unknown>, label: string | null): string {
-  return label === null ? `${kind.noun.article} ${kind.noun.one}` : `the ${kind.noun.one} "${label}"`
 }
 
 /** The fields of a record a change alters, by name. */
@@ -108,20 +101,20 @@ function findStored(storage: StorageView, fresh: FreshRecords, change: Exclude<R
   const stored = storedOf(fresh.of(change.kind))
   if (change.verb === 'repair' || change.verb === 'discard') {
     const holding = stored.filter((candidate) => !isRead(candidate) && candidate.id === change.refused.id && sameRecord(candidate.fields, change.refused.fields))
-    const record = named(change.kind, change.refused.label)
+    const { noun } = change.kind
+    const { label } = change.refused
     if (holding.length === 1) return holding[0]!
-    return holding.length === 0
-      ? `${capitalised(record)} is no longer in the workbook as the app read it. Sync and look again.`
-      : `${holding.length} records hold ${record}, so the app cannot tell which one is meant. Change it in the workbook.`
+    return holding.length === 0 ? words.refusals.noLongerAsRead(noun, label) : plural(words.refusals.heldBy(holding.length, noun, label), holding.length)
   }
   const id = storage.identify(change.kind, change.before)
   const sameId = stored.filter((candidate) => id !== null && candidate.id === id)
   const holding = sameId.filter((candidate) => isRead(candidate) && sameRecord(candidate.record, change.before))
-  const record = named(change.kind, sameId[0]?.label ?? storage.labelOf(change.kind, change.before))
-  if (id === null) return `${capitalised(record)} has nothing to find it by, so the app cannot change it.`
+  const { noun } = change.kind
+  const label = sameId[0]?.label ?? storage.labelOf(change.kind, change.before)
+  if (id === null) return words.refusals.nothingToFindBy(noun, label)
   if (holding.length === 1) return holding[0]!
-  if (holding.length > 1) return `${holding.length} records hold ${record}, so the app cannot tell which one is meant. Change it in the workbook.`
-  return sameId.length === 0 ? `${capitalised(record)} is no longer in the workbook. Sync and look again.` : `${capitalised(record)} changed since the app read it. Sync and look again.`
+  if (holding.length > 1) return plural(words.refusals.heldBy(holding.length, noun, label), holding.length)
+  return sameId.length === 0 ? words.refusals.gone(noun, label) : words.refusals.changedSince(noun, label)
 }
 
 /** What a reading says of one record: whether it counts, and every reason given for it. A record without an identity is known by its label. */
@@ -141,22 +134,22 @@ function readerRefusals(rules: WriteRules<unknown>, change: KindChange<unknown>,
   const refusals: string[] = []
   for (const edit of change.edits) {
     if (edit.after === null) continue
-    const where = edit.before === null ? `The new ${noun.one} "${edit.after.label}"` : `The ${noun.one} "${edit.after.label}"`
+    const { label } = edit.after
     const outcome = outcomeOf(readAfter, edit.after)
     if (!outcome.kept) {
-      refusals.push(`${where} would be left out: ${outcome.reasons.join(', ')}.`)
+      refusals.push((edit.before === null ? words.refusals.newLeftOut : words.refusals.leftOut)(noun, label, outcome.reasons.join(', ')))
       continue
     }
     const known = edit.before === null ? [] : outcomeOf(readBefore, edit.before).reasons
     const introduced = outcome.reasons.filter((reason) => !known.includes(reason))
     if (introduced.length > 0) {
-      refusals.push(`${where} would read with a problem: ${introduced.join(', ')}.`)
+      refusals.push((edit.before === null ? words.refusals.newProblem : words.refusals.problem)(noun, label, introduced.join(', ')))
     }
   }
   for (const stored of change.untouched) {
     const outcome = outcomeOf(readAfter, stored)
     if (outcomeOf(readBefore, stored).kept && !outcome.kept) {
-      refusals.push(`The ${noun.one} "${stored.label}" would then be left out: ${outcome.reasons.join(', ')}.`)
+      refusals.push(words.refusals.leftOutThen(noun, stored.label, outcome.reasons.join(', ')))
     }
   }
   return refusals
@@ -180,8 +173,8 @@ export async function checkWrite(storage: StorageView, title: string, ruled: rea
 
   const refusals: string[] = []
   const claimed = new Set<RecordId | StoredRecord<unknown>>()
-  const claim = (claimant: RecordId | StoredRecord<unknown>, record: string): void => {
-    if (claimed.has(claimant)) refusals.push(`${capitalised(record)} is asked to change twice in one write.`)
+  const claim = (claimant: RecordId | StoredRecord<unknown>, kind: RecordKind<unknown>, label: string | null): void => {
+    if (claimed.has(claimant)) refusals.push(words.refusals.twice(kind.noun, label))
     claimed.add(claimant)
   }
   const found = changes.map(({ rules, change }): StoredRecord<unknown> | null => {
@@ -189,13 +182,13 @@ export async function checkWrite(storage: StorageView, title: string, ruled: rea
       const id = storage.identify(change.kind, change.after)
       const held = storedOf(fresh.of(change.kind)).find((stored) => id !== null && stored.id === id)
       if (id === null) {
-        refusals.push(`The new ${change.kind.noun.one} has nothing to find it by, such as its name or id.`)
+        refusals.push(words.refusals.newWithoutKey(change.kind.noun))
         return null
       }
       if (held !== undefined) {
-        refusals.push(`${capitalised(named(change.kind, held.label))} is in the workbook already, so it is not added again.`)
+        refusals.push(words.refusals.alreadyThere(change.kind.noun, held.label))
       }
-      claim(id, named(change.kind, held?.label ?? null))
+      claim(id, change.kind, held?.label ?? null)
       return null
     }
     const stored = findStored(storage, fresh, change)
@@ -203,17 +196,15 @@ export async function checkWrite(storage: StorageView, title: string, ruled: rea
       refusals.push(stored)
       return null
     }
-    claim(stored, named(change.kind, stored.label))
+    claim(stored, change.kind, stored.label)
     if ((change.verb === 'repair' || change.verb === 'discard') && rules.changeable !== undefined) {
-      refusals.push(
-        `The app changes only ${listInWords(rules.changeable)} of ${change.kind.noun.article} ${change.kind.noun.one}, so ${named(change.kind, stored.label)} is fixed in the workbook itself.`,
-      )
+      refusals.push(words.refusals.fixedInFile(change.kind.noun, stored.label, listInWords(rules.changeable)))
     }
     if (change.verb === 'change' && rules.changeable !== undefined) {
       const changeable = rules.changeable
       const others = alteredFields(change.before, change.after).filter((field) => !changeable.includes(field))
       if (others.length > 0) {
-        refusals.push(`Of ${named(change.kind, stored.label)} the app changes only ${listInWords(changeable)}, and this change also alters ${others.join(', ')}.`)
+        refusals.push(words.refusals.otherFields(change.kind.noun, stored.label, listInWords(changeable), others.join(', ')))
       }
     }
     return stored
@@ -255,14 +246,14 @@ export function receiptOf(checked: CheckedWrite, after: FreshRecords): WriteRece
     if (change.verb === 'remove' || change.verb === 'discard') {
       const left = (stored: StoredRecord<unknown>): boolean => (before === null || before.id === null || stored.id === before.id) && sameRecord(stored.fields, before?.fields)
       if (before === null || storedOf(after.of(change.kind)).some(left)) {
-        throw new Error(`The write reached the workbook, but it still holds ${named(change.kind, before?.label ?? null)}. Check it in the workbook.`)
+        throw new Error(words.refusals.stillHeld(change.kind.noun, before?.label ?? null))
       }
       return { rules, change: change.verb === 'remove' && isRead(before) ? { ...change, before: before.record } : change, label: before.label }
     }
     const expected = checked.written[index] ?? null
     const read = storedOf(after.of(change.kind)).find((stored) => expected !== null && stored.id === expected.id && sameRecord(stored.fields, expected.fields))
     if (read === undefined || !isRead(read)) {
-      throw new Error(`The write reached the workbook, but ${named(change.kind, expected?.label ?? null)} does not read back as written. Check it in the workbook.`)
+      throw new Error(words.refusals.notReadBack(change.kind.noun, expected?.label ?? null))
     }
     if (change.verb === 'change' && before !== null && isRead(before)) {
       return { rules, change: { ...change, before: before.record, after: read.record }, label: read.label }

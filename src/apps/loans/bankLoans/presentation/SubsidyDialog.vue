@@ -11,6 +11,7 @@ import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import SubsidyFields, { subsidyTexts, typedSubsidy } from './SubsidyFields.vue'
 import type { SubsidyTexts } from './SubsidyFields.vue'
+import { words as loansWords } from '../../words'
 import { words } from './words'
 
 /** The loan's subsidy, which the loan record holds, so adding, changing and deleting it each change the loan. */
@@ -41,7 +42,7 @@ async function write(title: string, subsidy: LoanSubsidy | null, failedTitle: st
 async function save(): Promise<void> {
   tried.value = true
   if (typed.value === null) return
-  await write(props.book.loan.subsidy === null ? words.subsidyDialog.added : words.subsidyDialog.saved, typed.value, words.subsidyDialog.notSaved)
+  await write(props.book.loan.subsidy === null ? words.subsidyDialog.added : words.subsidyDialog.saved, typed.value, loansWords.form.notSaved)
 }
 </script>
 
@@ -59,11 +60,11 @@ async function save(): Promise<void> {
         variant="ghost"
         :disabled="writes.busy.value"
         data-testid="subsidy-delete"
-        @click="write(words.subsidyDialog.deleted, null, words.subsidyDialog.notDeleted)"
+        @click="write(words.subsidyDialog.deleted, null, loansWords.form.notDeleted)"
       />
     </template>
     <template #end>
-      <UButton :label="words.subsidyDialog.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="loansWords.form.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
       <UButton
         type="submit"
         form="loan-subsidy"

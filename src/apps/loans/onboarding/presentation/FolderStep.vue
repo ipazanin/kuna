@@ -13,6 +13,7 @@ import StepCard from '../../../../shared/ui/StepCard.vue'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import { LOANS_FILE_NAME, newLoansFileContents } from '../../workbook/presentation/loansFile'
 import { useLoansStart } from './useLoansStart'
+import { words } from './words'
 
 /**
  * The folder the Loans file is saved in: the Picker opens at My Drive, and nothing is made until the
@@ -73,8 +74,8 @@ async function create(): Promise<void> {
   const chosen = store.state.choice
   if (chosen !== before && chosen?.source === 'drive') {
     toast.add({
-      title: `Created ${chosen.name} in ${folder.path === null ? folder.name : folderTrail(folder.path)}`,
-      description: 'The app keeps a copy in this browser, and a backups folder beside the file.',
+      title: words.folder.created(chosen.name, folder.path === null ? folder.name : folderTrail(folder.path)),
+      description: words.folder.createdNote,
       icon: 'i-lucide-check',
       color: 'success',
     })
@@ -86,52 +87,48 @@ async function create(): Promise<void> {
 </script>
 
 <template>
-  <StepCard title="Where the Loans file is saved" subtitle="The Picker opens at My Drive. Nothing is made until you confirm the folder.">
+  <StepCard :title="words.folder.title" :subtitle="words.folder.subtitle">
     <div v-if="picked" class="flex flex-col gap-2 rounded-control border border-default bg-elevated/40 px-3 py-3" data-testid="loans-start-folder-confirm">
-      <p class="text-sm text-muted">The Loans file will be saved in</p>
+      <p class="text-sm text-muted">{{ words.folder.savedIn }}</p>
       <p v-if="picked.path" class="identifier text-sm font-medium break-words text-highlighted">{{ folderTrail(picked.path) }}</p>
       <p v-else class="text-sm text-toned">
         <span class="identifier font-medium text-highlighted">{{ picked.name }}</span
-        >, inside folders the app cannot see. Open it in Drive to check where it is.
+        >{{ words.folder.unseen }}
       </p>
       <p class="flex items-center gap-2 text-sm text-toned">
         <UIcon name="i-lucide-file-json" class="size-4 shrink-0 text-muted" aria-hidden="true" />
         <span class="min-w-0"
           ><span class="identifier">{{ LOANS_FILE_NAME }}</span
-          >, with a backups folder beside it</span
+          >{{ words.folder.withBackups }}</span
         >
       </p>
       <a v-if="folderLink" :href="folderLink" target="_blank" rel="noopener" class="inline-target folder-link text-sm">
-        Open this folder in Drive
+        {{ words.folder.openFolder }}
         <UIcon name="i-lucide-external-link" class="size-3.5" aria-hidden="true" />
       </a>
     </div>
-    <p v-else class="text-sm text-toned">Choose the folder the Loans file goes in. The app writes only its file there and the backups folder beside it.</p>
-    <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" title="That did not work" :description="failure" data-testid="loans-start-failure" />
+    <p v-else class="text-sm text-toned">{{ words.folder.choose }}</p>
+    <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.folder.failed" :description="failure" data-testid="loans-start-failure" />
     <UAlert
       v-if="alreadyOnDrive"
       icon="i-lucide-hard-drive"
       color="warning"
       variant="subtle"
-      title="Your Loans file is on Drive already"
-      :description="
-        dropsBrowserFile
-          ? `${alreadyOnDrive.message} Opening it deletes the Loans file in this browser, which exists only here and in the files you exported. Export it first if you want to keep it.`
-          : alreadyOnDrive.message
-      "
+      :title="words.folder.onDriveTitle"
+      :description="dropsBrowserFile ? words.folder.onDriveDrops(alreadyOnDrive.message) : alreadyOnDrive.message"
       data-testid="loans-start-on-drive"
     />
 
     <template #actions>
       <template v-if="alreadyOnDrive">
-        <UButton label="Choose a folder again" color="neutral" variant="outline" :loading="picking" @click="choose" />
-        <UButton label="Open the Loans file on Drive" icon="i-lucide-folder-open" data-testid="loans-start-open-on-drive" @click="start.go('find')" />
+        <UButton :label="words.folder.chooseAgain" color="neutral" variant="outline" :loading="picking" @click="choose" />
+        <UButton :label="words.folder.openOnDrive" icon="i-lucide-folder-open" data-testid="loans-start-open-on-drive" @click="start.go('find')" />
       </template>
       <template v-else-if="picked">
-        <UButton label="Choose another" color="neutral" variant="outline" :loading="picking" :disabled="keeping" @click="choose" />
-        <UButton label="Create the file here" icon="i-lucide-hard-drive-upload" :loading="keeping" data-testid="loans-start-create" @click="create" />
+        <UButton :label="words.folder.chooseAnother" color="neutral" variant="outline" :loading="picking" :disabled="keeping" @click="choose" />
+        <UButton :label="words.folder.create" icon="i-lucide-hard-drive-upload" :loading="keeping" data-testid="loans-start-create" @click="create" />
       </template>
-      <UButton v-else label="Choose a folder in Google Drive" icon="i-lucide-folder-search" :loading="picking" data-testid="loans-start-choose-folder" @click="choose" />
+      <UButton v-else :label="words.folder.chooseFirst" icon="i-lucide-folder-search" :loading="picking" data-testid="loans-start-choose-folder" @click="choose" />
     </template>
   </StepCard>
 </template>

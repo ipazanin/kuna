@@ -11,9 +11,9 @@ import { words } from './words'
 const privacyPage = `${import.meta.env.BASE_URL}privacy.html`
 
 const THEME_CHOICES: { label: string; value: ThemeChoice }[] = [
-  { label: 'System', value: 'system' },
-  { label: 'Light', value: 'light' },
-  { label: 'Dark', value: 'dark' },
+  { label: words.appearance.system, value: 'system' },
+  { label: words.appearance.light, value: 'light' },
+  { label: words.appearance.dark, value: 'dark' },
 ]
 
 // Each language is named in itself, so it reads the same whichever language is on screen.
@@ -25,19 +25,19 @@ const LANGUAGE_CHOICES: { label: string; value: LanguageChoice }[] = [
 </script>
 
 <template>
-  <AppCard title="Appearance and privacy">
+  <AppCard :title="words.appearance.title">
     <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
       <URadioGroup
         :model-value="themeChoice"
         :items="THEME_CHOICES"
-        legend="Theme"
+        :legend="words.appearance.theme"
         orientation="horizontal"
         variant="table"
         :ui="{ item: 'flex-1' }"
         data-testid="theme-choice"
         @update:model-value="chooseTheme($event as ThemeChoice)"
       />
-      <p class="text-xs text-muted">System follows this device's setting as it changes. Light or Dark is remembered on this device.</p>
+      <p class="text-xs text-muted">{{ words.appearance.themeNote }}</p>
       <URadioGroup
         :model-value="languageChoice"
         :items="LANGUAGE_CHOICES"
@@ -48,8 +48,8 @@ const LANGUAGE_CHOICES: { label: string; value: LanguageChoice }[] = [
       />
       <p class="text-xs text-muted">{{ words.language.note }}</p>
       <p class="text-sm text-muted">
-        There is no server. Nothing leaves this browser except calls to Google's APIs for the books on Drive, your statements and your invoices.
-        <a :href="privacyPage" class="settings-link inline-target">Read the privacy notes</a>
+        {{ words.appearance.privacy }}
+        <a :href="privacyPage" class="settings-link inline-target">{{ words.appearance.privacyLink }}</a>
       </p>
     </div>
   </AppCard>

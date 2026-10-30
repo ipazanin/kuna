@@ -5,12 +5,13 @@ import type { MonthBalance } from '../../balances/presentation/balanceChart'
 import type { InformalLoan } from '../../workbook/domain/informalLoan'
 import type { Movement, MovementKind } from '../../workbook/domain/movement'
 import type { InformalLoanBook } from '../../workbook/domain/readLoanBook'
+import { words as bookWords } from '../../workbook/domain/words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { lastDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
 import { negateMoney, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 
-export const MOVEMENT_KIND_NAMES: Readonly<Record<MovementKind, string>> = words.kinds
+export const MOVEMENT_KIND_NAMES: Readonly<Record<MovementKind, string>> = bookWords.kinds
 
 /** What you owe on the loan, below zero when the other side owes you, whichever way the loan runs. */
 export function owedByYou(loan: InformalLoan, balance: Money): Money {

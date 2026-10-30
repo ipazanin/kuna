@@ -1,6 +1,7 @@
 import type { RecordId } from './recordId'
 import type { StoredFields } from './storedFields'
 import { sharedKeys } from './sharedKeys'
+import { words } from './words'
 
 /** Where the workbook document is kept: a file on Google Drive, or this browser. */
 export type WorkbookSource = 'drive' | 'browser'
@@ -94,7 +95,7 @@ export function idSharing(read: RecordsRead<unknown>): (stored: ReadRecord<unkno
   return (stored) => stored.id !== null && shared.has(stored.id)
 }
 
-export const SHARED_ID_REASON = 'the same id as another row, so it is left out. Give the copied row an id of its own in the workbook, or delete it and add it in the app'
+export const SHARED_ID_REASON = words.reasons.sharedId
 
 /** Whether two records hold the same values, field for field and item for item, a missing field as an undefined one. */
 export function sameRecord(left: unknown, right: unknown): boolean {

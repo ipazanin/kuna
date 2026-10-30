@@ -11,7 +11,7 @@ import { bankLoanLink, LOANS_OVERVIEW_ROUTE } from '../../overview/presentation/
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import type { BankLoan, InterimInterest } from '../../workbook/domain/bankLoan'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
-import { parseCivilDate } from '../../../../shared/calendar/civilDate'
+import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { plainAmount } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -22,6 +22,8 @@ import type { RateTexts } from './RateFields.vue'
 import SubsidyFields, { subsidyTexts, typedSubsidy } from './SubsidyFields.vue'
 import type { SubsidyTexts } from './SubsidyFields.vue'
 import { typedCount } from './typedCount'
+import { words as loansWords } from '../../words'
+import { words } from './words'
 
 /**
  * Adds a bank loan with its first rate period and its subsidy in one write, or changes its terms.
@@ -33,6 +35,9 @@ const props = defineProps<{
   /** The loan to change, or null to add one. */
   book: BankLoanBook | null
 }>()
+
+const EXAMPLE_DRAWDOWN = civilDate(2025, 8, 12)
+const EXAMPLE_FIRST_INSTALMENT = civilDate(2025, 9, 20)
 
 const store = useLoansBooks()
 const writes = useRecordWrites(store)
@@ -92,14 +97,14 @@ const interim = computed((): InterimInterest | null | undefined => {
 const errors = computed(() => {
   const { drawdown: drawn, firstInstalment: first, instalments: count } = typed.value
   return {
-    name: name.value.trim() === '' ? 'A name, such as Home loan' : null,
-    principal: typed.value.principal === null ? 'An amount above zero with at most two decimals' : null,
-    drawdown: drawn === null ? 'A date, such as 2025-08-12' : null,
-    firstInstalment: first === null ? 'A date, such as 2025-09-20' : drawn !== null && first <= drawn ? 'After the drawdown' : null,
-    instalments: count === null ? 'A whole number above zero, such as 240' : count > 600 ? 'At most 600' : null,
-    interim: interim.value === undefined ? 'Both the amount and its date, or neither' : null,
+    name: name.value.trim() === '' ? words.loanDialog.nameError : null,
+    principal: typed.value.principal === null ? loansWords.form.anAmount : null,
+    drawdown: drawn === null ? loansWords.form.aDate(EXAMPLE_DRAWDOWN) : null,
+    firstInstalment: first === null ? loansWords.form.aDate(EXAMPLE_FIRST_INSTALMENT) : drawn !== null && first <= drawn ? words.loanDialog.afterDrawdown : null,
+    instalments: count === null ? words.loanDialog.instalmentsError : count > 600 ? words.loanDialog.tooMany : null,
+    interim: interim.value === undefined ? words.loanDialog.interimError : null,
     rate: props.book === null ? rateError(rate.value) : null,
-    subsidy: props.book === null && subsidised.value && typedSubsidy(subsidy.value, count).subsidy === null ? 'Fill in the subsidy' : null,
+    subsidy: props.book === null && subsidised.value && typedSubsidy(subsidy.value, count).subsidy === null ? words.loanDialog.subsidyError : null,
   }
 })
 
@@ -133,12 +138,12 @@ async function save(): Promise<void> {
     const loan = newBankLoan(terms)
     const period = newRatePeriod({ loan: loan.id, from: loan.firstInstalment, rate: yearly, rateType: rate.value.rateType, note: rate.value.note })
     const added = await writes.write(
-      'Bank loan added',
+      words.loanDialog.added,
       (unit) => {
         unit.of(BANK_LOAN_WRITES).add(loan)
         unit.of(RATE_PERIOD_WRITES).add(period)
       },
-      { failedTitle: 'Not added' },
+      { failedTitle: loansWords.form.notAdded },
     )
     if (added) {
       open.value = false
@@ -149,12 +154,12 @@ async function save(): Promise<void> {
   const after: BankLoan = { ...newBankLoan(terms), id: book.loan.id }
   const firstPeriod = book.ratePeriods.find((period) => period.from === book.loan.firstInstalment) ?? null
   const saved = await writes.write(
-    'Bank loan saved',
+    words.loanDialog.saved,
     (unit) => {
       unit.of(BANK_LOAN_WRITES).change(book.loan, after)
       if (firstPeriod !== null && after.firstInstalment !== book.loan.firstInstalment) unit.of(RATE_PERIOD_WRITES).change(firstPeriod, { ...firstPeriod, from: after.firstInstalment })
     },
-    { failedTitle: 'Not saved' },
+    { failedTitle: loansWords.form.notSaved },
   )
   if (saved) open.value = false
 }
@@ -163,7 +168,7 @@ async function remove(): Promise<void> {
   const book = props.book
   const records = store.state.records
   if (book === null || records === null) return
-  const removed = await writes.write('Bank loan deleted', (unit) => removeBankLoan(unit, records, book.loan), { failedTitle: 'Not deleted' })
+  const removed = await writes.write(words.loanDialog.deleted, (unit) => removeBankLoan(unit, records, book.loan), { failedTitle: loansWords.form.notDeleted })
   if (removed) {
     open.value = false
     await router.push(LOANS_OVERVIEW_ROUTE)
@@ -174,53 +179,62 @@ async function remove(): Promise<void> {
 <template>
   <AppDialog
     v-model:open="open"
-    :title="book === null ? 'Add a bank loan' : 'Change the bank loan'"
-    :description="book === null ? 'Its terms as the contract gives them. Kuna works out the plan from them.' : 'Its terms. Rate periods, the subsidy and extra payments change on the loan\'s page.'"
+    :title="book === null ? words.loanDialog.addTitle : words.loanDialog.changeTitle"
+    :description="book === null ? words.loanDialog.addDescription : words.loanDialog.changeDescription"
   >
     <FormGrid id="bank-loan" as="form" data-testid="bank-loan-form" @submit.prevent="save">
-      <UFormField label="Name" :error="(tried && errors.name) || false">
-        <UInput v-model="name" placeholder="Home loan" class="w-full" data-testid="bank-loan-name" />
+      <UFormField :label="words.loanDialog.name" :error="(tried && errors.name) || false">
+        <UInput v-model="name" :placeholder="words.loanDialog.namePlaceholder" class="w-full" data-testid="bank-loan-name" />
       </UFormField>
-      <UFormField label="Lender">
-        <UInput v-model="lender" placeholder="The bank" class="w-full" />
+      <UFormField :label="words.loanDialog.lender">
+        <UInput v-model="lender" :placeholder="words.loanDialog.lenderPlaceholder" class="w-full" />
       </UFormField>
-      <UFormField label="Amount borrowed" :error="(tried && errors.principal) || false">
-        <UInput v-model="principal" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="bank-loan-principal" />
+      <UFormField :label="words.loanDialog.principal" :error="(tried && errors.principal) || false">
+        <UInput v-model="principal" inputmode="decimal" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="bank-loan-principal" />
       </UFormField>
-      <UFormField label="Monthly instalments" :error="(tried && errors.instalments) || false" help="240 for 20 years.">
+      <UFormField :label="words.loanDialog.instalments" :error="(tried && errors.instalments) || false" :help="words.loanDialog.instalmentsHelp">
         <UInput v-model="instalments" inputmode="numeric" class="w-full" data-testid="bank-loan-instalments" />
       </UFormField>
-      <UFormField label="Paid out on" :error="(tried && errors.drawdown) || false">
+      <UFormField :label="words.loanDialog.drawdown" :error="(tried && errors.drawdown) || false">
         <UInput v-model="drawdown" type="date" class="w-full" data-testid="bank-loan-drawdown" />
       </UFormField>
-      <UFormField label="First instalment" :error="(tried && errors.firstInstalment) || false" help="Every instalment falls on this day of the month.">
+      <UFormField :label="words.loanDialog.firstInstalment" :error="(tried && errors.firstInstalment) || false" :help="words.loanDialog.firstInstalmentHelp">
         <UInput v-model="firstInstalment" type="date" class="w-full" data-testid="bank-loan-first-instalment" />
       </UFormField>
-      <UFormField label="Interest before the first instalment" :error="(tried && errors.interim) || false" help="What the bank charged from the payout, if it did.">
-        <UInput v-model="interimAmount" inputmode="decimal" placeholder="0.00" class="w-full" />
+      <UFormField :label="words.loanDialog.interim" :error="(tried && errors.interim) || false" :help="words.loanDialog.interimHelp">
+        <UInput v-model="interimAmount" inputmode="decimal" :placeholder="loansWords.form.amountPlaceholder" class="w-full" />
       </UFormField>
-      <UFormField label="Charged on">
+      <UFormField :label="words.loanDialog.interimDate">
         <UInput v-model="interimDate" type="date" class="w-full" />
       </UFormField>
       <template v-if="book === null">
-        <p class="text-sm font-medium text-highlighted">The rate from the first instalment</p>
+        <p class="text-sm font-medium text-highlighted">{{ words.loanDialog.firstRate }}</p>
         <RateFields v-model="rate" :tried="tried" />
-        <USwitch v-model="subsidised" label="A subsidy pays part of each instalment" description="Such as APN's, for a set number of instalments." data-testid="bank-loan-subsidised" />
+        <USwitch v-model="subsidised" :label="words.loanDialog.subsidised" :description="words.loanDialog.subsidisedHelp" data-testid="bank-loan-subsidised" />
         <SubsidyFields v-if="subsidised" v-model="subsidy" :tried="tried" :loan-instalments="typed.instalments" />
       </template>
-      <UFormField label="Note" class="sm:col-span-2">
+      <UFormField :label="loansWords.form.note" class="sm:col-span-2">
         <UInput v-model="note" class="w-full" />
       </UFormField>
     </FormGrid>
     <template #start>
-      <UButton v-if="book !== null" label="Delete loan" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="bank-loan-delete" @click="remove" />
+      <UButton
+        v-if="book !== null"
+        :label="words.loanDialog.delete"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="ghost"
+        :disabled="writes.busy.value"
+        data-testid="bank-loan-delete"
+        @click="remove"
+      />
     </template>
     <template #end>
-      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="loansWords.form.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
       <UButton
         type="submit"
         form="bank-loan"
-        :label="book === null ? 'Add loan' : 'Save loan'"
+        :label="book === null ? words.loanDialog.add : words.loanDialog.save"
         :icon="book === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.busy.value"
         :disabled="writes.busy.value"

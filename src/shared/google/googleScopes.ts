@@ -40,11 +40,3 @@ export function scopesOf(scopes: Iterable<GoogleScope>): GoogleScope[] {
 export function folderReadScope(path: readonly string[]): GoogleScope {
   return startsAtBooksFolder(path) ? 'drive.file' : 'drive.readonly'
 }
-
-/** What an action says when the token Google gave lacks the scope it needs. */
-export const NOT_GRANTED: Readonly<Record<GoogleScope, string>> = {
-  'drive.file': 'Google Drive access was not allowed, so the app cannot read or save the books.',
-  'drive.readonly': 'Drive read access was not allowed, so the app cannot read your Drive folders.',
-  'gmail.readonly': 'Gmail read access was not allowed, so the app cannot look for the mail it would file.',
-  'gmail.compose': 'Gmail access was not allowed, so no draft can be saved. Leave "Create the mail draft" off to write the mail yourself.',
-}

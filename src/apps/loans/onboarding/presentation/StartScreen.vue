@@ -11,6 +11,7 @@ import FolderStep from './FolderStep.vue'
 import HomeStep from './HomeStep.vue'
 import { useLoansStart } from './useLoansStart'
 import type { LoansStartStep } from './useLoansStart'
+import { words as startWords } from './words'
 
 /** The Loans first run at `#/loans/start?step=…`, on the ruled page of a first run: where the file lives, then the folder or the find for a file on Drive. */
 const start = useLoansStart()
@@ -33,10 +34,10 @@ const step = computed(() => STEPS[start.step.value])
       <header class="flex flex-col gap-3">
         <HomeLink :label="sharedWords.allApps" class="self-start" />
         <h1 data-testid="screen-title" tabindex="-1" class="screen-title text-title font-semibold text-highlighted">{{ words.name }}</h1>
-        <p class="max-w-[52ch] text-base text-toned">Your loans, in a file of their own beside the company's books.</p>
+        <p class="max-w-[52ch] text-base text-toned">{{ startWords.lead }}</p>
       </header>
       <component :is="step" :key="start.step.value" />
-      <footer class="text-xs text-muted">No server. The Loans file stays in your Google Drive, this browser and the files you export.</footer>
+      <footer class="text-xs text-muted">{{ startWords.footer }}</footer>
     </div>
   </main>
 </template>

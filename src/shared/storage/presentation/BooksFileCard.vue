@@ -10,6 +10,7 @@ import type { DriveFilePlace } from '../application/workbookPorts'
 import { exportReminderDue } from '../domain/exportReminder'
 import type { WorkbookDocument } from '../infrastructure/documentFormat'
 import type { DocumentCopy } from '../infrastructure/documentRecordStorage'
+import { words } from './words'
 
 /**
  * An app's Settings: where its file is kept, when it was saved, synced and exported, and a
@@ -18,6 +19,8 @@ import type { DocumentCopy } from '../infrastructure/documentRecordStorage'
 const props = defineProps<{
   title: string
   store: Pick<WorkbookStore<BooksRead, DocumentCopy, WorkbookDocument>, 'state' | 'driveFilePlace'>
+  /** The title the app stores on a file it makes, and the words shown for it in the language on screen. */
+  seededTitle?: { readonly stored: string; readonly shown: string }
 }>()
 
 const state = computed(() => props.store.state)
@@ -27,7 +30,10 @@ const day = dateFormat({ day: 'numeric', month: 'short', year: 'numeric' })
 
 const meta = computed(() => state.value.snapshot?.meta ?? null)
 const source = computed(() => state.value.choice?.source ?? meta.value?.source ?? null)
-const fileName = computed(() => state.value.choice?.name ?? meta.value?.title ?? null)
+const fileName = computed(() => {
+  const name = state.value.choice?.name ?? meta.value?.title ?? null
+  return props.seededTitle !== undefined && name === props.seededTitle.stored ? props.seededTitle.shown : name
+})
 const changedAt = computed(() => (state.value.syncedAt === null ? null : stamp(new Date(state.value.syncedAt))))
 const exportedAt = computed(() => (meta.value?.lastExportedAt ? day(new Date(meta.value.lastExportedAt)) : null))
 const reminderDue = computed(() => exportReminderDue(meta.value?.unexportedSince ?? null, new Date()))
@@ -63,39 +69,33 @@ const lastBackup = computed(() => (shownPlace.value?.lastBackup ? day(new Date(`
     <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
       <template v-if="source === 'browser'">
         <p class="text-base text-highlighted">{{ fileName }}</p>
-        <p class="text-sm text-muted">Kept in this browser. Your exported files are its only other copies.</p>
+        <p class="text-sm text-muted">{{ words.booksFile.inBrowser }}</p>
         <p class="figure text-xs text-muted">
-          <span v-if="changedAt">Last changed {{ changedAt }}. </span>{{ exportedAt ? `Last exported ${exportedAt}.` : 'Not exported yet.' }}
+          <span v-if="changedAt">{{ words.booksFile.lastChanged(changedAt) }}</span
+          >{{ exportedAt ? words.booksFile.lastExported(exportedAt) : words.booksFile.notExported }}
         </p>
-        <UAlert
-          v-if="reminderDue"
-          icon="i-lucide-clock-alert"
-          color="warning"
-          variant="subtle"
-          title="Some changes are in no exported file yet"
-          description="They live only in this browser, which can lose them if its site data is cleared. Export to keep a copy."
-        />
+        <UAlert v-if="reminderDue" icon="i-lucide-clock-alert" color="warning" variant="subtle" :title="words.booksFile.reminderTitle" :description="words.booksFile.reminder" />
       </template>
       <template v-else-if="source === 'drive'">
         <p class="text-base text-highlighted">{{ fileName }}</p>
-        <p class="text-sm text-muted">On Google Drive. A copy is kept in this browser, and so is the Google sign-in until it expires, about an hour later.</p>
+        <p class="text-sm text-muted">{{ words.booksFile.onDrive }}</p>
         <dl class="drive-facts text-xs" data-testid="drive-file-place">
           <template v-if="shownPlace">
-            <dt>Folder</dt>
+            <dt>{{ words.booksFile.folder }}</dt>
             <dd>
               <a :href="folderLink ?? undefined" target="_blank" rel="noopener" class="settings-link inline-target">{{ shownPlace.folderName }}</a>
             </dd>
           </template>
           <template v-if="savedAt">
-            <dt>Last saved</dt>
+            <dt>{{ words.booksFile.lastSaved }}</dt>
             <dd class="figure">{{ savedAt }}</dd>
           </template>
           <template v-if="shownPlace">
-            <dt>Last backup</dt>
-            <dd class="figure">{{ lastBackup ?? 'None yet. The first save of a day makes one.' }}</dd>
+            <dt>{{ words.booksFile.lastBackup }}</dt>
+            <dd class="figure">{{ lastBackup ?? words.booksFile.noBackup }}</dd>
           </template>
           <template v-if="changedAt">
-            <dt>Last synced</dt>
+            <dt>{{ words.booksFile.lastSynced }}</dt>
             <dd class="figure">{{ changedAt }}</dd>
           </template>
         </dl>
@@ -103,7 +103,7 @@ const lastBackup = computed(() => (shownPlace.value?.lastBackup ? day(new Date(`
       <slot />
       <div class="flex flex-wrap gap-2">
         <slot name="actions" />
-        <UButton v-if="fileLink" :to="fileLink" target="_blank" icon="i-lucide-external-link" label="Open in Drive" color="neutral" variant="ghost" size="sm" />
+        <UButton v-if="fileLink" :to="fileLink" target="_blank" :label="words.booksFile.openInDrive" icon="i-lucide-external-link" color="neutral" variant="ghost" size="sm" />
       </div>
     </div>
   </AppCard>

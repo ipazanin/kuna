@@ -15,7 +15,9 @@ import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import { plural } from '../../../../shared/text/translation'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import { words } from './words'
 
 /** An extra payment tried out against the plan, both ways the bank offers, without saving anything. */
 const props = defineProps<{
@@ -48,7 +50,7 @@ const shorter = computed(() => result.value?.outcomes.find((outcome) => outcome.
 const lower = computed(() => result.value?.outcomes.find((outcome) => outcome.effect === 'lower-instalment') ?? null)
 
 function months(count: number): string {
-  return count === 1 ? '1 month' : `${count} months`
+  return plural(words.whatIf.months(count), count)
 }
 
 function apply(outcome: ExtraPaymentOutcome): void {
@@ -57,13 +59,13 @@ function apply(outcome: ExtraPaymentOutcome): void {
 </script>
 
 <template>
-  <AppCard title="What if I pay extra" subtitle="Try an amount and a date. Nothing is saved until you apply it." data-testid="what-if">
+  <AppCard :title="words.whatIf.title" :subtitle="words.whatIf.subtitle" data-testid="what-if">
     <div class="flex flex-col gap-4 px-4 pb-4 sm:px-5">
       <FormGrid>
-        <UFormField label="Extra amount">
-          <UInput v-model="amount" inputmode="decimal" placeholder="10000.00" class="w-full" data-testid="what-if-amount" />
+        <UFormField :label="words.whatIf.amount">
+          <UInput v-model="amount" inputmode="decimal" :placeholder="words.whatIf.amountPlaceholder" class="w-full" data-testid="what-if-amount" />
         </UFormField>
-        <UFormField label="Paid on">
+        <UFormField :label="words.whatIf.paidOn">
           <UInput v-model="date" type="date" class="w-full" data-testid="what-if-date" />
         </UFormField>
       </FormGrid>
@@ -72,39 +74,41 @@ function apply(outcome: ExtraPaymentOutcome): void {
         icon="i-lucide-triangle-alert"
         color="warning"
         variant="subtle"
-        title="This means paying the subsidy back"
-        :description="`The contract asks for the subsidy back when you repay early during it or in the two years after it ends, up to ${dayLabel(result.subsidyRepaidUntil)}.`"
+        :title="words.whatIf.subsidyTitle"
+        :description="words.whatIf.subsidy(dayLabel(result.subsidyRepaidUntil))"
         data-testid="what-if-subsidy"
       />
       <div v-if="shorter && lower" class="grid gap-3 sm:grid-cols-2" data-testid="what-if-outcomes">
-        <section class="flex flex-col gap-2 rounded-lg border border-default p-3" aria-label="Shorter term">
-          <h3 class="text-sm font-medium text-highlighted">Shorter term</h3>
-          <p class="text-xs text-muted">The instalment stays the same.</p>
+        <section class="flex flex-col gap-2 rounded-lg border border-default p-3" :aria-label="words.whatIf.shorter">
+          <h3 class="text-sm font-medium text-highlighted">{{ words.whatIf.shorter }}</h3>
+          <p class="text-xs text-muted">{{ words.whatIf.shorterNote }}</p>
           <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-            <dt class="text-muted">Paid off</dt>
+            <dt class="text-muted">{{ words.whatIf.paidOff }}</dt>
             <dd class="text-end">{{ shorter.payoff === null ? '–' : dayLabel(shorter.payoff) }}</dd>
-            <dt class="text-muted">Sooner by</dt>
+            <dt class="text-muted">{{ words.whatIf.soonerBy }}</dt>
             <dd class="figure text-end">{{ months(shorter.monthsSaved) }}</dd>
-            <dt class="text-muted">Interest saved</dt>
+            <dt class="text-muted">{{ words.whatIf.interestSaved }}</dt>
             <dd class="text-end"><MoneyText :cents="shorter.interestSaved" /></dd>
           </dl>
-          <UButton label="Apply" icon="i-lucide-check" color="neutral" variant="outline" size="sm" class="self-start" data-testid="what-if-apply-shorter" @click="apply(shorter)" />
+          <UButton :label="words.whatIf.apply" icon="i-lucide-check" color="neutral" variant="outline" size="sm" class="self-start" data-testid="what-if-apply-shorter" @click="apply(shorter)" />
         </section>
-        <section class="flex flex-col gap-2 rounded-lg border border-default p-3" aria-label="Lower instalment">
-          <h3 class="text-sm font-medium text-highlighted">Lower instalment</h3>
-          <p class="text-xs text-muted">The loan ends when it would have.</p>
+        <section class="flex flex-col gap-2 rounded-lg border border-default p-3" :aria-label="words.whatIf.lower">
+          <h3 class="text-sm font-medium text-highlighted">{{ words.whatIf.lower }}</h3>
+          <p class="text-xs text-muted">{{ words.whatIf.lowerNote }}</p>
           <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-            <dt class="text-muted">New instalment</dt>
-            <dd class="text-end"><MoneyText v-if="lower.nextInstalment !== null" :cents="lower.nextInstalment" /><span v-else>Paid off</span></dd>
-            <dt class="text-muted">Paid off</dt>
+            <dt class="text-muted">{{ words.whatIf.newInstalment }}</dt>
+            <dd class="text-end">
+              <MoneyText v-if="lower.nextInstalment !== null" :cents="lower.nextInstalment" /><span v-else>{{ words.whatIf.paidOff }}</span>
+            </dd>
+            <dt class="text-muted">{{ words.whatIf.paidOff }}</dt>
             <dd class="text-end">{{ lower.payoff === null ? '–' : dayLabel(lower.payoff) }}</dd>
-            <dt class="text-muted">Interest saved</dt>
+            <dt class="text-muted">{{ words.whatIf.interestSaved }}</dt>
             <dd class="text-end"><MoneyText :cents="lower.interestSaved" /></dd>
           </dl>
-          <UButton label="Apply" icon="i-lucide-check" color="neutral" variant="outline" size="sm" class="self-start" data-testid="what-if-apply-lower" @click="apply(lower)" />
+          <UButton :label="words.whatIf.apply" icon="i-lucide-check" color="neutral" variant="outline" size="sm" class="self-start" data-testid="what-if-apply-lower" @click="apply(lower)" />
         </section>
       </div>
-      <p v-else class="text-sm text-muted">Type an amount above zero and a date on or after the payout to see both ways side by side.</p>
+      <p v-else class="text-sm text-muted">{{ words.whatIf.hint }}</p>
     </div>
   </AppCard>
 </template>

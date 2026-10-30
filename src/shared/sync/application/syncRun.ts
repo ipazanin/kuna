@@ -1,5 +1,6 @@
 import type { GoogleScope } from '../../google/googleScopes'
 import { listInWords } from '../../text/listInWords'
+import { words } from './words'
 
 /** A link a step line offers, such as Import for the statements a sync held. */
 export interface StepLink {
@@ -53,7 +54,7 @@ export interface SyncRun {
 }
 
 /** The books step, which every group of a sync runs first. */
-export const BOOKS_STEP: Pick<RunStep, 'id' | 'label' | 'scopes'> = { id: 'books', label: 'Books', scopes: ['drive.file'] }
+export const BOOKS_STEP: Pick<RunStep, 'id' | 'label' | 'scopes'> = { id: 'books', label: words.books, scopes: ['drive.file'] }
 
 /** A step as a run starts it: on or off, as the settings say. */
 export interface PlannedStep {
@@ -107,16 +108,11 @@ export function finishedRun(run: SyncRun, at: string): SyncRun {
 }
 
 /** What the person grants for each scope, as a line or a sentence names it. */
-export const SCOPE_WORDS: Readonly<Record<GoogleScope, string>> = {
-  'drive.file': 'a Google sign-in',
-  'drive.readonly': 'your Drive read access',
-  'gmail.readonly': 'your Gmail read access',
-  'gmail.compose': 'your Gmail drafts access',
-}
+export const SCOPE_WORDS: Readonly<Record<GoogleScope, string>> = words.scopes
 
 /** A step that needs these scopes, whose line says "Waits for your Gmail read access", or for a sign-in when the books file is among them. */
 export function needsAccess(scopes: readonly GoogleScope[]): StepState {
-  const line = scopes.includes('drive.file') ? 'Waits for you to sign in to Google' : `Waits for ${listInWords(scopes.map((scope) => SCOPE_WORDS[scope]))}`
+  const line = scopes.includes('drive.file') ? words.waitsForSignIn : words.waitsFor(listInWords(scopes.map((scope) => SCOPE_WORDS[scope])))
   return { kind: 'needs-access', scopes, line }
 }
 
@@ -147,7 +143,7 @@ export function accessLostFrom(run: SyncRun, app: string, id: string): SyncRun {
 export function skippedAfter(run: SyncRun, app: string, id: string): SyncRun {
   return withGroupSteps(run, app, (steps) => {
     const from = steps.findIndex((step) => step.id === id)
-    return steps.map((step, index) => (index > from && step.state.kind === 'queued' ? { ...step, state: { kind: 'skipped', line: 'Skipped, since the books could not be read' } } : step))
+    return steps.map((step, index) => (index > from && step.state.kind === 'queued' ? { ...step, state: { kind: 'skipped', line: words.skipped } } : step))
   })
 }
 
@@ -226,11 +222,11 @@ export function syncControlOf(run: SyncRun | null, books: BooksStanding, access:
     )
     const step = counted[at]
     if (step !== undefined) {
-      return { kind: 'running', label: step.label, position: at + 1, of: counted.length, line: step.state.kind === 'running' ? step.state.line : 'Waiting to start' }
+      return { kind: 'running', label: step.label, position: at + 1, of: counted.length, line: step.state.kind === 'running' ? step.state.line : words.waiting }
     }
   }
   if (books.reading) {
-    return { kind: 'running', label: BOOKS_STEP.label, position: 1, of: 1, line: 'Reading the file' }
+    return { kind: 'running', label: BOOKS_STEP.label, position: 1, of: 1, line: words.reading }
   }
   if (access.kind === 'sign-in') {
     return { kind: 'sign-in', failure }

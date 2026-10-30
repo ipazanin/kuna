@@ -5,6 +5,7 @@ import { moneyFromAmount } from '../../money/money'
 import type { Money } from '../../money/money'
 import type { RecordId } from './recordId'
 import type { FieldValue, RecordFields } from './recordFields'
+import { words } from './words'
 
 /**
  * One filled field of a stored record: its text, and what it holds where the storage keeps it as a
@@ -119,11 +120,11 @@ export function booleanOf(field: StoredField): boolean | null {
 export function optionalDate(fields: StoredFields, name: string): CivilDate | null {
   const field = fields[name]
   if (field === undefined) return null
-  return field.date ?? refuse(`${name} "${field.text}" is not a date cell`)
+  return field.date ?? refuse(words.reasons.notADateCell(name, field.text))
 }
 
 export function requiredDate(fields: StoredFields, name: string): CivilDate {
-  return optionalDate(fields, name) ?? refuse(`no ${name} date`)
+  return optionalDate(fields, name) ?? refuse(words.reasons.noDate(name))
 }
 
 /** Two optional dates that together make a period. Both blank is no period. */
@@ -131,45 +132,45 @@ export function optionalPeriod(fields: StoredFields, fromName: string, toName: s
   const from = optionalDate(fields, fromName)
   const to = optionalDate(fields, toName)
   if (from === null && to === null) return null
-  if (from === null || to === null) refuse(`${fromName} and ${toName} go together, and only one is filled`)
-  if (to < from) refuse(`${toName} ${to} is before ${fromName} ${from}`)
+  if (from === null || to === null) refuse(words.reasons.goTogether(fromName, toName))
+  if (to < from) refuse(words.reasons.before(toName, to, fromName, from))
   return { from, to }
 }
 
 export function optionalMoney(fields: StoredFields, name: string): Money | null {
   const field = fields[name]
   if (field === undefined) return null
-  return field.money ?? refuse(`${name} "${field.text}" is not a number`)
+  return field.money ?? refuse(words.reasons.notANumber(name, field.text))
 }
 
 export function requiredMoney(fields: StoredFields, name: string): Money {
-  return optionalMoney(fields, name) ?? refuse(`no ${name}`)
+  return optionalMoney(fields, name) ?? refuse(words.reasons.none(name, ''))
 }
 
 export function positiveMoney(fields: StoredFields, name: string): Money {
   const money = requiredMoney(fields, name)
-  return money > 0 ? money : refuse(`${name} must be more than zero`)
+  return money > 0 ? money : refuse(words.reasons.notAboveZero(name))
 }
 
 /** A year such as 2026, from a number or text. */
 export function requiredYear(fields: StoredFields, name: string): number {
   const year = wholeNumberOf(fields[name])
   if (year === null || year < 1900 || year > 2100) {
-    refuse(fields[name] === undefined ? `no ${name}` : `${name} "${textOf(fields[name])}" is not a year`)
+    refuse(fields[name] === undefined ? words.reasons.none(name, '') : words.reasons.notAYear(name, textOf(fields[name])))
   }
   return year
 }
 
-/** One of a fixed set of lower-case words. `noun` names what the word is, the field's name by default. */
-export function requiredChoice<Choice extends string>(fields: StoredFields, name: string, choices: readonly Choice[], noun = name): Choice {
+/** One of a fixed set of lower-case words. `noun` names what the word is in English, the field's name by default. */
+export function requiredChoice<Choice extends string>(fields: StoredFields, name: string, choices: readonly Choice[], noun = ''): Choice {
   const word = slugOf(fields[name])
-  if (word === '') refuse(`no ${noun}`)
-  return (choices as readonly string[]).includes(word) ? (word as Choice) : refuse(`"${word}" is not a ${noun}. Use ${choices.join(', ')}`)
+  if (word === '') refuse(words.reasons.none(name, noun))
+  return (choices as readonly string[]).includes(word) ? (word as Choice) : refuse(words.reasons.notAChoice(word, name, noun, choices.join(', ')))
 }
 
 /** The id of a record of a kind without a business key, refused when the record has none. */
 export function ownId(id: RecordId | null): RecordId {
-  return id ?? refuse('no id, so it is left out. Give it an id in the workbook that no other row holds, or delete the row and add it in the app')
+  return id ?? refuse(words.reasons.noId)
 }
 
 /** The id a record's business key makes, which every record the factory accepts has. */

@@ -24,9 +24,9 @@ function carriesIds(kind: RecordKind<unknown>): boolean {
 export function recordOnRow<R>(store: Store, kind: RecordKind<R>, sheetRow: number): R {
   const document = store.state.snapshot!.document
   const record = document.records[kind.name]?.[sheetRow - 2]
-  if (record === undefined) throw new Error(`No ${kind.noun.one} at row ${sheetRow}`)
+  if (record === undefined) throw new Error(`No ${kind.noun.en.one} at row ${sheetRow}`)
   const [read] = recordsOfDocument({ ...document, records: { [kind.name]: [record] } }, kind, codecOfKind).records
-  if (read === undefined) throw new Error(`Row ${sheetRow} does not read as ${kind.noun.article} ${kind.noun.one}`)
+  if (read === undefined) throw new Error(`Row ${sheetRow} does not read as ${kind.noun.en.article} ${kind.noun.en.one}`)
   return read.record
 }
 

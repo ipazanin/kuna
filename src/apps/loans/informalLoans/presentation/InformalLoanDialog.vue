@@ -11,12 +11,14 @@ import { informalLoanLink, LOANS_OVERVIEW_ROUTE } from '../../overview/presentat
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import type { InformalLoan } from '../../workbook/domain/informalLoan'
 import type { InformalLoanBook } from '../../workbook/domain/readLoanBook'
-import { parseCivilDate } from '../../../../shared/calendar/civilDate'
+import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { plainAmount } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import { words as loansWords } from '../../words'
+import { words } from './words'
 
 /** Money owed between people, with no interest and no plan: who owes whom, from when, and how much at the start. */
 const open = defineModel<boolean>('open', { required: true })
@@ -31,8 +33,8 @@ const writes = useRecordWrites(store)
 const router = useRouter()
 
 const DIRECTIONS = [
-  { label: 'You owe them', value: 'you-owe' },
-  { label: 'They owe you', value: 'owed-to-you' },
+  { label: words.loanDialog.youOweThem, value: 'you-owe' },
+  { label: words.loanDialog.theyOweYou, value: 'owed-to-you' },
 ]
 
 const name = ref('')
@@ -58,9 +60,9 @@ watch(open, (opened) => {
 const openingBalance = computed(() => typedAmount(opening.value))
 
 const errors = computed(() => ({
-  name: name.value.trim() === '' ? 'A name, such as From Ana' : null,
-  opening: openingBalance.value === null ? 'Zero or more, with at most two decimals' : null,
-  start: parseCivilDate(start.value) === null ? 'A date, such as 2025-03-01' : null,
+  name: name.value.trim() === '' ? words.loanDialog.nameError : null,
+  opening: openingBalance.value === null ? words.loanDialog.openingError : null,
+  start: parseCivilDate(start.value) === null ? loansWords.form.aDate(civilDate(2025, 3, 1)) : null,
 }))
 
 async function save(): Promise<void> {
@@ -70,20 +72,21 @@ async function save(): Promise<void> {
   const typed = newInformalLoan({ name: name.value, counterparty: counterparty.value, direction: direction.value, openingBalance: openingBalance.value, start: day, note: note.value })
   const book = props.book
   if (book === null) {
-    if (await writes.write('Informal loan added', (unit) => unit.of(INFORMAL_LOAN_WRITES).add(typed), { failedTitle: 'Not added' })) {
+    if (await writes.write(words.loanDialog.added, (unit) => unit.of(INFORMAL_LOAN_WRITES).add(typed), { failedTitle: loansWords.form.notAdded })) {
       open.value = false
       await router.push(informalLoanLink(typed))
     }
     return
   }
-  if (await writes.write('Informal loan saved', (unit) => unit.of(INFORMAL_LOAN_WRITES).change(book.loan, { ...typed, id: book.loan.id }), { failedTitle: 'Not saved' })) open.value = false
+  if (await writes.write(words.loanDialog.saved, (unit) => unit.of(INFORMAL_LOAN_WRITES).change(book.loan, { ...typed, id: book.loan.id }), { failedTitle: loansWords.form.notSaved }))
+    open.value = false
 }
 
 async function remove(): Promise<void> {
   const book = props.book
   const records = store.state.records
   if (book === null || records === null) return
-  if (await writes.write('Informal loan deleted', (unit) => removeInformalLoan(unit, records, book.loan), { failedTitle: 'Not deleted' })) {
+  if (await writes.write(words.loanDialog.deleted, (unit) => removeInformalLoan(unit, records, book.loan), { failedTitle: loansWords.form.notDeleted })) {
     open.value = false
     await router.push(LOANS_OVERVIEW_ROUTE)
   }
@@ -91,38 +94,43 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog
-    v-model:open="open"
-    :title="book === null ? 'Add an informal loan' : 'Change the informal loan'"
-    description="Money owed between people, with no interest and no plan. What was borrowed and repaid after the start goes in as movements."
-  >
+  <AppDialog v-model:open="open" :title="book === null ? words.loanDialog.addTitle : words.loanDialog.changeTitle" :description="words.loanDialog.description">
     <FormGrid id="informal-loan" as="form" data-testid="informal-loan-form" @submit.prevent="save">
-      <UFormField label="Name" :error="(tried && errors.name) || false">
-        <UInput v-model="name" placeholder="From Ana" class="w-full" data-testid="informal-loan-name" />
+      <UFormField :label="words.loanDialog.name" :error="(tried && errors.name) || false">
+        <UInput v-model="name" :placeholder="words.loanDialog.namePlaceholder" class="w-full" data-testid="informal-loan-name" />
       </UFormField>
-      <UFormField label="Who it is with">
-        <UInput v-model="counterparty" placeholder="Ana" class="w-full" />
+      <UFormField :label="words.loanDialog.counterparty">
+        <UInput v-model="counterparty" :placeholder="words.loanDialog.counterpartyPlaceholder" class="w-full" />
       </UFormField>
-      <URadioGroup v-model="direction" :items="DIRECTIONS" legend="Who owes" orientation="horizontal" />
-      <UFormField label="Owed at the start" :error="(tried && errors.opening) || false">
-        <UInput v-model="opening" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="informal-loan-opening" />
+      <URadioGroup v-model="direction" :items="DIRECTIONS" :legend="words.loanDialog.whoOwes" orientation="horizontal" />
+      <UFormField :label="words.loanDialog.opening" :error="(tried && errors.opening) || false">
+        <UInput v-model="opening" inputmode="decimal" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="informal-loan-opening" />
       </UFormField>
-      <UFormField label="Starts on" :error="(tried && errors.start) || false">
+      <UFormField :label="words.loanDialog.start" :error="(tried && errors.start) || false">
         <UInput v-model="start" type="date" class="w-full" data-testid="informal-loan-start" />
       </UFormField>
-      <UFormField label="Note" class="sm:col-span-2">
+      <UFormField :label="loansWords.form.note" class="sm:col-span-2">
         <UInput v-model="note" class="w-full" />
       </UFormField>
     </FormGrid>
     <template #start>
-      <UButton v-if="book !== null" label="Delete loan" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="informal-loan-delete" @click="remove" />
+      <UButton
+        v-if="book !== null"
+        :label="words.loanDialog.delete"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="ghost"
+        :disabled="writes.busy.value"
+        data-testid="informal-loan-delete"
+        @click="remove"
+      />
     </template>
     <template #end>
-      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="loansWords.form.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
       <UButton
         type="submit"
         form="informal-loan"
-        :label="book === null ? 'Add loan' : 'Save loan'"
+        :label="book === null ? words.loanDialog.add : words.loanDialog.save"
         :icon="book === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.busy.value"
         :disabled="writes.busy.value"

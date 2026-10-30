@@ -4,6 +4,7 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { useLoansBooks } from '../application/loansStore'
 import { exportLoansFile } from './loansFile'
+import { words } from './words'
 
 export interface LoansExport {
   readonly exporting: Readonly<Ref<boolean>>
@@ -23,9 +24,9 @@ export function useLoansExport(): LoansExport {
       exporting.value = true
       try {
         const fileName = await exportLoansFile(store)
-        toast.add({ title: 'Exported', description: fileName, icon: 'i-lucide-download', color: 'success' })
+        toast.add({ title: words.exported, description: fileName, icon: 'i-lucide-download', color: 'success' })
       } catch (failure) {
-        toast.add({ title: 'Export failed', description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error' })
+        toast.add({ title: words.exportFailed, description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error' })
       } finally {
         exporting.value = false
       }

@@ -1,5 +1,6 @@
 import type { ChartTokens } from './chartTokens'
 import { formatMoney } from '../money/moneyFormat'
+import { words } from './words'
 
 interface AxisTooltipPoint {
   readonly seriesName?: string
@@ -32,11 +33,11 @@ export function axisTooltip(settings: AxisTooltipSettings): (points: unknown) =>
     const rows = (Array.isArray(points) ? points : [points]) as AxisTooltipPoint[]
     const category = rows[0]?.axisValueLabel ?? rows[0]?.name ?? ''
     const header = `<div style="font-weight:600;color:${tokens.ink};margin-bottom:4px">${escapeHtml(categoryLabel(category))}</div>`
-    const incomplete = incompleteCategories.includes(category) ? `<div style="color:${tokens.inkMuted};margin:-2px 0 6px">Incomplete month, figures so far</div>` : ''
+    const incomplete = incompleteCategories.includes(category) ? `<div style="color:${tokens.inkMuted};margin:-2px 0 6px">${escapeHtml(words.incomplete)}</div>` : ''
     const body = rows
       .map((row) => {
         const amount = numericValue(row.value)
-        const amountText = amount === null ? 'no data' : formatAmount(amount, row.seriesName ?? '')
+        const amountText = amount === null ? words.noData : formatAmount(amount, row.seriesName ?? '')
         const keyColour = typeof row.color === 'string' ? row.color : tokens.inkMuted
         return (
           `<span style="width:10px;height:2px;border-radius:1px;background:${keyColour}"></span>` +
