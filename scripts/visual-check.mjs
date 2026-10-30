@@ -179,6 +179,7 @@ import {
 } from './support/editorFlows.mjs'
 import { writeImportSamples } from './support/importSampleFiles.mjs'
 import { runSelection } from './support/runSelection.mjs'
+import { settleCharts } from './support/settleCharts.mjs'
 import { screenshotWholePage } from './support/wholePage.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -1269,13 +1270,17 @@ const MODES = [
   { name: 'browser', query: '&fake=browser' },
 ]
 
-const visits = VISITS.filter((visit) => selection.takes(visit.name))
-const flows = FLOWS.filter((flow) => selection.takes(flow.name))
+const chosenVisits = VISITS.filter((visit) => selection.takes(visit.name))
+const chosenFlows = FLOWS.filter((flow) => selection.takes(flow.name))
 const unmatched = selection.unmatched()
 if (unmatched !== null) {
   console.error(unmatched)
   process.exit(2)
 }
+// Screens and flows are dealt out as one list, since a flow takes far longer than a screen.
+const shared = selection.share([...chosenVisits, ...chosenFlows].map((checked) => checked.name))
+const visits = chosenVisits.filter((visit) => shared.has(visit.name))
+const flows = chosenFlows.filter((flow) => shared.has(flow.name))
 
 const browser = await launch({ executablePath: chromePath(), headless: true, args: ['--hide-scrollbars', ENGLISH_CHROME_ARG] })
 let checked = 0
@@ -1331,8 +1336,10 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
       if (!shown) fail(scope, `the deep link did not open ${visit.linkedRule} in the side panel and bring its line to just below the search bar, marked, once the fonts loaded`)
     }
 
-    // ECharts animates bars and rings in. The screenshot and the hole of a donut should show where they land.
-    if (rendered && (drawsCharts || (await page.$('.donut-ring canvas')) !== null)) await new Promise((resolve) => setTimeout(resolve, 1500))
+    // The screenshot and the hole of a donut should show where the bars and rings land.
+    if (rendered && (drawsCharts || (await page.$('.donut-ring canvas')) !== null)) {
+      await settleCharts(page).catch(() => fail(scope, 'the charts were still moving 10 s after the screen opened'))
+    }
 
     if (visit.linkedPart && rendered) {
       await page.evaluate(() => document.fonts.ready.then(() => undefined))
@@ -1500,4 +1507,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`  ✗ ${failure}`)
   process.exit(1)
 }
-console.log(selection.limited ? `\nevery screen and flow of this limited run clean (${selection.summary()}). The full run without options is the check` : '\nall viewports clean')
+console.log(selection.limited ? `\nevery screen and flow of this limited run clean (${selection.summary()}). The full run without options, or all its shards, is the check` : '\nall viewports clean')

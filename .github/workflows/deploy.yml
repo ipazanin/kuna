@@ -46,9 +46,42 @@ jobs:
         run: npm run check:pwa
       - name: Import of files another program wrote
         run: npm run check:import
-      # ubuntu-latest ships Chrome at /usr/bin/google-chrome, which the visual check probes for.
-      # It runs against the fake build, so every screen has data and no Google call is made.
-      - name: Visual and touch checks
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: ./dist
+
+  # Side by side with verify, each on its own machine, since one machine takes nearly two hours for all of them.
+  # The touch check splits by width, since each width is one session whose steps build on each other.
+  checks:
+    name: ${{ matrix.check }} check ${{ matrix.selection }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { check: visual, selection: --shard 1/10 }
+          - { check: visual, selection: --shard 2/10 }
+          - { check: visual, selection: --shard 3/10 }
+          - { check: visual, selection: --shard 4/10 }
+          - { check: visual, selection: --shard 5/10 }
+          - { check: visual, selection: --shard 6/10 }
+          - { check: visual, selection: --shard 7/10 }
+          - { check: visual, selection: --shard 8/10 }
+          - { check: visual, selection: --shard 9/10 }
+          - { check: visual, selection: --shard 10/10 }
+          - { check: touch, selection: --widths 360 }
+          - { check: touch, selection: --widths 430 }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: 'npm'
+      - run: npm ci
+      # ubuntu-latest ships Chrome at /usr/bin/google-chrome, which the checks probe for.
+      # They run against the fake build, so every screen has data and no Google call is made.
+      - name: Check
         run: |
           npm run build:fake
           # Redirected, or the backgrounded server holds the step's stdout open and the job hangs
@@ -58,30 +91,14 @@ jobs:
             curl -sf http://localhost:4173/kuna/ > /dev/null && break
             sleep 1
           done
-          npm run check:visual || { cat preview.log; exit 1; }
-          npm run check:touch || { cat preview.log; exit 1; }
+          npm run check:${{ matrix.check }} -- ${{ matrix.selection }} || { cat preview.log; exit 1; }
 
   deploy:
-    needs: verify
+    needs: [verify, checks]
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-          cache: 'npm'
-      - run: npm ci
-      - run: npm run build
-        env:
-          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
-          VITE_GOOGLE_API_KEY: ${{ vars.VITE_GOOGLE_API_KEY }}
-          VITE_GOOGLE_PROJECT_NUMBER: ${{ vars.VITE_GOOGLE_PROJECT_NUMBER }}
-      - uses: actions/configure-pages@v6
-      - uses: actions/upload-pages-artifact@v5
-        with:
-          path: ./dist
       - id: deployment
         uses: actions/deploy-pages@v5

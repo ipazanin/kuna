@@ -127,6 +127,7 @@ import {
 import { writeImportSamples } from './support/importSampleFiles.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
 import { runSelection } from './support/runSelection.mjs'
+import { settleCharts } from './support/settleCharts.mjs'
 import { screenshotWholePage } from './support/wholePage.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -137,6 +138,10 @@ const OUTPUT_DIR = process.env.TOUCH_OUTPUT_DIR ?? join(ROOT, 'visual-check', 't
 const WIDTHS = [360, 430]
 const SMALLEST_TARGET = 44
 const selection = runSelection(WIDTHS)
+if (selection.sharded) {
+  console.error('The touch check runs each width as one session whose steps build on each other, so it splits by --widths, not --shard.')
+  process.exit(2)
+}
 const BASE = selection.base
 
 /** Steps that carry on from the page an earlier step left, so a run limited to one of them runs that one too. */
@@ -1853,12 +1858,6 @@ async function waitForText(page, selector, text) {
       throw new Error(`no ${selector} reading "${text}" within 10 s (${error.message})`)
     })
   return handle.asElement()
-}
-
-async function settleCharts(page) {
-  await page.waitForSelector('.chart-body canvas')
-  // ECharts animates bars in. A tap should land where they end up.
-  await delay(1500)
 }
 
 /** Taps across the first chart, or the one `canvas` names, until a mark answers with the drill offer, and returns where it hit, as fractions of the plot. */

@@ -2018,6 +2018,12 @@ there are, and a run that would check nothing fails too. A limited run keeps the
 take and says on its last line that it was limited. Only the full run, without options, is the check
 before a commit. The address of the preview can go before or after the options.
 
+CI runs the full checks side by side on twelve machines, since one machine takes nearly two hours. The
+visual check takes `--shard 3/10` for the third of ten shares: screen and flow names are dealt out in
+turn, and every width and theme of a name stays in its share, so the dashboard grids are still compared
+across widths. The touch check runs each width as one session whose steps build on each other, so it
+splits by `--widths` instead.
+
 `check:pwa` serves the production build itself and sends every other origin to a dead proxy, so it
 needs no preview and makes no call to Google.
 
