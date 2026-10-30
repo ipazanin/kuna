@@ -70,7 +70,7 @@ const facts = computed(() => {
 
         <section class="flex flex-col gap-2" data-testid="record-counts">
           <h3 class="text-sm font-medium text-highlighted">{{ preview.recordCount }} {{ preview.recordCount === 1 ? 'record' : 'records' }}, by tab</h3>
-          <dl class="record-counts text-sm">
+          <dl class="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-x-6 gap-y-1 text-sm">
             <div v-for="kind in preview.counts" :key="kind.name" class="flex min-w-0 items-baseline justify-between gap-3">
               <dt class="truncate text-toned">{{ kind.name }}</dt>
               <dd class="figure text-highlighted">{{ kind.count }}</dd>
@@ -95,11 +95,3 @@ const facts = computed(() => {
     </template>
   </div>
 </template>
-
-<style scoped>
-.record-counts {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
-  gap: 0.25rem 1.5rem;
-}
-</style>

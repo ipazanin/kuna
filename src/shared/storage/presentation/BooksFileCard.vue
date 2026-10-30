@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
-import { intlLocale } from '../../text/language'
+import { dateFormat } from '../../calendar/dateFormat'
 import AppCard from '../../ui/AppCard.vue'
 import type { BooksRead, WorkbookStore } from '../application/createWorkbookStore'
 import type { DriveFilePlace } from '../application/workbookPorts'
@@ -22,18 +22,18 @@ const props = defineProps<{
 
 const state = computed(() => props.store.state)
 
-const stamp = new Intl.DateTimeFormat(intlLocale, { dateStyle: 'medium', timeStyle: 'short' })
-const day = new Intl.DateTimeFormat(intlLocale, { day: 'numeric', month: 'short', year: 'numeric' })
+const stamp = dateFormat({ dateStyle: 'medium', timeStyle: 'short' })
+const day = dateFormat({ day: 'numeric', month: 'short', year: 'numeric' })
 
 const meta = computed(() => state.value.snapshot?.meta ?? null)
 const source = computed(() => state.value.choice?.source ?? meta.value?.source ?? null)
 const fileName = computed(() => state.value.choice?.name ?? meta.value?.title ?? null)
-const changedAt = computed(() => (state.value.syncedAt === null ? null : stamp.format(new Date(state.value.syncedAt))))
-const exportedAt = computed(() => (meta.value?.lastExportedAt ? day.format(new Date(meta.value.lastExportedAt)) : null))
+const changedAt = computed(() => (state.value.syncedAt === null ? null : stamp(new Date(state.value.syncedAt))))
+const exportedAt = computed(() => (meta.value?.lastExportedAt ? day(new Date(meta.value.lastExportedAt)) : null))
 const reminderDue = computed(() => exportReminderDue(meta.value?.unexportedSince ?? null, new Date()))
 const savedAt = computed(() => {
   const saved = state.value.snapshot?.document.savedAt ?? ''
-  return saved === '' ? null : stamp.format(new Date(saved))
+  return saved === '' ? null : stamp(new Date(saved))
 })
 const fileLink = computed(() => (source.value === 'drive' && meta.value !== null ? `https://drive.google.com/file/d/${encodeURIComponent(meta.value.id)}/view` : null))
 
@@ -55,7 +55,7 @@ watch(
   { immediate: true },
 )
 const folderLink = computed(() => (shownPlace.value === null ? null : `https://drive.google.com/drive/folders/${encodeURIComponent(shownPlace.value.folderId)}`))
-const lastBackup = computed(() => (shownPlace.value?.lastBackup ? day.format(new Date(`${shownPlace.value.lastBackup}T12:00:00`)) : null))
+const lastBackup = computed(() => (shownPlace.value?.lastBackup ? day(new Date(`${shownPlace.value.lastBackup}T12:00:00`)) : null))
 </script>
 
 <template>

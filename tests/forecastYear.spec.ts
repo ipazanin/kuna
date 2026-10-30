@@ -53,7 +53,7 @@ describe('forecastYear, the year still running', () => {
     // so the later months carry September forward instead of a twelve-month average.
     expect(amounts(categoryLine(forecast, 'salary-net'))).toEqual(Array.from({ length: 12 }, () => euros(-1000)))
     expect(categoryLine(forecast, 'salary-net').averagedOver).toEqual({ from: '2026-09', to: '2026-09', monthCount: 1 })
-    expect(categoryLine(forecast, 'salary-net').average?.label).toBe('As in Sept 2026, the last month the ledger settles')
+    expect(categoryLine(forecast, 'salary-net').average?.label).toBe('As in Sep 2026, the last month the ledger settles')
   })
 
   it('takes the months a cost paid ahead already covers from its spread, not the average', () => {
@@ -98,7 +98,7 @@ describe('forecastYear, the year still running', () => {
     expect(forecast.cit.advancesPaid.steps).toHaveLength(5)
     expect(forecast.cit.advancesToCome.amount).toBe(euros(400))
     expect(forecast.cit.advancesToCome.steps.map((step) => [step.label, step.on])).toEqual([
-      ['Advance for Sept 2026, due', '2026-10-31'],
+      ['Advance for Sep 2026, due', '2026-10-31'],
       ['Advance for Oct 2026, due', '2026-11-30'],
       ['Advance for Nov 2026, due', '2026-12-31'],
       ['Advance for Dec 2026, due', '2027-01-31'],

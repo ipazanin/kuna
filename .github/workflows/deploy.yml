@@ -28,8 +28,6 @@ jobs:
         run: npm run lint
       - name: Format check
         run: npm run format:check
-      - name: Typecheck
-        run: npm run typecheck
       - name: Unit tests
         run: npm test
       - name: Build
@@ -38,6 +36,9 @@ jobs:
           VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
           VITE_GOOGLE_API_KEY: ${{ vars.VITE_GOOGLE_API_KEY }}
           VITE_GOOGLE_PROJECT_NUMBER: ${{ vars.VITE_GOOGLE_PROJECT_NUMBER }}
+      # After the build, which writes Nuxt UI's theme types, so a colour outside the theme fails.
+      - name: Typecheck
+        run: npm run typecheck
       # Serves dist/ itself and sends every other origin to a dead proxy, so it calls no Google API.
       - name: Offline and update check
         run: npm run check:pwa

@@ -29,7 +29,7 @@ For a diff, run `npm run check`, which runs lint, the format check, typecheck an
 11. Layout rules. Form fields two to a row in `FormGrid`, dashboard tiles and cards in `DashboardGrid`, figure tables in `FigureTable`, empty and error states in `EmptyState`.
 12. Touch targets of at least 44 px below 640 px, and a status that colour alone carries.
 13. A new component without its gallery specimen or catalogue row, a specimen that leaves out a state, and a catalogue row that no longer matches the props.
-14. A change to `eslint.config.js` that loosens a rule or adds an exemption. The owner must approve it.
+14. A change to `eslint.config.js` that loosens a rule or adds an exemption, or a file added to `scripts/lint-baseline.json`. The owner must approve it.
 
 Report as:
 

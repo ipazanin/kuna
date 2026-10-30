@@ -21,7 +21,7 @@ import { EXTRA_PAYMENT_WRITES, newExtraPayment } from '../application/bankLoanWr
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
-import { amountOf } from '../../../../shared/money/money'
+import { plainAmount } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
@@ -46,7 +46,7 @@ const tried = ref(false)
 watch(open, (opened) => {
   if (!opened) return
   date.value = props.start?.date ?? ''
-  amount.value = props.start === null ? '' : amountOf(props.start.amount).toFixed(2)
+  amount.value = props.start === null ? '' : plainAmount(props.start.amount)
   effect.value = props.start?.effect ?? 'shorter-term'
   tried.value = false
 })

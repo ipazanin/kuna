@@ -12,7 +12,7 @@ import { useLoansBooks } from '../../workbook/application/loansStore'
 import type { BankLoan, InterimInterest } from '../../workbook/domain/bankLoan'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
-import { amountOf } from '../../../../shared/money/money'
+import { plainAmount } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
@@ -57,11 +57,11 @@ watch(open, (opened) => {
   const loan = props.book?.loan ?? null
   name.value = loan?.name ?? ''
   lender.value = loan?.lender ?? ''
-  principal.value = loan === null ? '' : amountOf(loan.principal).toFixed(2)
+  principal.value = loan === null ? '' : plainAmount(loan.principal)
   drawdown.value = loan?.drawdown ?? ''
   firstInstalment.value = loan?.firstInstalment ?? ''
   instalments.value = loan === null ? '' : String(loan.instalments)
-  interimAmount.value = loan?.interimInterest ? amountOf(loan.interimInterest.amount).toFixed(2) : ''
+  interimAmount.value = loan?.interimInterest ? plainAmount(loan.interimInterest.amount) : ''
   interimDate.value = loan?.interimInterest?.date ?? ''
   note.value = loan?.note ?? ''
   rate.value = { rate: '', rateType: 'fixed', note: '' }

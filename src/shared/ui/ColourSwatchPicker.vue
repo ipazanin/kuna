@@ -58,7 +58,7 @@ const picked = computed(() => choices.value.find((choice) => choice.value !== BL
             legend: 'mb-2 text-sm font-medium text-highlighted',
             item: 'relative h-11',
             container: 'absolute inset-0 z-control h-auto',
-            base: 'size-full rounded-md ring-0 data-[state=checked]:ring-2 data-[state=checked]:ring-offset-2 data-[state=checked]:ring-(--ink-strong) data-[state=checked]:ring-offset-(--ui-bg) focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary',
+            base: 'size-full rounded-md ring-0 data-[state=checked]:ring-2 data-[state=checked]:ring-offset-2 data-[state=checked]:ring-inverted data-[state=checked]:ring-offset-bg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary',
             indicator: 'hidden',
             wrapper: 'ms-0 size-full',
             label: 'flex size-full items-center gap-2 text-sm font-normal text-default',
@@ -67,7 +67,7 @@ const picked = computed(() => choices.value.find((choice) => choice.value !== BL
         >
           <template #label="{ item }">
             <span class="swatch shrink-0" :class="item.value === BLANK ? 'size-6' : 'size-full'" :style="{ background: `var(${item.token})` }" data-testid="colour-swatch">
-              <UIcon v-if="item.value === picked.value" name="i-lucide-check" class="size-4 text-(--chart-on-fill)" />
+              <UIcon v-if="item.value === picked.value" name="i-lucide-check" class="size-4 text-on-fill" />
             </span>
             <span :class="item.value === BLANK ? '' : 'sr-only'">{{ item.name }}</span>
           </template>

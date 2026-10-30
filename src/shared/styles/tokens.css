@@ -42,6 +42,7 @@
 @theme inline {
   --color-page: var(--surface-page);
   --color-raised: var(--surface-raised);
+  --color-on-fill: var(--chart-on-fill);
   --shadow-raised: var(--elevation-raised);
   --shadow-overlay: var(--elevation-overlay);
 }

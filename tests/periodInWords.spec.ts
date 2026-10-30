@@ -26,7 +26,7 @@ describe('periodInWords', () => {
   })
 
   it('names whole months when a custom range starts and ends on their edges', () => {
-    expect(periodInWords({ preset: 'custom', range: { from: civil('2024-10-01'), to: civil('2025-09-30') } }, window)).toBe('Oct 2024 – Sept 2025, Jun in part')
+    expect(periodInWords({ preset: 'custom', range: { from: civil('2024-10-01'), to: civil('2025-09-30') } }, window)).toBe('Oct 2024 – Sep 2025, Jun in part')
   })
 
   it('names the days of any other custom range', () => {

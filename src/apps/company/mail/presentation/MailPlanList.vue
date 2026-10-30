@@ -2,7 +2,7 @@
 import { computed, reactive } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
-import { intlLocale } from '../../../../shared/text/language'
+import { dateFormat } from '../../../../shared/calendar/dateFormat'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { countsLine } from '../domain/mailSource'
 import { mailCounts, notFiledLine } from '../application/mailFiling'
@@ -15,7 +15,7 @@ const props = defineProps<{
   stopped: string | null
 }>()
 
-const dayFormat = new Intl.DateTimeFormat(intlLocale, { day: 'numeric', month: 'short', year: 'numeric' })
+const dayFormat = dateFormat({ day: 'numeric', month: 'short', year: 'numeric' })
 
 /** The kinds in the order a person reads them: what failed, what was filed, what needs a look, then what is already there. */
 const ORDER: readonly PlanEntry['kind'][] = ['not-filed', 'filed', 'correction', 'unchecked', 'unmatched', 'already']
@@ -43,7 +43,7 @@ function headline(source: SourcePlan): string {
 }
 
 function searched(source: Extract<SourcePlan, { kind: 'planned' }>): string {
-  const from = dayFormat.format(new Date(source.window.from))
+  const from = dayFormat(new Date(source.window.from))
   return source.window.after === 'newest' ? `Searched from ${from}, a week before the newest file in its folder` : `Searched from ${from}, the mail-since day`
 }
 
@@ -57,7 +57,7 @@ function target(entry: Exclude<PlanEntry, { kind: 'unmatched' }>): string[] {
 }
 
 function mailWords(entry: PlanEntry): string {
-  return `“${entry.mail.subject}”, ${dayFormat.format(new Date(entry.mail.date))}`
+  return `“${entry.mail.subject}”, ${dayFormat(new Date(entry.mail.date))}`
 }
 
 function note(entry: PlanEntry): string {

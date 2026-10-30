@@ -6,6 +6,7 @@ import { chartTokens } from '../../../../../../shared/charts/chartTokens'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
+import FigureTable from '../../../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import DrillChartCard from '../../../../filters/presentation/DrillChartCard.vue'
 import { salaryMonthsChart } from './salaryCharts'
@@ -36,32 +37,30 @@ const chart = computed(() => salaryMonthsChart(props.rows, chartTokens()))
     </DrillChartCard>
 
     <AppCard :title="`Paydays of ${year}`" subtitle="A month opens on the Month tab." data-testid="salaries-months">
-      <div class="@container px-1 pb-2 sm:px-2">
-        <table class="data-table w-full text-sm">
-          <thead>
-            <tr>
-              <th scope="col" class="text-start">Paid in</th>
-              <th scope="col" class="text-end">Cost</th>
-              <th scope="col" class="hidden text-end @lg:table-cell">To the employee</th>
-              <th scope="col" class="hidden text-end @2xl:table-cell">Pension savings</th>
-              <th scope="col" class="hidden text-end @md:table-cell">To the state</th>
-              <th scope="col" class="text-end">Problems</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in rows" :key="row.payday" :data-payday="row.payday">
-              <th scope="row" class="text-start font-normal">
-                <DrillLink :to="monthLink(row.payday)" :label="`${row.label}, open the month`" class="text-highlighted">{{ row.label }}</DrillLink>
-              </th>
-              <td class="text-end"><MoneyText :cents="row.cost" /></td>
-              <td class="hidden text-end @lg:table-cell"><MoneyText :cents="row.parts.employee" /></td>
-              <td class="hidden text-end @2xl:table-cell"><MoneyText :cents="row.parts.pensionSavings" /></td>
-              <td class="hidden text-end @md:table-cell"><MoneyText :cents="row.toState" /></td>
-              <td class="figure text-end" :class="row.problems === 0 ? 'text-muted' : 'text-error'">{{ row.problems }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <FigureTable class="px-1 pb-2 sm:px-2">
+        <thead>
+          <tr>
+            <th scope="col" class="text-start">Paid in</th>
+            <th scope="col" class="text-end">Cost</th>
+            <th scope="col" class="hidden text-end @lg:table-cell">To the employee</th>
+            <th scope="col" class="hidden text-end @2xl:table-cell">Pension savings</th>
+            <th scope="col" class="hidden text-end @md:table-cell">To the state</th>
+            <th scope="col" class="text-end">Problems</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in rows" :key="row.payday" :data-payday="row.payday">
+            <th scope="row" class="text-start font-normal">
+              <DrillLink :to="monthLink(row.payday)" :label="`${row.label}, open the month`" class="text-highlighted">{{ row.label }}</DrillLink>
+            </th>
+            <td class="text-end"><MoneyText :cents="row.cost" /></td>
+            <td class="hidden text-end @lg:table-cell"><MoneyText :cents="row.parts.employee" /></td>
+            <td class="hidden text-end @2xl:table-cell"><MoneyText :cents="row.parts.pensionSavings" /></td>
+            <td class="hidden text-end @md:table-cell"><MoneyText :cents="row.toState" /></td>
+            <td class="figure text-end" :class="row.problems === 0 ? 'text-muted' : 'text-error'">{{ row.problems }}</td>
+          </tr>
+        </tbody>
+      </FigureTable>
     </AppCard>
   </div>
 </template>

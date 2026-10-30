@@ -13,6 +13,7 @@ export interface DoubledRatesLine {
 <script setup lang="ts">
 import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
+import FigureTable from '../../../../../../shared/ui/FigureTable.vue'
 
 /** Per year, what doubled rates would change against the rates the workbook asks for. */
 defineProps<{
@@ -48,31 +49,29 @@ const phone = usePhoneLayout()
       </dl>
     </li>
   </ul>
-  <div v-else class="overflow-x-auto">
-    <table class="data-table w-full text-sm" data-testid="doubled-rates-changes">
-      <thead>
-        <tr>
-          <th scope="col" class="text-start">Year</th>
-          <th scope="col" class="text-end">Depreciation</th>
-          <th v-if="showGrant" scope="col" class="text-end">Grant released</th>
-          <th scope="col" class="text-end">Profit before tax</th>
-          <th scope="col" class="text-end">Profit tax</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="line in lines" :key="line.year">
-          <th scope="row" class="figure text-start font-normal text-toned">{{ line.year }}</th>
-          <td class="text-end"><MoneyText :cents="line.depreciation" sign="always" /></td>
-          <td v-if="showGrant" class="text-end"><MoneyText :cents="line.grantReleased" sign="always" /></td>
-          <td class="text-end"><MoneyText :cents="line.profitBeforeTax" sign="always" /></td>
-          <td class="text-end">
-            <MoneyText :cents="line.profitTax" sign="always" class="text-highlighted" />
-            <span class="ms-1.5 text-xs text-muted">at {{ line.rate }}</span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <FigureTable v-else data-testid="doubled-rates-changes">
+    <thead>
+      <tr>
+        <th scope="col" class="text-start">Year</th>
+        <th scope="col" class="text-end">Depreciation</th>
+        <th v-if="showGrant" scope="col" class="text-end">Grant released</th>
+        <th scope="col" class="text-end">Profit before tax</th>
+        <th scope="col" class="text-end">Profit tax</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr v-for="line in lines" :key="line.year">
+        <th scope="row" class="figure text-start font-normal text-toned">{{ line.year }}</th>
+        <td class="text-end"><MoneyText :cents="line.depreciation" sign="always" /></td>
+        <td v-if="showGrant" class="text-end"><MoneyText :cents="line.grantReleased" sign="always" /></td>
+        <td class="text-end"><MoneyText :cents="line.profitBeforeTax" sign="always" /></td>
+        <td class="text-end">
+          <MoneyText :cents="line.profitTax" sign="always" class="text-highlighted" />
+          <span class="ms-1.5 text-xs text-muted">at {{ line.rate }}</span>
+        </td>
+      </tr>
+    </tbody>
+  </FigureTable>
 </template>
 
 <style scoped>

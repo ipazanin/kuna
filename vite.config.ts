@@ -20,6 +20,7 @@ export default defineConfig({
       // Every i-lucide-* name in src is bundled from @iconify-json/lucide. Iconify would otherwise
       // fetch a missing icon from api.iconify.design, which the Content Security Policy blocks.
       icon: { clientBundle: { scan: { globInclude: ['src/**/*.{vue,ts}'] } } },
+      theme: { colors: ['primary', 'info', 'success', 'warning', 'error'] },
       ui: {
         // The colours themselves come from src/shared/styles/tokens.css, which overrides these.
         colors: {

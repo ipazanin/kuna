@@ -136,7 +136,7 @@ describe('salaryMonthView', () => {
     expect(tile(view, 'To the state').value).toBe(formatMoney(euros(508.17)))
     expect(tile(view, 'Pension savings').value).toBe(formatMoney(euros(64.77)))
     expect(tile(view, 'Problems').value).toBe('0')
-    expect(view.strip).toMatchObject({ name: 'Alex Example', gross: euros(1295.45), net: euros(936.26), paidOn: '12 Sept 2026' })
+    expect(view.strip).toMatchObject({ name: 'Alex Example', gross: euros(1295.45), net: euros(936.26), paidOn: '12 Sep 2026' })
     // Of the 11 lines only health, both pension pillars and income tax are stated by the app and the bank alike.
     expect(view.compared).toBe(4)
     expect(view.agreeing).toBe(4)

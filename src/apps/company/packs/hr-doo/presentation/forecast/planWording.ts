@@ -1,7 +1,7 @@
 import { monthName, shortMonthName } from '../../../../../../shared/calendar/monthLabel'
 import type { AssetGroup } from '../../domain/assets/assets'
 import { monthKey } from '../../../../../../shared/calendar/monthKey'
-import { amountOf } from '../../../../../../shared/money/money'
+import { negateMoney, plainAmount } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
 
 export const GROUP_WORDS: Readonly<Record<AssetGroup, string>> = {
@@ -22,5 +22,5 @@ export function monthsOf(year: number): readonly { readonly number: number; read
 
 /** An amount as a field shows it, such as 1250.00, read positive. */
 export function fieldAmount(money: Money): string {
-  return Math.abs(amountOf(money)).toFixed(2)
+  return plainAmount(money < 0 ? negateMoney(money) : money)
 }

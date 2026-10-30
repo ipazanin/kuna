@@ -1,4 +1,4 @@
-import { amountOf } from '../../../../shared/money/money'
+import { plainAmount } from '../../../../shared/money/money'
 import type { ListedRow } from '../domain/listedRows'
 
 const COLUMNS: readonly { readonly header: string; readonly cell: (row: ListedRow) => string }[] = [
@@ -7,8 +7,8 @@ const COLUMNS: readonly { readonly header: string; readonly cell: (row: ListedRo
   { header: 'counterparty', cell: (row) => row.counterparty },
   { header: 'counterparty_iban', cell: (row) => row.counterpartyIban },
   { header: 'description', cell: (row) => row.description },
-  { header: 'amount', cell: (row) => amountOf(row.amount).toFixed(2) },
-  { header: 'balance', cell: (row) => (row.kind === 'bank' ? amountOf(row.balance).toFixed(2) : '') },
+  { header: 'amount', cell: (row) => plainAmount(row.amount) },
+  { header: 'balance', cell: (row) => (row.kind === 'bank' ? plainAmount(row.balance) : '') },
   { header: 'category', cell: (row) => row.category },
   { header: 'bucket', cell: (row) => row.bucket },
   { header: 'flagged_by', cell: (row) => (row.kind === 'bank' ? row.flaggedBy : '') },

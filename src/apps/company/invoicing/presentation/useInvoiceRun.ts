@@ -5,7 +5,7 @@ import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
 import { downloadFile } from '../../../../shared/files/downloadFile'
-import { amountOf } from '../../../../shared/money/money'
+import { plainAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { expectedInvoices } from '../../billingPlan/domain/expectedInvoices'
@@ -47,10 +47,6 @@ export type RunStage =
   | { readonly kind: 'ready'; readonly target: FilingTarget | null; readonly pdf: Uint8Array }
   | { readonly kind: 'running' }
   | { readonly kind: 'finished' }
-
-function amountText(amount: Money): string {
-  return amountOf(amount).toFixed(2)
-}
 
 function linesOf(drafts: readonly LineDraft[]): InvoiceLine[] {
   return drafts.map((draft) => ({ description: draft.description.trim(), amount: typedAmount(draft.amount) ?? (Number.NaN as Money) }))
@@ -109,7 +105,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
       due.value = invoice.due ?? fresh.due
       periodFrom.value = invoice.deliveryPeriod?.from ?? fresh.periodFrom
       periodTo.value = invoice.deliveryPeriod?.to ?? fresh.periodTo
-      lines.value = [{ description: invoice.item, amount: amountText(invoice.amount) }]
+      lines.value = [{ description: invoice.item, amount: plainAmount(invoice.amount) }]
       return
     }
     const asked = mode.value.kind === 'new' ? mode.value.client : null
@@ -134,7 +130,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
 
   function fillLines(): void {
     const day = parseCivilDate(issued.value)
-    lines.value = day === null ? [] : plannedLines(expected.value, client.value, day).map((line) => ({ description: line.description, amount: amountText(line.amount) }))
+    lines.value = day === null ? [] : plannedLines(expected.value, client.value, day).map((line) => ({ description: line.description, amount: plainAmount(line.amount) }))
     if (lines.value.length === 0) lines.value = [{ description: '', amount: '' }]
   }
 
@@ -414,7 +410,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
   function mergeLines(): void {
     const previous = [...(workbook.value?.invoices ?? [])].filter((invoice) => invoice.client === client.value).sort((upper, lower) => lower.issued.localeCompare(upper.issued))[0]
     const description = previous?.item || lines.value[0]?.description || ''
-    lines.value = [{ description, amount: amountText(total.value) }]
+    lines.value = [{ description, amount: plainAmount(total.value) }]
   }
 
   return {

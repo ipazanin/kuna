@@ -1,6 +1,6 @@
-import { intlLocale } from '../text/language'
+import { dateFormat } from './dateFormat'
 
-const DAY_AND_MONTH = new Intl.DateTimeFormat(intlLocale, { day: 'numeric', month: 'short' })
+const DAY_AND_MONTH = dateFormat({ day: 'numeric', month: 'short' })
 
 const MINUTE = 60_000
 const HOUR = 60 * MINUTE
@@ -14,5 +14,5 @@ export function syncAge(syncedAt: Date, now: Date): string {
   const yesterday = new Date(now)
   yesterday.setDate(now.getDate() - 1)
   if (syncedAt.toDateString() === yesterday.toDateString()) return 'yesterday'
-  return `on ${DAY_AND_MONTH.format(syncedAt)}`
+  return `on ${DAY_AND_MONTH(syncedAt)}`
 }

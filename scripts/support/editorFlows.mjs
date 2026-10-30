@@ -1030,7 +1030,7 @@ export async function ownerNetFlow(page, { press, shoot, inspect }) {
     'Pay without loans and dividends, 10 months',
     'Rent tax the owner pays the tax office',
     'Pay after the rent tax',
-    'Profit before tax, Jan 2026 – Sept 2026',
+    'Profit before tax, Jan 2026 – Sep 2026',
     'Corporate tax at',
     'Dividend tax at',
     'Profit after both taxes, 9 months',
@@ -3218,7 +3218,7 @@ export async function loansEditorFlow(page, { press, shoot, inspect }) {
   await fill(page, 'extra-payment-amount', '2000')
   await pressSelector(page, press, '[data-testid="extra-payment-save"]')
   await toast(page, 'Extra payment added')
-  await elementSays(page, '[data-testid="extra-payments"]', ['€2,000.00', '10 Sept 2026, shorter term'], 'the extra payment is not listed')
+  await elementSays(page, '[data-testid="extra-payments"]', ['€2,000.00', '10 Sep 2026, shorter term'], 'the extra payment is not listed')
   await dismissToasts(page)
 
   await addChange(page, press, 'late-instalments')
@@ -3299,11 +3299,12 @@ export async function loansWhatIfFlow(page, { press, shoot, inspect }) {
 }
 
 /** Opens a dialog with `opener`, waits for `shown` in it, shoots it under `name` and closes it with Escape. */
-async function lookAtDialog(page, press, shoot, opener, shown, name) {
+async function lookAtDialog(page, press, shoot, opener, shown, name, says = null) {
   await pressSelector(page, press, opener)
   await page.waitForSelector(shown, { visible: true, timeout: 10_000 }).catch(() => {
     throw new Error(`${opener} opened no ${shown}`)
   })
+  if (says !== null) await elementSays(page, shown, [says], `${shown} does not say "${says}"`)
   await delay(400)
   await shoot(name)
   await page.keyboard.press('Escape')
@@ -3345,14 +3346,22 @@ export async function loansDialogsFlow(page, { press, shoot }) {
   await shoot('dialog-subsidy-form')
   await page.keyboard.press('Escape')
   await dialogGone(page, '[data-testid="subsidy-form"]')
-  for (const [card, form] of [
-    ['rate-periods', 'rate-period-form'],
-    ['extra-payments', 'extra-payment-form'],
-    ['late-instalments', 'late-instalment-form'],
+  for (const [card, form, says] of [
+    ['rate-periods', 'rate-period-form', 'The first period starts at the first instalment.'],
+    ['extra-payments', 'extra-payment-form', null],
+    ['late-instalments', 'late-instalment-form', null],
   ]) {
-    await lookAtDialog(page, press, shoot, `[data-testid="${card}"] [data-testid="change-edit"]`, `[data-testid="${form}"]`, `dialog-${form}`)
+    await lookAtDialog(page, press, shoot, `[data-testid="${card}"] [data-testid="change-edit"]`, `[data-testid="${form}"]`, `dialog-${form}`, says)
   }
-  await lookAtDialog(page, press, shoot, '[data-testid="rate-periods"] [data-testid="change-add"]', '[data-testid="rate-period-form"]', 'dialog-add-rate-period')
+  await lookAtDialog(
+    page,
+    press,
+    shoot,
+    '[data-testid="rate-periods"] [data-testid="change-add"]',
+    '[data-testid="rate-period-form"]',
+    'dialog-add-rate-period',
+    'The rate applies from this due date on.',
+  )
 
   await openLoanCard(page, press, 'From Marko')
   await lookAtDialog(page, press, shoot, '[data-testid="informal-loan-edit"]', '[data-testid="informal-loan-form"]', 'dialog-informal-loan')

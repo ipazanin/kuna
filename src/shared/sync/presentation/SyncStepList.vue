@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
-import { intlLocale } from '../../text/language'
+import { dateFormat } from '../../calendar/dateFormat'
 import DrillLink from '../../ui/DrillLink.vue'
 import type { RunStep, StepState, SyncRun } from '../application/syncRun'
 import { usePageSync } from './pageSync'
@@ -20,7 +20,7 @@ const emit = defineEmits<{
 
 const page = usePageSync()
 
-const stamp = new Intl.DateTimeFormat(intlLocale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+const stamp = dateFormat({ day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
 const ICONS: Readonly<Record<StepState['kind'], { readonly name: string; readonly tone: string }>> = {
   off: { name: 'i-lucide-circle-off', tone: 'text-muted' },
@@ -37,7 +37,7 @@ const running = computed(() => props.run !== null && props.run.finishedAt === nu
 const when = computed(() => {
   const run = props.run
   if (run === null) return 'No sync on this page yet.'
-  return running.value ? `Syncing since ${stamp.format(new Date(run.startedAt))}` : `Last sync ${stamp.format(new Date(run.finishedAt ?? run.startedAt))}`
+  return running.value ? `Syncing since ${stamp(new Date(run.startedAt))}` : `Last sync ${stamp(new Date(run.finishedAt ?? run.startedAt))}`
 })
 
 function lineOf(step: RunStep): string {

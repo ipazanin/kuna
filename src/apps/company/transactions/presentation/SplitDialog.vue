@@ -5,7 +5,7 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { ZERO, addMoney, amountOf, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { ZERO, addMoney, negateMoney, plainAmount, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { typedAmount } from '../../../../shared/money/typedAmount'
@@ -50,7 +50,7 @@ let nextId = 0
 
 function field(amount: Money | null, category: string, note: string, opened: SplitPart | null = null): PartField {
   nextId += 1
-  return { id: nextId, amount: amount === null ? '' : amountOf(amount).toFixed(2), category, note, opened }
+  return { id: nextId, amount: amount === null ? '' : plainAmount(amount), category, note, opened }
 }
 
 watch(
@@ -104,7 +104,7 @@ function removePart(id: number): void {
 function takeRest(index: number): void {
   const part = parts.value[index]
   if (part === undefined || remainder.value <= 0) return
-  part.amount = amountOf(addMoney(typed.value[index] ?? ZERO, remainder.value)).toFixed(2)
+  part.amount = plainAmount(addMoney(typed.value[index] ?? ZERO, remainder.value))
 }
 
 /** The parts of the split as the app read them, larger first. A change writes only the fields that differ, so a field left alone is never rewritten. */

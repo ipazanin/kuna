@@ -9,7 +9,7 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { amountOf } from '../../../../shared/money/money'
+import { plainAmount } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { BillingItem } from '../../workbook/domain/billingPlan'
@@ -49,7 +49,7 @@ watch(open, (opened) => {
   const row = props.row
   item.value = row?.item ?? ''
   date.value = row?.date ?? props.defaultDate
-  amount.value = row === null ? '' : amountOf(row.amount).toFixed(2)
+  amount.value = row === null ? '' : plainAmount(row.amount)
   client.value = row?.client ?? (props.clients.some((entry) => entry.slug === props.defaultClient) ? props.defaultClient : (props.clients[0]?.slug ?? ''))
   description.value = row?.description ?? ''
   created.value = []

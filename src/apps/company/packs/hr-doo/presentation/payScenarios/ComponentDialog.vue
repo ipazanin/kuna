@@ -15,7 +15,7 @@ import type { DirectorBasis, OwnerPayScenario, ScenarioComponent } from '../../d
 import { useRecordWrites } from '../../../../../../shared/storage/presentation/useRecordWrites'
 import { parseCivilDate } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
-import { amountOf } from '../../../../../../shared/money/money'
+import { plainAmount } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
 import { typedAmount } from '../../../../../../shared/money/typedAmount'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
@@ -85,12 +85,12 @@ function shownAmount(component: ScenarioComponent | null): string {
   if (component === null) return ''
   switch (component.component) {
     case 'salary_gross':
-      return component.gross === 'floor' ? '' : amountOf(component.gross).toFixed(2)
+      return component.gross === 'floor' ? '' : plainAmount(component.gross)
     case 'dividend':
-      return component.amount === 'max' ? '' : amountOf(component.amount).toFixed(2)
+      return component.amount === 'max' ? '' : plainAmount(component.amount)
     case 'nontaxable':
     case 'rent_monthly':
-      return amountOf(component.amount).toFixed(2)
+      return plainAmount(component.amount)
     case 'director_basis':
       return ''
   }
@@ -100,7 +100,7 @@ function shownAmount(component: ScenarioComponent | null): string {
 watch([kind, item], ([chosen, picked]) => {
   if (open.value && chosen === 'nontaxable' && props.component?.component !== 'nontaxable') {
     const cap = items.value.find((entry) => entry.item === picked)?.cap
-    if (cap !== undefined) amount.value = amountOf(cap).toFixed(2)
+    if (cap !== undefined) amount.value = plainAmount(cap)
   }
 })
 

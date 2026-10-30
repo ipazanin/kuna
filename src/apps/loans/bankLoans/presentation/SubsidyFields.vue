@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { LoanSubsidy } from '../../workbook/domain/bankLoan'
-import { amountOf } from '../../../../shared/money/money'
+import { plainAmount } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { typedCount } from './typedCount'
 import { words } from './words'
@@ -15,7 +15,7 @@ export interface SubsidyTexts {
 export function subsidyTexts(subsidy: LoanSubsidy | null): SubsidyTexts {
   return subsidy === null
     ? { monthly: '', payer: '', firstInstalment: '1', instalments: '60' }
-    : { monthly: amountOf(subsidy.monthly).toFixed(2), payer: subsidy.payer, firstInstalment: String(subsidy.firstInstalment), instalments: String(subsidy.instalments) }
+    : { monthly: plainAmount(subsidy.monthly), payer: subsidy.payer, firstInstalment: String(subsidy.firstInstalment), instalments: String(subsidy.instalments) }
 }
 
 /** The subsidy the fields name, or why not, for a loan of this many instalments. */

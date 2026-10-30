@@ -14,6 +14,10 @@ const paletteHues = [...new Set([...tailwindTheme.matchAll(/--color-([a-z]+)-\d+
 const paletteVariable = String.raw`--(?:color-(?:${paletteHues})|ui-color-[a-z]+)-\d`
 const colourUtilities = String.raw`bg|text|border(?:-[xytrblse])?|outline|ring(?:-offset)?|inset-ring|divide|fill|stroke|from|via|to|shadow|inset-shadow|drop-shadow|decoration|accent|caret|placeholder`
 
+// Tailwind reads an arbitrary value in a colour utility as a colour unless it is a number or names another type.
+const nonColourType = String.raw`(?:length|percentage|number|integer|ratio|url|image|position|bg-size|line-width|family-name|absolute-size|relative-size|angle|vector):`
+const sizeLiteral = String.raw`(?:[\d.]|(?:calc|min|max|clamp|url)\()`
+
 // Consumes the variants of a class, including arbitrary ones such as `[&_svg]:`, plus a leading ! or minus sign. The
 // capture inside a lookahead cannot backtrack, so the pattern after it only ever sees the bare utility.
 const variants = String.raw`^(?=((?:(?:[^:\[\]]|\[(?:[^\[\]]|\[[^\[\]]*\])*\])+:)*!?-?))\1`
@@ -35,6 +39,20 @@ const restrictedClasses = [
   {
     pattern: String.raw`^.*(?:\[(?:#|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|color-mix)\(|color:#|var\(${paletteVariable})|\((?:color:)?${paletteVariable}).*$`,
     message: '"$0": colours come from the tokens, never from a literal or a palette variable.',
+  },
+  {
+    pattern: utility(String.raw`(?:${colourUtilities})-(?:\((?!${nonColourType})[^)]*\)|\[(?!${nonColourType})(?:(?!${sizeLiteral})|(?=[^\]]*(?:var\(|--)))[^\]]*\])(?:/.+)?`),
+    message:
+      '"$0": a colour comes from a token utility such as text-muted or ring-inverted, or a Nuxt UI tone, never an arbitrary value. A size or width in a colour utility names its type, such as text-(length:--size).',
+  },
+  {
+    // The variant pattern would read the colon of a type such as (color:--x) as the end of a variant.
+    pattern: String.raw`^(?:.*:)?!?-?(?:${colourUtilities})-\(color:[^)]*\)(?:/.+)?!?$`,
+    message: '"$0": a colour comes from a token utility such as text-muted or ring-inverted, or a Nuxt UI tone, never an arbitrary value.',
+  },
+  {
+    pattern: utility(String.raw`\[(?:color|background(?:-color)?|border(?:-[a-z]+)*-color|outline-color|text-decoration-color|caret-color|accent-color|fill|stroke|box-shadow):[^\]]*\]`),
+    message: '"$0": a colour comes from a token utility or a Nuxt UI tone, never an arbitrary property.',
   },
   {
     pattern: utility(String.raw`text-dimmed`),
@@ -68,54 +86,103 @@ const scopedClassConfigs = scopedStyles.map(({ file, css }) => ({
   rules: { 'better-tailwindcss/no-unknown-classes': unknownClasses([...classesEverywhere, ...stylesheetClasses(css)]) },
 }))
 
-export default defineConfig(
-  {
-    name: 'kuna/ignores',
-    ignores: ['dist', 'dist-fake', 'visual-check', 'coverage', 'spike.local', 'src/apps/company/packs/hr-doo/ruleset/rules/generatedLocalRates.ts'],
+// A class string in a script is only read as classes where better-tailwindcss looks, so any string that spells a colour
+// utility with an arbitrary colour is refused wherever it sits. The Nuxt UI colour names are closed by theme.colors in vite.config.ts.
+const arbitraryColourUtility = String.raw`(?:^|[\s:\]])!?-?(?:${colourUtilities})-(?:\(--|\(color:|\[(?:color:|#|var\(|(?:rgba?|hsla?|oklch|oklab|color-mix)\())`
+const arbitraryColourMessage = 'A colour comes from a token utility such as text-muted or ring-inverted, or a Nuxt UI tone, never an arbitrary value.'
+const scriptColourStrings = [
+  { selector: `Literal[value=/${arbitraryColourUtility}/]`, message: arbitraryColourMessage },
+  { selector: `TemplateElement[value.raw=/${arbitraryColourUtility}/]`, message: arbitraryColourMessage },
+]
+
+const formattingMessage = 'Format numbers and dates with the helpers in src/shared/money, src/shared/calendar and src/shared/text.'
+const formattingMethods = ['toFixed', 'toLocaleString', 'toLocaleDateString', 'toLocaleTimeString', 'toLocaleUpperCase', 'toLocaleLowerCase']
+const templateFormatting = [
+  { selector: "MemberExpression > Identifier.object[name='Intl']", message: formattingMessage },
+  { selector: `MemberExpression > Identifier.property[name=/^(?:${formattingMethods.join('|')})$/]`, message: formattingMessage },
+]
+
+/**
+ * The rules scripts/lint-baseline.json exempts files from, each with the files it covers and the files it never
+ * covers. A listed file breaks the rule today and may until it changes, and a test fails once it no longer needs its place.
+ */
+const baselineRules = {
+  styleBlocks: {
+    files: ['src/**/*.vue'],
+    ignores: [],
+    rules: { 'vue/no-restricted-block': ['error', { element: 'style', message: 'A look belongs in a shared component, a token or app.css, not in a style block.' }] },
   },
-  typescript.configs.recommended,
-  vue.configs['flat/recommended'],
-  {
-    name: 'kuna/vue-typescript',
-    files: ['**/*.vue'],
-    languageOptions: { parserOptions: { parser: typescript.parser } },
+  nativeTables: {
+    files: ['src/**/*.vue'],
+    ignores: ['src/shared/ui/FigureTable.vue'],
+    rules: { 'vue/no-restricted-html-elements': ['error', { element: ['table'], message: 'A table of figures sits in FigureTable.' }] },
   },
-  {
-    name: 'kuna/base',
-    linterOptions: { noInlineConfig: true },
+  formatting: {
+    files: ['src/**/*.{ts,vue}'],
+    ignores: ['src/shared/money/**', 'src/shared/calendar/**', 'src/shared/text/**'],
     rules: {
-      // The Vue processor would otherwise honour template disable comments, which noInlineConfig does not reach.
-      'vue/comment-directive': 'off',
-      // Optional props declared with TypeScript types already default to undefined.
-      'vue/require-default-prop': 'off',
-      // A computed that switches over every member of a union returns on every path, which only TypeScript can see.
-      'vue/return-in-computed-property': 'off',
-      // Destructuring a key out to keep the rest is how a query or record drops one field.
-      '@typescript-eslint/no-unused-vars': ['error', { ignoreRestSiblings: true }],
+      'no-restricted-globals': ['error', { name: 'Intl', message: formattingMessage }],
+      'no-restricted-properties': ['error', ...formattingMethods.map((property) => ({ property, message: formattingMessage }))],
+      'vue/no-restricted-syntax': ['error', ...templateFormatting],
     },
   },
-  {
-    name: 'kuna/design',
-    files: ['src/**/*.{ts,vue}'],
-    plugins: { 'better-tailwindcss': betterTailwindcss },
-    settings: {
-      'better-tailwindcss': {
-        entryPoint: join(root, 'src/shared/styles/app.css'),
-        selectors: [
-          ...getDefaultSelectors(),
-          { kind: 'attribute', name: '^v-bind:ui$', match: [{ type: 'objectValues' }] },
-          { kind: 'callee', name: '^h$', match: [{ type: 'objectValues', path: '^class$' }] },
-          { kind: 'variable', name: '^(?:LAYOUTS|WIDTHS)$', match: [{ type: 'objectValues' }] },
-        ],
+}
+
+/** Kuna's lint config, with the files each baseline rule exempts, keyed as in scripts/lint-baseline.json. */
+export function kunaConfig(exempt) {
+  return defineConfig(
+    {
+      name: 'kuna/ignores',
+      ignores: ['dist', 'dist-fake', 'visual-check', 'coverage', 'spike.local', 'src/apps/company/packs/hr-doo/ruleset/rules/generatedLocalRates.ts'],
+    },
+    typescript.configs.recommended,
+    vue.configs['flat/recommended'],
+    {
+      name: 'kuna/vue-typescript',
+      files: ['**/*.vue'],
+      languageOptions: { parserOptions: { parser: typescript.parser } },
+    },
+    {
+      name: 'kuna/base',
+      linterOptions: { noInlineConfig: true },
+      rules: {
+        // The Vue processor would otherwise honour template disable comments, which noInlineConfig does not reach.
+        'vue/comment-directive': 'off',
+        // Optional props declared with TypeScript types already default to undefined.
+        'vue/require-default-prop': 'off',
+        // A computed that switches over every member of a union returns on every path, which only TypeScript can see.
+        'vue/return-in-computed-property': 'off',
+        // Destructuring a key out to keep the rest is how a query or record drops one field.
+        '@typescript-eslint/no-unused-vars': ['error', { ignoreRestSiblings: true }],
       },
     },
-    rules: {
-      'better-tailwindcss/no-unknown-classes': unknownClasses(classesEverywhere),
-      'better-tailwindcss/no-conflicting-classes': 'error',
-      'better-tailwindcss/no-duplicate-classes': 'error',
-      'better-tailwindcss/no-restricted-classes': ['error', { restrict: restrictedClasses }],
+    {
+      name: 'kuna/design',
+      files: ['src/**/*.{ts,vue}'],
+      plugins: { 'better-tailwindcss': betterTailwindcss },
+      settings: {
+        'better-tailwindcss': {
+          entryPoint: join(root, 'src/shared/styles/app.css'),
+          selectors: [
+            ...getDefaultSelectors(),
+            { kind: 'attribute', name: '^v-bind:ui$', match: [{ type: 'objectValues' }] },
+            { kind: 'callee', name: '^h$', match: [{ type: 'objectValues', path: '^class$' }] },
+            { kind: 'variable', name: '^(?:LAYOUTS|WIDTHS)$', match: [{ type: 'objectValues' }] },
+          ],
+        },
+      },
+      rules: {
+        'better-tailwindcss/no-unknown-classes': unknownClasses(classesEverywhere),
+        'better-tailwindcss/no-conflicting-classes': 'error',
+        'better-tailwindcss/no-duplicate-classes': 'error',
+        'better-tailwindcss/no-restricted-classes': ['error', { restrict: restrictedClasses }],
+        'no-restricted-syntax': ['error', ...scriptColourStrings],
+      },
     },
-  },
-  ...scopedClassConfigs,
-  prettier,
-)
+    ...scopedClassConfigs,
+    ...Object.entries(baselineRules).map(([list, { files, ignores, rules }]) => ({ name: `kuna/baseline-${list}`, files, ignores: [...ignores, ...exempt[list]], rules })),
+    prettier,
+  )
+}
+
+export default kunaConfig(JSON.parse(readFileSync(join(root, 'scripts/lint-baseline.json'), 'utf8')))

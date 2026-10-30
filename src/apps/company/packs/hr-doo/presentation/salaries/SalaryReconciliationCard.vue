@@ -6,6 +6,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
+import FigureTable from '../../../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import BuildUpButton from '../BuildUpButton.vue'
 import type { FigureDetail } from '../tracedFigureView'
@@ -72,37 +73,35 @@ const allAgree = computed(() => props.view.agreeing === props.view.compared)
             </dl>
           </li>
         </ul>
-        <div v-else class="@container">
-          <table class="data-table w-full text-sm">
-            <thead>
-              <tr>
-                <th scope="col" class="text-start">Line</th>
-                <th scope="col" class="w-28 text-end">App</th>
-                <th scope="col" class="w-28 text-end">Bank</th>
-                <th scope="col" class="w-24 text-start"><span class="sr-only">Verdict</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="line in section.lines" :key="line.key" :data-verdict="line.verdict">
-                <th scope="row" class="text-start font-normal text-toned">{{ line.label }}</th>
-                <td class="text-end">
-                  <BuildUpButton v-if="line.app" :cents="line.app.cents" :label="`${section.title}, ${line.label.toLowerCase()} by the app`" @open="$emit('open', line.app)" />
-                  <span v-else class="text-muted">–</span>
-                </td>
-                <td class="text-end">
-                  <DrillLink v-if="line.bank" :to="line.bank.to" :label="`${section.title}, ${line.label.toLowerCase()}, open the rows`"><MoneyText :cents="line.bank.cents" /></DrillLink>
-                  <span v-else class="text-muted">–</span>
-                </td>
-                <td>
-                  <span v-if="line.verdict === 'agrees'" class="inline-flex items-center gap-1 text-xs text-muted"><UIcon name="i-lucide-check" class="size-3.5" aria-hidden="true" />Agrees</span>
-                  <span v-else-if="line.verdict === 'differs'" class="inline-flex items-center gap-1 text-xs text-error"
-                    ><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />Differs</span
-                  >
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <FigureTable v-else>
+          <thead>
+            <tr>
+              <th scope="col" class="text-start">Line</th>
+              <th scope="col" class="w-28 text-end">App</th>
+              <th scope="col" class="w-28 text-end">Bank</th>
+              <th scope="col" class="w-24 text-start"><span class="sr-only">Verdict</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="line in section.lines" :key="line.key" :data-verdict="line.verdict">
+              <th scope="row" class="text-start font-normal text-toned">{{ line.label }}</th>
+              <td class="text-end">
+                <BuildUpButton v-if="line.app" :cents="line.app.cents" :label="`${section.title}, ${line.label.toLowerCase()} by the app`" @open="$emit('open', line.app)" />
+                <span v-else class="text-muted">–</span>
+              </td>
+              <td class="text-end">
+                <DrillLink v-if="line.bank" :to="line.bank.to" :label="`${section.title}, ${line.label.toLowerCase()}, open the rows`"><MoneyText :cents="line.bank.cents" /></DrillLink>
+                <span v-else class="text-muted">–</span>
+              </td>
+              <td>
+                <span v-if="line.verdict === 'agrees'" class="inline-flex items-center gap-1 text-xs text-muted"><UIcon name="i-lucide-check" class="size-3.5" aria-hidden="true" />Agrees</span>
+                <span v-else-if="line.verdict === 'differs'" class="inline-flex items-center gap-1 text-xs text-error"
+                  ><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />Differs</span
+                >
+              </td>
+            </tr>
+          </tbody>
+        </FigureTable>
       </section>
     </div>
   </AppCard>

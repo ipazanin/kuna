@@ -30,7 +30,9 @@ A component starts in the app that needs it and moves to `src/shared/ui` when a 
 - Colour is never the only cue. A status also has an icon or a word.
 - Every control a thumb can reach is at least 44 px below 640 px. The rule is in `app.css`, so do not undo it with a height class.
 - Every visible string goes through the app's text, with Croatian beside English. Check Croatian at 360 px.
-- No scoped `<style>` for what a frame does. A style block is for what a stylesheet must say, such as a `:deep()` rule.
+- No new `<style>` block. A look belongs in a component, a token or `app.css`.
+- A table of figures sits in `FigureTable`.
+- Format money, numbers and dates with the helpers in `src/shared/money`, `src/shared/calendar` and `src/shared/text`, never with `Intl`, `toLocale*` or `toFixed` in a screen.
 - A new token has a light and a dark value, and a text pair passes 4.5:1. A mark passes 3:1.
 - Never work around lint. Inline disables have no effect (`noInlineConfig`). Change the design, not the rule.
 
@@ -51,14 +53,22 @@ Nuxt UI theme overrides live in `vite.config.ts` under `ui`, such as the modal a
 
 `npm run lint` runs `eslint.config.js` with `--max-warnings 0`. Class strings are checked in `class`, `:class`, `ui` bindings and `h()` calls.
 
-| Rule                               | Catches                                                                                                                |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `no-restricted-classes`            | Palette colours, `white` and `black`, colour literals, palette variables, `dark:`, `!`, numeric `z-*` and `duration-*` |
-| `no-unknown-classes`               | A misspelt or removed class. A class a stylesheet declares is known where that stylesheet applies                      |
-| `no-conflicting-classes`           | Two classes that set the same property                                                                                 |
-| `no-duplicate-classes`             | The same class twice                                                                                                   |
-| `vue` and `typescript` recommended | Vue and TypeScript mistakes. Unused variables fail unless they are rest siblings                                       |
-| `noInlineConfig`                   | Any `eslint-disable` comment                                                                                           |
+| Rule                                                                            | Catches                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `no-restricted-classes`                                                         | Palette colours, `white` and `black`, colour literals, palette variables, arbitrary colour values such as `text-(--ink)` or `bg-[var(--x)]`, `dark:`, `!`, numeric `z-*` and `duration-*` |
+| `no-unknown-classes`                                                            | A misspelt or removed class. A class a stylesheet declares is known where that stylesheet applies                                                                                         |
+| `no-conflicting-classes`                                                        | Two classes that set the same property                                                                                                                                                    |
+| `no-duplicate-classes`                                                          | The same class twice                                                                                                                                                                      |
+| `no-restricted-syntax`                                                          | A string in a script that spells a colour utility with an arbitrary value, such as `'ring-(--ink)'`, where no class selector looks                                                        |
+| `vue/no-restricted-block`                                                       | A `<style>` block, outside the files the baseline lists                                                                                                                                   |
+| `vue/no-restricted-html-elements`                                               | A native `<table>` outside `FigureTable` and the files the baseline lists                                                                                                                 |
+| `no-restricted-globals`, `no-restricted-properties`, `vue/no-restricted-syntax` | `Intl`, `toLocale*` and `toFixed` outside `src/shared/money`, `src/shared/calendar`, `src/shared/text` and the files the baseline lists                                                   |
+| `vue` and `typescript` recommended                                              | Vue and TypeScript mistakes. Unused variables fail unless they are rest siblings                                                                                                          |
+| `noInlineConfig`                                                                | Any `eslint-disable` comment                                                                                                                                                              |
+
+A Nuxt UI `color` other than `primary`, `neutral`, `error`, `warning`, `info` and `success` is a type error, because `theme.colors` in `vite.config.ts` lists them. `npm run typecheck` catches it on a component, a toast and a computed.
+
+`scripts/lint-baseline.json` lists the files that break the style block, table and formatting rules today, one list per rule. `tests/lintBaseline.spec.ts` fails when a listed file is gone or no longer breaks its rule, so take a file off its list in the change that fixes it. Only the owner adds one.
 
 Prettier owns layout: no semicolons, single quotes, 200 columns. Run `npm run format`.
 

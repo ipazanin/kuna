@@ -2,6 +2,7 @@
 import type { YearlyRate } from '../domain/yearlyRate'
 import { rateOfText } from '../domain/yearlyRate'
 import type { RatePeriod } from '../../workbook/domain/ratePeriod'
+import { words } from './words'
 
 export interface RateTexts {
   rate: string
@@ -15,7 +16,7 @@ export function typedRate(text: string): YearlyRate | null {
 }
 
 export function rateError(texts: RateTexts): string | null {
-  return typedRate(texts.rate) === null ? 'A yearly rate such as 2.99, with at most four decimals' : null
+  return typedRate(texts.rate) === null ? words.rateFields.rateError : null
 }
 </script>
 
@@ -33,17 +34,17 @@ defineProps<{
 }>()
 
 const RATE_TYPES = [
-  { label: 'Fixed', value: 'fixed', description: 'The bank keeps it for the period.' },
-  { label: 'Variable', value: 'variable', description: 'It follows an index, so the plan is an estimate.' },
+  { label: words.rateFields.fixed, value: 'fixed', description: words.rateFields.fixedHelp },
+  { label: words.rateFields.variable, value: 'variable', description: words.rateFields.variableHelp },
 ]
 </script>
 
 <template>
-  <UFormField label="Yearly rate, %" :error="(tried && rateError(texts)) || false" help="The rate the bank applies, such as 2.99.">
-    <UInput v-model="texts.rate" inputmode="decimal" placeholder="2.99" class="w-full" data-testid="rate-field" />
+  <UFormField :label="words.rateFields.rate" :error="(tried && rateError(texts)) || false" :help="words.rateFields.rateHelp">
+    <UInput v-model="texts.rate" inputmode="decimal" :placeholder="words.rateFields.ratePlaceholder" class="w-full" data-testid="rate-field" />
   </UFormField>
-  <URadioGroup v-model="texts.rateType" :items="RATE_TYPES" legend="Rate" orientation="vertical" data-testid="rate-type" />
-  <UFormField label="Note" help="For a variable rate, the index and margin, such as 3M EURIBOR + 0.67." class="sm:col-span-2">
+  <URadioGroup v-model="texts.rateType" :items="RATE_TYPES" :legend="words.rateFields.type" orientation="vertical" data-testid="rate-type" />
+  <UFormField :label="words.rateFields.note" :help="words.rateFields.noteHelp" class="sm:col-span-2">
     <UInput v-model="texts.note" class="w-full" />
   </UFormField>
 </template>

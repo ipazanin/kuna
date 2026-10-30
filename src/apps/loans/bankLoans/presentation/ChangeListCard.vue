@@ -4,7 +4,7 @@ export interface ChangeLine {
   readonly key: string
   /** What the record is, such as "2.99%, fixed". */
   readonly title: string
-  /** When it applies and anything else worth a glance, such as "From 20 Sept 2025". */
+  /** When it applies and anything else worth a glance, such as "From 20 Sep 2025". */
   readonly detail: string
 }
 </script>

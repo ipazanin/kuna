@@ -28,7 +28,7 @@ const total = computed(() => props.fills.reduce((sum, fill) => sum + fill.target
   <AppDialog v-model:open="open" title="Fill the rows without a share?">
     <div class="flex flex-col gap-4" data-testid="share-fill">
       <ul class="flex flex-col gap-2 text-sm">
-        <li v-for="fill in fills" :key="fill.category" class="fill-line">
+        <li v-for="fill in fills" :key="fill.category" class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-4">
           <span class="min-w-0 truncate text-highlighted">{{ names.category(fill.category) }}</span>
           <span class="figure text-toned">{{ fill.ownerShare }}%</span>
           <span class="figure text-muted">{{ rowsInWords(fill.targets.length) }}</span>
@@ -43,12 +43,3 @@ const total = computed(() => props.fills.reduce((sum, fill) => sum + fill.target
     </template>
   </AppDialog>
 </template>
-
-<style scoped>
-.fill-line {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: baseline;
-  gap: 1rem;
-}
-</style>

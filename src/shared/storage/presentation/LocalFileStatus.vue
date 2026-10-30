@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
-import { intlLocale } from '../../text/language'
+import { dateFormat } from '../../calendar/dateFormat'
 import type { CopyMeta } from '../application/workbookPorts'
 import { exportReminderDue } from '../domain/exportReminder'
 
@@ -23,15 +23,15 @@ const props = withDefaults(
 
 const emit = defineEmits<{ export: [] }>()
 
-const dayFormat = new Intl.DateTimeFormat(intlLocale, { day: 'numeric', month: 'short' })
+const dayFormat = dateFormat({ day: 'numeric', month: 'short' })
 
 const exportedText = computed(() => {
   const exportedAt = props.meta?.lastExportedAt ?? null
-  return exportedAt === null ? 'Not exported yet' : `Exported ${dayFormat.format(new Date(exportedAt))}`
+  return exportedAt === null ? 'Not exported yet' : `Exported ${dayFormat(new Date(exportedAt))}`
 })
 const reminder = computed(() => {
   const since = props.meta?.unexportedSince ?? null
-  return since !== null && exportReminderDue(since, new Date()) ? `Changes since ${dayFormat.format(new Date(since))} are in no exported file.` : null
+  return since !== null && exportReminderDue(since, new Date()) ? `Changes since ${dayFormat(new Date(since))} are in no exported file.` : null
 })
 </script>
 

@@ -7,7 +7,7 @@ import USelect from '@nuxt/ui/components/Select.vue'
 
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { amountOf } from '../../../../shared/money/money'
+import { plainAmount } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { invoiceIdOf } from '../../workbook/domain/invoicesReading'
@@ -65,7 +65,7 @@ function fieldsOf(stored: StoredFields): Record<Field, string> {
     number: textOf(stored.number),
     client: textOf(stored.client).toLowerCase(),
     item: textOf(stored.item),
-    amount: amount === null ? textOf(stored.amount) : amountOf(amount).toFixed(2),
+    amount: amount === null ? textOf(stored.amount) : plainAmount(amount),
     issued: dateText(stored.issued),
     due: dateText(stored.due),
     period_from: dateText(stored.period_from),

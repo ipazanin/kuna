@@ -99,7 +99,7 @@ async function ask(): Promise<void> {
 
 <template>
   <StepCard title="What the app may do in your Google account" subtitle="One Google screen asks for all of it. You can change each choice later in Settings.">
-    <div class="access-line" data-scope="drive.file">
+    <div class="flex items-start gap-3" data-scope="drive.file">
       <div class="min-w-0 flex-1">
         <p class="text-sm font-medium text-highlighted">Always: your books file</p>
         <p class="text-sm text-muted">Only files this app makes or you pick.</p>
@@ -107,7 +107,7 @@ async function ask(): Promise<void> {
       <UBadge v-if="answered" :label="allowed('drive.file') ? 'Allowed' : 'Not allowed'" :color="allowed('drive.file') ? 'success' : 'error'" variant="subtle" data-testid="access-status" />
     </div>
 
-    <div v-for="need in movedNeeds" :key="need.scope" class="access-line" :data-scope="need.scope">
+    <div v-for="need in movedNeeds" :key="need.scope" class="flex items-start gap-3" :data-scope="need.scope">
       <div class="min-w-0 flex-1">
         <p class="text-sm font-medium text-highlighted">{{ need.label }}</p>
         <p class="text-sm text-muted">{{ need.description }}</p>
@@ -184,11 +184,3 @@ async function ask(): Promise<void> {
     </template>
   </StepCard>
 </template>
-
-<style scoped>
-.access-line {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-</style>

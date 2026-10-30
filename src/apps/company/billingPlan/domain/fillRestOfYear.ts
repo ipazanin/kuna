@@ -14,7 +14,6 @@ export type RestOfYearFill = { readonly kind: 'rows'; readonly rows: readonly Bi
 // A description becomes the line of an invoice, so its month stays English whatever the language on screen.
 const LONG_NAME = new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' })
 const SHORT_NAME = new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' })
-const MONTH_AND_YEAR = new Intl.DateTimeFormat('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' })
 
 /**
  * The rows "Fill the rest of the year" adds for the billing client: the monthly fee and the
@@ -58,7 +57,8 @@ export function fillRestOfYear(plan: readonly BillingItem[], terms: BillingTerms
 
 function descriptionFor(previous: BillingItem | undefined, month: MonthKey): string {
   if (previous === undefined) {
-    return MONTH_AND_YEAR.format(new Date(firstDayOf(month)))
+    const { long, shorts, year } = namesOf(month)
+    return `${shorts[0] ?? long} ${year}`
   }
   const from = namesOf(monthOf(previous.date))
   const to = namesOf(month)
@@ -73,11 +73,11 @@ function descriptionFor(previous: BillingItem | undefined, month: MonthKey): str
 
 /**
  * The names a month goes by in running text, capitalised so that "may" in a sentence is left
- * alone: the long name, then the short ones, the app's own short form first.
+ * alone: the long name, then the short ones, the three-letter form first so that "Sept" is read but "Sep" is written.
  */
 function namesOf(month: MonthKey): { readonly long: string; readonly shorts: readonly string[]; readonly year: string } {
   const day = new Date(firstDayOf(month))
   const long = LONG_NAME.format(day)
-  const shorts = [...new Set([SHORT_NAME.format(day), long.slice(0, 3)])].filter((short) => short !== long)
+  const shorts = [...new Set([long.slice(0, 3), SHORT_NAME.format(day)])].filter((short) => short !== long)
   return { long, shorts, year: String(yearOfMonth(month)) }
 }

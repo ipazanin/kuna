@@ -25,7 +25,7 @@ const props = defineProps<{
   name: string
   /** What a month with no plan row takes, signed as booked. Null when the ledger gives none. */
   average: Money | null
-  /** How the average is taken, such as "Average of the 12 months from Oct 2025 to Sept 2026". */
+  /** How the average is taken, such as "Average of the 12 months from Oct 2025 to Sep 2026". */
   averageWords: string | null
   lines: readonly AmountLine[]
 }>()

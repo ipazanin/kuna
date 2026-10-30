@@ -4,6 +4,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
+import FigureTable from '../../../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import type { PersonRow } from './salariesView'
 
@@ -57,35 +58,33 @@ const phone = usePhoneLayout()
         </dl>
       </li>
     </ul>
-    <div v-else class="@container px-1 pb-2 sm:px-2">
-      <table class="data-table w-full text-sm">
-        <thead>
-          <tr>
-            <th scope="col" class="text-start">Name</th>
-            <th scope="col" class="text-end">Gross</th>
-            <th scope="col" class="text-end">Net</th>
-            <th scope="col" class="hidden text-end @3xl:table-cell">Pension savings</th>
-            <th scope="col" class="hidden text-end @xl:table-cell">To the state</th>
-            <th scope="col" class="text-end">Cost</th>
-            <th scope="col" class="w-20 text-end">Problems</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="person in [...rows.people, rows.total]" :key="person.slug" :data-person="person.slug" :class="{ 'font-medium': person.slug === 'total' }">
-            <th scope="row" class="text-start font-normal">
-              <DrillLink v-if="person.slug !== 'total'" :to="monthLink(payday, person.slug)" :label="`${person.name}, open the month`" class="text-highlighted">{{ person.name }}</DrillLink>
-              <span v-else class="font-medium text-highlighted">{{ person.name }}</span>
-            </th>
-            <td class="text-end"><MoneyText :cents="person.gross" /></td>
-            <td class="text-end"><MoneyText :cents="person.net" /></td>
-            <td class="hidden text-end @3xl:table-cell"><MoneyText :cents="person.pensionSavings" /></td>
-            <td class="hidden text-end @xl:table-cell"><MoneyText :cents="person.toState" /></td>
-            <td class="text-end"><MoneyText :cents="person.cost" /></td>
-            <td class="figure text-end" :class="person.problems === 0 ? 'text-muted' : 'text-error'">{{ person.problems }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <FigureTable v-else class="px-1 pb-2 sm:px-2">
+      <thead>
+        <tr>
+          <th scope="col" class="text-start">Name</th>
+          <th scope="col" class="text-end">Gross</th>
+          <th scope="col" class="text-end">Net</th>
+          <th scope="col" class="hidden text-end @3xl:table-cell">Pension savings</th>
+          <th scope="col" class="hidden text-end @xl:table-cell">To the state</th>
+          <th scope="col" class="text-end">Cost</th>
+          <th scope="col" class="w-20 text-end">Problems</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="person in [...rows.people, rows.total]" :key="person.slug" :data-person="person.slug" :class="{ 'font-medium': person.slug === 'total' }">
+          <th scope="row" class="text-start font-normal">
+            <DrillLink v-if="person.slug !== 'total'" :to="monthLink(payday, person.slug)" :label="`${person.name}, open the month`" class="text-highlighted">{{ person.name }}</DrillLink>
+            <span v-else class="font-medium text-highlighted">{{ person.name }}</span>
+          </th>
+          <td class="text-end"><MoneyText :cents="person.gross" /></td>
+          <td class="text-end"><MoneyText :cents="person.net" /></td>
+          <td class="hidden text-end @3xl:table-cell"><MoneyText :cents="person.pensionSavings" /></td>
+          <td class="hidden text-end @xl:table-cell"><MoneyText :cents="person.toState" /></td>
+          <td class="text-end"><MoneyText :cents="person.cost" /></td>
+          <td class="figure text-end" :class="person.problems === 0 ? 'text-muted' : 'text-error'">{{ person.problems }}</td>
+        </tr>
+      </tbody>
+    </FigureTable>
   </AppCard>
 </template>
 

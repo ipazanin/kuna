@@ -60,7 +60,7 @@ const sections = computed(() =>
 
 const thisYear = String(new Date().getFullYear())
 
-/** "12 Sept" this year, "12 Sept 2025" before it. */
+/** "12 Sep" this year, "12 Sep 2025" before it. */
 function shortDate(row: Pick<ListedRow, 'date'>): string {
   return row.date.startsWith(thisYear) ? shortDayLabel(row.date) : dayLabel(row.date)
 }

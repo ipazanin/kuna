@@ -7,11 +7,11 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 import UTable from '@nuxt/ui/components/Table.vue'
 import type { TableColumn } from '@nuxt/ui/components/Table.vue'
 
+import { dateFormat } from '../../shared/calendar/dateFormat'
 import { chartTokens } from '../../shared/charts/chartTokens'
 import { formatMoney } from '../../shared/money/moneyFormat'
 import type { SyncControl, SyncRun } from '../../shared/sync/application/syncRun'
 import SyncStatus from '../../shared/sync/presentation/SyncStatus.vue'
-import { intlLocale } from '../../shared/text/language'
 import AppCard from '../../shared/ui/AppCard.vue'
 import ChartCard from '../../shared/ui/ChartCard.vue'
 import type { ChartPointSelection } from '../../shared/ui/ChartCard.vue'
@@ -178,7 +178,7 @@ const sortedPayees = computed(() => {
 })
 const payeesTotal = PAYEES.slice(0, 5).reduce((total, payee) => total + payee.cents, 0)
 
-const dateFormat = new Intl.DateTimeFormat(intlLocale, { day: 'numeric', month: 'short' })
+const shortDay = dateFormat({ day: 'numeric', month: 'short' })
 
 function sortableHeader(label: string, alignEnd = false) {
   return ({ column }: { column: { getIsSorted: () => false | 'asc' | 'desc'; toggleSorting: (descending?: boolean) => void } }) => {
@@ -225,7 +225,7 @@ const columns: TableColumn<SampleTransaction>[] = [
       if (row.getIsGrouped()) {
         return h('span', { class: 'font-medium text-highlighted' }, `${row.getValue('month')}, ${row.subRows.length} rows`)
       }
-      return h('span', { class: 'figure text-muted' }, dateFormat.format(new Date(row.original.date)))
+      return h('span', { class: 'figure text-muted' }, shortDay(new Date(row.original.date)))
     },
   },
   {

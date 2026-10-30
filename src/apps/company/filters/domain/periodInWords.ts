@@ -7,7 +7,7 @@ import { periodRange } from './filterState'
 import type { Period } from './filterState'
 
 /**
- * The days a period covers, such as "Oct 2025 – Sept 2026". A custom range that does not start and
+ * The days a period covers, such as "Oct 2025 – Sep 2026". A custom range that does not start and
  * end on a month's edges names its days. A range that reaches into a month the ledger does not
  * cover in full says so, such as "Oct so far".
  */

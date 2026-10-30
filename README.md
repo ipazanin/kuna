@@ -1862,7 +1862,7 @@ when the save renames or deletes it, with what uses it.
 npm install
 npm run dev            # http://localhost:5173/kuna/, talks to Google
 npm run dev:fake       # same app on a small synthetic workbook, no Google needed
-npm run check          # typecheck and unit tests, the import boundaries among them
+npm run check          # lint, format check, typecheck and unit tests, the import boundaries among them
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
@@ -1983,6 +1983,16 @@ and each shared component of `src/shared/ui/` in its states, then each app's own
 the company's period bar and filters, in whichever theme `?theme=light` or `?theme=dark` pins and
 the language `?lang=hr` pins. The route does not exist in a production build, and the build fails
 when the gallery reaches it.
+
+`npm run lint` runs ESLint and fails on any warning, and CI runs it before the build. Beside Vue and
+TypeScript mistakes it holds screens to the design library: colours only from the tokens, never from
+the palette or an arbitrary value, no `<style>` block, no native `<table>` outside `FigureTable`, and no `Intl`,
+`toLocale*` or `toFixed` outside `src/shared/money`, `src/shared/calendar` and `src/shared/text`.
+A Nuxt UI `color` of `primary`, `neutral`, `error`, `warning`, `info` or `success` is held by the type
+check, through `theme.colors` in `vite.config.ts`.
+`scripts/lint-baseline.json` lists the files that broke the last three rules when they arrived, one
+list per rule, and a unit test fails once a listed file is gone or no longer breaks its rule, so the
+lists only shrink. Inline disable comments have no effect. The kuna-design skill has the full table.
 
 ### The shell and its apps
 

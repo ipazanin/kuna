@@ -58,7 +58,7 @@ describe('fillRestOfYear', () => {
 
     expect(fees([planRow('Monthly Fee', '2025-12-31', 5000, 'north', 'DECEMBER work, Dec 2025, Dec 25')], '2026-08-10')).toEqual([
       ['2026-08-31', 'AUGUST work, Aug 2026, Aug 26'],
-      ['2026-09-30', 'SEPTEMBER work, Sept 2026, Sept 26'],
+      ['2026-09-30', 'SEPTEMBER work, Sep 2026, Sep 26'],
       ['2026-10-31', 'OCTOBER work, Oct 2026, Oct 26'],
       ['2026-11-30', 'NOVEMBER work, Nov 2026, Nov 26'],
       ['2026-12-31', 'DECEMBER work, Dec 2026, Dec 26'],

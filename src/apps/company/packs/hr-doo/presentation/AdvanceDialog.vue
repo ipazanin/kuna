@@ -22,7 +22,7 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import { parseCivilDate } from '../../../../../shared/calendar/civilDate'
 import { rangeContains } from '../../../../../shared/calendar/dateRange'
 import type { DateRange } from '../../../../../shared/calendar/dateRange'
-import { amountOf } from '../../../../../shared/money/money'
+import { plainAmount } from '../../../../../shared/money/money'
 import { typedAmount } from '../../../../../shared/money/typedAmount'
 import { formatMoney } from '../../../../../shared/money/moneyFormat'
 import { ownerAdvanceOfDraft } from '../application/ownerAdvanceWrites'
@@ -70,7 +70,7 @@ watch(open, (opened) => {
   if (opened) {
     const start = props.editing ?? props.prefill
     date.value = start?.date ?? props.defaultDate
-    amount.value = start === null ? '' : amountOf(start.amount).toFixed(2)
+    amount.value = start === null ? '' : plainAmount(start.amount)
     description.value = start?.description ?? ''
     category.value = props.editing?.category ?? ''
     tried.value = false

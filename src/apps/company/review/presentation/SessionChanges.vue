@@ -4,8 +4,8 @@ import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import { dateFormat } from '../../../../shared/calendar/dateFormat'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { intlLocale } from '../../../../shared/text/language'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
@@ -32,7 +32,7 @@ const emit = defineEmits<{
 
 const SHOWN_ROWS = 3
 
-const timeFormat = new Intl.DateTimeFormat(intlLocale, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+const timeFormat = dateFormat({ hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
 const bucketBySlug = computed(() => new Map(props.categories.map((category) => [category.slug, category.bucket])))
 
@@ -115,7 +115,7 @@ function flaggedByInWords(flaggedBy: string): string {
               <UIcon :name="iconOf(write)" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
               <span class="min-w-0">
                 <span class="block text-sm text-highlighted">{{ titleOf(write) }}</span>
-                <time :datetime="write.at" class="figure text-xs text-muted">{{ timeFormat.format(new Date(write.at)) }}</time>
+                <time :datetime="write.at" class="figure text-xs text-muted">{{ timeFormat(new Date(write.at)) }}</time>
               </span>
             </span>
             <UBadge v-if="wasUndone(write, writes)" label="Undone" color="neutral" variant="outline" size="sm" class="shrink-0" />

@@ -40,7 +40,7 @@ Every `.vue` in `src/shared/ui` has a row here and a specimen in the gallery at 
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------- | ----- | ----- | ------ |
 | `MoneyText`      | `cents`, `sign?`, `precision?: 'cents' \| 'compact'`, `tone?: 'flow' \| 'outcome'`, `format?` for a figure shown outside its app | 54      | 6     | 1     | 0      |
 | `DrillLink`      | `to: RouteLocationRaw \| null`, `label?`, `inProse?`                                                                             | 45      | 0     | 0     | 3      |
-| `FigureTable`    | `label?`. Wraps `.data-table` in a frame that scrolls sideways only when needed                                                  | 3       | 1     | 0     | 1      |
+| `FigureTable`    | `label?`. Wraps `.data-table` in a frame that scrolls sideways only when needed                                                  | 7       | 1     | 0     | 1      |
 | `SortableHeader` | `label`, `v-model` sort direction or null                                                                                        | 1       | 0     | 0     | 0      |
 | `ProgressMeter`  | `parts` of `{ value, colour, striped? }`, `label`, `height?`. Read out as its label                                              | 0       | 3     | 0     | 0      |
 | `FactGrid`       | `facts` of `{ label, value, caption?, swatch? }`. Two to a row, all in one row once they fit                                     | 0       | 4     | 0     | 0      |

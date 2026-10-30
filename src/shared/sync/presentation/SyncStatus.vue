@@ -5,9 +5,9 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UPopover from '@nuxt/ui/components/Popover.vue'
 import USlideover from '@nuxt/ui/components/Slideover.vue'
 
+import { dateFormat } from '../../calendar/dateFormat'
 import { syncAge } from '../../calendar/syncAge'
 import { usePhoneLayout } from '../../layout/viewport'
-import { intlLocale } from '../../text/language'
 import { listInWords } from '../../text/listInWords'
 import { SCOPE_WORDS } from '../application/syncRun'
 import type { SyncControl, SyncRun } from '../application/syncRun'
@@ -50,9 +50,9 @@ watch(
 )
 const root = useTemplateRef<HTMLElement>('root')
 
-const timeOnly = new Intl.DateTimeFormat(intlLocale, { hour: '2-digit', minute: '2-digit' })
-const dayAndTime = new Intl.DateTimeFormat(intlLocale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-const fullStamp = new Intl.DateTimeFormat(intlLocale, { dateStyle: 'full', timeStyle: 'short' })
+const timeOnly = dateFormat({ hour: '2-digit', minute: '2-digit' })
+const dayAndTime = dateFormat({ day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+const fullStamp = dateFormat({ dateStyle: 'full', timeStyle: 'short' })
 
 /** The clock the "5 min ago" wording reads, moved on every minute. */
 const now = ref(new Date())
@@ -66,7 +66,7 @@ const syncedAt = computed(() => (props.control.kind === 'ready' && props.control
 const asOfText = computed(() => {
   const synced = syncedAt.value
   if (synced === null) return 'Not synced yet'
-  return `As of ${synced.toDateString() === now.value.toDateString() ? `today, ${timeOnly.format(synced)}` : dayAndTime.format(synced)}`
+  return `As of ${synced.toDateString() === now.value.toDateString() ? `today, ${timeOnly(synced)}` : dayAndTime(synced)}`
 })
 
 const problemWords = computed(() => (props.control.kind === 'problems' ? (props.control.count === 1 ? '1 problem' : `${props.control.count} problems`) : ''))
@@ -119,7 +119,7 @@ const controlName = computed(() => {
       return `${problemWords.value} in the last sync. Show the steps`
     case 'ready': {
       const synced = syncedAt.value
-      return synced === null ? 'Sync. Not synced yet' : `Synced ${syncAge(synced, now.value)}, ${fullStamp.format(synced)}. Sync now`
+      return synced === null ? 'Sync. Not synced yet' : `Synced ${syncAge(synced, now.value)}, ${fullStamp(synced)}. Sync now`
     }
   }
 })
@@ -187,7 +187,7 @@ function syncAgain(): void {
       role="status"
       data-testid="sync-line"
     >
-      <time v-if="control.kind === 'ready' && syncedAt" :datetime="control.syncedAt ?? undefined" :title="fullStamp.format(syncedAt)" class="figure">{{ statusLine }}</time>
+      <time v-if="control.kind === 'ready' && syncedAt" :datetime="control.syncedAt ?? undefined" :title="fullStamp(syncedAt)" class="figure">{{ statusLine }}</time>
       <span v-else>{{ statusLine }}</span>
     </p>
     <UButton

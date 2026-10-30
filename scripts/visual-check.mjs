@@ -463,7 +463,7 @@ const SOURCE_SCREENS = [
     charts: 1,
     shows: ['Paid to the employees', 'Health insurance, everyone paid', 'Everyone'],
   },
-  { name: 'salaries-five-employees-people', query: 'fake=five-employees', hash: '#/company/salaries?tab=people', title: 'Salaries', charts: 0, shows: ['Everyone paid in Sept 2026', 'Niko Test'] },
+  { name: 'salaries-five-employees-people', query: 'fake=five-employees', hash: '#/company/salaries?tab=people', title: 'Salaries', charts: 0, shows: ['Everyone paid in Sep 2026', 'Niko Test'] },
   { name: 'salaries-five-employees-one', query: 'fake=five-employees', hash: '#/company/salaries?employee=lea', title: 'Salaries', charts: 1, shows: ['Lea Proba', 'Paid to the employee'] },
   {
     name: 'owner-browser',

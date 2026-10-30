@@ -32,7 +32,7 @@ const names = useDisplayNames()
 /** Costs read positive, so a fall in one of them is the good direction. */
 const COST_LINES: readonly ProfitAndLossLine[] = ['operating', 'taxes', 'ownerPay', 'cost']
 
-/** "Jan – Sept 2026" within a year, "Jun 2025 – Feb 2026" across one. */
+/** "Jan – Sep 2026" within a year, "Jun 2025 – Feb 2026" across one. */
 function monthSpan(months: { readonly from: MonthKey; readonly to: MonthKey }): string {
   if (months.from === months.to) return monthLabel(months.from)
   const sameYear = months.from.slice(0, 4) === months.to.slice(0, 4)
