@@ -1,4 +1,5 @@
 import type { ClosedSale, InstrumentLots, Lot } from './lots'
+import { closePerUnit, heldWorth, priceOfWorth } from './quoting'
 import { closeIsLate } from '../../prices/domain/priceBook'
 import type { Close, PriceBook } from '../../prices/domain/priceBook'
 import type { RateBook } from '../../prices/domain/rateBook'
@@ -10,9 +11,9 @@ import type { Transfer } from '../../workbook/domain/transfer'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayMonthsLater } from '../../../../shared/calendar/monthKey'
 import { EURO } from '../../../../shared/money/currencyCode'
-import { DECIMAL_ZERO, dividedDecimal, inEuros, scaledDecimal, subtractDecimal, sumDecimal, timesDecimal } from '../../../../shared/money/decimal'
+import { DECIMAL_ZERO, inEuros, scaledDecimal, subtractDecimal, sumDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
-import { ratioOf, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { ZERO, ratioOf, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
@@ -28,11 +29,11 @@ export interface PortfolioSources {
 /** Units valued at the latest close on or before a day, at the ECB rate of the close's own day. */
 export interface Valuation {
   readonly close: Close
-  /** The close in today's units, after every split since its day. */
+  /** The close as a price per unit held today: after every split since its day, and per gram for gold. */
   readonly price: Decimal
   /** Units of the quote currency per euro, null for an instrument quoted in euros. */
   readonly rate: Decimal | null
-  /** In the quote currency. */
+  /** In the quote currency, with a bond's interest accrued to the day valued rather than to the close's day. */
   readonly foreignValue: Decimal
   readonly value: Money
 }
@@ -65,7 +66,7 @@ export interface HoldingFigures {
   readonly late: boolean
   readonly cost: Money
   readonly costInCurrency: Decimal
-  /** The cost of the open lots in the quote currency over their quantity. */
+  /** The cost of the open lots in the quote currency as a price, per unit, per gram or in percent of a bond's nominal. */
   readonly averageCost: Decimal | null
   readonly unrealised: Money | null
   /** The part of the unrealised gain from the price, at today's rate. */
@@ -73,7 +74,7 @@ export interface HoldingFigures {
   /** The rest of the unrealised gain, from the rate. */
   readonly currencyPart: Money | null
   readonly realised: Money
-  /** Received after the tax withheld. */
+  /** Received after the tax withheld, without the part of a coupon that paid back accrued interest. */
   readonly income: Money
   /** Its value over the portfolio's. */
   readonly weight: number | null
@@ -104,12 +105,15 @@ export function valuationOn(instrument: Instrument, quantity: Decimal, sources: 
     return null
   }
   const later = sources.book.splits.filter((split) => split.instrument === instrument.id && split.date > close.date)
-  const price = scaledDecimal(
-    close.price,
-    later.reduce((product, split) => product * BigInt(split.oldUnits), 1n),
-    later.reduce((product, split) => product * BigInt(split.newUnits), 1n),
+  const price = closePerUnit(
+    instrument.quoted,
+    scaledDecimal(
+      close.price,
+      later.reduce((product, split) => product * BigInt(split.oldUnits), 1n),
+      later.reduce((product, split) => product * BigInt(split.newUnits), 1n),
+    ),
   )
-  const foreignValue = timesDecimal(quantity, price)
+  const foreignValue = heldWorth(instrument.quoted, quantity, price, day)
   return { close, price, rate, foreignValue, value: inEuros(foreignValue, rate) }
 }
 
@@ -127,7 +131,8 @@ export function holdingFigures(instrument: Instrument, lots: InstrumentLots, sou
   const trades = book.trades.filter((trade) => trade.instrument === instrument.id)
   const income = book.income.filter((payment) => payment.instrument === instrument.id)
   const yearBefore = dayMonthsLater(today, -12)
-  const received = (payments: readonly Income[]): Money => sumMoney(payments.map((payment) => inEuros(subtractDecimal(payment.gross, payment.withheld), payment.rate)))
+  const received = (payments: readonly Income[]): Money =>
+    sumMoney(payments.map((payment) => subtractMoney(inEuros(subtractDecimal(payment.gross, payment.withheld), payment.rate), lots.paidBack.get(payment.id) ?? ZERO)))
   const lastYearsIncome = received(income.filter((payment) => payment.date > yearBefore && payment.date <= today))
   const acquired = [
     ...trades.filter((trade) => trade.side === 'buy').map((trade) => trade.date),
@@ -145,7 +150,7 @@ export function holdingFigures(instrument: Instrument, lots: InstrumentLots, sou
     late: valuation !== null && closeIsLate(valuation.close, today),
     cost,
     costInCurrency,
-    averageCost: held ? dividedDecimal(costInCurrency, quantity) : null,
+    averageCost: held ? priceOfWorth(instrument.quoted, costInCurrency, quantity) : null,
     unrealised,
     pricePart,
     currencyPart: unrealised === null || pricePart === null ? null : subtractMoney(unrealised, pricePart),

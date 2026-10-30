@@ -26,6 +26,7 @@ export interface CashFigures extends CashBalance {
   readonly lastDay: DayChange | null
 }
 
+/** Income without the part of each coupon that paid back accrued interest bought with the bond. */
 export interface IncomeTotals {
   readonly gross: Money
   readonly withheld: Money
@@ -72,7 +73,7 @@ export interface PortfolioFigures {
   readonly unrated: readonly RecordId[]
 }
 
-const NO_LOTS: InstrumentLots = { open: [], sales: [], refused: [], units: new Map() }
+const NO_LOTS: InstrumentLots = { open: [], sales: [], refused: [], units: new Map(), paidBack: new Map() }
 
 /** Every figure of the Overview, the Holdings screen and a holding's page, for `sources.today`. */
 export function portfolioFigures(sources: PortfolioSources): PortfolioFigures {
@@ -120,6 +121,7 @@ export function portfolioFigures(sources: PortfolioSources): PortfolioFigures {
   const totalGain = subtractMoney(value, putIn)
   const fees = book.cashMovements.filter((movement) => movement.kind === 'fee' || movement.kind === 'fee-refund')
   const exchangeFees = book.exchanges.flatMap((exchange) => (exchange.fees === null ? [] : [{ exchange, euros: eurosAtEcbRate(exchange.fees.amount, exchange.fees.currency, exchange.date, rates) }]))
+  const paidBack = sumMoney([...lots.values()].flatMap((instrumentLots) => [...instrumentLots.paidBack.values()]))
   const changes = [...holdings.map((holding) => holding.lastDay), ...cashFigures.map((balance) => balance.lastDay)].filter((change) => change !== null)
 
   return {
@@ -131,9 +133,9 @@ export function portfolioFigures(sources: PortfolioSources): PortfolioFigures {
     unrealised: sumMoney(holdings.map((holding) => holding.unrealised ?? ZERO)),
     realised: sumMoney(holdings.map((holding) => holding.realised)),
     income: {
-      gross: sumMoney(book.income.map((payment) => inEuros(payment.gross, payment.rate))),
+      gross: subtractMoney(sumMoney(book.income.map((payment) => inEuros(payment.gross, payment.rate))), paidBack),
       withheld: sumMoney(book.income.map((payment) => inEuros(payment.withheld, payment.rate))),
-      received: sumMoney(book.income.map((payment) => inEuros(subtractDecimal(payment.gross, payment.withheld), payment.rate))),
+      received: subtractMoney(sumMoney(book.income.map((payment) => inEuros(subtractDecimal(payment.gross, payment.withheld), payment.rate))), paidBack),
     },
     accountFees: sumMoney(fees.map((movement) => (movement.kind === 'fee' ? inEuros(movement.amount, movement.rate) : negateMoney(inEuros(movement.amount, movement.rate))))),
     currencyOnCash: sumMoney(cashFigures.map((balance) => balance.currencyGain ?? ZERO)),

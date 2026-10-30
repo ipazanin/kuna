@@ -1,3 +1,6 @@
+import { tradeWorth } from './quoting'
+import type { Income } from '../../workbook/domain/income'
+import type { Quoting } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import type { SpinOff } from '../../workbook/domain/spinOff'
 import type { Split } from '../../workbook/domain/split'
@@ -21,6 +24,10 @@ export interface Lot {
   readonly cost: Money
   /** In the instrument's quote currency, fees included. */
   readonly costInCurrency: Decimal
+  /** The accrued interest a bond's buy paid, in the quote currency, which stays inside the cost until the next coupon pays it back. */
+  readonly accrued: Decimal
+  /** The same accrued interest in euros, as the buy paid it. */
+  readonly accruedCost: Money
   readonly taxFreeFrom: CivilDate
 }
 
@@ -51,6 +58,8 @@ export interface InstrumentLots {
   readonly refused: readonly (Trade | Transfer)[]
   /** The units each account holds, from its trades and transfers. They add up to the open lots. */
   readonly units: ReadonlyMap<RecordId, Decimal>
+  /** The euros of each coupon that paid back accrued interest bought with the bond, which come off the cost and are no income. */
+  readonly paidBack: ReadonlyMap<RecordId, Money>
 }
 
 export interface SalePart {
@@ -69,9 +78,9 @@ export function taxFreeFrom(opened: CivilDate): CivilDate {
   return addDays(dayMonthsLater(opened, 24), 1)
 }
 
-/** What a trade moves in its currency: a buy's quantity × price + fees, a sale's quantity × price − fees. */
-export function tradeTotal(trade: Trade): Decimal {
-  const worth = timesDecimal(trade.quantity, trade.price)
+/** What a trade moves in its currency: a buy's worth + fees, a sale's worth − fees, each with the accrued interest of a bond. */
+export function tradeTotal(trade: Trade, quoting: Quoting): Decimal {
+  const worth = addDecimal(tradeWorth(quoting, trade.quantity, trade.price), trade.accrued ?? DECIMAL_ZERO)
   const fees = trade.fees ?? DECIMAL_ZERO
   return trade.side === 'buy' ? addDecimal(worth, fees) : subtractDecimal(worth, fees)
 }
@@ -85,10 +94,12 @@ export function taxSplitOf(sale: ClosedSale): SaleTaxSplit {
 }
 
 interface Queue {
+  readonly quoting: Quoting
   open: Lot[]
   readonly sales: ClosedSale[]
   readonly refused: (Trade | Transfer)[]
   readonly units: Map<RecordId, Decimal>
+  readonly paidBack: Map<RecordId, Money>
 }
 
 interface Step {
@@ -99,17 +110,19 @@ interface Step {
 }
 
 /**
- * Every instrument's lots, from its trades, splits and spin-offs and the unit transfers between accounts, walked in
- * date order. On one day splits come first, then spin-offs, buys, transfers and sales, each in the file's order.
+ * Every instrument's lots, from its trades, splits, spin-offs and coupons and the unit transfers between accounts,
+ * walked in date order. On one day splits come first, then spin-offs, coupons, buys, transfers and sales, each in the
+ * file's order, so a coupon pays back only what was bought before its day.
  */
 export function investmentLots(book: InvestmentBook): ReadonlyMap<RecordId, InstrumentLots> {
   const queues = new Map<RecordId, Queue>()
+  const quotingOf = new Map(book.instruments.map((instrument) => [instrument.id, instrument.quoted]))
   const queueOf = (instrument: RecordId): Queue => {
     const known = queues.get(instrument)
     if (known !== undefined) {
       return known
     }
-    const queue: Queue = { open: [], sales: [], refused: [], units: new Map() }
+    const queue: Queue = { quoting: quotingOf.get(instrument) ?? { kind: 'unit' }, open: [], sales: [], refused: [], units: new Map(), paidBack: new Map() }
     queues.set(instrument, queue)
     return queue
   }
@@ -118,15 +131,19 @@ export function investmentLots(book: InvestmentBook): ReadonlyMap<RecordId, Inst
   const steps: Step[] = [
     ...book.splits.map((split, order) => ({ date: split.date, rank: 0, order, apply: () => applySplit(queueOf(split.instrument), split) })),
     ...book.spinOffs.map((spinOff, order) => ({ date: spinOff.date, rank: 1, order, apply: () => applySpinOff(queueOf(spinOff.instrument), queueOf(spinOff.received), spinOff) })),
+    ...book.income.flatMap((payment, order) => {
+      const instrument = payment.instrument
+      return payment.kind === 'coupon' && instrument !== null ? [{ date: payment.date, rank: 2, order, apply: () => applyCoupon(queueOf(instrument), payment) }] : []
+    }),
     ...book.trades.map((trade, order) => ({
       date: trade.date,
-      rank: trade.side === 'buy' ? 2 : 4,
+      rank: trade.side === 'buy' ? 3 : 5,
       order,
       apply: () => (trade.side === 'buy' ? applyBuy(queueOf(trade.instrument), trade) : applySale(queueOf(trade.instrument), trade)),
     })),
     ...book.transfers.flatMap((transfer, order) => {
       const moved = transfer.moved
-      return moved.kind === 'units' ? [{ date: transfer.date, rank: 3, order, apply: () => applyTransfer(queueOf(moved.instrument), transfer, moved) }] : []
+      return moved.kind === 'units' ? [{ date: transfer.date, rank: 4, order, apply: () => applyTransfer(queueOf(moved.instrument), transfer, moved) }] : []
     }),
   ]
   steps.sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.rank - later.rank || earlier.order - later.order).forEach((step) => step.apply())
@@ -135,9 +152,33 @@ export function investmentLots(book: InvestmentBook): ReadonlyMap<RecordId, Inst
 }
 
 function applyBuy(queue: Queue, trade: Trade): void {
-  const total = tradeTotal(trade)
-  queue.open.push({ opened: trade.date, quantity: trade.quantity, cost: inEuros(total, trade.rate), costInCurrency: total, taxFreeFrom: taxFreeFrom(trade.date) })
+  const total = tradeTotal(trade, queue.quoting)
+  const accrued = trade.accrued ?? DECIMAL_ZERO
+  queue.open.push({
+    opened: trade.date,
+    quantity: trade.quantity,
+    cost: inEuros(total, trade.rate),
+    costInCurrency: total,
+    accrued,
+    accruedCost: inEuros(accrued, trade.rate),
+    taxFreeFrom: taxFreeFrom(trade.date),
+  })
   moveUnits(queue.units, trade.account, trade.quantity)
+}
+
+/** Takes the accrued interest each open lot paid off its cost, as the euros it was paid at, and keeps that as the coupon's payback. */
+function applyCoupon(queue: Queue, coupon: Income): void {
+  if (queue.open.every((lot) => lot.accrued === DECIMAL_ZERO)) {
+    return
+  }
+  queue.paidBack.set(coupon.id, sumMoney(queue.open.map((lot) => lot.accruedCost)))
+  queue.open = queue.open.map((lot) => ({
+    ...lot,
+    cost: subtractMoney(lot.cost, lot.accruedCost),
+    costInCurrency: subtractDecimal(lot.costInCurrency, lot.accrued),
+    accrued: DECIMAL_ZERO,
+    accruedCost: ZERO,
+  }))
 }
 
 /**
@@ -163,15 +204,17 @@ function applySale(queue: Queue, trade: Trade): void {
 
   const fees = inEuros(trade.fees ?? DECIMAL_ZERO, trade.rate)
   const weights = takes.map((take) => take.quantity)
-  const proceeds = moneyParts(addMoney(inEuros(tradeTotal(trade), trade.rate), fees), weights)
+  const proceeds = moneyParts(addMoney(inEuros(tradeTotal(trade, queue.quoting), trade.rate), fees), weights)
   const feeShares = moneyParts(fees, weights)
   const kept: Lot[] = []
   const lines = takes.map(({ lot, quantity }, index): RealisedLine => {
     const keptQuantity = subtractDecimal(lot.quantity, quantity)
     const [cost = ZERO, keptCost = ZERO] = moneyParts(lot.cost, [quantity, keptQuantity])
     const [, keptInCurrency = DECIMAL_ZERO] = decimalParts(lot.costInCurrency, [quantity, keptQuantity])
+    const [, keptAccrued = DECIMAL_ZERO] = decimalParts(lot.accrued, [quantity, keptQuantity])
+    const [, keptAccruedCost = ZERO] = moneyParts(lot.accruedCost, [quantity, keptQuantity])
     if (keptQuantity > DECIMAL_ZERO) {
-      kept.push({ ...lot, quantity: keptQuantity, cost: keptCost, costInCurrency: keptInCurrency })
+      kept.push({ ...lot, quantity: keptQuantity, cost: keptCost, costInCurrency: keptInCurrency, accrued: keptAccrued, accruedCost: keptAccruedCost })
     }
     const lineProceeds = proceeds[index]!
     const lineFees = feeShares[index]!
@@ -235,7 +278,15 @@ function applySpinOff(parent: Queue, received: Queue, spinOff: SpinOff): void {
   )
 
   const receivedLots = lots
-    .map((lot, index) => ({ opened: lot.opened, quantity: quantities[index]!, cost: costs[index]!, costInCurrency: inCurrency[index]!, taxFreeFrom: lot.taxFreeFrom }))
+    .map((lot, index) => ({
+      opened: lot.opened,
+      quantity: quantities[index]!,
+      cost: costs[index]!,
+      costInCurrency: inCurrency[index]!,
+      accrued: DECIMAL_ZERO,
+      accruedCost: ZERO,
+      taxFreeFrom: lot.taxFreeFrom,
+    }))
     .filter((lot) => lot.quantity > DECIMAL_ZERO)
   received.open = [...received.open, ...receivedLots].sort((earlier, later) => earlier.opened.localeCompare(later.opened))
   parent.open = lots.map((lot, index) => ({ ...lot, cost: subtractMoney(lot.cost, costs[index]!), costInCurrency: subtractDecimal(lot.costInCurrency, inCurrency[index]!) }))

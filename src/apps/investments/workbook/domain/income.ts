@@ -21,5 +21,7 @@ export interface Income {
   readonly withheld: Decimal
   /** Units of the currency per euro, null for income in euros. */
   readonly rate: Decimal | null
+  /** The key of the imported rows it came from, so importing them again adds nothing. Null for a record typed in. */
+  readonly importKey: string | null
   readonly note: string
 }

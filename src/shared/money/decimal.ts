@@ -28,6 +28,29 @@ export function typedDecimal(text: string): Decimal | null {
   return match === null ? null : decimalOfDigits(false, match[1]!, match[2] ?? '')
 }
 
+const NUMBER_TEXT = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]\d+))?$/
+
+/**
+ * A number, as a spreadsheet's number cell gives it, rounded half away from zero to `places` places, from none to
+ * twelve. It is read from the shortest text that gives the number back, so 0.1 + 0.2 is 0.3 at twelve places. Null
+ * for a number that is not finite.
+ */
+export function decimalOfNumber(value: number, places: number): Decimal | null {
+  if (!Number.isInteger(places) || places < 0 || places > PLACES) {
+    throw new RangeError(`Cannot round to ${places} places.`)
+  }
+  const match = NUMBER_TEXT.exec(String(value))
+  if (match === null) {
+    return null
+  }
+  const fraction = match[3] ?? ''
+  const digits = BigInt(`${match[2]}${fraction}`)
+  const shift = places - fraction.length + Number(match[4] ?? '0')
+  const steps = shift >= 0 ? digits * 10n ** BigInt(shift) : dividedHalfAwayFromZero(digits, 10n ** BigInt(-shift))
+  const scaled = steps * 10n ** BigInt(PLACES - places)
+  return (match[1] === '-' ? -scaled : scaled) as Decimal
+}
+
 /** The shortest text that reads back as the same decimal, such as `100` or `-0.00841`. */
 export function decimalText(value: Decimal): string {
   const magnitude = value < 0n ? -value : value

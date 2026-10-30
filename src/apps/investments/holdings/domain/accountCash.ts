@@ -46,19 +46,19 @@ export function accountCash(book: InvestmentBook, rates: RateBook, refused: Read
       unrated.push(record)
     }
   }
-  const currencyOf = new Map(book.instruments.map((instrument) => [instrument.id, instrument.currency]))
+  const instrumentOf = new Map(book.instruments.map((instrument) => [instrument.id, instrument]))
 
   for (const trade of book.trades) {
-    const currency = currencyOf.get(trade.instrument)
-    if (currency === undefined || refused.has(trade.id)) {
+    const instrument = instrumentOf.get(trade.instrument)
+    if (instrument === undefined || refused.has(trade.id)) {
       continue
     }
-    const total = tradeTotal(trade)
+    const total = tradeTotal(trade, instrument.quoted)
     const euros = inEuros(total, trade.rate)
     if (trade.side === 'buy') {
-      move(trade.account, currency, negateDecimal(total), negateMoney(euros), trade.id)
+      move(trade.account, instrument.currency, negateDecimal(total), negateMoney(euros), trade.id)
     } else {
-      move(trade.account, currency, total, euros, trade.id)
+      move(trade.account, instrument.currency, total, euros, trade.id)
     }
   }
   for (const income of book.income) {

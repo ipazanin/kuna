@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
-import { decimalOfMoney, decimalOfText, decimalParts, decimalText, dividedDecimal, inEuros, moneyParts, roundedDecimal, scaledDecimal, timesDecimal, typedDecimal } from '../src/shared/money/decimal'
+import {
+  decimalOfMoney,
+  decimalOfNumber,
+  decimalOfText,
+  decimalParts,
+  decimalText,
+  dividedDecimal,
+  inEuros,
+  moneyParts,
+  roundedDecimal,
+  scaledDecimal,
+  timesDecimal,
+  typedDecimal,
+} from '../src/shared/money/decimal'
 import type { Decimal } from '../src/shared/money/decimal'
 import { moneyFromCents } from '../src/shared/money/money'
 
@@ -46,6 +59,24 @@ describe('decimal text', () => {
     for (const text of ['', '-1', '1,0000000000001', '1.234,5', '1,234.5', 'abc']) {
       expect(typedDecimal(text)).toBeNull()
     }
+  })
+})
+
+describe('a spreadsheet number cell', () => {
+  it('reads the shortest text of the number, so binary noise rounds away', () => {
+    const read = (value: number, places: number): string => decimalText(decimalOfNumber(value, places)!)
+    expect([read(0.1 + 0.2, 12), read(12.300000000000002, 2), read(1e-7, 12), read(1.5e21, 2), read(1234, 0)]).toEqual(['0.3', '12.3', '0.0000001', '1500000000000000000000', '1234'])
+  })
+
+  it('rounds half away from zero on both signs, from the digits the cell shows', () => {
+    const read = (value: number): string => decimalText(decimalOfNumber(value, 2)!)
+    expect([read(0.005), read(-0.005), read(-2.675), read(5e-13)]).toEqual(['0.01', '-0.01', '-2.68', '0'])
+  })
+
+  it('reads no number that is not finite, and refuses to round to fewer than none or more than twelve places', () => {
+    expect(decimalOfNumber(Number.NaN, 2)).toBeNull()
+    expect(decimalOfNumber(Number.POSITIVE_INFINITY, 2)).toBeNull()
+    expect(() => decimalOfNumber(1, 13)).toThrow(RangeError)
   })
 })
 

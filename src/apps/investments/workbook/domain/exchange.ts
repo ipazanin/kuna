@@ -19,5 +19,7 @@ export interface Exchange {
   readonly bought: Decimal
   readonly boughtCurrency: CurrencyCode
   readonly fees: ExchangeFees | null
+  /** The key of the imported rows it came from, so importing them again adds nothing. Null for a record typed in. */
+  readonly importKey: string | null
   readonly note: string
 }

@@ -22,5 +22,7 @@ export interface Transfer {
   readonly to: RecordId
   readonly date: CivilDate
   readonly moved: TransferredUnits | TransferredCash
+  /** The key of the imported rows it came from, so importing them again adds nothing. Null for a record typed in. */
+  readonly importKey: string | null
   readonly note: string
 }

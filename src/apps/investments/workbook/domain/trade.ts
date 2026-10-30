@@ -20,5 +20,9 @@ export interface Trade {
   readonly fees: Decimal | null
   /** Units of the currency per euro, null for a trade in euros. */
   readonly rate: Decimal | null
+  /** A bond's accrued interest as the broker's note gives it, paid with a buy and received with a sale. Null for anything else. */
+  readonly accrued: Decimal | null
+  /** The key of the imported rows it came from, so importing them again adds nothing. Null for a record typed in. */
+  readonly importKey: string | null
   readonly note: string
 }

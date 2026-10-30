@@ -11,5 +11,7 @@ export interface SpinOff {
   readonly date: CivilDate
   readonly quantity: Decimal
   readonly costShare: Decimal
+  /** The key of the imported rows it came from, so importing them again adds nothing. Null for a record typed in. */
+  readonly importKey: string | null
   readonly note: string
 }
