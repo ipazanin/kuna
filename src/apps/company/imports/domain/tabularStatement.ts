@@ -2,6 +2,7 @@ import { civilDate, civilDateFromSerial } from '../../../../shared/calendar/civi
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { addMoney, moneyFromAmount, negateMoney, plainAmount, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { factKey } from '../../../../shared/text/factKey'
 import { fold, normaliseIban } from '../../../../shared/text/fold'
 import { profileColumns } from './importProfile'
 import type { DateFormat, DecimalMark, ImportProfile } from './importProfile'
@@ -271,19 +272,9 @@ export function moneyOf(cell: StatementCell | undefined, decimal: DecimalMark): 
   return (match[1] === '-' || match[4] === '-' ? -cents : cents) as Money
 }
 
-/** Sixteen hex digits from two 32-bit FNV-1a passes over the row's facts, so a key from another export of the same row matches. */
+/** The facts that tell a row from every other row of its account, so a key from another export of the same row matches. */
 function rowKey(account: string, row: ReadRow): string {
-  const facts = [account, row.date, row.amount, row.balance ?? '', fold(row.description), fold(row.counterparty), normaliseIban(row.counterpartyIban)].join('|')
-  return `${fnv(facts, 0x811c9dc5)}${fnv(facts, 0x01000193)}`
-}
-
-function fnv(text: string, seed: number): string {
-  let hash = seed >>> 0
-  for (const character of text) {
-    hash ^= character.codePointAt(0)!
-    hash = Math.imul(hash, 0x01000193) >>> 0
-  }
-  return hash.toString(16).padStart(8, '0')
+  return factKey([account, row.date, String(row.amount), String(row.balance ?? ''), fold(row.description), fold(row.counterparty), normaliseIban(row.counterpartyIban)])
 }
 
 function cellString(cell: StatementCell | undefined): string {

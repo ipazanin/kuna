@@ -41,7 +41,7 @@ const to = computed(() => entryPath(props.app))
           <div v-for="(amount, index) in figures.amounts" :key="amount.label" class="flex flex-col gap-1">
             <dt class="type-label">{{ amount.label }}</dt>
             <dd :class="index === 0 ? 'type-figure' : 'type-figure-secondary'">
-              <MoneyText :cents="amount.cents" :format="app.moneyFormat()" />
+              <MoneyText :cents="amount.cents" :sign="amount.sign" :tone="amount.tone" :format="app.moneyFormat()" />
             </dd>
           </div>
         </dl>

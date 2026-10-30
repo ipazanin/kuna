@@ -2,7 +2,7 @@ import type { Component } from 'vue'
 import type { RouteComponent, Router } from 'vue-router'
 
 import type { RedirectReturn } from '../google/googleRedirect'
-import type { MoneyFormat } from '../money/moneyFormat'
+import type { MoneyFormat, MoneyTone, SignDisplay } from '../money/moneyFormat'
 import type { AppSyncGroup } from '../sync/presentation/pageSync'
 
 /** A screen of an app, on a route under the app's id such as `/company/transactions`. Each one loads as its own chunk. */
@@ -19,6 +19,10 @@ export interface AppScreen {
 export interface HomeAmount {
   readonly label: string
   readonly cents: number
+  /** As on `MoneyText`, such as `always` for a gain that shows its plus. */
+  readonly sign?: SignDisplay
+  /** As on `MoneyText`, such as `outcome` for a gain that is green and a loss that is red. */
+  readonly tone?: MoneyTone
 }
 
 /** What the app's card on the Kuna home shows while the app's books are on screen. */

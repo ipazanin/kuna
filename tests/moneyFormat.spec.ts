@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { DEFAULT_MONEY_FORMAT, currencyUnitName, formatCompactMoney, formatDecimal, formatMoney, formatPercent, setMoneyFormat } from '../src/shared/money/moneyFormat'
+import type { CurrencyCode } from '../src/shared/money/currencyCode'
+import { decimalOfText } from '../src/shared/money/decimal'
+import type { Decimal } from '../src/shared/money/decimal'
+import { DEFAULT_MONEY_FORMAT, currencyUnitName, formatCompactMoney, formatDecimal, formatMoney, formatPercent, formatQuantity, formatUnitPrice, setMoneyFormat } from '../src/shared/money/moneyFormat'
+
+function decimal(text: string): Decimal {
+  return decimalOfText(text)!
+}
 
 afterEach(() => {
   setMoneyFormat(DEFAULT_MONEY_FORMAT)
@@ -67,5 +74,41 @@ describe('money formatting with another currency and locale', () => {
     expect(formatMoney(-98765, 'negative', { currency: 'EUR', locale: 'de-DE' })).toBe('−987,65\u00a0€')
     expect(formatCompactMoney(1240000, 'negative', { currency: 'EUR', locale: 'en-GB' })).toBe('€12.4k')
     expect(formatMoney(4821049)).toBe('$48,210.49')
+  })
+})
+
+describe('quantity and unit price formatting', () => {
+  it('writes a quantity with grouping and only the places it has, up to the most asked for', () => {
+    expect(formatQuantity(decimal('15'), 6)).toBe('15')
+    expect(formatQuantity(decimal('1234.5'), 6)).toBe('1,234.5')
+    expect(formatQuantity(decimal('-5'), 6)).toBe('−5')
+  })
+
+  it('rounds a quantity half away from zero past the places asked for, from its exact digits', () => {
+    expect(formatQuantity(decimal('0.1234565'), 6)).toBe('0.123457')
+    expect(formatQuantity(decimal('-0.1234565'), 6)).toBe('−0.123457')
+    expect(formatQuantity(decimal('123456789.123456789012'), 12)).toBe('123,456,789.123456789012')
+  })
+
+  it('drops the sign of a value that rounds to zero', () => {
+    expect(formatQuantity(decimal('-0.0000001'), 6)).toBe('0')
+    expect(formatQuantity(decimal('-0.0000005'), 6)).toBe('−0.000001')
+    expect(formatUnitPrice(decimal('-0.0000001'), 'USD' as CurrencyCode)).toBe('US$0.00')
+    expect(formatUnitPrice(decimal('-0.0000005'), 'USD' as CurrencyCode)).toBe('−US$0.000001')
+  })
+
+  it("writes a unit price in its own currency with the currency's cents and up to six places", () => {
+    expect(formatUnitPrice(decimal('190.5'), 'USD' as CurrencyCode)).toBe('US$190.50')
+    expect(formatUnitPrice(decimal('33.3367'), 'USD' as CurrencyCode)).toBe('US$33.3367')
+    expect(formatUnitPrice(decimal('0.12345678'), 'USD' as CurrencyCode)).toBe('US$0.123457')
+    expect(formatUnitPrice(decimal('512.3'), 'EUR' as CurrencyCode)).toBe('€512.30')
+    expect(formatUnitPrice(decimal('1500'), 'JPY' as CurrencyCode)).toBe('JP¥1,500')
+  })
+
+  it("follows the page's locale whatever the price's currency", () => {
+    setMoneyFormat({ currency: 'EUR', locale: 'hr-HR' })
+
+    expect(formatQuantity(decimal('1234.5'), 6)).toBe('1.234,5')
+    expect(formatUnitPrice(decimal('190.5'), 'USD' as CurrencyCode)).toBe('190,50\u00a0USD')
   })
 })

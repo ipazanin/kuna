@@ -1,6 +1,9 @@
 import { shallowRef } from 'vue'
 
 import { intlLocale } from '../text/language'
+import type { CurrencyCode } from './currencyCode'
+import { decimalText, roundedDecimal } from './decimal'
+import type { Decimal } from './decimal'
 
 /**
  * Money and share formatting in the workbook's currency and number locale, with the sign in front.
@@ -11,6 +14,8 @@ import { intlLocale } from '../text/language'
  */
 
 export type SignDisplay = 'negative' | 'always' | 'magnitude'
+
+export type MoneyTone = 'flow' | 'outcome'
 
 export interface MoneyFormat {
   /** An ISO 4217 code such as `EUR`. */
@@ -24,6 +29,14 @@ export const DEFAULT_MONEY_FORMAT: MoneyFormat = { currency: 'EUR', locale: intl
 
 const MINUS = '−'
 
+/** The most places a unit price shows, enough for a fractional share's price as a broker books it. */
+const UNIT_PRICE_DECIMALS = 6
+
+/** Intl.NumberFormat formats decimal text exactly since ES2023, which the ES2022 lib this code is typed against does not declare. */
+interface ExactNumberFormat {
+  format(decimalText: string): string
+}
+
 interface Formatters {
   readonly full: Intl.NumberFormat
   readonly compactSmall: Intl.NumberFormat
@@ -32,11 +45,13 @@ interface Formatters {
   readonly rate: Intl.NumberFormat
   readonly decimal: Intl.NumberFormat
   readonly days: Intl.NumberFormat
+  readonly unitPrice: ExactNumberFormat
   readonly unitName: string
 }
 
 const active = shallowRef<MoneyFormat>(DEFAULT_MONEY_FORMAT)
 const formattersByKey = new Map<string, Formatters>()
+const quantityFormattersByKey = new Map<string, ExactNumberFormat>()
 
 export function setMoneyFormat(format: MoneyFormat): void {
   if (format.currency !== active.value.currency || format.locale !== active.value.locale) {
@@ -57,6 +72,7 @@ function formatters(format: MoneyFormat = active.value): Formatters {
       rate: new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 4 }),
       decimal: new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
       days: new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
+      unitPrice: exact(new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: UNIT_PRICE_DECIMALS })),
       unitName: unitNameOf(currency),
     }
     formattersByKey.set(key, found)
@@ -78,6 +94,10 @@ function unitNameOf(currency: string): string {
   const words = name.split(' ')
   const unit = words.pop() ?? name
   return [...words, unit.toLowerCase()].join(' ')
+}
+
+function exact(formatter: Intl.NumberFormat): ExactNumberFormat {
+  return formatter as unknown as ExactNumberFormat
 }
 
 function withSign(signed: number, magnitudeText: string, sign: SignDisplay): string {
@@ -119,4 +139,29 @@ export function formatDays(days: number): string {
 /** "euro", "US dollar": what one unit of the currency is called in running text. */
 export function currencyUnitName(): string {
   return formatters().unitName
+}
+
+/** Rounded before it is written, so a value that rounds to zero carries no sign. */
+function withDecimalSign(value: Decimal, places: number, formatter: ExactNumberFormat): string {
+  const rounded = roundedDecimal(value, places)
+  const magnitude = (rounded < 0n ? -rounded : rounded) as Decimal
+  return withSign(Number(rounded), formatter.format(decimalText(magnitude)), 'negative')
+}
+
+/** A number of units such as 15 or 0.123456, rounded half away from zero past `maximumDecimals` places, at most twelve. */
+export function formatQuantity(value: Decimal, maximumDecimals: number): string {
+  const { locale } = active.value
+  const key = `${locale}|${maximumDecimals}`
+  let formatter = quantityFormattersByKey.get(key)
+  if (formatter === undefined) {
+    formatter = exact(new Intl.NumberFormat(locale, { maximumFractionDigits: maximumDecimals }))
+    quantityFormattersByKey.set(key, formatter)
+  }
+  return withDecimalSign(value, maximumDecimals, formatter)
+}
+
+/** The price of one unit in its own currency, such as $190.50, with the currency's cents and up to six places. */
+export function formatUnitPrice(value: Decimal, currency: CurrencyCode): string {
+  const { unitPrice } = formatters({ currency, locale: active.value.locale })
+  return withDecimalSign(value, UNIT_PRICE_DECIMALS, unitPrice)
 }
