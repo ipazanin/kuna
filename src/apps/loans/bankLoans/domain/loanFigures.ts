@@ -14,9 +14,19 @@ export function balanceOn(loan: BankLoan, plan: readonly PlanRow[], day: CivilDa
   return plan.filter((row) => row.date <= day).at(-1)?.balance ?? loan.principal
 }
 
-/** The first instalment or interim interest due after the day, with the full payment and your share, or null once the plan is paid. */
+/** The payments due on a schedule: the instalments and the interest before the first, but no extra payment. */
+export function scheduledPayments(plan: readonly PlanRow[]): PlanRow[] {
+  return plan.filter((row) => row.kind !== 'extra-payment')
+}
+
+/** The scheduled payments due after the day, with the full payment and your share. */
+export function paymentsDueAfter(plan: readonly PlanRow[], day: CivilDate): PlanRow[] {
+  return scheduledPayments(plan).filter((row) => row.date > day)
+}
+
+/** The first instalment or interim interest due after the day, or null once the plan is paid. */
 export function nextPayment(plan: readonly PlanRow[], day: CivilDate): PlanRow | null {
-  return plan.find((row) => row.kind !== 'extra-payment' && row.date > day) ?? null
+  return paymentsDueAfter(plan, day)[0] ?? null
 }
 
 /** The day the last instalment falls due. */
@@ -106,6 +116,11 @@ export function paymentsByYear(plan: readonly PlanRow[]): YearPayments[] {
   return [...years].map(([year, rows]) => ({ year, instalments: rows.filter((row) => row.kind === 'instalment').length, ...splitOfRows(rows) }))
 }
 
+/** Where the payments of the calendar year go, the interim interest and extra payments included. */
+export function paymentsInYear(plan: readonly PlanRow[], year: number): PaymentSplit {
+  return splitOfRows(plan.filter((row) => yearOf(row.date) === year))
+}
+
 /** Where the payments still to fall due after the day go. */
 export function paymentsAfter(plan: readonly PlanRow[], day: CivilDate): PaymentSplit {
   return splitOfRows(plan.filter((row) => row.date > day))
@@ -133,6 +148,11 @@ export function paidSoFar(plan: readonly PlanRow[], lateInstalments: readonly La
 /** The rate period an instalment due on the day is worked out at: the latest that starts by then. */
 export function ratePeriodOn(periods: readonly RatePeriod[], day: CivilDate): RatePeriod | null {
   return periods.filter((period) => period.from <= day).reduce<RatePeriod | null>((latest, period) => (latest === null || period.from > latest.from ? period : latest), null)
+}
+
+/** Whether the row is an instalment after the day worked out at a variable rate, so the bank's figure may differ. */
+export function isEstimate(row: PlanRow, periods: readonly RatePeriod[], day: CivilDate): boolean {
+  return row.kind === 'instalment' && row.date > day && ratePeriodOn(periods, row.date)?.rateType === 'variable'
 }
 
 /** The due date of the last instalment the subsidy covers, as the loan was signed. */

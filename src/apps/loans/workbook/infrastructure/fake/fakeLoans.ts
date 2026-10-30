@@ -91,13 +91,34 @@ function stored<R>(kind: RecordKind<R>, records: readonly R[]): WorkbookDocument
   return { [kind.name]: records.map((record) => codec.fieldsOf(record)) }
 }
 
-/** The Loans file the fake build's `?loans=sample` keeps on the fake Drive, and `?loans=one-loan` without the informal loan. Every figure in it is made up. */
-export function fakeLoansDocument(savedAt: string, withInformalLoan = true): WorkbookDocument {
+/** A made-up car loan over five years at a fixed rate, which ends long before the home loan. */
+const CAR_LOAN: BankLoan = {
+  id: fixedId(BANK_LOAN_RECORDS, 30),
+  name: 'Car loan',
+  lender: 'Example Bank',
+  principal: euros(24_000),
+  drawdown: day('2024-09-02'),
+  firstInstalment: day('2024-10-05'),
+  instalments: 60,
+  interimInterest: null,
+  subsidy: null,
+  note: 'Made up for the fake build.',
+}
+
+const CAR_RATE_PERIODS: readonly RatePeriod[] = [{ id: fixedId(RATE_PERIOD_RECORDS, 31), loan: CAR_LOAN.id, from: day('2024-10-05'), rate: rate('5.49'), rateType: 'fixed', note: '' }]
+
+/** The fake build's made-up Loans files: `sample` with a bank loan and an informal loan, `one-loan` with the bank loan alone, and `house-and-car` with the home loan and a car loan. */
+export type FakeLoansSet = 'sample' | 'one-loan' | 'house-and-car'
+
+/** The Loans file of the set, which the fake build keeps on the fake Drive. Every figure in it is made up. */
+export function fakeLoansDocument(savedAt: string, set: FakeLoansSet = 'sample'): WorkbookDocument {
+  const withInformalLoan = set === 'sample'
+  const withCar = set === 'house-and-car'
   return {
     ...emptyLoansDocument(savedAt),
     records: {
-      ...stored(BANK_LOAN_RECORDS, [HOME_LOAN]),
-      ...stored(RATE_PERIOD_RECORDS, RATE_PERIODS),
+      ...stored(BANK_LOAN_RECORDS, withCar ? [HOME_LOAN, CAR_LOAN] : [HOME_LOAN]),
+      ...stored(RATE_PERIOD_RECORDS, withCar ? [...RATE_PERIODS, ...CAR_RATE_PERIODS] : RATE_PERIODS),
       ...stored(EXTRA_PAYMENT_RECORDS, EXTRA_PAYMENTS),
       ...stored(LATE_INSTALMENT_RECORDS, LATE_INSTALMENTS),
       ...stored(INFORMAL_LOAN_RECORDS, withInformalLoan ? [FROM_MARKO] : []),

@@ -1,4 +1,4 @@
-import { balanceOn, interestOf, nextPayment, paymentsAfter, paymentsByYear, payoffDate, ratePeriodOn, subsidyLastCovered } from '../domain/loanFigures'
+import { balanceOn, interestOf, isEstimate, nextPayment, paymentsAfter, paymentsInYear, payoffDate, subsidyLastCovered } from '../domain/loanFigures'
 import type { PaymentSplit } from '../domain/loanFigures'
 import type { PlanRow } from '../domain/loanPlan'
 import type { MonthBalance } from '../../balances/presentation/balanceChart'
@@ -40,7 +40,7 @@ export function bankLoanFigures(book: BankLoanBook, day: CivilDate): BankLoanFig
   const year = yearOf(day)
   const owed = balanceOn(loan, plan, day)
   const paidBack = day < loan.drawdown ? ZERO : subtractMoney(loan.principal, owed)
-  const thisYear = paymentsByYear(plan).find((entry) => entry.year === year)
+  const thisYear = paymentsInYear(plan, year)
   const instalmentsAfter = plan.filter((row) => row.kind === 'instalment' && row.date > day)
   return {
     owed,
@@ -58,7 +58,7 @@ export function bankLoanFigures(book: BankLoanBook, day: CivilDate): BankLoanFig
           },
     payoff: payoffDate(plan),
     instalmentsLeft: instalmentsAfter.length,
-    interestThisYear: { year, interest: thisYear === undefined ? ZERO : interestOf(thisYear), subsidy: thisYear?.subsidyInterest ?? ZERO },
+    interestThisYear: { year, interest: interestOf(thisYear), subsidy: thisYear.subsidyInterest },
     stillToPay: paymentsAfter(plan, day),
   }
 }
@@ -113,7 +113,7 @@ export function planYears(book: BankLoanBook, day: CivilDate): PlanYear[] {
     const line: PlanLine = {
       ...row,
       key: `${row.kind}-${row.date}-${index}`,
-      estimate: row.kind === 'instalment' && row.date > day && ratePeriodOn(book.ratePeriods, row.date)?.rateType === 'variable',
+      estimate: isEstimate(row, book.ratePeriods, day),
       late: row.kind === 'instalment' && paidLate.has(row.date),
       status: statusOf(row, row.kind === 'instalment' ? paidLate.get(row.date) : undefined, day),
     }

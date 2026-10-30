@@ -6,7 +6,7 @@
  *   npm run check:figures -- --fake <drive, browser, one-employee or five-employees> [--today yyyy-mm-dd]
  *   npm run check:figures -- --workbook <path to an xlsx export or a Kuna file> [--today yyyy-mm-dd]
  *   npm run check:figures -- --loans <path to a Kuna Loans file> [--today yyyy-mm-dd]
- *   npm run check:figures -- --fake-loans sample [--today yyyy-mm-dd]
+ *   npm run check:figures -- --fake-loans <sample or house-and-car> [--today yyyy-mm-dd]
  *
  * A Loans input goes with a company input or alone, and its groups follow the company's.
  */
@@ -98,6 +98,8 @@ import { whatIfExtraPayment } from '../src/apps/loans/bankLoans/domain/whatIf.ts
 import { bankLoanFigures, bankLoanMonths, planYears } from '../src/apps/loans/bankLoans/presentation/bankLoanView.ts'
 import { informalBalances } from '../src/apps/loans/informalLoans/domain/informalBalance.ts'
 import { informalLoanFigures, informalLoanMonths, movementLines } from '../src/apps/loans/informalLoans/presentation/informalLoanView.ts'
+import { debtFreeOn, estimateFrom, interestAfter, interestInYear, outgoingByMonth, owedByMonth, plannedLoans, upcomingPayments } from '../src/apps/loans/overview/domain/loansTogether.ts'
+import { owedTotals } from '../src/apps/loans/overview/presentation/owedTotals.ts'
 import { fakeLoansDocument } from '../src/apps/loans/workbook/infrastructure/fake/fakeLoans.ts'
 import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument.ts'
 import { moneyFromAmount } from '../src/shared/money/money.ts'
@@ -115,11 +117,11 @@ if (
   (options.loans !== undefined && options['fake-loans'] !== undefined) ||
   (!companyAsked && !loansAsked) ||
   (options.fake !== undefined && !knownFake) ||
-  (options['fake-loans'] !== undefined && options['fake-loans'] !== 'sample') ||
+  (options['fake-loans'] !== undefined && options['fake-loans'] !== 'sample' && options['fake-loans'] !== 'house-and-car') ||
   today === null
 ) {
   console.error(
-    'Usage: npm run check:figures -- [--fake <drive, browser, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans sample] [--today yyyy-mm-dd]',
+    'Usage: npm run check:figures -- [--fake <drive, browser, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample or house-and-car>] [--today yyyy-mm-dd]',
   )
   process.exit(2)
 }
@@ -280,10 +282,10 @@ if (loansAsked) {
 /**
  * The Loans groups: the records and problems, then per loan, named by its place in the file and never
  * by its name, the plan or the balances and the figures each screen shows on the day. The what-if
- * tries 1,000.00 extra on the day.
+ * tries 1,000.00 extra on the day. The totals are the Overview's figures over every loan.
  */
 function loansGroups(add) {
-  const document = options.loans === undefined ? fakeLoansDocument(AT) : decodeDocument(readFileSync(options.loans, 'utf8'))
+  const document = options.loans === undefined ? fakeLoansDocument(AT, options['fake-loans']) : decodeDocument(readFileSync(options.loans, 'utf8'))
   const { records, workbook } = LOANS_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
   add('loans.read.records', records)
   add('loans.read.problems', workbook.problems)
@@ -302,6 +304,17 @@ function loansGroups(add) {
     add(`${at}.figures`, () => [informalLoanFigures(book, today), movementLines(book)])
     add(`${at}.months`, () => informalLoanMonths(book, today))
   }
+  const planned = plannedLoans(workbook.bankLoans)
+  add('loans.totals', () => [
+    owedTotals({ bank: workbook.bankLoans.map((book) => bankLoanFigures(book, today)), informal: workbook.informalLoans.map((book) => informalLoanFigures(book, today)) }),
+    owedByMonth(planned),
+    outgoingByMonth(planned),
+    upcomingPayments(planned, today),
+    interestInYear(planned, yearOf(today)),
+    interestAfter(planned, today),
+    debtFreeOn(workbook.bankLoans),
+    estimateFrom(planned, today),
+  ])
 }
 
 const digests = new WeakMap()

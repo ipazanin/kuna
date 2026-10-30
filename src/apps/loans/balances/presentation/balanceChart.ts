@@ -34,8 +34,21 @@ export function yearStep(years: number, phone: boolean): number {
   return years > 12 ? 2 : 1
 }
 
+/** The labels of a month axis: every January of every year step on a long axis, as `yearStep` sets it, and each month on one of a year or less. */
+export function monthAxisLabels(months: readonly MonthKey[], tokens: ChartTokens, phone: boolean): Record<string, unknown> {
+  const first = months[0]
+  const last = months.at(-1)
+  if (first === undefined || last === undefined || months.length <= 12) return { color: tokens.inkMuted, formatter: monthAxisLabel('short') }
+  const step = yearStep(yearOfMonth(last) - yearOfMonth(first), phone)
+  return {
+    color: tokens.inkMuted,
+    interval: (_index: number, month: string) => month.endsWith('-01') && Number(month.slice(0, 4)) % step === 0,
+    formatter: (month: string) => month.slice(0, 4),
+  }
+}
+
 /** Keeps the tooltip to the named series that have a figure at the hovered month. */
-function shownPoints(points: unknown): unknown {
+export function shownPoints(points: unknown): unknown {
   return (Array.isArray(points) ? points : [points]).filter((point: { seriesName?: string; value?: unknown }) => point.seriesName !== '' && typeof point.value === 'number')
 }
 
@@ -98,8 +111,6 @@ export function balanceChart(months: readonly MonthBalance[], current: MonthKey,
           },
         }),
   }
-  const step = first === undefined || last === undefined ? 1 : yearStep(yearOfMonth(last.month) - yearOfMonth(first.month), phone)
-  const byYear = months.length > 12
   return {
     option: {
       grid: { top: 24, right: 16 },
@@ -117,13 +128,11 @@ export function balanceChart(months: readonly MonthBalance[], current: MonthKey,
         type: 'category',
         boundaryGap: false,
         data: categories,
-        axisLabel: byYear
-          ? {
-              color: tokens.inkMuted,
-              interval: (_index: number, month: string) => month.endsWith('-01') && Number(month.slice(0, 4)) % step === 0,
-              formatter: (month: string) => month.slice(0, 4),
-            }
-          : { color: tokens.inkMuted, formatter: monthAxisLabel('short') },
+        axisLabel: monthAxisLabels(
+          months.map((entry) => entry.month),
+          tokens,
+          phone,
+        ),
       },
       yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
       series: [owedSoFar, ...(hasPlan ? [stillToCome] : [])],

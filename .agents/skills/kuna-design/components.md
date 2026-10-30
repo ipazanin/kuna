@@ -8,7 +8,7 @@ Every `.vue` in `src/shared/ui` has a row here and a specimen in the gallery at 
 
 | Component        | Props                                                                                                                                                      | Company | Loans | Shell | Shared |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ----- | ----- | ------ |
-| `AppCard`        | `title?`, `subtitle?`, `definition?`, `as?`, `heading?: 'h2' \| 'h3'`, `collapseId?`, `summary?`, `startCollapsed?`, `reveal?`. Bare surface with no title | 45      | 8     | 3     | 5      |
+| `AppCard`        | `title?`, `subtitle?`, `definition?`, `as?`, `heading?: 'h2' \| 'h3'`, `collapseId?`, `summary?`, `startCollapsed?`, `reveal?`. Bare surface with no title | 45      | 9     | 3     | 5      |
 | `KpiTile`        | `label`, `value`, `to: RouteLocationRaw \| null`, `delta?`, `higherIsBetter?`, `trend?`, `definition?`, `caption?`                                         | 8       | 3     | 0     | 0      |
 | `SparkLine`      | `points`, `width?`, `height?`, `fill?`, `colour?`, `aheadFrom?`, `aheadColour?`, `zeroLine?`. Dashed from `aheadFrom`, the dot on it                       | 0       | 2     | 0     | 1      |
 | `EmptyState`     | `icon`, `title`, `description?`, `actions?`, `tone?: 'empty' \| 'error'`. Slots `description`, `actions`                                                   | 11      | 1     | 0     | 0      |
@@ -21,7 +21,7 @@ Every `.vue` in `src/shared/ui` has a row here and a specimen in the gallery at 
 
 | Component       | Props                                                                                                                            | Company | Loans | Shell | Shared |
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------- | ----- | ----- | ------ |
-| `DashboardGrid` | `layout?: 'tiles' \| 'cards' \| 'pair'`                                                                                          | 11      | 4     | 2     | 0      |
+| `DashboardGrid` | `layout?: 'tiles' \| 'cards' \| 'pair'`                                                                                          | 11      | 5     | 2     | 0      |
 | `FormGrid`      | `as?: 'div' \| 'form'`. A field takes a whole row with `sm:col-span-2`                                                           | 14      | 8     | 0     | 0      |
 | `AppDialog`     | `v-model:open`, `title`, `description?`, `width?: 'md' \| 'xl' \| '2xl' \| '3xl'`, `dismissible?`. Slots default, `start`, `end` | 23      | 7     | 0     | 0      |
 
@@ -29,18 +29,18 @@ Every `.vue` in `src/shared/ui` has a row here and a specimen in the gallery at 
 
 | Component     | Props                                                                                                                                                                                              | Company | Loans | Shell | Shared |
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ----- | ----- | ------ |
-| `ChartCard`   | `title`, `subtitle?`, `definition?`, `description`, `option`, `loading?`, `empty?`, `emptyTitle?`, `emptyDescription?`, `height?`, `phoneHeight?`, `formatValue?`. Emits point and zoom selections | 4       | 3     | 0     | 0      |
+| `ChartCard`   | `title`, `subtitle?`, `definition?`, `description`, `option`, `loading?`, `empty?`, `emptyTitle?`, `emptyDescription?`, `height?`, `phoneHeight?`, `formatValue?`. Emits point and zoom selections | 4       | 4     | 0     | 0      |
 | `ChartCanvas` | `option`, `description`. Drawn only inside `ChartCard`. Emits `select`, `zoom`                                                                                                                     | 1       | 0     | 0     | 1      |
-| `ChartLegend` | `entries`, `toggleable?`, `hidden?`. Emits `toggle`                                                                                                                                                | 14      | 3     | 0     | 0      |
+| `ChartLegend` | `entries`, `toggleable?`, `hidden?`. Emits `toggle`                                                                                                                                                | 14      | 4     | 0     | 0      |
 | `DonutCard`   | `title`, `subtitle?`, `definition?`, `description`, `parts`, `total`, `totalLabel`, `formatValue?`. Slots `beside`, `aside`                                                                        | 6       | 0     | 0     | 0      |
 
 ## Figures and tables
 
 | Component        | Props                                                                                                                            | Company | Loans | Shell | Shared |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------- | ----- | ----- | ------ |
-| `MoneyText`      | `cents`, `sign?`, `precision?: 'cents' \| 'compact'`, `tone?: 'flow' \| 'outcome'`, `format?` for a figure shown outside its app | 54      | 6     | 1     | 0      |
+| `MoneyText`      | `cents`, `sign?`, `precision?: 'cents' \| 'compact'`, `tone?: 'flow' \| 'outcome'`, `format?` for a figure shown outside its app | 54      | 7     | 1     | 0      |
 | `DrillLink`      | `to: RouteLocationRaw \| null`, `label?`, `inProse?`                                                                             | 45      | 0     | 0     | 3      |
-| `FigureTable`    | `label?`. Wraps `.data-table` in a frame that scrolls sideways only when needed                                                  | 7       | 1     | 0     | 1      |
+| `FigureTable`    | `label?`. Wraps `.data-table` in a frame that scrolls sideways only when needed                                                  | 7       | 2     | 0     | 1      |
 | `SortableHeader` | `label`, `v-model` sort direction or null                                                                                        | 1       | 0     | 0     | 0      |
 | `ProgressMeter`  | `parts` of `{ value, colour, striped? }`, `label`, `height?`. Read out as its label                                              | 0       | 3     | 0     | 0      |
 | `FactGrid`       | `facts` of `{ label, value, caption?, swatch? }`. Two to a row, all in one row once they fit                                     | 0       | 4     | 0     | 0      |

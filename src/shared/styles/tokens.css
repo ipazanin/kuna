@@ -201,6 +201,15 @@
   --loan-interest: var(--series-7);
 
   /*
+   * Each bank loan's band where the Overview stacks several, by the loan's place in the file. Blue,
+   * pink and dark green pass the palette check with --loan-ahead in both themes, so brass stays the
+   * part still to come. A fourth loan and later wear --chart-deemphasis.
+   */
+  --loan-band-1: var(--series-3);
+  --loan-band-2: var(--series-5);
+  --loan-band-3: var(--series-6);
+
+  /*
    * Ink inside a filled mark. It keeps at least 3:1 on every swatch in both themes, enough for an
    * icon or large text. Small text needs 4.5:1, which Blue (4.1:1), Dark green (3.7:1) and Violet
    * (3.2:1) miss in the light theme and Dark green misses in the dark one.

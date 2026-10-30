@@ -20,7 +20,7 @@
  * onboarding's first steps on a first run (`?fake=empty`), each tab of the company's Settings and the
  * Year page's editors for a workbook kept in this browser (`?fake=browser`), Settings, Books file for
  * a file a newer app saved (`?fake=newer-file`), the Loans Settings, the Loans Overview with one loan
- * (`?loans=one-loan`) and while its file opens (`?loans=opening`), the home, Kuna settings, the Loans first run and every Loans screen in Croatian (`?lang=hr`), Salaries for one
+ * (`?loans=one-loan`), with a house loan and a car loan (`?loans=house-and-car`) and while its file opens (`?loans=opening`), the home, Kuna settings, the Loans first run and every Loans screen in Croatian (`?lang=hr`), Salaries for one
  * made-up employee (`?fake=one-employee`) and for five (`?fake=five-employees`), and the summary
  * of an xlsx file it writes from the fake workbook with two problems added.
  *
@@ -597,6 +597,24 @@ const SOURCE_SCREENS = [
     title: 'Pregled',
     charts: 0,
     shows: ['Home loan', 'dug danas', 'otplaćeno', 'Subvencija završava'],
+    cards: false,
+  },
+  {
+    name: 'loans-house-and-car',
+    query: 'loans=house-and-car',
+    hash: '#/loans',
+    title: 'Overview',
+    charts: 2,
+    shows: ['Home loan', 'Car loan', 'Interest still to pay', 'Free of all debt', 'Owed over time', 'What goes out each month', 'Upcoming payments', 'Every payment of Car loan'],
+    cards: false,
+  },
+  {
+    name: 'loans-house-and-car-croatian',
+    query: 'loans=house-and-car&lang=hr',
+    hash: '#/loans',
+    title: 'Pregled',
+    charts: 2,
+    shows: ['Car loan', 'Preostala kamata', 'Svi dugovi otplaćeni', 'Dug kroz vrijeme', 'Koliko plaćate svaki mjesec', 'Sljedeće uplate'],
     cards: false,
   },
   { name: 'loans-opening', query: 'loans=opening', hash: '#/loans', title: 'Overview', charts: 0, ready: '[data-testid="loans-loading"]', cards: false },

@@ -27,7 +27,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 
 - A chart sits in `ChartCard` with its legend and a table view behind a Table toggle. A snapshot of at most five parts is a `DonutCard`.
 - Colour follows the bucket, tax or loan part on every chart, legend and swatch, through `--bucket-*`, `--pay-*` and `--loan-*`. Never pick a colour by rank.
-- Loans: principal is `--loan-principal`, interest `--loan-interest`, and balance still to come `--loan-ahead`. The subsidy is a stripe, not a fourth colour.
+- Loans: principal is `--loan-principal`, interest `--loan-interest`, and balance still to come `--loan-ahead`. The subsidy is a stripe, not a fourth colour. Several bank loans on one chart wear `--loan-band-1` to `--loan-band-3` by their place in the file, and a fourth and later `--chart-deemphasis`.
 - Charts draw in over 450 ms and skip it under reduced motion. Keep it.
 - The description prop says in words and euros what the chart shows.
 

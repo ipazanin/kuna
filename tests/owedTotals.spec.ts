@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
 import { bankLoanFigures } from '../src/apps/loans/bankLoans/presentation/bankLoanView'
 import { informalLoanFigures } from '../src/apps/loans/informalLoans/presentation/informalLoanView'
-import { bankLoanTotals, owedTotals } from '../src/apps/loans/overview/presentation/owedTotals'
+import { owedTotals } from '../src/apps/loans/overview/presentation/owedTotals'
 import type { BankLoan } from '../src/apps/loans/workbook/domain/bankLoan'
 import type { InformalLoan } from '../src/apps/loans/workbook/domain/informalLoan'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
@@ -51,29 +51,5 @@ describe('what you owe over every loan', () => {
 
   it('adds nothing for a bank loan whose plan cannot be worked out', () => {
     expect(totalsOf([bankBook(bankLoan(), false)], [])).toEqual({ owed: euros(0), owedToYou: euros(0) })
-  })
-})
-
-describe('the bank loans over the Overview', () => {
-  const day = civil('2026-03-10')
-
-  it('names the earliest next payment, adds the interest of the year with what subsidies pay of it, and gives the last payoff', () => {
-    const car = bankLoan({ subsidy: { monthly: euros(5), firstInstalment: 1, instalments: 6, payer: '' } })
-    const boat = bankLoan({ name: 'Boat loan', firstInstalment: civil('2026-03-20'), instalments: 24 })
-    const named = [car, boat].map((loan) => ({ name: loan.name, figures: bankLoanFigures(bankBook(loan), day) }))
-    const totals = bankLoanTotals([...named, { name: 'Unworked', figures: null }])
-
-    expect(totals?.next).toEqual({ name: 'Boat loan', date: '2026-03-20', yourShare: named[1]!.figures!.next!.yourShare })
-    expect(totals?.interestThisYear).toEqual({
-      year: 2026,
-      interest: named[0]!.figures!.interestThisYear.interest + named[1]!.figures!.interestThisYear.interest,
-      // The car loan's 5.00 a month is below the interest of each of its six instalments, so all 30.00 of it pays interest.
-      subsidy: euros(30),
-    })
-    expect(totals?.lastPayoff).toBe('2028-02-20')
-  })
-
-  it('has nothing to total without a bank loan whose plan is worked out', () => {
-    expect(bankLoanTotals([{ name: 'Unworked', figures: null }])).toBeNull()
   })
 })

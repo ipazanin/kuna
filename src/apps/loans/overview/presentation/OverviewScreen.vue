@@ -9,14 +9,17 @@ import { words as bankWords } from '../../bankLoans/presentation/words'
 import InformalLoanDialog from '../../informalLoans/presentation/InformalLoanDialog.vue'
 import { informalLoanFigures } from '../../informalLoans/presentation/informalLoanView'
 import { useLoansBooks } from '../../workbook/application/loansStore'
+import { debtFreeOn, interestAfter, interestInYear, plannedLoans, upcomingPayments } from '../domain/loansTogether'
 import BankLoanCard from './BankLoanCard.vue'
 import InformalLoanCard from './InformalLoanCard.vue'
-import { bankLoanTotals, owedTotals } from './owedTotals'
+import LoansTogether from './LoansTogether.vue'
+import { owedTotals } from './owedTotals'
 import { words } from './words'
-import { today } from '../../../../shared/calendar/civilDate'
+import { today, yearOf } from '../../../../shared/calendar/civilDate'
 import { dayLabel, shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
+import type { Money } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
@@ -25,9 +28,13 @@ import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
-/** Every loan the Loans file holds, one card each, with tiles over them all once there are two or more. */
+/**
+ * Every loan the Loans file holds, one card each. With two or more loans, tiles over them all lead,
+ * and with two or more bank loans, charts and the upcoming payments over the bank loans follow.
+ */
 const { state } = useLoansBooks()
 const day = today()
+const year = yearOf(day)
 
 const loading = computed(() => state.workbook === null && state.status !== 'error')
 const fileNote = computed(() => (state.choice?.source === 'drive' ? words.empty.onDrive(state.choice.name) : words.empty.inBrowser))
@@ -37,16 +44,22 @@ const informalCards = computed(() => (state.workbook?.informalLoans ?? []).map((
 const loanCount = computed(() => bankCards.value.length + informalCards.value.length)
 
 const owed = computed(() => owedTotals({ bank: bankCards.value.map((card) => card.figures), informal: informalCards.value.map((card) => card.figures) }))
-const bank = computed(() => bankLoanTotals(bankCards.value.map((card) => ({ name: card.book.loan.name, figures: card.figures }))))
+const planned = computed(() => plannedLoans(state.workbook?.bankLoans ?? []))
+const next = computed(() => upcomingPayments(planned.value, day)[0] ?? null)
+const interestThisYear = computed(() => interestInYear(planned.value, year))
+const interestLeft = computed(() => interestAfter(planned.value, day))
+const unplanned = computed(() => (state.workbook?.bankLoans.length ?? 0) - planned.value.length)
+const debtFree = computed(() => debtFreeOn(state.workbook?.bankLoans ?? []))
+const owingInformally = computed(() => informalCards.value.some((card) => card.figures.owedByYou > 0))
 
-/** Names the payer when every subsidised loan has the same one. */
-const interestCaption = computed(() => {
-  const subsidy = bank.value?.interestThisYear.subsidy ?? 0
+/** What an interest figure leaves out, or else what subsidies pay of it, naming the payer when every subsidised loan has the same one. */
+function interestCaption(subsidy: Money): string {
+  if (unplanned.value > 0) return plural(words.tiles.withoutUnplanned(unplanned.value), unplanned.value)
   if (subsidy <= 0) return ''
-  const payers = new Set(bankCards.value.flatMap((card) => (card.book.loan.subsidy === null ? [] : [card.book.loan.subsidy.payer])))
+  const payers = new Set(planned.value.flatMap((book) => (book.loan.subsidy === null ? [] : [book.loan.subsidy.payer])))
   const [payer] = payers
   return payers.size === 1 && payer !== undefined ? bankWords.tiles.interestCovered(bankWords.subsidyPays(payer), formatMoney(subsidy)) : words.tiles.subsidiesPay(formatMoney(subsidy))
-})
+}
 
 const addingBank = ref(false)
 const addingInformal = ref(false)
@@ -85,27 +98,31 @@ const addingInformal = ref(false)
             :to="null"
             data-testid="loans-total"
           />
+          <KpiTile v-if="next" :label="words.tiles.nextPayment" :value="formatMoney(next.yourShare)" :caption="words.tiles.nextOn(shortDayLabel(next.date), next.loan.name)" :to="null" />
           <KpiTile
-            v-if="bank?.next"
-            :label="words.tiles.nextPayment"
-            :value="formatMoney(bank.next.yourShare)"
-            :caption="words.tiles.nextOn(shortDayLabel(bank.next.date), bank.next.name)"
-            :to="null"
-          />
-          <KpiTile
-            v-if="bank"
-            :label="words.tiles.interestIn(bank.interestThisYear.year)"
-            :value="formatMoney(bank.interestThisYear.interest)"
-            :caption="interestCaption"
+            v-if="planned.length > 0"
+            :label="words.tiles.interestIn(year)"
+            :value="formatMoney(interestThisYear.interest)"
+            :caption="interestCaption(interestThisYear.subsidy)"
             :definition="words.tiles.interestDefinition"
             :to="null"
           />
           <KpiTile
-            v-if="bank?.lastPayoff"
-            :label="words.tiles.paidOff"
-            :value="monthLabel(monthOf(bank.lastPayoff))"
-            :caption="informalCards.length > 0 ? words.tiles.noEndDate : dayLabel(bank.lastPayoff)"
+            v-if="planned.length > 0"
+            :label="words.tiles.interestLeft"
+            :value="formatMoney(interestLeft.interest)"
+            :caption="interestCaption(interestLeft.subsidy)"
+            :definition="words.tiles.interestLeftDefinition"
             :to="null"
+            data-testid="loans-interest-left"
+          />
+          <KpiTile
+            v-if="debtFree"
+            :label="owingInformally ? words.tiles.paidOff : words.tiles.freeOfDebt"
+            :value="monthLabel(monthOf(debtFree))"
+            :caption="owingInformally ? words.tiles.noEndDate : dayLabel(debtFree)"
+            :to="null"
+            data-testid="loans-debt-free"
           />
         </DashboardGrid>
         <UAlert
@@ -124,6 +141,7 @@ const addingInformal = ref(false)
             </ul>
           </template>
         </UAlert>
+        <LoansTogether v-if="planned.length >= 2" :loans="planned" :day="day" :free-of-debt-on="owingInformally ? null : debtFree" />
         <DashboardGrid data-testid="loan-cards">
           <BankLoanCard v-for="card in bankCards" :key="card.book.loan.id" :book="card.book" :figures="card.figures" :day="day" :hero="loanCount === 1" />
           <InformalLoanCard v-for="card in informalCards" :key="card.book.loan.id" :book="card.book" :figures="card.figures" :day="day" :hero="loanCount === 1" />
