@@ -93,7 +93,10 @@ describe('the fake mailbox', () => {
     expect(planLine(uploadFailed)).toMatch(
       /^Filed 5, already there 4, 1 correction, 1 not compared, 2 unmatched\. Bank statements: \d{4}-\d{2}-\d{2}-statement-\d{3}\.pdf was not filed\. Payroll: 2026-09-payment-order-salary\.pdf and 2026-09-payment-order-rent\.pdf were not filed\. Accountant's invoices: 2026-10-03-accounting\.pdf was not filed\.$/,
     )
-    expect(made.map((file) => file.name)).toEqual([`${sampleCamtLabel()}-main.xml`, '2026-09-salary.xlsx', '2026-09-payment-order-salary.xml', '2026-09-payment-order-rent.xml', '2026-09-pdv.xlsx'])
+    // The sources file at the same time, so the names are compared as a set.
+    expect(made.map((file) => file.name).sort()).toEqual(
+      [`${sampleCamtLabel()}-main.xml`, '2026-09-salary.xlsx', '2026-09-payment-order-salary.xml', '2026-09-payment-order-rent.xml', '2026-09-pdv.xlsx'].sort(),
+    )
   })
 
   it('stops on Gmail asking to slow down, reads only the bank’s mail with the accountant’s switches off, and fails the payroll switched on without the accountant’s address', async () => {
