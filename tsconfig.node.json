@@ -20,5 +20,5 @@
     "noFallthroughCasesInSwitch": true,
     "exactOptionalPropertyTypes": true
   },
-  "include": ["vite.config.ts", "vitest.config.ts", "scripts/**/*.ts"]
+  "include": ["vite.config.ts", "vite.price-job.config.ts", "vitest.config.ts", "scripts/**/*.ts"]
 }

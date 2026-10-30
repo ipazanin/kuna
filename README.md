@@ -2202,6 +2202,106 @@ one kept in this browser. Loans can be set up before the company books, from its
 an export back, put it on Drive and choose "My file on Google Drive" in the Loans first run. The company's import refuses
 the file as another app's.
 
+### Investments prices
+
+Investments values holdings at daily closes that a script in your own Google account fetches once a
+day and writes to a second Drive file, `kuna-investments-prices.json`, beside the Investments file.
+The page only reads it, so it talks to no price provider and the CSP stays as it is. The app itself,
+its file, its first run and its screens, is still to come. What exists is the prices file, how the
+figures read it, and the job that writes it.
+
+The prices file is defined once, in `src/apps/investments/prices/domain/pricesFile.ts`, for the job
+and the page. It holds `format` `kuna-prices`, `version` 1, `written_at`, `series`, `splits` and
+`failures`. A series is keyed by source and source symbol, such as `tiingo:ABC`,
+`alphavantage:XYZ.DEX` or `ecb:USD`, so two instruments on one listing share it. Each has its
+`currency`, `from` (the earliest day the job asked the provider for) and `closes`, one `[day, close]`
+a trading day, oldest first, every close decimal text as the provider sent it. An `ecb:` series holds
+units of the currency per euro. `splits` are the splits Tiingo reported, with `new` and `old` as whole
+numbers, for Kuna to offer as records. `failures` are the last run's only: the series, or none for the
+whole run, the day and a reason (`no-key`, `no-answer`, `refused`, `unknown-symbol`, `limit`,
+`not-on-free-key`, `unreadable`, `investments-unreadable`, `investments-newer`). It is written one series a line, so
+Drive's preview reads it and a revision's diff shows the series that changed. Kuna refuses a file that
+is not JSON, not a prices file, of a newer version or out of shape.
+
+The figures read it through `pricesFileBook` and `pricesFileRateBook` in `pricesFileBooks.ts`. A
+holding takes the latest close on or before the day, from its series or from the prices entered by
+hand in the Investments file, and on a day with both the fetched close wins. A fetched close is late
+after three weekdays and a hand price after 35 days. When even the newest fetched close of the
+holdings is late, the prices themselves are behind, as `pricesAge` says: on Friday 30 Oct a newest
+close of Monday 26 Oct is late, and a Friday close stays current until the next Wednesday. The copy
+of the file lives in this browser in its own Dexie database, `kuna-prices-<file id>`. The fake prices
+file (`prices/infrastructure/fake/fakePrices.ts`) comes as `sample`, closes up to the day before, and
+`late-prices`, closes that stop four weekdays back with every provider failing on the last run.
+
+#### The daily job
+
+The job's code is `src/apps/investments/prices/job/`, plain TypeScript behind five ports: fetch an
+address, read a Drive file by id, overwrite one, read a script property, and pause. `price-job/Triggers.js`
+is the only code that touches `UrlFetchApp`, `DriveApp`, `PropertiesService` and `Utilities.sleep`, and
+`npm run build:price-job` bundles the job into `price-job/build/PriceJob.js`, one script whose global
+`KunaPriceJob` it calls. CI builds it on every push. The job never does sums on a figure, so it needs
+neither `bigint` nor `Intl`, whose support in Apps Script Google does not state, and
+`tests/importBoundaries.spec.ts` keeps its imports to the prices format and its own folder.
+
+Each run, between 06:00 and 07:00 Zagreb time:
+
+1. Opens the prices file and the Investments file by the ids in the script properties. It overwrites
+   only a file that already is a prices file, so a wrong id cannot touch your records. When the
+   Investments file cannot be opened or a newer Kuna saved it, it notes that in the prices file,
+   changes nothing else and fails the run.
+2. Reads from the Investments file each instrument's source and source symbol, its first trade or
+   spin-off (the first deposit for one with none, such as the benchmark) and every currency the
+   records name. Instruments priced by hand get nothing.
+3. Fetches US listings from Tiingo, from the first trade for a new series and from the last close
+   after that, with the splits Tiingo reports. Fetches European listings from Alpha Vantage: the last
+   100 daily closes, which is all a free key gets, and for a new series the month ends before them,
+   asked again on later runs until they come, unless Alpha Vantage answers that they are for paid
+   keys. Its requests go 1.5 seconds apart, since a free key may refuse a burst. Fetches the ECB
+   rates of USD, GBP, CHF and every other currency named, with no key: one request for the history of
+   new currencies, from the start of 2015 or the first record if earlier, and one for the latest rates
+   of the others. A currency with no rate for a year, such as the kuna, is no longer asked for. A
+   series asks for its history again when a record older than its `from` arrives.
+4. Merges what came into each series, keeps every series a provider failed as it was, notes each
+   failure, and overwrites the prices file. The log, in the editor's Executions, holds counts and
+   reasons only, never a symbol or a figure.
+
+For about 25 US listings and 4 European ones that is about 25 Tiingo requests a day (1,000 allowed),
+4 to Alpha Vantage (25 allowed) and one or two to the ECB, within Apps Script's 20,000 fetches a day.
+
+#### Setting the job up
+
+The setup waits until the Investments app can make its prices file, because the job only overwrites a
+prices file Kuna made and step 3 takes its id from the Investments Settings.
+
+The script runs under your account and holds full access to your Drive, because Apps Script's
+`File.setContent` needs the `drive` scope. It reads the two files its properties name and writes only
+the prices file.
+
+1. Claim two free keys: one from Tiingo (the free plan, for your own use only) and one from Alpha
+   Vantage (25 requests a day).
+2. Turn on the Apps Script API at `https://script.google.com/home/usersettings`, then build and push:
+
+   ```sh
+   npm run build:price-job
+   cd price-job
+   npx -y @google/clasp login
+   npx -y @google/clasp create --type standalone --title "Kuna prices"   # once, writes .clasp.json, which git ignores
+   git restore appsscript.json                                           # in case create wrote its own over it
+   npx -y @google/clasp push
+   ```
+
+   The repo's `appsscript.json` sets the Zagreb time zone, the V8 runtime and the three scopes. After
+   any change to the job, build and push again.
+
+3. In the script's Project settings, add four script properties: `INVESTMENTS_FILE_ID`, the id in the
+   Investments file's Drive address, `PRICES_FILE_ID`, the id the Investments Settings shows once
+   Kuna has made the prices file, `TIINGO_KEY` and `ALPHA_VANTAGE_KEY`.
+4. Run `runPrices` once from the editor and allow what Google asks: your Drive, requests to outside
+   services and triggers. Read its log under Executions. Do this before the first workbook import, so
+   the rates are there.
+5. Run `installDailyTrigger` once. It replaces any earlier trigger of `runPrices` with one a day
+   between 06:00 and 07:00 Zagreb time.
+
 ### Core and the pack
 
 `src/apps/company` outside its packs is the company's core, and `src/apps/company/packs/hr-doo` is the Croatian d.o.o. pack.

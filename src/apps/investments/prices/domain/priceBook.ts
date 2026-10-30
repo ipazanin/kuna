@@ -27,3 +27,15 @@ export function closeIsLate(close: Close, today: CivilDate): boolean {
   }
   return weekdaysBetween(addDays(close.date, 1), addDays(today, -1)) >= LISTED_WEEKDAYS
 }
+
+/** The newest close the job fetched among the holdings' closes, and whether even it is late, so the prices themselves are behind. */
+export interface PricesAge {
+  readonly newest: CivilDate
+  readonly late: boolean
+}
+
+/** Null when no holding has a fetched close, as when every price is entered by hand. */
+export function pricesAge(closes: readonly Close[], today: CivilDate): PricesAge | null {
+  const newest = closes.filter((close) => !close.byHand).reduce<Close | null>((found, close) => (found === null || close.date > found.date ? close : found), null)
+  return newest === null ? null : { newest: newest.date, late: closeIsLate(newest, today) }
+}

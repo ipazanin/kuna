@@ -110,6 +110,28 @@ function isFakeSeed(file: string): boolean {
   return /\/infrastructure\/fake\//.test(file)
 }
 
+/** The daily price job, which runs in Apps Script, and the prices format it shares with the page. */
+const PRICE_JOB = 'src/apps/investments/prices/job/'
+const PRICES_FORMAT = 'src/apps/investments/prices/domain/pricesFile.ts'
+
+function isPriceJobCode(file: string): boolean {
+  return file.startsWith(PRICE_JOB) || file === PRICES_FORMAT
+}
+
+/** Each use of `bigint` or `Intl` in a file's code, as `file:line`, leaving out comments and text. */
+function bigintOrIntlIn(file: string): string[] {
+  const source = ts.createSourceFile(file, readFileSync(join(ROOT, file), 'utf8'), ts.ScriptTarget.Latest, true)
+  const found: string[] = []
+  const visit = (node: ts.Node): void => {
+    if (node.kind === ts.SyntaxKind.BigIntLiteral || node.kind === ts.SyntaxKind.BigIntKeyword || (ts.isIdentifier(node) && (node.text === 'BigInt' || node.text === 'Intl'))) {
+      found.push(`${file}:${source.getLineAndCharacterOfPosition(node.getStart()).line + 1}`)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+  return found
+}
+
 function broken(rule: (entry: Import) => boolean): string[] {
   return IMPORTS.filter((entry) => !rule(entry)).map((entry) => `${entry.at} imports ${entry.specifier}`)
 }
@@ -188,5 +210,14 @@ describe('import boundaries', () => {
 
   it('keeps application code off infrastructure, but for the files that wire the adapters', () => {
     expect(broken((entry) => !/\/application\//.test(entry.from) || entry.target === null || !/\/infrastructure\//.test(entry.target) || ADAPTER_WIRING.includes(entry.from))).toEqual([])
+  })
+
+  it('keeps the price job to the prices format and its own code, with no bigint or Intl, which Apps Script may lack, and the page off the job', () => {
+    expect(IMPORTS.some((entry) => entry.from.startsWith(PRICE_JOB) && entry.target === PRICES_FORMAT)).toBe(true)
+    expect(bigintOrIntlIn('src/shared/money/decimal.ts').length).toBeGreaterThan(0)
+    expect(bigintOrIntlIn('src/shared/calendar/civilDate.ts').length).toBeGreaterThan(0)
+    expect(broken((entry) => !isPriceJobCode(entry.from) || (entry.target !== null && isPriceJobCode(entry.target)))).toEqual([])
+    expect(broken((entry) => entry.from.startsWith(PRICE_JOB) || entry.target === null || !entry.target.startsWith(PRICE_JOB))).toEqual([])
+    expect(SOURCE_FILES.filter(isPriceJobCode).flatMap(bigintOrIntlIn)).toEqual([])
   })
 })
