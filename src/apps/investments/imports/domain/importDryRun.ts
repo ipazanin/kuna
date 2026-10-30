@@ -624,7 +624,7 @@ function instrumentQuestions(entries: readonly DryRunEntry[], book: InvestmentBo
 }
 
 /**
- * A first guess Ivan corrects: stocks, named by its symbol, quoting in the currency of its trades, priced by Tiingo
+ * A first guess Ivan corrects: stocks, named by its symbol, quoting in the currency of its trades, priced by Twelve Data
  * for a US symbol and by Alpha Vantage for Xetra and Amsterdam, by hand otherwise.
  */
 function proposedInstrument(rows: readonly WorkbookRow[], isin: string | null): Omit<Instrument, 'id'> {
@@ -633,7 +633,7 @@ function proposedInstrument(rows: readonly WorkbookRow[], isin: string | null): 
   const [base = '', suffix = ''] = symbol.toUpperCase().split('.')
   const listing: { readonly exchange: string | null; readonly prices: PriceSource; readonly sourceSymbol: string } =
     suffix === ''
-      ? { exchange: null, prices: 'tiingo', sourceSymbol: base }
+      ? { exchange: null, prices: 'twelvedata', sourceSymbol: base }
       : suffix === 'DE'
         ? { exchange: 'XETR', prices: 'alphavantage', sourceSymbol: `${base}.DEX` }
         : suffix === 'AS'

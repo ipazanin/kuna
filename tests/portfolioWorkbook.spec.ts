@@ -344,7 +344,7 @@ describe('the first dry run, before any answer', () => {
       exchange: null,
       currency: USD,
       quoted: { kind: 'unit' },
-      prices: 'tiingo',
+      prices: 'twelvedata',
       sourceSymbol: 'ABC',
       note: '',
     })

@@ -49,8 +49,8 @@ function latestOnOrBefore(rows: readonly DatedDecimal[], day: CivilDate): DatedD
 }
 
 /**
- * The figures' closes: the job's from the prices file, for an instrument priced by a source, and the prices entered by
- * hand. The latest on or before the day counts, and on a day with both the job's close wins.
+ * The figures' closes: the fetched ones from the prices file, for an instrument priced by a vendor, and the prices
+ * entered by hand. The latest on or before the day counts, and on a day with both the fetched close wins.
  */
 export function pricesFileBook(file: PricesFile, handPrices: readonly HandPrice[]): PriceBook {
   const fetched = seriesReader(file)
@@ -69,17 +69,17 @@ export function pricesFileBook(file: PricesFile, handPrices: readonly HandPrice[
   }
   return {
     closeOnOrBefore(instrument: Instrument, day: CivilDate): Close | null {
-      const job = instrument.prices === 'manual' ? null : latestOnOrBefore(fetched(seriesKey(instrument.prices, instrument.sourceSymbol)), day)
+      const listed = instrument.prices === 'manual' ? null : latestOnOrBefore(fetched(seriesKey(instrument.prices, instrument.sourceSymbol)), day)
       const hand = latestOnOrBefore(byHand.get(instrument.id) ?? [], day)
-      if (hand !== null && (job === null || hand.date > job.date)) {
+      if (hand !== null && (listed === null || hand.date > listed.date)) {
         return { date: hand.date, price: hand.value, byHand: true }
       }
-      return job === null ? null : { date: job.date, price: job.value, byHand: false }
+      return listed === null ? null : { date: listed.date, price: listed.value, byHand: false }
     },
   }
 }
 
-/** The ECB rates the job keeps in the prices file. */
+/** The ECB rates kept in the prices file. */
 export function pricesFileRateBook(file: PricesFile): RateBook {
   const rates = seriesReader(file)
   return {

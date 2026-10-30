@@ -58,7 +58,7 @@ export function instrument(key: string, overrides: Partial<Instrument> = {}): In
     exchange: null,
     currency: EURO,
     quoted: { kind: 'unit' },
-    prices: 'tiingo',
+    prices: 'twelvedata',
     sourceSymbol: key.toUpperCase(),
     note: '',
     ...overrides,

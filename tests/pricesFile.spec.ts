@@ -19,7 +19,7 @@ import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { BROKER, STOCK_B, USD, WORLD_ETF, book, cashMovement, decimal, instrument, trade, workedPortfolio } from './fixtures/investments'
 import { civil, euros } from './fixtures/ledger'
 
-/** The worked portfolio's closes and rates as the job would have written them. */
+/** The worked portfolio's closes and rates as a fetch would have written them. */
 const WORKED_FILE: PricesFile = {
   writtenAt: '2026-10-30T05:41:00.000Z',
   series: {
@@ -31,7 +31,7 @@ const WORKED_FILE: PricesFile = {
         ['2026-10-29', '125.00'],
       ],
     },
-    [seriesKey('tiingo', 'STOCK-B')]: {
+    [seriesKey('twelvedata', 'STOCK-B')]: {
       currency: 'USD',
       from: '2025-03-03',
       closes: [
@@ -51,8 +51,8 @@ const WORKED_FILE: PricesFile = {
       ],
     },
   },
-  splits: [{ series: seriesKey('tiingo', 'STOCK-B'), date: '2024-06-10', newUnits: '10', oldUnits: '1' }],
-  failures: [{ series: seriesKey('tiingo', 'STOCK-C'), day: '2026-10-30', reason: 'unknown-symbol' }],
+  splits: [{ series: seriesKey('twelvedata', 'STOCK-B'), date: '2024-06-10', newUnits: '10', oldUnits: '1' }],
+  failures: [{ series: seriesKey('twelvedata', 'STOCK-C'), day: '2026-10-30', reason: 'unknown-symbol' }],
 }
 
 function handPrice(what: Instrument, date: string, price: string, note = ''): HandPrice {
@@ -73,18 +73,18 @@ describe('the prices file', () => {
     expect(read(text)).toEqual(WORKED_FILE)
     const lines = text.split('\n')
     expect(lines.slice(0, 4)).toEqual(['{', '  "format": "kuna-prices",', '  "version": 1,', '  "written_at": "2026-10-30T05:41:00.000Z",'])
-    expect(lines.filter((line) => line.startsWith('    "')).map((line) => line.slice(5, line.indexOf('":')))).toEqual(['alphavantage:WORLD-ETF', 'ecb:USD', 'tiingo:STOCK-B'])
-    expect(text).toContain('{"series":"tiingo:STOCK-B","date":"2024-06-10","new":"10","old":"1"}')
-    expect(text).toContain('{"series":"tiingo:STOCK-C","day":"2026-10-30","reason":"unknown-symbol"}')
+    expect(lines.filter((line) => line.startsWith('    "')).map((line) => line.slice(5, line.indexOf('":')))).toEqual(['alphavantage:WORLD-ETF', 'ecb:USD', 'twelvedata:STOCK-B'])
+    expect(text).toContain('{"series":"twelvedata:STOCK-B","date":"2024-06-10","new":"10","old":"1"}')
+    expect(text).toContain('{"series":"twelvedata:STOCK-C","day":"2026-10-30","reason":"unknown-symbol"}')
   })
 
-  it('reads the empty file Kuna makes, before the job has written', () => {
+  it('reads the empty file Kuna makes, before a fetch has written it', () => {
     expect(read(encodePricesFile(emptyPricesFile()))).toEqual({ writtenAt: null, series: {}, splits: [], failures: [] })
   })
 
   it('refuses text that is no prices file, a newer one and one out of shape', () => {
     const withSeries = (closes: unknown): string =>
-      JSON.stringify({ format: 'kuna-prices', version: 1, written_at: null, series: { 'tiingo:ABC': { currency: 'USD', from: '2026-01-02', closes } }, splits: [], failures: [] })
+      JSON.stringify({ format: 'kuna-prices', version: 1, written_at: null, series: { 'twelvedata:ABC': { currency: 'USD', from: '2026-01-02', closes } }, splits: [], failures: [] })
     expect(decodePricesFile('not json')).toEqual({ kind: 'refused', reason: 'not-json' })
     expect(decodePricesFile(JSON.stringify({ format: 'kuna', app: 'investments' }))).toEqual({ kind: 'refused', reason: 'not-prices' })
     expect(decodePricesFile(encodePricesFile(emptyPricesFile()).replace('"version": 1', '"version": 2'))).toEqual({ kind: 'refused', reason: 'newer' })
@@ -131,7 +131,7 @@ describe("the prices file's books", () => {
     expect(prices.closeOnOrBefore(instrument('unlisted'), civil('2026-10-29'))).toBeNull()
   })
 
-  it("lets the job's close win over a hand price on the same day, and a later hand price win over an older close", () => {
+  it('lets the fetched close win over a hand price on the same day, and a later hand price win over an older close', () => {
     const prices = pricesFileBook(WORKED_FILE, [handPrice(stockB, '2026-10-29', '99'), handPrice(stockB, '2026-10-30', '59.25', 'statement')])
     expect(prices.closeOnOrBefore(stockB, civil('2026-10-29'))).toEqual({ date: civil('2026-10-29'), price: decimal('58'), byHand: false })
     expect(prices.closeOnOrBefore(stockB, civil('2026-10-30'))).toEqual({ date: civil('2026-10-30'), price: decimal('59.25'), byHand: true })
@@ -187,7 +187,7 @@ describe('late prices', () => {
     expect(file.failures).toEqual([])
   })
 
-  it('finds the late-prices set late: on Friday 30 Oct its newest close is Monday 26 Oct, and every provider failed', () => {
+  it('finds the late-prices set late: on Friday 30 Oct its newest close is Monday 26 Oct, and every vendor failed', () => {
     const { records, today } = fakeBook('2026-10-30')
     const file = fakePricesFile('late-prices', today)
     const figures = portfolioFigures({ book: records, prices: pricesFileBook(file, records.prices), rates: pricesFileRateBook(file), today })
@@ -214,14 +214,11 @@ describe('late prices', () => {
     expect(pricesAge([{ date: civil('2026-01-30'), price: decimal('1'), byHand: true }], civil('2026-10-30'))).toBeNull()
   })
 
-  it('writes the fake sets as files Kuna reads back, with weekday closes only and the split in its closes', () => {
+  it('writes the fake sets as files Kuna reads back, with weekday closes only', () => {
     const file = fakePricesFile('sample', civil('2026-10-30'))
     expect(read(encodePricesFile(file))).toEqual(file)
     const closes = file.series[FAKE_SERIES.shareB]!.closes
     expect(closes.every(([day]) => ![0, 6].includes(new Date(`${day}T00:00:00Z`).getUTCDay()))).toBe(true)
-    const beforeSplit = closes.filter(([day]) => day < '2024-06-10').at(-1)!
-    const onSplit = closes.find(([day]) => day === '2024-06-10')!
-    expect(Number(beforeSplit[1]) / Number(onSplit[1])).toBeGreaterThan(9)
   })
 })
 

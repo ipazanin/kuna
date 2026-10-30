@@ -3,19 +3,17 @@ import type { CloseRow, PriceFailure, PricesFile } from '../../domain/pricesFile
 import { addDays, civilDate, weekdaysBetween } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 
-/** `sample` has the closes up to the day before, `late-prices` stops four weekdays back with every provider failing on the last run. */
+/** `sample` has the closes up to the day before, `late-prices` stops four weekdays back with every vendor failing on the last fetch. */
 export type FakePricesVariant = 'sample' | 'late-prices'
 
 /** The made-up series of the fake prices file: two US shares and a Xetra ETF, by the keys their instruments name. */
 export const FAKE_SERIES = {
-  shareA: seriesKey('tiingo', 'ABC'),
-  shareB: seriesKey('tiingo', 'DEF'),
+  shareA: seriesKey('twelvedata', 'ABC'),
+  shareB: seriesKey('twelvedata', 'DEF'),
   worldEtf: seriesKey('alphavantage', 'XYZ.DEX'),
 } as const
 
 const FIRST_DAY = civilDate(2023, 1, 2)
-/** The made-up 10-for-1 split of share B, whose closes before it are ten times higher, as they closed. */
-const SPLIT_DAY = civilDate(2024, 6, 10)
 
 function isWeekday(day: CivilDate): boolean {
   return weekdaysBetween(day, day) === 1
@@ -46,15 +44,15 @@ function lateDay(today: CivilDate): CivilDate {
 }
 
 /** A made-up walk in whole steps of the last decimal place, which drifts by `drift` steps a day and wobbles. */
-function walk(days: readonly CivilDate[], start: number, drift: number, places: number, scale: (day: CivilDate) => number = () => 1): CloseRow[] {
+function walk(days: readonly CivilDate[], start: number, drift: number, places: number): CloseRow[] {
   const unit = 10 ** places
   return days.map((day, place): CloseRow => {
-    const steps = (start + place * drift + ((place * 37) % 23) - 11) * scale(day)
+    const steps = start + place * drift + ((place * 37) % 23) - 11
     return [day, `${Math.floor(steps / unit)}.${String(steps % unit).padStart(places, '0')}`]
   })
 }
 
-/** A made-up prices file as the daily job would have written it on `today`, every figure invented. */
+/** A made-up prices file as a fetch would have written it on `today`, every figure invented. */
 export function fakePricesFile(variant: FakePricesVariant, today: CivilDate): PricesFile {
   const last = variant === 'late-prices' ? lateDay(today) : addDays(today, -1)
   const days = weekdays(last)
@@ -71,13 +69,13 @@ export function fakePricesFile(variant: FakePricesVariant, today: CivilDate): Pr
     writtenAt: `${today}T05:41:00.000Z`,
     series: {
       [FAKE_SERIES.shareA]: { currency: 'USD', from: FIRST_DAY, closes: walk(days, 14_250, 3, 2) },
-      [FAKE_SERIES.shareB]: { currency: 'USD', from: FIRST_DAY, closes: walk(days, 4_810, 1, 2, (day) => (day < SPLIT_DAY ? 10 : 1)) },
+      [FAKE_SERIES.shareB]: { currency: 'USD', from: FIRST_DAY, closes: walk(days, 4_810, 1, 2) },
       [FAKE_SERIES.worldEtf]: { currency: 'EUR', from: FIRST_DAY, closes: walk(days, 9_875, 2, 2) },
       [rateSeriesKey('USD')]: { currency: 'USD', from: FIRST_DAY, closes: walk(days, 10_850, 0, 4) },
       [rateSeriesKey('GBP')]: { currency: 'GBP', from: FIRST_DAY, closes: walk(days, 8_520, 0, 4) },
       [rateSeriesKey('CHF')]: { currency: 'CHF', from: FIRST_DAY, closes: walk(days, 9_410, 0, 4) },
     },
-    splits: [{ series: FAKE_SERIES.shareB, date: SPLIT_DAY, newUnits: '10', oldUnits: '1' }],
+    splits: [],
     failures,
   }
 }

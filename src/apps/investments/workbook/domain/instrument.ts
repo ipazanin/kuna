@@ -8,8 +8,8 @@ export const INSTRUMENT_CLASSES = ['stocks', 'bonds', 'money-market', 'crypto', 
 
 export type InstrumentClass = (typeof INSTRUMENT_CLASSES)[number]
 
-/** Where its daily closes come from. A manual instrument has only the prices entered by hand. */
-export const PRICE_SOURCES = ['tiingo', 'alphavantage', 'manual'] as const
+/** The price vendor its daily closes come from, by its id in the vendor registry. A manual instrument has only the prices entered by hand. */
+export const PRICE_SOURCES = ['twelvedata', 'alphavantage', 'manual'] as const
 
 export type PriceSource = (typeof PRICE_SOURCES)[number]
 

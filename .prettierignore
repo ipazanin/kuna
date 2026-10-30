@@ -1,7 +1,6 @@
 node_modules
 dist
 dist-fake
-price-job/build
 visual-check
 coverage
 spike.local

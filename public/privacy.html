@@ -208,6 +208,10 @@
             re-export you start.
           </p>
           <p>
+            For Investments, it writes the closes and rates it fetched into <code>kuna-investments-prices.json</code> beside your Investments file, so your other devices read them without asking the
+            vendors again. The file holds no key.
+          </p>
+          <p>
             While you name the address your bank mails statements from, each sync files the attachments of its new statement mail, the statement PDF and XML, into your statements folder in Drive, in a
             folder for the year that it makes when it is missing. While you switch on a kind of your accountant's mail, each sync files its new payroll documents, VAT returns or the accountant's
             invoices into the folder you set for that kind, in a folder for the year, and for the payroll and the invoices one for the month, that it makes when it is missing. Nothing in the app reads
@@ -218,13 +222,22 @@
         <section>
           <h2>Where your data goes</h2>
           <p>
-            There is no server. The page talks only to Google's own APIs, and only to read and write your books on Drive, read your bank statements and your mail, file the invoices you make and save
-            their drafts. No analytics, no tracking, no third-party scripts beyond Google's sign-in and file picker.
+            There is no server. The page talks to Google's own APIs to read and write your books on Drive, read your bank statements and your mail, file the invoices you make and save their drafts,
+            and for Investments to the price vendors named below. No analytics, no tracking, no third-party scripts beyond Google's sign-in and file picker.
+          </p>
+          <p>
+            For Investments, the page also asks the price vendors named in the Investments Settings for daily closes and exchange rates: Twelve Data, Alpha Vantage and the European Central Bank. It
+            calls them with your own keys, kept in this browser, where a vendor needs one. It sends them only the symbols of the instruments and the currencies your records name, plus USD, GBP and
+            CHF, and the day it needs closes from, never an amount or anything else from your books.
           </p>
         </section>
         <section>
           <h2>Where your data is kept</h2>
           <p>With your books on Google Drive, the file there is the original. The app keeps a copy in this browser's storage so the figures show at once.</p>
+          <p>
+            The keys you enter for the price vendors are kept only in this browser's storage. They are never written to a file on Drive. A device without keys reads the closes another device fetched.
+            Clearing this site's data in the browser forgets them.
+          </p>
           <p>
             Google's access token is kept only in the open page, so it is gone when you close or reload the page, and it expires about an hour after Google issues it. Nothing in this browser's storage
             holds a token. The app keeps the email address of the account you signed in with, to skip Google's account chooser, and the names of the permissions Google granted and the books need. Each

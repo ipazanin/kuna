@@ -133,7 +133,7 @@ export function kunaConfig(exempt) {
   return defineConfig(
     {
       name: 'kuna/ignores',
-      ignores: ['dist', 'dist-fake', 'price-job/build', 'visual-check', 'coverage', 'spike.local', 'src/apps/company/packs/hr-doo/ruleset/rules/generatedLocalRates.ts'],
+      ignores: ['dist', 'dist-fake', 'visual-check', 'coverage', 'spike.local', 'src/apps/company/packs/hr-doo/ruleset/rules/generatedLocalRates.ts'],
     },
     typescript.configs.recommended,
     vue.configs['flat/recommended'],
@@ -155,13 +155,6 @@ export function kunaConfig(exempt) {
         // Destructuring a key out to keep the rest is how a query or record drops one field.
         '@typescript-eslint/no-unused-vars': ['error', { ignoreRestSiblings: true }],
       },
-    },
-    {
-      name: 'kuna/apps-script',
-      files: ['price-job/*.js'],
-      languageOptions: { sourceType: 'script' },
-      // Apps Script calls a script's top-level functions by name, from a trigger or the editor.
-      rules: { '@typescript-eslint/no-unused-vars': ['error', { vars: 'local' }] },
     },
     {
       name: 'kuna/design',

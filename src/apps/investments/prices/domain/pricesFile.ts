@@ -1,7 +1,4 @@
-/**
- * The prices file the daily job writes and Kuna reads. The job runs in Apps Script, whose support for `bigint` and
- * `Intl` Google does not state, so this file imports nothing and keeps every figure as the text a provider sent.
- */
+/** The prices file Kuna writes after fetching closes and reads for the figures. Every figure stays the text a vendor sent. */
 
 const FORMAT = 'kuna-prices'
 const VERSION = 1
@@ -16,12 +13,12 @@ export type CloseRow = readonly [day: string, close: string]
 export interface PriceSeries {
   /** The quote currency, or for an ECB series the currency its rates are in. */
   readonly currency: string
-  /** The earliest day the job asked the provider for, so it asks again only when an earlier record needs more. */
+  /** The earliest day Kuna asked the vendor for, so it asks again only when an earlier record needs more. */
   readonly from: string
   readonly closes: readonly CloseRow[]
 }
 
-/** A split the provider reported, which Kuna offers to add as a record. `newUnits` and `oldUnits` are whole numbers as text. */
+/** A split the vendor reported, which Kuna offers to add as a record. `newUnits` and `oldUnits` are whole numbers as text. */
 export interface SplitNote {
   readonly series: string
   readonly date: string
@@ -29,44 +26,40 @@ export interface SplitNote {
   readonly oldUnits: string
 }
 
-/** Why a series or the whole run got nothing new. */
+/** Why a series got nothing new. */
 export const FAILURE_REASONS = [
-  /** The script property with the provider's key is not set. */
+  /** This browser keeps no key for the vendor. */
   'no-key',
   /** The request got no answer at all. */
   'no-answer',
-  /** The provider answered with an error status. */
+  /** The vendor answered with an error status. */
   'refused',
-  /** The provider does not know the symbol or the currency. */
+  /** The vendor does not know the symbol or the currency. */
   'unknown-symbol',
-  /** The provider's daily or per-minute limit was reached. */
+  /** The vendor's daily or per-minute limit was reached. */
   'limit',
-  /** The provider keeps the series for paid keys. */
+  /** The vendor keeps the series for paid keys. */
   'not-on-free-key',
-  /** The answer was not in the shape the job reads. */
+  /** The answer was not in the shape Kuna reads. */
   'unreadable',
-  /** The Investments file could not be opened or is not an Investments file. */
-  'investments-unreadable',
-  /** A newer Kuna saved the Investments file than the job knows. */
-  'investments-newer',
 ] as const
 
 export type FailureReason = (typeof FAILURE_REASONS)[number]
 
-/** What failed on the job's last run. A failure of the whole run names no series. */
+/** What failed on the last fetch. */
 export interface PriceFailure {
-  readonly series: string | null
+  readonly series: string
   readonly day: string
   readonly reason: FailureReason
 }
 
 export interface PricesFile {
-  /** ISO timestamp of the job's last write, null for the empty file Kuna makes. */
+  /** ISO timestamp of the last fetch's write, null for the empty file Kuna makes. */
   readonly writtenAt: string | null
-  /** By source and source symbol, such as `tiingo:ABC` or `ecb:USD`, so two instruments on one listing share one. */
+  /** By vendor and its symbol, such as `twelvedata:ABC` or `ecb:USD`, so two instruments on one listing share one. */
   readonly series: Readonly<Record<string, PriceSeries>>
   readonly splits: readonly SplitNote[]
-  /** The last run's failures only. */
+  /** The last fetch's failures only. */
   readonly failures: readonly PriceFailure[]
 }
 
@@ -108,7 +101,7 @@ export function isCloseText(text: string): boolean {
 }
 
 /**
- * The file as the job writes it: one line per series, sorted by key, so Drive's preview reads it and a revision's diff
+ * The file as Kuna writes it: one line per series, sorted by key, so Drive's preview reads it and a revision's diff
  * shows one line per series that changed.
  */
 export function encodePricesFile(file: PricesFile): string {
@@ -208,7 +201,7 @@ function failureOf(candidate: unknown): PriceFailure | null {
     return null
   }
   const { series, day, reason } = candidate
-  if ((series !== null && typeof series !== 'string') || typeof day !== 'string' || !isDay(day) || !FAILURE_REASONS.some((known) => known === reason)) {
+  if (typeof series !== 'string' || typeof day !== 'string' || !isDay(day) || !FAILURE_REASONS.some((known) => known === reason)) {
     return null
   }
   return { series, day, reason: reason as FailureReason }

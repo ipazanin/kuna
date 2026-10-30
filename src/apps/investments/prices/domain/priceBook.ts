@@ -10,7 +10,7 @@ export interface Close {
   readonly byHand: boolean
 }
 
-/** Where the figures read closes: the daily job's, and those entered by hand where no fetched close exists for the day. */
+/** Where the figures read closes: the fetched ones, and those entered by hand where no fetched close exists for the day. */
 export interface PriceBook {
   closeOnOrBefore(instrument: Instrument, day: CivilDate): Close | null
 }
@@ -28,7 +28,7 @@ export function closeIsLate(close: Close, today: CivilDate): boolean {
   return weekdaysBetween(addDays(close.date, 1), addDays(today, -1)) >= LISTED_WEEKDAYS
 }
 
-/** The newest close the job fetched among the holdings' closes, and whether even it is late, so the prices themselves are behind. */
+/** The newest fetched close among the holdings' closes, and whether even it is late, so the prices themselves are behind. */
 export interface PricesAge {
   readonly newest: CivilDate
   readonly late: boolean

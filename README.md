@@ -2212,24 +2212,24 @@ the file as another app's.
 
 ### Investments prices
 
-Investments values holdings at daily closes that a script in your own Google account fetches once a
-day and writes to a second Drive file, `kuna-investments-prices.json`, beside the Investments file.
-The page only reads it, so it talks to no price provider and the CSP stays as it is. The app itself,
-its file, its first run and its screens, is still to come. What exists is the prices file, how the
-figures read it, and the job that writes it.
+Investments values holdings at daily closes that Kuna fetches itself, in the page, from price vendors
+with each user's own free keys. It writes them to a second Drive file, `kuna-investments-prices.json`,
+beside the Investments file, so every device reads the same closes. The app itself, its file, its
+first run and its screens, is still to come. What exists is the prices file, how the figures read it,
+the vendors and the fetch that writes it.
 
-The prices file is defined once, in `src/apps/investments/prices/domain/pricesFile.ts`, for the job
-and the page. It holds `format` `kuna-prices`, `version` 1, `written_at`, `series`, `splits` and
-`failures`. A series is keyed by source and source symbol, such as `tiingo:ABC`,
-`alphavantage:XYZ.DEX` or `ecb:USD`, so two instruments on one listing share it. Each has its
-`currency`, `from` (the earliest day the job asked the provider for) and `closes`, one `[day, close]`
-a trading day, oldest first, every close decimal text as the provider sent it. An `ecb:` series holds
-units of the currency per euro. `splits` are the splits Tiingo reported, with `new` and `old` as whole
-numbers, for Kuna to offer as records. `failures` are the last run's only: the series, or none for the
-whole run, the day and a reason (`no-key`, `no-answer`, `refused`, `unknown-symbol`, `limit`,
-`not-on-free-key`, `unreadable`, `investments-unreadable`, `investments-newer`). It is written one series a line, so
-Drive's preview reads it and a revision's diff shows the series that changed. Kuna refuses a file that
-is not JSON, not a prices file, of a newer version or out of shape.
+The prices file is defined once, in `src/apps/investments/prices/domain/pricesFile.ts`. It holds
+`format` `kuna-prices`, `version` 1, `written_at`, `series`, `splits` and `failures`. A series is
+keyed by vendor and the vendor's symbol, such as `twelvedata:ABC`, `alphavantage:XYZ.DEX` or
+`ecb:USD`, so two instruments on one listing share it. Each has its `currency`, `from` (the earliest
+day Kuna asked the vendor for) and `closes`, one `[day, close]` a trading day, oldest first, every
+close decimal text as the vendor sent it. An `ecb:` series holds units of the currency per euro.
+`splits` are the splits a vendor reported, with `new` and `old` as whole numbers, for Kuna to offer as
+records. `failures` are the last fetch's only: the series, the day and a reason (`no-key`,
+`no-answer`, `refused`, `unknown-symbol`, `limit`, `not-on-free-key`, `unreadable`). It is written one
+series a line, so Drive's preview reads it and a revision's diff shows the series that changed. Kuna
+refuses a file that is not JSON, not a prices file, of a newer version or out of shape. The file never
+holds a key.
 
 The figures read it through `pricesFileBook` and `pricesFileRateBook` in `pricesFileBooks.ts`. A
 holding takes the latest close on or before the day, from its series or from the prices entered by
@@ -2239,76 +2239,67 @@ holdings is late, the prices themselves are behind, as `pricesAge` says: on Frid
 close of Monday 26 Oct is late, and a Friday close stays current until the next Wednesday. The copy
 of the file lives in this browser in its own Dexie database, `kuna-prices-<file id>`. The fake prices
 file (`prices/infrastructure/fake/fakePrices.ts`) comes as `sample`, closes up to the day before, and
-`late-prices`, closes that stop four weekdays back with every provider failing on the last run.
+`late-prices`, closes that stop four weekdays back with every vendor failing on the last fetch.
 
-#### The daily job
+#### The vendors
 
-The job's code is `src/apps/investments/prices/job/`, plain TypeScript behind five ports: fetch an
-address, read a Drive file by id, overwrite one, read a script property, and pause. `price-job/Triggers.js`
-is the only code that touches `UrlFetchApp`, `DriveApp`, `PropertiesService` and `Utilities.sleep`, and
-`npm run build:price-job` bundles the job into `price-job/build/PriceJob.js`, one script whose global
-`KunaPriceJob` it calls. CI builds it on every push. The job never does sums on a figure, so it needs
-neither `bigint` nor `Intl`, whose support in Apps Script Google does not state, and
-`tests/importBoundaries.spec.ts` keeps its imports to the prices format and its own folder.
+Each vendor is a `PriceVendor` (`prices/application/priceVendor.ts`): its id, which is the source an
+instrument names and its series' prefix, its name and what it covers for Settings, whether it needs
+a key, where to claim a free one, its limits per minute and per day, and a call that returns the
+closes of a symbol from a day, with the splits it reports. The adapters are in
+`prices/infrastructure/vendors/`, and `priceVendors.ts` lists the ones Kuna supports:
 
-Each run, between 06:00 and 07:00 Zagreb time:
+| Vendor                | Prices                                                                                                         | Key                                           | Free limits                                                                                                           |
+| --------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Twelve Data           | US shares and ETFs, daily from the first trade, as they closed (`adjust=none`)                                 | free, from `twelvedata.com/register`          | 8 requests a minute, 800 a day                                                                                        |
+| Alpha Vantage         | Xetra, Amsterdam and other European listings: the last 100 daily closes, and month ends before them            | free, from `alphavantage.co/support/#api-key` | 25 a day. Kuna keeps to 5 a minute and 1.5 seconds between requests, its earlier free limits, against a refused burst |
+| European Central Bank | euro reference rates of USD, GBP, CHF and every other currency the records name, from 2015 or the first record | none                                          | none stated                                                                                                           |
 
-1. Opens the prices file and the Investments file by the ids in the script properties. It overwrites
-   only a file that already is a prices file, so a wrong id cannot touch your records. When the
-   Investments file cannot be opened or a newer Kuna saved it, it notes that in the prices file,
-   changes nothing else and fails the run.
-2. Reads from the Investments file each instrument's source and source symbol, its first trade or
+Twelve Data's splits are for paid plans, so no vendor reports splits today and they are entered by
+hand. Adding a vendor is one adapter, one entry in `priceVendors.ts` and its id in `PRICE_SOURCES`
+(`workbook/domain/instrument.ts`), which the instruments name. `tests/priceFetch.spec.ts` fails while a
+source has no vendor or a vendor that needs a key has no address to claim one.
+
+#### Keys in this browser
+
+A user enters their own keys in the Investments Settings. Each is kept in this browser's
+`localStorage` under `kuna.price-vendor-key.<vendor>`, never in the Investments file or the prices
+file, never logged and never in an error message. Clearing the site data forgets them. A device with
+no keys still reads the prices file another device wrote. The keys go in the request's address, as
+both vendors take them, because a header of its own would make the browser ask the vendor first with
+a CORS preflight.
+
+#### The fetch
+
+`fetchPrices` in `prices/application/priceFetch.ts` runs in the page, behind ports
+(`PriceFetchPorts` in `pricesPorts.ts`): fetch an address, pause, read a vendor's key, read the
+Investments records, read the prices file and overwrite it. `browserPricePorts.ts` gives the fetch
+through `window.fetch` with no headers of its own and the pause through `setTimeout`, and
+`vendorKeys.ts` keeps the keys. The CSP's `connect-src` in `index.html` lets the page reach the three
+vendors' hosts. Once a day, the first device that opens Kuna after a new trading day:
+
+1. Reads the prices file from Drive and leaves it as it is when it is no prices file Kuna can read,
+   such as one a newer Kuna wrote.
+2. Takes from the Investments records each instrument's vendor and its symbol, its first trade or
    spin-off (the first deposit for one with none, such as the benchmark) and every currency the
    records name. Instruments priced by hand get nothing.
-3. Fetches US listings from Tiingo, from the first trade for a new series and from the last close
-   after that, with the splits Tiingo reports. Fetches European listings from Alpha Vantage: the last
-   100 daily closes, which is all a free key gets, and for a new series the month ends before them,
-   asked again on later runs until they come, unless Alpha Vantage answers that they are for paid
-   keys. Its requests go 1.5 seconds apart, since a free key may refuse a burst. Fetches the ECB
-   rates of USD, GBP, CHF and every other currency named, with no key: one request for the history of
-   new currencies, from the start of 2015 or the first record if earlier, and one for the latest rates
-   of the others. A currency with no rate for a year, such as the kuna, is no longer asked for. A
-   series asks for its history again when a record older than its `from` arrives.
-4. Merges what came into each series, keeps every series a provider failed as it was, notes each
-   failure, and overwrites the prices file. The log, in the editor's Executions, holds counts and
-   reasons only, never a symbol or a figure.
+3. Asks each vendor for the history of a new series from its first transaction and for the others
+   from their last close. A series asks for its history again when a record older than its `from`
+   arrives. A series whose last close is a year older than its vendor's newest is no longer published,
+   such as the kuna's rates since 2023, and is asked for no more. A vendor without a key in this browser
+   is noted `no-key` and asked nothing. Closes of today wait for the next day, because a market still
+   open sends a close that moves.
+4. Paces every request to a vendor so no more go out in a minute than it allows, waiting out the
+   minute when needed, and stops asking a vendor for the day at its daily limit or once it answers that
+   the limit is reached.
+5. Merges what came into each series, keeps every series a vendor failed as it was, notes each failure,
+   and overwrites the prices file.
 
-For about 25 US listings and 4 European ones that is about 25 Tiingo requests a day (1,000 allowed),
-4 to Alpha Vantage (25 allowed) and one or two to the ECB, within Apps Script's 20,000 fetches a day.
-
-#### Setting the job up
-
-The setup waits until the Investments app can make its prices file, because the job only overwrites a
-prices file Kuna made and step 3 takes its id from the Investments Settings.
-
-The script runs under your account and holds full access to your Drive, because Apps Script's
-`File.setContent` needs the `drive` scope. It reads the two files its properties name and writes only
-the prices file.
-
-1. Claim two free keys: one from Tiingo (the free plan, for your own use only) and one from Alpha
-   Vantage (25 requests a day).
-2. Turn on the Apps Script API at `https://script.google.com/home/usersettings`, then build and push:
-
-   ```sh
-   npm run build:price-job
-   cd price-job
-   npx -y @google/clasp login
-   npx -y @google/clasp create --type standalone --title "Kuna prices"   # once, writes .clasp.json, which git ignores
-   git restore appsscript.json                                           # in case create wrote its own over it
-   npx -y @google/clasp push
-   ```
-
-   The repo's `appsscript.json` sets the Zagreb time zone, the V8 runtime and the three scopes. After
-   any change to the job, build and push again.
-
-3. In the script's Project settings, add four script properties: `INVESTMENTS_FILE_ID`, the id in the
-   Investments file's Drive address, `PRICES_FILE_ID`, the id the Investments Settings shows once
-   Kuna has made the prices file, `TIINGO_KEY` and `ALPHA_VANTAGE_KEY`.
-4. Run `runPrices` once from the editor and allow what Google asks: your Drive, requests to outside
-   services and triggers. Read its log under Executions. Do this before the first workbook import, so
-   the rates are there.
-5. Run `installDailyTrigger` once. It replaces any earlier trigger of `runPrices` with one a day
-   between 06:00 and 07:00 Zagreb time.
+For about 25 US listings and 4 European ones a day's fetch is 25 Twelve Data requests of the 800
+allowed, which at 8 a minute takes about three minutes, and the first fetch takes as long, since
+one request brings up to 5,000 days of history. Alpha Vantage gets 4 requests a day of its 25, and 8
+on the first fetch, for the month ends, which takes about a minute at 5 a minute. The ECB gets one
+request per currency. The allowances are spent once a day, by whichever device fetches first.
 
 ### Core and the pack
 
