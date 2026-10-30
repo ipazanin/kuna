@@ -8,6 +8,8 @@ import type { BankLoanBook, InformalLoanBook, LoanBook } from '../../workbook/do
 import { keyOfRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 
 export const LOANS_OVERVIEW_ROUTE = '/loans'
+/** The Loans first run, with its step in the query. */
+export const LOANS_START_ROUTE = '/loans/start'
 export const BANK_LOAN_ROUTE = '/loans/bank-loan'
 export const INFORMAL_LOAN_ROUTE = '/loans/informal-loan'
 export const SCENARIOS_ROUTE = '/loans/scenarios'

@@ -16,10 +16,3 @@ defineProps<{
     </div>
   </header>
 </template>
-
-<style scoped>
-/* The heading takes focus on arrival so a screen reader announces the screen. It is not a control, so it shows no ring. */
-.screen-title:focus {
-  outline: none;
-}
-</style>

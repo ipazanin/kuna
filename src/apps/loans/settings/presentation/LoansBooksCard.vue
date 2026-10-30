@@ -2,7 +2,7 @@
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import BooksFileCard from '../../../../shared/storage/presentation/BooksFileCard.vue'
-import { LOANS_START_ROUTE } from '../../onboarding/presentation/useLoansStart'
+import { LOANS_START_ROUTE } from '../../overview/presentation/loanLinks'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import { LOCAL_LOANS_TITLE } from '../../workbook/presentation/loansFile'
 import { useLoansExport } from '../../workbook/presentation/useLoansExport'

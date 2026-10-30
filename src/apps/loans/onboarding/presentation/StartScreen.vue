@@ -1,56 +1,29 @@
 <script setup lang="ts">
-import { computed, nextTick, provide, watch } from 'vue'
-import type { Component } from 'vue'
+import type { FileFirstRun } from '../../../../shared/storage/presentation/fileFirstRun'
+import FirstRunScreen from '../../../../shared/storage/presentation/FirstRunScreen.vue'
+import { LOANS_OVERVIEW_ROUTE, LOANS_START_ROUTE } from '../../overview/presentation/loanLinks'
+import { words as appWords } from '../../words'
+import { useLoansBooks } from '../../workbook/application/loansStore'
+import { LOANS_FILE_NAME, LOCAL_LOANS_TITLE, newLoansFileContents } from '../../workbook/presentation/loansFile'
+import { useFindLoansFile } from '../../workbook/presentation/useFindLoansFile'
+import { words } from './words'
 
-import { words as sharedWords } from '../../../../shared/app/words'
-import HomeLink from '../../../../shared/ui/HomeLink.vue'
-import { STEP_FLOW } from '../../../../shared/ui/StepCard.vue'
-import { words } from '../../words'
-import FindStep from './FindStep.vue'
-import FolderStep from './FolderStep.vue'
-import HomeStep from './HomeStep.vue'
-import { useLoansStart } from './useLoansStart'
-import type { LoansStartStep } from './useLoansStart'
-import { words as startWords } from './words'
-
-/** The Loans first run at `#/loans/start?step=…`, on the ruled page of a first run: where the file lives, then the folder or the find for a file on Drive. */
-const start = useLoansStart()
-provide(STEP_FLOW, { step: start.step, canGoBack: computed(() => start.step.value !== 'home'), back: () => void start.go('home') })
-
-const STEPS: Readonly<Record<LoansStartStep, Component>> = { home: HomeStep, folder: FolderStep, find: FindStep }
-
-// A new step takes focus, so a screen reader announces its card.
-watch(
-  () => start.step.value,
-  () => void nextTick(() => document.querySelector<HTMLElement>('[data-testid="onboarding-step"]')?.focus()),
-)
-
-const step = computed(() => STEPS[start.step.value])
+/** The Loans first run at `#/loans/start?step=…`. */
+const store = useLoansBooks()
+const firstRun: FileFirstRun = {
+  testId: 'loans-start',
+  appName: appWords.name,
+  startRoute: LOANS_START_ROUTE,
+  overviewRoute: LOANS_OVERVIEW_ROUTE,
+  store,
+  fileName: LOANS_FILE_NAME,
+  localTitle: LOCAL_LOANS_TITLE,
+  newContents: () => newLoansFileContents(store),
+  findFile: useFindLoansFile(),
+  words,
+}
 </script>
 
 <template>
-  <main class="first-run min-h-dvh">
-    <div class="mx-auto flex max-w-2xl flex-col gap-6 px-4 pt-10 pb-16 sm:px-6 sm:pt-16">
-      <header class="flex flex-col gap-3">
-        <HomeLink :label="sharedWords.allApps" class="self-start" />
-        <h1 data-testid="screen-title" tabindex="-1" class="screen-title text-title font-semibold text-highlighted">{{ words.name }}</h1>
-        <p class="max-w-[52ch] text-base text-toned">{{ startWords.lead }}</p>
-      </header>
-      <component :is="step" :key="start.step.value" />
-      <footer class="text-xs text-muted">{{ startWords.footer }}</footer>
-    </div>
-  </main>
+  <FirstRunScreen :first-run="firstRun" />
 </template>
-
-<style scoped>
-/* The heading takes focus on arrival so a screen reader announces the screen. It is not a control, so it shows no ring. */
-.screen-title:focus {
-  outline: none;
-}
-
-/* Faint ruled lines, as on a ledger page, fading out further down, as the company's first run has. */
-.first-run {
-  background-color: var(--surface-page);
-  background-image: linear-gradient(to bottom, transparent 0, var(--surface-page) 42rem), repeating-linear-gradient(to bottom, transparent 0 31px, var(--border-default) 31px 32px);
-}
-</style>

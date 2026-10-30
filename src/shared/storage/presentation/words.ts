@@ -87,6 +87,35 @@ export const en = {
     reminder: (day: string) => `Changes since ${day} are in no exported file.`,
     export: 'Export',
   },
+  firstRun: {
+    home: {
+      drive: 'A new file on Google Drive',
+      driveNote: 'One file you open on your phone and computer. Backed up daily.',
+      browser: 'A new file in this browser',
+      browserNote: 'No Google. One device. Export to keep a copy.',
+      open: 'My file on Google Drive',
+      openNote: 'Another device already keeps it.',
+      drops: 'It exists only here and in the files you exported. Export it first if you want to keep it.',
+      continue: 'Continue',
+    },
+    folder: {
+      subtitle: 'The Picker opens at My Drive. Nothing is made until you confirm the folder.',
+      unseen: ', inside folders the app cannot see. Open it in Drive to check where it is.',
+      withBackups: ', with a backups folder beside it',
+      openFolder: 'Open this folder in Drive',
+      failed: 'That did not work',
+      chooseAgain: 'Choose a folder again',
+      chooseAnother: 'Choose another',
+      create: 'Create the file here',
+      chooseFirst: 'Choose a folder in Google Drive',
+      created: (name: string, folder: string) => `Created ${name} in ${folder}`,
+      createdNote: 'The app keeps a copy in this browser, and a backups folder beside the file.',
+    },
+    find: {
+      pick: 'Pick another file',
+      find: 'Find the file',
+    },
+  },
 }
 
 export const hr: Translation<typeof en> = {
@@ -123,6 +152,35 @@ export const hr: Translation<typeof en> = {
     exported: (day) => `Izvezena ${day}`,
     reminder: (day) => `Promjene od ${day} nisu ni u jednoj izvezenoj datoteci.`,
     export: 'Izvezi',
+  },
+  firstRun: {
+    home: {
+      drive: 'Nova datoteka na Google Driveu',
+      driveNote: 'Jedna datoteka koju otvarate na mobitelu i računalu. Sigurnosna kopija svaki dan.',
+      browser: 'Nova datoteka u ovom pregledniku',
+      browserNote: 'Bez Googlea. Jedan uređaj. Izvezite je da sačuvate kopiju.',
+      open: 'Moja datoteka na Google Driveu',
+      openNote: 'Već je čuva drugi uređaj.',
+      drops: 'Postoji samo ovdje i u datotekama koje ste izvezli. Najprije je izvezite ako je želite sačuvati.',
+      continue: 'Nastavi',
+    },
+    folder: {
+      subtitle: 'Prozor za odabir otvara se u mapi Moj disk. Ništa se ne stvara dok ne potvrdite mapu.',
+      unseen: ', unutar mapa koje aplikacija ne vidi. Otvorite je na Driveu da provjerite gdje je.',
+      withBackups: ', uz mapu sa sigurnosnim kopijama',
+      openFolder: 'Otvori ovu mapu na Driveu',
+      failed: 'To nije uspjelo',
+      chooseAgain: 'Ponovno odaberi mapu',
+      chooseAnother: 'Odaberi drugu',
+      create: 'Napravi datoteku ovdje',
+      chooseFirst: 'Odaberi mapu na Google Driveu',
+      created: (name, folder) => `Datoteka ${name} napravljena je u mapi ${folder}`,
+      createdNote: 'Aplikacija čuva kopiju u ovom pregledniku i mapu sa sigurnosnim kopijama uz datoteku.',
+    },
+    find: {
+      pick: 'Odaberi drugu datoteku',
+      find: 'Pronađi datoteku',
+    },
   },
 }
 

@@ -81,6 +81,11 @@ body {
   outline-offset: 2px;
 }
 
+/* A screen's heading takes focus on arrival so a screen reader announces the screen. It is not a control, so it shows no ring. */
+.screen-title:focus {
+  outline: none;
+}
+
 /* Numbers that line up in columns: tables, axis-like lists, money in running text. */
 .figure {
   font-variant-numeric: tabular-nums;
@@ -174,6 +179,29 @@ body {
     align-items: center;
     min-height: 44px;
   }
+}
+
+/* A link to a Drive folder under the text it belongs to. */
+.folder-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: fit-content;
+  color: var(--ink-secondary);
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 3px;
+}
+
+.folder-link:hover {
+  color: var(--ink-strong);
+  text-decoration-color: var(--accent);
+}
+
+/* The page of a first run: faint ruled lines, as on a ledger page, fading out further down. */
+.first-run {
+  background-color: var(--surface-page);
+  background-image: linear-gradient(to bottom, transparent 0, var(--surface-page) 42rem), repeating-linear-gradient(to bottom, transparent 0 31px, var(--border-default) 31px 32px);
 }
 
 /* The top bar's one button, Sync or Export: a pill on one line at the full 44 px tap height, so it never wraps beside the screen title. */

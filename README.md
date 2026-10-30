@@ -2202,6 +2202,8 @@ a phone the route brings the person back to the step. A find that leaves for Goo
 only Loans picks it up on the way back. The same steps switch the storage from the Loans Settings,
 and the file on screen moves along to its new home. Opening another device's file lets go of the
 one kept in this browser. Loans can be set up before the company books, from its card on the home.
+These steps are the shared `FirstRunScreen` in `src/shared/storage/presentation`. An app feeds it a
+`FileFirstRun` with its store, the file's name, the new file's contents, its finder and the words that name its file.
 
 "Export" on its card, and in the top bar while no file is on Drive, downloads the file as it is,
 `kuna-loans-export-<yyyy-mm-dd>.json`, a name no daily backup takes. Loans has no import yet. To bring
