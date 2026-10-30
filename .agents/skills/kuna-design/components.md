@@ -48,10 +48,10 @@ Every `.vue` in `src/shared/ui` has a row here and a specimen in the gallery at 
 
 ## Controls
 
-| Component            | Props                                                                             | Company | Loans | Shell | Shared |
-| -------------------- | --------------------------------------------------------------------------------- | ------- | ----- | ----- | ------ |
-| `InfoPopover`        | `subject`, `definition?`. Default slot for richer content                         | 1       | 1     | 0     | 2      |
-| `ColourSwatchPicker` | `title`, `blank`, `swatches`, `note?`, `v-model`                                  | 1       | 0     | 0     | 0      |
-| `HomeLink`           | `label`. The Kuna mark and name linking to the home, `label` read after the name  | 1       | 1     | 1     | 0      |
-| `AppBrand`           | `title`, `icon?`, `colour?`. A name beside the Kuna mark, or beside an app's tile | 0       | 0     | 1     | 1      |
-| `AppMark`            | `icon`, `colour`, `size?`. An app's icon on a tile in the app's colour            | 0       | 0     | 2     | 1      |
+| Component            | Props                                                                                                                                 | Company | Loans | Shell | Shared |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------- | ----- | ----- | ------ |
+| `InfoPopover`        | `subject`, `definition?`. Default slot for richer content                                                                             | 1       | 1     | 0     | 2      |
+| `ColourSwatchPicker` | `title`, `blank`, `swatches`, `note?`, `v-model`                                                                                      | 1       | 0     | 0     | 0      |
+| `HomeLink`           | `label`. The quiet Kuna mark and name linking to the home, `label` read after the name                                                | 1       | 1     | 1     | 0      |
+| `AppBrand`           | `title`, `icon?`, `colour?`, `quiet?`. A name beside the Kuna mark, or beside an app's tile. Quiet is a smaller mark and a muted name | 0       | 0     | 1     | 1      |
+| `AppMark`            | `icon`, `colour`, `size?: 'small' \| 'medium' \| 'large'`. An app's icon on a tile in the app's colour                                | 0       | 0     | 2     | 1      |

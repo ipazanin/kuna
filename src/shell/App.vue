@@ -9,7 +9,8 @@ import type { RedirectReturn } from '../shared/google/googleRedirect'
 import { DEFAULT_MONEY_FORMAT, setMoneyFormat } from '../shared/money/moneyFormat'
 import { language } from '../shared/text/language'
 import { startPageSync } from '../shared/sync/presentation/pageSync'
-import { firstRunAt, installedApps, ownsPath } from './routing/appRegistry'
+import { words as homeWords } from './home/words'
+import { entryPath, firstRunAt, installedApps, ownsPath } from './routing/appRegistry'
 import { screenLoading } from './routing/router'
 import { HOME_SCREEN, KUNA_SETTINGS_SCREEN } from './routing/screens'
 import { words as settingsWords } from './settings/words'
@@ -30,11 +31,22 @@ const route = useRoute()
 
 const appOnScreen = computed(() => installedApps().find((app) => ownsPath(app, route.path)) ?? null)
 
-/** Only the menu of the app on screen. The home and Kuna's own screens have Kuna settings alone. */
+/** Only the menu of the app on screen. The home and Kuna's own screens list every app, with Kuna settings set apart. */
 const navigation = computed((): Navigation => {
   const app = appOnScreen.value
   if (app === null) {
-    return { group: null, apart: [{ to: KUNA_SETTINGS_SCREEN.path, label: settingsWords.menu, icon: KUNA_SETTINGS_SCREEN.icon }] }
+    return {
+      group: null,
+      apps: installedApps().map((installed) => ({
+        id: installed.id,
+        to: entryPath(installed),
+        name: installed.name,
+        icon: installed.homeCard.icon,
+        colour: installed.colour,
+        badge: installed.firstRun() ? homeWords.setUp : null,
+      })),
+      apart: [{ to: KUNA_SETTINGS_SCREEN.path, label: settingsWords.menu, icon: KUNA_SETTINGS_SCREEN.icon }],
+    }
   }
   return {
     group: {
@@ -47,6 +59,7 @@ const navigation = computed((): Navigation => {
         return { to: screen.path, label: screen.title, icon: screen.icon, ...(count === null ? {} : { count }) }
       }),
     },
+    apps: [],
     apart: [{ to: app.settings.path, label: app.settings.title, icon: app.settings.icon }],
   }
 })

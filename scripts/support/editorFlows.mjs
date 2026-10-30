@@ -2963,23 +2963,53 @@ async function openMenu(page, press) {
   await delay(300)
 }
 
-/** The menu in the sidebar or the open drawer, read in the page: the link home, the app's heading, its entries and what is set apart. */
+/**
+ * The menu in the sidebar or the open drawer, read in the page: the link home and whether a line runs
+ * under it, the app's heading with its size against a menu item's, its entries and what is set apart.
+ */
 function menuShown() {
   const shown = (element) => element.getClientRects().length > 0
   const scope = document.querySelector('[role="dialog"]') ?? document.querySelector('aside')
   const home = scope?.querySelector('[data-testid="home-link"]') ?? null
   const groups = [...(scope?.querySelectorAll('[data-testid="nav-group"]') ?? [])].filter(shown)
   const group = groups[0] ?? null
+  const heading = group?.querySelector('[data-testid="nav-heading"]') ?? null
+  const firstEntry = group?.querySelector('a') ?? null
+  const ruledUnder = (start) => {
+    for (let node = start; node !== null && node !== scope && !node.contains(group); node = node.parentElement) {
+      const next = node.nextElementSibling
+      if (parseFloat(getComputedStyle(node).borderBottomWidth) > 0 || (next !== null && parseFloat(getComputedStyle(next).borderTopWidth) > 0)) return true
+    }
+    return false
+  }
   return {
     home: home === null ? null : { name: home.textContent?.replace(/\s+/g, ' ').trim() ?? '', tooltip: home.getAttribute('title'), first: scope.querySelector('a') === home },
+    ruled: home !== null && group !== null && ruledUnder(home),
     groups: groups.length,
-    name: group?.querySelector('p')?.textContent?.trim() ?? null,
+    name: heading?.textContent?.trim() ?? null,
     tiled: group?.querySelector('[data-testid="app-mark"]') != null,
     subtitle: group?.querySelectorAll('p')[1]?.textContent?.trim() ?? null,
+    sizes:
+      heading === null || firstEntry === null
+        ? null
+        : {
+            heading: parseFloat(getComputedStyle(heading).fontSize),
+            entry: parseFloat(getComputedStyle(firstEntry).fontSize),
+            gap: Math.round(firstEntry.getBoundingClientRect().top - heading.parentElement.parentElement.getBoundingClientRect().bottom),
+          },
     entries: [...(group?.querySelectorAll('a') ?? [])].map((link) => link.textContent?.trim() ?? ''),
+    apps: [...(scope?.querySelectorAll('[data-testid="nav-apps"] a') ?? [])].filter(shown).map((link) => link.dataset.app),
     current: scope?.querySelector('a[aria-current="page"]')?.textContent?.trim() ?? null,
     apart: [...(scope?.querySelectorAll('[data-testid="nav-apart"] a') ?? [])].map((link) => link.textContent?.trim() ?? ''),
   }
+}
+
+/** The menu of the app on screen leads with its name as a heading, larger than its items and clear of them, under a line below the link home. */
+function headingStandsOut(menu, app) {
+  if (!menu.ruled) throw new Error(`no line runs under the link home over the ${app} menu`)
+  if (menu.sizes === null || menu.sizes.heading <= menu.sizes.entry) throw new Error(`the ${app} heading is not larger than its menu items: ${JSON.stringify(menu.sizes)}`)
+  if (menu.sizes.gap < 10) throw new Error(`the ${app} heading sits ${menu.sizes.gap} px over its first menu item`)
+  if (menu.apps.length > 0) throw new Error(`the ${app} menu also lists the apps ${menu.apps.join(', ')}`)
 }
 
 /** Takes the link home from the sidebar or the drawer, to the home with every app. */
@@ -2989,7 +3019,7 @@ async function goHome(page, press) {
   await screenTitled(page, 'All apps')
 }
 
-/** The cards of the home, read in the page: which app, whether it waits to be set up, its text and its lead figure. */
+/** The cards of the home, read in the page: which app, whether it waits to be set up, its text, its lead figure, its tile's colour and where it leads. */
 function homeCards() {
   return [...document.querySelectorAll('[data-testid="home-card"]')].map((card) => ({
     app: card.dataset.app,
@@ -2997,14 +3027,47 @@ function homeCards() {
     text: card.textContent?.replace(/\s+/g, ' ').trim() ?? '',
     figure: card.querySelector('dd')?.textContent?.trim() ?? null,
     colour: card.querySelector('[data-testid="app-mark"]') === null ? null : getComputedStyle(card.querySelector('[data-testid="app-mark"]')).color,
+    href: card.getAttribute('href'),
   }))
 }
 
+/** The apps the home's sidebar lists, read in the page in the shape of `homeCards`, with the name and badge of each row. Null with no sidebar. */
+function homeMenu() {
+  if (document.querySelector('aside') === null) return null
+  return [...document.querySelectorAll('aside [data-testid="nav-apps"] a')].map((link) => ({
+    app: link.dataset.app,
+    state: link.dataset.state,
+    text: [...link.children]
+      .map((part) => part.textContent?.trim() ?? '')
+      .filter((part) => part !== '')
+      .join(' '),
+    tiled: link.querySelector('[data-testid="app-mark"]') !== null,
+    colour: link.querySelector('[data-testid="app-mark"]') === null ? null : getComputedStyle(link.querySelector('[data-testid="app-mark"]')).color,
+    href: link.getAttribute('href'),
+  }))
+}
+
+/** The home's sidebar lists the apps of its cards in their order, each tiled in its card's colour, leading where its card does, and named with the badge its state calls for. */
+function sidebarMatchesCards(menu, cards) {
+  const want = cards.map((card) => ({
+    app: card.app,
+    state: card.state,
+    text: card.state === 'set-up' ? `${APP_NAMES[card.app]} Set up` : APP_NAMES[card.app],
+    tiled: true,
+    colour: card.colour,
+    href: card.href,
+  }))
+  if (JSON.stringify(menu) !== JSON.stringify(want)) throw new Error(`the home's sidebar lists ${JSON.stringify(menu)}, not the cards' apps ${JSON.stringify(want)}`)
+}
+
+const APP_NAMES = { company: 'Company', loans: 'Loans' }
+
 /**
- * Inside an app only its own menu, in the sidebar or the drawer: the Kuna mark first as the link
- * home, named Kuna, All apps, then Loans with Overview alone and no line under its heading, Settings set
- * apart, and the browser tab naming the app. The link home shows the home with Kuna settings alone,
- * and the phone's top bar there has no menu button. From the home, Company shows only its own menu.
+ * Inside an app only its own menu, in the sidebar or the drawer: the quiet Kuna mark first as the link
+ * home, named Kuna, All apps, with a line under it, then Loans as a heading larger than Overview, the
+ * one entry under it, Settings set apart, and the browser tab naming the app. The link home shows the
+ * home, whose sidebar lists both apps over Kuna settings, and the phone's top bar there has no menu
+ * button. From the home, Company shows only its own menu.
  */
 export async function appMenuFlow(page, { press, shoot, inspect }) {
   await openMenu(page, press)
@@ -3013,6 +3076,7 @@ export async function appMenuFlow(page, { press, shoot, inspect }) {
     throw new Error(`the menu does not start with the link home named Kuna, All apps: ${JSON.stringify(loans.home)}`)
   if (!loans.tiled) throw new Error('the Loans menu heading has no icon tile')
   if (loans.groups !== 1 || loans.name !== 'Loans') throw new Error(`the Loans menu shows ${loans.groups} groups, the first ${loans.name}`)
+  headingStandsOut(loans, 'Loans')
   if (loans.subtitle !== null) throw new Error(`Loans shows "${loans.subtitle}" under its heading`)
   if (JSON.stringify(loans.entries) !== JSON.stringify(['Overview']) || loans.current !== 'Overview') throw new Error(`Loans lists ${loans.entries.join(', ')} with ${loans.current} marked`)
   if (JSON.stringify(loans.apart) !== JSON.stringify(['Settings'])) throw new Error(`Loans sets apart ${loans.apart.join(', ')}`)
@@ -3038,7 +3102,8 @@ export async function appMenuFlow(page, { press, shoot, inspect }) {
   if (JSON.stringify(bar.settings) !== JSON.stringify(['Kuna settings'])) throw new Error(`the home offers ${JSON.stringify(bar.settings)} instead of Kuna settings once`)
   if (bar.sidebar) {
     const home = await page.evaluate(menuShown)
-    if (home.groups !== 0) throw new Error('the sidebar on the home lists an app')
+    if (home.groups !== 0) throw new Error("the sidebar on the home shows an app's menu")
+    sidebarMatchesCards(await page.evaluate(homeMenu), await page.evaluate(homeCards))
   }
   await inspect?.('the home')
 
@@ -3047,6 +3112,7 @@ export async function appMenuFlow(page, { press, shoot, inspect }) {
   await openMenu(page, press)
   const company = await page.evaluate(menuShown)
   if (company.groups !== 1 || company.name !== 'Company') throw new Error(`the Company menu shows ${company.groups} groups, the first ${company.name}`)
+  headingStandsOut(company, 'Company')
   if (!company.entries.includes('Overview') || !company.entries.some((entry) => entry.startsWith('Transactions')) || company.entries.some((entry) => entry === 'Settings'))
     throw new Error(`Company lists ${company.entries.join(', ')}`)
   if (JSON.stringify(company.apart) !== JSON.stringify(['Settings'])) throw new Error(`Company sets apart ${company.apart.join(', ')}`)
@@ -3058,7 +3124,8 @@ export async function appMenuFlow(page, { press, shoot, inspect }) {
 
 /**
  * The home with both apps' books: Company's card leads with the cash on hand Overview shows and opens
- * it, and the Loans card with what you owe in all, which the Loans Overview says too.
+ * it, and the Loans card with what you owe in all, which the Loans Overview says too. From 1024 px the
+ * sidebar lists both apps as their cards do, and its Company row opens Overview.
  */
 export async function homeFlow(page, { press, shoot, inspect }) {
   const cards = await page.evaluate(homeCards)
@@ -3067,6 +3134,8 @@ export async function homeFlow(page, { press, shoot, inspect }) {
   if (company.state !== 'open' || !company.text.includes('Cash on hand') || !/€/.test(company.figure ?? '')) throw new Error(`the Company card reads "${company.text}"`)
   if (loans.state !== 'open' || !loans.text.includes('You owe in all') || !/€/.test(loans.figure ?? '')) throw new Error(`the Loans card reads "${loans.text}"`)
   if (company.colour === null || loans.colour === null || company.colour === loans.colour) throw new Error(`the cards tile their icons in ${company.colour} and ${loans.colour}, not one colour each`)
+  const menu = await page.evaluate(homeMenu)
+  if (menu !== null) sidebarMatchesCards(menu, cards)
   await inspect?.('the home with both apps')
   await shoot('home')
 
@@ -3092,6 +3161,12 @@ export async function homeFlow(page, { press, shoot, inspect }) {
     .then((handle) => handle.jsonValue())
   const euros = (text) => Number(/€[\d,]+(\.\d{2})?/.exec(text)?.[0].replace(/[€,]/g, '') ?? Number.NaN)
   if (euros(total) !== euros(loans.figure)) throw new Error(`the Loans card says ${loans.figure} owed, the Loans Overview "${total}"`)
+
+  if (menu === null) return
+  await goHome(page, press)
+  await pressSelector(page, press, 'aside [data-testid="nav-apps"] a[data-app="company"]')
+  await screenTitled(page, 'Overview')
+  if ((await page.title()) !== 'Overview, Company – Kuna') throw new Error(`the Company row in the home's sidebar opened "${await page.title()}"`)
 }
 
 /**
@@ -3103,6 +3178,8 @@ export async function setUpFlow(page, { press, shoot, inspect }) {
   if (cards.length !== 2 || cards.some((card) => card.state !== 'set-up' || !card.text.includes('Set up')))
     throw new Error(`the fresh home shows ${JSON.stringify(cards.map((card) => [card.app, card.state]))}`)
   if (await page.evaluate(() => document.querySelector('[data-testid="sync-status"]') !== null)) throw new Error('the fresh home shows a sync control')
+  const menu = await page.evaluate(homeMenu)
+  if (menu !== null) sidebarMatchesCards(menu, cards)
   await inspect?.('the home on a fresh device')
   await shoot('home-set-up')
 

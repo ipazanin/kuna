@@ -267,12 +267,30 @@ async function checkWidth(width) {
           home:
             drawer?.querySelector('a') === drawer?.querySelector('[data-testid="home-link"]') &&
             drawer?.querySelector('[data-testid="home-link"]')?.textContent?.replace(/\s+/g, ' ').trim() === 'Kuna, All apps',
-          groups: [...(drawer?.querySelectorAll('[data-testid="nav-group"] p:first-child') ?? [])].map((heading) => heading.textContent?.trim()),
+          groups: [...(drawer?.querySelectorAll('[data-testid="nav-heading"]') ?? [])].map((heading) => heading.textContent?.trim()),
+          apps: drawer?.querySelector('[data-testid="nav-apps"]') !== null,
           apart: [...(drawer?.querySelectorAll('[data-testid="nav-apart"] a') ?? [])].map((link) => link.textContent?.trim()),
         }
       }),
-      (drawer) => drawer.home && JSON.stringify(drawer.groups) === JSON.stringify(['Company']) && JSON.stringify(drawer.apart) === JSON.stringify(['Settings']),
+      (drawer) => drawer.home && JSON.stringify(drawer.groups) === JSON.stringify(['Company']) && !drawer.apps && JSON.stringify(drawer.apart) === JSON.stringify(['Settings']),
       "the drawer does not start with the link home and hold Company's menu alone, with its Settings set apart",
+    )
+    await expect(
+      page.evaluate(() => {
+        const heading = document.querySelector('[role="dialog"] [data-testid="nav-heading"]')
+        const entry = document.querySelector('[role="dialog"] [data-testid="nav-group"] a')
+        if (heading === null || entry === null) return null
+        return {
+          heading: parseFloat(getComputedStyle(heading).fontSize),
+          entry: parseFloat(getComputedStyle(entry).fontSize),
+          gap: Math.round(entry.getBoundingClientRect().top - heading.parentElement.parentElement.getBoundingClientRect().bottom),
+          oneLine: [...document.querySelectorAll('[role="dialog"] [data-testid="nav-group"] a span:not(.sr-only)')].every(
+            (label) => label.getBoundingClientRect().height <= parseFloat(getComputedStyle(label).lineHeight) + 1,
+          ),
+        }
+      }),
+      (sizes) => sizes !== null && sizes.heading > sizes.entry && sizes.gap >= 10 && sizes.oneLine,
+      "the drawer's Company heading is not larger than its menu items and clear of them, or an item runs onto a second line",
     )
     await inspect(page, `${width}px drawer open`)
     await shoot('drawer-open')
@@ -318,10 +336,11 @@ async function checkWidth(width) {
           title: bar?.querySelector('[data-testid="top-bar-title"]')?.textContent?.trim() ?? null,
           syncAtRight: sync !== undefined && sync.right > window.innerWidth - 24 && Math.round(sync.height) === 44,
           settings: document.querySelector('[data-testid="home-kuna-settings"]')?.getClientRects().length === 1,
+          apps: document.querySelector('[data-testid="nav-apps"]') !== null,
         }
       }),
-      (bar) => !bar.menu && bar.title === 'Kuna' && bar.syncAtRight && bar.settings,
-      'the home top bar does not hold Kuna and one 44 px Sync button with no menu button, with Kuna settings on the page',
+      (bar) => !bar.menu && bar.title === 'Kuna' && bar.syncAtRight && bar.settings && !bar.apps,
+      'the home top bar does not hold Kuna and one 44 px Sync button with no menu button, with Kuna settings and no list of apps beside the cards',
     )
     await shoot('home')
     await (await page.waitForSelector('[data-testid="home-card"][data-app="company"]')).tap()

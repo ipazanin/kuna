@@ -8,20 +8,23 @@ withDefaults(
     icon: string
     /** The custom property of the colour, such as `--app-loans`. */
     colour: `--${string}`
-    size?: 'small' | 'large'
+    size?: 'small' | 'medium' | 'large'
   }>(),
   { size: 'small' },
 )
+
+const TILE = { small: 'size-6', medium: 'size-8', large: 'size-9' }
+const GLYPH = { small: 'size-4', medium: 'size-4.5', large: 'size-5' }
 </script>
 
 <template>
   <span
     class="grid shrink-0 place-items-center rounded-control"
-    :class="size === 'large' ? 'size-9' : 'size-6'"
+    :class="TILE[size]"
     :style="{ color: `var(${colour})`, backgroundColor: `color-mix(in srgb, var(${colour}) 14%, transparent)` }"
     aria-hidden="true"
     data-testid="app-mark"
   >
-    <UIcon :name="icon" :class="size === 'large' ? 'size-5' : 'size-4'" />
+    <UIcon :name="icon" :class="GLYPH[size]" />
   </span>
 </template>

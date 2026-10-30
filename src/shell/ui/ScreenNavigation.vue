@@ -19,10 +19,23 @@ export interface NavigationGroup {
   readonly entries: readonly NavigationEntry[]
 }
 
+/** An app in the menu of the home and Kuna's own screens, its icon on a tile in its colour. */
+export interface NavigationApp {
+  readonly id: string
+  readonly to: string
+  readonly name: string
+  readonly icon: string
+  readonly colour: `--${string}`
+  /** Shown beside its name while the app waits for its first run, such as Set up. */
+  readonly badge: string | null
+}
+
 export interface Navigation {
   /** Null on the home and Kuna's own screens. */
   readonly group: NavigationGroup | null
-  /** Settings, the app's or Kuna's, set apart below the app's entries. */
+  /** Every app, on the home and Kuna's own screens. Empty inside an app. */
+  readonly apps: readonly NavigationApp[]
+  /** Settings, the app's or Kuna's, set apart below the app's entries or the list of apps. */
   readonly apart: readonly NavigationEntry[]
 }
 </script>
@@ -30,6 +43,7 @@ export interface Navigation {
 <script setup lang="ts">
 import { useId } from 'vue'
 import { RouterLink } from 'vue-router'
+import UBadge from '@nuxt/ui/components/Badge.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { plural } from '../../shared/text/translation'
@@ -50,14 +64,14 @@ const id = useId()
       role="group"
       :aria-labelledby="`${id}-name`"
       :aria-describedby="navigation.group.subtitle ? `${id}-subtitle` : undefined"
-      class="flex flex-col gap-1"
+      class="flex flex-col gap-3"
       data-testid="nav-group"
     >
       <div class="flex items-center gap-2.5 px-3">
-        <AppMark :icon="navigation.group.icon" :colour="navigation.group.colour" />
+        <AppMark :icon="navigation.group.icon" :colour="navigation.group.colour" size="medium" />
         <div class="min-w-0">
-          <p :id="`${id}-name`" class="nav-heading">{{ navigation.group.name }}</p>
-          <p v-if="navigation.group.subtitle" :id="`${id}-subtitle`" class="truncate text-xs text-muted">{{ navigation.group.subtitle }}</p>
+          <p :id="`${id}-name`" class="truncate type-wordmark" data-testid="nav-heading">{{ navigation.group.name }}</p>
+          <p v-if="navigation.group.subtitle" :id="`${id}-subtitle`" class="truncate type-caption">{{ navigation.group.subtitle }}</p>
         </div>
       </div>
       <ul class="flex flex-col gap-0.5">
@@ -73,7 +87,16 @@ const id = useId()
         </li>
       </ul>
     </div>
-    <ul class="flex flex-col gap-0.5" :class="{ 'set-apart': navigation.group !== null }" data-testid="nav-apart">
+    <ul v-if="navigation.apps.length > 0" class="flex flex-col gap-0.5" data-testid="nav-apps">
+      <li v-for="app in navigation.apps" :key="app.id">
+        <RouterLink :to="app.to" class="nav-link" :data-app="app.id" :data-state="app.badge === null ? 'open' : 'set-up'">
+          <AppMark :icon="app.icon" :colour="app.colour" />
+          <span class="min-w-0 truncate">{{ app.name }}</span>
+          <UBadge v-if="app.badge !== null" :label="app.badge" color="primary" variant="subtle" size="sm" class="ms-auto shrink-0" />
+        </RouterLink>
+      </li>
+    </ul>
+    <ul class="flex flex-col gap-0.5" :class="{ 'set-apart': navigation.group !== null || navigation.apps.length > 0 }" data-testid="nav-apart">
       <li v-for="entry in navigation.apart" :key="entry.to">
         <RouterLink :to="entry.to" class="nav-link" active-class="is-active">
           <UIcon :name="entry.icon" class="size-4 shrink-0" aria-hidden="true" />
@@ -88,12 +111,6 @@ const id = useId()
 .set-apart {
   padding-top: 0.5rem;
   border-top: 1px solid var(--border-default);
-}
-
-.nav-heading {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--ink-strong);
 }
 
 .nav-link {

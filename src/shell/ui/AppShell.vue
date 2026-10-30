@@ -60,10 +60,10 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
   <div class="min-h-dvh lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
     <aside v-if="wide" class="border-e border-default bg-raised/60" :aria-label="words.navigation.sidebar">
       <div class="sticky top-0 flex h-dvh flex-col">
-        <div class="px-5 pt-5 pb-4">
+        <div class="mx-3 border-b border-default px-2 pt-4 pb-3">
           <HomeLink :label="sharedWords.allApps" />
         </div>
-        <ScreenNavigation :navigation="navigation" class="flex-1 overflow-y-auto px-3" />
+        <ScreenNavigation :navigation="navigation" class="flex-1 overflow-y-auto px-3 pt-5" />
         <div v-if="$slots.sync" class="border-t border-default px-4 py-4">
           <slot name="sync" :compact="false" />
         </div>

@@ -21,3 +21,8 @@ export function ownsPath(app: AppContribution, path: string): boolean {
 export function firstRunAt(apps: readonly AppContribution[], path: string): AppContribution | null {
   return apps.find((app) => ownsPath(app, path) && app.firstRun()) ?? null
 }
+
+/** Where the app's card on the home and its row in the home's menu lead: its first run while it has nothing to show, else its first screen. */
+export function entryPath(app: AppContribution): string {
+  return app.firstRun() ? app.startPath : (app.screens[0]?.path ?? app.startPath)
+}

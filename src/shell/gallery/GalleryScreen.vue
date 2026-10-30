@@ -671,23 +671,26 @@ const columns: TableColumn<SampleTransaction>[] = [
         </AppCard>
         <AppCard
           title="HomeLink"
-          subtitle="The Kuna mark and name at the top of every app's menu and first run, which opens the home. Its label follows the name for a screen reader."
+          subtitle="The quiet Kuna mark and name at the top of every app's menu and first run, which opens the home. Its label follows the name for a screen reader."
           class="xl:col-span-2 3xl:col-span-1"
         >
           <div class="px-4 pt-3 pb-4 sm:px-5">
             <HomeLink label="All apps" class="max-w-60" />
           </div>
         </AppCard>
-        <AppCard title="AppBrand" subtitle="A name beside the Kuna mark, or beside an app's icon on its tile, as in the phone top bar.">
+        <AppCard title="AppBrand" subtitle="A name beside the Kuna mark, or beside an app's icon on its tile, as in the phone top bar. Quiet in the link home.">
           <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
             <AppBrand title="Kuna" />
+            <AppBrand title="Kuna" quiet />
             <AppBrand title="Overview" icon="i-lucide-landmark" colour="--app-loans" />
           </div>
         </AppCard>
-        <AppCard title="AppMark" subtitle="An app's icon on a tile in its own colour, small in a menu and large on the home card.">
+        <AppCard title="AppMark" subtitle="An app's icon on a tile in its own colour: large on the home card, medium beside the app's name over its menu, small in a list of apps.">
           <div class="flex items-center gap-3 px-4 pt-3 pb-4 sm:px-5">
             <AppMark icon="i-lucide-building-2" colour="--app-company" size="large" />
             <AppMark icon="i-lucide-landmark" colour="--app-loans" size="large" />
+            <AppMark icon="i-lucide-building-2" colour="--app-company" size="medium" />
+            <AppMark icon="i-lucide-landmark" colour="--app-loans" size="medium" />
             <AppMark icon="i-lucide-building-2" colour="--app-company" />
             <AppMark icon="i-lucide-landmark" colour="--app-loans" />
           </div>

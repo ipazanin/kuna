@@ -8,6 +8,7 @@ import type { AppContribution } from '../../shared/app/appContribution'
 import AppCard from '../../shared/ui/AppCard.vue'
 import AppMark from '../../shared/ui/AppMark.vue'
 import MoneyText from '../../shared/ui/MoneyText.vue'
+import { entryPath } from '../routing/appRegistry'
 import { words } from './words'
 
 /** One app on the home, the whole card a link: into its first screen with its figures, or into its first run, which it offers as Set up. */
@@ -18,7 +19,7 @@ const props = defineProps<{
 const setUp = computed(() => props.app.firstRun())
 const figures = computed(() => (setUp.value ? null : props.app.homeCard.figures()))
 const subtitle = computed(() => (setUp.value ? null : props.app.subtitle()))
-const to = computed(() => (setUp.value ? props.app.startPath : (props.app.screens[0]?.path ?? props.app.startPath)))
+const to = computed(() => entryPath(props.app))
 </script>
 
 <template>

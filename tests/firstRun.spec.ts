@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import type { AppContribution } from '../src/shared/app/appContribution'
-import { firstRunAt } from '../src/shell/routing/appRegistry'
+import { entryPath, firstRunAt } from '../src/shell/routing/appRegistry'
 
-/** An installed app as the first run reads it: its id and whether it has nothing to show yet. */
+/** An installed app as the first run reads it: its id, whether it has nothing to show yet, and its first screen. */
 function appOf(id: string, firstRun: boolean): AppContribution {
-  return { id, firstRun: () => firstRun, startPath: `/${id}/start` } as AppContribution
+  return { id, firstRun: () => firstRun, startPath: `/${id}/start`, screens: [{ path: `/${id}` }] } as unknown as AppContribution
 }
 
 describe('the first run that takes the page', () => {
@@ -29,5 +29,12 @@ describe('the first run that takes the page', () => {
   it('is none for an app with something to show', () => {
     expect(firstRunAt([appOf('company', false), appOf('loans', true)], '/company')).toBeNull()
     expect(firstRunAt([appOf('company', false), appOf('loans', false)], '/loans')).toBeNull()
+  })
+})
+
+describe('where the home leads into an app', () => {
+  it('is its first run while it has nothing to show, and its first screen after', () => {
+    expect(entryPath(appOf('loans', true))).toBe('/loans/start')
+    expect(entryPath(appOf('loans', false))).toBe('/loans')
   })
 })
