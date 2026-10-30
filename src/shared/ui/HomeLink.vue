@@ -4,17 +4,25 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import AppBrand from './AppBrand.vue'
 
-/** The quiet Kuna mark and name at the top of every app's menu and first run, which opens the home with every app. */
+/** The Kuna mark and name, which open the home with every app: quiet beside a grid icon on a first run, or the largest mark centred at the top of a menu. */
 defineProps<{
-  /** Where the link goes, said after the name to a screen reader and as the tooltip, such as "All apps". */
+  /** The link's name for a screen reader and its tooltip, which starts with the visible Kuna, such as "Kuna, all apps". */
   label: string
+  /** Quiet beside a grid icon on a first run, or lead for the largest mark centred at the top of a menu. */
+  look: 'quiet' | 'lead'
 }>()
 </script>
 
 <template>
-  <RouterLink to="/" :title="label" class="-mx-2 flex items-center gap-2 rounded-control px-2 py-1.5 transition-colors hover:bg-elevated" data-testid="home-link">
-    <AppBrand title="Kuna" quiet />
-    <span class="sr-only">, {{ label }}</span>
-    <UIcon name="i-lucide-layout-grid" class="size-3.5 shrink-0 text-muted" aria-hidden="true" />
+  <RouterLink
+    to="/"
+    :title="label"
+    :aria-label="label"
+    class="flex rounded-control transition-colors hover:bg-elevated"
+    :class="look === 'lead' ? 'justify-center px-2 py-3' : '-mx-2 items-center gap-2 px-2 py-1.5'"
+    data-testid="home-link"
+  >
+    <AppBrand title="Kuna" :look="look" />
+    <UIcon v-if="look === 'quiet'" name="i-lucide-layout-grid" class="size-3.5 shrink-0 text-muted" aria-hidden="true" />
   </RouterLink>
 </template>

@@ -65,7 +65,7 @@ const privacyPage = `${import.meta.env.BASE_URL}privacy.html`
   <main class="onboarding min-h-dvh">
     <div class="onboarding-column mx-auto flex max-w-2xl flex-col gap-6 px-4 pt-10 pb-16 sm:px-6 sm:pt-16">
       <header class="flex flex-col gap-3">
-        <HomeLink :label="sharedWords.allApps" class="self-start" />
+        <HomeLink :label="sharedWords.homeLink" look="quiet" class="self-start" />
         <h1 data-testid="screen-title" tabindex="-1" class="text-title font-semibold text-highlighted">{{ words.name }}</h1>
         <p class="max-w-[52ch] text-base text-toned">Company finances from your bank statements, worked out in this browser.</p>
       </header>

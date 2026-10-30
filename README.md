@@ -327,17 +327,18 @@ links into the app. The app's icon sits on a tile in the app's colour, which the
 top bar use too, and nothing else is tinted. Any app can be set up first, and a
 fresh device opens on the home with every card in Set up and no sync control in the sidebar or the top bar.
 
-Inside an app the sidebar holds that app alone. At the top a quiet Kuna mark and name, with a
-thin line under it, link home and read "Kuna, All apps" to a screen reader. Then comes the app's
-name as the heading over its menu, larger than the menu items, with its icon on a tile in the app's
+Inside an app the sidebar holds that app alone. At the top the Kuna mark, the largest icon in the
+menu, sits centred over the name Kuna. The whole block links home and reads "Kuna, all apps" to a
+screen reader. A thin line runs under it. Then comes the app's
+name as the heading over its menu, larger than the menu items, with its icon on a smaller tile in the app's
 own colour (brass for Company, teal for Loans, plum for Investments) and its subtitle, such as the company's name, under
 it. Then its menu with counts, its own Settings set apart, and Sync at the foot. Below 1024 px the
 same list is in the drawer behind the top bar's menu button. On the home and Kuna settings the
-sidebar lists every app with its tile and name, linking where its card does and with a Set up badge
+sidebar opens with the same Kuna mark and lists every app with its tile and name, linking where its card does and with a Set up badge
 while the app waits for its first run, then Kuna settings below a line, and Sync. On a phone the home's top bar shows Kuna and Sync
 with no menu button, and Kuna settings is a button under the cards. There is one Sync, in the same
 place on the home and in every app, and it syncs every app's file on Drive. Each first run starts
-with the same Kuna mark, so a first run left half way goes back to the home. There is no app
+with a quiet Kuna mark and name linking home, so a first run left half way goes back to the home. There is no app
 switcher, keyboard shortcut or bottom bar.
 
 The browser tab names the screen and then its app, such as "Overview, Company – Kuna" or "Settings,

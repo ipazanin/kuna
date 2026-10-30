@@ -33,7 +33,7 @@ const step = computed(() => STEPS[start.step.value])
   <main class="first-run min-h-dvh">
     <div class="mx-auto flex max-w-2xl flex-col gap-6 px-4 pt-10 pb-16 sm:px-6 sm:pt-16">
       <header class="flex flex-col gap-3">
-        <HomeLink :label="sharedWords.allApps" class="self-start" />
+        <HomeLink :label="sharedWords.homeLink" look="quiet" class="self-start" />
         <h1 data-testid="screen-title" tabindex="-1" class="screen-title text-title font-semibold text-highlighted">{{ firstRun.appName }}</h1>
         <p class="max-w-[52ch] text-base text-toned">{{ firstRun.words.lead }}</p>
       </header>

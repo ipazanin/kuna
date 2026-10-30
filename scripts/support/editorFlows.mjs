@@ -26,6 +26,7 @@ const TOAST = 'li[data-slot="base"]'
 const SCREEN_WORDS = {
   en: {
     allApps: sharedEnglish.allApps,
+    homeLink: sharedEnglish.homeLink,
     setUp: homeEnglish.setUp,
     kunaSettings: kunaSettingsEnglish.menu,
     company: companyEnglish.name,
@@ -41,6 +42,7 @@ const SCREEN_WORDS = {
   },
   hr: {
     allApps: sharedCroatian.allApps,
+    homeLink: sharedCroatian.homeLink,
     setUp: homeCroatian.setUp,
     kunaSettings: kunaSettingsCroatian.menu,
     company: companyCroatian.name,
@@ -3091,8 +3093,9 @@ async function openMenu(page, press) {
 }
 
 /**
- * The menu in the sidebar or the open drawer, read in the page: the link home and whether a line runs
- * under it, the app's heading with its size against a menu item's, its entries and what is set apart.
+ * The menu in the sidebar or the open drawer, read in the page: the link home, whether its Kuna mark is
+ * centred and larger than every app tile, and whether a line runs under it, the app's heading with its
+ * size against a menu item's and its tile in line with the items' icons, its entries and what is set apart.
  */
 function menuShown() {
   const shown = (element) => element.getClientRects().length > 0
@@ -3102,6 +3105,12 @@ function menuShown() {
   const group = groups[0] ?? null
   const heading = group?.querySelector('[data-testid="nav-heading"]') ?? null
   const firstEntry = group?.querySelector('a') ?? null
+  const mark = home?.querySelector('svg') ?? null
+  const tile = group?.querySelector('[data-testid="app-mark"]') ?? null
+  const middle = (element) => {
+    const box = element.getBoundingClientRect()
+    return box.left + box.width / 2
+  }
   const ruledUnder = (start) => {
     for (let node = start; node !== null && node !== scope && !node.contains(group); node = node.parentElement) {
       const next = node.nextElementSibling
@@ -3110,11 +3119,23 @@ function menuShown() {
     return false
   }
   return {
-    home: home === null ? null : { name: home.textContent?.replace(/\s+/g, ' ').trim() ?? '', tooltip: home.getAttribute('title'), first: scope.querySelector('a') === home },
+    home:
+      home === null
+        ? null
+        : {
+            name: home.getAttribute('aria-label') ?? '',
+            shown: home.textContent?.trim() ?? '',
+            tooltip: home.getAttribute('title'),
+            first: scope.querySelector('a') === home,
+            centred: mark !== null && Math.abs(middle(mark) - middle(scope)) <= 2,
+            largest: mark !== null && [...scope.querySelectorAll('[data-testid="app-mark"]')].every((other) => other.getBoundingClientRect().width < mark.getBoundingClientRect().width),
+          },
     ruled: home !== null && group !== null && ruledUnder(home),
     groups: groups.length,
     name: heading?.textContent?.trim() ?? null,
-    tiled: group?.querySelector('[data-testid="app-mark"]') != null,
+    tiled: tile !== null,
+    tileInLine:
+      tile !== null && firstEntry !== null && Math.abs(tile.getBoundingClientRect().left - firstEntry.getBoundingClientRect().left - parseFloat(getComputedStyle(firstEntry).paddingLeft)) <= 1,
     subtitle: group?.querySelectorAll('p')[1]?.textContent?.trim() ?? null,
     sizes:
       heading === null || firstEntry === null
@@ -3131,9 +3152,18 @@ function menuShown() {
   }
 }
 
-/** The menu of the app on screen leads with its name as a heading, larger than its items and clear of them, under a line below the link home. */
+/** The menu opens with the link home: the Kuna mark centred over Kuna and larger than every app tile, the whole block named as the words say. */
+function markLeads(menu, words, where) {
+  const home = menu.home
+  if (home === null || home.name !== words.homeLink || home.tooltip !== words.homeLink || home.shown !== 'Kuna' || !home.first)
+    throw new Error(`${where} does not start with the link home named ${words.homeLink}: ${JSON.stringify(home)}`)
+  if (!home.centred || !home.largest) throw new Error(`the Kuna mark in ${where} is not centred and larger than every app tile: ${JSON.stringify(home)}`)
+}
+
+/** The menu of the app on screen leads with its name as a heading, larger than its items and clear of them, its tile in line with their icons, under a line below the link home. */
 function headingStandsOut(menu, app) {
   if (!menu.ruled) throw new Error(`no line runs under the link home over the ${app} menu`)
+  if (!menu.tileInLine) throw new Error(`the ${app} heading's tile is not in line with its menu items' icons`)
   if (menu.sizes === null || menu.sizes.heading <= menu.sizes.entry) throw new Error(`the ${app} heading is not larger than its menu items: ${JSON.stringify(menu.sizes)}`)
   if (menu.sizes.gap < 10) throw new Error(`the ${app} heading sits ${menu.sizes.gap} px over its first menu item`)
   if (menu.apps.length > 0) throw new Error(`the ${app} menu also lists the apps ${menu.apps.join(', ')}`)
@@ -3189,8 +3219,8 @@ function sidebarMatchesCards(menu, cards, words = SCREEN_WORDS.en) {
 }
 
 /**
- * Inside an app only its own menu, in the sidebar or the drawer: the quiet Kuna mark first as the link
- * home, named Kuna, All apps, with a line under it, then Loans as a heading larger than Overview,
+ * Inside an app only its own menu, in the sidebar or the drawer: the Kuna mark centred first as the link
+ * home, named Kuna, all apps, with a line under it, then Loans as a heading larger than Overview,
  * Overview and Scenarios under it, Settings set apart, and the browser tab naming the app. The link home shows the
  * home, whose sidebar lists every app over Kuna settings, and the phone's top bar there has no menu
  * button. From the home, Company shows only its own menu.
@@ -3200,8 +3230,7 @@ export function appMenuFlowIn(language) {
   return async (page, { press, shoot, inspect }) => {
     await openMenu(page, press)
     const loans = await page.evaluate(menuShown)
-    if (loans.home === null || loans.home.name !== `Kuna, ${words.allApps}` || loans.home.tooltip !== words.allApps || !loans.home.first)
-      throw new Error(`the menu does not start with the link home named Kuna, ${words.allApps}: ${JSON.stringify(loans.home)}`)
+    markLeads(loans, words, 'the Loans menu')
     if (!loans.tiled) throw new Error('the Loans menu heading has no icon tile')
     if (loans.groups !== 1 || loans.name !== words.loans) throw new Error(`the Loans menu shows ${loans.groups} groups, the first ${loans.name}`)
     headingStandsOut(loans, words.loans)
@@ -3232,6 +3261,7 @@ export function appMenuFlowIn(language) {
     if (bar.sidebar) {
       const home = await page.evaluate(menuShown)
       if (home.groups !== 0) throw new Error("the sidebar on the home shows an app's menu")
+      markLeads(home, words, "the home's sidebar")
       sidebarMatchesCards(await page.evaluate(homeMenu), await page.evaluate(homeCards), words)
     }
     await inspect?.('the home')
@@ -3241,6 +3271,7 @@ export function appMenuFlowIn(language) {
     await openMenu(page, press)
     const company = await page.evaluate(menuShown)
     if (company.groups !== 1 || company.name !== words.company) throw new Error(`the Company menu shows ${company.groups} groups, the first ${company.name}`)
+    markLeads(company, words, 'the Company menu')
     headingStandsOut(company, words.company)
     if (!company.entries.includes('Overview') || !company.entries.some((entry) => entry.startsWith('Transactions')) || company.entries.some((entry) => entry === words.companySettings))
       throw new Error(`Company lists ${company.entries.join(', ')}`)

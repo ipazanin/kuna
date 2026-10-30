@@ -63,11 +63,11 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 
 ## Navigation
 
-- Inside an app the menu is that app's alone, under `HomeLink`, the quiet Kuna mark that opens the home, with a thin line under it. The app's name is the heading over its menu, in `type-wordmark` beside a medium `AppMark`, with its subtitle in `type-caption` and more space under it before the first item. Its Settings are a screen of the app, set apart at the foot of its menu.
+- Every menu, in the sidebar and the drawer, opens with `HomeLink` in its lead look: the Kuna mark as the menu's largest icon, centred over Kuna, the whole block a link home, with a thin line under it. Inside an app the menu under it is that app's alone. The app's name is the heading over its menu, in `type-wordmark` beside a medium `AppMark` that is smaller than the Kuna mark and lines up with the menu items, with its subtitle in `type-caption` and more space under it before the first item. Its Settings are a screen of the app, set apart at the foot of its menu.
 - Menu items keep one size and one indent. The sidebar is narrow, so the heading stands out by size and weight, never by indenting the items under it.
 - Kuna's home at `#/` has a card per app. Its sidebar, and that of Kuna settings, lists every app with a small `AppMark`, leading where the app's card does, with a Set up badge during its first run, and Kuna settings set apart below a line. The phone home has no drawer, so its cards stay the way in.
 - Kuna settings at `#/settings` holds only what is the same for every app: sync, sign-out, theme and language.
-- A first run starts with `HomeLink`, so it can be left for the home.
+- A first run starts with the quiet `HomeLink`, so it can be left for the home.
 
 ## Phone
 

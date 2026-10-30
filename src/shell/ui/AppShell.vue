@@ -60,8 +60,8 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
   <div class="min-h-dvh lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
     <aside v-if="wide" class="border-e border-default bg-raised/60" :aria-label="words.navigation.sidebar">
       <div class="sticky top-0 flex h-dvh flex-col">
-        <div class="mx-3 border-b border-default px-2 pt-4 pb-3">
-          <HomeLink :label="sharedWords.allApps" />
+        <div class="mx-3 border-b border-default pt-4 pb-3">
+          <HomeLink :label="sharedWords.homeLink" look="lead" />
         </div>
         <ScreenNavigation :navigation="navigation" class="flex-1 overflow-y-auto px-3 pt-5" />
         <div v-if="$slots.sync" class="border-t border-default px-4 py-4">
@@ -81,14 +81,13 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
         v-model:open="menuOpen"
         side="left"
         :title="navigation.group?.name ?? title"
-        :ui="{ content: phone ? 'phone-drawer' : 'max-w-72', wrapper: 'sr-only' }"
+        :ui="{ content: phone ? 'phone-drawer' : 'max-w-72', header: 'mx-4 border-b border-default px-0 pt-4 pb-3 sm:mx-6 sm:px-0', wrapper: 'sr-only' }"
         :content="{ onCloseAutoFocus: keepFocusAfterNavigation }"
       >
         <UButton icon="i-lucide-menu" color="neutral" variant="ghost" :aria-label="words.navigation.open" data-testid="open-navigation" />
         <template #actions>
-          <div class="me-10 flex-1">
-            <HomeLink :label="sharedWords.allApps" />
-          </div>
+          <!-- As wide as the close button on either side, so the mark sits in the drawer's middle. -->
+          <HomeLink :label="sharedWords.homeLink" look="lead" class="mx-11 flex-1" />
         </template>
         <template #body>
           <ScreenNavigation :navigation="navigation" />

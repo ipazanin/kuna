@@ -546,7 +546,8 @@ const SOURCE_SCREENS = [
     hash: '#/loans',
     title: 'Krediti',
     charts: 0,
-    shows: ['Gdje se čuva datoteka kredita', 'Nova datoteka na Google Driveu', 'Moja datoteka na Google Driveu', 'Sve aplikacije'],
+    shows: ['Gdje se čuva datoteka kredita', 'Nova datoteka na Google Driveu', 'Moja datoteka na Google Driveu'],
+    ready: '[data-testid="home-link"][aria-label="Kuna, sve aplikacije"]',
     cards: false,
   },
   { name: 'loans-start-folder', hash: '#/loans/start?step=folder', title: 'Loans', charts: 0, shows: ['Where the Loans file is saved', 'Choose a folder in Google Drive'], cards: false },
@@ -783,7 +784,7 @@ const SOURCE_SCREENS = [
     hash: '#/investments',
     title: 'Ulaganja',
     charts: 0,
-    shows: ['Gdje se čuva datoteka ulaganja', 'Nova datoteka na Google Driveu', 'Moja datoteka na Google Driveu', 'Sve aplikacije'],
+    shows: ['Gdje se čuva datoteka ulaganja', 'Nova datoteka na Google Driveu', 'Moja datoteka na Google Driveu'],
     cards: false,
   },
   {

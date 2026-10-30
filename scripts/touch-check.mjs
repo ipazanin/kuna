@@ -60,6 +60,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { launch } from 'puppeteer-core'
 
+import { en as sharedEnglish } from '../src/shared/app/words.ts'
+
 import { chromePath, ENGLISH_CHROME_ARG } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
@@ -272,17 +274,15 @@ async function checkWidth(width) {
       'the drawer does not mark the current screen',
     )
     await expect(
-      page.evaluate(() => {
+      page.evaluate((homeLink) => {
         const drawer = document.querySelector('[role="dialog"]')
         return {
-          home:
-            drawer?.querySelector('a') === drawer?.querySelector('[data-testid="home-link"]') &&
-            drawer?.querySelector('[data-testid="home-link"]')?.textContent?.replace(/\s+/g, ' ').trim() === 'Kuna, All apps',
+          home: drawer?.querySelector('a') === drawer?.querySelector('[data-testid="home-link"]') && drawer?.querySelector('[data-testid="home-link"]')?.getAttribute('aria-label') === homeLink,
           groups: [...(drawer?.querySelectorAll('[data-testid="nav-heading"]') ?? [])].map((heading) => heading.textContent?.trim()),
           apps: drawer?.querySelector('[data-testid="nav-apps"]') !== null,
           apart: [...(drawer?.querySelectorAll('[data-testid="nav-apart"] a') ?? [])].map((link) => link.textContent?.trim()),
         }
-      }),
+      }, sharedEnglish.homeLink),
       (drawer) => drawer.home && JSON.stringify(drawer.groups) === JSON.stringify(['Company']) && !drawer.apps && JSON.stringify(drawer.apart) === JSON.stringify(['Settings']),
       "the drawer does not start with the link home and hold Company's menu alone, with its Settings set apart",
     )

@@ -675,17 +675,22 @@ const columns: TableColumn<SampleTransaction>[] = [
         </AppCard>
         <AppCard
           title="HomeLink"
-          subtitle="The quiet Kuna mark and name at the top of every app's menu and first run, which opens the home. Its label follows the name for a screen reader."
+          subtitle="The Kuna mark and name, which open the home. The lead look opens every menu, the quiet one every first run. Its label is the link's name for a screen reader."
           class="xl:col-span-2 3xl:col-span-1"
         >
-          <div class="px-4 pt-3 pb-4 sm:px-5">
-            <HomeLink label="All apps" class="max-w-60" />
+          <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
+            <HomeLink label="Kuna, all apps" look="lead" class="max-w-60" />
+            <HomeLink label="Kuna, all apps" look="quiet" class="max-w-60" />
           </div>
         </AppCard>
-        <AppCard title="AppBrand" subtitle="A name beside the Kuna mark, or beside an app's icon on its tile, as in the phone top bar. Quiet in the link home.">
-          <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
+        <AppCard
+          title="AppBrand"
+          subtitle="A name beside the Kuna mark, or beside an app's icon on its tile, as in the phone top bar. Lead at the top of a menu, quiet in the link home of a first run."
+        >
+          <div class="flex flex-col items-start gap-3 px-4 pt-3 pb-4 sm:px-5">
+            <AppBrand title="Kuna" look="lead" />
             <AppBrand title="Kuna" />
-            <AppBrand title="Kuna" quiet />
+            <AppBrand title="Kuna" look="quiet" />
             <AppBrand title="Overview" icon="i-lucide-landmark" colour="--app-loans" />
           </div>
         </AppCard>
