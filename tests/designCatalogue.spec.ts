@@ -16,6 +16,7 @@ const SHOWN_THROUGH: Readonly<Record<string, string>> = { ChartCanvas: 'ChartCar
 const AREAS: Readonly<Record<string, string>> = {
   Company: 'src/apps/company/**/*.vue',
   Loans: 'src/apps/loans/**/*.vue',
+  Investments: 'src/apps/investments/**/*.vue',
   Shell: 'src/shell/**/*.vue',
   Shared: 'src/shared/**/*.vue',
 }

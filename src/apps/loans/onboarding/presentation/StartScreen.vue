@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import type { FileFirstRun } from '../../../../shared/storage/presentation/fileFirstRun'
 import FirstRunScreen from '../../../../shared/storage/presentation/FirstRunScreen.vue'
+import { useFindFile } from '../../../../shared/storage/presentation/useFindFile'
 import { LOANS_OVERVIEW_ROUTE, LOANS_START_ROUTE } from '../../overview/presentation/loanLinks'
 import { words as appWords } from '../../words'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import { LOANS_FILE_NAME, LOCAL_LOANS_TITLE, newLoansFileContents } from '../../workbook/presentation/loansFile'
-import { useFindLoansFile } from '../../workbook/presentation/useFindLoansFile'
+import { words as fileWords } from '../../workbook/presentation/words'
 import { words } from './words'
 
 /** The Loans first run at `#/loans/start?step=…`. */
@@ -19,7 +20,7 @@ const firstRun: FileFirstRun = {
   fileName: LOANS_FILE_NAME,
   localTitle: LOCAL_LOANS_TITLE,
   newContents: () => newLoansFileContents(store),
-  findFile: useFindLoansFile(),
+  findFile: useFindFile(store, fileWords),
   words,
 }
 </script>

@@ -77,5 +77,7 @@ export const alphaVantage: PriceVendor = {
   keyAddress: 'https://www.alphavantage.co/support/#api-key',
   // Alpha Vantage states only the 25 a day. Five a minute and a gap of 1.5 seconds are the earlier free limits, kept so a burst is not refused.
   limits: { perMinute: 5, perDay: 25, gapMilliseconds: 1500 },
+  // The symbol of Alpha Vantage's own examples.
+  testSymbol: 'IBM',
   closes: alphaVantageCloses,
 }

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import BankLoanDialog from '../../bankLoans/presentation/BankLoanDialog.vue'
@@ -21,6 +20,7 @@ import { monthOf } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
+import RecordProblemsAlert from '../../../../shared/storage/presentation/RecordProblemsAlert.vue'
 import { plural } from '../../../../shared/text/translation'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
@@ -38,6 +38,7 @@ const year = yearOf(day)
 
 const loading = computed(() => state.workbook === null && state.status !== 'error')
 const fileNote = computed(() => (state.choice?.source === 'drive' ? words.empty.onDrive(state.choice.name) : words.empty.inBrowser))
+const problemLines = computed(() => (state.workbook?.problems ?? []).map((problem) => words.problems.line(problem.noun, problem.label, problem.reason)))
 
 const bankCards = computed(() => (state.workbook?.bankLoans ?? []).map((book) => ({ book, figures: bankLoanFigures(book, day) })))
 const informalCards = computed(() => (state.workbook?.informalLoans ?? []).map((book) => ({ book, figures: informalLoanFigures(book, day) })))
@@ -125,22 +126,12 @@ const addingInformal = ref(false)
             data-testid="loans-debt-free"
           />
         </DashboardGrid>
-        <UAlert
+        <RecordProblemsAlert
           v-if="state.workbook.problems.length > 0"
-          icon="i-lucide-triangle-alert"
-          color="warning"
-          variant="subtle"
           :title="plural(words.problems.title(state.workbook.problems.length), state.workbook.problems.length)"
+          :lines="problemLines"
           data-testid="loans-problems"
-        >
-          <template #description>
-            <ul class="flex flex-col gap-0.5">
-              <li v-for="problem in state.workbook.problems" :key="`${problem.kind} ${problem.label} ${problem.reason}`">
-                {{ words.problems.line(problem.noun, problem.label, problem.reason) }}
-              </li>
-            </ul>
-          </template>
-        </UAlert>
+        />
         <LoansTogether v-if="planned.length >= 2" :loans="planned" :day="day" :free-of-debt-on="owingInformally ? null : debtFree" />
         <DashboardGrid data-testid="loan-cards">
           <BankLoanCard v-for="card in bankCards" :key="card.book.loan.id" :book="card.book" :figures="card.figures" :day="day" :hero="loanCount === 1" />

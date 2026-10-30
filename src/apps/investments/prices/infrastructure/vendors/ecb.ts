@@ -65,5 +65,6 @@ export const ecb: PriceVendor = {
   needsKey: false,
   keyAddress: null,
   limits: { perMinute: null, perDay: null, gapMilliseconds: null },
+  testSymbol: 'USD',
   closes: ecbRates,
 }

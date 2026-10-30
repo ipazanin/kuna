@@ -16,9 +16,10 @@ applyLanguage()
 
 async function start(): Promise<void> {
   // Each app loads apart from the entry chunk, and is installed before the router lists its screens.
-  const [{ companyApp }, { loansApp }] = await Promise.all([import('./apps/company/app'), import('./apps/loans/app')])
+  const [{ companyApp }, { loansApp }, { investmentsApp }] = await Promise.all([import('./apps/company/app'), import('./apps/loans/app'), import('./apps/investments/app')])
   await installApp(companyApp)
   await installApp(loansApp)
+  await installApp(investmentsApp)
   const googleReturn = takeGoogleRedirect()
   if (googleReturn === null && navigator.onLine && installedApps().some((app) => app.asksGoogleOnOpen()) && askSilentlyOnOpen()) {
     return

@@ -10,6 +10,16 @@ import { RULE_WRITES } from '../src/apps/company/rules/application/ruleWrites'
 import { SETTING_WRITES } from '../src/apps/company/settings/application/settingWrites'
 import { ACCOUNT_WRITES, CATEGORY_WRITES, CLIENT_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
 import { SPLIT_WRITES } from '../src/apps/company/transactions/application/splitWrites'
+import { HAND_PRICE_WRITES, INSTRUMENT_WRITES, INVESTMENT_ACCOUNT_WRITES } from '../src/apps/investments/holdings/application/holdingWrites'
+import {
+  CASH_MOVEMENT_WRITES,
+  EXCHANGE_WRITES,
+  INCOME_WRITES,
+  SPIN_OFF_WRITES,
+  SPLIT_WRITES as INVESTMENT_SPLIT_WRITES,
+  TRADE_WRITES,
+  TRANSFER_WRITES,
+} from '../src/apps/investments/transactions/application/transactionWrites'
 import { BANK_LOAN_WRITES, EXTRA_PAYMENT_WRITES, LATE_INSTALMENT_WRITES, RATE_PERIOD_WRITES, removeBankLoan } from '../src/apps/loans/bankLoans/application/bankLoanWrites'
 import { INFORMAL_LOAN_WRITES, MOVEMENT_WRITES } from '../src/apps/loans/informalLoans/application/informalLoanWrites'
 import { LOAN_SCENARIO_WRITES, SCENARIO_CHANGE_WRITES } from '../src/apps/loans/scenarios/application/scenarioWrites'
@@ -32,7 +42,7 @@ import type { DocumentRecord, WorkbookDocument } from '../src/shared/storage/inf
 import type { DocumentCopy } from '../src/shared/storage/infrastructure/documentRecordStorage'
 import { newDocument } from '../src/shared/storage/infrastructure/documentRecordStorage'
 import { recordOnScreen, recordsOnScreen } from './fixtures/records'
-import { COMPANY, LOANS, browserHarness, driveHarness, forgetCaches } from './fixtures/writeBack'
+import { COMPANY, INVESTMENTS, LOANS, browserHarness, driveHarness, forgetCaches } from './fixtures/writeBack'
 import type { AppUnderTest } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -618,6 +628,195 @@ const LOANS_FIXTURES: Readonly<Record<string, KindFixture>> = {
   },
 }
 
+const [ACCOUNT_A, ACCOUNT_B, ACCOUNT_C, ACCOUNT_R, BROKER_ONE, BROKER_TWO] = ids('21', 6)
+const [INSTRUMENT_A, INSTRUMENT_B, INSTRUMENT_C, INSTRUMENT_R, DOLLAR_SHARE, EURO_FUND, SPUN_OFF] = ids('22', 7)
+const [TRADE_A, TRADE_B, TRADE_C, TRADE_R, FIRST_BUY] = ids('23', 5)
+const [INCOME_A, INCOME_B, INCOME_C, INCOME_R] = ids('24', 4)
+const [CASH_A, CASH_B, CASH_C, CASH_R] = ids('25', 4)
+const [EXCHANGE_A, EXCHANGE_B, EXCHANGE_C, EXCHANGE_R] = ids('26', 4)
+const [TRANSFER_A, TRANSFER_B, TRANSFER_C, TRANSFER_R] = ids('27', 4)
+const [STOCK_SPLIT_A, STOCK_SPLIT_B, STOCK_SPLIT_C, STOCK_SPLIT_R] = ids('28', 4)
+const [SPIN_OFF_A, SPIN_OFF_B, SPIN_OFF_C, SPIN_OFF_R] = ids('29', 4)
+const [PRICE_A, PRICE_B, PRICE_C, PRICE_R] = ids('30', 4)
+
+/** Two made-up accounts and three made-up instruments, a share in dollars, a fund in euros and a share spun off in dollars, which the other kinds name. */
+const HOLDINGS_SEED: Seed = {
+  'investment-account': [
+    { name: 'Broker One', id: BROKER_ONE! },
+    { name: 'Broker Two', id: BROKER_TWO! },
+  ],
+  instrument: [
+    { name: 'Example Tech', class: 'stocks', symbol: 'ABC', currency: 'USD', quoted: 'unit', prices: 'twelvedata', source_symbol: 'ABC', id: DOLLAR_SHARE! },
+    { name: 'Example Fund', class: 'money-market', symbol: 'EMF', currency: 'EUR', quoted: 'unit', prices: 'manual', id: EURO_FUND! },
+    { name: 'Example Spinco', class: 'stocks', symbol: 'GHI', currency: 'USD', quoted: 'unit', prices: 'manual', id: SPUN_OFF! },
+  ],
+}
+
+/** The holdings and ten of the dollar share bought in the first account, which transfers, splits and spin-offs move. */
+const BOUGHT_SEED: Seed = {
+  ...HOLDINGS_SEED,
+  trade: [{ account: BROKER_ONE!, instrument: DOLLAR_SHARE!, side: 'buy', date: '2026-01-10', quantity: '10', price: '140', fees: '1', rate: '1.08', id: FIRST_BUY! }],
+}
+
+const INVESTMENTS_FIXTURES: Readonly<Record<string, KindFixture>> = {
+  'investment-account': {
+    records: [
+      { name: 'Broker One', note: 'Main account', id: ACCOUNT_A! },
+      { name: 'Broker Two', id: ACCOUNT_B! },
+    ],
+    outside: { name: 'Broker Three', id: ACCOUNT_C! },
+    change: { field: 'name', value: 'Broker One, margin' },
+    cleared: 'note',
+    refused: { fields: { note: 'Opened in May', id: ACCOUNT_R! }, reason: 'no name', fixed: { name: 'Broker Four', note: 'Opened in May', id: ACCOUNT_R! } },
+  },
+  instrument: {
+    records: [
+      {
+        name: 'Example Tech',
+        class: 'stocks',
+        isin: 'XX000000ABC1',
+        symbol: 'ABC',
+        exchange: 'XNAS',
+        currency: 'USD',
+        quoted: 'unit',
+        prices: 'twelvedata',
+        source_symbol: 'ABC',
+        note: 'A US share',
+        id: INSTRUMENT_A!,
+      },
+      { name: 'Example Bond', class: 'bonds', symbol: 'EXB', currency: 'EUR', quoted: 'percent', coupon: '3', maturity: '2030-09-15', prices: 'manual', id: INSTRUMENT_B! },
+    ],
+    outside: { name: 'Example Fund', class: 'money-market', symbol: 'EMF', currency: 'EUR', quoted: 'unit', prices: 'manual', id: INSTRUMENT_C! },
+    change: { field: 'name', value: 'Example Tech Inc' },
+    cleared: 'isin',
+    refused: {
+      fields: { name: 'Example Coin', class: 'crypto', symbol: 'XCN', currency: 'XBT', quoted: 'unit', prices: 'manual', id: INSTRUMENT_R! },
+      reason: 'is not a currency code',
+      fixed: { name: 'Example Coin', class: 'crypto', symbol: 'XCN', currency: 'EUR', quoted: 'unit', prices: 'manual', id: INSTRUMENT_R! },
+    },
+  },
+  trade: {
+    seed: HOLDINGS_SEED,
+    records: [
+      { account: BROKER_ONE!, instrument: DOLLAR_SHARE!, side: 'buy', date: '2026-03-02', quantity: '10', price: '142.5', fees: '1', rate: '1.085', note: 'First buy', id: TRADE_A! },
+      { account: BROKER_ONE!, instrument: EURO_FUND!, side: 'buy', date: '2026-03-03', quantity: '2.5', price: '98.9', id: TRADE_B! },
+    ],
+    outside: { account: BROKER_TWO!, instrument: EURO_FUND!, side: 'buy', date: '2026-04-01', quantity: '1', price: '100', fees: '2', id: TRADE_C! },
+    change: { field: 'quantity', value: '12' },
+    cleared: 'fees',
+    refused: {
+      fields: { account: BROKER_ONE!, instrument: EURO_FUND!, side: 'short', date: '2026-05-01', quantity: '1', price: '101', id: TRADE_R! },
+      reason: 'is not a side',
+      fixed: { account: BROKER_ONE!, instrument: EURO_FUND!, side: 'buy', date: '2026-05-01', quantity: '1', price: '101', id: TRADE_R! },
+    },
+  },
+  income: {
+    seed: HOLDINGS_SEED,
+    records: [
+      { account: BROKER_ONE!, kind: 'dividend', instrument: DOLLAR_SHARE!, date: '2026-06-15', currency: 'USD', gross: '12', withheld: '1.8', rate: '1.09', note: 'Second quarter', id: INCOME_A! },
+      { account: BROKER_ONE!, kind: 'interest', date: '2026-06-30', currency: 'EUR', gross: '3.15', id: INCOME_B! },
+    ],
+    outside: { account: BROKER_TWO!, kind: 'other', date: '2026-07-01', currency: 'EUR', gross: '5', id: INCOME_C! },
+    change: { field: 'gross', value: '12.5' },
+    cleared: 'withheld',
+    refused: {
+      fields: { account: BROKER_ONE!, kind: 'dividend', date: '2026-08-01', currency: 'EUR', gross: '4', id: INCOME_R! },
+      reason: 'names its instrument',
+      fixed: { account: BROKER_ONE!, kind: 'dividend', instrument: EURO_FUND!, date: '2026-08-01', currency: 'EUR', gross: '4', id: INCOME_R! },
+    },
+  },
+  'cash-movement': {
+    seed: HOLDINGS_SEED,
+    records: [
+      { account: BROKER_ONE!, kind: 'deposit', date: '2026-01-05', currency: 'EUR', amount: '1000', note: 'From savings', id: CASH_A! },
+      { account: BROKER_ONE!, kind: 'withdrawal', date: '2026-02-05', currency: 'USD', amount: '50', rate: '1.08', id: CASH_B! },
+    ],
+    outside: { account: BROKER_TWO!, kind: 'fee', date: '2026-03-01', currency: 'EUR', amount: '5', id: CASH_C! },
+    change: { field: 'amount', value: '1200' },
+    cleared: 'note',
+    refused: {
+      fields: { account: BROKER_ONE!, kind: 'deposit', date: '2026-04-01', currency: 'USD', amount: '100', id: CASH_R! },
+      reason: 'no rate',
+      fixed: { account: BROKER_ONE!, kind: 'deposit', date: '2026-04-01', currency: 'USD', amount: '100', rate: '1.1', id: CASH_R! },
+    },
+  },
+  exchange: {
+    seed: HOLDINGS_SEED,
+    records: [
+      { account: BROKER_ONE!, date: '2026-01-06', sold: '1000', sold_currency: 'EUR', bought: '1085', bought_currency: 'USD', fees: '2', fee_currency: 'EUR', note: 'At the broker', id: EXCHANGE_A! },
+      { account: BROKER_TWO!, date: '2026-02-06', sold: '100', sold_currency: 'USD', bought: '92', bought_currency: 'EUR', id: EXCHANGE_B! },
+    ],
+    outside: { account: BROKER_ONE!, date: '2026-03-06', sold: '200', sold_currency: 'EUR', bought: '170', bought_currency: 'GBP', id: EXCHANGE_C! },
+    change: { field: 'bought', value: '1084.5' },
+    cleared: 'note',
+    refused: {
+      fields: { account: BROKER_ONE!, date: '2026-04-06', sold: '10', sold_currency: 'EUR', bought: '10', bought_currency: 'EUR', id: EXCHANGE_R! },
+      reason: 'are the same',
+      fixed: { account: BROKER_ONE!, date: '2026-04-06', sold: '10', sold_currency: 'EUR', bought: '10.8', bought_currency: 'USD', id: EXCHANGE_R! },
+    },
+  },
+  transfer: {
+    seed: BOUGHT_SEED,
+    records: [
+      { from: BROKER_ONE!, to: BROKER_TWO!, date: '2026-02-01', instrument: DOLLAR_SHARE!, quantity: '4', note: 'Moved to one account', id: TRANSFER_A! },
+      { from: BROKER_ONE!, to: BROKER_TWO!, date: '2026-02-02', currency: 'EUR', amount: '200', id: TRANSFER_B! },
+    ],
+    outside: { from: BROKER_TWO!, to: BROKER_ONE!, date: '2026-03-01', currency: 'USD', amount: '50', id: TRANSFER_C! },
+    change: { field: 'quantity', value: '5' },
+    cleared: 'note',
+    refused: {
+      fields: { from: BROKER_ONE!, to: BROKER_ONE!, date: '2026-04-01', currency: 'EUR', amount: '10', id: TRANSFER_R! },
+      reason: 'are the same account',
+      fixed: { from: BROKER_ONE!, to: BROKER_TWO!, date: '2026-04-01', currency: 'EUR', amount: '10', id: TRANSFER_R! },
+    },
+  },
+  split: {
+    seed: BOUGHT_SEED,
+    records: [
+      { instrument: DOLLAR_SHARE!, date: '2026-02-01', new: '4', old: '1', note: 'Four for one', id: STOCK_SPLIT_A! },
+      { instrument: EURO_FUND!, date: '2026-03-01', new: '1', old: '2', id: STOCK_SPLIT_B! },
+    ],
+    outside: { instrument: DOLLAR_SHARE!, date: '2026-05-01', new: '3', old: '2', id: STOCK_SPLIT_C! },
+    change: { field: 'new', value: '5' },
+    cleared: 'note',
+    refused: {
+      fields: { instrument: DOLLAR_SHARE!, date: '2026-06-01', new: '2.5', old: '1', id: STOCK_SPLIT_R! },
+      reason: 'is not a whole number',
+      fixed: { instrument: DOLLAR_SHARE!, date: '2026-06-01', new: '2', old: '1', id: STOCK_SPLIT_R! },
+    },
+  },
+  'spin-off': {
+    seed: BOUGHT_SEED,
+    records: [
+      { instrument: DOLLAR_SHARE!, received: SPUN_OFF!, date: '2026-02-01', quantity: '2', cost_share: '0.1', note: 'Spun off', id: SPIN_OFF_A! },
+      { instrument: SPUN_OFF!, received: DOLLAR_SHARE!, date: '2026-03-01', quantity: '1', cost_share: '0', id: SPIN_OFF_B! },
+    ],
+    outside: { instrument: DOLLAR_SHARE!, received: SPUN_OFF!, date: '2026-04-01', quantity: '1', cost_share: '0.05', id: SPIN_OFF_C! },
+    change: { field: 'quantity', value: '3' },
+    cleared: 'note',
+    refused: {
+      fields: { instrument: DOLLAR_SHARE!, received: SPUN_OFF!, date: '2026-05-01', quantity: '1', cost_share: '1.5', id: SPIN_OFF_R! },
+      reason: 'is not from 0 to 1',
+      fixed: { instrument: DOLLAR_SHARE!, received: SPUN_OFF!, date: '2026-05-01', quantity: '1', cost_share: '0.5', id: SPIN_OFF_R! },
+    },
+  },
+  price: {
+    seed: HOLDINGS_SEED,
+    records: [
+      { instrument: EURO_FUND!, date: '2026-09-30', price: '10.51', note: 'Statement of 30 Sep', id: PRICE_A! },
+      { instrument: SPUN_OFF!, date: '2026-09-30', price: '11.2', id: PRICE_B! },
+    ],
+    outside: { instrument: EURO_FUND!, date: '2026-10-30', price: '10.6', id: PRICE_C! },
+    change: { field: 'price', value: '10.52' },
+    cleared: 'note',
+    refused: {
+      fields: { instrument: EURO_FUND!, date: '2026-08-31', price: '-1', id: PRICE_R! },
+      reason: 'must be more than zero',
+      fixed: { instrument: EURO_FUND!, date: '2026-08-31', price: '10.4', id: PRICE_R! },
+    },
+  },
+}
+
 const CORE_WRITES: readonly WriteRules<unknown>[] = [
   LEDGER_WRITES,
   CATEGORY_WRITES,
@@ -646,10 +845,26 @@ const LOANS_WRITES: readonly WriteRules<unknown>[] = [
 
 const LOANS_KINDS = LOANS_WRITES.map((rules) => [rules.kind.name, rules] as const)
 
+const INVESTMENTS_WRITES: readonly WriteRules<unknown>[] = [
+  INVESTMENT_ACCOUNT_WRITES,
+  INSTRUMENT_WRITES,
+  TRADE_WRITES,
+  INCOME_WRITES,
+  CASH_MOVEMENT_WRITES,
+  EXCHANGE_WRITES,
+  TRANSFER_WRITES,
+  INVESTMENT_SPLIT_WRITES,
+  SPIN_OFF_WRITES,
+  HAND_PRICE_WRITES,
+]
+
+const INVESTMENTS_KINDS = INVESTMENTS_WRITES.map((rules) => [rules.kind.name, rules] as const)
+
 /** Every kind with the app whose document keeps it and its fixture. */
 const KINDS: readonly (readonly [string, WriteRules<unknown>, AppUnderTest<BooksRead>, KindFixture])[] = [
   ...COMPANY_KINDS.map(([name, rules]) => [name, rules, COMPANY, COMPANY_FIXTURES[name]!] as const),
   ...LOANS_KINDS.map(([name, rules]) => [name, rules, LOANS, LOANS_FIXTURES[name]!] as const),
+  ...INVESTMENTS_KINDS.map(([name, rules]) => [name, rules, INVESTMENTS, INVESTMENTS_FIXTURES[name]!] as const),
 ]
 
 const STORAGES = [
@@ -665,6 +880,11 @@ it('has a fixture for every kind, core’s and the pack’s', () => {
 it('has a fixture for every Loans kind', () => {
   expect(LOANS_KINDS.map(([name]) => name).filter((name) => LOANS_FIXTURES[name] === undefined)).toEqual([])
   expect(LOANS_KINDS).toHaveLength(8)
+})
+
+it('has a fixture for every Investments kind', () => {
+  expect(INVESTMENTS_KINDS.map(([name]) => name).filter((name) => INVESTMENTS_FIXTURES[name] === undefined)).toEqual([])
+  expect(INVESTMENTS_KINDS).toHaveLength(10)
 })
 
 describe.each(STORAGES)('records kept in %s', (_storage, open) => {

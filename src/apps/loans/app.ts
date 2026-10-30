@@ -13,7 +13,8 @@ import { loansSyncGroup } from './sync/presentation/loansSyncGroup'
 import { words } from './words'
 import { useLoansBooks } from './workbook/application/loansStore'
 import { LOANS_APP } from './workbook/infrastructure/loansDocument'
-import { useFindLoansFile } from './workbook/presentation/useFindLoansFile'
+import { useFindFile } from '../../shared/storage/presentation/useFindFile'
+import { words as fileWords } from './workbook/presentation/words'
 
 const OVERVIEW: AppScreen = { path: LOANS_OVERVIEW_ROUTE, title: overviewWords.title, icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') }
 const SCENARIOS: AppScreen = { path: SCENARIOS_ROUTE, title: scenarioWords.title, icon: 'i-lucide-scale', component: () => import('./scenarios/presentation/ScenariosScreen.vue') }
@@ -56,10 +57,10 @@ export const loansApp: AppContribution = {
   start(router, googleReturn) {
     if (googleReturn?.kind === 'granted' && (googleReturn.resume === 'find' || googleReturn.resume === 'pick')) {
       const store = useLoansBooks()
-      const findLoansFile = useFindLoansFile()
+      const findFile = useFindFile(store, fileWords)
       const lookup = googleReturn.resume
       void store.open().then(async () => {
-        const opened = await findLoansFile(lookup)
+        const opened = await findFile(lookup)
         await router.isReady()
         // A find the first run left for ends on the Overview, as the find step's own tap does.
         if (opened && router.currentRoute.value.path === LOANS_START_ROUTE) await router.push('/loans')

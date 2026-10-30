@@ -20,7 +20,7 @@
  * brought back, the same from a row of Review's queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google with one token for every scope and the sync it resumes ending ready, with Drive read unticked ending in Allow access, a refused consent and a
  * forged answer leaving Allow access with no message, a refused silent trip marking the device so the next open waits for Allow access, Sign in to Google when Google asks
- * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, the Loans find a tap resumes ending on the Loans Overview, and the note to tap again after a file made on Drive,
+ * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, the Loans find a tap resumes ending on the Loans Overview, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices card, and the note to tap again after a file made on Drive,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
@@ -80,6 +80,8 @@ import {
   importTableFlow,
   invoiceFlow,
   invoiceRunFlow,
+  investmentsDriveFlow,
+  investmentsPriceKeyFlow,
   loansScenarioEditorFlow,
   loansScenariosFlow,
   loansTryExtraFlow,
@@ -1742,7 +1744,7 @@ async function checkWidth(width) {
     await waitForTitle(page, 'All apps')
     await expect(
       page.evaluate(() => [...document.querySelectorAll('[data-testid="home-card"]')].map((card) => card.dataset.state)),
-      (states) => JSON.stringify(states) === JSON.stringify(['set-up', 'set-up']),
+      (states) => states.length === 3 && states.every((state) => state === 'set-up'),
       'a fresh device does not open the home with every app in Set up',
     )
     await expect(
@@ -1780,6 +1782,8 @@ async function checkWidth(width) {
     ['onboarding-on-drive', 'drive', onboardingOnDriveFlow, '#/company/start?step=folder'],
     ['onboarding-move-on-drive', 'browser-beside-drive', moveOntoDriveFlow, '#/company/settings?tab=books', 'Settings'],
     ['loans-start-on-drive', 'drive&loans=other-device', loansStartOnDriveFlow, '#/loans/start?step=folder', 'Loans'],
+    ['investments-start', 'drive', investmentsDriveFlow, '#/investments', 'Investments'],
+    ['investments-price-key', 'drive&investments=sample', investmentsPriceKeyFlow, '#/investments/settings', 'Settings'],
     ['loans-scenarios', 'drive&loans=sample', loansScenariosFlow, '#/loans/scenarios', 'Scenarios'],
     ['loans-scenario-editor', 'drive&loans=sample', loansScenarioEditorFlow, '#/loans/scenarios', 'Scenarios'],
     ['loans-try-extra', 'drive&loans=house-and-car', loansTryExtraFlow, CAR_LOAN_SCENARIOS, 'Scenarios'],

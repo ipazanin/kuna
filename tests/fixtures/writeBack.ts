@@ -1,6 +1,10 @@
 import { expect } from 'vitest'
 
 import { RULE_COLUMNS } from '../../src/apps/company/rules/domain/rule'
+import { INVESTMENT_PARTS } from '../../src/apps/investments/workbook/domain/readInvestmentBook'
+import type { InvestmentsRecords } from '../../src/apps/investments/workbook/domain/readInvestmentBook'
+import type { InvestmentsBooks } from '../../src/apps/investments/workbook/domain/investmentsBooks'
+import { INVESTMENTS_APP, INVESTMENTS_DOCUMENT } from '../../src/apps/investments/workbook/infrastructure/investmentsDocument'
 import { LOAN_PARTS } from '../../src/apps/loans/workbook/domain/readLoanBook'
 import type { LoansRecords } from '../../src/apps/loans/workbook/domain/readLoanBook'
 import type { LoansBooks } from '../../src/apps/loans/workbook/domain/loansBooks'
@@ -116,6 +120,18 @@ export const LOANS: AppUnderTest<LoansBooks> = {
     const part = (Object.keys(LOAN_PARTS) as (keyof LoansRecords)[]).find((candidate) => LOAN_PARTS[candidate].name === kind.name)
     if (part === undefined) {
       throw new Error(`The Loans file keeps no ${kind.noun.en.many}.`)
+    }
+    return records[part] as RecordsRead<unknown> as RecordsRead<R>
+  },
+}
+
+export const INVESTMENTS: AppUnderTest<InvestmentsBooks> = {
+  app: INVESTMENTS_APP,
+  document: INVESTMENTS_DOCUMENT,
+  recordsOfKind<R>(records: InvestmentsRecords, kind: RecordKind<R>): RecordsRead<R> {
+    const part = (Object.keys(INVESTMENT_PARTS) as (keyof InvestmentsRecords)[]).find((candidate) => INVESTMENT_PARTS[candidate].name === kind.name)
+    if (part === undefined) {
+      throw new Error(`The Investments file keeps no ${kind.noun.en.many}.`)
     }
     return records[part] as RecordsRead<unknown> as RecordsRead<R>
   },

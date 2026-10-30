@@ -15,7 +15,7 @@ export const FAKE_SERIES = {
 
 const FIRST_DAY = civilDate(2023, 1, 2)
 
-function isWeekday(day: CivilDate): boolean {
+export function isWeekday(day: CivilDate): boolean {
   return weekdaysBetween(day, day) === 1
 }
 

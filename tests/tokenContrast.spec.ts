@@ -19,7 +19,7 @@ const ACCENT = '--accent'
  */
 const WASHED_SURFACES = ['--surface-page', '--surface-raised']
 /** An app's identity colour, which paints its icon on a tile of the same colour at `APP_TILE_WASH` over the page or a card. */
-const APP_COLOURS = ['--app-company', '--app-loans']
+const APP_COLOURS = ['--app-company', '--app-loans', '--app-investments']
 const APP_TILE_WASH = 0.14
 const CHART_INKS = ['--chart-ink', '--chart-ink-secondary', '--chart-ink-muted']
 const SERIES = ['--series-1', '--series-2', '--series-3', '--series-4', '--series-5', '--series-6', '--series-7', '--series-8']

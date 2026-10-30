@@ -48,6 +48,8 @@ export interface PriceVendor {
   /** Where a user claims a free key, or null for a vendor that needs none. */
   readonly keyAddress: string | null
   readonly limits: VendorLimits
+  /** A symbol, or for the ECB a currency, that a free key gets closes of, which the Test in Settings asks for. */
+  readonly testSymbol: string
   /** The closes of a symbol, or the rates of a currency, from the day on. The key is null for a vendor that needs none. */
   closes(fetch: VendorFetch, key: string | null, symbol: string, from: string): Promise<Fetched<VendorCloses>>
 }

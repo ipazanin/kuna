@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Kuna",
   "short_name": "Kuna",
-  "description": "Your company's books and your loans, each in an app of its own, worked out in the browser over files kept on Google Drive or in the browser.",
+  "description": "Your company's books, your loans and your investments, each in an app of its own, worked out in the browser over files kept on Google Drive or in the browser.",
   "lang": "en",
   "start_url": "./",
   "scope": "./",

@@ -3,6 +3,9 @@
 const FORMAT = 'kuna-prices'
 const VERSION = 1
 
+/** The prices file's name on Drive, beside the Investments file. */
+export const PRICES_FILE_NAME = 'kuna-investments-prices.json'
+
 /** The source of the ECB's daily euro reference rates, whose series hold units of a currency per euro. */
 export const ECB_SOURCE = 'ecb'
 

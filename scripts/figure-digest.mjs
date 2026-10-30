@@ -7,8 +7,11 @@
  *   npm run check:figures -- --workbook <path to an xlsx export or a Kuna file> [--today yyyy-mm-dd]
  *   npm run check:figures -- --loans <path to a Kuna Loans file> [--today yyyy-mm-dd]
  *   npm run check:figures -- --fake-loans <sample or house-and-car> [--today yyyy-mm-dd]
+ *   npm run check:figures -- --investments <path to a Kuna Investments file> [--investments-prices <path to its prices file>] [--today yyyy-mm-dd]
+ *   npm run check:figures -- --fake-investments sample [--today yyyy-mm-dd]
  *
- * A Loans input goes with a company input or alone, and its groups follow the company's.
+ * A Loans or an Investments input goes with the others or alone, and its groups follow the company's, Loans before
+ * Investments. An Investments file without its prices file is valued with no closes and no rates.
  */
 
 import { createHash } from 'node:crypto'
@@ -109,25 +112,44 @@ import { owedTotals } from '../src/apps/loans/overview/presentation/owedTotals.t
 import { fakeLoansDocument } from '../src/apps/loans/workbook/infrastructure/fake/fakeLoans.ts'
 import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument.ts'
 import { moneyFromAmount } from '../src/shared/money/money.ts'
+import { portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures.ts'
+import { decodePricesFile, emptyPricesFile } from '../src/apps/investments/prices/domain/pricesFile.ts'
+import { pricesFileBook, pricesFileRateBook } from '../src/apps/investments/prices/domain/pricesFileBooks.ts'
+import { fakePricesFile } from '../src/apps/investments/prices/infrastructure/fake/fakePrices.ts'
+import { fakeInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/fake/fakeInvestments.ts'
+import { INVESTMENTS_DOCUMENT } from '../src/apps/investments/workbook/infrastructure/investmentsDocument.ts'
 import { installHrDooPack } from './support/installPack.mjs'
 
 const { values: options } = parseArgs({
-  options: { fake: { type: 'string' }, workbook: { type: 'string' }, loans: { type: 'string' }, 'fake-loans': { type: 'string' }, today: { type: 'string', default: '2026-10-28' } },
+  options: {
+    fake: { type: 'string' },
+    workbook: { type: 'string' },
+    loans: { type: 'string' },
+    'fake-loans': { type: 'string' },
+    investments: { type: 'string' },
+    'investments-prices': { type: 'string' },
+    'fake-investments': { type: 'string' },
+    today: { type: 'string', default: '2026-10-28' },
+  },
 })
 const today = parseCivilDate(options.today)
 const knownFake = options.fake === 'drive' || options.fake === 'browser' || (options.fake !== undefined && fakeStaffOf(options.fake) !== null)
 const companyAsked = options.fake !== undefined || options.workbook !== undefined
 const loansAsked = options.loans !== undefined || options['fake-loans'] !== undefined
+const investmentsAsked = options.investments !== undefined || options['fake-investments'] !== undefined
 if (
   (options.fake !== undefined && options.workbook !== undefined) ||
   (options.loans !== undefined && options['fake-loans'] !== undefined) ||
-  (!companyAsked && !loansAsked) ||
+  (options.investments !== undefined && options['fake-investments'] !== undefined) ||
+  (options['investments-prices'] !== undefined && options.investments === undefined) ||
+  (!companyAsked && !loansAsked && !investmentsAsked) ||
   (options.fake !== undefined && !knownFake) ||
   (options['fake-loans'] !== undefined && options['fake-loans'] !== 'sample' && options['fake-loans'] !== 'house-and-car') ||
+  (options['fake-investments'] !== undefined && options['fake-investments'] !== 'sample') ||
   today === null
 ) {
   console.error(
-    'Usage: npm run check:figures -- [--fake <drive, browser, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample or house-and-car>] [--today yyyy-mm-dd]',
+    'Usage: npm run check:figures -- [--fake <drive, browser, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample or house-and-car>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--today yyyy-mm-dd]',
   )
   process.exit(2)
 }
@@ -285,6 +307,10 @@ if (loansAsked) {
   loansGroups(group)
 }
 
+if (investmentsAsked) {
+  investmentsGroups(group)
+}
+
 /**
  * The Loans groups: the records and problems, then per loan, named by its place in the file and never
  * by its name, the plan or the balances and the figures each screen shows on the day. The what-if
@@ -359,13 +385,56 @@ function loansGroups(add) {
   ])
 }
 
+/** The prices file of an Investments input: the fake one for the fake set, the one given, or none. */
+function pricesOfInput() {
+  if (options['fake-investments'] !== undefined) {
+    return fakePricesFile('sample', today)
+  }
+  if (options['investments-prices'] === undefined) {
+    return emptyPricesFile()
+  }
+  const read = decodePricesFile(readFileSync(options['investments-prices'], 'utf8'))
+  if (read.kind !== 'read') {
+    console.error(`The prices file is refused: ${read.reason}`)
+    process.exit(2)
+  }
+  return read.file
+}
+
+/**
+ * The Investments groups: the records and problems, then per instrument and per account, named by its place in the
+ * file and never by its name, what the Overview, Holdings and a holding's page show on the day, then the portfolio's
+ * figures and its last day.
+ */
+function investmentsGroups(add) {
+  const document = options.investments === undefined ? fakeInvestmentsDocument(AT) : decodeDocument(readFileSync(options.investments, 'utf8'))
+  const { records, workbook } = INVESTMENTS_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
+  add('investments.read.records', records)
+  add('investments.read.problems', workbook.problems)
+  const prices = pricesOfInput()
+  const figures = portfolioFigures({ book: workbook.book, prices: pricesFileBook(prices, workbook.book.prices), rates: pricesFileRateBook(prices), today })
+  for (const [index, instrument] of workbook.book.instruments.entries()) {
+    add(`investments.holding-${index + 1}`, figures.holdings.find((holding) => holding.instrument.id === instrument.id) ?? null)
+  }
+  for (const [index, account] of workbook.book.accounts.entries()) {
+    add(
+      `investments.account-${index + 1}.cash`,
+      figures.cash.filter((balance) => balance.account === account.id),
+    )
+  }
+  const { holdings, cash, lastDay, ...portfolio } = figures
+  add('investments.portfolio', portfolio)
+  add('investments.last-day', lastDay)
+}
+
 const digests = new WeakMap()
 const sha256 = (text) => createHash('sha256').update(text).digest('hex')
 
 /** A SHA-256 of the figures as plain data: keys sorted, functions and undefined fields left out, and a part shared by several figures hashed once. */
 function digestOf(value) {
   if (value === null || typeof value !== 'object') {
-    return sha256(typeof value === 'number' && !Number.isFinite(value) ? String(value) : (JSON.stringify(value) ?? String(value)))
+    // A decimal is a bigint, which JSON cannot write, so it is hashed as its digits with an n.
+    return sha256(typeof value === 'bigint' ? `${value}n` : typeof value === 'number' && !Number.isFinite(value) ? String(value) : (JSON.stringify(value) ?? String(value)))
   }
   if (!digests.has(value)) {
     const entries =

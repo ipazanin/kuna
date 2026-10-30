@@ -20,7 +20,9 @@
  * onboarding's first steps on a first run (`?fake=empty`), each tab of the company's Settings and the
  * Year page's editors for a workbook kept in this browser (`?fake=browser`), Settings, Books file for
  * a file a newer app saved (`?fake=newer-file`), the Loans Settings, the Loans Overview with one loan
- * (`?loans=one-loan`), with a house loan and a car loan (`?loans=house-and-car`) and while its file opens (`?loans=opening`), Scenarios on Home loan, on Offers and on a car loan with none, the home, Kuna settings, the Loans first run and every Loans screen in Croatian (`?lang=hr`), Salaries for one
+ * (`?loans=one-loan`), with a house loan and a car loan (`?loans=house-and-car`) and while its file opens (`?loans=opening`), Scenarios on Home loan, on Offers and on a car loan with none, the home, Kuna settings, the Loans first run and every Loans screen in Croatian (`?lang=hr`),
+ * the Investments first run, its empty Overview and its Settings on an empty file (`?investments=drive`) and its Overview while its file opens (`?investments=opening`), each in Croatian too,
+ * the Investments Overview and Settings' Prices card on the sample with current prices, with made-up keys kept and with late prices whose last fetch failed (`?prices=late-prices`), Salaries for one
  * made-up employee (`?fake=one-employee`) and for five (`?fake=five-employees`), and the summary
  * of an xlsx file it writes from the fake workbook with two problems added.
  *
@@ -213,7 +215,7 @@ const CARD_SELECTOR = '.rounded-card'
  * `linkedPart` is the element a deep link's hash names, and `linkedRow` the row a deep link's query
  * marks, each inside a card that has to open for it. `linkedCard` is a card a link from another
  * screen points at, which has to open. `collapsedBefore` names the cards this device
- * remembers as collapsed, and `expandedBefore` those it remembers as open. `cards: false` marks a screen with no collapsible card.
+ * remembers as collapsed, and `expandedBefore` those it remembers as open. `stored` is what this device keeps in localStorage before the page loads, such as made-up price vendor keys. `cards: false` marks a screen with no collapsible card.
  */
 /** The ids of the sample Loans file's two loans, `?loans=sample`. */
 const SAMPLE_BANK_LOAN = 'fa4e0000-0000-4000-8000-000000000001'
@@ -325,8 +327,8 @@ const SCREENS = [
     collapsedBefore: ['review.rules'],
     linkedRow: '[data-testid="rule-row"][aria-current="true"]',
   },
-  { name: 'home', hash: '#/', title: 'All apps', charts: 0, shows: ['Company', 'Cash on hand', '2 rows to review', 'Loans', 'Set up', 'Kuna settings'], cards: false },
-  { name: 'home-croatian', query: 'lang=hr', hash: '#/', title: 'Sve aplikacije', charts: 0, shows: ['Tvrtka', 'Novac na računima', 'Krediti', 'Postavi'], cards: false },
+  { name: 'home', hash: '#/', title: 'All apps', charts: 0, shows: ['Company', 'Cash on hand', '2 rows to review', 'Loans', 'Investments', 'Set up', 'Kuna settings'], cards: false },
+  { name: 'home-croatian', query: 'lang=hr', hash: '#/', title: 'Sve aplikacije', charts: 0, shows: ['Tvrtka', 'Novac na računima', 'Krediti', 'Ulaganja', 'Postavi'], cards: false },
   { name: 'company-settings', hash: '#/company/settings', title: 'Settings', charts: 0, shows: ['The workbook', 'Mail', 'Company and owner facts', 'Bucket labels', 'Loans to the owner'] },
   {
     name: 'company-settings-loan-rate',
@@ -400,7 +402,7 @@ const SOURCE_SCREENS = [
     hash: '#/',
     title: 'All apps',
     charts: 0,
-    shows: ['Set up', "Your company's books from its bank statements", 'Your loans in a file of their own'],
+    shows: ['Set up', "Your company's books from its bank statements", 'Your loans in a file of their own', 'Every buy and sale at your brokers in a file of its own'],
     cards: false,
   },
   {
@@ -409,7 +411,7 @@ const SOURCE_SCREENS = [
     hash: '#/',
     title: 'Sve aplikacije',
     charts: 0,
-    shows: ['Postavi', 'Knjige vaše tvrtke iz bankovnih izvoda', 'Vaši krediti u zasebnoj datoteci'],
+    shows: ['Postavi', 'Knjige vaše tvrtke iz bankovnih izvoda', 'Vaši krediti u zasebnoj datoteci', 'Svaka kupnja i prodaja kod vaših brokera u zasebnoj datoteci'],
     cards: false,
   },
   { name: 'home-loans', query: 'loans=sample', hash: '#/', title: 'All apps', charts: 0, shows: ['Cash on hand', 'You owe in all'], cards: false },
@@ -765,6 +767,176 @@ const SOURCE_SCREENS = [
     title: 'Postavke',
     charts: 0,
     shows: ['Datoteka kredita', 'Fake Loans file', 'Neke promjene još nisu ni u jednoj izvezenoj datoteci'],
+    cards: false,
+  },
+  {
+    name: 'investments-start',
+    hash: '#/investments',
+    title: 'Investments',
+    charts: 0,
+    shows: ['Where the Investments file lives', 'A new file on Google Drive', 'My file on Google Drive'],
+    cards: false,
+  },
+  {
+    name: 'investments-start-croatian',
+    query: 'lang=hr',
+    hash: '#/investments',
+    title: 'Ulaganja',
+    charts: 0,
+    shows: ['Gdje se čuva datoteka ulaganja', 'Nova datoteka na Google Driveu', 'Moja datoteka na Google Driveu', 'Sve aplikacije'],
+    cards: false,
+  },
+  {
+    name: 'investments-overview',
+    query: 'investments=drive',
+    hash: '#/investments',
+    title: 'Overview',
+    charts: 0,
+    shows: ['No transactions yet', 'on Google Drive as kuna-investments.json'],
+    cards: false,
+  },
+  {
+    name: 'investments-overview-croatian',
+    query: 'investments=drive&lang=hr',
+    hash: '#/investments',
+    title: 'Pregled',
+    charts: 0,
+    shows: ['Još nema transakcija', 'na Google Driveu kao kuna-investments.json'],
+    cards: false,
+  },
+  { name: 'investments-opening', query: 'investments=opening', hash: '#/investments', title: 'Overview', charts: 0, ready: '[data-testid="investments-loading"]', cards: false },
+  {
+    name: 'investments-opening-croatian',
+    query: 'investments=opening&lang=hr',
+    hash: '#/investments',
+    title: 'Pregled',
+    charts: 0,
+    ready: '[data-testid="investments-loading"]',
+    cards: false,
+  },
+  {
+    name: 'investments-settings',
+    query: 'investments=drive',
+    hash: '#/investments/settings',
+    title: 'Settings',
+    charts: 0,
+    ready: '[data-testid="investments-books-card"] [data-testid="drive-file-place"] a',
+    shows: ['Investments books', 'kuna-investments.json', 'Switch storage'],
+    cards: false,
+  },
+  {
+    name: 'investments-settings-croatian',
+    query: 'investments=drive&lang=hr',
+    hash: '#/investments/settings',
+    title: 'Postavke',
+    charts: 0,
+    ready: '[data-testid="investments-books-card"] [data-testid="drive-file-place"] a',
+    shows: ['Datoteka ulaganja', 'kuna-investments.json', 'Promijeni mjesto', 'Zadnja sinkronizacija'],
+    cards: false,
+  },
+  {
+    name: 'investments-prices-current',
+    query: 'investments=sample',
+    hash: '#/investments',
+    title: 'Overview',
+    charts: 0,
+    ready: '[data-testid="investments-prices-current"]',
+    shows: ['Prices up to'],
+    cards: false,
+  },
+  {
+    name: 'investments-prices-late',
+    query: 'investments=sample&prices=late-prices',
+    hash: '#/investments',
+    title: 'Overview',
+    charts: 0,
+    ready: '[data-testid="investments-prices-behind"]',
+    shows: ['Prices are behind', 'The newest close is from', 'The last fetch got nothing for 6 series', 'Prices in Settings'],
+    cards: false,
+  },
+  {
+    name: 'investments-prices-late-croatian',
+    query: 'investments=sample&prices=late-prices&lang=hr',
+    hash: '#/investments',
+    title: 'Pregled',
+    charts: 0,
+    ready: '[data-testid="investments-prices-behind"]',
+    shows: ['Cijene kasne', 'Najnovija zaključna cijena je od', 'Zadnje dohvaćanje nije dobilo ništa za 6 nizova', 'Cijene u postavkama'],
+    cards: false,
+  },
+  {
+    name: 'investments-prices-settings',
+    query: 'investments=sample',
+    hash: '#/investments/settings',
+    title: 'Settings',
+    charts: 0,
+    ready: '[data-testid="investments-prices-card"] [data-vendor="ecb"]',
+    shows: ['Where prices come from', 'Twelve Data', 'Alpha Vantage', 'European Central Bank', 'No key in this browser.', 'Needs no key.', 'Get a free key', 'Last fetched'],
+    cards: false,
+  },
+  {
+    name: 'investments-prices-settings-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments/settings',
+    title: 'Postavke',
+    charts: 0,
+    ready: '[data-testid="investments-prices-card"] [data-vendor="ecb"]',
+    shows: ['Odakle dolaze cijene', 'Europska središnja banka', 'U ovom pregledniku nema ključa.', 'Ne treba ključ.', 'Besplatan ključ', 'Zadnje dohvaćanje'],
+    cards: false,
+  },
+  {
+    name: 'investments-prices-settings-keys',
+    query: 'investments=sample',
+    hash: '#/investments/settings',
+    title: 'Settings',
+    charts: 0,
+    ready: '[data-testid="investments-prices-card"] [data-testid="price-vendor-forget"]',
+    stored: { 'kuna.price-vendor-key.twelvedata': 'made-up-twelve-data-key-0042', 'kuna.price-vendor-key.alphavantage': 'MADEUPKEY01' },
+    shows: ['A key ending in 0042 is kept in this browser.', 'A key is kept in this browser.', 'Remove'],
+    cards: false,
+  },
+  {
+    name: 'investments-prices-settings-keys-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments/settings',
+    title: 'Postavke',
+    charts: 0,
+    ready: '[data-testid="investments-prices-card"] [data-testid="price-vendor-forget"]',
+    stored: { 'kuna.price-vendor-key.twelvedata': 'made-up-twelve-data-key-0042', 'kuna.price-vendor-key.alphavantage': 'MADEUPKEY01' },
+    shows: ['U ovom pregledniku čuva se ključ koji završava na 0042.', 'U ovom pregledniku čuva se ključ.', 'Ukloni'],
+    cards: false,
+  },
+  {
+    name: 'investments-prices-settings-late',
+    query: 'investments=sample&prices=late-prices',
+    hash: '#/investments/settings',
+    title: 'Settings',
+    charts: 0,
+    ready: '[data-testid="prices-failures"]',
+    shows: [
+      'The last fetch got nothing for 6 series',
+      'Example Tech (ABC)',
+      'Twelve Data refused the request.',
+      "Alpha Vantage's limit was reached.",
+      'USD rates',
+      'European Central Bank did not answer.',
+    ],
+    cards: false,
+  },
+  {
+    name: 'investments-prices-settings-late-croatian',
+    query: 'investments=sample&prices=late-prices&lang=hr',
+    hash: '#/investments/settings',
+    title: 'Postavke',
+    charts: 0,
+    ready: '[data-testid="prices-failures"]',
+    shows: [
+      'Zadnje dohvaćanje nije dobilo ništa za 6 nizova',
+      'Twelve Data: zahtjev je odbijen.',
+      'Alpha Vantage: dosegnuto je ograničenje.',
+      'Tečajevi USD',
+      'Europska središnja banka: nema odgovora.',
+    ],
     cards: false,
   },
   {
@@ -1217,8 +1389,8 @@ const FLOWS = [
   { name: 'loans-browser', hash: '#/loans', title: 'Loans', run: loansBrowserFlow, modes: ['browser'] },
   { name: 'loans-open', hash: '#/loans', title: 'Loans', run: loansOpenFlow, modes: ['drive'], queries: { drive: '&loans=other-device' } },
   { name: 'loans-start-on-drive', hash: '#/loans/start?step=folder', title: 'Loans', run: loansStartOnDriveFlow, modes: ['drive'], queries: { drive: '&loans=other-device' } },
-  { name: 'loans-editor', hash: '#/loans', title: 'Overview', run: loansEditorFlow, modes: ['drive'], queries: { drive: '&loans=sample' } },
-  { name: 'loans-what-if', hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, title: 'Home loan', run: loansWhatIfFlow, modes: ['drive'], queries: { drive: '&loans=sample' } },
+  { name: 'loans-editor', hash: '#/loans', title: 'Overview', run: loansEditorFlow, modes: ['drive'], queries: { drive: '&loans=sample&investments=sample' } },
+  { name: 'loans-what-if', hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, title: 'Home loan', run: loansWhatIfFlow, modes: ['drive'], queries: { drive: '&loans=sample&investments=sample' } },
   {
     name: 'loans-what-if-croatian',
     hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
@@ -1246,8 +1418,15 @@ const FLOWS = [
     modes: ['drive'],
     queries: { drive: '&loans=sample' },
   },
-  { name: 'loans-what-if-scenario', hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, title: 'Home loan', run: loansWhatIfScenarioFlow, modes: ['drive'], queries: { drive: '&loans=sample' } },
-  { name: 'dialogs-loans', hash: '#/loans', title: 'Overview', run: loansDialogsFlow, viewports: EVERY_VIEWPORT, modes: ['drive'], queries: { drive: '&loans=sample' } },
+  {
+    name: 'loans-what-if-scenario',
+    hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
+    title: 'Home loan',
+    run: loansWhatIfScenarioFlow,
+    modes: ['drive'],
+    queries: { drive: '&loans=sample&investments=sample' },
+  },
+  { name: 'dialogs-loans', hash: '#/loans', title: 'Overview', run: loansDialogsFlow, viewports: EVERY_VIEWPORT, modes: ['drive'], queries: { drive: '&loans=sample&investments=sample' } },
   { name: 'dialogs-loans-croatian', hash: '#/loans', title: 'Pregled', run: loansDialogsFlowIn('hr'), viewports: EVERY_VIEWPORT, modes: ['drive'], queries: { drive: '&loans=sample&lang=hr' } },
   { name: 'dialogs-company', hash: '#/company/invoicing?p=all', title: 'Invoicing', run: companyDialogsFlow, viewports: EVERY_VIEWPORT, modes: ['drive'] },
   { name: 'app-menu', hash: '#/loans', title: 'Overview', run: appMenuFlow, queries: { drive: '&loans=drive', browser: '&fake=browser&loans=browser' } },
@@ -1259,8 +1438,8 @@ const FLOWS = [
     viewports: EVERY_VIEWPORT,
     queries: { drive: '&loans=drive&lang=hr', browser: '&fake=browser&loans=browser&lang=hr' },
   },
-  { name: 'home', hash: '#/', title: 'All apps', run: homeFlow, modes: ['drive'], queries: { drive: '&loans=sample' } },
-  { name: 'home-browser', hash: '#/', title: 'All apps', run: homeFlow, modes: ['browser'], queries: { browser: '&fake=browser&loans=sample' } },
+  { name: 'home', hash: '#/', title: 'All apps', run: homeFlow, modes: ['drive'], queries: { drive: '&loans=sample&investments=sample' } },
+  { name: 'home-browser', hash: '#/', title: 'All apps', run: homeFlow, modes: ['browser'], queries: { browser: '&fake=browser&loans=sample&investments=sample' } },
   { name: 'home-set-up', hash: '#/', title: 'All apps', run: setUpFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
   { name: 'move-browser', hash: '#/company/settings?tab=books', title: 'Settings', run: moveFromBrowserFlow, modes: ['browser'] },
   { name: 'race', hash: '#/company/review', title: 'Review', run: raceFlow, modes: ['drive'], queries: { drive: '&fake=race' } },
@@ -1295,6 +1474,11 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     const foreignRequests = watchForForeignRequests(page)
 
     if (visit.linkedRule || visit.linkedPart) await slowWebFonts(page)
+    if (visit.stored) {
+      await page.evaluateOnNewDocument((entries) => {
+        for (const [key, value] of Object.entries(entries)) localStorage.setItem(key, value)
+      }, visit.stored)
+    }
     if (visit.collapsedBefore || visit.expandedBefore) {
       await page.evaluateOnNewDocument(
         (collapsed, expanded) => {

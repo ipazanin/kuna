@@ -12,6 +12,7 @@ import { en as overviewEnglish, hr as overviewCroatian } from '../../src/apps/lo
 import { en as scenariosEnglish, hr as scenariosCroatian } from '../../src/apps/loans/scenarios/presentation/words.ts'
 import { en as loansSettingsEnglish, hr as loansSettingsCroatian } from '../../src/apps/loans/settings/presentation/words.ts'
 import { en as loansEnglish, hr as loansCroatian } from '../../src/apps/loans/words.ts'
+import { en as investmentsEnglish, hr as investmentsCroatian } from '../../src/apps/investments/words.ts'
 import { en as sharedEnglish, hr as sharedCroatian } from '../../src/shared/app/words.ts'
 import { en as homeEnglish, hr as homeCroatian } from '../../src/shell/home/words.ts'
 import { en as kunaSettingsEnglish, hr as kunaSettingsCroatian } from '../../src/shell/settings/words.ts'
@@ -30,6 +31,7 @@ const SCREEN_WORDS = {
     company: companyEnglish.name,
     companySettings: companySettingsEnglish.title,
     loans: loansEnglish.name,
+    investments: investmentsEnglish.name,
     overview: overviewEnglish.title,
     scenarios: scenariosEnglish.title,
     loansSettings: loansSettingsEnglish.title,
@@ -44,6 +46,7 @@ const SCREEN_WORDS = {
     company: companyCroatian.name,
     companySettings: companySettingsCroatian.title,
     loans: loansCroatian.name,
+    investments: investmentsCroatian.name,
     overview: overviewCroatian.title,
     scenarios: scenariosCroatian.title,
     loansSettings: loansSettingsCroatian.title,
@@ -2894,34 +2897,112 @@ export async function salariesFlow(page, { press, shoot, inspect }) {
   await elementSays(page, '[data-testid="salaries-strip"]', ['Mia Primjer'], 'the month opened without the employee picked')
 }
 
-const LOANS_STEP = '[data-testid="onboarding-step"]'
+const FIRST_RUN_STEP = '[data-testid="onboarding-step"]'
 
-/** Waits for the Loans first run to show this step, or for the Loans Overview once it is over. */
-async function loansStartAt(page, step) {
+/** Waits for an app's first run to show this step, or for its Overview once it is over, which `app` names by the test ids of its empty state and books card. */
+async function firstRunAt(page, app, step) {
   await page
     .waitForFunction(
-      (selector, wanted) => (wanted === 'overview' ? document.querySelector('[data-testid="loans-empty"]') !== null : document.querySelector(selector)?.dataset.step === wanted),
+      (selector, wanted, empty) => (wanted === 'overview' ? document.querySelector(`[data-testid="${empty}"]`) !== null : document.querySelector(selector)?.dataset.step === wanted),
       { timeout: 10_000 },
-      LOANS_STEP,
+      FIRST_RUN_STEP,
       step,
+      `${app.id}-empty`,
     )
     .catch(async () => {
-      const at = await page.evaluate((selector) => document.querySelector(selector)?.dataset.step ?? window.location.hash, LOANS_STEP)
-      throw new Error(`the Loans first run is at ${at}, not ${step}`)
+      const at = await page.evaluate((selector) => document.querySelector(selector)?.dataset.step ?? window.location.hash, FIRST_RUN_STEP)
+      throw new Error(`the ${app.name} first run is at ${at}, not ${step}`)
     })
   await delay(250)
 }
 
-/** The Loans Settings, reached from the Loans menu, naming where the Loans file is. */
-async function loansSettingsShowFile(page, press, loansSays) {
+/** An app's Settings, reached from its menu, naming where its file is. */
+async function settingsShowFile(page, press, app, says) {
   await openMenu(page, press)
   await pressButton(page, press, '[data-testid="nav-apart"] a', 'Settings')
   await screenTitled(page, 'Settings')
   await page
-    .waitForFunction((wanted) => document.querySelector('[data-testid="loans-books-card"]')?.textContent?.includes(wanted) === true, { timeout: 10_000 }, loansSays)
+    .waitForFunction((card, wanted) => document.querySelector(`[data-testid="${card}"]`)?.textContent?.includes(wanted) === true, { timeout: 10_000 }, `${app.id}-books-card`, says)
     .catch(() => {
-      throw new Error(`the Loans books card does not say "${loansSays}"`)
+      throw new Error(`the ${app.name} books card does not say "${says}"`)
     })
+}
+
+const LOANS = { id: 'loans', name: 'Loans' }
+const INVESTMENTS = { id: 'investments', name: 'Investments' }
+
+/**
+ * The Investments first run with the company books on the fake Drive: Investments opens on it, a new file on the fake
+ * Drive lands in Books as kuna-investments.json, the Investments Overview says it holds no transactions yet, and the
+ * Investments Settings names the file.
+ */
+export async function investmentsDriveFlow(page, { press, shoot, inspect }) {
+  await firstRunAt(page, INVESTMENTS, 'home')
+  await inspect?.('the Investments first run')
+  await shoot('investments-start')
+  await chooseOption(page, press, 'investments-start-home', 'A new file on Google Drive')
+  await pressSelector(page, press, '[data-testid="investments-start-continue"]')
+  await firstRunAt(page, INVESTMENTS, 'folder')
+  await pressSelector(page, press, '[data-testid="investments-start-choose-folder"]')
+  const confirm = await page.waitForSelector('[data-testid="investments-start-folder-confirm"]', { visible: true, timeout: 10_000 })
+  const said = await confirm.evaluate((element) => element.textContent ?? '')
+  if (!said.includes('Books') || !said.includes('kuna-investments.json')) throw new Error(`the folder confirm says "${said}", not Books and kuna-investments.json`)
+  await inspect?.('the Investments folder confirm')
+  await shoot('investments-start-folder')
+  await pressSelector(page, press, '[data-testid="investments-start-create"]')
+  await toastMatching(page, /^Created kuna-investments\.json in (My Drive › )?Books$/)
+  await firstRunAt(page, INVESTMENTS, 'overview')
+  await pageSays(page, 'on Google Drive as kuna-investments.json', true)
+  await inspect?.('the empty Investments Overview')
+  await shoot('investments-overview')
+  await dismissToasts(page)
+  await settingsShowFile(page, press, INVESTMENTS, 'kuna-investments.json')
+  await inspect?.('the Investments Settings')
+  await shoot('investments-settings')
+}
+
+/** A made-up Twelve Data key the Prices card is given, whose whole text must never come back on screen. */
+const MADE_UP_PRICE_KEY = 'made-up-twelve-data-key-7319'
+
+/**
+ * Investments Settings, Prices, on the sample: a Twelve Data key typed and saved shows only how it ends and empties its
+ * field, Test asks the fake build's responder and says the key works, and Remove forgets it. Fetch now then fetches
+ * the ECB's rates from the responder and lists the listings it got nothing for without their keys.
+ */
+export async function investmentsPriceKeyFlow(page, { press, shoot, inspect }) {
+  const vendor = '[data-testid="investments-prices-card"] [data-vendor="twelvedata"]'
+  await page.waitForSelector(`${vendor} [data-testid="price-vendor-key"]`, { visible: true, timeout: 10_000 })
+  const input = await pressSelector(page, press, `${vendor} [data-testid="price-vendor-key"]`)
+  await input.type(MADE_UP_PRICE_KEY)
+  const fieldType = await page.$eval(`${vendor} [data-testid="price-vendor-key"]`, (element) => element.type)
+  if (fieldType !== 'password') throw new Error(`the key field is type "${fieldType}", not password`)
+  await inspect?.('a price vendor key typed')
+  await pressSelector(page, press, `${vendor} [data-testid="price-vendor-save"]`)
+  await pageSays(page, 'A key ending in 7319 is kept in this browser.', true)
+  const left = await page.$eval(`${vendor} [data-testid="price-vendor-key"]`, (element) => element.value)
+  if (left !== '') throw new Error(`the key field still holds "${left}" after Save`)
+  const shown = await page.evaluate((key) => document.body.innerText.includes(key) || [...document.querySelectorAll('input')].some((element) => element.value === key), MADE_UP_PRICE_KEY)
+  if (shown) throw new Error('the whole key came back on screen after Save')
+  const kept = await page.evaluate(() => localStorage.getItem('kuna.price-vendor-key.twelvedata'))
+  if (kept !== MADE_UP_PRICE_KEY) throw new Error(`this browser keeps "${kept}" as the Twelve Data key`)
+  await pressSelector(page, press, `${vendor} [data-testid="price-vendor-test"]`)
+  await page
+    .waitForFunction((selector) => document.querySelector(selector)?.textContent?.trim() === 'The key works.', { timeout: 10_000 }, `${vendor} [data-testid="price-vendor-test-result"]`)
+    .catch(() => {
+      throw new Error('Test against the fake responder does not say the key works')
+    })
+  await inspect?.('a price vendor key tested')
+  await shoot('investments-price-key')
+  await pressSelector(page, press, `${vendor} [data-testid="price-vendor-forget"]`)
+  await pageSays(page, 'A key ending in 7319', false)
+  const forgotten = await page.evaluate(() => localStorage.getItem('kuna.price-vendor-key.twelvedata'))
+  if (forgotten !== null) throw new Error('Remove left the key in this browser')
+  await pressSelector(page, press, '[data-testid="prices-fetch-now"]')
+  await toastMatching(page, /^Prices fetched$/)
+  await pageSays(page, 'The last fetch got nothing for 3 series', true)
+  await pageSays(page, 'No Twelve Data key in this browser.', true)
+  await inspect?.('the prices fetched without a listing key')
+  await dismissToasts(page)
 }
 
 /**
@@ -2930,12 +3011,12 @@ async function loansSettingsShowFile(page, press, loansSays) {
  * Loans Settings names the file.
  */
 export async function loansDriveFlow(page, { press, shoot, inspect }) {
-  await loansStartAt(page, 'home')
+  await firstRunAt(page, LOANS, 'home')
   await inspect?.('the Loans first run')
   await shoot('loans-start')
   await chooseOption(page, press, 'loans-start-home', 'A new file on Google Drive')
   await pressSelector(page, press, '[data-testid="loans-start-continue"]')
-  await loansStartAt(page, 'folder')
+  await firstRunAt(page, LOANS, 'folder')
   await pressSelector(page, press, '[data-testid="loans-start-choose-folder"]')
   const confirm = await page.waitForSelector('[data-testid="loans-start-folder-confirm"]', { visible: true, timeout: 10_000 })
   const said = await confirm.evaluate((element) => element.textContent ?? '')
@@ -2944,46 +3025,46 @@ export async function loansDriveFlow(page, { press, shoot, inspect }) {
   await shoot('loans-start-folder')
   await pressSelector(page, press, '[data-testid="loans-start-create"]')
   await toastMatching(page, /^Created kuna-loans\.json in (My Drive › )?Books$/)
-  await loansStartAt(page, 'overview')
+  await firstRunAt(page, LOANS, 'overview')
   await pageSays(page, 'on Google Drive as kuna-loans.json', true)
   await inspect?.('the empty Loans Overview')
   await shoot('loans-overview')
   await dismissToasts(page)
-  await loansSettingsShowFile(page, press, 'kuna-loans.json')
+  await settingsShowFile(page, press, LOANS, 'kuna-loans.json')
   await inspect?.('the Loans Settings')
   await shoot('loans-settings')
 }
 
 /** The Loans first run with the company books in this browser: a new Loans file in this browser, which the Loans Settings offers to export. */
 export async function loansBrowserFlow(page, { press, shoot, inspect }) {
-  await loansStartAt(page, 'home')
+  await firstRunAt(page, LOANS, 'home')
   await chooseOption(page, press, 'loans-start-home', 'A new file in this browser')
   await pressSelector(page, press, '[data-testid="loans-start-continue"]')
-  await loansStartAt(page, 'overview')
+  await firstRunAt(page, LOANS, 'overview')
   await pageSays(page, 'kept in this browser', true)
   await inspect?.('the empty Loans Overview in this browser')
   await shoot('loans-overview-browser')
-  await loansSettingsShowFile(page, press, 'Kept in this browser')
+  await settingsShowFile(page, press, LOANS, 'Kept in this browser')
   await inspect?.('the Loans Settings in this browser')
   await shoot('loans-settings-browser')
 }
 
 /** The Loans first run on a device that has not chosen the Loans file another device made on the fake Drive: Find the file opens it by its mark. */
 export async function loansOpenFlow(page, { press, shoot, inspect }) {
-  await loansStartAt(page, 'home')
+  await firstRunAt(page, LOANS, 'home')
   await chooseOption(page, press, 'loans-start-home', 'My file on Google Drive')
   await pressSelector(page, press, '[data-testid="loans-start-continue"]')
-  await loansStartAt(page, 'find')
+  await firstRunAt(page, LOANS, 'find')
   await inspect?.('the Loans find step')
   await shoot('loans-start-find')
   await pressSelector(page, press, '[data-testid="loans-start-find"]')
   await toastMatching(page, /^Opened kuna-loans\.json$/)
-  await loansStartAt(page, 'overview')
+  await firstRunAt(page, LOANS, 'overview')
 }
 
 /** A new Loans file on Drive on a device that has not chosen the one another device made: the folder step refuses a second file and offers the find step, which opens it. */
 export async function loansStartOnDriveFlow(page, { press, shoot, inspect }) {
-  await loansStartAt(page, 'folder')
+  await firstRunAt(page, LOANS, 'folder')
   await pressSelector(page, press, '[data-testid="loans-start-choose-folder"]')
   const alert = await page.waitForSelector('[data-testid="loans-start-on-drive"]', { visible: true, timeout: 10_000 }).catch(() => {
     throw new Error('the Loans folder step does not say Drive already holds the Loans file')
@@ -2994,10 +3075,10 @@ export async function loansStartOnDriveFlow(page, { press, shoot, inspect }) {
   await inspect?.('the Loans folder step when Drive holds the file')
   await shoot('loans-start-on-drive')
   await pressSelector(page, press, '[data-testid="loans-start-open-on-drive"]')
-  await loansStartAt(page, 'find')
+  await firstRunAt(page, LOANS, 'find')
   await pressSelector(page, press, '[data-testid="loans-start-find"]')
   await toastMatching(page, /^Opened kuna-loans\.json$/)
-  await loansStartAt(page, 'overview')
+  await firstRunAt(page, LOANS, 'overview')
 }
 
 /** Opens the phone's or the tablet's drawer, where the top bar has a menu button. The sidebar needs nothing. */
@@ -3095,7 +3176,7 @@ function homeMenu() {
 
 /** The home's sidebar lists the apps of its cards in their order, each tiled in its card's colour, leading where its card does, and named with the badge its state calls for. */
 function sidebarMatchesCards(menu, cards, words = SCREEN_WORDS.en) {
-  const names = { company: words.company, loans: words.loans }
+  const names = { company: words.company, loans: words.loans, investments: words.investments }
   const want = cards.map((card) => ({
     app: card.app,
     state: card.state,
@@ -3111,7 +3192,7 @@ function sidebarMatchesCards(menu, cards, words = SCREEN_WORDS.en) {
  * Inside an app only its own menu, in the sidebar or the drawer: the quiet Kuna mark first as the link
  * home, named Kuna, All apps, with a line under it, then Loans as a heading larger than Overview,
  * Overview and Scenarios under it, Settings set apart, and the browser tab naming the app. The link home shows the
- * home, whose sidebar lists both apps over Kuna settings, and the phone's top bar there has no menu
+ * home, whose sidebar lists every app over Kuna settings, and the phone's top bar there has no menu
  * button. From the home, Company shows only its own menu.
  */
 export function appMenuFlowIn(language) {
@@ -3174,20 +3255,25 @@ export function appMenuFlowIn(language) {
 export const appMenuFlow = appMenuFlowIn('en')
 
 /**
- * The home with both apps' books: Company's card leads with the cash on hand Overview shows and opens
- * it, and the Loans card with what you owe in all, which the Loans Overview says too. From 1024 px the
- * sidebar lists both apps as their cards do, and its Company row opens Overview.
+ * The home with the books of Company, Loans and Investments open: Company's card leads with the cash on hand
+ * Overview shows and opens it, the Loans card with what you owe in all, which the Loans Overview says too, and the Investments card with what the app is for, since it has no figures yet. Each
+ * card tiles its icon in a colour of its own. From 1024 px the sidebar lists every app as their cards do, and its
+ * Company row opens Overview.
  */
 export async function homeFlow(page, { press, shoot, inspect }) {
   const cards = await page.evaluate(homeCards)
-  const [company, loans] = cards
-  if (cards.length !== 2 || company.app !== 'company' || loans.app !== 'loans') throw new Error(`the home shows ${JSON.stringify(cards.map((card) => card.app))}, not Company and Loans`)
+  const [company, loans, investments] = cards
+  if (cards.length !== 3 || company.app !== 'company' || loans.app !== 'loans' || investments.app !== 'investments')
+    throw new Error(`the home shows ${JSON.stringify(cards.map((card) => card.app))}, not Company, Loans and Investments`)
   if (company.state !== 'open' || !company.text.includes('Cash on hand') || !/€/.test(company.figure ?? '')) throw new Error(`the Company card reads "${company.text}"`)
   if (loans.state !== 'open' || !loans.text.includes('You owe in all') || !/€/.test(loans.figure ?? '')) throw new Error(`the Loans card reads "${loans.text}"`)
-  if (company.colour === null || loans.colour === null || company.colour === loans.colour) throw new Error(`the cards tile their icons in ${company.colour} and ${loans.colour}, not one colour each`)
+  if (investments.state !== 'open' || investments.text.includes('Set up') || !investments.text.includes('Every buy and sale at your brokers'))
+    throw new Error(`the Investments card reads "${investments.text}"`)
+  const colours = cards.map((card) => card.colour)
+  if (colours.includes(null) || new Set(colours).size !== colours.length) throw new Error(`the cards tile their icons in ${colours.join(', ')}, not one colour each`)
   const menu = await page.evaluate(homeMenu)
   if (menu !== null) sidebarMatchesCards(menu, cards)
-  await inspect?.('the home with both apps')
+  await inspect?.('the home with every app')
   await shoot('home')
 
   await pressSelector(page, press, '[data-testid="home-card"][data-app="company"]')
@@ -3221,12 +3307,12 @@ export async function homeFlow(page, { press, shoot, inspect }) {
 }
 
 /**
- * A fresh device opens the home with every app in Set up. Loans can be set up first: its card opens
+ * A fresh device opens the home with every app in Set up. Loans and Investments can be set up first: each card opens
  * its first run, whose link home comes back, and the Company card opens the company's welcome.
  */
 export async function setUpFlow(page, { press, shoot, inspect }) {
   const cards = await page.evaluate(homeCards)
-  if (cards.length !== 2 || cards.some((card) => card.state !== 'set-up' || !card.text.includes('Set up')))
+  if (cards.length !== 3 || cards.some((card) => card.state !== 'set-up' || !card.text.includes('Set up')))
     throw new Error(`the fresh home shows ${JSON.stringify(cards.map((card) => [card.app, card.state]))}`)
   if (await page.evaluate(() => document.querySelector('[data-testid="sync-status"]') !== null)) throw new Error('the fresh home shows a sync control')
   const menu = await page.evaluate(homeMenu)
@@ -3234,11 +3320,13 @@ export async function setUpFlow(page, { press, shoot, inspect }) {
   await inspect?.('the home on a fresh device')
   await shoot('home-set-up')
 
-  await pressSelector(page, press, '[data-testid="home-card"][data-app="loans"]')
-  await loansStartAt(page, 'home')
-  await screenTitled(page, 'Loans')
-  await pressSelector(page, press, '[data-testid="home-link"]')
-  await screenTitled(page, 'All apps')
+  for (const app of [LOANS, INVESTMENTS]) {
+    await pressSelector(page, press, `[data-testid="home-card"][data-app="${app.id}"]`)
+    await firstRunAt(page, app, 'home')
+    await screenTitled(page, app.name)
+    await pressSelector(page, press, '[data-testid="home-link"]')
+    await screenTitled(page, 'All apps')
+  }
 
   await pressSelector(page, press, '[data-testid="home-card"][data-app="company"]')
   await onboardingAt(page, 'welcome')

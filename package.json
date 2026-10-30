@@ -24,7 +24,7 @@
     "check:import": "node scripts/check-foreign-import.mjs",
     "check:figures": "node --import ./scripts/support/typescriptResolve.mjs scripts/figure-digest.mjs"
   },
-  "description": "Company finance dashboards computed in the browser, over books kept as a JSON file on Google Drive or in the browser",
+  "description": "Company books, loans and investments, each in an app of its own, computed in the browser over JSON files kept on Google Drive or in the browser",
   "license": "MIT",
   "private": true,
   "dependencies": {

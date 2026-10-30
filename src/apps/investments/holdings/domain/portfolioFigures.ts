@@ -73,7 +73,7 @@ export interface PortfolioFigures {
   readonly unrated: readonly RecordId[]
 }
 
-const NO_LOTS: InstrumentLots = { open: [], sales: [], refused: [], units: new Map(), paidBack: new Map() }
+const NO_LOTS: InstrumentLots = { open: [], sales: [], refused: [], emptied: [], units: new Map(), paidBack: new Map() }
 
 /** Every figure of the Overview, the Holdings screen and a holding's page, for `sources.today`. */
 export function portfolioFigures(sources: PortfolioSources): PortfolioFigures {

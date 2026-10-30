@@ -225,8 +225,8 @@ describe('late prices', () => {
 describe('the prices cache', () => {
   const opened: PricesCache[] = []
 
-  function cacheFor(fileId: string): PricesCache {
-    const cache = openPricesCache(fileId)
+  function cacheFor(investmentsFileId: string): PricesCache {
+    const cache = openPricesCache(investmentsFileId)
     opened.push(cache)
     return cache
   }
@@ -239,19 +239,22 @@ describe('the prices cache', () => {
 
   const copy: PricesCopy = { fileId: 'prices-1', revision: 'rev-7', readAt: '2026-10-30T07:02:00.000Z', file: WORKED_FILE }
 
-  it('keeps the copy whole, in its own database, until it is deleted', async () => {
-    const cache = cacheFor('prices-1')
+  it("keeps the copy whole, in a database of the Investments file's own, until it is deleted", async () => {
+    const cache = cacheFor('investments-1')
     expect(await cache.read()).toBeNull()
     await cache.replace(copy)
     expect(await cache.read()).toEqual(copy)
-    expect(await Dexie.getDatabaseNames()).toContain('kuna-prices-prices-1')
+    expect(await Dexie.getDatabaseNames()).toContain('kuna-prices-investments-1')
     await cache.replace({ ...copy, revision: 'rev-8', file: emptyPricesFile() })
     expect((await cache.read())?.revision).toBe('rev-8')
     await cache.delete()
-    expect(await Dexie.getDatabaseNames()).not.toContain('kuna-prices-prices-1')
+    expect(await Dexie.getDatabaseNames()).not.toContain('kuna-prices-investments-1')
   })
 
-  it("refuses another file's copy", async () => {
-    await expect(cacheFor('prices-2').replace(copy)).rejects.toThrow('Refusing to keep prices file prices-1 in the database for prices-2.')
+  it('keeps the copy of an Investments file kept in this browser, which names no file on Drive', async () => {
+    const cache = cacheFor('local-investments')
+    await cache.replace({ ...copy, fileId: null, revision: 'browser-1' })
+    expect(await cache.read()).toMatchObject({ fileId: null, revision: 'browser-1' })
+    expect(await cacheFor('other-investments').read()).toBeNull()
   })
 })

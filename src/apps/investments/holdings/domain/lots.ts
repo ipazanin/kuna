@@ -56,6 +56,8 @@ export interface InstrumentLots {
   readonly sales: readonly ClosedSale[]
   /** Sales and unit transfers beyond what their account held on their day. They move nothing. */
   readonly refused: readonly (Trade | Transfer)[]
+  /** Splits that left an open lot with no units, as a reverse split of a sliver of a unit can. The write rules refuse them. */
+  readonly emptied: readonly Split[]
   /** The units each account holds, from its trades and transfers. They add up to the open lots. */
   readonly units: ReadonlyMap<RecordId, Decimal>
   /** The euros of each coupon that paid back accrued interest bought with the bond, which come off the cost and are no income. */
@@ -98,6 +100,7 @@ interface Queue {
   open: Lot[]
   readonly sales: ClosedSale[]
   readonly refused: (Trade | Transfer)[]
+  readonly emptied: Split[]
   readonly units: Map<RecordId, Decimal>
   readonly paidBack: Map<RecordId, Money>
 }
@@ -122,7 +125,7 @@ export function investmentLots(book: InvestmentBook): ReadonlyMap<RecordId, Inst
     if (known !== undefined) {
       return known
     }
-    const queue: Queue = { quoting: quotingOf.get(instrument) ?? { kind: 'unit' }, open: [], sales: [], refused: [], units: new Map(), paidBack: new Map() }
+    const queue: Queue = { quoting: quotingOf.get(instrument) ?? { kind: 'unit' }, open: [], sales: [], refused: [], emptied: [], units: new Map(), paidBack: new Map() }
     queues.set(instrument, queue)
     return queue
   }
@@ -242,6 +245,9 @@ function applySplit(queue: Queue, split: Split): void {
   const quantities = queue.open.map((lot) => lot.quantity)
   const scaled = scaledDecimal(sumDecimal(quantities), BigInt(split.newUnits), BigInt(split.oldUnits))
   const lotQuantities = decimalParts(scaled, quantities)
+  if (lotQuantities.some((quantity) => quantity === DECIMAL_ZERO)) {
+    queue.emptied.push(split)
+  }
   queue.open = queue.open.map((lot, index) => ({ ...lot, quantity: lotQuantities[index]! }))
   const accounts = [...queue.units]
   const accountUnits = decimalParts(

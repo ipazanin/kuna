@@ -2,6 +2,7 @@ import type { PriceFetchPorts } from './pricesPorts'
 import type { PriceVendor, VendorFetch, VendorLimits } from './priceVendor'
 import { priceDemand } from '../domain/priceDemand'
 import type { PriceDemand } from '../domain/priceDemand'
+import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { decodePricesFile, encodePricesFile, seriesKey } from '../domain/pricesFile'
 import type { CloseRow, FailureReason, PriceFailure, PriceSeries, PricesFile, PricesFileRefusal, SplitNote } from '../domain/pricesFile'
 
@@ -96,26 +97,37 @@ function wantedOf(vendor: PriceVendor, demand: PriceDemand): WantedSeries[] {
   return demand.listings.filter((listing) => listing.source === vendor.id)
 }
 
-async function fetchVendor(
-  ports: PriceFetchPorts,
-  vendor: PriceVendor,
-  wanted: readonly WantedSeries[],
-  stored: PricesFile,
-  clock: PriceFetchClock,
-  paused: PausedTime,
-  changes: FetchChanges,
-): Promise<void> {
+/** The vendors the records need closes or rates from, in the order given. */
+export function vendorsNeeded(vendors: readonly PriceVendor[], book: InvestmentBook, day: string): PriceVendor[] {
+  const demand = priceDemand(book, day)
+  return vendors.filter((vendor) => wantedOf(vendor, demand).length > 0)
+}
+
+/** One fetch's run through the series, which counts each series as it is asked for. */
+interface FetchRun {
+  readonly clock: PriceFetchClock
+  readonly paused: PausedTime
+  readonly changes: FetchChanges
+  asking(): void
+}
+
+async function fetchVendor(ports: PriceFetchPorts, vendor: PriceVendor, wanted: readonly WantedSeries[], stored: PricesFile, run: FetchRun): Promise<void> {
+  const { clock, changes } = run
   const failed = (series: WantedSeries, reason: FailureReason): void => {
     changes.failures.push({ series: series.key, day: clock.day, reason })
   }
   const key = vendor.needsKey ? ports.key(vendor.id) : null
   if (vendor.needsKey && key === null) {
-    wanted.forEach((series) => failed(series, 'no-key'))
+    for (const series of wanted) {
+      run.asking()
+      failed(series, 'no-key')
+    }
     return
   }
-  const fetch = pacedFetch(ports, vendor.limits, paused)
+  const fetch = pacedFetch(ports, vendor.limits, run.paused)
   let limited = false
   for (const series of wanted) {
+    run.asking()
     if (limited) {
       failed(series, 'limit')
       continue
@@ -167,10 +179,22 @@ export async function fetchPrices(ports: PriceFetchPorts, vendors: readonly Pric
   }
   const stored = read.file
   const demand = priceDemand(ports.investments(), clock.day)
+  const plans = vendors.map((vendor) => ({ vendor, wanted: stillPublished(vendor, stored, wantedOf(vendor, demand)) }))
+  const total = plans.reduce((sum, plan) => sum + plan.wanted.length, 0)
+  let asked = 0
   const changes: FetchChanges = { series: new Map(), splits: [], failures: [] }
-  const paused: PausedTime = { elapsed: 0 }
-  for (const vendor of vendors) {
-    await fetchVendor(ports, vendor, stillPublished(vendor, stored, wantedOf(vendor, demand)), stored, clock, paused, changes)
+  const run: FetchRun = {
+    clock,
+    paused: { elapsed: 0 },
+    changes,
+    asking() {
+      asked += 1
+      ports.progress(asked, total)
+    },
+  }
+  ports.progress(0, total)
+  for (const { vendor, wanted } of plans) {
+    await fetchVendor(ports, vendor, wanted, stored, run)
   }
   const written: PricesFile = {
     writtenAt: clock.at,

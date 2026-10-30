@@ -5,6 +5,9 @@ import type { PricesCache, PricesCopy } from '../application/pricesPorts'
 
 const COPY_KEY = 'prices'
 
+/** Each Investments file's prices have a database of their own, named with this and the file's id. */
+export const PRICES_DATABASE_PREFIX = 'kuna-prices-'
+
 interface StoredCopy extends PricesCopy {
   readonly key: typeof COPY_KEY
 }
@@ -13,16 +16,13 @@ type PricesDatabase = Dexie & {
   copy: EntityTable<StoredCopy, 'key'>
 }
 
-/** One prices file in this browser, as Dexie keeps it: the file whole, in its own database beside the books'. */
-export function openPricesCache(fileId: string): PricesCache {
-  const database = new Dexie(`kuna-prices-${fileId}`) as PricesDatabase
+/** The prices of one Investments file in this browser, as Dexie keeps them: the prices file whole, in its own database beside the books'. */
+export function openPricesCache(investmentsFileId: string): PricesCache {
+  const database = new Dexie(`${PRICES_DATABASE_PREFIX}${investmentsFileId}`) as PricesDatabase
   database.version(1).stores({ copy: 'key' })
 
   return {
     async replace(copy) {
-      if (copy.fileId !== fileId) {
-        throw new Error(`Refusing to keep prices file ${copy.fileId} in the database for ${fileId}.`)
-      }
       await database.copy.put({ key: COPY_KEY, ...copy })
     },
 

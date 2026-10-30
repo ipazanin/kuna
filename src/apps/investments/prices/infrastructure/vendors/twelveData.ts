@@ -86,5 +86,7 @@ export const twelveData: PriceVendor = {
   needsKey: true,
   keyAddress: 'https://twelvedata.com/register',
   limits: { perMinute: 8, perDay: 800, gapMilliseconds: null },
+  // A currency pair, which the free key covers and which names no one's holding.
+  testSymbol: 'EUR/USD',
   closes: twelveDataCloses,
 }

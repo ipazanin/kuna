@@ -149,6 +149,8 @@ interface Device {
   /** Each request's address and each pause, in the order the fetch made them. */
   readonly events: string[]
   readonly writes: string[]
+  /** Each count the fetch gave of the series asked for so far and all it asks for. */
+  readonly progressed: (readonly [number, number])[]
   records: InvestmentBook
   pricesText: string
   run(day: string, world?: Partial<World>, vendors?: readonly PriceVendor[]): Promise<PriceFetchOutcome>
@@ -162,9 +164,11 @@ function device(keys: Readonly<Record<string, string>> = KEYS, records: Investme
   let world: World = { failing: new Map(), revisedDay: null }
   const events: string[] = []
   const writes: string[] = []
+  const progressed: (readonly [number, number])[] = []
   const self: Device = {
     events,
     writes,
+    progressed,
     records,
     pricesText: encodePricesFile(emptyPricesFile()),
     ports: {
@@ -186,11 +190,15 @@ function device(keys: Readonly<Record<string, string>> = KEYS, records: Investme
         writes.push(text)
         self.pricesText = text
       },
+      progress(asked, of) {
+        progressed.push([asked, of])
+      },
     },
     async run(day, overrides = {}, vendors = PRICE_VENDORS) {
       today = day
       world = { failing: new Map(), revisedDay: null, ...overrides }
       events.length = 0
+      progressed.length = 0
       return fetchPrices(self.ports, vendors, { at: `${day}T07:41:00.000Z`, day })
     },
     prices() {
@@ -270,6 +278,12 @@ describe('fetching prices for the first time', () => {
     expect(outcome).toEqual({ kind: 'written', file })
     expect(file.writtenAt).toBe('2026-10-30T07:41:00.000Z')
     expect(file.failures).toEqual([])
+  })
+
+  it('counts each series as it asks for it, from none of all six to the last', () => {
+    expect(browser.progressed[0]).toEqual([0, 6])
+    expect(browser.progressed.at(-1)).toEqual([6, 6])
+    expect(browser.progressed.map(([asked]) => asked)).toEqual([0, 1, 2, 3, 4, 5, 6])
   })
 
   it('never writes a key into the prices file', () => {
@@ -467,6 +481,7 @@ describe('the vendors without a key, at their limits and on their errors', () =>
       { series: 'twelvedata:IDX', day: '2026-10-30', reason: 'no-key' },
     ])
     expect(browser.prices().series['alphavantage:XYZ.DEX']).toBeDefined()
+    expect(browser.progressed.at(-1)).toEqual([6, 6])
   })
 
   it("keeps to Twelve Data's 8 requests a minute, pausing out the minute and no longer", async () => {
@@ -569,6 +584,7 @@ describe('the price vendor registry', () => {
     for (const vendor of PRICE_VENDORS) {
       expect(vendor.name).not.toBe('')
       expect(vendor.covers).not.toBe('')
+      expect(vendor.testSymbol).not.toBe('')
       expect([vendor.limits.perMinute, vendor.limits.perDay].every((limit) => limit === null || (Number.isInteger(limit) && limit > 0))).toBe(true)
     }
   })

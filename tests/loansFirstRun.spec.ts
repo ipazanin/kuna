@@ -5,7 +5,9 @@ import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { loansApp } from '../src/apps/loans/app'
 import { useLoansBooks } from '../src/apps/loans/workbook/application/loansStore'
 import { LOANS_APP, LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument'
-import { exportLoansFile, newLoansFileContents } from '../src/apps/loans/workbook/presentation/loansFile'
+import { newLoansFileContents } from '../src/apps/loans/workbook/presentation/loansFile'
+import { words as fileWords } from '../src/apps/loans/workbook/presentation/words'
+import { exportAppFile } from '../src/shared/storage/presentation/exportAppFile'
 import { BooksAlreadyOnDrive } from '../src/shared/storage/application/booksAlreadyOnDrive'
 import { seedFakeWorkbook } from '../src/apps/company/workbook/infrastructure/fake/seedFakeWorkbook'
 import { previewImport } from '../src/apps/company/workbook/presentation/workbookFiles'
@@ -118,7 +120,7 @@ describe('the Loans first run on the fake Drive', () => {
     const store = pageWorkbookStore(LOANS_APP, LOANS_DOCUMENT, 'Pick your Loans file')
     await store.open()
 
-    const fileName = await exportLoansFile(store)
+    const fileName = await exportAppFile(store, LOANS_APP, fileWords.nothingToExport)
 
     const [download] = downloads
     expect(fileName).toMatch(/^kuna-loans-export-\d{4}-\d{2}-\d{2}\.json$/)
