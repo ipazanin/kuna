@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
 import { codecOfLoansKind } from '../src/apps/loans/workbook/application/loansCodecs'
-import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, INFORMAL_LOAN_RECORDS, LATE_INSTALMENT_RECORDS, MOVEMENT_RECORDS, RATE_PERIOD_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
+import {
+  BANK_LOAN_RECORDS,
+  EXTRA_PAYMENT_RECORDS,
+  INFORMAL_LOAN_RECORDS,
+  LATE_INSTALMENT_RECORDS,
+  LOAN_SCENARIO_RECORDS,
+  MOVEMENT_RECORDS,
+  RATE_PERIOD_RECORDS,
+  SCENARIO_CHANGE_RECORDS,
+} from '../src/apps/loans/workbook/domain/loanKinds'
 import { LOANS_APP, LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument'
 import type { DocumentRecord } from '../src/shared/storage/infrastructure/documentFormat'
 import { newDocument } from '../src/shared/storage/infrastructure/documentRecordStorage'
@@ -10,13 +19,28 @@ import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import type { RecordFields } from '../src/shared/storage/domain/recordFields'
 import { euros } from './fixtures/ledger'
-import { LOAN_UUID, OTHER_UUID } from './fixtures/loans'
+import { LOAN_UUID, OTHER_UUID, percent } from './fixtures/loans'
 
 const LOAN = { id: LOAN_UUID, name: 'Car loan', lender: 'Example Bank', principal: '1200.00', drawdown: '2026-01-05', first_instalment: '2026-02-05', instalments: '12' }
 const FIRST_RATE = { id: 'a1', loan: LOAN_UUID, from: '2026-02-05', rate: '12', rate_type: 'fixed' }
 const FRIEND = { id: OTHER_UUID, name: 'From Ana', counterparty: 'Ana', direction: 'you-owe', opening_balance: '3000.00', start: '2026-03-01' }
+const SCENARIO_UUID = '2d8b5e3a-7f4c-4a01-9c93-5e6f7a8b9ca2'
+const LOAN_SCENARIO = { id: SCENARIO_UUID, name: 'Pay extra', loan: LOAN_UUID }
+const OFFER = {
+  id: 's2',
+  name: 'Other Bank offer',
+  lender: 'Other Bank',
+  principal: '1000.00',
+  drawdown: '2026-03-01',
+  first_instalment: '2026-04-01',
+  instalments: '10',
+  upfront_costs: '20.00',
+  monthly_costs: '1.50',
+  yearly_costs: '5.00',
+  bank_eks: '9.35',
+}
 
-type Records = Partial<Record<'bank-loan' | 'rate-period' | 'extra-payment' | 'late-instalment' | 'informal-loan' | 'movement', readonly DocumentRecord[]>>
+type Records = Partial<Record<'bank-loan' | 'rate-period' | 'extra-payment' | 'late-instalment' | 'informal-loan' | 'movement' | 'loan-scenario' | 'scenario-change', readonly DocumentRecord[]>>
 
 function booksOf(records: Records) {
   const document = newDocument(LOANS_APP, { loans: 1 }, records, '2026-10-28T09:00:00.000Z')
@@ -57,6 +81,21 @@ describe('the Loans file', () => {
       [LATE_INSTALMENT_RECORDS, { id: 'l1', loan: LOAN_UUID, due: '2026-03-05', paid: '2026-03-23' }],
       [INFORMAL_LOAN_RECORDS, { ...FRIEND, note: 'For the boat' }],
       [MOVEMENT_RECORDS, { id: 'm1', loan: OTHER_UUID, date: '2026-04-01', kind: 'borrowed-in-kind', amount: '45.50', note: 'Paid my ferry ticket' }],
+      [LOAN_SCENARIO_RECORDS, LOAN_SCENARIO],
+      [
+        LOAN_SCENARIO_RECORDS,
+        { ...OFFER, interim_interest: '4.20', interim_interest_date: '2026-04-01', subsidy_monthly: '10.00', subsidy_first_instalment: '1', subsidy_instalments: '3', subsidy_payer: 'APN' },
+      ],
+      [SCENARIO_CHANGE_RECORDS, { id: 'c1', scenario: SCENARIO_UUID, change: 'extra-payment', date: '2026-07-05', amount: '300.00', effect: 'shorter-term' }],
+      [
+        SCENARIO_CHANGE_RECORDS,
+        { id: 'c2', scenario: SCENARIO_UUID, change: 'regular-extra-payment', date: '2026-04-05', every: 'month', until: '2026-09-05', amount: '50.00', effect: 'lower-instalment' },
+      ],
+      [SCENARIO_CHANGE_RECORDS, { id: 'c3', scenario: SCENARIO_UUID, change: 'rate-change', date: '2026-08-05', rate: '9.5', rate_type: 'variable' }],
+      [
+        SCENARIO_CHANGE_RECORDS,
+        { id: 'c4', scenario: SCENARIO_UUID, change: 'move', date: '2026-06-05', lender: 'Other Bank', rate: '8', rate_type: 'fixed', instalments: '6', upfront_costs: '15.00' },
+      ],
     ]
 
     for (const [kind, fields] of kinds) {
@@ -218,6 +257,70 @@ describe('the Loans file', () => {
       ['late-instalment', 'due 2026-04-05, paid 2026-04-10', 'another late instalment of "Car loan" names the due date 2026-04-05 too'],
       // 600.00 after instalment 6 leaves 17.89, which instalment 7 repays, so the plan has no instalment in November.
       ['late-instalment', 'due 2026-11-05, paid 2026-11-10', 'due 2026-11-05 is not a due date of "Car loan"'],
+    ])
+  })
+
+  it('reads a scenario of a bank loan and an offer with their changes, and counts neither as a loan', () => {
+    const books = booksOf({
+      'bank-loan': [LOAN],
+      'rate-period': [FIRST_RATE],
+      'loan-scenario': [LOAN_SCENARIO, OFFER],
+      'scenario-change': [
+        { id: 'c1', scenario: SCENARIO_UUID, change: 'regular-extra-payment', date: '2026-04-05', every: 'year', amount: '50.00', effect: 'shorter-term' },
+        { id: 'c2', scenario: 's2', change: 'rate-change', date: '2026-04-01', rate: '9', rate_type: 'fixed' },
+      ],
+    })
+
+    expect(books.problems).toEqual([])
+    expect(books.bankLoans).toHaveLength(1)
+    expect(books.scenarios.map(({ scenario, changes }) => [scenario.name, scenario.start.kind, changes.map((change) => change.kind)])).toEqual([
+      ['Pay extra', 'loan', ['regular-extra-payment']],
+      ['Other Bank offer', 'offer', ['rate-change']],
+    ])
+    expect(books.scenarios[0]!.changes[0]).toMatchObject({ from: '2026-04-05', every: 'year', until: null, amount: euros(50) })
+    expect(books.scenarios[1]!.scenario.start).toMatchObject({
+      terms: { principal: euros(1000), instalments: 10, interimInterest: null, costs: { upfront: euros(20), monthly: euros(1.5), yearly: euros(5) }, bankEks: percent('9.35') },
+    })
+  })
+
+  it('refuses a scenario or change whose fields do not make one, and leaves out those naming nothing', () => {
+    expect(
+      problemsOf({
+        'bank-loan': [LOAN],
+        'rate-period': [FIRST_RATE],
+        'loan-scenario': [
+          LOAN_SCENARIO,
+          { ...LOAN_SCENARIO, id: 's3', name: '' },
+          { ...LOAN_SCENARIO, id: 's4', lender: 'Other Bank', upfront_costs: '10.00' },
+          { ...LOAN_SCENARIO, id: 's5', loan: OTHER_UUID },
+          { ...OFFER, id: 's6', principal: '' },
+          { ...OFFER, id: 's7', monthly_costs: '-1.00' },
+          { ...OFFER, id: 's8', bank_eks: '3,2' },
+        ],
+        'scenario-change': [
+          { id: 'c1', scenario: SCENARIO_UUID, change: 'refinance', date: '2026-06-05' },
+          { id: 'c2', scenario: SCENARIO_UUID, change: 'regular-extra-payment', date: '2026-06-05', every: 'week', amount: '10.00', effect: 'shorter-term' },
+          { id: 'c3', scenario: SCENARIO_UUID, change: 'regular-extra-payment', date: '2026-06-05', every: 'month', until: '2026-05-05', amount: '10.00', effect: 'shorter-term' },
+          { id: 'c4', scenario: '', change: 'extra-payment', date: '2026-06-05', amount: '10.00', effect: 'shorter-term' },
+          { id: 'c5', scenario: OTHER_UUID, change: 'extra-payment', date: '2026-06-05', amount: '10.00', effect: 'shorter-term' },
+          { id: 'c6', scenario: SCENARIO_UUID, change: 'move', date: '2026-06-05', rate: '8', rate_type: 'fixed', instalments: '6' },
+          { id: 'c7', scenario: SCENARIO_UUID, change: 'move', date: '2026-07-05', rate: '7', rate_type: 'fixed', instalments: '5' },
+        ],
+      }),
+    ).toEqual([
+      ['loan-scenario', 'unnamed', 'no name'],
+      ['loan-scenario', 'Pay extra', 'a scenario of a bank loan holds no offer terms, but it fills lender, upfront_costs'],
+      ['loan-scenario', 'Other Bank offer', 'no principal'],
+      ['loan-scenario', 'Other Bank offer', 'monthly_costs is below zero'],
+      ['loan-scenario', 'Other Bank offer', 'bank_eks "3,2" is not a yearly percent with at most four decimals, such as 3.18'],
+      ['loan-scenario', 'Pay extra', 'names no bank loan in the file'],
+      ['scenario-change', 'refinance, 2026-06-05', '"refinance" is not a scenario change. Use extra-payment, regular-extra-payment, rate-change, move'],
+      ['scenario-change', 'regular-extra-payment, 2026-06-05', '"week" is not a repeat. Use month, year'],
+      ['scenario-change', 'regular-extra-payment, 2026-06-05', 'until 2026-05-05 is before date 2026-06-05'],
+      ['scenario-change', 'extra-payment, 2026-06-05', 'no scenario'],
+      ['scenario-change', 'extra-payment, 2026-06-05', 'names no scenario in the file'],
+      ['scenario-change', 'move, 2026-06-05', 'another change of "Pay extra" is a move too, and a scenario moves once'],
+      ['scenario-change', 'move, 2026-07-05', 'another change of "Pay extra" is a move too, and a scenario moves once'],
     ])
   })
 

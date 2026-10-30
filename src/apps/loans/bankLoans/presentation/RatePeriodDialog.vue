@@ -5,17 +5,17 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { RATE_PERIOD_WRITES, newRatePeriod } from '../application/bankLoanWrites'
-import { rateText } from '../domain/yearlyRate'
+import { dueDateOf } from '../domain/loanPlan'
+import { rateText, typedRate } from '../domain/yearlyRate'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import type { RatePeriod } from '../../workbook/domain/ratePeriod'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { dayMonthsLater } from '../../../../shared/calendar/monthKey'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
-import RateFields, { rateError, typedRate } from './RateFields.vue'
+import RateFields, { rateError } from './RateFields.vue'
 import type { RateTexts } from './RateFields.vue'
 import { words as loansWords } from '../../words'
 import { words } from './words'
@@ -41,7 +41,7 @@ const isFirst = computed(() => props.editing?.from === props.book.loan.firstInst
 const dueItems = computed(() => {
   const { loan } = props.book
   const taken = new Set(props.book.ratePeriods.filter((period) => period.id !== props.editing?.id).map((period) => period.from))
-  return Array.from({ length: loan.instalments }, (_, offset) => ({ number: offset + 1, date: dayMonthsLater(loan.firstInstalment, offset) }))
+  return Array.from({ length: loan.instalments }, (_, offset) => ({ number: offset + 1, date: dueDateOf(loan, offset + 1) }))
     .filter(({ number, date }) => (isFirst.value ? number === 1 : number > 1) && !taken.has(date))
     .map(({ number, date }): { label: string; value: string } => ({ label: words.ratePeriodDialog.dueDate(dayLabel(date), number), value: date }))
 })

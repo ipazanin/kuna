@@ -1,4 +1,4 @@
-import { civilDate, dayOfMonth } from './civilDate'
+import { civilDate, dayOfMonth, yearOf } from './civilDate'
 import type { CivilDate } from './civilDate'
 
 /** A calendar month written `YYYY-MM`. Like CivilDate, the text form sorts chronologically. */
@@ -64,4 +64,10 @@ export function dayMonthsLater(date: CivilDate, count: number): CivilDate {
   const month = addMonths(monthOf(date), count)
   const last = lastDayOf(month)
   return dayOfMonth(date) < dayOfMonth(last) ? civilDate(yearOfMonth(month), monthNumber(month), dayOfMonth(date)) : last
+}
+
+/** The whole months from one day to a later one, a month running to the same day of the next month as `dayMonthsLater` counts it. Zero when `to` is not after `from`. */
+export function wholeMonthsBetween(from: CivilDate, to: CivilDate): number {
+  const span = (yearOf(to) - yearOf(from)) * 12 + monthNumber(monthOf(to)) - monthNumber(monthOf(from))
+  return Math.max(0, dayMonthsLater(from, span) > to ? span - 1 : span)
 }

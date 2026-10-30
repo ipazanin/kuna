@@ -20,6 +20,11 @@ export function rateOfText(text: string): YearlyRate | null {
   return (Number(match[1]) * MILLIONTHS_PER_PERCENT + Number((match[2] ?? '').padEnd(4, '0'))) as YearlyRate
 }
 
+/** The rate typed with a dot or a comma, or null when it is not a percent with at most four decimals. */
+export function typedRate(text: string): YearlyRate | null {
+  return rateOfText(text.replace(',', '.'))
+}
+
 /** The rate as a fraction of one, such as 0.0318 for 3.18%. */
 export function fractionOf(rate: YearlyRate): number {
   return rate / MILLIONTHS_PER_WHOLE

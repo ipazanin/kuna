@@ -2,13 +2,22 @@ import type { BankLoan } from './bankLoan'
 import type { ExtraPayment } from './extraPayment'
 import type { InformalLoan } from './informalLoan'
 import type { LateInstalment } from './lateInstalment'
-import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, INFORMAL_LOAN_RECORDS, LATE_INSTALMENT_RECORDS, MOVEMENT_RECORDS, RATE_PERIOD_RECORDS } from './loanKinds'
+import {
+  BANK_LOAN_RECORDS,
+  EXTRA_PAYMENT_RECORDS,
+  INFORMAL_LOAN_RECORDS,
+  LATE_INSTALMENT_RECORDS,
+  LOAN_SCENARIO_RECORDS,
+  MOVEMENT_RECORDS,
+  RATE_PERIOD_RECORDS,
+  SCENARIO_CHANGE_RECORDS,
+} from './loanKinds'
 import type { Movement } from './movement'
 import type { RatePeriod } from './ratePeriod'
-import { loanPlan } from '../../bankLoans/domain/loanPlan'
+import { dueDateOf, loanPlan } from '../../bankLoans/domain/loanPlan'
 import type { PlanRow } from '../../bankLoans/domain/loanPlan'
+import type { LoanScenario, ScenarioChange } from '../../scenarios/domain/loanScenario'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { dayMonthsLater } from '../../../../shared/calendar/monthKey'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordKind, RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import { SHARED_ID_REASON, idSharing, problemOf, refusedProblems } from '../../../../shared/storage/domain/recordsRead'
@@ -24,6 +33,8 @@ export interface LoansRecords {
   readonly lateInstalments: RecordsRead<LateInstalment>
   readonly informalLoans: RecordsRead<InformalLoan>
   readonly movements: RecordsRead<Movement>
+  readonly loanScenarios: RecordsRead<LoanScenario>
+  readonly scenarioChanges: RecordsRead<ScenarioChange>
 }
 
 /** The kind each part of the records holds. */
@@ -34,6 +45,8 @@ export const LOAN_PARTS: { readonly [Part in keyof LoansRecords]: RecordKind<Loa
   lateInstalments: LATE_INSTALMENT_RECORDS,
   informalLoans: INFORMAL_LOAN_RECORDS,
   movements: MOVEMENT_RECORDS,
+  loanScenarios: LOAN_SCENARIO_RECORDS,
+  scenarioChanges: SCENARIO_CHANGE_RECORDS,
 }
 
 /** The records of every Loans kind, as `of` gives each kind. */
@@ -45,6 +58,8 @@ export function loansRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>): 
     lateInstalments: of(LOAN_PARTS.lateInstalments),
     informalLoans: of(LOAN_PARTS.informalLoans),
     movements: of(LOAN_PARTS.movements),
+    loanScenarios: of(LOAN_PARTS.loanScenarios),
+    scenarioChanges: of(LOAN_PARTS.scenarioChanges),
   }
 }
 
@@ -58,6 +73,12 @@ export interface BankLoanBook {
   readonly extraPayments: readonly ExtraPayment[]
   readonly lateInstalments: readonly LateInstalment[]
   readonly plan: readonly PlanRow[] | null
+}
+
+/** A scenario with the changes that name it, never counted as a loan. */
+export interface ScenarioBook {
+  readonly scenario: LoanScenario
+  readonly changes: readonly ScenarioChange[]
 }
 
 export interface InformalLoanBook {
@@ -74,6 +95,7 @@ export interface LoanProblem extends RecordProblem {
 export interface LoanBook {
   readonly bankLoans: readonly BankLoanBook[]
   readonly informalLoans: readonly InformalLoanBook[]
+  readonly scenarios: readonly ScenarioBook[]
   readonly readings: LoanReadings
   /** Every kind's problems, in the order of the kinds. */
   readonly problems: readonly LoanProblem[]
@@ -94,7 +116,7 @@ function readEach<R>(read: RecordsRead<R>, reasonsOf: (stored: ReadRecord<R>) =>
 
 /** The due date of each instalment of the loan as signed, on the first instalment's day of each month. */
 function dueDates(loan: BankLoan): Set<CivilDate> {
-  return new Set(Array.from({ length: loan.instalments }, (_, offset) => dayMonthsLater(loan.firstInstalment, offset)))
+  return new Set(Array.from({ length: loan.instalments }, (_, offset) => dueDateOf(loan, offset + 1)))
 }
 
 /** The pairs of a loan and a day, as `day` picks it, that more than one record of `read` holds. */
@@ -108,7 +130,9 @@ function sharingDay<R extends { readonly loan: RecordId }>(read: RecordsRead<R>,
  * its due dates, one of them at its first instalment, and no two on the same day, so they leave no
  * gap and do not overlap. A late instalment names a due date of its loan's plan, once. A bank loan
  * without a rate period at its first instalment counts but is doubted, since its plan cannot be
- * worked out.
+ * worked out. A scenario of a bank loan names one that counts, a scenario's change names a scenario
+ * that counts, and a scenario moves to another bank once at most. Whether a change falls on a due
+ * date waits until the scenario is worked out, so a write to a loan is never refused over one.
  */
 export function readLoanBook(records: LoansRecords): LoanBook {
   const bankLoanReading = readEach(records.bankLoans, () => [])
@@ -173,6 +197,18 @@ export function readLoanBook(records: LoansRecords): LoanBook {
     return movement.date < loan.start ? [words.beforeStart(movement.date, loan.name, loan.start)] : []
   })
 
+  const loanScenarios = readEach(records.loanScenarios, ({ record: scenario }) => (scenario.start.kind === 'loan' && !bankLoans.has(scenario.start.loan) ? [words.noBankLoan] : []))
+  const scenarios = new Map(loanScenarios.facts.map((scenario) => [scenario.id, scenario]))
+  const movingTwice = sharedKeys(
+    records.scenarioChanges.records.filter((stored) => stored.record.kind === 'move'),
+    (stored) => stored.record.scenario,
+  )
+  const scenarioChanges = readEach(records.scenarioChanges, ({ record: change }) => {
+    const scenario = scenarios.get(change.scenario)
+    if (scenario === undefined) return [words.noScenario]
+    return change.kind === 'move' && movingTwice.has(change.scenario) ? [words.secondMove(scenario.name)] : []
+  })
+
   const readings: LoanReadings = {
     bankLoans: { facts: bankLoanReading.facts, problems: [...bankLoanReading.problems, ...unplanned] },
     ratePeriods,
@@ -180,6 +216,8 @@ export function readLoanBook(records: LoansRecords): LoanBook {
     lateInstalments,
     informalLoans: informalLoanReading,
     movements,
+    loanScenarios,
+    scenarioChanges,
   }
   return {
     bankLoans: bankLoanReading.facts.map((loan) => ({
@@ -190,6 +228,7 @@ export function readLoanBook(records: LoansRecords): LoanBook {
       plan: plans.get(loan.id) ?? null,
     })),
     informalLoans: informalLoanReading.facts.map((loan) => ({ loan, movements: movements.facts.filter((movement) => movement.loan === loan.id) })),
+    scenarios: loanScenarios.facts.map((scenario) => ({ scenario, changes: scenarioChanges.facts.filter((change) => change.scenario === scenario.id) })),
     readings,
     problems: (Object.keys(LOAN_PARTS) as (keyof LoansRecords)[]).flatMap((part) =>
       readings[part].problems.map((problem) => ({ kind: LOAN_PARTS[part].name, noun: LOAN_PARTS[part].noun, ...problem })),

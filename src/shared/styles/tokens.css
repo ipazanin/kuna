@@ -210,6 +210,15 @@
   --loan-band-3: var(--series-6);
 
   /*
+   * The four scenarios a comparison draws, A to D, the only four that pass the palette check
+   * together in both themes. Two pairs sit in its warning band, so every mark carries its letter.
+   */
+  --scenario-1: var(--loan-ahead);
+  --scenario-2: var(--series-3);
+  --scenario-3: var(--series-5);
+  --scenario-4: var(--series-6);
+
+  /*
    * Ink inside a filled mark. It keeps at least 3:1 on every swatch in both themes, enough for an
    * icon or large text. Small text needs 4.5:1, which Blue (4.1:1), Dark green (3.7:1) and Violet
    * (3.2:1) miss in the light theme and Dark green misses in the dark one.

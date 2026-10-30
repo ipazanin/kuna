@@ -31,3 +31,6 @@ export interface BankLoan {
   readonly subsidy: LoanSubsidy | null
   readonly note: string
 }
+
+/** The terms a bank loan shares with an offer you are weighing. */
+export type LoanTerms = Pick<BankLoan, 'lender' | 'principal' | 'drawdown' | 'firstInstalment' | 'instalments' | 'interimInterest' | 'subsidy'>

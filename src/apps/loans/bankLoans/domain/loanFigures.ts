@@ -1,3 +1,4 @@
+import { dueDateOf } from './loanPlan'
 import type { PlanRow } from './loanPlan'
 import type { BankLoan } from '../../workbook/domain/bankLoan'
 import type { LateInstalment } from '../../workbook/domain/lateInstalment'
@@ -155,7 +156,16 @@ export function isEstimate(row: PlanRow, periods: readonly RatePeriod[], day: Ci
   return row.kind === 'instalment' && row.date > day && ratePeriodOn(periods, row.date)?.rateType === 'variable'
 }
 
+/** How long after the subsidy's last covered instalment repaying early still means paying the subsidy back, by the APN loan contract. */
+const SUBSIDY_REPAID_WITHIN_MONTHS = 24
+
 /** The due date of the last instalment the subsidy covers, as the loan was signed. */
 export function subsidyLastCovered(loan: BankLoan): CivilDate | null {
-  return loan.subsidy === null ? null : dayMonthsLater(loan.firstInstalment, loan.subsidy.firstInstalment + loan.subsidy.instalments - 2)
+  return loan.subsidy === null ? null : dueDateOf(loan, loan.subsidy.firstInstalment + loan.subsidy.instalments - 1)
+}
+
+/** The last day on which repaying early means paying the subsidy back, or null for a loan without a subsidy. */
+export function subsidyRepaidUntil(loan: BankLoan): CivilDate | null {
+  const lastCovered = subsidyLastCovered(loan)
+  return lastCovered === null ? null : dayMonthsLater(lastCovered, SUBSIDY_REPAID_WITHIN_MONTHS)
 }

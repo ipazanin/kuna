@@ -1,5 +1,7 @@
 import { MOVEMENT_KINDS } from './movement'
 import type { MovementKind } from './movement'
+import { SCENARIO_CHANGE_KINDS } from '../../scenarios/domain/loanScenario'
+import type { LoanChange } from '../../scenarios/domain/loanScenario'
 import { fractionOf, rateOfText, rateText } from '../../bankLoans/domain/yearlyRate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -35,14 +37,20 @@ function isMovementKind(text: string): text is MovementKind {
   return (MOVEMENT_KINDS as readonly string[]).includes(text)
 }
 
+function isChangeKind(text: string): text is LoanChange['kind'] {
+  return (SCENARIO_CHANGE_KINDS as readonly string[]).includes(text)
+}
+
 export const en = {
   kinds: { borrowed: 'Borrowed', 'borrowed-in-kind': 'Borrowed in kind', repaid: 'Repaid', 'repaid-in-kind': 'Repaid in kind', forgiven: 'Forgiven' },
+  changeKinds: { 'extra-payment': 'Extra payment', 'regular-extra-payment': 'Regular extra payment', 'rate-change': 'Rate change', move: 'Move to another bank' },
   /** The words that name a record of each kind, as its stored fields read. */
   labels: {
     movement: (fields: StoredFields) => labelWords([dayText(fields.date), textOf(fields.kind), numberText(fields.amount)]),
     ratePeriod: (fields: StoredFields) => labelWords([percentText(textOf(fields.rate)), labelled('from', dayText(fields.from))]),
     extraPayment: (fields: StoredFields) => labelWords([dayText(fields.date), numberText(fields.amount)]),
     lateInstalment: (fields: StoredFields) => labelWords([labelled('due', dayText(fields.due)), labelled('paid', dayText(fields.paid))]),
+    scenarioChange: (fields: StoredFields) => labelWords([textOf(fields.change), dayText(fields.date)]),
   },
   notACount: (name: string, text: string) => `${name} "${text}" is not a whole number above zero`,
   interimOutside: (date: CivilDate, drawdown: CivilDate, firstInstalment: CivilDate) => `interim_interest_date ${date} is not from the drawdown ${drawdown} to the first instalment ${firstInstalment}`,
@@ -51,7 +59,7 @@ export const en = {
   subsidyPastEnd: (last: number) => `the subsidy runs past instalment ${last}, the loan's last`,
   firstNotAfterDrawdown: (firstInstalment: CivilDate, drawdown: CivilDate) => `first_instalment ${firstInstalment} is not after the drawdown ${drawdown}`,
   tooManyInstalments: (most: number) => `more than ${most} instalments`,
-  notARate: (text: string) => `rate "${text}" is not a yearly percent with at most four decimals, such as 3.18`,
+  notARate: (name: string, text: string) => `${name} "${text}" is not a yearly percent with at most four decimals, such as 3.18`,
   paidNotAfterDue: (paid: CivilDate, due: CivilDate) => `paid ${paid} is not after the due date ${due}`,
   openingBelowZero: 'opening_balance is below zero',
   noBankLoan: 'names no bank loan in the file',
@@ -63,10 +71,15 @@ export const en = {
   noPlan: (firstInstalment: CivilDate) => `no rate period starts at its first instalment on ${firstInstalment}, so its plan cannot be worked out`,
   lateSharesDue: (loan: string, due: CivilDate) => `another late instalment of "${loan}" names the due date ${due} too`,
   beforeStart: (date: CivilDate, loan: string, start: CivilDate) => `date ${date} is before "${loan}" starts on ${start}`,
+  costBelowZero: (name: string) => `${name} is below zero`,
+  offerFieldsOnLoan: (names: string) => `a scenario of a bank loan holds no offer terms, but it fills ${names}`,
+  noScenario: 'names no scenario in the file',
+  secondMove: (scenario: string) => `another change of "${scenario}" is a move too, and a scenario moves once`,
 }
 
 export const hr: Translation<typeof en> = {
   kinds: { borrowed: 'Posuđeno', 'borrowed-in-kind': 'Posuđeno u naravi', repaid: 'Vraćeno', 'repaid-in-kind': 'Vraćeno u naravi', forgiven: 'Oprošteno' },
+  changeKinds: { 'extra-payment': 'Prijevremena otplata', 'regular-extra-payment': 'Redovita prijevremena otplata', 'rate-change': 'Promjena kamatne stope', move: 'Prelazak u drugu banku' },
   labels: {
     movement: (fields) => {
       const kind = textOf(fields.kind)
@@ -79,6 +92,10 @@ export const hr: Translation<typeof en> = {
     },
     extraPayment: (fields) => labelWords([dayInWords(fields.date), moneyInWords(fields.amount)]),
     lateInstalment: (fields) => labelWords([labelled('dospijeće', dayInWords(fields.due)), labelled('plaćeno', dayInWords(fields.paid))]),
+    scenarioChange: (fields) => {
+      const kind = textOf(fields.change)
+      return labelWords([isChangeKind(kind) ? hr.changeKinds[kind].toLowerCase() : kind, dayInWords(fields.date)])
+    },
   },
   notACount: (name, text) => `${name} „${text}” nije cijeli broj veći od nule`,
   interimOutside: (date, drawdown, firstInstalment) => `interim_interest_date ${dayLabel(date)} nije između isplate ${dayLabel(drawdown)} i prvog anuiteta ${dayLabel(firstInstalment)}`,
@@ -87,7 +104,7 @@ export const hr: Translation<typeof en> = {
   subsidyPastEnd: (last) => `subvencija traje dulje od ${last}. anuiteta, posljednjeg anuiteta kredita`,
   firstNotAfterDrawdown: (firstInstalment, drawdown) => `first_instalment ${dayLabel(firstInstalment)} nije nakon isplate ${dayLabel(drawdown)}`,
   tooManyInstalments: (most) => `više od ${most} anuiteta`,
-  notARate: (text) => `rate „${text}” nije godišnji postotak s najviše četiri decimale, na primjer 3.18`,
+  notARate: (name, text) => `${name} „${text}” nije godišnji postotak s najviše četiri decimale, na primjer 3.18`,
   paidNotAfterDue: (paid, due) => `paid ${dayLabel(paid)} nije nakon dospijeća ${dayLabel(due)}`,
   openingBelowZero: 'opening_balance je manji od nule',
   noBankLoan: 'u datoteci nema kredita koji navodi',
@@ -99,6 +116,10 @@ export const hr: Translation<typeof en> = {
   noPlan: (firstInstalment) => `nijedno razdoblje kamatne stope ne počinje s prvim anuitetom ${dayLabel(firstInstalment)}, pa se otplatni plan ne može izračunati`,
   lateSharesDue: (loan, due) => `i drugi zakašnjeli anuitet kredita „${loan}” navodi dospijeće ${dayLabel(due)}`,
   beforeStart: (date, loan, start) => `datum ${dayLabel(date)} je prije početka pozajmice „${loan}” ${dayLabel(start)}`,
+  costBelowZero: (name) => `polje ${name} je manje od nule`,
+  offerFieldsOnLoan: (names) => `scenarij kredita nema uvjete ponude, a popunjeno je: ${names}`,
+  noScenario: 'u datoteci nema scenarija koji navodi',
+  secondMove: (scenario) => `i druga promjena scenarija „${scenario}” je prelazak u drugu banku, a scenarij ima najviše jedan`,
 }
 
 export const words = language === 'hr' ? hr : en

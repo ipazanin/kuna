@@ -1,6 +1,5 @@
 <script lang="ts">
-import type { YearlyRate } from '../domain/yearlyRate'
-import { rateOfText } from '../domain/yearlyRate'
+import { typedRate } from '../domain/yearlyRate'
 import type { RatePeriod } from '../../workbook/domain/ratePeriod'
 import { words as loansWords } from '../../words'
 import { words } from './words'
@@ -9,11 +8,6 @@ export interface RateTexts {
   rate: string
   rateType: RatePeriod['rateType']
   note: string
-}
-
-/** The rate typed with a dot or a comma, or null when it is not a percent with at most four decimals. */
-export function typedRate(text: string): YearlyRate | null {
-  return rateOfText(text.replace(',', '.'))
 }
 
 export function rateError(texts: RateTexts): string | null {

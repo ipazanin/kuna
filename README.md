@@ -2126,9 +2126,10 @@ period starts on a due date picked from a list, a late instalment names an insta
 and the day it was paid, and an extra payment says whether the term or the instalment changes.
 Every save shows a toast with Undo, through the same `useRecordWrites` as the company's screens.
 
-The file holds six kinds, each record with a version 4 UUID in `id`. A record that belongs to a loan
+The file holds eight kinds, each record with a version 4 UUID in `id`. A record that belongs to a loan
 names it by that loan's bare UUID in `loan`, and is reported and left out when the file has no loan of
-the right kind with that id, or when its date falls before the loan starts.
+the right kind with that id, or when its date falls before the loan starts. A scenario's change names
+its scenario the same way in `scenario`.
 
 | Kind              | Fields                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -2138,6 +2139,8 @@ the right kind with that id, or when its date falls before the loan starts.
 | `late-instalment` | `loan`, `due` (a due date of the loan's plan, once per loan) and `paid` (after it). It changes when the instalment counts as paid, not the plan.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `informal-loan`   | `name`, `counterparty`, `direction` (`you-owe` or `owed-to-you`), `opening_balance` (zero or more), `start` and `note`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `movement`        | `loan`, `date`, `kind` (`borrowed`, `borrowed-in-kind`, `repaid`, `repaid-in-kind` or `forgiven`), `amount` (above zero) and `note`. The two borrowing kinds raise what is owed and the others lower it, and a balance below zero means the other side owes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `loan-scenario`   | `name` and `loan`, the bank loan it changes, blank for an offer you are weighing. An offer has the bank loan's terms, `lender` to `subsidy_payer` with the same rules, the optional `upfront_costs`, `monthly_costs` and `yearly_costs` (zero or more, blank for none) and the optional `bank_eks`, the effective rate the bank printed, as a rate period's `rate`. A scenario of a loan with any offer field, or an offer missing a term, is refused.                                                                                                                                                                                                                                                                                                           |
+| `scenario-change` | `scenario`, `change` and `date`, the day it takes effect. An `extra-payment` has `amount` and `effect` as an extra payment does. A `regular-extra-payment` has `date` for its first payment, `every` (`month` or `year`), the optional `until`, `amount` and `effect`. A `rate-change` has `rate` and `rate_type`. A `move` to another bank has `lender`, `rate`, `rate_type`, `instalments` and the three cost fields. A scenario has one `move` at most.                                                                                                                                                                                                                                                                                                       |
 
 A bank loan's plan is worked out from its terms each time the file is read, in whole cents, and never
 stored. The first instalment is the annuity of the principal over every instalment, rounded to the
@@ -2147,9 +2150,27 @@ over the instalments left, so the loan still ends when it would have. An extra p
 balance on its date, after an instalment due that day, and recomputes the instalment or shortens the
 plan as its effect says. The last instalment takes what is left. The subsidy pays its monthly amount
 of each instalment it covers, the whole instalment when that is less, and leaves principal, interest
-and balance alone. Deleting a loan deletes the records that name it in the same write, so one Undo
-puts them all back. A write that would leave out a record of another kind that counts, or give it a
+and balance alone. Deleting a loan deletes the records that name it, its scenarios with their
+changes too, in the same write, so one Undo puts them all back. A write that would leave out a record of another kind that counts, or give it a
 new problem, is refused.
+
+A scenario is a bank loan's own terms with some changes, or an offer's terms, worked out by the same
+plan engine in `src/apps/loans/scenarios/domain/` and never stored. A loan's scenario is compared from
+today: a change dated on or before today counts from the first due date after it, and a regular extra
+payment drops its payments by then, so the past is the same in every scenario. A rate change starts
+on a due date of the loan it applies to. A move happens after the instalment due on its day, and a
+new loan drawn that day for what is still owed takes over, its first instalment a month later, with
+no interim interest and no subsidy, and the changes after the move apply to it. Costs are paid on
+their dates and never borrowed: the one-off amount at the drawdown or the move, the monthly amount
+with every interim interest and instalment, and the yearly amount once per started year of
+instalments. What you pay in all is principal, interest, extra payments and costs, less what the
+subsidy pays, and "interest saved" counts the interest you pay, so What if I pay extra no longer
+claims what the subsidy would have paid. A move's costs are paid back by the first month end by which
+you have paid no more than without it. Kuna's estimate of an offer's effective rate (EKS) solves the
+EU equation with months over 12 and the days left over 365, rounded to two decimals, and leaves the
+subsidy out as the bank does. With a savings rate, each scenario's figure against the base adds
+everything paid up to the earliest payoff, grown monthly at that rate, to what it still owes then.
+Scenarios and offers are never counted as loans on the Overview, its tiles or the home card.
 
 Its first run at `#/loans/start` asks where the file lives: a new file on Google Drive, through a
 folder step like the company's, a new file in this browser, made at once, or the file another device

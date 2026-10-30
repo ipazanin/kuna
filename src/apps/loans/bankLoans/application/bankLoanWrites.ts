@@ -1,8 +1,9 @@
+import { removeScenario } from '../../scenarios/application/scenarioWrites'
 import { bookWith, dependentRefusals } from '../../workbook/application/loanWriteGuards'
 import type { BankLoan } from '../../workbook/domain/bankLoan'
 import type { ExtraPayment } from '../../workbook/domain/extraPayment'
 import type { LateInstalment } from '../../workbook/domain/lateInstalment'
-import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, LATE_INSTALMENT_RECORDS, RATE_PERIOD_RECORDS } from '../../workbook/domain/loanKinds'
+import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, LATE_INSTALMENT_RECORDS, LOAN_SCENARIO_RECORDS, RATE_PERIOD_RECORDS, SCENARIO_CHANGE_RECORDS } from '../../workbook/domain/loanKinds'
 import type { RatePeriod } from '../../workbook/domain/ratePeriod'
 import type { LoansRecords } from '../../workbook/domain/readLoanBook'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
@@ -12,13 +13,13 @@ import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 /** Every bank loan kind, since the plan that a late instalment's due date must be on reads them all. */
 const BANK_LOAN_KINDS = [BANK_LOAN_RECORDS, RATE_PERIOD_RECORDS, EXTRA_PAYMENT_RECORDS, LATE_INSTALMENT_RECORDS]
 
-/** A bank loan keeps the rate periods, extra payments and late instalments that name it. */
+/** A bank loan keeps the rate periods, extra payments, late instalments and scenarios that name it. */
 export const BANK_LOAN_WRITES: WriteRules<BankLoan> = {
   kind: BANK_LOAN_RECORDS,
-  reads: BANK_LOAN_KINDS,
+  reads: [...BANK_LOAN_KINDS, LOAN_SCENARIO_RECORDS, SCENARIO_CHANGE_RECORDS],
   undoable: true,
   read: (read, records) => bookWith(BANK_LOAN_RECORDS, read, records).readings.bankLoans,
-  refusals: (_change, fresh, after) => dependentRefusals(['ratePeriods', 'extraPayments', 'lateInstalments'], fresh, after),
+  refusals: (_change, fresh, after) => dependentRefusals(['ratePeriods', 'extraPayments', 'lateInstalments', 'loanScenarios'], fresh, after),
 }
 
 /** A rate period leaves its loan with a rate from its first instalment, and keeps the due dates late instalments name. */
@@ -47,12 +48,13 @@ export const LATE_INSTALMENT_WRITES: WriteRules<LateInstalment> = {
   refusals: () => [],
 }
 
-/** Deletes the bank loan and every record that names it in one write, so one Undo puts them all back. */
+/** Deletes the bank loan and every record that names it, its scenarios' changes too, in one write, so one Undo puts them all back. */
 export function removeBankLoan(unit: UnitOfWork, records: LoansRecords, loan: BankLoan): void {
   unit.of(BANK_LOAN_WRITES).remove(loan)
   records.ratePeriods.records.filter((stored) => stored.record.loan === loan.id).forEach((stored) => unit.of(RATE_PERIOD_WRITES).remove(stored.record))
   records.extraPayments.records.filter((stored) => stored.record.loan === loan.id).forEach((stored) => unit.of(EXTRA_PAYMENT_WRITES).remove(stored.record))
   records.lateInstalments.records.filter((stored) => stored.record.loan === loan.id).forEach((stored) => unit.of(LATE_INSTALMENT_WRITES).remove(stored.record))
+  records.loanScenarios.records.filter((stored) => stored.record.start.kind === 'loan' && stored.record.start.loan === loan.id).forEach((stored) => removeScenario(unit, records, stored.record))
 }
 
 /** A new bank loan from its typed terms, its text trimmed, with an id of its own. */

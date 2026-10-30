@@ -42,8 +42,7 @@ const typed = computed(() => {
 
 const result = computed(() => {
   const tried = typed.value
-  if (tried === null || props.book.plan === null) return null
-  return whatIfExtraPayment(props.book.loan, props.book.ratePeriods, props.book.extraPayments, tried.date, tried.amount)
+  return tried === null ? null : whatIfExtraPayment(props.book, tried.date, tried.amount)
 })
 
 const shorter = computed(() => result.value?.outcomes.find((outcome) => outcome.effect === 'shorter-term') ?? null)

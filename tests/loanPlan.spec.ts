@@ -17,7 +17,7 @@ import {
 } from '../src/apps/loans/bankLoans/domain/loanFigures'
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
 import type { PlanRow } from '../src/apps/loans/bankLoans/domain/loanPlan'
-import { annuity, monthlyInterest, rateOfText, rateText } from '../src/apps/loans/bankLoans/domain/yearlyRate'
+import { annuity, monthlyInterest, rateOfText, rateText, typedRate } from '../src/apps/loans/bankLoans/domain/yearlyRate'
 import { sumMoney } from '../src/shared/money/money'
 import { civil, euros } from './fixtures/ledger'
 import { bankLoan, extraPayment, lateInstalment, percent, ratePeriod } from './fixtures/loans'
@@ -46,6 +46,12 @@ describe('yearly rates', () => {
     expect(rateOfText('')).toBeNull()
   })
 
+  it('takes a typed rate with a dot or a decimal comma', () => {
+    expect(typedRate('3,18')).toBe(31_800)
+    expect(typedRate('3.18')).toBe(31_800)
+    expect(typedRate('3,18%')).toBeNull()
+  })
+
   it("works out a month's interest and an annuity to the cent", () => {
     // 100,000.00 × 3.18% / 12 = 265.00. 1,200.00 × 12% / 12 = 12.00.
     expect(monthlyInterest(euros(100_000), percent('3.18'))).toBe(euros(265))
@@ -70,6 +76,31 @@ describe("a bank loan's plan", () => {
     // 359 × 431.37 + 433.57 − 100,000.00 = 55,295.40, the total interest HPB prints.
     expect(sumMoney(plan.map((row) => row.interest))).toBe(euros(55_295.4))
     expect(sumMoney(plan.map((row) => row.principal))).toBe(euros(100_000))
+  })
+
+  // HPB's 2025 fixed-rate housing loan terms print four representative examples: 120,000.00 drawn on 1 January,
+  // a month of interim interest on 1 February and 360 instalments from 1 March.
+  it.each([
+    ['2.89', 289, 498.83, 59_580.75],
+    ['3.09', 309, 511.77, 64_235.92],
+    ['3.49', 349, 538.18, 73_747.32],
+    ['3.69', 369, 551.66, 78_598.28],
+  ])("reproduces HPB's 2025 example at %s%%: its interim interest, instalment and interest over the term", (rate, interim, instalment, interest) => {
+    // The interim interest is one month at the yearly rate over 12, such as 120,000.00 × 2.89% / 12 = 289.00.
+    const loan = bankLoan({
+      principal: euros(120_000),
+      drawdown: civil('2025-01-01'),
+      firstInstalment: civil('2025-03-01'),
+      instalments: 360,
+      interimInterest: { amount: euros(interim), date: civil('2025-02-01') },
+    })
+    const plan = loanPlan(loan, [ratePeriod(loan, '2025-03-01', rate)], [])
+    const instalments = plan.filter((row) => row.kind === 'instalment')
+
+    expect(plan[0]).toMatchObject({ kind: 'interim-interest', interest: euros(interim) })
+    expect(instalments[0]!.payment).toBe(euros(instalment))
+    expect(sumMoney(instalments.map((row) => row.interest))).toBe(euros(interest))
+    expect(instalments).toHaveLength(360)
   })
 
   it('puts the interim interest the bank charged before the first instalment, leaving the balance alone', () => {

@@ -95,6 +95,9 @@ import { yearOfMonth } from '../src/shared/calendar/monthKey.ts'
 import { setMoneyFormat } from '../src/shared/money/moneyFormat.ts'
 import { paidSoFar, paymentsByYear, splitOfRows } from '../src/apps/loans/bankLoans/domain/loanFigures.ts'
 import { whatIfExtraPayment } from '../src/apps/loans/bankLoans/domain/whatIf.ts'
+import { offerEks } from '../src/apps/loans/scenarios/domain/effectiveRate.ts'
+import { moveBreakEven, scenarioOutcome } from '../src/apps/loans/scenarios/domain/scenarioOutcome.ts'
+import { scenarioBaseOf, scenarioPlan } from '../src/apps/loans/scenarios/domain/scenarioPlan.ts'
 import { bankLoanFigures, bankLoanMonths, planYears } from '../src/apps/loans/bankLoans/presentation/bankLoanView.ts'
 import { informalBalances } from '../src/apps/loans/informalLoans/domain/informalBalance.ts'
 import { informalLoanFigures, informalLoanMonths, movementLines } from '../src/apps/loans/informalLoans/presentation/informalLoanView.ts'
@@ -282,7 +285,9 @@ if (loansAsked) {
 /**
  * The Loans groups: the records and problems, then per loan, named by its place in the file and never
  * by its name, the plan or the balances and the figures each screen shows on the day. The what-if
- * tries 1,000.00 extra on the day. The totals are the Overview's figures over every loan.
+ * tries 1,000.00 extra on the day. The totals are the Overview's figures over every loan. Each scenario
+ * is worked out from the day, an offer over its whole loan, with a move's break-even month and an
+ * offer's effective rate.
  */
 function loansGroups(add) {
   const document = options.loans === undefined ? fakeLoansDocument(AT, options['fake-loans']) : decodeDocument(readFileSync(options.loans, 'utf8'))
@@ -296,7 +301,23 @@ function loansGroups(add) {
     add(`${at}.years`, () => planYears(book, today))
     add(`${at}.payments`, () => book.plan && [...paymentsByYear(book.plan), splitOfRows(book.plan)])
     add(`${at}.months`, () => bankLoanMonths(book))
-    add(`${at}.what-if`, () => whatIfExtraPayment(book.loan, book.ratePeriods, book.extraPayments, today, moneyFromAmount(1000)))
+    add(`${at}.what-if`, () => whatIfExtraPayment(book, today, moneyFromAmount(1000)))
+  }
+  for (const [index, { scenario, changes }] of workbook.scenarios.entries()) {
+    const at = `loans.scenario-${index + 1}`
+    const base = scenarioBaseOf(scenario, workbook.bankLoans)
+    const from = scenario.start.kind === 'loan' ? today : null
+    const plan = base && scenarioPlan(base, changes, from)
+    add(`${at}.plan`, plan)
+    add(`${at}.outcome`, () => {
+      if (plan === null || 'refused' in plan) return null
+      const withoutMove = scenarioPlan(
+        base,
+        changes.filter((change) => change.kind !== 'move'),
+        from,
+      )
+      return [scenarioOutcome(plan, from), 'refused' in withoutMove ? withoutMove : moveBreakEven(plan, withoutMove), scenario.start.kind === 'offer' ? offerEks(base, changes) : null]
+    })
   }
   for (const [index, book] of workbook.informalLoans.entries()) {
     const at = `loans.informal-loan-${index + 1}`

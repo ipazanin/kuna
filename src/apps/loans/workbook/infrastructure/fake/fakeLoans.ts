@@ -4,7 +4,17 @@ import type { BankLoan } from '../../domain/bankLoan'
 import type { ExtraPayment } from '../../domain/extraPayment'
 import type { InformalLoan } from '../../domain/informalLoan'
 import type { LateInstalment } from '../../domain/lateInstalment'
-import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, INFORMAL_LOAN_RECORDS, LATE_INSTALMENT_RECORDS, MOVEMENT_RECORDS, RATE_PERIOD_RECORDS } from '../../domain/loanKinds'
+import type { LoanChange, LoanScenario, ScenarioChange } from '../../../scenarios/domain/loanScenario'
+import {
+  BANK_LOAN_RECORDS,
+  EXTRA_PAYMENT_RECORDS,
+  INFORMAL_LOAN_RECORDS,
+  LATE_INSTALMENT_RECORDS,
+  LOAN_SCENARIO_RECORDS,
+  MOVEMENT_RECORDS,
+  RATE_PERIOD_RECORDS,
+  SCENARIO_CHANGE_RECORDS,
+} from '../../domain/loanKinds'
 import type { Movement } from '../../domain/movement'
 import type { RatePeriod } from '../../domain/ratePeriod'
 import { emptyLoansDocument } from '../loansDocument'
@@ -86,6 +96,74 @@ const MOVEMENTS: readonly Movement[] = (
   ] as const
 ).map(([date, kind, amount, note], index) => ({ id: fixedId(MOVEMENT_RECORDS, 7 + index), loan: FROM_MARKO.id, date: day(date), kind, amount: euros(amount), note }))
 
+/**
+ * Three made-up scenarios of the home loan, an extra payment inside the subsidy's payback window, a
+ * regular one and a move to another bank after the last fixed-rate instalment, and two made-up offers, one fixed
+ * with a printed EKS and one fixed for five years and variable after.
+ */
+const NEXT_SPRING: LoanScenario = { id: fixedId(LOAN_SCENARIO_RECORDS, 20), name: '€5,000 next spring', start: { kind: 'loan', loan: HOME_LOAN.id } }
+const EVERY_MONTH: LoanScenario = { id: fixedId(LOAN_SCENARIO_RECORDS, 21), name: '€150 every month', start: { kind: 'loan', loan: HOME_LOAN.id } }
+const MOVE: LoanScenario = { id: fixedId(LOAN_SCENARIO_RECORDS, 22), name: 'Move to Jadran Bank', start: { kind: 'loan', loan: HOME_LOAN.id } }
+
+const JADRAN: LoanScenario = {
+  id: fixedId(LOAN_SCENARIO_RECORDS, 23),
+  name: 'Jadran Bank offer',
+  start: {
+    kind: 'offer',
+    terms: {
+      lender: 'Jadran Bank',
+      principal: euros(140_000),
+      drawdown: day('2026-12-01'),
+      firstInstalment: day('2027-01-01'),
+      instalments: 300,
+      interimInterest: null,
+      subsidy: null,
+      costs: { upfront: euros(800), monthly: euros(0), yearly: euros(35) },
+      bankEks: rate('3.09'),
+    },
+  },
+}
+
+const COASTAL: LoanScenario = {
+  id: fixedId(LOAN_SCENARIO_RECORDS, 24),
+  name: 'Coastal Bank offer',
+  start: {
+    kind: 'offer',
+    terms: {
+      lender: 'Coastal Bank',
+      principal: euros(140_000),
+      drawdown: day('2026-12-10'),
+      firstInstalment: day('2027-01-10'),
+      instalments: 360,
+      interimInterest: { amount: euros(373.33), date: day('2027-01-10') },
+      subsidy: null,
+      costs: { upfront: euros(0), monthly: euros(2), yearly: euros(0) },
+      bankEks: null,
+    },
+  },
+}
+
+function changeOf(place: number, scenario: LoanScenario, change: LoanChange): ScenarioChange {
+  return { ...change, id: fixedId(SCENARIO_CHANGE_RECORDS, place), scenario: scenario.id }
+}
+
+const SCENARIO_CHANGES: readonly ScenarioChange[] = [
+  changeOf(25, NEXT_SPRING, { kind: 'extra-payment', date: day('2027-04-20'), amount: euros(5000), effect: 'shorter-term' }),
+  changeOf(26, EVERY_MONTH, { kind: 'regular-extra-payment', from: day('2027-01-20'), every: 'month', until: null, amount: euros(150), effect: 'shorter-term' }),
+  changeOf(27, MOVE, {
+    kind: 'move',
+    on: day('2028-03-20'),
+    lender: 'Jadran Bank',
+    rate: rate('2.9'),
+    rateType: 'fixed',
+    instalments: 240,
+    costs: { upfront: euros(1500), monthly: euros(0), yearly: euros(0) },
+  }),
+  changeOf(28, JADRAN, { kind: 'rate-change', from: day('2027-01-01'), rate: rate('2.95'), rateType: 'fixed' }),
+  changeOf(29, COASTAL, { kind: 'rate-change', from: day('2027-01-10'), rate: rate('3.2'), rateType: 'fixed' }),
+  changeOf(30, COASTAL, { kind: 'rate-change', from: day('2032-01-10'), rate: rate('3.6'), rateType: 'variable' }),
+]
+
 function stored<R>(kind: RecordKind<R>, records: readonly R[]): WorkbookDocument['records'] {
   const codec = codecOfLoansKind(kind)
   return { [kind.name]: records.map((record) => codec.fieldsOf(record)) }
@@ -110,7 +188,7 @@ const CAR_RATE_PERIODS: readonly RatePeriod[] = [{ id: fixedId(RATE_PERIOD_RECOR
 /** The fake build's made-up Loans files: `sample` with a bank loan and an informal loan, `one-loan` with the bank loan alone, and `house-and-car` with the home loan and a car loan. */
 export type FakeLoansSet = 'sample' | 'one-loan' | 'house-and-car'
 
-/** The Loans file of the set, which the fake build keeps on the fake Drive. Every figure in it is made up. */
+/** The Loans file of the set, which the fake build keeps on the fake Drive. Every figure in it is made up, and its scenarios and offers are never counted as loans. */
 export function fakeLoansDocument(savedAt: string, set: FakeLoansSet = 'sample'): WorkbookDocument {
   const withInformalLoan = set === 'sample'
   const withCar = set === 'house-and-car'
@@ -123,6 +201,8 @@ export function fakeLoansDocument(savedAt: string, set: FakeLoansSet = 'sample')
       ...stored(LATE_INSTALMENT_RECORDS, LATE_INSTALMENTS),
       ...stored(INFORMAL_LOAN_RECORDS, withInformalLoan ? [FROM_MARKO] : []),
       ...stored(MOVEMENT_RECORDS, withInformalLoan ? MOVEMENTS : []),
+      ...stored(LOAN_SCENARIO_RECORDS, [NEXT_SPRING, EVERY_MONTH, MOVE, JADRAN, COASTAL]),
+      ...stored(SCENARIO_CHANGE_RECORDS, SCENARIO_CHANGES),
     },
   }
 }

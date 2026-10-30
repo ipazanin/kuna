@@ -1,8 +1,9 @@
-import type { BankLoan, InterimInterest, LoanSubsidy } from './bankLoan'
+import type { BankLoan, InterimInterest, LoanSubsidy, LoanTerms } from './bankLoan'
 import { BANK_LOAN_RECORDS } from './loanKinds'
 import { labelWords, withIdField } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
+import type { FieldValue } from '../../../../shared/storage/domain/recordFields'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { optionalDate, optionalMoney, ownId, positiveMoney, refuse, requiredDate, textOf, wholeNumberOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
@@ -43,18 +44,34 @@ function subsidyOf(fields: StoredFields, instalments: number): LoanSubsidy | nul
   return { monthly, firstInstalment, instalments: count, payer }
 }
 
-export function bankLoanOf(fields: StoredFields, id: RecordId | null): BankLoan {
-  const name = textOf(fields.name)
-  if (name === '') refuse(storedWords.reasons.none('name', ''))
+/** The names of the fields the terms are kept in, on a bank loan and on an offer. */
+export const LOAN_TERM_FIELDS = [
+  'lender',
+  'principal',
+  'drawdown',
+  'first_instalment',
+  'instalments',
+  'interim_interest',
+  'interim_interest_date',
+  'subsidy_monthly',
+  'subsidy_first_instalment',
+  'subsidy_instalments',
+  'subsidy_payer',
+] as const
+
+/** A number of monthly instalments, from one to fifty years of them. */
+export function instalmentsOf(fields: StoredFields, name: string): number {
+  const instalments = countOf(fields, name) ?? refuse(storedWords.reasons.none(name, ''))
+  return instalments > MOST_INSTALMENTS ? refuse(words.tooManyInstalments(MOST_INSTALMENTS)) : instalments
+}
+
+export function loanTermsOf(fields: StoredFields): LoanTerms {
   const principal = positiveMoney(fields, 'principal')
   const drawdown = requiredDate(fields, 'drawdown')
   const firstInstalment = requiredDate(fields, 'first_instalment')
   if (firstInstalment <= drawdown) refuse(words.firstNotAfterDrawdown(firstInstalment, drawdown))
-  const instalments = countOf(fields, 'instalments') ?? refuse(storedWords.reasons.none('instalments', ''))
-  if (instalments > MOST_INSTALMENTS) refuse(words.tooManyInstalments(MOST_INSTALMENTS))
+  const instalments = instalmentsOf(fields, 'instalments')
   return {
-    id: ownId(id),
-    name,
     lender: textOf(fields.lender),
     principal,
     drawdown,
@@ -62,28 +79,34 @@ export function bankLoanOf(fields: StoredFields, id: RecordId | null): BankLoan 
     instalments,
     interimInterest: interimInterestOf(fields, drawdown, firstInstalment),
     subsidy: subsidyOf(fields, instalments),
-    note: textOf(fields.note),
   }
+}
+
+export function loanTermsFields(terms: LoanTerms): Readonly<Record<(typeof LOAN_TERM_FIELDS)[number], FieldValue | null | undefined>> {
+  return {
+    lender: terms.lender,
+    principal: amountText(terms.principal),
+    drawdown: terms.drawdown,
+    first_instalment: terms.firstInstalment,
+    instalments: String(terms.instalments),
+    interim_interest: terms.interimInterest === null ? null : amountText(terms.interimInterest.amount),
+    interim_interest_date: terms.interimInterest?.date,
+    subsidy_monthly: terms.subsidy === null ? null : amountText(terms.subsidy.monthly),
+    subsidy_first_instalment: terms.subsidy === null ? null : String(terms.subsidy.firstInstalment),
+    subsidy_instalments: terms.subsidy === null ? null : String(terms.subsidy.instalments),
+    subsidy_payer: terms.subsidy?.payer,
+  }
+}
+
+export function bankLoanOf(fields: StoredFields, id: RecordId | null): BankLoan {
+  const name = textOf(fields.name)
+  if (name === '') refuse(storedWords.reasons.none('name', ''))
+  return { id: ownId(id), name, ...loanTermsOf(fields), note: textOf(fields.note) }
 }
 
 export const BANK_LOAN_CODEC: RecordCodec<BankLoan> = withIdField(
   BANK_LOAN_RECORDS,
   (fields) => labelWords([textOf(fields.name)]),
   bankLoanOf,
-  (loan) =>
-    filledFields({
-      name: loan.name,
-      lender: loan.lender,
-      principal: amountText(loan.principal),
-      drawdown: loan.drawdown,
-      first_instalment: loan.firstInstalment,
-      instalments: String(loan.instalments),
-      interim_interest: loan.interimInterest === null ? null : amountText(loan.interimInterest.amount),
-      interim_interest_date: loan.interimInterest?.date,
-      subsidy_monthly: loan.subsidy === null ? null : amountText(loan.subsidy.monthly),
-      subsidy_first_instalment: loan.subsidy === null ? null : String(loan.subsidy.firstInstalment),
-      subsidy_instalments: loan.subsidy === null ? null : String(loan.subsidy.instalments),
-      subsidy_payer: loan.subsidy?.payer,
-      note: loan.note,
-    }),
+  (loan) => filledFields({ name: loan.name, ...loanTermsFields(loan), note: loan.note }),
 )

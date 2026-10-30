@@ -45,6 +45,7 @@ interface Formatters {
   readonly rate: Intl.NumberFormat
   readonly decimal: Intl.NumberFormat
   readonly days: Intl.NumberFormat
+  readonly count: Intl.NumberFormat
   readonly unitPrice: ExactNumberFormat
   readonly unitName: string
 }
@@ -72,6 +73,7 @@ function formatters(format: MoneyFormat = active.value): Formatters {
       rate: new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 4 }),
       decimal: new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
       days: new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
+      count: new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }),
       unitPrice: exact(new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: UNIT_PRICE_DECIMALS })),
       unitName: unitNameOf(currency),
     }
@@ -134,6 +136,11 @@ export function formatDecimal(value: number): string {
 /** A number of days with at most one decimal, such as 12 or 7.5. */
 export function formatDays(days: number): string {
   return formatters().days.format(days)
+}
+
+/** A whole count, such as 31 instalments, signed as asked, such as −31 against another. */
+export function formatCount(count: number, sign: SignDisplay = 'negative'): string {
+  return withSign(count, formatters().count.format(Math.abs(count)), sign)
 }
 
 /** "euro", "US dollar": what one unit of the currency is called in running text. */

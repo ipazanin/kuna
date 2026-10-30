@@ -12,6 +12,7 @@ import { ACCOUNT_WRITES, CATEGORY_WRITES, CLIENT_WRITES } from '../src/apps/comp
 import { SPLIT_WRITES } from '../src/apps/company/transactions/application/splitWrites'
 import { BANK_LOAN_WRITES, EXTRA_PAYMENT_WRITES, LATE_INSTALMENT_WRITES, RATE_PERIOD_WRITES, removeBankLoan } from '../src/apps/loans/bankLoans/application/bankLoanWrites'
 import { INFORMAL_LOAN_WRITES, MOVEMENT_WRITES } from '../src/apps/loans/informalLoans/application/informalLoanWrites'
+import { LOAN_SCENARIO_WRITES, SCENARIO_CHANGE_WRITES } from '../src/apps/loans/scenarios/application/scenarioWrites'
 import { canUndo } from '../src/shared/storage/application/createWorkbookStore'
 import type { BooksRead, WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import type { UnitOfWork } from '../src/shared/storage/application/repository'
@@ -450,6 +451,8 @@ const [LATE_A, LATE_B, LATE_C, LATE_R] = ids('14', 4)
 const [INFORMAL_A, INFORMAL_B, INFORMAL_C, INFORMAL_R] = ids('15', 4)
 const [MOVEMENT_A, MOVEMENT_B, MOVEMENT_C, MOVEMENT_R] = ids('16', 4)
 const [CAR_LOAN, FRIEND_LOAN] = ids('17', 2)
+const [SCENARIO_A, SCENARIO_B, SCENARIO_C, SCENARIO_R, PAY_EXTRA] = ids('18', 5)
+const [CHANGE_A, CHANGE_B, CHANGE_C, CHANGE_R] = ids('19', 4)
 
 /** 1,200.00 repaid in 12 instalments from 2026-02-05, and its rate from the first instalment, which every bank loan needs. */
 const CAR_LOAN_SEED: Seed = {
@@ -572,6 +575,47 @@ const LOANS_FIXTURES: Readonly<Record<string, KindFixture>> = {
       fixed: { loan: FRIEND_LOAN!, date: '2026-06-01', kind: 'borrowed-in-kind', amount: '30.00', id: MOVEMENT_R! },
     },
   },
+  'loan-scenario': {
+    seed: CAR_LOAN_SEED,
+    records: [
+      {
+        name: 'Other Bank offer',
+        lender: 'Other Bank',
+        principal: '1000.00',
+        drawdown: '2026-03-01',
+        first_instalment: '2026-04-01',
+        instalments: '10',
+        upfront_costs: '20.00',
+        yearly_costs: '5.00',
+        bank_eks: '9.35',
+        id: SCENARIO_A!,
+      },
+      { name: 'Pay extra', loan: CAR_LOAN!, id: SCENARIO_B! },
+    ],
+    outside: { name: 'Pay more', loan: CAR_LOAN!, id: SCENARIO_C! },
+    change: { field: 'name', value: 'Other Bank, fixed' },
+    cleared: 'bank_eks',
+    refused: {
+      fields: { name: 'Move', loan: CAR_LOAN!, lender: 'Other Bank', id: SCENARIO_R! },
+      reason: 'holds no offer terms',
+      fixed: { name: 'Move', loan: CAR_LOAN!, id: SCENARIO_R! },
+    },
+  },
+  'scenario-change': {
+    seed: { ...CAR_LOAN_SEED, 'loan-scenario': [{ name: 'Pay extra', loan: CAR_LOAN!, id: PAY_EXTRA! }] },
+    records: [
+      { scenario: PAY_EXTRA!, change: 'regular-extra-payment', date: '2026-04-05', every: 'month', until: '2026-09-05', amount: '50.00', effect: 'shorter-term', id: CHANGE_A! },
+      { scenario: PAY_EXTRA!, change: 'rate-change', date: '2026-08-05', rate: '4.5', rate_type: 'variable', id: CHANGE_B! },
+    ],
+    outside: { scenario: PAY_EXTRA!, change: 'extra-payment', date: '2026-10-05', amount: '100.00', effect: 'lower-instalment', id: CHANGE_C! },
+    change: { field: 'amount', value: '75.00' },
+    cleared: 'until',
+    refused: {
+      fields: { scenario: PAY_EXTRA!, change: 'refinance', date: '2026-06-05', id: CHANGE_R! },
+      reason: 'is not a scenario change',
+      fixed: { scenario: PAY_EXTRA!, change: 'move', date: '2026-06-05', lender: 'Other Bank', rate: '4', rate_type: 'fixed', instalments: '8', id: CHANGE_R! },
+    },
+  },
 }
 
 const CORE_WRITES: readonly WriteRules<unknown>[] = [
@@ -589,7 +633,16 @@ const CORE_WRITES: readonly WriteRules<unknown>[] = [
 
 const COMPANY_KINDS = [...CORE_WRITES, ...installedPack().workbook!.kinds].map((rules) => [rules.kind.name, rules] as const)
 
-const LOANS_WRITES: readonly WriteRules<unknown>[] = [BANK_LOAN_WRITES, RATE_PERIOD_WRITES, EXTRA_PAYMENT_WRITES, LATE_INSTALMENT_WRITES, INFORMAL_LOAN_WRITES, MOVEMENT_WRITES]
+const LOANS_WRITES: readonly WriteRules<unknown>[] = [
+  BANK_LOAN_WRITES,
+  RATE_PERIOD_WRITES,
+  EXTRA_PAYMENT_WRITES,
+  LATE_INSTALMENT_WRITES,
+  INFORMAL_LOAN_WRITES,
+  MOVEMENT_WRITES,
+  LOAN_SCENARIO_WRITES,
+  SCENARIO_CHANGE_WRITES,
+]
 
 const LOANS_KINDS = LOANS_WRITES.map((rules) => [rules.kind.name, rules] as const)
 
@@ -611,7 +664,7 @@ it('has a fixture for every kind, core’s and the pack’s', () => {
 
 it('has a fixture for every Loans kind', () => {
   expect(LOANS_KINDS.map(([name]) => name).filter((name) => LOANS_FIXTURES[name] === undefined)).toEqual([])
-  expect(LOANS_KINDS).toHaveLength(6)
+  expect(LOANS_KINDS).toHaveLength(8)
 })
 
 describe.each(STORAGES)('records kept in %s', (_storage, open) => {

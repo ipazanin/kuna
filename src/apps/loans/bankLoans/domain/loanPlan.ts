@@ -4,7 +4,7 @@ import type { BankLoan, LoanSubsidy } from '../../workbook/domain/bankLoan'
 import type { ExtraPayment } from '../../workbook/domain/extraPayment'
 import type { RatePeriod } from '../../workbook/domain/ratePeriod'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { dayMonthsLater } from '../../../../shared/calendar/monthKey'
+import { dayMonthsLater, monthCountBetween, monthOf } from '../../../../shared/calendar/monthKey'
 import { ZERO, addMoney, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 
@@ -46,6 +46,15 @@ function subsidyOf(subsidy: LoanSubsidy | null, number: number, payment: Money):
 }
 
 /**
+ * The due date of the instalment with this number, counted in months from `anchor`, an earlier or the
+ * same due date whose day of the month every due date keeps where the month has it. A loan that takes
+ * over another one's due dates passes that loan's first instalment, so a month-end day stays one.
+ */
+export function dueDateOf(loan: BankLoan, number: number, anchor: CivilDate = loan.firstInstalment): CivilDate {
+  return dayMonthsLater(anchor, monthCountBetween(monthOf(anchor), monthOf(loan.firstInstalment)) + number - 2)
+}
+
+/**
  * The bank loan's plan from its terms, oldest first. The first instalment is the annuity of the
  * principal over every instalment at the first period's rate. Each month's interest is the balance
  * times the yearly rate over 12, and the rest of the instalment repays principal. A rate period
@@ -55,9 +64,9 @@ function subsidyOf(subsidy: LoanSubsidy | null, number: number, payment: Money):
  * the instalment stays and the plan ends once the balance is repaid. The last instalment takes what
  * is left. The subsidy pays its amount of each instalment it covers and leaves principal, interest
  * and balance alone. Every period's `from` must be a due date of the loan and one must start at the
- * first instalment, as the reader keeps them.
+ * first instalment, as the reader keeps them. The due dates count from `anchor` as `dueDateOf` does.
  */
-export function loanPlan(loan: BankLoan, periods: readonly RatePeriod[], extraPayments: readonly ExtraPayment[]): PlanRow[] {
+export function loanPlan(loan: BankLoan, periods: readonly RatePeriod[], extraPayments: readonly ExtraPayment[], anchor: CivilDate = loan.firstInstalment): PlanRow[] {
   const rateOn = new Map(periods.map((period) => [period.from, period.rate]))
   const extras = [...extraPayments].sort((earlier, later) => earlier.date.localeCompare(later.date))
   const firstRate = rateOn.get(loan.firstInstalment)
@@ -91,7 +100,7 @@ export function loanPlan(loan: BankLoan, periods: readonly RatePeriod[], extraPa
   }
 
   for (let number = 1; number <= last; number += 1) {
-    const due = dayMonthsLater(loan.firstInstalment, number - 1)
+    const due = dueDateOf(loan, number, anchor)
     payExtrasUpTo((date) => date < due)
     if (balance === 0) break
     for (const effect of pending) {

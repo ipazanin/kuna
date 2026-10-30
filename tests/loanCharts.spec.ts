@@ -4,13 +4,21 @@ import { paymentsByYear } from '../src/apps/loans/bankLoans/domain/loanFigures'
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
 import { paymentsChart } from '../src/apps/loans/bankLoans/presentation/paymentsChart'
 import { subsidyColourOf } from '../src/apps/loans/bankLoans/presentation/subsidyColour'
+import { splitOfRows } from '../src/apps/loans/bankLoans/domain/loanFigures'
+import { NO_COSTS } from '../src/apps/loans/scenarios/domain/loanScenario'
+import { scenarioPlan } from '../src/apps/loans/scenarios/domain/scenarioPlan'
+import type { ScenarioPlan } from '../src/apps/loans/scenarios/domain/scenarioPlan'
+import { scenarioBalanceChart, scenarioInterestChart } from '../src/apps/loans/scenarios/presentation/scenarioCharts'
+import type { ChartedScenario } from '../src/apps/loans/scenarios/presentation/scenarioCharts'
+import { scenarioMonths } from '../src/apps/loans/scenarios/presentation/scenarioMonths'
+import type { LoanChange } from '../src/apps/loans/scenarios/domain/loanScenario'
 import { balanceChart, yearStep } from '../src/apps/loans/balances/presentation/balanceChart'
 import type { MonthBalance } from '../src/apps/loans/balances/presentation/balanceChart'
 import type { ChartTokens } from '../src/shared/charts/chartTokens'
 import { parseMonthKey } from '../src/shared/calendar/monthKey'
 import { ZERO } from '../src/shared/money/money'
 import { formatMoney } from '../src/shared/money/moneyFormat'
-import { euros } from './fixtures/ledger'
+import { civil, euros } from './fixtures/ledger'
 import { bankLoan, extraPayment, ratePeriod } from './fixtures/loans'
 
 const TOKENS = new Proxy({}, { get: (_target, name) => String(name) }) as unknown as ChartTokens
@@ -143,5 +151,78 @@ describe('the year step of a chart axis', () => {
   it('names every year on a short axis and thins a long one, more on a phone', () => {
     expect([yearStep(3, false), yearStep(12, false), yearStep(13, false), yearStep(30, false)]).toEqual([1, 1, 2, 2])
     expect([yearStep(3, true), yearStep(4, true), yearStep(5, true), yearStep(10, true), yearStep(11, true)]).toEqual([1, 1, 2, 2, 5])
+  })
+})
+
+describe('the scenario charts', () => {
+  // 1,200.00 over 12 instalments at 12% from 2026-02-05, compared from 2026-05-10: as it stands, 300.00 extra on 2026-07-05 for a
+  // shorter term, and the same for a lower instalment, which ends when the loan does.
+  const loan = bankLoan()
+  const base = { loan, ratePeriods: [ratePeriod(loan, '2026-02-05', '12')], extraPayments: [], costs: NO_COSTS }
+  const today = civil('2026-05-10')
+  const planOf = (changes: readonly LoanChange[]): ScenarioPlan => {
+    const plan = scenarioPlan(base, changes, today)
+    if ('refused' in plan) throw new Error(plan.refused)
+    return plan
+  }
+  const extra = (effect: 'shorter-term' | 'lower-instalment'): LoanChange => ({ kind: 'extra-payment', date: civil('2026-07-05'), amount: euros(300), effect })
+  const charted = (key: string, letter: string, slot: number, plan: ScenarioPlan): ChartedScenario => ({
+    key,
+    letter,
+    name: key,
+    colour: `--scenario-${slot}`,
+    months: scenarioMonths(plan, today),
+    variableFrom: null,
+  })
+  const stands = planOf([])
+  const scenarios = [charted('as it stands', 'A', 1, stands), charted('shorter', 'B', 2, planOf([extra('shorter-term')])), charted('lower', 'C', 3, planOf([extra('lower-instalment')]))]
+
+  it('walks each month end from the start of the comparison to the payoff, with the interest you pay since', () => {
+    const months = scenarioMonths(stands, today)
+
+    expect(months.map((entry) => entry.month)).toEqual(['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11', '2026-12', '2027-01'])
+    expect(months[0]).toEqual({ month: '2026-05', owed: stands.rows.find((row) => row.date === '2026-05-05')!.balance, interest: 0 })
+    expect(months.at(-1)).toEqual({ month: '2027-01', owed: 0, interest: splitOfRows(stands.rows.filter((row) => row.date > today)).interest })
+  })
+
+  it('draws one line per scenario in its colour, the base last, with letters where each is paid off, joined in a shared month', () => {
+    const chart = scenarioBalanceChart(scenarios, 'as it stands', TOKENS, false)
+    const series = seriesOf(chart) as unknown as { name: string; color: string; markPoint: { data: { name: string }[] } }[]
+
+    expect(series.map((entry) => [entry.name, entry.color])).toEqual([
+      ['B shorter', '--scenario-2'],
+      ['C lower', '--scenario-3'],
+      ['A as it stands', '--scenario-1'],
+    ])
+    expect(series.map((entry) => entry.markPoint.data.map((point) => point.name))).toEqual([['B'], [], ['A C']])
+    expect(chart.description).toBe('What each scenario owes at each month end. A, as it stands, is paid off in Jan 2027. B, shorter, is paid off in Nov 2026. C, lower, is paid off in Jan 2027.')
+  })
+
+  it('marks the first variable month with a hairline on a wide screen only', () => {
+    const variable = scenarios.map((entry, index) => (index === 1 ? { ...entry, variableFrom: parseMonthKey('2026-09')! } : entry))
+
+    expect(seriesOf(scenarioBalanceChart(variable, 'as it stands', TOKENS, false))[0]).toHaveProperty('markLine.data', [{ xAxis: '2026-09' }])
+    expect(seriesOf(scenarioBalanceChart(variable, 'as it stands', TOKENS, true))[0]).not.toHaveProperty('markLine')
+    expect(tooltipOf(scenarioBalanceChart(variable, 'as it stands', TOKENS, false), '2026-10')).toContain('An estimate at the variable rate')
+  })
+
+  it('holds each interest total to the right edge, labels it there and pushes close totals apart', () => {
+    const month = (text: string, interest: number) => ({ month: parseMonthKey(text)!, owed: ZERO, interest: euros(interest) })
+    const close: ChartedScenario[] = [
+      { key: 'a', letter: 'A', name: 'a', colour: '--scenario-1', months: [month('2026-05', 0), month('2026-06', 100), month('2026-07', 200)], variableFrom: null },
+      { key: 'b', letter: 'B', name: 'b', colour: '--scenario-2', months: [month('2026-05', 0), month('2026-06', 195)], variableFrom: null },
+    ]
+    const chart = scenarioInterestChart(close, 'a', TOKENS, false, true)
+    const series = seriesOf(chart) as unknown as { name: string; data: unknown[]; markPoint: { data: { coord: [string, number]; label: { formatter: string } }[] } }[]
+
+    expect(series[0]!.name).toBe('B b')
+    expect(series[0]!.data).toEqual([0, euros(195), euros(195)])
+    // 200.00 is the tallest total, so the label of 195.00 drops to 200.00 − 8% of 200.00 = 184.00.
+    expect(series.map((entry) => entry.markPoint.data[0]!.coord)).toEqual([
+      ['2026-07', euros(184)],
+      ['2026-07', euros(200)],
+    ])
+    expect(series[1]!.markPoint.data[0]!.label.formatter).toBe('A €200')
+    expect(chart.description).toBe('The interest you pay from today, added up month by month. A, a, comes to €200.00. B, b, comes to €195.00.')
   })
 })

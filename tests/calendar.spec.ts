@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { addDays, civilDate, civilDateFromSerial, daysBetween, parseCivilDate } from '../src/shared/calendar/civilDate'
 import { monthRange, monthsOfRange, overlapOf, rangeContains } from '../src/shared/calendar/dateRange'
 import { allTime, anchorWindow, completeRange, isCompleteMonth, lastMonths, spanRange } from '../src/shared/calendar/ledgerWindow'
-import { addMonths, dayMonthsLater, firstDayOf, lastDayOf, monthCountBetween, monthKey, monthOf, monthsFrom, parseMonthKey } from '../src/shared/calendar/monthKey'
+import { addMonths, dayMonthsLater, firstDayOf, lastDayOf, monthCountBetween, monthKey, monthOf, monthsFrom, parseMonthKey, wholeMonthsBetween } from '../src/shared/calendar/monthKey'
 import { civil } from './fixtures/ledger'
 
 describe('civil dates', () => {
@@ -73,6 +73,15 @@ describe('month keys', () => {
     expect(dayMonthsLater(civil('2023-09-20'), 239)).toBe('2043-08-20')
     expect(dayMonthsLater(civil('2026-03-31'), -1)).toBe('2026-02-28')
     expect(dayMonthsLater(civil('2026-10-20'), 0)).toBe('2026-10-20')
+  })
+
+  it('counts the whole months between two days as dayMonthsLater steps them', () => {
+    expect(wholeMonthsBetween(civil('2025-01-01'), civil('2025-02-01'))).toBe(1)
+    expect(wholeMonthsBetween(civil('2025-01-01'), civil('2025-01-31'))).toBe(0)
+    expect(wholeMonthsBetween(civil('2026-01-20'), civil('2026-03-19'))).toBe(1)
+    expect(wholeMonthsBetween(civil('2026-01-31'), civil('2026-02-28'))).toBe(1)
+    expect(wholeMonthsBetween(civil('2025-01-01'), civil('2055-01-01'))).toBe(360)
+    expect(wholeMonthsBetween(civil('2026-05-01'), civil('2026-04-01'))).toBe(0)
   })
 })
 

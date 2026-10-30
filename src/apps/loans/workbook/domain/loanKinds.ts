@@ -4,6 +4,7 @@ import type { InformalLoan } from './informalLoan'
 import type { LateInstalment } from './lateInstalment'
 import type { Movement } from './movement'
 import type { RatePeriod } from './ratePeriod'
+import type { LoanScenario, ScenarioChange } from '../../scenarios/domain/loanScenario'
 import { recordKind } from '../../../../shared/storage/domain/recordKind'
 
 export const BANK_LOAN_RECORDS = recordKind<BankLoan>('bank-loan', {
@@ -29,4 +30,12 @@ export const INFORMAL_LOAN_RECORDS = recordKind<InformalLoan>('informal-loan', {
 export const MOVEMENT_RECORDS = recordKind<Movement>('movement', {
   en: { one: 'movement', many: 'movements', article: 'a' },
   hr: { one: 'promjena', of: 'promjene', few: 'promjene', other: 'promjena', gender: 'feminine' },
+})
+export const LOAN_SCENARIO_RECORDS = recordKind<LoanScenario>('loan-scenario', {
+  en: { one: 'scenario', many: 'scenarios', article: 'a' },
+  hr: { one: 'scenarij', of: 'scenarija', few: 'scenarija', other: 'scenarija', gender: 'masculine' },
+})
+export const SCENARIO_CHANGE_RECORDS = recordKind<ScenarioChange>('scenario-change', {
+  en: { one: 'scenario change', many: 'scenario changes', article: 'a' },
+  hr: { one: 'promjena scenarija', of: 'promjene scenarija', few: 'promjene scenarija', other: 'promjena scenarija', gender: 'feminine' },
 })

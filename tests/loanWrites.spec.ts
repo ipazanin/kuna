@@ -3,15 +3,18 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { BANK_LOAN_WRITES, EXTRA_PAYMENT_WRITES, LATE_INSTALMENT_WRITES, RATE_PERIOD_WRITES, removeBankLoan } from '../src/apps/loans/bankLoans/application/bankLoanWrites'
 import { INFORMAL_LOAN_WRITES, MOVEMENT_WRITES, removeInformalLoan } from '../src/apps/loans/informalLoans/application/informalLoanWrites'
+import { LOAN_SCENARIO_WRITES, SCENARIO_CHANGE_WRITES, copyScenario, newLoanScenario, removeScenario, saveScenario } from '../src/apps/loans/scenarios/application/scenarioWrites'
+import { NO_COSTS } from '../src/apps/loans/scenarios/domain/loanScenario'
+import type { LoanChange, LoanScenario } from '../src/apps/loans/scenarios/domain/loanScenario'
 import { informalBalanceOn } from '../src/apps/loans/informalLoans/domain/informalBalance'
-import { LATE_INSTALMENT_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
+import { LATE_INSTALMENT_RECORDS, SCENARIO_CHANGE_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
 import type { LoansBooks } from '../src/apps/loans/workbook/domain/loansBooks'
 import { emptyLoansDocument } from '../src/apps/loans/workbook/infrastructure/loansDocument'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { recordsChangeInWords } from '../src/shared/storage/presentation/recordsChangeInWords'
 import { civil, euros } from './fixtures/ledger'
-import { LOAN_UUID, bankLoan, extraPayment, informalLoan, lateInstalment, movement, ratePeriod } from './fixtures/loans'
+import { LOAN_UUID, bankLoan, extraPayment, informalLoan, lateInstalment, movement, percent, ratePeriod } from './fixtures/loans'
 import { LOANS, browserHarness, forgetCaches } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -38,6 +41,31 @@ async function storeWithLoans(): Promise<WorkbookStore<LoansBooks>> {
 
 function bankBook(store: WorkbookStore<LoansBooks>) {
   return store.state.workbook!.bankLoans[0]!
+}
+
+const PAY_EXTRA = newLoanScenario({ name: ' Pay extra ', start: { kind: 'loan', loan: LOAN.id } })
+const OFFER = newLoanScenario({
+  name: 'Other Bank offer',
+  start: {
+    kind: 'offer',
+    terms: {
+      lender: 'Other Bank',
+      principal: euros(1000),
+      drawdown: civil('2026-03-01'),
+      firstInstalment: civil('2026-04-01'),
+      instalments: 10,
+      interimInterest: null,
+      subsidy: null,
+      costs: NO_COSTS,
+      bankEks: null,
+    },
+  },
+})
+const EXTRA: LoanChange = { kind: 'extra-payment', date: civil('2026-07-05'), amount: euros(300), effect: 'shorter-term' }
+const MOVE: LoanChange = { kind: 'move', on: civil('2026-06-05'), lender: 'Other Bank', rate: percent('8'), rateType: 'fixed', instalments: 6, costs: NO_COSTS }
+
+function scenarioNamed(store: WorkbookStore<LoansBooks>, name: string) {
+  return store.state.workbook!.scenarios.find((book) => book.scenario.name === name)!
 }
 
 describe('Loans writes', () => {
@@ -139,6 +167,72 @@ describe('Loans writes', () => {
 
     await store.undo(store.state.writes[0]!)
     expect(bankBook(store)).toEqual(before)
+  })
+
+  it('saves a scenario with its changes in one write, replaces its changes on the next save, and one Undo puts them back', async () => {
+    const store = await storeWithLoans()
+
+    await store.write('Saved', (unit) => saveScenario(unit, store.state.records!, PAY_EXTRA, [EXTRA, MOVE], null))
+    const saved = scenarioNamed(store, 'Pay extra')
+    expect(saved.changes.map((change) => change.kind)).toEqual(['extra-payment', 'move'])
+    expect(store.state.workbook!.bankLoans).toHaveLength(1)
+
+    const renamed: LoanScenario = { ...saved.scenario, name: 'Pay extra in July' }
+    await store.write('Saved', (unit) => saveScenario(unit, store.state.records!, renamed, [{ ...EXTRA, amount: euros(400) }], saved.scenario))
+    expect(scenarioNamed(store, 'Pay extra in July').changes).toMatchObject([{ kind: 'extra-payment', amount: euros(400) }])
+    expect(store.state.workbook!.scenarios).toHaveLength(1)
+
+    await store.undo(store.state.writes[0]!)
+    expect(scenarioNamed(store, 'Pay extra')).toEqual(saved)
+  })
+
+  it('refuses a second move in a scenario, and a scenario deleted without its changes', async () => {
+    const store = await storeWithLoans()
+    await store.write('Saved', (unit) => saveScenario(unit, store.state.records!, PAY_EXTRA, [MOVE], null))
+    const { scenario } = scenarioNamed(store, 'Pay extra')
+
+    await expect(
+      store.write('Added', (unit) => unit.of(SCENARIO_CHANGE_WRITES).add({ ...MOVE, on: civil('2026-08-05'), id: recordIdOf(SCENARIO_CHANGE_RECORDS, 'second-move'), scenario: scenario.id })),
+    ).rejects.toThrow('another change of "Pay extra" is a move too, and a scenario moves once')
+    await expect(store.write('Deleted', (unit) => unit.of(LOAN_SCENARIO_WRITES).remove(scenario))).rejects.toThrow('names no scenario in the file')
+
+    await store.write('Deleted', (unit) => removeScenario(unit, store.state.records!, scenario))
+    expect(store.state.workbook!.scenarios).toEqual([])
+    expect(store.state.workbook!.readings.scenarioChanges).toEqual({ facts: [], problems: [] })
+  })
+
+  it('copies a scenario under a new name with copies of its changes', async () => {
+    const store = await storeWithLoans()
+    await store.write('Saved', (unit) => saveScenario(unit, store.state.records!, PAY_EXTRA, [EXTRA, MOVE], null))
+    const original = scenarioNamed(store, 'Pay extra')
+
+    await store.write('Copied', (unit) => copyScenario(unit, original, 'Pay extra, copy'))
+    const copy = scenarioNamed(store, 'Pay extra, copy')
+
+    expect(copy.scenario.id).not.toBe(original.scenario.id)
+    expect(copy.scenario.start).toEqual(original.scenario.start)
+    expect(copy.changes.map(({ id: _id, scenario: _scenario, ...change }) => change)).toEqual(original.changes.map(({ id: _id, scenario: _scenario, ...change }) => change))
+    expect(copy.changes.every((change) => !original.changes.some((kept) => kept.id === change.id))).toBe(true)
+  })
+
+  it('deletes a bank loan with its scenarios and their changes, keeping the offers, and one Undo puts them back', async () => {
+    const store = await storeWithLoans()
+    await store.write('Saved', (unit) => {
+      saveScenario(unit, store.state.records!, PAY_EXTRA, [EXTRA], null)
+      saveScenario(unit, store.state.records!, OFFER, [{ kind: 'rate-change', from: civil('2026-04-01'), rate: percent('9'), rateType: 'fixed' }], null)
+    })
+    const before = store.state.workbook!.scenarios
+
+    await expect(store.write('Deleted', (unit) => removeBankLoan(unit, { ...store.state.records!, loanScenarios: { ...store.state.records!.loanScenarios, records: [] } }, LOAN))).rejects.toThrow(
+      'names no bank loan in the file',
+    )
+    await store.write('Deleted', (unit) => removeBankLoan(unit, store.state.records!, LOAN))
+    expect(store.state.workbook!.scenarios.map((book) => book.scenario.name)).toEqual(['Other Bank offer'])
+    expect(store.state.workbook!.problems).toEqual([])
+
+    await store.undo(store.state.writes[0]!)
+    expect(store.state.workbook!.scenarios).toHaveLength(2)
+    expect(store.state.workbook!.scenarios).toEqual(expect.arrayContaining([...before]))
   })
 
   it('keeps an informal loan with its movements, borrowing back included, and deletes them together', async () => {
