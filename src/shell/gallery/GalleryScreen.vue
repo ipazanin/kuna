@@ -112,10 +112,10 @@ const charts = {
 
 /** Made-up shares of a year's income, coloured by bucket as every chart colours them. */
 const EURO_PARTS: readonly DonutPart[] = [
-  { key: 'operating', label: 'Operating', value: 2_412_000, colour: '--bucket-operating', to: galleryLink },
-  { key: 'taxes', label: 'Taxes', value: 1_176_000, colour: '--bucket-taxes', to: galleryLink },
-  { key: 'owner-pay', label: 'Owner pay', value: 2_058_000, colour: '--bucket-owner-pay', to: galleryLink },
-  { key: 'kept', label: 'Kept', value: 2_940_000, colour: '--chart-deemphasis', to: null },
+  { key: 'operating', label: 'Operating', value: 2_908_487, colour: '--bucket-operating', to: galleryLink },
+  { key: 'taxes', label: 'Taxes', value: 1_454_243, colour: '--bucket-taxes', to: galleryLink },
+  { key: 'owner-pay', label: 'Owner pay', value: 2_492_988, colour: '--bucket-owner-pay', to: galleryLink },
+  { key: 'kept', label: 'Kept', value: 3_531_734, colour: '--chart-deemphasis', to: null },
 ]
 const TAX_PARTS: readonly DonutPart[] = [
   { key: 'contributions', label: 'Payroll contributions', value: 486_000, colour: '--series-3', to: galleryLink },
@@ -522,7 +522,7 @@ const columns: TableColumn<SampleTransaction>[] = [
           description="Made-up split of a year's income for the gallery: operating 28%, taxes 14%, owner pay 24%, kept 34%."
           subtitle="Where each euro of income went"
           :parts="EURO_PARTS"
-          :total="formatMoney(8_586_000)"
+          :total="formatMoney(10_387_452)"
           total-label="income"
         />
         <DonutCard
@@ -533,7 +533,7 @@ const columns: TableColumn<SampleTransaction>[] = [
           :total="formatMoney(1_027_900)"
           total-label="paid"
           collapse-id="gallery.donut"
-          summary="4 kinds of tax, €10,279 paid"
+          :summary="`4 kinds of tax, ${formatMoney(1_027_900)} paid`"
         >
           <template #below>
             <p class="mt-2 type-caption">

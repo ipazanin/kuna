@@ -43,7 +43,7 @@ const props = withDefaults(
     /** What the ring shows, in words and figures, for a screen reader. */
     description: string
     parts: readonly DonutPart[]
-    /** The figure in the middle of the ring, already written out, such as "€84,210". */
+    /** The figure in the middle of the ring, already written out, such as "€84,210.35". */
     total: string
     /** What the middle figure is, such as "income, last 12 months". */
     totalLabel: string
@@ -62,6 +62,9 @@ const router = useRouter()
 const phone = usePhoneLayout()
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const theme = computed(() => buildChartTheme(chartTokens()))
+
+/** The hole holds a total of thirteen characters at text-xl, fourteen at text-lg and sixteen at text-base. */
+const totalSize = computed(() => (props.total.length <= 13 ? 'text-xl' : props.total.length === 14 ? 'text-lg' : 'text-base'))
 
 const whole = computed(() => props.parts.reduce((sum, part) => sum + Math.max(part.value, 0), 0))
 
@@ -88,7 +91,7 @@ const option = computed<ChartOption>(() => {
     series: [
       {
         type: 'pie',
-        radius: ['62%', '82%'],
+        radius: ['74%', '92%'],
         startAngle: 90,
         clockwise: true,
         avoidLabelOverlap: false,
@@ -116,7 +119,7 @@ function onSliceClick(event: { dataIndex?: number; name?: string }): void {
       <div class="donut-ring">
         <VChart :option="option" :theme="theme" autoresize class="ring-chart" @click="onSliceClick" />
         <p class="ring-middle" aria-hidden="true">
-          <span class="figure text-xl font-semibold text-highlighted">{{ total }}</span>
+          <span class="figure font-semibold text-highlighted" :class="totalSize">{{ total }}</span>
           <span class="text-xs text-muted">{{ totalLabel }}</span>
         </p>
       </div>
@@ -157,8 +160,8 @@ function onSliceClick(event: { dataIndex?: number; name?: string }): void {
 .donut-ring {
   position: relative;
   flex: none;
-  width: 200px;
-  height: 200px;
+  width: 224px;
+  height: 224px;
 }
 
 .ring-chart {
@@ -175,7 +178,7 @@ function onSliceClick(event: { dataIndex?: number; name?: string }): void {
   align-items: center;
   justify-content: center;
   gap: 0.125rem;
-  padding: 0 1.75rem;
+  padding: 0 2.5rem;
   text-align: center;
   pointer-events: none;
 }

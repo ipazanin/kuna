@@ -13,7 +13,8 @@
  * link to a rule on Settings, Ruleset must open that rule in the side panel and bring its line to
  * just below the search bar, marked, and keep it there once slow web fonts swap in. Deep links into
  * a collapsed card must open it and land on their row. At 360, 430 and 1440 px each screen
- * collapses and expands one card.
+ * collapses and expands one card. The total and the label in the middle of every donut must sit
+ * inside the ring's hole with 2 px to spare.
  *
  * Beyond the screens of the fake workbook on Drive, it renders the home with every app in Set up and
  * onboarding's first steps on a first run (`?fake=empty`), each tab of the company's Settings and the
@@ -714,6 +715,52 @@ function readPage(page) {
       unevenFieldRows: unevenFieldRows(),
       dashboardGrids: dashboardGrids(),
       handBuiltGrids: handBuiltGrids(cardSelector),
+      crowdedDonuts: crowdedDonuts(cardSelector),
+    }
+
+    /**
+     * Donuts whose middle reaches past the hole: a corner of a line of the total or its label sits
+     * farther from the ring's centre than the hole's radius less 2 px. The hole's radius is how far
+     * the ring's canvas stays clear from its centre, read in 32 directions, so a ring that has not
+     * drawn has no hole to check.
+     */
+    function crowdedDonuts(selector) {
+      const found = []
+      for (const ring of document.querySelectorAll('.donut-ring')) {
+        const canvas = ring.querySelector('canvas')
+        const middle = ring.querySelector('.ring-middle')
+        if (canvas === null || middle === null || canvas.width === 0 || ring.getClientRects().length === 0) continue
+        const box = canvas.getBoundingClientRect()
+        const scale = canvas.width / box.width
+        const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data
+        const painted = (x, y) => pixels[(Math.round(y * scale) * canvas.width + Math.round(x * scale)) * 4 + 3] > 128
+        let hole = Infinity
+        for (let step = 0; step < 32; step++) {
+          const angle = (step / 32) * 2 * Math.PI
+          for (let radius = 0; radius < box.width / 2; radius += 0.5) {
+            if (painted(box.width / 2 + Math.cos(angle) * radius, box.height / 2 + Math.sin(angle) * radius)) {
+              hole = Math.min(hole, radius)
+              break
+            }
+          }
+        }
+        if (hole === Infinity) continue
+        const centreX = box.left + box.width / 2
+        const centreY = box.top + box.height / 2
+        const walker = document.createTreeWalker(middle, NodeFilter.SHOW_TEXT)
+        for (let text = walker.nextNode(); text !== null; text = walker.nextNode()) {
+          const range = document.createRange()
+          range.selectNodeContents(text)
+          for (const line of range.getClientRects()) {
+            const reach = Math.max(...[line.left, line.right].flatMap((x) => [line.top, line.bottom].map((y) => Math.hypot(x - centreX, y - centreY))))
+            if (reach > hole - 2) {
+              const title = (ring.closest(selector)?.querySelector('h2, h3')?.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 48)
+              found.push(`"${text.textContent.trim()}" in the middle of "${title}" reaches ${reach.toFixed(1)} px from the centre, past the ring's ${hole.toFixed(1)} px hole`)
+            }
+          }
+        }
+      }
+      return found
     }
 
     /**
@@ -1088,8 +1135,8 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
       if (!shown) fail(scope, `the deep link did not open ${visit.linkedRule} in the side panel and bring its line to just below the search bar, marked, once the fonts loaded`)
     }
 
-    // ECharts animates bars in. The screenshot should show where they land.
-    if (drawsCharts && rendered) await new Promise((resolve) => setTimeout(resolve, 1500))
+    // ECharts animates bars and rings in. The screenshot and the hole of a donut should show where they land.
+    if (rendered && (drawsCharts || (await page.$('.donut-ring canvas')) !== null)) await new Promise((resolve) => setTimeout(resolve, 1500))
 
     if (visit.linkedPart && rendered) {
       await page.evaluate(() => document.fonts.ready.then(() => undefined))
@@ -1128,6 +1175,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     }
     if (viewport.alignedCards) for (const row of report.raggedRows) fail(scope, `ragged card row: ${row}`)
     for (const row of report.unevenFieldRows) fail(scope, `uneven form row: ${row}`)
+    for (const donut of report.crowdedDonuts) fail(scope, donut)
     if (REFLOW_WIDTHS.includes(viewport.width)) dashboardGridsSeen.set(`${visit.name} ${viewport.width}`, report.dashboardGrids)
     if (!HAND_BUILT_GRIDS_ALLOWED.some((entry) => visit.name.startsWith(entry.screen))) {
       for (const grid of report.handBuiltGrids) fail(scope, `the grid "${grid}" sets cards side by side without DashboardGrid`)

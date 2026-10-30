@@ -23,7 +23,8 @@ export interface AxisTooltipSettings {
 /**
  * One tooltip for every series at the hovered category. The value leads and the series name
  * follows, keyed by a short stroke of the series colour. Series and category names come from the
- * user's Sheet, so they are escaped before they reach the tooltip's HTML.
+ * user's Sheet, so they are escaped before they reach the tooltip's HTML. Words wrap and figures do
+ * not, so a tooltip is never wider than its chart, which keeps it on a phone's screen.
  */
 export function axisTooltip(settings: AxisTooltipSettings): (points: unknown) => string {
   const { tokens, incompleteCategories = [], formatAmount = (amount: number) => formatMoney(amount), categoryLabel = (category: string) => category, footnotes = () => [] } = settings
@@ -39,7 +40,7 @@ export function axisTooltip(settings: AxisTooltipSettings): (points: unknown) =>
         const keyColour = typeof row.color === 'string' ? row.color : tokens.inkMuted
         return (
           `<span style="width:10px;height:2px;border-radius:1px;background:${keyColour}"></span>` +
-          `<span style="justify-self:end;font-weight:600;font-variant-numeric:tabular-nums;color:${tokens.ink}">${escapeHtml(amountText)}</span>` +
+          `<span style="justify-self:end;white-space:nowrap;font-weight:600;font-variant-numeric:tabular-nums;color:${tokens.ink}">${escapeHtml(amountText)}</span>` +
           `<span style="color:${tokens.inkSecondary}">${escapeHtml(row.seriesName ?? '')}</span>`
         )
       })
@@ -47,7 +48,7 @@ export function axisTooltip(settings: AxisTooltipSettings): (points: unknown) =>
     const notes = footnotes(category)
       .map((note) => `<div style="color:${tokens.inkMuted};margin-top:6px">${escapeHtml(note)}</div>`)
       .join('')
-    return `${header}${incomplete}<div style="display:grid;grid-template-columns:10px auto auto;align-items:center;column-gap:8px;row-gap:2px">${body}</div>${notes}`
+    return `<div style="white-space:normal">${header}${incomplete}<div style="display:grid;grid-template-columns:10px auto auto;align-items:center;column-gap:8px;row-gap:2px">${body}</div>${notes}</div>`
   }
 }
 
