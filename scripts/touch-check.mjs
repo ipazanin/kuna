@@ -20,7 +20,7 @@
  * brought back, the same from a row of Review's queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google with one token for every scope and the sync it resumes ending ready, with Drive read unticked ending in Allow access, a refused consent and a
  * forged answer leaving Allow access with no message, a refused silent trip marking the device so the next open waits for Allow access, Sign in to Google when Google asks
- * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, the Loans find a tap resumes ending on the Loans Overview, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices card, and the note to tap again after a file made on Drive,
+ * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, the Loans find a tap resumes ending on the Loans Overview, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices card, and the note to tap again after a file made on Drive,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
@@ -1737,6 +1737,26 @@ async function checkWidth(width) {
     await (await waitForText(page, 'button', 'Undo')).tap()
     await waitForText(page, '[data-slot="title"]', 'Undone')
     await expect(payments(), (count) => count === before, 'Undo did not take the extra payment off the list')
+  })
+
+  // The sample Investments file: a phone row on Holdings opens its holding's page, and the link at its top leads back.
+  await step('investments-holding-row', async () => {
+    await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/holdings`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Holdings')
+    const row = await page.waitForSelector('[data-testid="holdings-rows"] a[data-testid="holding-row"]', { visible: true })
+    await inspect(page, `${width}px Holdings`)
+    await shoot('investments-holdings')
+    const name = await row.evaluate((element) => element.querySelector('span > span')?.textContent?.trim() ?? '')
+    await row.tap()
+    await waitForTitle(page, name)
+    await page.waitForSelector('[data-testid="holding-hero"]')
+    await page.waitForSelector('[data-testid="holding-price-chart"] .chart-body canvas')
+    await inspect(page, `${width}px the page of ${name}`)
+    await shoot('investments-holding')
+    await (await page.waitForSelector('[data-testid="back-to-holdings"]', { visible: true })).tap()
+    await waitForTitle(page, 'Holdings')
+    await page.waitForSelector('[data-testid="holdings-rows"] a[data-testid="holding-row"]', { visible: true })
+    await inspect(page, `${width}px Holdings again`)
   })
 
   await step('open-file-browser', async () => {

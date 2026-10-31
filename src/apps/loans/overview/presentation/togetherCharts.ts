@@ -1,5 +1,5 @@
 import type { LoansMonth, PlannedLoan } from '../domain/loansTogether'
-import { monthAxisLabels, shownPoints } from '../../balances/presentation/balanceChart'
+import { monthAxisLabels, shownPoints } from '../../../../shared/charts/monthAxis'
 import { payoffDate } from '../../bankLoans/domain/loanFigures'
 import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'

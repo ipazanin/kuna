@@ -216,7 +216,7 @@ function openedBeforeFlows(closes: readonly ValuedDay[]): ValuedDay[] {
 }
 
 /** The book as it stood at the day's close. */
-function recordsOn(book: InvestmentBook, day: CivilDate): InvestmentBook {
+export function recordsOn(book: InvestmentBook, day: CivilDate): InvestmentBook {
   const upTo = <Dated extends { readonly date: CivilDate }>(records: readonly Dated[]): Dated[] => records.filter((record) => record.date <= day)
   return {
     ...book,

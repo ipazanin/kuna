@@ -3287,7 +3287,7 @@ export const appMenuFlow = appMenuFlowIn('en')
 
 /**
  * The home with the books of Company, Loans and Investments open: Company's card leads with the cash on hand
- * Overview shows and opens it, the Loans card with what you owe in all, which the Loans Overview says too, and the Investments card with what the app is for, since it has no figures yet. Each
+ * Overview shows and opens it, the Loans card with what you owe in all, which the Loans Overview says too, and the Investments card with the value, which its Overview's Value tile says too, and the total gain with its sign. Each
  * card tiles its icon in a colour of its own. From 1024 px the sidebar lists every app as their cards do, and its
  * Company row opens Overview.
  */
@@ -3298,7 +3298,7 @@ export async function homeFlow(page, { press, shoot, inspect }) {
     throw new Error(`the home shows ${JSON.stringify(cards.map((card) => card.app))}, not Company, Loans and Investments`)
   if (company.state !== 'open' || !company.text.includes('Cash on hand') || !/€/.test(company.figure ?? '')) throw new Error(`the Company card reads "${company.text}"`)
   if (loans.state !== 'open' || !loans.text.includes('You owe in all') || !/€/.test(loans.figure ?? '')) throw new Error(`the Loans card reads "${loans.text}"`)
-  if (investments.state !== 'open' || investments.text.includes('Set up') || !investments.text.includes('Every buy and sale at your brokers'))
+  if (investments.state !== 'open' || !investments.text.includes('Value') || !/Total gain[+−]?€/.test(investments.text) || !/€/.test(investments.figure ?? ''))
     throw new Error(`the Investments card reads "${investments.text}"`)
   const colours = cards.map((card) => card.colour)
   if (colours.includes(null) || new Set(colours).size !== colours.length) throw new Error(`the cards tile their icons in ${colours.join(', ')}, not one colour each`)
@@ -3329,6 +3329,14 @@ export async function homeFlow(page, { press, shoot, inspect }) {
     .then((handle) => handle.jsonValue())
   const euros = (text) => Number(/€[\d,]+(\.\d{2})?/.exec(text)?.[0].replace(/[€,]/g, '') ?? Number.NaN)
   if (euros(total) !== euros(loans.figure)) throw new Error(`the Loans card says ${loans.figure} owed, the Loans Overview "${total}"`)
+
+  await goHome(page, press)
+  await pressSelector(page, press, '[data-testid="home-card"][data-app="investments"]')
+  await screenTitled(page, 'Overview')
+  const value = await page
+    .waitForFunction(() => document.querySelector('[data-testid="investments-value"] .text-figure-lg')?.textContent?.trim() ?? null, { timeout: 10_000 })
+    .then((handle) => handle.jsonValue())
+  if (value !== investments.figure) throw new Error(`the Investments card says ${investments.figure}, the Overview's Value tile ${value}`)
 
   if (menu === null) return
   await goHome(page, press)

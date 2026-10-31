@@ -78,7 +78,7 @@ export interface PricesFetching {
 }
 
 export interface PricesUpdateState {
-  /** The Investments file whose prices `copy` holds, or null while none is open. */
+  /** The Investments file whose prices `copy` holds, or null while none is open and while the copy of this browser is read. */
   readonly investmentsFileId: string | null
   readonly copy: PricesCopy | null
   readonly fetching: PricesFetching | null
@@ -218,11 +218,16 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
 
     async open() {
       const place = await ports.place()
-      state.investmentsFileId = place?.investmentsFileId ?? null
+      state.investmentsFileId = null
       state.copy = null
       if (place !== null) {
-        const copy = await place.cache.read()
-        if (copy !== null) await show(place, copy)
+        try {
+          const copy = await place.cache.read()
+          if (copy !== null) await show(place, copy)
+        } finally {
+          // The screens wait for this read, so one that failed still shows the file, with no prices but those entered by hand.
+          if ((await ports.place())?.investmentsFileId === place.investmentsFileId) state.investmentsFileId = place.investmentsFileId
+        }
       }
     },
 

@@ -1,6 +1,6 @@
 import { interestOf, subsidyShareOf, yourShareOf } from '../domain/loanFigures'
 import type { YearPayments } from '../domain/loanFigures'
-import { yearStep } from '../../balances/presentation/balanceChart'
+import { yearStep } from '../../../../shared/charts/monthAxis'
 import { words } from './words'
 import { BAR_END_UP, moneyAxisLabel, stackGap, stripeDecal } from '../../../../shared/charts/chartTheme'
 import { tokenColour } from '../../../../shared/charts/chartTokens'

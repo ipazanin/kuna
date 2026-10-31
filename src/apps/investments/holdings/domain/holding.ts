@@ -1,3 +1,4 @@
+import { receivedInEuros } from './lots'
 import type { ClosedSale, InstrumentLots, Lot } from './lots'
 import { closePerUnit, heldWorth, priceOfWorth } from './quoting'
 import { closeIsLate } from '../../prices/domain/priceBook'
@@ -53,6 +54,11 @@ export interface LastDayDates {
   readonly to: CivilDate
 }
 
+export interface FirstAcquired {
+  readonly date: CivilDate
+  readonly by: 'buy' | 'spin-off'
+}
+
 /** What one instrument is worth, cost and earned. The money figures are in euros. */
 export interface HoldingFigures {
   readonly instrument: Instrument
@@ -85,13 +91,23 @@ export interface HoldingFigures {
   readonly feesPaid: Money
   /** A trade without its fees entered, so the gain may be too high. */
   readonly feesMissing: boolean
-  /** The first buy, or the spin-off its first units came from. */
-  readonly firstBought: CivilDate | null
+  /** The day its first units came, by a buy or in a spin-off. Null before either. */
+  readonly firstAcquired: FirstAcquired | null
 }
 
 export function dayChange(earlier: Money, later: Money): DayChange {
   const change = subtractMoney(later, earlier)
   return { earlier, later, change, share: ratioOf(change, earlier) }
+}
+
+/** A price of an earlier day as a price of the units held today, after every split of the instrument since that day. */
+export function priceInTodaysUnits(book: InvestmentBook, instrument: Instrument, day: CivilDate, price: Decimal): Decimal {
+  const later = book.splits.filter((split) => split.instrument === instrument.id && split.date > day)
+  return scaledDecimal(
+    price,
+    later.reduce((product, split) => product * BigInt(split.oldUnits), 1n),
+    later.reduce((product, split) => product * BigInt(split.newUnits), 1n),
+  )
 }
 
 /** The quantity valued at the latest close on or before the day. Null when there is no close yet, or no rate for its day. */
@@ -104,15 +120,7 @@ export function valuationOn(instrument: Instrument, quantity: Decimal, sources: 
   if (instrument.currency !== EURO && rate === null) {
     return null
   }
-  const later = sources.book.splits.filter((split) => split.instrument === instrument.id && split.date > close.date)
-  const price = closePerUnit(
-    instrument.quoted,
-    scaledDecimal(
-      close.price,
-      later.reduce((product, split) => product * BigInt(split.oldUnits), 1n),
-      later.reduce((product, split) => product * BigInt(split.newUnits), 1n),
-    ),
-  )
+  const price = closePerUnit(instrument.quoted, priceInTodaysUnits(sources.book, instrument, close.date, close.price))
   const foreignValue = heldWorth(instrument.quoted, quantity, price, day)
   return { close, price, rate, foreignValue, value: inEuros(foreignValue, rate) }
 }
@@ -131,13 +139,12 @@ export function holdingFigures(instrument: Instrument, lots: InstrumentLots, sou
   const trades = book.trades.filter((trade) => trade.instrument === instrument.id)
   const income = book.income.filter((payment) => payment.instrument === instrument.id)
   const yearBefore = dayMonthsLater(today, -12)
-  const received = (payments: readonly Income[]): Money =>
-    sumMoney(payments.map((payment) => subtractMoney(inEuros(subtractDecimal(payment.gross, payment.withheld), payment.rate), lots.paidBack.get(payment.id) ?? ZERO)))
+  const received = (payments: readonly Income[]): Money => sumMoney(payments.map((payment) => receivedInEuros(payment, lots.paidBack)))
   const lastYearsIncome = received(income.filter((payment) => payment.date > yearBefore && payment.date <= today))
   const acquired = [
-    ...trades.filter((trade) => trade.side === 'buy').map((trade) => trade.date),
-    ...book.spinOffs.filter((spinOff) => spinOff.received === instrument.id).map((spinOff) => spinOff.date),
-  ].sort()
+    ...trades.filter((trade) => trade.side === 'buy').map((trade): FirstAcquired => ({ date: trade.date, by: 'buy' })),
+    ...book.spinOffs.filter((spinOff) => spinOff.received === instrument.id).map((spinOff): FirstAcquired => ({ date: spinOff.date, by: 'spin-off' })),
+  ].sort((earlier, later) => earlier.date.localeCompare(later.date))
 
   return {
     instrument,
@@ -159,7 +166,7 @@ export function holdingFigures(instrument: Instrument, lots: InstrumentLots, sou
     dividendYield: valuation === null || valuation.value <= 0 ? null : ratioOf(lastYearsIncome, valuation.value),
     feesPaid: sumMoney(trades.map((trade) => inEuros(trade.fees ?? DECIMAL_ZERO, trade.rate))),
     feesMissing: trades.some((trade) => trade.fees === null),
-    firstBought: acquired[0] ?? null,
+    firstAcquired: acquired[0] ?? null,
   }
 }
 
@@ -168,4 +175,32 @@ export function lastDayOf(instrument: Instrument, quantity: Decimal, sources: Po
   const earlier = valuationOn(instrument, quantity, sources, dates.from)
   const later = valuationOn(instrument, quantity, sources, dates.to)
   return earlier === null || later === null ? null : dayChange(earlier.value, later.value)
+}
+
+/** What a holding gained since it was first bought, in euros. */
+export interface HoldingReturn {
+  /** The price and currency parts with what its sales realised and its income. Null while what is held has no price. */
+  readonly total: Money | null
+  /** The total over what every unit it held cost: the open lots and the lots its sales closed. */
+  readonly share: number | null
+  /** Null when nothing is held or what is held has no price. */
+  readonly price: Money | null
+  readonly currency: Money | null
+  readonly realised: Money
+  readonly income: Money
+}
+
+export function holdingReturn(holding: Omit<HoldingFigures, 'weight' | 'lastDay'>): HoldingReturn {
+  const held = holding.quantity > DECIMAL_ZERO
+  const unrealised = held ? holding.unrealised : ZERO
+  const total = unrealised === null ? null : sumMoney([unrealised, holding.realised, holding.income])
+  const paid = sumMoney([holding.cost, ...holding.sales.flatMap((sale) => sale.lines.map((line) => line.cost))])
+  return {
+    total,
+    share: total === null || paid <= 0 ? null : ratioOf(total, paid),
+    price: held ? holding.pricePart : null,
+    currency: held ? holding.currencyPart : null,
+    realised: holding.realised,
+    income: holding.income,
+  }
 }

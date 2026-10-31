@@ -2,16 +2,12 @@
 import { computed } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 
-import { pricesDay } from '../application/pricesUpdate'
 import { storedVendorKey } from '../infrastructure/vendorKeys'
 import { PRICE_VENDORS } from '../infrastructure/vendors/priceVendors'
 import { pricesAge } from '../domain/priceBook'
-import { pricesFileBook, pricesFileRateBook } from '../domain/pricesFileBooks'
-import { portfolioFigures } from '../../holdings/domain/portfolioFigures'
+import { usePortfolio } from '../../holdings/presentation/usePortfolio'
 import { INVESTMENTS_SETTINGS_ROUTE } from '../../overview/presentation/investmentLinks'
-import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { plural } from '../../../../shared/text/translation'
 import PricesProgress from './PricesProgress.vue'
@@ -19,33 +15,33 @@ import { runProblem } from './runProblem'
 import { usePrices } from './usePrices'
 import { words } from './words'
 
-/** How the prices stand on the Overview: the fetch under way, how recent the holdings' closes are, and a warning once they are behind. */
+/**
+ * How the prices stand on the Overview: the fetch under way, and a warning once the closes are behind or the last
+ * fetch failed. The close the figures are at is in the Overview's header.
+ */
 const prices = usePrices()
-const { state } = useInvestmentsBooks()
+const { sources, figures } = usePortfolio()
 
 /** Whether this browser keeps a key for a vendor that needs one, which decides what advice a missing close gets. */
 const keyKept = PRICE_VENDORS.some((vendor) => vendor.needsKey && storedVendorKey(vendor.id) !== null)
 const problem = computed(() => runProblem(prices.state.lastRun))
 
 const standing = computed(() => {
-  const book = state.workbook?.book
   const file = prices.state.copy?.file
-  if (book === undefined || !book.instruments.some((instrument) => instrument.prices !== 'manual')) {
+  if (sources.value === null || figures.value === null || !sources.value.book.instruments.some((instrument) => instrument.prices !== 'manual')) {
     return null
   }
-  if (file === undefined) {
+  const age =
+    file === undefined
+      ? null
+      : pricesAge(
+          figures.value.holdings.flatMap((holding) => holding.valuation?.close ?? []),
+          sources.value.today,
+        )
+  if (file === undefined || age === null) {
     return { kind: 'none' } as const
   }
-  const today = pricesDay(new Date().toISOString())
-  const figures = portfolioFigures({ book, prices: pricesFileBook(file, book.prices), rates: pricesFileRateBook(file), today })
-  const age = pricesAge(
-    figures.holdings.flatMap((holding) => holding.valuation?.close ?? []),
-    today,
-  )
-  if (age === null) {
-    return { kind: 'none' } as const
-  }
-  return { kind: age.late ? 'behind' : 'current', newest: dayLabel(age.newest), missed: file.failures.length } as const
+  return age.late ? ({ kind: 'behind', newest: dayLabel(age.newest), missed: file.failures.length } as const) : null
 })
 
 const behindNote = computed(() => {
@@ -77,10 +73,6 @@ const behindNote = computed(() => {
     :actions="[{ label: words.status.settings, to: INVESTMENTS_SETTINGS_ROUTE, color: 'neutral', variant: 'outline', size: 'sm' }]"
     data-testid="investments-prices-behind"
   />
-  <p v-else-if="standing?.kind === 'current'" class="flex items-center gap-1.5 type-caption" data-testid="investments-prices-current">
-    <UIcon name="i-lucide-circle-check" class="size-4 shrink-0 text-success" aria-hidden="true" />
-    {{ words.status.upTo(standing.newest) }}
-  </p>
   <p v-else-if="standing?.kind === 'none'" class="flex flex-wrap items-center gap-x-2 type-caption" data-testid="investments-prices-none">
     {{ keyKept ? words.status.noCloses : words.status.none }}
     <UButton :to="INVESTMENTS_SETTINGS_ROUTE" :label="words.status.settings" color="neutral" variant="link" size="sm" class="inline-target px-0" />

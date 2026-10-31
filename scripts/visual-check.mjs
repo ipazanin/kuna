@@ -22,7 +22,10 @@
  * a file a newer app saved (`?fake=newer-file`), the Loans Settings, the Loans Overview with one loan
  * (`?loans=one-loan`), with a house loan and a car loan (`?loans=house-and-car`) and while its file opens (`?loans=opening`), Scenarios on Home loan, on Offers and on a car loan with none, the home, Kuna settings, the Loans first run and every Loans screen in Croatian (`?lang=hr`),
  * the Investments first run, its empty Overview and its Settings on an empty file (`?investments=drive`) and its Overview while its file opens (`?investments=opening`), each in Croatian too,
- * the Investments Overview and Settings' Prices card on the sample with current prices, with made-up keys kept and with late prices whose last fetch failed (`?prices=late-prices`), Salaries for one
+ * the Investments Overview on the sample (`?investments=sample`), on the sample without a deposit so an account's cash is below zero (`?investments=cash-below-zero`) and with late prices whose last
+ * fetch failed (`?prices=late-prices`), each in Croatian too and with its figures worked out from the same fake sets, the home with the Investments card's figures and its late-prices badge,
+ * the sample's Holdings, also with a late close, and two holdings' pages, one in US dollars with a lot partly sold and one from a spin-off that split, each in Croatian too,
+ * Settings' Prices card on the sample with current prices, with made-up keys kept and with late prices, Salaries for one
  * made-up employee (`?fake=one-employee`) and for five (`?fake=five-employees`), and the summary
  * of an xlsx file it writes from the fake workbook with two problems added.
  *
@@ -102,6 +105,19 @@ import * as XLSX from 'xlsx'
 import { fakeWorkbookDocument } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook.ts'
 import { tabsOfDocument } from '../src/apps/company/workbook/infrastructure/spreadsheetDocument.ts'
 import { templateColumnNames } from '../src/apps/company/workbook/infrastructure/workbookTemplate.ts'
+import { holdingReturn } from '../src/apps/investments/holdings/domain/holding.ts'
+import { holdingsList } from '../src/apps/investments/holdings/domain/holdingsList.ts'
+import { latestRecords } from '../src/apps/investments/holdings/domain/latestRecords.ts'
+import { figuresClose, portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures.ts'
+import { WORKED_OUT_PRICE_PLACES } from '../src/apps/investments/holdings/presentation/holdingText.ts'
+import { gainSources, incomeAgainstLastYear } from '../src/apps/investments/overview/domain/overviewFigures.ts'
+import { pricesDay } from '../src/apps/investments/prices/application/pricesUpdate.ts'
+import { pricesFileBook, pricesFileRateBook } from '../src/apps/investments/prices/domain/pricesFileBooks.ts'
+import { fakePricesFile } from '../src/apps/investments/prices/infrastructure/fake/fakePrices.ts'
+import { fakeInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/fake/fakeInvestments.ts'
+import { INVESTMENTS_DOCUMENT } from '../src/apps/investments/workbook/infrastructure/investmentsDocument.ts'
+import { dayLabel, shortDayLabel, weekdayDayLabel } from '../src/shared/calendar/dayLabel.ts'
+import { formatMoney, formatPercent, formatPercentChange, formatUnitPrice } from '../src/shared/money/moneyFormat.ts'
 import { installHrDooPack } from './support/installPack.mjs'
 import { chromePath, ENGLISH_CHROME_ARG } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
@@ -222,6 +238,84 @@ const SAMPLE_BANK_LOAN = 'fa4e0000-0000-4000-8000-000000000001'
 const SAMPLE_INFORMAL_LOAN = 'fa4e0000-0000-4000-8000-000000000006'
 /** The car loan of `?loans=house-and-car`, which has no scenarios. */
 const SAMPLE_CAR_LOAN = 'fa4e0000-0000-4000-8000-000000000030'
+
+/** The day the fake build seeds its prices for, so the expected figures are the ones on screen. */
+const INVESTMENTS_DAY = pricesDay(new Date().toISOString())
+const CROATIAN_MONEY = { currency: 'EUR', locale: 'hr-HR' }
+
+/**
+ * The made-up portfolio's figures on the Overview and the home card, worked out with the same domain functions the
+ * screens use, as `?investments=` and `?prices=` name the fake sets. Money comes in English and in Croatian.
+ */
+function fakeInvestmentsShows(variant, pricesVariant) {
+  const { workbook, rates, figures } = fakePortfolio(variant, pricesVariant)
+  const income = incomeAgainstLastYear(workbook.book, INVESTMENTS_DAY)
+  const sources = gainSources(figures)
+  const newestFlow = latestRecords(workbook.book, rates, 5).find((entry) => entry.kind === 'trade' || entry.kind === 'income' || entry.kind === 'cash-movement')
+  return {
+    close: weekdayDayLabel(figuresClose(figures)),
+    newestShort: shortDayLabel(figuresClose(figures)),
+    english: [
+      formatMoney(figures.value),
+      formatMoney(figures.totalGain, 'always'),
+      `${formatPercent(figures.totalGainShare, 'always')} on the ${formatMoney(figures.putIn)} you put in`,
+      formatMoney(income.thisYear),
+      formatMoney(sources.tradingFees),
+      ...(figures.lastDay?.share == null ? [] : [formatPercentChange(figures.lastDay.share)]),
+      ...(newestFlow === undefined ? [] : [formatMoney(newestFlow.euros, 'always')]),
+    ],
+    croatian: [formatMoney(figures.value, 'negative', CROATIAN_MONEY), formatMoney(figures.totalGain, 'always', CROATIAN_MONEY), formatMoney(figures.putIn, 'negative', CROATIAN_MONEY)],
+    home: [formatMoney(figures.value), formatMoney(figures.totalGain, 'always')],
+    homeCroatian: [formatMoney(figures.value, 'negative', CROATIAN_MONEY), formatMoney(figures.totalGain, 'always', CROATIAN_MONEY)],
+  }
+}
+
+/** The made-up Investments file and its figures on the fake build's day, as `?investments=` and `?prices=` name them. */
+function fakePortfolio(variant, pricesVariant) {
+  const at = `${INVESTMENTS_DAY}T09:00:00.000Z`
+  const { workbook } = INVESTMENTS_DOCUMENT.read({ meta: { id: 'visual', source: 'browser', title: 'visual', syncedAt: at }, document: fakeInvestmentsDocument(at, variant) })
+  const prices = fakePricesFile(pricesVariant, INVESTMENTS_DAY)
+  const rates = pricesFileRateBook(prices)
+  const figures = portfolioFigures({ book: workbook.book, prices: pricesFileBook(prices, workbook.book.prices), rates, today: INVESTMENTS_DAY })
+  return { workbook, rates, figures }
+}
+
+/** The sample's Holdings figures: the value, the holdings' cost and their gain, in English and in Croatian. */
+function fakeHoldingsShows() {
+  const { workbook, figures } = fakePortfolio('sample', 'sample')
+  const { total } = holdingsList(figures, workbook.book, { grouping: 'class', find: '', sold: false, sort: null })
+  return {
+    english: [formatMoney(total.value), formatMoney(total.cost), formatMoney(total.gain, 'always')],
+    croatian: [formatMoney(total.value, 'negative', CROATIAN_MONEY), formatMoney(total.cost, 'negative', CROATIAN_MONEY), formatMoney(total.gain, 'always', CROATIAN_MONEY)],
+  }
+}
+
+/** Example Tech of the sample, in US dollars with its first lot partly sold, and Example Spinco, received in a spin-off, split two for one and priced by hand. */
+const SAMPLE_SHARE_A = 'fa4e1000-0000-4000-8000-000000000010'
+const SAMPLE_SPIN_CO = 'fa4e1000-0000-4000-8000-000000000014'
+
+/** A sample holding's page: its name, its value, its total return and its average cost, in English and in Croatian. */
+function fakeHoldingShows(key) {
+  const { figures } = fakePortfolio('sample', 'sample')
+  const holding = figures.holdings.find((entry) => entry.instrument.id === `instrument:${key}`)
+  const returns = holdingReturn(holding)
+  return {
+    name: holding.instrument.name,
+    english: [formatMoney(holding.valuation.value), formatMoney(returns.total, 'always'), formatUnitPrice(holding.averageCost, holding.instrument.currency, WORKED_OUT_PRICE_PLACES)],
+    croatian: [formatMoney(holding.valuation.value, 'negative', CROATIAN_MONEY), formatMoney(returns.total, 'always', CROATIAN_MONEY)],
+  }
+}
+
+const SAMPLE_HOLDINGS = fakeHoldingsShows()
+
+/** The close of the first late holding when the fake prices stop four weekdays back, as Holdings marks it. */
+const LATE_HOLDING_CLOSE = dayLabel(fakePortfolio('sample', 'late-prices').figures.holdings.find((holding) => holding.late).valuation.close.date)
+const SAMPLE_SHARE_A_PAGE = fakeHoldingShows(SAMPLE_SHARE_A)
+const SAMPLE_SPIN_CO_PAGE = fakeHoldingShows(SAMPLE_SPIN_CO)
+
+const SAMPLE_INVESTMENTS = fakeInvestmentsShows('sample', 'sample')
+const LATE_INVESTMENTS = fakeInvestmentsShows('sample', 'late-prices')
+const CASH_BELOW_ZERO_INVESTMENTS = fakeInvestmentsShows('cash-below-zero', 'sample')
 
 const SCREENS = [
   { name: 'overview', hash: '#/company', title: 'Overview', charts: 2, shows: ['Waiting for you', 'A typical month', 'Every euro earned', 'Balance at month end'] },
@@ -415,6 +509,36 @@ const SOURCE_SCREENS = [
     cards: false,
   },
   { name: 'home-loans', query: 'loans=sample', hash: '#/', title: 'All apps', charts: 0, shows: ['Cash on hand', 'You owe in all'], cards: false },
+  {
+    name: 'home-investments',
+    query: 'investments=sample',
+    hash: '#/',
+    title: 'All apps',
+    charts: 0,
+    ready: '[data-app="investments"] dl',
+    shows: ['Investments', 'Value', 'Total gain', ...SAMPLE_INVESTMENTS.home],
+    cards: false,
+  },
+  {
+    name: 'home-investments-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/',
+    title: 'Sve aplikacije',
+    charts: 0,
+    ready: '[data-app="investments"] dl',
+    shows: ['Ulaganja', 'Vrijednost', 'Ukupna dobit', ...SAMPLE_INVESTMENTS.homeCroatian],
+    cards: false,
+  },
+  {
+    name: 'home-investments-late',
+    query: 'investments=sample&prices=late-prices',
+    hash: '#/',
+    title: 'All apps',
+    charts: 0,
+    ready: '[data-app="investments"] [data-testid="home-card-waiting"]',
+    shows: [`Prices from ${LATE_INVESTMENTS.newestShort}`, ...LATE_INVESTMENTS.home],
+    cards: false,
+  },
   { name: 'home-loans-croatian', query: 'loans=sample&lang=hr', hash: '#/', title: 'Sve aplikacije', charts: 0, shows: ['Novac na računima', 'Ukupno dugujete'], cards: false },
   { name: 'welcome', query: 'fake=empty', hash: '#/company/start', title: 'Company', charts: 0, shows: ['What brings you here?', 'Start new books', 'Open my books on Google Drive'], cards: false },
   {
@@ -836,13 +960,151 @@ const SOURCE_SCREENS = [
     cards: false,
   },
   {
-    name: 'investments-prices-current',
+    name: 'investments-overview-sample',
     query: 'investments=sample',
     hash: '#/investments',
     title: 'Overview',
+    charts: 1,
+    shows: [
+      `At the close of ${SAMPLE_INVESTMENTS.close}.`,
+      'Prices entered by hand',
+      'Example Money Fund (EMF) uses the price you entered on',
+      ...SAMPLE_INVESTMENTS.english,
+      'Value over time',
+      'Where the money is',
+      'Cash and currencies',
+      'Where the gain comes from',
+      'Movers on the last day',
+      'Latest transactions',
+      'Fee refund',
+    ],
+    cards: false,
+  },
+  {
+    name: 'investments-overview-sample-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments',
+    title: 'Pregled',
+    charts: 1,
+    shows: ['Stanje na zatvaranju:', 'Cijene unesene ručno', ...SAMPLE_INVESTMENTS.croatian, 'Vrijednost kroz vrijeme', 'Gdje je novac', 'Odakle dolazi dobit', 'Zadnje transakcije'],
+    cards: false,
+  },
+  {
+    name: 'investments-overview-cash-below-zero',
+    query: 'investments=cash-below-zero',
+    hash: '#/investments',
+    title: 'Overview',
+    charts: 1,
+    shows: ['Some figures need a look', 'Broker Two holds −€', 'of cash, below zero. A deposit or an exchange is probably missing.', ...CASH_BELOW_ZERO_INVESTMENTS.english],
+    cards: false,
+  },
+  {
+    name: 'investments-overview-cash-below-zero-croatian',
+    query: 'investments=cash-below-zero&lang=hr',
+    hash: '#/investments',
+    title: 'Pregled',
+    charts: 1,
+    shows: ['Neke brojke treba provjeriti', 'Broker Two: novac je −', 'ispod nule. Vjerojatno nedostaje uplata ili konverzija.', ...CASH_BELOW_ZERO_INVESTMENTS.croatian],
+    cards: false,
+  },
+  {
+    name: 'investments-holdings',
+    query: 'investments=sample',
+    hash: '#/investments/holdings',
+    title: 'Holdings',
     charts: 0,
-    ready: '[data-testid="investments-prices-current"]',
-    shows: ['Prices up to'],
+    ready: '[data-testid="holdings"] [data-testid="holding-row"], [data-testid="holdings-table"]',
+    shows: [
+      'holdings and the cash, worth',
+      'Example Tech',
+      'Example World ETF',
+      'Example Money Fund',
+      'Stocks',
+      'Money market',
+      'Cash and currencies',
+      'Broker Two',
+      'Total',
+      ...SAMPLE_HOLDINGS.english,
+    ],
+    cards: false,
+  },
+  {
+    name: 'investments-holdings-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments/holdings',
+    title: 'Pozicije',
+    charts: 0,
+    ready: '[data-testid="holdings"] [data-testid="holding-row"], [data-testid="holdings-table"]',
+    shows: ['pozicija i novac, vrijednost', 'Dionice', 'Novčani fondovi', 'Novac i valute', 'Ukupno', ...SAMPLE_HOLDINGS.croatian],
+    cards: false,
+  },
+  {
+    name: 'investments-holdings-late',
+    query: 'investments=sample&prices=late-prices',
+    hash: '#/investments/holdings',
+    title: 'Holdings',
+    charts: 0,
+    ready: '[data-testid="holdings"] [data-testid="holding-row"], [data-testid="holdings-table"]',
+    shows: [`Close of ${LATE_HOLDING_CLOSE}, late`, 'Example Tech'],
+    cards: false,
+  },
+  {
+    name: 'investments-holdings-late-croatian',
+    query: 'investments=sample&prices=late-prices&lang=hr',
+    hash: '#/investments/holdings',
+    title: 'Pozicije',
+    charts: 0,
+    ready: '[data-testid="holdings"] [data-testid="holding-row"], [data-testid="holdings-table"]',
+    shows: ['Zaključna cijena od', 'kasni', 'Example Tech'],
+    cards: false,
+  },
+  {
+    name: 'investments-holding-usd',
+    query: 'investments=sample',
+    hash: `#/investments/holding?instrument=${SAMPLE_SHARE_A}`,
+    title: SAMPLE_SHARE_A_PAGE.name,
+    charts: 1,
+    shows: [
+      'quoted in USD',
+      'first bought',
+      'Total return',
+      'Price',
+      'Currency',
+      'Realised on sales',
+      'Average cost',
+      'Tax-free',
+      'Lots still held',
+      'Transactions',
+      'Sell',
+      ...SAMPLE_SHARE_A_PAGE.english,
+    ],
+    cards: false,
+  },
+  {
+    name: 'investments-holding-usd-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: `#/investments/holding?instrument=${SAMPLE_SHARE_A}`,
+    title: SAMPLE_SHARE_A_PAGE.name,
+    charts: 1,
+    shows: ['kotira u USD', 'Ukupni prinos', 'Tečaj', 'Ostvareno prodajom', 'Prosječna nabavna cijena', 'Bez poreza', 'Kupnje koje još držite', 'Transakcije', ...SAMPLE_SHARE_A_PAGE.croatian],
+    cards: false,
+  },
+  {
+    name: 'investments-holding-split',
+    query: 'investments=sample',
+    hash: `#/investments/holding?instrument=${SAMPLE_SPIN_CO}`,
+    title: SAMPLE_SPIN_CO_PAGE.name,
+    charts: 1,
+    shows: ['Price entered by hand on', 'Split', '2 for 1', 'Spin-off', 'received from Example Dividend Co', 'from a spin-off on', 'Lots still held', ...SAMPLE_SPIN_CO_PAGE.english],
+    cards: false,
+  },
+  {
+    name: 'investments-holding-split-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: `#/investments/holding?instrument=${SAMPLE_SPIN_CO}`,
+    title: SAMPLE_SPIN_CO_PAGE.name,
+    charts: 1,
+    shows: ['Cijena unesena ručno', 'Podjela', '2 za 1', 'Izdvajanje', 'primljeno iz: Example Dividend Co', 'iz izdvajanja', ...SAMPLE_SPIN_CO_PAGE.croatian],
     cards: false,
   },
   {
@@ -850,9 +1112,18 @@ const SOURCE_SCREENS = [
     query: 'investments=sample&prices=late-prices',
     hash: '#/investments',
     title: 'Overview',
-    charts: 0,
+    charts: 1,
     ready: '[data-testid="investments-prices-behind"]',
-    shows: ['Prices are behind', 'The newest close is from', 'The last fetch got nothing for 6 series', 'Prices in Settings'],
+    shows: [
+      'Prices are behind',
+      'The newest close is from',
+      'The last fetch got nothing for 6 series',
+      'Prices in Settings',
+      `At the close of ${LATE_INVESTMENTS.close}.`,
+      'Example Tech (ABC) is valued at its close of',
+      ', which is late.',
+      ...LATE_INVESTMENTS.english,
+    ],
     cards: false,
   },
   {
@@ -860,9 +1131,9 @@ const SOURCE_SCREENS = [
     query: 'investments=sample&prices=late-prices&lang=hr',
     hash: '#/investments',
     title: 'Pregled',
-    charts: 0,
+    charts: 1,
     ready: '[data-testid="investments-prices-behind"]',
-    shows: ['Cijene kasne', 'Najnovija zaključna cijena je od', 'Zadnje dohvaćanje nije dobilo ništa za 6 nizova', 'Cijene u postavkama'],
+    shows: ['Cijene kasne', 'Najnovija zaključna cijena je od', 'Zadnje dohvaćanje nije dobilo ništa za 6 nizova', 'Cijene u postavkama', 'koja kasni.', ...LATE_INVESTMENTS.croatian],
     cards: false,
   },
   {

@@ -8,6 +8,10 @@ export const CASH_MOVEMENT_KINDS = ['deposit', 'withdrawal', 'fee', 'fee-refund'
 
 export type CashMovementKind = (typeof CASH_MOVEMENT_KINDS)[number]
 
+export function addsCash(kind: CashMovementKind): boolean {
+  return kind === 'deposit' || kind === 'fee-refund'
+}
+
 /** Cash into or out of an account that is not a trade, income or an exchange. */
 export interface CashMovement {
   readonly id: RecordId

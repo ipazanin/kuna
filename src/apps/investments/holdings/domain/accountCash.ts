@@ -1,7 +1,7 @@
 import { tradeTotal } from './lots'
 import { eurosAtEcbRate } from '../../prices/domain/rateBook'
 import type { RateBook } from '../../prices/domain/rateBook'
-import type { CashMovementKind } from '../../workbook/domain/cashMovement'
+import { addsCash } from '../../workbook/domain/cashMovement'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { EURO } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
@@ -26,8 +26,6 @@ export interface AccountCash {
   /** Records with a foreign amount the ECB series has no rate for yet, whose euros are left out of `eurosIn`. */
   readonly unrated: readonly RecordId[]
 }
-
-const ADDS: ReadonlySet<CashMovementKind> = new Set(['deposit', 'fee-refund'])
 
 /**
  * Each account's balance per currency from every record that moves cash, apart from the trades the lots refused, which
@@ -67,7 +65,7 @@ export function accountCash(book: InvestmentBook, rates: RateBook, refused: Read
   }
   for (const movement of book.cashMovements) {
     const euros = inEuros(movement.amount, movement.rate)
-    if (ADDS.has(movement.kind)) {
+    if (addsCash(movement.kind)) {
       move(movement.account, movement.currency, movement.amount, euros, movement.id)
     } else {
       move(movement.account, movement.currency, negateDecimal(movement.amount), negateMoney(euros), movement.id)

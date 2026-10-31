@@ -80,6 +80,28 @@ export function taxFreeFrom(opened: CivilDate): CivilDate {
   return addDays(dayMonthsLater(opened, 24), 1)
 }
 
+/** Whether a lot is past two years on the day, so selling it then is free of tax. */
+export function lotIsTaxFree(lot: Lot, day: CivilDate): boolean {
+  return day >= lot.taxFreeFrom
+}
+
+/** How many of the open units are past two years on a day, and when the next lot gets there. */
+export interface TaxFreeUnits {
+  readonly taxFree: Decimal
+  readonly held: Decimal
+  /** Null when every open lot is past two years already. */
+  readonly next: CivilDate | null
+}
+
+export function taxFreeUnits(lots: readonly Lot[], day: CivilDate): TaxFreeUnits {
+  const waiting = lots.filter((lot) => !lotIsTaxFree(lot, day)).map((lot) => lot.taxFreeFrom)
+  return {
+    taxFree: sumDecimal(lots.filter((lot) => lotIsTaxFree(lot, day)).map((lot) => lot.quantity)),
+    held: sumDecimal(lots.map((lot) => lot.quantity)),
+    next: waiting.reduce<CivilDate | null>((first, date) => (first === null || date < first ? date : first), null),
+  }
+}
+
 /** What a trade moves in its currency: a buy's worth + fees, a sale's worth − fees, each with the accrued interest of a bond. */
 export function tradeTotal(trade: Trade, quoting: Quoting): Decimal {
   const worth = addDecimal(tradeWorth(quoting, trade.quantity, trade.price), trade.accrued ?? DECIMAL_ZERO)
@@ -169,6 +191,11 @@ function applyBuy(queue: Queue, trade: Trade): void {
   moveUnits(queue.units, trade.account, trade.quantity)
 }
 
+/** A payment after its tax withheld, in euros, without the part of a coupon that paid back accrued interest bought with the bond. */
+export function receivedInEuros(payment: Income, paidBack: ReadonlyMap<RecordId, Money>): Money {
+  return subtractMoney(inEuros(subtractDecimal(payment.gross, payment.withheld), payment.rate), paidBack.get(payment.id) ?? ZERO)
+}
+
 /** Takes the accrued interest each open lot paid off its cost, as the euros it was paid at, and keeps that as the coupon's payback. */
 function applyCoupon(queue: Queue, coupon: Income): void {
   if (queue.open.every((lot) => lot.accrued === DECIMAL_ZERO)) {
@@ -229,7 +256,7 @@ function applySale(queue: Queue, trade: Trade): void {
       fees: lineFees,
       gain: subtractMoney(subtractMoney(lineProceeds, lineFees), cost),
       daysHeld: daysBetween(lot.opened, trade.date),
-      taxFree: trade.date >= lot.taxFreeFrom,
+      taxFree: lotIsTaxFree(lot, trade.date),
     }
   })
   queue.open = [...kept, ...queue.open.slice(takes.length)]

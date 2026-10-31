@@ -421,6 +421,16 @@ describe("the day's fetch", () => {
     expect(world.update.state.copy?.file.series['twelvedata:ABC']?.closes.at(-1)).toEqual(['2026-10-29', '10.00'])
   })
 
+  it('names the Investments file only once the copy of this browser is read, also when there is none', async () => {
+    const world = await worldOf({ onDrive: false })
+    const opening = world.update.open()
+
+    expect(world.update.state.investmentsFileId).toBeNull()
+    await opening
+    expect(world.update.state.investmentsFileId).toBe(world.investmentsFileId)
+    expect(world.update.state.copy).toBeNull()
+  })
+
   it('fetches nothing before the Investments records are read', async () => {
     const world = await worldOf({ records: null })
     expect(await world.update.fetchIfDue()).toBe('no-books')

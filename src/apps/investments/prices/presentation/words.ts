@@ -81,7 +81,6 @@ export const en = {
     'not-in-shape': 'The prices file is not in the shape Kuna writes, so Kuna left it as it is.',
   } satisfies Record<PricesFileRefusal, string>,
   status: {
-    upTo: (day: string) => `Prices up to ${day}.`,
     behind: 'Prices are behind',
     behindNote: (day: string) => `The newest close is from ${day}.`,
     none: 'No prices yet. Add a free key in Settings to fetch them.',
@@ -165,7 +164,6 @@ export const hr: Translation<typeof en> = {
     'not-in-shape': 'Datoteka cijena nije u obliku koji Kuna zapisuje, pa ju je Kuna ostavila kakva jest.',
   },
   status: {
-    upTo: (day) => `Cijene do ${day}`,
     behind: 'Cijene kasne',
     behindNote: (day) => `Najnovija zaključna cijena je od ${day}`,
     none: 'Još nema cijena. Dodajte besplatan ključ u postavkama da ih dohvatite.',

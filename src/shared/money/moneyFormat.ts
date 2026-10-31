@@ -29,6 +29,12 @@ export const DEFAULT_MONEY_FORMAT: MoneyFormat = { currency: 'EUR', locale: intl
 
 const MINUS = '−'
 
+/** Places of a percent a day's change shows, since a portfolio rarely moves a whole percent in a day. */
+const CHANGE_DECIMALS = 2
+
+/** Places of a percent a share of a whole shows, the same on every row so a column of shares lines up. */
+const SHARE_DECIMALS = 1
+
 /** The most places a unit price shows, enough for a fractional share's price as a broker books it. */
 const UNIT_PRICE_DECIMALS = 6
 
@@ -42,18 +48,20 @@ interface Formatters {
   readonly compactSmall: Intl.NumberFormat
   readonly compact: Intl.NumberFormat
   readonly percent: Intl.NumberFormat
+  readonly change: Intl.NumberFormat
+  readonly share: Intl.NumberFormat
   readonly rate: Intl.NumberFormat
   readonly points: Intl.NumberFormat
   readonly decimal: Intl.NumberFormat
   readonly days: Intl.NumberFormat
   readonly count: Intl.NumberFormat
-  readonly unitPrice: ExactNumberFormat
   readonly unitName: string
 }
 
 const active = shallowRef<MoneyFormat>(DEFAULT_MONEY_FORMAT)
 const formattersByKey = new Map<string, Formatters>()
 const quantityFormattersByKey = new Map<string, ExactNumberFormat>()
+const unitPriceFormattersByKey = new Map<string, ExactNumberFormat>()
 
 export function setMoneyFormat(format: MoneyFormat): void {
   if (format.currency !== active.value.currency || format.locale !== active.value.locale) {
@@ -71,12 +79,13 @@ function formatters(format: MoneyFormat = active.value): Formatters {
       compactSmall: new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: 0 }),
       compact: new Intl.NumberFormat(locale, { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 }),
       percent: new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }),
+      change: new Intl.NumberFormat(locale, { style: 'percent', minimumFractionDigits: CHANGE_DECIMALS, maximumFractionDigits: CHANGE_DECIMALS }),
+      share: new Intl.NumberFormat(locale, { style: 'percent', minimumFractionDigits: SHARE_DECIMALS, maximumFractionDigits: SHARE_DECIMALS }),
       rate: new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 4 }),
       points: new Intl.NumberFormat(locale, { maximumFractionDigits: 4 }),
       decimal: new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
       days: new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
       count: new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }),
-      unitPrice: exact(new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: UNIT_PRICE_DECIMALS })),
       unitName: unitNameOf(currency),
     }
     formattersByKey.set(key, found)
@@ -123,6 +132,18 @@ export function formatCompactMoney(cents: number, sign: SignDisplay = 'negative'
 
 export function formatPercent(fraction: number, sign: SignDisplay = 'negative'): string {
   return withSign(fraction, formatters().percent.format(Math.abs(fraction)), sign)
+}
+
+/** A change as a share with two decimals and its sign, such as +0.29%. A change that rounds to zero carries no sign. */
+export function formatPercentChange(fraction: number): string {
+  const shown = Math.round(Math.abs(fraction) * 10 ** (CHANGE_DECIMALS + 2)) === 0 ? 0 : fraction
+  return withSign(shown, formatters().change.format(Math.abs(fraction)), 'always')
+}
+
+/** A share of a whole with one decimal, such as 5.0% or 39.4%. A share that rounds to zero carries no sign. */
+export function formatShare(fraction: number): string {
+  const shown = Math.round(Math.abs(fraction) * 10 ** (SHARE_DECIMALS + 2)) === 0 ? 0 : fraction
+  return withSign(shown, formatters().share.format(Math.abs(fraction)), 'negative')
 }
 
 /** An interest rate as a bank writes it, with up to four decimals of a percent, such as 2.99% or 3.1825%. */
@@ -174,8 +195,23 @@ export function formatQuantity(value: Decimal, maximumDecimals: number): string 
   return withDecimalSign(value, maximumDecimals, formatter)
 }
 
-/** The price of one unit in its own currency, such as $190.50, with the currency's cents and up to six places. */
-export function formatUnitPrice(value: Decimal, currency: CurrencyCode): string {
-  const { unitPrice } = formatters({ currency, locale: active.value.locale })
-  return withDecimalSign(value, UNIT_PRICE_DECIMALS, unitPrice)
+/** An amount in its own currency, rounded to its cents, such as −$12.35. */
+export function formatCurrencyAmount(value: Decimal, currency: CurrencyCode): string {
+  const { full } = formatters({ currency, locale: active.value.locale })
+  return withDecimalSign(value, full.resolvedOptions().maximumFractionDigits ?? 2, exact(full))
+}
+
+/**
+ * The price of one unit in its own currency, such as $190.50, with the currency's cents and up to six places. A price
+ * worked out by dividing, such as an average cost, passes fewer places, since six would only show the division's tail.
+ */
+export function formatUnitPrice(value: Decimal, currency: CurrencyCode, maximumDecimals: number = UNIT_PRICE_DECIMALS): string {
+  const { locale } = active.value
+  const key = `${locale}|${currency}|${maximumDecimals}`
+  let formatter = unitPriceFormattersByKey.get(key)
+  if (formatter === undefined) {
+    formatter = exact(new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: maximumDecimals }))
+    unitPriceFormattersByKey.set(key, formatter)
+  }
+  return withDecimalSign(value, maximumDecimals, formatter)
 }

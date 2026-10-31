@@ -3,7 +3,20 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { CurrencyCode } from '../src/shared/money/currencyCode'
 import { decimalOfText } from '../src/shared/money/decimal'
 import type { Decimal } from '../src/shared/money/decimal'
-import { DEFAULT_MONEY_FORMAT, currencyUnitName, formatCompactMoney, formatDecimal, formatMoney, formatPercent, formatQuantity, formatUnitPrice, setMoneyFormat } from '../src/shared/money/moneyFormat'
+import {
+  DEFAULT_MONEY_FORMAT,
+  currencyUnitName,
+  formatCompactMoney,
+  formatCurrencyAmount,
+  formatDecimal,
+  formatMoney,
+  formatPercent,
+  formatPercentChange,
+  formatQuantity,
+  formatShare,
+  formatUnitPrice,
+  setMoneyFormat,
+} from '../src/shared/money/moneyFormat'
 
 function decimal(text: string): Decimal {
   return decimalOfText(text)!
@@ -42,6 +55,22 @@ describe('money formatting with the default settings', () => {
   it('formats shares as percentages with the same sign rules', () => {
     expect(formatPercent(0.124, 'always')).toBe('+12.4%')
     expect(formatPercent(-0.05)).toBe('−5%')
+  })
+
+  it("writes a day's change with two decimals, signed unless it rounds to zero", () => {
+    expect(formatPercentChange(0.0029)).toBe('+0.29%')
+    expect(formatPercentChange(-0.00017)).toBe('−0.02%')
+    expect(formatPercentChange(0.012)).toBe('+1.20%')
+    expect(formatPercentChange(-0.00004)).toBe('0.00%')
+    expect(formatPercentChange(0)).toBe('0.00%')
+  })
+
+  it('writes a share of a whole with one decimal on every row, unsigned when it rounds to zero', () => {
+    expect(formatShare(0.01)).toBe('1.0%')
+    expect(formatShare(0.394)).toBe('39.4%')
+    expect(formatShare(1)).toBe('100.0%')
+    expect(formatShare(-0.0213)).toBe('−2.1%')
+    expect(formatShare(-0.0004)).toBe('0.0%')
   })
 
   it('names the unit for running text', () => {
@@ -103,6 +132,19 @@ describe('quantity and unit price formatting', () => {
     expect(formatUnitPrice(decimal('0.12345678'), 'USD' as CurrencyCode)).toBe('US$0.123457')
     expect(formatUnitPrice(decimal('512.3'), 'EUR' as CurrencyCode)).toBe('€512.30')
     expect(formatUnitPrice(decimal('1500'), 'JPY' as CurrencyCode)).toBe('JP¥1,500')
+  })
+
+  it('writes a unit price worked out by dividing with the places asked for, still with the cents', () => {
+    expect(formatUnitPrice(decimal('147.966666666667'), 'USD' as CurrencyCode, 4)).toBe('US$147.9667')
+    expect(formatUnitPrice(decimal('9.645'), 'USD' as CurrencyCode, 4)).toBe('US$9.645')
+    expect(formatUnitPrice(decimal('100'), 'EUR' as CurrencyCode, 4)).toBe('€100.00')
+  })
+
+  it('writes an amount in its own currency rounded to its cents', () => {
+    expect(formatCurrencyAmount(decimal('-12.345678'), 'USD' as CurrencyCode)).toBe('−US$12.35')
+    expect(formatCurrencyAmount(decimal('2337'), 'EUR' as CurrencyCode)).toBe('€2,337.00')
+    expect(formatCurrencyAmount(decimal('-0.004'), 'USD' as CurrencyCode)).toBe('US$0.00')
+    expect(formatCurrencyAmount(decimal('1500.4'), 'JPY' as CurrencyCode)).toBe('JP¥1,500')
   })
 
   it("follows the page's locale whatever the price's currency", () => {

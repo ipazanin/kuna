@@ -14,20 +14,21 @@ import { PRICES_DATABASE_PREFIX, openPricesCache } from '../../../prices/infrast
 
 /**
  * Sets up the fake build's Investments file as `?investments=` names it, each on the fake Drive: `drive` an empty
- * file chosen on this device, `sample` a chosen file holding the made-up portfolio, and `opening` the sample chosen
- * with nothing in this browser and every read of it held, so the Investments screens stay opening. Without it nothing
+ * file chosen on this device, `sample` a chosen file holding the made-up portfolio, `cash-below-zero` the sample
+ * without the deposit of its second account, and `opening` the sample chosen with nothing in this browser and every
+ * read of it held, so the Investments screens stay opening. Without it nothing
  * is chosen, which is the Investments first run. The sample has the fake prices file beside it, in this browser too,
  * as `?prices=late-prices` names it or else `sample`. Only the Investments app's install imports this, behind an
  * inline VITE_FAKE_WORKBOOK comparison.
  */
 export async function seedFakeInvestments(variant: string | null, pricesVariant: string | null): Promise<void> {
   await forgetFakePrices()
-  if (variant !== 'drive' && variant !== 'sample' && variant !== 'opening') {
+  if (variant !== 'drive' && variant !== 'sample' && variant !== 'cash-below-zero' && variant !== 'opening') {
     saveWorkbookChoice(INVESTMENTS_APP, null)
     return
   }
   const savedAt = new Date().toISOString()
-  const document = variant === 'drive' ? emptyInvestmentsDocument(savedAt) : fakeInvestmentsDocument(savedAt)
+  const document = variant === 'drive' ? emptyInvestmentsDocument(savedAt) : fakeInvestmentsDocument(savedAt, variant === 'cash-below-zero' ? 'cash-below-zero' : 'sample')
   const folder = await fakeBooksFolder()
   const created = await createDriveDocument(fakeDriveSession(), folder, INVESTMENTS_APP, encodeDocument(document))
   const choice = { source: 'drive', id: created.fileId, name: documentName(INVESTMENTS_APP) } as const

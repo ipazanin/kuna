@@ -16,6 +16,7 @@ import AppCard from '../../shared/ui/AppCard.vue'
 import ChartCard from '../../shared/ui/ChartCard.vue'
 import type { ChartPointSelection } from '../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../shared/ui/ChartLegend.vue'
+import ChoiceButtons from '../../shared/ui/ChoiceButtons.vue'
 import ColourSwatchPicker from '../../shared/ui/ColourSwatchPicker.vue'
 import DashboardGrid from '../../shared/ui/DashboardGrid.vue'
 import DonutCard from '../../shared/ui/DonutCard.vue'
@@ -164,6 +165,12 @@ const GALLERY_TABS = [
 ]
 
 const swatchColour = ref('')
+const GALLERY_PERIODS = [
+  { value: '1y', label: '1Y' },
+  { value: '3y', label: '3Y' },
+  { value: 'all', label: 'All' },
+] as const
+const galleryPeriod = ref<(typeof GALLERY_PERIODS)[number]['value']>('all')
 const SWATCHES = [1, 2, 3, 4, 5].map((slot) => ({ value: `series-${slot}`, name: `Slot ${slot}`, token: `--series-${slot}` }))
 
 /** A long list for Show all, of made-up payees. */
@@ -461,7 +468,17 @@ const columns: TableColumn<SampleTransaction>[] = [
           </template>
         </ChartCard>
 
-        <ChartCard title="Cash at month end" description="Made-up month-end cash for the gallery." subtitle="All accounts together" :option="charts.cashAtMonthEnd" />
+        <ChartCard title="Cash at month end" description="Made-up month-end cash for the gallery." subtitle="All accounts together" :option="charts.cashAtMonthEnd">
+          <template #legend>
+            <ChartLegend
+              :entries="[
+                { label: 'Cash', colour: 'var(--series-3)', mark: 'line' },
+                { label: 'A deposit', colour: 'var(--series-3)', mark: 'dot' },
+                { label: 'A withdrawal', colour: 'var(--series-3)', mark: 'ring' },
+              ]"
+            />
+          </template>
+        </ChartCard>
 
         <ChartCard
           title="Operating costs by category"
@@ -604,21 +621,21 @@ const columns: TableColumn<SampleTransaction>[] = [
             <tr>
               <th scope="col" class="text-start">Counterparty</th>
               <th scope="col" class="hidden text-start @md:table-cell">Note</th>
-              <SortableHeader v-model="amountOrder" label="Paid" />
+              <SortableHeader v-model="amountOrder" label="Paid" align="end" />
             </tr>
           </thead>
           <tbody>
             <tr v-for="payee in sortedPayees" :key="payee.name">
               <th scope="row" class="cell-wraps text-start font-normal text-highlighted">{{ payee.name }}</th>
               <td class="hidden text-muted @md:table-cell">Drops out below 28rem</td>
-              <td class="text-start"><MoneyText :cents="payee.cents" sign="magnitude" /></td>
+              <td class="text-end"><MoneyText :cents="payee.cents" sign="magnitude" /></td>
             </tr>
           </tbody>
           <tfoot>
             <tr>
               <th scope="row" class="text-start">Together</th>
               <td class="hidden @md:table-cell" />
-              <td class="text-start"><MoneyText :cents="payeesTotal" sign="magnitude" /></td>
+              <td class="text-end"><MoneyText :cents="payeesTotal" sign="magnitude" /></td>
             </tr>
           </tfoot>
         </FigureTable>
@@ -648,7 +665,7 @@ const columns: TableColumn<SampleTransaction>[] = [
       </div>
     </GallerySection>
 
-    <GallerySection id="controls" title="Small controls" description="InfoPopover, ShowAllButton, ColourSwatchPicker, HomeLink, AppBrand and AppMark.">
+    <GallerySection id="controls" title="Small controls" description="InfoPopover, ChoiceButtons, ShowAllButton, ColourSwatchPicker, HomeLink, AppBrand and AppMark.">
       <DashboardGrid>
         <AppCard title="InfoPopover" subtitle="A definition, or richer content such as a legend.">
           <div class="flex items-center gap-2 px-4 pt-3 pb-4 type-body sm:px-5">
@@ -657,6 +674,12 @@ const columns: TableColumn<SampleTransaction>[] = [
             <InfoPopover subject="the colours">
               <div class="p-3"><ChartLegend :entries="bucketLegend.slice(0, 4)" /></div>
             </InfoPopover>
+          </div>
+        </AppCard>
+        <AppCard title="ChoiceButtons" subtitle="One of a few choices, the picked one solid and pressed.">
+          <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
+            <ChoiceButtons v-model="galleryPeriod" :options="GALLERY_PERIODS" label="Period" />
+            <span class="identifier">{{ galleryPeriod }}</span>
           </div>
         </AppCard>
         <AppCard title="ColourSwatchPicker" subtitle="Named swatches with a blank choice first.">

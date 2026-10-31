@@ -2,14 +2,14 @@ import { accountCash } from './accountCash'
 import type { CashBalance } from './accountCash'
 import { dayChange, holdingFigures, lastDayOf } from './holding'
 import type { DayChange, HoldingFigures, LastDayDates, PortfolioSources } from './holding'
-import { investmentLots } from './lots'
+import { investmentLots, receivedInEuros } from './lots'
 import type { InstrumentLots } from './lots'
 import { eurosAtEcbRate } from '../../prices/domain/rateBook'
 import type { Instrument } from '../../workbook/domain/instrument'
 import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayMonthsLater } from '../../../../shared/calendar/monthKey'
-import { DECIMAL_ZERO, inEuros, subtractDecimal } from '../../../../shared/money/decimal'
+import { DECIMAL_ZERO, inEuros } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import { ZERO, negateMoney, ratioOf, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
@@ -121,7 +121,8 @@ export function portfolioFigures(sources: PortfolioSources): PortfolioFigures {
   const totalGain = subtractMoney(value, putIn)
   const fees = book.cashMovements.filter((movement) => movement.kind === 'fee' || movement.kind === 'fee-refund')
   const exchangeFees = book.exchanges.flatMap((exchange) => (exchange.fees === null ? [] : [{ exchange, euros: eurosAtEcbRate(exchange.fees.amount, exchange.fees.currency, exchange.date, rates) }]))
-  const paidBack = sumMoney([...lots.values()].flatMap((instrumentLots) => [...instrumentLots.paidBack.values()]))
+  const paidBackOf = new Map([...lots.values()].flatMap((instrumentLots) => [...instrumentLots.paidBack]))
+  const paidBack = sumMoney([...paidBackOf.values()])
   const changes = [...holdings.map((holding) => holding.lastDay), ...cashFigures.map((balance) => balance.lastDay)].filter((change) => change !== null)
 
   return {
@@ -135,7 +136,7 @@ export function portfolioFigures(sources: PortfolioSources): PortfolioFigures {
     income: {
       gross: subtractMoney(sumMoney(book.income.map((payment) => inEuros(payment.gross, payment.rate))), paidBack),
       withheld: sumMoney(book.income.map((payment) => inEuros(payment.withheld, payment.rate))),
-      received: subtractMoney(sumMoney(book.income.map((payment) => inEuros(subtractDecimal(payment.gross, payment.withheld), payment.rate))), paidBack),
+      received: sumMoney(book.income.map((payment) => receivedInEuros(payment, paidBackOf))),
     },
     accountFees: sumMoney(fees.map((movement) => (movement.kind === 'fee' ? inEuros(movement.amount, movement.rate) : negateMoney(inEuros(movement.amount, movement.rate))))),
     currencyOnCash: sumMoney(cashFigures.map((balance) => balance.currencyGain ?? ZERO)),
@@ -172,4 +173,12 @@ function yearlyReturn(firstDeposit: CivilDate | null, flows: readonly DatedFlow[
   }
   const rate = solvedRate([...flows, { date: today, amount: value }], daysOver365)
   return rate === null ? { kind: 'none' } : { kind: 'rate', rate }
+}
+
+/** The newest close a held holding is valued at, which the screens name as the close their figures are at. Null when nothing held has a price. */
+export function figuresClose(figures: PortfolioFigures): CivilDate | null {
+  return figures.holdings.reduce<CivilDate | null>((newest, holding) => {
+    const date = holding.quantity > DECIMAL_ZERO ? (holding.valuation?.close.date ?? null) : null
+    return date !== null && (newest === null || date > newest) ? date : newest
+  }, null)
 }

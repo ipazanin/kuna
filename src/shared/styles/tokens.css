@@ -220,6 +220,10 @@
   --scenario-3: var(--series-5);
   --scenario-4: var(--series-6);
 
+  /* The portfolio on every Investments chart, and anything it is measured against, which draws dashed. */
+  --invest-portfolio: var(--series-3);
+  --invest-reference: var(--chart-deemphasis);
+
   /*
    * Ink inside a filled mark. It keeps at least 3:1 on every swatch in both themes, enough for an
    * icon or large text. Small text needs 4.5:1, which Blue (4.1:1), Dark green (3.7:1) and Violet

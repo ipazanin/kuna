@@ -11,9 +11,14 @@ import { words } from './words'
  * The header cell of a plain table's column that sorts. A press sorts ascending, the next
  * descending, and the third goes back to the table's own order.
  */
-defineProps<{
-  label: string
-}>()
+withDefaults(
+  defineProps<{
+    label: string
+    /** `end` for a column of figures, which lines up on the right. */
+    align?: 'start' | 'end'
+  }>(),
+  { align: 'start' },
+)
 
 /** Null while the table is not sorted by this column. */
 const direction = defineModel<SortDirection | null>({ required: true })
@@ -26,7 +31,7 @@ function press(): void {
 </script>
 
 <template>
-  <th scope="col" class="text-start" :aria-sort="direction ?? undefined">
+  <th scope="col" :class="align === 'end' ? 'text-end' : 'text-start'" :aria-sort="direction ?? undefined">
     <UButton
       :label="label"
       color="neutral"

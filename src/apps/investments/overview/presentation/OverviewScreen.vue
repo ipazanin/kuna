@@ -1,31 +1,43 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+import { figuresClose } from '../../holdings/domain/portfolioFigures'
+import { usePortfolio } from '../../holdings/presentation/usePortfolio'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
+import { hasTransactions } from '../../workbook/domain/investmentBook'
+import GainSourcesCard from './GainSourcesCard.vue'
+import LatestTransactionsCard from './LatestTransactionsCard.vue'
+import MoversCard from './MoversCard.vue'
+import OverviewTiles from './OverviewTiles.vue'
+import PricesNotice from './PricesNotice.vue'
+import ValueOverTimeCard from './ValueOverTimeCard.vue'
+import WhereTheMoneyIsCard from './WhereTheMoneyIsCard.vue'
 import { words } from './words'
+import { weekdayDayLabel } from '../../../../shared/calendar/dayLabel'
 import RecordProblemsAlert from '../../../../shared/storage/presentation/RecordProblemsAlert.vue'
 import { plural } from '../../../../shared/text/translation'
+import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 import PricesStatus from '../../prices/presentation/PricesStatus.vue'
 
-/** What the Investments file holds: for now how its prices stand, whether it holds any transaction, and the records it leaves out or doubts. */
+/** What the investments are worth and what they earned, at the last close, with how the prices stand and what needs a look. */
 const { state } = useInvestmentsBooks()
+const { sources, figures } = usePortfolio()
 
-const loading = computed(() => state.workbook === null && state.status !== 'error')
 const fileNote = computed(() => (state.choice?.source === 'drive' ? words.empty.onDrive(state.choice.name) : words.empty.inBrowser))
 const problems = computed(() => state.workbook?.problems ?? [])
 const problemLines = computed(() => problems.value.map((problem) => words.problems.line(problem.noun, problem.label, problem.reason)))
-const noTransactions = computed(() => {
-  const book = state.workbook?.book
-  return book !== undefined && [book.trades, book.income, book.cashMovements, book.exchanges, book.transfers, book.splits, book.spinOffs].every((records) => records.length === 0)
-})
+const noTransactions = computed(() => state.workbook !== null && !hasTransactions(state.workbook.book))
+/** The file, and for a file with transactions this browser's copy of its prices too. */
+const loading = computed(() => (state.workbook === null && state.status !== 'error') || (state.workbook !== null && !noTransactions.value && figures.value === null))
+const close = computed(() => (figures.value === null || noTransactions.value ? null : figuresClose(figures.value)))
 </script>
 
 <template>
   <section class="flex flex-col gap-6">
-    <PageHeader :title="words.title" :description="words.description" />
+    <PageHeader :title="words.title" :description="close === null ? words.description : words.closeLine(weekdayDayLabel(close))" />
     <ScreenSkeleton v-if="loading" :heading="false" :cards="2" data-testid="investments-loading" />
     <template v-else-if="state.workbook !== null">
       <PricesStatus />
@@ -38,6 +50,17 @@ const noTransactions = computed(() => {
           <span class="type-caption">{{ fileNote }}</span>
         </template>
       </EmptyState>
+      <template v-else-if="sources !== null && figures !== null">
+        <PricesNotice :book="sources.book" :figures="figures" />
+        <OverviewTiles :sources="sources" :figures="figures" />
+        <DashboardGrid data-testid="investments-cards">
+          <ValueOverTimeCard :sources="sources" class="xl:col-span-2" />
+          <WhereTheMoneyIsCard :figures="figures" />
+          <GainSourcesCard :figures="figures" />
+          <MoversCard :figures="figures" />
+          <LatestTransactionsCard :sources="sources" />
+        </DashboardGrid>
+      </template>
     </template>
   </section>
 </template>

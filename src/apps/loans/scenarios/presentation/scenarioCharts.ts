@@ -1,6 +1,6 @@
 import type { ScenarioMonth } from './scenarioMonths'
 import { words } from './words'
-import { yearStep } from '../../balances/presentation/balanceChart'
+import { yearStep } from '../../../../shared/charts/monthAxis'
 import { words as balanceWords } from '../../balances/presentation/words'
 import { monthAxisLabel, monthLabel } from '../../../../shared/calendar/monthLabel'
 import { monthsFrom, yearOfMonth } from '../../../../shared/calendar/monthKey'

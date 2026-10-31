@@ -304,7 +304,7 @@ describe('the Investments file', () => {
       transfers: 2,
       splits: 1,
       spinOffs: 1,
-      prices: 4,
+      prices: 7,
     })
     expect([...investmentLots(books.book).values()].flatMap((lots) => [...lots.refused, ...lots.emptied])).toEqual([])
   })

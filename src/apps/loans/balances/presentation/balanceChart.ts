@@ -1,8 +1,8 @@
 import { words } from './words'
 import { monthAxisLabel, monthLabel } from '../../../../shared/calendar/monthLabel'
-import { yearOfMonth } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { moneyAxisLabel } from '../../../../shared/charts/chartTheme'
+import { monthAxisLabels, shownPoints } from '../../../../shared/charts/monthAxis'
 import { tokenColour } from '../../../../shared/charts/chartTokens'
 import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../shared/charts/chartTooltip'
@@ -26,30 +26,6 @@ export interface BalanceMarks {
   readonly extraPayments?: readonly MonthKey[]
   /** The first month the plan works out at a variable rate. A wide screen marks it on the chart and every width notes it in the tooltip. */
   readonly estimateFrom?: MonthKey | null
-}
-
-/** Every year on a short axis, every other or every fifth on a long one, fewer on a phone. */
-export function yearStep(years: number, phone: boolean): number {
-  if (phone) return years > 10 ? 5 : years > 4 ? 2 : 1
-  return years > 12 ? 2 : 1
-}
-
-/** The labels of a month axis: every January of every year step on a long axis, as `yearStep` sets it, and each month on one of a year or less. */
-export function monthAxisLabels(months: readonly MonthKey[], tokens: ChartTokens, phone: boolean): Record<string, unknown> {
-  const first = months[0]
-  const last = months.at(-1)
-  if (first === undefined || last === undefined || months.length <= 12) return { color: tokens.inkMuted, formatter: monthAxisLabel('short') }
-  const step = yearStep(yearOfMonth(last) - yearOfMonth(first), phone)
-  return {
-    color: tokens.inkMuted,
-    interval: (_index: number, month: string) => month.endsWith('-01') && Number(month.slice(0, 4)) % step === 0,
-    formatter: (month: string) => month.slice(0, 4),
-  }
-}
-
-/** Keeps the tooltip to the named series that have a figure at the hovered month. */
-export function shownPoints(points: unknown): unknown {
-  return (Array.isArray(points) ? points : [points]).filter((point: { seriesName?: string; value?: unknown }) => point.seriesName !== '' && typeof point.value === 'number')
 }
 
 /**

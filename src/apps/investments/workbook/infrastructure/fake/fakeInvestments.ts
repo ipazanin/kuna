@@ -218,6 +218,9 @@ const HAND_PRICES: readonly HandPrice[] = [
   { id: nextId(PRICE_RECORDS), instrument: MONEY_FUND.id, date: day('2026-09-30'), price: decimal('10.51'), note: 'Statement of 30 Sep' },
   { id: nextId(PRICE_RECORDS), instrument: SPIN_CO.id, date: day('2024-12-31'), price: decimal('21.40'), note: '' },
   { id: nextId(PRICE_RECORDS), instrument: SPIN_CO.id, date: day('2026-09-30'), price: decimal('11.20'), note: '' },
+  { id: nextId(PRICE_RECORDS), instrument: MONEY_FUND.id, date: day('2023-03-31'), price: decimal('10.02'), note: 'Statement of 31 Mar 2023' },
+  { id: nextId(PRICE_RECORDS), instrument: MONEY_FUND.id, date: day('2024-12-31'), price: decimal('10.24'), note: 'Statement of 31 Dec 2024' },
+  { id: nextId(PRICE_RECORDS), instrument: SPIN_CO.id, date: day('2024-09-30'), price: decimal('23.10'), note: '' },
 ]
 
 function stored<R>(kind: RecordKind<R>, records: readonly R[]): WorkbookDocument['records'] {
@@ -225,13 +228,17 @@ function stored<R>(kind: RecordKind<R>, records: readonly R[]): WorkbookDocument
   return { [kind.name]: records.map((record) => codec.fieldsOf(record)) }
 }
 
+/** `sample` is the whole made-up file, and `cash-below-zero` leaves out the second account's deposit, so its euros fall below zero. */
+export type FakeInvestmentsVariant = 'sample' | 'cash-below-zero'
+
 /**
  * The fake build's made-up Investments file: two accounts at made-up brokers, euros changed into dollars, buys and a
  * sale of US shares, a Xetra ETF and a money market fund priced by hand, dividends with tax withheld, interest, an
  * account fee and its refund, a transfer of units and one of cash, a spin-off and a split of what it gave. Every
  * figure in it is made up.
  */
-export function fakeInvestmentsDocument(savedAt: string): WorkbookDocument {
+export function fakeInvestmentsDocument(savedAt: string, variant: FakeInvestmentsVariant = 'sample'): WorkbookDocument {
+  const movements = variant === 'sample' ? CASH_MOVEMENTS : CASH_MOVEMENTS.filter((movement) => !(movement.account === BROKER_TWO.id && movement.kind === 'deposit'))
   return {
     ...emptyInvestmentsDocument(savedAt),
     records: {
@@ -239,7 +246,7 @@ export function fakeInvestmentsDocument(savedAt: string): WorkbookDocument {
       ...stored(INSTRUMENT_RECORDS, [SHARE_A, SHARE_B, WORLD_ETF, MONEY_FUND, SPIN_CO]),
       ...stored(TRADE_RECORDS, TRADES),
       ...stored(INCOME_RECORDS, INCOME),
-      ...stored(CASH_MOVEMENT_RECORDS, CASH_MOVEMENTS),
+      ...stored(CASH_MOVEMENT_RECORDS, movements),
       ...stored(EXCHANGE_RECORDS, EXCHANGES),
       ...stored(TRANSFER_RECORDS, TRANSFERS),
       ...stored(SPLIT_RECORDS, SPLITS),

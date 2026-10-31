@@ -125,6 +125,16 @@ export function cashAtMonthEnd(tokens: ChartTokens): ChartOption {
         color: colour,
         areaStyle: { color: colour, opacity: 0.1 },
         data: balances,
+        markPoint: {
+          silent: true,
+          symbol: 'circle',
+          symbolSize: 8,
+          label: { show: false },
+          data: [
+            { name: '', coord: [SAMPLE_MONTHS[3], balances[3]], itemStyle: { color: colour, borderColor: tokens.surface, borderWidth: 2 } },
+            { name: '', coord: [SAMPLE_MONTHS[8], balances[8]], itemStyle: { color: tokens.surface, borderColor: colour, borderWidth: 2 } },
+          ],
+        },
         endLabel: {
           show: true,
           color: tokens.ink,

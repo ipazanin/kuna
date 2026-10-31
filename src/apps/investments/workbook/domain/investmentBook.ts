@@ -22,3 +22,8 @@ export interface InvestmentBook {
   readonly spinOffs: readonly SpinOff[]
   readonly prices: readonly HandPrice[]
 }
+
+/** Whether the file holds any record of what happened, beyond its accounts, instruments and prices. */
+export function hasTransactions(book: InvestmentBook): boolean {
+  return [book.trades, book.income, book.cashMovements, book.exchanges, book.transfers, book.splits, book.spinOffs].some((records) => records.length > 0)
+}

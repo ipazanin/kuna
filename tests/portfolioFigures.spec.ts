@@ -119,7 +119,10 @@ describe("the worked portfolio's figures on 29 Oct 2026", () => {
     expect(stock.weight).toBeCloseTo(0.2274808, 6)
     // Stock B's fees: $1.00 at 1.05 = 0.95 and $1.00 at 1.18 = 0.85. In all, 2.00 + 2.00 + 0.95 + 0.85 = 5.80.
     expect([etf.feesPaid, stock.feesPaid, figures.feesPaid]).toEqual([euros(4), euros(1.8), euros(5.8)])
-    expect([etf.firstBought, stock.firstBought]).toEqual(['2025-01-02', '2025-03-03'])
+    expect([etf.firstAcquired, stock.firstAcquired]).toEqual([
+      { date: '2025-01-02', by: 'buy' },
+      { date: '2025-03-03', by: 'buy' },
+    ])
     expect(etf.lots.map((lot) => [lot.opened, lot.taxFreeFrom])).toEqual([
       ['2025-01-02', '2027-01-03'],
       ['2025-07-01', '2027-07-02'],
