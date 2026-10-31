@@ -7,7 +7,7 @@ import { labelWords, withIdField } from '../../../../shared/storage/domain/recor
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { filledFields } from '../../../../shared/storage/domain/recordFields'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { optionalDate, ownId, refuse, requiredChoice, textOf } from '../../../../shared/storage/domain/storedFields'
+import { booleanOf, optionalDate, ownId, refuse, requiredChoice, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import { words as storedWords } from '../../../../shared/storage/domain/words'
 
@@ -43,6 +43,12 @@ function quotingOf(fields: StoredFields): Quoting {
   }
 }
 
+/** Blank is false, so only the benchmark carries the field. */
+function benchmarkFlag(fields: StoredFields): boolean {
+  const field = fields.benchmark
+  return field === undefined ? false : (booleanOf(field) ?? refuse(words.notAFlag('benchmark', field.text)))
+}
+
 export function instrumentOf(fields: StoredFields, id: RecordId | null): Instrument {
   const prices = requiredChoice(fields, 'prices', PRICE_SOURCES, 'price source')
   const sourceSymbol = textOf(fields.source_symbol)
@@ -59,6 +65,7 @@ export function instrumentOf(fields: StoredFields, id: RecordId | null): Instrum
     quoted: quotingOf(fields),
     prices,
     sourceSymbol,
+    benchmark: benchmarkFlag(fields),
     note: textOf(fields.note),
   }
 }
@@ -80,6 +87,7 @@ export const INSTRUMENT_CODEC: RecordCodec<Instrument> = withIdField(
       maturity: instrument.quoted.kind === 'percent' ? instrument.quoted.maturity : null,
       prices: instrument.prices,
       source_symbol: instrument.sourceSymbol,
+      benchmark: instrument.benchmark ? true : null,
       note: instrument.note,
     }),
 )

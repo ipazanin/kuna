@@ -2,12 +2,11 @@ import type { PortfolioSources } from '../../holdings/domain/holding'
 import { portfolioFigures } from '../../holdings/domain/portfolioFigures'
 import { periodSpan } from '../../performance/domain/performancePeriod'
 import type { PerformancePeriod } from '../../performance/domain/performancePeriod'
-import { recordsOn } from '../../performance/domain/portfolioPerformance'
+import { firstDepositIn, recordsOn } from '../../performance/domain/portfolioPerformance'
 import type { HeldBack } from '../../performance/domain/portfolioPerformance'
 import type { Instrument } from '../../workbook/domain/instrument'
-import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { dayMonthsLater, lastDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
+import { lastDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import type { Money } from '../../../../shared/money/money'
 
@@ -34,7 +33,7 @@ export interface ValueOverTime {
  * then, so the gap between them is the total gain. The months before every holding has a price are left out.
  */
 export function valueOverTime(sources: PortfolioSources, period: PerformancePeriod): ValueOverTime {
-  const firstDeposit = firstDepositOf(sources.book)
+  const firstDeposit = firstDepositIn(sources.book)
   const span = firstDeposit === null ? null : periodSpan(period, firstDeposit, sources.today)
   if (span === null) {
     return { points: [], heldBack: { instruments: [], currencies: [] } }
@@ -63,18 +62,4 @@ export function shownValueOverTime(sources: PortfolioSources, period: Performanc
   }
   const everything: PerformancePeriod = { kind: 'all' }
   return { period: everything, over: valueOverTime(sources, everything) }
-}
-
-/** The last one, three and five years that start after the first deposit, then everything, so no two periods show the same months. */
-export function valuePeriods(book: InvestmentBook, today: CivilDate): PerformancePeriod[] {
-  const firstDeposit = firstDepositOf(book)
-  const longer = ([1, 3, 5] as const).filter((years) => firstDeposit !== null && dayMonthsLater(today, -12 * years) > firstDeposit)
-  return [...longer.map((years): PerformancePeriod => ({ kind: 'years', years })), { kind: 'all' }]
-}
-
-function firstDepositOf(book: InvestmentBook): CivilDate | null {
-  return book.cashMovements
-    .filter((movement) => movement.kind === 'deposit')
-    .map((movement) => movement.date)
-    .reduce<CivilDate | null>((first, date) => (first === null || date < first ? date : first), null)
 }

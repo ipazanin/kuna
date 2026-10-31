@@ -21,6 +21,15 @@ export function periodSpan(period: PerformancePeriod, firstDeposit: CivilDate, t
   return asked.to < from ? null : { from, to: asked.to }
 }
 
+/**
+ * Whether the period opens before its first day's records, with nothing in yet, so the day's deposits are put in and
+ * its fees count inside the period. That is All, and any period asked from before the first deposit. A year opens at
+ * the close of the 31st of December before it, so a first deposit on that day counts in that day's year alone.
+ */
+export function opensBeforeRecords(period: PerformancePeriod, firstDeposit: CivilDate, today: CivilDate): boolean {
+  return period.kind === 'all' || askedSpan(period, firstDeposit, today).from < firstDeposit
+}
+
 function askedSpan(period: PerformancePeriod, firstDeposit: CivilDate, today: CivilDate): PeriodSpan {
   switch (period.kind) {
     case 'all':
@@ -42,4 +51,16 @@ export function lastsAYear(from: CivilDate, to: CivilDate): boolean {
 /** Every calendar year from the first deposit's to today's. */
 export function yearsSince(firstDeposit: CivilDate, today: CivilDate): number[] {
   return Array.from({ length: Math.max(0, yearOf(today) - yearOf(firstDeposit) + 1) }, (_, offset) => yearOf(firstDeposit) + offset)
+}
+
+/** The last one, three and five years that start after the first deposit, then everything, so no two periods show the same months. */
+export function rollingPeriods(firstDeposit: CivilDate | null, today: CivilDate): PerformancePeriod[] {
+  const longer = ([1, 3, 5] as const).filter((years) => firstDeposit !== null && dayMonthsLater(today, -12 * years) > firstDeposit)
+  return [...longer.map((years): PerformancePeriod => ({ kind: 'years', years })), { kind: 'all' }]
+}
+
+/** What Performance offers: the rolling periods, then each calendar year once there are two, since a single year is everything. */
+export function performancePeriods(firstDeposit: CivilDate | null, today: CivilDate): PerformancePeriod[] {
+  const years = firstDeposit === null ? [] : yearsSince(firstDeposit, today)
+  return [...rollingPeriods(firstDeposit, today), ...(years.length < 2 ? [] : years.map((year): PerformancePeriod => ({ kind: 'year', year })))]
 }

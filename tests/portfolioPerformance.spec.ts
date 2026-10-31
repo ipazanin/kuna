@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import type { PortfolioSources } from '../src/apps/investments/holdings/domain/holding'
-import { periodSpan } from '../src/apps/investments/performance/domain/performancePeriod'
+import { benchmarkChanges, benchmarkOf, benchmarkState, comparedBenchmark } from '../src/apps/investments/performance/domain/benchmark'
+import { performancePeriods, periodSpan } from '../src/apps/investments/performance/domain/performancePeriod'
 import type { PerformancePeriod } from '../src/apps/investments/performance/domain/performancePeriod'
 import { portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
 import { performanceByYear, portfolioPerformance } from '../src/apps/investments/performance/domain/portfolioPerformance'
@@ -26,7 +27,7 @@ function sourcesOf(records: InvestmentBook, closes: ReadonlyMap<Instrument, read
 }
 
 function figuresOf(sources: PortfolioSources, benchmark: Instrument | null = BENCHMARK, period: PerformancePeriod = { kind: 'all' }): PeriodPerformance {
-  const performance = portfolioPerformance(sources, benchmark, period)
+  const performance = portfolioPerformance(sources, benchmark === null ? null : { instrument: benchmark, splits: sources.book.splits.filter((split) => split.instrument === benchmark.id) }, period)
   if (performance.kind !== 'figures') {
     throw new Error(`Expected figures, got ${performance.kind}.`)
   }
@@ -55,7 +56,7 @@ describe('the benchmark', () => {
         [
           ['2025-01-02', '100'],
           ['2025-01-31', '104'],
-          ['2025-02-14', '110'],
+          ['2025-02-13', '110'],
           ['2025-02-28', '105'],
           ['2025-03-14', '120'],
           ['2025-03-31', '118'],
@@ -64,8 +65,9 @@ describe('the benchmark', () => {
     ])
     const performance = figuresOf(sourcesOf(records, closes, '2025-03-31'))
 
-    // 1.04 × 1,100 ÷ 1,040 × 1,575 ÷ 1,650 × 1,800 ÷ 1,575 × 1,180 ÷ 1,200 = 1.18, the index's own 118 ÷ 100.
-    expect(performance.portfolio.timeWeighted.total).toBeCloseTo(0.18, 12)
+    // 1.04 × 1,100 ÷ 1,040 × 1,650 ÷ (1,100 + 550) × 1,575 ÷ 1,650 × (1,200 + 600) ÷ 1,575 × 1,180 ÷ 1,200 = 1.18, the
+    // index's own 118 ÷ 100. The deposit's day starts from the close of 13 Feb, the day before it.
+    expect(performance.portfolio.timeWeighted?.total).toBeCloseTo(0.18, 12)
     expect(performance.benchmark?.priceReturn.total).toBeCloseTo(0.18, 12)
     expect(performance.benchmark?.difference).toBeCloseTo(0, 12)
     // The replay buys 10 units, 5 more for the 550.00 and sells 5 for the 600.00, so it holds what the portfolio holds.
@@ -114,7 +116,7 @@ describe('the benchmark', () => {
 
     // Portfolio 16,000 ÷ 10,000 × 5,500 ÷ 5,000 − 1 = 76% against the index's 132 ÷ 100 − 1 = 32%, 44 points ahead. The
     // replay's own chain, 1.30 × 1.10 − 1 = 43%, stood still while it held nothing, so it is not the index's return.
-    expect(performance.portfolio.timeWeighted.total).toBeCloseTo(0.76, 9)
+    expect(performance.portfolio.timeWeighted?.total).toBeCloseTo(0.76, 9)
     expect(performance.benchmark?.priceReturn.total).toBeCloseTo(0.32, 12)
     expect(performance.benchmark?.difference).toBeCloseTo(0.44, 9)
     expect(performance.growth.filter((point) => point.date >= '2025-05-31' && point.date <= '2025-09-30').map((point) => rounded(point.benchmark))).toEqual([100, 130, 130, 130, 120])
@@ -178,7 +180,7 @@ describe('the benchmark', () => {
         BENCHMARK,
         [
           ['2025-01-02', '100'],
-          ['2025-02-14', '51'],
+          ['2025-02-13', '51'],
           ['2025-02-28', '51'],
         ],
       ],
@@ -232,7 +234,7 @@ describe('the benchmark', () => {
     // €1,000.00 is $1,040.00, 10.4 units, worth $1,144.00 or €1,040.00. The portfolio kept the euros as cash.
     expect(performance.benchmark?.priceReturn.total).toBeCloseTo(0.04, 12)
     expect(performance.benchmark?.replay.value).toBe(euros(1040))
-    expect(performance.portfolio.timeWeighted.total).toBe(0)
+    expect(performance.portfolio.timeWeighted?.total).toBe(0)
   })
 })
 
@@ -436,7 +438,7 @@ describe('days without a close', () => {
     expect(figuresOf(sourcesOf(records, closes, '2025-05-31')).lateCloses).toEqual([FUND])
   })
 
-  it('starts after the last day a holding or the benchmark had no close, and names them', () => {
+  it('starts after the last day a holding had no close, and names them, whatever the benchmark had', () => {
     const records = book({
       accounts: [BROKER],
       instruments: [FUND, LATE_FUND],
@@ -468,11 +470,11 @@ describe('days without a close', () => {
     ])
     const performance = figuresOf(sourcesOf(records, closes, '2025-04-30'))
 
-    // The fund has no close on 2 Jan or 31 Jan, the fund bought on 28 Feb and the benchmark none before 3 Mar. The next
-    // valuation day is 30 Mar, a month before the last day, so the period starts there.
+    // The fund has no close on 2 Jan or 31 Jan and the fund bought on 28 Feb none before 3 Mar. The next valuation day is
+    // 30 Mar, a month before the last day, so the period starts there. The benchmark's first close of 3 Mar holds nothing back.
     expect(performance.from).toBe('2025-03-30')
-    expect(performance.heldBack).toEqual({ instruments: [FUND, BENCHMARK, LATE_FUND], currencies: [] })
-    expect(performance.portfolio.timeWeighted.total).toBeCloseTo(0.1, 12)
+    expect(performance.heldBack).toEqual({ instruments: [FUND, LATE_FUND], currencies: [] })
+    expect(performance.portfolio.timeWeighted?.total).toBeCloseTo(0.1, 12)
     expect(performance.benchmark?.priceReturn.total).toBeCloseTo(0.04, 12)
   })
 
@@ -503,13 +505,13 @@ describe('days without a close', () => {
     ])
     const performance = figuresOf(sourcesOf(records, closes, '2025-03-14'))
 
-    // Today's buy has no close yet, so the figures end on 28 Feb, the valuation day before: 1,050.00 ÷ 1,000.00 − 1.
+    // Today's buy has no close yet, so the figures end on 13 Mar, the day before its deposit: 1,080.00 ÷ 1,000.00 − 1.
     expect(performance.from).toBe('2025-01-31')
-    expect(performance.to).toBe('2025-02-28')
+    expect(performance.to).toBe('2025-03-13')
     expect(performance.heldBack).toEqual({ instruments: [LATE_FUND], currencies: [] })
-    expect(performance.growth.map((point) => point.date)).toEqual(['2025-01-31', '2025-02-28'])
-    expect(performance.portfolio.timeWeighted.total).toBeCloseTo(0.05, 12)
-    expect(performance.benchmark?.priceReturn.total).toBeCloseTo(0.02, 12)
+    expect(performance.growth.map((point) => point.date)).toEqual(['2025-01-31', '2025-02-28', '2025-03-13'])
+    expect(performance.portfolio.timeWeighted?.total).toBeCloseTo(0.08, 12)
+    expect(performance.benchmark?.priceReturn.total).toBeCloseTo(0.03, 12)
   })
 
   it('has no figures when no day can be valued', () => {
@@ -521,6 +523,243 @@ describe('days without a close', () => {
     })
 
     expect(portfolioPerformance(sourcesOf(records, new Map(), '2025-01-31'), null, { kind: 'all' })).toEqual({ kind: 'held-back', heldBack: { instruments: [FUND], currencies: [] } })
+  })
+})
+
+describe('a benchmark with no close on the first day', () => {
+  // A benchmark also held, bought two years after the first deposit, whose closes start at that buy.
+  const records = book({
+    accounts: [BROKER],
+    instruments: [FUND, BENCHMARK],
+    cashMovements: [cashMovement('deposit', BROKER, '2022-01-03', '1000'), cashMovement('deposit', BROKER, '2024-03-01', '1000')],
+    trades: [trade('buy', BROKER, FUND, '2022-01-03', '10', '100', '0'), trade('buy', BROKER, BENCHMARK, '2024-03-01', '10', '100', '0')],
+  })
+  const fundCloses: readonly CloseRow[] = [
+    ['2022-01-03', '100'],
+    ['2025-12-31', '150'],
+  ]
+
+  it("keeps the portfolio's own figures from the first deposit, as the Overview has them, and leaves out only the comparison", () => {
+    const benchmarkCloses: readonly CloseRow[] = [
+      ['2024-03-01', '100'],
+      ['2025-12-31', '120'],
+    ]
+    const sources = sourcesOf(
+      records,
+      new Map([
+        [FUND, fundCloses],
+        [BENCHMARK, benchmarkCloses],
+      ]),
+      '2025-12-31',
+    )
+    const performance = figuresOf(sources)
+
+    expect(performance.from).toBe('2022-01-03')
+    expect(performance.heldBack).toEqual({ instruments: [], currencies: [] })
+    expect(performance.benchmark).toBeNull()
+    expect(performance.portfolio.moneyWeighted).toEqual({ kind: 'rate', rate: expect.closeTo((portfolioFigures(sources).yearlyReturn as { rate: number }).rate, 9) })
+  })
+
+  it('compares once the benchmark has a close for the first day', () => {
+    const benchmarkCloses: readonly CloseRow[] = [
+      ['2022-01-03', '80'],
+      ['2024-03-01', '100'],
+      ['2025-12-31', '120'],
+    ]
+    const performance = figuresOf(
+      sourcesOf(
+        records,
+        new Map([
+          [FUND, fundCloses],
+          [BENCHMARK, benchmarkCloses],
+        ]),
+        '2025-12-31',
+      ),
+    )
+
+    // 120.00 ÷ 80.00 − 1.
+    expect(performance.benchmark?.priceReturn.total).toBeCloseTo(0.5, 12)
+  })
+
+  it('starts on a first deposit made on a Saturday, at the closes of the Friday before', () => {
+    const saturday = book({
+      accounts: [BROKER],
+      instruments: [FUND],
+      cashMovements: [cashMovement('deposit', BROKER, '2022-01-08', '1000')],
+      trades: [trade('buy', BROKER, FUND, '2022-01-10', '10', '100', '0')],
+    })
+    const closes = new Map<Instrument, readonly CloseRow[]>([
+      [
+        FUND,
+        [
+          ['2022-01-10', '100'],
+          ['2024-01-10', '121'],
+        ],
+      ],
+      [
+        BENCHMARK,
+        [
+          ['2022-01-07', '100'],
+          ['2024-01-10', '110'],
+        ],
+      ],
+    ])
+    const sources = sourcesOf(saturday, closes, '2024-01-10')
+    const performance = figuresOf(sources)
+
+    expect(performance.from).toBe('2022-01-08')
+    expect(performance.benchmark?.priceReturn.total).toBeCloseTo(0.1, 12)
+    expect(performance.portfolio.moneyWeighted).toEqual({ kind: 'rate', rate: expect.closeTo((portfolioFigures(sources).yearlyReturn as { rate: number }).rate, 9) })
+  })
+})
+
+describe('a value below zero', () => {
+  it('leaves out the time-weighted figures and names the first day the portfolio was worth less than nothing', () => {
+    // A buy of 1,000.00 against a deposit of 100.00, as when a deposit record is missing, leaves cash at −900.00.
+    const records = book({
+      accounts: [BROKER],
+      instruments: [FUND],
+      cashMovements: [cashMovement('deposit', BROKER, '2025-01-02', '100')],
+      trades: [trade('buy', BROKER, FUND, '2025-01-02', '10', '100', '0')],
+    })
+    const closes = new Map<Instrument, readonly CloseRow[]>([
+      [
+        FUND,
+        [
+          ['2025-01-02', '100'],
+          ['2025-01-31', '80'],
+          ['2025-02-28', '100'],
+        ],
+      ],
+      [
+        BENCHMARK,
+        [
+          ['2025-01-02', '100'],
+          ['2025-02-28', '105'],
+        ],
+      ],
+    ])
+    const performance = figuresOf(sourcesOf(records, closes, '2025-02-28'))
+
+    // 10 × 80.00 − 900.00 = −100.00 on 31 Jan.
+    expect(performance.belowZeroOn).toBe('2025-01-31')
+    expect(performance.portfolio.timeWeighted).toBeNull()
+    expect(performance.growth).toEqual([])
+    expect(performance.largestFall).toBeNull()
+    expect(performance.volatility).toBeNull()
+    expect(performance.portfolio.value).toBe(euros(100))
+    expect(performance.benchmark?.priceReturn.total).toBeCloseTo(0.05, 12)
+    expect(performance.benchmark?.difference).toBeNull()
+  })
+})
+
+describe('a period in which nothing was held', () => {
+  const records = book({
+    accounts: [BROKER],
+    instruments: [FUND],
+    cashMovements: [cashMovement('deposit', BROKER, '2024-01-02', '1000'), cashMovement('withdrawal', BROKER, '2024-06-03', '1200')],
+    trades: [trade('buy', BROKER, FUND, '2024-01-02', '10', '100', '0'), trade('sell', BROKER, FUND, '2024-06-03', '10', '120', '0')],
+  })
+  const closes = new Map<Instrument, readonly CloseRow[]>([
+    [
+      FUND,
+      [
+        ['2024-01-02', '100'],
+        ['2024-06-03', '120'],
+        ['2025-12-31', '200'],
+      ],
+    ],
+    [
+      BENCHMARK,
+      [
+        ['2024-01-02', '100'],
+        ['2024-06-03', '90'],
+        ['2025-12-31', '150'],
+      ],
+    ],
+  ])
+  const sources = sourcesOf(records, closes, '2025-12-31')
+
+  it('has no difference to the benchmark, though the benchmark has its return', () => {
+    const emptyYear = figuresOf(sources, BENCHMARK, { kind: 'year', year: 2025 })
+
+    // Everything was sold and taken out in June 2024, so 2025 is worth nothing on every day. The benchmark went from the
+    // close of 3 Jun 2024, 90.00, to 150.00.
+    expect(emptyYear.nothingHeld).toBe(true)
+    expect(emptyYear.portfolio.timeWeighted?.total).toBe(0)
+    expect(emptyYear.benchmark?.priceReturn.total).toBeCloseTo(150 / 90 - 1, 12)
+    expect(emptyYear.benchmark?.difference).toBeNull()
+  })
+
+  it('keeps the difference over a period that held something', () => {
+    const everything = figuresOf(sources)
+
+    // 1,200.00 ÷ 1,000.00 − 1 = 20% against 150.00 ÷ 100.00 − 1 = 50%.
+    expect(everything.nothingHeld).toBe(false)
+    expect(everything.benchmark?.difference).toBeCloseTo(-0.3, 12)
+  })
+})
+
+describe('the years and All', () => {
+  it('counts a first deposit on the 31st of December, and its fee, in that year alone', () => {
+    const records = book({
+      accounts: [BROKER],
+      instruments: [FUND],
+      cashMovements: [cashMovement('deposit', BROKER, '2024-12-31', '1000')],
+      trades: [trade('buy', BROKER, FUND, '2024-12-31', '10', '100', '10')],
+    })
+    const closes = new Map<Instrument, readonly CloseRow[]>([
+      [
+        FUND,
+        [
+          ['2024-12-31', '100'],
+          ['2025-12-31', '110'],
+        ],
+      ],
+    ])
+    const sources = sourcesOf(records, closes, '2025-12-31')
+    const years = performanceByYear(sources, null).map(({ year, performance }) => [year, performance.kind === 'figures' ? rounded(performance.portfolio.timeWeighted?.total ?? null) : null])
+
+    // 2024 is its last day: 990.00 ÷ 1,000.00 − 1 = −1%, the fee. 2025 opens at that close: 1,090.00 ÷ 990.00 − 1 = 10.1%.
+    // All is 1,090.00 ÷ 1,000.00 − 1 = 9%, which is 0.99 × 1.10101 − 1.
+    expect(years).toEqual([
+      [2024, -0.01],
+      [2025, rounded(1090 / 990 - 1)],
+    ])
+    expect(figuresOf(sources, null).portfolio.timeWeighted?.total).toBeCloseTo(0.09, 12)
+  })
+
+  it('multiply up to All, across deposits, a withdrawal and fees in different years', () => {
+    const records = book({
+      accounts: [BROKER],
+      instruments: [FUND],
+      cashMovements: [cashMovement('deposit', BROKER, '2023-03-15', '1000'), cashMovement('deposit', BROKER, '2024-07-10', '500'), cashMovement('withdrawal', BROKER, '2025-02-12', '300')],
+      trades: [trade('buy', BROKER, FUND, '2023-03-15', '9', '100', '1'), trade('buy', BROKER, FUND, '2024-07-10', '4', '110', '1'), trade('sell', BROKER, FUND, '2025-02-12', '2', '120', '1')],
+    })
+    const closes = new Map<Instrument, readonly CloseRow[]>([
+      [
+        FUND,
+        [
+          ['2023-03-15', '100'],
+          ['2023-06-30', '95'],
+          ['2023-12-29', '105'],
+          ['2024-07-09', '108'],
+          ['2024-07-10', '110'],
+          ['2024-12-31', '115'],
+          ['2025-02-11', '118'],
+          ['2025-02-12', '120'],
+          ['2025-06-30', '112'],
+          ['2025-10-31', '125'],
+        ],
+      ],
+    ])
+    const sources = sourcesOf(records, closes, '2025-10-31')
+    const chained = performanceByYear(sources, null).reduce(
+      (product, { performance }) => (performance.kind === 'figures' ? product * (1 + (performance.portfolio.timeWeighted?.total ?? Number.NaN)) : Number.NaN),
+      1,
+    )
+
+    expect(chained - 1).toBeCloseTo(figuresOf(sources, null).portfolio.timeWeighted?.total ?? Number.NaN, 12)
   })
 })
 
@@ -543,11 +782,108 @@ describe('the periods', () => {
     expect(periodSpan({ kind: 'year', year: 2027 }, firstDeposit, today)).toBeNull()
   })
 
+  it('offers the last one, three and five years that start after the first deposit, everything, and each calendar year once there are two', () => {
+    expect(performancePeriods(firstDeposit, today)).toEqual([
+      { kind: 'years', years: 1 },
+      { kind: 'years', years: 3 },
+      { kind: 'all' },
+      { kind: 'year', year: 2023 },
+      { kind: 'year', year: 2024 },
+      { kind: 'year', year: 2025 },
+      { kind: 'year', year: 2026 },
+    ])
+    // Seven months of one year are everything, so neither a rolling period nor the year itself is offered beside All.
+    expect(performancePeriods(civil('2026-03-30'), today)).toEqual([{ kind: 'all' }])
+    expect(performancePeriods(civil('2025-11-03'), today)).toEqual([{ kind: 'all' }, { kind: 'year', year: 2025 }, { kind: 'year', year: 2026 }])
+    expect(performancePeriods(null, today)).toEqual([{ kind: 'all' }])
+  })
+
   it('has nothing to show before the first deposit, or without one', () => {
     const sources = sourcesOf(book({ accounts: [BROKER], cashMovements: [cashMovement('deposit', BROKER, '2025-03-03', '100')] }), new Map(), '2025-12-31')
 
     expect(portfolioPerformance(sources, null, { kind: 'year', year: 2024 })).toEqual({ kind: 'empty' })
     expect(portfolioPerformance({ ...sources, book: book({}) }, null, { kind: 'all' })).toEqual({ kind: 'empty' })
+  })
+})
+
+describe("a benchmark's splits", () => {
+  const notedIndex = instrument('noted-index', { name: 'Noted index', prices: 'twelvedata', sourceSymbol: 'NIX', benchmark: true })
+  const closes = new Map<Instrument, readonly CloseRow[]>([
+    [
+      FUND,
+      [
+        ['2025-01-02', '100'],
+        ['2025-02-28', '100'],
+      ],
+    ],
+    [
+      notedIndex,
+      [
+        ['2025-01-02', '100'],
+        ['2025-02-28', '51'],
+      ],
+    ],
+  ])
+  const noted = [{ series: 'twelvedata:NIX', date: '2025-01-20', newUnits: '2', oldUnits: '1' }]
+
+  function priceReturnOf(splits: InvestmentBook['splits'], notes: typeof noted): number | undefined {
+    const records = book({
+      accounts: [BROKER],
+      instruments: [FUND, notedIndex],
+      cashMovements: [cashMovement('deposit', BROKER, '2025-01-02', '1000')],
+      trades: [trade('buy', BROKER, FUND, '2025-01-02', '10', '100', '0')],
+      splits,
+    })
+    const sources = sourcesOf(records, closes, '2025-02-28')
+    const performance = portfolioPerformance(sources, comparedBenchmark(benchmarkState(sources), records, notes), { kind: 'all' })
+    return performance.kind === 'figures' ? performance.benchmark?.priceReturn.total : undefined
+  }
+
+  it("counts a benchmark nobody holds after the prices file's split notes, so a 2-for-1 split is no fall", () => {
+    // 100.00 on 2 Jan is 50.00 in today's units, so 51.00 is +2%. Without the note it would read as a fall of 49%.
+    expect(priceReturnOf([], noted)).toBeCloseTo(0.02, 12)
+    expect(priceReturnOf([], [])).toBeCloseTo(-0.49, 12)
+  })
+
+  it("takes the book's own splits of the benchmark over the notes", () => {
+    const fourForOne = [{ ...noted[0]!, newUnits: '4' }]
+    expect(priceReturnOf([split(notedIndex, '2025-01-20', 2, 1)], fourForOne)).toBeCloseTo(0.02, 12)
+  })
+})
+
+describe('choosing the benchmark', () => {
+  const marked = instrument('index', { name: 'World index', benchmark: true })
+  const held = instrument('held', { name: 'Held fund' })
+
+  it('is the first instrument marked, so two marks a merge left still name one', () => {
+    expect(benchmarkOf([held, marked, { ...held, id: instrument('second').id, benchmark: true }])).toBe(marked)
+    expect(benchmarkOf([held])).toBeNull()
+  })
+
+  it('moves the mark to the instrument chosen and off every other, or off all of them when none is chosen', () => {
+    const second = instrument('second', { benchmark: true })
+    expect(benchmarkChanges([held, marked, second], held.id).map((change) => [change.before.name, change.after.benchmark])).toEqual([
+      ['Held fund', true],
+      ['World index', false],
+      ['second', false],
+    ])
+    expect(benchmarkChanges([held, marked], marked.id)).toEqual([])
+    expect(benchmarkChanges([held, marked], null).map((change) => [change.after.name, change.after.benchmark])).toEqual([['World index', false]])
+  })
+
+  it('compares only with a benchmark that has a close, and says when that close is late', () => {
+    const records = book({ instruments: [held, marked] })
+    const closes = (rows: readonly CloseRow[]) => sourcesOf(records, new Map([[marked, rows]]), '2026-10-30')
+
+    expect(benchmarkState(sourcesOf(book({ instruments: [held] }), new Map(), '2026-10-30'))).toEqual({ kind: 'none' })
+    const missing = benchmarkState(closes([]))
+    expect(missing).toEqual({ kind: 'no-closes', instrument: marked })
+    expect(comparedBenchmark(missing, records, [])).toBeNull()
+    // Friday 30 Oct: a close of Wednesday 28 Oct is current, one of Monday 26 Oct has three weekdays after it and is late.
+    const current = benchmarkState(closes([['2026-10-28', '100']]))
+    expect(current).toMatchObject({ kind: 'priced', late: false, close: { date: '2026-10-28' } })
+    expect(comparedBenchmark(current, records, [])).toEqual({ instrument: marked, splits: [] })
+    expect(benchmarkState(closes([['2026-10-26', '100']]))).toMatchObject({ kind: 'priced', late: true })
   })
 })
 
@@ -583,7 +919,7 @@ describe('the largest fall', () => {
     expect(performance.growth.slice(0, 6).map((point) => rounded(point.portfolio))).toEqual([100, 120, 90, 110, 130, 104])
     expect(performance.largestFall).toBeCloseTo(-0.25, 12)
 
-    const years = performanceByYear(sources, null).map(({ year, performance: figures }) => [year, figures.kind === 'figures' ? rounded(figures.portfolio.timeWeighted.total) : figures.kind])
+    const years = performanceByYear(sources, null).map(({ year, performance: figures }) => [year, figures.kind === 'figures' ? rounded(figures.portfolio.timeWeighted?.total ?? null) : figures.kind])
     // 2025: 104 ÷ 100 − 1 = 4%. 2026: 117 ÷ 104 − 1 = 12.5%.
     expect(years).toEqual([
       [2025, 0.04],
@@ -591,7 +927,7 @@ describe('the largest fall', () => {
     ])
   })
 
-  it('leaves a dip on a deposit day inside a month off the line and out of the largest fall, though the day still splits the return', () => {
+  it('leaves a dip just before a deposit inside a month off the line and out of the largest fall, though the deposit still splits the return', () => {
     const records = book({
       accounts: [BROKER],
       instruments: [FUND],
@@ -603,21 +939,22 @@ describe('the largest fall', () => {
         FUND,
         [
           ['2025-01-31', '100'],
-          ['2025-02-14', '50'],
+          ['2025-02-13', '50'],
           ['2025-02-28', '100'],
         ],
       ],
     ])
     const performance = figuresOf(sourcesOf(records, closes, '2025-02-28'), null)
 
-    // The index halves on 14 Feb, (1,000.00 − 500.00) ÷ 1,000.00, and doubles back by 28 Feb, 2,000.00 ÷ 1,000.00, so the
-    // return is 0%. Without the split on 14 Feb it would be (2,000.00 − 500.00) ÷ 1,000.00 − 1 = +50%.
+    // The index halves by 13 Feb, 500.00 ÷ 1,000.00, stays on the deposit day, 1,000.00 ÷ (500.00 + 500.00), and doubles back
+    // by 28 Feb, 2,000.00 ÷ 1,000.00, so the return is 0%. Without the split at the deposit it would be
+    // (2,000.00 − 500.00) ÷ 1,000.00 − 1 = +50%.
     expect(performance.growth.map((point) => [point.date, rounded(point.portfolio)])).toEqual([
       ['2025-01-31', 100],
       ['2025-02-28', 100],
     ])
     expect(performance.largestFall).toBe(0)
-    expect(performance.portfolio.timeWeighted.total).toBeCloseTo(0, 12)
+    expect(performance.portfolio.timeWeighted?.total).toBeCloseTo(0, 12)
   })
 })
 

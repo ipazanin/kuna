@@ -2,6 +2,7 @@
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import PricesCard from '../../prices/presentation/PricesCard.vue'
 import AccountsCard from './AccountsCard.vue'
+import BenchmarkCard from './BenchmarkCard.vue'
 import InvestmentsBooksCard from './InvestmentsBooksCard.vue'
 import { words } from './words'
 </script>
@@ -11,6 +12,7 @@ import { words } from './words'
     <PageHeader :title="words.title" :description="words.description" />
     <InvestmentsBooksCard />
     <AccountsCard />
+    <BenchmarkCard />
     <PricesCard />
   </section>
 </template>

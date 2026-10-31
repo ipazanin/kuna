@@ -12,7 +12,7 @@ export interface ListingDemand {
   readonly source: ListedSource
   readonly symbol: string
   readonly currency: string
-  /** The earliest first transaction of its instruments, or the first deposit for one with none, such as the benchmark. */
+  /** The earliest first transaction of its instruments, or the first deposit for one with none and for the benchmark, which Performance compares from it. */
   readonly start: string
 }
 
@@ -54,7 +54,7 @@ export function priceDemand(book: InvestmentBook, today: string, wanted: RatesWa
       ...book.spinOffs.filter((spinOff) => spinOff.received === instrument.id).map((spinOff) => spinOff.date),
     ])
     const key = seriesKey(instrument.prices, instrument.sourceSymbol)
-    const start = firstTransaction ?? firstDeposit
+    const start = firstTransaction === null || (instrument.benchmark && firstDeposit < firstTransaction) ? firstDeposit : firstTransaction
     const known = listings.get(key)
     listings.set(
       key,

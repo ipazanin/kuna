@@ -81,6 +81,7 @@ describe('the Investments file', () => {
       [INVESTMENT_ACCOUNT_RECORDS, { id: ONE, name: 'Broker One', note: 'Main account' }],
       [INSTRUMENT_RECORDS, { ...DOLLAR_SHARE, isin: 'XX000000ABC1', exchange: 'XNAS', note: 'A US share' }],
       [INSTRUMENT_RECORDS, EURO_BOND],
+      [INSTRUMENT_RECORDS, { ...DOLLAR_SHARE, id: FUND, benchmark: true }],
       [TRADE_RECORDS, { ...BUY, note: 'First buy', import_key: 'workbook-1' }],
       [TRADE_RECORDS, { id: 't2', account: ONE, instrument: BOND, side: 'sell', date: '2026-02-10', quantity: '1000', price: '98.5', accrued: '15.12' }],
       [INCOME_RECORDS, { id: 'i1', account: ONE, kind: 'dividend', instrument: SHARE, date: '2026-06-15', currency: 'USD', gross: '12', withheld: '1.8', rate: '1.09', note: 'Second quarter' }],
@@ -155,6 +156,7 @@ describe('the Investments file', () => {
           { ...EURO_BOND, id: 'n7', maturity: '' },
           { ...EURO_FUND, id: 'n8', coupon: '3' },
           { ...DOLLAR_SHARE, id: 'n9', prices: 'yahoo' },
+          { ...DOLLAR_SHARE, id: 'n10', benchmark: 'maybe' },
         ],
       }),
     ).toEqual([
@@ -168,7 +170,20 @@ describe('the Investments file', () => {
       ['instrument', 'Example Bond, EXB', 'no maturity date'],
       ['instrument', 'Example Fund, EMF', 'coupon and maturity belong to a bond quoted in percent only'],
       ['instrument', 'Example Tech, ABC', '"yahoo" is not a price source. Use twelvedata, alphavantage, manual'],
+      ['instrument', 'Example Tech, ABC', 'benchmark "maybe" is not true or false'],
     ])
+  })
+
+  it('marks the benchmark only on the instrument that carries the field, and writes no field for the rest', () => {
+    const books = booksOf({ instrument: [DOLLAR_SHARE, { ...EURO_FUND, benchmark: true }, { ...SPUN_OFF, benchmark: false }] })
+
+    expect(books.problems).toEqual([])
+    expect(books.book.instruments.map((instrument) => [instrument.symbol, instrument.benchmark])).toEqual([
+      ['ABC', false],
+      ['EMF', true],
+      ['GHI', false],
+    ])
+    expect(roundTrip(INSTRUMENT_RECORDS, { ...SPUN_OFF, benchmark: false })).toEqual(SPUN_OFF)
   })
 
   it('refuses money records whose amounts, currencies or rates do not make one', () => {
@@ -296,7 +311,7 @@ describe('the Investments file', () => {
     expect(books.problems).toEqual([])
     expect(Object.fromEntries(Object.entries(books.book).map(([part, records]) => [part, records.length]))).toEqual({
       accounts: 2,
-      instruments: 5,
+      instruments: 6,
       trades: 7,
       income: 4,
       cashMovements: 5,
@@ -304,7 +319,7 @@ describe('the Investments file', () => {
       transfers: 2,
       splits: 1,
       spinOffs: 1,
-      prices: 7,
+      prices: 8,
     })
     expect([...investmentLots(books.book).values()].flatMap((lots) => [...lots.refused, ...lots.emptied])).toEqual([])
   })

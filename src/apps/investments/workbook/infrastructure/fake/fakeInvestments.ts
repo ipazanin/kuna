@@ -22,8 +22,11 @@ import type { Split } from '../../domain/split'
 import type { Trade, TradeSide } from '../../domain/trade'
 import type { Transfer } from '../../domain/transfer'
 import { emptyInvestmentsDocument } from '../investmentsDocument'
-import { parseCivilDate } from '../../../../../shared/calendar/civilDate'
+import { pricesDay } from '../../../prices/application/pricesUpdate'
+import { FAKE_SERIES, fakeClose, isWeekday } from '../../../prices/infrastructure/fake/fakePrices'
+import { addDays, parseCivilDate } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
+import { dayMonthsLater } from '../../../../../shared/calendar/monthKey'
 import { EURO, currencyCodeOf } from '../../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../../shared/money/currencyCode'
 import { DECIMAL_ZERO, decimalOfText } from '../../../../../shared/money/decimal'
@@ -70,6 +73,7 @@ const SHARE_A: Instrument = {
   quoted: { kind: 'unit' },
   prices: 'twelvedata',
   sourceSymbol: 'ABC',
+  benchmark: false,
   note: '',
 }
 const SHARE_B: Instrument = { ...SHARE_A, id: fixedId(INSTRUMENT_RECORDS, 11), name: 'Example Dividend Co', isin: null, symbol: 'DEF', exchange: 'XNYS', sourceSymbol: 'DEF' }
@@ -98,6 +102,8 @@ const MONEY_FUND: Instrument = {
   note: 'Priced from its monthly statement',
 }
 const SPIN_CO: Instrument = { ...MONEY_FUND, id: fixedId(INSTRUMENT_RECORDS, 14), name: 'Example Spinco', class: 'stocks', symbol: 'GHI', currency: USD, note: 'Spun off from Example Dividend Co' }
+/** Never bought, only compared with on Performance. */
+const INDEX_FUND: Instrument = { ...SHARE_A, id: fixedId(INSTRUMENT_RECORDS, 15), name: 'Example Index Fund', isin: null, symbol: 'IDX', exchange: 'ARCX', sourceSymbol: 'IDX', benchmark: true }
 
 let place = 100
 function nextId(kind: RecordKind): RecordId {
@@ -221,6 +227,7 @@ const HAND_PRICES: readonly HandPrice[] = [
   { id: nextId(PRICE_RECORDS), instrument: MONEY_FUND.id, date: day('2023-03-31'), price: decimal('10.02'), note: 'Statement of 31 Mar 2023' },
   { id: nextId(PRICE_RECORDS), instrument: MONEY_FUND.id, date: day('2024-12-31'), price: decimal('10.24'), note: 'Statement of 31 Dec 2024' },
   { id: nextId(PRICE_RECORDS), instrument: SPIN_CO.id, date: day('2024-09-30'), price: decimal('23.10'), note: '' },
+  { id: nextId(PRICE_RECORDS), instrument: MONEY_FUND.id, date: day('2023-03-01'), price: decimal('10.00'), note: 'Bought at 10.00' },
 ]
 
 function stored<R>(kind: RecordKind<R>, records: readonly R[]): WorkbookDocument['records'] {
@@ -228,22 +235,55 @@ function stored<R>(kind: RecordKind<R>, records: readonly R[]): WorkbookDocument
   return { [kind.name]: records.map((record) => codec.fieldsOf(record)) }
 }
 
-/** `sample` is the whole made-up file, and `cash-below-zero` leaves out the second account's deposit, so its euros fall below zero. */
-export type FakeInvestmentsVariant = 'sample' | 'cash-below-zero'
+/**
+ * `sample` is the whole made-up file, `cash-below-zero` leaves out the second account's deposit, so its euros fall below
+ * zero, and `young` is a file whose first deposit is seven months old, with no benchmark chosen.
+ */
+export type FakeInvestmentsVariant = 'sample' | 'cash-below-zero' | 'young'
+
+/** The weekday on or before the day. */
+function weekdayBefore(date: CivilDate): CivilDate {
+  let found = date
+  while (!isWeekday(found)) {
+    found = addDays(found, -1)
+  }
+  return found
+}
+
+/** Two deposits into the World ETF, seven and three months before the fake build's day, each spent at that day's close, with ids of their own so every load holds the same records. */
+function youngRecords(today: CivilDate): WorkbookDocument['records'] {
+  const first = weekdayBefore(dayMonthsLater(today, -7))
+  const second = weekdayBefore(dayMonthsLater(today, -3))
+  return {
+    ...stored(INVESTMENT_ACCOUNT_RECORDS, [BROKER_ONE]),
+    ...stored(INSTRUMENT_RECORDS, [WORLD_ETF]),
+    ...stored(TRADE_RECORDS, [
+      { ...trade('buy', BROKER_ONE, WORLD_ETF, first, '40', fakeClose(FAKE_SERIES.worldEtf, first), '2.00', null), id: fixedId(TRADE_RECORDS, 901) },
+      { ...trade('buy', BROKER_ONE, WORLD_ETF, second, '12', fakeClose(FAKE_SERIES.worldEtf, second), '2.00', null), id: fixedId(TRADE_RECORDS, 902) },
+    ]),
+    ...stored(CASH_MOVEMENT_RECORDS, [
+      { ...cash('deposit', BROKER_ONE, first, '5000.00'), id: fixedId(CASH_MOVEMENT_RECORDS, 903) },
+      { ...cash('deposit', BROKER_ONE, second, '1500.00'), id: fixedId(CASH_MOVEMENT_RECORDS, 904) },
+    ]),
+  }
+}
 
 /**
  * The fake build's made-up Investments file: two accounts at made-up brokers, euros changed into dollars, buys and a
  * sale of US shares, a Xetra ETF and a money market fund priced by hand, dividends with tax withheld, interest, an
- * account fee and its refund, a transfer of units and one of cash, a spin-off and a split of what it gave. Every
- * figure in it is made up.
+ * account fee and its refund, a transfer of units and one of cash, a spin-off and a split of what it gave, and a US
+ * index fund it compares with. Every figure in it is made up.
  */
 export function fakeInvestmentsDocument(savedAt: string, variant: FakeInvestmentsVariant = 'sample'): WorkbookDocument {
+  if (variant === 'young') {
+    return { ...emptyInvestmentsDocument(savedAt), records: youngRecords(pricesDay(savedAt)) }
+  }
   const movements = variant === 'sample' ? CASH_MOVEMENTS : CASH_MOVEMENTS.filter((movement) => !(movement.account === BROKER_TWO.id && movement.kind === 'deposit'))
   return {
     ...emptyInvestmentsDocument(savedAt),
     records: {
       ...stored(INVESTMENT_ACCOUNT_RECORDS, [BROKER_ONE, BROKER_TWO]),
-      ...stored(INSTRUMENT_RECORDS, [SHARE_A, SHARE_B, WORLD_ETF, MONEY_FUND, SPIN_CO]),
+      ...stored(INSTRUMENT_RECORDS, [SHARE_A, SHARE_B, WORLD_ETF, MONEY_FUND, SPIN_CO, INDEX_FUND]),
       ...stored(TRADE_RECORDS, TRADES),
       ...stored(INCOME_RECORDS, INCOME),
       ...stored(CASH_MOVEMENT_RECORDS, movements),

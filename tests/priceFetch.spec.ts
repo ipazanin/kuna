@@ -232,14 +232,15 @@ describe('fetching prices for the first time', () => {
     file = browser.prices()
   })
 
-  it('fetches each US listing from Twelve Data from its first trade, and the benchmark with no trades from the first deposit', () => {
+  it('fetches each US listing from Twelve Data from its first trade, and the benchmark with no trades from the first deposit, each with the close before', () => {
     expect(file.series['twelvedata:ABC']).toMatchObject({ currency: 'USD', from: '2025-03-03' })
-    expect(closesOf(file, 'twelvedata:ABC')[0]![0]).toBe('2025-03-03')
+    // Monday 3 Mar is asked from a week before, and Friday 28 Feb's close stays for the start.
+    expect(closesOf(file, 'twelvedata:ABC')[0]![0]).toBe('2025-02-28')
     expect(file.series['twelvedata:IDX']).toMatchObject({ currency: 'USD', from: '2025-01-02' })
-    expect(closesOf(file, 'twelvedata:IDX')[0]![0]).toBe('2025-01-02')
+    expect(closesOf(file, 'twelvedata:IDX')[0]![0]).toBe('2025-01-01')
     expect(browser.asked('twelvedata').map((query) => [query.get('symbol'), query.get('start_date')])).toEqual([
-      ['ABC', '2025-03-03'],
-      ['IDX', '2025-01-02'],
+      ['ABC', '2025-02-24'],
+      ['IDX', '2024-12-26'],
     ])
   })
 
@@ -266,8 +267,9 @@ describe('fetching prices for the first time', () => {
   it('has the ECB rates of USD, GBP and CHF from 2015, one request per currency and no key', () => {
     expect(pricesFileRateBook(file).unitsPerEuroOnOrBefore(USD, civil('2025-03-03'))).not.toBeNull()
     expect(['ecb:USD', 'ecb:GBP', 'ecb:CHF'].map((key) => file.series[key]!.from)).toEqual(['2015-01-01', '2015-01-01', '2015-01-01'])
-    expect(closesOf(file, 'ecb:GBP')[0]![0]).toBe('2015-01-01')
-    expect(ecbAsked(browser)).toEqual(['D.USD.EUR.SP00.A?startPeriod=2015-01-01', 'D.GBP.EUR.SP00.A?startPeriod=2015-01-01', 'D.CHF.EUR.SP00.A?startPeriod=2015-01-01'])
+    // A history keeps the rate before its start, here the one of 31 Dec 2014.
+    expect(closesOf(file, 'ecb:GBP')[0]![0]).toBe('2014-12-31')
+    expect(ecbAsked(browser)).toEqual(['D.USD.EUR.SP00.A?startPeriod=2014-12-25', 'D.GBP.EUR.SP00.A?startPeriod=2014-12-25', 'D.CHF.EUR.SP00.A?startPeriod=2014-12-25'])
     expect(browser.events.filter((event) => event.includes('data-api.ecb')).some((event) => event.includes('key'))).toBe(false)
   })
 
@@ -360,9 +362,9 @@ describe('fetching prices again', () => {
     await browser.run('2026-10-30')
     browser.records = investments({ trades: [trade('buy', BROKER, SHARE_A, '2024-11-04', '5', '45', '1', '1.08')] })
     await browser.run('2026-11-02')
-    expect(browser.asked('symbol=ABC').map((query) => query.get('start_date'))).toEqual(['2024-11-04'])
+    expect(browser.asked('symbol=ABC').map((query) => query.get('start_date'))).toEqual(['2024-10-28'])
     expect(browser.prices().series['twelvedata:ABC']!.from).toBe('2024-11-04')
-    expect(closesOf(browser.prices(), 'twelvedata:ABC')[0]![0]).toBe('2024-11-04')
+    expect(closesOf(browser.prices(), 'twelvedata:ABC')[0]![0]).toBe('2024-11-01')
   })
 
   it('has the rates of a new currency on the fetch that first sees it, from 2015 like the others', async () => {
@@ -375,7 +377,7 @@ describe('fetching prices again', () => {
       'D.USD.EUR.SP00.A?startPeriod=2026-10-29',
       'D.GBP.EUR.SP00.A?startPeriod=2026-10-29',
       'D.CHF.EUR.SP00.A?startPeriod=2026-10-29',
-      'D.SEK.EUR.SP00.A?startPeriod=2015-01-01',
+      'D.SEK.EUR.SP00.A?startPeriod=2014-12-25',
     ])
     expect(browser.prices().series['ecb:SEK']).toMatchObject({ currency: 'SEK', from: '2015-01-01' })
     expect(pricesFileRateBook(browser.prices()).unitsPerEuroOnOrBefore(sek, civil('2026-10-29'))).not.toBeNull()
@@ -392,7 +394,7 @@ describe('fetching prices again', () => {
     expect(closesOf(before, 'ecb:HRK').at(-1)![0]).toBe('2022-12-30')
     await browser.run('2026-11-02')
     expect(ecbAsked(browser).some((asked) => asked.startsWith('D.HRK'))).toBe(false)
-    expect(ecbAsked(browser).filter((asked) => asked.startsWith('D.RSD'))).toEqual(['D.RSD.EUR.SP00.A?startPeriod=2015-01-01'])
+    expect(ecbAsked(browser).filter((asked) => asked.startsWith('D.RSD'))).toEqual(['D.RSD.EUR.SP00.A?startPeriod=2014-12-25'])
     expect(browser.prices().series['ecb:HRK']).toEqual(before.series['ecb:HRK'])
     expect(browser.prices().failures).toEqual([{ series: 'ecb:RSD', day: '2026-11-02', reason: 'unknown-symbol' }])
   })
@@ -457,7 +459,7 @@ describe('what the fetch reads from the Investments records', () => {
 
   it('runs the rates from a record before 2015, and the benchmark from the first deposit', () => {
     expect(file.series['ecb:USD']!.from).toBe('2014-06-02')
-    expect(closesOf(file, 'ecb:USD')[0]![0]).toBe('2014-06-02')
+    expect(closesOf(file, 'ecb:USD')[0]![0]).toBe('2014-05-30')
     expect(file.series['twelvedata:IDX']!.from).toBe('2014-06-02')
   })
 
@@ -468,6 +470,38 @@ describe('what the fetch reads from the Investments records', () => {
   it("rates an exchange's bought and fee currencies", () => {
     expect(file.series['ecb:NOK']!.from).toBe('2014-06-02')
     expect(file.series['ecb:SEK']!.from).toBe('2014-06-02')
+  })
+})
+
+describe('where a history starts', () => {
+  it('keeps the close of the Friday before a first deposit on a Saturday', async () => {
+    const browser = device(KEYS, book({ accounts: [BROKER], instruments: [INDEX_FUND], cashMovements: [cashMovement('deposit', BROKER, '2025-01-04', '1000')] }))
+    await browser.run('2026-10-30')
+
+    expect(browser.asked('symbol=IDX').map((query) => query.get('start_date'))).toEqual(['2024-12-28'])
+    expect(browser.prices().series['twelvedata:IDX']!.from).toBe('2025-01-04')
+    expect(closesOf(browser.prices(), 'twelvedata:IDX')[0]![0]).toBe('2025-01-03')
+  })
+
+  it('starts a benchmark that is also held from the first deposit, when it was bought later', async () => {
+    const heldBenchmark = { ...INDEX_FUND, benchmark: true }
+    const browser = device(
+      KEYS,
+      book({
+        accounts: [BROKER],
+        instruments: [heldBenchmark],
+        cashMovements: [cashMovement('deposit', BROKER, '2025-01-02', '1000')],
+        trades: [trade('buy', BROKER, heldBenchmark, '2025-06-02', '5', '100', '0', '1.1')],
+      }),
+    )
+    await browser.run('2026-10-30')
+
+    expect(browser.prices().series['twelvedata:IDX']!.from).toBe('2025-01-02')
+    // The same instrument not marked as the benchmark starts at its first trade.
+    browser.records = book({ ...browser.records, instruments: [INDEX_FUND], trades: [trade('buy', BROKER, INDEX_FUND, '2025-06-02', '5', '100', '0', '1.1')] })
+    browser.pricesText = encodePricesFile(emptyPricesFile())
+    await browser.run('2026-10-30')
+    expect(browser.prices().series['twelvedata:IDX']!.from).toBe('2025-06-02')
   })
 })
 
@@ -548,12 +582,12 @@ describe('the vendors without a key, at their limits and on their errors', () =>
     const browser = device(KEYS, investments({ cashMovements: [cashMovement('deposit', BROKER, '1996-01-02', '1000')] }))
     await browser.run('2026-10-30')
     expect(browser.asked('symbol=IDX').map((query) => [query.get('start_date'), query.get('end_date')])).toEqual([
-      ['1996-01-02', null],
-      ['1996-01-02', closesOf(browser.prices(), 'twelvedata:IDX').at(-4999)![0]],
+      ['1995-12-26', null],
+      ['1995-12-26', closesOf(browser.prices(), 'twelvedata:IDX').at(-4999)![0]],
     ])
     const closes = closesOf(browser.prices(), 'twelvedata:IDX')
-    expect(closes[0]![0]).toBe('1996-01-02')
-    expect(closes).toHaveLength(weekdaysBetween(civil('1996-01-02'), civil('2026-10-29')))
+    expect(closes[0]![0]).toBe('1996-01-01')
+    expect(closes).toHaveLength(weekdaysBetween(civil('1996-01-01'), civil('2026-10-29')))
   })
 
   it('leaves alone a file that is no prices file, such as one a newer Kuna wrote', async () => {

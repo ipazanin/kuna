@@ -5,6 +5,7 @@ import type { PriceDemand, RatesWanted } from '../domain/priceDemand'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { decodePricesFile, encodePricesFile, seriesKey } from '../domain/pricesFile'
 import type { CloseRow, FailureReason, PriceFailure, PriceSeries, PricesFile, PricesFileRefusal, SplitNote } from '../domain/pricesFile'
+import { addDays, parseCivilDate } from '../../../../shared/calendar/civilDate'
 
 /** When the fetch runs: an ISO timestamp and the day in the page's time zone. */
 export interface PriceFetchClock {
@@ -28,6 +29,9 @@ interface FetchChanges {
   readonly splits: SplitNote[]
   readonly failures: PriceFailure[]
 }
+
+/** A history is asked from a week before its start, so a start on a weekend or a holiday still gets the close before it. */
+const HISTORY_LEAD_DAYS = 7
 
 /** A vendor's minute, with a second to spare for the time a request takes to reach it. */
 const PACING_WINDOW_MILLISECONDS = 61_000
@@ -135,7 +139,7 @@ async function fetchVendor(ports: PriceFetchPorts, vendor: PriceVendor, wanted: 
     const known = stored.series[series.key]
     const history = known === undefined || known.from > series.start
     const from = history ? series.start : lastDayOf(known)
-    const fetched = await vendor.closes(fetch, key, series.symbol, from)
+    const fetched = await vendor.closes(fetch, key, series.symbol, history ? addDays(parseCivilDate(from)!, -HISTORY_LEAD_DAYS) : from)
     if (fetched.kind === 'failed') {
       failed(series, fetched.reason)
       limited = fetched.reason === 'limit'
@@ -148,7 +152,8 @@ async function fetchVendor(ports: PriceFetchPorts, vendor: PriceVendor, wanted: 
     const settled = fetched.closes.filter(([day]) => day < clock.day)
     // A new series keeps the last close before its start, so a month-end close covers the days until the first daily one.
     const startIndex = settled.findIndex(([day]) => day >= from)
-    const firstKept = startIndex < 0 ? settled.length : history && startIndex > 0 ? startIndex - 1 : startIndex
+    const firstAtStart = startIndex < 0 ? settled.length : startIndex
+    const firstKept = history && firstAtStart > 0 ? firstAtStart - 1 : firstAtStart
     const closes = settled.slice(firstKept)
     // Earlier closes that failed for now are asked again next time, so the series keeps a later start. Those a free key never gets are not.
     const reached = fetched.earlierFailure === null || fetched.earlierFailure === 'not-on-free-key'

@@ -1,5 +1,5 @@
 import { words } from './words'
-import type { Instrument, InstrumentClass, PriceSource, Quoting } from '../../workbook/domain/instrument'
+import type { Instrument, InstrumentClass, PriceSource } from '../../workbook/domain/instrument'
 import { ISIN, MIC } from '../../workbook/domain/instrumentReading'
 import { EURO, currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -58,8 +58,11 @@ export function hasInstrumentErrors(errors: InstrumentErrors): boolean {
   return Object.values(errors).some((error) => error !== null)
 }
 
+/** What an instrument keeps that its fields do not show, from the record changed or a new one's start. */
+export type UnshownFacts = Pick<Instrument, 'quoted' | 'benchmark'>
+
 /** The instrument the fields describe, or null while one of them has an error. A blank source symbol takes the symbol. */
-export function instrumentOfTexts(texts: InstrumentTexts, others: readonly Instrument[], id: RecordId, quoted: Quoting): Instrument | null {
+export function instrumentOfTexts(texts: InstrumentTexts, others: readonly Instrument[], id: RecordId, kept: UnshownFacts): Instrument | null {
   const currency = currencyCodeOf(texts.currency)
   if (hasInstrumentErrors(instrumentErrors(texts, others)) || currency === null) return null
   const symbol = texts.symbol.trim()
@@ -71,9 +74,10 @@ export function instrumentOfTexts(texts: InstrumentTexts, others: readonly Instr
     symbol,
     exchange: texts.exchange.trim() === '' ? null : texts.exchange.trim().toUpperCase(),
     currency,
-    quoted,
+    quoted: kept.quoted,
     prices: texts.prices,
     sourceSymbol: texts.prices === 'manual' ? '' : texts.sourceSymbol.trim() || symbol,
+    benchmark: kept.benchmark,
     note: texts.note.trim(),
   }
 }

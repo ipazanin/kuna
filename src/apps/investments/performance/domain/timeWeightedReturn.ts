@@ -1,14 +1,11 @@
 import { lastsAYear } from './performancePeriod'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { negateMoney } from '../../../../shared/money/money'
+import { addMoney, negateMoney, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { daysOver365, solvedRate } from '../../../../shared/money/rateSolver'
 import type { DatedFlow } from '../../../../shared/money/rateSolver'
 
-/**
- * A portfolio's value at a day's close and the deposits less withdrawals of that day. A flow is positive when money
- * enters the portfolio, and it lands at the close, so the value already includes it.
- */
+/** A portfolio's value at a day's close and that day's deposits less its withdrawals, which the value includes. A flow is positive when money enters. */
 export interface ValuedDay {
   readonly date: CivilDate
   readonly value: Money
@@ -27,16 +24,24 @@ export function timeWeightedReturn(total: number, from: CivilDate, to: CivilDate
 }
 
 /**
- * What one euro on the first day grew to by each day. Each step is (the day's value − its flow) ÷ the previous day's
- * value, so money put in or taken out never counts as growth, and the first day's flow is part of the starting value.
- * A step from a day worth nothing, after everything was taken out, leaves the index where it was.
+ * What one euro on the first day grew to by each day. Money put in counts from the start of its day and money taken
+ * out until the end of its day, so a step is the day's value over the previous value plus a deposit, or the day's value
+ * plus a withdrawal over the previous value. The day's fees and moves then count against all the money in that day, and
+ * no flow counts as growth. A step from nothing, after everything was taken out, leaves the index where it was.
  */
 export function timeWeightedIndex(days: readonly ValuedDay[]): number[] {
   const index: number[] = []
   days.forEach((day, position) => {
     const previous = days[position - 1]
     const reached = index[position - 1] ?? 1
-    index.push(previous === undefined || previous.value <= 0 ? reached : (reached * (day.value - day.flow)) / previous.value)
+    if (previous === undefined) {
+      index.push(reached)
+      return
+    }
+    const deposited = day.flow > 0
+    const start = deposited ? addMoney(previous.value, day.flow) : previous.value
+    const end = deposited ? day.value : subtractMoney(day.value, day.flow)
+    index.push(start <= 0 ? reached : (reached * end) / start)
   })
   return index
 }

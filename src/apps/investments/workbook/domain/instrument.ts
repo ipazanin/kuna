@@ -51,5 +51,7 @@ export interface Instrument {
   readonly prices: PriceSource
   /** Empty for a manual instrument. */
   readonly sourceSymbol: string
+  /** Whether Performance compares the portfolio with it. It may be held or not. */
+  readonly benchmark: boolean
   readonly note: string
 }

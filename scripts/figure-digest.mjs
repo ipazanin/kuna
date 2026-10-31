@@ -116,6 +116,10 @@ import { latestRecords } from '../src/apps/investments/holdings/domain/latestRec
 import { figuresClose, portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures.ts'
 import { gainSources, incomeAgainstLastYear, lastDayMovers, pricesNotice, valueByClass, valueByCurrency } from '../src/apps/investments/overview/domain/overviewFigures.ts'
 import { valueOverTime } from '../src/apps/investments/overview/domain/valueOverTime.ts'
+import { benchmarkState, comparedBenchmark } from '../src/apps/investments/performance/domain/benchmark.ts'
+import { performancePeriods } from '../src/apps/investments/performance/domain/performancePeriod.ts'
+import { dayValuer, firstDepositIn, performanceByYear, portfolioPerformance } from '../src/apps/investments/performance/domain/portfolioPerformance.ts'
+import { periodKey } from '../src/apps/investments/performance/presentation/performanceLinks.ts'
 import { decodePricesFile, emptyPricesFile } from '../src/apps/investments/prices/domain/pricesFile.ts'
 import { pricesFileBook, pricesFileRateBook } from '../src/apps/investments/prices/domain/pricesFileBooks.ts'
 import { fakePricesFile } from '../src/apps/investments/prices/infrastructure/fake/fakePrices.ts'
@@ -407,7 +411,8 @@ function pricesOfInput() {
 /**
  * The Investments groups: the records and problems, then per instrument and per account, named by its place in the
  * file and never by its name, what the Overview, Holdings and a holding's page show on the day, then the portfolio's
- * figures, its last day, the Overview's cards and its value over time.
+ * figures, its last day, the Overview's cards and its value over time, then the benchmark's closes, Performance over
+ * each period it offers and its returns by year.
  */
 function investmentsGroups(add) {
   const document = options.investments === undefined ? fakeInvestmentsDocument(AT) : decodeDocument(readFileSync(options.investments, 'utf8'))
@@ -440,6 +445,14 @@ function investmentsGroups(add) {
     latestRecords(workbook.book, sources.rates, 5),
   ])
   add('investments.value-over-time', valueOverTime(sources, { kind: 'all' }))
+  const benchmark = benchmarkState(sources)
+  add('investments.performance.benchmark', benchmark)
+  const compared = comparedBenchmark(benchmark, workbook.book, prices.splits)
+  const valuedOn = dayValuer(sources)
+  for (const period of performancePeriods(firstDepositIn(workbook.book), today)) {
+    add(`investments.performance.${periodKey(period)}`, () => portfolioPerformance(sources, compared, period, valuedOn))
+  }
+  add('investments.performance.years', () => performanceByYear(sources, compared, valuedOn))
 }
 
 const digests = new WeakMap()

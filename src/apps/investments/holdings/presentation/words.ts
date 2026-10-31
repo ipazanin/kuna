@@ -144,6 +144,7 @@ export const en = {
   actions: { change: 'Change', add: 'Add transaction' },
   instrumentDialog: {
     addTitle: 'Add a holding',
+    addBenchmarkTitle: 'Add a benchmark',
     changeTitle: 'Change a holding',
     description: 'What it is, the currency it trades in and where its daily closes come from.',
     name: 'Name',
@@ -329,6 +330,7 @@ export const hr: Translation<typeof en> = {
   actions: { change: 'Promijeni', add: 'Dodaj transakciju' },
   instrumentDialog: {
     addTitle: 'Dodaj poziciju',
+    addBenchmarkTitle: 'Dodaj referentni indeks',
     changeTitle: 'Promijeni poziciju',
     description: 'Što je to, u kojoj valuti se trguje i odakle dolaze dnevne zaključne cijene.',
     name: 'Naziv',

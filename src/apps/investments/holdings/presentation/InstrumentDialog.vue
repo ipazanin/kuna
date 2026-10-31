@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import { INSTRUMENT_WRITES } from '../application/holdingWrites'
+import { benchmarkChanges } from '../../performance/domain/benchmark'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import InstrumentFields from './InstrumentFields.vue'
 import { instrumentErrors, instrumentOfTexts, instrumentTexts } from './instrumentForm'
@@ -19,11 +20,16 @@ import FormGrid from '../../../../shared/ui/FormGrid.vue'
 /** A holding's facts and the source of its daily closes, added or changed. Saving says which instrument it wrote. */
 const open = defineModel<boolean>('open', { required: true })
 
-const props = defineProps<{
-  /** The instrument to change, or null to add one. */
-  instrument: Instrument | null
-  book: InvestmentBook
-}>()
+const props = withDefaults(
+  defineProps<{
+    /** The instrument to change, or null to add one. */
+    instrument: Instrument | null
+    book: InvestmentBook
+    /** Adds the new instrument as the benchmark, in place of the one before it. */
+    asBenchmark?: boolean
+  }>(),
+  { asBenchmark: false },
+)
 
 const emit = defineEmits<{
   saved: [instrument: Instrument]
@@ -48,11 +54,20 @@ const errors = computed(() => instrumentErrors(texts.value, others.value))
 async function save(): Promise<void> {
   tried.value = true
   const before = props.instrument
-  const record = instrumentOfTexts(texts.value, others.value, before?.id ?? recordIdOf(INSTRUMENT_RECORDS, newRecordId()), before?.quoted ?? { kind: 'unit' })
+  const record = instrumentOfTexts(texts.value, others.value, before?.id ?? recordIdOf(INSTRUMENT_RECORDS, newRecordId()), before ?? { quoted: { kind: 'unit' }, benchmark: props.asBenchmark })
   if (record === null) return
+  const unmarked = before === null && record.benchmark ? benchmarkChanges(others.value, record.id) : []
   const written =
     before === null
-      ? await writes.write(text.added, (unit) => unit.of(INSTRUMENT_WRITES).add(record), { failedTitle: text.notAdded })
+      ? await writes.write(
+          text.added,
+          (unit) => {
+            const instruments = unit.of(INSTRUMENT_WRITES)
+            instruments.add(record)
+            unmarked.forEach((change) => instruments.change(change.before, change.after))
+          },
+          { failedTitle: text.notAdded },
+        )
       : await writes.write(text.saved, (unit) => unit.of(INSTRUMENT_WRITES).change(before, record), { failedTitle: text.notSaved })
   if (!written) return
   emit('saved', record)
@@ -67,7 +82,7 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="instrument === null ? text.addTitle : text.changeTitle" :description="text.description" width="2xl">
+  <AppDialog v-model:open="open" :title="instrument !== null ? text.changeTitle : asBenchmark ? text.addBenchmarkTitle : text.addTitle" :description="text.description" width="2xl">
     <FormGrid id="instrument" as="form" data-testid="instrument-form" @submit.prevent="save">
       <InstrumentFields v-model="texts" :errors="errors" :tried="tried" :book="book" />
     </FormGrid>

@@ -364,6 +364,7 @@ describe('the first dry run, before any answer', () => {
       quoted: { kind: 'unit' },
       prices: 'twelvedata',
       sourceSymbol: 'ABC',
+      benchmark: false,
       note: '',
     })
     expect([xyz!.proposal.exchange, xyz!.proposal.prices, xyz!.proposal.sourceSymbol, xyz!.proposal.currency]).toEqual(['XETR', 'alphavantage', 'XYZ.DEX', EURO])

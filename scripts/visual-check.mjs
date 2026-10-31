@@ -25,6 +25,8 @@
  * the Investments Overview on the sample (`?investments=sample`), on the sample without a deposit so an account's cash is below zero (`?investments=cash-below-zero`) and with late prices whose last
  * fetch failed (`?prices=late-prices`), each in Croatian too and with its figures worked out from the same fake sets, the home with the Investments card's figures and its late-prices badge,
  * the sample's Holdings, also with a late close, and two holdings' pages, one in US dollars with a lot partly sold and one from a spin-off that split, each in Croatian too,
+ * the sample's Performance over everything against its benchmark, a portfolio too young for a rate a year with no benchmark chosen (`?investments=young`) and the sample whose
+ * benchmark has no closes (`?prices=no-benchmark`), each in Croatian too,
  * the sample's Transactions, in Croatian too, and Transactions on an empty file, the import of the made-up portfolio workbook
  * into an empty Investments file with the fake prices, each step and the dry run in English and Croatian, and the same workbook again adding nothing,
  * Settings' Prices card on the sample with current prices, with made-up keys kept and with late prices, Company's
@@ -132,6 +134,8 @@ import { latestRecords } from '../src/apps/investments/holdings/domain/latestRec
 import { figuresClose, portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures.ts'
 import { WORKED_OUT_PRICE_PLACES } from '../src/apps/investments/holdings/presentation/holdingText.ts'
 import { gainSources, incomeAgainstLastYear } from '../src/apps/investments/overview/domain/overviewFigures.ts'
+import { benchmarkState, comparedBenchmark } from '../src/apps/investments/performance/domain/benchmark.ts'
+import { portfolioPerformance } from '../src/apps/investments/performance/domain/portfolioPerformance.ts'
 import { pricesDay } from '../src/apps/investments/prices/application/pricesUpdate.ts'
 import { pricesFileBook, pricesFileRateBook } from '../src/apps/investments/prices/domain/pricesFileBooks.ts'
 import { fakePricesFile } from '../src/apps/investments/prices/infrastructure/fake/fakePrices.ts'
@@ -366,6 +370,36 @@ const SAMPLE_HOLDINGS = fakeHoldingsShows()
 const LATE_HOLDING_CLOSE = dayLabel(fakePortfolio('sample', 'late-prices').figures.holdings.find((holding) => holding.late).valuation.close.date)
 const SAMPLE_SHARE_A_PAGE = fakeHoldingShows(SAMPLE_SHARE_A)
 const SAMPLE_SPIN_CO_PAGE = fakeHoldingShows(SAMPLE_SPIN_CO)
+
+/**
+ * Performance over everything on a fake set, worked out as the screen works it out: the time-weighted return and its rate
+ * a year, the money-weighted rate, and with a benchmark its own return, the difference and the same money in it beside
+ * the portfolio's value.
+ */
+function fakePerformanceShows(variant, pricesVariant) {
+  const { workbook, rates } = fakePortfolio(variant, pricesVariant)
+  const prices = fakePricesFile(pricesVariant, INVESTMENTS_DAY)
+  const sources = { book: workbook.book, prices: pricesFileBook(prices, workbook.book.prices), rates, today: INVESTMENTS_DAY }
+  const performance = portfolioPerformance(sources, comparedBenchmark(benchmarkState(sources), workbook.book, prices.splits), { kind: 'all' })
+  const { timeWeighted, moneyWeighted, value } = performance.portfolio
+  const comparison = performance.benchmark
+  return {
+    english: [
+      `From ${dayLabel(performance.from)} to ${dayLabel(performance.to)}.`,
+      formatPercentChange(timeWeighted.total),
+      ...(timeWeighted.yearly === null ? [] : [`time-weighted, ${formatPercentChange(timeWeighted.yearly)} a year`]),
+      ...(moneyWeighted.kind === 'rate' ? [formatPercentChange(moneyWeighted.rate)] : []),
+      ...(comparison === null
+        ? []
+        : [formatPercentChange(comparison.priceReturn.total), formatPercentChange(comparison.difference), `${formatMoney(comparison.replay.value)} against your ${formatMoney(value)}`]),
+    ],
+    croatian: comparison === null ? [] : [formatMoney(value, 'negative', CROATIAN_MONEY), formatMoney(comparison.replay.value, 'negative', CROATIAN_MONEY)],
+  }
+}
+
+const SAMPLE_PERFORMANCE = fakePerformanceShows('sample', 'sample')
+const YOUNG_PERFORMANCE = fakePerformanceShows('young', 'sample')
+const NO_BENCHMARK_PERFORMANCE = fakePerformanceShows('sample', 'no-benchmark')
 
 const SAMPLE_INVESTMENTS = fakeInvestmentsShows('sample', 'sample')
 const LATE_INVESTMENTS = fakeInvestmentsShows('sample', 'late-prices')
@@ -1570,6 +1604,102 @@ const SOURCE_SCREENS = [
     cards: false,
   },
   {
+    name: 'investments-performance',
+    query: 'investments=sample',
+    hash: '#/investments/performance',
+    title: 'Performance',
+    charts: 1,
+    ready: '[data-testid="performance-tiles"]',
+    shows: [
+      'Your return',
+      'Yearly return',
+      'Benchmark',
+      'Example Index Fund',
+      'Difference',
+      'Growth of €100.00',
+      'The same money in Example Index Fund',
+      'Largest fall and volatility',
+      'Returns by year',
+      'so far',
+      'A year with fewer than 12 monthly returns has no volatility.',
+      ...SAMPLE_PERFORMANCE.english,
+    ],
+  },
+  {
+    name: 'investments-performance-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments/performance',
+    title: 'Uspješnost',
+    charts: 1,
+    ready: '[data-testid="performance-tiles"]',
+    shows: [
+      'Vaš prinos',
+      'Godišnji prinos',
+      'Indeks',
+      'Razlika',
+      'Rast od 100,00',
+      'Isti novac u indeksu Example Index Fund',
+      'Najveći pad i volatilnost',
+      'Prinosi po godinama',
+      'zasad',
+      'Godina s manje od 12 mjesečnih prinosa nema volatilnost.',
+      ...SAMPLE_PERFORMANCE.croatian,
+    ],
+  },
+  {
+    name: 'investments-performance-young',
+    query: 'investments=young',
+    hash: '#/investments/performance',
+    title: 'Performance',
+    charts: 1,
+    ready: '[data-testid="performance-tiles"]',
+    shows: [
+      'Under a year',
+      'Shown for a period of a year or more',
+      'time-weighted',
+      'None chosen',
+      'Pick one in Settings',
+      'The same money in a benchmark',
+      'No benchmark to compare with',
+      'Open Settings',
+      'Needs 12 monthly returns',
+      ...YOUNG_PERFORMANCE.english,
+    ],
+  },
+  {
+    name: 'investments-performance-young-croatian',
+    query: 'investments=young&lang=hr',
+    hash: '#/investments/performance',
+    title: 'Uspješnost',
+    charts: 1,
+    ready: '[data-testid="performance-tiles"]',
+    shows: ['Manje od godine', 'vremenski ponderirano', 'Nije odabran', 'Nema indeksa za usporedbu', 'Isti novac u indeksu', 'Otvori postavke', ...YOUNG_PERFORMANCE.croatian],
+  },
+  {
+    name: 'investments-performance-no-benchmark',
+    query: 'investments=sample&prices=no-benchmark',
+    hash: '#/investments/performance',
+    title: 'Performance',
+    charts: 1,
+    ready: '[data-testid="performance-notice"]',
+    shows: ['Example Index Fund has no close in the prices file yet', 'No closes yet', 'No closes of Example Index Fund yet', 'Nothing to compare with', ...NO_BENCHMARK_PERFORMANCE.english],
+  },
+  {
+    name: 'investments-performance-no-benchmark-croatian',
+    query: 'investments=sample&prices=no-benchmark&lang=hr',
+    hash: '#/investments/performance',
+    title: 'Uspješnost',
+    charts: 1,
+    ready: '[data-testid="performance-notice"]',
+    shows: [
+      'Example Index Fund: u datoteci cijena još nema zaključne cijene',
+      'Još nema cijena',
+      'Još nema cijena za indeks Example Index Fund',
+      'Nema usporedbe',
+      ...NO_BENCHMARK_PERFORMANCE.croatian,
+    ],
+  },
+  {
     name: 'investments-prices-late',
     query: 'investments=sample&prices=late-prices',
     hash: '#/investments',
@@ -1579,7 +1709,7 @@ const SOURCE_SCREENS = [
     shows: [
       'Prices are behind',
       'The newest close is from',
-      'The last fetch got nothing for 6 series',
+      'The last fetch got nothing for 7 series',
       'Prices in Settings',
       `At the close of ${LATE_INVESTMENTS.close}.`,
       'Example Tech (ABC) is valued at its close of',
@@ -1595,7 +1725,7 @@ const SOURCE_SCREENS = [
     title: 'Pregled',
     charts: 1,
     ready: '[data-testid="investments-prices-behind"]',
-    shows: ['Cijene kasne', 'Najnovija zaključna cijena je od', 'Zadnje dohvaćanje nije dobilo ništa za 6 nizova', 'Cijene u postavkama', 'koja kasni.', ...LATE_INVESTMENTS.croatian],
+    shows: ['Cijene kasne', 'Najnovija zaključna cijena je od', 'Zadnje dohvaćanje nije dobilo ništa za 7 nizova', 'Cijene u postavkama', 'koja kasni.', ...LATE_INVESTMENTS.croatian],
     cards: false,
   },
   {
@@ -1605,7 +1735,19 @@ const SOURCE_SCREENS = [
     title: 'Settings',
     charts: 0,
     ready: '[data-testid="investments-prices-card"] [data-vendor="ecb"]',
-    shows: ['Where prices come from', 'Twelve Data', 'Alpha Vantage', 'European Central Bank', 'No key in this browser.', 'Needs no key.', 'Get a free key', 'Last fetched'],
+    shows: [
+      'Where prices come from',
+      'Twelve Data',
+      'Alpha Vantage',
+      'European Central Bank',
+      'No key in this browser.',
+      'Needs no key.',
+      'Get a free key',
+      'Last fetched',
+      'What Performance compares your portfolio with',
+      'Its last close in the prices file is from',
+      'Add a benchmark',
+    ],
     cards: false,
   },
   {
@@ -1615,7 +1757,7 @@ const SOURCE_SCREENS = [
     title: 'Postavke',
     charts: 0,
     ready: '[data-testid="investments-prices-card"] [data-vendor="ecb"]',
-    shows: ['Odakle dolaze cijene', 'Europska središnja banka', 'U ovom pregledniku nema ključa.', 'Ne treba ključ.', 'Besplatan ključ', 'Zadnje dohvaćanje'],
+    shows: ['Odakle dolaze cijene', 'Europska središnja banka', 'U ovom pregledniku nema ključa.', 'Ne treba ključ.', 'Besplatan ključ', 'Zadnje dohvaćanje', 'Referentni indeks', 'Dodaj indeks'],
     cards: false,
   },
   {
@@ -1648,7 +1790,7 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="prices-failures"]',
     shows: [
-      'The last fetch got nothing for 6 series',
+      'The last fetch got nothing for 7 series',
       'Example Tech (ABC)',
       'Twelve Data refused the request.',
       "Alpha Vantage's limit was reached.",
@@ -1665,7 +1807,7 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="prices-failures"]',
     shows: [
-      'Zadnje dohvaćanje nije dobilo ništa za 6 nizova',
+      'Zadnje dohvaćanje nije dobilo ništa za 7 nizova',
       'Twelve Data: zahtjev je odbijen.',
       'Alpha Vantage: dosegnuto je ograničenje.',
       'Tečajevi USD',

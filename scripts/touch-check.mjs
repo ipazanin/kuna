@@ -20,7 +20,7 @@
  * brought back, the same from a row of Review's queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google with one token for every scope and the sync it resumes ending ready, with Drive read unticked ending in Allow access, a refused consent and a
  * forged answer leaving Allow access with no message, a refused silent trip marking the device so the next open waits for Allow access, Sign in to Google when Google asks
- * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, a k typed into the what-if's amount expanding at once with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices card, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
+ * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, a k typed into the what-if's amount expanding at once with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, the period of Investments Performance changed to 1Y, to a year and back to All, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices card, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
@@ -1888,6 +1888,36 @@ async function checkWidth(width) {
     await waitForTitle(page, 'Holdings')
     await page.waitForSelector('[data-testid="holdings-rows"] a[data-testid="holding-row"]', { visible: true })
     await inspect(page, `${width}px Holdings again`)
+  })
+
+  // The sample's Performance: a tap on 1Y and on a year changes the period and keeps it in the address, and All takes it out again.
+  await step('investments-performance-period', async () => {
+    await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/performance`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Performance')
+    await page.waitForSelector('[data-testid="performance-growth"] .chart-body canvas')
+    const header = () => page.$eval('[data-testid="screen-title"] + p', (element) => element.textContent?.trim() ?? '')
+    const pressed = () => page.$eval('[data-testid="performance-periods"] [aria-pressed="true"]', (element) => element.textContent?.trim() ?? '')
+    const periodInAddress = () => page.evaluate(() => new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('period'))
+    await expect(pressed(), (label) => label === 'All', 'Performance does not open on All')
+    const allHeader = await header()
+    await inspect(page, `${width}px Performance on All`)
+    await (await waitForText(page, '[data-testid="performance-periods"] button', '1Y')).tap()
+    await page.waitForFunction(() => document.querySelector('[data-testid="performance-periods"] [aria-pressed="true"]')?.textContent?.trim() === '1Y', { timeout: 5_000 })
+    await expect(periodInAddress(), (period) => period === '1y', '1Y is not kept in the address')
+    await expect(header(), (text) => text !== allHeader && text.startsWith('From '), 'the header still names the days of All')
+    await page.waitForSelector('[data-testid="performance-growth"] .chart-body canvas')
+    await inspect(page, `${width}px Performance on 1Y`)
+    await shoot('investments-performance-1y')
+    await (await waitForText(page, '[data-testid="performance-periods"] button', '2024')).tap()
+    await page.waitForFunction(() => document.querySelector('[data-testid="performance-periods"] [aria-pressed="true"]')?.textContent?.trim() === '2024', { timeout: 5_000 })
+    await expect(periodInAddress(), (period) => period === '2024', '2024 is not kept in the address')
+    await expect(header(), (text) => text.includes('31 Dec 2023') && text.includes('31 Dec 2024'), 'the header does not run from the close of 2023 to the end of 2024')
+    await inspect(page, `${width}px Performance on 2024`)
+    await shoot('investments-performance-2024')
+    await (await waitForText(page, '[data-testid="performance-periods"] button', 'All')).tap()
+    await page.waitForFunction(() => document.querySelector('[data-testid="performance-periods"] [aria-pressed="true"]')?.textContent?.trim() === 'All', { timeout: 5_000 })
+    await expect(periodInAddress(), (period) => period === null, 'All stays in the address')
+    await expect(header(), (text) => text === allHeader, 'All does not name its days again')
   })
 
   // Puppeteer types a k whatever the inputmode, so this step cannot show that a phone's decimal keypad has no k.

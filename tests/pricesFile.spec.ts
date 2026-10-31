@@ -199,7 +199,7 @@ describe('late prices', () => {
     ).toEqual({ newest: civil('2026-10-26'), late: true })
     expect(figures.holdings.every((holding) => holding.late)).toBe(true)
     expect(figures.unpriced).toEqual([])
-    expect(new Set(file.failures.map((failure) => failure.series))).toEqual(new Set([FAKE_SERIES.shareA, FAKE_SERIES.shareB, FAKE_SERIES.worldEtf, 'ecb:USD', 'ecb:GBP', 'ecb:CHF']))
+    expect(new Set(file.failures.map((failure) => failure.series))).toEqual(new Set([...Object.values(FAKE_SERIES), 'ecb:USD', 'ecb:GBP', 'ecb:CHF']))
     expect(file.failures.every((failure) => failure.day === today)).toBe(true)
   })
 
@@ -212,6 +212,17 @@ describe('late prices', () => {
 
   it('has no age when every close is by hand', () => {
     expect(pricesAge([{ date: civil('2026-01-30'), price: decimal('1'), byHand: true }], civil('2026-10-30'))).toBeNull()
+  })
+
+  it("leaves the benchmark's series out of the no-benchmark set, with the failure that says why, and keeps every other close of the sample", () => {
+    const today = civil('2026-10-30')
+    const sample = fakePricesFile('sample', today)
+    const file = fakePricesFile('no-benchmark', today)
+    expect(file.series[FAKE_SERIES.benchmark]).toBeUndefined()
+    expect(file.failures).toEqual([{ series: FAKE_SERIES.benchmark, day: today, reason: 'unknown-symbol' }])
+    const { [FAKE_SERIES.benchmark]: benchmark, ...others } = sample.series
+    expect(benchmark?.closes.at(-1)?.[0]).toBe('2026-10-29')
+    expect(file.series).toEqual(others)
   })
 
   it('writes the fake sets as files Kuna reads back, with weekday closes only', () => {

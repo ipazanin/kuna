@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
-import { shownValueOverTime, valuePeriods } from '../domain/valueOverTime'
+import { shownValueOverTime } from '../domain/valueOverTime'
 import type { PortfolioSources } from '../../holdings/domain/holding'
+import { rollingPeriods } from '../../performance/domain/performancePeriod'
 import type { PerformancePeriod } from '../../performance/domain/performancePeriod'
+import { firstDepositIn } from '../../performance/domain/portfolioPerformance'
 import { valueChart } from './valueChart'
 import { words } from './words'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
@@ -23,7 +25,7 @@ type PeriodKey = 1 | 3 | 5 | 'all'
 const phone = usePhoneLayout()
 const picked = ref<PeriodKey>('all')
 
-const periods = computed(() => valuePeriods(props.sources.book, props.sources.today).map((period): { key: PeriodKey; period: PerformancePeriod } => ({ key: keyOf(period), period })))
+const periods = computed(() => rollingPeriods(firstDepositIn(props.sources.book), props.sources.today).map((period): { key: PeriodKey; period: PerformancePeriod } => ({ key: keyOf(period), period })))
 const shown = computed(() => shownValueOverTime(props.sources, (periods.value.find((entry) => entry.key === picked.value) ?? periods.value.at(-1)!).period))
 const shownKey = computed(() => keyOf(shown.value.period))
 const periodChoices = computed(() => periods.value.map((entry) => ({ value: entry.key, label: words.value.period[entry.key] })))

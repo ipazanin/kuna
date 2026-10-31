@@ -10,31 +10,32 @@ import { fakeInvestmentsDocument } from './fakeInvestments'
 import { pricesDay } from '../../../prices/application/pricesUpdate'
 import { PRICES_FILE_NAME, encodePricesFile } from '../../../prices/domain/pricesFile'
 import { fakePricesFile } from '../../../prices/infrastructure/fake/fakePrices'
+import type { FakePricesVariant } from '../../../prices/infrastructure/fake/fakePrices'
 import { PRICES_DATABASE_PREFIX, openPricesCache } from '../../../prices/infrastructure/pricesCache'
 
 /**
  * Sets up the fake build's Investments file as `?investments=` names it, each on the fake Drive: `drive` an empty
  * file chosen on this device, `sample` a chosen file holding the made-up portfolio, `cash-below-zero` the sample
- * without the deposit of its second account, and `opening` the sample chosen with nothing in this browser and every
- * read of it held, so the Investments screens stay opening. Without it nothing
- * is chosen, which is the Investments first run. The sample has the fake prices file beside it, in this browser too,
- * as `?prices=late-prices` names it or else `sample`, and the empty file has it only when `?prices=` names it, so a
- * first import finds its rates. Only the Investments app's install imports this, behind an inline VITE_FAKE_WORKBOOK
+ * without the deposit of its second account, `young` a portfolio seven months old with no benchmark, and `opening`
+ * the sample chosen with nothing in this browser and every read of it held, so the Investments screens stay opening.
+ * Without it nothing is chosen, which is the Investments first run. The sample has the fake prices file beside it, in
+ * this browser too, as `?prices=late-prices` or `?prices=no-benchmark` names it or else `sample`, and the empty file
+ * has it only when `?prices=` names it, so a first import finds its rates. Only the Investments app's install imports this, behind an inline VITE_FAKE_WORKBOOK
  * comparison.
  */
 export async function seedFakeInvestments(variant: string | null, pricesVariant: string | null): Promise<void> {
   await forgetFakePrices()
-  if (variant !== 'drive' && variant !== 'sample' && variant !== 'cash-below-zero' && variant !== 'opening') {
+  if (variant !== 'drive' && variant !== 'sample' && variant !== 'cash-below-zero' && variant !== 'young' && variant !== 'opening') {
     saveWorkbookChoice(INVESTMENTS_APP, null)
     return
   }
   const savedAt = new Date().toISOString()
-  const document = variant === 'drive' ? emptyInvestmentsDocument(savedAt) : fakeInvestmentsDocument(savedAt, variant === 'cash-below-zero' ? 'cash-below-zero' : 'sample')
+  const document = variant === 'drive' ? emptyInvestmentsDocument(savedAt) : fakeInvestmentsDocument(savedAt, variant === 'opening' ? 'sample' : variant)
   const folder = await fakeBooksFolder()
   const created = await createDriveDocument(fakeDriveSession(), folder, INVESTMENTS_APP, encodeDocument(document))
   const choice = { source: 'drive', id: created.fileId, name: documentName(INVESTMENTS_APP) } as const
   if (variant !== 'drive' || pricesVariant !== null) {
-    await seedFakePrices(folder, created.fileId, pricesVariant === 'late-prices' ? 'late-prices' : 'sample', savedAt)
+    await seedFakePrices(folder, created.fileId, pricesVariant === 'late-prices' || pricesVariant === 'no-benchmark' ? pricesVariant : 'sample', savedAt)
   }
   if (variant === 'opening') {
     saveWorkbookChoice(INVESTMENTS_APP, choice)
@@ -61,7 +62,7 @@ async function forgetFakePrices(): Promise<void> {
 }
 
 /** The fake prices file beside the sample, and the same revision in this browser, so a sync finds it unchanged. */
-async function seedFakePrices(folder: string, investmentsFileId: string, variant: 'sample' | 'late-prices', savedAt: string): Promise<void> {
+async function seedFakePrices(folder: string, investmentsFileId: string, variant: FakePricesVariant, savedAt: string): Promise<void> {
   const file = fakePricesFile(variant, pricesDay(savedAt))
   const created = await fakeDriveSession().createFile(folder, PRICES_FILE_NAME, encodePricesFile(file))
   const cache = openPricesCache(investmentsFileId)

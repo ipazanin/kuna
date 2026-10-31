@@ -50,6 +50,8 @@ const props = withDefaults(
     phoneHeight?: number
     /** How the table view writes a value. Money with its cents unless the chart says otherwise. */
     formatValue?: (value: number) => string
+    /** How the table view names a row of the category axis. A month key reads as its month unless the chart says otherwise. */
+    categoryLabel?: (category: string) => string
     /** Where a value in the table view leads, when the chart's marks drill. */
     linkAt?: (selection: ChartPointSelection) => RouteLocationRaw | null
     /** Makes the chart collapsible, as AppCard's collapse id does, under its own id such as "year.konto". */
@@ -61,6 +63,7 @@ const props = withDefaults(
   }>(),
   {
     formatValue: (value: number) => formatMoney(value),
+    categoryLabel: monthAxisLabel('long'),
     linkAt: () => null,
     loading: false,
     empty: false,
@@ -81,7 +84,6 @@ const phone = usePhoneLayout()
 const plotHeight = computed(() => (phone.value ? (props.phoneHeight ?? props.height) : props.height))
 
 const showTable = ref(false)
-const readableCategory = monthAxisLabel('long')
 
 interface TableCell {
   readonly value: number | null
@@ -101,7 +103,7 @@ const table = computed(() => {
     return typeof named.name === 'string' && named.name !== '' && Array.isArray(named.data) ? [{ name: named.name, data: named.data as unknown[] }] : []
   })
   const rows = categories.map((category, dataIndex) => ({
-    label: readableCategory(String(category)),
+    label: props.categoryLabel(String(category)),
     cells: series.map((entry): TableCell => ({
       value: valueOf(entry.data[dataIndex]),
       to: props.linkAt({ seriesName: entry.name, category: String(category), dataIndex }),

@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { gainSources, incomeAgainstLastYear, lastDayMovers, noticeIsEmpty, pricesNotice, valueByClass, valueByCurrency } from '../src/apps/investments/overview/domain/overviewFigures'
-import { shownValueOverTime, valueOverTime, valuePeriods } from '../src/apps/investments/overview/domain/valueOverTime'
+import { shownValueOverTime, valueOverTime } from '../src/apps/investments/overview/domain/valueOverTime'
+import { rollingPeriods } from '../src/apps/investments/performance/domain/performancePeriod'
+import { firstDepositIn } from '../src/apps/investments/performance/domain/portfolioPerformance'
 import { latestRecords } from '../src/apps/investments/holdings/domain/latestRecords'
 import { figuresClose, portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
 import type { PortfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
@@ -225,9 +227,9 @@ describe('the value over time', () => {
   })
 
   it('offers the last one, three and five years only when the first deposit is older', () => {
-    expect(valuePeriods(workedPortfolio(), TODAY)).toEqual([{ kind: 'years', years: 1 }, { kind: 'all' }])
-    expect(valuePeriods(records, civil('2026-04-10'))).toEqual([{ kind: 'all' }])
-    expect(valuePeriods(book({}), TODAY)).toEqual([{ kind: 'all' }])
+    expect(rollingPeriods(firstDepositIn(workedPortfolio()), TODAY)).toEqual([{ kind: 'years', years: 1 }, { kind: 'all' }])
+    expect(rollingPeriods(firstDepositIn(records), civil('2026-04-10'))).toEqual([{ kind: 'all' }])
+    expect(rollingPeriods(firstDepositIn(book({})), TODAY)).toEqual([{ kind: 'all' }])
   })
 })
 

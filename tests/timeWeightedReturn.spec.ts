@@ -27,14 +27,16 @@ function performanceOf(records: InvestmentBook, closes: ReadonlyMap<Instrument, 
 }
 
 describe("lane 3's example: +4.5% time-weighted against −7.4% money-weighted", () => {
-  // €1,000.00 in on 1 Jan 2025, grown 10% by 1 Jul, then €10,000.00 more, and everything 5% down by 31 Dec.
-  const days = [day('2025-01-01', 1000, 1000), day('2025-07-01', 11100, 10000), day('2025-12-31', 10545)]
+  // €1,000.00 in on 1 Jan 2025, grown 10% by 30 Jun, then €10,000.00 more on 1 Jul, and everything 5% down by 31 Dec.
+  const days = [day('2025-01-01', 1000, 1000), day('2025-06-30', 1100), day('2025-07-01', 11100, 10000), day('2025-12-31', 10545)]
 
   it('chains the two pieces between the deposits', () => {
-    // (11,100.00 − 10,000.00) ÷ 1,000.00 = 1.10, then 10,545.00 ÷ 11,100.00 = 0.95, so 1.10 × 0.95 − 1 = +4.5%.
+    // 1,100.00 ÷ 1,000.00 = 1.10, then 11,100.00 ÷ (1,100.00 + 10,000.00) = 1 on the deposit day and 10,545.00 ÷ 11,100.00
+    // = 0.95, so 1.10 × 0.95 − 1 = +4.5%.
     const index = timeWeightedIndex(days)
     expect(index[1]).toBeCloseTo(1.1, 12)
-    expect(index[2]! - 1).toBeCloseTo(0.045, 12)
+    expect(index[2]).toBeCloseTo(1.1, 12)
+    expect(index[3]! - 1).toBeCloseTo(0.045, 12)
   })
 
   it('gives −7.4% a year for the money, which went in just before the fall', () => {
@@ -55,7 +57,7 @@ describe("lane 3's example: +4.5% time-weighted against −7.4% money-weighted",
         FUND_A,
         [
           ['2025-01-01', '100'],
-          ['2025-07-01', '110'],
+          ['2025-06-30', '110'],
           ['2025-12-31', '104.5'],
         ],
       ],
@@ -69,7 +71,8 @@ describe("lane 3's example: +4.5% time-weighted against −7.4% money-weighted",
     ])
     const performance = performanceOf(records, closes, '2025-12-31')
 
-    // 10 × 100.00 until July. Then 10 × 110.00 + 100 × 100.00 = 11,100.00, and at the end 10 × 104.50 + 100 × 95.00 = 10,545.00.
+    // 10 × 100.00 until 30 Jun, 10 × 110.00 then. On 1 Jul 10 × 110.00 + 100 × 100.00 = 11,100.00, and at the end
+    // 10 × 104.50 + 100 × 95.00 = 10,545.00.
     expect(performance.from).toBe('2025-01-01')
     expect(performance.growth.map((point) => [point.date, Math.round(point.portfolio * 1e6) / 1e6])).toEqual([
       ['2025-01-01', 100],
@@ -78,7 +81,7 @@ describe("lane 3's example: +4.5% time-weighted against −7.4% money-weighted",
       ['2025-03-31', 100],
       ['2025-04-30', 100],
       ['2025-05-31', 100],
-      ['2025-06-30', 100],
+      ['2025-06-30', 110],
       ['2025-07-31', 110],
       ['2025-08-31', 110],
       ['2025-09-30', 110],
@@ -86,7 +89,7 @@ describe("lane 3's example: +4.5% time-weighted against −7.4% money-weighted",
       ['2025-11-30', 110],
       ['2025-12-31', 104.5],
     ])
-    expect(performance.portfolio.timeWeighted.total).toBeCloseTo(0.045, 12)
+    expect(performance.portfolio.timeWeighted?.total).toBeCloseTo(0.045, 12)
     expect(performance.portfolio.value).toBe(euros(10545))
     // Under a year from the first deposit, so the yearly rate waits, as it does on the Overview.
     expect(performance.portfolio.moneyWeighted).toEqual({ kind: 'under-a-year' })
@@ -123,8 +126,8 @@ describe('trades inside the portfolio', () => {
     )
 
     // 1,010.00 ÷ 1,000.00 − 1 = +1.0% either way, since neither trade is a deposit or a withdrawal.
-    expect(held.portfolio.timeWeighted.total).toBeCloseTo(0.01, 12)
-    expect(roundTrip.portfolio.timeWeighted.total).toBe(held.portfolio.timeWeighted.total)
+    expect(held.portfolio.timeWeighted?.total).toBeCloseTo(0.01, 12)
+    expect(roundTrip.portfolio.timeWeighted?.total).toBe(held.portfolio.timeWeighted?.total)
     expect(roundTrip.growth).toEqual(held.growth)
   })
 
@@ -152,7 +155,33 @@ describe('trades inside the portfolio', () => {
 
     // 20 × 50.50 = 1,010.00 over 1,000.00.
     expect(performance.portfolio.value).toBe(euros(1010))
-    expect(performance.portfolio.timeWeighted.total).toBeCloseTo(0.01, 12)
+    expect(performance.portfolio.timeWeighted?.total).toBeCloseTo(0.01, 12)
+  })
+})
+
+describe("a deposit's day", () => {
+  it('gives a large deposit into a small portfolio, with a fee on its buy, a small fall rather than the loss of everything', () => {
+    const records = book({
+      accounts: [BROKER],
+      instruments: [FUND_A],
+      cashMovements: [cashMovement('deposit', BROKER, '2025-01-02', '1'), cashMovement('deposit', BROKER, '2025-02-03', '1000')],
+      trades: [trade('buy', BROKER, FUND_A, '2025-02-03', '10', '100', '2')],
+    })
+    const closes = new Map<Instrument, readonly CloseRow[]>([
+      [
+        FUND_A,
+        [
+          ['2025-02-03', '100'],
+          ['2025-12-31', '110'],
+        ],
+      ],
+    ])
+    const performance = performanceOf(records, closes, '2025-12-31')
+
+    // Cash is 1.00 + 1,000.00 − 1,002.00 = −1.00 beside 1,000.00 of the fund: 999.00 ÷ 1,001.00 on 3 Feb, then
+    // 1,099.00 ÷ 999.00 by 31 Dec, so 1,099.00 ÷ 1,001.00 − 1 = +9.79%.
+    expect(performance.portfolio.timeWeighted?.total).toBeCloseTo(1099 / 1001 - 1, 12)
+    expect(performance.largestFall).toBeCloseTo(999 / 1001 - 1, 12)
   })
 })
 
@@ -163,6 +192,19 @@ describe('the time-weighted index', () => {
 
     // 1.20, then 1.20 three times, then 1.20 × 1.10 = 1.32.
     expect(index.map((reached) => Math.round(reached * 1e9) / 1e9)).toEqual([1, 1.2, 1.2, 1.2, 1.32])
+  })
+
+  it('counts a deposit from the start of its day, so a fee on a large deposit into a small portfolio is a small fall', () => {
+    // €1.00 in, then €1,000.00 more and a buy with a €2.00 fee leave €999.00: 999.00 ÷ (1.00 + 1,000.00) = 0.998, where
+    // (999.00 − 1,000.00) ÷ 1.00 would be −1.
+    expect(timeWeightedIndex([day('2025-01-02', 1, 1), day('2025-02-03', 999, 1000)])[1]).toBeCloseTo(999 / 1001, 12)
+  })
+
+  it("counts a day's deposits less its withdrawals as one flow, by its sign", () => {
+    // 500.00 in and 200.00 out on a day the 1,000.00 grew to 1,320.00 with them: 1,320.00 ÷ (1,000.00 + 300.00).
+    expect(timeWeightedIndex([day('2025-01-01', 1000, 1000), day('2025-01-15', 1320, 300)])[1]).toBeCloseTo(1320 / 1300, 12)
+    // 200.00 in and 500.00 out, leaving 700.00: (700.00 + 300.00) ÷ 1,000.00.
+    expect(timeWeightedIndex([day('2025-01-01', 1000, 1000), day('2025-01-15', 700, -300)])[1]).toBeCloseTo(1, 12)
   })
 
   it('counts a withdrawal at the close of its day, so a fall that day still counts', () => {

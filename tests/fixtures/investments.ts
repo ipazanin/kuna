@@ -60,6 +60,7 @@ export function instrument(key: string, overrides: Partial<Instrument> = {}): In
     quoted: { kind: 'unit' },
     prices: 'twelvedata',
     sourceSymbol: key.toUpperCase(),
+    benchmark: false,
     note: '',
     ...overrides,
   }

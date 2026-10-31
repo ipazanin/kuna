@@ -736,6 +736,7 @@ function proposedInstrument(rows: readonly WorkbookRow[], isin: string | null): 
     quoted: { kind: 'unit' },
     prices: listing.prices,
     sourceSymbol: listing.sourceSymbol,
+    benchmark: false,
     note: '',
   }
 }

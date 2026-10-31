@@ -1,12 +1,13 @@
 import { language } from '../../../../shared/text/language'
 import type { Translation } from '../../../../shared/text/translation'
+import { withFullStop } from '../../../../shared/text/withFullStop'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // The Investments file is datoteka ulaganja in Croatian.
 
 export const en = {
   title: 'Settings',
-  description: 'Where the Investments file is kept, with its export and the switch to another place, your accounts, and where the prices come from.',
+  description: 'Where the Investments file is kept, with its export and the switch to another place, your accounts, the benchmark, and where the prices come from.',
   books: 'Investments books',
   localTitle: 'Investments file',
   export: 'Export',
@@ -17,6 +18,20 @@ export const en = {
     none: 'No account yet. One is added with the first transaction too.',
     add: 'Add account',
     change: (name: string) => `Change ${name}`,
+  },
+  benchmark: {
+    title: 'Benchmark',
+    subtitle: 'What Performance compares your portfolio with',
+    compareWith: 'Compare with',
+    none: 'No benchmark',
+    help: 'An index or a fund, held or not.',
+    lastClose: (day: string) => `Its last close in the prices file is from ${day}.`,
+    lateClose: (day: string) => `Its last close in the prices file is from ${day}, which is late.`,
+    noCloses: "The prices file has no close of it yet. Kuna fetches its closes with the day's prices.",
+    add: 'Add a benchmark',
+    chosen: (name: string) => `${name} is the benchmark`,
+    cleared: 'No benchmark',
+    notChosen: 'Benchmark not changed',
   },
   accountDialog: {
     addTitle: 'Add an account',
@@ -41,7 +56,7 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   title: 'Postavke',
-  description: 'Gdje se čuva datoteka ulaganja, s izvozom i premještanjem na drugo mjesto, vaši računi te odakle dolaze cijene.',
+  description: 'Gdje se čuva datoteka ulaganja, s izvozom i premještanjem na drugo mjesto, vaši računi, referentni indeks te odakle dolaze cijene.',
   books: 'Datoteka ulaganja',
   localTitle: 'Datoteka ulaganja',
   export: 'Izvezi',
@@ -52,6 +67,20 @@ export const hr: Translation<typeof en> = {
     none: 'Još nema računa. Račun se dodaje i s prvom transakcijom.',
     add: 'Dodaj račun',
     change: (name) => `Promijeni ${name}`,
+  },
+  benchmark: {
+    title: 'Referentni indeks',
+    subtitle: 'S čime Uspješnost uspoređuje vaš portfelj',
+    compareWith: 'Usporedi s',
+    none: 'Bez indeksa',
+    help: 'Indeks ili fond, koji držite ili ne.',
+    lastClose: (day) => withFullStop(`Zadnja zaključna cijena u datoteci cijena je od ${day}`),
+    lateClose: (day) => `Zadnja zaključna cijena u datoteci cijena je od ${day} i kasni.`,
+    noCloses: 'U datoteci cijena još nema njegove zaključne cijene. Kuna ih dohvaća s dnevnim cijenama.',
+    add: 'Dodaj indeks',
+    chosen: (name) => `Referentni indeks: ${name}`,
+    cleared: 'Bez referentnog indeksa',
+    notChosen: 'Indeks nije promijenjen',
   },
   accountDialog: {
     addTitle: 'Dodaj račun',

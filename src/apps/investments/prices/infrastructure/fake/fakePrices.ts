@@ -3,15 +3,38 @@ import type { CloseRow, PriceFailure, PricesFile } from '../../domain/pricesFile
 import { addDays, civilDate, weekdaysBetween } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 
-/** `sample` has the closes up to the day before, `late-prices` stops four weekdays back with every vendor failing on the last fetch. */
-export type FakePricesVariant = 'sample' | 'late-prices'
+/**
+ * `sample` has the closes up to the day before, `late-prices` stops four weekdays back with every vendor failing on the
+ * last fetch, and `no-benchmark` is the sample without the benchmark's series, which its vendor did not know.
+ */
+export type FakePricesVariant = 'sample' | 'late-prices' | 'no-benchmark'
 
-/** The made-up series of the fake prices file: two US shares and a Xetra ETF, by the keys their instruments name. */
+/** The made-up series of the fake prices file: two US shares, a Xetra ETF and the US index fund the sample compares with, by the keys their instruments name. */
 export const FAKE_SERIES = {
   shareA: seriesKey('twelvedata', 'ABC'),
   shareB: seriesKey('twelvedata', 'DEF'),
   worldEtf: seriesKey('alphavantage', 'XYZ.DEX'),
+  benchmark: seriesKey('twelvedata', 'IDX'),
 } as const
+
+/** How each made-up series walks: its currency, its first close in steps of its last decimal place, its drift a weekday in steps, how far it wobbles and its places. */
+interface Walk {
+  readonly currency: string
+  readonly start: number
+  readonly drift: number
+  readonly swing: number
+  readonly places: number
+}
+
+const WALKS: Readonly<Record<string, Walk>> = {
+  [FAKE_SERIES.shareA]: { currency: 'USD', start: 14_250, drift: 3, swing: 1, places: 2 },
+  [FAKE_SERIES.shareB]: { currency: 'USD', start: 4_810, drift: 1, swing: 1, places: 2 },
+  [FAKE_SERIES.worldEtf]: { currency: 'EUR', start: 9_875, drift: 2, swing: 1, places: 2 },
+  [FAKE_SERIES.benchmark]: { currency: 'USD', start: 38_240, drift: 7, swing: 40, places: 2 },
+  [rateSeriesKey('USD')]: { currency: 'USD', start: 10_850, drift: 0, swing: 1, places: 4 },
+  [rateSeriesKey('GBP')]: { currency: 'GBP', start: 8_520, drift: 0, swing: 1, places: 4 },
+  [rateSeriesKey('CHF')]: { currency: 'CHF', start: 9_410, drift: 0, swing: 1, places: 4 },
+}
 
 const FIRST_DAY = civilDate(2023, 1, 2)
 
@@ -43,13 +66,16 @@ function lateDay(today: CivilDate): CivilDate {
   return day
 }
 
-/** A made-up walk in whole steps of the last decimal place, which drifts by `drift` steps a day and wobbles. */
-function walk(days: readonly CivilDate[], start: number, drift: number, places: number): CloseRow[] {
-  const unit = 10 ** places
-  return days.map((day, place): CloseRow => {
-    const steps = start + place * drift + ((place * 37) % 23) - 11
-    return [day, `${Math.floor(steps / unit)}.${String(steps % unit).padStart(places, '0')}`]
-  })
+/** A made-up close in whole steps of the last decimal place, which drifts by `drift` steps a weekday and wobbles. */
+function walkedClose(walk: Walk, place: number): string {
+  const unit = 10 ** walk.places
+  const steps = walk.start + place * walk.drift + walk.swing * (((place * 37) % 23) - 11)
+  return `${Math.floor(steps / unit)}.${String(steps % unit).padStart(walk.places, '0')}`
+}
+
+/** A made-up series' close on a weekday, as the fake prices file holds it, so a made-up trade can pay what the day closed at. */
+export function fakeClose(series: string, day: CivilDate): string {
+  return walkedClose(WALKS[series]!, weekdaysBetween(FIRST_DAY, day) - 1)
 }
 
 /** A made-up prices file as a fetch would have written it on `today`, every figure invented. */
@@ -62,19 +88,21 @@ export function fakePricesFile(variant: FakePricesVariant, today: CivilDate): Pr
           { series: FAKE_SERIES.shareA, day: today, reason: 'refused' },
           { series: FAKE_SERIES.shareB, day: today, reason: 'refused' },
           { series: FAKE_SERIES.worldEtf, day: today, reason: 'limit' },
+          { series: FAKE_SERIES.benchmark, day: today, reason: 'refused' },
           ...['USD', 'GBP', 'CHF'].map((currency): PriceFailure => ({ series: rateSeriesKey(currency), day: today, reason: 'no-answer' })),
         ]
-      : []
+      : variant === 'no-benchmark'
+        ? [{ series: FAKE_SERIES.benchmark, day: today, reason: 'unknown-symbol' }]
+        : []
+  const kept = Object.keys(WALKS).filter((key) => variant !== 'no-benchmark' || key !== FAKE_SERIES.benchmark)
   return {
     writtenAt: `${today}T05:41:00.000Z`,
-    series: {
-      [FAKE_SERIES.shareA]: { currency: 'USD', from: FIRST_DAY, closes: walk(days, 14_250, 3, 2) },
-      [FAKE_SERIES.shareB]: { currency: 'USD', from: FIRST_DAY, closes: walk(days, 4_810, 1, 2) },
-      [FAKE_SERIES.worldEtf]: { currency: 'EUR', from: FIRST_DAY, closes: walk(days, 9_875, 2, 2) },
-      [rateSeriesKey('USD')]: { currency: 'USD', from: FIRST_DAY, closes: walk(days, 10_850, 0, 4) },
-      [rateSeriesKey('GBP')]: { currency: 'GBP', from: FIRST_DAY, closes: walk(days, 8_520, 0, 4) },
-      [rateSeriesKey('CHF')]: { currency: 'CHF', from: FIRST_DAY, closes: walk(days, 9_410, 0, 4) },
-    },
+    series: Object.fromEntries(
+      kept.map((key) => {
+        const walk = WALKS[key]!
+        return [key, { currency: walk.currency, from: FIRST_DAY, closes: days.map((day, place): CloseRow => [day, walkedClose(walk, place)]) }]
+      }),
+    ),
     splits: [],
     failures,
   }

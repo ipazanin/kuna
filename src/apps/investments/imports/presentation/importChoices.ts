@@ -197,13 +197,13 @@ function accountStep(question: AccountQuestion, book: InvestmentBook, choices: I
 /** Each holding as chosen, a new one checked against Kuna's and the other new ones, so two cannot share an ISIN. */
 function instrumentSteps(questions: readonly InstrumentQuestion[], book: InvestmentBook, choices: ImportChoices, newIds: NewIds): Answering<InstrumentStep, Instrument>[] {
   const chosen = questions.map((question) => ({ question, choice: instrumentChoiceOf(question, book, choices), id: recordIdOf(INSTRUMENT_RECORDS, newIds(`instrument:${question.identity}`)) }))
-  const fresh = chosen.flatMap(({ question, choice, id }) => (choice.kind === 'new' ? (instrumentOfTexts(choice.texts, book.instruments, id, question.proposal.quoted) ?? []) : []))
+  const fresh = chosen.flatMap(({ question, choice, id }) => (choice.kind === 'new' ? (instrumentOfTexts(choice.texts, book.instruments, id, question.proposal) ?? []) : []))
   return chosen.map(({ question, choice, id }) => {
     if (choice.kind === 'existing') {
       return { step: { question, choice, errors: null }, answer: book.instruments.find((instrument) => instrument.id === choice.instrument) ?? null }
     }
     const others = [...book.instruments, ...fresh.filter((other) => other.id !== id)]
-    return { step: { question, choice, errors: instrumentErrors(choice.texts, others) }, answer: instrumentOfTexts(choice.texts, others, id, question.proposal.quoted) }
+    return { step: { question, choice, errors: instrumentErrors(choice.texts, others) }, answer: instrumentOfTexts(choice.texts, others, id, question.proposal) }
   })
 }
 
