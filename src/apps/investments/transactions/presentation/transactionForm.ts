@@ -10,7 +10,7 @@ import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { EURO, currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
-import { DECIMAL_ZERO, decimalOfMoney, decimalOfText, decimalShown, decimalText, scaledDecimal, timesDecimal, typedDecimal } from '../../../../shared/money/decimal'
+import { DECIMAL_ZERO, decimalOfMoney, decimalOfText, decimalShown, decimalText, magnitude, negateDecimal, scaledDecimal, timesDecimal, typedDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import { amountShown } from '../../../../shared/money/amountTyping'
 import { typedAmount } from '../../../../shared/money/typedAmount'
@@ -98,6 +98,8 @@ export interface TransactionTexts {
   oldUnits: string
   costShare: string
   note: string
+  /** An income that reverses an earlier payment, whose amounts are shown above zero and stored below. */
+  reverses: boolean
 }
 
 export type TransactionErrors = Partial<Record<keyof TransactionTexts, string>>
@@ -144,6 +146,7 @@ export function textsOf(entry: TransactionRecord | null, start: TransactionStart
     oldUnits: '',
     costShare: '',
     note: '',
+    reverses: false,
   }
   if (entry === null) return blank
   const base = { ...blank, happened: happeningOf(entry), date: entry.record.date, note: entry.record.note }
@@ -161,9 +164,10 @@ export function textsOf(entry: TransactionRecord | null, start: TransactionStart
         instrument: payment.instrument ?? '',
         incomeKind: payment.kind,
         currency: payment.currency,
-        amount: amountText(payment.gross),
-        withheld: amountText(payment.withheld),
+        amount: amountText(magnitude(payment.gross)),
+        withheld: amountText(magnitude(payment.withheld)),
         rate: decimalShown(payment.rate),
+        reverses: payment.gross < DECIMAL_ZERO,
       }
     }
     case 'cash-movement': {
@@ -298,6 +302,7 @@ export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, 
       const withheldText = texts.withheld.trim() === '' ? '0' : texts.withheld
       const withheld = amountOf(withheldText)
       if (withheld === null || (gross !== null && withheld > gross)) fail('withheld', words.errors.withheld)
+      if (texts.reverses && note === '') fail('note', words.errors.reversalNote)
       const rate = rateFor(currency)
       if (account === null || date === null || currency === null || gross === null || withheld === null) return { errors, record: null }
       return done({
@@ -309,8 +314,8 @@ export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, 
           instrument: instrument?.id ?? null,
           date,
           currency,
-          gross,
-          withheld,
+          gross: texts.reverses ? negateDecimal(gross) : gross,
+          withheld: texts.reverses ? negateDecimal(withheld) : withheld,
           rate,
           importKey: null,
           note,

@@ -10,6 +10,10 @@ export interface AmountEdit {
 /** Thirteen whole digits reach ten trillion, and keep the cents a safe integer. */
 const MOST_WHOLE_DIGITS = 13
 
+const CENT_PLACES = 2
+
+const LARGEST_MULTIPLIER_ZEROS = Math.max(...Object.values(AMOUNT_MULTIPLIER_ZEROS))
+
 const { group: GROUP, decimal: DECIMAL } = AMOUNT_SEPARATORS[language]
 
 interface Piece {
@@ -30,15 +34,19 @@ interface Amount {
 
 const PASTED_PLAIN = /^\d*(?:[.,]\d{0,2})?$/
 const PASTED_GROUPED = /^\d{1,3}([.,])\d{3}(?:\1\d{3})*(?:([.,])\d{0,2})?$/
+/** An amount in the language's own marks: digits and group marks, then the decimal mark and its digits. */
+const OWN_MARKS = new RegExp(`^[\\d\\${GROUP}]*(?:\\${DECIMAL}\\d*)?$`)
 const STORED = /^(\d+)(?:\.(\d+))?$/
 const OWN_DECIMALS = new RegExp(`^(\\d+)\\${DECIMAL}(\\d{3,})$`)
 const SHOWN = new RegExp(`^\\d{1,3}(?:\\${GROUP}\\d{3})*(?:[${GROUP}${DECIMAL}]\\d{0,2})?$`)
 
 /**
  * The text a money field shows after an edit turned `previous` into `next`, grouped as the language on screen writes
- * amounts, and where its caret goes. A decimal mark takes two digits at most. A group mark typed after a number is
- * shown as typed and read as the decimal mark until a third digit makes it a group mark, as `typedAmount` reads it.
- * A k or an m multiplies the whole amount at once. A paste that does not read as one amount leaves the field as it was.
+ * amounts, and where its caret goes. A decimal mark takes two digits, or up to eight at the end of the field, where a k
+ * or an m can still follow. A group mark typed after a number is shown as typed and read as the decimal mark until a
+ * third digit makes it a group mark, as `typedAmount` reads it. A k or an m multiplies the whole amount at once, and is
+ * refused when the decimals before it would leave a fraction of a cent. A paste that does not read as one amount leaves
+ * the field as it was.
  */
 export function amountTyped(previous: string, next: string, caret: number, forward = false): AmountEdit {
   const start = Math.min(commonStart(previous, next), caret)
@@ -56,7 +64,8 @@ export function amountTyped(previous: string, next: string, caret: number, forwa
   }
   const fieldHasMark = [...beforePieces, ...afterPieces].some(isMark)
   const added = inserted.length > 1 ? pastedPieces(inserted, fieldHasMark) : typedPieces(inserted, fieldHasMark)
-  const amount = added === null ? null : amountOf([...beforePieces, ...added, ...afterPieces])
+  const decimals = afterPieces.some(isDigit) ? CENT_PLACES : CENT_PLACES + LARGEST_MULTIPLIER_ZEROS
+  const amount = added === null ? null : amountOf([...beforePieces, ...added, ...afterPieces], decimals)
   if (amount === null || amount.whole.length > MOST_WHOLE_DIGITS) return { text: previous, caret: start }
   const text = amountText(amount)
   const afterCaret = afterPieces.filter((piece) => isDigit(piece) || amount.fraction !== null).length
@@ -84,11 +93,12 @@ export function amountShown(text: string): string {
     return fraction.length > 2 ? `${whole}${DECIMAL}${fraction}` : `${grouped(whole!)}${DECIMAL}${fraction.padEnd(2, '0')}`
   }
   const pieces = pastedPieces(text, false)
-  const amount = pieces === null ? null : amountOf(pieces)
+  const amount = pieces === null ? null : amountOf(pieces, CENT_PLACES)
   return amount === null ? text : finishedAmount(amountText(amount))
 }
 
-function amountOf(pieces: readonly Piece[]): Amount | null {
+/** Null when the amount keeps more than `decimals` decimals, or any fraction of a cent once a k or an m multiplies it. */
+function amountOf(pieces: readonly Piece[], decimals: number): Amount | null {
   const markAt = pieces.findIndex(isMark)
   const digits = (from: number, to: number) =>
     pieces
@@ -98,16 +108,17 @@ function amountOf(pieces: readonly Piece[]): Amount | null {
       .join('')
   let whole = digits(0, markAt === -1 ? pieces.length : markAt)
   let fraction = markAt === -1 ? null : digits(markAt + 1, pieces.length)
-  if (fraction !== null && fraction.length > 2) {
-    if (pieces[markAt]!.kind === 'mark') return null
+  if (fraction !== null && fraction.length > CENT_PLACES && pieces[markAt]!.kind === 'pending') {
     whole += fraction
     fraction = null
   }
   const zeros = pieces.filter((piece) => piece.kind === 'multiplier').reduce((count, piece) => count + AMOUNT_MULTIPLIER_ZEROS[piece.text]!, 0)
   const multiplied = zeros > 0 && whole + (fraction ?? '') !== ''
+  if (fraction !== null && fraction.length > (multiplied ? CENT_PLACES + zeros : decimals)) return null
   if (multiplied) {
-    whole += (fraction ?? '').padEnd(zeros, '0')
-    fraction = null
+    const shifted = (fraction ?? '').padEnd(zeros, '0')
+    whole += shifted.slice(0, zeros)
+    fraction = shifted.length > zeros ? shifted.slice(zeros) : null
   }
   whole = whole.replace(/^0+(?=\d)/, '')
   if (whole === '' && fraction !== null) whole = '0'
@@ -169,12 +180,18 @@ function typedPieces(key: string, fieldHasMark: boolean): Piece[] {
 
 /**
  * A pasted amount, grouped either way, with an optional currency sign, spaces and one k or m at the end. When both
- * marks appear, the one after the groups of three is the decimal mark. Null for anything else.
+ * marks appear, the one after the groups of three is the decimal mark. Before a k or an m, an amount in the language's
+ * own marks reads as typing it would, so 1.255m in English is 1,255,000 and 1,255m is 1,255,000,000. Null for anything
+ * else.
  */
 function pastedPieces(text: string, fieldHasMark: boolean): Piece[] | null {
   const cleaned = text.toLowerCase().replace(/[\s€$£]/g, '')
   const multiplier = Object.hasOwn(AMOUNT_MULTIPLIER_ZEROS, cleaned.slice(-1)) ? cleaned.slice(-1) : ''
   const number = cleaned.slice(0, cleaned.length - multiplier.length)
+  if (multiplier !== '' && /\d/.test(number) && OWN_MARKS.test(number)) {
+    if (number.includes(DECIMAL) && fieldHasMark) return null
+    return [...keptPieces(number, pendingMark(number)), { kind: 'multiplier', text: multiplier }]
+  }
   const grouping = PASTED_GROUPED.exec(number)
   const plain = PASTED_PLAIN.test(number)
   if (!/\d/.test(number) || (!plain && (grouping === null || grouping[1] === grouping[2]))) return null

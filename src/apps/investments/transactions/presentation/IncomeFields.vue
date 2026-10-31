@@ -44,6 +44,7 @@ const shown = (field: keyof TransactionTexts): string | false => (props.tried &&
     <UInput v-model="texts.date" type="date" class="w-full" data-testid="transaction-date" />
   </UFormField>
   <CurrencyField v-model="texts.currency" :book="book" :label="words.fields.currency" :error="shown('currency')" test-id="transaction-currency" />
+  <p v-if="texts.reverses" class="type-caption sm:col-span-2" data-testid="transaction-reverses">{{ words.fields.reverses }}</p>
   <UFormField :label="words.fields.gross" :help="words.fields.grossHelp" :error="shown('amount')">
     <MoneyInput v-model="texts.amount" class="w-full" data-testid="transaction-amount" />
   </UFormField>

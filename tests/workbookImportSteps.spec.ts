@@ -47,7 +47,7 @@ describe('the steps with no choice made', () => {
   it('names every account as proposed and adds every holding from its guess', () => {
     const settled = settle()
     expect(settled.accounts.map((step) => [step.question.account, step.question.rows, step.choice, step.problem])).toEqual([
-      ['U0000001', 16, { kind: 'new', name: 'IBKR' }, null],
+      ['U0000001', 17, { kind: 'new', name: 'IBKR' }, null],
       ['U0000002', 4, { kind: 'new', name: 'IBKR 2' }, null],
       ['RVL-1', 5, { kind: 'new', name: 'Revolut' }, null],
     ])
@@ -150,14 +150,16 @@ describe('the dry run on screen', () => {
   it('says what Import adds, with the new accounts and holdings', () => {
     const settled = settle(withParent(settle()))
     const { added } = settled.dryRun
-    expect(dryRunSummary(added, transactionCount(added), 0)).toBe('Import adds 20 records, with 3 accounts and 4 holdings new.')
+    expect(dryRunSummary(added, transactionCount(added), 0)).toBe('Import adds 21 records, with 3 accounts and 4 holdings new.')
     expect(dryRunSummary(book({}), 0, 1)).toBe('Import adds nothing. It deletes 1 record gone from the workbook.')
   })
 
-  it('lists the new records as transactions read, the rows that wait or are skipped with why, and the cells worth a look', () => {
+  it('lists the new records as transactions read, the rows that wait or are skipped with why, and the cells and rows worth a look', () => {
     const settled = settle(withParent(settle()))
     const groups = dryRunGroups(settled.dryRun, book({}), RATES, (row) => `${row.broker} ${row.account}`)
-    expect(groups.fresh).toHaveLength(20)
+    expect(groups.fresh).toHaveLength(21)
+    expect(groups.fresh.at(-1)).toMatchObject({ title: 'Fee · IBKR', caption: '3 Feb 2026 · IBKR · row 29 · activity-2025.csv', euros: -42, note: 'Debit interest' })
+    expect(groups.reversals).toEqual(['Row 29: Debit interest. Imports as fee'])
     expect(groups.fresh[0]).toMatchObject({ title: 'Deposit · IBKR', caption: '2 Jan 2025 · IBKR · row 3 · activity-2025.csv', euros: 500_000 })
     expect(groups.fresh.find((line) => line.title === 'Dividend · ABC')?.caption).toContain('rows 8, 9')
     expect(groups.waiting.map((line) => [line.title, line.note])).toEqual([['Tax withheld · ABC', words.waits['no-partner']]])

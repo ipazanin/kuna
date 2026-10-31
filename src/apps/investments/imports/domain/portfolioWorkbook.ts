@@ -130,7 +130,7 @@ export type SkipReason =
   | { readonly kind: 'unknown-type'; readonly text: string }
   | { readonly kind: 'unreadable'; readonly column: WorkbookColumn; readonly text: string }
   | { readonly kind: 'missing'; readonly column: WorkbookColumn }
-  /** An amount signed the other way from what its type moves, such as a fee that pays in or a dividend reversed. */
+  /** An amount signed the other way from what its type moves that Kuna has no record for, such as a buy that pays in. */
   | { readonly kind: 'against-sign' }
   /** A record the write rules of its kind would refuse, with their words. */
   | { readonly kind: 'refused'; readonly reason: string }

@@ -88,6 +88,10 @@ export function negateDecimal(value: Decimal): Decimal {
   return -value as Decimal
 }
 
+export function magnitude(value: Decimal): Decimal {
+  return value < 0n ? negateDecimal(value) : value
+}
+
 export function sumDecimal(values: Iterable<Decimal>): Decimal {
   let total = 0n
   for (const value of values) {

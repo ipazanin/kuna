@@ -1,6 +1,6 @@
 import type { WorkbookRow, WorkbookType } from './portfolioWorkbook'
 import { daysBetween } from '../../../../shared/calendar/civilDate'
-import { negateDecimal } from '../../../../shared/money/decimal'
+import { magnitude } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import { factKey } from '../../../../shared/text/factKey'
 import { fold } from '../../../../shared/text/fold'
@@ -14,10 +14,6 @@ export interface RowEntry {
 
 /** The income a withholding row can belong to. */
 const WITHHELD_FROM: ReadonlySet<WorkbookType> = new Set(['DIVIDEND', 'INTEREST', 'STOCK YIELD INCOME'])
-
-export function magnitude(value: Decimal): Decimal {
-  return value < 0n ? negateDecimal(value) : value
-}
 
 /** Whether two rows name the same instrument, by ISIN where both give one, else by Yahoo symbol, else by broker symbol. Two rows that name none match. */
 export function sameInstrument(first: WorkbookRow, second: WorkbookRow): boolean {
@@ -34,9 +30,11 @@ export function sameInstrument(first: WorkbookRow, second: WorkbookRow): boolean
 }
 
 /**
- * The rows grouped into the records they become, in the file's order of each group's first row. A withholding row
- * joins the income of its account, day and instrument whose note shares the longest start with its own, one with no
- * withholding yet on a tie. A transfer out joins a transfer in of another account with the same
+ * The rows grouped into the records they become, in the file's order of each group's first row, each group's rows in
+ * the file's order. A withholding row joins the income of its account, day and instrument whose note shares the longest
+ * start with its own, one with no withholding yet on a tie. Tax taken joins only income that pays in. A withholding row
+ * that pays in, a refund, joins only a reversal of income or an income that tax was withheld from, so a refund with
+ * none to lower stays alone. A transfer out joins a transfer in of another account with the same
  * instrument and quantity, and an internal cash transfer out its opposite in the same currency, the nearest by date.
  * Split rows of one instrument and day are one split. A row that needs a partner and has none stays alone.
  */
@@ -49,8 +47,17 @@ export function workbookEntries(rows: readonly WorkbookRow[]): RowEntry[] {
   }
   const ofType = (type: WorkbookType): WorkbookRow[] => rows.filter((row) => row.type === type)
 
-  for (const withholding of ofType('WITHHOLDING TAX')) {
-    const candidates = rows.filter((row) => WITHHELD_FROM.has(row.type) && row.account === withholding.account && row.date === withholding.date && sameInstrument(row, withholding))
+  const withholdings = ofType('WITHHOLDING TAX')
+  const refunds = withholdings.filter(isWithheldRefund)
+  for (const withholding of [...withholdings.filter((row) => !isWithheldRefund(row)), ...refunds]) {
+    const candidates = rows.filter(
+      (row) =>
+        WITHHELD_FROM.has(row.type) &&
+        row.account === withholding.account &&
+        row.date === withholding.date &&
+        sameInstrument(row, withholding) &&
+        (isWithheldRefund(withholding) ? isIncomeReversal(row) || partners.has(row) : !isIncomeReversal(row)),
+    )
     const shared = (row: WorkbookRow): number => sharedStart(fold(row.note), fold(withholding.note))
     const [best] = [...candidates].sort((first, second) => shared(second) - shared(first) || Number(partners.has(first)) - Number(partners.has(second)))
     if (best !== undefined) {
@@ -87,12 +94,26 @@ export function workbookEntries(rows: readonly WorkbookRow[]): RowEntry[] {
     }
   })
 
+  const position = new Map(rows.map((row, index) => [row, index]))
   return rows
     .filter((row) => !taken.has(row))
     .map((row) => {
-      const joined = partners.get(row) ?? []
+      const joined = (partners.get(row) ?? []).sort((first, second) => position.get(first)! - position.get(second)!)
       return { rows: [row, ...joined], key: joined.length === 0 ? row.key : factKey([row, ...joined].map((member) => member.key)) }
     })
+}
+
+/** The income whose row pays out to reverse an earlier payment. Interest that pays out is debit interest instead. */
+const REVERSIBLE: ReadonlySet<WorkbookType> = new Set(['DIVIDEND', 'STOCK YIELD INCOME', 'REFERRAL CREDIT'])
+
+/** An income row that pays out, which reverses an earlier payment the broker booked. */
+export function isIncomeReversal(row: WorkbookRow): boolean {
+  return REVERSIBLE.has(row.type) && (row.gross ?? row.netCash ?? 0n) < 0n
+}
+
+/** A withholding row that pays in, which gives back tax withheld. */
+export function isWithheldRefund(row: WorkbookRow): boolean {
+  return row.type === 'WITHHOLDING TAX' && (row.netCash ?? row.gross ?? 0n) > 0n
 }
 
 function sameMagnitude(first: Decimal | null, second: Decimal | null): boolean {

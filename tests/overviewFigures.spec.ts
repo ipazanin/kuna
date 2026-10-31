@@ -4,6 +4,7 @@ import { gainSources, incomeAgainstLastYear, lastDayMovers, noticeIsEmpty, price
 import { shownValueOverTime, valueOverTime } from '../src/apps/investments/overview/domain/valueOverTime'
 import { rollingPeriods } from '../src/apps/investments/performance/domain/performancePeriod'
 import { firstDepositIn } from '../src/apps/investments/performance/domain/portfolioPerformance'
+import { accountCash } from '../src/apps/investments/holdings/domain/accountCash'
 import { latestRecords } from '../src/apps/investments/holdings/domain/latestRecords'
 import { figuresClose, portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
 import type { PortfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
@@ -12,6 +13,7 @@ import type { Instrument } from '../src/apps/investments/workbook/domain/instrum
 import { hasTransactions } from '../src/apps/investments/workbook/domain/investmentBook'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
 import { EURO } from '../src/shared/money/currencyCode'
+import { decimalText } from '../src/shared/money/decimal'
 import { BROKER, STOCK_B, USD, WORKED_PRICES, WORKED_RATES, WORLD_ETF, book, cashMovement, dividend, instrument, priceBookOf, rateBookOf, trade, workedPortfolio } from './fixtures/investments'
 import type { CloseRow } from './fixtures/investments'
 import { civil, euros } from './fixtures/ledger'
@@ -137,6 +139,37 @@ describe("the Overview's notice", () => {
     const sources = gainSources(figuresOf(workedWith(instrument('new-fund', { prices: 'manual' }), '2', '50')))
     expect(sources.total).toBe(euros(314.75))
     expect(sources.addsUp).toBe(false)
+  })
+})
+
+describe('a dividend the broker reversed', () => {
+  const SHARE = instrument('euroshare')
+  const PAID = dividend(BROKER, SHARE, '2026-03-02', '10', '1.5')
+  const REVERSED = { ...dividend(BROKER, SHARE, '2026-03-09', '-10', '-1.5'), note: 'Reverses a dividend' }
+  const REBOOKED = dividend(BROKER, SHARE, '2026-03-10', '10.5', '1.58')
+
+  function withIncome(...income: InvestmentBook['income'][number][]): InvestmentBook {
+    return book({ accounts: [BROKER], instruments: [SHARE], income })
+  }
+
+  function euroCash(records: InvestmentBook): string {
+    const balance = accountCash(records, rateBookOf(new Map()), new Set()).balances.find((cash) => cash.currency === EURO)
+    return balance === undefined ? '0' : decimalText(balance.balance)
+  }
+
+  it('nets to no income and no change of cash with its reversal and the tax given back', () => {
+    const records = withIncome(PAID, REVERSED)
+    expect(incomeAgainstLastYear(records, TODAY).thisYear).toBe(euros(0))
+    expect(figuresOf(records).income).toEqual({ gross: euros(0), withheld: euros(0), received: euros(0) })
+    expect(euroCash(records)).toBe('0')
+  })
+
+  it('leaves the corrected figure once the broker books the dividend again', () => {
+    // 10.00 − 10.00 + 10.50 gross, 1.50 − 1.50 + 1.58 withheld, so 8.92 received.
+    const records = withIncome(PAID, REVERSED, REBOOKED)
+    expect(incomeAgainstLastYear(records, TODAY).thisYear).toBe(euros(8.92))
+    expect(figuresOf(records).income).toEqual({ gross: euros(10.5), withheld: euros(1.58), received: euros(8.92) })
+    expect(euroCash(records)).toBe('8.92')
   })
 })
 

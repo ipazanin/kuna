@@ -9,6 +9,7 @@ import { goneFromWorkbook } from '../src/apps/investments/imports/domain/editedR
 import { NO_ANSWERS, proposedCostShare, workbookDryRun } from '../src/apps/investments/imports/domain/importDryRun'
 import type { DryRunEntry, ImportedRecord, WorkbookAnswers, WorkbookDryRun, WorkbookRows } from '../src/apps/investments/imports/domain/importDryRun'
 import { WORKBOOK_TYPES, readPortfolioWorkbook } from '../src/apps/investments/imports/domain/portfolioWorkbook'
+import { dryRunGroups } from '../src/apps/investments/imports/presentation/dryRunLines'
 import { words } from '../src/apps/investments/imports/domain/words'
 import { transactionCount } from '../src/apps/investments/transactions/domain/listedTransactions'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
@@ -16,7 +17,7 @@ import { words as recordWords } from '../src/apps/investments/workbook/domain/wo
 import { emptyInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/investmentsDocument'
 import { serialFromCivilDate } from '../src/shared/calendar/civilDate'
 import { EURO } from '../src/shared/money/currencyCode'
-import { decimalText } from '../src/shared/money/decimal'
+import { decimalText, sumDecimal } from '../src/shared/money/decimal'
 import { USD, account, book, decimal, instrument, rateBookOf } from './fixtures/investments'
 import { civil } from './fixtures/ledger'
 import { INVESTMENTS, browserHarness, forgetCaches } from './fixtures/writeBack'
@@ -567,8 +568,9 @@ describe('a day of several dividends and withholding rows', () => {
     const dryRun = await dayOfDividends()
     // −0.38 + 0.38 − 0.38 leaves 0.38 withheld from the dividend, and nothing from the return of capital.
     expect(entryOf(dryRun, 2).rows.map((row) => row.fileRow)).toEqual([2, 4, 5, 6])
-    expect(importedAt(dryRun, 2).record).toMatchObject({ gross: decimal('2.5'), withheld: decimal('0.38') })
+    expect(importedAt(dryRun, 2).record).toMatchObject({ gross: decimal('2.5'), withheld: decimal('0.38'), note: `${words.withheldLowered}. ${DIVIDEND_NOTE} (Ordinary Dividend)` })
     expect(importedAt(dryRun, 3).record).toMatchObject({ gross: decimal('0.5'), withheld: decimal('0') })
+    expect(dryRun.reversals).toEqual([{ fileRow: 5, record: importedAt(dryRun, 2).record.id, note: words.withheldLowered }])
   })
 
   it('gives each of two dividends with the same note one withholding row', async () => {
@@ -601,37 +603,173 @@ describe('a row Kuna cannot keep as booked', () => {
     expect((await written(dryRun)).trades).toHaveLength(1)
   })
 
-  it('skips a trade whose fees fall below zero and a net withholding refund with the words of the write rules, so the rest imports', async () => {
+  it('skips a trade whose fees fall below zero with the words of the write rules, so the rest imports', async () => {
     const dryRun = await dryRunOf([
       line('2025-11-04', { ...MAIN, ...ABC, Type: 'BUY', 'Quantity (as executed)': 2, 'Price (as executed)': 100, Currency: 'USD', 'Net cash': -199.5 }),
-      line('2025-05-30', { ...MAIN, Type: 'INTEREST', Currency: 'EUR', 'Gross amount': 3, 'Net cash': 3, Note: 'EUR Credit Interest for May-2025' }),
-      line('2025-05-30', { ...MAIN, Type: 'WITHHOLDING TAX', Currency: 'EUR', 'Net cash': 0.5, Note: 'EUR Credit Interest for May-2025 - Tax refund' }),
       line('2025-06-02', { ...MAIN, Type: 'DEPOSIT', Currency: 'EUR', 'Net cash': 100 }),
     ])
-    expect(dryRun.skipped).toEqual([
-      { fileRow: 2, reason: { kind: 'refused', reason: recordWords.belowZero('fees') } },
-      { fileRow: 3, reason: { kind: 'refused', reason: recordWords.belowZero('withheld') } },
-    ])
+    expect(dryRun.skipped).toEqual([{ fileRow: 2, reason: { kind: 'refused', reason: recordWords.belowZero('fees') } }])
     expect(dryRun.commissionDifferences).toEqual([])
     const stored = await written(dryRun)
-    expect([stored.trades.length, stored.income.length, stored.cashMovements.length]).toEqual([0, 0, 1])
+    expect([stored.trades.length, stored.cashMovements.length]).toEqual([0, 1])
   })
 
-  it('skips a row signed against its type rather than import it with the sign turned', async () => {
+  it('still skips a refund that takes more tax back than its income had withheld, with the words of the write rules', async () => {
+    const dryRun = await dryRunOf([
+      line('2025-03-14', { ...MAIN, ...ABC, Type: 'DIVIDEND', Currency: 'USD', 'Gross amount': 2, 'Net cash': 2, Note: DIVIDEND_NOTE }),
+      line('2025-03-14', { ...MAIN, ...ABC, Type: 'WITHHOLDING TAX', Currency: 'USD', 'Net cash': -0.3, Note: `${DIVIDEND_NOTE} - US Tax` }),
+      line('2025-03-14', { ...MAIN, ...ABC, Type: 'WITHHOLDING TAX', Currency: 'USD', 'Net cash': 0.5, Note: `${DIVIDEND_NOTE} - US Tax refund` }),
+    ])
+    expect(dryRun.skipped).toEqual([{ fileRow: 2, reason: { kind: 'refused', reason: recordWords.belowZero('withheld') } }])
+    expect(dryRun.reversals).toEqual([])
+  })
+})
+
+describe('a row signed against its type', () => {
+  const answers: WorkbookAnswers = { ...NO_ANSWERS, accounts: new Map([['U0000001', IBKR_MAIN]]), instruments: new Map([['US0000000001', ABC_SHARE]]) }
+
+  async function dryRunOf(lines: readonly (string | number)[][]): Promise<WorkbookDryRun> {
+    return workbookDryRun(await readRows([[...HEADER], ...lines]), { book: book({}), rates: RATES, answers })
+  }
+
+  function reversalNotes(dryRun: WorkbookDryRun): [number, string][] {
+    return dryRun.reversals.map((reversal) => [reversal.fileRow, reversal.note])
+  }
+
+  it('imports interest paid out as a fee from the cash of its currency, noted as debit interest', async () => {
     const dryRun = await dryRunOf([
       line('2025-02-03', { ...MAIN, Type: 'INTEREST', Currency: 'EUR', 'Gross amount': -4.2, 'Net cash': -4.2, Note: 'EUR Debit Interest for Jan-2025' }),
-      line('2025-02-04', { ...MAIN, Type: 'FEE', Currency: 'EUR', 'Net cash': 2 }),
+      line('2025-02-04', { ...MAIN, Type: 'INTEREST', Currency: 'USD', 'Gross amount': -1.04, 'Net cash': -1.04, Note: 'USD Debit Interest for Jan-2025' }),
+    ])
+    expect(importedAt(dryRun, 2)).toMatchObject({
+      kind: 'cash-movement',
+      record: { kind: 'fee', currency: EURO, amount: decimal('4.2'), rate: null, note: `${words.debitInterest}. EUR Debit Interest for Jan-2025` },
+    })
+    // The latest USD rate on or before 4 February 2025 is the one of 2 January.
+    expect(importedAt(dryRun, 3)).toMatchObject({ kind: 'cash-movement', record: { kind: 'fee', currency: USD, amount: decimal('1.04'), rate: decimal('1.04') } })
+    expect(reversalNotes(dryRun)).toEqual([
+      [2, words.debitInterest],
+      [3, words.debitInterest],
+    ])
+    expect(dryRun.skipped).toEqual([])
+  })
+
+  it('imports a fee paid in as a fee refund, a fee refund paid out as a fee, a deposit paid out as a withdrawal and a withdrawal paid in as a deposit, each noted', async () => {
+    const dryRun = await dryRunOf([
+      line('2025-02-04', { ...MAIN, Type: 'FEE', Currency: 'EUR', 'Net cash': 2, Note: 'Market data' }),
       line('2025-02-05', { ...MAIN, Type: 'DEPOSIT', Currency: 'EUR', 'Net cash': -50 }),
       line('2025-02-06', { ...MAIN, Type: 'WITHDRAWAL', Currency: 'EUR', 'Net cash': 20 }),
-      line('2025-02-07', { ...MAIN, Type: 'FEE REFUND', Currency: 'EUR', 'Net cash': -1 }),
-      line('2025-03-14', { ...MAIN, ...ABC, Type: 'DIVIDEND', Currency: 'USD', 'Gross amount': -1, 'Net cash': -1, Note: `${DIVIDEND_NOTE} - Reversal` }),
+      line('2025-02-07', { ...MAIN, Type: 'FEE REFUND', Currency: 'EUR', 'Net cash': -1, Note: 'Market data refund taken back' }),
+    ])
+    expect([2, 3, 4, 5].map((fileRow) => importedAt(dryRun, fileRow).record)).toMatchObject([
+      { kind: 'fee-refund', amount: decimal('2'), note: `${words.againstSign('FEE')}. Market data` },
+      { kind: 'withdrawal', amount: decimal('50'), note: words.againstSign('DEPOSIT') },
+      { kind: 'deposit', amount: decimal('20'), note: words.againstSign('WITHDRAWAL') },
+      { kind: 'fee', amount: decimal('1'), note: `${words.againstSign('FEE REFUND')}. Market data refund taken back` },
+    ])
+    expect(reversalNotes(dryRun)).toEqual([
+      [2, words.againstSign('FEE')],
+      [3, words.againstSign('DEPOSIT')],
+      [4, words.againstSign('WITHDRAWAL')],
+      [5, words.againstSign('FEE REFUND')],
+    ])
+  })
+
+  it('lowers the tax withheld from its dividend by a refund of it, noted on the dividend', async () => {
+    const dryRun = await dryRunOf([
+      line('2025-03-14', { ...MAIN, ...ABC, Type: 'DIVIDEND', Currency: 'USD', 'Gross amount': 2, 'Net cash': 2, Note: DIVIDEND_NOTE }),
+      line('2025-03-14', { ...MAIN, ...ABC, Type: 'WITHHOLDING TAX', Currency: 'USD', 'Net cash': -0.3, Note: `${DIVIDEND_NOTE} - US Tax` }),
+      line('2025-03-14', { ...MAIN, ...ABC, Type: 'WITHHOLDING TAX', Currency: 'USD', 'Net cash': 0.1, Note: `${DIVIDEND_NOTE} - US Tax refund` }),
+    ])
+    // 0.30 withheld less 0.10 refunded leaves 0.20.
+    expect(entryOf(dryRun, 2).rows.map((row) => row.fileRow)).toEqual([2, 3, 4])
+    expect(importedAt(dryRun, 2).record).toMatchObject({ kind: 'dividend', gross: decimal('2'), withheld: decimal('0.2'), note: `${words.withheldLowered}. ${DIVIDEND_NOTE}` })
+    expect(reversalNotes(dryRun)).toEqual([[4, words.withheldLowered]])
+  })
+
+  it('keeps a refund of withheld tax on its own line when no income of its day had tax withheld', async () => {
+    const dryRun = await dryRunOf([
+      line('2025-05-30', { ...MAIN, Type: 'INTEREST', Currency: 'EUR', 'Gross amount': 3, 'Net cash': 3, Note: 'EUR Credit Interest for May-2025' }),
+      line('2025-05-30', { ...MAIN, Type: 'WITHHOLDING TAX', Currency: 'EUR', 'Net cash': 0.5, Note: 'EUR Credit Interest for Apr-2025 - Tax refund' }),
+      line('2025-06-20', { ...MAIN, ...ABC, Type: 'WITHHOLDING TAX', Currency: 'USD', 'Net cash': 0.15, Note: `${DIVIDEND_NOTE} - US Tax refund` }),
+    ])
+    expect(importedAt(dryRun, 2).record).toMatchObject({ kind: 'interest', gross: decimal('3'), withheld: decimal('0') })
+    expect(importedAt(dryRun, 3).record).toMatchObject({
+      kind: 'other',
+      instrument: null,
+      currency: EURO,
+      gross: decimal('0.5'),
+      withheld: decimal('0'),
+      note: `${words.withheldRefund}. EUR Credit Interest for Apr-2025 - Tax refund`,
+    })
+    expect(importedAt(dryRun, 4).record).toMatchObject({ kind: 'other', currency: USD, gross: decimal('0.15'), rate: decimal('1.13') })
+    expect(reversalNotes(dryRun)).toEqual([
+      [3, words.withheldRefund],
+      [4, words.withheldRefund],
+    ])
+    const stored = await written(dryRun)
+    expect(stored.income.map((payment) => payment.kind)).toEqual(['interest', 'other', 'other'])
+  })
+
+  it('leaves a withholding paid out with no income to wait for its row', async () => {
+    const dryRun = await dryRunOf([line('2025-06-20', { ...MAIN, ...ABC, Type: 'WITHHOLDING TAX', Currency: 'USD', 'Net cash': -0.15, Note: `${DIVIDEND_NOTE} - US Tax` })])
+    expect(entryOf(dryRun, 2).outcome).toEqual({ kind: 'waiting', reason: { kind: 'no-partner' } })
+    expect(dryRun.reversals).toEqual([])
+  })
+
+  it('imports a dividend paid out as a reversal on its holding, below zero with the tax it gives back, so a rebooked dividend leaves the corrected figure', async () => {
+    const tax = `${DIVIDEND_NOTE} - US Tax`
+    const dryRun = await dryRunOf([
+      line('2025-03-14', { ...MAIN, ...ABC, Type: 'DIVIDEND', Currency: 'USD', 'Gross amount': 10, 'Net cash': 10, Note: DIVIDEND_NOTE }),
+      line('2025-03-14', { ...MAIN, ...ABC, Type: 'WITHHOLDING TAX', Currency: 'USD', 'Net cash': -1.5, Note: tax }),
+      line('2025-03-21', { ...MAIN, ...ABC, Type: 'DIVIDEND', Currency: 'USD', 'Gross amount': -10, 'Net cash': -10, Note: DIVIDEND_NOTE }),
+      line('2025-03-21', { ...MAIN, ...ABC, Type: 'WITHHOLDING TAX', Currency: 'USD', 'Net cash': 1.5, Note: tax }),
+      line('2025-03-21', { ...MAIN, ...ABC, Type: 'DIVIDEND', Currency: 'USD', 'Gross amount': 10.5, 'Net cash': 10.5, Note: DIVIDEND_NOTE }),
+      line('2025-03-21', { ...MAIN, ...ABC, Type: 'WITHHOLDING TAX', Currency: 'USD', 'Net cash': -1.58, Note: tax }),
+    ])
+    expect(dryRun.entries.map((entry) => entry.rows.map((row) => row.fileRow))).toEqual([
+      [2, 3],
+      [4, 5],
+      [6, 7],
+    ])
+    expect(importedAt(dryRun, 4).record).toMatchObject({
+      kind: 'dividend',
+      instrument: ABC_SHARE.id,
+      gross: decimal('-10'),
+      withheld: decimal('-1.5'),
+      note: `${words.reversesDividend}. ${DIVIDEND_NOTE}`,
+    })
+    expect(reversalNotes(dryRun)).toEqual([[4, words.reversesDividend]])
+    const groups = dryRunGroups(dryRun, book({}), RATES, (row) => row.account)
+    expect(groups.fresh[1]?.note.startsWith(words.reversesDividend)).toBe(true)
+    expect(groups.reversals).toEqual([`Row 4: ${words.reversesDividend}. Imports as dividend`])
+    expect(dryRun.skipped).toEqual([])
+    const stored = await written(dryRun)
+    // 10.00 − 10.00 + 10.50 gross and 1.50 − 1.50 + 1.58 withheld.
+    expect([sumDecimal(stored.income.map((payment) => payment.gross)), sumDecimal(stored.income.map((payment) => payment.withheld))]).toEqual([decimal('10.5'), decimal('1.58')])
+  })
+
+  it('notes other income paid out as reversing an earlier payment', async () => {
+    const dryRun = await dryRunOf([line('2025-04-02', { ...MAIN, Type: 'STOCK YIELD INCOME', Currency: 'EUR', 'Gross amount': -0.4, 'Net cash': -0.4 })])
+    expect(importedAt(dryRun, 2).record).toMatchObject({ kind: 'other', gross: decimal('-0.4'), note: `${words.reversesPayment}. ${words.stockYieldIncome}` })
+    expect(reversalNotes(dryRun)).toEqual([[2, words.reversesPayment]])
+  })
+
+  it('skips a buy or a sale whose cash goes the other way from its units', async () => {
+    const dryRun = await dryRunOf([
       line('2025-03-17', { ...MAIN, ...ABC, Type: 'BUY', 'Quantity (as executed)': 1, 'Price (as executed)': 10, Currency: 'USD', 'Net cash': 10 }),
       line('2025-03-18', { ...MAIN, ...ABC, Type: 'SELL', 'Quantity (as executed)': -1, 'Price (as executed)': 10, Currency: 'USD', 'Net cash': -10 }),
     ])
-    expect(dryRun.skipped.map((row) => [row.fileRow, row.reason.kind])).toEqual([2, 3, 4, 5, 6, 7, 8, 9].map((fileRow) => [fileRow, 'against-sign']))
+    expect(dryRun.skipped.map((row) => [row.fileRow, row.reason.kind])).toEqual([2, 3].map((fileRow) => [fileRow, 'against-sign']))
     expect(dryRun.entries).toEqual([])
-    expect(dryRun.questions.accounts).toEqual([])
+    expect(dryRun.reversals).toEqual([])
   })
+
+  async function written(dryRun: WorkbookDryRun): Promise<InvestmentBook> {
+    const { store } = await browserHarness(used, emptyInvestmentsDocument('2026-10-30T09:00:00.000Z'), INVESTMENTS)
+    await store.write('Workbook imported', (unit) => writeWorkbookImport(unit, dryRun.added, []))
+    return store.state.workbook!.book
+  }
 })
 
 describe('the import through the write rules', () => {

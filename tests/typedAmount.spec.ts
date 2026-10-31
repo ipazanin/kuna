@@ -62,8 +62,27 @@ describe('typedAmount', () => {
     expect(typedAmount('1,5k')).toBe(150000)
     expect(typedAmount('0.05k')).toBe(5000)
     expect(typedAmount('1,500k')).toBe(150000000)
+    expect(typedAmount('1,234,567k')).toBe(123456700000)
+    expect(typedAmount('1,250.5k')).toBe(125050000)
     expect(typedAmount('3K')).toBe(300000)
     expect(typedAmount('2M')).toBe(200000000)
+  })
+
+  it('reads the decimals before a k or an m as far as whole cents after it', () => {
+    expect(typedAmount('1.255m')).toBe(125500000)
+    expect(typedAmount('0.0125k')).toBe(1250)
+    expect(typedAmount('0.12345678m')).toBe(12345678)
+    expect(typedAmount('0.12345k')).toBe(12345)
+  })
+
+  it('reads the marks before a k or an m as English writes them, a point for decimals and a comma for thousands', () => {
+    expect(typedAmount('1.255m')).toBe(125500000)
+    expect(typedAmount('1,255m')).toBe(125500000000)
+  })
+
+  it('refuses decimals that leave a fraction of a cent after a k or an m', () => {
+    expect(typedAmount('0.123456k')).toBeNull()
+    expect(typedAmount('0.123456789m')).toBeNull()
   })
 
   it('refuses a k or an m with no number before it, more than one, or one in the middle', () => {
@@ -115,8 +134,18 @@ describe('typedAmount in Croatian', () => {
   it('multiplies after Croatian grouping and a decimal comma', async () => {
     const amount = await croatian()
     expect(amount('1.500k')).toBe(150000000)
+    expect(amount('1.234.567k')).toBe(123456700000)
+    expect(amount('1.250,5k')).toBe(125050000)
     expect(amount('1,5k')).toBe(150000)
     expect(amount('0,2m')).toBe(20000000)
+    expect(amount('1,255m')).toBe(125500000)
+    expect(amount('0,0125k')).toBe(1250)
+  })
+
+  it('reads the marks before a k or an m as Croatian writes them, a comma for decimals and a dot for thousands', async () => {
+    const amount = await croatian()
+    expect(amount('1,255m')).toBe(125500000)
+    expect(amount('1.255m')).toBe(125500000000)
   })
 
   it('refuses commas that group thousands, which English reads', async () => {

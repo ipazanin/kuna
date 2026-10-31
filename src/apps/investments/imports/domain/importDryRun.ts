@@ -1,10 +1,11 @@
-import type { RoundedCell, SkipReason, SkippedRow, WorkbookColumn, WorkbookRow } from './portfolioWorkbook'
-import { magnitude, workbookEntries } from './workbookEntries'
+import type { RoundedCell, SkipReason, SkippedRow, WorkbookColumn, WorkbookRow, WorkbookType } from './portfolioWorkbook'
+import { isIncomeReversal, isWithheldRefund, workbookEntries } from './workbookEntries'
 import type { RowEntry } from './workbookEntries'
 import { words } from './words'
 import { investmentLots } from '../../holdings/domain/lots'
 import { priceOfWorth, tradeWorth } from '../../holdings/domain/quoting'
 import type { RateBook } from '../../prices/domain/rateBook'
+import { addsCash } from '../../workbook/domain/cashMovement'
 import type { CashMovement, CashMovementKind } from '../../workbook/domain/cashMovement'
 import { CASH_MOVEMENT_CODEC } from '../../workbook/domain/cashMovementReading'
 import type { Exchange } from '../../workbook/domain/exchange'
@@ -32,6 +33,7 @@ import {
   decimalOfText,
   decimalText,
   dividedDecimal,
+  magnitude,
   negateDecimal,
   roundedDecimal,
   scaledDecimal,
@@ -176,6 +178,13 @@ export interface CommissionDifference {
   readonly fees: Decimal
 }
 
+/** A row signed against its type that imports as what it reverses, with the words its record's note gives it. */
+export interface ReversedRow {
+  readonly fileRow: number
+  readonly record: RecordId
+  readonly note: string
+}
+
 export interface WorkbookDryRun {
   readonly entries: readonly DryRunEntry[]
   readonly skipped: readonly SkippedRow[]
@@ -184,6 +193,7 @@ export interface WorkbookDryRun {
   readonly gone: readonly ImportedRecord[]
   readonly questions: WorkbookQuestions
   readonly commissionDifferences: readonly CommissionDifference[]
+  readonly reversals: readonly ReversedRow[]
   /** What Import writes in one unit of work: the new accounts and instruments the new entries name, then their records. */
   readonly added: InvestmentBook
   /** The records in Kuna with those added. */
@@ -208,6 +218,15 @@ const LARGEST_OLD_UNITS = 50
 
 const CASH_KINDS: Partial<Record<WorkbookRow['type'], CashMovementKind>> = { DEPOSIT: 'deposit', WITHDRAWAL: 'withdrawal', FEE: 'fee', 'FEE REFUND': 'fee-refund' }
 const PAID_IN: ReadonlySet<CashMovementKind> = new Set(['deposit', 'fee-refund'])
+
+/** What a lone row signed against its type imports as, with the words its note starts with. */
+const REVERSED: Partial<Record<WorkbookType, { readonly kind: CashMovementKind; readonly note: string }>> = {
+  INTEREST: { kind: 'fee', note: words.debitInterest },
+  FEE: { kind: 'fee-refund', note: words.againstSign('FEE') },
+  'FEE REFUND': { kind: 'fee', note: words.againstSign('FEE REFUND') },
+  DEPOSIT: { kind: 'withdrawal', note: words.againstSign('DEPOSIT') },
+  WITHDRAWAL: { kind: 'deposit', note: words.againstSign('WITHDRAWAL') },
+}
 
 const CODECS: { readonly [Kind in ImportedRecord['kind']]: RecordCodec<Extract<ImportedRecord, { readonly kind: Kind }>['record']> } = {
   trade: TRADE_CODEC,
@@ -244,8 +263,10 @@ class EntrySkipped extends Error {
  * already, so a second import of the same file adds nothing. Every other entry becomes a record once its account and
  * instrument are answered, its partner is found, its split or spin-off is answered and the ECB series has a rate for a
  * foreign row's day. A sale or transfer beyond what its account holds waits for the row that is missing. A row signed
- * against its type, or whose record the write rules of its kind would refuse, is skipped. A record an earlier import
- * wrote, of an account and dates the file covers, whose key the file no longer gives, is listed as gone.
+ * against its type imports as what it reverses, such as debit interest as a fee, a deposit that pays out as a
+ * withdrawal or a dividend that pays out as income below zero, and is listed so it is seen. A buy or a sale whose cash
+ * goes the other way from its units, and a row whose record the write rules of its kind would refuse, is skipped. A record an earlier import wrote, of an account
+ * and dates the file covers, whose key the file no longer gives, is listed as gone.
  */
 export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): WorkbookDryRun {
   const { book, answers } = inputs
@@ -310,6 +331,7 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
       spinOffs: questions.spinOffs,
     },
     commissionDifferences: commissionDifferences(outcomes),
+    reversals: reversedRows(outcomes),
     added: addedRecords(book, planned),
     planned,
   }
@@ -352,9 +374,13 @@ function importedRecord(entry: RowEntry, mapping: Mapping): ImportedRecord {
 
 function recordOf(entry: RowEntry, mapping: Mapping): ImportedRecord {
   const row = entry.rows[0]
+  const reversed = reversalOf(entry)
+  if (reversed !== null) {
+    return { kind: 'cash-movement', record: cashMovementOf(row, reversed.kind, entry.key, mapping, reversed.note) }
+  }
   const cashKind = CASH_KINDS[row.type]
   if (cashKind !== undefined) {
-    return { kind: 'cash-movement', record: cashMovementOf(row, cashKind, entry.key, mapping) }
+    return { kind: 'cash-movement', record: cashMovementOf(row, cashKind, entry.key, mapping, '') }
   }
   switch (row.type) {
     case 'BUY':
@@ -374,10 +400,52 @@ function recordOf(entry: RowEntry, mapping: Mapping): ImportedRecord {
       return { kind: 'split', record: splitOf(entry, mapping) }
     case 'SPINOFF':
       return { kind: 'spin-off', record: spinOffOf(row, entry.key, mapping) }
+    case 'WITHHOLDING TAX':
+      if (isWithheldRefund(row)) {
+        return { kind: 'income', record: withheldRefundOf(row, entry.key, mapping) }
+      }
+      throw new EntryWaits({ kind: 'no-partner' })
     default:
-      // A withholding row or a transfer in that pairing left alone.
+      // A transfer in that pairing left alone.
       throw new EntryWaits({ kind: 'no-partner' })
   }
+}
+
+/** The kind a lone row signed against its type imports as, null for a row signed as its type moves money or one with partners. */
+function reversalOf(entry: RowEntry): { readonly kind: CashMovementKind; readonly note: string } | null {
+  const [row, ...partners] = entry.rows
+  const reversed = REVERSED[row.type]
+  const amount = row.netCash ?? row.gross
+  if (reversed === undefined || partners.length > 0 || amount === null || amount === DECIMAL_ZERO) {
+    return null
+  }
+  const paysIn = amount > DECIMAL_ZERO
+  return paysIn === addsCash(reversed.kind) ? reversed : null
+}
+
+/** The rows of the new entries signed against their type, with the words each gives its record's note. */
+function reversedRows(entries: readonly DryRunEntry[]): ReversedRow[] {
+  return entries.flatMap((entry) => {
+    if (entry.outcome.kind !== 'new') {
+      return []
+    }
+    const record = entry.outcome.imported.record.id
+    const [lead, ...partners] = entry.rows
+    const reversed = incomeReversalNote(lead)
+    const leadNote = reversalOf(entry)?.note ?? (isWithheldRefund(lead) ? words.withheldRefund : reversed)
+    return [
+      ...(leadNote === null ? [] : [{ fileRow: lead.fileRow, record, note: leadNote }]),
+      ...(reversed === null ? partners.filter(isWithheldRefund).map((row) => ({ fileRow: row.fileRow, record, note: words.withheldLowered })) : []),
+    ]
+  })
+}
+
+/** The words that start the note of income whose row pays out, reversing an earlier payment, null for any other row. */
+function incomeReversalNote(row: WorkbookRow): string | null {
+  if (!isIncomeReversal(row)) {
+    return null
+  }
+  return row.type === 'DIVIDEND' ? words.reversesDividend : words.reversesPayment
 }
 
 function required<Column extends WorkbookColumn & keyof WorkbookRow>(row: WorkbookRow, column: Column): NonNullable<WorkbookRow[Column]> {
@@ -473,11 +541,14 @@ function halfStepOf(price: Decimal): Decimal {
 /**
  * Income with the tax its withholding rows took. A Revolut dividend comes booked net of the tax withheld, so without a
  * withholding row its gross is its net and its note says so. A workbook that gives the tax adds its withholding row.
+ * A row that pays out reverses an earlier payment, so its gross is below zero and a refund with it gives the tax back.
  */
 function incomeOf(entry: RowEntry, mapping: Mapping): Income {
   const [row, ...withholdings] = entry.rows
   const currency = required(row, 'currency')
-  const received = directed(row, row.gross ?? required(row, 'netCash'), true)
+  const amount = row.gross ?? required(row, 'netCash')
+  const reversal = incomeReversalNote(row)
+  const received = reversal === null ? directed(row, amount, true) : amount
   const withheld = negateDecimal(sumDecimal(withholdings.map((withholding) => withholding.netCash ?? required(withholding, 'gross'))))
   const isDividend = row.type === 'DIVIDEND'
   const bookedNet = isDividend && withholdings.length === 0 && fold(row.broker) === 'REVOLUT'
@@ -485,6 +556,7 @@ function incomeOf(entry: RowEntry, mapping: Mapping): Income {
   const instrument = isDividend ? instrumentFor(row, mapping) : null
   const rate = ecbRate(currency, row.date, mapping)
   const label = row.type === 'STOCK YIELD INCOME' ? words.stockYieldIncome : row.type === 'REFERRAL CREDIT' ? words.referralCredit : bookedNet ? words.bookedNet : ''
+  const lowered = reversal === null && withholdings.some(isWithheldRefund) ? words.withheldLowered : ''
   return {
     id: recordIdOf(INCOME_RECORDS, newRecordId()),
     account: account.id,
@@ -496,12 +568,35 @@ function incomeOf(entry: RowEntry, mapping: Mapping): Income {
     withheld,
     rate,
     importKey: entry.key,
-    note: [label, row.note].filter((part) => part !== '').join('. '),
+    note: [reversal ?? '', label, lowered, row.note].filter((part) => part !== '').join('. '),
   }
 }
 
-/** A deposit or withdrawal carries the rate Revolut changed it at, where the row gives one, and anything else the ECB rate. */
-function cashMovementOf(row: WorkbookRow, kind: CashMovementKind, key: string, mapping: Mapping): CashMovement {
+/** A refund of withheld tax with no taxed income on its day to lower, as other income of its account. */
+function withheldRefundOf(row: WorkbookRow, key: string, mapping: Mapping): Income {
+  const currency = required(row, 'currency')
+  const refunded = magnitude(row.netCash ?? required(row, 'gross'))
+  const account = accountFor(row, mapping)
+  return {
+    id: recordIdOf(INCOME_RECORDS, newRecordId()),
+    account: account.id,
+    kind: 'other',
+    instrument: null,
+    date: row.date,
+    currency,
+    gross: refunded,
+    withheld: DECIMAL_ZERO,
+    rate: ecbRate(currency, row.date, mapping),
+    importKey: key,
+    note: [words.withheldRefund, row.note].filter((part) => part !== '').join('. '),
+  }
+}
+
+/**
+ * A deposit or withdrawal carries the rate Revolut changed it at, where the row gives one, and anything else the ECB
+ * rate. `label` starts the note of a row imported as what it reverses.
+ */
+function cashMovementOf(row: WorkbookRow, kind: CashMovementKind, key: string, mapping: Mapping, label: string): CashMovement {
   const amount = directed(row, row.netCash ?? required(row, 'gross'), PAID_IN.has(kind))
   const currency = required(row, 'currency')
   const account = accountFor(row, mapping)
@@ -515,7 +610,7 @@ function cashMovementOf(row: WorkbookRow, kind: CashMovementKind, key: string, m
     amount,
     rate: ownRate ?? ecbRate(currency, row.date, mapping),
     importKey: key,
-    note: row.note,
+    note: [label, row.note].filter((part) => part !== '').join('. '),
   }
 }
 

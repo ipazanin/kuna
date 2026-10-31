@@ -5068,14 +5068,14 @@ async function toDryRun(page, press) {
 
 /**
  * The Investments import of the made-up workbook into an empty file with the fake prices: the file, the accounts, a
- * holding's guess opened, the spin-off's parent picked with its share proposed, the dry run, and Import. Then either
- * Undo takes it all back to the empty Overview, or the same workbook again adds nothing and a copy with its first
- * deposit edited shows the deposit in Kuna beside the edited one, kept unless ticked.
+ * holding's guess opened, the spin-off's parent picked with its share proposed, the dry run with the debit interest
+ * worth a look, and Import. Then either Undo takes it all back to the empty Overview, or the same workbook again adds
+ * nothing and a copy with its first deposit edited shows the deposit in Kuna beside the edited one, kept unless ticked.
  */
 export function investmentsImportFlowIn(language, { workbook: path, edited }, { undoing = false } = {}) {
   const croatian = language === 'hr'
   const text = croatian ? workbookImportCroatian : workbookImportEnglish
-  const firstSummary = croatian ? 'Uvoz dodaje 20 zapisa, a novo je: 3 računa i 4 pozicije.' : 'Import adds 20 records, with 3 accounts and 4 holdings new.'
+  const firstSummary = croatian ? 'Uvoz dodaje 21 zapis, a novo je: 3 računa i 4 pozicije.' : 'Import adds 21 records, with 3 accounts and 4 holdings new.'
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(croatian ? `${name}-${language}` : name)
     await page.waitForSelector('[data-testid="investments-empty"]', { visible: true, timeout: 10_000 })
@@ -5121,6 +5121,7 @@ export function investmentsImportFlowIn(language, { workbook: path, edited }, { 
     for (const group of ['new', 'waiting', 'skipped']) {
       if ((await page.$(`[data-testid="import-group-${group}"]`)) === null) throw new Error(`the dry run has no ${group} group`)
     }
+    if ((await page.$('[data-testid="import-group-look"] [data-testid="import-reversals"]')) === null) throw new Error('the dry run does not list the debit interest worth a look')
     await inspect?.('the dry run')
     await shoot('investments-import-dry-run')
     await pressSelector(page, press, '[data-testid="workbook-import-confirm"]')

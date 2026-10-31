@@ -45,17 +45,32 @@ describe('amountTyped', () => {
     expect(typedAmount(keys(amountTyped, '1,5').text)).toBe(150)
   })
 
-  it('refuses a third digit after the decimal mark, as typedAmount refuses 12.345', () => {
-    expect(keys(amountTyped, '1.500').text).toBe('1.50')
-    expect(keys(amountTyped, '7', { text: '1,234.56', caret: 8 })).toEqual({ text: '1,234.56', caret: 8 })
+  it('refuses a third digit inside the amount, as typedAmount refuses 12.345', () => {
     expect(keys(amountTyped, '7', { text: '1,234.56', caret: 7 })).toEqual({ text: '1,234.56', caret: 7 })
     expect(keys(amountTyped, '.', { text: '12,345', caret: 2 })).toEqual({ text: '12,345', caret: 2 })
   })
 
-  it('reads a k after a decimal mark with two digits at most', () => {
-    expect(keys(amountTyped, '1.255m').text).toBe('1,250,000')
-    expect(keys(amountTyped, '2.375k').text).toBe('2,370')
+  it('lets a third decimal stand at the end, where a k or an m can follow, and typedAmount refuses it without one', () => {
+    expect(keys(amountTyped, '1.500').text).toBe('1.500')
+    expect(keys(amountTyped, '7', { text: '1,234.56', caret: 8 })).toEqual({ text: '1,234.567', caret: 9 })
+    expect(keys(amountTyped, '0.123456789').text).toBe('0.12345678')
+    expect(typedAmount(keys(amountTyped, '1.500').text)).toBeNull()
+    expect(finishedAmount(keys(amountTyped, '1.500').text)).toBe('1.500')
+  })
+
+  it('keeps the decimals before a k or an m that make whole cents after it', () => {
+    expect(keys(amountTyped, '1.255m')).toEqual({ text: '1,255,000', caret: 9 })
+    expect(keys(amountTyped, '0.0125k')).toEqual({ text: '12.5', caret: 4 })
+    expect(keys(amountTyped, '2.375k').text).toBe('2,375')
     expect(keys(amountTyped, '1,255m').text).toBe('1,255,000,000')
+    expect(typedAmount(keys(amountTyped, '1.255m').text)).toBe(125500000)
+    expect(finishedAmount(keys(amountTyped, '0.0125k').text)).toBe('12.50')
+  })
+
+  it('refuses a k or an m that would leave a fraction of a cent', () => {
+    expect(keys(amountTyped, '0.123456k')).toEqual({ text: '0.123456', caret: 8 })
+    expect(keys(amountTyped, '0.12345678m').text).toBe('123,456.78')
+    expect(keys(amountTyped, 'k', { text: '0.123456', caret: 8 })).toEqual({ text: '0.123456', caret: 8 })
   })
 
   it('expands a k or an m typed after a number at once, with the caret at the end', () => {
@@ -142,6 +157,31 @@ describe('amountTyped', () => {
     expect(paste(amountTyped, '12,5')).toBe('12.5')
     expect(paste(amountTyped, '1.5k')).toBe('1,500')
     expect(paste(amountTyped, '2 M')).toBe('2,000,000')
+  })
+
+  it('reads an amount before a k or an m the same typed or pasted, a point for decimals and a comma for thousands', () => {
+    const forms: [string, string, number][] = [
+      ['1.255m', '1,255,000', 125500000],
+      ['1,255m', '1,255,000,000', 125500000000],
+      ['1,500k', '1,500,000', 150000000],
+      ['1,25k', '1,250', 125000],
+      ['0.0125k', '12.5', 1250],
+      ['1,250.5k', '1,250,500', 125050000],
+      ['1,234,567k', '1,234,567,000', 123456700000],
+    ]
+    for (const [form, shown, cents] of forms) {
+      expect([form, keys(amountTyped, form).text, paste(amountTyped, form)]).toEqual([form, shown, shown])
+      expect([form, typedAmount(shown), typedAmount(form)]).toEqual([form, cents, cents])
+    }
+  })
+
+  it('reads a pasted amount before a k or an m in the other language’s marks when both marks say which is which', () => {
+    expect(paste(amountTyped, '1.250,5k')).toBe('1,250,500')
+  })
+
+  it('leaves the field as it was for a paste before a k or an m with decimals past whole cents', () => {
+    expect(amountTyped('', '0.123456k', 9)).toEqual({ text: '', caret: 0 })
+    expect(amountTyped('', '1.123456789m', 12)).toEqual({ text: '', caret: 0 })
   })
 
   it('leaves the field as it was for a paste that does not read as one amount', () => {
@@ -234,10 +274,11 @@ describe('amount typing in Croatian', () => {
     expect(finished('12.5')).toBe('12,50')
   })
 
-  it('refuses a third digit after the decimal comma', async () => {
+  it('keeps a third decimal after the decimal comma before a k or an m', async () => {
     const { amountTyped: typing } = await croatian()
-    expect(keys(typing, '1,500').text).toBe('1,50')
-    expect(keys(typing, '1,255m').text).toBe('1.250.000')
+    expect(keys(typing, '1,500').text).toBe('1,500')
+    expect(keys(typing, '1,255m').text).toBe('1.255.000')
+    expect(keys(typing, '0,0125k').text).toBe('12,5')
     expect(keys(typing, '1.255m').text).toBe('1.255.000.000')
   })
 
@@ -252,6 +293,24 @@ describe('amount typing in Croatian', () => {
     const { amountTyped: typing } = await croatian()
     expect(paste(typing, '1,234.56')).toBe('1.234,56')
     expect(paste(typing, '1.234,56')).toBe('1.234,56')
+  })
+
+  it('reads an amount before a k or an m the same typed or pasted, a comma for decimals and a dot for thousands', async () => {
+    const { amountTyped: typing } = await croatian()
+    const forms: [string, string][] = [
+      ['1,255m', '1.255.000'],
+      ['1.255m', '1.255.000.000'],
+      ['1.500k', '1.500.000'],
+      ['1.25k', '1.250'],
+      ['0,0125k', '12,5'],
+      ['1.250,5k', '1.250.500'],
+      ['1.234.567k', '1.234.567.000'],
+    ]
+    for (const [form, shown] of forms) {
+      expect([form, keys(typing, form).text, paste(typing, form)]).toEqual([form, shown, shown])
+    }
+    expect(paste(typing, '1,250.5k')).toBe('1.250.500')
+    expect(paste(typing, '0,123456k')).toBe('')
   })
 
   it('adds the cents once the field is left and shows an amount from outside the field', async () => {

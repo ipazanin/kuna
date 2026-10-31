@@ -106,8 +106,14 @@ const ticked = (id: RecordId): boolean => props.workbookImport.deleting.value.ha
       </ul>
     </section>
 
-    <section v-if="groups && (groups.rounded.length > 0 || groups.commissions.length > 0)" class="flex flex-col gap-3" data-testid="import-group-look">
+    <section v-if="groups && (groups.reversals.length > 0 || groups.rounded.length > 0 || groups.commissions.length > 0)" class="flex flex-col gap-3" data-testid="import-group-look">
       <h3 class="type-card-title">{{ words.dryRun.groups.look }}</h3>
+      <div v-if="groups.reversals.length > 0" class="flex flex-col gap-1" data-testid="import-reversals">
+        <p class="type-label">{{ plural(words.dryRun.reversals(groups.reversals.length), groups.reversals.length) }}</p>
+        <ul class="flex flex-col gap-1">
+          <li v-for="line in groups.reversals" :key="line" class="type-caption break-words">{{ line }}</li>
+        </ul>
+      </div>
       <div v-if="groups.commissions.length > 0" class="flex flex-col gap-1" data-testid="import-commissions">
         <p class="type-label">{{ plural(words.dryRun.commissions(groups.commissions.length), groups.commissions.length) }}</p>
         <ul class="flex flex-col gap-1">

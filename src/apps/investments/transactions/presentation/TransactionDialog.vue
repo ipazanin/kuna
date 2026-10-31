@@ -141,7 +141,7 @@ async function remove(): Promise<void> {
       <UFormField v-if="currencyOfRate !== null" :label="words.fields.ratePer(currencyOfRate)" :help="rateHelp" :error="(tried && draft.errors.rate) || false">
         <UInput v-model="texts.rate" inputmode="decimal" class="w-full" data-testid="transaction-rate" @update:model-value="rateTyped = true" />
       </UFormField>
-      <UFormField :label="words.fields.note" :help="words.fields.noteHelp" class="sm:col-span-2">
+      <UFormField :label="words.fields.note" :help="words.fields.noteHelp" :error="(tried && draft.errors.note) || false" class="sm:col-span-2">
         <UInput v-model="texts.note" class="w-full" data-testid="transaction-note" />
       </UFormField>
     </FormGrid>

@@ -5,8 +5,8 @@ import { parseCivilDate, serialFromCivilDate } from '../../../../../shared/calen
  * A made-up portfolio workbook for the fake build's import: two accounts at one broker and one at another, with a
  * deposit, an exchange, buys of the fake prices file's shares and fund, a dividend with its withholding and one
  * withholding with no dividend, interest, a fee with a half cent, a refund, a split, a spin-off, a sale, transfers of
- * cash and of units, a dividend booked net, two equal referral credits, a withdrawal and a row of a kind Kuna does not
- * read. Every account, symbol and figure is made up.
+ * cash and of units, a dividend booked net, two equal referral credits, a withdrawal, a row of a kind Kuna does not
+ * read and debit interest, signed against its type. Every account, symbol and figure is made up.
  */
 export const SAMPLE_WORKBOOK_FILE_NAME = 'example-portfolio.xlsx'
 
@@ -59,6 +59,7 @@ export function sampleWorkbookGrid(): (string | number)[][] {
     line('2025-12-15', { ...REVOLUT, ...DEF, type: 'DIVIDEND', currency: 'USD', gross: 1.7, netCash: 1.7 }),
     line('2026-01-05', { ...REVOLUT, time: '09:00:00', type: 'REFERRAL CREDIT', currency: 'EUR', gross: 10, netCash: 10 }),
     line('2026-01-05', { ...REVOLUT, time: '09:00:00', type: 'REFERRAL CREDIT', currency: 'EUR', gross: 10, netCash: 10 }),
+    line('2026-02-03', { ...MAIN, type: 'INTEREST', currency: 'EUR', gross: -0.42, netCash: -0.42, note: 'EUR Debit Interest for Jan-2026' }),
   ]
 }
 

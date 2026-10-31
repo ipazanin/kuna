@@ -267,6 +267,15 @@ describe('the transaction form', () => {
     expect(transactionDraft(income, BOOK, 'k').errors.amount).toBe('An amount above zero with at most two decimals')
   })
 
+  it('shows a reversal’s amounts above zero and keeps them below zero, with a note saying what it reverses', () => {
+    const reversal = { ...dividend(ONE, SHARE, '2026-06-22', '-12', '-1.8', '1.1'), note: 'Reverses a dividend' }
+    const texts = textsOf({ kind: 'income', record: reversal }, { happened: 'buy', instrument: null, today: civil('2026-10-21') }, BOOK)
+
+    expect([texts.reverses, texts.amount, texts.withheld]).toEqual([true, '12.00', '1.80'])
+    expect(transactionDraft(texts, BOOK, 'k').record?.record).toMatchObject({ gross: decimal('-12'), withheld: decimal('-1.8'), note: 'Reverses a dividend' })
+    expect(transactionDraft({ ...texts, note: ' ' }, BOOK, 'k').errors.note).toBe('A note saying which payment it reverses')
+  })
+
   it('reads and shows numbers as Croatian writes them', async () => {
     vi.resetModules()
     vi.doMock('../src/shared/text/language', () => ({ language: 'hr', intlLocale: 'hr-HR' }))

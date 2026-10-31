@@ -55,17 +55,19 @@ export interface DryRunGroups {
   readonly gone: readonly GoneLine[]
   readonly rounded: readonly string[]
   readonly commissions: readonly string[]
+  readonly reversals: readonly string[]
 }
 
 /**
  * The dry run as lines in the workbook's order: what it adds in words a transaction list uses, the rows it holds back
- * and skips with why, the records gone from the workbook beside what their rows make now, and the cells worth a look
- * of the rows not in Kuna yet.
+ * and skips with why, the records gone from the workbook beside what their rows make now, and the cells and rows worth
+ * a look of the rows not in Kuna yet. A record a row signed against its type makes says so in its note.
  * `accountName` names a workbook account as Kuna will.
  */
 export function dryRunGroups(dryRun: WorkbookDryRun, book: InvestmentBook, rates: RateBook, accountName: (row: WorkbookRow) => string): DryRunGroups {
   const plannedOf = listedById(dryRun.planned, rates)
   const keptOf = listedById(book, rates)
+  const reversalNotes = (record: RecordId): string[] => [...new Set(dryRun.reversals.filter((reversal) => reversal.record === record).map((reversal) => reversal.note))]
   const recordLine = (key: string, record: ImportedRecord, listed: ReadonlyMap<RecordId, ListedTransaction>, rows: readonly WorkbookRow[]): ImportLine => {
     const entry = listed.get(record.record.id)
     if (entry === undefined) return rowLine(key, rows[0]!, rows, accountName, '')
@@ -77,7 +79,7 @@ export function dryRunGroups(dryRun: WorkbookDryRun, book: InvestmentBook, rates
       euros: line.euros,
       flows: line.flows,
       figure: line.moved,
-      note: [line.terms, line.foreign].filter((part) => part !== '').join(' · '),
+      note: [...reversalNotes(record.record.id), line.terms, line.foreign].filter((part) => part !== '').join(' · '),
     }
   }
   const { edited, removed } = goneFromWorkbook(dryRun)
@@ -116,6 +118,10 @@ export function dryRunGroups(dryRun: WorkbookDryRun, book: InvestmentBook, rates
     commissions: dryRun.commissionDifferences.map((difference) => {
       const shown = (value: Decimal): string => formatUnitPrice(value, difference.currency, CELL_PLACES)
       return words.dryRun.commissionLine(difference.fileRow, difference.commission === null ? words.dryRun.noCommission : shown(difference.commission), shown(difference.fees))
+    }),
+    reversals: dryRun.reversals.map((reversal) => {
+      const listed = plannedOf.get(reversal.record)
+      return words.dryRun.reversalLine(reversal.fileRow, reversal.note, listed === undefined ? '' : transactionLine(listed).kind.toLowerCase())
     }),
   }
 }
