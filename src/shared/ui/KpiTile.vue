@@ -86,6 +86,18 @@ const deltaPresentation = computed(() => {
 </template>
 
 <style scoped>
+/* Four tiles share a row from lg, where a signed figure with cents can be wider than a tile on a small laptop. */
+.kpi-tile {
+  container-type: inline-size;
+}
+
+@container (max-width: 12rem) {
+  .kpi-tile .text-figure-lg {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+}
+
 /* The label is the link, and its hit area stretches over the whole tile. */
 .kpi-link::after {
   content: '';
