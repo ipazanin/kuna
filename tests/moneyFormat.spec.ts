@@ -122,35 +122,35 @@ describe('quantity and unit price formatting', () => {
   it('drops the sign of a value that rounds to zero', () => {
     expect(formatQuantity(decimal('-0.0000001'), 6)).toBe('0')
     expect(formatQuantity(decimal('-0.0000005'), 6)).toBe('−0.000001')
-    expect(formatUnitPrice(decimal('-0.0000001'), 'USD' as CurrencyCode)).toBe('US$0.00')
-    expect(formatUnitPrice(decimal('-0.0000005'), 'USD' as CurrencyCode)).toBe('−US$0.000001')
+    expect(formatUnitPrice(decimal('-0.0000001'), 'USD' as CurrencyCode)).toBe('$0.00')
+    expect(formatUnitPrice(decimal('-0.0000005'), 'USD' as CurrencyCode)).toBe('−$0.000001')
   })
 
   it("writes a unit price in its own currency with the currency's cents and up to six places", () => {
-    expect(formatUnitPrice(decimal('190.5'), 'USD' as CurrencyCode)).toBe('US$190.50')
-    expect(formatUnitPrice(decimal('33.3367'), 'USD' as CurrencyCode)).toBe('US$33.3367')
-    expect(formatUnitPrice(decimal('0.12345678'), 'USD' as CurrencyCode)).toBe('US$0.123457')
+    expect(formatUnitPrice(decimal('190.5'), 'USD' as CurrencyCode)).toBe('$190.50')
+    expect(formatUnitPrice(decimal('33.3367'), 'USD' as CurrencyCode)).toBe('$33.3367')
+    expect(formatUnitPrice(decimal('0.12345678'), 'USD' as CurrencyCode)).toBe('$0.123457')
     expect(formatUnitPrice(decimal('512.3'), 'EUR' as CurrencyCode)).toBe('€512.30')
-    expect(formatUnitPrice(decimal('1500'), 'JPY' as CurrencyCode)).toBe('JP¥1,500')
+    expect(formatUnitPrice(decimal('1500'), 'JPY' as CurrencyCode)).toBe('¥1,500')
   })
 
   it('writes a unit price worked out by dividing with the places asked for, still with the cents', () => {
-    expect(formatUnitPrice(decimal('147.966666666667'), 'USD' as CurrencyCode, 4)).toBe('US$147.9667')
-    expect(formatUnitPrice(decimal('9.645'), 'USD' as CurrencyCode, 4)).toBe('US$9.645')
+    expect(formatUnitPrice(decimal('147.966666666667'), 'USD' as CurrencyCode, 4)).toBe('$147.9667')
+    expect(formatUnitPrice(decimal('9.645'), 'USD' as CurrencyCode, 4)).toBe('$9.645')
     expect(formatUnitPrice(decimal('100'), 'EUR' as CurrencyCode, 4)).toBe('€100.00')
   })
 
   it('writes an amount in its own currency rounded to its cents', () => {
-    expect(formatCurrencyAmount(decimal('-12.345678'), 'USD' as CurrencyCode)).toBe('−US$12.35')
+    expect(formatCurrencyAmount(decimal('-12.345678'), 'USD' as CurrencyCode)).toBe('−$12.35')
     expect(formatCurrencyAmount(decimal('2337'), 'EUR' as CurrencyCode)).toBe('€2,337.00')
-    expect(formatCurrencyAmount(decimal('-0.004'), 'USD' as CurrencyCode)).toBe('US$0.00')
-    expect(formatCurrencyAmount(decimal('1500.4'), 'JPY' as CurrencyCode)).toBe('JP¥1,500')
+    expect(formatCurrencyAmount(decimal('-0.004'), 'USD' as CurrencyCode)).toBe('$0.00')
+    expect(formatCurrencyAmount(decimal('1500.4'), 'JPY' as CurrencyCode)).toBe('¥1,500')
   })
 
   it("follows the page's locale whatever the price's currency", () => {
     setMoneyFormat({ currency: 'EUR', locale: 'hr-HR' })
 
     expect(formatQuantity(decimal('1234.5'), 6)).toBe('1.234,5')
-    expect(formatUnitPrice(decimal('190.5'), 'USD' as CurrencyCode)).toBe('190,50\u00a0USD')
+    expect(formatUnitPrice(decimal('190.5'), 'USD' as CurrencyCode)).toBe('190,50\u00a0$')
   })
 })

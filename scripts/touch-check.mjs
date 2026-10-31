@@ -1972,8 +1972,8 @@ async function checkWidth(width) {
     await summary.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await expect(
       page.$eval('[data-testid="transaction-summary"]', (element) => element.textContent ?? ''),
-      (text) => text.includes('US$407.40') && text.includes('€') && text.includes('Afterwards you hold'),
-      'the summary does not say the buy pays US$407.40 and its euros',
+      (text) => text.includes('$407.40') && text.includes('€') && text.includes('Afterwards you hold'),
+      'the summary does not say the buy pays $407.40 and its euros',
     )
     await inspect(page, `${width}px a USD buy typed`)
     await shoot('investments-usd-buy')

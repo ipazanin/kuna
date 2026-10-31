@@ -75,9 +75,9 @@ function formatters(format: MoneyFormat = active.value): Formatters {
   let found = formattersByKey.get(key)
   if (found === undefined) {
     found = {
-      full: new Intl.NumberFormat(locale, { style: 'currency', currency }),
-      compactSmall: new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: 0 }),
-      compact: new Intl.NumberFormat(locale, { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 }),
+      full: new Intl.NumberFormat(locale, { style: 'currency', currency, currencyDisplay: 'narrowSymbol' }),
+      compactSmall: new Intl.NumberFormat(locale, { style: 'currency', currency, currencyDisplay: 'narrowSymbol', maximumFractionDigits: 0 }),
+      compact: new Intl.NumberFormat(locale, { style: 'currency', currency, currencyDisplay: 'narrowSymbol', notation: 'compact', maximumFractionDigits: 1 }),
       percent: new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }),
       change: new Intl.NumberFormat(locale, { style: 'percent', minimumFractionDigits: CHANGE_DECIMALS, maximumFractionDigits: CHANGE_DECIMALS }),
       share: new Intl.NumberFormat(locale, { style: 'percent', minimumFractionDigits: SHARE_DECIMALS, maximumFractionDigits: SHARE_DECIMALS }),
@@ -210,7 +210,7 @@ export function formatUnitPrice(value: Decimal, currency: CurrencyCode, maximumD
   const key = `${locale}|${currency}|${maximumDecimals}`
   let formatter = unitPriceFormattersByKey.get(key)
   if (formatter === undefined) {
-    formatter = exact(new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: maximumDecimals }))
+    formatter = exact(new Intl.NumberFormat(locale, { style: 'currency', currency, currencyDisplay: 'narrowSymbol', maximumFractionDigits: maximumDecimals }))
     unitPriceFormattersByKey.set(key, formatter)
   }
   return withDecimalSign(value, maximumDecimals, formatter)

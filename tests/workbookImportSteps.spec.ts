@@ -164,7 +164,7 @@ describe('the dry run on screen', () => {
     expect(groups.fresh.find((line) => line.title === 'Dividend · ABC')?.caption).toContain('rows 8, 9')
     expect(groups.waiting.map((line) => [line.title, line.note])).toEqual([['Tax withheld · ABC', words.waits['no-partner']]])
     expect(groups.skipped.map((line) => [line.title, line.note])).toEqual([['Row 7', 'Its type CORPORATE ACTION is not one Kuna reads']])
-    expect(groups.commissions).toEqual(['Row 6: Commission US$0.35, fees from the net cash US$1.00, which import'])
+    expect(groups.commissions).toEqual(['Row 6: Commission $0.35, fees from the net cash $1.00, which import'])
     expect(groups.rounded).toEqual(['Row 13, Net cash: −€3.005 imports as −€3.01'])
     expect(groups.inKuna).toEqual([])
     expect(groups.gone).toEqual([])
