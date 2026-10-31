@@ -25,7 +25,8 @@
  * the Investments Overview on the sample (`?investments=sample`), on the sample without a deposit so an account's cash is below zero (`?investments=cash-below-zero`) and with late prices whose last
  * fetch failed (`?prices=late-prices`), each in Croatian too and with its figures worked out from the same fake sets, the home with the Investments card's figures and its late-prices badge,
  * the sample's Holdings, also with a late close, and two holdings' pages, one in US dollars with a lot partly sold and one from a spin-off that split, each in Croatian too,
- * the sample's Transactions, in Croatian too, and Transactions on an empty file,
+ * the sample's Transactions, in Croatian too, and Transactions on an empty file, the import of the made-up portfolio workbook
+ * into an empty Investments file with the fake prices, each step and the dry run in English and Croatian, and the same workbook again adding nothing,
  * Settings' Prices card on the sample with current prices, with made-up keys kept and with late prices, Company's
  * Overview, Transactions, Review, the Import tab, every tab of Analysis, Invoicing with its Plan and Clients tabs, every tab of Settings and onboarding's first steps in Croatian (`?lang=hr`),
  * Year, Salaries and Owner in Croatian in the fake file on Drive, in this browser and with one and five employees, Salaries for one
@@ -184,6 +185,7 @@ import {
   investmentsDialogsFlow,
   investmentsDialogsFlowIn,
   investmentsEditorFlow,
+  investmentsImportFlowIn,
   loansDriveFlow,
   loansEditorFlow,
   loansOpenFlow,
@@ -247,6 +249,7 @@ import {
   syncRunningFlow,
 } from './support/editorFlows.mjs'
 import { writeImportSamples } from './support/importSampleFiles.mjs'
+import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
 import { runSelection } from './support/runSelection.mjs'
 import { settleCharts } from './support/settleCharts.mjs'
 import { screenshotWholePage } from './support/wholePage.mjs'
@@ -1346,7 +1349,7 @@ const SOURCE_SCREENS = [
     hash: '#/investments',
     title: 'Overview',
     charts: 0,
-    shows: ['No transactions yet', 'on Google Drive as kuna-investments.json'],
+    shows: ['No transactions yet', 'Add transaction', 'Import', 'on Google Drive as kuna-investments.json'],
     cards: false,
   },
   {
@@ -1355,7 +1358,7 @@ const SOURCE_SCREENS = [
     hash: '#/investments',
     title: 'Pregled',
     charts: 0,
-    shows: ['Još nema transakcija', 'na Google Driveu kao kuna-investments.json'],
+    shows: ['Još nema transakcija', 'Dodaj transakciju', 'Uvezi', 'na Google Driveu kao kuna-investments.json'],
     cards: false,
   },
   { name: 'investments-opening', query: 'investments=opening', hash: '#/investments', title: 'Overview', charts: 0, ready: '[data-testid="investments-loading"]', cards: false },
@@ -2052,6 +2055,7 @@ function writeImportFile() {
 
 const IMPORT_FILE = writeImportFile()
 const IMPORT_SAMPLES = await writeImportSamples(SCREENSHOT_DIR)
+const WORKBOOK_SAMPLES = await writeWorkbookSamples(SCREENSHOT_DIR)
 
 /** The dialog flows run at every width, so the uneven form row rule sees each dialog as every width lays it out. */
 const EVERY_VIEWPORT = VIEWPORTS.map((viewport) => viewport.name)
@@ -2399,6 +2403,24 @@ const FLOWS = [
     viewports: EVERY_VIEWPORT,
     modes: ['drive'],
     queries: { drive: '&investments=sample' },
+  },
+  {
+    name: 'investments-import',
+    hash: '#/investments',
+    title: 'Overview',
+    run: investmentsImportFlowIn('en', WORKBOOK_SAMPLES),
+    viewports: EVERY_VIEWPORT,
+    modes: ['drive'],
+    queries: { drive: '&investments=drive&prices=sample' },
+  },
+  {
+    name: 'investments-import-croatian',
+    hash: '#/investments',
+    title: 'Pregled',
+    run: investmentsImportFlowIn('hr', WORKBOOK_SAMPLES),
+    viewports: EVERY_VIEWPORT,
+    modes: ['drive'],
+    queries: { drive: '&investments=drive&prices=sample&lang=hr' },
   },
   {
     name: 'dialogs-investments-croatian',

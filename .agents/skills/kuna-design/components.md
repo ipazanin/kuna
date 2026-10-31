@@ -22,8 +22,8 @@ Every `.vue` in `src/shared/ui` has a row here and a specimen in the gallery at 
 | Component       | Props                                                                                                                            | Company | Loans | Investments | Shell | Shared |
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------- | ----- | ----------- | ----- | ------ |
 | `DashboardGrid` | `layout?: 'tiles' \| 'cards' \| 'pair' \| 'row'`. A row holds up to four cards: one column, two from sm, one row from xl         | 11      | 6     | 3           | 2     | 0      |
-| `FormGrid`      | `as?: 'div' \| 'form'`. A field takes a whole row with `sm:col-span-2`                                                           | 14      | 10    | 4           | 0     | 0      |
-| `AppDialog`     | `v-model:open`, `title`, `description?`, `width?: 'md' \| 'xl' \| '2xl' \| '3xl'`, `dismissible?`. Slots default, `start`, `end` | 23      | 9     | 3           | 0     | 0      |
+| `FormGrid`      | `as?: 'div' \| 'form'`. A field takes a whole row with `sm:col-span-2`                                                           | 14      | 10    | 7           | 0     | 0      |
+| `AppDialog`     | `v-model:open`, `title`, `description?`, `width?: 'md' \| 'xl' \| '2xl' \| '3xl'`, `dismissible?`. Slots default, `start`, `end` | 23      | 9     | 4           | 0     | 0      |
 
 ## Charts
 
@@ -38,14 +38,14 @@ Every `.vue` in `src/shared/ui` has a row here and a specimen in the gallery at 
 
 | Component            | Props                                                                                                                                                                                                         | Company | Loans | Investments | Shell | Shared |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ----- | ----------- | ----- | ------ |
-| `MoneyText`          | `cents`, `sign?`, `precision?: 'cents' \| 'compact'`, `tone?: 'flow' \| 'outcome'`, `format?` for a figure shown outside its app                                                                              | 54      | 7     | 14          | 1     | 0      |
+| `MoneyText`          | `cents`, `sign?`, `precision?: 'cents' \| 'compact'`, `tone?: 'flow' \| 'outcome'`, `format?` for a figure shown outside its app                                                                              | 54      | 7     | 15          | 1     | 0      |
 | `DrillLink`          | `to: RouteLocationRaw \| null`, `label?`, `inProse?`                                                                                                                                                          | 45      | 0     | 1           | 0     | 3      |
 | `FigureTable`        | `label?`. Wraps `.data-table` in a frame that scrolls sideways only when needed                                                                                                                               | 7       | 2     | 8           | 0     | 2      |
 | `SortableHeader`     | `label`, `align?: 'start' \| 'end'`, `v-model` sort direction or null                                                                                                                                         | 1       | 0     | 1           | 0     | 0      |
 | `ProgressMeter`      | `parts` of `{ value, colour, striped? }`, `label`, `height?`. Read out as its label                                                                                                                           | 0       | 3     | 2           | 0     | 0      |
 | `FactGrid`           | `facts` of `{ label, value, caption?, swatch? }`. Two to a row, all in one row once they fit                                                                                                                  | 0       | 6     | 2           | 0     | 0      |
 | `ScenarioComparison` | `columns`, `groups` of lines of cells `{ text, best, difference, warning? }`, `label`, `baseNote`, `bestNote`, `lineHeading`, `openable?`, `openLabel?`. Slot `column`. Emits `open`. Two by two below 768 px | 0       | 1     | 0           | 0     | 0      |
-| `ShowAllButton`      | `total`, `v-model:expanded`. Shows the first ten entries of a list                                                                                                                                            | 5       | 1     | 3           | 0     | 0      |
+| `ShowAllButton`      | `total`, `v-model:expanded`. Shows the first ten entries of a list                                                                                                                                            | 5       | 1     | 5           | 0     | 0      |
 
 ## Controls
 
@@ -58,4 +58,5 @@ Every `.vue` in `src/shared/ui` has a row here and a specimen in the gallery at 
 | `AppBrand`           | `title`, `icon?`, `colour?`, `look?: 'standard' \                                                                                                                      | 0       | 0     | 0           | 1     | 1      |
 | `ScenarioPicker`     | `options` of `{ value, label, baseLabel?, locked? }`, `picked`, `base`, `most`, `label`, `againstLabel`, `fullNote`, `lockedNote`. Slot `mark`. Emits `toggle`, `base` | 0       | 1     | 0           | 0     | 0      |
 | `AppMark`            | `icon`, `colour`, `size?: 'small' \| 'medium' \| 'large'`. An app's icon on a tile in the app's colour                                                                 | 0       | 0     | 0           | 2     | 1      |
-| `MoneyInput`         | `v-model` the text shown, which `typedAmount` reads. Groups thousands as typed, turns 3k into 3,000 and adds the cents when left. Attributes reach the input.          | 0       | 8     | 5           | 0     | 0      |
+| `MoneyInput`         | `v-model` the text shown, which `typedAmount` reads. Groups thousands as typed, turns 3k into 3,000 and adds the cents when left. Attributes reach the input.          | 0       | 8     | 6           | 0     | 0      |
+| `FileDrop`           | `v-model` the file picked or null, `label`, `description`, `accept`, `icon?`. A dashed place to drop a file on or tap to choose one                                    | 1       | 0     | 1           | 0     | 0      |

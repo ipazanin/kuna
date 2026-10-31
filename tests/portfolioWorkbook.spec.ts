@@ -1,18 +1,31 @@
+import 'fake-indexeddb/auto'
 import * as XLSX from 'xlsx'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { accountCash } from '../src/apps/investments/holdings/domain/accountCash'
 import { readPortfolioWorkbookFile } from '../src/apps/investments/imports/application/portfolioWorkbookFile'
+import { writeWorkbookImport } from '../src/apps/investments/imports/application/workbookImport'
+import { goneFromWorkbook } from '../src/apps/investments/imports/domain/editedRecords'
 import { NO_ANSWERS, proposedCostShare, workbookDryRun } from '../src/apps/investments/imports/domain/importDryRun'
 import type { DryRunEntry, ImportedRecord, WorkbookAnswers, WorkbookDryRun, WorkbookRows } from '../src/apps/investments/imports/domain/importDryRun'
-import { readPortfolioWorkbook } from '../src/apps/investments/imports/domain/portfolioWorkbook'
+import { WORKBOOK_TYPES, readPortfolioWorkbook } from '../src/apps/investments/imports/domain/portfolioWorkbook'
 import { words } from '../src/apps/investments/imports/domain/words'
+import { transactionCount } from '../src/apps/investments/transactions/domain/listedTransactions'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
+import { words as recordWords } from '../src/apps/investments/workbook/domain/words'
+import { emptyInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/investmentsDocument'
 import { serialFromCivilDate } from '../src/shared/calendar/civilDate'
 import { EURO } from '../src/shared/money/currencyCode'
 import { decimalText } from '../src/shared/money/decimal'
 import { USD, account, book, decimal, instrument, rateBookOf } from './fixtures/investments'
 import { civil } from './fixtures/ledger'
+import { INVESTMENTS, browserHarness, forgetCaches } from './fixtures/writeBack'
+
+const used = new Set<string>()
+
+afterEach(async () => {
+  await forgetCaches(used)
+})
 
 /** The Transactions tab's columns, with the split-adjusted ones the import does not read and a comment column of the owner's. */
 const HEADER = [
@@ -307,6 +320,12 @@ describe('reading the portfolio workbook', () => {
     ])
   })
 
+  it('reads every one of the seventeen kinds of row', async () => {
+    const { rows } = await readRows()
+    expect(new Set(rows.map((row) => row.type))).toEqual(new Set(WORKBOOK_TYPES))
+    expect(WORKBOOK_TYPES).toHaveLength(17)
+  })
+
   it('gives two equal rows two keys, and the same row the same key in another copy of the file', async () => {
     const first = await readRows()
     const second = await readRows()
@@ -330,9 +349,9 @@ describe('the first dry run, before any answer', () => {
   it('asks once per account and per instrument, finding a fund booked under two symbols by its ISIN', async () => {
     const dryRun = workbookDryRun(await readRows(), { book: book({}), rates: RATES, answers: NO_ANSWERS })
     expect(dryRun.questions.accounts.map((question) => [question.account, question.proposedName, question.known])).toEqual([
-      ['U0000001', 'IBKR U0000001', null],
-      ['U0000002', 'IBKR U0000002', null],
-      ['RVL-1', 'Revolut RVL-1', null],
+      ['U0000001', 'IBKR', null],
+      ['U0000002', 'IBKR 2', null],
+      ['RVL-1', 'Revolut', null],
     ])
     expect(dryRun.questions.instruments.map((question) => question.identity)).toEqual(['US0000000001', 'NEWCO', 'IE0000000002', 'DEF'])
     const [abc, , xyz] = dryRun.questions.instruments
@@ -403,7 +422,7 @@ describe('the dry run with every answer', () => {
     expect(importedAt(dryRun, 18).record).toMatchObject({ side: 'sell', quantity: decimal('5'), price: decimal('30'), fees: decimal('1'), rate: decimal('1.13') })
     // Row 6: 181.00 paid for 4.5 × 40.00 = 180.00 makes 1.00 of fees, against 0.35 in its Commission cell.
     expect(importedAt(dryRun, 6).record).toMatchObject({ fees: decimal('1') })
-    expect(dryRun.commissionDifferences).toEqual([{ fileRow: 6, commission: decimal('0.35'), fees: decimal('1') }])
+    expect(dryRun.commissionDifferences).toEqual([{ fileRow: 6, currency: USD, commission: decimal('0.35'), fees: decimal('1') }])
     // Row 28: Revolut booked no commission, and 200.00 for 2 × 100.00 leaves none.
     expect(importedAt(dryRun, 28).record).toMatchObject({ fees: decimal('0'), rate: decimal('1.15') })
   })
@@ -515,6 +534,7 @@ describe('importing the workbook again', () => {
     const oldSale = before.trades.find((trade) => trade.side === 'sell' && trade.price === decimal('30'))!
     expect(again.gone).toEqual([{ kind: 'trade', record: oldSale }])
     expect(again.added.trades).toHaveLength(1)
+    expect(goneFromWorkbook(again)).toEqual({ edited: [{ gone: { kind: 'trade', record: oldSale }, now: importedAt(again, 18) }], removed: [] })
   })
 
   it('imports a row added since, beside everything already in Kuna', async () => {
@@ -563,12 +583,93 @@ describe('a day of several dividends and withholding rows', () => {
   })
 })
 
-describe('a trade whose fees from its net cash come out below zero', () => {
-  it('is listed against its Commission cell, however small', async () => {
-    // 2 × 100.006 = 200.012 against a net cash of 200.01 leaves −0.002 of fees.
-    const rows = await readRows([[...HEADER], line('2025-11-04', { ...MAIN, ...ABC, Type: 'BUY', 'Quantity (as executed)': 2, 'Price (as executed)': 100.006, Currency: 'USD', 'Net cash': -200.01 })])
-    const answers: WorkbookAnswers = { ...NO_ANSWERS, accounts: new Map([['U0000001', IBKR_MAIN]]), instruments: new Map([['US0000000001', ABC_SHARE]]) }
-    const dryRun = workbookDryRun(rows, { book: book({}), rates: RATES, answers })
-    expect(dryRun.commissionDifferences).toEqual([{ fileRow: 2, commission: null, fees: decimal('-0.002') }])
+describe('a row Kuna cannot keep as booked', () => {
+  const answers: WorkbookAnswers = { ...NO_ANSWERS, accounts: new Map([['U0000001', IBKR_MAIN]]), instruments: new Map([['US0000000001', ABC_SHARE]]) }
+
+  async function dryRunOf(lines: readonly (string | number)[][]): Promise<WorkbookDryRun> {
+    return workbookDryRun(await readRows([[...HEADER], ...lines]), { book: book({}), rates: RATES, answers })
+  }
+
+  async function written(dryRun: WorkbookDryRun): Promise<InvestmentBook> {
+    const { store } = await browserHarness(used, emptyInvestmentsDocument('2026-10-30T09:00:00.000Z'), INVESTMENTS)
+    await store.write('Workbook imported', (unit) => writeWorkbookImport(unit, dryRun.added, []))
+    return store.state.workbook!.book
+  }
+
+  it('imports fees a fraction of a cent below zero as none, without listing them', async () => {
+    // 2 × 100.006 = 200.012 against a net cash of 200.01 leaves −0.002 of fees, which round to 0.00.
+    const dryRun = await dryRunOf([line('2025-11-04', { ...MAIN, ...ABC, Type: 'BUY', 'Quantity (as executed)': 2, 'Price (as executed)': 100.006, Currency: 'USD', 'Net cash': -200.01 })])
+    expect(importedAt(dryRun, 2).record).toMatchObject({ fees: decimal('0') })
+    expect(dryRun.commissionDifferences).toEqual([])
+    expect((await written(dryRun)).trades).toHaveLength(1)
+  })
+
+  it('skips a trade whose fees fall below zero and a net withholding refund with the words of the write rules, so the rest imports', async () => {
+    const dryRun = await dryRunOf([
+      line('2025-11-04', { ...MAIN, ...ABC, Type: 'BUY', 'Quantity (as executed)': 2, 'Price (as executed)': 100, Currency: 'USD', 'Net cash': -199.5 }),
+      line('2025-05-30', { ...MAIN, Type: 'INTEREST', Currency: 'EUR', 'Gross amount': 3, 'Net cash': 3, Note: 'EUR Credit Interest for May-2025' }),
+      line('2025-05-30', { ...MAIN, Type: 'WITHHOLDING TAX', Currency: 'EUR', 'Net cash': 0.5, Note: 'EUR Credit Interest for May-2025 - Tax refund' }),
+      line('2025-06-02', { ...MAIN, Type: 'DEPOSIT', Currency: 'EUR', 'Net cash': 100 }),
+    ])
+    expect(dryRun.skipped).toEqual([
+      { fileRow: 2, reason: { kind: 'refused', reason: recordWords.belowZero('fees') } },
+      { fileRow: 3, reason: { kind: 'refused', reason: recordWords.belowZero('withheld') } },
+    ])
+    expect(dryRun.commissionDifferences).toEqual([])
+    const stored = await written(dryRun)
+    expect([stored.trades.length, stored.income.length, stored.cashMovements.length]).toEqual([0, 0, 1])
+  })
+
+  it('skips a row signed against its type rather than import it with the sign turned', async () => {
+    const dryRun = await dryRunOf([
+      line('2025-02-03', { ...MAIN, Type: 'INTEREST', Currency: 'EUR', 'Gross amount': -4.2, 'Net cash': -4.2, Note: 'EUR Debit Interest for Jan-2025' }),
+      line('2025-02-04', { ...MAIN, Type: 'FEE', Currency: 'EUR', 'Net cash': 2 }),
+      line('2025-02-05', { ...MAIN, Type: 'DEPOSIT', Currency: 'EUR', 'Net cash': -50 }),
+      line('2025-02-06', { ...MAIN, Type: 'WITHDRAWAL', Currency: 'EUR', 'Net cash': 20 }),
+      line('2025-02-07', { ...MAIN, Type: 'FEE REFUND', Currency: 'EUR', 'Net cash': -1 }),
+      line('2025-03-14', { ...MAIN, ...ABC, Type: 'DIVIDEND', Currency: 'USD', 'Gross amount': -1, 'Net cash': -1, Note: `${DIVIDEND_NOTE} - Reversal` }),
+      line('2025-03-17', { ...MAIN, ...ABC, Type: 'BUY', 'Quantity (as executed)': 1, 'Price (as executed)': 10, Currency: 'USD', 'Net cash': 10 }),
+      line('2025-03-18', { ...MAIN, ...ABC, Type: 'SELL', 'Quantity (as executed)': -1, 'Price (as executed)': 10, Currency: 'USD', 'Net cash': -10 }),
+    ])
+    expect(dryRun.skipped.map((row) => [row.fileRow, row.reason.kind])).toEqual([2, 3, 4, 5, 6, 7, 8, 9].map((fileRow) => [fileRow, 'against-sign']))
+    expect(dryRun.entries).toEqual([])
+    expect(dryRun.questions.accounts).toEqual([])
+  })
+})
+
+describe('the import through the write rules', () => {
+  /** A browser file with no records, and the workbook's dry run with every answer. */
+  async function emptyStore() {
+    const { store } = await browserHarness(used, emptyInvestmentsDocument('2026-10-30T09:00:00.000Z'), INVESTMENTS)
+    return { store, ...(await importedBook()) }
+  }
+
+  it('writes the accounts, holdings and records in one write, after which the same file adds nothing, and one Undo takes it all back', async () => {
+    const { store, rows, dryRun } = await emptyStore()
+    await store.write('Workbook imported', (unit) => writeWorkbookImport(unit, dryRun.added, []))
+    const written = store.state.workbook!.book
+    expect([written.accounts.length, written.instruments.length, transactionCount(written)]).toEqual([3, 4, 23])
+
+    const again = workbookDryRun(rows, { book: written, rates: RATES, answers: NO_ANSWERS })
+    expect(again.added).toEqual(book({}))
+    expect(again.entries.filter((entry) => entry.outcome.kind === 'in-kuna')).toHaveLength(23)
+
+    await store.undo(store.state.writes[0]!)
+    const undone = store.state.workbook!.book
+    expect([undone.accounts.length, undone.instruments.length, transactionCount(undone)]).toEqual([0, 0, 0])
+  })
+
+  it('keeps a record gone from the workbook, and deletes it only when the person says so', async () => {
+    const { store, dryRun } = await emptyStore()
+    await store.write('Workbook imported', (unit) => writeWorkbookImport(unit, dryRun.added, []))
+    const withoutRefund = TRANSACTIONS.filter((row) => row.at(-1) !== 'row 15')
+    const again = workbookDryRun(await readRows(withoutRefund), { book: store.state.workbook!.book, rates: RATES, answers: NO_ANSWERS })
+    const [refund] = again.gone
+    expect(refund).toMatchObject({ kind: 'cash-movement', record: { kind: 'fee-refund' } })
+
+    await store.write('Kept', (unit) => writeWorkbookImport(unit, again.added, []))
+    expect(store.state.workbook!.book.cashMovements.some((movement) => movement.id === refund!.record.id)).toBe(true)
+    await store.write('Deleted', (unit) => writeWorkbookImport(unit, again.added, [refund!]))
+    expect(store.state.workbook!.book.cashMovements.some((movement) => movement.id === refund!.record.id)).toBe(false)
   })
 })

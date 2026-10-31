@@ -2,7 +2,6 @@
 import { computed, ref, shallowRef, watch } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UFileUpload from '@nuxt/ui/components/FileUpload.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
@@ -19,6 +18,7 @@ import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import { plural } from '../../../../shared/text/translation'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
+import FileDrop from '../../../../shared/ui/FileDrop.vue'
 import { fittingProfiles, importTitle, statementReadings, writeImport } from '../application/importStatements'
 import { profileDraftProblem, profileKey, profileValue } from '../domain/importProfile'
 import type { ImportProfile } from '../domain/importProfile'
@@ -209,18 +209,7 @@ const summary = computed(() => {
 
       <AppCard :title="words.panel.file" :subtitle="words.panel.fileSubtitle">
         <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5" data-testid="import-file">
-          <UFileUpload
-            v-model="pickedFile"
-            accept=".xml,.xlsx,.xls,.ods,.csv,.txt"
-            :preview="false"
-            reset
-            icon="i-lucide-file-up"
-            :label="words.panel.drop"
-            :description="words.panel.orChoose"
-            color="neutral"
-            class="w-full"
-            :ui="{ base: 'min-h-28 border-dashed bg-elevated/40' }"
-          />
+          <FileDrop v-model="pickedFile" accept=".xml,.xlsx,.xls,.ods,.csv,.txt" :label="words.panel.drop" :description="words.panel.orChoose" />
           <div v-if="offersSamples" class="flex flex-wrap items-center gap-2 text-sm text-muted">
             <span>{{ words.panel.samples }}</span>
             <UButton :label="words.panel.sampleCamt" icon="i-lucide-file-code" color="neutral" variant="link" size="sm" data-testid="sample-camt" @click="loadSample('camt')" />

@@ -8,7 +8,7 @@ import { writeTransaction } from '../application/transactionWrites'
 import type { TransactionRecord } from '../domain/listedTransactions'
 import { tradePreview } from '../domain/tradePreview'
 import { usePortfolio } from '../../holdings/presentation/usePortfolio'
-import type { RateBook } from '../../prices/domain/rateBook'
+import { NO_RATES } from '../../prices/domain/rateBook'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import CashFields from './CashFields.vue'
@@ -48,9 +48,6 @@ const props = defineProps<{
 const store = useInvestmentsBooks()
 const writes = useRecordWrites(store)
 const { sources } = usePortfolio()
-
-/** Rates before this browser has read the prices file, which fill no rate and value no foreign cash. */
-const NO_RATES: RateBook = { unitsPerEuroOnOrBefore: () => null }
 
 const book = computed(() => props.book)
 const rates = computed(() => sources.value?.rates ?? null)

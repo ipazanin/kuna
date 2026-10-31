@@ -2016,7 +2016,9 @@ brokers, euros changed into dollars, two US shares on the fake prices file's ser
 Xetra ETF bought in both accounts and moved partly from one to the other, a money market fund priced by
 hand, dividends with tax withheld, interest, an account fee and its refund, a cash transfer, and a
 spin-off whose shares split two for one. `?investments=opening` chooses the sample with nothing in this
-browser and holds every read of it. Without it Investments starts on its first run. The fake Picker picks the file marked for the app that asks. The visual
+browser and holds every read of it. `?investments=drive&prices=sample` puts the fake prices file beside
+the empty file, so the made-up portfolio workbook that Import offers in the fake build
+(`src/apps/investments/imports/infrastructure/fake/sampleWorkbook.ts`) finds its rates. Without it Investments starts on its first run. The fake Picker picks the file marked for the app that asks. The visual
 check covers each variant, and the import summary of an xlsx it writes from the fake workbook. It and the touch check run against a preview of the fake build, so start one first:
 
 ```sh
@@ -2276,6 +2278,26 @@ that the account holds too few. New holding and the account's plus add an instru
 from inside the dialog. A holding's page changes its instrument with Change, and the Accounts card in
 the Investments Settings adds and changes accounts. Every write has Undo, and a refused one says why
 in its toast.
+
+Import on the Overview, beside Add transaction and in an empty Overview, imports the portfolio
+workbook: an xlsx whose Transactions tab has a row for each thing a broker booked, read by its
+headers. Its dialog goes through the file, then an account in Kuna for each Account of the workbook,
+named as new under its broker or matched to one Kuna has, and a holding for each instrument, found by
+its ISIN or symbol. A holding Kuna has with the same ISIN, or with the same symbol where one of the two
+has no ISIN, is offered first, and a new one starts from a guess: Twelve Data for a bare
+US symbol, Alpha Vantage's `.DEX` for a `.DE` listing, and by hand otherwise. Then come the questions
+the rows leave: each split's ratio, proposed from the units it adds over those held the day before,
+the spin-off's parent and share of cost, proposed from what the units received are worth over the
+cost the parent held, and the tax withheld from each dividend Revolut booked net, which imports as
+booked with a note when left blank. The dry run lists what Import adds, what waits and why, the rows
+already in Kuna, the rows skipped, among them a row signed against its type and one the write rules
+of its kind would refuse, and the records an earlier import wrote whose rows are gone from the
+workbook. Each of those sits beside the row that looks like its edit and is kept unless ticked. It
+also lists the trades whose fees from the net cash differ from their Commission cell and the number
+cells rounded beyond their noise. A foreign row takes the ECB rate of its day from the prices file,
+and waits when the file has none. Import writes everything through the write rules in one write, so
+one Undo takes it back. Each record keeps the key of the rows it came from, so a second import of the
+same workbook adds nothing.
 
 The file holds ten kinds, each record with a version 4 UUID in `id`. A record names an account or an
 instrument by its bare UUID. Quantities, prices, amounts and rates are decimal text with up to twelve

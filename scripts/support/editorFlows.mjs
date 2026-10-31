@@ -35,6 +35,7 @@ import { en as payScenariosEnglish, hr as payScenariosCroatian } from '../../src
 import { en as forecastEnglish, hr as forecastCroatian } from '../../src/apps/company/packs/hr-doo/presentation/forecast/words.ts'
 import { en as loansEnglish, hr as loansCroatian } from '../../src/apps/loans/words.ts'
 import { en as investmentsEnglish, hr as investmentsCroatian } from '../../src/apps/investments/words.ts'
+import { en as workbookImportEnglish, hr as workbookImportCroatian } from '../../src/apps/investments/imports/presentation/words.ts'
 import { en as sharedEnglish, hr as sharedCroatian } from '../../src/shared/app/words.ts'
 import { en as homeEnglish, hr as homeCroatian } from '../../src/shell/home/words.ts'
 import { en as uiEnglish, hr as uiCroatian } from '../../src/shared/ui/words.ts'
@@ -4547,3 +4548,132 @@ export function investmentsDialogsFlowIn(language) {
 }
 
 export const investmentsDialogsFlow = investmentsDialogsFlowIn('en')
+
+/** Waits for the workbook import's dialog to show a step. */
+async function importStep(page, step) {
+  await page.waitForSelector(`[data-testid="workbook-import"][data-step="${step}"]`, { visible: true, timeout: 10_000 }).catch(async () => {
+    const shown = await page.evaluate(() => document.querySelector('[data-testid="workbook-import"]')?.getAttribute('data-step'))
+    throw new Error(`the workbook import shows ${shown ?? 'no'} step, not ${step}`)
+  })
+  await delay(300)
+}
+
+/** Opens the workbook import from the Overview and drops the made-up workbook on it. */
+async function dropWorkbook(page, press, path) {
+  await pressSelector(page, press, '[data-testid="investments-import"]')
+  await importStep(page, 'file')
+  await dropFile(page, path)
+  await page.waitForSelector('[data-testid="import-loaded"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('the workbook import did not read the made-up workbook')
+  })
+}
+
+async function importSummarySays(page, text) {
+  await elementSays(page, '[data-testid="import-dry-run-summary"]', [text], `the import's dry run does not say "${text}"`)
+}
+
+/** Steps through the workbook import to its dry run, past the steps a workbook already in Kuna leaves. */
+async function toDryRun(page, press) {
+  for (let step = 0; step < 4 && (await page.$('[data-testid="workbook-import"][data-step="dry-run"]')) === null; step += 1) {
+    await pressSelector(page, press, '[data-testid="workbook-import-next"]')
+    await delay(300)
+  }
+  await importStep(page, 'dry-run')
+}
+
+/**
+ * The Investments import of the made-up workbook into an empty file with the fake prices: the file, the accounts, a
+ * holding's guess opened, the spin-off's parent picked with its share proposed, the dry run, and Import. Then either
+ * Undo takes it all back to the empty Overview, or the same workbook again adds nothing and a copy with its first
+ * deposit edited shows the deposit in Kuna beside the edited one, kept unless ticked.
+ */
+export function investmentsImportFlowIn(language, { workbook: path, edited }, { undoing = false } = {}) {
+  const croatian = language === 'hr'
+  const text = croatian ? workbookImportCroatian : workbookImportEnglish
+  const firstSummary = croatian ? 'Uvoz dodaje 20 zapisa, a novo je: 3 računa i 4 pozicije.' : 'Import adds 20 records, with 3 accounts and 4 holdings new.'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(croatian ? `${name}-${language}` : name)
+    await page.waitForSelector('[data-testid="investments-empty"]', { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="investments-import"]')
+    await importStep(page, 'file')
+    await inspect?.('the workbook import before a file')
+    await shoot('investments-import-file')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="workbook-import"]')
+
+    await dropWorkbook(page, press, path)
+    await inspect?.('the workbook read')
+    await shoot('investments-import-file-read')
+    await pressSelector(page, press, '[data-testid="workbook-import-next"]')
+    await importStep(page, 'accounts')
+    await inspect?.('the accounts step')
+    await shoot('investments-import-accounts')
+    await pressSelector(page, press, '[data-testid="workbook-import-next"]')
+    await importStep(page, 'instruments')
+    await pressSelector(page, press, '[data-testid="import-instrument-edit"]')
+    await page.waitForSelector('[data-testid="import-instrument-name"]', { visible: true, timeout: 5_000 })
+    await inspect?.('the holdings step with a guess open')
+    await shoot('investments-import-instruments')
+    await pressSelector(page, press, '[data-testid="workbook-import-next"]')
+    await importStep(page, 'questions')
+    await chooseStartingWith(page, press, '[data-testid="import-spin-off-parent"]', 'ABC')
+    await page
+      .waitForFunction(() => document.querySelector('[data-testid="import-spin-off-share"]')?.value !== '', { timeout: 5_000 })
+      .catch(() => {
+        throw new Error('picking the parent proposed no cost share')
+      })
+    await inspect?.('the questions step')
+    await shoot('investments-import-questions')
+    await pressSelector(page, press, '[data-testid="workbook-import-next"]')
+    await importStep(page, 'dry-run')
+    await importSummarySays(page, firstSummary)
+    for (const group of ['new', 'waiting', 'skipped']) {
+      if ((await page.$(`[data-testid="import-group-${group}"]`)) === null) throw new Error(`the dry run has no ${group} group`)
+    }
+    await inspect?.('the dry run')
+    await shoot('investments-import-dry-run')
+    await pressSelector(page, press, '[data-testid="workbook-import-confirm"]')
+    await toast(page, text.imported)
+    await dialogGone(page, '[data-testid="workbook-import"]')
+    await page.waitForSelector('[data-testid="investments-cards"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the Overview shows no figures after the import')
+    })
+    await inspect?.('the Overview after the import')
+
+    if (undoing) {
+      await undoIn(page, press, { writes: croatian ? writesCroatian : writesEnglish })
+      await page.waitForSelector('[data-testid="investments-empty"]', { visible: true, timeout: 10_000 }).catch(() => {
+        throw new Error('Undo did not take the import back to the empty Overview')
+      })
+      await dismissToasts(page)
+      return
+    }
+    await dismissToasts(page)
+    await dropWorkbook(page, press, path)
+    await toDryRun(page, press)
+    await importSummarySays(page, text.dryRun.addsNothing)
+    await inspect?.('the same workbook again')
+    await shoot('investments-import-again')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="workbook-import"]')
+
+    await dropWorkbook(page, press, edited)
+    await toDryRun(page, press)
+    await importSummarySays(page, croatian ? 'Uvoz dodaje 1 zapis.' : 'Import adds 1 record.')
+    const gone = await page.waitForSelector('[data-testid="import-gone"] [data-testid="import-gone-now"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('the dry run does not show the edited deposit beside the one in Kuna')
+    })
+    await gone.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(300)
+    await inspect?.('an edited row as new and gone')
+    await shoot('investments-import-edited')
+    if ((await page.$('[data-testid="import-gone-kept"]')) === null) throw new Error('the edited deposit does not say that both count while it is kept')
+    await pressSelector(page, press, '[data-testid="import-gone-delete"]')
+    await importSummarySays(page, croatian ? 'Briše 1 zapis kojeg više nema u radnoj knjizi.' : 'It deletes 1 record gone from the workbook.')
+    await page.waitForSelector('[data-testid="import-gone-kept"]', { hidden: true, timeout: 5_000 }).catch(() => {
+      throw new Error('the edited deposit still says both count once it is ticked')
+    })
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="workbook-import"]')
+  }
+}

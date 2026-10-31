@@ -109,11 +109,15 @@ export interface WorkbookRow {
   readonly key: string
 }
 
-/** Why a row of the tab is not imported. */
+/** Why a row of the tab is not imported. The dry run adds the last two, for a row read whole that Kuna cannot keep as booked. */
 export type SkipReason =
   | { readonly kind: 'unknown-type'; readonly text: string }
   | { readonly kind: 'unreadable'; readonly column: WorkbookColumn; readonly text: string }
   | { readonly kind: 'missing'; readonly column: WorkbookColumn }
+  /** An amount signed the other way from what its type moves, such as a fee that pays in or a dividend reversed. */
+  | { readonly kind: 'against-sign' }
+  /** A record the write rules of its kind would refuse, with their words. */
+  | { readonly kind: 'refused'; readonly reason: string }
 
 export interface SkippedRow {
   readonly fileRow: number

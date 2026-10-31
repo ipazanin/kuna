@@ -6,16 +6,23 @@ import { investmentLots } from '../../holdings/domain/lots'
 import { tradeWorth } from '../../holdings/domain/quoting'
 import type { RateBook } from '../../prices/domain/rateBook'
 import type { CashMovement, CashMovementKind } from '../../workbook/domain/cashMovement'
+import { CASH_MOVEMENT_CODEC } from '../../workbook/domain/cashMovementReading'
 import type { Exchange } from '../../workbook/domain/exchange'
+import { EXCHANGE_CODEC } from '../../workbook/domain/exchangeReading'
 import type { Income } from '../../workbook/domain/income'
+import { INCOME_CODEC } from '../../workbook/domain/incomeReading'
 import type { Instrument, PriceSource } from '../../workbook/domain/instrument'
 import type { InvestmentAccount } from '../../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { CASH_MOVEMENT_RECORDS, EXCHANGE_RECORDS, INCOME_RECORDS, SPIN_OFF_RECORDS, SPLIT_RECORDS, TRADE_RECORDS, TRANSFER_RECORDS } from '../../workbook/domain/investmentKinds'
 import type { SpinOff } from '../../workbook/domain/spinOff'
+import { SPIN_OFF_CODEC } from '../../workbook/domain/spinOffReading'
 import type { Split } from '../../workbook/domain/split'
+import { SPLIT_CODEC } from '../../workbook/domain/splitReading'
 import type { Trade } from '../../workbook/domain/trade'
+import { TRADE_CODEC } from '../../workbook/domain/tradeReading'
 import type { Transfer } from '../../workbook/domain/transfer'
+import { TRANSFER_CODEC } from '../../workbook/domain/transferReading'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { EURO } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
@@ -33,8 +40,10 @@ import {
   timesDecimal,
 } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
+import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import { refusalOr, storedFieldsOfValues } from '../../../../shared/storage/domain/storedFields'
 import { fold } from '../../../../shared/text/fold'
 
 /** A split of `newUnits` for every `oldUnits`, both whole numbers. */
@@ -108,6 +117,8 @@ export interface AccountQuestion {
   /** The account an earlier import of its rows wrote to, which answers the question unless the person says otherwise. */
   readonly known: RecordId | null
   readonly proposedName: string
+  /** The rows still to import that name it. */
+  readonly rows: number
 }
 
 export interface InstrumentQuestion {
@@ -115,9 +126,13 @@ export interface InstrumentQuestion {
   readonly identity: string
   /** The instrument an earlier import of its rows wrote to, which answers the question unless the person says otherwise. */
   readonly known: RecordId | null
-  /** An instrument in Kuna with the same ISIN or symbol, offered first. */
+  /** An instrument in Kuna with the same ISIN, or with the same symbol where one of the two has no ISIN, offered first. */
   readonly offer: Instrument | null
   readonly proposal: Omit<Instrument, 'id'>
+  /** Every symbol its rows book it under, such as a fund's two Xetra tickers. */
+  readonly symbols: readonly string[]
+  /** The rows still to import that name it. */
+  readonly rows: number
 }
 
 export interface SplitQuestion {
@@ -140,6 +155,7 @@ export interface SpinOffQuestion {
   readonly quantity: Decimal
   /** The units received at the row's price, which `proposedCostShare` sets against a parent's cost. */
   readonly worth: Decimal
+  readonly currency: CurrencyCode | null
 }
 
 export interface NetDividendQuestion {
@@ -160,9 +176,10 @@ export interface WorkbookQuestions {
   readonly netDividends: readonly NetDividendQuestion[]
 }
 
-/** A trade whose fees from its net cash come out below zero or differ from its Commission cell by more than a cent. The fees from the net cash are imported. */
+/** A trade whose fees from its net cash differ from its Commission cell by more than a cent. The fees from the net cash are imported. */
 export interface CommissionDifference {
   readonly fileRow: number
+  readonly currency: CurrencyCode
   readonly commission: Decimal | null
   readonly fees: Decimal
 }
@@ -188,12 +205,25 @@ export interface WorkbookRows {
 }
 
 const CENT = decimalOfText('0.01')!
+/** Fees worked out from a net cash are rounded to cents, as the reader rounds every amount. */
+const CENT_PLACES = 2
 const ONE = decimalOfText('1')!
 /** How close a ratio of units has to come to whole numbers to be proposed as a split. */
 const SPLIT_TOLERANCE = decimalOfText('0.0001')!
 const LARGEST_OLD_UNITS = 50
 
 const CASH_KINDS: Partial<Record<WorkbookRow['type'], CashMovementKind>> = { DEPOSIT: 'deposit', WITHDRAWAL: 'withdrawal', FEE: 'fee', 'FEE REFUND': 'fee-refund' }
+const PAID_IN: ReadonlySet<CashMovementKind> = new Set(['deposit', 'fee-refund'])
+
+const CODECS: { readonly [Kind in ImportedRecord['kind']]: RecordCodec<Extract<ImportedRecord, { readonly kind: Kind }>['record']> } = {
+  trade: TRADE_CODEC,
+  income: INCOME_CODEC,
+  'cash-movement': CASH_MOVEMENT_CODEC,
+  exchange: EXCHANGE_CODEC,
+  transfer: TRANSFER_CODEC,
+  split: SPLIT_CODEC,
+  'spin-off': SPIN_OFF_CODEC,
+}
 
 class EntryWaits extends Error {
   readonly reason: WaitReason
@@ -219,8 +249,9 @@ class EntrySkipped extends Error {
  * What importing the workbook's rows would do, written nowhere. An entry whose key a record in Kuna carries is in Kuna
  * already, so a second import of the same file adds nothing. Every other entry becomes a record once its account and
  * instrument are answered, its partner is found, its split or spin-off is answered and the ECB series has a rate for a
- * foreign row's day. A sale or transfer beyond what its account holds waits for the row that is missing. A record an
- * earlier import wrote, of an account and dates the file covers, whose key the file no longer gives, is listed as gone.
+ * foreign row's day. A sale or transfer beyond what its account holds waits for the row that is missing. A row signed
+ * against its type, or whose record the write rules of its kind would refuse, is skipped. A record an earlier import
+ * wrote, of an account and dates the file covers, whose key the file no longer gives, is listed as gone.
  */
 export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): WorkbookDryRun {
   const { book, answers } = inputs
@@ -237,9 +268,8 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
     answers.instruments.get(identityOf(row)) ?? book.instruments.find((instrument) => instrument.id === knownInstruments.get(identityOf(row))) ?? null
 
   const skipped: SkippedRow[] = [...reading.skipped]
-  const differences: CommissionDifference[] = []
   const questions: Mapping['questions'] = { netDividends: [], spinOffs: [] }
-  const mapping: Mapping = { inputs, accountOf, instrumentOf, identityOf, differences, questions, instruments: instrumentsSoFar }
+  const mapping: Mapping = { inputs, accountOf, instrumentOf, identityOf, questions, instruments: instrumentsSoFar }
 
   const firstPass = entries.flatMap((entry): { entry: RowEntry; outcome: EntryOutcome }[] => {
     if (keyed.has(entry.key)) {
@@ -280,13 +310,13 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
     rounded: reading.rounded,
     gone: goneRecords(reading.rows, entries, keyed, accountOf),
     questions: {
-      accounts: accountQuestions(toImport, knownAccounts),
+      accounts: accountQuestions(toImport, knownAccounts, book.accounts),
       instruments: instrumentQuestions(toImport, book, knownInstruments, identityOf),
       splits: toImport.filter((entry) => entry.rows[0].type === 'SPLIT').map((entry) => splitQuestion(entry, planned, instrumentOf, identityOf)),
       spinOffs: questions.spinOffs,
       netDividends: questions.netDividends,
     },
-    commissionDifferences: differences,
+    commissionDifferences: commissionDifferences(outcomes),
     added: addedRecords(book, planned),
     planned,
   }
@@ -312,12 +342,22 @@ interface Mapping {
   readonly accountOf: (row: WorkbookRow) => InvestmentAccount | null
   readonly instrumentOf: (row: WorkbookRow) => Instrument | null
   readonly identityOf: (row: WorkbookRow) => string
-  readonly differences: CommissionDifference[]
   readonly questions: { readonly netDividends: NetDividendQuestion[]; readonly spinOffs: SpinOffQuestion[] }
   readonly instruments: readonly Instrument[]
 }
 
+/** The entry's record, skipped when the write rules of its kind would refuse it, so Import never fails on one row. */
 function importedRecord(entry: RowEntry, mapping: Mapping): ImportedRecord {
+  const imported = recordOf(entry, mapping)
+  const codec = CODECS[imported.kind] as RecordCodec<ImportedRecord['record']>
+  const read = refusalOr(() => codec.make(storedFieldsOfValues(codec.fieldsOf(imported.record)), imported.record.id))
+  if ('refused' in read) {
+    throw new EntrySkipped(entry.rows[0].fileRow, { kind: 'refused', reason: read.refused })
+  }
+  return imported
+}
+
+function recordOf(entry: RowEntry, mapping: Mapping): ImportedRecord {
   const row = entry.rows[0]
   const cashKind = CASH_KINDS[row.type]
   if (cashKind !== undefined) {
@@ -355,6 +395,14 @@ function required<Column extends WorkbookColumn & keyof WorkbookRow>(row: Workbo
   return value as NonNullable<WorkbookRow[Column]>
 }
 
+/** The amount without its sign, which has to be the way the row's type moves money. Zero passes either way. */
+function directed(row: WorkbookRow, amount: Decimal, paidIn: boolean): Decimal {
+  if (paidIn ? amount < DECIMAL_ZERO : amount > DECIMAL_ZERO) {
+    throw new EntrySkipped(row.fileRow, { kind: 'against-sign' })
+  }
+  return magnitude(amount)
+}
+
 function accountFor(row: WorkbookRow, mapping: Mapping): InvestmentAccount {
   const account = mapping.accountOf(row)
   if (account === null) {
@@ -383,22 +431,23 @@ function ecbRate(currency: CurrencyCode, date: CivilDate, mapping: Mapping): Dec
   return rate
 }
 
-/** A buy's fees are what its net cash paid beyond quantity × price, a sale's what quantity × price got beyond its net cash. Without a net cash they are the Commission cell. */
+/**
+ * A buy's fees are what its net cash paid beyond quantity × price, a sale's what quantity × price got beyond its net
+ * cash, in cents. Without a net cash they are the Commission cell.
+ */
 function tradeOf(row: WorkbookRow, key: string, mapping: Mapping): Trade {
   const quantity = magnitude(required(row, 'quantity'))
   const price = required(row, 'price')
   const currency = required(row, 'currency')
+  const side = row.type === 'BUY' ? 'buy' : 'sell'
+  const netCash = row.netCash === null ? null : directed(row, row.netCash, side === 'sell')
   const account = accountFor(row, mapping)
   const instrument = instrumentFor(row, mapping)
   if (instrument.currency !== currency) {
     throw new EntryWaits({ kind: 'other-currency', currency })
   }
-  const side = row.type === 'BUY' ? 'buy' : 'sell'
   const worth = tradeWorth(instrument.quoted, quantity, price)
-  const fees = row.netCash === null ? row.commission : side === 'buy' ? subtractDecimal(magnitude(row.netCash), worth) : subtractDecimal(worth, magnitude(row.netCash))
-  if (row.netCash !== null && fees !== null && (fees < DECIMAL_ZERO || magnitude(subtractDecimal(fees, row.commission ?? DECIMAL_ZERO)) > CENT)) {
-    mapping.differences.push({ fileRow: row.fileRow, commission: row.commission, fees })
-  }
+  const fees = netCash === null ? row.commission : roundedDecimal(side === 'buy' ? subtractDecimal(netCash, worth) : subtractDecimal(worth, netCash), CENT_PLACES)
   return {
     id: recordIdOf(TRADE_RECORDS, newRecordId()),
     account: account.id,
@@ -422,7 +471,7 @@ function tradeOf(row: WorkbookRow, key: string, mapping: Mapping): Trade {
 function incomeOf(entry: RowEntry, mapping: Mapping): Income {
   const [row, ...withholdings] = entry.rows
   const currency = required(row, 'currency')
-  const received = magnitude(row.gross ?? required(row, 'netCash'))
+  const received = directed(row, row.gross ?? required(row, 'netCash'), true)
   const withheldRows = negateDecimal(sumDecimal(withholdings.map((withholding) => withholding.netCash ?? required(withholding, 'gross'))))
   const isDividend = row.type === 'DIVIDEND'
   const bookedNet = isDividend && withholdings.length === 0 && fold(row.broker) === 'REVOLUT'
@@ -451,7 +500,7 @@ function incomeOf(entry: RowEntry, mapping: Mapping): Income {
 
 /** A deposit or withdrawal carries the rate Revolut changed it at, where the row gives one, and anything else the ECB rate. */
 function cashMovementOf(row: WorkbookRow, kind: CashMovementKind, key: string, mapping: Mapping): CashMovement {
-  const amount = magnitude(row.netCash ?? required(row, 'gross'))
+  const amount = directed(row, row.netCash ?? required(row, 'gross'), PAID_IN.has(kind))
   const currency = required(row, 'currency')
   const account = accountFor(row, mapping)
   const ownRate = (kind === 'deposit' || kind === 'withdrawal') && currency !== EURO ? row.revolutRate : null
@@ -521,7 +570,7 @@ function splitOf(entry: RowEntry, mapping: Mapping): Split {
 function spinOffOf(row: WorkbookRow, key: string, mapping: Mapping): SpinOff {
   const quantity = magnitude(required(row, 'quantity'))
   const price = required(row, 'price')
-  mapping.questions.spinOffs.push({ key, identity: mapping.identityOf(row), date: row.date, quantity, worth: timesDecimal(quantity, price) })
+  mapping.questions.spinOffs.push({ key, identity: mapping.identityOf(row), date: row.date, quantity, worth: timesDecimal(quantity, price), currency: row.currency })
   const received = instrumentFor(row, mapping)
   const answer = mapping.inputs.answers.spinOffs.get(key)
   const parent = mapping.instruments.find((instrument) => instrument.id === answer?.parent)
@@ -543,8 +592,9 @@ function identities(rows: readonly WorkbookRow[]): (row: WorkbookRow) => string 
   return (row) => (row.isin !== '' ? row.isin : (isinOfSymbol.get(fold(row.yahooSymbol)) ?? (row.yahooSymbol !== '' ? fold(row.yahooSymbol) : fold(row.brokerSymbol))))
 }
 
-function importedByKey(book: InvestmentBook): Map<string, ImportedRecord> {
-  const all: ImportedRecord[] = [
+/** Every record of the kinds an import writes, each with its kind. */
+export function importableRecords(book: InvestmentBook): ImportedRecord[] {
+  return [
     ...book.trades.map((record) => ({ kind: 'trade', record }) as const),
     ...book.income.map((record) => ({ kind: 'income', record }) as const),
     ...book.cashMovements.map((record) => ({ kind: 'cash-movement', record }) as const),
@@ -553,7 +603,10 @@ function importedByKey(book: InvestmentBook): Map<string, ImportedRecord> {
     ...book.splits.map((record) => ({ kind: 'split', record }) as const),
     ...book.spinOffs.map((record) => ({ kind: 'spin-off', record }) as const),
   ]
-  return new Map(all.flatMap((imported) => (imported.record.importKey === null ? [] : [[imported.record.importKey, imported]])))
+}
+
+function importedByKey(book: InvestmentBook): Map<string, ImportedRecord> {
+  return new Map(importableRecords(book).flatMap((imported) => (imported.record.importKey === null ? [] : [[imported.record.importKey, imported]])))
 }
 
 /** The account each of the workbook's Account texts was imported into, read off the records its rows already made. */
@@ -592,15 +645,30 @@ function knownInstrumentsOf(inKuna: readonly RowEntry[], keyed: ReadonlyMap<stri
   return known
 }
 
-function accountQuestions(entries: readonly DryRunEntry[], known: ReadonlyMap<string, RecordId>): AccountQuestion[] {
-  const firstRows = new Map<string, WorkbookRow>()
-  entries.flatMap((entry) => entry.rows).forEach((row) => firstRows.set(row.account, firstRows.get(row.account) ?? row))
-  return [...firstRows.values()].map((row) => ({
-    account: row.account,
-    broker: row.broker,
-    known: known.get(row.account) ?? null,
-    proposedName: [row.broker, row.account].filter((part) => part !== '').join(' '),
-  }))
+/** A new account is proposed under its broker's name, numbered from 2 when Kuna or another account of the file has that name. The Account text stays out of it. */
+function accountQuestions(entries: readonly DryRunEntry[], known: ReadonlyMap<string, RecordId>, accounts: readonly InvestmentAccount[]): AccountQuestion[] {
+  const rowsOf = new Map<string, WorkbookRow[]>()
+  entries.flatMap((entry) => entry.rows).forEach((row) => rowsOf.set(row.account, [...(rowsOf.get(row.account) ?? []), row]))
+  const taken = new Set(accounts.map((account) => fold(account.name)))
+  const freeName = (broker: string): string => {
+    let name = broker
+    for (let count = 2; broker !== '' && taken.has(fold(name)); count += 1) {
+      name = `${broker} ${count}`
+    }
+    taken.add(fold(name))
+    return name
+  }
+  return [...rowsOf.values()].map((rows) => {
+    const row = rows[0]!
+    const knownAccount = accounts.find((account) => account.id === known.get(row.account))
+    return {
+      account: row.account,
+      broker: row.broker,
+      known: knownAccount?.id ?? null,
+      proposedName: knownAccount?.name ?? freeName(row.broker),
+      rows: rows.length,
+    }
+  })
 }
 
 /** The rows that name an instrument: trades, dividends, unit transfers, splits and spin-offs. */
@@ -617,9 +685,10 @@ function instrumentQuestions(entries: readonly DryRunEntry[], book: InvestmentBo
     const symbols = rows.flatMap((row) => [row.yahooSymbol, row.brokerSymbol]).filter((symbol) => symbol !== '')
     const offer =
       book.instruments.find((instrument) => isin !== null && instrument.isin === isin) ??
-      book.instruments.find((instrument) => symbols.some((symbol) => fold(symbol) === fold(instrument.symbol))) ??
+      book.instruments.find((instrument) => (isin === null || instrument.isin === null) && symbols.some((symbol) => fold(symbol) === fold(instrument.symbol))) ??
       null
-    return { identity, known: known.get(identity) ?? null, offer, proposal: proposedInstrument(rows, isin) }
+    const booked = [...new Set(rows.map((row) => row.yahooSymbol || row.brokerSymbol).filter((symbol) => symbol !== ''))]
+    return { identity, known: known.get(identity) ?? null, offer, proposal: proposedInstrument(rows, isin), symbols: booked, rows: rows.length }
   })
 }
 
@@ -651,6 +720,16 @@ function proposedInstrument(rows: readonly WorkbookRow[], isin: string | null): 
     sourceSymbol: listing.sourceSymbol,
     note: '',
   }
+}
+
+function commissionDifferences(entries: readonly DryRunEntry[]): CommissionDifference[] {
+  return entries.flatMap(({ rows: [row], outcome }) => {
+    if (outcome.kind !== 'new' || outcome.imported.kind !== 'trade' || row.netCash === null || row.currency === null) {
+      return []
+    }
+    const fees = outcome.imported.record.fees ?? DECIMAL_ZERO
+    return magnitude(subtractDecimal(fees, row.commission ?? DECIMAL_ZERO)) > CENT ? [{ fileRow: row.fileRow, currency: row.currency, commission: row.commission, fees }] : []
+  })
 }
 
 /** The ratio proposed from the units the split's rows add over the units held the day before, in the smallest whole numbers. */

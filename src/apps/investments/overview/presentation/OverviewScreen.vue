@@ -6,6 +6,8 @@ import { figuresClose } from '../../holdings/domain/portfolioFigures'
 import { usePortfolio } from '../../holdings/presentation/usePortfolio'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { hasTransactions } from '../../workbook/domain/investmentBook'
+import WorkbookImportDialog from '../../imports/presentation/WorkbookImportDialog.vue'
+import { words as importWords } from '../../imports/presentation/words'
 import TransactionDialog from '../../transactions/presentation/TransactionDialog.vue'
 import { words as transactionWords } from '../../transactions/presentation/words'
 import GainSourcesCard from './GainSourcesCard.vue'
@@ -37,12 +39,14 @@ const noTransactions = computed(() => state.workbook !== null && !hasTransaction
 const loading = computed(() => (state.workbook === null && state.status !== 'error') || (state.workbook !== null && !noTransactions.value && figures.value === null))
 const close = computed(() => (figures.value === null || noTransactions.value ? null : figuresClose(figures.value)))
 const adding = ref(false)
+const importing = ref(false)
 </script>
 
 <template>
   <section class="flex flex-col gap-6">
     <PageHeader :title="words.title" :description="close === null ? words.description : words.closeLine(weekdayDayLabel(close))">
       <template v-if="state.workbook !== null && !noTransactions" #actions>
+        <UButton :label="importWords.open" icon="i-lucide-file-input" color="neutral" variant="outline" data-testid="investments-import" @click="importing = true" />
         <UButton :label="transactionWords.add" icon="i-lucide-plus" data-testid="investments-add-transaction" @click="adding = true" />
       </template>
     </PageHeader>
@@ -56,7 +60,10 @@ const adding = ref(false)
         </template>
         <template #actions>
           <div class="flex flex-col items-center gap-4">
-            <UButton :label="transactionWords.add" icon="i-lucide-plus" data-testid="investments-add-transaction" @click="adding = true" />
+            <div class="flex flex-wrap justify-center gap-2">
+              <UButton :label="transactionWords.add" icon="i-lucide-plus" data-testid="investments-add-transaction" @click="adding = true" />
+              <UButton :label="importWords.open" icon="i-lucide-file-input" color="neutral" variant="outline" data-testid="investments-import" @click="importing = true" />
+            </div>
             <span class="type-caption">{{ fileNote }}</span>
           </div>
         </template>
@@ -73,6 +80,7 @@ const adding = ref(false)
         </DashboardGrid>
       </template>
       <TransactionDialog v-model:open="adding" :book="state.workbook.book" :editing="null" />
+      <WorkbookImportDialog v-model:open="importing" />
     </template>
   </section>
 </template>

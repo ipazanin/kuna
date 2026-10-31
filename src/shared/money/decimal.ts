@@ -39,6 +39,11 @@ export function typedDecimal(text: string): Decimal | null {
   return match === null ? null : decimalOfDigits(false, match[1]!, match[2] ?? '')
 }
 
+/** A decimal as a field shows it, with the language's decimal mark, so `typedDecimal` reads it back. Blank for none. */
+export function decimalShown(value: Decimal | null): string {
+  return value === null ? '' : decimalText(value).replace('.', AMOUNT_SEPARATORS[language].decimal)
+}
+
 const NUMBER_TEXT = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]\d+))?$/
 
 /**

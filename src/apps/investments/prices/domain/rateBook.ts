@@ -11,6 +11,9 @@ export interface RateBook {
   unitsPerEuroOnOrBefore(currency: CurrencyCode, day: CivilDate): Decimal | null
 }
 
+/** Rates before this browser has read the prices file, which convert nothing. */
+export const NO_RATES: RateBook = { unitsPerEuroOnOrBefore: () => null }
+
 /** The amount in euros at the ECB rate on or before the day. Null for a foreign amount the series has no rate for yet. */
 export function eurosAtEcbRate(amount: Decimal, currency: CurrencyCode, day: CivilDate, rates: RateBook): Money | null {
   if (currency === EURO) {

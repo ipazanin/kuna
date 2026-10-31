@@ -10,14 +10,13 @@ import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { EURO, currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
-import { DECIMAL_ZERO, decimalOfMoney, decimalOfText, decimalText, scaledDecimal, timesDecimal, typedDecimal } from '../../../../shared/money/decimal'
+import { DECIMAL_ZERO, decimalOfMoney, decimalOfText, decimalShown, decimalText, scaledDecimal, timesDecimal, typedDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import { amountShown } from '../../../../shared/money/amountTyping'
-import { AMOUNT_SEPARATORS, typedAmount } from '../../../../shared/money/typedAmount'
+import { typedAmount } from '../../../../shared/money/typedAmount'
 import { keyOfRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
-import { language } from '../../../../shared/text/language'
 
 /** What happened, as the dialog offers it. Each names one kind of record, and a kind with a direction names it too. */
 export const HAPPENINGS = ['buy', 'sell', 'income', 'deposit', 'withdrawal', 'fee', 'fee-refund', 'exchange', 'transfer', 'split', 'spin-off', 'price'] as const
@@ -108,13 +107,6 @@ export interface TransactionStart {
   readonly happened: Happening
   readonly instrument: RecordId | null
   readonly today: CivilDate
-}
-
-const DECIMAL_MARK = AMOUNT_SEPARATORS[language].decimal
-
-/** A decimal as the field shows it, with the language's decimal mark. */
-function decimalShown(value: Decimal | null): string {
-  return value === null ? '' : decimalText(value).replace('.', DECIMAL_MARK)
 }
 
 /** A stored amount as a money field shows it, so the field and what `typedAmount` reads agree. */

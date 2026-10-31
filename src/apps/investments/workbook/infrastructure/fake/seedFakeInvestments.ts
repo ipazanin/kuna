@@ -18,8 +18,9 @@ import { PRICES_DATABASE_PREFIX, openPricesCache } from '../../../prices/infrast
  * without the deposit of its second account, and `opening` the sample chosen with nothing in this browser and every
  * read of it held, so the Investments screens stay opening. Without it nothing
  * is chosen, which is the Investments first run. The sample has the fake prices file beside it, in this browser too,
- * as `?prices=late-prices` names it or else `sample`. Only the Investments app's install imports this, behind an
- * inline VITE_FAKE_WORKBOOK comparison.
+ * as `?prices=late-prices` names it or else `sample`, and the empty file has it only when `?prices=` names it, so a
+ * first import finds its rates. Only the Investments app's install imports this, behind an inline VITE_FAKE_WORKBOOK
+ * comparison.
  */
 export async function seedFakeInvestments(variant: string | null, pricesVariant: string | null): Promise<void> {
   await forgetFakePrices()
@@ -32,7 +33,7 @@ export async function seedFakeInvestments(variant: string | null, pricesVariant:
   const folder = await fakeBooksFolder()
   const created = await createDriveDocument(fakeDriveSession(), folder, INVESTMENTS_APP, encodeDocument(document))
   const choice = { source: 'drive', id: created.fileId, name: documentName(INVESTMENTS_APP) } as const
-  if (variant !== 'drive') {
+  if (variant !== 'drive' || pricesVariant !== null) {
     await seedFakePrices(folder, created.fileId, pricesVariant === 'late-prices' ? 'late-prices' : 'sample', savedAt)
   }
   if (variant === 'opening') {

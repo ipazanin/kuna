@@ -26,6 +26,7 @@ import EmptyState from '../../shared/ui/EmptyState.vue'
 import FactGrid from '../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../shared/ui/FactGrid.vue'
 import FigureTable from '../../shared/ui/FigureTable.vue'
+import FileDrop from '../../shared/ui/FileDrop.vue'
 import AppBrand from '../../shared/ui/AppBrand.vue'
 import AppMark from '../../shared/ui/AppMark.vue'
 import HomeLink from '../../shared/ui/HomeLink.vue'
@@ -176,6 +177,8 @@ const SWATCHES = [1, 2, 3, 4, 5].map((slot) => ({ value: `series-${slot}`, name:
 /** A long list for Show all, of made-up payees. */
 const PAYEES = Array.from({ length: 14 }, (_, index) => ({ name: `Supplier ${index + 1}`, cents: -(140_000 - index * 8_500) }))
 const showAllPayees = ref(false)
+const droppedFile = ref<File | null>(null)
+const droppedName = ref('')
 const shownPayees = computed(() => (showAllPayees.value ? PAYEES : PAYEES.slice(0, FIRST_SHOWN)))
 
 const amountOrder = ref<SortDirection | null>(null)
@@ -728,6 +731,21 @@ const columns: TableColumn<SampleTransaction>[] = [
           </div>
         </AppCard>
       </DashboardGrid>
+    </GallerySection>
+
+    <GallerySection id="file-drop" title="FileDrop" description="A dashed place to drop a file on, or to tap to choose one. The caller reads the file and says what it found.">
+      <AppCard as="div" class="flex flex-col gap-3 p-4 sm:p-5">
+        <FileDrop v-model="droppedFile" accept=".xlsx,.csv" label="Drop a statement file here" description="or click to choose one" @update:model-value="droppedName = $event?.name ?? droppedName" />
+        <FileDrop
+          v-model="droppedFile"
+          accept=".xlsx,.csv"
+          icon="i-lucide-file-spreadsheet"
+          label="Drop a workbook here"
+          description="or click to choose one"
+          @update:model-value="droppedName = $event?.name ?? droppedName"
+        />
+        <span class="identifier">{{ droppedName || 'No file yet' }}</span>
+      </AppCard>
     </GallerySection>
 
     <GallerySection id="sync-status" title="Sync status" description="Every state of the sync control, in the sidebar and compact in the phone top bar.">
