@@ -491,6 +491,23 @@ describe('the dry run with every answer', () => {
     ])
   })
 
+  it("moves each trade's cash as its net cash moved it, so fractional shares leave no sliver of a cent below zero", async () => {
+    const ghi = { 'Symbol (Yahoo)': 'GHI', 'Broker symbol': 'GHI' } as const
+    const rows = await readRows([
+      [...HEADER],
+      line('2025-11-03', { ...REVOLUT, Type: 'DEPOSIT', Currency: 'USD', 'Net cash': 20.02, 'Revolut FX rate': 1.095 }),
+      line('2025-11-04', { ...REVOLUT, ...ghi, Type: 'BUY', 'Quantity (as executed)': 6, 'Price (as executed)': 1.67, Currency: 'USD', 'Net cash': -10 }),
+      line('2025-11-05', { ...REVOLUT, ...ghi, Type: 'BUY', 'Quantity (as executed)': 0.123, 'Price (as executed)': 81.41, Currency: 'USD', Commission: 0.01, 'Net cash': -10.02 }),
+    ])
+    const answers: WorkbookAnswers = { ...NO_ANSWERS, accounts: new Map([['RVL-1', REVOLUT_ACCOUNT]]), instruments: new Map([['GHI', instrument('ghi', { name: 'GHI', currency: USD })]]) }
+    const dryRun = workbookDryRun(rows, { book: book({}), rates: RATES, answers })
+
+    // The net cash adds up to 20.02 − 10.00 − 10.02 = 0. The first buy takes its price from its net cash, 10 ÷ 6 to
+    // twelve places, so 6 × 1.666666666667 is 10.000000000002. The second keeps 0.123 × 81.41 = 10.01343 with its fees
+    // of 0.00657 rounded to 0.01, so 10.02343. Summed as booked, the dollars would come to −0.003430000002.
+    expect(accountCash(dryRun.planned, RATES, new Set()).balances.map((balance) => [balance.currency, decimalText(balance.balance)])).toEqual([[USD, '0']])
+  })
+
   it('holds a transfer whose two accounts are answered as one', async () => {
     const { rows, answers } = await importedBook()
     const oneAccount = workbookDryRun(rows, { book: book({}), rates: RATES, answers: { ...answers, accounts: new Map([...answers.accounts, ['U0000002', IBKR_MAIN]]) } })

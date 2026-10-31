@@ -2,7 +2,7 @@ import { words } from './words'
 import { answerOf, parsedJson, statusFailure } from './vendorAnswers'
 import { isCloseText, isDay, isJsonObject } from '../../domain/pricesFile'
 import type { CloseRow, FailureReason } from '../../domain/pricesFile'
-import type { Fetched, PriceVendor, VendorCloses, VendorFetch } from '../../application/priceVendor'
+import type { Fetched, PriceVendor, VendorAnswer, VendorCloses, VendorFetch, VendorLimit } from '../../application/priceVendor'
 
 /** The most rows one answer holds. With a start day, Twelve Data sends the latest rows of the range. */
 const PAGE_ROWS = 5000
@@ -19,6 +19,20 @@ function errorFailure(code: number, message: string): FailureReason | 'no-rows' 
   }
   // The symbol is the only part of the request that varies, so an invalid request means an unknown symbol.
   return code === 400 ? 'unknown-symbol' : statusFailure(code)
+}
+
+/**
+ * Twelve Data answers a used-up limit with code 429, and its message says whether the credits ran out for the current
+ * minute or for the day. A 429 that names neither is taken as the minute's, which a pause and one more request tell apart.
+ */
+function twelveDataLimit(answer: VendorAnswer): VendorLimit | null {
+  const parsed = parsedJson(answer.text)
+  const code = isJsonObject(parsed) && typeof parsed.code === 'number' ? parsed.code : answer.status
+  if (code !== 429) {
+    return null
+  }
+  const message = isJsonObject(parsed) && typeof parsed.message === 'string' ? parsed.message : ''
+  return /for the day|per day|daily/i.test(message) ? 'day' : 'minute'
 }
 
 async function page(fetch: VendorFetch, key: string, symbol: string, from: string, through: string | null): Promise<Page> {
@@ -85,7 +99,9 @@ export const twelveData: PriceVendor = {
   prices: 'listings',
   needsKey: true,
   keyAddress: 'https://twelvedata.com/register',
+  origin: 'https://api.twelvedata.com/',
   limits: { perMinute: 8, perDay: 800, gapMilliseconds: null },
+  limitOf: twelveDataLimit,
   // A currency pair, which the free key covers and which names no one's holding.
   testSymbol: 'EUR/USD',
   closes: twelveDataCloses,

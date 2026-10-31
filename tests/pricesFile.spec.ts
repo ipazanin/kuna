@@ -22,10 +22,12 @@ import { civil, euros } from './fixtures/ledger'
 /** The worked portfolio's closes and rates as a fetch would have written them. */
 const WORKED_FILE: PricesFile = {
   writtenAt: '2026-10-30T05:41:00.000Z',
+  lastFetch: { asked: 3, upToDate: 0 },
   series: {
     [seriesKey('alphavantage', 'WORLD-ETF')]: {
       currency: 'EUR',
       from: '2025-01-02',
+      checked: '2026-10-30',
       closes: [
         ['2026-10-28', '124.00'],
         ['2026-10-29', '125.00'],
@@ -34,6 +36,7 @@ const WORKED_FILE: PricesFile = {
     [seriesKey('twelvedata', 'STOCK-B')]: {
       currency: 'USD',
       from: '2025-03-03',
+      checked: '2026-10-30',
       closes: [
         ['2026-10-28', '57.50'],
         ['2026-10-29', '58.00'],
@@ -42,6 +45,7 @@ const WORKED_FILE: PricesFile = {
     [rateSeriesKey('USD')]: {
       currency: 'USD',
       from: '2015-01-01',
+      checked: '2026-10-30',
       closes: [
         ['2025-03-03', '1.05'],
         ['2025-09-15', '1.17'],
@@ -79,7 +83,19 @@ describe('the prices file', () => {
   })
 
   it('reads the empty file Kuna makes, before a fetch has written it', () => {
-    expect(read(encodePricesFile(emptyPricesFile()))).toEqual({ writtenAt: null, series: {}, splits: [], failures: [] })
+    expect(read(encodePricesFile(emptyPricesFile()))).toEqual({ writtenAt: null, lastFetch: null, series: {}, splits: [], failures: [] })
+  })
+
+  it('reads a file an older Kuna wrote, with no last fetch and no day each series was checked', () => {
+    const older = JSON.stringify({
+      format: 'kuna-prices',
+      version: 1,
+      written_at: null,
+      series: { 'twelvedata:ABC': { currency: 'USD', from: '2026-01-02', closes: [['2026-01-02', '10.5']] } },
+      splits: [],
+      failures: [],
+    })
+    expect(read(older)).toMatchObject({ lastFetch: null, series: { 'twelvedata:ABC': { checked: null } } })
   })
 
   it('refuses text that is no prices file, a newer one and one out of shape', () => {

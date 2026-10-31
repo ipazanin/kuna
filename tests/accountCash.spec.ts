@@ -119,6 +119,19 @@ describe("an account's cash", () => {
     expect(balancesOf(accountCash(records, NO_RATES, NONE_REFUSED))).toEqual([[BROKER.id, 'EUR', '-201', -201]])
   })
 
+  it('moves the worth of a fractional quantity to the cent, as the broker books it, so no sliver of a cent stays', () => {
+    const records = book({
+      accounts: [BROKER],
+      instruments: [WORLD_ETF],
+      cashMovements: [cashMovement('deposit', BROKER, '2026-01-05', '20.02')],
+      trades: [trade('buy', BROKER, WORLD_ETF, '2026-01-05', '6', '1.666666666667', '0'), trade('buy', BROKER, WORLD_ETF, '2026-01-06', '0.123', '81.41', '0.01')],
+    })
+
+    // 6 × 1.666666666667 = 10.000000000002 is booked as 10.00, and 0.123 × 81.41 = 10.01343 as 10.01 with 0.01 of fees.
+    // Exact to twelve places the balance would be 20.02 − 10.000000000002 − 10.02343 = −0.003430000002.
+    expect(balancesOf(accountCash(records, NO_RATES, NONE_REFUSED))).toEqual([[BROKER.id, 'EUR', '0', 0]])
+  })
+
   it('moves no cash for a split, a spin-off or a transfer of units', () => {
     const other = account('other')
     const records = book({

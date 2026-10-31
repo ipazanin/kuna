@@ -130,8 +130,8 @@ describe('the Test of a vendor', () => {
   })
 })
 
-describe('the key field of the Prices card', () => {
-  const card = readFileSync(join(import.meta.dirname, '..', 'src/apps/investments/prices/presentation/PricesCard.vue'), 'utf8')
+describe('the key field of the Prices settings', () => {
+  const card = readFileSync(join(import.meta.dirname, '..', 'src/apps/investments/prices/presentation/PriceVendorsCard.vue'), 'utf8')
 
   it('is a masked field that only the typed text fills, never the kept key', () => {
     const field = card.slice(card.indexOf('<UInput'), card.indexOf('/>', card.indexOf('<UInput')))

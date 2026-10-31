@@ -20,6 +20,20 @@ export interface PricesCache {
   close(): void
 }
 
+/** A vendor's pause in a fetch, which its pacing or its limit asked for. */
+export interface FetchPause {
+  readonly vendorId: string
+  readonly milliseconds: number
+}
+
+/** How far a fetch has come: the series asked for so far of all it asks for, the time the pacing still needs, and the pause it is in. */
+export interface FetchProgress {
+  readonly asked: number
+  readonly of: number
+  readonly leftMilliseconds: number
+  readonly pause: FetchPause | null
+}
+
 /** What a price fetch needs from the page. */
 export interface PriceFetchPorts {
   readonly fetch: VendorFetch
@@ -32,8 +46,8 @@ export interface PriceFetchPorts {
   readPrices(): Promise<string>
   /** Overwrites the prices file on Drive. */
   writePrices(text: string): Promise<void>
-  /** The series asked for so far, of all the fetch asks for, called before each one and once with none asked. */
-  progress(asked: number, of: number): void
+  /** Called once with none asked, before each series and at the start of each pause. */
+  progress(progress: FetchProgress): void
 }
 
 /** The Drive requests the prices file needs, over Google's API or the fake Drive. */

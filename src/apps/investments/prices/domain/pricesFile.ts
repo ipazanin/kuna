@@ -16,9 +16,11 @@ export type CloseRow = readonly [day: string, close: string]
 export interface PriceSeries {
   /** The quote currency, or for an ECB series the currency its rates are in. */
   readonly currency: string
-  /** The earliest day Kuna asked the vendor for, so it asks again only when an earlier record needs more. */
+  /** The earliest day Kuna asked the vendor for, so it asks again only when an earlier record needs more. The first close is the earliest day the vendor has. */
   readonly from: string
   readonly closes: readonly CloseRow[]
+  /** The day of the last fetch the vendor answered for it, so a weekday with no close, such as a market holiday, is not asked again. Null before one. */
+  readonly checked: string | null
 }
 
 /** A split the vendor reported, which Kuna offers to add as a record. `newUnits` and `oldUnits` are whole numbers as text. */
@@ -56,9 +58,17 @@ export interface PriceFailure {
   readonly reason: FailureReason
 }
 
+/** What the last fetch did: the series it asked for, and those it left because their closes were up to date. */
+export interface LastFetch {
+  readonly asked: number
+  readonly upToDate: number
+}
+
 export interface PricesFile {
   /** ISO timestamp of the last fetch's write, null for the empty file Kuna makes. */
   readonly writtenAt: string | null
+  /** Null for a file no fetch has written, or one an older Kuna wrote. */
+  readonly lastFetch: LastFetch | null
   /** By vendor and its symbol, such as `twelvedata:ABC` or `ecb:USD`, so two instruments on one listing share one. */
   readonly series: Readonly<Record<string, PriceSeries>>
   readonly splits: readonly SplitNote[]
@@ -81,7 +91,7 @@ export function rateSeriesKey(currency: string): string {
 }
 
 export function emptyPricesFile(): PricesFile {
-  return { writtenAt: null, series: {}, splits: [], failures: [] }
+  return { writtenAt: null, lastFetch: null, series: {}, splits: [], failures: [] }
 }
 
 const DAY = /^(\d{4})-(\d{2})-(\d{2})$/
@@ -111,8 +121,8 @@ export function encodePricesFile(file: PricesFile): string {
   const series = Object.keys(file.series)
     .sort()
     .map((key) => {
-      const { currency, from, closes } = file.series[key]!
-      return `    ${JSON.stringify(key)}: ${JSON.stringify({ currency, from, closes })}`
+      const { currency, from, checked, closes } = file.series[key]!
+      return `    ${JSON.stringify(key)}: ${JSON.stringify({ currency, from, checked, closes })}`
     })
   const splits = file.splits.map((note) => `    ${JSON.stringify({ series: note.series, date: note.date, new: note.newUnits, old: note.oldUnits })}`)
   const failures = file.failures.map((failure) => `    ${JSON.stringify(failure)}`)
@@ -121,6 +131,7 @@ export function encodePricesFile(file: PricesFile): string {
     `  "format": ${JSON.stringify(FORMAT)},`,
     `  "version": ${VERSION},`,
     `  "written_at": ${JSON.stringify(file.writtenAt)},`,
+    `  "last_fetch": ${JSON.stringify(file.lastFetch === null ? null : { asked: file.lastFetch.asked, up_to_date: file.lastFetch.upToDate })},`,
     `  "series": ${series.length === 0 ? '{}' : `{\n${series.join(',\n')}\n  }`},`,
     `  "splits": ${listOf(splits)},`,
     `  "failures": ${listOf(failures)}`,
@@ -152,8 +163,12 @@ export function decodePricesFile(text: string): PricesFileRead {
 }
 
 function fileOf(parsed: Readonly<Record<string, unknown>>): PricesFile | null {
-  const { written_at: writtenAt, series, splits, failures } = parsed
+  const { written_at: writtenAt, last_fetch: lastFetch, series, splits, failures } = parsed
   if ((writtenAt !== null && typeof writtenAt !== 'string') || !isJsonObject(series) || !Array.isArray(splits) || !Array.isArray(failures)) {
+    return null
+  }
+  const readLastFetch = lastFetchOf(lastFetch)
+  if (readLastFetch === undefined) {
     return null
   }
   const readSeries = Object.keys(series).map((key) => [key, seriesOf(series[key])] as const)
@@ -164,14 +179,28 @@ function fileOf(parsed: Readonly<Record<string, unknown>>): PricesFile | null {
   }
   return {
     writtenAt,
+    lastFetch: readLastFetch,
     series: Object.fromEntries(readSeries) as Record<string, PriceSeries>,
     splits: readSplits as SplitNote[],
     failures: readFailures as PriceFailure[],
   }
 }
 
+/** The last fetch's counts, null when the file has none, and undefined when they are not in shape. */
+function lastFetchOf(candidate: unknown): LastFetch | null | undefined {
+  if (candidate === undefined || candidate === null) {
+    return null
+  }
+  const count = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 0
+  return isJsonObject(candidate) && count(candidate.asked) && count(candidate.up_to_date) ? { asked: candidate.asked, upToDate: candidate.up_to_date } : undefined
+}
+
 function seriesOf(candidate: unknown): PriceSeries | null {
   if (!isJsonObject(candidate) || typeof candidate.currency !== 'string' || typeof candidate.from !== 'string' || !isDay(candidate.from) || !Array.isArray(candidate.closes)) {
+    return null
+  }
+  const checked = candidate.checked ?? null
+  if (checked !== null && (typeof checked !== 'string' || !isDay(checked))) {
     return null
   }
   const closes: CloseRow[] = []
@@ -185,7 +214,7 @@ function seriesOf(candidate: unknown): PriceSeries | null {
     }
     closes.push([row[0], row[1]])
   }
-  return { currency: candidate.currency, from: candidate.from, closes }
+  return { currency: candidate.currency, from: candidate.from, closes, checked }
 }
 
 function splitOf(candidate: unknown): SplitNote | null {

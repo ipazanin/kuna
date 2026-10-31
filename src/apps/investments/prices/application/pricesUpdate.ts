@@ -1,11 +1,14 @@
 import { shallowReactive, shallowReadonly } from 'vue'
 
-import { fetchPrices, vendorsNeeded } from './priceFetch'
-import type { PriceFetchPorts, PricesCopy, PricesDrive, PricesPlace } from './pricesPorts'
+import { fetchPrices, seriesToAskAgain, vendorsNeeded } from './priceFetch'
+import type { PriceFetchScope } from './priceFetch'
+import type { FetchPause, PriceFetchPorts, PricesCopy, PricesDrive, PricesPlace } from './pricesPorts'
 import type { PriceVendor, VendorFetch } from './priceVendor'
 import { PRICES_FILE_NAME, decodePricesFile, emptyPricesFile, encodePricesFile } from '../domain/pricesFile'
 import type { PricesFile, PricesFileRefusal } from '../domain/pricesFile'
 import type { RatesWanted } from '../domain/priceDemand'
+import { withImportedCloses } from '../domain/closesImport'
+import type { ClosesImportLine } from '../domain/closesImport'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { civilDateIn } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -45,6 +48,8 @@ export interface PricesFetchMoment {
   readonly keyless: readonly string[]
   /** A fetch of this page is under way. */
   readonly running: boolean
+  /** The series to ask for again on a day whose fetch already wrote the file, as `seriesToAskAgain` finds them. */
+  readonly askAgain: readonly string[]
 }
 
 /** The vendors a prices file notes as having had no key on its last fetch. */
@@ -58,16 +63,17 @@ function writtenTodayHere(writtenAt: string | null, keyless: readonly string[], 
 }
 
 /**
- * Once a day, when the prices file was written before today or by a browser without a key this one holds. The fetch
- * asks every vendor it can, the ECB with no key, and notes those it holds no key for. Only when every vendor the records
- * need wants a key this browser lacks is the fetch left to another browser.
+ * Once a day, when the prices file was written before today or by a browser without a key this one holds, and again
+ * that day while a series is still to ask for. The fetch asks every vendor it can, the ECB with no key, and notes those
+ * it holds no key for. Only when every vendor the records need wants a key this browser lacks is the fetch left to
+ * another browser.
  */
 export function pricesFetchVerdict(moment: PricesFetchMoment): PricesFetchVerdict {
   if (moment.running) {
     return 'running'
   }
   if (writtenTodayHere(moment.writtenAt, moment.keyless, moment.today, (vendorId) => moment.hasKey(vendorId))) {
-    return 'fetched-today'
+    return moment.askAgain.length > 0 ? 'due' : 'fetched-today'
   }
   const runnable = moment.needed.some((vendor) => !vendor.needsKey || moment.hasKey(vendor.id))
   return moment.needed.length > 0 && !runnable ? 'no-key' : 'due'
@@ -85,10 +91,19 @@ export type PricesFetchRun =
   | { readonly kind: 'current' }
   | { readonly kind: 'failed'; readonly message: string }
 
-/** The fetch under way: the series asked for so far, of a total that is null until the fetch has read the records. */
+/** A vendor's pause in the fetch under way: its name, the most it takes a minute, and when the pause ends, as an ISO timestamp. */
+export interface PricesPause {
+  readonly vendor: string
+  readonly perMinute: number | null
+  readonly until: string
+}
+
+/** The fetch under way: the series asked for so far, of a total that is null until the fetch has read the records, and the time its pacing still needs. */
 export interface PricesFetching {
   readonly asked: number
   readonly of: number | null
+  readonly leftMilliseconds: number
+  readonly pause: PricesPause | null
 }
 
 export interface PricesUpdateState {
@@ -127,9 +142,17 @@ export interface PricesUpdate {
   fetchIfDue(): Promise<PricesFetchVerdict | 'no-books'>
   /** Fetches now, whatever the day, unless a fetch of this page is under way. */
   fetchNow(): Promise<PricesFetchRun | 'running' | 'no-books'>
+  /** Fetches what is due once a fetch of this page under way is over, such as the series of holdings an import or a new instrument adds. */
+  fetchAdded(): Promise<PricesFetchVerdict | 'no-books'>
+  /** Writes closes imported from files into their holdings' series, once a fetch of this page under way is over. */
+  importCloses(lines: readonly ClosesImportLine[]): Promise<PricesFetchRun | 'no-books'>
   /** Fetches the ECB rates wanted beside those the records need, and no closes, once a fetch of this page under way is over. The day's fetch stays due. */
   fetchRates(wanted: RatesWanted): Promise<PricesFetchRun | 'no-books'>
 }
+
+/** What a run was started for: the fetch of what is due, of everything now, or of the ECB rates an import wants, or closes imported from files. */
+type FetchRequest =
+  { readonly kind: 'if-due' } | { readonly kind: 'now' } | { readonly kind: 'rates'; readonly wanted: RatesWanted } | { readonly kind: 'closes'; readonly lines: readonly ClosesImportLine[] }
 
 function messageOf(failure: unknown): string {
   return failure instanceof Error ? failure.message : String(failure)
@@ -162,7 +185,29 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
     return { fileId, revision: (await drive.headRevision(fileId)) ?? '' }
   }
 
-  async function fetchInto(place: PricesPlace, book: InvestmentBook, onlyIfDue: boolean, ratesWanted: RatesWanted | null): Promise<PricesFetchRun> {
+  /** What a fetch asks for, once it holds the prices file as Drive has it now. Null when another tab or device already fetched what was due. */
+  function scopeOf(request: Exclude<FetchRequest, { readonly kind: 'closes' }>, text: string, book: InvestmentBook, at: string): PriceFetchScope | null {
+    if (request.kind === 'rates') {
+      return { kind: 'rates', wanted: request.wanted }
+    }
+    const decoded = decodePricesFile(text)
+    const today = pricesDay(at)
+    if (request.kind === 'now' || decoded.kind === 'refused' || !writtenTodayHere(decoded.file.writtenAt, keylessVendors(decoded.file), today, (vendorId) => ports.key(vendorId) !== null)) {
+      return { kind: 'day' }
+    }
+    const keys = seriesToAskAgain(ports.vendors, decoded.file, book, { at, day: today })
+    return keys.length === 0 ? null : { kind: 'series', keys }
+  }
+
+  function pauseOf(pause: FetchPause | null): PricesPause | null {
+    const vendor = pause === null ? undefined : ports.vendors.find((candidate) => candidate.id === pause.vendorId)
+    if (pause === null || vendor === undefined) {
+      return null
+    }
+    return { vendor: vendor.name, perMinute: vendor.limits.perMinute, until: new Date(Date.parse(ports.now()) + pause.milliseconds).toISOString() }
+  }
+
+  async function fetchInto(place: PricesPlace, book: InvestmentBook, request: FetchRequest): Promise<PricesFetchRun> {
     const held = await place.cache.read()
     const { drive } = place
     const onDrive = drive === null ? null : await driveFile(drive, place, held)
@@ -174,12 +219,30 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
       return drive.download(onDrive.fileId)
     }
     const text = await currentText()
-    if (onlyIfDue) {
-      // The verdict was worked out before this fetch had its turn, so another tab or device may have fetched since.
+    const overwrite = async (encoded: string): Promise<void> => {
+      revision = drive === null || onDrive === null ? ports.newRevision() : await drive.overwrite(onDrive.fileId, encoded)
+    }
+    /** Keeps the file just written as this browser's copy and shows it. */
+    const kept = async (file: PricesFile): Promise<PricesFetchRun> => {
+      const copy: PricesCopy = { fileId: onDrive?.fileId ?? null, revision, readAt: ports.now(), file }
+      await place.cache.replace(copy)
+      await show(place, copy)
+      return { kind: 'written', file }
+    }
+    if (request.kind === 'closes') {
       const decoded = decodePricesFile(text)
-      if (decoded.kind === 'read' && writtenTodayHere(decoded.file.writtenAt, keylessVendors(decoded.file), pricesDay(ports.now()), (vendorId) => ports.key(vendorId) !== null)) {
-        return { kind: 'current' }
+      if (decoded.kind === 'refused') {
+        return decoded
       }
+      const file = withImportedCloses(decoded.file, request.lines)
+      await overwrite(encodePricesFile(file))
+      return kept(file)
+    }
+    const at = ports.now()
+    // The verdict was worked out before this fetch had its turn, so another tab or device may have fetched since.
+    const scope = scopeOf(request, text, book, at)
+    if (scope === null) {
+      return { kind: 'current' }
     }
     const fetchPorts: PriceFetchPorts = {
       fetch: ports.fetch,
@@ -187,35 +250,26 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
       key: (vendorId) => ports.key(vendorId),
       investments: () => book,
       readPrices: async () => text,
-      async writePrices(text) {
-        revision = drive === null || onDrive === null ? ports.newRevision() : await drive.overwrite(onDrive.fileId, text)
-      },
-      progress(asked, of) {
-        state.fetching = { asked, of }
+      writePrices: overwrite,
+      progress({ asked, of, leftMilliseconds, pause }) {
+        state.fetching = { asked, of, leftMilliseconds, pause: pauseOf(pause) }
       },
     }
-    const at = ports.now()
-    const outcome = await fetchPrices(fetchPorts, ports.vendors, { at, day: pricesDay(at) }, ratesWanted)
-    if (outcome.kind === 'refused') {
-      return outcome
-    }
-    const copy: PricesCopy = { fileId: onDrive?.fileId ?? null, revision, readAt: ports.now(), file: outcome.file }
-    await place.cache.replace(copy)
-    await show(place, copy)
-    return { kind: 'written', file: outcome.file }
+    const outcome = await fetchPrices(fetchPorts, ports.vendors, { at, day: pricesDay(at) }, scope)
+    return outcome.kind === 'refused' ? outcome : kept(outcome.file)
   }
 
-  function runFetch(place: PricesPlace, book: InvestmentBook, onlyIfDue: boolean, ratesWanted: RatesWanted | null = null): Promise<PricesFetchRun> {
-    current = fetchRun(place, book, onlyIfDue, ratesWanted)
+  function runFetch(place: PricesPlace, book: InvestmentBook, request: FetchRequest): Promise<PricesFetchRun> {
+    current = fetchRun(place, book, request)
     return current
   }
 
-  async function fetchRun(place: PricesPlace, book: InvestmentBook, onlyIfDue: boolean, ratesWanted: RatesWanted | null): Promise<PricesFetchRun> {
+  async function fetchRun(place: PricesPlace, book: InvestmentBook, request: FetchRequest): Promise<PricesFetchRun> {
     running = true
-    state.fetching = { asked: 0, of: null }
+    state.fetching = request.kind === 'closes' ? null : { asked: 0, of: null, leftMilliseconds: 0, pause: null }
     let run: PricesFetchRun
     try {
-      const result = await ports.exclusively(() => fetchInto(place, book, onlyIfDue, ratesWanted))
+      const result = await ports.exclusively(() => fetchInto(place, book, request))
       run = result === 'busy' ? { kind: 'busy' } : result
     } catch (failure) {
       run = { kind: 'failed', message: messageOf(failure) }
@@ -229,10 +283,40 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
     return run
   }
 
+  /** Waits for a fetch of this page under way to end, so the one that follows reads what it wrote. */
+  async function afterRun(): Promise<void> {
+    while (running) {
+      await current
+    }
+  }
+
   async function opened(): Promise<{ readonly place: PricesPlace; readonly book: InvestmentBook } | null> {
     const place = await ports.place()
     const book = ports.investments()
     return place === null || book === null ? null : { place, book }
+  }
+
+  async function fetchIfDue(): Promise<PricesFetchVerdict | 'no-books'> {
+    const found = await opened()
+    if (found === null) {
+      return 'no-books'
+    }
+    const copy = await found.place.cache.read()
+    const at = ports.now()
+    const today = pricesDay(at)
+    const verdict = pricesFetchVerdict({
+      writtenAt: copy?.file.writtenAt ?? null,
+      today,
+      needed: vendorsNeeded(ports.vendors, found.book, today),
+      hasKey: (vendorId) => ports.key(vendorId) !== null,
+      keyless: copy === null ? [] : keylessVendors(copy.file),
+      running,
+      askAgain: copy === null ? [] : seriesToAskAgain(ports.vendors, copy.file, found.book, { at, day: today }),
+    })
+    if (verdict === 'due') {
+      await runFetch(found.place, found.book, { kind: 'if-due' })
+    }
+    return verdict
   }
 
   return {
@@ -274,26 +358,7 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
       return { kind: 'read', copy }
     },
 
-    async fetchIfDue() {
-      const found = await opened()
-      if (found === null) {
-        return 'no-books'
-      }
-      const copy = await found.place.cache.read()
-      const today = pricesDay(ports.now())
-      const verdict = pricesFetchVerdict({
-        writtenAt: copy?.file.writtenAt ?? null,
-        today,
-        needed: vendorsNeeded(ports.vendors, found.book, today),
-        hasKey: (vendorId) => ports.key(vendorId) !== null,
-        keyless: copy === null ? [] : keylessVendors(copy.file),
-        running,
-      })
-      if (verdict === 'due') {
-        await runFetch(found.place, found.book, true)
-      }
-      return verdict
-    },
+    fetchIfDue,
 
     async fetchNow() {
       if (running) {
@@ -303,21 +368,41 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
       if (found === null) {
         return 'no-books'
       }
-      return running ? 'running' : runFetch(found.place, found.book, false)
+      return running ? 'running' : runFetch(found.place, found.book, { kind: 'now' })
     },
 
-    async fetchRates(wanted) {
+    async fetchAdded() {
       for (;;) {
-        if (running) {
-          await current
-          continue
+        await afterRun()
+        const verdict = await fetchIfDue()
+        if (verdict !== 'running') {
+          return verdict
         }
+      }
+    },
+
+    async importCloses(lines) {
+      for (;;) {
+        await afterRun()
         const found = await opened()
         if (found === null) {
           return 'no-books'
         }
         if (!running) {
-          return runFetch(found.place, found.book, false, wanted)
+          return runFetch(found.place, found.book, { kind: 'closes', lines })
+        }
+      }
+    },
+
+    async fetchRates(wanted) {
+      for (;;) {
+        await afterRun()
+        const found = await opened()
+        if (found === null) {
+          return 'no-books'
+        }
+        if (!running) {
+          return runFetch(found.place, found.book, { kind: 'rates', wanted })
         }
       }
     },

@@ -15,6 +15,8 @@ import HoldingRow from './HoldingRow.vue'
 import HoldingsGroupName from './HoldingsGroupName.vue'
 import HoldingsTable from './HoldingsTable.vue'
 import { usePortfolio } from './usePortfolio'
+import { fetchingAnnouncement, usePricesFetchingLine } from '../../prices/presentation/fetchingLine'
+import { usePrices } from '../../prices/presentation/usePrices'
 import { words } from './words'
 import { shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import { useMediaQuery } from '../../../../shared/layout/viewport'
@@ -47,7 +49,10 @@ const list = computed(() =>
   figures.value === null || sources.value === null ? null : holdingsList(figures.value, sources.value.book, { grouping: grouping.value, find: find.value, sold: sold.value, sort: sort.value }),
 )
 const held = computed(() => (figures.value === null ? 0 : heldHoldings(figures.value).length))
+const prices = usePrices()
+const fetchingLine = usePricesFetchingLine()
 const description = computed(() => {
+  if (fetchingLine.value !== null) return fetchingLine.value
   const close = figures.value === null ? null : figuresClose(figures.value)
   if (figures.value === null || close === null) return words.description
   const worth = figures.value.cash.some((balance) => balance.balance !== DECIMAL_ZERO) ? words.worth : words.worthWithoutCash
@@ -62,6 +67,7 @@ const description = computed(() => {
         <UButton :label="transactionWords.add" icon="i-lucide-plus" data-testid="holdings-add-transaction" @click="adding = true" />
       </template>
     </PageHeader>
+    <p class="sr-only" role="status">{{ fetchingAnnouncement(prices.state.fetching) }}</p>
     <ScreenSkeleton v-if="loading" :heading="false" :cards="1" data-testid="holdings-loading" />
     <EmptyState v-else-if="noTransactions" icon="i-lucide-layers" :title="words.nothingHeld" :description="words.nothingHeldDescription" data-testid="holdings-empty" />
     <AppCard v-else-if="list !== null" data-testid="holdings">

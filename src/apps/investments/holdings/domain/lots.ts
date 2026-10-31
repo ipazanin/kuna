@@ -9,7 +9,20 @@ import type { Transfer, TransferredUnits } from '../../workbook/domain/transfer'
 import { addDays, daysBetween } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayMonthsLater } from '../../../../shared/calendar/monthKey'
-import { DECIMAL_ZERO, addDecimal, decimalOfMoney, decimalParts, inEuros, moneyParts, negateDecimal, scaledDecimal, subtractDecimal, sumDecimal, timesDecimal } from '../../../../shared/money/decimal'
+import {
+  DECIMAL_ZERO,
+  addDecimal,
+  decimalOfMoney,
+  decimalParts,
+  inEuros,
+  moneyParts,
+  negateDecimal,
+  roundedDecimal,
+  scaledDecimal,
+  subtractDecimal,
+  sumDecimal,
+  timesDecimal,
+} from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import { ZERO, addMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
@@ -102,9 +115,13 @@ export function taxFreeUnits(lots: readonly Lot[], day: CivilDate): TaxFreeUnits
   }
 }
 
-/** What a trade moves in its currency: a buy's worth + fees, a sale's worth − fees, each with the accrued interest of a bond. */
+/**
+ * What a trade moves in its currency: a buy's worth + fees, a sale's worth − fees, each with the accrued interest of a
+ * bond. The broker books the worth to the cent, so a fractional quantity whose quantity × price runs to twelve places
+ * moves whole cents, as its net cash did.
+ */
 export function tradeTotal(trade: Trade, quoting: Quoting): Decimal {
-  const worth = addDecimal(tradeWorth(quoting, trade.quantity, trade.price), trade.accrued ?? DECIMAL_ZERO)
+  const worth = addDecimal(roundedDecimal(tradeWorth(quoting, trade.quantity, trade.price), 2), trade.accrued ?? DECIMAL_ZERO)
   const fees = trade.fees ?? DECIMAL_ZERO
   return trade.side === 'buy' ? addDecimal(worth, fees) : subtractDecimal(worth, fees)
 }

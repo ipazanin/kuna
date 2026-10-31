@@ -16,6 +16,11 @@ import InstrumentDialog from './InstrumentDialog.vue'
 import { HOLDINGS_ROUTE, holdingNamed } from './holdingLinks'
 import OpenLotsCard from './OpenLotsCard.vue'
 import { WORKED_OUT_PRICE_PLACES } from './holdingText'
+import { seriesKey } from '../../prices/domain/pricesFile'
+import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
+import { usePrices } from '../../prices/presentation/usePrices'
+import { parseCivilDate } from '../../../../shared/calendar/civilDate'
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { priceChart } from './priceChart'
 import { usePortfolio } from './usePortfolio'
 import { words } from './words'
@@ -60,6 +65,17 @@ const legend = computed((): LegendEntry[] => {
   ]
 })
 
+const prices = usePrices()
+/** Where the holding's closes begin after its first buy, because its vendor has none earlier, said once on its chart. */
+const pricesFrom = computed(() => {
+  const current = holding.value
+  if (current === null || current.firstAcquired === null || current.instrument.prices === 'manual') return null
+  const firstClose = prices.state.copy?.file.series[seriesKey(current.instrument.prices, current.instrument.sourceSymbol)]?.closes[0]?.[0]
+  const vendor = PRICE_VENDORS.find((candidate) => candidate.id === current.instrument.prices)
+  return firstClose === undefined || vendor === undefined || firstClose <= current.firstAcquired.date ? null : words.chart.pricesFrom(dayLabel(parseCivilDate(firstClose)!), vendor.name)
+})
+const chartSubtitle = computed(() => (holding.value === null ? '' : [words.chart.subtitle(holding.value.instrument.currency), pricesFrom.value].filter((part) => part !== null).join(' ')))
+
 const adding = ref(false)
 const changing = ref(false)
 
@@ -87,7 +103,7 @@ const description = computed(() => {
       <ChartCard
         v-if="chart !== null && history !== null"
         :title="words.chart.title"
-        :subtitle="words.chart.subtitle(holding.instrument.currency)"
+        :subtitle="chartSubtitle"
         :option="chart.option"
         :description="chart.description"
         :format-value="chart.formatPrice"

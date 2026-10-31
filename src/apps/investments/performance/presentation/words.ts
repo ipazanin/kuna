@@ -10,6 +10,7 @@ export const en = {
   description: 'How your money grew, with your deposits and withdrawals taken out, against a benchmark.',
   span: (from: string, to: string) => `From ${from} to ${to}.`,
   periods: 'Period',
+  year: 'Year',
   empty: {
     title: 'Nothing to measure yet',
     description: 'Performance starts with your first deposit.',
@@ -126,6 +127,7 @@ export const hr: Translation<typeof en> = {
   description: 'Koliko je vaš novac narastao bez vaših uplata i isplata, u usporedbi s referentnim indeksom.',
   span: (from, to) => withFullStop(`Od ${from} do ${to}`),
   periods: 'Razdoblje',
+  year: 'Godina',
   empty: {
     title: 'Još se nema što mjeriti',
     description: 'Uspješnost počinje vašom prvom uplatom.',

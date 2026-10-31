@@ -19,7 +19,7 @@ vi.mock('../src/apps/investments/holdings/presentation/usePortfolio', () => ({
 }))
 vi.mock('../src/apps/investments/prices/presentation/usePrices', () => ({
   usePrices: () => ({
-    state: shallowReactive({ fetching: null }),
+    state: shallowReactive({ fetching: null, copy: null }),
     async fetchRates(wanted: RatesWanted) {
       page.asked.push(wanted)
       if (page.fetchBrings === null) return { kind: 'failed', message: 'no answer from the ECB' }
@@ -27,6 +27,9 @@ vi.mock('../src/apps/investments/prices/presentation/usePrices', () => ({
       return { kind: 'written', file: null }
     },
   }),
+}))
+vi.mock('../src/apps/investments/prices/presentation/useCloseLookup', () => ({
+  useCloseLookup: () => ({ lookUp: async () => new Map() }),
 }))
 vi.mock('../src/apps/investments/prices/presentation/useSplitLookup', () => ({
   useSplitLookup: () => ({ vendorName: 'Alpha Vantage', hasKey: () => false, lookUp: async () => new Map() }),

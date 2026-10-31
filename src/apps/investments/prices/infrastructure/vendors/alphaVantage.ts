@@ -2,12 +2,41 @@ import { words } from './words'
 import { answerOf, parsedJson, statusFailure } from './vendorAnswers'
 import { isCloseText, isDay, isJsonObject } from '../../domain/pricesFile'
 import type { CloseRow } from '../../domain/pricesFile'
-import type { Fetched, PriceVendor, ReportedSplit, VendorCloses, VendorFetch, VendorSplits } from '../../application/priceVendor'
+import type { Fetched, PriceVendor, ReportedSplit, VendorAnswer, VendorCloses, VendorFetch, VendorLimit, VendorSplits } from '../../application/priceVendor'
 import { splitRatioOf } from '../../domain/splitFactor'
 
 /** One of Alpha Vantage's series: what the request asks for and the key the answer holds its days under. */
 const DAILY = { query: 'function=TIME_SERIES_DAILY&outputsize=compact', days: 'Time Series (Daily)' }
 const MONTHLY = { query: 'function=TIME_SERIES_MONTHLY', days: 'Monthly Time Series' }
+
+/**
+ * Alpha Vantage answers a limit with status 200 and a note under Information or Note. One asking to spread requests
+ * out, or about requests a second or a minute, is the burst limit, though it names the 25 a day as well. One about
+ * requests a day, or a higher call volume, is the daily limit. Both mention the premium plans, so they are read before
+ * the note of a premium endpoint.
+ */
+function limitInNote(note: string): VendorLimit | null {
+  if (/sparingly|per second|per minute|frequency/i.test(note)) {
+    return 'minute'
+  }
+  return /per day|a day|daily|call volume/i.test(note) ? 'day' : null
+}
+
+function noteOf(parsed: unknown): string | null {
+  if (!isJsonObject(parsed)) {
+    return null
+  }
+  const note = typeof parsed.Information === 'string' ? parsed.Information : parsed.Note
+  return typeof note === 'string' ? note : null
+}
+
+function alphaVantageLimit(answer: VendorAnswer): VendorLimit | null {
+  if (answer.status === 429) {
+    return 'minute'
+  }
+  const note = answer.status === 200 ? noteOf(parsedJson(answer.text)) : null
+  return note === null ? null : limitInNote(note)
+}
 
 /** The answer's JSON object, or why there is none: the vendor's error, premium, limit and information notes included. */
 async function answerObject(fetch: VendorFetch, query: string, key: string): Promise<Fetched<{ readonly kind: 'object'; readonly answer: Readonly<Record<string, unknown>> }>> {
@@ -25,7 +54,8 @@ async function answerObject(fetch: VendorFetch, query: string, key: string): Pro
   if ('Error Message' in parsed) {
     return { kind: 'failed', reason: 'unknown-symbol' }
   }
-  if (typeof parsed.Information === 'string' && /premium/i.test(parsed.Information)) {
+  const note = noteOf(parsed)
+  if (note !== null && limitInNote(note) === null && /premium (endpoint|feature)/i.test(note)) {
     return { kind: 'failed', reason: 'not-on-free-key' }
   }
   if ('Note' in parsed || 'Information' in parsed) {
@@ -113,8 +143,10 @@ export const alphaVantage: PriceVendor & Required<Pick<PriceVendor, 'splits'>> =
   prices: 'listings',
   needsKey: true,
   keyAddress: 'https://www.alphavantage.co/support/#api-key',
+  origin: 'https://www.alphavantage.co/',
   // Alpha Vantage states only the 25 a day. Five a minute and a gap of 1.5 seconds are the earlier free limits, kept so a burst is not refused.
   limits: { perMinute: 5, perDay: 25, gapMilliseconds: 1500 },
+  limitOf: alphaVantageLimit,
   // The symbol of Alpha Vantage's own examples.
   testSymbol: 'IBM',
   closes: alphaVantageCloses,

@@ -8,6 +8,7 @@ import { withFullStop } from '../../../../shared/text/withFullStop'
 export const en = {
   title: 'Settings',
   description: 'Where the Investments file is kept, with its export and the switch to another place, your accounts, the benchmark, and where the prices come from.',
+  tabs: { label: 'Parts of the settings', general: 'General', prices: 'Prices' },
   books: 'Investments books',
   localTitle: 'Investments file',
   export: 'Export',
@@ -57,6 +58,7 @@ export const en = {
 export const hr: Translation<typeof en> = {
   title: 'Postavke',
   description: 'Gdje se čuva datoteka ulaganja, s izvozom i premještanjem na drugo mjesto, vaši računi, referentni indeks te odakle dolaze cijene.',
+  tabs: { label: 'Dijelovi postavki', general: 'Općenito', prices: 'Cijene' },
   books: 'Datoteka ulaganja',
   localTitle: 'Datoteka ulaganja',
   export: 'Izvezi',

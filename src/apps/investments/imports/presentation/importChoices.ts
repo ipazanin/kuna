@@ -1,16 +1,18 @@
-import { NO_ANSWERS, proposedCostShare, workbookDryRun } from '../domain/importDryRun'
+import { NO_ANSWERS, costShareFromCloses, proposedCostShare, workbookDryRun } from '../domain/importDryRun'
 import type { AccountQuestion, InstrumentQuestion, SpinOffAnswer, SpinOffQuestion, SplitQuestion, SplitRatio, WorkbookAnswers, WorkbookDryRun, WorkbookRows } from '../domain/importDryRun'
 import { words } from './words'
 import { instrumentErrors, instrumentOfTexts, instrumentTexts } from '../../holdings/presentation/instrumentForm'
 import type { InstrumentErrors, InstrumentTexts } from '../../holdings/presentation/instrumentForm'
 import type { ReportedSplit } from '../../prices/application/priceVendor'
 import type { SplitsLookedUp } from '../../prices/application/splitLookup'
+import type { CloseRow } from '../../prices/domain/pricesFile'
 import type { RateBook } from '../../prices/domain/rateBook'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentAccount } from '../../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { INSTRUMENT_RECORDS, INVESTMENT_ACCOUNT_RECORDS } from '../../workbook/domain/investmentKinds'
 import { daysBetween, parseCivilDate } from '../../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { DECIMAL_ZERO, decimalOfText, decimalShown, roundedDecimal, scaledDecimal, timesDecimal, typedDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import { recordIdOf } from '../../../../shared/storage/domain/recordId'
@@ -69,6 +71,11 @@ export type SplitsOf = (symbol: string) => SplitsAnswer
 /** No lookup, as in a browser without the vendor's key. */
 export const NO_SPLIT_LOOKUP: SplitsOf = () => ({ kind: 'no-key' })
 
+/** The daily closes Kuna holds or looked up for an instrument, oldest first, which a spin-off's share is proposed from. */
+export type ClosesOf = (instrument: Instrument) => readonly CloseRow[]
+
+export const NO_CLOSES: ClosesOf = () => []
+
 /** Why no listed split answers a split's question. */
 export type UnlistedSplit = 'no-key' | 'pending' | 'failed' | 'none-near' | 'priced-by-hand'
 
@@ -91,6 +98,8 @@ export interface SpinOffStep {
   readonly costShare: string
   /** The fraction of the parent's cost proposed for the parent picked. */
   readonly proposed: Decimal | null
+  /** The day of both closes the proposal comes from, or null when it is the units' worth over the cost held. */
+  readonly proposedOn: CivilDate | null
   readonly problems: { readonly parent: string | null; readonly costShare: string | null }
   /** What the row's own Spin-off from or Cost share cell gave that cannot be used, or null. */
   readonly workbookProblem: string | null
@@ -126,12 +135,20 @@ const SHOWN_PERCENT_PLACES = 2
  * spin-off's parent and share as its row gives them, else the share as proposed for the parent picked. Each pass
  * answers what the previous pass asked, until the answers stop changing.
  */
-export function settledImport(reading: WorkbookRows, book: InvestmentBook, rates: RateBook, choices: ImportChoices, newIds: NewIds, splitsOf: SplitsOf = NO_SPLIT_LOOKUP): SettledImport {
+export function settledImport(
+  reading: WorkbookRows,
+  book: InvestmentBook,
+  rates: RateBook,
+  choices: ImportChoices,
+  newIds: NewIds,
+  splitsOf: SplitsOf = NO_SPLIT_LOOKUP,
+  closesOf: ClosesOf = NO_CLOSES,
+): SettledImport {
   let dryRun = workbookDryRun(reading, { book, rates, answers: NO_ANSWERS })
-  let answered = answersOf(dryRun, book, choices, newIds, splitsOf)
+  let answered = answersOf(dryRun, book, choices, newIds, splitsOf, closesOf)
   for (let pass = 0; pass < MOST_PASSES; pass += 1) {
     dryRun = workbookDryRun(reading, { book, rates, answers: answered.answers })
-    const next = answersOf(dryRun, book, choices, newIds, splitsOf)
+    const next = answersOf(dryRun, book, choices, newIds, splitsOf, closesOf)
     const settled = answersKey(next.answers) === answersKey(answered.answers)
     answered = next
     if (settled) break
@@ -150,7 +167,7 @@ interface Answering<Step, Answer> {
   readonly answer: Answer | null
 }
 
-function answersOf(dryRun: WorkbookDryRun, book: InvestmentBook, choices: ImportChoices, newIds: NewIds, splitsOf: SplitsOf): Answered {
+function answersOf(dryRun: WorkbookDryRun, book: InvestmentBook, choices: ImportChoices, newIds: NewIds, splitsOf: SplitsOf, closesOf: ClosesOf): Answered {
   const { questions } = dryRun
   const accounts = questions.accounts.map((question) => accountStep(question, book, choices, newIds))
   const instruments = instrumentSteps(questions.instruments, book, choices, newIds)
@@ -159,7 +176,7 @@ function answersOf(dryRun: WorkbookDryRun, book: InvestmentBook, choices: Import
   const instrumentOf = new Map(answeredInstruments)
   const splits = questions.splits.map((question) => splitStep(question, instrumentOf.get(question.identity) ?? null, choices, splitsOf))
   const receivedOf = new Map(answeredInstruments.map(([identity, instrument]) => [identity, instrument.id]))
-  const spinOffs = questions.spinOffs.map((question) => spinOffStep(question, receivedOf.get(question.identity) ?? null, dryRun, parents, choices))
+  const spinOffs = questions.spinOffs.map((question) => spinOffStep(question, receivedOf.get(question.identity) ?? null, dryRun, parents, choices, closesOf))
 
   const answered = <Step extends { readonly question: unknown }, Answer>(all: readonly Answering<Step, Answer>[], keyOf: (question: Step['question']) => string): Map<string, Answer> =>
     new Map(all.flatMap(({ step, answer }) => (answer === null ? [] : [[keyOf(step.question), answer] as const])))
@@ -246,10 +263,18 @@ function splitStep(question: SplitQuestion, instrument: Instrument | null, choic
 
 /**
  * The parent and the share come from the row's Spin-off from and Cost share cells where they can be used, else from
- * the person. The share is typed in percent, as the transaction dialog takes it, and proposed for the parent picked.
- * The field shows the proposal to two places, and the answer keeps it exact until the person types over it.
+ * the person. The share is typed in percent, as the transaction dialog takes it, and proposed for the parent picked:
+ * by market value from both closes on the first trading day, else as the units' worth over the cost held. The field
+ * shows the proposal to two places, and the answer keeps it exact until the person types over it.
  */
-function spinOffStep(question: SpinOffQuestion, received: RecordId | null, dryRun: WorkbookDryRun, parents: readonly Instrument[], choices: ImportChoices): Answering<SpinOffStep, SpinOffAnswer> {
+function spinOffStep(
+  question: SpinOffQuestion,
+  received: RecordId | null,
+  dryRun: WorkbookDryRun,
+  parents: readonly Instrument[],
+  choices: ImportChoices,
+  closesOf: ClosesOf,
+): Answering<SpinOffStep, SpinOffAnswer> {
   const chosen = choices.spinOffs[question.key]
   const named =
     question.from === ''
@@ -257,7 +282,13 @@ function spinOffStep(question: SpinOffQuestion, received: RecordId | null, dryRu
       : (parents.find((instrument) => instrument.id !== received && (instrument.isin === question.from.toUpperCase() || fold(instrument.symbol) === fold(question.from))) ?? null)
   const chosenParent = chosen?.parent !== undefined && chosen.parent !== null && chosen.parent !== received && parents.some((instrument) => instrument.id === chosen.parent) ? chosen.parent : null
   const parent = chosenParent ?? named?.id ?? null
-  const proposed = parent === null ? null : proposedCostShare(dryRun.planned, parent, question)
+  const parentInstrument = parents.find((instrument) => instrument.id === parent)
+  const receivedInstrument = parents.find((instrument) => instrument.id === received)
+  const fromCloses =
+    parent === null || parentInstrument === undefined || receivedInstrument === undefined || parentInstrument.currency !== receivedInstrument.currency
+      ? null
+      : costShareFromCloses(dryRun.planned, parent, question, closesOf(parentInstrument), closesOf(receivedInstrument))
+  const proposed = fromCloses?.share ?? (parent === null ? null : proposedCostShare(dryRun.planned, parent, question))
   const typed = chosen?.costShare ?? null
   const fromRow = question.costShare
   const costShare =
@@ -277,6 +308,7 @@ function spinOffStep(question: SpinOffQuestion, received: RecordId | null, dryRu
       parent,
       costShare,
       proposed,
+      proposedOn: fromCloses?.day ?? null,
       problems: { parent: parent === null ? words.questions.parentMissing : null, costShare: fraction === null ? words.questions.costShareProblem : null },
       workbookProblem,
       answeredByRow: named !== null && fromRow !== null,

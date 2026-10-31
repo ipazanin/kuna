@@ -1,4 +1,5 @@
-import { rateSeriesKey, seriesKey } from '../../domain/pricesFile'
+import { RATES_FROM } from '../../domain/priceDemand'
+import { ECB_SOURCE, rateSeriesKey, seriesKey } from '../../domain/pricesFile'
 import type { CloseRow, PriceFailure, PricesFile } from '../../domain/pricesFile'
 import { addDays, civilDate, weekdaysBetween } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
@@ -97,10 +98,15 @@ export function fakePricesFile(variant: FakePricesVariant, today: CivilDate): Pr
   const kept = Object.keys(WALKS).filter((key) => variant !== 'no-benchmark' || key !== FAKE_SERIES.benchmark)
   return {
     writtenAt: `${today}T05:41:00.000Z`,
+    lastFetch: { asked: kept.length, upToDate: 0 },
     series: Object.fromEntries(
       kept.map((key) => {
         const walk = WALKS[key]!
-        return [key, { currency: walk.currency, from: FIRST_DAY, closes: days.map((day, place): CloseRow => [day, walkedClose(walk, place)]) }]
+        // A fetch asks the ECB from 2015 and keeps that start, though the made-up rates begin later.
+        const from = key.startsWith(`${ECB_SOURCE}:`) ? RATES_FROM : FIRST_DAY
+        // A series the last fetch failed for was last answered on the day of its last close.
+        const checked = failures.some((failure) => failure.series === key) ? addDays(last, 1) : today
+        return [key, { currency: walk.currency, from, checked, closes: days.map((day, place): CloseRow => [day, walkedClose(walk, place)]) }]
       }),
     ),
     splits: [],

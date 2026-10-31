@@ -34,7 +34,8 @@ export interface RatesWanted {
 
 /** Rates the import may need whatever the records hold, so a first import finds them. */
 const ALWAYS_RATED = ['USD', 'GBP', 'CHF']
-const RATES_FROM = '2015-01-01'
+/** The day the rates run from when no record is earlier. */
+export const RATES_FROM = '2015-01-01'
 
 function earliest(days: readonly string[]): string | null {
   return days.reduce<string | null>((found, day) => (found === null || day < found ? day : found), null)

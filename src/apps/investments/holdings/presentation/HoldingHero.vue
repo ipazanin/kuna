@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import { holdingReturn } from '../domain/holding'
 import type { FirstAcquired, HoldingFigures } from '../domain/holding'
 import { taxFreeUnits } from '../domain/lots'
-import { QUANTITY_PLACES, WORKED_OUT_PRICE_PLACES } from './holdingText'
+import { QUANTITY_PLACES, WORKED_OUT_PRICE_PLACES, useNoPriceWord } from './holdingText'
 import PriceMarkNote from './PriceMarkNote.vue'
 import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -31,9 +31,12 @@ const units = computed(() => words.units(formatQuantity(props.holding.quantity, 
 const returns = computed(() => holdingReturn(props.holding))
 
 /** Why nothing is valued: no price yet, every unit sold, or nothing bought yet. */
+const noPriceWord = useNoPriceWord()
 const unvalued = computed(() =>
   held.value
-    ? { title: words.hero.noPrice, caption: words.hero.noPriceCaption }
+    ? noPriceWord(props.holding.instrument) === words.fetching
+      ? { title: words.fetching, caption: words.hero.fetchingCaption }
+      : { title: words.hero.noPrice, caption: words.hero.noPriceCaption }
     : props.holding.firstAcquired === null
       ? { title: words.hero.notBought, caption: words.hero.notBoughtCaption }
       : { title: words.hero.noneHeld, caption: words.hero.noneHeldCaption },

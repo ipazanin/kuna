@@ -11,7 +11,9 @@ import ImportQuestionsStep from './ImportQuestionsStep.vue'
 import { useWorkbookImport } from './useWorkbookImport'
 import { words } from './words'
 import type { ImportStep } from './words'
+import { fetchAddedInBackground } from '../../prices/presentation/pricesStep'
 import PricesProgress from '../../prices/presentation/PricesProgress.vue'
+import { usePrices } from '../../prices/presentation/usePrices'
 import { transactionCount } from '../../transactions/domain/listedTransactions'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -25,8 +27,9 @@ const open = defineModel<boolean>('open', { required: true })
 
 const store = useInvestmentsBooks()
 const writes = useRecordWrites(store)
+const prices = usePrices()
 const workbookImport = useWorkbookImport()
-const { settled, ready, splitsLookup, splitVendor } = workbookImport
+const { settled, ready, splitsLookup, closesLookup, splitVendor } = workbookImport
 const step = ref<ImportStep>('file')
 
 watch(open, (opened) => {
@@ -65,7 +68,9 @@ async function importWorkbook(): Promise<void> {
   const run = settled.value
   if (run === null || !writesSomething.value) return
   const deleting = toDelete.value
-  if (await writes.write(words.imported, (unit) => writeWorkbookImport(unit, run.dryRun.added, deleting), { failedTitle: words.notImported })) open.value = false
+  if (!(await writes.write(words.imported, (unit) => writeWorkbookImport(unit, run.dryRun.added, deleting), { failedTitle: words.notImported }))) return
+  open.value = false
+  fetchAddedInBackground(prices)
 }
 </script>
 
@@ -76,6 +81,10 @@ async function importWorkbook(): Promise<void> {
       <div v-if="splitsLookup" class="flex flex-col gap-2" data-testid="import-splits-lookup">
         <p class="type-body">{{ words.questions.lookingUp(splitVendor) }}</p>
         <PricesProgress :fetching="splitsLookup" />
+      </div>
+      <div v-if="closesLookup" class="flex flex-col gap-2" data-testid="import-closes-lookup">
+        <p class="type-body">{{ words.questions.lookingUpCloses }}</p>
+        <PricesProgress :fetching="closesLookup" />
       </div>
       <ImportFileStep v-if="shown === 'file'" :workbook-import="workbookImport" />
       <ImportAccountsStep v-else-if="shown === 'accounts' && settled" :workbook-import="workbookImport" :settled="settled" />

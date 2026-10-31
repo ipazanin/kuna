@@ -1,5 +1,5 @@
 import type { PricesUpdate } from '../application/pricesUpdate'
-import { INVESTMENTS_SETTINGS_ROUTE } from '../../overview/presentation/investmentLinks'
+import { INVESTMENTS_PRICES_ROUTE } from '../../overview/presentation/investmentLinks'
 import type { SyncStep } from '../../../../shared/sync/application/sync'
 import { BOOKS_STEP } from '../../../../shared/sync/application/syncRun'
 import { words } from './words'
@@ -8,6 +8,13 @@ import { words } from './words'
 export function fetchInBackground(prices: PricesUpdate): void {
   prices.fetchIfDue().catch(() => {
     // Nothing was written, so the copy and the file stay as they were.
+  })
+}
+
+/** Starts the fetch of the series the records just gained, such as an import's holdings, once a fetch under way is over. */
+export function fetchAddedInBackground(prices: PricesUpdate): void {
+  prices.fetchAdded().catch(() => {
+    // Nothing was written, so the next sync or return to the page fetches what is still missing.
   })
 }
 
@@ -22,7 +29,7 @@ export function pricesStep(prices: PricesUpdate): SyncStep {
     async run() {
       const read = await prices.read()
       if (read.kind === 'refused') {
-        return { kind: 'failed', line: words.refused[read.reason], link: { label: words.step.settings, to: INVESTMENTS_SETTINGS_ROUTE } }
+        return { kind: 'failed', line: words.refused[read.reason], link: { label: words.step.settings, to: INVESTMENTS_PRICES_ROUTE } }
       }
       fetchInBackground(prices)
       return { kind: 'done', line: read.kind === 'read' ? words.step.read : words.step.unchanged, writeId: null, link: null }

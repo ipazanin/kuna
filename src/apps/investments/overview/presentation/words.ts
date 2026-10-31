@@ -31,6 +31,7 @@ export const en = {
     lateByHand: (holding: string, day: string) => `${holding} uses the price you entered on ${day}, which is late.`,
     byHand: (holding: string, day: string) => `${holding} uses the price you entered on ${day}.`,
     unpriced: (holding: string) => `${holding} has no price yet, so the value leaves it out.`,
+    unpricedBecause: (holding: string, why: string, advice: string) => `${holding} has no price, so the value leaves it out. ${why} ${advice}`,
     cashBelowZero: (account: string, amount: string) => `${account} holds ${amount} of cash, below zero. A deposit or an exchange is probably missing.`,
   },
   tiles: {
@@ -138,6 +139,7 @@ export const hr: Translation<typeof en> = {
     lateByHand: (holding, day) => `${holding}: koristi se cijena koju ste unijeli ${day}, a ona kasni.`,
     byHand: (holding, day) => withFullStop(`${holding}: koristi se cijena koju ste unijeli ${day}`),
     unpriced: (holding) => `${holding}: još nema cijene, pa nije u vrijednosti.`,
+    unpricedBecause: (holding, why, advice) => `${holding}: nema cijene, pa nije u vrijednosti. ${why} ${advice}`,
     cashBelowZero: (account, amount) => `${account}: novac je ${amount}, ispod nule. Vjerojatno nedostaje uplata ili konverzija.`,
   },
   tiles: {

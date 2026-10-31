@@ -24,6 +24,8 @@ import type { Trade } from '../../workbook/domain/trade'
 import { TRADE_CODEC } from '../../workbook/domain/tradeReading'
 import type { Transfer } from '../../workbook/domain/transfer'
 import { TRANSFER_CODEC } from '../../workbook/domain/transferReading'
+import type { CloseRow } from '../../prices/domain/pricesFile'
+import { addDays, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { EURO } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
@@ -352,6 +354,44 @@ export function proposedCostShare(planned: InvestmentBook, parent: RecordId, que
   return share > DECIMAL_ZERO && share < ONE ? share : null
 }
 
+/** A spin-off's cost share by market value, and the day of the two closes it comes from. */
+export interface MarketCostShare {
+  readonly share: Decimal
+  readonly day: CivilDate
+}
+
+/** Days after a spin-off its first trading day may fall, past a weekend and a holiday. */
+const FIRST_TRADING_DAYS = 7
+
+/**
+ * The fraction of a parent's cost that a spin-off's units carry by market value, as companies set it: the units
+ * received at their close over that and the parent's units held at the parent's close, on the first day on or after
+ * the spin-off that both closed. Null when either has no close that week, or the parent held no units.
+ */
+export function costShareFromCloses(
+  planned: InvestmentBook,
+  parent: RecordId,
+  question: SpinOffQuestion,
+  parentCloses: readonly CloseRow[],
+  receivedCloses: readonly CloseRow[],
+): MarketCostShare | null {
+  const lots = investmentLots(bookBefore(planned, question.date)).get(parent)
+  const parentUnits = sumDecimal((lots?.open ?? []).map((lot) => lot.quantity))
+  if (parentUnits <= DECIMAL_ZERO) {
+    return null
+  }
+  const lastDay = addDays(question.date, FIRST_TRADING_DAYS)
+  const parentCloseOn = new Map(parentCloses)
+  const received = receivedCloses.find(([day]) => day >= question.date && day <= lastDay && parentCloseOn.has(day))
+  if (received === undefined) {
+    return null
+  }
+  const receivedWorth = timesDecimal(question.quantity, decimalOfText(received[1])!)
+  const total = addDecimal(receivedWorth, timesDecimal(parentUnits, decimalOfText(parentCloseOn.get(received[0])!)!))
+  const share = total <= DECIMAL_ZERO ? DECIMAL_ZERO : dividedDecimal(receivedWorth, total)
+  return share > DECIMAL_ZERO && share < ONE ? { share, day: parseCivilDate(received[0])! } : null
+}
+
 interface Mapping {
   readonly inputs: DryRunInputs
   readonly accountOf: (row: WorkbookRow) => InvestmentAccount | null
@@ -493,8 +533,8 @@ function ecbRate(currency: CurrencyCode, date: CivilDate, mapping: Mapping): Dec
 }
 
 /**
- * A buy's fees are what its net cash paid beyond quantity × price, a sale's what quantity × price got beyond its net
- * cash, in cents. Without a net cash they are the Commission cell. A trade with no commission whose net cash and
+ * A buy's fees are what its net cash paid beyond quantity × price to the cent, a sale's what quantity × price to the
+ * cent got beyond its net cash, so the trade moves its net cash exactly. Without a net cash they are the Commission cell. A trade with no commission whose net cash and
  * quantity × price differ by no more than the price's rounding, as a broker that shows the price to the cent books it,
  * takes its price from the net cash and has no fees.
  */
@@ -515,7 +555,8 @@ function tradeOf(row: WorkbookRow, key: string, mapping: Mapping): Trade {
     quantity > DECIMAL_ZERO &&
     (row.commission ?? DECIMAL_ZERO) === DECIMAL_ZERO &&
     magnitude(subtractDecimal(netCash, worth)) <= addDecimal(tradeWorth(instrument.quoted, quantity, halfStepOf(price)), HALF_CENT)
-  const fees = netCash === null ? row.commission : pricedByNet ? DECIMAL_ZERO : roundedDecimal(side === 'buy' ? subtractDecimal(netCash, worth) : subtractDecimal(worth, netCash), CENT_PLACES)
+  const booked = roundedDecimal(worth, CENT_PLACES)
+  const fees = netCash === null ? row.commission : pricedByNet ? DECIMAL_ZERO : side === 'buy' ? subtractDecimal(netCash, booked) : subtractDecimal(booked, netCash)
   return {
     id: recordIdOf(TRADE_RECORDS, newRecordId()),
     account: account.id,

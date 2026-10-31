@@ -64,7 +64,10 @@ export const ecb: PriceVendor = {
   prices: 'rates',
   needsKey: false,
   keyAddress: null,
+  origin: 'https://data-api.ecb.europa.eu/',
   limits: { perMinute: null, perDay: null, gapMilliseconds: null },
+  // The ECB states no limits, so a 429 can only be a request to slow down for a while.
+  limitOf: (answer) => (answer.status === 429 ? 'minute' : null),
   testSymbol: 'USD',
   closes: ecbRates,
 }

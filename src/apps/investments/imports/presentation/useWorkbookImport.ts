@@ -5,13 +5,17 @@ import { readPortfolioWorkbookFile } from '../application/portfolioWorkbookFile'
 import type { WorkbookRows } from '../domain/importDryRun'
 import { ratesWanted } from '../domain/workbookRates'
 import { NO_CHOICES, settledImport } from './importChoices'
-import type { ImportChoices, SettledImport, SplitsAnswer } from './importChoices'
+import type { ClosesOf, ImportChoices, SettledImport, SplitsAnswer } from './importChoices'
 import { words } from './words'
 import { usePortfolio } from '../../holdings/presentation/usePortfolio'
 import type { PricesFetching } from '../../prices/application/pricesUpdate'
 import type { SplitsLookedUp } from '../../prices/application/splitLookup'
 import { usePrices } from '../../prices/presentation/usePrices'
+import { useCloseLookup } from '../../prices/presentation/useCloseLookup'
 import { useSplitLookup } from '../../prices/presentation/useSplitLookup'
+import type { CloseLookupAsk } from '../../prices/application/closeLookup'
+import { seriesKey } from '../../prices/domain/pricesFile'
+import type { CloseRow } from '../../prices/domain/pricesFile'
 import { NO_RATES } from '../../prices/domain/rateBook'
 import type { RateBook } from '../../prices/domain/rateBook'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
@@ -35,6 +39,8 @@ export interface WorkbookImport {
   readonly fetching: ComputedRef<PricesFetching | null>
   /** The splits lookup under way, counting the symbols it has asked for. */
   readonly splitsLookup: Readonly<Ref<PricesFetching | null>>
+  /** The lookup under way of the closes a spin-off's share is proposed from, counting the listings it has asked for. */
+  readonly closesLookup: Readonly<Ref<PricesFetching | null>>
   /** The name of the vendor splits are looked up with. */
   readonly splitVendor: string
   /** A workbook is read, every rate it needs is there and no splits lookup runs. */
@@ -68,6 +74,7 @@ export function useWorkbookImport(): WorkbookImport {
   const { sources } = usePortfolio()
   const prices = usePrices()
   const splitLookup = useSplitLookup()
+  const closeLookup = useCloseLookup()
   const fileName = ref('')
   const loading = ref(false)
   const failure = ref<string | null>(null)
@@ -76,6 +83,10 @@ export function useWorkbookImport(): WorkbookImport {
   const ratesFetch = shallowRef<RatesFetch | null>(null)
   const splitsLookup = shallowRef<PricesFetching | null>(null)
   const lookedUp = shallowRef<ReadonlyMap<string, SplitsLookedUp>>(new Map())
+  const closesLookup = shallowRef<PricesFetching | null>(null)
+  /** The closes looked up for a spin-off's two listings, by series key, and the keys asked for already. */
+  const lookedUpCloses = shallowRef<ReadonlyMap<string, readonly CloseRow[]>>(new Map())
+  const closesAsked = new Set<string>()
   const choices = shallowRef<ImportChoices>(NO_CHOICES)
   const deleting = shallowRef<ReadonlySet<RecordId>>(new Set())
   let ids = new Map<string, string>()
@@ -88,10 +99,14 @@ export function useWorkbookImport(): WorkbookImport {
 
   const book = computed(() => store.state.workbook?.book ?? null)
   const rates = computed(() => sources.value?.rates ?? NO_RATES)
-  const ready = computed(() => reading.value !== null && ratesFetch.value === null && splitsLookup.value === null)
+  const ready = computed(() => reading.value !== null && ratesFetch.value === null && splitsLookup.value === null && closesLookup.value === null)
+  const closesOf: ClosesOf = (instrument) => {
+    const key = seriesKey(instrument.prices, instrument.sourceSymbol)
+    return lookedUpCloses.value.get(key) ?? prices.state.copy?.file.series[key]?.closes ?? []
+  }
   const splitsOf = (symbol: string): SplitsAnswer => (!splitLookup.hasKey() ? { kind: 'no-key' } : (lookedUp.value.get(symbol) ?? { kind: 'pending' }))
   const settled = computed(() =>
-    reading.value === null || ratesFetch.value !== null || book.value === null ? null : settledImport(reading.value, book.value, rates.value, choices.value, newId, splitsOf),
+    reading.value === null || ratesFetch.value !== null || book.value === null ? null : settledImport(reading.value, book.value, rates.value, choices.value, newId, splitsOf, closesOf),
   )
   const symbolsToLookUp = computed(() => {
     // The splits come first, so the lookup follows them even while this browser holds no key, which is read as it is asked.
@@ -106,7 +121,7 @@ export function useWorkbookImport(): WorkbookImport {
     lookingUp = true
     try {
       const found = await splitLookup.lookUp(symbols, (asked, of) => {
-        splitsLookup.value = { asked, of }
+        splitsLookup.value = { asked, of, leftMilliseconds: 0, pause: null }
       })
       lookedUp.value = new Map([...lookedUp.value, ...symbols.map((symbol) => [symbol, found.get(symbol) ?? { kind: 'failed', reason: 'no-answer' }] as const)])
     } finally {
@@ -116,6 +131,42 @@ export function useWorkbookImport(): WorkbookImport {
   }
 
   watch(symbolsToLookUp, () => void lookUpSplits())
+
+  /** The listings of each spin-off with a parent picked whose closes around its day neither the prices file nor a lookup has. */
+  const closesToLookUp = computed((): CloseLookupAsk[] => {
+    const run = settled.value
+    if (run === null) return []
+    const asks = new Map<string, CloseLookupAsk>()
+    for (const step of run.spinOffs) {
+      if (step.parent === null || step.proposedOn !== null || step.question.costShare !== null) continue
+      const pair = [step.parent, step.received].map((id) => run.parents.find((instrument) => instrument.id === id))
+      for (const instrument of pair) {
+        if (instrument === undefined || instrument.prices === 'manual' || instrument.sourceSymbol === '') continue
+        const key = seriesKey(instrument.prices, instrument.sourceSymbol)
+        if (!closesAsked.has(key)) asks.set(key, { source: instrument.prices, symbol: instrument.sourceSymbol, from: step.question.date })
+      }
+    }
+    return [...asks.values()]
+  })
+  let lookingUpCloses = false
+
+  async function lookUpCloses(): Promise<void> {
+    const asks = closesToLookUp.value
+    if (lookingUpCloses || asks.length === 0) return
+    lookingUpCloses = true
+    asks.forEach((ask) => closesAsked.add(seriesKey(ask.source, ask.symbol)))
+    try {
+      const found = await closeLookup.lookUp(asks, (asked, of) => {
+        closesLookup.value = { asked, of, leftMilliseconds: 0, pause: null }
+      })
+      lookedUpCloses.value = new Map([...lookedUpCloses.value, ...found])
+    } finally {
+      lookingUpCloses = false
+      closesLookup.value = null
+    }
+  }
+
+  watch(closesToLookUp, () => void lookUpCloses())
   const fetching = computed(() => prices.state.fetching)
 
   function forget(): void {
@@ -168,6 +219,7 @@ export function useWorkbookImport(): WorkbookImport {
     reading,
     ratesFetch,
     splitsLookup,
+    closesLookup,
     splitVendor: splitLookup.vendorName,
     fetching,
     ready,

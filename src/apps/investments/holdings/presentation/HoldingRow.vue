@@ -3,7 +3,7 @@ import { RouterLink } from 'vue-router'
 
 import type { HoldingsLine } from '../domain/holdingsList'
 import { holdingLink } from './holdingLinks'
-import { QUANTITY_PLACES } from './holdingText'
+import { QUANTITY_PLACES, useNoPriceWord } from './holdingText'
 import PriceMarkNote from './PriceMarkNote.vue'
 import { words } from './words'
 import { EURO } from '../../../../shared/money/currencyCode'
@@ -14,6 +14,8 @@ import MoneyText from '../../../../shared/ui/MoneyText.vue'
 defineProps<{
   line: HoldingsLine
 }>()
+
+const noPriceWord = useNoPriceWord()
 </script>
 
 <template>
@@ -31,7 +33,7 @@ defineProps<{
     <span class="flex items-baseline justify-between gap-3 type-body">
       <span class="min-w-0 truncate text-highlighted">{{ line.holding.instrument.name }}</span>
       <MoneyText v-if="line.kind === 'holding' && line.holding.valuation !== null" :cents="line.holding.valuation.value" class="shrink-0 font-medium text-highlighted" />
-      <span v-else-if="line.kind === 'holding'" class="shrink-0 type-caption">{{ words.noPrice }}</span>
+      <span v-else-if="line.kind === 'holding'" class="shrink-0 type-caption">{{ noPriceWord(line.holding.instrument) }}</span>
     </span>
     <span class="flex items-baseline justify-between gap-3 type-caption">
       <span class="inline-flex min-w-0 items-center gap-1.5">

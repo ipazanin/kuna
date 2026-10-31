@@ -4,6 +4,8 @@ import UButton from '@nuxt/ui/components/Button.vue'
 
 import { INSTRUMENT_WRITES } from '../application/holdingWrites'
 import { benchmarkChanges } from '../../performance/domain/benchmark'
+import { fetchAddedInBackground } from '../../prices/presentation/pricesStep'
+import { usePrices } from '../../prices/presentation/usePrices'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import InstrumentFields from './InstrumentFields.vue'
 import { instrumentErrors, instrumentOfTexts, instrumentTexts } from './instrumentForm'
@@ -37,6 +39,7 @@ const emit = defineEmits<{
 
 const store = useInvestmentsBooks()
 const writes = useRecordWrites(store)
+const prices = usePrices()
 const text = words.instrumentDialog
 
 const texts = ref<InstrumentTexts>(instrumentTexts(null))
@@ -70,6 +73,7 @@ async function save(): Promise<void> {
         )
       : await writes.write(text.saved, (unit) => unit.of(INSTRUMENT_WRITES).change(before, record), { failedTitle: text.notSaved })
   if (!written) return
+  if (record.prices !== 'manual') fetchAddedInBackground(prices)
   emit('saved', record)
   open.value = false
 }

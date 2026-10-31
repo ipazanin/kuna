@@ -63,7 +63,8 @@ async function forgetFakePrices(): Promise<void> {
 
 /** The fake prices file beside the sample, and the same revision in this browser, so a sync finds it unchanged. */
 async function seedFakePrices(folder: string, investmentsFileId: string, variant: FakePricesVariant, savedAt: string): Promise<void> {
-  const file = fakePricesFile(variant, pricesDay(savedAt))
+  // Written as the page opens, so a failure that may clear on its own waits its while before the page asks again.
+  const file = { ...fakePricesFile(variant, pricesDay(savedAt)), writtenAt: savedAt }
   const created = await fakeDriveSession().createFile(folder, PRICES_FILE_NAME, encodePricesFile(file))
   const cache = openPricesCache(investmentsFileId)
   try {

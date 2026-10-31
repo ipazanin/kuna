@@ -20,7 +20,7 @@
  * brought back, the same from a row of the To review queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google with one token for every scope and the sync it resumes ending ready, with Drive read unticked ending in Allow access, a refused consent and a
  * forged answer leaving Allow access with no message, a refused silent trip marking the device so the next open waits for Allow access, Sign in to Google when Google asks
- * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, a k typed into the what-if's amount expanding at once, 1.255m keeping its third decimal, with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, the period of Investments Performance changed to 1Y, to a year and back to All, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices card, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
+ * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, a k typed into the what-if's amount expanding at once, 1.255m keeping its third decimal, with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, the period of Investments Performance changed to 1Y, to a year in its dropdown and back to All, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices tab, three made-up CSV files of closes imported there, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
@@ -105,6 +105,7 @@ import {
   invoiceFlowIn,
   invoiceRunFlow,
   investmentsDriveFlow,
+  investmentsClosesImportFlowIn,
   investmentsImportFlowIn,
   investmentsPriceKeyFlow,
   loansScenarioEditorFlow,
@@ -165,6 +166,7 @@ import {
   syncRunningFlow,
 } from './support/editorFlows.mjs'
 import { writeImportSamples } from './support/importSampleFiles.mjs'
+import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
 import { runSelection } from './support/runSelection.mjs'
@@ -223,6 +225,7 @@ if (!selection.limited) {
 const TEMPLATE_FILE = await writeFakeTemplateFile(join(OUTPUT_DIR, 'filled-template.xlsx'))
 const IMPORT_SAMPLES = await writeImportSamples(OUTPUT_DIR)
 const WORKBOOK_SAMPLES = await writeWorkbookSamples(OUTPUT_DIR)
+const CLOSES_SAMPLES = writeClosesSamples(OUTPUT_DIR)
 
 const failures = []
 let checked = 0
@@ -1920,7 +1923,7 @@ async function checkWidth(width) {
     await inspect(page, `${width}px Holdings again`)
   })
 
-  // The sample's Performance: a tap on 1Y and on a year changes the period and keeps it in the address, and All takes it out again.
+  // The sample's Performance: a tap on 1Y and a year picked in the dropdown change the period and keep it in the address, and All takes it out again.
   await step('investments-performance-period', async () => {
     await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/performance`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Performance')
@@ -1938,8 +1941,20 @@ async function checkWidth(width) {
     await page.waitForSelector('[data-testid="performance-growth"] .chart-body canvas')
     await inspect(page, `${width}px Performance on 1Y`)
     await shoot('investments-performance-1y')
-    await (await waitForText(page, '[data-testid="performance-periods"] button', '2024')).tap()
-    await page.waitForFunction(() => document.querySelector('[data-testid="performance-periods"] [aria-pressed="true"]')?.textContent?.trim() === '2024', { timeout: 5_000 })
+    await expect(
+      page.$eval('[data-testid="performance-year"]', (element) => element.textContent?.trim() ?? ''),
+      (label) => label === 'Year',
+      'the year dropdown does not offer Year while 1Y is the period',
+    )
+    await page.tap('[data-testid="performance-year"]')
+    await (await waitForText(page, '[role="option"]', '2024')).tap()
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await page.waitForFunction(() => document.querySelector('[data-testid="performance-year"]')?.textContent?.trim() === '2024', { timeout: 5_000 })
+    await expect(
+      page.evaluate(() => document.querySelector('[data-testid="performance-periods"] [aria-pressed="true"]')?.textContent?.trim() ?? null),
+      (label) => label === null,
+      'a rolling period stays pressed while 2024 is the period',
+    )
     await expect(periodInAddress(), (period) => period === '2024', '2024 is not kept in the address')
     await expect(header(), (text) => text.includes('31 Dec 2023') && text.includes('31 Dec 2024'), 'the header does not run from the close of 2023 to the end of 2024')
     await inspect(page, `${width}px Performance on 2024`)
@@ -2059,7 +2074,8 @@ async function checkWidth(width) {
     ['onboarding-move-on-drive', 'browser-beside-drive', moveOntoDriveFlow, '#/company/settings?tab=books', 'Settings'],
     ['loans-start-on-drive', 'drive&loans=other-device', loansStartOnDriveFlow, '#/loans/start?step=folder', 'Loans'],
     ['investments-start', 'drive', investmentsDriveFlow, '#/investments', 'Investments'],
-    ['investments-price-key', 'drive&investments=sample', investmentsPriceKeyFlow, '#/investments/settings', 'Settings'],
+    ['investments-price-key', 'drive&investments=sample', investmentsPriceKeyFlow, '#/investments/settings?tab=prices', 'Settings'],
+    ['investments-closes-import', 'drive&investments=sample', investmentsClosesImportFlowIn('en', CLOSES_SAMPLES), '#/investments/settings?tab=prices', 'Settings'],
     ['investments-import', 'drive&investments=drive&prices=sample', investmentsImportFlowIn('en', WORKBOOK_SAMPLES, { undoing: true }), '#/investments', 'Overview'],
     ['loans-scenarios', 'drive&loans=sample', loansScenariosFlow, '#/loans/scenarios', 'Scenarios'],
     ['loans-scenario-editor', 'drive&loans=sample', loansScenarioEditorFlow, '#/loans/scenarios', 'Scenarios'],

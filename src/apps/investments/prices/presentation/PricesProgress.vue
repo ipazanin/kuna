@@ -3,12 +3,12 @@ import { computed } from 'vue'
 
 import type { PricesFetching } from '../application/pricesUpdate'
 import ProgressMeter from '../../../../shared/ui/ProgressMeter.vue'
-import { words } from './words'
+import { useFetchingLine } from './fetchingLine'
 
 /** A fetch under way: how many series it has asked for of how many, or only that it runs until it knows the count. */
 const props = defineProps<{ fetching: PricesFetching }>()
 
-const line = computed(() => (props.fetching.of === null || props.fetching.of === 0 ? words.fetching : words.fetchingCount(props.fetching.asked, props.fetching.of)))
+const line = useFetchingLine(() => props.fetching)
 const parts = computed(() =>
   props.fetching.of === null || props.fetching.of === 0
     ? []
@@ -22,6 +22,6 @@ const parts = computed(() =>
 <template>
   <div class="flex flex-col gap-2" role="status" data-testid="prices-fetching">
     <p class="type-body">{{ line }}</p>
-    <ProgressMeter v-if="parts.length > 0" :parts="parts" :label="line" />
+    <ProgressMeter v-if="parts.length > 0" :parts="parts" :label="line ?? ''" />
   </div>
 </template>

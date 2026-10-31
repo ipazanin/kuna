@@ -1,4 +1,4 @@
-import { watch } from 'vue'
+import { ref, watch } from 'vue'
 
 import { createPricesUpdate } from '../application/pricesUpdate'
 import type { PricesUpdate } from '../application/pricesUpdate'
@@ -9,6 +9,7 @@ import { browserFetch, browserPause } from '../infrastructure/browserPricePorts'
 import { googlePricesDrive } from '../infrastructure/googlePricesDrive'
 import { openPricesCache } from '../infrastructure/pricesCache'
 import { storedVendorKey } from '../infrastructure/vendorKeys'
+import { countRequest, requestsToday } from '../infrastructure/vendorUsage'
 import { PRICE_VENDORS } from '../infrastructure/vendors/priceVendors'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { fetchInBackground, pricesStep } from './pricesStep'
@@ -40,8 +41,35 @@ async function vendorFetch(): Promise<VendorFetch> {
   return browserFetch
 }
 
-/** Every vendor request of the page, which the fake build answers itself. */
-export const pageVendorFetch: VendorFetch = async (url) => (await vendorFetch())(url)
+/** Bumped with each request, so the Prices settings read this browser's counts again. */
+const counted = ref(0)
+
+/** Every vendor request of the page, which the fake build answers itself, counted against its vendor's day. */
+export const pageVendorFetch: VendorFetch = async (url) => {
+  const vendor = PRICE_VENDORS.find((candidate) => url.startsWith(candidate.origin))
+  if (vendor !== undefined) {
+    countRequest(vendor.id, new Date())
+    counted.value += 1
+  }
+  return (await vendorFetch())(url)
+}
+
+/** This browser's requests to the vendor today, which updates as the page sends more. */
+export function useRequestsToday(): (vendorId: string) => number {
+  return (vendorId) => {
+    void counted.value
+    return requestsToday(vendorId, new Date())
+  }
+}
+
+/** The fake build waits a tenth of each pause, so its fetch shows a vendor's pause without holding a check for a minute. */
+export async function pagePause(milliseconds: number): Promise<void> {
+  // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
+  if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
+    return browserPause(milliseconds / 10)
+  }
+  return browserPause(milliseconds)
+}
 
 const prices: PricesUpdate = createPricesUpdate({
   async place() {
@@ -54,7 +82,7 @@ const prices: PricesUpdate = createPricesUpdate({
   investments: () => store.state.workbook?.book ?? null,
   vendors: PRICE_VENDORS,
   fetch: pageVendorFetch,
-  pause: browserPause,
+  pause: pagePause,
   key: storedVendorKey,
   exclusively: exclusivelyInBrowser,
   now: () => new Date().toISOString(),

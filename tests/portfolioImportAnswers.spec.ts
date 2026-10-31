@@ -120,6 +120,42 @@ describe('the ECB rates the rows need', () => {
   })
 })
 
+describe("a spin-off's share proposed from the market closes of both holdings", () => {
+  const rows = (cells: Cells = {}) =>
+    rowsOf(
+      line('2025-01-02', { ...MAIN, type: 'DEPOSIT', currency: 'USD', netCash: 5000, revolutRate: 1.04 }),
+      line('2025-01-06', { ...MAIN, ...ABC, type: 'BUY', quantity: 10, price: 100, currency: 'USD', gross: -1000, commission: 1, netCash: -1001 }),
+      line('2025-07-01', { ...MAIN, ...NEWCO, type: 'SPINOFF', quantity: 4, price: 12, currency: 'USD', spinOffFrom: 'ABC', ...cells }),
+    )
+  const marketCloses = (newcoFrom: string) => (listed: { readonly symbol: string }) =>
+    listed.symbol === 'ABC'
+      ? ([
+          ['2025-06-30', '100'],
+          ['2025-07-01', '90'],
+          ['2025-07-14', '91'],
+        ] as const)
+      : ([[newcoFrom, '25']] as const)
+  const settle = (cells: Cells, newcoFrom: string) => settledImport(rows(cells), book({}), RATES, NO_CHOICES, keyed(new Map()), undefined, marketCloses(newcoFrom))
+
+  it('proposes the new units at their close over them and the parent units held at theirs, on the first day both closed', () => {
+    const step = settle({}, '2025-07-01').spinOffs[0]!
+    // 4 × 25 = 100 against 10 × 90 = 900, so a tenth of the cost moves to NewCo.
+    expect([decimalText(step.proposed!), step.proposedOn, step.costShare]).toEqual(['0.1', '2025-07-01', '10'])
+  })
+
+  it("keeps the worth over the cost held when no close of both falls in the spin-off's first week", () => {
+    const step = settle({}, '2025-07-14').spinOffs[0]!
+    // 4 × 12 = 48 over the 1,001 the parent cost.
+    expect([decimalText(roundedDecimal(step.proposed!, 6)), step.proposedOn]).toEqual(['0.047952', null])
+  })
+
+  it("lets the workbook's Cost share win over the closes", () => {
+    const settled = settle({ costShare: 5 }, '2025-07-01')
+    expect(settled.spinOffs[0]?.answeredByRow).toBe(true)
+    expect(settled.dryRun.added.spinOffs.map((spinOff) => decimalText(spinOff.costShare))).toEqual(['0.05'])
+  })
+})
+
 describe('a spin-off whose row names its parent and its share of the cost', () => {
   function spinOffWith(cells: Cells) {
     const rows = rowsOf(

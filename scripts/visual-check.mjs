@@ -33,7 +33,8 @@
  * benchmark has no closes (`?prices=no-benchmark`), each in Croatian too,
  * the sample's Transactions, in Croatian too, and Transactions on an empty file, the import of the made-up portfolio workbook
  * into an empty Investments file with the fake prices, each step and the dry run in English and Croatian, and the same workbook again adding nothing,
- * Settings' Prices card on the sample with current prices, with made-up keys kept and with late prices, Company's
+ * the Prices tab of the Investments Settings on the sample with current prices, with made-up keys kept and with late prices, its General tab, three made-up CSV files of closes imported on it,
+ * the fetch after the import waiting out the fake vendor's minute and then back at its close, Company's
  * Overview, Transactions with its To review and Import tabs, every tab of Analysis, Invoicing with its Plan and Clients tabs, every tab of Settings and onboarding's first steps in Croatian (`?lang=hr`),
  * Year, Salaries and Owner in Croatian in the fake file on Drive, in this browser and with one and five employees, Salaries for one
  * made-up employee (`?fake=one-employee`) and for five (`?fake=five-employees`), and the summary
@@ -206,6 +207,7 @@ import {
   loansDialogsFlowIn,
   investmentsDialogsFlow,
   investmentsDialogsFlowIn,
+  investmentsClosesImportFlowIn,
   investmentsEditorFlow,
   investmentsImportFlowIn,
   loansDriveFlow,
@@ -285,6 +287,7 @@ import {
   syncStatesFlowIn,
 } from './support/editorFlows.mjs'
 import { writeImportSamples } from './support/importSampleFiles.mjs'
+import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
 import { runSelection } from './support/runSelection.mjs'
 import { settleCharts } from './support/settleCharts.mjs'
@@ -1850,7 +1853,7 @@ const SOURCE_SCREENS = [
   {
     name: 'investments-prices-settings',
     query: 'investments=sample',
-    hash: '#/investments/settings',
+    hash: '#/investments/settings?tab=prices',
     title: 'Settings',
     charts: 0,
     ready: '[data-testid="investments-prices-card"] [data-vendor="ecb"]',
@@ -1862,27 +1865,57 @@ const SOURCE_SCREENS = [
       'No key in this browser.',
       'Needs no key.',
       'Get a free key',
-      'Last fetched',
-      'What Performance compares your portfolio with',
-      'Its last close in the prices file is from',
-      'Add a benchmark',
+      'Fetched',
+      'Asked for 7 series, 0 already up to date.',
+      'A free key takes 8 requests a minute and 800 a day.',
+      'Gives daily closes and splits.',
+      'Import closes',
     ],
     cards: false,
   },
   {
     name: 'investments-prices-settings-croatian',
     query: 'investments=sample&lang=hr',
-    hash: '#/investments/settings',
+    hash: '#/investments/settings?tab=prices',
     title: 'Postavke',
     charts: 0,
     ready: '[data-testid="investments-prices-card"] [data-vendor="ecb"]',
-    shows: ['Odakle dolaze cijene', 'Europska središnja banka', 'U ovom pregledniku nema ključa.', 'Ne treba ključ.', 'Besplatan ključ', 'Zadnje dohvaćanje', 'Referentni indeks', 'Dodaj indeks'],
+    shows: [
+      'Odakle dolaze cijene',
+      'Europska središnja banka',
+      'U ovom pregledniku nema ključa.',
+      'Ne treba ključ.',
+      'Besplatan ključ',
+      'Zadnje dohvaćanje',
+      'Besplatni ključ prima 8 zahtjeva u minuti i 800 dnevno.',
+      'Uvoz zaključnih cijena',
+    ],
+    cards: false,
+  },
+  {
+    name: 'investments-settings-sample',
+    query: 'investments=sample',
+    hash: '#/investments/settings',
+    title: 'Settings',
+    charts: 0,
+    ready: '[data-testid="investments-books-card"]',
+    shows: ['General', 'Prices', 'What Performance compares your portfolio with', 'Its last close in the prices file is from', 'Add a benchmark'],
+    cards: false,
+  },
+  {
+    name: 'investments-settings-sample-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments/settings',
+    title: 'Postavke',
+    charts: 0,
+    ready: '[data-testid="investments-books-card"]',
+    shows: ['Općenito', 'Cijene', 'Referentni indeks', 'Dodaj indeks'],
     cards: false,
   },
   {
     name: 'investments-prices-settings-keys',
     query: 'investments=sample',
-    hash: '#/investments/settings',
+    hash: '#/investments/settings?tab=prices',
     title: 'Settings',
     charts: 0,
     ready: '[data-testid="investments-prices-card"] [data-testid="price-vendor-forget"]',
@@ -1893,7 +1926,7 @@ const SOURCE_SCREENS = [
   {
     name: 'investments-prices-settings-keys-croatian',
     query: 'investments=sample&lang=hr',
-    hash: '#/investments/settings',
+    hash: '#/investments/settings?tab=prices',
     title: 'Postavke',
     charts: 0,
     ready: '[data-testid="investments-prices-card"] [data-testid="price-vendor-forget"]',
@@ -1904,7 +1937,7 @@ const SOURCE_SCREENS = [
   {
     name: 'investments-prices-settings-late',
     query: 'investments=sample&prices=late-prices',
-    hash: '#/investments/settings',
+    hash: '#/investments/settings?tab=prices',
     title: 'Settings',
     charts: 0,
     ready: '[data-testid="prices-failures"]',
@@ -1921,7 +1954,7 @@ const SOURCE_SCREENS = [
   {
     name: 'investments-prices-settings-late-croatian',
     query: 'investments=sample&prices=late-prices&lang=hr',
-    hash: '#/investments/settings',
+    hash: '#/investments/settings?tab=prices',
     title: 'Postavke',
     charts: 0,
     ready: '[data-testid="prices-failures"]',
@@ -2322,6 +2355,7 @@ function writeImportFile() {
 const IMPORT_FILE = writeImportFile()
 const IMPORT_SAMPLES = await writeImportSamples(SCREENSHOT_DIR)
 const WORKBOOK_SAMPLES = await writeWorkbookSamples(SCREENSHOT_DIR)
+const CLOSES_SAMPLES = writeClosesSamples(SCREENSHOT_DIR)
 
 /** The dialog flows run at every width, so the uneven form row rule sees each dialog as every width lays it out. */
 const EVERY_VIEWPORT = VIEWPORTS.map((viewport) => viewport.name)
@@ -2782,6 +2816,24 @@ const FLOWS = [
     viewports: EVERY_VIEWPORT,
     modes: ['drive'],
     queries: { drive: '&investments=drive&prices=sample&lang=hr' },
+  },
+  {
+    name: 'investments-closes-import',
+    hash: '#/investments/settings?tab=prices',
+    title: 'Settings',
+    run: investmentsClosesImportFlowIn('en', CLOSES_SAMPLES),
+    viewports: EVERY_VIEWPORT,
+    modes: ['drive'],
+    queries: { drive: '&investments=sample' },
+  },
+  {
+    name: 'investments-closes-import-croatian',
+    hash: '#/investments/settings?tab=prices',
+    title: 'Postavke',
+    run: investmentsClosesImportFlowIn('hr', CLOSES_SAMPLES),
+    viewports: EVERY_VIEWPORT,
+    modes: ['drive'],
+    queries: { drive: '&investments=sample&lang=hr' },
   },
   {
     name: 'dialogs-investments-croatian',

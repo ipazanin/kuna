@@ -18,7 +18,7 @@ export interface SplitLookup {
  * so they count against the vendor's limits a minute and a day, as a prices fetch counts its own.
  */
 export function createSplitLookup(vendor: PriceVendor & Required<Pick<PriceVendor, 'splits'>>, ports: Pick<PriceFetchPorts, 'fetch' | 'pause' | 'key'>): SplitLookup {
-  const fetch = pacedFetch(ports, vendor.limits, { elapsed: 0 })
+  const fetch = pacedFetch(ports, vendor, { elapsed: 0 })
   return {
     vendorName: vendor.name,
     hasKey: () => ports.key(vendor.id) !== null,

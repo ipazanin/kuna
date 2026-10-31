@@ -134,6 +134,15 @@ describe("the Overview's notice", () => {
     expect(pricesNotice(belowZero).cashBelowZero.map((balance) => [balance.currency, balance.value])).toEqual([[EURO, euros(-754)]])
   })
 
+  it('names no cash below zero for a buy whose quantity × price runs past the cent', () => {
+    const records = workedPortfolio()
+    // 446.00 of euro cash less a buy of 1 × 446.004, which the broker books as 446.00, leaves nothing.
+    const dust = figuresOf({ ...records, trades: [...records.trades, trade('buy', BROKER, WORLD_ETF, '2026-03-02', '1', '446.004', '0')] })
+
+    expect(pricesNotice(dust).cashBelowZero).toEqual([])
+    expect(dust.cash.find((balance) => balance.currency === EURO)?.balance).toBe(0n)
+  })
+
   it('says the parts of the gain leave out a holding with no price', () => {
     // The total gain counts the 100.00 put into it and nothing of its worth, the parts count nothing of it.
     const sources = gainSources(figuresOf(workedWith(instrument('new-fund', { prices: 'manual' }), '2', '50')))

@@ -47,7 +47,9 @@ function madeUpVendor(id: string, prices: PriceVendor['prices'], needsKey: boole
     prices,
     needsKey,
     keyAddress: needsKey ? 'https://example.com/key' : null,
+    origin: `https://${id}.example.com/`,
     limits: { perMinute: null, perDay: null, gapMilliseconds: null },
+    limitOf: () => null,
     testSymbol: 'TEST',
     async closes(_fetch, _key, symbol): Promise<VendorCloses> {
       world.asked.push(`${id}:${symbol}`)
@@ -72,6 +74,8 @@ interface World {
   locked: boolean
   /** The fake Drive turns the next writes of the prices file away. */
   overwriteFails: boolean
+  /** The Investments records on screen, or null while they are not read. */
+  records: InvestmentBook | null
 }
 
 const caches: PricesCache[] = []
@@ -110,6 +114,7 @@ async function worldOf(options: { readonly onDrive?: boolean; readonly records?:
     keys: { twelvedata: 'made-up-key-for-a-spec' },
     locked: false,
     overwriteFails: false,
+    records: options.records === undefined ? investments() : options.records,
     hold() {
       let release = (): void => {}
       vendorWorld.gate = new Promise((resolve) => {
@@ -122,7 +127,7 @@ async function worldOf(options: { readonly onDrive?: boolean; readonly records?:
     },
     update: createPricesUpdate({
       place: async () => place,
-      investments: () => (options.records === undefined ? investments() : options.records),
+      investments: () => self.records,
       vendors: [madeUpVendor('twelvedata', 'listings', true, vendorWorld), madeUpVendor('ecb', 'rates', false, vendorWorld)],
       fetch: async () => ({ status: 200, text: '' }),
       pause: async () => {},
@@ -283,7 +288,7 @@ describe('the Prices step of a sync', () => {
     await sync.sync()
     await backgroundSettled(world)
 
-    expect(stepState(sync)).toEqual({ kind: 'failed', line: words.refused.newer, link: { label: words.step.settings, to: '/investments/settings' } })
+    expect(stepState(sync)).toEqual({ kind: 'failed', line: words.refused.newer, link: { label: words.step.settings, to: '/investments/settings?tab=prices' } })
     expect(world.update.state.copy).toEqual(kept)
     expect(await world.drive.download(fileId)).toBe(newer)
   })
@@ -294,7 +299,7 @@ describe('when the day comes to fetch', () => {
   const ecb = { id: 'ecb', needsKey: false }
 
   function moment(overrides: Partial<PricesFetchMoment>): PricesFetchMoment {
-    return { writtenAt: '2026-10-29T05:41:00.000Z', today: TODAY, needed: [twelveData, ecb], hasKey: (vendorId) => vendorId === 'twelvedata', keyless: [], running: false, ...overrides }
+    return { writtenAt: '2026-10-29T05:41:00.000Z', today: TODAY, needed: [twelveData, ecb], hasKey: (vendorId) => vendorId === 'twelvedata', keyless: [], running: false, askAgain: [], ...overrides }
   }
 
   it('fetches when the prices file was written yesterday, or never', () => {
@@ -353,7 +358,7 @@ describe("the day's fetch", () => {
     const world = await worldOf()
     const fileId = await pricesOnDrive(world, fakePricesFile('sample', civil('2026-10-29')))
     await world.update.read()
-    await world.drive.upload(fileId, encodePricesFile({ ...fakePricesFile('sample', civil('2026-10-29')), writtenAt: NOW }))
+    await world.drive.upload(fileId, encodePricesFile({ ...fakePricesFile('sample', TODAY), writtenAt: NOW }))
     const before = world.drive.file(fileId).headRevisionId
 
     expect(await world.update.fetchIfDue()).toBe('due')
@@ -409,7 +414,8 @@ describe("the day's fetch", () => {
     release()
     await daily
     expect(await rates).toMatchObject({ kind: 'written' })
-    expect(world.asked).toEqual(['twelvedata:ABC', 'ecb:USD', 'ecb:GBP', 'ecb:CHF', 'ecb:USD', 'ecb:GBP', 'ecb:CHF', 'ecb:SEK'])
+    // The rates the day's fetch just brought are up to date, so only the new currency is asked for.
+    expect(world.asked).toEqual(['twelvedata:ABC', 'ecb:USD', 'ecb:GBP', 'ecb:CHF', 'ecb:SEK'])
   })
 
   it('runs one fetch at a time in a page, counting the series as it asks for each', async () => {
@@ -421,7 +427,7 @@ describe("the day's fetch", () => {
     for (let round = 0; round < 50 && world.asked.length === 0; round += 1) {
       await new Promise((resolve) => setTimeout(resolve, 2))
     }
-    expect(world.update.state.fetching).toEqual({ asked: 1, of: 4 })
+    expect(world.update.state.fetching).toMatchObject({ asked: 1, of: 4, pause: null })
     expect(await world.update.fetchIfDue()).toBe('running')
     expect(await world.update.fetchNow()).toBe('running')
 
@@ -443,7 +449,7 @@ describe("the day's fetch", () => {
     expect(world.drive.file(fileId).headRevisionId).toBe(head)
   })
 
-  it('fetches now whatever the day, and keeps the prices of an Investments file kept in this browser in its copy alone', async () => {
+  it('fetches now whatever the day, asking nothing that is up to date, and keeps the prices of an Investments file kept in this browser in its copy alone', async () => {
     const world = await worldOf({ onDrive: false })
     await world.cache.replace({ fileId: null, revision: 'browser-0', readAt: NOW, file: fakePricesFile('sample', TODAY) })
     await world.update.open()
@@ -455,7 +461,8 @@ describe("the day's fetch", () => {
     expect(world.drive.requests).toEqual([])
     expect(await world.cache.read()).toMatchObject({ fileId: null, revision: `browser-${worlds}` })
     expect(world.update.state.copy?.file.writtenAt).toBe(NOW)
-    expect(world.update.state.copy?.file.series['twelvedata:ABC']?.closes.at(-1)).toEqual(['2026-10-29', '10.00'])
+    expect(world.asked).toEqual([])
+    expect(world.update.state.copy?.file.lastFetch).toEqual({ asked: 0, upToDate: 4 })
   })
 
   it('names the Investments file only once the copy of this browser is read, also when there is none', async () => {
@@ -472,5 +479,81 @@ describe("the day's fetch", () => {
     const world = await worldOf({ records: null })
     expect(await world.update.fetchIfDue()).toBe('no-books')
     expect(await world.update.fetchNow()).toBe('no-books')
+  })
+})
+
+describe('a day whose fetch already wrote the prices file', () => {
+  const NEW_SHARE = instrument('new', { currency: USD })
+
+  function withNewShare(): InvestmentBook {
+    const records = investments()
+    return { ...records, instruments: [...records.instruments, NEW_SHARE], trades: [...records.trades, trade('buy', BROKER, NEW_SHARE, '2026-10-01', '3', '20', '0', '1.16')] }
+  }
+
+  /** The sample as a fetch at 05:41 today wrote it, without the share's series and with a failure noted for it. */
+  function failedToday(reason: PricesFile['failures'][number]['reason'], writtenAt = '2026-10-30T05:41:00.000Z'): PricesFile {
+    const sample = fakePricesFile('sample', TODAY)
+    const { 'twelvedata:ABC': _left, ...series } = sample.series
+    return { ...sample, writtenAt, series, failures: [{ series: 'twelvedata:ABC', day: TODAY, reason }] }
+  }
+
+  it('fetches again for an instrument added after that fetch, asking for its series alone', async () => {
+    const world = await worldOf()
+    await pricesOnDrive(world, fakePricesFile('sample', TODAY))
+    await world.update.read()
+    world.records = withNewShare()
+
+    expect(await world.update.fetchIfDue()).toBe('due')
+    expect(world.asked).toEqual(['twelvedata:NEW'])
+    expect(world.update.state.copy?.file.series['twelvedata:NEW']).toBeDefined()
+    expect(world.update.state.copy?.file.series['twelvedata:ABC']).toBeDefined()
+    world.asked.length = 0
+    expect(await world.update.fetchIfDue()).toBe('fetched-today')
+    expect(world.asked).toEqual([])
+  })
+
+  it('fetches again for a series that failed today for a reason that may clear on its own, once a quarter of an hour has passed', async () => {
+    for (const reason of ['limit', 'no-answer'] as const) {
+      const world = await worldOf()
+      await pricesOnDrive(world, failedToday(reason))
+      await world.update.read()
+      expect(await world.update.fetchIfDue()).toBe('due')
+      expect(world.asked).toEqual(['twelvedata:ABC'])
+      expect(world.update.state.copy?.file.failures).toEqual([])
+    }
+    const soon = await worldOf()
+    await pricesOnDrive(soon, failedToday('limit', '2026-10-30T06:50:00.000Z'))
+    await soon.update.read()
+    expect(await soon.update.fetchIfDue()).toBe('fetched-today')
+    expect(soon.asked).toEqual([])
+  })
+
+  it('leaves a series that failed today for its own reason to the next day', async () => {
+    for (const reason of ['unknown-symbol', 'not-on-free-key'] as const) {
+      const world = await worldOf()
+      await pricesOnDrive(world, failedToday(reason))
+      await world.update.read()
+      expect(await world.update.fetchIfDue()).toBe('fetched-today')
+      expect(world.asked).toEqual([])
+    }
+  })
+
+  it('fetches the series an import added once the fetch under way is over, without waiting for the next day', async () => {
+    const world = await worldOf()
+    await pricesOnDrive(world, fakePricesFile('sample', civil('2026-10-29')))
+    await world.update.read()
+    const release = world.hold()
+    const daily = world.update.fetchNow()
+    for (let round = 0; round < 50 && world.asked.length === 0; round += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 2))
+    }
+    world.records = withNewShare()
+    const added = world.update.fetchAdded()
+    release()
+    await daily
+
+    expect(await added).toBe('due')
+    expect(world.asked).toEqual(['twelvedata:ABC', 'ecb:USD', 'ecb:GBP', 'ecb:CHF', 'twelvedata:NEW'])
+    expect(world.update.state.copy?.file.series['twelvedata:NEW']).toBeDefined()
   })
 })

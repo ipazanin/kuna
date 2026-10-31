@@ -2,7 +2,7 @@
 import type { HoldingFigures } from '../domain/holding'
 import type { HoldingsColumn, HoldingsList, HoldingsSort } from '../domain/holdingsList'
 import { holdingLink } from './holdingLinks'
-import { listingLine, QUANTITY_PLACES } from './holdingText'
+import { listingLine, QUANTITY_PLACES, useNoPriceWord } from './holdingText'
 import HoldingsGroupName from './HoldingsGroupName.vue'
 import LastDayChange from './LastDayChange.vue'
 import PriceMarkNote from './PriceMarkNote.vue'
@@ -19,6 +19,8 @@ import type { SortDirection } from '../../../../shared/ui/SortableHeader.vue'
 defineProps<{
   list: HoldingsList
 }>()
+
+const noPriceWord = useNoPriceWord()
 
 const sort = defineModel<HoldingsSort | null>('sort', { required: true })
 
@@ -99,7 +101,7 @@ function heldLine(holding: HoldingFigures): string {
           <td class="text-end">
             <template v-if="line.kind === 'holding'">
               <MoneyText v-if="line.holding.valuation !== null" :cents="line.holding.valuation.value" />
-              <span v-else class="type-caption">{{ words.noPrice }}</span>
+              <span v-else class="type-caption">{{ noPriceWord(line.holding.instrument) }}</span>
               <span v-if="line.holding.valuation !== null && line.holding.instrument.currency !== EURO" class="block type-caption">
                 {{ formatCurrencyAmount(line.holding.valuation.foreignValue, line.holding.instrument.currency) }}
               </span>

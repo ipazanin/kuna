@@ -17,6 +17,9 @@ export interface VendorLimits {
   readonly gapMilliseconds: number | null
 }
 
+/** A limit a vendor answered that it reached: the minute's, which passes, or the day's, which stops it until tomorrow. */
+export type VendorLimit = 'minute' | 'day'
+
 /** A split on the day it took effect, as whole numbers of new and old units. */
 export interface ReportedSplit {
   readonly date: string
@@ -41,7 +44,14 @@ export interface VendorSplits {
   readonly splits: readonly ReportedSplit[]
 }
 
-/** One place Kuna fetches closes from. Adding a vendor is one adapter like this and its entry in the registry. */
+/**
+ * One place Kuna fetches closes or rates from. A new vendor is one module under infrastructure/vendors that exports
+ * this, plus its entry in PRICE_VENDORS and its source in PRICE_SOURCES when instruments name it. It supplies its id,
+ * name and coverage in both languages, what it prices, whether it needs a key and where to claim one, the address its
+ * requests go to, its free limits, how to read a limit from its answers, a test symbol, and the closes of a symbol from
+ * a day. It may list splits too. The Prices settings, the pacing and the fetch read everything from here, so nothing
+ * else names a vendor.
+ */
 export interface PriceVendor {
   /** The source an instrument names and the prefix of its series keys, such as `twelvedata`. */
   readonly id: string
@@ -53,7 +63,11 @@ export interface PriceVendor {
   readonly needsKey: boolean
   /** Where a user claims a free key, or null for a vendor that needs none. */
   readonly keyAddress: string | null
+  /** The address every request of the vendor starts with, which this browser counts each day's requests by. */
+  readonly origin: string
   readonly limits: VendorLimits
+  /** Which limit an answer says is reached, read from the vendor's own words, or null for an answer that is no limit. */
+  limitOf(answer: VendorAnswer): VendorLimit | null
   /** A symbol, or for the ECB a currency, that a free key gets closes of, which the Test in Settings asks for. */
   readonly testSymbol: string
   /** The closes of a symbol, or the rates of a currency, from the day on. The key is null for a vendor that needs none. */

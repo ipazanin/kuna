@@ -29,6 +29,23 @@ function madeUpClose(symbol: string, day: string, base: number): string {
   return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, '0')}`
 }
 
+/** The first request for a listing's closes on each page is told the vendor's minute is used up, so a fetch shows its pause. */
+let minuteLimitAnswered = false
+
+/** The vendor's answer when its minute is used up, for the first request of the page for a listing's closes. The key Test's symbols get theirs at once. */
+function minuteLimitOnce(url: string, query: URLSearchParams): VendorAnswer | null {
+  const closes = url.startsWith('https://api.twelvedata.com/time_series?')
+    ? query.get('symbol') !== 'EUR/USD'
+    : url.startsWith('https://www.alphavantage.co/query?') && query.get('function')?.startsWith('TIME_SERIES') === true && query.get('symbol') !== 'IBM'
+  if (minuteLimitAnswered || !closes) {
+    return null
+  }
+  minuteLimitAnswered = true
+  return url.startsWith('https://api.twelvedata.com/')
+    ? json(429, { code: 429, message: 'You have run out of API credits for the current minute. 9 API credits were used, with the current limit being 8.', status: 'error' })
+    : json(200, { Information: 'Thank you for using Alpha Vantage! Please consider spreading out your free API requests more sparingly (1 request per second).' })
+}
+
 function twelveData(query: URLSearchParams): VendorAnswer {
   const symbol = query.get('symbol') ?? ''
   const through = query.get('end_date') ?? '9999-12-31'
@@ -67,6 +84,10 @@ function ecb(url: string, query: URLSearchParams): VendorAnswer {
 /** The fake build's vendors: made-up closes for any symbol and any key, so no request leaves the page. */
 export const fakeVendorFetch: VendorFetch = async (url) => {
   const query = new URL(url).searchParams
+  const limited = minuteLimitOnce(url, query)
+  if (limited !== null) {
+    return limited
+  }
   if (url.startsWith('https://api.twelvedata.com/time_series?')) {
     return twelveData(query)
   }

@@ -3666,10 +3666,45 @@ export async function investmentsPriceKeyFlow(page, { press, shoot, inspect }) {
   if (forgotten !== null) throw new Error('Remove left the key in this browser')
   await pressSelector(page, press, '[data-testid="prices-fetch-now"]')
   await toastMatching(page, /^Prices fetched$/)
-  await pageSays(page, 'The last fetch got nothing for 4 series', true)
-  await pageSays(page, 'No Twelve Data key in this browser.', true)
-  await inspect?.('the prices fetched without a listing key')
+  // The sample's closes run to the last trading day, so the fetch asks for nothing and needs no key.
+  await pageSays(page, 'Every series was up to date, 7 in all.', true)
+  await pageSays(page, 'The last fetch got nothing for', false)
+  await inspect?.('the prices fetched with nothing missing')
   await dismissToasts(page)
+}
+
+/**
+ * Investments Settings, Prices, on the sample: three made-up CSV files of closes dropped at once on Import closes, two
+ * matched to holdings by their names and one picked by hand, their dry run, and one import of all three.
+ */
+export function investmentsClosesImportFlowIn(language, files) {
+  const croatian = language === 'hr'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(croatian ? `${name}-${language}` : name)
+    const input = await page.waitForSelector('[data-testid="investments-closes-import"] input[type="file"]', { timeout: 10_000 }).catch(() => {
+      throw new Error('Import closes offers no file input')
+    })
+    await input.uploadFile(...files)
+    await page
+      .waitForFunction(() => document.querySelectorAll('[data-testid="closes-import-file"]').length === 3, { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('the closes import does not list the three files dropped')
+      })
+    const adds = await page.$$eval('[data-testid="closes-import-adds"]', (lines) => lines.map((line) => line.textContent?.trim() ?? ''))
+    if (adds.length !== 2) throw new Error(`the closes import matched ${adds.length} files by name, not 2`)
+    await chooseStartingWith(page, press, '[data-testid="closes-import-holding"]', 'Example Index Fund')
+    await page
+      .waitForFunction(() => document.querySelectorAll('[data-testid="closes-import-adds"]').length === 3, { timeout: 5_000 })
+      .catch(() => {
+        throw new Error('picking a holding for the unmatched file gave it no dry run')
+      })
+    await inspect?.('the closes import dry run')
+    await shoot('investments-closes-import')
+    await pressSelector(page, press, '[data-testid="closes-import-confirm"]')
+    await toastMatching(page, croatian ? /^Uvezene su cijene 3 pozicije$/ : /^Closes of 3 holdings imported$/)
+    await page.waitForSelector('[data-testid="closes-import-file"]', { hidden: true, timeout: 5_000 })
+    await dismissToasts(page)
+  }
 }
 
 /**
@@ -5034,6 +5069,16 @@ export function investmentsDialogsFlowIn(language) {
 
 export const investmentsDialogsFlow = investmentsDialogsFlowIn('en')
 
+/** Waits for the screen header's line to hold the text, such as the prices fetch under way. */
+async function headerSays(page, text, failure, timeout = 10_000) {
+  await page
+    .waitForFunction((wanted) => document.querySelector('[data-testid="screen-title"]')?.parentElement?.querySelector('p')?.textContent?.includes(wanted) ?? false, { timeout }, text)
+    .catch(async () => {
+      const said = await page.evaluate(() => document.querySelector('[data-testid="screen-title"]')?.parentElement?.querySelector('p')?.textContent?.trim())
+      throw new Error(`${failure}, it says: ${said ?? 'nothing'}`)
+    })
+}
+
 /** Waits for the workbook import's dialog to show a step. */
 async function importStep(page, step) {
   await page.waitForSelector(`[data-testid="workbook-import"][data-step="${step}"]`, { visible: true, timeout: 10_000 }).catch(async () => {
@@ -5124,12 +5169,22 @@ export function investmentsImportFlowIn(language, { workbook: path, edited }, { 
     if ((await page.$('[data-testid="import-group-look"] [data-testid="import-reversals"]')) === null) throw new Error('the dry run does not list the debit interest worth a look')
     await inspect?.('the dry run')
     await shoot('investments-import-dry-run')
+    // A made-up Twelve Data key, so the fetch after the import asks for NewCo and meets the fake vendor's minute limit once.
+    await page.evaluate(() => localStorage.setItem('kuna.price-vendor-key.twelvedata', 'made-up-twelve-data-key-0042'))
     await pressSelector(page, press, '[data-testid="workbook-import-confirm"]')
     await toast(page, text.imported)
     await dialogGone(page, '[data-testid="workbook-import"]')
     await page.waitForSelector('[data-testid="investments-cards"]', { visible: true, timeout: 10_000 }).catch(() => {
       throw new Error('the Overview shows no figures after the import')
     })
+    await headerSays(
+      page,
+      croatian ? 'Twelve Data: dopušta 8 u minuti, čeka se' : 'Twelve Data allows 8 a minute, waiting',
+      'the Overview does not say the fetch after the import waits for Twelve Data',
+    )
+    await inspect?.('the Overview fetching after the import')
+    await shoot('investments-import-fetching')
+    await headerSays(page, croatian ? 'Stanje na zatvaranju' : 'At the close of', 'the Overview does not go back to its close once the fetch after the import is done', 30_000)
     await inspect?.('the Overview after the import')
 
     if (undoing) {

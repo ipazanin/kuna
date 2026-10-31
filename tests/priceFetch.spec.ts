@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 
 import { fetchPrices } from '../src/apps/investments/prices/application/priceFetch'
 import type { PriceFetchOutcome } from '../src/apps/investments/prices/application/priceFetch'
-import type { PriceFetchPorts } from '../src/apps/investments/prices/application/pricesPorts'
+import type { FetchPause, PriceFetchPorts } from '../src/apps/investments/prices/application/pricesPorts'
 import type { PriceVendor, VendorAnswer } from '../src/apps/investments/prices/application/priceVendor'
 import { decodePricesFile, ECB_SOURCE, emptyPricesFile, encodePricesFile } from '../src/apps/investments/prices/domain/pricesFile'
 import type { PricesFile } from '../src/apps/investments/prices/domain/pricesFile'
@@ -73,6 +73,10 @@ interface World {
   readonly failing: ReadonlyMap<string, VendorAnswer | 'no-answer'>
   /** A day whose closes and rates every vendor sends corrected, unlike on the fetch before. */
   readonly revisedDay: string | null
+  /** Overrides like `failing`, each for the first request that matches it only. */
+  readonly failingOnce: Map<string, VendorAnswer>
+  /** A weekday Twelve Data has no close for, as on a market holiday. */
+  readonly holiday: string | null
 }
 
 /** The close a vendor sends on its revised day. */
@@ -84,7 +88,7 @@ function json(status: number, body: unknown): VendorAnswer {
 
 /** Twelve Data's base close of each made-up symbol it knows. */
 function twelveDataBase(symbol: string): number | undefined {
-  return { ABC: 50, IDX: 400, NEW: 20 }[symbol] ?? (/^S\d+$/.test(symbol) ? 30 : undefined)
+  return { ABC: 50, IDX: 400, NEW: 20, OLD: 60 }[symbol] ?? (/^S\d+$/.test(symbol) ? 30 : undefined)
 }
 
 /** Answers like the three vendors' from made-up history through `day`, whose own close is still moving. */
@@ -102,7 +106,7 @@ function vendorAnswer(url: string, day: string, world: World): VendorAnswer {
     }
     const through = query.get('end_date') ?? day
     const rows = revised(madeUpCloses(base, day))
-      .filter(([date]) => date >= query.get('start_date')! && date <= through)
+      .filter(([date]) => date >= query.get('start_date')! && date <= through && date !== world.holiday)
       .slice(-5000)
     if (rows.length === 0) {
       return json(400, { code: 400, message: 'No data is available on the specified dates. Try setting different start/end dates.', status: 'error' })
@@ -151,6 +155,8 @@ interface Device {
   readonly writes: string[]
   /** Each count the fetch gave of the series asked for so far and all it asks for. */
   readonly progressed: (readonly [number, number])[]
+  /** Each pause the fetch reported, with the time it said was left. */
+  readonly pauses: (FetchPause & { readonly left: number })[]
   records: InvestmentBook
   pricesText: string
   run(day: string, world?: Partial<World>, vendors?: readonly PriceVendor[]): Promise<PriceFetchOutcome>
@@ -161,19 +167,26 @@ interface Device {
 /** One browser with its keys, the Investments records it holds, the prices file on Drive and the vendors, all made up. */
 function device(keys: Readonly<Record<string, string>> = KEYS, records: InvestmentBook = investments()): Device {
   let today = ''
-  let world: World = { failing: new Map(), revisedDay: null }
+  let world: World = { failing: new Map(), revisedDay: null, failingOnce: new Map(), holiday: null }
   const events: string[] = []
   const writes: string[] = []
   const progressed: (readonly [number, number])[] = []
+  const pauses: (FetchPause & { readonly left: number })[] = []
   const self: Device = {
     events,
     writes,
     progressed,
+    pauses,
     records,
     pricesText: encodePricesFile(emptyPricesFile()),
     ports: {
       async fetch(url) {
         events.push(url)
+        const once = [...world.failingOnce].find(([part]) => url.includes(part))
+        if (once !== undefined) {
+          world.failingOnce.delete(once[0])
+          return once[1]
+        }
         const failure = [...world.failing].find(([part]) => url.includes(part))?.[1]
         if (failure === 'no-answer') {
           throw new TypeError('Failed to fetch')
@@ -190,15 +203,17 @@ function device(keys: Readonly<Record<string, string>> = KEYS, records: Investme
         writes.push(text)
         self.pricesText = text
       },
-      progress(asked, of) {
-        progressed.push([asked, of])
+      progress({ asked, of, pause, leftMilliseconds }) {
+        if (pause === null) progressed.push([asked, of])
+        else pauses.push({ ...pause, left: leftMilliseconds })
       },
     },
     async run(day, overrides = {}, vendors = PRICE_VENDORS) {
       today = day
-      world = { failing: new Map(), revisedDay: null, ...overrides }
+      world = { failing: new Map(), revisedDay: null, failingOnce: new Map(), holiday: null, ...overrides }
       events.length = 0
       progressed.length = 0
+      pauses.length = 0
       return fetchPrices(self.ports, vendors, { at: `${day}T07:41:00.000Z`, day })
     },
     prices() {
@@ -329,8 +344,8 @@ describe('fetching prices again', () => {
     expect(after.writtenAt).toBe('2026-11-02T07:41:00.000Z')
     expect(after.failures).toEqual([
       { series: 'twelvedata:ABC', day: '2026-11-02', reason: 'refused' },
-      { series: 'twelvedata:IDX', day: '2026-11-02', reason: 'limit' },
       { series: 'alphavantage:XYZ.DEX', day: '2026-11-02', reason: 'limit' },
+      { series: 'twelvedata:IDX', day: '2026-11-02', reason: 'limit' },
       { series: 'ecb:USD', day: '2026-11-02', reason: 'no-answer' },
       { series: 'ecb:GBP', day: '2026-11-02', reason: 'no-answer' },
       { series: 'ecb:CHF', day: '2026-11-02', reason: 'no-answer' },
@@ -550,7 +565,8 @@ describe('the vendors without a key, at their limits and on their errors', () =>
     const browser = device(KEYS, investments({ instruments: [newShare], trades: [trade('buy', BROKER, newShare, '2026-01-05', '1', '20', '0', '1.1')] }))
     await browser.run('2026-10-30', {}, [twoADay])
     expect(browser.asked('twelvedata')).toHaveLength(2)
-    expect(browser.prices().failures).toEqual([{ series: 'twelvedata:NEW', day: '2026-10-30', reason: 'limit' }])
+    // The two held shares come before the benchmark, which the daily limit leaves out.
+    expect(browser.prices().failures).toEqual([{ series: 'twelvedata:IDX', day: '2026-10-30', reason: 'limit' }])
   })
 
   it('asks a vendor nothing more once it answers that its limit is reached', async () => {
@@ -574,7 +590,7 @@ describe('the vendors without a key, at their limits and on their errors', () =>
     const before = browser.prices()
     const noNewDay = json(400, { code: 400, message: 'No data is available on the specified dates. Try setting different start/end dates.', status: 'error' })
     await browser.run('2026-11-02', { failing: new Map([['symbol=ABC', noNewDay]]) })
-    expect(browser.prices().series['twelvedata:ABC']).toEqual(before.series['twelvedata:ABC'])
+    expect(browser.prices().series['twelvedata:ABC']).toEqual({ ...before.series['twelvedata:ABC'], checked: '2026-11-02' })
     expect(browser.prices().failures.filter((failure) => failure.series === 'twelvedata:ABC')).toEqual([])
   })
 
@@ -621,5 +637,166 @@ describe('the price vendor registry', () => {
       expect(vendor.testSymbol).not.toBe('')
       expect([vendor.limits.perMinute, vendor.limits.perDay].every((limit) => limit === null || (Number.isInteger(limit) && limit > 0))).toBe(true)
     }
+  })
+})
+
+/** Twelve Data's answers when the free plan's credits run out, in the words its API sends. */
+const TWELVE_DATA_MINUTE = json(429, {
+  code: 429,
+  message:
+    'You have run out of API credits for the current minute. 9 API credits were used, with the current limit being 8. Wait for the next minute or consider switching to a higher tier plan at https://twelvedata.com/pricing',
+  status: 'error',
+})
+const TWELVE_DATA_DAY = json(429, {
+  code: 429,
+  message:
+    'You have run out of API credits for the day. 801 API credits were used, with the current limit being 800. Wait for the next day or consider switching to a higher tier plan at https://twelvedata.com/pricing',
+  status: 'error',
+})
+
+/** Alpha Vantage's notes, in the words its API sends with status 200. */
+const ALPHA_VANTAGE_BURST = json(200, {
+  Information:
+    'Thank you for using Alpha Vantage! Please consider spreading out your free API requests more sparingly (1 request per second). You may subscribe to any of the premium plans at https://www.alphavantage.co/premium/ to lift the free key rate limit (25 requests per day), raise the per-second burst limit, and instantly unlock all premium endpoints',
+})
+const ALPHA_VANTAGE_DAY = json(200, {
+  Information:
+    'We have detected your API key as AVKEYMADEUP and our standard API rate limit is 25 requests per day. Please subscribe to any of the premium plans at https://www.alphavantage.co/premium/ to instantly remove all daily rate limits.',
+})
+
+function requestsTo(it: Device, host: string): number {
+  return it.events.filter((event) => event.includes(host)).length
+}
+
+describe('a vendor whose limit is used up', () => {
+  it("pauses out a whole minute when Twelve Data says the minute's credits ran out, asks again, and goes on", async () => {
+    const browser = device()
+    await browser.run('2026-10-30', { failingOnce: new Map([['symbol=ABC', TWELVE_DATA_MINUTE]]) })
+
+    expect(browser.events.filter((event) => event.includes('symbol=ABC') || event === 'pause 61000')).toEqual([
+      expect.stringContaining('symbol=ABC'),
+      'pause 61000',
+      expect.stringContaining('symbol=ABC'),
+    ])
+    expect(browser.asked('twelvedata').map((query) => query.get('symbol'))).toEqual(['ABC', 'ABC', 'IDX'])
+    expect(browser.prices().failures).toEqual([])
+    expect(browser.pauses[0]).toMatchObject({ vendorId: 'twelvedata', milliseconds: 61_000 })
+    expect(browser.pauses[0]!.left).toBeGreaterThanOrEqual(61_000)
+  })
+
+  it('stops Twelve Data for the day when its minute is still used up straight after the pause, asking it nothing more', async () => {
+    const browser = device()
+    await browser.run('2026-10-30', { failing: new Map([['symbol=ABC', TWELVE_DATA_MINUTE]]) })
+
+    expect(browser.asked('twelvedata').map((query) => query.get('symbol'))).toEqual(['ABC', 'ABC'])
+    expect(browser.prices().failures.filter((failure) => failure.series.startsWith('twelvedata:'))).toEqual([
+      { series: 'twelvedata:ABC', day: '2026-10-30', reason: 'limit' },
+      { series: 'twelvedata:IDX', day: '2026-10-30', reason: 'limit' },
+    ])
+    expect(browser.prices().series['alphavantage:XYZ.DEX']).toBeDefined()
+  })
+
+  it("stops Twelve Data at once when it says the day's credits ran out, with no pause", async () => {
+    const browser = device()
+    await browser.run('2026-10-30', { failing: new Map([['symbol=ABC', TWELVE_DATA_DAY]]) })
+
+    expect(browser.asked('twelvedata')).toHaveLength(1)
+    expect(browser.events).not.toContain('pause 61000')
+    expect(
+      browser
+        .prices()
+        .failures.filter((failure) => failure.series.startsWith('twelvedata:'))
+        .map((failure) => failure.reason),
+    ).toEqual(['limit', 'limit'])
+  })
+
+  it("reads Alpha Vantage's burst note as the minute's limit and its daily note as the day's, though both name the premium plans", async () => {
+    const burst = device()
+    await burst.run('2026-10-30', { failingOnce: new Map([['TIME_SERIES_DAILY', ALPHA_VANTAGE_BURST]]) })
+    expect(burst.asked('alphavantage').map((query) => query.get('function'))).toEqual(['TIME_SERIES_DAILY', 'TIME_SERIES_DAILY', 'TIME_SERIES_MONTHLY'])
+    expect(burst.prices().failures).toEqual([])
+
+    const daily = device()
+    await daily.run('2026-10-30', { failing: new Map([['alphavantage', ALPHA_VANTAGE_DAY]]) })
+    expect(daily.asked('alphavantage')).toHaveLength(1)
+    expect(daily.prices().failures).toEqual([{ series: 'alphavantage:XYZ.DEX', day: '2026-10-30', reason: 'limit' }])
+  })
+})
+
+describe('the order a fetch asks in', () => {
+  it('asks for the holdings held first, then a sold one and the benchmark, then the rates', async () => {
+    const sold = instrument('old', { currency: USD })
+    const browser = device(
+      KEYS,
+      investments({ instruments: [sold], trades: [trade('buy', BROKER, sold, '2025-04-01', '2', '20', '0', '1.08'), trade('sell', BROKER, sold, '2025-09-01', '2', '25', '0', '1.17')] }),
+    )
+    await browser.run('2026-10-30')
+
+    const asked = browser.events.filter((event) => !event.startsWith('pause ')).map((event) => new URL(event).searchParams.get('symbol') ?? event.split('/EXR/D.')[1]!.split('.')[0]!)
+    expect(asked).toEqual(['ABC', 'XYZ.DEX', 'XYZ.DEX', 'IDX', 'OLD', 'USD', 'GBP', 'CHF'])
+  })
+})
+
+describe('asking only for what is missing', () => {
+  it('asks nothing on a second fetch the same day, and on the next weekday one request a series, rates included', async () => {
+    const browser = device()
+    await browser.run('2026-10-30')
+    expect(browser.prices().lastFetch).toEqual({ asked: 6, upToDate: 0 })
+
+    await browser.run('2026-10-30')
+    expect(browser.events).toEqual([])
+    expect(browser.prices().lastFetch).toEqual({ asked: 0, upToDate: 6 })
+
+    await browser.run('2026-11-02')
+    // ABC and XYZ.DEX are held, IDX is the benchmark, and the three rates: one request each, the ETF's daily closes only.
+    expect([requestsTo(browser, 'twelvedata'), requestsTo(browser, 'alphavantage'), requestsTo(browser, 'data-api.ecb')]).toEqual([2, 1, 3])
+    expect(browser.prices().lastFetch).toEqual({ asked: 6, upToDate: 0 })
+  })
+
+  it('asks for a sold holding up to its sale, and never again once those closes are in', async () => {
+    const sold = instrument('old', { currency: USD })
+    const records = investments({ instruments: [sold], trades: [trade('buy', BROKER, sold, '2025-04-01', '2', '20', '0', '1.08'), trade('sell', BROKER, sold, '2025-09-01', '2', '25', '0', '1.17')] })
+    const browser = device(KEYS, records)
+    await browser.run('2026-10-30')
+    expect(browser.asked('symbol=OLD')).toHaveLength(1)
+
+    await browser.run('2026-11-02')
+    await browser.run('2027-03-01')
+    expect(browser.asked('symbol=OLD')).toEqual([])
+    expect(browser.prices().lastFetch).toEqual({ asked: 6, upToDate: 1 })
+  })
+
+  it('asks for a weekday with no close, as a market holiday, once, and learns that it has none', async () => {
+    const browser = device()
+    await browser.run('2026-11-26', { holiday: '2026-11-26' })
+    await browser.run('2026-11-27', { holiday: '2026-11-26' })
+    expect(browser.asked('symbol=ABC')).toHaveLength(1)
+    expect(closesOf(browser.prices(), 'twelvedata:ABC').at(-1)![0]).toBe('2026-11-25')
+
+    await browser.run('2026-11-27', { holiday: '2026-11-26' })
+    expect(browser.asked('symbol=ABC')).toEqual([])
+    expect(browser.prices().series['twelvedata:ABC']!.checked).toBe('2026-11-27')
+  })
+
+  it("does not ask again for the history before a vendor's earliest close, and asks from the last close after", async () => {
+    const browser = device()
+    // Alpha Vantage's monthly closes are refused, so the free key's 100 daily closes are all there is.
+    await browser.run('2026-10-30', { failing: new Map([['TIME_SERIES_MONTHLY', { status: 500, text: 'Internal Server Error' }]]) })
+    const first = browser.prices().series['alphavantage:XYZ.DEX']!
+    expect(first.from).toBe('2025-01-03')
+    expect(first.closes).toHaveLength(99)
+
+    await browser.run('2026-11-02')
+    expect(browser.asked('alphavantage').map((query) => query.get('function'))).toEqual(['TIME_SERIES_DAILY'])
+    expect(browser.prices().series['alphavantage:XYZ.DEX']!.closes[0]).toEqual(first.closes[0])
+  })
+
+  it('asks for the history again when a record older than what the file holds arrives', async () => {
+    const browser = device()
+    await browser.run('2026-10-30')
+    browser.records = investments({ trades: [trade('buy', BROKER, SHARE_A, '2024-11-04', '5', '45', '1', '1.08')] })
+    await browser.run('2026-10-30')
+    expect(browser.asked('symbol=ABC').map((query) => query.get('start_date'))).toEqual(['2024-10-28'])
+    expect(requestsTo(browser, 'alphavantage') + requestsTo(browser, 'data-api.ecb')).toBe(0)
   })
 })

@@ -69,6 +69,12 @@ function pickParent(step: SpinOffStep, parent: string): void {
 function typeShare(step: SpinOffStep, text: string): void {
   props.workbookImport.choose('spinOffs', step.question.key, { parent: step.parent, costShare: text })
 }
+
+function shareHelp(step: SpinOffStep): string {
+  if (step.proposed === null) return words.questions.costShareHelp
+  const share = formatPercent(Number(decimalText(step.proposed)))
+  return step.proposedOn === null ? words.questions.costShareProposed(share) : words.questions.costShareFromCloses(share, dayLabel(step.proposedOn))
+}
 </script>
 
 <template>
@@ -116,11 +122,7 @@ function typeShare(step: SpinOffStep, text: string): void {
                 @update:model-value="pickParent(step, String($event))"
               />
             </UFormField>
-            <UFormField
-              :label="words.questions.costShare"
-              :help="step.proposed === null ? words.questions.costShareHelp : words.questions.costShareProposed(formatPercent(Number(decimalText(step.proposed))))"
-              :error="(step.parent !== null && step.problems.costShare) || false"
-            >
+            <UFormField :label="words.questions.costShare" :help="shareHelp(step)" :error="(step.parent !== null && step.problems.costShare) || false">
               <UInput :model-value="step.costShare" inputmode="decimal" class="w-full" data-testid="import-spin-off-share" @update:model-value="typeShare(step, String($event))" />
             </UFormField>
           </FormGrid>

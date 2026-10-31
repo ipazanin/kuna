@@ -181,6 +181,7 @@ const PAYEES = Array.from({ length: 14 }, (_, index) => ({ name: `Supplier ${ind
 const showAllPayees = ref(false)
 const droppedFile = ref<File | null>(null)
 const droppedName = ref('')
+const droppedFiles = ref<File[] | null>(null)
 const shownPayees = computed(() => (showAllPayees.value ? PAYEES : PAYEES.slice(0, FIRST_SHOWN)))
 
 const amountOrder = ref<SortDirection | null>(null)
@@ -746,7 +747,9 @@ const columns: TableColumn<SampleTransaction>[] = [
           description="or click to choose one"
           @update:model-value="droppedName = $event?.name ?? droppedName"
         />
+        <FileDrop v-model="droppedFiles" multiple accept=".csv" icon="i-lucide-files" label="Drop several CSV files here" description="or click to choose them, one or many" />
         <span class="identifier">{{ droppedName || 'No file yet' }}</span>
+        <span class="identifier">{{ droppedFiles === null || droppedFiles.length === 0 ? 'No files yet' : droppedFiles.map((file) => file.name).join(', ') }}</span>
       </AppCard>
     </GallerySection>
 

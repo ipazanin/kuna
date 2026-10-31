@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import USelect from '@nuxt/ui/components/Select.vue'
 
 import { benchmarkState, comparedBenchmark } from '../domain/benchmark'
 import { performancePeriods } from '../domain/performancePeriod'
@@ -20,6 +21,7 @@ import RiskCard from './RiskCard.vue'
 import { words } from './words'
 import YearsCard from './YearsCard.vue'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { listInWords } from '../../../../shared/text/listInWords'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
@@ -33,13 +35,17 @@ const { sources, figures } = usePortfolio()
 const prices = usePrices()
 const route = useRoute()
 const router = useRouter()
+const phone = usePhoneLayout()
 
 /** The file, and for a file with transactions this browser's copy of its prices too. */
 const loading = computed(() => (state.workbook === null && state.status !== 'error') || (state.workbook !== null && hasTransactions(state.workbook.book) && figures.value === null))
 
 const periods = computed(() => (sources.value === null ? [] : performancePeriods(firstDepositIn(sources.value.book), sources.value.today)))
 const period = computed(() => periodNamed(periods.value, route.query.period))
-const periodChoices = computed(() => periods.value.map((offered) => ({ value: periodKey(offered), label: periodLabel(offered) })))
+/** A phone offers the calendar years in a dropdown beside the rolling periods, so the row fits one line. */
+const buttonChoices = computed(() => periods.value.filter((offered) => !phone.value || offered.kind !== 'year').map(periodChoice))
+const yearChoices = computed(() => (phone.value ? periods.value.filter((offered) => offered.kind === 'year').map(periodChoice) : []))
+const pickedYear = computed(() => (period.value.kind === 'year' ? periodKey(period.value) : ''))
 
 const benchmark = computed(() => (sources.value === null ? null : benchmarkState(sources.value)))
 const compared = computed(() => (benchmark.value === null || sources.value === null ? null : comparedBenchmark(benchmark.value, sources.value.book, prices.state.copy?.file.splits ?? [])))
@@ -54,6 +60,10 @@ const heldBackNames = computed(() => {
   const shown = performance.value
   return shown?.kind === 'held-back' ? listInWords([...shown.heldBack.instruments.map((instrument) => instrument.name), ...shown.heldBack.currencies]) : ''
 })
+
+function periodChoice(offered: PerformancePeriod): { value: string; label: string } {
+  return { value: periodKey(offered), label: periodLabel(offered) }
+}
 
 function periodLabel(offered: PerformancePeriod): string {
   switch (offered.kind) {
@@ -80,7 +90,20 @@ function pick(key: string): void {
     <template v-else-if="sources !== null && performance !== null && benchmark !== null">
       <EmptyState v-if="performance.kind === 'empty'" icon="i-lucide-chart-spline" :title="words.empty.title" :description="words.empty.description" data-testid="performance-empty" />
       <template v-else>
-        <ChoiceButtons v-if="periods.length > 1" :model-value="periodKey(period)" :options="periodChoices" :label="words.periods" data-testid="performance-periods" @update:model-value="pick" />
+        <div v-if="periods.length > 1" class="flex flex-wrap items-center gap-1.5">
+          <ChoiceButtons :model-value="periodKey(period)" :options="buttonChoices" :label="words.periods" data-testid="performance-periods" @update:model-value="pick" />
+          <USelect
+            v-if="yearChoices.length > 0"
+            :model-value="pickedYear"
+            :items="yearChoices"
+            :placeholder="words.year"
+            :aria-label="words.year"
+            size="sm"
+            class="w-28"
+            data-testid="performance-year"
+            @update:model-value="pick(String($event))"
+          />
+        </div>
         <PerformanceNotice :performance="performance" :benchmark="benchmark" />
         <EmptyState
           v-if="performance.kind === 'held-back'"

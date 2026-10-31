@@ -25,6 +25,7 @@ import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
+import { usePricesFetchingLine } from '../../prices/presentation/fetchingLine'
 import PricesStatus from '../../prices/presentation/PricesStatus.vue'
 
 /** What the investments are worth and what they earned, at the last close, with how the prices stand and what needs a look. */
@@ -38,13 +39,15 @@ const noTransactions = computed(() => state.workbook !== null && !hasTransaction
 /** The file, and for a file with transactions this browser's copy of its prices too. */
 const loading = computed(() => (state.workbook === null && state.status !== 'error') || (state.workbook !== null && !noTransactions.value && figures.value === null))
 const close = computed(() => (figures.value === null || noTransactions.value ? null : figuresClose(figures.value)))
+const fetchingLine = usePricesFetchingLine()
+const description = computed(() => fetchingLine.value ?? (close.value === null ? words.description : words.closeLine(weekdayDayLabel(close.value))))
 const adding = ref(false)
 const importing = ref(false)
 </script>
 
 <template>
   <section class="flex flex-col gap-6">
-    <PageHeader :title="words.title" :description="close === null ? words.description : words.closeLine(weekdayDayLabel(close))">
+    <PageHeader :title="words.title" :description="description">
       <template v-if="state.workbook !== null && !noTransactions" #actions>
         <UButton :label="importWords.open" icon="i-lucide-file-input" color="neutral" variant="outline" data-testid="investments-import" @click="importing = true" />
         <UButton :label="transactionWords.add" icon="i-lucide-plus" data-testid="investments-add-transaction" @click="adding = true" />
