@@ -86,7 +86,7 @@ export const en = {
     reason: failureEn,
   },
   advice: {
-    'no-key': (vendor: string) => `Add a ${vendor} key in the Prices settings.`,
+    'no-key': (vendor: string) => `Add your ${vendor} key in the Prices settings.`,
     'no-answer': () => 'Kuna asks again later today.',
     refused: () => 'Kuna asks again on the next fetch.',
     'unknown-symbol': () => 'Check its symbol and price source on the holding.',
