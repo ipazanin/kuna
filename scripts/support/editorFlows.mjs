@@ -3982,8 +3982,8 @@ export function loansWhatIfFlowIn(language) {
     await pressSelector(page, press, '[data-testid="what-if-apply-lower"]')
     await page.waitForSelector('[data-testid="extra-payment-form"]', { visible: true })
     const filled = await page.$eval('[data-testid="extra-payment-amount"]', (input) => input.value)
-    const expected = language === 'hr' ? '10000,00' : '10000.00'
-    if (filled !== expected) throw new Error(`Apply filled the amount with "${filled}"`)
+    const tried = language === 'en' ? '10,000.00' : '10.000,00'
+    if (filled !== tried) throw new Error(`Apply filled the amount with "${filled}", not ${tried}`)
     await shoot('loans-what-if-apply')
     await page.keyboard.press('Escape')
     await dialogGone(page, '[data-testid="extra-payment-form"]')
@@ -4393,3 +4393,157 @@ export async function companyDialogsFlow(page, { press, shoot }) {
   await page.keyboard.press('Escape')
   await dialogGone(page, '[role="dialog"] [data-testid="rule-editor"]')
 }
+
+/** The made-up share in US dollars of the sample Investments file. */
+const SAMPLE_INVESTMENT_SHARE = 'fa4e1000-0000-4000-8000-000000000010'
+
+/** Presses the button inside `container` that reads `label`. */
+async function pressLabelled(page, press, container, label) {
+  const button = await page
+    .waitForFunction((css, wanted) => [...document.querySelectorAll(`${css} button`)].find((element) => element.textContent?.trim() === wanted) ?? null, { timeout: 5_000 }, container, label)
+    .catch(() => {
+      throw new Error(`no button "${label}" in ${container}`)
+    })
+  await press(button.asElement())
+  await delay(300)
+}
+
+/** A phone shows a dialog's end only once scrolled to, and a shot takes what is on the screen. */
+async function scrollIntoDialogView(page, selector) {
+  await page.$eval(selector, (element) => element.scrollIntoView({ block: 'end' }))
+  await delay(200)
+}
+
+/**
+ * The transaction dialogs of the sample Investments file: a buy of a holding and its summary added, changed, deleted and
+ * brought back with Undo, a sale beyond what the account holds refused in words, and a new holding added from inside
+ * the dialog with a price entered by hand for it.
+ */
+export async function investmentsEditorFlow(page, { press, shoot, inspect }) {
+  const rows = () => page.evaluate(() => document.querySelectorAll('[data-testid="transaction-row"]').length)
+  const before = await rows()
+
+  await pressSelector(page, press, '[data-testid="transactions-add"]')
+  await page.waitForSelector('[data-testid="transaction-form"]', { visible: true })
+  await chooseStartingWith(page, press, '[data-testid="transaction-instrument"]', 'Example Tech')
+  await chooseStartingWith(page, press, '[data-testid="transaction-account"]', 'Broker One')
+  await fill(page, 'transaction-quantity', '2')
+  await fill(page, 'transaction-price', '160')
+  await fill(page, 'transaction-fees', '1')
+  await elementSays(page, '[data-testid="transaction-summary"]', ['You pay', 'US$321.00', 'Afterwards you hold', 'Average cost'], 'the summary does not say what the buy pays')
+  await inspect?.('a buy with its summary')
+  await scrollIntoDialogView(page, '[data-testid="transaction-summary"]')
+  await shoot('investments-add-buy')
+  await pressSelector(page, press, '[data-testid="transaction-save"]')
+  await toast(page, 'Buy added')
+  await dialogGone(page, '[data-testid="transaction-form"]')
+  if ((await rows()) !== before + 1) throw new Error('the buy is not listed')
+  await dismissToasts(page)
+
+  await pressSelector(page, press, '[data-testid="transaction-row"] [data-testid="transaction-edit"]')
+  await page.waitForSelector('[data-testid="transaction-form"]', { visible: true })
+  await fill(page, 'transaction-quantity', '3')
+  await elementSays(page, '[data-testid="transaction-summary"]', ['US$481.00'], 'the summary does not follow the changed units')
+  await pressSelector(page, press, '[data-testid="transaction-save"]')
+  await toast(page, 'Buy saved')
+  await elementSays(page, '[data-testid="transaction-row"]', ['3 units at US$160.00'], 'the changed buy is not listed')
+  await dismissToasts(page)
+
+  await pressSelector(page, press, '[data-testid="transaction-row"] [data-testid="transaction-edit"]')
+  await pressSelector(page, press, '[data-testid="transaction-delete"]')
+  await toast(page, 'Buy deleted')
+  if ((await rows()) !== before) throw new Error('the deleted buy is still listed')
+  await undo(page, press)
+  if ((await rows()) !== before + 1) throw new Error('Undo did not bring the buy back')
+  await inspect?.('Transactions after Undo')
+  await shoot('investments-undo-delete')
+  await dismissToasts(page)
+
+  await pressSelector(page, press, '[data-testid="transactions-add"]')
+  await page.waitForSelector('[data-testid="transaction-form"]', { visible: true })
+  await pressLabelled(page, press, '[data-testid="transaction-happened"]', 'Sell')
+  await chooseStartingWith(page, press, '[data-testid="transaction-instrument"]', 'Example Tech')
+  await chooseStartingWith(page, press, '[data-testid="transaction-account"]', 'Broker Two')
+  await fill(page, 'transaction-quantity', '1')
+  await fill(page, 'transaction-price', '170')
+  await elementSays(page, '[data-testid="transaction-beyond-held"]', ['The account holds fewer units on'], 'the summary does not warn of a sale beyond what is held')
+  await scrollIntoDialogView(page, '[data-testid="transaction-beyond-held"]')
+  await shoot('investments-sale-beyond-held')
+  await pressSelector(page, press, '[data-testid="transaction-save"]')
+  await toast(page, 'Not added')
+  await elementSays(page, 'li[data-slot="base"]', ['The sale of "Example Tech" on', 'would sell more than its account holds that day'], 'the refusal does not say why')
+  await dismissToasts(page)
+
+  await pressLabelled(page, press, '[data-testid="transaction-happened"]', 'Price by hand')
+  await pressSelector(page, press, '[data-testid="transaction-instrument-new"]')
+  await page.waitForSelector('[data-testid="instrument-form"]', { visible: true })
+  await fill(page, 'instrument-name', 'Example Bond Fund')
+  await fill(page, 'instrument-symbol', 'EBF')
+  await chooseStartingWith(page, press, '[data-testid="instrument-prices"]', 'Entered by hand')
+  await inspect?.('the holding dialog over the transaction dialog')
+  await shoot('investments-new-holding')
+  await pressSelector(page, press, '[data-testid="instrument-save"]')
+  await toast(page, 'Holding added')
+  await dialogGone(page, '[data-testid="instrument-form"]')
+  await dismissToasts(page)
+  await elementSays(page, '[data-testid="transaction-instrument"]', ['Example Bond Fund'], 'the new holding is not picked')
+  await fill(page, 'transaction-price', '10.25')
+  await pressSelector(page, press, '[data-testid="transaction-save"]')
+  await toast(page, 'Price by hand added')
+  await elementSays(page, '[data-testid="transaction-row"]', ['Example Bond Fund', '€10.25'], 'the hand price is not listed')
+  await dismissToasts(page)
+}
+
+/**
+ * Every Investments dialog with the sample file, opened and closed again: the transaction dialog on each kind of
+ * record, a transaction changed, a holding and an account.
+ */
+export function investmentsDialogsFlowIn(language) {
+  const croatian = language === 'hr'
+  const kinds = croatian
+    ? [
+        ['Dividenda ili kamata', 'income'],
+        ['Uplata', 'cash'],
+        ['Konverzija', 'exchange'],
+        ['Prijenos', 'transfer'],
+        ['Podjela', 'split'],
+        ['Izdvajanje', 'spin-off'],
+        ['Ručna cijena', 'price'],
+      ]
+    : [
+        ['Dividend or interest', 'income'],
+        ['Deposit', 'cash'],
+        ['Exchange', 'exchange'],
+        ['Transfer', 'transfer'],
+        ['Split', 'split'],
+        ['Spin-off', 'spin-off'],
+        ['Price by hand', 'price'],
+      ]
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(croatian ? `${name}-${language}` : name)
+    await pressSelector(page, press, '[data-testid="transactions-add"]')
+    await page.waitForSelector('[data-testid="transaction-form"]', { visible: true })
+    await chooseStartingWith(page, press, '[data-testid="transaction-instrument"]', 'Example Tech')
+    await delay(300)
+    await shoot('dialog-investments-buy')
+    for (const [label, name] of kinds) {
+      await pressLabelled(page, press, '[data-testid="transaction-happened"]', label)
+      await shoot(`dialog-investments-${name}`)
+      if (name === 'transfer') {
+        await pressLabelled(page, press, '[data-testid="transaction-moves"]', croatian ? 'Novac' : 'Cash')
+        await scrollIntoDialogView(page, '[data-testid="transaction-amount"]')
+        await shoot('dialog-investments-transfer-cash')
+      }
+    }
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="transaction-form"]')
+    await lookAtDialog(page, press, shoot, '[data-testid="transaction-row"] [data-testid="transaction-edit"]', '[data-testid="transaction-form"]', 'dialog-investments-change')
+    await goTo(page, `#/investments/holding?instrument=${SAMPLE_INVESTMENT_SHARE}`, 'Example Tech')
+    await lookAtDialog(page, press, shoot, '[data-testid="holding-change"]', '[data-testid="instrument-form"]', 'dialog-investments-instrument')
+    await lookAtDialog(page, press, shoot, '[data-testid="holding-add-transaction"]', '[data-testid="transaction-form"]', 'dialog-investments-holding-buy')
+    await goTo(page, '#/investments/settings', croatian ? 'Postavke' : 'Settings')
+    await lookAtDialog(page, press, shoot, '[data-testid="account-edit"]', '[data-testid="account-form"]', 'dialog-investments-account')
+  }
+}
+
+export const investmentsDialogsFlow = investmentsDialogsFlowIn('en')

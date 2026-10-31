@@ -14,9 +14,9 @@ import { words as storedWords } from '../../../../shared/storage/domain/words'
 const QUOTINGS = ['unit', 'percent', 'gram'] as const
 
 /** Two letters of the country, nine of the security and a check digit. */
-const ISIN = /^[A-Z]{2}[A-Z0-9]{9}\d$/
+export const ISIN = /^[A-Z]{2}[A-Z0-9]{9}\d$/
 /** A market identifier code, ISO 10383. */
-const MIC = /^[A-Z0-9]{4}$/
+export const MIC = /^[A-Z0-9]{4}$/
 
 function requiredText(fields: StoredFields, name: string): string {
   const text = textOf(fields[name])

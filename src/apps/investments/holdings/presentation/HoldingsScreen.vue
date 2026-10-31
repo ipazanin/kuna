@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import UButton from '@nuxt/ui/components/Button.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
@@ -8,6 +9,8 @@ import type { HoldingsGrouping, HoldingsSort } from '../domain/holdingsList'
 import { figuresClose } from '../domain/portfolioFigures'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { hasTransactions } from '../../workbook/domain/investmentBook'
+import TransactionDialog from '../../transactions/presentation/TransactionDialog.vue'
+import { words as transactionWords } from '../../transactions/presentation/words'
 import HoldingRow from './HoldingRow.vue'
 import HoldingsGroupName from './HoldingsGroupName.vue'
 import HoldingsTable from './HoldingsTable.vue'
@@ -34,6 +37,7 @@ const grouping = ref<HoldingsGrouping>('class')
 const find = ref('')
 const sold = ref(false)
 const sort = ref<HoldingsSort | null>(null)
+const adding = ref(false)
 const groupings = HOLDINGS_GROUPINGS.map((value) => ({ value, label: words.groupings[value] }))
 
 const noTransactions = computed(() => state.workbook !== null && !hasTransactions(state.workbook.book))
@@ -53,7 +57,11 @@ const description = computed(() => {
 
 <template>
   <section class="flex max-w-measure flex-col gap-6">
-    <PageHeader :title="words.title" :description="description" />
+    <PageHeader :title="words.title" :description="description">
+      <template v-if="state.workbook !== null" #actions>
+        <UButton :label="transactionWords.add" icon="i-lucide-plus" data-testid="holdings-add-transaction" @click="adding = true" />
+      </template>
+    </PageHeader>
     <ScreenSkeleton v-if="loading" :heading="false" :cards="1" data-testid="holdings-loading" />
     <EmptyState v-else-if="noTransactions" icon="i-lucide-layers" :title="words.nothingHeld" :description="words.nothingHeldDescription" data-testid="holdings-empty" />
     <AppCard v-else-if="list !== null" data-testid="holdings">
@@ -94,5 +102,6 @@ const description = computed(() => {
         </div>
       </div>
     </AppCard>
+    <TransactionDialog v-if="state.workbook !== null" v-model:open="adding" :book="state.workbook.book" :editing="null" />
   </section>
 </template>

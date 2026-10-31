@@ -1,5 +1,8 @@
 import { moneyFromCents } from './money'
 import type { Money } from './money'
+import { AMOUNT_SEPARATORS } from './typedAmount'
+import { language } from '../text/language'
+import type { Language } from '../text/language'
 
 /** An exact decimal with up to twelve places, as a whole number of its smallest step. */
 export type Decimal = bigint & { readonly __unit: 'decimal-12' }
@@ -13,6 +16,12 @@ export const DECIMAL_ZERO = 0n as Decimal
 const STORED_TEXT = /^(-?)(\d+)(?:\.(\d{1,12}))?$/
 const TYPED_TEXT = /^(\d+)(?:[.,](\d{1,12}))?$/
 
+/** Thousands grouped as the language writes them, before an optional decimal mark, as in 1,000 or 1.234,5. A first group of 0 is a decimal, so 0,125 is an eighth. */
+const GROUPED: Readonly<Record<Language, RegExp>> = {
+  en: /^[1-9]\d{0,2}(,\d{3})+(\.\d{1,12})?$/,
+  hr: /^[1-9]\d{0,2}(\.\d{3})+(,\d{1,12})?$/,
+}
+
 /** Decimal text as a record stores it, such as `0.00841` or `-3.5`. Null for anything else. */
 export function decimalOfText(text: string): Decimal | null {
   const match = STORED_TEXT.exec(text)
@@ -20,11 +29,13 @@ export function decimalOfText(text: string): Decimal | null {
 }
 
 /**
- * Typed into a field, with a decimal point or a decimal comma, as typedAmount reads money. Null for
- * anything that is not zero or more with at most twelve places, blank included.
+ * Typed into a field, as `typedAmount` reads money: with a decimal point or a decimal comma, and with thousands grouped
+ * as the language on screen writes them, so 1,000 in English and 1.000 in Croatian are a thousand. There is no k or m.
+ * Null for anything that is not zero or more with at most twelve places, blank included.
  */
 export function typedDecimal(text: string): Decimal | null {
-  const match = TYPED_TEXT.exec(text.trim())
+  const trimmed = text.trim()
+  const match = TYPED_TEXT.exec(GROUPED[language].test(trimmed) ? trimmed.replaceAll(AMOUNT_SEPARATORS[language].group, '') : trimmed)
   return match === null ? null : decimalOfDigits(false, match[1]!, match[2] ?? '')
 }
 

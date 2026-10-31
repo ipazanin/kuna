@@ -9,6 +9,9 @@ const SUPPORTED = new Set(Intl.supportedValuesOf('currency'))
 /** Gold, silver, platinum and palladium have ISO codes, but they are holdings priced per ounce, never an account's cash. */
 const METALS = new Set(['XAU', 'XAG', 'XPT', 'XPD'])
 
+/** Every code `currencyCodeOf` takes, in alphabetical order, for a field that picks one. */
+export const CURRENCY_CODES: readonly CurrencyCode[] = [...SUPPORTED].filter((code) => !METALS.has(code)).sort() as CurrencyCode[]
+
 /** The code in capitals, such as `USD` for `usd`. Null for anything Intl does not know as a currency, and for a metal. */
 export function currencyCodeOf(text: string): CurrencyCode | null {
   const code = text.trim().toUpperCase()

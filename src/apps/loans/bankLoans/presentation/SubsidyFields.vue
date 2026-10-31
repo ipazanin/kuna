@@ -1,6 +1,8 @@
 <script lang="ts">
 import type { LoanSubsidy } from '../../workbook/domain/bankLoan'
-import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
+import { plainAmount } from '../../../../shared/money/money'
+import { typedAmount } from '../../../../shared/money/typedAmount'
+import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { typedCount } from './typedCount'
 import { words as loansWords } from '../../words'
 import { words } from './words'
@@ -15,7 +17,7 @@ export interface SubsidyTexts {
 export function subsidyTexts(subsidy: LoanSubsidy | null): SubsidyTexts {
   return subsidy === null
     ? { monthly: '', payer: '', firstInstalment: '1', instalments: '60' }
-    : { monthly: amountForTyping(subsidy.monthly), payer: subsidy.payer, firstInstalment: String(subsidy.firstInstalment), instalments: String(subsidy.instalments) }
+    : { monthly: plainAmount(subsidy.monthly), payer: subsidy.payer, firstInstalment: String(subsidy.firstInstalment), instalments: String(subsidy.instalments) }
 }
 
 /** The subsidy the fields name, or why not, for a loan of this many instalments. */
@@ -56,7 +58,7 @@ const errors = computed(() => typedSubsidy(texts.value, props.loanInstalments).e
 
 <template>
   <UFormField :label="words.subsidyFields.monthly" :error="(tried && errors.monthly) || false" :help="words.subsidyFields.monthlyHelp">
-    <UInput v-model="texts.monthly" inputmode="decimal" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="subsidy-monthly" />
+    <MoneyInput v-model="texts.monthly" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="subsidy-monthly" />
   </UFormField>
   <UFormField :label="words.subsidyFields.payer" :help="words.subsidyFields.payerHelp">
     <UInput v-model="texts.payer" placeholder="APN" class="w-full" data-testid="subsidy-payer" />

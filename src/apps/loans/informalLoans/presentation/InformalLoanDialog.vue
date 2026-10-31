@@ -12,10 +12,12 @@ import { useLoansBooks } from '../../workbook/application/loansStore'
 import type { InformalLoan } from '../../workbook/domain/informalLoan'
 import type { InformalLoanBook } from '../../workbook/domain/readLoanBook'
 import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
-import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
+import { plainAmount } from '../../../../shared/money/money'
+import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as loansWords } from '../../words'
 import { words } from './words'
 
@@ -50,7 +52,7 @@ watch(open, (opened) => {
   name.value = loan?.name ?? ''
   counterparty.value = loan?.counterparty ?? ''
   direction.value = loan?.direction ?? 'you-owe'
-  opening.value = loan === null ? '' : amountForTyping(loan.openingBalance)
+  opening.value = loan === null ? '' : plainAmount(loan.openingBalance)
   start.value = loan?.start ?? ''
   note.value = loan?.note ?? ''
   tried.value = false
@@ -103,7 +105,7 @@ async function remove(): Promise<void> {
       </UFormField>
       <URadioGroup v-model="direction" :items="DIRECTIONS" :legend="words.loanDialog.whoOwes" orientation="horizontal" />
       <UFormField :label="words.loanDialog.opening" :error="(tried && errors.opening) || false">
-        <UInput v-model="opening" inputmode="decimal" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="informal-loan-opening" />
+        <MoneyInput v-model="opening" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="informal-loan-opening" />
       </UFormField>
       <UFormField :label="words.loanDialog.start" :error="(tried && errors.start) || false">
         <UInput v-model="start" type="date" class="w-full" data-testid="informal-loan-start" />

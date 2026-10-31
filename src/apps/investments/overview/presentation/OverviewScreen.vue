@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import UButton from '@nuxt/ui/components/Button.vue'
 
 import { figuresClose } from '../../holdings/domain/portfolioFigures'
 import { usePortfolio } from '../../holdings/presentation/usePortfolio'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { hasTransactions } from '../../workbook/domain/investmentBook'
+import TransactionDialog from '../../transactions/presentation/TransactionDialog.vue'
+import { words as transactionWords } from '../../transactions/presentation/words'
 import GainSourcesCard from './GainSourcesCard.vue'
 import LatestTransactionsCard from './LatestTransactionsCard.vue'
 import MoversCard from './MoversCard.vue'
@@ -33,11 +36,16 @@ const noTransactions = computed(() => state.workbook !== null && !hasTransaction
 /** The file, and for a file with transactions this browser's copy of its prices too. */
 const loading = computed(() => (state.workbook === null && state.status !== 'error') || (state.workbook !== null && !noTransactions.value && figures.value === null))
 const close = computed(() => (figures.value === null || noTransactions.value ? null : figuresClose(figures.value)))
+const adding = ref(false)
 </script>
 
 <template>
   <section class="flex flex-col gap-6">
-    <PageHeader :title="words.title" :description="close === null ? words.description : words.closeLine(weekdayDayLabel(close))" />
+    <PageHeader :title="words.title" :description="close === null ? words.description : words.closeLine(weekdayDayLabel(close))">
+      <template v-if="state.workbook !== null && !noTransactions" #actions>
+        <UButton :label="transactionWords.add" icon="i-lucide-plus" data-testid="investments-add-transaction" @click="adding = true" />
+      </template>
+    </PageHeader>
     <ScreenSkeleton v-if="loading" :heading="false" :cards="2" data-testid="investments-loading" />
     <template v-else-if="state.workbook !== null">
       <PricesStatus />
@@ -47,7 +55,10 @@ const close = computed(() => (figures.value === null || noTransactions.value ? n
           <span class="block">{{ words.empty.description }}</span>
         </template>
         <template #actions>
-          <span class="type-caption">{{ fileNote }}</span>
+          <div class="flex flex-col items-center gap-4">
+            <UButton :label="transactionWords.add" icon="i-lucide-plus" data-testid="investments-add-transaction" @click="adding = true" />
+            <span class="type-caption">{{ fileNote }}</span>
+          </div>
         </template>
       </EmptyState>
       <template v-else-if="sources !== null && figures !== null">
@@ -61,6 +72,7 @@ const close = computed(() => (figures.value === null || noTransactions.value ? n
           <LatestTransactionsCard :sources="sources" />
         </DashboardGrid>
       </template>
+      <TransactionDialog v-model:open="adding" :book="state.workbook.book" :editing="null" />
     </template>
   </section>
 </template>

@@ -17,10 +17,12 @@ import { useLoansBooks } from '../../workbook/application/loansStore'
 import { EXTRA_PAYMENT_EFFECTS } from '../../workbook/domain/extraPayment'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
 import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
-import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
+import { plainAmount } from '../../../../shared/money/money'
+import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as loansWords } from '../../words'
 import { words } from './words'
 
@@ -45,7 +47,7 @@ const tried = ref(false)
 watch(open, (opened) => {
   if (!opened) return
   date.value = props.start?.date ?? ''
-  amount.value = props.start === null ? '' : amountForTyping(props.start.amount)
+  amount.value = props.start === null ? '' : plainAmount(props.start.amount)
   effect.value = props.start?.effect ?? 'shorter-term'
   tried.value = false
 })
@@ -92,7 +94,7 @@ async function remove(): Promise<void> {
         <UInput v-model="date" type="date" class="w-full" data-testid="extra-payment-date" />
       </UFormField>
       <UFormField :label="words.extraDialog.amount" :error="(tried && errors.amount) || false">
-        <UInput v-model="amount" inputmode="decimal" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="extra-payment-amount" />
+        <MoneyInput v-model="amount" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="extra-payment-amount" />
       </UFormField>
       <URadioGroup v-model="effect" :items="EFFECT_ITEMS" :legend="words.extraDialog.effect" data-testid="extra-payment-effect" />
     </FormGrid>

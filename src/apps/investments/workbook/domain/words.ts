@@ -90,7 +90,7 @@ export const en = {
   noRateForInstrument: (instrument: string, currency: string) => `no rate, which a trade of "${instrument}" in ${currency} needs, in ${currency} per EUR`,
   accruedNotBond: (instrument: string) => `accrued is filled, but "${instrument}" is not a bond quoted in percent`,
   receivedInOtherCurrency: (received: string, currency: string, parentCurrency: string) => `"${received}" is quoted in ${currency}, and its parent in ${parentCurrency}`,
-  priceSharesDay: (instrument: string, date: CivilDate) => `another price of "${instrument}" is for ${date} too`,
+  priceSharesDay: (instrument: string, date: CivilDate) => `another price of "${instrument}" is for ${dayLabel(date)} too`,
 }
 
 export const hr: Translation<typeof en> = {

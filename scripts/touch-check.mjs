@@ -20,7 +20,7 @@
  * brought back, the same from a row of Review's queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google with one token for every scope and the sync it resumes ending ready, with Drive read unticked ending in Allow access, a refused consent and a
  * forged answer leaving Allow access with no message, a refused silent trip marking the device so the next open waits for Allow access, Sign in to Google when Google asks
- * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, the Loans find a tap resumes ending on the Loans Overview, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices card, and the note to tap again after a file made on Drive,
+ * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, a k typed into the what-if's amount expanding at once with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices card, and the note to tap again after a file made on Drive,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
@@ -1812,6 +1812,31 @@ async function checkWidth(width) {
     await shoot('loans-plan-row')
   })
 
+  // Puppeteer types a k whatever the inputmode, so this step cannot show that a phone's decimal keypad has no k.
+  await step('loans-money-input', async () => {
+    await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Home loan')
+    const field = await page.waitForSelector('[data-testid="what-if-amount"]', { visible: true })
+    await field.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await field.tap()
+    const shown = () => field.evaluate((element) => element.value)
+    await page.keyboard.type('3k')
+    await expect(shown(), (text) => text === '3,000', '3k typed did not show 3,000')
+    await page.keyboard.type('5')
+    await expect(shown(), (text) => text === '30,005', 'a digit after 3k did not regroup')
+    await field.evaluate((element) => element.select())
+    await page.keyboard.type('0.2k')
+    await expect(shown(), (text) => text === '200', '0.2k typed did not show 200')
+    await page.keyboard.type('-x')
+    await expect(shown(), (text) => text === '200', 'a minus or a letter typed changed the amount')
+    await field.evaluate((element) => element.blur())
+    await expect(shown(), (text) => text === '200.00', 'leaving the field did not show its cents')
+    await page.waitForSelector('[data-testid="what-if-outcomes"]', { visible: true })
+    await inspect(page, `${width}px the what-if amount typed with a k`)
+    await shoot('loans-money-input')
+  })
+
   await step('loans-extra-payment-undo', async () => {
     await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Home loan')
@@ -1860,6 +1885,69 @@ async function checkWidth(width) {
     await waitForTitle(page, 'Holdings')
     await page.waitForSelector('[data-testid="holdings-rows"] a[data-testid="holding-row"]', { visible: true })
     await inspect(page, `${width}px Holdings again`)
+  })
+
+  // Puppeteer types a k whatever the inputmode, so this step cannot show that a phone's decimal keypad has no k.
+  await step('investments-usd-buy', async () => {
+    await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/transactions`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Transactions')
+    const rows = () => page.evaluate(() => document.querySelectorAll('[data-testid="transaction-row"]').length)
+    const before = await rows()
+    await (await page.waitForSelector('[data-testid="transactions-add"]', { visible: true })).tap()
+    await page.waitForSelector('[data-testid="transaction-form"]', { visible: true })
+    await delay(300)
+    await page.tap('[data-testid="transaction-instrument"]')
+    await (await waitForText(page, '[role="option"]', 'Example Tech')).tap()
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await page.tap('[data-testid="transaction-account"]')
+    await (await waitForText(page, '[role="option"]', 'Broker One')).tap()
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await delay(200)
+    for (const [field, text] of [
+      ['transaction-quantity', '2,5'],
+      ['transaction-price', '158.96'],
+    ]) {
+      await page.tap(`[data-testid="${field}"]`)
+      await page.type(`[data-testid="${field}"]`, text)
+    }
+    const fees = await page.waitForSelector('[data-testid="transaction-fees"]')
+    await fees.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    // In Chrome's touch emulation, a tap within about 200 ms of the dialog scrolling focuses the field but places no caret, so its keys insert nothing.
+    await delay(700)
+    await fees.tap()
+    await page.keyboard.type('0.01k')
+    await expect(
+      fees.evaluate((element) => element.value),
+      (text) => text === '10',
+      '0.01k typed into the fees did not show 10',
+    )
+    await fees.evaluate((element) => element.blur())
+    await expect(
+      fees.evaluate((element) => element.value),
+      (text) => text === '10.00',
+      'leaving the fees did not show their cents',
+    )
+    await expect(
+      page.$eval('[data-testid="transaction-rate"]', (element) => element.value),
+      (text) => /^1\.\d+$/.test(text),
+      'the rate did not start at the ECB rate of the day',
+    )
+    const summary = await waitForText(page, '[data-testid="transaction-summary"] dt', 'You pay')
+    await summary.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await expect(
+      page.$eval('[data-testid="transaction-summary"]', (element) => element.textContent ?? ''),
+      (text) => text.includes('US$407.40') && text.includes('€') && text.includes('Afterwards you hold'),
+      'the summary does not say the buy pays US$407.40 and its euros',
+    )
+    await inspect(page, `${width}px a USD buy typed`)
+    await shoot('investments-usd-buy')
+    await page.tap('[data-testid="transaction-save"]')
+    await waitForText(page, '[data-slot="title"]', 'Buy added')
+    await expect(rows(), (count) => count === before + 1, 'the buy is not listed')
+    await delay(700)
+    await (await waitForText(page, 'button', 'Undo')).tap()
+    await waitForText(page, '[data-slot="title"]', 'Undone')
+    await expect(rows(), (count) => count === before, 'Undo did not take the buy off the list')
   })
 
   await step('open-file-browser', async () => {

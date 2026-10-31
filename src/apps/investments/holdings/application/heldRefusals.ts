@@ -1,9 +1,6 @@
 import { words } from './words'
 import { bookOf } from '../../workbook/application/investmentWriteGuards'
-import { codecOfInvestmentsKind } from '../../workbook/application/investmentsCodecs'
-import { SPLIT_RECORDS, TRADE_RECORDS, TRANSFER_RECORDS } from '../../workbook/domain/investmentKinds'
 import { investmentLots } from '../domain/lots'
-import { labelOfRecord } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { FreshRecords } from '../../../../shared/storage/domain/writeRules'
 
@@ -16,13 +13,13 @@ function heldProblems(records: FreshRecords): ReadonlyMap<RecordId, string> {
     const name = names.get(instrument) ?? ''
     for (const record of lots.refused) {
       if ('side' in record) {
-        problems.set(record.id, words.saleBeyond(labelOfRecord(codecOfInvestmentsKind(TRADE_RECORDS), record), name, record.date))
+        problems.set(record.id, words.saleBeyond(name, record.date))
       } else {
-        problems.set(record.id, words.transferBeyond(labelOfRecord(codecOfInvestmentsKind(TRANSFER_RECORDS), record), name, record.date))
+        problems.set(record.id, words.transferBeyond(name, record.date))
       }
     }
     for (const split of lots.emptied) {
-      problems.set(split.id, words.splitEmpties(labelOfRecord(codecOfInvestmentsKind(SPLIT_RECORDS), split), name))
+      problems.set(split.id, words.splitEmpties(name, split.date))
     }
   }
   return problems

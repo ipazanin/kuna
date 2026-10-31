@@ -109,15 +109,6 @@ export const en = {
     date: 'Date',
     what: 'What',
     amount: 'Amount',
-    exchange: 'Exchange',
-    transfer: 'Transfer',
-    split: 'Split',
-    spinOff: 'Spin-off',
-    exchanged: (sold: string, bought: string) => `${sold} into ${bought}`,
-    moved: (from: string, to: string) => `${from} to ${to}`,
-    ratio: (newUnits: number, oldUnits: number) => `${newUnits} for ${oldUnits}`,
-    units: (quantity: string) => `${quantity} units`,
-    spunOff: (received: string, parent: string) => `${received} from ${parent}`,
   },
 }
 
@@ -228,15 +219,6 @@ export const hr: Translation<typeof en> = {
     date: 'Datum',
     what: 'Što',
     amount: 'Iznos',
-    exchange: 'Konverzija',
-    transfer: 'Prijenos',
-    split: 'Podjela',
-    spinOff: 'Izdvajanje',
-    exchanged: (sold, bought) => `${sold} u ${bought}`,
-    moved: (from, to) => `${from} na ${to}`,
-    ratio: (newUnits, oldUnits) => `${newUnits} za ${oldUnits}`,
-    units: (quantity) => `${quantity} kom.`,
-    spunOff: (received, parent) => `${received} iz ${parent}`,
   },
 }
 

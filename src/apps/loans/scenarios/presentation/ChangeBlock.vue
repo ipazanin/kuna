@@ -15,6 +15,7 @@ import { EXTRA_PAYMENT_EFFECTS } from '../../workbook/domain/extraPayment'
 import { words as loansWords } from '../../words'
 import { plural } from '../../../../shared/text/translation'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 
 /** One change of a scenario as a bordered block: its kind and what it does, opening to its fields. */
 const texts = defineModel<ChangeTexts>({ required: true })
@@ -87,7 +88,7 @@ const shown = (error: string | null | undefined): string | false => (props.tried
         <UInput v-model="texts.until" type="date" class="w-full" data-testid="scenario-change-until" />
       </UFormField>
       <UFormField v-if="texts.kind === 'extra-payment' || texts.kind === 'regular-extra-payment'" :label="words.editor.amount" :error="shown(errors.amount)">
-        <UInput v-model="texts.amount" inputmode="decimal" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="scenario-change-amount" />
+        <MoneyInput v-model="texts.amount" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="scenario-change-amount" />
       </UFormField>
       <URadioGroup
         v-if="texts.kind === 'regular-extra-payment'"

@@ -1,7 +1,9 @@
 <script lang="ts">
 import type { InterimInterest, LoanTerms } from '../../workbook/domain/bankLoan'
 import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
-import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
+import { plainAmount } from '../../../../shared/money/money'
+import { typedAmount } from '../../../../shared/money/typedAmount'
+import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { typedCount } from './typedCount'
 import { words as loansWords } from '../../words'
 import { words } from './words'
@@ -23,11 +25,11 @@ const EXAMPLE_FIRST_INSTALMENT = civilDate(2025, 9, 20)
 export function loanTermsTexts(terms: LoanTerms | null): LoanTermsTexts {
   return {
     lender: terms?.lender ?? '',
-    principal: terms === null ? '' : amountForTyping(terms.principal),
+    principal: terms === null ? '' : plainAmount(terms.principal),
     drawdown: terms?.drawdown ?? '',
     firstInstalment: terms?.firstInstalment ?? '',
     instalments: terms === null ? '' : String(terms.instalments),
-    interimAmount: terms?.interimInterest ? amountForTyping(terms.interimInterest.amount) : '',
+    interimAmount: terms?.interimInterest ? plainAmount(terms.interimInterest.amount) : '',
     interimDate: terms?.interimInterest?.date ?? '',
   }
 }
@@ -95,7 +97,7 @@ const testId = (field: string): string => `${props.testPrefix}-${field}`
     <UInput v-model="texts.lender" :placeholder="words.loanDialog.lenderPlaceholder" class="w-full" :data-testid="testId('lender')" />
   </UFormField>
   <UFormField :label="words.loanDialog.principal" :error="(tried && errors.principal) || false">
-    <UInput v-model="texts.principal" inputmode="decimal" :placeholder="loansWords.form.amountPlaceholder" class="w-full" :data-testid="testId('principal')" />
+    <MoneyInput v-model="texts.principal" :placeholder="loansWords.form.amountPlaceholder" class="w-full" :data-testid="testId('principal')" />
   </UFormField>
   <UFormField :label="words.loanDialog.instalments" :error="(tried && errors.instalments) || false" :help="words.loanDialog.instalmentsHelp">
     <UInput v-model="texts.instalments" inputmode="numeric" class="w-full" :data-testid="testId('instalments')" />
@@ -107,7 +109,7 @@ const testId = (field: string): string => `${props.testPrefix}-${field}`
     <UInput v-model="texts.firstInstalment" type="date" class="w-full" :data-testid="testId('first-instalment')" />
   </UFormField>
   <UFormField :label="words.loanDialog.interim" :error="(tried && errors.interim) || false" :help="words.loanDialog.interimHelp">
-    <UInput v-model="texts.interimAmount" inputmode="decimal" :placeholder="loansWords.form.amountPlaceholder" class="w-full" />
+    <MoneyInput v-model="texts.interimAmount" :placeholder="loansWords.form.amountPlaceholder" class="w-full" />
   </UFormField>
   <UFormField :label="words.loanDialog.interimDate">
     <UInput v-model="texts.interimDate" type="date" class="w-full" />

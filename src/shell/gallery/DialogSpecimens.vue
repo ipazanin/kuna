@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
@@ -9,14 +9,24 @@ import AppCard from '../../shared/ui/AppCard.vue'
 import AppDialog from '../../shared/ui/AppDialog.vue'
 import FigureTable from '../../shared/ui/FigureTable.vue'
 import FormGrid from '../../shared/ui/FormGrid.vue'
+import MoneyInput from '../../shared/ui/MoneyInput.vue'
 import MoneyText from '../../shared/ui/MoneyText.vue'
+import { moneyFromCents, plainAmount } from '../../shared/money/money'
+import { typedAmount } from '../../shared/money/typedAmount'
 import GallerySection from './GallerySection.vue'
 
 const formOpen = ref(false)
 const tableOpen = ref(false)
 const confirmOpen = ref(false)
 const tried = ref(false)
+const gridInterest = ref('')
+const dialogInterest = ref('')
 const subsidised = ref(true)
+const typedMoney = ref('')
+const givenMoney = ref(plainAmount(moneyFromCents(150000)))
+const disabledMoney = ref(plainAmount(moneyFromCents(150000)))
+const wrongMoney = ref('')
+const readMoney = computed(() => typedAmount(typedMoney.value))
 
 const ROWS = [
   { due: '20 Oct 2026', payment: 82220, interest: 39992, principal: 42228 },
@@ -37,7 +47,7 @@ const ROWS = [
           <UInput placeholder="Home loan" class="w-full" />
         </UFormField>
         <UFormField label="Interest the bank charged before the first instalment, if it did" help="What the bank charged from the payout.">
-          <UInput placeholder="0.00" inputmode="decimal" class="w-full" />
+          <MoneyInput v-model="gridInterest" placeholder="0.00" class="w-full" />
         </UFormField>
         <UFormField label="Monthly instalments" help="240 for 20 years.">
           <UInput inputmode="numeric" class="w-full" />
@@ -54,6 +64,33 @@ const ROWS = [
     </AppCard>
   </GallerySection>
 
+  <GallerySection
+    id="money-input"
+    title="MoneyInput"
+    description="An amount of money, bound with v-model to the text shown, which typedAmount reads. It groups thousands while it is typed in the language on screen, takes a decimal mark with two digits at most, reads a group mark typed after a number as the decimal mark until a third digit follows it, turns 3k into 3,000 and 1.5m into 1,500,000 at once, and adds the cents when it is left. It holds zero or more, so a typed minus is dropped, and a paste that does not read as one amount leaves it as it was."
+  >
+    <AppCard as="div" class="p-5">
+      <FormGrid>
+        <UFormField label="Amount" help="Try 3k, 0.2k, 1.5m or paste 1.234,56.">
+          <MoneyInput v-model="typedMoney" placeholder="0.00" class="w-full" />
+        </UFormField>
+        <UFormField label="Given an amount" help="Opened on an amount the screen already has.">
+          <MoneyInput v-model="givenMoney" class="w-full" />
+        </UFormField>
+        <UFormField label="With an error" error="An amount, such as 1,500.00">
+          <MoneyInput v-model="wrongMoney" placeholder="0.00" class="w-full" />
+        </UFormField>
+        <UFormField label="Disabled">
+          <MoneyInput v-model="disabledMoney" disabled class="w-full" />
+        </UFormField>
+        <p class="type-caption sm:col-span-2">
+          <template v-if="readMoney === null">The first field reads no amount yet.</template>
+          <template v-else>The first field reads <MoneyText :cents="readMoney" />.</template>
+        </p>
+      </FormGrid>
+    </AppCard>
+  </GallerySection>
+
   <GallerySection id="dialog" title="AppDialog" description="Full screen on a phone. Delete and the like at the start of the footer, Cancel and the primary action at its end.">
     <div class="flex flex-wrap gap-2">
       <UButton label="A form" color="neutral" variant="outline" data-testid="gallery-dialog-form" @click="formOpen = true" />
@@ -67,7 +104,7 @@ const ROWS = [
           <UInput placeholder="Home loan" class="w-full" />
         </UFormField>
         <UFormField label="Interest before the first instalment" help="What the bank charged from the payout, if it did.">
-          <UInput placeholder="0.00" inputmode="decimal" class="w-full" />
+          <MoneyInput v-model="dialogInterest" placeholder="0.00" class="w-full" />
         </UFormField>
         <UFormField label="Note" class="sm:col-span-2">
           <UInput class="w-full" />

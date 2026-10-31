@@ -21,6 +21,7 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { plural } from '../../../../shared/text/translation'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words } from './words'
 
 /** An extra payment tried out against the plan, both ways the bank offers, without saving anything. */
@@ -83,7 +84,7 @@ function keep(outcome: ExtraPaymentOutcome): void {
     <div class="flex flex-col gap-4 px-4 pb-4 sm:px-5">
       <FormGrid>
         <UFormField :label="words.whatIf.amount">
-          <UInput v-model="amount" inputmode="decimal" :placeholder="words.whatIf.amountPlaceholder" class="w-full" data-testid="what-if-amount" />
+          <MoneyInput v-model="amount" :placeholder="words.whatIf.amountPlaceholder" class="w-full" data-testid="what-if-amount" />
         </UFormField>
         <UFormField :label="words.whatIf.paidOn">
           <UInput v-model="date" type="date" class="w-full" data-testid="what-if-date" />

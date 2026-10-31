@@ -13,10 +13,12 @@ import type { Movement, MovementKind } from '../../workbook/domain/movement'
 import type { InformalLoanBook } from '../../workbook/domain/readLoanBook'
 import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
+import { plainAmount } from '../../../../shared/money/money'
+import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as loansWords } from '../../words'
 import { words } from './words'
 
@@ -47,7 +49,7 @@ watch(open, (opened) => {
   const movement = props.editing
   date.value = movement?.date ?? props.today
   kind.value = movement?.kind ?? 'repaid'
-  amount.value = movement === null ? '' : amountForTyping(movement.amount)
+  amount.value = movement === null ? '' : plainAmount(movement.amount)
   note.value = movement?.note ?? ''
   tried.value = false
 })
@@ -92,7 +94,7 @@ async function remove(): Promise<void> {
         <UInput v-model="date" type="date" class="w-full" data-testid="movement-date" />
       </UFormField>
       <UFormField :label="words.movementDialog.amount" :error="(tried && errors.amount) || false">
-        <UInput v-model="amount" inputmode="decimal" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="movement-amount" />
+        <MoneyInput v-model="amount" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="movement-amount" />
       </UFormField>
       <UFormField :label="words.movementDialog.kind" :help="KIND_HELP[kind]" class="sm:col-span-2">
         <USelect v-model="kind" :items="KIND_ITEMS" class="w-full" data-testid="movement-kind" />

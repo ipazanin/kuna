@@ -7,6 +7,9 @@ import { INVESTMENTS_OVERVIEW_ROUTE, INVESTMENTS_SETTINGS_ROUTE, INVESTMENTS_STA
 import { heldHoldings } from './holdings/domain/holdingsList'
 import { HOLDING_ROUTE, HOLDINGS_ROUTE } from './holdings/presentation/holdingLinks'
 import { usePortfolio } from './holdings/presentation/usePortfolio'
+import { transactionCount } from './transactions/domain/listedTransactions'
+import { TRANSACTIONS_ROUTE } from './transactions/presentation/transactionLinks'
+import { words as transactionWords } from './transactions/presentation/words'
 import { words as holdingsWords } from './holdings/presentation/words'
 import { words as overviewWords } from './overview/presentation/words'
 import { words as settingsWords } from './settings/presentation/words'
@@ -20,6 +23,12 @@ import { startPrices } from './prices/presentation/usePrices'
 
 const OVERVIEW: AppScreen = { path: INVESTMENTS_OVERVIEW_ROUTE, title: overviewWords.title, icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') }
 const HOLDINGS: AppScreen = { path: HOLDINGS_ROUTE, title: holdingsWords.title, icon: 'i-lucide-layers', component: () => import('./holdings/presentation/HoldingsScreen.vue') }
+const TRANSACTIONS: AppScreen = {
+  path: TRANSACTIONS_ROUTE,
+  title: transactionWords.title,
+  icon: 'i-lucide-arrow-left-right',
+  component: () => import('./transactions/presentation/TransactionsScreen.vue'),
+}
 const SETTINGS: AppScreen = { path: INVESTMENTS_SETTINGS_ROUTE, title: settingsWords.title, icon: 'i-lucide-settings', component: () => import('./settings/presentation/SettingsScreen.vue') }
 
 const { state } = useInvestmentsBooks()
@@ -41,15 +50,18 @@ export const investmentsApp: AppContribution = {
   screens: [
     OVERVIEW,
     HOLDINGS,
+    TRANSACTIONS,
     { path: HOLDING_ROUTE, title: holdingsWords.holding, icon: 'i-lucide-chart-line', component: () => import('./holdings/presentation/HoldingScreen.vue') },
     SETTINGS,
     { path: INVESTMENTS_START_ROUTE, title: words.start, icon: 'i-lucide-door-open', component: () => import('./onboarding/presentation/StartScreen.vue'), bare: true },
   ],
-  menu: () => [OVERVIEW, HOLDINGS],
+  menu: () => [OVERVIEW, HOLDINGS, TRANSACTIONS],
   settings: SETTINGS,
   menuCount: (screen) => {
-    const held = screen === HOLDINGS && figures.value !== null ? heldHoldings(figures.value).length : 0
-    return held === 0 ? null : held
+    let count = 0
+    if (screen === HOLDINGS && figures.value !== null) count = heldHoldings(figures.value).length
+    if (screen === TRANSACTIONS && state.workbook !== null) count = transactionCount(state.workbook.book)
+    return count === 0 ? null : count
   },
   subtitle: () => null,
   // Every figure leaves the app in euros, so it shows them in the language's format.

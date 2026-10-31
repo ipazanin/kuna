@@ -7,15 +7,15 @@ import type { Translation } from '../../../../shared/text/translation'
 // A lot is partija in Croatian, the units bought on one day at one cost.
 
 export const en = {
-  saleBeyond: (sale: string, instrument: string, date: CivilDate) => `The sale "${sale}" would sell more of "${instrument}" than its account holds on ${date}.`,
-  transferBeyond: (transfer: string, instrument: string, date: CivilDate) => `The transfer "${transfer}" would move more of "${instrument}" than its account holds on ${date}.`,
-  splitEmpties: (split: string, instrument: string) => `The split "${split}" would leave a lot of "${instrument}" with no units.`,
+  saleBeyond: (instrument: string, date: CivilDate) => `The sale of "${instrument}" on ${dayLabel(date)} would sell more than its account holds that day.`,
+  transferBeyond: (instrument: string, date: CivilDate) => `The transfer of "${instrument}" on ${dayLabel(date)} would move more units than its account holds that day.`,
+  splitEmpties: (instrument: string, date: CivilDate) => `The split of "${instrument}" on ${dayLabel(date)} would leave a lot with no units.`,
 }
 
 export const hr: Translation<typeof en> = {
-  saleBeyond: (sale, instrument, date) => `Prodaja „${sale}” prodala bi više instrumenta „${instrument}” nego što račun ima ${dayLabel(date)}.`,
-  transferBeyond: (transfer, instrument, date) => `Prijenos „${transfer}” prenio bi više instrumenta „${instrument}” nego što račun ima ${dayLabel(date)}.`,
-  splitEmpties: (split, instrument) => `Podjela „${split}” ostavila bi partiju instrumenta „${instrument}” bez ijedne jedinice.`,
+  saleBeyond: (instrument, date) => `Prodaja instrumenta „${instrument}” ${dayLabel(date)} prodala bi više nego što račun toga dana ima.`,
+  transferBeyond: (instrument, date) => `Prijenos instrumenta „${instrument}” ${dayLabel(date)} prenio bi više jedinica nego što račun toga dana ima.`,
+  splitEmpties: (instrument, date) => `Podjela instrumenta „${instrument}” ${dayLabel(date)} ostavila bi partiju bez ijedne jedinice.`,
 }
 
 export const words = language === 'hr' ? hr : en

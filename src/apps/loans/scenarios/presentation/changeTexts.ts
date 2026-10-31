@@ -8,9 +8,9 @@ import { words as loansWords } from '../../words'
 import { words } from './words'
 import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { ZERO } from '../../../../shared/money/money'
+import { ZERO, plainAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
-import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
+import { typedAmount } from '../../../../shared/money/typedAmount'
 
 /** A rate and whether the bank can change it, as typed. */
 export interface RateTexts {
@@ -26,7 +26,7 @@ export interface CostTexts {
 }
 
 export function costTexts(costs: LoanCosts | null): CostTexts {
-  const text = (amount: Money): string => (amount === 0 ? '' : amountForTyping(amount))
+  const text = (amount: Money): string => (amount === 0 ? '' : plainAmount(amount))
   return costs === null ? { upfront: '', monthly: '', yearly: '' } : { upfront: text(costs.upfront), monthly: text(costs.monthly), yearly: text(costs.yearly) }
 }
 
@@ -83,9 +83,9 @@ export function changeTextsOf(id: number, change: LoanChange): ChangeTexts {
   const blank = blankChange(id, change.kind, null, null)
   switch (change.kind) {
     case 'extra-payment':
-      return { ...blank, amount: amountForTyping(change.amount), date: change.date, effect: change.effect }
+      return { ...blank, amount: plainAmount(change.amount), date: change.date, effect: change.effect }
     case 'regular-extra-payment':
-      return { ...blank, amount: amountForTyping(change.amount), due: change.from, every: change.every, until: change.until ?? '', effect: change.effect }
+      return { ...blank, amount: plainAmount(change.amount), due: change.from, every: change.every, until: change.until ?? '', effect: change.effect }
     case 'rate-change':
       return { ...blank, due: change.from, rate: { rate: rateText(change.rate), rateType: change.rateType } }
     case 'move':

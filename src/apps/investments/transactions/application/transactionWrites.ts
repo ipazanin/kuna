@@ -1,4 +1,6 @@
 import { heldRefusals } from '../../holdings/application/heldRefusals'
+import { HAND_PRICE_WRITES } from '../../holdings/application/holdingWrites'
+import type { TransactionKind, TransactionRecord } from '../domain/listedTransactions'
 import { INVESTMENT_KINDS, bookWith } from '../../workbook/application/investmentWriteGuards'
 import type { CashMovement } from '../../workbook/domain/cashMovement'
 import type { Exchange } from '../../workbook/domain/exchange'
@@ -8,6 +10,7 @@ import type { SpinOff } from '../../workbook/domain/spinOff'
 import type { Split } from '../../workbook/domain/split'
 import type { Trade } from '../../workbook/domain/trade'
 import type { Transfer } from '../../workbook/domain/transfer'
+import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 
 /** A trade moves units, so no write of it may leave a sale beyond what its account holds. */
@@ -68,4 +71,29 @@ export const SPIN_OFF_WRITES: WriteRules<SpinOff> = {
   undoable: true,
   read: (read, records) => bookWith(SPIN_OFF_RECORDS, read, records).readings.spinOffs,
   refusals: (_change, fresh, after) => heldRefusals(fresh, after),
+}
+
+/** The rules of each kind of record the transaction dialog writes. */
+const TRANSACTION_WRITES: { readonly [Kind in TransactionKind]: WriteRules<Extract<TransactionRecord, { readonly kind: Kind }>['record']> } = {
+  trade: TRADE_WRITES,
+  income: INCOME_WRITES,
+  'cash-movement': CASH_MOVEMENT_WRITES,
+  exchange: EXCHANGE_WRITES,
+  transfer: TRANSFER_WRITES,
+  split: SPLIT_WRITES,
+  'spin-off': SPIN_OFF_WRITES,
+  price: HAND_PRICE_WRITES,
+}
+
+/** Adds a record when there is none before, removes it when there is none after, and otherwise changes it, keeping its kind. */
+export function writeTransaction(unit: UnitOfWork, before: TransactionRecord | null, after: TransactionRecord | null): void {
+  const kind = (after ?? before)?.kind
+  if (kind === undefined) return
+  if (before !== null && after !== null && before.kind !== after.kind) {
+    throw new Error(`A ${before.kind} cannot become a ${after.kind}.`)
+  }
+  const records = unit.of(TRANSACTION_WRITES[kind] as WriteRules<unknown>)
+  if (before === null) records.add(after!.record)
+  else if (after === null) records.remove(before.record)
+  else records.change(before.record, after.record)
 }

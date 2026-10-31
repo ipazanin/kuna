@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   decimalOfMoney,
@@ -55,10 +55,30 @@ describe('decimal text', () => {
     expect(typedDecimal('1,123456789012')).toBe(decimal('1.123456789012'))
   })
 
-  it('refuses a typed decimal below zero, past twelve places or with grouping', () => {
-    for (const text of ['', '-1', '1,0000000000001', '1.234,5', '1,234.5', 'abc']) {
+  it('reads thousands grouped as English writes them, so 1,000 is a thousand and 0,125 an eighth', () => {
+    expect(typedDecimal('1,000')).toBe(decimal('1000'))
+    expect(typedDecimal('1,234.5678')).toBe(decimal('1234.5678'))
+    expect(typedDecimal('0,125')).toBe(decimal('0.125'))
+    expect(typedDecimal('1,2345')).toBe(decimal('1.2345'))
+  })
+
+  it('refuses a typed decimal below zero, past twelve places or grouped as English does not write it', () => {
+    for (const text of ['', '-1', '1,0000000000001', '1.234,5', '1,23,456', 'abc']) {
       expect(typedDecimal(text)).toBeNull()
     }
+  })
+
+  it('reads thousands grouped as Croatian writes them', async () => {
+    vi.resetModules()
+    vi.doMock('../src/shared/text/language', () => ({ language: 'hr', intlLocale: 'hr-HR' }))
+    const croatian = await import('../src/shared/money/decimal')
+    vi.doUnmock('../src/shared/text/language')
+
+    expect(croatian.typedDecimal('1.000')).toBe(decimal('1000'))
+    expect(croatian.typedDecimal('1.234,5678')).toBe(decimal('1234.5678'))
+    expect(croatian.typedDecimal('1,234')).toBe(decimal('1.234'))
+    expect(croatian.typedDecimal('2.5')).toBe(decimal('2.5'))
+    expect(croatian.typedDecimal('1,234.5')).toBeNull()
   })
 })
 

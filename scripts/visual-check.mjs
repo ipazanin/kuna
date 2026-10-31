@@ -25,6 +25,7 @@
  * the Investments Overview on the sample (`?investments=sample`), on the sample without a deposit so an account's cash is below zero (`?investments=cash-below-zero`) and with late prices whose last
  * fetch failed (`?prices=late-prices`), each in Croatian too and with its figures worked out from the same fake sets, the home with the Investments card's figures and its late-prices badge,
  * the sample's Holdings, also with a late close, and two holdings' pages, one in US dollars with a lot partly sold and one from a spin-off that split, each in Croatian too,
+ * the sample's Transactions, in Croatian too, and Transactions on an empty file,
  * Settings' Prices card on the sample with current prices, with made-up keys kept and with late prices, Company's
  * Overview, Transactions, Review, the Import tab, every tab of Analysis, Invoicing with its Plan and Clients tabs, every tab of Settings and onboarding's first steps in Croatian (`?lang=hr`),
  * Year, Salaries and Owner in Croatian in the fake file on Drive, in this browser and with one and five employees, Salaries for one
@@ -46,7 +47,9 @@
  * It also makes an invoice through the checks and every step, with the fake Picker picking the
  * invoice and year folders and the month folder made on request, then re-exports it.
  * At 360, 430 and 1440 px it does the same with a pay scenario's component, copies a scenario, and
- * adds the starting scenarios to a workbook without any. At every width it opens each Loans dialog
+ * adds the starting scenarios to a workbook without any. On the sample Investments file it adds a buy, reads its summary, changes it, deletes it and
+ * brings it back with Undo, has a sale beyond what its account holds refused, and adds a holding from inside the transaction dialog with a price
+ * entered by hand. At every width it opens each Loans dialog and each Investments dialog
  * in English and Croatian, the Company dialogs whose fields sit two to a row, the app menu in Croatian
  * and the bank loan's what-if in Croatian. At 360, 768 and 1440 px it opens in Croatian the dialogs
  * and phone sheets of Transactions, Review and Settings, Categories, and groups Transactions by
@@ -178,6 +181,9 @@ import {
   loansBrowserFlow,
   loansDialogsFlow,
   loansDialogsFlowIn,
+  investmentsDialogsFlow,
+  investmentsDialogsFlowIn,
+  investmentsEditorFlow,
   loansDriveFlow,
   loansEditorFlow,
   loansOpenFlow,
@@ -1531,6 +1537,36 @@ const SOURCE_SCREENS = [
     cards: false,
   },
   {
+    name: 'investments-transactions',
+    query: 'investments=sample',
+    hash: '#/investments/transactions',
+    title: 'Transactions',
+    charts: 0,
+    ready: '[data-testid="transactions"] [data-testid="transaction-row"]',
+    shows: ['records, newest first', 'Add transaction', 'All kinds', 'Fee refund', 'Exchange', 'EUR into USD', 'Spin-off', 'Example Spinco from Example Dividend Co', '2 for 1', 'Statement of 30 Sep'],
+    cards: false,
+  },
+  {
+    name: 'investments-transactions-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments/transactions',
+    title: 'Transakcije',
+    charts: 0,
+    ready: '[data-testid="transactions"] [data-testid="transaction-row"]',
+    shows: ['zapisa, najnoviji prvi', 'Dodaj transakciju', 'Sve vrste', 'Povrat naknade', 'Konverzija', 'EUR u USD', 'Izdvajanje', '2 za 1'],
+    cards: false,
+  },
+  {
+    name: 'investments-transactions-empty',
+    query: 'investments=drive',
+    hash: '#/investments/transactions',
+    title: 'Transactions',
+    charts: 0,
+    ready: '[data-testid="transactions-empty"]',
+    shows: ['Every buy, sale, dividend, deposit, exchange and transfer shows here once you add it.', 'Add transaction'],
+    cards: false,
+  },
+  {
     name: 'investments-prices-late',
     query: 'investments=sample&prices=late-prices',
     hash: '#/investments',
@@ -2354,6 +2390,25 @@ const FLOWS = [
   },
   { name: 'dialogs-loans', hash: '#/loans', title: 'Overview', run: loansDialogsFlow, viewports: EVERY_VIEWPORT, modes: ['drive'], queries: { drive: '&loans=sample&investments=sample' } },
   { name: 'dialogs-loans-croatian', hash: '#/loans', title: 'Pregled', run: loansDialogsFlowIn('hr'), viewports: EVERY_VIEWPORT, modes: ['drive'], queries: { drive: '&loans=sample&lang=hr' } },
+  { name: 'investments-editor', hash: '#/investments/transactions', title: 'Transactions', run: investmentsEditorFlow, modes: ['drive'], queries: { drive: '&investments=sample' } },
+  {
+    name: 'dialogs-investments',
+    hash: '#/investments/transactions',
+    title: 'Transactions',
+    run: investmentsDialogsFlow,
+    viewports: EVERY_VIEWPORT,
+    modes: ['drive'],
+    queries: { drive: '&investments=sample' },
+  },
+  {
+    name: 'dialogs-investments-croatian',
+    hash: '#/investments/transactions',
+    title: 'Transakcije',
+    run: investmentsDialogsFlowIn('hr'),
+    viewports: EVERY_VIEWPORT,
+    modes: ['drive'],
+    queries: { drive: '&investments=sample&lang=hr' },
+  },
   { name: 'dialogs-company', hash: '#/company/invoicing?p=all', title: 'Invoicing', run: companyDialogsFlow, viewports: EVERY_VIEWPORT, modes: ['drive'] },
   {
     name: 'dialogs-rows-croatian',

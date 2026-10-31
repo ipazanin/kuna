@@ -285,8 +285,8 @@ describe('the Investments file', () => {
       ['trade', '2026-01-10, buy, 10', 'rate is filled, but "Example Fund" is quoted in EUR'],
       ['trade', '2026-01-10, buy, 10', 'accrued is filled, but "Example Tech" is not a bond quoted in percent'],
       ['spin-off', '2026-04-01, 1', '"Example Fund" is quoted in EUR, and its parent in USD'],
-      ['price', '2026-09-30, 10.51', 'another price of "Example Fund" is for 2026-09-30 too'],
-      ['price', '2026-09-30, 10.52', 'another price of "Example Fund" is for 2026-09-30 too'],
+      ['price', '2026-09-30, 10.51', 'another price of "Example Fund" is for 30 Sep 2026 too'],
+      ['price', '2026-09-30, 10.52', 'another price of "Example Fund" is for 30 Sep 2026 too'],
     ])
   })
 
@@ -340,10 +340,10 @@ describe('the Investments write rules', () => {
     const sale = onScreen(store, TRADE_RECORDS, 't2')
 
     await expect(store.write('Changed', (unit) => unit.of(TRADE_WRITES).change(sale, { ...sale, quantity: decimal('11') }))).rejects.toThrow(
-      'The sale "2026-02-10, sell, 11" would sell more of "Example Tech" than its account holds on 2026-02-10.',
+      'The sale of "Example Tech" on 10 Feb 2026 would sell more than its account holds that day.',
     )
     await expect(store.write('Moved', (unit) => unit.of(TRADE_WRITES).change(sale, { ...sale, account: recordIdOf(INVESTMENT_ACCOUNT_RECORDS, TWO) }))).rejects.toThrow(WorkbookWriteRefused)
-    await expect(store.write('Removed', (unit) => unit.of(TRADE_WRITES).remove(onScreen(store, TRADE_RECORDS, 't1')))).rejects.toThrow('would sell more of "Example Tech"')
+    await expect(store.write('Removed', (unit) => unit.of(TRADE_WRITES).remove(onScreen(store, TRADE_RECORDS, 't1')))).rejects.toThrow('The sale of "Example Tech" on 10 Feb 2026 would sell more')
 
     await store.write('Removed', (unit) => {
       unit.of(TRADE_WRITES).remove(onScreen(store, TRADE_RECORDS, 't1'))
@@ -365,10 +365,10 @@ describe('the Investments write rules', () => {
     const split = codecOfInvestmentsKind(SPLIT_RECORDS).make(storedFieldsOfValues({ instrument: SHARE, date: '2026-03-01', new: '1', old: '3' }), recordIdOf(SPLIT_RECORDS, 's1'))
 
     await expect(store.write('Added', (unit) => unit.of(TRANSFER_WRITES).add(transfer))).rejects.toThrow(
-      'The transfer "2026-02-01, 1" would move more of "Example Tech" than its account holds on 2026-02-01.',
+      'The transfer of "Example Tech" on 1 Feb 2026 would move more units than its account holds that day.',
     )
     // A third of a twelfth-place sliver rounds to nothing, which would leave its lot with no units.
-    await expect(store.write('Added', (unit) => unit.of(SPLIT_WRITES).add(split))).rejects.toThrow('The split "2026-03-01, 1 for 3" would leave a lot of "Example Tech" with no units.')
+    await expect(store.write('Added', (unit) => unit.of(SPLIT_WRITES).add(split))).rejects.toThrow('The split of "Example Tech" on 1 Mar 2026 would leave a lot with no units.')
   })
 
   it('refuses to remove an account or an instrument that a record still names, or to change what its trades read', async () => {
@@ -420,6 +420,8 @@ describe('the Investments write rules', () => {
       trade: [BUY, sale],
     })
 
-    await expect(store.write('Removed', (unit) => unit.of(SPIN_OFF_WRITES).remove(onScreen(store, SPIN_OFF_RECORDS, 'o1')))).rejects.toThrow('would sell more of "Example Spinco"')
+    await expect(store.write('Removed', (unit) => unit.of(SPIN_OFF_WRITES).remove(onScreen(store, SPIN_OFF_RECORDS, 'o1')))).rejects.toThrow(
+      'The sale of "Example Spinco" on 1 May 2026 would sell more',
+    )
   })
 })

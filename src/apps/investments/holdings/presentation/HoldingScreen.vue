@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 
@@ -8,9 +8,11 @@ import { latestRecords } from '../domain/latestRecords'
 import { priceHistory } from '../domain/priceHistory'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { hasTransactions } from '../../workbook/domain/investmentBook'
+import TransactionDialog from '../../transactions/presentation/TransactionDialog.vue'
 import HoldingHero from './HoldingHero.vue'
 import HoldingIncomeCard from './HoldingIncomeCard.vue'
 import HoldingRecordsCard from './HoldingRecordsCard.vue'
+import InstrumentDialog from './InstrumentDialog.vue'
 import { HOLDINGS_ROUTE, holdingNamed } from './holdingLinks'
 import OpenLotsCard from './OpenLotsCard.vue'
 import { WORKED_OUT_PRICE_PLACES } from './holdingText'
@@ -58,6 +60,9 @@ const legend = computed((): LegendEntry[] => {
   ]
 })
 
+const adding = ref(false)
+const changing = ref(false)
+
 const description = computed(() => {
   const current = holding.value
   if (current === null || sources.value === null) return ''
@@ -72,7 +77,12 @@ const description = computed(() => {
     <UButton :to="HOLDINGS_ROUTE" :label="words.allHoldings" icon="i-lucide-arrow-left" color="neutral" variant="link" class="-mb-4 self-start px-0" data-testid="back-to-holdings" />
     <ScreenSkeleton v-if="loading" :cards="2" data-testid="holding-loading" />
     <template v-else-if="holding !== null && sources !== null">
-      <PageHeader :title="holding.instrument.name" :description="description" />
+      <PageHeader :title="holding.instrument.name" :description="description">
+        <template #actions>
+          <UButton :label="words.actions.change" icon="i-lucide-pencil" color="neutral" variant="outline" data-testid="holding-change" @click="changing = true" />
+          <UButton :label="words.actions.add" icon="i-lucide-plus" data-testid="holding-add-transaction" @click="adding = true" />
+        </template>
+      </PageHeader>
       <HoldingHero :holding="holding" :today="sources.today" />
       <ChartCard
         v-if="chart !== null && history !== null"
@@ -97,6 +107,8 @@ const description = computed(() => {
         <HoldingRecordsCard :holding="holding" :records="records" />
         <HoldingIncomeCard v-if="hasIncome" :records="records" />
       </DashboardGrid>
+      <InstrumentDialog v-model:open="changing" :instrument="holding.instrument" :book="sources.book" />
+      <TransactionDialog v-model:open="adding" :book="sources.book" :editing="null" :start="{ happened: 'buy', instrument: holding.instrument.id }" />
     </template>
     <template v-else-if="state.workbook !== null">
       <PageHeader :title="words.holding" />
