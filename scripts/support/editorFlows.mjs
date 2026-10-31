@@ -3666,7 +3666,7 @@ export async function investmentsPriceKeyFlow(page, { press, shoot, inspect }) {
   if (forgotten !== null) throw new Error('Remove left the key in this browser')
   await pressSelector(page, press, '[data-testid="prices-fetch-now"]')
   await toastMatching(page, /^Prices fetched$/)
-  await pageSays(page, 'The last fetch got nothing for 3 series', true)
+  await pageSays(page, 'The last fetch got nothing for 4 series', true)
   await pageSays(page, 'No Twelve Data key in this browser.', true)
   await inspect?.('the prices fetched without a listing key')
   await dismissToasts(page)
