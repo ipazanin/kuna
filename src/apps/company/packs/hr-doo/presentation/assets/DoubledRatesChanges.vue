@@ -53,11 +53,11 @@ const phone = usePhoneLayout()
   <FigureTable v-else data-testid="doubled-rates-changes">
     <thead>
       <tr>
-        <th scope="col" class="text-start">{{ words.changes.year }}</th>
-        <th scope="col" class="text-end">{{ words.changes.depreciation }}</th>
-        <th v-if="showGrant" scope="col" class="text-end">{{ words.changes.grantReleased }}</th>
-        <th scope="col" class="text-end">{{ words.changes.profitBeforeTax }}</th>
-        <th scope="col" class="text-end">{{ words.changes.profitTax }}</th>
+        <th scope="col" class="text-start align-bottom">{{ words.changes.year }}</th>
+        <th scope="col" class="cell-wraps text-end align-bottom">{{ words.changes.depreciation }}</th>
+        <th v-if="showGrant" scope="col" class="cell-wraps text-end align-bottom">{{ words.changes.grantReleased }}</th>
+        <th scope="col" class="cell-wraps text-end align-bottom">{{ words.changes.profitBeforeTax }}</th>
+        <th scope="col" class="cell-wraps text-end align-bottom">{{ words.changes.profitTax }}</th>
       </tr>
     </thead>
     <tbody>
@@ -67,8 +67,10 @@ const phone = usePhoneLayout()
         <td v-if="showGrant" class="text-end"><MoneyText :cents="line.grantReleased" sign="always" /></td>
         <td class="text-end"><MoneyText :cents="line.profitBeforeTax" sign="always" /></td>
         <td class="text-end">
-          <MoneyText :cents="line.profitTax" sign="always" class="text-highlighted" />
-          <span class="ms-1.5 text-xs text-muted">{{ words.changes.at(line.rate) }}</span>
+          <span class="inline-flex flex-wrap items-baseline justify-end gap-x-1.5">
+            <MoneyText :cents="line.profitTax" sign="always" class="text-highlighted" />
+            <span class="text-xs text-muted">{{ words.changes.at(line.rate) }}</span>
+          </span>
         </td>
       </tr>
     </tbody>

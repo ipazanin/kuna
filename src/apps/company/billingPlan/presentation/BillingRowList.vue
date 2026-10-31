@@ -58,7 +58,7 @@ const phone = usePhoneLayout()
     </li>
   </ul>
 
-  <div v-else class="overflow-x-auto">
+  <div v-else class="@container overflow-x-auto">
     <table class="data-table billing-table w-full text-sm" data-testid="billing-rows">
       <thead>
         <tr>
@@ -67,7 +67,7 @@ const phone = usePhoneLayout()
           <th scope="col" class="text-start">{{ words.rows.description }}</th>
           <th v-if="showClient" scope="col" class="text-start">{{ words.rows.client }}</th>
           <th scope="col" class="text-end">{{ words.rows.amount }}</th>
-          <th scope="col" class="text-start">{{ words.rows.invoiced }}</th>
+          <th scope="col" class="hidden text-start @2xl:table-cell">{{ words.rows.invoiced }}</th>
           <th scope="col">
             <span class="sr-only">{{ words.rows.edit }}</span>
           </th>
@@ -77,15 +77,16 @@ const phone = usePhoneLayout()
         <tr v-for="row in rows" :key="row.id" data-testid="billing-row">
           <td class="figure whitespace-nowrap text-toned">{{ dayLabel(row.date) }}</td>
           <th scope="row" class="cell-wraps text-start font-normal">
-            <span class="inline-flex items-center gap-2 text-highlighted">
+            <span class="flex items-center gap-2 text-highlighted">
               <span class="swatch" :style="{ background: row.colour }" aria-hidden="true" />
               {{ row.item }}
             </span>
+            <UBadge :label="BILLING_STATUS[row.status].label" :color="BILLING_STATUS[row.status].color" variant="subtle" size="sm" class="mt-1 @2xl:hidden" />
           </th>
           <td class="cell-wraps text-toned">{{ row.description }}</td>
           <td v-if="showClient" class="cell-wraps text-toned">{{ row.clientName }}</td>
           <td class="text-end"><MoneyText :cents="row.amount" class="text-highlighted" /></td>
-          <td>
+          <td class="hidden @2xl:table-cell">
             <UBadge :label="BILLING_STATUS[row.status].label" :color="BILLING_STATUS[row.status].color" variant="subtle" size="sm" />
           </td>
           <td class="text-end">

@@ -382,7 +382,7 @@ const columns: TableColumn<TableEntry>[] = [
     },
     // The count sits under the counterparty, so the amount column stays as narrow as its figures.
     footer: () =>
-      h('span', { class: 'inline-flex items-baseline gap-2 whitespace-nowrap' }, [
+      h('span', { class: 'inline-flex flex-wrap items-baseline justify-end gap-x-2' }, [
         h('span', { class: 'text-xs font-normal text-muted' }, words.total),
         h(MoneyText, { cents: total.value, class: 'font-semibold text-highlighted' }),
       ]),
