@@ -4,20 +4,20 @@
  * home's top bar with no menu button and a fresh device's home with every app in Set up, the tabs of Settings with Back through them, a link to Year's Statements tab alone kept in its year through two tabs and Back, the review and corporate tax lines of Overview's waiting card, the review line again in Croatian, a chart's tap-then-drill, the filter sheet with a
  * filter added and removed,
  * grouped transactions that collapse and expand, a payee's category breakdown in English and Croatian, Analysis and its Compare tab in Croatian, an owner share changed and cleared and a new default share's fill, each undone, in Croatian, an xlsx file opened and kept in this browser,
- * confirming and recategorising a row on Review with Undo, the session's changes with Undo from
+ * confirming and recategorising a row on the To review tab of Transactions with Undo, the session's changes with Undo from
  * there, the coverage list split into rows no rule settles and exceptions to a rule, a paid month on the payroll calendar of Year, Taxes, the
  * doubled rates, a year's build-up and a payment on Year, Assets, a line's build-up and its rows on Year, Statements, the accountant's lines,
  * asset rows and grant rows on Year, a line's build-up on Year, Forecast, a payout option, the next year and the Plan tab from Year, Pay,
  * a pay scenario's figure, warnings and starting figures on Year, Pay, a paid corporate tax advance on Year, Taxes, a repayment on the Owner loan list, the
  * Taken tab as Owner's default with its net share and monthly net pay tiles, the monthly net with the profit included opening its build-up and Year from it, and reading – without hr_company_registered, Owner's Filters button on the tab row setting the period of both tabs, the owner take under the ring against its tile, a month of the loan balance beside the ring, the tax the benefits from company costs avoided against a dividend full screen, Compare pay mixes and the Add advance form from Owner's header, an advance added outside the period opened from its toast,
- * the cost of a reimbursement with no cost on file added from Review,
+ * the cost of a reimbursement with no cost on file added from the To review tab,
  * Invoicing's next invoice tile opening its month on the Plan tab, the rest of the year filled from a preview with a description edited, a plan row edited and
  * deleted, and the first row added to an empty billing plan, the clients and the billing and invoice terms on the Clients tab, each with Undo where it has one, a category, with
  * its colour, a label and a role, an asset, an employee on Salaries and an invoice added, edited, deleted and brought back with Undo in the fake file on Drive and in a workbook kept in this browser, the statements
  * folder the settings lack saved at the path the app uses and then at a new one, the card settlement IBANs and a client's second
  * IBAN typed as tags, refused, removed and saved, the client's with Undo, in both modes, an owner advance
  * changed, deleted and brought back, a payment split, edited, deleted and
- * brought back, the same from a row of Review's queue, a group of rows no rule repeats dismissed, restored and the restore undone,
+ * brought back, the same from a row of the To review queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google with one token for every scope and the sync it resumes ending ready, with Drive read unticked ending in Allow access, a refused consent and a
  * forged answer leaving Allow access with no message, a refused silent trip marking the device so the next open waits for Allow access, Sign in to Google when Google asks
  * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, a k typed into the what-if's amount expanding at once with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, the period of Investments Performance changed to 1Y, to a year and back to All, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices card, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
@@ -31,10 +31,10 @@
  * a camt.053 statement and a bank export imported on the Import tab of Transactions, the export
  * with a profile made for it, each confirmed and undone, and the profile deleted, the same Import in Croatian with a held statement and the Mail card's list, an invoice made and re-exported, and in
  * Croatian an invoice added, edited, deleted and undone, made and re-exported, a client's second IBAN and the rest of the year filled and undone, a rule made from a row and applied to
- * the rows still waiting, a rule edited and switched off on Review's Rules tab, a rule's note changed and the rule deleted from
+ * the rows still waiting, a rule edited and switched off on Settings, Category rules, a rule's note changed and the rule deleted from
  * its editor, each undone, in both modes, the same split, change of category, rule editor, dismissal and
- * categories editor with its filters in Croatian with the dialogs and sheets of Transactions, Review and Categories, an asset, an employee, an owner
- * advance, a pay scenario's component, the starting scenarios, a category's plan and a planned purchase in Croatian, each undone, the Ruleset search on Settings, a
+ * categories editor with its filters in Croatian with the dialogs and sheets of Transactions, its To review tab and Categories, an asset, an employee, an owner
+ * advance, a pay scenario's component, the starting scenarios, a category's plan and a planned purchase in Croatian, each undone, the Tax rules search on Settings, a
  * watch list link that opens its rule in the side panel, the local income tax rates searched and shown in full, the first run kept
  * on the fake Drive and in this browser with Back to the step that made the books and its Start over, both again in Croatian with Settings, General, Accounts and Books file and the card settlement IBANs saved, the folder step offering to open the books
  * the fake Drive already holds, new books, a move from this browser and the Loans file alike, new books on the fake Drive with statements from mail and their first sync, the statement step asking for Drive read before the Picker,
@@ -68,8 +68,7 @@ import { en as sharedEnglish } from '../src/shared/app/words.ts'
 import { hr as analysisCroatian } from '../src/apps/company/analysis/presentation/words.ts'
 import { en as billingEnglish, hr as billingCroatian } from '../src/apps/company/billingPlan/presentation/words.ts'
 import { en as overviewEnglish, hr as overviewCroatian } from '../src/apps/company/overview/presentation/words.ts'
-import { en as reviewEnglish, hr as reviewCroatian } from '../src/apps/company/review/presentation/words.ts'
-import { hr as transactionsCroatian } from '../src/apps/company/transactions/presentation/words.ts'
+import { en as transactionsEnglish, hr as transactionsCroatian } from '../src/apps/company/transactions/presentation/words.ts'
 import { en as invoicingEnglish, hr as invoicingCroatian } from '../src/apps/company/invoicing/presentation/words.ts'
 import { en as writesEnglish, hr as writesCroatian } from '../src/shared/storage/presentation/words.ts'
 import { chromePath, ENGLISH_CHROME_ARG } from './support/browsers.mjs'
@@ -207,8 +206,9 @@ const SCREENS = [
   { name: 'year-plan', hash: '#/company/year?tab=plan&p=all', title: 'Year', ready: '[data-testid="plan-editor"]', cards: false },
   { name: 'year-pay', hash: '#/company/year?year=2027&tab=pay&p=all', title: 'Year', ready: '[data-testid="scenario-editor"]' },
   { hash: '#/company/owner?tab=owed&p=all', title: 'Owner', ready: '[data-testid="loan-list"]' },
-  { hash: '#/company/review?p=all', title: 'Review', ready: '[data-testid="open-filters"]' },
+  { name: 'transactions-review', hash: '#/company/transactions?tab=review&p=all', title: 'Transactions', ready: '[data-testid="open-filters"]' },
   { name: 'company-settings', hash: '#/company/settings', title: 'Settings', ready: '[data-testid="settings-tabs"]' },
+  { name: 'company-settings-category-rules', hash: '#/company/settings?tab=category-rules', title: 'Settings', ready: '[data-testid="rules-tab"]' },
   { name: 'company-settings-ruleset', hash: '#/company/settings?tab=ruleset', title: 'Settings', ready: '[data-testid="rule-row"]' },
   { name: 'company-settings-books', hash: '#/company/settings?tab=books', title: 'Settings', ready: '[data-testid="data-source-card"]', cards: false },
   { name: 'kuna-settings', hash: '#/settings', title: 'Kuna settings', ready: '[data-testid="sync-card"]', cards: false },
@@ -401,8 +401,8 @@ async function checkWidth(width) {
   })
 
   for (const [suffix, words] of [
-    ['', { overview: overviewEnglish, review: reviewEnglish, query: '' }],
-    ['-croatian', { overview: overviewCroatian, review: reviewCroatian, query: '&lang=hr' }],
+    ['', { overview: overviewEnglish, transactions: transactionsEnglish, query: '' }],
+    ['-croatian', { overview: overviewCroatian, transactions: transactionsCroatian, query: '&lang=hr' }],
   ]) {
     await step(`waiting-review${suffix}`, async () => {
       await open(page, `${words.query}#/company`, words.overview.title)
@@ -412,7 +412,7 @@ async function checkWidth(width) {
       await reviewLink.evaluate((element) => element.scrollIntoView({ block: 'center' }))
       await delay(200)
       await reviewLink.tap()
-      await waitForTitle(page, words.review.title)
+      await waitForTitle(page, words.transactions.title)
       await expect(reviewCount(page), (count) => count === 2, 'the waiting line did not open the queue with its two rows')
     })
   }
@@ -869,9 +869,9 @@ async function checkWidth(width) {
     await expect(hashOf(page), (hash) => hash.includes('2026-10-08'), 'Open it did not open the day of the advance')
   })
 
-  for (const [screen, title] of [['review', 'Review']]) {
+  for (const [screen, hash, title] of [['review', '#/company/transactions?tab=review&p=all', 'Transactions']]) {
     await step(`${screen}-unaccounted-cost`, async () => {
-      await openFreshBrowser(page, `#/company/${screen}?p=all`, title)
+      await openFreshBrowser(page, hash, title)
       const unaccounted = () => page.evaluate(() => document.querySelectorAll('[data-testid="unaccounted-reimbursement"]').length)
       await expect(unaccounted(), (count) => count === 1, 'the reimbursement with no cost on file is not listed')
       const adder = await page.$('[data-testid="add-unaccounted-cost"]')
@@ -1088,14 +1088,14 @@ async function checkWidth(width) {
       ['plan', '#/company/year?year=2027&tab=plan', 'Year', planFlow],
       ['plan-tab', '#/company/year?year=2027&tab=plan', 'Year', planTabFlow, mode === 'drive' ? '&fake=no-plan' : '&fake=browser-no-plan'],
       ['split', '#/company/transactions?p=all&q=GADGET', 'Transactions', splitFlow],
-      ['split-review', '#/company/review', 'Review', reviewSplitFlow],
+      ['split-review', '#/company/transactions?tab=review', 'Transactions', reviewSplitFlow],
       ['change-category', '#/company/transactions?p=all&q=CODE%20HOST', 'Transactions', changeCategoryFlow],
       ['owner-share', '#/company/transactions?p=all&q=purchase%2C%20laptop', 'Transactions', ownerShareFlow],
       ['share-fill', '#/company/settings?tab=categories', 'Settings', shareFillFlow],
       ['owner-share-croatian', '#/company/transactions?p=all&q=purchase%2C%20laptop', 'Transakcije', ownerShareFlowIn('hr'), `${query}&lang=hr`],
       ['share-fill-croatian', '#/company/settings?tab=categories', 'Postavke', shareFillFlowIn('hr'), `${query}&lang=hr`],
-      ['dismiss', '#/company/review?tab=rules', 'Review', dismissFlow],
-      ['rules-editor', '#/company/review?tab=rules', 'Review', rulesEditorFlow],
+      ['dismiss', '#/company/settings?tab=category-rules', 'Settings', dismissFlow],
+      ['rules-editor', '#/company/settings?tab=category-rules', 'Settings', rulesEditorFlow],
       ['import-camt', '#/company/transactions?tab=import', 'Transactions', importCamtFlow(IMPORT_SAMPLES.camt)],
       ['import-table', '#/company/transactions?tab=import', 'Transactions', importTableFlow(IMPORT_SAMPLES.table)],
       ['import-files-croatian', '#/company/transactions?tab=import', 'Transakcije', importFlowIn('hr', IMPORT_SAMPLES), `${query}&lang=hr`],
@@ -1106,10 +1106,10 @@ async function checkWidth(width) {
       ['categories-croatian', '#/company/settings?tab=categories', 'Postavke', categoryFlowIn('hr'), `${query}&lang=hr`],
       ['categories-filters-croatian', '#/company/settings?tab=categories', 'Postavke', categoryFiltersFlowIn('hr'), `${query}&lang=hr`],
       ['split-croatian', '#/company/transactions?p=all&q=GADGET', 'Transakcije', splitFlowIn('hr'), `${query}&lang=hr`],
-      ['split-review-croatian', '#/company/review', 'Za provjeru', reviewSplitFlowIn('hr'), `${query}&lang=hr`],
+      ['split-review-croatian', '#/company/transactions?tab=review', 'Transakcije', reviewSplitFlowIn('hr'), `${query}&lang=hr`],
       ['change-category-croatian', '#/company/transactions?p=all&q=CODE%20HOST', 'Transakcije', changeCategoryFlowIn('hr'), `${query}&lang=hr`],
-      ['dismiss-croatian', '#/company/review?tab=rules', 'Za provjeru', dismissFlowIn('hr'), `${query}&lang=hr`],
-      ['rules-editor-croatian', '#/company/review?tab=rules', 'Za provjeru', rulesEditorFlowIn('hr'), `${query}&lang=hr`],
+      ['dismiss-croatian', '#/company/settings?tab=category-rules', 'Postavke', dismissFlowIn('hr'), `${query}&lang=hr`],
+      ['rules-editor-croatian', '#/company/settings?tab=category-rules', 'Postavke', rulesEditorFlowIn('hr'), `${query}&lang=hr`],
       ['dialogs-rows-croatian', '#/company/transactions?p=all&q=GADGET', 'Transakcije', rowsDialogsFlowIn('hr'), `${query}&lang=hr`],
       ['assets-croatian', '#/company/year?tab=assets#asset-rows', 'Godina', assetFlowIn('hr'), `${query}&lang=hr`],
       ['employees-croatian', '#/company/salaries#employee-rows', 'Plaće', employeeFlowIn('hr'), `${query}&lang=hr`],
@@ -1390,7 +1390,7 @@ async function checkWidth(width) {
   })
 
   await step('review-confirm-undo', async () => {
-    await openFreshBrowser(page, '#/company/review', 'Review')
+    await openFreshBrowser(page, '#/company/transactions?tab=review', 'Transactions')
     await expect(reviewCount(page), (count) => count === 2, 'the queue does not hold the two fake rows')
     await (await reviewRow(page, 'GADGET CORNER')).tap()
     await page.waitForSelector('[data-testid="review-details"]')
@@ -1408,7 +1408,7 @@ async function checkWidth(width) {
   })
 
   await step('review-recategorise-undo', async () => {
-    await openFreshBrowser(page, '#/company/review', 'Review')
+    await openFreshBrowser(page, '#/company/transactions?tab=review', 'Transactions')
     await (await reviewRow(page, 'SNACK KIOSK')).tap()
     await page.waitForSelector('[data-testid="recategorise-row"]')
     await page.tap('[data-testid="review-details"] [data-testid="recategorise-row"]')
@@ -1428,7 +1428,7 @@ async function checkWidth(width) {
   })
 
   await step('session-panel-undo', async () => {
-    await openFreshBrowser(page, '#/company/review', 'Review')
+    await openFreshBrowser(page, '#/company/transactions?tab=review', 'Transactions')
     await (await reviewRow(page, 'GADGET CORNER')).tap()
     await (await waitForText(page, '[data-testid="review-details"] button', 'Confirm')).tap()
     await waitForText(page, '[data-slot="title"]', 'Confirmed')
@@ -1469,7 +1469,7 @@ async function checkWidth(width) {
   })
 
   await step('make-rule-apply', async () => {
-    await openFreshBrowser(page, '#/company/review', 'Review')
+    await openFreshBrowser(page, '#/company/transactions?tab=review', 'Transactions')
     await (await reviewRow(page, 'GADGET CORNER')).tap()
     await page.tap('[data-testid="review-details"] [data-testid="make-rule"]')
     await page.waitForSelector('[data-testid="rule-backtest"]')
@@ -1495,7 +1495,7 @@ async function checkWidth(width) {
   })
 
   await step('coverage-split', async () => {
-    await openFreshBrowser(page, '#/company/review?tab=rules', 'Review')
+    await openFreshBrowser(page, '#/company/settings?tab=category-rules', 'Settings')
     await openCoverage(page)
     const split = await waitForText(page, '[data-testid="coverage-gap"]', 'STATE BUDGET')
     await expect(
@@ -1556,7 +1556,7 @@ async function checkWidth(width) {
   })
 
   await step('rules-tab-edit', async () => {
-    await openFreshBrowser(page, '#/company/review?tab=rules', 'Review')
+    await openFreshBrowser(page, '#/company/settings?tab=category-rules', 'Settings')
     await page.waitForSelector('[data-testid="rule-row"]')
     await inspect(page, `${width}px rules tab`)
     await shoot('rules-tab')
@@ -1600,7 +1600,7 @@ async function checkWidth(width) {
     const tokenOf = (scope, state = 'touch-check') => `access_token=fake-one-token&token_type=Bearer&expires_in=3599&scope=${scope}&state=${state}`
     const everyScope = scopeOf('drive.file', 'drive.readonly', 'gmail.readonly', 'gmail.compose')
     const tapAsk = { state: 'touch-check', scopes: ['drive.file', 'drive.readonly', 'gmail.readonly', 'gmail.compose'], resume: 'sync', route: '#/company/transactions', ask: 'tap' }
-    const silentAsk = { state: 'touch-check', scopes: ['drive.file', 'drive.readonly'], resume: 'none', route: '#/company/review', ask: 'silent' }
+    const silentAsk = { state: 'touch-check', scopes: ['drive.file', 'drive.readonly'], resume: 'none', route: '#/company/transactions?tab=review', ask: 'silent' }
     /** Loads the app as Google sends the tab back, with what the tab remembered before it left, nothing kept from an earlier grant and invoice drafts off. */
     const comeBack = async (variant, pending, fragment) => {
       await page.goto(`${BASE}?theme=dark&fake=${variant}#/`, { waitUntil: 'networkidle0' })
@@ -1683,7 +1683,7 @@ async function checkWidth(width) {
 
     // The silent trip as the app opens, refused: the device is marked, so the next open stays, and the control asks for a tap.
     await comeBack('drive', silentAsk, 'error=interaction_required&state=touch-check')
-    await waitForTitle(page, 'Review')
+    await waitForTitle(page, 'Transactions')
     await controlShows('allow-access', 'a refused silent trip did not leave Allow access in the sync control')
     await expect(noMessage(), (none) => none, 'the refused silent trip showed a message')
     await expect(deviceMark(), (mark) => mark === 'interaction_required', 'the refused silent trip did not mark the device')
@@ -1697,7 +1697,7 @@ async function checkWidth(width) {
 
     // Not signed in to Google: the control says so, and its tap signs in, syncs and lets the next open go silently again.
     await comeBack('drive', silentAsk, 'error=login_required&state=touch-check')
-    await waitForTitle(page, 'Review')
+    await waitForTitle(page, 'Transactions')
     await controlShows('sign-in', 'Google asking for a sign-in did not show Sign in to Google')
     const signIn = await control()
     if (signIn.label !== 'Sign in to Google') throw new Error(`the sync control says "${signIn.label}", not Sign in to Google`)
@@ -2036,7 +2036,7 @@ async function checkWidth(width) {
     ['loans-try-extra', 'drive&loans=house-and-car', loansTryExtraFlow, CAR_LOAN_SCENARIOS, 'Scenarios'],
     ['onboarding-statement-access', 'drive', onboardingStatementAccessFlow, '#/company/start?step=statement&statements=folder'],
     ['move-browser', 'browser', moveFromBrowserFlow, '#/company/settings?tab=books', 'Settings'],
-    ['race', 'race', raceFlow, '#/company/review', 'Review'],
+    ['race', 'race', raceFlow, '#/company/transactions?tab=review', 'Transactions'],
   ]) {
     await step(name, async () => {
       await page.goto(`${BASE}?theme=dark&fake=${variant}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })

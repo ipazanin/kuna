@@ -5,6 +5,7 @@ import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { capitalised } from '../../../../shared/text/capitalised'
 import { language } from '../../../../shared/text/language'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
+import { monthCase } from '../../../../shared/calendar/monthCase'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // A bank account is račun u banci, a ledger row stavka, the ledger evidencija and Kuna's own file datoteka. Net stays neto.
@@ -32,7 +33,7 @@ export const en = {
       one: `An invoice is past the due date, ${owed} still owed`,
       other: `${count} invoices are past the due date, ${owed} still owed`,
     }),
-    links: { import: 'Import', review: 'Review', invoicing: 'Invoicing', invoices: 'Invoices' },
+    links: { import: 'Import', review: 'To review', invoicing: 'Invoicing', invoices: 'Invoices' },
   },
   tiles: {
     cashOnHand: 'Cash on hand',
@@ -116,8 +117,8 @@ export const hr: Translation<typeof en> = {
       few: `${count} računa iz plana naplate još nisu izdana, najstariji za ${oldest}`,
       other: `${count} računa iz plana naplate još nije izdano, najstariji za ${oldest}`,
     }),
-    thisMonthNotMade: (client) => `Ovomjesečni račun klijentu ${client} još nije izdan`,
-    monthNotMade: (month, client) => `Račun za ${month} klijentu ${client} još nije izdan`,
+    thisMonthNotMade: (client) => `Ovomjesečni račun klijentu „${client}” još nije izdan`,
+    monthNotMade: (month, client) => `Račun za ${monthCase(month, 'accusative')} klijentu „${client}” još nije izdan`,
     overdue: (count, owed) => ({
       one: `Rok plaćanja prošao je za ${count} račun, a duguje se još ${owed}`,
       few: `Rok plaćanja prošao je za ${count} računa, a duguje se još ${owed}`,

@@ -26,12 +26,12 @@ export const en = {
 export const hr: Translation<typeof en> = {
   pickerTitle: (segment) => `Odaberite postojeću mapu ${segment}. Odaberite i sve mape koje vidite pokraj nje, da aplikacija ne pita ponovno.`,
   steps: {
-    alreadyFiled: (fileName) => `${fileName} već je u mapi, a aplikacija ne prepisuje račun. Za zamjenu upotrijebite Izvezi ponovno na tom računu.`,
-    replaced: (fileName) => `Zamijenjen je ${fileName}.`,
-    filedOverUnseen: (fileName) => `Spremljen je ${fileName}. Aplikacija nije vidjela raniji PDF tog naziva, pa ako ga je stari generator spremio, obrišite ga na Driveu.`,
-    filed: (fileName) => `Spremljen je ${fileName}.`,
+    alreadyFiled: (fileName) => `„${fileName}” već je u mapi, a aplikacija ne prepisuje račun. Za zamjenu upotrijebite Izvezi ponovno na tom računu.`,
+    replaced: (fileName) => `Zamijenjen je „${fileName}”.`,
+    filedOverUnseen: (fileName) => `Spremljen je „${fileName}”. Aplikacija nije vidjela raniji PDF tog naziva, pa ako ga je stari generator spremio, obrišite ga na Driveu.`,
+    filed: (fileName) => `Spremljen je „${fileName}”.`,
     noDrive: 'Nema Google Drivea u koji bi se spremio.',
-    downloaded: (fileName) => `${fileName} spremljen je putem preglednika.`,
+    downloaded: (fileName) => `„${fileName}” spremljen je putem preglednika.`,
     noGmail: 'Pristup Gmailu nije odobren.',
     draftSaved: (to) => `Spremljena je skica za ${to}. Ništa nije poslano.`,
     deleteEarlierDraft: ' Obrišite raniju skicu u Gmailu ako je još ondje.',

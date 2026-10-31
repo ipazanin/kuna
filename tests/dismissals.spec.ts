@@ -1,8 +1,8 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { DISMISSAL_WRITES, dismissalOfGroup } from '../src/apps/company/review/application/dismissalWrites'
-import { withoutDismissed } from '../src/apps/company/review/domain/dismissedSuggestions'
+import { DISMISSAL_WRITES, dismissalOfGroup } from '../src/apps/company/rules/application/dismissalWrites'
+import { withoutDismissed } from '../src/apps/company/rules/domain/dismissedSuggestions'
 import { ruleCoverage } from '../src/apps/company/rules/domain/ruleCoverage'
 import { categorisationContextOf } from '../src/apps/company/rules/domain/transactionFacts'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'

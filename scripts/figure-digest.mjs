@@ -39,7 +39,7 @@ import { periodReview, reviewPeriodOf } from '../src/apps/company/period-review/
 import { ageingOf, amountsOwed } from '../src/apps/company/receivables/domain/ageing.ts'
 import { daysToPaid } from '../src/apps/company/receivables/domain/daysToPaid.ts'
 import { receivablesOf } from '../src/apps/company/receivables/domain/invoiceMatching.ts'
-import { withoutDismissed } from '../src/apps/company/review/domain/dismissedSuggestions.ts'
+import { withoutDismissed } from '../src/apps/company/rules/domain/dismissedSuggestions.ts'
 import { categorise } from '../src/apps/company/rules/domain/categorise.ts'
 import { ruleCoverage } from '../src/apps/company/rules/domain/ruleCoverage.ts'
 import { categorisationContextOf } from '../src/apps/company/rules/domain/transactionFacts.ts'

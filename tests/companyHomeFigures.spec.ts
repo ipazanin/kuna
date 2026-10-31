@@ -4,7 +4,7 @@ import { companyHomeFigures } from '../src/apps/company/home/domain/homeFigures'
 import { euros, ledger } from './fixtures/ledger'
 
 describe("the company's card on the home", () => {
-  it('adds every account at its latest balance and counts the rows waiting on Review', () => {
+  it('adds every account at its latest balance and counts the rows waiting for review', () => {
     const rows = ledger([
       { date: '2026-08-01', account: 'main', amount: 2000, category: 'revenue' },
       { date: '2026-08-20', account: 'savings', amount: 500, category: 'internal-transfer' },

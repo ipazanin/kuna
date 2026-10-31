@@ -247,7 +247,7 @@ export interface Workbook {
   readonly splits: readonly LedgerSplit[]
   /** The ledger rows a pack keeps whole, by record id, each with why in the pack's words. */
   readonly rowsKeptWhole: ReadonlyMap<RecordId, string>
-  /** The suggestions on Review a person dismissed, in the order the tab holds them. */
+  /** The suggestions on the Category rules tab a person dismissed, in the order the tab holds them. */
   readonly dismissals: readonly Dismissal[]
   readonly settings: Settings
   /** Each pack's part, by its key's name, which `packPart` reads. */

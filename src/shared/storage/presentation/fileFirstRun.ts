@@ -28,22 +28,28 @@ export interface FirstRunWords {
   }
 }
 
-/** What an app hands the first run of its file: where the file lives, then the folder for a new one on Drive, or the find of one another device made. */
-export interface FileFirstRun {
+/** What the folder and find steps read of the app's file on Drive. An app whose first run has steps of its own hands them this alone. */
+export interface DriveFirstRun {
   /** What the test ids of the first run's controls start with, such as `loans-start` for `loans-start-create`. */
   readonly testId: string
+  readonly store: Pick<WorkbookStore<BooksRead, DocumentCopy, WorkbookDocument>, 'state' | 'pickBooksFolder' | 'keepOnDrive'>
+  /** The name of the file on Drive. */
+  readonly fileName: string
+  /** What a new file holds. */
+  newContents(): WorkbookDocument
+  /** Opens the file on Drive, found by the app's mark or picked, and resolves to whether one is on screen now. */
+  findFile(lookup: DriveFileLookup): Promise<boolean>
+  readonly words: Pick<FirstRunWords, 'folder' | 'find'>
+}
+
+/** What an app hands the first run of its file: where the file lives, then the folder for a new one on Drive, or the find of one another device made. */
+export interface FileFirstRun extends DriveFirstRun {
   readonly appName: string
   readonly startRoute: string
   /** Where the first run ends. */
   readonly overviewRoute: string
   readonly store: Pick<WorkbookStore<BooksRead, DocumentCopy, WorkbookDocument>, 'state' | 'pickBooksFolder' | 'keepOnDrive' | 'replaceLocalWorkbook'>
-  /** The name of the file on Drive. */
-  readonly fileName: string
   /** The title of a file made in this browser, which is stored with it. */
   readonly localTitle: string
-  /** What a new file holds. */
-  newContents(): WorkbookDocument
-  /** Opens the file on Drive, found by the app's mark or picked, and resolves to whether one is on screen now. */
-  findFile(lookup: DriveFileLookup): Promise<boolean>
   readonly words: FirstRunWords
 }

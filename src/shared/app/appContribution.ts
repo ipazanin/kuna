@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import type { RouteComponent, Router } from 'vue-router'
+import type { LocationQuery, RouteComponent, RouteLocationRaw, Router } from 'vue-router'
 
 import type { RedirectReturn } from '../google/googleRedirect'
 import type { MoneyFormat, MoneyTone, SignDisplay } from '../money/moneyFormat'
@@ -13,6 +13,13 @@ export interface AppScreen {
   readonly component: () => Promise<RouteComponent>
   /** Shown without the menu, as a first run is, and the browser tab says only Kuna. */
   readonly bare?: true
+}
+
+/** An old address of the app, which opens the screen and tab that now hold what it showed. */
+export interface MovedScreen {
+  readonly path: `/${string}`
+  /** Where the old address opens, from the query it came with. */
+  readonly to: (query: LocationQuery) => RouteLocationRaw
 }
 
 /** A figure on the app's card on the Kuna home, such as cash on hand. */
@@ -55,6 +62,8 @@ export interface AppContribution {
   install(): Promise<void>
   /** Every route of the app, whatever its settings switch on, its Settings included. The first one is where the app opens. */
   readonly screens: readonly AppScreen[]
+  /** Old addresses that open where their screens moved, so a link kept from before still lands. */
+  readonly moved?: readonly MovedScreen[]
   /** The menu items, in order, without Settings. */
   menu(): readonly AppScreen[]
   /** The app's Settings, one of its screens, set apart at the foot of its menu. */

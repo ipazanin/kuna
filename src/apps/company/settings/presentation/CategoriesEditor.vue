@@ -98,7 +98,7 @@ function sortBy(column: CategorySortColumn, direction: SortDirection | null): vo
 }
 
 const bucketItems = BUCKETS.map((bucket): { value: string; label: string } => ({ value: bucket, label: words.categories.bucketChoice(bucket) }))
-const vatItems = VAT_TREATMENTS.map((treatment): { value: string; label: string } => ({ value: treatment, label: treatment }))
+const vatItems = VAT_TREATMENTS.map((treatment): { value: string; label: string } => ({ value: treatment, label: words.categories.vatTreatments[treatment] }))
 
 function update(index: number, field: keyof Omit<CategoryDraft, 'saved' | 'savedName'>, text: string): void {
   drafts.value = drafts.value.map((draft, position) => (position === index ? { ...draft, [field]: text } : draft))
@@ -291,7 +291,7 @@ function save(): void {
               size="xs"
               :disabled="locked(draft)"
               :title="locked(draft) ? inUse(draft) : undefined"
-              :aria-label="draft.saved === null ? words.categories.removeNew : words.categories.deleteName(draft.savedName)"
+              :aria-label="draft.saved === null ? words.categories.removeNew : words.categories.deleteName(shownName(draft))"
               data-testid="remove-category"
               @click="remove(index)"
             />

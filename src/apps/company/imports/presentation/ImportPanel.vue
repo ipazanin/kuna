@@ -9,6 +9,7 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
+import { REVIEW_LINK } from '../../transactions/presentation/transactionsLinks'
 import { removeSettings, setSettings } from '../../settings/application/settingWrites'
 import { heldSettingValue } from '../../settings/domain/settings'
 import { useWorkbook } from '../../workbook/application/workbookStore'
@@ -276,7 +277,7 @@ const summary = computed(() => {
                 <span v-if="importedRows.waiting > 0">{{ plural(words.panel.waitingOnReview(importedRows.waiting), importedRows.waiting) }}</span>
                 <span v-else>{{ words.panel.noneWaits }}</span>
               </p>
-              <DrillLink v-if="importedRows.waiting > 0" to="/company/review" class="font-medium text-highlighted">{{ words.panel.openReview }}</DrillLink>
+              <DrillLink v-if="importedRows.waiting > 0" :to="REVIEW_LINK" class="font-medium text-highlighted">{{ words.panel.openReview }}</DrillLink>
             </div>
             <div class="flex justify-end">
               <UButton

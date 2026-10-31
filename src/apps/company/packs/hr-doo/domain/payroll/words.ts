@@ -128,7 +128,7 @@ export const hr: Translation<typeof en> = {
   },
   caps: {
     paidOn: 'Isplaćeno',
-    paidIn: (payment, period) => `${payment} isplaćeno u razdoblju ${period}`,
+    paidIn: (payment, period) => `${payment}: isplata u razdoblju ${period}`,
     noCap: 'Ovdje ne vrijedi nikakav najviši iznos',
     left: 'Preostaje do najvišeg iznosa',
     over: 'Iznad najvišeg iznosa, oporezuje se kao plaća',

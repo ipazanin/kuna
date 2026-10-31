@@ -81,6 +81,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 ## First run
 
 - Each step of a first run is a `StepCard`. The screen provides `STEP_FLOW` with the step, whether Back is allowed and `back()`. Test ids are `onboarding-step` and `onboarding-back`.
+- Every first run sits on `FirstRunPage` in `src/shared/storage/presentation`, which provides `STEP_FLOW`, and its `stepper` prop numbers the steps of a longer path. An app with only the file's steps shows `FirstRunScreen`. One with steps of its own, such as Company, shows the shared folder and find steps among them.
 
 ## Theme and language
 

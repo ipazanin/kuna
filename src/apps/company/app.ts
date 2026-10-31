@@ -13,7 +13,6 @@ import { words as analysisWords } from './analysis/presentation/words'
 import { words as invoicingWords } from './invoicing/presentation/words'
 import { words as onboardingWords } from './onboarding/presentation/words'
 import { words as overviewWords } from './overview/presentation/words'
-import { words as reviewWords } from './review/presentation/words'
 import { words as settingsWords } from './settings/presentation/words'
 import { words as transactionWords } from './transactions/presentation/words'
 import { companySyncGroup } from './sync/presentation/useSync'
@@ -23,11 +22,11 @@ import { reviewCount } from './workbook/domain/needsReview'
 import { COMPANY_APP } from './workbook/infrastructure/companyDocument'
 import { installPackTabs } from './workbook/infrastructure/packTabs'
 import { useGoogleReturn } from './workbook/presentation/useGoogleReturn'
+import { COMPANY_MOVED_SCREENS } from './movedScreens'
 
 const CORE_SCREENS: readonly AppScreen[] = [
   { path: '/company', title: overviewWords.title, icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') },
   { path: '/company/transactions', title: transactionWords.title, icon: 'i-lucide-list', component: () => import('./transactions/presentation/TransactionsScreen.vue') },
-  { path: '/company/review', title: reviewWords.title, icon: 'i-lucide-inbox', component: () => import('./review/presentation/ReviewScreen.vue') },
   { path: '/company/invoicing', title: invoicingWords.title, icon: 'i-lucide-receipt-text', component: () => import('./invoicing/presentation/InvoicingScreen.vue') },
   { path: '/company/analysis', title: analysisWords.title, icon: 'i-lucide-chart-bar', component: () => import('./analysis/presentation/AnalysisScreen.vue') },
 ]
@@ -57,10 +56,11 @@ export const companyApp: AppContribution = {
     SETTINGS,
     { path: ONBOARDING_ROUTE, title: onboardingWords.start, icon: 'i-lucide-door-open', component: () => import('./onboarding/presentation/OnboardingScreen.vue'), bare: true },
   ],
+  moved: COMPANY_MOVED_SCREENS,
   menu: () => [...CORE_SCREENS, ...shownPack(settings.value).screens],
   settings: SETTINGS,
-  // Review counts every row that waits, whatever the filters, since the queue has no period.
-  menuCount: (screen) => (screen.path === '/company/review' ? reviewCount(state.workbook?.transactions ?? []) : null),
+  // Transactions counts every row that waits for review, whatever the filters, since the queue has no period.
+  menuCount: (screen) => (screen.path === '/company/transactions' ? reviewCount(state.workbook?.transactions ?? []) : null),
   subtitle: () => state.workbook?.settings.companyName || null,
   moneyFormat: () => ({ currency: settings.value.currency, locale: amountLocaleOf(settings.value) }),
   homeCard: COMPANY_HOME_CARD,
@@ -74,7 +74,11 @@ export const companyApp: AppContribution = {
   asksGoogleOnOpen: () => loadWorkbookChoice(COMPANY_APP)?.source === 'drive' && autoSyncOn.value,
   start(router, googleReturn) {
     const unbindFilters = bindFiltersToRouter(router)
-    useGoogleReturn(googleReturn)
+    void useGoogleReturn(googleReturn).then(async (opened) => {
+      await router.isReady()
+      // A find onboarding left for ends on Overview, as the find step's own tap does.
+      if (opened && router.currentRoute.value.path === ONBOARDING_ROUTE) await router.push('/company')
+    })
     return unbindFilters
   },
 }

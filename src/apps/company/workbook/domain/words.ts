@@ -77,13 +77,13 @@ const SEEDED_NAMES: ReadonlyMap<string, string> = new Map([
 ])
 
 /** A date field as the day Croatian writes, anything else as its text. */
-function dayInWords(field: StoredField | undefined): string {
+export function dayInWords(field: StoredField | undefined): string {
   const day = field?.date ?? null
   return day === null ? textOf(field) : dayLabel(day)
 }
 
 /** An amount field as Croatian writes the money, anything else as its text. */
-function moneyInWords(field: StoredField | undefined): string {
+export function moneyInWords(field: StoredField | undefined): string {
   const money = field?.money ?? null
   return money === null ? textOf(field) : formatMoney(money)
 }
@@ -192,7 +192,7 @@ export const hr: Translation<typeof en> = {
   categories: {
     notAllFilled: 'category, family i bucket nisu svi popunjeni',
     notABucket: (bucket) => `„${bucket}” nije skupina`,
-    unknownVat: (vat, slug) => `vat „${vat}” nije PDV tretman, pa se za ${slug} čita kao none`,
+    unknownVat: (vat, slug) => `polje vat „${vat}” nije PDV tretman, pa se za „${slug}” čita kao „none”`,
     definedTwice: (slug) => `„${slug}” je definirana u više redaka, pa se nijedan ne broji`,
   },
   ledger: {
@@ -220,13 +220,13 @@ export const hr: Translation<typeof en> = {
     partNotOnTab: (category, label) => `kategorija „${category}” dijela „${label}” nije među kategorijama`,
     partsAddUp: (total, row) => `dijelovi zajedno iznose ${formatMoney(total)}, a stavka ${formatMoney(row)}`,
     countsWhole: (reasons) => `${reasons}, pa se stavka evidencije broji cijela`,
-    keptWhole: (account, date, why) => `stavka računa ${account} od ${dayLabel(date)} ostaje cijela jer ${why}`,
-    refusedKeptWhole: (account, date, amount, why) => `Stavka računa ${account} od ${dayLabel(date)} na ${formatMoney(amount)} ostaje cijela jer ${why}.`,
+    keptWhole: (account, date, why) => `stavka računa „${account}” od ${dayLabel(date)} ostaje cijela jer ${why}`,
+    refusedKeptWhole: (account, date, amount, why) => `Stavka računa „${account}” od ${dayLabel(date)} na ${formatMoney(amount)} ostaje cijela jer ${why}.`,
   },
   accounts: {
     noName: 'polje account je prazno',
-    otherCurrency: (slug, currency, workbook) => `${slug} je u valuti ${currency}, a datoteka broji u valuti ${workbook}, pa se njegovi iznosi čitaju kao ${workbook}`,
-    namedTwice: (slug) => `${slug} je naveden u više redaka, pa se nijedan ne broji`,
+    otherCurrency: (slug, currency, workbook) => `„${slug}” je u valuti ${currency}, a datoteka broji u valuti ${workbook}, pa se njegovi iznosi čitaju kao ${workbook}`,
+    namedTwice: (slug) => `„${slug}” je naveden u više redaka, pa se nijedan ne broji`,
   },
   dismissals: {
     noKey: 'polje key je prazno',
@@ -238,17 +238,17 @@ export const hr: Translation<typeof en> = {
     notANumber: (amount) => `iznos „${amount}” nije broj`,
     issuedNotADate: (issued) => `datum izdavanja „${issued}” nije ćelija s datumom`,
     dueNotADate: (due) => `dospijeće „${due}” nije ćelija s datumom`,
-    listedTwice: (number, client) => `račun ${number} za ${client} naveden je u više redaka, pa se nijedan ne broji`,
-    clientMissing: (client, number) => `${client} nije u popisu klijenata, pa se s računom ${number} ne može povezati nijedna uplata`,
+    listedTwice: (number, client) => `račun ${number} za „${client}” naveden je u više redaka, pa se nijedan ne broji`,
+    clientMissing: (client, number) => `„${client}” nije u popisu klijenata, pa se s računom ${number} ne može povezati nijedna uplata`,
     periodUnread: (refused) => `${refused}, pa datum izdavanja vrijedi i za razdoblje isporuke`,
   },
   clients: {
     noName: 'polje client je prazno',
     noIban: 'polje iban je prazno',
-    unknownLanguage: (tag) => `„${tag}” nije jezik poput en ili hr, pa se poruka piše na engleskom`,
+    unknownLanguage: (tag) => `„${tag}” nije jezik poput „en” ili „hr”, pa se poruka piše na engleskom`,
     reverseCharge: (text) => `reverse_charge „${text}” nije ni TRUE ni FALSE, pa se čita kao FALSE`,
     onSeveralRows: (slug, rows) =>
-      `${slug} je u ${rows} ${plural({ one: 'retku', few: 'retka', other: 'redaka' }, rows)}, pa se nijedan ne broji. Sve njegove IBAN-ove upišite u prvi redak, odvojene zarezima, a ostale retke obrišite`,
+      `„${slug}” je u ${rows} ${plural({ one: 'retku', few: 'retka', other: 'redaka' }, rows)}, pa se nijedan ne broji. Sve njegove IBAN-ove upišite u prvi redak, odvojene zarezima, a ostale retke obrišite`,
     sharedIban: (iban) => `${iban} je i kod drugog klijenta, pa se uplata s njega ne broji ni za jednog`,
   },
   billing: {

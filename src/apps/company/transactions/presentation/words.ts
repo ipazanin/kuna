@@ -1,4 +1,5 @@
 import type { Money } from '../../../../shared/money/money'
+import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { language } from '../../../../shared/text/language'
 import { listInWords } from '../../../../shared/text/listInWords'
@@ -7,6 +8,7 @@ import type { EnglishForms, Translation } from '../../../../shared/text/translat
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // A ledger row is stavka, a counterparty partner, a bank account račun u banci and an owner advance predujam vlasnika, as the record nouns say.
+// To review is Za provjeru, so it never collides with Overview's Pregled. A person files a row (razvrstava stavku), and a rule settles it.
 
 /** A filter that leaves the owner's advances off the list, since an advance has no account, no counterparty and no review. */
 export type AdvanceFilter = 'account' | 'counterparty' | 'review'
@@ -15,8 +17,66 @@ const CROATIAN_FILTERS: Readonly<Record<AdvanceFilter, string>> = { account: 'ra
 
 export const en = {
   title: 'Transactions',
-  description: 'The rows behind every figure, and new bank statements coming in. Any number elsewhere opens here with its filters.',
-  tabs: { label: 'Rows and imports', rows: 'Rows', import: 'Import' },
+  description: 'The rows behind every figure, the rows that wait for a person, and new bank statements coming in. Any number elsewhere opens here with its filters.',
+  tabs: { label: 'Rows, review and imports', rows: 'Rows', review: 'To review', import: 'Import' },
+  review: {
+    nothingWaits: 'Nothing waits for review',
+    nothingWaitsDescription: 'Every row in view has a category a rule or a person set.',
+    toReview: (count: number): EnglishForms => ({ one: `${count} row to review`, other: `${count} rows to review` }),
+    queueSubtitle: (onDrive: boolean) =>
+      onDrive
+        ? 'Newest first, from every month of the ledger. Open a row to see what the rules say about it. Confirm or recategorise one and the app writes its category and flagged_by to the file on Drive.'
+        : 'Newest first, from every month of the ledger. Open a row to see what the rules say about it. Confirm or recategorise one and the app keeps its category and flagged_by in this browser.',
+    queueSummary: 'Each waits for a confirmation or another category.',
+    backAsItWas: 'The workbook is back as it was before that change.',
+    confirmed: (category: string) => `Confirmed ${category}`,
+    filedAs: (category: string) => `Filed as ${category}`,
+    noCounterpartyRow: 'A row with no counterparty',
+    makeRule: 'Make a rule',
+    makeRuleFromRow: 'Make a rule from this row',
+    notWritten: 'Not written',
+    item: {
+      signals: {
+        purpose: 'Purpose code',
+        txDomain: 'Bank domain code',
+        txFamily: 'Bank family code',
+        txSubFamily: 'Bank sub-family code',
+        creditorReference: 'Creditor reference',
+        instructedCurrency: 'Instructed currency',
+      },
+      rulesSay: 'The rules say',
+      by: 'by',
+      sendsToReview: ', which sends it to review',
+      noRuleDecides: 'No rule decides it',
+      counterpartyIban: 'Counterparty IBAN',
+      statementAsks: 'Why the statement asks',
+      notConfirmable: 'Its category is not on the categories tab, so it cannot be confirmed as it is. Recategorise it, and the toast offers to make a rule from it.',
+      confirm: (category: string) => `Confirm ${category}`,
+      recategorise: 'Recategorise',
+      makeThisARule: 'Make this a rule',
+      editSplit: 'Edit the split',
+      split: 'Split',
+    },
+    session: {
+      title: 'Changes in this session',
+      newest: (change: string) => `The newest: ${change}`,
+      about: 'Newest first. Kept until the page reloads. Undo puts back what the workbook held, if nothing changed it since. Rules and settings are changed back on Settings.',
+      undidOne: 'Undid a change',
+      undidRows: (count: number): EnglishForms => ({ one: `Undid a change to ${count} row`, other: `Undid a change to ${count} rows` }),
+      filedByRule: (count: number): EnglishForms => ({ one: `Filed ${count} row by a rule`, other: `Filed ${count} rows by a rule` }),
+      confirmedRow: 'Confirmed a row',
+      recategorisedRow: 'Recategorised a row',
+      changedRows: (count: number): EnglishForms => ({ one: `Changed ${count} row`, other: `Changed ${count} rows` }),
+      verbs: { add: 'Added', change: 'Changed', repair: 'Fixed', remove: 'Deleted', discard: 'Deleted' },
+      /** What follows the label of one record a write changed, as in "Added travel, a category". */
+      recordNoun: (noun: RecordNoun) => `, ${noun.en.article} ${noun.en.one}`,
+      flaggedByNobody: 'flagged by nobody',
+      flaggedBy: (who: string) => `by ${who}`,
+      became: 'became',
+      moreRows: (count: number): EnglishForms => ({ one: `and ${count} row more`, other: `and ${count} rows more` }),
+      more: (count: number) => `and ${count} more`,
+    },
+  },
   rows: (count: number): EnglishForms => ({ one: `${count} row`, other: `${count} rows` }),
   rowsWithTotal: (count: number): EnglishForms => ({ one: `${count} row, total`, other: `${count} rows, total` }),
   groupings: { none: 'No grouping', month: 'By month', category: 'By category', counterparty: 'By counterparty' },
@@ -118,7 +178,7 @@ export const en = {
     ruleAgainst: {
       before: 'The rule',
       after: (ruleCategory: string, picked: string) =>
-        `files rows like this one as ${ruleCategory}. Once this row says ${picked}, Review lists it on its Rules tab among the rows the rule files differently.`,
+        `files rows like this one as ${ruleCategory}. Once this row says ${picked}, Settings lists it on its Category rules tab among the rows the rule files differently.`,
     },
     writes: { before: 'Writes the new category and', after: (label: string) => `${label} on the row, with Undo in the toast.` },
     filedAs: (category: string) => `Filed as ${category}`,
@@ -132,8 +192,78 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   title: 'Transakcije',
-  description: 'Stavke iza svakog iznosa i novi bankovni izvodi koji pristižu. Svaki broj s drugog zaslona otvara se ovdje sa svojim filtrima.',
-  tabs: { label: 'Stavke i uvoz', rows: 'Stavke', import: 'Uvoz' },
+  description: 'Stavke iza svakog iznosa, stavke koje čekaju provjeru i novi bankovni izvodi koji pristižu. Svaki broj s drugog zaslona otvara se ovdje sa svojim filtrima.',
+  tabs: { label: 'Stavke, provjera i uvoz', rows: 'Stavke', review: 'Za provjeru', import: 'Uvoz' },
+  review: {
+    nothingWaits: 'Ništa ne čeka provjeru',
+    nothingWaitsDescription: 'Svaka prikazana stavka ima kategoriju koju je odredilo pravilo ili osoba.',
+    toReview: (count) => ({ one: `${count} stavka za provjeru`, few: `${count} stavke za provjeru`, other: `${count} stavki za provjeru` }),
+    queueSubtitle: (onDrive) =>
+      onDrive
+        ? 'Najnovije prvo, iz svih mjeseci evidencije. Otvorite stavku da vidite što o njoj kažu pravila. Kad potvrdite stavku ili joj promijenite kategoriju, aplikacija upisuje kategoriju i flagged_by u datoteku na Driveu.'
+        : 'Najnovije prvo, iz svih mjeseci evidencije. Otvorite stavku da vidite što o njoj kažu pravila. Kad potvrdite stavku ili joj promijenite kategoriju, aplikacija čuva kategoriju i flagged_by u ovom pregledniku.',
+    queueSummary: 'Svaka čeka potvrdu ili drugu kategoriju.',
+    backAsItWas: 'Datoteka je opet kakva je bila prije te promjene.',
+    confirmed: (category) => `Potvrđeno: ${category}`,
+    filedAs: (category) => `Razvrstano: ${category}`,
+    noCounterpartyRow: 'Stavka bez partnera',
+    makeRule: 'Napravi pravilo',
+    makeRuleFromRow: 'Napravi pravilo iz ove stavke',
+    notWritten: 'Nije upisano',
+    item: {
+      signals: {
+        purpose: 'Šifra namjene',
+        txDomain: 'Bankovna šifra: domena',
+        txFamily: 'Bankovna šifra: obitelj',
+        txSubFamily: 'Bankovna šifra: podobitelj',
+        creditorReference: 'Poziv na broj primatelja',
+        instructedCurrency: 'Valuta naloga',
+      },
+      rulesSay: 'Pravila kažu',
+      by: 'po pravilu',
+      sendsToReview: ', koje je šalje na provjeru',
+      noRuleDecides: 'Nijedno pravilo ne odlučuje o njoj',
+      counterpartyIban: 'IBAN partnera',
+      statementAsks: 'Zašto izvod traži provjeru',
+      notConfirmable: 'Njezina kategorija nije među kategorijama, pa je ne možete potvrditi takvu kakva je. Promijenite joj kategoriju, a obavijest će ponuditi da iz nje izradite pravilo.',
+      confirm: (category) => `Potvrdi: ${category}`,
+      recategorise: 'Promijeni kategoriju',
+      makeThisARule: 'Napravi pravilo',
+      editSplit: 'Uredi podjelu',
+      split: 'Podijeli',
+    },
+    session: {
+      title: 'Promjene u ovoj sesiji',
+      newest: (change) => `Najnovija: ${change}`,
+      about:
+        'Najnovije prvo. Čuvaju se dok se stranica ne učita ponovno. Poništavanje vraća ono što je datoteka sadržavala, ako je od tada ništa nije promijenilo. Pravila i postavke vraćaju se u Postavkama.',
+      undidOne: 'Poništena je promjena',
+      undidRows: (count) => ({
+        one: `Poništena je promjena ${count} stavke`,
+        few: `Poništena je promjena ${count} stavke`,
+        other: `Poništena je promjena ${count} stavki`,
+      }),
+      filedByRule: (count) => ({
+        one: `Pravilo je razvrstalo ${count} stavku`,
+        few: `Pravilo je razvrstalo ${count} stavke`,
+        other: `Pravilo je razvrstalo ${count} stavki`,
+      }),
+      confirmedRow: 'Potvrđena je stavka',
+      recategorisedRow: 'Stavci je promijenjena kategorija',
+      changedRows: (count) => ({
+        one: `Promijenjena je ${count} stavka`,
+        few: `Promijenjene su ${count} stavke`,
+        other: `Promijenjeno je ${count} stavki`,
+      }),
+      verbs: { add: 'Dodano:', change: 'Promijenjeno:', repair: 'Popravljeno:', remove: 'Obrisano:', discard: 'Obrisano:' },
+      recordNoun: (noun) => ` (${noun.hr.one})`,
+      flaggedByNobody: 'bez oznake',
+      flaggedBy: (who) => `oznaka: ${who}`,
+      became: 'postaje',
+      moreRows: (count) => ({ one: `i još ${count} stavka`, few: `i još ${count} stavke`, other: `i još ${count} stavki` }),
+      more: (count) => `i još ${count}`,
+    },
+  },
   rows: (count) => ({ one: `${count} stavka`, few: `${count} stavke`, other: `${count} stavki` }),
   rowsWithTotal: (count) => ({ one: `${count} stavka, ukupno`, few: `${count} stavke, ukupno`, other: `${count} stavki, ukupno` }),
   groupings: { none: 'Bez grupiranja', month: 'Po mjesecu', category: 'Po kategoriji', counterparty: 'Po partneru' },
@@ -180,12 +310,12 @@ export const hr: Translation<typeof en> = {
   changeCategoryOf: (named) => `Promijeni kategoriju: ${named}`,
   ownerShareOf: (named) => `Udio vlasnika: ${named}`,
   everyRowFromCounterparty: 'Sve stavke ovog partnera',
-  everyRowIn: (category) => `Sve stavke u kategoriji ${category}`,
+  everyRowIn: (category) => `Sve stavke u kategoriji „${category}”`,
   changeCategory: 'Promijeni kategoriju',
   split: 'Podijeli',
   ownerShare: 'Udio vlasnika',
   group: {
-    monthSoFar: 'Mjesec dosad',
+    monthSoFar: 'Mjesec do danas',
     partMonth: 'Dio mjeseca',
     costs: 'Troškovi',
     net: 'Neto',
@@ -242,9 +372,9 @@ export const hr: Translation<typeof en> = {
     ruleAgainst: {
       before: 'Pravilo',
       after: (ruleCategory, picked) =>
-        `razvrstava ovakve stavke kao ${ruleCategory}. Kad ova stavka bude u kategoriji ${picked}, zaslon Za provjeru navest će je na kartici Pravila među stavkama koje pravilo razvrstava drukčije.`,
+        `razvrstava ovakve stavke kao „${ruleCategory}”. Kad ova stavka bude u kategoriji „${picked}”, Postavke će je na kartici Pravila kategorija navesti među stavkama koje pravilo razvrstava drukčije.`,
     },
-    writes: { before: 'Upisuje novu kategoriju i', after: (label) => `${label} u stavku, a obavijest nudi poništavanje.` },
+    writes: { before: 'Upisuje novu kategoriju i', after: (label) => `„${label}” u stavku, a obavijest nudi poništavanje.` },
     filedAs: (category) => `Razvrstano: ${category}`,
     notWritten: 'Nije upisano',
     noCounterpartyRow: 'Stavka bez partnera',

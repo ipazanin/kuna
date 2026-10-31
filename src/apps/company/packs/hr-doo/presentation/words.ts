@@ -8,6 +8,8 @@ import { language } from '../../../../../shared/text/language'
 import type { EnglishForms, Translation } from '../../../../../shared/text/translation'
 import { croatianBucket } from '../../../settings/domain/words'
 import { uncapitalised } from '../../../../../shared/text/capitalised'
+import { monthCase } from '../../../../../shared/calendar/monthCase'
+import { hr as assetsCroatian } from './assets/words'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // The accountant is knjigovođa, a loan to the owner pozajmica vlasniku. A subject phrase such as Plaća za is the accountant's own words, so it is never translated.
@@ -110,8 +112,8 @@ export const en = {
     }),
   },
   /** The pack's pages as a link names them, a page and its tab. */
-  links: { review: 'Review', yearTaxes: 'Year, Taxes', ownerTaken: 'Owner, Taken' },
-  /** Review's card of reimbursements to the owner that no cost on file accounts for. */
+  links: { review: 'To review', yearTaxes: 'Year, Taxes', ownerTaken: 'Owner, Taken' },
+  /** The To review tab's card of reimbursements to the owner that no cost on file accounts for. */
   unaccounted: {
     title: (count: number): EnglishForms => ({ one: `${count} reimbursement with no cost on file`, other: `${count} reimbursements with no cost on file` }),
     summary: (total: string) => `${total} in all, counted as paid to the owner`,
@@ -291,10 +293,10 @@ export const en = {
     }),
     otherFilters: 'Who owes whom follows the period only. The accounts and the other filters apply on Taken.',
     unaccounted: (count: number): EnglishForms => ({
-      one: `Whatever the period, ${count} reimbursement to the owner with no cost on file waits on Review. Net owed counts it as paid to the owner until the cost is added.`,
-      other: `Whatever the period, ${count} reimbursements to the owner with no cost on file wait on Review. Net owed counts them as paid to the owner until the cost is added.`,
+      one: `Whatever the period, ${count} reimbursement to the owner with no cost on file waits for review. Net owed counts it as paid to the owner until the cost is added.`,
+      other: `Whatever the period, ${count} reimbursements to the owner with no cost on file wait for review. Net owed counts them as paid to the owner until the cost is added.`,
     }),
-    openReview: 'Open Review',
+    openReview: 'Open the rows to review',
     loans: {
       title: 'Every loan, with the repayments that closed it',
       subtitle: (period: string, on: string) =>
@@ -424,6 +426,8 @@ export const en = {
     in_use: 'In use from',
     cost_net: 'Cost without VAT',
     group: 'Group',
+    /** A group among the choices, by the id the tab stores. */
+    groups: { computers: 'computers', equipment: 'equipment', car: 'car', building: 'building', other: 'other' },
     doubled: 'Doubled rate',
     disposed: 'Disposed',
     funded_by: 'Funded by',
@@ -440,6 +444,8 @@ export const en = {
     period_from: 'Period from',
     period_to: 'Period to',
     release: 'Release',
+    /** A release among the choices, by the id the tab stores. */
+    releases: { 'fixed-then-assets': 'fixed-then-assets', 'straight-line': 'straight-line' },
     blankRelease: 'Blank, fixed-then-assets',
     clawback_year1: 'Clawback, year 1',
     clawback_year2: 'Clawback, year 2',
@@ -462,6 +468,8 @@ export const en = {
     note: 'Note',
     /** A statement among the choices, by the id the tab stores. */
     statements: { pl: 'pl', balance: 'balance', tax: 'tax', distribution: 'distribution', grant: 'grant', konto: 'konto' },
+    /** A line among the choices: the id the tab stores and the name the forms print. */
+    lineChoice: (line: string, hint: string) => `${line} · ${hint}`,
   },
   employeeColumns: {
     employee: 'Employee',
@@ -556,7 +564,7 @@ export const hr: Translation<typeof en> = {
       few: `Za ${count} mjeseca praćenih poreza nema uplate, a zadnji je ${latest}`,
       other: `Za ${count} mjeseci praćenih poreza nema uplate, a zadnji je ${latest}`,
     }),
-    missedOnce: (category, month) => `${category}: nema uplate u mjesecu ${month}`,
+    missedOnce: (category, month) => `${category}: nema uplate u ${monthCase(month, 'locative')}`,
     missedMonths: (category, count, latest) => ({
       one: `${category}: nema uplate za ${count} mjesec, a zadnji je ${latest}`,
       few: `${category}: nema uplate za ${count} mjeseca, a zadnji je ${latest}`,
@@ -754,11 +762,11 @@ export const hr: Translation<typeof en> = {
     },
     otherFilters: 'Tko kome duguje slijedi samo razdoblje. Računi u banci i ostali filtri vrijede na kartici Uzeto.',
     unaccounted: (count) => ({
-      one: `Bez obzira na razdoblje, ${count} povrat troškova vlasniku bez troška u datoteci čeka u Za provjeru. Neto dug ga broji kao isplatu vlasniku dok se ne doda trošak.`,
-      few: `Bez obzira na razdoblje, ${count} povrata troškova vlasniku bez troška u datoteci čekaju u Za provjeru. Neto dug ih broji kao isplatu vlasniku dok se ne doda trošak.`,
-      other: `Bez obzira na razdoblje, ${count} povrata troškova vlasniku bez troška u datoteci čeka u Za provjeru. Neto dug ih broji kao isplatu vlasniku dok se ne doda trošak.`,
+      one: `Bez obzira na razdoblje, ${count} povrat troškova vlasniku bez troška u datoteci čeka provjeru. Neto dug ga broji kao isplatu vlasniku dok se ne doda trošak.`,
+      few: `Bez obzira na razdoblje, ${count} povrata troškova vlasniku bez troška u datoteci čekaju provjeru. Neto dug ih broji kao isplatu vlasniku dok se ne doda trošak.`,
+      other: `Bez obzira na razdoblje, ${count} povrata troškova vlasniku bez troška u datoteci čeka provjeru. Neto dug ih broji kao isplatu vlasniku dok se ne doda trošak.`,
     }),
-    openReview: 'Otvori Za provjeru',
+    openReview: 'Otvori stavke za provjeru',
     loans: {
       title: 'Sve pozajmice, s povratima koji su ih zatvorili',
       subtitle: (period, on) =>
@@ -794,7 +802,7 @@ export const hr: Translation<typeof en> = {
     notChanged: 'Nije promijenjeno',
     notDeleted: 'Nije obrisano',
     openIt: 'Otvori ga',
-    asCategory: (amount, category) => `${amount} u kategoriji ${category}.`,
+    asCategory: (amount, category) => `${amount} u kategoriji „${category}”.`,
     outside: (period) => ` Izvan je prikazanog razdoblja (${period}), pa ga stranica ne navodi.`,
     date: 'Datum',
     amount: 'Iznos',
@@ -840,7 +848,7 @@ export const hr: Translation<typeof en> = {
     paid: 'Plaćeno',
     stillOwed: 'Još se duguje',
     statusColumn: 'Stanje',
-    paidRows: (label) => `${label}, plaćeno, otvori stavke`,
+    paidRows: (label) => `${label}, uplate, otvori stavke`,
   },
   benefits: {
     estimate: 'Vaša procjena privatne upotrebe. Knjigovođa te troškove knjiži u cijelosti.',
@@ -875,7 +883,7 @@ export const hr: Translation<typeof en> = {
     ownerPayByMonth: (span, series, total) => `Isplate vlasniku po mjesecima, ${span}, složene po vrstama: ${series}. Ukupno ${total}.`,
     loansByMonth: (span, lent, repaid) => `Pozajmice vlasniku po mjesecima, ${span}: posuđeno ispod nule, a povrati iznad nje. Ukupno posuđeno ${lent} i vraćeno ${repaid}.`,
     owedAtMonthEnds: (span, complete, month, owed) =>
-      `Dug vlasnika prema tvrtki na kraju svakog mjeseca, ${span}. ${complete ? 'Na kraju mjeseca' : 'Dosad u mjesecu'} ${month} vlasnik je dugovao ${owed}.`,
+      `Dug vlasnika prema tvrtki na kraju svakog mjeseca, ${span}. ${complete ? `Na kraju ${monthCase(month, 'genitive')}` : `Dosad u ${monthCase(month, 'locative')}`} vlasnik je dugovao ${owed}.`,
   },
   assetColumns: {
     asset: 'Sredstvo',
@@ -883,6 +891,7 @@ export const hr: Translation<typeof en> = {
     in_use: 'U upotrebi od',
     cost_net: 'Nabavna vrijednost bez PDV-a',
     group: 'Skupina',
+    groups: assetsCroatian.groups,
     doubled: 'Udvostručena stopa',
     disposed: 'Otuđeno',
     funded_by: 'Financirano iz',
@@ -899,10 +908,11 @@ export const hr: Translation<typeof en> = {
     period_from: 'Razdoblje od',
     period_to: 'Razdoblje do',
     release: 'Priznavanje',
-    blankRelease: 'Prazno, fixed-then-assets',
+    releases: { 'fixed-then-assets': 'Fiksni dio odmah, varijabilni uz amortizaciju', 'straight-line': 'Ravnomjerno kroz razdoblje potpore' },
+    blankRelease: 'Prazno (fiksni dio odmah, varijabilni uz amortizaciju)',
     clawback_year1: 'Povrat, 1. godina',
     clawback_year2: 'Povrat, 2. godina',
-    clawbackPlaceholder: 'whole ili iznos',
+    clawbackPlaceholder: '„whole” ili iznos',
     employment_required_until: 'Zapošljavanje do',
     note: 'Napomena',
   },
@@ -927,6 +937,7 @@ export const hr: Translation<typeof en> = {
       grant: 'Potpore',
       konto: 'Konto',
     },
+    lineChoice: (_line, hint) => hint,
   },
   employeeColumns: {
     employee: 'Zaposlenik',

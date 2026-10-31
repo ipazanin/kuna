@@ -54,7 +54,7 @@ const decided = computed(() => {
   return counts
 })
 
-/** A link such as `?tab=rules&rule=accountant` marks that rule and scrolls to it. */
+/** A link such as `?tab=category-rules&rule=accountant` marks that rule and scrolls to it. */
 const route = useRoute()
 const highlightedId = computed(() => (typeof route.query.rule === 'string' ? route.query.rule.toLowerCase() : null))
 const highlightedRow = ref<HTMLElement | null>(null)
@@ -128,7 +128,7 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
 </script>
 
 <template>
-  <AppCard :title="words.tab.title" :subtitle="words.tab.subtitle" collapse-id="review.rules" :summary="summary" :reveal="highlightedId !== null" data-testid="rules-tab">
+  <AppCard :title="words.tab.title" :subtitle="words.tab.subtitle" collapse-id="settings.category-rules" :summary="summary" :reveal="highlightedId !== null" data-testid="rules-tab">
     <template #actions>
       <UButton :label="words.tab.add" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" :disabled="state.writing" data-testid="add-rule" @click="addRule" />
     </template>

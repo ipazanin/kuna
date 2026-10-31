@@ -12,12 +12,12 @@ import type { PackPart } from '../workbook/domain/packPart'
 import type { Workbook } from '../workbook/domain/workbook'
 
 /**
- * A card on Review's Queue tab, under the rows to review. It takes `busy`, true while another write
+ * A card on the To review tab of Transactions, under the rows to review. It takes `busy`, true while another write
  * runs, and stays mounted while it shows nothing, so a dialog it opened outlives the card.
  */
 export interface PackReviewCard {
   readonly component: Component
-  /** Whether the card has something for the rows in view, so Review can say nothing waits when no card does. */
+  /** Whether the card has something for the rows in view, so the To review tab can say nothing waits when no card does. */
   shows(ledger: FilteredLedger): boolean
 }
 

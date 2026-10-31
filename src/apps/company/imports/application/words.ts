@@ -52,17 +52,19 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   profileWithoutAccount: (profile, account) => {
-    const named = profile === '' ? 'Profil koji izrađujete' : `Profil ${profile}`
-    return account === '' ? `${named} nema račun u banci. Odaberite jedan od računa iz postavki.` : `${named} odnosi se na račun ${account}, kojeg nema među računima u banci. Odaberite jedan od njih.`
+    const named = profile === '' ? 'Profil koji izrađujete' : `Profil „${profile}”`
+    return account === ''
+      ? `${named} nema račun u banci. Odaberite jedan od računa iz postavki.`
+      : `${named} odnosi se na račun „${account}”, kojeg nema među računima u banci. Odaberite jedan od njih.`
   },
-  alreadyAnAccount: (name) => `${name} već je račun u banci`,
+  alreadyAnAccount: (name) => `„${name}” već je račun u banci`,
   imported: (accounts, rows) => {
     if (accounts.length === 0) return capitalised(rowsImported(rows))
-    const added = accounts.length === 1 ? `Dodan je račun ${accounts[0]}` : `Dodani su računi ${listInWords(accounts)}`
+    const added = accounts.length === 1 ? `Dodan je račun „${accounts[0]}”` : `Dodani su računi ${listInWords(accounts.map((account) => `„${account}”`))}`
     return `${added} i ${rowsImported(rows)}`
   },
   sync: {
-    notCamt: (fileName) => `${fileName} nije camt.053 izvod, pa nije pročitan.`,
+    notCamt: (fileName) => `„${fileName}” nije camt.053 izvod, pa nije pročitan.`,
     folderNotRead: (why) => `Mapa izvoda nije se mogla pročitati: ${why}`,
     syncAgain: 'Nije upisano. Sinkronizirajte ponovno.',
     filed: (numbers, rows) => {
@@ -77,11 +79,11 @@ export const hr: Translation<typeof en> = {
     },
   },
   ledger: {
-    beforeNewest: (account, date, newest) => `Nova stavka računa ${account} ima datum ${dayLabel(date)}, prije ${dayLabel(newest)}, datuma najnovije stavke računa ${account} u evidenciji.`,
+    beforeNewest: (account, date, newest) => `Nova stavka računa „${account}” ima datum ${dayLabel(date)}, prije ${dayLabel(newest)}, datuma najnovije stavke računa „${account}” u evidenciji.`,
     opensElsewhere: (account, opens, leaves) =>
-      `Nove stavke računa ${account} počinju od ${formatMoney(opens)}, a račun ${account} u evidenciji sada završava saldom ${formatMoney(leaves)}. Ponovno pogledajte probni uvoz.`,
+      `Nove stavke računa „${account}” počinju od ${formatMoney(opens)}, a račun „${account}” u evidenciji sada završava saldom ${formatMoney(leaves)}. Ponovno pogledajte probni uvoz.`,
     bookedAfter: (account, date, balance) =>
-      `Stavka računa ${account} od ${dayLabel(date)} sa saldom ${formatMoney(balance)} proknjižena je nakon stavki koje se uklanjaju, pa njezin saldo ovisi o njima. Najprije uklonite nju ili ostavite stavke.`,
+      `Stavka računa „${account}” od ${dayLabel(date)} sa saldom ${formatMoney(balance)} proknjižena je nakon stavki koje se uklanjaju, pa njezin saldo ovisi o njima. Najprije uklonite nju ili ostavite stavke.`,
     notACategory: (category) => `„${category}” nije kategorija iz popisa kategorija.`,
   },
 }

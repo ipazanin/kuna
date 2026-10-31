@@ -44,7 +44,7 @@ export function ageingChart(clients: readonly ClientAgeing[], tokens: ChartToken
         axisPointer: { type: 'shadow' },
         formatter: axisTooltip({ tokens, formatAmount: (amount) => formatMoney(amount) }),
       },
-      xAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
+      xAxis: { type: 'value', axisLabel: { ...moneyAxisLabel(tokens), hideOverlap: true } },
       yAxis: { type: 'category', inverse: true, data: clients.map((client) => client.name), axisLabel: { color: tokens.inkSecondary } },
       series: bars,
     },

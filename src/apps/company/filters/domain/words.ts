@@ -27,7 +27,7 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   inPart: (month) => `${monthName(month)} djelomično`,
-  soFar: (month) => `${monthName(month)} dosad`,
+  soFar: (month) => `${monthName(month)} do danas`,
   chips: {
     bucket: 'Skupina',
     family: 'Grupa',

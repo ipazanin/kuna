@@ -68,7 +68,7 @@ const lastBackup = computed(() => (shownPlace.value?.lastBackup ? day(new Date(`
   <AppCard :title="title">
     <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
       <template v-if="source === 'browser'">
-        <p class="text-base text-highlighted">{{ fileName }}</p>
+        <p class="text-base text-highlighted" data-testid="books-file-name">{{ fileName }}</p>
         <p class="text-sm text-muted">{{ words.booksFile.inBrowser }}</p>
         <p class="figure text-xs text-muted">
           <span v-if="changedAt">{{ words.booksFile.lastChanged(changedAt) }}</span
@@ -77,7 +77,7 @@ const lastBackup = computed(() => (shownPlace.value?.lastBackup ? day(new Date(`
         <UAlert v-if="reminderDue" icon="i-lucide-clock-alert" color="warning" variant="subtle" :title="words.booksFile.reminderTitle" :description="words.booksFile.reminder" />
       </template>
       <template v-else-if="source === 'drive'">
-        <p class="text-base text-highlighted">{{ fileName }}</p>
+        <p class="text-base text-highlighted" data-testid="books-file-name">{{ fileName }}</p>
         <p class="text-sm text-muted">{{ words.booksFile.onDrive }}</p>
         <dl class="drive-facts text-xs" data-testid="drive-file-place">
           <template v-if="shownPlace">

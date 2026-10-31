@@ -9,6 +9,7 @@ import { capitalised } from '../../../../../../shared/text/capitalised'
 import { withFullStop } from '../../../../../../shared/text/withFullStop'
 import { language } from '../../../../../../shared/text/language'
 import type { Translation } from '../../../../../../shared/text/translation'
+import { monthCase } from '../../../../../../shared/calendar/monthCase'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // A pay mix is scenarij, the director floor najniža plaća direktora, a tax-free item neoporezivi primitak and pillar II II. mirovinski stup.
@@ -37,7 +38,7 @@ export const en = {
     notListed: (year: number) => `is not a tax-free payment the ruleset lists for ${year}`,
     noYearlyCap: "has no yearly cap to check a year's amount against",
     item: (item: string, why: string, yearly: readonly string[]) => `The item ${item} ${why}. Use one with a yearly cap: ${yearly.join(', ')}.`,
-    noSalaryMonth: (item: string, month: string) => `The item ${item} is paid in ${month}, a month with no salary. A tax-free payment goes only to an employee.`,
+    noSalaryMonth: (item: string, month: MonthKey) => `The item ${item} is paid in ${month}, a month with no salary. A tax-free payment goes only to an employee.`,
   },
   /** The labels of a scenario's figures, which the build-ups name. */
   outcome: {
@@ -152,7 +153,7 @@ export const hr: Translation<typeof en> = {
     sameDay: (first, second, kind, day) =>
       `${capitalised(first)} i ${second} postavljaju ${kind === 'salary_gross' ? 'plaću' : kind === 'director_basis' ? 'osnovu direktora' : 'najam'} na isti dan, ${dayLabel(day)}`,
     twoSalaries: (first, second, month) =>
-      `${capitalised(first)} i ${second} obje isplaćuju plaću u mjesecu ${withFullStop(monthLabel(month))} Plaća se može promijeniti samo od prvog dana u mjesecu.`,
+      `${capitalised(first)} i ${second} obje isplaćuju plaću u ${withFullStop(monthCase(monthLabel(month), 'locative'))} Plaća se može promijeniti samo od prvog dana u mjesecu.`,
     dividends: (count) => `Scenarij postavlja dividende: ${count}. Scenarij isplaćuje jednu, iz dobiti godine.`,
     employeeWithoutSalary: (basis, day) =>
       `${capitalised(basis)} direktora čini zaposlenikom na dan ${dayLabel(day)}, a taj dan ne pokriva nijedan redak plaće. Dodajte plaću ili ranije završite redak.`,
@@ -160,7 +161,7 @@ export const hr: Translation<typeof en> = {
     notListed: (year) => `nije neoporeziva isplata koju propisi navode za ${year}.`,
     noYearlyCap: 'nema godišnji najviši iznos prema kojem bi se provjerio iznos za godinu',
     item: (item, why, yearly) => `Primitak ${item} ${why}. Upotrijebite neki s godišnjim najvišim iznosom: ${yearly.join(', ')}.`,
-    noSalaryMonth: (item, month) => `Primitak ${item} isplaćuje se u mjesecu ${month}, u kojem nema plaće. Neoporeziva isplata ide samo zaposleniku.`,
+    noSalaryMonth: (item, month) => `Primitak ${item} isplaćuje se u ${monthCase(monthLabel(month), 'locative')}, u kojem nema plaće. Neoporeziva isplata ide samo zaposleniku.`,
   },
   outcome: {
     rentPaid: 'Najam isplaćen vama',

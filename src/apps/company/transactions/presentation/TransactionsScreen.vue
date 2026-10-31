@@ -33,13 +33,16 @@ import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useCategoryColours } from '../../workbook/presentation/categoryColours'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
+import { needsReview } from '../../workbook/domain/needsReview'
+import { categorise } from '../../rules/domain/categorise'
+import { categorisationContextOf } from '../../rules/domain/transactionFacts'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { useCollapsedGroups } from '../application/collapsedGroups'
 import { transactionsCsv } from '../application/transactionsCsv'
 import { useFilteredLedger } from '../application/useFilteredLedger'
 import { categoryChangeOf } from '../domain/categoryChange'
 import { ownerShareChangeOf } from '../domain/ownerShareChange'
-import { advancesLeftOutByBankFilters } from '../domain/filterTransactions'
+import { advancesLeftOutByBankFilters, scopeTransactions } from '../domain/filterTransactions'
 import { ownerPartOrigin } from '../../owner-share/domain/ownerParts'
 import { bookedRowOf, inBookingOrder, listedOwnerPart, listedRows, partPlace, withPartHeadings } from '../domain/listedRows'
 import type { ListedAdvanceRow, ListedBankRow, ListedEntry, ListedRow } from '../domain/listedRows'
@@ -48,21 +51,34 @@ import type { Grouping, TransactionGroup } from '../domain/transactionGroups'
 import type { LedgerSplit } from '../../workbook/domain/splits'
 import type { Transaction } from '../../workbook/domain/workbook'
 import ChangeCategoryDialog from './ChangeCategoryDialog.vue'
+import ReviewQueue from './ReviewQueue.vue'
 import SplitDialog from './SplitDialog.vue'
 import TransactionCards from './TransactionCards.vue'
 import TransactionGroupHeading from './TransactionGroupHeading.vue'
+import { REVIEW_TAB } from './transactionsLinks'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
 import { words as uiWords } from '../../../../shared/ui/words'
 
-const TABS: readonly PageTab[] = [
-  { label: words.tabs.rows, value: 'rows', icon: 'i-lucide-list' },
-  { label: words.tabs.import, value: 'import', icon: 'i-lucide-file-up' },
-]
-
 const ledger = useFilteredLedger()
 const { filters, setFilters, drillLocation } = useFilters()
 const { state } = useWorkbook()
+
+/** The rows that wait for a person, whatever their period, since a row waits until someone settles it. Split rows count whole, since a person reviews the row the bank booked. */
+const queue = computed(() => {
+  const current = ledger.value
+  if (current === null || state.workbook === null) return []
+  const context = categorisationContextOf(current.workbook)
+  return scopeTransactions(state.workbook.transactions, current.filters)
+    .filter(needsReview)
+    .map((transaction) => ({ transaction, verdict: categorise(transaction, current.workbook.rules, context) }))
+})
+
+const tabs = computed((): PageTab[] => [
+  { label: words.tabs.rows, value: 'rows', icon: 'i-lucide-list' },
+  { label: words.tabs.review, value: REVIEW_TAB, icon: 'i-lucide-inbox', count: queue.value.length },
+  { label: words.tabs.import, value: 'import', icon: 'i-lucide-file-up' },
+])
 
 const GROUPINGS: readonly { readonly label: string; readonly value: Grouping }[] = [
   { label: words.groupings.none, value: 'none' },
@@ -380,7 +396,7 @@ const columns: TableColumn<TableEntry>[] = [
       if (entry.kind !== 'row') return h(MoneyText, { cents: entry.whole.amount, class: 'text-muted' })
       return h(MoneyText, { cents: entry.row.amount, tone: 'flow' })
     },
-    // The count sits under the counterparty, so the amount column stays as narrow as its figures.
+    // The count sits under the counterparty, and the total's label goes above it when the card is tight, so the amount column stays as narrow as its figures.
     footer: () =>
       h('span', { class: 'inline-flex flex-wrap items-baseline justify-end gap-x-2' }, [
         h('span', { class: 'text-xs font-normal text-muted' }, words.total),
@@ -468,7 +484,7 @@ function exportCsv(): void {
 <template>
   <section class="flex max-w-measure flex-col gap-6">
     <PageHeader :title="words.title" :description="words.description" />
-    <PageTabs :tabs="TABS" :label="words.tabs.label">
+    <PageTabs :tabs="tabs" :label="words.tabs.label">
       <template #rows>
         <div class="flex flex-col gap-6">
           <LedgerGate>
@@ -553,6 +569,9 @@ function exportCsv(): void {
             </template>
           </LedgerGate>
         </div>
+      </template>
+      <template #[REVIEW_TAB]>
+        <ReviewQueue :queue="queue" />
       </template>
       <template #import>
         <ImportPanel />

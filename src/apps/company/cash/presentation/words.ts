@@ -1,5 +1,6 @@
 import { language } from '../../../../shared/text/language'
 import type { Translation } from '../../../../shared/text/translation'
+import { monthCase } from '../../../../shared/calendar/monthCase'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // A bank account is račun u banci, since račun alone also means an invoice. A month name takes za, since its accusative reads as written.
@@ -18,8 +19,8 @@ export const hr: Translation<typeof en> = {
   total: 'Svi računi u banci',
   noMonths: 'Nema mjeseci za prikaz.',
   description: (accounts, from, to) => `Stanje na kraju mjeseca za ${accounts}, ${from} – ${to}, naslagano, s ukupnim stanjem kao crtom. `,
-  atTheEnd: (month, total) => `Za ${month} ukupno stanje na kraju mjeseca bilo je ${total}.`,
-  soFar: (month, total) => `Za ${month} ukupno stanje dosad je ${total}.`,
+  atTheEnd: (month, total) => `Na kraju ${monthCase(month, 'genitive')} ukupno stanje bilo je ${total}.`,
+  soFar: (month, total) => `Dosad u ${monthCase(month, 'locative')} ukupno stanje je ${total}.`,
 }
 
 export const words = language === 'hr' ? hr : en

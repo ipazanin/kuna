@@ -61,7 +61,7 @@ export function rulesChangeInWords(change: RulesTabChange): string {
   if (others.length === 0 && changesOnly(first, 'enabled')) {
     return said.switched(cellText(first.fields.enabled).toUpperCase() !== 'FALSE', idOf(first))
   }
-  return said.edited(idOf(first), changedColumns(first).join(', '), said.renumbered(others.length))
+  return said.edited(idOf(first), changedColumns(first), said.renumbered(others.length))
 }
 
 function changedColumns(edit: RuleRowEdit): string[] {

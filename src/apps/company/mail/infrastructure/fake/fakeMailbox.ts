@@ -81,7 +81,7 @@ function bankFileName(day: string, extension: string): string {
   return `IZV_${day.replaceAll('-', '_')} 06_00_00_000_001.${extension}`
 }
 
-function fakeMails(): FakeMail[] {
+export function fakeMails(): FakeMail[] {
   const sample = sampleCamtLabel()
   const sampleDay = sample.slice(0, 10)
   const sampleNumber = sample.slice(-3)
@@ -190,6 +190,12 @@ function bytesOf(content: string | 'sample-camt'): ArrayBuffer {
   return new TextEncoder().encode(content === 'sample-camt' ? sampleCamtXml() : content).buffer as ArrayBuffer
 }
 
+/** What the fake Gmail answers when `?fake=mail-failed` fails a search, in place of the answer Google would send. */
+export const FAKE_SEARCH_FAILURE = 'Gmail did not answer the search. Sync again later'
+
+/** What the fake Drive answers when `?fake=mail-upload-failed` fails an upload, in place of the answer Google would send. */
+export const FAKE_UPLOAD_FAILURE = 'Drive did not take the upload. Sync again later'
+
 /** The fake Gmail. `?fake=mail-failed` fails the VAT return search, so one source fails beside the others, and `?fake=mail-rate-limited` answers every search as Gmail still asking to slow down after the retries. */
 export function fakeMailbox(variant: string | null): Mailbox {
   const mails = fakeMails().filter((mail) => variant !== 'mail-nothing-new' || mail.filed)
@@ -199,7 +205,7 @@ export function fakeMailbox(variant: string | null): Mailbox {
       const phrase = /subject:"([^"]*)"/.exec(query)?.[1] ?? ''
       const after = Number(/after:(\d+)/.exec(query)?.[1] ?? '0') * 1000
       if (variant === 'mail-failed' && phrase === 'PDV za') {
-        throw new Error('Gmail did not answer the search. Sync again later')
+        throw new Error(FAKE_SEARCH_FAILURE)
       }
       if (variant === 'mail-rate-limited') {
         throw new MailRateLimited()
@@ -258,7 +264,7 @@ export function fakeMailFolders(variant: string | null, made: FakeMadeFile[] = P
 
     async create(folder, below, file) {
       if (!known.includes(folder.join('/'))) throw new Error(`The fake Drive holds no folder at ${folder.join('/')}`)
-      if (variant === 'mail-upload-failed' && file.name.endsWith('.pdf')) throw new Error('Drive did not take the upload. Sync again later')
+      if (variant === 'mail-upload-failed' && file.name.endsWith('.pdf')) throw new Error(FAKE_UPLOAD_FAILURE)
       made.push({ folder, folders: below, name: file.name, created: new Date().toISOString(), bytes: file.bytes, appProperties: file.properties })
     },
   }

@@ -16,6 +16,7 @@ import type { StatementFolder } from '../application/statementFolder'
 import type { DryRunStatement } from '../domain/importDryRun'
 import { googleStatementFolder } from '../infrastructure/googleStatementFolder'
 import { loadImportFile } from '../infrastructure/importFiles'
+import { REVIEW_LINK } from '../../transactions/presentation/transactionsLinks'
 import { words } from './words'
 
 interface StatementSyncState {
@@ -73,7 +74,7 @@ export function useStatementSync(): StatementSync {
     return dryRunFor(readings, workbook, new Map()).statements.filter(stillHeld)
   })
 
-  /** What the step did, in one line: what it filed with the rows that wait on Review, the notes of each statement, and how many it held. */
+  /** What the step did, in one line: what it filed with the rows that wait for review, the notes of each statement, and how many it held. */
   function resultOf(outcome: StatementSyncOutcome): StepResult {
     if (outcome.problem !== null) {
       return { kind: 'failed', line: outcome.problem, link: null }
@@ -94,7 +95,7 @@ export function useStatementSync(): StatementSync {
     if (heldCount > 0) {
       return { kind: 'waits', line, writeId, link: { label: words.step.importLink, to: '/company/transactions?tab=import' } }
     }
-    return { kind: 'done', line: line || words.step.nothingNew, writeId, link: waiting > 0 ? { label: words.step.reviewLink, to: '/company/review' } : null }
+    return { kind: 'done', line: line || words.step.nothingNew, writeId, link: waiting > 0 ? { label: words.step.reviewLink, to: REVIEW_LINK } : null }
   }
 
   return {

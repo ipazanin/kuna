@@ -38,8 +38,8 @@ export const hr: Translation<typeof en> = {
   shareDialog: {
     title: 'Udio vlasnika',
     description: (counterparty, day) => `${counterparty || 'Bez partnera'}, ${day}`,
-    noDefault: (category) => `${category} nema zadani udio.`,
-    defaultIs: (category, share) => `Zadani udio za ${category} je ${share}\u00a0%.`,
+    noDefault: (category) => `„${category}” nema zadani udio.`,
+    defaultIs: (category, share) => `Zadani udio za „${category}” je ${share}\u00a0%.`,
     cleared: 'Udio vlasnika je uklonjen',
     setTo: (share) => `Udio vlasnika postavljen je na ${share}\u00a0%`,
     notSaved: 'Nije spremljeno',

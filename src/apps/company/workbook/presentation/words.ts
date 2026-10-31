@@ -1,5 +1,5 @@
 import { language } from '../../../../shared/text/language'
-import type { EnglishForms, Translation } from '../../../../shared/text/translation'
+import type { Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // The books file is datoteka, so that knjige keeps its legal sense of the accountant's books. A file name stays as Drive or the file system writes it.
@@ -26,14 +26,6 @@ export const en = {
     readAgain: (name: string, where: string) => `${name} ${where} is the file on screen, read again just now. To open a different file, use Pick another file.`,
     onScreen: (name: string, where: string) => `${name} ${where} is on screen now, and the app keeps a copy in this browser.`,
   },
-  /** The toasts of keeping the books in a new file on Drive. */
-  keep: {
-    created: (name: string, where: string) => `Created ${name} in ${where}`,
-    createdNote: 'The app keeps a copy in this browser, and a backups folder beside the file.',
-    moved: (count: number): EnglishForms => ({ one: `Moved ${count} record`, other: `Moved ${count} records` }),
-    movedNote: (name: string, where: string) => `${name} in ${where} holds them. The app read it back and found the same records.`,
-    notKept: 'Not kept on Google Drive',
-  },
   /** What a screen shows until books with transactions are on it. */
   gate: {
     browserUnread: 'The workbook in this browser could not be read',
@@ -59,26 +51,19 @@ export const hr: Translation<typeof en> = {
     description: 'Ponovno učitajte stranicu da se aplikacija ažurira prije nego što išta promijenite. Do tada aplikacija prikazuje datoteku i ništa u nju ne sprema.',
   },
   reading: {
-    notExcel: (fileName) => `Datoteka ${fileName} nije se mogla pročitati kao Excelova datoteka. Spremite je kao .xlsx i pokušajte ponovno.`,
-    notKuna: (fileName) => `Datoteka ${fileName} nije se mogla pročitati kao Kunina datoteka.`,
-    otherApp: (fileName, app) => `Datoteka ${fileName} pripada drugoj Kuninoj aplikaciji, ${app}.`,
+    notExcel: (fileName) => `Datoteka „${fileName}” nije se mogla pročitati kao Excelova datoteka. Spremite je kao .xlsx i pokušajte ponovno.`,
+    notKuna: (fileName) => `Datoteka „${fileName}” nije se mogla pročitati kao Kunina datoteka.`,
+    otherApp: (fileName, app) => `Datoteka „${fileName}” pripada drugoj Kuninoj aplikaciji, ${app}.`,
     nothingToExport: 'Još nema datoteke za izvoz.',
   },
   find: {
     notOpened: 'Datoteka nije otvorena',
     onDrive: 'na Google Driveu',
-    inFolder: (folder) => `u mapi ${folder} na Google Driveu`,
+    inFolder: (folder) => `u mapi „${folder}” na Google Driveu`,
     alreadyOpen: 'Datoteka je već otvorena',
-    opened: (name) => `Otvorena je datoteka ${name}`,
-    readAgain: (name, where) => `Na zaslonu je datoteka ${name} ${where}, upravo ponovno pročitana. Za drugu datoteku upotrijebite „Odaberi drugu datoteku”.`,
-    onScreen: (name, where) => `Na zaslonu je sada datoteka ${name} ${where}, a aplikacija čuva kopiju u ovom pregledniku.`,
-  },
-  keep: {
-    created: (name, where) => `Datoteka ${name} izrađena je u mapi ${where}`,
-    createdNote: 'Aplikacija čuva kopiju u ovom pregledniku i mapu sa sigurnosnim kopijama uz datoteku.',
-    moved: (count) => ({ one: `Premješten je ${count} zapis`, few: `Premještena su ${count} zapisa`, other: `Premješteno je ${count} zapisa` }),
-    movedNote: (name, where) => `Sadrži ih datoteka ${name} u mapi ${where}. Aplikacija ju je ponovno pročitala i našla iste zapise.`,
-    notKept: 'Nije spremljeno na Google Drive',
+    opened: (name) => `Otvorena je datoteka „${name}”`,
+    readAgain: (name, where) => `Na zaslonu je datoteka „${name}” ${where}, upravo ponovno pročitana. Za drugu datoteku upotrijebite „Odaberi drugu datoteku”.`,
+    onScreen: (name, where) => `Na zaslonu je sada datoteka „${name}” ${where}, a aplikacija čuva kopiju u ovom pregledniku.`,
   },
   gate: {
     browserUnread: 'Datoteka u ovom pregledniku nije se mogla pročitati',
@@ -92,7 +77,7 @@ export const hr: Translation<typeof en> = {
     openSettings: 'Otvori postavke',
     reading: 'Čitanje datoteke',
     onItsWay: 'Prva kopija stiže.',
-    syncToRead: (name) => (name === null ? 'Sinkronizirajte da se datoteka pročita' : `Sinkronizirajte da se pročita ${name}`),
+    syncToRead: (name) => (name === null ? 'Sinkronizirajte da se datoteka pročita' : `Sinkronizirajte da se pročita „${name}”`),
     noCopy: 'Ovaj preglednik još nema njezinu kopiju.',
     sync: 'Sinkroniziraj',
   },

@@ -2,9 +2,9 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import type { DocumentCopy } from '../src/shared/storage/infrastructure/documentRecordStorage'
-import { fileRows } from '../src/apps/company/review/application/fileRows'
-import { confirmation, recategorisation, waitingRowsSettledBy } from '../src/apps/company/review/domain/verdictChanges'
-import type { RowVerdict } from '../src/apps/company/review/domain/verdictChanges'
+import { fileRows } from '../src/apps/company/transactions/application/fileRows'
+import { confirmation, recategorisation, waitingRowsSettledBy } from '../src/apps/company/transactions/domain/verdictChanges'
+import type { RowVerdict } from '../src/apps/company/transactions/domain/verdictChanges'
 import { writeRulesChange } from '../src/apps/company/rules/application/ruleWrites'
 import type { RuleFields, RulesTabChange } from '../src/apps/company/rules/domain/rulesTabChange'
 import { draftOfRule } from '../src/apps/company/rules/domain/ruleDraft'
@@ -48,7 +48,7 @@ function ruleFields(store: Store, id: string): RuleFields {
   return store.state.records!.rules.records.find((stored) => stored.record.fields.rule === id)!.record.fields
 }
 
-/** Files the rows under their verdicts, as Review does. */
+/** Files the rows under their verdicts, as the To review tab does. */
 function setVerdicts(store: WorkbookStore<CompanyBooks>, verdicts: readonly RowVerdict[]): Promise<WriteReceipt | null> {
   return store.write('Filed', (unit) => fileRows(unit, store.state.records!.ledger, verdicts, store.state.workbook!.categories))
 }

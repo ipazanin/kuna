@@ -5,11 +5,11 @@ import type { EnglishForms, Translation } from '../../../../../../shared/text/tr
 import { uncapitalised } from '../../../../../../shared/text/capitalised'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
-// The ruleset is Propisi and each of its rules an odredba, so it never collides with the rules that file rows (pravila).
+// The ruleset's tab is Porezna pravila and each of its rules an odredba, so it never collides with the rules that file rows (Pravila kategorija).
 // The rules' notes and terms are legal research written in English, and stay so. Their titles are labels, which ruleTitles.ts names in Croatian. A Croatian date and year end in their own full stop.
 
 export const en = {
-  tab: 'Ruleset',
+  tab: 'Tax rules',
   intro: (checkedOn: string) =>
     `The Croatian law behind the pack's figures: each rule's value per year, the article it comes from, and how sure that value is. Checked against the sources on ${checkedOn}.`,
   localRatesHint: 'Search for a city or municipality, or show them all. Set where the director lives on Salaries to open on that one.',
@@ -96,7 +96,7 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
-  tab: 'Propisi',
+  tab: 'Porezna pravila',
   intro: (checkedOn) =>
     `Hrvatski propisi iza izračuna paketa: vrijednost svake odredbe po godini, članak iz kojeg dolazi i koliko je ta vrijednost sigurna. Provjereno prema izvorima ${withFullStop(checkedOn)}`,
   localRatesHint: 'Potražite grad ili općinu ili ih prikažite sve. Na zaslonu Plaće postavite gdje direktor živi da se tablica otvori na toj jedinici.',

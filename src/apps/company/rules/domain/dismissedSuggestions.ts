@@ -1,4 +1,4 @@
-import type { CoverageGroup, RuleCoverage } from '../../rules/domain/ruleCoverage'
+import type { CoverageGroup, RuleCoverage } from '../domain/ruleCoverage'
 import type { Dismissal, SuggestionKind } from '../../workbook/domain/dismissals'
 
 /** A dismissal, with the group it hides today. The group is null once no row a person filed is left in it. */

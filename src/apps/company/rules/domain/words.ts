@@ -55,7 +55,7 @@ export const en = {
     moved: (ahead: string, behind: string) => `Moved ${ahead} ahead of ${behind}`,
     renumberedRules: (count: number) => `Renumbered ${count} rules`,
     switched: (on: boolean, id: string) => `${on ? 'Switched on' : 'Switched off'} ${id}`,
-    edited: (id: string, columns: string, renumbered: string) => `Edited ${id}: ${columns}${renumbered}`,
+    edited: (id: string, columns: readonly string[], renumbered: string) => `Edited ${id}: ${columns.join(', ')}${renumbered}`,
   },
   /** Why a row of the rules tab is left out. */
   reading: {
@@ -126,7 +126,7 @@ export const hr: Translation<typeof en> = {
     moved: (ahead, behind) => `${ahead} premješteno ispred ${behind}`,
     renumberedRules: (count) => plural({ one: `Prenumerirano je ${count} pravilo`, few: `Prenumerirana su ${count} pravila`, other: `Prenumerirano je ${count} pravila` }, count),
     switched: (on, id) => `${on ? 'Uključeno' : 'Isključeno'}: ${id}`,
-    edited: (id, columns, renumbered) => `Uređeno: ${id} (${columns})${renumbered}`,
+    edited: (id, columns, renumbered) => `Uređeno: ${id} (${columns.map((column) => `„${column}”`).join(', ')})${renumbered}`,
   },
   reading: {
     unknownColumns: (columns) => `${columns}: nije stupac koji pravilo može provjeravati`,
@@ -137,7 +137,7 @@ export const hr: Translation<typeof en> = {
     unknownConfidence: (confidence) => `confidence „${confidence}” nije ni rule ni review`,
     undefinedCategory: (category) => `razvrstava stavke kao „${category}” uz sigurnost rule, a ta kategorija nije među kategorijama`,
     noCondition: 'nema uvjeta, pa bi odgovaralo svakoj stavci',
-    direction: (text) => `direction je „${text}”, a smije biti credit, debit ili prazno`,
+    direction: (text) => `polje direction je „${text}”, a smije biti „credit”, „debit” ili prazno`,
     trueFalseOrBlank: (column, text) => `${column} je „${text}”, a smije biti TRUE, FALSE ili prazno`,
     trueOrBlank: (column, text) => `${column} je „${text}”, a smije biti TRUE ili prazno`,
     revenueCode: (code) => `revenue_code je „${code}”, a mora imati četiri znamenke`,

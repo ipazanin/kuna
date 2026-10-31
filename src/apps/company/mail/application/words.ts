@@ -19,7 +19,7 @@ export const hr: Translation<typeof en> = {
   rateLimited: 'Gmail je zatražio da usporimo. Sinkronizirajte ponovno za minutu.',
   searching: 'pretražuje',
   filing: (position, of) => `sprema ${position} od ${of}`,
-  waitsFor: (name) => `Čeka dok se ne spremi ${name}, pa sljedeća sinkronizacija i dalje traži unatrag do te poruke`,
+  waitsFor: (name) => `Čeka dok se ne spremi „${name}”, pa sljedeća sinkronizacija i dalje traži unatrag do te poruke`,
   statements: {
     label: 'Bankovni izvodi',
     notCamt: 'Nije camt.053 izvod s danom izrade i brojem.',

@@ -23,9 +23,9 @@ export const hr: Translation<typeof en> = {
   exportFailed: 'Izvoz nije uspio',
   notOpened: 'Datoteka kredita nije otvorena',
   alreadyOpen: 'Datoteka kredita već je otvorena',
-  alreadyOpenNote: (name) => `Na zaslonu je ${name} s Google Drivea, upravo ponovno pročitana.`,
-  opened: (name) => `Otvorena je datoteka ${name}`,
-  openedNote: (name) => `${name} s Google Drivea sada je na zaslonu, a aplikacija čuva kopiju u ovom pregledniku.`,
+  alreadyOpenNote: (name) => `Na zaslonu je „${name}” s Google Drivea, upravo ponovno pročitana.`,
+  opened: (name) => `Otvorena je datoteka „${name}”`,
+  openedNote: (name) => `„${name}” s Google Drivea sada je na zaslonu, a aplikacija čuva kopiju u ovom pregledniku.`,
 }
 
 export const words = language === 'hr' ? hr : en

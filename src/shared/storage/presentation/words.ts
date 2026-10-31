@@ -1,7 +1,7 @@
 import { capitalised } from '../../text/capitalised'
 import { language } from '../../text/language'
 import { plural } from '../../text/translation'
-import type { Translation } from '../../text/translation'
+import type { EnglishForms, Translation } from '../../text/translation'
 import type { RecordNoun } from '../domain/recordKind'
 import { agreeing } from '../domain/words'
 
@@ -88,6 +88,7 @@ export const en = {
     export: 'Export',
   },
   firstRun: {
+    steps: 'Steps',
     home: {
       drive: 'A new file on Google Drive',
       driveNote: 'One file you open on your phone and computer. Backed up daily.',
@@ -110,6 +111,8 @@ export const en = {
       chooseFirst: 'Choose a folder in Google Drive',
       created: (name: string, folder: string) => `Created ${name} in ${folder}`,
       createdNote: 'The app keeps a copy in this browser, and a backups folder beside the file.',
+      moved: (count: number): EnglishForms => ({ one: `Moved ${count} record`, other: `Moved ${count} records` }),
+      movedNote: (name: string, where: string) => `${name} in ${where} holds them. The app read it back and found the same records.`,
     },
     find: {
       pick: 'Pick another file',
@@ -154,6 +157,7 @@ export const hr: Translation<typeof en> = {
     export: 'Izvezi',
   },
   firstRun: {
+    steps: 'Koraci',
     home: {
       drive: 'Nova datoteka na Google Driveu',
       driveNote: 'Jedna datoteka koju otvarate na mobitelu i računalu. Sigurnosna kopija svaki dan.',
@@ -172,10 +176,12 @@ export const hr: Translation<typeof en> = {
       failed: 'To nije uspjelo',
       chooseAgain: 'Ponovno odaberi mapu',
       chooseAnother: 'Odaberi drugu',
-      create: 'Napravi datoteku ovdje',
+      create: 'Izradi datoteku ovdje',
       chooseFirst: 'Odaberi mapu na Google Driveu',
-      created: (name, folder) => `Datoteka ${name} napravljena je u mapi ${folder}`,
+      created: (name, folder) => `Datoteka „${name}” izrađena je u mapi „${folder}”`,
       createdNote: 'Aplikacija čuva kopiju u ovom pregledniku i mapu sa sigurnosnim kopijama uz datoteku.',
+      moved: (count) => ({ one: `Premješten je ${count} zapis`, few: `Premještena su ${count} zapisa`, other: `Premješteno je ${count} zapisa` }),
+      movedNote: (name, where) => `Sadrži ih datoteka „${name}” u mapi „${where}”. Aplikacija ju je ponovno pročitala i našla iste zapise.`,
     },
     find: {
       pick: 'Odaberi drugu datoteku',

@@ -264,7 +264,7 @@ export const hr: Translation<typeof en> = {
     payToNoEmployee: (amount) => `${amount} u kategoriji plaća otišlo je na račun koji ne navodi nijedan zaposlenik.`,
     belowMinimum: (name, agreed, minimum) => `${name}: ugovorena bruto plaća od ${agreed} niža je od minimalne plaće od ${minimum} za cijeli mjesec.`,
     minimumIn: (name, month) => `${name}, minimalna plaća, ${withFullStop(month)}`,
-    overCap: (name, payment, period, excess) => `${name}: ${payment} isplaćeno u razdoblju ${period} premašuje neoporezivi iznos za ${excess}, koji se oporezuje kao plaća.`,
+    overCap: (name, payment, period, excess) => `${name}, ${payment}: isplata u razdoblju ${period} premašuje neoporezivi iznos za ${excess}, koji se oporezuje kao plaća.`,
     againstCap: (name, payment, period) => `${name}, ${payment} u razdoblju ${period}, prema neoporezivom iznosu.`,
   },
   everyone: 'Svi',

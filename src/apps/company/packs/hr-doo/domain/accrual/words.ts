@@ -235,9 +235,9 @@ export const hr: Translation<typeof en> = {
   },
   closed: {
     grantAsAccountant: 'Potpora priznata kako je priznao knjigovođa, protivno našoj računovodstvenoj politici',
-    keptLastYear: (year, entry) => `Zadržano u ovoj godini kad je ${year}. zatvorena: ${entry}, plaćeno`,
+    keptLastYear: (year, entry) => `Zadržano u ovoj godini kad je ${year}. zatvorena: ${entry}, plaćanje`,
     arrearsKept: 'Troškovi plaćeni unatrag koje knjigovođa zadržava u godini u kojoj su plaćeni',
-    keptInMonth: (konto, year, entry) => `Zadržano u mjesecu plaćanja jer ga konto ${konto} izostavlja iz ${year}.: ${entry}, plaćeno`,
+    keptInMonth: (konto, year, entry) => `Zadržano u mjesecu plaćanja jer ga konto ${konto} izostavlja iz ${year}.: ${entry}, plaćanje`,
     representationOn: (konto) => `Reprezentacija na kontu ${konto}`,
     representationAsBooked: 'Reprezentacija dodana osnovici kako ju je knjižio knjigovođa, prema bankovnim iznosima',
     onto: (line) => `Na poziciju ${line}, kako raspoređuje knjigovođa`,

@@ -1,6 +1,7 @@
 import { language } from '../../../../../../shared/text/language'
 import { plural } from '../../../../../../shared/text/translation'
 import type { Translation } from '../../../../../../shared/text/translation'
+import { monthCase } from '../../../../../../shared/calendar/monthCase'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // A line of the accountant's statements is pozicija, named as the GFI forms print it, and a row of the PD return redak. A field such as hr_owner_loan_interest stays as the settings tab stores it.
@@ -111,9 +112,9 @@ export const hr: Translation<typeof en> = {
     beforeTaxDiffers: 'Dobit prije oporezivanja razlikuje se od knjigovođine',
     afterTaxDiffers: 'Dobit nakon oporezivanja razlikuje se od knjigovođine',
     findTheRows: 'Pronađite stavke iza nje: pozicije i grupe konta koje se razlikuju upućuju na kategorije, a uobičajen je uzrok nedostajuća uloga ili PDV tretman.',
-    noInvoiceIn: (month, next) => `Nijedan račun ne isporučuje rad u mjesecu ${month}, a račun ${next} došao je nakon njega`,
+    noInvoiceIn: (month, next) => `Nijedan račun ne isporučuje rad u ${monthCase(month, 'locative')}, a račun ${next} došao je nakon njega`,
     invoiceSettles: (next) => `Račun za taj mjesec, razdoblje isporuke na računu ${next} koje ga pokriva ili knjigovođina potvrda da rad nije isporučen.`,
-    purchaseWithoutAsset: (label) => `Nabava iznad praga za dugotrajnu imovinu bez retka sredstva: ${label}, plaćeno`,
+    purchaseWithoutAsset: (label) => `Nabava iznad praga za dugotrajnu imovinu bez retka sredstva: ${label}, plaćanje`,
     assetSettles: 'Redak sredstva na listu „assets”, da se amortizira, ili knjigovođina potvrda da je to trošak godine.',
     everyMonth: 'Svaki mjesec do zadnjeg računa ima račun koji u njemu isporučuje',
     everyMonthReopens: 'u godini je isporučen rad koji još ne navodi nijedan račun.',

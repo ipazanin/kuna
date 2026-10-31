@@ -7,7 +7,7 @@ import { words } from './words'
 
 const { state } = useWorkbook()
 
-/** The company's card on the Kuna home: the cash on hand, and the rows Review holds when any wait. */
+/** The company's card on the Kuna home: the cash on hand, and the rows that wait for review when any do. */
 export const COMPANY_HOME_CARD: AppHomeCard = {
   icon: 'i-lucide-building-2',
   purpose: words.purpose,

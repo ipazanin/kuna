@@ -13,7 +13,7 @@ import UnaccountedReimbursements from './UnaccountedReimbursements.vue'
 import { unaccountedInView } from './unaccountedInView'
 import { words } from './words'
 
-/** Review's card of reimbursements to the owner with no cost on file, each with a way to add its cost. */
+/** The To review tab's card of reimbursements to the owner with no cost on file, each with a way to add its cost. */
 defineProps<{
   /** True while another write runs. */
   busy: boolean

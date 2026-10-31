@@ -3,10 +3,11 @@ import { agreeing } from '../../../../shared/storage/domain/words'
 import { language } from '../../../../shared/text/language'
 import { plural } from '../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
+import type { VatTreatment } from '../../workbook/domain/vatTreatment'
 import { croatianBucket, croatianBucketName } from '../domain/words'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
-// A category is kategorija, a family grupa and a bucket skupina. A role and a VAT treatment keep their names as the tab stores them, and a bucket takes its Croatian name in quotes.
+// A category is kategorija, a family grupa and a bucket skupina. A role keeps its name as the tab stores it, and a bucket takes its Croatian name in quotes.
 // A row of a tab is redak. A tab editor's buttons name the kind in the nominative, as in Novi klijent, since Croatian cannot put every noun in the accusative from its forms.
 
 export const en = {
@@ -90,7 +91,7 @@ export const en = {
     switch: 'Switch data source',
     keepOnDrive: 'Keep on Google Drive',
   },
-  tabNames: { general: 'General', categories: 'Categories', accounts: 'Accounts' },
+  tabNames: { general: 'General', categories: 'Categories', categoryRules: 'Category rules', accounts: 'Accounts' },
   categories: {
     title: 'Categories',
     count: (count: number): EnglishForms => ({ one: `${count} category`, other: `${count} categories` }),
@@ -122,6 +123,17 @@ export const en = {
     }),
     clearFilters: 'Clear filters',
     columns: { category: 'Category', label: 'Shown as', family: 'Family', bucket: 'Bucket', colour: 'Colour', roles: 'Roles', vat: 'VAT', ownerShare: 'Owner share', delete: 'Delete' },
+    /** A VAT treatment among the choices, by the name the tab stores. */
+    vatTreatments: {
+      none: 'none',
+      'deductible-25': 'deductible-25',
+      'deductible-13': 'deductible-13',
+      'deductible-5': 'deductible-5',
+      'reverse-charge': 'reverse-charge',
+      'foreign-vat': 'foreign-vat',
+      representation: 'representation',
+      'car-50': 'car-50',
+    } satisfies Record<VatTreatment, string>,
     noMatch: 'No category matches these filters.',
     choose: 'Choose',
     colourOf: (name: string) => `Colour of ${name || 'this category'}`,
@@ -194,7 +206,7 @@ export const hr: Translation<typeof en> = {
     localeHelp: 'Oznaka poput en-GB, de-DE ili en-US, ili prazno da slijedi jezik.',
     followLanguage: 'Prema jeziku',
     reviewLabel: 'Oznaka provjere',
-    reviewLabelHelp: 'Što će flagged_by pisati na stavci koju netko potvrdi u aplikaciji. rule i ai upisuje automatsko razvrstavanje.',
+    reviewLabelHelp: 'Što će flagged_by pisati na stavci koju netko potvrdi u aplikaciji. „rule” i „ai” upisuje automatsko razvrstavanje.',
     cardIbans: 'IBAN-ovi za namiru kartica',
     cardIbansHelp: 'Bankovni računi za namiru kartičnih plaćanja. Stavka plaćena na jedan od njih čita se kao kupnja karticom.',
     addIban: 'Dodaj IBAN',
@@ -234,7 +246,7 @@ export const hr: Translation<typeof en> = {
     columns: { account: 'Račun', label: 'Prikazuje se kao', iban: 'IBAN', currency: 'Valuta', delete: 'Obriši' },
     none: 'Još nema računa. Dodajte račune koje navode stavke evidencije.',
     removeNew: 'Ukloni ovaj novi račun',
-    deleteName: (name) => (name === '' ? 'Obriši ovaj račun' : `Obriši ${name}`),
+    deleteName: (name) => (name === '' ? 'Obriši ovaj račun' : `Obriši „${name}”`),
     add: 'Dodaj račun',
     discard: 'Odbaci promjene',
     save: 'Spremi račune',
@@ -248,7 +260,7 @@ export const hr: Translation<typeof en> = {
     switch: 'Promijeni izvor podataka',
     keepOnDrive: 'Čuvaj na Google Driveu',
   },
-  tabNames: { general: 'Općenito', categories: 'Kategorije', accounts: 'Računi u banci' },
+  tabNames: { general: 'Općenito', categories: 'Kategorije', categoryRules: 'Pravila kategorija', accounts: 'Računi u banci' },
   categories: {
     title: 'Kategorije',
     count: (count) => ({ one: `${count} kategorija`, few: `${count} kategorije`, other: `${count} kategorija` }),
@@ -284,9 +296,19 @@ export const hr: Translation<typeof en> = {
     }),
     clearFilters: 'Ukloni filtre',
     columns: { category: 'Kategorija', label: 'Prikazuje se kao', family: 'Grupa', bucket: 'Skupina', colour: 'Boja', roles: 'Uloge', vat: 'PDV', ownerShare: 'Udio vlasnika', delete: 'Obriši' },
+    vatTreatments: {
+      none: 'Bez PDV-a',
+      'deductible-25': 'Pretporez 25\u00a0%',
+      'deductible-13': 'Pretporez 13\u00a0%',
+      'deductible-5': 'Pretporez 5\u00a0%',
+      'reverse-charge': 'Prijenos porezne obveze',
+      'foreign-vat': 'Strani PDV',
+      representation: 'Reprezentacija',
+      'car-50': 'Osobni automobil, 50\u00a0%',
+    },
     noMatch: 'Nijedna kategorija ne odgovara ovim filtrima.',
     choose: 'Odaberite',
-    colourOf: (name) => (name === '' ? 'Boja ove kategorije' : `Boja: ${name}`),
+    colourOf: (name) => (name === '' ? 'Boja ove kategorije' : `Boja kategorije „${name}”`),
     bucketColour: 'Boja skupine',
     bucketsColour: (bucket) => `Boja skupine ${croatianBucket(bucket)}.`,
     colourAlone: (swatch, bucket) => `${swatch}. Nijedna druga kategorija skupine ${croatianBucket(bucket)} je ne koristi.`,
@@ -294,7 +316,7 @@ export const hr: Translation<typeof en> = {
     shareLabel: 'Udio vlasnika, u postocima',
     onlyOperating: `Udio može imati samo kategorija skupine ${croatianBucket('operating')}`,
     removeNew: 'Ukloni ovu novu kategoriju',
-    deleteName: (name) => (name === '' ? 'Obriši ovu kategoriju' : `Obriši ${name}`),
+    deleteName: (name) => (name === '' ? 'Obriši ovu kategoriju' : `Obriši „${name}”`),
     add: 'Dodaj kategoriju',
     discard: 'Odbaci promjene',
     save: 'Spremi kategorije',
@@ -303,7 +325,7 @@ export const hr: Translation<typeof en> = {
     search: 'Pretraži uloge',
     none: 'Nijedna',
     label: 'Uloge',
-    unknown: (role) => `${role}, uloga koju aplikacija ne poznaje`,
+    unknown: (role) => `„${role}”, uloga koju aplikacija ne poznaje`,
   },
   factTab: {
     count: (noun, count) => `${count} ${plural({ one: noun.hr.one, few: noun.hr.few, other: noun.hr.other }, count)}`,

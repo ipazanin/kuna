@@ -45,7 +45,7 @@ function rowsOf(entry: DismissedSuggestion<Transaction>): string {
   <AppCard
     :title="words.dismissedCard.title(dismissed.length)"
     :subtitle="words.dismissedCard.subtitle"
-    collapse-id="review.dismissed"
+    collapse-id="settings.dismissed-suggestions"
     :summary="plural(words.dismissedCard.summary(dismissed.length), dismissed.length)"
     start-collapsed
     data-testid="dismissed-suggestions"

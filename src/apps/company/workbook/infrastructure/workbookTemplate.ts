@@ -170,7 +170,7 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     ID_TEMPLATE_COLUMN,
   ],
   dismissed: [
-    { name: 'kind', note: `What was dismissed: ${SUGGESTION_KINDS.join(' or ')}, the two lists of confirmed rows no rule repeats on Review. Required.` },
+    { name: 'kind', note: `What was dismissed: ${SUGGESTION_KINDS.join(' or ')}, the two lists of confirmed rows no rule repeats on Settings, Category rules. Required.` },
     {
       name: 'key',
       note: 'The counterparty the suggestion groups its rows by: iban: and the IBAN, or name: and the name in lower case without accents. An exception adds | and the id of the rule it differs from. Required.',

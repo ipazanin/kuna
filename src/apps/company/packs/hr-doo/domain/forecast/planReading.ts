@@ -6,7 +6,7 @@ import { monthNumber, monthOf } from '../../../../../../shared/calendar/monthKey
 import { ASSET_GROUPS } from '../assets/assets'
 import { PLAN_KEYWORDS } from './plan'
 import type { PlanLine } from './plan'
-import { labelWords, labelled, numberText, withIdField } from '../../../../../../shared/storage/domain/recordCodec'
+import { withIdField } from '../../../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../../../shared/storage/domain/recordFields'
 import type { FieldValue } from '../../../../../../shared/storage/domain/recordFields'
@@ -69,7 +69,7 @@ function planLineFields(line: PlanLine): Readonly<Record<string, FieldValue | nu
 
 export const PLAN_CODEC: RecordCodec<PlanLine> = withIdField(
   PLAN_RECORDS,
-  (fields) => labelWords([textOf(fields.item), textOf(fields.year), labelled('month', textOf(fields.month)), numberText(fields.amount)]),
+  words.label,
   planLineOf,
   // A purchase takes its month from its date, so its month is kept blank.
   (line) => filledFields({ year: String(line.year), month: line.kind === 'purchase' || line.month === null ? null : String(line.month), ...planLineFields(line), note: line.note }),

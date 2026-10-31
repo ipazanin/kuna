@@ -10,11 +10,15 @@
  * screen and in every flow, and every DashboardGrid must rearrange from 768 to 1440 px and again to
  * 1920 px, unless its cards already sit in one row at the wider width. Cards side by side in a grid
  * that is not a DashboardGrid fail, outside the gallery. A deep
- * link to a rule on Settings, Ruleset must open that rule in the side panel and bring its line to
+ * link to a rule on Settings, Tax rules must open that rule in the side panel and bring its line to
  * just below the search bar, marked, and keep it there once slow web fonts swap in. Deep links into
  * a collapsed card must open it and land on their row. At 360, 430 and 1440 px each screen
  * collapses and expands one card. The total and the label in the middle of every donut must sit
  * inside the ring's hole with 2 px to spare.
+ * On every screen and at every step of a flow in Croatian it fails on English left on the page,
+ * other than the data `support/englishLeft.mjs` lets through by name. Every flow has a Croatian run,
+ * on its own or inside another, such as the Settings tabs, Year's tab link, both imports, Salaries,
+ * the home, its Set up and the race on the To review tab.
  *
  * Beyond the screens of the fake workbook on Drive, it renders the home with every app in Set up and
  * onboarding's first steps on a first run (`?fake=empty`), each tab of the company's Settings and the
@@ -30,7 +34,7 @@
  * the sample's Transactions, in Croatian too, and Transactions on an empty file, the import of the made-up portfolio workbook
  * into an empty Investments file with the fake prices, each step and the dry run in English and Croatian, and the same workbook again adding nothing,
  * Settings' Prices card on the sample with current prices, with made-up keys kept and with late prices, Company's
- * Overview, Transactions, Review, the Import tab, every tab of Analysis, Invoicing with its Plan and Clients tabs, every tab of Settings and onboarding's first steps in Croatian (`?lang=hr`),
+ * Overview, Transactions with its To review and Import tabs, every tab of Analysis, Invoicing with its Plan and Clients tabs, every tab of Settings and onboarding's first steps in Croatian (`?lang=hr`),
  * Year, Salaries and Owner in Croatian in the fake file on Drive, in this browser and with one and five employees, Salaries for one
  * made-up employee (`?fake=one-employee`) and for five (`?fake=five-employees`), and the summary
  * of an xlsx file it writes from the fake workbook with two problems added.
@@ -55,9 +59,9 @@
  * entered by hand. At every width it opens each Loans dialog and each Investments dialog
  * in English and Croatian, the Company dialogs whose fields sit two to a row, the app menu in Croatian
  * and the bank loan's what-if in Croatian. At 360, 768 and 1440 px it opens in Croatian the dialogs
- * and phone sheets of Transactions, Review and Settings, Categories, and groups Transactions by
+ * and phone sheets of Transactions, its To review tab and Settings, Categories, and groups Transactions by
  * category and by month. At the same widths, in Croatian, it splits a payment on Transactions and
- * from Review's queue, changes a settled row's category, changes and deletes a rule from its editor,
+ * from the To review queue, changes a settled row's category, changes and deletes a rule from its editor,
  * dismisses and restores a group no rule repeats, and adds, edits, finds, filters and sorts
  * categories on Settings, each undone. At the same widths it reads the sample statement and bank export on Import
  * in Croatian, confirms and undoes the statement, opens a held statement from the sync's steps, lists
@@ -72,11 +76,11 @@
  * category's plan and a planned purchase.
  * It plans a category for 2027 on Year, Plan, edits, clears and undoes it, and plans a purchase in a
  * workbook without plan rows. On Transactions it splits a payment, edits the split, deletes it and
- * undoes the delete. On Review it does the same from a row of the queue, and dismisses a group of
- * confirmed rows no rule repeats, restores it and undoes the restore. On its Rules tab it changes a rule's note in the rule's editor and undoes it,
+ * undoes the delete. On the To review tab it does the same from a row of the queue. On Settings, Category rules it dismisses a group of
+ * confirmed rows no rule repeats, restores it and undoes the restore. There it also changes a rule's note in the rule's editor and undoes it,
  * then deletes the rule from its editor and brings it back with Undo. On the Import tab of Transactions it drops the sample camt.053 statement and the
  * sample bank export, makes a profile for the export, reads each dry run, confirms it, reads how many
- * new rows wait on Review and undoes it, then deletes the profile, at 360, 430 and 1440 px. With the
+ * new rows wait for review and undoes it, then deletes the profile, at 360, 430 and 1440 px. With the
  * file on Drive, from Overview, Sync files the fake statements folder's sample statement with no
  * toast, its step on Kuna settings says so with Undo, which takes it out, Import lists it,
  * and a last sync finds nothing new. With a held statement in the folder, the sync control says 1
@@ -106,7 +110,7 @@
  * books file and file the bank's mail there on the first sync. The statement step asks for Drive
  * read before the Picker when the page lacks it. An xlsx file
  * moves to the fake Drive through its summary, Settings, Books file moves a workbook kept in this
- * browser there with the Drive read its folders need asked up front, and a row confirmed on Review while another device files the other row keeps both.
+ * browser there with the Drive read its folders need asked up front, and a row confirmed on the To review tab while another device files the other row keeps both.
  *
  * Run against a preview of the fake build:
  *   npm run build:fake && npm run preview:fake -- --port 4173
@@ -146,7 +150,8 @@ import { formatMoney, formatPercent, formatPercentChange, formatUnitPrice } from
 import { installHrDooPack } from './support/installPack.mjs'
 import { chromePath, ENGLISH_CHROME_ARG } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
-import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
+import { englishLeftOn } from './support/englishLeft.mjs'
+import { pageTabsFlow, pageTabsFlowIn, yearTabLinkFlow, yearTabLinkFlowIn } from './support/pageTabFlows.mjs'
 import {
   accessClosedFlow,
   advanceFlow,
@@ -168,6 +173,19 @@ import {
   clientIbansFlow,
   clientIbansFlowIn,
   companyDialogsFlow,
+  companyDialogsFlowIn,
+  buildUpFlowIn,
+  homeFlowIn,
+  importCamtFlowIn,
+  importTableFlowIn,
+  loansBrowserFlowIn,
+  loansOpenFlowIn,
+  mailSaveAsksFlowIn,
+  ownerNetUnregisteredFlowIn,
+  raceFlowIn,
+  salariesFlowIn,
+  setUpFlowIn,
+  statementsFolderFlowIn,
   dismissFlow,
   dismissFlowIn,
   heldStatementFlow,
@@ -191,11 +209,15 @@ import {
   investmentsEditorFlow,
   investmentsImportFlowIn,
   loansDriveFlow,
+  loansDriveFlowIn,
   loansEditorFlow,
+  loansEditorFlowIn,
   loansOpenFlow,
   loansStartOnDriveFlow,
+  loansStartOnDriveFlowIn,
   loansScenarioEditorFlow,
   loansScenariosFlow,
+  loansScenariosFlowIn,
   loansWhatIfFlow,
   loansWhatIfFlowIn,
   loansWhatIfScenarioFlow,
@@ -212,18 +234,27 @@ import {
   mailSwitchesOffFlow,
   mailWindowFlow,
   moveFromBrowserFlow,
+  moveFromBrowserFlowIn,
   moveOntoDriveFlow,
+  moveOntoDriveFlowIn,
   onboardingBringFlow,
+  onboardingBringFlowIn,
   onboardingBrowserFlow,
   onboardingBrowserFlowIn,
   onboardingDriveFlow,
   onboardingDriveFlowIn,
   onboardingDriveReadFlow,
+  onboardingDriveReadFlowIn,
   onboardingMailFlow,
+  onboardingMailFlowIn,
   onboardingOnDriveFlow,
+  onboardingOnDriveFlowIn,
   onboardingOpenFlow,
+  onboardingOpenFlowIn,
   onboardingStartOverFlow,
+  onboardingStartOverFlowIn,
   onboardingStatementAccessFlow,
+  onboardingStatementAccessFlowIn,
   ownerNetFlow,
   ownerNetUnregisteredFlow,
   ownerShareFlow,
@@ -251,6 +282,7 @@ import {
   statementSyncFlow,
   statementsFolderFlow,
   syncRunningFlow,
+  syncStatesFlowIn,
 } from './support/editorFlows.mjs'
 import { writeImportSamples } from './support/importSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
@@ -424,7 +456,7 @@ const SCREENS = [
     hash: '#/company/transactions?p=all&cat=equipment',
     title: 'Transakcije',
     charts: 0,
-    shows: ['30\u00a0% vlasniku, iz kategorije Oprema', 'Laptop Store'],
+    shows: ['30\u00a0% vlasniku, iz kategorije „Oprema”', 'Laptop Store'],
     cards: false,
   },
   { name: 'import', hash: '#/company/transactions?tab=import', title: 'Transactions', charts: 0, shows: 'Drop a statement file here', cards: false },
@@ -454,6 +486,7 @@ const SCREENS = [
     linkedPart: 'billing-month-2026-10',
   },
   { name: 'invoicing-plan-2025', hash: '#/company/invoicing?tab=plan&year=2025', title: 'Invoicing', charts: 0, shows: 'Month by month, 2025' },
+  { name: 'invoicing-plan-2025-croatian', query: 'lang=hr', hash: '#/company/invoicing?tab=plan&year=2025', title: 'Računi', charts: 0, shows: 'Po mjesecima, 2025.' },
   { name: 'invoicing-clients', hash: '#/company/invoicing?tab=clients', title: 'Invoicing', charts: 0, shows: 'Add client' },
   {
     name: 'invoicing-terms',
@@ -567,11 +600,20 @@ const SCREENS = [
   },
   { name: 'owner-2025', hash: '#/company/owner?p=2025', title: 'Owner', charts: 2, shows: ['Jan 2025 – Dec 2025', 'Owner take by type', 'Monthly net pay', 'over 8 months'], cards: false },
   {
+    name: 'owner-2025-croatian',
+    query: 'lang=hr',
+    hash: '#/company/owner?p=2025',
+    title: 'Vlasnik',
+    charts: 2,
+    shows: ['Ukupno vlasniku po vrsti', 'Mjesečna neto isplata', 'kroz 8 mjeseci'],
+    cards: false,
+  },
+  {
     name: 'owner-owed',
     hash: '#/company/owner?tab=owed',
     title: 'Owner',
     charts: 0,
-    shows: ['Costs the owner paid privately', 'with no cost on file waits on Review', 'The owner owes the company on 8 Oct 2026', 'Owed at the end'],
+    shows: ['Costs the owner paid privately', 'with no cost on file waits for review', 'The owner owes the company on 8 Oct 2026', 'Owed at the end'],
   },
   {
     name: 'owner-owed-croatian',
@@ -589,40 +631,78 @@ const SCREENS = [
     shows: ['The owner owes the company on 31 Dec 2025', 'No cost the owner paid privately was owed in Jan 2025 – Dec 2025'],
   },
   {
+    name: 'owner-owed-2025-croatian',
+    query: 'lang=hr',
+    hash: '#/company/owner?tab=owed&p=2025',
+    title: 'Vlasnik',
+    charts: 0,
+    shows: ['Vlasnik duguje tvrtki na dan 31.\u00a012.\u00a02025.', 'Nijedan trošak koji je vlasnik platio privatno nije se dugovao u razdoblju'],
+  },
+  {
     name: 'owner-owed-filtered',
     hash: '#/company/owner?tab=owed&p=all&cat=equipment',
     title: 'Owner',
     charts: 0,
     shows: ['Who owes whom follows the period only', 'The owner owes the company on 8 Oct 2026'],
   },
-  { name: 'review', hash: '#/company/review', title: 'Review', charts: 0, shows: ['GADGET CORNER', 'Refund of a parking fee'] },
-  { name: 'review-rules', hash: '#/company/review?tab=rules', title: 'Review', charts: 0, shows: ['merchant-airline', 'Confirmed rows no rule repeats'] },
-  { name: 'review-croatian', query: 'lang=hr', hash: '#/company/review', title: 'Za provjeru', charts: 0, shows: ['GADGET CORNER', '2 stavke za provjeru', 'Na čekanju'] },
   {
-    name: 'review-rules-croatian',
+    name: 'owner-owed-filtered-croatian',
     query: 'lang=hr',
-    hash: '#/company/review?tab=rules',
-    title: 'Za provjeru',
+    hash: '#/company/owner?tab=owed&p=all&cat=equipment',
+    title: 'Vlasnik',
     charts: 0,
-    shows: ['merchant-airline', 'Potvrđene stavke koje nijedno pravilo ne ponavlja', 'Partner sadrži'],
+    shows: ['Tko kome duguje slijedi samo razdoblje', 'Vlasnik duguje tvrtki na dan 8.\u00a010.\u00a02026.'],
+  },
+  { name: 'transactions-review', hash: '#/company/transactions?tab=review', title: 'Transactions', charts: 0, shows: ['GADGET CORNER', 'Refund of a parking fee', 'To review'] },
+  {
+    name: 'transactions-review-croatian',
+    query: 'lang=hr',
+    hash: '#/company/transactions?tab=review',
+    title: 'Transakcije',
+    charts: 0,
+    shows: ['GADGET CORNER', '2 stavke za provjeru', 'Za provjeru'],
+  },
+  { name: 'transactions-review-moved', hash: '#/company/review', title: 'Transactions', charts: 0, shows: ['GADGET CORNER', 'Refund of a parking fee'] },
+  {
+    name: 'company-settings-category-rules',
+    hash: '#/company/settings?tab=category-rules',
+    title: 'Settings',
+    charts: 0,
+    shows: ['merchant-airline', 'Confirmed rows no rule repeats', 'Category rules', 'Tax rules'],
   },
   {
-    name: 'review-rule-linked',
-    hash: '#/company/review?tab=rules&rule=merchant-airline',
-    title: 'Review',
+    name: 'company-settings-category-rules-croatian',
+    query: 'lang=hr',
+    hash: '#/company/settings?tab=category-rules',
+    title: 'Postavke',
+    charts: 0,
+    shows: ['merchant-airline', 'Potvrđene stavke koje nijedno pravilo ne ponavlja', 'Partner sadrži', 'Pravila kategorija', 'Porezna pravila'],
+  },
+  {
+    name: 'company-settings-category-rules-linked',
+    hash: '#/company/settings?tab=category-rules&rule=merchant-airline',
+    title: 'Settings',
     charts: 0,
     shows: 'merchant-airline',
-    collapsedBefore: ['review.rules'],
+    collapsedBefore: ['settings.category-rules'],
     linkedRow: '[data-testid="rule-row"][aria-current="true"]',
   },
   {
-    name: 'review-rule-linked-croatian',
+    name: 'company-settings-category-rules-linked-croatian',
     query: 'lang=hr',
-    hash: '#/company/review?tab=rules&rule=merchant-airline',
-    title: 'Za provjeru',
+    hash: '#/company/settings?tab=category-rules&rule=merchant-airline',
+    title: 'Postavke',
     charts: 0,
     shows: 'merchant-airline',
-    collapsedBefore: ['review.rules'],
+    collapsedBefore: ['settings.category-rules'],
+    linkedRow: '[data-testid="rule-row"][aria-current="true"]',
+  },
+  {
+    name: 'company-settings-category-rules-moved',
+    hash: '#/company/review?tab=rules&rule=merchant-airline',
+    title: 'Settings',
+    charts: 0,
+    shows: 'merchant-airline',
     linkedRow: '[data-testid="rule-row"][aria-current="true"]',
   },
   { name: 'home', hash: '#/', title: 'All apps', charts: 0, shows: ['Company', 'Cash on hand', '2 rows to review', 'Loans', 'Investments', 'Set up', 'Kuna settings'], cards: false },
@@ -652,7 +732,7 @@ const SCREENS = [
     hash: '#/company/settings?tab=categories',
     title: 'Postavke',
     charts: 0,
-    shows: ['Skupina određuje gdje se stavka broji', 'Spremi kategorije', 'Kategorije', 'Propisi'],
+    shows: ['Skupina određuje gdje se stavka broji', 'Spremi kategorije', 'Kategorije', 'Porezna pravila'],
     collapsedBefore: ['settings.categories'],
     linkedCard: 'settings.categories',
   },
@@ -799,6 +879,16 @@ const SOURCE_SCREENS = [
     shows: [`Prices from ${LATE_INVESTMENTS.newestShort}`, ...LATE_INVESTMENTS.home],
     cards: false,
   },
+  {
+    name: 'home-investments-late-croatian',
+    query: 'investments=sample&prices=late-prices&lang=hr',
+    hash: '#/',
+    title: 'Sve aplikacije',
+    charts: 0,
+    ready: '[data-app="investments"] [data-testid="home-card-waiting"]',
+    shows: ['Cijene od', ...LATE_INVESTMENTS.homeCroatian],
+    cards: false,
+  },
   { name: 'home-loans-croatian', query: 'loans=sample&lang=hr', hash: '#/', title: 'Sve aplikacije', charts: 0, shows: ['Novac na računima', 'Ukupno dugujete'], cards: false },
   { name: 'welcome', query: 'fake=empty', hash: '#/company/start', title: 'Company', charts: 0, shows: ['What brings you here?', 'Start new books', 'Open my books on Google Drive'], cards: false },
   {
@@ -849,6 +939,7 @@ const SOURCE_SCREENS = [
   },
   { name: 'company-settings-browser', query: 'fake=browser', hash: '#/company/settings', title: 'Settings', charts: 0, shows: 'Save settings' },
   { name: 'company-settings-categories-browser', query: 'fake=browser', hash: '#/company/settings?tab=categories', title: 'Settings', charts: 0, shows: 'Save categories' },
+  { name: 'company-settings-categories-browser-croatian', query: 'fake=browser&lang=hr', hash: '#/company/settings?tab=categories', title: 'Postavke', charts: 0, shows: 'Spremi kategorije' },
   { name: 'company-settings-accounts-browser', query: 'fake=browser', hash: '#/company/settings?tab=accounts', title: 'Settings', charts: 0, shows: 'Save accounts' },
   { name: 'company-settings-books-browser', query: 'fake=browser', hash: '#/company/settings?tab=books', title: 'Settings', charts: 0, shows: ['Import a file', 'Keep on Google Drive'], cards: false },
   { name: 'company-settings-browser-croatian', query: 'fake=browser&lang=hr', hash: '#/company/settings', title: 'Postavke', charts: 0, shows: ['Spremi postavke', 'Zapis brojeva'] },
@@ -1040,6 +1131,15 @@ const SOURCE_SCREENS = [
     shows: 'An interim payout in 2027',
     expandedBefore: ['year.comparison'],
   },
+  {
+    name: 'year-pay-interim-browser-croatian',
+    query: 'fake=browser&lang=hr',
+    hash: '#/company/year?year=2027&tab=pay&payout=interim',
+    title: 'Godina',
+    charts: 1,
+    shows: 'Predujam dobiti u 2027.',
+    expandedBefore: ['year.comparison'],
+  },
   { name: 'year-pay-2026-browser', query: 'fake=browser', hash: '#/company/year?year=2026&tab=pay', title: 'Year', charts: 0, shows: ['No scenario for 2026 to compare yet', 'Dividend capacity'] },
   { name: 'year-pay-no-scenarios', query: 'fake=no-scenarios', hash: '#/company/year?year=2027&tab=pay', title: 'Year', charts: 0, shows: 'No scenario is for 2027 yet' },
   { name: 'year-taxes-browser', query: 'fake=browser', hash: '#/company/year?tab=taxes', title: 'Year', charts: 0, shows: ['For 2026', '1 payment is overdue', 'Less tax refund'] },
@@ -1118,6 +1218,7 @@ const SOURCE_SCREENS = [
   { name: 'year-taxes-browser-croatian', query: 'fake=browser&lang=hr', hash: '#/company/year?tab=taxes', title: 'Godina', charts: 0, shows: ['Za 2026.', '1 uplata kasni'] },
   { name: 'invoicing-plan-browser', query: 'fake=browser', hash: '#/company/invoicing?tab=plan', title: 'Invoicing', charts: 0, shows: 'Fill the rest of 2026' },
   { name: 'invoicing-clients-browser', query: 'fake=browser', hash: '#/company/invoicing?tab=clients', title: 'Invoicing', charts: 0, shows: 'Save clients' },
+  { name: 'invoicing-clients-browser-croatian', query: 'fake=browser&lang=hr', hash: '#/company/invoicing?tab=clients', title: 'Računi', charts: 0, shows: 'Spremi promjene' },
   { name: 'invoicing-empty-plan-browser', query: 'fake=browser-no-billing-plan', hash: '#/company/invoicing?tab=plan', title: 'Invoicing', charts: 0, shows: 'Add the first row', cards: false },
   { name: 'invoicing-plan-browser-croatian', query: 'fake=browser&lang=hr', hash: '#/company/invoicing?tab=plan', title: 'Računi', charts: 0, shows: 'Popuni ostatak 2026.' },
   {
@@ -1305,12 +1406,30 @@ const SOURCE_SCREENS = [
     cards: false,
   },
   {
+    name: 'loans-scenarios-offers-croatian',
+    query: 'loans=sample&lang=hr',
+    hash: '#/loans/scenarios?tab=offers',
+    title: 'Scenariji',
+    charts: 2,
+    shows: ['Jadran Bank offer', 'Kamata kroz kredit', 'Vaše ponude'],
+    cards: false,
+  },
+  {
     name: 'loans-scenarios-empty',
     query: 'loans=house-and-car',
     hash: `#/loans/scenarios?tab=${SAMPLE_CAR_LOAN}`,
     title: 'Scenarios',
     charts: 0,
     shows: ['Only the loan as it stands', 'Try €5,000.00 extra next month'],
+    cards: false,
+  },
+  {
+    name: 'loans-scenarios-empty-croatian',
+    query: 'loans=house-and-car&lang=hr',
+    hash: `#/loans/scenarios?tab=${SAMPLE_CAR_LOAN}`,
+    title: 'Scenariji',
+    charts: 0,
+    shows: 'Samo kredit kakav je sada',
     cards: false,
   },
   {
@@ -1885,6 +2004,11 @@ const REFLOW_WIDTHS = [768, 1440, 1920]
 /** The dashboard grids each screen showed, by its name and the width, such as `overview 1440`. */
 const dashboardGridsSeen = new Map()
 
+/** Whether a visit's query pins Croatian, so the screen is scanned for English left on it. */
+function inCroatian(query) {
+  return new URLSearchParams(query ?? '').get('lang') === 'hr'
+}
+
 function fail(scope, message) {
   failures.push(`[${scope}] ${message}`)
 }
@@ -2206,6 +2330,8 @@ const EVERY_VIEWPORT = VIEWPORTS.map((viewport) => viewport.name)
 const FLOWS = [
   { name: 'page-tabs', hash: '#/company/settings', title: 'Settings', run: pageTabsFlow },
   { name: 'year-tab-link', hash: '#/company/year?tab=statements', title: 'Year', run: yearTabLinkFlow },
+  { name: 'page-tabs-croatian', hash: '#/company/settings', title: 'Postavke', run: pageTabsFlowIn('hr'), queries: { drive: '&lang=hr', browser: '&fake=browser&lang=hr' } },
+  { name: 'year-tab-link-croatian', hash: '#/company/year?tab=statements', title: 'Godina', run: yearTabLinkFlowIn('hr'), queries: { drive: '&lang=hr', browser: '&fake=browser&lang=hr' } },
   { name: 'categories', hash: '#/company/settings?tab=categories', title: 'Settings', run: categoryFlow },
   { name: 'categories-filters', hash: '#/company/settings?tab=categories', title: 'Settings', run: categoryFiltersFlow },
   {
@@ -2225,6 +2351,13 @@ const FLOWS = [
     queries: { drive: '&lang=hr', browser: '&fake=browser&lang=hr' },
   },
   { name: 'settings-statements-folder', hash: '#/company/settings', title: 'Settings', run: statementsFolderFlow },
+  {
+    name: 'settings-statements-folder-croatian',
+    hash: '#/company/settings',
+    title: 'Postavke',
+    run: statementsFolderFlowIn('hr'),
+    queries: { drive: '&lang=hr', browser: '&fake=browser&lang=hr' },
+  },
   { name: 'settings-card-ibans', hash: '#/company/settings', title: 'Settings', run: cardSettlementIbansFlow },
   {
     name: 'settings-card-ibans-croatian',
@@ -2347,7 +2480,7 @@ const FLOWS = [
     queries: { drive: '&fake=no-plan&lang=hr', browser: '&fake=browser-no-plan&lang=hr' },
   },
   { name: 'split', hash: '#/company/transactions?p=all&q=GADGET', title: 'Transactions', run: splitFlow, viewports: ['phone', 'phone-large', 'desktop'] },
-  { name: 'split-review', hash: '#/company/review', title: 'Review', run: reviewSplitFlow, viewports: ['phone', 'phone-large', 'desktop'] },
+  { name: 'split-review', hash: '#/company/transactions?tab=review', title: 'Transactions', run: reviewSplitFlow, viewports: ['phone', 'phone-large', 'desktop'] },
   { name: 'change-category', hash: '#/company/transactions?p=all&q=CODE%20HOST', title: 'Transactions', run: changeCategoryFlow },
   {
     name: 'split-croatian',
@@ -2359,8 +2492,8 @@ const FLOWS = [
   },
   {
     name: 'split-review-croatian',
-    hash: '#/company/review',
-    title: 'Za provjeru',
+    hash: '#/company/transactions?tab=review',
+    title: 'Transakcije',
     run: reviewSplitFlowIn('hr'),
     viewports: ['phone', 'tablet', 'desktop'],
     queries: { drive: '&lang=hr', browser: '&fake=browser&lang=hr' },
@@ -2384,6 +2517,23 @@ const FLOWS = [
   },
   { name: 'owner-net', hash: '#/company/owner?p=2026', title: 'Owner', run: ownerNetFlow, viewports: ['phone', 'phone-large', 'desktop'], modes: ['browser'] },
   { name: 'owner-net-unregistered', hash: '#/company/owner?p=2026', title: 'Owner', run: ownerNetUnregisteredFlow, viewports: ['phone', 'phone-large', 'desktop'], modes: ['drive'] },
+  {
+    name: 'owner-net-unregistered-croatian',
+    hash: '#/company/owner?p=2026',
+    title: 'Vlasnik',
+    run: ownerNetUnregisteredFlowIn('hr'),
+    viewports: ['phone', 'phone-large', 'desktop'],
+    modes: ['drive'],
+    queries: { drive: '&lang=hr' },
+  },
+  {
+    name: 'owner-net-croatian',
+    hash: '#/company/owner?p=2026',
+    title: 'Vlasnik',
+    run: buildUpFlowIn('hr', '[data-testid="owner-net-with-profit"] [data-testid="build-up-button"]'),
+    modes: ['browser'],
+    queries: { browser: '&fake=browser&lang=hr' },
+  },
   { name: 'share-fill', hash: '#/company/settings?tab=categories', title: 'Settings', run: shareFillFlow },
   {
     name: 'share-fill-croatian',
@@ -2393,26 +2543,37 @@ const FLOWS = [
     viewports: ['phone', 'tablet', 'desktop'],
     queries: { drive: '&lang=hr', browser: '&fake=browser&lang=hr' },
   },
-  { name: 'dismiss', hash: '#/company/review?tab=rules', title: 'Review', run: dismissFlow, viewports: ['phone', 'phone-large', 'desktop'] },
-  { name: 'rules-editor', hash: '#/company/review?tab=rules', title: 'Review', run: rulesEditorFlow },
+  { name: 'dismiss', hash: '#/company/settings?tab=category-rules', title: 'Settings', run: dismissFlow, viewports: ['phone', 'phone-large', 'desktop'] },
+  { name: 'rules-editor', hash: '#/company/settings?tab=category-rules', title: 'Settings', run: rulesEditorFlow },
   {
     name: 'dismiss-croatian',
-    hash: '#/company/review?tab=rules',
-    title: 'Za provjeru',
+    hash: '#/company/settings?tab=category-rules',
+    title: 'Postavke',
     run: dismissFlowIn('hr'),
     viewports: ['phone', 'tablet', 'desktop'],
     queries: { drive: '&lang=hr', browser: '&fake=browser&lang=hr' },
   },
   {
     name: 'rules-editor-croatian',
-    hash: '#/company/review?tab=rules',
-    title: 'Za provjeru',
+    hash: '#/company/settings?tab=category-rules',
+    title: 'Postavke',
     run: rulesEditorFlowIn('hr'),
     viewports: ['phone', 'tablet', 'desktop'],
     queries: { drive: '&lang=hr', browser: '&fake=browser&lang=hr' },
   },
   { name: 'import-camt', hash: '#/company/transactions?tab=import', title: 'Transactions', run: importCamtFlow(IMPORT_SAMPLES.camt), viewports: ['phone', 'phone-large', 'desktop'] },
   { name: 'import-table', hash: '#/company/transactions?tab=import', title: 'Transactions', run: importTableFlow(IMPORT_SAMPLES.table), viewports: ['phone', 'phone-large', 'desktop'] },
+  ...[
+    { name: 'import-camt-croatian', run: importCamtFlowIn('hr', IMPORT_SAMPLES.camt) },
+    { name: 'import-table-croatian', run: importTableFlowIn('hr', IMPORT_SAMPLES.table) },
+  ].map(({ name, run }) => ({
+    name,
+    hash: '#/company/transactions?tab=import',
+    title: 'Transakcije',
+    run,
+    viewports: ['phone', 'phone-large', 'desktop'],
+    queries: { drive: '&lang=hr', browser: '&fake=browser&lang=hr' },
+  })),
   { name: 'statements-sync', hash: '#/company', title: 'Overview', run: statementSyncFlow, modes: ['drive'] },
   { name: 'statements-held', hash: '#/company', title: 'Overview', run: heldStatementFlow, modes: ['drive'], queries: { drive: '&fake=held-statement' } },
   {
@@ -2459,12 +2620,28 @@ const FLOWS = [
   { name: 'mail-failed', hash: '#/company', title: 'Overview', run: mailFailedFlow, modes: ['drive'], queries: { drive: '&fake=mail-failed' } },
   { name: 'mail-access', hash: '#/company', title: 'Overview', run: mailAccessFlow, modes: ['drive'], queries: { drive: '&fake=mail' } },
   { name: 'mail-save-asks', hash: '#/company', title: 'Overview', run: mailSaveAsksFlow, modes: ['drive'] },
+  { name: 'mail-save-asks-croatian', hash: '#/company', title: 'Pregled', run: mailSaveAsksFlowIn('hr'), modes: ['drive'], queries: { drive: '&lang=hr' } },
   { name: 'mail-switches-off', hash: '#/company', title: 'Overview', run: mailSwitchesOffFlow, modes: ['drive'], queries: { drive: '&fake=mail-switches-off' } },
   { name: 'mail-no-sender', hash: '#/company', title: 'Overview', run: mailNoSenderFlow, modes: ['drive'], queries: { drive: '&fake=mail-no-sender' } },
   { name: 'mail-rate-limited', hash: '#/company', title: 'Overview', run: mailRateLimitedFlow, modes: ['drive'], queries: { drive: '&fake=mail-rate-limited' } },
   { name: 'mail-window', hash: '#/company', title: 'Overview', run: mailWindowFlow, modes: ['drive'], queries: { drive: '&fake=mail-nothing-new' } },
   { name: 'sync-access-closed', hash: '#/company', title: 'Overview', run: accessClosedFlow, modes: ['drive'], queries: { drive: '&fake=google-closed' } },
+  ...[
+    { name: 'statements-sync-croatian', variant: '' },
+    { name: 'statements-access-croatian', variant: '', stored: { 'kuna.google-granted': JSON.stringify(['drive.file', 'gmail.compose']) } },
+    { name: 'sync-running-croatian', variant: '&fake=slow-statements' },
+    { name: 'mail-off-croatian', variant: '', stored: { 'kuna.google-granted': null, 'kuna.google-needed': null } },
+    { name: 'mail-upload-failed-croatian', variant: '&fake=mail-upload-failed' },
+    { name: 'mail-nothing-new-croatian', variant: '&fake=mail-nothing-new' },
+    { name: 'mail-failed-croatian', variant: '&fake=mail-failed' },
+    { name: 'mail-access-croatian', variant: '&fake=mail', stored: { 'kuna.google-granted': JSON.stringify(['drive.file', 'drive.readonly', 'gmail.compose']) } },
+    { name: 'mail-switches-off-croatian', variant: '&fake=mail-switches-off' },
+    { name: 'mail-no-sender-croatian', variant: '&fake=mail-no-sender' },
+    { name: 'mail-rate-limited-croatian', variant: '&fake=mail-rate-limited' },
+    { name: 'sync-access-closed-croatian', variant: '&fake=google-closed', stored: { 'kuna.google-silent-refused': 'interaction_required' } },
+  ].map(({ name, variant, stored }) => ({ name, hash: '#/company', title: 'Pregled', run: syncStatesFlowIn('hr', stored), modes: ['drive'], queries: { drive: `${variant}&lang=hr` } })),
   { name: 'salaries', hash: '#/company/salaries', title: 'Salaries', run: salariesFlow, modes: ['drive'], queries: { drive: '&fake=five-employees' } },
+  { name: 'salaries-flow-croatian', hash: '#/company/salaries', title: 'Plaće', run: salariesFlowIn('hr'), modes: ['drive'], queries: { drive: '&fake=five-employees&lang=hr' } },
   { name: 'onboarding-drive', hash: '#/company/start', title: 'Company', run: onboardingDriveFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
   { name: 'onboarding-drive-read', hash: '#/company/start', title: 'Company', run: onboardingDriveReadFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
   { name: 'onboarding-mail', hash: '#/company/start', title: 'Company', run: onboardingMailFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
@@ -2493,11 +2670,53 @@ const FLOWS = [
   { name: 'onboarding-on-drive', hash: '#/company/start?step=folder', title: 'Company', run: onboardingOnDriveFlow, modes: ['drive'] },
   { name: 'onboarding-move-on-drive', hash: '#/company/settings?tab=books', title: 'Settings', run: moveOntoDriveFlow, modes: ['browser'], queries: { browser: '&fake=browser-beside-drive' } },
   { name: 'onboarding-statement-access', hash: '#/company/start?step=statement&statements=folder', title: 'Company', run: onboardingStatementAccessFlow, modes: ['drive'] },
+  { name: 'onboarding-drive-read-croatian', hash: '#/company/start', title: 'Tvrtka', run: onboardingDriveReadFlowIn('hr'), modes: ['drive'], queries: { drive: '&fake=empty&lang=hr' } },
+  { name: 'onboarding-mail-croatian', hash: '#/company/start', title: 'Tvrtka', run: onboardingMailFlowIn('hr'), modes: ['drive'], queries: { drive: '&fake=empty&lang=hr' } },
+  { name: 'onboarding-bring-croatian', hash: '#/company/start', title: 'Tvrtka', run: onboardingBringFlowIn('hr', IMPORT_FILE), modes: ['drive'], queries: { drive: '&fake=empty&lang=hr' } },
+  { name: 'onboarding-open-croatian', hash: '#/company/start?path=open', title: 'Tvrtka', run: onboardingOpenFlowIn('hr'), modes: ['drive'], queries: { drive: '&lang=hr' } },
+  { name: 'onboarding-start-over-croatian', hash: '#/company/start', title: 'Tvrtka', run: onboardingStartOverFlowIn('hr'), modes: ['drive'], queries: { drive: '&fake=empty&lang=hr' } },
+  { name: 'onboarding-on-drive-croatian', hash: '#/company/start?step=folder', title: 'Tvrtka', run: onboardingOnDriveFlowIn('hr'), modes: ['drive'], queries: { drive: '&lang=hr' } },
+  {
+    name: 'onboarding-move-on-drive-croatian',
+    hash: '#/company/settings?tab=books',
+    title: 'Postavke',
+    run: moveOntoDriveFlowIn('hr'),
+    modes: ['browser'],
+    queries: { browser: '&fake=browser-beside-drive&lang=hr' },
+  },
+  {
+    name: 'onboarding-statement-access-croatian',
+    hash: '#/company/start?step=statement&statements=folder',
+    title: 'Tvrtka',
+    run: onboardingStatementAccessFlowIn('hr'),
+    modes: ['drive'],
+    queries: { drive: '&lang=hr' },
+  },
   { name: 'loans-drive', hash: '#/loans', title: 'Loans', run: loansDriveFlow, modes: ['drive'] },
   { name: 'loans-browser', hash: '#/loans', title: 'Loans', run: loansBrowserFlow, modes: ['browser'] },
   { name: 'loans-open', hash: '#/loans', title: 'Loans', run: loansOpenFlow, modes: ['drive'], queries: { drive: '&loans=other-device' } },
   { name: 'loans-start-on-drive', hash: '#/loans/start?step=folder', title: 'Loans', run: loansStartOnDriveFlow, modes: ['drive'], queries: { drive: '&loans=other-device' } },
+  { name: 'loans-browser-croatian', hash: '#/loans', title: 'Krediti', run: loansBrowserFlowIn('hr'), modes: ['browser'], queries: { browser: '&fake=browser&lang=hr' } },
+  { name: 'loans-open-croatian', hash: '#/loans', title: 'Krediti', run: loansOpenFlowIn('hr'), modes: ['drive'], queries: { drive: '&loans=other-device&lang=hr' } },
+  { name: 'loans-drive-croatian', hash: '#/loans', title: 'Krediti', run: loansDriveFlowIn('hr'), modes: ['drive'], queries: { drive: '&lang=hr' } },
+  {
+    name: 'loans-start-on-drive-croatian',
+    hash: '#/loans/start?step=folder',
+    title: 'Krediti',
+    run: loansStartOnDriveFlowIn('hr'),
+    modes: ['drive'],
+    queries: { drive: '&loans=other-device&lang=hr' },
+  },
   { name: 'loans-editor', hash: '#/loans', title: 'Overview', run: loansEditorFlow, modes: ['drive'], queries: { drive: '&loans=sample&investments=sample' } },
+  { name: 'loans-editor-croatian', hash: '#/loans', title: 'Pregled', run: loansEditorFlowIn('hr'), modes: ['drive'], queries: { drive: '&loans=sample&lang=hr' } },
+  {
+    name: 'loans-scenarios-flow-croatian',
+    hash: '#/loans/scenarios',
+    title: 'Scenariji',
+    run: loansScenariosFlowIn('hr', SAMPLE_BANK_LOAN),
+    modes: ['drive'],
+    queries: { drive: '&loans=sample&lang=hr' },
+  },
   { name: 'loans-what-if', hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, title: 'Home loan', run: loansWhatIfFlow, modes: ['drive'], queries: { drive: '&loans=sample&investments=sample' } },
   {
     name: 'loans-what-if-croatian',
@@ -2575,6 +2794,15 @@ const FLOWS = [
   },
   { name: 'dialogs-company', hash: '#/company/invoicing?p=all', title: 'Invoicing', run: companyDialogsFlow, viewports: EVERY_VIEWPORT, modes: ['drive'] },
   {
+    name: 'dialogs-company-croatian',
+    hash: '#/company/invoicing?p=all',
+    title: 'Računi',
+    run: companyDialogsFlowIn('hr'),
+    viewports: EVERY_VIEWPORT,
+    modes: ['drive'],
+    queries: { drive: '&lang=hr' },
+  },
+  {
     name: 'dialogs-rows-croatian',
     hash: '#/company/transactions?p=all&q=GADGET',
     title: 'Transakcije',
@@ -2594,8 +2822,13 @@ const FLOWS = [
   { name: 'home', hash: '#/', title: 'All apps', run: homeFlow, modes: ['drive'], queries: { drive: '&loans=sample&investments=sample' } },
   { name: 'home-browser', hash: '#/', title: 'All apps', run: homeFlow, modes: ['browser'], queries: { browser: '&fake=browser&loans=sample&investments=sample' } },
   { name: 'home-set-up', hash: '#/', title: 'All apps', run: setUpFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
+  { name: 'home-flow-croatian', hash: '#/', title: 'Sve aplikacije', run: homeFlowIn('hr'), modes: ['drive'], queries: { drive: '&loans=sample&investments=sample&lang=hr' } },
+  { name: 'home-browser-croatian', hash: '#/', title: 'Sve aplikacije', run: homeFlowIn('hr'), modes: ['browser'], queries: { browser: '&fake=browser&loans=sample&investments=sample&lang=hr' } },
+  { name: 'home-set-up-croatian', hash: '#/', title: 'Sve aplikacije', run: setUpFlowIn('hr'), modes: ['drive'], queries: { drive: '&fake=empty&lang=hr' } },
   { name: 'move-browser', hash: '#/company/settings?tab=books', title: 'Settings', run: moveFromBrowserFlow, modes: ['browser'] },
-  { name: 'race', hash: '#/company/review', title: 'Review', run: raceFlow, modes: ['drive'], queries: { drive: '&fake=race' } },
+  { name: 'move-browser-croatian', hash: '#/company/settings?tab=books', title: 'Postavke', run: moveFromBrowserFlowIn('hr'), modes: ['browser'], queries: { browser: '&fake=browser&lang=hr' } },
+  { name: 'race', hash: '#/company/transactions?tab=review', title: 'Transactions', run: raceFlow, modes: ['drive'], queries: { drive: '&fake=race' } },
+  { name: 'race-croatian', hash: '#/company/transactions?tab=review', title: 'Transakcije', run: raceFlowIn('hr'), modes: ['drive'], queries: { drive: '&fake=race&lang=hr' } },
 ]
 const MODES = [
   { name: 'drive', query: '' },
@@ -2699,6 +2932,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     }
 
     const report = await readPage(page)
+    if (inCroatian(visit.query)) for (const english of await englishLeftOn(page)) fail(scope, english)
     if (!rendered) fail(scope, `nothing matched ${ready} within 10 s`)
     if (report.title !== visit.title) fail(scope, `title was ${JSON.stringify(report.title)}, expected "${visit.title}"`)
     if (report.themeClass !== visit.theme) fail(scope, `rendered ${report.themeClass}, expected the ${visit.theme} theme`)
@@ -2798,13 +3032,21 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
         await page.setViewport({ width: viewport.width, height: viewport.height })
         await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme }])
         const file = (name) => join(SCREENSHOT_DIR, `${viewport.name}-${mode.name}-${name}-${theme}.png`)
+        const query = flow.queries?.[mode.name] ?? mode.query
+        const englishSeen = new Set()
         const stateCheck = async (when) => {
           const report = await readPage(page)
           if (report.scrollWidth > report.clientWidth + 1) fail(scope, `${when}: horizontal overflow, scrollWidth ${report.scrollWidth} > clientWidth ${report.clientWidth}`)
           for (const row of report.unevenFieldRows) fail(scope, `${when}: uneven form row: ${row}`)
+          if (!inCroatian(query)) return
+          // A text left in English stays on screen through the states after it, so each is told once.
+          for (const english of (await englishLeftOn(page)).filter((text) => !englishSeen.has(text))) {
+            englishSeen.add(english)
+            fail(scope, `${when}: ${english}`)
+          }
         }
         try {
-          await page.goto(`${BASE}?theme=${theme}${flow.queries?.[mode.name] ?? mode.query}${flow.hash}`, { waitUntil: 'networkidle0' })
+          await page.goto(`${BASE}?theme=${theme}${query}${flow.hash}`, { waitUntil: 'networkidle0' })
           await page.waitForFunction((title) => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === title, { timeout: 10_000 }, flow.title)
           await flow.run(page, {
             press: (handle) => handle.click(),

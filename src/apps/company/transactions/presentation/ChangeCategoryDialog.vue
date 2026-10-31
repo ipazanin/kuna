@@ -6,10 +6,11 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
-import { fileRows } from '../../review/application/fileRows'
-import { recategorisation } from '../../review/domain/verdictChanges'
+import { fileRows } from '../application/fileRows'
+import { recategorisation } from '../domain/verdictChanges'
 import { ruleAgainst } from '../../rules/domain/ruleCoverage'
 import { categorisationContextOf } from '../../rules/domain/transactionFacts'
+import { categoryRuleLink } from '../../rules/presentation/ruleLinks'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
@@ -23,8 +24,8 @@ import { words } from './words'
 
 /**
  * Files a settled ledger row in another category. It writes the row's category and `flagged_by`
- * with the review label, as a confirmation on Review does, and says first when a rule files such
- * rows elsewhere, since the row then shows on Review's Rules tab among the rule's exceptions.
+ * with the review label, as a confirmation on the To review tab does, and says first when a rule files such
+ * rows elsewhere, since the row then shows on Settings, Category rules among the rule's exceptions.
  */
 const open = defineModel<boolean>('open', { required: true })
 
@@ -63,7 +64,7 @@ async function change(): Promise<void> {
     ...(contradicting === null
       ? {}
       : {
-          follow: { label: words.changeDialog.openRule, icon: 'i-lucide-list-ordered', run: () => void router.push({ path: '/company/review', query: { tab: 'rules', rule: contradicting.ruleId } }) },
+          follow: { label: words.changeDialog.openRule, icon: 'i-lucide-list-ordered', run: () => void router.push(categoryRuleLink(contradicting.ruleId)) },
         }),
   })
   if (written) open.value = false

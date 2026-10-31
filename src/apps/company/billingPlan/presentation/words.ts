@@ -1,6 +1,7 @@
 import { language } from '../../../../shared/text/language'
 import { plural } from '../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
+import { monthCase } from '../../../../shared/calendar/monthCase'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // The billing plan is plan naplate, its row stavka plana and a kind of row vrsta stavke. Invoicing a row is fakturirati. A Croatian year ends in its own full stop.
@@ -215,7 +216,7 @@ export const hr: Translation<typeof en> = {
   },
   rows: {
     edit: 'Uredi',
-    editRow: (item, day) => `Uredi stavku ${item} od ${day}`,
+    editRow: (item, day) => `Uredi stavku „${item}” od ${day}`,
     billableFrom: 'Naplativo od',
     item: 'Stavka',
     description: 'Opis',
@@ -229,7 +230,7 @@ export const hr: Translation<typeof en> = {
     abovePlan: 'Iznad plana',
     notInvoiced: 'od stavki ovog mjeseca još nije fakturirano.',
     open: 'Otvoreno',
-    invoicedAbove: (month) => `Fakturirano u mjesecu ${month} iznad stavki plana do kojih je račun mogao doseći. Dodajte stavku koju je fakturirao ili provjerite iznose.`,
+    invoicedAbove: (month) => `Fakturirano u ${monthCase(month, 'locative')} iznad stavki plana do kojih je račun mogao doseći. Dodajte stavku koju je fakturirao ili provjerite iznose.`,
     invoice: (number) => `Račun ${number}`,
     issued: (day, client) => `Izdan ${day}, ${client}`,
   },
@@ -247,7 +248,7 @@ export const hr: Translation<typeof en> = {
     }),
     inAll: ', dodaju se na kraj plana naplate.',
     descriptionPlaceholder: 'Opis',
-    descriptionOf: (item, day) => `Opis stavke ${item} od ${day}`,
+    descriptionOf: (item, day) => `Opis stavke „${item}” od ${day}`,
     cancel: 'Odustani',
     addRows: 'Dodaj stavke',
     addCount: (count) => ({ one: `Dodaj ${count} stavku`, few: `Dodaj ${count} stavke`, other: `Dodaj ${count} stavki` }),
@@ -257,7 +258,7 @@ export const hr: Translation<typeof en> = {
     dateError: 'Datum, na primjer 31. 10. 2026.',
     amountError: 'Iznos veći od nule, s najviše dvije decimale',
     clientError: 'Odaberite klijenta',
-    named: (item, client, day) => `${item} za ${client}, ${day}`,
+    named: (item, client, day) => `${item} za „${client}”, ${day}`,
     added: 'Stavka plana je dodana',
     notAdded: 'Nije dodano',
     saved: 'Stavka plana je spremljena',

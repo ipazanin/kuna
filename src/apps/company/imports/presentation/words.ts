@@ -5,7 +5,7 @@ import type { EnglishForms, Translation } from '../../../../shared/text/translat
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // A bank statement is izvod, a ledger row stavka, a row of the bank's own file redak, the ledger evidencija and a dry run probni uvoz.
-// Filing a statement writes its rows into the ledger, so it is upisati. Review is the screen Za provjeru, so a row waits for provjera.
+// Filing a statement writes its rows into the ledger, so it is upisati. To review is the Transactions tab Za provjeru, so a row waits for provjera.
 
 export const en = {
   panel: {
@@ -53,9 +53,9 @@ export const en = {
     refused: (count: number): EnglishForms => ({ one: 'One statement is refused and not written.', other: `${count} statements are refused and not written.` }),
     waitStart: (count: number): EnglishForms => ({ one: 'One statement waits for you to start its account.', other: `${count} statements wait for you to start its account.` }),
     waitName: (count: number): EnglishForms => ({ one: 'One statement waits for you to name its new account.', other: `${count} statements wait for you to name its new account.` }),
-    waitingOnReview: (count: number): EnglishForms => ({ one: '1 new row waits on Review.', other: `${count} new rows wait on Review.` }),
-    noneWaits: 'The rules settled every new row, so none waits on Review.',
-    openReview: 'Open Review',
+    waitingOnReview: (count: number): EnglishForms => ({ one: '1 new row waits for review.', other: `${count} new rows wait for review.` }),
+    noneWaits: 'The rules settled every new row, so none waits for review.',
+    openReview: 'Open the rows to review',
     confirm: 'Confirm import',
     pickProfile: 'Pick or make a profile',
     pickProfileDescription: 'The dry run shows once a profile says which column holds what.',
@@ -114,8 +114,8 @@ export const en = {
     title: 'From the statements folder',
     subtitle: (folder: string) => `${folder} in Drive. Each sync files the statements there that the ledger lacks.`,
     filedByLastSync: 'Filed by the last sync',
-    filed: (label: string, account: string, rows: number, waiting: number) => `${label}, ${account}, ${rows === 1 ? '1 row' : `${rows} rows`}${waiting > 0 ? `, ${waiting} on Review` : ''}`,
-    openReview: 'Open Review',
+    filed: (label: string, account: string, rows: number, waiting: number) => `${label}, ${account}, ${rows === 1 ? '1 row' : `${rows} rows`}${waiting > 0 ? `, ${waiting} to review` : ''}`,
+    openReview: 'Open the rows to review',
     held: (count: number): EnglishForms => ({
       one: '1 statement was not filed. Nothing after a held statement is filed for its account, so the next sync tries again.',
       other: `${count} statements were not filed. Nothing after a held statement is filed for its account, so the next sync tries again.`,
@@ -129,10 +129,10 @@ export const en = {
     accessRanOut: 'The Google access ran out. Sync again.',
     looking: 'Looking for new statements',
     filing: (count: number): EnglishForms => ({ one: 'Filing 1 row', other: `Filing ${count} rows` }),
-    onReview: (title: string, waiting: number) => `${title}${waiting === 0 ? '' : `, ${waiting} on Review`}.`,
+    onReview: (title: string, waiting: number) => `${title}${waiting === 0 ? '' : `, ${waiting} to review`}.`,
     held: (count: number): EnglishForms => ({ one: '1 statement was not filed.', other: `${count} statements were not filed.` }),
     importLink: 'Import',
-    reviewLink: 'Review',
+    reviewLink: 'To review',
     nothingNew: 'Nothing new',
     beforeBooks: 'Nothing to look for before the books are read',
   },
@@ -151,7 +151,7 @@ export const hr: Translation<typeof en> = {
     sampleCamt: 'Izvod camt.053',
     sampleTable: 'Izvoz iz banke',
     reading: 'Čitanje datoteke',
-    loaded: (fileName, camt) => `${fileName}, ${camt ? 'izvod camt.053' : 'izvoz tablice'}`,
+    loaded: (fileName, camt) => `„${fileName}”, ${camt ? 'izvod camt.053' : 'izvoz tablice'}`,
     profile: 'Profil',
     profileFits: 'Kako se čita izvoz ove banke. Datoteci odgovara spremljeni profil.',
     profileGuessed: 'Ovoj datoteci ne odgovara nijedan spremljeni profil, pa novi kreće od onoga kako datoteka izgleda.',
@@ -161,13 +161,13 @@ export const hr: Translation<typeof en> = {
     newProfile: 'Novi profil',
     edit: 'Uredi',
     delete: 'Obriši',
-    deleteProfile: (profile) => `Obriši profil ${profile}`,
+    deleteProfile: (profile) => `Obriši profil „${profile}”`,
     notSaved: 'Nije spremljeno',
-    profileTaken: (profile) => `Profil ${profile} već je spremljen. Odaberite njega ili ovome dajte drugi naziv.`,
+    profileTaken: (profile) => `Profil „${profile}” već je spremljen. Odaberite njega ili ovome dajte drugi naziv.`,
     profileSaved: 'Profil je spremljen',
-    profileOnSettings: (profile) => `${profile} je sada u postavkama datoteke.`,
+    profileOnSettings: (profile) => `„${profile}” je sada u postavkama datoteke.`,
     profileDeleted: 'Profil je obrisan',
-    profileOffSettings: (profile) => `${profile} više nije u postavkama datoteke. Promjena postavki ne može se poništiti, pa ga spremite ponovno ako ga želite vratiti.`,
+    profileOffSettings: (profile) => `„${profile}” više nije u postavkama datoteke. Promjena postavki ne može se poništiti, pa ga spremite ponovno ako ga želite vratiti.`,
     notDeleted: 'Nije obrisano',
     notImported: 'Nije uvezeno',
     dryRun: 'Probni uvoz',
@@ -217,9 +217,9 @@ export const hr: Translation<typeof en> = {
     isNew: (opening, day) => `je novi račun. Dodati ga${opening === null ? '' : ` s početnim stanjem ${opening}`}${day === null ? '' : ` na dan ${day}`}?`,
     accountName: 'Naziv računa',
     accountNameHelp: 'Mala slova, znamenke i pojedinačne crtice. Zasloni ga prikazuju dok računu ne date oznaku.',
-    noRowsYet: (account) => `Evidencija još nema stavki računa ${account}, pa ništa ranije ne može pokazati da se ovaj izvod nastavlja na prethodni.`,
-    startAt: (account, opening, day) => `Početno stanje računa ${account}: ${opening} na dan ${day}`,
-    balanceBefore: (account, day) => `Saldo računa ${account} prije ${day}`,
+    noRowsYet: (account) => `Evidencija još nema stavki računa „${account}”, pa ništa ranije ne može pokazati da se ovaj izvod nastavlja na prethodni.`,
+    startAt: (account, opening, day) => `Početno stanje računa „${account}”: ${opening} na dan ${day}`,
+    balanceBefore: (account, day) => `Saldo računa „${account}” prije ${day}`,
     noBalances: 'Datoteka ne navodi salda, pa se izračunavaju od ovoga.',
     amountPlaceholder: '0,00',
     noCounterparty: 'Bez partnera',
@@ -257,7 +257,7 @@ export const hr: Translation<typeof en> = {
   },
   folder: {
     title: 'Iz mape izvoda',
-    subtitle: (folder) => `${folder} na Driveu. Svaka sinkronizacija upisuje izvode iz te mape kojih još nema u evidenciji.`,
+    subtitle: (folder) => `„${folder}” na Driveu. Svaka sinkronizacija upisuje izvode iz te mape kojih još nema u evidenciji.`,
     filedByLastSync: 'Upisala zadnja sinkronizacija',
     filed: (label, account, rows, waiting) =>
       `${label}, ${account}, ${plural({ one: `${rows} stavka`, few: `${rows} stavke`, other: `${rows} stavki` }, rows)}${waiting > 0 ? `, ${waiting} za provjeru` : ''}`,

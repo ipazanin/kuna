@@ -14,7 +14,7 @@ const DRIVE_READONLY = 'https://www.googleapis.com/auth/drive.readonly'
 const GMAIL_COMPOSE = 'https://www.googleapis.com/auth/gmail.compose'
 /** The `scope` Google sends back for a grant of every scope the app asks for. */
 const EVERY_SCOPE = `${DRIVE_FILE} ${DRIVE_READONLY} ${GMAIL_COMPOSE} openid https://www.googleapis.com/auth/userinfo.email`
-const PENDING: PendingRedirect = { state: 'one-time-state', scopes: ['drive.file', 'drive.readonly', 'gmail.compose'], resume: 'sync', route: '#/company/review?tab=rules', ask: 'tap' }
+const PENDING: PendingRedirect = { state: 'one-time-state', scopes: ['drive.file', 'drive.readonly', 'gmail.compose'], resume: 'sync', route: '#/company/settings?tab=category-rules', ask: 'tap' }
 const BACK_AT = Date.parse('2026-10-21T09:00:00.000Z')
 
 beforeEach(() => {
@@ -132,7 +132,7 @@ describe('reading the fragment', () => {
   })
 
   it('leaves an ordinary hash route, an empty hash and an unrelated anchor alone', () => {
-    expect(redirectFragmentOf('#/company/review?tab=rules')).toBeNull()
+    expect(redirectFragmentOf('#/company/settings?tab=category-rules')).toBeNull()
     expect(redirectFragmentOf('')).toBeNull()
     expect(redirectFragmentOf('#billing-month-2026-10')).toBeNull()
   })
@@ -147,7 +147,7 @@ describe('checking the answer against the request', () => {
       token: { value: 'ya29.one', scopes: ['drive.file', 'drive.readonly', 'gmail.compose'], expiresAt: BACK_AT + 3_599_000 },
       asked: PENDING.scopes,
       resume: 'sync',
-      route: '#/company/review?tab=rules',
+      route: '#/company/settings?tab=category-rules',
       ask: 'tap',
     })
   })
@@ -168,7 +168,7 @@ describe('checking the answer against the request', () => {
       expect(answer).toMatchObject({ kind: 'refused', error: 'forged', resume: 'none' })
       expect(answer).not.toHaveProperty('token')
     }
-    expect(settleRedirect({ ...token, state: 'forged' }, PENDING, BACK_AT).route).toBe('#/company/review?tab=rules')
+    expect(settleRedirect({ ...token, state: 'forged' }, PENDING, BACK_AT).route).toBe('#/company/settings?tab=category-rules')
     expect(settleRedirect(token, null, BACK_AT).route).toBe('#/')
   })
 
@@ -176,7 +176,7 @@ describe('checking the answer against the request', () => {
     const denied = settleRedirect({ kind: 'error', error: 'access_denied', description: null, state: 'one-time-state' }, PENDING, BACK_AT)
     const silent = settleRedirect({ kind: 'error', error: 'interaction_required', description: null, state: 'one-time-state' }, { ...PENDING, resume: 'none', ask: 'silent' }, BACK_AT)
 
-    expect(denied).toEqual({ kind: 'refused', error: 'access_denied', resume: 'sync', route: '#/company/review?tab=rules', ask: 'tap' })
+    expect(denied).toEqual({ kind: 'refused', error: 'access_denied', resume: 'sync', route: '#/company/settings?tab=category-rules', ask: 'tap' })
     expect(silent).toMatchObject({ kind: 'refused', error: 'interaction_required', ask: 'silent' })
   })
 
@@ -249,8 +249,8 @@ describe('coming back to the app', () => {
     savePendingRedirect(PENDING)
     window.history.replaceState(null, '', `/kuna/?theme=dark#${tokenFragment(EVERY_SCOPE)}`)
 
-    expect(takeGoogleRedirect()).toMatchObject({ kind: 'granted', resume: 'sync', route: '#/company/review?tab=rules' })
-    expect(`${window.location.pathname}${window.location.search}${window.location.hash}`).toBe('/kuna/?theme=dark#/company/review?tab=rules')
+    expect(takeGoogleRedirect()).toMatchObject({ kind: 'granted', resume: 'sync', route: '#/company/settings?tab=category-rules' })
+    expect(`${window.location.pathname}${window.location.search}${window.location.hash}`).toBe('/kuna/?theme=dark#/company/settings?tab=category-rules')
     expect([currentToken('drive.file'), currentToken('drive.readonly'), currentToken('gmail.compose')]).toEqual(['ya29.one', 'ya29.one', 'ya29.one'])
     expect(googleAccess()).toEqual({ scopes: ['drive.file', 'drive.readonly', 'gmail.compose'], refusal: null })
     expect(loadGrantedScopes()).toEqual(['drive.file', 'drive.readonly', 'gmail.compose'])
@@ -285,7 +285,7 @@ describe('coming back to the app', () => {
     comeBackWith(tokenFragment(EVERY_SCOPE, 'forged', 'ya29.forged'))
 
     expect(takeGoogleRedirect()).toMatchObject({ kind: 'refused' })
-    expect(window.location.hash).toBe('#/company/review?tab=rules')
+    expect(window.location.hash).toBe('#/company/settings?tab=category-rules')
     expect(currentToken('drive.file')).toBeNull()
     expect(googleAccess()).toEqual({ scopes: null, refusal: 'forged' })
   })

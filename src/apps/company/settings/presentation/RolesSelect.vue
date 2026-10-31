@@ -7,8 +7,8 @@ import { rolesOfText } from '../domain/categoryDrafts'
 import { words } from './words'
 
 /**
- * The roles of one category as a menu of the roles the app knows. A role the app does not know,
- * such as a typo typed in a file, shows as a red chip until it is taken off.
+ * The roles of one category as a menu of the roles the app knows, each by the name the tab stores.
+ * A role the app does not know, such as a typo typed in a file, shows as a red chip until it is taken off.
  */
 const props = defineProps<{
   known: readonly string[]
@@ -26,7 +26,7 @@ const picked = computed({
 })
 
 const items = computed(() => [
-  ...props.known.map((role) => ({ label: role, value: role })),
+  ...props.known.map((role) => ({ label: role, value: role, ui: { itemLabel: 'identifier' } })),
   ...picked.value.filter((role) => !props.known.includes(role)).map((role) => ({ label: words.roles.unknown(role), value: role })),
 ])
 </script>
@@ -53,6 +53,7 @@ const items = computed(() => [
           v-for="role in modelValue"
           :key="String(role)"
           :label="String(role)"
+          class="identifier"
           :color="known.includes(String(role)) ? 'neutral' : 'error'"
           variant="subtle"
           size="xs"

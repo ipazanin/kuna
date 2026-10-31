@@ -4,11 +4,20 @@ import { listInWords } from '../../../../../shared/text/listInWords'
 import { plural } from '../../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../../shared/text/translation'
 import { croatianBucket } from '../../../settings/domain/words'
+import { dayText, labelWords, labelled, numberText } from '../../../../../shared/storage/domain/recordCodec'
+import { textOf } from '../../../../../shared/storage/domain/storedFields'
+import type { StoredFields } from '../../../../../shared/storage/domain/storedFields'
+import { dayInWords, moneyInWords } from '../../../workbook/domain/words'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // A stored choice such as pd-nn, and TRUE and FALSE, stay as the settings tab writes them.
 
 export const en = {
+  /** The words that name a record of each kind, as its stored fields read. */
+  labels: {
+    scenarioRow: (fields: StoredFields) => labelWords([textOf(fields.scenario), textOf(fields.component), labelled('from', dayText(fields.from))]),
+    ownerAdvance: (fields: StoredFields) => labelWords([textOf(fields.description), numberText(fields.amount), dayText(fields.date)]),
+  },
   /** Why a company fact on the settings tab or in Settings, General cannot be used. */
   facts: {
     notADay: (value: string) => `"${value}" is not a date such as 2025-05-12`,
@@ -138,6 +147,10 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
+  labels: {
+    scenarioRow: (fields) => labelWords([textOf(fields.scenario), textOf(fields.component), labelled('od', dayInWords(fields.from))]),
+    ownerAdvance: (fields) => labelWords([textOf(fields.description), moneyInWords(fields.amount), dayInWords(fields.date)]),
+  },
   facts: {
     notADay: (value) => `„${value}” nije datum poput 2025-05-12`,
     neither: (value, choices) => `„${value}” nije ni ${choices.join(' ni ')}`,
@@ -174,7 +187,7 @@ export const hr: Translation<typeof en> = {
     partsGoTogether: 'fixed_part i variable_part idu zajedno, a popunjeno je samo jedno',
     partsNegative: 'fixed_part i variable_part ne mogu biti negativni',
     partsAddUp: (total, amount) => `fixed_part i variable_part zajedno daju ${total}, a ne iznos ${amount}`,
-    notWholeOrAmount: (name, text) => `${name} „${text}” nije ni whole ni iznos veći od nule`,
+    notWholeOrAmount: (name, text) => `${name} „${text}” nije ni „whole” ni iznos veći od nule`,
     noDate: 'polje date je prazno',
     notADateCell: (text) => `datum „${text}” nije ćelija s datumom`,
     noAmount: 'polje amount je prazno',
@@ -187,7 +200,7 @@ export const hr: Translation<typeof en> = {
     noAssetName: 'sredstvo nema naziv',
     before: (later, laterDay, earlier, earlierDay) => `${later} ${laterDay} je prije ${earlier} ${earlierDay}`,
     notAFlag: (name, text) => `${name} „${text}” nije ni TRUE ni FALSE`,
-    noGrantOnTab: (grant) => `${grant} nije na listu „grants”, pa amortizacija sredstva ne priznaje nikakvu potporu`,
+    noGrantOnTab: (grant) => `„${grant}” nije na listu „grants”, pa amortizacija sredstva ne priznaje nikakvu potporu`,
     noEmployeeName: 'zaposlenik nema naziv',
     agreedGrossAboveZero: 'agreed_gross mora biti veći od nule',
     notWholeBetween: (name, text, least, most) => `${name} „${text}” nije cijeli broj od ${least} do ${most}`,
@@ -198,11 +211,11 @@ export const hr: Translation<typeof en> = {
     outsideYear: (name, day, year) => `${name} ${day} je izvan ${year}.`,
     notAnItem: (item) => `„${item}” nije naziv neoporezivog primitka, poput nontaxable:occasional-gift`,
     notAnAmountAboveZero: (text, alternative) => `amount „${text}” nije iznos veći od nule${alternative === '' ? '' : ` ${alternative}`}`,
-    orFloor: 'ni floor',
-    orMax: 'ni max',
-    yearsOfScenario: (slug, years) => `${slug} navodi godine ${years.join(' i ')}, a scenarij je za jednu godinu, pa se nijedan njegov redak ne broji`,
-    sameComponent: (slug) => `${slug} ima ovu sastavnicu za iste dane u više redaka, pa se nijedan ne broji`,
-    labelsDiffer: (slug) => `retci scenarija ${slug} navode različite nazive, pa se naziv čita kao prazan`,
+    orFloor: 'ni „floor”',
+    orMax: 'ni „max”',
+    yearsOfScenario: (slug, years) => `„${slug}” navodi godine ${years.join(' i ')}, a scenarij je za jednu godinu, pa se nijedan njegov redak ne broji`,
+    sameComponent: (slug) => `„${slug}” ima ovu sastavnicu za iste dane u više redaka, pa se nijedan ne broji`,
+    labelsDiffer: (slug) => `retci scenarija „${slug}” navode različite nazive, pa se naziv čita kao prazan`,
     noKonto: 'polje line ne navodi broj konta',
     noLine: 'polje line je prazno',
     notALine: (line, statement) => `„${line}” nije pozicija izvještaja ${statement}`,

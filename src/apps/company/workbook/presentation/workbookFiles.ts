@@ -10,6 +10,7 @@ import type { WorkbookStore } from '../../../../shared/storage/application/creat
 import type { CompanyBooks } from '../domain/readWorkbook'
 import type { Category, Workbook } from '../domain/workbook'
 import { NEWER_FILE, decodeDocument, savedByNewerApp } from '../../../../shared/storage/infrastructure/documentFormat'
+import { documentName } from '../../../../shared/storage/infrastructure/driveDocument'
 import type { WorkbookDocument } from '../../../../shared/storage/infrastructure/documentFormat'
 import type { DocumentCopy } from '../../../../shared/storage/infrastructure/documentRecordStorage'
 import { COMPANY_APP, installedSchema, readDocument } from '../infrastructure/companyDocument'
@@ -77,6 +78,9 @@ async function documentOfFile(file: File): Promise<{ readonly document: Workbook
   }
   return { document, missingTabs: [] }
 }
+
+/** The name of the books file on Drive. */
+export const BOOKS_FILE_NAME = documentName(COMPANY_APP)
 
 /** What new books kept in this browser are called until the company step names the company. */
 export const NEW_BOOKS_TITLE = 'New books'

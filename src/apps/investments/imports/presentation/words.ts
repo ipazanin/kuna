@@ -299,7 +299,7 @@ export const hr: Translation<typeof en> = {
       SPINOFF: 'Jedinice nove pozicije primljene uz postojeću, sa stupcima Spin-off from i Cost share.',
     },
     notes: [
-      'Za podjelu je dovoljan redak SPLIT. Kuna omjer traži kod usluge Alpha Vantage ili ga izračuna iz držanih jedinica, a pita kada ne može.',
+      'Za podjelu je dovoljan redak „SPLIT”. Kuna omjer traži kod usluge Alpha Vantage ili ga izračuna iz držanih jedinica, a pita kada ne može.',
       'Revolutova dividenda bez retka WITHHOLDING TAX uvozi se kako je knjižena, umanjena za porez, s napomenom o tome.',
       'Primjeri redaka na kartici Transactions izmišljeni su. Zamijenite ih svojima.',
     ],
@@ -396,7 +396,7 @@ export const hr: Translation<typeof en> = {
       few: `${count} brojčane ćelije zaokružene su više od svog šuma`,
       other: `${count} brojčanih ćelija zaokruženo je više od svog šuma`,
     }),
-    roundedLine: (row, column, cell, rounded) => `Redak ${row}, ${column}: ${cell} uvozi se kao ${rounded}`,
+    roundedLine: (row, column, cell, rounded) => `Redak ${row}, stupac „${column}”: ${cell} uvozi se kao ${rounded}`,
     commissions: (count) => ({
       one: `${count} trgovanje čije se naknade razlikuju od ćelije Commission`,
       few: `${count} trgovanja čije se naknade razlikuju od ćelije Commission`,
@@ -439,7 +439,7 @@ export const hr: Translation<typeof en> = {
     'beyond-held': 'Prodaje ili prenosi više jedinica nego što račun drži na taj dan',
   },
   skips: {
-    unknownType: (text) => `Vrsta ${text} nije ona koju Kuna čita`,
+    unknownType: (text) => `Vrsta „${text}” nije ona koju Kuna čita`,
     unreadable: (column, text) => `Ćelija ${column} „${text}” ne može se pročitati`,
     missing: (column) => `Ćelija ${column} je prazna`,
     againstSign: 'Predznak iznosa ne odgovara vrsti retka, na primjer naknada koja uplaćuje, pa je možda riječ o storniranju',

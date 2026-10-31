@@ -3,7 +3,15 @@
  * element handle, and `shoot` takes a screenshot under a name. A failure throws with what was wrong.
  */
 
+import { en as companyEnglish, hr as companyCroatian } from '../../src/apps/company/words.ts'
+import { en as settingsEnglish, hr as settingsCroatian } from '../../src/apps/company/settings/presentation/words.ts'
+import { en as yearEnglish, hr as yearCroatian } from '../../src/apps/company/packs/hr-doo/presentation/year/words.ts'
 import { delay } from './editorFlows.mjs'
+
+const TAB_WORDS = {
+  en: { company: companyEnglish.name, settings: settingsEnglish, year: yearEnglish.tabs },
+  hr: { company: companyCroatian.name, settings: settingsCroatian, year: yearCroatian.tabs },
+}
 
 /** The address, the browser title and the open tab of the strip, read in the page. */
 function tabState() {
@@ -44,31 +52,38 @@ async function pressTab(page, press, label) {
 /**
  * On the company's Settings: two tabs picked in turn, each in the address and the browser title, then Back twice
  * through them to the default tab, which stays out of the address. Last, a fresh load of a link
- * to the last tab must show that tab inside the strip, which a phone scrolls for its five tabs.
+ * to the last tab must show that tab inside the strip, which a phone scrolls for its six tabs.
  */
-export async function pageTabsFlow(page, { press, shoot }) {
-  await until(page, (state) => state.name === 'Parts of the settings', 'the tab strip has no accessible name')
+export function pageTabsFlowIn(language) {
+  const { company, settings } = TAB_WORDS[language]
+  const titleOf = (tab) => `${settings.title}, ${tab}, ${company} – Kuna`
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await until(page, (state) => state.name === settings.tabs, 'the tab strip has no accessible name')
 
-  await pressTab(page, press, 'Categories')
-  await until(page, (state) => state.hash.includes('tab=categories') && state.open?.startsWith('Categories'), 'Categories did not open with tab=categories in the address')
-  await pressTab(page, press, 'Accounts')
-  await until(page, (state) => state.hash.includes('tab=accounts') && state.title === 'Settings, Accounts, Company – Kuna', 'Accounts did not reach the address and the browser title')
-  await shoot('page-tabs-accounts')
+    await pressTab(page, press, settings.tabNames.categories)
+    await until(page, (state) => state.hash.includes('tab=categories') && state.open?.startsWith(settings.tabNames.categories), 'Categories did not open with tab=categories in the address')
+    await pressTab(page, press, settings.tabNames.accounts)
+    await until(page, (state) => state.hash.includes('tab=accounts') && state.title === titleOf(settings.tabNames.accounts), 'Accounts did not reach the address and the browser title')
+    await shoot('page-tabs-accounts')
 
-  await page.evaluate(() => history.back())
-  await until(page, (state) => state.hash.includes('tab=categories') && state.open?.startsWith('Categories'), 'Back did not return to Categories')
-  await page.evaluate(() => history.back())
-  await until(
-    page,
-    (state) => !state.hash.includes('tab=') && state.open?.startsWith('General') && state.title === 'Settings, General, Company – Kuna',
-    'the second Back did not return to General with no tab in the address',
-  )
+    await page.evaluate(() => history.back())
+    await until(page, (state) => state.hash.includes('tab=categories') && state.open?.startsWith(settings.tabNames.categories), 'Back did not return to Categories')
+    await page.evaluate(() => history.back())
+    await until(
+      page,
+      (state) => !state.hash.includes('tab=') && state.open?.startsWith(settings.tabNames.general) && state.title === titleOf(settings.tabNames.general),
+      'the second Back did not return to General with no tab in the address',
+    )
 
-  await page.goto(page.url().replace(/#.*$/, '#/company/settings?tab=books'), { waitUntil: 'networkidle0' })
-  await page.reload({ waitUntil: 'networkidle0' })
-  await until(page, (state) => state.open?.startsWith('Books file') && state.inStrip, 'a link to the last tab did not open it in sight in the strip')
-  await shoot('page-tabs-last')
+    await page.goto(page.url().replace(/#.*$/, '#/company/settings?tab=books'), { waitUntil: 'networkidle0' })
+    await page.reload({ waitUntil: 'networkidle0' })
+    await until(page, (state) => state.open?.startsWith(settings.booksFile) && state.inStrip, 'a link to the last tab did not open it in sight in the strip')
+    await shoot('page-tabs-last')
+  }
 }
+
+export const pageTabsFlow = pageTabsFlowIn('en')
 
 /** The year picker's chosen year, read in the page. */
 function pickedYear() {
@@ -79,16 +94,22 @@ function pickedYear() {
  * On Year, from a link to the Statements tab with no year, which opens the last closed year: the
  * year goes into the address, so another tab, the default tab and Back all stay in that year.
  */
-export async function yearTabLinkFlow(page, { press, shoot }) {
-  const closed = await page.waitForFunction(pickedYear).then((handle) => handle.jsonValue())
-  await until(page, (state) => state.open?.startsWith('Statements') && state.hash.includes(`year=${closed}`), 'a link to Statements alone did not name the year it opened')
-  await pressTab(page, press, 'Taxes')
-  await until(page, (state) => state.hash.includes('tab=taxes') && state.hash.includes(`year=${closed}`), 'Taxes did not stay in the year the link opened')
-  await pressTab(page, press, 'Accountant')
-  await until(page, (state) => !state.hash.includes('tab=') && state.open?.startsWith('Accountant'), 'the default tab did not open in the same year')
-  const year = await page.evaluate(pickedYear)
-  if (year !== closed) throw new Error(`the Accountant tab opened ${year} instead of ${closed}`)
-  await shoot('year-tab-link')
-  await page.evaluate(() => history.back())
-  await until(page, (state) => state.hash.includes('tab=taxes') && state.hash.includes(`year=${closed}`), 'Back did not return to Taxes in the same year')
+export function yearTabLinkFlowIn(language) {
+  const tabs = TAB_WORDS[language].year
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const closed = await page.waitForFunction(pickedYear).then((handle) => handle.jsonValue())
+    await until(page, (state) => state.open?.startsWith(tabs.statements) && state.hash.includes(`year=${closed}`), 'a link to Statements alone did not name the year it opened')
+    await pressTab(page, press, tabs.taxes)
+    await until(page, (state) => state.hash.includes('tab=taxes') && state.hash.includes(`year=${closed}`), 'Taxes did not stay in the year the link opened')
+    await pressTab(page, press, tabs.accountant)
+    await until(page, (state) => !state.hash.includes('tab=') && state.open?.startsWith(tabs.accountant), 'the default tab did not open in the same year')
+    const year = await page.evaluate(pickedYear)
+    if (year !== closed) throw new Error(`the Accountant tab opened ${year} instead of ${closed}`)
+    await shoot('year-tab-link')
+    await page.evaluate(() => history.back())
+    await until(page, (state) => state.hash.includes('tab=taxes') && state.hash.includes(`year=${closed}`), 'Back did not return to Taxes in the same year')
+  }
 }
+
+export const yearTabLinkFlow = yearTabLinkFlowIn('en')

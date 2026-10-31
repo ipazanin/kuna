@@ -3,6 +3,7 @@ import { language } from '../../../../../../shared/text/language'
 import { plural } from '../../../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../../../shared/text/translation'
 import { uncapitalised } from '../../../../../../shared/text/capitalised'
+import { monthCase } from '../../../../../../shared/calendar/monthCase'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // Corporate income tax is porez na dobit, its monthly advance predujam poreza na dobit and its balance due razlika za uplatu. A Croatian year ends in its own full stop.
@@ -87,7 +88,7 @@ export const hr: Translation<typeof en> = {
   rateDefinition:
     'Plaćeni porezi umanjeni za vraćeni porez, podijeljeni s prihodom od klijenata, oboje za godinu. Prihod od klijenata čine kategorije s ulogom revenue, ' +
     'pa potpora, kamata ili povrat nikad ne povećavaju osnovicu. Povrat stoji u skupini poreza i umjesto toga smanjuje poreze.',
-  paid: (unit) => `${unit}, plaćeno`,
+  paid: (unit) => `${unit}, uplate`,
   netOfRefunds: 'Umanjeno za povrate',
   paidDefinition: (unit) => `Sve u skupini „${unit}” tijekom godine. Povrat knjižen ondje smanjuje iznos.`,
   effectiveRate: 'Efektivna porezna stopa',
@@ -98,7 +99,7 @@ export const hr: Translation<typeof en> = {
   monthSoFar: 'Tekući mjesec',
   noWatchedPayment: 'Nijedna praćena porezna kategorija još nema uplatu',
   cadenceOf: (name, paid, elapsed, missed) =>
-    `${name === null ? '' : `${name}, `}plaćeno ${paid} od ${elapsed} ${plural({ one: 'mjeseca', few: 'mjeseca', other: 'mjeseci' }, elapsed)}${missed === 0 ? '' : `, propušteno ${missed}`}`,
+    `${name === null ? '' : `${name}, `}uplate za ${paid} od ${elapsed} ${plural({ one: 'mjeseca', few: 'mjeseca', other: 'mjeseci' }, elapsed)}${missed === 0 ? '' : `, propušteno ${missed}`}`,
   corporate: {
     title: 'Porez na dobit, očekivano i plaćeno',
     needsRegistered: 'Treba dan registracije tvrtke',
@@ -131,9 +132,9 @@ export const hr: Translation<typeof en> = {
     salaries: 'Plaće',
     salariesChecks: ' provjeravaju svaki dan isplate po zaposleniku i stavci.',
     none: 'Nijedna praćena porezna kategorija još nema uplatu.',
-    since: (name, since) => `${name}, od mjeseca ${since}`,
+    since: (name, since) => `${name}, od ${monthCase(since, 'genitive')}`,
     monthsPaid: 'Plaćeni cijeli mjeseci',
-    paidOfRows: (name, paid, elapsed) => `${name}, plaćeno ${paid} od ${elapsed} ${plural({ one: 'mjeseca', few: 'mjeseca', other: 'mjeseci' }, elapsed)}, otvori stavke`,
+    paidOfRows: (name, paid, elapsed) => `${name}, uplate za ${paid} od ${elapsed} ${plural({ one: 'mjeseca', few: 'mjeseca', other: 'mjeseci' }, elapsed)}, otvori stavke`,
     paidOf: (paid, elapsed) => `${paid} od ${elapsed}`,
     missed: 'Propušteno',
     none2: 'Nijedan',

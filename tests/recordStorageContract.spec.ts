@@ -5,7 +5,7 @@ import { BILLING_WRITES } from '../src/apps/company/billingPlan/application/bill
 import { LEDGER_WRITES } from '../src/apps/company/imports/application/ledgerWrites'
 import { installedPack } from '../src/apps/company/packs/packContribution'
 import { INVOICE_WRITES } from '../src/apps/company/receivables/application/invoiceWrites'
-import { DISMISSAL_WRITES } from '../src/apps/company/review/application/dismissalWrites'
+import { DISMISSAL_WRITES } from '../src/apps/company/rules/application/dismissalWrites'
 import { RULE_WRITES } from '../src/apps/company/rules/application/ruleWrites'
 import { SETTING_WRITES } from '../src/apps/company/settings/application/settingWrites'
 import { ACCOUNT_WRITES, CATEGORY_WRITES, CLIENT_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'

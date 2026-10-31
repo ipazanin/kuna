@@ -15,7 +15,7 @@ describe('the first run that takes the page', () => {
 
     expect(firstRunAt([company, loans], '/loans')).toBe(loans)
     expect(firstRunAt([company, loans], '/loans/start')).toBe(loans)
-    expect(firstRunAt([company, loans], '/company/review')).toBe(company)
+    expect(firstRunAt([company, loans], '/company/transactions')).toBe(company)
     expect(firstRunAt([company, loans], '/loansbook')).toBeNull()
   })
 

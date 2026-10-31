@@ -1,24 +1,23 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import StepCard from '../../ui/StepCard.vue'
 import type { DriveFileLookup } from '../application/workbookPorts'
-import type { FileFirstRun } from './fileFirstRun'
-import { useFirstRun } from './useFirstRun'
+import type { DriveFirstRun } from './fileFirstRun'
+import type { FirstRunMoves } from './useFirstRun'
 import { words } from './words'
 
 /** The app's file another device keeps on Drive: found by the app's mark, or picked. Once it is on screen, the app's overview. */
-const props = defineProps<{ firstRun: FileFirstRun }>()
-const start = useFirstRun(props.firstRun)
-const appWords = props.firstRun.words.find
+const props = defineProps<{ firstRun: DriveFirstRun; steps: FirstRunMoves }>()
+const appWords = computed(() => props.firstRun.words.find)
 const lookingUp = ref<DriveFileLookup | null>(null)
 
 async function find(lookup: DriveFileLookup): Promise<void> {
   lookingUp.value = lookup
   const opened = await props.firstRun.findFile(lookup)
   lookingUp.value = null
-  if (opened) await start.finish()
+  if (opened) await props.steps.finish()
 }
 </script>
 

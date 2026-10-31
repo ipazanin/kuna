@@ -17,7 +17,7 @@ export function assetColumns(grantSlugs: readonly string[]): readonly EditorColu
     { name: 'bought', label: words.assetColumns.bought, kind: 'date', width: 'w-40' },
     { name: 'in_use', label: words.assetColumns.in_use, kind: 'date', width: 'w-40', placeholderOf: (fieldOf) => fieldOf('bought') },
     { name: 'cost_net', label: words.assetColumns.cost_net, kind: 'amount', width: 'w-32' },
-    { name: 'group', label: words.assetColumns.group, kind: 'word', width: 'w-36', choices: choicesFrom(ASSET_GROUPS) },
+    { name: 'group', label: words.assetColumns.group, kind: 'word', width: 'w-36', choices: ASSET_GROUPS.map((group) => ({ value: group, label: words.assetColumns.groups[group] })) },
     { name: 'doubled', label: words.assetColumns.doubled, kind: 'flag', width: 'w-32' },
     { name: 'disposed', label: words.assetColumns.disposed, kind: 'date', width: 'w-40' },
     { name: 'funded_by', label: words.assetColumns.funded_by, kind: 'word', width: 'w-40', choices: choicesFrom(grantSlugs), blankLabel: words.assetColumns.noGrant },
@@ -34,7 +34,14 @@ export const GRANT_COLUMNS: readonly EditorColumn[] = [
   { name: 'variable_part', label: words.grantColumns.variable_part, kind: 'amount', width: 'w-32' },
   { name: 'period_from', label: words.grantColumns.period_from, kind: 'date', width: 'w-40' },
   { name: 'period_to', label: words.grantColumns.period_to, kind: 'date', width: 'w-40' },
-  { name: 'release', label: words.grantColumns.release, kind: 'word', width: 'w-48', choices: choicesFrom(GRANT_RELEASES), blankLabel: words.grantColumns.blankRelease },
+  {
+    name: 'release',
+    label: words.grantColumns.release,
+    kind: 'word',
+    width: 'w-48',
+    choices: GRANT_RELEASES.map((release) => ({ value: release, label: words.grantColumns.releases[release] })),
+    blankLabel: words.grantColumns.blankRelease,
+  },
   { name: 'clawback_year1', label: words.grantColumns.clawback_year1, kind: 'amount-or-word', width: 'w-32', placeholderOf: () => words.grantColumns.clawbackPlaceholder },
   { name: 'clawback_year2', label: words.grantColumns.clawback_year2, kind: 'amount-or-word', width: 'w-32', placeholderOf: () => words.grantColumns.clawbackPlaceholder },
   { name: 'employment_required_until', label: words.grantColumns.employment_required_until, kind: 'date', width: 'w-40' },
@@ -67,7 +74,10 @@ export const YEAR_END_COLUMNS: readonly EditorColumn[] = [
       const statement = fieldOf('statement')
       return statement === 'konto'
         ? null
-        : YEAR_END_LINES.filter((definition) => definition.statement === statement).map((definition) => ({ value: definition.line, label: `${definition.line} · ${definition.hint}` }))
+        : YEAR_END_LINES.filter((definition) => definition.statement === statement).map((definition) => ({
+            value: definition.line,
+            label: words.yearEndColumns.lineChoice(definition.line, definition.hint),
+          }))
     },
     placeholderOf: (fieldOf) => (fieldOf('statement') === 'konto' ? words.yearEndColumns.kontoNumber : words.yearEndColumns.choose),
   },

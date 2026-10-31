@@ -7,7 +7,7 @@ import type { Transaction } from '../../workbook/domain/workbook'
 export interface CompanyHomeFigures {
   /** Every account at its latest balance, whatever the filters say. */
   readonly cashOnHand: Money
-  /** The rows the Review queue holds, as the menu counts them. */
+  /** The rows that wait for review, as the menu counts them. */
   readonly toReview: number
 }
 

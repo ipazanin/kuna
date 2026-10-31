@@ -6,7 +6,7 @@ import { createFakeDrive } from './fakeDrive'
 import type { FakeDrive } from './fakeDrive'
 
 /** The folder of My Drive the fake build keeps the books in, which its Picker always picks. */
-const BOOKS_FOLDER = 'Books'
+export const FAKE_BOOKS_FOLDER = 'Books'
 
 let session: FakeDrive | null = null
 let racing: ((text: string) => string) | null = null
@@ -21,8 +21,8 @@ export function fakeDriveSession(): FakeDrive {
 /** The folder the fake build keeps the books in, made on first use. */
 export async function fakeBooksFolder(): Promise<string> {
   const drive = fakeDriveSession()
-  const existing = (await drive.children('root')).find((entry) => entry.mimeType === FOLDER_MIME_TYPE && entry.name === BOOKS_FOLDER)
-  return existing?.id ?? (await drive.createFolder('root', BOOKS_FOLDER))
+  const existing = (await drive.children('root')).find((entry) => entry.mimeType === FOLDER_MIME_TYPE && entry.name === FAKE_BOOKS_FOLDER)
+  return existing?.id ?? (await drive.createFolder('root', FAKE_BOOKS_FOLDER))
 }
 
 /** Makes the next save meet a save another device made a moment before its upload, which `otherDeviceSave` makes from the file as it stands. */
@@ -43,7 +43,7 @@ async function unlessHeld(fileId: string): Promise<void> {
 /** The app's file in the books folder, which the fake build's Picker always picks, or null while the folder holds none. */
 async function fakeBooksFile(app: string): Promise<string | null> {
   const drive = fakeDriveSession()
-  const folder = (await drive.children('root')).find((entry) => entry.mimeType === FOLDER_MIME_TYPE && entry.name === BOOKS_FOLDER)
+  const folder = (await drive.children('root')).find((entry) => entry.mimeType === FOLDER_MIME_TYPE && entry.name === FAKE_BOOKS_FOLDER)
   const files = folder === undefined ? [] : await drive.children(folder.id)
   return files.find((entry) => entry.mimeType !== FOLDER_MIME_TYPE && drive.file(entry.id).appProperties[APP_PROPERTY] === app)?.id ?? null
 }

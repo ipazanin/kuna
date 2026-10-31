@@ -49,7 +49,7 @@ export interface RuleAgainst {
 
 /**
  * The rule that would settle the row in another category than the one a person files it in, so
- * the row becomes one of the exceptions Review lists. Null when no rule settles it or one agrees.
+ * the row becomes one of the exceptions the Category rules tab lists. Null when no rule settles it or one agrees.
  */
 export function ruleAgainst(transaction: CategorisableTransaction, category: string, rules: readonly Rule[], context: CategorisationContext): RuleAgainst | null {
   const verdict = categorise(transaction, rules, context)

@@ -32,6 +32,7 @@ export function createAppRouter(): Router {
   const routes: RouteRecordRaw[] = [
     { path: HOME_SCREEN.path, component: HOME_SCREEN.component, meta: { bare: false } },
     ...apps.flatMap((app) => app.screens.map((screen) => ({ path: screen.path, component: screen.component, meta: { bare: screen.bare === true, title: screen.title, app: app.name } }))),
+    ...apps.flatMap((app) => (app.moved ?? []).map((moved): RouteRecordRaw => ({ path: moved.path, redirect: (to) => moved.to(to.query) }))),
     { path: KUNA_SETTINGS_SCREEN.path, component: KUNA_SETTINGS_SCREEN.component, meta: { bare: false, title: KUNA_SETTINGS_SCREEN.title } },
     // Written inline so the production build folds it to false and drops the gallery chunk entirely.
     // The fake build keeps it, because the visual check screenshots the gallery from that build.
@@ -86,7 +87,7 @@ export function createAppRouter(): Router {
 
 /** An app's routes stay under its id, so two apps never claim one address. */
 function refuseScreensOutside(app: AppContribution): void {
-  const outside = [...app.screens.map((screen) => screen.path), app.startPath].find((path) => !ownsPath(app, path))
+  const outside = [...app.screens.map((screen) => screen.path), ...(app.moved ?? []).map((moved) => moved.path), app.startPath].find((path) => !ownsPath(app, path))
   if (outside !== undefined) {
     throw new Error(`The ${app.id} app's route ${outside} is not under /${app.id}.`)
   }

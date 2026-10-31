@@ -11,6 +11,7 @@ import { planMonthLink } from '../../invoicing/presentation/invoicingLinks'
 import { amountsOwed } from '../../receivables/domain/ageing'
 import { receivablesOf } from '../../receivables/domain/invoiceMatching'
 import { shownPack } from '../../packs/packContribution'
+import { REVIEW_LINK } from '../../transactions/presentation/transactionsLinks'
 import { needsReview } from '../../workbook/domain/needsReview'
 import { newestBookingOf } from '../../workbook/domain/workbook'
 import type { Transaction, Workbook } from '../../workbook/domain/workbook'
@@ -59,7 +60,7 @@ function reviewJob(bankRows: readonly Transaction[]): WaitingJob | null {
     key: 'review',
     text: plural(words.waiting.toReview(count), count),
     tone: 'warning',
-    link: { label: words.waiting.links.review, to: '/company/review' },
+    link: { label: words.waiting.links.review, to: REVIEW_LINK },
   }
 }
 

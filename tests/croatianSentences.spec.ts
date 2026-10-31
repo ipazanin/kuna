@@ -97,7 +97,7 @@ describe('full stops in Croatian', () => {
     ]
 
     expect(sentences.filter((sentence) => sentence.includes('..'))).toEqual([])
-    expect(sentences[0]).toContain('ožujak\u00a02048. Na kraju mjeseca (listopad\u00a02026.) dug iznosi')
+    expect(sentences[0]).toContain('ožujak\u00a02048. Na kraju listopada\u00a02026. dug iznosi')
     expect(sentences[1]).toMatch(/1\. 5\. 2027\.$/)
     expect(sentences[2]).toMatch(/prazno\.$/)
   })
@@ -208,8 +208,8 @@ describe('imports, sync and mail in Croatian', () => {
 
     expect(words.imported([], 1)).toBe('Uvezena je 1 stavka')
     expect(words.imported([], 4)).toBe('Uvezene su 4 stavke')
-    expect(words.imported(['main'], 5)).toBe('Dodan je račun main i uvezeno je 5 stavki')
-    expect(words.imported(['main', 'second'], 21)).toBe('Dodani su računi main i second i uvezena je 21 stavka')
+    expect(words.imported(['main'], 5)).toBe('Dodan je račun „main” i uvezeno je 5 stavki')
+    expect(words.imported(['main', 'second'], 21)).toBe('Dodani su računi „main” i „second” i uvezena je 21 stavka')
     expect(words.sync.filed(['028'], 4)).toBe('Upisan je izvod 028, 4 stavke')
     expect(words.sync.filed(['028', '029'], 5)).toBe('Upisani su izvodi 028 i 029, 5 stavki')
     expect(words.sync.filed(['1', '2', '3'], 21)).toBe('Upisana su 3 izvoda, 21 stavka')
@@ -219,7 +219,7 @@ describe('imports, sync and mail in Croatian', () => {
     const { words } = await inCroatian(() => import('../src/apps/company/imports/domain/words'))
 
     expect(words.dryRun.beforeNewest(civilDate(2026, 9, 1), civilDate(2026, 9, 15), 'main').replaceAll('\u00a0', ' ')).toBe(
-      'Prva nova stavka ima datum 1. 9. 2026., prije 15. 9. 2026., datuma najnovije stavke računa main. Stavke se dodaju samo nakon najnovije.',
+      'Prva nova stavka ima datum 1. 9. 2026., prije 15. 9. 2026., datuma najnovije stavke računa „main”. Stavke se dodaju samo nakon najnovije.',
     )
     expect(words.dryRun.noReference(1)).toMatch(/^Jedna stavka nema bankovnu referencu, pa je /)
     expect(words.dryRun.noReference(3)).toMatch(/^3 stavke nemaju bankovnu referencu, pa ih /)
@@ -282,10 +282,10 @@ describe('invoicing and billing in Croatian', () => {
 
   it('ends a sentence on a period with one full stop, whether the period ends in a year or a word', async () => {
     const { words } = await inCroatian(() => import('../src/apps/company/receivables/presentation/words'))
-    const sentences = [words.panel.daysSubtitle('listopad 2025. – rujan 2026.'), words.panel.daysSubtitle('studeni 2025. – listopad 2026., listopad dosad')]
+    const sentences = [words.panel.daysSubtitle('listopad 2025. – rujan 2026.'), words.panel.daysSubtitle('studeni 2025. – listopad 2026., listopad do danas')]
 
     expect(sentences.filter((sentence) => sentence.includes('..'))).toEqual([])
-    expect(sentences[1]).toMatch(/^studeni 2025\. – listopad 2026\., listopad dosad\. Svaka točka/)
+    expect(sentences[1]).toMatch(/^studeni 2025\. – listopad 2026\., listopad do danas\. Svaka točka/)
   })
 })
 
@@ -321,12 +321,12 @@ describe('settings and onboarding in Croatian', () => {
 
   it('counts what new books hold and what a move to Drive took, with the form 1, 2, 5 and 21 take', async () => {
     const onboarding = await inCroatian(() => import('../src/apps/company/onboarding/presentation/words'))
-    const books = await import('../src/apps/company/workbook/presentation/words')
+    const storage = await import('../src/shared/storage/presentation/words')
     const { plural } = await import('../src/shared/text/translation')
 
     expect(onboarding.words.made.holds(1, 21)).toBe('Sadrži 1 transakciju i ukupno 21 zapis.')
     expect(onboarding.words.made.holds(5, 2)).toBe('Sadrži 5 transakcija i ukupno 2 zapisa.')
-    expect([1, 2, 5, 21].map((count) => plural(books.words.keep.moved(count), count))).toEqual([
+    expect([1, 2, 5, 21].map((count) => plural(storage.words.firstRun.folder.moved(count), count))).toEqual([
       'Premješten je 1 zapis',
       'Premještena su 2 zapisa',
       'Premješteno je 5 zapisa',
@@ -415,6 +415,27 @@ describe('the hr-doo screens in Croatian', () => {
     ])
   })
 
+  it('quotes a typed name inside a sentence and puts a month after a preposition in its case', async () => {
+    const forecast = await inCroatian(() => import('../src/apps/company/packs/hr-doo/domain/forecast/words'))
+    const ownerShare = await import('../src/apps/company/owner-share/domain/words')
+    const taxes = await import('../src/apps/company/packs/hr-doo/presentation/taxes/words')
+    const overview = await import('../src/apps/company/overview/presentation/words')
+
+    expect(forecast.words.figures.salaryFrom('Floor salary all year')).toBe('Plaća iz scenarija „Floor salary all year”')
+    expect(ownerShare.words.origin(30, 'Oprema')).toBe('30\u00a0% vlasniku, iz kategorije „Oprema”')
+    expect(taxes.words.cadence.since('Doprinosi', 'lipanj 2025.')).toBe('Doprinosi, od lipnja 2025.')
+    expect(overview.words.waiting.monthNotMade('veljača 2027.', 'Northwind')).toBe('Račun za veljaču 2027. klijentu „Northwind” još nije izdan')
+  })
+
+  it('words a payment after a name so that no gender is needed', async () => {
+    const forecast = await inCroatian(() => import('../src/apps/company/packs/hr-doo/domain/forecast/words'))
+    const pack = await import('../src/apps/company/packs/hr-doo/presentation/words')
+
+    expect(pack.words.citObligations.paidRows('Payroll contributions')).toBe('Payroll contributions, uplate, otvori stavke')
+    expect(forecast.words.planActual.planned('Najam')).toBe('Najam, prema planu')
+    expect(forecast.words.cash.cost('Najam', 'listopad 2026.', true)).toBe('Najam, listopad 2026., plaća se sljedeći mjesec')
+  })
+
   it('names the corporate tax payments, the switched scenario and the starting scenarios in Croatian', async () => {
     const cit = await inCroatian(() => import('../src/apps/company/packs/hr-doo/domain/cit/words'))
     const scenarios = await import('../src/apps/company/packs/hr-doo/domain/scenarios/words')
@@ -422,8 +443,8 @@ describe('the hr-doo screens in Croatian', () => {
     const accrual = await import('../src/apps/company/packs/hr-doo/domain/accrual/words')
     const advance = cit.words.schedule.advanceFor('veljača 2027.')
 
-    expect(cit.words.schedule.due(advance)).toBe('Predujam za mjesec veljača 2027., dospijeva')
-    expect(cit.words.schedule.paid(advance)).toBe('Predujam za mjesec veljača 2027., plaćeno')
+    expect(cit.words.schedule.due(advance)).toBe('Predujam za veljaču 2027., dospijeva')
+    expect(cit.words.schedule.paid(advance)).toBe('Predujam za veljaču 2027., uplata')
     expect(accrual.words.rowOn('Porezna uprava')).toBe('Porezna uprava,')
     expect(scenarios.words.switched('Najniža plaća', 'Samo član uprave')).toBe('Najniža plaća, a zatim Samo član uprave')
     expect([2, 4].map((count) => pay.words.startingDialog.addedDescription(count, 2027))).toEqual(['2 scenarija za 2027.', '4 scenarija za 2027.'])
@@ -448,7 +469,7 @@ describe('the hr-doo screens in Croatian', () => {
       'Bruto plaća za 10 od 22 radna dana',
       'Bruto plaća za 10 od 20 radnih dana',
     ])
-    expect([21, 22, 25].map((elapsed) => taxes.words.cadenceOf(null, 20, elapsed, 0))).toEqual(['plaćeno 20 od 21 mjeseca', 'plaćeno 20 od 22 mjeseca', 'plaćeno 20 od 25 mjeseci'])
+    expect([21, 22, 25].map((elapsed) => taxes.words.cadenceOf(null, 20, elapsed, 0))).toEqual(['uplate za 20 od 21 mjeseca', 'uplate za 20 od 22 mjeseca', 'uplate za 20 od 25 mjeseci'])
     expect([1, 3, 12].map((months) => cit.words.liability.monthlyAdvance(months))).toEqual([
       'Redak 59 obrasca PD, obveza podijeljena na 1 mjesec razdoblja',
       'Redak 59 obrasca PD, obveza podijeljena na 3 mjeseca razdoblja',

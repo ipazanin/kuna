@@ -105,7 +105,7 @@ export const hr: Translation<typeof en> = {
   firstNotAfterDrawdown: (firstInstalment, drawdown) => `first_instalment ${dayLabel(firstInstalment)} nije nakon isplate ${dayLabel(drawdown)}`,
   tooManyInstalments: (most) => `više od ${most} anuiteta`,
   notARate: (name, text) => `${name} „${text}” nije godišnji postotak s najviše četiri decimale, na primjer 3.18`,
-  paidNotAfterDue: (paid, due) => `paid ${dayLabel(paid)} nije nakon dospijeća ${dayLabel(due)}`,
+  paidNotAfterDue: (paid, due) => `plaćeno ${dayLabel(paid)}, a to nije nakon dospijeća ${dayLabel(due)}`,
   openingBelowZero: 'opening_balance je manji od nule',
   noBankLoan: 'u datoteci nema kredita koji navodi',
   noInformalLoan: 'u datoteci nema pozajmice koju navodi',

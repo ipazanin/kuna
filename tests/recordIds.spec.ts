@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { BILLING_WRITES } from '../src/apps/company/billingPlan/application/billingWrites'
-import { DISMISSAL_WRITES } from '../src/apps/company/review/application/dismissalWrites'
+import { DISMISSAL_WRITES } from '../src/apps/company/rules/application/dismissalWrites'
 import { SPLIT_WRITES } from '../src/apps/company/transactions/application/splitWrites'
 import type { Workbook } from '../src/apps/company/workbook/domain/workbook'
 import type { WriteRules } from '../src/shared/storage/domain/writeRules'

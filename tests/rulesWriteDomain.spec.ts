@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { confirmation } from '../src/apps/company/review/domain/verdictChanges'
+import { confirmation } from '../src/apps/company/transactions/domain/verdictChanges'
 import { RULE_CODEC, readRules } from '../src/apps/company/rules/domain/readRules'
 import type { Rule, RuleCondition } from '../src/apps/company/rules/domain/rule'
 import { ruleCoverage } from '../src/apps/company/rules/domain/ruleCoverage'

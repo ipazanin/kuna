@@ -12,7 +12,6 @@ import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../shared/charts/chartTooltip'
 import type { ChartOption, LineSeries } from '../../../../shared/charts/echarts'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
-import { listInWords } from '../../../../shared/text/listInWords'
 
 export interface TogetherChart {
   readonly option: ChartOption
@@ -123,7 +122,7 @@ export function owedTogetherChart(
   }
   const first = months[0]
   const last = months.at(-1)
-  const names = listInWords(loans.map((loan) => loan.loan.name))
+  const names = loans.map((loan) => loan.loan.name)
   return {
     option: optionOf(months, [...bandsOf(loans, months, current, tokens, 'owed', false), ...(hasAhead ? [stillToCome] : [])], tokens, phone, words.together.owedInAll, estimateFrom),
     description:
@@ -168,7 +167,11 @@ export function outgoingChart(loans: readonly PlannedLoan[], months: readonly Lo
     description:
       first === undefined || last === undefined
         ? words.together.noMonths
-        : words.together.outgoingDescription(listInWords(loans.map((loan) => loan.loan.name)), monthLabel(first.month), monthLabel(last.month)) +
+        : words.together.outgoingDescription(
+            loans.map((loan) => loan.loan.name),
+            monthLabel(first.month),
+            monthLabel(last.month),
+          ) +
           (now === undefined ? '' : words.together.outgoingNow(monthLabel(now.month), formatMoney(now.total))) +
           endings.join(''),
     hasAhead,

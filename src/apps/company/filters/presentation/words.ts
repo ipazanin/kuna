@@ -44,7 +44,7 @@ export const hr: Translation<typeof en> = {
   groups: { buckets: 'Skupine', categories: 'Kategorije', counterparties: 'Partneri' },
   searchChoices: 'Pretraži skupine, kategorije, partnere',
   activeFilters: 'Aktivni filtri',
-  removeFilter: (label) => `Ukloni filtar ${label}`,
+  removeFilter: (label) => `Ukloni filtar „${label}”`,
   more: (count) => `još ${count}`,
   clear: 'Očisti',
   viewRows: 'Prikaži stavke',

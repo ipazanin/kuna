@@ -62,7 +62,7 @@ const facts = computed(() => {
           <h3 class="text-sm font-medium text-highlighted">{{ plural(words.summary.records(preview.recordCount), preview.recordCount) }}</h3>
           <dl class="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-x-6 gap-y-1 text-sm">
             <div v-for="kind in preview.counts" :key="kind.name" class="flex min-w-0 items-baseline justify-between gap-3">
-              <dt class="truncate text-toned">{{ kind.name }}</dt>
+              <dt class="identifier truncate text-toned">{{ kind.name }}</dt>
               <dd class="figure text-highlighted">{{ kind.count }}</dd>
             </div>
           </dl>

@@ -7,7 +7,7 @@ import type { ListedRow } from './listedRows'
  * Where Transactions sets a listed row's owner share: on its ledger row, on a part of a split row, or
  * on an owner advance, each only while it counts as operating cost. Either part of a shared row, and
  * the heading above them, set the share of the row as booked. A row still waiting is settled on
- * Review, which copies the category's default.
+ * the To review tab, which copies the category's default.
  */
 export function ownerShareChangeOf(row: ListedRow): ShareTarget | null {
   const booked = bookedRowOf(row)

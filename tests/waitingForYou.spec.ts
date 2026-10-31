@@ -21,11 +21,20 @@ function jobsOf(workbook: Workbook) {
 describe('waiting for you', () => {
   it('names each job with the page that does it, the late ones as late, the pack jobs after the core ones', () => {
     expect(jobsOf(fake('drive'))).toEqual([
-      ['review', '2 rows wait for a category check', 'warning', 'Review'],
+      ['review', '2 rows wait for a category check', 'warning', 'To review'],
       ['invoice', "This month's invoice for Northwind Analytics is not made yet", 'warning', 'Invoicing'],
       ['overdue', '2 invoices are past the due date, €4,200.00 still owed', 'negative', 'Invoices'],
-      ['unaccounted', 'A reimbursement to the owner has no cost on file', 'warning', 'Review'],
+      ['unaccounted', 'A reimbursement to the owner has no cost on file', 'warning', 'To review'],
     ])
+  })
+
+  it('links the rows to review and the reimbursements with no cost to the To review tab of Transactions', () => {
+    const workbook = fake('drive')
+    const links = waitingJobs(presentedWorkbook(workbook), workbook.transactions)
+      .filter((job) => job.key === 'review' || job.key === 'unaccounted')
+      .map((job) => job.link.to)
+
+    expect(links).toEqual(['/company/transactions?tab=review', '/company/transactions?tab=review'])
   })
 
   it('links the invoice to its month on the Plan tab of Invoicing', () => {

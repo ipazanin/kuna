@@ -1,6 +1,7 @@
 import { language } from '../../../../../../shared/text/language'
 import { plural } from '../../../../../../shared/text/translation'
 import type { Translation } from '../../../../../../shared/text/translation'
+import { monthCase } from '../../../../../../shared/calendar/monthCase'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // Corporate income tax is porez na dobit, a line of the PD return redak obrasca PD, its monthly advance predujam and its balance due razlika za uplatu.
@@ -79,9 +80,9 @@ export const hr: Translation<typeof en> = {
   },
   schedule: {
     advancesExpected: (year) => `Očekivani predujmovi za ${year}.`,
-    advanceFor: (month) => `Predujam za mjesec ${month}`,
+    advanceFor: (month) => `Predujam za ${monthCase(month, 'accusative')}`,
     balanceDueFor: (year) => `Razlika za uplatu za ${year}.`,
-    paid: (obligation) => `${obligation}, plaćeno`,
+    paid: (obligation) => `${obligation}, uplata`,
     due: (obligation) => `${obligation}, dospijeva`,
   },
   filed: {

@@ -4,6 +4,7 @@ import { withFullStop } from '../../../../../../shared/text/withFullStop'
 import { language } from '../../../../../../shared/text/language'
 import { plural } from '../../../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../../../shared/text/translation'
+import { monthCase } from '../../../../../../shared/calendar/monthCase'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // Long-term assets are dugotrajna imovina and one asset sredstvo, depreciation amortizacija, small inventory sitni inventar and a grant potpora.
@@ -208,7 +209,7 @@ export const hr: Translation<typeof en> = {
   deferredAtEnd: (year) => `Odgođeno na kraju ${year}.`,
   writtenOff: (day) => `Otpisano ${day}`,
   disposed: (day) => `Otuđeno ${day}`,
-  writtenOffBy: (month) => `Otpisano do ${month}`,
+  writtenOffBy: (month) => `Otpisano do ${monthCase(month, 'genitive')}`,
   smallInventory: 'Sitni inventar',
   rate: (rate, doubled) => `${rate}${doubled ? ', udvostručeno' : ''}`,
   fixedThenAssets: 'Fiksni dio broji se kao prihod pri primitku, a varijabilni kako se amortiziraju sredstva koja je platio.',
@@ -254,10 +255,10 @@ export const hr: Translation<typeof en> = {
       ),
     paymentRow: (day) => `Plaćanje od ${day}, otvori stavku`,
     openAssetRows: 'Otvori retke sredstava',
-    grantTitle: 'Potpora uz njih',
+    grantTitle: 'Potpora za ta sredstva',
     grantSubtitle: 'S lista „grants”: što se svake godine priznaje u prihod, što čeka kao odgođeni prihod i uvjet zaposlenja.',
     bookValueTitle: 'Knjigovodstvena vrijednost kroz vrijeme',
-    bookValueSubtitle: (month) => `Svako sredstvo na kraju svakog mjeseca dok se ne otpiše. Od mjeseca ${month} nadalje mjeseci slijede plan amortizacije.`,
+    bookValueSubtitle: (month) => `Svako sredstvo na kraju svakog mjeseca dok se ne otpiše. Od ${monthCase(month, 'genitive')} nadalje mjeseci slijede plan amortizacije.`,
     bookValueDefinition: 'Nabavna vrijednost bez PDV-a umanjena za amortizaciju svih dosadašnjih mjeseci. Crta završava u mjesecu u kojem sredstvo dosegne nulu ili izađe iz evidencije.',
     noDepreciation: 'Nijedno sredstvo se ne amortizira',
     allSmallInventory: 'Svako sredstvo na listu je sitni inventar, koji se otpisuje kad se stavi u upotrebu.',
@@ -273,7 +274,7 @@ export const hr: Translation<typeof en> = {
   },
   register: {
     openPayment: (name) => `${name}, otvori plaćanje`,
-    paidBy: (grant) => `, platila ${grant}`,
+    paidBy: (grant) => `, iz potpore „${grant}”`,
     bookValue: 'knjigovodstvena vrijednost',
     bought: 'Kupljeno',
     inUse: 'U upotrebi od',
@@ -307,9 +308,9 @@ export const hr: Translation<typeof en> = {
     againstAccountant: 'Usporedba s knjigovođinim pozicijama potpora',
     againstAccountantTitle: 'Usporedba s knjigovođinim pozicijama potpora na listu „year-end”',
     accountant: 'Knjigovođa',
-    ours: 'Naše',
+    ours: 'Prema aplikaciji',
     residual: 'Razlika',
-    residualNote: 'Razlika je knjigovođin iznos umanjen za naš. Razlika često znači da na listu „assets” nedostaje nabava plaćena potporom.',
+    residualNote: 'Razlika je knjigovođin iznos umanjen za iznos aplikacije. Razlika često znači da na listu „assets” nedostaje nabava plaćena potporom.',
   },
   changes: {
     depreciation: 'Amortizacija',

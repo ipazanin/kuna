@@ -6,6 +6,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
+import { REVIEW_LINK } from '../../transactions/presentation/transactionsLinks'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { needsReview } from '../../workbook/domain/needsReview'
@@ -74,7 +75,7 @@ async function confirm(): Promise<void> {
               </span>
             </li>
           </ul>
-          <DrillLink v-if="filed.some((statement) => statement.waiting > 0)" to="/company/review" class="text-sm font-medium text-highlighted">{{ words.folder.openReview }}</DrillLink>
+          <DrillLink v-if="filed.some((statement) => statement.waiting > 0)" :to="REVIEW_LINK" class="text-sm font-medium text-highlighted">{{ words.folder.openReview }}</DrillLink>
         </div>
         <p v-if="summary" class="text-sm text-toned" data-testid="statement-folder-summary">{{ summary }}</p>
       </div>

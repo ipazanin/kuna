@@ -6,6 +6,8 @@ import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../../shared/ui/PageTabs.vue'
 import type { PageTab } from '../../../../shared/ui/PageTabs.vue'
 import { shownPack } from '../../packs/packContribution'
+import CategoryRulesTab from '../../rules/presentation/CategoryRulesTab.vue'
+import { CATEGORY_RULES_TAB } from '../../rules/presentation/ruleLinks'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { useSettings } from '../application/useSettings'
 import AccountsSettingsTab from './AccountsSettingsTab.vue'
@@ -20,6 +22,7 @@ import { words } from './words'
 const CORE_TABS: readonly SettingsTab[] = [
   { value: 'general', label: words.tabNames.general, icon: 'i-lucide-sliders-horizontal', component: GeneralSettingsTab },
   { value: 'categories', label: words.tabNames.categories, icon: 'i-lucide-tags', component: CategoriesSettingsTab },
+  { value: CATEGORY_RULES_TAB, label: words.tabNames.categoryRules, icon: 'i-lucide-list-ordered', component: CategoryRulesTab },
   { value: 'accounts', label: words.tabNames.accounts, icon: 'i-lucide-landmark', component: AccountsSettingsTab },
 ]
 const BOOKS_TAB = 'books'

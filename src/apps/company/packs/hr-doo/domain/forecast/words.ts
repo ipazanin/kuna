@@ -5,12 +5,19 @@ import { language } from '../../../../../../shared/text/language'
 import { listInWords } from '../../../../../../shared/text/listInWords'
 import { plural } from '../../../../../../shared/text/translation'
 import type { Translation } from '../../../../../../shared/text/translation'
+import { monthCase } from '../../../../../../shared/calendar/monthCase'
+import { labelWords, labelled, numberText } from '../../../../../../shared/storage/domain/recordCodec'
+import { textOf } from '../../../../../../shared/storage/domain/storedFields'
+import type { StoredFields } from '../../../../../../shared/storage/domain/storedFields'
+import { moneyInWords } from '../../../../workbook/domain/words'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // A field and an item keep their names as the plan tab stores them, such as owner_pay_scenario and month. A month on a figure's label is written in full after a comma.
 // Corporate income tax is porez na dobit, a line of the PD return redak, and a plan row redak plana.
 
 export const en = {
+  /** The words that name a plan row, as its stored fields read. */
+  label: (fields: StoredFields) => labelWords([textOf(fields.item), textOf(fields.year), labelled('month', textOf(fields.month)), numberText(fields.amount)]),
   /** Why a row of the plan tab cannot be read. */
   reading: {
     notAMonth: (text: string) => `month "${text}" is not a month from 1 to 12`,
@@ -147,6 +154,7 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
+  label: (fields) => labelWords([textOf(fields.item), textOf(fields.year), labelled('mjesec', textOf(fields.month)), moneyInWords(fields.amount)]),
   reading: {
     notAMonth: (text) => `month „${text}” nije mjesec od 1 do 12`,
     noItem: 'polje item je prazno',
@@ -166,11 +174,11 @@ export const hr: Translation<typeof en> = {
   guards: {
     oneDividend: (year, months) => `Plan za ${year}. isplaćuje dividendu u mjesecima ${listInWords(months.map(String))}. Planirajte jednu isplatu godišnje.`,
     switchesOnce: (year, days) => `Isplate vlasniku za ${year}. mijenjaju se ${listInWords(days.map(dayLabel))} Plan godine mijenja se jednom, s jednog scenarija na drugi.`,
-    switchOnNewYear: (scenario, year) => `Prijelaz na ${scenario} datiran je 1. siječnja ${year}., pa prvom scenariju ne ostaje nijedan dan. Umjesto toga ostavite datum prazan.`,
+    switchOnNewYear: (scenario, year) => `Prijelaz na „${scenario}” datiran je 1. siječnja ${year}., pa prvom scenariju ne ostaje nijedan dan. Umjesto toga ostavite datum prazan.`,
     noOpening: (scenario, day, year) =>
-      `Isplate vlasniku prelaze na ${scenario} ${day === null || day === undefined ? '' : withFullStop(dayLabel(day))}, ali nijedan redak bez datuma ne postavlja ih prije toga. Dodajte scenarij kojim ${year}. počinje.`,
-    notOnTab: (year, scenario) => `Isplate vlasniku za ${year}. navode ${scenario}, kojeg nema na listu „scenarios”.`,
-    otherYear: (year, scenario, scenarioYear) => `Isplate vlasniku za ${year}. navode ${scenario}, scenarij za ${scenarioYear}.`,
+      `Isplate vlasniku prelaze na „${scenario}” ${day === null || day === undefined ? '' : withFullStop(dayLabel(day))}, ali nijedan redak bez datuma ne postavlja ih prije toga. Dodajte scenarij kojim ${year}. počinje.`,
+    notOnTab: (year, scenario) => `Isplate vlasniku za ${year}. navode „${scenario}”, kojeg nema na listu „scenarios”.`,
+    otherYear: (year, scenario, scenarioYear) => `Isplate vlasniku za ${year}. navode „${scenario}”, scenarij za ${scenarioYear}.`,
     stopped: (year, reason) => `Isplate vlasniku za ${year}.: ${reason}`,
   },
   unmodelled: {
@@ -198,19 +206,19 @@ export const hr: Translation<typeof en> = {
     profitAfterTax: 'Dobit nakon oporezivanja',
     vatToDate: 'Vraćeni PDV umanjen za plaćeni PDV do danas',
     decemberArrears: 'Troškovi prosinca plaćeni unatrag u siječnju',
-    planned: (label, month, note) => `${label}, ${month}: planirano${note === '' ? '' : `, ${note}`}`,
+    planned: (label, month, note) => `${label}, ${month}: prema planu${note === '' ? '' : `, ${note}`}`,
     inMonth: (label, month) => `${label}, ${month}`,
     setByScenario: (label, month) => `${label}, ${month}: određuje scenarij isplata vlasniku`,
     onOwnerPayCategories: (label, month) => `${label}, ${month}: na kategorijama isplata vlasniku`,
-    salaryFrom: (scenario) => `Plaća iz scenarija ${scenario}`,
-    salaryNone: (scenario, month) => `Plaća iz scenarija ${scenario}, ${month}: nema je`,
-    salaryIn: (scenario, month) => `Plaća iz scenarija ${scenario}, ${month}`,
-    rentFrom: (scenario) => `Najam iz scenarija ${scenario}`,
-    rentIn: (scenario, month) => `Najam iz scenarija ${scenario}, ${month}`,
-    plannedPurchase: (note) => `${note === '' ? 'Nabava' : note}, planirano`,
-    dividendPlanned: (month, note) => `Dividenda planirana za mjesec ${month}${note === '' ? '' : `, ${note}`}`,
+    salaryFrom: (scenario) => `Plaća iz scenarija „${scenario}”`,
+    salaryNone: (scenario, month) => `Plaća iz scenarija „${scenario}”, ${month}: nema je`,
+    salaryIn: (scenario, month) => `Plaća iz scenarija „${scenario}”, ${month}`,
+    rentFrom: (scenario) => `Najam iz scenarija „${scenario}”`,
+    rentIn: (scenario, month) => `Najam iz scenarija „${scenario}”, ${month}`,
+    plannedPurchase: (note) => `${note === '' ? 'Nabava' : note}, prema planu`,
+    dividendPlanned: (month, note) => `Dividenda planirana za ${monthCase(month, 'accusative')}${note === '' ? '' : `, ${note}`}`,
     dividendToPay: (month) => `Dividenda koju još treba isplatiti, ${month}`,
-    paidSoFar: (month) => `Dobit isplaćena dosad, ${month}, s porezom`,
+    paidSoFar: (month) => `Dobit isplaćena do danas, ${month}, s porezom`,
     dividendTax: (rate) => `Porez na dividendu po stopi ${rate}, obustavljen pri isplati`,
     dividendNet: 'Dividenda nakon poreza',
     setOff: 'Prebijeno s dugom vlasnika',
@@ -226,17 +234,17 @@ export const hr: Translation<typeof en> = {
     disposals: 'Otpisana knjigovodstvena vrijednost otuđenih sredstava',
     grantReleased: 'Priznata potpora',
     grantReleasedIn: (month) => `Priznata potpora, ${month}`,
-    billable: (item, client) => `${item} za ${client}, za fakturiranje`,
-    plannedRevenue: (month) => `Prihod, ${month}: planirano iz plana naplate`,
+    billable: (item, client) => `${item} za „${client}”, za fakturiranje`,
+    plannedRevenue: (month) => `Prihod, ${month}: prema planu naplate`,
     billedPlan: (month) => `Prihod, ${month}: plan naplate`,
-    itemFor: (item, client) => `${item} za ${client}`,
+    itemFor: (item, client) => `${item} za „${client}”`,
   },
   lines: {
-    soFar: (label, month) => `${label}, ${month} dosad`,
+    soFar: (label, month) => `${label}, ${month} do danas`,
     averaged: (label, month) => `${label}, ${month}: prosjek`,
     noMonthToAverage: 'Nema cijelog mjeseca za prosjek, pa ništa',
     span: (label, from, to) => `${label}, ${from} – ${to}`,
-    asIn: (month) => `Kao u mjesecu ${month}, zadnjem koji je evidencija zatvorila`,
+    asIn: (month) => `Kao u ${monthCase(month, 'locative')}, zadnjem mjesecu koji je evidencija zatvorila`,
     averageOf: (count, from, to) => `Prosjek ${count} ${plural({ one: 'mjeseca', few: 'mjeseca', other: 'mjeseci' }, count)}, ${from} – ${to}`,
   },
   planActual: {
@@ -245,7 +253,7 @@ export const hr: Translation<typeof en> = {
     ownerPayPlanned: (month) => `Planirane isplate vlasniku, ${month}`,
     ownerPayBooked: (month) => `Knjižene isplate vlasniku, ${month}`,
     actualLessPlanIn: (label, month) => `${label}, ${month}: ostvareno umanjeno za plan`,
-    planned: (label) => `${label}, planirano`,
+    planned: (label) => `${label}, prema planu`,
     fromLedger: (label) => `${label}, iz evidencije`,
     actualLessPlan: (label) => `${label}: ostvareno umanjeno za plan`,
   },
@@ -270,9 +278,9 @@ export const hr: Translation<typeof en> = {
     atYearEndForecast: (year) => `Novac na kraju ${year}., prema prognozi`,
     cashOn: 'Novac na dan',
     nothingBefore: (year) => `Ništa prije ${year}.`,
-    invoiceExpected: (number) => `Račun ${number}, očekivano`,
-    revenueExpected: (month) => `Prihod, ${month}, očekivano`,
-    cost: (name, month, arrears) => `${name}, ${month}${arrears ? ', plaćeno sljedeći mjesec' : ''}`,
+    invoiceExpected: (number) => `Očekivana naplata računa ${number}`,
+    revenueExpected: (month) => `Očekivani prihod, ${month}`,
+    cost: (name, month, arrears) => `${name}, ${month}${arrears ? ', plaća se sljedeći mjesec' : ''}`,
   },
 }
 

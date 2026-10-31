@@ -16,7 +16,7 @@ export function nameScreen(title: string | null, app: string | null): void {
   show()
 }
 
-/** A screen with inner tabs adds the open one, such as "Settings, Ruleset, Company – Kuna". Null once the tabs are gone. */
+/** A screen with inner tabs adds the open one, such as "Settings, Tax rules, Company – Kuna". Null once the tabs are gone. */
 export function nameTab(label: string | null): void {
   tabLabel = label
   show()

@@ -49,7 +49,7 @@ export function itemYearsChart(years: readonly YearItems[], items: readonly stri
     option: {
       grid: { top: 8, right: 16 },
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: axisTooltip({ tokens, formatAmount: (amount) => formatMoney(amount) }) },
-      xAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
+      xAxis: { type: 'value', axisLabel: { ...moneyAxisLabel(tokens), hideOverlap: true } },
       yAxis: { type: 'category', inverse: true, data: years.map((year) => String(year.year)), axisLabel: { color: tokens.inkSecondary } },
       series,
     },

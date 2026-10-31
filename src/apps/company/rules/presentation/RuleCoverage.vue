@@ -5,7 +5,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import AppCard from '../../../../shared/ui/AppCard.vue'
-import type { CoverageGroup, RuleCoverage } from '../../rules/domain/ruleCoverage'
+import type { CoverageGroup, RuleCoverage } from '../domain/ruleCoverage'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import type { Bucket } from '../../workbook/domain/bucket'
@@ -13,6 +13,7 @@ import type { SuggestionKind } from '../../workbook/domain/dismissals'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
 import { plural } from '../../../../shared/text/translation'
 import { words as transactionWords } from '../../transactions/presentation/words'
+import { categoryRuleLink } from './ruleLinks'
 import { words } from './words'
 
 /**
@@ -51,7 +52,7 @@ function rowsInWords(count: number): string {
 </script>
 
 <template>
-  <AppCard :title="words.coverage.title" collapse-id="review.no-rule-repeats" :summary="summary" start-collapsed data-testid="rule-coverage">
+  <AppCard :title="words.coverage.title" collapse-id="settings.no-rule-repeats" :summary="summary" start-collapsed data-testid="rule-coverage">
     <template #subtitle>
       <template v-if="rowCount">{{ plural(words.coverage.filedDifferently(rowCount), rowCount) }}</template>
       <template v-else-if="dismissedCount > 0">{{ words.coverage.allSameApartFromDismissed }}</template>
@@ -145,15 +146,7 @@ function rowsInWords(count: number): string {
             </p>
           </div>
           <div class="group-actions">
-            <UButton
-              :label="words.coverage.openRule"
-              icon="i-lucide-list-ordered"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              :to="{ path: '/company/review', query: { tab: 'rules', rule: group.ruleId } }"
-              data-testid="coverage-open-rule"
-            />
+            <UButton :label="words.coverage.openRule" icon="i-lucide-list-ordered" color="neutral" variant="outline" size="sm" :to="categoryRuleLink(group.ruleId)" data-testid="coverage-open-rule" />
             <UButton
               :label="words.coverage.dismiss"
               icon="i-lucide-eye-off"

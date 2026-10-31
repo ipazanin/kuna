@@ -14,8 +14,8 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
-  notXml: (fileName) => `${fileName} nije ispravan XML, pa se ne može pročitati kao camt.053 izvod.`,
-  notSpreadsheet: (fileName) => `${fileName} nije se mogla pročitati kao tablica. Spremite je kao .xlsx ili .csv i pokušajte ponovno.`,
+  notXml: (fileName) => `„${fileName}” nije ispravan XML, pa se ne može pročitati kao camt.053 izvod.`,
+  notSpreadsheet: (fileName) => `„${fileName}” nije se mogla pročitati kao tablica. Spremite je kao .xlsx ili .csv i pokušajte ponovno.`,
   noFolder: (where, name) => `${googleCroatian.noFolder(where, name)}, pa nijedan izvod nije pročitan. Provjerite postavku statements_folder.`,
   severalFolders: (where, count, name) => `${googleCroatian.severalFolders(where, count, name)}, pa aplikacija ne zna u kojoj su izvodi. Preimenujte ili uklonite ostale na Driveu.`,
 }

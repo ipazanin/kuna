@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { recategorisation } from '../src/apps/company/review/domain/verdictChanges'
+import { recategorisation } from '../src/apps/company/transactions/domain/verdictChanges'
 import type { Rule } from '../src/apps/company/rules/domain/rule'
 import { ruleAgainst } from '../src/apps/company/rules/domain/ruleCoverage'
 import { categorisationContextOf } from '../src/apps/company/rules/domain/transactionFacts'
@@ -54,7 +54,7 @@ describe('categoryChangeOf', () => {
     expect(changeOf('Model host')).toEqual(['ledger'])
   })
 
-  it('leaves a row that still waits to Review', () => {
+  it('leaves a row that still waits to the To review tab', () => {
     expect(changeOf('Snack kiosk')).toEqual([null])
   })
 
@@ -79,7 +79,7 @@ describe('changing the category of a settled row', () => {
   }
   const context = categorisationContextOf({ accounts: [], clients: [], settings: DEFAULT_SETTINGS })
 
-  it('writes the new category with the review label, as a confirmation on Review does', () => {
+  it('writes the new category with the review label, as a confirmation on the To review tab does', () => {
     const rail = named('Rail')
 
     expect(recategorisation(rail, 'consulting', { reviewLabel: 'ivan' })).toEqual({ id: rail.id, verdict: { category: 'consulting', flaggedBy: 'ivan' } })

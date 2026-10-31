@@ -11,6 +11,7 @@ import type { DriveFilePlace } from '../../../../shared/storage/application/work
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { NEW_BOOKS_TITLE } from '../../workbook/presentation/workbookFiles'
 import { words as settingsWords } from '../../settings/presentation/words'
+import { words as storageWords } from '../../../../shared/storage/presentation/words'
 import { useOnboarding } from './useOnboarding'
 import { words } from './words'
 
@@ -78,8 +79,8 @@ async function startOver(): Promise<void> {
         <UIcon :name="onDrive ? 'i-lucide-file-json' : 'i-lucide-monitor-smartphone'" class="size-4 shrink-0 text-muted" aria-hidden="true" />
         <span class="min-w-0 break-words" :class="{ identifier: onDrive }">{{ shownName }}</span>
       </p>
-      <a v-if="folderLink" :href="folderLink" target="_blank" rel="noopener" class="inline-target folder-link text-sm">
-        {{ words.folder.openFolder }}
+      <a v-if="folderLink" :href="folderLink" target="_blank" rel="noopener" class="inline-target quiet-link text-sm">
+        {{ storageWords.firstRun.folder.openFolder }}
         <UIcon name="i-lucide-external-link" class="size-3.5" aria-hidden="true" />
       </a>
     </div>
@@ -107,21 +108,3 @@ async function startOver(): Promise<void> {
     </template>
   </AppDialog>
 </template>
-
-<style scoped>
-.folder-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  width: fit-content;
-  color: var(--ink-secondary);
-  text-decoration: underline;
-  text-decoration-color: var(--border-strong);
-  text-underline-offset: 3px;
-}
-
-.folder-link:hover {
-  color: var(--ink-strong);
-  text-decoration-color: var(--accent);
-}
-</style>

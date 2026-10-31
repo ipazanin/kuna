@@ -5,7 +5,7 @@ import { DIRECTOR_BASES, SCENARIO_COMPONENTS } from './ownerPayScenarios'
 import type { OwnerPayScenario, ScenarioComponent } from './ownerPayScenarios'
 import { amountText, filledFields } from '../../../../../../shared/storage/domain/recordFields'
 import type { FieldValue } from '../../../../../../shared/storage/domain/recordFields'
-import { dayText, labelWords, labelled } from '../../../../../../shared/storage/domain/recordCodec'
+import { dayText } from '../../../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../../../shared/storage/domain/recordCodec'
 import { recordIdOf } from '../../../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../../../shared/storage/domain/recordId'
@@ -98,7 +98,7 @@ export const SCENARIO_CODEC: RecordCodec<ScenarioRow> = {
     const scenario = slugOf(fields.scenario)
     return scenario === '' ? null : scenarioKeyOf({ scenario, component: slugOf(fields.component), from: dayText(fields.from), to: dayText(fields.to) })
   },
-  label: (fields) => labelWords([textOf(fields.scenario), textOf(fields.component), labelled('from', dayText(fields.from))]),
+  label: words.labels.scenarioRow,
   make: scenarioRowOf,
   fieldsOf: (row) => filledFields({ scenario: row.slug, label: row.label, year: String(row.year), ...componentFields(row.component), from: row.component.from, to: row.component.to }),
 }

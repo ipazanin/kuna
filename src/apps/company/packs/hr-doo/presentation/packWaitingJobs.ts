@@ -8,6 +8,7 @@ import { sumMoney } from '../../../../../shared/money/money'
 import { formatMoney } from '../../../../../shared/money/moneyFormat'
 import { plural } from '../../../../../shared/text/translation'
 import type { WaitingJob } from '../../../overview/presentation/waitingForYou'
+import { REVIEW_LINK } from '../../../transactions/presentation/transactionsLinks'
 import { displayNamesOf } from '../../../workbook/domain/displayName'
 import { bookingOfAdvance, ledgerWindowOf } from '../../../workbook/domain/workbook'
 import type { HrDooWorkbook } from '../domain/hrDooPart'
@@ -33,7 +34,7 @@ function unaccountedJob(workbook: HrDooWorkbook): WaitingJob | null {
     key: 'unaccounted',
     text: plural(words.waiting.unaccounted(unaccounted.length), unaccounted.length),
     tone: 'warning',
-    link: { label: words.links.review, to: '/company/review' },
+    link: { label: words.links.review, to: REVIEW_LINK },
   }
 }
 

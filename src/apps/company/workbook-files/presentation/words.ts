@@ -50,11 +50,11 @@ export const hr: Translation<typeof en> = {
   downloadTemplate: 'Preuzmi predložak',
   templateFailed: 'Predložak nije preuzet',
   dialog: {
-    title: (fileName) => `Otvori ${fileName}`,
+    title: (fileName) => `Otvori „${fileName}”`,
     titleWithoutFile: 'Otvori datoteku',
     description: 'Provjerite što datoteka sadrži, a zatim odaberite gdje će se čuvati. Ništa se ne mijenja dok ne odaberete.',
     keptInBrowser: 'Čuva se u ovom pregledniku',
-    keptCount: (count, fileName) => `${plural({ one: `${count} transakcija`, few: `${count} transakcije`, other: `${count} transakcija` }, count)} iz datoteke ${fileName}`,
+    keptCount: (count, fileName) => `${plural({ one: `${count} transakcija`, few: `${count} transakcije`, other: `${count} transakcija` }, count)} iz datoteke „${fileName}”`,
     replaces: 'Ovo zamjenjuje datoteku koja se čuva u ovom pregledniku',
     replacesDescription: 'Promjene koje ste ovdje napravili od zadnjeg izvoza bit će izgubljene. Najprije izvezite ako ih želite sačuvati.',
     redirectNote: '„Čuvaj na Google Driveu” najprije traži pristup od Googlea. Na ovom uređaju to otvara Google i vraća vas ovamo, a datoteku tada otvorite ponovno.',

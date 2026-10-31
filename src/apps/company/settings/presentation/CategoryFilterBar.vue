@@ -32,7 +32,7 @@ const filters = defineModel<CategoryFilters>({ required: true })
 const ANY = '*'
 
 const bucketItems = [{ value: ANY, label: words.categories.everyBucket }, ...BUCKETS.map((bucket) => ({ value: bucket, label: words.categories.bucketChoice(bucket) }))]
-const roleItems = computed(() => [{ value: ANY, label: words.categories.anyRole }, ...props.roles.map((role) => ({ value: role, label: role }))])
+const roleItems = computed(() => [{ value: ANY, label: words.categories.anyRole }, ...props.roles.map((role) => ({ value: role, label: role, ui: { itemLabel: 'identifier' } }))])
 
 const bucket = computed({
   get: () => filters.value.bucket ?? ANY,
@@ -47,6 +47,9 @@ const role = computed({
     filters.value = { ...filters.value, role: chosen === ANY ? null : chosen }
   },
 })
+
+/** A role shows by the name the tab stores, as in its menu. */
+const roleUi = computed(() => ({ value: role.value === ANY ? '' : 'identifier' }))
 
 function set<Field extends keyof CategoryFilters>(field: Field, chosen: CategoryFilters[Field]): void {
   filters.value = { ...filters.value, [field]: chosen }
@@ -90,7 +93,7 @@ const sheetOpen = ref(false)
         <template #body>
           <div class="flex flex-col gap-4">
             <USelect v-model="bucket" :items="bucketItems" :aria-label="words.categories.byBucket" class="w-full" data-testid="category-bucket-filter" />
-            <USelect v-model="role" :items="roleItems" :aria-label="words.categories.byRole" class="w-full" data-testid="category-role-filter" />
+            <USelect v-model="role" :items="roleItems" :ui="roleUi" :aria-label="words.categories.byRole" class="w-full" data-testid="category-role-filter" />
             <UCheckbox v-if="shares" :model-value="filters.withOwnerShare" :label="words.categories.withShare" @update:model-value="set('withOwnerShare', $event === true)" />
             <UCheckbox :model-value="filters.unsavedOnly" :label="words.categories.unsaved" data-testid="category-unsaved-filter" @update:model-value="set('unsavedOnly', $event === true)" />
           </div>
@@ -101,7 +104,7 @@ const sheetOpen = ref(false)
       </USlideover>
       <template v-else>
         <USelect v-model="bucket" :items="bucketItems" :aria-label="words.categories.byBucket" size="sm" class="w-40" data-testid="category-bucket-filter" />
-        <USelect v-model="role" :items="roleItems" :aria-label="words.categories.byRole" size="sm" class="w-52" data-testid="category-role-filter" />
+        <USelect v-model="role" :items="roleItems" :ui="roleUi" :aria-label="words.categories.byRole" size="sm" class="w-52" data-testid="category-role-filter" />
         <UCheckbox v-if="shares" :model-value="filters.withOwnerShare" :label="words.categories.withShare" size="sm" @update:model-value="set('withOwnerShare', $event === true)" />
         <UCheckbox :model-value="filters.unsavedOnly" :label="words.categories.unsaved" size="sm" data-testid="category-unsaved-filter" @update:model-value="set('unsavedOnly', $event === true)" />
       </template>

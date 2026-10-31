@@ -2,6 +2,8 @@ import { capitalised } from '../../../../shared/text/capitalised'
 import { language } from '../../../../shared/text/language'
 import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
+import { monthCase } from '../../../../shared/calendar/monthCase'
+import { listInWords } from '../../../../shared/text/listInWords'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // The Overview counts bank loans and loans between people together, kredit i pozajmica in Croatian.
@@ -53,10 +55,10 @@ export const en = {
     owedInAll: (amount: string) => `${amount} owed in all`,
     outgoingInAll: (amount: string) => `${amount} in all`,
     noMonths: 'No months to show.',
-    owedDescription: (names: string, first: string, last: string) => `What ${names} owe at each month end from ${first} to ${last}, stacked by loan.`,
+    owedDescription: (names: readonly string[], first: string, last: string) => `What ${listInWords(names)} owe at each month end from ${first} to ${last}, stacked by loan.`,
     owedNow: (month: string, amount: string) => ` At the end of ${month} it is ${amount} in all.`,
     debtFreeIn: (month: string) => ` By the plans you are free of all debt in ${month}.`,
-    outgoingDescription: (names: string, first: string, last: string) => `Your share of the instalments of ${names} in each month from ${first} to ${last}, stacked by loan.`,
+    outgoingDescription: (names: readonly string[], first: string, last: string) => `Your share of the instalments of ${listInWords(names)} in each month from ${first} to ${last}, stacked by loan.`,
     outgoingNow: (month: string, amount: string) => ` In ${month} it is ${amount}.`,
     loanEnds: (name: string, month: string, amount: string) => ` ${name} ends in ${month}, and the month after ${amount} goes out.`,
   },
@@ -152,12 +154,12 @@ export const hr: Translation<typeof en> = {
     owedInAll: (amount) => `Ukupno dugujete ${amount}`,
     outgoingInAll: (amount) => `Ukupno ${amount}`,
     noMonths: 'Nema mjeseci za prikaz.',
-    owedDescription: (names, first, last) => `Dug za ${names} na kraju svakog mjeseca, razdoblje ${first} – ${last}, po kreditima.`,
-    owedNow: (month, amount) => ` Na kraju mjeseca (${month}) ukupno dugujete ${amount}.`,
-    debtFreeIn: (month) => ` Prema otplatnim planovima sve dugove otplaćujete u mjesecu (${month}).`,
-    outgoingDescription: (names, first, last) => `Vaš dio anuiteta za ${names} u svakom mjesecu, razdoblje ${first} – ${last}, po kreditima.`,
-    outgoingNow: (month, amount) => ` U mjesecu (${month}) to je ${amount}.`,
-    loanEnds: (name, month, amount) => ` ${name} završava u mjesecu (${month}), a sljedeći mjesec plaćate ${amount}.`,
+    owedDescription: (names, first, last) => `Dug za ${listInWords(names.map((name) => `„${name}”`))} na kraju svakog mjeseca, razdoblje ${first} – ${last}, po kreditima.`,
+    owedNow: (month, amount) => ` Na kraju ${monthCase(month, 'genitive')} ukupno dugujete ${amount}.`,
+    debtFreeIn: (month) => ` Prema otplatnim planovima sve dugove otplaćujete u ${monthCase(month, 'locative')}`,
+    outgoingDescription: (names, first, last) => `Vaš dio anuiteta za ${listInWords(names.map((name) => `„${name}”`))} u svakom mjesecu, razdoblje ${first} – ${last}, po kreditima.`,
+    outgoingNow: (month, amount) => ` U ${monthCase(month, 'locative')} to je ${amount}.`,
+    loanEnds: (name, month, amount) => ` „${name}” završava u ${monthCase(month, 'locative')}, a sljedeći mjesec plaćate ${amount}.`,
   },
   upcoming: {
     title: 'Sljedeće uplate',

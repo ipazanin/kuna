@@ -1,6 +1,7 @@
 import { capitalised } from '../../../../shared/text/capitalised'
 import { language } from '../../../../shared/text/language'
 import type { Translation } from '../../../../shared/text/translation'
+import { monthCase } from '../../../../shared/calendar/monthCase'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // Net stays neto. A month name takes za or uključujući, since its accusative reads as written.
@@ -54,7 +55,8 @@ export const hr: Translation<typeof en> = {
   average3: 'Prosjek 3 mjeseca',
   average12: 'Prosjek 12 mjeseci',
   notEnoughMonths: 'Još nema dovoljno cijelih mjeseci za pomični prosjek.',
-  rollingDescription: (month, average3, average12) => `Prosječni mjesečni neto. Za ${month} prosjek 3 mjeseca iznosi ${average3}` + (average12 === null ? '.' : `, a prosjek 12 mjeseci ${average12}.`),
+  rollingDescription: (month, average3, average12) =>
+    `Prosječni mjesečni neto. Za ${monthCase(month, 'accusative')} prosjek 3 mjeseca iznosi ${average3}` + (average12 === null ? '.' : `, a prosjek 12 mjeseci ${average12}.`),
   overTime: {
     byMonth: 'Prihodi i troškovi po mjesecima',
     byMonthSubtitle: 'Svaki mjesec evidencije. Povucite klizač ispod grafikona da promijenite razdoblje.',

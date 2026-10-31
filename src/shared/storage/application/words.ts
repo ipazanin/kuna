@@ -51,7 +51,7 @@ export const hr: Translation<typeof en> = {
   savedElsewhere: 'Ništa nije upisano. Drugi je uređaj tijekom ove promjene stalno spremao datoteku. Sinkronizirajte i pokušajte ponovno.',
   notUndoable: 'Ova se promjena ne može poništiti odavde.',
   undone: 'Poništeno',
-  alreadyOnDrive: (fileName) => `Na Driveu već postoji ${fileName}, pa aplikacija ne stvara drugu. Otvorite tu datoteku ili je najprije bacite u otpad na Driveu.`,
+  alreadyOnDrive: (fileName) => `Na Driveu već postoji „${fileName}”, pa aplikacija ne stvara drugu. Otvorite tu datoteku ili je najprije bacite u otpad na Driveu.`,
   refusals: {
     noLongerAsRead: (noun, label) => `${hrFirst(noun, label)} više nije u datoteci kakvu je aplikacija pročitala. Sinkronizirajte i pogledajte ponovno.`,
     heldBy: (count, noun, label) => ({

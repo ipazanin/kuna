@@ -6,14 +6,13 @@ import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 
 import StepCard from '../../ui/StepCard.vue'
 import type { FileFirstRun } from './fileFirstRun'
-import { useFirstRun } from './useFirstRun'
+import type { FirstRunMoves } from './useFirstRun'
 import { words } from './words'
 
 type FileHome = 'drive' | 'browser' | 'open'
 
 /** Where the app's file lives. A file kept in this browser is made here, since it needs nothing from Google. */
-const props = defineProps<{ firstRun: FileFirstRun }>()
-const start = useFirstRun(props.firstRun)
+const props = defineProps<{ firstRun: FileFirstRun; steps: FirstRunMoves }>()
 const store = props.firstRun.store
 const appWords = props.firstRun.words.home
 
@@ -32,11 +31,11 @@ const dropsBrowserFile = computed(() => chosen.value === 'open' && store.state.c
 
 async function proceed(): Promise<void> {
   if (chosen.value === 'drive') {
-    await start.go('folder')
+    await props.steps.go('folder')
     return
   }
   if (chosen.value === 'open') {
-    await start.go('find')
+    await props.steps.go('find')
     return
   }
   starting.value = true
@@ -47,7 +46,7 @@ async function proceed(): Promise<void> {
     failure.value = store.state.error
     return
   }
-  await start.finish()
+  await props.steps.finish()
 }
 </script>
 

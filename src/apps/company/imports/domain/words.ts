@@ -115,8 +115,8 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   camt: {
-    notCamt: (fileName) => `${fileName} nije camt.053 izvod jer nema element BkToCstmrStmt/Stmt.`,
-    unnamed: (position, fileName) => `izvod ${position} u datoteci ${fileName}`,
+    notCamt: (fileName) => `„${fileName}” nije camt.053 izvod jer nema element BkToCstmrStmt/Stmt.`,
+    unnamed: (position, fileName) => `izvod ${position} u datoteci „${fileName}”`,
     noLabel: 'Izvod nema CreDtTm ili LglSeqNb, pa mu se ne može dati naziv.',
     noIban: 'Izvod ne navodi Acct/Id/IBAN, pa aplikacija ne zna čiji je to račun.',
     noCurrency: 'Izvod ne navodi Acct/Ccy, pa se nijedna stavka ne može provjeriti prema valuti računa.',
@@ -143,15 +143,15 @@ export const hr: Translation<typeof en> = {
   },
   table: {
     noHeader: (searched, fileName, profile, columns) =>
-      `Nijedan od prvih ${searched} redaka datoteke ${fileName} nema sve stupce profila ${profile}: ${columns.map((column) => `„${column}”`).join(', ')}.`,
+      `Nijedan od prvih ${searched} redaka datoteke „${fileName}” nema sve stupce profila „${profile}”: ${columns.map((column) => `„${column}”`).join(', ')}.`,
     noDate: (row) => `Redak ${row} nema datum, pa se preskače.`,
     labelForDate: (row, text) => `U retku ${row} umjesto datuma piše „${text}”, pa se preskače.`,
     notADate: (row, text, format) => `redak ${row}: „${text}” nije datum oblika ${format}`,
     rowProblem: (row, problem) => `redak ${row}: ${problem}`,
     balanceNotAmount: (row, text) => `redak ${row}: saldo „${text}” nije iznos`,
     unreadable: (fileName, profile, problems, more) =>
-      `Datoteka ${fileName} ima retke koje profil ${profile} ne može pročitati, pa se ništa iz nje ne uvozi: ${problems.join('; ')}${more > 0 ? ` i još ${more}` : ''}.`,
-    noRows: (fileName) => `Datoteka ${fileName} nema redaka s datumom ispod retka zaglavlja.`,
+      `Datoteka „${fileName}” ima retke koje profil „${profile}” ne može pročitati, pa se ništa iz nje ne uvozi: ${problems.join('; ')}${more > 0 ? ` i još ${more}` : ''}.`,
+    noRows: (fileName) => `Datoteka „${fileName}” nema redaka s datumom ispod retka zaglavlja.`,
     noAmount: 'nema iznosa',
     amountNotAmount: (text) => `„${text}” u stupcu iznosa nije iznos`,
     notAnAmount: (text) => `„${text}” nije iznos`,
@@ -159,7 +159,7 @@ export const hr: Translation<typeof en> = {
     neitherColumn: 'nema iznosa ni u stupcu terećenja ni u stupcu odobrenja',
     zero: 'iznos je nula',
     negativeCredit: (text) => `odobrenje „${text}” je negativno, pa nije jasno je li novac uplaćen ili isplaćen`,
-    unordered: (fileName) => `Datumi u datoteci ${fileName} nisu poredani ni od najstarijeg ni od najnovijeg, pa se retci ne mogu poredati po redu knjiženja.`,
+    unordered: (fileName) => `Datumi u datoteci „${fileName}” nisu poredani ni od najstarijeg ni od najnovijeg, pa se retci ne mogu poredati po redu knjiženja.`,
     balanceBreak: (row, balance, previousRow, previous, amount, expected) =>
       `Redak ${row} navodi saldo ${formatMoney(balance)}, ali ${formatMoney(previous)} iz retka ${previousRow} plus ${formatMoney(amount)} iznosi ${formatMoney(expected)}. Retci možda nisu po redu ili neki nedostaje.`,
   },
@@ -180,10 +180,10 @@ export const hr: Translation<typeof en> = {
         count,
       ),
     beforeNewest: (first, newest, account) =>
-      `Prva nova stavka ima datum ${dayLabel(first)}, prije ${dayLabel(newest)}, datuma najnovije stavke računa ${account}. Stavke se dodaju samo nakon najnovije.`,
+      `Prva nova stavka ima datum ${dayLabel(first)}, prije ${dayLabel(newest)}, datuma najnovije stavke računa „${account}”. Stavke se dodaju samo nakon najnovije.`,
     missingBetween: (account, balance, day, before) =>
-      `Račun ${account} u evidenciji završava saldom ${formatMoney(balance)} na dan ${dayLabel(day)}, a prva nova stavka ovog izvoda polazi od ${formatMoney(before)}, pa između njih nedostaje izvod. Najprije uvezite njega.`,
-    worksOutBalances: (opening, account, day) => `Datoteka ne navodi salda, pa se izračunavaju od ${formatMoney(opening)}, salda računa ${account} u evidenciji na dan ${dayLabel(day)}.`,
+      `Račun „${account}” u evidenciji završava saldom ${formatMoney(balance)} na dan ${dayLabel(day)}, a prva nova stavka ovog izvoda polazi od ${formatMoney(before)}, pa između njih nedostaje izvod. Najprije uvezite njega.`,
+    worksOutBalances: (opening, account, day) => `Datoteka ne navodi salda, pa se izračunavaju od ${formatMoney(opening)}, salda računa „${account}” u evidenciji na dan ${dayLabel(day)}.`,
     sequenceGap: (sequence, newest, account, missing) => {
       const gap = plural(
         {
@@ -193,9 +193,9 @@ export const hr: Translation<typeof en> = {
         },
         missing,
       )
-      return `To je izvod ${sequence}, a najnoviji u evidenciji za račun ${account} je ${newest}, pa u evidenciji ${gap}`
+      return `To je izvod ${sequence}, a najnoviji u evidenciji za račun „${account}” je ${newest}, pa u evidenciji ${gap}`
     },
-    sequenceNotAfter: (sequence, newest, account) => `To je izvod ${sequence}, koji ne dolazi nakon izvoda ${newest}, najnovijeg u evidenciji za račun ${account}.`,
+    sequenceNotAfter: (sequence, newest, account) => `To je izvod ${sequence}, koji ne dolazi nakon izvoda ${newest}, najnovijeg u evidenciji za račun „${account}”.`,
     labelHeld: (label) => `Stavke izvoda ${label} već su u evidenciji.`,
   },
   profile: {
@@ -204,8 +204,8 @@ export const hr: Translation<typeof en> = {
     givenTwice: (word) => `${word} je naveden dvaput`,
     namesNo: (missing) => `profil ne navodi ${missing.join(' ni ')}`,
     badDateFormat: (format, formats) => `date_format „${format}” nije nijedan od ovih: ${formats.join(', ')}`,
-    badDecimal: (decimal) => `decimal „${decimal}” nije ni comma ni point`,
-    amountColumns: 'profil treba ili amount, ili i debit i credit',
+    badDecimal: (decimal) => `polje decimal „${decimal}” nije ni „comma” ni „point”`,
+    amountColumns: 'profil treba ili polje amount, ili polja debit i credit',
     unsaveableColumn: (column) => `stupac „${column}” sadrži ; ili =, a spremljeni profil to ne može sadržavati`,
     draft: {
       name: 'Dajte profilu naziv: mala slova i znamenke s pojedinačnim crticama, na primjer otp-business.',

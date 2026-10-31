@@ -1,5 +1,5 @@
 import { ownerShareProblem, ownerShareText, storedOwnerShare } from '../../../owner-share/domain/ownerShare'
-import { dayText, labelWords, numberText, withIdField } from '../../../../../shared/storage/domain/recordCodec'
+import { withIdField } from '../../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../../shared/storage/domain/recordFields'
 import type { RecordId } from '../../../../../shared/storage/domain/recordId'
@@ -35,18 +35,14 @@ export function ownerAdvanceOf(fields: StoredFields, id: RecordId | null): Owner
   return { date, amount, description: textOf(fields.description), category, ownerShare: storedOwnerShare(fields.owner_share), id: ownId(id) }
 }
 
-export const OWNER_ADVANCE_CODEC: RecordCodec<OwnerAdvanceEntry> = withIdField(
-  OWNER_ADVANCE_RECORDS,
-  (fields) => labelWords([textOf(fields.description), numberText(fields.amount), dayText(fields.date)]),
-  ownerAdvanceOf,
-  (advance) =>
-    filledFields({
-      date: advance.date,
-      amount: amountText(advance.amount),
-      description: advance.description,
-      category: advance.category,
-      owner_share: ownerShareText(advance.ownerShare),
-    }),
+export const OWNER_ADVANCE_CODEC: RecordCodec<OwnerAdvanceEntry> = withIdField(OWNER_ADVANCE_RECORDS, words.labels.ownerAdvance, ownerAdvanceOf, (advance) =>
+  filledFields({
+    date: advance.date,
+    amount: amountText(advance.amount),
+    description: advance.description,
+    category: advance.category,
+    owner_share: ownerShareText(advance.ownerShare),
+  }),
 )
 
 /** A cost the owner paid counts as a cost, so a category outside the operating and taxes buckets leaves it out. An owner share it cannot read is reported and counts as none. */

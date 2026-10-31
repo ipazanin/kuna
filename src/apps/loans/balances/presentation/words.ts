@@ -1,5 +1,6 @@
 import { language } from '../../../../shared/text/language'
 import type { Translation } from '../../../../shared/text/translation'
+import { monthCase } from '../../../../shared/calendar/monthCase'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 
@@ -21,7 +22,7 @@ export const hr: Translation<typeof en> = {
   variableFrom: 'Odavde promjenjiva kamatna stopa, procjena',
   estimate: 'Procjena po promjenjivoj kamatnoj stopi',
   noMonths: 'Nema mjeseci za prikaz.',
-  description: (first, last, now, owed) => `Dug na kraju svakog mjeseca, razdoblje ${first} – ${last} Na kraju mjeseca (${now}) dug iznosi ${owed}.`,
+  description: (first, last, now, owed) => `Dug na kraju svakog mjeseca, razdoblje ${first} – ${last} Na kraju ${monthCase(now, 'genitive')} dug iznosi ${owed}.`,
   planDescription: (owed, month) => ` Prema otplatnom planu do kraja razdoblja ${month} pada na ${owed}.`,
 }
 

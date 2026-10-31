@@ -7,11 +7,13 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { withGoogleAccess } from '../../google/withGoogleAccess'
 import { folderTrail } from '../../text/folderPath'
+import { plural } from '../../text/translation'
 import StepCard from '../../ui/StepCard.vue'
 import { BooksAlreadyOnDrive } from '../application/booksAlreadyOnDrive'
 import type { PickedFolder } from '../application/workbookPorts'
-import type { FileFirstRun } from './fileFirstRun'
-import { useFirstRun } from './useFirstRun'
+import type { WorkbookDocument } from '../infrastructure/documentFormat'
+import type { DriveFirstRun } from './fileFirstRun'
+import type { FirstRunMoves } from './useFirstRun'
 import { words } from './words'
 
 /**
@@ -20,10 +22,22 @@ import { words } from './words'
  * Google first when the page holds no token, and on a phone the route brings the person back here.
  * When Drive already holds the app's file, it offers to find it instead.
  */
-const props = defineProps<{ firstRun: FileFirstRun }>()
-const start = useFirstRun(props.firstRun)
+const props = withDefaults(
+  defineProps<{
+    firstRun: DriveFirstRun
+    steps: FirstRunMoves
+    /**
+     * Records the app already holds, from a file brought along or from this browser, which the new file keeps in place
+     * of new contents and the toast counts as moved. Null once the page no longer holds them, which the `missing` slot explains.
+     */
+    moving?: WorkbookDocument | null | undefined
+    /** Folders the app makes beside the file, which the `beside` slot names in the confirm. */
+    besideFolders?: readonly string[]
+  }>(),
+  { besideFolders: () => [] },
+)
 const store = props.firstRun.store
-const appWords = props.firstRun.words.folder
+const appWords = computed(() => props.firstRun.words.folder)
 const toast = useToast()
 
 const picked = ref<PickedFolder | null>(null)
@@ -34,7 +48,7 @@ const alreadyOnDrive = ref<BooksAlreadyOnDrive | null>(null)
 
 const folderLink = computed(() => (picked.value === null ? null : `https://drive.google.com/drive/folders/${encodeURIComponent(picked.value.id)}`))
 
-/** Opening the file on Drive deletes the one kept in this browser, as the home step warns. */
+/** Opening the file on Drive deletes the one kept in this browser. */
 const dropsBrowserFile = computed(() => store.state.choice?.source === 'browser')
 
 function failed(refused: unknown): void {
@@ -58,15 +72,27 @@ async function choose(): Promise<void> {
   }
 }
 
+function keptToast(name: string, folder: PickedFolder, document: WorkbookDocument, moved: boolean): { title: string; description: string } {
+  const where = folder.path === null ? folder.name : folderTrail(folder.path)
+  if (!moved) {
+    return { title: words.firstRun.folder.created(name, where), description: words.firstRun.folder.createdNote }
+  }
+  const records = Object.values(document.records).reduce((sum, kind) => sum + kind.length, 0)
+  return { title: plural(words.firstRun.folder.moved(records), records), description: words.firstRun.folder.movedNote(name, where) }
+}
+
 async function create(): Promise<void> {
   const folder = picked.value
-  if (folder === null) return
+  // Read before the keep, since the page stops holding the moved records once the file is on Drive.
+  const moved = props.moving !== undefined
+  const document = moved ? props.moving : props.firstRun.newContents()
+  if (folder === null || document === null) return
   const before = store.state.choice
   keeping.value = true
   failure.value = null
   alreadyOnDrive.value = null
   try {
-    await withGoogleAccess(['drive.file'], () => store.keepOnDrive(folder.id, props.firstRun.newContents(), []))
+    await withGoogleAccess(['drive.file'], () => store.keepOnDrive(folder.id, document, props.besideFolders))
   } catch (refused) {
     failed(refused)
   } finally {
@@ -74,13 +100,8 @@ async function create(): Promise<void> {
   }
   const chosen = store.state.choice
   if (chosen !== before && chosen?.source === 'drive') {
-    toast.add({
-      title: words.firstRun.folder.created(chosen.name, folder.path === null ? folder.name : folderTrail(folder.path)),
-      description: words.firstRun.folder.createdNote,
-      icon: 'i-lucide-check',
-      color: 'success',
-    })
-    await start.finish()
+    toast.add({ ...keptToast(chosen.name, folder, document, moved), icon: 'i-lucide-check', color: 'success' })
+    await props.steps.finish()
   } else if (store.state.status === 'error') {
     failure.value = store.state.error
   }
@@ -89,7 +110,8 @@ async function create(): Promise<void> {
 
 <template>
   <StepCard :title="appWords.title" :subtitle="words.firstRun.folder.subtitle">
-    <div v-if="picked" class="flex flex-col gap-2 rounded-control border border-default bg-elevated/40 px-3 py-3" :data-testid="`${firstRun.testId}-folder-confirm`">
+    <slot v-if="moving === null" name="missing" />
+    <div v-else-if="picked" class="flex flex-col gap-2 rounded-control border border-default bg-elevated/40 px-3 py-3" :data-testid="`${firstRun.testId}-folder-confirm`">
       <p class="text-sm text-muted">{{ appWords.savedIn }}</p>
       <p v-if="picked.path" class="identifier text-sm font-medium break-words text-highlighted">{{ folderTrail(picked.path) }}</p>
       <p v-else class="text-sm text-toned">
@@ -103,7 +125,8 @@ async function create(): Promise<void> {
           >{{ words.firstRun.folder.withBackups }}</span
         >
       </p>
-      <a v-if="folderLink" :href="folderLink" target="_blank" rel="noopener" class="inline-target folder-link text-sm">
+      <slot name="beside" />
+      <a v-if="folderLink" :href="folderLink" target="_blank" rel="noopener" class="inline-target quiet-link text-sm" :data-testid="`${firstRun.testId}-folder-link`">
         {{ words.firstRun.folder.openFolder }}
         <UIcon name="i-lucide-external-link" class="size-3.5" aria-hidden="true" />
       </a>
@@ -123,13 +146,21 @@ async function create(): Promise<void> {
     <template #actions>
       <template v-if="alreadyOnDrive">
         <UButton :label="words.firstRun.folder.chooseAgain" color="neutral" variant="outline" :loading="picking" @click="choose" />
-        <UButton :label="appWords.openOnDrive" icon="i-lucide-folder-open" :data-testid="`${firstRun.testId}-open-on-drive`" @click="start.go('find')" />
+        <UButton :label="appWords.openOnDrive" icon="i-lucide-folder-open" :data-testid="`${firstRun.testId}-open-on-drive`" @click="steps.go('find')" />
       </template>
-      <template v-else-if="picked">
+      <template v-else-if="picked && moving !== null">
         <UButton :label="words.firstRun.folder.chooseAnother" color="neutral" variant="outline" :loading="picking" :disabled="keeping" @click="choose" />
         <UButton :label="words.firstRun.folder.create" icon="i-lucide-hard-drive-upload" :loading="keeping" :data-testid="`${firstRun.testId}-create`" @click="create" />
       </template>
-      <UButton v-else :label="words.firstRun.folder.chooseFirst" icon="i-lucide-folder-search" :loading="picking" :data-testid="`${firstRun.testId}-choose-folder`" @click="choose" />
+      <UButton
+        v-else
+        :label="words.firstRun.folder.chooseFirst"
+        icon="i-lucide-folder-search"
+        :loading="picking"
+        :disabled="moving === null"
+        :data-testid="`${firstRun.testId}-choose-folder`"
+        @click="choose"
+      />
     </template>
   </StepCard>
 </template>

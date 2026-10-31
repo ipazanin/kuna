@@ -20,7 +20,7 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   unreadableShare: (text) => `owner_share „${text}” nije cijeli broj od 0 do 100, pa se čita kao prazno`,
-  origin: (share, category) => `${share}\u00a0% vlasniku, iz kategorije ${category}`,
+  origin: (share, category) => `${share}\u00a0% vlasniku, iz kategorije „${category}”`,
   noRoleCarrier: (role) => `nijedna kategorija nema ulogu ${role}`,
   severalCarriers: (role, categories) => `ulogu ${role} imaju ${categories}, a smije je imati samo jedna kategorija`,
   wrongBucket: (role, slug, bucket) => `ulogu ${role} ima „${slug}” u skupini ${croatianBucket(bucket)}, a smije je imati samo kategorija skupine ${croatianBucket('owner-pay')}`,

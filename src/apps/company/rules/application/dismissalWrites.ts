@@ -1,5 +1,5 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import type { CoverageGroup } from '../../rules/domain/ruleCoverage'
+import type { CoverageGroup } from '../domain/ruleCoverage'
 import { DISMISSAL_RECORDS } from '../../workbook/domain/coreKinds'
 import type { Dismissal, SuggestionKind } from '../../workbook/domain/dismissals'
 import { readDismissals } from '../../workbook/domain/dismissalsReading'

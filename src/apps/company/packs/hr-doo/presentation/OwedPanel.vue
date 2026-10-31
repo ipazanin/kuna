@@ -11,6 +11,7 @@ import AppCard from '../../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../../shared/ui/DashboardGrid.vue'
 import DrillLink from '../../../../../shared/ui/DrillLink.vue'
+import { REVIEW_LINK } from '../../../transactions/presentation/transactionsLinks'
 import KpiTile from '../../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../../shared/ui/MoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../../shared/ui/ShowAllButton.vue'
@@ -184,7 +185,7 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
       <UIcon name="i-lucide-inbox" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
       <span>
         {{ plural(words.owed.unaccounted(owed.unaccounted), owed.unaccounted) }}
-        <DrillLink to="/company/review" in-prose class="font-medium text-highlighted">{{ words.owed.openReview }}</DrillLink>
+        <DrillLink :to="REVIEW_LINK" in-prose class="font-medium text-highlighted">{{ words.owed.openReview }}</DrillLink>
       </span>
     </p>
 

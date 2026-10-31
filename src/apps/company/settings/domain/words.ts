@@ -133,7 +133,7 @@ export const hr: Translation<typeof en> = {
     labelsReset: (clash) => `${clash}, pa su svi nazivi skupina vraćeni na zadane`,
     labelsClash: (taken, bucket, label) => `${taken} i ${bucket} imaju isti naziv „${label}”`,
     nameTheSubject: 'upišite riječi ispred broja izvoda u predmetu, da ostala pošta banke ostane netaknuta',
-    labelTaken: (label) => `Taj naziv već ima skupina ${label}`,
+    labelTaken: (label) => `Taj naziv već ima skupina „${label}”`,
     labelBlank: 'naziv ne može biti prazan',
     labelTooLong: (most) => `naziv može imati najviše ${most} znakova`,
     labelReserved: (label) => `„${label}” već je naziv drugog retka`,
@@ -148,13 +148,13 @@ export const hr: Translation<typeof en> = {
   },
   accounts: {
     keepsIban: (slug) => `„${slug}” zadržava svoj IBAN jer ga stavke evidencije navode, a aplikacija ne sprema izvod čiji IBAN nije među računima u banci.`,
-    onAnotherAccount: (iban, account) => `${iban} već je IBAN računa u banci ${account}, a aplikacija svaki izvod sprema po IBAN-u, pa jedan IBAN označava jedan račun.`,
-    onAClient: (iban, client) => `${iban} je IBAN klijenta ${client}, pa bi pravila njegove uplate čitala kao prijenose između vaših računa.`,
+    onAnotherAccount: (iban, account) => `${iban} već je IBAN računa u banci „${account}”, a aplikacija svaki izvod sprema po IBAN-u, pa jedan IBAN označava jedan račun.`,
+    onAClient: (iban, client) => `${iban} je IBAN klijenta „${client}”, pa bi pravila njegove uplate čitala kao prijenose između vaših računa.`,
   },
   fields: {
     required: 'Obavezno',
     usedAbove: 'Već se koristi iznad',
-    keepsName: (name) => `${name} je u upotrebi, pa zadržava naziv`,
+    keepsName: (name) => `„${name}” je u upotrebi, pa zadržava naziv`,
     slugFormat: 'Mala slova, znamenke i pojedinačne crtice',
     notABucket: 'Nije jedna od šest skupina',
     unknownRoles: (count, roles) => `${plural({ one: 'Uloga koju', few: 'Uloge koje', other: 'Uloge koje' }, count)} aplikacija ne poznaje: ${roles}`,
@@ -177,8 +177,8 @@ export const hr: Translation<typeof en> = {
   },
   notAnIban: (iban) => `„${iban}” nije ispravan IBAN.`,
   clients: {
-    onAnotherClient: (iban, client) => `${iban} već je u popisu klijenata, kod klijenta ${client}.`,
-    ownAccount: (iban, account) => `${iban} je IBAN vašeg računa u banci ${account}, pa bi prijenos između vaših računa izgledao kao uplata klijenta.`,
+    onAnotherClient: (iban, client) => `${iban} već je u popisu klijenata, kod klijenta „${client}”.`,
+    ownAccount: (iban, account) => `${iban} je IBAN vašeg računa u banci „${account}”, pa bi prijenos između vaših računa izgledao kao uplata klijenta.`,
   },
   terms: {
     amountAboveZero: 'upišite iznos veći od nule, na primjer 7200',

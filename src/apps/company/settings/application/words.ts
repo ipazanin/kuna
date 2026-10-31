@@ -35,7 +35,7 @@ export const hr: Translation<typeof en> = {
     invoices: (count) => ({ one: `${count} račun`, few: `${count} računa`, other: `${count} računa` }),
     billingPlanRows: (count) => ({ one: `${count} stavka plana naplate`, few: `${count} stavke plana naplate`, other: `${count} stavki plana naplate` }),
     billingClient: 'postavka billing_client',
-    rule: (id) => `pravilo ${id}`,
+    rule: (id) => `pravilo „${id}”`,
     rules: (ids) => `pravila ${ids}`,
     ruleWithoutId: 'jedno bez oznake',
   },

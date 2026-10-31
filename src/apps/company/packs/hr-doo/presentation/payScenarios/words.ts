@@ -5,6 +5,7 @@ import { withFullStop } from '../../../../../../shared/text/withFullStop'
 import { language } from '../../../../../../shared/text/language'
 import { plural } from '../../../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../../../shared/text/translation'
+import { monthCase } from '../../../../../../shared/calendar/monthCase'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // A pay mix is scenarij, the director floor najniža plaća direktora, a tax-free item neoporezivi primitak and pillar II II. mirovinski stup.
@@ -324,7 +325,7 @@ export const hr: Translation<typeof en> = {
     belowFloor: (agreed, floor) => `Plaća od ${agreed} mjesečno niža je od najniže plaće direktora od ${floor}, pa obračun plaće isplaćuje najnižu.`,
     capExceeded: (item, paid, cap, excess) => `${item} od ${paid} prelazi godišnji iznos od ${cap}. Višak od ${excess} oporezuje se kao plaća.`,
     salaryDropped: (from, grant, until, atRisk) =>
-      `Plaća prestaje ${from}, ali ${grant} traži zaposlenje do ${withFullStop(until)}${atRisk === null ? '' : ` Prema uvjetima tada se može tražiti povrat od ${atRisk}.`}`,
+      `Plaća prestaje ${from}, ali „${grant}” traži zaposlenje do ${withFullStop(until)}${atRisk === null ? '' : ` Prema uvjetima tada se može tražiti povrat od ${atRisk}.`}`,
     aboveCapacity: (dividend, distributable) => `Dividenda od ${dividend} veća je od ${distributable} koliko godina može isplatiti.`,
     belowZero: (below, capital) => `Nakon isplate neto imovina pada na ${below} ispod nule, ispod temeljnog kapitala od ${capital}.`,
     belowCapital: (netAssets, capital) => `Nakon isplate neto imovina od ${netAssets} pada ispod temeljnog kapitala od ${capital}.`,
@@ -352,7 +353,7 @@ export const hr: Translation<typeof en> = {
     insuredAs: (basis) => `Osiguran kao ${basis}`,
     paidOnce: 'Isplaćuje se kad se usvoje izvještaji za godinu',
     withJanuary: 'Isplaćuje se uz plaću za siječanj',
-    withSalaryOf: (month) => `Isplaćuje se uz plaću za ${month}`,
+    withSalaryOf: (month) => `Isplaćuje se uz plaću za ${monthCase(month, 'accusative')}`,
     allYear: 'Cijelu godinu',
     until: (day) => `Do ${day}`,
     from: (day) => `Od ${day}`,
@@ -414,7 +415,7 @@ export const hr: Translation<typeof en> = {
     addComponent: 'Dodaj sastavnicu',
   },
   nameDialog: {
-    taken: (slug) => `${slug} već je scenarij`,
+    taken: (slug) => `„${slug}” već je scenarij`,
     copyNeedsName: 'Kopija treba vlastiti naziv',
     copyLabel: (scenario) => `${scenario}, kopija`,
     copied: 'Scenarij je kopiran',

@@ -181,8 +181,8 @@ body {
   }
 }
 
-/* A link to a Drive folder under the text it belongs to. */
-.folder-link {
+/* A quiet underlined link, such as one to a Drive folder under the text it belongs to. */
+.quiet-link {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
@@ -193,7 +193,7 @@ body {
   text-underline-offset: 3px;
 }
 
-.folder-link:hover {
+.quiet-link:hover {
   color: var(--ink-strong);
   text-decoration-color: var(--accent);
 }
@@ -202,6 +202,73 @@ body {
 .first-run {
   background-color: var(--surface-page);
   background-image: linear-gradient(to bottom, transparent 0, var(--surface-page) 42rem), repeating-linear-gradient(to bottom, transparent 0 31px, var(--border-default) 31px 32px);
+}
+
+/* The numbered row of a first run's steps. */
+.first-run-steps {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.first-run-step {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+/* The rule from each step to the next, brass once the step is done. */
+.first-run-step + .first-run-step::before {
+  content: '';
+  position: absolute;
+  top: 0.75rem;
+  right: calc(100% + 0.25rem);
+  left: calc(-100% + 1.25rem);
+  height: 1px;
+  background: var(--border-strong);
+}
+
+.first-run-step[data-state='done'] + .first-run-step::before,
+.first-run-step[data-state='current']::before {
+  background: var(--accent);
+}
+
+.first-run-step-mark {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface-page);
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+}
+
+.first-run-step[data-state='done'] .first-run-step-mark {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.first-run-step[data-state='current'] .first-run-step-mark {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.first-run-step-title {
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.first-run-step[data-state='current'] .first-run-step-title {
+  color: var(--ink-strong);
+  font-weight: 500;
 }
 
 /* The top bar's one button, Sync or Export: a pill on one line at the full 44 px tap height, so it never wraps beside the screen title. */
