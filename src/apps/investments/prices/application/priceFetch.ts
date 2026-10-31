@@ -1,7 +1,7 @@
 import type { PriceFetchPorts } from './pricesPorts'
 import type { PriceVendor, VendorFetch, VendorLimits } from './priceVendor'
 import { priceDemand } from '../domain/priceDemand'
-import type { PriceDemand } from '../domain/priceDemand'
+import type { PriceDemand, RatesWanted } from '../domain/priceDemand'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { decodePricesFile, encodePricesFile, seriesKey } from '../domain/pricesFile'
 import type { CloseRow, FailureReason, PriceFailure, PriceSeries, PricesFile, PricesFileRefusal, SplitNote } from '../domain/pricesFile'
@@ -33,7 +33,7 @@ interface FetchChanges {
 const PACING_WINDOW_MILLISECONDS = 61_000
 
 /** Milliseconds paused so far in one fetch, which is all the time the pacing counts on. */
-interface PausedTime {
+export interface PausedTime {
   elapsed: number
 }
 
@@ -41,7 +41,7 @@ interface PausedTime {
  * The fetch through which every request of one vendor goes: it pauses so that no more than the vendor's per-minute
  * limit go out in any window, and past its daily limit it answers as the vendor would, without asking.
  */
-function pacedFetch(ports: PriceFetchPorts, limits: VendorLimits, paused: PausedTime): VendorFetch {
+export function pacedFetch(ports: Pick<PriceFetchPorts, 'fetch' | 'pause'>, limits: VendorLimits, paused: PausedTime): VendorFetch {
   const sentAt: number[] = []
   return async (url) => {
     if (limits.perDay !== null && sentAt.length >= limits.perDay) {
@@ -171,15 +171,19 @@ function mergedSplits(stored: readonly SplitNote[], reported: readonly SplitNote
  * Fetches the closes the Investments records need from each vendor, the history of any new series and the latest
  * closes of the others, and overwrites the prices file. A vendor that fails keeps its series as they were, with the
  * failure noted in the file. A file that is no prices file Kuna can read is left as it is.
+ *
+ * With rates wanted, it fetches the ECB rates alone, those wanted beside those the records need. That is no day's
+ * fetch, so the file keeps the time of the last one and the failures it noted for the closes.
  */
-export async function fetchPrices(ports: PriceFetchPorts, vendors: readonly PriceVendor[], clock: PriceFetchClock): Promise<PriceFetchOutcome> {
+export async function fetchPrices(ports: PriceFetchPorts, vendors: readonly PriceVendor[], clock: PriceFetchClock, ratesWanted: RatesWanted | null = null): Promise<PriceFetchOutcome> {
   const read = decodePricesFile(await ports.readPrices())
   if (read.kind === 'refused') {
     return read
   }
   const stored = read.file
-  const demand = priceDemand(ports.investments(), clock.day)
-  const plans = vendors.map((vendor) => ({ vendor, wanted: stillPublished(vendor, stored, wantedOf(vendor, demand)) }))
+  const demand = priceDemand(ports.investments(), clock.day, ratesWanted)
+  const fetched = ratesWanted === null ? vendors : vendors.filter((vendor) => vendor.prices === 'rates')
+  const plans = fetched.map((vendor) => ({ vendor, wanted: stillPublished(vendor, stored, wantedOf(vendor, demand)) }))
   const total = plans.reduce((sum, plan) => sum + plan.wanted.length, 0)
   let asked = 0
   const changes: FetchChanges = { series: new Map(), splits: [], failures: [] }
@@ -196,11 +200,12 @@ export async function fetchPrices(ports: PriceFetchPorts, vendors: readonly Pric
   for (const { vendor, wanted } of plans) {
     await fetchVendor(ports, vendor, wanted, stored, run)
   }
+  const askedSeries = new Set(plans.flatMap((plan) => plan.wanted.map((series) => series.key)))
   const written: PricesFile = {
-    writtenAt: clock.at,
+    writtenAt: ratesWanted === null ? clock.at : stored.writtenAt,
     series: { ...stored.series, ...Object.fromEntries(changes.series) },
     splits: mergedSplits(stored.splits, changes.splits),
-    failures: changes.failures,
+    failures: ratesWanted === null ? changes.failures : [...stored.failures.filter((failure) => !askedSeries.has(failure.series)), ...changes.failures],
   }
   await ports.writePrices(encodePricesFile(written))
   return { kind: 'written', file: written }

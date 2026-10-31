@@ -109,6 +109,15 @@ export async function exportWorkbook(store: WorkbookStore<CompanyBooks, Document
   return fileName
 }
 
+const TEMPLATE_FILE_NAME = 'kuna-template.xlsx'
+
+/** Hands the browser new books as an xlsx file in the template format, every tab with its headers, to fill in and open again. */
+export async function downloadTemplate(): Promise<void> {
+  const document = newBooksDocument({}, new Date().toISOString())
+  const { workbook } = readDocument(previewIdentity(TEMPLATE_FILE_NAME), document)
+  downloadFile(await writeWorkbookFile(tabsOfDocument(document), workbook), TEMPLATE_FILE_NAME, XLSX_MIME_TYPE)
+}
+
 /** `kuna-<company or sheet name>-<yyyy-mm-dd>.xlsx`, in plain ASCII. */
 export function exportFileName(workbook: Pick<Workbook, 'title' | 'settings'>, day: Date): string {
   const name = fold(workbook.settings.companyName || workbook.title)

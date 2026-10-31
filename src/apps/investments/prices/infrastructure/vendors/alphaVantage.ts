@@ -2,14 +2,16 @@ import { words } from './words'
 import { answerOf, parsedJson, statusFailure } from './vendorAnswers'
 import { isCloseText, isDay, isJsonObject } from '../../domain/pricesFile'
 import type { CloseRow } from '../../domain/pricesFile'
-import type { Fetched, PriceVendor, VendorCloses, VendorFetch } from '../../application/priceVendor'
+import type { Fetched, PriceVendor, ReportedSplit, VendorCloses, VendorFetch, VendorSplits } from '../../application/priceVendor'
+import { splitRatioOf } from '../../domain/splitFactor'
 
 /** One of Alpha Vantage's series: what the request asks for and the key the answer holds its days under. */
 const DAILY = { query: 'function=TIME_SERIES_DAILY&outputsize=compact', days: 'Time Series (Daily)' }
 const MONTHLY = { query: 'function=TIME_SERIES_MONTHLY', days: 'Monthly Time Series' }
 
-async function seriesCloses(fetch: VendorFetch, key: string, symbol: string, series: typeof DAILY): Promise<Fetched<{ readonly kind: 'rows'; readonly closes: readonly CloseRow[] }>> {
-  const fetched = await answerOf(fetch, `https://www.alphavantage.co/query?${series.query}&symbol=${encodeURIComponent(symbol)}&apikey=${encodeURIComponent(key)}`)
+/** The answer's JSON object, or why there is none: the vendor's error, premium, limit and information notes included. */
+async function answerObject(fetch: VendorFetch, query: string, key: string): Promise<Fetched<{ readonly kind: 'object'; readonly answer: Readonly<Record<string, unknown>> }>> {
+  const fetched = await answerOf(fetch, `https://www.alphavantage.co/query?${query}&apikey=${encodeURIComponent(key)}`)
   if (fetched.kind === 'failed') {
     return fetched
   }
@@ -29,7 +31,15 @@ async function seriesCloses(fetch: VendorFetch, key: string, symbol: string, ser
   if ('Note' in parsed || 'Information' in parsed) {
     return { kind: 'failed', reason: 'limit' }
   }
-  const days = parsed[series.days]
+  return { kind: 'object', answer: parsed }
+}
+
+async function seriesCloses(fetch: VendorFetch, key: string, symbol: string, series: typeof DAILY): Promise<Fetched<{ readonly kind: 'rows'; readonly closes: readonly CloseRow[] }>> {
+  const fetched = await answerObject(fetch, `${series.query}&symbol=${encodeURIComponent(symbol)}`, key)
+  if (fetched.kind === 'failed') {
+    return fetched
+  }
+  const days = fetched.answer[series.days]
   if (!isJsonObject(days)) {
     return { kind: 'failed', reason: 'unreadable' }
   }
@@ -68,7 +78,35 @@ async function alphaVantageCloses(fetch: VendorFetch, key: string | null, symbol
   return { kind: 'closes', closes: [...monthly.closes.filter(([day]) => day < firstDaily), ...daily.closes], splits: [], earlierFailure: null }
 }
 
-export const alphaVantage: PriceVendor = {
+/** The splits of a listing, from its split factors that are ratios of small whole numbers, such as 4.0000 for 4 for 1. */
+async function alphaVantageSplits(fetch: VendorFetch, key: string | null, symbol: string): Promise<Fetched<VendorSplits>> {
+  if (key === null) {
+    return { kind: 'failed', reason: 'no-key' }
+  }
+  const fetched = await answerObject(fetch, `function=SPLITS&symbol=${encodeURIComponent(symbol)}`, key)
+  if (fetched.kind === 'failed') {
+    return fetched
+  }
+  const listed = fetched.answer.data
+  if (!Array.isArray(listed)) {
+    return { kind: 'failed', reason: 'unreadable' }
+  }
+  const splits: ReportedSplit[] = []
+  for (const split of listed) {
+    const day = isJsonObject(split) ? split.effective_date : undefined
+    const factor = isJsonObject(split) && typeof split.split_factor === 'string' ? Number(split.split_factor) : Number.NaN
+    if (typeof day !== 'string' || !isDay(day) || !Number.isFinite(factor)) {
+      return { kind: 'failed', reason: 'unreadable' }
+    }
+    const ratio = splitRatioOf(factor)
+    if (ratio !== null) {
+      splits.push({ date: day, newUnits: String(ratio.newUnits), oldUnits: String(ratio.oldUnits) })
+    }
+  }
+  return { kind: 'splits', splits: splits.sort((earlier, later) => (earlier.date < later.date ? -1 : 1)) }
+}
+
+export const alphaVantage: PriceVendor & Required<Pick<PriceVendor, 'splits'>> = {
   id: 'alphavantage',
   name: words.alphaVantage.name,
   covers: words.alphaVantage.covers,
@@ -80,4 +118,5 @@ export const alphaVantage: PriceVendor = {
   // The symbol of Alpha Vantage's own examples.
   testSymbol: 'IBM',
   closes: alphaVantageCloses,
+  splits: alphaVantageSplits,
 }

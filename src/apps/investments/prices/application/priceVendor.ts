@@ -35,6 +35,12 @@ export interface VendorCloses {
 
 export type Fetched<Answer> = Answer | { readonly kind: 'failed'; readonly reason: FailureReason }
 
+/** The splits a vendor lists for a symbol, oldest first. */
+export interface VendorSplits {
+  readonly kind: 'splits'
+  readonly splits: readonly ReportedSplit[]
+}
+
 /** One place Kuna fetches closes from. Adding a vendor is one adapter like this and its entry in the registry. */
 export interface PriceVendor {
   /** The source an instrument names and the prefix of its series keys, such as `twelvedata`. */
@@ -52,4 +58,6 @@ export interface PriceVendor {
   readonly testSymbol: string
   /** The closes of a symbol, or the rates of a currency, from the day on. The key is null for a vendor that needs none. */
   closes(fetch: VendorFetch, key: string | null, symbol: string, from: string): Promise<Fetched<VendorCloses>>
+  /** The splits of a symbol, for a vendor that lists them. A factor that is no ratio of small whole numbers is left out. */
+  splits?(fetch: VendorFetch, key: string | null, symbol: string): Promise<Fetched<VendorSplits>>
 }

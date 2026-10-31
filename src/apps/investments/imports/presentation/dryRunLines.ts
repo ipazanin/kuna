@@ -178,5 +178,7 @@ function skipText(reason: SkipReason): string {
       return words.skips.againstSign
     case 'refused':
       return words.skips.refused(reason.reason)
+    case 'below-a-cent':
+      return words.skips.belowACent
   }
 }

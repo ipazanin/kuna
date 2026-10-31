@@ -11,7 +11,7 @@ import { instrumentTexts } from '../src/apps/investments/holdings/presentation/i
 import { transactionCount } from '../src/apps/investments/transactions/domain/listedTransactions'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
 import { decimalText } from '../src/shared/money/decimal'
-import { USD, account, book, decimal, instrument, rateBookOf } from './fixtures/investments'
+import { USD, account, book, instrument, rateBookOf } from './fixtures/investments'
 
 /** The fake build's made-up workbook, read as the import reads it. */
 function sampleRows(): WorkbookRows {
@@ -124,18 +124,13 @@ describe('the steps with choices', () => {
     expect(outcomeAt(settled, 22)).toBe('waiting: instrument')
   })
 
-  it('takes a typed split ratio and a typed withholding, and says what is wrong with one it cannot read', () => {
+  it('takes a typed split ratio, and says what is wrong with one it cannot read', () => {
     const first = settle()
     const split = first.splits[0]!.question.key
-    const dividend = first.netDividends[0]!.question.key
-    const typed = settle({ ...NO_CHOICES, splits: { [split]: { newUnits: '3', oldUnits: '1' } }, withheld: { [dividend]: '0.30' } })
+    const typed = settle({ ...NO_CHOICES, splits: { [split]: { newUnits: '3', oldUnits: '1' } } })
     expect(typed.dryRun.added.splits.map((added) => [added.newUnits, added.oldUnits])).toEqual([[3, 1]])
-    expect(typed.dryRun.added.income.find((payment) => payment.instrument === typed.dryRun.added.instruments.find((added) => added.symbol === 'DEF')?.id)).toMatchObject({
-      gross: decimal('2'),
-      withheld: decimal('0.3'),
-    })
-    const wrong = settle({ ...NO_CHOICES, splits: { [split]: { newUnits: '2.5', oldUnits: '1' } }, withheld: { [dividend]: 'some' } })
-    expect([wrong.splits[0]!.problem, wrong.netDividends[0]!.problem]).toEqual([words.questions.ratioProblem, words.questions.withheldProblem])
+    const wrong = settle({ ...NO_CHOICES, splits: { [split]: { newUnits: '2.5', oldUnits: '1' } } })
+    expect(wrong.splits[0]!.problem).toBe(words.questions.ratioProblem)
     expect(outcomeAt(wrong, 15)).toBe('waiting: split-ratio')
   })
 

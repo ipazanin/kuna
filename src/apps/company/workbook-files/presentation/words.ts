@@ -9,6 +9,8 @@ export const en = {
   exportToExcel: 'Export to Excel',
   exported: 'Exported',
   exportFailed: 'Export failed',
+  downloadTemplate: 'Download the template',
+  templateFailed: 'The template did not download',
   dialog: {
     title: (fileName: string) => `Open ${fileName}`,
     titleWithoutFile: 'Open a file',
@@ -45,6 +47,8 @@ export const hr: Translation<typeof en> = {
   exportToExcel: 'Izvezi u Excel',
   exported: 'Izvezeno',
   exportFailed: 'Izvoz nije uspio',
+  downloadTemplate: 'Preuzmi predložak',
+  templateFailed: 'Predložak nije preuzet',
   dialog: {
     title: (fileName) => `Otvori ${fileName}`,
     titleWithoutFile: 'Otvori datoteku',

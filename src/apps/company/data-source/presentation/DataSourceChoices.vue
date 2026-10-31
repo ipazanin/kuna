@@ -9,6 +9,7 @@ import { REDIRECT_SIGN_IN_QUERY } from '../../../../shared/google/googleRedirect
 import { useMediaQuery } from '../../../../shared/layout/viewport'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ImportDialog from '../../workbook-files/presentation/ImportDialog.vue'
+import TemplateDownloadButton from '../../workbook-files/presentation/TemplateDownloadButton.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { DriveFileLookup } from '../../../../shared/storage/application/workbookPorts'
 import type { WorkbookSource } from '../../../../shared/storage/domain/recordsRead'
@@ -102,6 +103,7 @@ async function startNewBooks(): Promise<void> {
           class="mt-3 w-full"
           :ui="{ base: 'min-h-28 border-dashed bg-elevated/40' }"
         />
+        <TemplateDownloadButton class="mt-2" />
       </div>
     </li>
 

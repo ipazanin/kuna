@@ -1,29 +1,21 @@
 import { NO_ANSWERS, proposedCostShare, workbookDryRun } from '../domain/importDryRun'
-import type {
-  AccountQuestion,
-  InstrumentQuestion,
-  NetDividendQuestion,
-  SpinOffAnswer,
-  SpinOffQuestion,
-  SplitQuestion,
-  SplitRatio,
-  WorkbookAnswers,
-  WorkbookDryRun,
-  WorkbookRows,
-} from '../domain/importDryRun'
+import type { AccountQuestion, InstrumentQuestion, SpinOffAnswer, SpinOffQuestion, SplitQuestion, SplitRatio, WorkbookAnswers, WorkbookDryRun, WorkbookRows } from '../domain/importDryRun'
 import { words } from './words'
 import { instrumentErrors, instrumentOfTexts, instrumentTexts } from '../../holdings/presentation/instrumentForm'
 import type { InstrumentErrors, InstrumentTexts } from '../../holdings/presentation/instrumentForm'
+import type { ReportedSplit } from '../../prices/application/priceVendor'
+import type { SplitsLookedUp } from '../../prices/application/splitLookup'
 import type { RateBook } from '../../prices/domain/rateBook'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentAccount } from '../../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { INSTRUMENT_RECORDS, INVESTMENT_ACCOUNT_RECORDS } from '../../workbook/domain/investmentKinds'
-import { DECIMAL_ZERO, decimalOfMoney, decimalOfText, decimalShown, roundedDecimal, scaledDecimal, timesDecimal, typedDecimal } from '../../../../shared/money/decimal'
+import { daysBetween, parseCivilDate } from '../../../../shared/calendar/civilDate'
+import { DECIMAL_ZERO, decimalOfText, decimalShown, roundedDecimal, scaledDecimal, timesDecimal, typedDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
-import { typedAmount } from '../../../../shared/money/typedAmount'
 import { recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import { fold } from '../../../../shared/text/fold'
 
 export type AccountChoice = { readonly kind: 'new'; readonly name: string } | { readonly kind: 'existing'; readonly account: RecordId }
 
@@ -49,11 +41,9 @@ export interface ImportChoices {
   /** By the key of the split's entry. */
   readonly splits: Readonly<Record<string, SplitTexts>>
   readonly spinOffs: Readonly<Record<string, SpinOffTexts>>
-  /** The tax withheld from a dividend booked net as typed, by the key of its entry. */
-  readonly withheld: Readonly<Record<string, string>>
 }
 
-export const NO_CHOICES: ImportChoices = { accounts: {}, instruments: {}, splits: {}, spinOffs: {}, withheld: {} }
+export const NO_CHOICES: ImportChoices = { accounts: {}, instruments: {}, splits: {}, spinOffs: {} }
 
 /** A new random id for each key, the same one every time it is asked for that key. */
 export type NewIds = (key: string) => string
@@ -71,8 +61,24 @@ export interface InstrumentStep {
   readonly errors: InstrumentErrors | null
 }
 
+/** What the lookup has of a symbol's splits: nothing asked without a key, nothing yet while it asks, or the vendor's answer. */
+export type SplitsAnswer = { readonly kind: 'no-key' } | { readonly kind: 'pending' } | SplitsLookedUp
+
+export type SplitsOf = (symbol: string) => SplitsAnswer
+
+/** No lookup, as in a browser without the vendor's key. */
+export const NO_SPLIT_LOOKUP: SplitsOf = () => ({ kind: 'no-key' })
+
+/** Why no listed split answers a split's question. */
+export type UnlistedSplit = 'no-key' | 'pending' | 'failed' | 'none-near' | 'priced-by-hand'
+
 export interface SplitStep {
   readonly question: SplitQuestion
+  /** The symbol its splits are looked up under, null while its holding has no answer or is priced by hand. */
+  readonly symbol: string | null
+  /** The split the vendor lists near the row's day, which answers the question so it is not asked. */
+  readonly listed: ReportedSplit | null
+  readonly unlisted: UnlistedSplit | null
   readonly texts: SplitTexts
   readonly problem: string | null
 }
@@ -86,13 +92,14 @@ export interface SpinOffStep {
   /** The fraction of the parent's cost proposed for the parent picked. */
   readonly proposed: Decimal | null
   readonly problems: { readonly parent: string | null; readonly costShare: string | null }
+  /** What the row's own Spin-off from or Cost share cell gave that cannot be used, or null. */
+  readonly workbookProblem: string | null
+  /** The row's own columns answer it whole, so it is not asked. */
+  readonly answeredByRow: boolean
 }
 
-export interface NetDividendStep {
-  readonly question: NetDividendQuestion
-  readonly withheld: string
-  readonly problem: string | null
-}
+/** A split listed this many days either side of the row's day is the row's split, as a workbook may date it by its statement. */
+const LISTED_SPLIT_DAYS = 7
 
 /** The dry run with every answer the steps give, and each question with what answers it now. */
 export interface SettledImport {
@@ -101,7 +108,6 @@ export interface SettledImport {
   readonly instruments: readonly InstrumentStep[]
   readonly splits: readonly SplitStep[]
   readonly spinOffs: readonly SpinOffStep[]
-  readonly netDividends: readonly NetDividendStep[]
   /** The instruments a spin-off may come from: Kuna's and the new ones the steps name. */
   readonly parents: readonly Instrument[]
 }
@@ -116,15 +122,16 @@ const SHOWN_PERCENT_PLACES = 2
 /**
  * The dry run of the workbook's rows with the person's choices, and a default for every question they left: an account
  * an earlier import wrote to, else a new one named as proposed, a holding an earlier import wrote to or the one Kuna
- * offers, else a new one from the guess, a split at its proposed ratio and a spin-off's share as proposed for the parent
- * picked. Each pass answers what the previous pass asked, until the answers stop changing.
+ * offers, else a new one from the guess, a split at the ratio its vendor lists, else at its proposed ratio, and a
+ * spin-off's parent and share as its row gives them, else the share as proposed for the parent picked. Each pass
+ * answers what the previous pass asked, until the answers stop changing.
  */
-export function settledImport(reading: WorkbookRows, book: InvestmentBook, rates: RateBook, choices: ImportChoices, newIds: NewIds): SettledImport {
+export function settledImport(reading: WorkbookRows, book: InvestmentBook, rates: RateBook, choices: ImportChoices, newIds: NewIds, splitsOf: SplitsOf = NO_SPLIT_LOOKUP): SettledImport {
   let dryRun = workbookDryRun(reading, { book, rates, answers: NO_ANSWERS })
-  let answered = answersOf(dryRun, book, choices, newIds)
+  let answered = answersOf(dryRun, book, choices, newIds, splitsOf)
   for (let pass = 0; pass < MOST_PASSES; pass += 1) {
     dryRun = workbookDryRun(reading, { book, rates, answers: answered.answers })
-    const next = answersOf(dryRun, book, choices, newIds)
+    const next = answersOf(dryRun, book, choices, newIds, splitsOf)
     const settled = answersKey(next.answers) === answersKey(answered.answers)
     answered = next
     if (settled) break
@@ -143,16 +150,16 @@ interface Answering<Step, Answer> {
   readonly answer: Answer | null
 }
 
-function answersOf(dryRun: WorkbookDryRun, book: InvestmentBook, choices: ImportChoices, newIds: NewIds): Answered {
+function answersOf(dryRun: WorkbookDryRun, book: InvestmentBook, choices: ImportChoices, newIds: NewIds, splitsOf: SplitsOf): Answered {
   const { questions } = dryRun
   const accounts = questions.accounts.map((question) => accountStep(question, book, choices, newIds))
   const instruments = instrumentSteps(questions.instruments, book, choices, newIds)
   const answeredInstruments = instruments.flatMap(({ step, answer }) => (answer === null ? [] : [[step.question.identity, answer] as const]))
   const parents = [...book.instruments, ...answeredInstruments.map(([, instrument]) => instrument).filter((instrument) => !book.instruments.some((held) => held.id === instrument.id))]
-  const splits = questions.splits.map((question) => splitStep(question, choices))
+  const instrumentOf = new Map(answeredInstruments)
+  const splits = questions.splits.map((question) => splitStep(question, instrumentOf.get(question.identity) ?? null, choices, splitsOf))
   const receivedOf = new Map(answeredInstruments.map(([identity, instrument]) => [identity, instrument.id]))
   const spinOffs = questions.spinOffs.map((question) => spinOffStep(question, receivedOf.get(question.identity) ?? null, dryRun, parents, choices))
-  const netDividends = questions.netDividends.map((question) => netDividendStep(question, choices))
 
   const answered = <Step extends { readonly question: unknown }, Answer>(all: readonly Answering<Step, Answer>[], keyOf: (question: Step['question']) => string): Map<string, Answer> =>
     new Map(all.flatMap(({ step, answer }) => (answer === null ? [] : [[keyOf(step.question), answer] as const])))
@@ -163,9 +170,8 @@ function answersOf(dryRun: WorkbookDryRun, book: InvestmentBook, choices: Import
       instruments: new Map(answeredInstruments),
       splits: answered(splits, (question) => question.key),
       spinOffs: answered(spinOffs, (question) => question.key),
-      withheld: answered(netDividends, (question) => question.key),
     },
-    steps: { accounts: steps(accounts), instruments: steps(instruments), splits: steps(splits), spinOffs: steps(spinOffs), netDividends: steps(netDividends), parents },
+    steps: { accounts: steps(accounts), instruments: steps(instruments), splits: steps(splits), spinOffs: steps(spinOffs), parents },
   }
 }
 
@@ -212,26 +218,58 @@ function instrumentChoiceOf(question: InstrumentQuestion, book: InvestmentBook, 
 
 const WHOLE = /^\d+$/
 
-function splitStep(question: SplitQuestion, choices: ImportChoices): Answering<SplitStep, SplitRatio> {
+/** A ratio the person typed wins, then the split the vendor lists near the row's day, then the proposal from what was held. */
+function splitStep(question: SplitQuestion, instrument: Instrument | null, choices: ImportChoices, splitsOf: SplitsOf): Answering<SplitStep, SplitRatio> {
+  const symbol = instrument === null || instrument.prices === 'manual' || instrument.sourceSymbol === '' ? null : instrument.sourceSymbol
+  const lookedUp: SplitsAnswer | null = symbol === null ? null : splitsOf(symbol)
+  const listed =
+    lookedUp?.kind === 'splits'
+      ? (lookedUp.splits.find((split) => {
+          const day = parseCivilDate(split.date)
+          return day !== null && Math.abs(daysBetween(question.date, day)) <= LISTED_SPLIT_DAYS
+        }) ?? null)
+      : null
+  const unlisted: UnlistedSplit | null =
+    listed !== null ? null : lookedUp === null ? (instrument === null ? null : 'priced-by-hand') : lookedUp.kind === 'splits' ? 'none-near' : lookedUp.kind === 'failed' ? 'failed' : lookedUp.kind
   const proposal = question.proposal
-  const texts = choices.splits[question.key] ?? (proposal === null ? { newUnits: '', oldUnits: '' } : { newUnits: String(proposal.newUnits), oldUnits: String(proposal.oldUnits) })
+  const texts =
+    choices.splits[question.key] ??
+    (listed !== null
+      ? { newUnits: listed.newUnits, oldUnits: listed.oldUnits }
+      : proposal === null
+        ? { newUnits: '', oldUnits: '' }
+        : { newUnits: String(proposal.newUnits), oldUnits: String(proposal.oldUnits) })
   const [newUnits, oldUnits] = [texts.newUnits.trim(), texts.oldUnits.trim()]
   const ratio = WHOLE.test(newUnits) && WHOLE.test(oldUnits) && Number(newUnits) > 0 && Number(oldUnits) > 0 ? { newUnits: Number(newUnits), oldUnits: Number(oldUnits) } : null
-  return { step: { question, texts, problem: ratio === null ? words.questions.ratioProblem : null }, answer: ratio }
+  return { step: { question, symbol, listed, unlisted, texts, problem: ratio === null ? words.questions.ratioProblem : null }, answer: ratio }
 }
 
 /**
- * The cost share is typed in percent, as the transaction dialog takes it, and proposed for the parent picked. The field
- * shows the proposal to two places, and the answer keeps it exact until the person types over it.
+ * The parent and the share come from the row's Spin-off from and Cost share cells where they can be used, else from
+ * the person. The share is typed in percent, as the transaction dialog takes it, and proposed for the parent picked.
+ * The field shows the proposal to two places, and the answer keeps it exact until the person types over it.
  */
 function spinOffStep(question: SpinOffQuestion, received: RecordId | null, dryRun: WorkbookDryRun, parents: readonly Instrument[], choices: ImportChoices): Answering<SpinOffStep, SpinOffAnswer> {
   const chosen = choices.spinOffs[question.key]
-  const parent = chosen?.parent !== undefined && chosen.parent !== null && chosen.parent !== received && parents.some((instrument) => instrument.id === chosen.parent) ? chosen.parent : null
+  const named =
+    question.from === ''
+      ? null
+      : (parents.find((instrument) => instrument.id !== received && (instrument.isin === question.from.toUpperCase() || fold(instrument.symbol) === fold(question.from))) ?? null)
+  const chosenParent = chosen?.parent !== undefined && chosen.parent !== null && chosen.parent !== received && parents.some((instrument) => instrument.id === chosen.parent) ? chosen.parent : null
+  const parent = chosenParent ?? named?.id ?? null
   const proposed = parent === null ? null : proposedCostShare(dryRun.planned, parent, question)
   const typed = chosen?.costShare ?? null
-  const costShare = typed ?? decimalShown(proposed === null ? null : roundedDecimal(timesDecimal(proposed, PERCENT), SHOWN_PERCENT_PLACES))
+  const fromRow = question.costShare
+  const costShare =
+    typed ?? (fromRow !== null ? decimalShown(timesDecimal(fromRow, PERCENT)) : decimalShown(proposed === null ? null : roundedDecimal(timesDecimal(proposed, PERCENT), SHOWN_PERCENT_PLACES)))
   const percent = typed === null ? null : typedDecimal(typed)
-  const fraction = typed === null ? proposed : percent === null || percent <= DECIMAL_ZERO || percent > PERCENT ? null : scaledDecimal(percent, 1n, 100n)
+  const fraction = typed === null ? (fromRow ?? proposed) : percent === null || percent <= DECIMAL_ZERO || percent > PERCENT ? null : scaledDecimal(percent, 1n, 100n)
+  const workbookProblem =
+    question.from !== '' && named === null
+      ? words.questions.parentNotFound(question.from)
+      : question.costShareText !== '' && fromRow === null
+        ? words.questions.costShareUnreadable(question.costShareText)
+        : null
   return {
     step: {
       question,
@@ -240,15 +278,11 @@ function spinOffStep(question: SpinOffQuestion, received: RecordId | null, dryRu
       costShare,
       proposed,
       problems: { parent: parent === null ? words.questions.parentMissing : null, costShare: fraction === null ? words.questions.costShareProblem : null },
+      workbookProblem,
+      answeredByRow: named !== null && fromRow !== null,
     },
     answer: parent === null || fraction === null ? null : { parent, costShare: fraction },
   }
-}
-
-function netDividendStep(question: NetDividendQuestion, choices: ImportChoices): Answering<NetDividendStep, Decimal> {
-  const withheld = choices.withheld[question.key] ?? ''
-  const typed = withheld.trim() === '' ? null : typedAmount(withheld)
-  return { step: { question, withheld, problem: withheld.trim() !== '' && typed === null ? words.questions.withheldProblem : null }, answer: typed === null ? null : decimalOfMoney(typed) }
 }
 
 /** The answers as text that two passes with the same answers give alike. */

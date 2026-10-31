@@ -3,7 +3,7 @@ import { magnitude, workbookEntries } from './workbookEntries'
 import type { RowEntry } from './workbookEntries'
 import { words } from './words'
 import { investmentLots } from '../../holdings/domain/lots'
-import { tradeWorth } from '../../holdings/domain/quoting'
+import { priceOfWorth, tradeWorth } from '../../holdings/domain/quoting'
 import type { RateBook } from '../../prices/domain/rateBook'
 import type { CashMovement, CashMovementKind } from '../../workbook/domain/cashMovement'
 import { CASH_MOVEMENT_CODEC } from '../../workbook/domain/cashMovementReading'
@@ -68,11 +68,9 @@ export interface WorkbookAnswers {
   readonly splits: ReadonlyMap<string, SplitRatio>
   /** By the key of the spin-off's entry. */
   readonly spinOffs: ReadonlyMap<string, SpinOffAnswer>
-  /** The tax withheld from a dividend its broker booked net, by the key of the dividend's entry. */
-  readonly withheld: ReadonlyMap<string, Decimal>
 }
 
-export const NO_ANSWERS: WorkbookAnswers = { accounts: new Map(), instruments: new Map(), splits: new Map(), spinOffs: new Map(), withheld: new Map() }
+export const NO_ANSWERS: WorkbookAnswers = { accounts: new Map(), instruments: new Map(), splits: new Map(), spinOffs: new Map() }
 
 export interface DryRunInputs {
   /** The records already in Kuna. */
@@ -156,15 +154,11 @@ export interface SpinOffQuestion {
   /** The units received at the row's price, which `proposedCostShare` sets against a parent's cost. */
   readonly worth: Decimal
   readonly currency: CurrencyCode | null
-}
-
-export interface NetDividendQuestion {
-  readonly key: string
-  readonly identity: string
-  readonly date: CivilDate
-  readonly currency: CurrencyCode
-  /** What the broker booked, after the tax withheld. */
-  readonly net: Decimal
+  /** The parent's symbol or ISIN as the row's Spin-off from cell gives it, blank for none. */
+  readonly from: string
+  /** The row's Cost share, null when blank or unreadable, with the cell as written. */
+  readonly costShare: Decimal | null
+  readonly costShareText: string
 }
 
 export interface WorkbookQuestions {
@@ -172,8 +166,6 @@ export interface WorkbookQuestions {
   readonly instruments: readonly InstrumentQuestion[]
   readonly splits: readonly SplitQuestion[]
   readonly spinOffs: readonly SpinOffQuestion[]
-  /** Dividends booked net, which import with a note until the person types the tax withheld. */
-  readonly netDividends: readonly NetDividendQuestion[]
 }
 
 /** A trade whose fees from its net cash differ from its Commission cell by more than a cent. The fees from the net cash are imported. */
@@ -207,6 +199,8 @@ export interface WorkbookRows {
 const CENT = decimalOfText('0.01')!
 /** Fees worked out from a net cash are rounded to cents, as the reader rounds every amount. */
 const CENT_PLACES = 2
+/** A net cash is itself rounded to the cent. */
+const HALF_CENT = decimalOfText('0.005')!
 const ONE = decimalOfText('1')!
 /** How close a ratio of units has to come to whole numbers to be proposed as a split. */
 const SPLIT_TOLERANCE = decimalOfText('0.0001')!
@@ -268,7 +262,7 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
     answers.instruments.get(identityOf(row)) ?? book.instruments.find((instrument) => instrument.id === knownInstruments.get(identityOf(row))) ?? null
 
   const skipped: SkippedRow[] = [...reading.skipped]
-  const questions: Mapping['questions'] = { netDividends: [], spinOffs: [] }
+  const questions: Mapping['questions'] = { spinOffs: [] }
   const mapping: Mapping = { inputs, accountOf, instrumentOf, identityOf, questions, instruments: instrumentsSoFar }
 
   const firstPass = entries.flatMap((entry): { entry: RowEntry; outcome: EntryOutcome }[] => {
@@ -314,7 +308,6 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
       instruments: instrumentQuestions(toImport, book, knownInstruments, identityOf),
       splits: toImport.filter((entry) => entry.rows[0].type === 'SPLIT').map((entry) => splitQuestion(entry, planned, instrumentOf, identityOf)),
       spinOffs: questions.spinOffs,
-      netDividends: questions.netDividends,
     },
     commissionDifferences: commissionDifferences(outcomes),
     added: addedRecords(book, planned),
@@ -342,7 +335,7 @@ interface Mapping {
   readonly accountOf: (row: WorkbookRow) => InvestmentAccount | null
   readonly instrumentOf: (row: WorkbookRow) => Instrument | null
   readonly identityOf: (row: WorkbookRow) => string
-  readonly questions: { readonly netDividends: NetDividendQuestion[]; readonly spinOffs: SpinOffQuestion[] }
+  readonly questions: { readonly spinOffs: SpinOffQuestion[] }
   readonly instruments: readonly Instrument[]
 }
 
@@ -433,7 +426,9 @@ function ecbRate(currency: CurrencyCode, date: CivilDate, mapping: Mapping): Dec
 
 /**
  * A buy's fees are what its net cash paid beyond quantity × price, a sale's what quantity × price got beyond its net
- * cash, in cents. Without a net cash they are the Commission cell.
+ * cash, in cents. Without a net cash they are the Commission cell. A trade with no commission whose net cash and
+ * quantity × price differ by no more than the price's rounding, as a broker that shows the price to the cent books it,
+ * takes its price from the net cash and has no fees.
  */
 function tradeOf(row: WorkbookRow, key: string, mapping: Mapping): Trade {
   const quantity = magnitude(required(row, 'quantity'))
@@ -447,7 +442,12 @@ function tradeOf(row: WorkbookRow, key: string, mapping: Mapping): Trade {
     throw new EntryWaits({ kind: 'other-currency', currency })
   }
   const worth = tradeWorth(instrument.quoted, quantity, price)
-  const fees = netCash === null ? row.commission : roundedDecimal(side === 'buy' ? subtractDecimal(netCash, worth) : subtractDecimal(worth, netCash), CENT_PLACES)
+  const pricedByNet =
+    netCash !== null &&
+    quantity > DECIMAL_ZERO &&
+    (row.commission ?? DECIMAL_ZERO) === DECIMAL_ZERO &&
+    magnitude(subtractDecimal(netCash, worth)) <= addDecimal(tradeWorth(instrument.quoted, quantity, halfStepOf(price)), HALF_CENT)
+  const fees = netCash === null ? row.commission : pricedByNet ? DECIMAL_ZERO : roundedDecimal(side === 'buy' ? subtractDecimal(netCash, worth) : subtractDecimal(worth, netCash), CENT_PLACES)
   return {
     id: recordIdOf(TRADE_RECORDS, newRecordId()),
     account: account.id,
@@ -455,7 +455,7 @@ function tradeOf(row: WorkbookRow, key: string, mapping: Mapping): Trade {
     side,
     date: row.date,
     quantity,
-    price,
+    price: pricedByNet ? priceOfWorth(instrument.quoted, netCash, quantity) : price,
     fees,
     rate: ecbRate(currency, row.date, mapping),
     accrued: null,
@@ -464,25 +464,27 @@ function tradeOf(row: WorkbookRow, key: string, mapping: Mapping): Trade {
   }
 }
 
+/** Half a unit of the price's last decimal place, taking a price as rounded to the cent at the coarsest. */
+function halfStepOf(price: Decimal): Decimal {
+  const places = Math.max(decimalText(price).split('.')[1]?.length ?? 0, CENT_PLACES)
+  return scaledDecimal(ONE, 1n, 2n * 10n ** BigInt(places))
+}
+
 /**
- * Income with the tax its withholding rows took. A Revolut dividend comes booked net of the tax withheld, so until the
- * person types that tax its gross is its net and its note says so.
+ * Income with the tax its withholding rows took. A Revolut dividend comes booked net of the tax withheld, so without a
+ * withholding row its gross is its net and its note says so. A workbook that gives the tax adds its withholding row.
  */
 function incomeOf(entry: RowEntry, mapping: Mapping): Income {
   const [row, ...withholdings] = entry.rows
   const currency = required(row, 'currency')
   const received = directed(row, row.gross ?? required(row, 'netCash'), true)
-  const withheldRows = negateDecimal(sumDecimal(withholdings.map((withholding) => withholding.netCash ?? required(withholding, 'gross'))))
+  const withheld = negateDecimal(sumDecimal(withholdings.map((withholding) => withholding.netCash ?? required(withholding, 'gross'))))
   const isDividend = row.type === 'DIVIDEND'
   const bookedNet = isDividend && withholdings.length === 0 && fold(row.broker) === 'REVOLUT'
-  if (bookedNet) {
-    mapping.questions.netDividends.push({ key: entry.key, identity: mapping.identityOf(row), date: row.date, currency, net: received })
-  }
   const account = accountFor(row, mapping)
   const instrument = isDividend ? instrumentFor(row, mapping) : null
   const rate = ecbRate(currency, row.date, mapping)
-  const typed = bookedNet ? mapping.inputs.answers.withheld.get(entry.key) : undefined
-  const label = row.type === 'STOCK YIELD INCOME' ? words.stockYieldIncome : row.type === 'REFERRAL CREDIT' ? words.referralCredit : bookedNet && typed === undefined ? words.bookedNet : ''
+  const label = row.type === 'STOCK YIELD INCOME' ? words.stockYieldIncome : row.type === 'REFERRAL CREDIT' ? words.referralCredit : bookedNet ? words.bookedNet : ''
   return {
     id: recordIdOf(INCOME_RECORDS, newRecordId()),
     account: account.id,
@@ -490,8 +492,8 @@ function incomeOf(entry: RowEntry, mapping: Mapping): Income {
     instrument: instrument?.id ?? null,
     date: row.date,
     currency,
-    gross: typed === undefined ? received : addDecimal(received, typed),
-    withheld: typed ?? withheldRows,
+    gross: received,
+    withheld,
     rate,
     importKey: entry.key,
     note: [label, row.note].filter((part) => part !== '').join('. '),
@@ -517,12 +519,18 @@ function cashMovementOf(row: WorkbookRow, kind: CashMovementKind, key: string, m
   }
 }
 
-/** The net cash is one leg and the FX counter amount the other, each after fees. The Commission cell is the exchange's fee in euros. */
+/**
+ * The net cash is one leg and the FX counter amount the other, each after fees. The Commission cell is the exchange's
+ * fee in euros. A leg that the reader's rounding to the cent left at zero is a conversion of dust, which is skipped.
+ */
 function exchangeOf(row: WorkbookRow, key: string, mapping: Mapping): Exchange {
   const net = required(row, 'netCash')
   const currency = required(row, 'currency')
   const counter = magnitude(required(row, 'counterAmount'))
   const counterCurrency = required(row, 'counterCurrency')
+  if (net === DECIMAL_ZERO || counter === DECIMAL_ZERO) {
+    throw new EntrySkipped(row.fileRow, { kind: 'below-a-cent' })
+  }
   const account = accountFor(row, mapping)
   const sells = net < DECIMAL_ZERO
   return {
@@ -566,11 +574,21 @@ function splitOf(entry: RowEntry, mapping: Mapping): Split {
   return { id: recordIdOf(SPLIT_RECORDS, newRecordId()), instrument: instrument.id, date: row.date, ...ratio, importKey: entry.key, note: row.note }
 }
 
-/** The row names the instrument received. Its parent and the share of the parent's cost come from the person. */
+/** The row names the instrument received. Its parent and the share of the parent's cost come from the row's own columns or the person. */
 function spinOffOf(row: WorkbookRow, key: string, mapping: Mapping): SpinOff {
   const quantity = magnitude(required(row, 'quantity'))
   const price = required(row, 'price')
-  mapping.questions.spinOffs.push({ key, identity: mapping.identityOf(row), date: row.date, quantity, worth: timesDecimal(quantity, price), currency: row.currency })
+  mapping.questions.spinOffs.push({
+    key,
+    identity: mapping.identityOf(row),
+    date: row.date,
+    quantity,
+    worth: timesDecimal(quantity, price),
+    currency: row.currency,
+    from: row.spinOffFrom,
+    costShare: row.costShare,
+    costShareText: row.costShareText,
+  })
   const received = instrumentFor(row, mapping)
   const answer = mapping.inputs.answers.spinOffs.get(key)
   const parent = mapping.instruments.find((instrument) => instrument.id === answer?.parent)
@@ -706,7 +724,7 @@ function proposedInstrument(rows: readonly WorkbookRow[], isin: string | null): 
       : suffix === 'DE'
         ? { exchange: 'XETR', prices: 'alphavantage', sourceSymbol: `${base}.DEX` }
         : suffix === 'AS'
-          ? { exchange: 'XAMS', prices: 'alphavantage', sourceSymbol: `${base}.AS` }
+          ? { exchange: 'XAMS', prices: 'alphavantage', sourceSymbol: `${base}.AMS` }
           : { exchange: null, prices: 'manual', sourceSymbol: '' }
   return {
     name: symbol,

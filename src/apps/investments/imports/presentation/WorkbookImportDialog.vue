@@ -11,6 +11,7 @@ import ImportQuestionsStep from './ImportQuestionsStep.vue'
 import { useWorkbookImport } from './useWorkbookImport'
 import { words } from './words'
 import type { ImportStep } from './words'
+import PricesProgress from '../../prices/presentation/PricesProgress.vue'
 import { transactionCount } from '../../transactions/domain/listedTransactions'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -25,7 +26,7 @@ const open = defineModel<boolean>('open', { required: true })
 const store = useInvestmentsBooks()
 const writes = useRecordWrites(store)
 const workbookImport = useWorkbookImport()
-const { settled, reading } = workbookImport
+const { settled, ready, splitsLookup, splitVendor } = workbookImport
 const step = ref<ImportStep>('file')
 
 watch(open, (opened) => {
@@ -38,7 +39,7 @@ watch(open, (opened) => {
 const steps = computed((): ImportStep[] => {
   const run = settled.value
   if (run === null) return ['file', 'accounts', 'instruments', 'questions', 'dry-run']
-  const asks = run.splits.length + run.spinOffs.length + run.netDividends.length > 0
+  const asks = run.splits.some((split) => split.listed === null) || run.spinOffs.some((spinOff) => !spinOff.answeredByRow)
   return ['file', ...(run.accounts.length > 0 ? ['accounts' as const] : []), ...(run.instruments.length > 0 ? ['instruments' as const] : []), ...(asks ? ['questions' as const] : []), 'dry-run']
 })
 /** A step the answers took away, such as questions answered by picking a holding Kuna has, gives way to the dry run. */
@@ -72,6 +73,10 @@ async function importWorkbook(): Promise<void> {
   <AppDialog v-model:open="open" :title="words.title" :description="words.description" width="3xl" :dismissible="!writes.busy.value">
     <div ref="top" class="flex flex-col gap-5" data-testid="workbook-import" :data-step="shown">
       <p class="type-label" aria-live="polite" data-testid="workbook-import-step">{{ words.stepOf(place + 1, steps.length, words.steps[shown]) }}</p>
+      <div v-if="splitsLookup" class="flex flex-col gap-2" data-testid="import-splits-lookup">
+        <p class="type-body">{{ words.questions.lookingUp(splitVendor) }}</p>
+        <PricesProgress :fetching="splitsLookup" />
+      </div>
       <ImportFileStep v-if="shown === 'file'" :workbook-import="workbookImport" />
       <ImportAccountsStep v-else-if="shown === 'accounts' && settled" :workbook-import="workbookImport" :settled="settled" />
       <ImportInstrumentsStep v-else-if="shown === 'instruments' && settled" :workbook-import="workbookImport" :settled="settled" />
@@ -81,7 +86,7 @@ async function importWorkbook(): Promise<void> {
     <template #end>
       <UButton v-if="place > 0" :label="words.back" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :disabled="writes.busy.value" data-testid="workbook-import-back" @click="move(-1)" />
       <UButton :label="words.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
-      <UButton v-if="shown !== 'dry-run'" :label="words.next" trailing-icon="i-lucide-arrow-right" :disabled="reading === null" data-testid="workbook-import-next" @click="move(1)" />
+      <UButton v-if="shown !== 'dry-run'" :label="words.next" trailing-icon="i-lucide-arrow-right" :disabled="!ready" data-testid="workbook-import-next" @click="move(1)" />
       <UButton
         v-else
         :label="words.import"

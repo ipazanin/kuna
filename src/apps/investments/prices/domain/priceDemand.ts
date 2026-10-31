@@ -25,6 +25,13 @@ export interface PriceDemand {
   readonly ratesStart: string
 }
 
+/** ECB rates wanted beyond what the records name, such as those the rows of a workbook about to be imported need. */
+export interface RatesWanted {
+  readonly currencies: readonly string[]
+  /** The earliest day a rate is wanted for. */
+  readonly from: string
+}
+
 /** Rates the import may need whatever the records hold, so a first import finds them. */
 const ALWAYS_RATED = ['USD', 'GBP', 'CHF']
 const RATES_FROM = '2015-01-01'
@@ -33,8 +40,8 @@ function earliest(days: readonly string[]): string | null {
   return days.reduce<string | null>((found, day) => (found === null || day < found ? day : found), null)
 }
 
-/** Each listed instrument's source and symbol with its first transaction, the currencies the records name, and the first deposit. */
-export function priceDemand(book: InvestmentBook, today: string): PriceDemand {
+/** Each listed instrument's source and symbol with its first transaction, the currencies the records name and those wanted, and the first deposit. */
+export function priceDemand(book: InvestmentBook, today: string, wanted: RatesWanted | null = null): PriceDemand {
   const firstDeposit = earliest(book.cashMovements.filter((movement) => movement.kind === 'deposit').map((movement) => movement.date)) ?? today
 
   const listings = new Map<string, ListingDemand>()
@@ -62,9 +69,10 @@ export function priceDemand(book: InvestmentBook, today: string): PriceDemand {
     ...book.transfers.flatMap((transfer) => (transfer.moved.kind === 'cash' ? [transfer.moved.currency] : [])),
     ...book.exchanges.flatMap((exchange) => [exchange.soldCurrency, exchange.boughtCurrency, ...(exchange.fees === null ? [] : [exchange.fees.currency])]),
   ]
-  const currencies = [...new Set([...ALWAYS_RATED, ...named.filter((currency) => currency !== EURO)])]
-  const firstRecord = earliest(
-    [book.trades, book.spinOffs, book.cashMovements, book.income, book.exchanges, book.transfers].flatMap((records: readonly { readonly date: string }[]) => records.map((record) => record.date)),
-  )
+  const currencies = [...new Set([...ALWAYS_RATED, ...named, ...(wanted?.currencies ?? [])].filter((currency) => currency !== EURO))]
+  const firstRecord = earliest([
+    ...[book.trades, book.spinOffs, book.cashMovements, book.income, book.exchanges, book.transfers].flatMap((records: readonly { readonly date: string }[]) => records.map((record) => record.date)),
+    ...(wanted === null ? [] : [wanted.from]),
+  ])
   return { listings: [...listings.values()], currencies, ratesStart: firstRecord !== null && firstRecord < RATES_FROM ? firstRecord : RATES_FROM }
 }

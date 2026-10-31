@@ -285,7 +285,6 @@ function fullAnswers(rows: WorkbookRows): WorkbookAnswers {
     ]),
     splits: new Map([[asked.splits[0]!.key, { newUnits: 2, oldUnits: 1 }]]),
     spinOffs: new Map([[asked.spinOffs[0]!.key, { parent: ABC_SHARE.id, costShare: decimal('0.035062089116') }]]),
-    withheld: new Map(),
   }
 }
 
@@ -370,11 +369,10 @@ describe('the first dry run, before any answer', () => {
     expect([xyz!.proposal.exchange, xyz!.proposal.prices, xyz!.proposal.sourceSymbol, xyz!.proposal.currency]).toEqual(['XETR', 'alphavantage', 'XYZ.DEX', EURO])
   })
 
-  it('asks for the split, the spin-off and the dividend booked net, and holds every row until its account or instrument is named', async () => {
+  it('asks for the split and the spin-off, and holds every row until its account or instrument is named', async () => {
     const dryRun = workbookDryRun(await readRows(), { book: book({}), rates: RATES, answers: NO_ANSWERS })
     expect(dryRun.questions.splits.map((question) => [question.date, decimalText(question.added), question.held, question.proposal])).toEqual([['2025-06-10', '14.5', null, null]])
     expect(dryRun.questions.spinOffs.map((question) => [question.identity, decimalText(question.quantity), decimalText(question.worth)])).toEqual([['NEWCO', '2', '24']])
-    expect(dryRun.questions.netDividends.map((question) => [question.identity, question.date, decimalText(question.net)])).toEqual([['DEF', '2025-12-15', '1.7']])
     const outcomes = outcomesByRow(dryRun)
     // A split and a spin-off name no account, so they wait for their instrument.
     expect([outcomes[16], outcomes[17]]).toEqual(['waiting: instrument', 'waiting: instrument'])
@@ -436,12 +434,10 @@ describe('the dry run with every answer', () => {
     expect(importedAt(dryRun, 30).record).toMatchObject({ kind: 'other', gross: decimal('0.12'), withheld: decimal('0.01'), note: `${words.stockYieldIncome}. Stock lending income` })
   })
 
-  it('imports a dividend Revolut booked net at its net with a note, and with its tax once that is typed', async () => {
-    const { rows, answers, dryRun } = await importedBook()
+  it('imports a dividend Revolut booked net at its net with a note, never asking for the tax', async () => {
+    const { dryRun } = await importedBook()
     expect(importedAt(dryRun, 29).record).toMatchObject({ gross: decimal('1.7'), withheld: decimal('0'), note: words.bookedNet })
-    const key = dryRun.questions.netDividends[0]!.key
-    const typed = workbookDryRun(rows, { book: book({}), rates: RATES, answers: { ...answers, withheld: new Map([[key, decimal('0.3')]]) } })
-    expect(importedAt(typed, 29).record).toMatchObject({ gross: decimal('2'), withheld: decimal('0.3'), note: '' })
+    expect(Object.keys(dryRun.questions)).toEqual(['accounts', 'instruments', 'splits', 'spinOffs'])
   })
 
   it('makes two equal referral credits two income records', async () => {

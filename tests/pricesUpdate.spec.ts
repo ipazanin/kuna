@@ -245,6 +245,7 @@ describe('the Prices step of a sync', () => {
     const fileId = await pricesOnDrive(world, fakePricesFile('late-prices', civil('2026-10-29')))
     const sync = syncOf(world)
     await sync.sync()
+    await backgroundSettled(world)
 
     const newer = fakePricesFile('sample', TODAY)
     await world.drive.upload(fileId, encodePricesFile(newer))
@@ -257,7 +258,7 @@ describe('the Prices step of a sync', () => {
     expect(stepState(sync)).toMatchObject({ kind: 'done', line: words.step.read })
   })
 
-  it('makes the prices file on the first sync of an Investments file without one', async () => {
+  it('makes the prices file on the first sync of an Investments file without one, which the ECB fetch then fills without a key', async () => {
     const world = await worldOf()
     world.keys = {}
     const sync = syncOf(world)
@@ -267,7 +268,7 @@ describe('the Prices step of a sync', () => {
     const made = world.update.state.copy?.fileId
     expect(made).toBeDefined()
     expect(world.drive.file(made!)).toMatchObject({ name: PRICES_FILE_NAME, parents: [world.folderId] })
-    expect(world.update.state.copy?.file).toEqual(emptyPricesFile())
+    expect(Object.keys(world.update.state.copy?.file.series ?? {})).toEqual(['ecb:USD', 'ecb:GBP', 'ecb:CHF'])
   })
 
   it('fails the step and keeps the copy when a newer Kuna wrote the file, which it leaves as it is', async () => {
@@ -293,7 +294,7 @@ describe('when the day comes to fetch', () => {
   const ecb = { id: 'ecb', needsKey: false }
 
   function moment(overrides: Partial<PricesFetchMoment>): PricesFetchMoment {
-    return { writtenAt: '2026-10-29T05:41:00.000Z', today: TODAY, needed: [twelveData, ecb], hasKey: (vendorId) => vendorId === 'twelvedata', running: false, ...overrides }
+    return { writtenAt: '2026-10-29T05:41:00.000Z', today: TODAY, needed: [twelveData, ecb], hasKey: (vendorId) => vendorId === 'twelvedata', keyless: [], running: false, ...overrides }
   }
 
   it('fetches when the prices file was written yesterday, or never', () => {
@@ -307,8 +308,15 @@ describe('when the day comes to fetch', () => {
     expect(pricesFetchVerdict(moment({ writtenAt: '2026-10-29T22:30:00.000Z' }))).toBe('due')
   })
 
-  it('leaves the fetch to another browser when this one holds no key for a vendor the records need', () => {
-    expect(pricesFetchVerdict(moment({ hasKey: () => false }))).toBe('no-key')
+  it('fetches the ECB without any key when a keyed vendor is needed too, and leaves the fetch to another browser only when no vendor needed can run', () => {
+    expect(pricesFetchVerdict(moment({ hasKey: () => false }))).toBe('due')
+    expect(pricesFetchVerdict(moment({ needed: [twelveData], hasKey: () => false }))).toBe('no-key')
+  })
+
+  it('fetches again today when the fetch that wrote the file had no key that this browser holds', () => {
+    const today = { writtenAt: '2026-10-30T05:41:00.000Z', keyless: ['twelvedata'] }
+    expect(pricesFetchVerdict(moment(today))).toBe('due')
+    expect(pricesFetchVerdict(moment({ ...today, hasKey: () => false }))).toBe('fetched-today')
   })
 
   it('fetches without any key when the records need only the ECB', () => {
@@ -367,12 +375,41 @@ describe("the day's fetch", () => {
     expect(runProblem(world.update.state.lastRun)).toBeNull()
   })
 
-  it('fetches nothing in a browser without the key the records need', async () => {
+  it('fetches the ECB alone in a browser without the key the records need, noting the keyed vendor as no-key', async () => {
     const world = await worldOf()
     world.keys = {}
     await pricesOnDrive(world, fakePricesFile('sample', civil('2026-10-29')))
-    expect(await world.update.fetchIfDue()).toBe('no-key')
-    expect(world.asked).toEqual([])
+    expect(await world.update.fetchIfDue()).toBe('due')
+    expect(world.asked).toEqual(['ecb:USD', 'ecb:GBP', 'ecb:CHF'])
+    expect(world.update.state.copy?.file.failures).toEqual([{ series: 'twelvedata:ABC', day: TODAY, reason: 'no-key' }])
+  })
+
+  it('fetches the rates an import wants alone, beside those the records need, and leaves the day due', async () => {
+    const world = await worldOf()
+    const fileId = await pricesOnDrive(world, fakePricesFile('sample', civil('2026-10-29')))
+    await world.update.read()
+    const before = readText(await world.drive.download(fileId))
+
+    const run = await world.update.fetchRates({ currencies: ['SEK'], from: '2014-06-02' })
+    expect(run).toMatchObject({ kind: 'written' })
+    expect(world.asked).toEqual(['ecb:USD', 'ecb:GBP', 'ecb:CHF', 'ecb:SEK'])
+    const written = readText(await world.drive.download(fileId))
+    expect(written.writtenAt).toBe(before.writtenAt)
+    expect(written.series['ecb:SEK']?.from).toBe('2014-06-02')
+    expect(world.update.state.copy?.file).toEqual(written)
+    expect(await world.update.fetchIfDue()).toBe('due')
+  })
+
+  it('waits for a fetch under way before it fetches the rates an import wants', async () => {
+    const world = await worldOf()
+    await pricesOnDrive(world, fakePricesFile('sample', civil('2026-10-29')))
+    const release = world.hold()
+    const daily = world.update.fetchNow()
+    const rates = world.update.fetchRates({ currencies: ['SEK'], from: '2020-01-02' })
+    release()
+    await daily
+    expect(await rates).toMatchObject({ kind: 'written' })
+    expect(world.asked).toEqual(['twelvedata:ABC', 'ecb:USD', 'ecb:GBP', 'ecb:CHF', 'ecb:USD', 'ecb:GBP', 'ecb:CHF', 'ecb:SEK'])
   })
 
   it('runs one fetch at a time in a page, counting the series as it asks for each', async () => {

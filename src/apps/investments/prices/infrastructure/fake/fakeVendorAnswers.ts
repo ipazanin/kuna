@@ -39,8 +39,16 @@ function twelveData(query: URLSearchParams): VendorAnswer {
   return json(200, { meta: { symbol }, values: days.map((day) => ({ datetime: day, close: madeUpClose(symbol, day, 100) })), status: 'ok' })
 }
 
+/** The splits the fake Alpha Vantage lists, the made-up workbook's split among them. */
+const FAKE_SPLITS: Readonly<Record<string, readonly { readonly effective_date: string; readonly split_factor: string }[]>> = {
+  ABC: [{ effective_date: '2025-06-10', split_factor: '2.0000' }],
+}
+
 function alphaVantage(query: URLSearchParams): VendorAnswer {
   const symbol = query.get('symbol') ?? ''
+  if (query.get('function') === 'SPLITS') {
+    return json(200, { symbol, data: FAKE_SPLITS[symbol] ?? [] })
+  }
   const days = weekdaysFrom(EARLIEST)
   const rows = (picked: readonly CivilDate[]): Record<string, Record<string, string>> => Object.fromEntries(picked.map((day) => [day, { '4. close': madeUpClose(symbol, day, 90) }]))
   if (query.get('function') === 'TIME_SERIES_DAILY') {

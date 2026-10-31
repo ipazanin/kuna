@@ -3032,6 +3032,9 @@ export function onboardingBringFlow(path) {
     await pressSelector(page, press, '[data-testid="onboarding-continue"]')
     await allowGoogle(page, press, { shoot, inspect })
     await onboardingAt(page, 'file')
+    await page.waitForSelector('[data-testid="download-template"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the file step offers no template download')
+    })
     const input = await page.waitForSelector('input[data-testid="onboarding-file"]')
     await input.uploadFile(path)
     await page
@@ -4335,6 +4338,7 @@ export function dataSourceDialogsFlowIn(language, importFile) {
     await page.waitForSelector('[role="dialog"] [data-testid="data-source-choices"]', { visible: true, timeout: 10_000 }).catch(() => {
       throw new Error('Switch data source opened no choices')
     })
+    if ((await page.$('[role="dialog"] [data-testid="data-source-choices"] [data-testid="download-template"]')) === null) throw new Error('Open a file offers no template download')
     await delay(400)
     await shoot('dialog-switch-source')
     await page.keyboard.press('Escape')
@@ -4594,14 +4598,20 @@ export function investmentsImportFlowIn(language, { workbook: path, edited }, { 
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(croatian ? `${name}-${language}` : name)
     await page.waitForSelector('[data-testid="investments-empty"]', { visible: true, timeout: 10_000 })
+    // A made-up Alpha Vantage key, so the fake vendor lists the made-up workbook's split.
+    await page.evaluate(() => localStorage.setItem('kuna.price-vendor-key.alphavantage', 'MADEUPKEY01'))
     await pressSelector(page, press, '[data-testid="investments-import"]')
     await importStep(page, 'file')
+    if ((await page.$('[data-testid="import-template-download"]')) === null) throw new Error('the workbook import offers no template download')
     await inspect?.('the workbook import before a file')
     await shoot('investments-import-file')
     await page.keyboard.press('Escape')
     await dialogGone(page, '[data-testid="workbook-import"]')
 
     await dropWorkbook(page, press, path)
+    await page.waitForSelector('[data-testid="import-listed-splits"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the workbook import lists no split Alpha Vantage found')
+    })
     await inspect?.('the workbook read')
     await shoot('investments-import-file-read')
     await pressSelector(page, press, '[data-testid="workbook-import-next"]')

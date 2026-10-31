@@ -45,7 +45,7 @@ Every `.vue` in `src/shared/ui` has a row here and a specimen in the gallery at 
 | `ProgressMeter`      | `parts` of `{ value, colour, striped? }`, `label`, `height?`. Read out as its label                                                                                                                           | 0       | 3     | 2           | 0     | 0      |
 | `FactGrid`           | `facts` of `{ label, value, caption?, swatch? }`. Two to a row, all in one row once they fit                                                                                                                  | 0       | 6     | 2           | 0     | 0      |
 | `ScenarioComparison` | `columns`, `groups` of lines of cells `{ text, best, difference, warning? }`, `label`, `baseNote`, `bestNote`, `lineHeading`, `openable?`, `openLabel?`. Slot `column`. Emits `open`. Two by two below 768 px | 0       | 1     | 0           | 0     | 0      |
-| `ShowAllButton`      | `total`, `v-model:expanded`. Shows the first ten entries of a list                                                                                                                                            | 5       | 1     | 5           | 0     | 0      |
+| `ShowAllButton`      | `total`, `v-model:expanded`. Shows the first ten entries of a list                                                                                                                                            | 5       | 1     | 4           | 0     | 0      |
 
 ## Controls
 
@@ -58,5 +58,5 @@ Every `.vue` in `src/shared/ui` has a row here and a specimen in the gallery at 
 | `AppBrand`           | `title`, `icon?`, `colour?`, `look?: 'standard' \                                                                                                                      | 0       | 0     | 0           | 1     | 1      |
 | `ScenarioPicker`     | `options` of `{ value, label, baseLabel?, locked? }`, `picked`, `base`, `most`, `label`, `againstLabel`, `fullNote`, `lockedNote`. Slot `mark`. Emits `toggle`, `base` | 0       | 1     | 0           | 0     | 0      |
 | `AppMark`            | `icon`, `colour`, `size?: 'small' \| 'medium' \| 'large'`. An app's icon on a tile in the app's colour                                                                 | 0       | 0     | 0           | 2     | 1      |
-| `MoneyInput`         | `v-model` the text shown, which `typedAmount` reads. Groups thousands as typed, turns 3k into 3,000 and adds the cents when left. Attributes reach the input.          | 0       | 8     | 6           | 0     | 0      |
+| `MoneyInput`         | `v-model` the text shown, which `typedAmount` reads. Groups thousands as typed, turns 3k into 3,000 and adds the cents when left. Attributes reach the input.          | 0       | 8     | 5           | 0     | 0      |
 | `FileDrop`           | `v-model` the file picked or null, `label`, `description`, `accept`, `icon?`. A dashed place to drop a file on or tap to choose one                                    | 1       | 0     | 1           | 0     | 0      |

@@ -6,6 +6,7 @@ import UFileUpload from '@nuxt/ui/components/FileUpload.vue'
 
 import StepCard from '../../../../shared/ui/StepCard.vue'
 import ImportSummary from '../../workbook-files/presentation/ImportSummary.vue'
+import TemplateDownloadButton from '../../workbook-files/presentation/TemplateDownloadButton.vue'
 import { useImportPreview } from '../../workbook-files/presentation/useImportPreview'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { WORKBOOK_FILE_TYPES } from '../../workbook/presentation/workbookFiles'
@@ -61,19 +62,21 @@ async function proceed(): Promise<void> {
       <ImportSummary :preview="held" :failure="failure" :failure-detail="failureDetail" />
       <UAlert v-if="keepFailure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.file.notKept" :description="keepFailure" />
     </template>
-    <UFileUpload
-      v-else
-      v-model="picked"
-      :accept="WORKBOOK_FILE_TYPES"
-      :preview="false"
-      icon="i-lucide-file-up"
-      :label="words.file.drop"
-      :description="words.file.dropNote"
-      color="neutral"
-      class="w-full"
-      :ui="{ base: 'min-h-32 border-dashed bg-elevated/40' }"
-      data-testid="onboarding-file"
-    />
+    <div v-else class="flex flex-col gap-2">
+      <UFileUpload
+        v-model="picked"
+        :accept="WORKBOOK_FILE_TYPES"
+        :preview="false"
+        icon="i-lucide-file-up"
+        :label="words.file.drop"
+        :description="words.file.dropNote"
+        color="neutral"
+        class="w-full"
+        :ui="{ base: 'min-h-32 border-dashed bg-elevated/40' }"
+        data-testid="onboarding-file"
+      />
+      <TemplateDownloadButton />
+    </div>
 
     <template #actions>
       <UButton v-if="held || failure" :label="words.file.another" color="neutral" variant="outline" data-testid="onboarding-another-file" @click="another" />

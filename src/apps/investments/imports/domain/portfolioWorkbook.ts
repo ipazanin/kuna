@@ -2,7 +2,7 @@ import { civilDateFromSerial, parseCivilDate } from '../../../../shared/calendar
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
-import { decimalOfNumber, decimalOfText, decimalText } from '../../../../shared/money/decimal'
+import { DECIMAL_ZERO, decimalOfNumber, decimalOfText, decimalText, dividedDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import { cellText } from '../../../../shared/text/cellText'
 import { factKey } from '../../../../shared/text/factKey'
@@ -69,7 +69,17 @@ export const WORKBOOK_COLUMNS = {
   sourceFile: 'Source file',
 } as const
 
+/**
+ * Columns a workbook may add, read when the header names them, so an older workbook still reads. They answer a
+ * spin-off's questions: the parent's symbol or ISIN, and the share of its cost that moves.
+ */
+export const OPTIONAL_COLUMNS = {
+  spinOffFrom: 'Spin-off from',
+  costShare: 'Cost share',
+} as const
+
 export type WorkbookColumn = keyof typeof WORKBOOK_COLUMNS
+type OptionalColumn = keyof typeof OPTIONAL_COLUMNS
 
 /** Quantities, prices and rates keep twelve places, and amounts of money are in cents. */
 const PLACES = { quantity: 12, price: 12, revolutRate: 12, gross: 2, commission: 2, netCash: 2, counterAmount: 2 } as const
@@ -105,11 +115,17 @@ export interface WorkbookRow {
   readonly revolutRate: Decimal | null
   readonly note: string
   readonly sourceFile: string
+  /** A spin-off's parent as its symbol or ISIN, blank when the workbook names none. */
+  readonly spinOffFrom: string
+  /** The fraction of a spin-off parent's cost that moves to the units received, above zero and below one, or null when blank or unreadable. */
+  readonly costShare: Decimal | null
+  /** The Cost share cell as written, so a share that cannot be read can be named. */
+  readonly costShareText: string
   /** The row's facts with its count among rows of the file with the same facts. */
   readonly key: string
 }
 
-/** Why a row of the tab is not imported. The dry run adds the last two, for a row read whole that Kuna cannot keep as booked. */
+/** Why a row of the tab is not imported. The dry run adds the last three, for a row read whole that Kuna cannot keep as booked. */
 export type SkipReason =
   | { readonly kind: 'unknown-type'; readonly text: string }
   | { readonly kind: 'unreadable'; readonly column: WorkbookColumn; readonly text: string }
@@ -118,6 +134,8 @@ export type SkipReason =
   | { readonly kind: 'against-sign' }
   /** A record the write rules of its kind would refuse, with their words. */
   | { readonly kind: 'refused'; readonly reason: string }
+  /** An exchange of less than a cent, such as a broker's conversion of a currency's dust. */
+  | { readonly kind: 'below-a-cent' }
 
 export interface SkippedRow {
   readonly fileRow: number
@@ -170,7 +188,10 @@ export function readPortfolioWorkbook(tabs: readonly WorkbookTab[]): WorkbookRea
     return { kind: 'refused', refusal: { kind: 'missing-columns', columns: fewest } }
   }
   const header = tab.grid[headerIndex]!.map((cell) => fold(cellText(cell)))
-  const columnOf = Object.fromEntries(Object.entries(WORKBOOK_COLUMNS).map(([name, title]) => [name, header.indexOf(fold(title))])) as Record<WorkbookColumn, number>
+  const columnOf = Object.fromEntries(Object.entries({ ...WORKBOOK_COLUMNS, ...OPTIONAL_COLUMNS }).map(([name, title]) => [name, header.indexOf(fold(title))])) as Record<
+    WorkbookColumn | OptionalColumn,
+    number
+  >
 
   const rows: Omit<WorkbookRow, 'key'>[] = []
   const skipped: SkippedRow[] = []
@@ -193,8 +214,8 @@ export function readPortfolioWorkbook(tabs: readonly WorkbookTab[]): WorkbookRea
   return { kind: 'read', rows: withKeys(rows), skipped, rounded }
 }
 
-function rowOf(fileRow: number, cellAt: (column: WorkbookColumn) => WorkbookCell | undefined, rounded: RoundedCell[]): Omit<WorkbookRow, 'key'> {
-  const text = (column: WorkbookColumn): string => cellText(cellAt(column))
+function rowOf(fileRow: number, cellAt: (column: WorkbookColumn | OptionalColumn) => WorkbookCell | undefined, rounded: RoundedCell[]): Omit<WorkbookRow, 'key'> {
+  const text = (column: WorkbookColumn | OptionalColumn): string => cellText(cellAt(column))
   const typeText = fold(text('type'))
   const type = WORKBOOK_TYPES.find((known) => known === typeText)
   if (type === undefined) {
@@ -251,7 +272,29 @@ function rowOf(fileRow: number, cellAt: (column: WorkbookColumn) => WorkbookCell
     revolutRate: number('revolutRate'),
     note: text('note'),
     sourceFile: text('sourceFile'),
+    spinOffFrom: text('spinOffFrom'),
+    costShare: costShareOf(cellAt('costShare')),
+    costShareText: text('costShare'),
   }
+}
+
+const HUNDRED = decimalOfText('100')!
+const ONE = decimalOfText('1')!
+
+/**
+ * A cost share as a fraction. A number below 1 is the fraction itself, which is what a cell formatted as a percent
+ * keeps, and a number from 1 up is a percent. Text reads the same way, and with a percent sign it is always a percent.
+ * Null for a blank cell, anything unreadable, and a share not above zero and below one.
+ */
+function costShareOf(cell: WorkbookCell | undefined): Decimal | null {
+  const written = typeof cell === 'number' ? String(cell) : cellText(cell).replace(',', '.')
+  const percentSign = written.endsWith('%')
+  const value = typeof cell === 'number' ? decimalOfNumber(cell, 12) : decimalOfText(written.replace(/\s*%$/, '').trim())
+  if (value === null) {
+    return null
+  }
+  const share = percentSign || value >= ONE ? dividedDecimal(value, HUNDRED) : value
+  return share > DECIMAL_ZERO && share < ONE ? share : null
 }
 
 function dateOf(cell: WorkbookCell | undefined): CivilDate {
