@@ -9,6 +9,7 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import { setSettings } from '../application/settingWrites'
 import { DEFAULT_SETTINGS, changedPackSettings, changedSettings } from '../domain/settings'
 import type { SettingEntry, Settings } from '../domain/settings'
+import { words } from './words'
 
 export interface SettingsSave {
   /** The settings as the workbook holds them. */
@@ -38,7 +39,7 @@ export function useSettingsSave(): SettingsSave {
   const held = computed(() => state.records?.settings ?? NO_RECORDS)
 
   function write(changes: readonly SettingEntry[]): Promise<boolean> {
-    return writes.write('Settings saved', (unit) => setSettings(unit, held.value, changes), { failedTitle: 'Not saved' })
+    return writes.write(words.saved, (unit) => setSettings(unit, held.value, changes), { failedTitle: words.notSaved })
   }
 
   return {

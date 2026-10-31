@@ -6,6 +6,7 @@ import { statementPdfNaming, statementXmlNaming } from '../domain/statementMailF
 import { sourceTerms } from '../domain/mailSource'
 import type { AttachmentNaming } from '../domain/mailSource'
 import type { MailSource } from './mailFiling'
+import { words } from './words'
 
 /**
  * The bank's statement mail, filed into the statements folder, which the statements step of the
@@ -17,7 +18,7 @@ import type { MailSource } from './mailFiling'
 export function statementMailSource(load: (fileName: string, bytes: ArrayBuffer) => Promise<LoadedImportFile>, timeZone: string): MailSource {
   return {
     id: 'statements',
-    label: 'Bank statements',
+    label: words.statements.label,
     duplicates: 'redelivery',
     terms: (workbook) => {
       const { statementsMailFrom, statementsMailSubject, statementsFolder } = workbook.settings
@@ -39,7 +40,7 @@ export function statementMailSource(load: (fileName: string, bytes: ArrayBuffer)
               return { kind: 'unmatched', attachment, reason: failure instanceof Error ? failure.message : String(failure) }
             }
             const head = loaded.kind === 'camt' ? camtStatementHead(loaded.document, accountsByIban(reading.workbook)) : null
-            return head === null ? { kind: 'unmatched', attachment, reason: 'It is not a camt.053 statement with a creation day and a number.' } : statementXmlNaming(attachment, head, terms.folder)
+            return head === null ? { kind: 'unmatched', attachment, reason: words.statements.notCamt } : statementXmlNaming(attachment, head, terms.folder)
           }),
       ),
   }

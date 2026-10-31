@@ -9,9 +9,12 @@ import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { payScenarios } from '../../domain/scenarios/payScenarios'
 import type { PayScenarios } from '../../domain/scenarios/payScenarios'
+import { HUNDRED } from '../../domain/scenarios/marginalEuro'
 import type { ScenarioNote, ScenarioOutcome, ScenarioWarning } from '../../domain/scenarios/scenarioOutcome'
+import { scenarioName } from '../../domain/scenarios/startingScenarios'
 import { figureDetail } from '../tracedFigureView'
 import type { FigureDetail } from '../tracedFigureView'
+import { words } from './words'
 
 /** The pay scenarios of a year, the fact their figures wait for and where it is set, or why they could not be worked out. */
 export type PayState =
@@ -24,21 +27,21 @@ export function payState(workbook: HrDooWorkbook, year: number, asOf: CivilDate)
     return {
       state: 'needs',
       need: 'hr_company_registered',
-      why: 'The tax periods and the corporate tax count from the day the company was registered.',
-      action: { label: 'Set it on Settings', to: { path: '/company/settings', hash: '#company-registered' } },
+      why: words.needs.registered,
+      action: { label: words.needs.setOnSettings, to: { path: '/company/settings', hash: '#company-registered' } },
     }
   }
   const employees = { path: '/company/salaries', hash: '#employee-rows' }
   if (workbook.director === null) {
     return {
       state: 'needs',
-      need: 'a director on the employees tab',
-      why: "The director's row holds where you live, pillar II and your dependants, which the salary of each scenario is worked out on.",
-      action: { label: 'Add it on Salaries', to: employees },
+      need: words.needs.director,
+      why: words.needs.directorWhy,
+      action: { label: words.needs.addOnSalaries, to: employees },
     }
   }
   if (workbook.director.residenceCity === '') {
-    return { state: 'needs', need: "the director's city", why: 'Your city of residence sets the income tax rates of the salary.', action: { label: 'Set it on Salaries', to: employees } }
+    return { state: 'needs', need: words.needs.city, why: words.needs.cityWhy, action: { label: words.needs.setOnSalaries, to: employees } }
   }
   try {
     return { state: 'ready', figures: payScenarios(workbook, year, asOf) }
@@ -85,25 +88,9 @@ export interface ScenarioSplit {
 
 export type SplitSegment = 'net' | 'pillar-two' | 'pillar-one' | 'health' | 'income-tax' | 'rent-tax' | 'dividend-tax' | 'corporate-tax' | 'kept'
 
-export const SEGMENT_LABELS: Readonly<Record<SplitSegment, string>> = {
-  net: 'Net to you',
-  'pillar-two': 'Pension pillar II, your savings',
-  'pillar-one': 'Pension pillar I',
-  health: 'Health insurance',
-  'income-tax': 'Income tax',
-  'rent-tax': 'Rent tax',
-  'dividend-tax': 'Dividend tax',
-  'corporate-tax': 'Corporate tax',
-  kept: 'Kept in the company',
-}
+export const SEGMENT_LABELS: Readonly<Record<SplitSegment, string>> = words.segments
 
-export const GROUP_LABELS: Readonly<Record<LineGroup, string>> = {
-  net: 'Net to you',
-  pension: 'Pension, shown apart from net',
-  company: 'Cost to the company',
-  state: 'Taxes and contributions by type',
-  kept: 'What the company keeps',
-}
+export const GROUP_LABELS: Readonly<Record<LineGroup, string>> = words.groups
 
 /** Which way a line is better, or null for a line that only informs. */
 type Better = 'higher' | 'lower' | null
@@ -117,46 +104,41 @@ interface LineSpec {
   readonly pick: (outcome: ScenarioOutcome) => TracedFigure | null
 }
 
-const LINES: readonly LineSpec[] = [
-  { key: 'net-salary', label: 'Net salary', group: 'net', better: null, pick: (outcome) => outcome.netSalary },
-  { key: 'tax-free', label: 'Tax-free items', group: 'net', better: null, pick: (outcome) => outcome.taxFree },
-  { key: 'rent-after-tax', label: 'Rent after the rent tax', group: 'net', better: null, pick: (outcome) => outcome.rentAfterTax },
-  { key: 'dividend-net', label: 'Dividend after its tax', group: 'net', better: null, pick: (outcome) => outcome.dividend.net },
-  { key: 'settlement', label: 'Annual settlement, refund or extra', group: 'net', better: null, pick: (outcome) => outcome.settlementRefund },
-  { key: 'own-contributions', label: 'Contributions you pay yourself', group: 'net', better: null, pick: (outcome) => outcome.ownContributions },
-  { key: 'net', label: 'Net to you', group: 'net', better: 'higher', total: true, pick: (outcome) => outcome.netToOwner },
-  { key: 'per-hundred', label: 'Net to you of each 100.00 of profit before owner pay', group: 'net', better: 'higher', pick: (outcome) => outcome.netPerHundred },
-  { key: 'pillar-two', label: 'Pension pillar II, your own savings', group: 'pension', better: null, pick: (outcome) => outcome.taxes.pensionPillarTwo },
-  { key: 'pillar-one', label: 'Pension pillar I, your pension rights', group: 'pension', better: null, pick: (outcome) => outcome.taxes.pensionPillarOne },
-  { key: 'gross-two', label: 'Gross II, salary and health', group: 'company', better: null, pick: (outcome) => outcome.grossTwo },
-  { key: 'tax-free-cost', label: 'Tax-free items', group: 'company', better: null, pick: (outcome) => outcome.taxFree },
-  { key: 'rent', label: 'Rent', group: 'company', better: null, pick: (outcome) => outcome.rent },
-  { key: 'dividend', label: 'Dividend paid out', group: 'company', better: null, pick: (outcome) => outcome.dividend.gross },
-  { key: 'corporate-tax', label: 'Corporate tax', group: 'company', better: null, pick: (outcome) => outcome.taxes.corporateTax },
-  { key: 'company-cost', label: 'Total cost to the company', group: 'company', better: null, total: true, pick: (outcome) => outcome.companyCost },
-  { key: 'corporate-tax-without', label: 'Corporate tax with no owner pay deducted', group: 'company', better: null, pick: (outcome) => outcome.corporateTaxWithoutOwnerPay },
-  { key: 'corporate-tax-saved', label: 'Corporate tax the deductible pay saves', group: 'company', better: 'higher', pick: (outcome) => outcome.corporateTaxSaved },
-  { key: 'health', label: 'Health insurance', group: 'state', better: 'lower', pick: (outcome) => outcome.taxes.health },
-  { key: 'income-tax', label: 'Income tax withheld in the months', group: 'state', better: 'lower', pick: (outcome) => outcome.taxes.incomeTaxWithheld },
-  { key: 'settlement-change', label: 'Annual settlement, extra tax less refund', group: 'state', better: 'lower', pick: (outcome) => outcome.taxes.settlementChange },
-  { key: 'youth-relief', label: 'Youth relief, inside the settlement', group: 'state', better: null, pick: (outcome) => outcome.taxes.youthRelief },
-  { key: 'rent-tax', label: 'Rent tax', group: 'state', better: 'lower', pick: (outcome) => outcome.taxes.rentTax },
-  { key: 'dividend-tax', label: 'Dividend tax', group: 'state', better: 'lower', pick: (outcome) => outcome.taxes.dividendTax },
-  { key: 'state-corporate-tax', label: 'Corporate tax', group: 'state', better: 'lower', pick: (outcome) => outcome.taxes.corporateTax },
-  { key: 'state', label: 'Taken by the state, pillar I included, pillar II apart', group: 'state', better: 'lower', total: true, pick: (outcome) => outcome.stateTake },
-  { key: 'kept', label: 'Kept in the company', group: 'kept', better: null, pick: (outcome) => outcome.keptInCompany },
-  { key: 'cash-after', label: 'Cash left after the year and the payout', group: 'kept', better: 'higher', pick: (outcome) => outcome.cashAfter },
-]
-
-const ITEM_WORDS: Readonly<Record<string, string>> = {
-  'results-bonus': 'A results bonus',
-  'occasional-gift': 'An occasional gift',
-  'meal-allowance-flat': 'A flat meal allowance',
-  'meals-on-invoices': 'Meals on invoices',
-  'supplementary-health-insurance': 'Supplementary health insurance',
-  'holiday-services': 'Holiday services',
-  'child-gift': 'A gift to a child',
+/** The lines of the comparison, worded when they are shown so an amount in a label follows the file's number format. */
+function lineSpecs(): readonly LineSpec[] {
+  return [
+    { key: 'net-salary', label: words.lines['net-salary'], group: 'net', better: null, pick: (outcome) => outcome.netSalary },
+    { key: 'tax-free', label: words.lines['tax-free'], group: 'net', better: null, pick: (outcome) => outcome.taxFree },
+    { key: 'rent-after-tax', label: words.lines['rent-after-tax'], group: 'net', better: null, pick: (outcome) => outcome.rentAfterTax },
+    { key: 'dividend-net', label: words.lines['dividend-net'], group: 'net', better: null, pick: (outcome) => outcome.dividend.net },
+    { key: 'settlement', label: words.lines['settlement'], group: 'net', better: null, pick: (outcome) => outcome.settlementRefund },
+    { key: 'own-contributions', label: words.lines['own-contributions'], group: 'net', better: null, pick: (outcome) => outcome.ownContributions },
+    { key: 'net', label: words.lines['net'], group: 'net', better: 'higher', total: true, pick: (outcome) => outcome.netToOwner },
+    { key: 'per-hundred', label: words.lines['per-hundred'](HUNDRED), group: 'net', better: 'higher', pick: (outcome) => outcome.netPerHundred },
+    { key: 'pillar-two', label: words.lines['pillar-two'], group: 'pension', better: null, pick: (outcome) => outcome.taxes.pensionPillarTwo },
+    { key: 'pillar-one', label: words.lines['pillar-one'], group: 'pension', better: null, pick: (outcome) => outcome.taxes.pensionPillarOne },
+    { key: 'gross-two', label: words.lines['gross-two'], group: 'company', better: null, pick: (outcome) => outcome.grossTwo },
+    { key: 'tax-free-cost', label: words.lines['tax-free-cost'], group: 'company', better: null, pick: (outcome) => outcome.taxFree },
+    { key: 'rent', label: words.lines['rent'], group: 'company', better: null, pick: (outcome) => outcome.rent },
+    { key: 'dividend', label: words.lines['dividend'], group: 'company', better: null, pick: (outcome) => outcome.dividend.gross },
+    { key: 'corporate-tax', label: words.lines['corporate-tax'], group: 'company', better: null, pick: (outcome) => outcome.taxes.corporateTax },
+    { key: 'company-cost', label: words.lines['company-cost'], group: 'company', better: null, total: true, pick: (outcome) => outcome.companyCost },
+    { key: 'corporate-tax-without', label: words.lines['corporate-tax-without'], group: 'company', better: null, pick: (outcome) => outcome.corporateTaxWithoutOwnerPay },
+    { key: 'corporate-tax-saved', label: words.lines['corporate-tax-saved'], group: 'company', better: 'higher', pick: (outcome) => outcome.corporateTaxSaved },
+    { key: 'health', label: words.lines['health'], group: 'state', better: 'lower', pick: (outcome) => outcome.taxes.health },
+    { key: 'income-tax', label: words.lines['income-tax'], group: 'state', better: 'lower', pick: (outcome) => outcome.taxes.incomeTaxWithheld },
+    { key: 'settlement-change', label: words.lines['settlement-change'], group: 'state', better: 'lower', pick: (outcome) => outcome.taxes.settlementChange },
+    { key: 'youth-relief', label: words.lines['youth-relief'], group: 'state', better: null, pick: (outcome) => outcome.taxes.youthRelief },
+    { key: 'rent-tax', label: words.lines['rent-tax'], group: 'state', better: 'lower', pick: (outcome) => outcome.taxes.rentTax },
+    { key: 'dividend-tax', label: words.lines['dividend-tax'], group: 'state', better: 'lower', pick: (outcome) => outcome.taxes.dividendTax },
+    { key: 'state-corporate-tax', label: words.lines['state-corporate-tax'], group: 'state', better: 'lower', pick: (outcome) => outcome.taxes.corporateTax },
+    { key: 'state', label: words.lines['state'], group: 'state', better: 'lower', total: true, pick: (outcome) => outcome.stateTake },
+    { key: 'kept', label: words.lines['kept'], group: 'kept', better: null, pick: (outcome) => outcome.keptInCompany },
+    { key: 'cash-after', label: words.lines['cash-after'], group: 'kept', better: 'higher', pick: (outcome) => outcome.cashAfter },
+  ]
 }
+
+const ITEM_WORDS: Readonly<Record<string, string>> = words.items
 
 /** A tax-free item as a sentence starts it. */
 export function itemWords(item: string): string {
@@ -166,32 +148,37 @@ export function itemWords(item: string): string {
 export function warningText(warning: ScenarioWarning): string {
   switch (warning.kind) {
     case 'below-floor':
-      return `The salary of ${formatMoney(warning.agreed)} a month is below the director floor of ${formatMoney(warning.floor.amount)}, so the payroll pays the floor.`
+      return words.warnings.belowFloor(formatMoney(warning.agreed), formatMoney(warning.floor.amount))
     case 'cap-exceeded':
-      return `${itemWords(warning.item)} of ${formatMoney(warning.paid.amount)} is over its yearly cap of ${formatMoney(warning.cap.amount)}. The ${formatMoney(warning.excess.amount)} over it is taxed as salary.`
+      return words.warnings.capExceeded(itemWords(warning.item), formatMoney(warning.paid.amount), formatMoney(warning.cap.amount), formatMoney(warning.excess.amount))
     case 'salary-dropped':
-      return `The salary stops on ${dayLabel(warning.from)}, but ${warning.grant} requires the employment until ${dayLabel(warning.requiredUntil)}.${warning.atRisk === null || warning.atRisk.amount === 0 ? '' : ` Its terms can claw back ${formatMoney(warning.atRisk.amount)} then.`}`
+      return words.warnings.salaryDropped(
+        dayLabel(warning.from),
+        warning.grant,
+        dayLabel(warning.requiredUntil),
+        warning.atRisk === null || warning.atRisk.amount === 0 ? null : formatMoney(warning.atRisk.amount),
+      )
     case 'dividend-above-capacity':
-      return `The dividend of ${formatMoney(warning.dividend.amount)} is above the ${formatMoney(warning.distributable.amount)} the year can pay out.`
+      return words.warnings.aboveCapacity(formatMoney(warning.dividend.amount), formatMoney(warning.distributable.amount))
     case 'net-assets-below-capital':
       return warning.netAssetsAfter.amount < 0
-        ? `After the payout, net assets fall to ${formatMoney(-warning.netAssetsAfter.amount)} below zero, under the share capital of ${formatMoney(warning.shareCapital.amount)}.`
-        : `After the payout, net assets of ${formatMoney(warning.netAssetsAfter.amount)} fall below the share capital of ${formatMoney(warning.shareCapital.amount)}.`
+        ? words.warnings.belowZero(formatMoney(-warning.netAssetsAfter.amount), formatMoney(warning.shareCapital.amount))
+        : words.warnings.belowCapital(formatMoney(warning.netAssetsAfter.amount), formatMoney(warning.shareCapital.amount))
     case 'cash-short':
-      return `Cash would not cover the year: ${formatMoney(-warning.cashAfter.amount)} short after the owner pay, the corporate tax and the dividend paid in cash.`
+      return words.warnings.cashShort(formatMoney(-warning.cashAfter.amount))
   }
 }
 
 export function noteText(note: ScenarioNote): string {
   switch (note.kind) {
     case 'tax-free-basis':
-      return `${itemWords(note.item)} needs a real basis, such as a written decision or the invoices, before it is paid tax free.`
+      return words.notes.taxFreeBasis(itemWords(note.item))
     case 'rent-basis':
-      return 'Rent needs real business space at a market rent, and one story with any commuting or work-from-home allowance.'
+      return words.notes.rentBasis
     case 'board-only':
-      return 'As a board member only, you pay these contributions yourself on the average wage, set by a tax office decision. They are not a company cost. A part month is prorated by calendar days, which is an assumption.'
+      return words.notes.boardOnly
     case 'insured-elsewhere':
-      return 'Insured through a job elsewhere, the yearly difference to the director floor is taken as nothing, which holds while that pay is at least the floor. That pay is not counted here.'
+      return words.notes.insuredElsewhere
   }
 }
 
@@ -206,9 +193,9 @@ export function comparedScenarios(result: PayScenarios, chosen: readonly string[
   const outcomes = result.entries.flatMap((entry) => (entry.kind === 'outcome' && chosen.includes(entry.scenario.slug) ? [entry.outcome] : []))
   const ordered = [...outcomes.filter((outcome) => outcome.scenario.slug === base), ...outcomes.filter((outcome) => outcome.scenario.slug !== base)]
   const baseOutcome = ordered[0]?.scenario.slug === base ? ordered[0] : null
-  const nameOf = (outcome: ScenarioOutcome) => outcome.scenario.label || outcome.scenario.slug
+  const nameOf = (outcome: ScenarioOutcome) => scenarioName(outcome.scenario)
 
-  const lines = LINES.flatMap((spec): ComparedLine[] => {
+  const lines = lineSpecs().flatMap((spec): ComparedLine[] => {
     const figures = ordered.map((outcome) => spec.pick(outcome))
     if (figures.some((figure) => figure === null) || figures.every((figure) => figure?.amount === 0)) {
       return []

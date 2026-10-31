@@ -5,11 +5,11 @@ import { expectedInvoices } from '../../../../billingPlan/domain/expectedInvoice
 import type { DrillTarget } from '../../../../filters/domain/drillTarget'
 import { runwayInWords } from '../../../../overview/domain/headline'
 import type { HrDooWorkbook } from '../../domain/hrDooPart'
-import { yearOf } from '../../../../../../shared/calendar/civilDate'
+import { civilDate, yearOf } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { monthKey, yearOfMonth } from '../../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
-import { monthLabel, shortMonthName } from '../../../../../../shared/calendar/monthLabel'
+import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
 import { negateMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
@@ -27,6 +27,9 @@ import { lineLabel } from '../yearEnd/yearEndWording'
 import type { BuildUpLine } from './BuildUpList.vue'
 import type { ForecastChartMonth } from './forecastChart'
 import { rowsBehind } from './rowsBehind'
+import { withFullStop } from '../../../../../../shared/text/withFullStop'
+import { plural } from '../../../../../../shared/text/translation'
+import { words } from './words'
 
 /** How the screen opens rows. */
 export interface ForecastViewContext {
@@ -65,17 +68,13 @@ export interface PlanActualView {
   readonly months: readonly { readonly key: string; readonly month: string; readonly plan: number; readonly actual: number; readonly difference: number }[]
 }
 
-const PAYOUT_NAMES: Readonly<Record<PayoutOptionId, string>> = {
-  'after-adoption': 'One payout next year',
-  interim: 'Interim payout now',
-  keep: 'Keep it in the company',
-}
+const PAYOUT_NAMES: Readonly<Record<PayoutOptionId, string>> = words.payouts
 
 const BASIS_WORDS: readonly (readonly [MonthBasis, string])[] = [
-  ['actual', 'from the ledger'],
-  ['paid-ahead', 'paid ahead'],
-  ['planned', 'planned'],
-  ['averaged', 'averaged'],
+  ['actual', words.basis.actual],
+  ['paid-ahead', words.basis['paid-ahead']],
+  ['planned', words.basis.planned],
+  ['averaged', words.basis.averaged],
 ]
 
 /** The forecast of a year as the Year page shows it, or why it could not be made. */
@@ -106,6 +105,7 @@ function forecastView(workbook: HrDooWorkbook, year: number, asOf: CivilDate, co
   const linkOf = (figure: TracedFigure | null): RouteLocationRaw | null => (figure === null ? null : context.link(figure.drill))
   const running = calendar.running !== null && yearOfMonth(calendar.running) === year ? calendar.running : null
   const forecastMonths = forecast.profitBeforeTax.months.filter(isGuessed).length
+  const yearEnd = dayLabel(civilDate(year, 12, 31))
 
   const incomeLines = forecast.lines.filter((entry) => entry.line === 'sales' || entry.line === 'other-operating-income')
   const costLines = forecast.lines.filter((entry) => !incomeLines.includes(entry))
@@ -142,7 +142,7 @@ function forecastView(workbook: HrDooWorkbook, year: number, asOf: CivilDate, co
       })),
     {
       key: 'profit-before-tax',
-      label: 'Profit before tax',
+      label: words.profitBeforeTax,
       caption: basisCaption(forecast.profitBeforeTax),
       value: { cents: forecast.profitBeforeTax.total.amount },
       to: null,
@@ -212,7 +212,7 @@ function forecastView(workbook: HrDooWorkbook, year: number, asOf: CivilDate, co
   const cashMonths = forecast.cashByMonth.map((entry): BuildUpLine => ({
     key: entry.month,
     label: monthLabel(entry.month),
-    caption: entry.basis === 'ledger' ? 'The bank balance at the month end' : 'Projected',
+    caption: entry.basis === 'ledger' ? words.cashMonth.ledger : words.cashMonth.projected,
     value: { cents: entry.closing.amount },
     to: entry.basis === 'ledger' ? linkOf(entry.closing) : null,
     total: entry.month === monthKey(year, 12),
@@ -238,11 +238,11 @@ function forecastView(workbook: HrDooWorkbook, year: number, asOf: CivilDate, co
     const dropped = forecast.ownerPay?.salaryDropped.find((entry) => entry.grant === grant.slug) ?? null
     const pay =
       forecast.ownerPay === null
-        ? 'The plan sets no owner pay scenario, so the owner pay categories carry on as they are.'
+        ? words.employment.noScenario
         : dropped === null
-          ? 'The planned owner pay keeps a salary until then.'
-          : `The planned owner pay stops the salary on ${dayLabel(dropped.from)}${dropped.atRisk === null ? '' : `, which puts ${formatMoney(dropped.atRisk.amount)} at risk`}.`
-    return [`${grant.slug} requires the employment until ${dayLabel(until)}. ${pay}`]
+          ? words.employment.keepsSalary
+          : words.employment.stopsSalary(dayLabel(dropped.from), dropped.atRisk === null ? null : formatMoney(dropped.atRisk.amount))
+    return [words.employment.requires(grant.slug, dayLabel(until), pay)]
   })
 
   return {
@@ -250,54 +250,53 @@ function forecastView(workbook: HrDooWorkbook, year: number, asOf: CivilDate, co
     running,
     tiles: [
       {
-        label: 'Profit before tax',
+        label: words.profitBeforeTax,
         value: formatMoney(base.profitBeforeTax.amount),
         to: null,
-        caption: forecastMonths === 0 ? 'Every month from the ledger' : `${12 - forecastMonths} of 12 months from the ledger alone`,
-        definition:
-          'Income less costs on the accrual view, as the accountant books them. Months the ledger has not closed take the plan row, or for revenue the billing plan’s rows still to invoice, else the line’s average.',
+        caption: forecastMonths === 0 ? words.tiles.everyMonthFromLedger : words.tiles.fromLedgerAlone(12 - forecastMonths),
+        definition: words.tiles.profitDefinition,
       },
       {
-        label: 'Corporate tax',
+        label: words.tiles.corporateTax,
         value: formatMoney(liability.liability.amount),
         to: ruleLink('hr.cit.rate'),
-        caption: `At ${percentText(liability.rate.basisPoints)} on a base of ${formatMoney(base.base.amount)}`,
-        definition: 'PD line 53, the tax on the base after the add-backs. Opens the rule with the rates.',
+        caption: words.tiles.taxAt(percentText(liability.rate.basisPoints), formatMoney(base.base.amount)),
+        definition: words.tiles.taxDefinition,
       },
       {
-        label: 'Profit after tax',
+        label: words.tiles.profitAfterTax,
         value: formatMoney(forecast.profitAfterTax.amount),
         to: null,
-        caption: `${formatMoney(capacity.maxPayout.amount)} could be paid out`,
-        definition: 'Profit before tax less the corporate tax of the year. What can be paid out also counts earlier years and the share capital.',
+        caption: words.tiles.couldBePaidOut(formatMoney(capacity.maxPayout.amount)),
+        definition: words.tiles.afterTaxDefinition,
       },
       {
-        label: 'Cash at the year end',
+        label: words.tiles.cashAtYearEnd,
         value: formatMoney(forecast.cashAtYearEnd.amount),
         to: null,
-        caption: `Projected for 31 Dec ${year}`,
-        definition: `Cash on the newest booking, then each month as it would be paid: revenue when the client pays, open invoices, the VAT position, costs, purchases, the dividend and the corporate tax. ${forecast.paymentLag.label}. A planning projection, not a bank balance.`,
+        caption: words.tiles.projectedFor(yearEnd),
+        definition: words.tiles.cashDefinition(forecast.paymentLag.label),
       },
     ],
     chartMonths,
     profitAndLoss,
-    profitAndLossSummary: `Profit before tax ${formatMoney(forecast.profitBeforeTax.total.amount)}`,
+    profitAndLossSummary: words.profitAndLossSummary(formatMoney(forecast.profitBeforeTax.total.amount)),
     pdReturn,
-    pdReturnSummary: `Tax ${formatMoney(liability.liability.amount)}, a monthly advance of ${formatMoney(liability.monthlyAdvance.amount)}`,
+    pdReturnSummary: words.pdReturnSummary(formatMoney(liability.liability.amount), formatMoney(liability.monthlyAdvance.amount)),
     dividend: {
       capacity: capacityLines,
       prudence: prudenceLines,
       deterioration: ruleChips([prudence.deterioration]),
       decideBy: dayLabel(capacity.decideBy),
       payouts: capacity.options.map((option) => payoutView(option, linkOf)),
-      summary: `${formatMoney(capacity.maxPayout.amount)} could be paid out`,
+      summary: words.tiles.couldBePaidOut(formatMoney(capacity.maxPayout.amount)),
     },
     cashMonths,
-    cashSummary: `${formatMoney(forecast.cashAtYearEnd.amount)} on 31 Dec ${year}`,
+    cashSummary: words.cashSummary(formatMoney(forecast.cashAtYearEnd.amount), yearEnd),
     paymentLag: forecast.paymentLag.label,
     runway: runway.months === null ? null : { lasts: runwayInWords(runway.months), monthlyCost: runway.monthlyCost.amount },
     planActual: compared,
-    planActualSummary: compared.length === 0 ? 'Nothing to compare yet' : `${compared.length} ${compared.length === 1 ? 'line' : 'lines'}`,
+    planActualSummary: compared.length === 0 ? words.nothingToCompare : plural(words.lines(compared.length), compared.length),
     notCounted,
     employment,
     watched: watchedCitations([base.base, liability.liability, forecast.profitAfterTax, forecast.cashAtYearEnd, ...(forecast.ownerPay?.lines.map((entry) => entry.forecast.total) ?? [])]),
@@ -322,30 +321,30 @@ function knownFigures(parts: readonly LinePart[], index: number): TracedFigure[]
 }
 
 function basisWords(bases: readonly MonthBasis[]): string {
-  const words = BASIS_WORDS.filter(([basis]) => bases.includes(basis)).map(([, word]) => word)
-  if (words.length > 0) {
-    return words.join(' and ')
+  const named = BASIS_WORDS.filter(([basis]) => bases.includes(basis)).map(([, word]) => word)
+  if (named.length > 0) {
+    return named.join(words.basis.and)
   }
-  return bases.includes('scheduled') ? 'from the asset and grant schedules' : 'nothing'
+  return bases.includes('scheduled') ? words.basis.scheduled : words.basis.nothing
 }
 
 /** "Jan to Sep from the ledger, Oct averaged, Nov to Dec planned", or "Every month …" when one basis holds the year. */
 function basisCaption(line: ForecastLine): string {
-  const runs: { first: MonthKey; last: MonthKey; words: string }[] = []
+  const runs: { first: MonthKey; last: MonthKey; basis: string }[] = []
   for (const entry of line.months) {
-    const words = basisWords(entry.bases)
+    const basis = basisWords(entry.bases)
     const previous = runs[runs.length - 1]
-    if (previous !== undefined && previous.words === words) {
+    if (previous !== undefined && previous.basis === basis) {
       previous.last = entry.month
     } else {
-      runs.push({ first: entry.month, last: entry.month, words })
+      runs.push({ first: entry.month, last: entry.month, basis })
     }
   }
   const [only] = runs
   if (runs.length === 1 && only !== undefined) {
-    return `Every month ${only.words}`
+    return words.basis.everyMonth(only.basis)
   }
-  return runs.map((run) => `${run.first === run.last ? shortMonthName(run.first) : `${shortMonthName(run.first)} to ${shortMonthName(run.last)}`} ${run.words}`).join(', ')
+  return runs.map((run) => words.basis.run(run.first, run.last, run.basis)).join(', ')
 }
 
 /** A part of a profit and loss line, with the months a plan row or an average stands in for under it. */
@@ -371,10 +370,9 @@ function partSteps(part: LinePart, key: string, year: number, context: ForecastV
 
 function differenceWords(difference: number, cost: boolean): string {
   if (difference === 0) {
-    return 'As planned'
+    return words.asPlanned
   }
-  const more = difference > 0
-  return `${formatMoney(Math.abs(difference) as Money)} ${cost ? (more ? 'more spent' : 'less spent') : more ? 'more' : 'less'} than planned`
+  return words.difference(formatMoney(Math.abs(difference) as Money), cost, difference > 0)
 }
 
 function payoutView(option: PayoutOption, linkOf: (figure: TracedFigure | null) => RouteLocationRaw | null): PayoutView {
@@ -385,22 +383,22 @@ function payoutView(option: PayoutOption, linkOf: (figure: TracedFigure | null) 
     id: option.id,
     name: PAYOUT_NAMES[option.id],
     label: option.label,
-    when: option.earliestOn === null || option.latestOn === null ? `${figureLabel(option.gross)}.` : `Earliest on ${dayLabel(option.earliestOn)}, and no later than ${dayLabel(option.latestOn)}.`,
+    when: option.earliestOn === null || option.latestOn === null ? withFullStop(figureLabel(option.gross)) : words.payout.when(dayLabel(option.earliestOn), dayLabel(option.latestOn)),
     warning: cashShort ? interimCashWarning(cashNow) : null,
     figures: [
-      ...shown('gross', 'Payout before tax', option.gross),
-      ...shown('tax', 'Dividend tax', option.dividendTax),
-      ...shown('net', 'Net to the owner', option.net),
-      ...shown('set-off', 'Set off against what the owner owes', option.setOff),
-      ...shown('cash-out', 'Paid out in cash, with the tax', option.cashOut),
-      ...shown('cash-left', cashNow === null ? 'Cash left after it' : `Cash left after it and ${dueWords(cashNow)}`, option.cashLeft),
-      ...(cashShort ? shown('cash-allows', 'The most the cash allows now', cashNow.largestPayout) : []),
-      ...shown('owed-after', 'The owner still owes', option.owedByOwnerAfter),
-      ...shown('benefit', 'Loan benefit in kind a year', option.loanBenefitPerYear),
-      ...shown('net-assets', 'Net assets after it', option.netAssetsAfter),
-      ...shown('clawback', 'Grant clawback at risk', option.clawbackExposure),
-      ...shown('shortfall', 'Taxed as the owner’s income', option.shortfall),
-      ...shown('retained', 'Kept in the company', option.retainedAfter),
+      ...shown('gross', words.payout.gross, option.gross),
+      ...shown('tax', words.payout.tax, option.dividendTax),
+      ...shown('net', words.payout.net, option.net),
+      ...shown('set-off', words.payout.setOff, option.setOff),
+      ...shown('cash-out', words.payout.cashOut, option.cashOut),
+      ...shown('cash-left', cashNow === null ? words.payout.cashLeft : words.payout.cashLeftAfter(dueOn(cashNow)), option.cashLeft),
+      ...(cashShort ? shown('cash-allows', words.payout.cashAllows, cashNow.largestPayout) : []),
+      ...shown('owed-after', words.payout.owedAfter, option.owedByOwnerAfter),
+      ...shown('benefit', words.payout.benefit, option.loanBenefitPerYear),
+      ...shown('net-assets', words.payout.netAssets, option.netAssetsAfter),
+      ...shown('clawback', words.payout.clawback, option.clawbackExposure),
+      ...shown('shortfall', words.payout.shortfall, option.shortfall),
+      ...shown('retained', words.payout.retained, option.retainedAfter),
     ],
     capitalProtected: option.capitalProtected,
     rules: ruleChips([option.gross, option.dividendTax, option.loanBenefitPerYear, ...(option.shortfall === null ? [] : [option.shortfall])].flatMap((figure) => figure.rules)),
@@ -408,9 +406,10 @@ function payoutView(option: PayoutOption, linkOf: (figure: TracedFigure | null) 
 }
 
 function interimCashWarning(cash: InterimCash): string {
-  return `${figureLabel(cash.cash)}, less ${dueWords(cash)}, does not cover this payout and its tax. It covers an interim payout of at most ${formatMoney(cash.largestPayout.amount)}.`
+  return words.payout.cashShort(figureLabel(cash.cash), dueOn(cash), formatMoney(cash.largestPayout.amount))
 }
 
-function dueWords(cash: InterimCash): string {
-  return cash.fallingDue.on === null ? 'what falls due' : `what falls due by ${dayLabel(cash.fallingDue.on)}`
+/** The day by which what the cash must still pay falls due, or null when it names none. */
+function dueOn(cash: InterimCash): string | null {
+  return cash.fallingDue.on === null ? null : dayLabel(cash.fallingDue.on)
 }

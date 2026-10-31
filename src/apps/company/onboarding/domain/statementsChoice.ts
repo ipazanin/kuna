@@ -6,6 +6,7 @@ import { mailAddressesOf, mailAddressesProblem, mailSubjectProblem } from '../..
 import type { Settings } from '../../settings/domain/settings'
 import { OTHER_BANK } from './onboardingSteps'
 import type { StatementMail, StatementsSource } from './onboardingSteps'
+import { words } from './words'
 
 /** The folder the app makes beside the books file for the statements it files from mail, which `drive.file` can then read. */
 export const MAIL_STATEMENTS_FOLDER = 'statements'
@@ -28,9 +29,9 @@ function mailTermsOf(mail: StatementMail): { readonly senders: readonly string[]
 export function statementMailProblems(mail: StatementMail): { readonly from?: string; readonly subject?: string } {
   if (mail.bank !== OTHER_BANK) return {}
   const { senders, subject } = mailTermsOf(mail)
-  const from = senders.length === 0 ? 'Type the address the bank mails statements from' : mailAddressesProblem(senders)
-  const words = subject === '' ? 'Type the words before the statement number' : mailSubjectProblem(subject)
-  return { ...(from === null ? {} : { from }), ...(words === null ? {} : { subject: words }) }
+  const from = senders.length === 0 ? words.typeSender : mailAddressesProblem(senders)
+  const subjectWords = subject === '' ? words.typeSubject : mailSubjectProblem(subject)
+  return { ...(from === null ? {} : { from }), ...(subjectWords === null ? {} : { subject: subjectWords }) }
 }
 
 /**

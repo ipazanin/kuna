@@ -16,6 +16,7 @@ import { COMPANY_APP, installedSchema, readDocument } from '../infrastructure/co
 import { DEFAULT_CATEGORY_NAMES, emptyWorkbookTabs } from '../infrastructure/emptyWorkbook'
 import { documentOfTabs, recordCountsOf, tabsOfDocument } from '../infrastructure/spreadsheetDocument'
 import { readWorkbookFile, writeWorkbookFile } from '../infrastructure/workbookFile'
+import { words } from './words'
 
 /** What a file input takes for a workbook: an xlsx file, or a Kuna file such as a backup. */
 export const WORKBOOK_FILE_TYPES = `.xlsx,${XLSX_MIME_TYPE},.json,${JSON_MIME_TYPE}`
@@ -57,7 +58,7 @@ async function documentOfWorkbookFile(file: File): Promise<{ readonly document: 
     contents = await readWorkbookFile(await file.arrayBuffer())
   } catch (readFailure) {
     console.error(`Reading ${file.name} failed`, readFailure)
-    throw new Error(`${file.name} could not be read as an Excel workbook. Save it as .xlsx and try again.`, { cause: readFailure })
+    throw new Error(words.reading.notExcel(file.name), { cause: readFailure })
   }
   return { document: documentOfTabs(COMPANY_APP, contents.tabs, new Date().toISOString()), missingTabs: contents.missingTabs }
 }
@@ -69,10 +70,10 @@ async function documentOfFile(file: File): Promise<{ readonly document: Workbook
     document = decodeDocument(await file.text())
   } catch (readFailure) {
     console.error(`Reading ${file.name} failed`, readFailure)
-    throw new Error(`${file.name} could not be read as a Kuna file.`, { cause: readFailure })
+    throw new Error(words.reading.notKuna(file.name), { cause: readFailure })
   }
   if (document.app !== COMPANY_APP) {
-    throw new Error(`${file.name} holds the books of another Kuna app, ${document.app}.`)
+    throw new Error(words.reading.otherApp(file.name, document.app))
   }
   return { document, missingTabs: [] }
 }
@@ -100,7 +101,7 @@ export function categoriesAsNewBooksStart(categories: readonly Pick<Category, 's
 export async function exportWorkbook(store: WorkbookStore<CompanyBooks, DocumentCopy, WorkbookDocument>): Promise<string> {
   const { snapshot, workbook } = store.state
   if (snapshot === null || workbook === null) {
-    throw new Error('There is no workbook to export yet.')
+    throw new Error(words.reading.nothingToExport)
   }
   const fileName = exportFileName(workbook, new Date())
   downloadFile(await writeWorkbookFile(tabsOfDocument(snapshot.document), workbook), fileName, XLSX_MIME_TYPE)

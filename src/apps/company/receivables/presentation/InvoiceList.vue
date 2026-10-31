@@ -17,7 +17,7 @@ export interface InvoiceLine {
   readonly client: string
   readonly item: string
   readonly issued: string
-  /** "due 3 Nov", "no due date", or for a late one "41 days late". */
+  /** "due 3 Nov", "no due date", or for a late one "41 days past due". */
   readonly timing: string
   readonly late: boolean
   readonly amount: number
@@ -35,6 +35,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import { words } from './words'
 
 /** Each invoice, newest first, with the payments the matching gave it. */
 defineProps<{
@@ -50,9 +51,9 @@ const emit = defineEmits<{
 }>()
 
 const STATUS = {
-  paid: { label: 'Paid', color: 'success' },
-  partial: { label: 'Part paid', color: 'warning' },
-  outstanding: { label: 'Unpaid', color: 'error' },
+  paid: { label: words.list.status.paid, color: 'success' },
+  partial: { label: words.list.status.partial, color: 'warning' },
+  outstanding: { label: words.list.status.outstanding, color: 'error' },
 } as const
 </script>
 
@@ -62,7 +63,7 @@ const STATUS = {
       <div class="invoice-head">
         <div class="invoice-id min-w-0">
           <p class="flex min-w-0 items-baseline gap-2">
-            <span class="figure text-sm font-medium text-highlighted">{{ invoice.number }}</span>
+            <span class="figure text-sm font-medium whitespace-nowrap text-highlighted">{{ invoice.number }}</span>
             <span v-if="showClient" class="truncate text-xs text-muted">{{ invoice.client }}</span>
           </p>
           <p v-if="invoice.item" class="truncate text-xs text-muted">{{ invoice.item }}</p>
@@ -73,9 +74,9 @@ const STATUS = {
         <MoneyText :cents="invoice.amount" class="invoice-amount text-end text-sm font-medium text-highlighted" />
         <UBadge :label="STATUS[invoice.status].label" :color="STATUS[invoice.status].color" variant="subtle" size="sm" class="invoice-status justify-self-start" />
         <p class="invoice-outcome text-xs text-muted">
-          <template v-if="invoice.status === 'paid' && invoice.received">Paid {{ invoice.received }}</template>
-          <template v-else-if="invoice.status === 'paid'">Nothing to pay</template>
-          <template v-else><MoneyText :cents="invoice.remaining" class="text-toned" /> still owed</template>
+          <template v-if="invoice.status === 'paid' && invoice.received">{{ words.list.paidOn(invoice.received) }}</template>
+          <template v-else-if="invoice.status === 'paid'">{{ words.list.nothingToPay }}</template>
+          <template v-else><MoneyText :cents="invoice.remaining" class="text-toned" /> {{ words.list.stillOwed }}</template>
         </p>
         <UButton
           icon="i-lucide-square-pen"
@@ -84,21 +85,21 @@ const STATUS = {
           size="xs"
           class="invoice-edit"
           :disabled="!editable"
-          :aria-label="`Edit invoice ${invoice.number}`"
+          :aria-label="words.list.edit(invoice.number)"
           data-testid="invoice-edit"
           @click="emit('edit', invoice.id)"
         />
       </div>
-      <ol v-if="invoice.payments.length > 0 || invoice.overpayments.length > 0" class="invoice-trail" :aria-label="`Payments matched to invoice ${invoice.number}`">
+      <ol v-if="invoice.payments.length > 0 || invoice.overpayments.length > 0" class="invoice-trail" :aria-label="words.list.payments(invoice.number)">
         <li v-for="payment in invoice.payments" :key="payment.key">
-          <DrillLink :to="payment.to" :label="`Payment of ${payment.date} towards invoice ${invoice.number}, open the row`" class="payment-share">
+          <DrillLink :to="payment.to" :label="words.list.openPayment(payment.date, invoice.number)" class="payment-share">
             <span class="text-muted">{{ payment.date }}</span>
             <MoneyText :cents="payment.amount" class="text-toned" />
           </DrillLink>
         </li>
         <li v-for="overpayment in invoice.overpayments" :key="`over-${overpayment.key}`">
-          <DrillLink :to="overpayment.to" :label="`Overpaid on ${overpayment.date}, open the row`" class="payment-share overpaid">
-            <span class="text-muted">Overpaid {{ overpayment.date }}</span>
+          <DrillLink :to="overpayment.to" :label="words.list.openOverpayment(overpayment.date)" class="payment-share overpaid">
+            <span class="text-muted">{{ words.list.overpaidOn(overpayment.date) }}</span>
             <MoneyText :cents="overpayment.amount" sign="always" class="text-toned" />
           </DrillLink>
         </li>

@@ -12,6 +12,7 @@ import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
 import { keyedId, refuse, slugOf, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import type { Account } from './workbook'
+import { words } from './words'
 
 /** An account as the accounts tab holds it, with the id its name makes. */
 export type AccountRecord = Account & { readonly id: RecordId }
@@ -19,7 +20,7 @@ export type AccountRecord = Account & { readonly id: RecordId }
 export function accountOf(fields: StoredFields, id: RecordId | null): AccountRecord {
   const slug = slugOf(fields.account)
   if (slug === '') {
-    refuse('no account name')
+    refuse(words.accounts.noName)
   }
   return { slug, label: textOf(fields.label), iban: normaliseIban(textOf(fields.iban)), currency: textOf(fields.currency).toUpperCase(), id: keyedId(id) }
 }
@@ -50,12 +51,12 @@ export function readAccounts(read: RecordsRead<AccountRecord>, workbookCurrency:
     if (invalid !== null) {
       problems.push(problemOf(stored, invalid))
     } else if (currency !== '' && workbookCurrency !== null && currency !== workbookCurrency) {
-      problems.push(problemOf(stored, `${slug} is in ${currency} but the workbook counts in ${workbookCurrency}, so its amounts read as ${workbookCurrency}`))
+      problems.push(problemOf(stored, words.accounts.otherCurrency(slug, currency, workbookCurrency)))
     }
   }
   const shared = sharedKeys(read.records, (stored) => stored.record.slug)
   for (const stored of read.records.filter((candidate) => shared.has(candidate.record.slug))) {
-    problems.push(problemOf(stored, `${stored.record.slug} is named on more than one row, so none of them counts`))
+    problems.push(problemOf(stored, words.accounts.namedTwice(stored.record.slug)))
   }
   return { facts: read.records.map((stored) => stored.record).filter((account) => !shared.has(account.slug)), problems }
 }

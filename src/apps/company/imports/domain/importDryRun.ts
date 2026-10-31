@@ -1,5 +1,5 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { addMoney, plainAmount, subtractMoney } from '../../../../shared/money/money'
+import { addMoney, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { normaliseIban } from '../../../../shared/text/fold'
 import { categorise } from '../../rules/domain/categorise'
@@ -13,6 +13,7 @@ import type { LedgerEntry } from '../../workbook/domain/ledgerReading'
 import { newRecordId } from '../../../../shared/storage/domain/recordId'
 import type { Transaction } from '../../workbook/domain/workbook'
 import type { ImportedRow, ImportedStatement, NewAccountOffer, StatementReading } from './importedStatement'
+import { words } from './words'
 
 /** One entry of a statement as the dry run sees it: on the ledger already, or new with the verdict the rules give it. */
 export interface DryRunRow extends ImportedRow {
@@ -188,48 +189,36 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
     notes,
   })
   if (firstNew < 0) {
-    notes.push(statement.rows.length === 0 ? 'The statement has no booked entries, so importing it writes nothing.' : 'Every entry is on the ledger already, so importing it writes nothing.')
+    notes.push(statement.rows.length === 0 ? words.dryRun.noEntries : words.dryRun.allHeld)
     return { statement: shown(null, null, statement.opening), added: [] }
   }
   if (statement.source.kind === 'table' && state.labels.has(statement.label)) {
     return {
-      statement: shown(
-        `Rows of ${statement.label} are on the ledger already, so this file was imported before, and ${firstNew === 0 ? 'none' : 'only some'} of its entries match them now, such as after a change to its profile. Nothing of it is written.`,
-        null,
-        statement.opening,
-      ),
+      statement: shown(words.dryRun.importedBefore(statement.label, firstNew === 0), null, statement.opening),
       added: [],
     }
   }
   const fresh = statement.rows.slice(firstNew)
   if (inLedger.slice(firstNew).some((held) => held)) {
     return {
-      statement: shown(
-        'Rows the ledger lacks sit between rows it already holds, so the statement does not continue where the ledger leaves the account. Nothing of it is written.',
-        null,
-        statement.opening,
-      ),
+      statement: shown(words.dryRun.gap, null, statement.opening),
       added: [],
     }
   }
   if (firstNew > 0) {
-    notes.push(`${firstNew} of its ${statement.rows.length} entries are on the ledger already. The other ${fresh.length} follow them.`)
+    notes.push(words.dryRun.partlyHeld(firstNew, statement.rows.length, fresh.length))
   }
   const unidentified = fresh.filter((row) => row.reference === '')
   if (unidentified.length > 0) {
     return {
-      statement: shown(
-        `${unidentified.length === 1 ? 'An entry carries' : `${unidentified.length} entries carry`} no bank reference, so a second import could not tell ${unidentified.length === 1 ? 'it' : 'them'} from others. The whole statement is refused.`,
-        null,
-        statement.opening,
-      ),
+      statement: shown(words.dryRun.noReference(unidentified.length), null, statement.opening),
       added: [],
     }
   }
   const first = fresh[0]!
   if (state.latest !== null && first.date < state.latest.date) {
     return {
-      statement: shown(`Its first new entry is dated ${first.date}, before ${state.latest.date}, the newest row of ${account}. Rows are only added after the newest one.`, null, statement.opening),
+      statement: shown(words.dryRun.beforeNewest(first.date, state.latest.date, account), null, statement.opening),
       added: [],
     }
   }
@@ -239,17 +228,13 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
   if (state.latest !== null) {
     if (before !== null && before !== state.latest.balance) {
       return {
-        statement: shown(
-          `The ledger ends ${account} at ${plainAmount(state.latest.balance)} on ${state.latest.date}, but this statement's first new entry starts from ${plainAmount(before)}, so a statement between the two is missing. Import that one first.`,
-          null,
-          statement.opening,
-        ),
+        statement: shown(words.dryRun.missingBetween(account, state.latest.balance, state.latest.date, before), null, statement.opening),
         added: [],
       }
     }
     opening = state.latest.balance
     if (before === null) {
-      notes.push(`The file gives no balances, so they are worked out from ${plainAmount(opening)}, where the ledger leaves ${account} on ${state.latest.date}.`)
+      notes.push(words.dryRun.worksOutBalances(opening, account, state.latest.date))
     }
   } else {
     start = { account, opening: before, date: first.date }
@@ -262,15 +247,13 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
   if (statement.source.kind === 'camt' && state.lastSequence !== null) {
     const { sequence } = statement.source
     if (sequence > state.lastSequence + 1) {
-      notes.push(
-        `It is statement ${sequence}, and the newest on the ledger for ${account} is ${state.lastSequence}, so ${sequence - state.lastSequence - 1 === 1 ? 'one statement is' : `${sequence - state.lastSequence - 1} statements are`} not on the ledger. The balances still join, so ${sequence - state.lastSequence - 1 === 1 ? 'it' : 'they'} may have held no entries.`,
-      )
+      notes.push(words.dryRun.sequenceGap(sequence, state.lastSequence, account, sequence - state.lastSequence - 1))
     } else if (sequence <= state.lastSequence) {
-      notes.push(`It is statement ${sequence}, which is not after ${state.lastSequence}, the newest on the ledger for ${account}.`)
+      notes.push(words.dryRun.sequenceNotAfter(sequence, state.lastSequence, account))
     }
   }
   if (state.labels.has(statement.label)) {
-    notes.push(`Rows of ${statement.label} are on the ledger already.`)
+    notes.push(words.dryRun.labelHeld(statement.label))
   }
   const balanced = withBalances(fresh, opening)
   const rows: DryRunRow[] = [

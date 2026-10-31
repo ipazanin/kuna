@@ -4,9 +4,10 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { dateFormat } from '../../../../shared/calendar/dateFormat'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
-import { countsLine } from '../domain/mailSource'
+import { words as sourceWords } from '../domain/words'
 import { mailCounts, notFiledLine } from '../application/mailFiling'
 import type { MailPlan, PlanEntry, SourcePlan } from '../application/mailFiling'
+import { words } from './words'
 
 /** What the last mail step found, one block per source: its search, then each attachment with where it went, or why it did not. */
 const props = defineProps<{
@@ -20,13 +21,13 @@ const dayFormat = dateFormat({ day: 'numeric', month: 'short', year: 'numeric' }
 /** The kinds in the order a person reads them: what failed, what was filed, what needs a look, then what is already there. */
 const ORDER: readonly PlanEntry['kind'][] = ['not-filed', 'filed', 'correction', 'unchecked', 'unmatched', 'already']
 
-const ICONS: Readonly<Record<PlanEntry['kind'], { readonly name: string; readonly tone: string; readonly words: string }>> = {
-  'not-filed': { name: 'i-lucide-file-x', tone: 'text-error', words: 'Not filed' },
-  filed: { name: 'i-lucide-file-check', tone: 'text-success', words: 'Filed' },
-  correction: { name: 'i-lucide-file-diff', tone: 'text-warning', words: 'Correction' },
-  unchecked: { name: 'i-lucide-file-question-mark', tone: 'text-warning', words: 'Not compared' },
-  unmatched: { name: 'i-lucide-mail-x', tone: 'text-warning', words: 'Unmatched' },
-  already: { name: 'i-lucide-check', tone: 'text-success', words: 'Already there' },
+const ICONS: Readonly<Record<PlanEntry['kind'], { readonly name: string; readonly tone: string }>> = {
+  'not-filed': { name: 'i-lucide-file-x', tone: 'text-error' },
+  filed: { name: 'i-lucide-file-check', tone: 'text-success' },
+  correction: { name: 'i-lucide-file-diff', tone: 'text-warning' },
+  unchecked: { name: 'i-lucide-file-question-mark', tone: 'text-warning' },
+  unmatched: { name: 'i-lucide-mail-x', tone: 'text-warning' },
+  already: { name: 'i-lucide-check', tone: 'text-success' },
 }
 
 const expanded = reactive<Record<string, boolean>>({})
@@ -39,12 +40,12 @@ const sources = computed(() =>
 )
 
 function headline(source: SourcePlan): string {
-  return source.kind === 'failed' ? source.reason.replace(/\.?$/, '.') : [`${countsLine(mailCounts(source.entries))}.`, notFiledLine(source.entries) ?? ''].join(' ').trim()
+  return source.kind === 'failed' ? source.reason.replace(/\.?$/, '.') : [`${sourceWords.counts(mailCounts(source.entries))}.`, notFiledLine(source.entries) ?? ''].join(' ').trim()
 }
 
 function searched(source: Extract<SourcePlan, { kind: 'planned' }>): string {
   const from = dayFormat(new Date(source.window.from))
-  return source.window.after === 'newest' ? `Searched from ${from}, a week before the newest file in its folder` : `Searched from ${from}, the mail-since day`
+  return source.window.after === 'newest' ? words.plan.searchedFromNewest(from) : words.plan.searchedFromSince(from)
 }
 
 function shown(id: string, entries: readonly PlanEntry[]): readonly PlanEntry[] {
@@ -57,15 +58,15 @@ function target(entry: Exclude<PlanEntry, { kind: 'unmatched' }>): string[] {
 }
 
 function mailWords(entry: PlanEntry): string {
-  return `“${entry.mail.subject}”, ${dayFormat(new Date(entry.mail.date))}`
+  return words.plan.mail(entry.mail.subject, dayFormat(new Date(entry.mail.date)))
 }
 
 function note(entry: PlanEntry): string {
   switch (entry.kind) {
     case 'correction':
-      return 'An older copy has other bytes. The app never replaces a file, so swap it by hand.'
+      return words.plan.correction
     case 'unchecked':
-      return 'An older copy is there, and Drive gives no SHA-256 for it, so the bytes were not compared.'
+      return words.plan.unchecked
     case 'unmatched':
     case 'not-filed':
       return entry.reason.replace(/\.?$/, '.')
@@ -78,8 +79,8 @@ function note(entry: PlanEntry): string {
 <template>
   <div class="flex flex-col gap-5" data-testid="mail-plan">
     <p v-if="stopped !== null" class="text-sm text-muted" data-testid="mail-stopped">{{ stopped }}</p>
-    <p v-else-if="plan === null" class="text-sm text-muted">No sync on this page has looked at the mail yet. Sync to file what is new.</p>
-    <p v-else-if="plan.sources.length === 0" class="text-sm text-muted">No kind of mail is on, so the last sync looked at none.</p>
+    <p v-else-if="plan === null" class="text-sm text-muted">{{ words.plan.noSyncYet }}</p>
+    <p v-else-if="plan.sources.length === 0" class="text-sm text-muted">{{ words.plan.noneOn }}</p>
     <section v-for="{ source, entries } in sources" :key="source.id" class="flex flex-col gap-2" :data-source="source.id" :data-state="source.kind">
       <div class="flex flex-col gap-0.5">
         <h3 class="text-sm font-medium text-highlighted">{{ source.label }}</h3>
@@ -94,13 +95,13 @@ function note(entry: PlanEntry): string {
           <UIcon :name="ICONS[entry.kind].name" class="mt-0.5 size-4 shrink-0" :class="ICONS[entry.kind].tone" aria-hidden="true" />
           <div class="flex min-w-0 flex-1 flex-col gap-0.5 text-sm">
             <p class="min-w-0 text-toned">
-              <span class="sr-only">{{ ICONS[entry.kind].words }}: </span>
+              <span class="sr-only">{{ words.plan.kinds[entry.kind] }}: </span>
               <span v-if="entry.kind === 'unmatched'" class="break-words text-highlighted">{{ entry.attachment }}</span>
               <span v-else class="identifier break-words text-highlighted"
                 ><template v-for="part in target(entry)" :key="part">{{ part }}<wbr /></template
               ></span>
             </p>
-            <p class="text-xs break-words text-muted">{{ ICONS[entry.kind].words }}. {{ entry.kind === 'unmatched' ? '' : `${entry.attachment}, from ` }}{{ mailWords(entry) }}</p>
+            <p class="text-xs break-words text-muted">{{ words.plan.kinds[entry.kind] }}. {{ entry.kind === 'unmatched' ? '' : words.plan.fromMail(entry.attachment) }}{{ mailWords(entry) }}</p>
             <p v-if="note(entry)" class="text-xs break-words text-toned">{{ note(entry) }}</p>
           </div>
         </li>

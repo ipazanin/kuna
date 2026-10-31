@@ -41,6 +41,8 @@ import { hrDooWorkbook } from '../domain/hrDooPart'
 import { OWNER_ADVANCE_RECORDS } from '../domain/hrDooKinds'
 import type { OwnerAdvanceEntry } from '../domain/ownerAdvancesReading'
 import AdvanceDialog from './AdvanceDialog.vue'
+import { plural } from '../../../../../shared/text/translation'
+import { words } from './words'
 
 /**
  * Who owes whom between the owner and the company over the period in view: the balances as the books
@@ -70,7 +72,7 @@ function editAdvance(id: RecordId): void {
 
 /** What a loan that is part of a split payment came out of, such as "Part of €60.00 to Paper & Ink on 2 Oct 2025: printer ink". */
 function partOfPayment(whole: Transaction, note: string): string {
-  const paid = `Part of ${formatMoney(negateMoney(whole.amount))} to ${whole.counterparty || 'a payee'} on ${dayLabel(whole.date)}`
+  const paid = words.owed.partOf(formatMoney(negateMoney(whole.amount)), whole.counterparty, dayLabel(whole.date))
   return note === '' ? paid : `${paid}: ${note}`
 }
 
@@ -100,18 +102,16 @@ const owed = computed(() => {
     inView: { range: periodRange(filters.period, window), words: period },
     tiles: [
       {
-        label: 'Net owed',
+        label: words.owed.netOwed,
         value: formatMoney(balance.amount),
         to: drillLocation(balance.drill),
-        caption: `${balance.amount > 0 ? 'The owner owes the company' : balance.amount < 0 ? 'The company owes the owner' : 'Nothing owed either way'} on ${on}`,
-        definition:
-          `One balance across both directions, as the books stood on ${on}, the last day of the period or the newest booking. The owner owes the company what was lent, private costs and the owner's parts of split company payments included, ` +
-          `less what the owner paid back on a loan or reimbursement category (${formatMoney(balance.loanBalance)}). ` +
-          `The company owes the owner the costs the owner paid privately and has not been reimbursed for (${formatMoney(balance.advancesOutstanding)}). ` +
-          (inPeriod.unaccountedTotal > 0
-            ? `That figure counts the reimbursements with no cost on file (${formatMoney(inPeriod.unaccountedTotal)}) as paid to the owner until their costs are added. `
-            : '') +
-          'Positive means the owner owes the company. A private cost the company paid in full counts as lent only when its row is in a category with the owner-loan-out role.',
+        caption: words.owed.direction(balance.amount, on),
+        definition: words.owed.definition(
+          on,
+          formatMoney(balance.loanBalance),
+          formatMoney(balance.advancesOutstanding),
+          inPeriod.unaccountedTotal > 0 ? formatMoney(inPeriod.unaccountedTotal) : null,
+        ),
       },
     ],
     hasLoanRoles: categoriesWithRole(categories, PACK_ROLES.ownerLoanOut).length > 0 && categoriesWithRole(categories, PACK_ROLES.ownerLoanRepaid).length > 0,
@@ -124,11 +124,11 @@ const owed = computed(() => {
       { label: LENT_SERIES, colour: colours.lent },
       { label: REPAID_SERIES, colour: colours.repaid },
     ],
-    timelineSummary: months.length === 0 ? 'No months to show' : `${formatMoney(lentInMonths)} lent, ${formatMoney(repaidInMonths)} repaid`,
-    loanSummary: figuresOf(inPeriod.loans, ['Owed at the start', 'Lent', 'Repaid', 'Owed at the end']),
-    advanceSummary: figuresOf(inPeriod.advances, ['Owed at the start', 'Paid by the owner', 'Reimbursed', 'Owed at the end']),
-    advancesSummary: `${inPeriod.advanceList.length} ${inPeriod.advanceList.length === 1 ? 'cost' : 'costs'}, ${formatMoney(inPeriod.advances.end.amount)} owed to the owner on ${on}`,
-    loansSummary: `${inPeriod.loanList.length} ${inPeriod.loanList.length === 1 ? 'loan' : 'loans'}, ${inPeriod.openLoans === 0 ? 'none open' : `${inPeriod.openLoans} open`} on ${on}`,
+    timelineSummary: months.length === 0 ? words.owed.noMonths : words.owed.lentAndRepaid(formatMoney(lentInMonths), formatMoney(repaidInMonths)),
+    loanSummary: figuresOf(inPeriod.loans, words.owed.loanFigures),
+    advanceSummary: figuresOf(inPeriod.advances, words.owed.advanceFigures),
+    advancesSummary: plural(words.owed.advancesSummary(inPeriod.advanceList.length, formatMoney(inPeriod.advances.end.amount), on), inPeriod.advanceList.length),
+    loansSummary: plural(words.owed.loansSummary(inPeriod.loanList.length, inPeriod.openLoans, on), inPeriod.loanList.length),
     advances: [...inPeriod.advanceList].reverse().map((line): AdvanceLine => ({
       id: line.advance.id,
       paidOn: dayLabel(line.advance.date),
@@ -173,7 +173,7 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
   <div class="flex flex-col gap-6">
     <p v-if="owed.otherFilters" class="flex items-start gap-2 text-sm leading-5 text-toned" data-testid="owner-owed-filters">
       <UIcon name="i-lucide-funnel-x" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
-      <span>Who owes whom follows the period only. The accounts and the other filters apply on Taken.</span>
+      <span>{{ words.owed.otherFilters }}</span>
     </p>
 
     <DashboardGrid layout="tiles" data-testid="owner-owed-tiles">
@@ -183,41 +183,38 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
     <p v-if="owed.unaccounted > 0" class="flex items-start gap-2 text-sm leading-5 text-toned" data-testid="owner-unaccounted">
       <UIcon name="i-lucide-inbox" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
       <span>
-        Whatever the period, {{ owed.unaccounted }} {{ owed.unaccounted === 1 ? 'reimbursement' : 'reimbursements' }} to the owner with no cost on file
-        {{ owed.unaccounted === 1 ? 'waits' : 'wait' }} on Review. Net owed counts {{ owed.unaccounted === 1 ? 'it' : 'them' }} as paid to the owner until the cost is added.
-        <DrillLink to="/company/review" in-prose class="font-medium text-highlighted">Open Review</DrillLink>
+        {{ plural(words.owed.unaccounted(owed.unaccounted), owed.unaccounted) }}
+        <DrillLink to="/company/review" in-prose class="font-medium text-highlighted">{{ words.owed.openReview }}</DrillLink>
       </span>
     </p>
 
     <DashboardGrid layout="pair">
-      <AppCard v-if="owed.hasLoanRoles" title="Every loan, with the repayments that closed it" collapse-id="owner.loans" :summary="owed.loansSummary" data-testid="owner-loans">
+      <AppCard v-if="owed.hasLoanRoles" :title="words.owed.loans.title" collapse-id="owner.loans" :summary="owed.loansSummary" data-testid="owner-loans">
         <template #subtitle>
-          {{ owed.period }}. Each loan with a balance in the period, as it stood on {{ owed.on }}, private costs and the owner's parts of split company payments included. Repayments first close the
-          loans they equal exactly. The rest go to the oldest open loan first, and one that outruns a loan carries on to the next.
-          <template v-if="owed.openCount > 0">{{ owed.openCount }} open, the oldest from {{ owed.oldestOpen }}.</template>
-          <template v-else>None open.</template>
+          {{ words.owed.loans.subtitle(owed.period, owed.on) }}
+          <template v-if="owed.openCount > 0 && owed.oldestOpen">{{ words.owed.loans.open(owed.openCount, owed.oldestOpen) }}</template>
+          <template v-else>{{ words.owed.loans.noneOpen }}</template>
         </template>
         <template #header>
           <dl class="grid grid-cols-2 gap-3 sm:grid-cols-4" data-testid="owner-loans-figures">
             <div v-for="figure in owed.loanSummary" :key="figure.label" class="min-w-0">
               <dt class="text-xs text-muted">{{ figure.label }}</dt>
               <dd class="text-sm font-medium text-highlighted">
-                <DrillLink :to="figure.to" :label="`${figure.label}, open the rows`"><MoneyText :cents="figure.amount" /></DrillLink>
+                <DrillLink :to="figure.to" :label="words.figure.openRows(figure.label)"><MoneyText :cents="figure.amount" /></DrillLink>
               </dd>
             </div>
           </dl>
         </template>
         <div class="px-4 pt-1 pb-2 sm:px-5">
-          <LoanList :loans="shownLoans" :empty="`No loan to the owner had a balance in ${owed.period}.`" />
+          <LoanList :loans="shownLoans" :empty="words.owed.loans.empty(owed.period)" />
         </div>
         <ShowAllButton v-if="owed.loans.length > FIRST_SHOWN" v-model:expanded="showAllLoans" :total="owed.loans.length" class="px-4 pb-4 sm:px-5" />
       </AppCard>
 
-      <AppCard title="Costs the owner paid privately" collapse-id="owner.advances" :summary="owed.advancesSummary" data-testid="owner-advances">
+      <AppCard :title="words.owed.advances.title" collapse-id="owner.advances" :summary="owed.advancesSummary" data-testid="owner-advances">
         <template #subtitle>
           <span class="block max-w-[65ch]">
-            {{ owed.period }}, from the owner-advances tab. Each cost owed in the period, as it stood on {{ owed.on }}. Each counts as a cost on its date, in its category. Reimbursements to the owner
-            first repay the costs they equal exactly, and the rest repay the oldest first. They stay outside profit and loss.
+            {{ words.owed.advances.subtitle(owed.period, owed.on) }}
           </span>
         </template>
         <template #header>
@@ -225,13 +222,13 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
             <div v-for="figure in owed.advanceSummary" :key="figure.label" class="min-w-0">
               <dt class="text-xs text-muted">{{ figure.label }}</dt>
               <dd class="text-sm font-medium text-highlighted">
-                <DrillLink :to="figure.to" :label="`${figure.label}, open the rows`"><MoneyText :cents="figure.amount" /></DrillLink>
+                <DrillLink :to="figure.to" :label="words.figure.openRows(figure.label)"><MoneyText :cents="figure.amount" /></DrillLink>
               </dd>
             </div>
           </dl>
         </template>
         <div class="px-4 pt-1 pb-2 sm:px-5">
-          <AdvanceList :advances="shownAdvances" :busy="state.writing" :empty="`No cost the owner paid privately was owed in ${owed.period}.`" @edit="editAdvance" />
+          <AdvanceList :advances="shownAdvances" :busy="state.writing" :empty="words.owed.advances.empty(owed.period)" @edit="editAdvance" />
         </div>
         <ShowAllButton v-if="owed.advances.length > FIRST_SHOWN" v-model:expanded="showAllAdvances" :total="owed.advances.length" class="px-4 pb-4 sm:px-5" />
       </AppCard>
@@ -240,9 +237,9 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
     <DrillChartCard
       v-if="owed.hasLoanRoles"
       :chart="owed.timeline"
-      title="Loans to the owner, by month"
-      :subtitle="`${owed.period}. Lent below zero and repaid above it.`"
-      definition="What was lent to the owner and repaid each month. The balance at each month's end is beside the ring on Taken."
+      :title="words.owed.timeline.title"
+      :subtitle="words.owed.timeline.subtitle(owed.period)"
+      :definition="words.owed.timeline.definition"
       collapse-id="owner.loan-months"
       :summary="owed.timelineSummary"
       start-collapsed

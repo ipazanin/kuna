@@ -2,7 +2,9 @@ import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { negateMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { Figure } from '../../filters/domain/drillTarget'
+import { plural } from '../../../../shared/text/translation'
 import type { MonthOfProfitAndLoss } from '../../trends/domain/monthlyProfitAndLoss'
+import { words } from './words'
 
 /** What the newest complete month brought, as the parts of one plain statement. */
 export interface Headline {
@@ -34,12 +36,12 @@ export function runwayInWords(months: number | null): string | null {
     return null
   }
   if (months < 1) {
-    return 'less than a month'
+    return words.runway.underAMonth
   }
   if (months < 18) {
     const whole = Math.round(months)
-    return whole === 1 ? 'about a month' : `about ${whole} months`
+    return whole === 1 ? words.runway.aboutAMonth : plural(words.runway.aboutMonths(whole), whole)
   }
   const years = Math.round(months / 12)
-  return `about ${years} years`
+  return plural(words.runway.aboutYears(years), years)
 }

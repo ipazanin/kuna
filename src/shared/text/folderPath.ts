@@ -1,3 +1,5 @@
+import { words } from './words'
+
 /** The first name of a path that starts at the folder the books file is in, as in `./statements`, rather than at My Drive. */
 export const BOOKS_FOLDER = '.'
 
@@ -16,5 +18,5 @@ export function startsAtBooksFolder(path: readonly string[]): boolean {
 
 /** A path of folder names from My Drive as a person reads it, such as `My Drive › work › statements`. */
 export function folderTrail(path: readonly string[]): string {
-  return ['My Drive', ...path].join(' › ')
+  return [words.myDrive, ...path].join(' › ')
 }

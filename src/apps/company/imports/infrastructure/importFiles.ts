@@ -2,6 +2,7 @@ import { sha256Hex } from '../../../../shared/files/sha256'
 import { readFirstSheet } from '../../../../shared/xlsx/sheetGrids'
 import type { LoadedImportFile } from '../application/importStatements'
 import type { CellGrid } from '../domain/tabularStatement'
+import { words } from './words'
 
 /**
  * Reads the bytes of a statement file. XML is parsed as a camt document. Anything else goes to
@@ -14,7 +15,7 @@ export async function loadImportFile(fileName: string, bytes: ArrayBuffer): Prom
   if (text.startsWith('<')) {
     const document = new DOMParser().parseFromString(new TextDecoder('utf-8').decode(bytes), 'application/xml')
     if (document.getElementsByTagName('parsererror').length > 0) {
-      throw new Error(`${fileName} is not well-formed XML, so it cannot be read as a camt.053 statement.`)
+      throw new Error(words.notXml(fileName))
     }
     return { kind: 'camt', fileName, document }
   }
@@ -22,7 +23,7 @@ export async function loadImportFile(fileName: string, bytes: ArrayBuffer): Prom
   try {
     grid = await readFirstSheet(/\.(csv|txt)$/i.test(fileName) ? csvText(bytes) : bytes)
   } catch (failure) {
-    throw new Error(`${fileName} could not be read as a spreadsheet. Save it as .xlsx or .csv and try again.`, { cause: failure })
+    throw new Error(words.notSpreadsheet(fileName), { cause: failure })
   }
   return { kind: 'table', fileName, fileHash: await sha256Hex(bytes), grid }
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import MoneyText from '../../../../../shared/ui/MoneyText.vue'
+import { words } from './words'
 
 /** An amount that opens how it is worked out, set like a drill link but with a dotted underline, since it opens a dialog and not the rows. */
 defineProps<{
@@ -14,7 +15,7 @@ defineEmits<{
 </script>
 
 <template>
-  <button type="button" class="build-up-button" :aria-label="`${label}, how it is worked out`" data-testid="build-up-button" @click="$emit('open')">
+  <button type="button" class="build-up-button" :aria-label="words.figure.howItIsWorkedOut(label)" data-testid="build-up-button" @click="$emit('open')">
     <MoneyText :cents="cents" />
   </button>
 </template>

@@ -6,6 +6,7 @@ import type { Rate, RuleCitation } from '../../ruleset/schema'
 import type { FigureBasis, TracedFigure } from '../../ruleset/tracedFigure'
 import { atRate, percentText, tracedFigure } from './payrollArithmetic'
 import type { RuleSource } from './payrollArithmetic'
+import { words } from './words'
 
 /** The employee's own facts, which the employees tab holds and the ruleset never does. */
 export interface EmployeeFacts {
@@ -29,12 +30,12 @@ export interface LocalRates {
 export function localRates(city: string, on: CivilDate, rules: RuleSource): LocalRates {
   const { unit, problem } = findLocalUnit(city)
   if (unit === null) {
-    throw new RangeError(`No local income tax rates on ${on}: ${problem}.`)
+    throw new RangeError(words.allowance.noLocalRates(on, problem))
   }
   const lookup = rules('hr.pit.local-rates', on)
   const unitRow = lookup.value.citiesAndMunicipalities.rows.find((row) => row.unit.text === unit.unit && row.county.text === unit.county)
   if (unitRow === undefined) {
-    throw new RangeError(`The ruleset has no income tax rates for ${unit.label} on ${on}.`)
+    throw new RangeError(words.allowance.noRatesFor(unit.label, on))
   }
   return { lowerRate: unitRow.lowerRate.basisPoints, higherRate: unitRow.higherRate.basisPoints, citation: lookup.citation }
 }
@@ -50,9 +51,9 @@ export function personalAllowance(dependants: number, on: CivilDate, basis: Figu
   const citations = [lookup.citation]
   const dependantShares = coefficients
     .filter((row) => row.position.count <= dependants)
-    .map((row) => tracedFigure(`Dependant ${row.position.count} at ${row.coefficient.basisPoints / 10_000} of the allowance`, atRate(basicAllowance, row.coefficient.basisPoints), basis, citations))
-  const steps = [tracedFigure('Basic allowance', basicAllowance, basis, citations), ...dependantShares]
-  return tracedFigure('Personal allowance', sumMoney(steps.map((step) => step.amount)), basis, citations, steps)
+    .map((row) => tracedFigure(words.allowance.dependant(row.position.count, row.coefficient.basisPoints / 10_000), atRate(basicAllowance, row.coefficient.basisPoints), basis, citations))
+  const steps = [tracedFigure(words.allowance.basic, basicAllowance, basis, citations), ...dependantShares]
+  return tracedFigure(words.allowance.personal, sumMoney(steps.map((step) => step.amount)), basis, citations, steps)
 }
 
 export interface BracketTax {
@@ -65,7 +66,7 @@ export function taxInBrackets(taxable: Money, threshold: Money, rates: LocalRate
   const lowerPart = taxable < threshold ? taxable : threshold
   const higherPart = taxable > threshold ? subtractMoney(taxable, threshold) : ZERO
   return {
-    lowerRateTax: tracedFigure(`At the lower rate of ${percentText(rates.lowerRate)}`, atRate(lowerPart, rates.lowerRate), basis, rules),
-    higherRateTax: tracedFigure(`At the higher rate of ${percentText(rates.higherRate)}`, atRate(higherPart, rates.higherRate), basis, rules),
+    lowerRateTax: tracedFigure(words.allowance.lowerRate(percentText(rates.lowerRate)), atRate(lowerPart, rates.lowerRate), basis, rules),
+    higherRateTax: tracedFigure(words.allowance.higherRate(percentText(rates.higherRate)), atRate(higherPart, rates.higherRate), basis, rules),
   }
 }

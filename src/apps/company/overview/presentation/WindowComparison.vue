@@ -22,6 +22,7 @@ import { formatPercent } from '../../../../shared/money/moneyFormat'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import { words } from './words'
 
 defineProps<{
   columns: readonly string[]
@@ -41,20 +42,24 @@ function barStyle(change: number): Record<string, string> {
   <FigureTable class="window-table">
     <thead>
       <tr>
-        <th scope="col" class="text-start">Per month</th>
+        <th scope="col" class="text-start">{{ words.typicalMonth.perMonth }}</th>
         <th v-for="column in columns" :key="column" scope="col" class="text-end">{{ column }}</th>
-        <th scope="col" class="hidden text-end @md:table-cell">Last 3 vs 12 months</th>
-        <th scope="col" class="hidden w-32 @xl:table-cell"><span class="sr-only">The change on a scale of minus to plus 50%</span></th>
+        <th scope="col" class="hidden text-end @md:table-cell">{{ words.typicalMonth.last3Against12 }}</th>
+        <th scope="col" class="hidden w-32 @xl:table-cell">
+          <span class="sr-only">{{ words.typicalMonth.scale }}</span>
+        </th>
       </tr>
     </thead>
     <tbody>
       <tr v-for="row in rows" :key="row.label" :class="{ emphasised: row.emphasised }">
         <th scope="row" class="cell-wraps text-start font-normal text-toned">
           {{ row.label }}
-          <span v-if="row.recentChange !== null" class="figure block text-xs font-normal text-muted @md:hidden"> {{ formatPercent(row.recentChange, 'always') }} last 3 vs 12 months </span>
+          <span v-if="row.recentChange !== null" class="figure block text-xs font-normal text-muted @md:hidden">
+            {{ words.typicalMonth.changeAgainst12(formatPercent(row.recentChange, 'always')) }}
+          </span>
         </th>
         <td v-for="(cell, index) in row.cells" :key="index" class="text-end">
-          <DrillLink :to="cell.to" :label="`${row.label}, ${columns[index]}, open the rows`">
+          <DrillLink :to="cell.to" :label="words.typicalMonth.openRows(row.label, columns[index] ?? '')">
             <MoneyText :cents="cell.perMonth" :class="row.emphasised ? 'font-medium text-highlighted' : ''" />
           </DrillLink>
         </td>

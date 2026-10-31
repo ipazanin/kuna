@@ -27,6 +27,8 @@ import SalaryMonthPanel from './SalaryMonthPanel.vue'
 import SalaryOverTimePanel from './SalaryOverTimePanel.vue'
 import SalaryPeoplePanel from './SalaryPeoplePanel.vue'
 import { chosenPayday, employeeName, paydayYears, peopleRows, salaryMonthView, salaryYearRows } from './salariesView'
+import { words as packWords } from '../words'
+import { words } from './words'
 
 /** Each payday's pay split into where the money goes, the app and the bank set against each other, and the people the company pays. */
 const settings = useSettings()
@@ -59,12 +61,12 @@ const employee = computed(() => {
   return employees.value.some((candidate) => candidate.slug === asked) ? asked : null
 })
 const EVERYONE = 'everyone'
-const employeeItems = computed(() => [{ label: 'Everyone', value: EVERYONE }, ...employees.value.map((candidate) => ({ label: employeeName(candidate), value: candidate.slug }))])
+const employeeItems = computed(() => [{ label: words.everyone, value: EVERYONE }, ...employees.value.map((candidate) => ({ label: employeeName(candidate), value: candidate.slug }))])
 
 const tabs = computed((): PageTab[] => [
-  { value: 'month', label: 'Month', icon: 'i-lucide-calendar-days' },
-  { value: 'over-time', label: 'Over time', icon: 'i-lucide-chart-column' },
-  ...(employees.value.length >= 2 ? [{ value: 'people', label: 'People', icon: 'i-lucide-users', count: employees.value.length }] : []),
+  { value: 'month', label: words.screen.tabs.month, icon: 'i-lucide-calendar-days' },
+  { value: 'over-time', label: words.screen.tabs.overTime, icon: 'i-lucide-chart-column' },
+  ...(employees.value.length >= 2 ? [{ value: 'people', label: words.screen.tabs.people, icon: 'i-lucide-users', count: employees.value.length }] : []),
 ])
 
 const link = (drill: DrillTarget | null) => (drill === null ? null : drillLocation(drill))
@@ -102,7 +104,7 @@ function monthLink(paydayMonth: string, slug: string | null = employee.value) {
 
 <template>
   <section class="flex flex-col gap-6">
-    <PageHeader title="Salaries" description="Where each payday’s money went, and whether the app and the bank agree on it." />
+    <PageHeader :title="packWords.screens.salaries" :description="words.screen.description" />
     <OwnerPayOff v-if="!settings.ownerPayModule" />
     <LedgerGate v-else>
       <template v-if="workbook">
@@ -111,15 +113,15 @@ function monthLink(paydayMonth: string, slug: string | null = employee.value) {
           icon="i-lucide-user-plus"
           color="neutral"
           variant="subtle"
-          title="No row is the director's yet"
-          description="The pay scenarios, the forecast's owner pay and the payroll on this page work out the owner's pay on the director's row: where they live, pillar II, dependants, the year of birth and the day the employment started. Add yours with Director ticked."
+          :title="words.screen.noDirectorTitle"
+          :description="words.screen.noDirectorDescription"
           data-testid="no-director"
         />
 
-        <PageTabs v-if="employees.length > 0 && payday && month" :tabs="tabs" label="Parts of the salaries" data-testid="salaries-tabs">
+        <PageTabs v-if="employees.length > 0 && payday && month" :tabs="tabs" :label="words.screen.tabs.label" data-testid="salaries-tabs">
           <template #above>
             <div class="flex flex-col gap-3" data-testid="salaries-choice">
-              <div class="flex flex-wrap items-center gap-1.5" role="group" aria-label="Year">
+              <div class="flex flex-wrap items-center gap-1.5" role="group" :aria-label="words.screen.year">
                 <UButton
                   v-for="option in years"
                   :key="option"
@@ -131,12 +133,12 @@ function monthLink(paydayMonth: string, slug: string | null = employee.value) {
                   @click="choose({ year: String(option), month: null })"
                 />
               </div>
-              <div class="flex flex-wrap items-center gap-1.5" role="group" aria-label="Payday" data-testid="salaries-paydays">
+              <div class="flex flex-wrap items-center gap-1.5" role="group" :aria-label="words.screen.payday" data-testid="salaries-paydays">
                 <UButton
                   v-for="option in monthsOfYear"
                   :key="option"
                   :label="shortMonthName(option)"
-                  :aria-label="`Paid in ${monthLabel(option)}`"
+                  :aria-label="words.screen.paidIn(monthLabel(option))"
                   size="sm"
                   color="neutral"
                   :variant="option === payday.payday ? 'subtle' : 'ghost'"
@@ -149,7 +151,7 @@ function monthLink(paydayMonth: string, slug: string | null = employee.value) {
                 v-if="employees.length >= 2"
                 :model-value="employee ?? EVERYONE"
                 :items="employeeItems"
-                aria-label="Employee"
+                :aria-label="words.screen.employee"
                 class="w-full sm:w-56"
                 data-testid="salaries-employee"
                 @update:model-value="(picked: string) => choose({ employee: picked === EVERYONE ? null : picked })"
@@ -167,22 +169,20 @@ function monthLink(paydayMonth: string, slug: string | null = employee.value) {
           </template>
         </PageTabs>
         <p v-else-if="employees.length > 0" class="text-sm text-toned" data-testid="salaries-no-payday">
-          No payday yet. A month shows here once the ledger holds a row in a category with the <span class="identifier">salary</span> role or a payroll tax paid in it.
+          {{ words.screen.noPaydayBefore }}<span class="identifier">salary</span>{{ words.screen.noPaydayAfter }}
         </p>
 
         <FactTabCard
           id="employee-rows"
           :rules="EMPLOYEE_WRITES"
-          title="Employees"
-          description="One row per person the company pays a salary. A month the employment starts or ends in counts its working days from the row's dates."
+          :title="words.screen.employees"
+          :description="words.screen.employeesDescription"
           collapse-id="salaries.employees"
           :columns="EMPLOYEE_COLUMNS"
           :read="readEmployees"
           :make="employeeOfFields"
           :new-row="() => ({ pension_pillar_2: 'TRUE' })"
-          row-noun="employee"
-          tab-noun="employees"
-          saved-title="Employees saved"
+          :saved-title="words.screen.employeesSaved"
           :start-collapsed="employees.length > 0 && month !== null"
           :reveal="route.hash === '#employee-rows'"
         />

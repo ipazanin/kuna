@@ -6,6 +6,7 @@ import type { ChartOption, LineSeries } from '../../../../shared/charts/echarts'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { DrillChart } from '../../filters/presentation/chartDrill'
 import type { MonthOfProfitAndLoss } from '../domain/monthlyProfitAndLoss'
+import { words } from './words'
 
 interface TrendLine {
   readonly name: string
@@ -17,8 +18,8 @@ interface TrendLine {
 /** Running total of net from the ledger's first month, drawn as a filled line. */
 export function cumulativeNetChart(months: readonly MonthOfProfitAndLoss[], tokens: ChartTokens): DrillChart {
   const last = months[months.length - 1]
-  return trendChart(months, tokens, [{ name: 'Cumulative net', colour: tokens.accent, amounts: months.map((month) => month.cumulativeNet), area: true }], {
-    description: last === undefined ? 'No months to show.' : `Cumulative net since the ledger began, ${formatMoney(last.cumulativeNet)} by ${monthLabel(last.month)}.`,
+  return trendChart(months, tokens, [{ name: words.cumulativeNet, colour: tokens.accent, amounts: months.map((month) => month.cumulativeNet), area: true }], {
+    description: last === undefined ? words.noMonths : words.cumulativeDescription(formatMoney(last.cumulativeNet), monthLabel(last.month)),
   })
 }
 
@@ -29,15 +30,14 @@ export function rollingNetChart(months: readonly MonthOfProfitAndLoss[], tokens:
     months,
     tokens,
     [
-      { name: '3-month average', colour: tokens.ink, amounts: months.map((month) => month.rolling3?.net ?? null) },
-      { name: '12-month average', colour: tokens.accent, amounts: months.map((month) => month.rolling12?.net ?? null) },
+      { name: words.average3, colour: tokens.ink, amounts: months.map((month) => month.rolling3?.net ?? null) },
+      { name: words.average12, colour: tokens.accent, amounts: months.map((month) => month.rolling12?.net ?? null) },
     ],
     {
       description:
         latest === undefined
-          ? 'Not enough complete months for a rolling average yet.'
-          : `Average net per month. In ${monthLabel(latest.month)} the 3-month average was ${formatMoney(latest.rolling3?.net ?? 0)}` +
-            (latest.rolling12 === null ? '.' : ` and the 12-month average ${formatMoney(latest.rolling12.net)}.`),
+          ? words.notEnoughMonths
+          : words.rollingDescription(monthLabel(latest.month), formatMoney(latest.rolling3?.net ?? 0), latest.rolling12 === null ? null : formatMoney(latest.rolling12.net)),
     },
   )
 }

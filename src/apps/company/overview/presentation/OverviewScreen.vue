@@ -15,7 +15,8 @@ import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import { balanceSeries, latestBalances } from '../../cash/domain/balances'
-import { TOTAL_SERIES, accountColours, balanceChart } from '../../cash/presentation/cashChart'
+import { accountColours, balanceChart } from '../../cash/presentation/cashChart'
+import { words as cashWords } from '../../cash/presentation/words'
 import { useFilters } from '../../filters/application/filterStore'
 import { drillToTransactions } from '../../filters/domain/drillTarget'
 import { transactionsInPeriod } from '../../filters/domain/filterState'
@@ -28,6 +29,7 @@ import { costLabelsInSentence, lineLabel, shownLines } from '../../settings/doma
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
 import { monthlyProfitAndLoss } from '../../trends/domain/monthlyProfitAndLoss'
 import { ROLLING_3_NET, profitAndLossChart, profitAndLossLegend, profitAndLossSeries } from '../../trends/presentation/profitAndLossChart'
+import { words as trendWords } from '../../trends/presentation/words'
 import { LINE_BUCKETS, bucketTotals } from '../../workbook/domain/bucketTotals'
 import type { ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
@@ -42,6 +44,10 @@ import { euroDonut } from './overviewCharts'
 import { statementsJob, waitingJobs } from './waitingForYou'
 import WindowComparison from './WindowComparison.vue'
 import type { WindowRow } from './WindowComparison.vue'
+import { capitalised } from '../../../../shared/text/capitalised'
+import { plural } from '../../../../shared/text/translation'
+import type { CroatianForms, EnglishForms } from '../../../../shared/text/translation'
+import { words } from './words'
 
 const ledger = useFilteredLedger()
 const { state } = useWorkbook()
@@ -52,8 +58,9 @@ const names = useDisplayNames()
 const EMPHASISED_LINES: readonly ProfitAndLossLine[] = ['net', 'ownerEarns']
 const LAST_12_MONTHS: Period = { preset: 'l12' }
 
-function runwayText(months: number | null): string {
-  return months === null ? 'No costs' : formatDecimal(months)
+/** The months a runway lasts, rounded to the tenth the tile shows, with the unit the language writes them with. */
+function runwayText(months: number | null, forms: (text: string) => EnglishForms | CroatianForms): string {
+  return months === null ? words.tiles.noCosts : plural(forms(formatDecimal(months)), Math.round(months * 10) / 10)
 }
 
 const statements = useStatementSync()
@@ -85,12 +92,12 @@ const overview = computed(() => {
   const cashMonths = balanceMonths.months.slice(-13)
   const lastMonthEnd = [...cashMonths].reverse().find((month) => month.complete) ?? null
   const cashChange = lastMonthEnd === null ? null : balances.cashOnHand.amount - lastMonthEnd.total.amount
-  const sinceLabel = averages.allTime === null ? null : `All time, since ${averages.allTime.span.from}`
+  const sinceLabel = averages.allTime === null ? null : words.typicalMonth.allTime(averages.allTime.span.from)
   const known = workbook.accounts.map((account) => account.slug)
   const colours = accountColours([...known, ...balanceMonths.accounts.filter((account) => !known.includes(account))], tokens)
 
   const columns = [averages.last3, averages.last12, averages.allTime].flatMap((column) => (column === null ? [] : [column]))
-  const columnLabels = ['Last 3 months', 'Last 12 months', ...(sinceLabel === null ? [] : [sinceLabel])]
+  const columnLabels = [words.typicalMonth.last3, words.typicalMonth.last12, ...(sinceLabel === null ? [] : [sinceLabel])]
   // All costs is left out, because the cost lines above it already split it.
   const comparison: WindowRow[] = shownLines(shown)
     .filter((line) => line !== 'cost')
@@ -112,45 +119,43 @@ const overview = computed(() => {
       said === null
         ? null
         : {
-            month: monthInYear(said.month, new Date().getFullYear()),
+            month: capitalised(monthInYear(said.month, new Date().getFullYear())),
             cameIn: { amount: said.cameIn.amount, to: drillLocation(said.cameIn.drill) },
             wentOut: { amount: said.wentOut.amount, to: drillLocation(said.wentOut.drill) },
             loss: said.loss,
           },
     tiles: [
       {
-        label: 'Cash on hand',
+        label: words.tiles.cashOnHand,
         value: formatMoney(balances.cashOnHand.amount),
         to: drillLocation(balances.cashOnHand.drill),
         trend: cashMonths.slice(-12).map((month) => month.total.amount),
-        ...(cashChange === null || lastMonthEnd === null
-          ? {}
-          : { delta: { change: cashChange, text: formatMoney(cashChange, 'always'), comparison: `since the end of ${monthLabel(lastMonthEnd.month)}` } }),
-        definition: 'The closing balance of every account in view on its newest booking day, added together.',
+        ...(cashChange === null || lastMonthEnd === null ? {} : { delta: { change: cashChange, text: formatMoney(cashChange, 'always'), comparison: words.tiles.sinceMonthEnd(lastMonthEnd.month) } }),
+        definition: words.tiles.cashDefinition,
       },
       {
-        label: 'Net, last 12 months',
+        label: words.tiles.net,
         value: formatMoney(lastTwelveTotals.net),
         to: drillLocation(drillToTransactions({ period: LAST_12_MONTHS, buckets: LINE_BUCKETS.net })),
         trend: lastTwelve.map((month) => month.lines.net.amount),
-        caption: `${formatMoney(averages.last12.lines.net.perMonth)} a month over ${averagedMonths}`,
-        definition: `${shown.bucketLabels.income} less ${costs} over the last 12 months, the month so far included. The caption averages the 12 complete months before the month so far. Transfers and reimbursements are left out.`,
+        caption: words.tiles.perMonth(formatMoney(averages.last12.lines.net.perMonth), averagedMonths),
+        definition: words.tiles.netDefinition(shown.bucketLabels.income, costs),
       },
       {
-        label: 'Monthly costs',
+        label: words.tiles.monthlyCosts,
         value: formatMoney(recentRunway.monthlyCost.amount),
         to: drillLocation(recentRunway.monthlyCost.drill),
         trend: lastTwelve.map((month) => month.lines.cost.amount),
         higherIsBetter: false,
-        delta: { change: costChange, text: formatMoney(costChange, 'always'), comparison: 'vs the 12-month average' },
-        definition: `${costs.charAt(0).toUpperCase()}${costs.slice(1)} over the last three complete months, divided by three.`,
+        delta: { change: costChange, text: formatMoney(costChange, 'always'), comparison: words.tiles.against12Months },
+        definition: words.tiles.costsDefinition(costs),
       },
       {
-        label: 'Runway',
-        value: recentRunway.months === null ? 'No costs' : `${formatDecimal(recentRunway.months)} months`,
+        label: words.tiles.runway,
+        value: runwayText(recentRunway.months, words.tiles.months),
         to: drillLocation(recentRunway.monthlyCost.drill),
-        caption: `At the 3-month cost, ${runwayText(yearRunway.months)} at the 12-month cost`,
-        definition: 'Cash on hand divided by the monthly costs: how long the company runs if no more income arrives. The figure takes the last three complete months, the caption the last twelve.',
+        caption: words.tiles.runwayCaption(runwayText(yearRunway.months, words.tiles.atYearCost)),
+        definition: words.tiles.runwayDefinition,
       },
     ],
     comparison,
@@ -160,19 +165,19 @@ const overview = computed(() => {
     monthlyLegend: [
       ...profitAndLossLegend(series),
       { label: ROLLING_3_NET.name, colour: 'var(--chart-ink)', mark: 'line' as const },
-      { label: 'Month so far', colour: 'var(--chart-deemphasis)', mark: 'hatched' as const },
+      { label: trendWords.monthSoFar, colour: 'var(--chart-deemphasis)', mark: 'hatched' as const },
     ],
     monthly: profitAndLossChart(months.slice(-13), tokens, { series, netLine: ROLLING_3_NET }),
     balance: balanceChart(cashMonths, balanceMonths.accounts, colours, tokens, names.value.account),
     balanceLegend: [
       ...balanceMonths.accounts.map((account) => ({ label: names.value.account(account), colour: colours.get(account) ?? 'var(--chart-ink)' })),
-      { label: TOTAL_SERIES, colour: 'var(--chart-ink)', mark: 'line' as const },
-      { label: 'Month so far', colour: 'var(--chart-deemphasis)', mark: 'hatched' as const },
+      { label: cashWords.total, colour: 'var(--chart-ink)', mark: 'line' as const },
+      { label: trendWords.monthSoFar, colour: 'var(--chart-deemphasis)', mark: 'hatched' as const },
     ],
     euro: {
       ...euroDonut(euro, shown, drillLocation),
       total: formatMoney(euro.shortfall ?? euro.whole),
-      totalLabel: euro.basis === 'income' ? 'income' : 'more out than in',
+      totalLabel: euro.basis === 'income' ? words.euro.income : words.euro.moreOutThanIn,
       loss: euro.basis === 'cost',
     },
     accounts: balances.accounts.map((account) => ({
@@ -186,33 +191,32 @@ const overview = computed(() => {
       count: account.transactionCount,
       closed: account.closed,
     })),
-    accountsSummary: `${balances.accounts.length} ${balances.accounts.length === 1 ? 'account' : 'accounts'}${closedCount > 0 ? `, ${closedCount} closed` : ''}`,
+    accountsSummary: `${plural(words.accounts.summary(balances.accounts.length), balances.accounts.length)}${closedCount > 0 ? plural(words.accounts.closedCount(closedCount), closedCount) : ''}`,
   }
 })
 </script>
 
 <template>
   <section class="flex flex-col gap-6">
-    <PageHeader title="Overview" description="How the company is doing, and what waits for you." />
+    <PageHeader :title="words.title" :description="words.description" />
     <GettingSetUpCard />
     <LedgerGate>
       <template v-if="ledger && overview">
         <FilterBar :workbook="ledger.workbook" :window="ledger.window" :show-period="false" />
 
         <p v-if="overview.headline" class="headline" data-testid="headline">
-          {{ overview.headline.month }}:
-          <DrillLink :to="overview.headline.cameIn.to" in-prose class="headline-figure"><MoneyText :cents="overview.headline.cameIn.amount" /></DrillLink>
-          came in and
-          <DrillLink :to="overview.headline.wentOut.to" in-prose class="headline-figure"><MoneyText :cents="overview.headline.wentOut.amount" /></DrillLink>
-          went out<template v-if="overview.headline.loss !== null">, a loss of <MoneyText :cents="overview.headline.loss" class="text-error" /></template>.
+          {{ overview.headline.month }}{{ words.headline.opening
+          }}<DrillLink :to="overview.headline.cameIn.to" in-prose class="headline-figure"><MoneyText :cents="overview.headline.cameIn.amount" /></DrillLink>{{ words.headline.between
+          }}<DrillLink :to="overview.headline.wentOut.to" in-prose class="headline-figure"><MoneyText :cents="overview.headline.wentOut.amount" /></DrillLink>{{ words.headline.closing
+          }}<template v-if="overview.headline.loss !== null">{{ words.headline.loss }}<MoneyText :cents="overview.headline.loss" class="text-error" /></template>.
         </p>
 
-        <AppCard v-if="waiting.length" title="Waiting for you" subtitle="Across the whole workbook, whatever the filters." data-testid="waiting-for-you">
+        <AppCard v-if="waiting.length" :title="words.waiting.title" :subtitle="words.waiting.subtitle" data-testid="waiting-for-you">
           <ul class="flex flex-col px-4 pt-2 pb-3 sm:px-5">
             <li v-for="job in waiting" :key="job.key" class="waiting-line" :data-job="job.key">
               <span class="waiting-dot" :class="job.tone" aria-hidden="true" />
               <span class="min-w-0 flex-1 text-sm text-toned">{{ job.text }}</span>
-              <DrillLink :to="job.link.to" :label="`${job.text}, open ${job.link.label}`" class="shrink-0 text-sm font-medium text-highlighted">{{ job.link.label }}</DrillLink>
+              <DrillLink :to="job.link.to" :label="words.waiting.open(job.text, job.link.label)" class="shrink-0 text-sm font-medium text-highlighted">{{ job.link.label }}</DrillLink>
             </li>
           </ul>
         </AppCard>
@@ -222,11 +226,7 @@ const overview = computed(() => {
         </DashboardGrid>
 
         <DashboardGrid>
-          <AppCard
-            title="A typical month, three ways"
-            subtitle="Each window ends with the last complete month. A wide spread means recent months are not like the rest."
-            class="xl:col-span-2 3xl:col-span-1"
-          >
+          <AppCard :title="words.typicalMonth.title" :subtitle="words.typicalMonth.subtitle" class="xl:col-span-2 3xl:col-span-1">
             <div class="px-1 pt-2 pb-2 sm:px-2">
               <WindowComparison :columns="overview.columnLabels" :rows="overview.comparison" />
             </div>
@@ -235,30 +235,24 @@ const overview = computed(() => {
           <DrillChartCard
             :chart="overview.monthly"
             class="xl:col-span-2"
-            title="Income and costs by month"
-            subtitle="Last 12 complete months and the month so far. Income above zero, costs below it. Click a month or a bar for its rows."
-            :definition="`Costs are ${overview.costs}. The line is the average net of the three months up to each one, so it starts once three complete months exist.`"
+            :title="words.monthly.title"
+            :subtitle="words.monthly.subtitle"
+            :definition="words.monthly.definition(overview.costs)"
             :height="320"
             :phone-height="260"
           >
             <template #legend><ChartLegend :entries="overview.monthlyLegend" /></template>
           </DrillChartCard>
 
-          <DrillChartCard
-            :chart="overview.balance"
-            title="Balance at month end"
-            subtitle="Last 12 months and the month so far, each account stacked with the total on top"
-            :height="280"
-            :phone-height="240"
-          >
+          <DrillChartCard :chart="overview.balance" :title="words.balance.title" :subtitle="words.balance.subtitle" :height="280" :phone-height="240">
             <template #legend><ChartLegend :entries="overview.balanceLegend" /></template>
           </DrillChartCard>
 
           <DonutCard
             class="3xl:col-span-2"
-            :title="`Every ${overview.unit} earned, last 12 months`"
-            :subtitle="overview.euro.loss ? `Costs ran above income, so the ring splits every ${overview.unit} spent.` : `Where each ${overview.unit} of income went.`"
-            :definition="`What is kept is income less ${overview.costs}. In a loss nothing is kept, so the ring splits every ${overview.unit} spent instead.`"
+            :title="words.euro.title(overview.unit)"
+            :subtitle="overview.euro.loss ? words.euro.lossSubtitle(overview.unit) : words.euro.subtitle(overview.unit)"
+            :definition="words.euro.definition(overview.costs, overview.unit)"
             :description="overview.euro.description"
             :parts="overview.euro.parts"
             :total="overview.euro.total"
@@ -266,12 +260,12 @@ const overview = computed(() => {
           />
 
           <AppCard
-            title="Accounts"
+            :title="words.accounts.title"
             class="col-span-full"
             collapse-id="overview.accounts"
             :summary="overview.accountsSummary"
             start-collapsed
-            subtitle="Each account at its newest balance"
+            :subtitle="words.accounts.subtitle"
             data-testid="overview-accounts"
           >
             <ul class="mt-3 border-t border-default">
@@ -280,11 +274,11 @@ const overview = computed(() => {
                   <p class="flex flex-wrap items-center gap-2 text-sm text-toned">
                     <span class="size-2.5 shrink-0 rounded-[2px]" :style="{ background: account.colour }" aria-hidden="true" />
                     {{ account.name }}
-                    <UBadge v-if="account.closed" label="Closed" color="neutral" variant="subtle" size="sm" />
+                    <UBadge v-if="account.closed" :label="words.accounts.closed" color="neutral" variant="subtle" size="sm" />
                   </p>
-                  <p class="mt-0.5 text-xs text-muted">As of {{ account.asOf }}. {{ account.count }} rows since {{ account.firstSeen }}.</p>
+                  <p class="mt-0.5 text-xs text-muted">{{ plural(words.accounts.asOf(account.asOf, account.count, account.firstSeen), account.count) }}</p>
                 </div>
-                <DrillLink :to="account.to" :label="`${account.name}, every row`" class="shrink-0">
+                <DrillLink :to="account.to" :label="words.accounts.everyRow(account.name)" class="shrink-0">
                   <span class="figure text-base font-semibold whitespace-nowrap text-highlighted">{{ formatMoney(account.balance) }}</span>
                 </DrillLink>
               </li>

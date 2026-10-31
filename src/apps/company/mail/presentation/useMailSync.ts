@@ -18,9 +18,10 @@ import { statementMailSource } from '../application/statementMailSource'
 import { mailSinceDefault, yearsSince } from '../domain/mailSource'
 import { gmailMailbox } from '../infrastructure/gmailMailbox'
 import { googleMailFolders } from '../infrastructure/googleMailFolders'
+import { words } from './words'
 
 /** Where the step's line links, the mail card on Settings, General, which lists what the last run found. */
-export const MAIL_LIST_LINK = { label: 'See the list', to: '/company/settings#mail' } as const
+export const MAIL_LIST_LINK = { label: words.step.seeList, to: '/company/settings#mail' } as const
 
 interface MailSyncState {
   /** What the last mail step of this page found and filed, or null before one ran and after one stopped. */
@@ -62,7 +63,7 @@ function mailScopes(workbook: Workbook | null): GoogleScope[] {
   return folders.length === 0 ? [] : scopesOf(['gmail.readonly', ...folders.map(folderReadScope)])
 }
 
-const MAIL_LABEL = 'Mail'
+const MAIL_LABEL = words.step.label
 
 /** What the mail step needs of Google for these books, none while their settings turn it off. */
 export function mailNeeds(workbook: Workbook): AccessNeed[] {
@@ -79,7 +80,7 @@ async function openMail(workbook: Workbook, booksFileId: string): Promise<MailAc
   const mail = currentToken('gmail.readonly')
   const drive = currentToken(mailScopes(workbook).includes('drive.readonly') ? 'drive.readonly' : 'drive.file')
   if (mail === null || drive === null) {
-    throw new Error('The Google access ran out. Sync again.')
+    throw new Error(words.step.accessRanOut)
   }
   return { mailbox: gmailMailbox(mail), folders: googleMailFolders(drive, booksFileId) }
 }
@@ -104,12 +105,12 @@ export function useMailSync(): MailSync {
       id: 'mail',
       label: MAIL_LABEL,
       scopes: () => mailScopes(store.state.workbook),
-      startLine: 'Searching Gmail',
+      startLine: words.step.searching,
       on: () => store.state.workbook === null || isOn(store.state.workbook),
       async run(report) {
         const { workbook, choice } = store.state
         if (workbook === null || choice?.source !== 'drive') {
-          return { kind: 'done', line: 'Nothing to search before the books are read', writeId: null, link: null }
+          return { kind: 'done', line: words.step.beforeBooks, writeId: null, link: null }
         }
         const now = today()
         const since = workbook.settings.mailSince ?? mailSinceDefault(now)
@@ -126,11 +127,7 @@ export function useMailSync(): MailSync {
           state.stopped = null
         } catch (failure) {
           state.plan = null
-          state.stopped = isUnauthorized(failure)
-            ? 'The last sync stopped before it finished with the mail. The sync control says what it needs.'
-            : failure instanceof Error
-              ? failure.message
-              : String(failure)
+          state.stopped = isUnauthorized(failure) ? words.step.stopped : failure instanceof Error ? failure.message : String(failure)
           throw failure
         }
         const line = planLine(state.plan)

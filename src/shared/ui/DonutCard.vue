@@ -26,7 +26,7 @@ import type { ChartOption } from '../charts/echarts'
 import { buildChartTheme } from '../charts/chartTheme'
 import { chartTokens, tokenColour } from '../charts/chartTokens'
 import { usePhoneLayout } from '../layout/viewport'
-import { formatMoney } from '../money/moneyFormat'
+import { formatMoney, formatPercent } from '../money/moneyFormat'
 import AppCard from './AppCard.vue'
 import DrillLink from './DrillLink.vue'
 import { words } from './words'
@@ -70,9 +70,9 @@ const totalSize = computed(() => (props.total.length <= 13 ? 'text-xl' : props.t
 const whole = computed(() => props.parts.reduce((sum, part) => sum + Math.max(part.value, 0), 0))
 
 function share(value: number): string {
-  if (whole.value <= 0 || value <= 0) return '0%'
+  if (whole.value <= 0 || value <= 0) return formatPercent(0)
   const percent = (value / whole.value) * 100
-  return percent < 0.5 ? '<1%' : `${Math.round(percent)}%`
+  return percent < 0.5 ? `<${formatPercent(0.01)}` : formatPercent(Math.round(percent) / 100)
 }
 
 const option = computed<ChartOption>(() => {

@@ -51,6 +51,8 @@ import type { DepreciationYearLine } from './DepreciationYears.vue'
 import DoubledRatesChanges from './DoubledRatesChanges.vue'
 import GrantPanel from './GrantPanel.vue'
 import type { GrantComparisonLine, GrantLine } from './GrantPanel.vue'
+import { plural } from '../../../../../../shared/text/translation'
+import { words } from './words'
 
 /**
  * What the company owns, what it is worth today and what it costs in the year, with any grant that
@@ -67,13 +69,7 @@ const { drillLocation } = useFilters()
 const route = useRoute()
 const router = useRouter()
 
-const GROUPS: Readonly<Record<AssetGroup, string>> = {
-  computers: 'Computers',
-  equipment: 'Equipment',
-  car: 'Car',
-  building: 'Building',
-  other: 'Other',
-}
+const GROUPS: Readonly<Record<AssetGroup, string>> = words.groups
 
 const grantSlugs = computed(() => props.workbook.grants.map((grant) => grant.slug))
 const readAssetRows = (records: RecordsRead<Asset>) => readAssets(records, new Set(grantSlugs.value))
@@ -141,35 +137,35 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
     doublingAllowed,
     tiles: [
       {
-        label: 'Book value',
+        label: words.tiles.bookValue,
         value: formatMoney(bookValue),
         to: null,
-        caption: `Today, ${held} of ${lines.length} ${lines.length === 1 ? 'asset' : 'assets'} on the books`,
-        definition: 'Cost without VAT less the depreciation of every month that has ended. Small inventory is written off when put in use, so it carries no book value.',
+        caption: plural(words.tiles.onTheBooks(held, lines.length), lines.length),
+        definition: words.tiles.bookValueDefinition,
       },
       {
-        label: `Depreciation in ${year}`,
+        label: words.tiles.depreciationIn(year),
         value: formatMoney(yearsDepreciation),
         to: ruleLink('hr.cit.depreciation-rates'),
-        caption: doubled ? 'At doubled rates' : 'At the rates the workbook asks for',
-        definition: 'Straight-line from the month after an asset is put in use, at its group rate. Opens the rule with the rates.',
+        caption: doubled ? words.tiles.atDoubled : words.tiles.atWorkbookRates,
+        definition: words.tiles.depreciationDefinition,
       },
       ...(grants.length === 0
         ? []
         : [
             {
-              label: 'Deferred',
+              label: words.tiles.deferred,
               value: formatMoney(deferredToday),
               to: null,
-              caption: `Grant not yet income today. ${formatMoney(releasedInYear)} released in ${year}`,
-              definition: 'Grant money received and not yet counted as income, as of the last month that has ended.',
+              caption: words.tiles.deferredCaption(formatMoney(releasedInYear), year),
+              definition: words.tiles.deferredDefinition,
             },
             {
-              label: 'Clawback',
+              label: words.tiles.clawback,
               value: exposures.length === 0 ? '–' : formatMoney(exposures.reduce((total, amount) => total + amount, 0)),
               to: null,
-              caption: firstCondition === undefined ? 'Repaid if employment ended today' : `Repaid if employment ended today. Required until ${dayLabel(firstCondition)}`,
-              definition: 'What the grantor could claim back if a condition broke today, from the clawback terms on the grants tab. It is a risk to plan for, never a figure in profit.',
+              caption: firstCondition === undefined ? words.tiles.repaidToday : words.tiles.repaidTodayUntil(dayLabel(firstCondition)),
+              definition: words.tiles.clawbackDefinition,
             },
           ]),
     ],
@@ -180,7 +176,7 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
       accumulated: lines.reduce((total, line) => total + line.accumulated, 0),
       bookValue,
     },
-    registerSummary: `${lines.length} ${lines.length === 1 ? 'asset' : 'assets'}, ${formatMoney(bookValue)} book value today`,
+    registerSummary: words.registerSummary(plural(words.assets(lines.length), lines.length), formatMoney(bookValue)),
     unmatchedAssets,
     unmatchedPurchases: register.unmatchedPurchases.map((purchase) => ({
       key: `${purchase.row.account}-${purchase.row.sequence}`,
@@ -192,14 +188,14 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
     mismatchedPayments: register.mismatchedPayments.map((payment) => ({
       key: `${payment.row.account}-${payment.row.sequence}`,
       date: dayLabel(payment.row.date),
-      claimedBy: `${payment.assets.map((asset) => asset.name).join(', ')}, ${formatMoney(payment.costNet)} without VAT`,
+      claimedBy: words.claimedBy(payment.assets.map((asset) => asset.name).join(', '), formatMoney(payment.costNet)),
       amount: payment.row.amount,
       to: drillLocation(payment.drill),
     })),
     threshold: formatMoney(threshold),
     chart,
-    bookValueSummary: `${lines.length} ${lines.length === 1 ? 'asset' : 'assets'}, ${formatMoney(bookValue)} today`,
-    yearsSummary: years.length === 0 ? 'No asset is depreciated' : `${years.length} ${years.length === 1 ? 'year' : 'years'}, ${years[0]!.year} to ${years[years.length - 1]!.year}`,
+    bookValueSummary: words.bookValueSummary(plural(words.assets(lines.length), lines.length), formatMoney(bookValue)),
+    yearsSummary: years.length === 0 ? words.noDepreciation : plural(words.yearsSummary(years.length, years[0]!.year, years[years.length - 1]!.year), years.length),
     years: years.map((entry): DepreciationYearLine => ({
       year: entry.year,
       total: entry.total.amount,
@@ -209,7 +205,7 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
         return {
           key: `${charge.schedule.asset.id}-${index}`,
           asset: charge.schedule.asset.name,
-          basis: `${months} ${months === 1 ? 'month' : 'months'} at ${percentText(charge.year.rate)}${charge.year.doubled ? ', doubled' : ''}`,
+          basis: plural(words.chargeBasis(months, percentText(charge.year.rate), charge.year.doubled), months),
           amount: charge.year.charge.amount,
           deductible: charge.year.deductible.amount < charge.year.charge.amount ? charge.year.deductible.amount : null,
         }
@@ -222,7 +218,7 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
         : [
             {
               key: `${check.year}-released`,
-              label: `Released in ${check.year}`,
+              label: words.releasedIn(check.year),
               accountant: check.released.accountant.amount,
               ours: check.released.ours.amount,
               residual: check.released.residual.amount,
@@ -233,7 +229,7 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
         : [
             {
               key: `${check.year}-deferred`,
-              label: `Deferred at the end of ${check.year}`,
+              label: words.deferredAtEnd(check.year),
               accountant: check.deferred.accountant.amount,
               ours: check.deferred.ours.amount,
               residual: check.deferred.residual.amount,
@@ -259,9 +255,9 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
     const lastMonth = schedule.months.at(-1)?.month
     const gone =
       schedule.writeOff !== null && schedule.writeOff.on <= today
-        ? `${schedule.treatment === 'small-inventory' ? 'Written off' : 'Disposed'} ${dayLabel(schedule.writeOff.on)}`
+        ? (schedule.treatment === 'small-inventory' ? words.writtenOff : words.disposed)(dayLabel(schedule.writeOff.on))
         : bookValueToday === 0 && asset.bought <= today && lastMonth !== undefined
-          ? `Written off by ${monthLabel(lastMonth)}`
+          ? words.writtenOffBy(monthLabel(lastMonth))
           : null
     return {
       key: asset.id,
@@ -271,7 +267,7 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
       inUse: dayLabel(asset.inUse),
       cost: asset.costNet,
       group: GROUPS[asset.group],
-      rate: schedule.treatment === 'small-inventory' || rateYear === undefined ? 'Small inventory' : `${percentText(rateYear.rate)}${rateYear.doubled ? ', doubled' : ''}`,
+      rate: schedule.treatment === 'small-inventory' || rateYear === undefined ? words.smallInventory : words.rate(percentText(rateYear.rate), rateYear.doubled),
       rateLink: ruleLink(schedule.treatment === 'small-inventory' ? 'hr.cit.asset-threshold' : 'hr.cit.depreciation-rates'),
       charge: yearNow?.charge.amount ?? null,
       accumulated: accumulatedDepreciationOn(schedule, today).amount,
@@ -290,10 +286,7 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
       received: dayLabel(grant.received),
       receipt: receiptOf(grant),
       amount: grant.amount,
-      policy:
-        schedule.policy === 'fixed-then-assets'
-          ? 'The fixed part counts as income on receipt, and the variable part as the assets it paid for are depreciated.'
-          : `Released evenly over the grant period${grant.period === null ? '' : `, ${dayLabel(grant.period.from)} to ${dayLabel(grant.period.to)}`}.`,
+      policy: schedule.policy === 'fixed-then-assets' ? words.fixedThenAssets : words.straightLine(grant.period === null ? null : words.span(dayLabel(grant.period.from), dayLabel(grant.period.to))),
       employmentUntil: grant.employmentRequiredUntil === null ? null : dayLabel(grant.employmentRequiredUntil),
       employmentState: employmentState(grant.employmentRequiredUntil),
       clawback: exposure === null ? null : { amount: exposure.amount.amount, until: exposure.until === null ? null : dayLabel(exposure.until) },
@@ -314,52 +307,36 @@ function employmentState(until: CivilDate | null): string | null {
   }
   const days = daysBetween(today, until)
   if (days > 0) {
-    return `${days} ${days === 1 ? 'day' : 'days'} to go`
+    return plural(words.daysToGo(days), days)
   }
-  return days === 0 ? 'The last required day is today' : 'The required period is over'
+  return days === 0 ? words.lastDayToday : words.periodOver
 }
 </script>
 
 <template>
   <div class="flex flex-col gap-6">
-    <EmptyState
-      v-if="workbook.assets.length === 0"
-      icon="i-lucide-package"
-      title="No assets on the assets tab"
-      description="The assets tab lists what the company bought to keep, such as a laptop or a car: its cost without VAT, its depreciation group and the day it was put in use. Each row is depreciated here, and a grant that paid for it is released beside it. Add the first one under Asset rows."
-      data-testid="assets-empty"
-    />
-    <EmptyState v-else-if="view && view.failure !== null" icon="i-lucide-triangle-alert" title="The assets could not be depreciated" :description="view.failure" tone="error" />
+    <EmptyState v-if="workbook.assets.length === 0" icon="i-lucide-package" :title="words.panel.emptyTitle" :description="words.panel.emptyDescription" data-testid="assets-empty" />
+    <EmptyState v-else-if="view && view.failure !== null" icon="i-lucide-triangle-alert" :title="words.panel.failed" :description="view.failure" tone="error" />
     <template v-else-if="view && view.failure === null">
       <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between lg:gap-8" data-testid="doubled-rates">
         <USwitch
           :model-value="view.doubled"
           :disabled="!view.changesAnything"
-          label="Show doubled rates"
-          :description="
-            view.changesAnything
-              ? 'Every figure on this tab at twice the group rate. Nothing is saved, and the workbook keeps its own setting.'
-              : view.doublingAllowed
-                ? 'Every asset already depreciates at the doubled rate, from its doubled column or hr_depreciation_doubled.'
-                : 'The depreciation rates in force do not allow doubling.'
-          "
+          :label="words.panel.showDoubled"
+          :description="view.changesAnything ? words.panel.doubledChanges : view.doublingAllowed ? words.panel.alreadyDoubled : words.panel.noDoubling"
           data-testid="doubled-rates-switch"
           @update:model-value="showDoubled($event)"
         />
         <p v-if="view.doublingAllowed" class="max-w-[60ch] text-xs text-muted">
-          The profit tax act allows each depreciation rate to be doubled. Whether to do it is a choice to discuss with the accountant.
-          <DrillLink :to="ruleLink('hr.cit.depreciation-rates')" in-prose class="text-highlighted">Open the rule</DrillLink>
+          {{ words.panel.doublingAllowed }}
+          <DrillLink :to="ruleLink('hr.cit.depreciation-rates')" in-prose class="text-highlighted">{{ words.panel.openRule }}</DrillLink>
         </p>
       </div>
 
-      <AppCard
-        v-if="view.doubled"
-        title="What doubled rates would change"
-        subtitle="Against the rates the workbook asks for, year by year. More depreciation lowers profit before tax. The profit tax change is the profit change at the corporate tax rate of the year."
-      >
+      <AppCard v-if="view.doubled" :title="words.panel.changesTitle" :subtitle="words.panel.changesSubtitle">
         <div class="flex flex-col gap-2 px-4 pt-2 pb-4 sm:px-5">
           <p v-if="view.changesGrant" class="max-w-[75ch] text-xs text-muted">
-            A grant released with the depreciation of the assets it paid for rises with it, so those assets change profit only once the grant's variable part runs out.
+            {{ words.panel.changesGrant }}
           </p>
           <DoubledRatesChanges :lines="view.changes" :show-grant="view.changesGrant" />
         </div>
@@ -369,12 +346,7 @@ function employmentState(until: CivilDate | null): string | null {
         <KpiTile v-for="tile in view.tiles" :key="tile.label" v-bind="tile" />
       </DashboardGrid>
 
-      <AppCard
-        title="Asset register"
-        subtitle="From the assets tab. An asset's name opens the ledger payment that bought it, and its rate opens the rule."
-        collapse-id="year.asset-register"
-        :summary="view.registerSummary"
-      >
+      <AppCard :title="words.panel.registerTitle" :subtitle="words.panel.registerSubtitle" collapse-id="year.asset-register" :summary="view.registerSummary">
         <div class="px-4 pt-3 pb-3 sm:px-3">
           <AssetRegister :lines="view.lines" :totals="view.totals" :year="year" :today="dayLabel(today)" />
         </div>
@@ -385,22 +357,17 @@ function employmentState(until: CivilDate | null): string | null {
         >
           <div v-if="view.unmatchedAssets.length > 0" class="flex items-start gap-2 text-sm text-toned">
             <UIcon name="i-lucide-search-x" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
-            <p>
-              No ledger payment found for {{ view.unmatchedAssets.join(', ') }}. Put the bank reference, or words from the bank description, in its
-              <span class="identifier">ledger_reference</span> under Asset rows.
-            </p>
+            <p>{{ words.panel.noPaymentBefore(view.unmatchedAssets.join(', ')) }}<span class="identifier">ledger_reference</span>{{ words.panel.noPaymentAfter }}</p>
           </div>
           <div v-if="view.unmatchedPurchases.length > 0" class="flex items-start gap-2 text-sm text-toned">
             <UIcon name="i-lucide-package-search" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <div class="flex min-w-0 flex-1 flex-col gap-2">
               <p>
-                {{ view.unmatchedPurchases.length }} {{ view.unmatchedPurchases.length === 1 ? 'purchase' : 'purchases' }} on a capital-purchase category
-                {{ view.unmatchedPurchases.length === 1 ? 'is' : 'are' }} on no asset row. Up to {{ view.threshold }} without VAT an item is small inventory, written off when put in use. Above that it
-                belongs on the assets tab.
+                {{ plural(words.panel.unmatchedPurchases(view.unmatchedPurchases.length, view.threshold), view.unmatchedPurchases.length) }}
               </p>
               <ul class="flex flex-col" data-testid="unmatched-purchases">
                 <li v-for="purchase in view.unmatchedPurchases" :key="purchase.key">
-                  <DrillLink :to="purchase.to" :label="`${purchase.counterparty} on ${purchase.date}, open the row`" class="purchase-link">
+                  <DrillLink :to="purchase.to" :label="words.panel.purchaseRow(purchase.counterparty, purchase.date)" class="purchase-link">
                     <span class="figure shrink-0 text-xs text-muted">{{ purchase.date }}</span>
                     <span class="min-w-0 flex-1 truncate">{{ purchase.counterparty }}</span>
                     <MoneyText :cents="purchase.amount" class="text-toned" />
@@ -413,13 +380,12 @@ function employmentState(until: CivilDate | null): string | null {
             <UIcon name="i-lucide-scale" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <div class="flex min-w-0 flex-1 flex-col gap-2">
               <p>
-                {{ view.mismatchedPayments.length }} {{ view.mismatchedPayments.length === 1 ? 'payment' : 'payments' }} found by a <span class="identifier">ledger_reference</span>
-                {{ view.mismatchedPayments.length === 1 ? 'is' : 'are' }} not what the assets that claim {{ view.mismatchedPayments.length === 1 ? 'it' : 'them' }} cost, with or without VAT at the
-                standard rate. Check each asset's reference and its <span class="identifier">cost_net</span>.
+                {{ plural(words.panel.mismatchedBefore(view.mismatchedPayments.length), view.mismatchedPayments.length) }}<span class="identifier">ledger_reference</span
+                >{{ words.panel.mismatchedAfter(view.mismatchedPayments.length) }}<span class="identifier">cost_net</span>.
               </p>
               <ul class="flex flex-col" data-testid="mismatched-payments">
                 <li v-for="payment in view.mismatchedPayments" :key="payment.key">
-                  <DrillLink :to="payment.to" :label="`Payment of ${payment.date}, open the row`" class="purchase-link">
+                  <DrillLink :to="payment.to" :label="words.panel.paymentRow(payment.date)" class="purchase-link">
                     <span class="figure shrink-0 text-xs text-muted">{{ payment.date }}</span>
                     <span class="min-w-0 flex-1 truncate">{{ payment.claimedBy }}</span>
                     <MoneyText :cents="payment.amount" class="text-toned" />
@@ -428,25 +394,25 @@ function employmentState(until: CivilDate | null): string | null {
               </ul>
             </div>
           </div>
-          <DrillLink :to="{ query: route.query, hash: '#asset-rows' }" in-prose class="self-start text-sm text-highlighted">Open the asset rows</DrillLink>
+          <DrillLink :to="{ query: route.query, hash: '#asset-rows' }" in-prose class="self-start text-sm text-highlighted">{{ words.panel.openAssetRows }}</DrillLink>
         </div>
       </AppCard>
 
-      <AppCard title="The grant beside it" subtitle="From the grants tab: what is counted as income each year, what waits as deferred income, and the employment condition.">
+      <AppCard :title="words.panel.grantTitle" :subtitle="words.panel.grantSubtitle">
         <div class="px-4 pt-3 pb-4 sm:px-5">
           <GrantPanel :grants="view.grants" :comparisons="view.comparisons" />
         </div>
       </AppCard>
 
       <ChartCard
-        title="Book value over time"
-        :subtitle="`Each asset at the end of every month, until it is written off. Months from ${thisMonth} on follow the schedule.`"
-        definition="Cost without VAT less the depreciation of every month so far. A line ends in the month the asset reaches zero or leaves the books."
+        :title="words.panel.bookValueTitle"
+        :subtitle="words.panel.bookValueSubtitle(thisMonth)"
+        :definition="words.panel.bookValueDefinition"
         :option="view.chart.option"
         :description="view.chart.description"
         :empty="view.chart.empty"
-        empty-title="No asset is depreciated"
-        empty-description="Every asset on the tab is small inventory, written off when put in use."
+        :empty-title="words.panel.noDepreciation"
+        :empty-description="words.panel.allSmallInventory"
         :height="300"
         :phone-height="240"
         collapse-id="year.book-value"
@@ -456,15 +422,9 @@ function employmentState(until: CivilDate | null): string | null {
         <template #legend><ChartLegend :entries="view.chart.legend" /></template>
       </ChartCard>
 
-      <AppCard
-        title="Depreciation per year"
-        subtitle="Every year the assets cover. Open a year for the charge of each asset."
-        collapse-id="year.depreciation"
-        :summary="view.yearsSummary"
-        start-collapsed
-      >
+      <AppCard :title="words.panel.perYearTitle" :subtitle="words.panel.perYearSubtitle" collapse-id="year.depreciation" :summary="view.yearsSummary" start-collapsed>
         <div class="px-4 pt-2 pb-2 sm:px-5">
-          <p v-if="view.years.length === 0" class="py-6 text-sm text-muted">No asset is depreciated. Small inventory is written off when put in use.</p>
+          <p v-if="view.years.length === 0" class="py-6 text-sm text-muted">{{ words.panel.noDepreciationNote }}</p>
           <DepreciationYears v-else :key="String(view.doubled)" :years="view.years" />
         </div>
       </AppCard>
@@ -473,31 +433,27 @@ function employmentState(until: CivilDate | null): string | null {
     <FactTabCard
       id="asset-rows"
       :rules="ASSET_WRITES"
-      title="Asset rows"
-      description="Purchases kept as fixed assets and depreciated, each once. The cost is without the VAT that was reclaimed."
+      :title="words.panel.assetRows"
+      :description="words.panel.assetRowsDescription"
       collapse-id="year.asset-rows"
       :columns="assetColumns(grantSlugs)"
       :read="readAssetRows"
       :make="assetOfFields"
-      row-noun="asset"
-      tab-noun="assets"
-      saved-title="Assets saved"
+      :saved-title="words.panel.assetsSaved"
       :start-collapsed="workbook.assets.length > 0"
       :reveal="route.hash === '#asset-rows'"
     />
     <FactTabCard
       id="grant-rows"
       :rules="GRANT_WRITES"
-      title="Grant rows"
-      description="The terms of each grant. The fixed and variable parts add up to the amount."
+      :title="words.panel.grantRows"
+      :description="words.panel.grantRowsDescription"
       collapse-id="year.grant-rows"
       :columns="GRANT_COLUMNS"
       :read="readGrants"
       :make="grantOfFields"
       :new-row="() => ({ release: 'fixed-then-assets' })"
-      row-noun="grant"
-      tab-noun="grants"
-      saved-title="Grants saved"
+      :saved-title="words.panel.grantsSaved"
       start-collapsed
       :reveal="route.hash === '#grant-rows'"
     />

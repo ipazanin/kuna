@@ -19,6 +19,8 @@ export interface BridgeStepView {
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import StatusBadge from './StatusBadge.vue'
+import { words as packWords } from '../words'
+import { words } from './words'
 
 /** The bridge as a list: each adjustment in words, with its amount, its rows and its rules. */
 defineProps<{
@@ -34,7 +36,7 @@ const NAMED = 2
     <li v-for="step in steps" :key="step.key" class="bridge-row" :class="{ 'is-total': step.kind === null }">
       <div class="flex items-baseline justify-between gap-3">
         <p class="min-w-0 text-sm" :class="step.kind === null ? 'font-medium text-highlighted' : 'text-toned'">{{ step.label }}</p>
-        <DrillLink :to="step.to" :label="`${step.label}, open the rows`" class="shrink-0">
+        <DrillLink :to="step.to" :label="packWords.figure.openRows(step.label)" class="shrink-0">
           <MoneyText :cents="step.cents" :sign="step.kind === null ? 'negative' : 'always'" class="text-sm" :class="step.kind === null ? 'font-medium text-highlighted' : ''" />
         </DrillLink>
       </div>
@@ -42,9 +44,9 @@ const NAMED = 2
         <StatusBadge :status="step.kind" />
         <ul v-if="step.rules.length > 0" class="flex flex-col sm:flex-row sm:flex-wrap sm:gap-x-3">
           <li v-for="rule in step.rules.slice(0, NAMED)" :key="rule.id">
-            <DrillLink :to="rule.to" :label="`${rule.title}, open the rule`" class="text-xs text-highlighted">{{ rule.title }}</DrillLink>
+            <DrillLink :to="rule.to" :label="packWords.figure.openRule(rule.title)" class="text-xs text-highlighted">{{ rule.title }}</DrillLink>
           </li>
-          <li v-if="step.rules.length > NAMED" class="text-xs text-muted">and {{ step.rules.length - NAMED }} more rules</li>
+          <li v-if="step.rules.length > NAMED" class="text-xs text-muted">{{ words.steps.moreRules(step.rules.length - NAMED) }}</li>
         </ul>
       </div>
     </li>

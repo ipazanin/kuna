@@ -15,6 +15,7 @@ import type { AccrualAdjustment, AdjustmentId, YearEndLineRef } from './accrualA
 import { withDrill } from './accrualAdjustment'
 import { bookingFigure, isCounted, keptInMonthPaid } from './accrualBookings'
 import type { AccrualBooking, CountedBooking } from './accrualBookings'
+import { words } from './words'
 
 // For a closed year the accountant's figure wins where it rests on a choice the ledger cannot
 // show. Each function here returns that choice as a judgement adjustment, or null when the
@@ -30,10 +31,7 @@ export function grantScheduleJudgement(check: GrantYearCheck | null): AccrualAdj
     id: 'grant-schedule',
     kind: 'judgement',
     effect: 'profit',
-    figure: tracedFigure('Grant released as the accountant released it, against our policy', released.residual.amount, 'accountant', released.residual.rules, [
-      released.accountant,
-      deducted(released.ours),
-    ]),
+    figure: tracedFigure(words.closed.grantAsAccountant, released.residual.amount, 'accountant', released.residual.rules, [released.accountant, deducted(released.ours)]),
     lines: [
       { statement: 'grant', line: 'released-in-year' },
       { statement: 'grant', line: 'deferred-at-year-end' },
@@ -62,9 +60,9 @@ export function arrearsCutOff(bookings: readonly AccrualBooking[], year: number,
   if (kept.length === 0) {
     return null
   }
-  const steps = [...closing.map((step) => step.figure), ...opening.map((step) => deducted({ ...step.figure, label: `Kept in this year when ${year - 1} closed: ${step.entry.label} on` }))]
+  const steps = [...closing.map((step) => step.figure), ...opening.map((step) => deducted({ ...step.figure, label: words.closed.keptLastYear(year - 1, step.entry.label) }))]
   const figure = withDrill(
-    summed('Costs paid in arrears that the accountant keeps in the year they were paid', steps, 'ledger'),
+    summed(words.closed.arrearsKept, steps, 'ledger'),
     drillToTransactions({
       period: { preset: 'custom', range: { from: civilDate(year, 1, 1), to: civilDate(year + 1, 12, 31) } },
       categories: [...new Set(kept.map((entry) => entry.category.slug))],
@@ -103,7 +101,7 @@ function keptAtYearEnd(bookings: readonly AccrualBooking[], year: number, yearEn
       .sort((earlier, later) => earlier.booking.date.localeCompare(later.booking.date))
     const costOf = (entry: CountedBooking) => negateMoney(sumMoney(entry.shares.map((share) => share.amount)))
     return (fewestMakingUp(movedBack, costOf, difference) ?? []).map((entry) => {
-      const label = `Kept in the month paid as konto ${group.konto.join(', ')} leaves it out of ${year}: ${entry.label} on`
+      const label = words.closed.keptInMonth(group.konto.join(', '), year, entry.label)
       const cost = costOf(entry)
       return { entry, figure: bookingFigure(entry, cost, label, entry.vat.cost.rules) }
     })
@@ -121,7 +119,7 @@ export function representationAsBooked(year: number, yearEnd: readonly YearEndLi
   if (booked.length === 0) {
     return null
   }
-  const accountant = summed(`Representation on konto ${booked.map((line) => line.line).join(', ')}`, booked.map(accountantFigure), 'accountant')
+  const accountant = summed(words.closed.representationOn(booked.map((line) => line.line).join(', ')), booked.map(accountantFigure), 'accountant')
   const difference = subtractMoney(accountant.amount, ours.amount)
   if (difference === 0) {
     return null
@@ -130,7 +128,7 @@ export function representationAsBooked(year: number, yearEnd: readonly YearEndLi
     id: 'representation-as-booked',
     kind: 'judgement',
     effect: 'tax-base',
-    figure: tracedFigure('Representation added back as the accountant booked it, against the bank amounts', difference, 'accountant', ours.rules, [accountant, deducted(ours)]),
+    figure: tracedFigure(words.closed.representationAsBooked, difference, 'accountant', ours.rules, [accountant, deducted(ours)]),
     lines: [{ statement: 'tax', line: 'increases' }],
   }
 }
@@ -195,7 +193,7 @@ export function amountOnLine(adjustment: AccrualAdjustment, line: string): Money
 }
 
 function ontoLabel(line: string): string {
-  return `Onto ${line}, as the accountant places it`
+  return words.closed.onto(line)
 }
 
 export interface KontoGroup {

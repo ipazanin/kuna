@@ -25,6 +25,7 @@ import { OTHER_BANK, offersMail } from '../domain/onboardingSteps'
 import type { StatementMail, StatementsSource } from '../domain/onboardingSteps'
 import { firstMailDay, statementMailProblems } from '../domain/statementsChoice'
 import { useOnboarding } from './useOnboarding'
+import { words } from './words'
 
 /**
  * What the app may do in the person's Google account, asked in one consent before any file is
@@ -42,13 +43,13 @@ const statements = computed({
   set: (source: StatementsSource) => void onboarding.choose({ statements: source }),
 })
 const STATEMENT_CHOICES: { label: string; description: string; value: StatementsSource }[] = [
-  { label: 'I import them by hand', description: 'No extra access.', value: 'hand' },
-  { label: 'From my mail', description: 'The app finds the bank\'s mail when you sync and files it in Drive. Google will say "View your email messages and settings".', value: 'mail' },
-  { label: 'From a folder in my Drive', description: 'The app reads your Drive to find new ones. Google will say "See and download all your Google Drive files".', value: 'folder' },
+  { label: words.access.hand, description: words.access.handNote, value: 'hand' },
+  { label: words.access.mail, description: words.access.mailNote, value: 'mail' },
+  { label: words.access.folder, description: words.access.folderNote, value: 'folder' },
 ]
 const statementChoices = computed(() => STATEMENT_CHOICES.filter((choice) => choice.value !== 'mail' || offersMail(onboarding.place.value)))
 
-const BANKS = [...BANK_PRESETS.map((preset) => ({ label: preset.name, value: preset.id })), { label: 'Another bank', value: OTHER_BANK }]
+const BANKS = [...BANK_PRESETS.map((preset) => ({ label: preset.name, value: preset.id })), { label: words.access.anotherBank, value: OTHER_BANK }]
 const mail = computed(() => onboarding.place.value.mail)
 const preset = computed(() => BANK_PRESETS.find((candidate) => candidate.id === mail.value.bank) ?? null)
 const mailProblems = computed(() => (statements.value === 'mail' ? statementMailProblems(mail.value) : {}))
@@ -66,12 +67,9 @@ const asked = computed(() => (moving.value === null ? scopesOfChoices(onboarding
 
 /** What each scope beyond the books file lets books that move here do, as Google words it. */
 const MOVED_BOOKS_NEED: Readonly<Record<Exclude<GoogleScope, 'drive.file'>, { readonly label: string; readonly description: string }>> = {
-  'drive.readonly': {
-    label: 'Your Drive folders',
-    description: 'The books read folders from your Drive, such as the statements folder. Google will say "See and download all your Google Drive files".',
-  },
-  'gmail.readonly': { label: 'Your mail', description: 'The books find the mail they file in Drive when you sync. Google will say "View your email messages and settings".' },
-  'gmail.compose': { label: 'Invoice mail drafts in Gmail', description: 'Google will say "Manage drafts and send emails".' },
+  'drive.readonly': { label: words.access.driveFolders, description: words.access.driveFoldersNote },
+  'gmail.readonly': { label: words.access.yourMail, description: words.access.yourMailNote },
+  'gmail.compose': { label: words.access.drafts, description: words.access.draftsNote },
 }
 const movedNeeds = computed(() => (moving.value === null ? [] : asked.value.flatMap((scope) => (scope === 'drive.file' ? [] : [{ scope, ...MOVED_BOOKS_NEED[scope] }]))))
 const restricted = computed(() => asked.value.some((scope) => scope !== 'drive.file'))
@@ -98,13 +96,19 @@ async function ask(): Promise<void> {
 </script>
 
 <template>
-  <StepCard title="What the app may do in your Google account" subtitle="One Google screen asks for all of it. You can change each choice later in Settings.">
+  <StepCard :title="words.access.title" :subtitle="words.access.subtitle">
     <div class="flex items-start gap-3" data-scope="drive.file">
       <div class="min-w-0 flex-1">
-        <p class="text-sm font-medium text-highlighted">Always: your books file</p>
-        <p class="text-sm text-muted">Only files this app makes or you pick.</p>
+        <p class="text-sm font-medium text-highlighted">{{ words.access.always }}</p>
+        <p class="text-sm text-muted">{{ words.access.alwaysNote }}</p>
       </div>
-      <UBadge v-if="answered" :label="allowed('drive.file') ? 'Allowed' : 'Not allowed'" :color="allowed('drive.file') ? 'success' : 'error'" variant="subtle" data-testid="access-status" />
+      <UBadge
+        v-if="answered"
+        :label="allowed('drive.file') ? words.access.allowed : words.access.notAllowed"
+        :color="allowed('drive.file') ? 'success' : 'error'"
+        variant="subtle"
+        data-testid="access-status"
+      />
     </div>
 
     <div v-for="need in movedNeeds" :key="need.scope" class="flex items-start gap-3" :data-scope="need.scope">
@@ -113,8 +117,8 @@ async function ask(): Promise<void> {
         <p class="text-sm text-muted">{{ need.description }}</p>
       </div>
       <template v-if="answered">
-        <UBadge :label="allowed(need.scope) ? 'Allowed' : 'Not allowed'" :color="allowed(need.scope) ? 'success' : 'error'" variant="subtle" data-testid="access-status" />
-        <UButton v-if="!allowed(need.scope)" label="Ask again" color="neutral" variant="link" size="sm" :loading="asking" @click="ask" />
+        <UBadge :label="allowed(need.scope) ? words.access.allowed : words.access.notAllowed" :color="allowed(need.scope) ? 'success' : 'error'" variant="subtle" data-testid="access-status" />
+        <UButton v-if="!allowed(need.scope)" :label="words.access.askAgain" color="neutral" variant="link" size="sm" :loading="asking" @click="ask" />
       </template>
     </div>
 
@@ -123,19 +127,19 @@ async function ask(): Promise<void> {
         <URadioGroup
           v-model="statements"
           :items="statementChoices"
-          legend="How do statements reach the app?"
+          :legend="words.access.statements"
           :ui="{ legend: 'text-sm font-medium text-highlighted mb-2', fieldset: 'gap-3' }"
           data-testid="onboarding-statements"
         />
         <FormGrid v-if="statements === 'mail'" data-testid="onboarding-mail">
-          <UFormField label="Your bank" :help="preset ? `Mail from ${preset.senders.join(', ')} with ${preset.subject} in the subject.` : 'Type its address and subject words below.'">
+          <UFormField :label="words.access.bank" :help="preset ? words.access.bankMail(preset.senders, preset.subject) : words.access.typeBelow">
             <USelect :model-value="mail.bank" :items="BANKS" class="w-full" data-testid="onboarding-bank" @update:model-value="chooseMail({ bank: String($event) })" />
           </UFormField>
-          <UFormField label="Mail since" help="The earliest mail the first sync reads.">
+          <UFormField :label="words.access.since" :help="words.access.sinceHelp">
             <UInput :model-value="since" type="date" class="w-full" data-testid="onboarding-mail-since" @update:model-value="chooseMail({ since: parseCivilDate(String($event ?? '')) })" />
           </UFormField>
           <template v-if="mail.bank === OTHER_BANK">
-            <UFormField label="The bank mails statements from" :error="mailProblems.from ?? false" class="sm:col-span-2">
+            <UFormField :label="words.access.from" :error="mailProblems.from ?? false" class="sm:col-span-2">
               <UInput
                 :model-value="mail.from"
                 inputmode="email"
@@ -147,40 +151,56 @@ async function ask(): Promise<void> {
                 @update:model-value="chooseMail({ from: String($event) })"
               />
             </UFormField>
-            <UFormField label="Subject words" help="The words before the statement number." :error="mailProblems.subject ?? false" class="sm:col-span-2">
-              <UInput :model-value="mail.subject" placeholder="Statement" class="w-full" data-testid="onboarding-mail-subject" @update:model-value="chooseMail({ subject: String($event) })" />
+            <UFormField :label="words.access.subject" :help="words.access.subjectHelp" :error="mailProblems.subject ?? false" class="sm:col-span-2">
+              <UInput
+                :model-value="mail.subject"
+                :placeholder="words.access.subjectPlaceholder"
+                class="w-full"
+                data-testid="onboarding-mail-subject"
+                @update:model-value="chooseMail({ subject: String($event) })"
+              />
             </UFormField>
           </template>
         </FormGrid>
         <p v-if="answered && statements !== 'hand'" class="flex items-center gap-2 text-sm">
-          <UBadge :label="allowed(statementScope) ? 'Allowed' : 'Not allowed'" :color="allowed(statementScope) ? 'success' : 'error'" variant="subtle" data-testid="access-status" />
-          <UButton v-if="!allowed(statementScope)" label="Ask again" color="neutral" variant="link" size="sm" :loading="asking" @click="ask" />
+          <UBadge
+            :label="allowed(statementScope) ? words.access.allowed : words.access.notAllowed"
+            :color="allowed(statementScope) ? 'success' : 'error'"
+            variant="subtle"
+            data-testid="access-status"
+          />
+          <UButton v-if="!allowed(statementScope)" :label="words.access.askAgain" color="neutral" variant="link" size="sm" :loading="asking" @click="ask" />
         </p>
       </div>
       <div class="flex flex-col gap-2">
         <UCheckbox
           :model-value="mailDraftsOn"
-          label="Invoice mail drafts in Gmail"
-          description='Google will say "Manage drafts and send emails".'
+          :label="words.access.drafts"
+          :description="words.access.draftsNote"
           data-testid="onboarding-drafts"
           @update:model-value="switchMailDrafts($event === true)"
         />
         <p v-if="answered && mailDraftsOn" class="flex items-center gap-2 text-sm">
-          <UBadge :label="allowed('gmail.compose') ? 'Allowed' : 'Not allowed'" :color="allowed('gmail.compose') ? 'success' : 'error'" variant="subtle" data-testid="access-status" />
-          <UButton v-if="!allowed('gmail.compose')" label="Ask again" color="neutral" variant="link" size="sm" :loading="asking" @click="ask" />
+          <UBadge
+            :label="allowed('gmail.compose') ? words.access.allowed : words.access.notAllowed"
+            :color="allowed('gmail.compose') ? 'success' : 'error'"
+            variant="subtle"
+            data-testid="access-status"
+          />
+          <UButton v-if="!allowed('gmail.compose')" :label="words.access.askAgain" color="neutral" variant="link" size="sm" :loading="asking" @click="ask" />
         </p>
       </div>
     </template>
 
-    <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" title="Google did not answer" :description="failure" />
+    <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.access.noAnswer" :description="failure" />
     <div class="flex flex-col gap-1 text-xs text-muted">
-      <p v-if="restricted && !answered">Google first says it has not verified this app. Choose Advanced, then Go to Kuna.</p>
-      <p v-if="signInByRedirect" data-testid="redirect-sign-in-note">Google may ask about cookies first, then brings you back to this step.</p>
+      <p v-if="restricted && !answered">{{ words.access.unverified }}</p>
+      <p v-if="signInByRedirect" data-testid="redirect-sign-in-note">{{ words.access.cookies }}</p>
     </div>
 
     <template #actions>
-      <UButton v-if="allowed('drive.file')" label="Continue" trailing-icon="i-lucide-arrow-right" :disabled="!mailReady" data-testid="onboarding-continue" @click="onboarding.next()" />
-      <UButton v-else label="Continue to Google" icon="i-lucide-log-in" :loading="asking" :disabled="!mailReady" data-testid="onboarding-google" @click="ask" />
+      <UButton v-if="allowed('drive.file')" :label="words.continue" trailing-icon="i-lucide-arrow-right" :disabled="!mailReady" data-testid="onboarding-continue" @click="onboarding.next()" />
+      <UButton v-else :label="words.access.toGoogle" icon="i-lucide-log-in" :loading="asking" :disabled="!mailReady" data-testid="onboarding-google" @click="ask" />
     </template>
   </StepCard>
 </template>

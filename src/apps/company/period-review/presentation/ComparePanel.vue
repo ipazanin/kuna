@@ -2,14 +2,13 @@
 import { computed, ref } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
-import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
-import { monthLabel, shortMonthName } from '../../../../shared/calendar/monthLabel'
+import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { useFilters } from '../../filters/application/filterStore'
 import { useSettings } from '../../settings/application/useSettings'
@@ -22,6 +21,9 @@ import { categoryChanges } from '../domain/categoryChanges'
 import type { CategoryChange } from '../domain/categoryChanges'
 import { periodReview, reviewPeriodOf } from '../domain/periodReview'
 import type { PeriodReview, ReviewPeriod } from '../domain/periodReview'
+import { capitalised } from '../../../../shared/text/capitalised'
+import { plural } from '../../../../shared/text/translation'
+import { words } from './words'
 
 /** A year, quarter or custom range against the equal period just before it. */
 const ledger = useFilteredLedger()
@@ -35,32 +37,31 @@ const COST_LINES: readonly ProfitAndLossLine[] = ['operating', 'taxes', 'ownerPa
 /** "Jan – Sep 2026" within a year, "Jun 2025 – Feb 2026" across one. */
 function monthSpan(months: { readonly from: MonthKey; readonly to: MonthKey }): string {
   if (months.from === months.to) return monthLabel(months.from)
-  const sameYear = months.from.slice(0, 4) === months.to.slice(0, 4)
-  return `${sameYear ? shortMonthName(months.from) : monthLabel(months.from)} – ${monthLabel(months.to)}`
+  return words.monthSpan(months.from, months.to, months.from.slice(0, 4) === months.to.slice(0, 4))
 }
 
 /** One sentence on what is compared, when the ledger leaves out part of either period. Null when both are whole. */
 function coverageSentence(result: PeriodReview, currentLabel: string, priorLabel: string | null): string | null {
-  const own = result.partOfPeriod && result.current.coveredMonths !== null ? `${currentLabel} counts ${monthSpan(result.current.coveredMonths)} only` : null
+  const own = result.partOfPeriod && result.current.coveredMonths !== null ? words.coverage.countsOnly(currentLabel, monthSpan(result.current.coveredMonths)) : null
   const prior = result.prior
   if (prior === null) {
-    return own === null ? null : `${own}, and the ledger holds nothing earlier to compare.`
+    return own === null ? null : words.coverage.nothingEarlier(own)
   }
   if (prior.partial) {
-    const held = prior.coveredMonths === null ? `the ledger holds no complete month of ${priorLabel}` : `${priorLabel} has ${monthSpan(prior.coveredMonths)} of those months only`
-    return own === null ? `${held.charAt(0).toUpperCase()}${held.slice(1)}, so no change is shown.` : `${own}, and ${held}, so no change is shown.`
+    const held = prior.coveredMonths === null ? words.coverage.noCompleteMonth(priorLabel ?? '') : words.coverage.hasOnly(priorLabel ?? '', monthSpan(prior.coveredMonths))
+    return own === null ? words.coverage.noChange(capitalised(held)) : words.coverage.bothNoChange(own, held)
   }
-  return own === null ? null : `${own}, set against the same months of ${priorLabel}.`
+  return own === null ? null : words.coverage.sameMonths(own, priorLabel ?? '')
 }
 
 function periodLabel(period: ReviewPeriod): string {
   switch (period.preset) {
     case 'year':
-      return String(period.year)
+      return words.period.year(period.year)
     case 'quarter':
-      return `Q${period.quarter} ${period.year}`
+      return words.period.quarter(period.quarter, period.year)
     case 'custom':
-      return `${dayLabel(period.range.from)} to ${dayLabel(period.range.to)}`
+      return words.period.custom(period.range.from, period.range.to)
   }
 }
 
@@ -87,7 +88,7 @@ const review = computed(() => {
     // A cost that rose, or income that fell, is the bad direction. Outside profit and loss has none.
     changeSign: row.change === null || section === 'outside' ? 0 : section === 'cost' ? -row.change : row.change,
   })
-  const sectionTitles = { income: shown.bucketLabels.income, cost: 'Costs', outside: 'Outside profit and loss' }
+  const sectionTitles = { income: shown.bucketLabels.income, cost: words.costs, outside: words.outside }
   const sections = categoryChanges(profitAndLossRows, result.current.range, result.prior, window).map((section) => ({
     key: section.key,
     title: sectionTitles[section.key],
@@ -113,10 +114,7 @@ const review = computed(() => {
       })),
     sections,
     categoryCount,
-    categoriesSummary:
-      categoryCount === 0
-        ? 'No categorised rows in this period'
-        : `${categoryCount} ${categoryCount === 1 ? 'category' : 'categories'}, under ${sections.map((section) => section.title.toLowerCase()).join(', ')}`,
+    categoriesSummary: categoryCount === 0 ? words.noCategorisedRows : plural(words.categoriesSummary(categoryCount, sections.map((section) => section.title.toLowerCase()).join(', ')), categoryCount),
   }
 })
 
@@ -143,14 +141,14 @@ const shownSections = computed(() => {
     </p>
 
     <DashboardGrid layout="pair">
-      <AppCard title="Profit and loss" :subtitle="review.priorLabel ? `Against ${review.priorLabel}` : 'No earlier period to compare'">
+      <AppCard :title="words.profitAndLoss" :subtitle="review.priorLabel ? words.against(review.priorLabel) : words.noEarlierPeriod">
         <FigureTable class="px-1 pt-2 pb-2 sm:px-2">
           <thead>
             <tr>
-              <th scope="col" class="text-start">Line</th>
+              <th scope="col" class="text-start">{{ words.line }}</th>
               <th scope="col" class="text-end">{{ review.currentLabel }}</th>
-              <th scope="col" class="text-end">{{ review.priorLabel ?? 'Prior period' }}</th>
-              <th scope="col" class="hidden text-end @sm:table-cell">Change</th>
+              <th scope="col" class="text-end">{{ review.priorLabel ?? words.priorPeriod }}</th>
+              <th scope="col" class="hidden text-end @sm:table-cell">{{ words.change }}</th>
             </tr>
           </thead>
           <tbody>
@@ -166,15 +164,15 @@ const shownSections = computed(() => {
                 />
               </th>
               <td class="text-end">
-                <DrillLink :to="line.currentTo" :label="`${line.label}, ${review.currentLabel}, open the rows`">
+                <DrillLink :to="line.currentTo" :label="words.openRows(line.label, review.currentLabel)">
                   <MoneyText :cents="line.current" />
                 </DrillLink>
               </td>
               <td class="text-end">
-                <DrillLink v-if="line.prior !== null" :to="line.priorTo" :label="`${line.label}, ${review.priorLabel}, open the rows`">
+                <DrillLink v-if="line.prior !== null" :to="line.priorTo" :label="words.openRows(line.label, review.priorLabel ?? '')">
                   <MoneyText :cents="line.prior" class="text-muted" />
                 </DrillLink>
-                <span v-else class="text-muted">No data</span>
+                <span v-else class="text-muted">{{ words.noData }}</span>
               </td>
               <td class="hidden text-end @sm:table-cell">
                 <MoneyText v-if="line.change !== null" :cents="line.change" sign="always" :class="line.changeSign > 0 ? 'text-success' : line.changeSign < 0 ? 'text-error' : 'text-muted'" />
@@ -185,17 +183,17 @@ const shownSections = computed(() => {
         </FigureTable>
       </AppCard>
 
-      <AppCard title="By category" subtitle="Biggest changes first." collapse-id="analysis.compare-categories" :summary="review.categoriesSummary">
-        <p v-if="review.sections.length === 0" class="px-5 py-8 text-sm text-muted">No categorised rows in this period.</p>
+      <AppCard :title="words.byCategory" :subtitle="words.biggestFirst" collapse-id="analysis.compare-categories" :summary="review.categoriesSummary">
+        <p v-if="review.sections.length === 0" class="px-5 py-8 text-sm text-muted">{{ words.noCategorisedRowsSentence }}</p>
         <FigureTable v-else class="px-1 pt-2 pb-2 sm:px-2">
           <template v-for="section in shownSections" :key="section.key">
             <thead>
               <tr>
                 <th scope="colgroup" class="section-heading text-start">{{ section.title }}</th>
-                <th scope="col" class="hidden text-start @2xl:table-cell">Family</th>
+                <th scope="col" class="hidden text-start @2xl:table-cell">{{ words.family }}</th>
                 <th scope="col" class="text-end">{{ review.currentLabel }}</th>
-                <th scope="col" class="text-end">{{ review.priorLabel ?? 'Prior period' }}</th>
-                <th scope="col" class="hidden text-end @md:table-cell">Change</th>
+                <th scope="col" class="text-end">{{ review.priorLabel ?? words.priorPeriod }}</th>
+                <th scope="col" class="hidden text-end @md:table-cell">{{ words.change }}</th>
               </tr>
             </thead>
             <tbody>
@@ -212,13 +210,13 @@ const shownSections = computed(() => {
                 </th>
                 <td class="hidden text-muted @2xl:table-cell">{{ row.family }}</td>
                 <td class="text-end">
-                  <DrillLink v-if="row.current !== null" :to="row.currentTo" :label="`${row.category}, ${review.currentLabel}, open the rows`">
+                  <DrillLink v-if="row.current !== null" :to="row.currentTo" :label="words.openRows(row.category, review.currentLabel)">
                     <MoneyText :cents="row.current" />
                   </DrillLink>
                   <span v-else class="text-muted">–</span>
                 </td>
                 <td class="text-end">
-                  <DrillLink v-if="row.prior !== null" :to="row.priorTo" :label="`${row.category}, ${review.priorLabel}, open the rows`">
+                  <DrillLink v-if="row.prior !== null" :to="row.priorTo" :label="words.openRows(row.category, review.priorLabel ?? '')">
                     <MoneyText :cents="row.prior" class="text-muted" />
                   </DrillLink>
                   <span v-else class="text-muted">–</span>
@@ -233,7 +231,7 @@ const shownSections = computed(() => {
         </FigureTable>
         <ShowAllButton v-if="review.categoryCount > FIRST_SHOWN" v-model:expanded="showAllCategories" :total="review.categoryCount" class="px-4 pb-4 sm:px-5" />
         <p v-if="review.sections.some((section) => section.key === 'outside')" class="px-4 pb-4 text-xs text-muted sm:px-5">
-          Outside profit and loss: reimbursements and other financing settle costs counted above, so they are listed here and left out of both directions.
+          {{ words.outsideNote }}
         </p>
       </AppCard>
     </DashboardGrid>

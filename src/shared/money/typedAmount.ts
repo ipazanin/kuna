@@ -1,4 +1,4 @@
-import { moneyFromAmount } from './money'
+import { moneyFromAmount, plainAmount } from './money'
 import type { Money } from './money'
 import { language } from '../text/language'
 
@@ -15,4 +15,10 @@ export function typedAmount(text: string): Money | null {
   const ungrouped = language === 'hr' && CROATIAN_GROUPED.test(trimmed) ? trimmed.replaceAll('.', '') : trimmed
   const plain = ungrouped.replace(',', '.')
   return /^\d+(\.\d{1,2})?$/.test(plain) ? moneyFromAmount(Number(plain)) : null
+}
+
+/** An amount as a field holds it for typing over: no grouping, and the decimal comma in Croatian, as in 7200,00. */
+export function amountForTyping(money: Money): string {
+  const plain = plainAmount(money)
+  return language === 'hr' ? plain.replace('.', ',') : plain
 }

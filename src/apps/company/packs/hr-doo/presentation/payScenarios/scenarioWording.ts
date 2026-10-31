@@ -7,41 +7,38 @@ import type { Money } from '../../../../../../shared/money/money'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import { ruleValue } from '../../ruleset/ruleset'
 import { itemWords } from './payScenariosView'
+import { words } from './words'
 
-export const BASIS_WORDS: Readonly<Record<DirectorBasis, string>> = {
-  employee: 'an employee of the company',
-  'board-only': 'a board member only, paying the contributions yourself',
-  'insured-elsewhere': 'through a job elsewhere',
-}
+export const BASIS_WORDS: Readonly<Record<DirectorBasis, string>> = words.bases
 
 /** What a component does, in a phrase. */
 export function componentText(component: ScenarioComponent): string {
   switch (component.component) {
     case 'salary_gross':
-      return component.gross === 'floor' ? 'Salary at the director floor' : `Salary of ${formatMoney(component.gross)} a month`
+      return component.gross === 'floor' ? words.components.salaryAtFloor : words.components.salary(formatMoney(component.gross))
     case 'nontaxable':
-      return `${itemWords(component.item)}, ${formatMoney(component.amount)} tax free`
+      return words.components.taxFree(itemWords(component.item), formatMoney(component.amount))
     case 'rent_monthly':
-      return `Rent of ${formatMoney(component.amount)} a month`
+      return words.components.rent(formatMoney(component.amount))
     case 'dividend':
-      return component.amount === 'max' ? "Dividend of the year's profit after tax, as far as it can be paid out" : `Dividend of ${formatMoney(component.amount)}`
+      return component.amount === 'max' ? words.components.dividendMax : words.components.dividend(formatMoney(component.amount))
     case 'director_basis':
-      return `Insured as ${BASIS_WORDS[component.basis]}`
+      return words.components.insuredAs(BASIS_WORDS[component.basis])
   }
 }
 
 /** The days a component holds, in words. A tax-free item and a dividend are paid once. */
 export function spanText(component: ScenarioComponent): string {
   if (component.component === 'dividend') {
-    return 'Paid once the year’s statements are adopted'
+    return words.components.paidOnce
   }
   if (component.component === 'nontaxable') {
-    return component.from === null ? 'Paid with the January salary' : `Paid with the salary of ${monthLabel(monthOf(component.from))}`
+    return component.from === null ? words.components.withJanuary : words.components.withSalaryOf(monthLabel(monthOf(component.from)))
   }
-  if (component.from === null && component.to === null) return 'All year'
-  if (component.from === null) return `Until ${dayLabel(component.to!)}`
-  if (component.to === null) return `From ${dayLabel(component.from)}`
-  return `${dayLabel(component.from)} to ${dayLabel(component.to)}`
+  if (component.from === null && component.to === null) return words.components.allYear
+  if (component.from === null) return words.components.until(dayLabel(component.to!))
+  if (component.to === null) return words.components.from(dayLabel(component.from))
+  return words.components.span(dayLabel(component.from), dayLabel(component.to))
 }
 
 export interface YearlyItem {

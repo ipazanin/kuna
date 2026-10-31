@@ -2,7 +2,9 @@ import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { PROFIT_AND_LOSS_LINES } from '../../workbook/domain/bucketTotals'
 import type { ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
 import type { Transaction } from '../../workbook/domain/workbook'
+import { listInWords } from '../../../../shared/text/listInWords'
 import type { Settings } from './settings'
+import { words } from './words'
 
 /** The profit and loss lines a single bucket makes up, in reading order. */
 export const BUCKET_LINES = [
@@ -14,11 +16,7 @@ export const BUCKET_LINES = [
 
 export type BucketLine = (typeof BUCKET_LINES)[number]
 
-const DERIVED_LINE_LABELS: Readonly<Record<'cost' | 'net' | 'ownerEarns', string>> = {
-  cost: 'All costs',
-  net: 'Net',
-  ownerEarns: 'Owner earns',
-}
+const DERIVED_LINE_LABELS: Readonly<Record<'cost' | 'net' | 'ownerEarns', string>> = words.lines
 
 export function lineLabel(settings: Settings, line: ProfitAndLossLine): string {
   const single = BUCKET_LINES.find((candidate) => candidate.line === line)
@@ -44,7 +42,7 @@ export function costLabelsInSentence(settings: Settings): string {
   const labels = shownBucketLines(settings)
     .filter((entry) => entry.line !== 'income')
     .map((entry) => inSentence(settings.bucketLabels[entry.bucket]))
-  return labels.length <= 1 ? (labels[0] ?? '') : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
+  return listInWords(labels)
 }
 
 /** A label inside a sentence: "Operating cost" becomes "operating cost", while "VAT" stays "VAT". */

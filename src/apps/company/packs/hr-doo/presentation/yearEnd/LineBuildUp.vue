@@ -22,6 +22,8 @@ export interface RuleChip {
 <script setup lang="ts">
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
+import { words as packWords } from '../words'
+import { words } from './words'
 
 /** How our figure for a line is built, the cash view's figure, the adjustments between them and the rules behind them. */
 defineProps<{
@@ -34,38 +36,38 @@ defineProps<{
 
 <template>
   <div class="build-up" data-testid="line-build-up">
-    <section v-if="ours.length > 0" aria-label="Ours, step by step">
-      <h4 class="build-up-title">Ours, step by step</h4>
+    <section v-if="ours.length > 0" :aria-label="words.buildUp.ours">
+      <h4 class="build-up-title">{{ words.buildUp.ours }}</h4>
       <ul class="step-list">
         <li v-for="step in ours" :key="step.key" class="step-row" :class="{ 'is-nested': step.depth === 1 }">
-          <DrillLink :to="step.to" :label="`${step.label}, open the rows`" class="step-label">{{ step.label }}</DrillLink>
+          <DrillLink :to="step.to" :label="packWords.figure.openRows(step.label)" class="step-label">{{ step.label }}</DrillLink>
           <MoneyText v-if="step.cents !== null" :cents="step.cents" class="text-toned" />
         </li>
       </ul>
     </section>
-    <section v-if="cash.length > 0" aria-label="The cash view">
-      <h4 class="build-up-title">The cash view</h4>
+    <section v-if="cash.length > 0" :aria-label="words.buildUp.cash">
+      <h4 class="build-up-title">{{ words.buildUp.cash }}</h4>
       <ul class="step-list">
         <li v-for="step in cash" :key="step.key" class="step-row" :class="{ 'is-nested': step.depth === 1 }">
-          <DrillLink :to="step.to" :label="`${step.label}, open the rows`" class="step-label">{{ step.label }}</DrillLink>
+          <DrillLink :to="step.to" :label="packWords.figure.openRows(step.label)" class="step-label">{{ step.label }}</DrillLink>
           <MoneyText v-if="step.cents !== null" :cents="step.cents" class="text-toned" />
         </li>
       </ul>
     </section>
-    <section v-if="explainedBy.length > 0" aria-label="Explained by">
-      <h4 class="build-up-title">Explained by</h4>
+    <section v-if="explainedBy.length > 0" :aria-label="words.buildUp.explainedBy">
+      <h4 class="build-up-title">{{ words.buildUp.explainedBy }}</h4>
       <ul class="step-list">
         <li v-for="step in explainedBy" :key="step.key" class="step-row">
-          <DrillLink :to="step.to" :label="`${step.label}, open the rows`" class="step-label">{{ step.label }}</DrillLink>
+          <DrillLink :to="step.to" :label="packWords.figure.openRows(step.label)" class="step-label">{{ step.label }}</DrillLink>
           <MoneyText v-if="step.cents !== null" :cents="step.cents" sign="always" class="text-toned" />
         </li>
       </ul>
     </section>
-    <section v-if="rules.length > 0" aria-label="Rules">
-      <h4 class="build-up-title">Rules</h4>
+    <section v-if="rules.length > 0" :aria-label="words.buildUp.rules">
+      <h4 class="build-up-title">{{ words.buildUp.rules }}</h4>
       <ul class="flex flex-wrap gap-x-4 gap-y-1">
         <li v-for="rule in rules" :key="rule.id">
-          <DrillLink :to="rule.to" :label="`${rule.title}, open the rule`" class="text-sm text-highlighted">{{ rule.title }}</DrillLink>
+          <DrillLink :to="rule.to" :label="packWords.figure.openRule(rule.title)" class="text-sm text-highlighted">{{ rule.title }}</DrillLink>
         </li>
       </ul>
     </section>

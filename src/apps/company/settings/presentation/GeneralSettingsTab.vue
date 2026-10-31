@@ -12,7 +12,8 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import { removeSettings } from '../application/settingWrites'
 import { unreadSettingKeys } from '../domain/settings'
 import GeneralSettingsForm from './GeneralSettingsForm.vue'
-import { rowsInWords } from './settingsCounts'
+import { plural } from '../../../../shared/text/translation'
+import { words } from './words'
 import { useSettingsSave } from './useSettingsSave'
 
 const { state } = useWorkbook()
@@ -28,9 +29,9 @@ const settingRecords = computed(() => state.records?.settings ?? NO_RECORDS)
 const unreadKeys = computed(() => unreadSettingKeys(recordsOf(settingRecords.value), installedPack().workbook?.settings ?? null))
 
 function removeKey(key: string): void {
-  void writes.write('Setting removed', (unit) => removeSettings(unit, settingRecords.value, [key]), {
-    description: `${key} is off the settings tab. Settings keep no Undo.`,
-    failedTitle: 'Not removed',
+  void writes.write(words.problems.removed, (unit) => removeSettings(unit, settingRecords.value, [key]), {
+    description: words.problems.removedNote(key),
+    failedTitle: words.problems.notRemoved,
   })
 }
 
@@ -42,35 +43,35 @@ const saving = computed(() => writes.busy.value || state.writing)
     <GeneralSettingsForm :settings="settings" :facts="packFacts" :saving="savingSettings || state.writing" @save="saveGeneral" />
     <component :is="card" v-for="(card, index) in pack.settingsCards" :key="index" />
     <AppCard
-      title="Rows the app could not use as written"
-      :subtitle="problems.length > 0 ? 'Each is left out, or read with its default, until it is fixed in the workbook.' : undefined"
+      :title="words.problems.title"
+      :subtitle="problems.length > 0 ? words.problems.subtitle : undefined"
       collapse-id="settings.problems"
       :start-collapsed="problems.length === 0"
       :reveal="problems.length > 0"
-      :summary="problems.length > 0 ? rowsInWords(problems.length, 'row', 'rows') : 'None, every row reads as written'"
+      :summary="problems.length > 0 ? plural(words.problems.count(problems.length), problems.length) : words.problems.none"
     >
       <div class="px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
         <ProblemList v-if="problems.length > 0" :problems="problems">
           <template #action="{ problem }">
             <UButton
               v-if="problem.tab === 'settings' && unreadKeys.get(problem.label) === 1"
-              label="Remove the key"
+              :label="words.problems.removeKey"
               icon="i-lucide-trash-2"
               color="neutral"
               variant="ghost"
               size="sm"
               class="self-start sm:self-auto"
               :disabled="saving"
-              :aria-label="`Remove ${problem.label} from the settings tab`"
+              :aria-label="words.problems.removeKeyNamed(problem.label)"
               data-testid="remove-setting"
               @click="removeKey(problem.label)"
             />
             <p v-else-if="problem.tab === 'settings' && (unreadKeys.get(problem.label) ?? 0) > 1" class="text-xs text-muted sm:max-w-56" data-testid="setting-on-rows">
-              Set on {{ unreadKeys.get(problem.label) }} rows. Keep one in the workbook, then remove it here.
+              {{ plural(words.problems.onRows(unreadKeys.get(problem.label) ?? 0), unreadKeys.get(problem.label) ?? 0) }}
             </p>
           </template>
         </ProblemList>
-        <p v-else class="text-sm text-muted">Every row of the workbook reads as written.</p>
+        <p v-else class="text-sm text-muted">{{ words.problems.allRead }}</p>
       </div>
     </AppCard>
   </div>

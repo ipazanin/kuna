@@ -6,6 +6,7 @@ import type { Money } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import type { LineDraft } from './useInvoiceRun'
+import { words } from './words'
 
 const lines = defineModel<LineDraft[]>('lines', { required: true })
 
@@ -42,11 +43,11 @@ function amountError(text: string): boolean {
 <template>
   <section class="@container flex min-w-0 flex-col gap-2" aria-labelledby="invoice-lines-title" data-testid="invoice-lines">
     <div class="flex flex-wrap items-center justify-between gap-2">
-      <h3 id="invoice-lines-title" class="text-sm font-medium text-highlighted">Lines</h3>
+      <h3 id="invoice-lines-title" class="text-sm font-medium text-highlighted">{{ words.lines.title }}</h3>
       <div class="flex flex-wrap gap-1">
-        <UButton label="From the billing plan" icon="i-lucide-list-restart" size="sm" color="neutral" variant="ghost" :disabled="disabled" @click="emit('plan')" />
+        <UButton :label="words.lines.fromPlan" icon="i-lucide-list-restart" size="sm" color="neutral" variant="ghost" :disabled="disabled" @click="emit('plan')" />
         <UButton
-          label="One line for the total"
+          :label="words.lines.merge"
           icon="i-lucide-merge"
           size="sm"
           color="neutral"
@@ -57,24 +58,24 @@ function amountError(text: string): boolean {
         />
       </div>
     </div>
-    <p class="-mt-1 text-xs text-muted">Each line is one service at quantity one, without VAT. The plan's rows still open up to the issue month start the list.</p>
+    <p class="-mt-1 text-xs text-muted">{{ words.lines.intro }}</p>
     <ul class="flex flex-col gap-2">
       <li v-for="(line, index) in lines" :key="index" class="line-row" data-testid="invoice-line">
         <UInput
           :model-value="line.description"
-          placeholder="What the line is for"
+          :placeholder="words.lines.descriptionPlaceholder"
           class="min-w-0"
-          :aria-label="`Line ${index + 1}, description`"
+          :aria-label="words.lines.description(index + 1)"
           :disabled="disabled"
           @update:model-value="update(index, 'description', String($event))"
         />
         <UInput
           :model-value="line.amount"
           inputmode="decimal"
-          placeholder="0.00"
+          :placeholder="words.lines.amountPlaceholder"
           class="w-full"
           v-bind="amountError(line.amount) ? { color: 'error', highlight: true } : {}"
-          :aria-label="`Line ${index + 1}, amount`"
+          :aria-label="words.lines.amount(index + 1)"
           :disabled="disabled"
           @update:model-value="update(index, 'amount', String($event))"
         />
@@ -83,15 +84,15 @@ function amountError(text: string): boolean {
           color="neutral"
           variant="ghost"
           class="size-11 justify-center sm:size-9"
-          :aria-label="`Remove line ${index + 1}`"
+          :aria-label="words.lines.remove(index + 1)"
           :disabled="disabled"
           @click="remove(index)"
         />
       </li>
     </ul>
     <div class="flex flex-wrap items-center justify-between gap-2">
-      <UButton label="Add a line" icon="i-lucide-plus" size="sm" color="neutral" variant="outline" :disabled="disabled" data-testid="invoice-line-add" @click="add" />
-      <p class="text-sm text-toned">Total <MoneyText :cents="total" class="font-medium text-highlighted" /></p>
+      <UButton :label="words.lines.add" icon="i-lucide-plus" size="sm" color="neutral" variant="outline" :disabled="disabled" data-testid="invoice-line-add" @click="add" />
+      <p class="text-sm text-toned">{{ words.lines.total }} <MoneyText :cents="total" class="font-medium text-highlighted" /></p>
     </div>
   </section>
 </template>

@@ -7,6 +7,7 @@ import { ruleValue } from '../../ruleset/ruleset'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { scenarioGuards } from '../scenarios/scenarioGuards'
 import { payOnly, switchedScenario } from '../scenarios/switchedScenario'
+import { words } from './words'
 
 /** Why lines of the plan tab cannot be planned with as they stand, and which lines. */
 export interface PlanGuard {
@@ -43,11 +44,8 @@ export function planGuards(lines: readonly PlanLine[], scenarios: readonly Owner
     const inYear = lines.filter((line) => line.year === year)
     const ownerPay = ownerPayPlan(inYear, scenarios, rules)
     const dividends = inYear.filter((line) => line.kind === 'amount' && line.item === 'dividend')
-    const months = dividends.map((line) => `month ${line.month}`)
-    return [
-      ...(ownerPay.kind === 'refused' ? ownerPay.guards : []),
-      ...(dividends.length > 1 ? [{ ids: dividends.map((line) => line.id), reason: `The plan for ${year} pays a dividend in ${listed(months)}. Plan one payout a year.` }] : []),
-    ]
+    const months = dividends.flatMap((line) => (line.kind === 'amount' && line.month !== null ? [line.month] : []))
+    return [...(ownerPay.kind === 'refused' ? ownerPay.guards : []), ...(dividends.length > 1 ? [{ ids: dividends.map((line) => line.id), reason: words.guards.oneDividend(year, months) }] : [])]
   })
 }
 
@@ -65,24 +63,30 @@ export function ownerPayPlan(yearLines: readonly PlanLine[], scenarios: readonly
   const dated = lines.filter((line) => line.from !== null)
   if (dated.length > 1) {
     return refused([
-      { ids: dated.map((line) => line.id), reason: `The owner pay of ${year} switches on ${listed(dated.map((line) => line.from ?? ''))}. A year's plan switches once, from one scenario to another.` },
+      {
+        ids: dated.map((line) => line.id),
+        reason: words.guards.switchesOnce(
+          year,
+          dated.flatMap((line) => (line.from === null ? [] : [line.from])),
+        ),
+      },
     ])
   }
   const [switching] = dated
   if (switching !== undefined && switching.from === civilDate(year, 1, 1)) {
-    return refused([{ ids: [switching.id], reason: `The switch to ${switching.scenario} is dated 1 January ${year}, which leaves the first scenario no day. Leave its date blank instead.` }])
+    return refused([{ ids: [switching.id], reason: words.guards.switchOnNewYear(switching.scenario, year) }])
   }
   const [opening] = undated
   if (opening === undefined) {
-    return refused([{ ids, reason: `The owner pay switches to ${switching?.scenario} on ${switching?.from}, but no row without a date sets it before then. Add the scenario ${year} starts with.` }])
+    return refused([{ ids, reason: words.guards.noOpening(switching?.scenario, switching?.from, year) }])
   }
   const named = lines.map((line) => ({ line, scenario: scenarios.find((candidate) => candidate.slug === line.scenario) }))
   const wrongYear = named.flatMap(({ line, scenario }): PlanGuard[] =>
     scenario === undefined
-      ? [{ ids: [line.id], reason: `The owner pay of ${year} names ${line.scenario}, which is not on the scenarios tab.` }]
+      ? [{ ids: [line.id], reason: words.guards.notOnTab(year, line.scenario) }]
       : scenario.year === year
         ? []
-        : [{ ids: [line.id], reason: `The owner pay of ${year} names ${line.scenario}, a scenario for ${scenario.year}.` }],
+        : [{ ids: [line.id], reason: words.guards.otherYear(year, line.scenario, scenario.year) }],
   )
   if (wrongYear.length > 0) {
     return refused(wrongYear)
@@ -92,12 +96,7 @@ export function ownerPayPlan(yearLines: readonly PlanLine[], scenarios: readonly
   const scenario = second === null || switching?.from == null ? payOnly(first) : switchedScenario(first, second, switching.from)
   const stopped = scenarioGuards(scenario, rules)
   if (stopped.length > 0) {
-    return refused(stopped.map((guard) => ({ ids, reason: `The owner pay of ${year}: ${guard.reason}` })))
+    return refused(stopped.map((guard) => ({ ids, reason: words.guards.stopped(year, guard.reason) })))
   }
   return { kind: 'planned', pay: { year, scenario, first, second, switchOn: switching?.from ?? null, lines } }
-}
-
-/** Words as a sentence lists them: "a and b", "a, b and c". */
-function listed(words: readonly string[]): string {
-  return words.length < 2 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`
 }

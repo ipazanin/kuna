@@ -12,6 +12,7 @@ import { hasVersionOn, ruleValue } from '../../ruleset/ruleset'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
 import { atRate } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
+import { words } from './words'
 
 /** How an asset found its payment: its `ledger_reference` equals the row's reference or appears in its description, or the amount fits. */
 export type AssetMatch = 'reference' | 'description' | 'date-and-amount'
@@ -140,8 +141,7 @@ export function assetsClaimingRows(
 /** A problem on each asset that claims no row it would otherwise claim, naming the row's day and the VAT rate the ruleset lacks for it. */
 export function uncheckedClaimProblems(assets: readonly Asset[], transactions: readonly Transaction[], categories: readonly Category[]): RecordProblem[] {
   return assetRegister(assets, transactions, categories).uncheckedClaims.map(({ asset, row, matchedBy }) => {
-    const found = matchedBy === 'date-and-amount' ? `the capital purchase of ${row.date} may pay for it` : `its ledger_reference finds the bank row of ${row.date}`
-    return problemOf({ id: asset.id, label: asset.name }, `${found}, but the app has no standard VAT rate for that day to check the amount against, so the row is left unclaimed`)
+    return problemOf({ id: asset.id, label: asset.name }, words.unchecked(matchedBy === 'date-and-amount', row.date))
   })
 }
 

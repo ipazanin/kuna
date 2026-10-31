@@ -23,6 +23,7 @@ import AccountPicker from './AccountPicker.vue'
 import AddFilterMenu from './AddFilterMenu.vue'
 import FilterChipRow from './FilterChipRow.vue'
 import PeriodBar from './PeriodBar.vue'
+import { words } from './words'
 
 const props = withDefaults(
   defineProps<{
@@ -83,11 +84,11 @@ const clearChips = (): void => void setFilters(withoutChips(filters.value))
 <template>
   <div v-if="phone" class="flex items-center gap-3" :class="{ hidden: tabActions !== null && !showPeriod }">
     <Teleport :to="tabActions" :disabled="tabActions === null" defer>
-      <USlideover v-model:open="sheetOpen" side="bottom" title="Filters" :ui="{ content: 'phone-sheet' }">
+      <USlideover v-model:open="sheetOpen" side="bottom" :title="words.filters" :ui="{ content: 'phone-sheet' }">
         <UButton icon="i-lucide-sliders-horizontal" color="neutral" variant="outline" :class="{ 'ms-2': tabActions !== null }" data-testid="open-filters">
-          <span class="filters-label">Filters</span>
+          <span class="filters-label">{{ words.filters }}</span>
           <UBadge v-if="activeCount > 0" :label="String(activeCount)" size="sm" class="rounded-full" data-testid="filter-count" />
-          <span class="sr-only">, {{ activeCount }} active</span>
+          <span class="sr-only">{{ words.active(activeCount) }}</span>
         </UButton>
         <template #body>
           <div class="flex flex-col gap-4">
@@ -98,7 +99,7 @@ const clearChips = (): void => void setFilters(withoutChips(filters.value))
           </div>
         </template>
         <template #footer>
-          <UButton label="Show results" block size="lg" @click="sheetOpen = false" />
+          <UButton :label="words.showResults" block size="lg" @click="sheetOpen = false" />
         </template>
       </USlideover>
     </Teleport>

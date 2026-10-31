@@ -3,6 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import { REQUIRED_ISSUER } from '../../invoicing/domain/invoiceDocument'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { categoriesAsNewBooksStart } from '../../workbook/presentation/workbookFiles'
+import { words } from './words'
 
 /** One thing new books still lack, said in a line, with the screen that does it. */
 export interface SetUpLine {
@@ -20,20 +21,20 @@ export interface SetUpLine {
 export function gettingSetUp(workbook: Workbook): SetUpLine[] {
   const lines: SetUpLine[] = []
   if (workbook.transactions.length === 0) {
-    lines.push({ key: 'first-statement', text: 'Import your first bank statement', link: { label: 'Import', to: { path: '/company/transactions', query: { tab: 'import' } } } })
+    lines.push({ key: 'first-statement', text: words.setUp.firstStatement, link: { label: words.setUp.importLink, to: { path: '/company/transactions', query: { tab: 'import' } } } })
   }
   if (workbook.settings.statementsSync && workbook.settings.statementsFolder.length === 0) {
-    lines.push({ key: 'statements-folder', text: 'Name the Drive folder your bank statements are filed in, or switch filing on sync off', link: { label: 'Settings', to: '/company/settings' } })
+    lines.push({ key: 'statements-folder', text: words.setUp.statementsFolder, link: { label: words.setUp.settingsLink, to: '/company/settings' } })
   }
   if (categoriesAsNewBooksStart(workbook.categories)) {
     lines.push({
       key: 'categories',
-      text: 'Look over the categories, which are still the ones new books start with',
-      link: { label: 'Categories', to: { path: '/company/settings', query: { tab: 'categories' } } },
+      text: words.setUp.categories,
+      link: { label: words.setUp.categoriesLink, to: { path: '/company/settings', query: { tab: 'categories' } } },
     })
   }
   if (workbook.clients.length > 0 && REQUIRED_ISSUER.some(([field]) => workbook.settings.invoicing[field].trim() === '')) {
-    lines.push({ key: 'invoice-terms', text: 'Fill in what your invoices print about your company', link: { label: 'Clients', to: { path: '/company/invoicing', query: { tab: 'clients' } } } })
+    lines.push({ key: 'invoice-terms', text: words.setUp.invoiceTerms, link: { label: words.setUp.clientsLink, to: { path: '/company/invoicing', query: { tab: 'clients' } } } })
   }
   return lines
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import EmptyState from '../../../../../shared/ui/EmptyState.vue'
+import { words } from './words'
 
 /** What a pack screen shows when the workbook turns the owner-pay module off. */
 </script>
@@ -7,8 +8,8 @@ import EmptyState from '../../../../../shared/ui/EmptyState.vue'
 <template>
   <EmptyState
     icon="i-lucide-eye-off"
-    title="The owner-pay module is off"
-    description="This workbook sets owner_pay_module to FALSE, so owner pay counts as operating cost and this screen has nothing to show."
-    :actions="[{ label: 'Open Settings', to: '/company/settings', color: 'neutral', variant: 'outline' }]"
+    :title="words.ownerPayOff.title"
+    :description="words.ownerPayOff.description"
+    :actions="[{ label: words.ownerPayOff.openSettings, to: '/company/settings', color: 'neutral', variant: 'outline' }]"
   />
 </template>

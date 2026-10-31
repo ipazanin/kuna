@@ -14,6 +14,8 @@ import type { Bucket } from '../../workbook/domain/bucket'
 import type { Transaction } from '../../workbook/domain/workbook'
 import type { VerdictChange } from '../domain/backtestRule'
 import type { RulesChangePreview } from '../domain/rulesChangePreview'
+import { words as transactionWords } from '../../transactions/presentation/words'
+import { words } from './words'
 
 /**
  * What a rules change would do to the ledger, before it is saved: why it cannot be saved, the rows
@@ -39,27 +41,27 @@ function bucketOf(category: string): Bucket {
 const lists = computed(() => [
   {
     key: 'settled',
-    title: 'Rows it settles',
-    help: 'Waiting for review now, filed at rule confidence after.',
-    fromLabel: 'Waiting as',
+    title: words.backtest.settled.title,
+    help: words.backtest.settled.help,
+    fromLabel: words.backtest.settled.from,
     icon: 'i-lucide-check-check',
     tone: 'text-success',
     changes: props.preview.backtest.settled,
   },
   {
     key: 'broken',
-    title: 'Agreements it breaks',
-    help: 'Rows a rule filed. The rules decide them one way now and another way after.',
-    fromLabel: 'Rules now',
+    title: words.backtest.broken.title,
+    help: words.backtest.broken.help,
+    fromLabel: words.backtest.broken.from,
     icon: 'i-lucide-split',
     tone: 'text-warning',
     changes: props.preview.backtest.brokenAgreements,
   },
   {
     key: 'conflicts',
-    title: 'Confirmed rows it would file differently',
-    help: 'A person set these. Their category stays, but the rules would file the next row like them differently.',
-    fromLabel: 'Person filed',
+    title: words.backtest.conflicts.title,
+    help: words.backtest.conflicts.help,
+    fromLabel: words.backtest.conflicts.from,
     icon: 'i-lucide-user-x',
     tone: 'text-error',
     changes: props.preview.backtest.humanConflicts,
@@ -75,7 +77,7 @@ function shown(changes: readonly VerdictChange<Transaction>[]): readonly Verdict
 
 <template>
   <div class="flex flex-col gap-4" data-testid="rule-backtest">
-    <UAlert v-if="preview.refusals.length" icon="i-lucide-octagon-x" color="error" variant="subtle" title="This cannot be saved yet" data-testid="rule-refusals">
+    <UAlert v-if="preview.refusals.length" icon="i-lucide-octagon-x" color="error" variant="subtle" :title="words.backtest.cannotSave" data-testid="rule-refusals">
       <template #description>
         <ul class="list-disc ps-4">
           <li v-for="refusal in preview.refusals" :key="refusal" class="break-words">{{ refusal }}</li>
@@ -93,7 +95,7 @@ function shown(changes: readonly VerdictChange<Transaction>[]): readonly Verdict
       <ul v-if="list.changes.length" class="overflow-hidden rounded-control border border-default">
         <li v-for="change in shown(list.changes)" :key="change.transaction.id" class="backtest-row">
           <span class="flex min-w-0 items-baseline justify-between gap-3">
-            <span class="min-w-0 truncate text-sm text-highlighted">{{ change.transaction.counterparty || 'No counterparty' }}</span>
+            <span class="min-w-0 truncate text-sm text-highlighted">{{ change.transaction.counterparty || transactionWords.noCounterparty }}</span>
             <MoneyText :cents="change.transaction.amount" tone="flow" class="shrink-0 text-sm" />
           </span>
           <span class="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted">
@@ -101,26 +103,22 @@ function shown(changes: readonly VerdictChange<Transaction>[]): readonly Verdict
             <span class="verdict-pair">
               <span>{{ list.fromLabel }}</span>
               <CategoryChip :category="change.from" :bucket="bucketOf(change.from)" />
-              <UIcon name="i-lucide-arrow-right" class="size-3.5 shrink-0" aria-label="becomes" />
-              <span>after</span>
+              <UIcon name="i-lucide-arrow-right" class="size-3.5 shrink-0" :aria-label="words.backtest.becomes" />
+              <span>{{ words.backtest.after }}</span>
               <CategoryChip :category="change.after.category" :bucket="bucketOf(change.after.category)" />
-              <span v-if="change.after.flaggedBy === 'ai'" class="text-muted">waits for review</span>
+              <span v-if="change.after.flaggedBy === 'ai'" class="text-muted">{{ words.backtest.waitsForReview }}</span>
             </span>
           </span>
-          <span v-if="change.from !== change.transaction.category" class="text-xs text-muted" data-testid="backtest-stored"> Stored as {{ names.category(change.transaction.category) }} </span>
+          <span v-if="change.from !== change.transaction.category" class="text-xs text-muted" data-testid="backtest-stored">{{
+            words.backtest.storedAs(names.category(change.transaction.category))
+          }}</span>
         </li>
-        <li v-if="list.changes.length > SHOWN_ROWS" class="px-3 py-2 text-xs text-muted">and {{ list.changes.length - SHOWN_ROWS }} more</li>
+        <li v-if="list.changes.length > SHOWN_ROWS" class="px-3 py-2 text-xs text-muted">{{ words.backtest.more(list.changes.length - SHOWN_ROWS) }}</li>
       </ul>
-      <p v-else class="text-xs text-muted">None.</p>
+      <p v-else class="text-xs text-muted">{{ words.backtest.none }}</p>
     </section>
 
-    <UCheckbox
-      v-if="needsAcceptance && preview.refusals.length === 0"
-      v-model="accepted"
-      label="I have looked at these rows and want the change anyway"
-      description="Rows already filed keep their category. Only rows filed after the change follow it."
-      data-testid="accept-backtest"
-    />
+    <UCheckbox v-if="needsAcceptance && preview.refusals.length === 0" v-model="accepted" :label="words.backtest.accept" :description="words.backtest.acceptHelp" data-testid="accept-backtest" />
   </div>
 </template>
 

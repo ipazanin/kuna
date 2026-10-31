@@ -8,6 +8,7 @@ import type { RuleLookup, RuleValues } from '../../ruleset/ruleset'
 import type { FigureBasis, TracedFigure } from '../../ruleset/tracedFigure'
 import { deducted, tracedFigure } from './payrollArithmetic'
 import type { RuleSource } from './payrollArithmetic'
+import { words } from './words'
 
 export interface NontaxablePaymentMade {
   /** The ruleset's payment key, such as `occasional-gift`. */
@@ -76,15 +77,15 @@ function usageOf(payment: string, periodKey: string, made: readonly NontaxablePa
   const capRow = rows[0]
   const period = capRow.period.text
   const citations = [capsRule.citation]
-  const paidSteps = made.map((payment) => ({ ...tracedFigure('Paid on', payment.amount, basis, citations), on: payment.paidOn }))
-  const paid = tracedFigure(`${payment} paid in ${periodKey}`, sumMoney(paidSteps.map((step) => step.amount)), basis, citations, paidSteps)
+  const paidSteps = made.map((payment) => ({ ...tracedFigure(words.caps.paidOn, payment.amount, basis, citations), on: payment.paidOn }))
+  const paid = tracedFigure(words.caps.paidIn(payment, periodKey), sumMoney(paidSteps.map((step) => step.amount)), basis, citations, paidSteps)
   const cap = capOf(capRow, made, basis, capsRule)
   const items = rows.map((row) => row.item.count)
   if (cap === null) {
-    return { payment, items, period, periodKey, paid, cap, remaining: null, excess: tracedFigure('No cap applies here', ZERO, basis, citations) }
+    return { payment, items, period, periodKey, paid, cap, remaining: null, excess: tracedFigure(words.caps.noCap, ZERO, basis, citations) }
   }
-  const remaining = tracedFigure('Left under the cap', cap.amount > paid.amount ? subtractMoney(cap.amount, paid.amount) : ZERO, basis, citations, [cap, deducted(paid)])
-  const excess = tracedFigure('Over the cap, taxed as salary', paid.amount > cap.amount ? subtractMoney(paid.amount, cap.amount) : ZERO, basis, citations, [paid, deducted(cap)])
+  const remaining = tracedFigure(words.caps.left, cap.amount > paid.amount ? subtractMoney(cap.amount, paid.amount) : ZERO, basis, citations, [cap, deducted(paid)])
+  const excess = tracedFigure(words.caps.over, paid.amount > cap.amount ? subtractMoney(paid.amount, cap.amount) : ZERO, basis, citations, [paid, deducted(cap)])
   return { payment, items, period, periodKey, paid, cap, remaining, excess }
 }
 
@@ -108,19 +109,19 @@ function capOf(capRow: CapRow, made: readonly NontaxablePaymentMade[], basis: Fi
   }
   const capAmount = capRow.cap.cents
   if (period === 'year' || period === 'month') {
-    return tracedFigure(period === 'year' ? 'Yearly cap' : 'Monthly cap', capAmount, basis, citations)
+    return tracedFigure(period === 'year' ? words.caps.yearly : words.caps.monthly, capAmount, basis, citations)
   }
   const unitName = PER_UNIT_PERIODS.get(period)
   if (unitName === undefined) {
     throw new RangeError(`The cap period ${period} of ${capRow.payment.text} is not one the payroll engine knows.`)
   }
   const units = made.reduce((total, payment) => total + unitsOf(payment, unitName), 0)
-  const perUnit = tracedFigure(`Cap for ${units} ${unitName}`, moneyFromCents(capAmount * units), basis, citations)
+  const perUnit = tracedFigure(words.caps.capFor(units, unitName), moneyFromCents(capAmount * units), basis, citations)
   const monthlyCap = capRow.monthlyCap?.cents
   if (monthlyCap === undefined || perUnit.amount <= monthlyCap) {
     return perUnit
   }
-  return tracedFigure('Cap, limited to the monthly cap', monthlyCap, basis, citations, [perUnit])
+  return tracedFigure(words.caps.limited, monthlyCap, basis, citations, [perUnit])
 }
 
 function unitsOf(payment: NontaxablePaymentMade, unitName: string): number {

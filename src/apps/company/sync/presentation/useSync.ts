@@ -12,13 +12,14 @@ import LocalWorkbookStatus from '../../workbook-files/presentation/LocalWorkbook
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import { words } from './words'
 
 /** The Google permissions books on Drive and this device's settings need, by what needs each: the books, each step their settings turn on, and Gmail while invoice drafts are on. */
 function needsOfBooks(workbook: Workbook | null): AccessNeed[] {
   return [
     ...BOOKS_STEP.scopes.map((scope) => ({ scope, label: BOOKS_STEP.label })),
     ...(workbook === null ? [] : [...mailNeeds(workbook), ...statementNeeds(workbook)]),
-    ...(mailDraftsOn.value ? [{ scope: 'gmail.compose' as const, label: 'Invoicing' }] : []),
+    ...(mailDraftsOn.value ? [{ scope: 'gmail.compose' as const, label: words.invoiceDrafts }] : []),
   ]
 }
 

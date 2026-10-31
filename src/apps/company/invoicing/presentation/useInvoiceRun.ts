@@ -5,9 +5,8 @@ import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
 import { downloadFile } from '../../../../shared/files/downloadFile'
-import { plainAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
-import { typedAmount } from '../../../../shared/money/typedAmount'
+import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
 import { expectedInvoices } from '../../billingPlan/domain/expectedInvoices'
 import { INVOICE_WRITES } from '../../receivables/application/invoiceWrites'
 import { setSettings } from '../../settings/application/settingWrites'
@@ -29,6 +28,8 @@ import { linesTotal, plannedLines, registerItemOf } from '../domain/invoiceLines
 import type { InvoiceLine } from '../domain/invoiceLines'
 import { nextInvoiceNumber, numberTaken } from '../domain/invoiceNumber'
 import { mailDraftsOn, switchMailDrafts } from '../infrastructure/mailDraftSwitch'
+import { words as receivablesWords } from '../../receivables/domain/words'
+import { words } from './words'
 
 /** A new invoice, or the PDF and draft of one on the register made again. */
 export type InvoiceRunMode = { readonly kind: 'new'; readonly client: string | null } | { readonly kind: 'reexport'; readonly id: RecordId }
@@ -105,7 +106,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
       due.value = invoice.due ?? fresh.due
       periodFrom.value = invoice.deliveryPeriod?.from ?? fresh.periodFrom
       periodTo.value = invoice.deliveryPeriod?.to ?? fresh.periodTo
-      lines.value = [{ description: invoice.item, amount: plainAmount(invoice.amount) }]
+      lines.value = [{ description: invoice.item, amount: amountForTyping(invoice.amount) }]
       return
     }
     const asked = mode.value.kind === 'new' ? mode.value.client : null
@@ -130,7 +131,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
 
   function fillLines(): void {
     const day = parseCivilDate(issued.value)
-    lines.value = day === null ? [] : plannedLines(expected.value, client.value, day).map((line) => ({ description: line.description, amount: plainAmount(line.amount) }))
+    lines.value = day === null ? [] : plannedLines(expected.value, client.value, day).map((line) => ({ description: line.description, amount: amountForTyping(line.amount) }))
     if (lines.value.length === 0) lines.value = [{ description: '', amount: '' }]
   }
 
@@ -212,17 +213,17 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
   const problems = computed((): string[] => {
     const terms = settings.value
     const current = workbook.value
-    if (terms === null || current === null) return ['No workbook is open.']
+    if (terms === null || current === null) return [words.run.noWorkbook]
     const found = invoiceProblems(terms.invoicing, chosenClient.value, parsedLines.value)
-    if (issueDay.value === null) found.push('The issue date is a date such as 2026-10-21.')
+    if (issueDay.value === null) found.push(words.run.issueDate)
     const typedDates = dates.value
-    if (typedDates === null) found.push('The due date and the delivery period are dates such as 2026-10-31.')
-    else if (typedDates.period.to < typedDates.period.from) found.push('The delivery period ends after it starts.')
-    else if (issueDay.value !== null && typedDates.due < issueDay.value) found.push('The due date is not before the issue date.')
-    if (number.value.trim() === '') found.push('The invoice needs a number.')
-    else if (mode.value.kind === 'new' && numberTaken(number.value, current.invoices)) found.push(`Invoice ${number.value.trim()} is already on the invoices tab, and each number is used once.`)
+    if (typedDates === null) found.push(words.run.dates)
+    else if (typedDates.period.to < typedDates.period.from) found.push(words.run.periodOrder)
+    else if (issueDay.value !== null && typedDates.due < issueDay.value) found.push(words.run.dueOrder)
+    if (number.value.trim() === '') found.push(words.run.needsNumber)
+    else if (mode.value.kind === 'new' && numberTaken(number.value, current.invoices)) found.push(receivablesWords.numberTaken(number.value.trim()))
     if (mailDraft.value && google.value && chosenClient.value !== null && chosenClient.value.invoicing.invoiceMail === '') {
-      found.push(`Invoicing, Clients needs the invoice mail for ${chosenClient.value.name || chosenClient.value.slug}, or leave the mail draft off.`)
+      found.push(words.run.needsMail(chosenClient.value.name || chosenClient.value.slug))
     }
     return found
   })
@@ -247,7 +248,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
             previewError.value = null
           },
           (failure: unknown) => {
-            previewError.value = `The PDF could not be drawn: ${failure instanceof Error ? failure.message : String(failure)}`
+            previewError.value = words.run.pdfFailed(failure instanceof Error ? failure.message : String(failure))
           },
         )
       }, 300)
@@ -262,9 +263,9 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
   }
 
   async function pickInvoiceFolder(drive: InvoiceDrive): Promise<string | null> {
-    const [picked] = await drive.pickFolders(null, 'Pick the folder to file invoices in. The app files each invoice in folders by year and month inside it.')
+    const [picked] = await drive.pickFolders(null, words.run.pickRoot)
     if (picked === undefined) return null
-    await store.write('Invoice folder saved', (unit) => setSettings(unit, store.state.records?.settings ?? NO_RECORDS, [{ key: 'invoice_folder_id', value: picked.id }]))
+    await store.write(words.run.folderSaved, (unit) => setSettings(unit, store.state.records?.settings ?? NO_RECORDS, [{ key: 'invoice_folder_id', value: picked.id }]))
     return picked.id
   }
 
@@ -280,9 +281,9 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
       if (drive !== null) {
         await store.sync()
         if (store.state.status === 'syncing' || store.state.writing) {
-          throw new Error('Another sync or change of the workbook was running, so the register was not read again. Check again once it finishes.')
+          throw new Error(words.run.busy)
         }
-        if (store.state.error !== null) throw new Error(`The file could not be read again: ${store.state.error}`)
+        if (store.state.error !== null) throw new Error(words.run.unreadable(store.state.error))
       }
       if (problems.value.length > 0 || document.value === null || path.value === null) {
         stage.value = { kind: 'edit', message: null }
@@ -297,7 +298,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
       }
       const rootId = settings.value!.invoicing.folderId || (await pickInvoiceFolder(drive))
       if (rootId === null) {
-        stage.value = { kind: 'edit', message: 'No folder was picked, so the invoice has nowhere to be filed.' }
+        stage.value = { kind: 'edit', message: words.run.noFolder }
         return
       }
       const found = await locateFiling(drive, rootId, path.value, creatable.value)
@@ -308,7 +309,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
       if (found.target.existing !== null && mode.value.kind === 'new') {
         stage.value = {
           kind: 'edit',
-          message: `${pathInWords(path.value)} is already in the invoice folder, and the app does not overwrite an invoice. Delete it in Drive first, or use Re-export on the invoice it belongs to.`,
+          message: words.run.alreadyFiled(pathInWords(path.value)),
         }
         return
       }
@@ -348,7 +349,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
   }
 
   async function writeRegister({ before, after }: RegisterChange): Promise<void> {
-    await store.write(before === null ? 'Invoice added' : 'Invoice saved', (unit) => (before === null ? unit.of(INVOICE_WRITES).add(after) : unit.of(INVOICE_WRITES).change(before, after)))
+    await store.write(before === null ? words.run.added : words.run.saved, (unit) => (before === null ? unit.of(INVOICE_WRITES).add(after) : unit.of(INVOICE_WRITES).change(before, after)))
   }
 
   /** Makes the invoice: the steps run in order, each once. Run it from a click, since the Gmail grant may need a popup. */
@@ -410,7 +411,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
   function mergeLines(): void {
     const previous = [...(workbook.value?.invoices ?? [])].filter((invoice) => invoice.client === client.value).sort((upper, lower) => lower.issued.localeCompare(upper.issued))[0]
     const description = previous?.item || lines.value[0]?.description || ''
-    lines.value = [{ description, amount: plainAmount(total.value) }]
+    lines.value = [{ description, amount: amountForTyping(total.value) }]
   }
 
   return {

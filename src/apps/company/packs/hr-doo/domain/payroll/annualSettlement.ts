@@ -9,6 +9,7 @@ import type { EmployeeFacts } from './incomeTax'
 import { atRate, deducted, percentText, tracedFigure } from './payrollArithmetic'
 import type { RuleSource } from './payrollArithmetic'
 import type { PayrollMonth } from './payrollMonth'
+import { words } from './words'
 
 export interface AnnualSettlementInput {
   readonly taxYear: number
@@ -47,8 +48,8 @@ export function annualSettlement(input: AnnualSettlementInput, facts: EmployeeFa
   const settlementCitation = settlementRule.citation
   const paidInYear = input.months.filter((month) => yearOf(month.paidOn) === taxYear)
 
-  const incomeSteps = paidInYear.map((month) => ({ ...month.income, label: `Income for ${month.workedMonth}, paid on`, on: month.paidOn }))
-  const income = tracedFigure('Income of the year after pension contributions', sumMoney(incomeSteps.map((step) => step.amount)), basis, [settlementCitation], incomeSteps)
+  const incomeSteps = paidInYear.map((month) => ({ ...month.income, label: words.settlement.incomeFor(month.workedMonth), on: month.paidOn }))
+  const income = tracedFigure(words.settlement.income, sumMoney(incomeSteps.map((step) => step.amount)), basis, [settlementCitation], incomeSteps)
 
   const monthlyAllowance = personalAllowance(facts.dependants, yearEnd, basis, rules)
   const elsewhere = input.allowanceMonthsElsewhere ?? 0
@@ -58,14 +59,14 @@ export function annualSettlement(input: AnnualSettlementInput, facts: EmployeeFa
   }
   const allowanceMonths = settlementRule.value.unusedAllowanceUsed.holds ? yearMonths - elsewhere : paidInYear.length
   const allowance = tracedFigure(
-    elsewhere === 0 ? `Personal allowance for ${allowanceMonths} months` : `Personal allowance for ${allowanceMonths} months, the other ${elsewhere} used by another employer`,
+    words.settlement.allowanceFor(allowanceMonths, elsewhere),
     moneyFromCents(monthlyAllowance.amount * allowanceMonths),
     basis,
     [...monthlyAllowance.rules, settlementCitation],
     [monthlyAllowance],
   )
   const taxableIncome = tracedFigure(
-    'Taxable income of the year, not below zero',
+    words.settlement.taxable,
     income.amount > allowance.amount ? subtractMoney(income.amount, allowance.amount) : ZERO,
     basis,
     [settlementCitation],
@@ -79,16 +80,16 @@ export function annualSettlement(input: AnnualSettlementInput, facts: EmployeeFa
 
   const youthRelief = youthReliefOn(brackets.lowerRateTax, facts.birthYear, yearEnd, basis, rules)
   const annualTax = tracedFigure(
-    'Income tax of the year',
+    words.settlement.tax,
     subtractMoney(addMoney(brackets.lowerRateTax.amount, brackets.higherRateTax.amount), youthRelief.amount),
     basis,
     [settlementCitation],
     [brackets.lowerRateTax, brackets.higherRateTax, deducted(youthRelief)],
   )
 
-  const withheldSteps = paidInYear.map((month) => ({ ...month.incomeTax, label: `Withheld for ${month.workedMonth}, paid on`, on: month.paidOn }))
-  const withheld = tracedFigure('Income tax withheld in the months', sumMoney(withheldSteps.map((step) => step.amount)), basis, [settlementCitation], withheldSteps)
-  const refund = tracedFigure('Refund, or extra tax to pay when negative', subtractMoney(withheld.amount, annualTax.amount), basis, [settlementCitation], [withheld, deducted(annualTax)])
+  const withheldSteps = paidInYear.map((month) => ({ ...month.incomeTax, label: words.settlement.withheldFor(month.workedMonth), on: month.paidOn }))
+  const withheld = tracedFigure(words.settlement.withheld, sumMoney(withheldSteps.map((step) => step.amount)), basis, [settlementCitation], withheldSteps)
+  const refund = tracedFigure(words.settlement.refund, subtractMoney(withheld.amount, annualTax.amount), basis, [settlementCitation], [withheld, deducted(annualTax)])
 
   return {
     taxYear,
@@ -112,12 +113,12 @@ function youthReliefOn(lowerRateTax: TracedFigure, birthYear: number | null, yea
   }
   const citations: readonly RuleCitation[] = [reliefRule.citation]
   if (birthYear === null) {
-    return tracedFigure('No youth relief, because the birth year is not set', ZERO, basis, citations)
+    return tracedFigure(words.settlement.noBirthYear, ZERO, basis, citations)
   }
   const band = reliefRule.value.bands.rows.find((row) => birthYear >= row.bornFrom.count && (row.bornTo === undefined || birthYear <= row.bornTo.count))
   if (band === undefined) {
-    return tracedFigure('No youth relief for this birth year', ZERO, basis, citations)
+    return tracedFigure(words.settlement.notThisBirthYear, ZERO, basis, citations)
   }
   const share: Rate = band.reliefShare.basisPoints
-  return tracedFigure(`Youth relief of ${percentText(share)} of the lower-rate tax`, atRate(lowerRateTax.amount, share), basis, citations, [lowerRateTax])
+  return tracedFigure(words.settlement.youthRelief(percentText(share)), atRate(lowerRateTax.amount, share), basis, citations, [lowerRateTax])
 }

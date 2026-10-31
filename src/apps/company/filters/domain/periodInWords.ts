@@ -2,9 +2,11 @@ import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { firstDayOf, lastDayOf, monthOf } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import type { LedgerWindow } from '../../../../shared/calendar/ledgerWindow'
-import { monthLabel, shortMonthName } from '../../../../shared/calendar/monthLabel'
+import { monthLabel } from '../../../../shared/calendar/monthLabel'
+import { listInWords } from '../../../../shared/text/listInWords'
 import { periodRange } from './filterState'
 import type { Period } from './filterState'
+import { words } from './words'
 
 /**
  * The days a period covers, such as "Oct 2025 – Sep 2026". A custom range that does not start and
@@ -21,8 +23,8 @@ export function periodInWords(period: Period, window: LedgerWindow): string {
   const span = from === to ? monthLabel(from) : `${monthLabel(from)} – ${monthLabel(to)}`
   const covers = (month: MonthKey): boolean => from <= month && month <= to
   const notes = [
-    ...(window.firstMonth !== window.firstCompleteMonth && covers(window.firstMonth) ? [`${shortMonthName(window.firstMonth)} in part`] : []),
-    ...(covers(window.partMonth) ? [`${shortMonthName(window.partMonth)} so far`] : []),
+    ...(window.firstMonth !== window.firstCompleteMonth && covers(window.firstMonth) ? [words.inPart(window.firstMonth)] : []),
+    ...(covers(window.partMonth) ? [words.soFar(window.partMonth)] : []),
   ]
-  return notes.length === 0 ? span : `${span}, ${notes.join(' and ')}`
+  return notes.length === 0 ? span : `${span}, ${listInWords(notes)}`
 }

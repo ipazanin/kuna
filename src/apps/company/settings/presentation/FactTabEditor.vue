@@ -7,12 +7,14 @@ import USelect from '@nuxt/ui/components/Select.vue'
 
 import { ibanListOf } from '../../workbook/domain/iban'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import type { Reading, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { draftOutcomes, draftsOfRecords, fieldsOfDrafts, kindOfColumn, madeOfDrafts } from '../domain/recordDrafts'
 import { storedOf } from '../../../../shared/storage/domain/recordsRead'
 import type { DraftFieldKind, DraftFactory, FieldReader, RecordDraft } from '../domain/recordDrafts'
 import type { ChoiceItem, EditorColumn } from './factTabColumns'
 import IbanTagsField from './IbanTagsField.vue'
+import { words } from './words'
 
 // A select item cannot carry an empty value, so the blank choice travels as this.
 const BLANK_CHOICE = '-'
@@ -26,10 +28,8 @@ const props = defineProps<{
   /** The kind's factory, which makes a record of a draft's fields or refuses them. */
   make: DraftFactory<R>
   saving: boolean
-  /** Such as `asset`, for "Add asset". */
-  rowNoun: string
-  /** Such as `assets`, for "Save assets". */
-  tabNoun: string
+  /** What a row is called, for "Add asset" and "Save assets". */
+  noun: RecordNoun
   /** The fields a new record starts with. */
   newRow: () => Readonly<Record<string, string>>
 }>()
@@ -107,12 +107,14 @@ function save(): void {
       <thead>
         <tr>
           <th v-for="column in columns" :key="column.name" scope="col" class="text-start">{{ column.label }}</th>
-          <th scope="col"><span class="sr-only">Delete</span></th>
+          <th scope="col">
+            <span class="sr-only">{{ words.factTab.delete }}</span>
+          </th>
         </tr>
       </thead>
       <tbody>
         <tr v-if="drafts.length === 0">
-          <td :colspan="columns.length + 1" class="text-muted">No {{ tabNoun }} yet.</td>
+          <td :colspan="columns.length + 1" class="text-muted">{{ words.factTab.none(noun) }}</td>
         </tr>
         <template v-for="(draft, index) in drafts" :key="draft.saved ?? `new-${index}`">
           <tr data-testid="fact-row">
@@ -121,7 +123,7 @@ function save(): void {
                 v-if="choicesOf(column, draft)"
                 :model-value="choiceValue(column, draft)"
                 :items="choicesOf(column, draft) ?? []"
-                :placeholder="column.placeholderOf?.(fieldReader(draft)) || 'Choose'"
+                :placeholder="column.placeholderOf?.(fieldReader(draft)) || words.factTab.choose"
                 :aria-label="column.label"
                 size="sm"
                 :class="column.width"
@@ -164,7 +166,7 @@ function save(): void {
                 color="neutral"
                 variant="ghost"
                 size="xs"
-                :aria-label="draft.saved === null ? `Remove this new ${rowNoun}` : `Delete this ${rowNoun}`"
+                :aria-label="draft.saved === null ? words.factTab.removeNew(noun) : words.factTab.deleteOne(noun)"
                 data-testid="remove-row"
                 @click="removeRow(index)"
               />
@@ -173,7 +175,7 @@ function save(): void {
           <tr v-if="reading[index]!.reasons.length > 0" class="problem-row">
             <td :colspan="columns.length + 1">
               <p v-for="reason in reading[index]!.reasons" :key="reason" :class="reading[index]!.kept ? 'row-warning' : 'row-error'">
-                {{ reading[index]!.kept ? reason : `Left out: ${reason}` }}
+                {{ reading[index]!.kept ? reason : words.factTab.leftOut(reason) }}
               </p>
             </td>
           </tr>
@@ -182,10 +184,10 @@ function save(): void {
     </table>
   </div>
   <div class="flex flex-wrap items-center gap-2 px-4 pb-4 sm:px-5">
-    <UButton :label="`Add ${rowNoun}`" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="add-row" @click="addRow" />
+    <UButton :label="words.factTab.add(noun)" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="add-row" @click="addRow" />
     <span class="flex-1" />
-    <UButton label="Discard changes" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving" @click="drafts = draftsOfRecords(stored, columns)" />
-    <UButton :label="`Save ${tabNoun}`" icon="i-lucide-save" size="sm" :loading="saving" :disabled="!dirty || leftOut || saving" data-testid="save-rows" @click="save" />
+    <UButton :label="words.factTab.discard" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving" @click="drafts = draftsOfRecords(stored, columns)" />
+    <UButton :label="words.factTab.save(noun)" icon="i-lucide-save" size="sm" :loading="saving" :disabled="!dirty || leftOut || saving" data-testid="save-rows" @click="save" />
   </div>
 </template>
 

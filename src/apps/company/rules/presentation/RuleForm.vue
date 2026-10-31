@@ -14,7 +14,8 @@ import { CONDITION_COLUMNS, inTryingOrder } from '../domain/rule'
 import type { Rule, RuleConfidence } from '../domain/rule'
 import { FLAG_COLUMNS } from '../domain/ruleDraft'
 import type { ConditionColumn, DraftCondition, RuleDraft } from '../domain/ruleDraft'
-import { CONDITION_LABELS } from '../domain/ruleSummary'
+import { words as ruleWords } from '../domain/words'
+import { words } from './words'
 
 /** One rules row as a form: its conditions from the tab's columns, what it files, and where it is tried. */
 const props = defineProps<{
@@ -34,7 +35,7 @@ function update<Field extends keyof RuleDraft>(field: Field, value: RuleDraft[Fi
 }
 
 const unusedColumns = computed(() =>
-  CONDITION_COLUMNS.filter((column) => !draft.value.conditions.some((condition) => condition.column === column)).map((column) => ({ value: column, label: CONDITION_LABELS[column] })),
+  CONDITION_COLUMNS.filter((column) => !draft.value.conditions.some((condition) => condition.column === column)).map((column) => ({ value: column, label: ruleWords.labels[column] })),
 )
 
 function addCondition(column: ConditionColumn): void {
@@ -57,25 +58,25 @@ function removeCondition(index: number): void {
 }
 
 const directionItems = [
-  { value: 'debit', label: 'Money out' },
-  { value: 'credit', label: 'Money in' },
+  { value: 'debit', label: words.form.moneyOut },
+  { value: 'credit', label: words.form.moneyIn },
 ]
 
 const presenceItems = [
-  { value: 'TRUE', label: 'The row has one' },
-  { value: 'FALSE', label: 'The row has none' },
+  { value: 'TRUE', label: words.form.hasOne },
+  { value: 'FALSE', label: words.form.hasNone },
 ]
 
 const confidenceItems: { value: RuleConfidence; label: string }[] = [
-  { value: 'rule', label: 'Settled' },
-  { value: 'review', label: 'Waits for review' },
+  { value: 'rule', label: words.form.settled },
+  { value: 'review', label: words.form.waitsForReview },
 ]
 
 const placementItems = computed(() => [
   ...inTryingOrder(props.rules)
     .filter((rule) => rule.id !== props.editingId)
-    .map((rule) => ({ value: rule.id, label: `Before ${rule.id}` })),
-  { value: LAST, label: 'After every rule' },
+    .map((rule) => ({ value: rule.id, label: words.form.before(rule.id) })),
+  { value: LAST, label: words.form.last },
 ])
 
 function presenceOf(value: DraftCondition['value']): string {
@@ -86,15 +87,15 @@ function presenceOf(value: DraftCondition['value']): string {
 <template>
   <div class="flex flex-col gap-5" data-testid="rule-form">
     <FormGrid>
-      <UFormField label="Rule id" help="A short name, used once, such as merchant-telecom.">
-        <UInput :model-value="draft.id" class="identifier w-full" aria-label="Rule id" @update:model-value="update('id', String($event))" />
+      <UFormField :label="words.form.id" :help="words.form.idHelp">
+        <UInput :model-value="draft.id" class="identifier w-full" :aria-label="words.form.id" @update:model-value="update('id', String($event))" />
       </UFormField>
-      <UFormField label="Tried" help="Rules are tried from the top, and the first one whose conditions all hold decides the row.">
+      <UFormField :label="words.form.tried" :help="words.form.triedHelp">
         <USelect
           :model-value="draft.before ?? LAST"
           :items="placementItems"
           class="w-full"
-          aria-label="Tried before"
+          :aria-label="words.form.triedBefore"
           data-testid="rule-placement"
           @update:model-value="update('before', $event === LAST ? null : String($event))"
         />
@@ -102,17 +103,17 @@ function presenceOf(value: DraftCondition['value']): string {
     </FormGrid>
 
     <fieldset class="flex flex-col gap-3">
-      <legend class="text-sm font-medium text-highlighted">Conditions</legend>
-      <p class="-mt-1 text-xs text-muted">Every condition must hold. Text is compared without accents or case.</p>
+      <legend class="text-sm font-medium text-highlighted">{{ words.form.conditions }}</legend>
+      <p class="-mt-1 text-xs text-muted">{{ words.form.conditionsHelp }}</p>
       <ul v-if="draft.conditions.length" class="flex flex-col gap-2">
         <li v-for="(condition, index) in draft.conditions" :key="condition.column" class="condition-row" data-testid="rule-condition">
-          <span class="text-sm text-toned">{{ CONDITION_LABELS[condition.column] }}</span>
+          <span class="text-sm text-toned">{{ ruleWords.labels[condition.column] }}</span>
           <USelect
             v-if="condition.column === 'direction'"
             :model-value="String(condition.value).toLowerCase()"
             :items="directionItems"
             class="w-full sm:w-48"
-            :aria-label="CONDITION_LABELS[condition.column]"
+            :aria-label="ruleWords.labels[condition.column]"
             @update:model-value="setCondition(index, String($event))"
           />
           <USelect
@@ -120,38 +121,38 @@ function presenceOf(value: DraftCondition['value']): string {
             :model-value="presenceOf(condition.value)"
             :items="presenceItems"
             class="w-full sm:w-48"
-            :aria-label="CONDITION_LABELS[condition.column]"
+            :aria-label="ruleWords.labels[condition.column]"
             @update:model-value="setCondition(index, $event === 'TRUE')"
           />
-          <span v-else-if="FLAG_COLUMNS.has(condition.column)" class="text-xs text-muted">holds</span>
+          <span v-else-if="FLAG_COLUMNS.has(condition.column)" class="text-xs text-muted">{{ words.form.holds }}</span>
           <UInput
             v-else
             :model-value="String(condition.value)"
             class="identifier w-full sm:w-64"
-            :aria-label="CONDITION_LABELS[condition.column]"
+            :aria-label="ruleWords.labels[condition.column]"
             @update:model-value="setCondition(index, String($event))"
           />
-          <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" :aria-label="`Remove ${CONDITION_LABELS[condition.column]}`" @click="removeCondition(index)" />
+          <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" :aria-label="words.form.remove(ruleWords.labels[condition.column])" @click="removeCondition(index)" />
         </li>
       </ul>
-      <p v-else class="text-xs text-muted">No condition yet. An enabled rule needs at least one.</p>
+      <p v-else class="text-xs text-muted">{{ words.form.noCondition }}</p>
       <USelect
         v-if="unusedColumns.length"
         :key="draft.conditions.length"
         :items="unusedColumns"
-        placeholder="Add a condition"
+        :placeholder="words.form.addCondition"
         icon="i-lucide-plus"
         color="neutral"
         variant="outline"
         class="w-full sm:w-64"
-        aria-label="Add a condition"
+        :aria-label="words.form.addCondition"
         data-testid="add-condition"
         @update:model-value="$event && addCondition($event as ConditionColumn)"
       />
     </fieldset>
 
     <FormGrid>
-      <UFormField label="Files the row as">
+      <UFormField :label="words.form.filesAs">
         <CategoryPicker
           :model-value="draft.category"
           :categories="categories"
@@ -161,16 +162,16 @@ function presenceOf(value: DraftCondition['value']): string {
           @update:model-value="update('category', $event ?? '')"
         />
       </UFormField>
-      <UFormField label="Confidence" :help="draft.confidence === 'rule' ? 'Files the row as rule, settled.' : 'Files it as ai, so it shows on Review.'">
-        <USelect :model-value="draft.confidence" :items="confidenceItems" class="w-full" aria-label="Confidence" @update:model-value="update('confidence', $event as RuleConfidence)" />
+      <UFormField :label="words.form.confidence" :help="draft.confidence === 'rule' ? words.form.settledHelp : words.form.reviewHelp">
+        <USelect :model-value="draft.confidence" :items="confidenceItems" class="w-full" :aria-label="words.form.confidence" @update:model-value="update('confidence', $event as RuleConfidence)" />
       </UFormField>
     </FormGrid>
 
-    <UFormField label="Note" help="Why the rule exists and why it sits where it does.">
-      <UTextarea :model-value="draft.note" :rows="2" autoresize class="w-full" aria-label="Note" @update:model-value="update('note', String($event))" />
+    <UFormField :label="words.form.note" :help="words.form.noteHelp">
+      <UTextarea :model-value="draft.note" :rows="2" autoresize class="w-full" :aria-label="words.form.note" @update:model-value="update('note', String($event))" />
     </UFormField>
 
-    <USwitch :model-value="draft.enabled" label="Enabled" description="A rule that is off stays on the tab and is never tried." @update:model-value="update('enabled', $event)" />
+    <USwitch :model-value="draft.enabled" :label="words.form.enabled" :description="words.form.enabledHelp" @update:model-value="update('enabled', $event)" />
   </div>
 </template>
 

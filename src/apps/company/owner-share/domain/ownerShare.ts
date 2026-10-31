@@ -5,6 +5,7 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { wholeNumberOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredField } from '../../../../shared/storage/domain/storedFields'
 import type { Workbook } from '../../workbook/domain/workbook'
+import { words } from './words'
 
 /**
  * The part of a company cost the owner enjoys privately, as a whole percentage from 0 to 100. A
@@ -45,7 +46,7 @@ export function ownerShareText(share: OwnerShare | null): string | null {
 
 /** Why a filled field reads as no share, or null when it reads as it stands. */
 export function ownerShareProblem(field: StoredField | undefined): string | null {
-  return field === undefined || storedOwnerShare(field) !== null ? null : `owner_share "${field.text}" is not a whole number from 0 to 100, so it reads as blank`
+  return field === undefined || storedOwnerShare(field) !== null ? null : words.unreadableShare(field.text)
 }
 
 /** The owner's part of an amount at a share, rounded to the cent. The rest is the company's, so the two add up to the amount. */

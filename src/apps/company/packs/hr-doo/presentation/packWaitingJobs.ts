@@ -6,7 +6,7 @@ import { shortDayLabel } from '../../../../../shared/calendar/dayLabel'
 import { monthInYear } from '../../../../../shared/calendar/monthLabel'
 import { sumMoney } from '../../../../../shared/money/money'
 import { formatMoney } from '../../../../../shared/money/moneyFormat'
-import { counted } from '../../../overview/presentation/waitingForYou'
+import { plural } from '../../../../../shared/text/translation'
 import type { WaitingJob } from '../../../overview/presentation/waitingForYou'
 import { displayNamesOf } from '../../../workbook/domain/displayName'
 import { bookingOfAdvance, ledgerWindowOf } from '../../../workbook/domain/workbook'
@@ -14,6 +14,7 @@ import type { HrDooWorkbook } from '../domain/hrDooPart'
 import { forecastYear } from '../domain/forecast/forecastYear'
 import { ownerAdvances } from '../domain/ownerAdvances'
 import { payrollCadence } from '../domain/payrollCadence'
+import { words } from './words'
 
 /** The Taxes tab of Year, at one of its cards. */
 function taxesTab(card: string): RouteLocationRaw {
@@ -30,9 +31,9 @@ function unaccountedJob(workbook: HrDooWorkbook): WaitingJob | null {
   if (unaccounted.length === 0) return null
   return {
     key: 'unaccounted',
-    text: `${counted(unaccounted.length, 'A reimbursement to the owner has', 'reimbursements to the owner have')} no cost on file`,
+    text: plural(words.waiting.unaccounted(unaccounted.length), unaccounted.length),
     tone: 'warning',
-    link: { label: 'Review', to: '/company/review' },
+    link: { label: words.links.review, to: '/company/review' },
   }
 }
 
@@ -51,13 +52,14 @@ function payrollJob(workbook: HrDooWorkbook, asOf: CivilDate): WaitingJob | null
   if (latest === null) return null
   const categories = new Set(missed.map((entry) => entry.category))
   const name = displayNamesOf(workbook).category(latest.category)
+  const latestMonth = monthInYear(latest.month, yearOf(asOf))
   const text =
     categories.size > 1
-      ? `${missed.length} months of watched taxes have no payment, the latest ${monthInYear(latest.month, yearOf(asOf))}`
+      ? plural(words.waiting.watchedTaxesMissed(missed.length, latestMonth), missed.length)
       : missed.length === 1
-        ? `${name}: no payment landed in ${monthInYear(latest.month, yearOf(asOf))}`
-        : `${name}: no payment landed in ${missed.length} months, the latest ${monthInYear(latest.month, yearOf(asOf))}`
-  return { key: 'payroll', text, tone: 'negative', link: { label: 'Year, Taxes', to: taxesTab('payroll-cadence') } }
+        ? words.waiting.missedOnce(name, latestMonth)
+        : plural(words.waiting.missedMonths(name, missed.length, latestMonth), missed.length)
+  return { key: 'payroll', text, tone: 'negative', link: { label: words.links.yearTaxes, to: taxesTab('payroll-cadence') } }
 }
 
 /** Without the registration day there is no tax schedule to hold the payments against, so nothing is said. */
@@ -76,9 +78,9 @@ function corporateTaxJob(workbook: HrDooWorkbook, asOf: CivilDate): WaitingJob |
   const next = due[0]
   const text =
     overdue.length > 0
-      ? `${counted(overdue.length, 'A corporate tax payment is', 'corporate tax payments are')} overdue, ${owed(overdue)} still owed`
+      ? plural(words.waiting.taxOverdue(overdue.length, owed(overdue)), overdue.length)
       : next === undefined
         ? null
-        : `${counted(due.length, 'A corporate tax payment falls', 'corporate tax payments fall')} due by ${shortDayLabel(next.obligation.dueOn)}, ${owed(due)}`
-  return text === null ? null : { key: 'corporate-tax', text, tone: overdue.length > 0 ? 'negative' : 'warning', link: { label: 'Year, Taxes', to: taxesTab('corporate-tax') } }
+        : plural(words.waiting.taxDue(due.length, shortDayLabel(next.obligation.dueOn), owed(due)), due.length)
+  return text === null ? null : { key: 'corporate-tax', text, tone: overdue.length > 0 ? 'negative' : 'warning', link: { label: words.links.yearTaxes, to: taxesTab('corporate-tax') } }
 }

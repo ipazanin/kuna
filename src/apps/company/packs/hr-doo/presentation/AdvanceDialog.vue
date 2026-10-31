@@ -22,8 +22,7 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import { parseCivilDate } from '../../../../../shared/calendar/civilDate'
 import { rangeContains } from '../../../../../shared/calendar/dateRange'
 import type { DateRange } from '../../../../../shared/calendar/dateRange'
-import { plainAmount } from '../../../../../shared/money/money'
-import { typedAmount } from '../../../../../shared/money/typedAmount'
+import { amountForTyping, typedAmount } from '../../../../../shared/money/typedAmount'
 import { formatMoney } from '../../../../../shared/money/moneyFormat'
 import { ownerAdvanceOfDraft } from '../application/ownerAdvanceWrites'
 import { OWNER_ADVANCE_WRITES } from '../domain/hrDooWrites'
@@ -37,6 +36,7 @@ import { useWorkbook } from '../../../workbook/application/workbookStore'
 import { useRecordWrites } from '../../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../../shared/ui/FormGrid.vue'
+import { words } from './words'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -70,7 +70,7 @@ watch(open, (opened) => {
   if (opened) {
     const start = props.editing ?? props.prefill
     date.value = start?.date ?? props.defaultDate
-    amount.value = start === null ? '' : plainAmount(start.amount)
+    amount.value = start === null ? '' : amountForTyping(start.amount)
     description.value = start?.description ?? ''
     category.value = props.editing?.category ?? ''
     tried.value = false
@@ -90,9 +90,9 @@ const parsedAmount = computed(() => {
 })
 
 const errors = computed(() => ({
-  date: parseCivilDate(date.value) === null ? 'A date, such as 2026-10-14' : null,
-  amount: parsedAmount.value === null ? 'A positive amount with at most two decimals' : null,
-  category: category.value === '' ? 'Choose the cost it was' : null,
+  date: parseCivilDate(date.value) === null ? words.advanceDialog.dateError : null,
+  amount: parsedAmount.value === null ? words.advanceDialog.amountError : null,
+  category: category.value === '' ? words.advanceDialog.categoryError : null,
 }))
 
 const valid = computed(() => Object.values(errors.value).every((error) => error === null))
@@ -109,12 +109,12 @@ async function save(): Promise<void> {
   const outside = outsideView(advance.date)
   const rows = outside === '' ? null : drillLocation(advanceDrill(advance))
   const written = await writes.write(
-    before === null ? 'Advance added' : 'Advance changed',
+    before === null ? words.advanceDialog.added : words.advanceDialog.changed,
     (unit) => (before === null ? unit.of(OWNER_ADVANCE_WRITES).add(advance) : unit.of(OWNER_ADVANCE_WRITES).change(before, advance)),
     {
-      description: `${formatMoney(advance.amount)} as ${names.value.category(advance.category)}.${outside}`,
-      failedTitle: before === null ? 'Not added' : 'Not changed',
-      ...(rows === null ? {} : { follow: { label: 'Open it', icon: 'i-lucide-list', run: () => void router.push(rows) } }),
+      description: `${words.advanceDialog.asCategory(formatMoney(advance.amount), names.value.category(advance.category))}${outside}`,
+      failedTitle: before === null ? words.advanceDialog.notAdded : words.advanceDialog.notChanged,
+      ...(rows === null ? {} : { follow: { label: words.advanceDialog.openIt, icon: 'i-lucide-list', run: () => void router.push(rows) } }),
     },
   )
   if (written) open.value = false
@@ -123,15 +123,15 @@ async function save(): Promise<void> {
 /** Says that a cost dated outside the period in view is saved but not listed. */
 function outsideView(day: CivilDate): string {
   const shown = props.inView
-  return shown === null || shown.range === null || rangeContains(shown.range, day) ? '' : ` Outside the period in view, ${shown.words}, so the page does not list it.`
+  return shown === null || shown.range === null || rangeContains(shown.range, day) ? '' : words.advanceDialog.outside(shown.words)
 }
 
 async function remove(): Promise<void> {
   const before = props.editing
   if (before === null) return
-  const removed = await writes.write('Advance deleted', (unit) => unit.of(OWNER_ADVANCE_WRITES).remove(before), {
-    description: `${formatMoney(before.amount)} as ${names.value.category(before.category)}.`,
-    failedTitle: 'Not deleted',
+  const removed = await writes.write(words.advanceDialog.deleted, (unit) => unit.of(OWNER_ADVANCE_WRITES).remove(before), {
+    description: words.advanceDialog.asCategory(formatMoney(before.amount), names.value.category(before.category)),
+    failedTitle: words.advanceDialog.notDeleted,
   })
   if (removed) open.value = false
 }
@@ -140,45 +140,41 @@ async function remove(): Promise<void> {
 <template>
   <AppDialog
     v-model:open="open"
-    :title="editing ? 'Change the advance' : 'Add an advance'"
-    :description="
-      editing
-        ? 'A cost the owner paid privately for the company, on the owner-advances tab. Only the cells you change are written.'
-        : 'A cost the owner paid privately for the company. It counts as a cost on its date, and reimbursements to the owner repay it.'
-    "
+    :title="editing ? words.advanceDialog.changeTitle : words.advanceDialog.addTitle"
+    :description="editing ? words.advanceDialog.changeDescription : words.advanceDialog.addDescription"
   >
     <FormGrid id="add-advance" as="form" data-testid="add-advance" @submit.prevent="save">
-      <UFormField label="Date" :error="(tried && errors.date) || false">
+      <UFormField :label="words.advanceDialog.date" :error="(tried && errors.date) || false">
         <UInput v-model="date" type="date" class="w-full" />
       </UFormField>
-      <UFormField label="Amount" :error="(tried && errors.amount) || false">
-        <UInput v-model="amount" inputmode="decimal" placeholder="0.00" class="w-full" />
+      <UFormField :label="words.advanceDialog.amount" :error="(tried && errors.amount) || false">
+        <UInput v-model="amount" inputmode="decimal" :placeholder="words.advanceDialog.amountPlaceholder" class="w-full" />
       </UFormField>
-      <UFormField label="Category" :error="(tried && errors.category) || false" help="Operating costs and taxes only." class="sm:col-span-2">
+      <UFormField :label="words.advanceDialog.category" :error="(tried && errors.category) || false" :help="words.advanceDialog.categoryHelp" class="sm:col-span-2">
         <USelectMenu
           v-model="category"
           data-testid="advance-category"
           :items="categoryItems"
           value-key="value"
-          placeholder="Choose a category"
-          :search-input="{ placeholder: 'Search categories' }"
+          :placeholder="words.advanceDialog.chooseCategory"
+          :search-input="{ placeholder: words.advanceDialog.searchCategories }"
           class="w-full"
         />
       </UFormField>
-      <UFormField label="What it was for" class="sm:col-span-2">
-        <UInput v-model="description" placeholder="Train tickets to the client" class="w-full" />
+      <UFormField :label="words.advanceDialog.forWhat" class="sm:col-span-2">
+        <UInput v-model="description" :placeholder="words.advanceDialog.forWhatPlaceholder" class="w-full" />
       </UFormField>
-      <p class="text-xs text-muted">Part of a payment the company made was yours? Split that payment on Transactions instead.</p>
+      <p class="text-xs text-muted">{{ words.advanceDialog.splitInstead }}</p>
     </FormGrid>
     <template #start>
-      <UButton v-if="editing" label="Delete advance" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="advance-delete" @click="remove" />
+      <UButton v-if="editing" :label="words.advanceDialog.delete" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="advance-delete" @click="remove" />
     </template>
     <template #end>
-      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.advanceDialog.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
       <UButton
         type="submit"
         form="add-advance"
-        :label="editing ? 'Save advance' : 'Add advance'"
+        :label="editing ? words.advanceDialog.save : words.advanceDialog.add"
         :icon="editing ? 'i-lucide-save' : 'i-lucide-plus'"
         :loading="writes.busy.value"
         :disabled="writes.busy.value"

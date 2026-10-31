@@ -12,6 +12,8 @@ import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { useCategoryColours } from '../../workbook/presentation/categoryColours'
 import type { GroupShare, TransactionGroup } from '../domain/transactionGroups'
 import CategoryChip from './CategoryChip.vue'
+import { words } from './words'
+import { plural } from '../../../../shared/text/translation'
 
 /** The heading of one group of transactions, which collapses and expands the group. */
 const props = defineProps<{
@@ -27,12 +29,12 @@ const emit = defineEmits<{
 const names = useDisplayNames()
 const colours = useCategoryColours()
 
-const rowCount = computed(() => `${props.group.rows.length} ${props.group.rows.length === 1 ? 'row' : 'rows'}`)
+const rowCount = computed(() => plural(words.rows(props.group.rows.length), props.group.rows.length))
 
 const bucketLabel = computed(() => {
   const shown = props.group
   if (shown.kind !== 'category') return ''
-  return isDefinedBucket(shown.bucket) ? props.bucketLabels[shown.bucket] : 'Unclassified'
+  return isDefinedBucket(shown.bucket) ? props.bucketLabels[shown.bucket] : words.unclassified
 })
 
 const share = computed<GroupShare | null>(() => (props.group.kind === 'month' ? null : props.group.share))
@@ -42,11 +44,11 @@ const shareWhole = computed(() => {
     case 'income':
       return inSentence(props.bucketLabels.income)
     case 'cost':
-      return 'costs'
+      return words.group.wholes.cost
     case 'money-in':
-      return 'money in'
+      return words.group.wholes.moneyIn
     default:
-      return 'money out'
+      return words.group.wholes.moneyOut
   }
 })
 
@@ -56,8 +58,8 @@ const shareColour = computed(() => (props.group.kind === 'category' ? colours.va
 const groupName = computed(() => {
   const shown = props.group
   if (shown.kind === 'month') return monthLabel(shown.month)
-  if (shown.kind === 'category') return shown.category === '' ? 'No category' : names.value.category(shown.category)
-  return shown.label || 'No counterparty'
+  if (shown.kind === 'category') return shown.category === '' ? words.noCategory : names.value.category(shown.category)
+  return shown.label || words.noCounterparty
 })
 </script>
 
@@ -74,7 +76,7 @@ const groupName = computed(() => {
         <span class="name">{{ groupName }}</span>
         <span v-if="group.coverage !== 'complete'" class="meta inline-flex items-center gap-1.5">
           <span class="incomplete-swatch" aria-hidden="true" />
-          {{ group.coverage === 'month-so-far' ? 'Month so far' : 'Part month' }}
+          {{ group.coverage === 'month-so-far' ? words.group.monthSoFar : words.group.partMonth }}
         </span>
       </template>
       <template v-else>
@@ -91,21 +93,21 @@ const groupName = computed(() => {
           <MoneyText :cents="group.income" class="text-toned" />
         </span>
         <span class="figure-pair">
-          <span class="meta">Costs</span>
+          <span class="meta">{{ words.group.costs }}</span>
           <MoneyText :cents="group.cost" class="text-toned" />
         </span>
         <span class="figure-pair">
-          <span class="meta">Net</span>
+          <span class="meta">{{ words.group.net }}</span>
           <MoneyText :cents="group.net" tone="outcome" class="font-medium" />
         </span>
       </template>
       <template v-else>
-        <span v-if="share" class="share" :title="`${formatPercent(share.fraction)} of ${shareWhole}`">
+        <span v-if="share" class="share" :title="words.group.shareOf(formatPercent(share.fraction), shareWhole)">
           <span class="share-track" aria-hidden="true">
             <span class="share-fill" :style="{ width: `${Math.min(1, Math.max(0, share.fraction)) * 100}%`, background: shareColour }" />
           </span>
           <span class="figure share-figure">{{ formatPercent(share.fraction) }}</span>
-          <span class="sr-only">of {{ shareWhole }}</span>
+          <span class="sr-only">{{ words.group.ofWhole(shareWhole) }}</span>
         </span>
         <span v-else class="share" aria-hidden="true" />
         <MoneyText :cents="group.total" tone="flow" class="total font-medium" />

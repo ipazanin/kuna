@@ -13,7 +13,8 @@ import { typedAmount } from '../../../../../../shared/money/typedAmount'
 import AppDialog from '../../../../../../shared/ui/AppDialog.vue'
 import { scenarioRowsOf } from '../../application/scenarioWrites'
 import { SCENARIO_WRITES } from '../../domain/hrDooWrites'
-import { startingScenarios } from '../../domain/scenarios/startingScenarios'
+import { scenarioName, startingScenarios } from '../../domain/scenarios/startingScenarios'
+import { words } from './words'
 
 /** Writes the four starting scenarios for a year. */
 const open = defineModel<boolean>('open', { required: true })
@@ -51,42 +52,37 @@ async function save(): Promise<void> {
   tried.value = true
   if (parsedRent.value === 'bad' || clash.value.length > 0) return
   const rows = scenarioRowsOf(seeded.value.drafts)
-  const written = await writes.write('Starting scenarios added', (unit) => rows.forEach((row) => unit.of(SCENARIO_WRITES).add(row)), {
-    description: `${seeded.value.drafts.length} scenarios for ${props.year}.`,
-    failedTitle: 'Not added',
+  const written = await writes.write(words.startingDialog.added, (unit) => rows.forEach((row) => unit.of(SCENARIO_WRITES).add(row)), {
+    description: words.startingDialog.addedDescription(seeded.value.drafts.length, props.year),
+    failedTitle: words.startingDialog.notAdded,
   })
   if (written) open.value = false
 }
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="`Add the starting scenarios for ${year}`" description="Each one is rows on the scenarios tab, editable here.">
+  <AppDialog v-model:open="open" :title="words.startingDialog.title(year)" :description="words.startingDialog.description">
     <form id="starting-scenarios" class="flex flex-col gap-4" data-testid="starting-scenarios-form" @submit.prevent="save">
       <ol class="flex list-decimal flex-col gap-1 ps-5 text-sm text-toned">
-        <li v-for="draft in seeded.drafts" :key="draft.slug">{{ draft.label }}<span v-if="draft === seeded.drafts[0]" class="text-muted">, the base the others compare with</span></li>
+        <li v-for="draft in seeded.drafts" :key="draft.slug">
+          {{ scenarioName(draft) }}<span v-if="draft === seeded.drafts[0]" class="text-muted">{{ words.startingDialog.theBase }}</span>
+        </li>
       </ol>
       <p class="text-xs text-muted">
-        Each pays out the rest of the year's profit as a dividend. The tax-free items use their yearly caps from the ruleset.
-        <template v-if="seeded.switchOn !== null && seeded.switchOn > `${year}-01-01`">
-          The two that stop the salary stop it on {{ dayLabel(seeded.switchOn) }}, the day after the grants no longer require the employment.</template
-        >
-        <template v-else-if="seeded.switchOn === null"> No day of {{ year }} is free of the grants' employment condition, so the two that stop the salary are left out.</template>
+        {{ words.startingDialog.eachPaysOut }}<template v-if="seeded.switchOn !== null && seeded.switchOn > `${year}-01-01`">{{ words.startingDialog.stopOn(dayLabel(seeded.switchOn)) }}</template
+        ><template v-else-if="seeded.switchOn === null">{{ words.startingDialog.noFreeDay(year) }}</template>
       </p>
-      <UFormField
-        label="Monthly rent you charge the company"
-        help="Your own figure, for the scenario with rent. Blank leaves the rent out."
-        :error="(tried && parsedRent === 'bad' && 'An amount above zero with at most two decimals') || false"
-      >
-        <UInput v-model="rent" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="starting-rent" />
+      <UFormField :label="words.startingDialog.rent" :help="words.startingDialog.rentHelp" :error="(tried && parsedRent === 'bad' && words.startingDialog.rentError) || false">
+        <UInput v-model="rent" inputmode="decimal" :placeholder="words.startingDialog.amountPlaceholder" class="w-full" data-testid="starting-rent" />
       </UFormField>
-      <p v-if="clash.length > 0" class="text-sm text-error" role="alert">The tab already has {{ clash.join(', ') }}, so the starting scenarios for {{ year }} are there.</p>
+      <p v-if="clash.length > 0" class="text-sm text-error" role="alert">{{ words.startingDialog.clash(clash.join(', '), year) }}</p>
     </form>
     <template #end>
-      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.startingDialog.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
       <UButton
         type="submit"
         form="starting-scenarios"
-        label="Add the scenarios"
+        :label="words.startingDialog.add"
         icon="i-lucide-plus"
         :loading="writes.busy.value"
         :disabled="writes.busy.value"

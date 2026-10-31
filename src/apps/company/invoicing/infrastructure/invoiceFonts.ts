@@ -6,11 +6,12 @@ import regularExtendedUrl from '@fontsource/inter/files/inter-latin-ext-400-norm
 import regularLatinUrl from '@fontsource/inter/files/inter-latin-400-normal.woff?url'
 
 import type { FontPair, InvoiceFontFiles } from './invoicePdf'
+import { words } from './words'
 
 async function bytesOf(url: string): Promise<Uint8Array> {
   const response = await fetch(url)
   if (!response.ok) {
-    throw new Error(`The invoice font ${url} did not load: ${response.status}.`)
+    throw new Error(words.fontFailed(url, response.status))
   }
   return new Uint8Array(await response.arrayBuffer())
 }

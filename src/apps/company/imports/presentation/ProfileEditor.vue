@@ -8,6 +8,7 @@ import USelect from '@nuxt/ui/components/Select.vue'
 
 import { DATE_FORMATS, profileDraftProblem } from '../domain/importProfile'
 import type { ImportProfile } from '../domain/importProfile'
+import { words } from './words'
 
 const props = defineProps<{
   /** The header texts of the file's header row. */
@@ -28,15 +29,15 @@ const emit = defineEmits<{
 const NO_COLUMN = ' '
 
 const columnItems = computed(() => props.headers.map((header) => ({ label: header, value: header })))
-const optionalItems = computed(() => [{ label: 'None', value: NO_COLUMN }, ...columnItems.value])
+const optionalItems = computed(() => [{ label: words.profile.none, value: NO_COLUMN }, ...columnItems.value])
 const dateFormatItems = DATE_FORMATS.map((format) => ({ label: format, value: format }))
 const decimalItems = [
-  { label: 'Comma, 1.234,56', value: 'comma' },
-  { label: 'Point, 1,234.56', value: 'point' },
+  { label: words.profile.comma, value: 'comma' },
+  { label: words.profile.point, value: 'point' },
 ]
 const amountKinds = [
-  { label: 'One column, money out negative', value: 'signed' },
-  { label: 'A debit and a credit column', value: 'split' },
+  { label: words.profile.signed, value: 'signed' },
+  { label: words.profile.split, value: 'split' },
 ]
 
 const amountKind = computed(() => ('signed' in profile.value.amount ? 'signed' : 'split'))
@@ -54,11 +55,11 @@ function setAmountKind(kind: string): void {
 type OptionalColumn = 'balance' | 'counterparty' | 'counterpartyIban' | 'description' | 'reference'
 
 const optionalFields: { readonly field: OptionalColumn; readonly label: string }[] = [
-  { field: 'balance', label: 'Balance' },
-  { field: 'counterparty', label: 'Counterparty' },
-  { field: 'counterpartyIban', label: 'Counterparty IBAN' },
-  { field: 'description', label: 'Description' },
-  { field: 'reference', label: 'Bank reference' },
+  { field: 'balance', label: words.profile.balance },
+  { field: 'counterparty', label: words.profile.counterparty },
+  { field: 'counterpartyIban', label: words.profile.counterpartyIban },
+  { field: 'description', label: words.profile.description },
+  { field: 'reference', label: words.profile.reference },
 ]
 
 function setOptional(field: OptionalColumn, value: unknown): void {
@@ -71,7 +72,7 @@ const problem = computed(() => profileDraftProblem(profile.value))
 <template>
   <div class="flex flex-col gap-4" data-testid="profile-editor">
     <div class="grid gap-3 sm:grid-cols-2">
-      <UFormField label="Profile name" help="Saved on the settings tab, so it follows the workbook.">
+      <UFormField :label="words.profile.name" :help="words.profile.nameHelp">
         <UInput
           :model-value="profile.name"
           :disabled="editing"
@@ -81,48 +82,61 @@ const problem = computed(() => profileDraftProblem(profile.value))
           @update:model-value="update({ name: String($event).trim().toLowerCase() })"
         />
       </UFormField>
-      <UFormField label="Account">
+      <UFormField :label="words.profile.account">
         <USelect
           :model-value="profile.account"
           :items="[...accounts]"
-          placeholder="Choose an account"
+          :placeholder="words.profile.chooseAccount"
           class="w-full"
           data-testid="profile-account"
           @update:model-value="update({ account: String($event) })"
         />
       </UFormField>
-      <UFormField label="Date column">
-        <USelect :model-value="profile.date" :items="columnItems" placeholder="Choose a column" class="w-full" data-testid="profile-date" @update:model-value="update({ date: String($event) })" />
+      <UFormField :label="words.profile.date">
+        <USelect
+          :model-value="profile.date"
+          :items="columnItems"
+          :placeholder="words.profile.chooseColumn"
+          class="w-full"
+          data-testid="profile-date"
+          @update:model-value="update({ date: String($event) })"
+        />
       </UFormField>
-      <UFormField label="Dates written as" help="A date cell reads as a date whatever this says.">
+      <UFormField :label="words.profile.dateFormat" :help="words.profile.dateFormatHelp">
         <USelect :model-value="profile.dateFormat" :items="dateFormatItems" class="w-full" @update:model-value="update({ dateFormat: $event as ImportProfile['dateFormat'] })" />
       </UFormField>
-      <UFormField label="Decimal mark" help="For amounts written as text.">
+      <UFormField :label="words.profile.decimal" :help="words.profile.decimalHelp">
         <USelect :model-value="profile.decimal" :items="decimalItems" class="w-full" @update:model-value="update({ decimal: $event as ImportProfile['decimal'] })" />
       </UFormField>
-      <UFormField label="Amounts">
+      <UFormField :label="words.profile.amounts">
         <URadioGroup :model-value="amountKind" :items="amountKinds" @update:model-value="setAmountKind(String($event))" />
       </UFormField>
       <template v-if="'signed' in profile.amount">
-        <UFormField label="Amount column">
-          <USelect :model-value="profile.amount.signed" :items="columnItems" placeholder="Choose a column" class="w-full" @update:model-value="update({ amount: { signed: String($event) } })" />
+        <UFormField :label="words.profile.amount">
+          <USelect
+            :model-value="profile.amount.signed"
+            :items="columnItems"
+            :placeholder="words.profile.chooseColumn"
+            class="w-full"
+            @update:model-value="update({ amount: { signed: String($event) } })"
+          />
         </UFormField>
       </template>
       <template v-else>
-        <UFormField label="Debit column, money out">
+        <UFormField :label="words.profile.debit">
           <USelect
             :model-value="profile.amount.debit"
             :items="columnItems"
-            placeholder="Choose a column"
+            :placeholder="words.profile.chooseColumn"
             class="w-full"
             @update:model-value="update({ amount: { debit: String($event), credit: 'credit' in profile.amount ? profile.amount.credit : '' } })"
           />
         </UFormField>
-        <UFormField label="Credit column, money in">
+        <UFormField :label="words.profile.credit">
           <USelect
             :model-value="profile.amount.credit"
             :items="columnItems"
-            placeholder="Choose a column"
+            :placeholder="words.profile.chooseColumn"
             class="w-full"
             @update:model-value="update({ amount: { debit: 'debit' in profile.amount ? profile.amount.debit : '', credit: String($event) } })"
           />
@@ -134,9 +148,16 @@ const problem = computed(() => profileDraftProblem(profile.value))
     </div>
     <div class="flex flex-wrap items-center justify-between gap-3">
       <p class="text-sm" :class="problem ? 'text-warning' : 'text-muted'" data-testid="profile-problem">
-        {{ problem ?? 'The dry run below reads the file with this profile.' }}
+        {{ problem ?? words.profile.reads }}
       </p>
-      <UButton :label="editing ? 'Save profile' : 'Save new profile'" icon="i-lucide-save" :loading="saving" :disabled="problem !== null || saving" data-testid="profile-save" @click="emit('save')" />
+      <UButton
+        :label="editing ? words.profile.save : words.profile.saveNew"
+        icon="i-lucide-save"
+        :loading="saving"
+        :disabled="problem !== null || saving"
+        data-testid="profile-save"
+        @click="emit('save')"
+      />
     </div>
   </div>
 </template>

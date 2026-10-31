@@ -34,7 +34,7 @@ export const hr: Translation<typeof en> = {
   home: {
     title: 'Gdje se čuva datoteka kredita',
     dropsTitle: 'Datoteka kredita u ovom pregledniku briše se kad se otvori ona s Drivea',
-    notMade: 'Datoteka kredita nije napravljena',
+    notMade: 'Datoteka kredita nije izrađena',
   },
   folder: {
     title: 'Gdje se sprema datoteka kredita',

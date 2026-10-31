@@ -12,6 +12,7 @@ import { GRANT_RECORDS } from '../hrDooKinds'
 import { sharedKeys } from '../../../../../../shared/storage/domain/sharedKeys'
 import { keyedId, optionalDate, optionalMoney, optionalPeriod, positiveMoney, refuse, requiredChoice, requiredDate, slugOf, textOf } from '../../../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../../../shared/storage/domain/storedFields'
+import { words } from '../words'
 
 const DEFAULT_RELEASE: GrantRelease = 'fixed-then-assets'
 
@@ -22,14 +23,14 @@ export function grantOfFields(fields: StoredFields): Grant {
 
 export function grantOf(fields: StoredFields, id: RecordId | null): Grant {
   const slug = slugOf(fields.grant)
-  if (slug === '') refuse('no grant name')
+  if (slug === '') refuse(words.reading.noGrantName)
   const received = requiredDate(fields, 'received')
   const amount = positiveMoney(fields, 'amount')
   const parts = partsOf(fields, amount)
   const period = optionalPeriod(fields, 'period_from', 'period_to')
   const release = fields.release === undefined ? DEFAULT_RELEASE : requiredChoice(fields, 'release', GRANT_RELEASES)
-  if (release === 'fixed-then-assets' && parts === null) refuse('a fixed-then-assets release needs fixed_part and variable_part')
-  if (release === 'straight-line' && period === null) refuse('a straight-line release needs period_from and period_to')
+  if (release === 'fixed-then-assets' && parts === null) refuse(words.reading.fixedThenAssetsNeedsParts)
+  if (release === 'straight-line' && period === null) refuse(words.reading.straightLineNeedsPeriod)
   return {
     slug,
     received,
@@ -77,10 +78,10 @@ function partsOf(fields: StoredFields, amount: Grant['amount']): GrantParts | nu
   const fixed = optionalMoney(fields, 'fixed_part')
   const variable = optionalMoney(fields, 'variable_part')
   if (fixed === null && variable === null) return null
-  if (fixed === null || variable === null) refuse('fixed_part and variable_part go together, and only one is filled')
-  if (fixed < 0 || variable < 0) refuse('fixed_part and variable_part cannot be negative')
+  if (fixed === null || variable === null) refuse(words.reading.partsGoTogether)
+  if (fixed < 0 || variable < 0) refuse(words.reading.partsNegative)
   const total = addMoney(fixed, variable)
-  if (total !== amount) refuse(`fixed_part and variable_part add up to ${plainAmount(total)}, not the amount ${plainAmount(amount)}`)
+  if (total !== amount) refuse(words.reading.partsAddUp(plainAmount(total), plainAmount(amount)))
   return { fixed, variable }
 }
 
@@ -89,7 +90,7 @@ function clawbackOf(fields: StoredFields, name: string): GrantClawback | null {
   const field = fields[name]
   if (field === undefined) return null
   if (slugOf(field) === 'whole') return 'whole'
-  return field.money !== null && field.money > 0 ? field.money : refuse(`${name} "${field.text}" is neither whole nor an amount above zero`)
+  return field.money !== null && field.money > 0 ? field.money : refuse(words.reading.notWholeOrAmount(name, field.text))
 }
 
 /** The grants. A name on more than one record leaves out every record of it, since its income would count twice. */
@@ -97,7 +98,7 @@ export function readGrants(read: RecordsRead<Grant>): Reading<Grant> {
   const twice = sharedKeys(read.records, (stored) => stored.record.slug)
   const problems: RecordProblem[] = [
     ...refusedProblems(read),
-    ...read.records.filter((stored) => twice.has(stored.record.slug)).map((stored) => problemOf(stored, `"${stored.record.slug}" is listed on more than one row, so none of them counts`)),
+    ...read.records.filter((stored) => twice.has(stored.record.slug)).map((stored) => problemOf(stored, words.reading.listedTwice(stored.record.slug))),
   ]
   return { facts: read.records.map((stored) => stored.record).filter((grant) => !twice.has(grant.slug)), problems }
 }

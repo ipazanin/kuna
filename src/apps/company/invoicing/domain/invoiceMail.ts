@@ -1,4 +1,5 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { words } from './words'
 
 export const DEFAULT_MAIL_SUBJECT = 'Invoice {number}, {month}'
 
@@ -28,7 +29,7 @@ export interface InvoiceMail {
 /** Null when every word in braces is one the app fills in. */
 export function mailTemplateProblem(template: string): string | null {
   const unknown = (template.match(TOKEN) ?? []).filter((token) => !(MAIL_TOKENS as readonly string[]).includes(token))
-  return unknown.length === 0 ? null : `${unknown.join(', ')} is not one of ${MAIL_TOKENS.join(', ')}`
+  return unknown.length === 0 ? null : words.unknownTokens(unknown, MAIL_TOKENS)
 }
 
 /** The issue month as the client reads it, such as October 2026. An unknown language falls back to English. */

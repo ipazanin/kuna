@@ -8,20 +8,22 @@ import { COMPANY_FACT_SETTINGS, companyFactsErrors } from './domain/companyFacts
 import { HR_DOO, HR_DOO_PART, hrDooWorkbook } from './domain/hrDooPart'
 import { packWaitingJobs } from './presentation/packWaitingJobs'
 import { unaccountedInView } from './presentation/unaccountedInView'
+import { words as packWords } from './presentation/words'
+import { words as rulesetWords } from './ruleset/presentation/words'
 
 /** The pages that break the taxes and the owner pay further down than the spending breakdown. */
 const COST_GROUP_LINKS: Readonly<Record<string, { readonly label: string; readonly to: RouteLocationRaw }>> = {
-  taxes: { label: 'Year, Taxes', to: { path: '/company/year', query: { tab: 'taxes' } } },
-  'owner-pay': { label: 'Owner, Taken', to: { path: '/company/owner' } },
+  taxes: { label: packWords.links.yearTaxes, to: { path: '/company/year', query: { tab: 'taxes' } } },
+  'owner-pay': { label: packWords.links.ownerTaken, to: { path: '/company/owner' } },
 }
 
 /** The Croatian d.o.o. pack: owner pay, taxes, the accountant's year end, the assets and the employees, on core's screens and its own. */
 export const hrDooPack: PackContribution = {
   workbook: HR_DOO_PART,
   screens: [
-    { path: '/company/owner', title: 'Owner', icon: 'i-lucide-user-round', component: () => import('./presentation/OwnerScreen.vue') },
-    { path: '/company/year', title: 'Year', icon: 'i-lucide-calendar-check', component: () => import('./presentation/year/YearScreen.vue') },
-    { path: '/company/salaries', title: 'Salaries', icon: 'i-lucide-users', component: () => import('./presentation/salaries/SalariesScreen.vue') },
+    { path: '/company/owner', title: packWords.screens.owner, icon: 'i-lucide-user-round', component: () => import('./presentation/OwnerScreen.vue') },
+    { path: '/company/year', title: packWords.screens.year, icon: 'i-lucide-calendar-check', component: () => import('./presentation/year/YearScreen.vue') },
+    { path: '/company/salaries', title: packWords.screens.salaries, icon: 'i-lucide-users', component: () => import('./presentation/salaries/SalariesScreen.vue') },
   ],
   waitingJobs: (workbook, asOf) => packWaitingJobs(hrDooWorkbook(workbook), asOf),
   reviewCards: [
@@ -30,7 +32,7 @@ export const hrDooPack: PackContribution = {
       shows: (ledger) => unaccountedInView(ledger).length > 0,
     },
   ],
-  settingsTabs: [{ value: 'ruleset', label: 'Ruleset', icon: 'i-lucide-scale', component: defineAsyncComponent(() => import('./ruleset/presentation/RulesetPanel.vue')) }],
+  settingsTabs: [{ value: 'ruleset', label: rulesetWords.tab, icon: 'i-lucide-scale', component: defineAsyncComponent(() => import('./ruleset/presentation/RulesetPanel.vue')) }],
   settingsCards: [defineAsyncComponent(() => import('./presentation/LoanBucketSwitch.vue'))],
   companyFacts: {
     card: defineAsyncComponent(() => import('./presentation/CompanyFactsCard.vue')),
@@ -43,8 +45,5 @@ export const hrDooPack: PackContribution = {
   },
   costGroupLinks: (group) => COST_GROUP_LINKS[group] ?? null,
   mailSources: ACCOUNTANT_MAIL_SOURCES,
-  onboarding: {
-    question: 'Is this a Croatian d.o.o. that pays its owner?',
-    yes: 'Yes, add owner pay, taxes and year end',
-  },
+  onboarding: packWords.onboarding,
 }

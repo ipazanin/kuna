@@ -32,6 +32,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 
 import DrillLink from '../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../shared/ui/MoneyText.vue'
+import { words } from './words'
 
 /** Each cost the owner paid privately, newest first, with the reimbursements the matching gave it. */
 defineProps<{
@@ -56,13 +57,19 @@ const emit = defineEmits<{
           <p class="truncate text-sm text-highlighted">{{ advance.description || advance.category }}</p>
           <p class="truncate text-xs text-muted">{{ advance.paidOn }}, {{ advance.category }}</p>
         </div>
-        <DrillLink :to="advance.to" :label="`Advance of ${advance.paidOn}, open the row`" class="text-end">
+        <DrillLink :to="advance.to" :label="words.advanceList.openRow(advance.paidOn)" class="text-end">
           <MoneyText :cents="advance.amount" class="text-sm font-medium text-highlighted" />
         </DrillLink>
-        <UBadge :label="advance.open ? 'Owed to the owner' : 'Reimbursed'" :color="advance.open ? 'warning' : 'success'" variant="subtle" size="sm" class="justify-self-start" />
+        <UBadge
+          :label="advance.open ? words.advanceList.owedToOwner : words.advanceList.reimbursed"
+          :color="advance.open ? 'warning' : 'success'"
+          variant="subtle"
+          size="sm"
+          class="justify-self-start"
+        />
         <p class="advance-remaining text-xs text-muted">
-          <template v-if="advance.open"><MoneyText :cents="advance.remaining" class="text-toned" /> still owed</template>
-          <template v-else-if="advance.repaidOn">Reimbursed {{ advance.repaidOn }}</template>
+          <template v-if="advance.open"><MoneyText :cents="advance.remaining" class="text-toned" />{{ words.advanceList.stillOwed }}</template>
+          <template v-else-if="advance.repaidOn">{{ words.advanceList.reimbursedOn(advance.repaidOn) }}</template>
         </p>
         <UButton
           icon="i-lucide-pencil"
@@ -72,14 +79,14 @@ const emit = defineEmits<{
           square
           class="advance-edit"
           :disabled="busy"
-          :aria-label="`Change or delete the advance of ${advance.paidOn}`"
+          :aria-label="words.advanceList.edit(advance.paidOn)"
           data-testid="advance-edit"
           @click="emit('edit', advance.id)"
         />
       </div>
-      <ol v-if="advance.repayments.length > 0" class="advance-trail" :aria-label="`Reimbursements matched to the advance of ${advance.paidOn}`">
+      <ol v-if="advance.repayments.length > 0" class="advance-trail" :aria-label="words.advanceList.matched(advance.paidOn)">
         <li v-for="repayment in advance.repayments" :key="repayment.key">
-          <DrillLink :to="repayment.to" :label="`Reimbursement of ${repayment.date}, open the row`" class="advance-share">
+          <DrillLink :to="repayment.to" :label="words.advanceList.reimbursementRow(repayment.date)" class="advance-share">
             <span class="text-muted">{{ repayment.date }}</span>
             <MoneyText :cents="repayment.applied" class="text-toned" />
           </DrillLink>

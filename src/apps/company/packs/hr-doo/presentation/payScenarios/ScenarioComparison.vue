@@ -8,6 +8,7 @@ import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import { GROUP_LABELS } from './payScenariosView'
 import type { FigureDetail } from '../tracedFigureView'
 import type { ComparedCell, ComparedLine, LineGroup, ScenarioColumn } from './payScenariosView'
+import { words } from './words'
 
 /**
  * The lines of each scenario side by side, the base first. The best value of a line that has a
@@ -48,14 +49,14 @@ const groups = computed(() => {
 })
 
 function cellLabel(line: ComparedLine, cell: ComparedCell, column: ScenarioColumn): string {
-  return `${line.label}, ${column.label}${cell.best ? ', the best' : ''}: open how it is built`
+  return words.comparison.openCell(line.label, column.label, cell.best ? words.comparison.best : '')
 }
 </script>
 
 <template>
   <div class="flex flex-col gap-3" data-testid="scenario-comparison">
-    <div v-if="narrow && columns.length > 2" class="flex flex-wrap items-center gap-1.5" role="group" aria-label="Scenario beside the base" data-testid="comparison-against">
-      <span class="me-1 text-sm text-toned">Beside the base</span>
+    <div v-if="narrow && columns.length > 2" class="flex flex-wrap items-center gap-1.5" role="group" :aria-label="words.comparison.besideTheBase" data-testid="comparison-against">
+      <span class="me-1 text-sm text-toned">{{ words.comparison.beside }}</span>
       <UButton
         v-for="entry in columns.slice(1)"
         :key="entry.slug"
@@ -70,10 +71,12 @@ function cellLabel(line: ComparedLine, cell: ComparedCell, column: ScenarioColum
     <table class="comparison" :class="{ 'is-narrow': narrow }">
       <thead>
         <tr>
-          <th scope="col" class="line-head"><span class="sr-only">Line</span></th>
+          <th scope="col" class="line-head">
+            <span class="sr-only">{{ words.comparison.line }}</span>
+          </th>
           <th v-for="entry in shownColumns" :key="entry.column.slug" scope="col" class="figure-head">
             <span class="block text-sm font-medium text-highlighted">{{ entry.column.label }}</span>
-            <span v-if="entry.column.isBase" class="block text-xs font-normal text-muted">The base, others against it</span>
+            <span v-if="entry.column.isBase" class="block text-xs font-normal text-muted">{{ words.comparison.base }}</span>
           </th>
         </tr>
       </thead>

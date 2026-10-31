@@ -1,5 +1,5 @@
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
-import { monthAxisLabel, monthLabel } from '../../../../../../shared/calendar/monthLabel'
+import { monthAxisLabel } from '../../../../../../shared/calendar/monthLabel'
 import { lastDayOf, monthOf, monthsFrom } from '../../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
 import { moneyAxisLabel } from '../../../../../../shared/charts/chartTheme'
@@ -10,11 +10,12 @@ import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../../../shared/ui/ChartLegend.vue'
 import { bookValueOn } from '../../domain/assets/depreciationSchedule'
 import type { DepreciationSchedule } from '../../domain/assets/depreciationSchedule'
+import { words } from './words'
 
 /** The categorical slots a chart may use before the rest fold into one series. */
 const SLOTS = 8
 
-const AHEAD_LABEL = 'Months still to come'
+const AHEAD_LABEL = words.chart.ahead
 
 export interface BookValueChart {
   readonly option: ChartOption
@@ -73,10 +74,7 @@ export function bookValueChart(schedules: readonly DepreciationSchedule[], today
     option,
     empty: series.length === 0,
     legend: [...lines.map((line): LegendEntry => ({ label: line.name, colour: line.colour, mark: 'line' })), { label: AHEAD_LABEL, colour: 'var(--chart-ghost)', mark: 'ghost' }],
-    description:
-      first === undefined || last === undefined
-        ? 'No asset is depreciated.'
-        : `Book value of ${lines.map((line) => line.name).join(', ')} at the end of each month from ${monthLabel(first)} to ${monthLabel(last)}. ` + `${formatMoney(todayValue)} in all today.`,
+    description: first === undefined || last === undefined ? words.chart.none : words.chart.description(lines.map((line) => line.name).join(', '), first, last, formatMoney(todayValue)),
   }
 }
 
@@ -102,7 +100,7 @@ function assetLines(schedules: readonly DepreciationSchedule[], tokens: ChartTok
   if (schedules.length <= SLOTS) {
     return schedules.map(own)
   }
-  return [...schedules.slice(0, SLOTS - 1).map(own), { name: 'Other assets', colour: tokens.deemphasis, schedules: schedules.slice(SLOTS - 1) }]
+  return [...schedules.slice(0, SLOTS - 1).map(own), { name: words.chart.otherAssets, colour: tokens.deemphasis, schedules: schedules.slice(SLOTS - 1) }]
 }
 
 /** Each month's book value, null before the first purchase and after the line has reached zero. */

@@ -22,6 +22,7 @@ import { ref } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
+import { words } from './words'
 
 /** One figure per year, which opens on the charge of each asset behind it. */
 const props = defineProps<{
@@ -38,7 +39,7 @@ function toggle(year: number): void {
   open.value = next
 }
 
-const WHEN = { past: '', current: 'This year', ahead: 'To come' } as const
+const WHEN = { past: '', current: words.years.thisYear, ahead: words.years.toCome } as const
 </script>
 
 <template>
@@ -55,7 +56,7 @@ const WHEN = { past: '', current: 'This year', ahead: 'To come' } as const
           <div class="min-w-0">
             <p class="truncate text-sm text-toned">{{ charge.asset }}</p>
             <p class="text-xs text-muted">
-              {{ charge.basis }}<template v-if="charge.deductible !== null">, of which the profit tax allows <MoneyText :cents="charge.deductible" /></template>
+              {{ charge.basis }}<template v-if="charge.deductible !== null">{{ words.years.deductible }}<MoneyText :cents="charge.deductible" /></template>
             </p>
           </div>
           <MoneyText :cents="charge.amount" class="text-sm text-toned" />

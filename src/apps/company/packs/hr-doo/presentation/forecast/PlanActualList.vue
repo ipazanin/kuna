@@ -4,6 +4,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import type { PlanActualView } from './forecastView'
+import { words } from './words'
 
 /** Each planned line against the ledger, with plan, actual and the difference, opening on its months. */
 defineProps<{
@@ -29,9 +30,18 @@ function toggle(key: string): void {
           <span class="block text-xs text-muted">{{ line.verdict }}</span>
         </span>
         <span class="figures">
-          <span><span class="figure-label">Plan</span><MoneyText :cents="line.plan" class="text-sm text-toned" /></span>
-          <span><span class="figure-label">Actual</span><MoneyText :cents="line.actual" class="text-sm text-toned" /></span>
-          <span><span class="figure-label">Difference</span><MoneyText :cents="line.difference" sign="always" class="text-sm font-medium text-highlighted" /></span>
+          <span
+            ><span class="figure-label">{{ words.planActual.plan }}</span
+            ><MoneyText :cents="line.plan" class="text-sm text-toned"
+          /></span>
+          <span
+            ><span class="figure-label">{{ words.planActual.actual }}</span
+            ><MoneyText :cents="line.actual" class="text-sm text-toned"
+          /></span>
+          <span
+            ><span class="figure-label">{{ words.planActual.difference }}</span
+            ><MoneyText :cents="line.difference" sign="always" class="text-sm font-medium text-highlighted"
+          /></span>
         </span>
       </button>
       <ul v-if="open.has(line.key)" :id="`plan-actual-${line.key}`" class="months">

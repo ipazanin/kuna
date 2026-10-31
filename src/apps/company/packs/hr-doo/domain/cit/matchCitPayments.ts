@@ -7,9 +7,11 @@ import { negateMoney, subtractMoney, sumMoney } from '../../../../../../shared/m
 import type { Money } from '../../../../../../shared/money/money'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { withDrill } from '../accrual/accrualAdjustment'
+import { words as accrualWords } from '../accrual/words'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
 import { summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { CitObligation, CitSchedule } from './citSchedule'
+import { words } from './words'
 
 /** `due` falls due in the month of the day matched on, `to-come` later, `overdue` before it. */
 export type CitObligationStatus = 'paid' | 'due' | 'overdue' | 'to-come'
@@ -70,7 +72,7 @@ export function matchCitPayments(schedules: readonly CitSchedule[], transactions
 
   const matched = filling.map(({ obligation, outstanding, shares }): MatchedCitObligation => {
     const steps = shares.map(paymentStep)
-    const paid = tracedFigure(`${obligation.expected.label}, paid`, sumMoney(steps.map((step) => step.amount)), 'ledger', obligation.expected.rules, steps)
+    const paid = tracedFigure(words.schedule.paid(obligation.expected.label), sumMoney(steps.map((step) => step.amount)), 'ledger', obligation.expected.rules, steps)
     return { obligation, status: statusOf(obligation, outstanding, asOf), paid: withDrill(paid, drillOf(shares, slugs)), outstanding }
   })
   return {
@@ -81,7 +83,7 @@ export function matchCitPayments(schedules: readonly CitSchedule[], transactions
       return {
         year: schedule.year,
         paid: summed(
-          `PD line 56, advances paid for ${schedule.year}`,
+          words.liability.advancesPaid(schedule.year),
           paid.map((entry) => entry.paid),
           'ledger',
         ),
@@ -93,7 +95,7 @@ export function matchCitPayments(schedules: readonly CitSchedule[], transactions
 /** What is still to pay on an obligation, named with the day it falls due. */
 export function outstandingFigure(entry: MatchedCitObligation): TracedFigure {
   const { obligation } = entry
-  return { ...tracedFigure(`${obligation.expected.label}, due`, entry.outstanding, 'ledger', obligation.expected.rules), on: obligation.dueOn }
+  return { ...tracedFigure(words.schedule.due(obligation.expected.label), entry.outstanding, 'ledger', obligation.expected.rules), on: obligation.dueOn }
 }
 
 function statusOf(obligation: CitObligation, outstanding: Money, asOf: CivilDate): CitObligationStatus {
@@ -114,7 +116,7 @@ interface RowShare {
 
 function paymentStep(share: RowShare): TracedFigure {
   const { row } = share
-  return withDrill({ ...tracedFigure(`${row.description || row.counterparty || row.category} on`, share.amount, 'ledger', []), on: row.date }, rowDrill(row))
+  return withDrill({ ...tracedFigure(accrualWords.rowOn(row.description || row.counterparty || row.category), share.amount, 'ledger', []), on: row.date }, rowDrill(row))
 }
 
 /** The one row, or the corporate tax rows from the first payment to the last. */

@@ -1,6 +1,7 @@
 import { isIban } from '../../workbook/domain/iban'
 import { slugChangeRefusals } from '../../workbook/domain/slug'
 import type { SlugUses } from '../../workbook/domain/slug'
+import { words } from './words'
 
 interface ClientCells {
   readonly slug: string
@@ -39,11 +40,11 @@ export function clientChangeRefusals(edits: readonly ClientEdit[], untouched: re
       const holder = others.find((client) => client.ibans.includes(iban))
       const account = checks.accountIbans.get(iban)
       if (!isIban(iban)) {
-        refusals.push(`"${iban}" is not a valid IBAN.`)
+        refusals.push(words.notAnIban(iban))
       } else if (holder !== undefined) {
-        refusals.push(`${iban} is already on the clients tab for ${holder.slug}.`)
+        refusals.push(words.clients.onAnotherClient(iban, holder.slug))
       } else if (account !== undefined) {
-        refusals.push(`${iban} is the IBAN of your ${account} account, so a transfer between your own accounts would read as a payment from a client.`)
+        refusals.push(words.clients.ownAccount(iban, account))
       }
     }
   }

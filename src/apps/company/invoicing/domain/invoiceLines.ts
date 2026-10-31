@@ -3,6 +3,7 @@ import { monthOf } from '../../../../shared/calendar/monthKey'
 import { sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { ExpectedInvoice } from '../../billingPlan/domain/expectedInvoices'
+import { words } from './words'
 
 /** One line of an invoice: a service at quantity one, priced without VAT. */
 export interface InvoiceLine {
@@ -33,9 +34,9 @@ export function registerItemOf(lines: readonly InvoiceLine[]): string {
 
 /** Why the lines cannot go on an invoice, each a sentence. Empty when they can. */
 export function lineProblems(lines: readonly InvoiceLine[]): string[] {
-  if (lines.length === 0) return ['Add a line.']
+  if (lines.length === 0) return [words.addLine]
   const problems: string[] = []
-  if (lines.some((line) => line.description.trim() === '')) problems.push('Every line needs a description.')
-  if (lines.some((line) => !(line.amount > 0))) problems.push('Every line needs an amount above zero.')
+  if (lines.some((line) => line.description.trim() === '')) problems.push(words.lineDescription)
+  if (lines.some((line) => !(line.amount > 0))) problems.push(words.lineAmount)
   return problems
 }

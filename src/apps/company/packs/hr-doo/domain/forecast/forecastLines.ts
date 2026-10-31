@@ -7,6 +7,7 @@ import { ZERO, divideMoney } from '../../../../../../shared/money/money'
 import type { FigureBasis, TracedFigure } from '../../ruleset/tracedFigure'
 import type { CostLine } from '../accrual/costLines'
 import { deducted, summed, tracedFigure } from '../payroll/payrollArithmetic'
+import { words } from './words'
 
 /**
  * What a month's figure rests on: the ledger, a plan row, the trailing average, a cost paid ahead
@@ -112,7 +113,7 @@ export function forecastLine(calendar: ForecastCalendar, sources: LineSources): 
     if (paidAhead !== null) {
       return { month, bases: ['paid-ahead'], figure: paidAhead, soFar, plan: null }
     }
-    return { month, bases: ['averaged'], figure: tracedFigure(`${sources.label}, ${monthLabel(month)}: averaged`, average.amount, sources.basis, average.rules, [average]), soFar, plan: null }
+    return { month, bases: ['averaged'], figure: tracedFigure(words.lines.averaged(sources.label, monthLabel(month)), average.amount, sources.basis, average.rules, [average]), soFar, plan: null }
   })
   const averaged = months.some((entry) => entry.bases.includes('averaged'))
   return {
@@ -160,7 +161,7 @@ export function addedUpLine(calendar: ForecastCalendar, label: string, parts: re
       month,
       bases: [...new Set(inMonth.flatMap(({ entry }) => entry.bases))],
       figure: summed(
-        `${label}, ${monthLabel(month)}`,
+        words.figures.inMonth(label, monthLabel(month)),
         inMonth.map(({ part, entry }) => signed(entry.figure, part.sign)),
         'ledger',
       ),
@@ -168,7 +169,7 @@ export function addedUpLine(calendar: ForecastCalendar, label: string, parts: re
         shown.length === 0
           ? null
           : summed(
-              `${label}, ${monthLabel(month)} so far`,
+              words.lines.soFar(label, monthLabel(month)),
               shown.map(({ part, entry }) => signed(entry.soFar as TracedFigure, part.sign)),
               'ledger',
             ),
@@ -208,14 +209,12 @@ function averageSpan(firstComplete: MonthKey | null, lastActual: MonthKey | null
 
 function averageOf(sources: LineSources, span: MonthSpan | null): TracedFigure {
   if (span === null) {
-    return tracedFigure('No complete month to average, so nothing', ZERO, sources.basis, [])
+    return tracedFigure(words.lines.noMonthToAverage, ZERO, sources.basis, [])
   }
   const months = Array.from({ length: span.monthCount }, (_, offset) => sources.actual(addMonths(span.from, offset)))
-  const total = summed(`${sources.label}, ${monthLabel(span.from)} to ${monthLabel(span.to)}`, months, sources.basis)
+  const total = summed(words.lines.span(sources.label, monthLabel(span.from), monthLabel(span.to)), months, sources.basis)
   if (span.monthCount === 1) {
-    return { ...total, label: `As in ${monthLabel(span.from)}, the last month the ledger settles` }
+    return { ...total, label: words.lines.asIn(monthLabel(span.from)) }
   }
-  return tracedFigure(`Average of the ${span.monthCount} months from ${monthLabel(span.from)} to ${monthLabel(span.to)}`, divideMoney(total.amount, span.monthCount), sources.basis, total.rules, [
-    total,
-  ])
+  return tracedFigure(words.lines.averageOf(span.monthCount, monthLabel(span.from), monthLabel(span.to)), divideMoney(total.amount, span.monthCount), sources.basis, total.rules, [total])
 }

@@ -9,7 +9,10 @@ import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import StepCard from '../../../../shared/ui/StepCard.vue'
 import type { DriveFilePlace } from '../../../../shared/storage/application/workbookPorts'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import { NEW_BOOKS_TITLE } from '../../workbook/presentation/workbookFiles'
+import { words as settingsWords } from '../../settings/presentation/words'
 import { useOnboarding } from './useOnboarding'
+import { words } from './words'
 
 /**
  * The step that made the books of this run, gone back to once they exist: where they are, Continue
@@ -31,8 +34,11 @@ const confirming = ref(false)
 const held = computed(() => {
   const transactions = store.state.workbook?.transactions.length ?? 0
   const records = Object.values(store.state.snapshot?.document.records ?? {}).reduce((sum, kind) => sum + kind.length, 0)
-  return `They hold ${transactions} ${transactions === 1 ? 'transaction' : 'transactions'} and ${records} ${records === 1 ? 'record' : 'records'} in all.`
+  return words.made.holds(transactions, records)
 })
+
+/** New books kept in this browser carry the title Kuna stores for them, which shows in the language on screen. */
+const shownName = computed(() => (books.value?.name === NEW_BOOKS_TITLE ? settingsWords.books.newBooks : (books.value?.name ?? '')))
 
 onMounted(async () => {
   where.value = await store.driveFilePlace().catch(() => null)
@@ -60,45 +66,44 @@ async function startOver(): Promise<void> {
 </script>
 
 <template>
-  <StepCard title="Your books are made" subtitle="Continue goes on with them and makes nothing new.">
+  <StepCard :title="words.made.title" :subtitle="words.made.subtitle">
     <div v-if="books" class="flex flex-col gap-2 rounded-control border border-default bg-elevated/40 px-3 py-3" data-testid="onboarding-made">
       <template v-if="onDrive">
-        <p class="text-sm text-muted">Your books are saved in</p>
+        <p class="text-sm text-muted">{{ words.made.savedIn }}</p>
         <p v-if="where" class="identifier text-sm font-medium break-words text-highlighted" data-testid="onboarding-made-folder">{{ where.folderName }}</p>
-        <p v-else class="text-sm text-toned">a folder on Google Drive</p>
+        <p v-else class="text-sm text-toned">{{ words.made.aDriveFolder }}</p>
       </template>
-      <p v-else class="text-sm text-muted">Your books are kept in this browser</p>
+      <p v-else class="text-sm text-muted">{{ words.made.inBrowser }}</p>
       <p class="flex items-center gap-2 text-sm text-toned">
         <UIcon :name="onDrive ? 'i-lucide-file-json' : 'i-lucide-monitor-smartphone'" class="size-4 shrink-0 text-muted" aria-hidden="true" />
-        <span class="min-w-0 break-words" :class="{ identifier: onDrive }">{{ books.name }}</span>
+        <span class="min-w-0 break-words" :class="{ identifier: onDrive }">{{ shownName }}</span>
       </p>
       <a v-if="folderLink" :href="folderLink" target="_blank" rel="noopener" class="inline-target folder-link text-sm">
-        Open this folder in Drive
+        {{ words.folder.openFolder }}
         <UIcon name="i-lucide-external-link" class="size-3.5" aria-hidden="true" />
       </a>
     </div>
-    <p class="text-sm text-toned">
-      {{
-        onDrive ? 'Start over trashes this file in Drive, where the bin keeps it for 30 days, so you can choose again.' : 'Start over removes these books from this browser, so you can choose again.'
-      }}
-    </p>
-    <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" title="Start over did not work" :description="failure" />
+    <p class="text-sm text-toned">{{ onDrive ? words.made.startOverDrive : words.made.startOverBrowser }}</p>
+    <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.made.startOverFailed" :description="failure" />
 
     <template #actions>
-      <UButton label="Start over" icon="i-lucide-rotate-ccw" color="neutral" variant="outline" :loading="dropping" data-testid="onboarding-start-over" @click="confirming = true" />
-      <UButton label="Continue" trailing-icon="i-lucide-arrow-right" :disabled="dropping" data-testid="onboarding-continue" @click="onboarding.next()" />
+      <UButton :label="words.made.startOver" icon="i-lucide-rotate-ccw" color="neutral" variant="outline" :loading="dropping" data-testid="onboarding-start-over" @click="confirming = true" />
+      <UButton :label="words.continue" trailing-icon="i-lucide-arrow-right" :disabled="dropping" data-testid="onboarding-continue" @click="onboarding.next()" />
     </template>
   </StepCard>
 
-  <AppDialog
-    v-model:open="confirming"
-    :title="onDrive ? `Trash ${books?.name ?? 'the file'}` : 'Delete the books in this browser'"
-    :description="onDrive ? 'The file moves to the Drive bin, where you can restore it for 30 days.' : 'The books are deleted from this browser and cannot be recovered.'"
-  >
+  <AppDialog v-model:open="confirming" :title="onDrive ? words.made.trash(books?.name ?? null) : words.made.deleteHere" :description="onDrive ? words.made.trashNote : words.made.deleteNote">
     <UAlert icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="held" data-testid="onboarding-start-over-holds" />
     <template #end>
-      <UButton label="Keep them" color="neutral" variant="ghost" :disabled="dropping" data-testid="onboarding-keep-books" @click="confirming = false" />
-      <UButton :label="onDrive ? 'Trash the file' : 'Delete the books'" icon="i-lucide-trash-2" color="error" :loading="dropping" data-testid="onboarding-confirm-start-over" @click="startOver" />
+      <UButton :label="words.made.keep" color="neutral" variant="ghost" :disabled="dropping" data-testid="onboarding-keep-books" @click="confirming = false" />
+      <UButton
+        :label="onDrive ? words.made.trashFile : words.made.deleteBooks"
+        icon="i-lucide-trash-2"
+        color="error"
+        :loading="dropping"
+        data-testid="onboarding-confirm-start-over"
+        @click="startOver"
+      />
     </template>
   </AppDialog>
 </template>

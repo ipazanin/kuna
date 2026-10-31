@@ -4,7 +4,8 @@ import { useRoute } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
-import { formatDays, formatMoney } from '../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { plural } from '../../../../shared/text/translation'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
@@ -24,11 +25,12 @@ import ClientsPanel from './ClientsPanel.vue'
 import InvoiceRunDialog from './InvoiceRunDialog.vue'
 import { planMonthLink } from './invoicingLinks'
 import type { InvoiceRunMode } from './useInvoiceRun'
+import { words } from './words'
 
 const TABS: readonly PageTab[] = [
-  { label: 'Invoices', value: 'invoices', icon: 'i-lucide-receipt-text' },
-  { label: 'Plan', value: 'plan', icon: 'i-lucide-calendar-clock' },
-  { label: 'Clients', value: 'clients', icon: 'i-lucide-users' },
+  { label: words.tabs.invoices, value: 'invoices', icon: 'i-lucide-receipt-text' },
+  { label: words.tabs.plan, value: 'plan', icon: 'i-lucide-calendar-clock' },
+  { label: words.tabs.clients, value: 'clients', icon: 'i-lucide-users' },
 ]
 
 const { state } = useWorkbook()
@@ -66,32 +68,31 @@ const tiles = computed(() => {
   const invoicesTab = (hash: string) => ({ path: '/company/invoicing', hash })
   return [
     {
-      label: 'Next invoice',
+      label: words.tiles.next,
       value: next === null ? '–' : formatMoney(next.amount),
-      caption: next === null ? 'Every plan row is invoiced' : `${monthLabel(next.month)}, ${nextClient}`,
-      definition: 'The oldest month with plan rows no invoice has billed yet, for one client. It opens that month on the Plan tab.',
+      caption: next === null ? words.tiles.allInvoiced : `${monthLabel(next.month)}, ${nextClient}`,
+      definition: words.tiles.nextDefinition,
       to: next === null ? { path: '/company/invoicing', query: { tab: 'plan' } } : planMonthLink(next.month),
     },
     {
-      label: 'Outstanding',
+      label: words.tiles.outstanding,
       value: formatMoney(owed.outstanding),
-      caption: owed.openCount === 0 ? 'Every invoice is paid' : `${owed.openCount} ${owed.openCount === 1 ? 'invoice' : 'invoices'} open`,
-      definition: 'What every invoice still has unpaid, after the payments matched to it oldest first. An overpayment never makes it negative.',
+      caption: owed.openCount === 0 ? words.tiles.allPaid : plural(words.tiles.open(owed.openCount), owed.openCount),
+      definition: words.tiles.outstandingDefinition,
       to: invoicesTab('#invoices-card'),
     },
     {
-      label: 'Overdue',
+      label: words.tiles.overdue,
       value: formatMoney(owed.overdue),
-      caption: owed.overdueCount === 0 ? 'Nothing past its due date' : `${owed.overdueCount} ${owed.overdueCount === 1 ? 'invoice' : 'invoices'} past the due date`,
-      definition: 'The part of what is outstanding whose due date has passed, as of the newest booking in the ledger. An invoice with no due date counts from its issue date.',
+      caption: owed.overdueCount === 0 ? words.tiles.nothingLate : plural(words.tiles.late(owed.overdueCount), owed.overdueCount),
+      definition: words.tiles.overdueDefinition,
       to: invoicesTab('#invoices-ageing'),
     },
     {
-      label: 'Days to get paid',
-      value: paid.median === null ? '–' : `${formatDays(paid.median)} days`,
-      caption: paid.median === null ? 'No invoice paid in the last 12 months' : `Median over ${paid.days.length} paid in the last 12 months`,
-      definition:
-        'The median of the days from an invoice’s issue date to the payment that settled it, over the invoices settled in the last 12 months. The median, because one invoice paid months late moves a mean a long way.',
+      label: words.tiles.daysToPaid,
+      value: paid.median === null ? '–' : words.tiles.days(paid.median),
+      caption: paid.median === null ? words.tiles.nonePaid : words.tiles.medianOver(paid.days.length),
+      definition: words.tiles.daysDefinition,
       to: invoicesTab('#invoices-days'),
     },
   ]
@@ -100,10 +101,10 @@ const tiles = computed(() => {
 
 <template>
   <section class="flex flex-col gap-6">
-    <PageHeader title="Invoicing" description="What to bill this month, and who still owes the company.">
+    <PageHeader :title="words.title" :description="words.description">
       <template v-if="hasClients" #actions>
         <UButton
-          label="Make invoice"
+          :label="words.make"
           icon="i-lucide-file-plus-2"
           size="sm"
           :disabled="state.writing"
@@ -117,7 +118,7 @@ const tiles = computed(() => {
       <KpiTile v-for="tile in tiles" :key="tile.label" v-bind="tile" />
     </DashboardGrid>
 
-    <PageTabs :tabs="TABS" label="Invoices, plan and clients" @select="clientsLinked = false">
+    <PageTabs :tabs="TABS" :label="words.tabs.label" @select="clientsLinked = false">
       <template #invoices>
         <InvoicesPanel @run="openRun" />
       </template>

@@ -30,6 +30,7 @@ import { moneyLine } from './accrualLines'
 import type { MoneyLine } from './accrualLines'
 import { placementJudgement } from './closedYear'
 import { revenueByDelivery } from './revenueByDelivery'
+import { words } from './words'
 
 export interface BalanceSheetContext {
   readonly workbook: HrDooWorkbook
@@ -79,8 +80,8 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
   const cutOffOn = (bucket: DefinedBucket): AdjustmentId[] => (cutOffBuckets.has(bucket) ? ['arrears-cut-off'] : [])
 
   const tangible = summed(
-    'Book value of the assets',
-    books.schedules.map((schedule) => ({ ...bookValueOn(schedule, yearEnd), label: `${schedule.asset.name}, book value`, on: null })).filter((figure) => figure.amount !== 0),
+    words.balance.bookValue,
+    books.schedules.map((schedule) => ({ ...bookValueOn(schedule, yearEnd), label: words.balance.assetBookValue(schedule.asset.name), on: null })).filter((figure) => figure.amount !== 0),
     'assets',
   )
 
@@ -88,24 +89,24 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
   const firstInvoiceYear = Math.min(year, ...invoiceYears)
   const deliveredYears = Array.from({ length: year - firstInvoiceYear + 1 }, (_, offset) => revenueByDelivery(workbook.invoices, firstInvoiceYear + offset, rules))
   const delivered = summed(
-    'Revenue delivered to the year end',
+    words.balance.delivered,
     deliveredYears.map((entry) => entry.total),
     'invoices',
   )
   const accruedIncome = summed(
-    'Delivered by the year end on invoices issued after it',
+    words.balance.accruedIncome,
     deliveredYears.flatMap((entry) => entry.invoices.filter((invoice) => invoice.invoice.issued > yearEnd).map((invoice) => invoice.revenue)),
     'invoices',
   )
-  const received = rowsFigure('Client payments to the year end', roleRows(PACK_ROLES.revenue, RECEIVABLE_ROLES.clientRefund))
+  const received = rowsFigure(words.balance.received, roleRows(PACK_ROLES.revenue, RECEIVABLE_ROLES.clientRefund))
   const tradeSteps = [delivered, deducted(received), deducted(accruedIncome)]
-  const receivablesTrade = tracedFigure('Invoiced and not yet paid', sumMoney(tradeSteps.map((step) => step.amount)), 'invoices', rulesOf(tradeSteps), tradeSteps)
+  const receivablesTrade = tracedFigure(words.balance.receivablesTrade, sumMoney(tradeSteps.map((step) => step.amount)), 'invoices', rulesOf(tradeSteps), tradeSteps)
 
   const advances = workbook.ownerAdvances.filter((advance) => advance.date <= yearEnd)
   const owed = netOwed(ownerLoans(rows, workbook.categories), ownerAdvances(advances, rows, workbook.categories), workbook.categories)
-  const owedFigure = withDrill(tracedFigure('Owed by the owner on loans and advances, net', owed.amount, 'ledger', []), owed.drill)
+  const owedFigure = withDrill(tracedFigure(words.balance.owedByOwner, owed.amount, 'ledger', []), owed.drill)
 
-  const vat = vatPosition(bookings, monthKey(year, 12), rowsFigure('VAT refunded less VAT paid to the year end', roleRows(PACK_ROLES.vatSettlement)))
+  const vat = vatPosition(bookings, monthKey(year, 12), rowsFigure(words.balance.vatSettled, roleRows(PACK_ROLES.vatSettlement)))
 
   const citOwed = citOwedAt(context, rows, roleRows(PACK_ROLES.corporateIncomeTax))
 
@@ -118,16 +119,14 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
     .filter((figure) => figure.amount !== 0)
 
   const policyDeferred = summed(
-    'Grant deferred by our policy',
+    words.balance.grantDeferredByPolicy,
     books.grants.map((schedule) => deferredOn(schedule, yearEnd)),
     'assets',
   )
   const judgedReleases = context.grantChecks.flatMap((check) =>
-    check.year <= year && check.released !== null && check.released.residual.amount !== 0
-      ? [deducted({ ...check.released.residual, label: `Released in ${check.year} as the accountant released it` })]
-      : [],
+    check.year <= year && check.released !== null && check.released.residual.amount !== 0 ? [deducted({ ...check.released.residual, label: words.balance.releasedAsAccountant(check.year) })] : [],
   )
-  const deferred = summed('Grant deferred', [policyDeferred, ...judgedReleases], 'assets')
+  const deferred = summed(words.balance.grantDeferred, [policyDeferred, ...judgedReleases], 'assets')
   const deferredJudgements: AdjustmentId[] = judgedReleases.length > 0 ? ['grant-schedule'] : []
 
   const positive = (figure: TracedFigure) => (figure.amount > 0 ? [figure] : [])
@@ -137,39 +136,43 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
   const put = (line: string, figure: TracedFigure, judgements: readonly AdjustmentId[] = []) => ours.set(line, { figure, judgements: [...judgements] })
   const nothing = (label: string) => tracedFigure(label, ZERO, 'ledger', [])
 
-  put('intangible-assets', nothing('No intangible asset group on the assets tab'))
+  put('intangible-assets', nothing(words.balance.noIntangible))
   put('tangible-assets', tangible)
-  put('financial-assets', nothing('No category role records financial assets'))
-  put('inventories', nothing('No category role records inventories'))
+  put('financial-assets', nothing(words.balance.noFinancialAssets))
+  put('inventories', nothing(words.balance.noInventories))
   put('receivables-trade', receivablesTrade)
-  put('receivables-members-employees', summed('Receivable from the owner', positive(owedFigure), 'ledger'))
-  put('receivables-state', summed('Receivable from the state', [...positive(vat), ...negativeAsOwed(citOwed, 'Corporate tax overpaid')], 'ledger'), citOwed.amount < 0 ? context.profitJudgements : [])
-  put('receivables-other', nothing('No category role records other receivables'))
+  put('receivables-members-employees', summed(words.balance.receivableFromOwner, positive(owedFigure), 'ledger'))
+  put(
+    'receivables-state',
+    summed(words.balance.receivableFromState, [...positive(vat), ...negativeAsOwed(citOwed, words.balance.taxOverpaid)], 'ledger'),
+    citOwed.amount < 0 ? context.profitJudgements : [],
+  )
+  put('receivables-other', nothing(words.balance.noOtherReceivables))
   const cash = latestBalances(rows).cashOnHand
-  put('cash', withDrill(tracedFigure('Cash at the year end', cash.amount, 'ledger', []), cash.drill))
-  put('prepaid-accrued-income', summed('Paid ahead and earned but not yet invoiced', [...prepaid, ...positive(accruedIncome)], 'ledger'))
+  put('cash', withDrill(tracedFigure(words.balance.cash, cash.amount, 'ledger', []), cash.drill))
+  put('prepaid-accrued-income', summed(words.balance.prepaidAndAccrued, [...prepaid, ...positive(accruedIncome)], 'ledger'))
 
-  put('provisions', nothing('No category role records provisions'))
-  put('long-term-liabilities', nothing('No category role records long-term liabilities'))
-  put('payables-suppliers', summed('Owed to suppliers for the year, paid after it', accruedIn('operating'), 'ledger'), cutOffOn('operating'))
-  put('payables-employees', summed('Owed to the owner and employees', [...accruedIn('owner-pay'), ...negativeAsOwed(owedFigure, 'Owed to the owner, net')], 'ledger'), cutOffOn('owner-pay'))
-  put('payables-taxes', summed('Taxes and contributions owed', [...accruedIn('taxes'), ...positive(citOwed), ...negativeAsOwed(vat, 'VAT owed')], 'ledger'), [
+  put('provisions', nothing(words.balance.noProvisions))
+  put('long-term-liabilities', nothing(words.balance.noLongTermLiabilities))
+  put('payables-suppliers', summed(words.balance.suppliers, accruedIn('operating'), 'ledger'), cutOffOn('operating'))
+  put('payables-employees', summed(words.balance.ownerAndEmployees, [...accruedIn('owner-pay'), ...negativeAsOwed(owedFigure, words.balance.owedToOwner)], 'ledger'), cutOffOn('owner-pay'))
+  put('payables-taxes', summed(words.balance.taxesOwed, [...accruedIn('taxes'), ...positive(citOwed), ...negativeAsOwed(vat, words.balance.vatOwed)], 'ledger'), [
     ...cutOffOn('taxes'),
     ...(citOwed.amount > 0 ? context.profitJudgements : []),
   ])
-  put('payables-loans', nothing('No category role records loans to the company'))
+  put('payables-loans', nothing(words.balance.noLoans))
   put('accruals-deferred-income', deferred, deferredJudgements)
 
   const beforePlacement = new Map([...ours].map(([line, entry]) => [line, entry.judgements] as const))
   const placements = [
-    placementJudgement('receivable-placement', 'Receivables split over the lines as the accountant splits them', 'balance', amountsOf(ours, RECEIVABLE_LINES), year, workbook.yearEndLines),
-    placementJudgement('liability-placement', 'Liabilities split over the lines as the accountant splits them', 'balance', amountsOf(ours, LIABILITY_LINES), year, workbook.yearEndLines),
+    placementJudgement('receivable-placement', words.balance.receivablePlacement, 'balance', amountsOf(ours, RECEIVABLE_LINES), year, workbook.yearEndLines),
+    placementJudgement('liability-placement', words.balance.liabilityPlacement, 'balance', amountsOf(ours, LIABILITY_LINES), year, workbook.yearEndLines),
   ].flatMap((placement) => (placement === null ? [] : [placement]))
   for (const placement of placements) {
     for (const [line, move] of placement.moves) {
       const entry = ours.get(line)
       if (entry !== undefined) {
-        const placed = summed(entry.figure.label, [entry.figure, tracedFigure('As the accountant places it', move, 'accountant', [])], entry.figure.basis)
+        const placed = summed(entry.figure.label, [entry.figure, tracedFigure(words.year.asPlaced, move, 'accountant', [])], entry.figure.basis)
         put(line, placed, [...entry.judgements, placement.adjustment.id])
       }
     }
@@ -184,7 +187,7 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
       'ledger',
     )
   const judgementsOf = (lines: readonly string[]) => lines.flatMap((line) => beforePlacement.get(line) ?? [])
-  const totalAssets = totalOf('Total assets', assetLines)
+  const totalAssets = totalOf(words.balance.totalAssets, assetLines)
   put('total-assets', totalAssets, judgementsOf(assetLines))
   put('profit-of-year', context.profitAfterTax, context.profitJudgements)
 
@@ -192,9 +195,9 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
   if (equity !== null) {
     put('reserves', equity.reserves)
     put('retained-earnings', equity.retained)
-    const liabilities = totalOf('Liabilities, provisions and deferred income', liabilityLines)
+    const liabilities = totalOf(words.balance.liabilities, liabilityLines)
     const steps = [totalAssets, deducted(liabilities), deducted(context.profitAfterTax), deducted(equity.retained), deducted(equity.reserves)]
-    const shareCapital = tracedFigure('Share capital: what the balance sheet leaves for it', sumMoney(steps.map((step) => step.amount)), 'ledger', rulesOf(steps), steps)
+    const shareCapital = tracedFigure(words.balance.shareCapital, sumMoney(steps.map((step) => step.amount)), 'ledger', rulesOf(steps), steps)
     put('share-capital', shareCapital, [...judgementsOf([...assetLines, ...liabilityLines]), ...context.profitJudgements])
   }
 
@@ -212,12 +215,12 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
 export function vatPosition(bookings: readonly AccrualBooking[], through: MonthKey, settled: TracedFigure): TracedFigure {
   const entries = bookings.filter(hasVat).filter((entry) => entry.vat.inputVat.amount !== 0 && vatMonthOf(entry) <= through)
   const inputVat = tracedFigure(
-    `Input VAT to the end of ${monthLabel(through)}`,
+    words.balance.inputVatTo(monthLabel(through)),
     negateMoney(sumMoney(entries.map((entry) => entry.vat.inputVat.amount))),
     'ledger',
     rulesOf(entries.map((entry) => entry.vat.inputVat)),
   )
-  return tracedFigure('VAT the state owes the company', subtractMoney(inputVat.amount, settled.amount), 'ledger', inputVat.rules, [inputVat, deducted(settled)])
+  return tracedFigure(words.balance.vatOwedToCompany, subtractMoney(inputVat.amount, settled.amount), 'ledger', inputVat.rules, [inputVat, deducted(settled)])
 }
 
 /** The month whose VAT return holds a booking's input VAT: the month worked for a cost paid in arrears, else the month paid. */
@@ -232,13 +235,11 @@ function citOwedAt(context: BalanceSheetContext, rows: readonly Transaction[], p
   const firstYear = registered !== null ? yearOf(registered) : Math.min(year, ...rows.map((row) => yearOf(row.date)))
   const earlier = Array.from({ length: year - firstYear }, (_, offset) => firstYear + offset).map((taxYear) => {
     const line = workbook.yearEndLines.find((candidate) => candidate.year === taxYear && candidate.statement === 'tax' && candidate.line === 'liability')
-    return line?.figure.kind === 'money'
-      ? tracedFigure(`Corporate tax for ${taxYear}, as the accountant filed it`, line.figure.amount, 'accountant', [])
-      : tracedFigure(`Corporate tax for ${taxYear}: no year-end liability line, so nothing`, ZERO, 'accountant', [])
+    return line?.figure.kind === 'money' ? tracedFigure(words.balance.taxFiled(taxYear), line.figure.amount, 'accountant', []) : tracedFigure(words.balance.noTaxLine(taxYear), ZERO, 'accountant', [])
   })
-  const paid = tracedFigure('Corporate tax paid to the year end', negateMoney(sumMoney(paidRows.map((row) => row.amount))), 'ledger', [])
+  const paid = tracedFigure(words.balance.taxPaid, negateMoney(sumMoney(paidRows.map((row) => row.amount))), 'ledger', [])
   const steps = [...earlier, liability.liability, deducted(paid)]
-  return tracedFigure('Corporate tax owed', sumMoney(steps.map((step) => step.amount)), 'ledger', rulesOf(steps), steps)
+  return tracedFigure(words.balance.taxOwed, sumMoney(steps.map((step) => step.amount)), 'ledger', rulesOf(steps), steps)
 }
 
 /**
@@ -248,18 +249,18 @@ function citOwedAt(context: BalanceSheetContext, rows: readonly Transaction[], p
  */
 function broughtForward(context: BalanceSheetContext): { readonly reserves: TracedFigure; readonly retained: TracedFigure } | null {
   if (context.firstPeriod) {
-    return { reserves: tracedFigure('No reserves in a first period', ZERO, 'ledger', []), retained: tracedFigure('Nothing retained in a first period', ZERO, 'ledger', []) }
+    return { reserves: tracedFigure(words.balance.noReserves, ZERO, 'ledger', []), retained: tracedFigure(words.balance.nothingRetained, ZERO, 'ledger', []) }
   }
   const opening = equityBroughtForward(context.workbook.yearEndLines, context.year)
   if (opening === null) {
     return null
   }
   const paidOut = context.bookings.filter((entry) => entry.treatment === 'profit-distribution' && yearOf(entry.booking.date) === context.year)
-  const paid = tracedFigure('Profit paid out in the year, with its tax', negateMoney(sumMoney(paidOut.map((entry) => entry.booking.amount))), 'ledger', [])
+  const paid = tracedFigure(words.balance.paidOut, negateMoney(sumMoney(paidOut.map((entry) => entry.booking.amount))), 'ledger', [])
   const steps = [opening.retained, deducted(paid)]
   return {
     reserves: opening.reserves,
-    retained: tracedFigure('Retained earnings', sumMoney(steps.map((step) => step.amount)), 'ledger', [], steps),
+    retained: tracedFigure(words.balance.retained, sumMoney(steps.map((step) => step.amount)), 'ledger', [], steps),
   }
 }
 
@@ -281,13 +282,13 @@ export function equityBroughtForward(yearEndLines: readonly YearEndLine[], year:
   }
   const toReserves = priorMoney('distribution', 'reserves') ?? ZERO
   const steps = [
-    tracedFigure(`Retained at the end of ${prior}`, retained, 'accountant', []),
-    tracedFigure(`Profit of ${prior}`, profit, 'accountant', []),
-    deducted(tracedFigure(`Put to reserves from the profit of ${prior}`, toReserves, 'accountant', [])),
+    tracedFigure(words.balance.retainedAtEnd(prior), retained, 'accountant', []),
+    tracedFigure(words.balance.profitOf(prior), profit, 'accountant', []),
+    deducted(tracedFigure(words.balance.toReserves(prior), toReserves, 'accountant', [])),
   ]
   return {
-    reserves: tracedFigure('Reserves', addMoney(priorMoney('balance', 'reserves') ?? ZERO, toReserves), 'accountant', []),
-    retained: tracedFigure(`Retained at the start of ${year}`, sumMoney(steps.map((step) => step.amount)), 'accountant', [], steps),
+    reserves: tracedFigure(words.balance.reserves, addMoney(priorMoney('balance', 'reserves') ?? ZERO, toReserves), 'accountant', []),
+    retained: tracedFigure(words.balance.retainedAtStart(year), sumMoney(steps.map((step) => step.amount)), 'accountant', [], steps),
   }
 }
 

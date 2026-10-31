@@ -5,6 +5,7 @@ import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import type { FigureDetail } from '../tracedFigureView'
 import type { ProblemView } from './salariesView'
+import { words } from './words'
 
 /** What the app and the bank do not agree on, or what is missing, each with what to open to resolve it. */
 defineProps<{
@@ -21,10 +22,10 @@ const FACT = { hash: '#employee-rows' }
 </script>
 
 <template>
-  <AppCard id="salary-problems" title="Problems" :subtitle="`Paid in ${label}. Neither source wins, so each stays until the books say the same.`" data-testid="salaries-problems">
+  <AppCard id="salary-problems" :title="words.problemList.title" :subtitle="words.problemList.subtitle(label)" data-testid="salaries-problems">
     <p v-if="problems.length === 0" class="flex items-center gap-2 px-4 pt-1 pb-4 text-sm text-toned sm:px-5">
       <UIcon name="i-lucide-circle-check" class="size-4 shrink-0 text-success" aria-hidden="true" />
-      The app and the bank agree on every line they both state.
+      {{ words.problemList.allAgree }}
     </p>
     <ul v-else class="flex flex-col px-4 pb-3 sm:px-5">
       <li v-for="problem in problems" :key="problem.key" class="problem-row" data-testid="salaries-problem">
@@ -32,9 +33,9 @@ const FACT = { hash: '#employee-rows' }
         <div class="flex min-w-0 flex-1 flex-col gap-1">
           <p class="text-sm text-toned">{{ problem.text }}</p>
           <div v-if="problem.detail || problem.rows || problem.fact" class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-            <button v-if="problem.detail" type="button" class="problem-action text-highlighted" @click="$emit('open', problem.detail)">How it is worked out</button>
-            <DrillLink v-if="problem.rows" :to="problem.rows" class="text-highlighted">View rows</DrillLink>
-            <DrillLink v-if="problem.fact" :to="FACT" class="text-highlighted">Open the employees tab</DrillLink>
+            <button v-if="problem.detail" type="button" class="problem-action text-highlighted" @click="$emit('open', problem.detail)">{{ words.problemList.howWorkedOut }}</button>
+            <DrillLink v-if="problem.rows" :to="problem.rows" class="text-highlighted">{{ words.problemList.viewRows }}</DrillLink>
+            <DrillLink v-if="problem.fact" :to="FACT" class="text-highlighted">{{ words.problemList.openEmployees }}</DrillLink>
           </div>
         </div>
       </li>

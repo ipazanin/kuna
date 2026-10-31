@@ -46,6 +46,8 @@ withDefaults(
 .form-grid > :deep([data-orientation='vertical']:has(> [data-slot='wrapper'])) {
   display: grid;
   grid-template-rows: subgrid;
+  /* A column that may shrink lets a long choice in a select truncate instead of widening the field past its card. */
+  grid-template-columns: minmax(0, 1fr);
 }
 
 @media (min-width: 640px) {

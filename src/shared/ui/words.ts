@@ -43,10 +43,10 @@ export const hr: Translation<typeof en> = {
     table: 'Tablica',
     asTable: (title) => `${title}: prikaži kao tablicu`,
     category: 'Kategorija',
-    openRows: (row, column) => `${row}, ${column}, otvori retke`,
+    openRows: (row, column) => `${row}, ${column}, otvori stavke`,
   },
   donut: {
-    rows: 'retke',
+    rows: 'stavke',
     open: (part, value, opens) => `${part}, ${value}, otvori ${opens}`,
   },
 }

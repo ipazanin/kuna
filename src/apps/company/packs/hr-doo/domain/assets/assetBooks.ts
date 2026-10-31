@@ -13,6 +13,7 @@ import { atRate, deducted, percentText, rulesOf, summed, tracedFigure } from '..
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { depreciationSchedule } from './depreciationSchedule'
 import type { DepreciationSchedule, DepreciationSettings, DepreciationYear } from './depreciationSchedule'
+import { words } from './words'
 
 /** Every asset's depreciation and every grant's release, worked out under one depreciation setting. */
 export interface AssetBooks {
@@ -66,7 +67,7 @@ export function depreciationByYear(schedules: readonly DepreciationSchedule[]): 
     return {
       year,
       total: summed(
-        `Depreciation in ${year}`,
+        words.books.depreciationIn(year),
         byAsset.map((charge) => charge.year.charge),
         'assets',
       ),
@@ -78,7 +79,7 @@ export function depreciationByYear(schedules: readonly DepreciationSchedule[]): 
 /** What the year's depreciation charges above what the corporate tax allows, one step per asset, such as a car above the cost cap. */
 export function depreciationAboveAllowed(schedules: readonly DepreciationSchedule[], year: number): TracedFigure {
   return summed(
-    'Depreciation above what the tax allows',
+    words.books.aboveAllowed,
     schedules.flatMap((schedule) =>
       schedule.years
         .filter((entry) => entry.year === year && entry.deductible.amount !== entry.charge.amount)
@@ -108,12 +109,12 @@ export function doubledRatesEffect(
     ...[...asWorkbook.grants, ...doubled.grants].flatMap((schedule) => schedule.years.map((entry) => entry.year)),
   ]).map((year): DoubledRatesYear => {
     const depreciation = change(
-      `More depreciation in ${year}`,
-      depreciationIn(doubledDepreciation, year, 'at doubled rates'),
-      depreciationIn(baseDepreciation, year, 'at the rates the workbook asks for'),
+      words.books.moreDepreciation(year),
+      depreciationIn(doubledDepreciation, year, words.books.atDoubled),
+      depreciationIn(baseDepreciation, year, words.books.atWorkbookRates),
     )
-    const grantReleased = change(`More grant released in ${year}`, releasedIn(doubled.grants, year, 'at doubled rates'), releasedIn(asWorkbook.grants, year, 'at the rates the workbook asks for'))
-    const profitBeforeTax = tracedFigure(`Change in profit before tax for ${year}`, subtractMoney(grantReleased.amount, depreciation.amount), 'assets', rulesOf([grantReleased, depreciation]), [
+    const grantReleased = change(words.books.moreGrant(year), releasedIn(doubled.grants, year, words.books.atDoubled), releasedIn(asWorkbook.grants, year, words.books.atWorkbookRates))
+    const profitBeforeTax = tracedFigure(words.books.profitChange(year), subtractMoney(grantReleased.amount, depreciation.amount), 'assets', rulesOf([grantReleased, depreciation]), [
       grantReleased,
       deducted(depreciation),
     ])
@@ -128,7 +129,7 @@ function profitTaxChange(year: number, profitBeforeTax: TracedFigure, grantRelea
   const rate = high ? lookup.value.highRate.basisPoints : lookup.value.lowRate.basisPoints
   const grantRevenue = grantReleased.amount === 0 ? [] : [taxableGrantRevenue(year, rules).citation]
   const profitTax = tracedFigure(
-    `Change in profit tax for ${year}, at ${percentText(rate)}${high ? '' : ' for revenue below the threshold'}`,
+    words.books.taxChange(year, percentText(rate), high),
     atRate(profitBeforeTax.amount, rate),
     'assets',
     [lookup.citation, ...grantRevenue, ...profitBeforeTax.rules],
@@ -148,12 +149,12 @@ function taxableGrantRevenue(year: number, rules: RuleSource): RuleLookup<RuleVa
 
 function depreciationIn(totals: readonly DepreciationYearTotal[], year: number, basis: string): TracedFigure {
   const total = totals.find((entry) => entry.year === year)?.total
-  return summed(`Depreciation in ${year} ${basis}`, total === undefined ? [] : [total], 'assets')
+  return summed(words.books.depreciationInBasis(year, basis), total === undefined ? [] : [total], 'assets')
 }
 
 function releasedIn(schedules: readonly GrantReleaseSchedule[], year: number, basis: string): TracedFigure {
   const released = schedules.flatMap((schedule) => schedule.years.filter((entry) => entry.year === year).map((entry) => entry.released))
-  return summed(`Grant released in ${year} ${basis}`, released, 'assets')
+  return summed(words.books.grantInBasis(year, basis), released, 'assets')
 }
 
 function change(label: string, after: TracedFigure, before: TracedFigure): TracedFigure {

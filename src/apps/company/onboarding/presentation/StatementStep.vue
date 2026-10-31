@@ -12,10 +12,12 @@ import { loadImportFile } from '../../imports/infrastructure/importFiles'
 import DryRunStatementCard from '../../imports/presentation/DryRunStatementCard.vue'
 import { useDryRun } from '../../imports/presentation/useDryRun'
 import { setSettings } from '../../settings/application/settingWrites'
+import { words as settingsWords } from '../../settings/presentation/words'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { useOnboarding } from './useOnboarding'
+import { words } from './words'
 import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
 import StepCard from '../../../../shared/ui/StepCard.vue'
 /**
@@ -72,13 +74,12 @@ async function chooseFolder(): Promise<void> {
   choosing.value = true
   folderFailure.value = null
   try {
-    const chosen = await withGoogleAccess(['drive.readonly'], () => store.pickDriveFolder('Choose the folder of your bank statements'))
+    const chosen = await withGoogleAccess(['drive.readonly'], () => store.pickDriveFolder(words.statement.pickerTitle))
     if (chosen !== null && chosen.path === null) {
-      folderFailure.value =
-        'Google did not allow Drive read, so the app cannot name the folder’s path. Choose the folder again to ask Google once more, or skip and name it later on Settings, General.'
+      folderFailure.value = words.statement.noDriveRead
     } else if (chosen?.path) {
       const path = chosen.path
-      await store.write('Settings saved', (unit) => setSettings(unit, store.state.records?.settings ?? NO_RECORDS, [{ key: 'statements_folder', value: path.join('/') }]))
+      await store.write(settingsWords.saved, (unit) => setSettings(unit, store.state.records?.settings ?? NO_RECORDS, [{ key: 'statements_folder', value: path.join('/') }]))
     }
   } catch (failure) {
     folderFailure.value = failure instanceof Error ? failure.message : String(failure)
@@ -93,7 +94,7 @@ async function importNow(): Promise<void> {
   loadFailure.value = null
   let imported = false
   try {
-    imported = await withGoogleAccess(inBrowser.value ? [] : ['drive.file'], () => writes.write(importTitle(run), (unit) => writeImport(unit, run), { failedTitle: 'Not imported' }))
+    imported = await withGoogleAccess(inBrowser.value ? [] : ['drive.file'], () => writes.write(importTitle(run), (unit) => writeImport(unit, run), { failedTitle: words.statement.notImported }))
   } catch (refused) {
     loadFailure.value = refused instanceof Error ? refused.message : String(refused)
   }
@@ -104,17 +105,13 @@ async function importNow(): Promise<void> {
 </script>
 
 <template>
-  <StepCard title="Your first statement" subtitle="Nothing is written until you import it. You can skip this and import later.">
-    <p v-if="inBrowser" class="text-sm text-muted" data-testid="onboarding-statements-by-hand">
-      Books kept in this browser take their statements by hand, here or on Import. Filing them from your mail or from a Drive folder needs the books on Google Drive.
-    </p>
+  <StepCard :title="words.statement.title" :subtitle="words.statement.subtitle">
+    <p v-if="inBrowser" class="text-sm text-muted" data-testid="onboarding-statements-by-hand">{{ words.statement.byHand }}</p>
     <div v-else-if="source === 'mail'" class="flex items-start gap-3 rounded-control border border-default bg-elevated/40 px-3 py-3" data-testid="onboarding-statements-mail">
       <UIcon name="i-lucide-mail" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
       <div class="min-w-0">
-        <p class="text-sm text-highlighted">Statements from your mail</p>
-        <p class="text-xs text-muted">
-          Each sync files the bank's mail into the statements folder beside your books file, then imports it. A statement of an account the books do not hold yet waits on Import.
-        </p>
+        <p class="text-sm text-highlighted">{{ words.statement.fromMail }}</p>
+        <p class="text-xs text-muted">{{ words.statement.fromMailNote }}</p>
       </div>
     </div>
     <div
@@ -123,12 +120,12 @@ async function importNow(): Promise<void> {
       data-testid="onboarding-statements-folder"
     >
       <div class="min-w-0">
-        <p class="text-sm text-highlighted">Statements folder</p>
-        <p class="identifier text-xs break-words text-muted">{{ folder.length ? folderTrail(folder) : 'Not chosen yet. Each sync files the statements it holds.' }}</p>
+        <p class="text-sm text-highlighted">{{ words.statement.folder }}</p>
+        <p class="identifier text-xs break-words text-muted">{{ folder.length ? folderTrail(folder) : words.statement.notChosen }}</p>
       </div>
-      <UButton label="Choose folder" icon="i-lucide-folder-search" color="neutral" variant="outline" size="sm" :loading="choosing" @click="chooseFolder" />
+      <UButton :label="words.statement.chooseFolder" icon="i-lucide-folder-search" color="neutral" variant="outline" size="sm" :loading="choosing" @click="chooseFolder" />
     </div>
-    <UAlert v-if="folderFailure" icon="i-lucide-triangle-alert" color="error" variant="subtle" title="No folder was chosen" :description="folderFailure" />
+    <UAlert v-if="folderFailure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.statement.noFolder" :description="folderFailure" />
 
     <UFileUpload
       v-model="picked"
@@ -136,24 +133,14 @@ async function importNow(): Promise<void> {
       :preview="false"
       reset
       icon="i-lucide-file-up"
-      label="Drop a camt.053 file or a bank export"
-      description="or click to choose one"
+      :label="words.statement.drop"
+      :description="words.statement.dropNote"
       color="neutral"
       class="w-full"
       :ui="{ base: 'min-h-28 border-dashed bg-elevated/40' }"
       data-testid="onboarding-statement-file"
     />
-    <UButton
-      v-if="offersSample"
-      label="The made-up company's camt.053 statement"
-      icon="i-lucide-file-code"
-      color="neutral"
-      variant="link"
-      size="sm"
-      class="self-start"
-      data-testid="sample-camt"
-      @click="loadSample"
-    />
+    <UButton v-if="offersSample" :label="words.statement.sample" icon="i-lucide-file-code" color="neutral" variant="link" size="sm" class="self-start" data-testid="sample-camt" @click="loadSample" />
     <UAlert v-if="loadFailure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="loadFailure" />
     <p v-if="loaded" class="flex items-center gap-2 text-sm text-toned">
       <UIcon :name="loaded.kind === 'camt' ? 'i-lucide-file-code' : 'i-lucide-file-spreadsheet'" class="size-4 shrink-0" aria-hidden="true" />
@@ -164,8 +151,8 @@ async function importNow(): Promise<void> {
       icon="i-lucide-columns-3"
       color="neutral"
       variant="subtle"
-      title="A bank export needs its columns named first"
-      description="Transactions, Import reads its columns with you once Settings, Accounts names the account. Finish here and import it there."
+      :title="words.statement.table"
+      :description="words.statement.tableNote"
       data-testid="onboarding-statement-table"
     />
     <template v-if="dryRun">
@@ -185,10 +172,10 @@ async function importNow(): Promise<void> {
     </template>
 
     <template #actions>
-      <UButton label="Skip for now" color="neutral" variant="outline" data-testid="onboarding-skip" @click="onboarding.finish()" />
+      <UButton :label="words.statement.skip" color="neutral" variant="outline" data-testid="onboarding-skip" @click="onboarding.finish()" />
       <UButton
         v-if="dryRun && dryRun.newRows > 0"
-        :label="dryRun.accounts.length ? 'Add and import' : 'Import'"
+        :label="dryRun.accounts.length ? words.statement.addAndImport : words.statement.import"
         icon="i-lucide-file-input"
         :loading="writes.busy.value"
         data-testid="onboarding-import"

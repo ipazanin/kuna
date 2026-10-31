@@ -1,8 +1,7 @@
 <script lang="ts">
 import type { InterimInterest, LoanTerms } from '../../workbook/domain/bankLoan'
 import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
-import { plainAmount } from '../../../../shared/money/money'
-import { typedAmount } from '../../../../shared/money/typedAmount'
+import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
 import { typedCount } from './typedCount'
 import { words as loansWords } from '../../words'
 import { words } from './words'
@@ -24,11 +23,11 @@ const EXAMPLE_FIRST_INSTALMENT = civilDate(2025, 9, 20)
 export function loanTermsTexts(terms: LoanTerms | null): LoanTermsTexts {
   return {
     lender: terms?.lender ?? '',
-    principal: terms === null ? '' : plainAmount(terms.principal),
+    principal: terms === null ? '' : amountForTyping(terms.principal),
     drawdown: terms?.drawdown ?? '',
     firstInstalment: terms?.firstInstalment ?? '',
     instalments: terms === null ? '' : String(terms.instalments),
-    interimAmount: terms?.interimInterest ? plainAmount(terms.interimInterest.amount) : '',
+    interimAmount: terms?.interimInterest ? amountForTyping(terms.interimInterest.amount) : '',
     interimDate: terms?.interimInterest?.date ?? '',
   }
 }

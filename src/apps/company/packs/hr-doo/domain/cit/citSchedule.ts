@@ -10,6 +10,7 @@ import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { deducted, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import type { PriorReturn } from './priorReturn'
+import { words } from './words'
 
 export type CitObligationKind = 'balance-due' | 'advance'
 
@@ -51,7 +52,7 @@ export function citSchedule(year: number, priorReturns: readonly PriorReturn[], 
     year,
     obligations,
     advances: summed(
-      `Advances expected for ${year}`,
+      words.schedule.advancesExpected(year),
       advances.map((advance) => advance.expected),
       'ledger',
     ),
@@ -101,7 +102,7 @@ function advancesOf(taxYear: number, returnOf: ReturnLookup, rules: RuleSource):
       return []
     }
     const expected = tracedFigure(
-      `Advance for ${monthLabel(month)}`,
+      words.schedule.advanceFor(monthLabel(month)),
       setBy.monthlyAdvance.amount,
       setBy.monthlyAdvance.basis,
       [advanceRule.citation, ...setBy.monthlyAdvance.rules],
@@ -132,7 +133,7 @@ function balanceDueOf(taxYear: number, returnOf: ReturnLookup, rules: RuleSource
           filed.liability,
           deducted(
             summed(
-              `Advances expected for ${taxYear}`,
+              words.schedule.advancesExpected(taxYear),
               advancesOf(taxYear, returnOf, rules).map((advance) => advance.expected),
               'ledger',
             ),
@@ -148,6 +149,6 @@ function balanceDueOf(taxYear: number, returnOf: ReturnLookup, rules: RuleSource
     taxYear,
     month: null,
     dueOn: lastDayOf(addMonths(monthOf(filed.period.to), filingRule.value.monthsAfterPeriodEnd.count)),
-    expected: tracedFigure(`Balance due for ${taxYear}`, amount, filed.balanceDue?.basis ?? 'ledger', [balanceRule.citation, filingRule.citation, ...rulesOf(steps)], steps),
+    expected: tracedFigure(words.schedule.balanceDueFor(taxYear), amount, filed.balanceDue?.basis ?? 'ledger', [balanceRule.citation, filingRule.citation, ...rulesOf(steps)], steps),
   }
 }

@@ -3,19 +3,13 @@ import type { YearEndLine } from '../yearEnd/yearEnd'
 import { ZERO, addMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
 import { isOwnerPayCost } from '../packRoles'
+import { words } from './words'
 
 export const COST_LINES = ['material-costs', 'personnel-costs', 'depreciation', 'other-costs', 'impairment-provisions-other', 'financial-expenses'] as const
 
 export type CostLine = (typeof COST_LINES)[number]
 
-export const COST_LINE_LABELS: Readonly<Record<CostLine, string>> = {
-  'material-costs': 'Material costs',
-  'personnel-costs': 'Personnel costs',
-  depreciation: 'Depreciation',
-  'other-costs': 'Other costs',
-  'impairment-provisions-other': 'Impairment, provisions and other operating expenses',
-  'financial-expenses': 'Financial expenses',
-}
+export const COST_LINE_LABELS: Readonly<Record<CostLine, string>> = words.costLines
 
 /** The profit and loss line of each cost class of the Croatian chart of accounts, by a konto's first two digits. */
 const KONTO_CLASS_LINES: Readonly<Record<string, CostLine>> = {

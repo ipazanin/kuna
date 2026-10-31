@@ -5,7 +5,9 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import type { ImportPreview } from '../../workbook/presentation/workbookFiles'
+import { plural } from '../../../../shared/text/translation'
 import ProblemList from './ProblemList.vue'
+import { words } from './words'
 
 /** What a file opened as books holds, its record counts by tab and the rows the app could not use, or why it was refused. */
 const props = defineProps<{
@@ -15,20 +17,15 @@ const props = defineProps<{
   failureDetail: string
 }>()
 
-/** "settings, rules or clients". */
-function inWords(tabs: readonly string[]): string {
-  return tabs.length <= 1 ? (tabs[0] ?? '') : `${tabs.slice(0, -1).join(', ')} or ${tabs[tabs.length - 1]}`
-}
-
 const facts = computed(() => {
   const summary = props.preview?.summary
   if (summary === undefined) return []
   const range = summary.dateRange
   return [
-    { label: 'Transactions', value: String(summary.transactionCount) },
-    { label: 'Dates', value: range === null ? 'None yet' : `${dayLabel(range.from)} to ${dayLabel(range.to)}` },
-    { label: summary.accounts.length === 1 ? 'Account' : 'Accounts', value: summary.accounts.length === 0 ? 'None yet' : summary.accounts.join(', ') },
-    { label: 'Categories', value: String(summary.categoryCount) },
+    { label: words.summary.transactions, value: String(summary.transactionCount) },
+    { label: words.summary.dates, value: range === null ? words.summary.noneYet : words.summary.range(dayLabel(range.from), dayLabel(range.to)) },
+    { label: summary.accounts.length === 1 ? words.summary.account : words.summary.accounts, value: summary.accounts.length === 0 ? words.summary.noneYet : summary.accounts.join(', ') },
+    { label: words.summary.categories, value: String(summary.categoryCount) },
   ]
 })
 </script>
@@ -37,7 +34,7 @@ const facts = computed(() => {
   <div data-testid="import-summary" class="flex flex-col gap-4">
     <p v-if="!preview && !failure" class="flex items-center gap-2 text-sm text-muted">
       <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" aria-hidden="true" />
-      Reading the file
+      {{ words.summary.reading }}
     </p>
 
     <UAlert
@@ -52,14 +49,7 @@ const facts = computed(() => {
     />
 
     <template v-if="preview">
-      <UAlert
-        v-if="preview.summary.refusal"
-        icon="i-lucide-file-x"
-        color="error"
-        variant="subtle"
-        :title="preview.summary.refusal"
-        description="Open an Excel download of the Google Sheet, a file the app exported, or a Kuna file from the backups folder."
-      />
+      <UAlert v-if="preview.summary.refusal" icon="i-lucide-file-x" color="error" variant="subtle" :title="preview.summary.refusal" :description="words.summary.refusedHelp" />
       <template v-else>
         <dl class="grid gap-px sm:grid-cols-2 overflow-hidden rounded-control border border-default bg-border">
           <div v-for="fact in facts" :key="fact.label" class="min-w-0 bg-raised px-3 py-2.5">
@@ -69,7 +59,7 @@ const facts = computed(() => {
         </dl>
 
         <section class="flex flex-col gap-2" data-testid="record-counts">
-          <h3 class="text-sm font-medium text-highlighted">{{ preview.recordCount }} {{ preview.recordCount === 1 ? 'record' : 'records' }}, by tab</h3>
+          <h3 class="text-sm font-medium text-highlighted">{{ plural(words.summary.records(preview.recordCount), preview.recordCount) }}</h3>
           <dl class="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-x-6 gap-y-1 text-sm">
             <div v-for="kind in preview.counts" :key="kind.name" class="flex min-w-0 items-baseline justify-between gap-3">
               <dt class="truncate text-toned">{{ kind.name }}</dt>
@@ -79,16 +69,16 @@ const facts = computed(() => {
         </section>
 
         <p v-if="preview.summary.defaultedTabs.length" class="text-sm text-muted">
-          No {{ inWords(preview.summary.defaultedTabs) }} tab, so {{ preview.summary.defaultedTabs.length === 1 ? 'it reads' : 'they read' }} as empty and the defaults apply.
+          {{ words.summary.defaulted(preview.summary.defaultedTabs) }}
         </p>
 
         <section v-if="preview.summary.problems.length" class="flex flex-col gap-2">
-          <h3 class="text-sm font-medium text-highlighted">{{ preview.summary.problems.length }} {{ preview.summary.problems.length === 1 ? 'row' : 'rows' }} the app could not use as written</h3>
+          <h3 class="text-sm font-medium text-highlighted">{{ plural(words.summary.problems(preview.summary.problems.length), preview.summary.problems.length) }}</h3>
           <ProblemList :problems="preview.summary.problems" />
         </section>
         <p v-else class="flex items-center gap-2 text-sm text-toned">
           <UIcon name="i-lucide-check" class="size-4 text-success" aria-hidden="true" />
-          Every row reads cleanly.
+          {{ words.summary.clean }}
         </p>
         <slot />
       </template>

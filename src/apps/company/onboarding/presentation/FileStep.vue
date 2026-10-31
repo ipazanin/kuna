@@ -10,6 +10,7 @@ import { useImportPreview } from '../../workbook-files/presentation/useImportPre
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { WORKBOOK_FILE_TYPES } from '../../workbook/presentation/workbookFiles'
 import { useOnboarding } from './useOnboarding'
+import { words } from './words'
 
 /**
  * The file brought along as books: what it holds and what the app could not use, as Open a file shows
@@ -55,10 +56,10 @@ async function proceed(): Promise<void> {
 </script>
 
 <template>
-  <StepCard title="Your books file" subtitle="Check what it holds. Nothing is kept until you continue.">
+  <StepCard :title="words.file.title" :subtitle="words.file.subtitle">
     <template v-if="held || picked">
       <ImportSummary :preview="held" :failure="failure" :failure-detail="failureDetail" />
-      <UAlert v-if="keepFailure" icon="i-lucide-triangle-alert" color="error" variant="subtle" title="The books were not kept" :description="keepFailure" />
+      <UAlert v-if="keepFailure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.file.notKept" :description="keepFailure" />
     </template>
     <UFileUpload
       v-else
@@ -66,8 +67,8 @@ async function proceed(): Promise<void> {
       :accept="WORKBOOK_FILE_TYPES"
       :preview="false"
       icon="i-lucide-file-up"
-      label="Drop an .xlsx or .json file here"
-      description="An Excel file, a Google Sheet downloaded as .xlsx, or a Kuna file from the backups folder"
+      :label="words.file.drop"
+      :description="words.file.dropNote"
       color="neutral"
       class="w-full"
       :ui="{ base: 'min-h-32 border-dashed bg-elevated/40' }"
@@ -75,9 +76,9 @@ async function proceed(): Promise<void> {
     />
 
     <template #actions>
-      <UButton v-if="held || failure" label="Choose another file" color="neutral" variant="outline" data-testid="onboarding-another-file" @click="another" />
+      <UButton v-if="held || failure" :label="words.file.another" color="neutral" variant="outline" data-testid="onboarding-another-file" @click="another" />
       <UButton
-        :label="inBrowser ? 'Keep in this browser' : 'Continue'"
+        :label="inBrowser ? words.file.keepHere : words.continue"
         :trailing-icon="inBrowser ? undefined : 'i-lucide-arrow-right'"
         :icon="inBrowser ? 'i-lucide-monitor-smartphone' : undefined"
         :disabled="!keepable"

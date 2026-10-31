@@ -2,6 +2,7 @@
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import DrillLink from '../../../../../shared/ui/DrillLink.vue'
+import { words } from './words'
 
 /** Names the category roles no category carries, and what the screen leaves out because of it. */
 defineProps<{
@@ -14,10 +15,10 @@ defineProps<{
     <UIcon name="i-lucide-tag" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
     <div class="flex flex-col gap-1">
       <p v-for="entry in missing" :key="entry.role">
-        No category has the role <span class="identifier">{{ entry.role }}</span
-        >, so {{ entry.leftOut }}.
+        {{ words.missingRoles.before }}<span class="identifier">{{ entry.role }}</span
+        >{{ words.missingRoles.after(entry.leftOut) }}
       </p>
-      <DrillLink to="/company/settings?tab=categories" in-prose class="self-start text-highlighted">Add roles on Settings, Categories</DrillLink>
+      <DrillLink to="/company/settings?tab=categories" in-prose class="self-start text-highlighted">{{ words.missingRoles.addRoles }}</DrillLink>
     </div>
   </div>
 </template>

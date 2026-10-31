@@ -5,7 +5,7 @@ import type { ChartTokens } from '../../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../../shared/charts/chartTooltip'
 import type { BarSeries, ChartOption, LineSeries } from '../../../../../shared/charts/echarts'
 import { negateMoney } from '../../../../../shared/money/money'
-import { formatMoney } from '../../../../../shared/money/moneyFormat'
+import { formatMoney, formatPercent } from '../../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../../shared/ui/ChartLegend.vue'
 import { drillToTransactions } from '../../../filters/domain/drillTarget'
 import type { DrillTarget, Figure } from '../../../filters/domain/drillTarget'
@@ -15,6 +15,7 @@ import type { Category } from '../../../workbook/domain/workbook'
 import type { OwnerBenefits } from '../domain/ownerBenefits'
 import type { LoanMonth } from '../domain/ownerLoans'
 import type { OwnerTake, OwnerTakeMonth } from '../domain/ownerTake'
+import { words } from './words'
 
 /** The categorical slots a chart may use before the rest fold into one series. */
 const SLOTS = 8
@@ -87,7 +88,7 @@ function seriesOf(
         const paint = paints.get(slug)
         return paint === null || paint === undefined ? [] : [{ name: nameOf(slug), categories: [slug], ...paint }]
       }),
-      ...(others.length === 0 ? [] : [{ name: 'Other categories', categories: others, ...greyOf(tokens) }]),
+      ...(others.length === 0 ? [] : [{ name: words.charts.otherCategories, categories: others, ...greyOf(tokens) }]),
     ],
     spare,
   }
@@ -98,9 +99,9 @@ export function categorySeries(listed: readonly Category[], moved: readonly stri
   return seriesOf(listed, moved, tokens, nameOf).series
 }
 
-export const LOANS_NET_SERIES = 'Loans, net'
+export const LOANS_NET_SERIES = words.charts.loansNet
 
-export const RENT_TAX_LABEL = 'Rent tax the owner pays the tax office'
+export const RENT_TAX_LABEL = words.charts.rentTax
 
 /**
  * The owner pay categories by category, with the loans to the owner and their repayments as one
@@ -200,7 +201,7 @@ export function benefitsRing(benefits: OwnerBenefits, series: readonly CategoryS
     label: nameOf(source.category),
     value: source.amount.amount,
     colour: tokenOf.get(source.category) ?? '--chart-deemphasis',
-    note: source.share === 'mixed' ? 'mixed' : source.share === null ? '–' : `${source.share}%`,
+    note: source.share === 'mixed' ? words.benefits.mixed : source.share === null ? '–' : formatPercent(source.share / 100),
     drill: source.amount.drill,
   }))
 }
@@ -254,7 +255,7 @@ function monthAxis(months: readonly { readonly month: MonthKey }[], tokens: Char
 function spanOf(months: readonly { readonly month: MonthKey }[]): string {
   const first = months[0]
   const last = months[months.length - 1]
-  return first === undefined || last === undefined ? '' : `from ${monthLabel(first.month)} to ${monthLabel(last.month)}`
+  return first === undefined || last === undefined ? '' : words.charts.span(first.month, last.month)
 }
 
 /**
@@ -286,8 +287,7 @@ export function taxByTypeChart(months: readonly CategoryMonth[], series: readonl
   const total = months.reduce((sum, month) => sum + month.total.amount, 0)
   return {
     option,
-    description:
-      months.length === 0 ? 'No months to show.' : `Taxes paid by month ${spanOf(months)}, stacked by ${series.map((entry) => entry.name).join(', ')}. ${formatMoney(total)} in all, net of refunds.`,
+    description: months.length === 0 ? words.charts.noMonths : words.charts.taxesByMonth(spanOf(months), series.map((entry) => entry.name).join(', '), formatMoney(total)),
     drillAt: ({ seriesName, dataIndex }) => {
       const month = months[dataIndex]
       return month === undefined
@@ -329,7 +329,7 @@ export function ownerDrawsChart(months: readonly OwnerTakeMonth[], series: reado
       yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
       series: bars,
     },
-    description: months.length === 0 ? 'No months to show.' : `Owner pay by month ${spanOf(months)}, stacked by ${series.map((entry) => entry.name).join(', ')}. ${formatMoney(total)} in all.`,
+    description: months.length === 0 ? words.charts.noMonths : words.charts.ownerPayByMonth(spanOf(months), series.map((entry) => entry.name).join(', '), formatMoney(total)),
     drillAt: ({ seriesName, dataIndex }) => {
       const month = months[dataIndex]
       if (month === undefined) {
@@ -345,9 +345,9 @@ export function ownerDrawsChart(months: readonly OwnerTakeMonth[], series: reado
   }
 }
 
-export const LENT_SERIES = 'Lent'
-export const REPAID_SERIES = 'Repaid'
-export const OUTSTANDING_SERIES = 'Owed by the owner'
+export const LENT_SERIES = words.charts.lent
+export const REPAID_SERIES = words.charts.repaid
+export const OUTSTANDING_SERIES = words.charts.owedByOwner
 
 export interface LoanColours {
   readonly lent: string
@@ -393,10 +393,7 @@ export function loanTimelineChart(months: readonly LoanMonth[], colours: LoanCol
       yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
       series: bars,
     },
-    description:
-      months.length === 0
-        ? 'No months to show.'
-        : `Loans to the owner by month ${spanOf(months)}: money lent below zero and repayments above it. ${formatMoney(lent)} lent and ${formatMoney(repaid)} repaid in all.`,
+    description: months.length === 0 ? words.charts.noMonths : words.charts.loansByMonth(spanOf(months), formatMoney(lent), formatMoney(repaid)),
     drillAt: ({ seriesName, dataIndex }) => {
       const month = months[dataIndex]
       if (month === undefined) {
@@ -434,11 +431,7 @@ export function loanBalanceChart(months: readonly LoanMonth[], colour: string, t
         },
       ],
     },
-    description:
-      last === undefined
-        ? 'No months to show.'
-        : `What the owner owed the company at each month's end ${spanOf(months)}. ` +
-          `${last.complete ? 'At the end of' : 'So far in'} ${monthLabel(last.month)} the owner owed ${formatMoney(last.outstanding.amount)}.`,
+    description: last === undefined ? words.charts.noMonths : words.charts.owedAtMonthEnds(spanOf(months), last.complete, monthLabel(last.month), formatMoney(last.outstanding.amount)),
     drillAt: ({ dataIndex }) => months[dataIndex]?.outstanding.drill ?? null,
   }
 }

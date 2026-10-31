@@ -5,6 +5,7 @@ import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../../../shared/money/money'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { RuleSource } from '../payroll/payrollArithmetic'
+import { words } from './words'
 
 /** A component before it is on the tab. */
 export type ComponentDraft = ScenarioComponent extends infer Each ? (Each extends ScenarioComponent ? Omit<Each, 'id'> : never) : never
@@ -14,6 +15,26 @@ export interface ScenarioDraft {
   readonly label: string
   readonly year: number
   readonly components: readonly ComponentDraft[]
+}
+
+type StartingLabel = keyof typeof words.starting
+
+/** The label each starting scenario is written with, which stays English whatever the language on screen. */
+const STORED_LABELS: Readonly<Record<StartingLabel, string>> = {
+  floorAllYear: 'Floor salary all year',
+  floorAndTaxFree: 'Floor salary and tax-free items',
+  floorTaxFreeAndRent: 'Floor salary, tax-free items and rent',
+  floorThenBoard: 'Floor salary, then board member only',
+  floorThenElsewhere: 'Floor salary, then a job elsewhere',
+}
+
+/**
+ * What the screens call a scenario: Kuna's name in the language on screen while the label is one
+ * Kuna wrote, otherwise the label, or the short name when the label is blank.
+ */
+export function scenarioName(scenario: { readonly slug: string; readonly label: string }): string {
+  const seeded = (Object.keys(STORED_LABELS) as StartingLabel[]).find((key) => STORED_LABELS[key] === scenario.label)
+  return seeded === undefined ? scenario.label || scenario.slug : words.starting[seeded]
 }
 
 /** The tax-free items the second starting scenario pays up to their caps, which need no fact beyond the employment. */
@@ -67,18 +88,18 @@ export function startingScenarios(year: number, grants: readonly Grant[], monthl
   ]
 
   const drafts: ScenarioDraft[] = [
-    { slug: `floor-salary-${year}`, label: 'Floor salary all year', year, components: [floor, dividend] },
+    { slug: `floor-salary-${year}`, label: STORED_LABELS.floorAllYear, year, components: [floor, dividend] },
     {
       slug: `floor-salary-extras-${year}`,
-      label: monthlyRent === null ? 'Floor salary and tax-free items' : 'Floor salary, tax-free items and rent',
+      label: monthlyRent === null ? STORED_LABELS.floorAndTaxFree : STORED_LABELS.floorTaxFreeAndRent,
       year,
       components: [floor, ...taxFree, ...rent, dividend],
     },
     ...(switchOn === null
       ? []
       : [
-          { slug: `floor-then-board-${year}`, label: 'Floor salary, then board member only', year, components: until('board-only', switchOn) },
-          { slug: `floor-then-elsewhere-${year}`, label: 'Floor salary, then a job elsewhere', year, components: until('insured-elsewhere', switchOn) },
+          { slug: `floor-then-board-${year}`, label: STORED_LABELS.floorThenBoard, year, components: until('board-only', switchOn) },
+          { slug: `floor-then-elsewhere-${year}`, label: STORED_LABELS.floorThenElsewhere, year, components: until('insured-elsewhere', switchOn) },
         ]),
   ]
   return { drafts, switchOn }

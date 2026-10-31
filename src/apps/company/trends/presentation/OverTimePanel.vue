@@ -16,6 +16,7 @@ import { useFilteredLedger } from '../../transactions/application/useFilteredLed
 import { monthlyProfitAndLoss } from '../domain/monthlyProfitAndLoss'
 import { MONTHLY_NET, profitAndLossChart, profitAndLossLegend, profitAndLossSeries } from './profitAndLossChart'
 import { cumulativeNetChart, rollingNetChart } from './trendCharts'
+import { words } from './words'
 
 /** Is it getting better or worse: every month of the ledger, with the period marked on the slider. */
 const ledger = useFilteredLedger()
@@ -60,7 +61,7 @@ const trends = computed(() => {
     empty: shown.length === 0,
     byMonth: profitAndLossChart(months, tokens, { series: series.value, netLine: MONTHLY_NET, hidden: hidden.value, zoom: { startIndex, endIndex } }),
     cumulative: cumulativeNetChart(shown, tokens),
-    cumulativeSummary: last === undefined ? 'No months in the period' : `${formatMoney(last.cumulativeNet)} since the ledger began, by ${monthLabel(last.month)}`,
+    cumulativeSummary: last === undefined ? words.overTime.noMonthsInPeriod : words.overTime.cumulativeSummary(formatMoney(last.cumulativeNet), monthLabel(last.month)),
     rolling: rollingNetChart(shown, tokens),
   }
 })
@@ -84,9 +85,9 @@ function rescope({ startIndex, endIndex }: ChartZoomWindow): void {
   <div v-if="trends" class="flex flex-col gap-6">
     <DrillChartCard
       :chart="trends.byMonth"
-      title="Income and costs by month"
-      subtitle="Every month of the ledger. Drag the slider under the chart to change the period."
-      :definition="`${trends.income} above zero, ${trends.costs} below it. Click a legend entry to hide or show it, and a bar to open its rows.`"
+      :title="words.overTime.byMonth"
+      :subtitle="words.overTime.byMonthSubtitle"
+      :definition="words.overTime.byMonthDefinition(trends.income, trends.costs)"
       :height="380"
       :phone-height="300"
       @zoom="rescope"
@@ -94,24 +95,18 @@ function rescope({ startIndex, endIndex }: ChartZoomWindow): void {
       <template #legend>
         <div class="flex flex-wrap items-center justify-between gap-2">
           <ChartLegend :entries="legend" toggleable :hidden="hidden" @toggle="toggle" />
-          <ChartLegend :entries="[{ label: 'Month so far', colour: 'var(--chart-deemphasis)', mark: 'hatched' }]" />
+          <ChartLegend :entries="[{ label: words.monthSoFar, colour: 'var(--chart-deemphasis)', mark: 'hatched' }]" />
         </div>
       </template>
     </DrillChartCard>
 
-    <DrillChartCard
-      :chart="trends.rolling"
-      title="Rolling net"
-      subtitle="Average net per month over the 3 and the 12 months up to each month"
-      definition="A rolling average only counts complete months, so it starts once enough of them exist and stops before the month in progress."
-      :empty="trends.empty"
-    >
+    <DrillChartCard :chart="trends.rolling" :title="words.overTime.rolling" :subtitle="words.overTime.rollingSubtitle" :definition="words.overTime.rollingDefinition" :empty="trends.empty">
       <template #legend>
         <ChartLegend
           :entries="[
-            { label: '3-month average', colour: 'var(--chart-ink)', mark: 'line' },
-            { label: '12-month average', colour: 'var(--accent)', mark: 'line' },
-            { label: 'Month so far', colour: 'var(--chart-deemphasis)', mark: 'hatched' },
+            { label: words.average3, colour: 'var(--chart-ink)', mark: 'line' },
+            { label: words.average12, colour: 'var(--accent)', mark: 'line' },
+            { label: words.monthSoFar, colour: 'var(--chart-deemphasis)', mark: 'hatched' },
           ]"
         />
       </template>
@@ -119,8 +114,8 @@ function rescope({ startIndex, endIndex }: ChartZoomWindow): void {
 
     <DrillChartCard
       :chart="trends.cumulative"
-      title="Cumulative net"
-      subtitle="Running total since the ledger began"
+      :title="words.cumulativeNet"
+      :subtitle="words.overTime.cumulativeSubtitle"
       :empty="trends.empty"
       collapse-id="analysis.cumulative"
       :summary="trends.cumulativeSummary"
@@ -129,8 +124,8 @@ function rescope({ startIndex, endIndex }: ChartZoomWindow): void {
       <template #legend>
         <ChartLegend
           :entries="[
-            { label: 'Cumulative net', colour: 'var(--accent)', mark: 'line' },
-            { label: 'Month so far', colour: 'var(--chart-deemphasis)', mark: 'hatched' },
+            { label: words.cumulativeNet, colour: 'var(--accent)', mark: 'line' },
+            { label: words.monthSoFar, colour: 'var(--chart-deemphasis)', mark: 'hatched' },
           ]"
         />
       </template>

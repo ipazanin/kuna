@@ -12,6 +12,7 @@ import type { TracedFigure } from '../../ruleset/tracedFigure'
 import type { DepreciationSchedule } from '../assets/depreciationSchedule'
 import { deducted, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
+import { words } from './words'
 
 export interface GrantMonth {
   readonly month: MonthKey
@@ -82,7 +83,7 @@ export function grantRelease(grant: Grant, schedules: readonly DepreciationSched
     const recognition = rules('hr.acc.grant-recognition', civilDate(year, 1, 1))
     const amount = sumMoney(months.filter((entry) => yearOfMonth(entry.month) === year).map((entry) => entry.released))
     const steps = plan.yearSteps(year, amount)
-    return { year, figure: tracedFigure(`Grant released in ${year}`, amount, 'assets', [recognition.citation, ...rulesOf(steps)], steps) }
+    return { year, figure: tracedFigure(words.release.releasedIn(year), amount, 'assets', [recognition.citation, ...rulesOf(steps)], steps) }
   })
   const releasedFigures = released.map((entry) => entry.figure)
   const years = released.map(({ year, figure }): GrantYear => ({
@@ -119,8 +120,8 @@ export function grantResiduals(schedules: readonly GrantReleaseSchedule[], yearE
     const deferredSteps = schedules.map((schedule) => deferredOn(schedule, civilDate(year, 12, 31)))
     return {
       year,
-      released: compared(accountantFigure('released-in-year'), summed(`Released in ${year} by our policy`, releasedSteps, 'assets')),
-      deferred: compared(accountantFigure('deferred-at-year-end'), summed(`Deferred at the end of ${year} by our policy`, deferredSteps, 'assets')),
+      released: compared(accountantFigure('released-in-year'), summed(words.release.releasedByPolicy(year), releasedSteps, 'assets')),
+      deferred: compared(accountantFigure('deferred-at-year-end'), summed(words.release.deferredByPolicy(year), deferredSteps, 'assets')),
     }
   })
 }
@@ -128,13 +129,13 @@ export function grantResiduals(schedules: readonly GrantReleaseSchedule[], yearE
 /** What the grant's clawback terms put at risk on a day: the first-year terms for a year from the period's start, then the second-year terms. */
 export function clawbackExposure(grant: Grant, on: CivilDate): ClawbackExposure | null {
   if (on < grant.received) {
-    return { amount: tracedFigure('Nothing received yet', ZERO, 'assets', []), until: addDays(grant.received, -1) }
+    return { amount: tracedFigure(words.release.notReceived, ZERO, 'assets', []), until: addDays(grant.received, -1) }
   }
   if (grant.period === null) {
     return null
   }
   if (on > grant.period.to) {
-    return { amount: { ...tracedFigure('Nothing, the grant period ended on', ZERO, 'assets', []), on: grant.period.to }, until: null }
+    return { amount: { ...tracedFigure(words.release.periodEnded, ZERO, 'assets', []), on: grant.period.to }, until: null }
   }
   const firstYearEnds = addDays(anniversaryOf(grant.period.from), -1)
   if (on <= firstYearEnds) {
@@ -160,21 +161,21 @@ function fixedThenAssets(grant: Grant, schedules: readonly DepreciationSchedule[
 
   const yearSteps = (year: number, released: Money): TracedFigure[] => {
     const inWindow = (month: MonthKey) => month <= monthKey(year, 12) && (year === yearOf(grant.received) || month > monthKey(year - 1, 12))
-    const fixedStep = year === yearOf(grant.received) ? [tracedFigure('Fixed part, on receipt', fixed, 'assets', [])] : []
+    const fixedStep = year === yearOf(grant.received) ? [tracedFigure(words.release.fixedPart, fixed, 'assets', [])] : []
     const assetSteps = [...new Set(costs.map((cost) => cost.schedule))].flatMap((schedule) => {
       const ofAsset = costs.filter((cost) => cost.schedule === schedule && inWindow(cost.month))
       if (ofAsset.length === 0) {
         return []
       }
       const figures = ofAsset.map((cost) => cost.figure)
-      return [tracedFigure(`${schedule.asset.name}, depreciation and write-offs`, sumMoney(figures.map((figure) => figure.amount)), 'assets', rulesOf(figures))]
+      return [tracedFigure(words.release.assetCosts(schedule.asset.name), sumMoney(figures.map((figure) => figure.amount)), 'assets', rulesOf(figures))]
     })
     const beyond = subtractMoney(sumMoney([...fixedStep, ...assetSteps].map((step) => step.amount)), released)
-    const capStep = beyond > 0 ? [deducted(tracedFigure('Beyond the variable part, not released', beyond, 'assets', []))] : []
+    const capStep = beyond > 0 ? [deducted(tracedFigure(words.release.beyondVariable, beyond, 'assets', []))] : []
     return [...fixedStep, ...assetSteps, ...capStep]
   }
 
-  const neverReleased = tracedFigure('Variable part beyond what the funded assets cost', totalFunded < variable ? subtractMoney(variable, totalFunded) : ZERO, 'assets', [])
+  const neverReleased = tracedFigure(words.release.neverReleased, totalFunded < variable ? subtractMoney(variable, totalFunded) : ZERO, 'assets', [])
   // The schedule ends with the last funded cost, or earlier once the variable part is all released.
   const laterMonths = [...new Set(costs.map((cost) => cost.month))].filter((month) => month > receiptMonth).sort()
   const candidates = [receiptMonth, ...laterMonths]
@@ -196,21 +197,21 @@ function straightLine(grant: Grant): PolicyPlan {
   const yearSteps = (year: number): TracedFigure[] => {
     const before = year === yearOf(grant.received) ? 0 : daysThrough(monthKey(year - 1, 12))
     const days = daysThrough(monthKey(year, 12)) - before
-    return [tracedFigure(`Whole grant, spread over ${days} of the period's ${totalDays} days`, grant.amount, 'assets', [])]
+    return [tracedFigure(words.release.wholeSpread(days, totalDays), grant.amount, 'assets', [])]
   }
-  return { lastMonth, releasedThrough, yearSteps, neverReleased: tracedFigure('Nothing, the whole grant is spread over its period', ZERO, 'assets', []) }
+  return { lastMonth, releasedThrough, yearSteps, neverReleased: tracedFigure(words.release.nothingNever, ZERO, 'assets', []) }
 }
 
 function deferredBy(grant: Grant, months: readonly GrantMonth[], released: readonly TracedFigure[], on: CivilDate): TracedFigure {
   if (on < grant.received) {
-    return { ...tracedFigure('Not received yet, so nothing deferred on', ZERO, 'assets', []), on }
+    return { ...tracedFigure(words.release.notReceivedDeferred, ZERO, 'assets', []), on }
   }
-  const receivedFigure = tracedFigure('Grant received', grant.amount, 'assets', [])
+  const receivedFigure = tracedFigure(words.release.received, grant.amount, 'assets', [])
   const releasedToDate = {
-    ...tracedFigure('Released by', sumMoney(months.filter((entry) => lastDayOf(entry.month) <= on).map((entry) => entry.released)), 'assets', rulesOf(released)),
+    ...tracedFigure(words.release.releasedBy, sumMoney(months.filter((entry) => lastDayOf(entry.month) <= on).map((entry) => entry.released)), 'assets', rulesOf(released)),
     on,
   }
-  return { ...tracedFigure('Grant deferred on', subtractMoney(grant.amount, releasedToDate.amount), 'assets', releasedToDate.rules, [receivedFigure, deducted(releasedToDate)]), on }
+  return { ...tracedFigure(words.release.deferredOn, subtractMoney(grant.amount, releasedToDate.amount), 'assets', releasedToDate.rules, [receivedFigure, deducted(releasedToDate)]), on }
 }
 
 interface FundedCost {
@@ -223,7 +224,7 @@ interface FundedCost {
 function fundedCosts(schedule: DepreciationSchedule): FundedCost[] {
   const charges = schedule.months.map((entry): FundedCost => {
     const yearCharge = schedule.years.find((year) => year.year === yearOfMonth(entry.month))
-    return { schedule, month: entry.month, figure: tracedFigure(`Depreciation in ${entry.month}`, entry.charge, 'assets', yearCharge?.charge.rules ?? []) }
+    return { schedule, month: entry.month, figure: tracedFigure(words.release.depreciationIn(entry.month), entry.charge, 'assets', yearCharge?.charge.rules ?? []) }
   })
   const writeOff = schedule.writeOff === null ? [] : [{ schedule, month: monthOf(schedule.writeOff.on), figure: schedule.writeOff.figure }]
   return [...charges, ...writeOff]
@@ -240,10 +241,7 @@ function exposure(grant: Grant, clawback: GrantClawback | null, year: 'first' | 
   if (clawback === null) {
     return null
   }
-  const amount =
-    clawback === 'whole'
-      ? tracedFigure(`The whole grant, if a condition breaks in the ${year} year`, grant.amount, 'assets', [])
-      : tracedFigure(`Clawback if a condition breaks in the ${year} year`, clawback, 'assets', [])
+  const amount = clawback === 'whole' ? tracedFigure(words.release.wholeClawback(year), grant.amount, 'assets', []) : tracedFigure(words.release.clawback(year), clawback, 'assets', [])
   return { amount, until }
 }
 
@@ -257,6 +255,6 @@ function compared(accountant: TracedFigure | null, ours: TracedFigure): GrantCom
   if (accountant === null) {
     return null
   }
-  const residual = tracedFigure('Not explained by our policy', subtractMoney(accountant.amount, ours.amount), 'accountant', ours.rules, [accountant, deducted(ours)])
+  const residual = tracedFigure(words.release.notExplained, subtractMoney(accountant.amount, ours.amount), 'accountant', ours.rules, [accountant, deducted(ours)])
   return { accountant, ours, residual }
 }

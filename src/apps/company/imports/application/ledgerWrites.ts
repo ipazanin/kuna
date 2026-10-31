@@ -1,4 +1,4 @@
-import { addMoney, plainAmount, subtractMoney } from '../../../../shared/money/money'
+import { addMoney, subtractMoney } from '../../../../shared/money/money'
 import { definedCategories, definedCategorySlugs } from '../../workbook/domain/categoriesReading'
 import { CATEGORY_RECORDS, LEDGER_RECORDS } from '../../workbook/domain/coreKinds'
 import { readLedger } from '../../workbook/domain/ledgerReading'
@@ -8,6 +8,7 @@ import { slugOf, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import type { Transaction } from '../../workbook/domain/workbook'
 import type { KindChange, WriteRules } from '../../../../shared/storage/domain/writeRules'
+import { words } from './words'
 
 /** Each account's newest row in booking order, as the readers take a closing balance. */
 function newestByAccount(transactions: readonly Transaction[]): Map<string, Transaction> {
@@ -49,11 +50,11 @@ function addedRefusals(added: readonly StoredFields[], before: readonly Transact
       const after = fields.balance?.money ?? null
       if (date === null || amount === null || after === null) continue
       if (latest !== undefined && date < latest.date) {
-        refusals.push(`A new ${account} row is dated ${date}, before ${latest.date}, the newest row of ${account} on the tab now.`)
+        refusals.push(words.ledger.beforeNewest(account, date, latest.date))
         break
       }
       if (balance !== null && addMoney(balance, amount) !== after) {
-        refusals.push(`The new ${account} rows open at ${plainAmount(subtractMoney(after, amount))}, but the tab now leaves ${account} at ${plainAmount(balance)}. Look at the dry run again.`)
+        refusals.push(words.ledger.opensElsewhere(account, subtractMoney(after, amount), balance))
         break
       }
       balance = after
@@ -69,9 +70,7 @@ function removedRefusals(removedRows: ReadonlySet<RecordId | null>, before: read
     const oldest = Math.min(...removed.filter((row) => row.account === account).map((row) => row.sequence))
     const newer = before.find((row) => row.account === account && row.sequence > oldest && !removedRows.has(row.id))
     if (newer !== undefined) {
-      refusals.push(
-        `The ${account} row of ${newer.date} with the balance ${plainAmount(newer.balance)} is booked after the rows to take out, so its balance follows from them. Take it out first, or leave the rows.`,
-      )
+      refusals.push(words.ledger.bookedAfter(account, newer.date, newer.balance))
     }
   }
   return refusals
@@ -83,7 +82,7 @@ function verdictRefusals(change: KindChange<LedgerEntry>, definedCategories: Rea
   return change.edits.flatMap((edit) => {
     if (edit.before === null || edit.after === null) return []
     const category = textOf(edit.after.fields.category)
-    return definedCategories.has(category.toLowerCase()) ? [] : [`"${category}" is not a category on the categories tab.`]
+    return definedCategories.has(category.toLowerCase()) ? [] : [words.ledger.notACategory(category)]
   })
 }
 

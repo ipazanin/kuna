@@ -9,6 +9,7 @@ import { useFilters } from '../../../filters/application/filterStore'
 import { listedRowKey } from '../../../workbook/domain/splits'
 import type { UnaccountedReimbursement } from '../domain/ownerAdvances'
 import type { AdvancePrefill } from './AdvanceDialog.vue'
+import { words } from './words'
 
 /** Payments to the owner that no cost on the owner-advances tab accounts for, newest first, each with a way to add its cost. */
 const props = defineProps<{
@@ -33,23 +34,24 @@ function addCost(line: UnaccountedReimbursement): void {
   <ul class="flex flex-col" data-testid="unaccounted-reimbursements">
     <li v-for="line in [...props.payments].reverse()" :key="listedRowKey(line.payment)" class="payment-row" data-testid="unaccounted-reimbursement">
       <div class="min-w-0">
-        <p class="truncate text-sm text-highlighted">{{ line.payment.description || line.payment.counterparty || 'Reimbursement' }}</p>
+        <p class="truncate text-sm text-highlighted">{{ line.payment.description || line.payment.counterparty || words.unaccounted.reimbursement }}</p>
         <p class="truncate text-xs text-muted">
-          Paid {{ dayLabel(line.payment.date) }}<template v-if="line.amount !== -line.payment.amount">, <MoneyText :cents="line.amount" /> of <MoneyText :cents="-line.payment.amount" /></template>
+          {{ words.unaccounted.paid(dayLabel(line.payment.date))
+          }}<template v-if="line.amount !== -line.payment.amount">, <MoneyText :cents="line.amount" /> {{ words.unaccounted.partOf }} <MoneyText :cents="-line.payment.amount" /></template>
         </p>
       </div>
-      <DrillLink :to="drillLocation(line.drill)" :label="`Reimbursement of ${dayLabel(line.payment.date)}, open the row`" class="text-end">
+      <DrillLink :to="drillLocation(line.drill)" :label="words.unaccounted.openRow(dayLabel(line.payment.date))" class="text-end">
         <MoneyText :cents="line.amount" class="text-sm font-medium text-highlighted" />
       </DrillLink>
       <UButton
-        label="Add the cost"
+        :label="words.unaccounted.addCost"
         icon="i-lucide-plus"
         color="neutral"
         variant="outline"
         size="sm"
         class="justify-self-end"
         :disabled="!editable"
-        :aria-label="`Add the cost the reimbursement of ${dayLabel(line.payment.date)} repaid`"
+        :aria-label="words.unaccounted.addCostOf(dayLabel(line.payment.date))"
         data-testid="add-unaccounted-cost"
         @click="addCost(line)"
       />

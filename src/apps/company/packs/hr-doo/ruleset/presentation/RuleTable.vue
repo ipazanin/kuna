@@ -5,6 +5,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 
 import { fold } from '../../../../../../shared/text/fold'
 import type { TableFocus, TableRowView, TableView } from './ruleWording'
+import { words } from './words'
 
 /** A table term: a plain table on a wide screen, one small card per row on a phone. A long one opens on its focus row and a search. */
 const props = withDefaults(
@@ -74,7 +75,9 @@ const rowsShown = computed((): readonly TableRowView[] => {
 /** The focus rows are tinted only among other rows, where they need finding. */
 const focusMarked = computed(() => props.table.long && (showAll.value || searchWords.value.length > 0))
 
-const status = computed(() => (rowsShown.value.length === props.table.rows.length ? `All ${props.table.rows.length} rows` : `${rowsShown.value.length} of ${props.table.rows.length} rows`))
+const status = computed(() =>
+  rowsShown.value.length === props.table.rows.length ? words.table.allRows(props.table.rows.length) : words.table.shownOf(rowsShown.value.length, props.table.rows.length),
+)
 </script>
 
 <template>
@@ -87,20 +90,20 @@ const status = computed(() => (rowsShown.value.length === props.table.rows.lengt
           v-model="search"
           icon="i-lucide-search"
           enterkeyhint="search"
-          :placeholder="`Search ${table.label.toLowerCase()}`"
-          :aria-label="`Search ${table.label.toLowerCase()}`"
+          :placeholder="words.table.search(table.label)"
+          :aria-label="words.table.search(table.label)"
           class="table-search"
           data-testid="table-search"
         >
           <template v-if="search" #trailing>
-            <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" aria-label="Clear the table search" @click="search = ''" />
+            <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" :aria-label="words.table.clearSearch" @click="search = ''" />
           </template>
         </UInput>
-        <UButton :label="showAll ? 'Show fewer' : 'Show all'" color="neutral" variant="outline" :aria-pressed="showAll" data-testid="table-show-all" @click="toggleShowAll" />
+        <UButton :label="showAll ? words.table.showFewer : words.table.showAll" color="neutral" variant="outline" :aria-pressed="showAll" data-testid="table-show-all" @click="toggleShowAll" />
         <p class="figure text-xs text-muted" aria-live="polite" data-testid="table-count">{{ status }}</p>
       </div>
       <p v-if="rowsShown.length === 0" class="text-sm text-muted">
-        {{ search === '' ? (focus?.hint ?? `Search above, or show all ${table.rows.length} rows.`) : `No row matches "${search}".` }}
+        {{ search === '' ? (focus?.hint ?? words.table.searchOrShowAll(table.rows.length)) : words.table.noMatch(search) }}
       </p>
     </div>
 
@@ -125,7 +128,7 @@ const status = computed(() => (rowsShown.value.length === props.table.rows.lengt
       <table class="data-table term-table w-full text-sm">
         <thead>
           <tr>
-            <th v-if="table.byPeriod" scope="col" class="text-start">Period</th>
+            <th v-if="table.byPeriod" scope="col" class="text-start">{{ words.table.period }}</th>
             <th v-for="(header, index) in table.headers" :key="header" scope="col" :class="table.textColumns[index] ? 'text-start' : 'text-end'">{{ header }}</th>
           </tr>
         </thead>
@@ -133,7 +136,7 @@ const status = computed(() => (rowsShown.value.length === props.table.rows.lengt
           <tr v-for="row in rowsShown" :key="row.key" :class="{ 'starts-period': table.byPeriod && row.period !== null, 'is-focus': focusMarked && isFocused(row) }">
             <th v-if="row.period !== null" scope="rowgroup" :rowspan="row.periodSpan" class="figure text-start align-top font-medium text-highlighted">{{ row.period }}</th>
             <td v-for="(cell, index) in row.cells" :key="index" :class="[table.textColumns[index] ? 'cell-wraps text-start' : 'figure text-end', cell.changed ? 'is-changed' : 'text-default']">
-              {{ cell.wording }}<span v-if="cell.changed" class="sr-only">, changed</span>
+              {{ cell.wording }}<span v-if="cell.changed" class="sr-only">{{ words.detail.changed }}</span>
             </td>
           </tr>
         </tbody>

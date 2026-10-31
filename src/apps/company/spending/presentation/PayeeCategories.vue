@@ -24,6 +24,8 @@ import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useCategoryColours } from '../../workbook/presentation/categoryColours'
+import { plural } from '../../../../shared/text/translation'
+import { words } from './words'
 
 /**
  * The categories one payee was paid under: the largest as a chip, the split as a bar, and every one
@@ -54,8 +56,8 @@ const anchor = {
 }
 
 /** Hover and focus open the breakdown, so the trigger's name carries it too, for a keyboard that cannot reach the popover. */
-const spokenBreakdown = computed(
-  () => `${props.payee} by category: ${props.categories.map((line) => `${line.category === '' ? 'No category' : names.value.category(line.category)} ${formatMoney(line.amount)}`).join(', ')}`,
+const spokenBreakdown = computed(() =>
+  words.payee.byCategory(props.payee, props.categories.map((line) => `${line.category === '' ? words.payee.noCategory : names.value.category(line.category)} ${formatMoney(line.amount)}`).join(', ')),
 )
 </script>
 
@@ -71,7 +73,7 @@ const spokenBreakdown = computed(
           <li v-for="line in categories" :key="line.category">
             <DrillLink :to="line.to" class="breakdown-line">
               <CategoryChip :category="line.category" :bucket="line.bucket" class="min-w-0" />
-              <span class="figure shrink-0 text-xs text-muted">{{ line.count }} {{ line.count === 1 ? 'row' : 'rows' }}</span>
+              <span class="figure shrink-0 text-xs text-muted">{{ plural(words.payee.rows(line.count), line.count) }}</span>
               <MoneyText :cents="line.amount" class="shrink-0 text-sm text-highlighted" />
             </DrillLink>
           </li>

@@ -1,3 +1,5 @@
+import { words } from './words'
+
 /** One colour a category may wear: a chart slot or the recessive grey, each with a light and a dark step. */
 export interface Swatch {
   /** Its name in plain words, such as "Dark green". */
@@ -10,15 +12,15 @@ export interface Swatch {
 
 /** The nine swatches in the order the picker offers them: the eight chart slots, then the grey. */
 export const SWATCHES: readonly Swatch[] = [
-  { name: 'Green', hex: '#1baf7a', slot: 1 },
-  { name: 'Orange', hex: '#eb6834', slot: 2 },
-  { name: 'Blue', hex: '#2a78d6', slot: 3 },
-  { name: 'Amber', hex: '#eda100', slot: 4 },
-  { name: 'Pink', hex: '#e87ba4', slot: 5 },
-  { name: 'Dark green', hex: '#008300', slot: 6 },
-  { name: 'Violet', hex: '#6250d6', slot: 7 },
-  { name: 'Red', hex: '#e34948', slot: 8 },
-  { name: 'Grey', hex: '#a3adb9', slot: null },
+  { name: words.swatches.green, hex: '#1baf7a', slot: 1 },
+  { name: words.swatches.orange, hex: '#eb6834', slot: 2 },
+  { name: words.swatches.blue, hex: '#2a78d6', slot: 3 },
+  { name: words.swatches.amber, hex: '#eda100', slot: 4 },
+  { name: words.swatches.pink, hex: '#e87ba4', slot: 5 },
+  { name: words.swatches.darkGreen, hex: '#008300', slot: 6 },
+  { name: words.swatches.violet, hex: '#6250d6', slot: 7 },
+  { name: words.swatches.red, hex: '#e34948', slot: 8 },
+  { name: words.swatches.grey, hex: '#a3adb9', slot: null },
 ]
 
 /**

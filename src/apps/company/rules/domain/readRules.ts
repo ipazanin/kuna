@@ -12,6 +12,7 @@ import type { StoredFields } from '../../../../shared/storage/domain/storedField
 import { CONDITION_COLUMNS, RULE_COLUMNS, inTryingOrder } from './rule'
 import type { Rule, RuleCondition, RuleConfidence } from './rule'
 import { foldRuleText } from './transactionFacts'
+import { words } from './words'
 
 /** One stored rule as its fields, a flag as true or false and anything else as its text, blank fields left out. */
 export interface RuleTabRow {
@@ -59,31 +60,31 @@ export function readRules(rows: readonly RuleTabRow[], definedCategories: Readon
   for (const row of rows) {
     const named = textOf(row.fields.rule)
     const refuse = (reason: string): void => {
-      problems.push({ id: named === '' ? null : recordIdOf(RULE_RECORDS, named.toLowerCase()), label: named || 'unnamed', reason })
+      problems.push({ id: named === '' ? null : recordIdOf(RULE_RECORDS, named.toLowerCase()), label: labelWords([named]), reason })
     }
     const unknownColumns = Object.keys(row.fields).filter((column) => !(RULE_COLUMNS as readonly string[]).includes(column))
     if (unknownColumns.length > 0) {
-      refuse(`${unknownColumns.map((column) => `"${column}"`).join(', ')} is not a column a rule can test`)
+      refuse(words.reading.unknownColumns(unknownColumns.map((column) => `"${column}"`).join(', ')))
       continue
     }
     const id = textOf(row.fields.rule)
     if (id === '') {
-      refuse('a row without a rule id')
+      refuse(words.reading.noId)
       continue
     }
     if (shared.has(id.toLowerCase())) {
-      refuse('the id is on more than one row, so none of them is tried')
+      refuse(words.reading.sharedId)
       continue
     }
     const orderCell = row.fields.order
     const order = Number(orderCell)
     if (textOf(orderCell) === '' || !Number.isFinite(order)) {
-      refuse(`the order "${textOf(orderCell)}" is not a number`)
+      refuse(words.reading.notANumber(textOf(orderCell)))
       continue
     }
     const enabled = booleanCell(row.fields.enabled)
     if (enabled === 'unreadable' || enabled === null) {
-      refuse(`the enabled cell "${textOf(row.fields.enabled)}" is neither TRUE nor FALSE`)
+      refuse(words.reading.notABoolean(textOf(row.fields.enabled)))
       continue
     }
     const read = conditionsOf(row.fields)
@@ -105,16 +106,16 @@ export function readRules(rows: readonly RuleTabRow[], definedCategories: Readon
 /** Why an enabled rule cannot be tried, the first check that fails, or none. */
 function enabledRuleRefusals(confidence: string, category: string, read: ReturnType<typeof conditionsOf>, definedCategories: ReadonlySet<string>): string[] {
   if (confidence !== 'rule' && confidence !== 'review') {
-    return [`the confidence "${confidence}" is neither rule nor review`]
+    return [words.reading.unknownConfidence(confidence)]
   }
   if (confidence === 'rule' && !definedCategories.has(category)) {
-    return [`it files rows as "${category}" at rule confidence, and the categories tab does not define it`]
+    return [words.reading.undefinedCategory(category)]
   }
   if (read.unreadable.length > 0) {
     return read.unreadable
   }
   if (read.conditions.length === 0) {
-    return ['no condition, so it would match every row']
+    return [words.reading.noCondition]
   }
   return []
 }
@@ -142,14 +143,14 @@ function conditionOf(column: ConditionColumnName, cell: FieldValue): RuleConditi
   switch (column) {
     case 'direction': {
       const direction = textOf(cell).toLowerCase()
-      return direction === 'credit' || direction === 'debit' ? { column, direction } : `direction is "${textOf(cell)}", and it is credit, debit or blank`
+      return direction === 'credit' || direction === 'debit' ? { column, direction } : words.reading.direction(textOf(cell))
     }
     case 'counterparty_iban':
       return { column, iban: normaliseIban(textOf(cell)) }
     case 'has_counterparty_iban': {
       const present = booleanCell(cell)
       if (present === 'unreadable') {
-        return `${column} is "${textOf(cell)}", and it is TRUE, FALSE or blank`
+        return words.reading.trueFalseOrBlank(column, textOf(cell))
       }
       return present === null ? null : { column, present }
     }
@@ -159,7 +160,7 @@ function conditionOf(column: ConditionColumnName, cell: FieldValue): RuleConditi
     case 'foreign_currency': {
       const wanted = booleanCell(cell)
       if (wanted === 'unreadable' || wanted === false) {
-        return `${column} is "${textOf(cell)}", and it is TRUE or blank`
+        return words.reading.trueOrBlank(column, textOf(cell))
       }
       return wanted === null ? null : { column }
     }
@@ -175,7 +176,7 @@ function conditionOf(column: ConditionColumnName, cell: FieldValue): RuleConditi
     case 'revenue_code': {
       // Four digits and nothing else: a number drops a leading zero, and a three-digit code would match nothing.
       const code = textOf(cell)
-      return /^\d{4}$/.test(code) ? { column, code } : `revenue_code is "${code}", and it is four digits`
+      return /^\d{4}$/.test(code) ? { column, code } : words.reading.revenueCode(code)
     }
   }
 }

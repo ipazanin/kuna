@@ -13,14 +13,16 @@ import type { Client, Invoice } from '../../workbook/domain/workbook'
 import type { BillingPlanFigures } from '../application/useBillingPlan'
 import type { MatchedBillingItem } from '../domain/plannedAgainstInvoiced'
 import { itemColours, itemYearsChart } from './billingCharts'
+import { words } from './words'
+import { plural } from '../../../../shared/text/translation'
 
 export type BillingStatus = 'invoiced' | 'part' | 'open'
 
 /** How a row or a month reads by what the invoices billed of it. */
 export const BILLING_STATUS: Readonly<Record<BillingStatus, { readonly label: string; readonly color: 'success' | 'warning' | 'neutral' }>> = {
-  invoiced: { label: 'Invoiced', color: 'success' },
-  part: { label: 'Part invoiced', color: 'warning' },
-  open: { label: 'Not invoiced yet', color: 'neutral' },
+  invoiced: { label: words.status.invoiced, color: 'success' },
+  part: { label: words.status.part, color: 'warning' },
+  open: { label: words.status.open, color: 'neutral' },
 }
 
 export interface BillingInvoiceShare {
@@ -160,26 +162,27 @@ export function billingView(figures: BillingPlanFigures, register: { readonly cl
     months: listedMonths,
     monthsSummary:
       listedMonths.length === 0
-        ? 'No month with plan rows'
-        : `${listedMonths.filter((month) => month.status === 'invoiced').length} of ${listedMonths.filter((month) => month.status !== null).length} months invoiced, ${formatMoney(openInYear)} not invoiced yet`,
+        ? words.view.noMonths
+        : words.view.months(listedMonths.filter((month) => month.status === 'invoiced').length, listedMonths.filter((month) => month.status !== null).length, formatMoney(openInYear)),
     rowsSummary:
-      rows.length === 0 ? 'No plan rows in the year' : `${rows.length} ${rows.length === 1 ? 'row' : 'rows'}, ${openRows.length === 0 ? 'every one invoiced' : `${openRows.length} not invoiced yet`}`,
+      rows.length === 0
+        ? words.view.noRows
+        : `${plural(words.view.rows(rows.length), rows.length)}, ${openRows.length === 0 ? words.view.everyInvoiced : plural(words.view.openRows(openRows.length), openRows.length)}`,
     rows: [...rows].sort((earlier, later) => later.date.localeCompare(earlier.date) || billingItemOrder(earlier, later)),
     items,
-    itemsSummary:
-      largest === undefined ? `No plan row is dated in ${year}` : `${items.length} ${items.length === 1 ? 'item' : 'items'} in ${year}, ${largest.item} the largest at ${formatPercent(largest.share)}`,
+    itemsSummary: largest === undefined ? words.view.noItems(year) : plural(words.view.items(items.length, year, largest.item, formatPercent(largest.share)), items.length),
     itemsChart: itemYearsChart(
       figures.statistics.years,
       figures.statistics.items.map((total) => total.item),
       tokens,
     ),
     itemYears: figures.statistics.years.length,
-    totalsSummary: `${formatMoney(all.planned)} planned, ${formatMoney(all.invoiced)} invoiced, over every year`,
+    totalsSummary: words.view.totals(formatMoney(all.planned), formatMoney(all.invoiced)),
     check: {
       sums: [
-        { label: 'Total amount', amount: all.planned },
-        { label: 'Invoiced amount', amount: all.invoiced },
-        { label: 'Not invoiced', amount: all.notInvoiced },
+        { label: words.view.totalAmount, amount: all.planned },
+        { label: words.view.invoicedAmount, amount: all.invoiced },
+        { label: words.view.notInvoiced, amount: all.notInvoiced },
       ],
       actual: all.years.filter((entry) => entry.invoiced !== 0).map((entry): BillingCheckLine => ({ label: String(entry.year), amount: entry.invoiced })),
     },

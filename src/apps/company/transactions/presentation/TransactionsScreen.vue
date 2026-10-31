@@ -41,7 +41,7 @@ import { categoryChangeOf } from '../domain/categoryChange'
 import { ownerShareChangeOf } from '../domain/ownerShareChange'
 import { advancesLeftOutByBankFilters } from '../domain/filterTransactions'
 import { ownerPartOrigin } from '../../owner-share/domain/ownerParts'
-import { OWNER_ADVANCE_LABEL, bookedRowOf, inBookingOrder, listedOwnerPart, listedRows, partPlace, withPartHeadings } from '../domain/listedRows'
+import { bookedRowOf, inBookingOrder, listedOwnerPart, listedRows, partPlace, withPartHeadings } from '../domain/listedRows'
 import type { ListedAdvanceRow, ListedBankRow, ListedEntry, ListedRow } from '../domain/listedRows'
 import { groupTransactions } from '../domain/transactionGroups'
 import type { Grouping, TransactionGroup } from '../domain/transactionGroups'
@@ -51,10 +51,13 @@ import ChangeCategoryDialog from './ChangeCategoryDialog.vue'
 import SplitDialog from './SplitDialog.vue'
 import TransactionCards from './TransactionCards.vue'
 import TransactionGroupHeading from './TransactionGroupHeading.vue'
+import { words } from './words'
+import { plural } from '../../../../shared/text/translation'
+import { words as uiWords } from '../../../../shared/ui/words'
 
 const TABS: readonly PageTab[] = [
-  { label: 'Rows', value: 'rows', icon: 'i-lucide-list' },
-  { label: 'Import', value: 'import', icon: 'i-lucide-file-up' },
+  { label: words.tabs.rows, value: 'rows', icon: 'i-lucide-list' },
+  { label: words.tabs.import, value: 'import', icon: 'i-lucide-file-up' },
 ]
 
 const ledger = useFilteredLedger()
@@ -62,10 +65,10 @@ const { filters, setFilters, drillLocation } = useFilters()
 const { state } = useWorkbook()
 
 const GROUPINGS: readonly { readonly label: string; readonly value: Grouping }[] = [
-  { label: 'No grouping', value: 'none' },
-  { label: 'By month', value: 'month' },
-  { label: 'By category', value: 'category' },
-  { label: 'By counterparty', value: 'counterparty' },
+  { label: words.groupings.none, value: 'none' },
+  { label: words.groupings.month, value: 'month' },
+  { label: words.groupings.category, value: 'category' },
+  { label: words.groupings.counterparty, value: 'counterparty' },
 ]
 
 const groupBy = ref<Grouping>('none')
@@ -104,9 +107,8 @@ const advancesLeftOut = computed(() => {
     return null
   }
   const { accounts, counterparties, needsReview } = shown.filters
-  const filters = [accounts.length > 0 ? 'account' : '', counterparties.length > 0 ? 'counterparty' : '', needsReview ? 'review' : ''].filter((name) => name !== '')
-  const named = filters.length === 1 ? `the ${filters[0]} filter` : `the ${filters.slice(0, -1).join(', ')} and ${filters[filters.length - 1]} filters`
-  return `${count} owner ${count === 1 ? 'advance' : 'advances'} in this period ${count === 1 ? 'is' : 'are'} not listed, because ${named} ${filters.length === 1 ? 'leaves' : 'leave'} ${count === 1 ? 'it' : 'them'} out. An advance was paid from the owner's own money, so it has no bank account, no counterparty in the ledger, and never waits for review.`
+  const filters = ([accounts.length > 0 ? 'account' : null, counterparties.length > 0 ? 'counterparty' : null, needsReview ? 'review' : null] as const).filter((name) => name !== null)
+  return words.advancesLeftOut(count, filters)
 })
 
 const phone = usePhoneLayout()
@@ -194,7 +196,7 @@ function sortableHeader(label: string, alignEnd = false) {
       size: 'xs',
       class: ['-mx-2 font-medium text-muted', alignEnd ? 'ms-auto' : ''],
       trailingIcon: sorted === 'asc' ? 'i-lucide-arrow-up' : sorted === 'desc' ? 'i-lucide-arrow-down' : 'i-lucide-arrow-up-down',
-      'aria-label': `Sort by ${label.toLowerCase()}`,
+      'aria-label': uiWords.sortBy(label),
       onClick: () => column.toggleSorting(sorted === 'asc'),
     })
   }
@@ -212,7 +214,7 @@ const isPart = (entry: TableEntry): boolean => entry.kind === 'row' && partPlace
 
 /** The heading's badge: how many parts a split row has, or the share of a shared one. */
 function headingBadge(entry: Extract<TableEntry, { kind: 'split' | 'shared' }>) {
-  return h(UBadge, { label: entry.kind === 'split' ? `Split in ${entry.count} parts` : `Shared with the owner, ${entry.share}%`, color: 'neutral', variant: 'subtle', size: 'sm' })
+  return h(UBadge, { label: entry.kind === 'split' ? plural(words.splitInParts(entry.count), entry.count) : words.sharedWithOwner(entry.share), color: 'neutral', variant: 'subtle', size: 'sm' })
 }
 
 /** A group's heading fills its whole row, so every other cell of that row is left out. */
@@ -223,8 +225,8 @@ function besideHeading(rowClass = ''): { class: { td: (cell: EntryCell) => strin
 /** Why a row waits for review, beside its category. */
 function reviewBadge(listed: ListedRow) {
   if (listed.kind === 'owner-advance') return null
-  if (listed.bucket === UNCLASSIFIED) return h(UBadge, { label: 'Unclassified', color: 'warning', variant: 'subtle', size: 'sm' })
-  if (listed.flaggedBy === 'ai') return h(UBadge, { label: 'AI guess', color: 'info', variant: 'subtle', size: 'sm' })
+  if (listed.bucket === UNCLASSIFIED) return h(UBadge, { label: words.unclassified, color: 'warning', variant: 'subtle', size: 'sm' })
+  if (listed.flaggedBy === 'ai') return h(UBadge, { label: words.aiGuess, color: 'info', variant: 'subtle', size: 'sm' })
   return null
 }
 
@@ -238,7 +240,7 @@ function categoryOf(listed: ListedRow) {
   return h('span', { class: 'inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-toned' }, [
     h('span', { class: 'inline-flex items-center gap-1.5' }, [
       h('span', { class: 'size-2 shrink-0 rounded-[2px]', style: { background: colours.value(listed.category, listed.bucket) }, 'aria-hidden': 'true' }),
-      listed.category === '' ? h('span', { class: 'text-muted' }, 'No category') : h(DrillLink, { to: narrowTo({ categories: [listed.category] }) }, () => names.value.category(listed.category)),
+      listed.category === '' ? h('span', { class: 'text-muted' }, words.noCategory) : h(DrillLink, { to: narrowTo({ categories: [listed.category] }) }, () => names.value.category(listed.category)),
     ]),
     ownerPartNote(listed),
     reviewBadge(listed),
@@ -248,8 +250,8 @@ function categoryOf(listed: ListedRow) {
 /** A bank row's counterparty opens its rows. An advance has no counterparty in the ledger, so a counterparty filter would leave it out. */
 function counterpartyName(row: Transaction | ListedAdvanceRow) {
   return 'kind' in row && row.kind === 'owner-advance'
-    ? h('span', { class: 'inline-flex items-center gap-2 text-highlighted' }, [row.counterparty, h(UBadge, { label: OWNER_ADVANCE_LABEL, color: 'neutral', variant: 'subtle', size: 'sm' })])
-    : h(DrillLink, { to: narrowTo({ counterparties: [counterpartyIdentity(row).key] }), class: 'text-highlighted' }, () => row.counterparty || 'No counterparty')
+    ? h('span', { class: 'inline-flex items-center gap-2 text-highlighted' }, [row.counterparty, h(UBadge, { label: words.ownerAdvance, color: 'neutral', variant: 'subtle', size: 'sm' })])
+    : h(DrillLink, { to: narrowTo({ counterparties: [counterpartyIdentity(row).key] }), class: 'text-highlighted' }, () => row.counterparty || words.noCounterparty)
 }
 
 /** Below a container width the category column drops out and the category moves under the row's name. */
@@ -266,7 +268,7 @@ function splitButton(payment: Transaction) {
         color: 'neutral',
         variant: 'ghost',
         size: 'xs',
-        'aria-label': `Split the payment of ${payment.counterparty || 'this row'}`,
+        'aria-label': words.splitPayment(payment.counterparty),
         'data-testid': 'split-row',
         disabled: state.writing,
         onClick: () => openSplit(payment),
@@ -277,7 +279,7 @@ const columns: TableColumn<TableEntry>[] = [
   {
     id: 'date',
     accessorFn: (entry) => (entry.kind === 'row' ? entry.row.date : entry.kind === 'group' ? '' : entry.whole.date),
-    header: sortableHeader('Date'),
+    header: sortableHeader(words.columns.date),
     meta: {
       colspan: { td: (cell: EntryCell) => (isHeading(cell) ? String(COLUMN_COUNT) : '1') },
       class: { td: (cell: EntryCell) => (isHeading(cell) ? 'p-0' : '') },
@@ -301,9 +303,9 @@ const columns: TableColumn<TableEntry>[] = [
   {
     id: 'counterparty',
     accessorFn: (entry) => (entry.kind === 'row' ? entry.row.counterparty : entry.kind === 'group' ? '' : entry.whole.counterparty),
-    header: 'Counterparty',
+    header: words.columns.counterparty,
     meta: besideHeading('whitespace-normal'),
-    footer: () => h('span', { class: 'text-xs font-normal text-muted' }, `${rows.value.length} ${rows.value.length === 1 ? 'row' : 'rows'}`),
+    footer: () => h('span', { class: 'text-xs font-normal text-muted' }, plural(words.rows(rows.value.length), rows.value.length)),
     cell: ({ row }) => {
       const entry = row.original
       if (entry.kind === 'group') return ''
@@ -321,7 +323,7 @@ const columns: TableColumn<TableEntry>[] = [
         return h('div', { class: 'min-w-40 max-w-48 ps-4 @3xl:max-w-56 @4xl:max-w-96' }, [
           h('span', { class: 'inline-flex items-center gap-1.5 text-toned' }, [
             h(UIcon, { name: 'i-lucide-corner-down-right', class: 'size-3.5 shrink-0 text-muted', 'aria-hidden': 'true' }),
-            `Part ${place.number} of ${place.count}`,
+            words.part(place.number, place.count),
           ]),
           note === '' ? null : h('p', { class: 'truncate text-xs text-muted' }, note),
           categoryBelowName(listed),
@@ -337,12 +339,12 @@ const columns: TableColumn<TableEntry>[] = [
   {
     id: 'category',
     accessorFn: (entry) => (entry.kind === 'row' ? entry.row.category : ''),
-    header: 'Category',
+    header: words.columns.category,
     meta: { class: { th: 'hidden @2xl:table-cell', ...besideHeading('hidden whitespace-normal @2xl:table-cell').class } },
     cell: ({ row }) => {
       const entry = row.original
       if (entry.kind === 'group') return ''
-      if (entry.kind !== 'row') return h('span', { class: 'text-xs text-muted' }, 'Counts as its parts')
+      if (entry.kind !== 'row') return h('span', { class: 'text-xs text-muted' }, words.countsAsParts)
       return categoryOf(entry.row)
     },
   },
@@ -356,7 +358,7 @@ const columns: TableColumn<TableEntry>[] = [
           : entry.kind === 'shared' && entry.whole.kind === 'bank'
             ? entry.whole.account
             : '',
-    header: 'Account',
+    header: words.columns.account,
     // The account is the first column a narrow card gives up, since the filters name it too.
     meta: { class: { th: 'hidden @4xl:table-cell', ...besideHeading('hidden @4xl:table-cell').class } },
     cell: ({ row }) => {
@@ -364,13 +366,13 @@ const columns: TableColumn<TableEntry>[] = [
       if (entry.kind === 'group' || isPart(entry)) return ''
       if (entry.kind === 'split') return h('span', { class: 'text-muted' }, names.value.account(entry.whole.account))
       const listed = entry.kind === 'shared' ? entry.whole : entry.row
-      return h('span', { class: 'text-muted' }, listed.kind === 'bank' ? names.value.account(listed.account) : 'No bank account')
+      return h('span', { class: 'text-muted' }, listed.kind === 'bank' ? names.value.account(listed.account) : words.noBankAccount)
     },
   },
   {
     id: 'amount',
     accessorFn: (entry) => (entry.kind === 'row' ? entry.row.amount : entry.kind === 'group' ? entry.group.total : entry.whole.amount),
-    header: sortableHeader('Amount', true),
+    header: sortableHeader(words.columns.amount, true),
     meta: { class: { th: 'text-end', ...besideHeading('text-end').class } },
     cell: ({ row }) => {
       const entry = row.original
@@ -381,13 +383,13 @@ const columns: TableColumn<TableEntry>[] = [
     // The count sits under the counterparty, so the amount column stays as narrow as its figures.
     footer: () =>
       h('span', { class: 'inline-flex items-baseline gap-2 whitespace-nowrap' }, [
-        h('span', { class: 'text-xs font-normal text-muted' }, 'Total'),
+        h('span', { class: 'text-xs font-normal text-muted' }, words.total),
         h(MoneyText, { cents: total.value, class: 'font-semibold text-highlighted' }),
       ]),
   },
   {
     id: 'actions',
-    header: () => h('span', { class: 'sr-only' }, 'Actions'),
+    header: () => h('span', { class: 'sr-only' }, words.columns.actions),
     meta: { class: { th: 'w-0 px-0', ...besideHeading('w-0 ps-0 pe-2').class } },
     cell: ({ row }) => {
       const entry = row.original
@@ -397,7 +399,7 @@ const columns: TableColumn<TableEntry>[] = [
           color: 'neutral',
           variant: 'ghost',
           size: 'xs',
-          'aria-label': `Edit the split of ${entry.whole.counterparty || 'the payment'}`,
+          'aria-label': words.editSplit(entry.whole.counterparty),
           'data-testid': 'edit-split',
           disabled: state.writing,
           onClick: () => openSplit(entry.whole),
@@ -413,7 +415,7 @@ const columns: TableColumn<TableEntry>[] = [
                 color: 'neutral',
                 variant: 'ghost',
                 size: 'xs',
-                'aria-label': `Edit the owner share of ${whole.counterparty || 'the payment'}`,
+                'aria-label': words.editOwnerShare(whole.counterparty),
                 'data-testid': 'edit-owner-share',
                 disabled: state.writing,
                 onClick: () => setOwnerShare(whole),
@@ -424,7 +426,7 @@ const columns: TableColumn<TableEntry>[] = [
       if (entry.kind !== 'row') return ''
       const listed = entry.row
       const place = partPlace(listed)
-      const named = place === null ? listed.counterparty || 'this row' : `part ${place.number} of ${listed.counterparty || 'the payment'}`
+      const named = place === null ? words.rowName(listed.counterparty) : words.partName(place.number, listed.counterparty)
       return h('span', { class: 'flex justify-end' }, [
         listed.kind !== 'bank' || categoryChangeOf(listed) === null
           ? null
@@ -433,7 +435,7 @@ const columns: TableColumn<TableEntry>[] = [
               color: 'neutral',
               variant: 'ghost',
               size: 'xs',
-              'aria-label': `Change the category of ${named}`,
+              'aria-label': words.changeCategoryOf(named),
               'data-testid': 'change-category-row',
               disabled: state.writing,
               onClick: () => changeCategory(listed),
@@ -446,7 +448,7 @@ const columns: TableColumn<TableEntry>[] = [
               color: 'neutral',
               variant: 'ghost',
               size: 'xs',
-              'aria-label': `Owner share of ${named}`,
+              'aria-label': words.ownerShareOf(named),
               'data-testid': 'owner-share-row',
               disabled: state.writing,
               onClick: () => setOwnerShare(listed),
@@ -465,8 +467,8 @@ function exportCsv(): void {
 
 <template>
   <section class="flex max-w-measure flex-col gap-6">
-    <PageHeader title="Transactions" description="The rows behind every figure, and new bank statements coming in. Any number elsewhere opens here with its filters." />
-    <PageTabs :tabs="TABS" label="Rows and imports">
+    <PageHeader :title="words.title" :description="words.description" />
+    <PageTabs :tabs="TABS" :label="words.tabs.label">
       <template #rows>
         <div class="flex flex-col gap-6">
           <LedgerGate>
@@ -474,13 +476,13 @@ function exportCsv(): void {
               <FilterBar :workbook="ledger.workbook" :window="ledger.window" />
 
               <div class="flex flex-wrap items-center gap-2">
-                <UInput v-model="search" icon="i-lucide-search" placeholder="Search counterparty, description, category, reference" aria-label="Search transactions" size="sm" class="w-full sm:w-96" />
-                <USelect v-model="groupBy" :items="[...GROUPINGS]" size="sm" aria-label="Group rows" class="w-44" />
+                <UInput v-model="search" icon="i-lucide-search" :placeholder="words.search" :aria-label="words.searchLabel" size="sm" class="w-full sm:w-96" />
+                <USelect v-model="groupBy" :items="[...GROUPINGS]" size="sm" :aria-label="words.groupLabel" class="w-44" />
                 <template v-if="groups">
                   <UButton
                     icon="i-lucide-chevrons-down-up"
-                    v-bind="phone ? {} : { label: 'Collapse all' }"
-                    aria-label="Collapse all"
+                    v-bind="phone ? {} : { label: words.collapseAll }"
+                    :aria-label="words.collapseAll"
                     color="neutral"
                     variant="ghost"
                     size="sm"
@@ -489,8 +491,8 @@ function exportCsv(): void {
                   />
                   <UButton
                     icon="i-lucide-chevrons-up-down"
-                    v-bind="phone ? {} : { label: 'Expand all' }"
-                    aria-label="Expand all"
+                    v-bind="phone ? {} : { label: words.expandAll }"
+                    :aria-label="words.expandAll"
                     color="neutral"
                     variant="ghost"
                     size="sm"
@@ -498,7 +500,7 @@ function exportCsv(): void {
                     @click="collapsed.expandAll()"
                   />
                 </template>
-                <UButton icon="i-lucide-download" label="Export CSV" color="neutral" variant="outline" size="sm" class="sm:ms-auto" :disabled="rows.length === 0" @click="exportCsv" />
+                <UButton icon="i-lucide-download" :label="words.exportCsv" color="neutral" variant="outline" size="sm" class="sm:ms-auto" :disabled="rows.length === 0" @click="exportCsv" />
               </div>
 
               <p v-if="advancesLeftOut" class="flex items-start gap-2 text-xs text-muted" data-testid="advances-left-out">
@@ -509,9 +511,9 @@ function exportCsv(): void {
               <EmptyState
                 v-if="rows.length === 0"
                 icon="i-lucide-search-x"
-                title="No transactions match these filters"
-                description="Clear a filter or pick a longer period."
-                :actions="[{ label: 'Clear filters', color: 'neutral', variant: 'outline', onClick: () => setFilters(withoutChips(filters)) }]"
+                :title="words.noMatchTitle"
+                :description="words.noMatchDescription"
+                :actions="[{ label: words.clearFilters, color: 'neutral', variant: 'outline', onClick: () => setFilters(withoutChips(filters)) }]"
               />
               <TransactionCards
                 v-else-if="phone"

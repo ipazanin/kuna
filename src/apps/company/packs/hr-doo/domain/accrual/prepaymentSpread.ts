@@ -8,6 +8,7 @@ import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { spreadByDays } from './daySpread'
+import { words } from './words'
 
 /** The part of a prepaid cost that belongs to one month. */
 export interface PrepaidShare {
@@ -29,7 +30,7 @@ export function prepaymentSpread(booking: Booking, months: number, rules: RuleSo
   const spread = spreadByDays(booking.amount, { from: booking.date, to: coveredTo })
   return spread.shares.map((share) => ({
     month: share.month,
-    cost: { ...tracedFigure(`${share.days} of ${spread.totalDays} days covered by the payment of`, share.amount, 'ledger', [accrual.citation]), on: booking.date },
+    cost: { ...tracedFigure(words.prepaid(share.days, spread.totalDays), share.amount, 'ledger', [accrual.citation]), on: booking.date },
   }))
 }
 

@@ -8,6 +8,7 @@ import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { atRate, deducted, percentText, rulesOf, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import type { TaxBase } from './taxBase'
+import { words } from './words'
 
 /** The days a PD return covers. The first period starts on the day the company was registered. */
 export interface TaxPeriod {
@@ -55,22 +56,22 @@ export function citLiability(base: TaxBase, period: TaxPeriod, advancesPaid: Tra
   const taxPeriod = civilDate(base.year, 1, 1)
   const rateRule = rules('hr.cit.rate', taxPeriod)
   const testRule = rules('hr.cit.rate-test-revenue', taxPeriod)
-  const rateTestRevenue = tracedFigure('PD line 1 less line 28, with no grant for special circumstances on line 28', base.revenue.amount, 'ledger', [testRule.citation], [base.revenue])
+  const rateTestRevenue = tracedFigure(words.liability.rateTestRevenue, base.revenue.amount, 'ledger', [testRule.citation], [base.revenue])
   const high = rateTestRevenue.amount >= rateRule.value.threshold.cents
   const basisPoints = high ? rateRule.value.highRate.basisPoints : rateRule.value.lowRate.basisPoints
   const rate: TracedRate = {
-    label: high ? 'PD line 43, the rate for revenue at or above the threshold' : 'PD line 43, the rate for revenue below the threshold',
+    label: high ? words.liability.highRate : words.liability.lowRate,
     basisPoints,
     rules: [rateRule.citation, testRule.citation],
   }
   const taxable = base.base.amount > 0 ? base.base.amount : ZERO
-  const liability = tracedFigure(`PD lines 44 and 53, tax at ${percentText(basisPoints)}`, atRate(taxable, basisPoints), 'ledger', [...rate.rules, ...base.base.rules], [base.base])
+  const liability = tracedFigure(words.liability.tax(percentText(basisPoints)), atRate(taxable, basisPoints), 'ledger', [...rate.rules, ...base.base.rules], [base.base])
 
   const advanceRule = rules('hr.cit.monthly-advance', taxPeriod)
   const periodMonths = monthCountBetween(monthOf(period.from), monthOf(period.to))
   const monthlyAdvance = monthlyAdvanceOf(liability, periodMonths, base.year, rules)
 
-  const paid = period.first && !advanceRule.value.advancesInFirstPeriod.holds ? tracedFigure('PD line 56, no advances in a first tax period', ZERO, 'ledger', [advanceRule.citation]) : advancesPaid
+  const paid = period.first && !advanceRule.value.advancesInFirstPeriod.holds ? tracedFigure(words.liability.noAdvances, ZERO, 'ledger', [advanceRule.citation]) : advancesPaid
   const settlement = paid === null ? null : balanceOf(liability, paid, rules('hr.cit.balance-due', taxPeriod).citation)
   return {
     period,
@@ -103,13 +104,7 @@ export function monthlyAdvanceOf(liability: TracedFigure, months: number, year: 
   if (!Number.isInteger(months) || months < 1 || months > 12) {
     throw new RangeError(`${months} is not a number of months a tax period can have.`)
   }
-  return tracedFigure(
-    `PD line 59, the liability over the ${months} months of the period`,
-    moneyFromCents(dividedRounded(liability.amount, months)),
-    liability.basis,
-    [advanceRule.citation, ...liability.rules],
-    [liability],
-  )
+  return tracedFigure(words.liability.monthlyAdvance(months), moneyFromCents(dividedRounded(liability.amount, months)), liability.basis, [advanceRule.citation, ...liability.rules], [liability])
 }
 
 function balanceOf(liability: TracedFigure, paid: TracedFigure, citation: RuleCitation): { readonly balanceDue: TracedFigure; readonly refund: TracedFigure } {
@@ -117,7 +112,7 @@ function balanceOf(liability: TracedFigure, paid: TracedFigure, citation: RuleCi
   const steps = [liability, deducted(paid)]
   const cited = [citation, ...rulesOf(steps)]
   return {
-    balanceDue: tracedFigure('PD line 57, balance due', difference > 0 ? difference : ZERO, 'ledger', cited, steps),
-    refund: tracedFigure('PD line 58, overpaid', difference < 0 ? moneyFromCents(0 - difference) : ZERO, 'ledger', cited, steps),
+    balanceDue: tracedFigure(words.liability.balanceDue, difference > 0 ? difference : ZERO, 'ledger', cited, steps),
+    refund: tracedFigure(words.liability.refund, difference < 0 ? moneyFromCents(0 - difference) : ZERO, 'ledger', cited, steps),
   }
 }

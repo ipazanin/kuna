@@ -9,7 +9,13 @@ import { HR_DOO_TABS } from './packs/hr-doo/infrastructure/hrDooTabs'
 import { installPack, shownPack } from './packs/packContribution'
 import { useSettings } from './settings/application/useSettings'
 import { amountLocaleOf } from './settings/domain/settings'
+import { words as analysisWords } from './analysis/presentation/words'
+import { words as invoicingWords } from './invoicing/presentation/words'
+import { words as onboardingWords } from './onboarding/presentation/words'
+import { words as overviewWords } from './overview/presentation/words'
+import { words as reviewWords } from './review/presentation/words'
 import { words as settingsWords } from './settings/presentation/words'
+import { words as transactionWords } from './transactions/presentation/words'
 import { companySyncGroup } from './sync/presentation/useSync'
 import { words } from './words'
 import { useWorkbook } from './workbook/application/workbookStore'
@@ -19,11 +25,11 @@ import { installPackTabs } from './workbook/infrastructure/packTabs'
 import { useGoogleReturn } from './workbook/presentation/useGoogleReturn'
 
 const CORE_SCREENS: readonly AppScreen[] = [
-  { path: '/company', title: 'Overview', icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') },
-  { path: '/company/transactions', title: 'Transactions', icon: 'i-lucide-list', component: () => import('./transactions/presentation/TransactionsScreen.vue') },
-  { path: '/company/review', title: 'Review', icon: 'i-lucide-inbox', component: () => import('./review/presentation/ReviewScreen.vue') },
-  { path: '/company/invoicing', title: 'Invoicing', icon: 'i-lucide-receipt-text', component: () => import('./invoicing/presentation/InvoicingScreen.vue') },
-  { path: '/company/analysis', title: 'Analysis', icon: 'i-lucide-chart-bar', component: () => import('./analysis/presentation/AnalysisScreen.vue') },
+  { path: '/company', title: overviewWords.title, icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') },
+  { path: '/company/transactions', title: transactionWords.title, icon: 'i-lucide-list', component: () => import('./transactions/presentation/TransactionsScreen.vue') },
+  { path: '/company/review', title: reviewWords.title, icon: 'i-lucide-inbox', component: () => import('./review/presentation/ReviewScreen.vue') },
+  { path: '/company/invoicing', title: invoicingWords.title, icon: 'i-lucide-receipt-text', component: () => import('./invoicing/presentation/InvoicingScreen.vue') },
+  { path: '/company/analysis', title: analysisWords.title, icon: 'i-lucide-chart-bar', component: () => import('./analysis/presentation/AnalysisScreen.vue') },
 ]
 
 const SETTINGS: AppScreen = { path: '/company/settings', title: settingsWords.title, icon: 'i-lucide-settings', component: () => import('./settings/presentation/SettingsScreen.vue') }
@@ -49,7 +55,7 @@ export const companyApp: AppContribution = {
     ...CORE_SCREENS,
     ...hrDooPack.screens,
     SETTINGS,
-    { path: ONBOARDING_ROUTE, title: 'Start', icon: 'i-lucide-door-open', component: () => import('./onboarding/presentation/OnboardingScreen.vue'), bare: true },
+    { path: ONBOARDING_ROUTE, title: onboardingWords.start, icon: 'i-lucide-door-open', component: () => import('./onboarding/presentation/OnboardingScreen.vue'), bare: true },
   ],
   menu: () => [...CORE_SCREENS, ...shownPack(settings.value).screens],
   settings: SETTINGS,

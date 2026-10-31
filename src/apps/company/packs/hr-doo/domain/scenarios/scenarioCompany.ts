@@ -12,6 +12,7 @@ import { forecastYear } from '../forecast/forecastYear'
 import { isOwnerPayCost } from '../packRoles'
 import { deducted, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
+import { words } from './words'
 
 /** The company's side of a pay scenario: what the year earns before any owner pay, and what it holds. */
 export interface ScenarioCompany {
@@ -55,29 +56,19 @@ export function scenarioCompany(workbook: HrDooWorkbook, year: number, asOf: Civ
     .map((entry) =>
       tracedFigure(displayName(entry.category.slug, entry.category.label ?? ''), negateMoney(entry.forecast.total.amount), 'ledger', entry.forecast.total.rules, [deducted(entry.forecast.total)]),
     )
-  const ownerPayInForecast = summed(`Owner pay in the ${takenFrom} forecast`, payLines, 'ledger')
+  const ownerPayInForecast = summed(words.company.ownerPayIn(takenFrom), payLines, 'ledger')
 
   const { expenses } = forecast.taxBaseInput
-  const expensesWithoutPay = tracedFigure('PD line 2, expenses without owner pay', subtractMoney(expenses.amount, ownerPayInForecast.amount), 'ledger', rulesOf([expenses, ownerPayInForecast]), [
+  const expensesWithoutPay = tracedFigure(words.company.expensesWithoutPay, subtractMoney(expenses.amount, ownerPayInForecast.amount), 'ledger', rulesOf([expenses, ownerPayInForecast]), [
     expenses,
     deducted(ownerPayInForecast),
   ])
   const profitBeforeTax = forecast.taxBase.profitBeforeTax
-  const profitBeforeOwnerPay = summed(`Profit before owner pay, ${takenFrom} forecast`, [profitBeforeTax, ownerPayInForecast], 'ledger')
+  const profitBeforeOwnerPay = summed(words.company.profitBeforePay(takenFrom), [profitBeforeTax, ownerPayInForecast], 'ledger')
 
-  const cashBeforeOwnerPay = summed(
-    `Cash at the end of ${takenFrom} with December settled, before owner pay and the year's corporate tax`,
-    [capacity.prudence.cashAfterObligations, ownerPayInForecast, forecast.liability.liability],
-    'ledger',
-  )
+  const cashBeforeOwnerPay = summed(words.company.cashBeforePay(takenFrom), [capacity.prudence.cashAfterObligations, ownerPayInForecast, forecast.liability.liability], 'ledger')
   const retainedSteps = [capacity.retainedEarnings, deducted(capacity.lossesBroughtForward), deducted(capacity.paidOutInYear)]
-  const retainedBroughtIn = tracedFigure(
-    `Retained earnings of earlier years not yet paid out in ${takenFrom}`,
-    sumMoney(retainedSteps.map((step) => step.amount)),
-    'ledger',
-    rulesOf(retainedSteps),
-    retainedSteps,
-  )
+  const retainedBroughtIn = tracedFigure(words.company.retained(takenFrom), sumMoney(retainedSteps.map((step) => step.amount)), 'ledger', rulesOf(retainedSteps), retainedSteps)
 
   return {
     takenFrom,

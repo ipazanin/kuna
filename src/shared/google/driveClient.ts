@@ -1,5 +1,7 @@
 import { startsAtBooksFolder } from '../text/folderPath'
+import { words as textWords } from '../text/words'
 import { googleFetch } from './googleApi'
+import { words } from './words'
 
 const DRIVE_FILES_API = 'https://www.googleapis.com/drive/v3/files'
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3/files'
@@ -96,7 +98,7 @@ async function folderBelow(accessToken: string, startId: string, start: string, 
 
 /** Where a path of folder names from My Drive leads, which needs a token that reads the whole Drive. */
 function folderOfPath(accessToken: string, path: readonly string[]): Promise<FolderOfPath> {
-  return folderBelow(accessToken, 'root', 'My Drive', path)
+  return folderBelow(accessToken, 'root', textWords.myDrive, path)
 }
 
 /**
@@ -108,7 +110,7 @@ export async function folderOfSetting(accessToken: string, path: readonly string
   if (!startsAtBooksFolder(path)) {
     return folderOfPath(accessToken, path)
   }
-  const start = 'The folder of the books file'
+  const start = words.booksFolder
   const parent = (await getFile(accessToken, booksFileId, ['parents'])).parents?.[0]
   return parent === undefined ? { kind: 'missing', where: start, name: path[1] ?? '' } : folderBelow(accessToken, parent, start, path.slice(1))
 }

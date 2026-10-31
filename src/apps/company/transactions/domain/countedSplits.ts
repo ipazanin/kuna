@@ -2,6 +2,7 @@ import { amountOf } from '../../../../shared/money/money'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { LedgerSplit, SplitPart } from '../../workbook/domain/splits'
 import type { WorkbookProblem } from '../../workbook/domain/workbook'
+import { words } from '../../workbook/domain/words'
 
 /** The splits the screens count, and why they leave out any the tab holds. */
 export interface CountedSplits {
@@ -17,7 +18,7 @@ export function countedSplits(splits: readonly LedgerSplit[], rowsKeptWhole: Rea
     if (why === undefined) {
       return true
     }
-    const reason = `the ${split.row.account} row of ${split.row.date} stays whole, since ${why}`
+    const reason = words.splits.keptWhole(split.row.account, split.row.date, why)
     problems.push(...split.parts.map((part) => ({ tab: 'splits' as const, id: part.id, label: partLabel(split, part), reason })))
     return false
   })

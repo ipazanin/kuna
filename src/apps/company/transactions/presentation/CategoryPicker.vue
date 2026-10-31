@@ -5,6 +5,8 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import type { Category } from '../../workbook/domain/workbook'
 import { useCategoryColours } from '../../workbook/presentation/categoryColours'
+import { naturalOrder } from '../../../../shared/text/naturalOrder'
+import { words } from './words'
 
 /** A searchable list of the categories tab, by screen name and by slug. Nothing outside the tab can be picked. */
 const props = withDefaults(
@@ -16,7 +18,7 @@ const props = withDefaults(
     allowNone?: boolean
     disabled?: boolean
   }>(),
-  { placeholder: 'Choose a category', allowNone: false, disabled: false },
+  { placeholder: words.picker.choose, allowNone: false, disabled: false },
 )
 
 const chosen = defineModel<string | undefined>()
@@ -42,10 +44,10 @@ interface Choice {
 }
 
 const items = computed<Choice[]>(() => [
-  ...(props.allowNone ? [{ label: 'No category', value: NONE, colour: null }] : []),
+  ...(props.allowNone ? [{ label: words.noCategory, value: NONE, colour: null }] : []),
   ...props.categories
     .map((category): Choice => ({ label: names.value.category(category.slug), value: category.slug, colour: colours.value(category.slug, category.bucket) }))
-    .sort((left, right) => left.label.localeCompare(right.label)),
+    .sort((left, right) => naturalOrder(left.label, right.label)),
 ])
 
 const picked = computed(() => items.value.find((item) => item.value === menuValue.value) ?? null)
@@ -57,7 +59,7 @@ const picked = computed(() => items.value.find((item) => item.value === menuValu
     :items="items"
     value-key="value"
     :filter-fields="['label', 'value']"
-    :search-input="{ placeholder: 'Search categories' }"
+    :search-input="{ placeholder: words.picker.search }"
     :content="{ align: 'start', collisionPadding: 12 }"
     :ui="{ content: 'min-w-64' }"
     :disabled="disabled"

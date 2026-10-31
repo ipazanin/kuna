@@ -21,6 +21,7 @@ import FigureDialog from './FigureDialog.vue'
 import { benefitsRing, categorySeries } from './packCharts'
 import { figureDetail } from './tracedFigureView'
 import type { FigureDetail } from './tracedFigureView'
+import { words } from './words'
 
 /** The owner's parts of shared company costs by the category they come from, and the tax the same money would have paid as a dividend. */
 const props = defineProps<{
@@ -36,7 +37,7 @@ const { drillLocation } = useFilters()
 const names = useDisplayNames()
 
 const DEFAULTS = { path: '/company/settings', query: { tab: 'categories' } }
-const ESTIMATE = 'Your estimate of private use. The accountant books these costs in full.'
+const ESTIMATE = words.benefits.estimate
 
 const title = computed(() => names.value.category(props.benefits.category))
 
@@ -50,11 +51,11 @@ const ring = computed(() => {
     categoryName,
   )
   const parts = benefitsRing(props.benefits, series, categoryName).map((part): DonutPart => ({ ...part, to: drillLocation(part.drill) }))
-  const listed = parts.map((part) => `${part.label} at ${part.note} ${formatMoney(part.value)}`).join(', ')
+  const listed = parts.map((part) => words.benefits.atShare(part.label, part.note ?? '', formatMoney(part.value))).join(', ')
   return {
     parts,
     total: formatMoney(props.benefits.total.amount),
-    description: `${title.value} in ${props.period}, by the category each comes from: ${listed}. Together ${formatMoney(props.benefits.total.amount)}.`,
+    description: words.benefits.description(title.value, props.period, listed, formatMoney(props.benefits.total.amount)),
   }
 })
 
@@ -69,11 +70,7 @@ const comparison = computed((): Comparison => {
   }
   try {
     const figures = dividendComparison(props.benefits.byYear, title.value, props.corporateRateOf)
-    const taxAvoided = figureDetail(
-      figures.taxAvoided,
-      `${title.value} in ${props.period}, taken out as a dividend instead: corporate tax at the rate Year works out for the year each was paid in, then dividend tax at the rate of the year after.`,
-      (drill: DrillTarget | null) => (drill === null ? null : drillLocation(drill)),
-    )
+    const taxAvoided = figureDetail(figures.taxAvoided, words.benefits.asDividend(title.value, props.period), (drill: DrillTarget | null) => (drill === null ? null : drillLocation(drill)))
     return { state: 'ready', taxAvoided, asDividend: figures.asDividend.amount }
   } catch (failure) {
     if (failure instanceof RangeError) {
@@ -89,41 +86,41 @@ const dialogOpen = ref(false)
 <template>
   <AppCard v-if="benefits.payments === 0" :title="title" :subtitle="period" data-testid="owner-benefits">
     <div class="flex flex-col gap-1 px-4 pt-1 pb-4 text-sm text-toned sm:px-5">
-      <p>No company cost in {{ period }} was shared with the owner.</p>
-      <DrillLink :to="DEFAULTS" class="self-start text-xs text-highlighted" data-testid="owner-benefits-defaults">Set the defaults</DrillLink>
+      <p>{{ words.benefits.noneShared(period) }}</p>
+      <DrillLink :to="DEFAULTS" class="self-start text-xs text-highlighted" data-testid="owner-benefits-defaults">{{ words.benefits.setDefaults }}</DrillLink>
     </div>
   </AppCard>
   <DonutCard
     v-else
     :title="title"
-    :subtitle="`${period}. The owner's parts of company costs, by the category they come from.`"
-    definition="Each category whose costs were shared with the owner, with the owner share its rows were counted at, or mixed when they differ. They count as owner pay with no tax on them."
+    :subtitle="words.benefits.subtitle(period)"
+    :definition="words.benefits.definition"
     :description="ring.description"
     :parts="ring.parts"
     :total="ring.total"
-    total-label="to the owner"
+    :total-label="words.benefits.toTheOwner"
     data-testid="owner-benefits"
   >
     <template #aside>
       <div class="flex flex-col" data-testid="owner-benefits-dividend">
         <template v-if="comparison.state === 'ready'">
           <p class="donut-row comparison-row">
-            <span class="min-w-0 text-toned">Tax avoided against a dividend</span>
-            <BuildUpButton :cents="comparison.taxAvoided.cents" label="Tax avoided against a dividend" class="shrink-0 font-medium text-highlighted" @open="dialogOpen = true" />
+            <span class="min-w-0 text-toned">{{ words.benefits.taxAvoided }}</span>
+            <BuildUpButton :cents="comparison.taxAvoided.cents" :label="words.benefits.taxAvoided" class="shrink-0 font-medium text-highlighted" @open="dialogOpen = true" />
           </p>
           <p class="donut-row comparison-row">
-            <span class="min-w-0 text-toned">As a dividend you would net</span>
+            <span class="min-w-0 text-toned">{{ words.benefits.wouldNet }}</span>
             <MoneyText :cents="comparison.asDividend" class="shrink-0 text-highlighted" />
           </p>
         </template>
         <p v-else-if="comparison.state === 'unregistered'" class="note text-sm text-toned">
-          The tax a dividend would cost needs <span class="identifier">hr_company_registered</span>, the day the first tax period starts.
-          <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" in-prose class="text-highlighted">Set it on Settings</DrillLink>
+          {{ words.benefits.dividendNeeds }}<span class="identifier">hr_company_registered</span>{{ words.benefits.dividendNeedsAfter }}
+          <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" in-prose class="text-highlighted">{{ words.benefits.setOnSettings }}</DrillLink>
         </p>
-        <p v-else class="note text-sm text-toned">The tax a dividend would cost could not be worked out. {{ comparison.failure }}</p>
+        <p v-else class="note text-sm text-toned">{{ words.benefits.notWorkedOut(comparison.failure) }}</p>
         <div class="note flex flex-col items-start gap-1 text-xs">
           <p class="text-muted">{{ ESTIMATE }}</p>
-          <DrillLink :to="DEFAULTS" class="text-highlighted" data-testid="owner-benefits-defaults">Set the defaults</DrillLink>
+          <DrillLink :to="DEFAULTS" class="text-highlighted" data-testid="owner-benefits-defaults">{{ words.benefits.setDefaults }}</DrillLink>
         </div>
       </div>
       <FigureDialog v-if="comparison.state === 'ready'" v-model:open="dialogOpen" :detail="comparison.taxAvoided" />

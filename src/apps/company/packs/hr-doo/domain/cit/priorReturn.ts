@@ -6,6 +6,7 @@ import { tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { monthlyAdvanceOf, taxPeriodOf } from './citLiability'
 import type { CitLiability } from './citLiability'
+import { words } from './words'
 
 /** What a later year's schedule reads of a year's PD return. Our own `CitLiability` is one. */
 export type PriorReturn = Pick<CitLiability, 'period' | 'liability' | 'balanceDue' | 'monthlyAdvance'>
@@ -22,7 +23,7 @@ export function closedYearReturn(lines: readonly YearEndLine[], year: number, re
     return null
   }
   const period = taxPeriodOf(year, registered)
-  const liability = tracedFigure(`PD line 53 for ${year}, as the accountant filed it`, liabilityLine.amount, 'accountant', [])
+  const liability = tracedFigure(words.filed.liability(year), liabilityLine.amount, 'accountant', [])
   const monthsLine = taxLine('months-of-operation')
   const months = monthsLine?.kind === 'count' ? monthsLine.count : monthCountBetween(monthOf(period.from), monthOf(period.to))
   const balanceLine = taxLine('balance-due')
@@ -30,8 +31,7 @@ export function closedYearReturn(lines: readonly YearEndLine[], year: number, re
   return {
     period,
     liability,
-    balanceDue: balanceLine?.kind === 'money' ? tracedFigure(`PD line 57 for ${year}, as the accountant filed it`, balanceLine.amount, 'accountant', []) : null,
-    monthlyAdvance:
-      advanceLine?.kind === 'money' ? tracedFigure(`PD line 59 for ${year}, as the accountant filed it`, advanceLine.amount, 'accountant', []) : monthlyAdvanceOf(liability, months, year, rules),
+    balanceDue: balanceLine?.kind === 'money' ? tracedFigure(words.filed.balanceDue(year), balanceLine.amount, 'accountant', []) : null,
+    monthlyAdvance: advanceLine?.kind === 'money' ? tracedFigure(words.filed.advance(year), advanceLine.amount, 'accountant', []) : monthlyAdvanceOf(liability, months, year, rules),
   }
 }

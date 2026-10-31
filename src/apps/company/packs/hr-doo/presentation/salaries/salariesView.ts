@@ -17,6 +17,7 @@ import type { TracedFigure } from '../../ruleset/tracedFigure'
 import type { BridgeBar } from '../bridgeChart'
 import { figureDetail } from '../tracedFigureView'
 import type { FigureDetail } from '../tracedFigureView'
+import { words } from './words'
 
 type LinkOf = (drill: DrillTarget | null) => RouteLocationRaw | null
 
@@ -25,13 +26,7 @@ export const PAY_PARTS = ['employee', 'pensionSavings', 'pension', 'incomeTax', 
 
 export type PayPart = (typeof PAY_PARTS)[number]
 
-export const PAY_PART_LABELS: Readonly<Record<PayPart, string>> = {
-  employee: 'To the employee',
-  pensionSavings: 'Pension savings, pillar II',
-  pension: 'Pension insurance, pillar I',
-  incomeTax: 'Income tax',
-  health: 'Health insurance',
-}
+export const PAY_PART_LABELS: Readonly<Record<PayPart, string>> = words.parts
 
 export const PAY_PART_COLOURS: Readonly<Record<PayPart, string>> = {
   employee: '--pay-employee',
@@ -41,19 +36,7 @@ export const PAY_PART_COLOURS: Readonly<Record<PayPart, string>> = {
   health: '--pay-health',
 }
 
-const LINE_LABELS: Readonly<Record<EmployeeLine, string>> = {
-  employerCost: 'Gross II',
-  health: 'Health insurance',
-  gross: 'Gross I',
-  pensionPillarOne: 'Pension, pillar I',
-  pensionPillarTwo: 'Pension, pillar II',
-  income: 'Income',
-  personalAllowance: 'Personal allowance',
-  taxableIncome: 'Taxable income',
-  incomeTax: 'Income tax',
-  net: 'Net salary',
-  paidToEmployee: 'Paid to the employee',
-}
+const LINE_LABELS: Readonly<Record<EmployeeLine, string>> = words.lines
 
 /** The contribution line each part is paid on, for the parts the bank pays to a payee of their own. */
 const PART_LINES: Readonly<Partial<Record<PayPart, ContributionLine>>> = {
@@ -192,7 +175,7 @@ function partValue(figures: PersonFigures, part: PayPart): Money {
 function bankDifference(statedAmount: Money, bank: Money | null): string | null {
   if (bank === null || bank === statedAmount) return null
   const difference = subtractMoney(bank, statedAmount)
-  return `Bank ${formatMoney(Math.abs(difference))} ${difference > 0 ? 'more' : 'less'}`
+  return words.bankDifference(formatMoney(Math.abs(difference)), difference > 0)
 }
 
 /** Every bank figure's rows together, or null when none has rows. */
@@ -280,13 +263,7 @@ export interface SalaryMonthView {
   readonly problems: readonly ProblemView[]
 }
 
-const DEFINITIONS = {
-  cost: 'Gross II, which is the gross salary with the health insurance the company pays on top of it, and every payment beside the salary such as a meal allowance.',
-  paid: 'What reached the employee: the net salary and the tax-free payments beside it. Each figure is the app’s, or without it the bank’s, and the caption says when the bank paid otherwise.',
-  savings: 'Pension pillar II, paid to the employee’s own pension fund. It is withheld from the gross salary, but it stays the employee’s money, so it is not counted as the state’s.',
-  state: 'Pension pillar I, the income tax and the health insurance. Pillar II goes to the employee’s own fund and is left out.',
-  problems: 'Every line on which the app and the bank do not say the same, and every source missing for a month that should have it. Neither source wins over the other.',
-} as const
+const DEFINITIONS = words.definitions
 
 /** The month of one payday, for everyone paid on it or for one of them. */
 export function salaryMonthView(payday: SalaryPayday, choice: SalaryChoice, partMonth: MonthKey, problemsLink: RouteLocationRaw, linkOf: LinkOf): SalaryMonthView {
@@ -307,46 +284,42 @@ export function salaryMonthView(payday: SalaryPayday, choice: SalaryChoice, part
   const costBankTotal = paidBankTotal === null || stateBankTotal === null || savingsBank === null ? null : sumMoney([paidBankTotal, stateBankTotal, savingsBank.amount])
   const problems = payday.problems.filter((problem) => inView(problem, choice.employee)).map((problem, index) => problemView(problem, index, label, linkOf))
   const single = people.length === 1 ? people[0] : undefined
-  const paidWord = single === undefined ? 'Paid to the employees' : 'Paid to the employee'
+  const paidWord = single === undefined ? words.tiles.paidToEmployees : words.tiles.paidToEmployee
 
   const tiles: TileView[] = [
     {
-      label: 'Company cost',
+      label: words.tiles.companyCost,
       value: formatMoney(figures.cost),
       to: linkOf(drillOfAll([...paidBank, ...stateBank, savingsBank])),
-      caption:
-        bankDifference(figures.cost, costBankTotal) ??
-        (complete ? `Gross II ${formatMoney(figures.employerCost)} and ${formatMoney(figures.beside)} beside the salary` : 'A salary no source works out is left out'),
+      caption: bankDifference(figures.cost, costBankTotal) ?? (complete ? words.tiles.costCaption(formatMoney(figures.employerCost), formatMoney(figures.beside)) : words.tiles.noSource),
       definition: DEFINITIONS.cost,
     },
     {
       label: paidWord,
       value: formatMoney(figures.paid),
       to: linkOf(drillOfAll(paidBank)),
-      caption:
-        bankDifference(figures.paid, paidBankTotal) ??
-        (complete ? `Net ${formatMoney(figures.net)} and ${formatMoney(figures.beside)} beside it` : 'As the bank paid it where no source works the net out'),
+      caption: bankDifference(figures.paid, paidBankTotal) ?? (complete ? words.tiles.paidCaption(formatMoney(figures.net), formatMoney(figures.beside)) : words.tiles.asBankPaid),
       definition: DEFINITIONS.paid,
     },
     {
-      label: 'Pension savings',
+      label: words.tiles.pensionSavings,
       value: formatMoney(figures.pensionPillarTwo),
       to: linkOf(savingsBank?.drill ?? null),
-      caption: bankDifference(figures.pensionPillarTwo, savingsBank?.amount ?? null) ?? 'Pillar II, the employee’s own fund',
+      caption: bankDifference(figures.pensionPillarTwo, savingsBank?.amount ?? null) ?? words.tiles.ownFund,
       definition: DEFINITIONS.savings,
     },
     {
-      label: 'To the state',
+      label: words.tiles.toState,
       value: formatMoney(figures.toState),
       to: linkOf(drillOfAll(stateBank)),
-      caption: bankDifference(figures.toState, stateBankTotal) ?? 'Pillar I, income tax and health',
+      caption: bankDifference(figures.toState, stateBankTotal) ?? words.tiles.stateCaption,
       definition: DEFINITIONS.state,
     },
     {
-      label: 'Problems',
+      label: words.tiles.problems,
       value: String(problems.length),
       to: problems.length === 0 ? null : problemsLink,
-      caption: problems.length === 0 ? 'App and bank agree' : problems.length === 1 ? 'One to resolve, below' : 'To resolve, below',
+      caption: problems.length === 0 ? words.tiles.agree : problems.length === 1 ? words.tiles.oneToResolve : words.tiles.toResolve,
       definition: DEFINITIONS.problems,
     },
   ]
@@ -361,14 +334,14 @@ export function salaryMonthView(payday: SalaryPayday, choice: SalaryChoice, part
     ...people.map((entry) => ({
       key: entry.employee.slug,
       title: employeeName(entry.employee),
-      lines: (linesOf.get(entry) ?? entry.lines).map((check) => lineRow(check, `${employeeName(entry.employee)}, ${LINE_LABELS[check.line].toLowerCase()} in ${label}`, linkOf)),
+      lines: (linesOf.get(entry) ?? entry.lines).map((check) => lineRow(check, words.sections.lineOf(employeeName(entry.employee), LINE_LABELS[check.line], label), linkOf)),
     })),
     ...(choice.employee === null && payday.employees.length > 1
       ? [
           {
             key: 'contributions',
-            title: 'Contributions and tax, for everyone paid',
-            lines: payday.contributions.map((check) => lineRow(check, `${LINE_LABELS[check.line]} for everyone paid in ${label}`, linkOf)),
+            title: words.sections.contributions,
+            lines: payday.contributions.map((check) => lineRow(check, words.sections.contributionOf(LINE_LABELS[check.line], label), linkOf)),
           },
         ]
       : []),
@@ -383,7 +356,7 @@ export function salaryMonthView(payday: SalaryPayday, choice: SalaryChoice, part
     ring: {
       parts,
       total: figures.cost,
-      description: `Where the cost to the company of ${formatMoney(figures.cost)} went in ${label}: ` + parts.map((part) => `${part.label} ${formatMoney(part.value)}`).join(', ') + '.',
+      description: words.ringDescription(formatMoney(figures.cost), label, parts.map((part) => `${part.label} ${formatMoney(part.value)}`).join(', ')),
       split: complete ? { net: figures.net, beside: figures.beside } : null,
     },
     bridge: bridgeBars(figures, drillOfAll(paidBank), bankOf),
@@ -399,7 +372,7 @@ function lineRow<Line extends EmployeeLine>(check: LineCheck<Line>, subject: str
   return {
     key: check.line,
     label: LINE_LABELS[check.line],
-    app: check.app === null ? null : figureDetail(check.app, `${subject}, as the app works it out from the employees tab and the ruleset.`, linkOf),
+    app: check.app === null ? null : figureDetail(check.app, words.byApp(subject), linkOf),
     bank: check.bank === null ? null : { cents: check.bank.amount, to: linkOf(check.bank.drill) },
     verdict: check.app === null || check.bank === null ? null : check.agrees ? 'agrees' : 'differs',
   }
@@ -409,15 +382,15 @@ function lineRow<Line extends EmployeeLine>(check: LineCheck<Line>, subject: str
 function bridgeBars(figures: PersonFigures, paidDrill: DrillTarget | null, bankOf: (line: ContributionLine) => TracedFigure | null): BridgeBar[] {
   const leaves = (label: string, amount: Money, line: ContributionLine): BridgeBar => ({ label, kind: 'step', amount: -amount, drill: bankOf(line)?.drill ?? null })
   return [
-    { label: 'Gross II', kind: 'total', amount: figures.employerCost, drill: null },
-    leaves('Health insurance', figures.health, 'health'),
-    { label: 'Gross I', kind: 'total', amount: figures.gross, drill: null },
-    leaves('Pension, pillar I', figures.pensionPillarOne, 'pensionPillarOne'),
-    leaves('Pension, pillar II', figures.pensionPillarTwo, 'pensionPillarTwo'),
-    leaves('Income tax', figures.incomeTax, 'incomeTax'),
-    { label: 'Net salary', kind: 'total', amount: figures.net, drill: null },
-    { label: 'Beside the salary', kind: 'step', amount: figures.beside, drill: null },
-    { label: 'Paid', kind: 'total', amount: figures.paid, drill: paidDrill },
+    { label: words.bridge.grossTwo, kind: 'total', amount: figures.employerCost, drill: null },
+    leaves(words.bridge.health, figures.health, 'health'),
+    { label: words.bridge.grossOne, kind: 'total', amount: figures.gross, drill: null },
+    leaves(words.bridge.pillarOne, figures.pensionPillarOne, 'pensionPillarOne'),
+    leaves(words.bridge.pillarTwo, figures.pensionPillarTwo, 'pensionPillarTwo'),
+    leaves(words.bridge.incomeTax, figures.incomeTax, 'incomeTax'),
+    { label: words.bridge.net, kind: 'total', amount: figures.net, drill: null },
+    { label: words.bridge.beside, kind: 'step', amount: figures.beside, drill: null },
+    { label: words.bridge.paid, kind: 'total', amount: figures.paid, drill: paidDrill },
   ]
 }
 
@@ -430,7 +403,7 @@ function personStrip(entry: EmployeePayday, figures: PersonFigures, label: strin
     gross: figures.gross,
     net: figures.net,
     paidOn: paidOn === null ? null : dayLabel(paidOn),
-    netDetail: net === null ? null : figureDetail(net, `${employeeName(entry.employee)} in ${label}, gross to net as the app works it out.`, linkOf),
+    netDetail: net === null ? null : figureDetail(net, words.grossToNetOf(employeeName(entry.employee), label), linkOf),
   }
 }
 
@@ -444,7 +417,9 @@ function inView(problem: SalaryProblem, employee: string | null): boolean {
 }
 
 function amountsText(check: LineCheck<string>): string {
-  return [check.app === null ? null : `app ${formatMoney(check.app.amount)}`, check.bank === null ? null : `bank ${formatMoney(check.bank.amount)}`].filter((part) => part !== null).join(', ')
+  return [check.app === null ? null : words.amounts.app(formatMoney(check.app.amount)), check.bank === null ? null : words.amounts.bank(formatMoney(check.bank.amount))]
+    .filter((part) => part !== null)
+    .join(', ')
 }
 
 function problemView(problem: SalaryProblem, index: number, month: string, linkOf: LinkOf): ProblemView {
@@ -455,34 +430,34 @@ function problemView(problem: SalaryProblem, index: number, month: string, linkO
   switch (problem.kind) {
     case 'line-differs': {
       const line = LINE_LABELS[problem.check.line]
-      const subject = who === null ? `${line} for everyone paid in ${month}` : `${name}, ${line.toLowerCase()} in ${month}`
+      const subject = who === null ? words.problems.lineForEveryone(line, month) : words.problems.lineOf(name, line, month)
       return {
         ...plain,
-        text: `${who === null ? `${line}, everyone paid` : `${name}, ${line.toLowerCase()}`}: ${amountsText(problem.check)}.`,
-        detail: problem.check.app === null ? null : figureDetail(problem.check.app, `${subject}, as the app works it out.`, linkOf),
+        text: who === null ? words.problems.differsForEveryone(line, amountsText(problem.check)) : words.problems.differs(name, line, amountsText(problem.check)),
+        detail: problem.check.app === null ? null : figureDetail(problem.check.app, words.problems.asApp(subject), linkOf),
         rows: linkOf(problem.check.bank?.drill ?? null),
       }
     }
     case 'engine-not-run':
-      return { ...plain, text: `${name}: the app did not work the pay out, since ${problem.reason}.`, fact: true }
+      return { ...plain, text: words.problems.engineNotRun(name, problem.reason), fact: true }
     case 'no-account':
-      return { ...plain, text: `${name} has no account on the employees tab, so which bank rows paid them is not known.`, fact: true }
+      return { ...plain, text: words.problems.noAccount(name), fact: true }
     case 'no-pay-rows':
-      return { ...plain, text: `${name}: no row in a salary category paid their account in ${month}.` }
+      return { ...plain, text: words.problems.noPayRows(name, month) }
     case 'pay-to-no-employee':
-      return { ...plain, text: `${formatMoney(problem.paid.amount)} in a salary category went to an account no employee names.`, rows: linkOf(problem.paid.drill), fact: true }
+      return { ...plain, text: words.problems.payToNoEmployee(formatMoney(problem.paid.amount)), rows: linkOf(problem.paid.drill), fact: true }
     case 'below-minimum-wage':
       return {
         ...plain,
-        text: `${name}: the agreed gross ${formatMoney(problem.warning.agreed.amount)} is under the minimum wage of ${formatMoney(problem.warning.minimum.amount)} for a full month.`,
-        detail: figureDetail(problem.warning.minimum, `${name}, the minimum wage in ${month}.`, linkOf),
+        text: words.problems.belowMinimum(name, formatMoney(problem.warning.agreed.amount), formatMoney(problem.warning.minimum.amount)),
+        detail: figureDetail(problem.warning.minimum, words.problems.minimumIn(name, month), linkOf),
         fact: true,
       }
     case 'over-cap':
       return {
         ...plain,
-        text: `${name}: ${problem.usage.payment} paid in ${problem.usage.periodKey} is ${formatMoney(problem.usage.excess.amount)} over its tax-free cap, which is taxed as salary.`,
-        detail: figureDetail(problem.usage.paid, `${name}, ${problem.usage.payment} in ${problem.usage.periodKey}, against its cap.`, linkOf),
+        text: words.problems.overCap(name, problem.usage.payment, problem.usage.periodKey, formatMoney(problem.usage.excess.amount)),
+        detail: figureDetail(problem.usage.paid, words.problems.againstCap(name, problem.usage.payment, problem.usage.periodKey), linkOf),
         rows: linkOf(problem.usage.paid.drill),
       }
   }
@@ -560,6 +535,6 @@ export function peopleRows(payday: SalaryPayday): { readonly people: PersonRow[]
     people: each.map(({ entry, figures }) =>
       rowOf(entry.employee.slug, employeeName(entry.employee), figures, payday.problems.filter((problem) => problemEmployee(problem) === entry.employee).length),
     ),
-    total: rowOf('total', 'Everyone', summedFigures(each.map(({ figures }) => figures)), payday.problems.length),
+    total: rowOf('total', words.everyone, summedFigures(each.map(({ figures }) => figures)), payday.problems.length),
   }
 }

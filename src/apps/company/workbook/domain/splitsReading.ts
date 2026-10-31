@@ -1,9 +1,9 @@
-import { ZERO, addMoney, plainAmount } from '../../../../shared/money/money'
+import { ZERO, addMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { ownerShareProblem, ownerShareText, storedOwnerShare } from '../../owner-share/domain/ownerShare'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
 import { SPLIT_PART_RECORDS } from './coreKinds'
-import { dayText, labelWords, numberText, withIdField } from '../../../../shared/storage/domain/recordCodec'
+import { withIdField } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -14,6 +14,8 @@ import type { LedgerSplit, SplitKey, SplitPart } from './splits'
 import { ownId, refusalOr, refuse, requiredDate, requiredMoney, slugOf, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import type { Category, Transaction } from './workbook'
+import { words } from './words'
+import { plural } from '../../../../shared/text/translation'
 
 /** One record of the `splits` tab: the key of a ledger row and one part of it. */
 export interface SplitTabRow {
@@ -43,27 +45,23 @@ export function splitPartOf(fields: StoredFields, id: RecordId | null): SplitTab
   return { key, amount: requiredMoney(fields, 'amount'), category: slugOf(fields.category), note: textOf(fields.note), ownerShare: storedOwnerShare(fields.owner_share), id: ownId(id) }
 }
 
-export const SPLIT_PART_CODEC: RecordCodec<SplitTabRow> = withIdField(
-  SPLIT_PART_RECORDS,
-  (fields) => labelWords([textOf(fields.category), numberText(fields.amount), dayText(fields.date)]),
-  splitPartOf,
-  (part) =>
-    filledFields({
-      date: part.key.date,
-      account: part.key.account,
-      row_amount: amountText(part.key.rowAmount),
-      row_balance: amountText(part.key.rowBalance),
-      amount: amountText(part.amount),
-      category: part.category,
-      note: part.note,
-      owner_share: ownerShareText(part.ownerShare),
-    }),
+export const SPLIT_PART_CODEC: RecordCodec<SplitTabRow> = withIdField(SPLIT_PART_RECORDS, words.labels.splitPart, splitPartOf, (part) =>
+  filledFields({
+    date: part.key.date,
+    account: part.key.account,
+    row_amount: amountText(part.key.rowAmount),
+    row_balance: amountText(part.key.rowBalance),
+    amount: amountText(part.amount),
+    category: part.category,
+    note: part.note,
+    owner_share: ownerShareText(part.ownerShare),
+  }),
 )
 
 function splitKeyOf(fields: StoredFields): SplitKey {
   const date = requiredDate(fields, 'date')
   const account = slugOf(fields.account)
-  if (account === '') refuse('no account')
+  if (account === '') refuse(words.splits.noAccount)
   return { date, account, rowAmount: requiredMoney(fields, 'row_amount'), rowBalance: requiredMoney(fields, 'row_balance') }
 }
 
@@ -112,7 +110,7 @@ export function readSplits(read: RecordsRead<SplitTabRow>, transactions: readonl
     const found = transactions.filter((transaction) => holdsSplitKey(transaction, group.key))
     const reasons = [...rowReasons(group, found, transactions), ...partReasons(group, categoryBySlug)]
     if (reasons.length > 0) {
-      const reason = `${reasons.join(', ')}, so the ledger row counts whole`
+      const reason = words.splits.countsWhole(reasons.join(', '))
       problems.push(...group.parts.map((stored) => problemOf(stored, reason)))
       continue
     }
@@ -133,13 +131,13 @@ export function readSplits(read: RecordsRead<SplitTabRow>, transactions: readonl
 /** A split counts only on a ledger row that no other row shares its key with, since the split is kept by that key. */
 function rowReasons(group: SplitParts, found: readonly Transaction[], transactions: readonly Transaction[]): string[] {
   const { key, unreadable } = group
-  const row = `${key.account} row of ${key.date} with the amount ${plainAmount(key.rowAmount)} and the balance ${plainAmount(key.rowBalance)}`
+  const row = [key.account, key.date, key.rowAmount, key.rowBalance] as const
   const sharing = found.length === 1 ? transactions.filter((transaction) => transaction.id === found[0]!.id).length : 0
   return [
-    ...(found.length === 0 ? [`the ledger holds no ${row}`] : []),
-    ...(found.length > 1 ? [`${found.length} ledger rows are the ${row}`] : []),
-    ...(sharing > 1 ? [`the ${row} shares its key with another ledger row`] : []),
-    ...(unreadable > 0 ? [`${unreadable === 1 ? 'a part' : `${unreadable} parts`} of this split cannot be read`] : []),
+    ...(found.length === 0 ? [words.splits.noRow(...row)] : []),
+    ...(found.length > 1 ? [words.splits.severalRows(found.length, ...row)] : []),
+    ...(sharing > 1 ? [words.splits.sharesKey(...row)] : []),
+    ...(unreadable > 0 ? [plural(words.splits.unreadableParts(unreadable), unreadable)] : []),
   ]
 }
 
@@ -147,25 +145,24 @@ function partReasons(group: SplitParts, categoryBySlug: ReadonlyMap<string, Cate
   const { key, parts } = group
   const reasons: string[] = []
   if (parts.length + group.unreadable < 2) {
-    reasons.push('a split has at least two parts, and this one has one')
+    reasons.push(words.splits.onePart)
   }
   for (const stored of parts) {
     const part = stored.record
-    const named = `the part "${stored.label}"`
     if (part.amount === 0) {
-      reasons.push(`${named} is zero`)
+      reasons.push(words.splits.partZero(stored.label))
     } else if (Math.sign(part.amount) !== Math.sign(key.rowAmount)) {
-      reasons.push(`${named} has the other sign to the row`)
+      reasons.push(words.splits.partOtherSign(stored.label))
     }
     if (part.category === '') {
-      reasons.push(`${named} has no category`)
+      reasons.push(words.splits.partNoCategory(stored.label))
     } else if (!categoryBySlug.has(part.category)) {
-      reasons.push(`"${part.category}" of ${named} is not on the categories tab`)
+      reasons.push(words.splits.partNotOnTab(part.category, stored.label))
     }
   }
   const total = parts.reduce((sum, stored) => addMoney(sum, stored.record.amount), ZERO)
   if (group.unreadable === 0 && parts.length >= 2 && total !== key.rowAmount) {
-    reasons.push(`the parts add up to ${plainAmount(total)} and the row is ${plainAmount(key.rowAmount)}`)
+    reasons.push(words.splits.partsAddUp(total, key.rowAmount))
   }
   return reasons
 }

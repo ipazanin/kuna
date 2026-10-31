@@ -14,6 +14,7 @@ export interface DoubledRatesLine {
 import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import FigureTable from '../../../../../../shared/ui/FigureTable.vue'
+import { words } from './words'
 
 /** Per year, what doubled rates would change against the rates the workbook asks for. */
 defineProps<{
@@ -31,19 +32,19 @@ const phone = usePhoneLayout()
       <p class="figure text-sm font-medium text-highlighted">{{ line.year }}</p>
       <dl class="change-cells">
         <div>
-          <dt>Depreciation</dt>
+          <dt>{{ words.changes.depreciation }}</dt>
           <dd><MoneyText :cents="line.depreciation" sign="always" /></dd>
         </div>
         <div v-if="showGrant">
-          <dt>Grant released</dt>
+          <dt>{{ words.changes.grantReleased }}</dt>
           <dd><MoneyText :cents="line.grantReleased" sign="always" /></dd>
         </div>
         <div>
-          <dt>Profit before tax</dt>
+          <dt>{{ words.changes.profitBeforeTax }}</dt>
           <dd><MoneyText :cents="line.profitBeforeTax" sign="always" /></dd>
         </div>
         <div>
-          <dt>Profit tax at {{ line.rate }}</dt>
+          <dt>{{ words.changes.profitTaxAt(line.rate) }}</dt>
           <dd><MoneyText :cents="line.profitTax" sign="always" /></dd>
         </div>
       </dl>
@@ -52,11 +53,11 @@ const phone = usePhoneLayout()
   <FigureTable v-else data-testid="doubled-rates-changes">
     <thead>
       <tr>
-        <th scope="col" class="text-start">Year</th>
-        <th scope="col" class="text-end">Depreciation</th>
-        <th v-if="showGrant" scope="col" class="text-end">Grant released</th>
-        <th scope="col" class="text-end">Profit before tax</th>
-        <th scope="col" class="text-end">Profit tax</th>
+        <th scope="col" class="text-start">{{ words.changes.year }}</th>
+        <th scope="col" class="text-end">{{ words.changes.depreciation }}</th>
+        <th v-if="showGrant" scope="col" class="text-end">{{ words.changes.grantReleased }}</th>
+        <th scope="col" class="text-end">{{ words.changes.profitBeforeTax }}</th>
+        <th scope="col" class="text-end">{{ words.changes.profitTax }}</th>
       </tr>
     </thead>
     <tbody>
@@ -67,7 +68,7 @@ const phone = usePhoneLayout()
         <td class="text-end"><MoneyText :cents="line.profitBeforeTax" sign="always" /></td>
         <td class="text-end">
           <MoneyText :cents="line.profitTax" sign="always" class="text-highlighted" />
-          <span class="ms-1.5 text-xs text-muted">at {{ line.rate }}</span>
+          <span class="ms-1.5 text-xs text-muted">{{ words.changes.at(line.rate) }}</span>
         </td>
       </tr>
     </tbody>

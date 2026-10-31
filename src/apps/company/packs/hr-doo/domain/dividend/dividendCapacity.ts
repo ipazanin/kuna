@@ -24,6 +24,7 @@ import { carriedRate, shortfallRate } from '../ownerLoanInterest'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
 import { atRate, deducted, percentText, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
+import { words } from './words'
 
 /** The ways the year's profit can go to the owner, which a screen switches between. */
 export type PayoutOptionId = 'after-adoption' | 'interim' | 'keep'
@@ -130,9 +131,9 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
   }
 
   const opening = openingEquity(year, forecast, workbook, rules)
-  const retainedEarnings = { ...opening.retained, amount: opening.retained.amount > 0 ? opening.retained.amount : ZERO, label: `Retained earnings at the start of ${year}` }
+  const retainedEarnings = { ...opening.retained, amount: opening.retained.amount > 0 ? opening.retained.amount : ZERO, label: words.capacity.retainedAtStart(year) }
   const lossesBroughtForward = tracedFigure(
-    `Losses brought forward into ${year}`,
+    words.capacity.lossesInto(year),
     opening.retained.amount < 0 ? negateMoney(opening.retained.amount) : ZERO,
     opening.retained.basis,
     [distributableRule.citation],
@@ -141,7 +142,7 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
   const paidOutInYear = paidOutIn(year, rows, workbook, forecast)
   const distributableSteps = [forecast.profitAfterTax, retainedEarnings, deducted(lossesBroughtForward), deducted(paidOutInYear)]
   const distributable = tracedFigure(
-    'Distributable profit',
+    words.capacity.distributable,
     sumMoney(distributableSteps.map((step) => step.amount)),
     'ledger',
     [distributableRule.citation, ...rulesOf(distributableSteps)],
@@ -150,33 +151,29 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
 
   const shareCapital = shareCapitalOf(workbook, year, rules)
   const netAssetsSteps = [shareCapital, opening.reserves, distributable]
-  const netAssetsAtYearEnd = summed('Net assets at the year end, before any new payout', netAssetsSteps, 'ledger')
+  const netAssetsAtYearEnd = summed(words.capacity.netAssets, netAssetsSteps, 'ledger')
   const protectedPayout = subtractMoney(netAssetsAtYearEnd.amount, shareCapital.amount)
   const maxAmount = distributable.amount < protectedPayout ? distributable.amount : protectedPayout
   const maxPayout = tracedFigure(
-    'The most that can be paid out with the share capital still covered',
+    words.capacity.maxPayout,
     maxAmount > 0 ? maxAmount : ZERO,
     'ledger',
     [distributableRule.citation, protectionRule.citation],
-    [distributable, tracedFigure('Net assets above the share capital', protectedPayout, 'ledger', [protectionRule.citation], [netAssetsAtYearEnd, deducted(shareCapital)])],
+    [distributable, tracedFigure(words.capacity.aboveCapital, protectedPayout, 'ledger', [protectionRule.citation], [netAssetsAtYearEnd, deducted(shareCapital)])],
   )
 
   const deadline = rules('hr.ztd.members-decision-deadline', yearEnd)
   const decideBy = lastDayOf(addMonths(monthKey(year, 12), deadline.value.monthsAfterFinancialYearEnd.count))
 
-  const balanceDue = forecast.liability.balanceDue ?? tracedFigure('PD line 57, not known', ZERO, 'ledger', [])
+  const balanceDue = forecast.liability.balanceDue ?? tracedFigure(words.capacity.balanceDueUnknown, ZERO, 'ledger', [])
   const advancesAfterYearEnd = forecast.cit.obligations.filter((entry) => entry.obligation.dueOn > yearEnd && entry.outstanding > 0).map(outstandingFigure)
-  const decemberDue = summed('December’s pay, rent and corporate tax advance paid in January', [forecast.decemberArrears, ...advancesAfterYearEnd], 'ledger')
-  const cashAfterObligations = summed(
-    'Cash at the year end with December settled, less the corporate tax balance',
-    [forecast.cashAtYearEnd, forecast.receivableAtYearEnd, deducted(decemberDue), deducted(balanceDue)],
-    'ledger',
-  )
+  const decemberDue = summed(words.capacity.decemberDue, [forecast.decemberArrears, ...advancesAfterYearEnd], 'ledger')
+  const cashAfterObligations = summed(words.capacity.cashAfterObligations, [forecast.cashAtYearEnd, forecast.receivableAtYearEnd, deducted(decemberDue), deducted(balanceDue)], 'ledger')
   const owedNow = owedByOwnerOn(workbook, asOf)
   const owedByOwner =
     forecast.plannedDividend === null || forecast.plannedDividend.setOff.amount === 0
       ? owedNow
-      : summed('Owed by the owner, net, after the planned dividend is set off', [owedNow, deducted(forecast.plannedDividend.setOff)], 'ledger')
+      : summed(words.capacity.owedAfterPlanned, [owedNow, deducted(forecast.plannedDividend.setOff)], 'ledger')
   const prudence: DividendPrudence = {
     clawbackExposure: clawbackOn(workbook, yearEnd),
     cashAtYearEnd: forecast.cashAtYearEnd,
@@ -190,7 +187,7 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
   const payout: PayoutContext = { year, yearEnd, workbook, rules, netAssetsAtYearEnd, shareCapital, distributable, cashAfterObligations, owedByOwner }
   const afterAdoption = payoutOption(payout, {
     id: 'after-adoption',
-    label: `One payout once the members adopt the ${year} statements, set off against what the owner owes`,
+    label: words.capacity.afterAdoption(year),
     earliestOn: civilDate(year + 1, 1, 1),
     latestOn: decideBy,
     gross: maxPayout,
@@ -201,10 +198,10 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
   const interim = interimPayout(payout, forecast, rows, opening.retained, paidOutInYear)
   const keep = payoutOption(payout, {
     id: 'keep',
-    label: 'Keep the profit in the company',
+    label: words.capacity.keep,
     earliestOn: null,
     latestOn: null,
-    gross: tracedFigure('Nothing paid out', ZERO, 'ledger', []),
+    gross: tracedFigure(words.capacity.nothingPaid, ZERO, 'ledger', []),
     setsOff: false,
     shortfall: null,
     cashNow: null,
@@ -257,22 +254,16 @@ function payoutOption(context: PayoutContext, choice: PayoutChoice): PayoutOptio
   const ruleDay = choice.earliestOn ?? context.yearEnd
   const taxRule = rules('hr.pit.dividend', ruleDay)
   const gross = choice.gross
-  const dividendTax = tracedFigure(
-    `Dividend tax at ${percentText(taxRule.value.rate.basisPoints)}, withheld at payout`,
-    atRate(gross.amount, taxRule.value.rate.basisPoints),
-    'ledger',
-    [taxRule.citation],
-    [gross],
-  )
-  const net = tracedFigure('Paid to the owner after the dividend tax', subtractMoney(gross.amount, dividendTax.amount), 'ledger', rulesOf([gross, dividendTax]), [gross, deducted(dividendTax)])
+  const dividendTax = tracedFigure(words.capacity.dividendTax(percentText(taxRule.value.rate.basisPoints)), atRate(gross.amount, taxRule.value.rate.basisPoints), 'ledger', [taxRule.citation], [gross])
+  const net = tracedFigure(words.capacity.net, subtractMoney(gross.amount, dividendTax.amount), 'ledger', rulesOf([gross, dividendTax]), [gross, deducted(dividendTax)])
   const settled = choice.setsOff ? (net.amount < owedByOwner.amount ? net.amount : owedByOwner.amount) : ZERO
-  const setOff = tracedFigure(choice.setsOff ? 'Set off against what the owner owes' : 'Nothing set off', settled, 'ledger', [], choice.setsOff ? [net, owedByOwner] : [])
-  const cashOut = summed('Paid out in cash, the tax included', [dividendTax, net, deducted(setOff)], 'ledger')
-  const owedAfter = summed('Owed by the owner after the payout', [owedByOwner, deducted(setOff)], 'ledger')
+  const setOff = tracedFigure(choice.setsOff ? words.capacity.setOff : words.capacity.nothingSetOff, settled, 'ledger', [], choice.setsOff ? [net, owedByOwner] : [])
+  const cashOut = summed(words.capacity.cashOut, [dividendTax, net, deducted(setOff)], 'ledger')
+  const owedAfter = summed(words.capacity.owedAfter, [owedByOwner, deducted(setOff)], 'ledger')
   const benefitRule = rules('hr.pit.loan-benefit', ruleDay)
   const prescribed = benefitRule.value.minimumInterestRate.basisPoints
   const carried = carriedRate(context.workbook)
-  const netAssetsAfter = summed('Net assets after the payout', [context.netAssetsAtYearEnd, deducted(gross)], 'ledger')
+  const netAssetsAfter = summed(words.capacity.netAssetsAfter, [context.netAssetsAtYearEnd, deducted(gross)], 'ledger')
   return {
     id: choice.id,
     label: choice.label,
@@ -283,13 +274,11 @@ function payoutOption(context: PayoutContext, choice: PayoutChoice): PayoutOptio
     net,
     setOff,
     cashOut,
-    cashLeft: summed('Cash left after the payout', [choice.cashNow === null ? context.cashAfterObligations : choice.cashNow.available, deducted(cashOut)], 'ledger'),
+    cashLeft: summed(words.capacity.cashLeft, [choice.cashNow === null ? context.cashAfterObligations : choice.cashNow.available, deducted(cashOut)], 'ledger'),
     cashNow: choice.cashNow,
     owedByOwnerAfter: owedAfter,
     loanBenefitPerYear: tracedFigure(
-      carried === 0
-        ? `A year of benefit in kind at ${percentText(prescribed)} on what stays owed, with no interest charged`
-        : `A year of benefit in kind at ${percentText(prescribed)} less the ${percentText(carried)} the loans carry, on what stays owed`,
+      carried === 0 ? words.capacity.benefitNoInterest(percentText(prescribed)) : words.capacity.benefitLess(percentText(prescribed), percentText(carried)),
       atRate(owedAfter.amount, shortfallRate(prescribed, carried)),
       'ledger',
       [benefitRule.citation],
@@ -297,9 +286,9 @@ function payoutOption(context: PayoutContext, choice: PayoutChoice): PayoutOptio
     ),
     netAssetsAfter,
     capitalProtected: netAssetsAfter.amount >= context.shareCapital.amount,
-    clawbackExposure: choice.earliestOn === null ? tracedFigure('Nothing paid out, so nothing at risk from it', ZERO, 'assets', []) : clawbackOn(context.workbook, choice.earliestOn),
+    clawbackExposure: choice.earliestOn === null ? tracedFigure(words.capacity.nothingAtRisk, ZERO, 'assets', []) : clawbackOn(context.workbook, choice.earliestOn),
     shortfall: choice.shortfall,
-    retainedAfter: summed('Kept in the company as retained earnings', [context.distributable, deducted(gross)], 'ledger'),
+    retainedAfter: summed(words.capacity.retainedAfter, [context.distributable, deducted(gross)], 'ledger'),
   }
 }
 
@@ -313,30 +302,30 @@ function interimPayout(context: PayoutContext, forecast: YearForecast, rows: rea
   const { lastComplete } = forecast.calendar
   const december = monthKey(year, 12)
   const through = lastComplete === null || lastComplete < monthKey(year, 1) ? null : lastComplete > december ? december : lastComplete
-  const label = `An interim payout in ${year}`
+  const label = words.capacity.interim(year)
   if (forecast.asOf > yearEnd || through === null) {
     return payoutOption(context, {
       id: 'interim',
       label,
       earliestOn: null,
       latestOn: null,
-      gross: tracedFigure(forecast.asOf > yearEnd ? 'Nothing: the year has ended' : 'Nothing: the year has no complete month for an interim statement', ZERO, 'ledger', []),
+      gross: tracedFigure(forecast.asOf > yearEnd ? words.capacity.yearEnded : words.capacity.noCompleteMonth, ZERO, 'ledger', []),
       setsOff: false,
       shortfall: null,
       cashNow: null,
     })
   }
   const toDate = summed(
-    `Profit before tax to the end of ${monthLabel(through)}`,
+    words.capacity.profitTo(monthLabel(through)),
     forecast.profitBeforeTax.months.filter((entry) => entry.month <= through).map((entry) => entry.figure),
     'ledger',
   )
   const { rate } = forecast.liability
-  const tax = tracedFigure(`Corporate tax on it at ${percentText(rate.basisPoints)}`, atRate(toDate.amount > 0 ? toDate.amount : ZERO, rate.basisPoints), 'ledger', rate.rules, [toDate])
-  const interimProfit = summed('Profit after tax in an interim statement', [toDate, deducted(tax)], 'ledger')
-  const available = summed('Interim profit and what was retained, less what the year paid out', [interimProfit, openingRetained, deducted(paidOut)], 'ledger')
+  const tax = tracedFigure(words.capacity.taxOnIt(percentText(rate.basisPoints)), atRate(toDate.amount > 0 ? toDate.amount : ZERO, rate.basisPoints), 'ledger', rate.rules, [toDate])
+  const interimProfit = summed(words.capacity.interimProfit, [toDate, deducted(tax)], 'ledger')
+  const available = summed(words.capacity.available, [interimProfit, openingRetained, deducted(paidOut)], 'ledger')
   const shortfallRule = rules('hr.cit.profit-advance-shortfall', yearEnd)
-  const gross = tracedFigure('Interim payout', available.amount > 0 ? available.amount : ZERO, 'ledger', available.rules, [available])
+  const gross = tracedFigure(words.capacity.interimPayout, available.amount > 0 ? available.amount : ZERO, 'ledger', available.rules, [available])
   const covered = distributable.amount > 0 ? distributable.amount : ZERO
   const uncovered = subtractMoney(gross.amount, covered)
   const cashNow = interimCash(forecast, rows, through, gross.amount)
@@ -347,13 +336,7 @@ function interimPayout(context: PayoutContext, forecast: YearForecast, rows: rea
     latestOn: yearEnd,
     gross,
     setsOff: false,
-    shortfall: tracedFigure(
-      'Not covered by the year’s distributable profit, taxed as the owner’s income',
-      uncovered > 0 ? uncovered : ZERO,
-      'ledger',
-      [shortfallRule.citation],
-      [gross, deducted(distributable)],
-    ),
+    shortfall: tracedFigure(words.capacity.shortfall, uncovered > 0 ? uncovered : ZERO, 'ledger', [shortfallRule.citation], [gross, deducted(distributable)]),
     cashNow,
   })
 }
@@ -372,10 +355,10 @@ function interimCash(forecast: YearForecast, rows: readonly Transaction[], lastC
     .filter((month) => !month.bases.includes('actual'))
     .map((month) => deducted(month.figure))
   const cash = cashOnNewestBooking(rows)
-  const fallingDue = { ...summed('What falls due by', [...taxDue, ...payDue], 'ledger'), on: dueBy }
-  const available = summed('Cash for an interim payout now', [cash, deducted(fallingDue)], 'ledger')
+  const fallingDue = { ...summed(words.capacity.fallingDue, [...taxDue, ...payDue], 'ledger'), on: dueBy }
+  const available = summed(words.capacity.cashNow, [cash, deducted(fallingDue)], 'ledger')
   const allowed = available.amount < gross ? available.amount : gross
-  const largestPayout = tracedFigure('The largest interim payout the cash covers, its tax included', allowed > 0 ? allowed : ZERO, 'ledger', available.rules, [available])
+  const largestPayout = tracedFigure(words.capacity.largestPayout, allowed > 0 ? allowed : ZERO, 'ledger', available.rules, [available])
   return { cash, fallingDue, available, largestPayout }
 }
 
@@ -386,7 +369,7 @@ function interimCash(forecast: YearForecast, rows: readonly Transaction[], lastC
  */
 function openingEquity(year: number, forecast: YearForecast, workbook: HrDooWorkbook, rules: RuleSource): { readonly reserves: TracedFigure; readonly retained: TracedFigure } {
   if (forecast.period.first) {
-    return { reserves: tracedFigure('No reserves in a first period', ZERO, 'ledger', []), retained: tracedFigure('Nothing retained in a first period', ZERO, 'ledger', []) }
+    return { reserves: tracedFigure(words.capacity.noReserves, ZERO, 'ledger', []), retained: tracedFigure(words.capacity.nothingRetained, ZERO, 'ledger', []) }
   }
   const fromTab = equityBroughtForward(workbook.yearEndLines, year)
   if (fromTab !== null) {
@@ -408,7 +391,7 @@ function openingEquity(year: number, forecast: YearForecast, workbook: HrDooWork
   ]
   return {
     reserves: before.reserves,
-    retained: tracedFigure(`Retained at the start of ${year}, with the forecast profit of ${year - 1}`, sumMoney(steps.map((step) => step.amount)), 'ledger', rulesOf(steps), steps),
+    retained: tracedFigure(words.capacity.retainedWithForecast(year), sumMoney(steps.map((step) => step.amount)), 'ledger', rulesOf(steps), steps),
   }
 }
 
@@ -417,11 +400,11 @@ function paidOutIn(year: number, rows: readonly Transaction[], workbook: HrDooWo
   const slugs = categoriesWithRole(workbook.categories, PACK_ROLES.profitDistribution)
   const paid = rows.filter((row) => slugs.includes(row.category) && yearOf(row.date) === year)
   const fromLedger = withDrill(
-    tracedFigure(`Profit paid out in ${year}, with its tax`, negateMoney(sumMoney(paid.map((row) => row.amount))), 'ledger', []),
+    tracedFigure(words.capacity.paidOutIn(year), negateMoney(sumMoney(paid.map((row) => row.amount))), 'ledger', []),
     drillToTransactions({ period: { preset: 'year', year }, categories: slugs }),
   )
   const planned = forecast.plannedDividend
-  return planned === null ? fromLedger : summed(`Profit paid out in ${year} and planned`, [fromLedger, planned.gross], 'ledger')
+  return planned === null ? fromLedger : summed(words.capacity.paidAndPlanned(year), [fromLedger, planned.gross], 'ledger')
 }
 
 /** The share capital from the latest year-end tab before the year, else the statutory minimum. */
@@ -429,10 +412,10 @@ function shareCapitalOf(workbook: HrDooWorkbook, year: number, rules: RuleSource
   const lines = workbook.yearEndLines.filter((line) => line.year < year && line.statement === 'balance' && line.line === 'share-capital')
   const latest = lines.reduce<(typeof lines)[number] | null>((found, line) => (found === null || line.year > found.year ? line : found), null)
   if (latest !== null && latest.figure.kind === 'money') {
-    return tracedFigure(`Share capital at the end of ${latest.year}`, latest.figure.amount, 'accountant', [])
+    return tracedFigure(words.capacity.shareCapitalAt(latest.year), latest.figure.amount, 'accountant', [])
   }
   const minimum = rules('hr.ztd.min-share-capital', civilDate(year, 12, 31))
-  return tracedFigure('The minimum share capital, as no year-end line gives the company’s', minimum.value.minimumShareCapital.cents, 'ledger', [minimum.citation])
+  return tracedFigure(words.capacity.minimumCapital, minimum.value.minimumShareCapital.cents, 'ledger', [minimum.citation])
 }
 
 /** What the grants' clawback terms put at risk on a day, each grant with the last day its amount applies. */
@@ -442,8 +425,8 @@ function clawbackOn(workbook: HrDooWorkbook, on: CivilDate): TracedFigure {
     if (exposure === null) {
       return []
     }
-    const named = { ...exposure.amount, label: `${grant.slug}: ${exposure.amount.label}` }
-    return [exposure.until === null ? named : { ...named, label: `${named.label}, until`, on: exposure.until }]
+    const named = { ...exposure.amount, label: words.capacity.clawbackOf(grant.slug, exposure.amount.label) }
+    return [exposure.until === null ? named : { ...named, label: words.capacity.until(named.label), on: exposure.until }]
   })
-  return { ...summed('At risk from the grant clawback terms on', steps, 'assets'), on }
+  return { ...summed(words.capacity.atRisk, steps, 'assets'), on }
 }

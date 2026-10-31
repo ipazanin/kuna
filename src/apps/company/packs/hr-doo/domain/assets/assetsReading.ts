@@ -11,6 +11,7 @@ import { ASSET_RECORDS } from '../hrDooKinds'
 import { sharedKeys } from '../../../../../../shared/storage/domain/sharedKeys'
 import { booleanOf, optionalDate, ownId, positiveMoney, refuse, requiredChoice, requiredDate, slugOf, textOf } from '../../../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../../../shared/storage/domain/storedFields'
+import { words } from '../words'
 
 /** An asset made from its fields as an editor makes one, keeping the id it was stored with, or with one of its own. */
 export function assetOfFields(fields: StoredFields, storedId: RecordId | null): Asset {
@@ -19,15 +20,15 @@ export function assetOfFields(fields: StoredFields, storedId: RecordId | null): 
 
 export function assetOf(fields: StoredFields, id: RecordId | null): Asset {
   const name = textOf(fields.asset)
-  if (name === '') refuse('no asset name')
+  if (name === '') refuse(words.reading.noAssetName)
   const bought = requiredDate(fields, 'bought')
   const inUse = optionalDate(fields, 'in_use') ?? bought
-  if (inUse < bought) refuse(`in_use ${inUse} is before bought ${bought}`)
+  if (inUse < bought) refuse(words.reading.before('in_use', inUse, 'bought', bought))
   const costNet = positiveMoney(fields, 'cost_net')
   const group = requiredChoice(fields, 'group', ASSET_GROUPS)
-  const doubledRate = fields.doubled === undefined ? false : (booleanOf(fields.doubled) ?? refuse(`doubled "${fields.doubled.text}" is neither TRUE nor FALSE`))
+  const doubledRate = fields.doubled === undefined ? false : (booleanOf(fields.doubled) ?? refuse(words.reading.notAFlag('doubled', fields.doubled.text)))
   const disposed = optionalDate(fields, 'disposed')
-  if (disposed !== null && disposed < inUse) refuse(`disposed ${disposed} is before in_use ${inUse}`)
+  if (disposed !== null && disposed < inUse) refuse(words.reading.before('disposed', disposed, 'in_use', inUse))
   return {
     name,
     bought,
@@ -80,11 +81,11 @@ export function readAssets(read: RecordsRead<Asset>, grantSlugs: ReadonlySet<str
   for (const stored of unshared) {
     const asset = stored.record
     if (listedTwice.has(keyOf(asset))) {
-      problems.push(problemOf(stored, `"${asset.name}" is listed on more than one row, so none of them counts`))
+      problems.push(problemOf(stored, words.reading.listedTwice(asset.name)))
       continue
     }
     if (asset.fundedBy !== '' && !grantSlugs.has(asset.fundedBy)) {
-      problems.push(problemOf(stored, `${asset.fundedBy} is not on the grants tab, so the asset's depreciation releases no grant`))
+      problems.push(problemOf(stored, words.reading.noGrantOnTab(asset.fundedBy)))
     }
     facts.push(asset)
   }

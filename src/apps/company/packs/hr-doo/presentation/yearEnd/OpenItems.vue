@@ -28,6 +28,8 @@ import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import BuildUpButton from '../BuildUpButton.vue'
 import FigureDialog from '../FigureDialog.vue'
 import { GROUP_WORDING } from './yearEndWording'
+import { words as packWords } from '../words'
+import { words } from './words'
 
 /** The items to settle with the accountant, by group, each with what would settle it. */
 const props = defineProps<{
@@ -61,16 +63,16 @@ const groups = computed(() => ORDER.map((group) => ({ group, wording: GROUP_WORD
             <div class="flex items-baseline justify-between gap-3">
               <p class="min-w-0 text-sm text-highlighted">{{ item.title }}</p>
               <BuildUpButton v-if="item.detail !== null" :cents="item.detail.cents" :label="item.title" class="shrink-0 text-sm text-toned" @open="openDetail(item.detail)" />
-              <DrillLink v-else-if="item.cents !== null" :to="item.to" :label="`${item.title}, open the rows`" class="shrink-0">
+              <DrillLink v-else-if="item.cents !== null" :to="item.to" :label="packWords.figure.openRows(item.title)" class="shrink-0">
                 <MoneyText :cents="item.cents" class="text-sm text-toned" />
               </DrillLink>
             </div>
             <p class="text-xs text-muted">
-              <span class="font-medium text-toned">{{ item.settled ? 'Still open if' : 'Settled by' }}</span> {{ item.settledBy }}
+              <span class="font-medium text-toned">{{ item.settled ? words.openItems.stillOpenIf : words.openItems.settledBy }}</span> {{ item.settledBy }}
             </p>
             <ul v-if="item.rules.length > 0" class="flex flex-col sm:flex-row sm:flex-wrap sm:gap-x-4">
               <li v-for="rule in item.rules" :key="rule.id">
-                <DrillLink :to="rule.to" :label="`${rule.title}, open the rule`" class="text-xs text-highlighted">{{ rule.title }}</DrillLink>
+                <DrillLink :to="rule.to" :label="packWords.figure.openRule(rule.title)" class="text-xs text-highlighted">{{ rule.title }}</DrillLink>
               </li>
             </ul>
           </div>

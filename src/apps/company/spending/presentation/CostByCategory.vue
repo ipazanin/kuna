@@ -34,6 +34,8 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
+import { plural } from '../../../../shared/text/translation'
+import { words } from './words'
 
 /**
  * Cost by category as a list of bars under their buckets, each against a mark for the period
@@ -53,8 +55,8 @@ const scale = computed(() => Math.max(1, ...props.sections.flatMap((section) => 
 const summary = computed(() => {
   const lines = props.sections.flatMap((section) => section.lines)
   const largest = lines.reduce<CostLine | null>((best, line) => (best === null || line.current > best.current ? line : best), null)
-  if (largest === null) return 'Nothing was spent in this period'
-  return `${lines.length} ${lines.length === 1 ? 'category' : 'categories'}, the largest ${largest.name} at ${formatMoney(largest.current)}`
+  if (largest === null) return words.costs.nothingSpent
+  return plural(words.costs.summary(lines.length, largest.name, formatMoney(largest.current)), lines.length)
 })
 
 function widthOf(amount: number): string {
@@ -63,17 +65,17 @@ function widthOf(amount: number): string {
 
 function changeText(change: CostChange | null): string {
   if (change === null) return ''
-  return change === 'new' ? 'new' : formatPercent(change, 'always')
+  return change === 'new' ? words.costs.new : formatPercent(change, 'always')
 }
 </script>
 
 <template>
-  <AppCard title="Cost by category" :subtitle="subtitle" :definition="definition" collapse-id="analysis.categories" :summary="summary" data-testid="cost-by-category">
+  <AppCard :title="words.costs.title" :subtitle="subtitle" :definition="definition" collapse-id="analysis.categories" :summary="summary" data-testid="cost-by-category">
     <template #header>
       <ChartLegend v-if="legend.length > 0" :entries="legend" />
     </template>
 
-    <p v-if="sections.length === 0" class="px-5 py-8 text-sm text-muted">Nothing was spent in this period.</p>
+    <p v-if="sections.length === 0" class="px-5 py-8 text-sm text-muted">{{ words.costs.nothingSpentSentence }}</p>
     <div v-else class="flex flex-col gap-4 px-4 pt-3 pb-4 sm:px-5">
       <section v-for="section in sections" :key="section.key" :aria-label="section.title">
         <h3 class="cost-row cost-heading">
@@ -95,7 +97,7 @@ function changeText(change: CostChange | null): string {
             </span>
             <span class="cost-amount figure text-highlighted">
               {{ formatMoney(line.current) }}
-              <span v-if="compared && line.prior !== null" class="sr-only">, before {{ formatMoney(line.prior) }}</span>
+              <span v-if="compared && line.prior !== null" class="sr-only">{{ words.costs.before(formatMoney(line.prior)) }}</span>
             </span>
             <span v-if="compared" class="cost-change figure">{{ changeText(line.change) }}</span>
           </li>

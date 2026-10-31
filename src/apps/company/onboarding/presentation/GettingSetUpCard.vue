@@ -5,6 +5,7 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { gettingSetUp } from './gettingSetUp'
+import { words } from './words'
 
 /** What new books still lack, on Overview above everything else, with the screen that does each. The card goes once nothing is left. */
 const { state } = useWorkbook()
@@ -13,12 +14,12 @@ const lines = computed(() => (state.workbook === null ? [] : gettingSetUp(state.
 </script>
 
 <template>
-  <AppCard v-if="lines.length" title="Getting set up" subtitle="What the books still lack. Each line goes once it is done." data-testid="getting-set-up">
+  <AppCard v-if="lines.length" :title="words.setUp.title" :subtitle="words.setUp.subtitle" data-testid="getting-set-up">
     <ul class="flex flex-col px-4 pt-2 pb-3 sm:px-5">
       <li v-for="line in lines" :key="line.key" class="setup-line" :data-line="line.key">
         <span class="setup-mark" aria-hidden="true" />
         <span class="min-w-0 flex-1 text-sm text-toned">{{ line.text }}</span>
-        <DrillLink :to="line.link.to" :label="`${line.text}, open ${line.link.label}`" class="shrink-0 text-sm font-medium text-highlighted">{{ line.link.label }}</DrillLink>
+        <DrillLink :to="line.link.to" :label="words.setUp.open(line.text, line.link.label)" class="shrink-0 text-sm font-medium text-highlighted">{{ line.link.label }}</DrillLink>
       </li>
     </ul>
   </AppCard>

@@ -38,6 +38,7 @@ export interface GrantComparisonLine {
 <script setup lang="ts">
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
+import { words } from './words'
 
 /** Each grant's release beside the assets it paid for, its employment condition and what a broken condition would cost today. */
 defineProps<{
@@ -47,7 +48,7 @@ defineProps<{
 </script>
 
 <template>
-  <p v-if="grants.length === 0" class="text-sm text-muted">The grants tab lists no grant, so nothing is released beside the depreciation.</p>
+  <p v-if="grants.length === 0" class="text-sm text-muted">{{ words.grants.none }}</p>
   <div v-else class="grid gap-x-8 gap-y-5 lg:grid-cols-2" data-testid="grant-panel">
     <section v-for="grant in grants" :key="grant.key" :aria-label="grant.name" class="flex min-w-0 flex-col gap-3">
       <div>
@@ -56,68 +57,68 @@ defineProps<{
           >, <MoneyText :cents="grant.amount" />
         </h3>
         <p class="text-xs text-muted">
-          Received <DrillLink :to="grant.receipt" in-prose :label="`Grant received ${grant.received}, open the row`">{{ grant.received }}</DrillLink
-          >. {{ grant.policy }}
+          {{ words.grants.received }}<DrillLink :to="grant.receipt" in-prose :label="words.grants.receivedRow(grant.received)">{{ grant.received }}</DrillLink
+          >{{ words.grants.receivedEnd }} {{ grant.policy }}
         </p>
       </div>
 
       <dl class="grant-facts">
         <div>
-          <dt>Employment required until</dt>
-          <dd class="text-highlighted">{{ grant.employmentUntil ?? 'Not on the grants tab' }}</dd>
+          <dt>{{ words.grants.employmentUntil }}</dt>
+          <dd class="text-highlighted">{{ grant.employmentUntil ?? words.grants.notOnTab }}</dd>
           <dd v-if="grant.employmentState" class="text-xs text-muted">{{ grant.employmentState }}</dd>
         </div>
         <div data-testid="grant-clawback">
-          <dt>Repaid if employment ended today</dt>
+          <dt>{{ words.grants.repaidToday }}</dt>
           <dd v-if="grant.clawback" class="text-highlighted"><MoneyText :cents="grant.clawback.amount" /></dd>
-          <dd v-else class="text-highlighted">Not on the grants tab</dd>
-          <dd v-if="grant.clawback?.until" class="text-xs text-muted">This amount holds until {{ grant.clawback.until }}</dd>
+          <dd v-else class="text-highlighted">{{ words.grants.notOnTab }}</dd>
+          <dd v-if="grant.clawback?.until" class="text-xs text-muted">{{ words.grants.holdsUntil(grant.clawback.until) }}</dd>
         </div>
       </dl>
 
       <table class="data-table grant-table w-full text-sm">
         <thead>
           <tr>
-            <th scope="col" class="text-start">Year</th>
-            <th scope="col" class="text-end">Released</th>
-            <th scope="col" class="text-end">Deferred at year end</th>
+            <th scope="col" class="text-start">{{ words.grants.year }}</th>
+            <th scope="col" class="text-end">{{ words.grants.released }}</th>
+            <th scope="col" class="text-end">{{ words.grants.deferredAtYearEnd }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="year in grant.years" :key="year.year">
-            <th scope="row" class="figure text-start font-normal text-toned">{{ year.year }}<span v-if="year.when === 'ahead'" class="block text-xs text-muted sm:ms-1.5 sm:inline">to come</span></th>
+            <th scope="row" class="figure text-start font-normal text-toned">
+              {{ year.year }}<span v-if="year.when === 'ahead'" class="block text-xs text-muted sm:ms-1.5 sm:inline">{{ words.grants.toCome }}</span>
+            </th>
             <td class="text-end"><MoneyText :cents="year.released" /></td>
             <td class="text-end"><MoneyText :cents="year.deferred" /></td>
           </tr>
         </tbody>
       </table>
-      <p v-if="grant.neverReleased > 0" class="text-xs text-muted">
-        <MoneyText :cents="grant.neverReleased" class="text-toned" /> of the variable part is never released, because the assets it paid for cost less than that part.
-      </p>
+      <p v-if="grant.neverReleased > 0" class="text-xs text-muted"><MoneyText :cents="grant.neverReleased" class="text-toned" />{{ words.grants.neverReleased }}</p>
     </section>
 
-    <section v-if="comparisons.length > 0" aria-label="Against the accountant's grant lines" class="flex min-w-0 flex-col gap-2" data-testid="grant-residuals">
-      <h3 class="text-xs font-medium text-muted">Against the accountant's grant lines on the year-end tab</h3>
+    <section v-if="comparisons.length > 0" :aria-label="words.grants.againstAccountant" class="flex min-w-0 flex-col gap-2" data-testid="grant-residuals">
+      <h3 class="text-xs font-medium text-muted">{{ words.grants.againstAccountantTitle }}</h3>
       <ul class="flex flex-col gap-2">
         <li v-for="line in comparisons" :key="line.key" class="comparison-row">
           <p class="text-sm text-toned">{{ line.label }}</p>
           <dl class="comparison-figures">
             <div>
-              <dt>Accountant</dt>
+              <dt>{{ words.grants.accountant }}</dt>
               <dd><MoneyText :cents="line.accountant" /></dd>
             </div>
             <div>
-              <dt>Ours</dt>
+              <dt>{{ words.grants.ours }}</dt>
               <dd><MoneyText :cents="line.ours" /></dd>
             </div>
             <div>
-              <dt>Residual</dt>
+              <dt>{{ words.grants.residual }}</dt>
               <dd :class="line.residual === 0 ? 'text-success' : 'text-warning'"><MoneyText :cents="line.residual" sign="always" /></dd>
             </div>
           </dl>
         </li>
       </ul>
-      <p class="text-xs text-muted">The residual is the accountant's figure less ours. A gap often means a funded purchase is missing from the assets tab.</p>
+      <p class="text-xs text-muted">{{ words.grants.residualNote }}</p>
     </section>
   </div>
 </template>

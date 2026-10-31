@@ -34,6 +34,7 @@ export interface AssetTotals {
 import { useMediaQuery } from '../../../../../../shared/layout/viewport'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
+import { words } from './words'
 
 /** The assets tab with what the books make of each asset: a table on a wide screen, one card per asset below 1440 px, where ten columns do not fit beside the sidebar. */
 defineProps<{
@@ -52,56 +53,56 @@ const narrow = useMediaQuery('(max-width: 1439px)')
       <li v-for="line in lines" :key="line.key" class="rounded-control border border-default px-3 py-2.5">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
-            <DrillLink :to="line.payment" :label="`${line.name}, open the payment`" class="text-sm font-medium text-highlighted">
+            <DrillLink :to="line.payment" :label="words.register.openPayment(line.name)" class="text-sm font-medium text-highlighted">
               <span class="truncate">{{ line.name }}</span>
             </DrillLink>
             <p class="text-xs text-muted">
-              {{ line.group }}<template v-if="line.fundedBy">, paid by {{ line.fundedBy }}</template>
+              {{ line.group }}<template v-if="line.fundedBy">{{ words.register.paidBy(line.fundedBy) }}</template>
             </p>
           </div>
           <div class="shrink-0 text-end">
             <MoneyText :cents="line.bookValue" class="text-sm font-medium text-highlighted" />
-            <p class="text-xs text-muted">{{ line.gone ?? 'book value' }}</p>
+            <p class="text-xs text-muted">{{ line.gone ?? words.register.bookValue }}</p>
           </div>
         </div>
         <dl class="asset-cells mt-2">
           <div>
-            <dt>Bought</dt>
+            <dt>{{ words.register.bought }}</dt>
             <dd>{{ line.bought }}</dd>
           </div>
           <div>
-            <dt>In use from</dt>
+            <dt>{{ words.register.inUse }}</dt>
             <dd>{{ line.inUse }}</dd>
           </div>
           <div>
-            <dt>Cost without VAT</dt>
+            <dt>{{ words.register.cost }}</dt>
             <dd><MoneyText :cents="line.cost" /></dd>
           </div>
           <div>
-            <dt>Yearly rate</dt>
+            <dt>{{ words.register.rate }}</dt>
             <dd>
-              <DrillLink :to="line.rateLink" :label="`${line.rate}, open the rule`">{{ line.rate }}</DrillLink>
+              <DrillLink :to="line.rateLink" :label="words.register.openRule(line.rate)">{{ line.rate }}</DrillLink>
             </dd>
           </div>
           <div>
-            <dt>Charge in {{ year }}</dt>
+            <dt>{{ words.register.chargeIn(year) }}</dt>
             <dd><MoneyText v-if="line.charge !== null" :cents="line.charge" /><span v-else class="text-muted">–</span></dd>
           </div>
           <div>
-            <dt>Accumulated</dt>
+            <dt>{{ words.register.accumulated }}</dt>
             <dd><MoneyText :cents="line.accumulated" /></dd>
           </div>
         </dl>
-        <p v-if="line.payment === null" class="mt-1.5 text-xs text-warning">No ledger payment found</p>
+        <p v-if="line.payment === null" class="mt-1.5 text-xs text-warning">{{ words.register.noPayment }}</p>
       </li>
     </ul>
     <dl class="asset-cells px-3">
       <div>
-        <dt>All assets, cost</dt>
+        <dt>{{ words.register.allCost }}</dt>
         <dd><MoneyText :cents="totals.cost" /></dd>
       </div>
       <div>
-        <dt>Book value {{ today }}</dt>
+        <dt>{{ words.register.bookValueOn(today) }}</dt>
         <dd class="font-medium text-highlighted"><MoneyText :cents="totals.bookValue" /></dd>
       </div>
     </dl>
@@ -111,31 +112,31 @@ const narrow = useMediaQuery('(max-width: 1439px)')
     <table class="data-table asset-table w-full text-sm" data-testid="asset-register">
       <thead>
         <tr>
-          <th scope="col" class="text-start">Asset</th>
-          <th scope="col" class="text-start">Bought</th>
-          <th scope="col" class="text-start">In use from</th>
-          <th scope="col" class="text-end">Cost without VAT</th>
-          <th scope="col" class="text-start">Group</th>
-          <th scope="col" class="text-end">Yearly rate</th>
-          <th scope="col" class="text-end">Charge in {{ year }}</th>
-          <th scope="col" class="text-end">Accumulated</th>
-          <th scope="col" class="text-end">Book value {{ today }}</th>
-          <th scope="col" class="text-start">Funded by</th>
+          <th scope="col" class="text-start">{{ words.register.asset }}</th>
+          <th scope="col" class="text-start">{{ words.register.bought }}</th>
+          <th scope="col" class="text-start">{{ words.register.inUse }}</th>
+          <th scope="col" class="text-end">{{ words.register.cost }}</th>
+          <th scope="col" class="text-start">{{ words.register.group }}</th>
+          <th scope="col" class="text-end">{{ words.register.rate }}</th>
+          <th scope="col" class="text-end">{{ words.register.chargeIn(year) }}</th>
+          <th scope="col" class="text-end">{{ words.register.accumulated }}</th>
+          <th scope="col" class="text-end">{{ words.register.bookValueOn(today) }}</th>
+          <th scope="col" class="text-start">{{ words.register.fundedBy }}</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="line in lines" :key="line.key">
           <th scope="row" class="cell-wraps text-start font-normal">
-            <DrillLink v-if="line.payment" :to="line.payment" :label="`${line.name}, open the payment`" class="text-highlighted">{{ line.name }}</DrillLink>
+            <DrillLink v-if="line.payment" :to="line.payment" :label="words.register.openPayment(line.name)" class="text-highlighted">{{ line.name }}</DrillLink>
             <span v-else class="text-highlighted">{{ line.name }}</span>
-            <span v-if="line.payment === null" class="block text-xs text-warning">No ledger payment found</span>
+            <span v-if="line.payment === null" class="block text-xs text-warning">{{ words.register.noPayment }}</span>
           </th>
           <td class="figure text-toned">{{ line.bought }}</td>
           <td class="figure text-toned">{{ line.inUse }}</td>
           <td class="text-end"><MoneyText :cents="line.cost" /></td>
           <td class="cell-wraps text-toned">{{ line.group }}</td>
           <td class="figure cell-wraps text-end">
-            <DrillLink :to="line.rateLink" :label="`${line.rate}, open the rule`">{{ line.rate }}</DrillLink>
+            <DrillLink :to="line.rateLink" :label="words.register.openRule(line.rate)">{{ line.rate }}</DrillLink>
           </td>
           <td class="text-end"><MoneyText v-if="line.charge !== null" :cents="line.charge" /><span v-else class="text-muted">–</span></td>
           <td class="text-end"><MoneyText :cents="line.accumulated" /></td>
@@ -151,7 +152,7 @@ const narrow = useMediaQuery('(max-width: 1439px)')
       </tbody>
       <tfoot>
         <tr>
-          <th scope="row" class="text-start" colspan="3">All assets</th>
+          <th scope="row" class="text-start" colspan="3">{{ words.register.allAssets }}</th>
           <td class="text-end"><MoneyText :cents="totals.cost" /></td>
           <td colspan="2" />
           <td class="text-end"><MoneyText :cents="totals.charge" /></td>

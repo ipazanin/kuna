@@ -12,14 +12,15 @@ import { nextStep } from '../domain/onboardingSteps'
 import type { BooksHome } from '../domain/onboardingSteps'
 import { statementSettingsOf } from '../domain/statementsChoice'
 import { useOnboarding } from './useOnboarding'
+import { words } from './words'
 
 /** Where the books live. New books kept in this browser are made here, since they need nothing from Google. */
 const onboarding = useOnboarding()
 const store = useWorkbook()
 
 const CHOICES: { label: string; description: string; value: BooksHome }[] = [
-  { label: 'Google Drive', description: 'One file you open on your phone and computer. Backed up daily.', value: 'drive' },
-  { label: 'Only this browser', description: 'No Google. One device. Export to keep a copy.', value: 'browser' },
+  { label: words.home.drive, description: words.home.driveNote, value: 'drive' },
+  { label: words.home.browser, description: words.home.browserNote, value: 'browser' },
 ]
 
 const chosen = ref<BooksHome>(onboarding.place.value.home)
@@ -45,11 +46,11 @@ async function proceed(): Promise<void> {
 </script>
 
 <template>
-  <StepCard title="Where the books live">
-    <URadioGroup v-model="chosen" :items="CHOICES" legend="Where the books live" variant="card" :ui="{ legend: 'sr-only', fieldset: 'gap-2' }" data-testid="onboarding-home" />
-    <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" title="The books were not made" :description="failure" />
+  <StepCard :title="words.home.title">
+    <URadioGroup v-model="chosen" :items="CHOICES" :legend="words.home.title" variant="card" :ui="{ legend: 'sr-only', fieldset: 'gap-2' }" data-testid="onboarding-home" />
+    <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.home.notMade" :description="failure" />
     <template #actions>
-      <UButton label="Continue" trailing-icon="i-lucide-arrow-right" :loading="starting" data-testid="onboarding-continue" @click="proceed" />
+      <UButton :label="words.continue" trailing-icon="i-lucide-arrow-right" :loading="starting" data-testid="onboarding-continue" @click="proceed" />
     </template>
   </StepCard>
 </template>

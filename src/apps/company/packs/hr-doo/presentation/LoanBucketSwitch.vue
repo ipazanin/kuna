@@ -9,7 +9,9 @@ import { useDisplayNames } from '../../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../../workbook/application/workbookStore'
 import { categoryIdOf } from '../../../workbook/domain/workbook'
 import { useRecordWrites } from '../../../../../shared/storage/presentation/useRecordWrites'
+import { listInWords } from '../../../../../shared/text/listInWords'
 import { PACK_ROLES } from '../domain/packRoles'
+import { words } from './words'
 
 /**
  * Whether loans to the owner and their repayments count as owner pay or as financing. The answer
@@ -25,37 +27,37 @@ const loanCategories = computed(() =>
 )
 const countsAsPay = computed(() => loanCategories.value.length > 0 && loanCategories.value.every((category) => category.bucket === 'owner-pay'))
 const mixed = computed(() => !countsAsPay.value && !loanCategories.value.every((category) => category.bucket === 'financing'))
-const listed = computed(() => loanCategories.value.map((category) => `${names.value.category(category.slug)} (${category.bucket})`).join(' and '))
+const listed = computed(() => listInWords(loanCategories.value.map((category) => words.loanBucket.inBucket(names.value.category(category.slug), category.bucket))))
 
 /** Writes the bucket of each loan category, as the app read it. */
 async function choose(asPay: boolean): Promise<void> {
   const bucket = asPay ? 'owner-pay' : 'financing'
   const stored = loanCategories.value.flatMap((category) => recordWithId(store.state.records?.categories ?? NO_RECORDS, categoryIdOf(category)) ?? [])
-  await writes.write(asPay ? 'Loans count as owner pay' : 'Loans count as financing', (unit) => stored.forEach(({ record }) => unit.of(CATEGORY_WRITES).change(record, { ...record, bucket })), {
-    description: `The categories tab now puts ${loanCategories.value.map((category) => category.slug).join(' and ')} in the ${bucket} bucket.`,
-    failedTitle: 'Not changed',
-  })
+  await writes.write(
+    asPay ? words.loanBucket.countAsPay : words.loanBucket.countAsFinancing,
+    (unit) => stored.forEach(({ record }) => unit.of(CATEGORY_WRITES).change(record, { ...record, bucket })),
+    {
+      description: words.loanBucket.moved(listInWords(loanCategories.value.map((category) => category.slug)), bucket),
+      failedTitle: words.loanBucket.notChanged,
+    },
+  )
 }
 </script>
 
 <template>
-  <AppCard title="Loans to the owner" subtitle="From the categories tab: the bucket of the categories with the owner-loan-out and owner-loan-repaid roles." data-testid="loan-bucket">
+  <AppCard :title="words.loanBucket.title" :subtitle="words.loanBucket.subtitle" data-testid="loan-bucket">
     <div class="px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
-      <p v-if="loanCategories.length === 0" class="text-sm text-muted">No category carries the owner-loan-out or owner-loan-repaid role, so there is nothing to switch.</p>
+      <p v-if="loanCategories.length === 0" class="text-sm text-muted">{{ words.loanBucket.none }}</p>
       <template v-else>
         <USwitch
           :model-value="countsAsPay"
           :loading="writes.busy.value || store.state.writing"
           :disabled="writes.busy.value || store.state.writing"
-          label="Loans to the owner count as owner pay"
-          :description="
-            countsAsPay
-              ? 'On: a loan is pay taken early and its repayment pay handed back, so both count in owner pay, costs and net. Off moves both to financing, outside profit and loss.'
-              : 'Off: loans and their repayments are financing, outside profit and loss. On moves both into owner pay, where they count in costs and net.'
-          "
+          :label="words.loanBucket.label"
+          :description="countsAsPay ? words.loanBucket.on : words.loanBucket.off"
           @update:model-value="choose($event)"
         />
-        <p v-if="mixed" class="mt-3 text-xs text-warning">The loan categories sit in different buckets now: {{ listed }}. Switching puts both in one.</p>
+        <p v-if="mixed" class="mt-3 text-xs text-warning">{{ words.loanBucket.mixed(listed) }}</p>
       </template>
     </div>
   </AppCard>

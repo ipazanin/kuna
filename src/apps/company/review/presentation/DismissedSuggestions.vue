@@ -9,6 +9,9 @@ import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
 import type { DismissedSuggestion } from '../domain/dismissedSuggestions'
+import { plural } from '../../../../shared/text/translation'
+import { words as transactionWords } from '../../transactions/presentation/words'
+import { words } from './words'
 
 /** The suggestions a person dismissed, collapsed, each with Restore, which takes its row off the dismissed tab. */
 const props = defineProps<{
@@ -21,32 +24,29 @@ const emit = defineEmits<{
   restore: [dismissal: Dismissal]
 }>()
 
-const KIND_LABELS: Readonly<Record<Dismissal['kind'], string>> = {
-  'not-covered': 'No rule settles these',
-  exception: 'A rule files these otherwise',
-}
+const KIND_LABELS: Readonly<Record<Dismissal['kind'], string>> = words.dismissedCard.kinds
 
 const bucketBySlug = computed(() => new Map(props.categories.map((category) => [category.slug, category.bucket])))
 
 /** The group's name when its rows are still there, else what the key says: the IBAN, or the folded name, without an exception's rule. */
 function nameOf(entry: DismissedSuggestion<Transaction>): string {
-  if (entry.group !== null) return entry.group.name || 'No counterparty'
+  if (entry.group !== null) return entry.group.name || transactionWords.noCounterparty
   const counterparty = entry.dismissal.kind === 'exception' ? entry.dismissal.key.replace(/\|[^|]*$/, '') : entry.dismissal.key
-  return counterparty.replace(/^(iban|name):/, '') || 'No counterparty'
+  return counterparty.replace(/^(iban|name):/, '') || transactionWords.noCounterparty
 }
 
 function rowsOf(entry: DismissedSuggestion<Transaction>): string {
   const count = entry.group?.rows.length ?? 0
-  return count === 0 ? 'No such rows left' : `${count} ${count === 1 ? 'row' : 'rows'}`
+  return count === 0 ? words.dismissedCard.noRowsLeft : plural(transactionWords.rows(count), count)
 }
 </script>
 
 <template>
   <AppCard
-    :title="`Dismissed suggestions (${dismissed.length})`"
-    subtitle="Groups you dismissed stay hidden as new rows join them. Restore one to see it in the list above again."
+    :title="words.dismissedCard.title(dismissed.length)"
+    :subtitle="words.dismissedCard.subtitle"
     collapse-id="review.dismissed"
-    :summary="`${dismissed.length} ${dismissed.length === 1 ? 'group' : 'groups'} hidden from the list above`"
+    :summary="plural(words.dismissedCard.summary(dismissed.length), dismissed.length)"
     start-collapsed
     data-testid="dismissed-suggestions"
   >
@@ -60,17 +60,17 @@ function rowsOf(entry: DismissedSuggestion<Transaction>): string {
           <p class="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
             <span>{{ KIND_LABELS[entry.dismissal.kind] }}</span>
             <CategoryChip v-if="entry.dismissal.category" :category="entry.dismissal.category" :bucket="bucketBySlug.get(entry.dismissal.category) ?? UNCLASSIFIED" />
-            <span v-if="entry.dismissal.dismissedOn">dismissed on {{ dayLabel(entry.dismissal.dismissedOn) }}</span>
+            <span v-if="entry.dismissal.dismissedOn">{{ words.dismissedCard.dismissedOn(dayLabel(entry.dismissal.dismissedOn)) }}</span>
           </p>
         </div>
         <UButton
-          label="Restore"
+          :label="words.dismissedCard.restore"
           icon="i-lucide-eye"
           color="neutral"
           variant="outline"
           size="sm"
           class="self-start"
-          :aria-label="`Restore ${nameOf(entry)}`"
+          :aria-label="words.dismissedCard.restoreName(nameOf(entry))"
           :disabled="busy"
           data-testid="restore-suggestion"
           @click="emit('restore', entry.dismissal)"

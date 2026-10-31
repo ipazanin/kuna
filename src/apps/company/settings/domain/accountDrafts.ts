@@ -8,6 +8,7 @@ import type { StoredRecord } from '../../../../shared/storage/domain/recordsRead
 import { madeOfDrafts } from './recordDrafts'
 import type { MadeDraft } from './recordDrafts'
 import { currencyProblem } from './settings'
+import { words } from './words'
 
 /** One row of the accounts editor, as text. */
 export interface AccountDraft {
@@ -49,13 +50,13 @@ export function accountDraftErrors(drafts: readonly AccountDraft[], usedNames: R
     const name = draft.account.trim().toLowerCase()
     const saved = draft.savedName.trim().toLowerCase()
     if (name === '') {
-      found.account = 'Required'
+      found.account = words.fields.required
     } else if (named.has(name)) {
-      found.account = 'Already used above'
+      found.account = words.fields.usedAbove
     } else if (saved !== '' && saved !== name && usedNames.has(saved)) {
-      found.account = `${draft.savedName} is in use, so it keeps its name`
+      found.account = words.fields.keepsName(draft.savedName)
     } else if (name !== saved && slugProblem(name, 'account') !== null) {
-      found.account = 'Lower-case letters, digits and single hyphens'
+      found.account = words.fields.slugFormat
     }
     if (name !== '') {
       named.add(name)

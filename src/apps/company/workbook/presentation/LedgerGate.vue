@@ -7,6 +7,7 @@ import { usePageSync } from '../../../../shared/sync/presentation/pageSync'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import { useExport } from '../../workbook-files/presentation/useExport'
 import { useWorkbook } from '../application/workbookStore'
+import { words } from './words'
 
 /** Shows its slot once a workbook with transactions is on screen, and says what is missing until then. */
 const { state } = useWorkbook()
@@ -35,35 +36,35 @@ const gate = computed(() => {
   <EmptyState
     v-else-if="gate === 'error'"
     icon="i-lucide-triangle-alert"
-    :title="inBrowser ? 'The workbook in this browser could not be read' : 'The file on Drive could not be read'"
+    :title="inBrowser ? words.gate.browserUnread : words.gate.driveUnread"
     :description="state.error ?? ''"
-    :actions="inBrowser ? [] : [{ label: 'Try again', color: 'neutral', variant: 'outline', onClick: () => sync() }]"
+    :actions="inBrowser ? [] : [{ label: words.gate.tryAgain, color: 'neutral', variant: 'outline', onClick: () => sync() }]"
     tone="error"
   />
   <EmptyState
     v-else-if="gate === 'empty-ledger' && inBrowser"
     icon="i-lucide-file-spreadsheet"
-    title="The ledger has no transactions yet"
-    description="Import a bank statement, or export the workbook, add your bank rows to its ledger tab in Excel and import the file again. Categories and settings can be set up here first."
+    :title="words.gate.noTransactions"
+    :description="words.gate.browserEmpty"
     :actions="[
-      { label: 'Import a statement', icon: 'i-lucide-file-up', onClick: () => router.push({ path: '/company/transactions', query: { tab: 'import' } }) },
-      { label: 'Export to Excel', icon: 'i-lucide-download', color: 'neutral', variant: 'outline', onClick: exportNow },
-      { label: 'Open Settings', icon: 'i-lucide-settings', color: 'neutral', variant: 'outline', onClick: () => router.push('/company/settings') },
+      { label: words.gate.importStatement, icon: 'i-lucide-file-up', onClick: () => router.push({ path: '/company/transactions', query: { tab: 'import' } }) },
+      { label: words.gate.exportToExcel, icon: 'i-lucide-download', color: 'neutral', variant: 'outline', onClick: exportNow },
+      { label: words.gate.openSettings, icon: 'i-lucide-settings', color: 'neutral', variant: 'outline', onClick: () => router.push('/company/settings') },
     ]"
   />
   <EmptyState
     v-else-if="gate === 'empty-ledger'"
     icon="i-lucide-hard-drive"
-    title="The ledger has no transactions yet"
-    description="Import a bank statement, or sync once the statements folder holds one."
-    :actions="[{ label: 'Import a statement', icon: 'i-lucide-file-up', onClick: () => router.push({ path: '/company/transactions', query: { tab: 'import' } }) }]"
+    :title="words.gate.noTransactions"
+    :description="words.gate.driveEmpty"
+    :actions="[{ label: words.gate.importStatement, icon: 'i-lucide-file-up', onClick: () => router.push({ path: '/company/transactions', query: { tab: 'import' } }) }]"
   />
-  <UEmpty v-else-if="gate === 'syncing'" icon="i-lucide-refresh-cw" title="Reading the file" description="The first copy is on its way." variant="naked" />
+  <UEmpty v-else-if="gate === 'syncing'" icon="i-lucide-refresh-cw" :title="words.gate.reading" :description="words.gate.onItsWay" variant="naked" />
   <EmptyState
     v-else-if="gate === 'ready'"
     icon="i-lucide-refresh-cw"
-    :title="`Sync to read ${state.choice?.name ?? 'the file'}`"
-    description="This browser has no copy of it yet."
-    :actions="[{ label: 'Sync', icon: 'i-lucide-refresh-cw', onClick: () => sync() }]"
+    :title="words.gate.syncToRead(state.choice?.name ?? null)"
+    :description="words.gate.noCopy"
+    :actions="[{ label: words.gate.sync, icon: 'i-lucide-refresh-cw', onClick: () => sync() }]"
   />
 </template>

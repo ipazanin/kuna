@@ -6,6 +6,7 @@ import { afterPhrase, yearFolderName } from '../../../../mail/domain/mailSource'
 import type { AttachmentNaming, MailAttachment, MailMessage } from '../../../../mail/domain/mailSource'
 import { weekdaysEmployed } from '../employees/employees'
 import type { Employee } from '../employees/employees'
+import { words } from '../words'
 
 /** The accountant issues and mails an invoice on the same day, in Croatia. */
 const ACCOUNTANT_TIME_ZONE = 'Europe/Zagreb'
@@ -38,7 +39,7 @@ function unmatched(attachments: readonly MailAttachment[], reason: string): Atta
 
 /** Every attachment of a mail unmatched because its subject, once the replies' prefixes are off, does not start with the phrase, or null when it does. */
 function notStartingWith(message: MailMessage, phrase: string): AttachmentNaming[] | null {
-  return afterPhrase(message.subject, phrase) === null ? unmatched(message.attachments, `The subject does not start with ${phrase}.`) : null
+  return afterPhrase(message.subject, phrase) === null ? unmatched(message.attachments, words.accountantMail.notStartingWith(phrase)) : null
 }
 
 function named(attachment: MailAttachment, folders: readonly string[], name: string): AttachmentNaming {
@@ -85,7 +86,7 @@ export function payrollNamings(message: MailMessage, phrase: string, folder: rea
   const elsewhere = notStartingWith(message, phrase)
   if (elsewhere !== null) return elsewhere
   const month = payrollMonthOf(message.subject, phrase)
-  if (month === null) return unmatched(message.attachments, 'The subject names no month, such as 9/2026.')
+  if (month === null) return unmatched(message.attachments, words.accountantMail.noMonth)
   const folders = [yearFolderName(month.slice(0, 4), folder), month]
   const orderKind = message.attachments.map((attachment) => paymentOrderKind(fold(attachment.name))).find((kind) => kind !== null) ?? null
   return message.attachments.map((attachment): AttachmentNaming => {
@@ -94,18 +95,16 @@ export function payrollNamings(message: MailMessage, phrase: string, folder: rea
     if (/^IP1 OBRAZAC/.test(folded)) {
       const employee = ip1Employee(folded, month, employees)
       return employee === null
-        ? { kind: 'unmatched', attachment, reason: 'It names no one on the employees tab, and no single employee worked that month to file it for.' }
+        ? { kind: 'unmatched', attachment, reason: words.accountantMail.noEmployee }
         : named(attachment, folders, `${month}-ip1-form-${fileWords(employee.name || employee.slug)}.pdf`)
     }
     const kind = paymentOrderKind(folded)
     if (kind !== null) return named(attachment, folders, `${month}-payment-order-${kind}.pdf`)
-    if (/^PLATNI NALOG/.test(folded)) return { kind: 'unmatched', attachment, reason: 'It is a payment order of a kind the app does not know, so it is not filed under a guess.' }
+    if (/^PLATNI NALOG/.test(folded)) return { kind: 'unmatched', attachment, reason: words.accountantMail.unknownOrder }
     if (/^UN/.test(folded) && folded.endsWith('.XML')) {
-      return orderKind === null
-        ? { kind: 'unmatched', attachment, reason: 'No payment order PDF in the same mail says which order it carries.' }
-        : named(attachment, folders, `${month}-payment-order-${orderKind}.xml`)
+      return orderKind === null ? { kind: 'unmatched', attachment, reason: words.accountantMail.orderWithoutPdf } : named(attachment, folders, `${month}-payment-order-${orderKind}.xml`)
     }
-    return { kind: 'unmatched', attachment, reason: 'It is not a payroll document the app knows how to name.' }
+    return { kind: 'unmatched', attachment, reason: words.accountantMail.notPayroll }
   })
 }
 
@@ -114,11 +113,11 @@ export function vatNamings(message: MailMessage, phrase: string, folder: readonl
   const elsewhere = notStartingWith(message, phrase)
   if (elsewhere !== null) return elsewhere
   const period = vatPeriodOf(message.subject, phrase)
-  if (period === null) return unmatched(message.attachments, 'The subject names no period, such as 9/2026.')
+  if (period === null) return unmatched(message.attachments, words.accountantMail.noPeriod)
   return message.attachments.map((attachment) =>
     /^PDV\b.*\.XLSX$/.test(fold(attachment.name))
       ? named(attachment, [yearFolderName(period.slice(0, 4), folder)], `${period}-pdv.xlsx`)
-      : { kind: 'unmatched', attachment, reason: "It is not the accountant's VAT return workbook." },
+      : { kind: 'unmatched', attachment, reason: words.accountantMail.notVatReturn },
   )
 }
 
@@ -134,6 +133,6 @@ export function invoiceNamings(message: MailMessage, phrase: string, folder: rea
   return message.attachments.map((attachment) =>
     /^\d+-\d+-\d+_.+\.PDF$/.test(fold(attachment.name))
       ? named(attachment, [yearFolderName(day.slice(0, 4), folder), monthOf(day)], `${day}-accounting.pdf`)
-      : { kind: 'unmatched', attachment, reason: "It is not the accountant's invoice PDF." },
+      : { kind: 'unmatched', attachment, reason: words.accountantMail.notInvoice },
   )
 }

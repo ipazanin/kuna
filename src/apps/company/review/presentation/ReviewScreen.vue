@@ -42,6 +42,9 @@ import DismissedSuggestions from './DismissedSuggestions.vue'
 import ReviewQueueItem from './ReviewQueueItem.vue'
 import RuleCoverage from './RuleCoverage.vue'
 import SessionChanges from './SessionChanges.vue'
+import { words } from './words'
+import { words as storageWords } from '../../../../shared/storage/presentation/words'
+import { plural } from '../../../../shared/text/translation'
 
 const ledger = useFilteredLedger()
 const store = useWorkbook()
@@ -70,8 +73,8 @@ const queue = computed(() => {
 })
 
 const tabs = computed(() => [
-  { label: 'Queue', value: 'queue', icon: 'i-lucide-inbox', count: queue.value.length },
-  { label: 'Rules', value: 'rules', icon: 'i-lucide-list-ordered' },
+  { label: words.tabs.queue, value: 'queue', icon: 'i-lucide-inbox', count: queue.value.length },
+  { label: words.tabs.rules, value: 'rules', icon: 'i-lucide-list-ordered' },
 ])
 
 const settings = useSettings()
@@ -93,9 +96,9 @@ const sessionWrites = computed(() => state.writes.filter((write) => write.workbo
 async function undoSessionWrite(write: SessionWrite): Promise<void> {
   try {
     await store.undo(write)
-    toast.add({ title: 'Undone', description: 'The workbook is back as it was before that change.', icon: 'i-lucide-undo-2', color: 'neutral' })
+    toast.add({ title: storageWords.undone, description: words.backAsItWas, icon: 'i-lucide-undo-2', color: 'neutral' })
   } catch (failure) {
-    toast.add({ title: 'Not undone', description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
+    toast.add({ title: storageWords.notUndone, description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
   }
 }
 
@@ -105,36 +108,32 @@ function toggle(id: RecordId): void {
   expandedRow.value = expandedRow.value === id ? null : id
 }
 
-const description = computed(() =>
-  ledger.value?.workbook.source === 'drive'
-    ? 'Rows that wait for a person, and the rules that decide the rest. Confirm or recategorise a row and the app writes its category and flagged_by to the file on Drive.'
-    : 'Rows that wait for a person, and the rules that decide the rest. Confirm or recategorise a row and the app keeps its category and flagged_by in this browser.',
-)
+const description = computed(() => words.description(ledger.value?.workbook.source === 'drive'))
 
 function file(title: string, verdict: RowVerdict, options: RecordWriteOptions = {}): Promise<boolean> {
-  return writes.write(title, (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, [verdict], state.workbook?.categories ?? []), { failedTitle: 'Not written', ...options })
+  return writes.write(title, (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, [verdict], state.workbook?.categories ?? []), { failedTitle: words.notWritten, ...options })
 }
 
 async function confirm(transaction: Transaction): Promise<void> {
   const workbook = ledger.value?.workbook
   const verdict = workbook === undefined ? null : confirmation(transaction, workbook.settings)
   if (verdict === null) return
-  await file(`Confirmed ${names.value.category(transaction.category)}`, verdict, { description: transaction.counterparty || 'A row with no counterparty' })
+  await file(words.confirmed(names.value.category(transaction.category)), verdict, { description: transaction.counterparty || words.noCounterpartyRow })
 }
 
 async function recategorise(transaction: Transaction, category: string): Promise<void> {
   const workbook = ledger.value?.workbook
   if (workbook === undefined) return
-  await file(`Filed as ${names.value.category(category)}`, recategorisation(transaction, category, workbook.settings), {
-    description: transaction.counterparty || 'A row with no counterparty',
-    follow: { label: 'Make a rule', icon: 'i-lucide-list-plus', run: () => makeRule({ ...transaction, category }) },
+  await file(words.filedAs(names.value.category(category)), recategorisation(transaction, category, workbook.settings), {
+    description: transaction.counterparty || words.noCounterpartyRow,
+    follow: { label: words.makeRule, icon: 'i-lucide-list-plus', run: () => makeRule({ ...transaction, category }) },
   })
 }
 
 const editorOpen = ref(false)
 const editorSource = ref<RuleEditorSource | null>(null)
 
-function makeRule(transaction: Transaction, title = 'Make a rule from this row', split: RuleEditorSource['split'] = []): void {
+function makeRule(transaction: Transaction, title = words.makeRuleFromRow, split: RuleEditorSource['split'] = []): void {
   const workbook = state.workbook
   if (workbook === null) return
   editorSource.value = { title, draft: draftForRow(transaction, workbook, categorisationContextOf(workbook)), edited: null, split }
@@ -145,7 +144,7 @@ function makeRule(transaction: Transaction, title = 'Make a rule from this row',
 function makeRuleForGroup(group: CoverageGroup<Transaction>): void {
   const mostCommon = group.categories[0]?.category
   const newest = group.rows.find((row) => row.category === mostCommon)
-  if (newest !== undefined) makeRule(newest, `Make a rule for ${group.name || 'these rows'}`, group.categories)
+  if (newest !== undefined) makeRule(newest, words.makeRuleFor(group.name), group.categories)
 }
 
 /** The payment the split editor is open on, with its split on the splits tab or null. */
@@ -162,36 +161,36 @@ function openSplit(row: Transaction): void {
 }
 
 function dismiss(kind: SuggestionKind, group: CoverageGroup<Transaction>): void {
-  void writes.write(`Dismissed ${group.name || 'the rows with no counterparty'}`, (unit) => unit.of(DISMISSAL_WRITES).add(dismissalOfGroup(kind, group, today())), {
-    failedTitle: 'Not dismissed',
+  void writes.write(words.dismissed(group.name), (unit) => unit.of(DISMISSAL_WRITES).add(dismissalOfGroup(kind, group, today())), {
+    failedTitle: words.notDismissed,
   })
 }
 
 function restore(dismissal: Dismissal): void {
   const stored = recordWithId(state.records?.dismissed ?? NO_RECORDS, dismissal.id)
   if (stored === null) return
-  void writes.write('Suggestion restored', (unit) => unit.of(DISMISSAL_WRITES).remove(stored.record), { failedTitle: 'Not restored' })
+  void writes.write(words.restored, (unit) => unit.of(DISMISSAL_WRITES).remove(stored.record), { failedTitle: words.notRestored })
 }
 </script>
 
 <template>
   <section class="flex max-w-measure flex-col gap-6">
-    <PageHeader title="Review" :description="description" />
-    <PageTabs :tabs="tabs" label="Queue and rules">
+    <PageHeader :title="words.title" :description="description" />
+    <PageTabs :tabs="tabs" :label="words.tabs.label">
       <template #queue>
         <div class="flex flex-col gap-6">
           <LedgerGate>
             <template v-if="ledger">
               <FilterBar :workbook="ledger.workbook" :window="ledger.window" :show-period="false" />
 
-              <EmptyState v-if="nothingWaits" icon="i-lucide-check-check" title="Nothing waits for review" description="Every row in view has a category a rule or a person set." />
+              <EmptyState v-if="nothingWaits" icon="i-lucide-check-check" :title="words.nothingWaits" :description="words.nothingWaitsDescription" />
               <AppCard
                 v-if="queue.length > 0"
                 class="overflow-clip"
-                :title="`${queue.length} ${queue.length === 1 ? 'row' : 'rows'} to review`"
-                subtitle="Newest first, from every month of the ledger. Open a row to see what the rules say about it."
+                :title="plural(words.toReview(queue.length), queue.length)"
+                :subtitle="words.queueSubtitle"
                 collapse-id="review.queue"
-                summary="Each waits for a confirmation or another category."
+                :summary="words.queueSummary"
                 data-testid="review-queue"
               >
                 <ul class="mt-3 border-t border-default">

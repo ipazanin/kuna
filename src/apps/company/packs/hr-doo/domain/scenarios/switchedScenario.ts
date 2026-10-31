@@ -4,6 +4,8 @@ import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { spanOf } from './scenarioSchedule'
 import { overlapOf } from '../../../../../../shared/calendar/dateRange'
 import type { DateRange } from '../../../../../../shared/calendar/dateRange'
+import { scenarioName } from './startingScenarios'
+import { words } from './words'
 
 /**
  * The owner pay of a year that follows one scenario until the day before `switchOn` and another
@@ -17,7 +19,7 @@ export function switchedScenario(first: OwnerPayScenario, second: OwnerPayScenar
   const after = { from: switchOn, to: civilDate(year, 12, 31) }
   return {
     slug: `${first.slug}+${second.slug}`,
-    label: `${first.label || first.slug}, then ${second.label || second.slug}`,
+    label: words.switched(scenarioName(first), scenarioName(second)),
     year,
     components: [...cutTo(first, before), ...cutTo(second, after)],
   }

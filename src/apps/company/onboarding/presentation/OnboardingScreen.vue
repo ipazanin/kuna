@@ -5,7 +5,7 @@ import type { Component } from 'vue'
 import { words as sharedWords } from '../../../../shared/app/words'
 import HomeLink from '../../../../shared/ui/HomeLink.vue'
 import { STEP_FLOW } from '../../../../shared/ui/StepCard.vue'
-import { words } from '../../words'
+import { words as appWords } from '../../words'
 import { makingStep, previousStep } from '../domain/onboardingSteps'
 import type { OnboardingStep } from '../domain/onboardingSteps'
 import AccessStep from './AccessStep.vue'
@@ -18,6 +18,7 @@ import MadeStep from './MadeStep.vue'
 import StatementStep from './StatementStep.vue'
 import WelcomeStep from './WelcomeStep.vue'
 import { useOnboarding } from './useOnboarding'
+import { words } from './words'
 
 /**
  * Onboarding at `#/company/start?step=…`, on the ruled page of the first run: the steps of the path in a row,
@@ -33,14 +34,14 @@ provide(STEP_FLOW, {
 })
 
 const STEPS: Readonly<Record<OnboardingStep, { readonly title: string; readonly component: Component }>> = {
-  welcome: { title: 'Welcome', component: WelcomeStep },
-  home: { title: 'Home', component: HomeStep },
-  access: { title: 'Google', component: AccessStep },
-  file: { title: 'File', component: FileStep },
-  folder: { title: 'Folder', component: FolderStep },
-  find: { title: 'Find', component: FindStep },
-  company: { title: 'Company', component: CompanyStep },
-  statement: { title: 'Statement', component: StatementStep },
+  welcome: { title: words.stepTitles.welcome, component: WelcomeStep },
+  home: { title: words.stepTitles.home, component: HomeStep },
+  access: { title: words.stepTitles.access, component: AccessStep },
+  file: { title: words.stepTitles.file, component: FileStep },
+  folder: { title: words.stepTitles.folder, component: FolderStep },
+  find: { title: words.stepTitles.find, component: FindStep },
+  company: { title: words.stepTitles.company, component: CompanyStep },
+  statement: { title: words.stepTitles.statement, component: StatementStep },
 }
 
 const items = computed(() => {
@@ -66,11 +67,11 @@ const privacyPage = `${import.meta.env.BASE_URL}privacy.html`
     <div class="onboarding-column mx-auto flex max-w-2xl flex-col gap-6 px-4 pt-10 pb-16 sm:px-6 sm:pt-16">
       <header class="flex flex-col gap-3">
         <HomeLink :label="sharedWords.homeLink" look="quiet" class="self-start" />
-        <h1 data-testid="screen-title" tabindex="-1" class="text-title font-semibold text-highlighted">{{ words.name }}</h1>
-        <p class="max-w-[52ch] text-base text-toned">Company finances from your bank statements, worked out in this browser.</p>
+        <h1 data-testid="screen-title" tabindex="-1" class="text-title font-semibold text-highlighted">{{ appWords.name }}</h1>
+        <p class="max-w-[52ch] text-base text-toned">{{ words.lead }}</p>
       </header>
 
-      <ol class="steps" aria-label="Steps" data-testid="onboarding-stepper">
+      <ol class="steps" :aria-label="words.steps" data-testid="onboarding-stepper">
         <li v-for="(item, index) in items" :key="item.step" class="step" :data-state="item.state" :aria-current="item.state === 'current' ? 'step' : undefined">
           <span class="step-mark figure" aria-hidden="true">{{ index + 1 }}</span>
           <span class="step-title" :class="{ 'max-sm:sr-only': item.state !== 'current' }">{{ item.title }}</span>
@@ -80,8 +81,8 @@ const privacyPage = `${import.meta.env.BASE_URL}privacy.html`
       <component :is="component" :key="onboarding.place.value.step" />
 
       <footer class="flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted">
-        <span>No server. Your data stays in your Google Drive, this browser and the files you export.</span>
-        <a :href="privacyPage" class="onboarding-link inline-target">Privacy</a>
+        <span>{{ words.footer }}</span>
+        <a :href="privacyPage" class="onboarding-link inline-target">{{ words.privacy }}</a>
       </footer>
     </div>
   </main>

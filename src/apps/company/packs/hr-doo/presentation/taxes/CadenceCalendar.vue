@@ -21,6 +21,7 @@ import { monthLabel, shortMonthName } from '../../../../../../shared/calendar/mo
 import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
 import { formatCompactMoney, formatMoney } from '../../../../../../shared/money/moneyFormat'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
+import { words } from './words'
 
 /**
  * One watched tax as a calendar: a row per year and a column per month, each month paid, missed
@@ -34,9 +35,9 @@ const props = defineProps<{
 const phone = usePhoneLayout()
 
 const STATES: Readonly<Record<CadenceState, { readonly label: string; readonly icon: string }>> = {
-  paid: { label: 'Paid', icon: 'i-lucide-check' },
-  missing: { label: 'Missed', icon: 'i-lucide-x' },
-  'not-yet-due': { label: 'Not due yet', icon: 'i-lucide-clock' },
+  paid: { label: words.calendar.paid, icon: 'i-lucide-check' },
+  missing: { label: words.calendar.missed, icon: 'i-lucide-x' },
+  'not-yet-due': { label: words.calendar.notDue, icon: 'i-lucide-clock' },
 }
 
 const MONTH_NAMES = Array.from({ length: 12 }, (_, index) => shortMonthName(monthKey(2026, index + 1)))
@@ -64,15 +65,15 @@ const grid = computed(() => {
 
 function spoken(cell: CadenceCell): string {
   const month = monthLabel(cell.month)
-  if (cell.state === 'missing') return `${month}, missed, open the months around it`
-  if (cell.state === 'not-yet-due') return `${month}, not due yet`
-  return `${month}, paid ${formatMoney(cell.amount)}, open the rows`
+  if (cell.state === 'missing') return words.calendar.missedCell(month)
+  if (cell.state === 'not-yet-due') return words.calendar.notDueCell(month)
+  return words.calendar.paidCell(month, formatMoney(cell.amount))
 }
 </script>
 
 <template>
   <div class="flex flex-col gap-3">
-    <ul class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-toned" :aria-label="`Key to the ${name} calendar`">
+    <ul class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-toned" :aria-label="words.calendar.key(name)">
       <li v-for="(meaning, state) in STATES" :key="state" class="inline-flex items-center gap-1.5">
         <span class="cadence-swatch" :class="`is-${state}`" aria-hidden="true"><UIcon :name="meaning.icon" class="size-2.5" /></span>
         {{ meaning.label }}
@@ -82,13 +83,13 @@ function spoken(cell: CadenceCell): string {
       <table class="cadence-table w-full">
         <caption class="sr-only">
           {{
-            name
-          }}, month by month
+            words.calendar.caption(name)
+          }}
         </caption>
         <thead>
           <tr>
             <th scope="col">
-              <span class="sr-only">{{ phone ? 'Month' : 'Year' }}</span>
+              <span class="sr-only">{{ phone ? words.calendar.month : words.calendar.year }}</span>
             </th>
             <th v-for="column in grid.columns" :key="column" scope="col" class="text-center text-xs font-medium text-muted">{{ column }}</th>
           </tr>

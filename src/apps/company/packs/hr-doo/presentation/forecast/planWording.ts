@@ -1,16 +1,12 @@
 import { monthName, shortMonthName } from '../../../../../../shared/calendar/monthLabel'
 import type { AssetGroup } from '../../domain/assets/assets'
 import { monthKey } from '../../../../../../shared/calendar/monthKey'
-import { negateMoney, plainAmount } from '../../../../../../shared/money/money'
+import { negateMoney } from '../../../../../../shared/money/money'
+import { amountForTyping } from '../../../../../../shared/money/typedAmount'
 import type { Money } from '../../../../../../shared/money/money'
+import { words } from './words'
 
-export const GROUP_WORDS: Readonly<Record<AssetGroup, string>> = {
-  computers: 'Computers and phones',
-  equipment: 'Other equipment',
-  car: 'A car',
-  building: 'A building',
-  other: 'Anything else',
-}
+export const GROUP_WORDS: Readonly<Record<AssetGroup, string>> = words.groups
 
 /** January to December of a year, by number, as a field or a choice names them. */
 export function monthsOf(year: number): readonly { readonly number: number; readonly name: string; readonly short: string }[] {
@@ -22,5 +18,5 @@ export function monthsOf(year: number): readonly { readonly number: number; read
 
 /** An amount as a field shows it, such as 1250.00, read positive. */
 export function fieldAmount(money: Money): string {
-  return plainAmount(money < 0 ? negateMoney(money) : money)
+  return amountForTyping(money < 0 ? negateMoney(money) : money)
 }

@@ -38,6 +38,8 @@ import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import LineBuildUp from './LineBuildUp.vue'
 import StatusBadge from './StatusBadge.vue'
+import { words as packWords } from '../words'
+import { words } from './words'
 
 /**
  * The accountant's lines of one statement beside ours: a table on a wide screen, one card per line
@@ -82,50 +84,52 @@ function isMoney(value: ShownValue): value is { readonly cents: number } {
       </div>
       <dl class="line-cells mt-2">
         <div>
-          <dt>Accountant</dt>
+          <dt>{{ words.comparison.accountant }}</dt>
           <dd>
             <MoneyText v-if="isMoney(row.accountant)" :cents="row.accountant.cents" /><template v-else>{{ row.accountant.text }}</template>
           </dd>
         </div>
         <div>
-          <dt>Ours, accrual</dt>
+          <dt>{{ words.comparison.oursAccrual }}</dt>
           <dd>
-            <template v-if="row.ours === null"><span class="text-muted">Not computed</span></template>
-            <DrillLink v-else :to="row.oursTo" :label="`${row.label}, ours, open the rows`">
+            <template v-if="row.ours === null"
+              ><span class="text-muted">{{ words.comparison.notComputed }}</span></template
+            >
+            <DrillLink v-else :to="row.oursTo" :label="words.comparison.oursRows(row.label)">
               <MoneyText v-if="isMoney(row.ours)" :cents="row.ours.cents" /><template v-else>{{ row.ours.text }}</template>
             </DrillLink>
           </dd>
         </div>
         <div v-if="hasCash">
-          <dt>Ours, cash</dt>
+          <dt>{{ words.comparison.oursCash }}</dt>
           <dd>
-            <DrillLink v-if="row.cash !== null" :to="row.cashTo" :label="`${row.label}, cash, open the rows`"><MoneyText :cents="row.cash" /></DrillLink>
+            <DrillLink v-if="row.cash !== null" :to="row.cashTo" :label="words.comparison.cashRows(row.label)"><MoneyText :cents="row.cash" /></DrillLink>
             <span v-else class="text-muted">–</span>
           </dd>
         </div>
         <div v-if="hasCash">
-          <dt>Difference</dt>
+          <dt>{{ words.comparison.difference }}</dt>
           <dd><MoneyText v-if="row.difference !== null" :cents="row.difference" sign="always" /><span v-else class="text-muted">–</span></dd>
         </div>
         <div>
-          <dt>Residual</dt>
+          <dt>{{ words.comparison.residual }}</dt>
           <dd :class="row.residual === 0 ? 'text-success' : row.residual === null ? '' : 'text-warning'">
             <MoneyText v-if="row.residual !== null" :cents="row.residual" sign="always" /><span v-else class="text-muted">–</span>
           </dd>
         </div>
       </dl>
       <p v-if="row.explainedBy.length > 0" class="mt-2 text-xs text-muted">
-        Explained by
+        {{ words.comparison.explainedBy }}
         {{
           row.explainedBy
             .slice(0, NAMED)
             .map((step) => step.label)
             .join(', ')
-        }}<template v-if="row.explainedBy.length > NAMED"> and {{ row.explainedBy.length - NAMED }} more</template>
+        }}<template v-if="row.explainedBy.length > NAMED">{{ words.comparison.andMore(row.explainedBy.length - NAMED) }}</template>
       </p>
       <button type="button" class="line-toggle mt-auto" :aria-expanded="open.has(row.key)" :aria-controls="`${testId}-${row.key}`" data-testid="comparison-toggle" @click="toggle(row.key)">
         <UIcon name="i-lucide-chevron-right" class="line-chevron size-4 shrink-0 text-muted" :class="{ 'is-open': open.has(row.key) }" aria-hidden="true" />
-        <span>{{ open.has(row.key) ? 'Hide how ours is built' : 'How ours is built' }}</span>
+        <span>{{ open.has(row.key) ? words.comparison.hide : words.comparison.show }}</span>
       </button>
       <div v-if="open.has(row.key)" :id="`${testId}-${row.key}`" class="border-t border-default pt-3 pb-1">
         <LineBuildUp :ours="row.oursSteps" :cash="row.cashSteps" :explained-by="row.explainedBy" :rules="row.rules" />
@@ -137,16 +141,16 @@ function isMoney(value: ShownValue): value is { readonly cents: number } {
     <table class="data-table comparison-table w-full text-sm" :data-testid="testId">
       <thead>
         <tr>
-          <th scope="col" class="text-start">Line</th>
-          <th scope="col" class="text-end">Accountant</th>
-          <th scope="col" class="text-end">Ours, accrual</th>
+          <th scope="col" class="text-start">{{ words.comparison.line }}</th>
+          <th scope="col" class="text-end">{{ words.comparison.accountant }}</th>
+          <th scope="col" class="text-end">{{ words.comparison.oursAccrual }}</th>
           <template v-if="hasCash">
-            <th scope="col" class="text-end">Ours, cash</th>
-            <th scope="col" class="text-end">Difference</th>
+            <th scope="col" class="text-end">{{ words.comparison.oursCash }}</th>
+            <th scope="col" class="text-end">{{ words.comparison.difference }}</th>
           </template>
-          <th scope="col" class="text-start">Explained by</th>
-          <th scope="col" class="text-end">Residual</th>
-          <th scope="col" class="text-start">Status</th>
+          <th scope="col" class="text-start">{{ words.comparison.explainedBy }}</th>
+          <th scope="col" class="text-end">{{ words.comparison.residual }}</th>
+          <th scope="col" class="text-start">{{ words.comparison.status }}</th>
         </tr>
       </thead>
       <tbody>
@@ -158,7 +162,7 @@ function isMoney(value: ShownValue): value is { readonly cents: number } {
                 class="row-toggle"
                 :aria-expanded="open.has(row.key)"
                 :aria-controls="`${testId}-${row.key}`"
-                :aria-label="`${row.label}, how ours is built`"
+                :aria-label="words.comparison.howBuilt(row.label)"
                 data-testid="comparison-toggle"
                 @click="toggle(row.key)"
               >
@@ -173,14 +177,14 @@ function isMoney(value: ShownValue): value is { readonly cents: number } {
               <MoneyText v-if="isMoney(row.accountant)" :cents="row.accountant.cents" /><span v-else class="figure">{{ row.accountant.text }}</span>
             </td>
             <td class="text-end">
-              <span v-if="row.ours === null" class="text-muted">Not computed</span>
-              <DrillLink v-else :to="row.oursTo" :label="`${row.label}, ours, open the rows`">
+              <span v-if="row.ours === null" class="text-muted">{{ words.comparison.notComputed }}</span>
+              <DrillLink v-else :to="row.oursTo" :label="words.comparison.oursRows(row.label)">
                 <MoneyText v-if="isMoney(row.ours)" :cents="row.ours.cents" /><span v-else class="figure">{{ row.ours.text }}</span>
               </DrillLink>
             </td>
             <template v-if="hasCash">
               <td class="text-end">
-                <DrillLink v-if="row.cash !== null" :to="row.cashTo" :label="`${row.label}, cash, open the rows`"><MoneyText :cents="row.cash" class="text-toned" /></DrillLink>
+                <DrillLink v-if="row.cash !== null" :to="row.cashTo" :label="words.comparison.cashRows(row.label)"><MoneyText :cents="row.cash" class="text-toned" /></DrillLink>
                 <span v-else class="text-muted">–</span>
               </td>
               <td class="text-end"><MoneyText v-if="row.difference !== null" :cents="row.difference" sign="always" class="text-toned" /><span v-else class="text-muted">–</span></td>
@@ -188,9 +192,9 @@ function isMoney(value: ShownValue): value is { readonly cents: number } {
             <td class="explained-cell cell-wraps">
               <ul v-if="row.explainedBy.length > 0" class="flex flex-col">
                 <li v-for="step in row.explainedBy.slice(0, NAMED)" :key="step.key">
-                  <DrillLink :to="step.to" :label="`${step.label}, open the rows`" class="text-toned">{{ step.label }}</DrillLink>
+                  <DrillLink :to="step.to" :label="packWords.figure.openRows(step.label)" class="text-toned">{{ step.label }}</DrillLink>
                 </li>
-                <li v-if="row.explainedBy.length > NAMED" class="text-xs text-muted">and {{ row.explainedBy.length - NAMED }} more</li>
+                <li v-if="row.explainedBy.length > NAMED" class="text-xs text-muted">{{ words.comparison.more(row.explainedBy.length - NAMED) }}</li>
               </ul>
               <span v-else class="text-muted">–</span>
             </td>

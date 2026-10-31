@@ -15,6 +15,7 @@ import { sharedKeys } from '../../../../../../shared/storage/domain/sharedKeys'
 import { optionalDate, ownId, positiveMoney, refuse, requiredChoice, requiredMoney, requiredYear, slugOf, textOf, wholeNumberOf } from '../../../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../../../shared/storage/domain/storedFields'
 import { PLAN_RECORDS } from '../hrDooKinds'
+import { words } from './words'
 
 /**
  * One plan line. An `owner_pay_scenario` line holds from its date and names its scenario in
@@ -25,28 +26,28 @@ import { PLAN_RECORDS } from '../hrDooKinds'
 export function planLineOf(fields: StoredFields, id: RecordId | null): PlanLine {
   const year = requiredYear(fields, 'year')
   const month = fields.month === undefined ? null : wholeNumberOf(fields.month)
-  if (fields.month !== undefined && (month === null || month < 1 || month > 12)) refuse(`month "${fields.month.text}" is not a month from 1 to 12`)
+  if (fields.month !== undefined && (month === null || month < 1 || month > 12)) refuse(words.reading.notAMonth(fields.month.text))
   const note = textOf(fields.note)
   const item = slugOf(fields.item)
-  if (item === '') refuse('no item')
-  if (item === 'revenue') refuse('revenue is planned on the outgoing-plan tab, one row per item to invoice, so move this row there')
+  if (item === '') refuse(words.reading.noItem)
+  if (item === 'revenue') refuse(words.reading.revenueElsewhere)
   if (item === 'owner_pay_scenario') {
-    if (month !== null) refuse('an owner pay scenario holds from its date, so leave month blank')
+    if (month !== null) refuse(words.reading.scenarioHasNoMonth)
     const scenario = slugOf(fields.amount)
-    if (scenario === '') refuse('no scenario in amount')
+    if (scenario === '') refuse(words.reading.noScenario)
     const from = optionalDate(fields, 'date')
     return { year, month: null, note, id: ownId(id), kind: 'owner-pay-scenario', scenario, from: from === null ? null : inYear(from, year) }
   }
   if (item === 'purchase') {
-    const date = inYear(optionalDate(fields, 'date') ?? refuse('a purchase needs the day it is bought in date'), year)
+    const date = inYear(optionalDate(fields, 'date') ?? refuse(words.reading.purchaseNeedsDate), year)
     const dateMonth = monthNumber(monthOf(date))
-    if (month !== null && month !== dateMonth) refuse(`month ${month} is not the month of date ${date}, so leave month blank`)
+    if (month !== null && month !== dateMonth) refuse(words.reading.notTheMonthOf(month, date))
     const amount = positiveMoney(fields, 'amount')
     const group = requiredChoice(fields, 'group', ASSET_GROUPS, 'asset group')
     return { year, month: dateMonth, note, id: ownId(id), kind: 'purchase', date, amount, group }
   }
   if (item === 'dividend') {
-    if (month === null) refuse('a dividend is paid in one month, so give its month')
+    if (month === null) refuse(words.reading.dividendNeedsMonth)
     const amount = positiveMoney(fields, 'amount')
     return { year, month, note, id: ownId(id), kind: 'amount', item, amount }
   }
@@ -75,7 +76,7 @@ export const PLAN_CODEC: RecordCodec<PlanLine> = withIdField(
 )
 
 function inYear(day: CivilDate, year: number): CivilDate {
-  return yearOf(day) === year ? day : refuse(`date ${day} is not in ${year}`)
+  return yearOf(day) === year ? day : refuse(words.reading.notInYear(day, year))
 }
 
 /**
@@ -107,7 +108,7 @@ export function readPlan(read: RecordsRead<PlanLine>, categorySlugs: ReadonlySet
   )
   for (const { stored, key } of keyed) {
     if (key !== null && twice.has(key.text)) {
-      problems.push(problemOf(stored, `${key.words} is listed on more than one row, so none of them counts`))
+      problems.push(problemOf(stored, words.reading.listedTwice(key.words)))
     }
   }
   return { facts: keyed.filter(({ key }) => key === null || !twice.has(key.text)).map(({ stored }) => stored.record), problems }
@@ -117,11 +118,9 @@ export function readPlan(read: RecordsRead<PlanLine>, categorySlugs: ReadonlySet
 function unknownReference(line: PlanLine, categorySlugs: ReadonlySet<string>, scenarioSlugs: ReadonlySet<string>): string | null {
   switch (line.kind) {
     case 'owner-pay-scenario':
-      return scenarioSlugs.has(line.scenario) ? null : `"${line.scenario}" is not a scenario on the scenarios tab`
+      return scenarioSlugs.has(line.scenario) ? null : words.reading.notAScenario(line.scenario)
     case 'amount':
-      return (PLAN_KEYWORDS as readonly string[]).includes(line.item) || categorySlugs.has(line.item)
-        ? null
-        : `"${line.item}" is neither ${PLAN_KEYWORDS.join(', ')} nor a category on the categories tab`
+      return (PLAN_KEYWORDS as readonly string[]).includes(line.item) || categorySlugs.has(line.item) ? null : words.reading.notAnItem(line.item, PLAN_KEYWORDS)
     case 'purchase':
       return null
   }
@@ -132,8 +131,8 @@ function keyOf(line: PlanLine): { readonly text: string; readonly words: string 
     case 'purchase':
       return null
     case 'owner-pay-scenario':
-      return { text: `${line.year} owner_pay_scenario ${line.from ?? 'start'}`, words: `An owner pay scenario from ${line.from ?? `1 January ${line.year}`}` }
+      return { text: `${line.year} owner_pay_scenario ${line.from ?? 'start'}`, words: words.reading.scenarioFrom(line.from, line.year) }
     case 'amount':
-      return { text: `${line.year} ${line.month ?? 'every'} ${line.item}`, words: `${line.item} for ${line.month === null ? 'every month of' : `month ${line.month} of`} ${line.year}` }
+      return { text: `${line.year} ${line.month ?? 'every'} ${line.item}`, words: words.reading.itemFor(line.item, line.month, line.year) }
   }
 }

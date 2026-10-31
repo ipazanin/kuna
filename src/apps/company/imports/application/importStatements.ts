@@ -13,6 +13,7 @@ import { LEDGER_WRITES } from './ledgerWrites'
 import type { ImportProfile } from '../domain/importProfile'
 import type { StatementReading } from '../domain/importedStatement'
 import { headerRowOf, readTabularStatement } from '../domain/tabularStatement'
+import { words } from './words'
 import type { CellGrid } from '../domain/tabularStatement'
 
 /** A file dropped on Import, as far as reading it goes: a camt document, or a spreadsheet's first sheet as cells. */
@@ -37,7 +38,7 @@ export function statementReadings(file: LoadedImportFile, workbook: Pick<Workboo
       {
         fileName: file.fileName,
         label: file.fileName,
-        refusal: `The profile ${profile.name || 'being made'} is for ${profile.account || 'no account'}, which is not on the accounts tab. Pick one of its accounts.`,
+        refusal: words.profileWithoutAccount(profile.name, profile.account),
       },
     ]
   }
@@ -46,7 +47,7 @@ export function statementReadings(file: LoadedImportFile, workbook: Pick<Workboo
 
 /** Why a name the person typed for a new account cannot be used, or null. `taken` are the names the accounts tab and the other new accounts hold. */
 export function newAccountNameProblem(name: string, taken: ReadonlySet<string>): string | null {
-  return slugProblem(name, 'account') ?? (taken.has(name) ? `${name} is already an account` : null)
+  return slugProblem(name, 'account') ?? (taken.has(name) ? words.alreadyAnAccount(name) : null)
 }
 
 /**
@@ -84,8 +85,10 @@ export function writeImport(unit: UnitOfWork, run: ImportDryRun): void {
 
 /** "Imported 4 rows", or "Added main and imported 4 rows" when the import adds accounts. */
 export function importTitle(run: Pick<ImportDryRun, 'accounts' | 'newRows'>): string {
-  const rows = run.newRows === 1 ? '1 row' : `${run.newRows} rows`
-  return run.accounts.length === 0 ? `Imported ${rows}` : `Added ${run.accounts.map((account) => account.slug).join(' and ')} and imported ${rows}`
+  return words.imported(
+    run.accounts.map((account) => account.slug),
+    run.newRows,
+  )
 }
 
 /** The saved profiles whose columns all head one row of the file, in the order the settings tab lists them. */

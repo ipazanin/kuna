@@ -8,6 +8,7 @@ import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { BILLING_STATUS } from './billingView'
 import type { BillingMonthLine } from './billingView'
+import { words } from './words'
 
 /** Each month of the year with plan rows or invoices above the plan, open on the one a link names. */
 const props = defineProps<{
@@ -48,12 +49,12 @@ function toggle(month: MonthKey): void {
       >
         <span class="month-label text-sm font-medium text-highlighted">{{ month.label }}</span>
         <span class="month-figures text-xs text-muted">
-          <span><MoneyText :cents="month.planned" class="text-toned" /> planned</span>
-          <span><MoneyText :cents="month.invoiced" class="text-toned" /> invoiced</span>
+          <span><MoneyText :cents="month.planned" class="text-toned" /> {{ words.months.planned }}</span>
+          <span><MoneyText :cents="month.invoiced" class="text-toned" /> {{ words.months.invoiced }}</span>
         </span>
         <span class="month-status flex flex-wrap items-center justify-end gap-1.5">
           <UBadge v-if="month.status" :label="BILLING_STATUS[month.status].label" :color="BILLING_STATUS[month.status].color" variant="subtle" size="sm" />
-          <UBadge v-if="month.withoutPlan > 0" label="Above the plan" color="warning" variant="outline" size="sm" />
+          <UBadge v-if="month.withoutPlan > 0" :label="words.months.abovePlan" color="warning" variant="outline" size="sm" />
         </span>
         <UIcon name="i-lucide-chevron-down" class="chevron size-4 shrink-0 text-muted" :class="{ turned: expanded.has(month.month) }" aria-hidden="true" />
       </button>
@@ -61,7 +62,7 @@ function toggle(month: MonthKey): void {
       <div v-if="expanded.has(month.month)" :id="`billing-month-detail-${month.month}`" class="month-detail">
         <p v-if="month.open > 0" class="callout text-xs">
           <UIcon name="i-lucide-file-clock" class="size-3.5 shrink-0" aria-hidden="true" />
-          <span><MoneyText :cents="month.open" /> of the month's rows is not invoiced yet.</span>
+          <span><MoneyText :cents="month.open" /> {{ words.months.notInvoiced }}</span>
         </p>
         <ul v-if="month.rows.length > 0" class="flex flex-col">
           <li v-for="row in month.rows" :key="row.id" class="plan-line" data-testid="billing-month-row">
@@ -79,7 +80,7 @@ function toggle(month: MonthKey): void {
                   <MoneyText :cents="share.amount" class="text-toned" />
                 </span>
                 <span v-if="row.open > 0" class="share open">
-                  <span>Open</span>
+                  <span>{{ words.months.open }}</span>
                   <MoneyText :cents="row.open" />
                 </span>
               </span>
@@ -90,14 +91,14 @@ function toggle(month: MonthKey): void {
         <div v-if="month.withoutPlanLines.length > 0" class="flex flex-col gap-1" data-testid="billing-without-plan">
           <p class="callout text-xs">
             <UIcon name="i-lucide-file-question-mark" class="size-3.5 shrink-0" aria-hidden="true" />
-            <span>Invoiced in {{ month.label }} above the plan rows it could reach. Add the row it billed, or check the amounts.</span>
+            <span>{{ words.months.invoicedAbove(month.label) }}</span>
           </p>
           <ul class="flex flex-col">
             <li v-for="line in month.withoutPlanLines" :key="line.key" class="plan-line">
               <span class="swatch hollow" aria-hidden="true" />
               <span class="min-w-0">
-                <span class="block truncate text-sm text-toned">Invoice {{ line.number }}</span>
-                <span class="figure block text-xs text-muted">Issued {{ shortDayLabel(line.issued) }}, {{ line.clientName }}</span>
+                <span class="block truncate text-sm text-toned">{{ words.months.invoice(line.number) }}</span>
+                <span class="figure block text-xs text-muted">{{ words.months.issued(shortDayLabel(line.issued), line.clientName) }}</span>
               </span>
               <MoneyText :cents="line.amount" class="text-sm text-highlighted" />
             </li>

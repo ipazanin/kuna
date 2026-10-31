@@ -9,14 +9,6 @@ export const AGEING_BUCKETS = ['not-due', 'days-0-30', 'days-31-60', 'days-61-90
 
 export type AgeingBucket = (typeof AGEING_BUCKETS)[number]
 
-export const AGEING_LABELS: Readonly<Record<AgeingBucket, string>> = {
-  'not-due': 'Not due yet',
-  'days-0-30': '0–30 days',
-  'days-31-60': '31–60 days',
-  'days-61-90': '61–90 days',
-  'days-over-90': 'Over 90 days',
-}
-
 /** Days from the due date, else the issue date, to the day the ageing is taken. Negative before it is due. */
 export function daysPastDue(matched: MatchedInvoice, asOf: CivilDate): number {
   return daysBetween(matched.invoice.due ?? matched.invoice.issued, asOf)

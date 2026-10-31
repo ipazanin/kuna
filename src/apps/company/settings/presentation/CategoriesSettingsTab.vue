@@ -19,7 +19,9 @@ import { CATEGORY_WRITES, categoryUses } from '../application/namedRecordWrites'
 import type { RecordsOfKind } from '../application/namedRecordWrites'
 import { knownRoles } from '../domain/categoryGuards'
 import CategoriesEditor from './CategoriesEditor.vue'
-import { rowsInWords, storedCount } from './settingsCounts'
+import { storedCount } from './settingsCounts'
+import { words } from './words'
+import { plural } from '../../../../shared/text/translation'
 
 const { state } = useWorkbook()
 const settings = useSettings()
@@ -68,22 +70,22 @@ function writeCategories(made: MadeCategories, fills: readonly ShareFill[]): voi
   const records = state.records
   const filled = fills.reduce((sum, fill) => sum + fill.targets.length, 0)
   void writes.write(
-    'Categories saved',
+    words.categories.saved,
     (unit) => {
       writeDrafts(unit.of(CATEGORY_WRITES), storedOf(categories.value), made)
       if (records !== null) fillShares(unit, records, fills)
     },
     {
-      failedTitle: 'Not saved',
-      ...(filled === 0 ? {} : { description: `${rowsInWords(filled, 'row', 'rows')} without a share took the new default.` }),
+      failedTitle: words.categories.notSaved,
+      ...(filled === 0 ? {} : { description: plural(words.categories.filled(filled), filled) }),
     },
   )
 }
 </script>
 
 <template>
-  <AppCard title="Categories" collapse-id="settings.categories" :summary="rowsInWords(storedCount(categories), 'category', 'categories')" :reveal="linked">
-    <template #subtitle> The bucket decides where a row counts. Each category once, with category, family and bucket filled. A category in use keeps its name and its row. </template>
+  <AppCard :title="words.categories.title" collapse-id="settings.categories" :summary="plural(words.categories.count(storedCount(categories)), storedCount(categories))" :reveal="linked">
+    <template #subtitle>{{ words.categories.subtitle }}</template>
     <CategoriesEditor :records="categories" :uses="categoriesInUse" :roles="roles" :shares="settings.ownerPayModule" :saving="saving" @save="saveCategories" />
   </AppCard>
   <ShareFillDialog v-if="filling" v-model:open="fillOpen" :fills="filling.fills" @answer="answerFill" />

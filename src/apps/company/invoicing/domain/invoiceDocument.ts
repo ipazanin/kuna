@@ -5,6 +5,7 @@ import type { InvoicingTerms } from '../../settings/domain/settings'
 import type { Client } from '../../workbook/domain/workbook'
 import { lineProblems } from './invoiceLines'
 import type { InvoiceLine } from './invoiceLines'
+import { words } from './words'
 
 /** Who the invoice is for, as it prints them. */
 export interface InvoiceRecipient {
@@ -36,31 +37,29 @@ export function recipientOf(client: Client): InvoiceRecipient {
 
 /** The settings an invoice cannot do without, with the words the invoice terms give them. */
 export const REQUIRED_ISSUER: readonly (readonly [keyof InvoicingTerms, string])[] = [
-  ['name', 'your company name'],
-  ['address', 'your address'],
-  ['vatId', 'your VAT ID'],
-  ['iban', 'your IBAN'],
-  ['place', 'the place of issue'],
-  ['signatory', 'the signatory'],
+  ['name', words.issuer.name],
+  ['address', words.issuer.address],
+  ['vatId', words.issuer.vatId],
+  ['iban', words.issuer.iban],
+  ['place', words.issuer.place],
+  ['signatory', words.issuer.signatory],
 ]
 
 /** What keeps the app from making an invoice for the client, each a sentence. Empty when it can. */
 export function invoiceProblems(issuer: InvoicingTerms, client: Client | null, lines: readonly InvoiceLine[]): string[] {
   const problems: string[] = []
-  const missing = REQUIRED_ISSUER.filter(([field]) => issuer[field].trim() === '').map(([, words]) => words)
+  const missing = REQUIRED_ISSUER.filter(([field]) => issuer[field].trim() === '').map(([, part]) => part)
   if (missing.length > 0) {
-    problems.push(`The invoice terms on Invoicing, Clients need ${missing.join(', ')}.`)
+    problems.push(words.termsNeed(missing))
   }
   if (client === null) {
-    problems.push('Choose the client.')
+    problems.push(words.chooseClient)
   } else {
     if (client.invoicing.address === '') {
-      problems.push(`Invoicing, Clients needs an address for ${client.name || client.slug}.`)
+      problems.push(words.needsAddress(client.name || client.slug))
     }
     if (!client.invoicing.reverseCharge) {
-      problems.push(
-        `The app makes invoices without VAT for clients on reverse charge only. Tick reverse charge for ${client.name || client.slug} on Invoicing, Clients if it accounts for the VAT, or make this invoice elsewhere.`,
-      )
+      problems.push(words.reverseChargeOnly(client.name || client.slug))
     }
   }
   problems.push(...lineProblems(lines))

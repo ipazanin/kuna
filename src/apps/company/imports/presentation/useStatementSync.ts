@@ -5,7 +5,7 @@ import { currentToken } from '../../../../shared/google/googleAuth'
 import { folderReadScope } from '../../../../shared/google/googleScopes'
 import type { SyncStep } from '../../../../shared/sync/application/sync'
 import type { AccessNeed, StepResult } from '../../../../shared/sync/application/syncRun'
-import { counted } from '../../overview/presentation/waitingForYou'
+import { plural } from '../../../../shared/text/translation'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { needsReview } from '../../workbook/domain/needsReview'
@@ -16,6 +16,7 @@ import type { StatementFolder } from '../application/statementFolder'
 import type { DryRunStatement } from '../domain/importDryRun'
 import { googleStatementFolder } from '../infrastructure/googleStatementFolder'
 import { loadImportFile } from '../infrastructure/importFiles'
+import { words } from './words'
 
 interface StatementSyncState {
   /** What the last statements step of this page did, or null before one ran. */
@@ -33,12 +34,12 @@ async function openStatementFolder(workbook: Workbook, booksFileId: string): Pro
   }
   const token = currentToken(folderReadScope(workbook.settings.statementsFolder))
   if (token === null) {
-    throw new Error('The Google access ran out. Sync again.')
+    throw new Error(words.step.accessRanOut)
   }
   return googleStatementFolder(token, booksFileId)
 }
 
-const STATEMENTS_LABEL = 'Statements'
+const STATEMENTS_LABEL = words.step.label
 
 function isOn(workbook: Workbook): boolean {
   return workbook.settings.statementsSync && workbook.settings.statementsFolder.length > 0
@@ -50,7 +51,7 @@ export function statementNeeds(workbook: Workbook): AccessNeed[] {
 }
 
 function lineOf(step: StatementSyncStep): string {
-  return step.kind === 'looking' ? 'Looking for new statements' : `Filing ${step.rows === 1 ? '1 row' : `${step.rows} rows`}`
+  return step.kind === 'looking' ? words.step.looking : plural(words.step.filing(step.rows), step.rows)
 }
 
 export interface StatementSync {
@@ -83,17 +84,17 @@ export function useStatementSync(): StatementSync {
     const waiting = (store.state.workbook?.transactions ?? []).filter((row) => keys.has(`${row.account}|${row.reference}`) && needsReview(row)).length
     const heldCount = outcome.held.length
     const line = [
-      receipt === null ? '' : `${receipt.title}${waiting === 0 ? '' : `, ${waiting} on Review`}.`,
+      receipt === null ? '' : words.step.onReview(receipt.title, waiting),
       ...outcome.filed.flatMap((statement) => statement.notes),
-      heldCount === 0 ? '' : `${counted(heldCount, '1 statement was', 'statements were')} not filed.`,
+      heldCount === 0 ? '' : plural(words.step.held(heldCount), heldCount),
     ]
       .filter((sentence) => sentence !== '')
       .join(' ')
     const writeId = write?.id ?? null
     if (heldCount > 0) {
-      return { kind: 'waits', line, writeId, link: { label: 'Import', to: '/company/transactions?tab=import' } }
+      return { kind: 'waits', line, writeId, link: { label: words.step.importLink, to: '/company/transactions?tab=import' } }
     }
-    return { kind: 'done', line: line || 'Nothing new', writeId, link: waiting > 0 ? { label: 'Review', to: '/company/review' } : null }
+    return { kind: 'done', line: line || words.step.nothingNew, writeId, link: waiting > 0 ? { label: words.step.reviewLink, to: '/company/review' } : null }
   }
 
   return {
@@ -108,7 +109,7 @@ export function useStatementSync(): StatementSync {
       async run(report) {
         const { workbook, choice } = store.state
         if (workbook === null || choice?.source !== 'drive') {
-          return { kind: 'done', line: 'Nothing to look for before the books are read', writeId: null, link: null }
+          return { kind: 'done', line: words.step.beforeBooks, writeId: null, link: null }
         }
         try {
           state.outcome = await fileNewStatements({ store, folder: await openStatementFolder(workbook, choice.id), load: loadImportFile, step: (step) => report(lineOf(step)) })

@@ -11,6 +11,7 @@ import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import BuildUpButton from '../BuildUpButton.vue'
 import type { FigureDetail } from '../tracedFigureView'
 import type { SalaryMonthView } from './salariesView'
+import { words } from './words'
 
 /**
  * Every line of the payday as the app and the bank state it: a table on a wide screen,
@@ -35,10 +36,10 @@ const allAgree = computed(() => props.view.agreeing === props.view.compared)
 <template>
   <AppCard
     id="salary-reconciliation"
-    title="App and bank"
-    :subtitle="`Paid in ${view.label}. Each line from the app’s payroll and the bank rows. A dash is a line that source does not state.`"
+    :title="words.reconciliation.title"
+    :subtitle="words.reconciliation.subtitle(view.label)"
     collapse-id="salaries.reconciliation"
-    :summary="`${view.agreeing} of ${view.compared} lines agree`"
+    :summary="words.reconciliation.summary(view.agreeing, view.compared)"
     :start-collapsed="allAgree"
     :reveal="!allAgree || route.hash === '#salary-reconciliation'"
     data-testid="salaries-reconciliation"
@@ -50,23 +51,25 @@ const allAgree = computed(() => props.view.agreeing === props.view.compared)
           <li v-for="line in section.lines" :key="line.key" class="line-card" :data-verdict="line.verdict">
             <p class="flex items-center justify-between gap-2 text-sm">
               <span class="text-toned">{{ line.label }}</span>
-              <span v-if="line.verdict === 'agrees'" class="inline-flex items-center gap-1 text-xs text-muted"><UIcon name="i-lucide-check" class="size-3.5" aria-hidden="true" />Agrees</span>
+              <span v-if="line.verdict === 'agrees'" class="inline-flex items-center gap-1 text-xs text-muted"
+                ><UIcon name="i-lucide-check" class="size-3.5" aria-hidden="true" />{{ words.reconciliation.agrees }}</span
+              >
               <span v-else-if="line.verdict === 'differs'" class="inline-flex items-center gap-1 text-xs text-error"
-                ><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />Differs</span
+                ><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />{{ words.reconciliation.differs }}</span
               >
             </p>
             <dl class="line-cells">
               <div>
-                <dt>App</dt>
+                <dt>{{ words.reconciliation.app }}</dt>
                 <dd>
-                  <BuildUpButton v-if="line.app" :cents="line.app.cents" :label="`${section.title}, ${line.label.toLowerCase()} by the app`" @open="$emit('open', line.app)" />
+                  <BuildUpButton v-if="line.app" :cents="line.app.cents" :label="words.reconciliation.byApp(section.title, line.label)" @open="$emit('open', line.app)" />
                   <span v-else class="text-muted">–</span>
                 </dd>
               </div>
               <div>
-                <dt>Bank</dt>
+                <dt>{{ words.reconciliation.bank }}</dt>
                 <dd>
-                  <DrillLink v-if="line.bank" :to="line.bank.to" :label="`${section.title}, ${line.label.toLowerCase()}, open the rows`"><MoneyText :cents="line.bank.cents" /></DrillLink>
+                  <DrillLink v-if="line.bank" :to="line.bank.to" :label="words.reconciliation.bankRows(section.title, line.label)"><MoneyText :cents="line.bank.cents" /></DrillLink>
                   <span v-else class="text-muted">–</span>
                 </dd>
               </div>
@@ -76,27 +79,31 @@ const allAgree = computed(() => props.view.agreeing === props.view.compared)
         <FigureTable v-else>
           <thead>
             <tr>
-              <th scope="col" class="text-start">Line</th>
-              <th scope="col" class="w-28 text-end">App</th>
-              <th scope="col" class="w-28 text-end">Bank</th>
-              <th scope="col" class="w-24 text-start"><span class="sr-only">Verdict</span></th>
+              <th scope="col" class="text-start">{{ words.reconciliation.line }}</th>
+              <th scope="col" class="w-28 text-end">{{ words.reconciliation.app }}</th>
+              <th scope="col" class="w-28 text-end">{{ words.reconciliation.bank }}</th>
+              <th scope="col" class="w-24 text-start">
+                <span class="sr-only">{{ words.reconciliation.verdict }}</span>
+              </th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="line in section.lines" :key="line.key" :data-verdict="line.verdict">
               <th scope="row" class="text-start font-normal text-toned">{{ line.label }}</th>
               <td class="text-end">
-                <BuildUpButton v-if="line.app" :cents="line.app.cents" :label="`${section.title}, ${line.label.toLowerCase()} by the app`" @open="$emit('open', line.app)" />
+                <BuildUpButton v-if="line.app" :cents="line.app.cents" :label="words.reconciliation.byApp(section.title, line.label)" @open="$emit('open', line.app)" />
                 <span v-else class="text-muted">–</span>
               </td>
               <td class="text-end">
-                <DrillLink v-if="line.bank" :to="line.bank.to" :label="`${section.title}, ${line.label.toLowerCase()}, open the rows`"><MoneyText :cents="line.bank.cents" /></DrillLink>
+                <DrillLink v-if="line.bank" :to="line.bank.to" :label="words.reconciliation.bankRows(section.title, line.label)"><MoneyText :cents="line.bank.cents" /></DrillLink>
                 <span v-else class="text-muted">–</span>
               </td>
               <td>
-                <span v-if="line.verdict === 'agrees'" class="inline-flex items-center gap-1 text-xs text-muted"><UIcon name="i-lucide-check" class="size-3.5" aria-hidden="true" />Agrees</span>
+                <span v-if="line.verdict === 'agrees'" class="inline-flex items-center gap-1 text-xs text-muted"
+                  ><UIcon name="i-lucide-check" class="size-3.5" aria-hidden="true" />{{ words.reconciliation.agrees }}</span
+                >
                 <span v-else-if="line.verdict === 'differs'" class="inline-flex items-center gap-1 text-xs text-error"
-                  ><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />Differs</span
+                  ><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />{{ words.reconciliation.differs }}</span
                 >
               </td>
             </tr>

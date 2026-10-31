@@ -11,6 +11,7 @@ import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import DrillChartCard from '../../../../filters/presentation/DrillChartCard.vue'
 import { salaryMonthsChart } from './salaryCharts'
 import type { SalaryMonthRow } from './salariesView'
+import { words } from './words'
 
 /** A year of paydays: the cost of each in the ring's parts, then the same as a table whose months open on the Month tab. */
 const props = defineProps<{
@@ -26,9 +27,9 @@ const chart = computed(() => salaryMonthsChart(props.rows, chartTokens()))
   <div class="flex flex-col gap-6">
     <DrillChartCard
       :chart="chart"
-      :title="`Cost to the company by payday, ${year}`"
-      subtitle="Each month a payroll was paid in, stacked by where its money went. A band opens its bank rows."
-      definition="The figures are the app’s, else the bank’s, as on the Month tab. The month still running is hatched and may not be paid yet."
+      :title="words.overTime.title(year)"
+      :subtitle="words.overTime.subtitle"
+      :definition="words.overTime.definition"
       :height="320"
       :phone-height="260"
       data-testid="salaries-over-time"
@@ -36,22 +37,22 @@ const chart = computed(() => salaryMonthsChart(props.rows, chartTokens()))
       <template #legend><ChartLegend :entries="chart.legend" /></template>
     </DrillChartCard>
 
-    <AppCard :title="`Paydays of ${year}`" subtitle="A month opens on the Month tab." data-testid="salaries-months">
+    <AppCard :title="words.overTime.paydays(year)" :subtitle="words.overTime.paydaysSubtitle" data-testid="salaries-months">
       <FigureTable class="px-1 pb-2 sm:px-2">
         <thead>
           <tr>
-            <th scope="col" class="text-start">Paid in</th>
-            <th scope="col" class="text-end">Cost</th>
-            <th scope="col" class="hidden text-end @lg:table-cell">To the employee</th>
-            <th scope="col" class="hidden text-end @2xl:table-cell">Pension savings</th>
-            <th scope="col" class="hidden text-end @md:table-cell">To the state</th>
-            <th scope="col" class="text-end">Problems</th>
+            <th scope="col" class="text-start">{{ words.overTime.paidIn }}</th>
+            <th scope="col" class="text-end">{{ words.overTime.cost }}</th>
+            <th scope="col" class="hidden text-end @lg:table-cell">{{ words.overTime.toEmployee }}</th>
+            <th scope="col" class="hidden text-end @2xl:table-cell">{{ words.overTime.pensionSavings }}</th>
+            <th scope="col" class="hidden text-end @md:table-cell">{{ words.overTime.toState }}</th>
+            <th scope="col" class="text-end">{{ words.overTime.problems }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="row in rows" :key="row.payday" :data-payday="row.payday">
             <th scope="row" class="text-start font-normal">
-              <DrillLink :to="monthLink(row.payday)" :label="`${row.label}, open the month`" class="text-highlighted">{{ row.label }}</DrillLink>
+              <DrillLink :to="monthLink(row.payday)" :label="words.overTime.openMonth(row.label)" class="text-highlighted">{{ row.label }}</DrillLink>
             </th>
             <td class="text-end"><MoneyText :cents="row.cost" /></td>
             <td class="hidden text-end @lg:table-cell"><MoneyText :cents="row.parts.employee" /></td>

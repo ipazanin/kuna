@@ -7,6 +7,7 @@ import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { BILLING_STATUS } from './billingView'
 import type { BillingRowLine } from './billingView'
+import { words } from './words'
 
 /** The year's plan rows, newest date first and in the tab's order within a date: a table on a wide screen, one card per row on a phone. */
 defineProps<{
@@ -42,14 +43,14 @@ const phone = usePhoneLayout()
       <div class="mt-1 flex items-center justify-between gap-3">
         <UBadge :label="BILLING_STATUS[row.status].label" :color="BILLING_STATUS[row.status].color" variant="subtle" size="sm" />
         <UButton
-          label="Edit"
+          :label="words.rows.edit"
           icon="i-lucide-square-pen"
           color="neutral"
           variant="ghost"
           size="sm"
           class="-me-2"
           :disabled="!editable"
-          :aria-label="`Edit the ${row.item} row of ${dayLabel(row.date)}`"
+          :aria-label="words.rows.editRow(row.item, dayLabel(row.date))"
           data-testid="billing-row-edit"
           @click="emit('edit', row)"
         />
@@ -61,13 +62,15 @@ const phone = usePhoneLayout()
     <table class="data-table billing-table w-full text-sm" data-testid="billing-rows">
       <thead>
         <tr>
-          <th scope="col" class="text-start">Billable from</th>
-          <th scope="col" class="text-start">Item</th>
-          <th scope="col" class="text-start">Description</th>
-          <th v-if="showClient" scope="col" class="text-start">Client</th>
-          <th scope="col" class="text-end">Amount</th>
-          <th scope="col" class="text-start">Invoiced</th>
-          <th scope="col"><span class="sr-only">Edit</span></th>
+          <th scope="col" class="text-start">{{ words.rows.billableFrom }}</th>
+          <th scope="col" class="text-start">{{ words.rows.item }}</th>
+          <th scope="col" class="text-start">{{ words.rows.description }}</th>
+          <th v-if="showClient" scope="col" class="text-start">{{ words.rows.client }}</th>
+          <th scope="col" class="text-end">{{ words.rows.amount }}</th>
+          <th scope="col" class="text-start">{{ words.rows.invoiced }}</th>
+          <th scope="col">
+            <span class="sr-only">{{ words.rows.edit }}</span>
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -92,7 +95,7 @@ const phone = usePhoneLayout()
               variant="ghost"
               size="xs"
               :disabled="!editable"
-              :aria-label="`Edit the ${row.item} row of ${dayLabel(row.date)}`"
+              :aria-label="words.rows.editRow(row.item, dayLabel(row.date))"
               data-testid="billing-row-edit"
               @click="emit('edit', row)"
             />

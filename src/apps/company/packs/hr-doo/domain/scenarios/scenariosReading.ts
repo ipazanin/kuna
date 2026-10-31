@@ -14,6 +14,7 @@ import { keyedId, optionalDate, refuse, requiredChoice, requiredYear, slugOf, te
 import type { StoredFields } from '../../../../../../shared/storage/domain/storedFields'
 import { SCENARIO_RECORDS } from '../hrDooKinds'
 import type { ComponentDraft } from './startingScenarios'
+import { words } from '../words'
 
 const NONTAXABLE_PREFIX = 'nontaxable:'
 const ITEM_SHAPE = /^[a-z0-9][a-z0-9-]*$/
@@ -48,7 +49,7 @@ export function scenarioRowOfComponent(slug: string, label: string, year: number
 
 export function scenarioRowOf(fields: StoredFields, id: RecordId | null): ScenarioRow {
   const slug = slugOf(fields.scenario)
-  if (slug === '') refuse('no scenario name')
+  if (slug === '') refuse(words.reading.noScenarioName)
   const year = requiredYear(fields, 'year')
   const from = optionalDate(fields, 'from')
   const to = optionalDate(fields, 'to')
@@ -56,9 +57,9 @@ export function scenarioRowOf(fields: StoredFields, id: RecordId | null): Scenar
     ['from', from],
     ['to', to],
   ] as const) {
-    if (date !== null && Number(date.slice(0, 4)) !== year) refuse(`${name} ${date} is outside ${year}`)
+    if (date !== null && Number(date.slice(0, 4)) !== year) refuse(words.reading.outsideYear(name, date, year))
   }
-  if (from !== null && to !== null && to < from) refuse(`to ${to} is before from ${from}`)
+  if (from !== null && to !== null && to < from) refuse(words.reading.before('to', to, 'from', from))
   const span = { from, to, id: keyedId(id) }
   const written = slugOf(fields.component)
   const component = written.startsWith(NONTAXABLE_PREFIX)
@@ -105,18 +106,18 @@ export const SCENARIO_CODEC: RecordCodec<ScenarioRow> = {
 type Span = Pick<ScenarioComponent, 'from' | 'to' | 'id'>
 
 function nontaxableComponent(item: string, fields: StoredFields, span: Span): ScenarioComponent {
-  if (!ITEM_SHAPE.test(item)) refuse(`"${item}" is not a tax-free item name, such as nontaxable:occasional-gift`)
+  if (!ITEM_SHAPE.test(item)) refuse(words.reading.notAnItem(item))
   return { ...span, component: 'nontaxable', item, amount: positiveAmount(fields) }
 }
 
 function namedComponent(component: Exclude<(typeof SCENARIO_COMPONENTS)[number], 'nontaxable'>, fields: StoredFields, span: Span): ScenarioComponent {
   switch (component) {
     case 'salary_gross':
-      return { ...span, component, gross: slugOf(fields.amount) === 'floor' ? 'floor' : positiveAmount(fields, 'or floor') }
+      return { ...span, component, gross: slugOf(fields.amount) === 'floor' ? 'floor' : positiveAmount(fields, words.reading.orFloor) }
     case 'rent_monthly':
       return { ...span, component, amount: positiveAmount(fields) }
     case 'dividend':
-      return { ...span, component, amount: slugOf(fields.amount) === 'max' ? 'max' : positiveAmount(fields, 'or max') }
+      return { ...span, component, amount: slugOf(fields.amount) === 'max' ? 'max' : positiveAmount(fields, words.reading.orMax) }
     case 'director_basis':
       return { ...span, component, basis: requiredChoice(fields, 'amount', DIRECTOR_BASES, 'director basis') }
   }
@@ -125,7 +126,7 @@ function namedComponent(component: Exclude<(typeof SCENARIO_COMPONENTS)[number],
 function positiveAmount(fields: StoredFields, alternative = ''): Money {
   const amount = fields.amount?.money ?? null
   if (amount === null || amount <= 0) {
-    refuse(fields.amount === undefined ? 'no amount' : `amount "${fields.amount.text}" is not an amount above zero${alternative === '' ? '' : ` ${alternative}`}`)
+    refuse(fields.amount === undefined ? words.reading.noAmount : words.reading.notAnAmountAboveZero(fields.amount.text, alternative))
   }
   return amount
 }
@@ -145,18 +146,18 @@ export function readScenarios(read: RecordsRead<ScenarioRow>): { readonly scenar
   for (const [slug, scenarioRows] of bySlug) {
     const years = [...new Set(scenarioRows.map((stored) => stored.record.year))].sort()
     if (years.length > 1) {
-      const reason = `${slug} names the years ${years.join(' and ')}, and a scenario is for one year, so none of its rows counts`
+      const reason = words.reading.yearsOfScenario(slug, years)
       problems.push(...scenarioRows.map((stored) => problemOf(stored, reason)))
       continue
     }
     const shared = sharedKeys(scenarioRows, (stored) => stored.record.key)
     const kept = scenarioRows.filter((stored) => !shared.has(stored.record.key))
     for (const stored of scenarioRows.filter((candidate) => shared.has(candidate.record.key))) {
-      problems.push(problemOf(stored, `${slug} has this component for the same days on more than one row, so none of them counts`))
+      problems.push(problemOf(stored, words.reading.sameComponent(slug)))
     }
     const labels = [...new Set(scenarioRows.map((stored) => stored.record.label).filter((label) => label !== ''))]
     if (labels.length > 1) {
-      const reason = `the rows of ${slug} give its label differently, so it reads blank`
+      const reason = words.reading.labelsDiffer(slug)
       problems.push(...scenarioRows.filter((stored) => stored.record.label !== '').map((stored) => problemOf(stored, reason)))
     }
     if (kept.length > 0) {

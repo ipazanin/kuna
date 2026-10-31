@@ -18,6 +18,7 @@ import { kontoGroups } from '../accrual/closedYear'
 import { COST_LINES, costLineOf } from '../accrual/costLines'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
 import { summed, tracedFigure } from '../payroll/payrollArithmetic'
+import { words } from './words'
 
 /**
  * How one of the accountant's lines stands against ours. `matched` agrees with no adjustment
@@ -206,13 +207,13 @@ function cashFigures(workbook: HrDooWorkbook, accrual: AccrualYear): ReadonlyMap
     })
     return withDrill(summed(label, steps, 'ledger'), slugs.length === 0 ? null : yearDrill(year, slugs))
   }
-  const nothing = tracedFigure('Nothing in the cash view', ZERO, 'ledger', [])
+  const nothing = tracedFigure(words.comparison.nothingInCash, ZERO, 'ledger', [])
   const grantSlugs = categoriesWithRole(workbook.categories, PACK_ROLES.grant)
   const figures: [string, TracedFigure][] = [
     [
       'pl:sales',
       byCategory(
-        'Client payments received',
+        words.comparison.clientPayments,
         income.filter((entry) => entry.treatment === 'revenue'),
         1,
       ),
@@ -221,7 +222,7 @@ function cashFigures(workbook: HrDooWorkbook, accrual: AccrualYear): ReadonlyMap
     [
       'pl:other-operating-income',
       byCategory(
-        'Other income received',
+        words.comparison.otherIncome,
         income.filter((entry) => entry.treatment !== 'revenue'),
         1,
       ),
@@ -230,7 +231,7 @@ function cashFigures(workbook: HrDooWorkbook, accrual: AccrualYear): ReadonlyMap
     ...COST_LINES.map((line): [string, TracedFigure] => [
       `pl:${line}`,
       byCategory(
-        'Paid in the year',
+        words.comparison.paidInYear,
         costs.filter((entry) => costLineOf(entry.category, year, workbook.yearEndLines) === line),
         -1,
       ),
@@ -240,7 +241,7 @@ function cashFigures(workbook: HrDooWorkbook, accrual: AccrualYear): ReadonlyMap
     [
       'grant:released-in-year',
       byCategory(
-        'Grant received',
+        words.comparison.grantReceived,
         income.filter((entry) => grantSlugs.includes(entry.category.slug)),
         1,
       ),
@@ -263,7 +264,7 @@ function recordedLine(line: YearEndLine, workbook: HrDooWorkbook, accrual: Accru
       accountant: line,
       check: {
         holds: paid,
-        finding: paid ? 'The ledger pays our balance due on that day' : 'No corporate tax payment of our balance due on that day',
+        finding: paid ? words.comparison.balancePaid : words.comparison.balanceNotPaid,
         drill: drillToTransactions({ period: { preset: 'custom', range: { from: day, to: day } }, categories: slugs }),
       },
     }
@@ -295,7 +296,7 @@ function kontoComparisons(accountant: readonly YearEndLine[], workbook: HrDooWor
       const writtenOff = accrual.smallInventory.filter((entry) => entry.category === slug).map((entry) => entry.figure)
       return [
         withDrill(tracedFigure(name, amount, 'ledger', total?.figure.rules ?? []), drill),
-        ...(writtenOff.length === 0 ? [] : [withDrill(summed(`${name}, small inventory written off`, writtenOff, 'assets'), drill)]),
+        ...(writtenOff.length === 0 ? [] : [withDrill(summed(words.comparison.writtenOff(name), writtenOff, 'assets'), drill)]),
       ]
     })
     const ours = sumMoney(figures.map((figure) => figure.amount))

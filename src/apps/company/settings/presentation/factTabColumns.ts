@@ -1,4 +1,5 @@
 import type { DraftColumn, FieldReader } from '../domain/recordDrafts'
+import { words } from './words'
 
 export interface ChoiceItem {
   readonly value: string
@@ -20,13 +21,13 @@ export interface EditorColumn extends DraftColumn {
 
 /** The clients tab, one row per client with every IBAN it pays from. */
 export const CLIENT_COLUMNS: readonly EditorColumn[] = [
-  { name: 'client', label: 'Client', kind: 'word', width: 'w-36' },
-  { name: 'name', label: 'Name', kind: 'text', width: 'w-48' },
-  { name: 'iban', label: 'IBANs', kind: 'iban-list', width: 'w-72' },
-  { name: 'address', label: 'Address', kind: 'text', width: 'w-56' },
-  { name: 'country', label: 'Country', kind: 'text', width: 'w-36' },
-  { name: 'tax_id', label: 'Tax ID', kind: 'text', width: 'w-36' },
-  { name: 'invoice_mail', label: 'Invoice mail to', kind: 'text', width: 'w-56' },
-  { name: 'mail_language', label: 'Mail language', kind: 'text', width: 'w-28', placeholderOf: () => 'en' },
-  { name: 'reverse_charge', label: 'Reverse charge', kind: 'flag', width: 'w-32' },
+  { name: 'client', label: words.clientColumns.client, kind: 'word', width: 'w-36' },
+  { name: 'name', label: words.clientColumns.name, kind: 'text', width: 'w-48' },
+  { name: 'iban', label: words.clientColumns.iban, kind: 'iban-list', width: 'w-72' },
+  { name: 'address', label: words.clientColumns.address, kind: 'text', width: 'w-56' },
+  { name: 'country', label: words.clientColumns.country, kind: 'text', width: 'w-36' },
+  { name: 'tax_id', label: words.clientColumns.tax_id, kind: 'text', width: 'w-36' },
+  { name: 'invoice_mail', label: words.clientColumns.invoice_mail, kind: 'text', width: 'w-56' },
+  { name: 'mail_language', label: words.clientColumns.mail_language, kind: 'text', width: 'w-28', placeholderOf: () => 'en' },
+  { name: 'reverse_charge', label: words.clientColumns.reverse_charge, kind: 'flag', width: 'w-32' },
 ]

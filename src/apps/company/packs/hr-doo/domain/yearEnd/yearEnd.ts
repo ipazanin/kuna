@@ -1,6 +1,7 @@
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../../../shared/money/money'
 import type { RecordId } from '../../../../../../shared/storage/domain/recordId'
+import { words } from './words'
 
 /** The parts of the accountant's year-end package a `year-end` row comes from. `konto` lines are free account numbers. */
 export const YEAR_END_STATEMENTS = ['pl', 'balance', 'tax', 'distribution', 'grant', 'konto'] as const
@@ -29,8 +30,11 @@ export interface YearEndLineDefinition {
   readonly tie?: TieSide
 }
 
+/** A GFI line's own Croatian name, or the words a screen gives a line the forms print no name for. */
+const HINTS: Readonly<Record<string, string>> = words.hints
+
 function lines(statement: YearEndLineDefinition['statement'], definitions: readonly (readonly [line: string, hint: string, kind?: YearEndFigureKind, tie?: TieSide])[]): YearEndLineDefinition[] {
-  return definitions.map(([line, hint, kind = 'money', tie]) => ({ statement, line, kind, hint, ...(tie === undefined ? {} : { tie }) }))
+  return definitions.map(([line, hint, kind = 'money', tie]) => ({ statement, line, kind, hint: HINTS[`${statement}:${line}`] ?? hint, ...(tie === undefined ? {} : { tie }) }))
 }
 
 /** Every line id a `year-end` row may use outside `konto`, in the order the package prints them. */

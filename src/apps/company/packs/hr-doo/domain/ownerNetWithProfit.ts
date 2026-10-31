@@ -22,6 +22,7 @@ import type { OwnerTake } from './ownerTake'
 import { dividendCategories } from './packRoles'
 import { paidOut } from './paidOut'
 import type { RuleSource } from './payroll/payrollArithmetic'
+import { words } from './words'
 
 /** One calendar year of the profit counted with the owner's pay, taken out as a dividend. */
 export interface ProfitYear extends YearRoute {
@@ -101,7 +102,7 @@ export function ownerNetWithProfit(
     const line = forecast.profitBeforeTax(year)
     return { year, amount: sumMoney(line.months.filter((entry) => counted.includes(entry.month)).map((entry) => entry.figure.amount)) }
   })
-  const comparison = dividendComparison(byYear, 'Profit before tax', forecast.corporateRate, rules)
+  const comparison = dividendComparison(byYear, words.owner.profitBeforeTax, forecast.corporateRate, rules)
   const dividends = dividendCategories(books.categories)
   const years = comparison.years.map((entry): ProfitYear => {
     const paid = paidOut(books.transactions.filter((row) => dividends.includes(row.category) && yearOf(row.date) === entry.year + 1))
@@ -112,7 +113,7 @@ export function ownerNetWithProfit(
       paidOut: { amount: paid < available ? paid : available, drill: drillToTransactions({ period: { preset: 'year', year: entry.year + 1 }, categories: dividends }) },
     }
   })
-  const profit = { ...comparison.asDividend, label: 'Profit after corporate and dividend tax' }
+  const profit = { ...comparison.asDividend, label: words.owner.profitAfterTaxes }
   const payPerMonth = divideMoney(take.withoutDividends.amount, months.length)
   const profitPerMonth = profitMonths.length === 0 ? ZERO : divideMoney(profit.amount, profitMonths.length)
   const paid = sumMoney(years.map((entry) => entry.paidOut.amount))

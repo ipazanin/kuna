@@ -1,6 +1,7 @@
 import type { Invoice } from '../../workbook/domain/workbook'
 import type { FilingPath } from '../domain/invoiceFiling'
 import type { InvoiceMail } from '../domain/invoiceMail'
+import { words } from './words'
 
 /** A file or folder in Drive as the app sees it. */
 export interface DriveEntry {
@@ -44,7 +45,7 @@ export type FolderLookup =
 
 /** The line the Picker shows above the folders inside a path folder's parent. */
 export function pickerTitleFor(segment: string): string {
-  return `Pick the existing ${segment} folder. Pick every folder you see beside it too, so the app does not ask again.`
+  return words.pickerTitle(segment)
 }
 
 /**
@@ -81,7 +82,6 @@ export interface RunStep {
   note: string
 }
 
-/** What one run writes, worked out before anything is written. */
 /** What the run writes to the register: a new invoice, or one changed from what the app read. */
 export interface RegisterChange {
   /** Null for a new invoice. */
@@ -89,6 +89,7 @@ export interface RegisterChange {
   readonly after: Invoice
 }
 
+/** What one run writes, worked out before anything is written. */
 export interface RunPlan {
   readonly pdf: Uint8Array
   readonly fileName: string
@@ -133,14 +134,14 @@ async function fileThePdf(plan: RunPlan, drive: InvoiceDrive): Promise<string> {
   }
   const existing = (await drive.children(target.folderId)).find((entry) => !entry.folder && entry.name === plan.fileName) ?? null
   if (existing !== null && !plan.replace) {
-    throw new Error(`${plan.fileName} is already in the folder, and the app does not overwrite an invoice. Use Re-export on the invoice to replace it.`)
+    throw new Error(words.steps.alreadyFiled(plan.fileName))
   }
   if (existing !== null) {
     await drive.replacePdf(existing.id, plan.pdf)
-    return `Replaced ${plan.fileName}.`
+    return words.steps.replaced(plan.fileName)
   }
   await drive.createPdf(target.folderId, plan.fileName, plan.pdf)
-  return plan.replace ? `Filed ${plan.fileName}. The app could not see an earlier PDF of this name, so if the old generator filed one, delete it in Drive.` : `Filed ${plan.fileName}.`
+  return plan.replace ? words.steps.filedOverUnseen(plan.fileName) : words.steps.filed(plan.fileName)
 }
 
 /**
@@ -164,17 +165,17 @@ export async function continueRun(plan: RunPlan, steps: RunStep[], ports: RunPor
 async function runStep(kind: RunStepKind, plan: RunPlan, ports: RunPorts): Promise<string> {
   switch (kind) {
     case 'file':
-      if (ports.drive === null) throw new Error('There is no Google Drive to file in.')
+      if (ports.drive === null) throw new Error(words.steps.noDrive)
       return fileThePdf(plan, ports.drive)
     case 'download':
       ports.download(plan.pdf, plan.fileName)
-      return `Saved ${plan.fileName} through the browser.`
+      return words.steps.downloaded(plan.fileName)
     case 'draft':
-      if (ports.drafts === null || plan.draft === null) throw new Error('Gmail access was not granted.')
+      if (ports.drafts === null || plan.draft === null) throw new Error(words.steps.noGmail)
       await ports.drafts.create(plan.draft, { fileName: plan.fileName, pdf: plan.pdf })
-      return `Saved a draft to ${plan.draft.to}. Nothing was sent.${plan.replace ? ' Delete the earlier draft in Gmail if it is still there.' : ''}`
+      return `${words.steps.draftSaved(plan.draft.to)}${plan.replace ? words.steps.deleteEarlierDraft : ''}`
     case 'register':
       await ports.writeRegister(plan.register!)
-      return plan.replace ? 'Changed the invoice’s row on the invoices tab.' : 'Added the invoice to the invoices tab.'
+      return plan.replace ? words.steps.registerChanged : words.steps.registerAdded
   }
 }

@@ -7,13 +7,14 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { parseCivilDate } from '../../../../../shared/calendar/civilDate'
-import { dayLabel } from '../../../../../shared/calendar/dayLabel'
 import { folderPathOf } from '../../../../../shared/text/folderPath'
-import { mailAddressesOf, missingTerms, missingWords } from '../../../mail/domain/mailSource'
+import { mailAddressesOf, missingTerms } from '../../../mail/domain/mailSource'
+import { words as mailWords } from '../../../mail/domain/words'
 import type { MailTermPiece } from '../../../mail/domain/mailSource'
 import AppCard from '../../../../../shared/ui/AppCard.vue'
 import FormGrid from '../../../../../shared/ui/FormGrid.vue'
 import type { CitReturn, CompanyFacts, CompanyFactsField, VatPrinciple } from '../domain/companyFacts'
+import { words } from './words'
 
 /**
  * The company and owner facts of Settings, General, edited in the settings form's draft and saved
@@ -44,33 +45,21 @@ const MAIL_KINDS = [
     on: 'payrollMailSync',
     subject: 'payrollMailSubject',
     folder: 'payrollFolder',
-    label: 'Read the payroll mail',
-    subjectLabel: 'Payroll subject starts with',
-    subjectHelp: 'The words before the month, such as Plaća za.',
-    folderLabel: 'Payroll folder',
-    folderHelp: 'Where it goes in Google Drive, as a path from My Drive, with a folder for each year and month inside.',
+    wording: words.facts.payroll,
   },
   {
     id: 'vat',
     on: 'vatMailSync',
     subject: 'vatMailSubject',
     folder: 'vatReturnsFolder',
-    label: 'Read the VAT return mail',
-    subjectLabel: 'VAT return subject starts with',
-    subjectHelp: 'The words before the period, such as PDV za.',
-    folderLabel: 'VAT returns folder',
-    folderHelp: 'Where it goes in Google Drive, as a path from My Drive, with a folder for each year inside.',
+    wording: words.facts.vat,
   },
   {
     id: 'invoices',
     on: 'invoicesMailSync',
     subject: 'invoicesMailSubject',
     folder: 'incomingInvoicesFolder',
-    label: "Read the accountant's invoice mail",
-    subjectLabel: 'Invoice subject starts with',
-    subjectHelp: "The words the accountant's own invoice mail starts with, such as Račun za.",
-    folderLabel: "Accountant's invoices folder",
-    folderHelp: 'Where it goes in Google Drive, as a path from My Drive, with a folder for each year and month inside.',
+    wording: words.facts.invoices,
   },
 ] as const
 
@@ -86,7 +75,7 @@ const route = useRoute()
 const revealed = computed(() => LINKED_FACTS.includes(route.hash.slice(1)) || Object.keys(props.errors).length > 0 || MAIL_KINDS.some((kind) => missingFor(kind).length > 0))
 const summary = computed(() => {
   const { companyRegistered, ownerLoanInterest } = props.saved
-  return `${companyRegistered === null ? 'The registration day is not set' : `Registered on ${dayLabel(companyRegistered)}`}. Loans to the owner carry ${ownerLoanInterest / 100}%.`
+  return words.facts.summary(companyRegistered, ownerLoanInterest)
 })
 
 function updateFact<Fact extends keyof CompanyFacts>(fact: Fact, value: CompanyFacts[Fact]): void {
@@ -153,71 +142,46 @@ function updateAccountantMail(text: string): void {
 }
 
 const citReturnItems: { value: CitReturn; label: string }[] = [
-  { value: 'pd', label: 'PD, on the accrual profit' },
-  { value: 'pd-nn', label: 'PD-NN, on cash received and paid' },
+  { value: 'pd', label: words.facts.pd },
+  { value: 'pd-nn', label: words.facts.pdNn },
 ]
 
 const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
-  { value: 'invoice', label: 'On the invoice date' },
-  { value: 'cash', label: 'When it is paid' },
+  { value: 'invoice', label: words.facts.onInvoice },
+  { value: 'cash', label: words.facts.onPayment },
 ]
 </script>
 
 <template>
-  <AppCard
-    title="Company and owner facts"
-    subtitle="What the tax figures need to know beyond the law. They stay in this workbook. The owner's facts for the payroll are on the director's row on Salaries."
-    collapse-id="settings.facts"
-    start-collapsed
-    :summary="summary"
-    :reveal="revealed"
-    data-testid="company-facts"
-  >
+  <AppCard :title="words.facts.title" :subtitle="words.facts.subtitle" collapse-id="settings.facts" start-collapsed :summary="summary" :reveal="revealed" data-testid="company-facts">
     <div class="flex flex-col gap-4 px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
       <FormGrid>
-        <UFormField id="company-registered" label="Company registered on" help="Starts the first tax period.">
+        <UFormField id="company-registered" :label="words.facts.registered" :help="words.facts.registeredHelp">
           <UInput :model-value="facts.companyRegistered ?? ''" type="date" class="w-full" @update:model-value="updateFact('companyRegistered', parseCivilDate(String($event ?? '')))" />
         </UFormField>
-        <UFormField
-          id="owner-loan-interest"
-          label="Interest the owner's loans carry, % a year"
-          :error="errors.ownerLoanInterest ?? false"
-          help="Below the income tax law's rate, the difference on each day's balance is a benefit in kind, which Year works out."
-        >
+        <UFormField id="owner-loan-interest" :label="words.facts.loanInterest" :error="errors.ownerLoanInterest ?? false" :help="words.facts.loanInterestHelp">
           <UInput :model-value="loanInterestText" inputmode="decimal" class="w-full" data-testid="owner-loan-interest" @update:model-value="updateLoanInterest(String($event))" />
         </UFormField>
-        <UFormField label="Corporate tax return">
+        <UFormField :label="words.facts.citReturn">
           <USelect :model-value="facts.citReturn" :items="citReturnItems" class="w-full" @update:model-value="updateFact('citReturn', $event as CitReturn)" />
         </UFormField>
-        <UFormField label="VAT falls due">
+        <UFormField :label="words.facts.vatPrinciple">
           <USelect :model-value="facts.vatPrinciple" :items="vatPrincipleItems" class="w-full" @update:model-value="updateFact('vatPrinciple', $event as VatPrinciple)" />
         </UFormField>
       </FormGrid>
-      <USwitch
-        :model-value="facts.depreciationDoubled"
-        label="Depreciation rates are doubled"
-        description="The default for assets. An asset row can still say otherwise."
-        @update:model-value="updateFact('depreciationDoubled', $event)"
-      />
+      <USwitch :model-value="facts.depreciationDoubled" :label="words.facts.doubled" :description="words.facts.doubledHelp" @update:model-value="updateFact('depreciationDoubled', $event)" />
       <div id="accountant-mail" class="flex flex-col gap-4 border-t border-default pt-4" data-testid="accountant-mail">
         <div class="flex flex-col gap-1">
-          <h3 class="text-sm font-medium text-highlighted">The accountant's mail</h3>
-          <p class="text-sm text-muted">
-            Each sync looks in Gmail for the kinds switched on and files what is new into their folders, which the Mail card lists. Nothing in the app reads those files.
-          </p>
+          <h3 class="text-sm font-medium text-highlighted">{{ words.facts.accountantMail }}</h3>
+          <p class="text-sm text-muted">{{ words.facts.accountantMailNote }}</p>
         </div>
-        <UFormField
-          label="The accountant mails from"
-          :error="errors.accountantMailFrom ?? false"
-          help="Mail addresses, comma separated, which every kind below searches for."
-          data-testid="accountant-mail-from"
-        >
+        <UFormField :label="words.facts.accountantFrom" :error="errors.accountantMailFrom ?? false" :help="words.facts.accountantFromHelp" data-testid="accountant-mail-from">
           <UInput
             :model-value="accountantMailText"
             inputmode="email"
             autocapitalize="off"
             :spellcheck="false"
-            placeholder="Not read"
+            :placeholder="words.facts.notRead"
             class="w-full"
             @update:model-value="updateAccountantMail(String($event))"
           />
@@ -226,17 +190,17 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
           <section v-for="kind in MAIL_KINDS" :key="kind.id" class="flex flex-col gap-3 py-4 first:pt-0 last:pb-0" :data-testid="`${kind.id}-mail-kind`">
             <USwitch
               :model-value="facts[kind.on]"
-              :label="kind.label"
-              description="Off makes no Gmail or Drive call for it."
+              :label="kind.wording.label"
+              :description="words.facts.kindOffNote"
               :data-testid="`${kind.id}-mail-sync`"
               @update:model-value="updateFact(kind.on, $event)"
             />
-            <p v-if="missingFor(kind).length > 0" class="text-sm text-warning" data-testid="mail-kind-missing">It is on, but has {{ missingWords(missingFor(kind)) }}.</p>
+            <p v-if="missingFor(kind).length > 0" class="text-sm text-warning" data-testid="mail-kind-missing">{{ mailWords.incomplete(missingFor(kind)) }}.</p>
             <FormGrid>
-              <UFormField :label="kind.subjectLabel" :error="errors[kind.subject] ?? false" :help="kind.subjectHelp" :data-testid="`${kind.id}-mail-subject`">
-                <UInput :model-value="facts[kind.subject]" placeholder="Not set" class="w-full" @update:model-value="updateFact(kind.subject, String($event))" />
+              <UFormField :label="kind.wording.subject" :error="errors[kind.subject] ?? false" :help="kind.wording.subjectHelp" :data-testid="`${kind.id}-mail-subject`">
+                <UInput :model-value="facts[kind.subject]" :placeholder="words.facts.notSet" class="w-full" @update:model-value="updateFact(kind.subject, String($event))" />
               </UFormField>
-              <UFormField :label="kind.folderLabel" :help="kind.folderHelp" :data-testid="`${kind.id}-mail-folder`">
+              <UFormField :label="kind.wording.folder" :help="kind.wording.folderHelp" :data-testid="`${kind.id}-mail-folder`">
                 <UInput :model-value="folderTexts[kind.folder]" class="identifier w-full" :ui="{ base: 'text-ellipsis' }" @update:model-value="updateFolder(kind.folder, String($event))" />
               </UFormField>
             </FormGrid>

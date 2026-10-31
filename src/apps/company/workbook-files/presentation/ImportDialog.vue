@@ -12,6 +12,7 @@ import { onboardingStart, useOnboarding } from '../../onboarding/presentation/us
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import ImportSummary from './ImportSummary.vue'
 import { useImportPreview } from './useImportPreview'
+import { words } from './words'
 
 /**
  * The file to open. Setting it opens the dialog, and the dialog sets it back to null when it closes.
@@ -53,7 +54,7 @@ async function keepInBrowser(): Promise<void> {
     keepFailure.value = store.state.error
     return
   }
-  toast.add({ title: 'Kept in this browser', description: `${chosen.summary.transactionCount} transactions from ${chosen.fileName}`, icon: 'i-lucide-check', color: 'success' })
+  toast.add({ title: words.dialog.keptInBrowser, description: words.dialog.keptCount(chosen.summary.transactionCount, chosen.fileName), icon: 'i-lucide-check', color: 'success' })
   file.value = null
   emit('imported')
 }
@@ -69,30 +70,17 @@ async function keepOnGoogleDrive(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog
-    v-model:open="open"
-    width="xl"
-    :title="file ? `Open ${file.name}` : 'Open a file'"
-    description="Check what the file holds, then choose where to keep it. Nothing changes until you choose."
-    :dismissible="!importing"
-  >
+  <AppDialog v-model:open="open" width="xl" :title="file ? words.dialog.title(file.name) : words.dialog.titleWithoutFile" :description="words.dialog.description" :dismissible="!importing">
     <ImportSummary :preview="preview" :failure="failure ?? keepFailure" :failure-detail="failure === null ? '' : failureDetail">
-      <UAlert
-        v-if="replacesLocal"
-        icon="i-lucide-replace"
-        color="warning"
-        variant="subtle"
-        title="This replaces the workbook kept in this browser"
-        description="Changes you made here since your last export are lost. Export first if you want to keep them."
-      />
+      <UAlert v-if="replacesLocal" icon="i-lucide-replace" color="warning" variant="subtle" :title="words.dialog.replaces" :description="words.dialog.replacesDescription" />
       <p v-if="signInByRedirect" class="text-xs text-muted" data-testid="redirect-sign-in-note">
-        Keep on Google Drive asks Google for access first. On this device that opens Google and comes back, and you open the file again then.
+        {{ words.dialog.redirectNote }}
       </p>
     </ImportSummary>
     <template #end>
-      <UButton label="Cancel" color="neutral" variant="ghost" @click="open = false" />
-      <UButton icon="i-lucide-monitor-smartphone" label="Keep in this browser" color="neutral" variant="outline" :loading="importing" :disabled="!keepable" @click="keepInBrowser" />
-      <UButton icon="i-lucide-hard-drive-upload" label="Keep on Google Drive" :disabled="!keepable" @click="keepOnGoogleDrive" />
+      <UButton :label="words.dialog.cancel" color="neutral" variant="ghost" @click="open = false" />
+      <UButton icon="i-lucide-monitor-smartphone" :label="words.dialog.keepInBrowser" color="neutral" variant="outline" :loading="importing" :disabled="!keepable" @click="keepInBrowser" />
+      <UButton icon="i-lucide-hard-drive-upload" :label="words.dialog.keepOnDrive" :disabled="!keepable" @click="keepOnGoogleDrive" />
     </template>
   </AppDialog>
 </template>

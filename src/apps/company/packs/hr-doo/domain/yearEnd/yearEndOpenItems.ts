@@ -18,6 +18,7 @@ import { ownerLoans } from '../ownerLoans'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
 import { atRate, percentText, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
+import { words } from './words'
 
 /**
  * `judgement` is an accountant's choice the ledger cannot show. `unexplained` is a gap to the
@@ -45,27 +46,27 @@ type JudgementId = Extract<AdjustmentId, 'grant-schedule' | 'arrears-cut-off' | 
 
 const JUDGEMENTS: Readonly<Record<JudgementId, { readonly settledBy: string; readonly rules: readonly RuleId[] }>> = {
   'grant-schedule': {
-    settledBy: "The accountant's release schedule for the grant. Until the grants tab's policy reproduces it, the year-end line stands in for ours.",
+    settledBy: words.judgements['grant-schedule'],
     rules: ['hr.acc.grant-recognition'],
   },
   'arrears-cut-off': {
-    settledBy: 'The accountant confirms these payments stay in the month they were paid. Otherwise they belong to the month worked.',
+    settledBy: words.judgements['arrears-cut-off'],
     rules: ['hr.acc.accrual-basis'],
   },
   'representation-as-booked': {
-    settledBy: 'The exchange rate the accountant booked each card payment at, which the bank amount cannot show.',
+    settledBy: words.judgements['representation-as-booked'],
     rules: ['hr.cit.representation-add-back'],
   },
   'cost-placement': {
-    settledBy: 'Konto rows that name the categories, so later years put each cost on the accountant’s line.',
+    settledBy: words.judgements['cost-placement'],
     rules: [],
   },
   'receivable-placement': {
-    settledBy: 'The accountant’s split of the receivables, to compare with ours line by line.',
+    settledBy: words.judgements['receivable-placement'],
     rules: [],
   },
   'liability-placement': {
-    settledBy: 'The accountant’s split of the liabilities, such as what the notes call deferred income.',
+    settledBy: words.judgements['liability-placement'],
     rules: [],
   },
 }
@@ -93,8 +94,8 @@ function judgementItems(accrual: AccrualYear): YearEndOpenItem[] {
 
 function unexplainedItems(accrual: AccrualYear): YearEndOpenItem[] {
   const gaps: (readonly [AccrualAdjustment | null, string])[] = [
-    [accrual.bridge.unexplainedBeforeTax, 'Profit before tax differs from the accountant’s'],
-    [accrual.bridge.unexplainedAfterTax, 'Profit after tax differs from the accountant’s'],
+    [accrual.bridge.unexplainedBeforeTax, words.openItems.beforeTaxDiffers],
+    [accrual.bridge.unexplainedAfterTax, words.openItems.afterTaxDiffers],
   ]
   return gaps.flatMap(([gap, title]): YearEndOpenItem[] =>
     gap === null
@@ -105,7 +106,7 @@ function unexplainedItems(accrual: AccrualYear): YearEndOpenItem[] {
             group: 'unexplained',
             title,
             on: null,
-            settledBy: 'Find the rows behind it: the lines and konto groups that differ point to the categories, and a missing role or vat treatment is the usual cause.',
+            settledBy: words.openItems.findTheRows,
             figure: gap.figure,
             rules: [],
             settled: false,
@@ -118,9 +119,9 @@ function completenessItems(accrual: AccrualYear): YearEndOpenItem[] {
   const months = accrual.uninvoicedMonths.map((entry): YearEndOpenItem => ({
     key: `uninvoiced-${entry.month}`,
     group: 'completeness',
-    title: `No invoice delivers work in ${monthLabel(entry.month)}, while invoice ${entry.nextInvoice.number} came after it`,
+    title: words.openItems.noInvoiceIn(monthLabel(entry.month), entry.nextInvoice.number),
     on: null,
-    settledBy: `An invoice for the month, a delivery period on invoice ${entry.nextInvoice.number} that covers it, or the accountant’s word that no work was delivered.`,
+    settledBy: words.openItems.invoiceSettles(entry.nextInvoice.number),
     figure: null,
     rules: ['hr.acc.accrual-basis'],
     settled: false,
@@ -128,9 +129,9 @@ function completenessItems(accrual: AccrualYear): YearEndOpenItem[] {
   const purchases = accrual.purchasesWithoutAsset.map((purchase, index): YearEndOpenItem => ({
     key: `no-asset-${index}`,
     group: 'completeness',
-    title: `A purchase above the asset threshold with no asset row: ${purchase.label} on`,
+    title: words.openItems.purchaseWithoutAsset(purchase.label),
     on: purchase.paidOn,
-    settledBy: 'An asset row on the assets tab, so it is depreciated, or the accountant’s word that it is a cost of the year.',
+    settledBy: words.openItems.assetSettles,
     figure: purchase.cost,
     rules: ['hr.cit.asset-threshold', 'hr.acc.capitalisation'],
     settled: false,
@@ -138,9 +139,9 @@ function completenessItems(accrual: AccrualYear): YearEndOpenItem[] {
   const everyMonth: YearEndOpenItem = {
     key: 'invoiced',
     group: 'completeness',
-    title: 'Every month up to the last invoice has an invoice that delivers in it',
+    title: words.openItems.everyMonth,
     on: null,
-    settledBy: 'work was delivered in the year that no invoice names yet.',
+    settledBy: words.openItems.everyMonthReopens,
     figure: null,
     rules: ['hr.acc.accrual-basis'],
     settled: true,
@@ -157,8 +158,8 @@ function complianceItems(workbook: HrDooWorkbook, accrual: AccrualYear, rules: R
   if (loans.length > 0) {
     const lent = withDrill(
       summed(
-        'Loans to the owner open during the year',
-        loans.map((loan) => withDrill({ ...tracedFigure('Lent on', loan.amount, 'ledger', []), on: loan.lentOn }, loan.drill)),
+        words.openItems.loansOpen,
+        loans.map((loan) => withDrill({ ...tracedFigure(words.openItems.lentOn, loan.amount, 'ledger', []), on: loan.lentOn }, loan.drill)),
         'ledger',
       ),
       drillToTransactions({
@@ -175,9 +176,9 @@ function complianceItems(workbook: HrDooWorkbook, accrual: AccrualYear, rules: R
       {
         key: 'related-party-report',
         group: 'compliance',
-        title: `The ${report} report with the profit tax return for ${year}`,
+        title: words.openItems.report(report, year),
         on: null,
-        settledBy: `The ${report} form filed with the return, listing the loans and any lease from the owner.`,
+        settledBy: words.openItems.reportSettles(report),
         figure: lent,
         rules: ['hr.cit.related-party-report'],
         settled: false,
@@ -185,9 +186,9 @@ function complianceItems(workbook: HrDooWorkbook, accrual: AccrualYear, rules: R
       {
         key: 'sole-member-deals',
         group: 'compliance',
-        title: 'Each loan between the owner and the company in writing',
+        title: words.openItems.inWriting,
         on: null,
-        settledBy: 'A loan contract, or a record of each loan, signed by the owner as member and director.',
+        settledBy: words.openItems.inWritingSettles,
         figure: lent,
         rules: ['hr.ztd.sole-member-deals'],
         settled: false,
@@ -205,9 +206,9 @@ function loanBenefitItem(benefit: LoanBenefit): YearEndOpenItem {
     return {
       key: 'loan-benefit',
       group: 'compliance',
-      title: `Loans to the owner carry ${carried}, at least the ${prescribed} a year the income tax law sets`,
+      title: words.openItems.enoughInterest(carried, prescribed),
       on: null,
-      settledBy: `the loans carry less than ${prescribed} a year, as hr_owner_loan_interest says.`,
+      settledBy: words.openItems.enoughInterestReopens(prescribed),
       figure: null,
       rules: ['hr.pit.loan-benefit'],
       settled: true,
@@ -216,9 +217,9 @@ function loanBenefitItem(benefit: LoanBenefit): YearEndOpenItem {
   return {
     key: 'loan-benefit',
     group: 'compliance',
-    title: `Benefit in kind on loans to the owner at ${carried}, below ${prescribed} a year`,
+    title: words.openItems.benefit(carried, prescribed),
     on: null,
-    settledBy: `The accountant confirms the benefit was taxed through payroll as pay in kind, or the loans carry ${prescribed} a year.`,
+    settledBy: words.openItems.benefitSettles(prescribed),
     figure: benefit.figure,
     rules: ['hr.pit.loan-benefit'],
     settled: false,
@@ -248,11 +249,11 @@ function assetDecisionItems(workbook: HrDooWorkbook, accrual: AccrualYear, rules
     {
       key: 'asset-purchase-decision',
       group: 'compliance',
-      title: `A members’ decision for purchases above ${percentText(decision.priceShareOfCapital.basisPoints)} of the share capital in the first ${years} years`,
+      title: words.openItems.decision(percentText(decision.priceShareOfCapital.basisPoints), years),
       on: null,
-      settledBy: 'A members’ decision for each purchase, or the accountant’s or a lawyer’s view that ordinary equipment falls outside the rule.',
+      settledBy: words.openItems.decisionSettles,
       figure: summed(
-        'Purchases kept as assets',
+        words.openItems.keptAsAssets,
         purchases.map((entry) => bookingFigure(entry, negateMoney(entry.booking.amount))),
         'ledger',
       ),

@@ -50,6 +50,7 @@ import type { ScenarioWarning } from '../scenarios/scenarioOutcome'
 import type { Employee } from '../employees/employees'
 import { payrollDirector } from '../employees/employees'
 import { scenarioPay } from '../scenarios/scenarioPay'
+import { scenarioName } from '../scenarios/startingScenarios'
 import type { ScenarioPay } from '../scenarios/scenarioPay'
 import { cashProjection, paymentLagOf } from './forecastCash'
 import type { CashMonth, CashProjection, DividendCash, PaymentLag } from './forecastCash'
@@ -57,6 +58,8 @@ import { ARREARS_AVERAGED_MONTHS, AVERAGED_MONTHS, addedUpLine, forecastLine, mo
 import type { CategoryForecast, ForecastCalendar, ForecastLine, ForecastPlLine, LinePart } from './forecastLines'
 import { ownerPayPlan, planGuards } from './planGuards'
 import type { PlanGuard, PlannedOwnerPay } from './planGuards'
+import { words } from './words'
+import { uncapitalised } from '../../../../../../shared/text/capitalised'
 
 /** The corporate tax of the forecast year: what its schedule expects, what the bank rows paid, and what it leaves to the next year. */
 export interface CitForecast {
@@ -178,7 +181,7 @@ export interface YearForecast {
 export function forecastYear(workbook: HrDooWorkbook, year: number, asOf: CivilDate, rules: RuleSource = ruleValue): YearForecast {
   const registered = workbook.companyFacts.companyRegistered
   if (registered === null) {
-    throw new RangeError('The forecast needs hr_company_registered, the day the first tax period starts.')
+    throw new RangeError(words.needsRegistered)
   }
   const known = knownOn(workbook, asOf)
   const forecasts = new Map<number, YearForecast>()
@@ -280,10 +283,10 @@ function forecastOne(context: ForecastContext): YearForecast {
   const expected = expectedInvoices(known.billingPlan, counted)
   const clientName = (slug: string) => known.clients.find((client) => client.slug === slug)?.name || slug
   const revenue = forecastLine(calendar, {
-    label: 'Revenue by delivery period',
+    label: words.figures.revenueByDelivery,
     basis: 'invoices',
     lastActual: lastActualRevenue,
-    actual: (month) => deliveredIn(yearOfMonth(month)).months.find((entry) => entry.month === month)?.revenue ?? tracedFigure(`Revenue delivered in ${monthLabel(month)}`, ZERO, 'invoices', []),
+    actual: (month) => deliveredIn(yearOfMonth(month)).months.find((entry) => entry.month === month)?.revenue ?? tracedFigure(words.figures.deliveredIn(monthLabel(month)), ZERO, 'invoices', []),
     planned: (month) =>
       expectedRevenue(
         expected.filter((entry) => entry.month === month),
@@ -304,7 +307,7 @@ function forecastOne(context: ForecastContext): YearForecast {
   const partsOn = (line: ForecastPlLine['line']): LinePart[] =>
     categories.filter((entry) => entry.line === line).map((entry) => ({ line: entry.forecast, sign: line === 'other-operating-income' ? 1 : -1 }))
   const otherIncomeParts: LinePart[] = [{ line: scheduled.grantRelease, sign: 1 }, ...partsOn('other-operating-income')]
-  const otherIncome = addedUpLine(calendar, 'Other operating income: the grant released and other income', otherIncomeParts)
+  const otherIncome = addedUpLine(calendar, words.figures.otherIncome, otherIncomeParts)
   const fromEngines: Partial<Record<CostLine, readonly ForecastLine[]>> = {
     depreciation: [scheduled.depreciation],
     'material-costs': [scheduled.smallInventory],
@@ -319,15 +322,15 @@ function forecastOne(context: ForecastContext): YearForecast {
     { line: 'other-operating-income', forecast: otherIncome, parts: otherIncomeParts },
     ...costLines,
   ]
-  const profitBeforeTaxLine = addedUpLine(calendar, 'Profit before tax', [
+  const profitBeforeTaxLine = addedUpLine(calendar, words.figures.profitBeforeTax, [
     { line: revenue, sign: 1 },
     { line: otherIncome, sign: 1 },
     ...costLines.map((entry): LinePart => ({ line: entry.forecast, sign: -1 })),
   ])
 
-  const revenueTotal = summed('Revenue', [revenue.total, otherIncome.total], 'ledger')
+  const revenueTotal = summed(words.figures.revenue, [revenue.total, otherIncome.total], 'ledger')
   const expenses = summed(
-    'Expenses',
+    words.figures.expenses,
     costLines.map((entry) => entry.forecast.total),
     'ledger',
   )
@@ -339,11 +342,11 @@ function forecastOne(context: ForecastContext): YearForecast {
   const lossesBroughtForward = lossesCarriedInto(year, known.yearEndLines, rules)
   const taxBaseInput: TaxBaseInput = {
     year,
-    revenue: tracedFigure('PD line 1, revenue', revenueTotal.amount, 'ledger', revenueTotal.rules, [revenueTotal]),
-    expenses: tracedFigure('PD line 2, expenses', expenses.amount, 'ledger', expenses.rules, [expenses]),
-    representation: costOfRole(PACK_ROLES.representation, 'Representation, with its VAT'),
-    personalTransport: costOfRole(PACK_ROLES.personalTransport, 'Personal transport'),
-    nonDeductible: costOfRole(PACK_ROLES.nonDeductible, 'Costs the tax never allows'),
+    revenue: tracedFigure(words.figures.pdRevenue, revenueTotal.amount, 'ledger', revenueTotal.rules, [revenueTotal]),
+    expenses: tracedFigure(words.figures.pdExpenses, expenses.amount, 'ledger', expenses.rules, [expenses]),
+    representation: costOfRole(PACK_ROLES.representation, words.figures.representation),
+    personalTransport: costOfRole(PACK_ROLES.personalTransport, words.figures.personalTransport),
+    nonDeductible: costOfRole(PACK_ROLES.nonDeductible, words.figures.neverAllowed),
     depreciationAboveAllowed: depreciationAboveAllowed(books.schedules, year),
     relatedPartyInterestShortfall: relatedPartyInterest(known, year, subtractMoney(revenueTotal.amount, expenses.amount), lossesBroughtForward, rules),
     lossesBroughtForward,
@@ -352,7 +355,7 @@ function forecastOne(context: ForecastContext): YearForecast {
 
   const cit = citOf(context, period, base)
   const profitAfterTax = tracedFigure(
-    'Profit after tax',
+    words.figures.profitAfterTax,
     subtractMoney(base.profitBeforeTax.amount, cit.liability.liability.amount),
     'ledger',
     rulesOf([base.profitBeforeTax, cit.liability.liability]),
@@ -362,14 +365,14 @@ function forecastOne(context: ForecastContext): YearForecast {
   const byPolicy = accrualBookings(known, rules)
   const settlementSlugs = categoriesWithRole(known.categories, PACK_ROLES.vatSettlement)
   const settled = withDrill(
-    tracedFigure('VAT refunded less VAT paid to date', sumMoney(known.transactions.filter((row) => settlementSlugs.includes(row.category)).map((row) => row.amount)), 'ledger', []),
+    tracedFigure(words.figures.vatToDate, sumMoney(known.transactions.filter((row) => settlementSlugs.includes(row.category)).map((row) => row.amount)), 'ledger', []),
     drillToTransactions({ period: { preset: 'all' }, categories: settlementSlugs }),
   )
   const vat = vatPosition(bookingsAfterCutOff(byPolicy, arrearsCutOff(byPolicy, year, known.yearEndLines, known.categories)), monthOf(asOf), settled)
 
   const december = monthKey(year, 12)
   const decemberArrears = summed(
-    'December costs paid in arrears in January',
+    words.figures.decemberArrears,
     categories.filter((entry) => entry.category.roles.includes(PACK_ROLES.arrears)).map((entry) => deducted(monthOfLine(entry.forecast, december).figure)),
     'ledger',
   )
@@ -442,7 +445,7 @@ function categoryForecasts(
     if (row === null) {
       return null
     }
-    return tracedFigure(`${label}, ${monthLabel(month)}: planned${row.note === '' ? '' : `, ${row.note}`}`, sign === 1 ? row.amount : negateMoney(row.amount), 'plan', [])
+    return tracedFigure(words.figures.planned(label, monthLabel(month), row.note), sign === 1 ? row.amount : negateMoney(row.amount), 'plan', [])
   }
   const earliestRelevant = calendar.lastComplete === null ? monthKey(year, 1) : minMonth(monthKey(year, 1), addMonths(calendar.lastComplete, -AVERAGED_MONTHS))
   const relevantMonths = monthsFrom(earliestRelevant, monthKey(year, 12))
@@ -451,7 +454,7 @@ function categoryForecasts(
     (relevantMonths.some((month) => shares.has(shareKey(category.slug, month))) || (!isPlanKeyword(category.slug) && plan.some((line) => line.kind === 'amount' && line.item === category.slug)))
   return known.categories.filter(relevant).map((category): CategoryForecast => {
     const label = displayName(category.slug, category.label)
-    const actual = (month: MonthKey) => monthFigure(`${label}, ${monthLabel(month)}`, shares.get(shareKey(category.slug, month)) ?? [])
+    const actual = (month: MonthKey) => monthFigure(words.figures.inMonth(label, monthLabel(month)), shares.get(shareKey(category.slug, month)) ?? [])
     const arrears = category.roles.includes(PACK_ROLES.arrears)
     const handedOver = handover !== null && isOwnerPayCost(category)
     const fromPlan = (month: MonthKey) => (isPlanKeyword(category.slug) ? null : plannedFigure(category.slug, month, label, category.bucket === 'income' ? 1 : -1))
@@ -461,8 +464,7 @@ function categoryForecasts(
       basis: 'ledger',
       lastActual,
       actual,
-      planned: (month) =>
-        handedOver && (lastActual === null || month > lastActual) ? tracedFigure(`${label}, ${monthLabel(month)}: set by the owner pay scenario`, ZERO, 'plan', []) : fromPlan(month),
+      planned: (month) => (handedOver && (lastActual === null || month > lastActual) ? tracedFigure(words.figures.setByScenario(label, monthLabel(month)), ZERO, 'plan', []) : fromPlan(month)),
       paidAhead: (month) => (category.roles.includes(PACK_ROLES.prepaidAnnual) && shares.has(shareKey(category.slug, month)) ? actual(month) : null),
       comparison: fromPlan,
       averagedMonths: arrears ? ARREARS_AVERAGED_MONTHS : AVERAGED_MONTHS,
@@ -506,7 +508,7 @@ function ownerPayLastActual(known: HrDooWorkbook, calendar: ForecastCalendar, sh
 function ownerPayForecast(plan: PlannedOwnerPay, director: Employee, known: HrDooWorkbook, calendar: ForecastCalendar, handover: OwnerPayHandover, rules: RuleSource): OwnerPayForecast {
   const pay = scenarioPay(plan.scenario, director, rules)
   const arrears = known.categories.some((category) => isOwnerPayCost(category) && category.roles.includes(PACK_ROLES.arrears))
-  const scenarioName = plan.scenario.label || plan.scenario.slug
+  const named = scenarioName(plan.scenario)
   const lineOf = (slug: string, label: string, line: CategoryForecast['line'], monthly: (month: MonthKey) => TracedFigure): CategoryForecast => ({
     category: { slug, label, family: 'owner-pay', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: arrears ? [PACK_ROLES.arrears] : [], vat: 'none', ownerShare: null },
     line,
@@ -514,20 +516,20 @@ function ownerPayForecast(plan: PlannedOwnerPay, director: Employee, known: HrDo
       label,
       basis: 'plan',
       lastActual: handover.lastActual,
-      actual: (month) => tracedFigure(`${label}, ${monthLabel(month)}: on the owner pay categories`, ZERO, 'plan', []),
+      actual: (month) => tracedFigure(words.figures.onOwnerPayCategories(label, monthLabel(month)), ZERO, 'plan', []),
       planned: (month) => deducted(monthly(month)),
       paidAhead: () => null,
     }),
   })
-  const salary = lineOf('owner-pay-scenario-salary', `Salary from ${scenarioName}`, 'personnel-costs', (month) => {
+  const salary = lineOf('owner-pay-scenario-salary', words.figures.salaryFrom(named), 'personnel-costs', (month) => {
     const paid = pay.payroll.find((entry) => entry.workedMonth === month)
     return paid === undefined
-      ? tracedFigure(`Salary from ${scenarioName}, ${monthLabel(month)}: none`, ZERO, 'plan', [])
-      : summed(`Salary from ${scenarioName}, ${monthLabel(month)}`, [paid.employerCost, paid.nontaxablePayments], 'plan')
+      ? tracedFigure(words.figures.salaryNone(named, monthLabel(month)), ZERO, 'plan', [])
+      : summed(words.figures.salaryIn(named, monthLabel(month)), [paid.employerCost, paid.nontaxablePayments], 'plan')
   })
-  const rent = lineOf('owner-pay-scenario-rent', `Rent from ${scenarioName}`, 'material-costs', (month) =>
+  const rent = lineOf('owner-pay-scenario-rent', words.figures.rentFrom(named), 'material-costs', (month) =>
     summed(
-      `Rent from ${scenarioName}, ${monthLabel(month)}`,
+      words.figures.rentIn(named, monthLabel(month)),
       pay.rent.filter((part) => part.month === month).map((part) => part.rent),
       'plan',
     ),
@@ -542,7 +544,7 @@ function plannedAssetsOf(lines: readonly PlanLine[], calendar: ForecastCalendar)
       ? []
       : [
           {
-            name: `${line.note === '' ? 'Purchase' : line.note}, planned`,
+            name: words.figures.plannedPurchase(line.note),
             bought: line.date,
             inUse: line.date,
             costNet: line.amount,
@@ -572,28 +574,20 @@ function plannedDividendOf(plan: readonly PlanLine[], calendar: ForecastCalendar
   if (calendar.lastComplete !== null && month <= calendar.lastComplete) {
     return null
   }
-  const planned = tracedFigure(`Dividend planned for ${monthLabel(month)}${line.note === '' ? '' : `, ${line.note}`}`, line.amount, 'plan', [])
+  const planned = tracedFigure(words.figures.dividendPlanned(monthLabel(month), line.note), line.amount, 'plan', [])
   const slugs = categoriesWithRole(known.categories, PACK_ROLES.profitDistribution)
   const paidSoFar = negateMoney(sumMoney(known.transactions.filter((row) => slugs.includes(row.category) && monthOf(row.date) === month).map((row) => row.amount)))
   const gross =
-    paidSoFar === 0
-      ? planned
-      : summed(`Dividend still to pay in ${monthLabel(month)}`, [planned, deducted(tracedFigure(`Profit paid out in ${monthLabel(month)} so far, with its tax`, paidSoFar, 'ledger', []))], 'plan')
+    paidSoFar === 0 ? planned : summed(words.figures.dividendToPay(monthLabel(month)), [planned, deducted(tracedFigure(words.figures.paidSoFar(monthLabel(month)), paidSoFar, 'ledger', []))], 'plan')
   if (gross.amount <= 0) {
     return null
   }
   const taxRule = rules('hr.pit.dividend', firstDayOf(month))
-  const tax = tracedFigure(
-    `Dividend tax at ${percentText(taxRule.value.rate.basisPoints)}, withheld at payout`,
-    atRate(gross.amount, taxRule.value.rate.basisPoints),
-    'plan',
-    [taxRule.citation],
-    [gross],
-  )
-  const net = summed('Dividend after its tax', [gross, deducted(tax)], 'plan')
+  const tax = tracedFigure(words.figures.dividendTax(percentText(taxRule.value.rate.basisPoints)), atRate(gross.amount, taxRule.value.rate.basisPoints), 'plan', [taxRule.citation], [gross])
+  const net = summed(words.figures.dividendNet, [gross, deducted(tax)], 'plan')
   const owed = owedByOwnerOn(known, asOf)
-  const setOff = tracedFigure('Set off against what the owner owes', net.amount < owed.amount ? net.amount : owed.amount, 'plan', [], [net, owed])
-  return { line, month, gross, tax, setOff, cashOut: summed('Dividend paid out in cash, its tax included', [tax, net, deducted(setOff)], 'plan') }
+  const setOff = tracedFigure(words.figures.setOff, net.amount < owed.amount ? net.amount : owed.amount, 'plan', [], [net, owed])
+  return { line, month, gross, tax, setOff, cashOut: summed(words.figures.cashOut, [tax, net, deducted(setOff)], 'plan') }
 }
 
 /**
@@ -605,7 +599,7 @@ function runwayOf(cash: TracedFigure, costLines: readonly ForecastPlLine[], nonC
   const lastThree = monthsFrom(monthKey(year, 10), monthKey(year, 12))
   const inMonths = (line: ForecastLine) => lastThree.map((month) => monthOfLine(line, month).figure)
   const costs = summed(
-    `Costs of ${monthLabel(monthKey(year, 10))} to ${monthLabel(monthKey(year, 12))}`,
+    words.figures.lastQuarterCosts(monthLabel(monthKey(year, 10)), monthLabel(monthKey(year, 12))),
     [
       ...costLines.flatMap((entry) => inMonths(entry.forecast)),
       ...nonCash.flatMap((line) => inMonths(line).map(deducted)),
@@ -613,7 +607,7 @@ function runwayOf(cash: TracedFigure, costLines: readonly ForecastPlLine[], nonC
     ],
     'ledger',
   )
-  const monthlyCost = tracedFigure('Average monthly cost', divideMoney(costs.amount, lastThree.length), 'ledger', costs.rules, [costs])
+  const monthlyCost = tracedFigure(words.figures.averageMonthlyCost, divideMoney(costs.amount, lastThree.length), 'ledger', costs.rules, [costs])
   return { months: costs.amount > 0 ? (cash.amount * lastThree.length) / costs.amount : null, cash, monthlyCost }
 }
 
@@ -628,9 +622,9 @@ function citOf(context: ForecastContext, period: TaxPeriod, base: TaxBase): { re
   const own = schedules[schedules.length - 1] as CitSchedule
   const matching = matchCitPayments(schedules, known.transactions, known.categories, asOf)
   const obligations = matching.obligations.filter((entry) => own.obligations.includes(entry.obligation))
-  const advancesPaid = matching.advancesPaid.find((entry) => entry.year === year)?.paid ?? summed(`PD line 56, advances paid for ${year}`, [], 'ledger')
-  const advancesToCome = summed(`Advances still to come for ${year}`, obligations.filter((entry) => entry.obligation.kind === 'advance' && entry.outstanding > 0).map(outstandingFigure), 'ledger')
-  const liability = citLiability(base, period, summed(`PD line 56, advances paid and still to come for ${year}`, [advancesPaid, advancesToCome], 'ledger'), rules)
+  const advancesPaid = matching.advancesPaid.find((entry) => entry.year === year)?.paid ?? summed(words.figures.advancesPaid(year), [], 'ledger')
+  const advancesToCome = summed(words.figures.advancesToCome(year), obligations.filter((entry) => entry.obligation.kind === 'advance' && entry.outstanding > 0).map(outstandingFigure), 'ledger')
+  const liability = citLiability(base, period, summed(words.figures.advancesPaidAndToCome(year), [advancesPaid, advancesToCome], 'ledger'), rules)
   const thisReturn = closedYearReturn(known.yearEndLines, year, registered, rules) ?? liability
   const nextYear = citSchedule(year + 1, [thisReturn, ...(year - 1 >= firstYear ? [returnOf(year - 1)] : [])], facts, rules)
   const newAdvanceMonth = firstAdvanceAtNewAmount(year + 1, rules)
@@ -682,19 +676,19 @@ function scheduledLines(calendar: ForecastCalendar, books: AssetBooks, year: num
   const writtenOff = (treatment: 'small-inventory' | 'depreciated', label: string) =>
     scheduledLine(calendar, label, (month) =>
       summed(
-        `${label}, ${monthLabel(month)}`,
+        words.figures.inMonth(label, monthLabel(month)),
         books.schedules.flatMap((schedule) =>
           schedule.treatment === treatment && schedule.writeOff !== null && monthOf(schedule.writeOff.on) === month
-            ? [{ ...schedule.writeOff.figure, label: `${schedule.asset.name}, ${schedule.writeOff.figure.label.toLowerCase()}` }]
+            ? [{ ...schedule.writeOff.figure, label: `${schedule.asset.name}, ${uncapitalised(schedule.writeOff.figure.label)}` }]
             : [],
         ),
         'assets',
       ),
     )
   return {
-    depreciation: scheduledLine(calendar, 'Depreciation', (month) =>
+    depreciation: scheduledLine(calendar, words.figures.depreciation, (month) =>
       summed(
-        `Depreciation, ${monthLabel(month)}`,
+        words.figures.depreciationIn(monthLabel(month)),
         books.schedules.flatMap((schedule) =>
           schedule.months
             .filter((entry) => entry.month === month)
@@ -703,11 +697,11 @@ function scheduledLines(calendar: ForecastCalendar, books: AssetBooks, year: num
         'assets',
       ),
     ),
-    smallInventory: writtenOff('small-inventory', 'Small inventory written off when put in use'),
-    disposals: writtenOff('depreciated', 'Book value of disposed assets written off'),
-    grantRelease: scheduledLine(calendar, 'Grant released', (month) =>
+    smallInventory: writtenOff('small-inventory', words.figures.smallInventory),
+    disposals: writtenOff('depreciated', words.figures.disposals),
+    grantRelease: scheduledLine(calendar, words.figures.grantReleased, (month) =>
       summed(
-        `Grant released, ${monthLabel(month)}`,
+        words.figures.grantReleasedIn(monthLabel(month)),
         books.grants.flatMap((schedule) =>
           schedule.months
             .filter((entry) => entry.month === month && entry.released !== 0)
@@ -730,9 +724,9 @@ function expectedRevenue(due: readonly ExpectedInvoice[], month: MonthKey, clien
     return null
   }
   const rows = due.flatMap((invoice) =>
-    invoice.items.map((openRow): TracedFigure => ({ ...tracedFigure(`${openRow.row.item} for ${clientName(invoice.client)}, billable`, openRow.open, 'plan', []), on: openRow.row.date })),
+    invoice.items.map((openRow): TracedFigure => ({ ...tracedFigure(words.figures.billable(openRow.row.item, clientName(invoice.client)), openRow.open, 'plan', []), on: openRow.row.date })),
   )
-  return summed(`Revenue, ${monthLabel(month)}: planned from the billing plan`, rows, 'plan')
+  return summed(words.figures.plannedRevenue(monthLabel(month)), rows, 'plan')
 }
 
 type AmountPlanLine = Extract<PlanLine, { readonly kind: 'amount' }>
@@ -750,8 +744,8 @@ function billedPlan(known: HrDooWorkbook, month: MonthKey, clientName: (slug: st
     return null
   }
   return summed(
-    `Revenue, ${monthLabel(month)}: the billing plan`,
-    rows.map((row) => ({ ...tracedFigure(`${row.item} for ${clientName(row.client)}`, row.amount, 'plan', []), on: row.date })),
+    words.figures.billedPlan(monthLabel(month)),
+    rows.map((row) => ({ ...tracedFigure(words.figures.itemFor(row.item, clientName(row.client)), row.amount, 'plan', []), on: row.date })),
     'plan',
   )
 }
@@ -774,7 +768,7 @@ function unmodelled(
         ? [
             {
               line,
-              reason: "The payroll needs the director's row on the employees tab, with the city that sets its income tax rates, so the owner pay categories follow their own plan rows or averages.",
+              reason: words.unmodelled.needsDirector,
             },
           ]
         : []
@@ -785,23 +779,23 @@ function unmodelled(
     }
     if (line.kind === 'purchase') {
       if (settled(monthOf(line.date))) {
-        return [{ line, reason: 'Its month is complete in the ledger, which counts what was bought.' }]
+        return [{ line, reason: words.unmodelled.purchaseSettled }]
       }
       return []
     }
     if (line.item === 'dividend') {
-      return line.month !== null && settled(monthKey(line.year, line.month)) ? [{ line, reason: 'Its month is complete in the ledger, which counts what was paid out.' }] : []
+      return line.month !== null && settled(monthKey(line.year, line.month)) ? [{ line, reason: words.unmodelled.dividendSettled }] : []
     }
     const category = known.categories.find((candidate) => candidate.slug === line.item)
     if (!isPlanKeyword(line.item) && category !== undefined) {
       if (category.roles.includes(PACK_ROLES.revenue)) {
-        return [{ line, reason: 'Revenue is planned on the outgoing-plan tab, so the forecast reads it from there.' }]
+        return [{ line, reason: words.unmodelled.revenueElsewhere }]
       }
       if (!countsInProfit(category)) {
-        return [{ line, reason: `${displayName(category.slug, category.label)} is taken out of profit and loss, so the forecast does not count it.` }]
+        return [{ line, reason: words.unmodelled.outsideProfit(displayName(category.slug, category.label)) }]
       }
       if (ownerPay !== null && isOwnerPayCost(category)) {
-        return [{ line, reason: 'The owner pay scenario sets the owner pay of the year, so this row is not counted.' }]
+        return [{ line, reason: words.unmodelled.setByScenario }]
       }
     }
     return []

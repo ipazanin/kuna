@@ -3,6 +3,7 @@ import { filledFields } from '../../../../shared/storage/domain/recordFields'
 import type { FieldValue } from '../../../../shared/storage/domain/recordFields'
 import type { RuleTabRow } from './readRules'
 import type { Rule, RuleCondition } from './rule'
+import { words } from './words'
 
 export type RuleFields = RuleTabRow['fields']
 
@@ -39,14 +40,12 @@ export function rulesTabAfter(rows: readonly RuleTabRow[], change: RulesTabChang
   const rowHolding = (id: string, expected: RuleFields): RuleTabRow | null => {
     const matches = rows.filter((row) => sameId(row.fields.rule, id))
     if (matches.length !== 1) {
-      refusals.push(
-        matches.length === 0 ? `no row on the rules tab has the id "${id}" any more` : `${matches.length} rows on the rules tab have the id "${id}", so the app cannot tell which to change`,
-      )
+      refusals.push(matches.length === 0 ? words.tab.gone(id) : words.tab.several(matches.length, id))
       return null
     }
     const [row] = matches as [RuleTabRow]
     if (!sameFields(row.fields, expected)) {
-      refusals.push(`rule "${id}" changed since the app last read it`)
+      refusals.push(words.tab.changed(id))
       return null
     }
     return row

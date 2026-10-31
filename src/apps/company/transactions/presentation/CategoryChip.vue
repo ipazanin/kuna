@@ -2,6 +2,7 @@
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import type { Bucket } from '../../workbook/domain/bucket'
 import { useCategoryColours } from '../../workbook/presentation/categoryColours'
+import { words } from './words'
 
 /** A category as rows and groups show it: its colour, or its bucket's, and its name. */
 defineProps<{
@@ -17,7 +18,7 @@ const colours = useCategoryColours()
 <template>
   <span class="category-chip" :class="{ uncategorised: category === '' }">
     <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: colours(category, bucket) }" aria-hidden="true" />
-    <span class="truncate">{{ category === '' ? 'No category' : names.category(category) }}</span>
+    <span class="truncate">{{ category === '' ? words.noCategory : names.category(category) }}</span>
   </span>
 </template>
 

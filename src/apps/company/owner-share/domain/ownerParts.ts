@@ -5,6 +5,7 @@ import type { Bucket } from '../../workbook/domain/bucket'
 import type { Category, Workbook, WorkbookProblem } from '../../workbook/domain/workbook'
 import { OWNER_SHARE_ROLES, ownerPartOf } from './ownerShare'
 import type { OwnerShare } from './ownerShare'
+import { words } from './words'
 
 /** What a part of a shared row says about the share it comes from. */
 export interface OwnerPart {
@@ -22,7 +23,7 @@ export interface OwnerPartOf<Whole> extends OwnerPart {
 
 /** What the owner's part of a shared row says beside its category, such as "100% to owner, from Equipment". Null on any other row. */
 export function ownerPartOrigin(part: OwnerPart | undefined, categoryName: (slug: string) => string): string | null {
-  return part?.side === 'owner' ? `${part.share}% to owner, from ${categoryName(part.sourceCategory)}` : null
+  return part?.side === 'owner' ? words.origin(part.share, categoryName(part.sourceCategory)) : null
 }
 
 /** A key for a part as a screen lists it: the row's own key, marked on the owner's part so the two parts differ. */
@@ -105,16 +106,16 @@ export function ownerShareProblems(workbook: Workbook): WorkbookProblem[] {
   const carrying = workbook.categories.filter((category) => category.roles.includes(role))
   const why =
     carrying.length === 0
-      ? `no category carries the ${role} role`
+      ? words.noRoleCarrier(role)
       : carrying.length > 1
-        ? `the ${role} role is on ${listInWords(carrying.map((category) => `"${category.slug}"`))}, and only one category may carry it`
-        : `the ${role} role is on "${carrying[0]!.slug}" in the ${carrying[0]!.bucket} bucket, and only an owner-pay category may carry it`
+        ? words.severalCarriers(role, listInWords(carrying.map((category) => `"${category.slug}"`)))
+        : words.wrongBucket(role, carrying[0]!.slug, carrying[0]!.bucket)
   return [
     {
       tab: 'categories',
       id: null,
       label: role,
-      reason: `${held} ${held === 1 ? 'row holds' : 'rows hold'} an owner share, but ${why}. So every share counts as 0 until one owner-pay category carries the role.`,
+      reason: words.sharesCountAsZero(held, why),
     },
   ]
 }

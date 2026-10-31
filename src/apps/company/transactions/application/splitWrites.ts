@@ -1,4 +1,3 @@
-import { plainAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { movedTo } from '../../owner-share/domain/ownerShare'
 import type { ShareDefault } from '../../owner-share/domain/ownerShare'
@@ -15,6 +14,7 @@ import { readSplits } from '../../workbook/domain/splitsReading'
 import type { SplitTabRow } from '../../workbook/domain/splitsReading'
 import { packRecordsOf } from '../../workbook/domain/packPart'
 import type { FreshRecords, WriteRules } from '../../../../shared/storage/domain/writeRules'
+import { words } from '../../workbook/domain/words'
 
 /** A part as the editor gives it, with the row's sign. */
 export interface SplitPartDraft {
@@ -90,7 +90,7 @@ export const SPLIT_WRITES: WriteRules<SplitTabRow> = {
       const splitHere = written.some(
         (fields) => fields.date?.date === row.date && slugOfField(fields.account) === row.account && fields.row_amount?.money === row.amount && fields.row_balance?.money === row.balance,
       )
-      return why !== undefined && splitHere ? [`The ${row.account} row of ${row.date} for ${plainAmount(row.amount)} stays whole, since ${why}.`] : []
+      return why !== undefined && splitHere ? [words.splits.refusedKeptWhole(row.account, row.date, row.amount, why)] : []
     })
   },
 }

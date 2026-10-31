@@ -18,7 +18,9 @@ import EmptyState from '../../../../../../shared/ui/EmptyState.vue'
 import { useFilters } from '../../../../filters/application/filterStore'
 import type { HrDooWorkbook } from '../../domain/hrDooPart'
 import type { PayoutOptionId } from '../../domain/dividend/dividendCapacity'
+import { HUNDRED } from '../../domain/scenarios/marginalEuro'
 import { scenarioGuards } from '../../domain/scenarios/scenarioGuards'
+import { scenarioName } from '../../domain/scenarios/startingScenarios'
 import BuildUpButton from '../BuildUpButton.vue'
 import FigureDialog from '../FigureDialog.vue'
 import DividendCard from '../forecast/DividendCard.vue'
@@ -30,6 +32,8 @@ import type { PayState, ScenarioColumn } from './payScenariosView'
 import { scenarioBars } from './scenarioBars'
 import ScenarioComparison from './ScenarioComparison.vue'
 import ScenarioEditor from './ScenarioEditor.vue'
+import { plural } from '../../../../../../shared/text/translation'
+import { words } from './words'
 
 /** Which owner pay mix leaves the owner the most, at what cost to the company and with what risk, and what the year can pay out. */
 const props = defineProps<{
@@ -102,11 +106,11 @@ const companyLines = computed(() => {
   const figures = ready.value
   if (figures === null) return []
   const { company } = figures
-  const subtitle = `What the scenarios start from, the ${company.takenFrom} forecast`
+  const subtitle = words.panel.startFromSubtitle(company.takenFrom)
   return [company.profitBeforeOwnerPay, company.ownerPayInForecast, company.cashBeforeOwnerPay, company.owedByOwner, company.retainedBroughtIn].map((figure) => figureDetail(figure, subtitle, link))
 })
 
-const marginal = computed(() => ready.value?.marginal.map((route) => figureDetail(route.net, `The next 100.00 of company money, ${props.year}`, link)) ?? [])
+const marginal = computed(() => ready.value?.marginal.map((route) => figureDetail(route.net, words.panel.nextHundredOf(HUNDRED, props.year), link)) ?? [])
 
 /** Each scenario's warnings and notes behind one badge, which counts the warnings, or the notes when it has no warning. */
 const warningRows = computed(() => (shown.value?.columns ?? []).map((column) => ({ column, badge: badgeOf(column) })))
@@ -114,8 +118,8 @@ const warningRows = computed(() => (shown.value?.columns ?? []).map((column) => 
 function badgeOf(column: ScenarioColumn): { readonly label: string; readonly warns: boolean } | null {
   const warnings = column.warnings.length
   const notes = column.notes.length
-  if (warnings > 0) return { label: `${warnings} ${warnings === 1 ? 'warning' : 'warnings'}`, warns: true }
-  return notes === 0 ? null : { label: `${notes} ${notes === 1 ? 'note' : 'notes'}`, warns: false }
+  if (warnings > 0) return { label: plural(words.panel.warnings(warnings), warnings), warns: true }
+  return notes === 0 ? null : { label: plural(words.panel.notes(notes), notes), warns: false }
 }
 
 const startingOpen = ref(false)
@@ -134,18 +138,18 @@ function openDetail(opened: FigureDetail): void {
     <EmptyState
       v-if="pay.state === 'needs'"
       icon="i-lucide-settings-2"
-      :title="`The figures need ${pay.need}`"
-      :description="`${pay.why} The scenarios below can be edited meanwhile.`"
+      :title="words.panel.figuresNeed(pay.need)"
+      :description="words.panel.needsDescription(pay.why)"
       :actions="[{ label: pay.action.label, to: pay.action.to, color: 'neutral', variant: 'outline' }]"
       data-testid="scenarios-needs-setting"
     />
-    <EmptyState v-else-if="pay.state === 'failed'" icon="i-lucide-triangle-alert" title="The scenarios could not be worked out" :description="pay.failure" tone="error" />
+    <EmptyState v-else-if="pay.state === 'failed'" icon="i-lucide-triangle-alert" :title="words.panel.failed" :description="pay.failure" tone="error" />
     <div v-else-if="ready" class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between" data-testid="scenario-picker">
-      <div v-if="workedOut.length > 1" class="flex flex-wrap gap-1.5" role="group" :aria-label="`Scenarios to compare, up to ${MOST_COMPARED}`">
+      <div v-if="workedOut.length > 1" class="flex flex-wrap gap-1.5" role="group" :aria-label="words.panel.toCompare(MOST_COMPARED)">
         <UButton
           v-for="scenario in workedOut"
           :key="scenario.slug"
-          :label="scenario.label || scenario.slug"
+          :label="scenarioName(scenario)"
           size="sm"
           color="neutral"
           :variant="chosen.includes(scenario.slug) ? 'solid' : 'outline'"
@@ -156,7 +160,7 @@ function openDetail(opened: FigureDetail): void {
       </div>
       <div class="flex flex-wrap items-center gap-2 sm:ms-auto">
         <label v-if="shown && chosen.length > 1" class="flex items-center gap-2 text-sm text-toned">
-          <span class="shrink-0">Compare against</span>
+          <span class="shrink-0">{{ words.panel.compareAgainst }}</span>
           <USelect
             :model-value="base"
             :items="shown.columns.map((column) => ({ label: column.label, value: column.slug }))"
@@ -166,26 +170,20 @@ function openDetail(opened: FigureDetail): void {
             @update:model-value="pickBase(String($event))"
           />
         </label>
-        <UButton label="What the scenarios start from" icon="i-lucide-list-tree" color="neutral" variant="outline" size="sm" data-testid="open-starting-figures" @click="startingOpen = true" />
+        <UButton :label="words.panel.startFrom" icon="i-lucide-list-tree" color="neutral" variant="outline" size="sm" data-testid="open-starting-figures" @click="startingOpen = true" />
       </div>
     </div>
 
     <DividendCard v-if="dividend" v-bind="dividend" :year="year" :chosen="payout" @choose="pickPayout" />
 
     <template v-if="ready && shown && bars">
-      <EmptyState
-        v-if="shown.columns.length === 0"
-        icon="i-lucide-scale"
-        :title="`No scenario for ${year} to compare yet`"
-        description="Add the starting scenarios below, then edit, copy or rename them."
-        data-testid="no-scenarios"
-      />
+      <EmptyState v-if="shown.columns.length === 0" icon="i-lucide-scale" :title="words.panel.noneToCompare(year)" :description="words.panel.noneToCompareDescription" data-testid="no-scenarios" />
       <template v-else>
         <ChartCard
           v-if="bars.drawn"
-          :title="`Where the profit before owner pay goes, ${year}`"
-          subtitle="Each bar is one scenario's profit before owner pay. Pension pillar II is your own savings, shown apart from what the state takes."
-          definition="Net to you counts the net salary, tax-free items, rent after its tax, the dividend after its tax and the annual settlement, less contributions you pay yourself. Income tax is what the months withhold plus the settlement."
+          :title="words.panel.whereProfitGoes(year)"
+          :subtitle="words.panel.barsSubtitle"
+          :definition="words.panel.barsDefinition"
           :option="bars.option"
           :description="bars.description"
           :format-value="(share: number) => formatPercent(share / 100)"
@@ -193,7 +191,7 @@ function openDetail(opened: FigureDetail): void {
         >
           <template #legend><ChartLegend :entries="bars.legend" /></template>
           <template #footer>
-            <ul class="flex flex-col border-t border-default px-4 py-2 sm:px-5" aria-label="Warnings and notes" data-testid="scenario-warnings">
+            <ul class="flex flex-col border-t border-default px-4 py-2 sm:px-5" :aria-label="words.panel.warningsAndNotes" data-testid="scenario-warnings">
               <li v-for="{ column, badge } in warningRows" :key="column.slug" class="warning-row" :data-scenario-warnings="column.slug">
                 <span class="min-w-0 text-sm text-toned">{{ column.label }}</span>
                 <UPopover v-if="badge" :content="{ side: 'top', align: 'end', collisionPadding: 12 }">
@@ -204,7 +202,7 @@ function openDetail(opened: FigureDetail): void {
                     variant="soft"
                     size="xs"
                     class="shrink-0"
-                    :aria-label="`${column.label}: ${badge.label}, open them`"
+                    :aria-label="words.panel.openBadge(column.label, badge.label)"
                     data-testid="scenario-warning-badge"
                   />
                   <template #content>
@@ -223,7 +221,7 @@ function openDetail(opened: FigureDetail): void {
                 </UPopover>
                 <span v-else class="inline-flex shrink-0 items-center gap-1.5 text-xs text-muted">
                   <UIcon name="i-lucide-circle-check" class="size-3.5 text-success" aria-hidden="true" />
-                  Nothing to warn about
+                  {{ words.panel.nothingToWarn }}
                 </span>
               </li>
             </ul>
@@ -231,10 +229,10 @@ function openDetail(opened: FigureDetail): void {
         </ChartCard>
 
         <AppCard
-          title="Side by side"
-          subtitle="A tick marks the best of a line that has a better way. The figure under each is the difference to the base. Open any figure for how it is built and its rules."
+          :title="words.panel.sideBySide"
+          :subtitle="words.panel.sideBySideSubtitle"
           collapse-id="year.comparison"
-          :summary="`${shown.columns.length} ${shown.columns.length === 1 ? 'scenario' : 'scenarios'}, ${shown.lines.length} lines each`"
+          :summary="plural(words.panel.scenariosSummary(shown.columns.length, shown.lines.length), shown.columns.length)"
           start-collapsed
         >
           <div class="px-4 pt-1 pb-4 sm:px-5">
@@ -244,16 +242,16 @@ function openDetail(opened: FigureDetail): void {
       </template>
 
       <AppCard
-        :title="`The next 100.00 of company money, ${year}`"
-        subtitle="What reaches you of 100.00 the company has before corporate tax, by route, from the rules of the year. Salary above the floor buys pension too."
+        :title="words.panel.nextHundredOf(HUNDRED, year)"
+        :subtitle="words.panel.marginalSubtitle(HUNDRED)"
         collapse-id="year.marginal"
-        :summary="`${marginal.length} ${marginal.length === 1 ? 'route' : 'routes'}`"
+        :summary="plural(words.panel.routes(marginal.length), marginal.length)"
         start-collapsed
         data-testid="marginal-euro"
       >
         <ul class="flex flex-col px-4 pt-2 pb-3 sm:px-5">
           <li v-for="entry in marginal" :key="entry.title">
-            <button type="button" class="route-row" :aria-label="`${entry.title}: open how it is built`" @click="openDetail(entry)">
+            <button type="button" class="route-row" :aria-label="words.panel.openRoute(entry.title)" @click="openDetail(entry)">
               <span class="min-w-0 text-start text-sm text-toned">{{ entry.title }}</span>
               <MoneyText :cents="entry.cents" class="shrink-0 text-sm font-medium text-highlighted" />
             </button>
@@ -264,11 +262,7 @@ function openDetail(opened: FigureDetail): void {
 
     <ScenarioEditor :year="year" :scenarios="yearScenarios" :refusals="refusals" :grants="workbook.grants" :taken="taken" />
 
-    <AppDialog
-      v-model:open="startingOpen"
-      title="What the scenarios start from"
-      :description="ready ? `The ${ready.company.takenFrom} forecast with its owner pay taken back out, so each scenario sets its own. Open a figure for how it is built.` : ''"
-    >
+    <AppDialog v-model:open="startingOpen" :title="words.panel.startFrom" :description="ready ? words.panel.startingDescription(ready.company.takenFrom) : ''">
       <ul class="flex flex-col" data-testid="starting-figures">
         <li v-for="line in companyLines" :key="line.title" class="starting-row">
           <span class="min-w-0 text-sm text-toned">{{ line.title }}</span>

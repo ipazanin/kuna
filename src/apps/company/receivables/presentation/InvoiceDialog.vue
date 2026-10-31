@@ -7,8 +7,7 @@ import USelect from '@nuxt/ui/components/Select.vue'
 
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { plainAmount } from '../../../../shared/money/money'
-import { typedAmount } from '../../../../shared/money/typedAmount'
+import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { invoiceIdOf } from '../../workbook/domain/invoicesReading'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -21,6 +20,7 @@ import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { INVOICE_WRITES } from '../application/invoiceWrites'
 import { newInvoiceDates } from '../../invoicing/domain/invoiceDates'
+import { words } from './words'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -65,7 +65,7 @@ function fieldsOf(stored: StoredFields): Record<Field, string> {
     number: textOf(stored.number),
     client: textOf(stored.client).toLowerCase(),
     item: textOf(stored.item),
-    amount: amount === null ? textOf(stored.amount) : plainAmount(amount),
+    amount: amount === null ? textOf(stored.amount) : amountForTyping(amount),
     issued: dateText(stored.issued),
     due: dateText(stored.due),
     period_from: dateText(stored.period_from),
@@ -104,18 +104,18 @@ const errors = computed(() => {
   const from = optionalDate(fields.value.period_from)
   const to = optionalDate(fields.value.period_to)
   return {
-    number: fields.value.number.trim() === '' ? 'The invoice number, such as it is printed' : null,
-    client: fields.value.client === '' ? 'Choose the client' : null,
-    amount: parsedAmount.value === null ? 'An amount above zero with at most two decimals' : null,
-    issued: issued === null ? 'A date, such as 2026-10-31' : null,
-    due: due === undefined ? 'A date, or blank for none' : due !== null && issued !== null && due < issued ? 'Not before the issue date' : null,
+    number: fields.value.number.trim() === '' ? words.dialog.numberError : null,
+    client: fields.value.client === '' ? words.dialog.clientError : null,
+    amount: parsedAmount.value === null ? words.dialog.amountError : null,
+    issued: issued === null ? words.dialog.issuedError : null,
+    due: due === undefined ? words.dialog.dueError : due !== null && issued !== null && due < issued ? words.dialog.dueBeforeIssue : null,
     period:
       from === undefined || to === undefined
-        ? 'Dates, such as 2026-10-01 and 2026-10-31'
+        ? words.dialog.periodError
         : (from === null) !== (to === null)
-          ? 'Both dates, or neither'
+          ? words.dialog.periodBoth
           : from !== null && to !== null && to < from
-            ? 'The end comes after the start'
+            ? words.dialog.periodOrder
             : null,
   }
 })
@@ -142,7 +142,7 @@ async function save(): Promise<void> {
   }
   const before = stored.value?.record ?? null
   if (props.id === null || before === null) {
-    if (await writes.write('Invoice added', (unit) => unit.of(INVOICE_WRITES).add(typed), { failedTitle: 'Not added' })) open.value = false
+    if (await writes.write(words.dialog.added, (unit) => unit.of(INVOICE_WRITES).add(typed), { failedTitle: words.dialog.notAdded })) open.value = false
     return
   }
   const changed = (field: Field): boolean => fields.value[field] !== opened.value[field]
@@ -159,71 +159,69 @@ async function save(): Promise<void> {
     deliveryPeriod: changed('period_from') || changed('period_to') ? typed.deliveryPeriod : before.deliveryPeriod,
     id: invoiceIdOf(kept),
   }
-  if (await writes.write('Invoice saved', (unit) => unit.of(INVOICE_WRITES).change(before, after), { failedTitle: 'Not saved' })) open.value = false
+  if (await writes.write(words.dialog.saved, (unit) => unit.of(INVOICE_WRITES).change(before, after), { failedTitle: words.dialog.notSaved })) open.value = false
 }
 
 async function remove(): Promise<void> {
   const before = stored.value?.record ?? null
   if (props.id === null || before === null) return
-  if (await writes.write('Invoice deleted', (unit) => unit.of(INVOICE_WRITES).remove(before), { failedTitle: 'Not deleted' })) open.value = false
+  if (await writes.write(words.dialog.deleted, (unit) => unit.of(INVOICE_WRITES).remove(before), { failedTitle: words.dialog.notDeleted })) open.value = false
 }
 </script>
 
 <template>
   <AppDialog
     v-model:open="open"
-    :title="id === null ? 'Add an invoice' : `Edit invoice ${opened.number}`"
-    :description="
-      id === null ? 'One row of the invoices tab, for an invoice made elsewhere. Make invoice draws, files and records a new one.' : 'On the invoices tab. Only the cells you change are written.'
-    "
+    :title="id === null ? words.dialog.addTitle : words.dialog.editTitle(opened.number)"
+    :description="id === null ? words.dialog.addDescription : words.dialog.editDescription"
   >
     <FormGrid id="invoice-row" as="form" data-testid="invoice-form" @submit.prevent="save">
-      <UFormField label="Number" :error="(tried && errors.number) || false" :help="id === null && latestNumber ? `Each once. The newest is ${latestNumber}.` : 'Each number once.'">
+      <UFormField :label="words.dialog.number" :error="(tried && errors.number) || false" :help="id === null && latestNumber ? words.dialog.numberNewest(latestNumber) : words.dialog.numberOnce">
         <UInput v-model="fields.number" class="w-full" data-testid="invoice-number" />
       </UFormField>
-      <UFormField label="Client" :error="(tried && errors.client) || false" help="From Invoicing, Clients.">
-        <USelect v-model="fields.client" :items="clientItems" placeholder="Choose a client" class="w-full" data-testid="invoice-client" />
+      <UFormField :label="words.dialog.client" :error="(tried && errors.client) || false" :help="words.dialog.clientHelp">
+        <USelect v-model="fields.client" :items="clientItems" :placeholder="words.dialog.clientPlaceholder" class="w-full" data-testid="invoice-client" />
       </UFormField>
-      <UFormField label="Item" help="What the invoice is for.">
+      <UFormField :label="words.dialog.item" :help="words.dialog.itemHelp">
         <UInput v-model="fields.item" class="w-full" data-testid="invoice-item" />
       </UFormField>
-      <UFormField label="Amount" :error="(tried && errors.amount) || false" help="The invoice total.">
-        <UInput v-model="fields.amount" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="invoice-amount" />
+      <UFormField :label="words.dialog.amount" :error="(tried && errors.amount) || false" :help="words.dialog.amountHelp">
+        <UInput v-model="fields.amount" inputmode="decimal" :placeholder="words.dialog.amountPlaceholder" class="w-full" data-testid="invoice-amount" />
       </UFormField>
-      <UFormField label="Issued" :error="(tried && errors.issued) || false" help="The date on the invoice.">
+      <UFormField :label="words.dialog.issued" :error="(tried && errors.issued) || false" :help="words.dialog.issuedHelp">
         <UInput v-model="fields.issued" type="date" class="w-full" data-testid="invoice-issued" />
       </UFormField>
-      <UFormField label="Due" :error="(tried && errors.due) || false" help="Blank when it gives none.">
+      <UFormField :label="words.dialog.due" :error="(tried && errors.due) || false" :help="words.dialog.dueHelp">
         <UInput v-model="fields.due" type="date" class="w-full" />
       </UFormField>
-      <UFormField label="Work from" :error="(tried && errors.period) || false">
+      <UFormField :label="words.dialog.workFrom" :error="(tried && errors.period) || false">
         <UInput v-model="fields.period_from" type="date" class="w-full" />
       </UFormField>
-      <UFormField label="Work to">
+      <UFormField :label="words.dialog.workTo">
         <UInput v-model="fields.period_to" type="date" class="w-full" />
       </UFormField>
-      <p class="-mt-2 text-xs text-muted">The work the invoice is for, which its revenue counts in. Both dates or neither.</p>
+      <p class="-mt-2 text-xs text-muted">{{ words.dialog.periodHelp }}</p>
     </FormGrid>
     <template #start>
-      <UButton v-if="id !== null" label="Delete invoice" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="invoice-delete" @click="remove" />
+      <UButton v-if="id !== null" :label="words.dialog.delete" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="invoice-delete" @click="remove" />
       <UButton
         v-if="id !== null"
-        label="Re-export"
+        :label="words.dialog.reexport"
         icon="i-lucide-file-output"
         color="neutral"
         variant="ghost"
-        title="Draw the PDF again, replace it in Drive and save a fresh mail draft"
+        :title="words.dialog.reexportHelp"
         :disabled="writes.busy.value"
         data-testid="invoice-reexport"
         @click="emit('reexport', id)"
       />
     </template>
     <template #end>
-      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.dialog.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
       <UButton
         type="submit"
         form="invoice-row"
-        :label="id === null ? 'Add invoice' : 'Save invoice'"
+        :label="id === null ? words.dialog.add : words.dialog.save"
         :icon="id === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.busy.value"
         :disabled="writes.busy.value"

@@ -25,6 +25,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
+import { words as packWords } from '../words'
 
 /** A list of figures that add up, each opening on its steps, their rows and the rules behind it. */
 const props = defineProps<{
@@ -66,21 +67,21 @@ function domId(key: string): string {
           <span class="block text-sm" :class="line.total ? 'font-medium text-highlighted' : 'text-toned'">{{ line.label }}</span>
           <span v-if="line.caption" class="block text-xs text-muted">{{ line.caption }}</span>
         </div>
-        <DrillLink :to="line.to" :label="`${line.label}, open the rows`" class="line-amount">
+        <DrillLink :to="line.to" :label="packWords.figure.openRows(line.label)" class="line-amount">
           <MoneyText v-if="'cents' in line.value" :cents="line.value.cents" class="text-sm" :class="line.total ? 'font-medium text-highlighted' : 'text-toned'" />
           <span v-else class="figure text-sm text-toned">{{ line.value.text }}</span>
         </DrillLink>
       </div>
       <div v-if="open.has(line.key)" :id="domId(line.key)" class="line-detail" data-testid="build-up-detail">
-        <ul v-if="line.steps.length > 0" class="step-list" aria-label="Step by step">
+        <ul v-if="line.steps.length > 0" class="step-list" :aria-label="packWords.figure.stepByStep">
           <li v-for="step in line.steps" :key="step.key" class="step-row" :class="{ 'is-nested': step.depth === 1 }">
-            <DrillLink :to="step.to" :label="`${step.label}, open the rows`" class="step-label">{{ step.label }}</DrillLink>
+            <DrillLink :to="step.to" :label="packWords.figure.openRows(step.label)" class="step-label">{{ step.label }}</DrillLink>
             <MoneyText v-if="step.cents !== null" :cents="step.cents" class="text-toned" />
           </li>
         </ul>
-        <ul v-if="line.rules.length > 0" class="flex flex-wrap gap-x-4 gap-y-1" aria-label="Rules">
+        <ul v-if="line.rules.length > 0" class="flex flex-wrap gap-x-4 gap-y-1" :aria-label="packWords.figure.rules">
           <li v-for="rule in line.rules" :key="rule.id">
-            <DrillLink :to="rule.to" :label="`${rule.title}, open the rule`" class="text-xs text-highlighted">{{ rule.title }}</DrillLink>
+            <DrillLink :to="rule.to" :label="packWords.figure.openRule(rule.title)" class="text-xs text-highlighted">{{ rule.title }}</DrillLink>
           </li>
         </ul>
       </div>

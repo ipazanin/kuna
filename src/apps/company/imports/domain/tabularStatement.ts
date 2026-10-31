@@ -1,6 +1,6 @@
 import { civilDate, civilDateFromSerial } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { addMoney, moneyFromAmount, negateMoney, plainAmount, subtractMoney } from '../../../../shared/money/money'
+import { addMoney, moneyFromAmount, negateMoney, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { factKey } from '../../../../shared/text/factKey'
 import { fold, normaliseIban } from '../../../../shared/text/fold'
@@ -8,6 +8,7 @@ import { profileColumns } from './importProfile'
 import type { DateFormat, DecimalMark, ImportProfile } from './importProfile'
 import { StatementRefused } from './importedStatement'
 import type { ImportedRow, ImportedStatement, StatementReading } from './importedStatement'
+import { words } from './words'
 
 /** A cell of a bank's statement file: text, a number, a date as a serial number, or a flag. */
 export type StatementCell = string | number | boolean
@@ -67,11 +68,7 @@ interface ReadRow {
 function tabularStatement(grid: CellGrid, profile: ImportProfile, fileName: string, fileHash: string, label: string): ImportedStatement {
   const headerIndex = headerRowOf(grid, profile)
   if (headerIndex === null) {
-    throw new StatementRefused(
-      `No row in the first ${HEADER_SEARCH_ROWS} of ${fileName} carries every column of the profile ${profile.name}: ${profileColumns(profile)
-        .map((column) => `"${column}"`)
-        .join(', ')}.`,
-    )
+    throw new StatementRefused(words.table.noHeader(HEADER_SEARCH_ROWS, fileName, profile.name, profileColumns(profile)))
   }
   const header = grid[headerIndex]!.map((cell) => headerKey(cellString(cell)))
   const columnOf = (name: string): number => (name === '' ? -1 : header.indexOf(headerKey(name)))
@@ -87,29 +84,29 @@ function tabularStatement(grid: CellGrid, profile: ImportProfile, fileName: stri
     if (cells.every((cell) => cellString(cell) === '')) return
     const dateCell = cellAt(cells, profile.date)
     if (cellString(dateCell) === '') {
-      notes.push(`Row ${fileRow} has no date, so it is skipped.`)
+      notes.push(words.table.noDate(fileRow))
       return
     }
     const date = dateOf(dateCell, profile.dateFormat)
     if (date === null) {
       // A label such as a total holds no digit where the date goes. Anything else is a date the profile misreads.
       if (typeof dateCell === 'string' && !/\d/.test(dateCell)) {
-        notes.push(`Row ${fileRow} reads "${cellString(dateCell)}" where the date goes, so it is skipped.`)
+        notes.push(words.table.labelForDate(fileRow, cellString(dateCell)))
       } else {
-        problems.push(`row ${fileRow}: "${cellString(dateCell)}" is not a ${profile.dateFormat} date`)
+        problems.push(words.table.notADate(fileRow, cellString(dateCell), profile.dateFormat))
       }
       return
     }
     const amount = amountOfRow(cells, profile, cellAt)
     if (typeof amount === 'string') {
-      problems.push(`row ${fileRow}: ${amount}`)
+      problems.push(words.table.rowProblem(fileRow, amount))
       return
     }
     let balance: Money | null = null
     if (profile.balance !== '') {
       balance = moneyOf(cellAt(cells, profile.balance), profile.decimal)
       if (balance === null) {
-        problems.push(`row ${fileRow}: the balance "${cellString(cellAt(cells, profile.balance))}" is not an amount`)
+        problems.push(words.table.balanceNotAmount(fileRow, cellString(cellAt(cells, profile.balance))))
         return
       }
     }
@@ -125,12 +122,10 @@ function tabularStatement(grid: CellGrid, profile: ImportProfile, fileName: stri
     })
   })
   if (problems.length > 0) {
-    throw new StatementRefused(
-      `${fileName} has rows the profile ${profile.name} cannot read, so nothing of it is imported: ${problems.slice(0, 5).join('; ')}${problems.length > 5 ? `, and ${problems.length - 5} more` : ''}.`,
-    )
+    throw new StatementRefused(words.table.unreadable(fileName, profile.name, problems.slice(0, 5), Math.max(0, problems.length - 5)))
   }
   if (rows.length === 0) {
-    throw new StatementRefused(`${fileName} holds no rows with a date under the header row.`)
+    throw new StatementRefused(words.table.noRows(fileName))
   }
   const ordered = inBookingOrder(rows, fileName)
   checkBalances(ordered)
@@ -177,25 +172,25 @@ function amountOfRow(
 ): Money | string {
   if ('signed' in profile.amount) {
     const cell = cellAt(cells, profile.amount.signed)
-    return moneyOf(cell, profile.decimal) ?? (cellString(cell) === '' ? 'no amount' : `the amount "${cellString(cell)}" is not an amount`)
+    return moneyOf(cell, profile.decimal) ?? (cellString(cell) === '' ? words.table.noAmount : words.table.amountNotAmount(cellString(cell)))
   }
   const debitCell = cellAt(cells, profile.amount.debit)
   const creditCell = cellAt(cells, profile.amount.credit)
   const debit = cellString(debitCell) === '' ? null : moneyOf(debitCell, profile.decimal)
   const credit = cellString(creditCell) === '' ? null : moneyOf(creditCell, profile.decimal)
   if ((cellString(debitCell) !== '' && debit === null) || (cellString(creditCell) !== '' && credit === null)) {
-    return `"${cellString(debit === null && cellString(debitCell) !== '' ? debitCell : creditCell)}" is not an amount`
+    return words.table.notAnAmount(cellString(debit === null && cellString(debitCell) !== '' ? debitCell : creditCell))
   }
   const debitPart = debit === null || debit === 0 ? null : debit
   const creditPart = credit === null || credit === 0 ? null : credit
   if (debitPart !== null && creditPart !== null) {
-    return 'both the debit and the credit column hold an amount'
+    return words.table.bothColumns
   }
   if (debitPart === null && creditPart === null) {
-    return debit === null && credit === null ? 'no amount in the debit or the credit column' : 'an amount of zero'
+    return debit === null && credit === null ? words.table.neitherColumn : words.table.zero
   }
   if (creditPart !== null && creditPart < 0) {
-    return `the credit "${cellString(creditCell)}" is negative, so whether the money came in or went out is unclear`
+    return words.table.negativeCredit(cellString(creditCell))
   }
   return debitPart !== null ? negateMoney(Math.abs(debitPart) as Money) : creditPart!
 }
@@ -206,7 +201,7 @@ function inBookingOrder(rows: readonly ReadRow[], fileName: string): readonly Re
   const ascending = dates.every((date, index) => index === 0 || dates[index - 1]! <= date)
   const descending = dates.every((date, index) => index === 0 || dates[index - 1]! >= date)
   if (!ascending && !descending) {
-    throw new StatementRefused(`The dates in ${fileName} run neither oldest first nor newest first, so the rows cannot be put in booking order.`)
+    throw new StatementRefused(words.table.unordered(fileName))
   }
   return ascending ? rows : [...rows].reverse()
 }
@@ -218,9 +213,7 @@ function checkBalances(rows: readonly ReadRow[]): void {
     if (previous === undefined || previous.balance === null || row.balance === null) return
     const expected = addMoney(previous.balance, row.amount)
     if (expected !== row.balance) {
-      throw new StatementRefused(
-        `Row ${row.fileRow} says the balance is ${plainAmount(row.balance)}, but row ${previous.fileRow}'s ${plainAmount(previous.balance)} plus ${plainAmount(row.amount)} is ${plainAmount(expected)}. The rows may be out of order or one may be missing.`,
-      )
+      throw new StatementRefused(words.table.balanceBreak(row.fileRow, row.balance, previous.fileRow, previous.balance, row.amount, expected))
     }
   })
 }

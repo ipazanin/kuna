@@ -7,8 +7,10 @@ import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
 import type { DrillTarget } from '../../filters/domain/drillTarget'
 import type { DrillChart } from '../../filters/presentation/chartDrill'
-import { AGEING_BUCKETS, AGEING_LABELS } from '../domain/ageing'
+import { AGEING_BUCKETS } from '../domain/ageing'
 import type { AgeingBucket } from '../domain/ageing'
+import { words as domainWords } from '../domain/words'
+import { words } from './words'
 
 /** One client's money still owed, by how late it is. */
 export interface ClientAgeing {
@@ -19,14 +21,14 @@ export interface ClientAgeing {
 }
 
 export function ageingLegend(tokens: ChartTokens): LegendEntry[] {
-  return AGEING_BUCKETS.map((bucket, step) => ({ label: AGEING_LABELS[bucket], colour: tokens.ageing[step] ?? tokens.ink }))
+  return AGEING_BUCKETS.map((bucket, step) => ({ label: domainWords.ageing[bucket], colour: tokens.ageing[step] ?? tokens.ink }))
 }
 
 /** One horizontal bar per client, its segments from not due yet to over 90 days late, left to right. */
 export function ageingChart(clients: readonly ClientAgeing[], tokens: ChartTokens): DrillChart {
   const bars: BarSeries[] = AGEING_BUCKETS.map((bucket, step) => ({
     type: 'bar',
-    name: AGEING_LABELS[bucket],
+    name: domainWords.ageing[bucket],
     stack: 'owed',
     color: tokens.ageing[step] ?? tokens.ink,
     // The rounded end goes on whichever segment ends each bar, so a bar ending early keeps its shape.
@@ -48,17 +50,18 @@ export function ageingChart(clients: readonly ClientAgeing[], tokens: ChartToken
     },
     description:
       total === 0
-        ? 'Nothing is owed.'
-        : `Money still owed, ${formatMoney(total)} in all, by client and by how late it is: ` +
-          clients
-            .map(
-              (client) =>
-                `${client.name}: ${AGEING_BUCKETS.filter((bucket) => client.byBucket[bucket] > 0)
-                  .map((bucket) => `${formatMoney(client.byBucket[bucket])} ${AGEING_LABELS[bucket].toLowerCase()}`)
-                  .join(', ')}`,
-            )
-            .join('. ') +
-          '.',
+        ? words.chart.nothingOwed
+        : words.chart.owed(
+            formatMoney(total),
+            clients
+              .map(
+                (client) =>
+                  `${client.name}: ${AGEING_BUCKETS.filter((bucket) => client.byBucket[bucket] > 0)
+                    .map((bucket) => `${formatMoney(client.byBucket[bucket])} ${domainWords.ageing[bucket].toLowerCase()}`)
+                    .join(', ')}`,
+              )
+              .join('. '),
+          ),
     drillAt: ({ dataIndex }) => clients[dataIndex]?.drill ?? null,
   }
 }

@@ -12,6 +12,7 @@ import { typedAmount } from '../../../../shared/money/typedAmount'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { settingsErrors } from '../../settings/domain/settings'
 import type { BillingAmountField, BillingItemField, BillingTerms, InvoicingField, Settings } from '../../settings/domain/settings'
+import { words } from './words'
 
 /** The billing plan's terms and what an invoice prints, as rows of the settings tab. */
 const props = defineProps<{
@@ -40,9 +41,9 @@ const errors = computed(() => settingsErrors(draft.value))
 const valid = computed(() => Object.keys(errors.value).length === 0)
 
 const BILLING_TERMS: readonly { readonly label: string; readonly amount: BillingAmountField; readonly item: BillingItemField; readonly help: string }[] = [
-  { label: 'Monthly fee', amount: 'monthlyAmount', item: 'monthlyItem', help: 'Filled for every month to December.' },
-  { label: 'Monthly subscriptions', amount: 'subscriptionAmount', item: 'subscriptionItem', help: 'Re-billed every month, filled the same way.' },
-  { label: 'Yearly bonus', amount: 'bonusAmount', item: 'bonusItem', help: 'Shown for reference, never filled.' },
+  { label: words.terms.monthlyFee, amount: 'monthlyAmount', item: 'monthlyItem', help: words.terms.monthlyFeeHelp },
+  { label: words.terms.subscriptions, amount: 'subscriptionAmount', item: 'subscriptionItem', help: words.terms.subscriptionsHelp },
+  { label: words.terms.bonus, amount: 'bonusAmount', item: 'bonusItem', help: words.terms.bonusHelp },
 ]
 
 function updateBilling<Field extends keyof BillingTerms>(field: Field, value: BillingTerms[Field]): void {
@@ -95,28 +96,28 @@ function createBillingItem(field: BillingItemField, text: string): void {
 const clientItems = computed(() => props.clients.map((client) => ({ label: client.name || client.slug, value: client.slug })))
 
 /** A field with `lines` is a text box that grows, so a long path or subject wraps instead of scrolling inside the card. */
-const INVOICING_FIELDS: readonly { readonly field: InvoicingField; readonly label: string; readonly help?: string; readonly lines?: number; readonly wide?: boolean }[] = [
-  { field: 'name', label: 'Company name on the invoice' },
-  { field: 'address', label: 'Address', help: 'Street and town.' },
-  { field: 'country', label: 'Country' },
-  { field: 'vatId', label: 'VAT ID' },
-  { field: 'phone', label: 'Phone' },
-  { field: 'mail', label: 'Mail' },
-  { field: 'iban', label: 'IBAN', help: 'The account the client pays into.' },
-  { field: 'swift', label: 'SWIFT' },
-  { field: 'bank', label: 'Bank', help: 'For the footer, such as Example Bank d.d.' },
-  { field: 'courtRegister', label: 'Court register number' },
-  { field: 'shareCapital', label: 'Share capital', help: 'As the footer prints it, such as EUR 2,500.00 (fully paid-up).' },
-  { field: 'place', label: 'Place of issue', help: 'Printed before the date.' },
-  { field: 'issueTime', label: 'Issuing time', help: 'Such as 17:00h. Blank leaves the line out.' },
-  { field: 'signatory', label: 'Signatory', help: 'Prepares and signs the invoice.' },
-  { field: 'signatoryTitle', label: 'Signatory’s role', help: 'Such as director.' },
-  { field: 'numberPattern', label: 'Number pattern', help: '{n} is the sequence, which restarts each year. {yy} and {yyyy} are the year.' },
-  { field: 'filePath', label: 'File path', help: 'Under the invoice folder, with {yyyy}, {yy}, {mm}, {client} and {number}.', lines: 1, wide: true },
-  { field: 'folderId', label: 'Invoice folder', help: 'The Drive folder id. Make invoice asks you to pick it the first time.', lines: 1, wide: true },
-  { field: 'mailSubject', label: 'Mail subject', help: 'With {month}, {number}, {client}, {company} and {signatory}.', lines: 1, wide: true },
-  { field: 'mailBody', label: 'Mail text', lines: 6, wide: true },
-  { field: 'reverseChargeNote', label: 'Reverse-charge note', help: 'Printed under the totals, after an asterisk.', lines: 2, wide: true },
+const INVOICING_FIELDS: readonly { readonly field: InvoicingField; readonly lines?: number; readonly wide?: boolean }[] = [
+  { field: 'name' },
+  { field: 'address' },
+  { field: 'country' },
+  { field: 'vatId' },
+  { field: 'phone' },
+  { field: 'mail' },
+  { field: 'iban' },
+  { field: 'swift' },
+  { field: 'bank' },
+  { field: 'courtRegister' },
+  { field: 'shareCapital' },
+  { field: 'place' },
+  { field: 'issueTime' },
+  { field: 'signatory' },
+  { field: 'signatoryTitle' },
+  { field: 'numberPattern' },
+  { field: 'filePath', lines: 1, wide: true },
+  { field: 'folderId', lines: 1, wide: true },
+  { field: 'mailSubject', lines: 1, wide: true },
+  { field: 'mailBody', lines: 6, wide: true },
+  { field: 'reverseChargeNote', lines: 2, wide: true },
 ]
 
 function updateInvoicing(field: InvoicingField, value: string): void {
@@ -127,35 +128,38 @@ function updateInvoicing(field: InvoicingField, value: string): void {
 <template>
   <form class="flex flex-col gap-6" @submit.prevent="valid && dirty && emit('save', draft)">
     <fieldset class="flex flex-col gap-3" data-testid="billing-terms">
-      <legend class="text-sm font-medium text-highlighted">Billing plan</legend>
-      <p class="-mt-1 text-xs text-muted">
-        What a client is billed on terms. "Fill the rest of the year" on the Plan tab adds the monthly rows from them. Name each item exactly as the outgoing-plan tab writes it, or the fill adds a
-        second row in a month that already has one.
-      </p>
+      <legend class="text-sm font-medium text-highlighted">{{ words.terms.billingPlan }}</legend>
+      <p class="-mt-1 text-xs text-muted">{{ words.terms.billingIntro }}</p>
       <FormGrid>
         <template v-for="term in BILLING_TERMS" :key="term.amount">
           <UFormField :label="term.label" :error="errors[term.amount] ?? false" :help="term.help">
-            <UInput :model-value="billingAmountTexts[term.amount]" inputmode="decimal" placeholder="Not set" class="w-full" @update:model-value="updateBillingAmount(term.amount, String($event))" />
+            <UInput
+              :model-value="billingAmountTexts[term.amount]"
+              inputmode="decimal"
+              :placeholder="words.terms.notSet"
+              class="w-full"
+              @update:model-value="updateBillingAmount(term.amount, String($event))"
+            />
           </UFormField>
-          <UFormField :label="`${term.label}, item`" :error="errors[term.item] ?? false">
+          <UFormField :label="words.terms.item(term.label)" :error="errors[term.item] ?? false">
             <USelectMenu
               :model-value="draft.billing[term.item]"
               :items="itemChoices"
               create-item
-              placeholder="Not set"
-              :search-input="{ placeholder: 'Search or type an item' }"
+              :placeholder="words.terms.notSet"
+              :search-input="{ placeholder: words.terms.searchItem }"
               class="w-full"
               @update:model-value="updateBilling(term.item, String($event ?? ''))"
               @create="createBillingItem(term.item, $event)"
             />
           </UFormField>
         </template>
-        <UFormField label="Client the rows are for" help="Its name on the clients tab." class="sm:col-span-2">
+        <UFormField :label="words.terms.client" :help="words.terms.clientHelp" class="sm:col-span-2">
           <USelectMenu
             :model-value="draft.billing.client"
             :items="clientItems"
             value-key="value"
-            placeholder="Not set"
+            :placeholder="words.terms.notSet"
             clear
             class="w-full"
             @update:model-value="updateBilling('client', String($event ?? ''))"
@@ -165,16 +169,23 @@ function updateInvoicing(field: InvoicingField, value: string): void {
     </fieldset>
 
     <fieldset class="flex flex-col gap-3" data-testid="invoicing-terms">
-      <legend class="text-sm font-medium text-highlighted">Invoices</legend>
-      <p class="-mt-1 text-xs text-muted">What an invoice prints about your company, and how it is numbered, filed and mailed. The client’s address and mail are on the clients tab above.</p>
+      <legend class="text-sm font-medium text-highlighted">{{ words.terms.invoices }}</legend>
+      <p class="-mt-1 text-xs text-muted">{{ words.terms.invoicesIntro }}</p>
       <FormGrid>
-        <UFormField v-for="entry in INVOICING_FIELDS" :key="entry.field" :label="entry.label" :help="entry.help ?? ''" :error="errors[entry.field] ?? false" :class="{ 'sm:col-span-2': entry.wide }">
+        <UFormField
+          v-for="entry in INVOICING_FIELDS"
+          :key="entry.field"
+          :label="words.terms.fields[entry.field].label"
+          :help="words.terms.fields[entry.field].help ?? ''"
+          :error="errors[entry.field] ?? false"
+          :class="{ 'sm:col-span-2': entry.wide }"
+        >
           <UTextarea
             v-if="entry.lines"
             :model-value="draft.invoicing[entry.field]"
             :rows="entry.lines"
             autoresize
-            placeholder="Not set"
+            :placeholder="words.terms.notSet"
             class="w-full"
             :class="{ identifier: entry.field === 'folderId' }"
             @update:model-value="updateInvoicing(entry.field, String($event))"
@@ -182,7 +193,7 @@ function updateInvoicing(field: InvoicingField, value: string): void {
           <UInput
             v-else
             :model-value="draft.invoicing[entry.field]"
-            placeholder="Not set"
+            :placeholder="words.terms.notSet"
             class="w-full"
             :class="{ identifier: entry.field === 'iban' }"
             @update:model-value="updateInvoicing(entry.field, String($event))"
@@ -192,8 +203,8 @@ function updateInvoicing(field: InvoicingField, value: string): void {
     </fieldset>
 
     <div class="flex flex-wrap items-center gap-2">
-      <UButton type="submit" label="Save terms" icon="i-lucide-save" :loading="saving" :disabled="!dirty || !valid || saving" data-testid="terms-save" />
-      <UButton label="Discard changes" color="neutral" variant="ghost" :disabled="!dirty || saving" @click="draft = settings" />
+      <UButton type="submit" :label="words.terms.save" icon="i-lucide-save" :loading="saving" :disabled="!dirty || !valid || saving" data-testid="terms-save" />
+      <UButton :label="words.terms.discard" color="neutral" variant="ghost" :disabled="!dirty || saving" @click="draft = settings" />
     </div>
   </form>
 </template>

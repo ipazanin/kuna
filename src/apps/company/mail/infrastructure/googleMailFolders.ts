@@ -1,7 +1,9 @@
 import { createFile, createFolder, filesInside, folderOfSetting, foldersInside } from '../../../../shared/google/driveClient'
+import { words as googleWords } from '../../../../shared/google/words'
 import { XLSX_MIME_TYPE } from '../../../../shared/xlsx/sheetGrids'
 import type { MailFolders } from '../application/mailFiling'
 import { MAIL_DATE_PROPERTY, MAIL_SOURCE_PROPERTY } from '../domain/mailSource'
+import { words } from './words'
 
 const MEDIA_TYPES: Readonly<Record<string, string>> = {
   pdf: 'application/pdf',
@@ -60,7 +62,7 @@ export function googleMailFolders(accessToken: string, booksFileId: string): Mai
   async function sourceFolder(path: readonly string[]): Promise<string> {
     const folder = await folderOfSetting(accessToken, path, booksFileId)
     if (folder.kind !== 'found') {
-      throw new Error(`${folder.where} holds ${folder.kind === 'missing' ? 'no folder' : `${folder.count} folders`} named "${folder.name}"`)
+      throw new Error(folder.kind === 'missing' ? googleWords.noFolder(folder.where, folder.name) : googleWords.severalFolders(folder.where, folder.count, folder.name))
     }
     return folder.id
   }
@@ -75,9 +77,9 @@ export function googleMailFolders(accessToken: string, booksFileId: string): Mai
       const folder = await folderOfSetting(accessToken, path, booksFileId)
       switch (folder.kind) {
         case 'missing':
-          return { kind: 'refused', reason: `${folder.where} holds no folder named "${folder.name}"` }
+          return { kind: 'refused', reason: googleWords.noFolder(folder.where, folder.name) }
         case 'ambiguous':
-          return { kind: 'refused', reason: `${folder.where} holds ${folder.count} folders named "${folder.name}", so the app cannot tell which one is meant` }
+          return { kind: 'refused', reason: words.whichFolder(folder.where, folder.count, folder.name) }
         case 'found': {
           const wanted = (folders: readonly string[]): boolean => below.some((path) => startsWith(folders, path))
           let level: FoundFolder[] = [{ id: folder.id, folders: [] }]

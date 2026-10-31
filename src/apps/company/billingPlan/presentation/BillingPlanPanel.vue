@@ -31,6 +31,8 @@ import { billingYears, billingView } from './billingView'
 import type { BillingRowLine } from './billingView'
 import { itemColours } from './billingCharts'
 import FillYearDialog from './FillYearDialog.vue'
+import { plural } from '../../../../shared/text/translation'
+import { words } from './words'
 
 /** What is to be invoiced in a year and what the invoices billed of it, the newest plan rows first. */
 const { state } = useWorkbook()
@@ -93,7 +95,7 @@ const fill = computed(() => {
   return workbook === null || asOf.value === null || fillYear.value === null ? null : fillRestOfYear(workbook.billingPlan, workbook.settings.billing, asOf.value, fillYear.value)
 })
 const fillCount = computed(() => (fill.value?.kind === 'rows' ? fill.value.rows.length : 0))
-const fillLabel = computed(() => (asOf.value !== null && fillYear.value === yearOf(asOf.value) ? `Fill the rest of ${fillYear.value}` : `Fill ${fillYear.value}`))
+const fillLabel = computed(() => (asOf.value !== null && fillYear.value === yearOf(asOf.value) ? words.panel.fillRest(fillYear.value) : words.panel.fillYear(fillYear.value)))
 
 const editing = ref<BillingRowLine | null>(null)
 const rowDialogOpen = ref(false)
@@ -113,9 +115,9 @@ const references = computed(() => {
   const billing = terms.value
   if (billing === null) return []
   return [
-    { label: 'Monthly fee', item: billing.monthlyItem, amount: billing.monthlyAmount, note: 'filled for every month' },
-    { label: 'Monthly subscriptions', item: billing.subscriptionItem, amount: billing.subscriptionAmount, note: 'filled for every month' },
-    { label: 'Yearly bonus', item: billing.bonusItem, amount: billing.bonusAmount, note: 'for reference, never filled' },
+    { label: words.panel.monthlyFee, item: billing.monthlyItem, amount: billing.monthlyAmount, note: words.panel.filledEveryMonth },
+    { label: words.panel.subscriptions, item: billing.subscriptionItem, amount: billing.subscriptionAmount, note: words.panel.filledEveryMonth },
+    { label: words.panel.bonus, item: billing.bonusItem, amount: billing.bonusAmount, note: words.panel.forReference },
   ].filter((entry) => entry.amount !== null)
 })
 
@@ -125,23 +127,22 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
 <template>
   <div class="flex flex-col gap-6">
     <LedgerGate>
-      <EmptyState v-if="tabState === 'empty'" icon="i-lucide-calendar-clock" title="No plan rows yet" data-testid="billing-empty">
+      <EmptyState v-if="tabState === 'empty'" icon="i-lucide-calendar-clock" :title="words.panel.emptyTitle" data-testid="billing-empty">
         <template #description>
           <span class="block max-w-[60ch]">
-            The billing plan is one row per item to invoice a client, such as a month's fee, a bonus or a re-billed hotel, dated on the day it becomes billable. It lives on the
-            <span class="identifier">outgoing-plan</span> tab, with the columns <span class="identifier">{{ columns }}</span
-            >. Each invoice then bills the rows it reaches, oldest first.
+            {{ words.panel.emptyLead }} <span class="identifier">outgoing-plan</span> {{ words.panel.emptyColumns }} <span class="identifier">{{ columns }}</span
+            >{{ words.panel.emptyAfter }}
           </span>
         </template>
         <template #actions>
           <div class="flex flex-wrap justify-center gap-2">
-            <UButton label="Add the first row" icon="i-lucide-plus" :disabled="state.writing" data-testid="billing-start" @click="addRow" />
+            <UButton :label="words.panel.addFirst" icon="i-lucide-plus" :disabled="state.writing" data-testid="billing-start" @click="addRow" />
             <UButton v-if="fillCount > 0" :label="fillLabel" icon="i-lucide-calendar-plus" color="neutral" variant="outline" :disabled="state.writing" @click="fillDialogOpen = true" />
           </div>
         </template>
       </EmptyState>
       <template v-else-if="view && figures">
-        <div v-if="years.length > 1" class="flex flex-wrap gap-1.5" role="group" aria-label="Year" data-testid="year-picker">
+        <div v-if="years.length > 1" class="flex flex-wrap gap-1.5" role="group" :aria-label="words.panel.year" data-testid="year-picker">
           <UButton
             v-for="entry in years"
             :key="entry"
@@ -157,29 +158,29 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
         <div data-testid="billing-year-line">
           <dl class="year-line">
             <div>
-              <dt>Planned in {{ year }}</dt>
+              <dt>{{ words.panel.plannedIn(year) }}</dt>
               <dd><MoneyText :cents="view.yearLine.planned" /></dd>
             </div>
             <div>
-              <dt>Invoiced in {{ year }}</dt>
+              <dt>{{ words.panel.invoicedIn(year) }}</dt>
               <dd><MoneyText :cents="view.yearLine.invoiced" /></dd>
             </div>
             <div>
-              <dt>Not yet invoiced</dt>
+              <dt>{{ words.panel.notYetInvoiced }}</dt>
               <dd><MoneyText :cents="view.yearLine.notInvoiced" /></dd>
             </div>
           </dl>
           <p class="mt-1 text-xs text-muted">
-            {{ view.yearLine.rowCount }} {{ view.yearLine.rowCount === 1 ? 'plan row' : 'plan rows' }}, {{ view.yearLine.openRowCount }} still open. {{ view.yearLine.issuedInYear }}
-            {{ view.yearLine.issuedInYear === 1 ? 'invoice' : 'invoices' }} issued in the year.
+            {{ plural(words.panel.planRows(view.yearLine.rowCount), view.yearLine.rowCount) }}, {{ plural(words.panel.stillOpen(view.yearLine.openRowCount), view.yearLine.openRowCount) }}.
+            {{ plural(words.panel.issuedInYear(view.yearLine.issuedInYear), view.yearLine.issuedInYear) }}
           </p>
         </div>
 
         <DashboardGrid layout="pair">
-          <AppCard id="billing-rows-card" :title="`Plan rows, ${year}`" collapse-id="invoicing.plan-rows" :summary="view.rowsSummary" :reveal="route.hash === '#billing-rows-card'">
-            <template #subtitle> The billing plan is the one place for planned revenue, and the forecast reads it. </template>
+          <AppCard id="billing-rows-card" :title="words.panel.rowsTitle(year)" collapse-id="invoicing.plan-rows" :summary="view.rowsSummary" :reveal="route.hash === '#billing-rows-card'">
+            <template #subtitle>{{ words.panel.rowsSubtitle }}</template>
             <template #actions>
-              <UButton label="Add row" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" :disabled="state.writing" data-testid="billing-add" @click="addRow" />
+              <UButton :label="words.panel.addRow" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" :disabled="state.writing" data-testid="billing-add" @click="addRow" />
               <UButton
                 :label="fillLabel"
                 icon="i-lucide-calendar-plus"
@@ -194,14 +195,14 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
             <div v-if="problems.length > 0" class="flex items-start gap-2 px-4 pt-3 text-sm text-toned sm:px-5" data-testid="billing-problems">
               <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-4 shrink-0 text-error" aria-hidden="true" />
               <div class="min-w-0">
-                <p>{{ problems.length === 1 ? 'One row of the tab is' : `${problems.length} rows of the tab are` }} left out until it is fixed:</p>
+                <p>{{ plural(words.panel.leftOut(problems.length), problems.length) }}</p>
                 <ul class="text-xs text-muted">
                   <li v-for="(problem, index) in problems" :key="index">{{ problem.label }}: {{ problem.reason }}</li>
                 </ul>
               </div>
             </div>
             <p v-if="view.rows.length === 0" class="px-5 py-8 text-sm text-muted">
-              No plan row is dated in {{ year }}. <DrillLink :to="TERMS_LINK" in-prose class="text-highlighted">Set the terms</DrillLink> and fill the year, or add a row.
+              {{ words.panel.noRowsInYear(year) }} <DrillLink :to="TERMS_LINK" in-prose class="text-highlighted">{{ words.panel.setTerms }}</DrillLink> {{ words.panel.fillOrAdd }}
             </p>
             <div v-else class="px-4 pt-2 pb-3 sm:px-5">
               <BillingRowList :rows="view.rows" :show-client="showClient" :editable="!state.writing" @edit="editRow" />
@@ -212,22 +213,22 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
             <AppCard
               id="billing-months-card"
               class="xl:col-span-2 3xl:col-span-1"
-              :title="`Month by month, ${year}`"
-              subtitle="Each client's invoices bill its rows oldest first: the rows up to the end of the month they were issued in, then, with €1 or more left, the next month's. Open a month for its rows and the invoices that billed them."
+              :title="words.panel.monthsTitle(year)"
+              :subtitle="words.panel.monthsSubtitle"
               collapse-id="invoicing.months"
               :summary="view.monthsSummary"
               start-collapsed
               :reveal="selectedMonth !== null || route.hash === '#billing-months-card'"
             >
-              <p v-if="view.months.length === 0" class="px-5 py-8 text-sm text-muted">No plan row is dated in {{ year }}, and no invoice of it went above the plan.</p>
+              <p v-if="view.months.length === 0" class="px-5 py-8 text-sm text-muted">{{ words.panel.noMonthRows(year) }}</p>
               <div v-else class="px-4 pt-1 pb-2 sm:px-5">
                 <BillingMonthList :months="view.months" :selected="selectedMonth" :show-client="showClient" />
               </div>
             </AppCard>
 
             <ChartCard
-              title="By item"
-              subtitle="The year's plan rows by kind, largest first, then what each kind adds up to year by year. An item keeps its colour on every chart and list."
+              :title="words.panel.byItem"
+              :subtitle="words.panel.byItemSubtitle"
               :option="view.itemsChart.option"
               :description="view.itemsChart.description"
               :height="Math.max(140, view.itemYears * 56 + 56)"
@@ -238,7 +239,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
             >
               <template #legend>
                 <p class="text-xs font-medium text-muted">{{ year }}</p>
-                <p v-if="view.items.length === 0" class="py-2 text-sm text-muted">No plan row is dated in {{ year }}.</p>
+                <p v-if="view.items.length === 0" class="py-2 text-sm text-muted">{{ words.panel.noRowsInYear(year) }}</p>
                 <ul v-else class="flex flex-col pb-2">
                   <li v-for="entry in view.items" :key="entry.item" class="item-line">
                     <span class="swatch" :style="{ background: entry.colour }" aria-hidden="true" />
@@ -249,40 +250,35 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
                   </li>
                 </ul>
                 <div v-if="references.length > 0" class="border-t border-default py-3">
-                  <p class="text-xs font-medium text-muted">Terms on <DrillLink :to="TERMS_LINK" in-prose class="text-toned">the Clients tab</DrillLink></p>
+                  <p class="text-xs font-medium text-muted">
+                    {{ words.panel.termsOn }} <DrillLink :to="TERMS_LINK" in-prose class="text-toned">{{ words.panel.clientsTab }}</DrillLink>
+                  </p>
                   <ul class="mt-1 flex flex-col gap-0.5">
                     <li v-for="entry in references" :key="entry.label" class="flex items-baseline justify-between gap-3 text-xs text-muted">
                       <span class="min-w-0 truncate"
-                        >{{ entry.label }} as <span class="text-toned">{{ entry.item }}</span
+                        >{{ entry.label }} {{ words.panel.as }} <span class="text-toned">{{ entry.item }}</span
                         >, {{ entry.note }}</span
                       >
                       <MoneyText :cents="entry.amount!" class="text-toned" />
                     </li>
                   </ul>
                 </div>
-                <p class="border-t border-default pt-3 text-xs font-medium text-muted">Every year</p>
+                <p class="border-t border-default pt-3 text-xs font-medium text-muted">{{ words.panel.everyYear }}</p>
                 <ChartLegend :entries="view.itemsChart.legend" class="mt-2" />
               </template>
             </ChartCard>
 
-            <AppCard
-              title="Totals over every client"
-              subtitle="Every plan row and every invoice. Each year's invoiced amount goes by the invoice's issue date."
-              collapse-id="invoicing.totals"
-              :summary="view.totalsSummary"
-              start-collapsed
-              data-testid="billing-check"
-            >
+            <AppCard :title="words.panel.totalsTitle" :subtitle="words.panel.totalsSubtitle" collapse-id="invoicing.totals" :summary="view.totalsSummary" start-collapsed data-testid="billing-check">
               <div class="check-groups max-w-3xl px-4 pt-3 pb-4 sm:px-5">
                 <dl class="check-group">
-                  <p class="check-heading">All time</p>
+                  <p class="check-heading">{{ words.panel.allTime }}</p>
                   <div v-for="line in view.check.sums" :key="line.label" class="check-line">
                     <dt>{{ line.label }}</dt>
                     <dd><MoneyText :cents="line.amount" /></dd>
                   </div>
                 </dl>
                 <dl class="check-group">
-                  <p class="check-heading">Invoiced per year</p>
+                  <p class="check-heading">{{ words.panel.perYear }}</p>
                   <div v-for="line in view.check.actual" :key="line.label" class="check-line">
                     <dt>{{ line.label }}</dt>
                     <dd><MoneyText :cents="line.amount" /></dd>

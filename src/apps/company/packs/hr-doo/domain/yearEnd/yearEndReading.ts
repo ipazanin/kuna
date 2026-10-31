@@ -14,6 +14,7 @@ import { words as storedWords } from '../../../../../../shared/storage/domain/wo
 import { YEAR_END_RECORDS } from '../hrDooKinds'
 import { YEAR_END_STATEMENTS, yearEndLineDefinition } from './yearEnd'
 import type { YearEndFigure, YearEndFigureKind, YearEndLine, YearEndLineDefinition } from './yearEnd'
+import { words } from '../words'
 
 /** A year-end line made from its fields as an editor makes one, keeping the id it was stored with, or with one of its own. */
 export function yearEndLineOfFields(fields: StoredFields, storedId: RecordId | null): YearEndLine {
@@ -24,9 +25,9 @@ export function yearEndLineOf(fields: StoredFields, id: RecordId | null): YearEn
   const year = requiredYear(fields, 'year')
   const statement = requiredChoice(fields, 'statement', YEAR_END_STATEMENTS)
   const line = statement === 'konto' ? textOf(fields.line) : slugOf(fields.line)
-  if (line === '') refuse(statement === 'konto' ? 'no konto number in line' : 'no line')
+  if (line === '') refuse(statement === 'konto' ? words.reading.noKonto : words.reading.noLine)
   const definition = statement === 'konto' ? null : yearEndLineDefinition(statement, line)
-  if (statement !== 'konto' && definition === null) refuse(`"${line}" is not a line of ${statement}`)
+  if (statement !== 'konto' && definition === null) refuse(words.reading.notALine(line, statement))
   return {
     year,
     statement,
@@ -78,25 +79,25 @@ export const YEAR_END_CODEC: RecordCodec<YearEndLine> = withIdField(
 )
 
 function figureOf(field: StoredField | undefined, kind: YearEndFigureKind): YearEndFigure {
-  if (field === undefined) refuse('no amount')
+  if (field === undefined) refuse(words.reading.noAmount)
   switch (kind) {
     case 'money': {
-      const amount = field.money ?? refuse(`amount "${field.text}" is not a number`)
+      const amount = field.money ?? refuse(words.reading.amountNotANumber(field.text))
       return { kind, amount }
     }
     case 'date': {
-      const date = field.date ?? refuse(`amount "${field.text}" is not a date cell, and this line is a date`)
+      const date = field.date ?? refuse(words.reading.amountNotADate(field.text))
       return { kind, date }
     }
     case 'rate': {
       const rate = field.number
-      if (rate === null || rate < 0) refuse(`amount "${field.text}" is not a rate`)
-      if (rate > 1) refuse(`amount ${rate} reads as ${rate * 100}%. Enter the rate as a percentage cell, such as 10%`)
+      if (rate === null || rate < 0) refuse(words.reading.amountNotARate(field.text))
+      if (rate > 1) refuse(words.reading.rateAboveOne(rate))
       return { kind, basisPoints: Math.round(rate * 10_000) }
     }
     case 'count': {
       const count = wholeNumberOf(field)
-      if (count === null || count < 0) refuse(`amount "${field.text}" is not a whole number`)
+      if (count === null || count < 0) refuse(words.reading.amountNotWhole(field.text))
       return { kind, count }
     }
   }
@@ -133,15 +134,15 @@ function yearEndLines(read: RecordsRead<YearEndLine>, categorySlugs: ReadonlySet
   for (const stored of unshared) {
     const line = stored.record
     if (twice.has(keyOf(line))) {
-      problems.push(problemOf(stored, `${keyOf(line)} is listed on more than one row, so none of them counts`))
+      problems.push(problemOf(stored, words.reading.keyListedTwice(keyOf(line))))
       continue
     }
     if (line.statement !== 'konto' && stored.fields.categories !== undefined) {
-      problems.push(problemOf(stored, 'categories is read on konto rows only, so it is ignored here'))
+      problems.push(problemOf(stored, words.reading.categoriesOnKontoOnly))
     }
     const unknown = line.categories.filter((category) => !categorySlugs.has(category))
     if (unknown.length > 0) {
-      problems.push(problemOf(stored, `${unknown.map((category) => `"${category}"`).join(', ')} ${unknown.length === 1 ? 'is' : 'are'} not on the categories tab`))
+      problems.push(problemOf(stored, words.reading.notOnCategoriesTab(unknown)))
     }
     kept.push(stored)
   }
@@ -166,15 +167,15 @@ function tieProblems(kept: readonly ReadRecord<YearEndLine>[]): RecordProblem[] 
         problems.push(
           problemOf(
             kept.find((stored) => stored.record === total)!,
-            `${year}: ${partsInWords} ${plainAmount(computed)}, but ${totalLine} is ${plainAmount(stated)}, ${apart} apart`,
+            words.reading.tie(year, partsInWords, plainAmount(computed), totalLine, plainAmount(stated), apart),
           ),
         )
       }
     }
     const expenses = side('expense')
-    check('pl', 'profit-before-tax', [...side('income'), ...expenses.map(negateMoney)], 'income less expenses is')
-    check('balance', 'total-assets', side('asset'), 'the asset lines add up to')
-    check('balance', 'total-assets', side('equity-or-liability'), 'equity and liabilities add up to')
+    check('pl', 'profit-before-tax', [...side('income'), ...expenses.map(negateMoney)], words.reading.incomeLessExpenses)
+    check('balance', 'total-assets', side('asset'), words.reading.assetLines)
+    check('balance', 'total-assets', side('equity-or-liability'), words.reading.equityAndLiabilities)
   }
   return problems
 }

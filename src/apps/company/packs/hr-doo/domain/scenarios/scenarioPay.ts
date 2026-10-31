@@ -20,6 +20,7 @@ import type { NontaxablePayment, PayrollMonth } from '../payroll/payrollMonth'
 import type { ScenarioWarning } from './scenarioOutcome'
 import { scenarioSchedule } from './scenarioSchedule'
 import type { ScenarioSchedule } from './scenarioSchedule'
+import { words } from './words'
 
 /** One month's rent to the owner and the rent tax the owner pays on it. */
 export interface RentPart {
@@ -82,11 +83,11 @@ export function scenarioPay(scenario: OwnerPayScenario, facts: EmployeeFacts, ru
     const floor = floorRule.value.monthlyFloor.cents
     if (salary.gross !== 'floor' && salary.gross < floor && !floors.has(salary.id)) {
       floors.add(salary.id)
-      warnings.push({ kind: 'below-floor', agreed: salary.gross, floor: tracedFigure('Director floor for a full month', floor, BASIS, [floorRule.citation]) })
+      warnings.push({ kind: 'below-floor', agreed: salary.gross, floor: tracedFigure(words.pay.directorFloor, floor, BASIS, [floorRule.citation]) })
     }
     const paid = split.filter((part) => part.month === month)
     const nontaxablePayments: NontaxablePayment[] = paid.filter((part) => part.within > 0).map((part) => ({ payment: part.item, amount: part.within }))
-    const over = paid.filter((part) => part.over > 0).map((part) => tracedFigure(`${part.item} over its cap`, part.over, BASIS, part.rules))
+    const over = paid.filter((part) => part.over > 0).map((part) => tracedFigure(words.pay.overCap(part.item), part.over, BASIS, part.rules))
     return payrollMonth(
       {
         workedMonth: month,
@@ -95,7 +96,7 @@ export function scenarioPay(scenario: OwnerPayScenario, facts: EmployeeFacts, ru
         daysWorked: salaryMonth.daysWorked,
         workingDaysInMonth: salaryMonth.workingDays,
         nontaxablePayments,
-        ...(over.length === 0 ? {} : { overCaps: summed('Over the tax-free caps, taxed as salary', over, BASIS) }),
+        ...(over.length === 0 ? {} : { overCaps: summed(words.pay.overCaps, over, BASIS) }),
         basis: BASIS,
       },
       facts,
@@ -110,12 +111,12 @@ export function scenarioPay(scenario: OwnerPayScenario, facts: EmployeeFacts, ru
     const amount = prorated(part.rent.amount, part.days, part.daysInMonth)
     const rentRule = rules('hr.pit.rent', lastDayOf(part.month))
     const { flatExpenseShare, taxRate } = rentRule.value
-    const paid = tracedFigure(part.days === part.daysInMonth ? `Rent, ${monthLabel(part.month)}` : `Rent for ${part.days} of ${part.daysInMonth} days, ${monthLabel(part.month)}`, amount, BASIS, [
+    const paid = tracedFigure(part.days === part.daysInMonth ? words.pay.rent(monthLabel(part.month)) : words.pay.rentFor(part.days, part.daysInMonth, monthLabel(part.month)), amount, BASIS, [
       rentRule.citation,
     ])
     const taxed = subtractMoney(amount, atRate(amount, flatExpenseShare.basisPoints))
     const tax = tracedFigure(
-      `Rent tax, ${monthLabel(part.month)}: ${percentText(taxRate.basisPoints)} of the rent less ${percentText(flatExpenseShare.basisPoints)} flat expenses`,
+      words.pay.rentTax(monthLabel(part.month), percentText(taxRate.basisPoints), percentText(flatExpenseShare.basisPoints)),
       atRate(taxed, taxRate.basisPoints),
       BASIS,
       [rentRule.citation],
@@ -162,7 +163,7 @@ function boardOnlyContributions(schedule: ScenarioSchedule, facts: EmployeeFacts
       const basisRule = rules('hr.contrib.insurance-basis', day)
       const citations = [basisRule.citation, baseRule.citation]
       const base = tracedFigure(
-        month.boardOnly === month.days ? `Board member base, ${monthLabel(month.month)}` : `Board member base for ${month.boardOnly} of ${month.days} days, ${monthLabel(month.month)}`,
+        month.boardOnly === month.days ? words.pay.boardBase(monthLabel(month.month)) : words.pay.boardBaseFor(month.boardOnly, month.days, monthLabel(month.month)),
         prorated(baseRule.value.monthlyBase.cents, month.boardOnly, month.days),
         BASIS,
         citations,
@@ -170,27 +171,27 @@ function boardOnlyContributions(schedule: ScenarioSchedule, facts: EmployeeFacts
       const rates = rateRule.value
       const pillarOneRate = facts.pensionPillarTwo ? rates.pillarOneRateWithPillarTwo.basisPoints : rates.pillarOneRateWithoutPillarTwo.basisPoints
       const at = (label: string, rate: Rate) =>
-        tracedFigure(`${label} at ${percentText(rate)}, ${monthLabel(month.month)}`, atRate(base.amount, rate), BASIS, [rateRule.citation, ...citations], [base])
+        tracedFigure(words.pay.at(label, percentText(rate), monthLabel(month.month)), atRate(base.amount, rate), BASIS, [rateRule.citation, ...citations], [base])
       return {
-        pillarOne: at('Pension pillar I', pillarOneRate),
-        pillarTwo: at('Pension pillar II', facts.pensionPillarTwo ? rates.pillarTwoRate.basisPoints : (0 as Rate)),
-        health: at('Health insurance', rates.healthRate.basisPoints),
+        pillarOne: at(words.pay.pillarOne, pillarOneRate),
+        pillarTwo: at(words.pay.pillarTwo, facts.pensionPillarTwo ? rates.pillarTwoRate.basisPoints : (0 as Rate)),
+        health: at(words.pay.health, rates.healthRate.basisPoints),
       }
     })
   const pillarOne = summed(
-    'Paid yourself as a board member only',
+    words.pay.paidYourself,
     months.map((month) => month.pillarOne),
     BASIS,
   )
   const pillarTwo = summed(
-    'Paid yourself as a board member only',
+    words.pay.paidYourself,
     months.map((month) => month.pillarTwo),
     BASIS,
   )
   const health = summed(
-    'Paid yourself as a board member only',
+    words.pay.paidYourself,
     months.map((month) => month.health),
     BASIS,
   )
-  return { pillarOne, pillarTwo, health, total: summed('Contributions paid personally', [pillarOne, pillarTwo, health], BASIS) }
+  return { pillarOne, pillarTwo, health, total: summed(words.pay.paidPersonally, [pillarOne, pillarTwo, health], BASIS) }
 }

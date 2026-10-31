@@ -2,6 +2,7 @@ import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { isBucket } from '../../workbook/domain/bucket'
 import { DEFAULT_FILTERS, EVERY_OWNER_ADVANCE } from './filterState'
 import type { FilterState } from './filterState'
+import { words } from './words'
 
 /** One active narrowing the user can see and remove, such as "Category: travel". */
 export interface FilterChip {
@@ -10,16 +11,16 @@ export interface FilterChip {
 }
 
 const LIST_FIELDS = [
-  { field: 'buckets', name: 'Bucket' },
-  { field: 'families', name: 'Family' },
-  { field: 'categories', name: 'Category' },
-  { field: 'counterparties', name: 'Counterparty' },
+  { field: 'buckets', name: words.chips.bucket },
+  { field: 'families', name: words.chips.family },
+  { field: 'categories', name: words.chips.category },
+  { field: 'counterparties', name: words.chips.counterparty },
 ] as const
 
 type ListField = (typeof LIST_FIELDS)[number]['field']
 
 /** What the chip and the Add filter menu call the category choice that selects every owner advance. */
-export const EVERY_OWNER_ADVANCE_LABEL = 'Every owner advance'
+export const EVERY_OWNER_ADVANCE_LABEL = words.chips.everyOwnerAdvance
 
 /** How a chip names what it narrows to: counterparties are stored as keys, buckets and categories as identifiers. */
 export interface ChipLabels {
@@ -37,15 +38,15 @@ export function filterChips(filters: FilterState, labels: ChipLabels): FilterChi
     })),
   )
   if (filters.text !== '') {
-    chips.push({ id: 'text', label: `Text: “${filters.text}”` })
+    chips.push({ id: 'text', label: words.chips.text(filters.text) })
   }
   const { min, max } = filters.amount
   if (min !== null || max !== null) {
-    const bounds = min === null ? `at most ${formatMoney(max ?? 0)}` : max === null ? `at least ${formatMoney(min)}` : `${formatMoney(min)} to ${formatMoney(max)}`
-    chips.push({ id: 'amount', label: `Amount: ${bounds}` })
+    const bounds = min === null ? words.chips.atMost(formatMoney(max ?? 0)) : max === null ? words.chips.atLeast(formatMoney(min)) : words.chips.between(formatMoney(min), formatMoney(max))
+    chips.push({ id: 'amount', label: words.chips.amount(bounds) })
   }
   if (filters.needsReview) {
-    chips.push({ id: 'needsReview', label: 'Needs review' })
+    chips.push({ id: 'needsReview', label: words.chips.needsReview })
   }
   return chips
 }

@@ -24,6 +24,7 @@ import { storedOf } from '../../../../shared/storage/domain/recordsRead'
 import { swatchToken } from '../../workbook/presentation/categoryColours'
 import CategoryFilterBar from './CategoryFilterBar.vue'
 import RolesSelect from './RolesSelect.vue'
+import { words } from './words'
 
 const props = defineProps<{
   /** The categories as stored, refused ones included, so they can be fixed here. */
@@ -96,7 +97,7 @@ function sortBy(column: CategorySortColumn, direction: SortDirection | null): vo
   sort.value = direction === null ? null : { column, descending: direction === 'descending' }
 }
 
-const bucketItems = BUCKETS.map((bucket): { value: string; label: string } => ({ value: bucket, label: bucket }))
+const bucketItems = BUCKETS.map((bucket): { value: string; label: string } => ({ value: bucket, label: words.categories.bucketChoice(bucket) }))
 const vatItems = VAT_TREATMENTS.map((treatment): { value: string; label: string } => ({ value: treatment, label: treatment }))
 
 function update(index: number, field: keyof Omit<CategoryDraft, 'saved' | 'savedName'>, text: string): void {
@@ -114,10 +115,10 @@ function colourNote(index: number): string {
   const draft = drafts.value[index]!
   const swatch = swatchOf(draft.colour)
   if (swatch === null) {
-    return `The ${draft.bucket} bucket's colour.`
+    return words.categories.bucketsColour(draft.bucket)
   }
   const others = drafts.value.filter((other, position) => position !== index && other.bucket === draft.bucket && swatchOf(other.colour) === swatch).map(shownName)
-  return others.length === 0 ? `${swatch.name}. No other ${draft.bucket} category uses it.` : `${swatch.name}. Also used by ${listInWords(others)}.`
+  return others.length === 0 ? words.categories.colourAlone(swatch.name, draft.bucket) : words.categories.colourShared(swatch.name, listInWords(others))
 }
 
 function locked(draft: CategoryDraft): boolean {
@@ -125,7 +126,7 @@ function locked(draft: CategoryDraft): boolean {
 }
 
 function inUse(draft: CategoryDraft): string {
-  return `Used by ${listInWords(props.uses.get(draft.savedName.trim().toLowerCase()) ?? [])}, so it keeps its name and its row`
+  return words.inUse(listInWords(props.uses.get(draft.savedName.trim().toLowerCase()) ?? []))
 }
 
 const body = useTemplateRef<HTMLElement>('body')
@@ -165,22 +166,24 @@ function save(): void {
     <table class="data-table editor-table w-full text-sm" data-testid="categories-editor">
       <thead>
         <tr>
-          <SortableHeader label="Category" :model-value="directionOf('category')" @update:model-value="sortBy('category', $event)" />
-          <SortableHeader label="Shown as" :model-value="directionOf('label')" @update:model-value="sortBy('label', $event)" />
-          <SortableHeader label="Family" :model-value="directionOf('family')" @update:model-value="sortBy('family', $event)" />
-          <SortableHeader label="Bucket" :model-value="directionOf('bucket')" @update:model-value="sortBy('bucket', $event)" />
-          <th scope="col" class="text-start">Colour</th>
-          <SortableHeader label="Roles" :model-value="directionOf('roles')" @update:model-value="sortBy('roles', $event)" />
-          <SortableHeader label="VAT" :model-value="directionOf('vat')" @update:model-value="sortBy('vat', $event)" />
-          <SortableHeader v-if="shares" label="Owner share" :model-value="directionOf('ownerShare')" @update:model-value="sortBy('ownerShare', $event)" />
-          <th scope="col"><span class="sr-only">Delete</span></th>
+          <SortableHeader :label="words.categories.columns.category" :model-value="directionOf('category')" @update:model-value="sortBy('category', $event)" />
+          <SortableHeader :label="words.categories.columns.label" :model-value="directionOf('label')" @update:model-value="sortBy('label', $event)" />
+          <SortableHeader :label="words.categories.columns.family" :model-value="directionOf('family')" @update:model-value="sortBy('family', $event)" />
+          <SortableHeader :label="words.categories.columns.bucket" :model-value="directionOf('bucket')" @update:model-value="sortBy('bucket', $event)" />
+          <th scope="col" class="text-start">{{ words.categories.columns.colour }}</th>
+          <SortableHeader :label="words.categories.columns.roles" :model-value="directionOf('roles')" @update:model-value="sortBy('roles', $event)" />
+          <SortableHeader :label="words.categories.columns.vat" :model-value="directionOf('vat')" @update:model-value="sortBy('vat', $event)" />
+          <SortableHeader v-if="shares" :label="words.categories.columns.ownerShare" :model-value="directionOf('ownerShare')" @update:model-value="sortBy('ownerShare', $event)" />
+          <th scope="col">
+            <span class="sr-only">{{ words.categories.columns.delete }}</span>
+          </th>
         </tr>
       </thead>
       <tbody ref="body">
         <tr v-if="rows.length === 0 && drafts.length > 0">
           <td :colspan="shares ? 9 : 8" class="py-6 text-muted" data-testid="no-category-matches">
-            No category matches these filters.
-            <UButton label="Clear filters" color="neutral" variant="link" size="sm" class="inline-target" @click="filters = NO_FILTERS" />
+            {{ words.categories.noMatch }}
+            <UButton :label="words.categories.clearFilters" color="neutral" variant="link" size="sm" class="inline-target" @click="filters = NO_FILTERS" />
           </td>
         </tr>
         <tr v-for="{ index, draft } in rows" :key="draft.saved ?? `new-${index}`" :data-position="index" data-testid="category-row">
@@ -191,7 +194,7 @@ function save(): void {
               :title="locked(draft) ? inUse(draft) : undefined"
               :color="errors.get(index)?.category ? 'error' : 'neutral'"
               :highlight="Boolean(errors.get(index)?.category)"
-              aria-label="Category"
+              :aria-label="words.categories.columns.category"
               size="sm"
               class="w-44"
               @update:model-value="update(index, 'category', String($event))"
@@ -199,14 +202,21 @@ function save(): void {
             <p v-if="errors.get(index)?.category" class="field-error">{{ errors.get(index)?.category }}</p>
           </td>
           <td>
-            <UInput :model-value="draft.label" :placeholder="displayName(draft.category)" aria-label="Shown as" size="sm" class="w-44" @update:model-value="update(index, 'label', String($event))" />
+            <UInput
+              :model-value="draft.label"
+              :placeholder="displayName(draft.category)"
+              :aria-label="words.categories.columns.label"
+              size="sm"
+              class="w-44"
+              @update:model-value="update(index, 'label', String($event))"
+            />
           </td>
           <td>
             <UInput
               :model-value="draft.family"
               :color="errors.get(index)?.family ? 'error' : 'neutral'"
               :highlight="Boolean(errors.get(index)?.family)"
-              aria-label="Family"
+              :aria-label="words.categories.columns.family"
               size="sm"
               class="w-32"
               @update:model-value="update(index, 'family', String($event))"
@@ -219,8 +229,8 @@ function save(): void {
               :items="bucketItems"
               :color="errors.get(index)?.bucket ? 'error' : 'neutral'"
               :highlight="Boolean(errors.get(index)?.bucket)"
-              :placeholder="draft.bucket || 'Choose'"
-              aria-label="Bucket"
+              :placeholder="draft.bucket || words.categories.choose"
+              :aria-label="words.categories.columns.bucket"
               size="sm"
               class="w-52"
               @update:model-value="update(index, 'bucket', String($event))"
@@ -230,8 +240,8 @@ function save(): void {
           <td>
             <ColourSwatchPicker
               :model-value="draft.colour"
-              :title="`Colour of ${shownName(draft) || 'this category'}`"
-              :blank="{ name: 'Bucket colour', token: `--bucket-${bucketTone(draft.bucket)}` }"
+              :title="words.categories.colourOf(shownName(draft))"
+              :blank="{ name: words.categories.bucketColour, token: `--bucket-${bucketTone(draft.bucket)}` }"
               :swatches="swatchChoices"
               :note="colourNote(index)"
               @update:model-value="update(index, 'colour', pickedColour(draft, $event, stored))"
@@ -247,7 +257,7 @@ function save(): void {
               :items="vatItems"
               :color="errors.get(index)?.vat ? 'error' : 'neutral'"
               :highlight="Boolean(errors.get(index)?.vat)"
-              aria-label="VAT"
+              :aria-label="words.categories.columns.vat"
               size="sm"
               class="w-44"
               @update:model-value="update(index, 'vat', String($event))"
@@ -261,7 +271,7 @@ function save(): void {
                 :color="errors.get(index)?.ownerShare ? 'error' : 'neutral'"
                 :highlight="Boolean(errors.get(index)?.ownerShare)"
                 inputmode="numeric"
-                aria-label="Owner share, in percent"
+                :aria-label="words.categories.shareLabel"
                 size="sm"
                 class="w-24"
                 data-testid="category-owner-share"
@@ -271,7 +281,7 @@ function save(): void {
               </UInput>
               <p v-if="errors.get(index)?.ownerShare" class="field-error">{{ errors.get(index)?.ownerShare }}</p>
             </template>
-            <span v-else class="inline-block px-2 py-1 text-muted" title="Only an operating category holds a share">–</span>
+            <span v-else class="inline-block px-2 py-1 text-muted" :title="words.categories.onlyOperating">–</span>
           </td>
           <td>
             <UButton
@@ -281,7 +291,7 @@ function save(): void {
               size="xs"
               :disabled="locked(draft)"
               :title="locked(draft) ? inUse(draft) : undefined"
-              :aria-label="draft.saved === null ? 'Remove this new category' : `Delete ${draft.savedName || 'this category'}`"
+              :aria-label="draft.saved === null ? words.categories.removeNew : words.categories.deleteName(draft.savedName)"
               data-testid="remove-category"
               @click="remove(index)"
             />
@@ -291,10 +301,10 @@ function save(): void {
     </table>
   </div>
   <div class="flex flex-wrap items-center gap-2 px-4 pb-4 sm:px-5">
-    <UButton label="Add category" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="add-category" @click="addCategory" />
+    <UButton :label="words.categories.add" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="add-category" @click="addCategory" />
     <span class="flex-1" />
-    <UButton label="Discard changes" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving" @click="discard" />
-    <UButton label="Save categories" icon="i-lucide-save" size="sm" :loading="saving" :disabled="!dirty || errors.size > 0 || saving" data-testid="save-categories" @click="save" />
+    <UButton :label="words.categories.discard" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving" @click="discard" />
+    <UButton :label="words.categories.save" icon="i-lucide-save" size="sm" :loading="saving" :disabled="!dirty || errors.size > 0 || saving" data-testid="save-categories" @click="save" />
   </div>
 </template>
 

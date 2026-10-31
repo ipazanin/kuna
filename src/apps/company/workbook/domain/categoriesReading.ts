@@ -14,6 +14,7 @@ import { keyedId, refuse, slugListOf, slugOf, textOf } from '../../../../shared/
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import { isVatTreatment } from './vatTreatment'
 import type { Category } from './workbook'
+import { words } from './words'
 
 /** A category as the categories tab holds it, with the id its name makes. */
 export type CategoryRecord = Category & { readonly id: RecordId }
@@ -29,10 +30,10 @@ export function categoryOf(fields: StoredFields, id: RecordId | null): CategoryR
   const family = slugOf(fields.family)
   const bucket = slugOf(fields.bucket)
   if (slug === '' || family === '' || bucket === '') {
-    refuse('category, family and bucket are not all filled')
+    refuse(words.categories.notAllFilled)
   }
   if (!isDefinedBucket(bucket)) {
-    refuse(`"${bucket}" is not a bucket`)
+    refuse(words.categories.notABucket(bucket))
   }
   const vat = slugOf(fields.vat)
   return {
@@ -81,7 +82,7 @@ export function readCategories(read: RecordsRead<CategoryRecord>): Reading<Categ
   for (const stored of read.records) {
     const vat = slugOf(stored.fields.vat)
     if (vat !== '' && !isVatTreatment(vat)) {
-      problems.push(problemOf(stored, `vat "${vat}" is not a VAT treatment, so ${stored.record.slug} reads as none`))
+      problems.push(problemOf(stored, words.categories.unknownVat(vat, stored.record.slug)))
     }
     const share = ownerShareProblem(stored.fields.owner_share)
     if (share !== null) {
@@ -90,7 +91,7 @@ export function readCategories(read: RecordsRead<CategoryRecord>): Reading<Categ
   }
   const shared = sharedKeys(read.records, (stored) => stored.record.slug)
   for (const stored of read.records.filter((candidate) => shared.has(candidate.record.slug))) {
-    problems.push(problemOf(stored, `"${stored.record.slug}" is defined on more than one row, so none of them counts`))
+    problems.push(problemOf(stored, words.categories.definedTwice(stored.record.slug)))
   }
   return { facts: read.records.map((stored) => stored.record).filter((category) => !shared.has(category.slug)), problems }
 }

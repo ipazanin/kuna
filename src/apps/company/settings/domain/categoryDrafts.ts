@@ -10,6 +10,7 @@ import { isVatTreatment } from '../../workbook/domain/vatTreatment'
 import type { StoredRecord } from '../../../../shared/storage/domain/recordsRead'
 import { madeOfDrafts } from './recordDrafts'
 import type { MadeDraft } from './recordDrafts'
+import { words } from './words'
 
 /** One row of the categories editor, as text, the way the tab holds it. */
 export interface CategoryDraft {
@@ -81,38 +82,38 @@ export function categoryDraftErrors(drafts: readonly CategoryDraft[], usedNames:
     const found: Partial<Record<CategoryField, string>> = {}
     const name = draft.category.trim().toLowerCase()
     if (name === '') {
-      found.category = 'Required'
+      found.category = words.fields.required
     } else if (named.has(name)) {
-      found.category = 'Already used above'
+      found.category = words.fields.usedAbove
     } else if (renamesUsed(draft, drafts, usedNames)) {
-      found.category = `${draft.savedName} is in use, so it keeps its name`
+      found.category = words.fields.keepsName(draft.savedName)
     } else if (name !== draft.savedName.trim().toLowerCase() && slugProblem(name, 'category') !== null) {
-      found.category = 'Lower-case letters, digits and single hyphens'
+      found.category = words.fields.slugFormat
     }
     if (name !== '') {
       named.add(name)
     }
     if (draft.family.trim() === '') {
-      found.family = 'Required'
+      found.family = words.fields.required
     }
     if (!(BUCKETS as readonly string[]).includes(draft.bucket.trim().toLowerCase())) {
-      found.bucket = draft.bucket.trim() === '' ? 'Required' : 'Not one of the six buckets'
+      found.bucket = draft.bucket.trim() === '' ? words.fields.required : words.fields.notABucket
     }
     const unknownRoles = rolesOfText(draft.roles).filter((role) => !knownRoles.includes(role))
     if (unknownRoles.length > 0) {
-      found.roles = `Not ${unknownRoles.length === 1 ? 'a role' : 'roles'} the app knows: ${unknownRoles.join(', ')}`
+      found.roles = words.fields.unknownRoles(unknownRoles.length, unknownRoles.join(', '))
     }
     const vat = draft.vat.trim().toLowerCase()
     if (vat !== '' && !isVatTreatment(vat)) {
-      found.vat = 'Not a VAT treatment the app knows'
+      found.vat = words.fields.unknownVat
     }
     const share = typedOwnerShare(draft.ownerShare)
     if (shares && share === undefined) {
-      found.ownerShare = 'A whole number from 0 to 100'
+      found.ownerShare = words.fields.shareRange
     } else if (shares && share !== null && draft.bucket.trim().toLowerCase() !== 'operating') {
-      found.ownerShare = 'Only an operating category holds a share'
+      found.ownerShare = words.fields.onlyOperating
     } else if (shares && share !== null && !benefitCategory) {
-      found.ownerShare = `Give a category the ${OWNER_SHARE_ROLES.ownerBenefit} role first`
+      found.ownerShare = words.fields.roleFirst(OWNER_SHARE_ROLES.ownerBenefit)
     }
     if (Object.keys(found).length > 0) {
       errors.set(index, found)

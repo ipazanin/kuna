@@ -19,11 +19,13 @@ import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity
 import type { ShareTarget } from '../../owner-share/domain/ownerShare'
 import { categoryChangeOf } from '../domain/categoryChange'
 import { ownerPartOrigin } from '../../owner-share/domain/ownerParts'
-import { OWNER_ADVANCE_LABEL, listedOwnerPart, partPlace, withPartHeadings } from '../domain/listedRows'
+import { listedOwnerPart, partPlace, withPartHeadings } from '../domain/listedRows'
 import type { ListedBankRow, ListedRow } from '../domain/listedRows'
 import type { Transaction } from '../../workbook/domain/workbook'
 import type { TransactionGroup } from '../domain/transactionGroups'
 import TransactionGroupHeading from './TransactionGroupHeading.vue'
+import { words } from './words'
+import { plural } from '../../../../shared/text/translation'
 
 /** The phone's form of the transaction table: one card per row, under the same group headings. */
 const props = defineProps<{
@@ -74,21 +76,21 @@ function toggleRow(key: string): void {
 
 /** The badge beside a row's category. A part of a shared advance leaves its badge to the heading above it. */
 function badgeOf(row: ListedRow): { label: string; color: 'warning' | 'info' | 'neutral' } | null {
-  if (row.kind === 'owner-advance') return partPlace(row) === null ? { label: OWNER_ADVANCE_LABEL, color: 'neutral' } : null
-  if (row.bucket === UNCLASSIFIED) return { label: 'Unclassified', color: 'warning' }
-  if (row.flaggedBy === 'ai') return { label: 'AI guess', color: 'info' }
+  if (row.kind === 'owner-advance') return partPlace(row) === null ? { label: words.ownerAdvance, color: 'neutral' } : null
+  if (row.bucket === UNCLASSIFIED) return { label: words.unclassified, color: 'warning' }
+  if (row.flaggedBy === 'ai') return { label: words.aiGuess, color: 'info' }
   return null
 }
 
 function accountOf(row: ListedRow): string {
-  return row.kind === 'bank' ? names.value.account(row.account) : 'No bank account'
+  return row.kind === 'bank' ? names.value.account(row.account) : words.noBankAccount
 }
 
 /** What a part says before its amount: its place among the parts, with a split part's note. */
 function partLabel(row: ListedRow): string | null {
   const place = partPlace(row)
   const note = row.kind === 'bank' ? (row.split?.note ?? '') : ''
-  return place === null ? null : `Part ${place.number} of ${place.count}${note === '' ? '' : `, ${note}`}`
+  return place === null ? null : `${words.part(place.number, place.count)}${note === '' ? '' : `, ${note}`}`
 }
 
 /** The owner's part of a shared row names the share and the category it comes from. */
@@ -100,7 +102,7 @@ function ownerPartNote(row: ListedRow): string | null {
 <template>
   <AppCard as="div" class="overflow-clip">
     <p class="flex items-baseline justify-between gap-3 border-b border-default px-4 py-3 text-sm" data-testid="transaction-total">
-      <span class="text-muted">{{ rows.length }} {{ rows.length === 1 ? 'row' : 'rows' }}, total</span>
+      <span class="text-muted">{{ plural(words.rowsWithTotal(rows.length), rows.length) }}</span>
       <MoneyText :cents="total" class="font-semibold text-highlighted" />
     </p>
 
@@ -113,12 +115,12 @@ function ownerPartNote(row: ListedRow): string | null {
           <li v-if="entry.kind === 'shared'" class="card split-heading" data-testid="shared-heading">
             <span class="flex min-w-0 flex-1 flex-col gap-0.5 py-1.5">
               <span class="flex items-baseline justify-between gap-3">
-                <span class="min-w-0 truncate font-medium text-highlighted">{{ entry.whole.counterparty || 'No counterparty' }}</span>
+                <span class="min-w-0 truncate font-medium text-highlighted">{{ entry.whole.counterparty || words.noCounterparty }}</span>
                 <MoneyText :cents="entry.whole.amount" class="shrink-0 text-muted" />
               </span>
               <span class="flex flex-wrap items-center gap-2 text-xs text-muted">
-                <UBadge v-if="entry.whole.kind === 'owner-advance'" :label="OWNER_ADVANCE_LABEL" color="neutral" variant="subtle" size="sm" />
-                <UBadge :label="`Shared with the owner, ${entry.share}%`" color="neutral" variant="subtle" size="sm" />
+                <UBadge v-if="entry.whole.kind === 'owner-advance'" :label="words.ownerAdvance" color="neutral" variant="subtle" size="sm" />
+                <UBadge :label="words.sharedWithOwner(entry.share)" color="neutral" variant="subtle" size="sm" />
                 <span class="figure"
                   >{{ shortDate(entry.whole) }}<template v-if="showAccount">, {{ accountOf(entry.whole) }}</template></span
                 >
@@ -131,7 +133,7 @@ function ownerPartNote(row: ListedRow): string | null {
                 color="neutral"
                 variant="ghost"
                 :disabled="writing"
-                :aria-label="`Edit the owner share of ${entry.whole.counterparty || 'the payment'}`"
+                :aria-label="words.editOwnerShare(entry.whole.counterparty)"
                 data-testid="edit-owner-share"
                 @click="emit('ownerShare', entry.whole)"
               />
@@ -141,7 +143,7 @@ function ownerPartNote(row: ListedRow): string | null {
                 color="neutral"
                 variant="ghost"
                 :disabled="writing"
-                :aria-label="`Split the payment of ${entry.whole.counterparty || 'this row'}`"
+                :aria-label="words.splitPayment(entry.whole.counterparty)"
                 data-testid="split-row"
                 @click="entry.whole.kind === 'bank' && emit('split', entry.whole)"
               />
@@ -150,11 +152,11 @@ function ownerPartNote(row: ListedRow): string | null {
           <li v-else-if="entry.kind === 'split'" class="card split-heading" data-testid="split-heading">
             <span class="flex min-w-0 flex-col gap-0.5">
               <span class="flex items-baseline justify-between gap-3">
-                <span class="min-w-0 truncate font-medium text-highlighted">{{ entry.whole.counterparty || 'No counterparty' }}</span>
+                <span class="min-w-0 truncate font-medium text-highlighted">{{ entry.whole.counterparty || words.noCounterparty }}</span>
                 <MoneyText :cents="entry.whole.amount" class="shrink-0 text-muted" />
               </span>
               <span class="flex items-center gap-2 text-xs text-muted">
-                <UBadge :label="`Split in ${entry.count} parts`" color="neutral" variant="subtle" size="sm" />
+                <UBadge :label="plural(words.splitInParts(entry.count), entry.count)" color="neutral" variant="subtle" size="sm" />
                 <span class="figure"
                   >{{ shortDate(entry.whole) }}<template v-if="showAccount">, {{ names.account(entry.whole.account) }}</template></span
                 >
@@ -165,7 +167,7 @@ function ownerPartNote(row: ListedRow): string | null {
               color="neutral"
               variant="ghost"
               :disabled="writing"
-              :aria-label="`Edit the split of ${entry.whole.counterparty || 'the payment'}`"
+              :aria-label="words.editSplit(entry.whole.counterparty)"
               data-testid="edit-split"
               @click="emit('split', entry.whole)"
             />
@@ -177,14 +179,14 @@ function ownerPartNote(row: ListedRow): string | null {
                   <UIcon name="i-lucide-corner-down-right" class="size-3.5 shrink-0 text-muted" aria-hidden="true" />
                   <span class="truncate">{{ partLabel(entry.row) }}</span>
                 </span>
-                <span v-else class="min-w-0 truncate font-medium text-highlighted">{{ entry.row.counterparty || 'No counterparty' }}</span>
+                <span v-else class="min-w-0 truncate font-medium text-highlighted">{{ entry.row.counterparty || words.noCounterparty }}</span>
                 <MoneyText :cents="entry.row.amount" tone="flow" class="shrink-0 font-medium" />
               </span>
               <span class="flex items-center justify-between gap-3 text-xs text-muted">
                 <span class="flex min-w-0 items-center gap-1.5">
                   <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: colours(entry.row.category, entry.row.bucket) }" aria-hidden="true" />
                   <span v-if="ownerPartNote(entry.row)" class="text-toned">{{ names.category(entry.row.category) }}, {{ ownerPartNote(entry.row) }}</span>
-                  <span v-else class="truncate text-toned">{{ entry.row.category === '' ? 'No category' : names.category(entry.row.category) }}</span>
+                  <span v-else class="truncate text-toned">{{ entry.row.category === '' ? words.noCategory : names.category(entry.row.category) }}</span>
                   <UBadge v-if="badgeOf(entry.row)" v-bind="badgeOf(entry.row)" variant="subtle" size="sm" class="shrink-0" />
                 </span>
                 <span class="figure shrink-0">
@@ -201,14 +203,14 @@ function ownerPartNote(row: ListedRow): string | null {
                   :to="drillLocation(drillToTransactions({ counterparties: [counterpartyIdentity(entry.row).key] }))"
                   class="inline-target text-sm text-highlighted"
                 >
-                  Every row from this counterparty
+                  {{ words.everyRowFromCounterparty }}
                 </DrillLink>
                 <DrillLink v-if="entry.row.category" :to="drillLocation(drillToTransactions({ categories: [entry.row.category] }))" class="inline-target text-sm text-highlighted">
-                  Every row in {{ names.category(entry.row.category) }}
+                  {{ words.everyRowIn(names.category(entry.row.category)) }}
                 </DrillLink>
                 <UButton
                   v-if="entry.row.kind === 'bank' && categoryChangeOf(entry.row) !== null"
-                  label="Change category"
+                  :label="words.changeCategory"
                   icon="i-lucide-tag"
                   color="neutral"
                   variant="link"
@@ -219,7 +221,7 @@ function ownerPartNote(row: ListedRow): string | null {
                 />
                 <UButton
                   v-if="entry.row.kind === 'bank' && !entry.row.split && !entry.row.ownerPart && entry.row.amount !== 0"
-                  label="Split"
+                  :label="words.split"
                   icon="i-lucide-split"
                   color="neutral"
                   variant="link"
@@ -230,7 +232,7 @@ function ownerPartNote(row: ListedRow): string | null {
                 />
                 <UButton
                   v-if="shareTargetOf(entry.row) !== null"
-                  label="Owner share"
+                  :label="words.ownerShare"
                   icon="i-lucide-hand-coins"
                   color="neutral"
                   variant="link"

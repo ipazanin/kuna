@@ -1,5 +1,6 @@
 import { intlLocale } from '../../../../shared/text/language'
 import { currencyProblem } from '../domain/settings'
+import { words } from './words'
 
 const currencyNames = new Intl.DisplayNames(intlLocale, { type: 'currency' })
 
@@ -17,5 +18,8 @@ export const FOLLOW_LANGUAGE = 'follow-language'
 /** Following the language, then each number style as an amount reads in it, such as 1.234,56 for de-DE, the locale in use among them. */
 export function numberStyleItems(current: string): { readonly value: string; readonly label: string }[] {
   const locales = current === FOLLOW_LANGUAGE || NUMBER_LOCALES.includes(current) ? NUMBER_LOCALES : [...NUMBER_LOCALES, current]
-  return [{ value: FOLLOW_LANGUAGE, label: 'Follow the language' }, ...locales.map((locale) => ({ value: locale, label: new Intl.NumberFormat(locale, { minimumFractionDigits: 2 }).format(1234.56) }))]
+  return [
+    { value: FOLLOW_LANGUAGE, label: words.general.followLanguage },
+    ...locales.map((locale) => ({ value: locale, label: new Intl.NumberFormat(locale, { minimumFractionDigits: 2 }).format(1234.56) })),
+  ]
 }

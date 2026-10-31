@@ -13,11 +13,12 @@ import BreakdownPanel from '../../spending/presentation/BreakdownPanel.vue'
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
 import OverTimePanel from '../../trends/presentation/OverTimePanel.vue'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
+import { words } from './words'
 
 const TABS: readonly PageTab[] = [
-  { label: 'Breakdown', value: 'breakdown', icon: 'i-lucide-chart-bar' },
-  { label: 'Over time', value: 'over-time', icon: 'i-lucide-trending-up' },
-  { label: 'Compare', value: 'compare', icon: 'i-lucide-calendar-range' },
+  { label: words.tabs.breakdown, value: 'breakdown', icon: 'i-lucide-chart-bar' },
+  { label: words.tabs.overTime, value: 'over-time', icon: 'i-lucide-trending-up' },
+  { label: words.tabs.compare, value: 'compare', icon: 'i-lucide-calendar-range' },
 ]
 
 /** Compare sets a year, quarter or custom range against the one before it, so its bar offers only those. */
@@ -35,9 +36,9 @@ const compareBar = computed(() => {
 
 <template>
   <section class="flex flex-col gap-6">
-    <PageHeader title="Analysis" description="Where the money goes, and whether it is getting better or worse." />
+    <PageHeader :title="words.title" :description="words.description" />
     <LedgerGate>
-      <PageTabs v-if="ledger" :tabs="TABS" label="Breakdown, over time and compare">
+      <PageTabs v-if="ledger" :tabs="TABS" :label="words.tabs.label">
         <template #above>
           <FilterBar :workbook="ledger.workbook" :window="ledger.window" v-bind="compareBar ?? {}" />
         </template>

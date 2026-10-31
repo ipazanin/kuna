@@ -1,6 +1,7 @@
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { dividedRounded, moneyFromCents, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
+import { formatRate } from '../../../../../../shared/money/moneyFormat'
 import type { RuleId, RuleLookup, RuleValues } from '../../ruleset/ruleset'
 import type { Rate, RuleCitation } from '../../ruleset/schema'
 import type { FigureBasis, TracedFigure } from '../../ruleset/tracedFigure'
@@ -23,9 +24,9 @@ export function prorated(amount: Money, part: number, whole: number): Money {
   return moneyFromCents(dividedRounded(amount * part, whole))
 }
 
-/** A rate as people write it: 2150 basis points is 21.5%. */
+/** A rate as people write it: 2150 basis points is 21.5%, or 21,5 % in Croatian. */
 export function percentText(rate: Rate): string {
-  return `${rate / 100}%`
+  return formatRate(rate / BASIS_POINTS_PER_WHOLE)
 }
 
 export function tracedFigure(label: string, amount: Money, basis: FigureBasis, rules: readonly RuleCitation[], steps: readonly TracedFigure[] = []): TracedFigure {

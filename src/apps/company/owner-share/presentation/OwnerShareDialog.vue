@@ -16,6 +16,7 @@ import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import { writeOwnerShare } from '../application/ownerShareWrites'
 import { ownerPartOf, typedOwnerShare } from '../domain/ownerShare'
 import type { ShareTarget } from '../domain/ownerShare'
+import { words } from './words'
 
 /** Sets the owner share of one payment, over the default its category gave it, with Undo in the toast. */
 const open = defineModel<boolean>('open', { required: true })
@@ -49,35 +50,35 @@ const ownerPart = computed(() => (share.value === undefined || share.value === n
 const companyPart = computed(() => subtractMoney(props.row.amount, ownerPart.value))
 
 const defaultInWords = computed(() =>
-  categoryDefault.value === null ? `${names.value.category(props.row.category)} has no default share.` : `The default of ${names.value.category(props.row.category)} is ${categoryDefault.value}%.`,
+  categoryDefault.value === null ? words.shareDialog.noDefault(names.value.category(props.row.category)) : words.shareDialog.defaultIs(names.value.category(props.row.category), categoryDefault.value),
 )
 
 async function save(): Promise<void> {
   const records = state.records
   const saved = share.value
   if (records === null || saved === undefined || !changed.value) return
-  const written = await writes.write(saved === null ? 'Owner share cleared' : `Owner share set to ${saved}%`, (unit) => writeOwnerShare(unit, records, props.target, saved), {
-    failedTitle: 'Not saved',
-    description: props.row.counterparty || 'A row with no counterparty',
+  const written = await writes.write(saved === null ? words.shareDialog.cleared : words.shareDialog.setTo(saved), (unit) => writeOwnerShare(unit, records, props.target, saved), {
+    failedTitle: words.shareDialog.notSaved,
+    description: props.row.counterparty || words.shareDialog.noCounterpartyRow,
   })
   if (written) open.value = false
 }
 </script>
 
 <template>
-  <AppDialog v-model:open="open" width="md" title="Owner share" :description="`${row.counterparty || 'No counterparty'}, ${dayLabel(row.date)}`">
+  <AppDialog v-model:open="open" width="md" :title="words.shareDialog.title" :description="words.shareDialog.description(row.counterparty, dayLabel(row.date))">
     <form id="owner-share" class="flex flex-col gap-4" data-testid="owner-share" @submit.prevent="save">
       <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <CategoryChip :category="row.category" :bucket="row.bucket" />
         <MoneyText :cents="row.amount" tone="flow" class="font-medium" />
       </div>
-      <UFormField label="Share to the owner" :help="defaultInWords" :error="share === undefined ? 'A whole number from 0 to 100, or blank for none' : false">
+      <UFormField :label="words.shareDialog.share" :help="defaultInWords" :error="share === undefined ? words.shareDialog.shareError : false">
         <div class="flex flex-wrap items-center gap-2">
-          <UInput v-model="typed" inputmode="numeric" placeholder="None" class="w-28" aria-label="Share to the owner, in percent" data-testid="owner-share-input">
+          <UInput v-model="typed" inputmode="numeric" :placeholder="words.shareDialog.none" class="w-28" :aria-label="words.shareDialog.shareLabel" data-testid="owner-share-input">
             <template #trailing><span class="text-muted">%</span></template>
           </UInput>
           <UButton
-            label="Use the category's default"
+            :label="words.shareDialog.useDefault"
             color="neutral"
             variant="outline"
             size="sm"
@@ -88,19 +89,19 @@ async function save(): Promise<void> {
         </div>
       </UFormField>
       <dl class="split" data-testid="owner-share-split">
-        <dt>The company keeps</dt>
+        <dt>{{ words.shareDialog.companyKeeps }}</dt>
         <dd><MoneyText :cents="companyPart" sign="magnitude" /></dd>
-        <dt>You take</dt>
+        <dt>{{ words.shareDialog.youTake }}</dt>
         <dd><MoneyText :cents="ownerPart" sign="magnitude" /></dd>
       </dl>
-      <p class="text-xs text-muted">Changing the category later sets the new category's default. A blank share counts as none.</p>
+      <p class="text-xs text-muted">{{ words.shareDialog.note }}</p>
     </form>
     <template #end>
-      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.shareDialog.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
       <UButton
         type="submit"
         form="owner-share"
-        label="Save"
+        :label="words.shareDialog.save"
         icon="i-lucide-check"
         :loading="writes.busy.value"
         :disabled="!changed || writes.busy.value || state.writing"

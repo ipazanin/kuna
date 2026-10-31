@@ -11,7 +11,7 @@ import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { ZERO, addMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
-import { formatDays, formatMoney } from '../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
@@ -32,6 +32,7 @@ import { useFilteredLedger } from '../../transactions/application/useFilteredLed
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
+import { plural } from '../../../../shared/text/translation'
 import { listedRowKey } from '../../workbook/domain/splits'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import { invoiceOrder, newestBookingOf } from '../../workbook/domain/workbook'
@@ -46,6 +47,7 @@ import InvoiceDialog from './InvoiceDialog.vue'
 import InvoiceList from './InvoiceList.vue'
 import type { InvoiceLine, InvoicePaymentLine } from './InvoiceList.vue'
 import { ageingChart, ageingLegend } from './receivablesCharts'
+import { words } from './words'
 
 /** Every invoice and what is owed on it, matched against the revenue credits client by client. */
 const emit = defineEmits<{
@@ -158,13 +160,13 @@ const view = computed(() => {
       const timing =
         !open || days < 0
           ? due === null
-            ? 'no due date'
-            : `due ${dayLabel(due)}`
+            ? words.panel.noDueDate
+            : words.panel.due(dayLabel(due))
           : due === null
-            ? `${days} ${days === 1 ? 'day' : 'days'} since issue`
+            ? plural(words.panel.sinceIssue(days), days)
             : days === 0
-              ? 'due today'
-              : `${days} ${days === 1 ? 'day' : 'days'} past due`
+              ? words.panel.dueToday
+              : plural(words.panel.pastDue(days), days)
       return {
         id: invoice.invoice.id,
         number: invoice.invoice.number,
@@ -194,9 +196,9 @@ const view = computed(() => {
     .map((entry) => ({ name: clientName(entry), byBucket: ageingOf(entry.invoices, asOf), drill: paymentsDrill([entry], revenue, null) }))
 
   const sums = [
-    { label: 'Overpaid by the client', amount: inView.reduce((total, entry) => addMoney(total, entry.overpaid), ZERO) },
-    { label: 'Refunded to the client', amount: inView.reduce((total, entry) => addMoney(total, entry.refunded), ZERO) },
-    { label: 'Paid with no invoice on file', amount: inView.reduce((total, entry) => addMoney(total, entry.creditsWithNoInvoice), ZERO) },
+    { label: words.panel.overpaid, amount: inView.reduce((total, entry) => addMoney(total, entry.overpaid), ZERO) },
+    { label: words.panel.refunded, amount: inView.reduce((total, entry) => addMoney(total, entry.refunded), ZERO) },
+    { label: words.panel.noInvoice, amount: inView.reduce((total, entry) => addMoney(total, entry.creditsWithNoInvoice), ZERO) },
   ]
 
   return {
@@ -204,7 +206,7 @@ const view = computed(() => {
     asOf: dayLabel(asOf),
     periodText: periodInWords(period.value, window),
     window,
-    clientItems: [{ label: 'All clients', value: ALL_CLIENTS }, ...receivables.clients.map((entry) => ({ label: clientName(entry), value: entry.client.slug }))],
+    clientItems: [{ label: words.panel.allClients, value: ALL_CLIENTS }, ...receivables.clients.map((entry) => ({ label: clientName(entry), value: entry.client.slug }))],
     showClientPicker: receivables.clients.length > 1,
     showClient: inView.length > 1,
     ageing: ageingChart(ageingClients, tokens),
@@ -212,15 +214,15 @@ const view = computed(() => {
     ageingLegend: ageingLegend(tokens),
     ageingHeight: Math.max(140, ageingClients.length * 48 + 56),
     daysRows,
-    daysSummary: paid.median === null ? 'No invoice paid in the period' : `Median ${formatDays(paid.median)} days, mean ${formatDays(paid.mean ?? 0)} over ${paid.days.length} paid`,
+    daysSummary: paid.median === null ? words.panel.noneDaysPaid : words.panel.daysSummary(paid.median, paid.mean ?? 0, paid.days.length),
     invoices: listed,
-    invoicesSummary: `${listed.length} ${listed.length === 1 ? 'invoice' : 'invoices'}, ${formatMoney(outstanding)} outstanding`,
+    invoicesSummary: plural(words.panel.invoicesSummary(listed.length, formatMoney(outstanding)), listed.length),
     sums,
-    unattributedSummary: `${formatMoney(unattributedTotal)} from ${payers} ${payers === 1 ? 'payer' : 'payers'}`,
+    unattributedSummary: plural(words.panel.unattributedSummary(payers, formatMoney(unattributedTotal)), payers),
     unattributed: unattributed.map((credit) => ({
       key: listedRowKey(credit.transaction),
       date: dayLabel(credit.transaction.date),
-      counterparty: credit.transaction.counterparty || 'No counterparty',
+      counterparty: credit.transaction.counterparty || words.panel.noCounterparty,
       amount: credit.transaction.amount,
       to: drillLocation(credit.drill),
     })),
@@ -242,46 +244,42 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
         <EmptyState
           v-if="!view.hasInvoices"
           icon="i-lucide-receipt-text"
-          title="No invoices yet"
-          :description="
-            noClients
-              ? 'Invoices are matched against the revenue credits, client by client. Add the clients first, each with every IBAN it pays from.'
-              : 'Invoices are matched against the revenue credits, client by client. Make the first one with Make invoice, or record one made elsewhere.'
-          "
+          :title="words.panel.emptyTitle"
+          :description="noClients ? words.panel.emptyNoClients : words.panel.emptyWithClients"
           :actions="
             noClients
-              ? [{ label: 'Add a client', icon: 'i-lucide-users', color: 'neutral', variant: 'outline', to: CLIENTS_LINK }]
-              : [{ label: 'Record one made elsewhere', icon: 'i-lucide-plus', color: 'neutral', variant: 'outline', onClick: () => openInvoice(null) }]
+              ? [{ label: words.panel.addClient, icon: 'i-lucide-users', color: 'neutral', variant: 'outline', to: CLIENTS_LINK }]
+              : [{ label: words.panel.recordElsewhere, icon: 'i-lucide-plus', color: 'neutral', variant: 'outline', onClick: () => openInvoice(null) }]
           "
           data-testid="receivables-empty"
         />
         <template v-else>
           <div class="flex flex-wrap items-center gap-3" data-testid="receivables-controls">
             <PeriodBar v-model:period="period" :window="view.window" :presets="PRESETS" :stacked="phone" />
-            <USelect v-if="view.showClientPicker" v-model="chosenClient" :items="view.clientItems" aria-label="Client" class="w-full sm:w-48" data-testid="client-picker" />
+            <USelect v-if="view.showClientPicker" v-model="chosenClient" :items="view.clientItems" :aria-label="words.panel.client" class="w-full sm:w-48" data-testid="client-picker" />
           </div>
 
           <DashboardGrid layout="pair">
             <AppCard
               id="invoices-card"
-              title="Every invoice, with the payments that settled it"
+              :title="words.panel.invoicesTitle"
               collapse-id="invoicing.invoices"
               :summary="view.invoicesSummary"
               :reveal="route.hash === '#invoices-card'"
               data-testid="invoices"
             >
               <template #subtitle>
-                The invoices issued in {{ view.periodText }}, and every one still open. Payments fill the oldest invoice first, and only invoices already issued on the day a payment arrives.
+                {{ words.panel.invoicesSubtitle(view.periodText) }}
               </template>
               <template #actions>
                 <UButton
-                  label="Record invoice"
+                  :label="words.panel.record"
                   icon="i-lucide-plus"
                   color="neutral"
                   variant="outline"
                   size="sm"
                   :disabled="state.writing || noClients"
-                  :title="noClients ? 'Add the client on the Clients tab first' : 'Add the row of an invoice made elsewhere'"
+                  :title="noClients ? words.panel.clientFirst : words.panel.recordHelp"
                   data-testid="invoice-add"
                   @click="openInvoice(null)"
                 />
@@ -294,7 +292,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
                   </div>
                 </dl>
               </template>
-              <p v-if="view.invoices.length === 0" class="px-5 py-8 text-sm text-muted">No invoice was issued in this period, and none is open.</p>
+              <p v-if="view.invoices.length === 0" class="px-5 py-8 text-sm text-muted">{{ words.panel.noneInPeriod }}</p>
               <template v-else>
                 <div class="px-4 pt-1 pb-2 sm:px-5">
                   <InvoiceList :invoices="shownInvoices" :show-client="view.showClient" :editable="!state.writing" @edit="openInvoice" />
@@ -308,8 +306,8 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
                 id="invoices-ageing"
                 class="xl:col-span-2 3xl:col-span-1"
                 :chart="view.ageing"
-                title="What is owed, by how late it is"
-                :subtitle="`On ${view.asOf}, the newest booking. Late counts from the due date, or from the issue date when an invoice has none.`"
+                :title="words.panel.ageingTitle"
+                :subtitle="words.panel.ageingSubtitle(view.asOf)"
                 :empty="view.ageingEmpty"
                 :height="view.ageingHeight"
               >
@@ -318,14 +316,14 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
 
               <AppCard
                 id="invoices-days"
-                title="Days to get paid"
-                :subtitle="`${view.periodText}. Each dot is an invoice settled in the period, the line its client’s median.`"
+                :title="words.panel.daysTitle"
+                :subtitle="words.panel.daysSubtitle(view.periodText)"
                 collapse-id="invoicing.days"
                 :summary="view.daysSummary"
                 start-collapsed
                 :reveal="route.hash === '#invoices-days'"
               >
-                <p v-if="view.daysRows.length === 0" class="px-5 py-8 text-sm text-muted">No client has an invoice yet.</p>
+                <p v-if="view.daysRows.length === 0" class="px-5 py-8 text-sm text-muted">{{ words.panel.noClientInvoices }}</p>
                 <div v-else class="overflow-x-auto px-1 pt-2 pb-2 sm:px-2">
                   <DaysToPaidStrip :rows="view.daysRows" />
                 </div>
@@ -333,8 +331,8 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
 
               <AppCard
                 v-if="view.unattributed.length > 0"
-                title="Revenue no client accounts for"
-                subtitle="From an IBAN the clients tab does not name, so it pays no invoice. Add the IBAN to the clients tab to match it."
+                :title="words.panel.unattributedTitle"
+                :subtitle="words.panel.unattributedSubtitle"
                 collapse-id="invoicing.unattributed"
                 :summary="view.unattributedSummary"
                 start-collapsed
@@ -344,7 +342,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
                   <li v-for="credit in view.unattributed" :key="credit.key" class="credit-row">
                     <span class="figure text-xs text-muted">{{ credit.date }}</span>
                     <span class="min-w-0 truncate text-sm text-toned">{{ credit.counterparty }}</span>
-                    <DrillLink :to="credit.to" :label="`Credit of ${credit.date} from ${credit.counterparty}, open the row`" class="justify-self-end">
+                    <DrillLink :to="credit.to" :label="words.panel.openCredit(credit.date, credit.counterparty)" class="justify-self-end">
                       <MoneyText :cents="credit.amount" class="text-sm font-medium text-highlighted" />
                     </DrillLink>
                   </li>

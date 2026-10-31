@@ -15,9 +15,8 @@ import type { DirectorBasis, OwnerPayScenario, ScenarioComponent } from '../../d
 import { useRecordWrites } from '../../../../../../shared/storage/presentation/useRecordWrites'
 import { parseCivilDate } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
-import { plainAmount } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
-import { typedAmount } from '../../../../../../shared/money/typedAmount'
+import { amountForTyping, typedAmount } from '../../../../../../shared/money/typedAmount'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import AppDialog from '../../../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../../../shared/ui/FormGrid.vue'
@@ -25,18 +24,17 @@ import { SCENARIO_WRITES } from '../../domain/hrDooWrites'
 import { scenarioRowOfComponent } from '../../domain/scenarios/scenariosReading'
 import type { ScenarioRow } from '../../domain/scenarios/scenariosReading'
 import { componentInWords } from '../../domain/scenarios/scenarioGuards'
+import { scenarioName } from '../../domain/scenarios/startingScenarios'
 import type { ComponentDraft } from '../../domain/scenarios/startingScenarios'
 import { BASIS_WORDS, yearlyItems } from './scenarioWording'
+import { words } from './words'
 
 type Kind = ScenarioComponent['component']
 
-const KINDS: readonly { readonly label: string; readonly value: Kind }[] = [
-  { label: 'Salary', value: 'salary_gross' },
-  { label: 'Tax-free item', value: 'nontaxable' },
-  { label: 'Rent', value: 'rent_monthly' },
-  { label: 'Dividend', value: 'dividend' },
-  { label: 'Insurance basis', value: 'director_basis' },
-]
+const KINDS: readonly { readonly label: string; readonly value: Kind }[] = (['salary_gross', 'nontaxable', 'rent_monthly', 'dividend', 'director_basis'] as const).map((value) => ({
+  label: words.componentDialog.kinds[value],
+  value,
+}))
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -60,8 +58,8 @@ const to = ref('')
 const tried = ref(false)
 
 const items = computed(() => yearlyItems(props.scenario.year))
-const itemChoices = computed(() => items.value.map((entry) => ({ label: `${entry.label}, cap ${formatMoney(entry.cap)} a year`, value: entry.item })))
-const basisChoices = DIRECTOR_BASES.map((value) => ({ label: `As ${BASIS_WORDS[value]}`, value }))
+const itemChoices = computed(() => items.value.map((entry) => ({ label: words.componentDialog.itemChoice(entry.label, formatMoney(entry.cap)), value: entry.item })))
+const basisChoices = DIRECTOR_BASES.map((value) => ({ label: words.componentDialog.basisChoice(BASIS_WORDS[value]), value }))
 
 watch(
   open,
@@ -85,12 +83,12 @@ function shownAmount(component: ScenarioComponent | null): string {
   if (component === null) return ''
   switch (component.component) {
     case 'salary_gross':
-      return component.gross === 'floor' ? '' : plainAmount(component.gross)
+      return component.gross === 'floor' ? '' : amountForTyping(component.gross)
     case 'dividend':
-      return component.amount === 'max' ? '' : plainAmount(component.amount)
+      return component.amount === 'max' ? '' : amountForTyping(component.amount)
     case 'nontaxable':
     case 'rent_monthly':
-      return plainAmount(component.amount)
+      return amountForTyping(component.amount)
     case 'director_basis':
       return ''
   }
@@ -100,7 +98,7 @@ function shownAmount(component: ScenarioComponent | null): string {
 watch([kind, item], ([chosen, picked]) => {
   if (open.value && chosen === 'nontaxable' && props.component?.component !== 'nontaxable') {
     const cap = items.value.find((entry) => entry.item === picked)?.cap
-    if (cap !== undefined) amount.value = plainAmount(cap)
+    if (cap !== undefined) amount.value = amountForTyping(cap)
   }
 })
 
@@ -122,12 +120,12 @@ function dayIn(text: string): CivilDate | null | 'bad' {
 const errors = computed(() => {
   const start = hasSpan.value ? dayIn(from.value) : null
   const end = hasEnd.value ? dayIn(to.value) : null
-  const inYear = `A day in ${props.scenario.year}, or blank`
+  const inYear = words.componentDialog.inYearError(props.scenario.year)
   return {
-    amount: needsAmount.value && parsedAmount.value === null ? 'An amount above zero with at most two decimals' : null,
-    item: kind.value === 'nontaxable' && item.value === '' ? 'Choose the item' : null,
+    amount: needsAmount.value && parsedAmount.value === null ? words.componentDialog.amountError : null,
+    item: kind.value === 'nontaxable' && item.value === '' ? words.componentDialog.itemError : null,
     from: start === 'bad' ? inYear : null,
-    to: end === 'bad' ? inYear : start !== 'bad' && end !== 'bad' && start !== null && end !== null && end < start ? 'On or after the first day' : null,
+    to: end === 'bad' ? inYear : start !== 'bad' && end !== 'bad' && start !== null && end !== null && end < start ? words.componentDialog.toError : null,
   }
 })
 
@@ -165,13 +163,16 @@ async function save(): Promise<void> {
   const component = props.component
   if (component === null) {
     const added = scenarioRowOfComponent(props.scenario.slug, '', props.scenario.year, typed)
-    if (await writes.write('Component added', (unit) => unit.of(SCENARIO_WRITES).add(added), { failedTitle: 'Not added' })) open.value = false
+    if (await writes.write(words.componentDialog.added, (unit) => unit.of(SCENARIO_WRITES).add(added), { failedTitle: words.componentDialog.notAdded })) open.value = false
     return
   }
   const before = storedRow(component)
   if (before === null) return
   const after = scenarioRowOfComponent(before.slug, before.label, before.year, typed)
-  const saved = await writes.write('Component saved', (unit) => unit.of(SCENARIO_WRITES).change(before, after), { description: `${componentInWords(component)}.`, failedTitle: 'Not saved' })
+  const saved = await writes.write(words.componentDialog.saved, (unit) => unit.of(SCENARIO_WRITES).change(before, after), {
+    description: words.componentDialog.inWords(componentInWords(component)),
+    failedTitle: words.componentDialog.notSaved,
+  })
   if (saved) open.value = false
 }
 
@@ -179,7 +180,10 @@ async function remove(): Promise<void> {
   const component = props.component
   const before = component === null ? null : storedRow(component)
   if (component === null || before === null) return
-  const deleted = await writes.write('Component deleted', (unit) => unit.of(SCENARIO_WRITES).remove(before), { description: `${componentInWords(component)}.`, failedTitle: 'Not deleted' })
+  const deleted = await writes.write(words.componentDialog.deleted, (unit) => unit.of(SCENARIO_WRITES).remove(before), {
+    description: words.componentDialog.inWords(componentInWords(component)),
+    failedTitle: words.componentDialog.notDeleted,
+  })
   if (deleted) open.value = false
 }
 </script>
@@ -187,59 +191,63 @@ async function remove(): Promise<void> {
 <template>
   <AppDialog
     v-model:open="open"
-    :title="component === null ? 'Add a component' : 'Edit the component'"
-    :description="component === null ? `To ${scenario.label || scenario.slug}, for ${scenario.year}.` : `On the scenarios tab: ${componentInWords(component)}. Only the cells you change are written.`"
+    :title="component === null ? words.componentDialog.addTitle : words.componentDialog.editTitle"
+    :description="component === null ? words.componentDialog.addDescription(scenarioName(scenario), scenario.year) : words.componentDialog.editDescription(componentInWords(component))"
   >
     <FormGrid id="scenario-component" as="form" data-testid="scenario-component-form" @submit.prevent="save">
-      <UFormField label="What it is" class="sm:col-span-2">
+      <UFormField :label="words.componentDialog.kind" class="sm:col-span-2">
         <USelect v-model="kind" :items="[...KINDS]" class="w-full" data-testid="component-kind" />
       </UFormField>
-      <UFormField v-if="kind === 'salary_gross'" class="sm:col-span-2" help="The floor is the lowest base a director employed by the company can be paid on, from the ruleset for the year.">
-        <UCheckbox v-model="atFloor" label="At the director floor" data-testid="component-at-floor" />
+      <UFormField v-if="kind === 'salary_gross'" class="sm:col-span-2" :help="words.componentDialog.floorHelp">
+        <UCheckbox v-model="atFloor" :label="words.componentDialog.atFloor" data-testid="component-at-floor" />
       </UFormField>
-      <UFormField v-if="kind === 'dividend'" class="sm:col-span-2" help="Paid out of the year's profit once its statements are adopted.">
-        <UCheckbox v-model="atMost" label="The year's profit after tax, as far as it can be paid out" data-testid="component-at-most" />
+      <UFormField v-if="kind === 'dividend'" class="sm:col-span-2" :help="words.componentDialog.dividendHelp">
+        <UCheckbox v-model="atMost" :label="words.componentDialog.atMost" data-testid="component-at-most" />
       </UFormField>
-      <UFormField v-if="kind === 'nontaxable'" label="Item" :error="(tried && errors.item) || false" class="sm:col-span-2">
+      <UFormField v-if="kind === 'nontaxable'" :label="words.componentDialog.item" :error="(tried && errors.item) || false" class="sm:col-span-2">
         <USelect v-model="item" :items="itemChoices" class="w-full" data-testid="component-item" />
       </UFormField>
-      <UFormField
-        v-if="kind === 'director_basis'"
-        label="Insured"
-        class="sm:col-span-2"
-        help="On a day with a salary the director is an employee. Without one he is a board member only, unless a job elsewhere insures him."
-      >
+      <UFormField v-if="kind === 'director_basis'" :label="words.componentDialog.insured" class="sm:col-span-2" :help="words.componentDialog.insuredHelp">
         <USelect v-model="basis" :items="basisChoices" class="w-full" data-testid="component-basis" />
       </UFormField>
       <UFormField
         v-if="needsAmount"
-        :label="kind === 'nontaxable' ? 'Amount for the year' : kind === 'dividend' ? 'Dividend' : 'Amount a month'"
+        :label="kind === 'nontaxable' ? words.componentDialog.yearAmount : kind === 'dividend' ? words.componentDialog.dividend : words.componentDialog.monthAmount"
         :error="(tried && errors.amount) || false"
         class="sm:col-span-2"
       >
-        <UInput v-model="amount" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="component-amount" />
+        <UInput v-model="amount" inputmode="decimal" :placeholder="words.componentDialog.amountPlaceholder" class="w-full" data-testid="component-amount" />
       </UFormField>
       <UFormField
         v-if="hasSpan"
-        :label="kind === 'nontaxable' ? 'Paid in the month of' : 'From'"
+        :label="kind === 'nontaxable' ? words.componentDialog.paidInMonthOf : words.componentDialog.from"
         :error="(tried && errors.from) || false"
-        :help="kind === 'nontaxable' ? 'Blank pays it with the January salary.' : 'Blank is 1 January.'"
+        :help="kind === 'nontaxable' ? words.componentDialog.withJanuary : words.componentDialog.fromJanuary"
       >
         <UInput v-model="from" type="date" class="w-full" data-testid="component-from" />
       </UFormField>
-      <UFormField v-if="hasEnd" label="To" :error="(tried && errors.to) || false" help="Blank is 31 December.">
+      <UFormField v-if="hasEnd" :label="words.componentDialog.to" :error="(tried && errors.to) || false" :help="words.componentDialog.toDecember">
         <UInput v-model="to" type="date" class="w-full" data-testid="component-to" />
       </UFormField>
     </FormGrid>
     <template #start>
-      <UButton v-if="component !== null" label="Delete component" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="component-delete" @click="remove" />
+      <UButton
+        v-if="component !== null"
+        :label="words.componentDialog.delete"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="ghost"
+        :disabled="writes.busy.value"
+        data-testid="component-delete"
+        @click="remove"
+      />
     </template>
     <template #end>
-      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.componentDialog.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
       <UButton
         type="submit"
         form="scenario-component"
-        :label="component === null ? 'Add component' : 'Save component'"
+        :label="component === null ? words.componentDialog.add : words.componentDialog.save"
         :icon="component === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.busy.value"
         :disabled="writes.busy.value"

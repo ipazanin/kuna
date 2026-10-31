@@ -9,6 +9,7 @@ import { useRulesChangePreview } from '../application/useRulesChange'
 import { writeRulesChange } from '../application/ruleWrites'
 import type { RulesTabChange } from '../domain/rulesTabChange'
 import RuleChangeReview from './RuleChangeReview.vue'
+import { words } from './words'
 
 export interface PendingRulesChange {
   readonly title: string
@@ -44,16 +45,16 @@ const canSave = computed(() => preview.value !== null && preview.value.refusals.
 async function save(): Promise<void> {
   if (props.pending === null || !canSave.value) return
   const { change, saved } = props.pending
-  if (await rulesWrites.write(saved, (unit) => writeRulesChange(unit, change), { failedTitle: 'Not saved' })) open.value = false
+  if (await rulesWrites.write(saved, (unit) => writeRulesChange(unit, change), { failedTitle: words.editor.notSaved })) open.value = false
 }
 </script>
 
 <template>
-  <AppDialog v-model:open="open" width="2xl" :title="pending?.title ?? 'Change the rules'" :description="pending?.description">
+  <AppDialog v-model:open="open" width="2xl" :title="pending?.title ?? words.change.title" :description="pending?.description">
     <RuleChangeReview v-if="preview" v-model:accepted="accepted" :preview="preview" />
     <template #end>
-      <UButton label="Cancel" color="neutral" variant="ghost" @click="open = false" />
-      <UButton :label="pending?.action ?? 'Save'" icon="i-lucide-save" :loading="rulesWrites.busy.value" :disabled="!canSave" data-testid="save-rules-change" @click="save" />
+      <UButton :label="words.change.cancel" color="neutral" variant="ghost" @click="open = false" />
+      <UButton :label="pending?.action ?? words.change.save" icon="i-lucide-save" :loading="rulesWrites.busy.value" :disabled="!canSave" data-testid="save-rules-change" @click="save" />
     </template>
   </AppDialog>
 </template>

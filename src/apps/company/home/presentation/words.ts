@@ -10,9 +10,9 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
-  purpose: 'Knjige vaše tvrtke iz bankovnih izvoda: novac, računi, porezi i kraj godine.',
+  purpose: 'Financije vaše tvrtke iz bankovnih izvoda: novac, računi, porezi i kraj godine.',
   cashOnHand: 'Novac na računima',
-  toReview: (count) => ({ one: `${count} stavka za pregled`, few: `${count} stavke za pregled`, other: `${count} stavki za pregled` }),
+  toReview: (count) => ({ one: `${count} stavka za provjeru`, few: `${count} stavke za provjeru`, other: `${count} stavki za provjeru` }),
 }
 
 export const words = language === 'hr' ? hr : en

@@ -5,7 +5,7 @@ import { ownerShareProblem, ownerShareText, storedOwnerShare } from '../../owner
 import { bookingOrder } from './bookingOrder'
 import { UNCLASSIFIED } from './bucket'
 import { LEDGER_RECORDS } from './coreKinds'
-import { ID_FIELD, dayText, labelWords, labelled, numberText } from '../../../../shared/storage/domain/recordCodec'
+import { ID_FIELD } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
 import { recordIdOf } from '../../../../shared/storage/domain/recordId'
@@ -16,6 +16,7 @@ import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
 import { keyedId, refuse, slugOf, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredField, StoredFields } from '../../../../shared/storage/domain/storedFields'
 import type { Category, Transaction } from './workbook'
+import { words } from './words'
 
 /** A ledger row as stored: a transaction before its category is looked up and its booking order derived. */
 export type LedgerEntry = Omit<Transaction, 'sequence' | 'family' | 'bucket' | 'split'>
@@ -54,10 +55,10 @@ export function ledgerIdOf(entry: Pick<LedgerEntry, 'account' | 'reference' | 'd
  * formulas derive them.
  */
 export function ledgerEntryOf(fields: StoredFields, id: RecordId | null): LedgerEntry {
-  const date = fields.date === undefined ? refuse('no date') : (fields.date.date ?? refuse(`the date "${fields.date.text}" is not a date cell`))
+  const date = fields.date === undefined ? refuse(words.ledger.noDate) : (fields.date.date ?? refuse(words.ledger.notADateCell(fields.date.text)))
   const account = slugOf(fields.account)
   if (account === '') {
-    refuse('no account')
+    refuse(words.ledger.noAccount)
   }
   return {
     account,
@@ -110,7 +111,7 @@ function ledgerKey(fields: StoredFields): string | null {
 export const LEDGER_CODEC: RecordCodec<LedgerEntry> = {
   kind: LEDGER_RECORDS,
   key: ledgerKey,
-  label: (fields) => labelWords([dayText(fields.date), textOf(fields.counterparty) || textOf(fields.description), numberText(fields.amount), labelled('balance', numberText(fields.balance))]),
+  label: words.labels.ledgerRow,
   make: ledgerEntryOf,
   fieldsOf: (entry) =>
     filledFields({
@@ -139,9 +140,9 @@ export const LEDGER_CODEC: RecordCodec<LedgerEntry> = {
 
 function amountOf(field: StoredField | undefined, name: string): Transaction['amount'] {
   if (field === undefined) {
-    refuse(`no ${name}`)
+    refuse(words.ledger.noAmount(name))
   }
-  return field.money ?? refuse(`the ${name} "${field.text}" is not a number`)
+  return field.money ?? refuse(words.ledger.notANumber(name, field.text))
 }
 
 /** The statement parser's reasons, joined with `|` in one field. */

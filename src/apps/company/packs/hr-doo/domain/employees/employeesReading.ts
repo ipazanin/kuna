@@ -12,6 +12,7 @@ import type { StoredFields } from '../../../../../../shared/storage/domain/store
 import { findLocalUnit } from '../../ruleset/localUnits'
 import { EMPLOYEE_RECORDS } from '../hrDooKinds'
 import type { Employee } from './employees'
+import { words } from '../words'
 
 const EARLIEST_BIRTH_YEAR = 1900
 const LATEST_BIRTH_YEAR = 2100
@@ -26,15 +27,15 @@ export function employeeOfFields(fields: StoredFields): Employee {
 /** A blank city is kept, since the row still names the person, and reading reports it. A city the ruleset does not know is refused, so the payroll never runs on it. */
 export function employeeOf(fields: StoredFields, id: RecordId | null): Employee {
   const slug = slugOf(fields.employee)
-  if (slug === '') refuse('no employee name')
+  if (slug === '') refuse(words.reading.noEmployeeName)
   const residenceCity = textOf(fields.residence_city)
   const city = residenceCity === '' ? null : findLocalUnit(residenceCity).problem
   if (city !== null) refuse(`residence_city ${city}`)
   const from = requiredDate(fields, 'from')
   const to = optionalDate(fields, 'to')
-  if (to !== null && to < from) refuse(`to ${to} is before from ${from}`)
+  if (to !== null && to < from) refuse(words.reading.before('to', to, 'from', from))
   const agreedGross = optionalMoney(fields, 'agreed_gross')
-  if (agreedGross !== null && agreedGross <= 0) refuse('agreed_gross must be more than zero')
+  if (agreedGross !== null && agreedGross <= 0) refuse(words.reading.agreedGrossAboveZero)
   return {
     slug,
     name: textOf(fields.name),
@@ -54,7 +55,7 @@ export function employeeOf(fields: StoredFields, id: RecordId | null): Employee 
 /** TRUE or FALSE, blank for FALSE. */
 function flagOf(fields: StoredFields, name: string): boolean {
   const field = fields[name]
-  return field === undefined ? false : (booleanOf(field) ?? refuse(`${name} "${field.text}" is neither TRUE nor FALSE`))
+  return field === undefined ? false : (booleanOf(field) ?? refuse(words.reading.notAFlag(name, field.text)))
 }
 
 /** A whole number from `least` to `most`, or null when blank. */
@@ -62,7 +63,7 @@ function wholeNumberIn(fields: StoredFields, name: string, least: number, most: 
   const field = fields[name]
   if (field === undefined) return null
   const number = wholeNumberOf(field)
-  return number !== null && number >= least && number <= most ? number : refuse(`${name} "${field.text}" is not a whole number from ${least} to ${most}`)
+  return number !== null && number >= least && number <= most ? number : refuse(words.reading.notWholeBetween(name, field.text, least, most))
 }
 
 export const EMPLOYEE_CODEC: RecordCodec<Employee> = {
@@ -109,12 +110,10 @@ export function readEmployees(read: RecordsRead<Employee>): EmployeesReading {
   )
   const problems: RecordProblem[] = [
     ...refusedProblems(read),
-    ...read.records.filter((stored) => twice.has(stored.record.slug)).map((stored) => problemOf(stored, `"${stored.record.slug}" is listed on more than one row, so none of them counts`)),
-    ...(directorTwice ? directors.map((stored) => problemOf(stored, 'more than one row is marked director, so none of them counts. Mark one')) : []),
-    ...kept.filter((stored) => stored.record.residenceCity === '').map((stored) => problemOf(stored, 'no residence_city, which sets the income tax rates, so the payroll leaves this employee out')),
-    ...kept.flatMap((stored) =>
-      stored.record.ibans.filter((iban) => sharedIbans.has(iban)).map((iban) => problemOf(stored, `${iban} is on another employee too, so a payment to it counts for neither`)),
-    ),
+    ...read.records.filter((stored) => twice.has(stored.record.slug)).map((stored) => problemOf(stored, words.reading.listedTwice(stored.record.slug))),
+    ...(directorTwice ? directors.map((stored) => problemOf(stored, words.reading.directorTwice)) : []),
+    ...kept.filter((stored) => stored.record.residenceCity === '').map((stored) => problemOf(stored, words.reading.noCity)),
+    ...kept.flatMap((stored) => stored.record.ibans.filter((iban) => sharedIbans.has(iban)).map((iban) => problemOf(stored, words.reading.sharedIban(iban)))),
   ]
   const facts = kept.map((stored) => ({ ...stored.record, ibans: stored.record.ibans.filter((iban) => !sharedIbans.has(iban)) }))
   return { facts, problems, director: facts.find((employee) => employee.director) ?? null }

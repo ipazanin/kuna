@@ -16,6 +16,7 @@ import { typedAmount } from '../../../../../../shared/money/typedAmount'
 import AppDialog from '../../../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../../../shared/ui/FormGrid.vue'
 import { usePlanWrites } from './usePlanWrites'
+import { words } from './words'
 
 type PurchaseLine = Extract<PlanLine, { readonly kind: 'purchase' }>
 
@@ -54,9 +55,9 @@ watch(
 const day = computed(() => parseCivilDate(date.value.trim()))
 const cost = computed(() => typedAmount(amount.value))
 const errors = computed(() => ({
-  name: name.value.trim() === '' ? 'Say what it is' : null,
-  date: day.value === null || yearOf(day.value) !== props.year ? `A day in ${props.year}` : null,
-  amount: cost.value === null || cost.value <= 0 ? 'An amount above zero with at most two decimals' : null,
+  name: name.value.trim() === '' ? words.planDialogs.purchase.nameError : null,
+  date: day.value === null || yearOf(day.value) !== props.year ? words.planDialogs.purchase.dateError(props.year) : null,
+  amount: cost.value === null || cost.value <= 0 ? words.planDialogs.purchase.amountError : null,
 }))
 const valid = computed(() => Object.values(errors.value).every((error) => error === null))
 
@@ -67,47 +68,58 @@ async function save(): Promise<void> {
   const before = props.purchase === null ? null : writes.stored(props.purchase)
   if (props.purchase !== null && before === null) return
   const held = before === null ? [] : [{ key: 'purchase', line: before }]
-  const title = props.purchase === null ? 'Purchase planned' : 'Purchase saved'
-  if (await writes.write(title, (lines) => replacePlanLines(lines, held, [{ key: 'purchase', line }]), { description: `${name.value.trim()}.`, failedTitle: 'Not saved' })) open.value = false
+  const title = props.purchase === null ? words.planDialogs.purchase.planned : words.planDialogs.purchase.saved
+  if (await writes.write(title, (lines) => replacePlanLines(lines, held, [{ key: 'purchase', line }]), { description: `${name.value.trim()}.`, failedTitle: words.planDialogs.notSaved }))
+    open.value = false
 }
 
 async function remove(): Promise<void> {
   const before = props.purchase === null ? null : writes.stored(props.purchase)
   if (before === null) return
-  if (await writes.write('Purchase deleted', (lines) => lines.remove(before), { description: `${name.value.trim() || 'The purchase'} is taken out of the plan.`, failedTitle: 'Not deleted' }))
+  if (
+    await writes.write(words.planDialogs.purchase.deleted, (lines) => lines.remove(before), {
+      description: words.planDialogs.purchase.takenOut(name.value.trim()),
+      failedTitle: words.planDialogs.notDeleted,
+    })
+  )
     open.value = false
 }
 </script>
 
 <template>
-  <AppDialog
-    v-model:open="open"
-    :title="purchase === null ? `Plan a purchase in ${year}` : 'Edit the planned purchase'"
-    description="It joins the asset books on its day. Above the asset threshold it is depreciated from the month after, at or below it is written off in its month."
-  >
+  <AppDialog v-model:open="open" :title="purchase === null ? words.planDialogs.purchase.addTitle(year) : words.planDialogs.purchase.editTitle" :description="words.planDialogs.purchase.description">
     <FormGrid id="purchase-plan" as="form" data-testid="purchase-plan-form" @submit.prevent="save">
-      <UFormField label="What it is" :error="(tried && errors.name) || false" class="sm:col-span-2">
-        <UInput v-model="name" placeholder="Replacement laptop" class="w-full" data-testid="purchase-name" />
+      <UFormField :label="words.planDialogs.purchase.name" :error="(tried && errors.name) || false" class="sm:col-span-2">
+        <UInput v-model="name" :placeholder="words.planDialogs.purchase.namePlaceholder" class="w-full" data-testid="purchase-name" />
       </UFormField>
-      <UFormField label="Bought and put in use" :error="(tried && errors.date) || false">
+      <UFormField :label="words.planDialogs.purchase.date" :error="(tried && errors.date) || false">
         <UInput v-model="date" type="date" class="w-full" data-testid="purchase-date" />
       </UFormField>
-      <UFormField label="Net cost" help="Without the VAT that is reclaimed." :error="(tried && errors.amount) || false">
-        <UInput v-model="amount" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="purchase-amount" />
+      <UFormField :label="words.planDialogs.purchase.cost" :help="words.planDialogs.purchase.costHelp" :error="(tried && errors.amount) || false">
+        <UInput v-model="amount" inputmode="decimal" :placeholder="words.planDialogs.amountPlaceholder" class="w-full" data-testid="purchase-amount" />
       </UFormField>
-      <UFormField label="Depreciation group" class="sm:col-span-2">
+      <UFormField :label="words.planDialogs.purchase.group" class="sm:col-span-2">
         <USelect v-model="group" :items="groups" class="w-full" data-testid="purchase-group" />
       </UFormField>
     </FormGrid>
     <template #start>
-      <UButton v-if="purchase !== null" label="Delete purchase" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="purchase-delete" @click="remove" />
+      <UButton
+        v-if="purchase !== null"
+        :label="words.planDialogs.purchase.delete"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="ghost"
+        :disabled="writes.busy.value"
+        data-testid="purchase-delete"
+        @click="remove"
+      />
     </template>
     <template #end>
-      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.planDialogs.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
       <UButton
         type="submit"
         form="purchase-plan"
-        :label="purchase === null ? 'Plan purchase' : 'Save purchase'"
+        :label="purchase === null ? words.planDialogs.purchase.add : words.planDialogs.purchase.save"
         :icon="purchase === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.busy.value"
         :disabled="writes.busy.value"

@@ -13,6 +13,7 @@ import { typedAmount } from '../../../../../../shared/money/typedAmount'
 import AppDialog from '../../../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../../../shared/ui/FormGrid.vue'
 import { usePlanWrites } from './usePlanWrites'
+import { words } from './words'
 
 type AmountLine = Extract<PlanLine, { readonly kind: 'amount' }>
 
@@ -56,43 +57,59 @@ async function save(): Promise<void> {
   const before = props.dividend === null ? null : writes.stored(props.dividend)
   if (props.dividend !== null && before === null) return
   const held = before === null ? [] : [{ key: 'dividend', line: before }]
-  if (await writes.write('Dividend planned', (lines) => replacePlanLines(lines, held, [{ key: 'dividend', line }]), { description: `For ${props.year}.`, failedTitle: 'Not saved' })) open.value = false
+  if (
+    await writes.write(words.planDialogs.dividend.planned, (lines) => replacePlanLines(lines, held, [{ key: 'dividend', line }]), {
+      description: words.planDialogs.dividend.forYear(props.year),
+      failedTitle: words.planDialogs.notSaved,
+    })
+  )
+    open.value = false
 }
 
 async function remove(): Promise<void> {
   const before = props.dividend === null ? null : writes.stored(props.dividend)
   if (before === null) return
-  if (await writes.write('Dividend deleted', (lines) => lines.remove(before), { description: `The dividend of ${props.year} is taken out of the plan.`, failedTitle: 'Not deleted' }))
+  if (
+    await writes.write(words.planDialogs.dividend.deleted, (lines) => lines.remove(before), {
+      description: words.planDialogs.dividend.takenOut(props.year),
+      failedTitle: words.planDialogs.notDeleted,
+    })
+  )
     open.value = false
 }
 </script>
 
 <template>
-  <AppDialog
-    v-model:open="open"
-    :title="dividend === null ? `Plan a dividend in ${year}` : 'Edit the planned dividend'"
-    description="The payout before its tax. The tax is withheld when it is paid, and the rest settles what the owner owes the company before any of it leaves the cash."
-  >
+  <AppDialog v-model:open="open" :title="dividend === null ? words.planDialogs.dividend.addTitle(year) : words.planDialogs.dividend.editTitle" :description="words.planDialogs.dividend.description">
     <FormGrid id="dividend-plan" as="form" data-testid="dividend-plan-form" @submit.prevent="save">
-      <UFormField label="Dividend before tax" :error="(tried && invalid && 'An amount above zero with at most two decimals') || false">
-        <UInput v-model="amount" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="dividend-amount" />
+      <UFormField :label="words.planDialogs.dividend.amount" :error="(tried && invalid && words.planDialogs.dividend.amountError) || false">
+        <UInput v-model="amount" inputmode="decimal" :placeholder="words.planDialogs.amountPlaceholder" class="w-full" data-testid="dividend-amount" />
       </UFormField>
-      <UFormField label="Paid in">
+      <UFormField :label="words.planDialogs.dividend.paidIn">
         <USelect v-model="month" :items="months" class="w-full" data-testid="dividend-month" />
       </UFormField>
-      <UFormField label="Note" class="sm:col-span-2">
-        <UInput v-model="note" placeholder="After the statements are adopted" class="w-full" data-testid="dividend-note" />
+      <UFormField :label="words.planDialogs.dividend.note" class="sm:col-span-2">
+        <UInput v-model="note" :placeholder="words.planDialogs.dividend.notePlaceholder" class="w-full" data-testid="dividend-note" />
       </UFormField>
     </FormGrid>
     <template #start>
-      <UButton v-if="dividend !== null" label="Delete dividend" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="dividend-delete" @click="remove" />
+      <UButton
+        v-if="dividend !== null"
+        :label="words.planDialogs.dividend.delete"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="ghost"
+        :disabled="writes.busy.value"
+        data-testid="dividend-delete"
+        @click="remove"
+      />
     </template>
     <template #end>
-      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.planDialogs.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
       <UButton
         type="submit"
         form="dividend-plan"
-        :label="dividend === null ? 'Plan dividend' : 'Save dividend'"
+        :label="dividend === null ? words.planDialogs.dividend.add : words.planDialogs.dividend.save"
         :icon="dividend === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.busy.value"
         :disabled="writes.busy.value"

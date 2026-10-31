@@ -10,6 +10,7 @@ import type { StoredFields } from '../../../../../shared/storage/domain/storedFi
 import { ADVANCE_BUCKETS } from '../../../workbook/domain/workbook'
 import type { OwnerAdvance } from '../../../workbook/domain/workbook'
 import { OWNER_ADVANCE_RECORDS } from './hrDooKinds'
+import { words } from './words'
 
 /** A cost the owner paid as the owner-advances tab holds it, before its category is looked up. */
 export type OwnerAdvanceEntry = Omit<OwnerAdvance, 'family' | 'bucket'>
@@ -19,17 +20,17 @@ export type OwnerAdvanceEntry = Omit<OwnerAdvance, 'family' | 'bucket'>
  * it is refused.
  */
 export function ownerAdvanceOf(fields: StoredFields, id: RecordId | null): OwnerAdvanceEntry {
-  const date = fields.date === undefined ? refuse('no date') : (fields.date.date ?? refuse(`the date "${fields.date.text}" is not a date cell`))
-  const amount = fields.amount === undefined ? refuse('no amount') : (fields.amount.money ?? refuse(`the amount "${fields.amount.text}" is not a number`))
+  const date = fields.date === undefined ? refuse(words.reading.noDate) : (fields.date.date ?? refuse(words.reading.notADateCell(fields.date.text)))
+  const amount = fields.amount === undefined ? refuse(words.reading.noAmount) : (fields.amount.money ?? refuse(words.reading.notANumber(fields.amount.text)))
   if (amount === 0) {
-    refuse('the amount is zero')
+    refuse(words.reading.zero)
   }
   if (amount < 0) {
-    refuse('a negative amount is the owner’s private share of a company payment, which belongs on the splits tab. Press "Split" on its bank row on Transactions instead')
+    refuse(words.reading.negativeAdvance)
   }
   const category = slugOf(fields.category)
   if (category === '') {
-    refuse('no category')
+    refuse(words.reading.noCategory)
   }
   return { date, amount, description: textOf(fields.description), category, ownerShare: storedOwnerShare(fields.owner_share), id: ownId(id) }
 }
@@ -65,9 +66,9 @@ export function readOwnerAdvances(
     const { category: slug } = stored.record
     const category = categoryBySlug.get(slug)
     if (category === undefined) {
-      problems.push(problemOf(stored, `"${slug}" is not on the categories tab`))
+      problems.push(problemOf(stored, words.reading.notOnCategories(slug)))
     } else if (!(ADVANCE_BUCKETS as readonly string[]).includes(category.bucket)) {
-      problems.push(problemOf(stored, `"${slug}" is in the ${category.bucket} bucket, and an advance counts as an operating cost or a tax`))
+      problems.push(problemOf(stored, words.reading.advanceBucket(slug, category.bucket)))
     } else if (sharesId(stored)) {
       problems.push(problemOf(stored, SHARED_ID_REASON))
     } else {

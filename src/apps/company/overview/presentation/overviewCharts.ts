@@ -6,6 +6,7 @@ import type { Settings } from '../../settings/domain/settings'
 import type { DrillTarget } from '../../filters/domain/drillTarget'
 import { currencyUnitName, formatMoney, formatPercent } from '../../../../shared/money/moneyFormat'
 import type { EuroSplit, EuroSplitPart } from '../domain/euroSplit'
+import { words } from './words'
 
 interface SplitPart {
   readonly part: EuroSplitPart
@@ -20,7 +21,7 @@ function splitParts(settings: Settings): SplitPart[] {
     { part: 'operating', name: settings.bucketLabels.operating, colour: '--bucket-operating' },
     { part: 'taxes', name: settings.bucketLabels.taxes, colour: '--bucket-taxes' },
     { part: 'ownerPay', name: settings.bucketLabels['owner-pay'], colour: '--bucket-owner-pay' },
-    { part: 'kept', name: 'Kept', colour: '--chart-deemphasis' },
+    { part: 'kept', name: words.euro.kept, colour: '--chart-deemphasis' },
   ]
   return parts.filter((part) => part.part !== 'ownerPay' || lineShown(settings, 'ownerPay'))
 }
@@ -35,9 +36,6 @@ export function euroDonut(split: EuroSplit, settings: Settings, linkOf: (drill: 
   const shares = parts.map((part) => `${inSentence(part.label)} ${formatPercent(split.slices.find((slice) => slice.part === part.key)?.share ?? 0)}`).join(', ')
   return {
     parts,
-    description:
-      split.basis === 'income'
-        ? `Of every ${unit} earned in the last 12 months: ${shares}.`
-        : `In the last 12 months costs exceeded income by ${formatMoney(split.shortfall ?? 0)}, so the ring splits every ${unit} spent: ${shares}.`,
+    description: split.basis === 'income' ? words.euro.ofIncome(unit, shares) : words.euro.ofCost(formatMoney(split.shortfall ?? 0), unit, shares),
   }
 }

@@ -9,6 +9,7 @@ import { recordWithId } from '../../../../shared/storage/domain/recordsRead'
 import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 import type { OwnerShare, ShareFill, ShareTarget } from '../domain/ownerShare'
+import { words } from '../domain/words'
 
 interface SharedRecord {
   readonly id: RecordId
@@ -21,7 +22,7 @@ type ShareFrom = (held: OwnerShare | null) => OwnerShare | null
 function changeShare<R extends SharedRecord>(repository: Repository<R>, read: RecordsRead<R>, id: RecordId, shareFrom: ShareFrom): void {
   const held = recordWithId(read, id)?.record
   if (held === undefined) {
-    throw new Error('The row is no longer in the workbook as the app read it. Sync and look again.')
+    throw new Error(words.rowGone)
   }
   const share = shareFrom(held.ownerShare)
   if (held.ownerShare !== share) {
@@ -34,7 +35,7 @@ function ownerAdvances(records: WorkbookRecords): { readonly rules: WriteRules<S
   const part = installedPack().workbook
   const rules = part?.kinds.find((kind) => kind.kind.name === part.ownerAdvanceNaming.kind.name)
   if (part === null || rules === undefined) {
-    throw new Error('No pack keeps owner advances in this workbook.')
+    throw new Error(words.noAdvances)
   }
   return { rules: rules as WriteRules<SharedRecord>, read: recordsOfKindIn(records, part.ownerAdvanceNaming.kind) as RecordsRead<SharedRecord> }
 }

@@ -12,8 +12,7 @@ import { useLoansBooks } from '../../workbook/application/loansStore'
 import type { InformalLoan } from '../../workbook/domain/informalLoan'
 import type { InformalLoanBook } from '../../workbook/domain/readLoanBook'
 import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
-import { plainAmount } from '../../../../shared/money/money'
-import { typedAmount } from '../../../../shared/money/typedAmount'
+import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
@@ -51,7 +50,7 @@ watch(open, (opened) => {
   name.value = loan?.name ?? ''
   counterparty.value = loan?.counterparty ?? ''
   direction.value = loan?.direction ?? 'you-owe'
-  opening.value = loan === null ? '' : plainAmount(loan.openingBalance)
+  opening.value = loan === null ? '' : amountForTyping(loan.openingBalance)
   start.value = loan?.start ?? ''
   note.value = loan?.note ?? ''
   tried.value = false

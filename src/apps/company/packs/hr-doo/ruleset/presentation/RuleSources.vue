@@ -2,6 +2,7 @@
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import type { SourceView } from './ruleWording'
+import { words } from './words'
 
 /** A rule's sources, each once, with the versions that cite it when not all of them do. */
 defineProps<{
@@ -10,8 +11,8 @@ defineProps<{
 </script>
 
 <template>
-  <section class="flex flex-col gap-1.5" aria-label="Sources">
-    <h4 class="text-xs font-medium text-muted">Sources</h4>
+  <section class="flex flex-col gap-1.5" :aria-label="words.detail.sources">
+    <h4 class="text-xs font-medium text-muted">{{ words.detail.sources }}</h4>
     <ul class="flex flex-col gap-1">
       <li v-for="source in sources" :key="source.key">
         <a :href="source.url" target="_blank" rel="noopener noreferrer" class="source-link" data-testid="rule-source">
@@ -23,10 +24,10 @@ defineProps<{
             <UIcon name="i-lucide-external-link" class="mt-0.5 size-3.5 shrink-0 text-muted" aria-hidden="true" />
           </span>
           <span class="figure text-xs text-muted">
-            <span v-if="source.periods !== null" class="text-toned">For {{ source.periods }}. </span>
-            <template v-if="source.issues">{{ source.issues }}. </template>Checked on {{ source.loadedOn }}.
+            <span v-if="source.periods !== null" class="text-toned">{{ words.detail.forPeriods(source.periods) }}</span>
+            <template v-if="source.issues">{{ source.issues }}. </template>{{ words.detail.checkedOn(source.loadedOn) }}
           </span>
-          <span class="sr-only">Opens in a new tab.</span>
+          <span class="sr-only">{{ words.detail.opensInNewTab }}</span>
         </a>
         <blockquote v-if="source.quote" lang="hr" class="mt-1 border-s-2 border-default ps-3 text-xs text-toned italic">{{ source.quote }}</blockquote>
       </li>

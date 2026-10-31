@@ -10,6 +10,7 @@ import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
 import { keyedId, optionalPeriod, refusalOr, refuse, slugOf, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import type { Invoice } from './workbook'
+import { words } from './words'
 
 /** What an invoice is kept by: its client and its number. */
 export function invoiceKeyOf(invoice: Pick<Invoice, 'client' | 'number'>): string {
@@ -24,15 +25,15 @@ export function invoiceIdOf(invoice: Pick<Invoice, 'client' | 'number'>): Record
 export function invoiceOf(fields: StoredFields, id: RecordId | null): Invoice {
   const number = textOf(fields.number)
   if (number === '') {
-    refuse('no invoice number')
+    refuse(words.invoices.noNumber)
   }
   const client = slugOf(fields.client)
   if (client === '') {
-    refuse('no client')
+    refuse(words.invoices.noClient)
   }
-  const amount = fields.amount?.money ?? refuse(`the amount "${textOf(fields.amount)}" is not a number`)
-  const issued = fields.issued?.date ?? refuse(`the issue date "${textOf(fields.issued)}" is not a date cell`)
-  const due = fields.due === undefined ? null : (fields.due.date ?? refuse(`the due date "${fields.due.text}" is not a date cell`))
+  const amount = fields.amount?.money ?? refuse(words.invoices.notANumber(textOf(fields.amount)))
+  const issued = fields.issued?.date ?? refuse(words.invoices.issuedNotADate(textOf(fields.issued)))
+  const due = fields.due === undefined ? null : (fields.due.date ?? refuse(words.invoices.dueNotADate(fields.due.text)))
   const period = deliveryPeriodOf(fields)
   return { number, client, item: textOf(fields.item), amount, issued, due, deliveryPeriod: 'made' in period ? period.made : null, id: keyedId(id) }
 }
@@ -79,15 +80,15 @@ export function readInvoices(read: RecordsRead<Invoice>, clientSlugs: ReadonlySe
   for (const stored of read.records) {
     const invoice = stored.record
     if (shared.has(keyOf(invoice))) {
-      problems.push(problemOf(stored, `invoice ${invoice.number} for ${invoice.client} is listed on more than one row, so none of them counts`))
+      problems.push(problemOf(stored, words.invoices.listedTwice(invoice.number, invoice.client)))
       continue
     }
     if (!clientSlugs.has(invoice.client)) {
-      problems.push(problemOf(stored, `${invoice.client} is not on the clients tab, so no payment can be matched to invoice ${invoice.number}`))
+      problems.push(problemOf(stored, words.invoices.clientMissing(invoice.client, invoice.number)))
     }
     const period = deliveryPeriodOf(stored.fields)
     if ('refused' in period) {
-      problems.push(problemOf(stored, `${period.refused}, so the issue date stands for the delivery period`))
+      problems.push(problemOf(stored, words.invoices.periodUnread(period.refused)))
     }
     invoices.push(invoice)
   }

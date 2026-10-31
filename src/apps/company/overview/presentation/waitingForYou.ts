@@ -5,6 +5,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import { monthInYear } from '../../../../shared/calendar/monthLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { plural } from '../../../../shared/text/translation'
 import { expectedInvoices } from '../../billingPlan/domain/expectedInvoices'
 import { planMonthLink } from '../../invoicing/presentation/invoicingLinks'
 import { amountsOwed } from '../../receivables/domain/ageing'
@@ -13,6 +14,7 @@ import { shownPack } from '../../packs/packContribution'
 import { needsReview } from '../../workbook/domain/needsReview'
 import { newestBookingOf } from '../../workbook/domain/workbook'
 import type { Transaction, Workbook } from '../../workbook/domain/workbook'
+import { words } from './words'
 
 /** One job that has something to do, said in a line, with the page and tab that does it. */
 export interface WaitingJob {
@@ -22,11 +24,6 @@ export interface WaitingJob {
   /** `negative` for something already late, `warning` for something due. */
   readonly tone: 'warning' | 'negative'
   readonly link: { readonly label: string; readonly to: RouteLocationRaw }
-}
-
-/** The singular wording for one, or the count with the plural wording. */
-export function counted(count: number, one: string, many: string): string {
-  return count === 1 ? one : `${count} ${many}`
 }
 
 /**
@@ -49,9 +46,9 @@ export function statementsJob(notFiled: number, problem: string | null): Waiting
   if (notFiled === 0 && problem === null) return null
   return {
     key: 'statements',
-    text: notFiled > 0 ? `${counted(notFiled, '1 statement was', 'statements were')} not filed` : 'The statements folder could not be read',
+    text: notFiled > 0 ? plural(words.waiting.notFiled(notFiled), notFiled) : words.waiting.folderUnread,
     tone: 'warning',
-    link: { label: 'Import', to: { path: '/company/transactions', query: { tab: 'import' } } },
+    link: { label: words.waiting.links.import, to: { path: '/company/transactions', query: { tab: 'import' } } },
   }
 }
 
@@ -60,9 +57,9 @@ function reviewJob(bankRows: readonly Transaction[]): WaitingJob | null {
   if (count === 0) return null
   return {
     key: 'review',
-    text: `${count} ${count === 1 ? 'row waits' : 'rows wait'} for a category check`,
+    text: plural(words.waiting.toReview(count), count),
     tone: 'warning',
-    link: { label: 'Review', to: '/company/review' },
+    link: { label: words.waiting.links.review, to: '/company/review' },
   }
 }
 
@@ -74,15 +71,15 @@ function invoiceJob(workbook: Workbook, asOf: CivilDate): WaitingJob | null {
   const clientName = (slug: string): string => workbook.clients.find((client) => client.slug === slug)?.name || slug
   const text =
     due.length > 1
-      ? `${due.length} invoices the billing plan expects are not made yet, the oldest for ${monthInYear(oldest.month, yearOf(asOf))}`
+      ? plural(words.waiting.invoicesNotMade(due.length, monthInYear(oldest.month, yearOf(asOf))), due.length)
       : oldest.month === thisMonth
-        ? `This month's invoice for ${clientName(oldest.client)} is not made yet`
-        : `The ${monthInYear(oldest.month, yearOf(asOf))} invoice for ${clientName(oldest.client)} is not made yet`
+        ? words.waiting.thisMonthNotMade(clientName(oldest.client))
+        : words.waiting.monthNotMade(monthInYear(oldest.month, yearOf(asOf)), clientName(oldest.client))
   return {
     key: 'invoice',
     text,
     tone: oldest.month < thisMonth ? 'negative' : 'warning',
-    link: { label: 'Invoicing', to: planMonthLink(oldest.month) },
+    link: { label: words.waiting.links.invoicing, to: planMonthLink(oldest.month) },
   }
 }
 
@@ -92,8 +89,8 @@ function overdueJob(workbook: Workbook, asOf: CivilDate): WaitingJob | null {
   if (overdueCount === 0) return null
   return {
     key: 'overdue',
-    text: `${counted(overdueCount, 'An invoice is', 'invoices are')} past the due date, ${formatMoney(overdue)} still owed`,
+    text: plural(words.waiting.overdue(overdueCount, formatMoney(overdue)), overdueCount),
     tone: 'negative',
-    link: { label: 'Invoices', to: '/company/invoicing' },
+    link: { label: words.waiting.links.invoices, to: '/company/invoicing' },
   }
 }

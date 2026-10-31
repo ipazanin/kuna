@@ -23,8 +23,10 @@ import type { GeneralRule, RuleArea } from '../schema'
 import ConfidenceBadge from './ConfidenceBadge.vue'
 import RuleDetail from './RuleDetail.vue'
 import WatchList from './WatchList.vue'
-import { AREA_WORDING, CONFIDENCE_ORDER, CONFIDENCE_WORDING, openItemView, ruleLink, ruleView, termFormat, watchedVersionView } from './ruleWording'
+import { CONFIDENCE_ORDER, CONFIDENCE_WORDING, openItemView, ruleLink, ruleView, termFormat, watchedVersionView } from './ruleWording'
 import type { TableFocus } from './ruleWording'
+import { words } from './words'
+import { plural } from '../../../../../../shared/text/translation'
 
 type AreaChoice = RuleArea | 'all'
 
@@ -47,9 +49,7 @@ const rules = computed(() => {
 /** The local rates open on the unit the director lives in, found by its name and its county. */
 const localRatesFocus = computed((): TableFocus => {
   const { unit } = findLocalUnit((state.workbook === null ? null : hrDooWorkbook(state.workbook).director)?.residenceCity ?? '')
-  return unit === null
-    ? { cells: null, hint: 'Search for a city or municipality, or show them all. Set where the director lives on Salaries to open on that one.' }
-    : { cells: [unit.unit, unit.county], hint: '' }
+  return unit === null ? { cells: null, hint: words.localRatesHint } : { cells: [unit.unit, unit.county], hint: '' }
 })
 
 function tableFocusOf(ruleId: string): TableFocus | null {
@@ -74,12 +74,12 @@ const rulesShown = computed(() => rulesFound.value.filter((rule) => area.value =
 const watchShown = computed(() => watched.filter((item) => (area.value === 'all' || item.area === area.value) && matchesSearch(item.searchText)))
 
 const areaChoices = computed(() => [
-  { area: 'all' as const, label: 'All areas', count: rulesFound.value.length },
-  ...areas.map((choice) => ({ area: choice, label: AREA_WORDING[choice].label, count: rulesFound.value.filter((rule) => rule.area === choice).length })),
+  { area: 'all' as const, label: words.allAreas, count: rulesFound.value.length },
+  ...areas.map((choice) => ({ area: choice, label: words.areas[choice].label, count: rulesFound.value.filter((rule) => rule.area === choice).length })),
 ])
 
 const sections = computed(() =>
-  areas.map((choice) => ({ area: choice, ...AREA_WORDING[choice], rules: rulesShown.value.filter((rule) => rule.area === choice) })).filter((section) => section.rules.length > 0),
+  areas.map((choice) => ({ area: choice, ...words.areas[choice], rules: rulesShown.value.filter((rule) => rule.area === choice) })).filter((section) => section.rules.length > 0),
 )
 
 const linkedRule = computed(() => (typeof route.query.rule === 'string' ? route.query.rule : null))
@@ -128,58 +128,47 @@ watch(
 
 <template>
   <div class="flex flex-col gap-6">
-    <p class="max-w-[75ch] text-sm text-muted">
-      The Croatian law behind the pack's figures: each rule's value per year, the article it comes from, and how sure that value is. Checked against the sources on
-      {{ checkedOn }}.
-    </p>
+    <p class="max-w-[75ch] text-sm text-muted">{{ words.intro(checkedOn) }}</p>
 
     <div ref="filterBar" role="search" class="ruleset-bar" data-testid="ruleset-bar">
-      <UInput
-        v-model="search"
-        icon="i-lucide-search"
-        enterkeyhint="search"
-        placeholder="Search by rule id, name, act or article"
-        aria-label="Search the ruleset"
-        class="ruleset-search"
-        data-testid="ruleset-search"
-      >
+      <UInput v-model="search" icon="i-lucide-search" enterkeyhint="search" :placeholder="words.search" :aria-label="words.searchLabel" class="ruleset-search" data-testid="ruleset-search">
         <template v-if="search" #trailing>
-          <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" aria-label="Clear the search" @click="search = ''" />
+          <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" :aria-label="words.clearSearch" @click="search = ''" />
         </template>
       </UInput>
-      <div role="group" aria-label="Area" class="areas flex rounded-control border border-default bg-raised p-0.5">
+      <div role="group" :aria-label="words.area" class="areas flex rounded-control border border-default bg-raised p-0.5">
         <button v-for="choice in areaChoices" :key="choice.area" type="button" class="area" :aria-pressed="area === choice.area" :data-testid="`area-${choice.area}`" @click="area = choice.area">
           {{ choice.label }} <span class="figure text-muted">{{ choice.count }}</span>
         </button>
       </div>
       <p class="figure text-xs text-muted" aria-live="polite" data-testid="ruleset-count">
-        {{ rulesShown.length === rules.length ? `${rules.length} rules` : `${rulesShown.length} of ${rules.length} rules` }}
+        {{ rulesShown.length === rules.length ? plural(words.count(rules.length), rules.length) : words.shownOf(rulesShown.length, rules.length) }}
       </p>
     </div>
 
     <AppCard v-if="linkedMissing" as="div" class="px-4 py-3" role="status">
       <p class="text-sm text-toned">
-        The link points at <span class="identifier">{{ linkedRule }}</span
-        >, which is not in the ruleset. It may have been renamed, so search for it below.
+        {{ words.linkedMissing.before }} <span class="identifier">{{ linkedRule }}</span
+        >{{ words.linkedMissing.after }}
       </p>
     </AppCard>
 
     <WatchList :items="watchShown" :total="watched.length" :checked-on="checkedOn" :searching="searched !== ''" />
 
     <p v-if="sections.length === 0" class="py-6 text-sm text-muted">
-      No rule matches "{{ search }}"{{ area === 'all' ? '' : ` in ${AREA_WORDING[area].label}` }}.
-      <UButton label="Clear the search" color="neutral" variant="link" size="sm" class="inline-target" @click="clearSearch" />
+      {{ words.noMatch(search, area === 'all' ? null : words.areas[area].label) }}
+      <UButton :label="words.clearSearch" color="neutral" variant="link" size="sm" class="inline-target" @click="clearSearch" />
     </p>
 
-    <AppCard v-else title="Rules by area" subtitle="This year's value of each rule and how sure it is. Open a rule for every year, its notes and its sources." class="overflow-clip">
+    <AppCard v-else :title="words.byArea" :subtitle="words.byAreaHelp" class="overflow-clip">
       <template #actions>
-        <InfoPopover subject="how sure each value is">
+        <InfoPopover :subject="words.howSure">
           <dl class="flex max-w-sm flex-col gap-2.5 p-3" data-testid="confidence-legend">
             <div v-for="confidence in CONFIDENCE_ORDER" :key="confidence" class="flex flex-col items-start gap-1">
               <dt><ConfidenceBadge :confidence="confidence" /></dt>
               <dd class="text-xs text-toned">{{ CONFIDENCE_WORDING[confidence].meaning }}</dd>
             </div>
-            <p class="text-xs text-muted">The figures are for planning with the accountant, never filing advice.</p>
+            <p class="text-xs text-muted">{{ words.planningOnly }}</p>
           </dl>
         </InfoPopover>
       </template>

@@ -18,9 +18,9 @@ import { words } from './words'
 
 /** The company's Settings at `#/company/settings`: the books' tabs with the pack's, and Books file, where the books are kept. */
 const CORE_TABS: readonly SettingsTab[] = [
-  { value: 'general', label: 'General', icon: 'i-lucide-sliders-horizontal', component: GeneralSettingsTab },
-  { value: 'categories', label: 'Categories', icon: 'i-lucide-tags', component: CategoriesSettingsTab },
-  { value: 'accounts', label: 'Accounts', icon: 'i-lucide-landmark', component: AccountsSettingsTab },
+  { value: 'general', label: words.tabNames.general, icon: 'i-lucide-sliders-horizontal', component: GeneralSettingsTab },
+  { value: 'categories', label: words.tabNames.categories, icon: 'i-lucide-tags', component: CategoriesSettingsTab },
+  { value: 'accounts', label: words.tabNames.accounts, icon: 'i-lucide-landmark', component: AccountsSettingsTab },
 ]
 const BOOKS_TAB = 'books'
 

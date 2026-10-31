@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import {
   afterPhrase,
-  countsLine,
   filedMailProperties,
   mailAddressesOf,
   mailAddressesProblem,
@@ -11,14 +10,13 @@ import {
   mailSubjectProblem,
   mailWindow,
   missingTerms,
-  missingWords,
-  notFiledSentence,
   sourceTerms,
   strippedSubject,
   windowReaches,
   yearFolderName,
   yearsSince,
 } from '../src/apps/company/mail/domain/mailSource'
+import { en } from '../src/apps/company/mail/domain/words'
 import { civilDate, civilDateIn, parseCivilDate, startOfDayIn } from '../src/shared/calendar/civilDate'
 
 const SINCE = Date.parse('2024-12-31T23:00:00Z')
@@ -59,9 +57,9 @@ describe('a mail source', () => {
     expect(sourceTerms(true, terms)).toEqual({ kind: 'on', terms })
     expect(sourceTerms(true, { ...terms, senders: [] })).toEqual({ kind: 'incomplete', missing: ['sender'] })
     expect(missingTerms({ senders: [], subject: '', folder: [] })).toEqual(['sender', 'subject', 'folder'])
-    expect(missingWords(['sender'])).toBe('no sender')
-    expect(missingWords(['sender', 'folder'])).toBe('no sender and no folder')
-    expect(missingWords(['sender', 'subject', 'folder'])).toBe('no sender, no subject and no folder')
+    expect(en.incomplete(['sender'])).toBe('It is on, but has no sender')
+    expect(en.incomplete(['sender', 'folder'])).toBe('It is on, but has no sender and no folder')
+    expect(en.incomplete(['sender', 'subject', 'folder'])).toBe('It is on, but has no sender, no subject and no folder')
   })
 
   it('reaches back to a mail less than a week older than the newest it files, and no further', () => {
@@ -90,18 +88,18 @@ describe('a mail source', () => {
   it('counts what it found in one line, with nothing new said when nothing was filed', () => {
     const none = { filed: 0, notFiled: 0, already: 0, corrections: 0, unchecked: 0, unmatched: 0 }
 
-    expect(countsLine({ ...none, filed: 2, already: 50 })).toBe('Filed 2, already there 50')
-    expect(countsLine({ ...none, filed: 2, already: 50, unmatched: 1 })).toBe('Filed 2, already there 50, 1 unmatched')
-    expect(countsLine({ ...none, already: 50 })).toBe('Nothing new, already there 50')
-    expect(countsLine({ ...none, corrections: 2, unchecked: 1 })).toBe('Nothing new, 2 corrections, 1 not compared')
-    expect(countsLine({ ...none, notFiled: 1, already: 50 })).toBe('Nothing filed, already there 50')
-    expect(countsLine({ ...none, filed: 1, notFiled: 1 })).toBe('Filed 1')
+    expect(en.counts({ ...none, filed: 2, already: 50 })).toBe('Filed 2, already there 50')
+    expect(en.counts({ ...none, filed: 2, already: 50, unmatched: 1 })).toBe('Filed 2, already there 50, 1 unmatched')
+    expect(en.counts({ ...none, already: 50 })).toBe('Nothing new, already there 50')
+    expect(en.counts({ ...none, corrections: 2, unchecked: 1 })).toBe('Nothing new, 2 corrections, 1 not compared')
+    expect(en.counts({ ...none, notFiled: 1, already: 50 })).toBe('Nothing filed, already there 50')
+    expect(en.counts({ ...none, filed: 1, notFiled: 1 })).toBe('Filed 1')
   })
 
   it('names the files that were not filed, two at most before it counts the rest', () => {
-    expect(notFiledSentence(['a.pdf'])).toBe('a.pdf was not filed.')
-    expect(notFiledSentence(['a.pdf', 'b.xml'])).toBe('a.pdf and b.xml were not filed.')
-    expect(notFiledSentence(['a.pdf', 'b.xml', 'c.pdf', 'd.xml'])).toBe('a.pdf, b.xml and 2 more were not filed.')
+    expect(en.notFiled(['a.pdf'])).toBe('a.pdf was not filed.')
+    expect(en.notFiled(['a.pdf', 'b.xml'])).toBe('a.pdf and b.xml were not filed.')
+    expect(en.notFiled(['a.pdf', 'b.xml', 'c.pdf', 'd.xml'])).toBe('a.pdf, b.xml and 2 more were not filed.')
   })
 
   it('marks a filed file with its source, the mail’s Gmail id and the mail’s date, each property within the 124 bytes Drive keeps with its key', () => {

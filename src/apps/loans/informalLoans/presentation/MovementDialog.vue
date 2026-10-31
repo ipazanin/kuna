@@ -13,8 +13,7 @@ import type { Movement, MovementKind } from '../../workbook/domain/movement'
 import type { InformalLoanBook } from '../../workbook/domain/readLoanBook'
 import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { plainAmount } from '../../../../shared/money/money'
-import { typedAmount } from '../../../../shared/money/typedAmount'
+import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
@@ -48,7 +47,7 @@ watch(open, (opened) => {
   const movement = props.editing
   date.value = movement?.date ?? props.today
   kind.value = movement?.kind ?? 'repaid'
-  amount.value = movement === null ? '' : plainAmount(movement.amount)
+  amount.value = movement === null ? '' : amountForTyping(movement.amount)
   note.value = movement?.note ?? ''
   tried.value = false
 })

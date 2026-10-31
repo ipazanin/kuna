@@ -7,22 +7,42 @@
 
 import { en as companyEnglish, hr as companyCroatian } from '../../src/apps/company/words.ts'
 import { en as companySettingsEnglish, hr as companySettingsCroatian } from '../../src/apps/company/settings/presentation/words.ts'
+import { en as reviewEnglish, hr as reviewCroatian } from '../../src/apps/company/review/presentation/words.ts'
+import { en as rulesEnglish, hr as rulesCroatian } from '../../src/apps/company/rules/presentation/words.ts'
+import { en as ruleChangesEnglish, hr as ruleChangesCroatian } from '../../src/apps/company/rules/domain/words.ts'
+import { en as transactionsEnglish, hr as transactionsCroatian } from '../../src/apps/company/transactions/presentation/words.ts'
+import { en as companyBooksEnglish, hr as companyBooksCroatian } from '../../src/apps/company/workbook/domain/words.ts'
+import { en as importEnglish, hr as importCroatian } from '../../src/apps/company/imports/presentation/words.ts'
+import { en as importWritesEnglish, hr as importWritesCroatian } from '../../src/apps/company/imports/application/words.ts'
+import { en as onboardingEnglish, hr as onboardingCroatian } from '../../src/apps/company/onboarding/presentation/words.ts'
+import { en as settingsReasonsEnglish, hr as settingsReasonsCroatian } from '../../src/apps/company/settings/domain/words.ts'
+import { en as booksEnglish, hr as booksCroatian } from '../../src/apps/company/workbook/presentation/words.ts'
+import { en as mailEnglish, hr as mailCroatian } from '../../src/apps/company/mail/presentation/words.ts'
+import { en as invoicingEnglish, hr as invoicingCroatian } from '../../src/apps/company/invoicing/presentation/words.ts'
+import { en as receivablesEnglish, hr as receivablesCroatian } from '../../src/apps/company/receivables/presentation/words.ts'
+import { en as billingEnglish, hr as billingCroatian } from '../../src/apps/company/billingPlan/presentation/words.ts'
+import { en as companyOverviewEnglish, hr as companyOverviewCroatian } from '../../src/apps/company/overview/presentation/words.ts'
+import { en as ownerShareEnglish, hr as ownerShareCroatian } from '../../src/apps/company/owner-share/presentation/words.ts'
+import { en as writesEnglish, hr as writesCroatian } from '../../src/shared/storage/presentation/words.ts'
 import { en as bankLoanEnglish, hr as bankLoanCroatian } from '../../src/apps/loans/bankLoans/presentation/words.ts'
 import { en as overviewEnglish, hr as overviewCroatian } from '../../src/apps/loans/overview/presentation/words.ts'
 import { en as scenariosEnglish, hr as scenariosCroatian } from '../../src/apps/loans/scenarios/presentation/words.ts'
 import { en as loansSettingsEnglish, hr as loansSettingsCroatian } from '../../src/apps/loans/settings/presentation/words.ts'
+import { en as packEnglish, hr as packCroatian } from '../../src/apps/company/packs/hr-doo/presentation/words.ts'
+import { en as assetsEnglish, hr as assetsCroatian } from '../../src/apps/company/packs/hr-doo/presentation/assets/words.ts'
+import { en as salariesEnglish, hr as salariesCroatian } from '../../src/apps/company/packs/hr-doo/presentation/salaries/words.ts'
+import { en as payScenariosEnglish, hr as payScenariosCroatian } from '../../src/apps/company/packs/hr-doo/presentation/payScenarios/words.ts'
+import { en as forecastEnglish, hr as forecastCroatian } from '../../src/apps/company/packs/hr-doo/presentation/forecast/words.ts'
 import { en as loansEnglish, hr as loansCroatian } from '../../src/apps/loans/words.ts'
 import { en as investmentsEnglish, hr as investmentsCroatian } from '../../src/apps/investments/words.ts'
 import { en as sharedEnglish, hr as sharedCroatian } from '../../src/shared/app/words.ts'
 import { en as homeEnglish, hr as homeCroatian } from '../../src/shell/home/words.ts'
+import { en as uiEnglish, hr as uiCroatian } from '../../src/shared/ui/words.ts'
 import { en as kunaSettingsEnglish, hr as kunaSettingsCroatian } from '../../src/shell/settings/words.ts'
 
 const TOAST = 'li[data-slot="base"]'
 
-/**
- * What the menus and the Loans screens say in each language, from the app's own words. Company's
- * screens other than its Settings are English in both until their words land.
- */
+/** What the menus, the Loans screens and the Company screens say in each language, from the app's own words. */
 const SCREEN_WORDS = {
   en: {
     allApps: sharedEnglish.allApps,
@@ -35,10 +55,37 @@ const SCREEN_WORDS = {
     investments: investmentsEnglish.name,
     overview: overviewEnglish.title,
     scenarios: scenariosEnglish.title,
+    companyOverview: companyOverviewEnglish.title,
+    ownerShare: ownerShareEnglish,
     loansSettings: loansSettingsEnglish.title,
     firstRateHelp: bankLoanEnglish.ratePeriodDialog.firstHelp,
     laterRateHelp: bankLoanEnglish.ratePeriodDialog.laterHelp,
     whatIf: bankLoanEnglish.whatIf,
+    transactions: transactionsEnglish,
+    review: reviewEnglish,
+    rules: rulesEnglish,
+    ruleChanges: ruleChangesEnglish.changes,
+    categoryName: companyBooksEnglish.unlabelled,
+    swatches: companyBooksEnglish.swatches,
+    sortBy: uiEnglish.sortBy,
+    imports: importEnglish,
+    mail: mailEnglish,
+    invoicing: invoicingEnglish,
+    receivables: receivablesEnglish,
+    billing: billingEnglish,
+    clientColumns: companySettingsEnglish.clientColumns,
+    settings: companySettingsEnglish,
+    settingsReasons: settingsReasonsEnglish,
+    onboarding: onboardingEnglish,
+    books: booksEnglish,
+    importWrites: importWritesEnglish,
+    writes: writesEnglish,
+    pack: packEnglish,
+    assets: assetsEnglish,
+    salaries: salariesEnglish,
+    payScenarios: payScenariosEnglish,
+    forecast: forecastEnglish,
+    locale: 'en-GB',
   },
   hr: {
     allApps: sharedCroatian.allApps,
@@ -51,11 +98,43 @@ const SCREEN_WORDS = {
     investments: investmentsCroatian.name,
     overview: overviewCroatian.title,
     scenarios: scenariosCroatian.title,
+    companyOverview: companyOverviewCroatian.title,
+    ownerShare: ownerShareCroatian,
     loansSettings: loansSettingsCroatian.title,
     firstRateHelp: bankLoanCroatian.ratePeriodDialog.firstHelp,
     laterRateHelp: bankLoanCroatian.ratePeriodDialog.laterHelp,
     whatIf: bankLoanCroatian.whatIf,
+    transactions: transactionsCroatian,
+    review: reviewCroatian,
+    rules: rulesCroatian,
+    ruleChanges: ruleChangesCroatian.changes,
+    categoryName: companyBooksCroatian.unlabelled,
+    swatches: companyBooksCroatian.swatches,
+    sortBy: uiCroatian.sortBy,
+    imports: importCroatian,
+    mail: mailCroatian,
+    invoicing: invoicingCroatian,
+    receivables: receivablesCroatian,
+    billing: billingCroatian,
+    clientColumns: companySettingsCroatian.clientColumns,
+    settings: companySettingsCroatian,
+    settingsReasons: settingsReasonsCroatian,
+    onboarding: onboardingCroatian,
+    books: booksCroatian,
+    importWrites: importWritesCroatian,
+    writes: writesCroatian,
+    pack: packCroatian,
+    assets: assetsCroatian,
+    salaries: salariesCroatian,
+    payScenarios: payScenariosCroatian,
+    forecast: forecastCroatian,
+    locale: 'hr-HR',
   },
+}
+
+/** The form of a counted phrase from the app's words that the language writes `count` with. */
+function countedIn(words, forms, count) {
+  return forms[new Intl.PluralRules(words.locale).select(count)] ?? forms.other
 }
 
 export function delay(milliseconds) {
@@ -138,7 +217,7 @@ async function toast(page, title) {
 
 async function dismissToasts(page) {
   await page.evaluate((selector) => {
-    for (const close of document.querySelectorAll(`${selector} button[aria-label="Close"]`)) close.click()
+    for (const close of document.querySelectorAll(`${selector} button[data-slot="close"]`)) close.click()
   }, TOAST)
   await page
     .waitForFunction((selector) => document.querySelectorAll(selector).length === 0, { timeout: 5_000 }, TOAST)
@@ -162,7 +241,7 @@ async function undo(page, press) {
  * Opens the colour pop-up of a categories row, checks its nine 44 px swatches after Bucket colour,
  * moves through them with the arrow keys, and picks `name`. Leaves the pop-up open.
  */
-async function pickCategoryColour(page, press, row, name) {
+async function pickCategoryColour(page, press, row, words, name) {
   await press(await row.$('[data-testid="colour-swatch-button"]'))
   await page.waitForSelector('[data-testid="colour-swatch-picker"]', { visible: true })
   await delay(300)
@@ -173,7 +252,7 @@ async function pickCategoryColour(page, press, row, name) {
     }),
   )
   const names = radios.map((radio) => radio.name).join(', ')
-  if (names !== 'Bucket colour, Green, Orange, Blue, Amber, Pink, Dark green, Violet, Red, Grey') throw new Error(`the colour pop-up offers ${names}`)
+  if (names !== [words.settings.categories.bucketColour, ...Object.values(words.swatches)].join(', ')) throw new Error(`the colour pop-up offers ${names}`)
   const small = radios.filter((radio) => radio.width < 43.5 || radio.height < 43.5)
   if (small.length > 0) throw new Error(`swatches under 44 px: ${small.map((radio) => `${radio.name} ${Math.round(radio.width)}x${Math.round(radio.height)}`).join(', ')}`)
   if (!radios[0].checked) throw new Error('a new category does not start on Bucket colour')
@@ -183,7 +262,11 @@ async function pickCategoryColour(page, press, row, name) {
   await page.keyboard.press('ArrowRight', { delay: 60 })
   await page.keyboard.press('ArrowRight', { delay: 60 })
   await page
-    .waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Orange' && document.activeElement?.getAttribute('aria-checked') === 'true', { timeout: 5_000 })
+    .waitForFunction(
+      (orange) => document.activeElement?.getAttribute('aria-label') === orange && document.activeElement?.getAttribute('aria-checked') === 'true',
+      { timeout: 5_000 },
+      words.swatches.orange,
+    )
     .catch(() => {
       throw new Error('two presses of the right arrow from Bucket colour did not check Orange')
     })
@@ -224,63 +307,72 @@ async function chooseRole(page, press, row, role) {
  * focuses its name, give it a colour from the pop-up, a label on a tab without the column and a
  * role, delete it, and Undo the delete.
  */
-export async function categoryFlow(page, { press, shoot }) {
-  await pressSelector(page, press, '[data-testid="add-category"]')
-  await page
-    .waitForFunction(
-      () => {
-        const added = [...document.querySelectorAll('[data-testid="category-row"]')].at(-1)
-        const frame = document.querySelector('[data-testid="categories-frame"]')
-        const header = frame?.querySelector('thead th')
-        if (!added || !frame || !header || document.activeElement !== added.querySelector('input[aria-label="Category"]')) return false
-        const frameBox = frame.getBoundingClientRect()
-        const rowBox = added.getBoundingClientRect()
-        return frame.scrollTop > 0 && Math.abs(header.getBoundingClientRect().top - frameBox.top) < 1 && rowBox.top >= frameBox.top && rowBox.bottom <= frameBox.bottom + 1
-      },
-      { timeout: 5_000 },
-    )
-    .catch(() => {
-      throw new Error('Add category did not scroll the table to the new row under its header and focus its name')
-    })
-  const added = (await page.$$('[data-testid="category-row"]')).at(-1)
-  await setField(await fieldIn(added, 'Category'), 'stationery')
-  await setField(await fieldIn(added, 'Family'), 'operating')
-  await delay(200)
-  await shoot('categories-draft')
-  await pressSelector(page, press, '[data-testid="save-categories"]')
-  await toast(page, 'Categories saved')
-  await shoot('categories-saved')
-  await dismissToasts(page)
+export function categoryFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const said = words.settings.categories
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await pressSelector(page, press, '[data-testid="add-category"]')
+    await page
+      .waitForFunction(
+        (name) => {
+          const added = [...document.querySelectorAll('[data-testid="category-row"]')].at(-1)
+          const frame = document.querySelector('[data-testid="categories-frame"]')
+          const header = frame?.querySelector('thead th')
+          if (!added || !frame || !header || document.activeElement !== added.querySelector(`input[aria-label="${name}"]`)) return false
+          const frameBox = frame.getBoundingClientRect()
+          const rowBox = added.getBoundingClientRect()
+          return frame.scrollTop > 0 && Math.abs(header.getBoundingClientRect().top - frameBox.top) < 1 && rowBox.top >= frameBox.top && rowBox.bottom <= frameBox.bottom + 1
+        },
+        { timeout: 5_000 },
+        said.columns.category,
+      )
+      .catch(() => {
+        throw new Error('Add category did not scroll the table to the new row under its header and focus its name')
+      })
+    const added = (await page.$$('[data-testid="category-row"]')).at(-1)
+    await setField(await fieldIn(added, said.columns.category), 'stationery')
+    await setField(await fieldIn(added, said.columns.family), 'operating')
+    await delay(200)
+    await shoot('categories-draft')
+    await pressSelector(page, press, '[data-testid="save-categories"]')
+    await toast(page, said.saved)
+    await shoot('categories-saved')
+    await dismissToasts(page)
 
-  await pickCategoryColour(page, press, await rowNamed(page, '[data-testid="category-row"]', 'stationery'), 'Blue')
-  const note = await page.$eval('[data-testid="colour-swatch-note"]', (element) => element.textContent?.trim() ?? '')
-  if (note !== 'Blue. Also used by Travel and Software subscriptions.') throw new Error(`the colour pop-up says "${note}"`)
-  await shoot('categories-colour')
-  await page.keyboard.press('Escape')
-  await page.waitForFunction(() => !document.querySelector('[data-testid="colour-swatch-picker"]'), { timeout: 5_000 })
-  await pressSelector(page, press, '[data-testid="save-categories"]')
-  await toast(page, 'Categories saved')
-  await dismissToasts(page)
+    await pickCategoryColour(page, press, await rowNamed(page, '[data-testid="category-row"]', 'stationery'), words, words.swatches.blue)
+    const note = await page.$eval('[data-testid="colour-swatch-note"]', (element) => element.textContent?.trim() ?? '')
+    const others = new Intl.ListFormat(words.locale, { type: 'conjunction' }).format([words.categoryName('travel'), words.categoryName('software-subscriptions')])
+    if (note !== said.colourShared(words.swatches.blue, others)) throw new Error(`the colour pop-up says "${note}"`)
+    await shoot('categories-colour')
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('[data-testid="colour-swatch-picker"]'), { timeout: 5_000 })
+    await pressSelector(page, press, '[data-testid="save-categories"]')
+    await toast(page, said.saved)
+    await dismissToasts(page)
 
-  const named = await rowNamed(page, '[data-testid="category-row"]', 'stationery')
-  await setField(await fieldIn(named, 'Shown as'), 'Paper and pens')
-  await chooseRole(page, press, named, 'representation')
-  await shoot('categories-label-and-role')
-  await pressSelector(page, press, '[data-testid="save-categories"]')
-  await toast(page, 'Categories saved')
-  await dismissToasts(page)
+    const named = await rowNamed(page, '[data-testid="category-row"]', 'stationery')
+    await setField(await fieldIn(named, said.columns.label), 'Paper and pens')
+    await chooseRole(page, press, named, 'representation')
+    await shoot('categories-label-and-role')
+    await pressSelector(page, press, '[data-testid="save-categories"]')
+    await toast(page, said.saved)
+    await dismissToasts(page)
 
-  const row = await rowNamed(page, '[data-testid="category-row"]', 'stationery')
-  await press(await row.$('[data-testid="remove-category"]'))
-  await pressSelector(page, press, '[data-testid="save-categories"]')
-  await toast(page, 'Categories saved')
-  await rowGone(page, '[data-testid="category-row"]', 'stationery')
-  await undo(page, press)
-  const back = await rowNamed(page, '[data-testid="category-row"]', 'stationery')
-  const colour = await (await back.$('[data-testid="colour-swatch-button"]')).evaluate((button) => button.getAttribute('aria-label'))
-  if (colour !== 'Colour of Paper and pens: Blue') throw new Error(`Undo brought stationery back as "${colour}"`)
-  await dismissToasts(page)
+    const row = await rowNamed(page, '[data-testid="category-row"]', 'stationery')
+    await press(await row.$('[data-testid="remove-category"]'))
+    await pressSelector(page, press, '[data-testid="save-categories"]')
+    await toast(page, said.saved)
+    await rowGone(page, '[data-testid="category-row"]', 'stationery')
+    await undoIn(page, press, words)
+    const back = await rowNamed(page, '[data-testid="category-row"]', 'stationery')
+    const colour = await (await back.$('[data-testid="colour-swatch-button"]')).evaluate((button) => button.getAttribute('aria-label'))
+    if (colour !== `${said.colourOf('Paper and pens')}: ${words.swatches.blue}`) throw new Error(`Undo brought stationery back as "${colour}"`)
+    await dismissToasts(page)
+  }
 }
+
+export const categoryFlow = categoryFlowIn('en')
 
 /** The names of the categories rows on screen, in their order. */
 function categoriesShown(page) {
@@ -307,8 +399,24 @@ async function categoryCountSays(page, wanted) {
     })
 }
 
+/**
+ * Waits for the count of `shown` of `total` categories. A Croatian count picks the plural of its
+ * last word by the rules of the language a script runs in, which is English, so in Croatian only
+ * the words before it are compared.
+ */
+async function categoryCountShows(page, words, shown, total) {
+  const said = words.settings.categories.shownOf(shown, total)
+  if (words.locale === 'en-GB') return categoryCountSays(page, said)
+  const start = said.slice(0, said.lastIndexOf(' ') + 1)
+  await page
+    .waitForFunction((text) => document.querySelector('[data-testid="category-count"]')?.textContent?.trim().startsWith(text), { timeout: 5_000 }, start)
+    .catch(async () => {
+      throw new Error(`the count says "${await page.$eval('[data-testid="category-count"]', (element) => element.textContent?.trim())}", not "${start}…"`)
+    })
+}
+
 /** Picks a bucket in the categories filters, from the sheet behind the Filters button on a phone. */
-async function filterCategoriesByBucket(page, press, bucket) {
+async function filterCategoriesByBucket(page, press, words, bucket) {
   const sheet = await page.$('[data-testid="open-category-filters"]')
   if (sheet !== null) {
     await press(sheet)
@@ -317,15 +425,19 @@ async function filterCategoriesByBucket(page, press, bucket) {
   }
   await choose(page, press, await page.$('[data-testid="category-bucket-filter"]'), bucket)
   if (sheet !== null) {
-    const close = await page.waitForFunction(() => [...document.querySelectorAll('[role="dialog"] button')].find((button) => button.textContent?.trim() === 'Show categories') ?? null)
+    const close = await page.waitForFunction(
+      (label) => [...document.querySelectorAll('[role="dialog"] button')].find((button) => button.textContent?.trim() === label) ?? null,
+      {},
+      words.settings.categories.show,
+    )
     await press(close.asElement())
     await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), { timeout: 5_000 })
     await delay(300)
   }
 }
 
-async function sortDirection(page, label) {
-  return page.$eval(`th:has(> button[aria-label="Sort by ${label}"])`, (header) => header.getAttribute('aria-sort'))
+async function sortDirection(page, sortLabel) {
+  return page.$eval(`th:has(> button[aria-label="${sortLabel}"])`, (header) => header.getAttribute('aria-sort'))
 }
 
 /**
@@ -334,151 +446,188 @@ async function sortDirection(page, label) {
  * place while it is typed in, stays in view with its error once its new bucket leaves the filter,
  * leaves the list once saved and comes back with Undo.
  */
-export async function categoryFiltersFlow(page, { press, shoot }) {
-  await page.waitForSelector('input[data-testid="category-search"]', { visible: true })
-  await categoryCountSays(page, '33 categories')
-  await setField(await page.$('input[data-testid="category-search"]'), 'reimbursement')
-  await categoriesShow(page, ['reimbursement-to-owner', 'reimbursement-from-owner'], 'a search for reimbursement')
-  await categoryCountSays(page, '2 of 33 categories')
-  await shoot('categories-search')
-  await pressSelector(page, press, '[data-testid="category-filters"] button[aria-label="Clear the search"]')
-  await categoryCountSays(page, '33 categories')
+export function categoryFiltersFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const said = words.settings.categories
+  const all = countedIn(words, said.count(33), 33)
+  const byCategory = words.sortBy(said.columns.category)
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('input[data-testid="category-search"]', { visible: true })
+    await categoryCountSays(page, all)
+    await setField(await page.$('input[data-testid="category-search"]'), 'reimbursement')
+    await categoriesShow(page, ['reimbursement-to-owner', 'reimbursement-from-owner'], 'a search for reimbursement')
+    await categoryCountShows(page, words, 2, 33)
+    await shoot('categories-search')
+    await pressSelector(page, press, `[data-testid="category-filters"] button[aria-label="${said.clearSearch}"]`)
+    await categoryCountSays(page, all)
 
-  await filterCategoriesByBucket(page, press, 'taxes')
-  await categoriesShow(page, ['tax-refund', 'payroll-contributions', 'payroll-tax', 'corporate-income-tax', 'dividend-tax'], 'the taxes bucket in the tab order')
-  await categoryCountSays(page, '5 of 33 categories')
-  await pressSelector(page, press, 'button[aria-label="Sort by category"]')
-  await categoriesShow(page, ['corporate-income-tax', 'dividend-tax', 'payroll-contributions', 'payroll-tax', 'tax-refund'], 'a press on Category')
-  if ((await sortDirection(page, 'category')) !== 'ascending') throw new Error('the Category header does not say it sorts ascending')
-  await page.focus('button[aria-label="Sort by category"]')
-  await page.keyboard.press('Enter')
-  await categoriesShow(page, ['tax-refund', 'payroll-tax', 'payroll-contributions', 'dividend-tax', 'corporate-income-tax'], 'Enter on Category')
-  if ((await sortDirection(page, 'category')) !== 'descending') throw new Error('the Category header does not say it sorts descending')
-  await shoot('categories-sorted')
-  await page.keyboard.press('Space')
-  await categoriesShow(page, ['tax-refund', 'payroll-contributions', 'payroll-tax', 'corporate-income-tax', 'dividend-tax'], 'a third press on Category')
-  if ((await sortDirection(page, 'category')) !== null) throw new Error('the Category header still says it sorts')
+    await filterCategoriesByBucket(page, press, words, words.settings.categories.bucketChoice('taxes'))
+    await categoriesShow(page, ['tax-refund', 'payroll-contributions', 'payroll-tax', 'corporate-income-tax', 'dividend-tax'], 'the taxes bucket in the tab order')
+    await categoryCountShows(page, words, 5, 33)
+    await pressSelector(page, press, `button[aria-label="${byCategory}"]`)
+    await categoriesShow(page, ['corporate-income-tax', 'dividend-tax', 'payroll-contributions', 'payroll-tax', 'tax-refund'], 'a press on Category')
+    if ((await sortDirection(page, byCategory)) !== 'ascending') throw new Error('the Category header does not say it sorts ascending')
+    await page.focus(`button[aria-label="${byCategory}"]`)
+    await page.keyboard.press('Enter')
+    await categoriesShow(page, ['tax-refund', 'payroll-tax', 'payroll-contributions', 'dividend-tax', 'corporate-income-tax'], 'Enter on Category')
+    if ((await sortDirection(page, byCategory)) !== 'descending') throw new Error('the Category header does not say it sorts descending')
+    await shoot('categories-sorted')
+    await page.keyboard.press('Space')
+    await categoriesShow(page, ['tax-refund', 'payroll-contributions', 'payroll-tax', 'corporate-income-tax', 'dividend-tax'], 'a third press on Category')
+    if ((await sortDirection(page, byCategory)) !== null) throw new Error('the Category header still says it sorts')
 
-  await pressSelector(page, press, 'button[aria-label="Sort by family"]')
-  const order = ['tax-refund', 'payroll-contributions', 'payroll-tax', 'corporate-income-tax', 'dividend-tax']
-  await categoriesShow(page, order, 'a press on Family')
-  const row = await rowNamed(page, '[data-testid="category-row"]', 'tax-refund')
-  await setField(await fieldIn(row, 'Family'), '')
-  await page
-    .waitForFunction(() => [...document.querySelectorAll('[data-testid="category-row"]')][0]?.querySelector('.field-error')?.textContent?.trim() === 'Required', { timeout: 5_000 })
-    .catch(() => {
-      throw new Error('a blank family shows no error while the table is filtered and sorted')
-    })
-  if (!(await page.$eval('[data-testid="save-categories"]', (button) => button.disabled))) throw new Error('Save is on while a row is in error')
-  await setField(await fieldIn(row, 'Family'), 'zz-refunds')
-  await delay(200)
-  await categoriesShow(page, order, 'typing a family that sorts last')
-  await choose(page, press, await row.$('[aria-label="Bucket"]'), 'income')
-  await categoriesShow(page, order, 'a new bucket outside the filter')
-  await page
-    .waitForFunction(() => document.querySelector('[data-testid="category-kept"]')?.textContent?.trim() === '1 of them shows only for an unsaved change or an error.', { timeout: 5_000 })
-    .catch(() => {
-      throw new Error('the count does not say a row shows only for its unsaved change')
-    })
-  await shoot('categories-edit-filtered')
+    const byFamily = words.sortBy(said.columns.family)
+    await pressSelector(page, press, `button[aria-label="${byFamily}"]`)
+    const order = ['tax-refund', 'payroll-contributions', 'payroll-tax', 'corporate-income-tax', 'dividend-tax']
+    await categoriesShow(page, order, 'a press on Family')
+    const row = await rowNamed(page, '[data-testid="category-row"]', 'tax-refund')
+    await setField(await fieldIn(row, said.columns.family), '')
+    await page
+      .waitForFunction(
+        (required) => [...document.querySelectorAll('[data-testid="category-row"]')][0]?.querySelector('.field-error')?.textContent?.trim() === required,
+        { timeout: 5_000 },
+        words.settingsReasons.fields.required,
+      )
+      .catch(() => {
+        throw new Error('a blank family shows no error while the table is filtered and sorted')
+      })
+    if (!(await page.$eval('[data-testid="save-categories"]', (button) => button.disabled))) throw new Error('Save is on while a row is in error')
+    await setField(await fieldIn(row, said.columns.family), 'zz-refunds')
+    await delay(200)
+    await categoriesShow(page, order, 'typing a family that sorts last')
+    await choose(page, press, await row.$(`[aria-label="${said.columns.bucket}"]`), said.bucketChoice('income'))
+    await categoriesShow(page, order, 'a new bucket outside the filter')
+    await page
+      .waitForFunction((kept) => document.querySelector('[data-testid="category-kept"]')?.textContent?.trim() === kept, { timeout: 5_000 }, countedIn(words, said.kept(1), 1))
+      .catch(() => {
+        throw new Error('the count does not say a row shows only for its unsaved change')
+      })
+    await shoot('categories-edit-filtered')
 
-  await pressSelector(page, press, '[data-testid="save-categories"]')
-  await toast(page, 'Categories saved')
-  await categoriesShow(page, ['payroll-contributions', 'payroll-tax', 'corporate-income-tax', 'dividend-tax'], 'tax-refund saved in the income bucket')
-  await undo(page, press)
-  await categoriesShow(page, order, 'Undo of the save')
-  if ((await sortDirection(page, 'family')) !== 'ascending') throw new Error('the sort by family did not outlast the save')
-  await dismissToasts(page)
-  await pressSelector(page, press, '[data-testid="clear-category-filters"]')
-  await categoryCountSays(page, '33 categories')
+    await pressSelector(page, press, '[data-testid="save-categories"]')
+    await toast(page, said.saved)
+    await categoriesShow(page, ['payroll-contributions', 'payroll-tax', 'corporate-income-tax', 'dividend-tax'], 'tax-refund saved in the income bucket')
+    await undoIn(page, press, words)
+    await categoriesShow(page, order, 'Undo of the save')
+    if ((await sortDirection(page, byFamily)) !== 'ascending') throw new Error('the sort by family did not outlast the save')
+    await dismissToasts(page)
+    await pressSelector(page, press, '[data-testid="clear-category-filters"]')
+    await categoryCountSays(page, all)
+  }
 }
+
+export const categoryFiltersFlow = categoryFiltersFlowIn('en')
 
 /** Owner: change the newest advance's description, delete it, and Undo the delete. */
-export async function advanceFlow(page, { press, shoot }) {
-  const first = async () => (await page.waitForSelector('[data-testid="advance-list"] li', { visible: true, timeout: 10_000 })).evaluate((element) => element.textContent ?? '')
-  await pressSelector(page, press, '[data-testid="advance-edit"]')
-  await page.waitForSelector('[data-testid="add-advance"]', { visible: true })
-  const description = await page.waitForSelector('[data-testid="add-advance"] input[placeholder="Train tickets to the client"]')
-  await setField(description, 'Train tickets, changed')
-  await delay(200)
-  await shoot('advance-edit')
-  await pressSelector(page, press, 'button[form="add-advance"]')
-  await toast(page, 'Advance changed')
-  await dialogGone(page, '[data-testid="add-advance"]')
-  if (!(await first()).includes('Train tickets, changed')) throw new Error('the changed advance does not show its new description')
-  await dismissToasts(page)
+export function advanceFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const said = words.pack.advanceDialog
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const first = async () => (await page.waitForSelector('[data-testid="advance-list"] li', { visible: true, timeout: 10_000 })).evaluate((element) => element.textContent ?? '')
+    await pressSelector(page, press, '[data-testid="advance-edit"]')
+    await page.waitForSelector('[data-testid="add-advance"]', { visible: true })
+    const description = await page.waitForSelector(`[data-testid="add-advance"] input[placeholder="${said.forWhatPlaceholder}"]`)
+    await setField(description, 'Train tickets, changed')
+    await delay(200)
+    await shoot('advance-edit')
+    await pressSelector(page, press, 'button[form="add-advance"]')
+    await toast(page, said.changed)
+    await dialogGone(page, '[data-testid="add-advance"]')
+    if (!(await first()).includes('Train tickets, changed')) throw new Error('the changed advance does not show its new description')
+    await dismissToasts(page)
 
-  await pressSelector(page, press, '[data-testid="advance-edit"]')
-  await pressSelector(page, press, '[data-testid="advance-delete"]')
-  await toast(page, 'Advance deleted')
-  await dialogGone(page, '[data-testid="add-advance"]')
-  if ((await first()).includes('Train tickets, changed')) throw new Error('the deleted advance is still listed')
-  await undo(page, press)
-  await page
-    .waitForFunction(() => document.querySelector('[data-testid="advance-list"] li')?.textContent?.includes('Train tickets, changed') ?? false, { timeout: 10_000 })
-    .catch(() => {
-      throw new Error('Undo did not bring the advance back')
-    })
-  await dismissToasts(page)
+    await pressSelector(page, press, '[data-testid="advance-edit"]')
+    await pressSelector(page, press, '[data-testid="advance-delete"]')
+    await toast(page, said.deleted)
+    await dialogGone(page, '[data-testid="add-advance"]')
+    if ((await first()).includes('Train tickets, changed')) throw new Error('the deleted advance is still listed')
+    await undoIn(page, press, words)
+    await page
+      .waitForFunction(() => document.querySelector('[data-testid="advance-list"] li')?.textContent?.includes('Train tickets, changed') ?? false, { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('Undo did not bring the advance back')
+      })
+    await dismissToasts(page)
+  }
 }
+
+export const advanceFlow = advanceFlowIn('en')
 
 /** Assets: add a monitor, note it, delete it, and Undo the delete. */
-export async function assetFlow(page, { press, shoot }) {
-  await pressSelector(page, press, '#asset-rows [data-testid="add-row"]')
-  const added = (await page.$$('#asset-rows [data-testid="fact-row"]')).at(-1)
-  await setField(await fieldIn(added, 'Asset'), 'Monitor')
-  await setField(await fieldIn(added, 'Bought'), '2026-10-01')
-  await setField(await fieldIn(added, 'Cost without VAT'), '420')
-  await choose(page, press, await added.$('[aria-label="Group"]'), 'computers')
-  await shoot('assets-draft')
-  await pressSelector(page, press, '#asset-rows [data-testid="save-rows"]')
-  await toast(page, 'Assets saved')
-  await dismissToasts(page)
+export function assetFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const columns = words.pack.assetColumns
+  const saved = words.assets.panel.assetsSaved
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await pressSelector(page, press, '#asset-rows [data-testid="add-row"]')
+    const added = (await page.$$('#asset-rows [data-testid="fact-row"]')).at(-1)
+    await setField(await fieldIn(added, columns.asset), 'Monitor')
+    await setField(await fieldIn(added, columns.bought), '2026-10-01')
+    await setField(await fieldIn(added, columns.cost_net), '420')
+    await choose(page, press, await added.$(`[aria-label="${columns.group}"]`), 'computers')
+    await shoot('assets-draft')
+    await pressSelector(page, press, '#asset-rows [data-testid="save-rows"]')
+    await toast(page, saved)
+    await dismissToasts(page)
 
-  await setField(await fieldIn(await rowNamed(page, '#asset-rows [data-testid="fact-row"]', 'Monitor'), 'Note'), 'Second screen')
-  await pressSelector(page, press, '#asset-rows [data-testid="save-rows"]')
-  await toast(page, 'Assets saved')
-  await shoot('assets-saved')
-  await dismissToasts(page)
+    await setField(await fieldIn(await rowNamed(page, '#asset-rows [data-testid="fact-row"]', 'Monitor'), columns.note), 'Second screen')
+    await pressSelector(page, press, '#asset-rows [data-testid="save-rows"]')
+    await toast(page, saved)
+    await shoot('assets-saved')
+    await dismissToasts(page)
 
-  const row = await rowNamed(page, '#asset-rows [data-testid="fact-row"]', 'Monitor')
-  await press(await row.$('[data-testid="remove-row"]'))
-  await pressSelector(page, press, '#asset-rows [data-testid="save-rows"]')
-  await toast(page, 'Assets saved')
-  await rowGone(page, '#asset-rows [data-testid="fact-row"]', 'Monitor')
-  await undo(page, press)
-  await rowNamed(page, '#asset-rows [data-testid="fact-row"]', 'Monitor')
-  await dismissToasts(page)
+    const row = await rowNamed(page, '#asset-rows [data-testid="fact-row"]', 'Monitor')
+    await press(await row.$('[data-testid="remove-row"]'))
+    await pressSelector(page, press, '#asset-rows [data-testid="save-rows"]')
+    await toast(page, saved)
+    await rowGone(page, '#asset-rows [data-testid="fact-row"]', 'Monitor')
+    await undoIn(page, press, words)
+    await rowNamed(page, '#asset-rows [data-testid="fact-row"]', 'Monitor')
+    await dismissToasts(page)
+  }
 }
+
+export const assetFlow = assetFlowIn('en')
 
 /** Salaries: add an employee, change the dependants, delete the row, and Undo the delete. */
-export async function employeeFlow(page, { press, shoot }) {
-  const rows = '#employee-rows [data-testid="fact-row"]'
-  await pressSelector(page, press, '#employee-rows [data-testid="add-row"]')
-  const added = (await page.$$(rows)).at(-1)
-  await setField(await fieldIn(added, 'Employee'), 'sam')
-  await setField(await fieldIn(added, 'Lives in'), 'Split')
-  await setField(await fieldIn(added, 'Employed from'), '2026-03-02')
-  await shoot('employees-draft')
-  await pressSelector(page, press, '#employee-rows [data-testid="save-rows"]')
-  await toast(page, 'Employees saved')
-  await dismissToasts(page)
+export function employeeFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const columns = words.pack.employeeColumns
+  const saved = words.salaries.screen.employeesSaved
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const rows = '#employee-rows [data-testid="fact-row"]'
+    await pressSelector(page, press, '#employee-rows [data-testid="add-row"]')
+    const added = (await page.$$(rows)).at(-1)
+    await setField(await fieldIn(added, columns.employee), 'sam')
+    await setField(await fieldIn(added, columns.residence_city), 'Split')
+    await setField(await fieldIn(added, columns.from), '2026-03-02')
+    await shoot('employees-draft')
+    await pressSelector(page, press, '#employee-rows [data-testid="save-rows"]')
+    await toast(page, saved)
+    await dismissToasts(page)
 
-  await setField(await fieldIn(await rowNamed(page, rows, 'sam'), 'Dependants'), '1')
-  await pressSelector(page, press, '#employee-rows [data-testid="save-rows"]')
-  await toast(page, 'Employees saved')
-  await shoot('employees-saved')
-  await dismissToasts(page)
+    await setField(await fieldIn(await rowNamed(page, rows, 'sam'), columns.dependants), '1')
+    await pressSelector(page, press, '#employee-rows [data-testid="save-rows"]')
+    await toast(page, saved)
+    await shoot('employees-saved')
+    await dismissToasts(page)
 
-  const row = await rowNamed(page, rows, 'sam')
-  await press(await row.$('[data-testid="remove-row"]'))
-  await pressSelector(page, press, '#employee-rows [data-testid="save-rows"]')
-  await toast(page, 'Employees saved')
-  await rowGone(page, rows, 'sam')
-  await undo(page, press)
-  await rowNamed(page, rows, 'sam')
-  await dismissToasts(page)
+    const row = await rowNamed(page, rows, 'sam')
+    await press(await row.$('[data-testid="remove-row"]'))
+    await pressSelector(page, press, '#employee-rows [data-testid="save-rows"]')
+    await toast(page, saved)
+    await rowGone(page, rows, 'sam')
+    await undoIn(page, press, words)
+    await rowNamed(page, rows, 'sam')
+    await dismissToasts(page)
+  }
 }
+
+export const employeeFlow = employeeFlowIn('en')
 
 function invoiceListed(page, number) {
   return page.evaluate((wanted) => [...document.querySelectorAll('[data-testid="invoice-list"] .figure')].some((element) => element.textContent?.trim() === wanted), number)
@@ -502,48 +651,56 @@ async function dialogClosed(page) {
   await delay(300)
 }
 
-/** Invoices: add one, change its amount, delete it, and Undo the delete. */
-export async function invoiceFlow(page, { press, shoot, inspect }) {
-  const number = 'TEST-001'
-  if (await invoiceListed(page, number)) throw new Error(`${number} is on the list before the flow adds it`)
-  await pressSelector(page, press, '[data-testid="invoice-add"]')
-  await page.waitForSelector('[data-testid="invoice-form"]')
-  await delay(400)
-  await setField(await page.$('[data-testid="invoice-number"]'), number)
-  await setField(await page.$('[data-testid="invoice-item"]'), 'Workshop follow-up')
-  await setField(await page.$('[data-testid="invoice-amount"]'), '1250.00')
-  await choose(page, press, await page.$('[data-testid="invoice-client"]'), 'Lumen Labs')
-  await inspect?.('add an invoice')
-  await shoot('invoice-add')
-  await pressSelector(page, press, '[data-testid="invoice-save"]')
-  await toast(page, 'Invoice added')
-  await dialogClosed(page)
-  await waitForInvoice(page, number, true)
-  await shoot('invoice-added')
-  await dismissToasts(page)
+/** Invoices in a language: add one, change its amount, delete it, and Undo the delete. */
+export function invoiceFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const dialog = words.receivables.dialog
+  const edit = (number) => `[data-testid="invoice-edit"][aria-label="${words.receivables.list.edit(number)}"]`
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const number = 'TEST-001'
+    if (await invoiceListed(page, number)) throw new Error(`${number} is on the list before the flow adds it`)
+    await pressSelector(page, press, '[data-testid="invoice-add"]')
+    await page.waitForSelector('[data-testid="invoice-form"]')
+    await delay(400)
+    await setField(await page.$('[data-testid="invoice-number"]'), number)
+    await setField(await page.$('[data-testid="invoice-item"]'), 'Workshop follow-up')
+    await setField(await page.$('[data-testid="invoice-amount"]'), '1250.00')
+    await choose(page, press, await page.$('[data-testid="invoice-client"]'), 'Lumen Labs')
+    await inspect?.('add an invoice')
+    await shoot('invoice-add')
+    await pressSelector(page, press, '[data-testid="invoice-save"]')
+    await toast(page, dialog.added)
+    await dialogClosed(page)
+    await waitForInvoice(page, number, true)
+    await shoot('invoice-added')
+    await dismissToasts(page)
 
-  await pressSelector(page, press, `[data-testid="invoice-edit"][aria-label="Edit invoice ${number}"]`)
-  await page.waitForSelector('[data-testid="invoice-form"]')
-  await delay(400)
-  await setField(await page.$('[data-testid="invoice-amount"]'), '1300')
-  await inspect?.('edit an invoice')
-  await shoot('invoice-edit')
-  await pressSelector(page, press, '[data-testid="invoice-save"]')
-  await toast(page, 'Invoice saved')
-  await dialogClosed(page)
-  await dismissToasts(page)
+    await pressSelector(page, press, edit(number))
+    await page.waitForSelector('[data-testid="invoice-form"]')
+    await delay(400)
+    await setField(await page.$('[data-testid="invoice-amount"]'), '1300')
+    await inspect?.('edit an invoice')
+    await shoot('invoice-edit')
+    await pressSelector(page, press, '[data-testid="invoice-save"]')
+    await toast(page, dialog.saved)
+    await dialogClosed(page)
+    await dismissToasts(page)
 
-  await pressSelector(page, press, `[data-testid="invoice-edit"][aria-label="Edit invoice ${number}"]`)
-  await page.waitForSelector('[data-testid="invoice-form"]')
-  await delay(400)
-  await pressSelector(page, press, '[data-testid="invoice-delete"]')
-  await toast(page, 'Invoice deleted')
-  await dialogClosed(page)
-  await waitForInvoice(page, number, false)
-  await undo(page, press)
-  await waitForInvoice(page, number, true)
-  await dismissToasts(page)
+    await pressSelector(page, press, edit(number))
+    await page.waitForSelector('[data-testid="invoice-form"]')
+    await delay(400)
+    await pressSelector(page, press, '[data-testid="invoice-delete"]')
+    await toast(page, dialog.deleted)
+    await dialogClosed(page)
+    await waitForInvoice(page, number, false)
+    await undoIn(page, press, words)
+    await waitForInvoice(page, number, true)
+    await dismissToasts(page)
+  }
 }
+
+export const invoiceFlow = invoiceFlowIn('en')
 
 async function waitForRunStage(page, selector) {
   await page.waitForSelector(selector, { visible: true, timeout: 20_000 }).catch(async () => {
@@ -575,56 +732,62 @@ async function runFinished(page) {
  * the month folder is not, so the flow makes it on request. A re-export then finds the folders
  * without asking. With a workbook kept in this browser the PDF is saved through the browser.
  */
-export async function invoiceRunFlow(page, { press, shoot, inspect }) {
-  const answers = ['accept', 'accept', 'dismiss']
-  const asked = []
-  const answer = async (dialog) => {
-    asked.push(dialog.message())
-    if (answers.shift() === 'accept') await dialog.accept()
-    else await dialog.dismiss()
-  }
-  page.on('dialog', answer)
-  try {
-    await pressSelector(page, press, '[data-testid="invoice-make"]')
-    await waitForRunStage(page, '[data-testid="invoice-lines"]')
-    const number = await page.$eval('[data-testid="invoice-run-number"]', (input) => input.value)
-    if (number === '') throw new Error('the dialog suggests no invoice number')
-    const google = (await page.$('[data-testid="invoice-run-draft"]')) !== null
-    if (google) await pressSelector(page, press, '[data-testid="invoice-run-draft"]')
-    await inspect?.('make an invoice')
-    await shoot('invoice-run-form')
-    await pressSelector(page, press, '[data-testid="invoice-run-check"]')
-    if (google) {
-      await waitForRunStage(page, '[data-testid="invoice-run-hidden"]')
-      await shoot('invoice-run-hidden')
-      await pressSelector(page, press, '[data-testid="invoice-run-create-folder"]')
+export function invoiceRunFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const answers = ['accept', 'accept', 'dismiss']
+    const asked = []
+    const answer = async (dialog) => {
+      asked.push(dialog.message())
+      if (answers.shift() === 'accept') await dialog.accept()
+      else await dialog.dismiss()
     }
-    await waitForRunStage(page, '[data-testid="invoice-run-ready"]')
-    await shoot('invoice-run-ready')
-    await pressSelector(page, press, '[data-testid="invoice-run-make"]')
-    await runFinished(page)
-    await shoot('invoice-run-done')
-    await pressSelector(page, press, '[data-testid="invoice-run-close"]')
-    await waitForInvoice(page, number, true)
-    if (!google) return
+    page.on('dialog', answer)
+    try {
+      await pressSelector(page, press, '[data-testid="invoice-make"]')
+      await waitForRunStage(page, '[data-testid="invoice-lines"]')
+      const number = await page.$eval('[data-testid="invoice-run-number"]', (input) => input.value)
+      if (number === '') throw new Error('the dialog suggests no invoice number')
+      const google = (await page.$('[data-testid="invoice-run-draft"]')) !== null
+      if (google) await pressSelector(page, press, '[data-testid="invoice-run-draft"]')
+      await inspect?.('make an invoice')
+      await shoot('invoice-run-form')
+      await pressSelector(page, press, '[data-testid="invoice-run-check"]')
+      if (google) {
+        await waitForRunStage(page, '[data-testid="invoice-run-hidden"]')
+        await shoot('invoice-run-hidden')
+        await pressSelector(page, press, '[data-testid="invoice-run-create-folder"]')
+      }
+      await waitForRunStage(page, '[data-testid="invoice-run-ready"]')
+      await shoot('invoice-run-ready')
+      await pressSelector(page, press, '[data-testid="invoice-run-make"]')
+      await runFinished(page)
+      await shoot('invoice-run-done')
+      await pressSelector(page, press, '[data-testid="invoice-run-close"]')
+      await waitForInvoice(page, number, true)
+      if (!google) return
 
-    if (asked.length !== 3) throw new Error(`the Picker opened ${asked.length} times on the first run, not 3`)
-    await pressSelector(page, press, `[data-testid="invoice-edit"][aria-label="Edit invoice ${number}"]`)
-    await page.waitForSelector('[data-testid="invoice-form"]')
-    await delay(400)
-    await pressSelector(page, press, '[data-testid="invoice-reexport"]')
-    await waitForRunStage(page, '[data-testid="invoice-lines"]')
-    await pressSelector(page, press, '[data-testid="invoice-run-check"]')
-    await waitForRunStage(page, '[data-testid="invoice-run-ready"]')
-    await pressSelector(page, press, '[data-testid="invoice-run-make"]')
-    await runFinished(page)
-    await shoot('invoice-reexport-done')
-    if (asked.length !== 3) throw new Error('the re-export opened the Picker for a folder already in view')
-    await pressSelector(page, press, '[data-testid="invoice-run-close"]')
-  } finally {
-    page.off('dialog', answer)
+      if (asked.length !== 3) throw new Error(`the Picker opened ${asked.length} times on the first run, not 3`)
+      await pressSelector(page, press, `[data-testid="invoice-edit"][aria-label="${words.receivables.list.edit(number)}"]`)
+      await page.waitForSelector('[data-testid="invoice-form"]')
+      await delay(400)
+      await pressSelector(page, press, '[data-testid="invoice-reexport"]')
+      await waitForRunStage(page, '[data-testid="invoice-lines"]')
+      await pressSelector(page, press, '[data-testid="invoice-run-check"]')
+      await waitForRunStage(page, '[data-testid="invoice-run-ready"]')
+      await pressSelector(page, press, '[data-testid="invoice-run-make"]')
+      await runFinished(page)
+      await shoot('invoice-reexport-done')
+      if (asked.length !== 3) throw new Error('the re-export opened the Picker for a folder already in view')
+      await pressSelector(page, press, '[data-testid="invoice-run-close"]')
+    } finally {
+      page.off('dialog', answer)
+    }
   }
 }
+
+export const invoiceRunFlow = invoiceRunFlowIn('en')
 
 async function dialogGone(page, selector) {
   await page
@@ -635,10 +798,11 @@ async function dialogGone(page, selector) {
   await delay(300)
 }
 
-/** The component button of a scenario whose text starts with `text`, or null. */
+/** The component button of a scenario whose text, with its spaces read as plain ones, starts with `text`, or null. */
 function componentIn(page, scenario, text) {
   return page.evaluateHandle(
-    (slug, wanted) => [...document.querySelectorAll(`[data-scenario="${slug}"] [data-testid="scenario-component"]`)].find((button) => button.textContent?.trim().startsWith(wanted)) ?? null,
+    (slug, wanted) =>
+      [...document.querySelectorAll(`[data-scenario="${slug}"] [data-testid="scenario-component"]`)].find((button) => button.textContent?.replace(/\s+/g, ' ').trim().startsWith(wanted)) ?? null,
     scenario,
     text,
   )
@@ -648,7 +812,7 @@ async function waitForComponent(page, scenario, text, shown) {
   await page
     .waitForFunction(
       (slug, wanted, present) =>
-        [...document.querySelectorAll(`[data-scenario="${slug}"] [data-testid="scenario-component"]`)].some((button) => button.textContent?.trim().startsWith(wanted)) === present,
+        [...document.querySelectorAll(`[data-scenario="${slug}"] [data-testid="scenario-component"]`)].some((button) => button.textContent?.replace(/\s+/g, ' ').trim().startsWith(wanted)) === present,
       { timeout: 10_000 },
       scenario,
       text,
@@ -670,89 +834,109 @@ async function openComponent(page, press, scenario, text) {
 }
 
 /** Year, Pay: open the scenarios, add rent to the floor salary scenario, raise it, delete it, Undo the delete, then copy the scenario and Undo the copy. */
-export async function scenarioFlow(page, { press, shoot, inspect }) {
-  const scenario = 'floor-salary'
-  await openCard(page, press, 'scenario-editor')
-  await pressSelector(page, press, `[data-scenario="${scenario}"] [data-testid="scenario-add-component"]`)
-  await page.waitForSelector('[data-testid="scenario-component-form"]')
-  await delay(400)
-  await choose(page, press, await page.$('[data-testid="component-kind"]'), 'Rent')
-  await setField(await page.waitForSelector('[data-testid="component-amount"]'), '300')
-  await setField(await page.$('[data-testid="component-from"]'), '2027-07-01')
-  await inspect?.('add a component')
-  await shoot('scenario-add')
-  await pressSelector(page, press, '[data-testid="component-save"]')
-  await toast(page, 'Component added')
-  await dialogGone(page, '[data-testid="scenario-component-form"]')
-  await waitForComponent(page, scenario, 'Rent of', true)
-  await shoot('scenario-added')
-  await dismissToasts(page)
+export function scenarioFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const said = words.payScenarios
+  const rentOf = (amount) => said.components.rent(amount).replace(/\s+/g, ' ')
+  const anyRent = rentOf('\u0000').split('\u0000')[0]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const scenario = 'floor-salary'
+    await openCard(page, press, 'scenario-editor')
+    await pressSelector(page, press, `[data-scenario="${scenario}"] [data-testid="scenario-add-component"]`)
+    await page.waitForSelector('[data-testid="scenario-component-form"]')
+    await delay(400)
+    await choose(page, press, await page.$('[data-testid="component-kind"]'), said.componentDialog.kinds.rent_monthly)
+    await setField(await page.waitForSelector('[data-testid="component-amount"]'), '300')
+    await setField(await page.$('[data-testid="component-from"]'), '2027-07-01')
+    await inspect?.('add a component')
+    await shoot('scenario-add')
+    await pressSelector(page, press, '[data-testid="component-save"]')
+    await toast(page, said.componentDialog.added)
+    await dialogGone(page, '[data-testid="scenario-component-form"]')
+    await waitForComponent(page, scenario, anyRent, true)
+    await shoot('scenario-added')
+    await dismissToasts(page)
 
-  await openComponent(page, press, scenario, 'Rent of')
-  await setField(await page.$('[data-testid="component-amount"]'), '320')
-  await inspect?.('edit a component')
-  await shoot('scenario-edit')
-  await pressSelector(page, press, '[data-testid="component-save"]')
-  await toast(page, 'Component saved')
-  await dialogGone(page, '[data-testid="scenario-component-form"]')
-  await waitForComponent(page, scenario, 'Rent of €320.00', true)
-  await dismissToasts(page)
+    await openComponent(page, press, scenario, anyRent)
+    await setField(await page.$('[data-testid="component-amount"]'), '320')
+    await inspect?.('edit a component')
+    await shoot('scenario-edit')
+    await pressSelector(page, press, '[data-testid="component-save"]')
+    await toast(page, said.componentDialog.saved)
+    await dialogGone(page, '[data-testid="scenario-component-form"]')
+    await waitForComponent(page, scenario, rentOf(eurosIn(words, 320)), true)
+    await dismissToasts(page)
 
-  await openComponent(page, press, scenario, 'Rent of')
-  await pressSelector(page, press, '[data-testid="component-delete"]')
-  await toast(page, 'Component deleted')
-  await dialogGone(page, '[data-testid="scenario-component-form"]')
-  await waitForComponent(page, scenario, 'Rent of', false)
-  await undo(page, press)
-  await waitForComponent(page, scenario, 'Rent of €320.00', true)
-  await dismissToasts(page)
+    await openComponent(page, press, scenario, anyRent)
+    await pressSelector(page, press, '[data-testid="component-delete"]')
+    await toast(page, said.componentDialog.deleted)
+    await dialogGone(page, '[data-testid="scenario-component-form"]')
+    await waitForComponent(page, scenario, anyRent, false)
+    await undoIn(page, press, words)
+    await waitForComponent(page, scenario, rentOf(eurosIn(words, 320)), true)
+    await dismissToasts(page)
 
-  await pressSelector(page, press, `[data-scenario="${scenario}"] [data-testid="scenario-copy"]`)
-  await page.waitForSelector('[data-testid="scenario-name-form"]')
-  await delay(400)
-  await inspect?.('copy a scenario')
-  await pressSelector(page, press, '[data-testid="scenario-name-save"]')
-  await toast(page, 'Scenario copied')
-  await page.waitForSelector('[data-scenario="floor-salary-copy"]')
-  await undo(page, press)
-  await page.waitForFunction(() => !document.querySelector('[data-scenario="floor-salary-copy"]'), { timeout: 10_000 })
-  await dismissToasts(page)
+    await pressSelector(page, press, `[data-scenario="${scenario}"] [data-testid="scenario-copy"]`)
+    await page.waitForSelector('[data-testid="scenario-name-form"]')
+    await delay(400)
+    await inspect?.('copy a scenario')
+    await pressSelector(page, press, '[data-testid="scenario-name-save"]')
+    await toast(page, said.nameDialog.copied)
+    await page.waitForSelector('[data-scenario="floor-salary-copy"]')
+    await undoIn(page, press, words)
+    await page.waitForFunction(() => !document.querySelector('[data-scenario="floor-salary-copy"]'), { timeout: 10_000 })
+    await dismissToasts(page)
 
-  await openComponent(page, press, scenario, 'Rent of')
-  await pressSelector(page, press, '[data-testid="component-delete"]')
-  await toast(page, 'Component deleted')
-  await dialogGone(page, '[data-testid="scenario-component-form"]')
-  await dismissToasts(page)
+    await openComponent(page, press, scenario, anyRent)
+    await pressSelector(page, press, '[data-testid="component-delete"]')
+    await toast(page, said.componentDialog.deleted)
+    await dialogGone(page, '[data-testid="scenario-component-form"]')
+    await dismissToasts(page)
+  }
 }
+
+export const scenarioFlow = scenarioFlowIn('en')
 
 /** Year, Pay with no scenarios yet, where the scenarios card opens itself: add the starting four, and Undo them. */
-export async function startingScenariosFlow(page, { press, shoot, inspect }) {
-  await page.waitForSelector('[data-testid="scenario-editor"]')
-  if (await page.$('[data-scenario]')) throw new Error('a scenario is on the screen before the flow adds the starting ones')
-  await pressSelector(page, press, '[data-testid="add-starting-scenarios"]')
-  await page.waitForSelector('[data-testid="starting-scenarios-form"]')
-  await delay(400)
-  await setField(await page.$('[data-testid="starting-rent"]'), '300')
-  await inspect?.('add the starting scenarios')
-  await shoot('starting-scenarios')
-  await pressSelector(page, press, '[data-testid="starting-scenarios-save"]')
-  await toast(page, 'Starting scenarios added')
-  await dialogGone(page, '[data-testid="starting-scenarios-form"]')
-  await page.waitForSelector('[data-scenario="floor-salary-2027"]')
-  await shoot('starting-added')
-  await undo(page, press)
-  await page
-    .waitForFunction(() => !document.querySelector('[data-scenario]'), { timeout: 10_000 })
-    .catch(() => {
-      throw new Error('Undo left starting scenarios on the screen')
-    })
-  await dismissToasts(page)
+export function startingScenariosFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="scenario-editor"]')
+    if (await page.$('[data-scenario]')) throw new Error('a scenario is on the screen before the flow adds the starting ones')
+    await pressSelector(page, press, '[data-testid="add-starting-scenarios"]')
+    await page.waitForSelector('[data-testid="starting-scenarios-form"]')
+    await delay(400)
+    await setField(await page.$('[data-testid="starting-rent"]'), '300')
+    await inspect?.('add the starting scenarios')
+    await shoot('starting-scenarios')
+    await pressSelector(page, press, '[data-testid="starting-scenarios-save"]')
+    await toast(page, words.payScenarios.startingDialog.added)
+    await dialogGone(page, '[data-testid="starting-scenarios-form"]')
+    await page.waitForSelector('[data-scenario="floor-salary-2027"]')
+    await shoot('starting-added')
+    await undoIn(page, press, words)
+    await page
+      .waitForFunction(() => !document.querySelector('[data-scenario]'), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('Undo left starting scenarios on the screen')
+      })
+    await dismissToasts(page)
+  }
 }
 
-/** The text of a category's row in the plan editor, once it holds `wanted`. */
+export const startingScenariosFlow = startingScenariosFlowIn('en')
+
+/** The text of a category's row in the plan editor, with its spaces read as plain ones, once it holds `wanted`. */
 async function waitForPlanCategory(page, slug, wanted) {
   await page
-    .waitForFunction((category, text) => document.querySelector(`[data-testid="plan-category"][data-category="${category}"]`)?.textContent?.includes(text) ?? false, { timeout: 10_000 }, slug, wanted)
+    .waitForFunction(
+      (category, text) => document.querySelector(`[data-testid="plan-category"][data-category="${category}"]`)?.textContent?.replace(/\s+/g, ' ').includes(text) ?? false,
+      { timeout: 10_000 },
+      slug,
+      wanted,
+    )
     .catch(() => {
       throw new Error(`the plan of ${slug} does not say "${wanted}"`)
     })
@@ -765,75 +949,92 @@ async function openPlanCategory(page, press, slug) {
 }
 
 /** Year, Plan for 2027: plan a category for every month and one month of its own, raise it, clear it, Undo the clear, then clear it again. */
-export async function planFlow(page, { press, shoot, inspect }) {
-  await page.waitForSelector('[data-testid="plan-editor"]')
-  const slug = await page.evaluate(
-    () => [...document.querySelectorAll('[data-testid="plan-category"]:not([disabled])')].find((button) => button.textContent?.includes('No plan row'))?.getAttribute('data-category') ?? null,
-  )
-  if (slug === null) throw new Error('no category without a plan row to plan')
+export function planFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const plan = words.forecast.plan
+  const dialog = words.forecast.planDialogs.category
+  const noPlanRow = plan.noPlanRow('').trim()
+  const plannedAt = (amount) => plan.plannedAt(eurosIn(words, amount), countedIn(words, plan.ownMonths(1), 1)).replace(/\s+/g, ' ')
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="plan-editor"]')
+    const slug = await page.evaluate(
+      (text) => [...document.querySelectorAll('[data-testid="plan-category"]:not([disabled])')].find((button) => button.textContent?.includes(text))?.getAttribute('data-category') ?? null,
+      noPlanRow,
+    )
+    if (slug === null) throw new Error('no category without a plan row to plan')
 
-  await openPlanCategory(page, press, slug)
-  await setField(await page.$('[data-testid="plan-every-month"]'), '120')
-  await setField(await page.$('[data-testid="plan-month-1"]'), '300')
-  await inspect?.('plan a category')
-  await shoot('plan-category')
-  await pressSelector(page, press, '[data-testid="plan-save"]')
-  await toast(page, 'Plan saved')
-  await dialogGone(page, '[data-testid="category-plan-form"]')
-  await waitForPlanCategory(page, slug, '€120.00 a month, one month of its own')
-  await shoot('plan-category-saved')
-  await dismissToasts(page)
+    await openPlanCategory(page, press, slug)
+    await setField(await page.$('[data-testid="plan-every-month"]'), '120')
+    await setField(await page.$('[data-testid="plan-month-1"]'), '300')
+    await inspect?.('plan a category')
+    await shoot('plan-category')
+    await pressSelector(page, press, '[data-testid="plan-save"]')
+    await toast(page, dialog.saved)
+    await dialogGone(page, '[data-testid="category-plan-form"]')
+    await waitForPlanCategory(page, slug, plannedAt(120))
+    await shoot('plan-category-saved')
+    await dismissToasts(page)
 
-  await openPlanCategory(page, press, slug)
-  await setField(await page.$('[data-testid="plan-every-month"]'), '130')
-  await inspect?.('edit a plan')
-  await pressSelector(page, press, '[data-testid="plan-save"]')
-  await toast(page, 'Plan saved')
-  await dialogGone(page, '[data-testid="category-plan-form"]')
-  await waitForPlanCategory(page, slug, '€130.00 a month')
-  await dismissToasts(page)
+    await openPlanCategory(page, press, slug)
+    await setField(await page.$('[data-testid="plan-every-month"]'), '130')
+    await inspect?.('edit a plan')
+    await pressSelector(page, press, '[data-testid="plan-save"]')
+    await toast(page, dialog.saved)
+    await dialogGone(page, '[data-testid="category-plan-form"]')
+    await waitForPlanCategory(page, slug, plannedAt(130))
+    await dismissToasts(page)
 
-  await openPlanCategory(page, press, slug)
-  await pressSelector(page, press, '[data-testid="plan-clear"]')
-  await toast(page, 'Plan cleared')
-  await dialogGone(page, '[data-testid="category-plan-form"]')
-  await waitForPlanCategory(page, slug, 'No plan row')
-  await undo(page, press)
-  await waitForPlanCategory(page, slug, '€130.00 a month, one month of its own')
-  await dismissToasts(page)
+    await openPlanCategory(page, press, slug)
+    await pressSelector(page, press, '[data-testid="plan-clear"]')
+    await toast(page, dialog.cleared)
+    await dialogGone(page, '[data-testid="category-plan-form"]')
+    await waitForPlanCategory(page, slug, noPlanRow)
+    await undoIn(page, press, words)
+    await waitForPlanCategory(page, slug, plannedAt(130))
+    await dismissToasts(page)
 
-  await openPlanCategory(page, press, slug)
-  await pressSelector(page, press, '[data-testid="plan-clear"]')
-  await toast(page, 'Plan cleared')
-  await dialogGone(page, '[data-testid="category-plan-form"]')
-  await dismissToasts(page)
+    await openPlanCategory(page, press, slug)
+    await pressSelector(page, press, '[data-testid="plan-clear"]')
+    await toast(page, dialog.cleared)
+    await dialogGone(page, '[data-testid="category-plan-form"]')
+    await dismissToasts(page)
+  }
 }
+
+export const planFlow = planFlowIn('en')
 
 /** Year, Plan for 2027 with no plan rows: plan a purchase, and Undo it. */
-export async function planTabFlow(page, { press, shoot, inspect }) {
-  await page.waitForSelector('[data-testid="plan-editor"]')
-  if (await page.$('[data-testid="plan-purchase"]')) throw new Error('a purchase is planned before the flow adds one')
-  await pressSelector(page, press, '[data-testid="plan-add-purchase"]')
-  await page.waitForSelector('[data-testid="purchase-plan-form"]')
-  await delay(400)
-  await setField(await page.$('[data-testid="purchase-name"]'), 'Replacement laptop')
-  await setField(await page.$('[data-testid="purchase-date"]'), '2027-03-10')
-  await setField(await page.$('[data-testid="purchase-amount"]'), '1600')
-  await inspect?.('plan a purchase')
-  await shoot('plan-purchase')
-  await pressSelector(page, press, '[data-testid="purchase-save"]')
-  await toast(page, 'Purchase planned')
-  await dialogGone(page, '[data-testid="purchase-plan-form"]')
-  await page.waitForSelector('[data-testid="plan-purchase"]')
-  await shoot('plan-purchase-added')
-  await undo(page, press)
-  await page
-    .waitForFunction(() => !document.querySelector('[data-testid="plan-purchase"]'), { timeout: 10_000 })
-    .catch(() => {
-      throw new Error('Undo left the planned purchase on the screen')
-    })
-  await dismissToasts(page)
+export function planTabFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="plan-editor"]')
+    if (await page.$('[data-testid="plan-purchase"]')) throw new Error('a purchase is planned before the flow adds one')
+    await pressSelector(page, press, '[data-testid="plan-add-purchase"]')
+    await page.waitForSelector('[data-testid="purchase-plan-form"]')
+    await delay(400)
+    await setField(await page.$('[data-testid="purchase-name"]'), 'Replacement laptop')
+    await setField(await page.$('[data-testid="purchase-date"]'), '2027-03-10')
+    await setField(await page.$('[data-testid="purchase-amount"]'), '1600')
+    await inspect?.('plan a purchase')
+    await shoot('plan-purchase')
+    await pressSelector(page, press, '[data-testid="purchase-save"]')
+    await toast(page, words.forecast.planDialogs.purchase.planned)
+    await dialogGone(page, '[data-testid="purchase-plan-form"]')
+    await page.waitForSelector('[data-testid="plan-purchase"]')
+    await shoot('plan-purchase-added')
+    await undoIn(page, press, words)
+    await page
+      .waitForFunction(() => !document.querySelector('[data-testid="plan-purchase"]'), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('Undo left the planned purchase on the screen')
+      })
+    await dismissToasts(page)
+  }
 }
+
+export const planTabFlow = planTabFlowIn('en')
 
 /** The Split action of the one row in view: in the table's last column, or inside its card on a phone once the card is open. */
 async function openSplitOfRow(page, press) {
@@ -878,59 +1079,73 @@ async function waitForSplit(page, present) {
     })
 }
 
-/** Transactions: split the one gadget purchase in two, change the parts, delete the split, and Undo the delete. */
-export async function splitFlow(page, { press, shoot, inspect }) {
-  await waitForSplit(page, false)
-  await openSplitOfRow(page, press)
-  await setPart(page, 0, '30.00')
-  const second = await setPart(page, 1, '8.90')
-  await chooseCategory(page, press, await second.$('[data-testid="split-part-category"]'), 'Office supplies')
-  await setField(await second.$('[data-testid="split-part-note"]'), 'Printer paper')
-  await inspect?.('split a row')
-  await shoot('split-add')
-  await pressSelector(page, press, '[data-testid="split-save"]')
-  await toast(page, 'Split in 2 parts')
-  await dialogGone(page, '[data-testid="split-form"]')
-  await waitForSplit(page, true)
-  await shoot('split-added')
-  await dismissToasts(page)
-
-  await pressSelector(page, press, '[data-testid="edit-split"]')
-  await page.waitForSelector('[data-testid="split-form"]')
-  await delay(400)
-  await setPart(page, 0, '28.90')
-  await setPart(page, 1, '5.00')
-  await pressSelector(page, press, '[data-testid="split-add-part"]')
-  await delay(200)
-  const third = (await page.$$('[data-testid="split-part"]'))[2]
-  await chooseCategory(page, press, await third.$('[data-testid="split-part-category"]'), 'Owner loan out')
-  await inspect?.('edit a split')
-  await shoot('split-edit')
-  await pressSelector(page, press, '[data-testid="split-save"]')
-  await toast(page, 'Split saved')
-  await dialogGone(page, '[data-testid="split-form"]')
-  await dismissToasts(page)
-
-  await pressSelector(page, press, '[data-testid="edit-split"]')
-  await page.waitForSelector('[data-testid="split-form"]')
-  await delay(400)
-  await pressSelector(page, press, '[data-testid="split-delete"]')
-  await toast(page, 'Split deleted')
-  await dialogGone(page, '[data-testid="split-form"]')
-  await waitForSplit(page, false)
-  await undo(page, press)
-  await waitForSplit(page, true)
-  await shoot('split-undone')
-  await dismissToasts(page)
+/** An amount typed the way the language writes its decimals, as in 30,00 in Croatian. */
+function typedIn(words, amount) {
+  return words.locale === 'en-GB' ? amount : amount.replace('.', ',')
 }
 
+/** Transactions: split the one gadget purchase in two, change the parts, delete the split, and Undo the delete. */
+export function splitFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const said = words.transactions
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await waitForSplit(page, false)
+    await openSplitOfRow(page, press)
+    await setPart(page, 0, typedIn(words, '30.00'))
+    const second = await setPart(page, 1, typedIn(words, '8.90'))
+    await chooseCategory(page, press, await second.$('[data-testid="split-part-category"]'), words.categoryName('office-supplies'))
+    await setField(await second.$('[data-testid="split-part-note"]'), 'Printer paper')
+    await inspect?.('split a row')
+    await shoot('split-add')
+    await pressSelector(page, press, '[data-testid="split-save"]')
+    await toast(page, countedIn(words, said.splitInParts(2), 2))
+    await dialogGone(page, '[data-testid="split-form"]')
+    await waitForSplit(page, true)
+    await shoot('split-added')
+    await dismissToasts(page)
+
+    await pressSelector(page, press, '[data-testid="edit-split"]')
+    await page.waitForSelector('[data-testid="split-form"]')
+    await delay(400)
+    await setPart(page, 0, typedIn(words, '28.90'))
+    await setPart(page, 1, typedIn(words, '5.00'))
+    await pressSelector(page, press, '[data-testid="split-add-part"]')
+    await delay(200)
+    const third = (await page.$$('[data-testid="split-part"]'))[2]
+    await chooseCategory(page, press, await third.$('[data-testid="split-part-category"]'), words.categoryName('owner-loan-out'))
+    await inspect?.('edit a split')
+    await shoot('split-edit')
+    await pressSelector(page, press, '[data-testid="split-save"]')
+    await toast(page, said.splitDialog.saved)
+    await dialogGone(page, '[data-testid="split-form"]')
+    await dismissToasts(page)
+
+    await pressSelector(page, press, '[data-testid="edit-split"]')
+    await page.waitForSelector('[data-testid="split-form"]')
+    await delay(400)
+    await pressSelector(page, press, '[data-testid="split-delete"]')
+    await toast(page, said.splitDialog.deleted)
+    await dialogGone(page, '[data-testid="split-form"]')
+    await waitForSplit(page, false)
+    await undoIn(page, press, words)
+    await waitForSplit(page, true)
+    await shoot('split-undone')
+    await dismissToasts(page)
+  }
+}
+
+export const splitFlow = splitFlowIn('en')
+
 /**
- * The Change category action of the first row in view, or of the first part of a split row: in the
- * table's last column, or inside its card on a phone once the card is open.
+ * The Change category action of the first row in view, or with `words` of the first part of a split
+ * row: in the table's last column, or inside its card on a phone once the card is open.
  */
-async function openChangeOfRow(page, press, part = false) {
-  const button = part ? '[data-testid="change-category-row"][aria-label^="Change the category of part"]' : '[data-testid="change-category-row"]'
-  const card = part ? '[data-testid="transaction-card"].part' : '[data-testid="transaction-card"]'
+async function openChangeOfRow(page, press, words = null) {
+  // The label around the row's counterparty, which differs per row.
+  const [before, after] = words === null ? [] : words.transactions.changeCategoryOf(words.transactions.partName(1, '\u0000')).split('\u0000')
+  const button = words === null ? '[data-testid="change-category-row"]' : `[data-testid="change-category-row"][aria-label^="${before}"]${after === '' ? '' : `[aria-label$="${after}"]`}`
+  const card = words === null ? '[data-testid="transaction-card"]' : '[data-testid="transaction-card"].part'
   const found = await page.waitForSelector(`${button}, ${card}`, { timeout: 10_000 })
   const visible = await found.evaluate((element, wanted) => element.matches(wanted) && element.getBoundingClientRect().width > 0, button)
   if (!visible) {
@@ -954,39 +1169,46 @@ async function pageSays(page, text, says) {
  * office supplies with the rule named first, then undone. A part of a split row opens the split
  * editor instead, since the splits tab holds its category.
  */
-export async function changeCategoryFlow(page, { press, shoot, inspect }) {
-  await pageSays(page, 'Office supplies', false)
-  await openChangeOfRow(page, press)
-  await page.waitForSelector('[data-testid="change-category"]')
-  await delay(400)
-  await chooseCategory(page, press, await page.$('[data-testid="change-category-picker"]'), 'Office supplies')
-  await page.waitForSelector('[data-testid="rule-against"]', { timeout: 5_000 }).catch(() => {
-    throw new Error('the dialog does not name the rule that files the row elsewhere')
-  })
-  await inspect?.('change a category')
-  await shoot('change-category')
-  await pressSelector(page, press, '[data-testid="change-category-save"]')
-  await toast(page, 'Filed as Office supplies')
-  await dialogGone(page, '[data-testid="change-category"]')
-  await pageSays(page, 'Office supplies', true)
-  await shoot('change-category-filed')
-  await undo(page, press)
-  await pageSays(page, 'Office supplies', false)
-  await dismissToasts(page)
+export function changeCategoryFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const officeSupplies = words.categoryName('office-supplies')
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await pageSays(page, officeSupplies, false)
+    await openChangeOfRow(page, press)
+    await page.waitForSelector('[data-testid="change-category"]')
+    await delay(400)
+    await chooseCategory(page, press, await page.$('[data-testid="change-category-picker"]'), officeSupplies)
+    await page.waitForSelector('[data-testid="rule-against"]', { timeout: 5_000 }).catch(() => {
+      throw new Error('the dialog does not name the rule that files the row elsewhere')
+    })
+    await inspect?.('change a category')
+    await shoot('change-category')
+    await pressSelector(page, press, '[data-testid="change-category-save"]')
+    await toast(page, words.transactions.changeDialog.filedAs(officeSupplies))
+    await dialogGone(page, '[data-testid="change-category"]')
+    await pageSays(page, officeSupplies, true)
+    await shoot('change-category-filed')
+    await undoIn(page, press, words)
+    await pageSays(page, officeSupplies, false)
+    await dismissToasts(page)
 
-  await page.evaluate(() => {
-    window.location.hash = '#/company/transactions?p=all&q=PAPER'
-  })
-  await waitForSplit(page, true)
-  await openChangeOfRow(page, press, true)
-  await page.waitForSelector('[data-testid="split-form"]', { timeout: 5_000 }).catch(() => {
-    throw new Error('Change category on a part of a split row did not open the split editor')
-  })
-  await delay(400)
-  await shoot('change-category-part')
-  await page.keyboard.press('Escape')
-  await dialogGone(page, '[data-testid="split-form"]')
+    await page.evaluate(() => {
+      window.location.hash = '#/company/transactions?p=all&q=PAPER'
+    })
+    await waitForSplit(page, true)
+    await openChangeOfRow(page, press, words)
+    await page.waitForSelector('[data-testid="split-form"]', { timeout: 5_000 }).catch(() => {
+      throw new Error('Change category on a part of a split row did not open the split editor')
+    })
+    await delay(400)
+    await shoot('change-category-part')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="split-form"]')
+  }
 }
+
+export const changeCategoryFlow = changeCategoryFlowIn('en')
 
 /**
  * Opens the Owner share dialog of the shared row in view: from the pencil on its heading, or from
@@ -1020,41 +1242,55 @@ async function shareReads(page, press, wanted) {
   await dialogGone(page, '[data-testid="owner-share"]')
 }
 
+/** An amount in euros as the language writes it, with the spaces read as plain ones. */
+function eurosIn(words, amount) {
+  return new Intl.NumberFormat(words.locale, { style: 'currency', currency: 'EUR' }).format(amount).replace(/\s+/g, ' ')
+}
+
 /**
  * Transactions: the laptop, which holds a 30% share of its own and so heads its two parts, changed
  * to 45% from its heading with the company's and the owner's parts shown, then undone, and cleared
  * through its category's default, which is none, then undone. Each Undo is checked from a part.
  */
-export async function ownerShareFlow(page, { press, shoot, inspect }) {
-  await openShareOfRow(page, press)
-  if ((await shareTyped(page)) !== '30') throw new Error(`the laptop's share reads "${await shareTyped(page)}", not 30`)
-  await setField(await page.$('[data-testid="owner-share-input"]'), '45')
-  await page
-    .waitForFunction(() => document.querySelector('[data-testid="owner-share-split"]')?.innerText.replace(/\s+/g, ' ').includes('You take €854.55') ?? false, { timeout: 5_000 })
-    .catch(async () => {
-      const said = await page.$eval('[data-testid="owner-share-split"]', (element) => element.innerText.replace(/\s+/g, ' ').trim())
-      throw new Error(`45% of the laptop's €1,899.00 reads "${said}", not the company keeps €1,044.45 and you take €854.55`)
-    })
-  await inspect?.('owner share')
-  await shoot('owner-share')
-  await pressSelector(page, press, '[data-testid="owner-share-save"]')
-  await toast(page, 'Owner share set to 45%')
-  await dialogGone(page, '[data-testid="owner-share"]')
-  await undo(page, press)
-  await dismissToasts(page)
-  await shareReads(page, press, '30')
+export function ownerShareFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const dialog = words.ownerShare.shareDialog
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await openShareOfRow(page, press)
+    if ((await shareTyped(page)) !== '30') throw new Error(`the laptop's share reads "${await shareTyped(page)}", not 30`)
+    await setField(await page.$('[data-testid="owner-share-input"]'), '45')
+    const split = [`${dialog.companyKeeps} ${eurosIn(words, 1044.45)}`, `${dialog.youTake} ${eurosIn(words, 854.55)}`]
+    await page
+      .waitForFunction((wanted) => wanted.every((part) => document.querySelector('[data-testid="owner-share-split"]')?.innerText.replace(/\s+/g, ' ').includes(part)), { timeout: 5_000 }, split)
+      .catch(async () => {
+        const said = await page.$eval('[data-testid="owner-share-split"]', (element) => element.innerText.replace(/\s+/g, ' ').trim())
+        throw new Error(`45% of the laptop's 1,899.00 reads "${said}", not ${split.join(' and ')}`)
+      })
+    await elementSays(page, '[role="dialog"]', [dialog.title, dialog.share], 'the Owner share dialog is not in its language')
+    await inspect?.('owner share')
+    await shoot('owner-share')
+    await pressSelector(page, press, '[data-testid="owner-share-save"]')
+    await toast(page, dialog.setTo(45))
+    await dialogGone(page, '[data-testid="owner-share"]')
+    await undoIn(page, press, words)
+    await dismissToasts(page)
+    await shareReads(page, press, '30')
 
-  await openShareOfRow(page, press)
-  await pressSelector(page, press, '[data-testid="owner-share-default"]')
-  if ((await shareTyped(page)) !== '') throw new Error('the default of Equipment, which has none, did not clear the share')
-  await shoot('owner-share-clear')
-  await pressSelector(page, press, '[data-testid="owner-share-save"]')
-  await toast(page, 'Owner share cleared')
-  await dialogGone(page, '[data-testid="owner-share"]')
-  await undo(page, press)
-  await dismissToasts(page)
-  await shareReads(page, press, '30')
+    await openShareOfRow(page, press)
+    await pressSelector(page, press, '[data-testid="owner-share-default"]')
+    if ((await shareTyped(page)) !== '') throw new Error('the default of Equipment, which has none, did not clear the share')
+    await shoot('owner-share-clear')
+    await pressSelector(page, press, '[data-testid="owner-share-save"]')
+    await toast(page, dialog.cleared)
+    await dialogGone(page, '[data-testid="owner-share"]')
+    await undoIn(page, press, words)
+    await dismissToasts(page)
+    await shareReads(page, press, '30')
+  }
 }
+
+export const ownerShareFlow = ownerShareFlowIn('en')
 
 /**
  * Owner, Taken on 2026 in the workbook kept in this browser: "Monthly net, profit included" beside
@@ -1115,40 +1351,49 @@ export async function ownerNetUnregisteredFlow(page, { press, shoot, inspect }) 
  * Settings, Categories: a 40% default on software subscriptions, saved with the fill offer, which
  * fills the bank rows without a share and leaves the design tool advance's 25%, then undone whole.
  */
-export async function shareFillFlow(page, { press, shoot, inspect }) {
-  const row = await rowNamed(page, '[data-testid="category-row"]', 'software-subscriptions')
-  await setField(await fieldIn(row, 'Owner share, in percent'), '40')
-  await delay(200)
-  await shoot('share-fill-draft')
-  await pressSelector(page, press, '[data-testid="save-categories"]')
-  await page.waitForSelector('[data-testid="share-fill"]', { visible: true, timeout: 5_000 }).catch(() => {
-    throw new Error('a new default did not offer to fill the rows without a share')
-  })
-  await delay(400)
-  const offer = await page.$eval('[data-testid="share-fill"]', (element) => element.innerText.replace(/\s+/g, ' ').trim())
-  const rows = /Software subscriptions 40% (\d+) rows/.exec(offer)?.[1]
-  if (rows === undefined) throw new Error(`the fill offer says "${offer}"`)
-  await inspect?.('share fill')
-  await shoot('share-fill')
-  await pressSelector(page, press, '[data-testid="share-fill-save"]')
-  await toast(page, 'Categories saved')
-  const said = await page.$eval(`${TOAST} [data-slot="description"]`, (element) => element.textContent?.trim() ?? '')
-  if (said !== `${rows} rows without a share took the new default.`) throw new Error(`the save says "${said}" after filling ${rows} rows`)
-  await dialogGone(page, '[data-testid="share-fill"]')
-  await undo(page, press)
-  await page
-    .waitForFunction(
-      () =>
-        [...document.querySelectorAll('[data-testid="category-row"]')]
-          .find((element) => element.querySelector('input')?.value === 'software-subscriptions')
-          ?.querySelector('[data-testid="category-owner-share"]')?.value === '',
-      { timeout: 10_000 },
-    )
-    .catch(() => {
-      throw new Error('Undo did not take the default off software subscriptions')
+export function shareFillFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const row = await rowNamed(page, '[data-testid="category-row"]', 'software-subscriptions')
+    await setField(await fieldIn(row, words.settings.categories.shareLabel), '40')
+    await delay(200)
+    await shoot('share-fill-draft')
+    await pressSelector(page, press, '[data-testid="save-categories"]')
+    await page.waitForSelector('[data-testid="share-fill"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('a new default did not offer to fill the rows without a share')
     })
-  await dismissToasts(page)
+    await delay(400)
+    await elementSays(page, '[role="dialog"]', [words.ownerShare.fillDialog.title, words.ownerShare.fillDialog.keepTheirs], 'the fill offer is not in its language')
+    const offer = await page.$eval('[data-testid="share-fill"]', (element) => element.innerText.replace(/\s+/g, ' ').trim())
+    const count = /40 ?% (\d+) /.exec(offer)?.[1]
+    if (count === undefined || !offer.includes(countedIn(words, words.ownerShare.fillDialog.rows(Number(count)), Number(count)))) throw new Error(`the fill offer says "${offer}"`)
+    const rows = Number(count)
+    await inspect?.('share fill')
+    await shoot('share-fill')
+    await pressSelector(page, press, '[data-testid="share-fill-save"]')
+    await toast(page, words.settings.categories.saved)
+    const said = await page.$eval(`${TOAST} [data-slot="description"]`, (element) => element.textContent?.trim() ?? '')
+    const filled = countedIn(words, words.settings.categories.filled(rows), rows)
+    if (said !== filled) throw new Error(`the save says "${said}" after filling ${rows} rows, not "${filled}"`)
+    await dialogGone(page, '[data-testid="share-fill"]')
+    await undoIn(page, press, words)
+    await page
+      .waitForFunction(
+        () =>
+          [...document.querySelectorAll('[data-testid="category-row"]')]
+            .find((element) => element.querySelector('input')?.value === 'software-subscriptions')
+            ?.querySelector('[data-testid="category-owner-share"]')?.value === '',
+        { timeout: 10_000 },
+      )
+      .catch(() => {
+        throw new Error('Undo did not take the default off software subscriptions')
+      })
+    await dismissToasts(page)
+  }
 }
+
+export const shareFillFlow = shareFillFlowIn('en')
 
 async function dropFile(page, path) {
   const input = await page.waitForSelector('[data-testid="import-file"] input[type="file"]', { timeout: 10_000 }).catch(() => {
@@ -1246,11 +1491,88 @@ export function importTableFlow(path) {
   }
 }
 
+/** Presses Undo in the toast of the last write and waits for the toast that says it was undone, in the language on screen. */
+async function undoIn(page, press, words) {
+  const button = await page
+    .waitForFunction(
+      (selector, label) => [...document.querySelectorAll(`${selector} button`)].find((element) => element.textContent?.trim() === label) ?? null,
+      { timeout: 5_000 },
+      TOAST,
+      words.writes.undo,
+    )
+    .catch(() => {
+      throw new Error(`no toast offers ${words.writes.undo}`)
+    })
+  await press(button.asElement())
+  await toast(page, words.writes.undone)
+}
+
+/**
+ * The Import tab in a language: the sample camt.053 statement's dry run, confirmed with the rows
+ * that wait on Review said and undone, then the sample bank export with a profile guessed from it
+ * and its dry run, the profile left unsaved.
+ */
+export function importFlowIn(language, paths) {
+  const words = SCREEN_WORDS[language]
+  const panel = words.imports.panel
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const addsFour = countedIn(words, panel.addsRows(4), 4)
+    await dropFile(page, paths.camt)
+    await dryRunSays(page, addsFour)
+    await inspect?.('the camt dry run')
+    await shoot('import-camt-dry-run')
+    await pressSelector(page, press, '[data-testid="import-confirm"]')
+    await dryRunSays(page, panel.writesNothing)
+    await page.waitForSelector('[data-testid="import-waiting"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the confirmed import does not say how the new rows stand on Review')
+    })
+    await delay(300)
+    await shoot('import-camt-confirmed')
+    await undoIn(page, press, words)
+    await dryRunSays(page, addsFour)
+
+    await dropFile(page, paths.table)
+    const name = await page.waitForSelector('[data-testid="profile-editor"] [data-testid="profile-name"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('no profile editor for an export no saved profile fits')
+    })
+    await elementSays(page, '[data-testid="profile-editor"]', [words.imports.profile.name, words.imports.profile.saveNew], 'the profile editor is not in its language')
+    await setField((await name.$('input')) ?? name, 'example-bank')
+    await dryRunSays(page, addsFour)
+    await inspect?.('the guessed profile')
+    await shoot('import-profile')
+  }
+}
+
 const SYNC_BUTTON = '[data-testid="sync-button"]'
 const SYNC_STEPS = '[data-testid="sync-steps"]'
 const SYNC_CARD = '[data-testid="sync-card"]'
 
 /** Waits for a toast whose title matches the pattern, which must be the only one, since earlier ones were dismissed. Returns its text. */
+/**
+ * Waits for a toast that reads as `sentence` does for a count the flow cannot know ahead, such as the
+ * rows of a statement: it starts with the words `sentence` gives every count and names a number.
+ * Node picks plural forms by English rules, so the words are the ones 1 and 1000 share.
+ */
+async function toastCounted(page, sentence) {
+  const one = sentence(1)
+  const many = sentence(1000)
+  let shared = 0
+  while (shared < one.length && one[shared] === many[shared]) shared += 1
+  const start = one.slice(0, shared).replace(/\d+$/, '')
+  const deadline = Date.now() + 10_000
+  let titles = []
+  while (Date.now() < deadline) {
+    titles = await page.$$eval(`${TOAST} [data-slot="title"]`, (elements) => elements.map((element) => element.textContent?.trim() ?? ''))
+    if (titles.some((title) => title.startsWith(start) && /\d/.test(title.slice(start.length)))) {
+      await delay(600)
+      return
+    }
+    await delay(200)
+  }
+  throw new Error(`no toast starting "${start}" and naming a count within 10 s, the toasts say: ${titles.join(' | ') || 'nothing'}`)
+}
+
 async function toastMatching(page, pattern) {
   const shown = await page
     .waitForFunction(
@@ -1493,6 +1815,33 @@ export async function syncRunningFlow(page, { press, shoot, inspect }) {
   await shoot('sync-ready')
 }
 
+/**
+ * A held statement in a language: the sync control says 1 problem, its steps name the statements
+ * step and link to Import, which offers to add the account the statement names. Nothing is written.
+ */
+export function heldStatementFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await syncAndSettle(page, press)
+    await controlShows(page, 'problems')
+    await press(await syncButton(page))
+    const held = countedIn(words, words.imports.step.held(1), 1)
+    await stepSays(page, '', 'statements', 'waits', new RegExp(held.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+    await delay(400)
+    await inspect?.('the steps of the last sync')
+    await shoot('sync-steps')
+    await pressSelector(page, press, `${SYNC_STEPS} [data-step="statements"] a`)
+    await page.waitForSelector('[data-testid="statement-folder"] [data-testid="dry-run-new-account"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('Import does not offer the account the held statement names')
+    })
+    await elementSays(page, '[data-testid="statement-folder"]', [words.imports.folder.title, words.imports.folder.filedByLastSync], 'the statements folder card is not in its language')
+    await delay(300)
+    await inspect?.('the held statement on Import')
+    await shoot('statements-held-import')
+  }
+}
+
 const MAIL_CARD = '[data-testid="mail-settings"]'
 const MAIL_PLAN = '[data-testid="mail-plan"]'
 const MAIL_FILED = /Filed 9, already there 4, 1 correction, 1 not compared, 2 unmatched\./
@@ -1536,6 +1885,25 @@ async function scrollToTop(page, selector) {
 }
 
 const ALL_SOURCES = ['statements:planned', 'hr-doo.payroll:planned', 'hr-doo.vat-returns:planned', 'hr-doo.invoices:planned']
+
+/** The mail card in a language once a sync filed the fake mailbox: every source's line, search and files, opened from the mail step's link. */
+export function mailListFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await syncAndSettle(page, press)
+    await openKunaSettings(page)
+    await stepSays(page, SYNC_CARD, 'statements', 'done', /./)
+    await scrollToTop(page, SYNC_CARD)
+    await shoot('mail-step')
+    await openMailList(page, press, SYNC_CARD)
+    await mailListShows(page, ALL_SOURCES)
+    await elementSays(page, MAIL_CARD, [words.mail.card.title, words.mail.card.lastSync, words.mail.plan.kinds.filed], 'the mail card is not in its language')
+    await scrollToTop(page, MAIL_PLAN)
+    await inspect?.('the mail list')
+    await shoot('mail-list')
+  }
+}
 
 /**
  * With no sender named, the mail step is off in the steps of a sync. On Settings, General the mail
@@ -1892,19 +2260,24 @@ export async function accessClosedFlow(page, { press, shoot, inspect }) {
 }
 
 /** Review: open the gadget purchase in the queue, then split it, edit and delete the split and Undo, as on Transactions. */
-export async function reviewSplitFlow(page, context) {
-  const summary = await page
-    .waitForFunction(() => [...document.querySelectorAll('[data-testid="review-row"] > button')].find((button) => button.textContent?.includes('GADGET CORNER')) ?? null, { timeout: 10_000 })
-    .then((handle) => handle.asElement())
-    .catch(() => {
-      throw new Error('the queue does not hold the gadget purchase')
-    })
-  await summary.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-  await delay(200)
-  await context.press(summary)
-  await page.waitForSelector('[data-testid="review-details"]')
-  await splitFlow(page, { ...context, shoot: (name) => context.shoot(`review-${name}`) })
+export function reviewSplitFlowIn(language) {
+  const split = splitFlowIn(language)
+  return async (page, context) => {
+    const summary = await page
+      .waitForFunction(() => [...document.querySelectorAll('[data-testid="review-row"] > button')].find((button) => button.textContent?.includes('GADGET CORNER')) ?? null, { timeout: 10_000 })
+      .then((handle) => handle.asElement())
+      .catch(() => {
+        throw new Error('the queue does not hold the gadget purchase')
+      })
+    await summary.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await context.press(summary)
+    await page.waitForSelector('[data-testid="review-details"]')
+    await split(page, { ...context, shoot: (name) => context.shoot(`review-${name}`) })
+  }
 }
+
+export const reviewSplitFlow = reviewSplitFlowIn('en')
 
 /** Opens a collapsed card by its test id, scrolled to the middle first. */
 async function openCard(page, press, testId) {
@@ -1935,44 +2308,51 @@ function coverageGroupShown(page, name, shown) {
  * Review, Rules: dismiss a group no rule settles, find it under the dismissed suggestions, restore
  * it, and Undo the restore.
  */
-export async function dismissFlow(page, { press, shoot, inspect }) {
-  await openCard(page, press, 'rule-coverage')
-  await coverageGroupShown(page, 'Laptop Store', true)
-  const group = await page.evaluateHandle(() => [...document.querySelectorAll('[data-testid="coverage-gap"]')].find((row) => row.textContent?.includes('Laptop Store')))
-  const dismiss = await group.asElement().$('[data-testid="coverage-dismiss"]')
-  await dismiss.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-  await delay(200)
-  await press(dismiss)
-  await delay(400)
-  await toast(page, 'Dismissed Laptop Store')
-  await coverageGroupShown(page, 'Laptop Store', false)
-  await dismissToasts(page)
-  await openCard(page, press, 'dismissed-suggestions')
-  await page
-    .waitForFunction(() => document.querySelector('[data-testid="dismissed-suggestion"]')?.textContent?.includes('Laptop Store') ?? false, { timeout: 10_000 })
-    .catch(() => {
-      throw new Error('the dismissed group is not under the dismissed suggestions')
-    })
-  await inspect?.('dismissed suggestions')
-  await shoot('dismissed-suggestions')
-  await pressSelector(page, press, '[data-testid="restore-suggestion"]')
-  await toast(page, 'Suggestion restored')
-  await coverageGroupShown(page, 'Laptop Store', true)
-  await undo(page, press)
-  await coverageGroupShown(page, 'Laptop Store', false)
-  await shoot('dismiss-undone')
-  await dismissToasts(page)
+export function dismissFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await openCard(page, press, 'rule-coverage')
+    await coverageGroupShown(page, 'Laptop Store', true)
+    const group = await page.evaluateHandle(() => [...document.querySelectorAll('[data-testid="coverage-gap"]')].find((row) => row.textContent?.includes('Laptop Store')))
+    const dismiss = await group.asElement().$('[data-testid="coverage-dismiss"]')
+    await dismiss.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await press(dismiss)
+    await delay(400)
+    await toast(page, words.review.dismissed('Laptop Store'))
+    await coverageGroupShown(page, 'Laptop Store', false)
+    await dismissToasts(page)
+    await openCard(page, press, 'dismissed-suggestions')
+    await page
+      .waitForFunction(() => document.querySelector('[data-testid="dismissed-suggestion"]')?.textContent?.includes('Laptop Store') ?? false, { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('the dismissed group is not under the dismissed suggestions')
+      })
+    await inspect?.('dismissed suggestions')
+    await shoot('dismissed-suggestions')
+    await pressSelector(page, press, '[data-testid="restore-suggestion"]')
+    await toast(page, words.review.restored)
+    await coverageGroupShown(page, 'Laptop Store', true)
+    await undoIn(page, press, words)
+    await coverageGroupShown(page, 'Laptop Store', false)
+    await shoot('dismiss-undone')
+    await dismissToasts(page)
+  }
 }
+
+export const dismissFlow = dismissFlowIn('en')
 
 const STATEMENTS_FOLDER = '[data-testid="statements-folder"]'
 
 /** The Save settings button once it is enabled or disabled, as `enabled` asks. */
-async function saveSettingsButton(page, enabled) {
+async function saveSettingsButton(page, enabled, words = SCREEN_WORDS.en) {
   return page
     .waitForFunction(
-      (wanted) => [...document.querySelectorAll('button[type="submit"]')].find((button) => button.textContent?.trim() === 'Save settings' && button.disabled === !wanted) ?? null,
+      (wanted, label) => [...document.querySelectorAll('button[type="submit"]')].find((button) => button.textContent?.trim() === label && button.disabled === !wanted) ?? null,
       { timeout: 10_000 },
       enabled,
+      words.settings.general.save,
     )
     .then((handle) => handle.asElement())
     .catch(() => {
@@ -2052,70 +2432,83 @@ async function typeIban(page, press, input, text) {
  * without them, Save writes it with Undo, and Undo takes it off again. A tag's remove button takes a
  * new IBAN off before a save, which leaves nothing to save.
  */
-export async function clientIbansFlow(page, { press, shoot, inspect }) {
-  const position = await (await rowNamed(page, FACT_ROW, 'lumen')).evaluate((row) => [...row.parentElement.children].indexOf(row) + 1)
-  const lumen = `${FACT_ROW}:nth-child(${position})`
-  const before = await tagsIn(page, lumen)
-  if (before.length !== 1) throw new Error(`the fake client lumen shows ${before.length} IBANs, not one`)
-  const input = async () => fieldIn(await rowNamed(page, FACT_ROW, 'lumen'), 'IBANs')
+export function clientIbansFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const position = await (await rowNamed(page, FACT_ROW, 'lumen')).evaluate((row) => [...row.parentElement.children].indexOf(row) + 1)
+    const lumen = `${FACT_ROW}:nth-child(${position})`
+    const before = await tagsIn(page, lumen)
+    if (before.length !== 1) throw new Error(`the fake client lumen shows ${before.length} IBANs, not one`)
+    const input = async () => fieldIn(await rowNamed(page, FACT_ROW, 'lumen'), words.clientColumns.iban)
 
-  await typeIban(page, press, await input(), 'GB82 WEST 1234 5698 7654 32')
-  await waitForTags(page, lumen, [...before, NEW_IBAN], 'a typed IBAN')
-  await inspect?.('a client with a second IBAN')
-  await shoot('client-ibans-added')
-  await pressSelector(page, press, '[data-testid="save-rows"]:not([disabled])')
-  await toast(page, 'Clients saved')
-  await waitForTags(page, lumen, [...before, NEW_IBAN], 'after the save')
-  await undo(page, press)
-  await waitForTags(page, lumen, before, 'after Undo')
-  await dismissToasts(page)
+    await typeIban(page, press, await input(), 'GB82 WEST 1234 5698 7654 32')
+    await waitForTags(page, lumen, [...before, NEW_IBAN], 'a typed IBAN')
+    await inspect?.('a client with a second IBAN')
+    await shoot('client-ibans-added')
+    await pressSelector(page, press, '[data-testid="save-rows"]:not([disabled])')
+    await toast(page, words.invoicing.clients.saved)
+    await waitForTags(page, lumen, [...before, NEW_IBAN], 'after the save')
+    await undoIn(page, press, words)
+    await waitForTags(page, lumen, before, 'after Undo')
+    await dismissToasts(page)
 
-  await typeIban(page, press, await input(), NEW_IBAN)
-  await waitForTags(page, lumen, [...before, NEW_IBAN], 'a typed IBAN again')
-  await removeLastTag(page, press, lumen)
-  await waitForTags(page, lumen, before, 'after its remove button')
-  await page.waitForSelector('[data-testid="save-rows"][disabled]', { timeout: 5_000 }).catch(() => {
-    throw new Error('Save clients is still on after the new IBAN was taken off')
-  })
+    await typeIban(page, press, await input(), NEW_IBAN)
+    await waitForTags(page, lumen, [...before, NEW_IBAN], 'a typed IBAN again')
+    await removeLastTag(page, press, lumen)
+    await waitForTags(page, lumen, before, 'after its remove button')
+    await page.waitForSelector('[data-testid="save-rows"][disabled]', { timeout: 5_000 }).catch(() => {
+      throw new Error('Save is still on after the new IBAN was taken off')
+    })
+  }
 }
+
+export const clientIbansFlow = clientIbansFlowIn('en')
 
 /**
  * On Settings, General the card settlement IBANs are the same tags field. A tag that is not an IBAN
  * is said under the field and keeps Save off until its remove button takes it off. A valid one is
  * saved, then taken off and saved again, since settings keep no Undo.
  */
-export async function cardSettlementIbansFlow(page, { press, shoot, inspect }) {
-  const input = () =>
-    page.waitForSelector(`${CARD_IBANS} input`, { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error('Settings, General has no card settlement IBANs field')
-    })
-  const before = await tagsIn(page, CARD_IBANS)
+export function cardSettlementIbansFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const input = () =>
+      page.waitForSelector(`${CARD_IBANS} input`, { visible: true, timeout: 10_000 }).catch(() => {
+        throw new Error('Settings, General has no card settlement IBANs field')
+      })
+    const before = await tagsIn(page, CARD_IBANS)
+    const refusal = words.settingsReasons.settings.notIbans(['XX00NOTANIBAN'])
 
-  await typeIban(page, press, await input(), 'GB82 WEST 1234 5698 7654 32')
-  await waitForTags(page, CARD_IBANS, [...before, NEW_IBAN], 'a typed IBAN')
-  await typeIban(page, press, await input(), 'XX00 NOT AN IBAN')
-  await waitForTags(page, CARD_IBANS, [...before, NEW_IBAN, 'XX00NOTANIBAN'], 'an entry that is not an IBAN')
-  await page
-    .waitForFunction((selector) => document.querySelector(selector)?.textContent?.includes('"XX00NOTANIBAN" is not an IBAN'), { timeout: 5_000 }, CARD_IBANS)
-    .catch(() => {
-      throw new Error('the field does not say the entry is not an IBAN')
-    })
-  await saveSettingsButton(page, false)
-  await inspect?.('card settlement IBANs with one that is not an IBAN')
-  await shoot('card-ibans-invalid')
-  await removeLastTag(page, press, CARD_IBANS)
-  await waitForTags(page, CARD_IBANS, [...before, NEW_IBAN], 'after its remove button')
+    await typeIban(page, press, await input(), 'GB82 WEST 1234 5698 7654 32')
+    await waitForTags(page, CARD_IBANS, [...before, NEW_IBAN], 'a typed IBAN')
+    await typeIban(page, press, await input(), 'XX00 NOT AN IBAN')
+    await waitForTags(page, CARD_IBANS, [...before, NEW_IBAN, 'XX00NOTANIBAN'], 'an entry that is not an IBAN')
+    await page
+      .waitForFunction((selector, wanted) => document.querySelector(selector)?.textContent?.includes(wanted), { timeout: 5_000 }, CARD_IBANS, refusal)
+      .catch(() => {
+        throw new Error(`the field does not say ${refusal}`)
+      })
+    await saveSettingsButton(page, false, words)
+    await inspect?.('card settlement IBANs with one that is not an IBAN')
+    await shoot('card-ibans-invalid')
+    await removeLastTag(page, press, CARD_IBANS)
+    await waitForTags(page, CARD_IBANS, [...before, NEW_IBAN], 'after its remove button')
 
-  await press(await saveSettingsButton(page, true))
-  await toast(page, 'Settings saved')
-  await waitForTags(page, CARD_IBANS, [...before, NEW_IBAN], 'after the save')
-  await dismissToasts(page)
-  await removeLastTag(page, press, CARD_IBANS)
-  await waitForTags(page, CARD_IBANS, before, 'after the saved IBAN was taken off')
-  await press(await saveSettingsButton(page, true))
-  await toast(page, 'Settings saved')
-  await dismissToasts(page)
+    await press(await saveSettingsButton(page, true, words))
+    await toast(page, words.settings.saved)
+    await waitForTags(page, CARD_IBANS, [...before, NEW_IBAN], 'after the save')
+    await dismissToasts(page)
+    await removeLastTag(page, press, CARD_IBANS)
+    await waitForTags(page, CARD_IBANS, before, 'after the saved IBAN was taken off')
+    await press(await saveSettingsButton(page, true, words))
+    await toast(page, words.settings.saved)
+    await dismissToasts(page)
+  }
 }
+
+export const cardSettlementIbansFlow = cardSettlementIbansFlowIn('en')
 
 const RULE_ROW = '[data-testid="rule-row"]'
 
@@ -2186,47 +2579,58 @@ async function editRule(page, press, id) {
  * and Undo putting the note back. Then the same rule deleted from its editor after the back-test of
  * taking it off, and brought back with Undo.
  */
-export async function rulesEditorFlow(page, { press, shoot, inspect }) {
+export function rulesEditorFlowIn(language) {
+  const words = SCREEN_WORDS[language]
   const id = 'merchant-airline'
-  const added = 'Checked in the editor.'
-  await ruleNoteReads(page, id, '', 'before the flow')
+  const edited = words.ruleChanges.edited(id, 'note', words.ruleChanges.renumbered(0))
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const added = 'Checked in the editor.'
+    await ruleNoteReads(page, id, '', 'before the flow')
 
-  await editRule(page, press, id)
-  const note = await page.waitForSelector('[data-testid="rule-form"] textarea', { visible: true })
-  await note.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-  await press(note)
-  await page.keyboard.type(added)
-  await acceptBacktest(page, press)
-  await pressSelector(page, press, '[data-testid="save-rule"]')
-  await page.waitForSelector('[role="dialog"] [data-testid="rule-saved"]', { visible: true, timeout: 10_000 })
-  await inspect?.('rule saved')
-  const early = await page.evaluate((selector) => [...document.querySelectorAll(`${selector} [data-slot="title"]`)].map((title) => title.textContent?.trim()), TOAST)
-  if (early.includes(`Edited ${id}: note`)) throw new Error('the save toast shows while the saved rule editor is still open')
-  const done = await page.waitForFunction(() => [...document.querySelectorAll('[role="dialog"] button')].find((button) => button.textContent?.trim() === 'Done') ?? null)
-  await press(done.asElement())
-  await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), { timeout: 5_000 })
-  await toast(page, `Edited ${id}: note`)
-  await ruleNoteReads(page, id, added, 'after the save')
-  await shoot('rule-edited')
-  await undo(page, press)
-  await ruleNoteReads(page, id, '', 'after Undo')
-  await dismissToasts(page)
+    await editRule(page, press, id)
+    const note = await page.waitForSelector('[data-testid="rule-form"] textarea', { visible: true })
+    await note.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await press(note)
+    await page.keyboard.type(added)
+    await acceptBacktest(page, press)
+    await pressSelector(page, press, '[data-testid="save-rule"]')
+    await page.waitForSelector('[role="dialog"] [data-testid="rule-saved"]', { visible: true, timeout: 10_000 })
+    await inspect?.('rule saved')
+    const early = await page.evaluate((selector) => [...document.querySelectorAll(`${selector} [data-slot="title"]`)].map((title) => title.textContent?.trim()), TOAST)
+    if (early.includes(edited)) throw new Error('the save toast shows while the saved rule editor is still open')
+    const done = await page.waitForFunction(
+      (label) => [...document.querySelectorAll('[role="dialog"] button')].find((button) => button.textContent?.trim() === label) ?? null,
+      {},
+      words.rules.editor.done,
+    )
+    await press(done.asElement())
+    await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), { timeout: 5_000 })
+    await toast(page, edited)
+    await ruleNoteReads(page, id, added, 'after the save')
+    await shoot('rule-edited')
+    await undoIn(page, press, words)
+    await ruleNoteReads(page, id, '', 'after Undo')
+    await dismissToasts(page)
 
-  await editRule(page, press, id)
-  await pressSelector(page, press, '[data-testid="delete-rule"]')
-  await page.waitForSelector('[role="dialog"] [data-testid="rule-delete"]', { visible: true, timeout: 10_000 })
-  await acceptBacktest(page, press)
-  await inspect?.('rule delete back-test')
-  await shoot('rule-delete')
-  await pressSelector(page, press, '[data-testid="confirm-delete-rule"]')
-  await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), { timeout: 10_000 })
-  await toast(page, `Deleted ${id}`)
-  await ruleGone(page, id)
-  await undo(page, press)
-  await ruleNoteReads(page, id, '', 'after Undo of the delete')
-  await shoot('rule-deleted-undone')
-  await dismissToasts(page)
+    await editRule(page, press, id)
+    await pressSelector(page, press, '[data-testid="delete-rule"]')
+    await page.waitForSelector('[role="dialog"] [data-testid="rule-delete"]', { visible: true, timeout: 10_000 })
+    await acceptBacktest(page, press)
+    await inspect?.('rule delete back-test')
+    await shoot('rule-delete')
+    await pressSelector(page, press, '[data-testid="confirm-delete-rule"]')
+    await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), { timeout: 10_000 })
+    await toast(page, words.ruleChanges.deleted(id))
+    await ruleGone(page, id)
+    await undoIn(page, press, words)
+    await ruleNoteReads(page, id, '', 'after Undo of the delete')
+    await shoot('rule-deleted-undone')
+    await dismissToasts(page)
+  }
 }
+
+export const rulesEditorFlow = rulesEditorFlowIn('en')
 
 /** Presses the visible button under `selector` whose text starts with `label`. */
 async function pressButton(page, press, selector, label) {
@@ -2249,7 +2653,7 @@ async function pressButton(page, press, selector, label) {
 const MOVED = /^Moved \d+ records$/
 
 /** Settings, Books file names the file on the fake Drive, its folder, and that no backup is made yet, or with `saved` that the save onboarding made today made one. */
-async function booksShowDriveFile(page, saved = false) {
+async function booksShowDriveFile(page, saved = false, words = SCREEN_WORDS.en) {
   await page.evaluate(() => {
     window.location.hash = '#/company/settings?tab=books'
   })
@@ -2259,20 +2663,21 @@ async function booksShowDriveFile(page, saved = false) {
       throw new Error('Settings, Books file does not name the Books folder the file sits in')
     })
   await pageSays(page, 'kuna-company.json', true)
-  await pageSays(page, 'None yet. The first save of a day makes one.', !saved)
+  await pageSays(page, words.writes.booksFile.noBackup, !saved)
 }
 
 const STEP = '[data-testid="onboarding-step"]'
 
-/** Waits for onboarding to show this step, or for Overview once it is over. */
+/** Waits for onboarding to show this step, or for Overview, in either language, once it is over. */
 async function onboardingAt(page, step) {
   await page
     .waitForFunction(
-      (selector, wanted) =>
-        wanted === 'overview' ? document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === 'Overview' : document.querySelector(selector)?.dataset.step === wanted,
+      (selector, wanted, overview) =>
+        wanted === 'overview' ? overview.includes(document.querySelector('[data-testid="screen-title"]')?.textContent?.trim()) : document.querySelector(selector)?.dataset.step === wanted,
       { timeout: 10_000 },
       STEP,
       step,
+      [SCREEN_WORDS.en.companyOverview, SCREEN_WORDS.hr.companyOverview],
     )
     .catch(async () => {
       const at = await page.evaluate((selector) => document.querySelector(selector)?.dataset.step ?? window.location.hash, STEP)
@@ -2287,13 +2692,17 @@ async function chooseOption(page, press, group, label) {
 }
 
 /** Continue to Google, which the fake build's Google grants at once, unless the page holds a token already, then Continue once the step says Allowed. */
-async function allowGoogle(page, press, { shoot, inspect }) {
+async function allowGoogle(page, press, { shoot, inspect }, words = SCREEN_WORDS.en) {
   await onboardingAt(page, 'access')
   await inspect?.('the access step')
   await shoot('onboarding-access')
   if (await page.$('[data-testid="onboarding-google"]')) await pressSelector(page, press, '[data-testid="onboarding-google"]')
   await page
-    .waitForFunction(() => [...document.querySelectorAll('[data-testid="access-status"]')].some((badge) => badge.textContent?.trim() === 'Allowed'), { timeout: 10_000 })
+    .waitForFunction(
+      (allowed) => [...document.querySelectorAll('[data-testid="access-status"]')].some((badge) => badge.textContent?.trim() === allowed),
+      { timeout: 10_000 },
+      words.onboarding.access.allowed,
+    )
     .catch(() => {
       throw new Error('the access step does not say Google allowed the books file')
     })
@@ -2372,47 +2781,54 @@ async function setUpLines(page) {
  * The file's toast names where it was made. The first statement's IBAN becomes the account main,
  * and Overview's Getting set up card asks only for a look over the categories.
  */
-export async function onboardingDriveFlow(page, { press, shoot, inspect }) {
-  await onboardingAt(page, 'welcome')
-  await inspect?.('the welcome step')
-  await shoot('onboarding-welcome')
-  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
-  await onboardingAt(page, 'home')
-  await shoot('onboarding-home')
-  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
-  await allowGoogle(page, press, { shoot, inspect })
-  await confirmFolder(page, press, { shoot, inspect }, 'Books, inside folders the app cannot see')
-  await toastMatching(page, /^Created kuna-company\.json in Books$/)
-  await dismissToasts(page)
-  await onboardingAt(page, 'company')
-  await inspect?.('the company step')
-  await shoot('onboarding-company')
-  await backToMade(page, press, 'folder', ['Books', 'kuna-company.json'])
-  await inspect?.('the folder step of the books made')
-  await shoot('onboarding-folder-made')
-  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
-  await onboardingAt(page, 'company')
-  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
-  await onboardingAt(page, 'statement')
-  await pressSelector(page, press, '[data-testid="sample-camt"]')
-  const offer = await page.waitForSelector('[data-testid="dry-run-new-account"]', { visible: true, timeout: 10_000 }).catch(() => {
-    throw new Error('the first statement does not offer its account')
-  })
-  if (!(await offer.evaluate((element) => element.textContent ?? '')).includes('is new')) throw new Error('the new account offer does not say the IBAN is new')
-  const name = await page.$eval('input[data-testid="dry-run-account-name"]', (input) => input.value)
-  if (name !== 'main') throw new Error(`the account offered is named "${name}", not main`)
-  await inspect?.('the first statement')
-  await shoot('onboarding-statement')
-  await pressButton(page, press, '[data-testid="onboarding-step"] button', 'Add and import')
-  await toastMatching(page, /^Added main and imported \d+ rows$/)
-  await onboardingAt(page, 'overview')
-  const lines = await setUpLines(page)
-  if (JSON.stringify(lines) !== JSON.stringify(['categories'])) throw new Error(`Getting set up lists ${lines.join(', ')}, not the categories alone`)
-  await inspect?.('Overview getting set up')
-  await shoot('onboarding-overview')
-  await dismissToasts(page)
-  await booksShowDriveFile(page, true)
+export function onboardingDriveFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await onboardingAt(page, 'welcome')
+    await inspect?.('the welcome step')
+    await shoot('onboarding-welcome')
+    await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+    await onboardingAt(page, 'home')
+    await shoot('onboarding-home')
+    await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+    await allowGoogle(page, press, { shoot, inspect }, words)
+    await confirmFolder(page, press, { shoot, inspect }, `Books${words.onboarding.folder.unseen}`)
+    await toast(page, words.books.keep.created('kuna-company.json', 'Books'))
+    await dismissToasts(page)
+    await onboardingAt(page, 'company')
+    await inspect?.('the company step')
+    await shoot('onboarding-company')
+    await backToMade(page, press, 'folder', ['Books', 'kuna-company.json'])
+    await inspect?.('the folder step of the books made')
+    await shoot('onboarding-folder-made')
+    await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+    await onboardingAt(page, 'company')
+    await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+    await onboardingAt(page, 'statement')
+    await pressSelector(page, press, '[data-testid="sample-camt"]')
+    const offer = await page.waitForSelector('[data-testid="dry-run-new-account"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the first statement does not offer its account')
+    })
+    const isNew = words.imports.statement.isNew(null, null).split('.')[0]
+    if (!(await offer.evaluate((element) => element.textContent ?? '')).includes(isNew)) throw new Error(`the new account offer does not say "${isNew}"`)
+    const name = await page.$eval('input[data-testid="dry-run-account-name"]', (input) => input.value)
+    if (name !== 'main') throw new Error(`the account offered is named "${name}", not main`)
+    await inspect?.('the first statement')
+    await shoot('onboarding-statement')
+    await pressButton(page, press, '[data-testid="onboarding-step"] button', words.onboarding.statement.addAndImport)
+    await toastCounted(page, (count) => words.importWrites.imported(['main'], count))
+    await onboardingAt(page, 'overview')
+    const lines = await setUpLines(page)
+    if (JSON.stringify(lines) !== JSON.stringify(['categories'])) throw new Error(`Getting set up lists ${lines.join(', ')}, not the categories alone`)
+    await inspect?.('Overview getting set up')
+    await shoot('onboarding-overview')
+    await dismissToasts(page)
+    await booksShowDriveFile(page, true, words)
+  }
 }
+
+export const onboardingDriveFlow = onboardingDriveFlowIn('en')
 
 /**
  * New books on the fake Drive with statements from a Drive folder: the token carries Drive read, so
@@ -2539,55 +2955,67 @@ export async function onboardingMailFlow(page, { press, shoot, inspect }) {
  * step says such books take statements by hand and is skipped, and Getting set up's first line
  * opens Import.
  */
-export async function onboardingBrowserFlow(page, { press, shoot, inspect }) {
-  await onboardingAt(page, 'welcome')
-  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
-  await onboardingAt(page, 'home')
-  await chooseOption(page, press, 'onboarding-home', 'Only this browser')
-  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
-  await onboardingAt(page, 'company')
-  await backToMade(page, press, 'home', ['kept in this browser', 'New books'])
-  await inspect?.('the home step of the books made in this browser')
-  await shoot('onboarding-home-made')
-  await startOverAsks(page, press, ['cannot be recovered', 'They hold 0 transactions and'])
-  await inspect?.('Start over asking before it deletes the books in this browser')
-  await shoot('onboarding-start-over-browser')
-  await confirmStartOver(page, press)
-  await page.waitForSelector('[data-testid="onboarding-home"]', { visible: true, timeout: 10_000 }).catch(() => {
-    throw new Error('Start over did not bring back the choice of where the books live')
-  })
-  await onboardingAt(page, 'home')
-  if (await page.$('[data-testid="onboarding-made"]')) throw new Error('the home step still shows the books made after Start over')
-  await chooseOption(page, press, 'onboarding-home', 'Only this browser')
-  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
-  await onboardingAt(page, 'company')
-  await setField(await page.waitForSelector('input[data-testid="onboarding-company-name"]'), 'Example Studio')
-  await pressSelector(page, press, '[data-testid="onboarding-continue"]')
-  await onboardingAt(page, 'statement')
-  if (await page.$('[data-testid="onboarding-statements-folder"]')) throw new Error('books kept in this browser are offered a statements folder')
-  if (!(await page.$('[data-testid="onboarding-statements-by-hand"]'))) throw new Error('the statement step does not say books kept in this browser take statements by hand')
-  await pressSelector(page, press, '[data-testid="onboarding-skip"]')
-  await onboardingAt(page, 'overview')
-  await page.waitForSelector('[data-testid="local-status"]', { timeout: 10_000 }).catch(() => {
-    throw new Error('the new books in this browser show no export status')
-  })
-  const lines = await setUpLines(page)
-  if (JSON.stringify(lines) !== JSON.stringify(['first-statement', 'categories'])) throw new Error(`Getting set up lists ${lines.join(', ')}`)
-  await inspect?.('new books in this browser')
-  await shoot('onboarding-browser')
-  await pressButton(page, press, '[data-line="first-statement"] a', 'Import')
-  await page.waitForSelector('[data-testid="import-file"]', { visible: true, timeout: 10_000 }).catch(() => {
-    throw new Error('Getting set up did not open Import')
-  })
-  await page.evaluate(() => {
-    window.location.hash = '#/company/settings'
-  })
-  await page
-    .waitForFunction(() => [...document.querySelectorAll('input')].some((input) => input.value === 'Example Studio'), { timeout: 10_000 })
-    .catch(() => {
-      throw new Error('Settings, General does not name the company the company step named')
+export function onboardingBrowserFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { home, made, setUp } = words.onboarding
+  const holdsNone = made.holds(0, 0).slice(0, made.holds(0, 0).indexOf('0') + 1)
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await onboardingAt(page, 'welcome')
+    await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+    await onboardingAt(page, 'home')
+    await chooseOption(page, press, 'onboarding-home', home.browser)
+    await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+    await onboardingAt(page, 'company')
+    await backToMade(page, press, 'home', [made.inBrowser, words.settings.books.newBooks])
+    await inspect?.('the home step of the books made in this browser')
+    await shoot('onboarding-home-made')
+    await startOverAsks(page, press, [made.deleteNote, holdsNone])
+    await inspect?.('Start over asking before it deletes the books in this browser')
+    await shoot('onboarding-start-over-browser')
+    await confirmStartOver(page, press)
+    await page.waitForSelector('[data-testid="onboarding-home"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('Start over did not bring back the choice of where the books live')
     })
+    await onboardingAt(page, 'home')
+    if (await page.$('[data-testid="onboarding-made"]')) throw new Error('the home step still shows the books made after Start over')
+    await chooseOption(page, press, 'onboarding-home', home.browser)
+    await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+    await onboardingAt(page, 'company')
+    await setField(await page.waitForSelector('input[data-testid="onboarding-company-name"]'), 'Example Studio')
+    await inspect?.('the company step')
+    await shoot('onboarding-company-browser')
+    await pressSelector(page, press, '[data-testid="onboarding-continue"]')
+    await onboardingAt(page, 'statement')
+    if (await page.$('[data-testid="onboarding-statements-folder"]')) throw new Error('books kept in this browser are offered a statements folder')
+    if (!(await page.$('[data-testid="onboarding-statements-by-hand"]'))) throw new Error('the statement step does not say books kept in this browser take statements by hand')
+    await inspect?.('the statement step of books kept in this browser')
+    await shoot('onboarding-statement-browser')
+    await pressSelector(page, press, '[data-testid="onboarding-skip"]')
+    await onboardingAt(page, 'overview')
+    await page.waitForSelector('[data-testid="local-status"]', { timeout: 10_000 }).catch(() => {
+      throw new Error('the new books in this browser show no export status')
+    })
+    const lines = await setUpLines(page)
+    if (JSON.stringify(lines) !== JSON.stringify(['first-statement', 'categories'])) throw new Error(`Getting set up lists ${lines.join(', ')}`)
+    await inspect?.('new books in this browser')
+    await shoot('onboarding-browser')
+    await pressButton(page, press, '[data-line="first-statement"] a', setUp.importLink)
+    await page.waitForSelector('[data-testid="import-file"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('Getting set up did not open Import')
+    })
+    await page.evaluate(() => {
+      window.location.hash = '#/company/settings'
+    })
+    await page
+      .waitForFunction(() => [...document.querySelectorAll('input')].some((input) => input.value === 'Example Studio'), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('Settings, General does not name the company the company step named')
+      })
+  }
 }
+
+export const onboardingBrowserFlow = onboardingBrowserFlowIn('en')
 
 /**
  * Books brought from an xlsx file to the fake Drive: access first, then the file's summary with its
@@ -3267,17 +3695,21 @@ export function appMenuFlowIn(language) {
     await inspect?.('the home')
 
     await pressSelector(page, press, '[data-testid="home-card"][data-app="company"]')
-    await screenTitled(page, 'Overview')
+    await screenTitled(page, words.companyOverview)
     await openMenu(page, press)
     const company = await page.evaluate(menuShown)
     if (company.groups !== 1 || company.name !== words.company) throw new Error(`the Company menu shows ${company.groups} groups, the first ${company.name}`)
     markLeads(company, words, 'the Company menu')
     headingStandsOut(company, words.company)
-    if (!company.entries.includes('Overview') || !company.entries.some((entry) => entry.startsWith('Transactions')) || company.entries.some((entry) => entry === words.companySettings))
+    if (
+      !company.entries.includes(words.companyOverview) ||
+      !company.entries.some((entry) => entry.startsWith(words.transactions.title)) ||
+      company.entries.some((entry) => entry === words.companySettings)
+    )
       throw new Error(`Company lists ${company.entries.join(', ')}`)
     if (JSON.stringify(company.apart) !== JSON.stringify([words.companySettings])) throw new Error(`Company sets apart ${company.apart.join(', ')}`)
     const companyTitle = await page.title()
-    if (companyTitle !== `Overview, ${words.company} – Kuna`) throw new Error(`the browser tab says "${companyTitle}"`)
+    if (companyTitle !== `${words.companyOverview}, ${words.company} – Kuna`) throw new Error(`the browser tab says "${companyTitle}"`)
     await inspect?.('the Company menu')
     await shoot(language === 'en' ? 'app-menu-company' : `app-menu-company-${language}`)
   }
@@ -3550,7 +3982,8 @@ export function loansWhatIfFlowIn(language) {
     await pressSelector(page, press, '[data-testid="what-if-apply-lower"]')
     await page.waitForSelector('[data-testid="extra-payment-form"]', { visible: true })
     const filled = await page.$eval('[data-testid="extra-payment-amount"]', (input) => input.value)
-    if (filled !== '10000.00') throw new Error(`Apply filled the amount with "${filled}"`)
+    const expected = language === 'hr' ? '10000,00' : '10000.00'
+    if (filled !== expected) throw new Error(`Apply filled the amount with "${filled}"`)
     await shoot('loans-what-if-apply')
     await page.keyboard.press('Escape')
     await dialogGone(page, '[data-testid="extra-payment-form"]')
@@ -3804,6 +4237,136 @@ export function loansDialogsFlowIn(language) {
 }
 
 export const loansDialogsFlow = loansDialogsFlowIn('en')
+
+/** Opens the filter sheet of a phone, shoots it under `name` and closes it. A wider screen keeps its filters in a bar and has no sheet. */
+async function lookAtSheet(page, press, shoot, opener, name) {
+  const button = await page.$(opener)
+  if (button === null || !(await button.evaluate((element) => element.getBoundingClientRect().width > 0))) return
+  await press(button)
+  await page.waitForSelector('[role="dialog"]', { visible: true, timeout: 10_000 })
+  await delay(400)
+  await shoot(name)
+  await page.keyboard.press('Escape')
+  await dialogGone(page, '[role="dialog"]')
+}
+
+/**
+ * The dialogs and sheets of Transactions, Review and Settings, Categories, opened and closed
+ * again: a payment's split, a settled row's change of category with the rule it contradicts named,
+ * the laptop's owner share, the filter sheets of a phone, a rule's editor, switching a rule off
+ * with its back-test, and a row of Review's queue opened.
+ */
+export function rowsDialogsFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await openSplitOfRow(page, press)
+    await elementSays(page, '[role="dialog"]', [words.transactions.splitDialog.addTitle, words.transactions.splitDialog.addPart], 'the split dialog is not in its language')
+    await shoot('dialog-split')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="split-form"]')
+    await lookAtSheet(page, press, shoot, '[data-testid="open-filters"]', 'sheet-transaction-filters')
+
+    await goTo(page, '#/company/transactions?p=all', words.transactions.title)
+    for (const grouping of ['category', 'month']) {
+      await choose(page, press, await page.$(`button[aria-label="${words.transactions.groupLabel}"]`), words.transactions.groupings[grouping])
+      await page.waitForSelector('[data-testid="group-toggle"]', { visible: true, timeout: 10_000 })
+      await shoot(`transactions-by-${grouping}`)
+    }
+
+    await goTo(page, '#/company/transactions?p=all&q=CODE%20HOST', words.transactions.title)
+    await openChangeOfRow(page, press)
+    await page.waitForSelector('[data-testid="change-category"]', { visible: true })
+    await delay(400)
+    await chooseCategory(page, press, await page.$('[data-testid="change-category-picker"]'), words.categoryName('office-supplies'))
+    await page.waitForSelector('[data-testid="rule-against"]', { timeout: 5_000 }).catch(() => {
+      throw new Error('the dialog does not name the rule that files the row elsewhere')
+    })
+    await elementSays(page, '[role="dialog"]', [words.transactions.changeDialog.title, words.transactions.changeDialog.ruleAgainst.before], 'the change of category is not in its language')
+    await shoot('dialog-change-category')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="change-category"]')
+
+    await goTo(page, '#/company/transactions?p=all&q=purchase%2C%20laptop', words.transactions.title)
+    await openShareOfRow(page, press)
+    await shoot('dialog-owner-share')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="owner-share"]')
+
+    await goTo(page, '#/company/review?tab=rules', words.review.title)
+    await editRule(page, press, 'merchant-airline')
+    await elementSays(page, '[role="dialog"]', [words.rules.form.conditions, words.rules.editor.backtest], 'the rule editor is not in its language')
+    await shoot('dialog-rule-editor')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[role="dialog"] [data-testid="rule-editor"]')
+    const row = await ruleRowOf(page, 'merchant-airline')
+    const toggle = await row.$('[role="switch"]')
+    await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await press(toggle)
+    await page.waitForSelector('[data-testid="save-rules-change"]', { visible: true, timeout: 10_000 })
+    await elementSays(page, '[role="dialog"]', [words.rules.tab.switchOff], 'switching a rule off is not in its language')
+    await delay(400)
+    await shoot('dialog-rule-switch')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="save-rules-change"]')
+
+    // The period in the address sets every filter afresh, so the laptop search from Transactions no longer narrows the queue.
+    await goTo(page, '#/company/review?p=l12', words.review.title)
+    await pressSelector(page, press, '[data-testid="review-row"] button[aria-expanded]')
+    await elementSays(page, '[data-testid="review-details"]', [words.review.item.rulesSay], 'the row of the queue is not in its language')
+    await shoot('review-row-open')
+    await lookAtSheet(page, press, shoot, '[data-testid="open-filters"]', 'sheet-review-filters')
+
+    await goTo(page, '#/company/settings?tab=categories', words.companySettings)
+    await lookAtSheet(page, press, shoot, '[data-testid="open-category-filters"]', 'sheet-category-filters')
+  }
+}
+
+/**
+ * Settings, Books file of a workbook kept in this browser, in a language: the switch of data source
+ * with its warning and its three choices, and a file opened there with its summary, each closed again.
+ */
+export function dataSourceDialogsFlowIn(language, importFile) {
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await pressSelector(page, press, '[data-testid="switch-source"]')
+    await page.waitForSelector('[role="dialog"] [data-testid="data-source-choices"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('Switch data source opened no choices')
+    })
+    await delay(400)
+    await shoot('dialog-switch-source')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="data-source-choices"]')
+    const input = await page.waitForSelector('[data-testid="data-source-card"] input[type="file"]', { timeout: 10_000 })
+    await input.uploadFile(importFile)
+    await page.waitForSelector('[role="dialog"] [data-testid="import-summary"] dl', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the file opened on Books file shows no summary')
+    })
+    await delay(400)
+    await shoot('dialog-import-file')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="import-summary"]')
+  }
+}
+
+/**
+ * Invoicing's dialogs in a language, opened and closed again: a new invoice and a recorded one,
+ * the invoice run's form, and on the Plan tab a new plan row, a recorded one and the fill of the year.
+ */
+export function invoicingDialogsFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await lookAtDialog(page, press, shoot, '[data-testid="invoice-add"]', '[data-testid="invoice-form"]', 'dialog-invoice', words.receivables.dialog.workFrom)
+    await lookAtDialog(page, press, shoot, '[data-testid="invoice-edit"]', '[data-testid="invoice-form"]', 'dialog-invoice-edit', words.receivables.dialog.periodHelp)
+    await lookAtDialog(page, press, shoot, '[data-testid="invoice-make"]', '[data-testid="invoice-run"]', 'dialog-invoice-run', words.invoicing.lines.title)
+    await goTo(page, '#/company/invoicing?tab=plan', words.invoicing.title)
+    await lookAtDialog(page, press, shoot, '[data-testid="billing-add"]', '[data-testid="billing-row-form"]', 'dialog-billing-row', words.billing.dialog.billableFrom)
+    await lookAtDialog(page, press, shoot, '[data-testid="billing-row-edit"]', '[data-testid="billing-row-form"]', 'dialog-billing-row-edit', words.billing.dialog.descriptionHelp)
+    await lookAtDialog(page, press, shoot, '[data-testid="billing-fill"]', '[data-testid="fill-preview"]', 'dialog-billing-fill')
+  }
+}
 
 /**
  * The Company dialogs whose fields sit two to a row, opened and closed again: an invoice and the

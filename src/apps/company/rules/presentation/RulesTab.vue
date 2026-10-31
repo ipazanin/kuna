@@ -26,6 +26,8 @@ import RuleChangeDialog from './RuleChangeDialog.vue'
 import type { PendingRulesChange } from './RuleChangeDialog.vue'
 import RuleEditor from './RuleEditor.vue'
 import type { RuleEditorSource } from './RuleEditor.vue'
+import { words } from './words'
+import { plural } from '../../../../shared/text/translation'
 
 /** The rules tab in the order rules are tried, each switched, moved, edited, deleted or added through the same checked write. */
 const { state } = useWorkbook()
@@ -35,7 +37,7 @@ const ordered = computed(() => inTryingOrder(workbook.value?.rules ?? []))
 const problems = computed(() => (workbook.value?.problems ?? []).filter((problem) => problem.tab === 'rules'))
 const summary = computed(() => {
   const on = ordered.value.filter((rule) => rule.enabled).length
-  return `${ordered.value.length} ${ordered.value.length === 1 ? 'rule' : 'rules'}, ${on} switched on`
+  return words.tab.summary(ordered.value.length, on)
 })
 const bucketBySlug = computed(() => new Map((workbook.value?.categories ?? []).map((category) => [category.slug, category.bucket])))
 
@@ -82,27 +84,26 @@ function rowOf(rule: Rule): RuleRowEdit['expected'] | null {
 }
 
 function addRule(): void {
-  editorSource.value = { title: 'Add a rule', draft: blankDraft(workbook.value?.rules ?? []), edited: null }
+  editorSource.value = { title: words.tab.addTitle, draft: blankDraft(workbook.value?.rules ?? []), edited: null }
   editorOpen.value = true
 }
 
 function editRule(rule: Rule): void {
   const source = draftOfRule(rule, ruleRows(), workbook.value?.rules ?? [])
   if (source === null) return
-  editorSource.value = { title: `Edit ${rule.id}`, ...source }
+  editorSource.value = { title: words.tab.editTitle(rule.id), ...source }
   editorOpen.value = true
 }
 
 function toggleRule(rule: Rule): void {
   const expected = rowOf(rule)
   if (expected === null) return
-  const switching = rule.enabled ? 'Switch off' : 'Switch on'
   pending.value = {
-    title: `${switching} ${rule.id}`,
-    description: rule.enabled ? 'It stays on the tab and is no longer tried.' : 'It is tried again at its place in the order.',
+    title: words.tab.switchName(rule.enabled, rule.id),
+    description: rule.enabled ? words.tab.staysOnTab : words.tab.triedAgain,
     change: { appended: null, edited: [{ id: rule.id, expected, fields: { ...expected, enabled: !rule.enabled } }], removed: null },
-    saved: `${rule.enabled ? 'Switched off' : 'Switched on'} ${rule.id}`,
-    action: switching,
+    saved: words.tab.switched(!rule.enabled, rule.id),
+    action: rule.enabled ? words.tab.switchOff : words.tab.switchOn,
   }
   dialogOpen.value = true
 }
@@ -116,37 +117,24 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
     return expected === null ? [] : [{ id, expected, fields: { ...expected, order: String(order) } }]
   })
   pending.value = {
-    title: `Try ${rule.id} ${way}`,
-    description: orders.size === 2 ? 'It trades orders with its neighbour.' : 'Two rules share an order, so every rule is renumbered in steps of 100.',
+    title: words.tab.tryWay(rule.id, way),
+    description: orders.size === 2 ? words.tab.tradesOrders : words.tab.renumbers,
     change: { appended: null, edited, removed: null },
-    saved: `Moved ${rule.id}`,
-    action: 'Move it',
+    saved: words.tab.moved(rule.id),
+    action: words.tab.moveIt,
   }
   dialogOpen.value = true
 }
 </script>
 
 <template>
-  <AppCard
-    title="Rules"
-    subtitle="Tried from the top. The first enabled rule whose conditions all hold decides a row."
-    collapse-id="review.rules"
-    :summary="summary"
-    :reveal="highlightedId !== null"
-    data-testid="rules-tab"
-  >
+  <AppCard :title="words.tab.title" :subtitle="words.tab.subtitle" collapse-id="review.rules" :summary="summary" :reveal="highlightedId !== null" data-testid="rules-tab">
     <template #actions>
-      <UButton label="Add rule" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" :disabled="state.writing" data-testid="add-rule" @click="addRule" />
+      <UButton :label="words.tab.add" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" :disabled="state.writing" data-testid="add-rule" @click="addRule" />
     </template>
 
     <div v-if="problems.length" class="flex flex-col gap-3 px-4 pt-4 sm:px-5">
-      <UAlert
-        icon="i-lucide-octagon-x"
-        color="error"
-        variant="subtle"
-        :title="`${problems.length} ${problems.length === 1 ? 'row' : 'rows'} on the rules tab cannot be read`"
-        description="Each is left out, so the rules below it decide its rows instead. Fix them in the workbook."
-      />
+      <UAlert icon="i-lucide-octagon-x" color="error" variant="subtle" :title="plural(words.tab.unreadable(problems.length), problems.length)" :description="words.tab.unreadableHelp" />
       <ProblemList :problems="problems" />
     </div>
 
@@ -162,8 +150,8 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
       >
         <USwitch
           :model-value="rule.enabled"
-          :label="rule.enabled ? 'On' : 'Off'"
-          :aria-label="`${rule.enabled ? 'Switch off' : 'Switch on'} ${rule.id}`"
+          :label="rule.enabled ? words.tab.on : words.tab.off"
+          :aria-label="words.tab.switchName(rule.enabled, rule.id)"
           :disabled="state.writing"
           class="rule-switch"
           @update:model-value="toggleRule(rule)"
@@ -171,7 +159,7 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
         <div class="rule-main">
           <p class="flex flex-wrap items-center gap-2">
             <span class="identifier text-highlighted">{{ rule.id }}</span>
-            <UBadge :label="rule.confidence === 'rule' ? 'Settles' : 'Waits for review'" :color="rule.confidence === 'rule' ? 'neutral' : 'info'" variant="subtle" size="sm" />
+            <UBadge :label="rule.confidence === 'rule' ? words.tab.settles : words.tab.waitsForReview" :color="rule.confidence === 'rule' ? 'neutral' : 'info'" variant="subtle" size="sm" />
           </p>
           <ul class="mt-1.5 flex flex-wrap gap-1.5">
             <li v-for="condition in rule.conditions" :key="condition.column" class="condition">{{ conditionInWords(condition) }}</li>
@@ -180,7 +168,7 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
         </div>
         <div class="rule-outcome">
           <CategoryChip :category="rule.category" :bucket="bucketBySlug.get(rule.category) ?? UNCLASSIFIED" />
-          <p class="figure text-xs text-muted">Decides {{ decided.get(rule.id) ?? 0 }} {{ (decided.get(rule.id) ?? 0) === 1 ? 'row' : 'rows' }}, order {{ rule.order }}</p>
+          <p class="figure text-xs text-muted">{{ words.tab.decides(decided.get(rule.id) ?? 0, rule.order) }}</p>
         </div>
         <div class="rule-actions">
           <UButton
@@ -188,7 +176,7 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
             color="neutral"
             variant="ghost"
             size="sm"
-            :aria-label="`Try ${rule.id} earlier`"
+            :aria-label="words.tab.earlier(rule.id)"
             :disabled="index === 0 || state.writing"
             @click="moveRule(rule, 'earlier')"
           />
@@ -197,15 +185,15 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
             color="neutral"
             variant="ghost"
             size="sm"
-            :aria-label="`Try ${rule.id} later`"
+            :aria-label="words.tab.later(rule.id)"
             :disabled="index === ordered.length - 1 || state.writing"
             @click="moveRule(rule, 'later')"
           />
-          <UButton label="Edit" icon="i-lucide-pencil" color="neutral" variant="outline" size="sm" :disabled="state.writing" data-testid="edit-rule" @click="editRule(rule)" />
+          <UButton :label="words.tab.edit" icon="i-lucide-pencil" color="neutral" variant="outline" size="sm" :disabled="state.writing" data-testid="edit-rule" @click="editRule(rule)" />
         </div>
       </li>
     </ol>
-    <p v-else class="px-4 py-6 text-sm text-muted sm:px-5">No rules yet. Every row then waits for review, so add one for each counterparty that always means the same category.</p>
+    <p v-else class="px-4 py-6 text-sm text-muted sm:px-5">{{ words.tab.none }}</p>
     <div class="h-2" />
 
     <RuleEditor v-model:open="editorOpen" :source="editorSource" />

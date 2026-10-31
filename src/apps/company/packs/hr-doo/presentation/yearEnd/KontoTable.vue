@@ -14,6 +14,8 @@ export interface KontoGroupView {
 <script setup lang="ts">
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
+import { words as packWords } from '../words'
+import { words } from './words'
 
 /**
  * Each konto group beside our accrual figure for its categories. A category slip, such as a cost
@@ -28,9 +30,9 @@ defineProps<{
 <template>
   <ul class="flex flex-col" data-testid="konto-table">
     <li class="konto-head" aria-hidden="true">
-      <span>Konto, as the accountant books it</span>
-      <span>Our categories, accrual</span>
-      <span class="text-end">Difference</span>
+      <span>{{ words.konto.asBooked }}</span>
+      <span>{{ words.konto.ourCategories }}</span>
+      <span class="text-end">{{ words.konto.difference }}</span>
     </li>
     <li v-for="group in groups" :key="group.key" class="konto-group">
       <dl class="konto-side">
@@ -44,13 +46,14 @@ defineProps<{
       <dl class="konto-side">
         <div v-for="category in group.categories" :key="category.key" class="konto-line">
           <dt class="min-w-0 text-toned">
-            <DrillLink :to="category.to" :label="`${category.label}, open the rows`">{{ category.label }}</DrillLink>
+            <DrillLink :to="category.to" :label="packWords.figure.openRows(category.label)">{{ category.label }}</DrillLink>
           </dt>
           <dd><MoneyText :cents="category.cents" /></dd>
         </div>
       </dl>
       <p class="konto-difference" :class="group.difference === 0 ? 'text-success' : 'text-warning'">
-        <span class="text-xs text-muted sm:hidden">Difference </span><MoneyText :cents="group.difference" sign="always" />
+        <span class="text-xs text-muted sm:hidden">{{ words.konto.differenceLabel }}</span
+        ><MoneyText :cents="group.difference" sign="always" />
       </p>
     </li>
     <li v-if="unnamed.length > 0" class="konto-group">
@@ -62,7 +65,7 @@ defineProps<{
           <dd><MoneyText :cents="konto.cents" /></dd>
         </div>
       </dl>
-      <p class="text-sm text-muted">Names no category, so nothing of ours sits beside it. Add the categories in its <span class="identifier">categories</span> cell.</p>
+      <p class="text-sm text-muted">{{ words.konto.unnamedBefore }}<span class="identifier">categories</span>{{ words.konto.unnamedAfter }}</p>
     </li>
   </ul>
 </template>

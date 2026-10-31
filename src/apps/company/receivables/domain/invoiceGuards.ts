@@ -1,3 +1,5 @@
+import { words } from './words'
+
 /** What the checks need of one invoices row. */
 interface InvoiceCells {
   readonly number: string
@@ -27,11 +29,11 @@ export function invoiceChangeRefusals(edits: readonly InvoiceEdit[], untouched: 
     if (key(after.number) !== '' && key(after.number) !== key(edit.before?.number ?? '')) {
       const holder = untouched.find((row) => key(row.number) === key(after.number)) ?? edits.find((other) => other !== edit && other.after !== null && key(other.after.number) === key(after.number))
       if (holder !== undefined) {
-        refusals.push(`Invoice ${after.number.trim()} is already on the invoices tab, and each number is used once.`)
+        refusals.push(words.numberTaken(after.number.trim()))
       }
     }
     if (typeof after.amount === 'number' && after.amount <= 0) {
-      refusals.push(`Invoice ${after.number.trim()} is for ${after.amount}, and an invoice is for an amount above zero.`)
+      refusals.push(words.notAboveZero(after.number.trim(), after.amount))
     }
   }
   return refusals

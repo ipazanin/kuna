@@ -1,9 +1,9 @@
 /**
  * Drives the fake-mode build with touch at the two phone widths, as a thumb would: the top app bar
  * with its one-line Sync button and its navigation drawer of one app's menu under the link home, the
- * home's top bar with no menu button and a fresh device's home with every app in Set up, the tabs of Settings with Back through them, a link to Year's Statements tab alone kept in its year through two tabs and Back, the review and corporate tax lines of Overview's waiting card, a chart's tap-then-drill, the filter sheet with a
+ * home's top bar with no menu button and a fresh device's home with every app in Set up, the tabs of Settings with Back through them, a link to Year's Statements tab alone kept in its year through two tabs and Back, the review and corporate tax lines of Overview's waiting card, the review line again in Croatian, a chart's tap-then-drill, the filter sheet with a
  * filter added and removed,
- * grouped transactions that collapse and expand, a payee's category breakdown, an xlsx file opened and kept in this browser,
+ * grouped transactions that collapse and expand, a payee's category breakdown in English and Croatian, Analysis and its Compare tab in Croatian, an owner share changed and cleared and a new default share's fill, each undone, in Croatian, an xlsx file opened and kept in this browser,
  * confirming and recategorising a row on Review with Undo, the session's changes with Undo from
  * there, the coverage list split into rows no rule settles and exceptions to a rule, a paid month on the payroll calendar of Year, Taxes, the
  * doubled rates, a year's build-up and a payment on Year, Assets, a line's build-up and its rows on Year, Statements, the accountant's lines,
@@ -29,11 +29,14 @@
  * Salaries with five made-up employees, its gross to net chart's tap-then-drill, the one problem's build-up and rows, the People tab and the Over time table,
  * a settled row on Transactions filed in another category with the rule it contradicts named, and undone,
  * a camt.053 statement and a bank export imported on the Import tab of Transactions, the export
- * with a profile made for it, each confirmed and undone, and the profile deleted, an invoice made and re-exported, a rule made from a row and applied to
+ * with a profile made for it, each confirmed and undone, and the profile deleted, the same Import in Croatian with a held statement and the Mail card's list, an invoice made and re-exported, and in
+ * Croatian an invoice added, edited, deleted and undone, made and re-exported, a client's second IBAN and the rest of the year filled and undone, a rule made from a row and applied to
  * the rows still waiting, a rule edited and switched off on Review's Rules tab, a rule's note changed and the rule deleted from
- * its editor, each undone, in both modes, the Ruleset search on Settings, a
+ * its editor, each undone, in both modes, the same split, change of category, rule editor, dismissal and
+ * categories editor with its filters in Croatian with the dialogs and sheets of Transactions, Review and Categories, an asset, an employee, an owner
+ * advance, a pay scenario's component, the starting scenarios, a category's plan and a planned purchase in Croatian, each undone, the Ruleset search on Settings, a
  * watch list link that opens its rule in the side panel, the local income tax rates searched and shown in full, the first run kept
- * on the fake Drive and in this browser with Back to the step that made the books and its Start over, the folder step offering to open the books
+ * on the fake Drive and in this browser with Back to the step that made the books and its Start over, both again in Croatian with Settings, General, Accounts and Books file and the card settlement IBANs saved, the folder step offering to open the books
  * the fake Drive already holds, new books, a move from this browser and the Loans file alike, new books on the fake Drive with statements from mail and their first sync, the statement step asking for Drive read before the Picker,
  * an xlsx file moved to the fake Drive through its summary, a workbook kept in this browser
  * moved there from Settings, Books file with the Drive read its folders need asked up front, the categories searched, filtered to a bucket from their sheet, sorted by a tap and the keyboard,
@@ -62,31 +65,52 @@ import { launch } from 'puppeteer-core'
 
 import { en as sharedEnglish } from '../src/shared/app/words.ts'
 
+import { hr as analysisCroatian } from '../src/apps/company/analysis/presentation/words.ts'
+import { en as billingEnglish, hr as billingCroatian } from '../src/apps/company/billingPlan/presentation/words.ts'
+import { en as overviewEnglish, hr as overviewCroatian } from '../src/apps/company/overview/presentation/words.ts'
+import { en as reviewEnglish, hr as reviewCroatian } from '../src/apps/company/review/presentation/words.ts'
+import { hr as transactionsCroatian } from '../src/apps/company/transactions/presentation/words.ts'
+import { en as invoicingEnglish, hr as invoicingCroatian } from '../src/apps/company/invoicing/presentation/words.ts'
+import { en as writesEnglish, hr as writesCroatian } from '../src/shared/storage/presentation/words.ts'
 import { chromePath, ENGLISH_CHROME_ARG } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
 import {
   accessClosedFlow,
   advanceFlow,
+  advanceFlowIn,
   assetFlow,
+  assetFlowIn,
   employeeFlow,
   CAR_LOAN_SCENARIOS,
+  employeeFlowIn,
   cardSettlementIbansFlow,
+  cardSettlementIbansFlowIn,
   categoryFiltersFlow,
+  categoryFiltersFlowIn,
   categoryFlow,
+  categoryFlowIn,
   changeCategoryFlow,
+  changeCategoryFlowIn,
   clientIbansFlow,
+  clientIbansFlowIn,
   dismissFlow,
+  dismissFlowIn,
   heldStatementFlow,
   importCamtFlow,
+  importFlowIn,
+  heldStatementFlowIn,
+  mailListFlowIn,
   importTableFlow,
   invoiceFlow,
+  invoiceFlowIn,
   invoiceRunFlow,
   investmentsDriveFlow,
   investmentsPriceKeyFlow,
   loansScenarioEditorFlow,
   loansScenariosFlow,
   loansTryExtraFlow,
+  invoiceRunFlowIn,
   loansStartOnDriveFlow,
   mailAccessFlow,
   mailFailedFlow,
@@ -103,7 +127,9 @@ import {
   moveOntoDriveFlow,
   onboardingBringFlow,
   onboardingBrowserFlow,
+  onboardingBrowserFlowIn,
   onboardingDriveFlow,
+  onboardingDriveFlowIn,
   onboardingDriveReadFlow,
   onboardingMailFlow,
   onboardingOnDriveFlow,
@@ -113,16 +139,26 @@ import {
   ownerNetFlow,
   ownerNetUnregisteredFlow,
   ownerShareFlow,
+  ownerShareFlowIn,
   salariesFlow,
   planFlow,
+  planFlowIn,
   planTabFlow,
+  planTabFlowIn,
   raceFlow,
   reviewSplitFlow,
+  reviewSplitFlowIn,
   rulesEditorFlow,
+  rulesEditorFlowIn,
+  rowsDialogsFlowIn,
   scenarioFlow,
+  scenarioFlowIn,
   shareFillFlow,
+  shareFillFlowIn,
   splitFlow,
+  splitFlowIn,
   startingScenariosFlow,
+  startingScenariosFlowIn,
   statementAccessFlow,
   statementSyncFlow,
   statementsFolderFlow,
@@ -158,6 +194,8 @@ const CARRIES_ON_FROM = { 'top-bar': 'overview', drawer: 'overview' }
 const SCREENS = [
   { hash: '#/company/transactions?tab=import', title: 'Transactions', ready: '[data-testid="import-file"]', cards: false },
   { hash: '#/company/analysis?p=all', title: 'Analysis', ready: '[data-testid="cost-line"]' },
+  { name: 'analysis-croatian', hash: '&lang=hr#/company/analysis?p=all', title: 'Analiza', ready: '[data-testid="cost-line"]' },
+  { name: 'analysis-compare-croatian', hash: '&lang=hr#/company/analysis?tab=compare&p=all', title: 'Analiza', ready: '.data-table' },
   { hash: '#/company/invoicing?p=all', title: 'Invoicing', ready: '[data-testid="invoice-list"]' },
   { name: 'year-accountant', hash: '#/company/year?year=2025&p=all', title: 'Year', ready: '[data-testid="line-statuses"]' },
   { name: 'year-statements', hash: '#/company/year?year=2025&tab=statements&p=all', title: 'Year', ready: '[data-testid="comparison-pl"]' },
@@ -359,17 +397,22 @@ async function checkWidth(width) {
     await expect(topBarTitle(page), (title) => title === 'Overview', 'the Company card did not open Overview with its name in the top bar')
   })
 
-  await step('waiting-review', async () => {
-    await open(page, '#/company', 'Overview')
-    await page.waitForSelector('[data-testid="waiting-for-you"]')
-    await shoot('overview-waiting')
-    const reviewLink = await waitForText(page, '[data-testid="waiting-for-you"] [data-job="review"] a', 'Review')
-    await reviewLink.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await delay(200)
-    await reviewLink.tap()
-    await waitForTitle(page, 'Review')
-    await expect(reviewCount(page), (count) => count === 2, 'the waiting line did not open the queue with its two rows')
-  })
+  for (const [suffix, words] of [
+    ['', { overview: overviewEnglish, review: reviewEnglish, query: '' }],
+    ['-croatian', { overview: overviewCroatian, review: reviewCroatian, query: '&lang=hr' }],
+  ]) {
+    await step(`waiting-review${suffix}`, async () => {
+      await open(page, `${words.query}#/company`, words.overview.title)
+      await page.waitForSelector('[data-testid="waiting-for-you"]')
+      await shoot(`overview-waiting${suffix}`)
+      const reviewLink = await waitForText(page, '[data-testid="waiting-for-you"] [data-job="review"] a', words.overview.waiting.links.review)
+      await reviewLink.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+      await delay(200)
+      await reviewLink.tap()
+      await waitForTitle(page, words.review.title)
+      await expect(reviewCount(page), (count) => count === 2, 'the waiting line did not open the queue with its two rows')
+    })
+  }
 
   await step('waiting-corporate-tax', async () => {
     await openFreshBrowser(page, '#/company', 'Overview')
@@ -466,44 +509,49 @@ async function checkWidth(width) {
     await page.tap('[data-testid="expand-all"]')
   })
 
-  await step('payee-breakdown', async () => {
-    await open(page, '#/company/analysis?p=l12', 'Analysis')
-    const payeesToggle = await page.waitForSelector('[data-testid="top-payees"] [data-testid="card-toggle"]')
-    if ((await payeesToggle.evaluate((toggle) => toggle.getAttribute('aria-expanded'))) === 'false') {
-      await payeesToggle.evaluate((toggle) => toggle.scrollIntoView({ block: 'center' }))
-      await delay(200)
-      await payeesToggle.tap()
-    }
-    const several = await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="payee-categories"]')].find((trigger) => trigger.textContent?.includes('+')) ?? null, {
-      timeout: 10_000,
-    })
-    await several.asElement().evaluate((trigger) => trigger.scrollIntoView({ block: 'center' }))
-    await several.asElement().tap()
-    await page.waitForSelector('[data-testid="payee-breakdown"] a')
-    await delay(300)
-    await expect(
-      several.asElement().evaluate((trigger) => {
-        const panel = document.querySelector('[data-testid="payee-breakdown"]').getBoundingClientRect()
-        const row = trigger.closest('tr').getBoundingClientRect()
-        const inside = panel.left >= 0 && panel.right <= window.innerWidth && panel.top >= 0 && panel.bottom <= window.innerHeight
-        return inside && (panel.top >= row.bottom - 1 || panel.bottom <= row.top + 1)
-      }),
-      (placed) => placed,
-      'the breakdown leaves the window or covers the row it belongs to',
-    )
-    await shoot('payee-breakdown')
-    await inspect(page, `${width}px payee breakdown open`)
-    // Measuring the links of the cost headings scrolls the page, which closes the breakdown, so it opens again.
-    await delay(500)
-    if ((await page.$('[data-testid="payee-breakdown"] a')) === null) {
+  for (const [suffix, words] of [
+    ['', { analysis: 'Analysis', transactions: 'Transactions', query: '' }],
+    ['-croatian', { analysis: analysisCroatian.title, transactions: transactionsCroatian.title, query: '&lang=hr' }],
+  ]) {
+    await step(`payee-breakdown${suffix}`, async () => {
+      await open(page, `${words.query}#/company/analysis?p=l12`, words.analysis)
+      const payeesToggle = await page.waitForSelector('[data-testid="top-payees"] [data-testid="card-toggle"]')
+      if ((await payeesToggle.evaluate((toggle) => toggle.getAttribute('aria-expanded'))) === 'false') {
+        await payeesToggle.evaluate((toggle) => toggle.scrollIntoView({ block: 'center' }))
+        await delay(200)
+        await payeesToggle.tap()
+      }
+      const several = await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="payee-categories"]')].find((trigger) => trigger.textContent?.includes('+')) ?? null, {
+        timeout: 10_000,
+      })
       await several.asElement().evaluate((trigger) => trigger.scrollIntoView({ block: 'center' }))
       await several.asElement().tap()
+      await page.waitForSelector('[data-testid="payee-breakdown"] a')
       await delay(300)
-    }
-    await page.tap('[data-testid="payee-breakdown"] a')
-    await waitForTitle(page, 'Transactions')
-    await expect(filterCount(page), (count) => Number(count) >= 2, 'the breakdown line did not narrow to its counterparty and category')
-  })
+      await expect(
+        several.asElement().evaluate((trigger) => {
+          const panel = document.querySelector('[data-testid="payee-breakdown"]').getBoundingClientRect()
+          const row = trigger.closest('tr').getBoundingClientRect()
+          const inside = panel.left >= 0 && panel.right <= window.innerWidth && panel.top >= 0 && panel.bottom <= window.innerHeight
+          return inside && (panel.top >= row.bottom - 1 || panel.bottom <= row.top + 1)
+        }),
+        (placed) => placed,
+        'the breakdown leaves the window or covers the row it belongs to',
+      )
+      await shoot(`payee-breakdown${suffix}`)
+      await inspect(page, `${width}px payee breakdown open${suffix}`)
+      // Measuring the links of the cost headings scrolls the page, which closes the breakdown, so it opens again.
+      await delay(500)
+      if ((await page.$('[data-testid="payee-breakdown"] a')) === null) {
+        await several.asElement().evaluate((trigger) => trigger.scrollIntoView({ block: 'center' }))
+        await several.asElement().tap()
+        await delay(300)
+      }
+      await page.tap('[data-testid="payee-breakdown"] a')
+      await waitForTitle(page, words.transactions)
+      await expect(filterCount(page), (count) => Number(count) >= 2, 'the breakdown line did not narrow to its counterparty and category')
+    })
+  }
 
   await step('chart-drill', async () => {
     await open(page, '#/company', 'Overview')
@@ -873,32 +921,38 @@ async function checkWidth(width) {
     await shoot('billing-month')
   })
 
-  await step('billing-fill-write-undo', async () => {
-    await openFreshBrowser(page, '#/company/invoicing?tab=plan&p=all', 'Invoicing')
-    await page.waitForSelector('[data-testid="billing-rows"]')
-    const rows = () => page.evaluate(() => document.querySelectorAll('[data-testid="billing-row"]').length)
-    const before = await rows()
-    const fill = await page.$('[data-testid="billing-fill"]')
-    await fill.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await delay(200)
-    await fill.tap()
-    await page.waitForSelector('[data-testid="fill-row"]')
-    await delay(300)
-    const previewed = await page.evaluate(() => document.querySelectorAll('[data-testid="fill-row"]').length)
-    await expect(Promise.resolve(previewed), (count) => count > 0, 'the preview lists no rows to fill')
-    await page.$eval('[data-testid="fill-description"]', (input) => input.select())
-    await page.type('[data-testid="fill-description"]', 'Fee for the last sprint')
-    await inspect(page, `${width}px fill preview`)
-    await shoot('billing-fill-preview')
-    await page.tap('[data-testid="fill-write"]')
-    await waitForText(page, '[data-slot="title"]', `${previewed} plan rows added`)
-    await expect(rows(), (count) => count === before + previewed, 'the filled rows are not on the list')
-    await waitForText(page, '[data-testid="billing-row"] p', 'Fee for the last sprint')
-    await delay(700)
-    await (await waitForText(page, 'button', 'Undo')).tap()
-    await waitForText(page, '[data-slot="title"]', 'Undone')
-    await expect(rows(), (count) => count === before, 'Undo did not take the filled rows off the list')
-  })
+  for (const [suffix, words] of [
+    ['', { billing: billingEnglish, invoicing: invoicingEnglish, writes: writesEnglish, locale: 'en-GB', query: '' }],
+    ['-croatian', { billing: billingCroatian, invoicing: invoicingCroatian, writes: writesCroatian, locale: 'hr-HR', query: '&lang=hr' }],
+  ]) {
+    await step(`billing-fill-write-undo${suffix}`, async () => {
+      await openFreshBrowser(page, '#/company/invoicing?tab=plan&p=all', words.invoicing.title, words.query)
+      await page.waitForSelector('[data-testid="billing-rows"]')
+      const rows = () => page.evaluate(() => document.querySelectorAll('[data-testid="billing-row"]').length)
+      const before = await rows()
+      const fill = await page.$('[data-testid="billing-fill"]')
+      await fill.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+      await delay(200)
+      await fill.tap()
+      await page.waitForSelector('[data-testid="fill-row"]')
+      await delay(300)
+      const previewed = await page.evaluate(() => document.querySelectorAll('[data-testid="fill-row"]').length)
+      await expect(Promise.resolve(previewed), (count) => count > 0, 'the preview lists no rows to fill')
+      await page.$eval('[data-testid="fill-description"]', (input) => input.select())
+      await page.type('[data-testid="fill-description"]', 'Fee for the last sprint')
+      await inspect(page, `${width}px fill preview${suffix}`)
+      await shoot(`billing-fill-preview${suffix}`)
+      await page.tap('[data-testid="fill-write"]')
+      const added = words.billing.fill.added(previewed)
+      await waitForText(page, '[data-slot="title"]', added[new Intl.PluralRules(words.locale).select(previewed)] ?? added.other)
+      await expect(rows(), (count) => count === before + previewed, 'the filled rows are not on the list')
+      await waitForText(page, '[data-testid="billing-row"] p', 'Fee for the last sprint')
+      await delay(700)
+      await (await waitForText(page, 'button', words.writes.undo)).tap()
+      await waitForText(page, '[data-slot="title"]', words.writes.undone)
+      await expect(rows(), (count) => count === before, 'Undo did not take the filled rows off the list')
+    })
+  }
 
   await step('billing-edit-delete', async () => {
     await openFreshBrowser(page, '#/company/invoicing?tab=plan&p=all', 'Invoicing')
@@ -1035,10 +1089,38 @@ async function checkWidth(width) {
       ['change-category', '#/company/transactions?p=all&q=CODE%20HOST', 'Transactions', changeCategoryFlow],
       ['owner-share', '#/company/transactions?p=all&q=purchase%2C%20laptop', 'Transactions', ownerShareFlow],
       ['share-fill', '#/company/settings?tab=categories', 'Settings', shareFillFlow],
+      ['owner-share-croatian', '#/company/transactions?p=all&q=purchase%2C%20laptop', 'Transakcije', ownerShareFlowIn('hr'), `${query}&lang=hr`],
+      ['share-fill-croatian', '#/company/settings?tab=categories', 'Postavke', shareFillFlowIn('hr'), `${query}&lang=hr`],
       ['dismiss', '#/company/review?tab=rules', 'Review', dismissFlow],
       ['rules-editor', '#/company/review?tab=rules', 'Review', rulesEditorFlow],
       ['import-camt', '#/company/transactions?tab=import', 'Transactions', importCamtFlow(IMPORT_SAMPLES.camt)],
       ['import-table', '#/company/transactions?tab=import', 'Transactions', importTableFlow(IMPORT_SAMPLES.table)],
+      ['import-files-croatian', '#/company/transactions?tab=import', 'Transakcije', importFlowIn('hr', IMPORT_SAMPLES), `${query}&lang=hr`],
+      ['clients-ibans-croatian', '#/company/invoicing?tab=clients', 'Računi', clientIbansFlowIn('hr'), `${query}&lang=hr`],
+      ['invoices-croatian', '#/company/invoicing?p=all', 'Računi', invoiceFlowIn('hr'), `${query}&lang=hr`],
+      ['invoice-run-croatian', '#/company/invoicing?p=all', 'Računi', invoiceRunFlowIn('hr'), `${query}&lang=hr`],
+      ['settings-card-ibans-croatian', '#/company/settings', 'Postavke', cardSettlementIbansFlowIn('hr'), `${query}&lang=hr`],
+      ['categories-croatian', '#/company/settings?tab=categories', 'Postavke', categoryFlowIn('hr'), `${query}&lang=hr`],
+      ['categories-filters-croatian', '#/company/settings?tab=categories', 'Postavke', categoryFiltersFlowIn('hr'), `${query}&lang=hr`],
+      ['split-croatian', '#/company/transactions?p=all&q=GADGET', 'Transakcije', splitFlowIn('hr'), `${query}&lang=hr`],
+      ['split-review-croatian', '#/company/review', 'Za provjeru', reviewSplitFlowIn('hr'), `${query}&lang=hr`],
+      ['change-category-croatian', '#/company/transactions?p=all&q=CODE%20HOST', 'Transakcije', changeCategoryFlowIn('hr'), `${query}&lang=hr`],
+      ['dismiss-croatian', '#/company/review?tab=rules', 'Za provjeru', dismissFlowIn('hr'), `${query}&lang=hr`],
+      ['rules-editor-croatian', '#/company/review?tab=rules', 'Za provjeru', rulesEditorFlowIn('hr'), `${query}&lang=hr`],
+      ['dialogs-rows-croatian', '#/company/transactions?p=all&q=GADGET', 'Transakcije', rowsDialogsFlowIn('hr'), `${query}&lang=hr`],
+      ['assets-croatian', '#/company/year?tab=assets#asset-rows', 'Godina', assetFlowIn('hr'), `${query}&lang=hr`],
+      ['employees-croatian', '#/company/salaries#employee-rows', 'Plaće', employeeFlowIn('hr'), `${query}&lang=hr`],
+      ['advances-croatian', '#/company/owner?tab=owed', 'Vlasnik', advanceFlowIn('hr'), `${query}&lang=hr`],
+      ['scenarios-croatian', '#/company/year?year=2027&tab=pay', 'Godina', scenarioFlowIn('hr'), `${query}&lang=hr`],
+      [
+        'starting-scenarios-croatian',
+        '#/company/year?year=2027&tab=pay',
+        'Godina',
+        startingScenariosFlowIn('hr'),
+        mode === 'drive' ? '&fake=no-scenarios&lang=hr' : '&fake=browser-no-scenarios&lang=hr',
+      ],
+      ['plan-croatian', '#/company/year?year=2027&tab=plan', 'Godina', planFlowIn('hr'), `${query}&lang=hr`],
+      ['plan-tab-croatian', '#/company/year?year=2027&tab=plan', 'Godina', planTabFlowIn('hr'), mode === 'drive' ? '&fake=no-plan&lang=hr' : '&fake=browser-no-plan&lang=hr'],
     ]) {
       await step(`${name}-${mode}`, async () => {
         await page.goto(`${BASE}?theme=dark${variant ?? query}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
@@ -1058,10 +1140,12 @@ async function checkWidth(width) {
   for (const [name, variant, run, hash = '#/company', title = 'Overview'] of [
     ['statements-sync', '', statementSyncFlow],
     ['statements-held', '&fake=held-statement', heldStatementFlow],
+    ['statements-held-croatian', '&fake=held-statement&lang=hr', heldStatementFlowIn('hr'), '#/company', overviewCroatian.title],
     ['statements-access', '', statementAccessFlow],
     ['sync-running', '&fake=slow-statements', syncRunningFlow],
     ['mail-off', '', mailOffFlow],
     ['mail-filed', '&fake=mail', mailFiledFlow],
+    ['mail-list-croatian', '&fake=mail&lang=hr', mailListFlowIn('hr'), '#/company', overviewCroatian.title],
     ['mail-upload-failed', '&fake=mail-upload-failed', mailUploadFailedFlow],
     ['mail-nothing-new', '&fake=mail-nothing-new', mailNothingNewFlow],
     ['mail-failed', '&fake=mail-failed', mailFailedFlow],
@@ -1243,6 +1327,25 @@ async function checkWidth(width) {
       await inspect(page, `${width}px settings ${label.toLowerCase()}`)
     }
     await shoot('settings-accounts')
+  })
+
+  await step('settings-tabs-croatian', async () => {
+    await page.goto(`${BASE}?theme=dark&fake=browser&lang=hr#/company/settings`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Postavke')
+    await waitForText(page, 'button', 'Spremi postavke')
+    await inspect(page, `${width}px settings general in Croatian`)
+    await shoot('settings-general-croatian')
+    for (const [label, query, ready] of [
+      ['Računi u banci', 'tab=accounts', 'Spremi račune'],
+      ['Datoteka', 'tab=books', 'Uvezi datoteku'],
+    ]) {
+      const tab = await waitForText(page, '[role="tab"]', label)
+      await tab.tap()
+      await page.waitForFunction((wanted) => window.location.hash.includes(wanted), {}, query)
+      await waitForText(page, 'button', ready)
+      await inspect(page, `${width}px settings ${query} in Croatian`)
+    }
+    await shoot('settings-books-croatian')
   })
 
   await step('year-editors', async () => {
@@ -1796,6 +1899,8 @@ async function checkWidth(width) {
     ['onboarding-drive-read', 'empty', onboardingDriveReadFlow],
     ['onboarding-mail', 'empty', onboardingMailFlow],
     ['onboarding-browser', 'empty', onboardingBrowserFlow],
+    ['onboarding-drive-croatian', 'empty&lang=hr', onboardingDriveFlowIn('hr'), '#/company/start', 'Tvrtka'],
+    ['onboarding-browser-croatian', 'empty&lang=hr', onboardingBrowserFlowIn('hr'), '#/company/start', 'Tvrtka'],
     ['onboarding-bring', 'empty', onboardingBringFlow(TEMPLATE_FILE)],
     ['onboarding-open', 'drive', onboardingOpenFlow, '#/company/start?path=open'],
     ['onboarding-start-over', 'empty', onboardingStartOverFlow],
@@ -1845,8 +1950,8 @@ async function open(page, hash, title) {
  * no toast left over. The query changes on every load, since a URL that differs only after the #
  * would not load the page again.
  */
-async function openFreshBrowser(page, hash, title) {
-  await page.goto(`${BASE}?theme=dark&fake=browser&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
+async function openFreshBrowser(page, hash, title, query = '') {
+  await page.goto(`${BASE}?theme=dark&fake=browser${query}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
   await waitForTitle(page, title)
 }
 

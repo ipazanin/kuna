@@ -3,6 +3,7 @@ import ConfidenceBadge from './ConfidenceBadge.vue'
 import RuleSources from './RuleSources.vue'
 import RuleTable from './RuleTable.vue'
 import type { RuleView, TableFocus } from './ruleWording'
+import { words } from './words'
 
 /** One rule in full: its value per version, side by side on a wide screen and one version under another on a phone, its notes and sources. */
 withDefaults(
@@ -29,13 +30,13 @@ withDefaults(
             <div v-for="row in rule.rows" :key="row.key" class="phone-term">
               <dt class="text-xs text-muted">{{ row.label }}</dt>
               <dd class="figure text-sm" :class="row.cells[columnIndex]?.changed ? 'is-changed' : 'text-default'">
-                {{ row.cells[columnIndex]?.wording }}<span v-if="row.cells[columnIndex]?.changed" class="sr-only">, changed</span>
+                {{ row.cells[columnIndex]?.wording }}<span v-if="row.cells[columnIndex]?.changed" class="sr-only">{{ words.detail.changed }}</span>
               </dd>
             </div>
           </dl>
         </section>
       </template>
-      <ul v-else-if="rule.rows.length === 0" class="flex flex-wrap gap-x-6 gap-y-2" aria-label="Versions">
+      <ul v-else-if="rule.rows.length === 0" class="flex flex-wrap gap-x-6 gap-y-2" :aria-label="words.detail.versions">
         <li v-for="column in rule.columns" :key="column.period" class="flex items-center gap-2">
           <span class="figure text-sm font-medium text-highlighted">{{ column.period }}</span>
           <ConfidenceBadge :confidence="column.confidence" />
@@ -45,7 +46,9 @@ withDefaults(
         <table class="data-table value-table w-full text-sm" data-testid="rule-values">
           <thead>
             <tr>
-              <th scope="col" class="text-start"><span class="sr-only">Term</span></th>
+              <th scope="col" class="text-start">
+                <span class="sr-only">{{ words.detail.term }}</span>
+              </th>
               <th v-for="column in rule.columns" :key="column.period" scope="col" class="text-start">
                 <span class="flex flex-wrap items-center gap-2">
                   <span class="figure text-sm font-medium text-highlighted">{{ column.period }}</span>
@@ -58,7 +61,7 @@ withDefaults(
             <tr v-for="row in rule.rows" :key="row.key">
               <th scope="row" class="term-label text-start font-normal text-toned">{{ row.label }}</th>
               <td v-for="(cell, index) in row.cells" :key="index" class="figure" :class="cell.changed ? 'is-changed' : 'text-default'">
-                {{ cell.wording }}<span v-if="cell.changed" class="sr-only">, changed</span>
+                {{ cell.wording }}<span v-if="cell.changed" class="sr-only">{{ words.detail.changed }}</span>
               </td>
             </tr>
           </tbody>

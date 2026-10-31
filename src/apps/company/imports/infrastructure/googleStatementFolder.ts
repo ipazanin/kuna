@@ -1,5 +1,6 @@
 import { downloadFile, filesInside, folderOfSetting, foldersInside } from '../../../../shared/google/driveClient'
 import type { StatementFolder } from '../application/statementFolder'
+import { words } from './words'
 
 /**
  * Drive v3 with a token that reads the folder: Drive read for a path from My Drive, and the books
@@ -12,12 +13,9 @@ export function googleStatementFolder(accessToken: string, booksFileId: string):
       const folder = await folderOfSetting(accessToken, path, booksFileId)
       switch (folder.kind) {
         case 'missing':
-          return { kind: 'refused', reason: `${folder.where} holds no folder named "${folder.name}", so no statements were read. Check the statements_folder setting.` }
+          return { kind: 'refused', reason: words.noFolder(folder.where, folder.name) }
         case 'ambiguous':
-          return {
-            kind: 'refused',
-            reason: `${folder.where} holds ${folder.count} folders named "${folder.name}", so the app cannot tell which one holds the statements. Rename or remove the others in Drive.`,
-          }
+          return { kind: 'refused', reason: words.severalFolders(folder.where, folder.count, folder.name) }
         case 'found': {
           const years = await foldersInside(accessToken, [folder.id], ['id'])
           return {

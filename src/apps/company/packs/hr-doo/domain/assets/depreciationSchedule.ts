@@ -12,6 +12,7 @@ import type { Rate } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { deducted, percentText, rulesOf, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
+import { words } from './words'
 
 export type DepreciationSettings = Pick<CompanyFacts, 'depreciationDoubled'>
 
@@ -57,7 +58,7 @@ const MONTHS_PER_YEAR = 12
  * the month it is put in use.
  */
 export function depreciationSchedule(asset: Asset, settings: DepreciationSettings, rules: RuleSource = ruleValue): DepreciationSchedule {
-  const cost = tracedFigure('Cost without deductible VAT', asset.costNet, 'assets', [])
+  const cost = tracedFigure(words.schedule.cost, asset.costNet, 'assets', [])
   const useYear = taxPeriodOf(yearOf(asset.inUse))
   const thresholdRule = rules('hr.cit.asset-threshold', useYear)
   if (asset.costNet <= thresholdRule.value.unitCostAbove.cents) {
@@ -79,7 +80,7 @@ export function depreciationSchedule(asset: Asset, settings: DepreciationSetting
     const stopsThisYear = disposal !== null && yearOfMonth(disposal.month) === year
     const disposalCitedApart = stopsThisYear && disposal.rule.citation.validFrom !== startRule.citation.validFrom
     const charge = tracedFigure(
-      `Depreciation in ${year}, ${inYear.length} ${inYear.length === 1 ? 'month' : 'months'} at ${rateText(yearRate)}`,
+      words.schedule.depreciationIn(year, inYear.length, rateText(yearRate)),
       sumMoney(inYear.map((entry) => entry.charge)),
       'assets',
       disposalCitedApart ? [yearRate.lookup.citation, startRule.citation, disposal.rule.citation] : [yearRate.lookup.citation, startRule.citation],
@@ -96,20 +97,20 @@ export function depreciationSchedule(asset: Asset, settings: DepreciationSetting
 export function accumulatedDepreciationOn(schedule: DepreciationSchedule, on: CivilDate): TracedFigure {
   const gone = schedule.writeOff !== null && schedule.writeOff.on <= on
   const counted = schedule.months.filter((entry) => gone || lastDayOf(entry.month) <= on)
-  return { ...tracedFigure('Accumulated depreciation on', sumMoney(counted.map((entry) => entry.charge)), 'assets', rulesOf(schedule.years.map((year) => year.charge))), on }
+  return { ...tracedFigure(words.schedule.accumulated, sumMoney(counted.map((entry) => entry.charge)), 'assets', rulesOf(schedule.years.map((year) => year.charge))), on }
 }
 
 /** Cost less accumulated depreciation. Nothing before the asset was bought, and nothing once it is written off. */
 export function bookValueOn(schedule: DepreciationSchedule, on: CivilDate): TracedFigure {
   if (on < schedule.asset.bought) {
-    return { ...tracedFigure('Not bought yet, so no book value on', ZERO, 'assets', []), on }
+    return { ...tracedFigure(words.schedule.notBought, ZERO, 'assets', []), on }
   }
   const writeOff = schedule.writeOff
   if (writeOff !== null && writeOff.on <= on) {
-    return { ...tracedFigure('No book value after the write-off on', ZERO, 'assets', writeOff.figure.rules, [writeOff.figure]), on: writeOff.on }
+    return { ...tracedFigure(words.schedule.writtenOff, ZERO, 'assets', writeOff.figure.rules, [writeOff.figure]), on: writeOff.on }
   }
   const accumulated = accumulatedDepreciationOn(schedule, on)
-  return { ...tracedFigure('Book value on', subtractMoney(schedule.cost.amount, accumulated.amount), 'assets', accumulated.rules, [schedule.cost, deducted(accumulated)]), on }
+  return { ...tracedFigure(words.schedule.bookValue, subtractMoney(schedule.cost.amount, accumulated.amount), 'assets', accumulated.rules, [schedule.cost, deducted(accumulated)]), on }
 }
 
 /** The last month that carries depreciation: the month of disposal, or the one before when the rule stops earlier. */
@@ -140,7 +141,7 @@ function groupRate(asset: Asset, year: number, doubledAsked: boolean, rules: Rul
 }
 
 function rateText(yearRate: YearRate): string {
-  return yearRate.doubled ? `${percentText(yearRate.rate)}, the doubled rate` : percentText(yearRate.rate)
+  return yearRate.doubled ? words.schedule.doubledRate(percentText(yearRate.rate)) : percentText(yearRate.rate)
 }
 
 /**
@@ -170,14 +171,11 @@ function chargeForMonths(base: Money, rate: Rate, months: number): number {
 
 function deductibleOf(charge: TracedFigure, cost: Money, capRule: RuleLookup<RuleValues['hr.cit.car-depreciation-cap']> | null): TracedFigure {
   if (capRule === null || cost <= capRule.value.costCapPerCar.cents) {
-    return tracedFigure('Depreciation the corporate tax allows, all of it', charge.amount, 'assets', charge.rules, [charge])
+    return tracedFigure(words.schedule.allAllowed, charge.amount, 'assets', charge.rules, [charge])
   }
   const cap = capRule.value.costCapPerCar.cents
-  const capped = tracedFigure('Car cost the corporate tax counts', cap, 'assets', [capRule.citation])
-  return tracedFigure('Depreciation the corporate tax allows, in proportion to the capped cost', moneyFromCents(dividedRounded(charge.amount * cap, cost)), 'assets', rulesOf([charge, capped]), [
-    charge,
-    capped,
-  ])
+  const capped = tracedFigure(words.schedule.carCap, cap, 'assets', [capRule.citation])
+  return tracedFigure(words.schedule.inProportion, moneyFromCents(dividedRounded(charge.amount * cap, cost)), 'assets', rulesOf([charge, capped]), [charge, capped])
 }
 
 function smallInventory(
@@ -189,7 +187,7 @@ function smallInventory(
   if (!capitalisationRule.value.smallInventoryWrittenOffOnUse.holds) {
     throw new RangeError(`The capitalisation rule in force on ${asset.inUse} does not write small inventory off when put in use.`)
   }
-  const figure = tracedFigure('Small inventory, written off when put in use', cost.amount, 'assets', [thresholdRule.citation, capitalisationRule.citation], [cost])
+  const figure = tracedFigure(words.schedule.smallInventory, cost.amount, 'assets', [thresholdRule.citation, capitalisationRule.citation], [cost])
   return { asset, treatment: 'small-inventory', cost, months: [], years: [], writeOff: { on: asset.inUse, figure } }
 }
 
@@ -198,8 +196,8 @@ function disposalWriteOff(asset: Asset, cost: TracedFigure, months: readonly Dep
     return null
   }
   const charges = years.map((year) => year.charge)
-  const accumulated = tracedFigure('Depreciation until disposal', sumMoney(months.map((entry) => entry.charge)), 'assets', rulesOf(charges))
-  const figure = tracedFigure('Book value written off on disposal', subtractMoney(cost.amount, accumulated.amount), 'assets', accumulated.rules, [cost, deducted(accumulated)])
+  const accumulated = tracedFigure(words.schedule.untilDisposal, sumMoney(months.map((entry) => entry.charge)), 'assets', rulesOf(charges))
+  const figure = tracedFigure(words.schedule.disposal, subtractMoney(cost.amount, accumulated.amount), 'assets', accumulated.rules, [cost, deducted(accumulated)])
   return { on: asset.disposed, figure }
 }
 

@@ -1,12 +1,14 @@
 import { isUnauthorized } from '../../../../shared/google/googleApi'
 import type { Workbook } from '../../workbook/domain/workbook'
-import { countsLine, filedMailProperties, mailQuery, mailWindow, missingWords, notFiledSentence, windowReaches, yearFolderName } from '../domain/mailSource'
+import { filedMailProperties, mailQuery, mailWindow, windowReaches, yearFolderName } from '../domain/mailSource'
 import type { AttachmentNaming, MailAttachment, MailCounts, MailMessage, MailTerms, MailWindow, SourceTerms } from '../domain/mailSource'
+import { words as sourceWords } from '../domain/words'
+import { words } from './words'
 
 /** Gmail still asking the app to slow down after it waited and tried again, which stops the step. */
 export class MailRateLimited extends Error {
   constructor() {
-    super('Gmail asked us to slow down. Sync again in a minute.')
+    super(words.rateLimited)
     this.name = 'MailRateLimited'
   }
 }
@@ -157,9 +159,9 @@ export async function fileMail(ports: MailFilingPorts): Promise<MailPlan> {
       const terms = source.terms(ports.workbook)
       if (terms.kind === 'off') return null
       if (terms.kind === 'incomplete') {
-        return { kind: 'failed', id: source.id, label: source.label, reason: `It is on, but has ${missingWords(terms.missing)} on Settings, General` }
+        return { kind: 'failed', id: source.id, label: source.label, reason: sourceWords.incompleteOnSettings(terms.missing) }
       }
-      show(source, 'searching')
+      show(source, words.searching)
       try {
         return await planSource(source, terms.terms, await access(), ports, (line) => show(source, line))
       } catch (failure) {
@@ -341,10 +343,10 @@ async function planSource(source: MailSource, terms: MailTerms, { mailbox, folde
       continue
     }
     filing += 1
-    report(`filing ${filing} of ${toFile}`)
+    report(words.filing(filing, toFile))
     const entry: PlanEntry =
       firstFailed !== null && !windowReaches(firstFailed.mail.date, outcome.at.mail.date)
-        ? { kind: 'not-filed', ...outcome.at, reason: `It waits until ${firstFailed.name} is filed, so the next sync still searches back to that mail` }
+        ? { kind: 'not-filed', ...outcome.at, reason: words.waitsFor(firstFailed.name) }
         : await fileOne(outcome, source, terms, folders)
     if (entry.kind === 'not-filed') firstFailed ??= outcome.at
     entries.push(entry)
@@ -412,7 +414,7 @@ export function mailCounts(entries: readonly PlanEntry[]): MailCounts {
 /** The files of a source whose upload failed, named in a sentence, or null when none did. */
 export function notFiledLine(entries: readonly PlanEntry[]): string | null {
   const names = entries.flatMap((entry) => (entry.kind === 'not-filed' ? [entry.name] : []))
-  return names.length === 0 ? null : notFiledSentence(names)
+  return names.length === 0 ? null : sourceWords.notFiled(names)
 }
 
 /** Whether a source failed or an upload did, which fails the step. */
@@ -431,5 +433,5 @@ export function planLine(plan: MailPlan): string {
     return problem === null ? [] : [`${source.label}: ${problem}`]
   })
   const ran = plan.sources.some((source) => source.kind === 'planned')
-  return [ran ? `${countsLine(mailCounts(planned))}.` : '', ...problems].filter((sentence) => sentence !== '').join(' ')
+  return [ran ? `${sourceWords.counts(mailCounts(planned))}.` : '', ...problems].filter((sentence) => sentence !== '').join(' ')
 }

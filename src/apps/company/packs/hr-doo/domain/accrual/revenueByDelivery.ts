@@ -13,6 +13,7 @@ import { tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { spreadByDays } from './daySpread'
 import type { DaySpread } from './daySpread'
+import { words } from './words'
 
 /** One invoice's part of the year. */
 export interface InvoiceRevenue {
@@ -76,30 +77,27 @@ export function revenueByDelivery(invoices: readonly Invoice[], year: number, ru
       .filter((share) => yearOfMonth(share.month) === year)
       .map((share): MonthRevenue => ({
         month: share.month,
-        revenue: tracedFigure(
-          periodGiven ? `Invoice ${invoice.number}, ${share.days} of ${spread.totalDays} delivery days` : `Invoice ${invoice.number}, on its issue date with no delivery period`,
-          share.amount,
-          'invoices',
-          [accrual],
-        ),
+        revenue: tracedFigure(periodGiven ? words.delivery.invoiceDays(invoice.number, share.days, spread.totalDays) : words.delivery.invoiceIssued(invoice.number), share.amount, 'invoices', [
+          accrual,
+        ]),
       }))
     if (parts.length === 0) {
       return []
     }
-    const revenue = figureOf(`Invoice ${invoice.number} delivered in ${year}`, parts, accrual)
+    const revenue = figureOf(words.delivery.invoiceIn(invoice.number, year), parts, accrual)
     const entry: InvoiceRevenue = { invoice, periodGiven, delivered, revenue, outsideYear: subtractMoney(invoice.amount, revenue.amount) }
     return [{ entry, parts }]
   })
 
   const months = monthsFrom(monthKey(year, 1), monthKey(year, 12)).map((month): MonthRevenue => {
     const parts = inYear.flatMap((invoice) => invoice.parts.filter((part) => part.month === month))
-    return { month, revenue: figureOf(`Revenue delivered in ${monthLabel(month)}`, parts, accrual) }
+    return { month, revenue: figureOf(words.delivery.deliveredIn(monthLabel(month)), parts, accrual) }
   })
   const monthsWithRevenue = months.filter((entry) => entry.revenue.steps.length > 0)
 
   return {
     year,
-    total: figureOf(`Revenue delivered in ${year}`, monthsWithRevenue, accrual),
+    total: figureOf(words.delivery.deliveredInYear(year), monthsWithRevenue, accrual),
     months,
     invoices: inYear.map((invoice) => invoice.entry),
     uninvoicedMonths: uninvoicedMonths(placed, year),

@@ -1,10 +1,13 @@
 import { plainAmount } from '../../../../shared/money/money'
 import type { ListedRow } from '../domain/listedRows'
 
+/** An owner advance's counterparty in the file, whatever the language on screen names it. */
+const OWNER_ADVANCE_COUNTERPARTY = 'Owner'
+
 const COLUMNS: readonly { readonly header: string; readonly cell: (row: ListedRow) => string }[] = [
   { header: 'date', cell: (row) => row.date },
   { header: 'account', cell: (row) => (row.kind === 'bank' ? row.account : '') },
-  { header: 'counterparty', cell: (row) => row.counterparty },
+  { header: 'counterparty', cell: (row) => (row.kind === 'owner-advance' ? OWNER_ADVANCE_COUNTERPARTY : row.counterparty) },
   { header: 'counterparty_iban', cell: (row) => row.counterpartyIban },
   { header: 'description', cell: (row) => row.description },
   { header: 'amount', cell: (row) => plainAmount(row.amount) },

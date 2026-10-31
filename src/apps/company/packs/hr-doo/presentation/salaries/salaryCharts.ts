@@ -1,4 +1,4 @@
-import { monthAxisLabel, monthLabel } from '../../../../../../shared/calendar/monthLabel'
+import { monthAxisLabel } from '../../../../../../shared/calendar/monthLabel'
 import { BAR_END_UP, markIncomplete, moneyAxisLabel, stackGap } from '../../../../../../shared/charts/chartTheme'
 import type { ChartTokens } from '../../../../../../shared/charts/chartTokens'
 import { tokenColour } from '../../../../../../shared/charts/chartTokens'
@@ -9,6 +9,8 @@ import type { LegendEntry } from '../../../../../../shared/ui/ChartLegend.vue'
 import type { DrillChart } from '../../../../filters/presentation/chartDrill'
 import { PAY_PARTS, PAY_PART_COLOURS, PAY_PART_LABELS } from './salariesView'
 import type { SalaryMonthRow } from './salariesView'
+import { words } from './words'
+import { uncapitalised } from '../../../../../../shared/text/capitalised'
 
 /** The cost to the company of each payday, stacked in the ring's five parts. The month still running is hatched. */
 export function salaryMonthsChart(rows: readonly SalaryMonthRow[], tokens: ChartTokens): DrillChart & { readonly legend: readonly LegendEntry[] } {
@@ -54,8 +56,8 @@ export function salaryMonthsChart(rows: readonly SalaryMonthRow[], tokens: Chart
     },
     description:
       first === undefined || final === undefined
-        ? 'No payday to show.'
-        : `Cost to the company by payday from ${monthLabel(first.payday)} to ${monthLabel(final.payday)}, stacked by ${PAY_PARTS.map((part) => PAY_PART_LABELS[part].toLowerCase()).join(', ')}. ${formatMoney(total)} in all.`,
+        ? words.chart.none
+        : words.chart.description(first.payday, final.payday, PAY_PARTS.map((part) => uncapitalised(PAY_PART_LABELS[part])).join(', '), formatMoney(total)),
     formatValue: (value) => formatMoney(value),
     drillAt: ({ seriesName, dataIndex }) => {
       const part = PAY_PARTS.find((candidate) => PAY_PART_LABELS[candidate] === seriesName)
@@ -63,7 +65,7 @@ export function salaryMonthsChart(rows: readonly SalaryMonthRow[], tokens: Chart
     },
     legend: [
       ...PAY_PARTS.map((part): LegendEntry => ({ label: PAY_PART_LABELS[part], colour: `var(${PAY_PART_COLOURS[part]})` })),
-      ...(rows.some((row) => row.unpaid) ? [{ label: 'Month so far', colour: 'var(--chart-deemphasis)', mark: 'hatched' as const }] : []),
+      ...(rows.some((row) => row.unpaid) ? [{ label: words.chart.monthSoFar, colour: 'var(--chart-deemphasis)', mark: 'hatched' as const }] : []),
     ],
   }
 }

@@ -6,6 +6,7 @@ import { formatMoney } from '../../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../../shared/ui/ChartLegend.vue'
 import type { DrillTarget } from '../../../filters/domain/drillTarget'
 import type { DrillChart } from '../../../filters/presentation/chartDrill'
+import { words } from './words'
 
 /** One bar of the bridge: a total that starts at zero, or a step that starts where the one before ended. */
 export interface BridgeBar {
@@ -21,11 +22,11 @@ export interface BridgeWording {
   readonly lowers: string
 }
 
-const PROFIT: BridgeWording = { raises: 'Raises profit', lowers: 'Lowers profit' }
+const PROFIT: BridgeWording = { raises: words.bridge.raises, lowers: words.bridge.lowers }
 
-const TOTAL = 'Total'
-const RESIDUAL = 'Not explained'
-const AMOUNT = 'Amount'
+const TOTAL = words.bridge.total
+const RESIDUAL = words.bridge.residual
+const AMOUNT = words.bridge.amount
 
 /**
  * A waterfall laid on its side, one row per bar so the labels read in full. Each step floats from
@@ -72,19 +73,22 @@ export function bridgeChart(bars: readonly BridgeBar[], tokens: ChartTokens, wor
         // The transparent base has no name and stays out of the tooltip.
         formatter: (points: unknown) => tooltip((Array.isArray(points) ? points : [points]).filter((point) => (point as { seriesName?: string }).seriesName === AMOUNT)),
       },
-      xAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
+      xAxis: { type: 'value', axisLabel: { ...moneyAxisLabel(tokens), hideOverlap: true } },
       yAxis: { type: 'category', inverse: true, data: bars.map((bar) => bar.label), axisLabel: { color: tokens.inkSecondary } },
       series: [base, shown],
     },
     description:
       bars.length === 0
-        ? 'No bridge to show.'
-        : `From ${bars[0]?.label} of ${formatMoney(bars[0]?.amount ?? 0)}, one bar per step: ` +
-          bars
-            .slice(1)
-            .map((bar) => `${bar.label} ${formatMoney(bar.amount, bar.kind === 'total' ? 'negative' : 'always')}`)
-            .join(', ') +
-          (last === undefined ? '.' : `. The last bar is ${last.label.toLowerCase()}.`),
+        ? words.bridge.none
+        : words.bridge.description(
+            bars[0]?.label ?? '',
+            formatMoney(bars[0]?.amount ?? 0),
+            bars
+              .slice(1)
+              .map((bar) => `${bar.label} ${formatMoney(bar.amount, bar.kind === 'total' ? 'negative' : 'always')}`)
+              .join(', '),
+            last?.label ?? null,
+          ),
     formatValue: (value) => formatMoney(value),
     drillAt: ({ dataIndex }) => bars[dataIndex]?.drill ?? null,
     legend: named.map((name): LegendEntry => ({ label: name, colour: colours[name] ?? tokens.ink })),

@@ -6,6 +6,7 @@ import { deducted, summed } from '../payroll/payrollArithmetic'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import type { CategoryForecast, ForecastMonth } from './forecastLines'
 import type { YearForecast } from './forecastYear'
+import { words } from './words'
 
 export interface PlanActualMonth {
   readonly month: MonthKey
@@ -37,7 +38,7 @@ export function planAgainstActual(forecast: YearForecast): PlanActualLine[] {
   const ledgerCategories = forecast.categories.filter((entry) => !synthetic.has(entry.category.slug))
   const revenue = comparedLine(
     'revenue',
-    'Revenue',
+    words.planActual.revenue,
     false,
     forecast.revenue.months.map((entry) => pair(entry, entry.figure, entry.plan)),
   )
@@ -87,39 +88,39 @@ function ownerPayLine(planned: readonly CategoryForecast[], booked: readonly Cat
       month: entry.month,
       plan: deducted(
         summed(
-          `Owner pay planned, ${label}`,
+          words.planActual.ownerPayPlanned(label),
           plans.filter((plan): plan is TracedFigure => plan !== null),
           'plan',
         ),
       ),
       actual: deducted(
         summed(
-          `Owner pay booked, ${label}`,
+          words.planActual.ownerPayBooked(label),
           booked.map((line) => (line.forecast.months[index] as ForecastMonth).figure),
           'ledger',
         ),
       ),
     }
   })
-  return comparedLine('owner-pay', 'Owner pay', true, months)
+  return comparedLine('owner-pay', words.planActual.ownerPay, true, months)
 }
 
 function comparedLine(key: string, label: string, cost: boolean, pairs: readonly (MonthPair | null)[]): PlanActualLine | null {
   const months = pairs
     .filter((entry): entry is MonthPair => entry !== null)
-    .map((entry): PlanActualMonth => ({ ...entry, difference: summed(`${label}, ${monthLabel(entry.month)}: actual less plan`, [entry.actual, deducted(entry.plan)], 'ledger') }))
+    .map((entry): PlanActualMonth => ({ ...entry, difference: summed(words.planActual.actualLessPlanIn(label, monthLabel(entry.month)), [entry.actual, deducted(entry.plan)], 'ledger') }))
   if (months.length === 0) {
     return null
   }
   const plan = summed(
-    `${label}, planned`,
+    words.planActual.planned(label),
     months.map((entry) => entry.plan),
     'plan',
   )
   const actual = summed(
-    `${label}, from the ledger`,
+    words.planActual.fromLedger(label),
     months.map((entry) => entry.actual),
     'ledger',
   )
-  return { key, label, cost, months, plan, actual, difference: summed(`${label}: actual less plan`, [actual, deducted(plan)], 'ledger') }
+  return { key, label, cost, months, plan, actual, difference: summed(words.planActual.actualLessPlan(label), [actual, deducted(plan)], 'ledger') }
 }

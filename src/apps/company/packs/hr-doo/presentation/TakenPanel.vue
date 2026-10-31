@@ -37,6 +37,8 @@ import FigureDialog from './FigureDialog.vue'
 import OwnerBenefitsCard from './OwnerBenefitsCard.vue'
 import { OWNER_NET_TITLE, ownerNetDetail } from './ownerNetDetail'
 import { categoryLegend, loanBalanceChart, ownerDrawsChart, ownerPaySeries, ownerTakeRing } from './packCharts'
+import { plural } from '../../../../../shared/text/translation'
+import { words } from './words'
 
 /** What the owner took out over the period in view, what it cost the company, and how it was paid. */
 const props = defineProps<{
@@ -93,10 +95,7 @@ const net = computed(() => {
     value,
     to: null,
     caption,
-    definition:
-      'What the owner earns a month once the profit counts as the months earn it. Pay is the owner take without loans and dividends over the months of the period, the rent after the rent tax. A rolling window leaves out the month so far. ' +
-      'Profit is the profit before tax of the period up to the last complete month, as Year counts it, less corporate tax at the rate Year works out for each year and dividend tax, over those months. ' +
-      'A dividend pays out profit those months already count, so pay leaves it out. The profit is the company’s, so it follows the period and not the other filters.',
+    definition: words.taken.netDefinition,
   })
   const empty = { detail: null, unregistered: false, periodOnly }
   try {
@@ -105,18 +104,17 @@ const net = computed(() => {
       corporateRate: corporateRateOf.value,
     })
     if (figures === null) {
-      return { ...empty, tile: tile('–', 'No month of the ledger in view') }
+      return { ...empty, tile: tile('–', words.taken.noMonthInView) }
     }
     if (figures.state === 'unregistered') {
       return { ...empty, tile: tile('–'), unregistered: true }
     }
-    const since = filters.period.preset === 'all' ? ', since the ledger began' : ''
     const caption =
-      figures.profitMonths.length === 0 ? 'No complete month of profit yet' : `${formatMoney(figures.payPerMonth)} pay and ${formatMoney(figures.profitPerMonth)} from profit, a month${since}`
+      figures.profitMonths.length === 0 ? words.taken.noProfitMonth : words.taken.payAndProfit(formatMoney(figures.payPerMonth), formatMoney(figures.profitPerMonth), filters.period.preset === 'all')
     return { ...empty, tile: tile(formatMoney(figures.perMonth), caption), detail: ownerNetDetail(figures, periodInWords(filters.period, window), drillLocation) }
   } catch (failure) {
     if (failure instanceof RangeError) {
-      return { ...empty, tile: tile('–', `Could not be worked out. ${failure.message}`) }
+      return { ...empty, tile: tile('–', words.taken.notWorkedOut(failure.message)) }
     }
     throw failure
   }
@@ -146,13 +144,11 @@ const taken = computed(() => {
   const ring = ownerTakeRing(take, filters.period, series, categoryName)
   const percent = new Intl.NumberFormat(amountLocaleOf(settings.value), { style: 'percent', maximumFractionDigits: 0 })
   const withoutLoans = formatMoney(take.withoutLoans.amount)
-  const loanNote = loansArePay ? ' Loans to the owner and their repayments stay out, since a loan is not pay.' : ''
   const rentTaxed = take.rentTax.amount !== 0
-  const rentNote = rentTaxed ? ' Rent counts after the rent tax, which the owner pays the tax office out of it.' : ''
   const parts = ring.parts.map((part): DonutPart => ({ ...part, to: drillLocation(part.drill) }))
   const shares = parts.map((part) => `${part.label} ${formatMoney(part.value)}`).join(', ')
   const aside = ring.aside.map((line) => ({ ...line, to: drillLocation(line.drill) }))
-  const benefitName = benefits === null ? '' : categoryName(benefits.category)
+  const benefitName = benefits === null ? null : categoryName(benefits.category)
   const fromCosts = benefits !== null && benefits.total.amount !== 0
   return {
     period,
@@ -160,72 +156,63 @@ const taken = computed(() => {
     benefits,
     tiles: [
       {
-        label: 'Owner take',
+        label: words.taken.take,
         value: formatMoney(take.total.amount),
         to: drillLocation(take.total.drill),
-        caption: fromCosts ? `${formatMoney(benefits.total.amount)} of it from company costs` : loansArePay ? 'Loans in, repayments out' : 'Loans left out, as financing',
-        definition:
-          (loansArePay
-            ? `Everything in the ${payLabel.toLowerCase()} bucket over the period in view. A loan to the owner is pay taken early and its repayment is pay handed back, so both count. Reimbursements settle costs and are left out.`
-            : `Everything in the ${payLabel.toLowerCase()} bucket over the period in view. Loans to the owner are in the financing bucket, so neither they nor their repayments count. Reimbursements settle costs and are left out.`) +
-          (benefits === null ? '' : ` ${benefitName}, the owner's parts of company costs, count too.`) +
-          (rentTaxed ? `${rentNote} The rows it opens add up to more by that tax.` : ''),
+        caption: fromCosts ? words.taken.takeFromCosts(formatMoney(benefits.total.amount)) : loansArePay ? words.taken.loansIn : words.taken.loansOut,
+        definition: words.taken.takeDefinition(payLabel, loansArePay, benefitName, rentTaxed),
       },
       ...(benefits === null
         ? []
         : [
             {
-              label: benefitName,
+              label: benefitName ?? '',
               value: formatMoney(benefits.total.amount),
               to: drillLocation(benefits.total.drill),
-              caption: `${benefits.payments} ${benefits.payments === 1 ? 'payment' : 'payments'}`,
-              definition: `The owner's parts of company costs, at each row's owner share. They count as owner pay with no tax on them. The share is your own estimate, and the accountant books these costs in full.`,
+              caption: plural(words.taken.payments(benefits.payments), benefits.payments),
+              definition: words.taken.benefitsDefinition,
             },
           ]),
       {
-        label: 'Gross cost of the owner',
+        label: words.taken.grossCost,
         value: formatMoney(cost.gross.amount),
         to: drillLocation(cost.gross.drill),
-        caption: `${formatMoney(addMoney(cost.taxOnPay.amount, take.rentTax.amount))} of it tax on the pay`,
-        definition: `Owner take plus the taxes owed because the owner was paid, the categories with the owner-pay-tax role${rentTaxed ? ', and the rent tax the owner pays out of the rent' : ''}. Corporate income tax stays out.`,
+        caption: words.taken.taxOnPay(formatMoney(addMoney(cost.taxOnPay.amount, take.rentTax.amount))),
+        definition: words.taken.grossCostDefinition(rentTaxed),
       },
       {
-        label: 'Net share of gross cost',
+        label: words.taken.netShare,
         value: cost.netShare === null ? '–' : percent.format(cost.netShare),
         to: drillLocation(cost.gross.drill),
-        caption: cost.netShare === null ? 'Nothing paid to the owner' : `${withoutLoans} of ${formatMoney(cost.grossWithoutLoans)} gross cost`,
-        definition:
-          `How much of what the company spent on paying the owner reached the owner: the owner take without loans over itself plus the taxes owed because the owner was paid. ` +
-          `100% would mean no tax on top.${loanNote}${rentNote}${benefits === null ? '' : ` ${benefitName} count in the take and carry no tax, so they raise it.`}`,
+        caption: cost.netShare === null ? words.taken.nothingPaid : words.taken.netShareOf(withoutLoans, formatMoney(cost.grossWithoutLoans)),
+        definition: words.taken.netShareDefinition(loansArePay, rentTaxed, benefitName),
       },
       {
-        label: 'Monthly net pay',
+        label: words.taken.monthlyNetPay,
         value: perMonth === null ? '–' : formatMoney(perMonth.perMonth),
         to: drillLocation(averaged.value.take.withoutLoans.drill),
-        caption: perMonth === null ? 'No month of the ledger in view' : `${formatMoney(averaged.value.take.withoutLoans.amount)} over ${perMonth.months} ${perMonth.months === 1 ? 'month' : 'months'}`,
-        definition:
-          `What the owner was paid a month from every owner pay category, such as salary, bonus, dividend and rent${benefits === null ? '' : `, ${benefitName.toLowerCase()} included`}: the owner take without loans over the months of the period. ` +
-          `A rolling window leaves out the month so far, which the chart of ${payLabel.toLowerCase()} by month draws. Any other period counts a month the ledger covers only in part, such as the month so far, as a whole month, as the chart does.${loanNote}${rentNote}`,
+        caption: perMonth === null ? words.taken.noMonthInView : plural(words.taken.over(formatMoney(averaged.value.take.withoutLoans.amount), perMonth.months), perMonth.months),
+        definition: words.taken.monthlyNetPayDefinition(payLabel, loansArePay, rentTaxed, benefitName),
       },
     ],
     ring: {
       parts,
       total: formatMoney(ring.ringTotal),
-      totalLabel: aside.length === 0 ? 'owner take' : aside.some((line) => line.key === 'loans') && !rentTaxed ? 'without loans' : 'paid out',
+      totalLabel: aside.length === 0 ? words.taken.ring.ownerTake : aside.some((line) => line.key === 'loans') && !rentTaxed ? words.taken.ring.withoutLoans : words.taken.ring.paidOut,
       aside,
       takeTotal: { amount: ring.total, to: drillLocation(take.total.drill) },
       description:
         parts.length === 0
-          ? `Nothing was paid to the owner in ${period}.`
-          : `Owner take by type in ${period}: ${shares}.${aside.map((line) => ` ${line.label} ${formatMoney(line.amount, 'negative')}.`).join('')} Together ${formatMoney(ring.total)}.`,
-      summary: `${formatMoney(ring.total)} in all`,
+          ? words.taken.ring.nothing(period)
+          : words.taken.ring.description(period, shares, aside.map((line) => ` ${line.label} ${formatMoney(line.amount, 'negative')}.`).join(''), formatMoney(ring.total)),
+      summary: words.taken.ring.inAll(formatMoney(ring.total)),
     },
     reimbursements: take.reimbursements.map((line) => ({ key: line.category, name: categoryName(line.category), amount: line.amount.amount, to: drillLocation(line.amount.drill) })),
     loanBalance: loanOut.length === 0 ? null : loanBalanceChart(loanMonths(booked.transactions, categories, months, window), tokens.buckets['owner-pay'], tokens),
     draws: ownerDrawsChart(takeMonths, series, tokens),
-    drawsSubtitle: `${period}. Loans and their repayments as one net band, and money handed back${rentTaxDrawn ? ' and the rent tax' : ''} below zero.`,
+    drawsSubtitle: words.taken.drawsSubtitle(period, rentTaxDrawn),
     drawsEmpty: series.length === 0,
-    drawsLegend: [...categoryLegend(series), { label: 'Month so far', colour: 'var(--chart-deemphasis)', mark: 'hatched' as const }],
+    drawsLegend: [...categoryLegend(series), { label: words.taken.monthSoFar, colour: 'var(--chart-deemphasis)', mark: 'hatched' as const }],
   }
 })
 </script>
@@ -239,19 +226,19 @@ const taken = computed(() => {
           <BuildUpButton :cents="net.detail.cents" :label="OWNER_NET_TITLE" @open="netOpen = true" />
         </template>
         <p v-if="net.unregistered" class="mt-1.5 text-xs text-muted" data-testid="owner-net-unregistered">
-          The profit needs <span class="identifier break-all">hr_company_registered</span>.
-          <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" in-prose class="text-highlighted">Set it on Settings</DrillLink>
+          {{ words.taken.profitNeeds }}<span class="identifier break-all">hr_company_registered</span>.
+          <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" in-prose class="text-highlighted">{{ words.taken.setOnSettings }}</DrillLink>
         </p>
-        <p v-else-if="net.detail && net.periodOnly" class="mt-1.5 text-xs text-muted" data-testid="owner-net-period-only">The profit follows the period only.</p>
+        <p v-else-if="net.detail && net.periodOnly" class="mt-1.5 text-xs text-muted" data-testid="owner-net-period-only">{{ words.taken.profitFollowsPeriod }}</p>
       </KpiTile>
     </DashboardGrid>
     <FigureDialog v-if="net.detail" v-model:open="netOpen" :detail="net.detail" />
 
     <DashboardGrid>
       <DonutCard
-        title="Owner take by type"
-        :subtitle="`${taken.period}. Paid to the owner on balance, by category.`"
-        definition="Each owner pay category the company paid out more than it took back, as a share of the ring. Loans can be negative, so they sit under the ring with the rent tax the owner pays out of the rent, and with it they make the owner take. Beside the ring, what the owner owed the company at the end of each month, over every loan since the ledger began."
+        :title="words.taken.ring.title"
+        :subtitle="words.taken.ring.subtitle(taken.period)"
+        :definition="words.taken.ring.definition"
         :description="taken.ring.description"
         :parts="taken.ring.parts"
         :total="taken.ring.total"
@@ -260,28 +247,29 @@ const taken = computed(() => {
       >
         <template v-if="taken.loanBalance" #beside>
           <div class="flex flex-col gap-1" data-testid="owner-loan-balance">
-            <p class="text-xs text-muted">Owed by the owner at each month end, all loans since the ledger began</p>
+            <p class="text-xs text-muted">{{ words.taken.ring.loanBalance }}</p>
             <DrillChartPlot :chart="taken.loanBalance" :height="168" :phone-height="180" />
           </div>
         </template>
         <template #below>
           <ul v-if="taken.ring.aside.length > 0" class="mt-2 flex flex-col border-t border-default pt-2" data-testid="owner-take-aside">
             <li v-for="line in taken.ring.aside" :key="line.key" class="aside-row">
-              <DrillLink :to="line.to" :label="`${line.label}, open the rows`" class="min-w-0 text-toned">{{ line.label }}</DrillLink>
+              <DrillLink :to="line.to" :label="words.figure.openRows(line.label)" class="min-w-0 text-toned">{{ line.label }}</DrillLink>
               <MoneyText :cents="line.amount" class="text-highlighted" />
             </li>
             <li class="aside-row font-medium">
-              <span class="text-toned">Owner take</span>
-              <DrillLink :to="taken.ring.takeTotal.to" label="Owner take, open the rows" data-testid="owner-take-total">
+              <span class="text-toned">{{ words.taken.take }}</span>
+              <DrillLink :to="taken.ring.takeTotal.to" :label="words.figure.openRows(words.taken.take)" data-testid="owner-take-total">
                 <MoneyText :cents="taken.ring.takeTotal.amount" class="text-highlighted" />
               </DrillLink>
             </li>
           </ul>
           <p class="mt-3 text-xs text-muted" data-testid="owner-salaries">
-            <DrillLink to="/company/salaries" in-prose class="text-toned">Salaries</DrillLink> splits each salary into net pay, pension savings, tax and health.
+            <DrillLink to="/company/salaries" in-prose class="text-toned">{{ words.taken.ring.salariesLink }}</DrillLink
+            >{{ words.taken.ring.salariesSplit }}
           </p>
           <p v-if="taken.reimbursements.length > 0" class="mt-3 text-xs text-muted" data-testid="owner-reimbursements">
-            Outside the owner take, since they settle costs:
+            {{ words.taken.ring.reimbursementsOutside }}
             <template v-for="(line, index) in taken.reimbursements" :key="line.key">
               <DrillLink :to="line.to" in-prose class="text-toned">{{ line.name }}</DrillLink> <MoneyText :cents="line.amount" />{{ index < taken.reimbursements.length - 1 ? ', ' : '.' }}
             </template>
@@ -289,7 +277,7 @@ const taken = computed(() => {
         </template>
       </DonutCard>
 
-      <DrillChartCard :chart="taken.draws" :title="`${taken.payLabel} by month`" :subtitle="taken.drawsSubtitle" :empty="taken.drawsEmpty" :height="320" :phone-height="260">
+      <DrillChartCard :chart="taken.draws" :title="words.taken.byMonth(taken.payLabel)" :subtitle="taken.drawsSubtitle" :empty="taken.drawsEmpty" :height="320" :phone-height="260">
         <template #legend><ChartLegend :entries="taken.drawsLegend" /></template>
       </DrillChartCard>
     </DashboardGrid>

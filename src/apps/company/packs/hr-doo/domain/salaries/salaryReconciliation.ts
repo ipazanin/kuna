@@ -22,6 +22,7 @@ import type { RuleSource } from '../payroll/payrollArithmetic'
 import { payrollMonth } from '../payroll/payrollMonth'
 import type { PayrollMonth, PayrollWarning } from '../payroll/payrollMonth'
 import { CONTRIBUTION_ACCOUNTS } from './contributionAccounts'
+import { words } from '../words'
 
 /** The lines of one employee's pay, named as `PayrollMonth` names them. */
 export const EMPLOYEE_LINES = [
@@ -180,7 +181,7 @@ export function salaryReconciliation(workbook: HrDooWorkbook, rules: RuleSource 
     })
     problems.push(...contributions.filter((check) => !check.agrees).map((check): SalaryProblem => ({ kind: 'line-differs', employee: null, check })))
     const strays = partsOfDay.filter((pay) => pay.employee === null)
-    if (strays.length > 0) problems.push({ kind: 'pay-to-no-employee', paid: paidFigure('Paid to no employee on the employees tab', strays, payCategories, payday) })
+    if (strays.length > 0) problems.push({ kind: 'pay-to-no-employee', paid: paidFigure(words.salaries.paidToNoEmployee, strays, payCategories, payday) })
     problems.push(...overCaps.filter((over) => over.payday === payday).map(({ employee, usage }): SalaryProblem => ({ kind: 'over-cap', employee, usage })))
     return { payday, employees: employeePaydays, contributions, problems }
   })
@@ -191,9 +192,9 @@ export function salaryReconciliation(workbook: HrDooWorkbook, rules: RuleSource 
 function engineRun(employee: Employee, payday: MonthKey, rules: RuleSource): EngineRun {
   const worked = addMonths(payday, -1)
   const days = weekdaysEmployed(employee, worked)
-  if (!employee.director && employee.agreedGross === null) return { kind: 'not-run', reason: 'the employees tab names no agreed_gross for an employee who is not the director' }
-  if (employee.residenceCity === '') return { kind: 'not-run', reason: 'the employees tab names no residence_city' }
-  if (days === null) return { kind: 'not-run', reason: `the employment does not reach into ${worked}` }
+  if (!employee.director && employee.agreedGross === null) return { kind: 'not-run', reason: words.salaries.noAgreedGross }
+  if (employee.residenceCity === '') return { kind: 'not-run', reason: words.salaries.noCity }
+  if (days === null) return { kind: 'not-run', reason: words.salaries.notEmployed(worked) }
   const month = payrollMonth(
     {
       workedMonth: worked,
@@ -217,13 +218,13 @@ function appLine(engine: EngineRun, line: EmployeeLine): TracedFigure | null {
 
 /** What the bank paid to the employee, or null when no row reached them. */
 function paidTo(employee: Employee, parts: readonly PayPart[], payCategories: readonly string[], payday: MonthKey): TracedFigure | null {
-  return parts.length === 0 ? null : paidFigure(`Paid to ${employee.name === '' ? employee.slug : employee.name}`, parts, payCategories, payday)
+  return parts.length === 0 ? null : paidFigure(words.salaries.paidTo(employee.name === '' ? employee.slug : employee.name), parts, payCategories, payday)
 }
 
 /** The rows as booked, each once however many of its parts are pay. */
 function paidFigure(label: string, parts: readonly PayPart[], payCategories: readonly string[], payday: MonthKey): TracedFigure {
   const wholes = [...new Map(parts.map((pay) => [pay.whole.id, pay.whole] as const)).values()]
-  const steps = wholes.map((row) => withDrill({ ...tracedFigure('Paid on', negateMoney(row.amount), 'ledger', []), on: row.date }, rowDrill(row)))
+  const steps = wholes.map((row) => withDrill({ ...tracedFigure(words.salaries.paidOn, negateMoney(row.amount), 'ledger', []), on: row.date }, rowDrill(row)))
   const counterparties = [...new Set(wholes.map((row) => counterpartyIdentity(row).key))]
   return withDrill(summed(label, steps, 'ledger'), drillToTransactions({ period: monthPeriod(payday), categories: [...payCategories], counterparties }))
 }
@@ -235,10 +236,10 @@ const PAYEE_LINES: readonly (readonly [ContributionLine, string])[] = [
 ]
 
 const CONTRIBUTION_LABELS: Readonly<Record<ContributionLine, string>> = {
-  pensionPillarOne: 'Paid to the state budget, pension pillar I',
-  pensionPillarTwo: 'Paid to the pillar II account',
-  health: 'Paid to the health insurance fund',
-  incomeTax: 'Paid to the other payees, income tax',
+  pensionPillarOne: words.salaries.payees.pensionPillarOne,
+  pensionPillarTwo: words.salaries.payees.pensionPillarTwo,
+  health: words.salaries.payees.health,
+  incomeTax: words.salaries.payees.incomeTax,
 }
 
 function contributionLineOf(row: Transaction): ContributionLine {
@@ -248,7 +249,7 @@ function contributionLineOf(row: Transaction): ContributionLine {
 
 function paidToPayee(line: ContributionLine, rows: readonly Transaction[], taxCategories: readonly string[], payday: MonthKey): TracedFigure {
   const own = rows.filter((row) => contributionLineOf(row) === line)
-  const steps = own.map((row) => withDrill({ ...tracedFigure('Paid on', negateMoney(row.amount), 'ledger', []), on: row.date }, rowDrill(row)))
+  const steps = own.map((row) => withDrill({ ...tracedFigure(words.salaries.paidOn, negateMoney(row.amount), 'ledger', []), on: row.date }, rowDrill(row)))
   const counterparties = [...new Set(own.map((row) => counterpartyIdentity(row).key))]
   return withDrill(summed(CONTRIBUTION_LABELS[line], steps, 'ledger'), drillToTransactions({ period: monthPeriod(payday), categories: [...taxCategories], counterparties }))
 }
@@ -262,7 +263,7 @@ function everyStated<Value>(values: readonly (Value | null)[]): Value[] | null {
 /** One employee's figure, or the sum of everyone's with each a step. */
 function summedFigure(figures: readonly TracedFigure[]): TracedFigure {
   const [only] = figures
-  return figures.length === 1 && only !== undefined ? only : summed(only?.label ?? 'Sum', figures, only?.basis ?? 'ledger')
+  return figures.length === 1 && only !== undefined ? only : summed(only?.label ?? words.salaries.sum, figures, only?.basis ?? 'ledger')
 }
 
 function lineCheck<Line extends string>(line: Line, app: TracedFigure | null, bank: TracedFigure | null): LineCheck<Line> {

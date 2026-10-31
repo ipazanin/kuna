@@ -12,6 +12,8 @@ import { counterpartyLabels } from '../../workbook/domain/counterpartyIdentity'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { EVERY_OWNER_ADVANCE_LABEL } from '../domain/filterChips'
 import { EVERY_OWNER_ADVANCE } from '../domain/filterState'
+import { naturalOrder } from '../../../../shared/text/naturalOrder'
+import { words } from './words'
 
 /** A searchable menu that adds or removes a bucket, category or counterparty filter. Its values are chip ids. */
 const props = defineProps<{
@@ -33,14 +35,14 @@ interface Choice {
 
 const groups = computed<SelectMenuItem[][]>(() => {
   const buckets = BUCKETS.filter((bucket) => settings.value.ownerPayModule || bucket !== 'owner-pay')
-  const counterparties = [...counterpartyLabels(props.workbook.transactions)].sort(([, left], [, right]) => left.localeCompare(right))
+  const counterparties = [...counterpartyLabels(props.workbook.transactions)].sort(([, left], [, right]) => naturalOrder(left, right))
   return [
     [
-      { type: 'label' as const, label: 'Buckets' },
+      { type: 'label' as const, label: words.groups.buckets },
       ...buckets.map((bucket): Choice => ({ label: settings.value.bucketLabels[bucket], value: `buckets:${bucket}`, colour: `var(--bucket-${bucketTone(bucket)})` })),
     ],
     [
-      { type: 'label' as const, label: 'Categories' },
+      { type: 'label' as const, label: words.groups.categories },
       ...props.workbook.categories.map((category): Choice => ({
         label: names.value.category(category.slug),
         value: `categories:${category.slug}`,
@@ -48,7 +50,7 @@ const groups = computed<SelectMenuItem[][]>(() => {
       })),
       ...(props.workbook.ownerAdvances.length === 0 ? [] : [{ label: EVERY_OWNER_ADVANCE_LABEL, value: `categories:${EVERY_OWNER_ADVANCE}` }]),
     ],
-    [{ type: 'label' as const, label: 'Counterparties' }, ...counterparties.map(([key, label]): Choice => ({ label, value: `counterparties:${key}` }))],
+    [{ type: 'label' as const, label: words.groups.counterparties }, ...counterparties.map(([key, label]): Choice => ({ label, value: `counterparties:${key}` }))],
   ]
 })
 </script>
@@ -63,14 +65,14 @@ const groups = computed<SelectMenuItem[][]>(() => {
     color="neutral"
     variant="outline"
     size="sm"
-    :search-input="{ placeholder: 'Search buckets, categories, counterparties' }"
+    :search-input="{ placeholder: words.searchChoices }"
     :content="{ align: 'start', collisionPadding: 12 }"
     :ui="{ content: 'min-w-72' }"
-    aria-label="Add filter"
+    :aria-label="words.addFilter"
     class="w-auto shrink-0"
     data-testid="add-filter"
   >
-    <span class="text-default">Add filter</span>
+    <span class="text-default">{{ words.addFilter }}</span>
     <template #trailing />
     <template #item-leading="{ item }">
       <span v-if="typeof item === 'object' && item !== null && 'colour' in item && item.colour" class="size-2 shrink-0 rounded-[2px]" :style="{ background: item.colour }" aria-hidden="true" />

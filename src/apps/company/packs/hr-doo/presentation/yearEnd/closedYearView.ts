@@ -22,23 +22,16 @@ import type { BridgeBar } from '../bridgeChart'
 import type { BridgeStepView } from './BridgeSteps.vue'
 import type { ComparisonRow, ShownValue } from './ComparisonTable.vue'
 import { ADJUSTMENT_LABELS, STATUSES, STATUS_WORDING, lineLabel } from './yearEndWording'
+import { plural } from '../../../../../../shared/text/translation'
+import { words } from './words'
+import { uncapitalised } from '../../../../../../shared/text/capitalised'
 
 type Link = (drill: DrillTarget | null) => RouteLocationRaw | null
 
 const TABLES: readonly { readonly key: string; readonly title: string; readonly description: string; readonly statements: readonly ComparedStatement[] }[] = [
-  {
-    key: 'pl',
-    title: 'Profit and loss',
-    description: 'The accountant’s lines beside ours on the accrual view and on the cash view, with the grant released.',
-    statements: ['pl', 'grant'],
-  },
-  {
-    key: 'balance',
-    title: 'Balance sheet at 31 December',
-    description: 'The cash view has no balance sheet beyond cash, so the other lines compare the accrual view alone.',
-    statements: ['balance', 'grant'],
-  },
-  { key: 'tax', title: 'Profit tax return, PD', description: 'The build-up of the corporate tax by form line.', statements: ['tax'] },
+  { key: 'pl', ...words.tables.pl, statements: ['pl', 'grant'] },
+  { key: 'balance', ...words.tables.balance, statements: ['balance', 'grant'] },
+  { key: 'tax', ...words.tables.tax, statements: ['tax'] },
 ]
 
 const GRANT_LINES: Readonly<Record<string, string>> = { 'released-in-year': 'pl', 'deferred-at-year-end': 'balance' }
@@ -65,12 +58,12 @@ export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link
   const drillOf = (figure: TracedFigure | null) => link(figure?.drill ?? null)
 
   const bars: BridgeBar[] = [
-    { label: 'Cash net', kind: 'total', amount: bridge.cashNet.amount, drill: bridge.cashNet.drill },
+    { label: words.bridge.cashNet, kind: 'total', amount: bridge.cashNet.amount, drill: bridge.cashNet.drill },
     ...bridge.steps.map((step): BridgeBar => ({ label: ADJUSTMENT_LABELS[step.id], kind: 'step', amount: step.figure.amount, drill: step.figure.drill })),
-    { label: 'Profit before tax', kind: 'total', amount: bridge.profitBeforeTax.amount, drill: null },
+    { label: words.bridge.profitBeforeTax, kind: 'total', amount: bridge.profitBeforeTax.amount, drill: null },
     { label: ADJUSTMENT_LABELS['corporate-income-tax'], kind: 'step', amount: bridge.corporateIncomeTax.figure.amount, drill: null },
-    { label: 'Profit after tax', kind: 'total', amount: bridge.profitAfterTax.amount, drill: null },
-    { label: 'Not explained', kind: 'residual', amount: bridge.unexplainedAfterTax?.figure.amount ?? 0, drill: null },
+    { label: words.bridge.profitAfterTax, kind: 'total', amount: bridge.profitAfterTax.amount, drill: null },
+    { label: words.bridge.notExplained, kind: 'residual', amount: bridge.unexplainedAfterTax?.figure.amount ?? 0, drill: null },
   ]
   const total = (key: string, figure: TracedFigure): BridgeStepView => ({ key, label: figureLabel(figure), cents: figure.amount, to: drillOf(figure), kind: null, rules: [] })
   const adjustment = (entry: AccrualAdjustment): BridgeStepView => ({
@@ -123,7 +116,7 @@ export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link
     lines: {
       parts: statusCounts.map(({ status, count }): DonutPart => ({ key: status, label: STATUS_WORDING[status].label, value: count, colour: STATUS_TONES[status], to: statements })),
       total: comparison.lines.length,
-      description: `The accountant's ${comparison.lines.length} lines for ${year}: ${statusCounts.map(({ status, count }) => `${count} ${STATUS_WORDING[status].label.toLowerCase()}`).join(', ')}.`,
+      description: words.linesDescription(comparison.lines.length, year, statusCounts.map(({ status, count }) => `${count} ${uncapitalised(STATUS_WORDING[status].label)}`).join(', ')),
     },
     chart: bridgeChart(bars, chartTokens()),
     chartHeight: bars.length * 28 + 48,
@@ -131,10 +124,10 @@ export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link
       total('cash-net', bridge.cashNet),
       ...bridge.steps.map(adjustment),
       total('profit-before-tax', bridge.profitBeforeTax),
-      residual('unexplained-before-tax', 'Not explained before tax', bridge.unexplainedBeforeTax),
+      residual('unexplained-before-tax', words.bridge.notExplainedBeforeTax, bridge.unexplainedBeforeTax),
       adjustment(bridge.corporateIncomeTax),
       total('profit-after-tax', bridge.profitAfterTax),
-      residual('unexplained-after-tax', 'Not explained after tax', bridge.unexplainedAfterTax),
+      residual('unexplained-after-tax', words.bridge.notExplainedAfterTax, bridge.unexplainedAfterTax),
     ],
     tables: TABLES.map((table) => {
       const rows = comparison.lines.filter((line) => table.statements.includes(line.statement) && (line.statement !== 'grant' || GRANT_LINES[line.line] === table.key)).map(rowOf)
@@ -156,7 +149,7 @@ export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link
       difference: group.difference,
     })),
     unnamedKonto: comparison.unnamedKonto.map((line) => ({ line: line.line, label: line.label, cents: line.figure.kind === 'money' ? line.figure.amount : 0 })),
-    kontoSummary: `${comparison.konto.length} compared, ${comparison.konto.filter((group) => group.difference !== 0).length} with a difference`,
+    kontoSummary: words.kontoSummary(comparison.konto.length, comparison.konto.filter((group) => group.difference !== 0).length),
     openItems: openItems.map((item) => ({
       key: item.key,
       group: item.group,
@@ -167,11 +160,11 @@ export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link
       to: drillOf(item.figure),
       detail:
         item.figure !== null && item.figure.drill === null && item.figure.steps.length > 0
-          ? figureDetail(item.figure, item.title === figureLabel(item.figure) ? `An open item of year end ${year}` : item.title, link)
+          ? figureDetail(item.figure, item.title === figureLabel(item.figure) ? words.openItemOf(year) : item.title, link)
           : null,
       rules: chipsOf(item.rules),
     })),
-    openItemsSummary: `${openItems.filter((item) => !item.settled).length} to settle, ${openItems.filter((item) => item.settled).length} settled`,
+    openItemsSummary: words.openItemsSummary(openItems.filter((item) => !item.settled).length, openItems.filter((item) => item.settled).length),
     noVat: workbook.categories.every((category) => category.vat === 'none'),
     unregistered: workbook.companyFacts.companyRegistered === null,
   }
@@ -179,9 +172,9 @@ export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link
 
 /** "8 lines: 5 matched, 2 explained, 1 open", in the order of the statuses. */
 function statusesInWords(rows: readonly ComparisonRow[]): string {
-  if (rows.length === 0) return 'No lines for the year'
+  if (rows.length === 0) return words.noLines
   const counts = STATUSES.map((status) => ({ status, count: rows.filter((row) => row.status === status).length })).filter((entry) => entry.count > 0)
-  return `${rows.length} ${rows.length === 1 ? 'line' : 'lines'}: ${counts.map((entry) => `${entry.count} ${STATUS_WORDING[entry.status].label.toLowerCase()}`).join(', ')}`
+  return plural(words.linesOf(rows.length, counts.map((entry) => `${entry.count} ${uncapitalised(STATUS_WORDING[entry.status].label)}`).join(', ')), rows.length)
 }
 
 function shownOf(figure: YearEndFigure): ShownValue {

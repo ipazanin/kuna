@@ -1,6 +1,7 @@
 import { fold } from '../../../../../shared/text/fold'
 import { LOCAL_RATE_TABLES } from './rules/generatedLocalRates'
 import type { LocalUnitType } from './rules/generatedLocalRates'
+import { words } from './words'
 
 /** A Croatian city or municipality, the unit whose decision sets the owner's local income tax rates. */
 export interface LocalUnit {
@@ -50,7 +51,7 @@ function namesOf(unit: LocalUnit): readonly string[] {
 export function findLocalUnit(typed: string): LocalUnitMatch {
   const written = typed.trim()
   if (written === '') {
-    return { unit: null, problem: 'name the city or municipality' }
+    return { unit: null, problem: words.localUnit.blank }
   }
   const bracketed = /^(.*?)\s*\(([^)]*)\)$/.exec(written)
   const name = nameKey(bracketed?.[1] ?? written)
@@ -62,11 +63,11 @@ export function findLocalUnit(typed: string): LocalUnitMatch {
   )
   const [match] = matches
   if (match === undefined) {
-    return { unit: null, problem: `"${written}" is not a Croatian city or municipality` }
+    return { unit: null, problem: words.localUnit.unknown(written) }
   }
   if (matches.length > 1) {
     const choices = matches.map((unit) => (sharedNames.has(unit.unit) ? unit.label : `${unit.label} (${unit.county})`))
-    return { unit: null, problem: `"${written}" could be ${choices.slice(0, -1).join(', ')} or ${choices.at(-1)}, so choose one` }
+    return { unit: null, problem: words.localUnit.several(written, choices) }
   }
   return { unit: match, problem: null }
 }

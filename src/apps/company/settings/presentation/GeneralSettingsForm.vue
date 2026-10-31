@@ -17,6 +17,7 @@ import { amountLocaleOf, settingsErrors } from '../domain/settings'
 import type { Settings, SettingsField } from '../domain/settings'
 import IbanTagsField from './IbanTagsField.vue'
 import { CURRENCY_ITEMS } from './moneyChoices'
+import { words } from './words'
 
 /**
  * The settings tab as cards, the workbook's basics open and the rest collapsed, with one Save under
@@ -60,7 +61,7 @@ const labelsSummary = computed(() => BUCKETS.map((bucket) => props.settings.buck
 const preview = computed(() => {
   if (errors.value.currency !== undefined || errors.value.numberLocale !== undefined) return null
   const format = new Intl.NumberFormat(amountLocaleOf(draft.value), { style: 'currency', currency: draft.value.currency })
-  return `${format.format(1234.56)} and −${format.format(98.7)}`
+  return words.general.preview(format.format(1234.56), format.format(98.7))
 })
 
 function update<Field extends keyof Settings>(field: Field, value: Settings[Field]): void {
@@ -90,72 +91,46 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
 
 <template>
   <form class="flex flex-col gap-6" @submit.prevent="savable && emit('save', draft, factsDraft)">
-    <AppCard
-      title="The workbook"
-      subtitle="Its name, money, review label and statements folder, from the settings tab."
-      collapse-id="settings.workbook"
-      summary="The company, the currency, the review label and the statements folder"
-      :reveal="basicsRevealed"
-    >
+    <AppCard :title="words.general.title" :subtitle="words.general.subtitle" collapse-id="settings.workbook" :summary="words.general.summary" :reveal="basicsRevealed">
       <div class="flex flex-col gap-6 px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
         <FormGrid>
-          <UFormField label="Company name" help="Shown under the app name and used in the name of an exported file.">
-            <UInput :model-value="draft.companyName" placeholder="Not set" class="w-full" @update:model-value="update('companyName', String($event))" />
+          <UFormField :label="words.general.companyName" :help="words.general.companyNameHelp">
+            <UInput :model-value="draft.companyName" :placeholder="words.general.notSet" class="w-full" @update:model-value="update('companyName', String($event))" />
           </UFormField>
-          <UFormField label="Currency" :error="errors.currency ?? false" help="The money in the ledger. One currency per workbook.">
+          <UFormField :label="words.general.currency" :error="errors.currency ?? false" :help="words.general.currencyHelp">
             <USelectMenu
               :model-value="draft.currency"
               :items="[...CURRENCY_ITEMS]"
               value-key="value"
-              :search-input="{ placeholder: 'Search currencies' }"
+              :search-input="{ placeholder: words.general.searchCurrencies }"
               virtualize
               class="w-full"
               @update:model-value="update('currency', String($event))"
             />
           </UFormField>
-          <UFormField
-            label="Number locale"
-            :error="errors.numberLocale ?? false"
-            :help="preview ? `Amounts read ${preview}. Blank follows the language, and dates always do.` : 'A tag such as en-GB, de-DE or en-US, or blank to follow the language.'"
-          >
-            <UInput :model-value="draft.numberLocale" placeholder="Follow the language" class="w-full" @update:model-value="update('numberLocale', String($event).trim())" />
+          <UFormField :label="words.general.numberLocale" :error="errors.numberLocale ?? false" :help="preview ? words.general.amountsRead(preview) : words.general.localeHelp">
+            <UInput :model-value="draft.numberLocale" :placeholder="words.general.followLanguage" class="w-full" @update:model-value="update('numberLocale', String($event).trim())" />
           </UFormField>
-          <UFormField label="Review label" :error="errors.reviewLabel ?? false" help="What flagged_by will say on a row a person confirms in the app. rule and ai are the categoriser's.">
+          <UFormField :label="words.general.reviewLabel" :error="errors.reviewLabel ?? false" :help="words.general.reviewLabelHelp">
             <UInput :model-value="draft.reviewLabel" class="w-full" @update:model-value="update('reviewLabel', String($event).trim().toLowerCase())" />
           </UFormField>
-          <UFormField
-            label="Card settlement IBANs"
-            :error="errors.cardSettlementIbans ?? false"
-            help="The bank's card settlement accounts. A row paid to one of them reads as a card purchase."
-            class="sm:col-span-2"
-            data-testid="card-settlement-ibans"
-          >
+          <UFormField :label="words.general.cardIbans" :error="errors.cardSettlementIbans ?? false" :help="words.general.cardIbansHelp" class="sm:col-span-2" data-testid="card-settlement-ibans">
             <IbanTagsField :model-value="draft.cardSettlementIbans" class="w-full" @update:model-value="update('cardSettlementIbans', $event)" />
           </UFormField>
-          <UFormField
-            label="Statements folder"
-            help="Where Sync looks in Google Drive for the bank’s camt statements, as a path from My Drive with a folder for each year inside. Blank names none, and statements come in through Import."
-            class="sm:col-span-2"
-            data-testid="statements-folder"
-          >
+          <UFormField :label="words.general.statementsFolder" :help="words.general.statementsFolderHelp" class="sm:col-span-2" data-testid="statements-folder">
             <UInput :model-value="statementsFolderText" class="identifier w-full" :ui="{ base: 'text-ellipsis' }" @update:model-value="updateStatementsFolder(String($event))" />
           </UFormField>
         </FormGrid>
 
         <USwitch
           :model-value="draft.statementsSync"
-          label="File new statements on sync"
-          description="Each sync files the statements of the folder that the ledger lacks. Off, or no folder, leaves statements to Import."
+          :label="words.general.statementsSync"
+          :description="words.general.statementsSyncHelp"
           data-testid="statements-sync"
           @update:model-value="update('statementsSync', $event)"
         />
 
-        <USwitch
-          :model-value="draft.ownerPayModule"
-          label="Owner-pay module"
-          description="Shows owner pay and owner earns. Off hides them, and rows in the owner-pay bucket then count as operating cost, so every total stays the same."
-          @update:model-value="update('ownerPayModule', $event)"
-        />
+        <USwitch :model-value="draft.ownerPayModule" :label="words.general.ownerPay" :description="words.general.ownerPayHelp" @update:model-value="update('ownerPayModule', $event)" />
       </div>
     </AppCard>
 
@@ -163,14 +138,7 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
 
     <component :is="packFacts.card" v-if="packFacts" :facts="factsDraft" :saved="facts" :errors="factErrors" @update="factsDraft = $event" />
 
-    <AppCard
-      title="Bucket labels"
-      subtitle="What each bucket is called on screen. The categories tab keeps the bucket names on the right."
-      collapse-id="settings.bucket-labels"
-      start-collapsed
-      :summary="labelsSummary"
-      :reveal="labelsRevealed"
-    >
+    <AppCard :title="words.general.bucketLabels" :subtitle="words.general.bucketLabelsHelp" collapse-id="settings.bucket-labels" start-collapsed :summary="labelsSummary" :reveal="labelsRevealed">
       <div class="grid gap-3 px-4 pt-4 pb-4 sm:grid-cols-2 sm:px-5 sm:pb-5 lg:grid-cols-3">
         <UFormField v-for="bucket in BUCKETS" :key="bucket" :error="errors[bucket] ?? false">
           <template #label>
@@ -185,8 +153,8 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
     </AppCard>
 
     <div class="flex flex-wrap items-center gap-2">
-      <UButton type="submit" label="Save settings" icon="i-lucide-save" :loading="saving" :disabled="!savable || saving" />
-      <UButton label="Discard changes" color="neutral" variant="ghost" :disabled="!dirty || saving" @click="draft = settings" />
+      <UButton type="submit" :label="words.general.save" icon="i-lucide-save" :loading="saving" :disabled="!savable || saving" />
+      <UButton :label="words.general.discard" color="neutral" variant="ghost" :disabled="!dirty || saving" @click="draft = settings" />
     </div>
   </form>
 </template>

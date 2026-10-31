@@ -14,6 +14,7 @@ import { writeDrafts } from '../application/draftWrites'
 import type { DraftFactory } from '../domain/recordDrafts'
 import type { EditorColumn } from './factTabColumns'
 import FactTabEditor from './FactTabEditor.vue'
+import { words } from './words'
 
 /** A kind a person keeps by hand, as a card with its editor, on the page that reads the kind. */
 const props = withDefaults(
@@ -27,10 +28,6 @@ const props = withDefaults(
     read: (records: RecordsRead<R>) => Reading<{ readonly id: RecordId }>
     make: DraftFactory<R>
     newRow?: () => Readonly<Record<string, string>>
-    /** Such as `asset`, for "Add asset" and "2 assets". */
-    rowNoun: string
-    /** Such as `assets`, for "Save assets". */
-    tabNoun: string
     /** The toast once a save went through, such as "Assets saved". */
     savedTitle: string
     startCollapsed?: boolean
@@ -48,25 +45,15 @@ const count = computed(() => records.value.records.length + records.value.refuse
 
 function save(made: readonly { readonly saved: number | null; readonly record: R }[]): void {
   const stored = storedOf(records.value)
-  void writes.write(props.savedTitle, (unit) => writeDrafts(unit.of(props.rules), stored, made), { failedTitle: 'Not saved' })
+  void writes.write(props.savedTitle, (unit) => writeDrafts(unit.of(props.rules), stored, made), { failedTitle: words.factTab.notSaved })
 }
 </script>
 
 <template>
-  <AppCard :title="title" :collapse-id="collapseId" :summary="`${count} ${count === 1 ? rowNoun : `${rowNoun}s`}`" :start-collapsed="startCollapsed" :reveal="reveal">
+  <AppCard :title="title" :collapse-id="collapseId" :summary="words.factTab.count(rules.kind.noun, count)" :start-collapsed="startCollapsed" :reveal="reveal">
     <template #subtitle>
       {{ description }}
     </template>
-    <FactTabEditor
-      :records="records"
-      :columns="columns"
-      :read="read"
-      :make="make"
-      :new-row="newRow"
-      :row-noun="rowNoun"
-      :tab-noun="tabNoun"
-      :saving="writes.busy.value || state.writing"
-      @save="save"
-    />
+    <FactTabEditor :records="records" :columns="columns" :read="read" :make="make" :new-row="newRow" :noun="rules.kind.noun" :saving="writes.busy.value || state.writing" @save="save" />
   </AppCard>
 </template>

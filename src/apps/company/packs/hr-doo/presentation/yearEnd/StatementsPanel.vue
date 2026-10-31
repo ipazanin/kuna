@@ -16,6 +16,7 @@ import type { ClosedYearView } from './closedYearView'
 import ComparisonTable from './ComparisonTable.vue'
 import KontoTable from './KontoTable.vue'
 import StatusBadge from './StatusBadge.vue'
+import { words } from './words'
 
 /**
  * A closed year's statements line by line beside the accountant's, the konto lines, and the
@@ -43,17 +44,17 @@ const newLine = () => ({ year: String(props.year), statement: 'pl' })
         v-for="(table, index) in view.tables"
         :key="table.key"
         :title="table.title"
-        :subtitle="`${table.description} Open a line for how ours is built.`"
+        :subtitle="words.statements.openLine(table.description)"
         :collapse-id="`year.${table.key}`"
         :summary="table.summary"
         :start-collapsed="index > 0"
       >
         <div class="px-4 pt-3 pb-3 sm:px-3">
-          <p v-if="table.rows.length === 0" class="py-4 text-sm text-muted">The year-end tab holds none of these lines for {{ year }}.</p>
+          <p v-if="table.rows.length === 0" class="py-4 text-sm text-muted">{{ words.statements.noneOfThese(year) }}</p>
           <ComparisonTable v-else :rows="table.rows" :test-id="`comparison-${table.key}`" />
         </div>
         <div v-if="table.key === 'tax' && (view.recorded.length > 0 || view.distribution)" class="flex flex-col gap-2 border-t border-default px-4 py-3 sm:px-5" data-testid="recorded-lines">
-          <h3 class="text-xs font-medium text-muted">Dates and the distribution decision, as the accountant records them</h3>
+          <h3 class="text-xs font-medium text-muted">{{ words.statements.recorded }}</h3>
           <ul class="flex flex-col">
             <li v-for="entry in view.recorded" :key="entry.key" class="recorded-row">
               <p class="min-w-0 text-sm text-toned">{{ entry.label }}</p>
@@ -62,17 +63,17 @@ const newLine = () => ({ year: String(props.year), statement: 'pl' })
               </p>
               <div v-if="entry.check" class="recorded-check">
                 <StatusBadge :status="entry.check.status" />
-                <DrillLink :to="entry.check.to" :label="`${entry.check.finding}, open the rows`" class="text-xs text-muted">{{ entry.check.finding }}</DrillLink>
+                <DrillLink :to="entry.check.to" :label="words.statements.findingRows(entry.check.finding)" class="text-xs text-muted">{{ entry.check.finding }}</DrillLink>
               </div>
             </li>
             <li v-if="view.distribution" class="recorded-row">
-              <p class="min-w-0 text-sm text-toned">The decision shares out</p>
+              <p class="min-w-0 text-sm text-toned">{{ words.statements.decisionSharesOut }}</p>
               <p class="text-sm text-highlighted"><MoneyText :cents="view.distribution.shared" /></p>
               <div class="recorded-check">
                 <StatusBadge :status="view.distribution.residual === 0 ? 'matched' : 'open'" />
                 <span class="text-xs text-muted">
-                  Our profit after tax is <MoneyText :cents="view.distribution.profitAfterTax" /><template v-if="view.distribution.residual !== 0"
-                    >, a residual of <MoneyText :cents="view.distribution.residual" sign="always"
+                  {{ words.statements.ourProfit }}<MoneyText :cents="view.distribution.profitAfterTax" /><template v-if="view.distribution.residual !== 0"
+                    >{{ words.statements.residualOf }}<MoneyText :cents="view.distribution.residual" sign="always"
                   /></template>
                 </span>
               </div>
@@ -81,12 +82,10 @@ const newLine = () => ({ year: String(props.year), statement: 'pl' })
         </div>
       </AppCard>
 
-      <AppCard title="Konto lines" collapse-id="year.konto" :summary="view.kontoSummary" start-collapsed>
-        <template #subtitle>
-          Each konto line beside our accrual figure for the categories its <span class="identifier">categories</span> cell names. Lines that share a category are compared together.
-        </template>
+      <AppCard :title="words.statements.kontoTitle" collapse-id="year.konto" :summary="view.kontoSummary" start-collapsed>
+        <template #subtitle> {{ words.statements.kontoBefore }}<span class="identifier">categories</span>{{ words.statements.kontoAfter }} </template>
         <div class="px-4 pt-2 pb-3 sm:px-5">
-          <p v-if="view.konto.length === 0 && view.unnamedKonto.length === 0" class="py-4 text-sm text-muted">The year-end tab holds no konto lines for {{ year }}.</p>
+          <p v-if="view.konto.length === 0 && view.unnamedKonto.length === 0" class="py-4 text-sm text-muted">{{ words.statements.noKonto(year) }}</p>
           <KontoTable v-else :groups="view.konto" :unnamed="view.unnamedKonto" />
         </div>
       </AppCard>
@@ -95,16 +94,14 @@ const newLine = () => ({ year: String(props.year), statement: 'pl' })
     <FactTabCard
       id="accountant-lines"
       :rules="YEAR_END_WRITES"
-      title="The accountant's lines"
-      description="The accountant's figures for every year, one row per year, statement and line, typed once from the year-end package. A konto row names the categories it matches."
+      :title="words.statements.accountantLines"
+      :description="words.statements.accountantLinesDescription"
       collapse-id="year.accountant-lines"
       :columns="YEAR_END_COLUMNS"
       :read="readLines"
       :make="yearEndLineOfFields"
       :new-row="newLine"
-      row-noun="year-end line"
-      tab-noun="year-end lines"
-      saved-title="Year-end lines saved"
+      :saved-title="words.statements.saved"
       start-collapsed
       :reveal="view === null || route.hash === '#accountant-lines'"
     />

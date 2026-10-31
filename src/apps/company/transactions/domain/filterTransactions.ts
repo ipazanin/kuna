@@ -5,6 +5,7 @@ import type { FilterState } from '../../filters/domain/filterState'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import { needsReview } from '../../workbook/domain/needsReview'
 import type { OwnerAdvance, Transaction } from '../../workbook/domain/workbook'
+import { words } from './words'
 
 /**
  * The rows a filter state selects, in the order given. The window is the whole ledger's, so the
@@ -35,9 +36,6 @@ export function scopeTransactions(transactions: readonly Transaction[], filters:
   )
 }
 
-/** Who Transactions names as the counterparty of an owner advance, which is in no ledger row. */
-export const OWNER_COUNTERPARTY = 'Owner'
-
 /**
  * The owner's advances every filter but the period selects. An advance was paid from no account
  * of the company's, to no counterparty in the ledger, and never waits for review, so a filter on
@@ -57,7 +55,7 @@ export function scopeOwnerAdvances(advances: readonly OwnerAdvance[], filters: F
       (inCategories(filters.categories, advance) || filters.categories.includes(EVERY_OWNER_ADVANCE)) &&
       (min === null || -advance.amount >= min) &&
       (max === null || -advance.amount <= max) &&
-      (text === '' || fold([OWNER_COUNTERPARTY, advance.description, advance.category].join(' ')).includes(text)),
+      (text === '' || fold([words.owner, advance.description, advance.category].join(' ')).includes(text)),
   )
 }
 

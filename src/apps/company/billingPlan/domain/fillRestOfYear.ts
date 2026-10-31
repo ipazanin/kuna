@@ -5,6 +5,7 @@ import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import type { BillingTerms } from '../../settings/domain/settings'
 import { billingItemOrder } from '../../workbook/domain/billingPlan'
 import type { BillingItem } from '../../workbook/domain/billingPlan'
+import { words } from './words'
 
 /** A plan row before it is on the tab. */
 export type BillingItemDraft = Omit<BillingItem, 'id'>
@@ -28,14 +29,14 @@ const SHORT_NAME = new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 
  */
 export function fillRestOfYear(plan: readonly BillingItem[], terms: BillingTerms, asOf: CivilDate, year: number = yearOf(asOf)): RestOfYearFill {
   if (terms.client === '') {
-    return { kind: 'refused', reason: 'Choose the client the rows are for first.' }
+    return { kind: 'refused', reason: words.fill.noClient }
   }
   const monthly = [
     { item: terms.monthlyItem, amount: terms.monthlyAmount },
     { item: terms.subscriptionItem, amount: terms.subscriptionAmount },
   ].flatMap(({ item, amount }) => (item === '' || amount === null ? [] : [{ item, amount }]))
   if (monthly.length === 0) {
-    return { kind: 'refused', reason: 'Set the monthly fee or the monthly subscription, each with its item, first.' }
+    return { kind: 'refused', reason: words.fill.noTerms }
   }
   const clientRows = plan.filter((row) => row.client === terms.client)
   const planned = new Set(clientRows.map((row) => `${monthOf(row.date)} ${row.item}`))

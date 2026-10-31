@@ -18,6 +18,9 @@ import InvoiceLinesEditor from './InvoiceLinesEditor.vue'
 import { TERMS_LINK } from './invoicingLinks'
 import { useInvoiceRun } from './useInvoiceRun'
 import type { InvoiceRunMode } from './useInvoiceRun'
+import { words } from './words'
+import { words as writeWords } from '../../../../shared/storage/presentation/words'
+import { plural } from '../../../../shared/text/translation'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -39,25 +42,14 @@ const clientItems = computed(() => (store.state.workbook?.clients ?? []).map((cl
 const editable = computed(() => stage.value.kind === 'edit')
 const busy = computed(() => stage.value.kind === 'checking' || stage.value.kind === 'running')
 
-const title = computed(() => (reexport.value ? `Re-export invoice ${run.number.value}` : 'Make an invoice'))
-const description = computed(() =>
-  reexport.value
-    ? 'Draws the PDF again, replaces it in Drive and saves a fresh mail draft. The register row changes only where the lines do.'
-    : 'Draws the PDF, files it, saves the mail draft and adds the invoice to the register, in that order, once the checks pass.',
-)
+const title = computed(() => (reexport.value ? words.run.reexportTitle(run.number.value) : words.run.makeTitle))
+const description = computed(() => (reexport.value ? words.run.reexportDescription : words.run.makeDescription))
 
 const where = computed(() => {
   const path = run.path.value
   if (path === null) return ''
-  return run.google.value ? `Filed as ${pathInWords(path)} in the invoice folder.` : `Saved as ${path.fileName} by the browser, since this workbook has no Drive.`
+  return run.google.value ? words.run.filedAs(pathInWords(path)) : words.run.savedAs(path.fileName)
 })
-
-const STEP_LABELS = {
-  file: 'File the PDF in Drive',
-  download: 'Save the PDF',
-  draft: 'Save the mail draft',
-  register: 'Write the register row',
-} as const
 
 const STEP_ICONS = {
   waiting: 'i-lucide-circle-dashed',
@@ -69,12 +61,12 @@ const readyLines = computed(() => {
   const current = stage.value
   const path = run.path.value
   if (current.kind !== 'ready' || path === null) return []
-  const lines = [reexport.value ? `Invoice ${run.number.value} stays as numbered.` : `Invoice ${run.number.value} is free on the invoices tab.`]
+  const lines = [reexport.value ? words.run.keepsNumber(run.number.value) : words.run.numberFree(run.number.value)]
   if (current.target !== null) {
     const found = path.folders.slice(0, path.folders.length - current.target.toCreate.length)
-    if (found.length > 0) lines.push(`Found ${found.join('/')} in the invoice folder.`)
-    if (current.target.toCreate.length > 0) lines.push(`Will make ${current.target.toCreate.join('/')}.`)
-    lines.push(current.target.existing === null ? `No file named ${path.fileName} is in view there.` : `${path.fileName} is there and will be replaced.`)
+    if (found.length > 0) lines.push(words.run.found(found.join('/')))
+    if (current.target.toCreate.length > 0) lines.push(words.run.willMake(current.target.toCreate.join('/')))
+    lines.push(current.target.existing === null ? words.run.noFileThere(path.fileName) : words.run.replacesFile(path.fileName))
   }
   return lines
 })
@@ -87,7 +79,7 @@ const clientName = computed(() => {
 const mailInWords = computed(() => {
   const mail = run.mail.value
   if (mail === null) return ''
-  return run.google.value && run.mailDraft.value ? `A draft to ${mail.to}, “${mail.subject}”` : `No draft. The PDF downloads, and Gmail opens “${mail.subject}” for you to attach it.`
+  return run.google.value && run.mailDraft.value ? words.run.draftTo(mail.to, mail.subject) : words.run.noDraft(mail.subject)
 })
 
 const offerCompose = computed(() => stage.value.kind === 'finished' && !run.failed.value && !(run.google.value && run.mailDraft.value))
@@ -101,49 +93,50 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
         icon="i-lucide-triangle-alert"
         color="error"
         variant="subtle"
-        title="Nothing was written"
+        :title="writeWords.nothingWritten"
         :description="stage.message"
         data-testid="invoice-run-refused"
       />
 
-      <UAlert v-if="editable && run.problems.value.length > 0" icon="i-lucide-list-checks" color="warning" variant="subtle" title="Before the invoice can be made" data-testid="invoice-run-problems">
+      <UAlert v-if="editable && run.problems.value.length > 0" icon="i-lucide-list-checks" color="warning" variant="subtle" :title="words.run.beforeMaking" data-testid="invoice-run-problems">
         <template #description>
           <ul class="list-disc ps-4">
             <li v-for="problem in run.problems.value" :key="problem">{{ problem }}</li>
           </ul>
           <p class="mt-1">
-            The clients and the invoice terms are on
-            <DrillLink :to="TERMS_LINK" in-prose class="text-highlighted" @click="open = false">Invoicing, Clients</DrillLink>.
+            {{ words.run.termsAreOn }}
+            <DrillLink :to="TERMS_LINK" in-prose class="text-highlighted" @click="open = false">{{ words.run.clientsTab }}</DrillLink
+            >.
           </p>
         </template>
       </UAlert>
 
       <template v-if="editable || stage.kind === 'checking'">
         <FormGrid>
-          <UFormField label="Client">
+          <UFormField :label="words.run.client">
             <USelect
               v-model="run.client.value"
               :items="clientItems"
-              placeholder="Choose a client"
+              :placeholder="words.run.clientPlaceholder"
               class="w-full"
               :disabled="reexport || !editable"
               data-testid="invoice-run-client"
               @update:model-value="run.fillLines()"
             />
           </UFormField>
-          <UFormField label="Issued" help="Today, unless you say otherwise.">
+          <UFormField :label="words.run.issued" :help="words.run.issuedHelp">
             <UInput v-model="run.issued.value" type="date" class="w-full" :disabled="reexport || !editable" data-testid="invoice-run-issued" @change="run.issueChanged()" />
           </UFormField>
-          <UFormField label="Number" :help="reexport ? 'The number it was issued under.' : `The next by the pattern is ${run.suggestedNumber.value || 'not known yet'}.`">
+          <UFormField :label="words.run.number" :help="reexport ? words.run.issuedUnder : words.run.nextNumber(run.suggestedNumber.value)">
             <UInput :model-value="run.number.value" class="w-full" :disabled="reexport || !editable" data-testid="invoice-run-number" @update:model-value="run.typeNumber(String($event))" />
           </UFormField>
-          <UFormField label="Due" help="A month after the issue date.">
+          <UFormField :label="words.run.due" :help="words.run.dueHelp">
             <UInput v-model="run.due.value" type="date" class="w-full" :disabled="reexport || !editable" data-testid="invoice-run-due" />
           </UFormField>
-          <UFormField label="Work from" help="The delivery period, the issue month unless the work was another.">
+          <UFormField :label="words.run.workFrom" :help="words.run.workFromHelp">
             <UInput v-model="run.periodFrom.value" type="date" class="w-full" :disabled="reexport || !editable" />
           </UFormField>
-          <UFormField label="Work to">
+          <UFormField :label="words.run.workTo">
             <UInput v-model="run.periodTo.value" type="date" class="w-full" :disabled="reexport || !editable" />
           </UFormField>
         </FormGrid>
@@ -155,22 +148,22 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
           <USwitch
             v-if="run.google.value"
             v-model="run.mailDraft.value"
-            label="Create the mail draft"
-            description="Saves a Gmail draft with the PDF attached. The first time, Google asks you to allow drafts. Nothing is ever sent."
+            :label="words.run.draftSwitch"
+            :description="words.run.draftSwitchHelp"
             :disabled="!editable"
             data-testid="invoice-run-draft"
           />
-          <p v-if="run.mail.value" class="min-w-0 break-words text-xs text-muted">To {{ run.mail.value.to || 'nobody yet' }}, “{{ run.mail.value.subject }}”</p>
+          <p v-if="run.mail.value" class="min-w-0 break-words text-xs text-muted">{{ words.run.mailTo(run.mail.value.to, run.mail.value.subject) }}</p>
         </div>
       </template>
       <dl v-else class="summary" data-testid="invoice-run-summary">
-        <dt>Invoice</dt>
-        <dd>{{ run.number.value }} to {{ clientName }}</dd>
-        <dt>Total</dt>
-        <dd><MoneyText :cents="run.total.value" /> in {{ run.lines.value.length }} {{ run.lines.value.length === 1 ? 'line' : 'lines' }}</dd>
-        <dt>File</dt>
+        <dt>{{ words.run.invoice }}</dt>
+        <dd>{{ words.run.numberTo(run.number.value, clientName) }}</dd>
+        <dt>{{ words.run.total }}</dt>
+        <dd><MoneyText :cents="run.total.value" /> {{ plural(words.run.inLines(run.lines.value.length), run.lines.value.length) }}</dd>
+        <dt>{{ words.run.file }}</dt>
         <dd class="break-all">{{ run.path.value ? pathInWords(run.path.value) : '' }}</dd>
-        <dt>Mail</dt>
+        <dt>{{ words.run.mail }}</dt>
         <dd class="break-words">{{ mailInWords }}</dd>
       </dl>
 
@@ -179,8 +172,8 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
         icon="i-lucide-folder-search"
         color="warning"
         variant="subtle"
-        :title="`The app cannot see a ${stage.segment} folder`"
-        :description="`Google lets the app see only folders it made or you picked. If ${stage.path} exists, pick it, and pick the folders beside it too. If it does not, make it.`"
+        :title="words.run.hiddenTitle(stage.segment)"
+        :description="words.run.hiddenDescription(stage.path)"
         data-testid="invoice-run-hidden"
       />
 
@@ -199,7 +192,7 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
             :class="{ 'text-success': step.status === 'done', 'text-error': step.status === 'failed', 'text-muted': step.status === 'waiting' }"
           />
           <span class="min-w-0">
-            <span class="block text-highlighted">{{ STEP_LABELS[step.kind] }}</span>
+            <span class="block text-highlighted">{{ words.run.steps[step.kind] }}</span>
             <span v-if="step.note" class="block break-words text-xs" :class="step.status === 'failed' ? 'text-error' : 'text-muted'">{{ step.note }}</span>
           </span>
         </li>
@@ -213,7 +206,7 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
         :href="run.previewUrl.value"
         target="_blank"
         rel="noopener"
-        label="Open the PDF"
+        :label="words.run.openPdf"
         icon="i-lucide-file-text"
         color="neutral"
         variant="ghost"
@@ -222,9 +215,9 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
     </template>
     <template #end>
       <template v-if="stage.kind === 'edit' || stage.kind === 'checking'">
-        <UButton label="Cancel" color="neutral" variant="ghost" :disabled="busy" @click="open = false" />
+        <UButton :label="words.run.cancel" color="neutral" variant="ghost" :disabled="busy" @click="open = false" />
         <UButton
-          label="Check"
+          :label="words.run.check"
           icon="i-lucide-list-checks"
           :loading="stage.kind === 'checking'"
           :disabled="busy || run.problems.value.length > 0 || store.state.writing"
@@ -233,13 +226,20 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
         />
       </template>
       <template v-else-if="stage.kind === 'hidden'">
-        <UButton label="Back" color="neutral" variant="ghost" @click="run.back()" />
-        <UButton :label="`Create ${stage.segment}`" icon="i-lucide-folder-plus" color="neutral" variant="outline" data-testid="invoice-run-create-folder" @click="run.createHiddenFolder()" />
-        <UButton :label="`Pick ${stage.segment}`" icon="i-lucide-folder-open" data-testid="invoice-run-pick-folder" @click="run.check()" />
+        <UButton :label="words.run.back" color="neutral" variant="ghost" @click="run.back()" />
+        <UButton
+          :label="words.run.createFolder(stage.segment)"
+          icon="i-lucide-folder-plus"
+          color="neutral"
+          variant="outline"
+          data-testid="invoice-run-create-folder"
+          @click="run.createHiddenFolder()"
+        />
+        <UButton :label="words.run.pickFolder(stage.segment)" icon="i-lucide-folder-open" data-testid="invoice-run-pick-folder" @click="run.check()" />
       </template>
       <template v-else-if="stage.kind === 'ready'">
-        <UButton label="Back" color="neutral" variant="ghost" @click="run.back()" />
-        <UButton :label="reexport ? 'Re-export' : 'Make the invoice'" icon="i-lucide-send-horizontal" data-testid="invoice-run-make" @click="run.make()" />
+        <UButton :label="words.run.back" color="neutral" variant="ghost" @click="run.back()" />
+        <UButton :label="reexport ? words.run.reexport : words.run.makeInvoice" icon="i-lucide-send-horizontal" data-testid="invoice-run-make" @click="run.make()" />
       </template>
       <template v-else>
         <UButton
@@ -247,23 +247,15 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
           :href="run.composeUrl.value"
           target="_blank"
           rel="noopener"
-          label="Write the mail in Gmail"
+          :label="words.run.compose"
           icon="i-lucide-mail"
           color="neutral"
           variant="outline"
           data-testid="invoice-run-compose"
         />
-        <UButton v-if="stage.kind === 'finished'" label="Download the PDF" icon="i-lucide-download" color="neutral" variant="outline" @click="run.downloadPdf()" />
-        <UButton
-          v-if="run.failed.value"
-          label="Retry the remaining steps"
-          icon="i-lucide-rotate-cw"
-          :loading="stage.kind === 'running'"
-          :disabled="busy"
-          data-testid="invoice-run-retry"
-          @click="run.make()"
-        />
-        <UButton label="Close" color="neutral" :variant="run.failed.value ? 'ghost' : 'solid'" :disabled="busy" data-testid="invoice-run-close" @click="open = false" />
+        <UButton v-if="stage.kind === 'finished'" :label="words.run.download" icon="i-lucide-download" color="neutral" variant="outline" @click="run.downloadPdf()" />
+        <UButton v-if="run.failed.value" :label="words.run.retry" icon="i-lucide-rotate-cw" :loading="stage.kind === 'running'" :disabled="busy" data-testid="invoice-run-retry" @click="run.make()" />
+        <UButton :label="words.run.close" color="neutral" :variant="run.failed.value ? 'ghost' : 'solid'" :disabled="busy" data-testid="invoice-run-close" @click="open = false" />
       </template>
     </template>
   </AppDialog>

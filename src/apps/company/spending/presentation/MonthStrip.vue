@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { words } from './words'
 
 /** One small column per month, every payee on the same scale, so a large payee looks large beside a small one. */
 const props = defineProps<{
@@ -18,7 +19,7 @@ const paidMonths = computed(() => props.cells.filter((cell) => cell.amount > 0).
 </script>
 
 <template>
-  <span class="month-strip" role="img" :aria-label="`Paid in ${paidMonths} of the last ${cells.length} months`">
+  <span class="month-strip" role="img" :aria-label="words.strip(paidMonths, cells.length)">
     <span
       v-for="cell in cells"
       :key="cell.month"

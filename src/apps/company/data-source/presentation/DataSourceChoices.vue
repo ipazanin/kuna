@@ -15,6 +15,7 @@ import type { WorkbookSource } from '../../../../shared/storage/domain/recordsRe
 import { useFindDriveFile } from '../../workbook/presentation/useFindDriveFile'
 import { WORKBOOK_FILE_TYPES } from '../../workbook/presentation/workbookFiles'
 import { onboardingStart } from '../../onboarding/presentation/useOnboarding'
+import { words } from './words'
 
 /** Where a workbook can come from: the file on Drive, a file to open, or new books, which onboarding sets up. Each action changes the workbook on screen. */
 defineProps<{
@@ -56,16 +57,13 @@ async function startNewBooks(): Promise<void> {
     <li class="choice">
       <UIcon name="i-lucide-hard-drive" class="choice-icon" aria-hidden="true" />
       <div class="choice-body">
-        <h3 class="text-sm font-medium text-highlighted">{{ current === 'drive' ? 'Open your books on Google Drive again' : 'Open your books on Google Drive' }}</h3>
-        <p class="mt-1 text-sm text-muted">
-          For books another device keeps on Drive. Sign in with Google, then Find the file opens the file the app marked as its books, or asks you to pick it when there is none. Pick another file lets
-          you choose the .json file yourself. The app keeps a copy in this browser, and writes only that file and the backups folder beside it.
-        </p>
+        <h3 class="text-sm font-medium text-highlighted">{{ current === 'drive' ? words.drive.titleAgain : words.drive.title }}</h3>
+        <p class="mt-1 text-sm text-muted">{{ words.drive.description }}</p>
       </div>
       <div class="choice-action">
         <div class="flex flex-col items-start gap-2 sm:items-stretch">
           <UButton
-            label="Find the file"
+            :label="words.drive.find"
             icon="i-lucide-log-in"
             color="neutral"
             variant="outline"
@@ -74,7 +72,7 @@ async function startNewBooks(): Promise<void> {
             @click="openFromDrive('find')"
           />
           <UButton
-            label="Pick another file"
+            :label="words.drive.pick"
             icon="i-lucide-file-search"
             color="neutral"
             variant="outline"
@@ -83,25 +81,23 @@ async function startNewBooks(): Promise<void> {
             @click="openFromDrive('pick')"
           />
         </div>
-        <p v-if="signInByRedirect" class="mt-2 max-w-56 text-xs text-muted" data-testid="redirect-sign-in-note">Google may ask about cookies first, then brings you back here.</p>
+        <p v-if="signInByRedirect" class="mt-2 max-w-56 text-xs text-muted" data-testid="redirect-sign-in-note">{{ words.drive.cookies }}</p>
       </div>
     </li>
 
     <li class="choice">
       <UIcon name="i-lucide-file-spreadsheet" class="choice-icon" aria-hidden="true" />
       <div class="choice-body">
-        <h3 class="text-sm font-medium text-highlighted">Open a file</h3>
-        <p class="mt-1 text-sm text-muted">
-          An Excel workbook, such as a download of your Google Sheet, or a Kuna file from the backups folder. Check what it holds, then keep it on Google Drive or in this browser.
-        </p>
+        <h3 class="text-sm font-medium text-highlighted">{{ words.file.title }}</h3>
+        <p class="mt-1 text-sm text-muted">{{ words.file.description }}</p>
         <UFileUpload
           v-model="pickedFile"
           :accept="WORKBOOK_FILE_TYPES"
           :preview="false"
           reset
           icon="i-lucide-file-up"
-          label="Drop an .xlsx or .json file here"
-          description="or click to choose one"
+          :label="words.file.drop"
+          :description="words.file.orChoose"
           color="neutral"
           class="mt-3 w-full"
           :ui="{ base: 'min-h-28 border-dashed bg-elevated/40' }"
@@ -112,11 +108,11 @@ async function startNewBooks(): Promise<void> {
     <li class="choice">
       <UIcon name="i-lucide-file-plus" class="choice-icon" aria-hidden="true" />
       <div class="choice-body">
-        <h3 class="text-sm font-medium text-highlighted">Start new books</h3>
-        <p class="mt-1 text-sm text-muted">The default categories and no rows yet. A few questions set them up, then you import a bank statement.</p>
+        <h3 class="text-sm font-medium text-highlighted">{{ words.newBooks.title }}</h3>
+        <p class="mt-1 text-sm text-muted">{{ words.newBooks.description }}</p>
       </div>
       <div class="choice-action">
-        <UButton label="Start new books" icon="i-lucide-file-plus" color="neutral" variant="outline" data-testid="start-new-books" @click="startNewBooks" />
+        <UButton :label="words.newBooks.start" icon="i-lucide-file-plus" color="neutral" variant="outline" data-testid="start-new-books" @click="startNewBooks" />
       </div>
     </li>
   </AppCard>

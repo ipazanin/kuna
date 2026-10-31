@@ -8,6 +8,7 @@ import { slugOf } from '../../../../shared/storage/domain/storedFields'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 import { readSettingsTab } from '../domain/settings'
 import type { SettingEntry, SettingRow } from '../domain/settings'
+import { words } from './words'
 
 function problemsOf(read: RecordsRead<SettingRow>): string[] {
   return readSettingsTab(recordsOf(read), installedPack().workbook?.settings ?? null).problems.map((problem) => `${problem.label}: ${problem.reason}`)
@@ -30,14 +31,14 @@ export const SETTING_WRITES: WriteRules<SettingRow> = {
     const twice = change.edits.flatMap((edit) => {
       const key = slugOf((edit.before ?? edit.after)?.fields.key)
       const holding = stored.filter((other) => slugOf(other.fields.key) === key).length
-      return holding > 1 ? [`The settings tab sets "${key}" on ${holding} rows. Keep one of them in an export and open that file again.`] : []
+      return holding > 1 ? [words.settings.keyOnRows(key, holding)] : []
     })
     if (twice.length > 0) {
       return twice
     }
     const before = problemsOf(change.before)
     const introduced = problemsOf(change.after).filter((problem) => !before.includes(problem))
-    return introduced.length === 0 ? [] : [`The settings would not read cleanly: ${introduced.join('. ')}.`]
+    return introduced.length === 0 ? [] : [words.settings.wouldNotRead(introduced.join('. '))]
   },
 }
 

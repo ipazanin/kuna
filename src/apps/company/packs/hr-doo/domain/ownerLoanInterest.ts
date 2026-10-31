@@ -10,6 +10,7 @@ import { ownerLoans } from './ownerLoans'
 import type { OwnerLoan } from './ownerLoans'
 import { percentText, tracedFigure } from './payroll/payrollArithmetic'
 import type { RuleSource } from './payroll/payrollArithmetic'
+import { words } from './words'
 
 const BASIS_POINTS_PER_WHOLE = 10_000
 
@@ -65,7 +66,7 @@ export function interestOnLoans(label: string, loans: readonly OwnerLoan[], year
     if (owed.days === 0) return []
     return [
       {
-        label: `${owed.days} ${owed.days === 1 ? 'day' : 'days'} owed in ${year} on the loan of`,
+        label: words.owner.daysOwed(owed.days, year),
         on: loan.lentOn,
         amount: moneyFromCents(dividedRounded(owed.centDays * rate, BASIS_POINTS_PER_WHOLE * yearDays)),
         drill: loan.drill,
@@ -103,7 +104,7 @@ export function loanBenefit(workbook: HrDooWorkbook, year: number, through: Civi
   const prescribed = rule.value.minimumInterestRate.basisPoints
   const carried = carriedRate(workbook)
   const loans = ownerLoans(workbook.transactions, workbook.categories).loans
-  const owed = interestOnLoans(`Benefit in kind on the owner's loans in ${year}`, loans, year, end, shortfallRate(prescribed, carried), [rule.citation])
+  const owed = interestOnLoans(words.owner.loanBenefit(year), loans, year, end, shortfallRate(prescribed, carried), [rule.citation])
   if (owed.steps.length === 0) return null
   return { year, prescribed, carried, figure: owed, loans: owed.steps.length }
 }
@@ -114,12 +115,12 @@ export function loanBenefit(workbook: HrDooWorkbook, year: number, through: Civi
  */
 export function relatedPartyInterest(workbook: HrDooWorkbook, year: number, profitBeforeTax: Money, losses: readonly CarriedLoss[], rules: RuleSource): TracedFigure {
   if (profitBeforeTax >= 0 && losses.length === 0) {
-    return tracedFigure('Not worked out: the company has no tax loss', ZERO, 'ledger', [])
+    return tracedFigure(words.owner.noTaxLoss, ZERO, 'ledger', [])
   }
   const rate = rules('hr.cit.related-party-rate', civilDate(year, 1, 1))
   const carried = carriedRate(workbook)
   return interestOnLoans(
-    carried === 0 ? 'Interest on the owner loans at the related-party rate, none charged' : `Interest on the owner loans at the related-party rate, less the ${percentText(carried)} they carry`,
+    carried === 0 ? words.owner.relatedPartyNone : words.owner.relatedPartyLess(percentText(carried)),
     ownerLoans(workbook.transactions, workbook.categories).loans,
     year,
     civilDate(year, 12, 31),

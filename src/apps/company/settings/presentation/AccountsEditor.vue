@@ -4,13 +4,14 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 
 import { listInWords } from '../../../../shared/text/listInWords'
-import { displayName } from '../../workbook/domain/displayName'
+import { slugInWords } from '../../workbook/domain/slugInWords'
 import type { SlugUses } from '../../workbook/domain/slug'
 import type { AccountRecord } from '../../workbook/domain/accountsReading'
 import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { accountDraftErrors, accountDraftsOf, accountsOfDrafts } from '../domain/accountDrafts'
 import type { AccountDraft } from '../domain/accountDrafts'
 import { storedOf } from '../../../../shared/storage/domain/recordsRead'
+import { words } from './words'
 
 const props = defineProps<{
   /** The accounts as stored, refused ones included, so they can be fixed here. */
@@ -45,7 +46,7 @@ function locked(draft: AccountDraft): boolean {
 }
 
 function inUse(draft: AccountDraft): string {
-  return `Used by ${listInWords(props.uses.get(draft.savedName.trim().toLowerCase()) ?? [])}, so it keeps its name and its row`
+  return words.inUse(listInWords(props.uses.get(draft.savedName.trim().toLowerCase()) ?? []))
 }
 
 function addAccount(): void {
@@ -69,16 +70,18 @@ function save(): void {
     <table class="data-table editor-table w-full text-sm" data-testid="accounts-editor">
       <thead>
         <tr>
-          <th scope="col" class="text-start">Account</th>
-          <th scope="col" class="text-start">Shown as</th>
-          <th scope="col" class="text-start">IBAN</th>
-          <th scope="col" class="text-start">Currency</th>
-          <th scope="col"><span class="sr-only">Delete</span></th>
+          <th scope="col" class="text-start">{{ words.accounts.columns.account }}</th>
+          <th scope="col" class="text-start">{{ words.accounts.columns.label }}</th>
+          <th scope="col" class="text-start">{{ words.accounts.columns.iban }}</th>
+          <th scope="col" class="text-start">{{ words.accounts.columns.currency }}</th>
+          <th scope="col">
+            <span class="sr-only">{{ words.accounts.columns.delete }}</span>
+          </th>
         </tr>
       </thead>
       <tbody>
         <tr v-if="drafts.length === 0">
-          <td colspan="5" class="text-muted">No accounts yet. Add the accounts your ledger rows name.</td>
+          <td colspan="5" class="text-muted">{{ words.accounts.none }}</td>
         </tr>
         <tr v-for="(draft, index) in drafts" :key="draft.saved ?? `new-${index}`" data-testid="account-row">
           <td>
@@ -88,7 +91,7 @@ function save(): void {
               :title="locked(draft) ? inUse(draft) : undefined"
               :color="errors.get(index)?.account ? 'error' : 'neutral'"
               :highlight="Boolean(errors.get(index)?.account)"
-              aria-label="Account"
+              :aria-label="words.accounts.columns.account"
               size="sm"
               class="w-40"
               @update:model-value="update(index, 'account', String($event))"
@@ -96,10 +99,17 @@ function save(): void {
             <p v-if="errors.get(index)?.account" class="field-error">{{ errors.get(index)?.account }}</p>
           </td>
           <td>
-            <UInput :model-value="draft.label" :placeholder="displayName(draft.account)" aria-label="Shown as" size="sm" class="w-40" @update:model-value="update(index, 'label', String($event))" />
+            <UInput
+              :model-value="draft.label"
+              :placeholder="slugInWords(draft.account)"
+              :aria-label="words.accounts.columns.label"
+              size="sm"
+              class="w-40"
+              @update:model-value="update(index, 'label', String($event))"
+            />
           </td>
           <td>
-            <UInput :model-value="draft.iban" aria-label="IBAN" size="sm" class="identifier w-64" @update:model-value="update(index, 'iban', String($event))" />
+            <UInput :model-value="draft.iban" :aria-label="words.accounts.columns.iban" size="sm" class="identifier w-64" @update:model-value="update(index, 'iban', String($event))" />
           </td>
           <td>
             <UInput
@@ -107,7 +117,7 @@ function save(): void {
               :placeholder="currency"
               :color="errors.get(index)?.currency ? 'error' : 'neutral'"
               :highlight="Boolean(errors.get(index)?.currency)"
-              aria-label="Currency"
+              :aria-label="words.accounts.columns.currency"
               size="sm"
               class="w-24"
               @update:model-value="update(index, 'currency', String($event).toUpperCase())"
@@ -122,7 +132,7 @@ function save(): void {
               size="xs"
               :disabled="locked(draft)"
               :title="locked(draft) ? inUse(draft) : undefined"
-              :aria-label="draft.saved === null ? 'Remove this new account' : `Delete ${draft.savedName || 'this account'}`"
+              :aria-label="draft.saved === null ? words.accounts.removeNew : words.accounts.deleteName(draft.savedName)"
               @click="remove(index)"
             />
           </td>
@@ -131,10 +141,10 @@ function save(): void {
     </table>
   </div>
   <div class="flex flex-wrap items-center gap-2 px-4 pb-4 sm:px-5">
-    <UButton label="Add account" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" @click="addAccount" />
+    <UButton :label="words.accounts.add" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" @click="addAccount" />
     <span class="flex-1" />
-    <UButton label="Discard changes" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving" @click="drafts = accountDraftsOf(stored)" />
-    <UButton label="Save accounts" icon="i-lucide-save" size="sm" :loading="saving" :disabled="!dirty || errors.size > 0 || saving" @click="save" />
+    <UButton :label="words.accounts.discard" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving" @click="drafts = accountDraftsOf(stored)" />
+    <UButton :label="words.accounts.save" icon="i-lucide-save" size="sm" :loading="saving" :disabled="!dirty || errors.size > 0 || saving" @click="save" />
   </div>
 </template>
 

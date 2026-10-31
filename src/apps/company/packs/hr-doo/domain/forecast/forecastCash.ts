@@ -20,6 +20,7 @@ import type { MatchedCitObligation } from '../cit/matchCitPayments'
 import { PACK_ROLES } from '../packRoles'
 import { deducted, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { CategoryForecast, ForecastCalendar, ForecastLine, ForecastMonth } from './forecastLines'
+import { words } from './words'
 
 /** What moves the cash, each in the month it is paid or received. */
 export type CashKind = 'open-invoices' | 'vat' | 'revenue' | 'costs' | 'purchases' | 'dividend' | 'corporate-tax' | 'carried-revenue' | 'carried-costs'
@@ -79,17 +80,7 @@ export interface CashInputs {
   readonly carried: () => CashProjection | null
 }
 
-const KIND_LABELS: Readonly<Record<CashKind, string>> = {
-  'carried-revenue': 'Revenue of the year before, received in this one',
-  'carried-costs': 'Costs of the year before, paid in this one',
-  'open-invoices': 'Invoices still open, as the clients pay',
-  vat: 'VAT the state owes the company now, settled the month after',
-  revenue: 'Revenue of the forecast months, as the client pays',
-  costs: 'Costs and other income of the forecast months, as they are paid',
-  purchases: 'Planned purchases, at their net cost',
-  dividend: 'Planned dividend, its tax and what is not set off',
-  'corporate-tax': 'Corporate tax still to pay',
-}
+const KIND_LABELS: Readonly<Record<CashKind, string>> = words.cash.kinds
 
 const KIND_ORDER: readonly CashKind[] = ['carried-revenue', 'carried-costs', 'open-invoices', 'vat', 'revenue', 'costs', 'purchases', 'dividend', 'corporate-tax']
 
@@ -100,9 +91,7 @@ export function paymentLagOf(known: HrDooWorkbook): PaymentLag {
     receivables.clients.flatMap((client) => client.invoices),
     null,
   ).median
-  return median === null
-    ? { days: 1, label: 'No invoice is paid yet, so revenue comes in the month after' }
-    : { days: Math.round(median), label: `Clients pay ${Math.round(median)} days after the invoice, the median on Invoicing` }
+  return median === null ? { days: 1, label: words.cash.noInvoicePaid } : { days: Math.round(median), label: words.cash.clientsPay(Math.round(median)) }
 }
 
 /**
@@ -121,13 +110,13 @@ export function cashProjection(inputs: CashInputs): CashProjection {
   const december = monthKey(year, 12)
   const balanceAt = (month: MonthKey): TracedFigure => {
     const cash = latestBalances(known.transactions.filter((row) => row.date <= lastDayOf(month))).cashOnHand
-    return withDrill(tracedFigure(`Cash at the end of ${monthLabel(month)}`, cash.amount, 'ledger', []), cash.drill)
+    return withDrill(tracedFigure(words.cash.atMonthEnd(monthLabel(month)), cash.amount, 'ledger', []), cash.drill)
   }
   if (calendar.lastComplete !== null && calendar.lastComplete >= december) {
     const ledgerMonths = months.map((month): CashMonth => ({ month, basis: 'ledger', closing: balanceAt(month) }))
-    const atYearEnd = { ...(ledgerMonths[11] as CashMonth).closing, label: `Cash at the end of ${year}` }
+    const atYearEnd = { ...(ledgerMonths[11] as CashMonth).closing, label: words.cash.atYearEnd(year) }
     const decemberRevenue = (inputs.revenue.months[11] as ForecastMonth).figure
-    const receivableAtYearEnd = tracedFigure(`Revenue of ${year} received after it ends`, decemberRevenue.amount, decemberRevenue.basis, decemberRevenue.rules, [decemberRevenue])
+    const receivableAtYearEnd = tracedFigure(words.cash.receivedAfter(year), decemberRevenue.amount, decemberRevenue.basis, decemberRevenue.rules, [decemberRevenue])
     return { months: ledgerMonths, atYearEnd, receivableAtYearEnd, later: [] }
   }
 
@@ -150,15 +139,15 @@ export function cashProjection(inputs: CashInputs): CashProjection {
       ),
     )
     const closing = summed(
-      `Cash at the end of ${monthLabel(month)}, as forecast`,
-      [{ ...previous, label: month === opensIn ? previous.label : `Cash at the end of ${monthLabel(addMonths(month, -1))}` }, ...flows],
+      words.cash.atMonthEndForecast(monthLabel(month)),
+      [{ ...previous, label: month === opensIn ? previous.label : words.cash.atMonthEnd(monthLabel(addMonths(month, -1))) }, ...flows],
       'ledger',
     )
     previous = closing
     return { month, basis: 'forecast', closing }
   })
   const atYearEnd = summed(
-    `Cash at the end of ${year}, as forecast`,
+    words.cash.atYearEndForecast(year),
     [
       start,
       ...KIND_ORDER.flatMap((kind) =>
@@ -174,7 +163,7 @@ export function cashProjection(inputs: CashInputs): CashProjection {
   return {
     months: projected,
     atYearEnd,
-    receivableAtYearEnd: summed(`Revenue of ${year} received after it ends`, receivedLater, 'ledger'),
+    receivableAtYearEnd: summed(words.cash.receivedAfter(year), receivedLater, 'ledger'),
     later,
   }
 }
@@ -182,7 +171,7 @@ export function cashProjection(inputs: CashInputs): CashProjection {
 /** The bank balance on the newest booking, named with its day. */
 export function cashOnNewestBooking(transactions: readonly Transaction[]): TracedFigure {
   const { cashOnHand } = latestBalances(transactions)
-  return withDrill({ ...tracedFigure('Cash on', cashOnHand.amount, 'ledger', []), on: newestBookingOf(transactions) }, cashOnHand.drill)
+  return withDrill({ ...tracedFigure(words.cash.cashOn, cashOnHand.amount, 'ledger', []), on: newestBookingOf(transactions) }, cashOnHand.drill)
 }
 
 function grouped(events: readonly CashEvent[], kind: CashKind): TracedFigure[] {
@@ -199,7 +188,7 @@ function grouped(events: readonly CashEvent[], kind: CashKind): TracedFigure[] {
 
 function carriedStart({ year, carried }: CashInputs): TracedFigure {
   const before = carried()
-  return before === null ? tracedFigure(`Nothing before ${year}`, ZERO, 'ledger', []) : before.atYearEnd
+  return before === null ? tracedFigure(words.cash.nothingBefore(year), ZERO, 'ledger', []) : before.atYearEnd
 }
 
 /** What the year before left to receive and to pay, in the month it lands. */
@@ -215,7 +204,7 @@ function nowEvents({ known, asOf, vatPosition, paymentLag }: CashInputs, running
   const invoices = open.map((matched): CashEvent => {
     const expected = addDays(matched.invoice.issued, paymentLag.days)
     const on = expected > asOf ? expected : addDays(asOf, 1)
-    return { month: monthOf(on), kind: 'open-invoices', figure: { ...tracedFigure(`Invoice ${matched.invoice.number}, expected`, matched.remaining, 'invoices', []), on } }
+    return { month: monthOf(on), kind: 'open-invoices', figure: { ...tracedFigure(words.cash.invoiceExpected(matched.invoice.number), matched.remaining, 'invoices', []), on } }
   })
   return [...invoices, { month: addMonths(running, 1), kind: 'vat', figure: { ...vatPosition, label: KIND_LABELS.vat } }]
 }
@@ -227,7 +216,7 @@ function forecastEvents(inputs: CashInputs, opensIn: MonthKey, runsInYear: boole
 function revenueEvents({ revenue, paymentLag }: CashInputs): CashEvent[] {
   return revenue.months.filter(isForecast).map((entry): CashEvent => {
     const on = addDays(lastDayOf(entry.month), paymentLag.days)
-    return { month: monthOf(on), kind: 'revenue', figure: { ...tracedFigure(`Revenue of ${monthLabel(entry.month)}, expected`, entry.figure.amount, entry.figure.basis, [], [entry.figure]), on } }
+    return { month: monthOf(on), kind: 'revenue', figure: { ...tracedFigure(words.cash.revenueExpected(monthLabel(entry.month)), entry.figure.amount, entry.figure.basis, [], [entry.figure]), on } }
   })
 }
 
@@ -240,7 +229,7 @@ function costEvents({ calendar, categories }: CashInputs): CashEvent[] {
       if (amount === 0) {
         return []
       }
-      const label = `${name}, ${monthLabel(entry.month)}${arrears ? ', paid the month after' : ''}`
+      const label = words.cash.cost(name, monthLabel(entry.month), arrears)
       return [{ month: arrears ? addMonths(entry.month, 1) : entry.month, kind: 'costs', figure: tracedFigure(label, amount, entry.figure.basis, [], [entry.figure]) }]
     })
   })

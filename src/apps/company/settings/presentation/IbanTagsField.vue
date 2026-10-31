@@ -2,6 +2,7 @@
 import UInputTags from '@nuxt/ui/components/InputTags.vue'
 
 import { ibanListOf } from '../../workbook/domain/iban'
+import { words } from './words'
 
 /**
  * A list of IBANs, each a tag with its own remove button. A comma, Enter or leaving the field adds
@@ -22,7 +23,15 @@ function update(tags: readonly unknown[]): void {
 </script>
 
 <template>
-  <UInputTags :model-value="[...modelValue]" delimiter="," add-on-paste add-on-blur placeholder="Add an IBAN" :ui="{ item: 'identifier', input: 'identifier min-w-28' }" @update:model-value="update" />
+  <UInputTags
+    :model-value="[...modelValue]"
+    delimiter=","
+    add-on-paste
+    add-on-blur
+    :placeholder="words.general.addIban"
+    :ui="{ item: 'identifier', input: 'identifier min-w-28' }"
+    @update:model-value="update"
+  />
 </template>
 
 <style scoped>

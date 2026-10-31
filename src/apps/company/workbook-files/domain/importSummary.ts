@@ -1,5 +1,6 @@
 import type { DateRange } from '../../../../shared/calendar/dateRange'
 import type { Workbook, WorkbookProblem } from '../../workbook/domain/workbook'
+import { words } from './words'
 
 export type WorkbookTabName = WorkbookProblem['tab']
 
@@ -29,6 +30,6 @@ export function importSummary(workbook: Workbook, missingTabs: readonly Workbook
     categoryCount: workbook.categories.length,
     problems: workbook.problems,
     defaultedTabs: missingTabs.filter((tab) => tab !== 'ledger'),
-    refusal: missingTabs.includes('ledger') ? 'The file has no tab called "ledger", so it is not a Kuna workbook.' : null,
+    refusal: missingTabs.includes('ledger') ? words.noLedger : null,
   }
 }

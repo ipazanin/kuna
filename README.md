@@ -1874,12 +1874,16 @@ Dates and numbers follow the language: `1.219,01 €`, `2,99 %` and `28. 10. 202
 month on its own keeps its name (`listopad 2026.`), and a Croatian date never breaks across lines.
 The Company file's number format setting still wins for its amounts when it names one.
 
-The shell, the shared parts and the whole Loans app are in both languages. Company screens stay
-English until their words land, apart from the shared parts they show: the sync control, toasts and
-Undo, the books file card and the refusals of a write. What you typed shows as you typed it, and a
+The shell, the shared parts, the whole Loans app and the Company screens are in both languages,
+except the Owner, Year and Salaries screens of the Croatian d.o.o. pack. Those stay English until
+their words land, apart from the shared parts they show: the sync control, toasts and Undo, the
+books file card and the refusals of a write. What you typed shows as you typed it, and a
 Croatian sentence quotes it, as in `Uredi „Stambeni kredit”`, since Croatian cannot decline it. The
 file keeps its English kinds, field names and setting keys whatever the language, so a reason that
-names a field names it as the file stores it, such as `first_instalment`.
+names a field names it as the file stores it, such as `first_instalment`. Invoicing speaks both languages,
+but what leaves Kuna does not change with the screen: the invoice PDF prints English headings, a
+plan row's description is the invoice line as typed, and the mail draft names the month in the
+client's mail language.
 
 The Croatian words follow the glossary of the language plan: `kredit` for a bank loan, `pozajmica`
 for a loan between people, `anuitet` for an instalment, and `obrok` only for the instalments a

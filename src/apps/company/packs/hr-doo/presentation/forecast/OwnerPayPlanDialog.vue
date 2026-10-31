@@ -7,6 +7,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import type { OwnerPayScenario } from '../../domain/scenarios/ownerPayScenarios'
+import { scenarioName } from '../../domain/scenarios/startingScenarios'
 import type { PlanLine } from '../../domain/forecast/plan'
 import { civilDate, parseCivilDate, yearOf } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
@@ -14,6 +15,7 @@ import AppDialog from '../../../../../../shared/ui/AppDialog.vue'
 import { ownerPayPlanLine, replacePlanLines } from '../../application/planWrites'
 import type { KeyedLine } from '../../application/planWrites'
 import { usePlanWrites } from './usePlanWrites'
+import { words } from './words'
 
 type OwnerPayLine = Extract<PlanLine, { readonly kind: 'owner-pay-scenario' }>
 
@@ -37,7 +39,7 @@ const second = ref('')
 const switchOn = ref('')
 const tried = ref(false)
 
-const choices = computed(() => props.scenarios.map((scenario) => ({ label: scenario.label || scenario.slug, value: scenario.slug })))
+const choices = computed(() => props.scenarios.map((scenario) => ({ label: scenarioName(scenario), value: scenario.slug })))
 
 watch(
   open,
@@ -56,9 +58,9 @@ watch(
 
 const day = computed((): CivilDate | null => parseCivilDate(switchOn.value.trim()))
 const errors = computed(() => ({
-  first: first.value === '' ? 'Choose the scenario the year starts with' : null,
-  second: switching.value && (second.value === '' || second.value === first.value) ? 'Choose another scenario' : null,
-  switchOn: switching.value && (day.value === null || yearOf(day.value) !== props.year || day.value === civilDate(props.year, 1, 1)) ? `A day in ${props.year} after 1 January` : null,
+  first: first.value === '' ? words.planDialogs.ownerPay.firstError : null,
+  second: switching.value && (second.value === '' || second.value === first.value) ? words.planDialogs.ownerPay.secondError : null,
+  switchOn: switching.value && (day.value === null || yearOf(day.value) !== props.year || day.value === civilDate(props.year, 1, 1)) ? words.planDialogs.ownerPay.switchOnError(props.year) : null,
 }))
 const valid = computed(() => Object.values(errors.value).every((error) => error === null))
 
@@ -77,15 +79,21 @@ async function save(): Promise<void> {
     ...(switching.value && day.value !== null ? [{ key: 'switch', line: ownerPayPlanLine(props.year, second.value, day.value) }] : []),
   ]
   const holding = held()
-  if (await writes.write('Owner pay planned', (lines) => replacePlanLines(lines, holding, wanted), { description: `For ${props.year}.`, failedTitle: 'Not saved' })) open.value = false
+  if (
+    await writes.write(words.planDialogs.ownerPay.planned, (lines) => replacePlanLines(lines, holding, wanted), {
+      description: words.planDialogs.ownerPay.forYear(props.year),
+      failedTitle: words.planDialogs.notSaved,
+    })
+  )
+    open.value = false
 }
 
 async function clear(): Promise<void> {
   const holding = held()
   if (
-    await writes.write('Owner pay plan cleared', (lines) => replacePlanLines(lines, holding, []), {
-      description: `The owner pay categories of ${props.year} take their averages again.`,
-      failedTitle: 'Not cleared',
+    await writes.write(words.planDialogs.ownerPay.cleared, (lines) => replacePlanLines(lines, holding, []), {
+      description: words.planDialogs.ownerPay.clearedDescription(props.year),
+      failedTitle: words.planDialogs.notCleared,
     })
   )
     open.value = false
@@ -93,37 +101,50 @@ async function clear(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog
-    v-model:open="open"
-    :title="`Owner pay for ${year}`"
-    description="The scenario the forecast takes the salary, its contributions, the tax-free items and the rent from. Its dividend is left out, since the plan sets the payout on its own row."
-  >
+  <AppDialog v-model:open="open" :title="words.planDialogs.ownerPay.title(year)" :description="words.planDialogs.ownerPay.description">
     <form id="owner-pay-plan" class="flex flex-col gap-4" data-testid="owner-pay-plan-form" @submit.prevent="save">
-      <UFormField label="From 1 January" :error="(tried && errors.first) || false">
+      <UFormField :label="words.planDialogs.ownerPay.fromJanuary" :error="(tried && errors.first) || false">
         <USelect v-model="first" :items="choices" class="w-full" data-testid="owner-pay-first" />
       </UFormField>
-      <UFormField help="Such as the floor salary while a grant requires the employment, and another scenario after.">
-        <UCheckbox v-model="switching" label="Switch to another scenario on a day" data-testid="owner-pay-switch" />
+      <UFormField :help="words.planDialogs.ownerPay.switchHelp">
+        <UCheckbox v-model="switching" :label="words.planDialogs.ownerPay.switch" data-testid="owner-pay-switch" />
       </UFormField>
       <template v-if="switching">
-        <UFormField label="Then" :error="(tried && errors.second) || false">
+        <UFormField :label="words.planDialogs.ownerPay.then" :error="(tried && errors.second) || false">
           <USelect v-model="second" :items="choices" class="w-full" data-testid="owner-pay-second" />
         </UFormField>
         <UFormField
-          label="From"
+          :label="words.planDialogs.ownerPay.from"
           :error="(tried && errors.switchOn) || false"
-          :help="suggestedSwitch === null ? 'The second scenario takes over on this day.' : 'Starts on the day after the grants stop requiring the employment.'"
+          :help="suggestedSwitch === null ? words.planDialogs.ownerPay.switchOnHelp : words.planDialogs.ownerPay.switchOnSuggested"
         >
           <UInput v-model="switchOn" type="date" class="w-full" data-testid="owner-pay-switch-on" />
         </UFormField>
       </template>
     </form>
     <template #start>
-      <UButton v-if="lines.length > 0" label="Stop planning it" icon="i-lucide-eraser" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="owner-pay-clear" @click="clear" />
+      <UButton
+        v-if="lines.length > 0"
+        :label="words.planDialogs.ownerPay.stop"
+        icon="i-lucide-eraser"
+        color="error"
+        variant="ghost"
+        :disabled="writes.busy.value"
+        data-testid="owner-pay-clear"
+        @click="clear"
+      />
     </template>
     <template #end>
-      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
-      <UButton type="submit" form="owner-pay-plan" label="Save owner pay" icon="i-lucide-save" :loading="writes.busy.value" :disabled="writes.busy.value" data-testid="owner-pay-save" />
+      <UButton :label="words.planDialogs.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton
+        type="submit"
+        form="owner-pay-plan"
+        :label="words.planDialogs.ownerPay.save"
+        icon="i-lucide-save"
+        :loading="writes.busy.value"
+        :disabled="writes.busy.value"
+        data-testid="owner-pay-save"
+      />
     </template>
   </AppDialog>
 </template>

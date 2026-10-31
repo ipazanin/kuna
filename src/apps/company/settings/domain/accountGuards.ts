@@ -1,6 +1,7 @@
 import { isIban } from '../../workbook/domain/iban'
 import { slugChangeRefusals } from '../../workbook/domain/slug'
 import type { SlugUses } from '../../workbook/domain/slug'
+import { words } from './words'
 
 interface AccountCells {
   readonly slug: string
@@ -34,7 +35,7 @@ export function accountChangeRefusals(edits: readonly AccountEdit[], untouched: 
   for (const edit of edits) {
     const after = edit.after
     if (after !== null && after.iban === '' && edit.before !== null && edit.before.iban !== '' && checks.named.has(edit.before.slug)) {
-      refusals.push(`"${edit.before.slug}" keeps its IBAN, since ledger rows name the account and the app files no statement whose IBAN the accounts tab does not name.`)
+      refusals.push(words.accounts.keepsIban(edit.before.slug))
     }
     if (after === null || after.iban === '' || after.iban === edit.before?.iban) {
       continue
@@ -42,11 +43,11 @@ export function accountChangeRefusals(edits: readonly AccountEdit[], untouched: 
     const holder = others(edit).find((row) => row.iban === after.iban)
     const client = checks.clientIbans.get(after.iban)
     if (!isIban(after.iban)) {
-      refusals.push(`"${after.iban}" is not a valid IBAN.`)
+      refusals.push(words.notAnIban(after.iban))
     } else if (holder !== undefined) {
-      refusals.push(`${after.iban} is already the IBAN of the ${holder.slug} account, and the app files each statement by its IBAN, so one IBAN names one account.`)
+      refusals.push(words.accounts.onAnotherAccount(after.iban, holder.slug))
     } else if (client !== undefined) {
-      refusals.push(`${after.iban} is the IBAN of the client ${client}, so the rules would read its payments as transfers between your own accounts.`)
+      refusals.push(words.accounts.onAClient(after.iban, client))
     }
   }
   return refusals

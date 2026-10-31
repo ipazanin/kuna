@@ -27,7 +27,7 @@ export const hr: Translation<typeof en> = {
     'drive.file': 'prijavu u Google',
     'drive.readonly': 'vaše dopuštenje za čitanje Drivea',
     'gmail.readonly': 'vaše dopuštenje za čitanje Gmaila',
-    'gmail.compose': 'vaše dopuštenje za nacrte u Gmailu',
+    'gmail.compose': 'vaše dopuštenje za skice u Gmailu',
   },
   waitsForSignIn: 'Čeka da se prijavite u Google',
   waitsFor: (scopes) => `Čeka ${scopes}`,

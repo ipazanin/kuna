@@ -10,11 +10,13 @@ import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { needsReview } from '../../workbook/domain/needsReview'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import { plural } from '../../../../shared/text/translation'
 import { writeImport } from '../application/importStatements'
 import { filedTitle, stillHeld } from '../application/statementSync'
 import DryRunStatementCard from './DryRunStatementCard.vue'
 import { useDryRun } from './useDryRun'
 import { useStatementSync } from './useStatementSync'
+import { words } from './words'
 
 const store = useWorkbook()
 const statements = useStatementSync()
@@ -46,39 +48,33 @@ const summary = computed(() => {
   const count = held.value.length
   if (count === 0) return ''
   const newRows = dryRun.value?.newRows ?? 0
-  return [
-    `${count === 1 ? '1 statement was' : `${count} statements were`} not filed. Nothing after a held statement is filed for its account, so the next sync tries again.`,
-    newRows > 0 ? `Confirming files ${newRows === 1 ? '1 row' : `${newRows} rows`}.` : '',
-  ]
-    .filter((sentence) => sentence !== '')
-    .join(' ')
+  return [plural(words.folder.held(count), count), newRows > 0 ? plural(words.folder.confirming(newRows), newRows) : ''].filter((sentence) => sentence !== '').join(' ')
 })
 
 async function confirm(): Promise<void> {
   const run = dryRun.value
   if (run === null || run.newRows === 0) return
   const filing = run.statements.filter((statement) => statement.rows.some((row) => row.verdict !== null))
-  await writes.write(filedTitle(filing, run.newRows), (unit) => writeImport(unit, run), { failedTitle: 'Not filed' })
+  await writes.write(filedTitle(filing, run.newRows), (unit) => writeImport(unit, run), { failedTitle: words.folder.notFiled })
 }
 </script>
 
 <template>
   <section v-if="shows" class="flex flex-col gap-4" data-testid="statement-folder">
-    <AppCard title="From the statements folder" :subtitle="`${folder} in Drive. Each sync files the statements there that the ledger lacks.`">
+    <AppCard :title="words.folder.title" :subtitle="words.folder.subtitle(folder)">
       <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
         <UAlert v-if="outcome?.problem" icon="i-lucide-folder-x" color="error" variant="subtle" :title="outcome.problem" data-testid="statement-folder-problem" />
         <div v-if="filed.length" class="flex flex-col gap-1" data-testid="statement-folder-filed">
-          <p class="text-sm font-medium text-highlighted">Filed by the last sync</p>
+          <p class="text-sm font-medium text-highlighted">{{ words.folder.filedByLastSync }}</p>
           <ul class="flex flex-col gap-1 text-sm text-toned">
             <li v-for="statement in filed" :key="`${statement.account}-${statement.label}`" class="flex items-start gap-2">
               <UIcon name="i-lucide-check" class="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
               <span class="min-w-0 flex-1 break-words">
-                {{ statement.label }}, {{ names.account(statement.account) }}, {{ statement.rows === 1 ? '1 row' : `${statement.rows} rows`
-                }}<template v-if="statement.waiting">, {{ statement.waiting }} on Review</template>
+                {{ words.folder.filed(statement.label, names.account(statement.account), statement.rows, statement.waiting) }}
               </span>
             </li>
           </ul>
-          <DrillLink v-if="filed.some((statement) => statement.waiting > 0)" to="/company/review" class="text-sm font-medium text-highlighted">Open Review</DrillLink>
+          <DrillLink v-if="filed.some((statement) => statement.waiting > 0)" to="/company/review" class="text-sm font-medium text-highlighted">{{ words.folder.openReview }}</DrillLink>
         </div>
         <p v-if="summary" class="text-sm text-toned" data-testid="statement-folder-summary">{{ summary }}</p>
       </div>
@@ -99,7 +95,7 @@ async function confirm(): Promise<void> {
     />
 
     <div v-if="held.length && (dryRun?.newRows ?? 0) > 0" class="flex justify-end">
-      <UButton label="Confirm and file" icon="i-lucide-file-input" :loading="writes.busy.value" :disabled="writes.busy.value" data-testid="statement-folder-confirm" @click="confirm" />
+      <UButton :label="words.folder.confirm" icon="i-lucide-file-input" :loading="writes.busy.value" :disabled="writes.busy.value" data-testid="statement-folder-confirm" @click="confirm" />
     </div>
   </section>
 </template>

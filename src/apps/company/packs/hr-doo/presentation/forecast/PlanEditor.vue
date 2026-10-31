@@ -9,6 +9,7 @@ import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import { useWorkbook } from '../../../../workbook/application/workbookStore'
 import type { OwnerPayScenario } from '../../domain/scenarios/ownerPayScenarios'
+import { scenarioName } from '../../domain/scenarios/startingScenarios'
 import type { PlanLine } from '../../domain/forecast/plan'
 import type { RecordId } from '../../../../../../shared/storage/domain/recordId'
 import type { Category } from '../../../../workbook/domain/workbook'
@@ -24,6 +25,10 @@ import DividendPlanDialog from './DividendPlanDialog.vue'
 import OwnerPayPlanDialog from './OwnerPayPlanDialog.vue'
 import PurchasePlanDialog from './PurchasePlanDialog.vue'
 import { GROUP_WORDS } from './planWording'
+import { plural } from '../../../../../../shared/text/translation'
+import { words } from './words'
+import { uncapitalised } from '../../../../../../shared/text/capitalised'
+import { withFullStop } from '../../../../../../shared/text/withFullStop'
 
 type AmountLine = Extract<PlanLine, { readonly kind: 'amount' }>
 type PurchaseLine = Extract<PlanLine, { readonly kind: 'purchase' }>
@@ -51,17 +56,17 @@ const purchases = computed(() => props.lines.filter((line): line is PurchaseLine
 const dividend = computed(() => props.lines.find((line): line is AmountLine => line.kind === 'amount' && line.item === 'dividend') ?? null)
 const ownerPaySet = computed(() => ownerPayLines.value.some((line) => line.from === null) && ownerPayLines.value.every((line) => !props.notCounted.has(line.id)))
 
-const scenarioName = (slug: string) => {
+const nameOfScenario = (slug: string) => {
   const scenario = props.scenarios.find((candidate) => candidate.slug === slug)
-  return scenario === undefined ? slug : scenario.label || scenario.slug
+  return scenario === undefined ? slug : scenarioName(scenario)
 }
 
 const ownerPayWords = computed(() => {
   const opening = ownerPayLines.value.find((line) => line.from === null)
   const switched = ownerPayLines.value.find((line) => line.from !== null)
   if (opening === undefined && switched === undefined) return null
-  const start = opening === undefined ? 'No scenario from 1 January' : `${scenarioName(opening.scenario)} from 1 January`
-  return switched === undefined || switched.from === null ? start : `${start}, then ${scenarioName(switched.scenario)} from ${dayLabel(switched.from)}`
+  const start = opening === undefined ? words.plan.noScenarioFromJanuary : words.plan.fromJanuary(nameOfScenario(opening.scenario))
+  return switched === undefined || switched.from === null ? start : words.plan.switchedTo(start, nameOfScenario(switched.scenario), dayLabel(switched.from))
 })
 const ownerPayReasons = computed(() => [...new Set(ownerPayLines.value.flatMap((line) => props.notCounted.get(line.id) ?? []))])
 
@@ -101,13 +106,12 @@ function money(cents: Money): string {
 }
 
 function captionOf(category: Category, lines: readonly AmountLine[], average: Money | null, lastMonth: boolean): string {
-  if (ownerPaySet.value && isOwnerPayCost(category)) return 'Set by the owner pay scenario'
+  if (ownerPaySet.value && isOwnerPayCost(category)) return words.plan.setByScenario
   const every = lines.find((line) => line.month === null)
   const own = lines.filter((line) => line.month !== null).length
-  const ownWords = own === 0 ? '' : `, ${own === 1 ? 'one month' : `${own} months`} of its own`
-  if (every !== undefined) return `Planned at ${money(every.amount)} a month${ownWords}`
-  const rest = average === null ? 'nothing' : `${money(average)} a month, ${lastMonth ? 'as in the last month' : 'the average'}`
-  return own === 0 ? `No plan row, so ${rest}` : `Planned in ${own === 1 ? 'one month' : `${own} months`}, the rest ${rest}`
+  if (every !== undefined) return words.plan.plannedAt(money(every.amount), own === 0 ? '' : plural(words.plan.ownMonths(own), own))
+  const rest = average === null ? words.plan.nothing : words.plan.aMonth(money(average), lastMonth)
+  return own === 0 ? words.plan.noPlanRow(rest) : plural(words.plan.plannedIn(own, rest), own)
 }
 
 const categoryOpen = ref(false)
@@ -129,21 +133,21 @@ function editPurchase(purchase: PurchaseLine | null): void {
 </script>
 
 <template>
-  <AppCard :title="`Plan for ${year}`" subtitle="Rows of the plan tab. A change is written at once, with Undo in the toast." data-testid="plan-editor">
+  <AppCard :title="words.plan.title(year)" :subtitle="words.plan.subtitle" data-testid="plan-editor">
     <div class="flex flex-col gap-5 px-4 pt-3 pb-4 sm:px-5">
       <p class="flex items-start gap-2 text-sm text-toned" data-testid="plan-revenue">
         <UIcon name="i-lucide-receipt-text" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
         <span>
-          Revenue comes from the billing plan, the rows still to invoice in each month.
-          <DrillLink :to="{ path: '/company/invoicing', query: { tab: 'plan', year: String(year) } }" in-prose class="text-highlighted">Invoicing, Plan {{ year }}</DrillLink>
+          {{ words.plan.revenue }}
+          <DrillLink :to="{ path: '/company/invoicing', query: { tab: 'plan', year: String(year) } }" in-prose class="text-highlighted">{{ words.plan.invoicingPlan(year) }}</DrillLink>
         </span>
       </p>
       <section class="flex flex-col gap-2" data-testid="plan-owner-pay">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <h3 class="text-sm font-medium text-highlighted">Owner pay</h3>
+          <h3 class="text-sm font-medium text-highlighted">{{ words.plan.ownerPay }}</h3>
           <UButton
             v-if="scenarios.length > 0"
-            :label="ownerPayLines.length === 0 ? 'Plan the owner pay' : 'Change'"
+            :label="ownerPayLines.length === 0 ? words.plan.planOwnerPay : words.plan.change"
             :icon="ownerPayLines.length === 0 ? 'i-lucide-plus' : 'i-lucide-pencil'"
             color="neutral"
             variant="outline"
@@ -154,29 +158,30 @@ function editPurchase(purchase: PurchaseLine | null): void {
           />
         </div>
         <p class="text-sm text-toned">
-          <template v-if="ownerPayWords">{{ ownerPayWords }}.</template>
+          <template v-if="ownerPayWords">{{ withFullStop(ownerPayWords) }}</template>
           <template v-else-if="scenarios.length === 0">
-            No scenario is for {{ year }} yet, so the owner pay categories take their averages. Add one on
-            <DrillLink :to="{ path: '/company/year', query: { year: String(year), tab: 'pay' } }" in-prose class="text-highlighted">the Pay tab</DrillLink>.
+            {{ words.plan.noScenarioBefore(year)
+            }}<DrillLink :to="{ path: '/company/year', query: { year: String(year), tab: 'pay' } }" in-prose class="text-highlighted">{{ words.plan.payTab }}</DrillLink
+            >.
           </template>
-          <template v-else>Not planned, so the owner pay categories take their averages.</template>
+          <template v-else>{{ words.plan.notPlanned }}</template>
         </p>
         <p v-for="reason in ownerPayReasons" :key="reason" class="flex items-start gap-2 text-xs text-warning">
           <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-          <span>Not counted. {{ reason }}</span>
+          <span>{{ words.plan.notCounted(reason) }}</span>
         </p>
       </section>
 
       <section class="flex flex-col gap-1" data-testid="plan-categories">
-        <h3 class="text-sm font-medium text-highlighted">Costs and other income, by category</h3>
-        <p v-if="entries.length === 0" class="py-2 text-sm text-muted">No category has a month to average yet.</p>
+        <h3 class="text-sm font-medium text-highlighted">{{ words.plan.categories }}</h3>
+        <p v-if="entries.length === 0" class="py-2 text-sm text-muted">{{ words.plan.noCategory }}</p>
         <ul v-else class="flex flex-col">
           <li v-for="entry in entries" :key="entry.category.slug">
             <button
               type="button"
               class="plan-row"
               :data-category="entry.category.slug"
-              :aria-label="`${entry.name}: ${entry.caption}. Edit the plan`"
+              :aria-label="words.plan.editCategory(entry.name, entry.caption)"
               :disabled="store.state.writing || (ownerPaySet && isOwnerPayCost(entry.category))"
               data-testid="plan-category"
               @click="editCategory(entry)"
@@ -184,7 +189,7 @@ function editPurchase(purchase: PurchaseLine | null): void {
               <span class="min-w-0 text-start">
                 <span class="block text-sm text-toned">{{ entry.name }}</span>
                 <span class="block text-xs text-muted">{{ entry.caption }}</span>
-                <span v-for="reason in entry.reasons" :key="reason" class="mt-0.5 block text-xs text-warning">Not counted. {{ reason }}</span>
+                <span v-for="reason in entry.reasons" :key="reason" class="mt-0.5 block text-xs text-warning">{{ words.plan.notCounted(reason) }}</span>
               </span>
               <UIcon v-if="!(ownerPaySet && isOwnerPayCost(entry.category))" name="i-lucide-pencil" class="size-4 shrink-0 text-muted" aria-hidden="true" />
             </button>
@@ -194,9 +199,9 @@ function editPurchase(purchase: PurchaseLine | null): void {
 
       <section class="flex flex-col gap-1" data-testid="plan-purchases">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <h3 class="text-sm font-medium text-highlighted">Purchases</h3>
+          <h3 class="text-sm font-medium text-highlighted">{{ words.plan.purchases }}</h3>
           <UButton
-            label="Plan a purchase"
+            :label="words.plan.planPurchase"
             icon="i-lucide-plus"
             color="neutral"
             variant="outline"
@@ -206,21 +211,21 @@ function editPurchase(purchase: PurchaseLine | null): void {
             @click="editPurchase(null)"
           />
         </div>
-        <p v-if="purchases.length === 0" class="py-2 text-sm text-muted">None planned.</p>
+        <p v-if="purchases.length === 0" class="py-2 text-sm text-muted">{{ words.plan.nonePlanned }}</p>
         <ul v-else class="flex flex-col">
           <li v-for="purchase in purchases" :key="purchase.id">
             <button
               type="button"
               class="plan-row"
-              :aria-label="`${purchase.note || 'Purchase'}, ${dayLabel(purchase.date)}: edit`"
+              :aria-label="words.plan.editPurchase(purchase.note || words.plan.purchase, dayLabel(purchase.date))"
               :disabled="store.state.writing"
               data-testid="plan-purchase"
               @click="editPurchase(purchase)"
             >
               <span class="min-w-0 text-start">
-                <span class="block text-sm text-toned">{{ purchase.note || 'Purchase' }}</span>
-                <span class="block text-xs text-muted">{{ dayLabel(purchase.date) }}, {{ GROUP_WORDS[purchase.group].toLowerCase() }}</span>
-                <span v-if="notCounted.get(purchase.id)" class="mt-0.5 block text-xs text-warning">Not counted. {{ notCounted.get(purchase.id) }}</span>
+                <span class="block text-sm text-toned">{{ purchase.note || words.plan.purchase }}</span>
+                <span class="block text-xs text-muted">{{ dayLabel(purchase.date) }}, {{ uncapitalised(GROUP_WORDS[purchase.group]) }}</span>
+                <span v-if="notCounted.get(purchase.id)" class="mt-0.5 block text-xs text-warning">{{ words.plan.notCounted(notCounted.get(purchase.id) ?? '') }}</span>
               </span>
               <MoneyText :cents="purchase.amount" class="shrink-0 text-sm text-toned" />
             </button>
@@ -230,10 +235,10 @@ function editPurchase(purchase: PurchaseLine | null): void {
 
       <section class="flex flex-col gap-1" data-testid="plan-dividend">
         <div class="flex flex-wrap items-center justify-between gap-2">
-          <h3 class="text-sm font-medium text-highlighted">Dividend</h3>
+          <h3 class="text-sm font-medium text-highlighted">{{ words.plan.dividend }}</h3>
           <UButton
             v-if="dividend === null"
-            label="Plan a dividend"
+            :label="words.plan.planDividend"
             icon="i-lucide-plus"
             color="neutral"
             variant="outline"
@@ -243,12 +248,12 @@ function editPurchase(purchase: PurchaseLine | null): void {
             @click="dividendOpen = true"
           />
         </div>
-        <p v-if="dividend === null" class="py-2 text-sm text-muted">None planned. Dividend capacity on the Pay tab sets out what the year can pay.</p>
-        <button v-else type="button" class="plan-row" :aria-label="`Dividend: edit`" :disabled="store.state.writing" data-testid="plan-dividend-row" @click="dividendOpen = true">
+        <p v-if="dividend === null" class="py-2 text-sm text-muted">{{ words.plan.noDividend }}</p>
+        <button v-else type="button" class="plan-row" :aria-label="words.plan.editDividend" :disabled="store.state.writing" data-testid="plan-dividend-row" @click="dividendOpen = true">
           <span class="min-w-0 text-start">
-            <span class="block text-sm text-toned">Paid in {{ dividend.month === null ? year : monthLabel(monthKey(year, dividend.month)) }}</span>
+            <span class="block text-sm text-toned">{{ words.plan.paidIn(dividend.month === null ? String(year) : monthLabel(monthKey(year, dividend.month))) }}</span>
             <span v-if="dividend.note" class="block text-xs text-muted">{{ dividend.note }}</span>
-            <span v-if="notCounted.get(dividend.id)" class="mt-0.5 block text-xs text-warning">Not counted. {{ notCounted.get(dividend.id) }}</span>
+            <span v-if="notCounted.get(dividend.id)" class="mt-0.5 block text-xs text-warning">{{ words.plan.notCounted(notCounted.get(dividend.id) ?? '') }}</span>
           </span>
           <MoneyText :cents="dividend.amount" class="shrink-0 text-sm text-toned" />
         </button>

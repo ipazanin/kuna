@@ -16,8 +16,8 @@ export interface DaysToPaidRow {
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import { formatDays } from '../../../../shared/money/moneyFormat'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
+import { words } from './words'
 
 /** One row per client: every paid invoice as a dot on a shared scale of days, the median marked. */
 const props = defineProps<{
@@ -36,7 +36,7 @@ function at(days: number): string {
 }
 
 function daysText(days: number | null): string {
-  return days === null ? '–' : `${formatDays(days)} ${days === 1 ? 'day' : 'days'}`
+  return days === null ? '–' : words.days(days)
 }
 </script>
 
@@ -53,17 +53,17 @@ function daysText(days: number | null): string {
       <li v-for="row in rows" :key="row.key" class="days-row">
         <span class="days-name truncate text-sm text-toned">{{ row.name }}</span>
         <span class="days-strip-area">
-          <span class="strip" role="img" :aria-label="`${row.name}, days each invoice took: ${row.days.map((days) => daysText(days)).join(', ') || 'no invoice paid'}`">
+          <span class="strip" role="img" :aria-label="words.strip.eachTook(row.name, row.days.map((days) => daysText(days)).join(', '))">
             <span v-for="tick in ticks" :key="tick" class="tick" :style="{ left: at(tick) }" />
             <span v-for="(days, index) in row.days" :key="index" class="dot" :style="{ left: at(days) }" :title="daysText(days)" />
-            <span v-if="row.median !== null" class="median" :style="{ left: at(row.median) }" :title="`Median ${daysText(row.median)}`" />
+            <span v-if="row.median !== null" class="median" :style="{ left: at(row.median) }" :title="words.strip.median(daysText(row.median))" />
           </span>
         </span>
         <span class="days-figure text-end">
-          <DrillLink :to="row.to" :label="`${row.name}, median ${daysText(row.median)}, open the payments in the period`">
+          <DrillLink :to="row.to" :label="words.strip.openPayments(row.name, daysText(row.median))">
             <span class="figure text-sm font-medium text-highlighted">{{ daysText(row.median) }}</span>
           </DrillLink>
-          <span class="figure block text-xs text-muted">mean {{ daysText(row.mean) }}, {{ row.days.length }} paid</span>
+          <span class="figure block text-xs text-muted">{{ words.strip.meanOf(daysText(row.mean), row.days.length) }}</span>
         </span>
       </li>
     </ul>

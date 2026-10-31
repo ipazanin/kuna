@@ -9,6 +9,8 @@ import { isWatchedConfidence } from '../ruleset/schema'
 import type { RuleCitation, WatchedConfidence } from '../ruleset/schema'
 import type { TracedFigure } from '../ruleset/tracedFigure'
 import type { BuildUpStep, RuleChip } from './yearEnd/LineBuildUp.vue'
+import { words } from './words'
+import { ruleTitle } from '../ruleset/presentation/ruleTitles'
 
 /** A step this deep inside another names this many of its own steps, and the rest by count. */
 const NESTED = 6
@@ -30,7 +32,7 @@ export function stepsOf(figure: TracedFigure | null, linkOf: (figure: TracedFigu
     return [
       { key, label: figureLabel(step), cents: step.amount, to: linkOf(step), depth: 0 },
       ...nested,
-      ...(more > 0 ? [{ key: `${key}-more`, label: `and ${more} more`, cents: null, to: linkOf(step), depth: 1 as const }] : []),
+      ...(more > 0 ? [{ key: `${key}-more`, label: words.figure.andMore(more), cents: null, to: linkOf(step), depth: 1 as const }] : []),
     ]
   })
 }
@@ -40,7 +42,10 @@ export function ruleChips(citations: readonly RuleCitation[]): RuleChip[] {
 }
 
 export function chipsOf(ids: readonly RuleId[]): RuleChip[] {
-  return [...new Set(ids)].map((id) => ({ id, title: RULES.find((rule) => rule.id === id)?.title ?? id, to: ruleLink(id) }))
+  return [...new Set(ids)].map((id) => {
+    const rule = RULES.find((candidate) => candidate.id === id)
+    return { id, title: rule === undefined ? id : ruleTitle(rule), to: ruleLink(id) }
+  })
 }
 
 /** What a figure opens on: its steps, the rows behind them and the rules it rests on. */
@@ -62,11 +67,7 @@ export interface WatchedRules {
 }
 
 /** What each watched mark says about the values, before the rules are named. */
-export const WATCHED_WORDING: Readonly<Record<WatchedConfidence, string>> = {
-  estimate: 'Values the ruleset only estimates',
-  pending: 'Values set by a bill or a draft that is not law yet',
-  unconfirmed: 'Values not yet confirmed against their source',
-}
+export const WATCHED_WORDING: Readonly<Record<WatchedConfidence, string>> = words.figure.watched
 
 function citationsIn(figure: TracedFigure): RuleCitation[] {
   return [...figure.rules, ...figure.steps.flatMap(citationsIn)]

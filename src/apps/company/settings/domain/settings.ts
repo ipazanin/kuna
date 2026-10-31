@@ -23,6 +23,8 @@ import { DEFAULT_FILE_PATH, filePathProblem } from '../../invoicing/domain/invoi
 import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT, mailTemplateProblem } from '../../invoicing/domain/invoiceMail'
 import { DEFAULT_NUMBER_PATTERN, numberPatternProblem } from '../../invoicing/domain/invoiceNumber'
 import { mailAddressesOf, mailAddressesProblem, mailSubjectProblem } from '../../mail/domain/mailSource'
+import { words as recordWords } from '../../../../shared/storage/domain/words'
+import { words } from './words'
 
 /** The workbook format this app writes. A higher number comes from a newer app. */
 export const TEMPLATE_VERSION = 1
@@ -40,7 +42,7 @@ export interface Settings {
   readonly currency: string
   /** A BCP 47 tag, such as `en-GB`, for grouping and the decimal mark. Blank follows the language on screen. */
   readonly numberLocale: string
-  /** What each bucket is called on screen. The identifiers themselves never change. */
+  /** What each bucket is called on screen. A label the file keeps as Kuna wrote it shows in the language on screen. The identifiers themselves never change. */
   readonly bucketLabels: Readonly<Record<DefinedBucket, string>>
   /** Off hides owner pay and owner earns. Owner-pay rows still count as costs. */
   readonly ownerPayModule: boolean
@@ -123,7 +125,8 @@ export interface BillingTerms {
   readonly client: string
 }
 
-export const DEFAULT_BUCKET_LABELS: Readonly<Record<DefinedBucket, string>> = {
+/** The bucket labels new books store, which stay English whatever the language on screen. */
+const STORED_BUCKET_LABELS: Readonly<Record<DefinedBucket, string>> = {
   income: 'Income',
   operating: 'Operating cost',
   taxes: 'Taxes',
@@ -131,6 +134,9 @@ export const DEFAULT_BUCKET_LABELS: Readonly<Record<DefinedBucket, string>> = {
   financing: 'Financing',
   neutral: 'Neutral',
 }
+
+/** What each bucket is called on screen while the file keeps Kuna's label for it. */
+export const DEFAULT_BUCKET_LABELS: Readonly<Record<DefinedBucket, string>> = words.bucketLabels
 
 export const DEFAULT_SETTINGS: Settings = {
   templateVersion: TEMPLATE_VERSION,
@@ -185,7 +191,7 @@ export const DEFAULT_SETTINGS: Settings = {
 const MACHINE_FLAGS = ['rule', 'ai'] as const
 
 /** Names the screens already give derived lines and chart series, so no bucket label may take them. */
-const RESERVED_LABELS = ['net', 'all costs', 'owner earns', 'kept']
+const RESERVED_LABELS = [...new Set(['net', 'all costs', 'owner earns', 'kept', ...Object.values(words.lines).map((line) => line.toLowerCase())])]
 
 const LABEL_MAX_LENGTH = 40
 
@@ -236,9 +242,9 @@ const BUCKET_LABEL_DEFINITIONS: readonly SettingDefinition<Settings>[] = BUCKETS
   key: bucketLabelKey(bucket),
   note: `What the ${bucket} bucket is called on screen. The bucket itself keeps its name in the categories tab.`,
   type: 'text',
-  valueOf: (settings) => settings.bucketLabels[bucket],
+  valueOf: (settings) => (settings.bucketLabels[bucket] === DEFAULT_BUCKET_LABELS[bucket] ? STORED_BUCKET_LABELS[bucket] : settings.bucketLabels[bucket]),
   apply: (settings, value) => {
-    const label = value.trim()
+    const label = value.trim() === STORED_BUCKET_LABELS[bucket] ? DEFAULT_BUCKET_LABELS[bucket] : value.trim()
     const problem = labelProblem(label)
     return problem ?? { ...settings, bucketLabels: { ...settings.bucketLabels, [bucket]: label } }
   },
@@ -312,7 +318,7 @@ export type InvoicingField = keyof InvoicingTerms
 function invoicingProblem(field: InvoicingField, value: string): string | null {
   switch (field) {
     case 'iban':
-      return value === '' || isIban(value) ? null : `"${value}" is not an IBAN`
+      return value === '' || isIban(value) ? null : words.terms.notAnIban(value)
     case 'numberPattern':
       return numberPatternProblem(value)
     case 'filePath':
@@ -377,10 +383,10 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
     apply: (settings, value) => {
       const version = Number(value.trim())
       if (!Number.isInteger(version) || version < 1) {
-        return `"${value}" is not a template version`
+        return words.settings.notAVersion(value)
       }
       if (version > TEMPLATE_VERSION) {
-        return `the workbook is template version ${version} and this app reads version ${TEMPLATE_VERSION}`
+        return words.settings.newerVersion(version, TEMPLATE_VERSION)
       }
       return { ...settings, templateVersion: version }
     },
@@ -422,7 +428,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
     valueOf: (settings) => flagText(settings.ownerPayModule),
     apply: (settings, value) => {
       const enabled = booleanOf(value)
-      return enabled === null ? `"${value}" is neither TRUE nor FALSE` : { ...settings, ownerPayModule: enabled }
+      return enabled === null ? words.settings.notAFlag(value) : { ...settings, ownerPayModule: enabled }
     },
   },
   {
@@ -456,8 +462,8 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
     valueOf: (settings) => settings.statementsFolder.join('/'),
     apply: (settings, value) => {
       const folders = folderPathOf(value)
-      if (folders.slice(1).includes(BOOKS_FOLDER)) return `"${value}" holds ${BOOKS_FOLDER} after its start, where it names no folder`
-      return folders.filter((name) => name !== BOOKS_FOLDER).length === 0 ? `"${value}" names no folder` : { ...settings, statementsFolder: folders }
+      if (folders.slice(1).includes(BOOKS_FOLDER)) return words.settings.booksFolderLater(value, BOOKS_FOLDER)
+      return folders.filter((name) => name !== BOOKS_FOLDER).length === 0 ? words.settings.namesNoFolder(value) : { ...settings, statementsFolder: folders }
     },
   },
   {
@@ -467,7 +473,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
     valueOf: (settings) => flagText(settings.statementsSync),
     apply: (settings, value) => {
       const enabled = booleanOf(value)
-      return enabled === null ? `"${value}" is neither TRUE nor FALSE` : { ...settings, statementsSync: enabled }
+      return enabled === null ? words.settings.notAFlag(value) : { ...settings, statementsSync: enabled }
     },
   },
   {
@@ -497,7 +503,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
     valueOf: (settings) => settings.mailSince ?? '',
     apply: (settings, value) => {
       const since = parseCivilDate(value.trim())
-      return since === null ? `"${value}" is not a date such as 2026-01-01` : { ...settings, mailSince: since }
+      return since === null ? words.settings.notADay(value) : { ...settings, mailSince: since }
     },
   },
 ]
@@ -551,13 +557,13 @@ function applySettingRow<Values>(
 ): { readonly values: Values; readonly problem: RecordProblem | null } {
   const named = { id: recordIdOf(SETTING_RECORDS, definition.key), label: definition.key }
   if (shared.has(definition.key)) {
-    return { values, problem: { ...named, reason: 'set on more than one row, so the default is used' } }
+    return { values, problem: { ...named, reason: words.settings.setTwice } }
   }
   if (row.value.trim() === '') {
     return { values, problem: null }
   }
   const applied = definition.apply(values, row.value)
-  return typeof applied === 'string' ? { values, problem: { ...named, reason: `${applied}, so the default is used` } } : { values: applied, problem: null }
+  return typeof applied === 'string' ? { values, problem: { ...named, reason: words.settings.defaultUsed(applied) } } : { values: applied, problem: null }
 }
 
 /**
@@ -573,7 +579,7 @@ export function parseSettings(rows: readonly SettingRow[], packKeys: ReadonlySet
   for (const row of rows) {
     const key = keyOfRow(row)
     if (key === '') {
-      problems.push({ id: null, label: 'unnamed', reason: 'a value without a key' })
+      problems.push({ id: null, label: recordWords.unnamed, reason: words.settings.noKey })
       continue
     }
     if (packKeys.has(key)) {
@@ -588,17 +594,17 @@ export function parseSettings(rows: readonly SettingRow[], packKeys: ReadonlySet
     }
     const named = { id: recordIdOf(SETTING_RECORDS, key), label: key }
     if (isUnknownSettingKey(key, packKeys)) {
-      problems.push({ ...named, reason: 'not a setting this app knows, so it is kept but not used' })
+      problems.push({ ...named, reason: words.settings.unknownKey })
       continue
     }
     if (shared.has(key)) {
-      problems.push({ ...named, reason: 'set on more than one row, so the profile is not offered' })
+      problems.push({ ...named, reason: words.settings.profileTwice })
       continue
     }
     if (row.value.trim() === '') continue
     const profile = readProfile(key.slice(IMPORT_PROFILE_PREFIX.length), row.value)
     if (typeof profile === 'string') {
-      problems.push({ ...named, reason: `${profile}, so the profile is not offered` })
+      problems.push({ ...named, reason: words.settings.profileNotOffered(profile) })
     } else {
       settings = { ...settings, importProfiles: [...settings.importProfiles, profile] }
     }
@@ -606,7 +612,7 @@ export function parseSettings(rows: readonly SettingRow[], packKeys: ReadonlySet
   const clash = labelClash(settings.bucketLabels)
   if (clash !== null) {
     const key = rows.map(keyOfRow).find((candidate) => candidate.startsWith('label_')) ?? null
-    problems.push({ id: key === null ? null : recordIdOf(SETTING_RECORDS, key), label: key ?? 'label_', reason: `${clash}, so every bucket label is back to its default` })
+    problems.push({ id: key === null ? null : recordIdOf(SETTING_RECORDS, key), label: key ?? 'label_', reason: words.settings.labelsReset(clash) })
     settings = { ...settings, bucketLabels: DEFAULT_BUCKET_LABELS }
   }
   return { settings, problems }
@@ -722,8 +728,7 @@ export function settingsErrors(settings: Settings): Partial<Record<SettingsField
   if (senders !== null) errors.statementsMailFrom = senders
   const subject = mailSubjectProblem(settings.statementsMailSubject)
   if (subject !== null) errors.statementsMailSubject = subject
-  else if (settings.statementsMailFrom.length > 0 && settings.statementsMailSubject === '')
-    errors.statementsMailSubject = 'name the words before the statement number in the subject, so other mail from the bank is left alone'
+  else if (settings.statementsMailFrom.length > 0 && settings.statementsMailSubject === '') errors.statementsMailSubject = words.settings.nameTheSubject
   Object.assign(errors, billingErrors(settings.billing))
   for (const [field, value] of Object.entries(settings.invoicing) as [InvoicingField, string][]) {
     const problem = invoicingProblem(field, value)
@@ -737,7 +742,7 @@ export function settingsErrors(settings: Settings): Partial<Record<SettingsField
     if (problem !== null) {
       errors[bucket] = problem
     } else if (taken !== undefined) {
-      errors[bucket] = `${DEFAULT_BUCKET_LABELS[taken]} already uses this label`
+      errors[bucket] = words.settings.labelTaken(DEFAULT_BUCKET_LABELS[taken])
     }
     seen.set(label.toLowerCase(), bucket)
   }
@@ -745,9 +750,9 @@ export function settingsErrors(settings: Settings): Partial<Record<SettingsField
 }
 
 function labelProblem(label: string): string | null {
-  if (label === '') return 'a label cannot be blank'
-  if (label.length > LABEL_MAX_LENGTH) return `a label can be at most ${LABEL_MAX_LENGTH} characters`
-  if (RESERVED_LABELS.includes(label.toLowerCase())) return `"${label}" already names another line`
+  if (label === '') return words.settings.labelBlank
+  if (label.length > LABEL_MAX_LENGTH) return words.settings.labelTooLong(LABEL_MAX_LENGTH)
+  if (RESERVED_LABELS.includes(label.toLowerCase())) return words.settings.labelReserved(label)
   return null
 }
 
@@ -757,7 +762,7 @@ function labelClash(labels: Readonly<Record<DefinedBucket, string>>): string | n
     const label = labels[bucket].toLowerCase()
     const taken = seen.get(label)
     if (taken !== undefined) {
-      return `${taken} and ${bucket} are both labelled "${labels[bucket]}"`
+      return words.settings.labelsClash(taken, bucket, labels[bucket])
     }
     seen.set(label, bucket)
   }
@@ -767,14 +772,14 @@ function labelClash(labels: Readonly<Record<DefinedBucket, string>>): string | n
 /** Null for a currency the browser knows and the cents arithmetic can hold. */
 export function currencyProblem(currency: string): string | null {
   if (!/^[A-Z]{3}$/.test(currency)) {
-    return `"${currency}" is not a three-letter currency code`
+    return words.settings.notACurrencyCode(currency)
   }
   if (!Intl.supportedValuesOf('currency').includes(currency)) {
-    return `${currency} is not a currency this browser knows`
+    return words.settings.unknownCurrency(currency)
   }
   const digits = new Intl.NumberFormat('en', { style: 'currency', currency }).resolvedOptions().maximumFractionDigits ?? 2
   if (digits > 2) {
-    return `${currency} has ${digits} decimals, and the app counts in hundredths`
+    return words.settings.tooManyDecimals(currency, digits)
   }
   return null
 }
@@ -787,15 +792,15 @@ export function amountLocaleOf(settings: Pick<Settings, 'numberLocale'>): string
 function localeProblem(locale: string): string | null {
   if (locale === '') return null
   try {
-    return Intl.NumberFormat.supportedLocalesOf([locale]).length > 0 ? null : `"${locale}" is not a locale this browser knows`
+    return Intl.NumberFormat.supportedLocalesOf([locale]).length > 0 ? null : words.settings.unknownLocale(locale)
   } catch {
-    return `"${locale}" is not a locale tag such as en-GB`
+    return words.settings.notALocale(locale)
   }
 }
 
 function ibanListProblem(ibans: readonly string[]): string | null {
   const malformed = ibans.filter((iban) => !isIban(iban))
-  return malformed.length === 0 ? null : `${malformed.map((iban) => `"${iban}"`).join(', ')} ${malformed.length === 1 ? 'is not an IBAN' : 'are not IBANs'}`
+  return malformed.length === 0 ? null : words.settings.notIbans(malformed)
 }
 
 /** An amount needs the item its rows carry, or the plan cannot tell which rows it is about. */
@@ -812,25 +817,25 @@ function billingErrors(terms: BillingTerms): Partial<Record<BillingAmountField |
     if (amountProblem !== null) errors[amountField] = amountProblem
     const itemProblem = billingItemProblem(terms[itemField])
     if (itemProblem !== null) errors[itemField] = itemProblem
-    else if (amount !== null && terms[itemField] === '') errors[itemField] = 'name the item its rows carry on the outgoing-plan tab'
+    else if (amount !== null && terms[itemField] === '') errors[itemField] = words.terms.nameTheItem
   }
   return errors
 }
 
 function billingAmountProblem(amount: number): string | null {
-  return Number.isFinite(amount) && amount > 0 ? null : 'use an amount above zero, such as 7200'
+  return Number.isFinite(amount) && amount > 0 ? null : words.terms.amountAboveZero
 }
 
 function billingItemProblem(item: string): string | null {
-  return item.length > BILLING_ITEM_MAX_LENGTH ? `an item can be at most ${BILLING_ITEM_MAX_LENGTH} characters` : null
+  return item.length > BILLING_ITEM_MAX_LENGTH ? words.terms.itemTooLong(BILLING_ITEM_MAX_LENGTH) : null
 }
 
 function reviewLabelProblem(label: string): string | null {
   if (!/^[a-z0-9][a-z0-9_-]*$/.test(label)) {
-    return 'use letters, digits, - or _, with no spaces'
+    return words.settings.reviewLabelFormat
   }
   if ((MACHINE_FLAGS as readonly string[]).includes(label)) {
-    return `"${label}" is what the categoriser writes`
+    return words.settings.reviewLabelTaken(label)
   }
   return null
 }

@@ -23,6 +23,7 @@ import { vatSplit } from '../vat/vatSplit'
 import type { VatSplit } from '../vat/vatSplit'
 import { prepaymentSpread } from './prepaymentSpread'
 import { serviceMonthOf } from './serviceMonth'
+import { words } from './words'
 
 /** What the accrual view does with a booking the cash view counts, when it takes the booking out of profit whole. */
 export type TakenOutTreatment =
@@ -150,7 +151,7 @@ export function hasVat(entry: AccrualBooking): entry is CountedBooking | Capital
 }
 
 /** An amount of a booking as a step named by the booking and its day, which opens its row. */
-export function bookingFigure(entry: AccrualBooking, amount: Money, label = `${entry.label} on`, rules: readonly RuleCitation[] = []): TracedFigure {
+export function bookingFigure(entry: AccrualBooking, amount: Money, label = words.rowOn(entry.label), rules: readonly RuleCitation[] = []): TracedFigure {
   return withDrill({ ...tracedFigure(label, amount, 'ledger', rules), on: entry.booking.date }, entry.drill)
 }
 
@@ -196,7 +197,7 @@ function plainBooking(booking: Booking): Booking {
 
 function labelOf(source: BookingSource): string {
   if (source.kind === 'owner-advance') {
-    return source.advance.description || 'Paid by the owner'
+    return source.advance.description || words.paidByOwner
   }
   return source.row.counterparty || source.row.description || source.row.category
 }

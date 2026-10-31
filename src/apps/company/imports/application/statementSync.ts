@@ -1,5 +1,4 @@
 import { isUnauthorized } from '../../../../shared/google/googleApi'
-import { listInWords } from '../../../../shared/text/listInWords'
 import type { WorkbookStore } from '../../../../shared/storage/application/createWorkbookStore'
 import type { CompanyBooks } from '../../workbook/domain/readWorkbook'
 import type { WriteReceipt } from '../../../../shared/storage/application/recordWrites'
@@ -12,6 +11,7 @@ import type { StatementFile } from '../domain/statementFiles'
 import { dryRunFor, statementReadings, writeImport } from './importStatements'
 import type { LoadedImportFile } from './importStatements'
 import type { StatementFolder } from './statementFolder'
+import { words } from './words'
 
 /** What the statements step of a sync is doing: looking through the folder, or filing this many rows. */
 export type StatementSyncStep = { readonly kind: 'looking' } | { readonly kind: 'filing'; readonly rows: number }
@@ -66,7 +66,7 @@ export async function fileNewStatements(ports: StatementSyncPorts): Promise<Stat
     if (isUnauthorized(failure)) {
       throw failure
     }
-    return { ...NOTHING_FILED, problem: `The statements folder could not be read: ${messageOf(failure)}` }
+    return { ...NOTHING_FILED, problem: words.sync.folderNotRead(messageOf(failure)) }
   }
   return await fileReadings(readings, ports, true)
 }
@@ -80,7 +80,7 @@ async function readingsOf(file: StatementFile, ports: StatementSyncPorts, workbo
     return [{ fileName: file.name, label: file.name, refusal: messageOf(failure) }]
   }
   if (loaded.kind !== 'camt') {
-    return [{ fileName: file.name, label: file.name, refusal: `${file.name} is not a camt.053 statement, so it was not read.` }]
+    return [{ fileName: file.name, label: file.name, refusal: words.sync.notCamt(file.name) }]
   }
   return statementReadings(loaded, workbook, null)
 }
@@ -106,7 +106,7 @@ async function fileReadings(readings: readonly StatementReading[], ports: Statem
     if (!(failure instanceof WorkbookWriteRefused) || !mayRetry) {
       const unwritten = new Set(filed.map(statementKey))
       return {
-        problem: isUnauthorized(failure) ? 'Not filed. Sync again.' : messageOf(failure),
+        problem: isUnauthorized(failure) ? words.sync.syncAgain : messageOf(failure),
         held: readings.filter((reading) => kept.has(readingKey(reading)) || unwritten.has(readingKey(reading))),
         filed: [],
         receipt: null,
@@ -147,8 +147,7 @@ function readingKey(reading: StatementReading): string {
 /** "Filed statement 028, 4 rows", "Filed statements 028 and 029, 5 rows", or "Filed 3 statements, 9 rows". */
 export function filedTitle(statements: readonly Pick<DryRunStatement, 'label'>[], rows: number): string {
   const numbers = statements.map((statement) => /-statement-(\d+)$/.exec(statement.label)?.[1] ?? statement.label)
-  const which = numbers.length === 1 ? `statement ${numbers[0]}` : numbers.length === 2 ? `statements ${listInWords(numbers)}` : `${numbers.length} statements`
-  return `Filed ${which}, ${rows === 1 ? '1 row' : `${rows} rows`}`
+  return words.sync.filed(numbers, rows)
 }
 
 function messageOf(failure: unknown): string {

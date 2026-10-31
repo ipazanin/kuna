@@ -17,13 +17,14 @@ import type { FigureDetail } from '../tracedFigureView'
 import SalaryProblemList from './SalaryProblemList.vue'
 import SalaryReconciliationCard from './SalaryReconciliationCard.vue'
 import type { SalaryMonthView } from './salariesView'
+import { words } from './words'
 
 /** One payday: what it cost and where the money went, gross to net, the problems to resolve and every line the sources state. */
 const props = defineProps<{
   view: SalaryMonthView
 }>()
 
-const bridge = computed(() => bridgeChart(props.view.bridge, chartTokens(), { raises: 'Added to the pay', lowers: 'Leaves the pay' }))
+const bridge = computed(() => bridgeChart(props.view.bridge, chartTokens(), { raises: words.bridge.raises, lowers: words.bridge.lowers }))
 
 const opened = ref<FigureDetail | null>(null)
 const dialogOpen = computed({
@@ -38,7 +39,7 @@ const dialogOpen = computed({
   <div class="flex flex-col gap-6" :data-payday="view.payday">
     <p v-if="view.unpaid" class="flex items-start gap-2 text-sm text-toned" data-testid="salaries-unpaid">
       <UIcon name="i-lucide-hourglass" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
-      <span>{{ view.label }} is still running, so its payroll may not all be paid yet.</span>
+      <span>{{ words.month.stillRunning(view.label) }}</span>
     </p>
 
     <DashboardGrid layout="tiles" data-testid="salaries-tiles">
@@ -48,36 +49,36 @@ const dialogOpen = computed({
     <p v-if="view.strip" class="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-toned" data-testid="salaries-strip">
       <span class="font-medium text-highlighted">{{ view.strip.name }}</span>
       <span>
-        Gross <MoneyText :cents="view.strip.gross" /> to net
-        <BuildUpButton v-if="view.strip.netDetail" :cents="view.strip.net" :label="`${view.strip.name}, net salary in ${view.label}`" @open="opened = view.strip.netDetail" />
-        <MoneyText v-else :cents="view.strip.net" /><template v-if="view.strip.paidOn">, paid {{ view.strip.paidOn }}</template>
+        {{ words.month.gross }}<MoneyText :cents="view.strip.gross" />{{ words.month.toNet }}
+        <BuildUpButton v-if="view.strip.netDetail" :cents="view.strip.net" :label="words.month.netIn(view.strip.name, view.label)" @open="opened = view.strip.netDetail" />
+        <MoneyText v-else :cents="view.strip.net" /><template v-if="view.strip.paidOn">{{ words.month.paidOn(view.strip.paidOn) }}</template>
       </span>
     </p>
 
     <DashboardGrid>
       <DonutCard
-        title="Where the company’s money goes"
-        :subtitle="`Paid in ${view.label}, out of the cost to the company.`"
-        definition="Health insurance is paid on top of the gross salary, so the cost to the company is the only whole the parts add up to. Pillar II is the employee’s own pension savings, set beside what they were paid and kept out of the state’s share."
+        :title="words.month.ringTitle"
+        :subtitle="words.month.ringSubtitle(view.label)"
+        :definition="words.month.ringDefinition"
         :description="view.ring.description"
         :parts="view.ring.parts"
         :total="formatMoney(view.ring.total)"
-        total-label="cost to the company"
+        :total-label="words.month.costToCompany"
         :format-value="(value: number) => formatMoney(value)"
         data-testid="salaries-ring"
       >
         <template #below>
           <p v-if="view.ring.split" class="mt-2 border-t border-default pt-2 text-xs text-muted" data-testid="salaries-ring-split">
-            To the employee is the net salary of <MoneyText :cents="view.ring.split.net" /> and <MoneyText :cents="view.ring.split.beside" /> paid beside it.
+            {{ words.month.splitBefore }}<MoneyText :cents="view.ring.split.net" />{{ words.month.splitAnd }}<MoneyText :cents="view.ring.split.beside" />{{ words.month.splitAfter }}
           </p>
         </template>
       </DonutCard>
 
       <DrillChartCard
         :chart="bridge"
-        title="Gross to net"
-        :subtitle="`Paid in ${view.label}. From the cost of the salary down to the net, then what was paid beside it. A bar paid to a payee opens its rows.`"
-        definition="Gross II is the gross salary with the health insurance on top. The pension pillars and the income tax are withheld from the gross, which leaves the net. Tax-free payments are then added to what the employee is paid."
+        :title="words.month.bridgeTitle"
+        :subtitle="words.month.bridgeSubtitle(view.label)"
+        :definition="words.month.bridgeDefinition"
         :height="300"
         :phone-height="300"
         data-testid="salaries-bridge"

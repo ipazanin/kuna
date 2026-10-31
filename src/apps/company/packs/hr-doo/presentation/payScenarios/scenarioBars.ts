@@ -6,6 +6,8 @@ import { formatMoney, formatPercent } from '../../../../../../shared/money/money
 import type { LegendEntry } from '../../../../../../shared/ui/ChartLegend.vue'
 import { SEGMENT_LABELS } from './payScenariosView'
 import type { ScenarioSplit, SplitSegment } from './payScenariosView'
+import { words } from './words'
+import { uncapitalised } from '../../../../../../shared/text/capitalised'
 
 const SEGMENTS: readonly SplitSegment[] = ['net', 'pillar-two', 'pillar-one', 'health', 'income-tax', 'rent-tax', 'dividend-tax', 'corporate-tax', 'kept']
 
@@ -56,18 +58,20 @@ export function scenarioBars(splits: readonly ScenarioSplit[], tokens: ChartToke
       axisPointer: { type: 'shadow' },
       formatter: axisTooltip({ tokens, formatAmount: (share) => formatPercent(share / 100) }),
     },
-    xAxis: { type: 'value', max: 100, axisLabel: { color: tokens.inkMuted, fontSize: 11, formatter: (share: number) => formatPercent(share / 100) } },
+    xAxis: { type: 'value', max: 100, axisLabel: { color: tokens.inkMuted, fontSize: 11, formatter: (share: number) => formatPercent(share / 100), hideOverlap: true } },
     yAxis: { type: 'category', inverse: true, data: splits.map((split) => split.label), axisLabel: { color: tokens.inkSecondary, width: narrow ? 88 : 140, overflow: narrow ? 'truncate' : 'break' } },
     series,
   }
   const description = splits
-    .map(
-      (split) =>
-        `${split.label}, of ${formatMoney(split.whole)} profit before owner pay: ` +
+    .map((split) =>
+      words.bars.of(
+        split.label,
+        formatMoney(split.whole),
         split.parts
           .filter((part) => shareOf(part.cents, split) > 0)
-          .map((part) => `${SEGMENT_LABELS[part.segment].toLowerCase()} ${formatPercent(shareOf(part.cents, split) / 100)}`)
+          .map((part) => `${uncapitalised(SEGMENT_LABELS[part.segment])} ${formatPercent(shareOf(part.cents, split) / 100)}`)
           .join(', '),
+      ),
     )
     .join('. ')
   return {

@@ -6,8 +6,7 @@ import type { LineSeries } from '../../../../shared/charts/echarts'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { DrillChart } from '../../filters/presentation/chartDrill'
 import type { BalanceMonth } from '../domain/balances'
-
-export const TOTAL_SERIES = 'All accounts'
+import { words } from './words'
 
 /**
  * The colour of each account, from its place in the `accounts` tab, so narrowing the accounts in
@@ -64,13 +63,13 @@ export function balanceChart(
         axisLabel: { color: tokens.inkMuted, formatter: monthAxisLabel('short') },
       },
       yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
-      series: [...areas, { type: 'line', name: TOTAL_SERIES, color: tokens.ink, showSymbol: false, data: months.map((month) => month.total.amount), z: 4 }],
+      series: [...areas, { type: 'line', name: words.total, color: tokens.ink, showSymbol: false, data: months.map((month) => month.total.amount), z: 4 }],
     },
     description:
       last === undefined
-        ? 'No months to show.'
-        : `Month-end balance of ${accounts.map(accountName).join(', ')} from ${monthLabel(months[0]!.month)} to ${monthLabel(last.month)}, stacked, with the total as a line. ` +
-          `${last.complete ? 'At the end of' : 'So far in'} ${monthLabel(last.month)} the total was ${formatMoney(last.total.amount)}.`,
+        ? words.noMonths
+        : words.description(accounts.map(accountName).join(', '), monthLabel(months[0]!.month), monthLabel(last.month)) +
+          (last.complete ? words.atTheEnd : words.soFar)(monthLabel(last.month), formatMoney(last.total.amount)),
     drillAt: ({ seriesName, dataIndex }) => {
       const month = months[dataIndex]
       if (month === undefined) {

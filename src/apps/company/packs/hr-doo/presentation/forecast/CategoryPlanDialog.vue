@@ -13,6 +13,7 @@ import { fieldAmount, monthsOf } from './planWording'
 import { typedAmount } from '../../../../../../shared/money/typedAmount'
 import AppDialog from '../../../../../../shared/ui/AppDialog.vue'
 import { usePlanWrites } from './usePlanWrites'
+import { words } from './words'
 
 type AmountLine = Extract<PlanLine, { readonly kind: 'amount' }>
 
@@ -56,7 +57,7 @@ watch(
 const wrong = (text: string) => text.trim() !== '' && typedAmount(text) === null
 const errors = computed(() => ({ every: wrong(every.value), months: months.value.map(wrong) }))
 const valid = computed(() => !errors.value.every && !errors.value.months.some((error) => error))
-const placeholder = computed(() => (every.value.trim() !== '' && !errors.value.every ? every.value : props.average === null ? '0.00' : fieldAmount(props.average)))
+const placeholder = computed(() => (every.value.trim() !== '' && !errors.value.every ? every.value : props.average === null ? words.planDialogs.amountPlaceholder : fieldAmount(props.average)))
 
 function held(): KeyedLine<PlanLine>[] {
   return props.lines.flatMap((line) => {
@@ -77,43 +78,66 @@ async function save(): Promise<void> {
     }),
   ]
   const holding = held()
-  if (await writes.write('Plan saved', (lines) => replacePlanLines(lines, holding, wanted), { description: `${props.name} for ${props.year}.`, failedTitle: 'Not saved' })) open.value = false
+  if (
+    await writes.write(words.planDialogs.category.saved, (lines) => replacePlanLines(lines, holding, wanted), {
+      description: words.planDialogs.category.savedDescription(props.name, props.year),
+      failedTitle: words.planDialogs.notSaved,
+    })
+  )
+    open.value = false
 }
 
 async function clear(): Promise<void> {
   const holding = held()
-  if (await writes.write('Plan cleared', (lines) => replacePlanLines(lines, holding, []), { description: `${props.name} for ${props.year} takes its average again.`, failedTitle: 'Not cleared' }))
+  if (
+    await writes.write(words.planDialogs.category.cleared, (lines) => replacePlanLines(lines, holding, []), {
+      description: words.planDialogs.category.clearedDescription(props.name, props.year),
+      failedTitle: words.planDialogs.notCleared,
+    })
+  )
     open.value = false
 }
 </script>
 
 <template>
-  <AppDialog
-    v-model:open="open"
-    :title="`Plan ${name}, ${year}`"
-    description="An amount for every month, and any month that differs. A cost is written without the VAT that is reclaimed. A blank month takes the amount for every month, or the average without one."
-  >
+  <AppDialog v-model:open="open" :title="words.planDialogs.category.title(name, year)" :description="words.planDialogs.category.description">
     <form id="category-plan" class="flex flex-col gap-4" data-testid="category-plan-form" @submit.prevent="save">
       <UFormField
-        label="Every month"
-        :help="average === null ? 'The ledger has no month of it to average.' : `${averageWords ?? 'The average'}: ${formatMoney(Math.abs(average) as Money)} a month.`"
-        :error="(tried && errors.every && 'Zero or more, with at most two decimals') || false"
+        :label="words.planDialogs.category.everyMonth"
+        :help="average === null ? words.planDialogs.category.noAverage : words.planDialogs.category.average(averageWords, formatMoney(Math.abs(average) as Money))"
+        :error="(tried && errors.every && words.planDialogs.category.everyError) || false"
       >
-        <UInput v-model="every" inputmode="decimal" placeholder="0.00" class="w-full" data-testid="plan-every-month" />
+        <UInput v-model="every" inputmode="decimal" :placeholder="words.planDialogs.amountPlaceholder" class="w-full" data-testid="plan-every-month" />
       </UFormField>
       <fieldset class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <legend class="mb-2 text-sm text-toned">Months of their own</legend>
-        <UFormField v-for="(month, index) in calendar" :key="month.number" :label="month.short" :error="(tried && errors.months[index] && 'Not an amount') || false">
-          <UInput v-model="months[index]" inputmode="decimal" :placeholder="placeholder" class="w-full" :aria-label="`${month.name} ${year}`" :data-testid="`plan-month-${month.number}`" />
+        <legend class="mb-2 text-sm text-toned">{{ words.planDialogs.category.ownMonths }}</legend>
+        <UFormField v-for="(month, index) in calendar" :key="month.number" :label="month.short" :error="(tried && errors.months[index] && words.planDialogs.category.notAnAmount) || false">
+          <UInput
+            v-model="months[index]"
+            inputmode="decimal"
+            :placeholder="placeholder"
+            class="w-full"
+            :aria-label="words.planDialogs.category.monthOf(month.name, year)"
+            :data-testid="`plan-month-${month.number}`"
+          />
         </UFormField>
       </fieldset>
     </form>
     <template #start>
-      <UButton v-if="lines.length > 0" label="Clear the plan" icon="i-lucide-eraser" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="plan-clear" @click="clear" />
+      <UButton
+        v-if="lines.length > 0"
+        :label="words.planDialogs.category.clear"
+        icon="i-lucide-eraser"
+        color="error"
+        variant="ghost"
+        :disabled="writes.busy.value"
+        data-testid="plan-clear"
+        @click="clear"
+      />
     </template>
     <template #end>
-      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
-      <UButton type="submit" form="category-plan" label="Save plan" icon="i-lucide-save" :loading="writes.busy.value" :disabled="writes.busy.value" data-testid="plan-save" />
+      <UButton :label="words.planDialogs.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton type="submit" form="category-plan" :label="words.planDialogs.category.save" icon="i-lucide-save" :loading="writes.busy.value" :disabled="writes.busy.value" data-testid="plan-save" />
     </template>
   </AppDialog>
 </template>

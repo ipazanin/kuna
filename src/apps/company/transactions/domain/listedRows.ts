@@ -5,7 +5,7 @@ import type { OwnerShare } from '../../owner-share/domain/ownerShare'
 import { listedRowKey } from '../../workbook/domain/splits'
 import { ownerAdvanceOrder } from '../../workbook/domain/workbook'
 import type { OwnerAdvance, Transaction } from '../../workbook/domain/workbook'
-import { OWNER_COUNTERPARTY } from './filterTransactions'
+import { words } from './words'
 
 /** A booked bank entry as Transactions lists it, or one part of a split or shared entry. */
 export interface ListedBankRow extends Transaction {
@@ -22,9 +22,6 @@ export interface ListedAdvanceRow extends Pick<Transaction, 'date' | 'amount' | 
 }
 
 export type ListedRow = ListedBankRow | ListedAdvanceRow
-
-/** What an owner advance is badged as on Transactions. */
-export const OWNER_ADVANCE_LABEL = 'Owner advance'
 
 /** The bank rows and the advances as one list, in the order given. */
 export function listedRows(transactions: readonly Transaction[], advances: readonly OwnerAdvance[]): ListedRow[] {
@@ -45,7 +42,7 @@ function listedAdvanceRow(advance: OwnerAdvance): ListedAdvanceRow {
     category: advance.category,
     family: advance.family,
     bucket: advance.bucket,
-    counterparty: OWNER_COUNTERPARTY,
+    counterparty: words.owner,
     counterpartyIban: '',
     description: advance.description,
   }

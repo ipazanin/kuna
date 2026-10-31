@@ -13,7 +13,9 @@ import { writeDrafts } from '../application/draftWrites'
 import { ACCOUNT_WRITES, accountUses } from '../application/namedRecordWrites'
 import type { RecordsOfKind } from '../application/namedRecordWrites'
 import AccountsEditor from './AccountsEditor.vue'
-import { rowsInWords, storedCount } from './settingsCounts'
+import { storedCount } from './settingsCounts'
+import { plural } from '../../../../shared/text/translation'
+import { words } from './words'
 
 const { state } = useWorkbook()
 const settings = useSettings()
@@ -27,15 +29,15 @@ const accounts = computed(() => state.records?.accounts ?? NO_RECORDS)
 const saving = computed(() => writes.busy.value || state.writing)
 
 function saveAccounts(made: readonly { readonly saved: number | null; readonly record: AccountRecord }[]): void {
-  void writes.write('Accounts saved', (unit) => writeDrafts(unit.of(ACCOUNT_WRITES), storedOf(accounts.value), made), {
-    failedTitle: 'Not saved',
+  void writes.write(words.accounts.saved, (unit) => writeDrafts(unit.of(ACCOUNT_WRITES), storedOf(accounts.value), made), {
+    failedTitle: words.notSaved,
   })
 }
 </script>
 
 <template>
-  <AppCard title="Accounts" collapse-id="settings.accounts" :summary="rowsInWords(storedCount(accounts), 'account', 'accounts')" :reveal="linked">
-    <template #subtitle> Your bank accounts, by the names ledger rows use. A blank currency means {{ settings.currency }}. </template>
+  <AppCard :title="words.accounts.title" collapse-id="settings.accounts" :summary="plural(words.accounts.count(storedCount(accounts)), storedCount(accounts))" :reveal="linked">
+    <template #subtitle>{{ words.accounts.subtitle(settings.currency) }}</template>
     <AccountsEditor :records="accounts" :uses="accountsInUse" :currency="settings.currency" :saving="saving" @save="saveAccounts" />
   </AppCard>
 </template>

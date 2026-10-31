@@ -42,15 +42,17 @@ import { closedYearView } from '../yearEnd/closedYearView'
 import StatementsPanel from '../yearEnd/StatementsPanel.vue'
 import { shownYear, yearOptions } from './yearChoice'
 import type { YearTab } from './yearChoice'
+import { words as packWords } from '../words'
+import { words } from './words'
 
 const TAB_LABELS: Readonly<Record<YearTab, Omit<PageTab, 'value'>>> = {
-  accountant: { label: 'Accountant', icon: 'i-lucide-book-check' },
-  statements: { label: 'Statements', icon: 'i-lucide-file-spreadsheet' },
-  forecast: { label: 'Forecast', icon: 'i-lucide-telescope' },
-  plan: { label: 'Plan', icon: 'i-lucide-notebook-pen' },
-  pay: { label: 'Pay', icon: 'i-lucide-split' },
-  taxes: { label: 'Taxes', icon: 'i-lucide-landmark' },
-  assets: { label: 'Assets', icon: 'i-lucide-package' },
+  accountant: { label: words.tabs.accountant, icon: 'i-lucide-book-check' },
+  statements: { label: words.tabs.statements, icon: 'i-lucide-file-spreadsheet' },
+  forecast: { label: words.tabs.forecast, icon: 'i-lucide-telescope' },
+  plan: { label: words.tabs.plan, icon: 'i-lucide-notebook-pen' },
+  pay: { label: words.tabs.pay, icon: 'i-lucide-split' },
+  taxes: { label: words.tabs.taxes, icon: 'i-lucide-landmark' },
+  assets: { label: words.tabs.assets, icon: 'i-lucide-package' },
 }
 
 const filteredLedger = useFilteredLedger()
@@ -180,7 +182,7 @@ const watched = computed(() =>
 /** The roles the tabs read, said once under the header. */
 const missingRoles = computed(() => {
   const categories = ledger.value?.workbook.categories ?? []
-  return [...missingAccrualRoles(categories), ...(categoriesWithRole(categories, PACK_ROLES.watched).length === 0 ? [{ role: PACK_ROLES.watched, leftOut: 'no tax has a payment calendar' }] : [])]
+  return [...missingAccrualRoles(categories), ...(categoriesWithRole(categories, PACK_ROLES.watched).length === 0 ? [{ role: PACK_ROLES.watched, leftOut: words.noPaymentCalendar }] : [])]
 })
 
 const noVat = computed(() => closed.value?.view?.noVat ?? false)
@@ -189,9 +191,9 @@ const unregistered = computed(() => closed.value?.view?.unregistered ?? false)
 
 <template>
   <section class="flex max-w-measure flex-col gap-6">
-    <PageHeader title="Year" description="How the year ends, and whether our books agree with the accountant's for the last one.">
+    <PageHeader :title="packWords.screens.year" :description="words.description">
       <template v-if="options.length > 1 && settings.ownerPayModule" #actions>
-        <div class="flex flex-wrap gap-1.5" role="group" aria-label="Year" data-testid="year-picker">
+        <div class="flex flex-wrap gap-1.5" role="group" :aria-label="words.picker" data-testid="year-picker">
           <UButton
             v-for="option in options"
             :key="option.year"
@@ -212,36 +214,36 @@ const unregistered = computed(() => closed.value?.view?.unregistered ?? false)
           icon="i-lucide-info"
           color="neutral"
           variant="subtle"
-          title="Planning figures to discuss with your accountant, not filing advice"
-          :description="`The rules behind them were last checked against their sources on ${checkedOn}.${forecast ? ` The forecast is seen on ${dayLabel(asOf)}, the newest booking.` : ''}`"
+          :title="words.banner.title"
+          :description="words.banner.checked(checkedOn, forecast ? dayLabel(asOf) : null)"
           data-testid="planning-banner"
         />
 
         <div v-if="missingRoles.length > 0 || noVat || unregistered || watched.length > 0" class="flex flex-col gap-3">
           <p v-for="group in watched" :key="group.confidence" class="flex items-start gap-2 text-sm text-toned" data-testid="year-watched">
             <ConfidenceBadge :confidence="group.confidence" />
-            <span class="min-w-0">{{ WATCHED_WORDING[group.confidence] }} for {{ shown.year }}: {{ group.rules.map((rule) => rule.title).join(', ') }}.</span>
+            <span class="min-w-0">{{ words.watchedFor(WATCHED_WORDING[group.confidence], shown.year, group.rules.map((rule) => rule.title).join(', ')) }}</span>
           </p>
           <MissingRoles :missing="missingRoles" />
           <div v-if="noVat" class="flex items-start gap-2 text-sm text-toned">
             <UIcon name="i-lucide-receipt" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <p>
-              No category has a <span class="identifier">vat</span> treatment, so no input VAT leaves the costs.
-              <DrillLink to="/company/settings?tab=categories" in-prose class="text-highlighted">Set it on Settings, Categories</DrillLink>
+              {{ words.noVatBefore }}<span class="identifier">vat</span>{{ words.noVatAfter }}
+              <DrillLink to="/company/settings?tab=categories" in-prose class="text-highlighted">{{ words.setOnCategories }}</DrillLink>
             </p>
           </div>
           <div v-if="unregistered" class="flex items-start gap-2 text-sm text-toned">
             <UIcon name="i-lucide-calendar-x" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <p>
-              <span class="identifier">hr_company_registered</span> is blank, so {{ shown.year }} counts as a full tax period and the advances paid in it are not known.
-              <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" in-prose class="text-highlighted">Set it on Settings</DrillLink>
+              <span class="identifier">hr_company_registered</span>{{ words.unregistered(shown.year) }}
+              <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" in-prose class="text-highlighted">{{ words.setOnSettings }}</DrillLink>
             </p>
           </div>
         </div>
 
-        <PageTabs :tabs="tabs" label="Parts of the year" data-testid="year-tabs">
+        <PageTabs :tabs="tabs" :label="words.tabs.label" data-testid="year-tabs">
           <template #accountant>
-            <EmptyState v-if="closed?.view === null" icon="i-lucide-triangle-alert" title="The year could not be worked out" :description="closed.failure ?? ''" tone="error" />
+            <EmptyState v-if="closed?.view === null" icon="i-lucide-triangle-alert" :title="words.notWorkedOut" :description="closed.failure ?? ''" tone="error" />
             <AccountantPanel v-else-if="closed?.view" :view="closed.view" :year="shown.year" />
           </template>
           <template #statements>

@@ -1,11 +1,13 @@
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { ZERO, addMoney, moneyFromCents, negateMoney, plainAmount, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { ZERO, addMoney, moneyFromCents, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { normaliseIban } from '../../../../shared/text/fold'
 import { foldRuleText } from '../../rules/domain/transactionFacts'
 import { StatementRefused } from './importedStatement'
 import type { ImportedRow, ImportedStatement, StatementReading } from './importedStatement'
+import { words } from './words'
+import type { EntrySide } from './words'
 
 /**
  * Banks whose camt statements always carry TxsSummry, by the servicer's BIC. A statement from one
@@ -21,6 +23,12 @@ const REVIEW_REASONS = {
   valueDate: 'value date used',
   batched: 'batched entry',
 } as const
+
+/** A review reason the ledger stores, as the screen names it. A reason the import does not write shows as stored. */
+export function reviewReasonLabel(reason: string): string {
+  const known = (Object.keys(REVIEW_REASONS) as (keyof typeof REVIEW_REASONS)[]).find((key) => REVIEW_REASONS[key] === reason)
+  return known === undefined ? reason : words.camt.reviewReasons[known]
+}
 
 /** What the statement says about the account the entries are booked on. */
 interface StatementContext {
@@ -51,10 +59,10 @@ export function readCamtDocument(document: Document, fileName: string, accountsB
   const root = document.documentElement
   const statements = root === null || root.localName !== 'Document' ? [] : childrenNamed(childNamed(root, 'BkToCstmrStmt'), 'Stmt')
   if (statements.length === 0) {
-    throw new StatementRefused(`${fileName} is not a camt.053 statement: it carries no BkToCstmrStmt/Stmt element.`)
+    throw new StatementRefused(words.camt.notCamt(fileName))
   }
   return statements.map((statement, index) => {
-    const label = statementLabelOf(statement) ?? `statement ${index + 1} of ${fileName}`
+    const label = statementLabelOf(statement) ?? words.camt.unnamed(index + 1, fileName)
     try {
       const read = readStatement(statement, fileName, accountsByIban)
       return read.statement.account === '' ? { statement: read.statement, newAccount: { iban: read.iban, currency: read.currency } } : { statement: read.statement }
@@ -82,17 +90,17 @@ export function camtStatementHead(document: Document, accountsByIban: ReadonlyMa
 function readStatement(statement: Element, fileName: string, accountsByIban: ReadonlyMap<string, string>): { readonly statement: ImportedStatement; readonly iban: string; readonly currency: string } {
   const label = statementLabelOf(statement)
   if (label === null) {
-    throw new StatementRefused('The statement carries no CreDtTm or no LglSeqNb, so it cannot be named.')
+    throw new StatementRefused(words.camt.noLabel)
   }
   const iban = normaliseIban(textAt(statement, ['Acct', 'Id', 'IBAN']))
   // A statement filed under the wrong account corrupts that account's balance chain from that row down.
   if (iban === '') {
-    throw new StatementRefused('The statement names no Acct/Id/IBAN, so the app cannot tell whose account it is.')
+    throw new StatementRefused(words.camt.noIban)
   }
   const account = accountsByIban.get(iban) ?? ''
   const currency = textAt(statement, ['Acct', 'Ccy'])
   if (currency === '') {
-    throw new StatementRefused('The statement states no Acct/Ccy, so no entry can be checked against it.')
+    throw new StatementRefused(words.camt.noCurrency)
   }
   const servicerBic = textAt(statement, ['Acct', 'Svcr', 'FinInstnId', 'BICFI']) || textAt(statement, ['Acct', 'Svcr', 'FinInstnId', 'BIC'])
   const context: StatementContext = {
@@ -119,17 +127,15 @@ function readStatement(statement: Element, fileName: string, accountsByIban: Rea
   const debits = sumMoney(entries.filter((entry) => !entry.credit).map((entry) => entry.magnitude))
   const expected = subtractMoney(addMoney(opening, credits), debits)
   if (expected !== closing) {
-    throw new StatementRefused(
-      `The balance chain does not close: opening ${plainAmount(opening)} plus credits ${plainAmount(credits)} less debits ${plainAmount(debits)} is ${plainAmount(expected)}, but CLBD reports ${plainAmount(closing)}.`,
-    )
+    throw new StatementRefused(words.camt.chainOpen(opening, credits, debits, expected, closing))
   }
   const notes: string[] = []
   const summary = childNamed(statement, 'TxsSummry')
   if (summary === null) {
     if (BANKS_THAT_SUMMARISE.has(servicerBic)) {
-      throw new StatementRefused('The statement carries no TxsSummry, which this bank always sends, so its entries cannot be counted against the totals the bank reports.')
+      throw new StatementRefused(words.camt.summaryRequired)
     }
-    notes.push('The statement carries no TxsSummry, so its entries are checked against its balances only, not against counts and totals from the bank.')
+    notes.push(words.camt.noSummary)
   } else {
     checkSummarySide(
       summary,
@@ -163,14 +169,14 @@ function statementLabelOf(statement: Element): string | null {
 function balanceByCode(statement: Element, code: string, currency: string): Money {
   const balance = childrenNamed(statement, 'Bal').find((candidate) => textAt(candidate, ['Tp', 'CdOrPrtry', 'Cd']) === code)
   if (balance === undefined) {
-    throw new StatementRefused(`The statement carries no ${code} balance, so its chain cannot be closed.`)
+    throw new StatementRefused(words.camt.noBalance(code))
   }
   const amountElement = childNamed(balance, 'Amt')
   const balanceCurrency = amountElement?.getAttribute('Ccy')?.trim() ?? ''
   if (balanceCurrency !== currency) {
-    throw new StatementRefused(`The ${code} balance is in "${balanceCurrency}" but the account is in ${currency}.`)
+    throw new StatementRefused(words.camt.balanceCurrency(code, balanceCurrency, currency))
   }
-  const amount = amountOf(amountElement, `the ${code} balance`)
+  const amount = amountOf(amountElement, words.camt.balanceAmount(code))
   return textAt(balance, ['CdtDbtInd']) === 'DBIT' ? negateMoney(amount) : amount
 }
 
@@ -181,20 +187,20 @@ function entryOf(entry: Element, context: StatementContext): CamtEntry {
   if (reference === '') {
     reviewReasons.push(REVIEW_REASONS.noReference)
   }
-  const named = reference || '(no reference)'
+  const named = reference || words.camt.noReference
   const indicator = textAt(entry, ['CdtDbtInd'])
   if (indicator !== 'CRDT' && indicator !== 'DBIT') {
-    throw new StatementRefused(`Entry ${named} carries CdtDbtInd "${indicator}", which is neither CRDT nor DBIT.`)
+    throw new StatementRefused(words.camt.badIndicator(named, indicator))
   }
   const credit = indicator === 'CRDT'
   // Ntry/Amt, never TxAmt: only the entry amount reconciles against the balances.
   const amountElement = childNamed(entry, 'Amt')
   if (amountElement === null) {
-    throw new StatementRefused(`Entry ${named} carries no Amt.`)
+    throw new StatementRefused(words.camt.noAmount(named))
   }
   const entryCurrency = amountElement.getAttribute('Ccy')?.trim() ?? ''
   if (entryCurrency !== context.currency) {
-    throw new StatementRefused(`Entry ${named} is in ${entryCurrency || 'no currency'} but the account is in ${context.currency}.`)
+    throw new StatementRefused(words.camt.entryCurrency(named, entryCurrency, context.currency))
   }
   if (textAt(entry, ['RvslInd']) === 'true') {
     // Flagged, never acted on: banks disagree on which way CdtDbtInd reads on a reversal.
@@ -203,7 +209,7 @@ function entryOf(entry: Element, context: StatementContext): CamtEntry {
   const bookingDate = dayOf(entry, 'BookgDt')
   const date = bookingDate ?? dayOf(entry, 'ValDt')
   if (date === null) {
-    throw new StatementRefused(`Entry ${named} carries neither a booking nor a value date.`)
+    throw new StatementRefused(words.camt.noDate(named))
   }
   if (bookingDate === null) {
     reviewReasons.push(REVIEW_REASONS.valueDate)
@@ -217,7 +223,7 @@ function entryOf(entry: Element, context: StatementContext): CamtEntry {
   const domain = textAt(entry, ['BkTxCd', 'Domn', 'Cd'])
   const family = textAt(entry, ['BkTxCd', 'Domn', 'Fmly', 'Cd'])
   const subFamily = textAt(entry, ['BkTxCd', 'Domn', 'Fmly', 'SubFmlyCd'])
-  const magnitude = amountOf(amountElement, `the amount on entry ${named}`)
+  const magnitude = amountOf(amountElement, words.camt.entryAmount(named))
   const details = ['NtryDtls', 'TxDtls']
   return {
     credit,
@@ -253,7 +259,7 @@ function dayOf(entry: Element, element: 'BookgDt' | 'ValDt'): CivilDate | null {
   }
   const day = parseCivilDate(text)
   if (day === null) {
-    throw new StatementRefused(`An entry's ${element} is "${text}", which is not a day.`)
+    throw new StatementRefused(words.camt.notADay(element, text))
   }
   return day
 }
@@ -322,16 +328,16 @@ function inBookingOrder(entries: readonly CamtEntry[]): CamtEntry[] {
 }
 
 /** Per direction, since a dropped credit and a dropped debit of the same amount leave the net and the balances unchanged. */
-function checkSummarySide(summary: Element, element: 'TtlDbtNtries' | 'TtlCdtNtries', entries: readonly CamtEntry[], side: string): void {
+function checkSummarySide(summary: Element, element: 'TtlDbtNtries' | 'TtlCdtNtries', entries: readonly CamtEntry[], side: EntrySide): void {
   const declaredCount = Number(textAt(summary, [element, 'NbOfNtries']) || 0)
   if (declaredCount !== entries.length) {
-    throw new StatementRefused(`${element} reports ${declaredCount} entries but ${entries.length} booked ${side} entries were read.`)
+    throw new StatementRefused(words.camt.summaryCount(element, declaredCount, entries.length, side))
   }
   const sumElement = elementAt(summary, [element, 'Sum'])
   const declaredSum = sumElement === null ? ZERO : amountOf(sumElement, `${element}/Sum`)
   const summed = sumMoney(entries.map((entry) => entry.magnitude))
   if (declaredSum !== summed) {
-    throw new StatementRefused(`${element} reports ${plainAmount(declaredSum)} but the booked ${side} entries sum to ${plainAmount(summed)}.`)
+    throw new StatementRefused(words.camt.summarySum(element, declaredSum, summed, side))
   }
 }
 
@@ -344,14 +350,14 @@ function amountOf(element: Element | null, description: string): Money {
   const text = element?.textContent?.trim() ?? ''
   const match = /^(-?)(\d+)(?:\.(\d+))?$/.exec(text)
   if (match === null) {
-    throw new StatementRefused(`${capitalised(description)} is "${text}", which is not a number.`)
+    throw new StatementRefused(words.camt.notANumber(description, text))
   }
   if (match[1] === '-') {
-    throw new StatementRefused(`${capitalised(description)} is "${text}", but a camt amount is unsigned and its direction is carried by the CdtDbtInd beside it.`)
+    throw new StatementRefused(words.camt.signed(description, text))
   }
   const fraction = (match[3] ?? '').padEnd(2, '0')
   if (/[1-9]/.test(fraction.slice(2))) {
-    throw new StatementRefused(`${capitalised(description)} is "${text}", which is finer than a cent.`)
+    throw new StatementRefused(words.camt.finerThanACent(description, text))
   }
   return moneyFromCents(Number(match[2]) * 100 + Number(fraction.slice(0, 2)))
 }
@@ -370,8 +376,4 @@ function elementAt(element: Element, path: readonly string[]): Element | null {
 
 function textAt(element: Element, path: readonly string[]): string {
   return elementAt(element, path)?.textContent?.trim() ?? ''
-}
-
-function capitalised(text: string): string {
-  return `${text.charAt(0).toUpperCase()}${text.slice(1)}`
 }

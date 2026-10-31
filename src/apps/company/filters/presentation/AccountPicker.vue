@@ -9,6 +9,8 @@ export interface AccountOption {
 import { computed } from 'vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
+import { words } from './words'
+
 /** Account slugs from `accounts`. Empty means every account. */
 const accounts = defineModel<readonly string[]>({ required: true })
 
@@ -33,10 +35,10 @@ const selected = computed({
     value-key="value"
     multiple
     :search-input="false"
-    placeholder="All accounts"
+    :placeholder="words.allAccounts"
     icon="i-lucide-landmark"
     size="sm"
-    aria-label="Accounts"
+    :aria-label="words.accounts"
     class="min-w-44"
   />
 </template>

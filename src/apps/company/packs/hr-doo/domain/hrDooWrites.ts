@@ -1,7 +1,8 @@
 import { definedCategories, definedCategorySlugs } from '../../../workbook/domain/categoriesReading'
 import { CATEGORY_RECORDS } from '../../../workbook/domain/coreKinds'
 import { storedFieldsOf } from '../../../../../shared/storage/domain/recordsRead'
-import { countedBy, slugChangeRefusals, usesOf } from '../../../workbook/domain/slug'
+import { counted, countedBy, slugChangeRefusals, usesOf } from '../../../workbook/domain/slug'
+import { words } from './words'
 import type { SlugEdit } from '../../../workbook/domain/slug'
 import { slugOf, wholeNumberOf } from '../../../../../shared/storage/domain/storedFields'
 import type { StoredField } from '../../../../../shared/storage/domain/storedFields'
@@ -21,6 +22,7 @@ import { readOwnerAdvances } from './ownerAdvancesReading'
 import type { OwnerAdvanceEntry } from './ownerAdvancesReading'
 import { scenarioGuards } from './scenarios/scenarioGuards'
 import { readScenarios } from './scenarios/scenariosReading'
+import { scenarioName } from './scenarios/startingScenarios'
 import type { ScenarioRow } from './scenarios/scenariosReading'
 import type { YearEndLine } from './yearEnd/yearEnd'
 import { readYearEndLines } from './yearEnd/yearEndReading'
@@ -68,7 +70,7 @@ export const GRANT_WRITES: WriteRules<Grant> = {
     slugChangeRefusals(
       'grant',
       { edits: slugEdits(change, 'grant'), untouched: untouchedSlugs(change, 'grant') },
-      usesOf([countedBy(storedFieldsOf(fresh.of(ASSET_RECORDS)), (fields) => [slugOf(fields.funded_by)], 'asset', 'assets')]),
+      usesOf([countedBy(storedFieldsOf(fresh.of(ASSET_RECORDS)), (fields) => [slugOf(fields.funded_by)], counted(words.uses.assets))]),
       true,
     ),
 }
@@ -114,8 +116,7 @@ function planUses(fresh: FreshRecords): ReadonlyMap<string, readonly string[]> {
     countedBy(
       storedFieldsOf(fresh.of(PLAN_RECORDS)).filter((fields) => slugOf(fields.item) === SCENARIO_ON_PLAN),
       (fields) => [slugOf(fields.amount)],
-      'plan tab row',
-      'plan tab rows',
+      counted(words.uses.planTabRows),
     ),
   ])
 }
@@ -131,7 +132,7 @@ function scenarioRefusals(change: KindChange<ScenarioRow>, fresh: FreshRecords):
   const refusals = slugChangeRefusals('scenario', { edits, untouched }, planUses(fresh), false)
   for (const edit of edits) {
     if (edit.from !== null && edit.to !== null && edit.from !== edit.to && untouched.some((row) => row.slug === edit.to)) {
-      refusals.push(`"${edit.to}" is already a scenario. Pick another name.`)
+      refusals.push(words.writes.alreadyAScenario(edit.to))
     }
   }
   if (refusals.length > 0) {
@@ -139,7 +140,9 @@ function scenarioRefusals(change: KindChange<ScenarioRow>, fresh: FreshRecords):
   }
   const touched = new Set(edits.flatMap((edit) => [edit.from, edit.to]).filter((slug): slug is string => slug !== null))
   const after = readScenarios(change.after).scenarios
-  const stopped = after.filter((scenario) => touched.has(scenario.slug)).flatMap((scenario) => scenarioGuards(scenario).map((guard) => `${scenario.label || scenario.slug}: ${guard.reason}`))
+  const stopped = after
+    .filter((scenario) => touched.has(scenario.slug))
+    .flatMap((scenario) => scenarioGuards(scenario).map((guard) => words.writes.scenarioStopped(scenarioName(scenario), guard.reason)))
   if (stopped.length > 0) {
     return stopped
   }
@@ -148,7 +151,7 @@ function scenarioRefusals(change: KindChange<ScenarioRow>, fresh: FreshRecords):
   return planGuards(
     plan.filter((line) => years.has(line.year)),
     after,
-  ).map((guard) => `The plan tab: ${guard.reason}`)
+  ).map((guard) => words.writes.planTab(guard.reason))
 }
 
 /** The reader checks each row, then the scenario guards check each scenario the change touches. */

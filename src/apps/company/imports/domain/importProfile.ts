@@ -1,3 +1,6 @@
+import { capitalised } from '../../../../shared/text/capitalised'
+import { words } from './words'
+
 /** How a text date is written. A date cell is read as a date whatever the profile says. */
 export const DATE_FORMATS = ['dd.mm.yyyy', 'dd/mm/yyyy', 'mm/dd/yyyy', 'yyyy-mm-dd'] as const
 
@@ -55,7 +58,7 @@ export function profileKey(name: string): string {
 
 /** Null when the name can be a profile's. */
 export function profileNameProblem(name: string): string | null {
-  return NAME_PATTERN.test(name) ? null : 'a profile name is lower-case letters and digits with single hyphens, such as otp-business'
+  return NAME_PATTERN.test(name) ? null : words.profile.badName
 }
 
 /**
@@ -73,31 +76,31 @@ export function readProfile(name: string, value: string): ImportProfile | string
     const separator = part.indexOf('=')
     const word = (separator < 0 ? part : part.slice(0, separator)).trim().toLowerCase()
     if (separator < 0 || !KNOWN_WORDS.has(word)) {
-      return `"${part.trim()}" is not a word=column pair the profile knows`
+      return words.profile.notAPair(part.trim())
     }
     if (fields.has(word)) {
-      return `${word} is given twice`
+      return words.profile.givenTwice(word)
     }
     fields.set(word, part.slice(separator + 1).trim())
   }
   const field = (word: string): string => fields.get(word) ?? ''
   const missing = ['account', 'date'].filter((word) => field(word) === '')
   if (missing.length > 0) {
-    return `the profile names no ${missing.join(' and no ')}`
+    return words.profile.namesNo(missing)
   }
   const dateFormat = field('date_format') || 'dd.mm.yyyy'
   if (!(DATE_FORMATS as readonly string[]).includes(dateFormat)) {
-    return `date_format "${dateFormat}" is not one of ${DATE_FORMATS.join(', ')}`
+    return words.profile.badDateFormat(dateFormat, DATE_FORMATS)
   }
   const decimal = field('decimal') || 'comma'
   if (!(DECIMAL_MARKS as readonly string[]).includes(decimal)) {
-    return `decimal "${decimal}" is neither comma nor point`
+    return words.profile.badDecimal(decimal)
   }
   const signed = field('amount')
   const debit = field('debit')
   const credit = field('credit')
   if (signed !== '' ? debit !== '' || credit !== '' : debit === '' || credit === '') {
-    return 'the profile needs either amount, or both debit and credit'
+    return words.profile.amountColumns
   }
   return {
     name,
@@ -146,16 +149,16 @@ export function profileColumns(profile: ImportProfile): string[] {
 /** Null when every column of the profile can be saved: a header with a semicolon or an equals sign would not read back. */
 export function profileColumnProblem(profile: ImportProfile): string | null {
   const unsaveable = profileColumns(profile).find((column) => /[;=]/.test(column))
-  return unsaveable === undefined ? null : `the column "${unsaveable}" holds ; or =, which a saved profile cannot hold`
+  return unsaveable === undefined ? null : words.profile.unsaveableColumn(unsaveable)
 }
 
 /** What a profile being made still lacks before it can read a file, as a sentence, or null when it can. */
 export function profileDraftProblem(profile: ImportProfile): string | null {
-  if (profileNameProblem(profile.name) !== null) return 'Give the profile a name: lower-case letters and digits with single hyphens, such as otp-business.'
-  if (profile.account === '') return 'Pick the account the export is for.'
-  if (profile.date === '') return 'Pick the date column.'
+  if (profileNameProblem(profile.name) !== null) return words.profile.draft.name
+  if (profile.account === '') return words.profile.draft.account
+  if (profile.date === '') return words.profile.draft.date
   const { amount } = profile
-  if ('signed' in amount ? amount.signed === '' : amount.debit === '' || amount.credit === '') return 'Pick the amount columns.'
+  if ('signed' in amount ? amount.signed === '' : amount.debit === '' || amount.credit === '') return words.profile.draft.amount
   const column = profileColumnProblem(profile)
-  return column === null ? null : `${column.charAt(0).toUpperCase()}${column.slice(1)}.`
+  return column === null ? null : `${capitalised(column)}.`
 }

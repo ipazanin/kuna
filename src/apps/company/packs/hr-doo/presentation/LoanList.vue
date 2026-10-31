@@ -27,6 +27,7 @@ import UBadge from '@nuxt/ui/components/Badge.vue'
 
 import DrillLink from '../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../shared/ui/MoneyText.vue'
+import { words } from './words'
 
 /** Each loan to the owner, newest first, with the repayments the matching gave it. */
 defineProps<{
@@ -41,21 +42,21 @@ defineProps<{
   <ul v-else class="flex flex-col" data-testid="loan-list">
     <li v-for="loan in loans" :key="loan.key" class="loan-row">
       <div class="loan-head">
-        <DrillLink :to="loan.to" :label="`Loan of ${loan.lentOn}, open the row`" class="text-highlighted">
+        <DrillLink :to="loan.to" :label="words.loanList.openRow(loan.lentOn)" class="text-highlighted">
           <span class="text-sm">{{ loan.lentOn }}</span>
         </DrillLink>
         <MoneyText :cents="loan.amount" class="text-sm font-medium text-highlighted" />
-        <UBadge :label="loan.open ? 'Open' : 'Repaid'" :color="loan.open ? 'warning' : 'success'" variant="subtle" size="sm" class="justify-self-start" />
+        <UBadge :label="loan.open ? words.loanList.open : words.loanList.repaid" :color="loan.open ? 'warning' : 'success'" variant="subtle" size="sm" class="justify-self-start" />
         <p class="loan-remaining text-xs text-muted">
-          <template v-if="loan.open"> <MoneyText :cents="loan.remaining" class="text-toned" /> still owed </template>
-          <template v-else-if="loan.repaidOn">Closed {{ loan.repaidOn }}</template>
-          <template v-else>Nothing lent on this row</template>
+          <template v-if="loan.open"> <MoneyText :cents="loan.remaining" class="text-toned" />{{ words.loanList.stillOwed }}</template>
+          <template v-else-if="loan.repaidOn">{{ words.loanList.closedOn(loan.repaidOn) }}</template>
+          <template v-else>{{ words.loanList.nothingLent }}</template>
         </p>
       </div>
       <p v-if="loan.part !== null" class="truncate text-xs text-muted">{{ loan.part }}</p>
-      <ol v-if="loan.repayments.length > 0" class="loan-trail" :aria-label="`Repayments matched to the loan of ${loan.lentOn}`">
+      <ol v-if="loan.repayments.length > 0" class="loan-trail" :aria-label="words.loanList.matched(loan.lentOn)">
         <li v-for="repayment in loan.repayments" :key="repayment.key">
-          <DrillLink :to="repayment.to" :label="`Repayment of ${repayment.date}, open the row`" class="loan-share">
+          <DrillLink :to="repayment.to" :label="words.loanList.repaymentRow(repayment.date)" class="loan-share">
             <span class="text-muted">{{ repayment.date }}</span>
             <MoneyText :cents="repayment.applied" class="text-toned" />
           </DrillLink>

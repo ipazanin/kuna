@@ -11,6 +11,7 @@ import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../../../shared/ui/ChartLegend.vue'
 import type { DrillTarget } from '../../../../filters/domain/drillTarget'
 import type { DrillChart } from '../../../../filters/presentation/chartDrill'
+import { words } from './words'
 
 /** One month of the forecast as the chart draws it. Costs read positive and are drawn below zero. */
 export interface ForecastChartMonth {
@@ -27,9 +28,9 @@ export interface ForecastChartMonth {
   readonly costsRows: DrillTarget | null
 }
 
-const INCOME = 'Income'
-const COSTS = 'Costs'
-const PROFIT = 'Profit before tax'
+const INCOME = words.chart.income
+const COSTS = words.chart.costs
+const PROFIT = words.profitBeforeTax
 
 export interface ForecastChart extends DrillChart {
   readonly legend: readonly LegendEntry[]
@@ -54,7 +55,7 @@ export function forecastChart(months: readonly ForecastChartMonth[], running: Mo
             markArea: {
               silent: true,
               itemStyle: { color: tokens.ghost },
-              label: { show: true, position: 'insideTop', formatter: 'Running', color: tokens.inkMuted, fontSize: 11 },
+              label: { show: true, position: 'insideTop', formatter: words.chart.running, color: tokens.inkMuted, fontSize: 11 },
               data: [[{ xAxis: running }, { xAxis: running }]],
             },
           }),
@@ -99,7 +100,7 @@ export function forecastChart(months: readonly ForecastChartMonth[], running: Mo
           if (month === null) {
             return category
           }
-          return [monthLabel(month), month === running ? 'running' : null, basisOf.get(category) ?? null].filter((part) => part !== null).join(', ')
+          return [monthLabel(month), month === running ? words.chart.runningInTooltip : null, basisOf.get(category) ?? null].filter((part) => part !== null).join(', ')
         },
         formatAmount: (amount, seriesName) => formatMoney(amount, seriesName === PROFIT ? 'negative' : 'magnitude'),
       }),
@@ -120,8 +121,8 @@ export function forecastChart(months: readonly ForecastChartMonth[], running: Mo
       { label: INCOME, colour: 'var(--bucket-income)' },
       { label: COSTS, colour: 'var(--bucket-operating)' },
       { label: PROFIT, colour: 'var(--chart-ink)', mark: 'line' },
-      { label: 'Planned or averaged', colour: 'var(--chart-deemphasis)', mark: 'hatched' },
-      ...(running === null ? [] : [{ label: `Running month, ${monthLabel(running)}`, colour: 'var(--chart-ghost)', mark: 'ghost' as const }]),
+      { label: words.chart.plannedOrAveraged, colour: 'var(--chart-deemphasis)', mark: 'hatched' },
+      ...(running === null ? [] : [{ label: words.chart.runningMonth(monthLabel(running)), colour: 'var(--chart-ghost)', mark: 'ghost' as const }]),
     ],
     drillAt: ({ seriesName, dataIndex }) => {
       const month = months[dataIndex]
@@ -139,14 +140,14 @@ function describe(months: readonly ForecastChartMonth[], running: MonthKey | nul
   const first = months[0]
   const last = months[months.length - 1]
   if (first === undefined || last === undefined) {
-    return 'No months to show.'
+    return words.chart.none
   }
   const total = sumMoney(months.map((month) => month.profit))
   const forecast = months.filter((month) => month.incomeForecast || month.costsForecast).map((month) => monthLabel(month.month))
   return [
-    `Income and costs by month from ${monthLabel(first.month)} to ${monthLabel(last.month)}, with profit before tax as a line, ${formatMoney(total)} for the year.`,
-    forecast.length === 0 ? 'Every month comes from the ledger.' : `A plan row or an average stands in for part of ${forecast.join(', ')}.`,
-    running === null ? '' : `${monthLabel(running)} is still running and counts as forecast.`,
+    words.chart.byMonth(first.month, last.month, formatMoney(total)),
+    forecast.length === 0 ? words.chart.everyMonthFromLedger : words.chart.standsIn(forecast.join(', ')),
+    running === null ? '' : words.chart.stillRunning(monthLabel(running)),
   ]
     .filter((sentence) => sentence !== '')
     .join(' ')

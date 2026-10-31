@@ -6,6 +6,7 @@ import { isPaletteColour } from '../../workbook/domain/categoryColour'
 import { slugChangeRefusals } from '../../workbook/domain/slug'
 import type { SlugUses } from '../../workbook/domain/slug'
 import { ADVANCE_BUCKETS } from '../../workbook/domain/workbook'
+import { words } from './words'
 
 /** One categories row before and after a change, as the fields a check reads. `before` is null for an added row, `after` for a deleted one. */
 export interface CategoryEdit<Cells extends { readonly slug: string }> {
@@ -37,9 +38,7 @@ export function categoryChangeRefusals(
     }
     const advances = uses.advances.get(edit.after.slug) ?? 0
     if (advances > 0 && !(ADVANCE_BUCKETS as readonly string[]).includes(edit.after.bucket)) {
-      refusals.push(
-        `"${edit.after.slug}" stays in the operating or taxes bucket, since ${advances === 1 ? 'an owner advance carries it' : `${advances} owner advances carry it`} and an advance counts only as an operating cost or a tax.`,
-      )
+      refusals.push(words.refusals.advancesBucket(edit.after.slug, advances))
     }
   }
   return refusals
@@ -51,9 +50,7 @@ export function categoryChangeRefusals(
  */
 export function categoryColourRefusals(edits: readonly CategoryEdit<{ readonly slug: string; readonly colour: string }>[]): string[] {
   return edits.flatMap((edit) =>
-    edit.after === null || edit.after.colour === edit.before?.colour || isPaletteColour(edit.after.colour)
-      ? []
-      : [`"${edit.after.slug}" takes one of the nine colours of the palette, or none for its bucket's colour, not "${edit.after.colour}".`],
+    edit.after === null || edit.after.colour === edit.before?.colour || isPaletteColour(edit.after.colour) ? [] : [words.refusals.colour(edit.after.slug, edit.after.colour)],
   )
 }
 
@@ -84,20 +81,20 @@ export function categoryShareRefusals(edits: readonly CategoryEdit<ShareFields>[
     if (changed === null || !changed.roles.includes(role)) continue
     const givesRole = before === null || !before.roles.includes(role)
     if ((givesRole || before.bucket !== changed.bucket) && changed.bucket !== 'owner-pay') {
-      refusals.push(`"${changed.slug}" is in the ${changed.bucket} bucket, and only an owner-pay category carries the ${role} role, since the owner's part of a shared cost counts there.`)
+      refusals.push(words.refusals.roleBucket(changed.slug, changed.bucket, role))
     }
     const others = carrying.filter((category) => category.slug !== changed.slug).map((category) => `"${category.slug}"`)
     if (givesRole && others.length > 0) {
-      refusals.push(`"${changed.slug}" takes the ${role} role only once no other category carries it, and ${listInWords(others)} ${others.length === 1 ? 'does' : 'do'}.`)
+      refusals.push(words.refusals.roleOnce(changed.slug, role, others.length, listInWords(others)))
     }
   }
   for (const { before, after: changed } of edits) {
     if (changed === null || changed.ownerShare === null || before?.ownerShare === changed.ownerShare) continue
     if (changed.bucket !== 'operating') {
-      refusals.push(`"${changed.slug}" is in the ${changed.bucket} bucket, and only an operating category holds an owner share.`)
+      refusals.push(words.refusals.shareBucket(changed.slug, changed.bucket))
     }
     if (!benefitCategory) {
-      refusals.push(`"${changed.slug}" holds an owner share only once a category carries the ${role} role, where the owner's part counts.`)
+      refusals.push(words.refusals.shareRole(changed.slug, role))
     }
   }
   return refusals
@@ -107,6 +104,6 @@ export function categoryShareRefusals(edits: readonly CategoryEdit<ShareFields>[
 export function categoryRoleRefusals(edits: readonly CategoryEdit<{ readonly slug: string; readonly roles: readonly string[] }>[], known: readonly string[]): string[] {
   return edits.flatMap((edit) => {
     const unknown = (edit.after?.roles ?? []).filter((role) => !known.includes(role) && !(edit.before?.roles ?? []).includes(role))
-    return edit.after === null || unknown.length === 0 ? [] : [`"${edit.after.slug}" takes only roles the app knows, not ${unknown.map((role) => `"${role}"`).join(', ')}.`]
+    return edit.after === null || unknown.length === 0 ? [] : [words.refusals.unknownRoles(edit.after.slug, unknown.map((role) => `"${role}"`).join(', '))]
   })
 }

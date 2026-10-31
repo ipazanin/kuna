@@ -13,6 +13,8 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import { BILLING_WRITES, newBillingItem } from '../application/billingWrites'
 import type { BillingItemDraft, RestOfYearFill } from '../domain/fillRestOfYear'
+import { plural } from '../../../../shared/text/translation'
+import { words } from './words'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -48,26 +50,21 @@ function descriptionOf(row: BillingItemDraft): string {
 async function write(): Promise<void> {
   const count = rows.value.length
   const added = rows.value.map((row) => newBillingItem({ ...row, description: descriptionOf(row) }))
-  const written = await writes.write(count === 1 ? 'Plan row added' : `${count} plan rows added`, (unit) => added.forEach((item) => unit.of(BILLING_WRITES).add(item)), { failedTitle: 'Not added' })
+  const written = await writes.write(plural(words.fill.added(count), count), (unit) => added.forEach((item) => unit.of(BILLING_WRITES).add(item)), { failedTitle: words.fill.notAdded })
   if (written) open.value = false
 }
 </script>
 
 <template>
-  <AppDialog
-    v-model:open="open"
-    :title="title"
-    description="The monthly fee and the subscription for every month to December that has no row of them yet. Each description follows the item's latest row, with its month moved on, and can be edited before the rows are added."
-  >
+  <AppDialog v-model:open="open" :title="title" :description="words.fill.description">
     <div class="flex flex-col gap-3" data-testid="fill-preview">
       <p v-if="fill.kind === 'refused'" class="text-sm text-toned">
-        {{ fill.reason }} The terms are on <DrillLink :to="TERMS_LINK" in-prose class="text-highlighted" @click="open = false">Invoicing, Clients</DrillLink>.
+        {{ fill.reason }} {{ words.fill.termsAreOn }} <DrillLink :to="TERMS_LINK" in-prose class="text-highlighted" @click="open = false">{{ words.fill.clientsTab }}</DrillLink
+        >.
       </p>
-      <p v-else-if="rows.length === 0" class="text-sm text-toned">Every month to December already has its rows for {{ clientName }}. Nothing to add.</p>
+      <p v-else-if="rows.length === 0" class="text-sm text-toned">{{ words.fill.nothingToAdd(clientName) }}</p>
       <template v-else>
-        <p class="text-sm text-toned">
-          {{ rows.length }} {{ rows.length === 1 ? 'row' : 'rows' }} for {{ clientName }}, <MoneyText :cents="total" /> in all, appended to the foot of the outgoing-plan tab.
-        </p>
+        <p class="text-sm text-toned">{{ plural(words.fill.rowsFor(rows.length, clientName), rows.length) }} <MoneyText :cents="total" />{{ words.fill.inAll }}</p>
         <ul class="flex flex-col">
           <li v-for="row in rows" :key="keyOf(row)" class="fill-row" data-testid="fill-row">
             <span class="swatch" :style="{ background: colours.get(row.item) ?? 'var(--chart-deemphasis)' }" aria-hidden="true" />
@@ -80,8 +77,8 @@ async function write(): Promise<void> {
               :model-value="descriptionOf(row)"
               size="sm"
               class="fill-description"
-              placeholder="Description"
-              :aria-label="`Description of the ${row.item} row of ${dayLabel(row.date)}`"
+              :placeholder="words.fill.descriptionPlaceholder"
+              :aria-label="words.fill.descriptionOf(row.item, dayLabel(row.date))"
               data-testid="fill-description"
               @update:model-value="edited = { ...edited, [keyOf(row)]: String($event) }"
             />
@@ -90,9 +87,9 @@ async function write(): Promise<void> {
       </template>
     </div>
     <template #end>
-      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.fill.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
       <UButton
-        :label="rows.length === 0 ? 'Add rows' : `Add ${rows.length} ${rows.length === 1 ? 'row' : 'rows'}`"
+        :label="rows.length === 0 ? words.fill.addRows : plural(words.fill.addCount(rows.length), rows.length)"
         icon="i-lucide-calendar-plus"
         :loading="writes.busy.value"
         :disabled="rows.length === 0 || writes.busy.value"

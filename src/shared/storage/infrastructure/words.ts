@@ -42,9 +42,9 @@ export const hr: Translation<typeof en> = {
   outsideEdit: 'Datoteka se tijekom ovog spremanja promijenila izvan aplikacije. Provjerite mapu sa sigurnosnim kopijama.',
   isBackup: (name, fileName) => `${name} je sigurnosna kopija, pa je aplikacija ne koristi kao datoteku. Odaberite ${fileName} ili otvorite kopiju kao zasebnu datoteku da biste je pregledali.`,
   severalFiles: (count, fileName) => ({
-    one: `Na Driveu je ${count} datoteka koju je aplikacija napravila kao ${fileName}, pa ne zna koja je prava. Na Driveu u otpad bacite sve osim jedne.`,
-    few: `Na Driveu su ${count} datoteke koje je aplikacija napravila kao ${fileName}, pa ne zna koja je prava. Na Driveu u otpad bacite sve osim jedne.`,
-    other: `Na Driveu je ${count} datoteka koje je aplikacija napravila kao ${fileName}, pa ne zna koja je prava. Na Driveu u otpad bacite sve osim jedne.`,
+    one: `Na Driveu je ${count} datoteka koju je aplikacija izradila kao ${fileName}, pa ne zna koja je prava. Na Driveu u otpad bacite sve osim jedne.`,
+    few: `Na Driveu su ${count} datoteke koje je aplikacija izradila kao ${fileName}, pa ne zna koja je prava. Na Driveu u otpad bacite sve osim jedne.`,
+    other: `Na Driveu je ${count} datoteka koje je aplikacija izradila kao ${fileName}, pa ne zna koja je prava. Na Driveu u otpad bacite sve osim jedne.`,
   }),
   revisions: 'Drive čuva 200 inačica datoteke i odbio je ovo spremanje, iako je aplikacija obrisala najstariju. Pokušajte ponovno za minutu.',
   keptChanging: 'Datoteka se stalno mijenjala tijekom ovog spremanja. Sinkronizirajte da vidite što sada sadrži.',

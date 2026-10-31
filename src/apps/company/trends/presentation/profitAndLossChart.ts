@@ -10,6 +10,7 @@ import { shownBucketLines } from '../../settings/domain/profitAndLossLabels'
 import type { Settings } from '../../settings/domain/settings'
 import type { ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
 import type { MonthOfProfitAndLoss } from '../domain/monthlyProfitAndLoss'
+import { words } from './words'
 
 export interface ProfitAndLossSeries {
   readonly name: string
@@ -32,9 +33,9 @@ export interface NetLine {
   readonly amountOf: (month: MonthOfProfitAndLoss) => number | null
 }
 
-export const MONTHLY_NET: NetLine = { name: 'Net', amountOf: (month) => month.lines.net.amount }
+export const MONTHLY_NET: NetLine = { name: words.net, amountOf: (month) => month.lines.net.amount }
 
-export const ROLLING_3_NET: NetLine = { name: 'Net, 3-month average', amountOf: (month) => month.rolling3?.net ?? null }
+export const ROLLING_3_NET: NetLine = { name: words.rollingNet3, amountOf: (month) => month.rolling3?.net ?? null }
 
 export interface ProfitAndLossChartSettings {
   readonly series: readonly ProfitAndLossSeries[]
@@ -146,17 +147,17 @@ function describe(months: readonly MonthOfProfitAndLoss[], netLine: NetLine): st
   const first = months[0]
   const last = months[months.length - 1]
   if (first === undefined || last === undefined) {
-    return 'No months to show.'
+    return words.noMonths
   }
   const best = months.reduce((top, month) => (month.lines.net.amount > top.lines.net.amount ? month : top), first)
   const worst = months.reduce((low, month) => (month.lines.net.amount < low.lines.net.amount ? month : low), first)
   const parts = [
-    `Income and costs by month from ${monthLabel(first.month)} to ${monthLabel(last.month)}, with ${netLine.name.toLowerCase()} as a line.`,
-    `Best month ${monthLabel(best.month)} with a net of ${formatMoney(best.lines.net.amount)}.`,
-    `Weakest month ${monthLabel(worst.month)} with a net of ${formatMoney(worst.lines.net.amount)}.`,
+    words.profitAndLoss.span(monthLabel(first.month), monthLabel(last.month), netLine.name.toLowerCase()),
+    words.profitAndLoss.best(monthLabel(best.month), formatMoney(best.lines.net.amount)),
+    words.profitAndLoss.weakest(monthLabel(worst.month), formatMoney(worst.lines.net.amount)),
   ]
   if (!last.complete) {
-    parts.push(`${monthLabel(last.month)} is still running and is not counted in any average.`)
+    parts.push(words.profitAndLoss.running(monthLabel(last.month)))
   }
   return parts.join(' ')
 }

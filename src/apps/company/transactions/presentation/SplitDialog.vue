@@ -5,10 +5,9 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { ZERO, addMoney, negateMoney, plainAmount, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { ZERO, addMoney, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
-import { formatMoney } from '../../../../shared/money/moneyFormat'
-import { typedAmount } from '../../../../shared/money/typedAmount'
+import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { NO_RECORDS, recordWithId } from '../../../../shared/storage/domain/recordsRead'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
@@ -20,6 +19,8 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import { writeSplit } from '../application/splitWrites'
 import CategoryPicker from './CategoryPicker.vue'
+import { words } from './words'
+import { plural } from '../../../../shared/text/translation'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -50,7 +51,7 @@ let nextId = 0
 
 function field(amount: Money | null, category: string, note: string, opened: SplitPart | null = null): PartField {
   nextId += 1
-  return { id: nextId, amount: amount === null ? '' : plainAmount(amount), category, note, opened }
+  return { id: nextId, amount: amount === null ? '' : amountForTyping(amount), category, note, opened }
 }
 
 watch(
@@ -68,7 +69,6 @@ watch(
 
 /** The row read positive, since every part takes its sign. */
 const whole = computed(() => (props.row.amount < 0 ? negateMoney(props.row.amount) : props.row.amount))
-const direction = computed(() => (props.row.amount < 0 ? 'money out' : 'money in'))
 
 const typed = computed(() => parts.value.map((part) => typedAmount(part.amount)))
 const placed = computed(() => sumMoney(typed.value.map((amount) => amount ?? ZERO)))
@@ -79,14 +79,13 @@ const keptWhole = computed(() => store.state.workbook?.rowsKeptWhole.get(props.r
 
 function amountError(index: number): string | null {
   const amount = typed.value[index]
-  return amount === null || amount === 0 ? 'An amount above zero, with at most two decimals' : null
+  return amount === null || amount === 0 ? words.splitDialog.amountError : null
 }
 
 const errors = computed(() => {
   const list: string[] = []
-  if (parts.value.length < 2) list.push('A split has at least two parts.')
-  if (remainder.value !== 0)
-    list.push(remainder.value > 0 ? `${formatMoney(remainder.value)} of the payment is not in a part yet.` : `The parts are ${formatMoney(negateMoney(remainder.value))} more than the payment.`)
+  if (parts.value.length < 2) list.push(words.splitDialog.twoParts)
+  if (remainder.value !== 0) list.push(remainder.value > 0 ? words.splitDialog.notPlaced(remainder.value) : words.splitDialog.overPayment(negateMoney(remainder.value)))
   return list
 })
 
@@ -104,7 +103,7 @@ function removePart(id: number): void {
 function takeRest(index: number): void {
   const part = parts.value[index]
   if (part === undefined || remainder.value <= 0) return
-  part.amount = plainAmount(addMoney(typed.value[index] ?? ZERO, remainder.value))
+  part.amount = amountForTyping(addMoney(typed.value[index] ?? ZERO, remainder.value))
 }
 
 /** The parts of the split as the app read them, larger first. A change writes only the fields that differ, so a field left alone is never rewritten. */
@@ -121,19 +120,23 @@ async function save(): Promise<void> {
   if (!valid.value || current === null) return
   const signed = (amount: Money): Money => (props.row.amount < 0 ? negateMoney(amount) : amount)
   const drafts = parts.value.map((part, index) => ({ amount: signed(typed.value[index]!), category: part.category, note: part.note, opened: part.opened }))
-  const saved = await writes.write(props.split === null ? `Split in ${drafts.length} parts` : 'Split saved', (unit) => writeSplit(unit, props.row, current, drafts, props.categories), {
-    description: `${props.row.counterparty || 'The payment'} of ${formatMoney(props.row.amount)}.`,
-    failedTitle: 'Not saved',
-  })
+  const saved = await writes.write(
+    props.split === null ? plural(words.splitInParts(drafts.length), drafts.length) : words.splitDialog.saved,
+    (unit) => writeSplit(unit, props.row, current, drafts, props.categories),
+    {
+      description: words.splitDialog.paymentOf(props.row.counterparty, props.row.amount),
+      failedTitle: words.splitDialog.notSaved,
+    },
+  )
   if (saved) open.value = false
 }
 
 async function remove(): Promise<void> {
   const current = currentParts()
   if (current === null || current.length === 0) return
-  const deleted = await writes.write('Split deleted', (unit) => writeSplit(unit, props.row, current, [], props.categories), {
-    description: 'The payment counts whole again.',
-    failedTitle: 'Not deleted',
+  const deleted = await writes.write(words.splitDialog.deleted, (unit) => writeSplit(unit, props.row, current, [], props.categories), {
+    description: words.splitDialog.countsWhole,
+    failedTitle: words.splitDialog.notDeleted,
   })
   if (deleted) open.value = false
 }
@@ -143,63 +146,84 @@ async function remove(): Promise<void> {
   <AppDialog
     v-model:open="open"
     width="2xl"
-    :title="split === null ? 'Split the payment' : 'Edit the split'"
-    :description="`${row.counterparty || 'No counterparty'}, ${dayLabel(row.date)}, ${names.account(row.account)}. The ledger keeps the row as the bank booked it, and the parts count in its place.`"
+    :title="split === null ? words.splitDialog.addTitle : words.splitDialog.changeTitle"
+    :description="words.splitDialog.description(row.counterparty, dayLabel(row.date), names.account(row.account))"
   >
     <form id="split-row" class="flex flex-col gap-4" data-testid="split-form" @submit.prevent="save">
       <p class="flex items-baseline justify-between gap-3 text-sm">
-        <span class="text-toned">The payment, {{ direction }}</span>
+        <span class="text-toned">{{ words.splitDialog.payment(row.amount >= 0) }}</span>
         <MoneyText :cents="row.amount" tone="flow" class="font-medium text-highlighted" />
       </p>
-      <div v-if="keptWhole !== null" class="rounded-control border border-default px-3 py-2 text-sm text-toned" data-testid="split-claimed">This row stays whole, since {{ keptWhole }}.</div>
+      <div v-if="keptWhole !== null" class="rounded-control border border-default px-3 py-2 text-sm text-toned" data-testid="split-claimed">{{ words.splitDialog.keptWhole(keptWhole) }}</div>
 
-      <ol class="flex flex-col gap-3" aria-label="Parts">
+      <ol class="flex flex-col gap-3" :aria-label="words.splitDialog.parts">
         <li v-for="(part, index) in parts" :key="part.id" class="part" data-testid="split-part">
-          <UFormField :label="`Part ${index + 1}`" :error="(tried && amountError(index)) || false" class="part-amount">
+          <UFormField :label="words.splitDialog.partLabel(index + 1)" :error="(tried && amountError(index)) || false" class="part-amount">
             <div class="flex gap-1">
-              <UInput v-model="part.amount" inputmode="decimal" placeholder="0.00" class="w-full" :aria-label="`Amount of part ${index + 1}`" data-testid="split-part-amount" />
+              <UInput
+                v-model="part.amount"
+                inputmode="decimal"
+                :placeholder="words.splitDialog.amountPlaceholder"
+                class="w-full"
+                :aria-label="words.splitDialog.partAmount(index + 1)"
+                data-testid="split-part-amount"
+              />
               <UButton
                 icon="i-lucide-arrow-down-to-line"
                 color="neutral"
                 variant="ghost"
                 :disabled="remainder <= 0"
-                :aria-label="`Put the rest of the payment in part ${index + 1}`"
+                :aria-label="words.splitDialog.takeRest(index + 1)"
                 data-testid="split-part-rest"
                 @click="takeRest(index)"
               />
             </div>
           </UFormField>
-          <UFormField label="Category" :error="(tried && part.category === '' && 'Choose a category') || false" class="part-category">
+          <UFormField :label="words.splitDialog.category" :error="(tried && part.category === '' && words.splitDialog.chooseCategory) || false" class="part-category">
             <CategoryPicker v-model="part.category" :categories="categories" class="w-full" data-testid="split-part-category" />
           </UFormField>
-          <UFormField label="Note" class="part-note">
-            <UInput v-model="part.note" placeholder="What this part paid for" class="w-full" data-testid="split-part-note" />
+          <UFormField :label="words.splitDialog.note" class="part-note">
+            <UInput v-model="part.note" :placeholder="words.splitDialog.notePlaceholder" class="w-full" data-testid="split-part-note" />
           </UFormField>
-          <UButton icon="i-lucide-x" color="neutral" variant="ghost" class="part-remove" :aria-label="`Remove part ${index + 1}`" data-testid="split-part-remove" @click="removePart(part.id)" />
+          <UButton
+            icon="i-lucide-x"
+            color="neutral"
+            variant="ghost"
+            class="part-remove"
+            :aria-label="words.splitDialog.removePart(index + 1)"
+            data-testid="split-part-remove"
+            @click="removePart(part.id)"
+          />
         </li>
       </ol>
       <div class="flex flex-wrap items-center justify-between gap-3">
-        <UButton label="Add a part" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="split-add-part" @click="addPart" />
+        <UButton :label="words.splitDialog.addPart" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="split-add-part" @click="addPart" />
         <p class="text-sm" data-testid="split-remainder">
-          <template v-if="remainder === 0"><span class="text-toned">The parts add up to the payment.</span></template>
-          <template v-else-if="remainder > 0"><span class="text-muted">Left to place</span> <MoneyText :cents="remainder" class="font-medium text-highlighted" /></template>
-          <template v-else><span class="text-muted">Over the payment by</span> <MoneyText :cents="negateMoney(remainder)" class="font-medium text-error" /></template>
+          <template v-if="remainder === 0"
+            ><span class="text-toned">{{ words.splitDialog.addsUp }}</span></template
+          >
+          <template v-else-if="remainder > 0"
+            ><span class="text-muted">{{ words.splitDialog.leftToPlace }}</span> <MoneyText :cents="remainder" class="font-medium text-highlighted"
+          /></template>
+          <template v-else
+            ><span class="text-muted">{{ words.splitDialog.overBy }}</span> <MoneyText :cents="negateMoney(remainder)" class="font-medium text-error"
+          /></template>
         </p>
       </div>
       <ul v-if="tried && errors.length > 0" class="flex flex-col gap-1 text-sm text-error" data-testid="split-errors">
         <li v-for="error in errors" :key="error">{{ error }}</li>
       </ul>
-      <p class="text-xs text-muted">Each part takes the row's sign and counts in its own category, with that category's timing, on every figure.</p>
+      <p class="text-xs text-muted">{{ words.splitDialog.sign }}</p>
     </form>
     <template #start>
-      <UButton v-if="split !== null" label="Delete split" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="split-delete" @click="remove" />
+      <UButton v-if="split !== null" :label="words.splitDialog.delete" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="split-delete" @click="remove" />
     </template>
     <template #end>
-      <UButton label="Cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.splitDialog.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
       <UButton
         type="submit"
         form="split-row"
-        :label="split === null ? 'Split' : 'Save split'"
+        :label="split === null ? words.splitDialog.split : words.splitDialog.save"
         icon="i-lucide-save"
         :loading="writes.busy.value"
         :disabled="writes.busy.value || keptWhole !== null"

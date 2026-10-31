@@ -12,9 +12,11 @@ import { installedPack } from '../../packs/packContribution'
 import { setSettings } from '../../settings/application/settingWrites'
 import { currencyProblem, flagText } from '../../settings/domain/settings'
 import { CURRENCY_ITEMS, FOLLOW_LANGUAGE, numberStyleItems } from '../../settings/presentation/moneyChoices'
+import { words as settingsWords } from '../../settings/presentation/words'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import { useOnboarding } from './useOnboarding'
+import { words } from './words'
 import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import StepCard from '../../../../shared/ui/StepCard.vue'
@@ -42,7 +44,7 @@ const answers = computed(() =>
     ? []
     : [
         { label: pack.yes, value: 'yes' },
-        { label: 'No', value: 'no' },
+        { label: words.company.no, value: 'no' },
       ],
 )
 
@@ -60,7 +62,7 @@ async function proceed(): Promise<void> {
     ...(pack === null ? [] : [{ key: 'owner_pay_module', value: flagText(packOn.value === 'yes') }]),
   ]
   try {
-    await withGoogleAccess(store.state.choice?.source === 'drive' ? ['drive.file'] : [], () => store.write('Settings saved', (unit) => setSettings(unit, held.value, entries)))
+    await withGoogleAccess(store.state.choice?.source === 'drive' ? ['drive.file'] : [], () => store.write(settingsWords.saved, (unit) => setSettings(unit, held.value, entries)))
     await onboarding.next()
   } catch (refused) {
     failure.value = refused instanceof Error ? refused.message : String(refused)
@@ -71,17 +73,17 @@ async function proceed(): Promise<void> {
 </script>
 
 <template>
-  <StepCard title="Your company" :subtitle="onboarding.place.value.path === 'bring' ? 'As the file says. Change what is wrong.' : undefined">
-    <UAlert v-if="settings === null" icon="i-lucide-file-question" color="warning" variant="subtle" title="There are no books on screen yet" description="Go back a step to make them." />
+  <StepCard :title="words.company.title" :subtitle="onboarding.place.value.path === 'bring' ? words.company.asTheFileSays : undefined">
+    <UAlert v-if="settings === null" icon="i-lucide-file-question" color="warning" variant="subtle" :title="words.company.noBooks" :description="words.company.noBooksNote" />
     <template v-else>
       <FormGrid>
-        <UFormField label="Company name" class="sm:col-span-2">
-          <UInput v-model="name" placeholder="Example Studio" class="w-full" data-testid="onboarding-company-name" />
+        <UFormField :label="settingsWords.general.companyName" class="sm:col-span-2">
+          <UInput v-model="name" :placeholder="words.company.namePlaceholder" class="w-full" data-testid="onboarding-company-name" />
         </UFormField>
-        <UFormField label="Currency" :error="currencyError ?? false">
-          <USelectMenu v-model="currency" :items="[...CURRENCY_ITEMS]" value-key="value" :search-input="{ placeholder: 'Search currencies' }" virtualize class="w-full" />
+        <UFormField :label="settingsWords.general.currency" :error="currencyError ?? false">
+          <USelectMenu v-model="currency" :items="[...CURRENCY_ITEMS]" value-key="value" :search-input="{ placeholder: settingsWords.general.searchCurrencies }" virtualize class="w-full" />
         </UFormField>
-        <UFormField label="Number style">
+        <UFormField :label="words.company.numberStyle">
           <USelect v-model="numberLocale" :items="numberStyles" class="w-full" data-testid="onboarding-number-style" />
         </UFormField>
       </FormGrid>
@@ -89,11 +91,18 @@ async function proceed(): Promise<void> {
       <template v-if="pack">
         <URadioGroup v-model="packOn" :items="answers" :legend="pack.question" :ui="{ legend: 'text-sm font-medium text-highlighted mb-2', fieldset: 'gap-3' }" data-testid="onboarding-pack" />
       </template>
-      <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" title="That did not work" :description="failure" />
+      <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.failed" :description="failure" />
     </template>
 
     <template #actions>
-      <UButton label="Continue" trailing-icon="i-lucide-arrow-right" :loading="saving" :disabled="settings === null || currencyError !== null" data-testid="onboarding-continue" @click="proceed" />
+      <UButton
+        :label="words.continue"
+        trailing-icon="i-lucide-arrow-right"
+        :loading="saving"
+        :disabled="settings === null || currencyError !== null"
+        data-testid="onboarding-continue"
+        @click="proceed"
+      />
     </template>
   </StepCard>
 </template>

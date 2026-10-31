@@ -3,22 +3,17 @@ import type { RouteLocationRaw } from 'vue-router'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import { fold } from '../../../../../../shared/text/fold'
+import { listInWords } from '../../../../../../shared/text/listInWords'
 import { ACTS } from '../acts'
 import { versionOn } from '../ruleset'
 import type { RuleId } from '../ruleset'
 import type { AppliesBy, Confidence, GeneralRule, LegalSource, OpenItem, RuleArea, RuleTerms, RuleVersion, ScalarTerm, TableTerm, Term } from '../schema'
+import { words } from './words'
+import { ruleTitle } from './ruleTitles'
 
 /** Where a figure links to show the rule it rests on. */
 export function ruleLink(ruleId: RuleId): RouteLocationRaw {
   return { path: '/company/settings', query: { tab: 'ruleset', rule: ruleId } }
-}
-
-export const AREA_WORDING: Readonly<Record<RuleArea, { readonly label: string; readonly description: string }>> = {
-  'profit-tax': { label: 'Profit tax', description: 'Corporate income tax: the PD return, its base, rate, add-backs, advances and deadlines.' },
-  'owner-pay': { label: 'Owner pay', description: 'Salary, contributions, income tax, tax-free payments and dividends.' },
-  accounting: { label: 'Accounting', description: 'Size class, statements, recognition and the asset and grant policies.' },
-  vat: { label: 'VAT', description: 'Registration, rates, place of supply, deductions, periods and refunds.' },
-  'company-law': { label: 'Company law', description: 'Share capital, reserves, profit payouts and the decisions they need.' },
 }
 
 export interface ConfidenceWording {
@@ -32,57 +27,49 @@ export interface ConfidenceWording {
 /** Confirmed values stay quiet. Estimates, pending and unconfirmed values carry a status colour, since they are the ones to recheck. */
 export const CONFIDENCE_WORDING: Readonly<Record<Confidence, ConfidenceWording>> = {
   'confirmed-nn': {
-    label: 'Confirmed in NN',
-    meaning: 'Read in the text published in Narodne novine.',
+    ...words.confidence['confirmed-nn'],
     color: 'neutral',
     variant: 'outline',
     icon: 'i-lucide-badge-check',
   },
   'confirmed-consolidated': {
-    label: 'Confirmed, consolidated text',
-    meaning: 'Read in the consolidated text on zakon.hr, with its list of amendments checked.',
+    ...words.confidence['confirmed-consolidated'],
     color: 'neutral',
     variant: 'outline',
     icon: 'i-lucide-badge-check',
   },
   'confirmed-table': {
-    label: 'Confirmed, official table',
-    meaning: 'Read in a table the tax administration compiles from the decisions published in Narodne novine.',
+    ...words.confidence['confirmed-table'],
     color: 'neutral',
     variant: 'outline',
     icon: 'i-lucide-badge-check',
   },
   reading: {
-    label: 'Our reading',
-    meaning: 'The text was read. How it applies to the company is an interpretation to discuss with the accountant.',
+    ...words.confidence.reading,
     color: 'info',
     variant: 'subtle',
     icon: 'i-lucide-book-open-text',
   },
   practice: {
-    label: "Accountant's practice",
-    meaning: "The accountant's own figures apply it and match to the cent.",
+    ...words.confidence.practice,
     color: 'info',
     variant: 'subtle',
     icon: 'i-lucide-calculator',
   },
   estimate: {
-    label: 'Estimate',
-    meaning: 'Worked out before the official figure is published. It changes once the figure is out.',
+    ...words.confidence.estimate,
     color: 'warning',
     variant: 'subtle',
     icon: 'i-lucide-hourglass',
   },
   pending: {
-    label: 'Pending',
-    meaning: 'Set by a bill or a draft that is not law yet.',
+    ...words.confidence.pending,
     color: 'warning',
     variant: 'subtle',
     icon: 'i-lucide-clock',
   },
   unconfirmed: {
-    label: 'Unconfirmed',
-    meaning: 'The text was not loaded or not confirmed. The pack never uses it as a fact.',
+    ...words.confidence.unconfirmed,
     color: 'error',
     variant: 'subtle',
     icon: 'i-lucide-circle-help',
@@ -91,31 +78,24 @@ export const CONFIDENCE_WORDING: Readonly<Record<Confidence, ConfidenceWording>>
 
 export const CONFIDENCE_ORDER: readonly Confidence[] = ['confirmed-nn', 'confirmed-consolidated', 'confirmed-table', 'reading', 'practice', 'estimate', 'pending', 'unconfirmed']
 
-const APPLIES_BY_WORDING: Readonly<Record<AppliesBy, string>> = {
-  'tax-period': "The tax period's first day picks the version",
-  'month-worked': 'The first day of the month worked picks the version',
-  'payment-date': 'The payment date picks the version',
-  'supply-date': 'The supply date picks the version',
-  'event-date': 'The date of the event picks the version',
-}
-
 export function appliesByWording(appliesBy: AppliesBy): string {
-  return APPLIES_BY_WORDING[appliesBy]
+  return words.appliesBy[appliesBy]
 }
 
 /** A version's dates in years where they line up with whole years: "2025", "2025 and 2026", "2027 onward", else "1 Mar 2025 to 31 Dec 2026". */
 export function periodLabel(validFrom: CivilDate, validTo: CivilDate | null): string {
   const fromYear = Number(validFrom.slice(0, 4))
   const startsYear = validFrom.endsWith('-01-01')
+  const { year, onward, twoYears, span } = words.periods
   if (validTo === null) {
-    return startsYear ? `${fromYear} onward` : `${dayLabel(validFrom)} onward`
+    return onward(startsYear ? year(fromYear) : dayLabel(validFrom))
   }
   const toYear = Number(validTo.slice(0, 4))
   if (startsYear && validTo.endsWith('-12-31')) {
-    if (fromYear === toYear) return String(fromYear)
-    return toYear === fromYear + 1 ? `${fromYear} and ${toYear}` : `${fromYear} to ${toYear}`
+    if (fromYear === toYear) return year(fromYear)
+    return toYear === fromYear + 1 ? twoYears(fromYear, toYear) : span(year(fromYear), year(toYear))
   }
-  return `${dayLabel(validFrom)} to ${dayLabel(validTo)}`
+  return span(dayLabel(validFrom), dayLabel(validTo))
 }
 
 const ACRONYMS: Readonly<Record<string, string>> = {
@@ -176,7 +156,7 @@ export function scalarWording(key: string, term: ScalarTerm, format: TermFormat)
     case 'count':
       return String(term.count)
     case 'flag':
-      return term.holds ? 'Yes' : 'No'
+      return term.holds ? words.yes : words.no
     case 'text':
       return textWording(term.text)
   }
@@ -283,17 +263,12 @@ export interface RuleView {
 function articleReference(source: LegalSource): string {
   const { article, act } = source
   if (source.ofAmendingAct) {
-    return `Art. ${article} of the amending act in NN ${source.nn.join(', ')}`
+    return words.articles.ofAmendingAct(article, source.nn.join(', '))
   }
   if (act === 'HSFI') {
     return `HSFI ${article}`
   }
-  return /^\d/.test(article) ? `Art. ${article}` : article.charAt(0).toUpperCase() + article.slice(1)
-}
-
-/** "2025", "2025 and 2026", "2025, 2026 and 2027 onward". */
-function inWords(periods: readonly string[]): string {
-  return periods.length < 2 ? periods.join('') : `${periods.slice(0, -1).join(', ')} and ${periods.at(-1)}`
+  return /^\d/.test(article) ? words.articles.article(article) : article.charAt(0).toUpperCase() + article.slice(1)
 }
 
 function sourceKey(source: LegalSource): string {
@@ -423,15 +398,16 @@ export function ruleView(rule: GeneralRule, format: TermFormat, day: CivilDate):
       citedSources.set(sourceKey(source), cited)
     }
   })
-  const sources = [...citedSources.values()].map((cited) => sourceView(cited.source, cited.periods.length === versions.length ? null : inWords(cited.periods)))
+  const sources = [...citedSources.values()].map((cited) => sourceView(cited.source, cited.periods.length === versions.length ? null : listInWords(cited.periods)))
 
   const columns = versions.map((version, index) => ({ period: periods[index] ?? '', confidence: version.confidence }))
 
+  const title = ruleTitle(rule)
   const searchText = fold(
     [
       rule.id,
-      rule.title,
-      AREA_WORDING[rule.area].label,
+      title,
+      words.areas[rule.area].label,
       ...rows.flatMap((row) => [row.label, ...row.cells.map((cell) => cell.wording)]),
       ...tables.flatMap((table) => [table.label, ...table.rows.flatMap((row) => row.cells.map((cell) => cell.wording))]),
       ...notes.map((note) => note.note),
@@ -443,7 +419,7 @@ export function ruleView(rule: GeneralRule, format: TermFormat, day: CivilDate):
   return {
     id: rule.id,
     area: rule.area,
-    title: rule.title,
+    title,
     appliesBy: appliesByWording(rule.appliesBy),
     inForce: inForceView(rule, day, format),
     columns,
@@ -471,29 +447,31 @@ export interface WatchView {
 export function watchedVersionView(rule: GeneralRule, version: RuleVersion<RuleTerms>): WatchView {
   const period = periodLabel(version.validFrom, version.validTo)
   const note = version.note ?? ''
+  const title = ruleTitle(rule)
   return {
     key: `${rule.id}|${version.validFrom}`,
     area: rule.area,
-    title: rule.title,
+    title,
     ruleId: rule.id as RuleId,
     period,
     confidence: version.confidence,
     note,
     url: null,
-    searchText: fold([rule.id, rule.title, period, note, CONFIDENCE_WORDING[version.confidence].label].join(' ')),
+    searchText: fold([rule.id, title, period, note, CONFIDENCE_WORDING[version.confidence].label].join(' ')),
   }
 }
 
 export function openItemView(item: OpenItem): WatchView {
+  const title = ruleTitle(item)
   return {
     key: item.id,
     area: item.area,
-    title: item.title,
+    title,
     ruleId: null,
     period: null,
     confidence: item.status,
     note: item.note,
     url: item.url,
-    searchText: fold([item.id, item.title, item.note, CONFIDENCE_WORDING[item.status].label].join(' ')),
+    searchText: fold([item.id, title, item.note, CONFIDENCE_WORDING[item.status].label].join(' ')),
   }
 }

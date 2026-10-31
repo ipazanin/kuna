@@ -1,6 +1,6 @@
 import { normaliseIban } from '../../../../shared/text/fold'
 import { ACCOUNT_RECORDS, BILLING_RECORDS, CATEGORY_RECORDS, CLIENT_RECORDS, INVOICE_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SETTING_RECORDS, SPLIT_PART_RECORDS } from '../../workbook/domain/coreKinds'
-import { countedBy, usesOf } from '../../workbook/domain/slug'
+import { counted, countedBy, usesOf } from '../../workbook/domain/slug'
 import type { SlugUses } from '../../workbook/domain/slug'
 import { readAccounts } from '../../workbook/domain/accountsReading'
 import { ibanListOf } from '../../workbook/domain/iban'
@@ -22,6 +22,7 @@ import type { ClientRecord } from '../../workbook/domain/clientsReading'
 import { pickedEdits, pickedUntouched } from '../../../../shared/storage/domain/writeRules'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 import { installedPack } from '../../packs/packContribution'
+import { words } from './words'
 
 /** The records of a kind, from a fresh read or from the records on screen. */
 export type RecordsOfKind = (kind: RecordKind<unknown>) => RecordsRead<unknown>
@@ -31,33 +32,33 @@ function rulesNaming(rules: readonly StoredFields[]): ReadonlyMap<string, string
   const ids = new Map<string, string[]>()
   for (const fields of rules) {
     const category = slugOf(fields.category)
-    if (category !== '') ids.set(category, [...(ids.get(category) ?? []), textOf(fields.rule) || 'one without an id'])
+    if (category !== '') ids.set(category, [...(ids.get(category) ?? []), textOf(fields.rule) || words.uses.ruleWithoutId])
   }
-  return new Map([...ids].map(([slug, named]) => [slug, named.length === 1 ? `the rule ${named[0]}` : `the rules ${named.join(', ')}`]))
+  return new Map([...ids].map(([slug, named]) => [slug, named.length === 1 ? words.uses.rule(named[0]!) : words.uses.rules(named.join(', '))]))
 }
 
 /** What names each category outside its tab: ledger rows, rules, split parts and the pack's records that name one. */
 export function categoryUses(records: RecordsOfKind): SlugUses {
   return usesOf([
-    countedBy(storedFieldsOf(records(LEDGER_RECORDS)), (fields) => [slugOf(fields.category)], 'ledger row', 'ledger rows'),
+    countedBy(storedFieldsOf(records(LEDGER_RECORDS)), (fields) => [slugOf(fields.category)], counted(words.uses.ledgerRows)),
     rulesNaming(storedFieldsOf(records(RULE_RECORDS))),
-    countedBy(storedFieldsOf(records(SPLIT_PART_RECORDS)), (fields) => [slugOf(fields.category)], 'split part', 'split parts'),
-    ...(installedPack().workbook?.categoryNaming ?? []).map((naming) => countedBy(storedFieldsOf(records(naming.kind)), (fields) => naming.categoriesOf(fields), naming.one, naming.many)),
+    countedBy(storedFieldsOf(records(SPLIT_PART_RECORDS)), (fields) => [slugOf(fields.category)], counted(words.uses.splitParts)),
+    ...(installedPack().workbook?.categoryNaming ?? []).map((naming) => countedBy(storedFieldsOf(records(naming.kind)), (fields) => naming.categoriesOf(fields), naming.counted)),
   ])
 }
 
 /** What names each account outside its tab, which is the ledger's rows. */
 export function accountUses(records: RecordsOfKind): SlugUses {
-  return usesOf([countedBy(storedFieldsOf(records(LEDGER_RECORDS)), (fields) => [slugOf(fields.account)], 'ledger row', 'ledger rows')])
+  return usesOf([countedBy(storedFieldsOf(records(LEDGER_RECORDS)), (fields) => [slugOf(fields.account)], counted(words.uses.ledgerRows))])
 }
 
 /** What names each client outside its tab: invoices, billing plan rows and the billing_client setting. */
 function clientUses(records: RecordsOfKind): SlugUses {
   const billingClient = storedFieldsOf(records(SETTING_RECORDS)).find((fields) => slugOf(fields.key) === 'billing_client')
   return usesOf([
-    countedBy(storedFieldsOf(records(INVOICE_RECORDS)), (fields) => [slugOf(fields.client)], 'invoice', 'invoices'),
-    countedBy(storedFieldsOf(records(BILLING_RECORDS)), (fields) => [slugOf(fields.client)], 'billing plan row', 'billing plan rows'),
-    new Map(billingClient === undefined || slugOf(billingClient.value) === '' ? [] : [[slugOf(billingClient.value), 'the billing_client setting']]),
+    countedBy(storedFieldsOf(records(INVOICE_RECORDS)), (fields) => [slugOf(fields.client)], counted(words.uses.invoices)),
+    countedBy(storedFieldsOf(records(BILLING_RECORDS)), (fields) => [slugOf(fields.client)], counted(words.uses.billingPlanRows)),
+    new Map(billingClient === undefined || slugOf(billingClient.value) === '' ? [] : [[slugOf(billingClient.value), words.uses.billingClient]]),
   ])
 }
 

@@ -4,6 +4,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import { dayLabel } from '../../../../../shared/calendar/dayLabel'
 import type { TracedFigure } from '../ruleset/tracedFigure'
 import type { CitObligationStatus, MatchedCitObligation } from '../domain/cit/matchCitPayments'
+import { words } from './words'
 
 /** One corporate tax payment the schedule expects, beside what the bank rows paid on it. */
 export interface CitObligationLine {
@@ -19,10 +20,10 @@ export interface CitObligationLine {
 }
 
 const CIT_STATUS_WORDING: Readonly<Record<CitObligationStatus, { readonly label: string; readonly color: 'success' | 'warning' | 'error' | 'neutral' }>> = {
-  paid: { label: 'Paid', color: 'success' },
-  due: { label: 'Due this month', color: 'warning' },
-  overdue: { label: 'Overdue', color: 'error' },
-  'to-come': { label: 'To come', color: 'neutral' },
+  paid: { label: words.citObligations.status.paid, color: 'success' },
+  due: { label: words.citObligations.status.due, color: 'warning' },
+  overdue: { label: words.citObligations.status.overdue, color: 'error' },
+  'to-come': { label: words.citObligations.status['to-come'], color: 'neutral' },
 }
 
 export function citObligationLine(entry: MatchedCitObligation, linkOf: (figure: TracedFigure) => RouteLocationRaw | null): CitObligationLine {
@@ -65,23 +66,23 @@ const phone = usePhoneLayout()
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <p class="text-sm font-medium" :class="line.status === 'to-come' ? 'text-muted' : 'text-highlighted'">{{ line.label }}</p>
-          <p class="text-xs text-muted">Due {{ line.dueOn }}</p>
+          <p class="text-xs text-muted">{{ words.citObligations.due(line.dueOn) }}</p>
         </div>
         <UBadge :label="CIT_STATUS_WORDING[line.status].label" :color="CIT_STATUS_WORDING[line.status].color" variant="subtle" size="sm" class="shrink-0" />
       </div>
       <dl class="obligation-cells mt-2">
         <div>
-          <dt>Expected</dt>
+          <dt>{{ words.citObligations.expected }}</dt>
           <dd><MoneyText :cents="line.expected" /></dd>
         </div>
         <div>
-          <dt>Paid</dt>
+          <dt>{{ words.citObligations.paid }}</dt>
           <dd>
-            <DrillLink :to="line.paidTo" :label="`${line.label}, paid, open the rows`"><MoneyText :cents="line.paid" /></DrillLink>
+            <DrillLink :to="line.paidTo" :label="words.citObligations.paidRows(line.label)"><MoneyText :cents="line.paid" /></DrillLink>
           </dd>
         </div>
         <div v-if="line.outstanding > 0">
-          <dt>Still owed</dt>
+          <dt>{{ words.citObligations.stillOwed }}</dt>
           <dd :class="{ 'text-error': line.status === 'overdue' }"><MoneyText :cents="line.outstanding" /></dd>
         </div>
       </dl>
@@ -92,25 +93,25 @@ const phone = usePhoneLayout()
     <table class="data-table obligation-table w-full text-sm" :data-testid="testId">
       <thead>
         <tr>
-          <th scope="col" class="text-start">Payment</th>
-          <th scope="col" class="hidden w-32 text-start @2xl:table-cell">Due</th>
-          <th scope="col" class="w-28 text-end">Expected</th>
-          <th scope="col" class="w-28 text-end">Paid</th>
-          <th scope="col" class="w-28 text-end">Still owed</th>
-          <th scope="col" class="hidden w-36 text-start @2xl:table-cell">Status</th>
+          <th scope="col" class="text-start">{{ words.citObligations.payment }}</th>
+          <th scope="col" class="hidden w-32 text-start @2xl:table-cell">{{ words.citObligations.dueColumn }}</th>
+          <th scope="col" class="w-28 text-end">{{ words.citObligations.expected }}</th>
+          <th scope="col" class="w-28 text-end">{{ words.citObligations.paid }}</th>
+          <th scope="col" class="w-28 text-end">{{ words.citObligations.stillOwed }}</th>
+          <th scope="col" class="hidden w-36 text-start @2xl:table-cell">{{ words.citObligations.statusColumn }}</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="line in lines" :key="line.key" :data-status="line.status" :class="{ 'is-to-come': line.status === 'to-come' }">
           <th scope="row" class="truncate text-start font-normal text-toned">
             {{ line.label }}
-            <span class="block text-xs text-muted @2xl:hidden">Due {{ line.dueOn }}</span>
+            <span class="block text-xs text-muted @2xl:hidden">{{ words.citObligations.due(line.dueOn) }}</span>
             <UBadge :label="CIT_STATUS_WORDING[line.status].label" :color="CIT_STATUS_WORDING[line.status].color" variant="subtle" size="sm" class="mt-1 @2xl:hidden" />
           </th>
           <td class="figure hidden text-muted @2xl:table-cell">{{ line.dueOn }}</td>
           <td class="text-end"><MoneyText :cents="line.expected" /></td>
           <td class="text-end">
-            <DrillLink :to="line.paidTo" :label="`${line.label}, paid, open the rows`"><MoneyText :cents="line.paid" /></DrillLink>
+            <DrillLink :to="line.paidTo" :label="words.citObligations.paidRows(line.label)"><MoneyText :cents="line.paid" /></DrillLink>
           </td>
           <td class="text-end" :class="{ 'text-error': line.status === 'overdue' }"><MoneyText v-if="line.outstanding > 0" :cents="line.outstanding" /><span v-else class="text-muted">–</span></td>
           <td class="hidden @2xl:table-cell"><UBadge :label="CIT_STATUS_WORDING[line.status].label" :color="CIT_STATUS_WORDING[line.status].color" variant="subtle" size="sm" /></td>

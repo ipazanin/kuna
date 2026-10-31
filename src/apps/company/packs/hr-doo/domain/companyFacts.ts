@@ -4,6 +4,8 @@ import { folderPathOf } from '../../../../../shared/text/folderPath'
 import { mailAddressesOf, mailAddressesProblem, mailSubjectProblem } from '../../../mail/domain/mailSource'
 import { booleanOf, flagText } from '../../../settings/domain/settings'
 import type { PackSettings, SettingDefinition } from '../../../settings/domain/settings'
+import { words as settingsWords } from '../../../settings/domain/words'
+import { words } from './words'
 
 const BASIS_POINTS_PER_WHOLE = 10_000
 
@@ -76,7 +78,7 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
       valueOf: (facts) => facts.companyRegistered ?? '',
       apply: (facts, value) => {
         const registered = parseCivilDate(value.trim())
-        return registered === null ? `"${value}" is not a date such as 2025-05-12` : withFacts(facts, { companyRegistered: registered })
+        return registered === null ? words.facts.notADay(value) : withFacts(facts, { companyRegistered: registered })
       },
     },
     {
@@ -86,7 +88,7 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
       valueOf: (facts) => facts.citReturn,
       apply: (facts, value) => {
         const citReturn = value.trim().toLowerCase()
-        return isOneOf(citReturn, CIT_RETURNS) ? withFacts(facts, { citReturn }) : `"${citReturn}" is neither ${CIT_RETURNS.join(' nor ')}`
+        return isOneOf(citReturn, CIT_RETURNS) ? withFacts(facts, { citReturn }) : words.facts.neither(citReturn, CIT_RETURNS)
       },
     },
     {
@@ -96,7 +98,7 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
       valueOf: (facts) => facts.vatPrinciple,
       apply: (facts, value) => {
         const vatPrinciple = value.trim().toLowerCase()
-        return isOneOf(vatPrinciple, VAT_PRINCIPLES) ? withFacts(facts, { vatPrinciple }) : `"${vatPrinciple}" is neither ${VAT_PRINCIPLES.join(' nor ')}`
+        return isOneOf(vatPrinciple, VAT_PRINCIPLES) ? withFacts(facts, { vatPrinciple }) : words.facts.neither(vatPrinciple, VAT_PRINCIPLES)
       },
     },
     {
@@ -106,7 +108,7 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
       valueOf: (facts) => flagText(facts.depreciationDoubled),
       apply: (facts, value) => {
         const doubled = booleanOf(value)
-        return doubled === null ? `"${value}" is neither TRUE nor FALSE` : withFacts(facts, { depreciationDoubled: doubled })
+        return doubled === null ? settingsWords.settings.notAFlag(value) : withFacts(facts, { depreciationDoubled: doubled })
       },
     },
     {
@@ -126,7 +128,7 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
       valueOf: (facts) => facts.vatReturnsFolder.join('/'),
       apply: (facts, value) => {
         const folders = folderPathOf(value)
-        return folders.length === 0 ? `"${value}" names no folder` : withFacts(facts, { vatReturnsFolder: folders })
+        return folders.length === 0 ? settingsWords.settings.namesNoFolder(value) : withFacts(facts, { vatReturnsFolder: folders })
       },
     },
     {
@@ -136,7 +138,7 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
       valueOf: (facts) => facts.payrollFolder.join('/'),
       apply: (facts, value) => {
         const folders = folderPathOf(value)
-        return folders.length === 0 ? `"${value}" names no folder` : withFacts(facts, { payrollFolder: folders })
+        return folders.length === 0 ? settingsWords.settings.namesNoFolder(value) : withFacts(facts, { payrollFolder: folders })
       },
     },
     {
@@ -166,7 +168,7 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
       valueOf: (facts) => facts.incomingInvoicesFolder.join('/'),
       apply: (facts, value) => {
         const folders = folderPathOf(value)
-        return folders.length === 0 ? `"${value}" names no folder` : withFacts(facts, { incomingInvoicesFolder: folders })
+        return folders.length === 0 ? settingsWords.settings.namesNoFolder(value) : withFacts(facts, { incomingInvoicesFolder: folders })
       },
     },
   ],
@@ -182,7 +184,7 @@ function mailSyncDefinition(key: string, fact: 'payrollMailSync' | 'vatMailSync'
     valueOf: (facts) => flagText(facts[fact]),
     apply: (facts, value) => {
       const on = booleanOf(value)
-      return on === null ? `"${value}" is neither TRUE nor FALSE` : withFacts(facts, { [fact]: on })
+      return on === null ? settingsWords.settings.notAFlag(value) : withFacts(facts, { [fact]: on })
     },
   }
 }
@@ -230,13 +232,13 @@ function rateOf(value: string): number | string {
   const text = value.trim().replace(/\s+/g, '').replace(',', '.')
   const percent = text.endsWith('%')
   const number = Number(percent ? text.slice(0, -1) : text)
-  if (!Number.isFinite(number) || text === '' || text === '%') return `"${value}" is not a rate such as 2%`
-  if (!percent && number > 1) return `${number} reads as ${number * 100}%. Enter the rate as a percentage cell, such as 2%`
+  if (!Number.isFinite(number) || text === '' || text === '%') return words.facts.notARate(value)
+  if (!percent && number > 1) return words.facts.rateAboveOne(number)
   return Math.round((percent ? number / 100 : number) * BASIS_POINTS_PER_WHOLE * 1_000) / 1_000
 }
 
 function ownerLoanInterestProblem(basisPoints: number): string | null {
-  return Number.isInteger(basisPoints) && basisPoints >= 0 && basisPoints <= BASIS_POINTS_PER_WHOLE ? null : 'use a rate from 0% to 100% with at most two decimals, such as 2%'
+  return Number.isInteger(basisPoints) && basisPoints >= 0 && basisPoints <= BASIS_POINTS_PER_WHOLE ? null : words.facts.rateRange
 }
 
 function isOneOf<Word extends string>(text: string, words: readonly Word[]): text is Word {

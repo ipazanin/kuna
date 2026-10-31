@@ -6,11 +6,12 @@ import { sumMoney } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
 import type { YearItems } from '../domain/itemStatistics'
+import { words } from './words'
 
 /** The categorical slots before the rest fold into one grey series. */
 const SLOTS = 8
 
-const OTHER_ITEMS = 'Other items'
+const OTHER_ITEMS = words.chart.otherItems
 
 /**
  * A colour per item kind from its place in the whole plan's list, largest first, so picking another
@@ -52,7 +53,7 @@ export function itemYearsChart(years: readonly YearItems[], items: readonly stri
       yAxis: { type: 'category', inverse: true, data: years.map((year) => String(year.year)), axisLabel: { color: tokens.inkSecondary } },
       series,
     },
-    description: years.map((year) => `${year.year}: ${formatMoney(year.total)}, of it ${year.items.map((entry) => `${entry.item} ${formatMoney(entry.amount)}`).join(', ')}.`).join(' '),
+    description: years.map((year) => words.chart.year(year.year, formatMoney(year.total), year.items.map((entry) => `${entry.item} ${formatMoney(entry.amount)}`).join(', '))).join(' '),
     legend: names.map((name) => ({ label: name, colour: name === OTHER_ITEMS ? 'var(--chart-deemphasis)' : (colours.get(name) ?? 'var(--chart-ink)') })),
   }
 }

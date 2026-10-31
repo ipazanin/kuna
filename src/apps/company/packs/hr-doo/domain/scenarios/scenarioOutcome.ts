@@ -18,10 +18,12 @@ import type { EmployeeFacts } from '../payroll/incomeTax'
 import { atRate, deducted, percentText, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import type { PayrollMonth } from '../payroll/payrollMonth'
+import { HUNDRED } from './marginalEuro'
 import type { ScenarioCompany } from './scenarioCompany'
 import { scenarioGuards } from './scenarioGuards'
 import { scenarioPay } from './scenarioPay'
 import type { ScenarioSchedule } from './scenarioSchedule'
+import { words } from './words'
 
 /** Something about a scenario to weigh before choosing it. Each carries the figures it rests on. */
 export type ScenarioWarning =
@@ -125,27 +127,27 @@ export function scenarioOutcome(scenario: OwnerPayScenario, company: ScenarioCom
   const warnings: ScenarioWarning[] = [...pay.warnings]
 
   const rent = summed(
-    'Rent paid to you',
+    words.outcome.rentPaid,
     pay.rent.map((part) => part.rent),
     BASIS,
   )
   const rentTax = summed(
-    'Rent tax',
+    words.outcome.rentTax,
     pay.rent.map((part) => part.tax),
     BASIS,
   )
-  const rentAfterTax = summed('Rent after the rent tax', [rent, deducted(rentTax)], BASIS)
+  const rentAfterTax = summed(words.outcome.rentAfterTax, [rent, deducted(rentTax)], BASIS)
 
   const byMonth = (pick: (month: PayrollMonth) => TracedFigure, label: string) =>
     summed(
       label,
-      payroll.map((month) => ({ ...pick(month), label: `${pick(month).label}, ${monthLabel(month.workedMonth)}` })),
+      payroll.map((month) => ({ ...pick(month), label: words.outcome.inMonth(pick(month).label, monthLabel(month.workedMonth)) })),
       BASIS,
     )
-  const grossTwo = byMonth((month) => month.employerCost, 'Gross II, the salary and health on top')
-  const taxFree = byMonth((month) => month.nontaxablePayments, 'Tax-free items within their caps')
-  const netSalary = byMonth((month) => month.net, 'Net salary')
-  const deductibleOwnerPay = summed('Owner pay the corporate tax allows', [grossTwo, taxFree, rent], BASIS)
+  const grossTwo = byMonth((month) => month.employerCost, words.outcome.grossTwo)
+  const taxFree = byMonth((month) => month.nontaxablePayments, words.outcome.taxFree)
+  const netSalary = byMonth((month) => month.net, words.outcome.netSalary)
+  const deductibleOwnerPay = summed(words.outcome.deductible, [grossTwo, taxFree, rent], BASIS)
 
   const input = company.taxBaseInput
   const period = taxPeriodOf(year, company.registered)
@@ -153,7 +155,7 @@ export function scenarioOutcome(scenario: OwnerPayScenario, company: ScenarioCom
     {
       ...input,
       year,
-      expenses: tracedFigure('PD line 2, expenses with this owner pay', sumMoney([input.expenses.amount, deductibleOwnerPay.amount]), BASIS, rulesOf([input.expenses, deductibleOwnerPay]), [
+      expenses: tracedFigure(words.outcome.expensesWithPay, sumMoney([input.expenses.amount, deductibleOwnerPay.amount]), BASIS, rulesOf([input.expenses, deductibleOwnerPay]), [
         input.expenses,
         deductibleOwnerPay,
       ]),
@@ -163,10 +165,10 @@ export function scenarioOutcome(scenario: OwnerPayScenario, company: ScenarioCom
   const withoutPay = taxBase({ ...input, year }, rules)
   const liability = citLiability(withPay, period, null, rules)
   const corporateTax = liability.liability
-  const corporateTaxWithoutOwnerPay = { ...citLiability(withoutPay, period, null, rules).liability, label: 'Corporate tax with no owner pay deducted' }
-  const corporateTaxSaved = summed('Corporate tax the deductible owner pay saves', [corporateTaxWithoutOwnerPay, deducted(corporateTax)], BASIS)
+  const corporateTaxWithoutOwnerPay = { ...citLiability(withoutPay, period, null, rules).liability, label: words.outcome.taxWithoutPay }
+  const corporateTaxSaved = summed(words.outcome.taxSaved, [corporateTaxWithoutOwnerPay, deducted(corporateTax)], BASIS)
   const profitBeforeTax = withPay.profitBeforeTax
-  const profitAfterTax = summed('Profit after tax', [profitBeforeTax, deducted(corporateTax)], BASIS)
+  const profitAfterTax = summed(words.outcome.profitAfterTax, [profitBeforeTax, deducted(corporateTax)], BASIS)
 
   const dividend = dividendOf(schedule, company, profitAfterTax, year, rules)
   if (schedule.dividend !== null && schedule.dividend.amount !== 'max' && dividend.gross.amount > dividend.distributable.amount) {
@@ -176,45 +178,41 @@ export function scenarioOutcome(scenario: OwnerPayScenario, company: ScenarioCom
     warnings.push({ kind: 'net-assets-below-capital', netAssetsAfter: dividend.netAssetsAfter, shareCapital: company.shareCapital })
   }
 
-  const settlementRefund = settlement === null ? tracedFigure('No annual settlement, as no salary is paid', ZERO, BASIS, []) : settlement.refund
-  const ownContributions = deducted({ ...own.total, label: 'Contributions you pay yourself as a board member only' })
-  const netToOwner = summed('Net to you', [netSalary, taxFree, rentAfterTax, dividend.net, settlementRefund, ownContributions], BASIS)
-  const companyCost = summed('Total cost to the company', [grossTwo, taxFree, rent, dividend.gross, corporateTax], BASIS)
+  const settlementRefund = settlement === null ? tracedFigure(words.outcome.noSettlement, ZERO, BASIS, []) : settlement.refund
+  const ownContributions = deducted({ ...own.total, label: words.outcome.ownContributions })
+  const netToOwner = summed(words.outcome.netToYou, [netSalary, taxFree, rentAfterTax, dividend.net, settlementRefund, ownContributions], BASIS)
+  const companyCost = summed(words.outcome.companyCost, [grossTwo, taxFree, rent, dividend.gross, corporateTax], BASIS)
 
   const taxes: ScenarioTaxes = {
-    pensionPillarOne: summed('Pension pillar I, your pension rights', [byMonth((month) => month.pensionPillarOne, 'On the salary'), own.pillarOne], BASIS),
-    pensionPillarTwo: summed('Pension pillar II, your own savings', [byMonth((month) => month.pensionPillarTwo, 'On the salary'), own.pillarTwo], BASIS),
-    health: summed('Health insurance', [byMonth((month) => month.health, 'On the salary'), own.health], BASIS),
-    incomeTaxWithheld: byMonth((month) => month.incomeTax, 'Income tax withheld in the months'),
+    pensionPillarOne: summed(words.outcome.pillarOne, [byMonth((month) => month.pensionPillarOne, words.outcome.onSalary), own.pillarOne], BASIS),
+    pensionPillarTwo: summed(words.outcome.pillarTwo, [byMonth((month) => month.pensionPillarTwo, words.outcome.onSalary), own.pillarTwo], BASIS),
+    health: summed(words.outcome.health, [byMonth((month) => month.health, words.outcome.onSalary), own.health], BASIS),
+    incomeTaxWithheld: byMonth((month) => month.incomeTax, words.outcome.incomeTaxWithheld),
     settlementChange:
       settlement === null
-        ? tracedFigure('No annual settlement', ZERO, BASIS, [])
-        : { ...deducted(settlement.refund), label: settlement.refund.amount >= 0 ? 'Annual settlement, refunded to you' : 'Annual settlement, extra tax to pay' },
-    youthRelief: settlement?.youthRelief ?? tracedFigure('No youth relief without a salary', ZERO, BASIS, []),
+        ? tracedFigure(words.outcome.noAnnualSettlement, ZERO, BASIS, [])
+        : { ...deducted(settlement.refund), label: settlement.refund.amount >= 0 ? words.outcome.refunded : words.outcome.extraTax },
+    youthRelief: settlement?.youthRelief ?? tracedFigure(words.outcome.noYouthRelief, ZERO, BASIS, []),
     rentTax,
     dividendTax: dividend.tax,
     corporateTax,
   }
   const stateTake = summed(
-    'Taken by the state, pillar II apart',
+    words.outcome.stateTake,
     [taxes.pensionPillarOne, taxes.health, taxes.incomeTaxWithheld, taxes.settlementChange, taxes.rentTax, taxes.dividendTax, taxes.corporateTax],
     BASIS,
   )
   const profitBeforeOwnerPay = company.profitBeforeOwnerPay
-  const keptInCompany = summed('Kept in the company', [profitBeforeOwnerPay, deducted(companyCost)], BASIS)
+  const keptInCompany = summed(words.outcome.kept, [profitBeforeOwnerPay, deducted(companyCost)], BASIS)
   const netPerHundred =
     profitBeforeOwnerPay.amount > 0
-      ? tracedFigure('Net to you of each 100.00 of profit before owner pay', moneyFromCents(dividedRounded(netToOwner.amount * 10_000, profitBeforeOwnerPay.amount)), BASIS, rulesOf([netToOwner]), [
+      ? tracedFigure(words.outcome.perHundred(HUNDRED), moneyFromCents(dividedRounded(netToOwner.amount * HUNDRED, profitBeforeOwnerPay.amount)), BASIS, rulesOf([netToOwner]), [
           netToOwner,
           profitBeforeOwnerPay,
         ])
       : null
 
-  const cashAfter = summed(
-    "Cash after the year's owner pay, corporate tax and the dividend paid in cash",
-    [company.cashBeforeOwnerPay, deducted(deductibleOwnerPay), deducted(corporateTax), deducted(dividend.cashOut)],
-    BASIS,
-  )
+  const cashAfter = summed(words.outcome.cashAfter, [company.cashBeforeOwnerPay, deducted(deductibleOwnerPay), deducted(corporateTax), deducted(dividend.cashOut)], BASIS)
   if (cashAfter.amount < 0) {
     warnings.push({ kind: 'cash-short', cashAfter })
   }
@@ -273,43 +271,37 @@ function dividendOf(schedule: ScenarioSchedule, company: ScenarioCompany, profit
   const protection = rules('hr.ztd.capital-protection', yearEnd)
   const distributableSteps = [profitAfterTax, company.retainedBroughtIn]
   const distributable = tracedFigure(
-    'Distributable profit',
+    words.outcome.distributable,
     sumMoney(distributableSteps.map((step) => step.amount)),
     BASIS,
     [distributableRule.citation, ...rulesOf(distributableSteps)],
     distributableSteps,
   )
-  const netAssetsBefore = summed('Net assets at the year end, before the payout', [company.shareCapital, company.reserves, distributable], BASIS)
+  const netAssetsBefore = summed(words.outcome.netAssetsBefore, [company.shareCapital, company.reserves, distributable], BASIS)
   const room = subtractMoney(netAssetsBefore.amount, company.shareCapital.amount)
   const most = distributable.amount < room ? distributable.amount : room
   const maxPayout = tracedFigure(
-    'The most the year can pay out with the share capital still covered',
+    words.outcome.maxPayout,
     most > 0 ? most : ZERO,
     BASIS,
     [distributableRule.citation, protection.citation],
-    [distributable, tracedFigure('Net assets above the share capital', room, BASIS, [protection.citation], [netAssetsBefore, deducted(company.shareCapital)])],
+    [distributable, tracedFigure(words.outcome.aboveCapital, room, BASIS, [protection.citation], [netAssetsBefore, deducted(company.shareCapital)])],
   )
   const chosen = schedule.dividend
   const ofYear = profitAfterTax.amount < maxPayout.amount ? profitAfterTax.amount : maxPayout.amount
   const gross =
     chosen === null
-      ? tracedFigure('No dividend', ZERO, BASIS, [])
+      ? tracedFigure(words.outcome.noDividend, ZERO, BASIS, [])
       : chosen.amount === 'max'
-        ? tracedFigure("Dividend of the year's profit after tax, as far as the payout limit allows", ofYear > 0 ? ofYear : ZERO, BASIS, maxPayout.rules, [profitAfterTax, maxPayout])
-        : tracedFigure('Dividend', chosen.amount, BASIS, [distributableRule.citation])
+        ? tracedFigure(words.outcome.maxDividend, ofYear > 0 ? ofYear : ZERO, BASIS, maxPayout.rules, [profitAfterTax, maxPayout])
+        : tracedFigure(words.outcome.dividend, chosen.amount, BASIS, [distributableRule.citation])
   const taxRule = rules('hr.pit.dividend', civilDate(year + 1, 1, 1))
-  const tax = tracedFigure(
-    `Dividend tax at ${percentText(taxRule.value.rate.basisPoints)}, withheld at payout`,
-    atRate(gross.amount, taxRule.value.rate.basisPoints),
-    BASIS,
-    [taxRule.citation],
-    [gross],
-  )
-  const net = summed('Dividend after its tax', [gross, deducted(tax)], BASIS)
+  const tax = tracedFigure(words.outcome.dividendTax(percentText(taxRule.value.rate.basisPoints)), atRate(gross.amount, taxRule.value.rate.basisPoints), BASIS, [taxRule.citation], [gross])
+  const net = summed(words.outcome.dividendNet, [gross, deducted(tax)], BASIS)
   const owed = company.owedByOwner.amount > 0 ? company.owedByOwner.amount : ZERO
-  const setOff = tracedFigure('Of it, set off against what you owe the company', net.amount < owed ? net.amount : owed, BASIS, [], [net, company.owedByOwner])
-  const cashOut = summed('Dividend paid in cash, its tax included', [tax, net, deducted(setOff)], BASIS)
-  const netAssetsAfter = summed('Net assets after the payout', [netAssetsBefore, deducted(gross)], BASIS)
+  const setOff = tracedFigure(words.outcome.setOff, net.amount < owed ? net.amount : owed, BASIS, [], [net, company.owedByOwner])
+  const cashOut = summed(words.outcome.cashOut, [tax, net, deducted(setOff)], BASIS)
+  const netAssetsAfter = summed(words.outcome.netAssetsAfter, [netAssetsBefore, deducted(gross)], BASIS)
   return { distributable, netAssetsBefore, maxPayout, gross, tax, net, setOff, cashOut, netAssetsAfter }
 }
 

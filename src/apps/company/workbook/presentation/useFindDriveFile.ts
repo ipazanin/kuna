@@ -2,6 +2,7 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { useWorkbook } from '../application/workbookStore'
 import type { DriveFileLookup } from '../../../../shared/storage/application/workbookPorts'
+import { words } from './words'
 
 export interface FindDriveFile {
   /**
@@ -21,20 +22,18 @@ export function useFindDriveFile(): FindDriveFile {
     await store.chooseDriveFile(lookup)
     const chosen = store.state.choice
     if (store.state.status === 'error') {
-      toast.add({ title: 'Your books were not opened', description: store.state.error ?? '', icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
+      toast.add({ title: words.find.notOpened, description: store.state.error ?? '', icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
       return false
     }
     if (chosen?.source !== 'drive' || chosen === before) {
       return false
     }
     const place = await store.driveFilePlace().catch(() => null)
-    const where = place === null ? 'on Google Drive' : `in ${place.folderName} on Google Drive`
+    const where = place === null ? words.find.onDrive : words.find.inFolder(place.folderName)
     const already = before?.source === 'drive' && before.id === chosen.id
     toast.add({
-      title: already ? 'Your books are already open' : `Opened ${chosen.name}`,
-      description: already
-        ? `${chosen.name} ${where} is the file on screen, read again just now. To open a different file, use Pick another file.`
-        : `${chosen.name} ${where} is on screen now, and the app keeps a copy in this browser.`,
+      title: already ? words.find.alreadyOpen : words.find.opened(chosen.name),
+      description: already ? words.find.readAgain(chosen.name, where) : words.find.onScreen(chosen.name, where),
       icon: 'i-lucide-check',
       color: 'success',
     })

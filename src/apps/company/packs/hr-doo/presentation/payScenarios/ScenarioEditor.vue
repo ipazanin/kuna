@@ -7,10 +7,12 @@ import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import { useWorkbook } from '../../../../workbook/application/workbookStore'
 import type { Grant } from '../../domain/grants/grants'
 import type { OwnerPayScenario, ScenarioComponent } from '../../domain/scenarios/ownerPayScenarios'
+import { scenarioName } from '../../domain/scenarios/startingScenarios'
 import ComponentDialog from './ComponentDialog.vue'
 import ScenarioNameDialog from './ScenarioNameDialog.vue'
 import StartingScenariosDialog from './StartingScenariosDialog.vue'
 import { componentText, spanText } from './scenarioWording'
+import { words } from './words'
 
 /** The year's scenarios as their rows: add, edit and delete a component, rename or copy a scenario, or add the starting four. */
 const props = defineProps<{
@@ -46,17 +48,17 @@ function name(scenario: OwnerPayScenario, mode: 'rename' | 'copy'): void {
 
 <template>
   <AppCard
-    :title="`Scenarios for ${year}`"
-    subtitle="Rows of the scenarios tab. A change is written at once, with Undo in the toast."
+    :title="words.editor.title(year)"
+    :subtitle="words.editor.subtitle"
     collapse-id="year.scenarios"
-    :summary="scenarios.length === 0 ? 'No scenario yet' : scenarios.map((scenario) => scenario.label || scenario.slug).join(', ')"
+    :summary="scenarios.length === 0 ? words.editor.noneYet : scenarios.map(scenarioName).join(', ')"
     start-collapsed
     :reveal="scenarios.length === 0"
     data-testid="scenario-editor"
   >
     <template v-if="!startingTaken" #actions>
       <UButton
-        label="Add the starting scenarios"
+        :label="words.editor.addStarting"
         icon="i-lucide-list-plus"
         color="neutral"
         variant="outline"
@@ -67,16 +69,34 @@ function name(scenario: OwnerPayScenario, mode: 'rename' | 'copy'): void {
       />
     </template>
     <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
-      <p v-if="scenarios.length === 0" class="py-4 text-sm text-muted">No scenario is for {{ year }} yet. The starting scenarios give four to compare, all editable.</p>
+      <p v-if="scenarios.length === 0" class="py-4 text-sm text-muted">{{ words.editor.noneForYear(year) }}</p>
       <article v-for="scenario in scenarios" :key="scenario.slug" class="scenario-card" :data-scenario="scenario.slug">
         <header class="flex flex-wrap items-start justify-between gap-2">
           <div class="min-w-0">
-            <h3 class="text-sm font-medium text-highlighted">{{ scenario.label || scenario.slug }}</h3>
+            <h3 class="text-sm font-medium text-highlighted">{{ scenarioName(scenario) }}</h3>
             <p class="identifier text-xs text-muted">{{ scenario.slug }}</p>
           </div>
           <div class="flex flex-wrap gap-1">
-            <UButton label="Rename" icon="i-lucide-pencil" color="neutral" variant="ghost" size="sm" :disabled="store.state.writing" data-testid="scenario-rename" @click="name(scenario, 'rename')" />
-            <UButton label="Copy" icon="i-lucide-copy" color="neutral" variant="ghost" size="sm" :disabled="store.state.writing" data-testid="scenario-copy" @click="name(scenario, 'copy')" />
+            <UButton
+              :label="words.editor.rename"
+              icon="i-lucide-pencil"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              :disabled="store.state.writing"
+              data-testid="scenario-rename"
+              @click="name(scenario, 'rename')"
+            />
+            <UButton
+              :label="words.editor.copy"
+              icon="i-lucide-copy"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              :disabled="store.state.writing"
+              data-testid="scenario-copy"
+              @click="name(scenario, 'copy')"
+            />
           </div>
         </header>
         <ul v-if="refusals.get(scenario.slug)" class="mt-2 flex flex-col gap-1" role="alert">
@@ -90,7 +110,7 @@ function name(scenario: OwnerPayScenario, mode: 'rename' | 'copy'): void {
             <button
               type="button"
               class="component-row"
-              :aria-label="`${componentText(component)}, ${spanText(component)}: edit`"
+              :aria-label="words.editor.editComponent(componentText(component), spanText(component))"
               data-testid="scenario-component"
               @click="editComponent(scenario, component)"
             >
@@ -103,7 +123,7 @@ function name(scenario: OwnerPayScenario, mode: 'rename' | 'copy'): void {
           </li>
         </ul>
         <UButton
-          label="Add a component"
+          :label="words.editor.addComponent"
           icon="i-lucide-plus"
           color="neutral"
           variant="link"

@@ -4,6 +4,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UPopover from '@nuxt/ui/components/Popover.vue'
 
 import type { FilterChip } from '../domain/filterChips'
+import { words } from './words'
 
 /**
  * The active filters as removable chips, with Clear once any is active. In one line, the chips that
@@ -71,24 +72,24 @@ watch(
 
 <template>
   <div ref="row" class="relative flex min-w-0 flex-1 items-center gap-1.5" :class="oneLine ? 'overflow-hidden' : 'flex-wrap'">
-    <div class="contents" aria-label="Active filters" role="group">
+    <div class="contents" :aria-label="words.activeFilters" role="group">
       <span v-for="chip in shownChips" :key="chip.id" class="filter-chip" data-testid="filter-chip">
         <span class="truncate">{{ chip.label }}</span>
-        <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" class="rounded-full p-0.5" :aria-label="`Remove filter ${chip.label}`" @click="emit('remove', chip.id)" />
+        <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" class="rounded-full p-0.5" :aria-label="words.removeFilter(chip.label)" @click="emit('remove', chip.id)" />
       </span>
       <UPopover v-if="foldedChips.length" :content="{ align: 'start', collisionPadding: 12 }">
-        <UButton :label="`+${foldedChips.length} more`" color="neutral" variant="ghost" size="xs" class="shrink-0" data-testid="more-filters" />
+        <UButton :label="words.more(foldedChips.length)" color="neutral" variant="ghost" size="xs" class="shrink-0" data-testid="more-filters" />
         <template #content>
           <ul class="flex max-w-80 flex-col gap-1 p-2">
             <li v-for="chip in foldedChips" :key="chip.id" class="filter-chip justify-between">
               <span class="truncate">{{ chip.label }}</span>
-              <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" class="rounded-full p-0.5" :aria-label="`Remove filter ${chip.label}`" @click="emit('remove', chip.id)" />
+              <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" class="rounded-full p-0.5" :aria-label="words.removeFilter(chip.label)" @click="emit('remove', chip.id)" />
             </li>
           </ul>
         </template>
       </UPopover>
     </div>
-    <UButton v-if="chips.length" label="Clear" color="neutral" variant="link" size="xs" class="shrink-0" @click="emit('clear')" />
+    <UButton v-if="chips.length" :label="words.clear" color="neutral" variant="link" size="xs" class="shrink-0" @click="emit('clear')" />
     <div v-if="oneLine" ref="measured" class="measure" aria-hidden="true" inert>
       <span v-for="chip in chips" :key="chip.id" class="filter-chip">
         <span class="truncate">{{ chip.label }}</span>

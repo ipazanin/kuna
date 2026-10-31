@@ -25,9 +25,8 @@ export function recordsOfKind<R>(records: PackRecords, kind: RecordKind<R>): Rec
 /** A kind of a pack whose records name categories, so a category they name keeps its name and its row. */
 export interface CategoryNaming {
   readonly kind: RecordKind<unknown>
-  /** What one record and several are called in a refusal, such as "owner advance" and "owner advances". */
-  readonly one: string
-  readonly many: string
+  /** How a refusal counts the records, such as "3 owner advances". */
+  readonly counted: (count: number) => string
   /** The categories a record names, from its fields as stored, refused records included. */
   categoriesOf(fields: StoredFields): readonly string[]
 }

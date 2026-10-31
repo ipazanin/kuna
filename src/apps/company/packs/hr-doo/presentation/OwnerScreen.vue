@@ -21,10 +21,11 @@ import MissingRoles from './MissingRoles.vue'
 import OwedPanel from './OwedPanel.vue'
 import OwnerPayOff from './OwnerPayOff.vue'
 import TakenPanel from './TakenPanel.vue'
+import { words } from './words'
 
 const TABS: readonly PageTab[] = [
-  { label: 'Taken', value: 'taken', icon: 'i-lucide-hand-coins' },
-  { label: 'Who owes whom', value: 'owed', icon: 'i-lucide-arrow-left-right' },
+  { label: words.owner.tabs.taken, value: 'taken', icon: 'i-lucide-hand-coins' },
+  { label: words.owner.tabs.owed, value: 'owed', icon: 'i-lucide-arrow-left-right' },
 ]
 
 const ledger = useFilteredLedger()
@@ -48,27 +49,27 @@ const missing = computed(() => {
   const categories = ledger.value?.workbook.categories ?? []
   const lacks = (role: PackRole) => categoriesWithRole(categories, role).length === 0
   return [
-    ...(lacks(PACK_ROLES.ownerLoanOut) ? [{ role: PACK_ROLES.ownerLoanOut, leftOut: 'no loan to the owner is listed' }] : []),
-    ...(lacks(PACK_ROLES.ownerLoanRepaid) ? [{ role: PACK_ROLES.ownerLoanRepaid, leftOut: 'no repayment is matched to a loan' }] : []),
-    ...(lacks(PACK_ROLES.ownerPayTax) ? [{ role: PACK_ROLES.ownerPayTax, leftOut: 'gross cost is owner pay alone' }] : []),
-    ...(lacks(PACK_ROLES.reimbursement) ? [{ role: PACK_ROLES.reimbursement, leftOut: 'no reimbursement repays an advance' }] : []),
+    ...(lacks(PACK_ROLES.ownerLoanOut) ? [{ role: PACK_ROLES.ownerLoanOut, leftOut: words.owner.leftOut.loanOut }] : []),
+    ...(lacks(PACK_ROLES.ownerLoanRepaid) ? [{ role: PACK_ROLES.ownerLoanRepaid, leftOut: words.owner.leftOut.loanRepaid }] : []),
+    ...(lacks(PACK_ROLES.ownerPayTax) ? [{ role: PACK_ROLES.ownerPayTax, leftOut: words.owner.leftOut.payTax }] : []),
+    ...(lacks(PACK_ROLES.reimbursement) ? [{ role: PACK_ROLES.reimbursement, leftOut: words.owner.leftOut.reimbursement }] : []),
   ]
 })
 </script>
 
 <template>
   <section class="flex flex-col gap-6">
-    <PageHeader title="Owner" description="What the owner took out, and who owes whom between the owner and the company.">
+    <PageHeader :title="words.screens.owner" :description="words.owner.description">
       <template v-if="settings.ownerPayModule" #actions>
-        <UButton label="Add advance" icon="i-lucide-plus" size="sm" :disabled="ledger === null || state.writing" data-testid="open-add-advance" @click="addingAdvance = true" />
-        <UButton label="Compare pay mixes" icon="i-lucide-scale" :to="payMixes" color="neutral" variant="outline" size="sm" data-testid="owner-pay-scenarios" />
+        <UButton :label="words.owner.addAdvance" icon="i-lucide-plus" size="sm" :disabled="ledger === null || state.writing" data-testid="open-add-advance" @click="addingAdvance = true" />
+        <UButton :label="words.owner.comparePayMixes" icon="i-lucide-scale" :to="payMixes" color="neutral" variant="outline" size="sm" data-testid="owner-pay-scenarios" />
       </template>
     </PageHeader>
     <OwnerPayOff v-if="!settings.ownerPayModule" />
     <LedgerGate v-else>
       <template v-if="ledger && asOf">
         <MissingRoles :missing="missing" />
-        <PageTabs :tabs="TABS" label="What the owner took and who owes whom">
+        <PageTabs :tabs="TABS" :label="words.owner.tabs.label">
           <template #above>
             <FilterBar :workbook="ledger.workbook" :window="ledger.window" />
           </template>

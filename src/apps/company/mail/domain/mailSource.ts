@@ -1,6 +1,7 @@
 import { civilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { fold } from '../../../../shared/text/fold'
+import { words } from './words'
 
 /** One file attached to a mail, by Gmail's id and the name the sender gave it. */
 export interface MailAttachment {
@@ -45,7 +46,7 @@ export function filedMailProperties(source: string, mail: Pick<MailMessage, 'id'
   const properties: Readonly<Record<string, string>> = { [MAIL_SOURCE_PROPERTY]: source, [MAIL_ID_PROPERTY]: mail.id, [MAIL_DATE_PROPERTY]: new Date(mail.date).toISOString() }
   const tooLong = Object.entries(properties).find(([key, value]) => new TextEncoder().encode(`${key}${value}`).length > PROPERTY_MAX_BYTES)
   if (tooLong !== undefined) {
-    throw new Error(`Its ${tooLong[0]} property would be longer than the ${PROPERTY_MAX_BYTES} bytes Drive keeps`)
+    throw new Error(words.propertyTooLong(tooLong[0], PROPERTY_MAX_BYTES))
   }
   return properties
 }
@@ -105,12 +106,6 @@ export function sourceTerms(on: boolean, terms: MailTerms): SourceTerms {
   return missing.length === 0 ? { kind: 'on', terms } : { kind: 'incomplete', missing }
 }
 
-/** "no sender", "no sender and no folder" or "no sender, no subject and no folder". */
-export function missingWords(missing: readonly MailTermPiece[]): string {
-  const words = missing.map((piece) => `no ${piece}`)
-  return words.length < 2 ? (words[0] ?? '') : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`
-}
-
 /** The folder for one year inside a source's folder: the year and the folder's own name, such as 2026-statements inside statements. */
 export function yearFolderName(year: string | number, folder: readonly string[]): string {
   return `${year}-${folder.at(-1) ?? ''}`
@@ -146,30 +141,6 @@ export interface MailCounts {
   readonly unmatched: number
 }
 
-/** "Filed 2, already there 50, 1 unmatched", "Nothing new, already there 50" when nothing was filed, or "Nothing filed" when every upload failed. */
-export function countsLine(counts: MailCounts): string {
-  const parts = [
-    counts.filed === 0 ? (counts.notFiled === 0 ? 'nothing new' : 'nothing filed') : `filed ${counts.filed}`,
-    counts.already === 0 ? '' : `already there ${counts.already}`,
-    counts.corrections === 0 ? '' : `${counts.corrections} ${counts.corrections === 1 ? 'correction' : 'corrections'}`,
-    counts.unchecked === 0 ? '' : `${counts.unchecked} not compared`,
-    counts.unmatched === 0 ? '' : `${counts.unmatched} unmatched`,
-  ].filter((part) => part !== '')
-  const line = parts.join(', ')
-  return `${line.charAt(0).toUpperCase()}${line.slice(1)}`
-}
-
-/** How many names a line spells out before it counts the rest. */
-const NAMED_AT_MOST = 2
-
-/** "a.pdf was not filed.", "a.pdf and b.xml were not filed." or "a.pdf, b.xml and 3 more were not filed." */
-export function notFiledSentence(names: readonly string[]): string {
-  const named = names.slice(0, NAMED_AT_MOST)
-  const rest = names.length - named.length
-  const list = rest > 0 ? `${named.join(', ')} and ${rest} more` : named.join(' and ')
-  return `${list} ${names.length === 1 ? 'was' : 'were'} not filed.`
-}
-
 const MAIL_ADDRESS = /^[^\s@,()"]+@[^\s@,()"]+\.[^\s@,()".]+$/
 
 /** The addresses of a comma-separated list, in lower case, each once. */
@@ -187,13 +158,13 @@ export function mailAddressesOf(text: string): string[] {
 /** Why a list of sender addresses cannot be searched for, or null. */
 export function mailAddressesProblem(addresses: readonly string[]): string | null {
   const malformed = addresses.filter((address) => !MAIL_ADDRESS.test(address))
-  return malformed.length === 0 ? null : `${malformed.map((address) => `"${address}"`).join(', ')} ${malformed.length === 1 ? 'is not a mail address' : 'are not mail addresses'}`
+  return malformed.length === 0 ? null : words.notAddresses(malformed)
 }
 
 const SUBJECT_MAX_LENGTH = 80
 
 /** Why a subject phrase cannot be searched for, or null. */
 export function mailSubjectProblem(subject: string): string | null {
-  if (subject.includes('"')) return 'a subject cannot hold a double quote, which would end the phrase Gmail searches for'
-  return subject.length > SUBJECT_MAX_LENGTH ? `a subject can be at most ${SUBJECT_MAX_LENGTH} characters` : null
+  if (subject.includes('"')) return words.subjectQuote
+  return subject.length > SUBJECT_MAX_LENGTH ? words.subjectTooLong(SUBJECT_MAX_LENGTH) : null
 }

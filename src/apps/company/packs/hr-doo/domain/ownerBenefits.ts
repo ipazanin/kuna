@@ -17,6 +17,7 @@ import type { DividendRoute } from './dividend/dividendRoute'
 import { paidOut } from './paidOut'
 import { rulesOf, tracedFigure } from './payroll/payrollArithmetic'
 import type { RuleSource } from './payroll/payrollArithmetic'
+import { words } from './words'
 
 /** The owner's parts of the costs of one category shared with the owner. */
 export interface BenefitSource {
@@ -102,28 +103,28 @@ export function ownerBenefits(bookings: readonly Booking[], categories: readonly
  */
 export function dividendComparison(byYear: readonly YearAmount[], name: string, corporateRateOf: (year: number) => TracedRate, rules: RuleSource = ruleValue): DividendComparison {
   const years = byYear.map(({ year, amount }): YearRoute => {
-    const money = tracedFigure(`${name} in ${year}`, amount, 'ledger', [])
+    const money = tracedFigure(words.owner.inYear(name, year), amount, 'ledger', [])
     return { year, amount: money, route: dividendRoute(money, year, corporateRateOf(year), rules) }
   })
   const perYear = years.map(({ year, amount, route }) => {
     const taxes = [{ ...route.corporateTax, steps: [amount] }, route.dividendTax]
     return {
-      taxAvoided: tracedFigure(`Tax avoided in ${year}`, addMoney(route.corporateTax.amount, route.dividendTax.amount), 'ledger', rulesOf(taxes), taxes),
-      asDividend: { ...route.net, label: `As a dividend in ${year}` },
+      taxAvoided: tracedFigure(words.owner.taxAvoidedIn(year), addMoney(route.corporateTax.amount, route.dividendTax.amount), 'ledger', rulesOf(taxes), taxes),
+      asDividend: { ...route.net, label: words.owner.asDividendIn(year) },
     }
   })
   const [only] = perYear
   if (perYear.length === 1 && only !== undefined) {
-    return { taxAvoided: { ...only.taxAvoided, label: 'Tax avoided against a dividend' }, asDividend: { ...only.asDividend, label: 'As a dividend, net' }, years }
+    return { taxAvoided: { ...only.taxAvoided, label: words.owner.taxAvoided }, asDividend: { ...only.asDividend, label: words.owner.asDividend }, years }
   }
   const summed = (label: string, figures: readonly TracedFigure[]): TracedFigure => tracedFigure(label, sumMoney(figures.map((figure) => figure.amount)), 'ledger', rulesOf(figures), figures)
   return {
     taxAvoided: summed(
-      'Tax avoided against a dividend',
+      words.owner.taxAvoided,
       perYear.map((entry) => entry.taxAvoided),
     ),
     asDividend: summed(
-      'As a dividend, net',
+      words.owner.asDividend,
       perYear.map((entry) => entry.asDividend),
     ),
     years,

@@ -24,6 +24,8 @@ import CostByCategory from './CostByCategory.vue'
 import type { CostSection } from './CostByCategory.vue'
 import MonthStrip from './MonthStrip.vue'
 import PayeeCategories from './PayeeCategories.vue'
+import { plural } from '../../../../shared/text/translation'
+import { words } from './words'
 
 /** Where the money goes in the period: cost by category and who the company paid most. */
 const ledger = useFilteredLedger()
@@ -40,15 +42,15 @@ const spending = computed(() => {
   const { scoped, profitAndLossRows, window, filters } = current
   const prior = priorEqualPeriod(filters.period, window)
   const groups = costGroups(categoryTotals(profitAndLossRows, filters.period, window), prior === null ? null : categoryTotals(profitAndLossRows, prior, window))
-  const groupTitle = (key: CostGroup['key']): string => (key === 'money-back' ? 'Money back' : settings.value.bucketLabels[key])
+  const groupTitle = (key: CostGroup['key']): string => (key === 'money-back' ? words.breakdown.moneyBack : settings.value.bucketLabels[key])
   const pack = shownPack(settings.value)
   const priorLabel = prior === null ? null : periodInWords(prior, window)
   const payees = topCounterparties(scoped, filters.period, window)
   const stripScale = Math.max(0, ...payees.flatMap((payee) => payee.strip.map((cell) => cell.amount)))
   const costLabels = costLabelsInSentence(settings.value)
   return {
-    definition: `${costLabels.charAt(0).toUpperCase()}${costLabels.slice(1)} by category. A refund in a cost category lowers its bar. Transfers and reimbursements are not costs, so they are left out.`,
-    legend: priorLabel === null ? [] : [{ label: 'Period before', colour: 'var(--chart-ink-muted)', mark: 'outline' as const }],
+    definition: words.breakdown.definition(costLabels),
+    legend: priorLabel === null ? [] : [{ label: words.breakdown.periodBefore, colour: 'var(--chart-ink-muted)', mark: 'outline' as const }],
     sections: groups.map((group): CostSection => ({
       key: group.key,
       title: groupTitle(group.key),
@@ -68,10 +70,7 @@ const spending = computed(() => {
     })),
     priorLabel,
     stripScale,
-    payeesSummary:
-      payees[0] === undefined
-        ? 'Nothing left the company in this period'
-        : `Top: ${payees[0].label}, ${formatMoney(payees[0].total.amount)}, of ${payees.length} ${payees.length === 1 ? 'counterparty' : 'counterparties'}`,
+    payeesSummary: payees[0] === undefined ? words.breakdown.nothingLeft : plural(words.breakdown.topPayee(payees[0].label, formatMoney(payees[0].total.amount), payees.length), payees.length),
     payees: payees.map((payee) => ({
       key: payee.key,
       label: payee.label,
@@ -79,7 +78,7 @@ const spending = computed(() => {
       total: payee.total.amount,
       count: payee.transactionCount,
       strip: payee.strip,
-      rhythm: payee.rhythm === 'monthly' ? 'Monthly' : payee.rhythm === 'one-off' ? 'One-off' : null,
+      rhythm: payee.rhythm === 'monthly' ? words.breakdown.monthly : payee.rhythm === 'one-off' ? words.breakdown.oneOff : null,
       categories: payee.categories.map((part) => ({
         category: part.category,
         bucket: part.bucket,
@@ -96,28 +95,23 @@ const spending = computed(() => {
   <div v-if="spending" class="flex flex-col gap-6">
     <CostByCategory
       :sections="spending.sections"
-      :subtitle="spending.priorLabel === null ? 'No earlier period to compare' : `Against ${spending.priorLabel}`"
+      :subtitle="spending.priorLabel === null ? words.breakdown.noEarlierPeriod : words.breakdown.against(spending.priorLabel)"
       :definition="spending.definition"
       :legend="spending.legend"
       :compared="spending.priorLabel !== null"
     />
 
-    <AppCard
-      title="Who the company paid most"
-      subtitle="Money out only, grouped by IBAN or name."
-      collapse-id="analysis.payees"
-      :summary="spending.payeesSummary"
-      start-collapsed
-      data-testid="top-payees"
-    >
-      <p v-if="spending.payees.length === 0" class="px-5 py-8 text-sm text-muted">Nothing left the company in this period.</p>
+    <AppCard :title="words.breakdown.payees" :subtitle="words.breakdown.payeesSubtitle" collapse-id="analysis.payees" :summary="spending.payeesSummary" start-collapsed data-testid="top-payees">
+      <p v-if="spending.payees.length === 0" class="px-5 py-8 text-sm text-muted">{{ words.breakdown.nothingLeftSentence }}</p>
       <FigureTable v-else class="px-1 pt-2 pb-2 sm:px-2">
         <thead>
           <tr>
-            <th scope="col" class="text-start">Counterparty</th>
-            <th scope="col" class="hidden @lg:table-cell"><span class="sr-only">The last 12 months</span></th>
-            <th scope="col" class="text-end">Rows</th>
-            <th scope="col" class="text-end">Paid</th>
+            <th scope="col" class="text-start">{{ words.breakdown.counterparty }}</th>
+            <th scope="col" class="hidden @lg:table-cell">
+              <span class="sr-only">{{ words.breakdown.last12Months }}</span>
+            </th>
+            <th scope="col" class="text-end">{{ words.breakdown.rows }}</th>
+            <th scope="col" class="text-end">{{ words.breakdown.paid }}</th>
           </tr>
         </thead>
         <tbody>
@@ -135,7 +129,7 @@ const spending = computed(() => {
             <td class="hidden @lg:table-cell"><MonthStrip :cells="payee.strip" :scale="spending.stripScale" /></td>
             <td class="figure text-end text-muted">{{ payee.count }}</td>
             <td class="text-end">
-              <DrillLink :to="payee.to" :label="`${payee.label}, open the rows`">
+              <DrillLink :to="payee.to" :label="words.breakdown.openRows(payee.label)">
                 <MoneyText :cents="payee.total" />
               </DrillLink>
             </td>
