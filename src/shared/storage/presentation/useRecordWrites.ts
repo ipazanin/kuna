@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { Ref } from 'vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
@@ -20,11 +20,21 @@ export interface RecordWriteOptions {
   readonly follow?: { readonly label: string; readonly icon: string; readonly run: () => void }
   /** The toast's title when the write was refused, so nothing was written. */
   readonly failedTitle?: string
+  /** Names the control that started the write, so `saving(key)` is true for that control alone while it runs. Defaults to `save`. */
+  readonly key?: string
 }
+
+/** Whether the write that the key names is under way. */
+export type WriteSaving = (key: string) => boolean
+
+/** The key a write without its own is under, so a dialog's Save binds `saving('save')`. */
+const SAVE_KEY = 'save'
 
 export interface RecordWrites {
   /** True while a write of this composable is under way. */
   readonly busy: Readonly<Ref<boolean>>
+  /** True while the write that `key` names is under way, for the control that started it to spin. An undo is under `undo-` and the write's id. */
+  readonly saving: WriteSaving
   /**
    * Writes what the work does through its repositories and says so in a toast that names the
    * records, with Undo where the write keeps one, or says why nothing was written. Resolves to
@@ -40,14 +50,16 @@ export interface RecordWrites {
 /** Record writes to the store's file with their toasts: what was written with Undo beside it, or why nothing was. */
 export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 'write' | 'undo'>): RecordWrites {
   const toast = useToast()
-  const busy = ref(false)
+  const running = ref<string | null>(null)
+  const busy = computed(() => running.value !== null)
+  const saving: WriteSaving = (key) => running.value === key
 
   function refused(title: string, failure: unknown): void {
     toast.add({ title, description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error', duration: UNDO_TOAST_DURATION })
   }
 
   async function undo(write: SessionWrite): Promise<void> {
-    busy.value = true
+    running.value = `undo-${write.id}`
     try {
       await store.undo(write)
       const undone = store.state.writes[0]
@@ -55,7 +67,7 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
     } catch (failure) {
       refused(words.notUndone, failure)
     } finally {
-      busy.value = false
+      running.value = null
     }
   }
 
@@ -76,7 +88,7 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
   }
 
   async function write(title: string, work: (unit: UnitOfWork) => void, options: RecordWriteOptions = {}): Promise<boolean> {
-    busy.value = true
+    running.value = options.key ?? SAVE_KEY
     try {
       const receipt = await store.write(title, work)
       if (receipt === null || store.state.writes[0]?.receipt !== receipt) {
@@ -90,9 +102,9 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
       refused(failure instanceof WorkbookWriteRefused ? (options.failedTitle ?? words.nothingWritten) : words.mayNotHaveFinished, failure)
       return false
     } finally {
-      busy.value = false
+      running.value = null
     }
   }
 
-  return { busy, write, announce, undo }
+  return { busy, saving, write, announce, undo }
 }

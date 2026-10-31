@@ -149,13 +149,18 @@ function typeSavings(text: string): void {
   props.compare.setSavings(text)
 }
 
-async function copy(book: ScenarioBook): Promise<void> {
-  await writes.write(words.list.copied, (unit) => void copyScenario(unit, book, words.list.copyName(book.scenario.name)), { failedTitle: words.list.notCopied })
+async function copy(row: ScenarioRow): Promise<void> {
+  const book = row.kept
+  if (book === null) return
+  await writes.write(words.list.copied, (unit) => void copyScenario(unit, book, words.list.copyName(book.scenario.name)), { failedTitle: words.list.notCopied, key: `copy-${row.key}` })
 }
 
-async function remove(book: ScenarioBook): Promise<void> {
+async function remove(row: ScenarioRow): Promise<void> {
   const records = store.state.records
-  if (records !== null) await writes.write(words.list.deleted, (unit) => removeScenario(unit, records, book.scenario), { failedTitle: loansWords.form.notDeleted })
+  const book = row.kept
+  if (records !== null && book !== null) {
+    await writes.write(words.list.deleted, (unit) => removeScenario(unit, records, book.scenario), { failedTitle: loansWords.form.notDeleted, key: `delete-${row.key}` })
+  }
 }
 
 function edit(row: ScenarioRow): void {
@@ -288,6 +293,7 @@ function edit(row: ScenarioRow): void {
         :subtitle="tab.kind === 'loan' ? words.list.loanSubtitle : words.list.offersSubtitle"
         :rows="rows"
         :busy="writes.busy.value"
+        :saving="writes.saving"
         @edit="edit"
         @copy="copy"
         @remove="remove"

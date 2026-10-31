@@ -1407,6 +1407,33 @@ async function checkWidth(width) {
     await expect(reviewCount(page), (count) => count === 2, 'Undo did not bring the row back')
   })
 
+  await step('write-in-progress', async () => {
+    await page.goto(`${BASE}?theme=dark&fake=slow-writes&load=${Date.now()}#/company/transactions?tab=review`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Transactions')
+    await (await reviewRow(page, 'GADGET CORNER')).tap()
+    await page.waitForSelector('[data-testid="review-details"]')
+    await page.tap('[data-testid="review-details"] [data-testid="confirm-row"]')
+    await page.waitForSelector('[data-testid="write-progress"]', { timeout: 5_000 }).catch(() => {
+      throw new Error('no progress bar shows while the write runs')
+    })
+    await expect(
+      page.evaluate(() => ({
+        spinning: document.querySelector('[data-testid="confirm-row"] .animate-spin') !== null,
+        sync: document.querySelector('[data-testid="sync-button"]')?.textContent?.trim() ?? null,
+      })),
+      ({ spinning, sync }) => spinning && sync === 'Saving…',
+      'the control that started the write does not spin, or the sync control does not say Saving',
+    )
+    await inspect(page, `${width}px write in progress`)
+    await shoot('write-in-progress')
+    await waitForText(page, '[data-slot="title"]', 'Confirmed')
+    await expect(
+      page.evaluate(() => document.querySelector('[data-testid="write-progress"]') === null),
+      (gone) => gone,
+      'the progress bar stays after the write is done',
+    )
+  })
+
   await step('review-recategorise-undo', async () => {
     await openFreshBrowser(page, '#/company/transactions?tab=review', 'Transactions')
     await (await reviewRow(page, 'SNACK KIOSK')).tap()

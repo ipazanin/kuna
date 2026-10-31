@@ -3,6 +3,7 @@ import { useWorkbook } from '../../../../workbook/application/workbookStore'
 import { recordsOfKindIn } from '../../../../workbook/domain/readWorkbook'
 import { NO_RECORDS, recordWithId } from '../../../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../../../../../shared/storage/presentation/useRecordWrites'
+import type { RecordWriteOptions } from '../../../../../../shared/storage/presentation/useRecordWrites'
 import type { PlanLine } from '../../domain/forecast/plan'
 import { PLAN_RECORDS } from '../../domain/hrDooKinds'
 import { PLAN_WRITES } from '../../domain/hrDooWrites'
@@ -17,9 +18,9 @@ export function usePlanWrites() {
     return recordWithId(store.state.records === null ? NO_RECORDS : recordsOfKindIn(store.state.records, PLAN_RECORDS), line.id)?.record ?? null
   }
 
-  function write(title: string, work: (lines: Repository<PlanLine>) => void, options: { readonly description: string; readonly failedTitle: string }): Promise<boolean> {
+  function write(title: string, work: (lines: Repository<PlanLine>) => void, options: RecordWriteOptions): Promise<boolean> {
     return writes.write(title, (unit) => work(unit.of(PLAN_WRITES)), options)
   }
 
-  return { busy: writes.busy, stored, write }
+  return { busy: writes.busy, saving: writes.saving, stored, write }
 }

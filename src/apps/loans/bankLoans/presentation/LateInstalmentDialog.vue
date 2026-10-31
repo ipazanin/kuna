@@ -77,7 +77,7 @@ async function save(): Promise<void> {
 async function remove(): Promise<void> {
   const before = props.editing
   if (before === null) return
-  if (await writes.write(words.lateDialog.deleted, (unit) => unit.of(LATE_INSTALMENT_WRITES).remove(before), { failedTitle: loansWords.form.notDeleted })) open.value = false
+  if (await writes.write(words.lateDialog.deleted, (unit) => unit.of(LATE_INSTALMENT_WRITES).remove(before), { key: 'delete', failedTitle: loansWords.form.notDeleted })) open.value = false
 }
 </script>
 
@@ -106,19 +106,20 @@ async function remove(): Promise<void> {
         icon="i-lucide-trash-2"
         color="error"
         variant="ghost"
+        :loading="writes.saving('delete')"
         :disabled="writes.busy.value"
         data-testid="late-instalment-delete"
         @click="remove"
       />
     </template>
     <template #end>
-      <UButton :label="loansWords.form.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="loansWords.form.cancel" color="neutral" variant="ghost" @click="open = false" />
       <UButton
         type="submit"
         form="late-instalment"
         :label="editing === null ? words.lateDialog.add : words.lateDialog.save"
         :icon="editing === null ? 'i-lucide-plus' : 'i-lucide-save'"
-        :loading="writes.busy.value"
+        :loading="writes.saving('save')"
         :disabled="writes.busy.value"
         data-testid="late-instalment-save"
       />

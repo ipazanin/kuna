@@ -28,7 +28,6 @@ export const en = {
         ? 'Newest first, from every month of the ledger. Open a row to see what the rules say about it. Confirm or recategorise one and the app writes its category and flagged_by to the file on Drive.'
         : 'Newest first, from every month of the ledger. Open a row to see what the rules say about it. Confirm or recategorise one and the app keeps its category and flagged_by in this browser.',
     queueSummary: 'Each waits for a confirmation or another category.',
-    backAsItWas: 'The workbook is back as it was before that change.',
     confirmed: (category: string) => `Confirmed ${category}`,
     filedAs: (category: string) => `Filed as ${category}`,
     noCounterpartyRow: 'A row with no counterparty',
@@ -203,7 +202,6 @@ export const hr: Translation<typeof en> = {
         ? 'Najnovije prvo, iz svih mjeseci evidencije. Otvorite stavku da vidite što o njoj kažu pravila. Kad potvrdite stavku ili joj promijenite kategoriju, aplikacija upisuje kategoriju i flagged_by u datoteku na Driveu.'
         : 'Najnovije prvo, iz svih mjeseci evidencije. Otvorite stavku da vidite što o njoj kažu pravila. Kad potvrdite stavku ili joj promijenite kategoriju, aplikacija čuva kategoriju i flagged_by u ovom pregledniku.',
     queueSummary: 'Svaka čeka potvrdu ili drugu kategoriju.',
-    backAsItWas: 'Datoteka je opet kakva je bila prije te promjene.',
     confirmed: (category) => `Potvrđeno: ${category}`,
     filedAs: (category) => `Razvrstano: ${category}`,
     noCounterpartyRow: 'Stavka bez partnera',

@@ -92,6 +92,7 @@ async function clear(): Promise<void> {
   if (
     await writes.write(words.planDialogs.category.cleared, (lines) => replacePlanLines(lines, holding, []), {
       description: words.planDialogs.category.clearedDescription(props.name, props.year),
+      key: 'delete',
       failedTitle: words.planDialogs.notCleared,
     })
   )
@@ -130,14 +131,23 @@ async function clear(): Promise<void> {
         icon="i-lucide-eraser"
         color="error"
         variant="ghost"
+        :loading="writes.saving('delete')"
         :disabled="writes.busy.value"
         data-testid="plan-clear"
         @click="clear"
       />
     </template>
     <template #end>
-      <UButton :label="words.planDialogs.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
-      <UButton type="submit" form="category-plan" :label="words.planDialogs.category.save" icon="i-lucide-save" :loading="writes.busy.value" :disabled="writes.busy.value" data-testid="plan-save" />
+      <UButton :label="words.planDialogs.cancel" color="neutral" variant="ghost" @click="open = false" />
+      <UButton
+        type="submit"
+        form="category-plan"
+        :label="words.planDialogs.category.save"
+        icon="i-lucide-save"
+        :loading="writes.saving('save')"
+        :disabled="writes.busy.value"
+        data-testid="plan-save"
+      />
     </template>
   </AppDialog>
 </template>

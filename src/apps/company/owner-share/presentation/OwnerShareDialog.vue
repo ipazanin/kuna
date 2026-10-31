@@ -97,13 +97,13 @@ async function save(): Promise<void> {
       <p class="text-xs text-muted">{{ words.shareDialog.note }}</p>
     </form>
     <template #end>
-      <UButton :label="words.shareDialog.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.shareDialog.cancel" color="neutral" variant="ghost" @click="open = false" />
       <UButton
         type="submit"
         form="owner-share"
         :label="words.shareDialog.save"
         icon="i-lucide-check"
-        :loading="writes.busy.value"
+        :loading="writes.saving('save')"
         :disabled="!changed || writes.busy.value || state.writing"
         data-testid="owner-share-save"
       />

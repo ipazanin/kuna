@@ -1,15 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useToast } from '@nuxt/ui/composables/useToast'
 
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
-import type { SessionWrite } from '../../../../shared/storage/application/createWorkbookStore'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import type { RecordWriteOptions } from '../../../../shared/storage/presentation/useRecordWrites'
-import { words as storageWords } from '../../../../shared/storage/presentation/words'
 import { plural } from '../../../../shared/text/translation'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
 import { shownPack } from '../../packs/packContribution'
@@ -42,7 +39,6 @@ const props = defineProps<{
 const ledger = useFilteredLedger()
 const store = useWorkbook()
 const { state } = store
-const toast = useToast()
 const names = useDisplayNames()
 const writes = useRecordWrites(store)
 const busy = computed(() => writes.busy.value || state.writing)
@@ -55,22 +51,13 @@ const nothingWaits = computed(() => props.queue.length === 0 && !packCards.value
 /** Writes to other workbooks this page showed earlier cannot be undone here, so they are left out. */
 const sessionWrites = computed(() => state.writes.filter((write) => write.workbookId === state.workbook?.id))
 
-async function undoSessionWrite(write: SessionWrite): Promise<void> {
-  try {
-    await store.undo(write)
-    toast.add({ title: storageWords.undone, description: words.review.backAsItWas, icon: 'i-lucide-undo-2', color: 'neutral' })
-  } catch (failure) {
-    toast.add({ title: storageWords.notUndone, description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
-  }
-}
-
 const expandedRow = ref<RecordId | null>(null)
 
 function toggle(id: RecordId): void {
   expandedRow.value = expandedRow.value === id ? null : id
 }
 
-function file(title: string, verdict: RowVerdict, options: RecordWriteOptions = {}): Promise<boolean> {
+function file(title: string, verdict: RowVerdict, options: RecordWriteOptions): Promise<boolean> {
   return writes.write(title, (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, [verdict], state.workbook?.categories ?? []), { failedTitle: words.review.notWritten, ...options })
 }
 
@@ -78,13 +65,14 @@ async function confirm(transaction: Transaction): Promise<void> {
   const workbook = ledger.value?.workbook
   const verdict = workbook === undefined ? null : confirmation(transaction, workbook.settings)
   if (verdict === null) return
-  await file(words.review.confirmed(names.value.category(transaction.category)), verdict, { description: transaction.counterparty || words.review.noCounterpartyRow })
+  await file(words.review.confirmed(names.value.category(transaction.category)), verdict, { key: `confirm-${transaction.id}`, description: transaction.counterparty || words.review.noCounterpartyRow })
 }
 
 async function recategorise(transaction: Transaction, category: string): Promise<void> {
   const workbook = ledger.value?.workbook
   if (workbook === undefined) return
   await file(words.review.filedAs(names.value.category(category)), recategorisation(transaction, category, workbook.settings), {
+    key: `recategorise-${transaction.id}`,
     description: transaction.counterparty || words.review.noCounterpartyRow,
     follow: { label: words.review.makeRule, icon: 'i-lucide-list-plus', run: () => makeRule({ ...transaction, category }) },
   })
@@ -140,6 +128,7 @@ function openSplit(row: Transaction): void {
               :expanded="expandedRow === entry.transaction.id"
               :split="splitOf(entry.transaction) !== null"
               :busy="busy"
+              :saving="writes.saving"
               @toggle="toggle(entry.transaction.id)"
               @confirm="confirm(entry.transaction)"
               @recategorise="recategorise(entry.transaction, $event)"
@@ -151,7 +140,7 @@ function openSplit(row: Transaction): void {
 
         <component :is="card.component" v-for="(card, index) in packCards" :key="index" :busy="busy" />
 
-        <SessionChanges :writes="sessionWrites" :categories="ledger.workbook.categories" :busy="busy" @undo="undoSessionWrite" />
+        <SessionChanges :writes="sessionWrites" :categories="ledger.workbook.categories" :busy="busy" :saving="writes.saving" @undo="writes.undo" />
 
         <SplitDialog v-if="splitting" v-model:open="splitOpen" :row="splitting.row" :split="splitting.split" :categories="ledger.workbook.categories" />
       </template>

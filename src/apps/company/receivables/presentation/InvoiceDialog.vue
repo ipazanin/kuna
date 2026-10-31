@@ -165,7 +165,7 @@ async function save(): Promise<void> {
 async function remove(): Promise<void> {
   const before = stored.value?.record ?? null
   if (props.id === null || before === null) return
-  if (await writes.write(words.dialog.deleted, (unit) => unit.of(INVOICE_WRITES).remove(before), { failedTitle: words.dialog.notDeleted })) open.value = false
+  if (await writes.write(words.dialog.deleted, (unit) => unit.of(INVOICE_WRITES).remove(before), { key: 'delete', failedTitle: words.dialog.notDeleted })) open.value = false
 }
 </script>
 
@@ -203,7 +203,17 @@ async function remove(): Promise<void> {
       <p class="-mt-2 text-xs text-muted">{{ words.dialog.periodHelp }}</p>
     </FormGrid>
     <template #start>
-      <UButton v-if="id !== null" :label="words.dialog.delete" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="invoice-delete" @click="remove" />
+      <UButton
+        v-if="id !== null"
+        :label="words.dialog.delete"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="ghost"
+        :loading="writes.saving('delete')"
+        :disabled="writes.busy.value"
+        data-testid="invoice-delete"
+        @click="remove"
+      />
       <UButton
         v-if="id !== null"
         :label="words.dialog.reexport"
@@ -211,19 +221,18 @@ async function remove(): Promise<void> {
         color="neutral"
         variant="ghost"
         :title="words.dialog.reexportHelp"
-        :disabled="writes.busy.value"
         data-testid="invoice-reexport"
         @click="emit('reexport', id)"
       />
     </template>
     <template #end>
-      <UButton :label="words.dialog.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.dialog.cancel" color="neutral" variant="ghost" @click="open = false" />
       <UButton
         type="submit"
         form="invoice-row"
         :label="id === null ? words.dialog.add : words.dialog.save"
         :icon="id === null ? 'i-lucide-plus' : 'i-lucide-save'"
-        :loading="writes.busy.value"
+        :loading="writes.saving('save')"
         :disabled="writes.busy.value"
         data-testid="invoice-save"
       />

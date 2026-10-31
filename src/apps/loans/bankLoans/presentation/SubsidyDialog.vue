@@ -36,7 +36,7 @@ const typed = computed(() => typedSubsidy(texts.value, props.book.loan.instalmen
 
 async function write(title: string, subsidy: LoanSubsidy | null, failedTitle: string): Promise<void> {
   const { loan } = props.book
-  if (await writes.write(title, (unit) => unit.of(BANK_LOAN_WRITES).change(loan, { ...loan, subsidy }), { failedTitle })) open.value = false
+  if (await writes.write(title, (unit) => unit.of(BANK_LOAN_WRITES).change(loan, { ...loan, subsidy }), { failedTitle, key: subsidy === null ? 'delete' : 'save' })) open.value = false
 }
 
 async function save(): Promise<void> {
@@ -58,19 +58,20 @@ async function save(): Promise<void> {
         icon="i-lucide-trash-2"
         color="error"
         variant="ghost"
+        :loading="writes.saving('delete')"
         :disabled="writes.busy.value"
         data-testid="subsidy-delete"
         @click="write(words.subsidyDialog.deleted, null, loansWords.form.notDeleted)"
       />
     </template>
     <template #end>
-      <UButton :label="loansWords.form.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="loansWords.form.cancel" color="neutral" variant="ghost" @click="open = false" />
       <UButton
         type="submit"
         form="loan-subsidy"
         :label="book.loan.subsidy === null ? words.subsidyDialog.addButton : words.subsidyDialog.saveButton"
         :icon="book.loan.subsidy === null ? 'i-lucide-plus' : 'i-lucide-save'"
-        :loading="writes.busy.value"
+        :loading="writes.saving('save')"
         :disabled="writes.busy.value"
         data-testid="subsidy-save"
       />

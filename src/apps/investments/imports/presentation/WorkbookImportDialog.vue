@@ -84,14 +84,14 @@ async function importWorkbook(): Promise<void> {
       <ImportDryRunStep v-else-if="settled" :workbook-import="workbookImport" :settled="settled" :deleting="toDelete.length" />
     </div>
     <template #end>
-      <UButton v-if="place > 0" :label="words.back" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :disabled="writes.busy.value" data-testid="workbook-import-back" @click="move(-1)" />
-      <UButton :label="words.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton v-if="place > 0" :label="words.back" icon="i-lucide-arrow-left" color="neutral" variant="ghost" data-testid="workbook-import-back" @click="move(-1)" />
+      <UButton :label="words.cancel" color="neutral" variant="ghost" @click="open = false" />
       <UButton v-if="shown !== 'dry-run'" :label="words.next" trailing-icon="i-lucide-arrow-right" :disabled="!ready" data-testid="workbook-import-next" @click="move(1)" />
       <UButton
         v-else
         :label="words.import"
         icon="i-lucide-file-input"
-        :loading="writes.busy.value"
+        :loading="writes.saving('save')"
         :disabled="!writesSomething || writes.busy.value"
         data-testid="workbook-import-confirm"
         @click="importWorkbook"

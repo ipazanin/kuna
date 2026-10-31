@@ -12,6 +12,7 @@ import type { Bucket } from '../../workbook/domain/bucket'
 import type { SuggestionKind } from '../../workbook/domain/dismissals'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
 import { plural } from '../../../../shared/text/translation'
+import type { WriteSaving } from '../../../../shared/storage/presentation/useRecordWrites'
 import { words as transactionWords } from '../../transactions/presentation/words'
 import { categoryRuleLink } from './ruleLinks'
 import { words } from './words'
@@ -26,6 +27,7 @@ const props = defineProps<{
   coverage: RuleCoverage<Transaction>
   categories: readonly Category[]
   busy: boolean
+  saving: WriteSaving
   /** How many of the groups the dismissed tab hides, for the summary. */
   dismissedCount: number
 }>()
@@ -87,16 +89,7 @@ function rowsInWords(count: number): string {
             </ul>
           </div>
           <div class="group-actions">
-            <UButton
-              :label="words.coverage.makeThisARule"
-              icon="i-lucide-list-plus"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              :disabled="busy"
-              data-testid="coverage-make-rule"
-              @click="emit('makeRule', group)"
-            />
+            <UButton :label="words.coverage.makeThisARule" icon="i-lucide-list-plus" color="neutral" variant="outline" size="sm" data-testid="coverage-make-rule" @click="emit('makeRule', group)" />
             <UButton
               :label="words.coverage.dismiss"
               icon="i-lucide-eye-off"
@@ -104,6 +97,7 @@ function rowsInWords(count: number): string {
               variant="ghost"
               size="sm"
               :aria-label="words.coverage.dismissName(group.name)"
+              :loading="saving(`dismiss-${group.name}`)"
               :disabled="busy"
               data-testid="coverage-dismiss"
               @click="emit('dismiss', 'not-covered', group)"
@@ -154,6 +148,7 @@ function rowsInWords(count: number): string {
               variant="ghost"
               size="sm"
               :aria-label="words.coverage.dismissName(group.name)"
+              :loading="saving(`dismiss-${group.name}`)"
               :disabled="busy"
               data-testid="coverage-dismiss"
               @click="emit('dismiss', 'exception', group)"

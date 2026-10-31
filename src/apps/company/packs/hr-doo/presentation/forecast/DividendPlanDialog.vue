@@ -72,6 +72,7 @@ async function remove(): Promise<void> {
   if (
     await writes.write(words.planDialogs.dividend.deleted, (lines) => lines.remove(before), {
       description: words.planDialogs.dividend.takenOut(props.year),
+      key: 'delete',
       failedTitle: words.planDialogs.notDeleted,
     })
   )
@@ -99,19 +100,20 @@ async function remove(): Promise<void> {
         icon="i-lucide-trash-2"
         color="error"
         variant="ghost"
+        :loading="writes.saving('delete')"
         :disabled="writes.busy.value"
         data-testid="dividend-delete"
         @click="remove"
       />
     </template>
     <template #end>
-      <UButton :label="words.planDialogs.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.planDialogs.cancel" color="neutral" variant="ghost" @click="open = false" />
       <UButton
         type="submit"
         form="dividend-plan"
         :label="dividend === null ? words.planDialogs.dividend.add : words.planDialogs.dividend.save"
         :icon="dividend === null ? 'i-lucide-plus' : 'i-lucide-save'"
-        :loading="writes.busy.value"
+        :loading="writes.saving('save')"
         :disabled="writes.busy.value"
         data-testid="dividend-save"
       />

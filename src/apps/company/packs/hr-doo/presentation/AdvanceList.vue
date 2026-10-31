@@ -40,7 +40,6 @@ defineProps<{
   /** What the card says when no cost is listed, such as "No cost the owner paid privately was owed in 2025." */
   empty: string
   /** True while another write runs. */
-  busy: boolean
 }>()
 
 const emit = defineEmits<{
@@ -78,7 +77,6 @@ const emit = defineEmits<{
           size="sm"
           square
           class="advance-edit"
-          :disabled="busy"
           :aria-label="words.advanceList.edit(advance.paidOn)"
           data-testid="advance-edit"
           @click="emit('edit', advance.id)"

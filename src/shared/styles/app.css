@@ -310,6 +310,11 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* The saving bar along the top of the page, below the status bar of an installed phone app. */
+.write-progress {
+  top: env(safe-area-inset-top);
+}
+
 /* The navigation drawer that slides in from the left of a phone, clear of the status and gesture bars. */
 .phone-drawer {
   max-width: min(20rem, calc(100vw - 3.5rem));

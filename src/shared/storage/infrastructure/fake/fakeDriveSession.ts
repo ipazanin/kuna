@@ -11,6 +11,9 @@ export const FAKE_BOOKS_FOLDER = 'Books'
 let session: FakeDrive | null = null
 let racing: ((text: string) => string) | null = null
 let held: ReadonlySet<string> = new Set()
+let uploadMs = 0
+
+const SLOW_UPLOAD_MS = 2_500
 
 /** The fake build's Drive, the same one for every read and save until the page reloads. */
 export function fakeDriveSession(): FakeDrive {
@@ -28,6 +31,11 @@ export async function fakeBooksFolder(): Promise<string> {
 /** Makes the next save meet a save another device made a moment before its upload, which `otherDeviceSave` makes from the file as it stands. */
 export function raceTheNextSave(otherDeviceSave: (text: string) => string): void {
   racing = otherDeviceSave
+}
+
+/** Makes every save take a few seconds to land, so a check can see the page while it writes. */
+export function slowUploads(): void {
+  uploadMs = SLOW_UPLOAD_MS
 }
 
 /** Makes every read of the file wait for good, so a screen shows what it shows while its books open. */
@@ -75,6 +83,7 @@ export function fakeDriveAccess(app: string): DriveAccess {
         return drive.download(fileId)
       },
       async upload(fileId, text) {
+        if (uploadMs > 0) await new Promise((resolve) => setTimeout(resolve, uploadMs))
         if (racing !== null) {
           const otherDeviceSave = racing
           racing = null

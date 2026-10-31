@@ -78,13 +78,13 @@ async function save(): Promise<void> {
       <p v-if="clash.length > 0" class="text-sm text-error" role="alert">{{ words.startingDialog.clash(clash.join(', '), year) }}</p>
     </form>
     <template #end>
-      <UButton :label="words.startingDialog.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.startingDialog.cancel" color="neutral" variant="ghost" @click="open = false" />
       <UButton
         type="submit"
         form="starting-scenarios"
         :label="words.startingDialog.add"
         icon="i-lucide-plus"
-        :loading="writes.busy.value"
+        :loading="writes.saving('save')"
         :disabled="writes.busy.value"
         data-testid="starting-scenarios-save"
       />

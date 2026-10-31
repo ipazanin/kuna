@@ -93,6 +93,7 @@ async function clear(): Promise<void> {
   if (
     await writes.write(words.planDialogs.ownerPay.cleared, (lines) => replacePlanLines(lines, holding, []), {
       description: words.planDialogs.ownerPay.clearedDescription(props.year),
+      key: 'delete',
       failedTitle: words.planDialogs.notCleared,
     })
   )
@@ -129,19 +130,20 @@ async function clear(): Promise<void> {
         icon="i-lucide-eraser"
         color="error"
         variant="ghost"
+        :loading="writes.saving('delete')"
         :disabled="writes.busy.value"
         data-testid="owner-pay-clear"
         @click="clear"
       />
     </template>
     <template #end>
-      <UButton :label="words.planDialogs.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.planDialogs.cancel" color="neutral" variant="ghost" @click="open = false" />
       <UButton
         type="submit"
         form="owner-pay-plan"
         :label="words.planDialogs.ownerPay.save"
         icon="i-lucide-save"
-        :loading="writes.busy.value"
+        :loading="writes.saving('save')"
         :disabled="writes.busy.value"
         data-testid="owner-pay-save"
       />

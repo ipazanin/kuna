@@ -40,7 +40,7 @@ onBeforeUnmount(run.dispose)
 const reexport = computed(() => props.mode.kind === 'reexport')
 const clientItems = computed(() => (store.state.workbook?.clients ?? []).map((client) => ({ label: client.name || client.slug, value: client.slug })))
 const editable = computed(() => stage.value.kind === 'edit')
-const busy = computed(() => stage.value.kind === 'checking' || stage.value.kind === 'running')
+const running = computed(() => stage.value.kind === 'checking' || stage.value.kind === 'running')
 
 const title = computed(() => (reexport.value ? words.run.reexportTitle(run.number.value) : words.run.makeTitle))
 const description = computed(() => (reexport.value ? words.run.reexportDescription : words.run.makeDescription))
@@ -86,7 +86,7 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
 </script>
 
 <template>
-  <AppDialog v-model:open="open" width="2xl" :title="title" :description="description" :dismissible="!busy">
+  <AppDialog v-model:open="open" width="2xl" :title="title" :description="description" :dismissible="!running">
     <div class="flex flex-col gap-5" data-testid="invoice-run">
       <UAlert
         v-if="stage.kind === 'edit' && stage.message"
@@ -215,12 +215,12 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
     </template>
     <template #end>
       <template v-if="stage.kind === 'edit' || stage.kind === 'checking'">
-        <UButton :label="words.run.cancel" color="neutral" variant="ghost" :disabled="busy" @click="open = false" />
+        <UButton :label="words.run.cancel" color="neutral" variant="ghost" @click="open = false" />
         <UButton
           :label="words.run.check"
           icon="i-lucide-list-checks"
           :loading="stage.kind === 'checking'"
-          :disabled="busy || run.problems.value.length > 0 || store.state.writing"
+          :disabled="running || run.problems.value.length > 0 || store.state.writing"
           data-testid="invoice-run-check"
           @click="run.check()"
         />
@@ -254,8 +254,16 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
           data-testid="invoice-run-compose"
         />
         <UButton v-if="stage.kind === 'finished'" :label="words.run.download" icon="i-lucide-download" color="neutral" variant="outline" @click="run.downloadPdf()" />
-        <UButton v-if="run.failed.value" :label="words.run.retry" icon="i-lucide-rotate-cw" :loading="stage.kind === 'running'" :disabled="busy" data-testid="invoice-run-retry" @click="run.make()" />
-        <UButton :label="words.run.close" color="neutral" :variant="run.failed.value ? 'ghost' : 'solid'" :disabled="busy" data-testid="invoice-run-close" @click="open = false" />
+        <UButton
+          v-if="run.failed.value"
+          :label="words.run.retry"
+          icon="i-lucide-rotate-cw"
+          :loading="stage.kind === 'running'"
+          :disabled="running"
+          data-testid="invoice-run-retry"
+          @click="run.make()"
+        />
+        <UButton :label="words.run.close" color="neutral" :variant="run.failed.value ? 'ghost' : 'solid'" :disabled="running" data-testid="invoice-run-close" @click="open = false" />
       </template>
     </template>
   </AppDialog>

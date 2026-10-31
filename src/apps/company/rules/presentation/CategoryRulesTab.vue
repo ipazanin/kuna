@@ -49,21 +49,30 @@ function makeRuleForGroup(group: CoverageGroup<Transaction>): void {
 function dismiss(kind: SuggestionKind, group: CoverageGroup<Transaction>): void {
   void writes.write(words.suggestions.dismissed(group.name), (unit) => unit.of(DISMISSAL_WRITES).add(dismissalOfGroup(kind, group, today())), {
     failedTitle: words.suggestions.notDismissed,
+    key: `dismiss-${group.name}`,
   })
 }
 
 function restore(dismissal: Dismissal): void {
   const stored = recordWithId(state.records?.dismissed ?? NO_RECORDS, dismissal.id)
   if (stored === null) return
-  void writes.write(words.suggestions.restored, (unit) => unit.of(DISMISSAL_WRITES).remove(stored.record), { failedTitle: words.suggestions.notRestored })
+  void writes.write(words.suggestions.restored, (unit) => unit.of(DISMISSAL_WRITES).remove(stored.record), { failedTitle: words.suggestions.notRestored, key: `restore-${dismissal.id}` })
 }
 </script>
 
 <template>
   <div v-if="state.workbook" class="flex flex-col gap-6">
     <RulesTab />
-    <RuleCoverage :coverage="coverage.coverage" :categories="state.workbook.categories" :busy="busy" :dismissed-count="hiddenGroups" @make-rule="makeRuleForGroup" @dismiss="dismiss" />
-    <DismissedSuggestions v-if="coverage.dismissed.length" :dismissed="coverage.dismissed" :categories="state.workbook.categories" :busy="busy" @restore="restore" />
+    <RuleCoverage
+      :coverage="coverage.coverage"
+      :categories="state.workbook.categories"
+      :busy="busy"
+      :saving="writes.saving"
+      :dismissed-count="hiddenGroups"
+      @make-rule="makeRuleForGroup"
+      @dismiss="dismiss"
+    />
+    <DismissedSuggestions v-if="coverage.dismissed.length" :dismissed="coverage.dismissed" :categories="state.workbook.categories" :busy="busy" :saving="writes.saving" @restore="restore" />
     <RuleEditor v-model:open="editorOpen" :source="editorSource" />
   </div>
 </template>

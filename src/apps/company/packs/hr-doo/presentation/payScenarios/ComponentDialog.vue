@@ -182,6 +182,7 @@ async function remove(): Promise<void> {
   if (component === null || before === null) return
   const deleted = await writes.write(words.componentDialog.deleted, (unit) => unit.of(SCENARIO_WRITES).remove(before), {
     description: words.componentDialog.inWords(componentInWords(component)),
+    key: 'delete',
     failedTitle: words.componentDialog.notDeleted,
   })
   if (deleted) open.value = false
@@ -237,19 +238,20 @@ async function remove(): Promise<void> {
         icon="i-lucide-trash-2"
         color="error"
         variant="ghost"
+        :loading="writes.saving('delete')"
         :disabled="writes.busy.value"
         data-testid="component-delete"
         @click="remove"
       />
     </template>
     <template #end>
-      <UButton :label="words.componentDialog.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.componentDialog.cancel" color="neutral" variant="ghost" @click="open = false" />
       <UButton
         type="submit"
         form="scenario-component"
         :label="component === null ? words.componentDialog.add : words.componentDialog.save"
         :icon="component === null ? 'i-lucide-plus' : 'i-lucide-save'"
-        :loading="writes.busy.value"
+        :loading="writes.saving('save')"
         :disabled="writes.busy.value"
         data-testid="component-save"
       />

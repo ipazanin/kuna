@@ -4,7 +4,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import ScenarioMark from './ScenarioMark.vue'
 import type { ScenarioRow } from './scenariosView'
 import { words } from './words'
-import type { ScenarioBook } from '../../workbook/domain/readLoanBook'
+import type { WriteSaving } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 
 /** Every scenario kept for the tab, compared or not, with what it changes, and Edit, Copy and Delete. */
@@ -13,12 +13,13 @@ defineProps<{
   subtitle: string
   rows: readonly ScenarioRow[]
   busy: boolean
+  saving: WriteSaving
 }>()
 
 const emit = defineEmits<{
   edit: [row: ScenarioRow]
-  copy: [book: ScenarioBook]
-  remove: [book: ScenarioBook]
+  copy: [row: ScenarioRow]
+  remove: [row: ScenarioRow]
 }>()
 </script>
 
@@ -40,9 +41,27 @@ const emit = defineEmits<{
           <p class="mt-0.5 type-caption">{{ row.detail }}</p>
         </div>
         <div v-if="row.kept" class="flex gap-0.5">
-          <UButton icon="i-lucide-pencil" color="neutral" variant="ghost" :aria-label="words.list.edit(row.name)" :disabled="busy" data-testid="scenario-edit" @click="emit('edit', row)" />
-          <UButton icon="i-lucide-copy" color="neutral" variant="ghost" :aria-label="words.list.copy(row.name)" :disabled="busy" data-testid="scenario-copy" @click="emit('copy', row.kept)" />
-          <UButton icon="i-lucide-trash-2" color="neutral" variant="ghost" :aria-label="words.list.delete(row.name)" :disabled="busy" data-testid="scenario-delete" @click="emit('remove', row.kept)" />
+          <UButton icon="i-lucide-pencil" color="neutral" variant="ghost" :aria-label="words.list.edit(row.name)" data-testid="scenario-edit" @click="emit('edit', row)" />
+          <UButton
+            icon="i-lucide-copy"
+            color="neutral"
+            variant="ghost"
+            :aria-label="words.list.copy(row.name)"
+            :loading="saving(`copy-${row.key}`)"
+            :disabled="busy"
+            data-testid="scenario-copy"
+            @click="emit('copy', row)"
+          />
+          <UButton
+            icon="i-lucide-trash-2"
+            color="neutral"
+            variant="ghost"
+            :aria-label="words.list.delete(row.name)"
+            :loading="saving(`delete-${row.key}`)"
+            :disabled="busy"
+            data-testid="scenario-delete"
+            @click="emit('remove', row)"
+          />
         </div>
       </li>
     </ul>

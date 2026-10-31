@@ -53,7 +53,15 @@ async function choose(value: string): Promise<void> {
   <AppCard v-if="state.workbook !== null" :title="text.title" :subtitle="text.subtitle" data-testid="investments-benchmark">
     <div class="flex flex-col gap-3 px-4 pt-1 pb-4 sm:px-5">
       <UFormField :label="text.compareWith" :help="closeLine === '' ? text.help : closeLine">
-        <USelect :model-value="chosen?.id ?? NONE" :items="items" :disabled="writes.busy.value" class="w-full" data-testid="benchmark-choice" @update:model-value="choose(String($event))" />
+        <USelect
+          :model-value="chosen?.id ?? NONE"
+          :items="items"
+          :loading="writes.busy.value"
+          :disabled="writes.busy.value"
+          class="w-full"
+          data-testid="benchmark-choice"
+          @update:model-value="choose(String($event))"
+        />
       </UFormField>
       <div>
         <UButton :label="text.add" icon="i-lucide-plus" color="neutral" variant="outline" data-testid="benchmark-add" @click="adding = true" />

@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 
 import { exportReminderDue } from '../../shared/storage/domain/exportReminder'
+import { writesInFlight } from '../../shared/storage/application/writesInFlight'
 import SyncStatus from '../../shared/sync/presentation/SyncStatus.vue'
 import { usePageSync } from '../../shared/sync/presentation/pageSync'
 import { listInWords } from '../../shared/text/listInWords'
@@ -35,5 +36,14 @@ const exportReminder = computed(() => {
   <div v-if="!onDrive && inBrowser.length > 0" class="flex" :class="compact ? 'items-center justify-end gap-2' : 'flex-col gap-3'">
     <component :is="group.exportControl" v-for="group in inBrowser" :key="group.app" :compact="compact" />
   </div>
-  <SyncStatus v-else-if="onDrive" :control="sync.control.value" :run="sync.run.value" :compact="compact" :export-reminder="exportReminder" @sync="sync.sync" @allow="sync.allowAccess" />
+  <SyncStatus
+    v-else-if="onDrive"
+    :control="sync.control.value"
+    :run="sync.run.value"
+    :compact="compact"
+    :export-reminder="exportReminder"
+    :saving="writesInFlight > 0"
+    @sync="sync.sync"
+    @allow="sync.allowAccess"
+  />
 </template>

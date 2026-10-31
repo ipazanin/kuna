@@ -131,6 +131,7 @@ async function remove(): Promise<void> {
   if (before === null) return
   const removed = await writes.write(words.advanceDialog.deleted, (unit) => unit.of(OWNER_ADVANCE_WRITES).remove(before), {
     description: words.advanceDialog.asCategory(formatMoney(before.amount), names.value.category(before.category)),
+    key: 'delete',
     failedTitle: words.advanceDialog.notDeleted,
   })
   if (removed) open.value = false
@@ -167,16 +168,26 @@ async function remove(): Promise<void> {
       <p class="text-xs text-muted">{{ words.advanceDialog.splitInstead }}</p>
     </FormGrid>
     <template #start>
-      <UButton v-if="editing" :label="words.advanceDialog.delete" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="advance-delete" @click="remove" />
+      <UButton
+        v-if="editing"
+        :label="words.advanceDialog.delete"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="ghost"
+        :loading="writes.saving('delete')"
+        :disabled="writes.busy.value"
+        data-testid="advance-delete"
+        @click="remove"
+      />
     </template>
     <template #end>
-      <UButton :label="words.advanceDialog.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.advanceDialog.cancel" color="neutral" variant="ghost" @click="open = false" />
       <UButton
         type="submit"
         form="add-advance"
         :label="editing ? words.advanceDialog.save : words.advanceDialog.add"
         :icon="editing ? 'i-lucide-save' : 'i-lucide-plus'"
-        :loading="writes.busy.value"
+        :loading="writes.saving('save')"
         :disabled="writes.busy.value"
       />
     </template>

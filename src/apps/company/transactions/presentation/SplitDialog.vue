@@ -136,6 +136,7 @@ async function remove(): Promise<void> {
   if (current === null || current.length === 0) return
   const deleted = await writes.write(words.splitDialog.deleted, (unit) => writeSplit(unit, props.row, current, [], props.categories), {
     description: words.splitDialog.countsWhole,
+    key: 'delete',
     failedTitle: words.splitDialog.notDeleted,
   })
   if (deleted) open.value = false
@@ -216,16 +217,26 @@ async function remove(): Promise<void> {
       <p class="text-xs text-muted">{{ words.splitDialog.sign }}</p>
     </form>
     <template #start>
-      <UButton v-if="split !== null" :label="words.splitDialog.delete" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="split-delete" @click="remove" />
+      <UButton
+        v-if="split !== null"
+        :label="words.splitDialog.delete"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="ghost"
+        :loading="writes.saving('delete')"
+        :disabled="writes.busy.value"
+        data-testid="split-delete"
+        @click="remove"
+      />
     </template>
     <template #end>
-      <UButton :label="words.splitDialog.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.splitDialog.cancel" color="neutral" variant="ghost" @click="open = false" />
       <UButton
         type="submit"
         form="split-row"
         :label="split === null ? words.splitDialog.split : words.splitDialog.save"
         icon="i-lucide-save"
-        :loading="writes.busy.value"
+        :loading="writes.saving('save')"
         :disabled="writes.busy.value || keptWhole !== null"
         data-testid="split-save"
       />

@@ -17,8 +17,9 @@ const props = withDefaults(
     /** Offers "No category" as the first choice, which a review rule may name. */
     allowNone?: boolean
     disabled?: boolean
+    loading?: boolean
   }>(),
-  { placeholder: words.picker.choose, allowNone: false, disabled: false },
+  { placeholder: words.picker.choose, allowNone: false, disabled: false, loading: false },
 )
 
 const chosen = defineModel<string | undefined>()
@@ -63,6 +64,7 @@ const picked = computed(() => items.value.find((item) => item.value === menuValu
     :content="{ align: 'start', collisionPadding: 12 }"
     :ui="{ content: 'min-w-64' }"
     :disabled="disabled"
+    :loading="loading"
     color="neutral"
     variant="outline"
     class="min-w-48"

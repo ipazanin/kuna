@@ -35,6 +35,7 @@ import KpiTile from '../../shared/ui/KpiTile.vue'
 import MoneyText from '../../shared/ui/MoneyText.vue'
 import PageHeader from '../../shared/ui/PageHeader.vue'
 import PageTabs from '../../shared/ui/PageTabs.vue'
+import WriteProgress from '../../shared/ui/WriteProgress.vue'
 import ProgressMeter from '../../shared/ui/ProgressMeter.vue'
 import ScreenSkeleton from '../../shared/ui/ScreenSkeleton.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../shared/ui/ShowAllButton.vue'
@@ -84,6 +85,7 @@ const CONTENTS = [
   ['grouped-table', 'Grouped table'],
   ['controls', 'Small controls'],
   ['sync-status', 'Sync status'],
+  ['write-progress', 'WriteProgress'],
 ] as const
 
 const lastSelection = ref<ChartPointSelection | null>(null)
@@ -756,6 +758,15 @@ const columns: TableColumn<SampleTransaction>[] = [
       <div class="flex flex-wrap gap-3">
         <AppCard v-for="(control, index) in SYNC_CONTROLS" :key="index" as="div" class="p-4"><SyncStatus :control="control" :run="SYNC_RUN" compact /></AppCard>
       </div>
+      <h3 class="type-label">While a write to the books runs</h3>
+      <div class="flex flex-wrap gap-3">
+        <AppCard as="div" class="w-60 p-4"><SyncStatus :control="SYNC_CONTROLS[0]!" :run="SYNC_RUN" saving /></AppCard>
+        <AppCard as="div" class="p-4"><SyncStatus :control="SYNC_CONTROLS[0]!" :run="SYNC_RUN" compact saving /></AppCard>
+      </div>
+    </GallerySection>
+
+    <GallerySection id="write-progress" title="WriteProgress" description="The bar along the top of the page while a write to the books runs, shown here in place.">
+      <AppCard as="div" class="p-4"><WriteProgress active label="Saving" /></AppCard>
     </GallerySection>
 
     <GallerySection v-for="section in appSections" :id="`app-${section.id}`" :key="section.id" :title="section.name" :description="`What only the ${section.name} app uses.`">

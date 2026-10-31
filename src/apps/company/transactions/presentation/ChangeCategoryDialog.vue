@@ -100,7 +100,7 @@ async function change(): Promise<void> {
       <UButton
         :label="words.changeDialog.change"
         icon="i-lucide-check"
-        :loading="writes.busy.value"
+        :loading="writes.saving('save')"
         :disabled="!changed || writes.busy.value || state.writing"
         data-testid="change-category-save"
         @click="change"

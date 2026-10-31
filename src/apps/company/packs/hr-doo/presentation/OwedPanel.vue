@@ -229,7 +229,7 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
           </dl>
         </template>
         <div class="px-4 pt-1 pb-2 sm:px-5">
-          <AdvanceList :advances="shownAdvances" :busy="state.writing" :empty="words.owed.advances.empty(owed.period)" @edit="editAdvance" />
+          <AdvanceList :advances="shownAdvances" :empty="words.owed.advances.empty(owed.period)" @edit="editAdvance" />
         </div>
         <ShowAllButton v-if="owed.advances.length > FIRST_SHOWN" v-model:expanded="showAllAdvances" :total="owed.advances.length" class="px-4 pb-4 sm:px-5" />
       </AppCard>

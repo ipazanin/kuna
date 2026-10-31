@@ -50,6 +50,12 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - A change that is cheap to reverse does not ask first. It writes and shows a toast that names the records, with Undo, through `useRecordWrites`. The toast stays 10 seconds.
 - Ask first only for what Undo cannot reach, such as deleting the file or signing out.
 
+## Saving feedback
+
+- Every write to the books shows itself with no code on the screen: `WriteProgress` along the top of the page, and "Saving…" in the sync control, for as long as any write runs.
+- The control that started a write also spins. Give the write a `key` in its options and bind `:loading="writes.saving('key')"` on that control. A write without a key is `save`, so a dialog's Save binds `writes.saving('save')`.
+- A control that would start a second write while one runs may stay `:disabled` on the busy flag, but only with its own `:loading` beside it. `tests/writeFeedback.spec.ts` fails on any other disabled-on-busy control. A control that only opens or closes something stays enabled.
+
 ## Forms
 
 - Fields go in `FormGrid`: two to a row from 640 px, labels in one row and inputs in the next, so inputs line up whatever a label's length. Every field takes one column, and one that takes a whole row, such as a field around a switch or a checkbox, says `sm:col-span-2`. Anything that is not a field, such as a bare radio group or a note, takes the whole row.

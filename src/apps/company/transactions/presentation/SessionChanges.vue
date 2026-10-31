@@ -18,6 +18,7 @@ import { LEDGER_RECORDS } from '../../workbook/domain/coreKinds'
 import type { LedgerEntry } from '../../workbook/domain/ledgerReading'
 import type { Category } from '../../workbook/domain/workbook'
 import { recordsChangeInWords } from '../../../../shared/storage/presentation/recordsChangeInWords'
+import type { WriteSaving } from '../../../../shared/storage/presentation/useRecordWrites'
 import { words as storageWords } from '../../../../shared/storage/presentation/words'
 import { plural } from '../../../../shared/text/translation'
 import { words } from './words'
@@ -27,6 +28,7 @@ const props = defineProps<{
   writes: readonly SessionWrite[]
   categories: readonly Category[]
   busy: boolean
+  saving: WriteSaving
 }>()
 
 const emit = defineEmits<{
@@ -127,6 +129,7 @@ function flaggedByInWords(flaggedBy: string): string {
               variant="outline"
               size="sm"
               class="shrink-0"
+              :loading="saving(`undo-${write.id}`)"
               :disabled="busy"
               data-testid="session-undo"
               @click="emit('undo', write)"

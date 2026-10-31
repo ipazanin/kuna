@@ -7,8 +7,10 @@ import USlideover from '@nuxt/ui/components/Slideover.vue'
 import { words as sharedWords } from '../../shared/app/words'
 import { useStickyBandPart } from '../../shared/layout/stickyBand'
 import { useMediaQuery, usePhoneLayout } from '../../shared/layout/viewport'
+import { writesInFlight } from '../../shared/storage/application/writesInFlight'
 import AppBrand from '../../shared/ui/AppBrand.vue'
 import HomeLink from '../../shared/ui/HomeLink.vue'
+import WriteProgress from '../../shared/ui/WriteProgress.vue'
 import ScreenNavigation from './ScreenNavigation.vue'
 import type { Navigation } from './ScreenNavigation.vue'
 import { words } from './words'
@@ -58,6 +60,7 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
 
 <template>
   <div class="min-h-dvh lg:grid lg:grid-cols-[15rem_minmax(0,1fr)]">
+    <WriteProgress :active="writesInFlight > 0" :label="sharedWords.saving" class="write-progress fixed inset-x-0 z-top-bar" />
     <aside v-if="wide" class="border-e border-default bg-raised/60" :aria-label="words.navigation.sidebar">
       <div class="sticky top-0 flex h-dvh flex-col">
         <div class="mx-3 border-b border-default pt-4 pb-3">

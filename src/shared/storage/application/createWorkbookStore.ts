@@ -7,6 +7,7 @@ import type { RuledChange, WriteReceipt } from './recordWrites'
 import type { UnitOfWork } from './repository'
 import type { CopyMeta, CopyStorage, DriveFileLookup, DriveFilePlace, PickedFolder, WorkbookCache, WorkbookChoice, WorkbookCopy } from './workbookPorts'
 import { words } from './words'
+import { trackWrite } from './writesInFlight'
 import { WorkbookWriteRefused } from './workbookWriteRefused'
 
 export type WorkbookStatus = 'opening' | 'ready' | 'syncing' | 'error'
@@ -325,7 +326,11 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
    * its read starts again from a fresh read. A write that may have reached a Drive file and then
    * failed reads it again where it can.
    */
-  async function writeRecords(title: string, changes: readonly RuledChange[], undid: WriteReceipt | null): Promise<WriteReceipt | null> {
+  function writeRecords(title: string, changes: readonly RuledChange[], undid: WriteReceipt | null): Promise<WriteReceipt | null> {
+    return trackWrite(() => writeCounted(title, changes, undid))
+  }
+
+  async function writeCounted(title: string, changes: readonly RuledChange[], undid: WriteReceipt | null): Promise<WriteReceipt | null> {
     const current = state.snapshot
     if (current === null || state.choice === null || state.choice.id !== current.meta.id) {
       throw new WorkbookWriteRefused(words.noBooks)

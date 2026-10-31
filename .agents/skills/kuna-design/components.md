@@ -45,6 +45,7 @@ Every `.vue` in `src/shared/ui` has a row here and a specimen in the gallery at 
 | `ProgressMeter`      | `parts` of `{ value, colour, striped? }`, `label`, `height?`. Read out as its label                                                                                                                           | 0       | 3     | 2           | 0     | 0      |
 | `FactGrid`           | `facts` of `{ label, value, caption?, swatch? }`. Two to a row, all in one row once they fit                                                                                                                  | 0       | 6     | 3           | 0     | 0      |
 | `ScenarioComparison` | `columns`, `groups` of lines of cells `{ text, best, difference, warning? }`, `label`, `baseNote`, `bestNote`, `lineHeading`, `openable?`, `openLabel?`. Slot `column`. Emits `open`. Two by two below 768 px | 0       | 1     | 0           | 0     | 0      |
+| `WriteProgress`      | `active`, `label`. A thin moving bar for while the books are saved. The shell places it along the top of the page, once, for every write                                                                      | 0       | 0     | 0           | 1     | 0      |
 | `ShowAllButton`      | `total`, `v-model:expanded`. Shows the first ten entries of a list                                                                                                                                            | 5       | 1     | 4           | 0     | 0      |
 
 ## Controls

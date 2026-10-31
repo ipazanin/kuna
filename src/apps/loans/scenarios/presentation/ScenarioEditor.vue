@@ -339,7 +339,7 @@ async function save(): Promise<void> {
       </p>
     </template>
     <template #end>
-      <UButton :label="loansWords.form.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="loansWords.form.cancel" color="neutral" variant="ghost" @click="open = false" />
       <UButton
         type="submit"
         form="scenario-editor"

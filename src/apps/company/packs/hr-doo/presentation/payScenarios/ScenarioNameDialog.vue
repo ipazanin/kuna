@@ -89,13 +89,13 @@ async function save(): Promise<void> {
       </UFormField>
     </form>
     <template #end>
-      <UButton :label="words.nameDialog.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.nameDialog.cancel" color="neutral" variant="ghost" @click="open = false" />
       <UButton
         type="submit"
         form="scenario-name"
         :label="mode === 'copy' ? words.nameDialog.copyButton : words.nameDialog.renameButton"
         :icon="mode === 'copy' ? 'i-lucide-copy' : 'i-lucide-pencil'"
-        :loading="writes.busy.value"
+        :loading="writes.saving('save')"
         :disabled="writes.busy.value"
         data-testid="scenario-name-save"
       />

@@ -13,6 +13,7 @@ import { SCOPE_WORDS } from '../application/syncRun'
 import type { SyncControl, SyncRun } from '../application/syncRun'
 import { plural } from '../../text/translation'
 import SyncStepList from './SyncStepList.vue'
+import { words as appWords } from '../../app/words'
 import { words } from './words'
 
 /**
@@ -30,8 +31,10 @@ const props = withDefaults(
     compact?: boolean
     /** What a file kept in this browser has not exported yet, in a sentence, or null while every such file is exported in time. */
     exportReminder?: string | null
+    /** True while a write to the books is under way, which the sync waits for. */
+    saving?: boolean
   }>(),
-  { run: null, compact: false, exportReminder: null },
+  { run: null, compact: false, exportReminder: null, saving: false },
 )
 
 const emit = defineEmits<{
@@ -89,8 +92,11 @@ const failureWords = computed(() => {
   return words.tapToRetry(why, control.kind === 'sign-in')
 })
 
+const working = computed(() => props.control.kind === 'running' || props.saving)
+
 const label = computed(() => {
   const { control } = props
+  if (props.saving && control.kind !== 'running') return appWords.saving
   switch (control.kind) {
     case 'running':
       return props.compact ? `${control.label} ${control.position}/${control.of}` : words.syncing
@@ -137,6 +143,7 @@ const ICONS: Readonly<Record<SyncControl['kind'], string>> = {
 /** The line beside the sidebar's button, which a screen reader hears as it changes. */
 const statusLine = computed(() => {
   const { control } = props
+  if (props.saving && control.kind !== 'running') return appWords.saving
   switch (control.kind) {
     case 'running':
       return `${control.label} ${control.position}/${control.of}: ${control.line}`
@@ -181,15 +188,17 @@ function syncAgain(): void {
 
 <template>
   <div ref="root" class="flex min-w-0 items-center gap-2" :class="compact ? 'justify-end' : 'flex-wrap justify-between'" data-testid="sync-status" :data-control="control.kind">
-    <p v-if="compact" class="sr-only" role="status">{{ control.kind === 'running' || control.kind === 'problems' || control.kind === 'allow-access' || control.kind === 'sign-in' ? name : '' }}</p>
+    <p v-if="compact" class="sr-only" role="status">
+      {{ saving ? appWords.saving : control.kind === 'running' || control.kind === 'problems' || control.kind === 'allow-access' || control.kind === 'sign-in' ? name : '' }}
+    </p>
     <p
       v-else
       class="w-full min-w-0 text-xs"
-      :class="{ 'font-medium text-error': control.kind === 'problems', 'text-muted': control.kind !== 'problems', truncate: control.kind === 'ready' || control.kind === 'running' }"
+      :class="{ 'font-medium text-error': control.kind === 'problems', 'text-muted': control.kind !== 'problems', truncate: control.kind === 'ready' || control.kind === 'running' || saving }"
       role="status"
       data-testid="sync-line"
     >
-      <time v-if="control.kind === 'ready' && syncedAt" :datetime="control.syncedAt ?? undefined" :title="fullStamp(syncedAt)" class="figure">{{ statusLine }}</time>
+      <time v-if="control.kind === 'ready' && syncedAt && !saving" :datetime="control.syncedAt ?? undefined" :title="fullStamp(syncedAt)" class="figure">{{ statusLine }}</time>
       <span v-else>{{ statusLine }}</span>
     </p>
     <UButton
@@ -198,8 +207,8 @@ function syncAgain(): void {
       :label="label"
       :aria-label="name"
       :title="compact ? (failureWords ?? undefined) : undefined"
-      :loading="control.kind === 'running'"
-      :disabled="control.kind === 'running'"
+      :loading="working"
+      :disabled="working"
       color="neutral"
       variant="outline"
       size="sm"

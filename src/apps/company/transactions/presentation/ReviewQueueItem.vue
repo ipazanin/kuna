@@ -14,6 +14,7 @@ import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import type { Bucket } from '../../workbook/domain/bucket'
 import type { Category, Transaction, TransactionSignals } from '../../workbook/domain/workbook'
+import type { WriteSaving } from '../../../../shared/storage/presentation/useRecordWrites'
 import { words } from './words'
 
 /** One row waiting for review: what it is, what the rules say about it now, and what a person can do. */
@@ -26,6 +27,7 @@ const props = defineProps<{
   /** True when the splits tab already splits the row, so Split edits its parts. */
   split: boolean
   busy: boolean
+  saving: WriteSaving
 }>()
 
 const emit = defineEmits<{
@@ -122,6 +124,7 @@ function recategorise(category: string | undefined): void {
           :label="words.review.item.confirm(names.category(transaction.category))"
           icon="i-lucide-check"
           size="sm"
+          :loading="saving(`confirm-${transaction.id}`)"
           :disabled="busy"
           data-testid="confirm-row"
           @click="emit('confirm')"
@@ -130,22 +133,13 @@ function recategorise(category: string | undefined): void {
           v-model="picked"
           :categories="categories"
           :placeholder="words.review.item.recategorise"
+          :loading="saving(`recategorise-${transaction.id}`)"
           :disabled="busy"
           size="sm"
           data-testid="recategorise-row"
           @update:model-value="recategorise"
         />
-        <UButton
-          v-if="confirmable"
-          :label="words.review.item.makeThisARule"
-          icon="i-lucide-list-plus"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          :disabled="busy"
-          data-testid="make-rule"
-          @click="emit('makeRule')"
-        />
+        <UButton v-if="confirmable" :label="words.review.item.makeThisARule" icon="i-lucide-list-plus" color="neutral" variant="outline" size="sm" data-testid="make-rule" @click="emit('makeRule')" />
         <UButton
           v-if="transaction.amount !== 0"
           :label="split ? words.review.item.editSplit : words.review.item.split"
@@ -153,7 +147,6 @@ function recategorise(category: string | undefined): void {
           color="neutral"
           variant="outline"
           size="sm"
-          :disabled="busy"
           :data-testid="split ? 'edit-split' : 'split-row'"
           @click="emit('split')"
         />

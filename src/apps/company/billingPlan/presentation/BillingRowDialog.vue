@@ -113,7 +113,7 @@ async function remove(): Promise<void> {
   const row = props.row
   const before = row === null ? null : readItem(row)
   if (row === null || before === null) return
-  if (await writes.write(words.dialog.deleted, (unit) => unit.of(BILLING_WRITES).remove(before), { description: named(row), failedTitle: words.dialog.notDeleted })) open.value = false
+  if (await writes.write(words.dialog.deleted, (unit) => unit.of(BILLING_WRITES).remove(before), { description: named(row), failedTitle: words.dialog.notDeleted, key: 'delete' })) open.value = false
 }
 </script>
 
@@ -150,16 +150,26 @@ async function remove(): Promise<void> {
       </UFormField>
     </FormGrid>
     <template #start>
-      <UButton v-if="row !== null" :label="words.dialog.delete" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="billing-row-delete" @click="remove" />
+      <UButton
+        v-if="row !== null"
+        :label="words.dialog.delete"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="ghost"
+        :loading="writes.saving('delete')"
+        :disabled="writes.busy.value"
+        data-testid="billing-row-delete"
+        @click="remove"
+      />
     </template>
     <template #end>
-      <UButton :label="words.dialog.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.dialog.cancel" color="neutral" variant="ghost" @click="open = false" />
       <UButton
         type="submit"
         form="billing-row"
         :label="row === null ? words.dialog.add : words.dialog.save"
         :icon="row === null ? 'i-lucide-plus' : 'i-lucide-save'"
-        :loading="writes.busy.value"
+        :loading="writes.saving('save')"
         :disabled="writes.busy.value"
       />
     </template>

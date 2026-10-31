@@ -153,6 +153,7 @@ async function deleteProfile(): Promise<void> {
   const removed = await writes.write(words.panel.profileDeleted, (unit) => removeSettings(unit, store.state.records?.settings ?? NO_RECORDS, [profileKey(name)]), {
     description: words.panel.profileOffSettings(name),
     failedTitle: words.panel.notDeleted,
+    key: 'delete-profile',
   })
   if (removed) chooseProfile(NEW_PROFILE)
 }
@@ -171,6 +172,7 @@ async function confirm(): Promise<void> {
   if (run === null || run.newRows === 0) return
   const written = await writes.write(importTitle(run), (unit) => writeImport(unit, run), {
     failedTitle: words.panel.notImported,
+    key: 'import',
   })
   if (written) imported.value = new Set(run.added.map((entry) => rowKey(entry.account, entry.reference)))
 }
@@ -242,6 +244,7 @@ const summary = computed(() => {
                 icon="i-lucide-trash-2"
                 color="error"
                 variant="ghost"
+                :loading="writes.saving('delete-profile')"
                 :disabled="writes.busy.value || store.state.writing"
                 :aria-label="words.panel.deleteProfile(profileChoice)"
                 data-testid="profile-delete"
@@ -249,7 +252,15 @@ const summary = computed(() => {
               />
             </template>
           </div>
-          <ProfileEditor v-if="showsEditor && draft && shape" v-model="draft" :headers="shape.headers" :accounts="accountItems" :editing="editing" :saving="writes.busy.value" @save="saveProfile" />
+          <ProfileEditor
+            v-if="showsEditor && draft && shape"
+            v-model="draft"
+            :headers="shape.headers"
+            :accounts="accountItems"
+            :editing="editing"
+            :saving="writes.saving('save')"
+            @save="saveProfile"
+          />
         </div>
       </AppCard>
 
@@ -283,7 +294,7 @@ const summary = computed(() => {
               <UButton
                 :label="words.panel.confirm"
                 icon="i-lucide-file-input"
-                :loading="writes.busy.value"
+                :loading="writes.saving('import')"
                 :disabled="dryRun.newRows === 0 || writes.busy.value"
                 data-testid="import-confirm"
                 @click="confirm"

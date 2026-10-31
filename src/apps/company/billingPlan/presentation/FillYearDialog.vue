@@ -87,11 +87,11 @@ async function write(): Promise<void> {
       </template>
     </div>
     <template #end>
-      <UButton :label="words.fill.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="words.fill.cancel" color="neutral" variant="ghost" @click="open = false" />
       <UButton
         :label="rows.length === 0 ? words.fill.addRows : plural(words.fill.addCount(rows.length), rows.length)"
         icon="i-lucide-calendar-plus"
-        :loading="writes.busy.value"
+        :loading="writes.saving('save')"
         :disabled="rows.length === 0 || writes.busy.value"
         data-testid="fill-write"
         @click="write"

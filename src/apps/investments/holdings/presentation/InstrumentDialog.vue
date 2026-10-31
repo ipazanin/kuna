@@ -77,7 +77,7 @@ async function save(): Promise<void> {
 async function remove(): Promise<void> {
   const before = props.instrument
   if (before === null) return
-  if (await writes.write(text.deleted, (unit) => unit.of(INSTRUMENT_WRITES).remove(before), { failedTitle: text.notDeleted })) open.value = false
+  if (await writes.write(text.deleted, (unit) => unit.of(INSTRUMENT_WRITES).remove(before), { key: 'delete', failedTitle: text.notDeleted })) open.value = false
 }
 </script>
 
@@ -87,16 +87,26 @@ async function remove(): Promise<void> {
       <InstrumentFields v-model="texts" :errors="errors" :tried="tried" :book="book" />
     </FormGrid>
     <template #start>
-      <UButton v-if="instrument !== null" :label="text.delete" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="writes.busy.value" data-testid="instrument-delete" @click="remove" />
+      <UButton
+        v-if="instrument !== null"
+        :label="text.delete"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="ghost"
+        :loading="writes.saving('delete')"
+        :disabled="writes.busy.value"
+        data-testid="instrument-delete"
+        @click="remove"
+      />
     </template>
     <template #end>
-      <UButton :label="text.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="text.cancel" color="neutral" variant="ghost" @click="open = false" />
       <UButton
         type="submit"
         form="instrument"
         :label="instrument === null ? text.add : text.save"
         :icon="instrument === null ? 'i-lucide-plus' : 'i-lucide-save'"
-        :loading="writes.busy.value"
+        :loading="writes.saving('save')"
         :disabled="writes.busy.value"
         data-testid="instrument-save"
       />

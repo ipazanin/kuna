@@ -32,6 +32,7 @@ function removeKey(key: string): void {
   void writes.write(words.problems.removed, (unit) => removeSettings(unit, settingRecords.value, [key]), {
     description: words.problems.removedNote(key),
     failedTitle: words.problems.notRemoved,
+    key: `delete-${key}`,
   })
 }
 
@@ -61,6 +62,7 @@ const saving = computed(() => writes.busy.value || state.writing)
               variant="ghost"
               size="sm"
               class="self-start sm:self-auto"
+              :loading="writes.saving(`delete-${problem.label}`)"
               :disabled="saving"
               :aria-label="words.problems.removeKeyNamed(problem.label)"
               data-testid="remove-setting"

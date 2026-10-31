@@ -87,7 +87,7 @@ async function remove(): Promise<void> {
   const book = props.book
   const records = store.state.records
   if (book === null || records === null) return
-  if (await writes.write(words.loanDialog.deleted, (unit) => removeInformalLoan(unit, records, book.loan), { failedTitle: loansWords.form.notDeleted })) {
+  if (await writes.write(words.loanDialog.deleted, (unit) => removeInformalLoan(unit, records, book.loan), { key: 'delete', failedTitle: loansWords.form.notDeleted })) {
     open.value = false
     await router.push(LOANS_OVERVIEW_ROUTE)
   }
@@ -121,19 +121,20 @@ async function remove(): Promise<void> {
         icon="i-lucide-trash-2"
         color="error"
         variant="ghost"
+        :loading="writes.saving('delete')"
         :disabled="writes.busy.value"
         data-testid="informal-loan-delete"
         @click="remove"
       />
     </template>
     <template #end>
-      <UButton :label="loansWords.form.cancel" color="neutral" variant="ghost" :disabled="writes.busy.value" @click="open = false" />
+      <UButton :label="loansWords.form.cancel" color="neutral" variant="ghost" @click="open = false" />
       <UButton
         type="submit"
         form="informal-loan"
         :label="book === null ? words.loanDialog.add : words.loanDialog.save"
         :icon="book === null ? 'i-lucide-plus' : 'i-lucide-save'"
-        :loading="writes.busy.value"
+        :loading="writes.saving('save')"
         :disabled="writes.busy.value"
         data-testid="informal-loan-save"
       />

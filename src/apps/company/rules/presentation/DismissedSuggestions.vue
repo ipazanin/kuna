@@ -10,6 +10,7 @@ import type { Category, Transaction } from '../../workbook/domain/workbook'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
 import type { DismissedSuggestion } from '../domain/dismissedSuggestions'
 import { plural } from '../../../../shared/text/translation'
+import type { WriteSaving } from '../../../../shared/storage/presentation/useRecordWrites'
 import { words as transactionWords } from '../../transactions/presentation/words'
 import { words } from './words'
 
@@ -18,6 +19,7 @@ const props = defineProps<{
   dismissed: readonly DismissedSuggestion<Transaction>[]
   categories: readonly Category[]
   busy: boolean
+  saving: WriteSaving
 }>()
 
 const emit = defineEmits<{
@@ -71,6 +73,7 @@ function rowsOf(entry: DismissedSuggestion<Transaction>): string {
           size="sm"
           class="self-start"
           :aria-label="words.dismissedCard.restoreName(nameOf(entry))"
+          :loading="saving(`restore-${entry.dismissal.id}`)"
           :disabled="busy"
           data-testid="restore-suggestion"
           @click="emit('restore', entry.dismissal)"
