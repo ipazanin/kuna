@@ -4,6 +4,8 @@ import { ISIN, MIC } from '../../workbook/domain/instrumentReading'
 import { COUNTRY_CODES, REGIONS, SECTORS, countryOf } from '../../workbook/domain/mixGroup'
 import type { Sector } from '../../workbook/domain/mixGroup'
 import { EURO, currencyCodeOf } from '../../../../shared/money/currencyCode'
+import { countryName } from '../../../../shared/text/countryName'
+import { naturalOrder } from '../../../../shared/text/naturalOrder'
 import { decimalShown, typedDecimal } from '../../../../shared/money/decimal'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
@@ -27,10 +29,10 @@ export interface InstrumentTexts {
 
 export const SECTOR_ITEMS: { readonly value: Sector; readonly label: string }[] = SECTORS.map((value) => ({ value, label: words.sectors[value] }))
 
-/** The regions by name, then the countries by code. */
+/** The regions, then the countries by name with their code, so a search finds either. */
 export const COUNTRY_ITEMS: { readonly value: string; readonly label: string }[] = [
   ...REGIONS.map((value) => ({ value, label: words.regions[value] })),
-  ...COUNTRY_CODES.map((value) => ({ value, label: value })),
+  ...COUNTRY_CODES.map((value) => ({ value, label: `${countryName(value)} (${value})` })).sort((left, right) => naturalOrder(left.label, right.label)),
 ]
 
 export interface InstrumentErrors {
