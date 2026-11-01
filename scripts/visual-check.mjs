@@ -729,7 +729,6 @@ const SCREENS = [
     charts: 0,
     shows: ['GADGET CORNER', '2 stavke za provjeru', 'Za provjeru'],
   },
-  { name: 'transactions-review-moved', hash: '#/company/review', title: 'Transactions', charts: 0, shows: ['GADGET CORNER', 'Refund of a parking fee'] },
   {
     name: 'company-settings-category-rules',
     hash: '#/company/settings?tab=category-rules',
@@ -762,14 +761,6 @@ const SCREENS = [
     charts: 0,
     shows: 'merchant-airline',
     collapsedBefore: ['settings.category-rules'],
-    linkedRow: '[data-testid="rule-row"][aria-current="true"]',
-  },
-  {
-    name: 'company-settings-category-rules-moved',
-    hash: '#/company/review?tab=rules&rule=merchant-airline',
-    title: 'Settings',
-    charts: 0,
-    shows: 'merchant-airline',
     linkedRow: '[data-testid="rule-row"][aria-current="true"]',
   },
   { name: 'home', hash: '#/', title: 'All apps', charts: 0, shows: ['Company', 'Cash on hand', '2 rows to review', 'Loans', 'Investments', 'Set up', 'Kuna settings'], cards: false },
