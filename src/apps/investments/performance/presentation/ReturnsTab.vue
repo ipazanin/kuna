@@ -23,9 +23,9 @@ defineProps<{
   <div class="flex flex-col gap-6">
     <PerformanceTiles :performance="performance" :benchmark="benchmark" />
     <DashboardGrid data-testid="performance-cards">
-      <GrowthCard :performance="performance" :benchmark-name="benchmarkName" class="xl:col-span-2" />
+      <GrowthCard :performance="performance" :benchmark-name="benchmarkName" class="3xl:col-span-3" />
       <ReplayCard :performance="performance" :benchmark="benchmark" />
-      <YearsCard :years="years" :today="today" class="3xl:col-span-3" />
+      <YearsCard :years="years" :today="today" class="xl:col-span-2" />
     </DashboardGrid>
   </div>
 </template>
