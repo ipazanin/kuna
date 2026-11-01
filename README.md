@@ -365,7 +365,7 @@ While a sync runs its icon turns and it says the step and its place, such as "St
 a screen reader hears the step's line too, such as "Filing 3 rows", as does the sidebar's status
 line from 1024 px up. "Allow access" and "1 problem" take the button's place as _Sync_ describes,
 and the steps of a problem open in a bottom sheet. The menu shows beside Transactions how many
-rows wait for review, whatever the filters. For a workbook kept in this browser the Export button in the top bar has the same
+rows wait for review, whatever the filters, and while any wait the item opens Transactions on its To review tab. For a workbook kept in this browser the Export button in the top bar has the same
 rounded 44 px shape.
 
 The bars that stay at the top while a screen scrolls, the top bar below 1024 px and a screen's
@@ -2894,7 +2894,7 @@ rate, amount or count, or its first rate for a rule named for a rate, with the t
 rule has more. An info button beside the list explains the marks. Estimate, pending and unconfirmed
 versions are coloured.
 
-A click on a line, or a link to `#/company/settings?tab=ruleset&rule=<id>`, opens the whole rule in a side
+A click on a line, or a link to `#/company/settings?tab=tax-rules&rule=<id>`, opens the whole rule in a side
 panel, a full-height sheet on a phone. The panel holds its value for every version, side by side on
 a wide screen and one under another on a phone. Rates read as percentages with up to two decimals,
 coefficients as factors such as 0.65, money in the app's money format, flags as yes or no, and table
@@ -2904,7 +2904,7 @@ article, the NN issues and the day it was checked. The rule's line is marked and
 below the search bar, clearing a search that hides it, and closing the panel takes `rule` out of
 the address. A rule opened from the list closes back to the list's own step in the history, so
 the next Back leaves the list. A link to an id the ruleset does not have says so above the list. `ruleLink(id)` in
-`ruleset/presentation/ruleWording.ts` builds the link, so a screen can send a figure to the rule it
+`ruleset/presentation/taxRuleLinks.ts` builds the link, so a screen can send a figure to the rule it
 rests on.
 
 The search box matches every word typed against the rule id, title, values, notes, act names,

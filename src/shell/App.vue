@@ -55,8 +55,8 @@ const navigation = computed((): Navigation => {
       colour: app.colour,
       subtitle: app.subtitle(),
       entries: app.menu().map((screen) => {
-        const count = app.menuCount(screen)
-        return { to: screen.path, label: screen.title, icon: screen.icon, ...(count === null ? {} : { count }) }
+        const waiting = app.menuCount(screen)
+        return { to: waiting?.opens ?? screen.path, label: screen.title, icon: screen.icon, ...(waiting === null ? {} : { count: waiting.count }) }
       }),
     },
     apps: [],

@@ -3952,7 +3952,7 @@ function sidebarMatchesCards(menu, cards, words = SCREEN_WORDS.en) {
  * home, named Kuna, all apps, with a line under it, then Loans as a heading larger than Overview,
  * Overview and Scenarios under it, Settings set apart, and the browser tab naming the app. The link home shows the
  * home, whose sidebar lists every app over Kuna settings, and the phone's top bar there has no menu
- * button. From the home, Company shows only its own menu.
+ * button. From the home, Company shows only its own menu, whose Transactions item opens its To review tab while rows wait.
  */
 export function appMenuFlowIn(language) {
   const words = SCREEN_WORDS[language]
@@ -4013,6 +4013,17 @@ export function appMenuFlowIn(language) {
     if (companyTitle !== `${words.companyOverview}, ${words.company} – Kuna`) throw new Error(`the browser tab says "${companyTitle}"`)
     await inspect?.('the Company menu')
     await shoot(language === 'en' ? 'app-menu-company' : `app-menu-company-${language}`)
+
+    // The fake books hold rows that wait, so the counted item opens their queue.
+    const counted = '[data-testid="nav-group"] a:has([data-testid="nav-count"])'
+    await pressSelector(page, press, `[role="dialog"] ${counted}, aside ${counted}`)
+    await screenTitled(page, words.transactions.title)
+    const opened = await page.evaluate(() => ({
+      address: window.location.hash,
+      tab: document.querySelector('[data-testid="page-tabs"] [role="tab"][data-state="active"]')?.textContent?.trim() ?? null,
+    }))
+    if (!opened.address.includes('tab=review') || !opened.tab?.startsWith(words.transactions.tabs.review))
+      throw new Error(`the Transactions item, with rows waiting, opened ${opened.address} on ${opened.tab} instead of ${words.transactions.tabs.review}`)
   }
 }
 

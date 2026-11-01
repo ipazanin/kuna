@@ -9,6 +9,7 @@ import { HR_DOO, HR_DOO_PART, hrDooWorkbook } from './domain/hrDooPart'
 import { packWaitingJobs } from './presentation/packWaitingJobs'
 import { unaccountedInView } from './presentation/unaccountedInView'
 import { words as packWords } from './presentation/words'
+import { TAX_RULES_TAB } from './ruleset/presentation/taxRuleLinks'
 import { words as rulesetWords } from './ruleset/presentation/words'
 
 /** The pages that break the taxes and the owner pay further down than the spending breakdown. */
@@ -32,7 +33,7 @@ export const hrDooPack: PackContribution = {
       shows: (ledger) => unaccountedInView(ledger).length > 0,
     },
   ],
-  settingsTabs: [{ value: 'ruleset', label: rulesetWords.tab, icon: 'i-lucide-scale', component: defineAsyncComponent(() => import('./ruleset/presentation/RulesetPanel.vue')) }],
+  settingsTabs: [{ value: TAX_RULES_TAB, label: rulesetWords.tab, icon: 'i-lucide-scale', component: defineAsyncComponent(() => import('./ruleset/presentation/RulesetPanel.vue')) }],
   settingsCards: [defineAsyncComponent(() => import('./presentation/LoanBucketSwitch.vue'))],
   companyFacts: {
     card: defineAsyncComponent(() => import('./presentation/CompanyFactsCard.vue')),

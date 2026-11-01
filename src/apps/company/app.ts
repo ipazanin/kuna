@@ -23,6 +23,7 @@ import { COMPANY_APP } from './workbook/infrastructure/companyDocument'
 import { installPackTabs } from './workbook/infrastructure/packTabs'
 import { useGoogleReturn } from './workbook/presentation/useGoogleReturn'
 import { COMPANY_MOVED_SCREENS } from './movedScreens'
+import { REVIEW_LINK } from './transactions/presentation/transactionsLinks'
 
 const CORE_SCREENS: readonly AppScreen[] = [
   { path: '/company', title: overviewWords.title, icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') },
@@ -60,7 +61,10 @@ export const companyApp: AppContribution = {
   menu: () => [...CORE_SCREENS, ...shownPack(settings.value).screens],
   settings: SETTINGS,
   // Transactions counts every row that waits for review, whatever the filters, since the queue has no period.
-  menuCount: (screen) => (screen.path === '/company/transactions' ? reviewCount(state.workbook?.transactions ?? []) : null),
+  menuCount: (screen) => {
+    const count = screen.path === '/company/transactions' ? reviewCount(state.workbook?.transactions ?? []) : 0
+    return count === 0 ? null : { count, opens: REVIEW_LINK }
+  },
   subtitle: () => state.workbook?.settings.companyName || null,
   moneyFormat: () => ({ currency: settings.value.currency, locale: amountLocaleOf(settings.value) }),
   homeCard: COMPANY_HOME_CARD,

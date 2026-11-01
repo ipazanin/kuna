@@ -213,7 +213,7 @@ const SCREENS = [
   { name: 'transactions-review', hash: '#/company/transactions?tab=review&p=all', title: 'Transactions', ready: '[data-testid="open-filters"]' },
   { name: 'company-settings', hash: '#/company/settings', title: 'Settings', ready: '[data-testid="settings-tabs"]' },
   { name: 'company-settings-category-rules', hash: '#/company/settings?tab=category-rules', title: 'Settings', ready: '[data-testid="rules-tab"]' },
-  { name: 'company-settings-ruleset', hash: '#/company/settings?tab=ruleset', title: 'Settings', ready: '[data-testid="rule-row"]' },
+  { name: 'company-settings-tax-rules', hash: '#/company/settings?tab=tax-rules', title: 'Settings', ready: '[data-testid="rule-row"]' },
   { name: 'company-settings-books', hash: '#/company/settings?tab=books', title: 'Settings', ready: '[data-testid="data-source-card"]', cards: false },
   { name: 'kuna-settings', hash: '#/settings', title: 'Kuna settings', ready: '[data-testid="sync-card"]', cards: false },
 ]
@@ -371,6 +371,11 @@ async function checkWidth(width) {
     await waitForTitle(page, 'Transactions')
     await drawerClosed(page)
     await expect(topBarTitle(page), (title) => title === 'Transactions', 'the top bar kept the previous screen title')
+    await expect(
+      page.evaluate(() => window.location.hash),
+      (address) => address.includes('tab=review'),
+      'the Transactions item, with rows waiting, did not open the To review tab',
+    )
     await expect(
       page.evaluate(() => document.querySelector('[data-testid="screen-title"]').getBoundingClientRect().top - document.querySelector('header').getBoundingClientRect().bottom),
       (gap) => gap >= 0,
@@ -1202,16 +1207,18 @@ async function checkWidth(width) {
     })
   }
 
-  await step('ruleset-deep-link', async () => {
-    await open(page, '#/company/settings?tab=ruleset', 'Settings')
+  await step('tax-rules-deep-link', async () => {
+    // Back must have another address to leave for, whichever step ran before this one.
+    await open(page, '#/company/settings?tab=books', 'Settings')
+    await open(page, '#/company/settings?tab=tax-rules', 'Settings')
     await page.waitForSelector('[data-testid="rule-row"]')
     const ruleRows = () => page.evaluate(() => document.querySelectorAll('[data-testid="rule-row"]').length)
     const everyRule = await ruleRows()
     await page.tap('input[data-testid="ruleset-search"]')
     await page.keyboard.type('director floor')
     await expect(ruleRows(), (shown) => shown >= 1 && shown < everyRule, 'the search did not narrow the rules')
-    await inspect(page, `${width}px ruleset search`)
-    await shoot('ruleset-search')
+    await inspect(page, `${width}px tax rules search`)
+    await shoot('tax-rules-search')
     await page.tap('[data-testid="ruleset-bar"] button[aria-label="Clear the search"]')
     await expect(ruleRows(), (shown) => shown === everyRule, 'clearing the search did not bring every rule back')
 
@@ -1246,7 +1253,7 @@ async function checkWidth(width) {
       })
     await delay(400)
     await inspect(page, `${width}px rule detail`)
-    await shoot('ruleset-linked')
+    await shoot('tax-rules-linked')
     await (await page.waitForSelector('[role="dialog"] button[aria-label="Close"]')).tap()
     await page
       .waitForFunction(() => !document.querySelector('[role="dialog"]') && !window.location.hash.includes('rule='), { timeout: 5_000 })
@@ -1258,8 +1265,8 @@ async function checkWidth(width) {
     await expect(page.url(), (address) => address !== list, 'Back after closing the rule showed the same list again')
   })
 
-  await step('ruleset-local-rates', async () => {
-    await open(page, '#/company/settings?tab=ruleset&rule=hr.pit.local-rates', 'Settings')
+  await step('tax-rules-local-rates', async () => {
+    await open(page, '#/company/settings?tab=tax-rules&rule=hr.pit.local-rates', 'Settings')
     const card = '[role="dialog"] [data-testid="rule-detail"]'
     const tableCount = () => page.$eval(`${card} [data-testid="table-count"]`, (element) => element.textContent.trim())
     const rowsShown = (text) => Number(text.split(' ')[0])
@@ -1267,7 +1274,7 @@ async function checkWidth(width) {
     await delay(400)
     await expect(tableCount(), (text) => rowsShown(text) <= 8, "the local rates opened on more than the owner's unit")
     await inspect(page, `${width}px local rates, folded`)
-    await shoot('ruleset-local-rates')
+    await shoot('tax-rules-local-rates')
     const search = await page.$(`${card} input[data-testid="table-search"]`)
     await search.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -1275,7 +1282,7 @@ async function checkWidth(width) {
     await page.keyboard.type('rijeka')
     await expect(tableCount(), (text) => rowsShown(text) >= 4 && !text.startsWith('All'), 'the table search did not find Rijeka')
     await inspect(page, `${width}px local rates search`)
-    await shoot('ruleset-local-rates-search')
+    await shoot('tax-rules-local-rates-search')
     await page.tap(`${card} button[aria-label="Clear the table search"]`)
     await page.tap(`${card} [data-testid="table-show-all"]`)
     await expect(tableCount(), (text) => text.startsWith('All'), 'Show all did not show every row')

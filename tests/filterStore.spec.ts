@@ -63,9 +63,9 @@ describe('filter store', () => {
   it("keeps the filters out of the address of the company's Settings, Kuna settings and onboarding, and back on the next company screen", async () => {
     await useFilters().setFilters({ ...DEFAULT_FILTERS, accounts: ['erste'] })
 
-    await router.push('/company/settings?tab=ruleset&rule=hr.cit.rate')
+    await router.push('/company/settings?tab=tax-rules&rule=hr.cit.rate')
     await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(router.currentRoute.value.fullPath).toBe('/company/settings?tab=ruleset&rule=hr.cit.rate')
+    expect(router.currentRoute.value.fullPath).toBe('/company/settings?tab=tax-rules&rule=hr.cit.rate')
 
     await router.push('/settings')
     await router.push('/company/start?step=home')

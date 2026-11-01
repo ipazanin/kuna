@@ -22,6 +22,14 @@ export interface MovedScreen {
   readonly to: (query: LocationQuery) => RouteLocationRaw
 }
 
+/** What waits on a screen, shown beside its menu item. */
+export interface MenuCount {
+  /** Always above zero, since a screen with nothing waiting has no count at all. */
+  readonly count: number
+  /** Where the menu item opens while something waits, when that is not the screen itself, such as its To review tab. */
+  readonly opens?: string
+}
+
 /** A figure on the app's card on the Kuna home, such as cash on hand. */
 export interface HomeAmount {
   readonly label: string
@@ -68,8 +76,8 @@ export interface AppContribution {
   menu(): readonly AppScreen[]
   /** The app's Settings, one of its screens, set apart at the foot of its menu. */
   readonly settings: AppScreen
-  /** What waits on a screen, shown beside its menu item, or null for none. */
-  menuCount(screen: AppScreen): number | null
+  /** What waits on a screen, shown beside its menu item, or null when nothing waits. */
+  menuCount(screen: AppScreen): MenuCount | null
   /** The line under the app's name in the menu and on its card, such as the company the books belong to. */
   subtitle(): string | null
   /** The currency and number locale of the app's books, which its screens and its card on the home format money in. */

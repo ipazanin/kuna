@@ -1,5 +1,3 @@
-import type { RouteLocationRaw } from 'vue-router'
-
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import { fold } from '../../../../../../shared/text/fold'
@@ -10,11 +8,6 @@ import type { RuleId } from '../ruleset'
 import type { AppliesBy, Confidence, GeneralRule, LegalSource, OpenItem, RuleArea, RuleTerms, RuleVersion, ScalarTerm, TableTerm, Term } from '../schema'
 import { words } from './words'
 import { ruleTitle } from './ruleTitles'
-
-/** Where a figure links to show the rule it rests on. */
-export function ruleLink(ruleId: RuleId): RouteLocationRaw {
-  return { path: '/company/settings', query: { tab: 'ruleset', rule: ruleId } }
-}
 
 export interface ConfidenceWording {
   readonly label: string

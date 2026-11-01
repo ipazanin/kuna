@@ -70,7 +70,7 @@ export const investmentsApp: AppContribution = {
     let count = 0
     if (screen === HOLDINGS && figures.value !== null) count = heldHoldings(figures.value).length
     if (screen === TRANSACTIONS && state.workbook !== null) count = transactionCount(state.workbook.book)
-    return count === 0 ? null : count
+    return count === 0 ? null : { count }
   },
   subtitle: () => null,
   // Every figure leaves the app in euros, so it shows them in the language's format.
