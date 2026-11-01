@@ -25,8 +25,11 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 
 ## Charts
 
-- A chart sits in `ChartCard` with its legend and a table view behind a Table toggle. A snapshot of at most five parts is a `DonutCard`.
-- Colour follows the bucket, tax or loan part on every chart, legend and swatch, through `--bucket-*`, `--pay-*` and `--loan-*`. Never pick a colour by rank.
+- A chart sits in `ChartCard` with its legend and a table view behind a Table toggle. The table comes from the chart's category axis, and a chart with none, such as a treemap, passes its table's caption, head and rows in the `table` slot. A snapshot of at most five parts is a `DonutCard`.
+- Colour follows the bucket, tax or loan part on every chart, legend and swatch, through `--bucket-*`, `--pay-*` and `--loan-*`. A fixed list never picks a colour by rank.
+- An open list, such as sectors or countries, has no colour per entry. Its four largest parts take `--series-1` to `--series-4` in order of size, and the rest is one grey `--chart-deemphasis` part, "Other and not known".
+- A gain or a loss tints a tile or a cell under its signed figure in ink, with `--gain-1` to `--gain-3` and `--loss-1` to `--loss-3` from small to large, or `bg-gain-1` to `bg-loss-3` in a class. The faintest steps sit under 3:1 on the card, so a treemap tile's edge is a border in `--chart-ink-muted`. A tile too small for its name and its signed figure shows no label, through `labelLayout` as the gallery's treemap does, and the tooltip and the table carry it.
+- Investments: a buy is a filled dot in `--invest-buy` and a sale a ring in `--invest-sale`, so the shape tells them apart as well as the colour.
 - Loans: principal is `--loan-principal`, interest `--loan-interest`, and balance still to come `--loan-ahead`. The subsidy is a stripe, not a fourth colour. Several bank loans on one chart wear `--loan-band-1` to `--loan-band-3` by their place in the file, and a fourth and later `--chart-deemphasis`.
 - Charts draw in over 450 ms and skip it under reduced motion. Keep it.
 - The description prop says in words and euros what the chart shows.

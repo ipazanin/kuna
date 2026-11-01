@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 
 import { tokenColour } from '../../shared/charts/chartTokens'
+import { formatPercent } from '../../shared/money/moneyFormat'
 import AppCard from '../../shared/ui/AppCard.vue'
 import { contrastRatio } from './contrast'
 import GallerySection from './GallerySection.vue'
@@ -9,6 +10,10 @@ import GallerySection from './GallerySection.vue'
 interface Swatch {
   readonly name: string
   readonly token: string
+  /** The class that paints the swatch, where screens paint with one. */
+  readonly fill?: string
+  /** A made-up figure in ink on the swatch, for a tint under a figure. */
+  readonly figure?: number
 }
 
 /** Text tokens show their contrast on the three surfaces text sits on. */
@@ -18,10 +23,13 @@ const TEXT_SURFACES: readonly Swatch[] = [
   { name: 'elevated', token: '--surface-elevated' },
 ]
 
-const COLOUR_GROUPS: readonly { readonly title: string; readonly text: boolean; readonly swatches: readonly Swatch[] }[] = [
+/** What a swatch's contrast is measured against: none, the token as text on each text surface, or ink on the token as a tint. */
+type Measure = 'none' | 'as-text' | 'under-ink'
+
+const COLOUR_GROUPS: readonly { readonly title: string; readonly measure: Measure; readonly swatches: readonly Swatch[] }[] = [
   {
     title: 'Surfaces and borders',
-    text: false,
+    measure: 'none',
     swatches: [
       { name: 'Page', token: '--surface-page' },
       { name: 'Raised', token: '--surface-raised' },
@@ -33,7 +41,7 @@ const COLOUR_GROUPS: readonly { readonly title: string; readonly text: boolean; 
   },
   {
     title: 'Ink, with its contrast on the page, a card and a popover',
-    text: true,
+    measure: 'as-text',
     swatches: [
       { name: 'Ink strong', token: '--ink-strong' },
       { name: 'Ink', token: '--ink' },
@@ -43,7 +51,7 @@ const COLOUR_GROUPS: readonly { readonly title: string; readonly text: boolean; 
   },
   {
     title: 'Accent and tones, as text-primary, text-error, text-success, text-warning and text-info',
-    text: true,
+    measure: 'as-text',
     swatches: [
       { name: 'Accent', token: '--accent' },
       { name: 'Error', token: '--tone-negative' },
@@ -54,7 +62,7 @@ const COLOUR_GROUPS: readonly { readonly title: string; readonly text: boolean; 
   },
   {
     title: 'Categorical order, with the bucket each slot carries',
-    text: false,
+    measure: 'none',
     swatches: [
       { name: '1 Income', token: '--series-1' },
       { name: '2 Operating', token: '--series-2' },
@@ -69,7 +77,7 @@ const COLOUR_GROUPS: readonly { readonly title: string; readonly text: boolean; 
   },
   {
     title: 'Loans: principal, the balance still to come, interest',
-    text: false,
+    measure: 'none',
     swatches: [
       { name: 'Principal', token: '--loan-principal' },
       { name: 'Still to come', token: '--loan-ahead' },
@@ -78,25 +86,49 @@ const COLOUR_GROUPS: readonly { readonly title: string; readonly text: boolean; 
   },
   {
     title: 'How late money owed is',
-    text: false,
+    measure: 'none',
     swatches: [1, 2, 3, 4, 5].map((step) => ({ name: `Step ${step}`, token: `--ageing-${step}` })),
+  },
+  {
+    title: 'Investments: the portfolio, what it is measured against, a buy and a sale',
+    measure: 'none',
+    swatches: [
+      { name: 'Portfolio', token: '--invest-portfolio' },
+      { name: 'Reference', token: '--invest-reference' },
+      { name: 'Buy', token: '--invest-buy' },
+      { name: 'Sale', token: '--invest-sale' },
+    ],
+  },
+  {
+    title: 'Gain and loss from small to large, as bg-gain-1 to bg-loss-3, with the contrast of ink on each',
+    measure: 'under-ink',
+    swatches: [
+      { name: 'Loss 3', token: '--loss-3', fill: 'bg-loss-3', figure: -0.312 },
+      { name: 'Loss 2', token: '--loss-2', fill: 'bg-loss-2', figure: -0.143 },
+      { name: 'Loss 1', token: '--loss-1', fill: 'bg-loss-1', figure: -0.041 },
+      { name: 'Gain 1', token: '--gain-1', fill: 'bg-gain-1', figure: 0.086 },
+      { name: 'Gain 2', token: '--gain-2', fill: 'bg-gain-2', figure: 0.207 },
+      { name: 'Gain 3', token: '--gain-3', fill: 'bg-gain-3', figure: 0.284 },
+    ],
   },
 ]
 
-/** Each swatch's value in the theme on screen, and for text its contrast on each text surface. */
+/** Each swatch's value in the theme on screen, and the contrasts its group measures. */
 const groups = computed(() =>
   COLOUR_GROUPS.map((group) => ({
     ...group,
     swatches: group.swatches.map((swatch) => {
       const value = tokenColour(swatch.token)
-      return {
-        ...swatch,
-        value,
-        contrasts: group.text ? TEXT_SURFACES.map((surface) => ({ surface: surface.name, ratio: contrastRatio(value, tokenColour(surface.token)) })) : [],
-      }
+      return { ...swatch, value, contrasts: contrastsOf(value, group.measure) }
     }),
   })),
 )
+
+function contrastsOf(value: string, measure: Measure): readonly { readonly against: string; readonly ratio: number | null }[] {
+  if (measure === 'as-text') return TEXT_SURFACES.map((surface) => ({ against: `on ${surface.name}`, ratio: contrastRatio(value, tokenColour(surface.token)) }))
+  if (measure === 'under-ink') return [{ against: 'under ink', ratio: contrastRatio(tokenColour('--ink'), value) }]
+  return []
+}
 
 const TYPE_ROLES = [
   { role: 'type-page-title', use: 'The screen title', sample: 'Period review, 2026 against 2025' },
@@ -115,13 +147,15 @@ const TYPE_ROLES = [
         <h3 class="mb-2 type-label">{{ group.title }}</h3>
         <ul class="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-2">
           <li v-for="swatch in group.swatches" :key="swatch.token" class="overflow-hidden rounded-control border border-default bg-raised" data-testid="gallery-swatch">
-            <span class="block h-10" :style="{ background: `var(${swatch.token})` }" />
+            <span class="figure block h-10 px-2 py-2.5 text-sm font-semibold text-default" :class="swatch.fill" :style="swatch.fill ? undefined : { background: `var(${swatch.token})` }">
+              <template v-if="swatch.figure !== undefined">{{ formatPercent(swatch.figure, 'always') }}</template>
+            </span>
             <span class="block px-2 py-1.5 text-xs">
               <span class="block text-highlighted">{{ swatch.name }}</span>
               <span class="identifier block text-muted">{{ swatch.token }}</span>
               <span class="identifier block text-muted">{{ swatch.value }}</span>
-              <span v-for="contrast in swatch.contrasts" :key="contrast.surface" class="figure block" :class="contrast.ratio !== null && contrast.ratio < 4.5 ? 'text-error' : 'text-toned'">
-                {{ contrast.ratio === null ? '–' : `${contrast.ratio.toFixed(2)}:1` }} on {{ contrast.surface }}<template v-if="contrast.ratio !== null && contrast.ratio < 4.5">, fails</template>
+              <span v-for="contrast in swatch.contrasts" :key="contrast.against" class="figure block" :class="contrast.ratio !== null && contrast.ratio < 4.5 ? 'text-error' : 'text-toned'">
+                {{ contrast.ratio === null ? '–' : `${contrast.ratio.toFixed(2)}:1` }} {{ contrast.against }}<template v-if="contrast.ratio !== null && contrast.ratio < 4.5">, fails</template>
               </span>
             </span>
           </li>

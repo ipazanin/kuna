@@ -31,6 +31,9 @@ export interface ChartTokens {
   readonly buckets: Readonly<Record<BucketTone, string>>
   /** One hue from the first step to the fifth, for an ordered scale such as how late money owed is. */
   readonly ageing: readonly string[]
+  /** A gain from the smallest step to the largest, as the tint under a label in ink. */
+  readonly gain: readonly string[]
+  readonly loss: readonly string[]
 }
 
 const BUCKET_TONES: readonly BucketTone[] = ['income', 'operating', 'taxes', 'owner-pay', 'financing', 'neutral']
@@ -72,6 +75,8 @@ function readChartTokens(style: CSSStyleDeclaration): ChartTokens {
     series: [1, 2, 3, 4, 5, 6, 7, 8].map((slot) => read(`--series-${slot}`)),
     buckets: Object.fromEntries(BUCKET_TONES.map((tone) => [tone, read(`--bucket-${tone}`)])) as Record<BucketTone, string>,
     ageing: [1, 2, 3, 4, 5].map((step) => read(`--ageing-${step}`)),
+    gain: [1, 2, 3].map((step) => read(`--gain-${step}`)),
+    loss: [1, 2, 3].map((step) => read(`--loss-${step}`)),
   }
 }
 

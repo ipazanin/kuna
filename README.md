@@ -410,7 +410,8 @@ list beside it gives each part's value and share and opens its rows, so it is th
 too. A part may carry a note in place of its share, and the card may set more content beside the
 list, whose rows keep the list's height and dividers from the same top, and a chart beside the ring,
 which a phone sets under it. Each part keeps the colour of what it stands for, such as its bucket, never one picked by its
-rank. A phone sets the ring above the list. A card with a long list or table, such
+rank. Only an open list such as sectors colours by size, its four largest parts in the first four
+series colours and the rest in one grey part. A phone sets the ring above the list. A card with a long list or table, such
 as plan rows, invoices, rules or a tab editor, has a toggle at the end of its header. Collapsed,
 it shows its title and one summary line, such as the row count or a total. Each card opens
 expanded unless its screen says otherwise, and this device remembers the choice in `localStorage`

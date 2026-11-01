@@ -1,6 +1,6 @@
 /*
  * Design tokens. Every colour the app paints comes from here, Nuxt UI and the ECharts theme included.
- * The chart theme reads the --chart-*, --series-*, --bucket-* and --loan-* values with getComputedStyle,
+ * The chart theme reads the --chart-*, --series-*, --bucket-*, --loan-*, --gain-* and --loss-* values with getComputedStyle,
  * so those stay plain hex or rgba: a canvas cannot resolve var() or color-mix().
  *
  * The categorical order is validated with the dataviz palette validator against --surface-raised in
@@ -43,6 +43,12 @@
   --color-page: var(--surface-page);
   --color-raised: var(--surface-raised);
   --color-on-fill: var(--chart-on-fill);
+  --color-gain-1: var(--gain-1);
+  --color-gain-2: var(--gain-2);
+  --color-gain-3: var(--gain-3);
+  --color-loss-1: var(--loss-1);
+  --color-loss-2: var(--loss-2);
+  --color-loss-3: var(--loss-3);
   --shadow-raised: var(--elevation-raised);
   --shadow-overlay: var(--elevation-overlay);
 }
@@ -111,6 +117,18 @@
   --ageing-3: #3a72c4;
   --ageing-4: #2556a2;
   --ageing-5: #163a6e;
+
+  /*
+   * A gain or a loss from small to large, as the tint under a figure in ink, such as a tile or a cell.
+   * Each step passes 4.5:1 with ink. Gains are cyan rather than green, because green and red cannot
+   * be told apart with red-green colour blindness. Validated as two ordinal ramps and pair by pair.
+   */
+  --gain-1: #59c5d1;
+  --gain-2: #2eb3c0;
+  --gain-3: #199eaa;
+  --loss-1: #ef9d93;
+  --loss-2: #e4847a;
+  --loss-3: #d46e64;
 }
 
 .dark {
@@ -175,6 +193,14 @@
   --ageing-3: #5389d4;
   --ageing-4: #7ca9eb;
   --ageing-5: #b0cdf3;
+
+  /* On the dark card the smallest step is the darkest. The largest is as light as light ink allows at 4.5:1, so the smallest sits 1.8:1 from the card and the signed figure carries the meaning. */
+  --gain-1: #004c53;
+  --gain-2: #025f67;
+  --gain-3: #06727c;
+  --loss-1: #772a25;
+  --loss-2: #8f3832;
+  --loss-3: #a04e46;
 }
 
 /* Colour follows the bucket on every chart, so operating is the same orange wherever it appears. */
@@ -223,6 +249,10 @@
   /* The portfolio on every Investments chart, and anything it is measured against, which draws dashed. */
   --invest-portfolio: var(--series-3);
   --invest-reference: var(--chart-deemphasis);
+
+  /* A buy and a sale on a price chart, a filled dot and a ring, so the shape tells them apart as well. */
+  --invest-buy: var(--tone-positive);
+  --invest-sale: var(--tone-negative);
 
   /*
    * Ink inside a filled mark. It keeps at least 3:1 on every swatch in both themes, enough for an

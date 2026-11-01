@@ -22,6 +22,8 @@ const WASHED_SURFACES = ['--surface-page', '--surface-raised']
 const APP_COLOURS = ['--app-company', '--app-loans', '--app-investments']
 const APP_TILE_WASH = 0.14
 const CHART_INKS = ['--chart-ink', '--chart-ink-secondary', '--chart-ink-muted']
+/** The gain and loss steps, which tint a tile or a cell under a figure in ink. */
+const STEPS = ['--gain-1', '--gain-2', '--gain-3', '--loss-1', '--loss-2', '--loss-3']
 const SERIES = ['--series-1', '--series-2', '--series-3', '--series-4', '--series-5', '--series-6', '--series-7', '--series-8']
 
 interface Pair {
@@ -58,7 +60,7 @@ function over(colour: string, surface: string, opacity = 1): string {
  * The pairs that carry text in one theme: every ink and tone on the page, a card and a popover, each
  * tone on the 10% wash of itself that Nuxt UI's subtle badges and alerts lie on, ink on the accent
  * wash of a picked row or tab, each app's colour on the surfaces as text and on its own tile as a mark, the label of a primary button, the chart's ink, and the ink inside a
- * filled chart mark, which carries icons and large text only.
+ * filled chart mark, which carries icons and large text only, and ink on each gain and loss step.
  */
 function pairsOf(tokens: ReadonlyMap<string, string>): readonly Pair[] {
   const colour = (name: string): string => tokens.get(name) ?? SHARED_TOKENS.get(name) ?? name
@@ -78,6 +80,7 @@ function pairsOf(tokens: ReadonlyMap<string, string>): readonly Pair[] {
     pair('--accent-ink', '--accent'),
     ...CHART_INKS.flatMap((ink) => ['--chart-surface', '--chart-tooltip'].map((surface) => pair(ink, surface))),
     ...SERIES.map((series) => pair('--chart-on-fill', series, MARK)),
+    ...STEPS.flatMap((step) => ['--ink', '--ink-strong', '--chart-ink'].map((ink) => pair(ink, step))),
   ]
 }
 

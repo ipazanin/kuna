@@ -826,10 +826,10 @@ const SCREENS = [
 ]
 
 /** The gallery's chart cards that draw a chart. The loading card counts, the empty one does not. */
-const GALLERY_CHARTS = 7
+const GALLERY_CHARTS = 8
 
 /** The gallery's donut cards, each of which must draw its ring. */
-const GALLERY_DONUTS = 2
+const GALLERY_DONUTS = 3
 
 /** Screens outside the fake workbook on Drive. `query` picks the fake variant, `upload` drops the import file on the page. */
 const SOURCE_SCREENS = [

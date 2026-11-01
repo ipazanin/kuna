@@ -9,7 +9,7 @@ import type { TableColumn } from '@nuxt/ui/components/Table.vue'
 
 import { dateFormat } from '../../shared/calendar/dateFormat'
 import { chartTokens } from '../../shared/charts/chartTokens'
-import { formatMoney } from '../../shared/money/moneyFormat'
+import { formatMoney, formatPercent } from '../../shared/money/moneyFormat'
 import type { SyncControl, SyncRun } from '../../shared/sync/application/syncRun'
 import SyncStatus from '../../shared/sync/presentation/SyncStatus.vue'
 import AppCard from '../../shared/ui/AppCard.vue'
@@ -48,7 +48,7 @@ import FormattingGallery from './FormattingGallery.vue'
 import FoundationsGallery from './FoundationsGallery.vue'
 import GallerySection from './GallerySection.vue'
 import ScenarioSpecimens from './ScenarioSpecimens.vue'
-import { cashAtMonthEnd, costsByCategory, everyEuroEarned, incomeAgainstCosts, incomeByMonth } from './sampleCharts'
+import { cashAtMonthEnd, costsByCategory, everyEuroEarned, incomeAgainstCosts, incomeByMonth, SAMPLE_HOLDINGS, valueMap } from './sampleCharts'
 import { SAMPLE_TRANSACTIONS } from './sampleTransactions'
 import type { SampleTransaction } from './sampleTransactions'
 import StepSpecimen from './StepSpecimen.vue'
@@ -114,7 +114,17 @@ const charts = {
   cashAtMonthEnd: cashAtMonthEnd(tokens),
   costsByCategory: costsByCategory(tokens),
   everyEuroEarned: everyEuroEarned(tokens),
+  valueMap: valueMap(tokens),
 }
+
+const gainLegend = [
+  { label: 'Down over 25%', colour: 'var(--loss-3)' },
+  { label: 'Down 10 to 25%', colour: 'var(--loss-2)' },
+  { label: 'Down up to 10%', colour: 'var(--loss-1)' },
+  { label: 'Up to 10%', colour: 'var(--gain-1)' },
+  { label: 'Up 10 to 25%', colour: 'var(--gain-2)' },
+  { label: 'Up over 25%', colour: 'var(--gain-3)' },
+]
 
 /** Made-up shares of a year's income, coloured by bucket as every chart colours them. */
 const EURO_PARTS: readonly DonutPart[] = [
@@ -128,6 +138,14 @@ const TAX_PARTS: readonly DonutPart[] = [
   { key: 'corporate', label: 'Corporate income tax', value: 412_500, colour: '--series-7', to: galleryLink },
   { key: 'payroll-tax', label: 'Payroll tax', value: 98_400, colour: '--series-1', to: galleryLink },
   { key: 'dividend', label: 'Dividend tax', value: 31_000, colour: '--series-5', to: galleryLink },
+]
+/** Made-up sectors, an open list: the four largest in size order, the rest grey. */
+const SECTOR_PARTS: readonly DonutPart[] = [
+  { key: 'technology', label: 'Information technology', value: 700_000, colour: '--series-1', to: null },
+  { key: 'industrials', label: 'Industrials', value: 200_000, colour: '--series-2', to: null },
+  { key: 'financials', label: 'Financials', value: 60_000, colour: '--series-3', to: null },
+  { key: 'health-care', label: 'Health care', value: 40_000, colour: '--series-4', to: null },
+  { key: 'other', label: 'Other and not known', value: 35_000, colour: '--chart-deemphasis', to: null },
 ]
 
 /** One of each state of the sync control, Allow access also after a closed popup, over a last sync whose statements step filed a statement. */
@@ -437,7 +455,11 @@ const columns: TableColumn<SampleTransaction>[] = [
       </DashboardGrid>
     </GallerySection>
 
-    <GallerySection id="chart-card" title="ChartCard, ChartCanvas and ChartLegend" description="A chart in a card with its legend, its table behind Table, and its loading and empty states.">
+    <GallerySection
+      id="chart-card"
+      title="ChartCard, ChartCanvas and ChartLegend"
+      description="A chart in a card with its legend, its table behind Table, a treemap that brings its own table, and its loading and empty states."
+    >
       <p class="type-caption" aria-live="polite">
         <template v-if="lastSelection"> Clicked {{ lastSelection.seriesName }}, {{ lastSelection.category }}. A screen turns this into a filter and opens the rows. </template>
         <template v-else>Click any bar to see the selection a screen receives.</template>
@@ -526,6 +548,36 @@ const columns: TableColumn<SampleTransaction>[] = [
         </ChartCard>
 
         <ChartCard
+          title="Value by holding"
+          description="Made-up holdings for the gallery, each sized by its value and tinted by its gain or loss."
+          subtitle="A chart with no category axis brings its own table"
+          :option="charts.valueMap"
+          :height="300"
+          @select="lastSelection = $event"
+        >
+          <template #legend><ChartLegend :entries="gainLegend" /></template>
+          <template #table>
+            <caption class="sr-only">
+              Value by holding
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col" class="text-start">Holding</th>
+                <th scope="col" class="text-end">Value</th>
+                <th scope="col" class="text-end">Gain</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="holding in SAMPLE_HOLDINGS" :key="holding.name">
+                <th scope="row" class="text-start font-normal text-toned">{{ holding.name }}</th>
+                <td class="text-end"><MoneyText :cents="holding.value" /></td>
+                <td class="figure text-end">{{ formatPercent(holding.gain, 'always') }}</td>
+              </tr>
+            </tbody>
+          </template>
+        </ChartCard>
+
+        <ChartCard
           title="A collapsible chart"
           description="Made-up month-end cash for the gallery, in a chart that folds away."
           subtitle="A reference chart a screen opens folded"
@@ -540,7 +592,11 @@ const columns: TableColumn<SampleTransaction>[] = [
       </DashboardGrid>
     </GallerySection>
 
-    <GallerySection id="donut-card" title="DonutCard" description="One snapshot of at most five parts, the list beside the ring as its table, collapsible, with content below.">
+    <GallerySection
+      id="donut-card"
+      title="DonutCard"
+      description="One snapshot of at most five parts, the list beside the ring as its table, collapsible, with content below, and an open list coloured by size."
+    >
       <DashboardGrid>
         <DonutCard
           title="Every euro earned, last 12 months"
@@ -567,6 +623,14 @@ const columns: TableColumn<SampleTransaction>[] = [
             </p>
           </template>
         </DonutCard>
+        <DonutCard
+          title="By sector"
+          description="Made-up holdings by sector for the gallery: information technology 68%, industrials 19%, financials 6%, health care 4%, other and not known 3%."
+          subtitle="An open list, its four largest in size order and the rest grey"
+          :parts="SECTOR_PARTS"
+          :total="formatMoney(1_035_000)"
+          total-label="of holdings"
+        />
       </DashboardGrid>
     </GallerySection>
 

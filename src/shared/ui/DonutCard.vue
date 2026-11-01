@@ -7,7 +7,10 @@ export interface DonutPart {
   readonly label: string
   /** Above zero. A part of zero is listed and leaves no slice. */
   readonly value: number
-  /** The colour token of the thing the part stands for, such as `--bucket-taxes`, never one picked by rank. */
+  /**
+   * The colour token of the thing the part stands for, such as `--bucket-taxes`. Only an open list such
+   * as sectors colours by size, its four largest parts `--series-1` to `--series-4` and the rest `--chart-deemphasis`.
+   */
   readonly colour: string
   /** Where the part's rows open, or null when none are behind it. */
   readonly to: RouteLocationRaw | null

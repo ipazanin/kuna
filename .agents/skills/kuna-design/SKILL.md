@@ -33,17 +33,17 @@ A component starts in the app that needs it and moves to `src/shared/ui` when a 
 - No new `<style>` block. A look belongs in a component, a token or `app.css`.
 - A table of figures sits in `FigureTable`.
 - Format money, numbers and dates with the helpers in `src/shared/money`, `src/shared/calendar` and `src/shared/text`, never with `Intl`, `toLocale*` or `toFixed` in a screen.
-- A new token has a light and a dark value, and a text pair passes 4.5:1. A mark passes 3:1.
+- A new token has a light and a dark value, and a text pair passes 4.5:1. A mark passes 3:1. A tint under a figure in ink passes 4.5:1 with that ink instead, and where its shape matters, as on a treemap tile, a border that passes 3:1 draws its edge.
 - Never work around lint. Inline disables have no effect (`noInlineConfig`). Change the design, not the rule.
 
 ## Token file map
 
 Read values in these files. Never copy one into a component, a screen or a doc.
 
-| File in `src/shared/styles/` | Holds                                                                                                                                                                                                                                                                                                                                      |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `tokens.css`                 | Every colour, in `:root` and `.dark`. Surfaces, borders, ink steps, accent, the four tones, elevations, chart values, `--series-*`, `--bucket-*`, `--pay-*`, `--loan-*`, `--ageing-*`. Also the `@theme` scales: figure sizes, radii, widths, `3xl` breakpoint, `z-control`, `z-top-bar`, `duration-fade`. Also the Nuxt UI colour mapping |
-| `app.css`                    | Type roles as `@utility`, base body and focus styles, `.data-table`, the 44 px phone rule, `.phone-sheet`, `.phone-drawer`, `.top-bar-action`, `.write-progress`, the first-run page `.first-run` with its stepper `.first-run-steps` and `.first-run-step*`, `.quiet-link` and reduced motion                                             |
+| File in `src/shared/styles/` | Holds                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tokens.css`                 | Every colour, in `:root` and `.dark`. Surfaces, borders, ink steps, accent, the four tones, elevations, chart values, `--series-*`, `--bucket-*`, `--pay-*`, `--loan-*`, `--ageing-*`, `--gain-*`, `--loss-*`, `--invest-*`. Also the `@theme` scales: figure sizes, radii, widths, `3xl` breakpoint, `z-control`, `z-top-bar`, `duration-fade`. Also the Nuxt UI colour mapping |
+| `app.css`                    | Type roles as `@utility`, base body and focus styles, `.data-table`, the 44 px phone rule, `.phone-sheet`, `.phone-drawer`, `.top-bar-action`, `.write-progress`, the first-run page `.first-run` with its stepper `.first-run-steps` and `.first-run-step*`, `.quiet-link` and reduced motion                                                                                   |
 
 Chart values stay plain hex or rgba, because a canvas cannot resolve `var()`. `src/shared/charts/chartTokens.ts` reads them with `getComputedStyle`.
 

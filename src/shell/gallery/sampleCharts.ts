@@ -238,3 +238,76 @@ export function everyEuroEarned(tokens: ChartTokens): ChartOption {
     ],
   }
 }
+
+/** Made-up holdings with their value in cents and their gain on what is held. */
+export const SAMPLE_HOLDINGS = [
+  { name: 'World fund', value: 1_875_000, gain: 0.207 },
+  { name: 'Share A', value: 942_310, gain: 0.284 },
+  { name: 'Bond fund', value: 810_000, gain: 0.012 },
+  { name: 'Share B', value: 776_790, gain: 0.086 },
+  { name: 'Share C', value: 402_150, gain: -0.143 },
+  { name: 'Small caps fund', value: 265_400, gain: -0.041 },
+  { name: 'Share D', value: 118_900, gain: -0.312 },
+] as const
+
+/** The step of a gain or a loss: up to 10%, up to 25%, and over 25%. */
+function gainStep(gain: number): number {
+  const size = Math.abs(gain)
+  return size <= 0.1 ? 0 : size <= 0.25 ? 1 : 2
+}
+
+const LABEL_FONT_SIZE = 12
+const LABEL_LINE_HEIGHT = 16
+const LABEL_PADDING = 5
+/** Room for a signed percent such as −31.2% at the label's size. */
+const PERCENT_WIDTH = 48
+/**
+ * A tile shows its name and its signed percent, or no label when both do not fit, so the tooltip and the
+ * table carry it. ECharts cannot hide a treemap label that does not fit, so `labelLayout` sets its size to 0.
+ */
+const LABEL_MIN_HEIGHT = 2 * LABEL_LINE_HEIGHT + 2 * LABEL_PADDING
+const LABEL_MIN_WIDTH = PERCENT_WIDTH + 2 * LABEL_PADDING
+
+/** The tiles' faintest tints sit under 3:1 on the card, so each tile's edge is a border in muted ink. */
+export function valueMap(tokens: ChartTokens): ChartOption {
+  return {
+    tooltip: {
+      trigger: 'item',
+      formatter: (point: unknown) => {
+        const { name, value } = point as { name: string; value: number }
+        const gain = SAMPLE_HOLDINGS.find((holding) => holding.name === name)?.gain
+        return gain === undefined ? '' : `${name}<br><b>${formatMoney(value)}</b>, ${formatPercent(gain, 'always')}`
+      },
+    },
+    series: [
+      {
+        type: 'treemap',
+        name: 'Holdings',
+        roam: false,
+        nodeClick: false,
+        breadcrumb: { show: false },
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+        levels: [{ itemStyle: { borderColor: tokens.surface, borderWidth: 0, gapWidth: 2 } }],
+        label: {
+          show: true,
+          color: tokens.ink,
+          fontSize: LABEL_FONT_SIZE,
+          lineHeight: LABEL_LINE_HEIGHT,
+          padding: LABEL_PADDING,
+          overflow: 'truncate',
+          formatter: ({ name, data }: { name: string; data: unknown }) => `${name}\n${formatPercent((data as { gain: number }).gain, 'always')}`,
+        },
+        labelLayout: ({ rect }) => (rect.width < LABEL_MIN_WIDTH || rect.height < LABEL_MIN_HEIGHT ? { fontSize: 0 } : {}),
+        data: SAMPLE_HOLDINGS.map((holding) => ({
+          name: holding.name,
+          value: holding.value,
+          gain: holding.gain,
+          itemStyle: { color: (holding.gain < 0 ? tokens.loss : tokens.gain)[gainStep(holding.gain)], borderColor: tokens.inkMuted, borderWidth: 1, borderRadius: 4 },
+        })),
+      },
+    ],
+  }
+}

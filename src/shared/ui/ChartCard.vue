@@ -92,7 +92,8 @@ interface TableCell {
 
 /**
  * The chart's figures as rows of its category axis and columns of its named series, read from the
- * option itself so every chart has a table view without saying how. A bar list reads top down.
+ * option itself so every chart has a table view without saying how. A bar list reads top down. A
+ * chart with no category axis, such as a treemap, passes its table's caption, head and rows in the `table` slot.
  */
 const table = computed(() => {
   const alongX = isCategoryAxis(props.option.xAxis)
@@ -153,30 +154,32 @@ function valueOf(point: unknown): number | null {
     <div class="chart-body grow px-2 pt-2 pb-3 sm:px-3" :style="{ height: `${plotHeight}px` }">
       <UEmpty v-if="empty && !loading" icon="i-lucide-chart-no-axes-column" :title="emptyTitle" :description="emptyDescription" variant="naked" size="sm" class="h-full" />
       <FigureTable v-else-if="showTable" class="h-full overflow-auto" data-testid="chart-table">
-        <caption class="sr-only">
-          {{
-            title
-          }}
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col" class="text-start">
-              <span class="sr-only">{{ words.chart.category }}</span>
-            </th>
-            <th v-for="column in table.columns" :key="column" scope="col" class="text-end">{{ column }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in table.rows" :key="row.label">
-            <th scope="row" class="text-start font-normal text-toned">{{ row.label }}</th>
-            <td v-for="(cell, index) in row.cells" :key="index" class="figure text-end">
-              <DrillLink v-if="cell.value !== null" :to="cell.to" :label="words.chart.openRows(row.label, table.columns[index] ?? '')">
-                {{ formatValue(cell.value) }}
-              </DrillLink>
-              <span v-else class="text-muted">–</span>
-            </td>
-          </tr>
-        </tbody>
+        <slot name="table">
+          <caption class="sr-only">
+            {{
+              title
+            }}
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col" class="text-start">
+                <span class="sr-only">{{ words.chart.category }}</span>
+              </th>
+              <th v-for="column in table.columns" :key="column" scope="col" class="text-end">{{ column }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in table.rows" :key="row.label">
+              <th scope="row" class="text-start font-normal text-toned">{{ row.label }}</th>
+              <td v-for="(cell, index) in row.cells" :key="index" class="figure text-end">
+                <DrillLink v-if="cell.value !== null" :to="cell.to" :label="words.chart.openRows(row.label, table.columns[index] ?? '')">
+                  {{ formatValue(cell.value) }}
+                </DrillLink>
+                <span v-else class="text-muted">–</span>
+              </td>
+            </tr>
+          </tbody>
+        </slot>
       </FigureTable>
       <ChartCanvas
         v-else

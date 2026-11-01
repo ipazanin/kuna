@@ -4,6 +4,7 @@ import { dayLabel, shortDayLabel } from '../../shared/calendar/dayLabel'
 import { monthKey } from '../../shared/calendar/monthKey'
 import { monthLabel, monthName, shortMonthLabel } from '../../shared/calendar/monthLabel'
 import { currencyUnitName, formatCompactMoney, formatDays, formatDecimal, formatMoney, formatPercent } from '../../shared/money/moneyFormat'
+import { countryName } from '../../shared/text/countryName'
 import AppCard from '../../shared/ui/AppCard.vue'
 import DrillLink from '../../shared/ui/DrillLink.vue'
 import MoneyText from '../../shared/ui/MoneyText.vue'
@@ -13,7 +14,7 @@ const SAMPLE_DAY = civilDate(2026, 11, 20)
 const SAMPLE_MONTH = monthKey(2026, 10)
 const galleryLink = { path: '/gallery', hash: '#formatting' }
 
-/** Each formatter of shared/money and shared/calendar, with what it is for. */
+/** Each formatter of shared/money, shared/calendar and shared/text, with what it is for. */
 const FORMATTED = [
   { name: 'formatMoney', use: 'An amount to the cent', text: formatMoney(1234567) },
   { name: 'formatMoney, negative', use: 'A true minus, so columns keep their width', text: formatMoney(-98765) },
@@ -28,6 +29,7 @@ const FORMATTED = [
   { name: 'monthLabel', use: 'A month in tooltips and text', text: monthLabel(SAMPLE_MONTH) },
   { name: 'shortMonthLabel', use: 'A month on a tight axis', text: shortMonthLabel(SAMPLE_MONTH) },
   { name: 'monthName', use: 'A month where the year is plain', text: monthName(SAMPLE_MONTH) },
+  { name: 'countryName', use: 'A country from its ISO code', text: `${countryName('IE')}, ${countryName('US')}` },
 ] as const
 
 const MONEY_TEXTS = [
@@ -44,7 +46,7 @@ const MONEY_TEXTS = [
   <GallerySection
     id="formatting"
     title="Formatting"
-    description="Money, shares, days and months in the language and number format on screen. Add ?lang=hr to the address for Croatian. Only these modules format figures."
+    description="Money, shares, days, months and countries in the language and number format on screen. Add ?lang=hr to the address for Croatian. Only these modules format figures."
   >
     <AppCard as="div" class="p-5">
       <dl class="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
