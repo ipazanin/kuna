@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import { bridgeChart } from '../../../../../../shared/charts/bridgeChart'
 import { chartTokens } from '../../../../../../shared/charts/chartTokens'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import ChartLegend from '../../../../../../shared/ui/ChartLegend.vue'
@@ -10,9 +11,9 @@ import DonutCard from '../../../../../../shared/ui/DonutCard.vue'
 import KpiTile from '../../../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import DrillChartCard from '../../../../filters/presentation/DrillChartCard.vue'
-import { bridgeChart } from '../bridgeChart'
 import BuildUpButton from '../BuildUpButton.vue'
 import FigureDialog from '../FigureDialog.vue'
+import { PROFIT_BRIDGE } from '../profitBridge'
 import type { FigureDetail } from '../tracedFigureView'
 import SalaryProblemList from './SalaryProblemList.vue'
 import SalaryReconciliationCard from './SalaryReconciliationCard.vue'
@@ -24,7 +25,7 @@ const props = defineProps<{
   view: SalaryMonthView
 }>()
 
-const bridge = computed(() => bridgeChart(props.view.bridge, chartTokens(), { raises: words.bridge.raises, lowers: words.bridge.lowers }))
+const bridge = computed(() => bridgeChart(props.view.bridge, chartTokens(), { ...PROFIT_BRIDGE, raises: words.bridge.raises, lowers: words.bridge.lowers }))
 
 const opened = ref<FigureDetail | null>(null)
 const dialogOpen = computed({

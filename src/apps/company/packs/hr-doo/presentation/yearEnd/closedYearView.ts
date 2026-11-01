@@ -1,6 +1,8 @@
 import type { RouteLocationRaw } from 'vue-router'
 
 import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
+import { bridgeChart } from '../../../../../../shared/charts/bridgeChart'
+import type { BridgeBar } from '../../../../../../shared/charts/bridgeChart'
 import { chartTokens } from '../../../../../../shared/charts/chartTokens'
 import type { DonutPart } from '../../../../../../shared/ui/DonutCard.vue'
 import type { DrillTarget } from '../../../../filters/domain/drillTarget'
@@ -17,8 +19,7 @@ import { compareYearEnd } from '../../domain/yearEnd/yearEndComparison'
 import type { ComparedLine, ComparedStatement, LineStatus } from '../../domain/yearEnd/yearEndComparison'
 import { yearEndOpenItems } from '../../domain/yearEnd/yearEndOpenItems'
 import { chipsOf, figureDetail, figureLabel, ruleChips, stepsOf } from '../tracedFigureView'
-import { bridgeChart } from '../bridgeChart'
-import type { BridgeBar } from '../bridgeChart'
+import { PROFIT_BRIDGE } from '../profitBridge'
 import type { BridgeStepView } from './BridgeSteps.vue'
 import type { ComparisonRow, ShownValue } from './ComparisonTable.vue'
 import { ADJUSTMENT_LABELS, STATUSES, STATUS_WORDING, lineLabel } from './yearEndWording'
@@ -57,9 +58,9 @@ export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link
   const { bridge } = accrual
   const drillOf = (figure: TracedFigure | null) => link(figure?.drill ?? null)
 
-  const bars: BridgeBar[] = [
+  const bars: BridgeBar<DrillTarget>[] = [
     { label: words.bridge.cashNet, kind: 'total', amount: bridge.cashNet.amount, drill: bridge.cashNet.drill },
-    ...bridge.steps.map((step): BridgeBar => ({ label: ADJUSTMENT_LABELS[step.id], kind: 'step', amount: step.figure.amount, drill: step.figure.drill })),
+    ...bridge.steps.map((step): BridgeBar<DrillTarget> => ({ label: ADJUSTMENT_LABELS[step.id], kind: 'step', amount: step.figure.amount, drill: step.figure.drill })),
     { label: words.bridge.profitBeforeTax, kind: 'total', amount: bridge.profitBeforeTax.amount, drill: null },
     { label: ADJUSTMENT_LABELS['corporate-income-tax'], kind: 'step', amount: bridge.corporateIncomeTax.figure.amount, drill: null },
     { label: words.bridge.profitAfterTax, kind: 'total', amount: bridge.profitAfterTax.amount, drill: null },
@@ -118,7 +119,7 @@ export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link
       total: comparison.lines.length,
       description: words.linesDescription(comparison.lines.length, year, statusCounts.map(({ status, count }) => `${count} ${uncapitalised(STATUS_WORDING[status].label)}`).join(', ')),
     },
-    chart: bridgeChart(bars, chartTokens()),
+    chart: bridgeChart(bars, chartTokens(), PROFIT_BRIDGE),
     chartHeight: bars.length * 28 + 48,
     steps: [
       total('cash-net', bridge.cashNet),

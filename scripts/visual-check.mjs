@@ -30,7 +30,7 @@
  * fetch failed (`?prices=late-prices`), each in Croatian too and with its figures worked out from the same fake sets, the home with the Investments card's figures and its late-prices badge,
  * the sample's Holdings with its five mixes and closed positions, also with a late close and on a past close (`?on=`), and two holdings' pages, one in US dollars with a lot partly sold and its trades as dots sized by amount, and one from a spin-off that split, each in Croatian too,
  * the sample's Performance over everything against its benchmark, a portfolio too young for a rate a year with no benchmark chosen (`?investments=young`) and the sample whose
- * benchmark has no closes (`?prices=no-benchmark`), each in Croatian too, and its Months, its Sources over everything and over the last year and its Falls tabs, in Croatian too,
+ * benchmark has no closes (`?prices=no-benchmark`), each in Croatian too, its Months, its Sources over everything and over the last year, its Falls, and its Income, Coming, Tax-free and Withheld tabs, in Croatian too,
  * the sample's Transactions, in Croatian too, and Transactions on an empty file, the import of the made-up portfolio workbook
  * into an empty Investments file with the fake prices, each step and the dry run in English and Croatian, and the same workbook again adding nothing,
  * the Prices tab of the Investments Settings on the sample with current prices, with made-up keys kept and with late prices, its General tab, three made-up CSV files of closes imported on it,
@@ -138,6 +138,10 @@ import { holdingsList } from '../src/apps/investments/holdings/domain/holdingsLi
 import { latestRecords } from '../src/apps/investments/holdings/domain/latestRecords.ts'
 import { figuresClose, portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures.ts'
 import { averageCostText } from '../src/apps/investments/holdings/presentation/holdingText.ts'
+import { incomeForecast } from '../src/apps/investments/income/domain/incomeForecast.ts'
+import { incomeByYear } from '../src/apps/investments/income/domain/incomeHistory.ts'
+import { taxFreeCalendar } from '../src/apps/investments/income/domain/taxFreeCalendar.ts'
+import { withheldByCountry } from '../src/apps/investments/income/domain/withheldByCountry.ts'
 import { gainSources, incomeAgainstLastYear } from '../src/apps/investments/overview/domain/overviewFigures.ts'
 import { benchmarkState, comparedBenchmark } from '../src/apps/investments/performance/domain/benchmark.ts'
 import { monthlyReturns } from '../src/apps/investments/performance/domain/monthlyReturns.ts'
@@ -464,8 +468,35 @@ function fakePerformanceTabsShows() {
   }
 }
 
+/**
+ * The sample's income tabs on Performance, worked out as the tabs work them out: the newest year's income received,
+ * what the next twelve months should bring, the day the soonest lot turns tax-free with its value now, and the tax
+ * withheld on the newest year's income from the United States.
+ */
+function fakeIncomeShows() {
+  const { workbook, rates, figures } = fakePortfolio('sample', 'sample')
+  const prices = fakePricesFile('sample', INVESTMENTS_DAY)
+  const sources = { book: workbook.book, prices: pricesFileBook(prices, workbook.book.prices), rates, today: INVESTMENTS_DAY }
+  const [newestYear] = incomeByYear(workbook.book, INVESTMENTS_DAY)
+  const coming = incomeForecast(sources).received
+  const [soonest] = taxFreeCalendar(figures, INVESTMENTS_DAY).flatMap((month) => month.lots)
+  const [newestWithheld] = withheldByCountry(workbook.book, INVESTMENTS_DAY)
+  const unitedStates = newestWithheld.countries.find((row) => row.country === 'US')
+  return {
+    income: [formatMoney(newestYear.total.received)],
+    incomeCroatian: [formatMoney(newestYear.total.received, 'negative', CROATIAN_MONEY)],
+    coming: [`About ${formatMoney(coming)} in the next 12 months`],
+    comingCroatian: [`Oko ${formatMoney(coming, 'negative', CROATIAN_MONEY)} u sljedećih 12 mjeseci`],
+    taxFree: [`tax-free from ${dayLabel(soonest.lot.taxFreeFrom)}`, formatMoney(soonest.value)],
+    taxFreeCroatian: [formatMoney(soonest.value, 'negative', CROATIAN_MONEY)],
+    withheld: [formatMoney(unitedStates.withheld)],
+    withheldCroatian: [formatMoney(unitedStates.withheld, 'negative', CROATIAN_MONEY)],
+  }
+}
+
 const SAMPLE_PERFORMANCE = fakePerformanceShows('sample', 'sample')
 const SAMPLE_PERFORMANCE_TABS = fakePerformanceTabsShows()
+const SAMPLE_INCOME = fakeIncomeShows()
 const YOUNG_PERFORMANCE = fakePerformanceShows('young', 'sample')
 const NO_BENCHMARK_PERFORMANCE = fakePerformanceShows('sample', 'no-benchmark')
 
@@ -1970,6 +2001,78 @@ const SOURCE_SCREENS = [
       'Nema usporedbe',
       ...NO_BENCHMARK_PERFORMANCE.croatian,
     ],
+  },
+  {
+    name: 'investments-performance-income',
+    query: 'investments=sample',
+    hash: '#/investments/performance?tab=income',
+    title: 'Performance',
+    charts: 1,
+    ready: '[data-testid="income-by-year"]',
+    shows: ['Dividends, interest and other income, with the tax withheld at source.', 'By month', 'By year', 'Dividends', 'Interest', 'so far', ...SAMPLE_INCOME.income],
+  },
+  {
+    name: 'investments-performance-income-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments/performance?tab=income',
+    title: 'Uspješnost',
+    charts: 1,
+    ready: '[data-testid="income-by-year"]',
+    shows: ['Po mjesecima', 'Po godinama', 'Dividende', 'Kamate', 'zasad', ...SAMPLE_INCOME.incomeCroatian],
+  },
+  {
+    name: 'investments-performance-coming',
+    query: 'investments=sample',
+    hash: '#/investments/performance?tab=coming',
+    title: 'Performance',
+    charts: 1,
+    ready: '[data-testid="coming-list"]',
+    shows: ['Coming income', 'From last year', 'Payments to come', 'Example Dividend Co', ...SAMPLE_INCOME.coming],
+  },
+  {
+    name: 'investments-performance-coming-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments/performance?tab=coming',
+    title: 'Uspješnost',
+    charts: 1,
+    ready: '[data-testid="coming-list"]',
+    shows: ['Očekivani prihod', 'Prema prošloj godini', 'Isplate koje dolaze', ...SAMPLE_INCOME.comingCroatian],
+  },
+  {
+    name: 'investments-performance-tax-free',
+    query: 'investments=sample',
+    hash: '#/investments/performance?tab=tax-free',
+    title: 'Performance',
+    charts: 0,
+    ready: '[data-testid="tax-free-lots"]',
+    shows: ['Turns tax-free', 'Value now', ...SAMPLE_INCOME.taxFree],
+  },
+  {
+    name: 'investments-performance-tax-free-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments/performance?tab=tax-free',
+    title: 'Uspješnost',
+    charts: 0,
+    ready: '[data-testid="tax-free-lots"]',
+    shows: ['Postaje bez poreza', 'Vrijednost sada', 'bez poreza od', ...SAMPLE_INCOME.taxFreeCroatian],
+  },
+  {
+    name: 'investments-performance-withheld',
+    query: 'investments=sample',
+    hash: '#/investments/performance?tab=withheld',
+    title: 'Performance',
+    charts: 0,
+    ready: '[data-testid="withheld-countries"]',
+    shows: ['Tax withheld at source', 'Country, from the ISIN', 'United States', 'Ireland', 'No ISIN', 'Kuna works out no tax.', ...SAMPLE_INCOME.withheld],
+  },
+  {
+    name: 'investments-performance-withheld-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments/performance?tab=withheld',
+    title: 'Uspješnost',
+    charts: 0,
+    ready: '[data-testid="withheld-countries"]',
+    shows: ['Porez zadržan na izvoru', 'Država, iz ISIN-a', 'Sjedinjene Američke Države', 'Irska', 'Bez ISIN-a', ...SAMPLE_INCOME.withheldCroatian],
   },
   {
     name: 'investments-prices-late',

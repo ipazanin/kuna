@@ -37,6 +37,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 ## Money
 
 - Show money through `MoneyText` or the formatters in `src/shared/money/moneyFormat.ts`. Never `toFixed` or `Intl` in a screen.
+- An amount shows its currency's narrow symbol in English and Croatian, $12.23 and not US$12.23, as the formatters give it. A code stays only where a symbol would be ambiguous, such as a currency picker or a mix grouped by currency.
 - A screen formats money as its app does. A figure shown outside its app, as on the home, passes its app's `moneyFormat()` to `MoneyText` as `format`.
 - `tone="flow"` for money in and out: green coming in, ink going out. `tone="outcome"` for a result such as a net, where negative is a loss. No tone for a cost.
 - Costs that read positive use `sign="magnitude"`. Changes use `sign="always"`.

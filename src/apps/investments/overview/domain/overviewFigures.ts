@@ -1,5 +1,5 @@
 import type { HoldingFigures } from '../../holdings/domain/holding'
-import { investmentLots, receivedInEuros } from '../../holdings/domain/lots'
+import { investmentLots, paidBackOf, receivedInEuros } from '../../holdings/domain/lots'
 import type { CashFigures, PortfolioFigures } from '../../holdings/domain/portfolioFigures'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
@@ -103,7 +103,7 @@ export interface IncomeAgainstLastYear {
 
 /** Each payment after its tax withheld, without the part of a coupon that paid back accrued interest bought with the bond. */
 export function incomeAgainstLastYear(book: InvestmentBook, today: CivilDate): IncomeAgainstLastYear {
-  const paidBack = new Map([...investmentLots(book).values()].flatMap((lots) => [...lots.paidBack]))
+  const paidBack = paidBackOf(investmentLots(book))
   const received = (from: CivilDate, to: CivilDate): Money => sumMoney(book.income.filter((payment) => payment.date >= from && payment.date <= to).map((payment) => receivedInEuros(payment, paidBack)))
   const year = yearOf(today)
   const thisYear = received(civilDate(year, 1, 1), today)

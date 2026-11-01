@@ -2,7 +2,7 @@ import { accountCash } from './accountCash'
 import type { CashBalance } from './accountCash'
 import { dayChange, holdingFigures, lastDayOf } from './holding'
 import type { DayChange, HoldingFigures, LastDayDates, PortfolioSources } from './holding'
-import { investmentLots, receivedInEuros, withheldInEuros } from './lots'
+import { investmentLots, paidBackOf, receivedInEuros, withheldInEuros } from './lots'
 import type { InstrumentLots } from './lots'
 import { eurosAtEcbRate } from '../../prices/domain/rateBook'
 import type { Instrument } from '../../workbook/domain/instrument'
@@ -121,8 +121,8 @@ export function portfolioFigures(sources: PortfolioSources): PortfolioFigures {
   const totalGain = subtractMoney(value, putIn)
   const fees = book.cashMovements.filter((movement) => movement.kind === 'fee' || movement.kind === 'fee-refund')
   const exchangeFees = book.exchanges.flatMap((exchange) => (exchange.fees === null ? [] : [{ exchange, euros: eurosAtEcbRate(exchange.fees.amount, exchange.fees.currency, exchange.date, rates) }]))
-  const paidBackOf = new Map([...lots.values()].flatMap((instrumentLots) => [...instrumentLots.paidBack]))
-  const paidBack = sumMoney([...paidBackOf.values()])
+  const couponPaybacks = paidBackOf(lots)
+  const paidBack = sumMoney([...couponPaybacks.values()])
   const changes = [...holdings.map((holding) => holding.lastDay), ...cashFigures.map((balance) => balance.lastDay)].filter((change) => change !== null)
 
   return {
@@ -136,7 +136,7 @@ export function portfolioFigures(sources: PortfolioSources): PortfolioFigures {
     income: {
       gross: subtractMoney(sumMoney(book.income.map((payment) => inEuros(payment.gross, payment.rate))), paidBack),
       withheld: sumMoney(book.income.map(withheldInEuros)),
-      received: sumMoney(book.income.map((payment) => receivedInEuros(payment, paidBackOf))),
+      received: sumMoney(book.income.map((payment) => receivedInEuros(payment, couponPaybacks))),
     },
     accountFees: sumMoney(fees.map((movement) => (movement.kind === 'fee' ? inEuros(movement.amount, movement.rate) : negateMoney(inEuros(movement.amount, movement.rate))))),
     currencyOnCash: sumMoney(cashFigures.map((balance) => balance.currencyGain ?? ZERO)),

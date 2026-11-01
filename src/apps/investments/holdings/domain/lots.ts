@@ -208,6 +208,11 @@ function applyBuy(queue: Queue, trade: Trade): void {
   moveUnits(queue.units, trade.account, trade.quantity)
 }
 
+/** Each coupon's euros that paid back accrued interest bought with the bond, which are no income. */
+export function paidBackOf(lots: ReadonlyMap<RecordId, InstrumentLots>): ReadonlyMap<RecordId, Money> {
+  return new Map([...lots.values()].flatMap((instrumentLots) => [...instrumentLots.paidBack]))
+}
+
 /** A payment after its tax withheld, in euros, without the part of a coupon that paid back accrued interest bought with the bond. */
 export function receivedInEuros(payment: Income, paidBack: ReadonlyMap<RecordId, Money>): Money {
   return subtractMoney(inEuros(subtractDecimal(payment.gross, payment.withheld), payment.rate), paidBack.get(payment.id) ?? ZERO)

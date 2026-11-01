@@ -5,6 +5,7 @@ import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import { yearOfMonth } from '../../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
+import type { BridgeBar } from '../../../../../../shared/charts/bridgeChart'
 import { ZERO, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
@@ -14,7 +15,6 @@ import type { DrillTarget } from '../../../../filters/domain/drillTarget'
 import type { Employee } from '../../domain/employees/employees'
 import type { ContributionLine, EmployeeLine, EmployeePayday, LineCheck, SalaryPayday, SalaryProblem, SalaryReconciliation } from '../../domain/salaries/salaryReconciliation'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
-import type { BridgeBar } from '../bridgeChart'
 import { figureDetail } from '../tracedFigureView'
 import type { FigureDetail } from '../tracedFigureView'
 import { words } from './words'
@@ -253,7 +253,7 @@ export interface SalaryMonthView {
     /** What reached the employees split into the net and what was paid beside it, or null while no source works a net out. */
     readonly split: { readonly net: Money; readonly beside: Money } | null
   }
-  readonly bridge: readonly BridgeBar[]
+  readonly bridge: readonly BridgeBar<DrillTarget>[]
   /** Set when the view is one person's month. */
   readonly strip: PersonStrip | null
   readonly sections: readonly ReconciliationSection[]
@@ -379,8 +379,8 @@ function lineRow<Line extends EmployeeLine>(check: LineCheck<Line>, subject: str
 }
 
 /** Gross II down to net, then up to what was paid. Each step that leaves the pay is paid to a payee whose rows a bar opens. */
-function bridgeBars(figures: PersonFigures, paidDrill: DrillTarget | null, bankOf: (line: ContributionLine) => TracedFigure | null): BridgeBar[] {
-  const leaves = (label: string, amount: Money, line: ContributionLine): BridgeBar => ({ label, kind: 'step', amount: -amount, drill: bankOf(line)?.drill ?? null })
+function bridgeBars(figures: PersonFigures, paidDrill: DrillTarget | null, bankOf: (line: ContributionLine) => TracedFigure | null): BridgeBar<DrillTarget>[] {
+  const leaves = (label: string, amount: Money, line: ContributionLine): BridgeBar<DrillTarget> => ({ label, kind: 'step', amount: -amount, drill: bankOf(line)?.drill ?? null })
   return [
     { label: words.bridge.grossTwo, kind: 'total', amount: figures.employerCost, drill: null },
     leaves(words.bridge.health, figures.health, 'health'),

@@ -5,6 +5,7 @@ import { incomeAgainstLastYear } from '../domain/overviewFigures'
 import { valueOverTime } from '../domain/valueOverTime'
 import type { PortfolioSources } from '../../holdings/domain/holding'
 import type { PortfolioFigures } from '../../holdings/domain/portfolioFigures'
+import { PERFORMANCE_ROUTE } from '../../performance/presentation/performanceLinks'
 import { words } from './words'
 import { shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney, formatPercent, formatPercentChange } from '../../../../shared/money/moneyFormat'
@@ -14,7 +15,7 @@ import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import type { KpiDelta } from '../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 
-/** The four figures that lead the Overview: the value, the total gain, the yearly return and this year's income. */
+/** The four figures that lead the Overview: the value, the total gain, the yearly return and this year's income, which opens the income on Performance. */
 const props = defineProps<{
   sources: PortfolioSources
   figures: PortfolioFigures
@@ -88,7 +89,7 @@ const incomeDelta = computed((): KpiDelta => ({ change: income.value.change, tex
       :value="formatMoney(income.thisYear)"
       :delta="incomeDelta"
       :definition="words.tiles.incomeDefinition"
-      :to="null"
+      :to="{ path: PERFORMANCE_ROUTE, query: { tab: 'income' } }"
       data-testid="investments-income"
     />
   </DashboardGrid>
