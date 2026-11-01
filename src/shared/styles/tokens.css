@@ -250,6 +250,17 @@
   --invest-portfolio: var(--series-3);
   --invest-reference: var(--chart-deemphasis);
 
+  /*
+   * The four classes held most often, the same on every ring. No five or six of the series pass the palette check
+   * together in both themes, so gold and crypto share the grey part. These four pass and stay clear of --series-1 to
+   * --series-4, which an open list colours by, and of the portfolio's blue. Brass and dark green sit in the warning band,
+   * so every part carries its name in the legend.
+   */
+  --invest-stocks: var(--series-5);
+  --invest-bonds: var(--series-7);
+  --invest-money-market: var(--series-6);
+  --invest-cash: var(--loan-ahead);
+
   /* A buy and a sale on a price chart, a filled dot and a ring, so the shape tells them apart as well. */
   --invest-buy: var(--tone-positive);
   --invest-sale: var(--tone-negative);

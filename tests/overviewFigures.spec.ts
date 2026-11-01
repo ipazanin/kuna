@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { gainSources, incomeAgainstLastYear, lastDayMovers, noticeIsEmpty, pricesNotice, valueByClass, valueByCurrency } from '../src/apps/investments/overview/domain/overviewFigures'
+import { gainSources, incomeAgainstLastYear, lastDayMovers, noticeIsEmpty, pricesNotice } from '../src/apps/investments/overview/domain/overviewFigures'
 import { shownValueOverTime, valueOverTime } from '../src/apps/investments/overview/domain/valueOverTime'
 import { rollingPeriods } from '../src/apps/investments/performance/domain/performancePeriod'
 import { firstDepositIn } from '../src/apps/investments/performance/domain/portfolioPerformance'
@@ -14,7 +14,7 @@ import { hasTransactions } from '../src/apps/investments/workbook/domain/investm
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
 import { EURO } from '../src/shared/money/currencyCode'
 import { decimalText } from '../src/shared/money/decimal'
-import { BROKER, STOCK_B, USD, WORKED_PRICES, WORKED_RATES, WORLD_ETF, book, cashMovement, dividend, instrument, priceBookOf, rateBookOf, trade, workedPortfolio } from './fixtures/investments'
+import { BROKER, STOCK_B, WORKED_PRICES, WORKED_RATES, WORLD_ETF, book, cashMovement, dividend, instrument, priceBookOf, rateBookOf, trade, workedPortfolio } from './fixtures/investments'
 import type { CloseRow } from './fixtures/investments'
 import { civil, euros } from './fixtures/ledger'
 
@@ -63,20 +63,6 @@ describe("the worked portfolio's Overview on 29 Oct 2026", () => {
       addsUp: true,
       tradingFees: euros(5.8),
     })
-  })
-
-  it('puts the money in stocks and cash, and in euros and dollars, largest first', () => {
-    // Stocks: 1,875.00 + 776.79 = 2,651.79 of 3,414.75. Cash: 446.00 + 316.96 = 762.96.
-    expect(valueByClass(figures).map((part) => [part.group, part.value])).toEqual([
-      ['stocks', euros(2651.79)],
-      ['cash', euros(762.96)],
-    ])
-    expect(valueByClass(figures)[0]!.share).toBeCloseTo(0.776569, 6)
-    // Euros: 1,875.00 + 446.00 = 2,321.00. Dollars: 776.79 + 316.96 = 1,093.75.
-    expect(valueByCurrency(figures).map((part) => [part.group, part.value])).toEqual([
-      [EURO, euros(2321)],
-      [USD, euros(1093.75)],
-    ])
   })
 
   it('lists the movers of the last day by share, the World ETF ahead of Stock B', () => {

@@ -1,5 +1,4 @@
 import type { HoldingFigures } from '../../holdings/domain/holding'
-import type { HoldingGroup } from '../../holdings/domain/holdingsList'
 import { investmentLots, receivedInEuros } from '../../holdings/domain/lots'
 import type { CashFigures, PortfolioFigures } from '../../holdings/domain/portfolioFigures'
 import type { Instrument } from '../../workbook/domain/instrument'
@@ -7,9 +6,8 @@ import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { civilDate, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayMonthsLater } from '../../../../shared/calendar/monthKey'
-import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { DECIMAL_ZERO } from '../../../../shared/money/decimal'
-import { ZERO, negateMoney, ratioOf, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { ZERO, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 
 /** What the Overview's notice names, each list in the file's order. */
@@ -69,41 +67,6 @@ export function gainSources(figures: PortfolioFigures): GainSources {
   }
   const parts = GAIN_SOURCES.map((source): GainPart => ({ source, amount: amounts[source] }))
   return { parts, total: figures.totalGain, addsUp: sumMoney(parts.map((part) => part.amount)) === figures.totalGain, tradingFees: figures.feesPaid }
-}
-
-/** What a class of instrument or a currency holds, and its share of the value. */
-export interface AllocationPart<Group extends string> {
-  readonly group: Group
-  readonly value: Money
-  /** Null when the value is zero. */
-  readonly share: number | null
-}
-
-/** The value by class, cash apart, largest first. Holdings with no price and cash with no rate are left out, as the value leaves them out. */
-export function valueByClass(figures: PortfolioFigures): AllocationPart<HoldingGroup>[] {
-  return allocation(figures, [
-    ...figures.holdings.flatMap((holding) => (holding.valuation === null ? [] : [{ group: holding.instrument.class, value: holding.valuation.value }])),
-    ...figures.cash.flatMap((balance) => (balance.value === null ? [] : [{ group: 'cash' as const, value: balance.value }])),
-  ])
-}
-
-/** The value by the currency each holding is quoted in and each balance is held in, largest first. */
-export function valueByCurrency(figures: PortfolioFigures): AllocationPart<CurrencyCode>[] {
-  return allocation(figures, [
-    ...figures.holdings.flatMap((holding) => (holding.valuation === null ? [] : [{ group: holding.instrument.currency, value: holding.valuation.value }])),
-    ...figures.cash.flatMap((balance) => (balance.value === null ? [] : [{ group: balance.currency, value: balance.value }])),
-  ])
-}
-
-function allocation<Group extends string>(figures: PortfolioFigures, values: readonly { readonly group: Group; readonly value: Money }[]): AllocationPart<Group>[] {
-  const totals = new Map<Group, Money>()
-  for (const { group, value } of values) {
-    totals.set(group, sumMoney([totals.get(group) ?? ZERO, value]))
-  }
-  return [...totals]
-    .filter(([, value]) => value !== ZERO)
-    .map(([group, value]): AllocationPart<Group> => ({ group, value, share: ratioOf(value, figures.value) }))
-    .sort((first, second) => second.value - first.value || first.group.localeCompare(second.group))
 }
 
 export interface Movers {

@@ -5,13 +5,13 @@ import type { HoldingsGroup } from '../domain/holdingsList'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
 
-/** A group's name, a class, a currency, the cash or the sold holdings, with how many holdings it has. */
+/** A group's name, a class, a currency or the cash, with how many holdings it has. */
 const props = defineProps<{
   group: HoldingsGroup
 }>()
 
 /** A currency is named by its code, which is how the holdings list writes it everywhere else. */
-const NAMES: Readonly<Record<string, string>> = { ...words.classes, sold: words.sold, all: words.title }
+const NAMES: Readonly<Record<string, string>> = { ...words.classes, all: words.title }
 
 const name = computed(() => NAMES[props.group.key] ?? props.group.key)
 </script>

@@ -73,10 +73,6 @@ export const en = {
   money: {
     title: 'Where the money is',
     subtitle: 'Share of the value at the last close',
-    groupBy: 'Group by',
-    byClass: 'Class',
-    byCurrency: 'Currency',
-    bar: (group: string, share: string) => `${group}, ${share} of the value`,
     none: 'Nothing has a price yet.',
   },
   gain: {
@@ -184,10 +180,6 @@ export const hr: Translation<typeof en> = {
   money: {
     title: 'Gdje je novac',
     subtitle: 'Udio u vrijednosti po zadnjoj zaključnoj cijeni',
-    groupBy: 'Grupiraj po',
-    byClass: 'Klasa',
-    byCurrency: 'Valuta',
-    bar: (group, share) => `${group}, ${share} vrijednosti`,
     none: 'Još ništa nema cijenu.',
   },
   gain: {

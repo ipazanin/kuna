@@ -28,7 +28,7 @@
  * the Investments first run, its empty Overview and its Settings on an empty file (`?investments=drive`) and its Overview while its file opens (`?investments=opening`), each in Croatian too,
  * the Investments Overview on the sample (`?investments=sample`), on the sample without a deposit so an account's cash is below zero (`?investments=cash-below-zero`) and with late prices whose last
  * fetch failed (`?prices=late-prices`), each in Croatian too and with its figures worked out from the same fake sets, the home with the Investments card's figures and its late-prices badge,
- * the sample's Holdings, also with a late close, and two holdings' pages, one in US dollars with a lot partly sold and its trades as dots sized by amount, and one from a spin-off that split, each in Croatian too,
+ * the sample's Holdings with its five mixes and closed positions, also with a late close and on a past close (`?on=`), and two holdings' pages, one in US dollars with a lot partly sold and its trades as dots sized by amount, and one from a spin-off that split, each in Croatian too,
  * the sample's Performance over everything against its benchmark, a portfolio too young for a rate a year with no benchmark chosen (`?investments=young`) and the sample whose
  * benchmark has no closes (`?prices=no-benchmark`), each in Croatian too,
  * the sample's Transactions, in Croatian too, and Transactions on an empty file, the import of the made-up portfolio workbook
@@ -376,7 +376,7 @@ function fakePortfolio(variant, pricesVariant) {
 /** The sample's Holdings figures: the value, the holdings' cost and their gain, in English and in Croatian. */
 function fakeHoldingsShows() {
   const { workbook, figures } = fakePortfolio('sample', 'sample')
-  const { total } = holdingsList(figures, workbook.book, { grouping: 'class', find: '', sold: false, sort: null })
+  const { total } = holdingsList(figures, workbook.book, { grouping: 'class', find: '', sort: null })
   return {
     english: [formatMoney(total.value), formatMoney(total.cost), formatMoney(total.gain, 'always')],
     croatian: [formatMoney(total.value, 'negative', CROATIAN_MONEY), formatMoney(total.cost, 'negative', CROATIAN_MONEY), formatMoney(total.gain, 'always', CROATIAN_MONEY)],
@@ -400,6 +400,9 @@ function fakeHoldingShows(key) {
 }
 
 const SAMPLE_HOLDINGS = fakeHoldingsShows()
+
+/** A past close for Holdings' `?on=`, after the World ETF's buys and the retired share's sale. */
+const HOLDINGS_PAST_DAY = '2025-12-31'
 
 /** The close of the first late holding when the fake prices stop four weekdays back, as Holdings marks it. */
 const LATE_HOLDING_CLOSE = dayLabel(fakePortfolio('sample', 'late-prices').figures.holdings.find((holding) => holding.late).valuation.close.date)
@@ -1561,6 +1564,7 @@ const SOURCE_SCREENS = [
       'Value over time',
       'Where the money is',
       'Cash and currencies',
+      'All holdings',
       'Where the gain comes from',
       'Movers on the last day',
       'Latest transactions',
@@ -1574,7 +1578,7 @@ const SOURCE_SCREENS = [
     hash: '#/investments',
     title: 'Pregled',
     charts: 1,
-    shows: ['Stanje na zatvaranju:', 'Cijene unesene ručno', ...SAMPLE_INVESTMENTS.croatian, 'Vrijednost kroz vrijeme', 'Gdje je novac', 'Odakle dolazi dobit', 'Zadnje transakcije'],
+    shows: ['Stanje na zatvaranju:', 'Cijene unesene ručno', ...SAMPLE_INVESTMENTS.croatian, 'Vrijednost kroz vrijeme', 'Gdje je novac', 'Sve pozicije', 'Odakle dolazi dobit', 'Zadnje transakcije'],
     cards: false,
   },
   {
@@ -1604,6 +1608,13 @@ const SOURCE_SCREENS = [
     ready: '[data-testid="holdings"] [data-testid="holding-row"], [data-testid="holdings-table"]',
     shows: [
       'holdings and the cash, worth',
+      'By sector',
+      'By currency',
+      'By country or region',
+      'By class',
+      'By account',
+      'Other and not known',
+      '2 holdings have no sector yet, such as',
       'Example Tech',
       'Example World ETF',
       'Example Money Fund',
@@ -1612,9 +1623,10 @@ const SOURCE_SCREENS = [
       'Cash and currencies',
       'Broker Two',
       'Total',
+      'Closed positions',
+      'Example Retired Co',
       ...SAMPLE_HOLDINGS.english,
     ],
-    cards: false,
   },
   {
     name: 'investments-holdings-croatian',
@@ -1623,8 +1635,37 @@ const SOURCE_SCREENS = [
     title: 'Pozicije',
     charts: 0,
     ready: '[data-testid="holdings"] [data-testid="holding-row"], [data-testid="holdings-table"]',
-    shows: ['pozicija i novac, vrijednost', 'Dionice', 'Novčani fondovi', 'Novac i valute', 'Ukupno', ...SAMPLE_HOLDINGS.croatian],
-    cards: false,
+    shows: [
+      'pozicija i novac, vrijednost',
+      'Po sektoru',
+      'Po državi ili regiji',
+      'Ostalo i nepoznato',
+      '2 pozicije još nemaju sektor, na primjer',
+      'Dionice',
+      'Novčani fondovi',
+      'Novac i valute',
+      'Ukupno',
+      'Zatvorene pozicije',
+      ...SAMPLE_HOLDINGS.croatian,
+    ],
+  },
+  {
+    name: 'investments-holdings-on-date',
+    query: 'investments=sample',
+    hash: `#/investments/holdings?on=${HOLDINGS_PAST_DAY}`,
+    title: 'Holdings',
+    charts: 0,
+    ready: '[data-testid="holdings"] [data-testid="holding-row"], [data-testid="holdings-table"]',
+    shows: [`Holdings at the close of ${dayLabel(HOLDINGS_PAST_DAY)}`, 'Today', 'By sector', 'Example World ETF', 'Closed positions', 'Example Retired Co'],
+  },
+  {
+    name: 'investments-holdings-on-date-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: `#/investments/holdings?on=${HOLDINGS_PAST_DAY}`,
+    title: 'Pozicije',
+    charts: 0,
+    ready: '[data-testid="holdings"] [data-testid="holding-row"], [data-testid="holdings-table"]',
+    shows: ['Pozicije na zatvaranju', 'Na dan', 'Danas', 'Po sektoru', 'Zatvorene pozicije'],
   },
   {
     name: 'investments-holdings-late',
@@ -1634,7 +1675,6 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="holdings"] [data-testid="holding-row"], [data-testid="holdings-table"]',
     shows: [`Close of ${LATE_HOLDING_CLOSE}, late`, 'Example Tech'],
-    cards: false,
   },
   {
     name: 'investments-holdings-late-croatian',
@@ -1644,7 +1684,6 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="holdings"] [data-testid="holding-row"], [data-testid="holdings-table"]',
     shows: ['Zaključna cijena od', 'kasni', 'Example Tech'],
-    cards: false,
   },
   {
     name: 'investments-holding-usd',

@@ -20,7 +20,7 @@
  * brought back, the same from a row of the To review queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google with one token for every scope and the sync it resumes ending ready, with Drive read unticked ending in Allow access, a refused consent and a
  * forged answer leaving Allow access with no message, a refused silent trip marking the device so the next open waits for Allow access, Sign in to Google when Google asks
- * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, a k typed into the what-if's amount expanding at once, 1.255m keeping its third decimal, with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, a tap on a holding's dot of three buys reading each in the tooltip, the period of Investments Performance changed to 1Y, to a year in its dropdown and back to All, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices tab, three made-up CSV files of closes imported there, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
+ * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, a k typed into the what-if's amount expanding at once, 1.255m keeping its third decimal, with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, a tap on a holding's dot of three buys reading each in the tooltip, a part of the class ring listing Holdings grouped by class, a closed position opening its page and the way back, a past close picked in On and Today, the period of Investments Performance changed to 1Y, to a year in its dropdown and back to All, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices tab, three made-up CSV files of closes imported there, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
@@ -1944,6 +1944,68 @@ async function checkWidth(width) {
       'a tap on the September dot does not read each buy of the month',
     )
     await shoot('investments-holding-dot')
+  })
+
+  // On Holdings listed without groups, a part of the class ring, opened on the phone, lists the holdings grouped by class again.
+  await step('investments-holdings-class-part', async () => {
+    await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/holdings?group=none`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Holdings')
+    await page.waitForSelector('[data-testid="holdings-rows"] a[data-testid="holding-row"]', { visible: true })
+    await expect(
+      page.$$eval('[data-testid="holdings-rows"] h2', (headings) => headings.length),
+      (count) => count === 0,
+      'Holdings opened with ?group=none still grouped',
+    )
+    await (await page.waitForSelector('[data-mix="class"] [data-testid="card-toggle"]', { visible: true })).tap()
+    const part = await waitForText(page, '[data-mix="class"] [data-testid="donut-legend"] a', 'Stocks')
+    await inspect(page, `${width}px Holdings with the class ring open`)
+    await shoot('investments-holdings-class-ring')
+    await part.tap()
+    await page.waitForFunction(() => window.location.hash.includes('group=class'), { timeout: 5_000 })
+    await waitForText(page, '[data-testid="holdings-rows"] h2', 'Stocks')
+    await inspect(page, `${width}px Holdings grouped by class`)
+  })
+
+  // A closed position's row opens its holding's page, and the link at its top leads back to Holdings.
+  await step('investments-closed-row', async () => {
+    await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/holdings`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Holdings')
+    const row = await page.waitForSelector('[data-testid="closed-rows"] a[data-testid="closed-row"]', { visible: true })
+    await row.scrollIntoView()
+    await inspect(page, `${width}px Holdings with its closed positions`)
+    await shoot('investments-holdings-closed')
+    const name = await row.evaluate((element) => element.querySelector('span > span')?.textContent?.trim() ?? '')
+    await row.tap()
+    await waitForTitle(page, name)
+    await page.waitForSelector('[data-testid="holding-hero"]')
+    await (await page.waitForSelector('[data-testid="back-to-holdings"]', { visible: true })).tap()
+    await waitForTitle(page, 'Holdings')
+    await page.waitForSelector('[data-testid="closed-rows"] a[data-testid="closed-row"]', { visible: true })
+  })
+
+  // A day picked in On shows the holdings at that close and keeps it in the address, and Today goes back to now.
+  await step('investments-holdings-on-date', async () => {
+    await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/holdings`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Holdings')
+    await page.waitForSelector('[data-testid="holdings-rows"] a[data-testid="holding-row"]', { visible: true })
+    await page.$eval('[data-testid="holdings-on"] input, input[data-testid="holdings-on"]', (input) => {
+      input.value = '2025-12-31'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await page.waitForFunction(() => window.location.hash.includes('on=2025-12-31'), { timeout: 5_000 })
+    await waitForText(page, 'header p', 'Holdings at the close of')
+    const today = await page.waitForSelector('[data-testid="holdings-today"]', { visible: true })
+    await inspect(page, `${width}px Holdings on 31 Dec 2025`)
+    await shoot('investments-holdings-on-date')
+    await today.tap()
+    await page.waitForFunction(() => !window.location.hash.includes('on='), { timeout: 5_000 })
+    await expect(
+      page.$eval('[data-testid="screen-title"] + p', (line) => line.textContent ?? ''),
+      (line) => !line.startsWith('Holdings at the close of'),
+      'Today kept the past close',
+    )
+    await expect(page.$('[data-testid="holdings-today"]'), (button) => button === null, 'Today stayed after going back to today')
   })
 
   // The sample's Performance: a tap on 1Y and a year picked in the dropdown change the period and keep it in the address, and All takes it out again.

@@ -1,43 +1,53 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import UButton from '@nuxt/ui/components/Button.vue'
 
-import { valueByClass, valueByCurrency } from '../domain/overviewFigures'
+import { holdingMix } from '../../holdings/domain/holdingMix'
 import type { PortfolioFigures } from '../../holdings/domain/portfolioFigures'
+import { HOLDINGS_ROUTE } from '../../holdings/presentation/holdingLinks'
+import { mixDonut } from '../../holdings/presentation/mixDonut'
 import { words as holdingsWords } from '../../holdings/presentation/words'
-import ShareBars from './ShareBars.vue'
-import type { ShareBar } from './ShareBars.vue'
+import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { words } from './words'
 import AppCard from '../../../../shared/ui/AppCard.vue'
-import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
+import DonutCard from '../../../../shared/ui/DonutCard.vue'
+import EmptyState from '../../../../shared/ui/EmptyState.vue'
 
-/** The value by class of instrument, with the cash apart, or by currency. */
+/** The value by class of instrument, with the cash apart, as on Holdings, which it opens. */
 const props = defineProps<{
   figures: PortfolioFigures
+  book: InvestmentBook
 }>()
 
-type Grouping = 'class' | 'currency'
-
-const grouping = ref<Grouping>('class')
-const groupings: readonly { readonly value: Grouping; readonly label: string }[] = [
-  { value: 'class', label: words.money.byClass },
-  { value: 'currency', label: words.money.byCurrency },
-]
-
-const bars = computed((): ShareBar[] =>
-  grouping.value === 'class'
-    ? valueByClass(props.figures).map((part) => ({ label: holdingsWords.classes[part.group], amount: part.value, share: part.share }))
-    : valueByCurrency(props.figures).map((part) => ({ label: part.group, amount: part.value, share: part.share })),
-)
+const donut = computed(() => mixDonut(holdingMix(props.figures, props.book, 'class'), props.book, null))
 </script>
 
 <template>
-  <AppCard :title="words.money.title" :subtitle="words.money.subtitle" data-testid="investments-allocation">
-    <template #actions>
-      <ChoiceButtons v-model="grouping" :options="groupings" :label="words.money.groupBy" />
-    </template>
-    <div class="px-4 pt-3 pb-4 sm:px-5">
-      <p v-if="bars.length === 0" class="type-body">{{ words.money.none }}</p>
-      <ShareBars v-else :bars="bars" />
-    </div>
+  <AppCard v-if="donut.parts.length === 0" :title="words.money.title" :subtitle="words.money.subtitle" data-testid="investments-allocation">
+    <EmptyState class="mx-4 mb-4 sm:mx-5" icon="i-lucide-chart-pie" :title="words.money.none" />
   </AppCard>
+  <DonutCard
+    v-else
+    :title="words.money.title"
+    :subtitle="words.money.subtitle"
+    :description="donut.description"
+    :parts="donut.parts"
+    :total="donut.total"
+    :total-label="donut.totalLabel"
+    v-bind="donut.opens === undefined ? {} : { opens: donut.opens }"
+    data-testid="investments-allocation"
+  >
+    <template #below>
+      <UButton
+        :to="HOLDINGS_ROUTE"
+        :label="holdingsWords.allHoldings"
+        icon="i-lucide-arrow-right"
+        trailing
+        color="primary"
+        variant="link"
+        class="mt-2 px-0"
+        data-testid="investments-allocation-holdings"
+      />
+    </template>
+  </DonutCard>
 </template>

@@ -26,12 +26,11 @@ export interface HoldingsSort {
   readonly descending: boolean
 }
 
-/** How the Holdings screen lists them: grouped or not, narrowed by a search, with or without what was sold, in a column's order. */
+/** How the Holdings screen lists them: grouped or not, narrowed by a search, in a column's order. */
 export interface HoldingsView {
   readonly grouping: HoldingsGrouping
   /** Matches a holding's name, symbol or ISIN, and a balance's account or currency, whatever the case and accents. */
   readonly find: string
-  readonly sold: boolean
   /** Null for the list's own order: holdings by value, largest first, then the cash as the accounts come. */
   readonly sort: HoldingsSort | null
 }
@@ -49,24 +48,22 @@ export type HoldingsLine =
       readonly account: string
       readonly weight: number | null
     }
-  /** Nothing is held of it any more. Its gain is what its sales realised. */
-  | { readonly kind: 'sold'; readonly holding: HoldingFigures }
 
-/** The sums over some lines. Cash has a value but no cost or gain, and a sold holding a realised gain only. */
+/** The sums over some lines. Cash has a value but no cost or gain. */
 export interface HoldingsTotals {
   readonly value: Money
   readonly cost: Money
-  /** The holdings' gain on what is held, or for sold holdings what they realised. Null when no line has one. */
+  /** The holdings' gain on what is held. Null when no line has one. */
   readonly gain: Money | null
-  /** The gain over the cost of the lines that have one. Null for sold holdings. */
+  /** The gain over the cost of the lines that have one. */
   readonly gainShare: number | null
   readonly weight: number | null
   readonly lastDay: DayChange | null
 }
 
 export interface HoldingsGroup extends HoldingsTotals {
-  /** A class of instrument, `cash`, a currency, `sold`, or `all` when nothing is grouped. */
-  readonly key: HoldingGroup | CurrencyCode | 'sold' | 'all'
+  /** A class of instrument, `cash`, a currency, or `all` when nothing is grouped. */
+  readonly key: HoldingGroup | CurrencyCode | 'all'
   /** How many of its lines are holdings rather than cash. */
   readonly holdings: number
   readonly lines: readonly HoldingsLine[]
@@ -74,7 +71,7 @@ export interface HoldingsGroup extends HoldingsTotals {
 
 export interface HoldingsList {
   readonly groups: readonly HoldingsGroup[]
-  /** Over every group but the sold holdings. */
+  /** Over every group. */
   readonly total: HoldingsTotals
 }
 
@@ -85,8 +82,7 @@ export function heldHoldings(figures: PortfolioFigures): HoldingFigures[] {
 
 /**
  * Every holding held and each account's cash per currency, grouped by class with the cash apart, by currency with the
- * cash of each currency in it, or not at all. Groups come largest first, with the cash last when grouped by class and
- * the sold holdings after everything.
+ * cash of each currency in it, or not at all. Groups come largest first, with the cash last when grouped by class.
  */
 export function holdingsList(figures: PortfolioFigures, book: InvestmentBook, view: HoldingsView): HoldingsList {
   const accountName = new Map(book.accounts.map((account) => [account.id, account.name]))
@@ -94,16 +90,15 @@ export function holdingsList(figures: PortfolioFigures, book: InvestmentBook, vi
   const cash: HoldingsLine[] = figures.cash
     .filter((balance) => balance.balance !== DECIMAL_ZERO)
     .map((balance) => ({ kind: 'cash', balance, account: accountName.get(balance.account) ?? '', weight: balance.value === null ? null : ratioOf(balance.value, figures.value) }))
-  const sold: HoldingsLine[] = view.sold ? figures.holdings.filter((holding) => holding.quantity === DECIMAL_ZERO && holding.firstAcquired !== null).map((holding) => ({ kind: 'sold', holding })) : []
   const found = (line: HoldingsLine): boolean => matches(line, fold(view.find))
-  const grouped = groupsOf(view.grouping, held.filter(found), cash.filter(found))
-  const groups = [...grouped.map(([key, lines]) => groupOf(key, lines, figures)), ...(sold.some(found) ? [groupOf('sold', sold.filter(found), figures)] : [])]
+  const groups = groupsOf(view.grouping, held.filter(found), cash.filter(found))
+    .map(([key, lines]) => groupOf(key, lines, figures))
     .filter((group) => group.lines.length > 0)
     .map((group) => ({ ...group, lines: ordered(group.lines, view.sort) }))
   return {
     groups,
     total: totalsOf(
-      groups.filter((group) => group.key !== 'sold').flatMap((group) => group.lines),
+      groups.flatMap((group) => group.lines),
       figures,
     ),
   }
@@ -131,22 +126,21 @@ function groupsOf(grouping: HoldingsGrouping, held: readonly HoldingsLine[], cas
 }
 
 function groupOf(key: HoldingsGroup['key'], lines: readonly HoldingsLine[], figures: PortfolioFigures): HoldingsGroup {
-  return { key, holdings: lines.filter((line) => line.kind !== 'cash').length, lines, ...totalsOf(lines, figures) }
+  return { key, holdings: lines.filter((line) => line.kind === 'holding').length, lines, ...totalsOf(lines, figures) }
 }
 
 function totalsOf(lines: readonly HoldingsLine[], figures: PortfolioFigures): HoldingsTotals {
   const value = sumMoney(lines.map(lineValue).filter((amount) => amount !== null))
   const holdings = lines.flatMap((line) => (line.kind === 'holding' ? [line.holding] : []))
   const gained = holdings.filter((holding) => holding.unrealised !== null)
-  const realised = lines.flatMap((line) => (line.kind === 'sold' ? [line.holding.realised] : []))
-  const gain = gained.length > 0 ? sumMoney(gained.map((holding) => holding.unrealised ?? ZERO)) : realised.length > 0 ? sumMoney(realised) : null
+  const gain = gained.length > 0 ? sumMoney(gained.map((holding) => holding.unrealised ?? ZERO)) : null
   const changes = lines.map(lineLastDay).filter((change) => change !== null)
   return {
     value,
     cost: sumMoney(holdings.map((holding) => holding.cost)),
     gain,
     gainShare: gained.length === 0 || gain === null ? null : ratioOf(gain, sumMoney(gained.map((holding) => holding.cost))),
-    weight: realised.length === lines.length ? null : ratioOf(value, figures.value),
+    weight: ratioOf(value, figures.value),
     lastDay: changes.length === 0 ? null : dayChange(sumMoney(changes.map((change) => change.earlier)), sumMoney(changes.map((change) => change.later))),
   }
 }
@@ -160,11 +154,11 @@ function matches(line: HoldingsLine, query: string): boolean {
 }
 
 function lineValue(line: HoldingsLine): Money | null {
-  return line.kind === 'holding' ? (line.holding.valuation?.value ?? null) : line.kind === 'cash' ? line.balance.value : null
+  return line.kind === 'holding' ? (line.holding.valuation?.value ?? null) : line.balance.value
 }
 
 function lineLastDay(line: HoldingsLine): DayChange | null {
-  return line.kind === 'holding' ? line.holding.lastDay : line.kind === 'cash' ? line.balance.lastDay : null
+  return line.kind === 'holding' ? line.holding.lastDay : line.balance.lastDay
 }
 
 function lineName(line: HoldingsLine): string {
@@ -179,9 +173,9 @@ function sortKey(line: HoldingsLine, column: Exclude<HoldingsColumn, 'name'>): n
     case 'value':
       return lineValue(line)
     case 'gain':
-      return line.kind === 'holding' ? line.holding.unrealised : line.kind === 'sold' ? line.holding.realised : null
+      return line.kind === 'holding' ? line.holding.unrealised : null
     case 'weight':
-      return line.kind === 'holding' ? line.holding.weight : line.kind === 'cash' ? line.weight : null
+      return line.kind === 'holding' ? line.holding.weight : line.weight
     case 'last-day':
       return lineLastDay(line)?.share ?? null
   }

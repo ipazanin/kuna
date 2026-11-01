@@ -61,7 +61,7 @@ function heldLine(holding: HoldingFigures): string {
         <td class="hidden @4xl:table-cell" />
         <td class="hidden @4xl:table-cell" />
         <td class="pt-4 text-end"><MoneyText v-if="group.cost !== 0" :cents="group.cost" class="font-medium text-highlighted" /></td>
-        <td class="pt-4 text-end"><MoneyText v-if="group.key !== 'sold'" :cents="group.value" class="font-medium text-highlighted" /></td>
+        <td class="pt-4 text-end"><MoneyText :cents="group.value" class="font-medium text-highlighted" /></td>
         <td class="pt-4 text-end">
           <MoneyText v-if="group.gain !== null" :cents="group.gain" sign="always" tone="outcome" class="font-medium" />
           <span v-if="group.gainShare !== null" class="block type-caption">{{ formatPercent(group.gainShare, 'always') }}</span>
@@ -90,34 +90,28 @@ function heldLine(holding: HoldingFigures): string {
           <th scope="row" class="cell-wraps text-start font-normal">
             <DrillLink :to="holdingLink(line.holding.instrument)" class="text-highlighted" data-testid="holding-link">{{ line.holding.instrument.name }}</DrillLink>
             <span class="block type-caption">{{ listingLine(line.holding.instrument) }}</span>
-            <span v-if="line.kind === 'holding'" class="block type-caption @4xl:hidden">{{ heldLine(line.holding) }}</span>
+            <span class="block type-caption @4xl:hidden">{{ heldLine(line.holding) }}</span>
             <PriceMarkNote :holding="line.holding" class="type-caption" />
           </th>
-          <td class="figure hidden text-end @4xl:table-cell">{{ line.kind === 'sold' ? '' : formatQuantity(line.holding.quantity, QUANTITY_PLACES) }}</td>
+          <td class="figure hidden text-end @4xl:table-cell">{{ formatQuantity(line.holding.quantity, QUANTITY_PLACES) }}</td>
           <td class="figure hidden text-end @4xl:table-cell">
             {{ line.holding.valuation === null ? '' : formatUnitPrice(line.holding.valuation.price, line.holding.instrument.currency) }}
           </td>
-          <td class="text-end"><MoneyText v-if="line.kind === 'holding'" :cents="line.holding.cost" /></td>
+          <td class="text-end"><MoneyText :cents="line.holding.cost" /></td>
           <td class="text-end">
-            <template v-if="line.kind === 'holding'">
-              <MoneyText v-if="line.holding.valuation !== null" :cents="line.holding.valuation.value" />
-              <span v-else class="type-caption">{{ noPriceWord(line.holding.instrument) }}</span>
-              <span v-if="line.holding.valuation !== null && line.holding.instrument.currency !== EURO" class="block type-caption">
-                {{ formatCurrencyAmount(line.holding.valuation.foreignValue, line.holding.instrument.currency) }}
-              </span>
-            </template>
+            <MoneyText v-if="line.holding.valuation !== null" :cents="line.holding.valuation.value" />
+            <span v-else class="type-caption">{{ noPriceWord(line.holding.instrument) }}</span>
+            <span v-if="line.holding.valuation !== null && line.holding.instrument.currency !== EURO" class="block type-caption">
+              {{ formatCurrencyAmount(line.holding.valuation.foreignValue, line.holding.instrument.currency) }}
+            </span>
           </td>
           <td class="text-end">
-            <template v-if="line.kind === 'sold'">
-              <MoneyText :cents="line.holding.realised" sign="always" tone="outcome" />
-              <span class="block type-caption">{{ words.realised }}</span>
-            </template>
-            <template v-else-if="line.holding.unrealised !== null">
+            <template v-if="line.holding.unrealised !== null">
               <MoneyText :cents="line.holding.unrealised" sign="always" tone="outcome" />
               <span v-if="line.gainShare !== null" class="block type-caption">{{ formatPercent(line.gainShare, 'always') }}</span>
             </template>
           </td>
-          <td class="figure text-end">{{ line.holding.weight === null || line.kind === 'sold' ? '' : formatShare(line.holding.weight) }}</td>
+          <td class="figure text-end">{{ line.holding.weight === null ? '' : formatShare(line.holding.weight) }}</td>
           <td class="text-end"><LastDayChange v-if="line.holding.lastDay !== null" :change="line.holding.lastDay" /></td>
         </template>
       </tr>

@@ -32,18 +32,15 @@ const noPriceWord = useNoPriceWord()
   <RouterLink v-else :to="holdingLink(line.holding.instrument)" class="flex flex-col gap-0.5 px-4 py-2.5 hover:bg-elevated/40" data-testid="holding-row">
     <span class="flex items-baseline justify-between gap-3 type-body">
       <span class="min-w-0 truncate text-highlighted">{{ line.holding.instrument.name }}</span>
-      <MoneyText v-if="line.kind === 'holding' && line.holding.valuation !== null" :cents="line.holding.valuation.value" class="shrink-0 font-medium text-highlighted" />
-      <span v-else-if="line.kind === 'holding'" class="shrink-0 type-caption">{{ noPriceWord(line.holding.instrument) }}</span>
+      <MoneyText v-if="line.holding.valuation !== null" :cents="line.holding.valuation.value" class="shrink-0 font-medium text-highlighted" />
+      <span v-else class="shrink-0 type-caption">{{ noPriceWord(line.holding.instrument) }}</span>
     </span>
     <span class="flex items-baseline justify-between gap-3 type-caption">
       <span class="inline-flex min-w-0 items-center gap-1.5">
-        <span class="truncate">{{
-          line.kind === 'sold' ? line.holding.instrument.symbol : `${line.holding.instrument.symbol} · ${words.units(formatQuantity(line.holding.quantity, QUANTITY_PLACES))}`
-        }}</span>
+        <span class="truncate">{{ line.holding.instrument.symbol }} · {{ words.units(formatQuantity(line.holding.quantity, QUANTITY_PLACES)) }}</span>
         <PriceMarkNote :holding="line.holding" bare />
       </span>
-      <span v-if="line.kind === 'sold'" class="shrink-0"><MoneyText :cents="line.holding.realised" sign="always" tone="outcome" /> {{ words.realised }}</span>
-      <span v-else-if="line.holding.unrealised !== null" class="shrink-0">
+      <span v-if="line.holding.unrealised !== null" class="shrink-0">
         <MoneyText :cents="line.holding.unrealised" sign="always" tone="outcome" /><template v-if="line.gainShare !== null"> · {{ formatPercent(line.gainShare, 'always') }}</template>
       </span>
     </span>

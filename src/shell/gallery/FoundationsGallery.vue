@@ -100,6 +100,17 @@ const COLOUR_GROUPS: readonly { readonly title: string; readonly measure: Measur
     ],
   },
   {
+    title: 'Investments: the four classes held most often, with gold and crypto in the grey part',
+    measure: 'none',
+    swatches: [
+      { name: 'Stocks', token: '--invest-stocks' },
+      { name: 'Bonds', token: '--invest-bonds' },
+      { name: 'Money market', token: '--invest-money-market' },
+      { name: 'Cash', token: '--invest-cash' },
+      { name: 'Gold and crypto', token: '--chart-deemphasis' },
+    ],
+  },
+  {
     title: 'Gain and loss from small to large, as bg-gain-1 to bg-loss-3, with the contrast of ink on each',
     measure: 'under-ink',
     swatches: [

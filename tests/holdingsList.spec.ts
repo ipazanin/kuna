@@ -3,13 +3,14 @@ import { describe, expect, it } from 'vitest'
 import { heldHoldings, holdingsList } from '../src/apps/investments/holdings/domain/holdingsList'
 import type { HoldingsLine, HoldingsList, HoldingsView } from '../src/apps/investments/holdings/domain/holdingsList'
 import { portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
+import { dayValuer } from '../src/apps/investments/performance/domain/portfolioPerformance'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
 import { EURO } from '../src/shared/money/currencyCode'
-import { BROKER, STOCK_B, USD, WORKED_PRICES, WORKED_RATES, WORLD_ETF, cashMovement, instrument, trade, workedPortfolio } from './fixtures/investments'
+import { BROKER, STOCK_B, USD, WORKED_PRICES, WORKED_RATES, WORLD_ETF, cashMovement, decimal, instrument, trade, workedPortfolio } from './fixtures/investments'
 import { civil, euros } from './fixtures/ledger'
 
 const TODAY = civil('2026-10-29')
-const BY_CLASS: HoldingsView = { grouping: 'class', find: '', sold: false, sort: null }
+const BY_CLASS: HoldingsView = { grouping: 'class', find: '', sort: null }
 const SOLD_CO = instrument('sold-co', { name: 'Sold Co' })
 
 /** The worked portfolio with a third holding bought and sold whole in 2025, for €20.00 realised. */
@@ -94,15 +95,23 @@ describe("the worked portfolio's holdings on 29 Oct 2026", () => {
     // Both balances are the Broker's, so they keep their own order.
     expect(order({ sort: { column: 'name', descending: true } })).toEqual(['World ETF', 'Stock B', 'Broker EUR', 'Broker USD'])
   })
+})
 
-  it('lists the sold holdings last with what they realised, outside the total', () => {
-    const list = listOf(withSoldHolding(), { sold: true })
-    const sold = list.groups.at(-1)
+describe('the worked portfolio’s holdings on a past close', () => {
+  const valuedOn = dayValuer({ book: workedPortfolio(), prices: WORKED_PRICES, rates: WORKED_RATES, today: TODAY })
 
-    // Sold for 10 × 12.00 = 120.00, bought for 100.00.
-    expect(sold).toMatchObject({ key: 'sold', holdings: 1, value: euros(0), gain: euros(20), gainShare: null, weight: null })
-    expect(sold?.lines.map(named)).toEqual(['Sold Co'])
-    expect(list.total.gain).toBe(euros(382.79))
-    expect(listOf(withSoldHolding()).groups.map((group) => group.key)).toEqual(['stocks', 'cash'])
+  it('holds 20 Stock B on 1 Feb 2026, the day before its sale, and has realised nothing', () => {
+    const figures = valuedOn(civil('2026-02-01'))
+    const lines = holdingsList(figures, workedPortfolio(), { ...BY_CLASS, grouping: 'none' }).groups.flatMap((group) => group.lines)
+
+    expect(lines.flatMap((line) => (line.kind === 'holding' ? [[line.holding.instrument.name, line.holding.quantity]] : []))).toEqual([
+      ['World ETF', decimal('15')],
+      ['Stock B', decimal('20')],
+    ])
+    expect(figures.realised).toBe(euros(0))
+  })
+
+  it('lists nothing on a day before the first record', () => {
+    expect(holdingsList(valuedOn(civil('2025-01-01')), workedPortfolio(), BY_CLASS).groups).toEqual([])
   })
 })

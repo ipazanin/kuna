@@ -112,9 +112,11 @@ import { owedTotals } from '../src/apps/loans/overview/presentation/owedTotals.t
 import { fakeLoansDocument } from '../src/apps/loans/workbook/infrastructure/fake/fakeLoans.ts'
 import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument.ts'
 import { moneyFromAmount } from '../src/shared/money/money.ts'
+import { closedPositions } from '../src/apps/investments/holdings/domain/closedPositions.ts'
+import { holdingMix } from '../src/apps/investments/holdings/domain/holdingMix.ts'
 import { latestRecords } from '../src/apps/investments/holdings/domain/latestRecords.ts'
 import { figuresClose, portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures.ts'
-import { gainSources, incomeAgainstLastYear, lastDayMovers, pricesNotice, valueByClass, valueByCurrency } from '../src/apps/investments/overview/domain/overviewFigures.ts'
+import { gainSources, incomeAgainstLastYear, lastDayMovers, pricesNotice } from '../src/apps/investments/overview/domain/overviewFigures.ts'
 import { valueOverTime } from '../src/apps/investments/overview/domain/valueOverTime.ts'
 import { benchmarkState, comparedBenchmark } from '../src/apps/investments/performance/domain/benchmark.ts'
 import { performancePeriods } from '../src/apps/investments/performance/domain/performancePeriod.ts'
@@ -124,6 +126,7 @@ import { decodePricesFile, emptyPricesFile } from '../src/apps/investments/price
 import { pricesFileBook, pricesFileRateBook } from '../src/apps/investments/prices/domain/pricesFileBooks.ts'
 import { fakePricesFile } from '../src/apps/investments/prices/infrastructure/fake/fakePrices.ts'
 import { fakeInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/fake/fakeInvestments.ts'
+import { MIXES } from '../src/apps/investments/workbook/domain/mixGroup.ts'
 import { INVESTMENTS_DOCUMENT } from '../src/apps/investments/workbook/infrastructure/investmentsDocument.ts'
 import { installHrDooPack } from './support/installPack.mjs'
 
@@ -411,8 +414,8 @@ function pricesOfInput() {
 /**
  * The Investments groups: the records and problems, then per instrument and per account, named by its place in the
  * file and never by its name, what the Overview, Holdings and a holding's page show on the day, then the portfolio's
- * figures, its last day, the Overview's cards and its value over time, then the benchmark's closes, Performance over
- * each period it offers and its returns by year.
+ * figures, its last day, the Overview's cards, the five mixes and the closed positions of Holdings and its value over
+ * time, then the benchmark's closes, Performance over each period it offers and its returns by year.
  */
 function investmentsGroups(add) {
   const document = options.investments === undefined ? fakeInvestmentsDocument(AT) : decodeDocument(readFileSync(options.investments, 'utf8'))
@@ -438,12 +441,16 @@ function investmentsGroups(add) {
     figuresClose(figures),
     pricesNotice(figures),
     gainSources(figures),
-    valueByClass(figures),
-    valueByCurrency(figures),
+    holdingMix(figures, workbook.book, 'class').parts,
+    holdingMix(figures, workbook.book, 'currency').parts,
     lastDayMovers(figures, 3),
     incomeAgainstLastYear(workbook.book, today),
     latestRecords(workbook.book, sources.rates, 5),
   ])
+  for (const mix of MIXES) {
+    add(`investments.holdings.mix.${mix}`, holdingMix(figures, workbook.book, mix))
+  }
+  add('investments.holdings.closed', closedPositions(figures))
   add('investments.value-over-time', valueOverTime(sources, { kind: 'all' }))
   const benchmark = benchmarkState(sources)
   add('investments.performance.benchmark', benchmark)
