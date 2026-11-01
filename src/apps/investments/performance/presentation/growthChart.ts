@@ -91,7 +91,7 @@ export function dayOfCategory(category: string): string {
  * The labels of an axis of days: on a short one its month ends, thinned to calendar months a few apart so they fit, and on
  * a long one each January's month end of every year step, as the month axes have it.
  */
-function dayAxisLabels(dates: readonly CivilDate[], tokens: ChartTokens, phone: boolean): Record<string, unknown> {
+export function dayAxisLabels(dates: readonly CivilDate[], tokens: ChartTokens, phone: boolean): Record<string, unknown> {
   const first = dates[0]
   const last = dates.at(-1)
   const isMonthEnd = (category: string, index: number): boolean => {

@@ -72,6 +72,8 @@ export interface HeldBack {
 
 export interface PeriodPerformance extends PeriodSpan {
   readonly kind: 'figures'
+  /** Whether the period starts with nothing in, before its first day's records, so that day's records count inside it. */
+  readonly opensEmpty: boolean
   /**
    * What the period could not be valued without. The figures end on the last day that could be valued, and start on the
    * next valuation day after the last earlier day that could not.
@@ -185,6 +187,7 @@ export function portfolioPerformance(sources: PortfolioSources, benchmark: Bench
   const timeWeightedShown = belowZeroOn === null
   return {
     kind: 'figures',
+    opensEmpty,
     from: first.date,
     to: last.date,
     heldBack,

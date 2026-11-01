@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import USelect from '@nuxt/ui/components/Select.vue'
+import { useRoute } from 'vue-router'
 
 import { benchmarkState, comparedBenchmark } from '../domain/benchmark'
 import { performancePeriods } from '../domain/performancePeriod'
@@ -9,119 +8,94 @@ import type { PerformancePeriod } from '../domain/performancePeriod'
 import { dayValuer, firstDepositIn, performanceByYear, portfolioPerformance } from '../domain/portfolioPerformance'
 import { usePortfolio } from '../../holdings/presentation/usePortfolio'
 import { usePrices } from '../../prices/presentation/usePrices'
-import { words as overviewWords } from '../../overview/presentation/words'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { hasTransactions } from '../../workbook/domain/investmentBook'
-import GrowthCard from './GrowthCard.vue'
-import PerformanceNotice from './PerformanceNotice.vue'
-import PerformanceTiles from './PerformanceTiles.vue'
-import { periodKey, periodNamed } from './performanceLinks'
-import ReplayCard from './ReplayCard.vue'
-import RiskCard from './RiskCard.vue'
+import FallsTab from './FallsTab.vue'
+import { periodNamed } from './performanceLinks'
+import PeriodPanel from './PeriodPanel.vue'
+import ReturnHeatmap from './ReturnHeatmap.vue'
+import ReturnsTab from './ReturnsTab.vue'
+import SourcesTab from './SourcesTab.vue'
 import { words } from './words'
-import YearsCard from './YearsCard.vue'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { usePhoneLayout } from '../../../../shared/layout/viewport'
-import { listInWords } from '../../../../shared/text/listInWords'
-import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
-import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
+import PageTabs from '../../../../shared/ui/PageTabs.vue'
+import type { PageTab } from '../../../../shared/ui/PageTabs.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
-/** How the portfolio grew over the period picked, time-weighted and money-weighted, against the benchmark, with each year's returns, its largest fall and its volatility. */
+/**
+ * How the portfolio grew, in tabs: the period's returns against the benchmark, every month since the first deposit,
+ * where the period's gain came from, and how far it fell below its peaks. Every tab but Months follows the period picked.
+ */
 const { state } = useInvestmentsBooks()
 const { sources, figures } = usePortfolio()
 const prices = usePrices()
 const route = useRoute()
-const router = useRouter()
-const phone = usePhoneLayout()
+
+const TABS: readonly PageTab[] = [
+  { value: 'returns', label: words.tabs.returns },
+  { value: 'months', label: words.tabs.months },
+  { value: 'sources', label: words.tabs.sources },
+  { value: 'falls', label: words.tabs.falls },
+]
 
 /** The file, and for a file with transactions this browser's copy of its prices too. */
 const loading = computed(() => (state.workbook === null && state.status !== 'error') || (state.workbook !== null && hasTransactions(state.workbook.book) && figures.value === null))
 
+/** Months shows every month since the first deposit, whatever the period picked. */
+const ALL: PerformancePeriod = { kind: 'all' }
+
 const periods = computed(() => (sources.value === null ? [] : performancePeriods(firstDepositIn(sources.value.book), sources.value.today)))
 const period = computed(() => periodNamed(periods.value, route.query.period))
-/** A phone offers the calendar years in a dropdown beside the rolling periods, so the row fits one line. */
-const buttonChoices = computed(() => periods.value.filter((offered) => !phone.value || offered.kind !== 'year').map(periodChoice))
-const yearChoices = computed(() => (phone.value ? periods.value.filter((offered) => offered.kind === 'year').map(periodChoice) : []))
-const pickedYear = computed(() => (period.value.kind === 'year' ? periodKey(period.value) : ''))
+const onMonths = computed(() => route.query.tab === 'months')
 
 const benchmark = computed(() => (sources.value === null ? null : benchmarkState(sources.value)))
 const compared = computed(() => (benchmark.value === null || sources.value === null ? null : comparedBenchmark(benchmark.value, sources.value.book, prices.state.copy?.file.splits ?? [])))
-/** Each day is valued once for the sources on screen, so the years reuse the days of All and a switch of period reuses both. */
+/** Each day is valued once for the sources on screen, so the years and the months reuse the days of All and a switch of period reuses them all. */
 const valuedOn = computed(() => (sources.value === null ? null : dayValuer(sources.value)))
 const performance = computed(() => (sources.value === null || valuedOn.value === null ? null : portfolioPerformance(sources.value, compared.value, period.value, valuedOn.value)))
+const everything = computed(() =>
+  period.value.kind === 'all' ? performance.value : sources.value === null || valuedOn.value === null ? null : portfolioPerformance(sources.value, compared.value, ALL, valuedOn.value),
+)
 const years = computed(() => (sources.value === null || valuedOn.value === null ? [] : performanceByYear(sources.value, compared.value, valuedOn.value)))
-const figuresOfPeriod = computed(() => (performance.value?.kind === 'figures' ? performance.value : null))
 
-const description = computed(() => (figuresOfPeriod.value === null ? words.description : words.span(dayLabel(figuresOfPeriod.value.from), dayLabel(figuresOfPeriod.value.to))))
-const heldBackNames = computed(() => {
-  const shown = performance.value
-  return shown?.kind === 'held-back' ? listInWords([...shown.heldBack.instruments.map((instrument) => instrument.name), ...shown.heldBack.currencies]) : ''
+/** The span of the figures on screen: everything on Months, else the period picked. */
+const description = computed(() => {
+  const shown = onMonths.value ? everything.value : performance.value
+  return shown?.kind !== 'figures' ? words.description : words.span(dayLabel(shown.from), dayLabel(shown.to))
 })
-
-function periodChoice(offered: PerformancePeriod): { value: string; label: string } {
-  return { value: periodKey(offered), label: periodLabel(offered) }
-}
-
-function periodLabel(offered: PerformancePeriod): string {
-  switch (offered.kind) {
-    case 'years':
-      return overviewWords.value.period[offered.years]
-    case 'all':
-      return overviewWords.value.period.all
-    case 'year':
-      return String(offered.year)
-  }
-}
-
-/** All, the period the screen opens on, stays out of the address. */
-function pick(key: string): void {
-  const { period: _left, ...others } = route.query
-  void router.replace({ query: key === 'all' ? others : { ...others, period: key } })
-}
+const benchmarkName = computed(() => compared.value?.instrument.name ?? null)
 </script>
 
 <template>
   <section class="flex flex-col gap-6">
     <PageHeader :title="words.title" :description="description" />
     <ScreenSkeleton v-if="loading" :heading="false" :cards="2" data-testid="performance-loading" />
-    <template v-else-if="sources !== null && performance !== null && benchmark !== null">
+    <template v-else-if="sources !== null && performance !== null && everything !== null && benchmark !== null && valuedOn !== null">
       <EmptyState v-if="performance.kind === 'empty'" icon="i-lucide-chart-spline" :title="words.empty.title" :description="words.empty.description" data-testid="performance-empty" />
-      <template v-else>
-        <div v-if="periods.length > 1" class="flex flex-wrap items-center gap-1.5">
-          <ChoiceButtons :model-value="periodKey(period)" :options="buttonChoices" :label="words.periods" data-testid="performance-periods" @update:model-value="pick" />
-          <USelect
-            v-if="yearChoices.length > 0"
-            :model-value="pickedYear"
-            :items="yearChoices"
-            :placeholder="words.year"
-            :aria-label="words.year"
-            size="sm"
-            class="w-28"
-            data-testid="performance-year"
-            @update:model-value="pick(String($event))"
-          />
-        </div>
-        <PerformanceNotice :performance="performance" :benchmark="benchmark" />
-        <EmptyState
-          v-if="performance.kind === 'held-back'"
-          icon="i-lucide-chart-spline"
-          :title="words.empty.heldBackTitle"
-          :description="words.empty.heldBack(heldBackNames)"
-          data-testid="performance-held-back"
-        />
-        <template v-else-if="figuresOfPeriod !== null">
-          <PerformanceTiles :performance="figuresOfPeriod" :benchmark="benchmark" />
-          <DashboardGrid data-testid="performance-cards">
-            <GrowthCard :performance="figuresOfPeriod" :benchmark-name="compared?.instrument.name ?? null" class="xl:col-span-2 3xl:col-span-1" />
-            <ReplayCard :performance="figuresOfPeriod" :benchmark="benchmark" />
-            <RiskCard :performance="figuresOfPeriod" />
-            <YearsCard :years="years" :today="sources.today" class="xl:col-span-2 3xl:col-span-3" />
-          </DashboardGrid>
+      <PageTabs v-else :tabs="TABS" :label="words.tabs.label" data-testid="performance-tabs">
+        <template #returns>
+          <PeriodPanel v-slot="{ performance: shown }" :periods="periods" :period="period" :performance="performance" :benchmark="benchmark">
+            <ReturnsTab :performance="shown" :benchmark="benchmark" :benchmark-name="shown.benchmark === null ? null : benchmarkName" :years="years" :today="sources.today" />
+          </PeriodPanel>
         </template>
-      </template>
+        <template #months>
+          <PeriodPanel v-slot="{ performance: shown }" :periods="[]" :period="ALL" :performance="everything" :benchmark="benchmark">
+            <ReturnHeatmap :performance="shown" :benchmark-name="shown.benchmark === null ? null : benchmarkName" :benchmark-chosen="benchmark.kind !== 'none'" />
+          </PeriodPanel>
+        </template>
+        <template #sources>
+          <PeriodPanel v-slot="{ performance: shown }" :periods="periods" :period="period" :performance="performance" :benchmark="benchmark">
+            <SourcesTab :sources="sources" :performance="shown" :valued-on="valuedOn" />
+          </PeriodPanel>
+        </template>
+        <template #falls>
+          <PeriodPanel v-slot="{ performance: shown }" :periods="periods" :period="period" :performance="performance" :benchmark="benchmark">
+            <FallsTab :performance="shown" />
+          </PeriodPanel>
+        </template>
+      </PageTabs>
     </template>
   </section>
 </template>

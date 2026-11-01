@@ -18,19 +18,35 @@ export const FAKE_SERIES = {
   benchmark: seriesKey('twelvedata', 'IDX'),
 } as const
 
-/** How each made-up series walks: its currency, its first close in steps of its last decimal place, its drift a weekday in steps, how far it wobbles and its places. */
+/** A fall in a straight line over the weekdays from `from` to `bottom`, by `steps`, and back up by `to`. */
+interface Dip {
+  readonly from: CivilDate
+  readonly bottom: CivilDate
+  readonly to: CivilDate
+  readonly steps: number
+}
+
+/** How each made-up series walks: its currency, its first close in steps of its last decimal place, its drift a weekday in steps, how far it wobbles, its places and a dip. */
 interface Walk {
   readonly currency: string
   readonly start: number
   readonly drift: number
   readonly swing: number
   readonly places: number
+  readonly dip?: Dip
 }
 
 const WALKS: Readonly<Record<string, Walk>> = {
   [FAKE_SERIES.shareA]: { currency: 'USD', start: 14_250, drift: 3, swing: 1, places: 2 },
   [FAKE_SERIES.shareB]: { currency: 'USD', start: 4_810, drift: 1, swing: 1, places: 2 },
-  [FAKE_SERIES.worldEtf]: { currency: 'EUR', start: 9_875, drift: 2, swing: 1, places: 2 },
+  [FAKE_SERIES.worldEtf]: {
+    currency: 'EUR',
+    start: 9_875,
+    drift: 2,
+    swing: 1,
+    places: 2,
+    dip: { from: civilDate(2024, 9, 2), bottom: civilDate(2024, 10, 31), to: civilDate(2024, 12, 31), steps: 1_300 },
+  },
   [FAKE_SERIES.benchmark]: { currency: 'USD', start: 38_240, drift: 7, swing: 40, places: 2 },
   [rateSeriesKey('USD')]: { currency: 'USD', start: 10_850, drift: 0, swing: 1, places: 4 },
   [rateSeriesKey('GBP')]: { currency: 'GBP', start: 8_520, drift: 0, swing: 1, places: 4 },
@@ -67,16 +83,33 @@ function lateDay(today: CivilDate): CivilDate {
   return day
 }
 
-/** A made-up close in whole steps of the last decimal place, which drifts by `drift` steps a weekday and wobbles. */
+/** A weekday's place in the made-up series, the first day's being 0. */
+function placeOf(day: CivilDate): number {
+  return weekdaysBetween(FIRST_DAY, day) - 1
+}
+
+/** How many steps the dip takes off on a weekday. */
+function dipOn(dip: Dip | undefined, place: number): number {
+  if (dip === undefined) {
+    return 0
+  }
+  const [from, bottom, to] = [placeOf(dip.from), placeOf(dip.bottom), placeOf(dip.to)]
+  if (place <= from || place >= to) {
+    return 0
+  }
+  return Math.round(dip.steps * (place <= bottom ? (place - from) / (bottom - from) : (to - place) / (to - bottom)))
+}
+
+/** A made-up close in whole steps of the last decimal place, which drifts by `drift` steps a weekday, wobbles and dips. */
 function walkedClose(walk: Walk, place: number): string {
   const unit = 10 ** walk.places
-  const steps = walk.start + place * walk.drift + walk.swing * (((place * 37) % 23) - 11)
+  const steps = walk.start + place * walk.drift + walk.swing * (((place * 37) % 23) - 11) - dipOn(walk.dip, place)
   return `${Math.floor(steps / unit)}.${String(steps % unit).padStart(walk.places, '0')}`
 }
 
 /** A made-up series' close on a weekday, as the fake prices file holds it, so a made-up trade can pay what the day closed at. */
 export function fakeClose(series: string, day: CivilDate): string {
-  return walkedClose(WALKS[series]!, weekdaysBetween(FIRST_DAY, day) - 1)
+  return walkedClose(WALKS[series]!, placeOf(day))
 }
 
 /** A made-up prices file as a fetch would have written it on `today`, every figure invented. */

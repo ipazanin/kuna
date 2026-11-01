@@ -120,7 +120,10 @@ import { gainSources, incomeAgainstLastYear, lastDayMovers, pricesNotice } from 
 import { valueOverTime } from '../src/apps/investments/overview/domain/valueOverTime.ts'
 import { benchmarkState, comparedBenchmark } from '../src/apps/investments/performance/domain/benchmark.ts'
 import { performancePeriods } from '../src/apps/investments/performance/domain/performancePeriod.ts'
+import { monthlyReturns } from '../src/apps/investments/performance/domain/monthlyReturns.ts'
+import { periodGains } from '../src/apps/investments/performance/domain/periodGains.ts'
 import { dayValuer, firstDepositIn, performanceByYear, portfolioPerformance } from '../src/apps/investments/performance/domain/portfolioPerformance.ts'
+import { underwater } from '../src/apps/investments/performance/domain/underwater.ts'
 import { periodKey } from '../src/apps/investments/performance/presentation/performanceLinks.ts'
 import { decodePricesFile, emptyPricesFile } from '../src/apps/investments/prices/domain/pricesFile.ts'
 import { pricesFileBook, pricesFileRateBook } from '../src/apps/investments/prices/domain/pricesFileBooks.ts'
@@ -415,7 +418,8 @@ function pricesOfInput() {
  * The Investments groups: the records and problems, then per instrument and per account, named by its place in the
  * file and never by its name, what the Overview, Holdings and a holding's page show on the day, then the portfolio's
  * figures, its last day, the Overview's cards, the five mixes and the closed positions of Holdings and its value over
- * time, then the benchmark's closes, Performance over each period it offers and its returns by year.
+ * time, then the benchmark's closes, Performance over each period it offers with where its gain came from and its falls
+ * below a peak, its returns by year and by month.
  */
 function investmentsGroups(add) {
   const document = options.investments === undefined ? fakeInvestmentsDocument(AT) : decodeDocument(readFileSync(options.investments, 'utf8'))
@@ -456,10 +460,20 @@ function investmentsGroups(add) {
   add('investments.performance.benchmark', benchmark)
   const compared = comparedBenchmark(benchmark, workbook.book, prices.splits)
   const valuedOn = dayValuer(sources)
+  const figuresOf = (period) => {
+    const performance = portfolioPerformance(sources, compared, period, valuedOn)
+    return performance.kind === 'figures' ? performance : null
+  }
   for (const period of performancePeriods(firstDepositIn(workbook.book), today)) {
     add(`investments.performance.${periodKey(period)}`, () => portfolioPerformance(sources, compared, period, valuedOn))
+    add(`investments.performance.${periodKey(period)}.sources`, () => {
+      const performance = figuresOf(period)
+      return performance === null ? null : periodGains(sources, performance, valuedOn)
+    })
+    add(`investments.performance.${periodKey(period)}.falls`, () => underwater(figuresOf(period)?.growth ?? []))
   }
   add('investments.performance.years', () => performanceByYear(sources, compared, valuedOn))
+  add('investments.performance.months', () => monthlyReturns(figuresOf({ kind: 'all' })?.growth ?? []))
 }
 
 const digests = new WeakMap()

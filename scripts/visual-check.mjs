@@ -30,7 +30,7 @@
  * fetch failed (`?prices=late-prices`), each in Croatian too and with its figures worked out from the same fake sets, the home with the Investments card's figures and its late-prices badge,
  * the sample's Holdings with its five mixes and closed positions, also with a late close and on a past close (`?on=`), and two holdings' pages, one in US dollars with a lot partly sold and its trades as dots sized by amount, and one from a spin-off that split, each in Croatian too,
  * the sample's Performance over everything against its benchmark, a portfolio too young for a rate a year with no benchmark chosen (`?investments=young`) and the sample whose
- * benchmark has no closes (`?prices=no-benchmark`), each in Croatian too,
+ * benchmark has no closes (`?prices=no-benchmark`), each in Croatian too, and its Months, its Sources over everything and over the last year and its Falls tabs, in Croatian too,
  * the sample's Transactions, in Croatian too, and Transactions on an empty file, the import of the made-up portfolio workbook
  * into an empty Investments file with the fake prices, each step and the dry run in English and Croatian, and the same workbook again adding nothing,
  * the Prices tab of the Investments Settings on the sample with current prices, with made-up keys kept and with late prices, its General tab, three made-up CSV files of closes imported on it,
@@ -140,7 +140,10 @@ import { figuresClose, portfolioFigures } from '../src/apps/investments/holdings
 import { averageCostText } from '../src/apps/investments/holdings/presentation/holdingText.ts'
 import { gainSources, incomeAgainstLastYear } from '../src/apps/investments/overview/domain/overviewFigures.ts'
 import { benchmarkState, comparedBenchmark } from '../src/apps/investments/performance/domain/benchmark.ts'
-import { portfolioPerformance } from '../src/apps/investments/performance/domain/portfolioPerformance.ts'
+import { monthlyReturns } from '../src/apps/investments/performance/domain/monthlyReturns.ts'
+import { periodGains } from '../src/apps/investments/performance/domain/periodGains.ts'
+import { dayValuer, portfolioPerformance } from '../src/apps/investments/performance/domain/portfolioPerformance.ts'
+import { underwater } from '../src/apps/investments/performance/domain/underwater.ts'
 import { pricesDay } from '../src/apps/investments/prices/application/pricesUpdate.ts'
 import { pricesFileBook, pricesFileRateBook } from '../src/apps/investments/prices/domain/pricesFileBooks.ts'
 import { fakePricesFile } from '../src/apps/investments/prices/infrastructure/fake/fakePrices.ts'
@@ -435,7 +438,34 @@ function fakePerformanceShows(variant, pricesVariant) {
   }
 }
 
+/**
+ * Performance's other tabs on the sample, worked out as the screen works them out: the first year's chained return on
+ * Months, the price and currency totals of the currency effect over everything and over the last year on Sources, and
+ * the deepest fall below a peak on Falls, which the risk card beside it shows as the largest fall.
+ */
+function fakePerformanceTabsShows() {
+  const { workbook, rates } = fakePortfolio('sample', 'sample')
+  const prices = fakePricesFile('sample', INVESTMENTS_DAY)
+  const sources = { book: workbook.book, prices: pricesFileBook(prices, workbook.book.prices), rates, today: INVESTMENTS_DAY }
+  const compared = comparedBenchmark(benchmarkState(sources), workbook.book, prices.splits)
+  const valuedOn = dayValuer(sources)
+  const everything = portfolioPerformance(sources, compared, { kind: 'all' }, valuedOn)
+  const lastYear = portfolioPerformance(sources, compared, { kind: 'years', years: 1 }, valuedOn)
+  const totals = (performance, format) => {
+    const gains = periodGains(sources, performance, valuedOn)
+    return [formatMoney(gains.price, 'always', format), formatMoney(gains.currency, 'always', format)]
+  }
+  return {
+    months: formatPercentChange(monthlyReturns(everything.growth)[0].portfolio),
+    sources: totals(everything),
+    sourcesCroatian: totals(everything, CROATIAN_MONEY),
+    sourcesLastYear: totals(lastYear),
+    deepest: formatPercentChange(underwater(everything.growth).deepest),
+  }
+}
+
 const SAMPLE_PERFORMANCE = fakePerformanceShows('sample', 'sample')
+const SAMPLE_PERFORMANCE_TABS = fakePerformanceTabsShows()
 const YOUNG_PERFORMANCE = fakePerformanceShows('young', 'sample')
 const NO_BENCHMARK_PERFORMANCE = fakePerformanceShows('sample', 'no-benchmark')
 
@@ -1795,7 +1825,6 @@ const SOURCE_SCREENS = [
       'Difference',
       'Growth of €100.00',
       'The same money in Example Index Fund',
-      'Largest fall and volatility',
       'Returns by year',
       'so far',
       'A year with fewer than 12 monthly returns has no volatility.',
@@ -1816,12 +1845,79 @@ const SOURCE_SCREENS = [
       'Razlika',
       'Rast od 100,00',
       'Isti novac u indeksu Example Index Fund',
-      'Najveći pad i volatilnost',
       'Prinosi po godinama',
       'zasad',
       'Godina s manje od 12 mjesečnih prinosa nema volatilnost.',
       ...SAMPLE_PERFORMANCE.croatian,
     ],
+  },
+  {
+    name: 'investments-performance-months',
+    query: 'investments=sample',
+    hash: '#/investments/performance?tab=months',
+    title: 'Performance',
+    charts: 0,
+    ready: '[data-testid="performance-months"]',
+    shows: ['Returns by month', 'Every month since your first deposit, time-weighted', 'Your return', 'Against the index', 'Year', SAMPLE_PERFORMANCE_TABS.months],
+  },
+  {
+    name: 'investments-performance-months-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments/performance?tab=months',
+    title: 'Uspješnost',
+    charts: 0,
+    ready: '[data-testid="performance-months"]',
+    shows: ['Prinosi po mjesecima', 'Vaš prinos', 'Prema indeksu', 'Godina'],
+  },
+  {
+    name: 'investments-performance-sources',
+    query: 'investments=sample',
+    hash: '#/investments/performance?tab=sources',
+    title: 'Performance',
+    charts: 2,
+    ready: '[data-testid="performance-currency"]',
+    shows: ['How the value changed', 'What drove the return', 'Currency effect', 'Put in or taken out', 'Gain', 'Trading fees of', 'Portfolio', ...SAMPLE_PERFORMANCE_TABS.sources],
+    cards: false,
+  },
+  {
+    name: 'investments-performance-sources-1y',
+    query: 'investments=sample',
+    hash: '#/investments/performance?tab=sources&period=1y',
+    title: 'Performance',
+    charts: 2,
+    ready: '[data-testid="performance-currency"]',
+    shows: ['How the value changed', 'What drove the return', 'Currency effect', ...SAMPLE_PERFORMANCE_TABS.sourcesLastYear],
+    cards: false,
+  },
+  {
+    name: 'investments-performance-sources-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments/performance?tab=sources',
+    title: 'Uspješnost',
+    charts: 2,
+    ready: '[data-testid="performance-currency"]',
+    shows: ['Kako se mijenjala vrijednost', 'Što je donijelo prinos', 'Učinak tečaja', 'Uloženo ili isplaćeno', 'Portfelj', ...SAMPLE_PERFORMANCE_TABS.sourcesCroatian],
+    cards: false,
+  },
+  {
+    name: 'investments-performance-falls',
+    query: 'investments=sample',
+    hash: '#/investments/performance?tab=falls',
+    title: 'Performance',
+    charts: 1,
+    ready: '[data-testid="performance-underwater"]',
+    shows: ['Below the peak', 'Now', 'Deepest', 'Longest below a peak', 'Largest fall and volatility', SAMPLE_PERFORMANCE_TABS.deepest],
+    cards: false,
+  },
+  {
+    name: 'investments-performance-falls-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments/performance?tab=falls',
+    title: 'Uspješnost',
+    charts: 1,
+    ready: '[data-testid="performance-underwater"]',
+    shows: ['Ispod vrha', 'Sada', 'Najdublje', 'Najdulje ispod vrha', 'Najveći pad i volatilnost'],
+    cards: false,
   },
   {
     name: 'investments-performance-young',
@@ -1839,7 +1935,6 @@ const SOURCE_SCREENS = [
       'The same money in a benchmark',
       'No benchmark to compare with',
       'Open Settings',
-      'Needs 12 monthly returns',
       ...YOUNG_PERFORMANCE.english,
     ],
   },
@@ -2060,8 +2155,8 @@ const VISITS = [
 ]
 
 /**
- * The only cards that may scroll sideways: editors whose every column is an input, on a phone. Each
- * names its card, the widest viewport it may scroll at, and why.
+ * The only cards that may scroll sideways: editors whose every column is an input, on a phone, and the grid of monthly
+ * returns, which reads as a table. Each names its card, the widest viewport it may scroll at, and why.
  */
 const SIDEWAYS_SCROLL_ALLOWED = [
   {
@@ -2075,6 +2170,11 @@ const SIDEWAYS_SCROLL_ALLOWED = [
   { card: 'year.grant-rows', upTo: Infinity, reason: 'Twelve input columns are wider than the 100rem measure the Year screen keeps.' },
   { card: 'year.accountant-lines', upTo: Infinity, reason: 'Nine input columns are wider than the 100rem measure the Year screen keeps.' },
   { card: 'salaries.employees', upTo: Infinity, reason: 'Eleven input columns are wider than the 100rem measure the Salaries screen keeps.' },
+  {
+    card: 'investments.performance.months',
+    upTo: 1440,
+    reason: 'Fourteen columns of signed figures with two decimals, a year and its twelve months, are wider than the card in Croatian up to 1440 px.',
+  },
 ]
 
 /** The screens whose cards may sit side by side in a grid of their own, each with why. */
