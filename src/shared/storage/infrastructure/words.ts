@@ -23,7 +23,7 @@ export const en = {
     one: `Drive holds ${count} files the app made as ${fileName}, so it cannot tell which one holds the books. Trash all but one in Drive.`,
     other: `Drive holds ${count} files the app made as ${fileName}, so it cannot tell which one holds the books. Trash all but one in Drive.`,
   }),
-  revisions: 'Drive keeps 200 revisions of the file and refused this save, although the app let go of its oldest. Try again in a minute.',
+  revisions: 'Drive keeps 200 revisions of the file and refused this save, although the app deleted its oldest ones. Try again in a minute.',
   keptChanging: 'The file kept changing during this save. Sync to see what it holds now.',
   noFolder: 'The file has no folder the app can see, so it has nowhere to keep backups.',
 }
@@ -46,7 +46,7 @@ export const hr: Translation<typeof en> = {
     few: `Na Driveu su ${count} datoteke koje je aplikacija izradila kao „${fileName}”, pa ne zna koja je prava. Na Driveu u otpad bacite sve osim jedne.`,
     other: `Na Driveu je ${count} datoteka koje je aplikacija izradila kao „${fileName}”, pa ne zna koja je prava. Na Driveu u otpad bacite sve osim jedne.`,
   }),
-  revisions: 'Drive čuva 200 inačica datoteke i odbio je ovo spremanje, iako je aplikacija obrisala najstariju. Pokušajte ponovno za minutu.',
+  revisions: 'Drive čuva 200 inačica datoteke i odbio je ovo spremanje, iako je aplikacija obrisala najstarije. Pokušajte ponovno za minutu.',
   keptChanging: 'Datoteka se stalno mijenjala tijekom ovog spremanja. Sinkronizirajte da vidite što sada sadrži.',
   noFolder: 'Datoteka nema mapu koju aplikacija vidi, pa nema gdje čuvati sigurnosne kopije.',
 }

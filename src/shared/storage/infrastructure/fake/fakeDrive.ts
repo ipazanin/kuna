@@ -179,11 +179,16 @@ export function createFakeDrive(): FakeDrive {
       return revision.text
     },
 
-    async unkeepRevision(fileId, revisionId) {
-      requests.push('unkeepRevision')
-      const revisions = fileOf(fileId).revisions
-      const index = revisions.findIndex((revision) => revision.id === revisionId)
-      revisions[index] = { ...revisions[index]!, keepForever: false }
+    async deleteRevision(fileId, revisionId) {
+      requests.push('deleteRevision')
+      const file = fileOf(fileId)
+      if (file.revisions.length === 1) {
+        throw new Error(`400 from the fake Drive: revision ${revisionId} is the last one of the file, so it cannot be deleted.`)
+      }
+      file.revisions.splice(
+        file.revisions.findIndex((revision) => revision.id === revisionId),
+        1,
+      )
     },
 
     async parentOf(fileId) {

@@ -19,7 +19,7 @@ export interface DocumentDrive {
   upload(fileId: string, text: string): Promise<DocumentUpload>
   revisions(fileId: string): Promise<readonly DriveRevision[]>
   downloadRevision(fileId: string, revisionId: string): Promise<string>
-  unkeepRevision(fileId: string, revisionId: string): Promise<void>
+  deleteRevision(fileId: string, revisionId: string): Promise<void>
   parentOf(fileId: string): Promise<string>
   nameOf(fileId: string): Promise<string>
   children(folderId: string): Promise<readonly Pick<DriveFile, 'id' | 'name' | 'mimeType'>[]>
@@ -32,7 +32,7 @@ export interface DocumentDrive {
 
 /** The `appProperties` key that names which Kuna app a document belongs to. */
 export const APP_PROPERTY = 'kuna'
-/** Drive refuses a 201st kept revision, so the app lets go of its oldest beyond this many. */
+/** Drive refuses a 201st kept revision, so the app deletes its oldest beyond this many. */
 const KEPT_REVISIONS = 100
 const DAILY_BACKUPS = 30
 const BACKUPS_FOLDER = 'backups'
@@ -102,10 +102,10 @@ export async function findDriveDocument(drive: DocumentDrive, app: string): Prom
 export function driveDocumentHome(drive: DocumentDrive, fileId: string, app: string, day: () => CivilDate = today): DocumentHome {
   let backedUpOn: CivilDate | null = null
 
-  async function unkeepOldest(listed: readonly DriveRevision[]): Promise<void> {
+  async function deleteOldest(listed: readonly DriveRevision[]): Promise<void> {
     const kept = listed.filter((revision) => revision.keepForever).sort(byModifiedTime)
     for (const revision of kept.slice(0, Math.max(0, kept.length - KEPT_REVISIONS))) {
-      await drive.unkeepRevision(fileId, revision.id)
+      await drive.deleteRevision(fileId, revision.id)
     }
   }
 
@@ -114,7 +114,7 @@ export function driveDocumentHome(drive: DocumentDrive, fileId: string, app: str
     if (first.kind === 'uploaded') {
       return first.revision
     }
-    await unkeepOldest(await drive.revisions(fileId))
+    await deleteOldest(await drive.revisions(fileId))
     const second = await drive.upload(fileId, text)
     if (second.kind === 'uploaded') {
       return second.revision
@@ -178,7 +178,7 @@ export function driveDocumentHome(drive: DocumentDrive, fileId: string, app: str
         throw new Error(words.outsideEdit)
       }
       if (others.length === 0 || head !== own.id) {
-        await unkeepOldest(listed)
+        await deleteOldest(listed)
         return { kind: 'saved', document: latest }
       }
       const replaced = others.sort(byModifiedTime).at(-1)!

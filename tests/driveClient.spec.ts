@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createFile, createFolder, downloadFile, downloadRevision, filesWithAppProperty, getFile, listRevisions, trashFile, unkeepRevision, uploadContent } from '../src/shared/google/driveClient'
+import { createFile, createFolder, downloadFile, downloadRevision, filesWithAppProperty, getFile, listRevisions, trashFile, deleteRevision, uploadContent } from '../src/shared/google/driveClient'
 import { GoogleApiError } from '../src/shared/google/googleApi'
 import { googleDocumentDrive } from '../src/shared/storage/infrastructure/googleDocumentDrive'
 
@@ -119,17 +119,12 @@ describe('driveClient', () => {
     expect(sent[0]!.url.href).toBe('https://www.googleapis.com/drive/v3/files/file-1/revisions/rev-2?alt=media')
   })
 
-  it('lets go of a kept revision by revisions.update', async () => {
-    const sent = stubDrive(Response.json({ id: 'rev-1' }))
+  it('deletes a kept revision by revisions.delete', async () => {
+    const sent = stubDrive(new Response(null, { status: 204 }))
 
-    await unkeepRevision('token', 'file-1', 'rev-1')
+    await deleteRevision('token', 'file-1', 'rev-1')
 
-    expect([sent[0]!.method, sent[0]!.url.href, sent[0]!.headers.get('Content-Type'), sent[0]!.body]).toEqual([
-      'PATCH',
-      'https://www.googleapis.com/drive/v3/files/file-1/revisions/rev-1?fields=id',
-      'application/json',
-      '{"keepForever":false}',
-    ])
+    expect([sent[0]!.method, sent[0]!.url.href]).toEqual(['DELETE', 'https://www.googleapis.com/drive/v3/files/file-1/revisions/rev-1'])
   })
 
   it('searches by a property the app gave a file, the trashed ones left out', async () => {

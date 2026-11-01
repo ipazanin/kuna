@@ -229,7 +229,7 @@ describe('driveDocumentHome', () => {
     expect(write.reruns).toEqual([])
   })
 
-  it('lets go of the oldest kept revision once a save makes the 101st', async () => {
+  it('deletes the oldest kept revision once a save makes the 101st', async () => {
     const { drive, fileId, base, home } = await books()
     for (let upload = 0; upload < 100; upload += 1) {
       await drive.upload(fileId, base.text)
@@ -240,10 +240,10 @@ describe('driveDocumentHome', () => {
 
     expect((await home().save(current, write.text, write.rewrite)).kind).toBe('saved')
     expect(keptCount(drive, fileId)).toBe(100)
-    expect(drive.file(fileId).revisions.find((revision) => revision.id === oldestKept.id)!.keepForever).toBe(false)
+    expect(drive.file(fileId).revisions.some((revision) => revision.id === oldestKept.id)).toBe(false)
   })
 
-  it('lets go of the oldest kept revisions and uploads once more when Drive refuses a 201st', async () => {
+  it('deletes the oldest kept revisions and uploads once more when Drive refuses a 201st', async () => {
     const { drive, fileId, base, home } = await books()
     for (let upload = 0; upload < 200; upload += 1) {
       await drive.upload(fileId, base.text)

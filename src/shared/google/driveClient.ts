@@ -201,7 +201,7 @@ export async function createFile<Field extends keyof DriveFile>(accessToken: str
 
 /**
  * Replaces a file's content with one media upload and gives the head revision it made. With
- * `keepForever` Drive keeps that revision, up to 200 of a file, until the app lets go of it.
+ * `keepForever` Drive keeps that revision, up to 200 of a file, until the app deletes it.
  */
 export async function uploadContent(accessToken: string, fileId: string, content: BlobPart, mimeType: string, keepForever: boolean): Promise<string> {
   const query = new URLSearchParams({ uploadType: 'media', fields: 'headRevisionId' })
@@ -248,13 +248,9 @@ export async function downloadRevision(accessToken: string, fileId: string, revi
   return response.arrayBuffer()
 }
 
-/** Lets Drive purge a revision in its own time, which frees its place among the 200 kept ones. */
-export async function unkeepRevision(accessToken: string, fileId: string, revisionId: string): Promise<void> {
-  await googleFetch(`${revisionsOf(fileId)}/${encodeURIComponent(revisionId)}?fields=id`, accessToken, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ keepForever: false }),
-  })
+/** Deletes a revision for good, which frees its place among the 200 kept ones. Drive refuses to clear `keepForever`, so this is the only way to free it. */
+export async function deleteRevision(accessToken: string, fileId: string, revisionId: string): Promise<void> {
+  await googleFetch(`${revisionsOf(fileId)}/${encodeURIComponent(revisionId)}`, accessToken, { method: 'DELETE' })
 }
 
 function revisionsOf(fileId: string): string {

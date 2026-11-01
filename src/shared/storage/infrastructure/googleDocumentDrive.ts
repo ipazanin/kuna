@@ -10,7 +10,7 @@ import {
   listRevisions,
   queryLiteral,
   trashFile,
-  unkeepRevision,
+  deleteRevision,
   uploadContent,
 } from '../../google/driveClient'
 import { GoogleApiError } from '../../google/googleApi'
@@ -49,8 +49,8 @@ export function googleDocumentDrive(accessToken: () => Promise<string>): Documen
       return decoder.decode(await downloadRevision(await accessToken(), fileId, revisionId))
     },
 
-    async unkeepRevision(fileId, revisionId) {
-      return unkeepRevision(await accessToken(), fileId, revisionId)
+    async deleteRevision(fileId, revisionId) {
+      return deleteRevision(await accessToken(), fileId, revisionId)
     },
 
     async parentOf(fileId) {
