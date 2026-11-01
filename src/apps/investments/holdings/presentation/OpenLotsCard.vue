@@ -4,11 +4,11 @@ import { computed, ref } from 'vue'
 import type { HoldingFigures } from '../domain/holding'
 import { lotIsTaxFree } from '../domain/lots'
 import { priceOfWorth } from '../domain/quoting'
-import { QUANTITY_PLACES, WORKED_OUT_PRICE_PLACES } from './holdingText'
+import { QUANTITY_PLACES } from './holdingText'
 import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { formatQuantity, formatUnitPrice } from '../../../../shared/money/moneyFormat'
+import { formatCurrencyAmount, formatQuantity } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
@@ -24,7 +24,7 @@ const rows = computed(() =>
   props.holding.lots.map((lot, place) => ({
     key: `${lot.opened}|${place}`,
     lot,
-    perUnit: formatUnitPrice(priceOfWorth(props.holding.instrument.quoted, lot.costInCurrency, lot.quantity), props.holding.instrument.currency, WORKED_OUT_PRICE_PLACES),
+    perUnit: formatCurrencyAmount(priceOfWorth(props.holding.instrument.quoted, lot.costInCurrency, lot.quantity), props.holding.instrument.currency),
     taxFree: lotIsTaxFree(lot, props.today),
   })),
 )

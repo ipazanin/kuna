@@ -106,7 +106,7 @@ export const en = {
     newHolding: 'New holding',
     sameIsin: (name: string) => `${name}, same ISIN`,
     sameSymbol: (name: string) => `${name}, same symbol`,
-    guess: (name: string, kind: string, currency: string, source: string) => `${name}, ${kind}, in ${currency}, prices from ${source}`,
+    guess: (name: string, kind: string, currency: string, source: string) => `${name}: ${kind}, in ${currency}, prices from ${source}`,
     edit: 'Change the guess',
     done: 'Done',
     needsLook: 'A field needs a look',

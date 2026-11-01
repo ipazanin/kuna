@@ -206,10 +206,7 @@ function currencyPlaces(currency: CurrencyCode): number {
   return formatters({ currency, locale: active.value.locale }).full.resolvedOptions().maximumFractionDigits ?? 2
 }
 
-/**
- * The price of one unit in its own currency, such as $190.50, with the currency's cents and up to six places. A price
- * worked out by dividing, such as an average cost, passes fewer places, since six would only show the division's tail.
- */
+/** The price of one unit in its own currency, such as $190.50, with the currency's cents and up to six places, or `maximumDecimals`. */
 export function formatUnitPrice(value: Decimal, currency: CurrencyCode, maximumDecimals: number = UNIT_PRICE_DECIMALS): string {
   const { locale } = active.value
   const key = `${locale}|${currency}|${maximumDecimals}`
@@ -219,13 +216,4 @@ export function formatUnitPrice(value: Decimal, currency: CurrencyCode, maximumD
     unitPriceFormattersByKey.set(key, formatter)
   }
   return withDecimalSign(value, maximumDecimals, formatter)
-}
-
-/**
- * A price worked out by dividing, such as an average cost, with as many places as the price it is read against, such
- * as the latest close, and never fewer than the currency's cents or more than a unit price shows.
- */
-export function formatUnitPriceLike(value: Decimal, like: Decimal, currency: CurrencyCode): string {
-  const likePlaces = decimalText(like).split('.')[1]?.length ?? 0
-  return formatUnitPrice(value, currency, Math.min(Math.max(likePlaces, currencyPlaces(currency)), UNIT_PRICE_DECIMALS))
 }

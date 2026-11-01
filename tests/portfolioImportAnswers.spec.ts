@@ -238,6 +238,22 @@ describe('the price source guessed for a listing', () => {
   })
 })
 
+describe('the type the workbook shows', () => {
+  it('types a spin-off and the parent its Spin-off from cell names as shares, and leaves every other instrument untyped', () => {
+    const rows = rowsOf(
+      line('2025-01-06', { ...MAIN, ...ABC, type: 'BUY', quantity: 10, price: 100, currency: 'USD', netCash: -1000 }),
+      line('2025-01-06', { ...MAIN, yahooSymbol: 'ETF.DE', brokerSymbol: 'ETF', type: 'BUY', quantity: 1, price: 10, currency: 'EUR', netCash: -10 }),
+      line('2025-07-01', { ...MAIN, ...NEWCO, type: 'SPINOFF', quantity: 2, price: 12, currency: 'USD', spinOffFrom: 'abc' }),
+    )
+    const { instruments } = workbookDryRun(rows, { book: book({}), rates: RATES, answers: NO_ANSWERS }).questions
+    expect(instruments.map(({ identity, proposal }) => [identity, proposal.type, proposal.class])).toEqual([
+      ['US0000000001', 'share', 'stocks'],
+      ['ETF.DE', null, 'stocks'],
+      ['NEWCO', 'share', 'stocks'],
+    ])
+  })
+})
+
 describe('the template download', () => {
   it('reads back through the reader with its example rows, every column and a How to fill tab', async () => {
     const bytes = await portfolioTemplateFile(words.template)

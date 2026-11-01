@@ -19,9 +19,9 @@ export interface Exposure<Mix extends ExposureMix> {
 const WHOLE = decimalOfText('100')!
 
 /**
- * Where a holding sits in the sector or the country mix: its fund mix as typed, else its own typed field, else for a
- * share's country the first two letters of its ISIN. A fund's ISIN names where it is domiciled, not where it invests,
- * so it never stands in for a fund. Empty when none of them says.
+ * Where a holding sits in the sector or the country mix: its fund mix as typed, else its own typed field, else for an
+ * instrument typed a share its country from the first two letters of its ISIN. A fund's ISIN names where it is
+ * domiciled, not where it invests, so it never stands in for any other type. Empty when none of them says.
  */
 export function exposureOf<Mix extends ExposureMix>(instrument: Instrument, mix: Mix, book: InvestmentBook): Exposure<Mix>[] {
   const lines = book.fundMixes.filter((line) => line.instrument === instrument.id && line.slice.mix === mix)
@@ -32,14 +32,6 @@ export function exposureOf<Mix extends ExposureMix>(instrument: Instrument, mix:
   if (typed !== null) {
     return [{ group: typed as ExposureGroup<Mix>, percent: WHOLE }]
   }
-  const fromIsin = mix === 'country' && instrument.isin !== null && isShare(instrument, book) ? countryOf(instrument.isin.slice(0, 2)) : null
+  const fromIsin = mix === 'country' && instrument.isin !== null && instrument.type === 'share' ? countryOf(instrument.isin.slice(0, 2)) : null
   return fromIsin === null ? [] : [{ group: fromIsin as ExposureGroup<Mix>, percent: WHOLE }]
-}
-
-/**
- * A single company's stock. No field marks a fund, so only a stock with one typed sector, no fund cost and no fund mix
- * counts. A fund typed with none of them stays not known, and the line under the ring asks for its country.
- */
-function isShare(instrument: Instrument, book: InvestmentBook): boolean {
-  return instrument.class === 'stocks' && instrument.sector !== null && instrument.ter === null && !book.fundMixes.some((line) => line.instrument === instrument.id)
 }

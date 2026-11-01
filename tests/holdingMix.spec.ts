@@ -31,8 +31,8 @@ function figuresOf(records: InvestmentBook, closes: ReadonlyMap<Instrument, read
   return portfolioFigures({ book: records, prices: priceBookOf(closes), rates: rateBookOf(new Map()), today: TODAY })
 }
 
-const SHARE = instrument('share', { name: 'Example Chips', sector: 'information-technology', isin: 'US0000000001' })
-const FUND = instrument('fund', { name: 'Example Fund', isin: 'IE0000000002', ter: decimal('0.2') })
+const SHARE = instrument('share', { name: 'Example Chips', type: 'share', sector: 'information-technology', isin: 'US0000000001' })
+const FUND = instrument('fund', { name: 'Example Fund', type: 'fund', isin: 'IE0000000002', ter: decimal('0.2') })
 const FUND_SECTORS = mixLines(FUND, 'sector', [
   ['information-technology', '25'],
   ['financials', '15'],
@@ -75,20 +75,21 @@ describe('where a holding sits by sector and by country', () => {
     expect(exposureOf({ ...SHARE, country: countryOf('DE') }, 'country', book({}))).toEqual([{ group: 'DE', percent: decimal('100') }])
   })
 
-  it('reads a share’s country from its ISIN, but never a fund’s, whose ISIN names where it is domiciled', () => {
+  it('reads the country of an instrument typed a share from its ISIN, but never a fund’s, whose ISIN names where it is domiciled', () => {
     expect(exposureOf(SHARE, 'country', book({}))).toEqual([{ group: 'US', percent: decimal('100') }])
+    expect(exposureOf({ ...SHARE, sector: null }, 'country', book({}))).toEqual([{ group: 'US', percent: decimal('100') }])
     expect(exposureOf(FUND, 'country', book({}))).toEqual([])
-    expect(exposureOf({ ...FUND, ter: null }, 'country', book({ fundMixes: FUND_SECTORS }))).toEqual([])
-    expect(exposureOf({ ...SHARE, class: 'bonds' }, 'country', book({}))).toEqual([])
+    expect(exposureOf({ ...FUND, ter: null }, 'country', book({}))).toEqual([])
+    expect(exposureOf({ ...SHARE, type: 'bond', class: 'bonds' }, 'country', book({}))).toEqual([])
     expect(exposureOf({ ...SHARE, isin: 'XX0000000001' }, 'country', book({}))).toEqual([])
   })
 
-  it('leaves a stock with no sector, no TER and no fund mix not known, since it may be a fund domiciled in Ireland', () => {
-    const untyped = { ...FUND, ter: null }
-    const { records, figures } = shareAndFund({ fund: { ter: null }, lines: [] })
+  it('leaves an instrument with no type not known, even a stock with a sector, no TER and no fund mix, since it may be a fund domiciled in Ireland', () => {
+    const untyped = { ...SHARE, type: null }
+    const { records, figures } = shareAndFund({ share: { type: null } })
 
     expect(exposureOf(untyped, 'country', book({}))).toEqual([])
-    expect(holdingMix(figures, records, 'country').missing.map((holding) => holding.instrument.name)).toEqual(['Example Fund'])
+    expect(holdingMix(figures, records, 'country').missing.map((holding) => holding.instrument.name)).toEqual(['Example Chips', 'Example Fund'])
   })
 })
 

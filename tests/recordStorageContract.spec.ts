@@ -678,6 +678,7 @@ const INVESTMENTS_FIXTURES: Readonly<Record<string, KindFixture>> = {
     records: [
       {
         name: 'Example Tech',
+        type: 'share',
         class: 'stocks',
         isin: 'XX000000ABC1',
         symbol: 'ABC',
@@ -689,7 +690,7 @@ const INVESTMENTS_FIXTURES: Readonly<Record<string, KindFixture>> = {
         note: 'A US share',
         id: INSTRUMENT_A!,
       },
-      { name: 'Example Bond', class: 'bonds', symbol: 'EXB', currency: 'EUR', quoted: 'percent', coupon: '3', maturity: '2030-09-15', prices: 'manual', id: INSTRUMENT_B! },
+      { name: 'Example Bond', type: 'bond', class: 'bonds', symbol: 'EXB', currency: 'EUR', quoted: 'percent', coupon: '3', maturity: '2030-09-15', prices: 'manual', id: INSTRUMENT_B! },
     ],
     outside: { name: 'Example Fund', class: 'money-market', symbol: 'EMF', currency: 'EUR', quoted: 'unit', prices: 'manual', id: INSTRUMENT_C! },
     change: { field: 'name', value: 'Example Tech Inc' },

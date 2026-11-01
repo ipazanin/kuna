@@ -1,5 +1,5 @@
-import { INSTRUMENT_CLASSES, PRICE_SOURCES } from './instrument'
-import type { Instrument, Quoting } from './instrument'
+import { CLASS_OF_TYPE, INSTRUMENT_CLASSES, INSTRUMENT_TYPES, PRICE_SOURCES, TYPE_OF_QUOTING } from './instrument'
+import type { Instrument, InstrumentClass, InstrumentType, Quoting } from './instrument'
 import { decimalField, optionalCountry, optionalUnsigned, requiredCurrency } from './investmentFields'
 import { INSTRUMENT_RECORDS } from './investmentKinds'
 import { SECTORS } from './mixGroup'
@@ -55,12 +55,22 @@ function optionalSector(fields: StoredFields): Sector | null {
   return textOf(fields.sector) === '' ? null : requiredChoice(fields, 'sector', SECTORS, 'sector')
 }
 
+/** Blank until typed. A type that holds one class needs that class, and a bond quoted in percent or gold in grams needs its own type. */
+function optionalType(fields: StoredFields, instrumentClass: InstrumentClass, quoted: Quoting): InstrumentType | null {
+  const type = textOf(fields.type) === '' ? null : requiredChoice(fields, 'type', INSTRUMENT_TYPES, 'type')
+  if (type === null) return null
+  const held = CLASS_OF_TYPE[type]
+  if (held !== null && held !== instrumentClass) refuse(words.typeOfOtherClass(type, held))
+  if (quoted.kind !== 'unit' && TYPE_OF_QUOTING[quoted.kind] !== type) refuse(words.quotingOfOtherType(quoted.kind, TYPE_OF_QUOTING[quoted.kind]))
+  return type
+}
+
 export function instrumentOf(fields: StoredFields, id: RecordId | null): Instrument {
   const prices = requiredChoice(fields, 'prices', PRICE_SOURCES, 'price source')
   const sourceSymbol = textOf(fields.source_symbol)
   if (prices === 'manual' && sourceSymbol !== '') refuse(words.sourceSymbolByHand)
   if (prices !== 'manual' && sourceSymbol === '') refuse(storedWords.reasons.none('source_symbol', ''))
-  return {
+  const read = {
     id: ownId(id),
     name: requiredText(fields, 'name'),
     class: requiredChoice(fields, 'class', INSTRUMENT_CLASSES, 'class'),
@@ -77,6 +87,7 @@ export function instrumentOf(fields: StoredFields, id: RecordId | null): Instrum
     ter: optionalUnsigned(fields, 'ter'),
     note: textOf(fields.note),
   }
+  return { ...read, type: optionalType(fields, read.class, read.quoted) }
 }
 
 export const INSTRUMENT_CODEC: RecordCodec<Instrument> = withIdField(
@@ -86,6 +97,7 @@ export const INSTRUMENT_CODEC: RecordCodec<Instrument> = withIdField(
   (instrument) =>
     filledFields({
       name: instrument.name,
+      type: instrument.type,
       class: instrument.class,
       isin: instrument.isin,
       symbol: instrument.symbol,

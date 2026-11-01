@@ -1,4 +1,5 @@
 import type { HoldingGroup, HoldingsGrouping } from '../domain/holdingsList'
+import type { InstrumentType } from '../../workbook/domain/instrument'
 import type { Mix, Region, Sector } from '../../workbook/domain/mixGroup'
 import { language } from '../../../../shared/text/language'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
@@ -27,6 +28,7 @@ export const en = {
     gold: 'Gold',
     cash: 'Cash and currencies',
   } satisfies Record<HoldingGroup, string>,
+  types: { share: 'Share', fund: 'Fund or ETF', bond: 'Bond', gold: 'Physical gold', crypto: 'Crypto coin' } satisfies Record<InstrumentType, string>,
   sectors: {
     'information-technology': 'Information technology',
     financials: 'Financials',
@@ -133,6 +135,8 @@ export const en = {
     bought: (units: string, price: string, amount: string) => `Bought ${units} at ${price} · ${amount}`,
     sold: (units: string, price: string, amount: string) => `Sold ${units} at ${price} · ${amount}`,
     more: (count: number, units: string, amount: string) => `and ${count} more, ${units}, ${amount} in all`,
+    dot: (units: string, price: string, amount: string) => `${units} at ${price} · ${amount}`,
+    month: 'Month',
     emptyTitle: 'No close yet',
     emptyDescription: 'The chart starts with the first close.',
   },
@@ -151,7 +155,6 @@ export const en = {
     ofHoldings: 'of holdings',
     value: 'value',
     other: 'Other and not known',
-    goldAndCrypto: 'Gold and crypto',
     largest: (group: string, share: string) => `Largest: ${group}, ${share}`,
     part: (group: string, value: string, share: string) => `${group} ${value} (${share})`,
     description: (title: string, total: string, parts: string) => `${title}, ${total} in all: ${parts}.`,
@@ -218,6 +221,8 @@ export const en = {
     name: 'Name',
     symbol: 'Symbol',
     symbolHelp: 'As your broker shows it',
+    type: 'Type',
+    typeHelp: 'Only a share’s country is read from its ISIN',
     class: 'Class',
     classHelp: 'What it holds, so an equity ETF is stocks and a gold ETC is gold',
     isin: 'ISIN',
@@ -300,6 +305,7 @@ export const hr: Translation<typeof en> = {
     gold: 'Zlato',
     cash: 'Novac i valute',
   },
+  types: { share: 'Dionica', fund: 'Fond ili ETF', bond: 'Obveznica', gold: 'Fizičko zlato', crypto: 'Kriptovaluta' },
   sectors: {
     'information-technology': 'Informacijska tehnologija',
     financials: 'Financije',
@@ -407,6 +413,8 @@ export const hr: Translation<typeof en> = {
     bought: (units, price, amount) => `Kupljeno ${units} po ${price} · ${amount}`,
     sold: (units, price, amount) => `Prodano ${units} po ${price} · ${amount}`,
     more: (count, units, amount) => `i još ${count}, ${units}, ukupno ${amount}`,
+    dot: (units, price, amount) => `${units} po ${price} · ${amount}`,
+    month: 'Mjesec',
     emptyTitle: 'Još nema zaključne cijene',
     emptyDescription: 'Grafikon počinje s prvom zaključnom cijenom.',
   },
@@ -425,7 +433,6 @@ export const hr: Translation<typeof en> = {
     ofHoldings: 'u pozicijama',
     value: 'vrijednost',
     other: 'Ostalo i nepoznato',
-    goldAndCrypto: 'Zlato i kriptovalute',
     largest: (group, share) => `Najviše: ${group}, ${share}`,
     part: (group, value, share) => `${group} ${value} (${share})`,
     description: (title, total, parts) => `${title}, ukupno ${total}: ${parts}.`,
@@ -504,7 +511,9 @@ export const hr: Translation<typeof en> = {
     name: 'Naziv',
     symbol: 'Simbol',
     symbolHelp: 'Kako ga prikazuje vaš broker',
-    class: 'Vrsta',
+    type: 'Vrsta',
+    typeHelp: 'Država se iz ISIN-a čita samo za dionicu',
+    class: 'Klasa',
     classHelp: 'Što drži, pa je dionički ETF među dionicama, a zlatni ETC zlato',
     isin: 'ISIN',
     isinHelp: 'Nije obavezno, dvanaest slova i znamenki',

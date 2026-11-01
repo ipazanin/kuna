@@ -9,6 +9,29 @@ export const INSTRUMENT_CLASSES = ['stocks', 'bonds', 'money-market', 'crypto', 
 
 export type InstrumentClass = (typeof INSTRUMENT_CLASSES)[number]
 
+/**
+ * What an instrument is, as against what it holds: a company's share, a fund or an ETF of any class, a bond held
+ * directly, physical gold, or a crypto coin held directly.
+ */
+export const INSTRUMENT_TYPES = ['share', 'fund', 'bond', 'gold', 'crypto'] as const
+
+export type InstrumentType = (typeof INSTRUMENT_TYPES)[number]
+
+/** The class each type holds, or null for a fund, which may hold any. */
+export const CLASS_OF_TYPE: Readonly<Record<InstrumentType, InstrumentClass | null>> = {
+  share: 'stocks',
+  fund: null,
+  bond: 'bonds',
+  gold: 'gold',
+  crypto: 'crypto',
+}
+
+/** The type a quoting other than per unit belongs to: a bond quoted in percent, gold weighed in grams. */
+export const TYPE_OF_QUOTING: Readonly<Record<Exclude<Quoting['kind'], 'unit'>, InstrumentType>> = {
+  percent: 'bond',
+  gram: 'gold',
+}
+
 /** The price vendor its daily closes come from, by its id in the vendor registry. A manual instrument has only the prices entered by hand. */
 export const PRICE_SOURCES = ['twelvedata', 'alphavantage', 'manual'] as const
 
@@ -41,6 +64,8 @@ export type Quoting = UnitQuoting | PercentQuoting | GramQuoting
 export interface Instrument {
   readonly id: RecordId
   readonly name: string
+  /** Null until it is typed. Only a share's country may be read from its ISIN. */
+  readonly type: InstrumentType | null
   readonly class: InstrumentClass
   /** Unique when given. */
   readonly isin: string | null

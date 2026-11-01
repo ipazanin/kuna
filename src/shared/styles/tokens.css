@@ -111,6 +111,14 @@
   /* The brass of a loan's balance still to come. The accent fails as a chart colour, so this is its own step, validated with the loan aliases below. */
   --loan-ahead: #b7860f;
 
+  /*
+   * Gold and crypto on the class ring. No two more of the series pass beside the four class aliases below, so these are
+   * steps of their own, plum and periwinkle, validated with those four over every pair in both themes. The periwinkle
+   * sits close to the portfolio's blue, so crypto never shares a chart with --invest-portfolio.
+   */
+  --invest-gold: #7d376e;
+  --invest-crypto: #708df7;
+
   /* How late money owed is, one blue from not due yet to over 90 days. Validated as an ordinal ramp against the card surface. */
   --ageing-1: #88b1e8;
   --ageing-2: #5b91db;
@@ -187,6 +195,9 @@
 
   --loan-ahead: #be8a1a;
 
+  --invest-gold: #b40eae;
+  --invest-crypto: #3f55f7;
+
   /* On the dark card the ramp runs the other way, so the latest money is the brightest. */
   --ageing-1: #2c5288;
   --ageing-2: #3d6bad;
@@ -251,10 +262,9 @@
   --invest-reference: var(--chart-deemphasis);
 
   /*
-   * The four classes held most often, the same on every ring. No five or six of the series pass the palette check
-   * together in both themes, so gold and crypto share the grey part. These four pass and stay clear of --series-1 to
-   * --series-4, which an open list colours by, and of the portfolio's blue. Brass and dark green sit in the warning band,
-   * so every part carries its name in the legend.
+   * The classes, the same on every ring, with --invest-gold and --invest-crypto above. These four stay clear of
+   * --series-1 to --series-4, which an open list colours by, and of the portfolio's blue. Brass and dark green sit in
+   * the palette check's warning band, so every part carries its name in the legend.
    */
   --invest-stocks: var(--series-5);
   --invest-bonds: var(--series-7);

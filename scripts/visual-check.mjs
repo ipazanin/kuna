@@ -457,7 +457,7 @@ function fakePerformanceTabsShows() {
   const lastYear = portfolioPerformance(sources, compared, { kind: 'years', years: 1 }, valuedOn)
   const totals = (performance, format) => {
     const gains = periodGains(sources, performance, valuedOn)
-    return [formatMoney(gains.price, 'always', format), formatMoney(gains.currency, 'always', format)]
+    return [formatMoney(gains.start, 'negative', format), formatMoney(gains.end, 'negative', format), formatMoney(gains.price, 'always', format), formatMoney(gains.currency, 'always', format)]
   }
   return {
     months: formatPercentChange(monthlyReturns(everything.growth)[0].portfolio),
@@ -1907,7 +1907,7 @@ const SOURCE_SCREENS = [
     title: 'Performance',
     charts: 2,
     ready: '[data-testid="performance-currency"]',
-    shows: ['How the value changed', 'What drove the return', 'Currency effect', 'Put in or taken out', 'Gain', 'Trading fees of', 'Portfolio', ...SAMPLE_PERFORMANCE_TABS.sources],
+    shows: ['How the value changed', 'Start', 'End', 'What drove the return', 'Currency effect', 'Put in or taken out', 'Gain', 'Trading fees of', 'Portfolio', ...SAMPLE_PERFORMANCE_TABS.sources],
     cards: false,
   },
   {
@@ -1927,7 +1927,7 @@ const SOURCE_SCREENS = [
     title: 'Uspješnost',
     charts: 2,
     ready: '[data-testid="performance-currency"]',
-    shows: ['Kako se mijenjala vrijednost', 'Što je donijelo prinos', 'Učinak tečaja', 'Uloženo ili isplaćeno', 'Portfelj', ...SAMPLE_PERFORMANCE_TABS.sourcesCroatian],
+    shows: ['Kako se mijenjala vrijednost', 'Početak', 'Kraj', 'Što je donijelo prinos', 'Učinak tečaja', 'Uloženo ili isplaćeno', 'Portfelj', ...SAMPLE_PERFORMANCE_TABS.sourcesCroatian],
     cards: false,
   },
   {

@@ -35,9 +35,9 @@ import DrillLink from './DrillLink.vue'
 import { words } from './words'
 
 /**
- * One snapshot of at most five parts as a ring, with the total in its middle. The list beside it
- * gives each part's value and share and opens its rows, so it is also the table of the chart. The
- * `beside` slot sets another chart next to the ring, and the `aside` slot more content beside the list.
+ * One snapshot of at most five parts as a ring, or six for a fixed list with a colour per entry, with the total in
+ * its middle. The list beside it gives each part's value and share and opens its rows, so it is also the table of the
+ * chart. The `beside` slot sets another chart next to the ring, and the `aside` slot more content beside the list.
  */
 const props = withDefaults(
   defineProps<{

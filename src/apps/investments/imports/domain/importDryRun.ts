@@ -12,7 +12,7 @@ import type { Exchange } from '../../workbook/domain/exchange'
 import { EXCHANGE_CODEC } from '../../workbook/domain/exchangeReading'
 import type { Income } from '../../workbook/domain/income'
 import { INCOME_CODEC } from '../../workbook/domain/incomeReading'
-import type { Instrument, PriceSource } from '../../workbook/domain/instrument'
+import type { Instrument, InstrumentType, PriceSource } from '../../workbook/domain/instrument'
 import type { InvestmentAccount } from '../../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { CASH_MOVEMENT_RECORDS, EXCHANGE_RECORDS, INCOME_RECORDS, SPIN_OFF_RECORDS, SPLIT_RECORDS, TRADE_RECORDS, TRANSFER_RECORDS } from '../../workbook/domain/investmentKinds'
@@ -830,27 +830,28 @@ const NAMES_INSTRUMENT: ReadonlySet<WorkbookRow['type']> = new Set(['BUY', 'SELL
 
 function instrumentQuestions(entries: readonly DryRunEntry[], book: InvestmentBook, known: ReadonlyMap<string, RecordId>, identityOf: (row: WorkbookRow) => string): InstrumentQuestion[] {
   const rowsOf = new Map<string, WorkbookRow[]>()
-  entries
-    .flatMap((entry) => entry.rows)
-    .filter((row) => NAMES_INSTRUMENT.has(row.type))
-    .forEach((row) => rowsOf.set(identityOf(row), [...(rowsOf.get(identityOf(row)) ?? []), row]))
+  const named = entries.flatMap((entry) => entry.rows).filter((row) => NAMES_INSTRUMENT.has(row.type))
+  named.forEach((row) => rowsOf.set(identityOf(row), [...(rowsOf.get(identityOf(row)) ?? []), row]))
+  const spunOffFrom = new Set(named.filter((row) => row.type === 'SPINOFF' && row.spinOffFrom !== '').map((row) => fold(row.spinOffFrom)))
   return [...rowsOf].map(([identity, rows]) => {
     const isin = rows.find((row) => row.isin !== '')?.isin ?? null
     const symbols = rows.flatMap((row) => [row.yahooSymbol, row.brokerSymbol]).filter((symbol) => symbol !== '')
+    // Only a company spins off, and what it spins off is a company's share too. Nothing else in the workbook says what an instrument is.
+    const share = rows.some((row) => row.type === 'SPINOFF') || [isin ?? '', ...symbols].some((identifier) => identifier !== '' && spunOffFrom.has(fold(identifier)))
     const offer =
       book.instruments.find((instrument) => isin !== null && instrument.isin === isin) ??
       book.instruments.find((instrument) => (isin === null || instrument.isin === null) && symbols.some((symbol) => fold(symbol) === fold(instrument.symbol))) ??
       null
     const booked = [...new Set(rows.map((row) => row.yahooSymbol || row.brokerSymbol).filter((symbol) => symbol !== ''))]
-    return { identity, known: known.get(identity) ?? null, offer, proposal: proposedInstrument(rows, isin), symbols: booked, rows: rows.length }
+    return { identity, known: known.get(identity) ?? null, offer, proposal: proposedInstrument(rows, isin, share ? 'share' : null), symbols: booked, rows: rows.length }
   })
 }
 
 /**
- * A first guess Ivan corrects: stocks, named by its symbol, quoting in the currency of its trades, priced by Twelve Data
- * for a US symbol and by Alpha Vantage for Xetra and Amsterdam, by hand otherwise.
+ * A first guess Ivan corrects: stocks of the type the workbook shows, named by its symbol, quoting in the currency of
+ * its trades, priced by Twelve Data for a US symbol and by Alpha Vantage for Xetra and Amsterdam, by hand otherwise.
  */
-function proposedInstrument(rows: readonly WorkbookRow[], isin: string | null): Omit<Instrument, 'id'> {
+function proposedInstrument(rows: readonly WorkbookRow[], isin: string | null, type: InstrumentType | null): Omit<Instrument, 'id'> {
   const symbol = rows.find((row) => row.yahooSymbol !== '')?.yahooSymbol ?? rows.find((row) => row.brokerSymbol !== '')?.brokerSymbol ?? ''
   const traded = rows.find((row) => (row.type === 'BUY' || row.type === 'SELL') && row.currency !== null) ?? rows.find((row) => row.currency !== null)
   const [base = '', suffix = ''] = symbol.toUpperCase().split('.')
@@ -864,6 +865,7 @@ function proposedInstrument(rows: readonly WorkbookRow[], isin: string | null): 
           : { exchange: null, prices: 'manual', sourceSymbol: '' }
   return {
     name: symbol,
+    type,
     class: 'stocks',
     isin,
     symbol,

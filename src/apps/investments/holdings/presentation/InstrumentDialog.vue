@@ -118,7 +118,7 @@ async function remove(): Promise<void> {
 <template>
   <AppDialog v-model:open="open" :title="instrument !== null ? text.changeTitle : asBenchmark ? text.addBenchmarkTitle : text.addTitle" :description="text.description" width="2xl">
     <FormGrid id="instrument" as="form" data-testid="instrument-form" @submit.prevent="save">
-      <InstrumentFields v-model="texts" :errors="errors" :tried="tried" :book="book" />
+      <InstrumentFields v-model="texts" :errors="errors" :tried="tried" :book="book" :quoted="instrument?.quoted.kind ?? 'unit'" />
       <InstrumentMixRows v-model="mixTexts" :errors="mixErrors" :tried="tried" />
     </FormGrid>
     <template #start>

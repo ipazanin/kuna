@@ -79,6 +79,8 @@ export const investmentsApp: AppContribution = {
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
   startPath: INVESTMENTS_START_ROUTE,
   syncGroup: investmentsSyncGroup,
+  // Written inline so the production build folds it away with the gallery's chunk.
+  ...(import.meta.env.DEV || import.meta.env.VITE_FAKE_WORKBOOK === 'true' ? { gallery: async () => (await import('./gallery/InvestmentsGallery.vue')).default } : {}),
   asksGoogleOnOpen: () => loadWorkbookChoice(INVESTMENTS_APP)?.source === 'drive' && autoSyncOn.value,
   // The shell hands over only a find or a pick the Investments file asked Google for. The page's sync resumes a sync.
   // The prices of the file on screen come on screen with it, and a file kept in this browser fetches the day's prices once it is read.

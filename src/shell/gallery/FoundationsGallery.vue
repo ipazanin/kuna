@@ -100,14 +100,15 @@ const COLOUR_GROUPS: readonly { readonly title: string; readonly measure: Measur
     ],
   },
   {
-    title: 'Investments: the four classes held most often, with gold and crypto in the grey part',
+    title: 'Investments: the classes, each in its own colour on every ring',
     measure: 'none',
     swatches: [
       { name: 'Stocks', token: '--invest-stocks' },
       { name: 'Bonds', token: '--invest-bonds' },
       { name: 'Money market', token: '--invest-money-market' },
       { name: 'Cash', token: '--invest-cash' },
-      { name: 'Gold and crypto', token: '--chart-deemphasis' },
+      { name: 'Gold', token: '--invest-gold' },
+      { name: 'Crypto', token: '--invest-crypto' },
     ],
   },
   {

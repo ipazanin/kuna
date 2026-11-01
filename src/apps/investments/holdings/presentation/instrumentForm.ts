@@ -1,5 +1,6 @@
 import { words } from './words'
-import type { Instrument, InstrumentClass, PriceSource } from '../../workbook/domain/instrument'
+import { CLASS_OF_TYPE, INSTRUMENT_TYPES, TYPE_OF_QUOTING } from '../../workbook/domain/instrument'
+import type { Instrument, InstrumentClass, InstrumentType, PriceSource, Quoting } from '../../workbook/domain/instrument'
 import { ISIN, MIC } from '../../workbook/domain/instrumentReading'
 import { COUNTRY_CODES, REGIONS, SECTORS, countryOf } from '../../workbook/domain/mixGroup'
 import type { Sector } from '../../workbook/domain/mixGroup'
@@ -13,6 +14,9 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 export interface InstrumentTexts {
   name: string
   symbol: string
+  /** Blank for none. */
+  type: InstrumentType | ''
+  /** Read only when the type holds no one class, as a fund does. */
   class: InstrumentClass
   isin: string
   exchange: string
@@ -25,6 +29,17 @@ export interface InstrumentTexts {
   country: string
   ter: string
   note: string
+}
+
+/** Not set, then the types the quoting allows: only a bond is quoted in percent and only gold in grams. */
+export function typeItems(quoted: Quoting['kind']): { readonly value: InstrumentType | ''; readonly label: string }[] {
+  const allowed = quoted === 'unit' ? INSTRUMENT_TYPES : [TYPE_OF_QUOTING[quoted]]
+  return [{ value: '', label: words.instrumentDialog.notSet }, ...allowed.map((value) => ({ value, label: words.types[value] }))]
+}
+
+/** The class the type holds, or null when the class field says, for a fund or an instrument with no type. */
+export function classOfType(type: InstrumentType | ''): InstrumentClass | null {
+  return type === '' ? null : CLASS_OF_TYPE[type]
 }
 
 export const SECTOR_ITEMS: { readonly value: Sector; readonly label: string }[] = SECTORS.map((value) => ({ value, label: words.sectors[value] }))
@@ -49,6 +64,7 @@ export function instrumentTexts(instrument: Omit<Instrument, 'id'> | null): Inst
   return {
     name: instrument?.name ?? '',
     symbol: instrument?.symbol ?? '',
+    type: instrument?.type ?? '',
     class: instrument?.class ?? 'stocks',
     isin: instrument?.isin ?? '',
     exchange: instrument?.exchange ?? '',
@@ -92,7 +108,8 @@ export function instrumentOfTexts(texts: InstrumentTexts, others: readonly Instr
   return {
     id,
     name: texts.name.trim(),
-    class: texts.class,
+    type: texts.type === '' ? null : texts.type,
+    class: classOfType(texts.type) ?? texts.class,
     isin: texts.isin.trim() === '' ? null : texts.isin.trim().toUpperCase(),
     symbol,
     exchange: texts.exchange.trim() === '' ? null : texts.exchange.trim().toUpperCase(),

@@ -25,36 +25,31 @@ export interface MixDonut {
 const SHOWN = 4
 const OPEN_COLOURS = ['--series-1', '--series-2', '--series-3', '--series-4']
 const OTHER_COLOUR = '--chart-deemphasis'
-const CLASS_COLOURS: Partial<Record<ClassGroup, string>> = {
+const CLASS_COLOURS: Readonly<Record<ClassGroup, string>> = {
   stocks: '--invest-stocks',
   bonds: '--invest-bonds',
   'money-market': '--invest-money-market',
+  crypto: '--invest-crypto',
+  gold: '--invest-gold',
   cash: '--invest-cash',
 }
 
 /**
- * A mix as at most five parts of a ring. Class is a fixed list, so stocks, bonds, money market and cash keep their own
- * colours, and gold and crypto share the grey part. The others are open lists: the four largest groups take the series
- * colours by size, and the rest with what no source places yet is one grey part. Class and currency parts open
- * Holdings grouped that way, at the day `on` names, or today when it is null.
+ * A mix as the parts of a ring. Class is a fixed list, so every class keeps its own colour. The others are open lists:
+ * the four largest groups take the series colours by size, and the rest with what no source places yet is one grey
+ * part. Class and currency parts open Holdings grouped that way, at the day `on` names, or today when it is null.
  */
-export function mixDonut<Of extends Mix>(mix: HoldingMix<Of>, book: InvestmentBook, on: CivilDate | null): MixDonut {
+export function mixDonut<Of extends Mix>(mix: HoldingMix<Of>, book: Pick<InvestmentBook, 'accounts'>, on: CivilDate | null): MixDonut {
   const kind: Mix = mix.mix
   const opened = kind === 'class' || kind === 'currency' ? kind : null
   const to = opened === null ? null : { path: HOLDINGS_ROUTE, query: on === null ? { group: opened } : { group: opened, on } }
   const coloured =
-    kind === 'class'
-      ? mix.parts.flatMap((part) => {
-          const colour = CLASS_COLOURS[part.group as ClassGroup]
-          return colour === undefined ? [] : [{ part, colour }]
-        })
-      : mix.parts.slice(0, SHOWN).map((part, place) => ({ part, colour: OPEN_COLOURS[place]! }))
-  const folded = mix.parts.filter((part) => !coloured.some((shown) => shown.part === part))
+    kind === 'class' ? mix.parts.map((part) => ({ part, colour: CLASS_COLOURS[part.group as ClassGroup] })) : mix.parts.slice(0, SHOWN).map((part, place) => ({ part, colour: OPEN_COLOURS[place]! }))
+  const folded = mix.parts.slice(coloured.length)
   const rest = sumMoney([mix.unknown, ...folded.map((part) => part.value)])
-  const restLabel = kind !== 'class' ? words.mixes.other : folded.length === 1 ? groupName(kind, folded[0]!.group, book) : words.mixes.goldAndCrypto
   const parts: DonutPart[] = [
     ...coloured.map(({ part, colour }) => ({ key: part.group, label: groupName(kind, part.group, book), value: part.value, colour, to })),
-    ...(rest === ZERO ? [] : [{ key: 'other', label: restLabel, value: rest, colour: OTHER_COLOUR, to }]),
+    ...(rest === ZERO ? [] : [{ key: 'other', label: words.mixes.other, value: rest, colour: OTHER_COLOUR, to }]),
   ]
   const title = words.mixes.titles[kind]
   const total = formatMoney(mix.whole)
@@ -74,7 +69,7 @@ function shareOf(value: number, whole: number): string {
 }
 
 /** A group as the screen names it: a class, a sector or a region in words, a country by its name, an account by its own and a currency by its code. */
-function groupName(mix: Mix, group: string, book: InvestmentBook): string {
+function groupName(mix: Mix, group: string, book: Pick<InvestmentBook, 'accounts'>): string {
   switch (mix) {
     case 'class':
       return words.classes[group as ClassGroup]

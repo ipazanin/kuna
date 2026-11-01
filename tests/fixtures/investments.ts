@@ -52,6 +52,7 @@ export function instrument(key: string, overrides: Partial<Instrument> = {}): In
   return {
     id: recordIdOf(INSTRUMENT_RECORDS, key),
     name: key,
+    type: null,
     class: 'stocks',
     isin: null,
     symbol: key.toUpperCase(),

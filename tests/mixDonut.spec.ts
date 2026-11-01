@@ -50,7 +50,7 @@ describe('a mix as the parts of a ring', () => {
     expect(donut.parts[4]!.label).toBe(words.mixes.other)
   })
 
-  it('keeps the class colours whatever their size, and puts gold and crypto in the grey part', () => {
+  it('gives every class its own colour whatever its size, gold and crypto too, in order of size', () => {
     const classes = mixOf('class', [
       ['gold', 5000],
       ['stocks', 4000],
@@ -62,29 +62,13 @@ describe('a mix as the parts of a ring', () => {
     const donut = mixDonut(classes, book({}), null)
     const grouped = { ...HOLDINGS, query: { group: 'class' } }
 
-    expect(donut.parts.map((part) => [part.key, part.value, part.colour, part.to])).toEqual([
-      ['stocks', euros(4000), '--invest-stocks', grouped],
-      ['cash', euros(2000), '--invest-cash', grouped],
-      ['money-market', euros(1000), '--invest-money-market', grouped],
-      ['bonds', euros(500), '--invest-bonds', grouped],
-      ['other', euros(8000), '--chart-deemphasis', grouped],
-    ])
-    expect(donut.parts[4]!.label).toBe(words.mixes.goldAndCrypto)
-  })
-
-  it('names the grey part of the class ring by its class when only one of gold and crypto is held', () => {
-    const donut = mixDonut(
-      mixOf('class', [
-        ['stocks', 4000],
-        ['gold', 1000],
-      ]),
-      book({}),
-      null,
-    )
-
-    expect(donut.parts.map((part) => [part.label, part.colour])).toEqual([
-      [words.classes.stocks, '--invest-stocks'],
-      [words.classes.gold, '--chart-deemphasis'],
+    expect(donut.parts.map((part) => [part.key, part.label, part.value, part.colour, part.to])).toEqual([
+      ['gold', words.classes.gold, euros(5000), '--invest-gold', grouped],
+      ['stocks', words.classes.stocks, euros(4000), '--invest-stocks', grouped],
+      ['crypto', words.classes.crypto, euros(3000), '--invest-crypto', grouped],
+      ['cash', words.classes.cash, euros(2000), '--invest-cash', grouped],
+      ['money-market', words.classes['money-market'], euros(1000), '--invest-money-market', grouped],
+      ['bonds', words.classes.bonds, euros(500), '--invest-bonds', grouped],
     ])
   })
 

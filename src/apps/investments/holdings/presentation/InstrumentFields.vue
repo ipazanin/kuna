@@ -5,11 +5,12 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import CurrencyField from './CurrencyField.vue'
-import { COUNTRY_ITEMS, SECTOR_ITEMS } from './instrumentForm'
+import { COUNTRY_ITEMS, SECTOR_ITEMS, classOfType, typeItems } from './instrumentForm'
 import type { InstrumentErrors, InstrumentTexts } from './instrumentForm'
 import { words } from './words'
 import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
 import { INSTRUMENT_CLASSES, PRICE_SOURCES } from '../../workbook/domain/instrument'
+import type { Quoting } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 
 /** A holding's facts and the source of its daily closes, as fields inside a FormGrid. */
@@ -21,10 +22,12 @@ const props = withDefaults(
     /** Whether a save was tried, after which each field shows what it lacks. */
     tried: boolean
     book: InvestmentBook
+    /** How the instrument is quoted, which the fields do not change and which limits its type. */
+    quoted?: Quoting['kind']
     /** Starts every field's test id, such as `instrument-name`. */
     testId?: string
   }>(),
-  { testId: 'instrument' },
+  { quoted: 'unit', testId: 'instrument' },
 )
 
 const text = words.instrumentDialog
@@ -53,7 +56,18 @@ function update<Field extends keyof InstrumentTexts>(field: Field, value: Instru
   <UFormField :label="text.symbol" :help="text.symbolHelp" :error="shown(errors.symbol)">
     <UInput :model-value="texts.symbol" autocapitalize="characters" :spellcheck="false" class="w-full" :data-testid="`${testId}-symbol`" @update:model-value="update('symbol', String($event))" />
   </UFormField>
-  <UFormField :label="text.class" :help="text.classHelp">
+  <UFormField :label="text.type" :help="text.typeHelp">
+    <USelectMenu
+      :model-value="texts.type"
+      :items="typeItems(quoted)"
+      value-key="value"
+      :search-input="false"
+      class="w-full"
+      :data-testid="`${testId}-type`"
+      @update:model-value="update('type', $event)"
+    />
+  </UFormField>
+  <UFormField v-if="classOfType(texts.type) === null" :label="text.class" :help="text.classHelp">
     <USelect :model-value="texts.class" :items="CLASS_ITEMS" class="w-full" :data-testid="`${testId}-class`" @update:model-value="update('class', $event)" />
   </UFormField>
   <UFormField :label="text.isin" :help="text.isinHelp" :error="shown(errors.isin)">

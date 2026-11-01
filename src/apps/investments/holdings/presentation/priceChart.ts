@@ -16,17 +16,25 @@ import { DECIMAL_ZERO, decimalOfNumber, decimalText, sumDecimal } from '../../..
 import type { Decimal } from '../../../../shared/money/decimal'
 import { ZERO, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
-import { formatMoney, formatQuantity, formatUnitPrice } from '../../../../shared/money/moneyFormat'
+import { formatCurrencyAmount, formatMoney, formatQuantity, formatUnitPrice } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
+
+/** A month of the table view: its close, and its buys and its sales as their dots' units at their price and amount. */
+export interface PriceRow {
+  readonly month: string
+  readonly close: string
+  readonly bought: string | null
+  readonly sold: string | null
+}
 
 export interface PriceChart {
   readonly option: ChartOption
   readonly description: string
-  /** How the table view and the axis write a close, in the quote currency. */
-  readonly formatPrice: (price: number) => string
   /** The line, the average cost and the sides of the trades the chart draws. */
   readonly legend: readonly LegendEntry[]
+  /** The table view, month by month, with a column for each side the chart draws. */
+  readonly table: { readonly buys: boolean; readonly sales: boolean; readonly rows: readonly PriceRow[] }
 }
 
 /** As many places as a unit price shows, so a chart value written back is the close it came from. */
@@ -44,7 +52,7 @@ const TRADES_NAMED = 3
  * as a filled dot and its sales as a ring, at the price they came to and sized by their amount. A canvas takes plain
  * numbers, so the decimals become numbers here and only for drawing.
  */
-export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 'instrument' | 'averageCost' | 'valuation'>, tokens: ChartTokens, phone: boolean): PriceChart {
+export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 'instrument' | 'averageCost'>, tokens: ChartTokens, phone: boolean): PriceChart {
   const { averageCost } = holding
   const { currency } = holding.instrument
   const months = history.points.map((point) => monthOf(point.date))
@@ -91,6 +99,13 @@ export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 
   const trades = history.dots.reduce((count, dot) => count + dot.marks.length, 0)
   const first = history.points[0]
   const last = history.points.at(-1)
+  // A dot of one trade shows its price as the tooltip does, and a dot of several the average they came to, to the cent as a cost.
+  const dotCell = (month: string, side: TradeSide): string | null => {
+    const dot = history.dots.find((candidate) => candidate.month === month && candidate.side === side)
+    if (dot === undefined) return null
+    const price = dot.marks.length === 1 ? formatUnitPrice(dot.price, currency) : formatCurrencyAmount(dot.price, currency)
+    return words.chart.dot(unitsText(dot.units), price, formatMoney(dot.amount))
+  }
   return {
     option: {
       grid: { top: 24, right: 16 },
@@ -117,13 +132,22 @@ export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 
         : words.chart.description(dayLabel(first.date), dayLabel(last.date), formatUnitPrice(first.price, currency), formatUnitPrice(last.price, currency)) +
           (averageText === null ? '' : words.chart.averageCostLine(averageText)) +
           (trades === 0 ? '' : `${plural(words.chart.trades(trades), trades)} ${words.chart.dotSize}`),
-    formatPrice,
     legend: [
       { label: words.chart.price, colour: 'var(--invest-portfolio)', mark: 'line' },
       ...(averageText === null ? [] : [{ label: words.chart.averageCost(averageText), colour: 'var(--invest-reference)', mark: 'dashed' as const }]),
       ...(sides.has('buy') ? [{ label: words.chart.buy, colour: 'var(--invest-buy)', mark: 'dot' as const }] : []),
       ...(sides.has('sell') ? [{ label: words.chart.sale, colour: 'var(--invest-sale)', mark: 'ring' as const }] : []),
     ],
+    table: {
+      buys: sides.has('buy'),
+      sales: sides.has('sell'),
+      rows: history.points.map((point, place) => ({
+        month: monthAxisLabel('long')(months[place]!),
+        close: formatUnitPrice(point.price, currency),
+        bought: dotCell(months[place]!, 'buy'),
+        sold: dotCell(months[place]!, 'sell'),
+      })),
+    },
   }
 }
 

@@ -202,6 +202,38 @@ describe('the Investments file', () => {
     ])
   })
 
+  it('reads an instrument’s type, blank as not typed, and refuses one that holds another class or another quoting', () => {
+    const GOLD_BAR = { id: 'g1', name: 'Example Gold Bar', class: 'gold', symbol: 'XAU', currency: 'EUR', quoted: 'gram', prices: 'manual' }
+    const books = booksOf({
+      instrument: [{ ...DOLLAR_SHARE, type: 'Share' }, { ...EURO_FUND, type: 'fund' }, { ...EURO_BOND, type: 'bond' }, { ...GOLD_BAR, type: 'gold' }, SPUN_OFF],
+    })
+
+    expect(books.problems).toEqual([])
+    expect(books.book.instruments.map((instrument) => [instrument.name, instrument.type])).toEqual([
+      ['Example Tech', 'share'],
+      ['Example Fund', 'fund'],
+      ['Example Bond', 'bond'],
+      ['Example Gold Bar', 'gold'],
+      ['Example Spinco', null],
+    ])
+    expect(roundTrip(INSTRUMENT_RECORDS, { ...DOLLAR_SHARE, type: 'share' })).toMatchObject({ type: 'share' })
+    expect(
+      problemsOf({
+        instrument: [
+          { ...DOLLAR_SHARE, id: 'n1', type: 'etf' },
+          { ...EURO_FUND, id: 'n2', type: 'share' },
+          { ...EURO_BOND, id: 'n3', type: 'fund' },
+          { ...GOLD_BAR, id: 'n4', type: 'fund' },
+        ],
+      }),
+    ).toEqual([
+      ['instrument', 'Example Tech, ABC', '"etf" is not a type. Use share, fund, bond, gold, crypto'],
+      ['instrument', 'Example Fund, EMF', 'type share holds class stocks only'],
+      ['instrument', 'Example Bond, EXB', 'quoted percent belongs to type bond only'],
+      ['instrument', 'Example Gold Bar, XAU', 'quoted gram belongs to type gold only'],
+    ])
+  })
+
   it('keeps a fund’s mix only while its lines add up to 100% with each group once, by sector and by country apart', () => {
     const line = { instrument: FUND, mix: 'sector', group: 'energy', percent: '50' }
     expect(

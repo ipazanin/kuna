@@ -3,12 +3,12 @@ import { computed } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import type { TradePreview } from '../domain/tradePreview'
-import { QUANTITY_PLACES, WORKED_OUT_PRICE_PLACES } from '../../holdings/presentation/holdingText'
+import { QUANTITY_PLACES } from '../../holdings/presentation/holdingText'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { Trade } from '../../workbook/domain/trade'
 import { words } from './words'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { formatCurrencyAmount, formatMoney, formatQuantity, formatUnitPrice } from '../../../../shared/money/moneyFormat'
+import { formatCurrencyAmount, formatMoney, formatQuantity } from '../../../../shared/money/moneyFormat'
 import FactGrid from '../../../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../../../shared/ui/FactGrid.vue'
 
@@ -25,7 +25,7 @@ const facts = computed((): Fact[] => {
   const { currency } = instrument
   const foreign = props.trade.rate !== null
   const total = formatCurrencyAmount(preview.total, currency)
-  const averageCost = (price: TradePreview['averageCostAfter']): string => (price === null ? '' : formatUnitPrice(price, currency, WORKED_OUT_PRICE_PLACES))
+  const averageCost = (price: TradePreview['averageCostAfter']): string => (price === null ? '' : formatCurrencyAmount(price, currency))
   const before = averageCost(preview.averageCostBefore)
   const after = averageCost(preview.averageCostAfter)
   return [

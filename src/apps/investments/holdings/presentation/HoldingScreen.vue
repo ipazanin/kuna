@@ -92,7 +92,6 @@ const description = computed(() => {
         :subtitle="chartSubtitle"
         :option="chart.option"
         :description="chart.description"
-        :format-value="chart.formatPrice"
         :empty="history.points.length === 0"
         :empty-title="words.chart.emptyTitle"
         :empty-description="words.chart.emptyDescription"
@@ -102,6 +101,31 @@ const description = computed(() => {
       >
         <template #legend>
           <ChartLegend :entries="chart.legend" />
+        </template>
+        <template #table>
+          <caption class="sr-only">
+            {{
+              words.chart.title
+            }}
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col" class="text-start">
+                <span class="sr-only">{{ words.chart.month }}</span>
+              </th>
+              <th scope="col" class="text-end">{{ words.chart.price }}</th>
+              <th v-if="chart.table.buys" scope="col" class="text-end">{{ words.chart.buy }}</th>
+              <th v-if="chart.table.sales" scope="col" class="text-end">{{ words.chart.sale }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in chart.table.rows" :key="row.month">
+              <th scope="row" class="text-start font-normal text-toned">{{ row.month }}</th>
+              <td class="figure text-end">{{ row.close }}</td>
+              <td v-if="chart.table.buys" class="figure text-end" :class="{ 'text-muted': row.bought === null }">{{ row.bought ?? '–' }}</td>
+              <td v-if="chart.table.sales" class="figure text-end" :class="{ 'text-muted': row.sold === null }">{{ row.sold ?? '–' }}</td>
+            </tr>
+          </tbody>
         </template>
       </ChartCard>
       <DashboardGrid data-testid="holding-cards">

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { INSTRUMENT_WRITES, INVESTMENT_ACCOUNT_WRITES } from '../src/apps/investments/holdings/application/holdingWrites'
 import { FUND_MIX_WRITES, TARGET_WRITES, replaceRows } from '../src/apps/investments/holdings/application/mixWrites'
-import { instrumentErrors, instrumentOfTexts, instrumentTexts } from '../src/apps/investments/holdings/presentation/instrumentForm'
+import { instrumentErrors, instrumentOfTexts, instrumentTexts, typeItems } from '../src/apps/investments/holdings/presentation/instrumentForm'
 import { fundMixChanges, fundMixErrors, fundMixTexts, mixLineTexts, mixSum } from '../src/apps/investments/holdings/presentation/instrumentMixForm'
 import { writeCheck } from '../src/apps/investments/overview/application/checkWrites'
 import { writeTransaction } from '../src/apps/investments/transactions/application/transactionWrites'
@@ -442,6 +442,19 @@ describe('the instrument form', () => {
     })
     expect(instrumentErrors({ ...typed, ter: 'low' }, []).ter).toBe('A yearly cost in percent such as 0.20, or blank')
     expect(instrumentTexts({ ...SHARE, sector: 'energy', country: countryOf('US'), ter: decimal('0.07') })).toMatchObject({ sector: 'energy', country: 'US', ter: '0.07' })
+  })
+
+  it('takes the class from a type that holds one, keeps the class field for a fund, and offers a percent bond or gold in grams its one type', () => {
+    const typed = { ...instrumentTexts(null), name: 'Example Coin', symbol: 'XCN', class: 'stocks' as const }
+    const unit = { quoted: { kind: 'unit' }, benchmark: false } as const
+
+    expect(instrumentOfTexts({ ...typed, type: 'crypto' }, [], recordIdOf(INSTRUMENT_RECORDS, 'new'), unit)).toMatchObject({ type: 'crypto', class: 'crypto' })
+    expect(instrumentOfTexts({ ...typed, type: 'fund', class: 'gold' }, [], recordIdOf(INSTRUMENT_RECORDS, 'new'), unit)).toMatchObject({ type: 'fund', class: 'gold' })
+    expect(instrumentOfTexts(typed, [], recordIdOf(INSTRUMENT_RECORDS, 'new'), unit)).toMatchObject({ type: null, class: 'stocks' })
+    expect(instrumentTexts({ ...SHARE, type: 'share' }).type).toBe('share')
+    expect(typeItems('unit').map((item) => item.value)).toEqual(['', 'share', 'fund', 'bond', 'gold', 'crypto'])
+    expect(typeItems('percent').map((item) => item.value)).toEqual(['', 'bond'])
+    expect(typeItems('gram').map((item) => item.value)).toEqual(['', 'gold'])
   })
 
   it('says what a fund’s mix lacks: a group, a group on one line only, a percent above 0 and at most 100, and lines that add up to 100%', () => {

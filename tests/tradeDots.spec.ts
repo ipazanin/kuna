@@ -104,7 +104,7 @@ describe("a holding's trade dots", () => {
     )
   })
 
-  it("writes gold's average cost with the places of its close per gram, which comes from dividing the close per ounce", () => {
+  it("writes gold's average cost to the cent, though its close per gram, from dividing the close per ounce, runs to six places", () => {
     const goldBar = instrument('gold-bar', { name: 'Example gold bar', class: 'gold', quoted: { kind: 'gram' }, prices: 'manual', sourceSymbol: '' })
     const goldRecords = book({
       accounts: [BROKER],
@@ -115,9 +115,9 @@ describe("a holding's trade dots", () => {
     const goldSources = { ...sources, book: goldRecords, prices: priceBookOf(new Map([[goldBar, [['2026-03-02', '2650.00']]]])), today: civil('2026-03-31') }
     const goldHolding = portfolioFigures(goldSources).holdings.find((figures) => figures.instrument.id === goldBar.id)!
 
-    // 2,650.00 ÷ 31.1034768 grams is €85.199... a gram, so the average of (247.20 + 1.00) ÷ 3 = €82.7333... shows six places too.
+    // 2,650.00 ÷ 31.1034768 grams is €85.199... a gram, and the average of (247.20 + 1.00) ÷ 3 = €82.7333... shows as €82.73.
     expect(decimalText(goldHolding.valuation!.price).split('.')[1]!.length).toBeGreaterThanOrEqual(6)
-    expect(averageCostText(goldHolding)).toBe('€82.733333')
+    expect(averageCostText(goldHolding)).toBe('€82.73')
     expect(averageCostText({ ...goldHolding, averageCost: decimal('82.5') })).toBe('€82.50')
   })
 
@@ -156,10 +156,24 @@ describe("a holding's trade dots", () => {
     expect(chart.legend.map((entry) => [entry.label, entry.colour, entry.mark])).toEqual([
       ['Price', 'var(--invest-portfolio)', 'line'],
       // The sale closes the first buy and half a unit of the second, so 9.5 units cost 780.75 + 516.00 + 2,073.00 + 1,549.00 = €4,918.75 with
-      // their fees, €517.763157… a unit, shown to the cents as the closes are.
+      // their fees, €517.763157… a unit, shown to the cent as every cost is.
       ['Average cost €517.76', 'var(--invest-reference)', 'dashed'],
       ['Buy', 'var(--invest-buy)', 'dot'],
       ['Sale', 'var(--invest-sale)', 'ring'],
     ])
+  })
+
+  it("gives the table each month's close and each dot's units at its price with its amount, as the tooltip does", () => {
+    const chart = priceChart(history, holding, TOKENS, false)
+
+    // The March dot's 13 units came to €6,728.10, €517.546… a unit shown to the cent, and the April sale is one trade at its own price.
+    expect(chart.table).toEqual({
+      buys: true,
+      sales: true,
+      rows: [
+        { month: 'Mar 2026', close: '€519.40', bought: '13 units at €517.55 · €6,728.10', sold: null },
+        { month: 'Apr 2026', close: '€481.25', bought: null, sold: '3.5 units at €480.58 · €1,682.03' },
+      ],
+    })
   })
 })

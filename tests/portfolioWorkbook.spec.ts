@@ -357,6 +357,7 @@ describe('the first dry run, before any answer', () => {
     const [abc, , xyz] = dryRun.questions.instruments
     expect(abc!.proposal).toEqual({
       name: 'ABC',
+      type: null,
       class: 'stocks',
       isin: 'US0000000001',
       symbol: 'ABC',

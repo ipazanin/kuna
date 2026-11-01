@@ -28,6 +28,9 @@ export interface BridgeWording<Target> {
   readonly description: (bars: readonly BridgeBar<Target>[]) => string
 }
 
+/** A bar of a bridge that starts from a value written beside it, which has no totals. */
+export type StepBar<Target> = BridgeBar<Target> & { readonly kind: Exclude<BridgeBar<Target>['kind'], 'total'> }
+
 export interface BridgeChart<Target> {
   readonly option: ChartOption
   readonly description: string
@@ -39,10 +42,18 @@ export interface BridgeChart<Target> {
 /**
  * A waterfall laid on its side, one row per bar so the labels read in full. The bars stack on a transparent base with
  * every sign added in order, so a step that crosses zero still spans exactly its own amount. The legend's names are
- * colours of the one series, not series of their own.
+ * colours of the one series, not series of their own. A total takes the secondary ink.
  */
-export function bridgeChart<Target>(bars: readonly BridgeBar<Target>[], tokens: ChartTokens, wording: BridgeWording<Target>): BridgeChart<Target> {
-  let running = 0
+export function bridgeChart<Target>(bars: readonly BridgeBar<Target>[], tokens: ChartTokens, wording: BridgeWording<Target>): BridgeChart<Target>
+/** Steps alone, the first starting at `from`, on a value axis that fits the bars rather than reaching to zero, for a bridge whose start and end are written beside it. */
+export function bridgeChart<Target>(bars: readonly StepBar<Target>[], tokens: ChartTokens, wording: Omit<BridgeWording<Target>, 'total'>, from: number): BridgeChart<Target>
+export function bridgeChart<Target>(
+  bars: readonly BridgeBar<Target>[],
+  tokens: ChartTokens,
+  wording: Omit<BridgeWording<Target>, 'total'> & { readonly total?: string },
+  from: number | null = null,
+): BridgeChart<Target> {
+  let running = from ?? 0
   const placed = bars.map((bar) => {
     const start = bar.kind === 'total' ? 0 : running
     running = bar.kind === 'total' ? bar.amount : running + bar.amount
@@ -52,7 +63,7 @@ export function bridgeChart<Target>(bars: readonly BridgeBar<Target>[], tokens: 
   const legendGroupOf = (bar: BridgeBar<Target>): string => {
     switch (bar.kind) {
       case 'total':
-        return wording.total
+        return wording.total ?? ''
       case 'residual':
         return wording.residual
       case 'transfer':
@@ -64,7 +75,7 @@ export function bridgeChart<Target>(bars: readonly BridgeBar<Target>[], tokens: 
   const colours: Readonly<Record<string, string>> = {
     [wording.raises]: tokens.positive,
     [wording.lowers]: tokens.negative,
-    [wording.total]: tokens.inkSecondary,
+    ...(wording.total === undefined ? {} : { [wording.total]: tokens.inkSecondary }),
     ...(transfer === null ? {} : { [transfer.label]: transfer.colour }),
     [wording.residual]: tokens.deemphasis,
   }
@@ -97,7 +108,7 @@ export function bridgeChart<Target>(bars: readonly BridgeBar<Target>[], tokens: 
         // The transparent base has no name and stays out of the tooltip.
         formatter: (points: unknown) => tooltip((Array.isArray(points) ? points : [points]).filter((point) => (point as { seriesName?: string }).seriesName === wording.amount)),
       },
-      xAxis: { type: 'value', axisLabel: { ...moneyAxisLabel(tokens), hideOverlap: true } },
+      xAxis: { type: 'value', ...(from === null ? {} : { scale: true }), axisLabel: { ...moneyAxisLabel(tokens), hideOverlap: true } },
       yAxis: { type: 'category', inverse: true, data: bars.map((bar) => bar.label), axisLabel: { color: tokens.inkSecondary } },
       series: [base, shown],
     },

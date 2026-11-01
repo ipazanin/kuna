@@ -62,7 +62,7 @@ function toggle(identity: string): void {
 
 function guessOf(texts: InstrumentTexts): string {
   const source = PRICE_VENDORS.find((vendor) => vendor.id === texts.prices)?.name ?? holdingWords.instrumentDialog.manual
-  return words.instruments.guess(texts.name, holdingWords.classes[texts.class].toLowerCase(), texts.currency, source)
+  return words.instruments.guess(texts.name, texts.type === '' ? holdingWords.classes[texts.class] : holdingWords.types[texts.type], texts.currency, source)
 }
 
 function opened(step: InstrumentStep): boolean {
