@@ -3,12 +3,20 @@ import type { Instrument } from '../../workbook/domain/instrument'
 import { words } from './words'
 import { usePrices } from '../../prices/presentation/usePrices'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import { formatUnitPrice, formatUnitPriceLike } from '../../../../shared/money/moneyFormat'
 
 /** As many places as a broker books a fractional unit with. */
 export const QUANTITY_PLACES = 6
 
 /** Places of a price worked out by dividing, such as an average cost, where six would only show the division's tail. */
 export const WORKED_OUT_PRICE_PLACES = 4
+
+/** The average cost with the places the latest close shows with, so the two read alike. With no close yet it keeps the places of a price worked out by dividing. */
+export function averageCostText(holding: Pick<HoldingFigures, 'instrument' | 'averageCost' | 'valuation'>): string | null {
+  const { instrument, averageCost, valuation } = holding
+  if (averageCost === null) return null
+  return valuation === null ? formatUnitPrice(averageCost, instrument.currency, WORKED_OUT_PRICE_PLACES) : formatUnitPriceLike(averageCost, valuation.price, instrument.currency)
+}
 
 /** The symbol, the exchange and the quote currency, such as "ABC · XNAS · USD". */
 export function listingLine(instrument: Instrument): string {

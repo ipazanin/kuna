@@ -28,7 +28,7 @@
  * the Investments first run, its empty Overview and its Settings on an empty file (`?investments=drive`) and its Overview while its file opens (`?investments=opening`), each in Croatian too,
  * the Investments Overview on the sample (`?investments=sample`), on the sample without a deposit so an account's cash is below zero (`?investments=cash-below-zero`) and with late prices whose last
  * fetch failed (`?prices=late-prices`), each in Croatian too and with its figures worked out from the same fake sets, the home with the Investments card's figures and its late-prices badge,
- * the sample's Holdings, also with a late close, and two holdings' pages, one in US dollars with a lot partly sold and one from a spin-off that split, each in Croatian too,
+ * the sample's Holdings, also with a late close, and two holdings' pages, one in US dollars with a lot partly sold and its trades as dots sized by amount, and one from a spin-off that split, each in Croatian too,
  * the sample's Performance over everything against its benchmark, a portfolio too young for a rate a year with no benchmark chosen (`?investments=young`) and the sample whose
  * benchmark has no closes (`?prices=no-benchmark`), each in Croatian too,
  * the sample's Transactions, in Croatian too, and Transactions on an empty file, the import of the made-up portfolio workbook
@@ -137,7 +137,7 @@ import { holdingReturn } from '../src/apps/investments/holdings/domain/holding.t
 import { holdingsList } from '../src/apps/investments/holdings/domain/holdingsList.ts'
 import { latestRecords } from '../src/apps/investments/holdings/domain/latestRecords.ts'
 import { figuresClose, portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures.ts'
-import { WORKED_OUT_PRICE_PLACES } from '../src/apps/investments/holdings/presentation/holdingText.ts'
+import { averageCostText } from '../src/apps/investments/holdings/presentation/holdingText.ts'
 import { gainSources, incomeAgainstLastYear } from '../src/apps/investments/overview/domain/overviewFigures.ts'
 import { benchmarkState, comparedBenchmark } from '../src/apps/investments/performance/domain/benchmark.ts'
 import { portfolioPerformance } from '../src/apps/investments/performance/domain/portfolioPerformance.ts'
@@ -147,7 +147,7 @@ import { fakePricesFile } from '../src/apps/investments/prices/infrastructure/fa
 import { fakeInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/fake/fakeInvestments.ts'
 import { INVESTMENTS_DOCUMENT } from '../src/apps/investments/workbook/infrastructure/investmentsDocument.ts'
 import { dayLabel, shortDayLabel, weekdayDayLabel } from '../src/shared/calendar/dayLabel.ts'
-import { formatMoney, formatPercent, formatPercentChange, formatUnitPrice } from '../src/shared/money/moneyFormat.ts'
+import { formatMoney, formatPercent, formatPercentChange } from '../src/shared/money/moneyFormat.ts'
 import { installHrDooPack } from './support/installPack.mjs'
 import { chromePath, ENGLISH_CHROME_ARG } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
@@ -394,7 +394,7 @@ function fakeHoldingShows(key) {
   const returns = holdingReturn(holding)
   return {
     name: holding.instrument.name,
-    english: [formatMoney(holding.valuation.value), formatMoney(returns.total, 'always'), formatUnitPrice(holding.averageCost, holding.instrument.currency, WORKED_OUT_PRICE_PLACES)],
+    english: [formatMoney(holding.valuation.value), formatMoney(returns.total, 'always'), averageCostText(holding)],
     croatian: [formatMoney(holding.valuation.value, 'negative', CROATIAN_MONEY), formatMoney(returns.total, 'always', CROATIAN_MONEY)],
   }
 }
@@ -1664,6 +1664,9 @@ const SOURCE_SCREENS = [
       'Lots still held',
       'Transactions',
       'Sell',
+      'Buy',
+      'Sale',
+      'Dot size is the amount.',
       ...SAMPLE_SHARE_A_PAGE.english,
     ],
     cards: false,
@@ -1674,7 +1677,20 @@ const SOURCE_SCREENS = [
     hash: `#/investments/holding?instrument=${SAMPLE_SHARE_A}`,
     title: SAMPLE_SHARE_A_PAGE.name,
     charts: 1,
-    shows: ['kotira u USD', 'Ukupni prinos', 'Tečaj', 'Ostvareno prodajom', 'Prosječna nabavna cijena', 'Bez poreza', 'Kupnje koje još držite', 'Transakcije', ...SAMPLE_SHARE_A_PAGE.croatian],
+    shows: [
+      'kotira u USD',
+      'Ukupni prinos',
+      'Tečaj',
+      'Ostvareno prodajom',
+      'Prosječna nabavna cijena',
+      'Bez poreza',
+      'Kupnje koje još držite',
+      'Transakcije',
+      'Kupnja',
+      'Prodaja',
+      'Veličina točke je iznos.',
+      ...SAMPLE_SHARE_A_PAGE.croatian,
+    ],
     cards: false,
   },
   {

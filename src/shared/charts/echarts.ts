@@ -1,7 +1,7 @@
 import { use } from 'echarts/core'
 import type { ComposeOption } from 'echarts/core'
-import { BarChart, LineChart, PieChart, TreemapChart } from 'echarts/charts'
-import type { BarSeriesOption, LineSeriesOption, PieSeriesOption, TreemapSeriesOption } from 'echarts/charts'
+import { BarChart, LineChart, PieChart, ScatterChart, TreemapChart } from 'echarts/charts'
+import type { BarSeriesOption, LineSeriesOption, PieSeriesOption, ScatterSeriesOption, TreemapSeriesOption } from 'echarts/charts'
 import { AriaComponent, DataZoomSliderComponent, GridComponent, MarkAreaComponent, MarkLineComponent, MarkPointComponent, TooltipComponent } from 'echarts/components'
 import type {
   AriaComponentOption,
@@ -20,6 +20,7 @@ use([
   BarChart,
   LineChart,
   PieChart,
+  ScatterChart,
   TreemapChart,
   AriaComponent,
   DataZoomSliderComponent,
@@ -36,6 +37,7 @@ export type ChartOption = ComposeOption<
   | BarSeriesOption
   | LineSeriesOption
   | PieSeriesOption
+  | ScatterSeriesOption
   | TreemapSeriesOption
   | AriaComponentOption
   | DataZoomComponentOption
@@ -49,3 +51,5 @@ export type ChartOption = ComposeOption<
 export type BarSeries = BarSeriesOption
 
 export type LineSeries = LineSeriesOption
+
+export type ScatterSeries = ScatterSeriesOption

@@ -20,7 +20,7 @@
  * brought back, the same from a row of the To review queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google with one token for every scope and the sync it resumes ending ready, with Drive read unticked ending in Allow access, a refused consent and a
  * forged answer leaving Allow access with no message, a refused silent trip marking the device so the next open waits for Allow access, Sign in to Google when Google asks
- * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, a k typed into the what-if's amount expanding at once, 1.255m keeping its third decimal, with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, the period of Investments Performance changed to 1Y, to a year in its dropdown and back to All, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices tab, three made-up CSV files of closes imported there, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
+ * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, a k typed into the what-if's amount expanding at once, 1.255m keeping its third decimal, with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, a tap on a holding's dot of three buys reading each in the tooltip, the period of Investments Performance changed to 1Y, to a year in its dropdown and back to All, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices tab, three made-up CSV files of closes imported there, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
@@ -177,6 +177,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 /** The ids of the sample Loans file's two loans, `?loans=sample`. */
 const SAMPLE_BANK_LOAN = 'fa4e0000-0000-4000-8000-000000000001'
 const SAMPLE_INFORMAL_LOAN = 'fa4e0000-0000-4000-8000-000000000006'
+/** Example Tech of the sample Investments file, `?investments=sample`, bought three times in September 2026. */
+const SAMPLE_SHARE_A = 'fa4e1000-0000-4000-8000-000000000010'
 const OUTPUT_DIR = process.env.TOUCH_OUTPUT_DIR ?? join(ROOT, 'visual-check', 'touch')
 const WIDTHS = [360, 430]
 const SMALLEST_TARGET = 44
@@ -1921,6 +1923,27 @@ async function checkWidth(width) {
     await waitForTitle(page, 'Holdings')
     await page.waitForSelector('[data-testid="holdings-rows"] a[data-testid="holding-row"]', { visible: true })
     await inspect(page, `${width}px Holdings again`)
+  })
+
+  // Example Tech's price chart: a tap on its September dot, the three buys of that month merged, reads each buy's units, price and amount.
+  await step('investments-holding-dot', async () => {
+    const canvas = '[data-testid="holding-price-chart"] .chart-body canvas'
+    await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/holding?instrument=${SAMPLE_SHARE_A}`, { waitUntil: 'networkidle0' })
+    await page.waitForSelector(canvas)
+    await settleCharts(page)
+    const tooltip = () => page.evaluate(() => document.querySelector('.chart-tooltip')?.textContent ?? '')
+    // The tooltip follows the month under the tap, and September sits near the right end of the axis.
+    for (let column = 0.99; column > 0.8; column -= 0.01) {
+      await tapChart(page, { row: 0.5, column }, canvas)
+      await delay(150)
+      if ((await tooltip()).includes('Bought 3 units at $155.40')) break
+    }
+    await expect(
+      tooltip(),
+      (text) => ['Bought 3 units at $155.40 · €', 'Bought 5 units at $158.00 · €', 'Bought 2 units at $160.10 · €'].every((line) => text.includes(line)) && !text.includes('more,'),
+      'a tap on the September dot does not read each buy of the month',
+    )
+    await shoot('investments-holding-dot')
   })
 
   // The sample's Performance: a tap on 1Y and a year picked in the dropdown change the period and keep it in the address, and All takes it out again.

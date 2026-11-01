@@ -198,7 +198,12 @@ export function formatQuantity(value: Decimal, maximumDecimals: number): string 
 /** An amount in its own currency, rounded to its cents, such as −$12.35. */
 export function formatCurrencyAmount(value: Decimal, currency: CurrencyCode): string {
   const { full } = formatters({ currency, locale: active.value.locale })
-  return withDecimalSign(value, full.resolvedOptions().maximumFractionDigits ?? 2, exact(full))
+  return withDecimalSign(value, currencyPlaces(currency), exact(full))
+}
+
+/** How many places the currency's cents take, such as 2 for EUR and 0 for JPY. */
+function currencyPlaces(currency: CurrencyCode): number {
+  return formatters({ currency, locale: active.value.locale }).full.resolvedOptions().maximumFractionDigits ?? 2
 }
 
 /**
@@ -214,4 +219,13 @@ export function formatUnitPrice(value: Decimal, currency: CurrencyCode, maximumD
     unitPriceFormattersByKey.set(key, formatter)
   }
   return withDecimalSign(value, maximumDecimals, formatter)
+}
+
+/**
+ * A price worked out by dividing, such as an average cost, with as many places as the price it is read against, such
+ * as the latest close, and never fewer than the currency's cents or more than a unit price shows.
+ */
+export function formatUnitPriceLike(value: Decimal, like: Decimal, currency: CurrencyCode): string {
+  const likePlaces = decimalText(like).split('.')[1]?.length ?? 0
+  return formatUnitPrice(value, currency, Math.min(Math.max(likePlaces, currencyPlaces(currency)), UNIT_PRICE_DECIMALS))
 }

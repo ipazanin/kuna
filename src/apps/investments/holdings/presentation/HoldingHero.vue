@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import { holdingReturn } from '../domain/holding'
 import type { FirstAcquired, HoldingFigures } from '../domain/holding'
 import { taxFreeUnits } from '../domain/lots'
-import { QUANTITY_PLACES, WORKED_OUT_PRICE_PLACES, useNoPriceWord } from './holdingText'
+import { QUANTITY_PLACES, averageCostText, useNoPriceWord } from './holdingText'
 import PriceMarkNote from './PriceMarkNote.vue'
 import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -69,7 +69,7 @@ const parts = computed((): ReturnPart[] => {
   const { holding } = props
   const { price, currency: rate, realised, income } = returns.value
   const close = holding.valuation === null ? '' : formatUnitPrice(holding.valuation.price, currency.value)
-  const averageCost = holding.averageCost === null ? '' : formatUnitPrice(holding.averageCost, currency.value, WORKED_OUT_PRICE_PLACES)
+  const averageCost = averageCostText(holding) ?? ''
   return [
     ...(price === null ? [] : [{ key: 'price', label: words.hero.price, caption: words.hero.priceCaption(averageCost, close), amount: price }]),
     ...(rate === null || !foreign.value ? [] : [{ key: 'currency', label: words.hero.currency, caption: words.hero.currencyCaption, amount: rate }]),
@@ -90,7 +90,7 @@ const facts = computed((): Fact[] => {
         },
         {
           label: words.facts.averageCost,
-          value: holding.averageCost === null ? words.facts.none : formatUnitPrice(holding.averageCost, currency.value, WORKED_OUT_PRICE_PLACES),
+          value: averageCostText(holding) ?? words.facts.none,
           caption: words.facts.averageCostCaption,
         },
         {

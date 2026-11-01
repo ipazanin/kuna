@@ -15,6 +15,7 @@ import {
   formatQuantity,
   formatShare,
   formatUnitPrice,
+  formatUnitPriceLike,
   setMoneyFormat,
 } from '../src/shared/money/moneyFormat'
 
@@ -138,6 +139,14 @@ describe('quantity and unit price formatting', () => {
     expect(formatUnitPrice(decimal('147.966666666667'), 'USD' as CurrencyCode, 4)).toBe('$147.9667')
     expect(formatUnitPrice(decimal('9.645'), 'USD' as CurrencyCode, 4)).toBe('$9.645')
     expect(formatUnitPrice(decimal('100'), 'EUR' as CurrencyCode, 4)).toBe('€100.00')
+  })
+
+  it('writes an average cost with the places of the close it is read against, never fewer than the cents', () => {
+    expect(formatUnitPriceLike(decimal('517.7123'), decimal('520.15'), 'EUR' as CurrencyCode)).toBe('€517.71')
+    expect(formatUnitPriceLike(decimal('517.7123'), decimal('520.1'), 'EUR' as CurrencyCode)).toBe('€517.71')
+    expect(formatUnitPriceLike(decimal('98.51234'), decimal('98.512'), 'EUR' as CurrencyCode)).toBe('€98.512')
+    expect(formatUnitPriceLike(decimal('0.12345678'), decimal('0.123456789'), 'USD' as CurrencyCode)).toBe('$0.123457')
+    expect(formatUnitPriceLike(decimal('1500.4'), decimal('1520'), 'JPY' as CurrencyCode)).toBe('¥1,500')
   })
 
   it('writes an amount in its own currency rounded to its cents', () => {

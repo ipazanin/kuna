@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { holdingReturn, priceInTodaysUnits } from '../src/apps/investments/holdings/domain/holding'
+import { holdingReturn, priceInTodaysUnits, quantityInTodaysUnits } from '../src/apps/investments/holdings/domain/holding'
 import { holdingRecords } from '../src/apps/investments/holdings/domain/holdingRecords'
 import { latestRecords } from '../src/apps/investments/holdings/domain/latestRecords'
 import { lotIsTaxFree, taxFreeUnits } from '../src/apps/investments/holdings/domain/lots'
@@ -137,14 +137,16 @@ describe("a holding's price history", () => {
     ])
   })
 
-  it('marks the buy at 100 as 50 in today’s units and the sale after the split as it was', () => {
-    expect(priceHistory(holding, sources).marks.map((mark) => [mark.trade.side, decimalText(mark.price)])).toEqual([
-      ['buy', '50'],
-      ['sell', '53'],
-    ])
+  it('leaves out the January buy, before the first close, and dots the sale after the split as it was', () => {
+    expect(priceHistory(holding, sources).dots.map((dot) => [dot.side, dot.month, decimalText(dot.units), decimalText(dot.price), dot.amount])).toEqual([['sell', '2025-04', '4', '53', euros(212)]])
+  })
+
+  it('takes a price and a quantity of before the split into today’s units', () => {
     // A split counts before the trades of its own day, so a price of that day is already in the new units.
     expect(decimalText(priceInTodaysUnits(records, splitCo, civil('2025-03-09'), decimal('100')))).toBe('50')
     expect(decimalText(priceInTodaysUnits(records, splitCo, civil('2025-03-10'), decimal('100')))).toBe('100')
+    expect(decimalText(quantityInTodaysUnits(records, splitCo, civil('2025-01-15'), decimal('10')))).toBe('20')
+    expect(decimalText(quantityInTodaysUnits(records, splitCo, civil('2025-03-10'), decimal('10')))).toBe('10')
   })
 })
 

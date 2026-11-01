@@ -15,7 +15,6 @@ import HoldingRecordsCard from './HoldingRecordsCard.vue'
 import InstrumentDialog from './InstrumentDialog.vue'
 import { HOLDINGS_ROUTE, holdingNamed } from './holdingLinks'
 import OpenLotsCard from './OpenLotsCard.vue'
-import { WORKED_OUT_PRICE_PLACES } from './holdingText'
 import { seriesKey } from '../../prices/domain/pricesFile'
 import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
 import { usePrices } from '../../prices/presentation/usePrices'
@@ -27,11 +26,9 @@ import { words } from './words'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { DECIMAL_ZERO } from '../../../../shared/money/decimal'
-import { formatUnitPrice } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
-import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
@@ -48,22 +45,7 @@ const holding = computed(() => (figures.value === null ? null : holdingNamed(fig
 const records = computed(() => (holding.value === null || sources.value === null ? [] : latestRecords(holdingRecords(sources.value.book, holding.value.instrument.id), sources.value.rates)))
 const hasIncome = computed(() => records.value.some((entry) => entry.kind === 'income'))
 const history = computed(() => (holding.value === null || sources.value === null ? null : priceHistory(holding.value, sources.value)))
-const chart = computed(() =>
-  history.value === null || holding.value === null ? null : priceChart(history.value, holding.value.averageCost, holding.value.instrument.currency, chartTokens(), phone.value),
-)
-const legend = computed((): LegendEntry[] => {
-  const current = holding.value
-  if (current === null || chart.value === null) return []
-  const sides = new Set(chart.value.marks.map((mark) => mark.trade.side))
-  return [
-    { label: words.chart.price, colour: 'var(--invest-portfolio)', mark: 'line' },
-    ...(current.averageCost === null
-      ? []
-      : [{ label: words.chart.averageCost(formatUnitPrice(current.averageCost, current.instrument.currency, WORKED_OUT_PRICE_PLACES)), colour: 'var(--invest-reference)', mark: 'dashed' as const }]),
-    ...(sides.has('buy') ? [{ label: words.chart.buy, colour: 'var(--invest-portfolio)', mark: 'dot' as const }] : []),
-    ...(sides.has('sell') ? [{ label: words.chart.sale, colour: 'var(--invest-portfolio)', mark: 'ring' as const }] : []),
-  ]
-})
+const chart = computed(() => (history.value === null || holding.value === null ? null : priceChart(history.value, holding.value, chartTokens(), phone.value)))
 
 const prices = usePrices()
 /** Where the holding's closes begin after its first buy, because its vendor has none earlier, said once on its chart. */
@@ -74,7 +56,11 @@ const pricesFrom = computed(() => {
   const vendor = PRICE_VENDORS.find((candidate) => candidate.id === current.instrument.prices)
   return firstClose === undefined || vendor === undefined || firstClose <= current.firstAcquired.date ? null : words.chart.pricesFrom(dayLabel(parseCivilDate(firstClose)!), vendor.name)
 })
-const chartSubtitle = computed(() => (holding.value === null ? '' : [words.chart.subtitle(holding.value.instrument.currency), pricesFrom.value].filter((part) => part !== null).join(' ')))
+const chartSubtitle = computed(() =>
+  holding.value === null || history.value === null
+    ? ''
+    : [words.chart.subtitle(holding.value.instrument.currency), history.value.dots.length === 0 ? null : words.chart.dotSize, pricesFrom.value].filter((part) => part !== null).join(' '),
+)
 
 const adding = ref(false)
 const changing = ref(false)
@@ -115,7 +101,7 @@ const description = computed(() => {
         data-testid="holding-price-chart"
       >
         <template #legend>
-          <ChartLegend :entries="legend" />
+          <ChartLegend :entries="chart.legend" />
         </template>
       </ChartCard>
       <DashboardGrid data-testid="holding-cards">

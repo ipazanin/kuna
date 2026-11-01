@@ -102,12 +102,23 @@ export function dayChange(earlier: Money, later: Money): DayChange {
 
 /** A price of an earlier day as a price of the units held today, after every split of the instrument since that day. */
 export function priceInTodaysUnits(book: InvestmentBook, instrument: Instrument, day: CivilDate, price: Decimal): Decimal {
+  const { newUnits, oldUnits } = splitsSince(book, instrument, day)
+  return scaledDecimal(price, oldUnits, newUnits)
+}
+
+/** A quantity of an earlier day as the units it is today, after every split of the instrument since that day. */
+export function quantityInTodaysUnits(book: InvestmentBook, instrument: Instrument, day: CivilDate, quantity: Decimal): Decimal {
+  const { newUnits, oldUnits } = splitsSince(book, instrument, day)
+  return scaledDecimal(quantity, newUnits, oldUnits)
+}
+
+/** The splits after the day as one, so that old units × newUnits ÷ oldUnits are the units of today. A split counts before the trades of its own day. */
+function splitsSince(book: InvestmentBook, instrument: Instrument, day: CivilDate): { newUnits: bigint; oldUnits: bigint } {
   const later = book.splits.filter((split) => split.instrument === instrument.id && split.date > day)
-  return scaledDecimal(
-    price,
-    later.reduce((product, split) => product * BigInt(split.oldUnits), 1n),
-    later.reduce((product, split) => product * BigInt(split.newUnits), 1n),
-  )
+  return {
+    newUnits: later.reduce((product, split) => product * BigInt(split.newUnits), 1n),
+    oldUnits: later.reduce((product, split) => product * BigInt(split.oldUnits), 1n),
+  }
 }
 
 /** The quantity valued at the latest close on or before the day. Null when there is no close yet, or no rate for its day. */

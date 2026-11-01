@@ -1,0 +1,165 @@
+import { describe, expect, it, vi } from 'vitest'
+
+import { portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
+import { priceHistory } from '../src/apps/investments/holdings/domain/priceHistory'
+import { averageCostText } from '../src/apps/investments/holdings/presentation/holdingText'
+import { dotLines, markSize, priceChart } from '../src/apps/investments/holdings/presentation/priceChart'
+import type { ChartTokens } from '../src/shared/charts/chartTokens'
+import { EURO } from '../src/shared/money/currencyCode'
+import { decimalText } from '../src/shared/money/decimal'
+import { BROKER, USD, WORKED_RATES, book, cashMovement, decimal, instrument, priceBookOf, trade } from './fixtures/investments'
+import { civil, euros } from './fixtures/ledger'
+
+vi.stubGlobal('document', { documentElement: {} })
+vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: (token: string) => token }))
+
+const TOKENS = new Proxy({}, { get: (_target, name) => String(name) }) as unknown as ChartTokens
+
+// Example Dot Fund, bought five times in March 2026 and partly sold in April, every figure made up.
+const dotFund = instrument('dot-fund', { name: 'Example Dot Fund' })
+const records = book({
+  accounts: [BROKER],
+  instruments: [dotFund],
+  cashMovements: [cashMovement('deposit', BROKER, '2026-03-02', '10000')],
+  trades: [
+    trade('buy', BROKER, dotFund, '2026-03-02', '3', '517.70', '1.00'),
+    trade('buy', BROKER, dotFund, '2026-03-05', '2', '520.00', '1.00'),
+    trade('buy', BROKER, dotFund, '2026-03-09', '1', '515.00', '1.00'),
+    trade('buy', BROKER, dotFund, '2026-03-16', '4', '518.00', '1.00'),
+    trade('buy', BROKER, dotFund, '2026-03-23', '3', '516.00', '1.00'),
+    trade('sell', BROKER, dotFund, '2026-04-14', '3.5', '480.58', '1.00'),
+  ],
+})
+const sources = {
+  book: records,
+  prices: priceBookOf(
+    new Map([
+      [
+        dotFund,
+        [
+          ['2026-03-02', '517.70'],
+          ['2026-03-31', '519.40'],
+          ['2026-04-15', '481.25'],
+        ],
+      ],
+    ]),
+  ),
+  rates: WORKED_RATES,
+  today: civil('2026-04-15'),
+}
+const holding = portfolioFigures(sources).holdings.find((figures) => figures.instrument.id === dotFund.id)!
+const history = priceHistory(holding, sources)
+
+interface DrawnDots {
+  name: string
+  type: string
+  data: ('-' | { value: number; symbolSize: number })[]
+}
+
+describe("a holding's trade dots", () => {
+  it('merges the five March buys into one dot of 13 units and €6,728.10, and the April sale into another', () => {
+    // 1,553.10 + 1,040.00 + 515.00 + 2,072.00 + 1,548.00 = 6,728.10, at 6,728.10 ÷ 13 = 517.546153846154 a unit.
+    expect(history.dots.map((dot) => [dot.side, dot.month, dot.marks.length, decimalText(dot.units), decimalText(dot.price), dot.amount])).toEqual([
+      ['buy', '2026-03', 5, '13', '517.546153846154', euros(6728.1)],
+      ['sell', '2026-04', 1, '3.5', '480.58', euros(1682.03)],
+    ])
+  })
+
+  it('names the first three buys in the tooltip and sums the other two in one line', () => {
+    expect(dotLines(history.dots[0]!, EURO)).toEqual([
+      'Bought 3 units at €517.70 · €1,553.10',
+      'Bought 2 units at €520.00 · €1,040.00',
+      'Bought 1 unit at €515.00 · €515.00',
+      'and 2 more, 7 units, €3,620.00 in all',
+    ])
+    expect(dotLines(history.dots[1]!, EURO)).toEqual(['Sold 3.5 units at €480.58 · €1,682.03'])
+  })
+
+  it('keeps a buy and a sale of one month as two dots, the buys first, each with its own units, price and amount', () => {
+    const busyFund = instrument('busy-fund', { name: 'Example Busy Fund' })
+    const busyRecords = book({
+      accounts: [BROKER],
+      instruments: [busyFund],
+      cashMovements: [cashMovement('deposit', BROKER, '2026-03-02', '1000')],
+      trades: [
+        trade('buy', BROKER, busyFund, '2026-03-02', '4', '100.00', '0'),
+        trade('sell', BROKER, busyFund, '2026-03-10', '1', '110.00', '0'),
+        trade('buy', BROKER, busyFund, '2026-03-20', '1', '90.00', '0'),
+      ],
+    })
+    const busySources = { ...sources, book: busyRecords, prices: priceBookOf(new Map([[busyFund, [['2026-03-02', '100.00']]]])), today: civil('2026-03-31') }
+    const busyHolding = portfolioFigures(busySources).holdings.find((figures) => figures.instrument.id === busyFund.id)!
+    const busyDots = priceHistory(busyHolding, busySources).dots
+
+    // The two buys are 400.00 + 90.00 = €490.00 for 5 units, €98.00 a unit.
+    expect(busyDots.map((dot) => [dot.side, dot.month, decimalText(dot.units), decimalText(dot.price), dot.amount])).toEqual([
+      ['buy', '2026-03', '5', '98', euros(490)],
+      ['sell', '2026-03', '1', '110', euros(110)],
+    ])
+  })
+
+  it('tells a screen reader how many trades the merged dots hold and what their size means', () => {
+    expect(priceChart(history, holding, TOKENS, false).description).toContain(
+      " Dots show the 6 trades, a month's buys as one filled dot and its sales as one ring, each at the average price of its trades. Dot size is the amount.",
+    )
+  })
+
+  it("writes gold's average cost with the places of its close per gram, which comes from dividing the close per ounce", () => {
+    const goldBar = instrument('gold-bar', { name: 'Example gold bar', class: 'gold', quoted: { kind: 'gram' }, prices: 'manual', sourceSymbol: '' })
+    const goldRecords = book({
+      accounts: [BROKER],
+      instruments: [goldBar],
+      cashMovements: [cashMovement('deposit', BROKER, '2026-03-02', '1000')],
+      trades: [trade('buy', BROKER, goldBar, '2026-03-02', '3', '82.40', '1.00')],
+    })
+    const goldSources = { ...sources, book: goldRecords, prices: priceBookOf(new Map([[goldBar, [['2026-03-02', '2650.00']]]])), today: civil('2026-03-31') }
+    const goldHolding = portfolioFigures(goldSources).holdings.find((figures) => figures.instrument.id === goldBar.id)!
+
+    // 2,650.00 ÷ 31.1034768 grams is €85.199... a gram, so the average of (247.20 + 1.00) ÷ 3 = €82.7333... shows six places too.
+    expect(decimalText(goldHolding.valuation!.price).split('.')[1]!.length).toBeGreaterThanOrEqual(6)
+    expect(averageCostText(goldHolding)).toBe('€82.733333')
+    expect(averageCostText({ ...goldHolding, averageCost: decimal('82.5') })).toBe('€82.50')
+  })
+
+  it('writes a dollar trade at its own price and its amount in euros at its rate', () => {
+    const dollarCo = instrument('dollar-co', { currency: USD })
+    const dollarRecords = book({
+      accounts: [BROKER],
+      instruments: [dollarCo],
+      cashMovements: [cashMovement('deposit', BROKER, '2026-03-02', '1000', USD, '1.10')],
+      trades: [trade('buy', BROKER, dollarCo, '2026-03-02', '2', '160.00', '1.00', '1.10')],
+    })
+    const dollarSources = { ...sources, book: dollarRecords, prices: priceBookOf(new Map([[dollarCo, [['2026-03-02', '160.00']]]])) }
+    const dollarHolding = portfolioFigures(dollarSources).holdings.find((figures) => figures.instrument.id === dollarCo.id)!
+
+    // $320.00 at 1.10 dollars to the euro is €290.91.
+    expect(dotLines(priceHistory(dollarHolding, dollarSources).dots[0]!, USD)).toEqual(['Bought 2 units at $160.00 · €290.91'])
+  })
+
+  it('sizes €6,728.10 at 22 px, €1,682.03 at 11 px and €100.00 at the least, 6 px', () => {
+    expect(markSize(euros(6728.1), euros(6728.1))).toBe(22)
+    expect(markSize(euros(1682.03), euros(6728.1))).toBeCloseTo(11, 3)
+    expect(markSize(euros(100), euros(6728.1))).toBe(6)
+  })
+
+  it('draws the buys as a dot and the sale as a ring at their months, which the legend and the table name', () => {
+    const chart = priceChart(history, holding, TOKENS, false)
+    const series = (chart.option as { series: DrawnDots[] }).series
+
+    expect(series.map((drawn) => [drawn.type, drawn.name])).toEqual([
+      ['line', 'Price'],
+      ['scatter', 'Buy'],
+      ['scatter', 'Sale'],
+    ])
+    expect(series[1]!.data.map((point) => (point === '-' ? point : [point.value, point.symbolSize]))).toEqual([[517.546153846154, 22], '-'])
+    expect(series[2]!.data.map((point) => (point === '-' ? point : [point.value, Math.round(point.symbolSize)]))).toEqual(['-', [480.58, 11]])
+    expect(chart.legend.map((entry) => [entry.label, entry.colour, entry.mark])).toEqual([
+      ['Price', 'var(--invest-portfolio)', 'line'],
+      // The sale closes the first buy and half a unit of the second, so 9.5 units cost 780.75 + 516.00 + 2,073.00 + 1,549.00 = €4,918.75 with
+      // their fees, €517.763157… a unit, shown to the cents as the closes are.
+      ['Average cost €517.76', 'var(--invest-reference)', 'dashed'],
+      ['Buy', 'var(--invest-buy)', 'dot'],
+      ['Sale', 'var(--invest-sale)', 'ring'],
+    ])
+  })
+})
