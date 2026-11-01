@@ -22,7 +22,6 @@ import { reviewCount } from './workbook/domain/needsReview'
 import { COMPANY_APP } from './workbook/infrastructure/companyDocument'
 import { installPackTabs } from './workbook/infrastructure/packTabs'
 import { useGoogleReturn } from './workbook/presentation/useGoogleReturn'
-import { COMPANY_MOVED_SCREENS } from './movedScreens'
 import { REVIEW_LINK } from './transactions/presentation/transactionsLinks'
 
 const CORE_SCREENS: readonly AppScreen[] = [
@@ -57,7 +56,6 @@ export const companyApp: AppContribution = {
     SETTINGS,
     { path: ONBOARDING_ROUTE, title: onboardingWords.start, icon: 'i-lucide-door-open', component: () => import('./onboarding/presentation/OnboardingScreen.vue'), bare: true },
   ],
-  moved: COMPANY_MOVED_SCREENS,
   menu: () => [...CORE_SCREENS, ...shownPack(settings.value).screens],
   settings: SETTINGS,
   // Transactions counts every row that waits for review, whatever the filters, since the queue has no period.

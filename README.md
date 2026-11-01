@@ -510,8 +510,7 @@ Undo in the toast. `OwnerShareDialog` in `src/apps/company/owner-share/presentat
 reimbursements with no cost on file and "Changes in this session", collapsed. A row of the queue
 opens to Confirm, Recategorise, Make this a rule and Split, which opens the split editor of
 _Split rows_. The rules that decide the other rows live on Settings, Category rules, as _Settings
-screen_ describes. An old `#/company/review` link opens To review, and one with `?tab=rules` opens
-Category rules.
+screen_ describes.
 
 **Analysis** says where the money goes and whether it is getting better or worse. One filter bar sits
 above its three tabs, since each follows it, and on a phone its Filters button ends the tab row.
