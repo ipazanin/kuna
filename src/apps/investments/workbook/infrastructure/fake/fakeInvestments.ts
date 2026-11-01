@@ -1,24 +1,32 @@
 import { codecOfInvestmentsKind } from '../../application/investmentsCodecs'
 import type { CashMovement } from '../../domain/cashMovement'
+import type { CheckSetting } from '../../domain/checkSetting'
 import type { Exchange } from '../../domain/exchange'
+import type { FundMixLine } from '../../domain/fundMix'
 import type { HandPrice } from '../../domain/handPrice'
 import type { Income } from '../../domain/income'
 import type { Instrument } from '../../domain/instrument'
 import type { InvestmentAccount } from '../../domain/investmentAccount'
 import {
   CASH_MOVEMENT_RECORDS,
+  CHECK_RECORDS,
   EXCHANGE_RECORDS,
+  FUND_MIX_RECORDS,
   INCOME_RECORDS,
   INSTRUMENT_RECORDS,
   INVESTMENT_ACCOUNT_RECORDS,
   PRICE_RECORDS,
   SPIN_OFF_RECORDS,
   SPLIT_RECORDS,
+  TARGET_RECORDS,
   TRADE_RECORDS,
   TRANSFER_RECORDS,
 } from '../../domain/investmentKinds'
+import { countryOf } from '../../domain/mixGroup'
+import type { ClassGroup, FundMixGroup } from '../../domain/mixGroup'
 import type { SpinOff } from '../../domain/spinOff'
 import type { Split } from '../../domain/split'
+import type { Target } from '../../domain/target'
 import type { Trade, TradeSide } from '../../domain/trade'
 import type { Transfer } from '../../domain/transfer'
 import { emptyInvestmentsDocument } from '../investmentsDocument'
@@ -74,19 +82,36 @@ const SHARE_A: Instrument = {
   prices: 'twelvedata',
   sourceSymbol: 'ABC',
   benchmark: false,
+  sector: 'information-technology',
+  country: countryOf('US'),
+  ter: null,
   note: '',
 }
-const SHARE_B: Instrument = { ...SHARE_A, id: fixedId(INSTRUMENT_RECORDS, 11), name: 'Example Dividend Co', isin: null, symbol: 'DEF', exchange: 'XNYS', sourceSymbol: 'DEF' }
+/** Its country comes from its ISIN. */
+const SHARE_B: Instrument = {
+  ...SHARE_A,
+  id: fixedId(INSTRUMENT_RECORDS, 11),
+  name: 'Example Dividend Co',
+  isin: 'US000000DEF2',
+  symbol: 'DEF',
+  exchange: 'XNYS',
+  sourceSymbol: 'DEF',
+  sector: 'consumer-staples',
+  country: null,
+}
 const WORLD_ETF: Instrument = {
   ...SHARE_A,
   id: fixedId(INSTRUMENT_RECORDS, 12),
   name: 'Example World ETF',
-  isin: 'XX000000XYZ5',
+  isin: 'IE000000XYZ5',
   symbol: 'XYZ',
   exchange: 'XETR',
   currency: EURO,
   prices: 'alphavantage',
   sourceSymbol: 'XYZ.DEX',
+  sector: null,
+  country: null,
+  ter: decimal('0.2'),
 }
 const MONEY_FUND: Instrument = {
   ...SHARE_A,
@@ -99,11 +124,49 @@ const MONEY_FUND: Instrument = {
   currency: EURO,
   prices: 'manual',
   sourceSymbol: '',
+  sector: null,
+  country: countryOf('europe'),
+  ter: null,
   note: 'Priced from its monthly statement',
 }
-const SPIN_CO: Instrument = { ...MONEY_FUND, id: fixedId(INSTRUMENT_RECORDS, 14), name: 'Example Spinco', class: 'stocks', symbol: 'GHI', currency: USD, note: 'Spun off from Example Dividend Co' }
+/** Nothing typed of its sector or country. */
+const SPIN_CO: Instrument = {
+  ...MONEY_FUND,
+  id: fixedId(INSTRUMENT_RECORDS, 14),
+  name: 'Example Spinco',
+  class: 'stocks',
+  symbol: 'GHI',
+  currency: USD,
+  country: null,
+  note: 'Spun off from Example Dividend Co',
+}
 /** Never bought, only compared with on Performance. */
-const INDEX_FUND: Instrument = { ...SHARE_A, id: fixedId(INSTRUMENT_RECORDS, 15), name: 'Example Index Fund', isin: null, symbol: 'IDX', exchange: 'ARCX', sourceSymbol: 'IDX', benchmark: true }
+const INDEX_FUND: Instrument = {
+  ...SHARE_A,
+  id: fixedId(INSTRUMENT_RECORDS, 15),
+  name: 'Example Index Fund',
+  isin: null,
+  symbol: 'IDX',
+  exchange: 'ARCX',
+  sourceSymbol: 'IDX',
+  benchmark: true,
+  sector: null,
+  country: null,
+}
+/** Bought twice, paid a dividend and sold in full, priced by hand. */
+const RETIRED_CO: Instrument = {
+  ...MONEY_FUND,
+  id: fixedId(INSTRUMENT_RECORDS, 16),
+  name: 'Example Retired Co',
+  class: 'stocks',
+  isin: 'US000000JKL4',
+  symbol: 'JKL',
+  exchange: 'XNYS',
+  currency: USD,
+  sector: 'industrials',
+  country: null,
+  note: '',
+}
 
 let place = 100
 function nextId(kind: RecordKind): RecordId {
@@ -132,12 +195,12 @@ function cash(kind: CashMovement['kind'], held: InvestmentAccount, date: string,
   return { id: nextId(CASH_MOVEMENT_RECORDS), account: held.id, kind, date: day(date), currency: EURO, amount: decimal(amount), rate: null, importKey: null, note }
 }
 
-function dividend(date: string, gross: string, withheld: string, rate: string): Income {
+function dividend(date: string, gross: string, withheld: string, rate: string, payer: Instrument = SHARE_B): Income {
   return {
     id: nextId(INCOME_RECORDS),
     account: BROKER_ONE.id,
     kind: 'dividend',
-    instrument: SHARE_B.id,
+    instrument: payer.id,
     date: day(date),
     currency: USD,
     gross: decimal(gross),
@@ -145,6 +208,22 @@ function dividend(date: string, gross: string, withheld: string, rate: string): 
     rate: decimal(rate),
     importKey: null,
     note: '',
+  }
+}
+
+function interest(held: InvestmentAccount, date: string, gross: string): Income {
+  return {
+    id: nextId(INCOME_RECORDS),
+    account: held.id,
+    kind: 'interest',
+    instrument: null,
+    date: day(date),
+    currency: EURO,
+    gross: decimal(gross),
+    withheld: DECIMAL_ZERO,
+    rate: null,
+    importKey: null,
+    note: 'Interest on cash',
   }
 }
 
@@ -161,19 +240,7 @@ const TRADES: readonly Trade[] = [
 const INCOME: readonly Income[] = [
   dividend('2023-06-15', '12.00', '1.80', '1.0842'),
   dividend('2023-12-15', '12.40', '1.86', '1.0857'),
-  {
-    id: nextId(INCOME_RECORDS),
-    account: BROKER_ONE.id,
-    kind: 'interest',
-    instrument: null,
-    date: day('2025-03-03'),
-    currency: EURO,
-    gross: decimal('3.15'),
-    withheld: DECIMAL_ZERO,
-    rate: null,
-    importKey: null,
-    note: 'Interest on cash',
-  },
+  interest(BROKER_ONE, '2025-03-03', '3.15'),
   dividend('2026-01-15', '13.10', '1.97', '1.0849'),
 ]
 
@@ -219,16 +286,104 @@ const SPIN_OFFS: readonly SpinOff[] = [
 
 const SPLITS: readonly Split[] = [{ id: nextId(SPLIT_RECORDS), instrument: SPIN_CO.id, date: day('2025-06-02'), newUnits: 2, oldUnits: 1, importKey: null, note: '' }]
 
+function handPrice(what: Instrument, date: string, price: string, note = ''): HandPrice {
+  return { id: nextId(PRICE_RECORDS), instrument: what.id, date: day(date), price: decimal(price), note }
+}
+
 const HAND_PRICES: readonly HandPrice[] = [
-  { id: nextId(PRICE_RECORDS), instrument: MONEY_FUND.id, date: day('2026-06-30'), price: decimal('10.42'), note: 'Statement of 30 Jun' },
-  { id: nextId(PRICE_RECORDS), instrument: MONEY_FUND.id, date: day('2026-09-30'), price: decimal('10.51'), note: 'Statement of 30 Sep' },
-  { id: nextId(PRICE_RECORDS), instrument: SPIN_CO.id, date: day('2024-12-31'), price: decimal('21.40'), note: '' },
-  { id: nextId(PRICE_RECORDS), instrument: SPIN_CO.id, date: day('2026-09-30'), price: decimal('11.20'), note: '' },
-  { id: nextId(PRICE_RECORDS), instrument: MONEY_FUND.id, date: day('2023-03-31'), price: decimal('10.02'), note: 'Statement of 31 Mar 2023' },
-  { id: nextId(PRICE_RECORDS), instrument: MONEY_FUND.id, date: day('2024-12-31'), price: decimal('10.24'), note: 'Statement of 31 Dec 2024' },
-  { id: nextId(PRICE_RECORDS), instrument: SPIN_CO.id, date: day('2024-09-30'), price: decimal('23.10'), note: '' },
-  { id: nextId(PRICE_RECORDS), instrument: MONEY_FUND.id, date: day('2023-03-01'), price: decimal('10.00'), note: 'Bought at 10.00' },
+  handPrice(MONEY_FUND, '2026-06-30', '10.42', 'Statement of 30 Jun'),
+  handPrice(MONEY_FUND, '2026-09-30', '10.51', 'Statement of 30 Sep'),
+  handPrice(SPIN_CO, '2024-12-31', '21.40'),
+  handPrice(SPIN_CO, '2026-09-30', '11.20'),
+  handPrice(MONEY_FUND, '2023-03-31', '10.02', 'Statement of 31 Mar 2023'),
+  handPrice(MONEY_FUND, '2024-12-31', '10.24', 'Statement of 31 Dec 2024'),
+  handPrice(SPIN_CO, '2024-09-30', '23.10'),
+  handPrice(MONEY_FUND, '2023-03-01', '10.00', 'Bought at 10.00'),
 ]
+
+// The records below are made after every record above, so the ids above stay as they were.
+
+/** Example Retired Co's whole life, two more buys of Example Tech beside its September buy, and €200 a month into the second account. */
+const LATER_TRADES: readonly Trade[] = [
+  trade('buy', BROKER_ONE, RETIRED_CO, '2023-04-03', '10', '30.00', '1.00', '1.0889'),
+  trade('buy', BROKER_ONE, RETIRED_CO, '2023-10-02', '5', '32.00', '1.00', '1.0563'),
+  trade('sell', BROKER_ONE, RETIRED_CO, '2025-08-01', '15', '38.00', '1.00', '1.1412'),
+  trade('buy', BROKER_ONE, SHARE_A, '2026-09-08', '3', '155.40', '1.00', '1.0839'),
+  trade('buy', BROKER_ONE, SHARE_A, '2026-09-22', '2', '160.10', '1.00', '1.0871'),
+]
+
+/** A dividend of the retired share, a half-yearly dividend in July, interest in two more months and a dividend of the Irish fund with nothing withheld. */
+const LATER_INCOME: readonly Income[] = [
+  dividend('2024-06-14', '4.50', '0.68', '1.0721', RETIRED_CO),
+  interest(BROKER_ONE, '2026-04-01', '2.40'),
+  dividend('2026-07-15', '13.30', '2.00', '1.0862'),
+  interest(BROKER_ONE, '2026-07-01', '2.60'),
+  {
+    id: nextId(INCOME_RECORDS),
+    account: BROKER_TWO.id,
+    kind: 'dividend',
+    instrument: WORLD_ETF.id,
+    date: day('2025-12-10'),
+    currency: EURO,
+    gross: decimal('21.00'),
+    withheld: DECIMAL_ZERO,
+    rate: null,
+    importKey: null,
+    note: '',
+  },
+]
+
+const LATER_CASH_MOVEMENTS: readonly CashMovement[] = ['2026-06-01', '2026-07-01', '2026-08-03', '2026-09-01'].map((date) => cash('deposit', BROKER_TWO, date, '200.00'))
+
+/** The retired share at each buy, a year end and its sale, and the spin-off's latest price, below what its units cost. */
+const LATER_HAND_PRICES: readonly HandPrice[] = [
+  handPrice(RETIRED_CO, '2023-04-03', '30.00'),
+  handPrice(RETIRED_CO, '2023-10-02', '32.00'),
+  handPrice(RETIRED_CO, '2024-12-31', '35.20'),
+  handPrice(RETIRED_CO, '2025-08-01', '38.00'),
+  handPrice(SPIN_CO, '2026-10-15', '8.95'),
+]
+
+function fundMix(what: Instrument, mix: FundMixGroup['mix'], percents: readonly (readonly [string, string])[]): FundMixLine[] {
+  return percents.map(([group, percent]) => ({ id: nextId(FUND_MIX_RECORDS), instrument: what.id, slice: { mix, group } as FundMixGroup, percent: decimal(percent) }))
+}
+
+/** The World ETF's own mix by sector and by country, as its factsheet might give it. */
+const FUND_MIXES: readonly FundMixLine[] = [
+  ...fundMix(WORLD_ETF, 'sector', [
+    ['information-technology', '25'],
+    ['financials', '16'],
+    ['health-care', '11'],
+    ['industrials', '11'],
+    ['consumer-discretionary', '10'],
+    ['communication-services', '8'],
+    ['consumer-staples', '6'],
+    ['energy', '4'],
+    ['materials', '4'],
+    ['utilities', '3'],
+    ['real-estate', '2'],
+  ]),
+  ...fundMix(WORLD_ETF, 'country', [
+    ['US', '70'],
+    ['JP', '6'],
+    ['GB', '4'],
+    ['CA', '3'],
+    ['FR', '3'],
+    ['CH', '3'],
+    ['DE', '3'],
+    ['europe', '8'],
+  ]),
+]
+
+/** Class targets of 70% stocks, 20% money market and 10% cash. */
+const TARGETS: readonly Target[] = [
+  ['stocks', '70'],
+  ['money-market', '20'],
+  ['cash', '10'],
+].map(([group, percent]) => ({ id: nextId(TARGET_RECORDS), slice: { mix: 'class', group: group as ClassGroup }, percent: decimal(percent!) }))
+
+/** The cash check raised from 10% to 15%. */
+const CHECKS: readonly CheckSetting[] = [{ id: nextId(CHECK_RECORDS), check: 'cash', threshold: decimal('15'), off: false }]
 
 function stored<R>(kind: RecordKind<R>, records: readonly R[]): WorkbookDocument['records'] {
   const codec = codecOfInvestmentsKind(kind)
@@ -269,29 +424,34 @@ function youngRecords(today: CivilDate): WorkbookDocument['records'] {
 }
 
 /**
- * The fake build's made-up Investments file: two accounts at made-up brokers, euros changed into dollars, buys and a
- * sale of US shares, a Xetra ETF and a money market fund priced by hand, dividends with tax withheld, interest, an
- * account fee and its refund, a transfer of units and one of cash, a spin-off and a split of what it gave, and a US
- * index fund it compares with. Every figure in it is made up.
+ * The fake build's made-up Investments file: two accounts at made-up brokers, euros changed into dollars, buys and
+ * sales of US shares, one of them sold in full, a Xetra ETF with its own mix and a money market fund priced by hand,
+ * dividends with tax withheld, interest, an account fee and its refund, a transfer of units and one of cash, a
+ * spin-off and a split of what it gave, a US index fund it compares with, class targets and one changed check. Every
+ * figure in it is made up.
  */
 export function fakeInvestmentsDocument(savedAt: string, variant: FakeInvestmentsVariant = 'sample'): WorkbookDocument {
   if (variant === 'young') {
     return { ...emptyInvestmentsDocument(savedAt), records: youngRecords(pricesDay(savedAt)) }
   }
-  const movements = variant === 'sample' ? CASH_MOVEMENTS : CASH_MOVEMENTS.filter((movement) => !(movement.account === BROKER_TWO.id && movement.kind === 'deposit'))
+  const allMovements = [...CASH_MOVEMENTS, ...LATER_CASH_MOVEMENTS]
+  const movements = variant === 'sample' ? allMovements : allMovements.filter((movement) => !(movement.account === BROKER_TWO.id && movement.kind === 'deposit'))
   return {
     ...emptyInvestmentsDocument(savedAt),
     records: {
       ...stored(INVESTMENT_ACCOUNT_RECORDS, [BROKER_ONE, BROKER_TWO]),
-      ...stored(INSTRUMENT_RECORDS, [SHARE_A, SHARE_B, WORLD_ETF, MONEY_FUND, SPIN_CO, INDEX_FUND]),
-      ...stored(TRADE_RECORDS, TRADES),
-      ...stored(INCOME_RECORDS, INCOME),
+      ...stored(INSTRUMENT_RECORDS, [SHARE_A, SHARE_B, WORLD_ETF, MONEY_FUND, SPIN_CO, INDEX_FUND, RETIRED_CO]),
+      ...stored(TRADE_RECORDS, [...TRADES, ...LATER_TRADES]),
+      ...stored(INCOME_RECORDS, [...INCOME, ...LATER_INCOME]),
       ...stored(CASH_MOVEMENT_RECORDS, movements),
       ...stored(EXCHANGE_RECORDS, EXCHANGES),
       ...stored(TRANSFER_RECORDS, TRANSFERS),
       ...stored(SPLIT_RECORDS, SPLITS),
       ...stored(SPIN_OFF_RECORDS, SPIN_OFFS),
-      ...stored(PRICE_RECORDS, HAND_PRICES),
+      ...stored(PRICE_RECORDS, [...HAND_PRICES, ...LATER_HAND_PRICES]),
+      ...stored(FUND_MIX_RECORDS, FUND_MIXES),
+      ...stored(TARGET_RECORDS, TARGETS),
+      ...stored(CHECK_RECORDS, CHECKS),
     },
   }
 }

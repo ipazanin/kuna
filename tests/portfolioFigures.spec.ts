@@ -69,12 +69,12 @@ describe("the worked portfolio's figures on 29 Oct 2026", () => {
   it('makes up the total gain of €414.75 from its five sources, 13.8% on the €3,000.00 put in', () => {
     // Unrealised: World ETF 1,875.00 − 1,554.00 = 321.00, Stock B 776.79 − 715.00 = 61.79.
     // Realised: 254.24 − 0.85 of fees − 238.33, the quarter of the 953.33 lot the sale closed = 15.06.
-    // Income: $7.00 at 1.17 = 5.98. Currency on cash: 316.96 − 306.04 = 10.92.
+    // Income: $7.00 at 1.17 = 5.98. Withheld: $10.00 at 1.17 = 8.55, less the 5.98 received = 2.57. Currency on cash: 316.96 − 306.04 = 10.92.
     expect(figures.putIn).toBe(euros(3000))
     expect(figures.cost).toBe(euros(2269))
     expect(figures.unrealised).toBe(euros(382.79))
     expect(figures.realised).toBe(euros(15.06))
-    expect(figures.income).toEqual({ gross: euros(8.55), withheld: euros(2.56), received: euros(5.98) })
+    expect(figures.income).toEqual({ gross: euros(8.55), withheld: euros(2.57), received: euros(5.98) })
     expect(figures.accountFees).toBe(euros(0))
     expect(figures.currencyOnCash).toBe(euros(10.92))
     // 382.79 + 15.06 + 5.98 − 0.00 + 10.92 = 414.75 = 3,414.75 − 3,000.00.

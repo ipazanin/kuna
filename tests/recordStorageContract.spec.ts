@@ -11,6 +11,8 @@ import { SETTING_WRITES } from '../src/apps/company/settings/application/setting
 import { ACCOUNT_WRITES, CATEGORY_WRITES, CLIENT_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
 import { SPLIT_WRITES } from '../src/apps/company/transactions/application/splitWrites'
 import { HAND_PRICE_WRITES, INSTRUMENT_WRITES, INVESTMENT_ACCOUNT_WRITES } from '../src/apps/investments/holdings/application/holdingWrites'
+import { FUND_MIX_WRITES, TARGET_WRITES } from '../src/apps/investments/holdings/application/mixWrites'
+import { CHECK_WRITES } from '../src/apps/investments/overview/application/checkWrites'
 import {
   CASH_MOVEMENT_WRITES,
   EXCHANGE_WRITES,
@@ -638,6 +640,9 @@ const [TRANSFER_A, TRANSFER_B, TRANSFER_C, TRANSFER_R] = ids('27', 4)
 const [STOCK_SPLIT_A, STOCK_SPLIT_B, STOCK_SPLIT_C, STOCK_SPLIT_R] = ids('28', 4)
 const [SPIN_OFF_A, SPIN_OFF_B, SPIN_OFF_C, SPIN_OFF_R] = ids('29', 4)
 const [PRICE_A, PRICE_B, PRICE_C, PRICE_R] = ids('30', 4)
+const [FUND_MIX_A, FUND_MIX_B, FUND_MIX_C, FUND_MIX_R] = ids('31', 4)
+const [TARGET_A, TARGET_B, TARGET_C, TARGET_R] = ids('32', 4)
+const [CHECK_A, CHECK_B, CHECK_C, CHECK_R] = ids('33', 4)
 
 /** Two made-up accounts and three made-up instruments, a share in dollars, a fund in euros and a share spun off in dollars, which the other kinds name. */
 const HOLDINGS_SEED: Seed = {
@@ -815,6 +820,49 @@ const INVESTMENTS_FIXTURES: Readonly<Record<string, KindFixture>> = {
       fixed: { instrument: EURO_FUND!, date: '2026-08-31', price: '10.4', id: PRICE_R! },
     },
   },
+  'fund-mix': {
+    seed: HOLDINGS_SEED,
+    records: [
+      { instrument: EURO_FUND!, mix: 'sector', group: 'information-technology', percent: '62.5', id: FUND_MIX_A! },
+      { instrument: EURO_FUND!, mix: 'sector', group: 'financials', percent: '37.5', id: FUND_MIX_B! },
+    ],
+    outside: { instrument: EURO_FUND!, mix: 'country', group: 'IE', percent: '100', id: FUND_MIX_C! },
+    change: { field: 'group', value: 'health-care' },
+    cleared: null,
+    refused: {
+      fields: { instrument: EURO_FUND!, mix: 'country', group: 'US', percent: '120', id: FUND_MIX_R! },
+      reason: 'is more than 100',
+      fixed: { instrument: EURO_FUND!, mix: 'country', group: 'US', percent: '100', id: FUND_MIX_R! },
+    },
+  },
+  target: {
+    records: [
+      { mix: 'class', group: 'stocks', percent: '70', id: TARGET_A! },
+      { mix: 'class', group: 'cash', percent: '30', id: TARGET_B! },
+    ],
+    outside: { mix: 'currency', group: 'EUR', percent: '100', id: TARGET_C! },
+    change: { field: 'group', value: 'bonds' },
+    cleared: null,
+    refused: {
+      fields: { mix: 'colour', group: 'red', percent: '100', id: TARGET_R! },
+      reason: 'is not a mix',
+      fixed: { mix: 'sector', group: 'energy', percent: '100', id: TARGET_R! },
+    },
+  },
+  check: {
+    records: [
+      { check: 'holding', threshold: '25', off: true, id: CHECK_A! },
+      { check: 'cash', off: true, id: CHECK_B! },
+    ],
+    outside: { check: 'costs', threshold: '1.5', id: CHECK_C! },
+    change: { field: 'threshold', value: '30' },
+    cleared: 'off',
+    refused: {
+      fields: { check: 'currency', threshold: '50', id: CHECK_R! },
+      reason: 'so it changes nothing',
+      fixed: { check: 'currency', threshold: '40', id: CHECK_R! },
+    },
+  },
 }
 
 const CORE_WRITES: readonly WriteRules<unknown>[] = [
@@ -856,6 +904,9 @@ const INVESTMENTS_WRITES: readonly WriteRules<unknown>[] = [
   INVESTMENT_SPLIT_WRITES,
   SPIN_OFF_WRITES,
   HAND_PRICE_WRITES,
+  FUND_MIX_WRITES,
+  TARGET_WRITES,
+  CHECK_WRITES,
 ]
 
 const INVESTMENTS_KINDS = INVESTMENTS_WRITES.map((rules) => [rules.kind.name, rules] as const)
@@ -884,7 +935,7 @@ it('has a fixture for every Loans kind', () => {
 
 it('has a fixture for every Investments kind', () => {
   expect(INVESTMENTS_KINDS.map(([name]) => name).filter((name) => INVESTMENTS_FIXTURES[name] === undefined)).toEqual([])
-  expect(INVESTMENTS_KINDS).toHaveLength(10)
+  expect(INVESTMENTS_KINDS).toHaveLength(13)
 })
 
 describe.each(STORAGES)('records kept in %s', (_storage, open) => {

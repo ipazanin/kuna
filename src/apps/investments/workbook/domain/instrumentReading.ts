@@ -1,7 +1,9 @@
 import { INSTRUMENT_CLASSES, PRICE_SOURCES } from './instrument'
 import type { Instrument, Quoting } from './instrument'
-import { decimalField, optionalUnsigned, requiredCurrency } from './investmentFields'
+import { decimalField, optionalCountry, optionalUnsigned, requiredCurrency } from './investmentFields'
 import { INSTRUMENT_RECORDS } from './investmentKinds'
+import { SECTORS } from './mixGroup'
+import type { Sector } from './mixGroup'
 import { words } from './words'
 import { labelWords, withIdField } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
@@ -49,6 +51,10 @@ function benchmarkFlag(fields: StoredFields): boolean {
   return field === undefined ? false : (booleanOf(field) ?? refuse(words.notAFlag('benchmark', field.text)))
 }
 
+function optionalSector(fields: StoredFields): Sector | null {
+  return textOf(fields.sector) === '' ? null : requiredChoice(fields, 'sector', SECTORS, 'sector')
+}
+
 export function instrumentOf(fields: StoredFields, id: RecordId | null): Instrument {
   const prices = requiredChoice(fields, 'prices', PRICE_SOURCES, 'price source')
   const sourceSymbol = textOf(fields.source_symbol)
@@ -66,6 +72,9 @@ export function instrumentOf(fields: StoredFields, id: RecordId | null): Instrum
     prices,
     sourceSymbol,
     benchmark: benchmarkFlag(fields),
+    sector: optionalSector(fields),
+    country: optionalCountry(fields, 'country'),
+    ter: optionalUnsigned(fields, 'ter'),
     note: textOf(fields.note),
   }
 }
@@ -88,6 +97,9 @@ export const INSTRUMENT_CODEC: RecordCodec<Instrument> = withIdField(
       prices: instrument.prices,
       source_symbol: instrument.sourceSymbol,
       benchmark: instrument.benchmark ? true : null,
+      sector: instrument.sector,
+      country: instrument.country,
+      ter: decimalField(instrument.ter),
       note: instrument.note,
     }),
 )

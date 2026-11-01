@@ -1,11 +1,14 @@
 import { CASH_MOVEMENT_CODEC } from '../domain/cashMovementReading'
+import { CHECK_CODEC } from '../domain/checkSettingReading'
 import { EXCHANGE_CODEC } from '../domain/exchangeReading'
+import { FUND_MIX_CODEC } from '../domain/fundMixReading'
 import { HAND_PRICE_CODEC } from '../domain/handPriceReading'
 import { INCOME_CODEC } from '../domain/incomeReading'
 import { INSTRUMENT_CODEC } from '../domain/instrumentReading'
 import { INVESTMENT_ACCOUNT_CODEC } from '../domain/investmentAccountReading'
 import { SPIN_OFF_CODEC } from '../domain/spinOffReading'
 import { SPLIT_CODEC } from '../domain/splitReading'
+import { TARGET_CODEC } from '../domain/targetReading'
 import { TRADE_CODEC } from '../domain/tradeReading'
 import { TRANSFER_CODEC } from '../domain/transferReading'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
@@ -22,6 +25,9 @@ const INVESTMENTS_CODECS = [
   SPLIT_CODEC,
   SPIN_OFF_CODEC,
   HAND_PRICE_CODEC,
+  FUND_MIX_CODEC,
+  TARGET_CODEC,
+  CHECK_CODEC,
 ] as readonly RecordCodec<unknown>[]
 
 /** The codec of an Investments kind. Throws for a kind the Investments file does not keep. */

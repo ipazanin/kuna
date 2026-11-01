@@ -6,13 +6,16 @@ import { SPIN_OFF_WRITES, SPLIT_WRITES, TRADE_WRITES, TRANSFER_WRITES } from '..
 import { codecOfInvestmentsKind } from '../src/apps/investments/workbook/application/investmentsCodecs'
 import {
   CASH_MOVEMENT_RECORDS,
+  CHECK_RECORDS,
   EXCHANGE_RECORDS,
+  FUND_MIX_RECORDS,
   INCOME_RECORDS,
   INSTRUMENT_RECORDS,
   INVESTMENT_ACCOUNT_RECORDS,
   PRICE_RECORDS,
   SPIN_OFF_RECORDS,
   SPLIT_RECORDS,
+  TARGET_RECORDS,
   TRADE_RECORDS,
   TRANSFER_RECORDS,
 } from '../src/apps/investments/workbook/domain/investmentKinds'
@@ -94,6 +97,15 @@ describe('the Investments file', () => {
       [SPLIT_RECORDS, { id: 's1', instrument: SHARE, date: '2026-02-01', new: '1', old: '3' }],
       [SPIN_OFF_RECORDS, { id: 'o1', instrument: SHARE, received: SPINCO, date: '2026-02-01', quantity: '2', cost_share: '0.0825' }],
       [PRICE_RECORDS, { id: 'p1', instrument: FUND, date: '2026-09-30', price: '10.51', note: 'Statement of 30 Sep' }],
+      [INSTRUMENT_RECORDS, { ...EURO_FUND, sector: 'financials', country: 'emerging-markets', ter: '0.12' }],
+      [INSTRUMENT_RECORDS, { ...DOLLAR_SHARE, country: 'US' }],
+      [FUND_MIX_RECORDS, { id: 'f1', instrument: FUND, mix: 'sector', group: 'health-care', percent: '12.5' }],
+      [FUND_MIX_RECORDS, { id: 'f2', instrument: FUND, mix: 'country', group: 'JP', percent: '6' }],
+      [TARGET_RECORDS, { id: 'g1', mix: 'class', group: 'cash', percent: '10' }],
+      [TARGET_RECORDS, { id: 'g2', mix: 'account', group: TWO, percent: '40' }],
+      [TARGET_RECORDS, { id: 'g3', mix: 'currency', group: 'USD', percent: '35' }],
+      [CHECK_RECORDS, { id: 'k1', check: 'target-gap', threshold: '7.5' }],
+      [CHECK_RECORDS, { id: 'k2', check: 'costs', off: true }],
     ]
 
     for (const [kind, fields] of kinds) {
@@ -124,6 +136,15 @@ describe('the Investments file', () => {
       split: [{ id: 's1', instrument: SHARE, date: '2026-03-01', new: '2', old: '1' }],
       'spin-off': [{ id: 'o1', instrument: SHARE, received: SPINCO, date: '2026-04-01', quantity: '1', cost_share: '0.1' }],
       price: [{ id: 'p1', instrument: FUND, date: '2026-09-30', price: '10.51' }],
+      'fund-mix': [
+        { id: 'f1', instrument: FUND, mix: 'country', group: 'us', percent: '60' },
+        { id: 'f2', instrument: FUND, mix: 'country', group: 'Europe', percent: '40' },
+      ],
+      target: [
+        { id: 'g1', mix: 'class', group: 'stocks', percent: '90' },
+        { id: 'g2', mix: 'class', group: 'cash', percent: '10' },
+      ],
+      check: [{ id: 'k1', check: 'holding', threshold: '25' }],
     })
 
     expect(books.problems).toEqual([])
@@ -141,6 +162,127 @@ describe('the Investments file', () => {
     expect(book.splits[0]).toMatchObject({ newUnits: 2, oldUnits: 1 })
     expect(book.spinOffs[0]).toMatchObject({ received: recordIdOf(INSTRUMENT_RECORDS, SPINCO), costShare: decimal('0.1') })
     expect(book.prices[0]).toMatchObject({ instrument: recordIdOf(INSTRUMENT_RECORDS, FUND), price: decimal('10.51') })
+    expect(book.fundMixes.map((line) => [line.slice, line.percent])).toEqual([
+      [{ mix: 'country', group: 'US' }, decimal('60')],
+      [{ mix: 'country', group: 'europe' }, decimal('40')],
+    ])
+    expect(book.targets.map((target) => target.slice.group)).toEqual(['stocks', 'cash'])
+    expect(book.checks).toEqual([{ id: recordIdOf(CHECK_RECORDS, 'k1'), check: 'holding', threshold: decimal('25'), off: false }])
+  })
+
+  it('reads an instrument’s sector, country or region and TER, and says what is wrong with them', () => {
+    const books = booksOf({
+      instrument: [
+        { ...DOLLAR_SHARE, sector: 'Energy', country: 'us' },
+        { ...EURO_FUND, country: 'World', ter: '0.07' },
+      ],
+    })
+
+    expect(books.problems).toEqual([])
+    expect(books.book.instruments.map((instrument) => [instrument.sector, instrument.country, instrument.ter])).toEqual([
+      ['energy', 'US', null],
+      [null, 'world', decimal('0.07')],
+    ])
+    expect(
+      problemsOf({
+        instrument: [
+          { ...DOLLAR_SHARE, id: 'n1', sector: 'tech' },
+          { ...DOLLAR_SHARE, id: 'n2', country: 'UK' },
+          { ...EURO_FUND, id: 'n3', ter: '-0.2' },
+        ],
+      }),
+    ).toEqual([
+      [
+        'instrument',
+        'Example Tech, ABC',
+        '"tech" is not a sector. Use information-technology, financials, health-care, consumer-discretionary, consumer-staples, industrials, energy, materials, utilities, real-estate, communication-services',
+      ],
+      ['instrument', 'Example Tech, ABC', 'country "UK" is not a country code such as US, or a region: world, europe, north-america, asia-pacific, emerging-markets'],
+      ['instrument', 'Example Fund, EMF', 'ter is below zero'],
+    ])
+  })
+
+  it('keeps a fund’s mix only while its lines add up to 100% with each group once, by sector and by country apart', () => {
+    const line = { instrument: FUND, mix: 'sector', group: 'energy', percent: '50' }
+    expect(
+      problemsOf({
+        instrument: [DOLLAR_SHARE, EURO_FUND],
+        'fund-mix': [
+          { ...line, id: 'f1' },
+          { ...line, id: 'f2', group: 'utilities', percent: '45' },
+          { ...line, id: 'f3', mix: 'country', group: 'IE', percent: '100' },
+          { ...line, id: 'f4', instrument: SHARE, group: 'energy', percent: '50' },
+          { ...line, id: 'f5', instrument: SHARE, group: 'energy', percent: '50' },
+          { ...line, id: 'f6', mix: 'currency', group: 'USD' },
+          { ...line, id: 'f7', group: 'tech' },
+          { ...line, id: 'f8', percent: '0' },
+          { ...line, id: 'f9', percent: '101' },
+          { ...line, id: 'f10', instrument: '3a1f0c2e-4b5d-4e6f-8a7b-9c0d1e2f3a99', percent: '100' },
+        ],
+      }),
+    ).toEqual([
+      ['fund-mix', 'currency, USD, 50%', '"currency" is not a mix. Use sector, country'],
+      [
+        'fund-mix',
+        'sector, tech, 50%',
+        '"tech" is not a sector. Use information-technology, financials, health-care, consumer-discretionary, consumer-staples, industrials, energy, materials, utilities, real-estate, communication-services',
+      ],
+      ['fund-mix', 'sector, energy, 0%', 'percent must be more than zero'],
+      ['fund-mix', 'sector, energy, 101%', 'percent is more than 100'],
+      ['fund-mix', 'sector, energy, 50%', 'the lines of "Example Fund" by sector add up to 95%, not 100%'],
+      ['fund-mix', 'sector, utilities, 45%', 'the lines of "Example Fund" by sector add up to 95%, not 100%'],
+      ['fund-mix', 'sector, energy, 50%', 'another line of "Example Tech" is for energy too'],
+      ['fund-mix', 'sector, energy, 50%', 'another line of "Example Tech" is for energy too'],
+      ['fund-mix', 'sector, energy, 100%', 'instrument names no instrument in the file'],
+    ])
+  })
+
+  it('keeps the targets of each mix only while they add up to 100% with each group once, and an account target only while its account counts', () => {
+    expect(
+      problemsOf({
+        'investment-account': ACCOUNTS,
+        target: [
+          { id: 'g1', mix: 'class', group: 'stocks', percent: '70' },
+          { id: 'g2', mix: 'class', group: 'cash', percent: '20' },
+          { id: 'g3', mix: 'account', group: ONE, percent: '60' },
+          { id: 'g4', mix: 'account', group: '3a1f0c2e-4b5d-4e6f-8a7b-9c0d1e2f3a99', percent: '40' },
+          { id: 'g5', mix: 'currency', group: 'EUR', percent: '50' },
+          { id: 'g6', mix: 'currency', group: 'eur', percent: '50' },
+          { id: 'g7', mix: 'class', group: 'shares', percent: '10' },
+        ],
+      }),
+    ).toEqual([
+      ['target', 'class, shares, 10%', '"shares" is not a class. Use stocks, bonds, money-market, crypto, gold, cash'],
+      ['target', 'class, stocks, 70%', 'the targets by class add up to 90%, not 100%'],
+      ['target', 'class, cash, 20%', 'the targets by class add up to 90%, not 100%'],
+      ['target', 'account, 40%', 'group names no investment account in the file'],
+      ['target', 'currency, EUR, 50%', 'another target is for EUR too'],
+      ['target', 'currency, eur, 50%', 'another target is for EUR too'],
+    ])
+  })
+
+  it('reads a check that changes its threshold or switches it off, once per check, and refuses one that changes nothing', () => {
+    expect(
+      problemsOf({
+        check: [
+          { id: 'k1', check: 'cash', threshold: '15' },
+          { id: 'k2', check: 'cash', off: true },
+          { id: 'k3', check: 'speed', threshold: '5' },
+          { id: 'k4', check: 'holding' },
+          { id: 'k5', check: 'holding', threshold: '20' },
+          { id: 'k6', check: 'sector', off: 'maybe' },
+          { id: 'k7', check: 'sector', threshold: '120' },
+        ],
+      }),
+    ).toEqual([
+      ['check', 'speed', '"speed" is not a check. Use holding, currency, sector, country, account, cash, costs, target-gap'],
+      ['check', 'holding', 'threshold is blank or the default, and off is not true, so it changes nothing'],
+      ['check', 'holding', 'threshold is blank or the default, and off is not true, so it changes nothing'],
+      ['check', 'sector', 'off "maybe" is not true or false'],
+      ['check', 'sector', 'threshold is more than 100'],
+      ['check', 'cash', 'another record changes the cash check too'],
+      ['check', 'cash', 'another record changes the cash check too'],
+    ])
   })
 
   it('refuses an account or an instrument whose fields do not make one, and says why', () => {
@@ -322,15 +464,18 @@ describe('the Investments file', () => {
     expect(books.problems).toEqual([])
     expect(Object.fromEntries(Object.entries(books.book).map(([part, records]) => [part, records.length]))).toEqual({
       accounts: 2,
-      instruments: 6,
-      trades: 7,
-      income: 4,
-      cashMovements: 5,
+      instruments: 7,
+      trades: 12,
+      income: 9,
+      cashMovements: 9,
       exchanges: 1,
       transfers: 2,
       splits: 1,
       spinOffs: 1,
-      prices: 8,
+      prices: 13,
+      fundMixes: 19,
+      targets: 3,
+      checks: 1,
     })
     expect([...investmentLots(books.book).values()].flatMap((lots) => [...lots.refused, ...lots.emptied])).toEqual([])
   })

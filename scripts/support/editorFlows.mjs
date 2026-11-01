@@ -4917,6 +4917,7 @@ export function buildUpFlowIn(language, opener) {
 
 /** The made-up share in US dollars of the sample Investments file. */
 const SAMPLE_INVESTMENT_SHARE = 'fa4e1000-0000-4000-8000-000000000010'
+const SAMPLE_WORLD_ETF = 'fa4e1000-0000-4000-8000-000000000012'
 
 /** Presses the button inside `container` that reads `label`. */
 async function pressLabelled(page, press, container, label) {
@@ -4937,8 +4938,8 @@ async function scrollIntoDialogView(page, selector) {
 
 /**
  * The transaction dialogs of the sample Investments file: a buy of a holding and its summary added, changed, deleted and
- * brought back with Undo, a sale beyond what the account holds refused in words, and a new holding added from inside
- * the dialog with a price entered by hand for it.
+ * brought back with Undo, a sale beyond what the account holds refused in words, a new holding added from inside
+ * the dialog with a price entered by hand for it, and a fund's own mix kept from saving until its lines add up to 100%.
  */
 export async function investmentsEditorFlow(page, { press, shoot, inspect }) {
   const rows = () => page.evaluate(() => document.querySelectorAll('[data-testid="transaction-row"]').length)
@@ -5013,11 +5014,30 @@ export async function investmentsEditorFlow(page, { press, shoot, inspect }) {
   await toast(page, 'Price by hand added')
   await elementSays(page, '[data-testid="transaction-row"]', ['Example Bond Fund', '€10.25'], 'the hand price is not listed')
   await dismissToasts(page)
+
+  await goTo(page, `#/investments/holding?instrument=${SAMPLE_WORLD_ETF}`, 'Example World ETF')
+  await pressSelector(page, press, '[data-testid="holding-change"]')
+  await page.waitForSelector('[data-testid="instrument-form"]', { visible: true })
+  await pressLabelled(page, press, '[data-testid="instrument-mix-pick"]', 'By country or region')
+  await pressSelector(page, press, '[data-testid="instrument-mix-add"]')
+  await chooseStartingWith(page, press, '[data-testid="instrument-mix-line"]:last-child [data-testid="instrument-mix-group"]', 'Asia and Pacific')
+  await setField(await page.$('[data-testid="instrument-mix-line"]:last-child [data-testid="instrument-mix-percent"]'), '5')
+  await elementSays(page, '[data-testid="instrument-mix-sum"]', ['Adds up to 105%'], 'the mix does not add up what is typed')
+  await pressSelector(page, press, '[data-testid="instrument-save"]')
+  await elementSays(page, '[data-testid="instrument-mix-whole"]', ['Lines that add up to 100%'], 'a mix that does not add up is not marked')
+  await scrollIntoDialogView(page, '[data-testid="instrument-mix-whole"]')
+  await shoot('investments-fund-mix-not-whole')
+  await setField(await page.$('[data-testid="instrument-mix-line"]:first-child [data-testid="instrument-mix-percent"]'), '65')
+  await elementSays(page, '[data-testid="instrument-mix-sum"]', ['Adds up to 100%'], 'the mix does not add up to 100% once fixed')
+  await pressSelector(page, press, '[data-testid="instrument-save"]')
+  await toast(page, 'Holding saved')
+  await dialogGone(page, '[data-testid="instrument-form"]')
+  await dismissToasts(page)
 }
 
 /**
  * Every Investments dialog with the sample file, opened and closed again: the transaction dialog on each kind of
- * record, a transaction changed, a holding and an account.
+ * record, a transaction changed, a holding, a fund's own mix by sector and by country, and an account.
  */
 export function investmentsDialogsFlowIn(language) {
   const croatian = language === 'hr'
@@ -5061,6 +5081,17 @@ export function investmentsDialogsFlowIn(language) {
     await lookAtDialog(page, press, shoot, '[data-testid="transaction-row"] [data-testid="transaction-edit"]', '[data-testid="transaction-form"]', 'dialog-investments-change')
     await goTo(page, `#/investments/holding?instrument=${SAMPLE_INVESTMENT_SHARE}`, 'Example Tech')
     await lookAtDialog(page, press, shoot, '[data-testid="holding-change"]', '[data-testid="instrument-form"]', 'dialog-investments-instrument')
+    await goTo(page, `#/investments/holding?instrument=${SAMPLE_WORLD_ETF}`, 'Example World ETF')
+    await pressSelector(page, press, '[data-testid="holding-change"]')
+    await page.waitForSelector('[data-testid="instrument-mix"]', { visible: true })
+    await scrollIntoDialogView(page, '[data-testid="instrument-mix"]')
+    await shoot('dialog-investments-instrument-mix')
+    await pressLabelled(page, press, '[data-testid="instrument-mix-pick"]', croatian ? 'Po državi ili regiji' : 'By country or region')
+    await scrollIntoDialogView(page, '[data-testid="instrument-mix"]')
+    await shoot('dialog-investments-instrument-mix-country')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="instrument-form"]')
+    await goTo(page, `#/investments/holding?instrument=${SAMPLE_INVESTMENT_SHARE}`, 'Example Tech')
     await lookAtDialog(page, press, shoot, '[data-testid="holding-add-transaction"]', '[data-testid="transaction-form"]', 'dialog-investments-holding-buy')
     await goTo(page, '#/investments/settings', croatian ? 'Postavke' : 'Settings')
     await lookAtDialog(page, press, shoot, '[data-testid="account-edit"]', '[data-testid="account-form"]', 'dialog-investments-account')

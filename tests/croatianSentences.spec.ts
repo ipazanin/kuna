@@ -82,6 +82,18 @@ describe('record labels in Croatian', () => {
     expect(words.labels.ratePeriod(storedFieldsOfValues({ rate: '3.18%' }))).toBe('3.18%')
     expect(words.labels.extraPayment(storedFieldsOfValues({}))).toBe('bez naziva')
   })
+
+  it('names a fund mix line or a target by its mix in Croatian, and an account target without its UUID', async () => {
+    const { words } = await inCroatian(() => import('../src/apps/investments/workbook/domain/words'))
+    const holdings = await import('../src/apps/investments/holdings/application/words')
+
+    expect(words.labels.share(storedFieldsOfValues({ mix: 'class', group: 'stocks', percent: '62.5' }))).toBe('klasa, stocks, 62,5\u00a0%')
+    expect(words.labels.share(storedFieldsOfValues({ mix: 'account', group: '00000000-0000-4000-8000-000000000001', percent: '25' }))).toBe('račun, 25\u00a0%')
+    expect(words.labels.share(storedFieldsOfValues({ mix: 'colour', group: 'red', percent: '100' }))).toBe('colour, red, 100\u00a0%')
+    expect(holdings.words.targetsOfTwoMixes(holdings.words.byMix.account, holdings.words.byMix.class)).toBe(
+      'Ciljevi se postavljaju za jednu raspodjelu odjednom, pa ciljevi po računu ne mogu stajati uz ciljeve po klasi.',
+    )
+  })
 })
 
 describe('full stops in Croatian', () => {

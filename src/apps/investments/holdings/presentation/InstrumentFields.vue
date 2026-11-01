@@ -2,8 +2,10 @@
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
+import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import CurrencyField from './CurrencyField.vue'
+import { COUNTRY_ITEMS, SECTOR_ITEMS } from './instrumentForm'
 import type { InstrumentErrors, InstrumentTexts } from './instrumentForm'
 import { words } from './words'
 import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
@@ -32,6 +34,9 @@ const SOURCE_ITEMS = PRICE_SOURCES.map((value) => {
   const vendor = PRICE_VENDORS.find((candidate) => candidate.id === value)
   return { value, label: vendor?.name ?? text.manual, description: vendor?.covers ?? text.manualHelp }
 })
+
+const SECTOR_CHOICES = [{ value: '' as const, label: text.notSet }, ...SECTOR_ITEMS]
+const COUNTRY_CHOICES = [{ value: '', label: text.notSet }, ...COUNTRY_ITEMS]
 
 const shown = (error: string | null): string | false => (props.tried && error) || false
 
@@ -80,7 +85,34 @@ function update<Field extends keyof InstrumentTexts>(field: Field, value: Instru
       @update:model-value="update('sourceSymbol', String($event))"
     />
   </UFormField>
-  <UFormField :label="text.note" class="sm:col-span-2">
+  <UFormField :label="text.sector" :help="text.sectorHelp">
+    <USelectMenu
+      :model-value="texts.sector"
+      :items="SECTOR_CHOICES"
+      value-key="value"
+      :search-input="false"
+      class="w-full"
+      :data-testid="`${testId}-sector`"
+      @update:model-value="update('sector', $event)"
+    />
+  </UFormField>
+  <UFormField :label="text.country" :help="text.countryHelp">
+    <USelectMenu
+      :model-value="texts.country"
+      :items="COUNTRY_CHOICES"
+      value-key="value"
+      :search-input="{ placeholder: text.findCountry }"
+      class="w-full"
+      :data-testid="`${testId}-country`"
+      @update:model-value="update('country', $event)"
+    />
+  </UFormField>
+  <UFormField :label="text.ter" :help="text.terHelp" :error="shown(errors.ter)">
+    <UInput :model-value="texts.ter" inputmode="decimal" class="w-full" :data-testid="`${testId}-ter`" @update:model-value="update('ter', String($event))">
+      <template #trailing><span class="text-muted">%</span></template>
+    </UInput>
+  </UFormField>
+  <UFormField :label="text.note">
     <UInput :model-value="texts.note" class="w-full" :data-testid="`${testId}-note`" @update:model-value="update('note', String($event))" />
   </UFormField>
 </template>

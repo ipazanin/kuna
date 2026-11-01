@@ -873,6 +873,9 @@ function proposedInstrument(rows: readonly WorkbookRow[], isin: string | null): 
     prices: listing.prices,
     sourceSymbol: listing.sourceSymbol,
     benchmark: false,
+    sector: null,
+    country: null,
+    ter: null,
     note: '',
   }
 }
@@ -982,6 +985,9 @@ function addedRecords(book: InvestmentBook, planned: InvestmentBook): Investment
     splits: after(book.splits, planned.splits),
     spinOffs: after(book.spinOffs, planned.spinOffs),
     prices: [],
+    fundMixes: [],
+    targets: [],
+    checks: [],
   }
 }
 

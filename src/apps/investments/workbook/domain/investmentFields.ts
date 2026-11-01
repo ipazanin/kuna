@@ -1,13 +1,15 @@
 import { INSTRUMENT_RECORDS, INVESTMENT_ACCOUNT_RECORDS } from './investmentKinds'
+import { CLASS_GROUPS, SECTORS, countryOf } from './mixGroup'
+import type { Country, Mix, MixGroup } from './mixGroup'
 import { words } from './words'
 import { EURO, currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { DECIMAL_ZERO, decimalOfText, decimalText } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
-import { recordIdOf } from '../../../../shared/storage/domain/recordId'
+import { keyOfRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
-import { refuse, textOf } from '../../../../shared/storage/domain/storedFields'
+import { refuse, requiredChoice, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import { words as storedWords } from '../../../../shared/storage/domain/words'
 
@@ -25,6 +27,15 @@ export function requiredDecimal(fields: StoredFields, name: string): Decimal {
 export function positiveDecimal(fields: StoredFields, name: string): Decimal {
   const value = requiredDecimal(fields, name)
   return value > DECIMAL_ZERO ? value : refuse(storedWords.reasons.notAboveZero(name))
+}
+
+/** The whole, which a fund's mix and the targets add up to. */
+export const HUNDRED_PERCENT = decimalOfText('100')!
+
+/** A percent above zero and at most 100. */
+export function percentField(fields: StoredFields, name: string): Decimal {
+  const value = positiveDecimal(fields, name)
+  return value <= HUNDRED_PERCENT ? value : refuse(words.overHundred(name))
 }
 
 /** Zero or more, or null for a blank field. */
@@ -71,4 +82,40 @@ export function namedInstrument(fields: StoredFields, field: string): RecordId {
 export function importKeyOf(fields: StoredFields): string | null {
   const key = textOf(fields.import_key)
   return key === '' ? null : key
+}
+
+/** A country by its code or a region, or null for a blank field. */
+export function optionalCountry(fields: StoredFields, name: string): Country | null {
+  const text = textOf(fields[name])
+  if (text === '') return null
+  return countryOf(text) ?? refuse(words.notACountry(name, text))
+}
+
+/** The mix in `mix`, one of `mixes`, and its group in `group`. An account is named by its bare UUID. */
+export function mixGroupOf<Allowed extends Mix>(fields: StoredFields, mixes: readonly Allowed[]): Extract<MixGroup, { readonly mix: Allowed }> {
+  const mix: Mix = requiredChoice(fields, 'mix', mixes, 'mix')
+  let slice: MixGroup
+  switch (mix) {
+    case 'sector':
+      slice = { mix, group: requiredChoice(fields, 'group', SECTORS, 'sector') }
+      break
+    case 'country':
+      slice = { mix, group: optionalCountry(fields, 'group') ?? refuse(storedWords.reasons.none('group', '')) }
+      break
+    case 'class':
+      slice = { mix, group: requiredChoice(fields, 'group', CLASS_GROUPS, 'class') }
+      break
+    case 'currency':
+      slice = { mix, group: requiredCurrency(fields, 'group') }
+      break
+    case 'account':
+      slice = { mix, group: namedAccount(fields, 'group') }
+      break
+  }
+  return slice as Extract<MixGroup, { readonly mix: Allowed }>
+}
+
+/** The group as a record stores it. */
+export function groupField(slice: MixGroup): string {
+  return slice.mix === 'account' ? keyOfRecordId(INVESTMENT_ACCOUNT_RECORDS, slice.group) : slice.group
 }

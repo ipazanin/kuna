@@ -1,7 +1,10 @@
 import { words } from './words'
 import type { Instrument, InstrumentClass, PriceSource } from '../../workbook/domain/instrument'
 import { ISIN, MIC } from '../../workbook/domain/instrumentReading'
+import { COUNTRY_CODES, REGIONS, SECTORS, countryOf } from '../../workbook/domain/mixGroup'
+import type { Sector } from '../../workbook/domain/mixGroup'
 import { EURO, currencyCodeOf } from '../../../../shared/money/currencyCode'
+import { decimalShown, typedDecimal } from '../../../../shared/money/decimal'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /** A holding's facts as its fields hold them. */
@@ -14,8 +17,21 @@ export interface InstrumentTexts {
   currency: string
   prices: PriceSource
   sourceSymbol: string
+  /** Blank for none. */
+  sector: Sector | ''
+  /** A country code or a region, blank for none. */
+  country: string
+  ter: string
   note: string
 }
+
+export const SECTOR_ITEMS: { readonly value: Sector; readonly label: string }[] = SECTORS.map((value) => ({ value, label: words.sectors[value] }))
+
+/** The regions by name, then the countries by code. */
+export const COUNTRY_ITEMS: { readonly value: string; readonly label: string }[] = [
+  ...REGIONS.map((value) => ({ value, label: words.regions[value] })),
+  ...COUNTRY_CODES.map((value) => ({ value, label: value })),
+]
 
 export interface InstrumentErrors {
   readonly name: string | null
@@ -23,6 +39,7 @@ export interface InstrumentErrors {
   readonly isin: string | null
   readonly exchange: string | null
   readonly currency: string | null
+  readonly ter: string | null
 }
 
 /** The fields of an instrument, or of a new one priced by Twelve Data in euros. */
@@ -36,6 +53,9 @@ export function instrumentTexts(instrument: Omit<Instrument, 'id'> | null): Inst
     currency: instrument?.currency ?? EURO,
     prices: instrument?.prices ?? 'twelvedata',
     sourceSymbol: instrument?.sourceSymbol ?? '',
+    sector: instrument?.sector ?? '',
+    country: instrument?.country ?? '',
+    ter: decimalShown(instrument?.ter ?? null),
     note: instrument?.note ?? '',
   }
 }
@@ -51,6 +71,7 @@ export function instrumentErrors(texts: InstrumentTexts, others: readonly Instru
     isin: isin !== '' && !ISIN.test(isin) ? text.errors.isin : sharing === undefined ? null : text.errors.isinTaken(sharing.name),
     exchange: texts.exchange.trim() !== '' && !MIC.test(texts.exchange.trim().toUpperCase()) ? text.errors.exchange : null,
     currency: currencyCodeOf(texts.currency) === null ? text.errors.currency : null,
+    ter: texts.ter.trim() !== '' && typedDecimal(texts.ter) === null ? text.errors.ter : null,
   }
 }
 
@@ -78,6 +99,9 @@ export function instrumentOfTexts(texts: InstrumentTexts, others: readonly Instr
     prices: texts.prices,
     sourceSymbol: texts.prices === 'manual' ? '' : texts.sourceSymbol.trim() || symbol,
     benchmark: kept.benchmark,
+    sector: texts.sector === '' ? null : texts.sector,
+    country: countryOf(texts.country),
+    ter: typedDecimal(texts.ter),
     note: texts.note.trim(),
   }
 }

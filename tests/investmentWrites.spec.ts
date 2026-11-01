@@ -2,14 +2,21 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { INSTRUMENT_WRITES, INVESTMENT_ACCOUNT_WRITES } from '../src/apps/investments/holdings/application/holdingWrites'
+import { FUND_MIX_WRITES, TARGET_WRITES, replaceRows } from '../src/apps/investments/holdings/application/mixWrites'
+import { instrumentErrors, instrumentOfTexts, instrumentTexts } from '../src/apps/investments/holdings/presentation/instrumentForm'
+import { fundMixChanges, fundMixErrors, fundMixTexts, mixLineTexts, mixSum } from '../src/apps/investments/holdings/presentation/instrumentMixForm'
+import { writeCheck } from '../src/apps/investments/overview/application/checkWrites'
 import { writeTransaction } from '../src/apps/investments/transactions/application/transactionWrites'
 import { listedTransactions, passesFilter, transactionCount } from '../src/apps/investments/transactions/domain/listedTransactions'
 import type { TransactionRecord } from '../src/apps/investments/transactions/domain/listedTransactions'
 import { tradePreview } from '../src/apps/investments/transactions/domain/tradePreview'
 import { ecbRateText, happeningsOfKind, keyOf, rateCurrency, textsOf, transactionDraft } from '../src/apps/investments/transactions/presentation/transactionForm'
 import type { TransactionTexts } from '../src/apps/investments/transactions/presentation/transactionForm'
+import type { FundMixLine } from '../src/apps/investments/workbook/domain/fundMix'
 import type { InvestmentsBooks } from '../src/apps/investments/workbook/domain/investmentsBooks'
-import { PRICE_RECORDS, TRADE_RECORDS } from '../src/apps/investments/workbook/domain/investmentKinds'
+import { FUND_MIX_RECORDS, INSTRUMENT_RECORDS, PRICE_RECORDS, TRADE_RECORDS } from '../src/apps/investments/workbook/domain/investmentKinds'
+import { countryOf } from '../src/apps/investments/workbook/domain/mixGroup'
+import type { Target } from '../src/apps/investments/workbook/domain/target'
 import { emptyInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/investmentsDocument'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
@@ -339,5 +346,161 @@ describe('the trade summary and the list', () => {
     expect(listed.filter((entry) => passesFilter(entry, { kind: null, account: ONE.id, instrument: null })).map((entry) => entry.kind)).toEqual(['trade', 'exchange', 'cash-movement'])
     expect(listed.filter((entry) => passesFilter(entry, { kind: 'price', account: null, instrument: FUND.id }))).toHaveLength(1)
     expect(listed.filter((entry) => passesFilter(entry, { kind: null, account: null, instrument: SHARE.id }))).toHaveLength(1)
+  })
+})
+
+/** A line of the fund's mix by sector. */
+function sectorLine(group: string, percent: string): Omit<FundMixLine, 'id'> {
+  return { instrument: FUND.id, slice: { mix: 'sector', group } as FundMixLine['slice'], percent: decimal(percent) }
+}
+
+function classTarget(group: string, percent: string): Omit<Target, 'id'> {
+  return { slice: { mix: 'class', group } as Target['slice'], percent: decimal(percent) }
+}
+
+describe('the mixes, targets and checks', () => {
+  it('writes a fund’s mix whole, changes it to fewer lines in one write, and Undo puts the lines back', async () => {
+    const store = await storeWithBuys()
+
+    await store.write('Mix set', (unit) => replaceRows(unit, FUND_MIX_WRITES, [], [sectorLine('financials', '62.5'), sectorLine('health-care', '25'), sectorLine('energy', '12.5')]))
+    const written = bookOf(store).fundMixes
+    expect(written.map((line) => [line.slice.group, line.percent])).toEqual([
+      ['financials', decimal('62.5')],
+      ['health-care', decimal('25')],
+      ['energy', decimal('12.5')],
+    ])
+
+    await store.write('Mix changed', (unit) => replaceRows(unit, FUND_MIX_WRITES, written, [sectorLine('utilities', '100')]))
+    expect(bookOf(store).fundMixes).toEqual([{ ...sectorLine('utilities', '100'), id: written[0]!.id }])
+    await store.undo(store.state.writes[0]!)
+    expect(bookOf(store).fundMixes).toEqual(written)
+  })
+
+  it('refuses a fund’s mix that does not add up to 100%, a change of one line alone, and deleting the fund while its mix names it', async () => {
+    const store = await storeWithBuys()
+
+    await expect(store.write('Mix set', (unit) => replaceRows(unit, FUND_MIX_WRITES, [], [sectorLine('financials', '60'), sectorLine('energy', '30')]))).rejects.toThrow(
+      'the lines of "Example Fund" by sector add up to 90%, not 100%',
+    )
+    await store.write('Mix set', (unit) => replaceRows(unit, FUND_MIX_WRITES, [], [sectorLine('financials', '60'), sectorLine('energy', '40')]))
+    const [financials] = bookOf(store).fundMixes
+    await expect(store.write('Changed', (unit) => unit.of(FUND_MIX_WRITES).change(financials!, { ...financials!, percent: decimal('50') }))).rejects.toThrow(WorkbookWriteRefused)
+    await expect(store.write('Deleted', (unit) => unit.of(INSTRUMENT_WRITES).remove(FUND))).rejects.toThrow(
+      'The line of a fund mix "sector, financials, 60%" would then be left out: instrument names no instrument in the file.',
+    )
+  })
+
+  it('replaces every target held with those of another mix, refuses targets of a second mix beside them, targets that do not add up, and an account deleted while a target names it', async () => {
+    const store = await storeWithBuys()
+    const accountTargets: Omit<Target, 'id'>[] = [
+      { slice: { mix: 'account', group: ONE.id }, percent: decimal('75') },
+      { slice: { mix: 'account', group: TWO.id }, percent: decimal('25') },
+    ]
+
+    await store.write('Targets set', (unit) => replaceRows(unit, TARGET_WRITES, [], [classTarget('stocks', '70'), classTarget('bonds', '20'), classTarget('cash', '10')]))
+    await expect(store.write('Targets set', (unit) => replaceRows(unit, TARGET_WRITES, bookOf(store).targets, [classTarget('stocks', '70'), classTarget('cash', '20')]))).rejects.toThrow(
+      'the targets by class add up to 90%, not 100%',
+    )
+    await expect(store.write('Targets set', (unit) => replaceRows(unit, TARGET_WRITES, [], accountTargets))).rejects.toThrow(
+      'Targets are set for one mix at a time, so targets by account cannot stay beside targets by class.',
+    )
+    await store.write('Targets set', (unit) => replaceRows(unit, TARGET_WRITES, bookOf(store).targets, accountTargets))
+    expect(bookOf(store).targets.map((target) => target.slice)).toEqual(accountTargets.map((target) => target.slice))
+    await expect(store.write('Deleted', (unit) => unit.of(INVESTMENT_ACCOUNT_WRITES).remove(TWO))).rejects.toThrow(
+      'The target "account, 25%" would then be left out: group names no investment account in the file.',
+    )
+  })
+
+  it('keeps a check’s record only while it differs from the default, and Undo brings back the one before', async () => {
+    const store = await storeWithBuys()
+    const held = () => bookOf(store).checks.find((setting) => setting.check === 'cash') ?? null
+
+    await store.write('Threshold', (unit) => writeCheck(unit, held(), 'cash', decimal('15'), true))
+    expect(held()).toMatchObject({ threshold: decimal('15'), off: false })
+    await store.write('Switched off', (unit) => writeCheck(unit, held(), 'cash', decimal('10'), false))
+    expect(held()).toMatchObject({ threshold: null, off: true })
+    await store.write('Back on', (unit) => writeCheck(unit, held(), 'cash', decimal('10'), true))
+    expect(bookOf(store).checks).toEqual([])
+    await store.undo(store.state.writes[0]!)
+    expect(held()).toMatchObject({ threshold: null, off: true })
+  })
+})
+
+describe('the instrument form', () => {
+  it('reads a sector, a country or region and a TER typed with either decimal mark, and keeps blank as none', () => {
+    const typed = { ...instrumentTexts(null), name: 'Example Fund', symbol: 'EMF', sector: 'financials' as const, country: 'europe', ter: '0,2' }
+
+    expect(instrumentOfTexts(typed, [], recordIdOf(INSTRUMENT_RECORDS, 'new'), { quoted: { kind: 'unit' }, benchmark: false })).toMatchObject({
+      sector: 'financials',
+      country: 'europe',
+      ter: decimal('0.2'),
+    })
+    expect(instrumentOfTexts({ ...typed, sector: '', country: '', ter: ' ' }, [], recordIdOf(INSTRUMENT_RECORDS, 'new'), { quoted: { kind: 'unit' }, benchmark: false })).toMatchObject({
+      sector: null,
+      country: null,
+      ter: null,
+    })
+    expect(instrumentErrors({ ...typed, ter: 'low' }, []).ter).toBe('A yearly cost in percent such as 0.20, or blank')
+    expect(instrumentTexts({ ...SHARE, sector: 'energy', country: countryOf('US'), ter: decimal('0.07') })).toMatchObject({ sector: 'energy', country: 'US', ter: '0.07' })
+  })
+
+  it('says what a fund’s mix lacks: a group, a group on one line only, a percent above 0 and at most 100, and lines that add up to 100%', () => {
+    const typed = { sector: [mixLineTexts('', '60'), mixLineTexts('energy', '0'), mixLineTexts('energy', '120')], country: [] }
+    const errors = fundMixErrors(typed)
+
+    expect(errors.lines.sector).toEqual([
+      { group: 'Choose a group', percent: null },
+      { group: null, percent: 'A percent above 0, at most 100' },
+      { group: 'On another line too', percent: 'A percent above 0, at most 100' },
+    ])
+    expect(errors.whole).toEqual({ sector: 'Lines that add up to 100%', country: null })
+    expect(mixSum(typed.sector)).toEqual(decimal('60'))
+    expect(fundMixChanges(typed, [], FUND.id)).toBeNull()
+  })
+
+  it('gives only the mixes whose lines changed, with the lines in the order typed', () => {
+    const held: FundMixLine[] = [
+      { ...sectorLine('financials', '60'), id: recordIdOf(FUND_MIX_RECORDS, 'm1') },
+      { ...sectorLine('energy', '40'), id: recordIdOf(FUND_MIX_RECORDS, 'm2') },
+    ]
+    const typed = fundMixTexts(held)
+
+    expect(typed.sector.map((line) => [line.group, line.percent])).toEqual([
+      ['financials', '60'],
+      ['energy', '40'],
+    ])
+    expect(fundMixChanges(typed, held, FUND.id)).toEqual([])
+    const changed = fundMixChanges({ sector: typed.sector, country: [mixLineTexts('US', '62,5'), mixLineTexts('europe', '37.5')] }, held, FUND.id)
+    expect(changed).toEqual([
+      {
+        held: [],
+        wanted: [
+          { instrument: FUND.id, slice: { mix: 'country', group: 'US' }, percent: decimal('62.5') },
+          { instrument: FUND.id, slice: { mix: 'country', group: 'europe' }, percent: decimal('37.5') },
+        ],
+      },
+    ])
+    expect(fundMixChanges({ sector: [], country: [] }, held, FUND.id)).toEqual([{ held, wanted: [] }])
+  })
+
+  it('writes a new fund and its mix in one write, and deletes the fund with its mix in one write that Undo reverses', async () => {
+    const store = await storeWithBuys()
+    const fund = instrument('world', { name: 'Example World Fund' })
+    const lines = fundMixChanges({ sector: [], country: [mixLineTexts('world', '100')] }, [], fund.id)!
+
+    await store.write('Holding added', (unit) => {
+      unit.of(INSTRUMENT_WRITES).add(fund)
+      lines.forEach((mix) => replaceRows(unit, FUND_MIX_WRITES, mix.held, mix.wanted))
+    })
+    expect(bookOf(store).fundMixes.map((line) => [line.instrument, line.slice])).toEqual([[fund.id, { mix: 'country', group: 'world' }]])
+
+    await store.write('Holding deleted', (unit) => {
+      replaceRows(unit, FUND_MIX_WRITES, bookOf(store).fundMixes, [])
+      unit.of(INSTRUMENT_WRITES).remove(fund)
+    })
+    expect(bookOf(store).fundMixes).toEqual([])
+    await store.undo(store.state.writes[0]!)
+    expect(bookOf(store).instruments.map((held) => held.id)).toContain(fund.id)
+    expect(bookOf(store).fundMixes).toHaveLength(1)
   })
 })

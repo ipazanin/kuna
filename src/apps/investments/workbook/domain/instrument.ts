@@ -1,3 +1,4 @@
+import type { Country, Sector } from './mixGroup'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import type { Decimal } from '../../../../shared/money/decimal'
@@ -53,5 +54,11 @@ export interface Instrument {
   readonly sourceSymbol: string
   /** Whether Performance compares the portfolio with it. It may be held or not. */
   readonly benchmark: boolean
+  /** Typed by hand, ahead of any sector a vendor gives. */
+  readonly sector: Sector | null
+  /** A share's home country, or where a fund invests. Typed by hand, ahead of any a vendor gives. */
+  readonly country: Country | null
+  /** A fund's yearly cost in percent, so 0.2 is 0.20% a year. */
+  readonly ter: Decimal | null
   readonly note: string
 }

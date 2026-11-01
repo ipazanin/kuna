@@ -2,11 +2,14 @@ import { CASH_MOVEMENT_KINDS } from './cashMovement'
 import type { CashMovementKind } from './cashMovement'
 import { INCOME_KINDS } from './income'
 import type { IncomeKind } from './income'
+import { MIXES } from './mixGroup'
+import type { Mix } from './mixGroup'
 import { TRADE_SIDES } from './trade'
 import type { TradeSide } from './trade'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { decimalOfText } from '../../../../shared/money/decimal'
+import { decimalOfText, decimalText } from '../../../../shared/money/decimal'
+import type { Decimal } from '../../../../shared/money/decimal'
 import { formatQuantity } from '../../../../shared/money/moneyFormat'
 import { dayText, labelWords, labelled } from '../../../../shared/storage/domain/recordCodec'
 import { textOf } from '../../../../shared/storage/domain/storedFields'
@@ -37,6 +40,11 @@ function amountIn(amount: string, currency: StoredField | undefined): string {
   return amount === '' ? '' : [amount, textOf(currency)].filter((part) => part !== '').join(' ')
 }
 
+/** A percent field with its sign, or blank when the field is blank. */
+function percentIn(percent: string, sign: string): string {
+  return percent === '' ? '' : `${percent}${sign}`
+}
+
 function isSide(text: string): text is TradeSide {
   return (TRADE_SIDES as readonly string[]).includes(text)
 }
@@ -49,10 +57,20 @@ function isMovementKind(text: string): text is CashMovementKind {
   return (CASH_MOVEMENT_KINDS as readonly string[]).includes(text)
 }
 
+function isMix(text: string): text is Mix {
+  return (MIXES as readonly string[]).includes(text)
+}
+
+/** The group of a share's label. An account's is its bare UUID, which says nothing to a reader, so it is left out. */
+function groupInLabel(fields: StoredFields): string {
+  return textOf(fields.mix) === 'account' ? '' : textOf(fields.group)
+}
+
 export const en = {
   sides: { buy: 'Buy', sell: 'Sell' },
   incomeKinds: { dividend: 'Dividend', coupon: 'Coupon', interest: 'Interest', other: 'Other income' },
   movementKinds: { deposit: 'Deposit', withdrawal: 'Withdrawal', fee: 'Fee', 'fee-refund': 'Fee refund' },
+  mixes: { sector: 'sector', currency: 'currency', country: 'country', class: 'class', account: 'account' } satisfies Record<Mix, string>,
   /** The words that name a record of each kind, as its stored fields read. */
   labels: {
     trade: (fields: StoredFields) => labelWords([dayText(fields.date), textOf(fields.side), textOf(fields.quantity)]),
@@ -64,6 +82,8 @@ export const en = {
     split: (fields: StoredFields) => labelWords([dayText(fields.date), textOf(fields.new) === '' && textOf(fields.old) === '' ? '' : `${textOf(fields.new)} for ${textOf(fields.old)}`]),
     spinOff: (fields: StoredFields) => labelWords([dayText(fields.date), textOf(fields.quantity)]),
     price: (fields: StoredFields) => labelWords([dayText(fields.date), textOf(fields.price)]),
+    /** A line of a fund's mix or a target, by its mix, its group and its percent. */
+    share: (fields: StoredFields) => labelWords([textOf(fields.mix), groupInLabel(fields), percentIn(textOf(fields.percent), '%')]),
   },
   notADecimal: (name: string, text: string) => `${name} "${text}" is not a decimal number with at most twelve decimals, such as 12.5`,
   belowZero: (name: string) => `${name} is below zero`,
@@ -94,12 +114,21 @@ export const en = {
   accruedNotBond: (instrument: string) => `accrued is filled, but "${instrument}" is not a bond quoted in percent`,
   receivedInOtherCurrency: (received: string, currency: string, parentCurrency: string) => `"${received}" is quoted in ${currency}, and its parent in ${parentCurrency}`,
   priceSharesDay: (instrument: string, date: CivilDate) => `another price of "${instrument}" is for ${dayLabel(date)} too`,
+  overHundred: (name: string) => `${name} is more than 100`,
+  notACountry: (name: string, text: string) => `${name} "${text}" is not a country code such as US, or a region: world, europe, north-america, asia-pacific, emerging-markets`,
+  fundMixNotWhole: (instrument: string, mix: string, sum: Decimal) => `the lines of "${instrument}" by ${mix} add up to ${decimalText(sum)}%, not 100%`,
+  fundMixGroupShared: (instrument: string, group: string) => `another line of "${instrument}" is for ${group} too`,
+  targetsNotWhole: (mix: string, sum: Decimal) => `the targets by ${mix} add up to ${decimalText(sum)}%, not 100%`,
+  targetGroupShared: (group: string) => `another target is for ${group} too`,
+  checkShared: (check: string) => `another record changes the ${check} check too`,
+  checkChangesNothing: 'threshold is blank or the default, and off is not true, so it changes nothing',
 }
 
 export const hr: Translation<typeof en> = {
   sides: { buy: 'Kupnja', sell: 'Prodaja' },
   incomeKinds: { dividend: 'Dividenda', coupon: 'Kupon', interest: 'Kamata', other: 'Drugi prihod' },
   movementKinds: { deposit: 'Uplata', withdrawal: 'Isplata', fee: 'Naknada', 'fee-refund': 'Povrat naknade' },
+  mixes: { sector: 'sektor', currency: 'valuta', country: 'država', class: 'klasa', account: 'račun' },
   labels: {
     trade: (fields) => {
       const side = textOf(fields.side)
@@ -119,6 +148,10 @@ export const hr: Translation<typeof en> = {
     split: (fields) => labelWords([dayInWords(fields.date), textOf(fields.new) === '' && textOf(fields.old) === '' ? '' : `${textOf(fields.new)} za ${textOf(fields.old)}`]),
     spinOff: (fields) => labelWords([dayInWords(fields.date), decimalInWords(fields.quantity)]),
     price: (fields) => labelWords([dayInWords(fields.date), decimalInWords(fields.price)]),
+    share: (fields) => {
+      const mix = textOf(fields.mix)
+      return labelWords([isMix(mix) ? hr.mixes[mix] : mix, groupInLabel(fields), percentIn(decimalInWords(fields.percent), '\u00a0%')])
+    },
   },
   notADecimal: (name, text) => `${name} „${text}” nije decimalni broj s najviše dvanaest decimala, na primjer 12.5`,
   belowZero: (name) => `polje ${name} je manje od nule`,
@@ -149,6 +182,14 @@ export const hr: Translation<typeof en> = {
   accruedNotBond: (instrument) => `polje accrued je popunjeno, a „${instrument}” nije obveznica koja kotira u postotku`,
   receivedInOtherCurrency: (received, currency, parentCurrency) => `„${received}” kotira u ${currency}, a matični instrument u ${parentCurrency}`,
   priceSharesDay: (instrument, date) => `i druga cijena instrumenta „${instrument}” je za ${dayLabel(date)}`,
+  overHundred: (name) => `polje ${name} je veće od 100`,
+  notACountry: (name, text) => `${name} „${text}” nije oznaka države, na primjer US, ni regija: world, europe, north-america, asia-pacific, emerging-markets`,
+  fundMixNotWhole: (instrument, mix, sum) => `retci instrumenta „${instrument}” za ${mix} zbrajaju se na ${formatQuantity(sum, LABEL_PLACES)} %, a ne na 100 %`,
+  fundMixGroupShared: (instrument, group) => `i drugi redak instrumenta „${instrument}” je za ${group}`,
+  targetsNotWhole: (mix, sum) => `ciljevi za ${mix} zbrajaju se na ${formatQuantity(sum, LABEL_PLACES)} %, a ne na 100 %`,
+  targetGroupShared: (group) => `i drugi cilj je za ${group}`,
+  checkShared: (check) => `i drugi zapis mijenja provjeru ${check}`,
+  checkChangesNothing: 'polje threshold je prazno ili jednako zadanom, a off nije true, pa zapis ništa ne mijenja',
 }
 
 export const words = language === 'hr' ? hr : en

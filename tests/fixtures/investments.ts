@@ -61,6 +61,9 @@ export function instrument(key: string, overrides: Partial<Instrument> = {}): In
     prices: 'twelvedata',
     sourceSymbol: key.toUpperCase(),
     benchmark: false,
+    sector: null,
+    country: null,
+    ter: null,
     note: '',
     ...overrides,
   }
@@ -171,7 +174,22 @@ export function spinOff(parent: Instrument, received: Instrument, date: string, 
 }
 
 export function book(records: Partial<InvestmentBook>): InvestmentBook {
-  return { accounts: [], instruments: [], trades: [], income: [], cashMovements: [], exchanges: [], transfers: [], splits: [], spinOffs: [], prices: [], ...records }
+  return {
+    accounts: [],
+    instruments: [],
+    trades: [],
+    income: [],
+    cashMovements: [],
+    exchanges: [],
+    transfers: [],
+    splits: [],
+    spinOffs: [],
+    prices: [],
+    fundMixes: [],
+    targets: [],
+    checks: [],
+    ...records,
+  }
 }
 
 /** One close as `[date, price]`, or `[date, price, 'by hand']`. */

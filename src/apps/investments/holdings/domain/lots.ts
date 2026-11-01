@@ -213,6 +213,11 @@ export function receivedInEuros(payment: Income, paidBack: ReadonlyMap<RecordId,
   return subtractMoney(inEuros(subtractDecimal(payment.gross, payment.withheld), payment.rate), paidBack.get(payment.id) ?? ZERO)
 }
 
+/** A payment's tax withheld in euros, its gross in euros less what it paid after the tax in euros, so gross less withheld is what it paid to the cent. */
+export function withheldInEuros(payment: Income): Money {
+  return subtractMoney(inEuros(payment.gross, payment.rate), inEuros(subtractDecimal(payment.gross, payment.withheld), payment.rate))
+}
+
 /** Takes the accrued interest each open lot paid off its cost, as the euros it was paid at, and keeps that as the coupon's payback. */
 function applyCoupon(queue: Queue, coupon: Income): void {
   if (queue.open.every((lot) => lot.accrued === DECIMAL_ZERO)) {

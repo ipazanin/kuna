@@ -2,7 +2,7 @@ import { accountCash } from './accountCash'
 import type { CashBalance } from './accountCash'
 import { dayChange, holdingFigures, lastDayOf } from './holding'
 import type { DayChange, HoldingFigures, LastDayDates, PortfolioSources } from './holding'
-import { investmentLots, receivedInEuros } from './lots'
+import { investmentLots, receivedInEuros, withheldInEuros } from './lots'
 import type { InstrumentLots } from './lots'
 import { eurosAtEcbRate } from '../../prices/domain/rateBook'
 import type { Instrument } from '../../workbook/domain/instrument'
@@ -30,7 +30,7 @@ export interface CashFigures extends CashBalance {
 export interface IncomeTotals {
   readonly gross: Money
   readonly withheld: Money
-  /** Each payment's gross less its tax withheld, converted as one amount, so it can differ by a cent from gross less withheld. */
+  /** Gross less withheld. */
   readonly received: Money
 }
 
@@ -135,7 +135,7 @@ export function portfolioFigures(sources: PortfolioSources): PortfolioFigures {
     realised: sumMoney(holdings.map((holding) => holding.realised)),
     income: {
       gross: subtractMoney(sumMoney(book.income.map((payment) => inEuros(payment.gross, payment.rate))), paidBack),
-      withheld: sumMoney(book.income.map((payment) => inEuros(payment.withheld, payment.rate))),
+      withheld: sumMoney(book.income.map(withheldInEuros)),
       received: sumMoney(book.income.map((payment) => receivedInEuros(payment, paidBackOf))),
     },
     accountFees: sumMoney(fees.map((movement) => (movement.kind === 'fee' ? inEuros(movement.amount, movement.rate) : negateMoney(inEuros(movement.amount, movement.rate))))),

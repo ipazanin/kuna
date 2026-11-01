@@ -1,11 +1,14 @@
 import type { CashMovement } from './cashMovement'
+import type { CheckSetting } from './checkSetting'
 import type { Exchange } from './exchange'
+import type { FundMixLine } from './fundMix'
 import type { HandPrice } from './handPrice'
 import type { Income } from './income'
 import type { Instrument } from './instrument'
 import type { InvestmentAccount } from './investmentAccount'
 import type { SpinOff } from './spinOff'
 import type { Split } from './split'
+import type { Target } from './target'
 import type { Trade } from './trade'
 import type { Transfer } from './transfer'
 import { recordKind } from '../../../../shared/storage/domain/recordKind'
@@ -49,4 +52,16 @@ export const SPIN_OFF_RECORDS = recordKind<SpinOff>('spin-off', {
 export const PRICE_RECORDS = recordKind<HandPrice>('price', {
   en: { one: 'price', many: 'prices', article: 'a' },
   hr: { one: 'cijena', of: 'cijene', few: 'cijene', other: 'cijena', gender: 'feminine' },
+})
+export const FUND_MIX_RECORDS = recordKind<FundMixLine>('fund-mix', {
+  en: { one: 'line of a fund mix', many: 'lines of a fund mix', article: 'a' },
+  hr: { one: 'redak raspodjele fonda', of: 'retka raspodjele fonda', few: 'retka raspodjele fonda', other: 'redaka raspodjele fonda', gender: 'masculine' },
+})
+export const TARGET_RECORDS = recordKind<Target>('target', {
+  en: { one: 'target', many: 'targets', article: 'a' },
+  hr: { one: 'cilj', of: 'cilja', few: 'cilja', other: 'ciljeva', gender: 'masculine' },
+})
+export const CHECK_RECORDS = recordKind<CheckSetting>('check', {
+  en: { one: 'portfolio check', many: 'portfolio checks', article: 'a' },
+  hr: { one: 'provjera portfelja', of: 'provjere portfelja', few: 'provjere portfelja', other: 'provjera portfelja', gender: 'feminine' },
 })

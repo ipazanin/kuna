@@ -1,11 +1,14 @@
 import type { CashMovement } from './cashMovement'
+import type { CheckSetting } from './checkSetting'
 import type { Exchange } from './exchange'
+import type { FundMixLine } from './fundMix'
 import type { HandPrice } from './handPrice'
 import type { Income } from './income'
 import type { Instrument } from './instrument'
 import type { InvestmentAccount } from './investmentAccount'
 import type { SpinOff } from './spinOff'
 import type { Split } from './split'
+import type { Target } from './target'
 import type { Trade } from './trade'
 import type { Transfer } from './transfer'
 
@@ -21,6 +24,9 @@ export interface InvestmentBook {
   readonly splits: readonly Split[]
   readonly spinOffs: readonly SpinOff[]
   readonly prices: readonly HandPrice[]
+  readonly fundMixes: readonly FundMixLine[]
+  readonly targets: readonly Target[]
+  readonly checks: readonly CheckSetting[]
 }
 
 /** Whether the file holds any record of what happened, beyond its accounts, instruments and prices. */
