@@ -154,7 +154,7 @@ export const hr: Translation<typeof en> = {
     coming: 'Dividende koje je izvor cijena najavio i ono što je isplaćeno u zadnjih 12 mjeseci, godinu dana kasnije, za jedinice koje sada držite.',
     taxFree: 'Svaka kupnja koju držite postaje bez poreza dvije godine nakon kupnje.',
     withheld: 'Porez zadržan na izvoru na vaše prihode, po državi iz ISIN-a. Kuna ne obračunava porez.',
-    costs: 'Naknade svake godine i ono što fondovi koje držite svake godine uzimaju unutar svoje cijene.',
+    costs: 'Naknade po godinama i ono što fondovi koje držite godišnje uzimaju unutar svoje cijene.',
     saving: 'Koliko ulažete svaki mjesec i dokle vas štednja tim tempom može dovesti.',
   },
   amounts: {
@@ -258,7 +258,7 @@ export const hr: Translation<typeof en> = {
     subtitle: 'Prije poreza i inflacije',
     eachMonth: 'Svaki mjesec',
     rate: 'Prinos godišnje',
-    years: 'Godine',
+    years: 'Broj godina',
     errors: {
       eachMonth: 'Iznos, na primjer 500',
       rate: 'Postotak od 0 do 100, na primjer 5',
@@ -269,7 +269,7 @@ export const hr: Translation<typeof en> = {
     atTheEnd: 'Na kraju',
     fromToday: (amount) => `od današnjih ${amount}`,
     takeOut: (rate) => `Uz ${rate} godišnje mogli biste isplaćivati`,
-    yearlyAndMonthly: (monthly) => `godišnje, ili ${monthly} mjesečno`,
+    yearlyAndMonthly: (monthly) => `godišnje ili ${monthly} mjesečno`,
     description: (years, monthly, rate, start, end) => ({
       one: `Uz ${monthly} svaki mjesec i ${rate} godišnje, današnja vrijednost od ${start} za ${years} godinu naraste na ${end}.`,
       few: `Uz ${monthly} svaki mjesec i ${rate} godišnje, današnja vrijednost od ${start} za ${years} godine naraste na ${end}.`,
