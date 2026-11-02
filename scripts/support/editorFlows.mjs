@@ -3722,6 +3722,8 @@ export function investmentsInstrumentSearchFlowIn(language) {
     await shoot('investments-instrument-search-picked')
     await page.keyboard.press('Escape')
     await dialogGone(page, '[data-testid="instrument-form"]')
+    // The import step after this one runs without keys, so its parent pick looks up no closes.
+    await page.evaluate(() => localStorage.removeItem('kuna.price-vendor-key.twelvedata'))
   }
 }
 
