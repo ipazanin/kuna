@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
-          node-version: lts/*
+          node-version: 24
           cache: 'npm'
       - run: npm ci
       - name: Lint
@@ -74,7 +74,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
-          node-version: lts/*
+          node-version: 24
           cache: 'npm'
       - run: npm ci
       # ubuntu-latest ships Chrome at /usr/bin/google-chrome, which the checks probe for.
