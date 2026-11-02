@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
 import type { PricesCache, PricesCopy } from '../src/apps/investments/prices/application/pricesPorts'
 import { pricesAge } from '../src/apps/investments/prices/domain/priceBook'
-import { decodePricesFile, emptyPricesFile, encodePricesFile, rateSeriesKey, seriesKey } from '../src/apps/investments/prices/domain/pricesFile'
+import { NO_FETCHED_FACTS, decodePricesFile, emptyPricesFile, encodePricesFile, rateSeriesKey, seriesKey } from '../src/apps/investments/prices/domain/pricesFile'
 import type { PricesFile } from '../src/apps/investments/prices/domain/pricesFile'
 import { pricesFileBook, pricesFileRateBook } from '../src/apps/investments/prices/domain/pricesFileBooks'
 import { FAKE_SERIES, fakePricesFile } from '../src/apps/investments/prices/infrastructure/fake/fakePrices'
@@ -323,5 +323,31 @@ describe('the prices cache', () => {
     await cache.replace({ ...copy, fileId: null, revision: 'browser-1' })
     expect(await cache.read()).toMatchObject({ fileId: null, revision: 'browser-1' })
     expect(await cacheFor('other-investments').read()).toBeNull()
+  })
+
+  it('reads a copy the first version kept as an object, from before the file had facts, with no facts and no fact counts', async () => {
+    const { facts: _facts, ...withoutFacts } = WORKED_FILE
+    const firstVersion = new Dexie('kuna-prices-investments-old')
+    firstVersion.version(1).stores({ copy: 'key' })
+    await firstVersion.table('copy').put({ key: 'prices', ...copy, file: { ...withoutFacts, lastFetch: { asked: 3, upToDate: 0 } } })
+    firstVersion.close()
+
+    const read = await cacheFor('investments-old').read()
+
+    expect(read?.file).toEqual({ ...WORKED_FILE, lastFetch: { asked: 3, upToDate: 0, factsAsked: 0, factsLeft: 0, factsKeyless: [] }, facts: NO_FETCHED_FACTS })
+    expect(read?.revision).toBe('rev-7')
+    expect(() => encodePricesFile(read!.file)).not.toThrow()
+  })
+
+  it('refuses a copy it cannot read instead of handing back none, so a fetch never writes an empty file over it', async () => {
+    const cache = cacheFor('investments-newer')
+    await cache.replace(copy)
+    cache.close()
+    const raw = new Dexie('kuna-prices-investments-newer')
+    raw.version(2).stores({ copy: 'key' })
+    await raw.table('copy').update('prices', { text: encodePricesFile(WORKED_FILE).replace('"version": 2', '"version": 99') })
+    raw.close()
+
+    await expect(cacheFor('investments-newer').read()).rejects.toThrow('newer')
   })
 })
