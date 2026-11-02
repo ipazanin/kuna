@@ -428,7 +428,7 @@ function fakeSources() {
 function fakeTargetsShows() {
   const { book, figures, facts } = fakeSources()
   const mix = holdingMix(figures, book, facts, book.targets[0].slice.mix)
-  const gaps = targetGaps(mix.parts, book.targets, mix.whole).map((line) => line.gap)
+  const gaps = targetGaps(mix, book.targets).map((line) => line.gap)
   return { english: gaps.map((gap) => formatMoney(gap, 'always')), croatian: gaps.map((gap) => formatMoney(gap, 'always', CROATIAN_MONEY)) }
 }
 

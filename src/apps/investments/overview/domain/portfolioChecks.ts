@@ -1,7 +1,7 @@
 import type { HoldingMix, HoldingMixes } from '../../holdings/domain/holdingMix'
 import { heldHoldings } from '../../holdings/domain/holdingsList'
 import type { PortfolioFigures } from '../../holdings/domain/portfolioFigures'
-import { targetGaps, targetedMix } from '../../holdings/domain/targetMix'
+import { placedValue, targetGaps, targetedMix } from '../../holdings/domain/targetMix'
 import type { RecentCosts } from '../../income/domain/yearlyCosts'
 import { CHECKS, CHECK_DEFAULTS } from '../../workbook/domain/checkSetting'
 import type { CheckName, CheckSetting } from '../../workbook/domain/checkSetting'
@@ -79,20 +79,21 @@ function largestPart(mix: HoldingMix<Mix>): Measured | null {
   return largest === undefined ? null : { subject: { kind: 'group', slice: { mix: mix.mix, group: largest.group } as MixGroup }, part: largest.value, whole: mix.whole }
 }
 
-/** The group of the targeted mix furthest from its target, in points either way. */
+/** The group of the targeted mix furthest from its target, in points either way, of the placed value as the target card measures it. */
 function largestGap(mixes: HoldingMixes, targets: readonly Target[]): { subject: CheckedSubject; points: number; beyond: (threshold: Decimal) => boolean } | null {
   const targeted = targetedMix(targets)
   if (targeted === null) return null
   const mix: HoldingMix<Mix> = mixes[targeted.mix]
-  if (mix.whole <= 0) return null
-  const lines = targetGaps(mix.parts, targeted.targets, mix.whole).map((line) => {
-    // The points between the share and the target, times the whole: now × 100 − target × whole, in steps of a percent's decimal.
-    const away = timesDecimal(decimalOfMoney(line.now), HUNDRED_PERCENT) - timesDecimal(line.target, decimalOfMoney(mix.whole))
+  const placed = placedValue(mix)
+  if (placed <= 0) return null
+  const whole = decimalOfMoney(placed)
+  const lines = targetGaps(mix, targeted.targets).map((line) => {
+    // The points between the share and the target, times the placed value: now × 100 − target × placed, in steps of a percent's decimal.
+    const away = timesDecimal(decimalOfMoney(line.now), HUNDRED_PERCENT) - timesDecimal(line.target, whole)
     return { group: line.group, away: away < 0n ? -away : away }
   })
   const furthest = lines.sort((first, second) => (second.away > first.away ? 1 : second.away < first.away ? -1 : 0))[0]
   if (furthest === undefined) return null
-  const whole = decimalOfMoney(mix.whole)
   return {
     subject: { kind: 'group', slice: { mix: targeted.mix, group: furthest.group } as MixGroup },
     points: Number(furthest.away) / Number(whole) / 100,

@@ -44,10 +44,10 @@ export interface YearCosts {
   readonly share: number | null
 }
 
-/** What the twelve months up to the day cost, against the portfolio's average value at their month ends since the first deposit. */
+/** What the twelve months up to the day cost, against the portfolio's average value at their month ends. */
 export interface RecentCosts {
   readonly total: Money
-  /** Zero before the first month end since the first deposit. */
+  /** Of all twelve month ends, as `yearlyCosts` averages a year's, a month end before the first deposit counting zero. */
   readonly averageValue: Money
 }
 
@@ -70,31 +70,18 @@ export function yearlyCosts(sources: PortfolioSources, valuedOn: DayValuer): Yea
         .filter((date) => date <= today)
         .map(valuedOn)
       const costs = costsOver(sources, (date) => date <= today && yearOf(date) === year, monthEnds)
-      const averageValue = averageOf(monthEnds)
+      const averageValue = averageValueOf(monthEnds)
       return { year, ...costs, averageValue, share: ratioOf(costs.total, averageValue) }
     })
 }
 
-/**
- * The costs of the twelve months up to the day, as `yearlyCosts` works out a year's, over the average value at the
- * month ends among them on or after the first deposit, so a young portfolio is not measured against months it was empty.
- */
+/** The costs of the twelve months up to the day over the average value at their month ends, as `yearlyCosts` works out a year's. */
 export function recentCosts(sources: PortfolioSources, valuedOn: DayValuer): RecentCosts {
   const { today } = sources
   const from = dayMonthsLater(today, -12)
   const inWindow = (date: CivilDate): boolean => date > from && date <= today
-  const firstDeposit = firstDepositIn(sources.book)
-  const monthEnds = monthsFrom(monthOf(from), monthOf(today))
-    .map(lastDayOf)
-    .filter(inWindow)
-    .map((date) => ({ date, figures: valuedOn(date) }))
-  const { total } = costsOver(
-    sources,
-    inWindow,
-    monthEnds.map(({ figures }) => figures),
-  )
-  const averageValue = averageOf(monthEnds.filter(({ date }) => firstDeposit !== null && date >= firstDeposit).map(({ figures }) => figures))
-  return { total, averageValue }
+  const monthEnds = monthsFrom(monthOf(from), monthOf(today)).map(lastDayOf).filter(inWindow).map(valuedOn)
+  return { total: costsOver(sources, inWindow, monthEnds).total, averageValue: averageValueOf(monthEnds) }
 }
 
 type PeriodCosts = Omit<YearCosts, 'year' | 'averageValue' | 'share'>
@@ -127,7 +114,8 @@ function costsOver(sources: PortfolioSources, inPeriod: (date: CivilDate) => boo
   }
 }
 
-function averageOf(monthEnds: readonly PortfolioFigures[]): Money {
+/** The value averaged over every month end given. One before the first deposit counts, with its value of zero. */
+function averageValueOf(monthEnds: readonly PortfolioFigures[]): Money {
   return monthEnds.length === 0 ? ZERO : divideMoney(sumMoney(monthEnds.map((figures) => figures.value)), monthEnds.length)
 }
 

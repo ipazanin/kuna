@@ -118,9 +118,18 @@ describe('the costs of the last 12 months', () => {
     expect(recentOf(fundBoughtOn('2025-01-02'), '2026-01-15')).toEqual({ total: euros(20), averageValue: euros(10000) })
   })
 
-  it('averages a young portfolio over the month ends since its first deposit, while the months before still cost nothing', () => {
-    // Six of the twelve month ends hold €10,000.00, so the fund cost is €10.00, against the €10,000.00 those six average.
-    expect(recentOf(fundBoughtOn('2025-07-01'), '2026-01-15')).toEqual({ total: euros(10), averageValue: euros(10000) })
+  it('averages a portfolio first funded 6 months back over all twelve month ends, the six before its first deposit counting zero', () => {
+    // Six of the twelve month ends hold €10,000.00, so the fund cost is €10.00 against an average of €60,000.00 ÷ 12 = €5,000.00.
+    // The share is 0.20%, twice the 0.10% the average of the six funded month ends alone, €10,000.00, gave.
+    const recent = recentOf(fundBoughtOn('2025-07-01'), '2026-01-15')
+    expect(recent).toEqual({ total: euros(10), averageValue: euros(5000) })
+    expect(recent.total / recent.averageValue).toBe(0.002)
+  })
+
+  it('averages its twelve month ends as the Costs tab averages a year', () => {
+    // On 15 January 2026 the twelve month ends are those of 2025.
+    const [, year2025] = costsOf(fundBoughtOn('2025-07-01'), '2026-01-15')
+    expect(recentOf(fundBoughtOn('2025-07-01'), '2026-01-15').averageValue).toBe(year2025?.averageValue)
   })
 
   it('counts the fees of the records after the day a year back', () => {

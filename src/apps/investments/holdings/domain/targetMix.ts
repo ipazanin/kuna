@@ -1,4 +1,4 @@
-import type { MixPart } from './holdingMix'
+import type { GroupOf, HoldingMix } from './holdingMix'
 import { HUNDRED_PERCENT } from '../../workbook/domain/investmentFields'
 import type { Mix } from '../../workbook/domain/mixGroup'
 import type { Target } from '../../workbook/domain/target'
@@ -27,11 +27,11 @@ export interface TargetGap<Group extends string> {
   readonly group: Group
   /** What the group holds now. */
   readonly now: Money
-  /** Its share of the whole now, null when the whole is zero. */
+  /** Its share of the placed value now, null when nothing is placed. */
   readonly share: number | null
   /** In percent, zero for a group held with no target. */
   readonly target: Decimal
-  /** The target's part of the whole less what the group holds: above zero it lacks that much, below zero it holds that much beyond its target. */
+  /** The target's part of the placed value less what the group holds: above zero it lacks that much, below zero it holds that much beyond its target. */
   readonly gap: Money
 }
 
@@ -42,21 +42,27 @@ export interface DepositLine<Group extends string> {
 }
 
 /**
- * Each group with a target or with a value, against the whole the mix splits: the holdings alone for sector and
- * country, else the whole value. Groups come by their target, largest first, then by what they hold.
+ * What the targets split: the value a source places in a group, so for sector and country the holdings less those no
+ * source places yet, and the whole value for the other mixes.
  */
-export function targetGaps<Group extends string>(parts: readonly MixPart<Group>[], targets: readonly Target[], whole: Money): TargetGap<Group>[] {
-  return linesOf(parts, targets).map(({ group, now, target }) => ({ group, now, share: ratioOf(now, whole), target, gap: subtractMoney(partOf(whole, target), now) }))
+export function placedValue(mix: Pick<HoldingMix<Mix>, 'whole' | 'unknown'>): Money {
+  return subtractMoney(mix.whole, mix.unknown)
+}
+
+/** Each group with a target or with a value, against the placed value. Groups come by their target, largest first, then by what they hold. */
+export function targetGaps<Of extends Mix>(mix: HoldingMix<Of>, targets: readonly Target[]): TargetGap<GroupOf<Of>>[] {
+  const placed = placedValue(mix)
+  return linesOf(mix, targets).map(({ group, now, target }) => ({ group, now, share: ratioOf(now, placed), target, gap: subtractMoney(partOf(placed, target), now) }))
 }
 
 /**
- * What a deposit buys of each group, in the order of `targetGaps`. It fills what each group lacks against the whole
- * with the deposit in it, in proportion when it cannot fill it all, the last group that lacks something taking the
+ * What a deposit buys of each group, in the order of `targetGaps`. It fills what each group lacks against the placed
+ * value with the deposit in it, in proportion when it cannot fill it all, the last group that lacks something taking the
  * rest so the buys add up to the deposit. Since the targets add up to 100%, what the groups lack is never less than the deposit.
  */
-export function depositSplit<Group extends string>(parts: readonly MixPart<Group>[], targets: readonly Target[], whole: Money, deposit: Money): DepositLine<Group>[] {
-  const after = addMoney(whole, deposit)
-  const lines = linesOf(parts, targets).map((line) => ({ group: line.group, lacks: Math.max(0, subtractMoney(partOf(after, line.target), line.now)) }))
+export function depositSplit<Of extends Mix>(mix: HoldingMix<Of>, targets: readonly Target[], deposit: Money): DepositLine<GroupOf<Of>>[] {
+  const after = addMoney(placedValue(mix), deposit)
+  const lines = linesOf(mix, targets).map((line) => ({ group: line.group, lacks: Math.max(0, subtractMoney(partOf(after, line.target), line.now)) }))
   const lacking = lines.filter((line) => line.lacks > 0)
   const buys = moneyParts(
     deposit,
@@ -72,11 +78,11 @@ interface TargetLine<Group extends string> {
   readonly target: Decimal
 }
 
-function linesOf<Group extends string>(parts: readonly MixPart<Group>[], targets: readonly Target[]): TargetLine<Group>[] {
-  const held = new Map<string, Money>(parts.map((part) => [part.group, part.value]))
-  const targeted = targets.map((target) => ({ group: target.slice.group as Group, now: held.get(target.slice.group) ?? ZERO, target: target.percent }))
+function linesOf<Of extends Mix>(mix: HoldingMix<Of>, targets: readonly Target[]): TargetLine<GroupOf<Of>>[] {
+  const held = new Map<string, Money>(mix.parts.map((part) => [part.group, part.value]))
+  const targeted = targets.map((target) => ({ group: target.slice.group as GroupOf<Of>, now: held.get(target.slice.group) ?? ZERO, target: target.percent }))
   const named = new Set<string>(targeted.map((line) => line.group))
-  const untargeted = parts.filter((part) => !named.has(part.group)).map((part) => ({ group: part.group, now: part.value, target: DECIMAL_ZERO }))
+  const untargeted = mix.parts.filter((part) => !named.has(part.group)).map((part) => ({ group: part.group, now: part.value, target: DECIMAL_ZERO }))
   return [...targeted, ...untargeted].sort((first, second) => Number(second.target - first.target) || second.now - first.now)
 }
 

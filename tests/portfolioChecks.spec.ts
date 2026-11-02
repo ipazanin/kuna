@@ -10,7 +10,7 @@ import { NO_FETCHED_FACTS } from '../src/apps/investments/prices/domain/pricesFi
 import type { CheckName, CheckSetting } from '../src/apps/investments/workbook/domain/checkSetting'
 import type { Instrument } from '../src/apps/investments/workbook/domain/instrument'
 import { CHECK_RECORDS, TARGET_RECORDS } from '../src/apps/investments/workbook/domain/investmentKinds'
-import type { ClassGroup } from '../src/apps/investments/workbook/domain/mixGroup'
+import type { ClassGroup, Sector } from '../src/apps/investments/workbook/domain/mixGroup'
 import type { Target } from '../src/apps/investments/workbook/domain/target'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { BROKER, book, cashMovement, decimal, instrument, priceBookOf, rateBookOf, trade } from './fixtures/investments'
@@ -48,6 +48,10 @@ function setting(check: CheckName, threshold: string | null, off = false): Check
 
 function classTargets(percents: readonly (readonly [ClassGroup, string])[]): Target[] {
   return percents.map(([group, percent]) => ({ id: recordIdOf(TARGET_RECORDS, group), slice: { mix: 'class', group }, percent: decimal(percent) }))
+}
+
+function sectorTargets(percents: readonly (readonly [Sector, string])[]): Target[] {
+  return percents.map(([group, percent]) => ({ id: recordIdOf(TARGET_RECORDS, group), slice: { mix: 'sector', group }, percent: decimal(percent) }))
 }
 
 function linesOf(targets: readonly Target[], thresholds: readonly CheckSetting[]) {
@@ -98,5 +102,15 @@ describe('the portfolio checks', () => {
       sentence: 'Bonds: 10.0 points from the target, over 5 points',
     })
     expect(linesOf(targets, [setting('target-gap', '10')]).find((line) => line.check === 'target-gap')).toMatchObject({ over: false, sentence: 'Bonds: 10.0 points from the target, within 10 points' })
+  })
+
+  it('measures sector targets against the placed holdings only, leaving out the fund no source places yet', () => {
+    // Information technology is all €3,420.00 placed, 100% against 90, so 10 points away. Of the €6,420.00 held with the fund it would be 53.3%, 36.7 points away.
+    const targets = sectorTargets([
+      ['information-technology', '90'],
+      ['financials', '5'],
+      ['health-care', '5'],
+    ])
+    expect(linesOf(targets, []).find((line) => line.check === 'target-gap')).toMatchObject({ over: true, sentence: 'Information technology: 10.0 points from the target, over 5 points' })
   })
 })

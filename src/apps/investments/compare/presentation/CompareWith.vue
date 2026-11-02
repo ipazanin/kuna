@@ -9,6 +9,7 @@ import InstrumentSearch from '../../holdings/presentation/InstrumentSearch.vue'
 import type { SearchedListing } from '../../prices/application/symbolSearch'
 import { useSymbolSearch } from '../../prices/presentation/useSymbolSearch'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import RemovableChip from '../../../../shared/ui/RemovableChip.vue'
 
 /**
  * A chart's Compare with: the button that opens a search of the price sources, and once a ticker is picked, a chip that
@@ -38,18 +39,7 @@ function pick(listing: SearchedListing): void {
 
 <template>
   <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5" data-testid="compare-with">
-    <UButton
-      v-if="symbol !== null"
-      :label="symbol"
-      trailing-icon="i-lucide-x"
-      color="neutral"
-      variant="soft"
-      size="xs"
-      class="rounded-full"
-      :aria-label="words.remove(symbol)"
-      data-testid="compare-chip"
-      @click="emit('remove')"
-    />
+    <RemovableChip v-if="symbol !== null" :label="symbol" :remove-label="words.remove(symbol)" data-testid="compare-chip" @remove="emit('remove')" />
     <span v-if="symbol !== null && fetching" role="status" class="inline-flex items-center gap-1.5 type-caption" data-testid="compare-fetching">
       <UIcon name="i-lucide-loader-circle" class="size-3.5 animate-spin" aria-hidden="true" />
       {{ words.fetching }}

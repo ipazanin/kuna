@@ -5,6 +5,7 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 
 import type { HoldingMix, HoldingMixes } from '../domain/holdingMix'
 import { depositSplit, targetGaps, targetedMix } from '../domain/targetMix'
+import MixMissingLine from './MixMissingLine.vue'
 import { groupName } from './mixDonut'
 import TargetsDialog from './TargetsDialog.vue'
 import { words } from './words'
@@ -21,7 +22,10 @@ import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 
-/** Each group of the mix that has targets against its target, and what an amount put in would buy of each. */
+/**
+ * Each group of the mix that has targets against its target, and what an amount put in would buy of each, both of the
+ * placed value, so the holdings that wait for a sector or a country are named under the table.
+ */
 const props = defineProps<{
   book: InvestmentBook
   mixes: HoldingMixes
@@ -34,7 +38,7 @@ const putIn = ref('')
 
 const targets = computed(() => targetedMix(props.book.targets))
 const targeted = computed((): HoldingMix<Mix> | null => (targets.value === null ? null : props.mixes[targets.value.mix]))
-const gaps = computed(() => (targeted.value === null || targets.value === null ? [] : targetGaps(targeted.value.parts, targets.value.targets, targeted.value.whole)))
+const gaps = computed(() => (targeted.value === null || targets.value === null ? [] : targetGaps(targeted.value, targets.value.targets)))
 const deposit = computed(() => {
   const amount = typedAmount(putIn.value)
   return amount === null || amount <= 0 ? null : amount
@@ -42,7 +46,7 @@ const deposit = computed(() => {
 const buys = computed(() => {
   const mix = targeted.value
   if (mix === null || targets.value === null || deposit.value === null) return null
-  return new Map(depositSplit(mix.parts, targets.value.targets, mix.whole, deposit.value).map((line) => [line.group, line.buy]))
+  return new Map(depositSplit(mix, targets.value.targets, deposit.value).map((line) => [line.group, line.buy]))
 })
 
 const nameOf = (group: string): string => (targeted.value === null ? group : groupName(targeted.value.mix, group, props.book))
@@ -93,6 +97,7 @@ const summary = computed(() => {
           </tr>
         </tbody>
       </FigureTable>
+      <MixMissingLine v-if="targeted.mix === 'sector' || targeted.mix === 'country'" :mix="targeted.mix" :missing="targeted.missing" class="px-4 pt-3 sm:px-5" />
       <div class="px-4 pt-3 pb-4 sm:px-5">
         <UFormField :label="text.putIn" :help="text.putInHelp">
           <MoneyInput v-model="putIn" class="w-full sm:w-56" data-testid="targets-put-in" />

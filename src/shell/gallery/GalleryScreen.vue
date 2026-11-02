@@ -37,6 +37,7 @@ import PageHeader from '../../shared/ui/PageHeader.vue'
 import PageTabs from '../../shared/ui/PageTabs.vue'
 import WriteProgress from '../../shared/ui/WriteProgress.vue'
 import ProgressMeter from '../../shared/ui/ProgressMeter.vue'
+import RemovableChip from '../../shared/ui/RemovableChip.vue'
 import ScreenSkeleton from '../../shared/ui/ScreenSkeleton.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../shared/ui/ShowAllButton.vue'
 import SortableHeader from '../../shared/ui/SortableHeader.vue'
@@ -192,6 +193,8 @@ const GALLERY_PERIODS = [
   { value: 'all', label: 'All' },
 ] as const
 const galleryPeriod = ref<(typeof GALLERY_PERIODS)[number]['value']>('all')
+const GALLERY_CHIPS = ['EXQ', 'Category: Software subscriptions', 'Counterparty: A supplier whose name runs far past the width of a chip']
+const galleryChips = ref<readonly string[]>(GALLERY_CHIPS)
 const SWATCHES = [1, 2, 3, 4, 5].map((slot) => ({ value: `series-${slot}`, name: `Slot ${slot}`, token: `--series-${slot}` }))
 
 /** A long list for Show all, of made-up payees. */
@@ -735,7 +738,7 @@ const columns: TableColumn<SampleTransaction>[] = [
       </div>
     </GallerySection>
 
-    <GallerySection id="controls" title="Small controls" description="InfoPopover, ChoiceButtons, ShowAllButton, ColourSwatchPicker, HomeLink, AppBrand and AppMark.">
+    <GallerySection id="controls" title="Small controls" description="InfoPopover, ChoiceButtons, RemovableChip, ShowAllButton, ColourSwatchPicker, HomeLink, AppBrand and AppMark.">
       <DashboardGrid>
         <AppCard title="InfoPopover" subtitle="A definition, or richer content such as a legend.">
           <div class="flex items-center gap-2 px-4 pt-3 pb-4 type-body sm:px-5">
@@ -750,6 +753,12 @@ const columns: TableColumn<SampleTransaction>[] = [
           <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
             <ChoiceButtons v-model="galleryPeriod" :options="GALLERY_PERIODS" label="Period" />
             <span class="identifier">{{ galleryPeriod }}</span>
+          </div>
+        </AppCard>
+        <AppCard title="RemovableChip" subtitle="Names something picked, such as a filter or a ticker to compare with. A press anywhere on it removes it.">
+          <div class="flex flex-wrap items-center gap-1.5 px-4 pt-3 pb-4 sm:px-5">
+            <RemovableChip v-for="chip in galleryChips" :key="chip" :label="chip" :remove-label="`Remove ${chip}`" @remove="galleryChips = galleryChips.filter((shown) => shown !== chip)" />
+            <UButton v-if="galleryChips.length < GALLERY_CHIPS.length" label="Put them back" color="neutral" variant="link" size="xs" @click="galleryChips = GALLERY_CHIPS" />
           </div>
         </AppCard>
         <AppCard title="ColourSwatchPicker" subtitle="Named swatches with a blank choice first.">

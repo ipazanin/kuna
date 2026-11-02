@@ -16,11 +16,11 @@ import { MIXES } from '../../workbook/domain/mixGroup'
 import TransactionDialog from '../../transactions/presentation/TransactionDialog.vue'
 import { words as transactionWords } from '../../transactions/presentation/words'
 import ClosedPositionsCard from './ClosedPositionsCard.vue'
-import { holdingLink } from './holdingLinks'
 import HoldingRow from './HoldingRow.vue'
 import HoldingsMapCard from './HoldingsMapCard.vue'
 import HoldingsGroupName from './HoldingsGroupName.vue'
 import HoldingsTable from './HoldingsTable.vue'
+import MixMissingLine from './MixMissingLine.vue'
 import { mixDonut } from './mixDonut'
 import TargetMixCard from './TargetMixCard.vue'
 import { usePortfolio } from './usePortfolio'
@@ -38,7 +38,6 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import DonutCard from '../../../../shared/ui/DonutCard.vue'
-import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
@@ -157,12 +156,8 @@ const description = computed(() => {
           :start-collapsed="phone && mix !== 'sector'"
           :data-mix="mix"
         >
-          <template v-if="missing[0] !== undefined && (mix === 'sector' || mix === 'country')" #below>
-            <p class="mt-2 border-t border-default pt-2 text-xs text-muted" data-testid="mix-missing">
-              {{ plural(words.mixes.missing[mix](missing.length), missing.length) }}
-              <DrillLink :to="holdingLink(missing[0].instrument)" in-prose>{{ missing[0].instrument.name }}</DrillLink
-              >.
-            </p>
+          <template v-if="missing.length > 0 && (mix === 'sector' || mix === 'country')" #below>
+            <MixMissingLine :mix="mix" :missing="missing" class="mt-2 border-t border-default pt-2" />
           </template>
         </DonutCard>
         <TargetMixCard v-if="mixes !== null && sources !== null" :book="sources.book" :mixes="mixes" />

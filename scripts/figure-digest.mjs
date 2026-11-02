@@ -465,7 +465,7 @@ function investmentsGroups(add) {
   const targeted = targetedMix(workbook.book.targets)
   if (targeted !== null) {
     const mix = holdingMix(figures, workbook.book, facts, targeted.mix)
-    add('investments.holdings.targets', [targetGaps(mix.parts, targeted.targets, mix.whole), depositSplit(mix.parts, targeted.targets, mix.whole, 200_000)])
+    add('investments.holdings.targets', [targetGaps(mix, targeted.targets), depositSplit(mix, targeted.targets, 200_000)])
   }
   add('investments.holdings.closed', closedPositions(figures))
   add('investments.income.coming', incomeForecast(sources, facts).months)
