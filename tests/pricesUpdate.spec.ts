@@ -405,6 +405,27 @@ describe("the day's fetch", () => {
     expect(await world.update.fetchIfDue()).toBe('due')
   })
 
+  it('fetches the closes of a ticker a chart compares with alone, writes them as a series and leaves the day due', async () => {
+    const world = await worldOf()
+    const fileId = await pricesOnDrive(world, fakePricesFile('sample', civil('2026-10-29')))
+    await world.update.read()
+    const before = readText(await world.drive.download(fileId))
+    const compared = { source: 'twelvedata', symbol: 'NEW', currency: 'USD', from: '2026-03-02' } as const
+
+    expect(await world.update.fetchCompared(compared)).toMatchObject({ kind: 'written' })
+    // The sample's dollar rates end the day before, so they are asked with the ticker.
+    expect(world.asked).toEqual(['twelvedata:NEW', 'ecb:USD'])
+    const written = readText(await world.drive.download(fileId))
+    expect(written.writtenAt).toBe(before.writtenAt)
+    expect(written.series['twelvedata:NEW']?.from).toBe('2026-03-02')
+    expect(world.update.state.copy?.file).toEqual(written)
+    expect(await world.update.fetchIfDue()).toBe('due')
+
+    world.asked.length = 0
+    expect(await world.update.fetchCompared(compared)).toEqual({ kind: 'current' })
+    expect(world.asked).toEqual([])
+  })
+
   it('waits for a fetch under way before it fetches the rates an import wants', async () => {
     const world = await worldOf()
     await pricesOnDrive(world, fakePricesFile('sample', civil('2026-10-29')))

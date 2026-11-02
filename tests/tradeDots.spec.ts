@@ -6,6 +6,7 @@ import { averageCostText } from '../src/apps/investments/holdings/presentation/h
 import { dotLines, markSize, priceChart } from '../src/apps/investments/holdings/presentation/priceChart'
 import type { ChartTokens } from '../src/shared/charts/chartTokens'
 import { EURO } from '../src/shared/money/currencyCode'
+import { monthOf } from '../src/shared/calendar/monthKey'
 import { decimalText } from '../src/shared/money/decimal'
 import { BROKER, USD, WORKED_RATES, book, cashMovement, decimal, instrument, priceBookOf, trade } from './fixtures/investments'
 import { civil, euros } from './fixtures/ledger'
@@ -59,7 +60,7 @@ interface DrawnDots {
 describe("a holding's trade dots", () => {
   it('merges the five March buys into one dot of 13 units and €6,728.10, and the April sale into another', () => {
     // 1,553.10 + 1,040.00 + 515.00 + 2,072.00 + 1,548.00 = 6,728.10, at 6,728.10 ÷ 13 = 517.546153846154 a unit.
-    expect(history.dots.map((dot) => [dot.side, dot.month, dot.marks.length, decimalText(dot.units), decimalText(dot.price), dot.amount])).toEqual([
+    expect(history.dots.map((dot) => [dot.side, monthOf(dot.date), dot.marks.length, decimalText(dot.units), decimalText(dot.price), dot.amount])).toEqual([
       ['buy', '2026-03', 5, '13', '517.546153846154', euros(6728.1)],
       ['sell', '2026-04', 1, '3.5', '480.58', euros(1682.03)],
     ])
@@ -92,7 +93,7 @@ describe("a holding's trade dots", () => {
     const busyDots = priceHistory(busyHolding, busySources).dots
 
     // The two buys are 400.00 + 90.00 = €490.00 for 5 units, €98.00 a unit.
-    expect(busyDots.map((dot) => [dot.side, dot.month, decimalText(dot.units), decimalText(dot.price), dot.amount])).toEqual([
+    expect(busyDots.map((dot) => [dot.side, monthOf(dot.date), decimalText(dot.units), decimalText(dot.price), dot.amount])).toEqual([
       ['buy', '2026-03', '5', '98', euros(490)],
       ['sell', '2026-03', '1', '110', euros(110)],
     ])
@@ -168,12 +169,100 @@ describe("a holding's trade dots", () => {
 
     // The March dot's 13 units came to €6,728.10, €517.546… a unit shown to the cent, and the April sale is one trade at its own price.
     expect(chart.table).toEqual({
+      rowHeading: 'Month',
+      lineHeading: 'Price',
+      comparedHeading: null,
       buys: true,
       sales: true,
       rows: [
-        { month: 'Mar 2026', close: '€519.40', bought: '13 units at €517.55 · €6,728.10', sold: null },
-        { month: 'Apr 2026', close: '€481.25', bought: null, sold: '3.5 units at €480.58 · €1,682.03' },
+        { label: 'Mar 2026', close: '€519.40', compared: null, bought: '13 units at €517.55 · €6,728.10', sold: null },
+        { label: 'Apr 2026', close: '€481.25', compared: null, bought: null, sold: '3.5 units at €480.58 · €1,682.03' },
       ],
     })
+  })
+})
+
+describe("a holding's daily line", () => {
+  // Example Daily Fund, with a close on every weekday from 2 to 13 Mar 2026 but Monday 9 Mar, every figure made up.
+  const dailyFund = instrument('daily-fund', { name: 'Example Daily Fund' })
+  const dailyRecords = book({
+    accounts: [BROKER],
+    instruments: [dailyFund],
+    cashMovements: [cashMovement('deposit', BROKER, '2026-03-02', '1000')],
+    trades: [
+      trade('buy', BROKER, dailyFund, '2026-03-02', '2', '100.00', '0'),
+      trade('buy', BROKER, dailyFund, '2026-03-09', '1', '104.00', '0'),
+      trade('sell', BROKER, dailyFund, '2026-03-11', '1', '107.00', '0'),
+    ],
+  })
+  const closeDays = ['2026-03-02', '2026-03-03', '2026-03-04', '2026-03-05', '2026-03-06', '2026-03-10', '2026-03-11', '2026-03-12', '2026-03-13']
+  const dailySources = {
+    book: dailyRecords,
+    prices: priceBookOf(new Map([[dailyFund, closeDays.map((day, place): readonly [string, string] => [day, `${100 + place}.00`])]])),
+    rates: WORKED_RATES,
+    today: civil('2026-03-13'),
+  }
+  const dailyHolding = portfolioFigures(dailySources).holdings.find((figures) => figures.instrument.id === dailyFund.id)!
+  const daily = priceHistory(dailyHolding, dailySources)
+
+  it('runs close by close once the series has a close on most weekdays, and month end by month end otherwise', () => {
+    // 9 closes on the 10 weekdays from 2 to 13 Mar, against 3 closes on the 33 weekdays from 2 Mar to 15 Apr above.
+    expect(daily.daily).toBe(true)
+    expect(daily.points.map((point) => point.date)).toEqual(closeDays)
+    expect(history.daily).toBe(false)
+  })
+
+  it("counts a sold holding's weekdays to its last trade, where the fetch stopped its series", () => {
+    // Example Sold Fund, bought on 2 Mar 2026 and sold on 13 Mar with a close on each of those 10 weekdays, figures made up on 30 Oct 2026.
+    const soldFund = instrument('sold-fund', { name: 'Example Sold Fund' })
+    const soldDays = ['2026-03-02', '2026-03-03', '2026-03-04', '2026-03-05', '2026-03-06', '2026-03-09', '2026-03-10', '2026-03-11', '2026-03-12', '2026-03-13']
+    const soldSources = {
+      book: book({
+        accounts: [BROKER],
+        instruments: [soldFund],
+        cashMovements: [cashMovement('deposit', BROKER, '2026-03-02', '1000')],
+        trades: [trade('buy', BROKER, soldFund, '2026-03-02', '2', '100.00', '0'), trade('sell', BROKER, soldFund, '2026-03-13', '2', '109.00', '0')],
+      }),
+      prices: priceBookOf(new Map([[soldFund, soldDays.map((day, place): readonly [string, string] => [day, `${100 + place}.00`])]])),
+      rates: WORKED_RATES,
+      today: civil('2026-10-30'),
+    }
+    const soldHolding = portfolioFigures(soldSources).holdings.find((figures) => figures.instrument.id === soldFund.id)!
+    const sold = priceHistory(soldHolding, soldSources)
+    // 10 closes on the 10 weekdays to the sale, where 2 Mar to 30 Oct would hold 175 weekdays.
+    expect(sold.daily).toBe(true)
+    expect(sold.points.map((point) => point.date)).toEqual(soldDays)
+    expect(sold.dots.map((dot) => [dot.side, dot.date])).toEqual([
+      ['buy', '2026-03-02'],
+      ['sell', '2026-03-13'],
+    ])
+  })
+
+  it('dots each trade on its own day, and a trade on a day with no close on the close before it', () => {
+    expect(daily.dots.map((dot) => [dot.side, dot.date, decimalText(dot.units), dot.amount])).toEqual([
+      ['buy', '2026-03-02', '2', euros(200)],
+      ['buy', '2026-03-06', '1', euros(104)],
+      ['sell', '2026-03-11', '1', euros(107)],
+    ])
+  })
+
+  it("names in a day's tooltip the trades of the nearest dot within reach, under that dot's day when it is not the day's own", () => {
+    const tooltip = (priceChart(daily, dailyHolding, TOKENS, false).option as { tooltip: { formatter: (points: unknown) => string } }).tooltip.formatter
+    const on = (day: string): string => tooltip([{ seriesName: 'Price', axisValueLabel: day, value: 100, color: 'blue' }])
+    // Nine closes reach one close either side, so 3 Mar reaches the dot of 2 Mar, and 4 Mar, two closes from either dot, reaches none.
+    expect(on('2026-03-06')).toContain('Bought 1 unit at €104.00 · €104.00')
+    expect(on('2026-03-06')).not.toContain('margin-top:6px">6 Mar 2026</div>')
+    expect(on('2026-03-03')).toContain('margin-top:6px">2 Mar 2026</div>')
+    expect(on('2026-03-03')).toContain('Bought 2 units at €100.00 · €200.00')
+    expect(on('2026-03-04')).not.toContain('Bought')
+  })
+
+  it('says the line is of daily closes, and gives the table a row a day', () => {
+    const chart = priceChart(daily, dailyHolding, TOKENS, false)
+    expect(chart.subtitle).toBe('Daily closes in EUR, as quoted. Dashed is your average cost. Dot size is the amount.')
+    expect(chart.table.rowHeading).toBe('Day')
+    expect(chart.table.rows).toHaveLength(9)
+    expect(chart.table.rows[0]).toEqual({ label: '2 Mar 2026', close: '€100.00', compared: null, bought: '2 units at €100.00 · €200.00', sold: null })
+    expect(chart.description).toContain(" Dots show the 3 trades, a day's buys as one filled dot and its sales as one ring")
   })
 })

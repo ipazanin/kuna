@@ -10,7 +10,20 @@ import { words as pricesWords } from '../../prices/presentation/words'
 import { listInWords } from '../../../../shared/text/listInWords'
 import { words } from './words'
 
-/** A search of the price vendors for a listing, as a whole row of the instrument form. Picking one hands it to the form to fill its fields. */
+/**
+ * A search of the price vendors for a listing, as a whole row of the instrument form or in Compare with. Picking one
+ * hands it on, such as to the form to fill its fields.
+ */
+const props = withDefaults(
+  defineProps<{
+    label?: string
+    help?: string
+    /** The listings that can be picked, such as those with a vendor whose free key gives their closes. Every listing found by default. */
+    pickable?: (listing: SearchedListing) => boolean
+  }>(),
+  { label: words.instrumentDialog.search, help: words.instrumentDialog.searchHelp, pickable: () => true },
+)
+
 const emit = defineEmits<{
   pick: [listing: SearchedListing]
 }>()
@@ -23,7 +36,7 @@ const searching = ref(false)
 const result = ref<SymbolSearchResult | null>(null)
 
 const rows = computed(() =>
-  (result.value?.listings ?? []).map((listing) => ({
+  (result.value?.listings ?? []).filter(props.pickable).map((listing) => ({
     listing,
     key: `${listing.symbol} ${listing.mic ?? listing.market ?? ''}`,
     details: [listing.market, listing.currency, listing.proposedType === null ? listing.type : words.types[listing.proposedType], listInWords(listing.foundBy)]
@@ -52,7 +65,7 @@ function pick(listing: SearchedListing): void {
 
 <template>
   <div v-if="available" class="flex flex-col gap-2 sm:col-span-2" data-testid="instrument-search">
-    <UFormField :label="text.search" :help="text.searchHelp">
+    <UFormField :label="label" :help="help">
       <div class="flex gap-2">
         <UInput v-model="typed" autocapitalize="characters" :spellcheck="false" class="w-full" data-testid="instrument-search-text" @keydown.enter.prevent="find" />
         <UButton :label="text.searchButton" icon="i-lucide-search" color="neutral" variant="outline" class="shrink-0" :loading="searching" data-testid="instrument-search-button" @click="find" />

@@ -1,12 +1,12 @@
 import { shallowReactive, shallowReadonly } from 'vue'
 
-import { fetchPrices, seriesToAskAgain, vendorsNeeded } from './priceFetch'
+import { comparedSeriesToAsk, fetchPrices, seriesToAskAgain, vendorsNeeded } from './priceFetch'
 import type { PriceFetchScope } from './priceFetch'
 import type { FetchPause, PriceFetchPorts, PricesCopy, PricesDrive, PricesPlace } from './pricesPorts'
 import type { PriceVendor, VendorFetch } from './priceVendor'
 import { PRICES_FILE_NAME, decodePricesFile, emptyPricesFile, encodePricesFile } from '../domain/pricesFile'
 import type { PricesFile, PricesFileRefusal } from '../domain/pricesFile'
-import type { RatesWanted } from '../domain/priceDemand'
+import type { ComparedListing, RatesWanted } from '../domain/priceDemand'
 import { withImportedCloses } from '../domain/closesImport'
 import type { ClosesImportLine } from '../domain/closesImport'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
@@ -149,11 +149,20 @@ export interface PricesUpdate {
   importCloses(lines: readonly ClosesImportLine[]): Promise<PricesFetchRun | 'no-books'>
   /** Fetches the ECB rates wanted beside those the records need, and no closes, once a fetch of this page under way is over. The day's fetch stays due. */
   fetchRates(wanted: RatesWanted): Promise<PricesFetchRun | 'no-books'>
+  /**
+   * Fetches what a listing a chart compares with still needs, its closes and its currency's rates, once a fetch of this
+   * page under way is over. Answers current, asking nothing, when this browser's copy already holds them.
+   */
+  fetchCompared(compared: ComparedListing): Promise<PricesFetchRun | 'no-books'>
 }
 
-/** What a run was started for: the fetch of what is due, of everything now, or of the ECB rates an import wants, or closes imported from files. */
+/** What a run was started for: the fetch of what is due, of everything now, of the ECB rates an import wants or of a listing a chart compares with, or closes imported from files. */
 type FetchRequest =
-  { readonly kind: 'if-due' } | { readonly kind: 'now' } | { readonly kind: 'rates'; readonly wanted: RatesWanted } | { readonly kind: 'closes'; readonly lines: readonly ClosesImportLine[] }
+  | { readonly kind: 'if-due' }
+  | { readonly kind: 'now' }
+  | { readonly kind: 'rates'; readonly wanted: RatesWanted }
+  | { readonly kind: 'compared'; readonly compared: ComparedListing }
+  | { readonly kind: 'closes'; readonly lines: readonly ClosesImportLine[] }
 
 function messageOf(failure: unknown): string {
   return failure instanceof Error ? failure.message : String(failure)
@@ -193,6 +202,11 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
     }
     const decoded = decodePricesFile(text)
     const today = pricesDay(at)
+    if (request.kind === 'compared') {
+      // A file Kuna cannot read is refused by the fetch itself, so any key will do to reach it.
+      const keys = decoded.kind === 'refused' ? [request.compared.symbol] : comparedSeriesToAsk(ports.vendors, decoded.file, book, request.compared, { at, day: today })
+      return keys.length === 0 ? null : { kind: 'compared', compared: request.compared, keys }
+    }
     if (request.kind === 'now' || decoded.kind === 'refused' || !writtenTodayHere(decoded.file.writtenAt, keylessVendors(decoded.file), today, (vendorId) => ports.key(vendorId) !== null)) {
       return { kind: 'day' }
     }
@@ -404,6 +418,24 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
         }
         if (!running) {
           return runFetch(found.place, found.book, { kind: 'rates', wanted })
+        }
+      }
+    },
+
+    async fetchCompared(compared) {
+      for (;;) {
+        await afterRun()
+        const found = await opened()
+        if (found === null) {
+          return 'no-books'
+        }
+        const copy = await found.place.cache.read()
+        const at = ports.now()
+        if (copy !== null && comparedSeriesToAsk(ports.vendors, copy.file, found.book, compared, { at, day: pricesDay(at) }).length === 0) {
+          return { kind: 'current' }
+        }
+        if (!running) {
+          return runFetch(found.place, found.book, { kind: 'compared', compared })
         }
       }
     },

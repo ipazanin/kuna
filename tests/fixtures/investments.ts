@@ -199,12 +199,13 @@ export type CloseRow = readonly [string, string] | readonly [string, string, 'by
 /** Closes per instrument, looked up on or before a day. */
 export function priceBookOf(closes: ReadonlyMap<Instrument, readonly CloseRow[]>): PriceBook {
   const series = new Map([...closes].map(([what, rows]) => [what.id, rows.map(([date, price, byHand]): Close => ({ date: civil(date), price: decimal(price), byHand: byHand !== undefined }))]))
+  const sorted = (what: Instrument): Close[] => [...(series.get(what.id) ?? [])].sort((earlier, later) => earlier.date.localeCompare(later.date))
   return {
     closeOnOrBefore: (what: Instrument, day: CivilDate) =>
-      (series.get(what.id) ?? [])
+      sorted(what)
         .filter((close) => close.date <= day)
-        .sort((earlier, later) => earlier.date.localeCompare(later.date))
         .at(-1) ?? null,
+    closesBetween: (what: Instrument, from: CivilDate, to: CivilDate) => sorted(what).filter((close) => close.date >= from && close.date <= to),
   }
 }
 

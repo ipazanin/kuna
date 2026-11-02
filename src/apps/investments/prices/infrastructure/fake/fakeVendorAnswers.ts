@@ -60,6 +60,7 @@ const FAKE_LISTINGS: Readonly<Record<string, FakeListing>> = {
   ABC: { name: 'Example Tech', mic: 'XNAS', market: 'NASDAQ', country: 'United States', currency: 'USD', type: 'Common Stock' },
   DEF: { name: 'Example Dividend Co', mic: 'XNYS', market: 'NYSE', country: 'United States', currency: 'USD', type: 'Common Stock' },
   IDX: { name: 'Example Index Fund', mic: 'ARCX', market: 'NYSE ARCA', country: 'United States', currency: 'USD', type: 'ETF' },
+  EXQ: { name: 'Example Quality Fund', mic: 'XNAS', market: 'NASDAQ', country: 'United States', currency: 'USD', type: 'ETF' },
 }
 
 /** The fake search: the made-up listing of the text when there is one, else a made-up share and a made-up fund of that symbol. */

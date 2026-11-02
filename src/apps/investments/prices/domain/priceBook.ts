@@ -13,6 +13,8 @@ export interface Close {
 /** Where the figures read closes: the fetched ones, and those entered by hand where no fetched close exists for the day. */
 export interface PriceBook {
   closeOnOrBefore(instrument: Instrument, day: CivilDate): Close | null
+  /** Every close from the first day to the last, both included, oldest first and one a day. */
+  closesBetween(instrument: Instrument, from: CivilDate, to: CivilDate): readonly Close[]
 }
 
 /** Weekdays a fetched close may lag before it is late, which leaves room for exchange holidays. */

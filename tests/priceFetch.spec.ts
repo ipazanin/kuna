@@ -2,10 +2,11 @@ import { readFileSync } from 'node:fs'
 
 import { beforeAll, describe, expect, it } from 'vitest'
 
-import { closesVendors, fetchPrices } from '../src/apps/investments/prices/application/priceFetch'
-import type { PriceFetchOutcome } from '../src/apps/investments/prices/application/priceFetch'
+import { closesVendors, comparedSeriesToAsk, fetchPrices } from '../src/apps/investments/prices/application/priceFetch'
+import type { PriceFetchOutcome, PriceFetchScope } from '../src/apps/investments/prices/application/priceFetch'
 import type { FetchPause, PriceFetchPorts } from '../src/apps/investments/prices/application/pricesPorts'
 import type { PriceVendor, VendorAnswer } from '../src/apps/investments/prices/application/priceVendor'
+import type { ComparedListing } from '../src/apps/investments/prices/domain/priceDemand'
 import { decodePricesFile, ECB_SOURCE, emptyPricesFile, encodePricesFile } from '../src/apps/investments/prices/domain/pricesFile'
 import type { PricesFile } from '../src/apps/investments/prices/domain/pricesFile'
 import { pricesFileRateBook } from '../src/apps/investments/prices/domain/pricesFileBooks'
@@ -126,6 +127,9 @@ function vendorAnswer(url: string, day: string, world: World): VendorAnswer {
     const closes = revised(madeUpCloses(100, day))
     const asText = (rows: readonly (readonly [string, string])[]): Record<string, Record<string, string>> =>
       Object.fromEntries(rows.map(([date, close]) => [date, { '1. open': close, '2. high': close, '3. low': close, '4. close': `${close}00`, '5. volume': '1000' }]))
+    if (query.get('function') === 'SPLITS') {
+      return json(200, { symbol: query.get('symbol'), data: [{ effective_date: '2026-06-10', split_factor: '2.0000' }] })
+    }
     if (query.get('function') === 'TIME_SERIES_DAILY') {
       expect(query.get('outputsize')).toBe('compact')
       return json(200, { 'Meta Data': { '2. Symbol': query.get('symbol') }, 'Time Series (Daily)': asText(closes.slice(-100)) })
@@ -164,7 +168,7 @@ interface Device {
   readonly pauses: (FetchPause & { readonly left: number })[]
   records: InvestmentBook
   pricesText: string
-  run(day: string, world?: Partial<World>, vendors?: readonly PriceVendor[]): Promise<PriceFetchOutcome>
+  run(day: string, world?: Partial<World>, vendors?: readonly PriceVendor[], scope?: PriceFetchScope): Promise<PriceFetchOutcome>
   prices(): PricesFile
   asked(host: string): URLSearchParams[]
 }
@@ -213,13 +217,13 @@ function device(keys: Readonly<Record<string, string>> = KEYS, records: Investme
         else pauses.push({ ...pause, left: leftMilliseconds })
       },
     },
-    async run(day, overrides = {}, vendors = CLOSES_VENDORS) {
+    async run(day, overrides = {}, vendors = CLOSES_VENDORS, scope = { kind: 'day' }) {
       today = day
       world = { failing: new Map(), revisedDay: null, failingOnce: new Map(), holiday: null, ...overrides }
       events.length = 0
       progressed.length = 0
       pauses.length = 0
-      return fetchPrices(self.ports, vendors, { at: `${day}T07:41:00.000Z`, day })
+      return fetchPrices(self.ports, vendors, { at: `${day}T07:41:00.000Z`, day }, scope)
     },
     prices() {
       const read = decodePricesFile(self.pricesText)
@@ -816,5 +820,76 @@ describe('asking only for what is missing', () => {
     await browser.run('2026-10-30')
     expect(browser.asked('symbol=ABC').map((query) => query.get('start_date'))).toEqual(['2024-10-28'])
     expect(requestsTo(browser, 'alphavantage') + requestsTo(browser, 'data-api.ecb')).toBe(0)
+  })
+})
+
+describe('the closes of a ticker a chart compares with', () => {
+  const clock = (day: string) => ({ at: `${day}T07:41:00.000Z`, day })
+  const NEW_TICKER: ComparedListing = { source: 'twelvedata', symbol: 'NEW', currency: 'USD', from: '2026-01-02' }
+
+  async function compare(browser: Device, day: string, compared: ComparedListing): Promise<string[]> {
+    const keys = comparedSeriesToAsk(CLOSES_VENDORS, browser.prices(), browser.records, compared, clock(day))
+    if (keys.length > 0) {
+      await browser.run(day, {}, CLOSES_VENDORS, { kind: 'compared', compared, keys })
+    }
+    return keys
+  }
+
+  it("asks only for its closes from the chart's first day, and keeps them as a series beside the day's fetch", async () => {
+    const browser = device()
+    await browser.run('2026-10-30')
+    const dayFetch = browser.prices()
+
+    // The dollar's rates are up to date from the day's fetch, so only the ticker is asked.
+    expect(await compare(browser, '2026-10-30', NEW_TICKER)).toEqual(['twelvedata:NEW'])
+    expect(browser.events.map((event) => new URL(event).searchParams.get('symbol'))).toEqual(['NEW'])
+    const file = browser.prices()
+    expect(file.series['twelvedata:NEW']).toMatchObject({ currency: 'USD', from: '2026-01-02' })
+    expect(closesOf(file, 'twelvedata:NEW').at(-1)![0]).toBe('2026-10-29')
+    expect([file.writtenAt, file.lastFetch]).toEqual([dayFetch.writtenAt, dayFetch.lastFetch])
+  })
+
+  it('asks nothing when the chart opens again the same day, and on the next weekday only for the days since, its rates included', async () => {
+    const browser = device()
+    await browser.run('2026-10-30')
+    await compare(browser, '2026-10-30', NEW_TICKER)
+    expect(await compare(browser, '2026-10-30', NEW_TICKER)).toEqual([])
+
+    expect(await compare(browser, '2026-11-02', NEW_TICKER)).toEqual(['twelvedata:NEW', 'ecb:USD'])
+    expect(browser.asked('symbol=NEW').map((query) => query.get('start_date'))).toEqual(['2026-10-29'])
+    expect(browser.asked('symbol=ABC')).toEqual([])
+  })
+
+  it('asks the rates of a currency no record names, from 2015 like the others', async () => {
+    const browser = device()
+    await browser.run('2026-10-30')
+    expect(await compare(browser, '2026-10-30', { ...NEW_TICKER, currency: 'SEK' })).toEqual(['twelvedata:NEW', 'ecb:SEK'])
+    expect(browser.prices().series['ecb:SEK']).toMatchObject({ currency: 'SEK', from: '2015-01-01' })
+  })
+
+  it('notes the splits Alpha Vantage lists for a ticker with each ask of its closes, which no split record covers', async () => {
+    const browser = device()
+    await browser.run('2026-10-30')
+    const listed: ComparedListing = { source: 'alphavantage', symbol: 'QQQ.DEX', currency: 'EUR', from: '2026-09-01' }
+    await compare(browser, '2026-10-30', listed)
+    expect(browser.prices().splits).toEqual([{ series: 'alphavantage:QQQ.DEX', date: '2026-06-10', newUnits: '2', oldUnits: '1' }])
+    expect(await compare(browser, '2026-10-30', listed)).toEqual([])
+    await compare(browser, '2026-11-02', listed)
+    expect(browser.asked('function=SPLITS')).toHaveLength(1)
+    expect(browser.prices().splits).toEqual([{ series: 'alphavantage:QQQ.DEX', date: '2026-06-10', newUnits: '2', oldUnits: '1' }])
+  })
+
+  it("asks a ticker's splits again on the next day when the first ask meets the daily limit", async () => {
+    const browser = device()
+    await browser.run('2026-10-30')
+    const listed: ComparedListing = { source: 'alphavantage', symbol: 'QQQ.DEX', currency: 'EUR', from: '2026-09-01' }
+    const keys = comparedSeriesToAsk(CLOSES_VENDORS, browser.prices(), browser.records, listed, clock('2026-10-30'))
+    const limit = json(200, { Information: 'You have reached the 25 requests a day limit.' })
+    await browser.run('2026-10-30', { failing: new Map([['function=SPLITS', limit]]) }, CLOSES_VENDORS, { kind: 'compared', compared: listed, keys })
+    expect(browser.prices().series['alphavantage:QQQ.DEX']).toBeDefined()
+    expect(browser.prices().splits).toEqual([])
+
+    await compare(browser, '2026-11-02', listed)
+    expect(browser.prices().splits).toEqual([{ series: 'alphavantage:QQQ.DEX', date: '2026-06-10', newUnits: '2', oldUnits: '1' }])
   })
 })

@@ -1,11 +1,12 @@
 import { priceInTodaysUnits, quantityInTodaysUnits } from './holding'
 import type { HoldingFigures, PortfolioSources } from './holding'
 import { closePerUnit, priceOfWorth, tradeWorth } from './quoting'
+import type { Close } from '../../prices/domain/priceBook'
 import type { Trade, TradeSide } from '../../workbook/domain/trade'
+import { weekdaysBetween } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { lastDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
-import type { MonthKey } from '../../../../shared/calendar/monthKey'
-import { inEuros, sumDecimal } from '../../../../shared/money/decimal'
+import { DECIMAL_ZERO, inEuros, sumDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import { sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
@@ -28,8 +29,8 @@ export interface TradeMark {
 /** The buys, or the sales, of one chart point as one dot. */
 export interface TradeDot {
   readonly side: TradeSide
-  /** The month of the chart point that holds them. */
-  readonly month: MonthKey
+  /** The day of the chart point that holds them: a close's day on a daily line, a month end or the figures' day on a monthly one. */
+  readonly date: CivilDate
   /** Oldest first, as the file holds them on a day. */
   readonly marks: readonly TradeMark[]
   readonly units: Decimal
@@ -39,22 +40,34 @@ export interface TradeDot {
 }
 
 export interface PriceHistory {
+  /** Whether the line runs close by close, once the series has a close on most weekdays it covers, or month end by month end. */
+  readonly daily: boolean
   readonly points: readonly PricePoint[]
-  /** Month by month, a month's buys before its sales. */
+  /** Point by point, a point's buys before its sales. */
   readonly dots: readonly TradeDot[]
 }
 
+/** A line runs day by day once its closes fall on at least this share of the weekdays it spans, so month-end closes, or a vendor's monthly history, keep the monthly line. */
+const DAILY_SHARE = 0.5
+
 /**
- * A holding's close at each month end from the month its first units came, and on the figures' day, with its trades
- * merged per month and side. Month ends before its first close are left out, and so are the trades of those months.
- * A close per troy ounce of gold becomes a price per gram, as its trades are.
+ * A holding's closes from the day its first units came to the figures' day: each close once the series is daily,
+ * otherwise the close at each month end and on the figures' day. Each point's trades merge into one dot per side, the
+ * trades of a day on a daily line and of a month on a monthly one, those before the first close left out. A close per
+ * troy ounce of gold becomes a price per gram, as its trades are.
  */
-export function priceHistory(holding: Pick<HoldingFigures, 'instrument' | 'firstAcquired'>, sources: PortfolioSources): PriceHistory {
+export function priceHistory(holding: Pick<HoldingFigures, 'instrument' | 'quantity' | 'firstAcquired'>, sources: PortfolioSources): PriceHistory {
   const { instrument } = holding
   const firstDay = holding.firstAcquired?.date ?? null
   const { book, prices, today } = sources
+  const inTodaysUnits = (close: Close): PricePoint => ({ date: close.date, price: closePerUnit(instrument.quoted, priceInTodaysUnits(book, instrument, close.date, close.price)) })
+  const trades = book.trades.filter((trade) => trade.instrument === instrument.id).sort((earlier, later) => earlier.date.localeCompare(later.date))
+  // A fetch stops a sold holding's series at its last trade, so its share of closes counts the weekdays to that trade.
+  const seriesEnd = holding.quantity > DECIMAL_ZERO ? today : (trades.at(-1)?.date ?? today)
+  const closes = firstDay === null ? [] : prices.closesBetween(instrument, firstDay, today)
+  const daily = firstDay !== null && closes.length > 0 && closes.length >= DAILY_SHARE * weekdaysBetween(firstDay, seriesEnd)
   const days =
-    firstDay === null
+    firstDay === null || daily
       ? []
       : [
           ...monthsFrom(monthOf(firstDay), monthOf(today))
@@ -62,36 +75,46 @@ export function priceHistory(holding: Pick<HoldingFigures, 'instrument' | 'first
             .filter((date) => date >= firstDay && date < today),
           today,
         ]
-  const points = days.flatMap((date): PricePoint[] => {
-    const close = prices.closeOnOrBefore(instrument, date)
-    return close === null ? [] : [{ date, price: closePerUnit(instrument.quoted, priceInTodaysUnits(book, instrument, close.date, close.price)) }]
-  })
-  const charted = new Set(points.map((point) => monthOf(point.date)))
-  const trades = book.trades.filter((trade) => trade.instrument === instrument.id && charted.has(monthOf(trade.date))).sort((earlier, later) => earlier.date.localeCompare(later.date))
-  const merged = new Map<string, TradeMark[]>()
+  const points = daily
+    ? closes.map(inTodaysUnits)
+    : days.flatMap((date): PricePoint[] => {
+        const close = prices.closeOnOrBefore(instrument, date)
+        return close === null ? [] : [{ ...inTodaysUnits(close), date }]
+      })
+  const pointOfMonth = new Map(points.map((point) => [monthOf(point.date), point.date]))
+  const latestPointOn = (day: CivilDate): CivilDate | null => points.reduce<CivilDate | null>((found, point) => (point.date <= day ? point.date : found), null)
+  const pointOf = (day: CivilDate): CivilDate | null => (daily ? latestPointOn(day) : (pointOfMonth.get(monthOf(day)) ?? null))
+  const merged = new Map<string, { readonly date: CivilDate; readonly marks: TradeMark[] }>()
   for (const trade of trades) {
-    const key = `${monthOf(trade.date)} ${trade.side}`
+    const date = pointOf(trade.date)
+    if (date === null) continue
+    const key = `${date} ${trade.side}`
     const mark: TradeMark = {
       trade,
       units: quantityInTodaysUnits(book, instrument, trade.date, trade.quantity),
       price: priceInTodaysUnits(book, instrument, trade.date, trade.price),
       amount: inEuros(tradeWorth(instrument.quoted, trade.quantity, trade.price), trade.rate),
     }
-    merged.set(key, [...(merged.get(key) ?? []), mark])
+    const known = merged.get(key)
+    if (known === undefined) {
+      merged.set(key, { date, marks: [mark] })
+    } else {
+      known.marks.push(mark)
+    }
   }
   const dots = [...merged]
     .sort(([earlier], [later]) => earlier.localeCompare(later))
-    .map(([, marks]): TradeDot => {
+    .map(([, { date, marks }]): TradeDot => {
       const units = sumDecimal(marks.map((mark) => mark.units))
       const worth = sumDecimal(marks.map((mark) => tradeWorth(instrument.quoted, mark.units, mark.price)))
       return {
         side: marks[0]!.trade.side,
-        month: monthOf(marks[0]!.trade.date),
+        date,
         marks,
         units,
         price: priceOfWorth(instrument.quoted, worth, units),
         amount: sumMoney(marks.map((mark) => mark.amount)),
       }
     })
-  return { points, dots }
+  return { daily, points, dots }
 }

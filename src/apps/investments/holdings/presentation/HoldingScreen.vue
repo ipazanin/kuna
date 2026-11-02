@@ -6,6 +6,8 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import { holdingRecords } from '../domain/holdingRecords'
 import { latestRecords } from '../domain/latestRecords'
 import { priceHistory } from '../domain/priceHistory'
+import CompareWith from '../../compare/presentation/CompareWith.vue'
+import { useComparison } from '../../compare/presentation/useComparison'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { hasTransactions } from '../../workbook/domain/investmentBook'
 import TransactionDialog from '../../transactions/presentation/TransactionDialog.vue'
@@ -33,7 +35,10 @@ import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
-/** One holding: its value beside its total return, its facts, its price with the average cost and its trades, the lots still held, its transactions and its income. */
+/**
+ * One holding: its value beside its total return, its facts, its price with the average cost and its trades, or beside
+ * a ticker it is compared with, the lots still held, its transactions and its income.
+ */
 const { state } = useInvestmentsBooks()
 const { sources, figures } = usePortfolio()
 const route = useRoute()
@@ -45,7 +50,8 @@ const holding = computed(() => (figures.value === null ? null : holdingNamed(fig
 const records = computed(() => (holding.value === null || sources.value === null ? [] : latestRecords(holdingRecords(sources.value.book, holding.value.instrument.id), sources.value.rates)))
 const hasIncome = computed(() => records.value.some((entry) => entry.kind === 'income'))
 const history = computed(() => (holding.value === null || sources.value === null ? null : priceHistory(holding.value, sources.value)))
-const chart = computed(() => (history.value === null || holding.value === null ? null : priceChart(history.value, holding.value, chartTokens(), phone.value)))
+const comparison = useComparison(() => history.value?.points.map((point) => point.date) ?? [], 'as-quoted')
+const chart = computed(() => (history.value === null || holding.value === null ? null : priceChart(history.value, holding.value, chartTokens(), phone.value, comparison.line.value)))
 
 const prices = usePrices()
 /** Where the holding's closes begin after its first buy, because its vendor has none earlier, said once on its chart. */
@@ -56,11 +62,7 @@ const pricesFrom = computed(() => {
   const vendor = PRICE_VENDORS.find((candidate) => candidate.id === current.instrument.prices)
   return firstClose === undefined || vendor === undefined || firstClose <= current.firstAcquired.date ? null : words.chart.pricesFrom(dayLabel(parseCivilDate(firstClose)!), vendor.name)
 })
-const chartSubtitle = computed(() =>
-  holding.value === null || history.value === null
-    ? ''
-    : [words.chart.subtitle(holding.value.instrument.currency), history.value.dots.length === 0 ? null : words.chart.dotSize, pricesFrom.value].filter((part) => part !== null).join(' '),
-)
+const chartSubtitle = computed(() => (chart.value === null ? '' : [chart.value.subtitle, pricesFrom.value].filter((part) => part !== null).join(' ')))
 
 const adding = ref(false)
 const changing = ref(false)
@@ -100,7 +102,10 @@ const description = computed(() => {
         data-testid="holding-price-chart"
       >
         <template #legend>
-          <ChartLegend :entries="chart.legend" />
+          <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <ChartLegend :entries="chart.legend" />
+            <CompareWith :symbol="comparison.ticker.value?.symbol ?? null" :fetching="comparison.fetching.value" :note="comparison.note.value" @pick="comparison.pick" @remove="comparison.remove" />
+          </div>
         </template>
         <template #table>
           <caption class="sr-only">
@@ -111,17 +116,19 @@ const description = computed(() => {
           <thead>
             <tr>
               <th scope="col" class="text-start">
-                <span class="sr-only">{{ words.chart.month }}</span>
+                <span class="sr-only">{{ chart.table.rowHeading }}</span>
               </th>
-              <th scope="col" class="text-end">{{ words.chart.price }}</th>
+              <th scope="col" class="text-end">{{ chart.table.lineHeading }}</th>
+              <th v-if="chart.table.comparedHeading !== null" scope="col" class="text-end">{{ chart.table.comparedHeading }}</th>
               <th v-if="chart.table.buys" scope="col" class="text-end">{{ words.chart.buy }}</th>
               <th v-if="chart.table.sales" scope="col" class="text-end">{{ words.chart.sale }}</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in chart.table.rows" :key="row.month">
-              <th scope="row" class="text-start font-normal text-toned">{{ row.month }}</th>
+            <tr v-for="row in chart.table.rows" :key="row.label">
+              <th scope="row" class="text-start font-normal text-toned">{{ row.label }}</th>
               <td class="figure text-end">{{ row.close }}</td>
+              <td v-if="chart.table.comparedHeading !== null" class="figure text-end">{{ row.compared }}</td>
               <td v-if="chart.table.buys" class="figure text-end" :class="{ 'text-muted': row.bought === null }">{{ row.bought ?? '–' }}</td>
               <td v-if="chart.table.sales" class="figure text-end" :class="{ 'text-muted': row.sold === null }">{{ row.sold ?? '–' }}</td>
             </tr>

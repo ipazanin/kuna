@@ -48,6 +48,11 @@ function latestOnOrBefore(rows: readonly DatedDecimal[], day: CivilDate): DatedD
   return rows[low - 1] ?? null
 }
 
+/** The rows from the first day to the last, both included, in rows oldest first. */
+function rowsBetween(rows: readonly DatedDecimal[], from: CivilDate, to: CivilDate): readonly DatedDecimal[] {
+  return rows.filter((row) => row.date >= from && row.date <= to)
+}
+
 /**
  * The figures' closes: the fetched ones from the prices file, for an instrument priced by a vendor, and the prices
  * entered by hand. The latest on or before the day counts, and on a day with both the fetched close wins.
@@ -67,14 +72,26 @@ export function pricesFileBook(file: PricesFile, handPrices: readonly HandPrice[
   for (const prices of byHand.values()) {
     prices.sort((earlier, later) => earlier.date.localeCompare(later.date))
   }
+  const listedRows = (instrument: Instrument): readonly DatedDecimal[] => (instrument.prices === 'manual' ? [] : fetched(seriesKey(instrument.prices, instrument.sourceSymbol)))
+  const handRows = (instrument: Instrument): readonly DatedDecimal[] => byHand.get(instrument.id) ?? []
   return {
     closeOnOrBefore(instrument: Instrument, day: CivilDate): Close | null {
-      const listed = instrument.prices === 'manual' ? null : latestOnOrBefore(fetched(seriesKey(instrument.prices, instrument.sourceSymbol)), day)
-      const hand = latestOnOrBefore(byHand.get(instrument.id) ?? [], day)
+      const listed = latestOnOrBefore(listedRows(instrument), day)
+      const hand = latestOnOrBefore(handRows(instrument), day)
       if (hand !== null && (listed === null || hand.date > listed.date)) {
         return { date: hand.date, price: hand.value, byHand: true }
       }
       return listed === null ? null : { date: listed.date, price: listed.value, byHand: false }
+    },
+    closesBetween(instrument: Instrument, from: CivilDate, to: CivilDate): readonly Close[] {
+      const byDay = new Map<CivilDate, Close>()
+      for (const row of rowsBetween(handRows(instrument), from, to)) {
+        byDay.set(row.date, { date: row.date, price: row.value, byHand: true })
+      }
+      for (const row of rowsBetween(listedRows(instrument), from, to)) {
+        byDay.set(row.date, { date: row.date, price: row.value, byHand: false })
+      }
+      return [...byDay.values()].sort((earlier, later) => earlier.date.localeCompare(later.date))
     },
   }
 }

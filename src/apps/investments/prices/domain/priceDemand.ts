@@ -4,7 +4,7 @@ import type { PriceSource } from '../../workbook/domain/instrument'
 import { EURO } from '../../../../shared/money/currencyCode'
 
 /** A price source a vendor fetches closes for. */
-type ListedSource = Exclude<PriceSource, 'manual'>
+export type ListedSource = Exclude<PriceSource, 'manual'>
 
 /** One listing Kuna keeps closes of, for every instrument that names it. */
 export interface ListingDemand {
@@ -29,6 +29,14 @@ export interface PriceDemand {
 export interface RatesWanted {
   readonly currencies: readonly string[]
   /** The earliest day a rate is wanted for. */
+  readonly from: string
+}
+
+/** A listing a chart compares with, which no instrument names: its source and symbol, its quote currency and the first day the chart needs. */
+export interface ComparedListing {
+  readonly source: ListedSource
+  readonly symbol: string
+  readonly currency: string
   readonly from: string
 }
 

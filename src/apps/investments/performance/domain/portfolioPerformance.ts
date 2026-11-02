@@ -283,11 +283,11 @@ function moneyReturnsOf(days: readonly ValuedDay[]): MoneyReturns {
   }
 }
 
-/** The benchmark's close in euros on each day over its close on the first, in today's units. Null when a day has no close or no rate. */
-function priceLine(benchmark: Instrument, days: readonly CivilDate[], sources: PortfolioSources): number[] | null {
+/** An instrument's close in euros on each day over its close on the first, in today's units, as the benchmark's line. Null when a day has no close or no rate. */
+export function priceLine(instrument: Instrument, days: readonly CivilDate[], sources: PortfolioSources): number[] | null {
   const prices: Decimal[] = []
   for (const day of days) {
-    const close = valuationOn(benchmark, DECIMAL_ZERO, sources, day)
+    const close = valuationOn(instrument, DECIMAL_ZERO, sources, day)
     if (close === null) {
       return null
     }

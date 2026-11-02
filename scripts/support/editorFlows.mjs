@@ -3730,6 +3730,55 @@ export function investmentsInstrumentSearchFlowIn(language) {
 export const investmentsInstrumentSearchFlow = investmentsInstrumentSearchFlowIn('en')
 
 /**
+ * A chart's Compare with on the sample, with a made-up Twelve Data key kept for the page's life: the search asks the
+ * fake responder for EXQ, the pick names it in a chip and in the address, the chart then reads as change in percent,
+ * and the chip's Remove takes it away again. The key goes before the flow ends, so the steps after it start clean.
+ */
+export function investmentsCompareFlowIn(card, shotName) {
+  const chart = `[data-testid="${card}"]`
+  const chartSays = (page) => page.$eval(`${chart} .chart-body [aria-label]`, (element) => element.getAttribute('aria-label') ?? '').catch(() => '')
+  return async (page, { press, shoot, inspect }) => {
+    await page.evaluate(() => localStorage.setItem('kuna.price-vendor-key.twelvedata', 'made-up-twelve-data-key-0042'))
+    try {
+      await page.reload({ waitUntil: 'networkidle0' })
+      await pressSelector(page, press, `${chart} [data-testid="compare-open"]`)
+      await page.waitForSelector('[data-testid="instrument-search"]', { visible: true, timeout: 10_000 })
+      await fill(page, 'instrument-search-text', 'exq')
+      await pressSelector(page, press, '[data-testid="instrument-search-button"]')
+      await elementSays(page, '[data-testid="instrument-search-results"]', ['EXQ · Example Quality Fund', 'NASDAQ · USD'], 'the search does not list the fake listing')
+      await inspect?.('the listings Compare with found')
+      await shoot(`${shotName}-search`)
+      await pressSelector(page, press, '[data-testid="instrument-search-result"]')
+      await dialogGone(page, '[data-testid="instrument-search"]')
+      await elementSays(page, `${chart} [data-testid="compare-chip"]`, ['EXQ'], 'the pick shows no chip')
+      await page
+        .waitForFunction(() => decodeURIComponent(window.location.hash).includes('compare=twelvedata:EXQ'), { timeout: 5_000 })
+        .catch(() => {
+          throw new Error('the pick is not kept in the address')
+        })
+      await elementSays(page, chart, ['Change since'], 'the chart does not say it shows the change since its first day')
+      await page
+        .waitForFunction((selector) => /EXQ [+−-]?[\d.,]+\s?%/.test(document.querySelector(selector)?.getAttribute('aria-label') ?? ''), { timeout: 10_000 }, `${chart} .chart-body [aria-label]`)
+        .catch(async () => {
+          throw new Error(`the chart does not read EXQ in percent, it says: ${await chartSays(page)}`)
+        })
+      await inspect?.('a chart compared with EXQ')
+      await shoot(shotName)
+      await pressSelector(page, press, `${chart} [data-testid="compare-chip"]`)
+      await page
+        .waitForFunction((selector) => !document.querySelector(selector), { timeout: 5_000 }, `${chart} [data-testid="compare-chip"]`)
+        .catch(() => {
+          throw new Error('Remove left the chip')
+        })
+      if ((await page.evaluate(() => window.location.hash)).includes('compare=')) throw new Error('Remove left the pick in the address')
+      if ((await chartSays(page)).includes('EXQ')) throw new Error('Remove left the compared line on the chart')
+    } finally {
+      await page.evaluate(() => localStorage.removeItem('kuna.price-vendor-key.twelvedata'))
+    }
+  }
+}
+
+/**
  * Investments Settings, Prices, on the sample: three made-up CSV files of closes dropped at once on Import closes, two
  * matched to holdings by their names and one picked by hand, their dry run, and one import of all three.
  */

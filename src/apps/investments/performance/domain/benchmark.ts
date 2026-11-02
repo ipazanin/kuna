@@ -64,8 +64,13 @@ export function comparedBenchmark(state: BenchmarkState, book: InvestmentBook, n
   if (recorded.length > 0 || instrument.prices === 'manual') {
     return { instrument, splits: recorded }
   }
-  const series = seriesKey(instrument.prices, instrument.sourceSymbol)
-  const noted = notes
+  return { instrument, splits: notedSplits(instrument, notes) }
+}
+
+/** The splits the prices file notes for an instrument's listing, as records of it, for a listing whose splits no record holds. */
+export function notedSplits(instrument: Instrument, notes: readonly SplitNote[]): Split[] {
+  const series = instrument.prices === 'manual' ? null : seriesKey(instrument.prices, instrument.sourceSymbol)
+  return notes
     .filter((note) => note.series === series)
     .map((note): Split => ({
       id: recordIdOf(SPLIT_RECORDS, `${note.series} ${note.date}`),
@@ -76,5 +81,4 @@ export function comparedBenchmark(state: BenchmarkState, book: InvestmentBook, n
       importKey: null,
       note: '',
     }))
-  return { instrument, splits: noted }
 }

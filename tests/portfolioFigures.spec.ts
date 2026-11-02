@@ -50,7 +50,8 @@ function holdingOf(figures: PortfolioFigures, what: Instrument): HoldingFigures 
 /** The worked closes plus another instrument's. */
 function pricesWith(what: Instrument, rows: readonly CloseRow[]): PriceBook {
   const extra = priceBookOf(new Map([[what, rows]]))
-  return { closeOnOrBefore: (asked, day) => (asked.id === what.id ? extra.closeOnOrBefore(asked, day) : WORKED_PRICES.closeOnOrBefore(asked, day)) }
+  const pricesOf = (asked: Instrument): PriceBook => (asked.id === what.id ? extra : WORKED_PRICES)
+  return { closeOnOrBefore: (asked, day) => pricesOf(asked).closeOnOrBefore(asked, day), closesBetween: (asked, from, to) => pricesOf(asked).closesBetween(asked, from, to) }
 }
 
 describe("the worked portfolio's figures on 29 Oct 2026", () => {

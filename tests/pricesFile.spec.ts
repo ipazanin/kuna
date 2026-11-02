@@ -193,6 +193,17 @@ describe("the prices file's books", () => {
     expect(prices.closeOnOrBefore(stockB, civil('2026-10-30'))).toEqual({ date: civil('2026-10-30'), price: decimal('59.25'), byHand: true })
   })
 
+  it('gives every close from one day to another, both included, a hand price only on a day with no fetched close', () => {
+    const prices = pricesFileBook(WORKED_FILE, [handPrice(stockB, '2026-10-29', '99'), handPrice(stockB, '2026-10-30', '59.25', 'statement'), handPrice(stockB, '2026-10-27', '57')])
+    expect(prices.closesBetween(stockB, civil('2026-10-28'), civil('2026-10-30'))).toEqual([
+      { date: civil('2026-10-28'), price: decimal('57.5'), byHand: false },
+      { date: civil('2026-10-29'), price: decimal('58'), byHand: false },
+      { date: civil('2026-10-30'), price: decimal('59.25'), byHand: true },
+    ])
+    expect(prices.closesBetween(stockB, civil('2026-10-29'), civil('2026-10-29'))).toEqual([{ date: civil('2026-10-29'), price: decimal('58'), byHand: false }])
+    expect(prices.closesBetween(instrument('unlisted'), civil('2026-10-01'), civil('2026-10-31'))).toEqual([])
+  })
+
   it('prices a manual instrument by hand alone, in date order whatever the file order', () => {
     const fund = instrument('money-fund', { class: 'money-market', prices: 'manual', sourceSymbol: '' })
     const prices = pricesFileBook(WORKED_FILE, [handPrice(fund, '2026-09-30', '10.1234'), handPrice(fund, '2026-08-31', '10.0987')])
@@ -243,7 +254,7 @@ describe('late prices', () => {
     expect(file.failures).toEqual([])
   })
 
-  it('finds the late-prices set late: on Friday 30 Oct its newest close is Monday 26 Oct, and every vendor failed', () => {
+  it('finds the late-prices set late: on Friday 30 Oct its newest close is Monday 26 Oct, and every vendor failed on the day fetch', () => {
     const { records, today } = fakeBook('2026-10-30')
     const file = fakePricesFile('late-prices', today)
     const figures = portfolioFigures({ book: records, prices: pricesFileBook(file, records.prices), rates: pricesFileRateBook(file), today })
@@ -255,7 +266,9 @@ describe('late prices', () => {
     ).toEqual({ newest: civil('2026-10-26'), late: true })
     expect(figures.holdings.every((holding) => holding.late)).toBe(true)
     expect(figures.unpriced).toEqual([])
-    expect(new Set(file.failures.map((failure) => failure.series))).toEqual(new Set([...Object.values(FAKE_SERIES), 'ecb:USD', 'ecb:GBP', 'ecb:CHF']))
+    // A day's fetch asks nothing for the series a chart compared with.
+    const named = Object.values(FAKE_SERIES).filter((key) => key !== FAKE_SERIES.compared)
+    expect(new Set(file.failures.map((failure) => failure.series))).toEqual(new Set([...named, 'ecb:USD', 'ecb:GBP', 'ecb:CHF']))
     expect(file.failures.every((failure) => failure.day === today)).toBe(true)
   })
 

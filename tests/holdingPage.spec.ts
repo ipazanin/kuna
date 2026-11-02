@@ -9,6 +9,7 @@ import type { PortfolioFigures } from '../src/apps/investments/holdings/domain/p
 import { priceHistory } from '../src/apps/investments/holdings/domain/priceHistory'
 import type { Instrument } from '../src/apps/investments/workbook/domain/instrument'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
+import { monthOf } from '../src/shared/calendar/monthKey'
 import { decimalText } from '../src/shared/money/decimal'
 import { BROKER, STOCK_B, WORKED_PRICES, WORKED_RATES, WORLD_ETF, book, cashMovement, decimal, instrument, priceBookOf, spinOff, split, trade, workedPortfolio } from './fixtures/investments'
 import { civil, euros } from './fixtures/ledger'
@@ -138,7 +139,9 @@ describe("a holding's price history", () => {
   })
 
   it('leaves out the January buy, before the first close, and dots the sale after the split as it was', () => {
-    expect(priceHistory(holding, sources).dots.map((dot) => [dot.side, dot.month, decimalText(dot.units), decimalText(dot.price), dot.amount])).toEqual([['sell', '2025-04', '4', '53', euros(212)]])
+    expect(priceHistory(holding, sources).dots.map((dot) => [dot.side, monthOf(dot.date), decimalText(dot.units), decimalText(dot.price), dot.amount])).toEqual([
+      ['sell', '2025-04', '4', '53', euros(212)],
+    ])
   })
 
   it('takes a price and a quantity of before the split into today’s units', () => {
