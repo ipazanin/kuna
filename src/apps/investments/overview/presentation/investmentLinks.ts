@@ -4,3 +4,5 @@ export const INVESTMENTS_START_ROUTE = '/investments/start'
 export const INVESTMENTS_SETTINGS_ROUTE = '/investments/settings'
 /** The Prices tab of the Investments Settings, with the vendors' keys and the last fetch. */
 export const INVESTMENTS_PRICES_ROUTE = `${INVESTMENTS_SETTINGS_ROUTE}?tab=prices`
+/** The Checks tab of the Investments Settings, with each portfolio check's threshold and switch. */
+export const INVESTMENTS_CHECKS_ROUTE = `${INVESTMENTS_SETTINGS_ROUTE}?tab=checks`

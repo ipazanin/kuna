@@ -2296,6 +2296,19 @@ currency, realised on sales and income, then its facts, its month-end closes in 
 the average cost dashed and a dot per buy and a hollow one per sale, the lots still held with the day
 each turns tax-free, its transactions and its income.
 
+Holdings also draws a map of what is held, each tile sized by its value and tinted by its gain on what is
+held in three steps each way, the name and the signed percent on every tile that has room, a tile
+opening its holding, and its table behind Table. The Target mix card keeps the share each group of one
+mix should hold. It shows each group's gap in euros, its target share of the whole less what it holds,
+and splits an amount typed into If you put in over what each group lacks against the whole with the
+amount in it, in proportion when it cannot fill them all, the last such group taking the rest.
+
+The Overview's Portfolio checks measure the largest holding, currency, sector, country or region and
+account, the cash, the last 12 months' costs against the average value at their month ends since the
+first deposit, and the largest gap to a target in points, each against its threshold, failing checks
+first. The Checks tab of the Investments Settings changes a threshold or switches a check off, and the
+file keeps a record only for a check that differs from its default.
+
 Transactions at `#/investments/transactions`, counted in the menu, lists every record of the file and
 every price entered by hand, newest first by month, filtered by kind, account and holding and found by
 its words. From 768 px it is a table, and on a phone each record is a row of two lines. Each record

@@ -5,7 +5,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 
 import { closedPositions } from '../domain/closedPositions'
-import { holdingMix } from '../domain/holdingMix'
+import { holdingMixes } from '../domain/holdingMix'
 import { HOLDINGS_GROUPINGS, heldHoldings, holdingsList } from '../domain/holdingsList'
 import type { HoldingsGrouping, HoldingsSort } from '../domain/holdingsList'
 import { figuresClose } from '../domain/portfolioFigures'
@@ -18,9 +18,11 @@ import { words as transactionWords } from '../../transactions/presentation/words
 import ClosedPositionsCard from './ClosedPositionsCard.vue'
 import { holdingLink } from './holdingLinks'
 import HoldingRow from './HoldingRow.vue'
+import HoldingsMapCard from './HoldingsMapCard.vue'
 import HoldingsGroupName from './HoldingsGroupName.vue'
 import HoldingsTable from './HoldingsTable.vue'
 import { mixDonut } from './mixDonut'
+import TargetMixCard from './TargetMixCard.vue'
 import { usePortfolio } from './usePortfolio'
 import { fetchingAnnouncement, usePricesFetchingLine } from '../../prices/presentation/fetchingLine'
 import { usePrices } from '../../prices/presentation/usePrices'
@@ -43,7 +45,7 @@ import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
 /**
- * The five mixes of the value, every holding with its value, cost, gain, weight and last day, and the cash of each
+ * The five mixes of the value with the target mix, a map of the holdings, every holding with its value, cost, gain, weight and last day, and the cash of each
  * account, grouped, found and sorted, then what was sold in full. `?on=` shows them at an earlier day's close.
  */
 const { state } = useInvestmentsBooks()
@@ -95,14 +97,12 @@ const nothingOnDay = computed(
   () => on.value !== null && figures.value !== null && held.value === 0 && closed.value.length === 0 && figures.value.cash.every((balance) => balance.balance === DECIMAL_ZERO),
 )
 
-const mixes = computed(() => {
-  const shown = figures.value
+const mixes = computed(() => (figures.value === null || sources.value === null ? null : holdingMixes(figures.value, sources.value.book, facts.value)))
+const donuts = computed(() => {
+  const split = mixes.value
   const book = sources.value?.book
-  if (shown === null || book === undefined) return []
-  return MIXES.map((mix) => {
-    const split = holdingMix(shown, book, facts.value, mix)
-    return { mix, missing: split.missing, donut: mixDonut(split, book, on.value) }
-  })
+  if (split === null || book === undefined) return []
+  return MIXES.map((mix) => ({ mix, missing: split[mix].missing, donut: mixDonut(split[mix], book, on.value) }))
 })
 
 const prices = usePrices()
@@ -144,7 +144,7 @@ const description = computed(() => {
     <template v-else-if="list !== null">
       <DashboardGrid data-testid="holdings-mixes">
         <DonutCard
-          v-for="{ mix, missing, donut } in mixes"
+          v-for="{ mix, missing, donut } in donuts"
           :key="mix"
           :title="words.mixes.titles[mix]"
           :description="donut.description"
@@ -165,7 +165,9 @@ const description = computed(() => {
             </p>
           </template>
         </DonutCard>
+        <TargetMixCard v-if="mixes !== null && sources !== null" :book="sources.book" :mixes="mixes" />
       </DashboardGrid>
+      <HoldingsMapCard v-if="figures !== null && held > 0" :figures="figures" />
       <AppCard data-testid="holdings">
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 pt-4 pb-3 sm:px-5">
           <ChoiceButtons v-model="grouping" :options="groupings" :label="words.groupBy" data-testid="holdings-group-by" />

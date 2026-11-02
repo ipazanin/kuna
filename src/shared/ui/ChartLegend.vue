@@ -1,6 +1,6 @@
 <script lang="ts">
-/** Mirrors a chart's mark: a block for bars and areas, a stroke for lines, dashed for a line still to come, stripes, a ghost, an outline, or a dot on a line, filled or hollow. */
-export type SwatchMark = 'bar' | 'line' | 'dashed' | 'hatched' | 'ghost' | 'outline' | 'dot' | 'ring'
+/** Mirrors a chart's mark: a block for bars and areas, a stroke for lines, dashed for a line still to come, stripes, a ghost, an outline, a dot on a line, filled or hollow, or a treemap's tile with its edge. */
+export type SwatchMark = 'bar' | 'line' | 'dashed' | 'hatched' | 'ghost' | 'outline' | 'dot' | 'ring' | 'tile'
 
 export interface LegendEntry {
   readonly label: string

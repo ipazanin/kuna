@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import type { PortfolioCheck } from '../src/apps/investments/overview/domain/portfolioChecks'
+import type { Instrument } from '../src/apps/investments/workbook/domain/instrument'
 import type { YearlyRate } from '../src/apps/loans/bankLoans/domain/yearlyRate'
 import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, RATE_PERIOD_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
 import { civilDate } from '../src/shared/calendar/civilDate'
 import { monthKey } from '../src/shared/calendar/monthKey'
+import { decimalOfText } from '../src/shared/money/decimal'
 import type { RecordNoun } from '../src/shared/storage/domain/recordKind'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import { civil, euros } from './fixtures/ledger'
@@ -93,6 +96,17 @@ describe('record labels in Croatian', () => {
     expect(holdings.words.targetsOfTwoMixes(holdings.words.byMix.account, holdings.words.byMix.class)).toBe(
       'Ciljevi se postavljaju za jednu raspodjelu odjednom, pa ciljevi po računu ne mogu stajati uz ciljeve po klasi.',
     )
+  })
+})
+
+describe('the portfolio checks in Croatian', () => {
+  it('says a holding’s share with its threshold, and a gap in points in the case the number asks for', async () => {
+    const { checkLines, thresholdText } = await inCroatian(() => import('../src/apps/investments/overview/presentation/checkLines'))
+    const tech = { id: 'instrument:tech', name: 'Example Tech' } as unknown as Instrument
+    const over: PortfolioCheck = { check: 'holding', subject: { kind: 'holding', instrument: tech }, measured: 0.342, threshold: decimalOfText('20')!, over: true }
+
+    expect(checkLines([over], { accounts: [] }).map((line) => [line.label, line.sentence])).toEqual([['Najveća pozicija', 'Example Tech čini 34,2\u00a0% vrijednosti, iznad 20\u00a0%']])
+    expect(['1', '2', '5', '2.5'].map((points) => thresholdText('target-gap', decimalOfText(points)!))).toEqual(['1 postotnog boda', '2 postotna boda', '5 postotnih bodova', '2,5 postotnih bodova'])
   })
 })
 

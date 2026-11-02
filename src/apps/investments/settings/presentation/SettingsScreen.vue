@@ -10,15 +10,17 @@ import PriceVendorsCard from '../../prices/presentation/PriceVendorsCard.vue'
 import { usePrices } from '../../prices/presentation/usePrices'
 import AccountsCard from './AccountsCard.vue'
 import BenchmarkCard from './BenchmarkCard.vue'
+import ChecksCard from './ChecksCard.vue'
 import InvestmentsBooksCard from './InvestmentsBooksCard.vue'
 import { words } from './words'
 
-/** The Investments settings: the file, accounts and benchmark, and on a tab of its own where the prices come from. */
+/** The Investments settings: the file, accounts and benchmark, then on tabs of their own where the prices come from and the portfolio checks' thresholds. */
 const prices = usePrices()
 const waiting = computed(() => (prices.state.copy?.file.failures ?? []).filter(needsThePerson).length)
 const tabs = computed(() => [
   { value: 'general', label: words.tabs.general, icon: 'i-lucide-settings' },
   { value: 'prices', label: words.tabs.prices, icon: 'i-lucide-chart-candlestick', count: waiting.value },
+  { value: 'checks', label: words.tabs.checks, icon: 'i-lucide-list-checks' },
 ])
 </script>
 
@@ -39,6 +41,9 @@ const tabs = computed(() => [
           <PriceVendorsCard />
           <ImportClosesCard />
         </div>
+      </template>
+      <template #checks>
+        <ChecksCard />
       </template>
     </PageTabs>
   </section>

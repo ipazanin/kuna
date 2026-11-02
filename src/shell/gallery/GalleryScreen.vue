@@ -118,12 +118,12 @@ const charts = {
 }
 
 const gainLegend = [
-  { label: 'Down over 25%', colour: 'var(--loss-3)' },
-  { label: 'Down 10 to 25%', colour: 'var(--loss-2)' },
-  { label: 'Down up to 10%', colour: 'var(--loss-1)' },
-  { label: 'Up to 10%', colour: 'var(--gain-1)' },
-  { label: 'Up 10 to 25%', colour: 'var(--gain-2)' },
-  { label: 'Up over 25%', colour: 'var(--gain-3)' },
+  { label: 'Loss over 25%', colour: 'var(--loss-3)', mark: 'tile' as const },
+  { label: 'Loss of 10 to 25%', colour: 'var(--loss-2)', mark: 'tile' as const },
+  { label: 'Loss up to 10%', colour: 'var(--loss-1)', mark: 'tile' as const },
+  { label: 'Gain up to 10%', colour: 'var(--gain-1)', mark: 'tile' as const },
+  { label: 'Gain of 10 to 25%', colour: 'var(--gain-2)', mark: 'tile' as const },
+  { label: 'Gain over 25%', colour: 'var(--gain-3)', mark: 'tile' as const },
 ]
 
 /** Made-up shares of a year's income, coloured by bucket as every chart colours them. */

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { PortfolioSources } from '../src/apps/investments/holdings/domain/holding'
-import { yearlyCosts } from '../src/apps/investments/income/domain/yearlyCosts'
+import { recentCosts, yearlyCosts } from '../src/apps/investments/income/domain/yearlyCosts'
 import { dayValuer } from '../src/apps/investments/performance/domain/portfolioPerformance'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
 import { EURO } from '../src/shared/money/currencyCode'
@@ -104,5 +104,27 @@ describe('fees by kind', () => {
 
   it('has no years before the first deposit', () => {
     expect(costsOf(book({}), '2026-01-15')).toEqual([])
+  })
+})
+
+describe('the costs of the last 12 months', () => {
+  function recentOf(records: InvestmentBook, today: string, sources: Partial<PortfolioSources> = {}) {
+    const all: PortfolioSources = { book: records, prices: FUND_PRICES, rates: NO_RATES, today: civil(today), ...sources }
+    return recentCosts(all, dayValuer(all))
+  }
+
+  it('takes the TER of the twelve month ends since the day a year back, against their average value', () => {
+    // 31 Jan to 31 Dec 2025 at €10,000.00 each: 0.20% of €10,000.00 is €20.00.
+    expect(recentOf(fundBoughtOn('2025-01-02'), '2026-01-15')).toEqual({ total: euros(20), averageValue: euros(10000) })
+  })
+
+  it('averages a young portfolio over the month ends since its first deposit, while the months before still cost nothing', () => {
+    // Six of the twelve month ends hold €10,000.00, so the fund cost is €10.00, against the €10,000.00 those six average.
+    expect(recentOf(fundBoughtOn('2025-07-01'), '2026-01-15')).toEqual({ total: euros(10), averageValue: euros(10000) })
+  })
+
+  it('counts the fees of the records after the day a year back', () => {
+    // Only the sale of 2 Feb 2026 is after 29 Oct 2025: $1.00 at 1.18 is €0.85.
+    expect(recentOf(workedPortfolio(), '2026-10-29', { prices: WORKED_PRICES, rates: WORKED_RATES }).total).toBe(euros(0.85))
   })
 })

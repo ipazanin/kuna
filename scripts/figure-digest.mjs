@@ -113,13 +113,15 @@ import { fakeLoansDocument } from '../src/apps/loans/workbook/infrastructure/fak
 import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument.ts'
 import { moneyFromAmount } from '../src/shared/money/money.ts'
 import { closedPositions } from '../src/apps/investments/holdings/domain/closedPositions.ts'
-import { holdingMix } from '../src/apps/investments/holdings/domain/holdingMix.ts'
+import { holdingMix, holdingMixes } from '../src/apps/investments/holdings/domain/holdingMix.ts'
+import { depositSplit, targetGaps, targetedMix } from '../src/apps/investments/holdings/domain/targetMix.ts'
 import { incomeForecast } from '../src/apps/investments/income/domain/incomeForecast.ts'
 import { latestRecords } from '../src/apps/investments/holdings/domain/latestRecords.ts'
 import { investingRhythm } from '../src/apps/investments/income/domain/investingRhythm.ts'
-import { yearlyCosts } from '../src/apps/investments/income/domain/yearlyCosts.ts'
+import { recentCosts, yearlyCosts } from '../src/apps/investments/income/domain/yearlyCosts.ts'
 import { figuresClose, portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures.ts'
 import { gainSources, incomeAgainstLastYear, lastDayMovers, pricesNotice } from '../src/apps/investments/overview/domain/overviewFigures.ts'
+import { portfolioChecks } from '../src/apps/investments/overview/domain/portfolioChecks.ts'
 import { valueOverTime } from '../src/apps/investments/overview/domain/valueOverTime.ts'
 import { benchmarkState, comparedBenchmark } from '../src/apps/investments/performance/domain/benchmark.ts'
 import { performancePeriods } from '../src/apps/investments/performance/domain/performancePeriod.ts'
@@ -421,9 +423,10 @@ function pricesOfInput() {
 /**
  * The Investments groups: the records and problems, then per instrument and per account, named by its place in the
  * file and never by its name, what the Overview, Holdings and a holding's page show on the day, then the portfolio's
- * figures, its last day, the Overview's cards, the five mixes and the closed positions of Holdings and its value over
- * time, then the benchmark's closes, Performance over each period it offers with where its gain came from and its falls
- * below a peak, its returns by year and by month.
+ * figures, its last day, the Overview's cards, the five mixes, the target mix with what €2,000.00 would buy and the
+ * closed positions of Holdings and its value over time, then the benchmark's closes, Performance over each period it
+ * offers with where its gain came from and its falls below a peak, its returns by year and by month, the costs, the
+ * saving and the Overview's portfolio checks.
  */
 function investmentsGroups(add) {
   const document = options.investments === undefined ? fakeInvestmentsDocument(AT) : decodeDocument(readFileSync(options.investments, 'utf8'))
@@ -459,6 +462,11 @@ function investmentsGroups(add) {
   for (const mix of MIXES) {
     add(`investments.holdings.mix.${mix}`, holdingMix(figures, workbook.book, facts, mix))
   }
+  const targeted = targetedMix(workbook.book.targets)
+  if (targeted !== null) {
+    const mix = holdingMix(figures, workbook.book, facts, targeted.mix)
+    add('investments.holdings.targets', [targetGaps(mix.parts, targeted.targets, mix.whole), depositSplit(mix.parts, targeted.targets, mix.whole, 200_000)])
+  }
   add('investments.holdings.closed', closedPositions(figures))
   add('investments.income.coming', incomeForecast(sources, facts).months)
   add('investments.value-over-time', valueOverTime(sources, { kind: 'all' }))
@@ -482,6 +490,7 @@ function investmentsGroups(add) {
   add('investments.performance.months', () => monthlyReturns(figuresOf({ kind: 'all' })?.growth ?? []))
   add('investments.income.costs', () => yearlyCosts(sources, valuedOn))
   add('investments.income.saving', investingRhythm(workbook.book, today))
+  add('investments.overview.checks', () => portfolioChecks(figures, holdingMixes(figures, workbook.book, facts), recentCosts(sources, valuedOn), workbook.book.targets, workbook.book.checks))
 }
 
 const digests = new WeakMap()

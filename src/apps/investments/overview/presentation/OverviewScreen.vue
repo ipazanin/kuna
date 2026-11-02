@@ -14,6 +14,7 @@ import GainSourcesCard from './GainSourcesCard.vue'
 import LatestTransactionsCard from './LatestTransactionsCard.vue'
 import MoversCard from './MoversCard.vue'
 import OverviewTiles from './OverviewTiles.vue'
+import PortfolioChecksCard from './PortfolioChecksCard.vue'
 import PricesNotice from './PricesNotice.vue'
 import ValueOverTimeCard from './ValueOverTimeCard.vue'
 import WhereTheMoneyIsCard from './WhereTheMoneyIsCard.vue'
@@ -28,9 +29,9 @@ import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 import { usePricesFetchingLine } from '../../prices/presentation/fetchingLine'
 import PricesStatus from '../../prices/presentation/PricesStatus.vue'
 
-/** What the investments are worth and what they earned, at the last close, with how the prices stand and what needs a look. */
+/** What the investments are worth and what they earned, at the last close, with how the prices stand, where the portfolio leans past a check and what needs a look. */
 const { state } = useInvestmentsBooks()
-const { sources, figures } = usePortfolio()
+const { sources, figures, facts } = usePortfolio()
 
 const fileNote = computed(() => (state.choice?.source === 'drive' ? words.empty.onDrive(state.choice.name) : words.empty.inBrowser))
 const problems = computed(() => state.workbook?.problems ?? [])
@@ -74,6 +75,7 @@ const importing = ref(false)
       <template v-else-if="sources !== null && figures !== null">
         <PricesNotice :book="sources.book" :figures="figures" />
         <OverviewTiles :sources="sources" :figures="figures" />
+        <PortfolioChecksCard :sources="sources" :figures="figures" :facts="facts" />
         <DashboardGrid data-testid="investments-cards">
           <ValueOverTimeCard :sources="sources" class="xl:col-span-2" />
           <WhereTheMoneyIsCard :figures="figures" :book="sources.book" />

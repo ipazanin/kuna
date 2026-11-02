@@ -69,7 +69,7 @@ function shareOf(value: number, whole: number): string {
 }
 
 /** A group as the screen names it: a class, a sector or a region in words, a country by its name, an account by its own and a currency by its code. */
-function groupName(mix: Mix, group: string, book: Pick<InvestmentBook, 'accounts'>): string {
+export function groupName(mix: Mix, group: string, book: Pick<InvestmentBook, 'accounts'>): string {
   switch (mix) {
     case 'class':
       return words.classes[group as ClassGroup]

@@ -2,6 +2,7 @@ import type { BarSeries, ChartOption, LineSeries } from '../../shared/charts/ech
 import { BAR_END_DOWN, BAR_END_RIGHT, BAR_END_UP, markIncomplete, moneyAxisLabel, stackGap } from '../../shared/charts/chartTheme'
 import type { ChartTokens } from '../../shared/charts/chartTokens'
 import { axisTooltip } from '../../shared/charts/chartTooltip'
+import { changeTreemap, changeTreemapTooltip } from '../../shared/charts/treemap'
 import { formatCompactMoney, formatMoney, formatPercent } from '../../shared/money/moneyFormat'
 
 /** Made-up figures in cents for a small one-person company. None of it comes from a real ledger. */
@@ -250,64 +251,16 @@ export const SAMPLE_HOLDINGS = [
   { name: 'Share D', value: 118_900, gain: -0.312 },
 ] as const
 
-/** The step of a gain or a loss: up to 10%, up to 25%, and over 25%. */
-function gainStep(gain: number): number {
-  const size = Math.abs(gain)
-  return size <= 0.1 ? 0 : size <= 0.25 ? 1 : 2
-}
-
-const LABEL_FONT_SIZE = 12
-const LABEL_LINE_HEIGHT = 16
-const LABEL_PADDING = 5
-/** Room for a signed percent such as −31.2% at the label's size. */
-const PERCENT_WIDTH = 48
-/**
- * A tile shows its name and its signed percent, or no label when both do not fit, so the tooltip and the
- * table carry it. ECharts cannot hide a treemap label that does not fit, so `labelLayout` sets its size to 0.
- */
-const LABEL_MIN_HEIGHT = 2 * LABEL_LINE_HEIGHT + 2 * LABEL_PADDING
-const LABEL_MIN_WIDTH = PERCENT_WIDTH + 2 * LABEL_PADDING
-
-/** The tiles' faintest tints sit under 3:1 on the card, so each tile's edge is a border in muted ink. */
+/** The made-up holdings as tiles sized by their value and tinted by their gain. */
 export function valueMap(tokens: ChartTokens): ChartOption {
   return {
-    tooltip: {
-      trigger: 'item',
-      formatter: (point: unknown) => {
-        const { name, value } = point as { name: string; value: number }
-        const gain = SAMPLE_HOLDINGS.find((holding) => holding.name === name)?.gain
-        return gain === undefined ? '' : `${name}<br><b>${formatMoney(value)}</b>, ${formatPercent(gain, 'always')}`
-      },
-    },
+    tooltip: changeTreemapTooltip(),
     series: [
-      {
-        type: 'treemap',
-        name: 'Holdings',
-        roam: false,
-        nodeClick: false,
-        breadcrumb: { show: false },
-        left: 0,
-        top: 0,
-        right: 0,
-        bottom: 0,
-        levels: [{ itemStyle: { borderColor: tokens.surface, borderWidth: 0, gapWidth: 2 } }],
-        label: {
-          show: true,
-          color: tokens.ink,
-          fontSize: LABEL_FONT_SIZE,
-          lineHeight: LABEL_LINE_HEIGHT,
-          padding: LABEL_PADDING,
-          overflow: 'truncate',
-          formatter: ({ name, data }: { name: string; data: unknown }) => `${name}\n${formatPercent((data as { gain: number }).gain, 'always')}`,
-        },
-        labelLayout: ({ rect }) => (rect.width < LABEL_MIN_WIDTH || rect.height < LABEL_MIN_HEIGHT ? { fontSize: 0 } : {}),
-        data: SAMPLE_HOLDINGS.map((holding) => ({
-          name: holding.name,
-          value: holding.value,
-          gain: holding.gain,
-          itemStyle: { color: (holding.gain < 0 ? tokens.loss : tokens.gain)[gainStep(holding.gain)], borderColor: tokens.inkMuted, borderWidth: 1, borderRadius: 4 },
-        })),
-      },
+      changeTreemap(
+        'Holdings',
+        SAMPLE_HOLDINGS.map((holding) => ({ key: holding.name, label: holding.name, caption: formatPercent(holding.gain, 'always'), value: holding.value, change: holding.gain })),
+        tokens,
+      ),
     ],
   }
 }

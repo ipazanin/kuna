@@ -20,7 +20,7 @@
  * brought back, the same from a row of the To review queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google with one token for every scope and the sync it resumes ending ready, with Drive read unticked ending in Allow access, a refused consent and a
  * forged answer leaving Allow access with no message, a refused silent trip marking the device so the next open waits for Allow access, Sign in to Google when Google asks
- * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, a k typed into the what-if's amount expanding at once, 1.255m keeping its third decimal, with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, a tap near a holding's dot on its daily line reading that day's buy in the tooltip, Compare with on a holding's chart and on Performance's growth chart searching, picking, reading percent and removing the ticker, a part of the class ring listing Holdings grouped by class, a closed position opening its page and the way back, a past close picked in On and Today, the period of Investments Performance changed to 1Y, to a year in its dropdown and back to All, its Months tab switched to Against the index, the period changed on its Sources tab, the Overview's Income tile opening Performance on its Income tab without the period bar and its Coming and Returns tabs, 1k typed into the projection's Each month on the Saving tab and its end value read, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices tab, three made-up CSV files of closes imported there, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
+ * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, a k typed into the what-if's amount expanding at once, 1.255m keeping its third decimal, with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, a tap near a holding's dot on its daily line reading that day's buy in the tooltip, Compare with on a holding's chart and on Performance's growth chart searching, picking, reading percent and removing the ticker, a part of the class ring listing Holdings grouped by class, a closed position opening its page and the way back, a past close picked in On and Today, a tap on the map of holdings opening a holding's page, targets set with what 2k buys read and undone, a check's threshold changed on the Investments Checks tab and undone, the period of Investments Performance changed to 1Y, to a year in its dropdown and back to All, its Months tab switched to Against the index, the period changed on its Sources tab, the Overview's Income tile opening Performance on its Income tab without the period bar and its Coming and Returns tabs, 1k typed into the projection's Each month on the Saving tab and its end value read, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices tab, three made-up CSV files of closes imported there, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
@@ -2015,6 +2015,99 @@ async function checkWidth(width) {
       'Today kept the past close',
     )
     await expect(page.$('[data-testid="holdings-today"]'), (button) => button === null, 'Today stayed after going back to today')
+  })
+
+  // A card opened on the phone is remembered on this device, so each step below forgets the cards it opened before the next step.
+  const openCard = async (card) => {
+    const toggle = await page.waitForSelector(`[data-card="${card}"] [data-testid="card-toggle"]`, { visible: true })
+    if ((await page.$eval(`[data-card="${card}"]`, (element) => element.dataset.collapsed)) === 'true') await toggle.tap()
+    await page.waitForSelector(`[data-card="${card}"][data-collapsed="false"]`)
+  }
+  const forgetCards = (cards) => page.evaluate((names) => names.forEach((name) => localStorage.removeItem(`kuna.card.${name}`)), cards).catch(() => {})
+  const retype = async (selector, text) => {
+    const input = await page.waitForSelector(selector, { visible: true })
+    await input.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    // In Chrome's touch emulation, a tap within about 200 ms of a scroll focuses the field but places no caret, so its keys insert nothing.
+    await delay(700)
+    await input.tap()
+    await input.evaluate((element) => element.select())
+    await page.keyboard.type(text)
+    return input
+  }
+
+  // The map of holdings, opened on the phone: a tap on its largest tile opens that holding's page, and Back returns to Holdings.
+  await step('investments-holdings-map', async () => {
+    try {
+      await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/holdings`, { waitUntil: 'networkidle0' })
+      await waitForTitle(page, 'Holdings')
+      await openCard('holdings.map')
+      const canvas = '[data-testid="holdings-map"] .chart-body canvas'
+      await page.waitForSelector(canvas)
+      await settleCharts(page)
+      await inspect(page, `${width}px Holdings with its map open`)
+      await shoot('investments-holdings-map')
+      // The largest holding takes the map's top left.
+      await tapChart(page, { row: 0.2, column: 0.15 }, canvas)
+      await page.waitForFunction(() => window.location.hash.includes('/investments/holding?instrument='), { timeout: 5_000 })
+      await page.waitForSelector('[data-testid="holding-hero"]')
+      await (await page.waitForSelector('[data-testid="back-to-holdings"]', { visible: true })).tap()
+      await waitForTitle(page, 'Holdings')
+    } finally {
+      await forgetCards(['holdings.map'])
+    }
+  })
+
+  // Targets set to 60, 30 and 10 save with a toast, 2k typed into If you put in fills the Buy column with €2,000.00 in all, and Undo puts back 70, 20 and 10.
+  await step('investments-holdings-targets', async () => {
+    try {
+      await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/holdings`, { waitUntil: 'networkidle0' })
+      await waitForTitle(page, 'Holdings')
+      await openCard('holdings.targets')
+      const targets = () => page.$$eval('[data-testid="targets-line"] td:nth-of-type(2)', (cells) => cells.map((cell) => cell.textContent?.trim() ?? ''))
+      await expect(targets(), (shown) => shown.slice(0, 3).join() === '70.0%,20.0%,10.0%', 'the sample does not show its targets of 70, 20 and 10%')
+      await (await page.waitForSelector('[data-testid="targets-set"]', { visible: true })).tap()
+      await page.waitForSelector('[data-testid="targets-form"]', { visible: true })
+      await delay(300)
+      await retype('[data-testid="targets-percent"][data-group="stocks"]', '60')
+      await retype('[data-testid="targets-percent"][data-group="money-market"]', '30')
+      await waitForText(page, '[data-testid="targets-sum"]', 'Adds up to 100%')
+      await inspect(page, `${width}px the targets dialog`)
+      await shoot('investments-targets-dialog')
+      await page.tap('[data-testid="targets-save"]')
+      await waitForText(page, '[data-slot="title"]', 'Targets saved')
+      await expect(targets(), (shown) => shown.slice(0, 3).join() === '60.0%,30.0%,10.0%', 'the saved targets are not listed')
+      await retype('[data-testid="targets-put-in"]', '2k')
+      const euros = (text) => Number(text.replace(/[^\d.]/g, ''))
+      const buys = () => page.$$eval('[data-testid="targets-buy"]', (cells) => cells.map((cell) => cell.textContent?.trim() ?? ''))
+      await expect(buys(), (shown) => shown.length >= 3 && Math.round(shown.reduce((sum, text) => sum + euros(text), 0) * 100) === 200_000, '2k typed into If you put in does not buy €2,000.00 in all')
+      await inspect(page, `${width}px the target mix with what 2k buys`)
+      await shoot('investments-targets-buy')
+      await delay(700)
+      await (await waitForText(page, 'button', 'Undo')).tap()
+      await waitForText(page, '[data-slot="title"]', 'Undone')
+      await expect(targets(), (shown) => shown.slice(0, 3).join() === '70.0%,20.0%,10.0%', 'Undo did not put back the targets of 70, 20 and 10%')
+    } finally {
+      await forgetCards(['holdings.targets'])
+    }
+  })
+
+  // The largest holding's threshold changed to 25 on the Checks tab saves with a toast, and Undo puts back 20.
+  await step('investments-settings-checks', async () => {
+    await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/settings?tab=checks`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Settings')
+    const field = '[data-check="holding"] input'
+    const shown = () => page.$eval(field, (input) => input.value)
+    await expect(shown(), (text) => text === '20', 'the largest holding check does not start at 20')
+    const input = await retype(field, '25')
+    await input.evaluate((element) => element.blur())
+    await waitForText(page, '[data-slot="title"]', 'Largest holding: threshold changed')
+    await expect(shown(), (text) => text === '25', 'the changed threshold is not shown')
+    await inspect(page, `${width}px the Checks tab`)
+    await shoot('investments-settings-checks')
+    await delay(700)
+    await (await waitForText(page, 'button', 'Undo')).tap()
+    await waitForText(page, '[data-slot="title"]', 'Undone')
+    await expect(shown(), (text) => text === '20', 'Undo did not put back the threshold of 20')
   })
 
   // The sample's Performance: a tap on 1Y and a year picked in the dropdown change the period and keep it in the address, and All takes it out again.

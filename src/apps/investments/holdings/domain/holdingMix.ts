@@ -49,6 +49,14 @@ export function holdingMix<Of extends Mix>(figures: PortfolioFigures, book: Inve
   return { mix, ...split } as HoldingMix<Of>
 }
 
+/** Every mix of the value at once, by its kind. */
+export type HoldingMixes = Readonly<Record<Mix, HoldingMix<Mix>>>
+
+export function holdingMixes(figures: PortfolioFigures, book: InvestmentBook, facts: FactsBook): HoldingMixes {
+  const of = (mix: Mix): HoldingMix<Mix> => holdingMix(figures, book, facts, mix)
+  return { sector: of('sector'), currency: of('currency'), country: of('country'), class: of('class'), account: of('account') }
+}
+
 function exposureSplit(figures: PortfolioFigures, book: InvestmentBook, facts: FactsBook, mix: ExposureMix): Omit<HoldingMix<Mix>, 'mix'> {
   const placed = heldHoldings(figures).map((holding) => ({ holding, value: holding.valuation?.value ?? null, exposure: exposureOf(holding.instrument, mix, book, facts) }))
   const values = placed.flatMap(({ value, exposure }): Valued[] => {

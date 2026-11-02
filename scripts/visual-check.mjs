@@ -134,7 +134,9 @@ import { fakeWorkbookDocument } from '../src/apps/company/workbook/infrastructur
 import { tabsOfDocument } from '../src/apps/company/workbook/infrastructure/spreadsheetDocument.ts'
 import { templateColumnNames } from '../src/apps/company/workbook/infrastructure/workbookTemplate.ts'
 import { holdingReturn } from '../src/apps/investments/holdings/domain/holding.ts'
+import { holdingMix, holdingMixes } from '../src/apps/investments/holdings/domain/holdingMix.ts'
 import { holdingsList } from '../src/apps/investments/holdings/domain/holdingsList.ts'
+import { targetGaps } from '../src/apps/investments/holdings/domain/targetMix.ts'
 import { latestRecords } from '../src/apps/investments/holdings/domain/latestRecords.ts'
 import { figuresClose, portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures.ts'
 import { averageCostText } from '../src/apps/investments/holdings/presentation/holdingText.ts'
@@ -144,8 +146,10 @@ import { incomeByYear } from '../src/apps/investments/income/domain/incomeHistor
 import { investingRhythm } from '../src/apps/investments/income/domain/investingRhythm.ts'
 import { taxFreeCalendar } from '../src/apps/investments/income/domain/taxFreeCalendar.ts'
 import { withheldByCountry } from '../src/apps/investments/income/domain/withheldByCountry.ts'
-import { yearlyCosts } from '../src/apps/investments/income/domain/yearlyCosts.ts'
+import { recentCosts, yearlyCosts } from '../src/apps/investments/income/domain/yearlyCosts.ts'
 import { gainSources, incomeAgainstLastYear } from '../src/apps/investments/overview/domain/overviewFigures.ts'
+import { portfolioChecks } from '../src/apps/investments/overview/domain/portfolioChecks.ts'
+import { checkLines } from '../src/apps/investments/overview/presentation/checkLines.ts'
 import { benchmarkState, comparedBenchmark } from '../src/apps/investments/performance/domain/benchmark.ts'
 import { monthlyReturns } from '../src/apps/investments/performance/domain/monthlyReturns.ts'
 import { periodGains } from '../src/apps/investments/performance/domain/periodGains.ts'
@@ -411,6 +415,32 @@ function fakeHoldingShows(key) {
 }
 
 const SAMPLE_HOLDINGS = fakeHoldingsShows()
+
+/** The sample's sources and the facts its fake prices file holds, as Holdings and the Overview read them. */
+function fakeSources() {
+  const { workbook, rates, figures } = fakePortfolio('sample', 'sample')
+  const prices = fakePricesFile('sample', INVESTMENTS_DAY)
+  const sources = { book: workbook.book, prices: pricesFileBook(prices, workbook.book.prices), rates, today: INVESTMENTS_DAY }
+  return { book: workbook.book, sources, figures, facts: fetchedFactsBook(prices.facts) }
+}
+
+/** The gap of each group of the sample's target mix, in English and in Croatian. */
+function fakeTargetsShows() {
+  const { book, figures, facts } = fakeSources()
+  const mix = holdingMix(figures, book, facts, book.targets[0].slice.mix)
+  const gaps = targetGaps(mix.parts, book.targets, mix.whole).map((line) => line.gap)
+  return { english: gaps.map((gap) => formatMoney(gap, 'always')), croatian: gaps.map((gap) => formatMoney(gap, 'always', CROATIAN_MONEY)) }
+}
+
+/** The sentences of the sample's portfolio checks, as the Overview lists them in English. */
+function fakeChecksShows() {
+  const { book, sources, figures, facts } = fakeSources()
+  const checks = portfolioChecks(figures, holdingMixes(figures, book, facts), recentCosts(sources, dayValuer(sources)), book.targets, book.checks)
+  return checkLines(checks, book).map((line) => line.sentence)
+}
+
+const SAMPLE_TARGETS = fakeTargetsShows()
+const SAMPLE_CHECKS = fakeChecksShows()
 
 /** A past close for Holdings' `?on=`, after the World ETF's buys and the retired share's sale. */
 const HOLDINGS_PAST_DAY = '2025-12-31'
@@ -1631,8 +1661,10 @@ const SOURCE_SCREENS = [
       'Movers on the last day',
       'Latest transactions',
       'Fee refund',
+      'Portfolio checks',
+      'Change the thresholds',
+      ...SAMPLE_CHECKS,
     ],
-    cards: false,
   },
   {
     name: 'investments-overview-sample-croatian',
@@ -1640,8 +1672,19 @@ const SOURCE_SCREENS = [
     hash: '#/investments',
     title: 'Pregled',
     charts: 1,
-    shows: ['Stanje na zatvaranju:', 'Cijene unesene ručno', ...SAMPLE_INVESTMENTS.croatian, 'Vrijednost kroz vrijeme', 'Gdje je novac', 'Sve pozicije', 'Odakle dolazi dobit', 'Zadnje transakcije'],
-    cards: false,
+    shows: [
+      'Stanje na zatvaranju:',
+      'Cijene unesene ručno',
+      ...SAMPLE_INVESTMENTS.croatian,
+      'Vrijednost kroz vrijeme',
+      'Gdje je novac',
+      'Sve pozicije',
+      'Odakle dolazi dobit',
+      'Zadnje transakcije',
+      'Provjere portfelja',
+      'Iznad praga',
+      'Promijeni pragove',
+    ],
   },
   {
     name: 'investments-overview-cash-below-zero',
@@ -1650,7 +1693,6 @@ const SOURCE_SCREENS = [
     title: 'Overview',
     charts: 1,
     shows: ['Some figures need a look', 'Broker Two holds −€', 'of cash, below zero. A deposit or an exchange is probably missing.', ...CASH_BELOW_ZERO_INVESTMENTS.english],
-    cards: false,
   },
   {
     name: 'investments-overview-cash-below-zero-croatian',
@@ -1659,14 +1701,14 @@ const SOURCE_SCREENS = [
     title: 'Pregled',
     charts: 1,
     shows: ['Neke brojke treba provjeriti', 'Broker Two: novac je −', 'ispod nule. Vjerojatno nedostaje uplata ili konverzija.', ...CASH_BELOW_ZERO_INVESTMENTS.croatian],
-    cards: false,
   },
   {
     name: 'investments-holdings',
     query: 'investments=sample',
     hash: '#/investments/holdings',
     title: 'Holdings',
-    charts: 0,
+    charts: 1,
+    expandedBefore: ['holdings.map'],
     ready: '[data-testid="holdings"] [data-testid="holding-row"], [data-testid="holdings-table"]',
     shows: [
       'holdings and the cash, worth',
@@ -1687,6 +1729,10 @@ const SOURCE_SCREENS = [
       'Total',
       'Closed positions',
       'Example Retired Co',
+      'Map of holdings',
+      'Size is the value, colour the gain on what you hold',
+      'Gain of 10 to 25%',
+      'Target mix',
       ...SAMPLE_HOLDINGS.english,
     ],
   },
@@ -1695,7 +1741,8 @@ const SOURCE_SCREENS = [
     query: 'investments=sample&lang=hr',
     hash: '#/investments/holdings',
     title: 'Pozicije',
-    charts: 0,
+    charts: 1,
+    expandedBefore: ['holdings.map'],
     ready: '[data-testid="holdings"] [data-testid="holding-row"], [data-testid="holdings-table"]',
     shows: [
       'pozicija i novac, vrijednost',
@@ -1708,15 +1755,39 @@ const SOURCE_SCREENS = [
       'Novac i valute',
       'Ukupno',
       'Zatvorene pozicije',
+      'Karta pozicija',
+      'Veličina je vrijednost, boja dobit na onome što držite',
+      'Ciljna raspodjela',
       ...SAMPLE_HOLDINGS.croatian,
     ],
+  },
+  {
+    name: 'investments-holdings-targets',
+    query: 'investments=sample',
+    hash: '#/investments/holdings',
+    title: 'Holdings',
+    charts: 1,
+    expandedBefore: ['holdings.map', 'holdings.targets'],
+    ready: '[data-testid="targets-table"]',
+    shows: ['Target mix', 'By class', 'Set targets', 'Group', 'Target', 'Gap', 'If you put in', 'Splits it over what each group lacks', 'Stocks', 'Money market', ...SAMPLE_TARGETS.english],
+  },
+  {
+    name: 'investments-holdings-targets-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments/holdings',
+    title: 'Pozicije',
+    charts: 1,
+    expandedBefore: ['holdings.map', 'holdings.targets'],
+    ready: '[data-testid="targets-table"]',
+    shows: ['Ciljna raspodjela', 'Po klasi', 'Postavi ciljeve', 'Skupina', 'Cilj', 'Razlika', 'Ako uplatite', 'Dionice', 'Novčani fondovi', ...SAMPLE_TARGETS.croatian],
   },
   {
     name: 'investments-holdings-on-date',
     query: 'investments=sample',
     hash: `#/investments/holdings?on=${HOLDINGS_PAST_DAY}`,
     title: 'Holdings',
-    charts: 0,
+    charts: 1,
+    expandedBefore: ['holdings.map'],
     ready: '[data-testid="holdings"] [data-testid="holding-row"], [data-testid="holdings-table"]',
     shows: [`Holdings at the close of ${dayLabel(HOLDINGS_PAST_DAY)}`, 'Today', 'By sector', 'Example World ETF', 'Closed positions', 'Example Retired Co'],
   },
@@ -1725,7 +1796,8 @@ const SOURCE_SCREENS = [
     query: 'investments=sample&lang=hr',
     hash: `#/investments/holdings?on=${HOLDINGS_PAST_DAY}`,
     title: 'Pozicije',
-    charts: 0,
+    charts: 1,
+    expandedBefore: ['holdings.map'],
     ready: '[data-testid="holdings"] [data-testid="holding-row"], [data-testid="holdings-table"]',
     shows: ['Pozicije na zatvaranju', 'Na dan', 'Danas', 'Po sektoru', 'Zatvorene pozicije'],
   },
@@ -1734,7 +1806,8 @@ const SOURCE_SCREENS = [
     query: 'investments=sample&prices=late-prices',
     hash: '#/investments/holdings',
     title: 'Holdings',
-    charts: 0,
+    charts: 1,
+    expandedBefore: ['holdings.map'],
     ready: '[data-testid="holdings"] [data-testid="holding-row"], [data-testid="holdings-table"]',
     shows: [`Close of ${LATE_HOLDING_CLOSE}, late`, 'Example Tech'],
   },
@@ -1743,7 +1816,8 @@ const SOURCE_SCREENS = [
     query: 'investments=sample&prices=late-prices&lang=hr',
     hash: '#/investments/holdings',
     title: 'Pozicije',
-    charts: 0,
+    charts: 1,
+    expandedBefore: ['holdings.map'],
     ready: '[data-testid="holdings"] [data-testid="holding-row"], [data-testid="holdings-table"]',
     shows: ['Zaključna cijena od', 'kasni', 'Example Tech'],
   },
@@ -2201,7 +2275,6 @@ const SOURCE_SCREENS = [
       ', which is late.',
       ...LATE_INVESTMENTS.english,
     ],
-    cards: false,
   },
   {
     name: 'investments-prices-late-croatian',
@@ -2211,7 +2284,6 @@ const SOURCE_SCREENS = [
     charts: 1,
     ready: '[data-testid="investments-prices-behind"]',
     shows: ['Cijene kasne', 'Najnovija zaključna cijena je od', 'Zadnje dohvaćanje nije dobilo ništa za 7 nizova', 'Cijene u postavkama', 'koja kasni.', ...LATE_INVESTMENTS.croatian],
-    cards: false,
   },
   {
     name: 'investments-prices-settings',
@@ -2270,6 +2342,26 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="investments-books-card"]',
     shows: ['General', 'Prices', 'What Performance compares your portfolio with', 'Its last close in the prices file is from', 'Add a benchmark'],
+    cards: false,
+  },
+  {
+    name: 'investments-settings-checks',
+    query: 'investments=sample',
+    hash: '#/investments/settings?tab=checks',
+    title: 'Settings',
+    charts: 0,
+    ready: '[data-testid="investments-checks"]',
+    shows: ['Checks', 'Portfolio checks', 'Largest holding', 'Default threshold 20%', 'Costs of the last 12 months', 'Gap to the target mix', 'Default threshold 5 points'],
+    cards: false,
+  },
+  {
+    name: 'investments-settings-checks-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments/settings?tab=checks',
+    title: 'Postavke',
+    charts: 0,
+    ready: '[data-testid="investments-checks"]',
+    shows: ['Provjere', 'Provjere portfelja', 'Najveća pozicija', 'Zadani prag 20\u00a0%', 'Troškovi u zadnjih 12 mjeseci', 'Zadani prag 5 postotnih bodova', 'Uključeno'],
     cards: false,
   },
   {

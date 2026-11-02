@@ -59,6 +59,7 @@ function numericValue(raw: unknown): number | null {
   return null
 }
 
-function escapeHtml(text: string): string {
+/** A text as it may go into a tooltip's HTML, since names come from the user's file. */
+export function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (character) => `&#${character.charCodeAt(0)};`)
 }

@@ -7,8 +7,9 @@ import { withFullStop } from '../../../../shared/text/withFullStop'
 
 export const en = {
   title: 'Settings',
-  description: 'Where the Investments file is kept, with its export and the switch to another place, your accounts, the benchmark, and where the prices come from.',
-  tabs: { label: 'Parts of the settings', general: 'General', prices: 'Prices' },
+  description:
+    'Where the Investments file is kept, with its export and the switch to another place, your accounts, the benchmark, where the prices come from, and the thresholds of the portfolio checks.',
+  tabs: { label: 'Parts of the settings', general: 'General', prices: 'Prices', checks: 'Checks' },
   books: 'Investments books',
   localTitle: 'Investments file',
   export: 'Export',
@@ -34,6 +35,17 @@ export const en = {
     cleared: 'No benchmark',
     notChosen: 'Benchmark not changed',
   },
+  checks: {
+    title: 'Portfolio checks',
+    subtitle: 'What the Overview checks, and how far each check lets the portfolio lean',
+    on: 'On',
+    standard: (limit: string) => `Default threshold ${limit}`,
+    error: 'A percent above 0, at most 100',
+    changed: (check: string) => `${check}: threshold changed`,
+    switchedOn: (check: string) => `${check}: check on`,
+    switchedOff: (check: string) => `${check}: check off`,
+    notChanged: 'Not changed',
+  },
   accountDialog: {
     addTitle: 'Add an account',
     changeTitle: 'Change an account',
@@ -57,8 +69,8 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   title: 'Postavke',
-  description: 'Gdje se čuva datoteka ulaganja, s izvozom i premještanjem na drugo mjesto, vaši računi, referentni indeks te odakle dolaze cijene.',
-  tabs: { label: 'Dijelovi postavki', general: 'Općenito', prices: 'Cijene' },
+  description: 'Gdje se čuva datoteka ulaganja, s izvozom i premještanjem na drugo mjesto, vaši računi, referentni indeks, odakle dolaze cijene te pragovi provjera portfelja.',
+  tabs: { label: 'Dijelovi postavki', general: 'Općenito', prices: 'Cijene', checks: 'Provjere' },
   books: 'Datoteka ulaganja',
   localTitle: 'Datoteka ulaganja',
   export: 'Izvezi',
@@ -83,6 +95,17 @@ export const hr: Translation<typeof en> = {
     chosen: (name) => `Referentni indeks: ${name}`,
     cleared: 'Bez referentnog indeksa',
     notChosen: 'Indeks nije promijenjen',
+  },
+  checks: {
+    title: 'Provjere portfelja',
+    subtitle: 'Što Pregled provjerava i koliko svaka provjera dopušta da portfelj bude nagnut',
+    on: 'Uključeno',
+    standard: (limit) => `Zadani prag ${limit}`,
+    error: 'Postotak veći od 0, najviše 100',
+    changed: (check) => `${check}: prag promijenjen`,
+    switchedOn: (check) => `${check}: provjera uključena`,
+    switchedOff: (check) => `${check}: provjera isključena`,
+    notChanged: 'Nije promijenjeno',
   },
   accountDialog: {
     addTitle: 'Dodaj račun',
