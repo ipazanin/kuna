@@ -12,6 +12,7 @@ import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { plural } from '../../../../shared/text/translation'
 import { fetchingAnnouncement } from './fetchingLine'
 import { runProblem } from './runProblem'
+import { useKeysChanged } from './useKeysSync'
 import { usePrices } from './usePrices'
 import { words } from './words'
 
@@ -23,7 +24,11 @@ const prices = usePrices()
 const { sources, figures } = usePortfolio()
 
 /** Whether this browser keeps a key for a vendor that needs one, which decides what advice a missing close gets. */
-const keyKept = PRICE_VENDORS.some((vendor) => vendor.needsKey && storedVendorKey(vendor.id) !== null)
+const keysChanged = useKeysChanged()
+const keyKept = computed(() => {
+  void keysChanged.value
+  return PRICE_VENDORS.some((vendor) => vendor.needsKey && storedVendorKey(vendor.id) !== null)
+})
 const problem = computed(() => runProblem(prices.state.lastRun))
 
 const standing = computed(() => {

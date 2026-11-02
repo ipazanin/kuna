@@ -3,7 +3,7 @@ import { reactive } from 'vue'
 import type { PriceVendor } from '../application/priceVendor'
 import type { VendorTest } from '../application/vendorTest'
 
-/** Where the keys are kept: this browser's storage, which keeps a trimmed key and forgets on null. */
+/** Where the keys are kept: this browser's storage, which keeps a trimmed key and forgets on null, noting when. */
 export interface VendorKeyStore {
   read(vendorId: string): string | null
   write(vendorId: string, key: string | null): void
@@ -26,6 +26,8 @@ export interface VendorKeys {
   /** Keeps the typed key, and says whether there was one to keep. */
   save(vendorId: string, typed: string): boolean
   forget(vendorId: string): void
+  /** Reads every row's key again, as after a sync took the keys another browser saved. A row keeps its last Test only while its key still ends the same. */
+  reread(): void
   /** One cheap request with the key kept for the vendor, or with none for a vendor that needs none. */
   test(vendor: PriceVendor): Promise<void>
 }
@@ -52,6 +54,13 @@ export function useVendorKeys(vendors: readonly PriceVendor[], store: VendorKeyS
     forget(vendorId) {
       store.write(vendorId, null)
       rows[vendorId] = rowOf(vendorId)
+    },
+    reread() {
+      for (const vendor of vendors) {
+        const before = rows[vendor.id]!
+        const after = rowOf(vendor.id)
+        rows[vendor.id] = after.kept === before.kept && after.ending === before.ending ? { ...after, test: before.test } : after
+      }
     },
     async test(vendor) {
       rows[vendor.id] = { ...rows[vendor.id]!, test: 'testing' }

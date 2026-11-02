@@ -52,7 +52,7 @@ export const investmentsApp: AppContribution = {
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
       const { seedFakeInvestments } = await import('./workbook/infrastructure/fake/seedFakeInvestments')
       const query = new URLSearchParams(window.location.search)
-      await seedFakeInvestments(query.get('investments'), query.get('prices'))
+      await seedFakeInvestments(query.get('investments'), query.get('prices'), query.get('keys'))
     }
   },
   screens: [

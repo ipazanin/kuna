@@ -10,6 +10,9 @@ export const FOLDER_MIME_TYPE = 'application/vnd.google-apps.folder'
 
 export const JSON_MIME_TYPE = 'application/json'
 
+/** The parent of a file in the app's hidden folder, and the space a search of that folder names. Kuna reaches it with a `drive.appdata` token. */
+export const APP_DATA_FOLDER = 'appDataFolder'
+
 const IS_FOLDER = `mimeType = '${FOLDER_MIME_TYPE}' and trashed = false`
 
 export interface DriveFile {
@@ -52,13 +55,22 @@ export function queryLiteral(text: string): string {
 
 /**
  * The files a Drive search query finds, with the fields asked for, read page by page. Under
- * drive.file that may be fewer than all the files the query describes.
+ * drive.file that may be fewer than all the files the query describes. The search runs in Drive, or
+ * in the app's hidden folder alone.
  */
-export async function listChildren<Field extends keyof DriveFile>(accessToken: string, query: string, fields: readonly Field[]): Promise<Pick<DriveFile, Field>[]> {
+export async function listChildren<Field extends keyof DriveFile>(
+  accessToken: string,
+  query: string,
+  fields: readonly Field[],
+  space: 'drive' | typeof APP_DATA_FOLDER = 'drive',
+): Promise<Pick<DriveFile, Field>[]> {
   const files: Pick<DriveFile, Field>[] = []
   let pageToken: string | undefined
   do {
     const parameters = new URLSearchParams({ q: query, fields: `nextPageToken,files(${fields.join(',')})`, pageSize: '1000' })
+    if (space === APP_DATA_FOLDER) {
+      parameters.set('spaces', APP_DATA_FOLDER)
+    }
     if (pageToken !== undefined) {
       parameters.set('pageToken', pageToken)
     }

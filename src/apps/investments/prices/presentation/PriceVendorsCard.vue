@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
@@ -8,20 +8,25 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import { pricesDay } from '../application/pricesUpdate'
 import type { PriceVendor } from '../application/priceVendor'
 import { testVendor } from '../application/vendorTest'
-import { storeVendorKey, storedVendorKey } from '../infrastructure/vendorKeys'
 import { PRICE_VENDORS } from '../infrastructure/vendors/priceVendors'
 import { listInWords } from '../../../../shared/text/listInWords'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
+import { PAGE_KEY_STORE, useKeysChanged } from './useKeysSync'
 import { pageVendorFetch, useRequestsToday } from './usePrices'
 import { useVendorKeys } from './useVendorKeys'
 import { words } from './words'
 
 /**
  * The Prices tab's vendors, one row each from the registry: what it covers and gives, its free limits and this
- * browser's requests today, its key in this browser with Save, Test and Remove, and where to claim a free key.
+ * browser's requests today, its key in this browser with Save, Test and Remove, and where to claim a free key. With the
+ * Investments file on Drive, the sync carries the keys through the Google account, and a key it brings shows at once.
  */
-const keys = useVendorKeys(PRICE_VENDORS, { read: storedVendorKey, write: storeVendorKey }, (vendor, key) => testVendor(vendor, pageVendorFetch, key, pricesDay(new Date().toISOString())))
+const keys = useVendorKeys(PRICE_VENDORS, PAGE_KEY_STORE, (vendor, key) => testVendor(vendor, pageVendorFetch, key, pricesDay(new Date().toISOString())))
+watch(useKeysChanged(), () => keys.reread())
+const { state } = useInvestmentsBooks()
+const subtitle = computed(() => (state.choice?.source === 'drive' ? words.card.subtitleOnDrive : words.card.subtitle))
 const requestsToday = useRequestsToday()
 /** What is typed in each key field, which goes nowhere until Save. */
 const typed = reactive<Record<string, string>>(Object.fromEntries(PRICE_VENDORS.map((vendor) => [vendor.id, ''])))
@@ -63,9 +68,16 @@ const vendorRows = computed(() =>
 </script>
 
 <template>
-  <AppCard :title="words.vendors" :subtitle="words.card.subtitle" data-testid="investments-prices-card">
+  <AppCard :title="words.vendors" :subtitle="subtitle" data-testid="investments-prices-card">
     <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
-      <div v-for="row in vendorRows" :key="row.vendor.id" class="flex flex-col gap-3 border-t border-default pt-3 first:border-t-0 first:pt-0" data-testid="price-vendor" :data-vendor="row.vendor.id">
+      <div
+        v-for="row in vendorRows"
+        :key="row.vendor.id"
+        class="flex flex-col gap-3 border-t border-default pt-3 first:border-t-0 first:pt-0"
+        data-testid="price-vendor"
+        :data-vendor="row.vendor.id"
+        :data-kept="row.kept"
+      >
         <div class="flex flex-col gap-0.5">
           <p class="type-body text-highlighted">{{ row.vendor.name }}</p>
           <p class="type-caption">{{ row.vendor.covers }}</p>

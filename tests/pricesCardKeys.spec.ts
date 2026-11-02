@@ -7,15 +7,18 @@ import type { PriceVendor } from '../src/apps/investments/prices/application/pri
 import { testVendor } from '../src/apps/investments/prices/application/vendorTest'
 import type { VendorTest } from '../src/apps/investments/prices/application/vendorTest'
 import { fakeVendorFetch } from '../src/apps/investments/prices/infrastructure/fake/fakeVendorAnswers'
-import { storeVendorKey, storedVendorKey } from '../src/apps/investments/prices/infrastructure/vendorKeys'
+import { keepKeyChanges, storeVendorKey, storedKeyChanges, storedVendorKey } from '../src/apps/investments/prices/infrastructure/vendorKeys'
 import { alphaVantage } from '../src/apps/investments/prices/infrastructure/vendors/alphaVantage'
 import { ecb } from '../src/apps/investments/prices/infrastructure/vendors/ecb'
+import { finnhub } from '../src/apps/investments/prices/infrastructure/vendors/finnhub'
 import { PRICE_VENDORS } from '../src/apps/investments/prices/infrastructure/vendors/priceVendors'
 import { twelveData } from '../src/apps/investments/prices/infrastructure/vendors/twelveData'
+import { PAGE_KEY_STORE } from '../src/apps/investments/prices/presentation/useKeysSync'
 import { keyEnding, useVendorKeys } from '../src/apps/investments/prices/presentation/useVendorKeys'
 import { civil } from './fixtures/ledger'
 
 const LONG_KEY = 'made-up-key-0123456789abcdef'
+const SAVED_AT = '2026-10-30T10:00:00.000Z'
 
 beforeEach(() => {
   localStorage.clear()
@@ -24,7 +27,7 @@ beforeEach(() => {
 /** The card's key rows over this browser's storage, with each Test answered as `answer` says and noted. */
 function cardKeys(answer: (vendor: PriceVendor, key: string | null) => VendorTest = () => ({ kind: 'works' })) {
   const tested: (readonly [string, string | null])[] = []
-  const keys = useVendorKeys(PRICE_VENDORS, { read: storedVendorKey, write: storeVendorKey }, async (vendor, key) => {
+  const keys = useVendorKeys(PRICE_VENDORS, PAGE_KEY_STORE, async (vendor, key) => {
     tested.push([vendor.id, key])
     return answer(vendor, key)
   })
@@ -49,21 +52,44 @@ describe('the keys of the Prices card', () => {
   })
 
   it('keeps nothing from an empty field, and leaves a kept key as it was', () => {
-    storeVendorKey('twelvedata', LONG_KEY)
+    storeVendorKey('twelvedata', LONG_KEY, SAVED_AT)
     const { keys } = cardKeys()
     expect(keys.save('twelvedata', '   ')).toBe(false)
     expect(storedVendorKey('twelvedata')).toBe(LONG_KEY)
     expect(keys.rows.twelvedata?.kept).toBe(true)
   })
 
-  it('shows a key another tab kept when the card opens, and forgets it on Remove', () => {
-    storeVendorKey('alphavantage', LONG_KEY)
+  it('shows a key another tab kept when the card opens, and forgets it on Remove, noting when', () => {
+    storeVendorKey('alphavantage', LONG_KEY, SAVED_AT)
     const { keys } = cardKeys()
     expect(keys.rows.alphavantage).toEqual({ kept: true, ending: 'cdef', test: null })
     keys.forget('alphavantage')
     expect(storedVendorKey('alphavantage')).toBeNull()
-    expect(Object.keys(localStorage)).toEqual([])
+    expect(Object.keys(localStorage)).toEqual(['kuna.price-vendor-key-changed.alphavantage'])
+    expect(storedKeyChanges(['alphavantage']).alphavantage?.changedAt).not.toBe(SAVED_AT)
     expect(keys.rows.alphavantage).toEqual({ kept: false, ending: null, test: null })
+  })
+
+  it('shows a key a sync took from another browser once the rows are read again, keeping the last Test', async () => {
+    const { keys } = cardKeys()
+    await keys.test(ecb)
+    keepKeyChanges({ twelvedata: { key: LONG_KEY, changedAt: SAVED_AT } })
+    expect(keys.rows.twelvedata?.kept).toBe(false)
+    keys.reread()
+    expect(keys.rows.twelvedata).toEqual({ kept: true, ending: 'cdef', test: null })
+    expect(keys.rows.ecb?.test).toEqual({ kind: 'works' })
+  })
+
+  it('drops the last Test of a key a sync replaced or removed, which it never tested', async () => {
+    const { keys } = cardKeys()
+    keys.save('twelvedata', LONG_KEY)
+    keys.save('finnhub', 'made-up-finnhub-key-5521')
+    await keys.test(twelveData)
+    await keys.test(finnhub)
+    keepKeyChanges({ twelvedata: { key: 'made-up-twelve-data-key-8642', changedAt: SAVED_AT }, finnhub: { key: null, changedAt: SAVED_AT } })
+    keys.reread()
+    expect(keys.rows.twelvedata).toEqual({ kept: true, ending: '8642', test: null })
+    expect(keys.rows.finnhub).toEqual({ kept: false, ending: null, test: null })
   })
 
   it('tests with the key kept for the vendor, and with none for the ECB, showing the answer on the row', async () => {

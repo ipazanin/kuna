@@ -27,8 +27,11 @@ way. It holds no loans yet. See _Loans_.
 There is no backend, so there is no refresh token: Google issues those only through a server-side
 code exchange. The page holds one access token in memory, never in storage, and it carries every
 scope the books and this device's settings need: `drive.file` always, `drive.readonly` while the
-mail or statements step reads a folder from My Drive, `gmail.readonly` while the mail
-step is on, and `gmail.compose` while invoice mail drafts are on. A statements folder the app made
+mail or statements step reads a folder from My Drive, `drive.appdata` while the Investments file is
+on Drive and has price keys to carry, as _Keys in this browser and in the Google account_ says,
+`gmail.readonly` while the mail step is on, and `gmail.compose` while invoice mail drafts are on.
+The Company and the Loans file never need `drive.appdata` themselves, but one token carries what every app on Drive needs, so a tap
+for Company or Loans asks for it too while the Investments file needs it. A statements folder the app made
 beside the books file needs no more than `drive.file`, as _The statements step_ describes. Every ask
 lists exactly those scopes with `include_granted_scopes` off, so a grant from months ago does not
 ride along. A token counts as expired a minute before Google says. The code is in
@@ -86,8 +89,9 @@ The needed scopes stay, since the books decide them, not the account.
 
 A sync is one group of steps for each app with its file on Drive, the groups run one after another
 under one tap, so the page never asks Google for two tokens at once. Each group reads its app's
-books first, then runs the app's own steps: for the company the mail, then the statements. Loans has
-no steps of its own, so its group reads its file and nothing else. The Sync
+books first, then runs the app's own steps: for the company the mail, then the statements, and for
+Investments its price keys, then its prices file. Loans has no steps of its own, so its group reads its
+file and nothing else. The Sync
 button, the sync on open and on a return to the tab, LedgerGate's Sync and Try again, and the way
 back from Google all run the same sync, `createSync` in `src/shared/sync/application/sync.ts`, which
 the shell starts over every installed app through `startPageSync` in
@@ -97,11 +101,13 @@ Import tab.
 
 Each step names the Google scopes it needs and whether the settings turn it on:
 
-| Step       | Scopes                                                                                                                                                         | On when                                                                        |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Books      | `drive.file`                                                                                                                                                   | Always, for a file on Drive                                                    |
-| Mail       | `gmail.readonly`, `drive.readonly` for a folder from My Drive, and `drive.file` from the books to file, each only while a kind of mail is on with all it needs | A kind of mail is on, as _The mail step_ describes                             |
-| Statements | `drive.readonly`, or `drive.file` alone for a folder from the folder of the books file                                                                         | `statements_sync` is TRUE, the default, and `statements_folder` names a folder |
+| Step       | Scopes                                                                                                                                                         | On when                                                                                        |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Books      | `drive.file`                                                                                                                                                   | Always, for a file on Drive                                                                    |
+| Mail       | `gmail.readonly`, `drive.readonly` for a folder from My Drive, and `drive.file` from the books to file, each only while a kind of mail is on with all it needs | A kind of mail is on, as _The mail step_ describes                                             |
+| Statements | `drive.readonly`, or `drive.file` alone for a folder from the folder of the books file                                                                         | `statements_sync` is TRUE, the default, and `statements_folder` names a folder                 |
+| Keys       | `drive.appdata`                                                                                                                                                | This browser saved or removed a price key, or a holding is priced by a vendor that needs a key |
+| Prices     | `drive.file`                                                                                                                                                   | Always, for an Investments file on Drive                                                       |
 
 **Switching a step on.** A save on Settings, General that switches on a step needing a scope the
 page's token lacks, such as a sender and subject on the Mail card or a folder from My Drive, asks
@@ -2454,7 +2460,7 @@ with each user's own free keys, and asks the same vendors a few facts about the 
 industry and country, a fund's weights by sector, announced dividends and what a listing is. It writes
 them to a second Drive file, `kuna-investments-prices.json`, beside the Investments file, so every
 device reads the same closes and facts. Below are the prices file, how the figures read it, the
-vendors, the fetch that writes it, the Prices step of the page's sync, the once-a-day fetch, the
+vendors, the keys and how they reach every browser, the fetch that writes it, the Prices step of the page's sync, the once-a-day fetch, the
 Overview's line on how the prices stand and the Prices card in the Investments Settings.
 
 The prices file is defined once, in `src/apps/investments/prices/domain/pricesFile.ts`. It holds
@@ -2527,14 +2533,55 @@ entry in `priceVendors.ts` and, for a vendor of closes, its id in `PRICE_SOURCES
 source has no vendor, a vendor that needs a key has no address to claim one, or the CSP leaves out a
 vendor's origin.
 
-#### Keys in this browser
+#### Keys in this browser and in the Google account
 
 A user enters their own keys in the Investments Settings. Each is kept in this browser's
-`localStorage` under `kuna.price-vendor-key.<vendor>`, never in the Investments file or the prices
-file, never logged and never in an error message. Clearing the site data forgets them. A device with
-no keys still reads the prices file another device wrote. The keys go in the request's address, as
-every vendor takes them (Finnhub's as `token`), because a header of its own would make the browser ask the vendor first with
-a CORS preflight.
+`localStorage` under `kuna.price-vendor-key.<vendor>`, with the time it was saved or removed under
+`kuna.price-vendor-key-changed.<vendor>`, never in the Investments file or the prices file, never
+logged and never in an error message. A key kept before keys carried a time counts as saved at the
+start of 1970, so any change with a time outdates it. The keys go in the request's address, as every
+vendor takes them (Finnhub's as `token`), because a header of its own would make the browser ask the
+vendor first with a CORS preflight.
+
+With the Investments file on Drive, the Keys step of the page's sync carries them through the
+Google account, so every browser signed in to it gets them. They go to one small file in Drive's
+hidden app folder (`appDataFolder`, the `drive.appdata` scope), `kuna-investments-keys-<Investments
+file id>.json`, which Drive does not show, which nobody can share, and which only Kuna
+reads. Sharing the folder of the Investments file never shares the keys. The file holds `format`
+`kuna-vendor-keys`, `version` 1 and, per vendor, the `key` or null once it was removed, and
+`changed_at`. A vendor this Kuna does not know, as a newer Kuna may add, passes through as it is. A
+time in this browser that the file does not take counts as the start of 1970, so the step never writes
+a file it would refuse. The step merges the file with this browser's keys, and for each vendor the newer save
+or removal wins, the file's on the same time, then writes whichever side was behind
+(`prices/application/keysSync.ts`). So the last saved or removed key wins in every browser on its
+next sync:
+
+- Browser A saves a key at 10:00 and syncs. Browser B syncs and takes it, removes it at 10:05 and
+  syncs. A syncs at 10:10, finds the removal of 10:05 newer than its save, and loses the key.
+- A saves one key at 10:00 and B another at 10:02, neither synced. Whichever syncs first, both hold
+  B's key once each has synced after B. When A synced first, its second sync takes B's key.
+
+The times are each browser's clock, so a clock set minutes wrong can let an older change win. The
+step runs after the books and before the Prices step, so the day's fetch has the keys another
+browser saved. It runs while this browser saved or removed a key or a holding is priced by a
+vendor that needs one, which is also when the page asks Google for `drive.appdata`. Before that
+grant the step waits in "Allow access" and the Prices step still runs. A keys file Kuna does not
+write, or one a newer Kuna wrote, fails the step and is left as it is. The file is made only once
+there is a key or a removal to keep. Of two files two browsers made at once, each takes the one whose
+id sorts first, the other one's changes reach it on the next sync, and the other file stays in the
+app folder. A key saved or removed on the card while the step writes stays, as the newer change.
+The file is overwritten without keeping its revisions forever, but Drive may keep its earlier
+versions, which only Kuna reads, for about 30 days, as it does for any file it does not keep forever.
+Keys stay a browser's own when
+it moves to another Investments file: its next sync merges them into that file's keys file. An
+Investments file kept in this browser has no keys file, and its keys stay in this browser alone, as
+the Prices card says. Clearing the site data forgets them here, and the next sync brings them back
+from the Google account. A device with no keys still reads the prices file another device wrote.
+
+The fake Drive keeps its app folder as the parent `appDataFolder`. `?keys=other-browser` puts there
+a made-up Twelve Data key another browser saved at 10:00 on 30 October 2026, and `?keys=removed` that
+key's removal at 10:05, for the chosen Investments file. Either marks the file read eleven minutes
+before, so the open syncs and takes it.
 
 #### The fetch
 
@@ -2542,7 +2589,7 @@ a CORS preflight.
 (`PriceFetchPorts` in `pricesPorts.ts`): fetch an address, pause, read a vendor's key, read the
 Investments records, read the prices file and overwrite it. `browserPricePorts.ts` gives the fetch
 through `window.fetch` with no headers of its own and the pause through `setTimeout`, and
-`vendorKeys.ts` keeps the keys. The CSP's `connect-src` in `index.html` lets the page reach the four
+`vendorKeys.ts` keeps the keys in this browser. The CSP's `connect-src` in `index.html` lets the page reach the four
 vendors' hosts. Once a day, the first device that opens Kuna after a new trading day:
 
 1. Reads the prices file from Drive and leaves it as it is when it is no prices file Kuna can read,
@@ -2593,7 +2640,10 @@ Drive or the fake Drive, the keys and the vendors.
   first. Each later read takes the file the
   copy names. The file is overwritten without keeping its revisions forever, which would fill Drive's
   200 in as many days.
-- **The Prices step.** After the books, each sync of an Investments file on Drive asks Drive for the
+- **The Keys step.** After the books, each sync of an Investments file on Drive merges this browser's
+  keys with the keys file in the app folder, as _Keys in this browser and in the Google account_ says.
+  A key it brings shows on the Prices card at once.
+- **The Prices step.** After the keys, each sync of an Investments file on Drive asks Drive for the
   prices file's head revision and downloads it only when it differs from the copy's. A file Kuna
   cannot read, such as one a newer Kuna wrote, fails the step and is left as it is.
 - **The day's fetch.** After the Prices step, or once the records are read for a file kept in this
@@ -2610,7 +2660,8 @@ Drive or the fake Drive, the keys and the vendors.
 - **A file kept in this browser.** There is no second file then. The copy in this browser is the
   prices file, and the fetch writes it alone. Moving the Investments file to Drive starts its prices
   over, since the new file has a new id. The copy of the prices of an Investments file that leaves the
-  screen is deleted from this browser. The prices file on Drive beside a trashed Investments file stays.
+  screen is deleted from this browser. The prices file on Drive beside a trashed Investments file stays,
+  and so does the keys file of an Investments file this browser leaves.
 - **The Overview** says how recent the holdings' closes are, and once they are late, a warning with
   the newest close, how many series the last fetch missed and a link to the Prices card.
 - **The Prices card** in the Investments Settings shows the last fetch's time, what it missed and why,
@@ -2618,7 +2669,9 @@ Drive or the fake Drive, the keys and the vendors.
   that needs one, the link to claim a free key, and Test, which asks the vendor once for a week of a
   symbol a free key gets (`EUR/USD` at Twelve Data, Alpha Vantage's own example `IBM`, the dollar at
   the ECB), or for Finnhub the profile of its own example `AAPL`. A key is typed into a password field and saved through `vendorKeys.ts`, and the card
-  shows only its last four characters, and nothing of a key shorter than 12.
+  shows only its last four characters, and nothing of a key shorter than 12. With the Investments file
+  on Drive the card says each sync saves the keys to the Google account, hidden from Drive, and with
+  the file kept in this browser that each key stays in this browser.
 - **The search in the holding dialog** asks each vendor that searches and has a key in this browser,
   on Search rather than per keystroke, Alpha Vantage only when the others found nothing, and merges
   the answers by symbol and market. Picking a listing fills the symbol and the name when none is
@@ -2959,12 +3012,12 @@ SHA-256 hash, which picks the theme before the first paint so the loading screen
 colour. Editing that script means replacing its hash in the policy. Frames load only from Google's
 Picker and sign-in hosts, and requests go only to these hosts:
 
-| Host                           | What the app asks it                                                                                                                                                                                                                                                                                                                     |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `www.googleapis.com`           | Drive: the books' file, its revisions and its backups, listing the invoice folders, making one, and uploading an invoice PDF (`/upload/drive/v3`), listing and downloading the files of the statements folder, uploading a statement filed from mail and making its year folder, and listing the folders the accountant's mail goes into |
-| `gmail.googleapis.com`         | The invoice mail draft, only once the user turned it on, and the mail step's search, mails and attachments, only while a kind of mail has a sender                                                                                                                                                                                       |
-| `openidconnect.googleapis.com` | The userinfo endpoint                                                                                                                                                                                                                                                                                                                    |
-| `oauth2.googleapis.com`        | Token revocation, where `google.accounts.oauth2.revoke` posts                                                                                                                                                                                                                                                                            |
+| Host                           | What the app asks it                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `www.googleapis.com`           | Drive: the books' file, its revisions and its backups, listing the invoice folders, making one, and uploading an invoice PDF (`/upload/drive/v3`), listing and downloading the files of the statements folder, uploading a statement filed from mail and making its year folder, listing the folders the accountant's mail goes into, and the price keys file in the app's hidden folder |
+| `gmail.googleapis.com`         | The invoice mail draft, only once the user turned it on, and the mail step's search, mails and attachments, only while a kind of mail has a sender                                                                                                                                                                                                                                       |
+| `openidconnect.googleapis.com` | The userinfo endpoint                                                                                                                                                                                                                                                                                                                                                                    |
+| `oauth2.googleapis.com`        | Token revocation, where `google.accounts.oauth2.revoke` posts                                                                                                                                                                                                                                                                                                                            |
 
 The manifest and the service worker come from this origin only. Styles allow `'unsafe-inline'`
 because Nuxt UI writes its colour variables into an inline `<style>`, and the Google Picker and

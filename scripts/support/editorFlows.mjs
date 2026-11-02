@@ -6,6 +6,7 @@
  */
 
 import { en as companyEnglish, hr as companyCroatian } from '../../src/apps/company/words.ts'
+import { FAKE_KEY_SAVED_AT } from '../../src/apps/investments/prices/infrastructure/fake/fakeKeys.ts'
 import { en as companySettingsEnglish, hr as companySettingsCroatian } from '../../src/apps/company/settings/presentation/words.ts'
 import { en as rulesEnglish, hr as rulesCroatian } from '../../src/apps/company/rules/presentation/words.ts'
 import { en as ruleChangesEnglish, hr as ruleChangesCroatian } from '../../src/apps/company/rules/domain/words.ts'
@@ -3684,6 +3685,10 @@ export async function investmentsPriceKeyFlow(page, { press, shoot, inspect }) {
   await pressSelector(page, press, `${finnhub} [data-testid="price-vendor-forget"]`)
   await pageSays(page, 'A key ending in 5521', false)
   if ((await page.evaluate(() => localStorage.getItem('kuna.price-vendor-key.finnhub'))) !== null) throw new Error('Remove left the Finnhub key in this browser')
+  // Remove keeps when it happened, so the removal outdates an older save in another browser. The next flows start without it.
+  await page.evaluate(() => {
+    for (const vendor of ['twelvedata', 'finnhub']) localStorage.removeItem(`kuna.price-vendor-key-changed.${vendor}`)
+  })
 
   await pressSelector(page, press, '[data-testid="prices-fetch-now"]')
   await toastMatching(page, /^Prices fetched$/)
@@ -3692,6 +3697,67 @@ export async function investmentsPriceKeyFlow(page, { press, shoot, inspect }) {
   await pageSays(page, 'The last fetch got nothing for', false)
   await inspect?.('the prices fetched with nothing missing')
   await dismissToasts(page)
+}
+
+const TWELVE_DATA_ROW = '[data-testid="investments-prices-card"] [data-vendor="twelvedata"]'
+
+/** Forgets the Twelve Data key and the time of its last change in this browser, so the next flows start without them. */
+async function forgetTwelveDataKey(page) {
+  await page.evaluate(() => {
+    localStorage.removeItem('kuna.price-vendor-key.twelvedata')
+    localStorage.removeItem('kuna.price-vendor-key-changed.twelvedata')
+  })
+}
+
+/**
+ * The Prices tab on the sample, whose app folder on the fake Drive holds a made-up Twelve Data key another browser saved at
+ * 10:00 (`?keys=other-browser`): the sync on open takes it, and the card shows its ending and says each sync saves the keys
+ * to the Google account. Removed here and synced, it stays removed, since the removal is newer than that save.
+ */
+export async function investmentsKeyFromOtherBrowserFlow(page, { press, shoot, inspect }) {
+  await page.waitForSelector(`${TWELVE_DATA_ROW}[data-kept="true"]`, { timeout: 10_000 }).catch(() => {
+    throw new Error('the sync on open did not take the key another browser saved')
+  })
+  await pageSays(page, 'A key ending in 8642 is kept in this browser.', true)
+  await pageSays(page, 'Each sync saves them to your Google account, hidden from Drive, so every browser you sign in to gets them.', true)
+  const [key, changedAt] = await page.evaluate(() => [localStorage.getItem('kuna.price-vendor-key.twelvedata'), localStorage.getItem('kuna.price-vendor-key-changed.twelvedata')])
+  if (key !== 'made-up-twelve-data-key-8642' || changedAt !== FAKE_KEY_SAVED_AT) throw new Error(`this browser keeps the key "${key}" changed at ${changedAt}, not the other browser's`)
+  await inspect?.('a key synced from another browser')
+  await shoot('investments-key-synced')
+
+  await pressSelector(page, press, `${TWELVE_DATA_ROW} [data-testid="price-vendor-forget"]`)
+  await page.waitForSelector(`${TWELVE_DATA_ROW}[data-kept="false"]`, { timeout: 5_000 })
+  await syncAndSettle(page, press)
+  await delay(300)
+  if (await page.$(`${TWELVE_DATA_ROW}[data-kept="true"]`)) throw new Error("the sync brought back the key removed here after the other browser's older save")
+  const [control, removedAt] = await page.evaluate(() => [
+    [...document.querySelectorAll('[data-testid="sync-status"]')].find((element) => element.offsetParent !== null)?.dataset.control ?? '',
+    localStorage.getItem('kuna.price-vendor-key-changed.twelvedata'),
+  ])
+  if (control !== 'ready') throw new Error(`the sync after the removal ended as "${control}", so the Keys step may not have saved it`)
+  if (removedAt === null || removedAt <= FAKE_KEY_SAVED_AT) throw new Error(`this browser keeps the removal at ${removedAt}, not newer than the other browser's save`)
+  await inspect?.('a key removed here and synced')
+  await forgetTwelveDataKey(page)
+}
+
+/**
+ * The Prices tab on the sample with a made-up Twelve Data key this browser saved at 10:00, whose app folder on the fake
+ * Drive holds another browser's removal of it at 10:05 (`?keys=removed`): the sync on open removes it here too.
+ */
+export async function investmentsKeyRemovedElsewhereFlow(page, { inspect }) {
+  await page.evaluate((at) => {
+    localStorage.setItem('kuna.price-vendor-key.twelvedata', 'made-up-twelve-data-key-0042')
+    localStorage.setItem('kuna.price-vendor-key-changed.twelvedata', at)
+  }, FAKE_KEY_SAVED_AT)
+  await page.goto(page.url().replace(/load=\d+/, `load=${Date.now()}`), { waitUntil: 'networkidle0' })
+  await page.waitForSelector(`${TWELVE_DATA_ROW}[data-kept="false"]`, { timeout: 10_000 }).catch(() => {
+    throw new Error('the sync on open kept the key another browser removed later')
+  })
+  await pageSays(page, 'A key ending in 0042', false)
+  const [key, changedAt] = await page.evaluate(() => [localStorage.getItem('kuna.price-vendor-key.twelvedata'), localStorage.getItem('kuna.price-vendor-key-changed.twelvedata')])
+  if (key !== null || changedAt !== '2026-10-30T10:05:00.000Z') throw new Error(`this browser keeps the key "${key}" changed at ${changedAt} after the other browser's removal`)
+  await inspect?.("a key lost to another browser's removal")
+  await forgetTwelveDataKey(page)
 }
 
 /**
@@ -5395,6 +5461,7 @@ export function investmentsImportFlowIn(language, { workbook: path, edited }, { 
         throw new Error('Undo did not take the import back to the empty Overview')
       })
       await dismissToasts(page)
+      await forgetImportKeys(page)
       return
     }
     await dismissToasts(page)
@@ -5424,5 +5491,16 @@ export function investmentsImportFlowIn(language, { workbook: path, edited }, { 
     })
     await page.keyboard.press('Escape')
     await dialogGone(page, '[data-testid="workbook-import"]')
+    await forgetImportKeys(page)
   }
+}
+
+/** Forgets the made-up keys the import flow kept, so the next flows at this width start without them and without a Keys step. */
+async function forgetImportKeys(page) {
+  await page.evaluate(() => {
+    for (const vendor of ['alphavantage', 'twelvedata']) {
+      localStorage.removeItem(`kuna.price-vendor-key.${vendor}`)
+      localStorage.removeItem(`kuna.price-vendor-key-changed.${vendor}`)
+    }
+  })
 }

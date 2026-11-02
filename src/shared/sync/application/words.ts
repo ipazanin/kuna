@@ -9,6 +9,7 @@ export const en = {
   scopes: {
     'drive.file': 'a Google sign-in',
     'drive.readonly': 'your Drive read access',
+    'drive.appdata': "your access to the app's hidden folder on Drive",
     'gmail.readonly': 'your Gmail read access',
     'gmail.compose': 'your Gmail drafts access',
   },
@@ -26,6 +27,7 @@ export const hr: Translation<typeof en> = {
   scopes: {
     'drive.file': 'prijavu u Google',
     'drive.readonly': 'vaše dopuštenje za čitanje Drivea',
+    'drive.appdata': 'vaše dopuštenje za skrivenu mapu aplikacije na Driveu',
     'gmail.readonly': 'vaše dopuštenje za čitanje Gmaila',
     'gmail.compose': 'vaše dopuštenje za skice u Gmailu',
   },

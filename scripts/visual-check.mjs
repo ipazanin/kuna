@@ -33,7 +33,7 @@
  * benchmark has no closes (`?prices=no-benchmark`), each in Croatian too, its Months, its Sources over everything and over the last year, its Falls, and its Income, Coming, Tax-free, Withheld, Costs and Saving tabs, in Croatian too,
  * the sample's Transactions, in Croatian too, and Transactions on an empty file, the import of the made-up portfolio workbook
  * into an empty Investments file with the fake prices, each step and the dry run in English and Croatian, and the same workbook again adding nothing,
- * the Prices tab of the Investments Settings on the sample with current prices, with made-up keys kept and with late prices, its General tab, three made-up CSV files of closes imported on it,
+ * the Prices tab of the Investments Settings on the sample with current prices, with made-up keys kept, with a key another browser saved taken by the sync on open and a key this browser kept lost to another browser's newer removal (`?keys=`), and with late prices, its General tab, three made-up CSV files of closes imported on it,
  * the fetch after the import waiting out the fake vendor's minute and then back at its close, Company's
  * Overview, Transactions with its To review and Import tabs, every tab of Analysis, Invoicing with its Plan and Clients tabs, every tab of Settings and onboarding's first steps in Croatian (`?lang=hr`),
  * Year, Salaries and Owner in Croatian in the fake file on Drive, in this browser and with one and five employees, Salaries for one
@@ -142,6 +142,7 @@ import { figuresClose, portfolioFigures } from '../src/apps/investments/holdings
 import { averageCostText } from '../src/apps/investments/holdings/presentation/holdingText.ts'
 import { incomeForecast } from '../src/apps/investments/income/domain/incomeForecast.ts'
 import { fetchedFactsBook } from '../src/apps/investments/prices/domain/factsBook.ts'
+import { FAKE_KEY_SAVED_AT } from '../src/apps/investments/prices/infrastructure/fake/fakeKeys.ts'
 import { incomeByYear } from '../src/apps/investments/income/domain/incomeHistory.ts'
 import { investingRhythm } from '../src/apps/investments/income/domain/investingRhythm.ts'
 import { taxFreeCalendar } from '../src/apps/investments/income/domain/taxFreeCalendar.ts'
@@ -2463,6 +2464,37 @@ const SOURCE_SCREENS = [
     ready: '[data-testid="investments-prices-card"] [data-testid="price-vendor-forget"]',
     stored: { 'kuna.price-vendor-key.twelvedata': 'made-up-twelve-data-key-0042', 'kuna.price-vendor-key.alphavantage': 'MADEUPKEY01' },
     shows: ['U ovom pregledniku čuva se ključ koji završava na 0042.', 'U ovom pregledniku čuva se ključ.', 'Ukloni'],
+    cards: false,
+  },
+  {
+    name: 'investments-prices-settings-synced',
+    query: 'investments=sample&keys=other-browser',
+    hash: '#/investments/settings?tab=prices',
+    title: 'Settings',
+    charts: 0,
+    ready: '[data-testid="investments-prices-card"] [data-vendor="twelvedata"][data-kept="true"]',
+    shows: ['A key ending in 8642 is kept in this browser.', 'Each sync saves them to your Google account, hidden from Drive, so every browser you sign in to gets them.'],
+    cards: false,
+  },
+  {
+    name: 'investments-prices-settings-synced-croatian',
+    query: 'investments=sample&keys=other-browser&lang=hr',
+    hash: '#/investments/settings?tab=prices',
+    title: 'Postavke',
+    charts: 0,
+    ready: '[data-testid="investments-prices-card"] [data-vendor="twelvedata"][data-kept="true"]',
+    shows: ['U ovom pregledniku čuva se ključ koji završava na 8642.', 'Svaka ih sinkronizacija sprema na vaš Google račun, u skrivenu mapu koju Drive ne prikazuje'],
+    cards: false,
+  },
+  {
+    name: 'investments-prices-settings-removed',
+    query: 'investments=sample&keys=removed',
+    hash: '#/investments/settings?tab=prices',
+    title: 'Settings',
+    charts: 0,
+    ready: '[data-testid="investments-prices-card"] [data-vendor="twelvedata"][data-kept="false"]',
+    stored: { 'kuna.price-vendor-key.twelvedata': 'made-up-twelve-data-key-0042', 'kuna.price-vendor-key-changed.twelvedata': FAKE_KEY_SAVED_AT },
+    shows: ['No key in this browser.', 'Each sync saves them to your Google account, hidden from Drive'],
     cards: false,
   },
   {

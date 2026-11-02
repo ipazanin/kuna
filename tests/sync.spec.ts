@@ -27,7 +27,7 @@ function harness(options: {
   readonly grants?: Partial<Record<GoogleScope, boolean>>
   readonly leaves?: boolean
 }) {
-  const grants: Record<GoogleScope, boolean> = { 'drive.file': true, 'drive.readonly': true, 'gmail.readonly': true, 'gmail.compose': true, ...options.grants }
+  const grants: Record<GoogleScope, boolean> = { 'drive.file': true, 'drive.readonly': true, 'drive.appdata': true, 'gmail.readonly': true, 'gmail.compose': true, ...options.grants }
   const books = options.books ?? step(BOOKS_STEP.id, 'drive.file')
   let idle: Promise<void> = Promise.resolve()
   const company: SyncGroup = { app: 'company', name: 'Company', books, steps: () => options.steps ?? [], whenIdle: () => idle }
