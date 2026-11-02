@@ -22,7 +22,7 @@ import { civil, euros } from './fixtures/ledger'
 /** The worked portfolio's closes and rates as a fetch would have written them. */
 const WORKED_FILE: PricesFile = {
   writtenAt: '2026-10-30T05:41:00.000Z',
-  lastFetch: { asked: 3, upToDate: 0 },
+  lastFetch: { asked: 3, upToDate: 0, factsAsked: 0, factsLeft: 0, factsKeyless: ['finnhub'] },
   series: {
     [seriesKey('alphavantage', 'WORLD-ETF')]: {
       currency: 'EUR',
@@ -57,6 +57,12 @@ const WORKED_FILE: PricesFile = {
   },
   splits: [{ series: seriesKey('twelvedata', 'STOCK-B'), date: '2024-06-10', newUnits: '10', oldUnits: '1' }],
   failures: [{ series: seriesKey('twelvedata', 'STOCK-C'), day: '2026-10-30', reason: 'unknown-symbol' }],
+  facts: {
+    profiles: { 'finnhub:US0000000002': { asked: '2026-10-30', industry: 'Semiconductors', country: 'US' }, 'finnhub:FUND': { asked: '2026-10-30', industry: null, country: null } },
+    sectors: { 'alphavantage:WORLD-ETF': { asked: '2026-10-30', sectors: [['INFORMATION TECHNOLOGY', '0.25']] } },
+    dividends: { 'alphavantage:STOCK-B': { asked: '2026-10-30', dividends: [['2026-11-14', '2026-12-15', '0.3100']] } },
+    types: { 'twelvedata:STOCK-B': { asked: '2026-10-30', type: 'Common Stock' }, 'twelvedata:STOCK-C': { asked: '2026-10-30', type: null } },
+  },
 }
 
 function handPrice(what: Instrument, date: string, price: string, note = ''): HandPrice {
@@ -76,14 +82,48 @@ describe('the prices file', () => {
     const text = encodePricesFile(WORKED_FILE)
     expect(read(text)).toEqual(WORKED_FILE)
     const lines = text.split('\n')
-    expect(lines.slice(0, 4)).toEqual(['{', '  "format": "kuna-prices",', '  "version": 1,', '  "written_at": "2026-10-30T05:41:00.000Z",'])
-    expect(lines.filter((line) => line.startsWith('    "')).map((line) => line.slice(5, line.indexOf('":')))).toEqual(['alphavantage:WORLD-ETF', 'ecb:USD', 'twelvedata:STOCK-B'])
+    expect(lines.slice(0, 4)).toEqual(['{', '  "format": "kuna-prices",', '  "version": 2,', '  "written_at": "2026-10-30T05:41:00.000Z",'])
+    expect(lines.filter((line) => /^ {4}"[a-z]+:/.test(line)).map((line) => line.slice(5, line.indexOf('":')))).toEqual(['alphavantage:WORLD-ETF', 'ecb:USD', 'twelvedata:STOCK-B'])
+    expect(lines.filter((line) => line.startsWith('      "')).map((line) => line.slice(7, line.indexOf('":')))).toEqual([
+      'finnhub:FUND',
+      'finnhub:US0000000002',
+      'alphavantage:WORLD-ETF',
+      'alphavantage:STOCK-B',
+      'twelvedata:STOCK-B',
+      'twelvedata:STOCK-C',
+    ])
+    expect(text).toContain('"alphavantage:STOCK-B": {"asked":"2026-10-30","dividends":[["2026-11-14","2026-12-15","0.3100"]]}')
     expect(text).toContain('{"series":"twelvedata:STOCK-B","date":"2024-06-10","new":"10","old":"1"}')
     expect(text).toContain('{"series":"twelvedata:STOCK-C","day":"2026-10-30","reason":"unknown-symbol"}')
   })
 
   it('reads the empty file Kuna makes, before a fetch has written it', () => {
-    expect(read(encodePricesFile(emptyPricesFile()))).toEqual({ writtenAt: null, lastFetch: null, series: {}, splits: [], failures: [] })
+    expect(read(encodePricesFile(emptyPricesFile()))).toEqual({
+      writtenAt: null,
+      lastFetch: null,
+      series: {},
+      splits: [],
+      failures: [],
+      facts: { profiles: {}, sectors: {}, dividends: {}, types: {} },
+    })
+  })
+
+  it('reads a version 1 file with no facts and a last fetch that counted none', () => {
+    const versionOne = JSON.stringify({ format: 'kuna-prices', version: 1, written_at: '2026-10-30T05:41:00.000Z', last_fetch: { asked: 2, up_to_date: 5 }, series: {}, splits: [], failures: [] })
+    expect(read(versionOne)).toMatchObject({ lastFetch: { asked: 2, upToDate: 5, factsAsked: 0, factsLeft: 0, factsKeyless: [] }, facts: { profiles: {}, sectors: {}, dividends: {}, types: {} } })
+  })
+
+  it('refuses facts out of shape', () => {
+    const withFacts = (facts: unknown): string => JSON.stringify({ format: 'kuna-prices', version: 2, written_at: null, series: {}, splits: [], failures: [], facts })
+    const empty = { profiles: {}, sectors: {}, dividends: {}, types: {} }
+    expect(decodePricesFile(withFacts(empty)).kind).toBe('read')
+    expect(decodePricesFile(withFacts({ ...empty, types: { 'twelvedata:ABC': { asked: '2026-13-01', type: 'ETF' } } }))).toEqual({ kind: 'refused', reason: 'not-in-shape' })
+    expect(decodePricesFile(withFacts({ ...empty, sectors: { 'alphavantage:ABC': { asked: '2026-10-30', sectors: [['ENERGY', 0.5]] } } }))).toEqual({ kind: 'refused', reason: 'not-in-shape' })
+    expect(decodePricesFile(withFacts({ ...empty, dividends: { 'alphavantage:ABC': { asked: '2026-10-30', dividends: [['2026-11-14', 'None', '0.31']] } } }))).toEqual({
+      kind: 'refused',
+      reason: 'not-in-shape',
+    })
+    expect(decodePricesFile(withFacts({ ...empty, profiles: [] }))).toEqual({ kind: 'refused', reason: 'not-in-shape' })
   })
 
   it('reads a file an older Kuna wrote, with no last fetch and no day each series was checked', () => {
@@ -103,7 +143,7 @@ describe('the prices file', () => {
       JSON.stringify({ format: 'kuna-prices', version: 1, written_at: null, series: { 'twelvedata:ABC': { currency: 'USD', from: '2026-01-02', closes } }, splits: [], failures: [] })
     expect(decodePricesFile('not json')).toEqual({ kind: 'refused', reason: 'not-json' })
     expect(decodePricesFile(JSON.stringify({ format: 'kuna', app: 'investments' }))).toEqual({ kind: 'refused', reason: 'not-prices' })
-    expect(decodePricesFile(encodePricesFile(emptyPricesFile()).replace('"version": 1', '"version": 2'))).toEqual({ kind: 'refused', reason: 'newer' })
+    expect(decodePricesFile(encodePricesFile(emptyPricesFile()).replace('"version": 2', '"version": 3'))).toEqual({ kind: 'refused', reason: 'newer' })
     expect(decodePricesFile(withSeries([['2026-01-02', '10.5']])).kind).toBe('read')
     expect(decodePricesFile(withSeries([['2026-01-02', 10.5]]))).toEqual({ kind: 'refused', reason: 'not-in-shape' })
     expect(decodePricesFile(withSeries([['2026-02-30', '10.5']]))).toEqual({ kind: 'refused', reason: 'not-in-shape' })

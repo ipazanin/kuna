@@ -1,5 +1,5 @@
 import type { MonthIncome } from '../domain/incomeHistory'
-import type { IncomeForecast } from '../domain/incomeForecast'
+import type { ForecastPayment, IncomeForecast } from '../domain/incomeForecast'
 import type { InvestingRhythm } from '../domain/investingRhythm'
 import type { Projection } from '../domain/projection'
 import { words } from './words'
@@ -14,7 +14,7 @@ import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../shared/charts/chartTooltip'
 import type { BarSeries, ChartOption, LineSeries } from '../../../../shared/charts/echarts'
 import { monthAxisLabels, shownPoints, yearStep } from '../../../../shared/charts/monthAxis'
-import { sumMoney } from '../../../../shared/money/money'
+import { ZERO, sumMoney } from '../../../../shared/money/money'
 import { formatMoney, formatRate } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 
@@ -40,20 +40,23 @@ export function incomeByMonthChart(months: readonly MonthIncome[], tokens: Chart
   }
 }
 
-/** One striped bar a month for the twelve months from this one, since every figure is a copy of last year's. */
+/** A bar a month for the twelve months from this one: the announced payments solid, and the copies of last year's striped above them. */
 export function comingChart(forecast: IncomeForecast, tokens: ChartTokens, phone: boolean): IncomeChart {
   const keys = forecast.months.map((entry) => entry.month)
-  const expected: BarSeries = {
+  const receivedOf = (kind: ForecastPayment['kind']) => forecast.months.map((entry) => sumMoney(entry.payments.filter((payment) => payment.kind === kind).map((payment) => payment.received ?? ZERO)))
+  const announced: BarSeries = { type: 'bar', name: words.coming.announced, stack: 'coming', color: tokenColour('--invest-portfolio'), data: receivedOf('announced') }
+  const copied: BarSeries = {
     type: 'bar',
     name: words.coming.fromLastYear,
+    stack: 'coming',
     color: tokenColour('--invest-portfolio'),
     itemStyle: { decal: stripeDecal(tokens) },
-    data: forecast.months.map((entry) => entry.received),
+    data: receivedOf('copied'),
   }
   const first = keys[0]
   const last = keys.at(-1)
   return {
-    option: monthBars(keys, [expected], tokens, phone),
+    option: monthBars(keys, [announced, copied], tokens, phone),
     description: first === undefined || last === undefined ? '' : words.coming.description(formatMoney(forecast.received), dayLabel(firstDayOf(first)), dayLabel(lastDayOf(last))),
   }
 }

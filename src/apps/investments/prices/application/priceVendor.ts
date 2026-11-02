@@ -1,4 +1,4 @@
-import type { CloseRow, FailureReason } from '../domain/pricesFile'
+import type { CloseRow, DividendRow, FailureReason, SectorWeightRow } from '../domain/pricesFile'
 
 /** What a vendor answered: its HTTP status and the body as text. */
 export interface VendorAnswer {
@@ -44,22 +44,58 @@ export interface VendorSplits {
   readonly splits: readonly ReportedSplit[]
 }
 
-/**
- * One place Kuna fetches closes or rates from. A new vendor is one module under infrastructure/vendors that exports
- * this, plus its entry in PRICE_VENDORS and its source in PRICE_SOURCES when instruments name it. It supplies its id,
- * name and coverage in both languages, what it prices, whether it needs a key and where to claim one, the address its
- * requests go to, its free limits, how to read a limit from its answers, a test symbol, and the closes of a symbol from
- * a day. It may list splits too. The Prices settings, the pacing and the fetch read everything from here, so nothing
- * else names a vendor.
- */
-export interface PriceVendor {
-  /** The source an instrument names and the prefix of its series keys, such as `twelvedata`. */
+/** A company's profile as the vendor wrote it, each part null where the answer had none. An empty answer is a profile of nulls. */
+export interface VendorProfile {
+  readonly kind: 'profile'
+  readonly industry: string | null
+  readonly country: string | null
+}
+
+/** A fund's weights by sector, as the vendor wrote them. Empty for a listing that is no fund the vendor covers. */
+export interface VendorFundSectors {
+  readonly kind: 'fund-sectors'
+  readonly sectors: readonly SectorWeightRow[]
+}
+
+/** The dividends the vendor lists whose payment day is known, oldest first. */
+export interface VendorDividends {
+  readonly kind: 'dividends'
+  readonly dividends: readonly DividendRow[]
+}
+
+/** One listing a search found, as the vendor wrote it. */
+export interface FoundListing {
+  readonly symbol: string
+  readonly name: string
+  /** The market identifier code, such as XNAS, where the vendor gives one. */
+  readonly mic: string | null
+  /** Where it trades in the vendor's words, such as NASDAQ or United Kingdom, or null where the answer had none. */
+  readonly market: string | null
+  readonly currency: string | null
+  /** What the vendor calls it, such as Common Stock or ETF, or null where the answer had none. */
+  readonly type: string | null
+  /** Whether the vendor's free key gives its closes, as far as the vendor's documentation says. False for a vendor that prices nothing. */
+  readonly freeCloses: boolean
+}
+
+export interface VendorSearch {
+  readonly kind: 'found'
+  readonly listings: readonly FoundListing[]
+}
+
+/** What an instrument is asked by: its ISIN where it has one, and the symbol the vendor knows it by. */
+export interface ProfileQuery {
+  readonly isin: string | null
+  readonly symbol: string
+}
+
+/** What every vendor in the registry states, whatever it gives. */
+interface VendorEntry {
+  /** The source an instrument names and the prefix of its series and fact keys, such as `twelvedata`. */
   readonly id: string
   readonly name: string
-  /** What it prices, in words for Settings. */
+  /** What it covers, in words for Settings. */
   readonly covers: string
-  /** `listings` prices the instruments that name it, `rates` gives the euro rates of currencies. */
-  readonly prices: 'listings' | 'rates'
   readonly needsKey: boolean
   /** Where a user claims a free key, or null for a vendor that needs none. */
   readonly keyAddress: string | null
@@ -68,10 +104,40 @@ export interface PriceVendor {
   readonly limits: VendorLimits
   /** Which limit an answer says is reached, read from the vendor's own words, or null for an answer that is no limit. */
   limitOf(answer: VendorAnswer): VendorLimit | null
-  /** A symbol, or for the ECB a currency, that a free key gets closes of, which the Test in Settings asks for. */
+  /** A symbol, or for the ECB a currency, that a free key gets an answer for, which the Test in Settings asks for. */
   readonly testSymbol: string
-  /** The closes of a symbol, or the rates of a currency, from the day on. The key is null for a vendor that needs none. */
-  closes(fetch: VendorFetch, key: string | null, symbol: string, from: string): Promise<Fetched<VendorCloses>>
   /** The splits of a symbol, for a vendor that lists them. A factor that is no ratio of small whole numbers is left out. */
   splits?(fetch: VendorFetch, key: string | null, symbol: string): Promise<Fetched<VendorSplits>>
+  /** A company's profile, for a vendor that has them. */
+  profile?(fetch: VendorFetch, key: string | null, query: ProfileQuery): Promise<Fetched<VendorProfile>>
+  /** A fund's weights by sector, for a vendor that has them. */
+  fundSectors?(fetch: VendorFetch, key: string | null, symbol: string): Promise<Fetched<VendorFundSectors>>
+  /** A listing's dividends, announced ones among them, for a vendor that lists them. */
+  dividends?(fetch: VendorFetch, key: string | null, symbol: string): Promise<Fetched<VendorDividends>>
+  /** The listings whose symbol or name matches the text, for a vendor that searches. */
+  search?(fetch: VendorFetch, key: string | null, text: string): Promise<Fetched<VendorSearch>>
 }
+
+/** A vendor of closes: `listings` prices the instruments that name it, `rates` gives the euro rates of currencies. */
+export interface ClosesVendor extends VendorEntry {
+  readonly prices: 'listings' | 'rates'
+  /** The closes of a symbol, or the rates of a currency, from the day on. The key is null for a vendor that needs none. */
+  closes(fetch: VendorFetch, key: string | null, symbol: string, from: string): Promise<Fetched<VendorCloses>>
+}
+
+/** A vendor of facts alone, such as company profiles, which prices nothing and whose Test asks for its test symbol's profile. */
+export interface FactsVendor extends VendorEntry {
+  readonly prices: 'facts'
+  profile(fetch: VendorFetch, key: string | null, query: ProfileQuery): Promise<Fetched<VendorProfile>>
+}
+
+/**
+ * One place Kuna fetches closes, rates or facts from. A new vendor is one module under infrastructure/vendors that
+ * exports this, plus its entry in PRICE_VENDORS and its source in PRICE_SOURCES when instruments name it. It supplies
+ * its id, name and coverage in both languages, what it gives, whether it needs a key and where to claim one, the
+ * address its requests go to, its free limits, how to read a limit from its answers and a test symbol. A vendor of
+ * closes gives the closes of a symbol from a day, and any vendor may give splits, profiles, fund sector weights,
+ * dividends or a search. The Prices settings, the pacing and the fetch read everything from here, so nothing else
+ * names a vendor.
+ */
+export type PriceVendor = ClosesVendor | FactsVendor

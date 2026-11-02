@@ -2,7 +2,7 @@ import { words } from './words'
 import { answerOf, statusFailure } from './vendorAnswers'
 import { ECB_SOURCE, isCloseText, isDay } from '../../domain/pricesFile'
 import type { CloseRow } from '../../domain/pricesFile'
-import type { Fetched, PriceVendor, VendorCloses, VendorFetch } from '../../application/priceVendor'
+import type { ClosesVendor, Fetched, VendorCloses, VendorFetch } from '../../application/priceVendor'
 
 /** The fields of one CSV line, with quoted fields that hold commas or doubled quotes. */
 function csvFields(line: string): string[] {
@@ -57,7 +57,7 @@ async function ecbRates(fetch: VendorFetch, _key: string | null, currency: strin
   return { kind: 'closes', closes: closes.sort(([earlier], [later]) => (earlier < later ? -1 : 1)), splits: [], earlierFailure: null }
 }
 
-export const ecb: PriceVendor = {
+export const ecb: ClosesVendor = {
   id: ECB_SOURCE,
   name: words.ecb.name,
   covers: words.ecb.covers,

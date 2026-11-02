@@ -1,9 +1,26 @@
 import { words } from './words'
 import { answerOf, parsedJson, statusFailure } from './vendorAnswers'
 import { isCloseText, isDay, isJsonObject } from '../../domain/pricesFile'
-import type { CloseRow } from '../../domain/pricesFile'
-import type { Fetched, PriceVendor, ReportedSplit, VendorAnswer, VendorCloses, VendorFetch, VendorLimit, VendorSplits } from '../../application/priceVendor'
+import type { CloseRow, DividendRow, SectorWeightRow } from '../../domain/pricesFile'
+import type {
+  ClosesVendor,
+  Fetched,
+  FoundListing,
+  ReportedSplit,
+  VendorAnswer,
+  VendorCloses,
+  VendorDividends,
+  VendorFetch,
+  VendorFundSectors,
+  VendorLimit,
+  VendorSearch,
+  VendorSplits,
+} from '../../application/priceVendor'
 import { splitRatioOf } from '../../domain/splitFactor'
+
+// The field names of ETF_PROFILE (`sectors` of `sector` and `weight`), DIVIDENDS (`data` of `ex_dividend_date`,
+// `payment_date` and `amount`) and SYMBOL_SEARCH (`bestMatches` of `1. symbol`, `2. name`, `3. type`, `4. region` and
+// `8. currency`) are read from Alpha Vantage's documentation, unconfirmed until a request with a real key.
 
 /** One of Alpha Vantage's series: what the request asks for and the key the answer holds its days under. */
 const DAILY = { query: 'function=TIME_SERIES_DAILY&outputsize=compact', days: 'Time Series (Daily)' }
@@ -136,7 +153,94 @@ async function alphaVantageSplits(fetch: VendorFetch, key: string | null, symbol
   return { kind: 'splits', splits: splits.sort((earlier, later) => (earlier.date < later.date ? -1 : 1)) }
 }
 
-export const alphaVantage: PriceVendor & Required<Pick<PriceVendor, 'splits'>> = {
+function textOrNull(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' && value !== 'None' ? value.trim() : null
+}
+
+/** A fund's sector weights, each a fraction as text. An answer with no sectors, as for a share, is an empty answer, and a row Kuna cannot read is left out. */
+async function alphaVantageFundSectors(fetch: VendorFetch, key: string | null, symbol: string): Promise<Fetched<VendorFundSectors>> {
+  if (key === null) {
+    return { kind: 'failed', reason: 'no-key' }
+  }
+  const fetched = await answerObject(fetch, `function=ETF_PROFILE&symbol=${encodeURIComponent(symbol)}`, key)
+  if (fetched.kind === 'failed') {
+    return fetched
+  }
+  const listed = fetched.answer.sectors ?? []
+  if (!Array.isArray(listed)) {
+    return { kind: 'failed', reason: 'unreadable' }
+  }
+  const sectors: SectorWeightRow[] = []
+  for (const entry of listed) {
+    const sector = isJsonObject(entry) ? textOrNull(entry.sector) : null
+    const weight = isJsonObject(entry) ? entry.weight : undefined
+    if (sector !== null && typeof weight === 'string' && isCloseText(weight)) {
+      sectors.push([sector, weight])
+    }
+  }
+  return { kind: 'fund-sectors', sectors }
+}
+
+/** A listing's dividends with a known ex day and payment day, oldest payment first, each amount a unit as text. A row Kuna cannot read is left out. */
+async function alphaVantageDividends(fetch: VendorFetch, key: string | null, symbol: string): Promise<Fetched<VendorDividends>> {
+  if (key === null) {
+    return { kind: 'failed', reason: 'no-key' }
+  }
+  const fetched = await answerObject(fetch, `function=DIVIDENDS&symbol=${encodeURIComponent(symbol)}`, key)
+  if (fetched.kind === 'failed') {
+    return fetched
+  }
+  const listed = fetched.answer.data ?? []
+  if (!Array.isArray(listed)) {
+    return { kind: 'failed', reason: 'unreadable' }
+  }
+  const dividends: DividendRow[] = []
+  for (const entry of listed) {
+    if (!isJsonObject(entry)) {
+      continue
+    }
+    const [exDay, paymentDay, amount] = [textOrNull(entry.ex_dividend_date), textOrNull(entry.payment_date), textOrNull(entry.amount)]
+    if (exDay !== null && paymentDay !== null && amount !== null && isDay(exDay) && isDay(paymentDay) && isCloseText(amount)) {
+      dividends.push([exDay, paymentDay, amount])
+    }
+  }
+  return { kind: 'dividends', dividends: dividends.sort((earlier, later) => (earlier[1] < later[1] ? -1 : 1)) }
+}
+
+/** The listings whose symbol or name matches the text, as Alpha Vantage ranks them. Its free key gives the daily closes of every listing it has. */
+async function alphaVantageSearch(fetch: VendorFetch, key: string | null, text: string): Promise<Fetched<VendorSearch>> {
+  if (key === null) {
+    return { kind: 'failed', reason: 'no-key' }
+  }
+  const fetched = await answerObject(fetch, `function=SYMBOL_SEARCH&keywords=${encodeURIComponent(text)}`, key)
+  if (fetched.kind === 'failed') {
+    return fetched
+  }
+  const matches = fetched.answer.bestMatches
+  if (!Array.isArray(matches)) {
+    return { kind: 'failed', reason: 'unreadable' }
+  }
+  const listings = matches.flatMap((found): FoundListing[] => {
+    const symbol = isJsonObject(found) ? textOrNull(found['1. symbol']) : null
+    if (symbol === null || !isJsonObject(found)) {
+      return []
+    }
+    return [
+      {
+        symbol,
+        name: textOrNull(found['2. name']) ?? symbol,
+        mic: null,
+        market: textOrNull(found['4. region']),
+        currency: textOrNull(found['8. currency']),
+        type: textOrNull(found['3. type']),
+        freeCloses: true,
+      },
+    ]
+  })
+  return { kind: 'found', listings }
+}
+
+export const alphaVantage: ClosesVendor & Required<Pick<ClosesVendor, 'splits' | 'fundSectors' | 'dividends' | 'search'>> = {
   id: 'alphavantage',
   name: words.alphaVantage.name,
   covers: words.alphaVantage.covers,
@@ -151,4 +255,7 @@ export const alphaVantage: PriceVendor & Required<Pick<PriceVendor, 'splits'>> =
   testSymbol: 'IBM',
   closes: alphaVantageCloses,
   splits: alphaVantageSplits,
+  fundSectors: alphaVantageFundSectors,
+  dividends: alphaVantageDividends,
+  search: alphaVantageSearch,
 }

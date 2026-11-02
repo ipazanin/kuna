@@ -2,7 +2,14 @@ import { words } from './words'
 import { answerOf, parsedJson, statusFailure } from './vendorAnswers'
 import { isCloseText, isDay, isJsonObject } from '../../domain/pricesFile'
 import type { CloseRow, FailureReason } from '../../domain/pricesFile'
-import type { Fetched, PriceVendor, VendorAnswer, VendorCloses, VendorFetch, VendorLimit } from '../../application/priceVendor'
+import type { ClosesVendor, Fetched, FoundListing, VendorAnswer, VendorCloses, VendorFetch, VendorLimit, VendorSearch } from '../../application/priceVendor'
+
+// The field names of symbol_search (`data` of `symbol`, `instrument_name`, `exchange`, `mic_code`, `currency`,
+// `instrument_type` and `country`) are read from Twelve Data's documentation, unconfirmed until a request with a real
+// key. So is the free key's coverage: listings whose `country` is `United States`, as its pricing page puts it.
+
+/** The country of the listings the free key gives closes of, as symbol_search writes it. */
+const FREE_COUNTRY = 'United States'
 
 /** The most rows one answer holds. With a start day, Twelve Data sends the latest rows of the range. */
 const PAGE_ROWS = 5000
@@ -92,7 +99,55 @@ async function twelveDataCloses(fetch: VendorFetch, key: string | null, symbol: 
   }
 }
 
-export const twelveData: PriceVendor = {
+/** The most listings one search answer holds. */
+const SEARCH_ROWS = 30
+
+function textOrNull(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null
+}
+
+/** The listings whose symbol or name matches the text, on every market Twelve Data knows, each saying whether the free key prices it. */
+async function twelveDataSearch(fetch: VendorFetch, key: string | null, text: string): Promise<Fetched<VendorSearch>> {
+  if (key === null) {
+    return { kind: 'failed', reason: 'no-key' }
+  }
+  const fetched = await answerOf(fetch, `https://api.twelvedata.com/symbol_search?symbol=${encodeURIComponent(text)}&outputsize=${SEARCH_ROWS}&apikey=${encodeURIComponent(key)}`)
+  if (fetched.kind === 'failed') {
+    return fetched
+  }
+  const { status, text: body } = fetched.answer
+  const parsed = parsedJson(body)
+  if (isJsonObject(parsed) && parsed.status === 'error') {
+    const failure = errorFailure(typeof parsed.code === 'number' ? parsed.code : status, typeof parsed.message === 'string' ? parsed.message : '')
+    return failure === 'no-rows' ? { kind: 'found', listings: [] } : { kind: 'failed', reason: failure }
+  }
+  if (status !== 200) {
+    return { kind: 'failed', reason: statusFailure(status) }
+  }
+  if (!isJsonObject(parsed) || !Array.isArray(parsed.data)) {
+    return { kind: 'failed', reason: 'unreadable' }
+  }
+  const listings = (parsed.data as unknown[]).flatMap((found): FoundListing[] => {
+    const symbol = isJsonObject(found) ? textOrNull(found.symbol) : null
+    if (symbol === null || !isJsonObject(found)) {
+      return []
+    }
+    return [
+      {
+        symbol,
+        name: textOrNull(found.instrument_name) ?? symbol,
+        mic: textOrNull(found.mic_code),
+        market: textOrNull(found.exchange),
+        currency: textOrNull(found.currency),
+        type: textOrNull(found.instrument_type),
+        freeCloses: textOrNull(found.country) === FREE_COUNTRY,
+      },
+    ]
+  })
+  return { kind: 'found', listings }
+}
+
+export const twelveData: ClosesVendor & Required<Pick<ClosesVendor, 'search'>> = {
   id: 'twelvedata',
   name: words.twelveData.name,
   covers: words.twelveData.covers,
@@ -105,4 +160,5 @@ export const twelveData: PriceVendor = {
   // A currency pair, which the free key covers and which names no one's holding.
   testSymbol: 'EUR/USD',
   closes: twelveDataCloses,
+  search: twelveDataSearch,
 }

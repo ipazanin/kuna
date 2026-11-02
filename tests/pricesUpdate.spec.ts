@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { createPricesUpdate, pricesFetchVerdict, pricesFileBeside } from '../src/apps/investments/prices/application/pricesUpdate'
 import type { PricesFetchMoment, PricesUpdate } from '../src/apps/investments/prices/application/pricesUpdate'
 import type { PricesCache, PricesDrive, PricesPlace } from '../src/apps/investments/prices/application/pricesPorts'
-import type { PriceVendor, VendorCloses } from '../src/apps/investments/prices/application/priceVendor'
+import type { ClosesVendor, VendorCloses } from '../src/apps/investments/prices/application/priceVendor'
 import { PRICES_FILE_NAME, decodePricesFile, emptyPricesFile, encodePricesFile } from '../src/apps/investments/prices/domain/pricesFile'
 import type { PricesFile } from '../src/apps/investments/prices/domain/pricesFile'
 import { fakePricesFile } from '../src/apps/investments/prices/infrastructure/fake/fakePrices'
@@ -39,7 +39,7 @@ function investments(): InvestmentBook {
 }
 
 /** A vendor of made-up closes that answers one close a series, the day before, and waits while `gate` holds it. */
-function madeUpVendor(id: string, prices: PriceVendor['prices'], needsKey: boolean, world: { asked: string[]; gate: Promise<void> | null }): PriceVendor {
+function madeUpVendor(id: string, prices: ClosesVendor['prices'], needsKey: boolean, world: { asked: string[]; gate: Promise<void> | null }): ClosesVendor {
   return {
     id,
     name: id,
@@ -283,7 +283,7 @@ describe('the Prices step of a sync', () => {
     await sync.sync()
     const kept = world.update.state.copy
 
-    const newer = encodePricesFile(emptyPricesFile()).replace('"version": 1', '"version": 2')
+    const newer = encodePricesFile(emptyPricesFile()).replace('"version": 2', '"version": 3')
     await world.drive.upload(fileId, newer)
     await sync.sync()
     await backgroundSettled(world)
@@ -462,7 +462,7 @@ describe("the day's fetch", () => {
     expect(await world.cache.read()).toMatchObject({ fileId: null, revision: `browser-${worlds}` })
     expect(world.update.state.copy?.file.writtenAt).toBe(NOW)
     expect(world.asked).toEqual([])
-    expect(world.update.state.copy?.file.lastFetch).toEqual({ asked: 0, upToDate: 4 })
+    expect(world.update.state.copy?.file.lastFetch).toEqual({ asked: 0, upToDate: 4, factsAsked: 0, factsLeft: 0, factsKeyless: [] })
   })
 
   it('names the Investments file only once the copy of this browser is read, also when there is none', async () => {

@@ -3630,11 +3630,12 @@ export async function investmentsDriveFlow(page, { press, shoot, inspect }) {
 
 /** A made-up Twelve Data key the Prices card is given, whose whole text must never come back on screen. */
 const MADE_UP_PRICE_KEY = 'made-up-twelve-data-key-7319'
+const MADE_UP_FINNHUB_KEY = 'made-up-finnhub-key-5521'
 
 /**
  * Investments Settings, Prices, on the sample: a Twelve Data key typed and saved shows only how it ends and empties its
- * field, Test asks the fake build's responder and says the key works, and Remove forgets it. Fetch now then fetches
- * the ECB's rates from the responder and lists the listings it got nothing for without their keys.
+ * field, Test asks the fake build's responder and says the key works, and Remove forgets it. A Finnhub key does the
+ * same, its Test asking for a profile. Fetch now then finds every series up to date and nothing missing.
  */
 export async function investmentsPriceKeyFlow(page, { press, shoot, inspect }) {
   const vendor = '[data-testid="investments-prices-card"] [data-vendor="twelvedata"]'
@@ -3664,6 +3665,23 @@ export async function investmentsPriceKeyFlow(page, { press, shoot, inspect }) {
   await pageSays(page, 'A key ending in 7319', false)
   const forgotten = await page.evaluate(() => localStorage.getItem('kuna.price-vendor-key.twelvedata'))
   if (forgotten !== null) throw new Error('Remove left the key in this browser')
+
+  const finnhub = '[data-testid="investments-prices-card"] [data-vendor="finnhub"]'
+  const finnhubKey = await pressSelector(page, press, `${finnhub} [data-testid="price-vendor-key"]`)
+  await finnhubKey.type(MADE_UP_FINNHUB_KEY)
+  await pressSelector(page, press, `${finnhub} [data-testid="price-vendor-save"]`)
+  await pageSays(page, 'A key ending in 5521 is kept in this browser.', true)
+  await pressSelector(page, press, `${finnhub} [data-testid="price-vendor-test"]`)
+  await page
+    .waitForFunction((selector) => document.querySelector(selector)?.textContent?.trim() === 'The key works.', { timeout: 10_000 }, `${finnhub} [data-testid="price-vendor-test-result"]`)
+    .catch(() => {
+      throw new Error("Test of Finnhub's profile against the fake responder does not say the key works")
+    })
+  await inspect?.('a Finnhub key tested')
+  await pressSelector(page, press, `${finnhub} [data-testid="price-vendor-forget"]`)
+  await pageSays(page, 'A key ending in 5521', false)
+  if ((await page.evaluate(() => localStorage.getItem('kuna.price-vendor-key.finnhub'))) !== null) throw new Error('Remove left the Finnhub key in this browser')
+
   await pressSelector(page, press, '[data-testid="prices-fetch-now"]')
   await toastMatching(page, /^Prices fetched$/)
   // The sample's closes run to the last trading day, so the fetch asks for nothing and needs no key.
@@ -3672,6 +3690,42 @@ export async function investmentsPriceKeyFlow(page, { press, shoot, inspect }) {
   await inspect?.('the prices fetched with nothing missing')
   await dismissToasts(page)
 }
+
+/**
+ * Investments Settings on the sample, with a made-up Twelve Data key kept: Add a benchmark opens the holding dialog,
+ * whose search asks the fake responder for ABC, and picking its listing fills the symbol, the name, the type proposed
+ * from the vendor's Common Stock, the exchange and the currency. Escape closes the dialog without saving.
+ */
+export function investmentsInstrumentSearchFlowIn(language) {
+  const croatian = language === 'hr'
+  const share = croatian ? 'Dionica' : 'Share'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(croatian ? `${name}-${language}` : name)
+    await page.evaluate(() => localStorage.setItem('kuna.price-vendor-key.twelvedata', 'made-up-twelve-data-key-0042'))
+    await pressSelector(page, press, '[data-testid="benchmark-add"]')
+    await page.waitForSelector('[data-testid="instrument-search"]', { visible: true, timeout: 10_000 })
+    await shoot('investments-instrument-search-empty')
+    await fill(page, 'instrument-search-text', 'abc')
+    await pressSelector(page, press, '[data-testid="instrument-search-button"]')
+    await elementSays(page, '[data-testid="instrument-search-results"]', ['ABC · Example Tech', `NASDAQ · USD · ${share} · Twelve Data`], 'the search does not list the fake listing')
+    await inspect?.('the listings a search found')
+    await shoot('investments-instrument-search')
+    await pressSelector(page, press, '[data-testid="instrument-search-result"]')
+    const filled = await page.evaluate(() => ({
+      symbol: document.querySelector('[data-testid="instrument-symbol"]')?.value,
+      name: document.querySelector('[data-testid="instrument-name"]')?.value,
+      exchange: document.querySelector('[data-testid="instrument-exchange"]')?.value,
+    }))
+    if (filled.symbol !== 'ABC' || filled.name !== 'Example Tech' || filled.exchange !== 'XNAS') throw new Error(`the pick filled ${JSON.stringify(filled)}`)
+    await elementSays(page, '[data-testid="instrument-type"]', [share], 'the pick does not propose the type')
+    await elementSays(page, '[data-testid="instrument-currency"]', ['USD'], 'the pick does not fill the currency')
+    await shoot('investments-instrument-search-picked')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="instrument-form"]')
+  }
+}
+
+export const investmentsInstrumentSearchFlow = investmentsInstrumentSearchFlowIn('en')
 
 /**
  * Investments Settings, Prices, on the sample: three made-up CSV files of closes dropped at once on Import closes, two

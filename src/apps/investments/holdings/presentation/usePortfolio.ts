@@ -5,6 +5,8 @@ import type { PortfolioSources } from '../domain/holding'
 import { portfolioFigures } from '../domain/portfolioFigures'
 import type { PortfolioFigures } from '../domain/portfolioFigures'
 import { pricesDay } from '../../prices/application/pricesUpdate'
+import { fetchedFactsBook } from '../../prices/domain/factsBook'
+import type { FactsBook } from '../../prices/domain/factsBook'
 import { emptyPricesFile } from '../../prices/domain/pricesFile'
 import { pricesFileBook, pricesFileRateBook } from '../../prices/domain/pricesFileBooks'
 import { usePrices } from '../../prices/presentation/usePrices'
@@ -25,13 +27,17 @@ const sources = computed((): PortfolioSources | null => {
 
 const figures = computed(() => (sources.value === null ? null : portfolioFigures(sources.value)))
 
+const facts = computed(() => fetchedFactsBook((prices.state.copy?.file ?? emptyPricesFile()).facts))
+
 export interface Portfolio {
   /** The Investments file on screen with its prices, on today's day in Zagreb, or null while either is being read. */
   readonly sources: ComputedRef<PortfolioSources | null>
   readonly figures: ComputedRef<PortfolioFigures | null>
+  /** What the vendors answered about the instruments, as this browser's copy of the prices file holds it. */
+  readonly facts: ComputedRef<FactsBook>
 }
 
 /** The figures of the Investments file on screen, worked out once for every screen and the home card. */
 export function usePortfolio(): Portfolio {
-  return { sources, figures }
+  return { sources, figures, facts }
 }

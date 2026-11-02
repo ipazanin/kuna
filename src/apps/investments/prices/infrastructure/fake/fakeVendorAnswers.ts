@@ -46,6 +46,48 @@ function minuteLimitOnce(url: string, query: URLSearchParams): VendorAnswer | nu
     : json(200, { Information: 'Thank you for using Alpha Vantage! Please consider spreading out your free API requests more sparingly (1 request per second).' })
 }
 
+interface FakeListing {
+  readonly name: string
+  readonly mic: string
+  readonly market: string
+  readonly country: string
+  readonly currency: string
+  readonly type: string
+}
+
+/** What the fake vendors know of the made-up listings: a name, a market and its country, a currency and a type. */
+const FAKE_LISTINGS: Readonly<Record<string, FakeListing>> = {
+  ABC: { name: 'Example Tech', mic: 'XNAS', market: 'NASDAQ', country: 'United States', currency: 'USD', type: 'Common Stock' },
+  DEF: { name: 'Example Dividend Co', mic: 'XNYS', market: 'NYSE', country: 'United States', currency: 'USD', type: 'Common Stock' },
+  IDX: { name: 'Example Index Fund', mic: 'ARCX', market: 'NYSE ARCA', country: 'United States', currency: 'USD', type: 'ETF' },
+}
+
+/** The fake search: the made-up listing of the text when there is one, else a made-up share and a made-up fund of that symbol. */
+function fakeListings(text: string): (FakeListing & { readonly symbol: string })[] {
+  const symbol = text.trim().toUpperCase()
+  const known = FAKE_LISTINGS[symbol]
+  return known !== undefined
+    ? [{ symbol, ...known }]
+    : [
+        { symbol, name: `Example ${symbol} Co`, mic: 'XNAS', market: 'NASDAQ', country: 'United States', currency: 'USD', type: 'Common Stock' },
+        { symbol, name: `Example ${symbol} UCITS ETF`, mic: 'XETR', market: 'XETR', country: 'Germany', currency: 'EUR', type: 'ETF' },
+      ]
+}
+
+function twelveDataSearch(query: URLSearchParams): VendorAnswer {
+  const data = fakeListings(query.get('symbol') ?? '').map((listing) => ({
+    symbol: listing.symbol,
+    instrument_name: listing.name,
+    exchange: listing.market,
+    mic_code: listing.mic,
+    exchange_timezone: 'America/New_York',
+    instrument_type: listing.type,
+    country: listing.country,
+    currency: listing.currency,
+  }))
+  return json(200, { data, status: 'ok' })
+}
+
 function twelveData(query: URLSearchParams): VendorAnswer {
   const symbol = query.get('symbol') ?? ''
   const through = query.get('end_date') ?? '9999-12-31'
@@ -61,10 +103,50 @@ const FAKE_SPLITS: Readonly<Record<string, readonly { readonly effective_date: s
   ABC: [{ effective_date: '2025-06-10', split_factor: '2.0000' }],
 }
 
+/** The sector weights the fake Alpha Vantage gives a made-up fund, each a fraction as text. */
+const FAKE_FUND_SECTORS: Readonly<Record<string, readonly { readonly sector: string; readonly weight: string }[]>> = {
+  EMF: [
+    { sector: 'FINANCIALS', weight: '0.900' },
+    { sector: 'INDUSTRIALS', weight: '0.100' },
+  ],
+  'XYZ.DEX': [
+    { sector: 'INFORMATION TECHNOLOGY', weight: '0.251' },
+    { sector: 'FINANCIALS', weight: '0.160' },
+    { sector: 'HEALTHCARE', weight: '0.110' },
+    { sector: 'INDUSTRIALS', weight: '0.479' },
+  ],
+}
+
+/** The dividends the fake Alpha Vantage lists of the made-up payer, one paid and one announced. */
+const FAKE_DIVIDENDS: Readonly<Record<string, readonly Readonly<Record<string, string>>[]>> = {
+  DEF: [
+    { ex_dividend_date: '2026-12-28', declaration_date: '2026-12-01', record_date: '2026-12-29', payment_date: '2027-01-12', amount: '0.34' },
+    { ex_dividend_date: '2026-07-01', declaration_date: '2026-06-02', record_date: '2026-07-02', payment_date: '2026-07-15', amount: '0.3325' },
+  ],
+}
+
 function alphaVantage(query: URLSearchParams): VendorAnswer {
   const symbol = query.get('symbol') ?? ''
   if (query.get('function') === 'SPLITS') {
     return json(200, { symbol, data: FAKE_SPLITS[symbol] ?? [] })
+  }
+  if (query.get('function') === 'ETF_PROFILE') {
+    const sectors = FAKE_FUND_SECTORS[symbol]
+    return json(200, sectors === undefined ? {} : { net_assets: '1000000000', net_expense_ratio: '0.002', sectors, holdings: [] })
+  }
+  if (query.get('function') === 'DIVIDENDS') {
+    return json(200, { symbol, data: FAKE_DIVIDENDS[symbol] ?? [] })
+  }
+  if (query.get('function') === 'SYMBOL_SEARCH') {
+    const bestMatches = fakeListings(query.get('keywords') ?? '').map((listing) => ({
+      '1. symbol': listing.mic === 'XETR' ? `${listing.symbol}.DEX` : listing.symbol,
+      '2. name': listing.name,
+      '3. type': listing.type === 'Common Stock' ? 'Equity' : listing.type,
+      '4. region': listing.mic === 'XETR' ? 'XETRA' : 'United States',
+      '8. currency': listing.currency,
+      '9. matchScore': '1.0000',
+    }))
+    return json(200, { bestMatches })
   }
   const days = weekdaysFrom(EARLIEST)
   const rows = (picked: readonly CivilDate[]): Record<string, Record<string, string>> => Object.fromEntries(picked.map((day) => [day, { '4. close': madeUpClose(symbol, day, 90) }]))
@@ -81,7 +163,23 @@ function ecb(url: string, query: URLSearchParams): VendorAnswer {
   return { status: 200, text: ['KEY,TIME_PERIOD,OBS_VALUE', ...lines].join('\r\n') }
 }
 
-/** The fake build's vendors: made-up closes for any symbol and any key, so no request leaves the page. */
+/** The made-up companies the fake Finnhub has profiles of, by ISIN or symbol, its test symbol among them. */
+const FAKE_PROFILES: Readonly<Record<string, { readonly finnhubIndustry: string; readonly country: string; readonly name: string }>> = {
+  US000000DEF2: { finnhubIndustry: 'Food Products', country: 'US', name: 'Example Dividend Co' },
+  GHI: { finnhubIndustry: '', country: 'US', name: 'Example Spinco' },
+  AAPL: { finnhubIndustry: 'Technology', country: 'US', name: 'Example Test Co' },
+}
+
+function finnhub(url: string, query: URLSearchParams): VendorAnswer {
+  if (url.startsWith('https://finnhub.io/api/v1/stock/profile2?')) {
+    const profile = FAKE_PROFILES[query.get('isin') ?? query.get('symbol') ?? '']
+    return json(200, profile === undefined ? {} : { ...profile, currency: 'USD', exchange: 'EXAMPLE EXCHANGE', ticker: query.get('symbol') ?? '' })
+  }
+  const result = fakeListings(query.get('q') ?? '').map((listing) => ({ description: listing.name.toUpperCase(), displaySymbol: listing.symbol, symbol: listing.symbol, type: listing.type }))
+  return json(200, { count: result.length, result })
+}
+
+/** The fake build's vendors: made-up closes and facts for any symbol and any key, so no request leaves the page. */
 export const fakeVendorFetch: VendorFetch = async (url) => {
   const query = new URL(url).searchParams
   const limited = minuteLimitOnce(url, query)
@@ -90,6 +188,12 @@ export const fakeVendorFetch: VendorFetch = async (url) => {
   }
   if (url.startsWith('https://api.twelvedata.com/time_series?')) {
     return twelveData(query)
+  }
+  if (url.startsWith('https://api.twelvedata.com/symbol_search?')) {
+    return twelveDataSearch(query)
+  }
+  if (url.startsWith('https://finnhub.io/api/v1/')) {
+    return finnhub(url, query)
   }
   if (url.startsWith('https://www.alphavantage.co/query?')) {
     return alphaVantage(query)

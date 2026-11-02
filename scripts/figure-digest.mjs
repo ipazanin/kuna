@@ -114,6 +114,7 @@ import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansD
 import { moneyFromAmount } from '../src/shared/money/money.ts'
 import { closedPositions } from '../src/apps/investments/holdings/domain/closedPositions.ts'
 import { holdingMix } from '../src/apps/investments/holdings/domain/holdingMix.ts'
+import { incomeForecast } from '../src/apps/investments/income/domain/incomeForecast.ts'
 import { latestRecords } from '../src/apps/investments/holdings/domain/latestRecords.ts'
 import { investingRhythm } from '../src/apps/investments/income/domain/investingRhythm.ts'
 import { yearlyCosts } from '../src/apps/investments/income/domain/yearlyCosts.ts'
@@ -127,6 +128,7 @@ import { periodGains } from '../src/apps/investments/performance/domain/periodGa
 import { dayValuer, firstDepositIn, performanceByYear, portfolioPerformance } from '../src/apps/investments/performance/domain/portfolioPerformance.ts'
 import { underwater } from '../src/apps/investments/performance/domain/underwater.ts'
 import { periodKey } from '../src/apps/investments/performance/presentation/performanceLinks.ts'
+import { fetchedFactsBook } from '../src/apps/investments/prices/domain/factsBook.ts'
 import { decodePricesFile, emptyPricesFile } from '../src/apps/investments/prices/domain/pricesFile.ts'
 import { pricesFileBook, pricesFileRateBook } from '../src/apps/investments/prices/domain/pricesFileBooks.ts'
 import { fakePricesFile } from '../src/apps/investments/prices/infrastructure/fake/fakePrices.ts'
@@ -430,6 +432,7 @@ function investmentsGroups(add) {
   add('investments.read.problems', workbook.problems)
   const prices = pricesOfInput()
   const sources = { book: workbook.book, prices: pricesFileBook(prices, workbook.book.prices), rates: pricesFileRateBook(prices), today }
+  const facts = fetchedFactsBook(prices.facts)
   const figures = portfolioFigures(sources)
   for (const [index, instrument] of workbook.book.instruments.entries()) {
     add(`investments.holding-${index + 1}`, figures.holdings.find((holding) => holding.instrument.id === instrument.id) ?? null)
@@ -447,16 +450,17 @@ function investmentsGroups(add) {
     figuresClose(figures),
     pricesNotice(figures),
     gainSources(figures),
-    holdingMix(figures, workbook.book, 'class').parts,
-    holdingMix(figures, workbook.book, 'currency').parts,
+    holdingMix(figures, workbook.book, facts, 'class').parts,
+    holdingMix(figures, workbook.book, facts, 'currency').parts,
     lastDayMovers(figures, 3),
     incomeAgainstLastYear(workbook.book, today),
     latestRecords(workbook.book, sources.rates, 5),
   ])
   for (const mix of MIXES) {
-    add(`investments.holdings.mix.${mix}`, holdingMix(figures, workbook.book, mix))
+    add(`investments.holdings.mix.${mix}`, holdingMix(figures, workbook.book, facts, mix))
   }
   add('investments.holdings.closed', closedPositions(figures))
+  add('investments.income.coming', incomeForecast(sources, facts).months)
   add('investments.value-over-time', valueOverTime(sources, { kind: 'all' }))
   const benchmark = benchmarkState(sources)
   add('investments.performance.benchmark', benchmark)

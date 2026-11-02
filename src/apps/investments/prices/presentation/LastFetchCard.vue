@@ -25,6 +25,12 @@ const stamp = dateFormat({ dateStyle: 'medium', timeStyle: 'short' })
 const file = computed(() => prices.state.copy?.file ?? null)
 const lastFetch = computed(() => (file.value?.writtenAt == null ? words.neverFetched : stamp(new Date(file.value.writtenAt))))
 const counts = computed(() => (file.value?.lastFetch == null ? null : words.lastCounts(file.value.lastFetch.asked, file.value.lastFetch.upToDate)))
+const factCounts = computed(() => {
+  const last = file.value?.lastFetch
+  if (last == null || last.factsAsked + last.factsLeft === 0) return null
+  const left = last.factsLeft === 0 ? '' : ` ${plural(words.factsLeft(last.factsLeft), last.factsLeft)}`
+  return `${plural(words.lastFacts(last.factsAsked), last.factsAsked)}${left}`
+})
 const problem = computed(() => runProblem(prices.state.lastRun))
 const failures = computed(() => failureLines(file.value?.failures ?? [], books.workbook?.book ?? null, PRICE_VENDORS))
 
@@ -66,6 +72,7 @@ async function fetchNow(): Promise<void> {
             <dd class="figure">{{ lastFetch }}</dd>
           </dl>
           <p v-if="counts !== null" class="type-caption" data-testid="prices-last-counts">{{ counts }}</p>
+          <p v-if="factCounts !== null" class="type-caption" data-testid="prices-last-facts">{{ factCounts }}</p>
         </div>
         <div>
           <UButton

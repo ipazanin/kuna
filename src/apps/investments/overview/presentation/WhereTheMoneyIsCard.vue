@@ -6,6 +6,7 @@ import { holdingMix } from '../../holdings/domain/holdingMix'
 import type { PortfolioFigures } from '../../holdings/domain/portfolioFigures'
 import { HOLDINGS_ROUTE } from '../../holdings/presentation/holdingLinks'
 import { mixDonut } from '../../holdings/presentation/mixDonut'
+import { usePortfolio } from '../../holdings/presentation/usePortfolio'
 import { words as holdingsWords } from '../../holdings/presentation/words'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { words } from './words'
@@ -19,7 +20,8 @@ const props = defineProps<{
   book: InvestmentBook
 }>()
 
-const donut = computed(() => mixDonut(holdingMix(props.figures, props.book, 'class'), props.book, null))
+const { facts } = usePortfolio()
+const donut = computed(() => mixDonut(holdingMix(props.figures, props.book, facts.value, 'class'), props.book, null))
 </script>
 
 <template>

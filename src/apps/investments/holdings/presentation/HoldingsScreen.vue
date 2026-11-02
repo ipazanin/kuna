@@ -47,7 +47,7 @@ import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
  * account, grouped, found and sorted, then what was sold in full. `?on=` shows them at an earlier day's close.
  */
 const { state } = useInvestmentsBooks()
-const { sources, figures: today } = usePortfolio()
+const { sources, figures: today, facts } = usePortfolio()
 const route = useRoute()
 const router = useRouter()
 const wide = useMediaQuery('(min-width: 768px)')
@@ -100,7 +100,7 @@ const mixes = computed(() => {
   const book = sources.value?.book
   if (shown === null || book === undefined) return []
   return MIXES.map((mix) => {
-    const split = holdingMix(shown, book, mix)
+    const split = holdingMix(shown, book, facts.value, mix)
     return { mix, missing: split.missing, donut: mixDonut(split, book, on.value) }
   })
 })

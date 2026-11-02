@@ -57,7 +57,7 @@
  * At 360, 430 and 1440 px it does the same with a pay scenario's component, copies a scenario, and
  * adds the starting scenarios to a workbook without any. On the sample Investments file it adds a buy, reads its summary, changes it, deletes it and
  * brings it back with Undo, has a sale beyond what its account holds refused, and adds a holding from inside the transaction dialog with a price
- * entered by hand. At every width it opens each Loans dialog and each Investments dialog
+ * entered by hand. At every width it opens each Loans dialog and each Investments dialog, the holding dialog's search with a made-up key among them,
  * in English and Croatian, the Company dialogs whose fields sit two to a row, the app menu in Croatian
  * and the bank loan's what-if in Croatian. At 360, 768 and 1440 px it opens in Croatian the dialogs
  * and phone sheets of Transactions, its To review tab and Settings, Categories, and groups Transactions by
@@ -139,6 +139,7 @@ import { latestRecords } from '../src/apps/investments/holdings/domain/latestRec
 import { figuresClose, portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures.ts'
 import { averageCostText } from '../src/apps/investments/holdings/presentation/holdingText.ts'
 import { incomeForecast } from '../src/apps/investments/income/domain/incomeForecast.ts'
+import { fetchedFactsBook } from '../src/apps/investments/prices/domain/factsBook.ts'
 import { incomeByYear } from '../src/apps/investments/income/domain/incomeHistory.ts'
 import { investingRhythm } from '../src/apps/investments/income/domain/investingRhythm.ts'
 import { taxFreeCalendar } from '../src/apps/investments/income/domain/taxFreeCalendar.ts'
@@ -216,6 +217,7 @@ import {
   loansDialogsFlowIn,
   investmentsDialogsFlow,
   investmentsDialogsFlowIn,
+  investmentsInstrumentSearchFlowIn,
   investmentsClosesImportFlowIn,
   investmentsEditorFlow,
   investmentsImportFlowIn,
@@ -480,7 +482,7 @@ function fakeIncomeShows() {
   const prices = fakePricesFile('sample', INVESTMENTS_DAY)
   const sources = { book: workbook.book, prices: pricesFileBook(prices, workbook.book.prices), rates, today: INVESTMENTS_DAY }
   const [newestYear] = incomeByYear(workbook.book, INVESTMENTS_DAY)
-  const coming = incomeForecast(sources).received
+  const coming = incomeForecast(sources, fetchedFactsBook(prices.facts)).received
   const [soonest] = taxFreeCalendar(figures, INVESTMENTS_DAY).flatMap((month) => month.lots)
   const [newestWithheld] = withheldByCountry(workbook.book, INVESTMENTS_DAY)
   const unitedStates = newestWithheld.countries.find((row) => row.country === 'US')
@@ -1674,7 +1676,7 @@ const SOURCE_SCREENS = [
       'By class',
       'By account',
       'Other and not known',
-      '2 holdings have no sector yet, such as',
+      '1 holding has no sector yet:',
       'Example Tech',
       'Example World ETF',
       'Example Money Fund',
@@ -1700,7 +1702,7 @@ const SOURCE_SCREENS = [
       'Po sektoru',
       'Po državi ili regiji',
       'Ostalo i nepoznato',
-      '2 pozicije još nemaju sektor, na primjer',
+      '1 pozicija još nema sektor:',
       'Dionice',
       'Novčani fondovi',
       'Novac i valute',
@@ -2026,7 +2028,7 @@ const SOURCE_SCREENS = [
     title: 'Performance',
     charts: 1,
     ready: '[data-testid="coming-list"]',
-    shows: ['Coming income', 'From last year', 'Payments to come', 'Example Dividend Co', ...SAMPLE_INCOME.coming],
+    shows: ['Coming income', 'Announced', 'From last year', 'Payments to come', 'Status', 'Example Dividend Co', ...SAMPLE_INCOME.coming],
   },
   {
     name: 'investments-performance-coming-croatian',
@@ -2035,7 +2037,7 @@ const SOURCE_SCREENS = [
     title: 'Uspješnost',
     charts: 1,
     ready: '[data-testid="coming-list"]',
-    shows: ['Očekivani prihod', 'Prema prošloj godini', 'Isplate koje dolaze', ...SAMPLE_INCOME.comingCroatian],
+    shows: ['Očekivani prihod', 'Najavljeno', 'Prema prošloj godini', 'Isplate koje dolaze', ...SAMPLE_INCOME.comingCroatian],
   },
   {
     name: 'investments-performance-tax-free',
@@ -2183,6 +2185,8 @@ const SOURCE_SCREENS = [
     shows: [
       'Where prices come from',
       'Twelve Data',
+      'Finnhub',
+      'Company profiles of US shares',
       'Alpha Vantage',
       'European Central Bank',
       'No key in this browser.',
@@ -2191,7 +2195,10 @@ const SOURCE_SCREENS = [
       'Fetched',
       'Asked for 7 series, 0 already up to date.',
       'A free key takes 8 requests a minute and 800 a day.',
-      'Gives daily closes and splits.',
+      'A free key takes 60 requests a minute.',
+      'Gives daily closes and symbol search.',
+      'Gives company profiles and symbol search.',
+      'Gives daily closes, splits, sector weights of funds, announced dividends and symbol search.',
       'Import closes',
     ],
     cards: false,
@@ -2205,6 +2212,8 @@ const SOURCE_SCREENS = [
     ready: '[data-testid="investments-prices-card"] [data-vendor="ecb"]',
     shows: [
       'Odakle dolaze cijene',
+      'Profili američkih dionica',
+      'Daje profile tvrtki i pretragu simbola.',
       'Europska središnja banka',
       'U ovom pregledniku nema ključa.',
       'Ne treba ključ.',
@@ -3159,6 +3168,24 @@ const FLOWS = [
     hash: '#/investments/settings?tab=prices',
     title: 'Postavke',
     run: investmentsClosesImportFlowIn('hr', CLOSES_SAMPLES),
+    viewports: EVERY_VIEWPORT,
+    modes: ['drive'],
+    queries: { drive: '&investments=sample&lang=hr' },
+  },
+  {
+    name: 'investments-instrument-search',
+    hash: '#/investments/settings',
+    title: 'Settings',
+    run: investmentsInstrumentSearchFlowIn('en'),
+    viewports: EVERY_VIEWPORT,
+    modes: ['drive'],
+    queries: { drive: '&investments=sample' },
+  },
+  {
+    name: 'investments-instrument-search-croatian',
+    hash: '#/investments/settings',
+    title: 'Postavke',
+    run: investmentsInstrumentSearchFlowIn('hr'),
     viewports: EVERY_VIEWPORT,
     modes: ['drive'],
     queries: { drive: '&investments=sample&lang=hr' },

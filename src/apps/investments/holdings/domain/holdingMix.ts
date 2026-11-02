@@ -3,6 +3,7 @@ import type { ExposureMix } from './exposure'
 import type { HoldingFigures } from './holding'
 import { heldHoldings } from './holdingsList'
 import type { PortfolioFigures } from './portfolioFigures'
+import type { FactsBook } from '../../prices/domain/factsBook'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import type { Mix, MixGroup } from '../../workbook/domain/mixGroup'
 import { DECIMAL_ZERO, moneyParts } from '../../../../shared/money/decimal'
@@ -38,18 +39,18 @@ interface Valued {
 
 /**
  * The value split by sector, country or region, class, currency or account. Sector and country split the holdings
- * alone by `exposureOf`, a fund over the groups of its own mix. Class and currency take each holding whole, by its
+ * alone by `exposureOf`, a fund over the groups of its own mix or of the weights a vendor gave. Class and currency take each holding whole, by its
  * class and its trading currency, and the cash by its currency. A holding in several accounts splits by its units
  * there, the last account taking the rest. Holdings with no price and cash with no rate are left out, as the value
  * leaves them out.
  */
-export function holdingMix<Of extends Mix>(figures: PortfolioFigures, book: InvestmentBook, mix: Of): HoldingMix<Of> {
-  const split = mix === 'sector' || mix === 'country' ? exposureSplit(figures, book, mix) : wholeSplit(figures, mix)
+export function holdingMix<Of extends Mix>(figures: PortfolioFigures, book: InvestmentBook, facts: FactsBook, mix: Of): HoldingMix<Of> {
+  const split = mix === 'sector' || mix === 'country' ? exposureSplit(figures, book, facts, mix) : wholeSplit(figures, mix)
   return { mix, ...split } as HoldingMix<Of>
 }
 
-function exposureSplit(figures: PortfolioFigures, book: InvestmentBook, mix: ExposureMix): Omit<HoldingMix<Mix>, 'mix'> {
-  const placed = heldHoldings(figures).map((holding) => ({ holding, value: holding.valuation?.value ?? null, exposure: exposureOf(holding.instrument, mix, book) }))
+function exposureSplit(figures: PortfolioFigures, book: InvestmentBook, facts: FactsBook, mix: ExposureMix): Omit<HoldingMix<Mix>, 'mix'> {
+  const placed = heldHoldings(figures).map((holding) => ({ holding, value: holding.valuation?.value ?? null, exposure: exposureOf(holding.instrument, mix, book, facts) }))
   const values = placed.flatMap(({ value, exposure }): Valued[] => {
     if (value === null) return []
     const parts = moneyParts(

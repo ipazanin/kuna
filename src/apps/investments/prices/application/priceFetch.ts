@@ -1,5 +1,6 @@
+import { factWork } from './factFetch'
 import type { PriceFetchPorts } from './pricesPorts'
-import type { PriceVendor, VendorAnswer, VendorFetch, VendorLimits } from './priceVendor'
+import type { ClosesVendor, PriceVendor, VendorAnswer, VendorFetch, VendorLimits } from './priceVendor'
 import { priceDemand } from '../domain/priceDemand'
 import type { PriceDemand, RatesWanted } from '../domain/priceDemand'
 import { investmentLots } from '../../holdings/domain/lots'
@@ -120,7 +121,7 @@ function yearBefore(day: string): string {
 }
 
 /** A series whose last close is a year older than the newest of its vendor is no longer published, as the kuna's rates since 2023, and keeps what it has. */
-function stillPublished(vendor: PriceVendor, stored: PricesFile, wanted: readonly WantedSeries[]): WantedSeries[] {
+function stillPublished(vendor: ClosesVendor, stored: PricesFile, wanted: readonly WantedSeries[]): WantedSeries[] {
   if (vendor.prices !== 'rates') {
     return [...wanted]
   }
@@ -153,7 +154,7 @@ function listingSpans(book: InvestmentBook, today: string): ListingSpans {
   return spans
 }
 
-function wantedOf(vendor: PriceVendor, demand: PriceDemand, spans: ListingSpans, today: string): WantedSeries[] {
+function wantedOf(vendor: ClosesVendor, demand: PriceDemand, spans: ListingSpans, today: string): WantedSeries[] {
   if (vendor.prices === 'rates') {
     return demand.currencies.map((currency) => ({ key: seriesKey(vendor.id, currency), symbol: currency, currency, start: demand.ratesStart, end: today, held: false }))
   }
@@ -161,14 +162,19 @@ function wantedOf(vendor: PriceVendor, demand: PriceDemand, spans: ListingSpans,
 }
 
 /** The series each vendor is asked for, as the records want them, without the rates a vendor no longer publishes. */
-function wantedSeries(vendor: PriceVendor, stored: PricesFile, book: InvestmentBook, day: string, ratesWanted: RatesWanted | null = null): WantedSeries[] {
+function wantedSeries(vendor: ClosesVendor, stored: PricesFile, book: InvestmentBook, day: string, ratesWanted: RatesWanted | null = null): WantedSeries[] {
   return stillPublished(vendor, stored, wantedOf(vendor, priceDemand(book, day, ratesWanted), listingSpans(book, day), day))
 }
 
 /** The vendors the records need closes or rates from, in the order given. */
-export function vendorsNeeded(vendors: readonly PriceVendor[], book: InvestmentBook, day: string): PriceVendor[] {
+export function vendorsNeeded(vendors: readonly PriceVendor[], book: InvestmentBook, day: string): ClosesVendor[] {
   const demand = priceDemand(book, day)
-  return vendors.filter((vendor) => wantedOf(vendor, demand, new Map(), day).length > 0)
+  return closesVendors(vendors).filter((vendor) => wantedOf(vendor, demand, new Map(), day).length > 0)
+}
+
+/** The vendors that give closes or rates, without those that give facts alone. */
+export function closesVendors(vendors: readonly PriceVendor[]): ClosesVendor[] {
+  return vendors.filter((vendor): vendor is ClosesVendor => vendor.prices !== 'facts')
 }
 
 /** The weekday before the day, the latest whose close a fetch on the day takes. */
@@ -196,17 +202,23 @@ function upToDate(known: PriceSeries | undefined, series: WantedSeries, day: str
 }
 
 /** One vendor in a fetch: its key in this browser, and the pacing its requests share. */
-interface VendorPlan {
-  readonly vendor: PriceVendor
+export interface VendorPlan<Vendor extends PriceVendor = PriceVendor> {
+  readonly vendor: Vendor
   readonly key: string | null
   readonly pacing: VendorPacing
-  fetch: VendorFetch
+  readonly fetch: VendorFetch
 }
 
 /** One series to ask for, and the vendor that has it. */
-interface Asking {
-  readonly plan: VendorPlan
+interface SeriesAsk {
+  readonly plan: VendorPlan<ClosesVendor>
   readonly series: WantedSeries
+}
+
+/** One request of a fetch, a series or a fact, with the vendor whose pacing it waits for. */
+export interface Asking {
+  readonly plan: VendorPlan
+  ask(): Promise<void>
 }
 
 /** What a fetch asks for: the day's closes and rates, the ECB rates alone with those an import wants, or a few series the day's fetch did not bring. */
@@ -215,13 +227,13 @@ export type PriceFetchScope = { readonly kind: 'day' } | { readonly kind: 'rates
 const DAY_FETCH: PriceFetchScope = { kind: 'day' }
 
 /** The holdings held come first, then those sold and the benchmark, then the rates, so the Overview is right as early as it can be. */
-function askingOrder(asking: readonly Asking[]): Asking[] {
-  const rank = ({ plan, series }: Asking): number => (plan.vendor.prices === 'rates' ? 2 : series.held ? 0 : 1)
+function askingOrder(asking: readonly SeriesAsk[]): SeriesAsk[] {
+  const rank = ({ plan, series }: SeriesAsk): number => (plan.vendor.prices === 'rates' ? 2 : series.held ? 0 : 1)
   return [...asking].sort((first, second) => rank(first) - rank(second))
 }
 
 /** The time the vendors' pacing still needs for the series from `from` on, one request each, starting at `clock`. */
-function pacingLeft(ordered: readonly Asking[], from: number, clock: number): number {
+function pacingLeft(ordered: readonly Pick<Asking, 'plan'>[], from: number, clock: number): number {
   const sent = new Map<VendorPacing, number[]>()
   let at = clock
   for (const { plan } of ordered.slice(from)) {
@@ -236,7 +248,7 @@ function pacingLeft(ordered: readonly Asking[], from: number, clock: number): nu
   return at - clock
 }
 
-async function fetchSeries(plan: VendorPlan, series: WantedSeries, stored: PricesFile, clock: PriceFetchClock, changes: FetchChanges): Promise<void> {
+async function fetchSeries(plan: SeriesAsk['plan'], series: WantedSeries, stored: PricesFile, clock: PriceFetchClock, changes: FetchChanges): Promise<void> {
   const failed = (reason: FailureReason): void => {
     changes.failures.push({ series: series.key, day: clock.day, reason })
   }
@@ -293,7 +305,7 @@ const ASK_AGAIN_AFTER_MILLISECONDS = 15 * 60_000
  */
 export function seriesToAskAgain(vendors: readonly PriceVendor[], stored: PricesFile, book: InvestmentBook, clock: PriceFetchClock): string[] {
   const waited = stored.writtenAt === null || Date.parse(clock.at) - Date.parse(stored.writtenAt) >= ASK_AGAIN_AFTER_MILLISECONDS
-  return vendors.flatMap((vendor) =>
+  return closesVendors(vendors).flatMap((vendor) =>
     wantedSeries(vendor, stored, book, clock.day)
       .filter((series) => {
         if (upToDate(stored.series[series.key], series, clock.day)) {
@@ -310,7 +322,8 @@ export function seriesToAskAgain(vendors: readonly PriceVendor[], stored: Prices
  * Fetches the closes the Investments records need from each vendor, the history of any new series and the latest
  * closes of the others, and overwrites the prices file. The holdings held are asked for first. A series that fails
  * keeps its closes as they were, with the failure noted in the file. A file that is no prices file Kuna can read is
- * left as it is.
+ * left as it is. A day's fetch then asks for the facts `factWork` names, through the same pacing, so they spend what
+ * the closes leave of a vendor's day.
  *
  * The rates scope fetches the ECB rates alone, those wanted beside those the records need. That is no day's fetch, so
  * the file keeps the time of the last one. It and the series scope keep the failures noted for the series they did not ask for.
@@ -325,9 +338,9 @@ export async function fetchPrices(ports: PriceFetchPorts, vendors: readonly Pric
   const paused: PausedTime = { elapsed: 0 }
   let current = 0
   let upToDateCount = 0
-  const asking: Asking[] = []
-  for (const vendor of scope.kind === 'rates' ? vendors.filter((candidate) => candidate.prices === 'rates') : vendors) {
-    const plan: VendorPlan = { vendor, key: vendor.needsKey ? ports.key(vendor.id) : null, pacing: newPacing(), fetch: ports.fetch }
+  const asking: SeriesAsk[] = []
+  const plans: VendorPlan[] = []
+  const planOf = <Vendor extends PriceVendor>(vendor: Vendor): VendorPlan<Vendor> => {
     const reportingPause = async (milliseconds: number): Promise<void> => {
       ports.progress({
         asked: current + 1,
@@ -337,27 +350,51 @@ export async function fetchPrices(ports: PriceFetchPorts, vendors: readonly Pric
       })
       await ports.pause(milliseconds)
     }
-    plan.fetch = pacedFetch({ fetch: ports.fetch, pause: reportingPause }, vendor, paused, plan.pacing)
+    const pacing = newPacing()
+    const plan = { vendor, key: vendor.needsKey ? ports.key(vendor.id) : null, pacing, fetch: pacedFetch({ fetch: ports.fetch, pause: reportingPause }, vendor, paused, pacing) }
+    plans.push(plan)
+    return plan
+  }
+  for (const vendor of scope.kind === 'rates' ? vendors.filter((candidate) => candidate.prices === 'rates') : vendors) {
+    if (vendor.prices === 'facts') {
+      planOf(vendor)
+      continue
+    }
+    const plan = planOf(vendor)
     const wanted = wantedSeries(vendor, stored, book, clock.day, scope.kind === 'rates' ? scope.wanted : null)
     const covered = wanted.filter((series) => upToDate(stored.series[series.key], series, clock.day))
     upToDateCount += covered.length
     asking.push(...wanted.filter((series) => !covered.includes(series) && (scope.kind !== 'series' || scope.keys.includes(series.key))).map((series) => ({ plan, series })))
   }
-  const ordered = askingOrder(asking)
+  const seriesAsked = askingOrder(asking)
   const changes: FetchChanges = { series: new Map(), splits: [], failures: [] }
+  const facts = scope.kind === 'day' ? factWork(plans, stored.facts, book, clock.day) : null
+  const ordered: Asking[] = [...seriesAsked.map(({ plan, series }) => ({ plan, ask: () => fetchSeries(plan, series, stored, clock, changes) })), ...(facts?.asks ?? [])]
   ports.progress({ asked: 0, of: ordered.length, leftMilliseconds: pacingLeft(ordered, 0, 0), pause: null })
-  for (const [place, { plan, series }] of ordered.entries()) {
+  for (const [place, { ask }] of ordered.entries()) {
     current = place
     ports.progress({ asked: place + 1, of: ordered.length, leftMilliseconds: pacingLeft(ordered, place, paused.elapsed), pause: null })
-    await fetchSeries(plan, series, stored, clock, changes)
+    await ask()
   }
-  const askedSeries = new Set(ordered.map(({ series }) => series.key))
+  const askedSeries = new Set(seriesAsked.map(({ series }) => series.key))
+  // A fetch of a few series asks for no facts, so the day's counts of them stay.
+  const factCounts = facts?.counts() ?? { asked: stored.lastFetch?.factsAsked ?? 0, left: stored.lastFetch?.factsLeft ?? 0, keyless: stored.lastFetch?.factsKeyless ?? [] }
   const written: PricesFile = {
     writtenAt: scope.kind === 'rates' ? stored.writtenAt : clock.at,
-    lastFetch: scope.kind === 'rates' ? stored.lastFetch : { asked: ordered.filter(({ plan }) => !plan.vendor.needsKey || plan.key !== null).length, upToDate: upToDateCount },
+    lastFetch:
+      scope.kind === 'rates'
+        ? stored.lastFetch
+        : {
+            asked: seriesAsked.filter(({ plan }) => !plan.vendor.needsKey || plan.key !== null).length,
+            upToDate: upToDateCount,
+            factsAsked: factCounts.asked,
+            factsLeft: factCounts.left,
+            factsKeyless: factCounts.keyless,
+          },
     series: { ...stored.series, ...Object.fromEntries(changes.series) },
     splits: mergedSplits(stored.splits, changes.splits),
     failures: scope.kind === 'day' ? changes.failures : [...stored.failures.filter((failure) => !askedSeries.has(failure.series)), ...changes.failures],
+    facts: facts?.facts() ?? stored.facts,
   }
   await ports.writePrices(encodePricesFile(written))
   return { kind: 'written', file: written }

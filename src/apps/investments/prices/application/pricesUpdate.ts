@@ -52,9 +52,10 @@ export interface PricesFetchMoment {
   readonly askAgain: readonly string[]
 }
 
-/** The vendors a prices file notes as having had no key on its last fetch. */
+/** The vendors a prices file notes as having had no key on its last fetch, for closes or for facts. */
 export function keylessVendors(file: PricesFile): string[] {
-  return [...new Set(file.failures.filter((failure) => failure.reason === 'no-key').map((failure) => failure.series.split(':')[0]!))]
+  const forCloses = file.failures.filter((failure) => failure.reason === 'no-key').map((failure) => failure.series.split(':')[0]!)
+  return [...new Set([...forCloses, ...(file.lastFetch?.factsKeyless ?? [])])]
 }
 
 /** Written today in Zagreb, by a fetch that had every key this browser holds. */

@@ -1,5 +1,6 @@
 import { words } from './words'
-import { CLASS_OF_TYPE, INSTRUMENT_TYPES, TYPE_OF_QUOTING } from '../../workbook/domain/instrument'
+import type { SearchedListing } from '../../prices/application/symbolSearch'
+import { CLASS_OF_TYPE, INSTRUMENT_TYPES, PRICE_SOURCES, TYPE_OF_QUOTING } from '../../workbook/domain/instrument'
 import type { Instrument, InstrumentClass, InstrumentType, PriceSource, Quoting } from '../../workbook/domain/instrument'
 import { ISIN, MIC } from '../../workbook/domain/instrumentReading'
 import { COUNTRY_CODES, REGIONS, SECTORS, countryOf } from '../../workbook/domain/mixGroup'
@@ -95,6 +96,27 @@ export function instrumentErrors(texts: InstrumentTexts, others: readonly Instru
 
 export function hasInstrumentErrors(errors: InstrumentErrors): boolean {
   return Object.values(errors).some((error) => error !== null)
+}
+
+/**
+ * The fields with a listing a search found: its symbol where none is typed, its name where none is typed, the type
+ * its vendor's words propose where the quoting allows it, and its market's code and currency where the vendor gives
+ * them. Where a vendor that found it gives its closes on a free key, that vendor becomes the price source with the
+ * listing's symbol at the source, the source already chosen first. Otherwise the price source stays as it was.
+ */
+export function withListing(texts: InstrumentTexts, listing: SearchedListing, quoted: Quoting['kind']): InstrumentTexts {
+  const sources = listing.sources.flatMap((vendorId) => PRICE_SOURCES.filter((known) => known === vendorId))
+  const source = sources.find((known) => known === texts.prices) ?? sources[0]
+  const proposed = listing.proposedType
+  return {
+    ...texts,
+    symbol: texts.symbol.trim() === '' ? listing.symbol : texts.symbol,
+    name: texts.name.trim() === '' ? listing.name : texts.name,
+    type: proposed !== null && typeItems(quoted).some((item) => item.value === proposed) ? proposed : texts.type,
+    exchange: listing.mic ?? texts.exchange,
+    currency: listing.currency !== null && currencyCodeOf(listing.currency) !== null ? listing.currency : texts.currency,
+    ...(source === undefined ? {} : { prices: source, sourceSymbol: listing.symbol }),
+  }
 }
 
 /** What an instrument keeps that its fields do not show, from the record changed or a new one's start. */

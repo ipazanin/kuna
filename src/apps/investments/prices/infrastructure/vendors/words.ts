@@ -5,12 +5,14 @@ import type { Translation } from '../../../../../shared/text/translation'
 
 export const en = {
   twelveData: { name: 'Twelve Data', covers: 'US shares and ETFs' },
+  finnhub: { name: 'Finnhub', covers: 'Company profiles of US shares' },
   alphaVantage: { name: 'Alpha Vantage', covers: 'Xetra, Amsterdam and other European listings' },
   ecb: { name: 'European Central Bank', covers: 'Euro exchange rates' },
 }
 
 export const hr: Translation<typeof en> = {
   twelveData: { name: 'Twelve Data', covers: 'Američke dionice i ETF-ovi' },
+  finnhub: { name: 'Finnhub', covers: 'Profili američkih dionica' },
   alphaVantage: { name: 'Alpha Vantage', covers: 'Xetra, Amsterdam i druge europske burze' },
   ecb: { name: 'Europska središnja banka', covers: 'Tečajevi eura' },
 }

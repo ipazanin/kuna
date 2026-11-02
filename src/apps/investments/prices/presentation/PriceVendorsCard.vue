@@ -31,7 +31,14 @@ function save(vendor: PriceVendor): void {
 }
 
 function offers(vendor: PriceVendor): string {
-  const given = [vendor.prices === 'rates' ? words.capabilities.rates : words.capabilities.closes, ...(vendor.splits === undefined ? [] : [words.capabilities.splits])]
+  const given = [
+    ...(vendor.prices === 'rates' ? [words.capabilities.rates] : vendor.prices === 'listings' ? [words.capabilities.closes] : []),
+    ...(vendor.splits === undefined ? [] : [words.capabilities.splits]),
+    ...(vendor.profile === undefined ? [] : [words.capabilities.profiles]),
+    ...(vendor.fundSectors === undefined ? [] : [words.capabilities.fundSectors]),
+    ...(vendor.dividends === undefined ? [] : [words.capabilities.dividends]),
+    ...(vendor.search === undefined ? [] : [words.capabilities.search]),
+  ]
   return `${words.offers} ${listInWords(given)}.`
 }
 

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import { incomeForecast } from '../src/apps/investments/income/domain/incomeForecast'
+import { fetchedFactsBook } from '../src/apps/investments/prices/domain/factsBook'
+import { NO_FETCHED_FACTS } from '../src/apps/investments/prices/domain/pricesFile'
+import type { FactsBook } from '../src/apps/investments/prices/domain/factsBook'
+import type { DividendRow } from '../src/apps/investments/prices/domain/pricesFile'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
 import type { PercentQuoting } from '../src/apps/investments/workbook/domain/instrument'
 import { decimalText } from '../src/shared/money/decimal'
@@ -8,8 +12,15 @@ import { EURO } from '../src/shared/money/currencyCode'
 import { BROKER, STOCK_B, USD, WORKED_PRICES, WORKED_RATES, book, cashMovement, decimal, dividend, exchange, instrument, split, trade, workedPortfolio } from './fixtures/investments'
 import { civil, euros } from './fixtures/ledger'
 
-function forecastOn(records: InvestmentBook, today: string) {
-  return incomeForecast({ book: records, prices: WORKED_PRICES, rates: WORKED_RATES, today: civil(today) })
+const NOTHING_FETCHED = fetchedFactsBook(NO_FETCHED_FACTS)
+
+function forecastOn(records: InvestmentBook, today: string, facts: FactsBook = NOTHING_FETCHED) {
+  return incomeForecast({ book: records, prices: WORKED_PRICES, rates: WORKED_RATES, today: civil(today) }, facts)
+}
+
+/** What a made-up Alpha Vantage announced of Stock B, as the prices file keeps it. */
+function announcing(...dividends: DividendRow[]): FactsBook {
+  return fetchedFactsBook({ ...NO_FETCHED_FACTS, dividends: { 'alphavantage:STOCK-B': { asked: '2026-10-29', dividends } } })
 }
 
 /** 40 Stock B bought in January 2026, a dividend in June on those 40, and 10 more bought in August. */
@@ -79,8 +90,68 @@ describe('coming income', () => {
 
   it('shows a copy in a currency with no rate yet without euros, outside the total', () => {
     const records = dividendPayer()
-    const forecast = incomeForecast({ book: records, prices: WORKED_PRICES, rates: { unitsPerEuroOnOrBefore: () => null }, today: civil('2026-10-29') })
+    const forecast = incomeForecast({ book: records, prices: WORKED_PRICES, rates: { unitsPerEuroOnOrBefore: () => null }, today: civil('2026-10-29') }, NOTHING_FETCHED)
     expect(forecast.months.flatMap((month) => month.payments).map((copy) => copy.received)).toEqual([null])
     expect(forecast.received).toBe(euros(0))
+  })
+})
+
+describe('announced dividends in the coming income', () => {
+  it('replaces the copy of 15 Jun 2027 with $0.32 a unit announced for 10 Jun on the 50 held, withholding the last payment’s 15%, €12.14 at 1.12', () => {
+    const forecast = forecastOn(dividendPayer(), '2026-10-29', announcing(['2027-06-01', '2027-06-10', '0.32']))
+    const june = forecast.months.find((month) => month.month === '2027-06')
+    // 50 × $0.32 = $16.00 gross, $2.40 withheld as $1.80 was of $12.00, and $13.60 at 1.12 is €12.14.
+    expect(june?.payments.map((payment) => [payment.kind, payment.date, decimalText(payment.gross), decimalText(payment.withheld), payment.received])).toEqual([
+      ['announced', '2027-06-10', '16', '2.4', euros(12.14)],
+    ])
+    expect(forecast.received).toBe(euros(12.14))
+  })
+
+  it('keeps the copy beside an announced payment more than 20 days from it', () => {
+    const forecast = forecastOn(dividendPayer(), '2026-10-29', announcing(['2027-07-10', '2027-07-20', '0.32']))
+    expect(forecast.months.flatMap((month) => month.payments).map((payment) => [payment.kind, payment.date])).toEqual([
+      ['copied', '2027-06-15'],
+      ['announced', '2027-07-20'],
+    ])
+    expect(forecast.received).toBe(euros(11.38 + 12.14))
+  })
+
+  it('replaces the copy of 15 Jun 2027 with a payment announced 20 days later, and keeps it beside one 21 days later', () => {
+    const kinds = (paid: string) =>
+      forecastOn(dividendPayer(), '2026-10-29', announcing(['2027-06-25', paid, '0.32'])).months.flatMap((month) => month.payments.map((payment) => [payment.kind, payment.date]))
+    expect(kinds('2027-07-05')).toEqual([['announced', '2027-07-05']])
+    expect(kinds('2027-07-06')).toEqual([
+      ['copied', '2027-06-15'],
+      ['announced', '2027-07-06'],
+    ])
+  })
+
+  it('replaces the nearer of two copies within 20 days, 25 Jun 2027 for a payment announced for 22 Jun, and keeps 15 Jun', () => {
+    const records = dividendPayer()
+    const twice = { ...records, income: [...records.income, dividend(BROKER, STOCK_B, '2026-06-25', '12', '1.80', '1.15')] }
+    expect(forecastOn(twice, '2026-10-29', announcing(['2027-06-12', '2027-06-22', '0.32'])).months.flatMap((month) => month.payments.map((payment) => [payment.kind, payment.date]))).toEqual([
+      ['copied', '2027-06-15'],
+      ['announced', '2027-06-22'],
+    ])
+  })
+
+  it('pays a dividend whose ex day has passed on the 50 units held the day before it, not on those bought or sold since', () => {
+    const records = dividendPayer()
+    const facts = announcing(['2026-10-20', '2026-11-10', '0.32'])
+    const bought = { ...records, trades: [...records.trades, trade('buy', BROKER, STOCK_B, '2026-10-20', '10', '56', '0', '1.17')] }
+    const sold = { ...records, trades: [...records.trades, trade('sell', BROKER, STOCK_B, '2026-10-20', '50', '56', '0', '1.17')] }
+    // 50 × $0.32 = $16.00 gross either way, $2.40 withheld, €12.14 at 1.12.
+    for (const held of [bought, sold]) {
+      const november = forecastOn(held, '2026-10-29', facts).months.find((month) => month.month === '2026-11')
+      expect(november?.payments.map((payment) => [payment.kind, decimalText(payment.gross), payment.received])).toEqual([['announced', '16', euros(12.14)]])
+    }
+  })
+
+  it('counts no announced payment already paid, past the twelfth month, or of a holding sold since', () => {
+    const facts = announcing(['2026-10-01', '2026-10-20', '0.32'], ['2027-10-01', '2027-10-15', '0.32'])
+    expect(forecastOn(dividendPayer(), '2026-10-29', facts).months.flatMap((month) => month.payments.map((payment) => payment.kind))).toEqual(['copied'])
+    const records = dividendPayer()
+    const sold = { ...records, trades: [...records.trades, trade('sell', BROKER, STOCK_B, '2026-09-01', '50', '56', '0', '1.17')] }
+    expect(forecastOn(sold, '2026-10-29', announcing(['2027-06-01', '2027-06-10', '0.32'])).received).toBe(euros(0))
   })
 })

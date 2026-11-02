@@ -113,7 +113,7 @@ describe('the dry run and the write of a file of closes', () => {
     await fetchPrices(ports, [alphaVantage], { at: '2026-02-13T07:00:00.000Z', day: '2026-02-13' })
 
     // One request for the daily closes, which reach back to the last imported close of 10 Feb, and none for the history before it.
-    expect(asked.map((url) => new URL(url).searchParams.get('function'))).toEqual(['TIME_SERIES_DAILY'])
+    expect(asked.map((url) => new URL(url).searchParams.get('function')).filter((asking) => asking?.startsWith('TIME_SERIES'))).toEqual(['TIME_SERIES_DAILY'])
     const read = decodePricesFile(text)
     expect(read.kind === 'read' ? read.file.series['alphavantage:MWE.DEX']!.closes.at(-1) : null).toEqual(['2026-02-12', '140.0000'])
   })

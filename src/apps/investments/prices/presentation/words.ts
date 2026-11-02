@@ -63,7 +63,15 @@ export const en = {
   lastFetchTitle: 'Last fetch',
   lastFetchSubtitle: 'Kuna asks only for the closes it does not have yet, once a day and again for what is missing.',
   offers: 'Gives',
-  capabilities: { closes: 'daily closes', rates: 'euro exchange rates', splits: 'splits' },
+  capabilities: {
+    closes: 'daily closes',
+    rates: 'euro exchange rates',
+    splits: 'splits',
+    profiles: 'company profiles',
+    fundSectors: 'sector weights of funds',
+    dividends: 'announced dividends',
+    search: 'symbol search',
+  },
   freeLimits: (perMinute: number | null, perDay: number | null) =>
     perMinute === null && perDay === null
       ? 'States no limits.'
@@ -79,6 +87,8 @@ export const en = {
       ? { one: `${vendor} asks Kuna to slow down, waiting 1 second`, other: `${vendor} asks Kuna to slow down, waiting ${seconds} seconds` }
       : { one: `${vendor} allows ${perMinute} a minute, waiting 1 second`, other: `${vendor} allows ${perMinute} a minute, waiting ${seconds} seconds` },
   lastCounts: (asked: number, upToDate: number) => (asked === 0 ? `Every series was up to date, ${upToDate} in all.` : `Asked for ${asked} series, ${upToDate} already up to date.`),
+  lastFacts: (asked: number): EnglishForms => ({ one: 'Asked for 1 fact about the holdings.', other: `Asked for ${asked} facts about the holdings.` }),
+  factsLeft: (left: number): EnglishForms => ({ one: "1 is left for tomorrow by a vendor's daily limit.", other: `${left} are left for tomorrow by a vendor's daily limit.` }),
   fetchNow: 'Fetch now',
   failures: {
     title: (count: number): EnglishForms => ({ one: 'The last fetch got nothing for 1 series', other: `The last fetch got nothing for ${count} series` }),
@@ -178,7 +188,15 @@ export const hr: Translation<typeof en> = {
   lastFetchTitle: 'Zadnje dohvaćanje',
   lastFetchSubtitle: 'Kuna traži samo zaključne cijene koje još nema, jednom dnevno i ponovno za ono što nedostaje.',
   offers: 'Daje',
-  capabilities: { closes: 'dnevne zaključne cijene', rates: 'tečajeve eura', splits: 'podjele dionica' },
+  capabilities: {
+    closes: 'dnevne zaključne cijene',
+    rates: 'tečajeve eura',
+    splits: 'podjele dionica',
+    profiles: 'profile tvrtki',
+    fundSectors: 'sektorske udjele fondova',
+    dividends: 'najavljene dividende',
+    search: 'pretragu simbola',
+  },
   freeLimits: (perMinute, perDay) =>
     perMinute === null && perDay === null
       ? 'Ne navodi ograničenja.'
@@ -194,6 +212,16 @@ export const hr: Translation<typeof en> = {
     return { one: `${said}, čeka se ${seconds} sekundu`, few: `${said}, čeka se ${seconds} sekunde`, other: `${said}, čeka se ${seconds} sekundi` }
   },
   lastCounts: (asked, upToDate) => (asked === 0 ? `Svi nizovi bili su ažurni, njih ${upToDate}.` : `Zatraženo nizova: ${asked}, već ažurnih: ${upToDate}.`),
+  lastFacts: (asked) => ({
+    one: `Zatražen je ${asked} podatak o pozicijama.`,
+    few: `Zatražena su ${asked} podatka o pozicijama.`,
+    other: `Zatraženo je ${asked} podataka o pozicijama.`,
+  }),
+  factsLeft: (left) => ({
+    one: `${left} podatak ostaje za sutra zbog dnevnog ograničenja izvora.`,
+    few: `${left} podatka ostaju za sutra zbog dnevnog ograničenja izvora.`,
+    other: `${left} podataka ostaje za sutra zbog dnevnog ograničenja izvora.`,
+  }),
   fetchNow: 'Dohvati sada',
   failures: {
     title: (count) => ({

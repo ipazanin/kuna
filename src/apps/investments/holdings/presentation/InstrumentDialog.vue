@@ -10,7 +10,8 @@ import { usePrices } from '../../prices/presentation/usePrices'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import InstrumentFields from './InstrumentFields.vue'
 import InstrumentMixRows from './InstrumentMixRows.vue'
-import { instrumentErrors, instrumentOfTexts, instrumentTexts } from './instrumentForm'
+import InstrumentSearch from './InstrumentSearch.vue'
+import { instrumentErrors, instrumentOfTexts, instrumentTexts, withListing } from './instrumentForm'
 import type { InstrumentTexts } from './instrumentForm'
 import { fundMixChanges, fundMixErrors, fundMixTexts } from './instrumentMixForm'
 import type { FundMixTexts } from './instrumentMixForm'
@@ -118,6 +119,7 @@ async function remove(): Promise<void> {
 <template>
   <AppDialog v-model:open="open" :title="instrument !== null ? text.changeTitle : asBenchmark ? text.addBenchmarkTitle : text.addTitle" :description="text.description" width="2xl">
     <FormGrid id="instrument" as="form" data-testid="instrument-form" @submit.prevent="save">
+      <InstrumentSearch @pick="texts = withListing(texts, $event, instrument?.quoted.kind ?? 'unit')" />
       <InstrumentFields v-model="texts" :errors="errors" :tried="tried" :book="book" :quoted="instrument?.quoted.kind ?? 'unit'" />
       <InstrumentMixRows v-model="mixTexts" :errors="mixErrors" :tried="tried" />
     </FormGrid>

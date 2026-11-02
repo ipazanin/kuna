@@ -34,7 +34,7 @@ export function createCloseLookup(vendors: readonly PriceVendor[], ports: Pick<P
       for (const [index, ask] of asks.entries()) {
         const vendor = vendors.find((candidate) => candidate.id === ask.source)
         const key = vendor === undefined || !vendor.needsKey ? null : ports.key(vendor.id)
-        if (vendor !== undefined && (!vendor.needsKey || key !== null)) {
+        if (vendor !== undefined && vendor.prices !== 'facts' && (!vendor.needsKey || key !== null)) {
           const fetched = await vendor.closes(fetchOf(vendor), key, ask.symbol, ask.from)
           if (fetched.kind === 'closes') {
             found.set(seriesKey(ask.source, ask.symbol), fetched.closes)

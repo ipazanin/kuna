@@ -1956,7 +1956,7 @@ npm run check          # lint, format check, typecheck and unit tests, the impor
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
 npm run preview:fake -- --port 4173
-npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the owner's part of a shared row under its category's filter, Owner's two tabs under a year and the default period, the gallery's donuts, every donut's total and label inside its ring's hole, the home at every width, with each app in Set up on a fresh device and its figures beside the Overview's, the tabs of the company's Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the employees on Salaries among them, the categories searched, filtered to a bucket, sorted and a row edited while filtered and sorted, an owner advance changed and deleted, a settled row's category changed and undone, the laptop's owner share changed and cleared with undo, a category's default saved with the fill offer and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on its To review tab, a dismissal on Settings, Category rules with restore and undo, a rule changed and deleted from its editor there, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder saved from Settings, General, onboarding's first steps, new books on the fake Drive with statements by hand, whose folder confirm names the folder alone, with statements from a folder, whose confirm names the path and whose company step asks for no folder of the accountant's, and with statements from mail, whose access step names the bank and asks for Gmail read beside the books file alone, whose confirm names the statements folder it makes and whose first sync files the bank's mail there and holds the statement of the account the books lack, new books in this browser with Getting set up opening Import, an xlsx brought to the fake Drive through access, its summary and the folder, books found on Drive, the statement step asking for Drive read before the Picker, a workbook kept in this browser moved there with the Drive read its folders need asked up front, a row confirmed while another device saves with undo, and with the file on Drive a sync that files a statement from the fake statements folder with undo in its step on Kuna settings and no toast, one that holds a statement of a new account with 1 problem in the sync control and its steps in a popover or a bottom sheet linking to Import, where the account is named and filed, one that finds nothing new and says nothing, Allow access in the sync control, the control while a slow step runs and once ready, the mail step off, then a sender and subject saved on the Mail card and filed by the next sync, the step filing a statement the same sync reads with the list it links to, a second sync filing nothing new and the accountant's mail fields, nothing new, a source that failed and an upload that failed each with 1 problem in the control, Allow access for Gmail read, a save on the Mail card that asks for Gmail read in its own tap and syncs, the accountant's mail switched off, the payroll switched on without a sender with what it lacks in the line and under its switch, Gmail asking to slow down with one plain sentence in its step and on the Mail card, the search after mail another app filed starting a week before the newest file, and Allow access whose Google window closed with the line that says so, Salaries for one and for five made-up employees on each tab, and with five the one problem's build-up and rows, a name on People and a month of Over time, Settings, Books file for a file a newer app saved, each app's own menu in the sidebar and the drawer under the link home, Kuna settings and the Loans Settings, the Loans first run with a new file on the fake Drive beside the company's, one in this browser and another device's found by its mark, the empty Loans Overview, and the Loans Settings naming the file, on Drive and in this browser, the sample Loans Overview, the Overview with a house loan and a car loan, and both loan pages, with every Loans screen, the home, Kuna settings, the Loans first run, the Loans dialogs, the what-if and the app menu also in Croatian, a single loan's full-width card, the Overview while the file opens, the what-if with the subsidy warning and Apply, and a bank loan added with a rate period, an extra payment, a late instalment and a subsidy named first as the subsidy and then by its payer, a movement added and the loan deleted and brought back with Undo, the subsidy dialog showing its payer, inputs side by side at one height in every form and every dashboard grid rearranged from 768 to 1440 and to 1920 px, with every Loans dialog and the Company dialogs with fields two to a row opened at each width, Scenarios with a scenario unpicked and repicked, the base changed, a scenario deleted and undone, a regular extra payment typed into a new scenario and the what-if's payment kept as a scenario, the Investments first run, its empty Overview and its Settings, each in Croatian too, and its Overview while the file opens, the sample's Holdings, with a late close too, and two holdings' pages, each in Croatian too, Performance on the sample, on a portfolio too young for a rate a year with no benchmark and with no closes of the benchmark, each in Croatian too, the sample's Transactions in Croatian too and on an empty file, a buy added with its summary, changed, deleted and brought back with Undo, a sale beyond what is held refused and a holding added from inside the transaction dialog, and every Investments dialog at each width in English and Croatian, and every screen and every Croatian flow failing on English left on a Croatian screen, screenshots in visual-check/
+npm run check:visual   # every screen at nine widths from 360 to 2560 in local Chrome, dark and light at 360, 430 and 1440, cards wider than their content, a card collapsed and expanded per screen, deep links into collapsed cards, the owner's part of a shared row under its category's filter, Owner's two tabs under a year and the default period, the gallery's donuts, every donut's total and label inside its ring's hole, the home at every width, with each app in Set up on a fresh device and its figures beside the Overview's, the tabs of the company's Settings with Back through them and a link to the last one, a link to Year's Statements tab alone kept in its year through two tabs and Back, a rule opened in the side panel from a link, and the row editors' add, edit, delete and undo at 360 and 1440 in both modes, the employees on Salaries among them, the categories searched, filtered to a bucket, sorted and a row edited while filtered and sorted, an owner advance changed and deleted, a settled row's category changed and undone, the laptop's owner share changed and cleared with undo, a category's default saved with the fill offer and undone, the pay scenario editor's, the plan editor's, the split editor's on Transactions and on its To review tab, a dismissal on Settings, Category rules with restore and undo, a rule changed and deleted from its editor there, each undone, both statement imports with their dry run, confirm and undo at 430 too, the statements folder saved from Settings, General, onboarding's first steps, new books on the fake Drive with statements by hand, whose folder confirm names the folder alone, with statements from a folder, whose confirm names the path and whose company step asks for no folder of the accountant's, and with statements from mail, whose access step names the bank and asks for Gmail read beside the books file alone, whose confirm names the statements folder it makes and whose first sync files the bank's mail there and holds the statement of the account the books lack, new books in this browser with Getting set up opening Import, an xlsx brought to the fake Drive through access, its summary and the folder, books found on Drive, the statement step asking for Drive read before the Picker, a workbook kept in this browser moved there with the Drive read its folders need asked up front, a row confirmed while another device saves with undo, and with the file on Drive a sync that files a statement from the fake statements folder with undo in its step on Kuna settings and no toast, one that holds a statement of a new account with 1 problem in the sync control and its steps in a popover or a bottom sheet linking to Import, where the account is named and filed, one that finds nothing new and says nothing, Allow access in the sync control, the control while a slow step runs and once ready, the mail step off, then a sender and subject saved on the Mail card and filed by the next sync, the step filing a statement the same sync reads with the list it links to, a second sync filing nothing new and the accountant's mail fields, nothing new, a source that failed and an upload that failed each with 1 problem in the control, Allow access for Gmail read, a save on the Mail card that asks for Gmail read in its own tap and syncs, the accountant's mail switched off, the payroll switched on without a sender with what it lacks in the line and under its switch, Gmail asking to slow down with one plain sentence in its step and on the Mail card, the search after mail another app filed starting a week before the newest file, and Allow access whose Google window closed with the line that says so, Salaries for one and for five made-up employees on each tab, and with five the one problem's build-up and rows, a name on People and a month of Over time, Settings, Books file for a file a newer app saved, each app's own menu in the sidebar and the drawer under the link home, Kuna settings and the Loans Settings, the Loans first run with a new file on the fake Drive beside the company's, one in this browser and another device's found by its mark, the empty Loans Overview, and the Loans Settings naming the file, on Drive and in this browser, the sample Loans Overview, the Overview with a house loan and a car loan, and both loan pages, with every Loans screen, the home, Kuna settings, the Loans first run, the Loans dialogs, the what-if and the app menu also in Croatian, a single loan's full-width card, the Overview while the file opens, the what-if with the subsidy warning and Apply, and a bank loan added with a rate period, an extra payment, a late instalment and a subsidy named first as the subsidy and then by its payer, a movement added and the loan deleted and brought back with Undo, the subsidy dialog showing its payer, inputs side by side at one height in every form and every dashboard grid rearranged from 768 to 1440 and to 1920 px, with every Loans dialog and the Company dialogs with fields two to a row opened at each width, Scenarios with a scenario unpicked and repicked, the base changed, a scenario deleted and undone, a regular extra payment typed into a new scenario and the what-if's payment kept as a scenario, the Investments first run, its empty Overview and its Settings, each in Croatian too, and its Overview while the file opens, the sample's Holdings, with a late close too, and two holdings' pages, each in Croatian too, Performance on the sample, on a portfolio too young for a rate a year with no benchmark and with no closes of the benchmark, each in Croatian too, the sample's Transactions in Croatian too and on an empty file, a buy added with its summary, changed, deleted and brought back with Undo, a sale beyond what is held refused and a holding added from inside the transaction dialog, and every Investments dialog at each width in English and Croatian, the holding dialog's search of the price sources among them, and every screen and every Croatian flow failing on English left on a Croatian screen, screenshots in visual-check/
 npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer of one app's menu under the link home, the home's top bar without a menu button and a fresh device's home in Set up, the tabs of the company's Settings with Back, a link to Year's Statements tab alone kept in its year, the Tax rules search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the categories searched, filtered from their sheet, sorted and edited while filtered, Owner opening on Taken with its net share and monthly net pay tiles, Owner's Filters button on the tab row setting one period for both tabs, the owner take under its ring against its tile, a month of the loan balance beside the ring opening its rows, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, one added outside the period and opened from its toast, the split editor on Transactions and its To review tab, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed and held on sync with each state of the sync control and its steps in a bottom sheet, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and back into onboarding's access step, and from the silent ask after a sign-in with the sync it carries, ending ready or in Allow access, Salaries for five made-up employees with the gross to net chart's tap-then-drill, the one problem's build-up and rows, People and Over time, the mail step off, saved, filing with its list and filing nothing new the second time, nothing new, a failed source, a failed upload, needing Gmail read access and saved with Gmail read asked in the same tap, the accountant's mail switched off, the payroll switched on without a sender, Gmail asking to slow down, the window after mail already there, Allow access whose Google window closed, onboarding on the fake Drive with statements by hand, from mail with its first sync and from a folder, in this browser, with an xlsx brought along and with books found on Drive, the statement step asking for Drive read before the Picker, a workbook moved there from Settings, Books file with the Drive read its folders need, a race kept on both sides, the newer-file notice, the Loans find a tap resumed ending on the Loans Overview, the sample Loans Overview and both loan pages with a plan row opened by a tap and the payments chart as a table, an extra payment entered and undone, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, the Investments first run making its file on the fake Drive and ending on its empty Overview and Settings, a Holdings row opening its holding's page and the way back, the period of Performance changed to 1Y, to a year and back to All, a dollar buy typed on Transactions with 0.01k in its fees and its summary read, then added and undone, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # open as the document, write and read it, export and open again, counts only
@@ -2403,24 +2403,44 @@ its day, a split that leaves a lot with no units, or targets of a second mix bes
 ### Investments prices
 
 Investments values holdings at daily closes that Kuna fetches itself, in the page, from price vendors
-with each user's own free keys. It writes them to a second Drive file, `kuna-investments-prices.json`,
-beside the Investments file, so every device reads the same closes. Below are the prices file, how the
-figures read it, the vendors, the fetch that writes it, the Prices step of the page's sync, the
-once-a-day fetch, the Overview's line on how the prices stand and the Prices card in the Investments
-Settings.
+with each user's own free keys, and asks the same vendors a few facts about the holdings: a company's
+industry and country, a fund's weights by sector, announced dividends and what a listing is. It writes
+them to a second Drive file, `kuna-investments-prices.json`, beside the Investments file, so every
+device reads the same closes and facts. Below are the prices file, how the figures read it, the
+vendors, the fetch that writes it, the Prices step of the page's sync, the once-a-day fetch, the
+Overview's line on how the prices stand and the Prices card in the Investments Settings.
 
 The prices file is defined once, in `src/apps/investments/prices/domain/pricesFile.ts`. It holds
-`format` `kuna-prices`, `version` 1, `written_at`, `series`, `splits` and `failures`. A series is
+`format` `kuna-prices`, `version` 2, `written_at`, `last_fetch`, `series`, `splits`, `failures` and
+`facts`, and Kuna reads a version 1 file as one with no facts. A series is
 keyed by vendor and the vendor's symbol, such as `twelvedata:ABC`, `alphavantage:XYZ.DEX` or
 `ecb:USD`, so two instruments on one listing share it. Each has its `currency`, `from` (the earliest
 day Kuna asked the vendor for) and `closes`, one `[day, close]` a trading day, oldest first, every
 close decimal text as the vendor sent it. An `ecb:` series holds units of the currency per euro.
 `splits` are the splits a vendor reported, with `new` and `old` as whole numbers, for Kuna to offer as
 records. `failures` are the last fetch's only: the series, the day and a reason (`no-key`,
-`no-answer`, `refused`, `unknown-symbol`, `limit`, `not-on-free-key`, `unreadable`). It is written one
-series a line, so Drive's preview reads it and a revision's diff shows the series that changed. Kuna
-refuses a file that is not JSON, not a prices file, of a newer version or out of shape. The file never
-holds a key.
+`no-answer`, `refused`, `unknown-symbol`, `limit`, `not-on-free-key`, `unreadable`). `facts` holds four
+kinds, each keyed like a series by vendor and what was asked, with the day it was asked and the
+vendor's words as it sent them: `profiles` (`finnhub:<ISIN or symbol>` with `industry` and `country`),
+`sectors` (`alphavantage:<symbol>` with `[sector, weight]` pairs, the weight a fraction as text),
+`dividends` (`alphavantage:<symbol>` with `[ex day, payment day, amount a unit]`, from the day asked
+on) and `types` (the instrument's own series key with the `type` its vendor's search gave). An empty
+answer is kept as an empty fact, so it is not asked again. It is written one series or fact a line,
+so Drive's preview reads it and a revision's diff shows the series that changed. Kuna refuses a file
+that is not JSON, not a prices file, of a newer version or out of shape. The file never holds a key.
+
+The figures read the facts through the `FactsBook` port (`prices/domain/factsBook.ts`), which maps
+the vendors' words to Kuna's through the fixed tables of `vendorWords.ts`: Finnhub's industries to
+the eleven GICS sectors, Alpha Vantage's sector names likewise, and the search answers' types, such
+as `Common Stock`, `Equity`, `ETF` or `Mutual Fund`, to share, fund, bond or crypto. A word missing
+from a table counts as not known. What is typed in the Investments file comes first: a holding's
+sector is its typed fund mix, then its typed sector, then the fetched fund weights, then the
+profile's. Its country is its typed fund mix, then its typed country, then the profile's, then the
+first two letters of its ISIN. Only a share takes a profile or its ISIN's country, since a fund's
+would be its issuer's or its domicile, and a fetched type counts only until one is typed. The coming
+income counts each announced dividend for the units held now, or once its ex day has passed for the
+units held the day before it, with the share of the holding's last payment that was withheld. It
+takes the place of the copy of last year's payment nearest its day within 20 days.
 
 The figures read it through `pricesFileBook` and `pricesFileRateBook` in `pricesFileBooks.ts`. A
 holding takes the latest close on or before the day, from its series or from the prices entered by
@@ -2440,20 +2460,25 @@ it beside the sample Investments file on the fake Drive and in this browser, `sa
 
 Each vendor is a `PriceVendor` (`prices/application/priceVendor.ts`): its id, which is the source an
 instrument names and its series' prefix, its name and what it covers for Settings, whether it needs
-a key, where to claim a free one, its limits per minute and per day, and a call that returns the
-closes of a symbol from a day, with the splits it reports. The adapters are in
+a key, where to claim a free one, its limits per minute and per day, and for a vendor of closes a
+call that returns the closes of a symbol from a day. Any vendor may also give splits, company
+profiles, fund sector weights, dividends or a search. The adapters are in
 `prices/infrastructure/vendors/`, and `priceVendors.ts` lists the ones Kuna supports:
 
-| Vendor                | Prices                                                                                                         | Key                                           | Free limits                                                                                                           |
-| --------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Twelve Data           | US shares and ETFs, daily from the first trade, as they closed (`adjust=none`)                                 | free, from `twelvedata.com/register`          | 8 requests a minute, 800 a day                                                                                        |
-| Alpha Vantage         | Xetra, Amsterdam and other European listings: the last 100 daily closes, and month ends before them            | free, from `alphavantage.co/support/#api-key` | 25 a day. Kuna keeps to 5 a minute and 1.5 seconds between requests, its earlier free limits, against a refused burst |
-| European Central Bank | euro reference rates of USD, GBP, CHF and every other currency the records name, from 2015 or the first record | none                                          | none stated                                                                                                           |
+| Vendor                | Prices                                                                                                                                                  | Key                                           | Free limits                                                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Twelve Data           | US shares and ETFs, daily from the first trade, as they closed (`adjust=none`), and `symbol_search`                                                     | free, from `twelvedata.com/register`          | 8 requests a minute, 800 a day                                                                                        |
+| Finnhub               | no closes: company profiles (`/stock/profile2`, by ISIN, else symbol) and `/search`                                                                     | free, from `finnhub.io/register`              | 60 requests a minute                                                                                                  |
+| Alpha Vantage         | Xetra, Amsterdam and other European listings: the last 100 daily closes, and month ends before them, and `ETF_PROFILE`, `DIVIDENDS` and `SYMBOL_SEARCH` | free, from `alphavantage.co/support/#api-key` | 25 a day. Kuna keeps to 5 a minute and 1.5 seconds between requests, its earlier free limits, against a refused burst |
+| European Central Bank | euro reference rates of USD, GBP, CHF and every other currency the records name, from 2015 or the first record                                          | none                                          | none stated                                                                                                           |
 
 Twelve Data's splits are for paid plans, so no vendor reports splits today and they are entered by
-hand. Adding a vendor is one adapter, one entry in `priceVendors.ts` and its id in `PRICE_SOURCES`
+hand. The field names of every facts answer are read from the vendors' documentation and kept in
+their adapter, unconfirmed until a request with a real key. Adding a vendor is one adapter, one
+entry in `priceVendors.ts` and, for a vendor of closes, its id in `PRICE_SOURCES`
 (`workbook/domain/instrument.ts`), which the instruments name. `tests/priceFetch.spec.ts` fails while a
-source has no vendor or a vendor that needs a key has no address to claim one.
+source has no vendor, a vendor that needs a key has no address to claim one, or the CSP leaves out a
+vendor's origin.
 
 #### Keys in this browser
 
@@ -2461,7 +2486,7 @@ A user enters their own keys in the Investments Settings. Each is kept in this b
 `localStorage` under `kuna.price-vendor-key.<vendor>`, never in the Investments file or the prices
 file, never logged and never in an error message. Clearing the site data forgets them. A device with
 no keys still reads the prices file another device wrote. The keys go in the request's address, as
-both vendors take them, because a header of its own would make the browser ask the vendor first with
+every vendor takes them (Finnhub's as `token`), because a header of its own would make the browser ask the vendor first with
 a CORS preflight.
 
 #### The fetch
@@ -2470,7 +2495,7 @@ a CORS preflight.
 (`PriceFetchPorts` in `pricesPorts.ts`): fetch an address, pause, read a vendor's key, read the
 Investments records, read the prices file and overwrite it. `browserPricePorts.ts` gives the fetch
 through `window.fetch` with no headers of its own and the pause through `setTimeout`, and
-`vendorKeys.ts` keeps the keys. The CSP's `connect-src` in `index.html` lets the page reach the three
+`vendorKeys.ts` keeps the keys. The CSP's `connect-src` in `index.html` lets the page reach the four
 vendors' hosts. Once a day, the first device that opens Kuna after a new trading day:
 
 1. Reads the prices file from Drive and leaves it as it is when it is no prices file Kuna can read,
@@ -2488,7 +2513,18 @@ vendors' hosts. Once a day, the first device that opens Kuna after a new trading
 4. Paces every request to a vendor so no more go out in a minute than it allows, waiting out the
    minute when needed, and stops asking a vendor for the day at its daily limit or once it answers that
    the limit is reached.
-5. Merges what came into each series, keeps every series a vendor failed as it was, notes each failure,
+5. On a day's fetch, after the closes and through the same pacing, asks for the facts of the
+   holdings held that no fact covers yet (`prices/application/factFetch.ts`). First it asks what
+   each untyped holding is, from a search of its own price vendor. Then it asks Finnhub for the
+   profile of each share whose sector or country is not typed, and Alpha Vantage for the fund
+   weights of each fund or untyped holding whose sector is not typed and that no profile placed.
+   Last come Alpha Vantage's dividends of each holding that paid in the last 13 months, once a
+   month. A vendor's daily limit leaves the rest for the next day, which the last fetch's line on
+   the Prices card says. An answer that the vendor does not know the symbol is kept as an empty
+   fact, and any other failure is asked again on the next day's fetch. A fact wanted from a vendor
+   this browser has no key for is noted in the file, so a browser that holds that key fetches
+   again the same day.
+6. Merges what came into each series, keeps every series a vendor failed as it was, notes each failure,
    and overwrites the prices file.
 
 For about 25 US listings and 4 European ones a day's fetch is 25 Twelve Data requests of the 800
@@ -2534,11 +2570,18 @@ Drive or the fake Drive, the keys and the vendors.
   in words, and Fetch now. It lists every vendor with what it covers, a field for the key of each
   that needs one, the link to claim a free key, and Test, which asks the vendor once for a week of a
   symbol a free key gets (`EUR/USD` at Twelve Data, Alpha Vantage's own example `IBM`, the dollar at
-  the ECB). A key is typed into a password field and saved through `vendorKeys.ts`, and the card
+  the ECB), or for Finnhub the profile of its own example `AAPL`. A key is typed into a password field and saved through `vendorKeys.ts`, and the card
   shows only its last four characters, and nothing of a key shorter than 12.
+- **The search in the holding dialog** asks each vendor that searches and has a key in this browser,
+  on Search rather than per keystroke, Alpha Vantage only when the others found nothing, and merges
+  the answers by symbol and market. Picking a listing fills the symbol and the name when none is
+  typed, the type its vendor's words propose, the exchange and the currency. A vendor that found it
+  and whose free key gives its closes becomes the price source, with the listing's symbol there:
+  Alpha Vantage for any listing, Twelve Data for a US one. Otherwise the price source stays.
 - **The fake build** sends no request out of the page: the prices file is on the fake Drive, and every
   vendor request goes to `prices/infrastructure/fake/fakeVendorAnswers.ts`, which answers made-up
-  closes for any symbol and any key.
+  closes, profiles, fund weights, dividends and searches for any symbol and any key. The fake prices
+  file holds made-up facts of the sample's holdings.
 
 ### Core and the pack
 

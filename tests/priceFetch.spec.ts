@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs'
+
 import { beforeAll, describe, expect, it } from 'vitest'
 
-import { fetchPrices } from '../src/apps/investments/prices/application/priceFetch'
+import { closesVendors, fetchPrices } from '../src/apps/investments/prices/application/priceFetch'
 import type { PriceFetchOutcome } from '../src/apps/investments/prices/application/priceFetch'
 import type { FetchPause, PriceFetchPorts } from '../src/apps/investments/prices/application/pricesPorts'
 import type { PriceVendor, VendorAnswer } from '../src/apps/investments/prices/application/priceVendor'
@@ -44,6 +46,9 @@ function investments(extra: Partial<InvestmentBook> = {}): InvestmentBook {
 }
 
 const KEYS: Readonly<Record<string, string>> = { twelvedata: 'td-key-made-up', alphavantage: 'av-key-made-up' }
+
+/** The vendors as the closes see them, without the facts a day's fetch asks for after the closes, which `factFetch.spec.ts` covers. */
+const CLOSES_VENDORS: readonly PriceVendor[] = closesVendors(PRICE_VENDORS).map(({ profile, fundSectors, dividends, search, ...vendor }) => vendor)
 
 const weekdaysThrough = new Map<string, readonly CivilDate[]>()
 
@@ -208,7 +213,7 @@ function device(keys: Readonly<Record<string, string>> = KEYS, records: Investme
         else pauses.push({ ...pause, left: leftMilliseconds })
       },
     },
-    async run(day, overrides = {}, vendors = PRICE_VENDORS) {
+    async run(day, overrides = {}, vendors = CLOSES_VENDORS) {
       today = day
       world = { failing: new Map(), revisedDay: null, failingOnce: new Map(), holiday: null, ...overrides }
       events.length = 0
@@ -608,7 +613,7 @@ describe('the vendors without a key, at their limits and on their errors', () =>
 
   it('leaves alone a file that is no prices file, such as one a newer Kuna wrote', async () => {
     const browser = device()
-    browser.pricesText = JSON.stringify({ format: 'kuna-prices', version: 2, written_at: null, series: {}, splits: [], failures: [] })
+    browser.pricesText = JSON.stringify({ format: 'kuna-prices', version: 3, written_at: null, series: {}, splits: [], failures: [] })
     expect(await browser.run('2026-10-30')).toEqual({ kind: 'refused', reason: 'newer' })
     expect(browser.events).toEqual([])
     expect(browser.writes).toEqual([])
@@ -622,12 +627,25 @@ describe('the price vendor registry', () => {
     }
   })
 
-  it('has one vendor for each series key prefix: every source an instrument names, and the ECB for the rates', () => {
+  it('has one vendor of closes for each series key prefix: every source an instrument names, and the ECB for the rates', () => {
     const prefixes = [...PRICE_SOURCES.filter((source) => source !== 'manual'), ECB_SOURCE]
-    expect(PRICE_VENDORS.map((vendor) => vendor.id).sort()).toEqual([...prefixes].sort())
+    expect(
+      closesVendors(PRICE_VENDORS)
+        .map((vendor) => vendor.id)
+        .sort(),
+    ).toEqual([...prefixes].sort())
     expect(PRICE_VENDORS.filter((vendor) => vendor.prices === 'rates').map((vendor) => vendor.id)).toEqual([ECB_SOURCE])
-    const fakeKeys = Object.keys(fakePricesFile('sample', civil('2026-10-30')).series)
+    const file = fakePricesFile('sample', civil('2026-10-30'))
+    const fakeKeys = [...Object.keys(file.series), ...Object.values(file.facts).flatMap((facts) => Object.keys(facts))]
     expect(fakeKeys.filter((key) => !PRICE_VENDORS.some((vendor) => key.startsWith(`${vendor.id}:`)))).toEqual([])
+  })
+
+  it("lets the page reach every vendor's origin, which the CSP of index.html lists", () => {
+    const policy = readFileSync(new URL('../index.html', import.meta.url), 'utf8')
+    const connect = /connect-src ([^;]*);/.exec(policy)?.[1]?.split(' ') ?? []
+    for (const vendor of PRICE_VENDORS) {
+      expect(connect).toContain(new URL(vendor.origin).origin)
+    }
   })
 
   it('names each vendor, says what it covers, and states limits a pacing can keep to', () => {
@@ -741,16 +759,16 @@ describe('asking only for what is missing', () => {
   it('asks nothing on a second fetch the same day, and on the next weekday one request a series, rates included', async () => {
     const browser = device()
     await browser.run('2026-10-30')
-    expect(browser.prices().lastFetch).toEqual({ asked: 6, upToDate: 0 })
+    expect(browser.prices().lastFetch).toEqual({ asked: 6, upToDate: 0, factsAsked: 0, factsLeft: 0, factsKeyless: [] })
 
     await browser.run('2026-10-30')
     expect(browser.events).toEqual([])
-    expect(browser.prices().lastFetch).toEqual({ asked: 0, upToDate: 6 })
+    expect(browser.prices().lastFetch).toEqual({ asked: 0, upToDate: 6, factsAsked: 0, factsLeft: 0, factsKeyless: [] })
 
     await browser.run('2026-11-02')
     // ABC and XYZ.DEX are held, IDX is the benchmark, and the three rates: one request each, the ETF's daily closes only.
     expect([requestsTo(browser, 'twelvedata'), requestsTo(browser, 'alphavantage'), requestsTo(browser, 'data-api.ecb')]).toEqual([2, 1, 3])
-    expect(browser.prices().lastFetch).toEqual({ asked: 6, upToDate: 0 })
+    expect(browser.prices().lastFetch).toEqual({ asked: 6, upToDate: 0, factsAsked: 0, factsLeft: 0, factsKeyless: [] })
   })
 
   it('asks for a sold holding up to its sale, and never again once those closes are in', async () => {
@@ -763,7 +781,7 @@ describe('asking only for what is missing', () => {
     await browser.run('2026-11-02')
     await browser.run('2027-03-01')
     expect(browser.asked('symbol=OLD')).toEqual([])
-    expect(browser.prices().lastFetch).toEqual({ asked: 6, upToDate: 1 })
+    expect(browser.prices().lastFetch).toEqual({ asked: 6, upToDate: 1, factsAsked: 0, factsLeft: 0, factsKeyless: [] })
   })
 
   it('asks for a weekday with no close, as a market holiday, once, and learns that it has none', async () => {

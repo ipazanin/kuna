@@ -1,7 +1,7 @@
 /** The prices file Kuna writes after fetching closes and reads for the figures. Every figure stays the text a vendor sent. */
 
 const FORMAT = 'kuna-prices'
-const VERSION = 1
+const VERSION = 2
 
 /** The prices file's name on Drive, beside the Investments file. */
 export const PRICES_FILE_NAME = 'kuna-investments-prices.json'
@@ -58,11 +58,59 @@ export interface PriceFailure {
   readonly reason: FailureReason
 }
 
-/** What the last fetch did: the series it asked for, and those it left because their closes were up to date. */
+/** What the last fetch did: the series it asked for, those it left because their closes were up to date, and the facts it asked for and left to a later day by a vendor's daily limit. */
 export interface LastFetch {
   readonly asked: number
   readonly upToDate: number
+  readonly factsAsked: number
+  readonly factsLeft: number
+  /** The vendors of facts it wanted something from and had no key for, so a browser that holds one of those keys fetches again. */
+  readonly factsKeyless: readonly string[]
 }
+
+/** A company's profile: its industry in the vendor's words and its home country as the vendor writes it, each null where the answer had none. */
+export interface ProfileFact {
+  readonly asked: string
+  readonly industry: string | null
+  readonly country: string | null
+}
+
+/** A sector in the vendor's words and its weight as the decimal text of a fraction, such as `["INFORMATION TECHNOLOGY", "0.251"]`. */
+export type SectorWeightRow = readonly [sector: string, weight: string]
+
+/** A fund's weights by sector. */
+export interface SectorsFact {
+  readonly asked: string
+  readonly sectors: readonly SectorWeightRow[]
+}
+
+/** A dividend's ex day, its payment day and its amount a unit as decimal text, such as `["2026-11-14", "2026-12-15", "0.3100"]`. */
+export type DividendRow = readonly [exDay: string, paymentDay: string, amount: string]
+
+/** The dividends a vendor lists from the day asked on. */
+export interface DividendsFact {
+  readonly asked: string
+  readonly dividends: readonly DividendRow[]
+}
+
+/** What a listing is, in the vendor's words, or null where its search did not find it. */
+export interface TypeFact {
+  readonly asked: string
+  readonly type: string | null
+}
+
+/**
+ * What vendors answered about instruments, beside the closes, each kept by vendor and the symbol or ISIN asked, with
+ * the day it was asked. An empty answer is kept too, so it is not asked again.
+ */
+export interface FetchedFacts {
+  readonly profiles: Readonly<Record<string, ProfileFact>>
+  readonly sectors: Readonly<Record<string, SectorsFact>>
+  readonly dividends: Readonly<Record<string, DividendsFact>>
+  readonly types: Readonly<Record<string, TypeFact>>
+}
+
+export const NO_FETCHED_FACTS: FetchedFacts = { profiles: {}, sectors: {}, dividends: {}, types: {} }
 
 export interface PricesFile {
   /** ISO timestamp of the last fetch's write, null for the empty file Kuna makes. */
@@ -74,6 +122,7 @@ export interface PricesFile {
   readonly splits: readonly SplitNote[]
   /** The last fetch's failures only. */
   readonly failures: readonly PriceFailure[]
+  readonly facts: FetchedFacts
 }
 
 /** Why a text is no prices file Kuna can read. */
@@ -91,7 +140,7 @@ export function rateSeriesKey(currency: string): string {
 }
 
 export function emptyPricesFile(): PricesFile {
-  return { writtenAt: null, lastFetch: null, series: {}, splits: [], failures: [] }
+  return { writtenAt: null, lastFetch: null, series: {}, splits: [], failures: [], facts: NO_FETCHED_FACTS }
 }
 
 const DAY = /^(\d{4})-(\d{2})-(\d{2})$/
@@ -114,27 +163,34 @@ export function isCloseText(text: string): boolean {
 }
 
 /**
- * The file as Kuna writes it: one line per series, sorted by key, so Drive's preview reads it and a revision's diff
- * shows one line per series that changed.
+ * The file as Kuna writes it: one line per series and per fact, sorted by key, so Drive's preview reads it and a
+ * revision's diff shows one line per series or fact that changed.
  */
 export function encodePricesFile(file: PricesFile): string {
-  const series = Object.keys(file.series)
-    .sort()
-    .map((key) => {
-      const { currency, from, checked, closes } = file.series[key]!
-      return `    ${JSON.stringify(key)}: ${JSON.stringify({ currency, from, checked, closes })}`
-    })
+  const series = sortedLines(file.series, ({ currency, from, checked, closes }) => ({ currency, from, checked, closes }), '    ')
   const splits = file.splits.map((note) => `    ${JSON.stringify({ series: note.series, date: note.date, new: note.newUnits, old: note.oldUnits })}`)
   const failures = file.failures.map((failure) => `    ${JSON.stringify(failure)}`)
+  const { profiles, sectors, dividends, types } = file.facts
+  const lastFetch =
+    file.lastFetch === null
+      ? null
+      : { asked: file.lastFetch.asked, up_to_date: file.lastFetch.upToDate, facts_asked: file.lastFetch.factsAsked, facts_left: file.lastFetch.factsLeft, facts_keyless: file.lastFetch.factsKeyless }
+  const facts = [
+    factsBlock('profiles', profiles, ({ asked, industry, country }) => ({ asked, industry, country })),
+    factsBlock('sectors', sectors, ({ asked, sectors: weights }) => ({ asked, sectors: weights })),
+    factsBlock('dividends', dividends, ({ asked, dividends: rows }) => ({ asked, dividends: rows })),
+    factsBlock('types', types, ({ asked, type }) => ({ asked, type })),
+  ]
   return [
     '{',
     `  "format": ${JSON.stringify(FORMAT)},`,
     `  "version": ${VERSION},`,
     `  "written_at": ${JSON.stringify(file.writtenAt)},`,
-    `  "last_fetch": ${JSON.stringify(file.lastFetch === null ? null : { asked: file.lastFetch.asked, up_to_date: file.lastFetch.upToDate })},`,
-    `  "series": ${series.length === 0 ? '{}' : `{\n${series.join(',\n')}\n  }`},`,
+    `  "last_fetch": ${JSON.stringify(lastFetch)},`,
+    `  "series": ${objectOf(series, '  ')},`,
     `  "splits": ${listOf(splits)},`,
-    `  "failures": ${listOf(failures)}`,
+    `  "failures": ${listOf(failures)},`,
+    `  "facts": {\n${facts.join(',\n')}\n  }`,
     '}',
     '',
   ].join('\n')
@@ -144,7 +200,23 @@ function listOf(lines: readonly string[]): string {
   return lines.length === 0 ? '[]' : `[\n${lines.join(',\n')}\n  ]`
 }
 
-/** The prices file a text holds, or why it is none. Closes must run oldest first with one a day. */
+/** One `"key": value` line per entry, sorted by key. */
+function sortedLines<Entry>(entries: Readonly<Record<string, Entry>>, written: (entry: Entry) => unknown, indent: string): string[] {
+  return Object.keys(entries)
+    .sort()
+    .map((key) => `${indent}${JSON.stringify(key)}: ${JSON.stringify(written(entries[key]!))}`)
+}
+
+function objectOf(lines: readonly string[], closingIndent: string): string {
+  return lines.length === 0 ? '{}' : `{\n${lines.join(',\n')}\n${closingIndent}}`
+}
+
+/** One kind of facts inside `facts`, one fact a line. */
+function factsBlock<Fact>(kind: keyof FetchedFacts, entries: Readonly<Record<string, Fact>>, written: (fact: Fact) => unknown): string {
+  return `    ${JSON.stringify(kind)}: ${objectOf(sortedLines(entries, written, '      '), '    ')}`
+}
+
+/** The prices file a text holds, or why it is none. Closes must run oldest first with one a day. A version 1 file has no facts. */
 export function decodePricesFile(text: string): PricesFileRead {
   let parsed: unknown
   try {
@@ -163,12 +235,13 @@ export function decodePricesFile(text: string): PricesFileRead {
 }
 
 function fileOf(parsed: Readonly<Record<string, unknown>>): PricesFile | null {
-  const { written_at: writtenAt, last_fetch: lastFetch, series, splits, failures } = parsed
+  const { written_at: writtenAt, last_fetch: lastFetch, series, splits, failures, facts } = parsed
   if ((writtenAt !== null && typeof writtenAt !== 'string') || !isJsonObject(series) || !Array.isArray(splits) || !Array.isArray(failures)) {
     return null
   }
   const readLastFetch = lastFetchOf(lastFetch)
-  if (readLastFetch === undefined) {
+  const readFacts = facts === undefined ? NO_FETCHED_FACTS : factsOf(facts)
+  if (readLastFetch === undefined || readFacts === null) {
     return null
   }
   const readSeries = Object.keys(series).map((key) => [key, seriesOf(series[key])] as const)
@@ -183,16 +256,76 @@ function fileOf(parsed: Readonly<Record<string, unknown>>): PricesFile | null {
     series: Object.fromEntries(readSeries) as Record<string, PriceSeries>,
     splits: readSplits as SplitNote[],
     failures: readFailures as PriceFailure[],
+    facts: readFacts,
   }
 }
 
-/** The last fetch's counts, null when the file has none, and undefined when they are not in shape. */
+function isCount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0
+}
+
+/** The last fetch's counts, null when the file has none, and undefined when they are not in shape. A version 1 file counts no facts. */
 function lastFetchOf(candidate: unknown): LastFetch | null | undefined {
   if (candidate === undefined || candidate === null) {
     return null
   }
-  const count = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 0
-  return isJsonObject(candidate) && count(candidate.asked) && count(candidate.up_to_date) ? { asked: candidate.asked, upToDate: candidate.up_to_date } : undefined
+  if (!isJsonObject(candidate) || !isCount(candidate.asked) || !isCount(candidate.up_to_date)) {
+    return undefined
+  }
+  const factsAsked = candidate.facts_asked ?? 0
+  const factsLeft = candidate.facts_left ?? 0
+  const factsKeyless = candidate.facts_keyless ?? []
+  const keylessRead = Array.isArray(factsKeyless) && factsKeyless.every((vendorId) => typeof vendorId === 'string')
+  return isCount(factsAsked) && isCount(factsLeft) && keylessRead
+    ? { asked: candidate.asked, upToDate: candidate.up_to_date, factsAsked, factsLeft, factsKeyless: factsKeyless as string[] }
+    : undefined
+}
+
+/** Each entry read by `read`, or null when the value is no object or an entry is out of shape. */
+function entriesOf<Entry>(candidate: unknown, entryOf: (entry: Readonly<Record<string, unknown>>, asked: string) => Entry | null): Readonly<Record<string, Entry>> | null {
+  if (!isJsonObject(candidate)) {
+    return null
+  }
+  const entries: Record<string, Entry> = {}
+  for (const [key, entry] of Object.entries(candidate)) {
+    const read = isJsonObject(entry) && typeof entry.asked === 'string' && isDay(entry.asked) ? entryOf(entry, entry.asked) : null
+    if (read === null) {
+      return null
+    }
+    entries[key] = read
+  }
+  return entries
+}
+
+function isTextOrNull(value: unknown): value is string | null {
+  return value === null || typeof value === 'string'
+}
+
+function rowsOf<Row extends readonly string[]>(candidate: unknown, fits: (row: readonly string[]) => boolean): Row[] | null {
+  if (!Array.isArray(candidate)) {
+    return null
+  }
+  const rows = candidate as unknown[]
+  return rows.every((row) => Array.isArray(row) && row.every((cell) => typeof cell === 'string') && fits(row as string[])) ? (rows as Row[]) : null
+}
+
+function factsOf(candidate: unknown): FetchedFacts | null {
+  if (!isJsonObject(candidate)) {
+    return null
+  }
+  const profiles = entriesOf(candidate.profiles, (entry, asked): ProfileFact | null =>
+    isTextOrNull(entry.industry) && isTextOrNull(entry.country) ? { asked, industry: entry.industry, country: entry.country } : null,
+  )
+  const sectors = entriesOf(candidate.sectors, (entry, asked): SectorsFact | null => {
+    const rows = rowsOf<SectorWeightRow>(entry.sectors, (row) => row.length === 2 && isCloseText(row[1]!))
+    return rows === null ? null : { asked, sectors: rows }
+  })
+  const dividends = entriesOf(candidate.dividends, (entry, asked): DividendsFact | null => {
+    const rows = rowsOf<DividendRow>(entry.dividends, (row) => row.length === 3 && isDay(row[0]!) && isDay(row[1]!) && isCloseText(row[2]!))
+    return rows === null ? null : { asked, dividends: rows }
+  })
+  const types = entriesOf(candidate.types, (entry, asked): TypeFact | null => (isTextOrNull(entry.type) ? { asked, type: entry.type } : null))
+  return profiles === null || sectors === null || dividends === null || types === null ? null : { profiles, sectors, dividends, types }
 }
 
 function seriesOf(candidate: unknown): PriceSeries | null {

@@ -1,6 +1,6 @@
 import { RATES_FROM } from '../../domain/priceDemand'
 import { ECB_SOURCE, rateSeriesKey, seriesKey } from '../../domain/pricesFile'
-import type { CloseRow, PriceFailure, PricesFile } from '../../domain/pricesFile'
+import type { CloseRow, FetchedFacts, PriceFailure, PricesFile } from '../../domain/pricesFile'
 import { addDays, civilDate, weekdaysBetween } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 
@@ -112,6 +112,36 @@ export function fakeClose(series: string, day: CivilDate): string {
   return walkedClose(WALKS[series]!, placeOf(day))
 }
 
+/**
+ * What made-up vendors answered about the sample's holdings on `today`. A profile of the dividend payer agrees with
+ * its ISIN. The spinco's profile gives its country but not its industry, so the spinco still has no sector. The money
+ * fund has sector weights, the payer has an announced dividend a few days before the copy of its January payment, and
+ * a search named what three of the listings are.
+ */
+function fakeFacts(today: CivilDate): FetchedFacts {
+  return {
+    profiles: {
+      [seriesKey('finnhub', 'US000000DEF2')]: { asked: today, industry: 'Food Products', country: 'US' },
+      [seriesKey('finnhub', 'GHI')]: { asked: today, industry: null, country: 'US' },
+    },
+    sectors: {
+      [seriesKey('alphavantage', 'EMF')]: {
+        asked: today,
+        sectors: [
+          ['FINANCIALS', '0.900'],
+          ['INDUSTRIALS', '0.100'],
+        ],
+      },
+    },
+    dividends: { [seriesKey('alphavantage', 'DEF')]: { asked: today, dividends: [['2026-12-28', '2027-01-12', '0.3400']] } },
+    types: {
+      [FAKE_SERIES.shareA]: { asked: today, type: 'Common Stock' },
+      [FAKE_SERIES.shareB]: { asked: today, type: 'Common Stock' },
+      [FAKE_SERIES.worldEtf]: { asked: today, type: 'ETF' },
+    },
+  }
+}
+
 /** A made-up prices file as a fetch would have written it on `today`, every figure invented. */
 export function fakePricesFile(variant: FakePricesVariant, today: CivilDate): PricesFile {
   const last = variant === 'late-prices' ? lateDay(today) : addDays(today, -1)
@@ -131,7 +161,7 @@ export function fakePricesFile(variant: FakePricesVariant, today: CivilDate): Pr
   const kept = Object.keys(WALKS).filter((key) => variant !== 'no-benchmark' || key !== FAKE_SERIES.benchmark)
   return {
     writtenAt: `${today}T05:41:00.000Z`,
-    lastFetch: { asked: kept.length, upToDate: 0 },
+    lastFetch: { asked: kept.length, upToDate: 0, factsAsked: 0, factsLeft: 0, factsKeyless: [] },
     series: Object.fromEntries(
       kept.map((key) => {
         const walk = WALKS[key]!
@@ -144,5 +174,6 @@ export function fakePricesFile(variant: FakePricesVariant, today: CivilDate): Pr
     ),
     splits: [],
     failures,
+    facts: fakeFacts(today),
   }
 }
