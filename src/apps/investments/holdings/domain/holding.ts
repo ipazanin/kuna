@@ -1,3 +1,4 @@
+import { tradeFeesInEuros } from './fees'
 import { receivedInEuros } from './lots'
 import type { ClosedSale, InstrumentLots, Lot } from './lots'
 import { closePerUnit, heldWorth, priceOfWorth } from './quoting'
@@ -175,7 +176,7 @@ export function holdingFigures(instrument: Instrument, lots: InstrumentLots, sou
     realised: sumMoney(lots.sales.flatMap((sale) => sale.lines.map((line) => line.gain))),
     income: received(income),
     dividendYield: valuation === null || valuation.value <= 0 ? null : ratioOf(lastYearsIncome, valuation.value),
-    feesPaid: sumMoney(trades.map((trade) => inEuros(trade.fees ?? DECIMAL_ZERO, trade.rate))),
+    feesPaid: sumMoney(trades.map(tradeFeesInEuros)),
     feesMissing: trades.some((trade) => trade.fees === null),
     firstAcquired: acquired[0] ?? null,
   }

@@ -1,9 +1,9 @@
 import { recordsOn } from './portfolioPerformance'
 import type { DayValuer, PeriodPerformance } from './portfolioPerformance'
+import { exchangeFeesInEuros, tradeFeesInEuros } from '../../holdings/domain/fees'
 import type { HoldingFigures, PortfolioSources } from '../../holdings/domain/holding'
 import { portfolioFigures } from '../../holdings/domain/portfolioFigures'
 import type { IncomeTotals, PortfolioFigures } from '../../holdings/domain/portfolioFigures'
-import { eurosAtEcbRate } from '../../prices/domain/rateBook'
 import type { CashMovement } from '../../workbook/domain/cashMovement'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
@@ -70,9 +70,7 @@ export function periodGains(sources: PortfolioSources, span: Pick<PeriodPerforma
   const { from, to } = span
   const period = periodBook(sources, span, valuedOn)
   const figures = portfolioFigures({ ...sources, book: period.book, today: to })
-  const exchangeFees = sumMoney(
-    period.records.exchanges.flatMap((exchange) => (exchange.fees === null ? [] : [eurosAtEcbRate(exchange.fees.amount, exchange.fees.currency, exchange.date, sources.rates) ?? ZERO])),
-  )
+  const exchangeFees = sumMoney(exchangeFeesInEuros(period.records.exchanges, sources.rates).map((fee) => fee.euros ?? ZERO))
   const flows = period.records.cashMovements.map((movement) => ({ kind: movement.kind, euros: inEuros(movement.amount, movement.rate) }))
   const holdings = figures.holdings.map(holdingGains).filter((holding) => [holding.price, holding.currency, holding.realised, holding.income].some((part) => part !== ZERO))
   const currencyOnCash = addMoney(figures.currencyOnCash, exchangeFees)
@@ -91,7 +89,7 @@ export function periodGains(sources: PortfolioSources, span: Pick<PeriodPerforma
     holdings,
     currencyOnCash,
     incomeOnCash: subtractMoney(figures.income.received, sumMoney(holdings.map((holding) => holding.income))),
-    tradingFees: sumMoney(period.records.trades.map((trade) => inEuros(trade.fees ?? DECIMAL_ZERO, trade.rate))),
+    tradingFees: sumMoney(period.records.trades.map(tradeFeesInEuros)),
   }
 }
 

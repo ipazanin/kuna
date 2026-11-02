@@ -29,7 +29,7 @@ export const DEFAULT_MONEY_FORMAT: MoneyFormat = { currency: 'EUR', locale: intl
 
 const MINUS = '−'
 
-/** Places of a percent a day's change shows, since a portfolio rarely moves a whole percent in a day. */
+/** Places of a percent a day's change or a cost shows, since neither is often a whole percent. */
 const CHANGE_DECIMALS = 2
 
 /** Places of a percent a share of a whole shows, the same on every row so a column of shares lines up. */
@@ -144,6 +144,12 @@ export function formatPercentChange(fraction: number): string {
 export function formatShare(fraction: number): string {
   const shown = Math.round(Math.abs(fraction) * 10 ** (SHARE_DECIMALS + 2)) === 0 ? 0 : fraction
   return withSign(shown, formatters().share.format(Math.abs(fraction)), 'negative')
+}
+
+/** A cost as a share with two decimals, such as a fund's yearly cost of 0.20%. A cost that rounds to zero carries no sign. */
+export function formatCostShare(fraction: number): string {
+  const shown = Math.round(Math.abs(fraction) * 10 ** (CHANGE_DECIMALS + 2)) === 0 ? 0 : fraction
+  return withSign(shown, formatters().change.format(Math.abs(fraction)), 'negative')
 }
 
 /** An interest rate as a bank writes it, with up to four decimals of a percent, such as 2.99% or 3.1825%. */

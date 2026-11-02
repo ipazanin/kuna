@@ -216,7 +216,7 @@ export function performanceByYear(sources: PortfolioSources, benchmark: Benchmar
 }
 
 /** Deposits and withdrawals in euros at their own rates, positive when money enters the portfolio, as the time-weighted return counts them. */
-function externalFlows(book: InvestmentBook): DatedFlow[] {
+export function externalFlows(book: InvestmentBook): DatedFlow[] {
   return book.cashMovements
     .filter((movement) => movement.kind === 'deposit' || movement.kind === 'withdrawal')
     .map((movement) => {

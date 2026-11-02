@@ -115,6 +115,8 @@ import { moneyFromAmount } from '../src/shared/money/money.ts'
 import { closedPositions } from '../src/apps/investments/holdings/domain/closedPositions.ts'
 import { holdingMix } from '../src/apps/investments/holdings/domain/holdingMix.ts'
 import { latestRecords } from '../src/apps/investments/holdings/domain/latestRecords.ts'
+import { investingRhythm } from '../src/apps/investments/income/domain/investingRhythm.ts'
+import { yearlyCosts } from '../src/apps/investments/income/domain/yearlyCosts.ts'
 import { figuresClose, portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures.ts'
 import { gainSources, incomeAgainstLastYear, lastDayMovers, pricesNotice } from '../src/apps/investments/overview/domain/overviewFigures.ts'
 import { valueOverTime } from '../src/apps/investments/overview/domain/valueOverTime.ts'
@@ -474,6 +476,8 @@ function investmentsGroups(add) {
   }
   add('investments.performance.years', () => performanceByYear(sources, compared, valuedOn))
   add('investments.performance.months', () => monthlyReturns(figuresOf({ kind: 'all' })?.growth ?? []))
+  add('investments.income.costs', () => yearlyCosts(sources, valuedOn))
+  add('investments.income.saving', investingRhythm(workbook.book, today))
 }
 
 const digests = new WeakMap()

@@ -2,8 +2,8 @@
 import type { LoanSubsidy } from '../../workbook/domain/bankLoan'
 import { plainAmount } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
+import { typedCount } from '../../../../shared/text/typedCount'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
-import { typedCount } from './typedCount'
 import { words as loansWords } from '../../words'
 import { words } from './words'
 

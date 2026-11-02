@@ -1,4 +1,5 @@
 import { accountCash } from './accountCash'
+import { accountFeesInEuros, exchangeFeesInEuros } from './fees'
 import type { CashBalance } from './accountCash'
 import { dayChange, holdingFigures, lastDayOf } from './holding'
 import type { DayChange, HoldingFigures, LastDayDates, PortfolioSources } from './holding'
@@ -119,8 +120,7 @@ export function portfolioFigures(sources: PortfolioSources): PortfolioFigures {
       .sort()[0] ?? null
   const putIn = negateMoney(sumMoney(flows.map((flow) => flow.amount)))
   const totalGain = subtractMoney(value, putIn)
-  const fees = book.cashMovements.filter((movement) => movement.kind === 'fee' || movement.kind === 'fee-refund')
-  const exchangeFees = book.exchanges.flatMap((exchange) => (exchange.fees === null ? [] : [{ exchange, euros: eurosAtEcbRate(exchange.fees.amount, exchange.fees.currency, exchange.date, rates) }]))
+  const exchangeFees = exchangeFeesInEuros(book.exchanges, rates)
   const couponPaybacks = paidBackOf(lots)
   const paidBack = sumMoney([...couponPaybacks.values()])
   const changes = [...holdings.map((holding) => holding.lastDay), ...cashFigures.map((balance) => balance.lastDay)].filter((change) => change !== null)
@@ -138,7 +138,7 @@ export function portfolioFigures(sources: PortfolioSources): PortfolioFigures {
       withheld: sumMoney(book.income.map(withheldInEuros)),
       received: sumMoney(book.income.map((payment) => receivedInEuros(payment, couponPaybacks))),
     },
-    accountFees: sumMoney(fees.map((movement) => (movement.kind === 'fee' ? inEuros(movement.amount, movement.rate) : negateMoney(inEuros(movement.amount, movement.rate))))),
+    accountFees: accountFeesInEuros(book.cashMovements),
     currencyOnCash: sumMoney(cashFigures.map((balance) => balance.currencyGain ?? ZERO)),
     totalGain,
     totalGainShare: putIn > 0 ? ratioOf(totalGain, putIn) : null,

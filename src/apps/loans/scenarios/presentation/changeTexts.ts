@@ -1,6 +1,5 @@
 import type { LoanChange, LoanCosts } from '../domain/loanScenario'
 import { rateText, typedRate } from '../../bankLoans/domain/yearlyRate'
-import { typedCount } from '../../bankLoans/presentation/typedCount'
 import { words as bankWords } from '../../bankLoans/presentation/words'
 import type { ExtraPayment } from '../../workbook/domain/extraPayment'
 import type { RatePeriod } from '../../workbook/domain/ratePeriod'
@@ -11,6 +10,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { ZERO, plainAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
+import { typedCount } from '../../../../shared/text/typedCount'
 
 /** A rate and whether the bank can change it, as typed. */
 export interface RateTexts {

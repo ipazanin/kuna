@@ -1,3 +1,4 @@
+import { tradeFeesInEuros } from './fees'
 import { tradeWorth } from './quoting'
 import type { Income } from '../../workbook/domain/income'
 import type { Quoting } from '../../workbook/domain/instrument'
@@ -259,7 +260,7 @@ function applySale(queue: Queue, trade: Trade): void {
     left = subtractDecimal(left, quantity)
   }
 
-  const fees = inEuros(trade.fees ?? DECIMAL_ZERO, trade.rate)
+  const fees = tradeFeesInEuros(trade)
   const weights = takes.map((take) => take.quantity)
   const proceeds = moneyParts(addMoney(inEuros(tradeTotal(trade, queue.quoting), trade.rate), fees), weights)
   const feeShares = moneyParts(fees, weights)

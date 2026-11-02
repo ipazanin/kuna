@@ -7,6 +7,7 @@ import {
   DEFAULT_MONEY_FORMAT,
   currencyUnitName,
   formatCompactMoney,
+  formatCostShare,
   formatCurrencyAmount,
   formatDecimal,
   formatMoney,
@@ -63,6 +64,13 @@ describe('money formatting with the default settings', () => {
     expect(formatPercentChange(0.012)).toBe('+1.20%')
     expect(formatPercentChange(-0.00004)).toBe('0.00%')
     expect(formatPercentChange(0)).toBe('0.00%')
+  })
+
+  it('writes a cost as a share with two decimals and a minus when refunds outweigh it', () => {
+    expect(formatCostShare(0.002)).toBe('0.20%')
+    expect(formatCostShare(0.00034)).toBe('0.03%')
+    expect(formatCostShare(-0.0001)).toBe('−0.01%')
+    expect(formatCostShare(-0.00004)).toBe('0.00%')
   })
 
   it('writes a share of a whole with one decimal on every row, unsigned when it rounds to zero', () => {

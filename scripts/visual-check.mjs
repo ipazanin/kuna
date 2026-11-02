@@ -30,7 +30,7 @@
  * fetch failed (`?prices=late-prices`), each in Croatian too and with its figures worked out from the same fake sets, the home with the Investments card's figures and its late-prices badge,
  * the sample's Holdings with its five mixes and closed positions, also with a late close and on a past close (`?on=`), and two holdings' pages, one in US dollars with a lot partly sold and its trades as dots sized by amount, and one from a spin-off that split, each in Croatian too,
  * the sample's Performance over everything against its benchmark, a portfolio too young for a rate a year with no benchmark chosen (`?investments=young`) and the sample whose
- * benchmark has no closes (`?prices=no-benchmark`), each in Croatian too, its Months, its Sources over everything and over the last year, its Falls, and its Income, Coming, Tax-free and Withheld tabs, in Croatian too,
+ * benchmark has no closes (`?prices=no-benchmark`), each in Croatian too, its Months, its Sources over everything and over the last year, its Falls, and its Income, Coming, Tax-free, Withheld, Costs and Saving tabs, in Croatian too,
  * the sample's Transactions, in Croatian too, and Transactions on an empty file, the import of the made-up portfolio workbook
  * into an empty Investments file with the fake prices, each step and the dry run in English and Croatian, and the same workbook again adding nothing,
  * the Prices tab of the Investments Settings on the sample with current prices, with made-up keys kept and with late prices, its General tab, three made-up CSV files of closes imported on it,
@@ -140,8 +140,10 @@ import { figuresClose, portfolioFigures } from '../src/apps/investments/holdings
 import { averageCostText } from '../src/apps/investments/holdings/presentation/holdingText.ts'
 import { incomeForecast } from '../src/apps/investments/income/domain/incomeForecast.ts'
 import { incomeByYear } from '../src/apps/investments/income/domain/incomeHistory.ts'
+import { investingRhythm } from '../src/apps/investments/income/domain/investingRhythm.ts'
 import { taxFreeCalendar } from '../src/apps/investments/income/domain/taxFreeCalendar.ts'
 import { withheldByCountry } from '../src/apps/investments/income/domain/withheldByCountry.ts'
+import { yearlyCosts } from '../src/apps/investments/income/domain/yearlyCosts.ts'
 import { gainSources, incomeAgainstLastYear } from '../src/apps/investments/overview/domain/overviewFigures.ts'
 import { benchmarkState, comparedBenchmark } from '../src/apps/investments/performance/domain/benchmark.ts'
 import { monthlyReturns } from '../src/apps/investments/performance/domain/monthlyReturns.ts'
@@ -482,6 +484,8 @@ function fakeIncomeShows() {
   const [soonest] = taxFreeCalendar(figures, INVESTMENTS_DAY).flatMap((month) => month.lots)
   const [newestWithheld] = withheldByCountry(workbook.book, INVESTMENTS_DAY)
   const unitedStates = newestWithheld.countries.find((row) => row.country === 'US')
+  const [newestCosts] = yearlyCosts(sources, dayValuer(sources))
+  const rhythm = investingRhythm(workbook.book, INVESTMENTS_DAY)
   return {
     income: [formatMoney(newestYear.total.received)],
     incomeCroatian: [formatMoney(newestYear.total.received, 'negative', CROATIAN_MONEY)],
@@ -491,6 +495,10 @@ function fakeIncomeShows() {
     taxFreeCroatian: [formatMoney(soonest.value, 'negative', CROATIAN_MONEY)],
     withheld: [formatMoney(unitedStates.withheld)],
     withheldCroatian: [formatMoney(unitedStates.withheld, 'negative', CROATIAN_MONEY)],
+    costs: [formatMoney(newestCosts.total)],
+    costsCroatian: [formatMoney(newestCosts.total, 'negative', CROATIAN_MONEY)],
+    saving: [formatMoney(rhythm.averageMonth)],
+    savingCroatian: [formatMoney(rhythm.averageMonth, 'negative', CROATIAN_MONEY)],
   }
 }
 
@@ -2064,6 +2072,77 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="withheld-countries"]',
     shows: ['Porez zadržan na izvoru', 'Država, iz ISIN-a', 'Sjedinjene Američke Države', 'Irska', 'Bez ISIN-a', ...SAMPLE_INCOME.withheldCroatian],
+  },
+  {
+    name: 'investments-performance-costs',
+    query: 'investments=sample',
+    hash: '#/investments/performance?tab=costs',
+    title: 'Performance',
+    charts: 0,
+    ready: '[data-testid="costs-years"]',
+    shows: [
+      'Costs per year',
+      'Trading fees',
+      'Exchange fees',
+      'Account fees',
+      'Fund costs, estimated',
+      'Example World ETF',
+      'TER 0.20%',
+      'so far',
+      "Fund costs are already inside each fund's price",
+      ...SAMPLE_INCOME.costs,
+    ],
+  },
+  {
+    name: 'investments-performance-costs-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments/performance?tab=costs',
+    title: 'Uspješnost',
+    charts: 0,
+    ready: '[data-testid="costs-years"]',
+    shows: ['Troškovi po godinama', 'Naknade trgovanja', 'Naknade konverzije', 'Naknade računa', 'Troškovi fondova, procjena', 'zasad', ...SAMPLE_INCOME.costsCroatian],
+  },
+  {
+    name: 'investments-performance-saving',
+    query: 'investments=sample',
+    hash: '#/investments/performance?tab=saving',
+    title: 'Performance',
+    charts: 2,
+    ready: '[data-testid="projection-chart"]',
+    shows: [
+      'Months in a row',
+      'Longest run',
+      'A month, last 12 months',
+      'How regularly you invest',
+      'Projection',
+      'Each month',
+      'Return a year',
+      'At 3.5% a year you could take out',
+      'At 4% a year you could take out',
+      'Before tax and inflation',
+      ...SAMPLE_INCOME.saving,
+    ],
+    cards: false,
+  },
+  {
+    name: 'investments-performance-saving-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments/performance?tab=saving',
+    title: 'Uspješnost',
+    charts: 2,
+    ready: '[data-testid="projection-chart"]',
+    shows: [
+      'Mjeseci zaredom',
+      'Najdulji niz',
+      'Mjesečno, zadnjih 12 mjeseci',
+      'Koliko redovito ulažete',
+      'Projekcija',
+      'Svaki mjesec',
+      'Prinos godišnje',
+      'Prije poreza i inflacije',
+      ...SAMPLE_INCOME.savingCroatian,
+    ],
+    cards: false,
   },
   {
     name: 'investments-prices-late',
