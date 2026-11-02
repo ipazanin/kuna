@@ -3779,6 +3779,56 @@ export function investmentsCompareFlowIn(card, shotName) {
 }
 
 /**
+ * The sample's world ETF in its holding dialog: a two-word country, a code in brackets and Not set typed into the Country
+ * field, then a two-word country and a code in brackets typed into a new line of the fund's country mix, each picked with
+ * Enter. Escape closes the dialog without saving.
+ */
+export async function investmentsCountrySearchFlow(page, { press, shoot, inspect }) {
+  await goTo(page, `#/investments/holding?instrument=${SAMPLE_WORLD_ETF}`, 'Example World ETF')
+  await pressSelector(page, press, '[data-testid="holding-change"]')
+  await page.waitForSelector('[data-testid="instrument-form"]', { visible: true })
+  const country = '[data-testid="instrument-country"]'
+  await pickTyped(page, press, country, 'United Kingdom', 'United Kingdom (GB)', shoot)
+  await pickTyped(page, press, country, '(US)', 'United States (US)')
+  await inspect?.('the Country field with a country picked')
+  await pickTyped(page, press, country, 'Not set', 'Not set')
+  await pressLabelled(page, press, '[data-testid="instrument-mix-pick"]', 'By country or region')
+  await pressSelector(page, press, '[data-testid="instrument-mix-add"]')
+  const line = '[data-testid="instrument-mix-line"]:last-child [data-testid="instrument-mix-group"]'
+  await pickTyped(page, press, line, 'South Korea', 'South Korea (KR)')
+  await pickTyped(page, press, line, '(US)', 'United States (US)')
+  await page.keyboard.press('Escape')
+  await dialogGone(page, '[data-testid="instrument-form"]')
+}
+
+/** Opens a searchable list, types the query, waits for the first match to be the one wanted and highlighted, and picks it with Enter. */
+async function pickTyped(page, press, trigger, query, wanted, shoot) {
+  await pressSelector(page, press, trigger)
+  await page.waitForSelector('[role="listbox"]', { visible: true })
+  await delay(200)
+  await page.keyboard.type(query)
+  await page
+    .waitForFunction(
+      (label) => {
+        const first = document.querySelector('[role="option"]')
+        return first?.textContent?.trim() === label && first.hasAttribute('data-highlighted')
+      },
+      { timeout: 5_000 },
+      wanted,
+    )
+    .catch(async () => {
+      const listed = await page.$$eval('[role="option"]', (options) =>
+        options.slice(0, 3).map((option) => `${option.textContent?.trim()}${option.hasAttribute('data-highlighted') ? ' (highlighted)' : ''}`),
+      )
+      throw new Error(`"${query}" does not put ${wanted} first and highlighted, the list starts ${JSON.stringify(listed)}`)
+    })
+  await shoot?.('investments-country-search')
+  await page.keyboard.press('Enter')
+  await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+  await elementSays(page, trigger, [wanted], `Enter after "${query}" does not pick ${wanted}`)
+}
+
+/**
  * Investments Settings, Prices, on the sample: three made-up CSV files of closes dropped at once on Import closes, two
  * matched to holdings by their names and one picked by hand, their dry run, and one import of all three.
  */

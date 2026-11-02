@@ -32,10 +32,13 @@ export interface InstrumentTexts {
   note: string
 }
 
-/** Not set, then the types the quoting allows: only a bond is quoted in percent and only gold in grams. */
-export function typeItems(quoted: Quoting['kind']): { readonly value: InstrumentType | ''; readonly label: string }[] {
+/** The value of a list's Not set row, since a list item cannot carry a blank value. No type, sector, country or record id is a dash. */
+export const NOT_SET = '-' as const
+
+/** The types the quoting allows: only a bond is quoted in percent and only gold in grams. */
+export function typeItems(quoted: Quoting['kind']): { readonly value: InstrumentType; readonly label: string }[] {
   const allowed = quoted === 'unit' ? INSTRUMENT_TYPES : [TYPE_OF_QUOTING[quoted]]
-  return [{ value: '', label: words.instrumentDialog.notSet }, ...allowed.map((value) => ({ value, label: words.types[value] }))]
+  return allowed.map((value) => ({ value, label: words.types[value] }))
 }
 
 /** The class the type holds, or null when the class field says, for a fund or an instrument with no type. */

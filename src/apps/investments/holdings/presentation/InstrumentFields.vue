@@ -5,7 +5,7 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import CurrencyField from './CurrencyField.vue'
-import { COUNTRY_ITEMS, SECTOR_ITEMS, classOfType, typeItems } from './instrumentForm'
+import { COUNTRY_ITEMS, NOT_SET, SECTOR_ITEMS, classOfType, typeItems } from './instrumentForm'
 import type { InstrumentErrors, InstrumentTexts } from './instrumentForm'
 import { words } from './words'
 import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
@@ -38,8 +38,9 @@ const SOURCE_ITEMS = PRICE_SOURCES.map((value) => {
   return { value, label: vendor?.name ?? text.manual, description: vendor?.covers ?? text.manualHelp }
 })
 
-const SECTOR_CHOICES = [{ value: '' as const, label: text.notSet }, ...SECTOR_ITEMS]
-const COUNTRY_CHOICES = [{ value: '', label: text.notSet }, ...COUNTRY_ITEMS]
+const NOT_SET_ROW = { value: NOT_SET, label: text.notSet }
+const SECTOR_CHOICES = [NOT_SET_ROW, ...SECTOR_ITEMS]
+const COUNTRY_CHOICES = [NOT_SET_ROW, ...COUNTRY_ITEMS]
 
 const shown = (error: string | null): string | false => (props.tried && error) || false
 
@@ -58,13 +59,13 @@ function update<Field extends keyof InstrumentTexts>(field: Field, value: Instru
   </UFormField>
   <UFormField :label="text.type" :help="text.typeHelp">
     <USelectMenu
-      :model-value="texts.type"
-      :items="typeItems(quoted)"
+      :model-value="texts.type || NOT_SET"
+      :items="[NOT_SET_ROW, ...typeItems(quoted)]"
       value-key="value"
       :search-input="false"
       class="w-full"
       :data-testid="`${testId}-type`"
-      @update:model-value="update('type', $event)"
+      @update:model-value="update('type', $event === NOT_SET ? '' : $event)"
     />
   </UFormField>
   <UFormField v-if="classOfType(texts.type) === null" :label="text.class" :help="text.classHelp">
@@ -101,24 +102,24 @@ function update<Field extends keyof InstrumentTexts>(field: Field, value: Instru
   </UFormField>
   <UFormField :label="text.sector" :help="text.sectorHelp">
     <USelectMenu
-      :model-value="texts.sector"
+      :model-value="texts.sector || NOT_SET"
       :items="SECTOR_CHOICES"
       value-key="value"
       :search-input="false"
       class="w-full"
       :data-testid="`${testId}-sector`"
-      @update:model-value="update('sector', $event)"
+      @update:model-value="update('sector', $event === NOT_SET ? '' : $event)"
     />
   </UFormField>
   <UFormField :label="text.country" :help="text.countryHelp">
     <USelectMenu
-      :model-value="texts.country"
+      :model-value="texts.country || NOT_SET"
       :items="COUNTRY_CHOICES"
       value-key="value"
       :search-input="{ placeholder: text.findCountry }"
       class="w-full"
       :data-testid="`${testId}-country`"
-      @update:model-value="update('country', $event)"
+      @update:model-value="update('country', $event === NOT_SET ? '' : $event)"
     />
   </UFormField>
   <UFormField :label="text.ter" :help="text.terHelp" :error="shown(errors.ter)">

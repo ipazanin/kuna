@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { INSTRUMENT_WRITES, INVESTMENT_ACCOUNT_WRITES } from '../src/apps/investments/holdings/application/holdingWrites'
 import { FUND_MIX_WRITES, TARGET_WRITES, replaceRows } from '../src/apps/investments/holdings/application/mixWrites'
-import { instrumentErrors, instrumentOfTexts, instrumentTexts, typeItems } from '../src/apps/investments/holdings/presentation/instrumentForm'
+import { COUNTRY_ITEMS, NOT_SET, SECTOR_ITEMS, instrumentErrors, instrumentOfTexts, instrumentTexts, typeItems } from '../src/apps/investments/holdings/presentation/instrumentForm'
 import { fundMixChanges, fundMixErrors, fundMixTexts, mixLineTexts, mixSum } from '../src/apps/investments/holdings/presentation/instrumentMixForm'
 import { writeCheck } from '../src/apps/investments/overview/application/checkWrites'
 import { writeTransaction } from '../src/apps/investments/transactions/application/transactionWrites'
@@ -452,9 +452,17 @@ describe('the instrument form', () => {
     expect(instrumentOfTexts({ ...typed, type: 'fund', class: 'gold' }, [], recordIdOf(INSTRUMENT_RECORDS, 'new'), unit)).toMatchObject({ type: 'fund', class: 'gold' })
     expect(instrumentOfTexts(typed, [], recordIdOf(INSTRUMENT_RECORDS, 'new'), unit)).toMatchObject({ type: null, class: 'stocks' })
     expect(instrumentTexts({ ...SHARE, type: 'share' }).type).toBe('share')
-    expect(typeItems('unit').map((item) => item.value)).toEqual(['', 'share', 'fund', 'bond', 'gold', 'crypto'])
-    expect(typeItems('percent').map((item) => item.value)).toEqual(['', 'bond'])
-    expect(typeItems('gram').map((item) => item.value)).toEqual(['', 'gold'])
+    expect(typeItems('unit').map((item) => item.value)).toEqual(['share', 'fund', 'bond', 'gold', 'crypto'])
+    expect(typeItems('percent').map((item) => item.value)).toEqual(['bond'])
+    expect(typeItems('gram').map((item) => item.value)).toEqual(['gold'])
+  })
+
+  it('offers no type, sector or country whose value is blank or the Not set row’s stand-in, since a list item cannot be blank', () => {
+    const values = [...typeItems('unit'), ...SECTOR_ITEMS, ...COUNTRY_ITEMS].map((item) => item.value)
+
+    expect(values).not.toContain('')
+    expect(values).not.toContain(NOT_SET)
+    expect(NOT_SET).not.toBe('')
   })
 
   it('says what a fund’s mix lacks: a group, a group on one line only, a percent above 0 and at most 100, and lines that add up to 100%', () => {

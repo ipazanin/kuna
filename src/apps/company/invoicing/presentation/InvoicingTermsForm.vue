@@ -93,7 +93,9 @@ function createBillingItem(field: BillingItemField, text: string): void {
   }
 }
 
-const clientItems = computed(() => props.clients.map((client) => ({ label: client.name || client.slug, value: client.slug })))
+/** The value of the client list's Not set row, since a list item cannot carry a blank value. No slug is a dash. */
+const NOT_SET = '-'
+const clientItems = computed(() => [{ label: words.terms.notSet, value: NOT_SET }, ...props.clients.map((client) => ({ label: client.name || client.slug, value: client.slug }))])
 
 /** A field with `lines` is a text box that grows, so a long path or subject wraps instead of scrolling inside the card. */
 const INVOICING_FIELDS: readonly { readonly field: InvoicingField; readonly lines?: number; readonly wide?: boolean }[] = [
@@ -156,13 +158,11 @@ function updateInvoicing(field: InvoicingField, value: string): void {
         </template>
         <UFormField :label="words.terms.client" :help="words.terms.clientHelp" class="sm:col-span-2">
           <USelectMenu
-            :model-value="draft.billing.client"
+            :model-value="draft.billing.client || NOT_SET"
             :items="clientItems"
             value-key="value"
-            :placeholder="words.terms.notSet"
-            clear
             class="w-full"
-            @update:model-value="updateBilling('client', String($event ?? ''))"
+            @update:model-value="updateBilling('client', $event === NOT_SET ? '' : String($event))"
           />
         </UFormField>
       </FormGrid>

@@ -5,6 +5,7 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import InstrumentDialog from '../../holdings/presentation/InstrumentDialog.vue'
+import { NOT_SET } from '../../holdings/presentation/instrumentForm'
 import { listingLine } from '../../holdings/presentation/holdingText'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { words } from './words'
@@ -22,8 +23,8 @@ const props = defineProps<{
 }>()
 
 const adding = ref(false)
-const items = computed(() => [
-  ...(props.optional ? [{ label: words.fields.noHolding, value: '', description: '', isin: '' }] : []),
+const items = computed<{ label: string; value: string; description: string; isin: string }[]>(() => [
+  ...(props.optional ? [{ label: words.fields.noHolding, value: NOT_SET, description: '', isin: '' }] : []),
   ...props.book.instruments.map((candidate) => ({ label: candidate.name, value: candidate.id, description: listingLine(candidate), isin: candidate.isin ?? '' })),
 ])
 </script>
@@ -32,13 +33,14 @@ const items = computed(() => [
   <UFormField :label="label" :help="words.fields.holdingHelp" :error="error" class="sm:col-span-2">
     <div class="flex items-center gap-2">
       <USelectMenu
-        v-model="instrument"
+        :model-value="optional ? instrument || NOT_SET : instrument"
         :items="items"
         value-key="value"
         :filter-fields="['label', 'description', 'isin']"
         :search-input="{ placeholder: words.fields.holdingSearch }"
         class="min-w-0 flex-1"
         :data-testid="testId"
+        @update:model-value="instrument = $event === NOT_SET ? '' : $event"
       />
       <UButton :label="words.fields.newHolding" icon="i-lucide-plus" color="neutral" variant="outline" class="shrink-0" :data-testid="`${testId}-new`" @click="adding = true" />
     </div>
