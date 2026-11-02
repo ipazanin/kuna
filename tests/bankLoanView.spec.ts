@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
-import { bankLoanFigures, planYears } from '../src/apps/loans/bankLoans/presentation/bankLoanView'
+import { bankLoanFigures, bankLoanMoves, planYears } from '../src/apps/loans/bankLoans/presentation/bankLoanView'
 import { euros } from './fixtures/ledger'
 import { civil } from './fixtures/ledger'
-import { bankLoan, ratePeriod } from './fixtures/loans'
+import { bankLoan, extraPayment, lateInstalment, ratePeriod } from './fixtures/loans'
 
 describe("a bank loan's plan by year", () => {
   it('marks only the payments still to come at a variable rate as estimates', () => {
@@ -33,5 +33,27 @@ describe("a bank loan's figures on a day", () => {
     // The interest of 2026's instalments is 78.36, which the subsidy's 20.00 a month covers in full.
     expect(figures?.interestThisYear).toEqual({ year: 2026, interest: euros(78.36), subsidy: euros(78.36) })
     expect(figures?.stillToPay).toEqual({ principal: euros(173.22), interest: 0, subsidyPrincipal: euros(36.84), subsidyInterest: euros(3.16), extra: 0 })
+  })
+})
+
+describe("what a bank loan's balance chart marks", () => {
+  it('marks each instalment due by the day, a late one with the day it went out, every extra payment and each rate after the first', () => {
+    const loan = bankLoan()
+    const periods = [ratePeriod(loan, '2026-02-05', '12'), { ...ratePeriod(loan, '2026-06-05', '6'), rateType: 'variable' as const, note: 'Index + margin' }]
+    const extras = [extraPayment(loan, '2026-04-20', 300, 'shorter-term'), extraPayment(loan, '2026-09-20', 100, 'shorter-term')]
+    const book = { loan, ratePeriods: periods, extraPayments: extras, lateInstalments: [lateInstalment(loan, '2026-03-05', '2026-03-09')], plan: loanPlan(loan, periods, extras) }
+
+    const moves = bankLoanMoves(book, civil('2026-04-30'))
+
+    expect(moves.map((move) => [move.date, move.kind, move.note, move.effect])).toEqual([
+      ['2026-02-05', 'Instalment 1', '', 'lowers'],
+      ['2026-03-05', 'Instalment 2', 'Paid 9 Mar, 4 days late', 'lowers'],
+      ['2026-04-05', 'Instalment 3', '', 'lowers'],
+      ['2026-04-20', 'Extra payment', '', 'lowers'],
+      ['2026-09-20', 'Extra payment', '', 'lowers'],
+      ['2026-06-05', 'New rate 6%, variable', 'Index + margin', 'rate'],
+    ])
+    expect(moves[0]!.amount).toBe(book.plan[1 - 1]!.payment)
+    expect(moves.at(-1)!.amount).toBeNull()
   })
 })

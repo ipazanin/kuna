@@ -1,13 +1,15 @@
 import { balanceOn, interestOf, isEstimate, nextPayment, paymentsAfter, paymentsInYear, payoffDate, subsidyLastCovered } from '../domain/loanFigures'
 import type { PaymentSplit } from '../domain/loanFigures'
 import type { PlanRow } from '../domain/loanPlan'
-import type { MonthBalance } from '../../balances/presentation/balanceChart'
+import type { BalanceMove, MonthBalance } from '../../balances/presentation/balanceChart'
+import { fractionOf } from '../domain/yearlyRate'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
 import { daysBetween, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import { lastDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
 import { ZERO, addMoney, subtractMoney } from '../../../../shared/money/money'
+import { formatRate } from '../../../../shared/money/moneyFormat'
 import type { Money } from '../../../../shared/money/money'
 import { plural } from '../../../../shared/text/translation'
 import { words } from './words'
@@ -138,10 +140,50 @@ export function planYears(book: BankLoanBook, day: CivilDate): PlanYear[] {
   }))
 }
 
+/** The day the loan was paid off, once that day has come, or null while it is open or its plan cannot be worked out. */
+export function bankLoanPaidOffOn(book: BankLoanBook, day: CivilDate): CivilDate | null {
+  const payoff = book.plan === null ? null : payoffDate(book.plan)
+  return payoff !== null && payoff <= day ? payoff : null
+}
+
 /** What the loan owes at each month end from its drawdown to its last payment. */
 export function bankLoanMonths(book: BankLoanBook): MonthBalance[] {
   const { loan, plan } = book
   const end = plan === null ? null : payoffDate(plan)
   if (plan === null || end === null) return []
   return monthsFrom(monthOf(loan.drawdown), monthOf(end)).map((month) => ({ month, owed: balanceOn(loan, plan, lastDayOf(month)) }))
+}
+
+/**
+ * What the balance chart marks on a bank loan: each instalment due by the day, as paid, with the day it
+ * went out when it was late, each extra payment whenever it falls, and each rate from a due date after
+ * the first instalment.
+ */
+export function bankLoanMoves(book: BankLoanBook, day: CivilDate): BalanceMove[] {
+  const paidLate = new Map(book.lateInstalments.map((late) => [late.due, late.paid]))
+  const payments = (book.plan ?? []).flatMap((row): BalanceMove[] => {
+    if (row.kind === 'extra-payment') return [{ date: row.date, kind: words.status.extra, amount: row.payment, note: '', effect: 'lowers' }]
+    if (row.kind !== 'instalment' || row.number === null || row.date > day) return []
+    const late = paidLate.get(row.date)
+    const days = late === undefined ? 0 : daysBetween(row.date, late)
+    return [
+      {
+        date: row.date,
+        kind: words.moves.instalment(row.number),
+        amount: row.payment,
+        note: late === undefined ? '' : plural(words.status.paidLate(days, shortDayLabel(late)), days),
+        effect: 'lowers',
+      },
+    ]
+  })
+  const rates = book.ratePeriods
+    .filter((period) => period.from !== book.loan.firstInstalment)
+    .map((period): BalanceMove => ({
+      date: period.from,
+      kind: words.moves.newRate(words.changes.rate(formatRate(fractionOf(period.rate)), words.changes.rateTypes[period.rateType])),
+      amount: null,
+      note: period.note,
+      effect: 'rate',
+    }))
+  return [...payments, ...rates]
 }

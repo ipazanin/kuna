@@ -39,7 +39,9 @@ type AxisOption = Record<string, unknown>
 
 /**
  * A phone has a third of the width, so a month axis labels about four months, a value axis three
- * steps, and the tooltip stays inside the chart instead of widening the page.
+ * steps, and the tooltip stays inside the chart instead of widening the page. ECharts shows a tooltip
+ * once where the tap was before it confines it, so a phone also clips the chart, or a wide first
+ * tooltip near the right edge would widen the page for good.
  */
 function forPhone(option: ChartOption): ChartOption {
   const tooltip = option.tooltip
@@ -108,5 +110,5 @@ function onDataZoom(): void {
 </script>
 
 <template>
-  <VChart ref="chart" :option="renderedOption" :theme="theme" autoresize @click="onChartClick" @zr:click="onBandClick" @datazoom="onDataZoom" />
+  <VChart ref="chart" :option="renderedOption" :theme="theme" :class="{ 'overflow-clip': phone }" autoresize @click="onChartClick" @zr:click="onBandClick" @datazoom="onDataZoom" />
 </template>

@@ -14,7 +14,7 @@ import { scenarioMonths } from '../src/apps/loans/scenarios/presentation/scenari
 import type { LoanChange } from '../src/apps/loans/scenarios/domain/loanScenario'
 import { balanceChart } from '../src/apps/loans/balances/presentation/balanceChart'
 import { yearStep } from '../src/shared/charts/monthAxis'
-import type { MonthBalance } from '../src/apps/loans/balances/presentation/balanceChart'
+import type { BalanceMove, MonthBalance } from '../src/apps/loans/balances/presentation/balanceChart'
 import type { ChartTokens } from '../src/shared/charts/chartTokens'
 import { parseMonthKey } from '../src/shared/calendar/monthKey'
 import { ZERO } from '../src/shared/money/money'
@@ -113,11 +113,12 @@ describe('the payments chart', () => {
 })
 
 describe('the balance chart', () => {
+  const OWED = { token: '--loan-you-owe' }
   const months: MonthBalance[] = ['2026-09', '2026-10', '2026-11', '2026-12'].map((month, index) => ({ month: parseMonthKey(month)!, owed: euros(1000 - index * 100) }))
   const current = parseMonthKey('2026-10')!
 
   it('draws owed so far up to the current month and the plan from it, sharing the current month', () => {
-    const series = seriesOf(balanceChart(months, current, TOKENS, false))
+    const series = seriesOf(balanceChart(months, current, TOKENS, false, OWED))
 
     expect(series.map((entry) => entry.name)).toEqual(['Owed so far', 'Still to come, by the plan'])
     expect(series[0]!.data).toEqual([euros(1000), euros(900), null, null])
@@ -125,13 +126,13 @@ describe('the balance chart', () => {
   })
 
   it('draws only owed so far when no month is after the current one', () => {
-    expect(seriesOf(balanceChart(months, parseMonthKey('2026-12')!, TOKENS, false)).map((entry) => entry.name)).toEqual(['Owed so far'])
+    expect(seriesOf(balanceChart(months, parseMonthKey('2026-12')!, TOKENS, false, OWED)).map((entry) => entry.name)).toEqual(['Owed so far'])
   })
 
   it('notes the variable rate in the tooltip from its month on at every width, and marks it on the chart only on a wide screen', () => {
     const estimateFrom = parseMonthKey('2026-11')!
-    const wide = balanceChart(months, current, TOKENS, false, { estimateFrom })
-    const phone = balanceChart(months, current, TOKENS, true, { estimateFrom })
+    const wide = balanceChart(months, current, TOKENS, false, { ...OWED, estimateFrom })
+    const phone = balanceChart(months, current, TOKENS, true, { ...OWED, estimateFrom })
 
     for (const chart of [wide, phone]) {
       expect(tooltipOf(chart, '2026-10')).not.toContain('estimate')
@@ -141,10 +142,54 @@ describe('the balance chart', () => {
     expect(seriesOf(phone)[1]).not.toHaveProperty('markArea')
   })
 
+  it("marks a month's moves as one dot per effect on its balance, sized by amount, a new rate as a ring of its own, and names them in the tooltip", () => {
+    const moves: BalanceMove[] = [
+      { date: civil('2026-09-20'), kind: 'Instalment 1', amount: euros(100), note: '', effect: 'lowers' },
+      { date: civil('2026-09-25'), kind: 'Extra payment', amount: euros(300), note: '', effect: 'lowers' },
+      { date: civil('2026-10-02'), kind: 'Borrowed', amount: euros(100), note: 'Boat parts', effect: 'raises' },
+      { date: civil('2026-11-20'), kind: 'New rate 3.85%, variable', amount: null, note: '6M EURIBOR + 1.20', effect: 'rate' },
+      { date: civil('2027-03-01'), kind: 'Repaid', amount: euros(50), note: '', effect: 'lowers' },
+    ]
+    const chart = balanceChart(months, current, TOKENS, false, { ...OWED, moves })
+    const [, , lowers, raises, rate] = seriesOf(chart) as unknown as { itemStyle: { borderColor: string }; data: ('-' | { value: number; symbolSize: number })[] }[]
+    const drawn = (series: typeof lowers) => series!.data.map((point) => (point === '-' ? point : [point.value, Math.round(point.symbolSize)]))
+
+    // September's 400.00 is the largest dot, 22 px, and October's 100.00 has half its diameter, 11 px. The move of March 2027 falls outside the months.
+    expect(drawn(lowers)).toEqual([[euros(1000), 22], '-', '-', '-'])
+    expect(drawn(raises)).toEqual(['-', [euros(900), 11], '-', '-'])
+    expect(drawn(rate)).toEqual(['-', '-', [euros(800), 10], '-'])
+    expect(rate!.itemStyle.borderColor).toBe('--loan-interest')
+    expect(tooltipOf(chart, '2026-09')).toContain('20 Sep · Instalment 1 €100.00')
+    expect(tooltipOf(chart, '2026-11')).toContain('20 Nov · New rate 3.85%, variable · 6M EURIBOR + 1.20')
+    expect(chart.legend.map((entry) => [entry.label, entry.colour, entry.mark])).toEqual([
+      ['Owed so far', 'var(--loan-you-owe)', 'line'],
+      ['Still to come, by the plan', 'var(--loan-ahead)', 'dashed'],
+      ['Lowers what is owed', 'var(--loan-you-owe)', 'dot'],
+      ['Raises what is owed', 'var(--loan-you-owe)', 'ring'],
+      ['Rate change', 'var(--loan-interest)', 'ring'],
+    ])
+    expect(chart.description).toContain(
+      ' Dots mark the 4 movements on their months: what lowers the debt as a filled dot, what raises the debt as a ring and a new rate as a violet ring. A month’s movements of one kind share a dot, sized by what they come to.',
+    )
+  })
+
+  it('describes only the dots the chart draws', () => {
+    const payments: BalanceMove[] = [
+      { date: civil('2026-09-20'), kind: 'Instalment 1', amount: euros(100), note: '', effect: 'lowers' },
+      { date: civil('2026-10-20'), kind: 'Instalment 2', amount: euros(100), note: '', effect: 'lowers' },
+    ]
+    const rateOnly: BalanceMove[] = [{ date: civil('2026-11-20'), kind: 'New rate 3.85%, variable', amount: null, note: '', effect: 'rate' }]
+
+    expect(balanceChart(months, current, TOKENS, false, { ...OWED, moves: payments }).description).toContain(
+      ' Dots mark the 2 movements on their months: what lowers the debt as a filled dot. A month’s movements of one kind share a dot, sized by what they come to.',
+    )
+    expect(balanceChart(months, current, TOKENS, false, { ...OWED, moves: rateOnly }).description).toMatch(/ A dot marks the one movement on its month: a new rate as a violet ring\.$/)
+  })
+
   it('describes the span, the balance now and where the plan ends', () => {
-    expect(balanceChart(months, current, TOKENS, false).description).toContain(`At the end of Oct 2026 it is ${formatMoney(euros(900))}.`)
-    expect(balanceChart(months, current, TOKENS, false).description).toContain(`The plan reaches ${formatMoney(euros(700))} by Dec 2026.`)
-    expect(balanceChart([], current, TOKENS, false).description).toBe('No months to show.')
+    expect(balanceChart(months, current, TOKENS, false, OWED).description).toContain(`At the end of Oct 2026 it is ${formatMoney(euros(900))}.`)
+    expect(balanceChart(months, current, TOKENS, false, OWED).description).toContain(`The plan reaches ${formatMoney(euros(700))} by Dec 2026.`)
+    expect(balanceChart([], current, TOKENS, false, OWED).description).toBe('No months to show.')
   })
 })
 

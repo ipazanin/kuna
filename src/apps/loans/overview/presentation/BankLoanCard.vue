@@ -7,6 +7,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import type { BankLoanFigures } from '../../bankLoans/presentation/bankLoanView'
 import { bankLoanMonths } from '../../bankLoans/presentation/bankLoanView'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
+import { DIRECTION_LOOKS } from '../../directions/presentation/loanDirection'
 import { bankLoanLink } from './loanLinks'
 import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -31,6 +32,7 @@ const props = defineProps<{
   hero?: boolean
 }>()
 
+const look = DIRECTION_LOOKS['you-owe']
 const months = computed(() => bankLoanMonths(props.book))
 const today = computed(() => months.value.findIndex((entry) => entry.month === monthOf(props.day)))
 
@@ -65,7 +67,10 @@ const facts = computed((): Fact[] => {
           <h2 class="type-card-title">{{ book.loan.name }}</h2>
           <p class="type-caption">{{ book.loan.lender || words.card.bankLoan }}</p>
         </div>
-        <UBadge v-if="figures?.subsidy && !figures.subsidy.ended" :label="words.card.subsidised" color="neutral" variant="subtle" />
+        <div class="flex shrink-0 flex-col items-end gap-1.5">
+          <UBadge :label="look.label" :icon="look.icon" :color="look.tone" variant="subtle" data-testid="loan-direction" />
+          <UBadge v-if="figures?.subsidy && !figures.subsidy.ended" :label="words.card.subsidised" color="neutral" variant="subtle" />
+        </div>
       </div>
       <p v-if="figures === null" class="type-body">{{ words.card.noPlan }}</p>
       <template v-else>
@@ -77,7 +82,7 @@ const facts = computed((): Fact[] => {
           <SparkLine
             :points="months.map((entry) => entry.owed)"
             :ahead-from="today < 0 ? undefined : today"
-            colour="var(--loan-principal)"
+            :colour="`var(${look.token})`"
             ahead-colour="var(--loan-ahead)"
             fill
             :width="160"

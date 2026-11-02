@@ -240,6 +240,15 @@
   --loan-interest: var(--series-7);
 
   /*
+   * Which way a loan runs, on its tiles, its card, its badge and its balance line: what you owe in the
+   * negative tone and what others owe you in the positive one. Each always comes with its own icon and
+   * words, since the two tones are hard to tell apart with red-green colour blindness. Both pass 4.5:1
+   * as text on the card and on the elevated surface in both themes.
+   */
+  --loan-you-owe: var(--tone-negative);
+  --loan-owed-to-you: var(--tone-positive);
+
+  /*
    * Each bank loan's band where the Overview stacks several, by the loan's place in the file. Blue,
    * pink and dark green pass the palette check with --loan-ahead in both themes, so brass stays the
    * part still to come. A fourth loan and later wear --chart-deemphasis.

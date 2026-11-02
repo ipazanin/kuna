@@ -341,9 +341,11 @@ const CARD_SELECTOR = '.rounded-card'
  * screen points at, which has to open. `collapsedBefore` names the cards this device
  * remembers as collapsed, and `expandedBefore` those it remembers as open. `stored` is what this device keeps in localStorage before the page loads, such as made-up price vendor keys. `cards: false` marks a screen with no collapsible card.
  */
-/** The ids of the sample Loans file's two loans, `?loans=sample`. */
+/** The ids of the sample Loans file's bank loan, its informal loan you owe and its informal loan owed to you whose borrower is behind on the plan, `?loans=sample`. */
 const SAMPLE_BANK_LOAN = 'fa4e0000-0000-4000-8000-000000000001'
 const SAMPLE_INFORMAL_LOAN = 'fa4e0000-0000-4000-8000-000000000006'
+const SAMPLE_PLANNED_LOAN = 'fa4e0000-0000-4000-8000-000000000040'
+const SAMPLE_SETTLED_LOAN = 'fa4e0000-0000-4000-8000-000000000050'
 /** The car loan of `?loans=house-and-car`, which has no scenarios. */
 const SAMPLE_CAR_LOAN = 'fa4e0000-0000-4000-8000-000000000030'
 
@@ -1375,8 +1377,7 @@ const SOURCE_SCREENS = [
     hash: '#/loans',
     title: 'Overview',
     charts: 0,
-    shows: ['Home loan', 'From Marko', 'Owed in all', 'Subsidy ends', 'APN pays', 'paid back'],
-    cards: false,
+    shows: ['Home loan', 'From Marko', 'To Petra', 'You owe', 'Owed to you', 'Net', 'Petra is', 'behind', 'Completed', 'Subsidy ends', 'APN pays', 'paid back'],
   },
   {
     name: 'loans-sample-croatian',
@@ -1384,8 +1385,7 @@ const SOURCE_SCREENS = [
     hash: '#/loans',
     title: 'Pregled',
     charts: 0,
-    shows: ['Home loan', 'Ukupno dugujete', 'Plaća APN', 'otplaćeno'],
-    cards: false,
+    shows: ['Home loan', 'Dugujete', 'Duguje vam se', 'Neto', 'Petra kasni s otplatom', 'Završeno', 'Plaća APN', 'otplaćeno'],
   },
   { name: 'loans-one-loan', query: 'loans=one-loan', hash: '#/loans', title: 'Overview', charts: 0, shows: ['Home loan', 'owed today', 'paid back', 'Subsidy ends'], cards: false },
   {
@@ -1403,7 +1403,18 @@ const SOURCE_SCREENS = [
     hash: '#/loans',
     title: 'Overview',
     charts: 2,
-    shows: ['Home loan', 'Car loan', 'Interest still to pay', 'Free of all debt', 'Owed over time', 'What goes out each month', 'Upcoming payments', 'Every payment of Car loan'],
+    shows: [
+      'Home loan',
+      'Car loan',
+      'You owe',
+      'Nobody owes you',
+      'Interest still to pay',
+      'Free of all debt',
+      'Owed over time',
+      'What goes out each month',
+      'Your upcoming payments',
+      'Every payment of Car loan',
+    ],
     cards: false,
   },
   {
@@ -1412,7 +1423,7 @@ const SOURCE_SCREENS = [
     hash: '#/loans',
     title: 'Pregled',
     charts: 2,
-    shows: ['Car loan', 'Preostala kamata', 'Svi dugovi otplaćeni', 'Dug kroz vrijeme', 'Koliko plaćate svaki mjesec', 'Sljedeće uplate'],
+    shows: ['Car loan', 'Nitko vam ne duguje', 'Preostala kamata', 'Svi dugovi otplaćeni', 'Dug kroz vrijeme', 'Koliko plaćate svaki mjesec', 'Vaše sljedeće uplate'],
     cards: false,
   },
   { name: 'loans-opening', query: 'loans=opening', hash: '#/loans', title: 'Overview', charts: 0, ready: '[data-testid="loans-loading"]', cards: false },
@@ -1459,7 +1470,20 @@ const SOURCE_SCREENS = [
     hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
     title: 'Home loan',
     charts: 2,
-    shows: ['Owed today', 'Total owed', 'APN pays', 'Owed over time', 'Where the payments go', 'Over the whole loan', 'What if I pay extra', 'Estimate', '6M EURIBOR', 'days late'],
+    shows: [
+      'Owed today',
+      'Total owed',
+      'APN pays',
+      'Owed over time',
+      'Lowers what is owed',
+      'Rate change',
+      'Where the payments go',
+      'Over the whole loan',
+      'What if I pay extra',
+      'Estimate',
+      '6M EURIBOR',
+      'days late',
+    ],
   },
   {
     name: 'loans-bank-loan-croatian',
@@ -1467,7 +1491,20 @@ const SOURCE_SCREENS = [
     hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
     title: 'Home loan',
     charts: 2,
-    shows: ['Dug danas', 'Ukupno za otplatu', 'Plaća APN', 'Dug kroz vrijeme', 'Kamo idu uplate', 'Što ako uplatim više', 'Procjena', '6M EURIBOR', 'dana nakon dospijeća', 'Razdoblja kamatne stope'],
+    shows: [
+      'Dug danas',
+      'Ukupno za otplatu',
+      'Plaća APN',
+      'Dug kroz vrijeme',
+      'Smanjuje dug',
+      'Promjena kamatne stope',
+      'Kamo idu uplate',
+      'Što ako uplatim više',
+      'Procjena',
+      '6M EURIBOR',
+      'dana nakon dospijeća',
+      'Razdoblja kamatne stope',
+    ],
   },
   {
     name: 'loans-informal-loan',
@@ -1475,7 +1512,23 @@ const SOURCE_SCREENS = [
     hash: `#/loans/informal-loan?loan=${SAMPLE_INFORMAL_LOAN}`,
     title: 'From Marko',
     charts: 1,
-    shows: ['You owe Marko', 'Borrowed since', 'Borrowed in kind', 'Repaid in kind', 'Forgiven', 'He bought a boat battery for me'],
+    shows: ['You owe Marko', 'Borrowed since', 'Borrowed in kind', 'Repaid in kind', 'Forgiven', 'He bought a boat battery for me', 'Raises what is owed'],
+  },
+  {
+    name: 'loans-informal-loan-plan',
+    query: 'loans=sample',
+    hash: `#/loans/informal-loan?loan=${SAMPLE_PLANNED_LOAN}`,
+    title: 'To Petra',
+    charts: 1,
+    shows: ['Owed to you', 'Petra owes you', 'Expected payments', 'Petra is', 'behind', 'Next instalment', 'What they owe you at each month end', 'Paid for the ferry tickets'],
+  },
+  {
+    name: 'loans-informal-loan-settled',
+    query: 'loans=sample',
+    hash: `#/loans/informal-loan?loan=${SAMPLE_SETTLED_LOAN}`,
+    title: 'Small loans',
+    charts: 1,
+    shows: ['Owed to you', 'Nobody owes anything', 'Boat fuel', 'What they owe you at each month end'],
   },
   {
     name: 'loans-informal-loan-croatian',
@@ -1483,7 +1536,23 @@ const SOURCE_SCREENS = [
     hash: `#/loans/informal-loan?loan=${SAMPLE_INFORMAL_LOAN}`,
     title: 'From Marko',
     charts: 1,
-    shows: ['Dugujete: Marko', 'Posuđeno nakon toga', 'Posuđeno u naravi', 'Vraćeno u naravi', 'Oprošteno', 'Promjene'],
+    shows: ['Dugujete: Marko', 'Posuđeno nakon toga', 'Posuđeno u naravi', 'Vraćeno u naravi', 'Oprošteno', 'Promjene', 'Povećava dug'],
+  },
+  {
+    name: 'loans-informal-loan-plan-croatian',
+    query: 'loans=sample&lang=hr',
+    hash: `#/loans/informal-loan?loan=${SAMPLE_PLANNED_LOAN}`,
+    title: 'To Petra',
+    charts: 1,
+    shows: ['Duguje vam se', 'Petra vam duguje', 'Očekivane otplate', 'Petra kasni s otplatom', 'Sljedeća rata', 'Koliko vam se duguje na kraju svakog mjeseca'],
+  },
+  {
+    name: 'loans-informal-loan-settled-croatian',
+    query: 'loans=sample&lang=hr',
+    hash: `#/loans/informal-loan?loan=${SAMPLE_SETTLED_LOAN}`,
+    title: 'Small loans',
+    charts: 1,
+    shows: ['Duguje vam se', 'Nitko nikome ne duguje', 'Boat fuel', 'Koliko vam se duguje na kraju svakog mjeseca'],
   },
   {
     name: 'loans-scenarios',

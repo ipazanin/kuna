@@ -6,6 +6,11 @@ import type { Money } from '../../../../shared/money/money'
 
 const RAISES: ReadonlySet<MovementKind> = new Set(['borrowed', 'borrowed-in-kind'])
 
+/** Whether a movement of the kind raises what is owed, as borrowing does. Every other kind lowers it. */
+export function raisesWhatIsOwed(kind: MovementKind): boolean {
+  return RAISES.has(kind)
+}
+
 /** Oldest first, a day's movements in the order the file gives them. */
 function byDate(movements: readonly Movement[]): Movement[] {
   return [...movements].sort((earlier, later) => earlier.date.localeCompare(later.date))

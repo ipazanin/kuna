@@ -80,6 +80,7 @@ describe('the Loans file', () => {
       [EXTRA_PAYMENT_RECORDS, { id: 'x1', loan: LOAN_UUID, date: '2026-07-05', amount: '300.00', effect: 'shorter-term' }],
       [LATE_INSTALMENT_RECORDS, { id: 'l1', loan: LOAN_UUID, due: '2026-03-05', paid: '2026-03-23' }],
       [INFORMAL_LOAN_RECORDS, { ...FRIEND, note: 'For the boat' }],
+      [INFORMAL_LOAN_RECORDS, { ...FRIEND, id: 'f2', expected_monthly: '500.00', expected_from: '2026-06-01', expected_day: '1' }],
       [MOVEMENT_RECORDS, { id: 'm1', loan: OTHER_UUID, date: '2026-04-01', kind: 'borrowed-in-kind', amount: '45.50', note: 'Paid my ferry ticket' }],
       [LOAN_SCENARIO_RECORDS, LOAN_SCENARIO],
       [
@@ -233,6 +234,34 @@ describe('the Loans file', () => {
       ['informal-loan', 'From Ana', 'opening_balance is below zero'],
       ['movement', '2026-04-01, paid, 500', '"paid" is not a movement kind. Use borrowed, borrowed-in-kind, repaid, repaid-in-kind, forgiven'],
       ['movement', '2026-04-01, repaid, -500', 'amount must be more than zero'],
+    ])
+  })
+
+  it("reads an informal loan's expected plan from its three fields together, and a loan without them as before", () => {
+    const books = booksOf({ 'informal-loan': [FRIEND, { ...FRIEND, id: 'f2', name: 'To Ana', expected_monthly: '500.00', expected_from: '2026-06-01', expected_day: '31' }] })
+
+    expect(books.informalLoans.map((book) => book.loan.expected)).toEqual([null, { monthly: euros(500), from: '2026-06-01', day: 31 }])
+    expect(roundTrip(INFORMAL_LOAN_RECORDS, FRIEND)).toEqual(FRIEND)
+  })
+
+  it('leaves out an informal loan whose expected plan is missing a field, is not above zero, names no day of a month or starts before the loan', () => {
+    const plan = { expected_monthly: '500.00', expected_from: '2026-06-01', expected_day: '1' }
+    expect(
+      problemsOf({
+        'informal-loan': [
+          { ...FRIEND, id: 'p1', expected_monthly: '500.00', expected_from: '2026-06-01' },
+          { ...FRIEND, id: 'p2', ...plan, expected_monthly: '0' },
+          { ...FRIEND, id: 'p3', ...plan, expected_day: '32' },
+          { ...FRIEND, id: 'p4', ...plan, expected_day: 'first' },
+          { ...FRIEND, id: 'p5', ...plan, expected_from: '2026-02-28' },
+        ],
+      }),
+    ).toEqual([
+      ['informal-loan', 'From Ana', 'expected_monthly, expected_from and expected_day go together, and not all are filled'],
+      ['informal-loan', 'From Ana', 'expected_monthly must be more than zero'],
+      ['informal-loan', 'From Ana', 'expected_day "32" is not a day of the month from 1 to 31'],
+      ['informal-loan', 'From Ana', 'expected_day "first" is not a day of the month from 1 to 31'],
+      ['informal-loan', 'From Ana', 'expected_from 2026-02-28 is before the loan starts on 2026-03-01'],
     ])
   })
 

@@ -256,4 +256,20 @@ describe('Loans writes', () => {
     await store.undo(store.state.writes[0]!)
     expect(store.state.workbook!.informalLoans[0]!.movements).toHaveLength(2)
   })
+
+  it('keeps an expected plan on the informal loan, refuses one that starts before the loan, and takes it off again', async () => {
+    const store = await storeWithLoans()
+    const planned = { ...FRIEND, expected: { monthly: euros(500), from: civil('2026-06-01'), day: 1 } }
+
+    await store.write('Changed', (unit) => unit.of(INFORMAL_LOAN_WRITES).change(FRIEND, planned))
+    expect(store.state.workbook!.informalLoans[0]!.loan.expected).toEqual(planned.expected)
+    expect(store.state.workbook!.informalLoans[0]!.movements).toEqual([])
+
+    await expect(store.write('Changed', (unit) => unit.of(INFORMAL_LOAN_WRITES).change(planned, { ...planned, expected: { ...planned.expected, from: civil('2026-02-01') } }))).rejects.toThrow(
+      'expected_from 2026-02-01 is before the loan starts on 2026-03-01',
+    )
+
+    await store.write('Changed', (unit) => unit.of(INFORMAL_LOAN_WRITES).change(planned, FRIEND))
+    expect(store.state.workbook!.informalLoans[0]!.loan.expected).toBeNull()
+  })
 })

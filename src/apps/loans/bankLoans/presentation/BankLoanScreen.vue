@@ -7,7 +7,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import { subsidyLastCovered } from '../domain/loanFigures'
 import { fractionOf } from '../domain/yearlyRate'
 import { balanceChart } from '../../balances/presentation/balanceChart'
-import { words as balanceWords } from '../../balances/presentation/words'
+import { DIRECTION_LOOKS } from '../../directions/presentation/loanDirection'
 import { bankLoanNamed, LOANS_OVERVIEW_ROUTE, scenariosLink } from '../../overview/presentation/loanLinks'
 import type { LoanScenario } from '../../scenarios/domain/loanScenario'
 import ScenarioEditor from '../../scenarios/presentation/ScenarioEditor.vue'
@@ -17,7 +17,7 @@ import { useLoansBooks } from '../../workbook/application/loansStore'
 import BalanceHero from './BalanceHero.vue'
 import BankLoanDialog from './BankLoanDialog.vue'
 import BankLoanTiles from './BankLoanTiles.vue'
-import { bankLoanFigures, bankLoanMonths, planYears } from './bankLoanView'
+import { bankLoanFigures, bankLoanMonths, bankLoanMoves, planYears } from './bankLoanView'
 import ChangeListCard from './ChangeListCard.vue'
 import type { ChangeLine } from './ChangeListCard.vue'
 import ExtraPaymentDialog from './ExtraPaymentDialog.vue'
@@ -60,7 +60,8 @@ const estimateFrom = computed(() => years.value.flatMap((year) => year.lines).fi
 const chart = computed(() => {
   if (book.value === null) return null
   return balanceChart(bankLoanMonths(book.value), monthOf(day), chartTokens(), phone.value, {
-    extraPayments: book.value.extraPayments.map((payment) => monthOf(payment.date)),
+    token: DIRECTION_LOOKS['you-owe'].token,
+    moves: bankLoanMoves(book.value, day),
     estimateFrom: estimateFrom.value === null ? null : monthOf(estimateFrom.value),
   })
 })
@@ -178,12 +179,7 @@ function openLate(key: string | null): void {
             data-testid="loan-balance-chart"
           >
             <template #legend>
-              <ChartLegend
-                :entries="[
-                  { label: balanceWords.owedSoFar, colour: 'var(--loan-principal)', mark: 'line' },
-                  { label: balanceWords.stillToCome, colour: 'var(--loan-ahead)', mark: 'dashed' },
-                ]"
-              />
+              <ChartLegend :entries="chart.legend" />
             </template>
           </ChartCard>
           <PaymentsCard v-if="book.plan !== null" :plan="book.plan" :current-year="yearOf(day)" :estimate-from-year="estimateFrom === null ? null : yearOf(estimateFrom)" :payer="payer" />

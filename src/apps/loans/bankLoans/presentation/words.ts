@@ -65,7 +65,7 @@ export const en = {
   },
   balance: {
     title: 'Owed over time',
-    subtitle: 'At each month end. Green is behind you, the dashed brass line is the plan still to come.',
+    subtitle: 'At each month end. The solid line is behind you, the dashed brass line is the plan still to come. Dots mark the payments and new rates.',
   },
   payments: {
     title: 'Where the payments go',
@@ -115,6 +115,11 @@ export const en = {
     paidLate: (count: number, day: string): EnglishForms => ({ one: `Paid ${day}, 1 day late`, other: `Paid ${day}, ${count} days late` }),
     paid: 'Paid',
     due: 'Due',
+  },
+  /** What a dot on the balance chart names. */
+  moves: {
+    instalment: (number: number) => `Instalment ${number}`,
+    newRate: (rate: string) => `New rate ${rate}`,
   },
   changes: {
     onFile: (count: number): EnglishForms => ({ one: `${count} on file`, other: `${count} on file` }),
@@ -339,7 +344,7 @@ export const hr: Translation<typeof en> = {
   },
   balance: {
     title: 'Dug kroz vrijeme',
-    subtitle: 'Na kraju svakog mjeseca. Zeleno je iza vas, a isprekidana mjedena linija plan je koji tek dolazi.',
+    subtitle: 'Na kraju svakog mjeseca. Puna linija je iza vas, a isprekidana mjedena linija plan je koji tek dolazi. Točke označavaju uplate i nove kamatne stope.',
   },
   payments: {
     title: 'Kamo idu uplate',
@@ -388,6 +393,10 @@ export const hr: Translation<typeof en> = {
     paidLate: (count, day) => ({ one: `Plaćen ${day}, ${count} dan nakon dospijeća`, few: `Plaćen ${day}, ${count} dana nakon dospijeća`, other: `Plaćen ${day}, ${count} dana nakon dospijeća` }),
     paid: 'Plaćen',
     due: 'Dospijeva',
+  },
+  moves: {
+    instalment: (number) => `${number}. anuitet`,
+    newRate: (rate) => `Nova kamatna stopa ${rate}`,
   },
   changes: {
     onFile: (count) => ({ one: `${count} zapis`, few: `${count} zapisa`, other: `${count} zapisa` }),

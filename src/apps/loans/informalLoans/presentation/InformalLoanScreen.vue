@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
+import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { balanceChart } from '../../balances/presentation/balanceChart'
+import { DIRECTION_LOOKS } from '../../directions/presentation/loanDirection'
+import { planStanding } from '../domain/expectedPlan'
 import { informalLoanNamed, LOANS_OVERVIEW_ROUTE } from '../../overview/presentation/loanLinks'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import type { Movement } from '../../workbook/domain/movement'
 import InformalLoanDialog from './InformalLoanDialog.vue'
-import { MOVEMENT_KIND_NAMES, informalLoanFigures, informalLoanMonths, movementLines, whoOwes } from './informalLoanView'
+import { MOVEMENT_KIND_NAMES, informalLoanFigures, informalLoanMonths, informalLoanMoves, movementLines, standingWords, whoOwes } from './informalLoanView'
 import MovementDialog from './MovementDialog.vue'
 import { words } from './words'
 import { today } from '../../../../shared/calendar/civilDate'
@@ -20,6 +24,7 @@ import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
+import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import FactGrid from '../../../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../../../shared/ui/FactGrid.vue'
@@ -28,8 +33,9 @@ import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
+import { TONE_TEXT } from '../../../../shared/ui/toneText'
 
-/** One informal loan: who owes how much and what made it so, the balance over time, and its movements newest first. */
+/** One informal loan: who owes how much and what made it so, how repayments stand against its expected plan, the balance over time, and its movements newest first. */
 const { state } = useLoansBooks()
 const route = useRoute()
 const day = today()
@@ -37,7 +43,23 @@ const day = today()
 const book = computed(() => (state.workbook === null ? null : informalLoanNamed(state.workbook, route.query.loan)))
 const figures = computed(() => (book.value === null ? null : informalLoanFigures(book.value, day)))
 const phone = usePhoneLayout()
-const chart = computed(() => (book.value === null ? null : balanceChart(informalLoanMonths(book.value, day), monthOf(day), chartTokens(), phone.value)))
+const look = computed(() => DIRECTION_LOOKS[book.value?.loan.direction ?? 'you-owe'])
+const chart = computed(() =>
+  book.value === null ? null : balanceChart(informalLoanMonths(book.value, day), monthOf(day), chartTokens(), phone.value, { token: look.value.token, moves: informalLoanMoves(book.value) }),
+)
+const standing = computed(() => (book.value === null ? null : planStanding(book.value.loan, book.value.movements, day)))
+const standingLine = computed(() => (book.value === null || standing.value === null ? null : standingWords(book.value.loan, standing.value)))
+const planFacts = computed((): Fact[] => {
+  const expected = book.value?.loan.expected ?? null
+  if (expected === null || standing.value === null) return []
+  const { next } = standing.value
+  return [
+    { label: words.plan.plan, value: words.plan.monthly(formatMoney(expected.monthly), expected.day), caption: words.plan.from(dayLabel(expected.from)) },
+    { label: words.plan.expected, value: formatMoney(standing.value.expected) },
+    { label: words.plan.repaid, value: formatMoney(standing.value.repaid) },
+    next === null ? { label: words.plan.next, value: words.plan.nothingNext } : { label: words.plan.next, value: dayLabel(next.date), caption: formatMoney(next.amount) },
+  ]
+})
 const lines = computed(() => (book.value === null ? [] : movementLines(book.value)))
 const showAll = ref(false)
 const shown = computed(() => (showAll.value ? lines.value : lines.value.slice(0, FIRST_SHOWN)))
@@ -73,7 +95,10 @@ function openMovement(movement: Movement | null): void {
   <section class="flex flex-col gap-6">
     <UButton :to="LOANS_OVERVIEW_ROUTE" :label="words.allLoans" icon="i-lucide-arrow-left" color="neutral" variant="link" class="-mb-4 self-start px-0" data-testid="back-to-loans" />
     <template v-if="book !== null && figures !== null">
-      <PageHeader :title="book.loan.name" :description="[book.loan.counterparty, words.noPlan, book.loan.note].filter((part) => part !== '').join('. ')">
+      <PageHeader
+        :title="book.loan.name"
+        :description="[book.loan.counterparty, book.loan.expected === null ? words.noPlan : words.noInterest, book.loan.note].filter((part) => part !== '').join('. ')"
+      >
         <template #actions>
           <UButton :label="words.changeLoan" icon="i-lucide-pencil" color="neutral" variant="outline" data-testid="informal-loan-edit" @click="editingLoan = true" />
           <UButton :label="words.addMovement" icon="i-lucide-plus" data-testid="movement-add" @click="openMovement(null)" />
@@ -81,11 +106,21 @@ function openMovement(movement: Movement | null): void {
       </PageHeader>
       <AppCard as="article" class="gap-5 p-4 sm:flex-row sm:gap-0 sm:p-5" data-testid="informal-loan-hero">
         <div class="flex min-w-0 flex-col gap-2 sm:flex-1 sm:pe-6">
+          <UBadge :label="look.label" :icon="look.icon" :color="look.tone" variant="subtle" class="self-start" data-testid="loan-direction" />
           <p class="text-sm text-muted">{{ owedLabel }}</p>
           <MoneyText :cents="Math.abs(figures.owedByYou)" class="block text-figure-lg font-semibold text-highlighted sm:text-figure-xl" />
           <p class="type-caption">{{ words.hero.atTheEnd(dayLabel(day)) }}</p>
         </div>
         <FactGrid :facts="facts" class="border-t border-default pt-5 sm:flex-1 sm:border-t-0 sm:border-s sm:ps-6 sm:pt-0" />
+      </AppCard>
+      <AppCard v-if="standingLine !== null" :title="words.plan.title" :subtitle="words.plan.subtitle" data-testid="loan-plan-standing">
+        <div class="flex flex-col gap-4 px-4 pt-3 pb-4 sm:px-5">
+          <p class="flex items-center gap-2 type-body font-medium" :class="standingLine.tone === null ? 'text-highlighted' : TONE_TEXT[standingLine.tone]">
+            <UIcon :name="standingLine.tone === 'warning' ? 'i-lucide-clock-alert' : 'i-lucide-circle-check'" class="size-4 shrink-0" aria-hidden="true" />
+            {{ standingLine.text }}
+          </p>
+          <FactGrid :facts="planFacts" />
+        </div>
       </AppCard>
       <DashboardGrid layout="tiles">
         <KpiTile
@@ -100,16 +135,20 @@ function openMovement(movement: Movement | null): void {
         <ChartCard
           v-if="chart !== null"
           :title="words.balance.title"
-          :subtitle="words.balance.subtitle"
+          :subtitle="book.loan.direction === 'owed-to-you' ? words.balance.subtitleOwedToYou : words.balance.subtitle"
           :option="chart.option"
           :description="chart.description"
           :height="260"
           :phone-height="220"
           data-testid="loan-balance-chart"
-        />
+        >
+          <template #legend>
+            <ChartLegend :entries="chart.legend" />
+          </template>
+        </ChartCard>
         <AppCard
           :title="words.movements.title"
-          :subtitle="words.movements.subtitle"
+          :subtitle="book.loan.direction === 'owed-to-you' ? words.movements.subtitleOwedToYou : words.movements.subtitle"
           collapse-id="loans.movements"
           :summary="plural(words.tiles.movements(lines.length), lines.length)"
           data-testid="movement-list"

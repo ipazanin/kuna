@@ -3,16 +3,16 @@ import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import BankLoanDialog from '../../bankLoans/presentation/BankLoanDialog.vue'
-import { bankLoanFigures } from '../../bankLoans/presentation/bankLoanView'
 import { words as bankWords } from '../../bankLoans/presentation/words'
 import InformalLoanDialog from '../../informalLoans/presentation/InformalLoanDialog.vue'
-import { informalLoanFigures } from '../../informalLoans/presentation/informalLoanView'
+import { DIRECTION_LOOKS } from '../../directions/presentation/loanDirection'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import { debtFreeOn, interestAfter, interestInYear, plannedLoans, upcomingPayments } from '../domain/loansTogether'
 import BankLoanCard from './BankLoanCard.vue'
+import CompletedLoansCard from './CompletedLoansCard.vue'
 import InformalLoanCard from './InformalLoanCard.vue'
 import LoansTogether from './LoansTogether.vue'
-import { owedTotals } from './owedTotals'
+import { directionCaption, loansOverview } from './loansOverview'
 import { words } from './words'
 import { today, yearOf } from '../../../../shared/calendar/civilDate'
 import { dayLabel, shortDayLabel } from '../../../../shared/calendar/dayLabel'
@@ -29,8 +29,10 @@ import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
 /**
- * Every loan the Loans file holds, one card each. With two or more loans, tiles over them all lead,
- * and with two or more bank loans, charts and the upcoming payments over the bank loans follow.
+ * Every loan the Loans file holds, one card each, the loans at zero apart under Completed. With two or
+ * more open loans, tiles lead: what you owe, what is owed to you and the net of the two, then the bank
+ * loans' figures, which are all yours to pay. With two or more bank loans, charts and the upcoming payments over
+ * the bank loans follow.
  */
 const { state } = useLoansBooks()
 const day = today()
@@ -40,18 +42,19 @@ const loading = computed(() => state.workbook === null && state.status !== 'erro
 const fileNote = computed(() => (state.choice?.source === 'drive' ? words.empty.onDrive(state.choice.name) : words.empty.inBrowser))
 const problemLines = computed(() => (state.workbook?.problems ?? []).map((problem) => words.problems.line(problem.noun, problem.label, problem.reason)))
 
-const bankCards = computed(() => (state.workbook?.bankLoans ?? []).map((book) => ({ book, figures: bankLoanFigures(book, day) })))
-const informalCards = computed(() => (state.workbook?.informalLoans ?? []).map((book) => ({ book, figures: informalLoanFigures(book, day) })))
-const loanCount = computed(() => bankCards.value.length + informalCards.value.length)
-
-const owed = computed(() => owedTotals({ bank: bankCards.value.map((card) => card.figures), informal: informalCards.value.map((card) => card.figures) }))
+const overview = computed(() => loansOverview(state.workbook ?? { bankLoans: [], informalLoans: [] }, day))
+const loanCount = computed(() => (state.workbook?.bankLoans.length ?? 0) + (state.workbook?.informalLoans.length ?? 0))
+const openCount = computed(() => overview.value.openBank.length + overview.value.openInformal.length)
+const netLook = computed(() => (overview.value.net.direction === null ? null : DIRECTION_LOOKS[overview.value.net.direction]))
 const planned = computed(() => plannedLoans(state.workbook?.bankLoans ?? []))
 const next = computed(() => upcomingPayments(planned.value, day)[0] ?? null)
 const interestThisYear = computed(() => interestInYear(planned.value, year))
 const interestLeft = computed(() => interestAfter(planned.value, day))
 const unplanned = computed(() => (state.workbook?.bankLoans.length ?? 0) - planned.value.length)
 const debtFree = computed(() => debtFreeOn(state.workbook?.bankLoans ?? []))
-const owingInformally = computed(() => informalCards.value.some((card) => card.figures.owedByYou > 0))
+const owingInformally = computed(() => overview.value.openInformal.some((card) => card.figures.owedByYou > 0))
+const youOwe = DIRECTION_LOOKS['you-owe']
+const owedToYou = DIRECTION_LOOKS['owed-to-you']
 
 /** What an interest figure leaves out, or else what subsidies pay of it, naming the payer when every subsidised loan has the same one. */
 function interestCaption(subsidy: Money): string {
@@ -91,17 +94,38 @@ const addingInformal = ref(false)
         </template>
       </EmptyState>
       <template v-else>
-        <DashboardGrid v-if="loanCount >= 2" layout="tiles" data-testid="loans-tiles">
+        <DashboardGrid v-if="openCount >= 2" layout="tiles" data-testid="loans-directions">
           <KpiTile
-            :label="words.tiles.owedInAll"
-            :value="formatMoney(owed.owed)"
-            :caption="owed.owedToYou > 0 ? plural(words.tiles.owedToYou(loanCount, formatMoney(owed.owedToYou)), loanCount) : plural(words.tiles.onLoans(loanCount), loanCount)"
+            :label="youOwe.label"
+            :value="formatMoney(overview.totals.owed)"
+            :caption="directionCaption(overview, 'you-owe')"
+            :icon="youOwe.icon"
+            :icon-tone="youOwe.tone"
             :to="null"
-            data-testid="loans-total"
+            data-testid="loans-you-owe"
           />
+          <KpiTile
+            :label="owedToYou.label"
+            :value="formatMoney(overview.totals.owedToYou)"
+            :caption="directionCaption(overview, 'owed-to-you')"
+            :icon="owedToYou.icon"
+            :icon-tone="owedToYou.tone"
+            :to="null"
+            data-testid="loans-owed-to-you"
+          />
+          <KpiTile
+            :label="words.tiles.net"
+            :value="formatMoney(overview.net.amount)"
+            :caption="overview.net.direction === null ? words.tiles.netEven : overview.net.direction === 'you-owe' ? words.tiles.netYouOwe : words.tiles.netOwedToYou"
+            icon="i-lucide-scale"
+            :icon-tone="netLook?.tone"
+            :to="null"
+            data-testid="loans-net"
+          />
+        </DashboardGrid>
+        <DashboardGrid v-if="openCount >= 2 && planned.length > 0" layout="tiles" data-testid="loans-tiles">
           <KpiTile v-if="next" :label="words.tiles.nextPayment" :value="formatMoney(next.yourShare)" :caption="words.tiles.nextOn(shortDayLabel(next.date), next.loan.name)" :to="null" />
           <KpiTile
-            v-if="planned.length > 0"
             :label="words.tiles.interestIn(year)"
             :value="formatMoney(interestThisYear.interest)"
             :caption="interestCaption(interestThisYear.subsidy)"
@@ -109,7 +133,6 @@ const addingInformal = ref(false)
             :to="null"
           />
           <KpiTile
-            v-if="planned.length > 0"
             :label="words.tiles.interestLeft"
             :value="formatMoney(interestLeft.interest)"
             :caption="interestCaption(interestLeft.subsidy)"
@@ -133,10 +156,12 @@ const addingInformal = ref(false)
           data-testid="loans-problems"
         />
         <LoansTogether v-if="planned.length >= 2" :loans="planned" :day="day" :free-of-debt-on="owingInformally ? null : debtFree" />
-        <DashboardGrid data-testid="loan-cards">
-          <BankLoanCard v-for="card in bankCards" :key="card.book.loan.id" :book="card.book" :figures="card.figures" :day="day" :hero="loanCount === 1" />
-          <InformalLoanCard v-for="card in informalCards" :key="card.book.loan.id" :book="card.book" :figures="card.figures" :day="day" :hero="loanCount === 1" />
+        <DashboardGrid v-if="openCount > 0" data-testid="loan-cards">
+          <BankLoanCard v-for="card in overview.openBank" :key="card.book.loan.id" :book="card.book" :figures="card.figures" :day="day" :hero="openCount === 1" />
+          <InformalLoanCard v-for="card in overview.openInformal" :key="card.book.loan.id" :card="card" :day="day" :hero="openCount === 1" />
         </DashboardGrid>
+        <EmptyState v-else icon="i-lucide-circle-check" :title="words.completed.allClosed" :description="words.completed.allClosedDescription" data-testid="loans-all-closed" />
+        <CompletedLoansCard v-if="overview.completed.length > 0" :loans="overview.completed" />
       </template>
     </template>
     <BankLoanDialog v-model:open="addingBank" :book="null" />

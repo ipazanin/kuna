@@ -5,15 +5,17 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
+import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { INFORMAL_LOAN_WRITES, newInformalLoan, removeInformalLoan } from '../application/informalLoanWrites'
 import { informalLoanLink, LOANS_OVERVIEW_ROUTE } from '../../overview/presentation/loanLinks'
 import { useLoansBooks } from '../../workbook/application/loansStore'
-import type { InformalLoan } from '../../workbook/domain/informalLoan'
+import type { ExpectedPlan, InformalLoan } from '../../workbook/domain/informalLoan'
 import type { InformalLoanBook } from '../../workbook/domain/readLoanBook'
-import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
+import { civilDate, dayOfMonth, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { plainAmount } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
+import { typedCount } from '../../../../shared/text/typedCount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
@@ -21,7 +23,7 @@ import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as loansWords } from '../../words'
 import { words } from './words'
 
-/** Money owed between people, with no interest and no plan: who owes whom, from when, and how much at the start. */
+/** Money owed between people, with no interest: who owes whom, from when, how much at the start, and what the borrower means to repay each month. */
 const open = defineModel<boolean>('open', { required: true })
 
 const props = defineProps<{
@@ -44,6 +46,10 @@ const direction = ref<InformalLoan['direction']>('you-owe')
 const opening = ref('')
 const start = ref('')
 const note = ref('')
+const planned = ref(false)
+const planMonthly = ref('')
+const planFrom = ref('')
+const planDay = ref('')
 const tried = ref(false)
 
 watch(open, (opened) => {
@@ -55,22 +61,55 @@ watch(open, (opened) => {
   opening.value = loan === null ? '' : plainAmount(loan.openingBalance)
   start.value = loan?.start ?? ''
   note.value = loan?.note ?? ''
+  const expected = loan?.expected ?? null
+  planned.value = expected !== null
+  planMonthly.value = expected === null ? '' : plainAmount(expected.monthly)
+  planFrom.value = expected?.from ?? ''
+  planDay.value = expected === null ? '' : String(expected.day)
   tried.value = false
 })
 
+watch(planFrom, (from) => {
+  const day = parseCivilDate(from)
+  if (day !== null && planDay.value === '') planDay.value = String(dayOfMonth(day))
+})
+
 const openingBalance = computed(() => typedAmount(opening.value))
+const startDay = computed(() => parseCivilDate(start.value))
+
+const plan = computed((): { readonly expected: ExpectedPlan | null; readonly errors: { readonly monthly: string | null; readonly from: string | null; readonly day: string | null } } => {
+  const monthly = typedAmount(planMonthly.value)
+  const from = parseCivilDate(planFrom.value)
+  const day = typedCount(planDay.value)
+  const errors = {
+    monthly: monthly === null || monthly <= 0 ? loansWords.form.anAmount : null,
+    from: from === null || (startDay.value !== null && from < startDay.value) ? words.loanDialog.planFromError : null,
+    day: day === null || day > 31 ? words.loanDialog.planDayError : null,
+  }
+  const filled = monthly !== null && from !== null && day !== null && Object.values(errors).every((error) => error === null)
+  return { expected: filled ? { monthly, from, day } : null, errors }
+})
 
 const errors = computed(() => ({
   name: name.value.trim() === '' ? words.loanDialog.nameError : null,
   opening: openingBalance.value === null ? words.loanDialog.openingError : null,
-  start: parseCivilDate(start.value) === null ? loansWords.form.aDate(civilDate(2025, 3, 1)) : null,
+  start: startDay.value === null ? loansWords.form.aDate(civilDate(2025, 3, 1)) : null,
+  ...(planned.value ? plan.value.errors : {}),
 }))
 
 async function save(): Promise<void> {
   tried.value = true
-  const day = parseCivilDate(start.value)
+  const day = startDay.value
   if (Object.values(errors.value).some((error) => error !== null) || day === null || openingBalance.value === null) return
-  const typed = newInformalLoan({ name: name.value, counterparty: counterparty.value, direction: direction.value, openingBalance: openingBalance.value, start: day, note: note.value })
+  const typed = newInformalLoan({
+    name: name.value,
+    counterparty: counterparty.value,
+    direction: direction.value,
+    openingBalance: openingBalance.value,
+    start: day,
+    note: note.value,
+    expected: planned.value ? plan.value.expected : null,
+  })
   const book = props.book
   if (book === null) {
     if (await writes.write(words.loanDialog.added, (unit) => unit.of(INFORMAL_LOAN_WRITES).add(typed), { failedTitle: loansWords.form.notAdded })) {
@@ -113,6 +152,18 @@ async function remove(): Promise<void> {
       <UFormField :label="loansWords.form.note" class="sm:col-span-2">
         <UInput v-model="note" class="w-full" />
       </UFormField>
+      <USwitch v-model="planned" :label="words.loanDialog.planSwitch" :description="words.loanDialog.planSwitchHelp" class="sm:col-span-2" data-testid="informal-loan-planned" />
+      <template v-if="planned">
+        <UFormField :label="words.loanDialog.planMonthly" :error="(tried && errors.monthly) || false">
+          <MoneyInput v-model="planMonthly" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="informal-loan-plan-monthly" />
+        </UFormField>
+        <UFormField :label="words.loanDialog.planFrom" :error="(tried && errors.from) || false" :help="words.loanDialog.planFromHelp">
+          <UInput v-model="planFrom" type="date" class="w-full" data-testid="informal-loan-plan-from" />
+        </UFormField>
+        <UFormField :label="words.loanDialog.planDay" :error="(tried && errors.day) || false" :help="words.loanDialog.planDayHelp">
+          <UInput v-model="planDay" inputmode="numeric" class="w-full" data-testid="informal-loan-plan-day" />
+        </UFormField>
+      </template>
     </FormGrid>
     <template #start>
       <UButton

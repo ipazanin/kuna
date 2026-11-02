@@ -2129,21 +2129,37 @@ and with its own `backups` folder, or in this browser under its own id. Each app
 on this device under its own key, `kuna.workbook-file.<app>`. Its schema is `{"loans":1}`. Until
 Loans has settings it shows money as euros in the en-GB format.
 
-The Overview at `#/loans` has a card per loan, bank loans first. With two or more loans, five tiles
-lead: what you owe in all (and what others owe you on informal loans), the earliest next payment over
-the bank loans, this year's interest over them and the interest still to pay, each with what subsidies
-pay of it, and when the last bank loan is paid off, which reads as free of all debt unless you still
-owe on an informal loan. With two or more bank loans, two charts and a list follow: what each loan
-owes at each month end stacked by loan, with the plans' total dashed in brass from today, your share
-of each month's instalments stacked by loan, where a loan ending shows as a drop, and the next six
+Each direction a loan runs has its own look on the tiles, the cards, the badges and the balance
+lines: what you owe in `--loan-you-owe`, the negative tone, with a banknote and an arrow up, and what
+others owe you in `--loan-owed-to-you`, the positive tone, with a banknote and an arrow down. A bank
+loan is always one you owe. An informal loan's badge follows its direction, whatever its balance.
+
+The Overview at `#/loans` has a card per open loan, bank loans first. With two or more open loans,
+two rows of tiles lead. The first adds up both directions by who owes on the day: You owe, Owed to you,
+and Net, the larger of the two less the smaller, saying which way it goes. You owe and Owed to you
+count their loans and name who is behind on an expected plan, or how many loans are. The second row
+covers the bank loans, which are all yours to pay: your next payment, this year's interest and the interest still to pay, each with what subsidies pay of it, and
+when the last bank loan is paid off, which reads as free of all debt unless you still owe on an
+informal loan. With two or more bank loans, two charts and a list follow: what you owe on each bank
+loan at each month end stacked by loan, with the plans' total dashed in brass from today, your share
+of each month's instalments stacked by loan, where a loan ending shows as a drop, and your next six
 payments over the bank loans by due date with a link to each loan's page. Each figure comes from one
-function over the loans in `src/apps/loans/overview/domain/loansTogether.ts`. A bank loan's card shows what you owe today beside a sparkline of its whole plan,
-green and solid up to today and brass and dashed after, a paid-back meter, and the next payment with
+function over the loans in `src/apps/loans/overview/domain/loansTogether.ts`, and which loans are open,
+the totals both ways and the net come from `loansOverview` in
+`src/apps/loans/overview/presentation/loansOverview.ts`. A bank loan's card shows what you owe today beside a sparkline of its whole plan,
+in the You owe colour and solid up to today and brass and dashed after, a paid-back meter, and the next payment with
 your share and the full instalment, when the subsidy ends and what you pay after it, and the payoff
-date. An informal loan's card shows who owes how much, its balance as a green sparkline with a zero
-line once it crosses zero, the last movement and when it started. With one loan there are no tiles,
-and its card takes the whole width with a larger figure and sparkline. Records the file holds that
-the app leaves out or doubts are listed above the cards. An empty file shows an empty state with
+date. An informal loan's card shows who owes how much, its balance the loan's way as a sparkline in its
+direction's colour with a zero line once it crosses zero, how the borrower stands against the
+expected plan with the next due date, the last movement and when it started. A loan at zero is
+closed whichever way it ran: a bank loan once its last instalment has fallen due, and an informal
+loan once nothing is owed at the end of the day after at least one movement, and no movement comes
+after it. Closed loans leave
+the cards for Completed below them, a card collapsed by default with their count, each a row that
+opens the loan's page with the day it was paid off or settled. With one open loan its card takes the
+whole width with a larger figure and sparkline, and with none an empty state points at Completed.
+With fewer than two open loans there are no tiles. Records the file holds that the app leaves out or
+doubts are listed above the cards. An empty file shows an empty state with
 both add buttons and where the file is kept, and while the file opens the screen shows skeleton
 tiles and cards. A tap on a card opens the loan's page:
 `#/loans/bank-loan?loan=<uuid>` or `#/loans/informal-loan?loan=<uuid>`, by the loan's bare UUID.
@@ -2154,8 +2170,12 @@ the interest of every instalment to come, split into principal, interest, what t
 and what you pay, with a meter whose subsidy part is striped. Four tiles follow: the next payment,
 when the subsidy ends with its instalments to go, the payoff date and this year's interest with what
 the subsidy pays of it. "Owed over time" draws the balance at each month end, green and solid up to
-today and brass and dashed for the plan after it, with a Today rule, a hollow dot on each extra
-payment, a note where the variable rate starts and years on the axis. "Where the payments go" draws
+today and brass and dashed for the plan after it, with a Today rule, a note where the variable rate
+starts and years on the axis. A dot on a month's balance marks what moved it, as Investments marks a
+holding's trades, through the shared `src/shared/charts/chartDots.ts`: a filled dot for the
+instalments due by today and the extra payments, sized by what the month's payments come to, and a
+violet ring for each rate after the first. A tap or a hover names the nearest dot's entries with
+their day, kind, amount and note, a late instalment with the day it went out. "Where the payments go" draws
 one stacked bar per year: an extra payment as an outline at the bottom, then the principal you pay,
 the principal and interest the subsidy pays, striped, and the interest you pay on top, with a brass
 rule under the years still to come. Above the bars, the same split over the whole loan. Both charts
@@ -2180,14 +2200,28 @@ payment dialog filled in. A date during the subsidy, or up to 24 months after it
 instalment, shows that repaying early then means paying the subsidy back, as the APN loan contract
 says.
 
-An informal loan's page leads with who owes how much beside the opening balance, what was borrowed
-since, what was repaid and what was forgiven, then the last movement and the start as tiles, the
-balance at each month end and the movements newest first, each with its kind, note and what is owed
-after it.
+An informal loan's page leads with its direction's badge and who owes how much beside the opening
+balance, what was borrowed since, what was repaid and what was forgiven. A loan with an expected
+plan then shows Expected payments: how far ahead or behind the borrower is, the other side on a loan
+owed to you and you on one you owe, the plan, what it expects by today, what was repaid since it
+started and when the next instalment falls due. The last movement and the start follow as tiles,
+then the balance the loan's way at each month end with a dot on each movement's month, a ring for
+borrowing and a filled dot for the rest, and the movements newest first, each with its kind, note
+and who owes how much after it, or that nobody owes anything.
+
+An expected plan is for information only and never writes a movement. From the day it starts its
+amount falls due each month on its day, the first time after that day, or on the last day of a
+shorter month. An instalment counts as due from the day after its due date. Repayments, in money or
+in kind, count from the day the plan starts, and the plan never asks for more than was repaid and is
+still owed, so borrowing more makes nobody behind and forgiving part of the debt asks for less. €500
+on the 1st from 1 Jun 2026, with €1,500 repaid by 2 Nov 2026, expects five instalments, 1 Jul to 1 Nov,
+so the borrower is €1,000.00 behind and the next €500.00 falls due on 1 Dec 2026. `planStanding` in
+`src/apps/loans/informalLoans/domain/expectedPlan.ts` works it out.
 
 The dialogs follow the billing plan's: full screen on a phone, errors after the first try to save.
 Adding a bank loan writes the loan, its first rate period and its optional subsidy in one write, and
-opens the new loan's page. Changing its first instalment moves its first rate period along. A rate
+opens the new loan's page. An informal loan's dialog has a switch for its expected plan, whose day of
+the month starts as the day it is counted from. Changing its first instalment moves its first rate period along. A rate
 period starts on a due date picked from a list, a late instalment names an instalment already due
 and the day it was paid, and an extra payment says whether the term or the instalment changes.
 Every save shows a toast with Undo, through the same `useRecordWrites` as the company's screens.
@@ -2203,7 +2237,7 @@ its scenario the same way in `scenario`.
 | `rate-period`     | `loan`, `from` (the due date of the first instalment at the rate), `rate` (a yearly percent as text with up to four decimals, such as `3.18`), `rate_type` (`fixed` or `variable`) and `note`, where a variable rate's index and margin go. One period of a loan starts at its first instalment, the others on its due dates, and no two on the same day.                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `extra-payment`   | `loan`, `date`, `amount` (above zero) and `effect`: `shorter-term` keeps the instalment and ends the plan sooner, `lower-instalment` keeps the end and lowers the instalment.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `late-instalment` | `loan`, `due` (a due date of the loan's plan, once per loan) and `paid` (after it). It changes when the instalment counts as paid, not the plan.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `informal-loan`   | `name`, `counterparty`, `direction` (`you-owe` or `owed-to-you`), `opening_balance` (zero or more), `start` and `note`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `informal-loan`   | `name`, `counterparty`, `direction` (`you-owe` or `owed-to-you`), `opening_balance` (zero or more), `start`, `note` and the optional expected plan, `expected_monthly` (above zero), `expected_from` (on or after `start`) and `expected_day` (from 1 to 31), all three or none.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `movement`        | `loan`, `date`, `kind` (`borrowed`, `borrowed-in-kind`, `repaid`, `repaid-in-kind` or `forgiven`), `amount` (above zero) and `note`. The two borrowing kinds raise what is owed and the others lower it, and a balance below zero means the other side owes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `loan-scenario`   | `name` and `loan`, the bank loan it changes, blank for an offer you are weighing. An offer has the bank loan's terms, `lender` to `subsidy_payer` with the same rules, the optional `upfront_costs`, `monthly_costs` and `yearly_costs` (zero or more, blank for none) and the optional `bank_eks`, the effective rate the bank printed, as a rate period's `rate`. A scenario of a loan with any offer field, or an offer missing a term, is refused.                                                                                                                                                                                                                                                                                                           |
 | `scenario-change` | `scenario`, `change` and `date`, the day it takes effect. An `extra-payment` has `amount` and `effect` as an extra payment does. A `regular-extra-payment` has `date` for its first payment, `every` (`month` or `year`), the optional `until`, `amount` and `effect`. A `rate-change` has `rate` and `rate_type`. A `move` to another bank has `lender`, `rate`, `rate_type`, `instalments` and the three cost fields. A scenario has one `move` at most.                                                                                                                                                                                                                                                                                                       |

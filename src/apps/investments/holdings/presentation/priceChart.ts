@@ -10,6 +10,7 @@ import { words } from './words'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import { monthAxisLabel } from '../../../../shared/calendar/monthLabel'
+import { dotReach, markSize, namedFirst, nearestDotLines } from '../../../../shared/charts/chartDots'
 import { tokenColour } from '../../../../shared/charts/chartTokens'
 import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../shared/charts/chartTooltip'
@@ -20,7 +21,6 @@ import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { DECIMAL_ZERO, decimalOfNumber, decimalText, sumDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import { ZERO, sumMoney } from '../../../../shared/money/money'
-import type { Money } from '../../../../shared/money/money'
 import { formatCurrencyAmount, formatMoney, formatPercentChange, formatQuantity, formatUnitPrice } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
@@ -55,17 +55,6 @@ export interface PriceChart {
 
 /** As many places as a unit price shows, so a chart value written back is the close it came from. */
 const PRICE_PLACES = 6
-
-/** The diameter of the dot of the largest amount on a chart, and the least any dot gets, in pixels. */
-const LARGEST_DOT = 22
-const SMALLEST_DOT = 6
-
-/** The trades of a dot its tooltip names one by one, before a line for the rest. */
-const TRADES_NAMED = 3
-
-/** How far from a dot, as a share of a daily line's closes, a tooltip still names its trades: about a large dot's width. */
-const REACH = 0.01
-const REACH_ON_A_PHONE = 0.04
 
 /**
  * The close at each point as a blue line, the average cost as a dashed grey rule across it, and each point's buys as a
@@ -131,20 +120,13 @@ export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 
     ]
   }
   // A day on a long daily line is narrower than a finger, so its tooltip names the trades of the nearest dot within reach, under that dot's day.
-  const reach = daily ? Math.ceil(points.length * (phone ? REACH_ON_A_PHONE : REACH)) : 0
   const placeOf = new Map(points.map((point, place) => [point.date, place]))
-  const linesOf = (category: string): string[] => {
-    const hovered = categories.indexOf(category)
-    const distance = (place: number): number => Math.abs(place - hovered)
-    const nearest = history.dots
-      .map((dot) => placeOf.get(dot.date)!)
-      .filter((place) => hovered >= 0 && distance(place) <= reach)
-      .sort((one, other) => distance(one) - distance(other))[0]
-    if (nearest === undefined) return []
-    const day = points[nearest]!.date
-    const traded = history.dots.filter((dot) => dot.date === day).flatMap((dot) => dotLines(dot, currency))
-    return nearest === hovered ? traded : [dayLabel(day), ...traded]
-  }
+  const linesOf = nearestDotLines(
+    categories,
+    history.dots.map((dot) => ({ place: placeOf.get(dot.date)!, lines: dotLines(dot, currency) })),
+    daily ? dotReach(points.length, phone) : 0,
+    (place) => dayLabel(points[place]!.date),
+  )
   const lines = comparing ? [lineName, compared.name] : [lineName]
   const bounds = axisBounds([
     ...points.map((point) => onAxis(point.price)),
@@ -235,20 +217,14 @@ export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 
   }
 }
 
-/** A dot's diameter in pixels: its area grows with its amount against the largest on the chart, and it never shrinks out of sight. */
-export function markSize(amount: Money, largest: Money): number {
-  return largest <= 0 ? SMALLEST_DOT : Math.max(SMALLEST_DOT, LARGEST_DOT * Math.sqrt(amount / largest))
-}
-
 /** What the tooltip says of a dot: its first trades a line each, and the rest in one line, so a month of many buys stays short. */
 export function dotLines(dot: TradeDot, currency: CurrencyCode): string[] {
-  const named = dot.marks.slice(0, TRADES_NAMED)
-  const rest = dot.marks.slice(TRADES_NAMED)
   const line = dot.side === 'buy' ? words.chart.bought : words.chart.sold
-  return [
-    ...named.map((mark) => line(unitsText(mark.units), formatUnitPrice(mark.price, currency), formatMoney(mark.amount))),
-    ...(rest.length === 0 ? [] : [words.chart.more(rest.length, unitsText(sumDecimal(rest.map((mark) => mark.units))), formatMoney(sumMoney(rest.map((mark) => mark.amount))))]),
-  ]
+  return namedFirst(
+    dot.marks,
+    (mark) => line(unitsText(mark.units), formatUnitPrice(mark.price, currency), formatMoney(mark.amount)),
+    (rest) => words.chart.more(rest.length, unitsText(sumDecimal(rest.map((mark) => mark.units))), formatMoney(sumMoney(rest.map((mark) => mark.amount)))),
+  )
 }
 
 function unitsText(units: Decimal): string {

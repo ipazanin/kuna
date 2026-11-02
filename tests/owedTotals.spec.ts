@@ -35,6 +35,8 @@ describe('what you owe over every loan', () => {
       // 1,200.00 + 3,000.00 − 500.00.
       owed: euros(3700),
       owedToYou: euros(0),
+      loansYouOwe: 2,
+      loansOwedToYou: 0,
     })
   })
 
@@ -46,10 +48,12 @@ describe('what you owe over every loan', () => {
     expect(totalsOf([bankBook(bankLoan())], [informalBook(toMarko), informalBook(overpaid, [movement(overpaid, '2026-01-10', 'repaid', 3150)])])).toEqual({
       owed: euros(1200),
       owedToYou: euros(950),
+      loansYouOwe: 1,
+      loansOwedToYou: 2,
     })
   })
 
   it('adds nothing for a bank loan whose plan cannot be worked out', () => {
-    expect(totalsOf([bankBook(bankLoan(), false)], [])).toEqual({ owed: euros(0), owedToYou: euros(0) })
+    expect(totalsOf([bankBook(bankLoan(), false)], [])).toEqual({ owed: euros(0), owedToYou: euros(0), loansYouOwe: 0, loansOwedToYou: 0 })
   })
 })

@@ -58,6 +58,7 @@ export function informalLoan(overrides: Partial<InformalLoan> = {}): InformalLoa
     openingBalance: euros(3000),
     start: civil('2026-03-01'),
     note: '',
+    expected: null,
     ...overrides,
   }
 }

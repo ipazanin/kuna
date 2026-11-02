@@ -73,6 +73,10 @@ const EXTRA_PAYMENTS: readonly ExtraPayment[] = [{ id: fixedId(EXTRA_PAYMENT_REC
 
 const LATE_INSTALMENTS: readonly LateInstalment[] = [{ id: fixedId(LATE_INSTALMENT_RECORDS, 5), loan: HOME_LOAN.id, due: day('2024-12-20'), paid: day('2025-01-07') }]
 
+function movementsOf(loan: InformalLoan, firstPlace: number, entries: readonly (readonly [string, Movement['kind'], number, string])[]): Movement[] {
+  return entries.map(([date, kind, amount, note], index) => ({ id: fixedId(MOVEMENT_RECORDS, firstPlace + index), loan: loan.id, date: day(date), kind, amount: euros(amount), note }))
+}
+
 /** A made-up loan from a friend, with a movement of every kind, borrowing back among them. */
 const FROM_MARKO: InformalLoan = {
   id: fixedId(INFORMAL_LOAN_RECORDS, 6),
@@ -82,19 +86,55 @@ const FROM_MARKO: InformalLoan = {
   openingBalance: euros(12_000),
   start: day('2024-05-01'),
   note: '',
+  expected: null,
 }
 
-const MOVEMENTS: readonly Movement[] = (
-  [
-    ['2024-06-30', 'repaid', 500, ''],
-    ['2024-07-31', 'repaid', 500, ''],
-    ['2024-09-15', 'borrowed', 2000, 'Car repair'],
-    ['2024-11-02', 'repaid-in-kind', 350, 'Paid his phone bill'],
-    ['2025-02-14', 'borrowed-in-kind', 640, 'He bought a boat battery for me'],
-    ['2025-12-24', 'forgiven', 1000, 'A Christmas present'],
-    ['2026-09-30', 'repaid', 1500, ''],
-  ] as const
-).map(([date, kind, amount, note], index) => ({ id: fixedId(MOVEMENT_RECORDS, 7 + index), loan: FROM_MARKO.id, date: day(date), kind, amount: euros(amount), note }))
+const MOVEMENTS: readonly Movement[] = movementsOf(FROM_MARKO, 7, [
+  ['2024-06-30', 'repaid', 500, ''],
+  ['2024-07-31', 'repaid', 500, ''],
+  ['2024-09-15', 'borrowed', 2000, 'Car repair'],
+  ['2024-11-02', 'repaid-in-kind', 350, 'Paid his phone bill'],
+  ['2025-02-14', 'borrowed-in-kind', 640, 'He bought a boat battery for me'],
+  ['2025-12-24', 'forgiven', 1000, 'A Christmas present'],
+  ['2026-09-30', 'repaid', 1500, ''],
+])
+
+/** A made-up loan to a friend who means to repay 500.00 a month from June and has fallen behind. */
+const TO_PETRA: InformalLoan = {
+  id: fixedId(INFORMAL_LOAN_RECORDS, 40),
+  name: 'To Petra',
+  counterparty: 'Petra',
+  direction: 'owed-to-you',
+  openingBalance: euros(6000),
+  start: day('2026-05-15'),
+  note: '',
+  expected: { monthly: euros(500), from: day('2026-06-01'), day: 1 },
+}
+
+/** Made-up small loans to a friend, borrowed twice and settled in June. */
+const SMALL_LOANS: InformalLoan = {
+  id: fixedId(INFORMAL_LOAN_RECORDS, 50),
+  name: 'Small loans',
+  counterparty: 'Luka',
+  direction: 'owed-to-you',
+  openingBalance: euros(0),
+  start: day('2026-02-01'),
+  note: '',
+  expected: null,
+}
+
+const OWED_TO_YOU_MOVEMENTS: readonly Movement[] = [
+  ...movementsOf(TO_PETRA, 41, [
+    ['2026-07-03', 'repaid', 500, ''],
+    ['2026-08-02', 'repaid', 500, ''],
+    ['2026-10-05', 'repaid-in-kind', 500, 'Paid for the ferry tickets'],
+  ]),
+  ...movementsOf(SMALL_LOANS, 51, [
+    ['2026-02-01', 'borrowed', 300, 'Boat fuel'],
+    ['2026-03-10', 'borrowed', 200, ''],
+    ['2026-06-24', 'repaid', 500, ''],
+  ]),
+]
 
 /**
  * Three made-up scenarios of the home loan, an extra payment inside the subsidy's payback window, a
@@ -185,7 +225,11 @@ const CAR_LOAN: BankLoan = {
 
 const CAR_RATE_PERIODS: readonly RatePeriod[] = [{ id: fixedId(RATE_PERIOD_RECORDS, 31), loan: CAR_LOAN.id, from: day('2024-10-05'), rate: rate('5.49'), rateType: 'fixed', note: '' }]
 
-/** The fake build's made-up Loans files: `sample` with a bank loan and an informal loan, `one-loan` with the bank loan alone, and `house-and-car` with the home loan and a car loan. */
+/**
+ * The fake build's made-up Loans files: `sample` with a bank loan and three informal loans, one you owe, one owed
+ * to you whose borrower is behind on the expected plan and one owed to you and settled, `one-loan` with the bank
+ * loan alone, and `house-and-car` with the home loan and a car loan.
+ */
 export type FakeLoansSet = 'sample' | 'one-loan' | 'house-and-car'
 
 /** The Loans file of the set, which the fake build keeps on the fake Drive. Every figure in it is made up, and its scenarios and offers are never counted as loans. */
@@ -199,8 +243,8 @@ export function fakeLoansDocument(savedAt: string, set: FakeLoansSet = 'sample')
       ...stored(RATE_PERIOD_RECORDS, withCar ? [...RATE_PERIODS, ...CAR_RATE_PERIODS] : RATE_PERIODS),
       ...stored(EXTRA_PAYMENT_RECORDS, EXTRA_PAYMENTS),
       ...stored(LATE_INSTALMENT_RECORDS, LATE_INSTALMENTS),
-      ...stored(INFORMAL_LOAN_RECORDS, withInformalLoan ? [FROM_MARKO] : []),
-      ...stored(MOVEMENT_RECORDS, withInformalLoan ? MOVEMENTS : []),
+      ...stored(INFORMAL_LOAN_RECORDS, withInformalLoan ? [FROM_MARKO, TO_PETRA, SMALL_LOANS] : []),
+      ...stored(MOVEMENT_RECORDS, withInformalLoan ? [...MOVEMENTS, ...OWED_TO_YOU_MOVEMENTS] : []),
       ...stored(LOAN_SCENARIO_RECORDS, [NEXT_SPRING, EVERY_MONTH, MOVE, JADRAN, COASTAL]),
       ...stored(SCENARIO_CHANGE_RECORDS, SCENARIO_CHANGES),
     },

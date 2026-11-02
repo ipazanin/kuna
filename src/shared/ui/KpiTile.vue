@@ -18,6 +18,8 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import AppCard from './AppCard.vue'
 import InfoPopover from './InfoPopover.vue'
 import SparkLine from './SparkLine.vue'
+import { TONE_TEXT } from './toneText'
+import type { Tone } from './toneText'
 import { words } from './words'
 
 const props = withDefaults(
@@ -33,9 +35,14 @@ const props = withDefaults(
     definition?: string
     /** A short line under the value, such as what a count is made of. */
     caption?: string
+    /** An icon before the label, in a tone when one is given, so a row of tiles tells its kinds apart by more than words. */
+    icon?: string
+    iconTone?: Tone | undefined
   }>(),
   { higherIsBetter: true },
 )
+
+const iconClass = computed(() => (props.iconTone === undefined ? 'text-muted' : TONE_TEXT[props.iconTone]))
 
 const deltaPresentation = computed(() => {
   const delta = props.delta
@@ -55,10 +62,16 @@ const deltaPresentation = computed(() => {
   <AppCard as="article" class="kpi-tile group relative gap-3 p-4 transition-colors hover:border-accented">
     <div class="flex items-start justify-between gap-2">
       <RouterLink v-if="to !== null" :to="to" class="kpi-link min-w-0 text-sm text-muted transition-colors group-hover:text-toned">
-        <span class="block truncate">{{ label }}</span>
+        <span class="flex min-w-0 items-start gap-1.5">
+          <UIcon v-if="icon" :name="icon" class="mt-0.5 size-4 shrink-0" :class="iconClass" aria-hidden="true" />
+          <span class="block min-w-0 truncate">{{ label }}</span>
+        </span>
         <span class="sr-only">: {{ value }}</span>
       </RouterLink>
-      <p v-else class="kpi-label min-w-0 truncate text-sm text-muted">{{ label }}</p>
+      <p v-else class="kpi-label flex min-w-0 items-start gap-1.5 text-sm text-muted">
+        <UIcon v-if="icon" :name="icon" class="mt-0.5 size-4 shrink-0" :class="iconClass" aria-hidden="true" />
+        <span class="min-w-0 truncate">{{ label }}</span>
+      </p>
       <div v-if="definition" class="relative z-control -my-1 -me-1.5">
         <InfoPopover :subject="label" :definition="definition" />
       </div>
@@ -139,7 +152,7 @@ const deltaPresentation = computed(() => {
   }
 
   .kpi-link .truncate,
-  .kpi-label {
+  .kpi-label .truncate {
     white-space: normal;
   }
 }

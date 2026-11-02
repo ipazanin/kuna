@@ -378,6 +378,11 @@ const columns: TableColumn<SampleTransaction>[] = [
         <KpiTile label="Needs review" value="7 rows" :to="galleryLink" :higher-is-better="false" :delta="{ change: -1, text: '−4', comparison: 'since the last sync' }" />
         <KpiTile label="Next payment" :value="formatMoney(61220)" caption="On 20 Nov, of €822.20" :to="null" />
       </DashboardGrid>
+      <DashboardGrid layout="tiles">
+        <KpiTile label="Failed checks" value="2" caption="since the last run" icon="i-lucide-circle-x" icon-tone="error" :to="null" />
+        <KpiTile label="Passed checks" value="41" caption="since the last run" icon="i-lucide-circle-check" icon-tone="success" :to="null" />
+        <KpiTile label="Accounts" value="3" caption="An icon in no tone, beside a link" icon="i-lucide-landmark" :to="galleryLink" />
+      </DashboardGrid>
       <div class="flex flex-wrap items-center gap-4 type-caption">
         <SparkLine :points="[2.6, 3.1, 1.9, 2.2, 3.2, 3.4, 3.9, 3.5, 0.4, 1.4, 3.9, 1.9]" />
         <SparkLine :points="[12, 11, 9, 9.5, 8, 6]" :width="120" :height="36" />

@@ -104,9 +104,10 @@ import { scenarioBaseOf, scenarioPlan } from '../src/apps/loans/scenarios/domain
 import { againstBase, scenarioCards, scenarioKey, scenarioRows, scenarioTabs, slotted, tabComparison, workedScenarios } from '../src/apps/loans/scenarios/presentation/scenariosView.ts'
 import { askedSlots, pickedOf, slotCount } from '../src/apps/loans/scenarios/presentation/useScenarioCompare.ts'
 import { rateOfText } from '../src/apps/loans/bankLoans/domain/yearlyRate.ts'
-import { bankLoanFigures, bankLoanMonths, planYears } from '../src/apps/loans/bankLoans/presentation/bankLoanView.ts'
+import { bankLoanFigures, bankLoanMonths, bankLoanMoves, bankLoanPaidOffOn, planYears } from '../src/apps/loans/bankLoans/presentation/bankLoanView.ts'
+import { planStanding } from '../src/apps/loans/informalLoans/domain/expectedPlan.ts'
 import { informalBalances } from '../src/apps/loans/informalLoans/domain/informalBalance.ts'
-import { informalLoanFigures, informalLoanMonths, movementLines } from '../src/apps/loans/informalLoans/presentation/informalLoanView.ts'
+import { informalClosedOn, informalLoanFigures, informalLoanMonths, informalLoanMoves, movementLines } from '../src/apps/loans/informalLoans/presentation/informalLoanView.ts'
 import { debtFreeOn, estimateFrom, interestAfter, interestInYear, outgoingByMonth, owedByMonth, plannedLoans, upcomingPayments } from '../src/apps/loans/overview/domain/loansTogether.ts'
 import { owedTotals } from '../src/apps/loans/overview/presentation/owedTotals.ts'
 import { fakeLoansDocument } from '../src/apps/loans/workbook/infrastructure/fake/fakeLoans.ts'
@@ -332,8 +333,10 @@ if (investmentsAsked) {
 
 /**
  * The Loans groups: the records and problems, then per loan, named by its place in the file and never
- * by its name, the plan or the balances and the figures each screen shows on the day. The what-if
- * tries 1,000.00 extra on the day. The totals are the Overview's figures over every loan. Each scenario
+ * by its name, the plan or the balances and the figures each screen shows on the day, with what its
+ * balance chart marks as dots and an informal loan's standing against its expected plan. The what-if
+ * tries 1,000.00 extra on the day. The totals are the Overview's figures over every loan, and the
+ * closed group the days the loans at zero were paid off or settled. Each scenario
  * is worked out from the day, an offer over its whole loan, with a move's break-even month and an
  * offer's effective rate. The Scenarios screen's tabs each compare their first scenarios against A
  * with savings earning 3%: the side by side, the cards, the bars and the list.
@@ -351,6 +354,7 @@ function loansGroups(add) {
     add(`${at}.payments`, () => book.plan && [...paymentsByYear(book.plan), splitOfRows(book.plan)])
     add(`${at}.months`, () => bankLoanMonths(book))
     add(`${at}.what-if`, () => whatIfExtraPayment(book, today, moneyFromAmount(1000)))
+    add(`${at}.moves`, () => bankLoanMoves(book, today))
   }
   for (const [index, { scenario, changes }] of workbook.scenarios.entries()) {
     const at = `loans.scenario-${index + 1}`
@@ -390,6 +394,8 @@ function loansGroups(add) {
     add(`${at}.balances`, () => informalBalances(book.loan, book.movements))
     add(`${at}.figures`, () => [informalLoanFigures(book, today), movementLines(book)])
     add(`${at}.months`, () => informalLoanMonths(book, today))
+    add(`${at}.moves`, () => informalLoanMoves(book))
+    add(`${at}.plan`, () => planStanding(book.loan, book.movements, today))
   }
   const planned = plannedLoans(workbook.bankLoans)
   add('loans.totals', () => [
@@ -402,6 +408,7 @@ function loansGroups(add) {
     debtFreeOn(workbook.bankLoans),
     estimateFrom(planned, today),
   ])
+  add('loans.closed', () => [workbook.bankLoans.map((book) => bankLoanPaidOffOn(book, today)), workbook.informalLoans.map((book) => informalClosedOn(book, today))])
 }
 
 /** The prices file of an Investments input: the fake one for the fake set, the one given, or none. */

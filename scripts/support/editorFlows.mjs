@@ -24,6 +24,7 @@ import { en as companyOverviewEnglish, hr as companyOverviewCroatian } from '../
 import { en as ownerShareEnglish, hr as ownerShareCroatian } from '../../src/apps/company/owner-share/presentation/words.ts'
 import { en as writesEnglish, hr as writesCroatian } from '../../src/shared/storage/presentation/words.ts'
 import { en as bankLoanEnglish, hr as bankLoanCroatian } from '../../src/apps/loans/bankLoans/presentation/words.ts'
+import { en as informalLoanEnglish, hr as informalLoanCroatian } from '../../src/apps/loans/informalLoans/presentation/words.ts'
 import { en as overviewEnglish, hr as overviewCroatian } from '../../src/apps/loans/overview/presentation/words.ts'
 import { en as scenariosEnglish, hr as scenariosCroatian } from '../../src/apps/loans/scenarios/presentation/words.ts'
 import { en as loansSettingsEnglish, hr as loansSettingsCroatian } from '../../src/apps/loans/settings/presentation/words.ts'
@@ -71,6 +72,7 @@ const SCREEN_WORDS = {
     loansSettings: loansSettingsEnglish.title,
     firstRateHelp: bankLoanEnglish.ratePeriodDialog.firstHelp,
     laterRateHelp: bankLoanEnglish.ratePeriodDialog.laterHelp,
+    planFromHelp: informalLoanEnglish.loanDialog.planFromHelp,
     whatIf: bankLoanEnglish.whatIf,
     transactions: transactionsEnglish,
     rules: rulesEnglish,
@@ -125,6 +127,7 @@ const SCREEN_WORDS = {
     loansSettings: loansSettingsCroatian.title,
     firstRateHelp: bankLoanCroatian.ratePeriodDialog.firstHelp,
     laterRateHelp: bankLoanCroatian.ratePeriodDialog.laterHelp,
+    planFromHelp: informalLoanCroatian.loanDialog.planFromHelp,
     whatIf: bankLoanCroatian.whatIf,
     transactions: transactionsCroatian,
     rules: rulesCroatian,
@@ -4235,7 +4238,7 @@ export function homeFlowIn(language) {
     await pressSelector(page, press, '[data-testid="home-card"][data-app="loans"]')
     await screenTitled(page, words.overview)
     const total = await page
-      .waitForFunction(() => document.querySelector('[data-testid="loans-total"]')?.textContent?.replace(/\s+/g, ' ').trim() ?? null, { timeout: 10_000 })
+      .waitForFunction(() => document.querySelector('[data-testid="loans-you-owe"] .text-figure-lg')?.textContent?.replace(/\s+/g, ' ').trim() ?? null, { timeout: 10_000 })
       .then((handle) => handle.jsonValue())
     if (centsIn(total, language) !== centsIn(loans.figure, language)) throw new Error(`the Loans card says ${loans.figure} owed, the Loans Overview "${total}"`)
     await inspect?.('the Loans Overview from the home')
@@ -4834,8 +4837,8 @@ async function goTo(page, hash, title) {
 
 /**
  * Every Loans dialog with the sample file, opened and closed again: a new bank loan with and without
- * a subsidy, a new informal loan, each loan's own dialog, and the dialog of each change of the bank
- * loan, the subsidy's showing its payer.
+ * a subsidy, a new informal loan, each loan's own dialog, an informal loan's with its expected plan,
+ * and the dialog of each change of the bank loan, the subsidy's showing its payer.
  */
 export function loansDialogsFlowIn(language) {
   const words = SCREEN_WORDS[language]
@@ -4873,6 +4876,8 @@ export function loansDialogsFlowIn(language) {
     await openLoanCard(page, press, 'From Marko', words.overview)
     await lookAtDialog(page, press, shoot, '[data-testid="informal-loan-edit"]', '[data-testid="informal-loan-form"]', 'dialog-informal-loan')
     await lookAtDialog(page, press, shoot, '[data-testid="movement-edit"]', '[data-testid="movement-form"]', 'dialog-movement')
+    await openLoanCard(page, press, 'To Petra', words.overview)
+    await lookAtDialog(page, press, shoot, '[data-testid="informal-loan-edit"]', '[data-testid="informal-loan-form"]', 'dialog-informal-loan-plan', words.planFromHelp)
 
     await goTo(page, '#/loans/scenarios', words.scenarios)
     await lookAtDialog(page, press, shoot, '[data-testid="scenario-new"]', '[data-testid="new-scenario-form"]', 'dialog-new-scenario')

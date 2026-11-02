@@ -85,6 +85,14 @@ const COLOUR_GROUPS: readonly { readonly title: string; readonly measure: Measur
     ],
   },
   {
+    title: 'Loans: which way a loan runs, what you owe and what others owe you',
+    measure: 'as-text',
+    swatches: [
+      { name: 'You owe', token: '--loan-you-owe' },
+      { name: 'Owed to you', token: '--loan-owed-to-you' },
+    ],
+  },
+  {
     title: 'How late money owed is',
     measure: 'none',
     swatches: [1, 2, 3, 4, 5].map((step) => ({ name: `Step ${step}`, token: `--ageing-${step}` })),
