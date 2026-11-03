@@ -99,6 +99,7 @@ const lastBackup = computed(() => (shownPlace.value?.lastBackup ? day(new Date(`
             <dd class="figure">{{ changedAt }}</dd>
           </template>
         </dl>
+        <UAlert v-if="state.missing" icon="i-lucide-file-x" color="warning" variant="subtle" :title="words.booksFile.missingTitle" :description="state.error ?? ''" data-testid="books-file-missing" />
       </template>
       <slot />
       <div class="flex flex-wrap gap-2">

@@ -5,7 +5,7 @@ import { autoSyncOn } from '../../shared/sync/infrastructure/autoSyncSwitch'
 import { words as bankLoanWords } from './bankLoans/presentation/words'
 import { LOANS_HOME_CARD } from './home/presentation/loansHomeCard'
 import { words as informalLoanWords } from './informalLoans/presentation/words'
-import { BANK_LOAN_ROUTE, INFORMAL_LOAN_ROUTE, LOANS_OVERVIEW_ROUTE, LOANS_START_ROUTE, SCENARIOS_ROUTE } from './overview/presentation/loanLinks'
+import { BANK_LOAN_ROUTE, INFORMAL_LOAN_ROUTE, LOANS_OVERVIEW_ROUTE, LOANS_SETTINGS_ROUTE, LOANS_START_ROUTE, SCENARIOS_ROUTE } from './overview/presentation/loanLinks'
 import { words as overviewWords } from './overview/presentation/words'
 import { words as scenarioWords } from './scenarios/presentation/words'
 import { words as settingsWords } from './settings/presentation/words'
@@ -18,7 +18,7 @@ import { words as fileWords } from './workbook/presentation/words'
 
 const OVERVIEW: AppScreen = { path: LOANS_OVERVIEW_ROUTE, title: overviewWords.title, icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') }
 const SCENARIOS: AppScreen = { path: SCENARIOS_ROUTE, title: scenarioWords.title, icon: 'i-lucide-scale', component: () => import('./scenarios/presentation/ScenariosScreen.vue') }
-const SETTINGS: AppScreen = { path: '/loans/settings', title: settingsWords.title, icon: 'i-lucide-settings', component: () => import('./settings/presentation/SettingsScreen.vue') }
+const SETTINGS: AppScreen = { path: LOANS_SETTINGS_ROUTE, title: settingsWords.title, icon: 'i-lucide-settings', component: () => import('./settings/presentation/SettingsScreen.vue') }
 
 const { state } = useLoansBooks()
 

@@ -23,7 +23,7 @@ Every `.vue` in `src/shared/ui` has a row here and a specimen in the gallery at 
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------- | ----- | ----------- | ----- | ------ |
 | `DashboardGrid` | `layout?: 'tiles' \| 'cards' \| 'pair' \| 'row'`. A row holds up to four cards: one column, two from sm, one row from xl         | 11      | 6     | 10          | 2     | 0      |
 | `FormGrid`      | `as?: 'div' \| 'form'`. A field takes a whole row with `sm:col-span-2`                                                           | 14      | 10    | 10          | 0     | 0      |
-| `AppDialog`     | `v-model:open`, `title`, `description?`, `width?: 'md' \| 'xl' \| '2xl' \| '3xl'`, `dismissible?`. Slots default, `start`, `end` | 23      | 9     | 6           | 0     | 0      |
+| `AppDialog`     | `v-model:open`, `title`, `description?`, `width?: 'md' \| 'xl' \| '2xl' \| '3xl'`, `dismissible?`. Slots default, `start`, `end` | 23      | 9     | 7           | 0     | 0      |
 
 ## Charts
 

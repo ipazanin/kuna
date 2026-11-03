@@ -246,8 +246,8 @@ export function syncControlOf(run: SyncRun | null, books: BooksStanding, access:
 }
 
 /** A run with an app's books failed, for a read of its file that failed outside a run, such as when it was found. A run without the app's group gains one. */
-export function withBooksFailure(run: SyncRun | null, group: Pick<RunGroup, 'app' | 'name'>, line: string, at: string): SyncRun {
-  const failed: StepState = { kind: 'failed', line, link: null }
+export function withBooksFailure(run: SyncRun | null, group: Pick<RunGroup, 'app' | 'name'>, line: string, at: string, link: StepLink | null = null): SyncRun {
+  const failed: StepState = { kind: 'failed', line, link }
   const base = run ?? { groups: [], startedAt: at, finishedAt: at }
   return base.groups.some((candidate) => candidate.app === group.app)
     ? withStep(base, group.app, BOOKS_STEP.id, failed)

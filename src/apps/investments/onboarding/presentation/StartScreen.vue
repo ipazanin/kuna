@@ -5,7 +5,8 @@ import { useFindFile } from '../../../../shared/storage/presentation/useFindFile
 import { INVESTMENTS_OVERVIEW_ROUTE, INVESTMENTS_START_ROUTE } from '../../overview/presentation/investmentLinks'
 import { words as appWords } from '../../words'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
-import { INVESTMENTS_FILE_NAME, LOCAL_INVESTMENTS_TITLE, newInvestmentsFileContents } from '../../workbook/presentation/investmentsFile'
+import { LOCAL_INVESTMENTS_TITLE } from '../../workbook/domain/investmentsBooks'
+import { INVESTMENTS_FILE_NAME, newInvestmentsFileContents } from '../../workbook/presentation/investmentsFile'
 import { words as fileWords } from '../../workbook/presentation/words'
 import { words } from './words'
 

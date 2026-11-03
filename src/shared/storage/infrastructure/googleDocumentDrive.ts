@@ -14,6 +14,7 @@ import {
   uploadContent,
 } from '../../google/driveClient'
 import { GoogleApiError } from '../../google/googleApi'
+import { DriveFileMissing } from '../application/driveFileMissing'
 import type { DocumentDrive } from './driveDocument'
 import { words } from './words'
 
@@ -23,7 +24,18 @@ export function googleDocumentDrive(accessToken: () => Promise<string>): Documen
 
   return {
     async headRevision(fileId) {
-      return (await getFile(await accessToken(), fileId, ['headRevisionId'])).headRevisionId
+      try {
+        const file = await getFile(await accessToken(), fileId, ['headRevisionId', 'trashed'])
+        if (file.trashed) {
+          throw new DriveFileMissing(true)
+        }
+        return file.headRevisionId
+      } catch (failure) {
+        if (failure instanceof GoogleApiError && failure.status === 404) {
+          throw new DriveFileMissing(false)
+        }
+        throw failure
+      }
     },
 
     async download(fileId) {

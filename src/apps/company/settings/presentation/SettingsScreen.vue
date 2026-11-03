@@ -14,7 +14,7 @@ import AccountsSettingsTab from './AccountsSettingsTab.vue'
 import CategoriesSettingsTab from './CategoriesSettingsTab.vue'
 import DataSourceCard from './DataSourceCard.vue'
 import GeneralSettingsTab from './GeneralSettingsTab.vue'
-import { LINKED_SETTINGS_TAB } from './settingsTabs'
+import { BOOKS_FILE_TAB, LINKED_SETTINGS_TAB } from './settingsTabs'
 import type { SettingsTab } from './settingsTabs'
 import { words } from './words'
 
@@ -25,7 +25,6 @@ const CORE_TABS: readonly SettingsTab[] = [
   { value: CATEGORY_RULES_TAB, label: words.tabNames.categoryRules, icon: 'i-lucide-list-ordered', component: CategoryRulesTab },
   { value: 'accounts', label: words.tabNames.accounts, icon: 'i-lucide-landmark', component: AccountsSettingsTab },
 ]
-const BOOKS_TAB = 'books'
 
 const { state } = useWorkbook()
 const settings = useSettings()
@@ -33,14 +32,14 @@ const settings = useSettings()
 /** The books' tabs need books on screen, and Books file is there before any. Two tabs with one value would share a `?tab=` link, so they are refused. */
 const bookTabs = computed(() => {
   const found = state.workbook === null ? [] : [...CORE_TABS, ...shownPack(settings.value).settingsTabs]
-  const values = [...found.map((tab) => tab.value), BOOKS_TAB]
+  const values = [...found.map((tab) => tab.value), BOOKS_FILE_TAB]
   const repeated = values.find((value, index) => values.indexOf(value) !== index)
   if (repeated !== undefined) {
     throw new Error(`Two tabs of Settings are called ${repeated}.`)
   }
   return found
 })
-const tabs = computed((): PageTab[] => [...bookTabs.value.map(({ label, value, icon }) => ({ label, value, icon })), { label: words.booksFile, value: BOOKS_TAB, icon: 'i-lucide-hard-drive' }])
+const tabs = computed((): PageTab[] => [...bookTabs.value.map(({ label, value, icon }) => ({ label, value, icon })), { label: words.booksFile, value: BOOKS_FILE_TAB, icon: 'i-lucide-hard-drive' }])
 
 const route = useRoute()
 const linkedTab = ref(typeof route.query.tab === 'string' ? route.query.tab : null)
@@ -56,7 +55,7 @@ provide(LINKED_SETTINGS_TAB, linkedTab)
         <component :is="tab.component" />
       </template>
 
-      <template #[BOOKS_TAB]>
+      <template #[BOOKS_FILE_TAB]>
         <DataSourceCard />
       </template>
     </PageTabs>

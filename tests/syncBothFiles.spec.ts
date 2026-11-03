@@ -42,6 +42,7 @@ const companyApp: Pick<AppContribution, 'id' | 'name' | 'syncGroup'> = {
     needs: () => [{ scope: 'drive.file', label: BOOKS_STEP.label }],
     undo: async () => {},
     exportControl: {},
+    fileCard: '/company/settings?tab=books',
   }),
 }
 

@@ -23,7 +23,8 @@ function cacheOf(investmentsFileId: string): PricesCache {
   return cache
 }
 
-async function pricesDrive(): Promise<PricesDrive> {
+/** The page's Drive for the prices file, the fake one in the fake build. */
+export async function pagePricesDrive(): Promise<PricesDrive> {
   // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
   if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
     const { fakePricesDrive } = await import('../infrastructure/fake/fakePricesDrive')
@@ -74,10 +75,11 @@ export async function pagePause(milliseconds: number): Promise<void> {
 const prices: PricesUpdate = createPricesUpdate({
   async place() {
     const choice = store.state.choice
-    if (choice === null) {
+    // A file in the bin or gone has no prices to read or fetch, which would otherwise make a new prices file beside it.
+    if (choice === null || store.state.missing) {
       return null
     }
-    return { investmentsFileId: choice.id, cache: cacheOf(choice.id), drive: choice.source === 'drive' ? await pricesDrive() : null }
+    return { investmentsFileId: choice.id, cache: cacheOf(choice.id), drive: choice.source === 'drive' ? await pagePricesDrive() : null }
   },
   investments: () => store.state.workbook?.book ?? null,
   vendors: PRICE_VENDORS,
@@ -98,7 +100,7 @@ export function usePrices(): PricesUpdate {
 export const PRICES_STEP = pricesStep(prices)
 
 /** Forgets the copy of the prices of an Investments file this browser no longer shows, which would otherwise keep the list of its holdings. */
-async function forgetCopy(investmentsFileId: string): Promise<void> {
+export async function forgetPricesCopy(investmentsFileId: string): Promise<void> {
   const cache = cacheOf(investmentsFileId)
   caches.delete(investmentsFileId)
   await cache.delete()
@@ -117,8 +119,9 @@ export function startPrices(): () => void {
       prices.open().catch(() => {
         // Without the copy the screens show no prices until the next sync reads the file.
       })
-      if (left !== undefined && left !== null && left !== shown) {
-        forgetCopy(left).catch(() => {
+      // None follows only a removal, which deletes the copy itself and reports how that went.
+      if (left !== undefined && left !== null && shown !== null && left !== shown) {
+        forgetPricesCopy(left).catch(() => {
           // A copy that stays is read again, or replaced, when its file comes back on screen.
         })
       }

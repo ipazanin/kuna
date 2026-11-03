@@ -28,7 +28,7 @@ export interface SyncGroup {
   readonly books: SyncStep
   /** The steps after the books, in order. */
   steps(): readonly SyncStep[]
-  /** Resolves once no save or other read of the app's books is under way. */
+  /** Resolves once no save or other read of the app's books is under way, which the group waits for before its books step. */
   whenIdle(): Promise<void>
 }
 
@@ -60,6 +60,10 @@ export interface Sync {
    * from a click handler unless the page holds a token, since the books may need a sign-in.
    */
   sync(): Promise<void>
+  /** Whether a run is under way, one still waiting for a save among them. */
+  running(): boolean
+  /** Resolves once no run is under way, at once when none is. */
+  settled(): Promise<void>
   /** Asks Google for what the steps that need access lack, then syncs. Call it first in a click handler. */
   allowAccess(): Promise<void>
   /**
@@ -107,6 +111,8 @@ export function createSync(ports: SyncPorts): Sync {
   }
 
   async function runGroup(group: SyncGroup, steps: readonly SyncStep[]): Promise<void> {
+    // Waited for here, not once for the whole run, so a save that starts while an earlier group runs is over before these books are read.
+    await group.whenIdle()
     await runStep(group.app, group.books)
     if (stateOf(group.app, group.books.id) !== 'done') {
       update((run) => skippedAfter(run, group.app, group.books.id))
@@ -122,9 +128,6 @@ export function createSync(ports: SyncPorts): Sync {
 
   async function syncOnce(): Promise<void> {
     const groups = ports.groups().map((group) => ({ group, steps: group.steps() }))
-    for (const { group } of groups) {
-      await group.whenIdle()
-    }
     state.run = startedRun(
       groups.map(({ group, steps }) => ({ app: group.app, name: group.name, steps: [group.books, ...steps].map(planned) })),
       ports.now(),
@@ -158,6 +161,12 @@ export function createSync(ports: SyncPorts): Sync {
   return {
     state: shallowReadonly(state),
     sync,
+    running: () => running !== null,
+    async settled() {
+      while (running !== null) {
+        await running
+      }
+    },
     async allowAccess() {
       const scopes = [...new Set(stepsNeedingAccess(state.run).flatMap((step) => (step.state.kind === 'needs-access' ? step.state.scopes : [])))]
       if (await ask(scopes)) await sync()

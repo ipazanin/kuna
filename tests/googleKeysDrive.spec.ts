@@ -63,4 +63,12 @@ describe("the keys file's requests to Drive", () => {
     expect(requests[0]!.url.pathname).toBe('/upload/drive/v3/files/keys-1')
     expect(requests[0]!.url.searchParams.get('keepRevisionForever')).toBeNull()
   })
+
+  it("deletes a keys file for good with a token for the app's hidden folder, since Drive keeps no file of it in the bin", async () => {
+    const requests = stubDrive(() => new Response(null, { status: 204 }))
+
+    await googleKeysDrive().delete('keys-2')
+    expect([requests[0]!.method, requests[0]!.url.pathname]).toEqual(['DELETE', '/drive/v3/files/keys-2'])
+    expect(asked).toEqual(['drive.appdata'])
+  })
 })

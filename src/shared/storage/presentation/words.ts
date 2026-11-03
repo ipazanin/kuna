@@ -79,6 +79,7 @@ export const en = {
     noBackup: 'None yet. The first save of a day makes one.',
     lastSynced: 'Last synced',
     openInDrive: 'Open in Drive',
+    missingTitle: 'Kuna stopped using this file',
   },
   localFile: {
     kept: 'Kept in this browser',
@@ -148,6 +149,7 @@ export const hr: Translation<typeof en> = {
     noBackup: 'Još nema. Izradit će je prvo spremanje u danu.',
     lastSynced: 'Zadnja sinkronizacija',
     openInDrive: 'Otvori na Driveu',
+    missingTitle: 'Kuna je prestala koristiti ovu datoteku',
   },
   localFile: {
     kept: 'Čuva se u ovom pregledniku',

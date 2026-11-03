@@ -28,6 +28,8 @@ export interface DriveFile {
   readonly sha256Checksum?: string
   /** The properties this app gave the file, which only it sees. */
   readonly appProperties?: Readonly<Record<string, string>>
+  /** Whether the file is in the bin, put there itself or with a folder above it. `files.get` still answers for it. */
+  readonly trashed: boolean
 }
 
 /** What a new file is called, what it holds and where it goes. */
@@ -235,6 +237,11 @@ export async function trashFile(accessToken: string, fileId: string): Promise<vo
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ trashed: true }),
   })
+}
+
+/** Deletes a file for good, without the bin. The only way to remove a file in the app's hidden folder, which Drive does not let into the bin. */
+export async function deleteFile(accessToken: string, fileId: string): Promise<void> {
+  await googleFetch(`${DRIVE_FILES_API}/${encodeURIComponent(fileId)}`, accessToken, { method: 'DELETE' })
 }
 
 /** Every revision of a file's content, in Drive's order, read page by page and never from the browser's HTTP cache. */

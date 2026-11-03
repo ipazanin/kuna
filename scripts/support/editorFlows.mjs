@@ -50,6 +50,7 @@ import { en as companyHomeEnglish, hr as companyHomeCroatian } from '../../src/a
 import { en as loansHomeEnglish, hr as loansHomeCroatian } from '../../src/apps/loans/home/presentation/words.ts'
 import { en as investmentsHomeEnglish, hr as investmentsHomeCroatian } from '../../src/apps/investments/home/presentation/words.ts'
 import { en as investmentsOverviewEnglish, hr as investmentsOverviewCroatian } from '../../src/apps/investments/overview/presentation/words.ts'
+import { en as investmentsSettingsEnglish, hr as investmentsSettingsCroatian } from '../../src/apps/investments/settings/presentation/words.ts'
 import { formatMoney } from '../../src/shared/money/moneyFormat.ts'
 import { en as mailDomainEnglish, hr as mailDomainCroatian } from '../../src/apps/company/mail/domain/words.ts'
 
@@ -3758,6 +3759,152 @@ export async function investmentsKeyRemovedElsewhereFlow(page, { inspect }) {
   if (key !== null || changedAt !== '2026-10-30T10:05:00.000Z') throw new Error(`this browser keeps the key "${key}" changed at ${changedAt} after the other browser's removal`)
   await inspect?.("a key lost to another browser's removal")
   await forgetTwelveDataKey(page)
+}
+
+const INVESTMENTS_SETTINGS_WORDS = { en: investmentsSettingsEnglish, hr: investmentsSettingsCroatian }
+const REMOVE_DIALOG = '[data-testid="investments-remove-dialog"]'
+
+/** The IndexedDB databases this browser holds for Investments files, by name. */
+async function investmentsDatabases(page) {
+  return page.evaluate(async () => (await indexedDB.databases()).map((database) => database.name ?? '').filter((name) => name.startsWith('kuna-')))
+}
+
+const GOOGLE_GRANT_KEYS = ['kuna.google-granted', 'kuna.google-needed']
+
+/** The page's record of what Google granted and what the files need, which a removal shrinks, so a flow can put it back for the steps after it. */
+async function googleGrants(page) {
+  return page.evaluate((keys) => Object.fromEntries(keys.map((key) => [key, localStorage.getItem(key)])), GOOGLE_GRANT_KEYS)
+}
+
+async function restoreGoogleGrants(page, grants) {
+  await page.evaluate((kept) => {
+    for (const [key, value] of Object.entries(kept)) {
+      if (value === null) localStorage.removeItem(key)
+      else localStorage.setItem(key, value)
+    }
+  }, grants)
+}
+
+/** Opens Remove the Investments file on the Investments Settings and waits for its dialog to name what goes and what stays. */
+async function openRemoveDialog(page, press, goes, stays) {
+  await pressSelector(page, press, '[data-testid="investments-remove"]')
+  await elementSays(page, REMOVE_DIALOG, [...goes, ...stays], 'the Remove dialog does not name what goes and what stays')
+  await delay(300)
+}
+
+/**
+ * Investments Settings on the sample on the fake Drive, whose keys file another browser left in the app's hidden folder
+ * (`?keys=other-browser`), so the sync on open brings a made-up Twelve Data key into this browser. Remove the Investments
+ * file asks first, naming what goes and what stays, and Cancel keeps the file. Remove then moves the file and its prices
+ * file to the bin and deletes the keys file, and this browser lands on the Investments first run, as one that never had a
+ * file, with its copy and its prices gone and the vendor key still kept.
+ */
+export function investmentsRemoveDriveFlowIn(language) {
+  const text = INVESTMENTS_SETTINGS_WORDS[language].removal
+  const goes = [text.driveGoes.file('kuna-investments.json'), text.driveGoes.prices('kuna-investments-prices.json'), text.driveGoes.keys]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    // A step before this one, with no Investments file on Drive, leaves needs without drive.appdata, and the silent token on open carries only those.
+    await page.evaluate(() => localStorage.removeItem('kuna.google-needed'))
+    await page.reload({ waitUntil: 'networkidle0' })
+    await page
+      .waitForFunction(() => localStorage.getItem('kuna.price-vendor-key.twelvedata') !== null, { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('the sync on open did not take the key another browser saved')
+      })
+    const grants = await googleGrants(page)
+    const before = await investmentsDatabases(page)
+    if (!before.some((name) => name.startsWith('kuna-prices-'))) throw new Error(`this browser keeps no prices of the sample, only ${before.join(', ')}`)
+    await openRemoveDialog(page, press, goes, text.driveStays)
+    await inspect?.('Remove the Investments file asking first')
+    await shoot('investments-remove-drive')
+    await pressSelector(page, press, '[data-testid="investments-remove-cancel"]')
+    await dialogGone(page, REMOVE_DIALOG)
+    if ((await page.$('[data-testid="investments-books-card"]')) === null) throw new Error('Cancel left the Investments Settings')
+
+    await openRemoveDialog(page, press, goes, text.driveStays)
+    await pressSelector(page, press, '[data-testid="investments-remove-confirm"]')
+    await toastMatching(page, exactly(text.driveRemoved))
+    await firstRunAt(page, INVESTMENTS, 'home')
+    const [choice, key] = await page.evaluate(() => [localStorage.getItem('kuna.workbook-file.investments'), localStorage.getItem('kuna.price-vendor-key.twelvedata')])
+    if (choice !== null) throw new Error(`this browser still names an Investments file after Remove: ${choice}`)
+    if (key !== 'made-up-twelve-data-key-8642') throw new Error('Remove took the vendor key kept in this browser')
+    const after = await investmentsDatabases(page)
+    if (after.some((name) => name.startsWith('kuna-prices-'))) throw new Error(`the prices kept in this browser stayed after Remove: ${after.join(', ')}`)
+    await inspect?.('the Investments first run after Remove')
+    await shoot('investments-removed-drive')
+    await dismissToasts(page)
+    await forgetTwelveDataKey(page)
+    await restoreGoogleGrants(page, grants)
+  }
+}
+
+/**
+ * Investments Settings on the sample kept in this browser (`?investments=browser`): Remove names the browser copy and
+ * its prices as what goes, and once confirmed both are deleted and the browser lands on the Investments first run.
+ */
+export async function investmentsRemoveBrowserFlow(page, { press, shoot, inspect }) {
+  const text = investmentsSettingsEnglish.removal
+  await page.waitForSelector('[data-testid="investments-books-card"]', { visible: true, timeout: 10_000 })
+  const grants = await googleGrants(page)
+  const before = await investmentsDatabases(page)
+  for (const name of ['kuna-document-local-fake-investments', 'kuna-prices-local-fake-investments']) {
+    if (!before.includes(name)) throw new Error(`this browser holds no ${name} before Remove, only ${before.join(', ')}`)
+  }
+  await openRemoveDialog(page, press, text.browserGoes, text.browserStays)
+  await inspect?.('Remove asking first for a file kept in this browser')
+  await shoot('investments-remove-browser')
+  await pressSelector(page, press, '[data-testid="investments-remove-confirm"]')
+  await toastMatching(page, exactly(text.browserRemoved))
+  await firstRunAt(page, INVESTMENTS, 'home')
+  const after = await investmentsDatabases(page)
+  const left = after.filter((name) => name.endsWith('local-fake-investments'))
+  if (left.length > 0) throw new Error(`Remove left ${left.join(', ')} in this browser`)
+  if ((await page.evaluate(() => localStorage.getItem('kuna.workbook-file.investments'))) !== null) throw new Error('this browser still names the Investments file after Remove')
+  await inspect?.('the Investments first run after removing the file kept here')
+  await dismissToasts(page)
+  await restoreGoogleGrants(page, grants)
+}
+
+/**
+ * Another device's Investments file in the Drive bin (`?investments=binned`), read longer ago than a sync on open waits:
+ * the sync on open finds it there and stops, the sync control counts the problem, the books step says so and links to
+ * the Settings, and the Settings' file card says Kuna stopped using the file beside Switch storage, with no Remove for it.
+ */
+export async function investmentsBinnedFlow(page, { press, shoot, inspect }) {
+  const control = await controlShows(page, 'problems')
+  if (control.label !== '1 problem') throw new Error(`the sync control says "${control.label}", not 1 problem`)
+  await press(await syncButton(page))
+  const group = `${SYNC_STEPS} [data-group="investments"]`
+  await page
+    .waitForFunction(
+      (css, wanted) => [...document.querySelectorAll(css)].some((line) => line.offsetParent !== null && line.dataset.state === 'failed' && line.textContent?.includes(wanted)),
+      { timeout: 10_000 },
+      `${group} [data-step="books"]`,
+      storageEnglish.inBin,
+    )
+    .catch(() => {
+      throw new Error('the Investments books step does not fail with the file in the bin')
+    })
+  const skipped = await page.$$eval(`${group} [data-step]`, (lines) => lines.filter((line) => line.offsetParent !== null).map((line) => `${line.dataset.step}:${line.dataset.state}`))
+  if (skipped.some((line) => /^(keys|prices):(?!skipped|off)/.test(line))) throw new Error(`a step after the books ran on a file in the bin: ${skipped.join(', ')}`)
+  await delay(400)
+  await inspect?.('the steps of a sync that found the file in the bin')
+  await shoot('investments-binned-steps')
+  await pressButton(page, press, `${group} [data-step="books"] a`, 'Settings')
+  await page.waitForSelector('[data-testid="books-file-missing"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('the Investments Settings do not say Kuna stopped using the file in the bin')
+  })
+  await page
+    .waitForFunction((css) => ![...document.querySelectorAll(css)].some((element) => element.offsetParent !== null), { timeout: 5_000 }, SYNC_STEPS)
+    .catch(() => {
+      throw new Error('the sync steps stayed open after their link to the Settings')
+    })
+  await delay(300)
+  if ((await page.$('[data-testid="investments-switch-storage"]')) === null) throw new Error('the Investments Settings offer no Switch storage beside the file in the bin')
+  if ((await page.$('[data-testid="investments-remove"]')) !== null) throw new Error('the Investments Settings offer Remove for a file already in the bin')
+  await inspect?.('the Investments Settings on a file in the bin')
+  await shoot('investments-binned-settings')
 }
 
 /**

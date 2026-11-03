@@ -1,7 +1,21 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { createFile, createFolder, downloadFile, downloadRevision, filesWithAppProperty, getFile, listRevisions, trashFile, deleteRevision, uploadContent } from '../src/shared/google/driveClient'
+import {
+  createFile,
+  createFolder,
+  deleteFile,
+  downloadFile,
+  downloadRevision,
+  filesWithAppProperty,
+  getFile,
+  listRevisions,
+  trashFile,
+  deleteRevision,
+  uploadContent,
+} from '../src/shared/google/driveClient'
 import { GoogleApiError } from '../src/shared/google/googleApi'
+import { DriveFileMissing } from '../src/shared/storage/application/driveFileMissing'
+import { words as storageWords } from '../src/shared/storage/application/words'
 import { googleDocumentDrive } from '../src/shared/storage/infrastructure/googleDocumentDrive'
 
 interface SentRequest {
@@ -169,5 +183,36 @@ describe('googleDocumentDrive', () => {
 
     expect(await drive.upload('file-1', '{}')).toEqual({ kind: 'kept-revisions-full' })
     await expect(drive.upload('file-1', '{}')).rejects.toThrow('userRateLimitExceeded')
+  })
+
+  it('reads the head revision of a file and whether it is in the bin, which it refuses as missing', async () => {
+    const sent = stubDrive(Response.json({ headRevisionId: 'rev-7', trashed: false }), Response.json({ headRevisionId: 'rev-7', trashed: true }))
+    const drive = googleDocumentDrive(async () => 'token')
+
+    expect(await drive.headRevision('file-1')).toBe('rev-7')
+    expect(sent[0]!.url.searchParams.get('fields')).toBe('headRevisionId,trashed')
+    const binned = await drive.headRevision('file-1').catch((failure: unknown) => failure)
+    expect(binned).toBeInstanceOf(DriveFileMissing)
+    expect((binned as Error).message).toBe(storageWords.inBin)
+  })
+
+  it('refuses a file Drive answers 404 for as gone, and passes other failures on', async () => {
+    stubDrive(Response.json({ error: { code: 404, message: 'File not found: file-1.' } }, { status: 404 }), new Response('busy', { status: 503 }))
+    const drive = googleDocumentDrive(async () => 'token')
+
+    const gone = await drive.headRevision('file-1').catch((failure: unknown) => failure)
+    expect(gone).toBeInstanceOf(DriveFileMissing)
+    expect((gone as Error).message).toBe(storageWords.goneFromDrive)
+    await expect(drive.headRevision('file-1')).rejects.toBeInstanceOf(GoogleApiError)
+  })
+})
+
+describe('deleting a file', () => {
+  it('sends files.delete, which skips the bin', async () => {
+    const sent = stubDrive(new Response(null, { status: 204 }))
+
+    await deleteFile('token', 'keys 1')
+    expect([sent[0]!.method, sent[0]!.url.href]).toEqual(['DELETE', 'https://www.googleapis.com/drive/v3/files/keys%201'])
+    expect(sent[0]!.headers.get('Authorization')).toBe('Bearer token')
   })
 })

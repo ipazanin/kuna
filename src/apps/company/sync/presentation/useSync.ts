@@ -8,6 +8,7 @@ import type { AppSyncGroup } from '../../../../shared/sync/presentation/pageSync
 import { statementNeeds, useStatementSync } from '../../imports/presentation/useStatementSync'
 import { mailDraftsOn } from '../../invoicing/infrastructure/mailDraftSwitch'
 import { mailNeeds, useMailSync } from '../../mail/presentation/useMailSync'
+import { BOOKS_FILE_LINK } from '../../settings/presentation/settingsTabs'
 import LocalWorkbookStatus from '../../workbook-files/presentation/LocalWorkbookStatus.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { Workbook } from '../../workbook/domain/workbook'
@@ -34,6 +35,7 @@ export function companySyncGroup(): AppSyncGroup {
     needs: () => needsOfBooks(store.state.workbook),
     undo: writes.undo,
     exportControl: LocalWorkbookStatus,
+    fileCard: BOOKS_FILE_LINK,
   }
 }
 

@@ -2,6 +2,7 @@ import { shallowReactive, shallowReadonly } from 'vue'
 
 import { backoff } from '../../google/googleApi'
 import { BooksAlreadyOnDrive } from './booksAlreadyOnDrive'
+import { DriveFileMissing } from './driveFileMissing'
 import { changesOf, checkWrite, isUndoable, receiptOf, undoOf } from './recordWrites'
 import type { RuledChange, WriteReceipt } from './recordWrites'
 import type { UnitOfWork } from './repository'
@@ -58,6 +59,8 @@ export interface WorkbookState<Books extends BooksRead, Copy extends WorkbookCop
   readonly choice: WorkbookChoice | null
   readonly status: WorkbookStatus
   readonly error: string | null
+  /** True once a read or a write found the chosen Drive file in the bin or gone, until a read finds it again or another file is chosen. */
+  readonly missing: boolean
   /** True while a change is being written, during which no sync starts and no other change is taken. */
   readonly writing: boolean
   /** Every write this page made, newest first. */
@@ -153,10 +156,13 @@ export interface WorkbookStore<Books extends BooksRead, Copy extends WorkbookCop
   driveFilePlace(): Promise<DriveFilePlace | null>
   /**
    * Trashes the Drive file or deletes the workbook kept in this browser under this id, and chooses
-   * none, as a first run that starts over. Does nothing unless that workbook is the one chosen. On a
-   * failure it stays chosen.
+   * none, as a first run that starts over. Does nothing unless that workbook is the one chosen, and
+   * throws `WorkbookWriteRefused` while a write or a sync runs. On a failure it stays chosen, in the
+   * error state. `first` runs before the trash or the delete, and a failure of it throws with
+   * nothing dropped. No sync or write starts until it is all over. Resolves to whether the workbook
+   * was dropped.
    */
-  dropWorkbook(workbookId: string): Promise<void>
+  dropWorkbook(workbookId: string, first?: () => Promise<void>): Promise<boolean>
   /**
    * Makes this the workbook kept in this browser, as an import or a fresh start does, and chooses
    * it. A workbook already kept here is replaced.
@@ -193,6 +199,7 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
     choice: null,
     status: 'opening',
     error: null,
+    missing: false,
     writing: false,
     writes: [],
   })
@@ -208,6 +215,7 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
   function choose(choice: WorkbookChoice | null): void {
     ports.saveChoice(choice)
     state.choice = choice
+    state.missing = false
   }
 
   async function withCache<Result>(workbookId: string, use: (cache: WorkbookCache<Copy>) => Promise<Result>): Promise<Result> {
@@ -259,8 +267,11 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
     return previous === null ? copy : { ...copy, meta: { ...copy.meta, lastExportedAt: previous.lastExportedAt } }
   }
 
-  /** Shows the copy a read of Drive gives, the chosen file or one found or made there, and chooses it. Leaving a workbook kept in this browser deletes it. */
-  async function readDrive(read: () => Promise<Copy | null>): Promise<void> {
+  /**
+   * Shows the copy a read of Drive gives, the chosen file or one found or made there, and chooses it. Leaving a workbook
+   * kept in this browser deletes it. Only a read of the chosen file can find that file missing.
+   */
+  async function readDrive(read: () => Promise<Copy | null>, ofChosen = false): Promise<void> {
     if (state.status === 'syncing' || state.writing) {
       return
     }
@@ -282,6 +293,9 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
       if (failure instanceof BooksAlreadyOnDrive) {
         state.status = 'ready'
         throw failure
+      }
+      if (ofChosen) {
+        state.missing = failure instanceof DriveFileMissing
       }
       fail(failure)
     }
@@ -370,6 +384,11 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
         await ports.pause(backoff(retry))
       }
     } catch (failure) {
+      // A write finds the file in the bin or gone as a read does, so the screens show it the same way.
+      if (failure instanceof DriveFileMissing) {
+        fail(failure)
+        state.missing = true
+      }
       if (sent && storage !== null && current.meta.source === 'drive') {
         await refreshAfterFailedWrite(storage)
       }
@@ -394,7 +413,7 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
       if (choice?.source !== 'drive') {
         return
       }
-      await readDrive(() => ports.readDriveFile(choice, state.snapshot?.meta.id === choice.id ? state.snapshot : null))
+      await readDrive(() => ports.readDriveFile(choice, state.snapshot?.meta.id === choice.id ? state.snapshot : null), true)
     },
 
     canSyncSilently() {
@@ -422,20 +441,30 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
       return choice?.source === 'drive' ? ports.driveFilePlace(choice.id) : null
     },
 
-    async dropWorkbook(workbookId) {
+    async dropWorkbook(workbookId, first) {
       const choice = state.choice
-      if (choice?.id !== workbookId || state.writing || state.status === 'syncing') {
-        return
+      if (choice?.id !== workbookId) {
+        return false
       }
-      await underLocalWork(async () => {
-        await (choice.source === 'drive' ? ports.trashDriveFile(choice.id) : ports.forgetBrowserWorkbook(choice.id))
-        await withCache(choice.id, (cache) => cache.delete())
-        choose(null)
-        state.snapshot = null
-        state.records = null
-        state.workbook = null
-        state.syncedAt = null
-      })
+      if (state.writing || state.status === 'syncing') {
+        throw new WorkbookWriteRefused(words.busy)
+      }
+      state.writing = true
+      try {
+        await first?.()
+        await underLocalWork(async () => {
+          await (choice.source === 'drive' ? ports.trashDriveFile(choice.id) : ports.forgetBrowserWorkbook(choice.id))
+          await withCache(choice.id, (cache) => cache.delete())
+          choose(null)
+          state.snapshot = null
+          state.records = null
+          state.workbook = null
+          state.syncedAt = null
+        })
+      } finally {
+        state.writing = false
+      }
+      return state.choice === null
     },
 
     replaceLocalWorkbook(contents, title) {

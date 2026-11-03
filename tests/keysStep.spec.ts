@@ -10,7 +10,7 @@ import type { FakeDrive } from '../src/shared/storage/infrastructure/fake/fakeDr
 import { book, instrument } from './fixtures/investments'
 
 const page = vi.hoisted(() => ({
-  state: null as unknown as { choice: { source: 'drive' | 'browser'; id: string; name: string } | null; workbook: { book: unknown } | null },
+  state: null as unknown as { choice: { source: 'drive' | 'browser'; id: string; name: string } | null; workbook: { book: unknown } | null; missing: boolean },
   drive: null as unknown as FakeDrive,
 }))
 
@@ -37,7 +37,7 @@ const OTHER_KEY = 'made-up-twelve-data-key-8642'
 
 beforeEach(() => {
   localStorage.clear()
-  page.state = shallowReactive({ choice: { source: 'drive', id: INVESTMENTS_FILE, name: 'Investments' }, workbook: { book: book({}) } })
+  page.state = shallowReactive({ choice: { source: 'drive', id: INVESTMENTS_FILE, name: 'Investments' }, workbook: { book: book({}) }, missing: false })
   page.drive = createFakeDrive()
 })
 
@@ -79,6 +79,12 @@ describe('the Investments part of the sync', () => {
       { scope: 'drive.appdata', label: 'Keys' },
     ])
     expect(loansSyncGroup().needs()).toEqual([{ scope: 'drive.file', label: 'Books' }])
+  })
+
+  it('asks nothing for the keys of a file in the bin or gone, whose books step fails before them', () => {
+    PAGE_KEY_STORE.write('twelvedata', OTHER_KEY)
+    page.state.missing = true
+    expect(investmentsSyncGroup().needs()).toEqual([{ scope: 'drive.file', label: 'Books' }])
   })
 })
 

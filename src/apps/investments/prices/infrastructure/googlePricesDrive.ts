@@ -1,5 +1,5 @@
 import type { PricesDrive } from '../application/pricesPorts'
-import { createFile, downloadFile, FOLDER_MIME_TYPE, getFile, JSON_MIME_TYPE, listChildren, queryLiteral, uploadContent } from '../../../../shared/google/driveClient'
+import { createFile, downloadFile, FOLDER_MIME_TYPE, getFile, JSON_MIME_TYPE, listChildren, queryLiteral, trashFile, uploadContent } from '../../../../shared/google/driveClient'
 import { GoogleApiError } from '../../../../shared/google/googleApi'
 import { tokenFor } from '../../../../shared/google/googleAuth'
 import { words } from './words'
@@ -33,7 +33,9 @@ export function googlePricesDrive(): PricesDrive {
 
     async headRevision(fileId) {
       try {
-        return (await getFile(await driveToken(), fileId, ['headRevisionId'])).headRevisionId
+        // Drive still answers for a file in the bin, which a removal on another device put there.
+        const file = await getFile(await driveToken(), fileId, ['headRevisionId', 'trashed'])
+        return file.trashed ? null : file.headRevisionId
       } catch (failure) {
         if (failure instanceof GoogleApiError && failure.status === 404) {
           return null
@@ -49,6 +51,10 @@ export function googlePricesDrive(): PricesDrive {
     async overwrite(fileId, text) {
       // Kept revisions would reach Drive's 200 in as many days, and yesterday's prices are fetched again anyway.
       return uploadContent(await driveToken(), fileId, text, JSON_MIME_TYPE, false)
+    },
+
+    async trash(fileId) {
+      await trashFile(await driveToken(), fileId)
     },
   }
 }

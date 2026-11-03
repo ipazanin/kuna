@@ -20,6 +20,7 @@ function appOf(id: string, source: 'drive' | 'browser' | null, scopes: readonly 
     syncedAt,
     status: 'ready' as const,
     error: null,
+    missing: false,
     writing: false,
     writes: [],
   })
@@ -29,6 +30,7 @@ function appOf(id: string, source: 'drive' | 'browser' | null, scopes: readonly 
     needs: () => [{ scope: 'drive.file', label: 'Books' }, ...(state.workbook === null ? [] : scopes.map((scope) => ({ scope, label: id })))],
     undo: async () => {},
     exportControl: {},
+    fileCard: `/${id}/settings?tab=books`,
   }
   const app: FakeApp = { id, name: id[0]!.toUpperCase() + id.slice(1), syncGroup: () => group }
   return { app, state }
@@ -84,5 +86,28 @@ describe('the control over several files', () => {
     const loans = appOf('loans', 'drive', [], '2026-10-28T06:30:00.000Z')
 
     expect(startPageSync([company.app, loans.app]).control.value).toEqual({ kind: 'ready', syncedAt: '2026-10-28T06:30:00.000Z' })
+  })
+})
+
+describe('a file in the bin or gone', () => {
+  it("fails its books step with the store's words and a link to the app's file card, where the file is found again or replaced", () => {
+    const loans = appOf('loans', 'drive', [])
+    const state = loans.state as unknown as { status: string; error: string | null; missing: boolean }
+    state.status = 'error'
+    state.error = 'The file is in the Drive bin.'
+    state.missing = true
+
+    const run = startPageSync([loans.app]).run.value
+
+    expect(run?.groups[0]?.steps[0]?.state).toEqual({ kind: 'failed', line: 'The file is in the Drive bin.', link: { label: 'Settings', to: '/loans/settings?tab=books' } })
+  })
+
+  it('offers no link for a read that failed for another reason', () => {
+    const loans = appOf('loans', 'drive', [])
+    const state = loans.state as unknown as { status: string; error: string | null }
+    state.status = 'error'
+    state.error = '500 from Drive.'
+
+    expect(startPageSync([loans.app]).run.value?.groups[0]?.steps[0]?.state).toEqual({ kind: 'failed', line: '500 from Drive.', link: null })
   })
 })

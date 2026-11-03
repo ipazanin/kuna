@@ -27,6 +27,7 @@ export function pricesDriveOn(drive: FakeDrive): PricesDrive {
       }
       return uploaded.revision
     },
+    trash: (fileId) => drive.trash(fileId),
   }
 }
 

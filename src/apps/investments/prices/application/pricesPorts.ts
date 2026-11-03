@@ -56,11 +56,13 @@ export interface PricesDrive {
   /** The ids of the files, never folders, with this name in the folder. */
   filesNamed(folderId: string, name: string): Promise<readonly string[]>
   createFile(parentId: string, name: string, text: string): Promise<{ readonly id: string; readonly revision: string }>
-  /** The file's head revision, or null when Drive no longer has the file. */
+  /** The file's head revision, or null when the file is in the bin or Drive no longer has it. */
   headRevision(fileId: string): Promise<string | null>
   download(fileId: string): Promise<string>
   /** Replaces the content and gives the new head revision, which Drive does not keep forever. */
   overwrite(fileId: string, text: string): Promise<string>
+  /** Moves the file to the bin, from which the person can restore it for 30 days. */
+  trash(fileId: string): Promise<void>
 }
 
 /** The Drive requests the keys file needs in the app's hidden folder, which only Kuna sees and nobody can share. */
@@ -71,6 +73,8 @@ export interface KeysDrive {
   createFile(name: string, text: string): Promise<string>
   download(fileId: string): Promise<string>
   overwrite(fileId: string, text: string): Promise<void>
+  /** Deletes the file for good, since Drive keeps no file of the app's folder in the bin. */
+  delete(fileId: string): Promise<void>
 }
 
 /** Where the prices of the Investments file on screen are kept. */

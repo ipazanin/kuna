@@ -1,5 +1,6 @@
-import { FOLDER_MIME_TYPE, JSON_MIME_TYPE } from '../../../google/driveClient'
+import { APP_DATA_FOLDER, FOLDER_MIME_TYPE, JSON_MIME_TYPE } from '../../../google/driveClient'
 import type { DriveRevision } from '../../../google/driveClient'
+import { DriveFileMissing } from '../../application/driveFileMissing'
 import type { DocumentDrive, DocumentUpload } from '../driveDocument'
 
 /** Drive's cap on the revisions of one file kept forever. */
@@ -45,12 +46,16 @@ export interface FakeDrive extends DocumentDrive {
   land(order: readonly UploadInFlight[]): void
   /** A save from outside the app, such as Drive for Desktop's, whose revision is not kept forever. */
   editOutside(fileId: string, text: string): void
+  /** Deletes the file for good, as `files.delete` does. */
+  delete(fileId: string): Promise<void>
 }
 
 export function createFakeDrive(): FakeDrive {
   const files = new Map<string, FakeDriveFile>()
   const requests: string[] = []
   let ticks = 0
+  /** Counts every file made, so an id never comes back after a delete. */
+  let made = 0
   let holding = false
   const inFlight: (UploadInFlight & { readonly modifiedTime: string; readonly answer: () => void })[] = []
   const waiting: { readonly count: number; readonly resolve: (uploads: readonly UploadInFlight[]) => void }[] = []
@@ -70,8 +75,9 @@ export function createFakeDrive(): FakeDrive {
 
   function add(parentId: string, name: string, mimeType: string, text: string, appProperties: Readonly<Record<string, string>>): FakeDriveFile {
     const revision = next()
+    made += 1
     const file: FakeDriveFile = {
-      id: `file-${files.size + 1}`,
+      id: `file-${made}`,
       name,
       mimeType,
       parents: [parentId],
@@ -139,7 +145,11 @@ export function createFakeDrive(): FakeDrive {
 
     async headRevision(fileId) {
       requests.push('headRevision')
-      return fileOf(fileId).headRevisionId
+      const file = files.get(fileId)
+      if (file === undefined || file.trashed) {
+        throw new DriveFileMissing(file !== undefined)
+      }
+      return file.headRevisionId
     },
 
     async download(fileId) {
@@ -219,7 +229,17 @@ export function createFakeDrive(): FakeDrive {
 
     async trash(fileId) {
       requests.push('trash')
-      fileOf(fileId).trashed = true
+      const file = fileOf(fileId)
+      if (file.parents.includes(APP_DATA_FOLDER)) {
+        throw new Error(`403 from the fake Drive: ${fileId} is in the app's hidden folder, whose files cannot go to the bin.`)
+      }
+      file.trashed = true
+    },
+
+    async delete(fileId) {
+      requests.push('delete')
+      fileOf(fileId)
+      files.delete(fileId)
     },
 
     async findByAppProperty(key, value) {

@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { ACCOUNT_WRITES, CATEGORY_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
 import { BooksAlreadyOnDrive } from '../src/shared/storage/application/booksAlreadyOnDrive'
+import { words as storageWords } from '../src/shared/storage/application/words'
+import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
 import { createWorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import type { WorkbookStore, WorkbookStorePorts } from '../src/shared/storage/application/createWorkbookStore'
 import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
@@ -458,6 +460,63 @@ describe('workbook store with a Drive file', () => {
   })
 })
 
+describe('workbook store with its Drive file in the bin or gone', () => {
+  it('keeps the copy on screen and says the file is in the bin once a sync finds it there, until a sync reads it restored', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([4]))
+    await side.drive.trash(choice.id)
+    const store = storeOf(harness(choice, side).ports)
+    await store.open()
+
+    await store.sync()
+
+    expect(store.state).toMatchObject({ choice, status: 'error', error: storageWords.inBin, missing: true })
+    expect(store.state.workbook?.transactions).toHaveLength(1)
+    side.drive.file(choice.id).trashed = false
+    await store.sync()
+    expect(store.state).toMatchObject({ status: 'ready', error: null, missing: false })
+  })
+
+  it('says the file is gone once Drive no longer has it', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([4]))
+    await side.drive.delete(choice.id)
+    const store = storeOf(harness(choice, side).ports)
+    await store.open()
+
+    await store.sync()
+
+    expect(store.state).toMatchObject({ choice, status: 'error', error: storageWords.goneFromDrive, missing: true })
+  })
+
+  it('refuses a write to a file in the bin, writing nothing to it, and marks the file missing', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([4]))
+    const store = storeOf(harness(choice, side).ports)
+    await store.open()
+    await side.drive.trash(choice.id)
+    const revision = side.drive.file(choice.id).headRevisionId
+
+    await expect(addRows(store, ACCOUNT_WRITES, { account: 'savings', iban: '' })).rejects.toThrow(storageWords.inBin)
+    expect(side.drive.file(choice.id).headRevisionId).toBe(revision)
+    expect(store.state).toMatchObject({ status: 'error', error: storageWords.inBin, missing: true })
+  })
+
+  it('does not call another file missing when only a find fails', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([4]))
+    const store = storeOf(harness(choice, side).ports)
+    await store.open()
+    side.before = async (request) => {
+      if (request === 'findByAppProperty') throw new Error('Drive answered 500.')
+    }
+
+    await store.chooseDriveFile('find')
+
+    expect(store.state).toMatchObject({ choice, status: 'error', missing: false })
+  })
+})
+
 describe('workbook store with a workbook kept in this browser', () => {
   it('keeps an imported workbook under its own id and reads it back on the next start', async () => {
     const first = harness(null)
@@ -713,6 +772,56 @@ describe('workbook store dropping the workbook a first run made', () => {
     expect(store.state.choice).toEqual(choice)
     expect(side.drive.file(choice.id).trashed).toBe(false)
     expect(side.drive.requests).toEqual([])
+  })
+
+  it('runs the step it is given first, while no sync starts, then trashes the file', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([1]))
+    const store = storeOf(harness(choice, side).ports)
+    await store.open()
+    const seen: string[] = []
+
+    const dropped = await store.dropWorkbook(choice.id, async () => {
+      seen.push(`writing ${store.state.writing}, trashed ${side.drive.file(choice.id).trashed}`)
+      await store.sync()
+    })
+
+    expect(dropped).toBe(true)
+    expect(seen).toEqual(['writing true, trashed false'])
+    expect(side.drive.requests).toEqual(['trash'])
+    expect(store.state).toMatchObject({ choice: null, writing: false })
+  })
+
+  it('drops nothing when the step it runs first fails, and passes the failure on', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([1]))
+    const store = storeOf(harness(choice, side).ports)
+    await store.open()
+
+    await expect(
+      store.dropWorkbook(choice.id, async () => {
+        throw new Error('The keys file was not deleted.')
+      }),
+    ).rejects.toThrow('The keys file was not deleted.')
+
+    expect(side.drive.file(choice.id).trashed).toBe(false)
+    expect(store.state).toMatchObject({ choice, status: 'ready', error: null, writing: false })
+    expect(await storedCopy(choice.id)).not.toBeNull()
+  })
+
+  it('refuses to drop the workbook while a sync runs', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([1]))
+    const store = storeOf(harness(choice, side).ports)
+    await store.open()
+    let release: () => void = () => {}
+    side.before = (request) => (request === 'headRevision' ? new Promise<void>((resolve) => (release = resolve)) : Promise.resolve())
+    const syncing = store.sync()
+
+    await expect(store.dropWorkbook(choice.id)).rejects.toBeInstanceOf(WorkbookWriteRefused)
+    release()
+    await syncing
+    expect(side.drive.file(choice.id).trashed).toBe(false)
   })
 
   it('keeps the workbook chosen when Drive fails to trash it', async () => {

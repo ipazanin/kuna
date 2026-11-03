@@ -176,8 +176,9 @@
             </li>
             <li>
               <code>drive.appdata</code>, "See, create, and delete its own configuration data in your Google Drive". Asked only while your Investments file is on Drive and you saved a price vendor key
-              or hold an instrument priced by a vendor that needs a key. It covers one hidden folder of Kuna's own in your Drive, which you do not see in Drive, which nobody can share and which no
-              other app reads. The app keeps your price vendor keys there in one small file, so every browser you sign in to gets them. It reads and writes nothing else with it.
+              or hold an instrument priced by a vendor that needs a key, and when you remove an Investments file on Drive, to delete its keys file. It covers one hidden folder of Kuna's own in your
+              Drive, which you do not see in Drive, which nobody can share and which no other app reads. The app keeps your price vendor keys there in one small file per Investments file, so every
+              browser you sign in to gets them. It reads, writes and deletes nothing else with it.
             </li>
             <li>
               <code>gmail.readonly</code>, "View your email messages and settings". Asked only while you name the address your bank mails from, or switch on a kind of your accountant's mail. Google's
@@ -220,6 +221,11 @@
             With your Investments file on Drive, each sync writes your price vendor keys, and when you last saved or removed each one, into
             <code>kuna-investments-keys-&lt;id of the Investments file&gt;.json</code> in Kuna's hidden app folder in your Drive. A key you remove in one browser is removed from the others on their
             next sync. Drive may keep earlier versions of that file, which only Kuna can read, for about 30 days, as it does for other files.
+          </p>
+          <p>
+            Remove the Investments file, in the Investments Settings, asks first. For a file on Drive it moves <code>kuna-investments.json</code> and <code>kuna-investments-prices.json</code> to your
+            Drive bin, where you can restore them for 30 days, and deletes the keys file in Kuna's hidden folder for good, since Drive keeps no bin for that folder. For a file kept in this browser it
+            deletes the file and its prices here. The price vendor keys kept in this browser stay, and so do the backups folder and the files you exported.
           </p>
           <p>
             While you name the address your bank mails statements from, each sync files the attachments of its new statement mail, the statement PDF and XML, into your statements folder in Drive, in a

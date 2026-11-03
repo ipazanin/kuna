@@ -12,6 +12,7 @@ export type DocumentUpload = { readonly kind: 'uploaded'; readonly revision: str
 
 /** The Drive requests the document's home makes, over Google's API or the fake Drive. */
 export interface DocumentDrive {
+  /** Throws `DriveFileMissing` for a file in the bin, or one Drive no longer has or no longer lets the app open. */
   headRevision(fileId: string): Promise<string>
   /** The content of the head revision. */
   download(fileId: string): Promise<string>

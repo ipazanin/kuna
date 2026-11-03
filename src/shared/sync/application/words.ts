@@ -20,6 +20,7 @@ export const en = {
   reading: 'Reading the file',
   upToDate: 'Up to date',
   notRead: 'The file on Drive could not be read.',
+  settings: 'Settings',
 }
 
 export const hr: Translation<typeof en> = {
@@ -38,6 +39,7 @@ export const hr: Translation<typeof en> = {
   reading: 'Čita datoteku',
   upToDate: 'Ažurno',
   notRead: 'Datoteka na Driveu nije se mogla pročitati.',
+  settings: 'Postavke',
 }
 
 export const words = language === 'hr' ? hr : en

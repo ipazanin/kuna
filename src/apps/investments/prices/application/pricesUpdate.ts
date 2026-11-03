@@ -33,6 +33,14 @@ export async function pricesFileBeside(drive: PricesDrive, investmentsFileId: st
   return (await sortedFirst()) ?? made.id
 }
 
+/** Moves every prices file beside the Investments file on Drive to the bin, a second one two devices made at once among them. Makes none. */
+export async function trashPricesFilesBeside(drive: PricesDrive, investmentsFileId: string): Promise<void> {
+  const folderId = await drive.parentOf(investmentsFileId)
+  for (const fileId of await drive.filesNamed(folderId, PRICES_FILE_NAME)) {
+    await drive.trash(fileId)
+  }
+}
+
 /** Whether this browser should fetch the day's prices now, or why not. */
 export type PricesFetchVerdict = 'due' | 'running' | 'fetched-today' | 'no-key'
 
@@ -154,6 +162,8 @@ export interface PricesUpdate {
    * page under way is over. Answers current, asking nothing, when this browser's copy already holds them.
    */
   fetchCompared(compared: ComparedListing): Promise<PricesFetchRun | 'no-books'>
+  /** Runs `work` once a fetch of this page under way is over, while no fetch or read starts, which answer as with no file open. */
+  whileStopped<Result>(work: () => Promise<Result>): Promise<Result>
 }
 
 /** What a run was started for: the fetch of what is due, of everything now, of the ECB rates an import wants or of a listing a chart compares with, or closes imported from files. */
@@ -172,7 +182,13 @@ function messageOf(failure: unknown): string {
 export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
   const state = shallowReactive<{ -readonly [Field in keyof PricesUpdateState]: PricesUpdateState[Field] }>({ investmentsFileId: null, copy: null, fetching: null, lastRun: null })
   let running = false
+  let stopped = false
   let current: Promise<PricesFetchRun> | null = null
+
+  /** Where the prices of the file on screen are kept, or null while none is open or `whileStopped` runs. */
+  async function placeNow(): Promise<PricesPlace | null> {
+    return stopped ? null : ports.place()
+  }
 
   /** Shows the copy while its Investments file is still the one on screen, which a read or a fetch may outlast. */
   async function show(place: PricesPlace, copy: PricesCopy): Promise<void> {
@@ -306,7 +322,7 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
   }
 
   async function opened(): Promise<{ readonly place: PricesPlace; readonly book: InvestmentBook } | null> {
-    const place = await ports.place()
+    const place = await placeNow()
     const book = ports.investments()
     return place === null || book === null ? null : { place, book }
   }
@@ -338,7 +354,7 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
     state: shallowReadonly(state),
 
     async open() {
-      const place = await ports.place()
+      const place = await placeNow()
       state.investmentsFileId = null
       state.copy = null
       if (place !== null) {
@@ -353,7 +369,7 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
     },
 
     async read() {
-      const place = await ports.place()
+      const place = await placeNow()
       if (place === null || place.drive === null) {
         return { kind: 'not-on-drive' }
       }
@@ -437,6 +453,16 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
         if (!running) {
           return runFetch(found.place, found.book, { kind: 'compared', compared })
         }
+      }
+    },
+
+    async whileStopped(work) {
+      stopped = true
+      try {
+        await afterRun()
+        return await work()
+      } finally {
+        stopped = false
       }
     },
   }

@@ -54,7 +54,8 @@ export function keysNeeds(book: InvestmentBook | null): AccessNeed[] {
   return keysToSync(book) ? [{ scope: 'drive.appdata', label: words.keysStep.label }] : []
 }
 
-async function keysDrive(): Promise<KeysDrive> {
+/** The page's Drive for the keys file in the app's hidden folder, the fake one in the fake build. */
+export async function pageKeysDrive(): Promise<KeysDrive> {
   // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
   if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
     const { fakeKeysDrive } = await import('../infrastructure/fake/fakeKeysDrive')
@@ -77,7 +78,7 @@ export const KEYS_STEP: SyncStep = {
     }
     const result = await syncVendorKeys(
       {
-        drive: await keysDrive(),
+        drive: await pageKeysDrive(),
         vendorIds: VENDOR_IDS,
         here: () => storedKeyChanges(VENDOR_IDS),
         keep(changes) {

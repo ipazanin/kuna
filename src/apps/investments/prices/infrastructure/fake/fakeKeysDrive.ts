@@ -16,6 +16,7 @@ export function keysDriveOn(drive: FakeDrive): KeysDrive {
     async overwrite(fileId, text) {
       await drive.upload(fileId, text)
     },
+    delete: (fileId) => drive.delete(fileId),
   }
 }
 

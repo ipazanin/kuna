@@ -28,8 +28,9 @@ There is no backend, so there is no refresh token: Google issues those only thro
 code exchange. The page holds one access token in memory, never in storage, and it carries every
 scope the books and this device's settings need: `drive.file` always, `drive.readonly` while the
 mail or statements step reads a folder from My Drive, `drive.appdata` while the Investments file is
-on Drive and has price keys to carry, as _Keys in this browser and in the Google account_ says,
-`gmail.readonly` while the mail step is on, and `gmail.compose` while invoice mail drafts are on.
+on Drive and has price keys to carry, as _Keys in this browser and in the Google account_ says, and
+for the tap that removes it, `gmail.readonly` while the mail step is on, and `gmail.compose` while
+invoice mail drafts are on.
 The Company and the Loans file never need `drive.appdata` themselves, but one token carries what every app on Drive needs, so a tap
 for Company or Loans asks for it too while the Investments file needs it. A statements folder the app made
 beside the books file needs no more than `drive.file`, as _The statements step_ describes. Every ask
@@ -122,7 +123,9 @@ switch on are read before the save.
 A step that is off does not run and is not counted. Whether a step is on, and the scopes it needs,
 are decided again once the books are read, so a switch or a folder another device saved counts in
 the same sync. A tap during a save waits
-for the save and then syncs, and a tap during a sync joins it, so one sync runs at a time. A step
+for the save and then syncs, and a tap during a sync joins it, so one sync runs at a time. Each group
+waits for a save of its app's books before it reads them, so a save that starts while an earlier
+group runs is over first. A step
 whose scopes the page's token lacks one of does not run and needs access. A step that fails leaves
 the others running. Google turning a step's token away inside the step makes that step, and the
 later steps that share a scope with it, need access, in the later groups too. A failed read of an
@@ -2331,8 +2334,38 @@ found by its mark or else picked. Investments can be set up from its card on the
 Set up until the file exists and then says what the app keeps. The Overview at `#/investments` says
 which records the file leaves out or doubts, and an empty file shows an empty state that names where
 the file is kept. While the file opens it shows skeleton cards. Its Settings at
-`#/investments/settings` show where the file is, with Export and Switch storage. Export downloads
-`kuna-investments-export-<yyyy-mm-dd>.json`. Its identity colour is `--app-investments`, a plum.
+`#/investments/settings` show where the file is, with Export, Switch storage and Remove the
+Investments file. Export downloads `kuna-investments-export-<yyyy-mm-dd>.json`. Its identity colour
+is `--app-investments`, a plum.
+
+Remove the Investments file always asks first, in a dialog that names what goes and what stays. For
+a file on Drive it deletes the file's keys files in Kuna's hidden app folder (`files.delete` under
+`drive.appdata`, since Drive lets no file of that folder into the bin), moves every
+`kuna-investments-prices.json` beside the file to the bin (`files.update` with `trashed: true` under
+`drive.file`), then moves the Investments file to the bin, where Drive keeps it for 30 days, and
+forgets it here, and last deletes the prices this browser kept of it. For a file kept in this
+browser it deletes the file, then its prices here. Either way this browser lands on the Investments
+first run, as one that never had a file. The vendor keys in this browser stay, since they belong to
+the vendor accounts, and so do the backups folder and the exported files. A step that fails stops
+the removal, and the dialog lists each step's outcome. The keys and the prices files go first, so a
+failure there leaves the Investments file chosen and readable, and Remove can run again. The
+Investments file goes after them, since forgetting it also forgets the id that finds the others. It
+waits for a sync under way, whose Keys step could make the keys file again, and is refused with
+nothing done when a sync starts in the meantime. No sync, write or price fetch starts while it runs
+(`settings/application/fileRemoval.ts`). Once done, a note says to restore both the Investments file
+and its prices file from the bin to get it back. A device that still holds the prices file in the
+bin reads the one beside the Investments file instead, as _Investments prices_ says.
+
+Another device that still has the file finds it in the bin on its next sync: the books step fails
+with "The file is in the Drive bin, so Kuna no longer reads or saves it. Restore it from the bin in
+Drive and sync, or switch to another file." and a link to the app's file card in Settings, and the
+Keys and Prices steps are skipped. Its copy stays on screen, a write is refused with the same words
+and marks the file the same way, no price fetch starts, so no new prices file is made beside it, and
+the file card says Kuna stopped using the file, beside Switch storage. Remove is not offered for
+such a file, since it is already in the bin or gone. A file Drive no longer has, or no longer lets
+Kuna open, reads the same way with words of its own. This holds for every app's file, as _The file on
+Drive_ says. `?investments=binned` sets it up in the fake build, and `?investments=browser` keeps the
+sample in this browser.
 
 Holdings at `#/investments/holdings`, counted in the menu, lists every holding held and each account's
 cash per currency, grouped by class, by currency or not at all, with Find and Show sold holdings. From
@@ -2576,7 +2609,8 @@ grant the step waits in "Allow access" and the Prices step still runs. A keys fi
 write, or one a newer Kuna wrote, fails the step and is left as it is. The file is made only once
 there is a key or a removal to keep. Of two files two browsers made at once, each takes the one whose
 id sorts first, the other one's changes reach it on the next sync, and the other file stays in the
-app folder. A key saved or removed on the card while the step writes stays, as the newer change.
+app folder until Remove the Investments file deletes both. A key saved or removed on the card while
+the step writes stays, as the newer change.
 The file is overwritten without keeping its revisions forever, but Drive may keep its earlier
 versions, which only Kuna reads, for about 30 days, as it does for any file it does not keep forever.
 Keys stay a browser's own when
@@ -2652,7 +2686,9 @@ Drive or the fake Drive, the keys and the vendors.
   A key it brings shows on the Prices card at once.
 - **The Prices step.** After the keys, each sync of an Investments file on Drive asks Drive for the
   prices file's head revision and downloads it only when it differs from the copy's. A file Kuna
-  cannot read, such as one a newer Kuna wrote, fails the step and is left as it is.
+  cannot read, such as one a newer Kuna wrote, fails the step and is left as it is. A prices file the
+  copy names that is now in the bin counts as gone, since Drive still answers for it, so the step
+  takes the one beside the Investments file, or makes one there.
 - **The day's fetch.** After the Prices step, or once the records are read for a file kept in this
   browser, the page fetches in the background when the prices file was written before today in
   Zagreb and this browser holds a key for a vendor the records need. Records that need only the ECB,
@@ -2667,8 +2703,9 @@ Drive or the fake Drive, the keys and the vendors.
 - **A file kept in this browser.** There is no second file then. The copy in this browser is the
   prices file, and the fetch writes it alone. Moving the Investments file to Drive starts its prices
   over, since the new file has a new id. The copy of the prices of an Investments file that leaves the
-  screen is deleted from this browser. The prices file on Drive beside a trashed Investments file stays,
-  and so does the keys file of an Investments file this browser leaves.
+  screen is deleted from this browser. When Switch storage or Find moves this browser to another
+  file, the prices file beside the old one and its keys file stay, for the devices that still use it.
+  Remove the Investments file moves the prices file to the bin and deletes the keys file.
 - **The Overview** says how recent the holdings' closes are, and once they are late, a warning with
   the newest close, how many series the last fetch missed and a link to the Prices card.
 - **The Prices card** in the Investments Settings shows the last fetch's time, what it missed and why,
@@ -2918,8 +2955,11 @@ by search. Drive refuses no stale upload, so the home in `driveDocument.ts` chec
 itself. One home serves a file for as long as the page holds it, with a token getter rather than a
 token, so it remembers the day's backup. A save:
 
-1. Reads `files.get ?fields=headRevisionId`, and downloads the file with `alt=media` only when the
-   revision differs from the copy's. That revision is the base.
+1. Reads `files.get ?fields=headRevisionId,trashed`, and downloads the file with `alt=media` only
+   when the revision differs from the copy's. That revision is the base. Drive still answers for a
+   file in the bin, so one there is refused as missing, and so is one Drive answers 404 for. The
+   store then keeps its copy on screen, and the books step of the sync links to the app's file card
+   in Settings, the Books file tab for the company.
 2. Before its upload, reads the head again. A head other than the base is a moved file, and nothing
    is uploaded.
 3. Uploads the whole document with `uploadType=media&keepRevisionForever=true`.

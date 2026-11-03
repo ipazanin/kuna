@@ -21,8 +21,8 @@ export type KeysSyncResult = { readonly kind: 'unchanged' | 'sent' | 'received' 
 /**
  * Merges this browser's keys with the keys file of the Investments file, the newer change of each vendor winning, a
  * removal as much as a save. The file is made only once there is a key or a removal to keep in it. Of two files two
- * browsers made at once, each takes the one whose id sorts first, the other one's changes reach it on their next sync,
- * and the other file stays in the folder.
+ * browsers made at once, each takes the one whose id sorts first, and the other one's changes reach it on their next
+ * sync. The other file stays in the folder until Remove the Investments file deletes both.
  */
 export async function syncVendorKeys(ports: KeysSyncPorts, investmentsFileId: string): Promise<KeysSyncResult> {
   const name = keysFileName(investmentsFileId)
@@ -52,4 +52,11 @@ export async function syncVendorKeys(ports: KeysSyncPorts, investmentsFileId: st
     return { kind: 'received' }
   }
   return { kind: sent ? 'sent' : 'unchanged' }
+}
+
+/** Deletes for good every keys file of the Investments file, a second one two browsers made at once among them. Drive keeps no file of the app's folder in the bin. */
+export async function deleteKeysFiles(drive: KeysDrive, investmentsFileId: string): Promise<void> {
+  for (const fileId of await drive.filesNamed(keysFileName(investmentsFileId))) {
+    await drive.delete(fileId)
+  }
 }

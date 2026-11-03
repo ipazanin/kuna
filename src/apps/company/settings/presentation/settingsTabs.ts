@@ -1,5 +1,11 @@
 import type { Component, InjectionKey, Ref } from 'vue'
 
+/** The Books file tab's value in `?tab=` on Settings, the tab of the card where the books are kept. */
+export const BOOKS_FILE_TAB = 'books'
+
+/** The Books file tab of Settings. */
+export const BOOKS_FILE_LINK = `/company/settings?tab=${BOOKS_FILE_TAB}`
+
 /** A tab of the company's Settings, core's or the pack's, before Books file. */
 export interface SettingsTab {
   readonly value: string

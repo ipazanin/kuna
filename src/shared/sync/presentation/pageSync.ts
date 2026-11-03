@@ -9,7 +9,7 @@ import type { BooksRead, SessionWrite, WorkbookStore } from '../../storage/appli
 import { createSync } from '../application/sync'
 import type { SyncGroup, SyncStep } from '../application/sync'
 import { BOOKS_STEP, oldestRead, pageAccessOf, syncControlOf, withBooksFailure } from '../application/syncRun'
-import type { AccessNeed, SyncControl, SyncRun } from '../application/syncRun'
+import type { AccessNeed, StepLink, SyncControl, SyncRun } from '../application/syncRun'
 import { words as syncWords } from '../application/words'
 
 /** What an app gives the page's one sync. */
@@ -24,6 +24,8 @@ export interface AppSyncGroup {
   undo(write: SessionWrite): Promise<void>
   /** The top bar's export control while the app's file is kept in this browser. It takes `compact`, the narrow form. */
   readonly exportControl: Component
+  /** The route of the app's file card, where a file in the bin or gone is found again or replaced. */
+  readonly fileCard: string
 }
 
 /** An app's part of the page's sync, under the app's id and name. */
@@ -40,6 +42,10 @@ export interface PageSync {
   readonly control: ComputedRef<SyncControl>
   /** Every group of the apps with a file on Drive, as `Sync.sync` says. Call it from a click handler. */
   sync(): Promise<void>
+  /** Whether a sync is under way, as `Sync.running` says. */
+  running(): boolean
+  /** Resolves once no sync is under way, as `Sync.settled` says. */
+  settled(): Promise<void>
   /** Asks Google for what the steps and the settings lack, then syncs. Call it first in a click handler. */
   allowAccess(): Promise<void>
   /** Saves, asking Google in the same tap for these scopes, then syncs, as `Sync.saveAllowing` says. Call it first in a click handler. */
@@ -65,8 +71,14 @@ function onDrive(group: PageSyncGroup): boolean {
   return group.store.state.choice?.source === 'drive'
 }
 
+/** The way on from a read that found the app's file in the bin or gone. */
+function missingLink(group: PageSyncGroup): StepLink | null {
+  return group.store.state.missing ? { label: syncWords.settings, to: group.fileCard } : null
+}
+
 /** Reads the app's file on Drive again, the first step of its group. */
-function booksStep(store: AppSyncGroup['store']): SyncStep {
+function booksStep(group: PageSyncGroup): SyncStep {
+  const { store } = group
   return {
     ...BOOKS_STEP,
     scopes: () => BOOKS_STEP.scopes,
@@ -74,7 +86,9 @@ function booksStep(store: AppSyncGroup['store']): SyncStep {
     on: () => true,
     async run() {
       await store.sync()
-      return store.state.status === 'error' ? { kind: 'failed', line: store.state.error ?? syncWords.notRead, link: null } : { kind: 'done', line: syncWords.upToDate, writeId: null, link: null }
+      return store.state.status === 'error'
+        ? { kind: 'failed', line: store.state.error ?? syncWords.notRead, link: missingLink(group) }
+        : { kind: 'done', line: syncWords.upToDate, writeId: null, link: null }
     },
   }
 }
@@ -118,7 +132,7 @@ export function startPageSync(apps: readonly Pick<AppContribution, 'id' | 'name'
   )
 
   const sync = createSync({
-    groups: (): SyncGroup[] => driveGroups().map((group) => ({ app: group.app, name: group.name, books: booksStep(group.store), steps: () => group.steps(), whenIdle: () => whenIdle(group.store) })),
+    groups: (): SyncGroup[] => driveGroups().map((group) => ({ app: group.app, name: group.name, books: booksStep(group), steps: () => group.steps(), whenIdle: () => whenIdle(group.store) })),
     granted,
     askForAccess,
     asksByLeaving: signsInByRedirect,
@@ -132,7 +146,7 @@ export function startPageSync(apps: readonly Pick<AppContribution, 'id' | 'name'
       if (choice?.source === 'browser' || status !== 'error' || books?.state.kind === 'failed') {
         return shown
       }
-      return withBooksFailure(shown, group, error ?? syncWords.notRead, syncedAt ?? new Date().toISOString())
+      return withBooksFailure(shown, group, error ?? syncWords.notRead, syncedAt ?? new Date().toISOString(), missingLink(group))
     }, sync.state.run),
   )
 
@@ -158,6 +172,8 @@ export function startPageSync(apps: readonly Pick<AppContribution, 'id' | 'name'
     run,
     control,
     sync: () => (driveGroups().length > 0 ? sync.sync() : Promise.resolve()),
+    running: sync.running,
+    settled: sync.settled,
     allowAccess: sync.allowAccess,
     saveAllowing: sync.saveAllowing,
     undoable(app, writeId) {

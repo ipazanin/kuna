@@ -316,6 +316,30 @@ describe('a sync over several apps', () => {
     await running
     expect(loansBooks.runs).toHaveBeenCalledOnce()
   })
+
+  it("waits for a save of an app's books that starts while the group ahead of it runs", async () => {
+    let loansIdle: Promise<void> = Promise.resolve()
+    let saved: () => void = () => {}
+    const statements = step('statements', 'drive.readonly', async () => {
+      loansIdle = new Promise<void>((resolve) => (saved = resolve))
+      return DONE
+    })
+    const loansBooks = step('books', 'drive.file')
+    const loans: SyncGroup = { ...group('loans', loansBooks, []), whenIdle: () => loansIdle }
+    const { sync } = harness({ groups: [group('company', step('books', 'drive.file'), [statements]), loans] })
+
+    const running = sync.sync()
+    await vi.waitFor(() => expect(statements.runs).toHaveBeenCalledOnce())
+    await Promise.resolve()
+
+    expect(loansBooks.runs).not.toHaveBeenCalled()
+    expect(sync.running()).toBe(true)
+    saved()
+    await sync.settled()
+    expect(loansBooks.runs).toHaveBeenCalledOnce()
+    expect(sync.running()).toBe(false)
+    await running
+  })
 })
 
 describe('a save that switches on what needs more Google access', () => {

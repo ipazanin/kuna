@@ -1,5 +1,5 @@
 import type { KeysDrive } from '../application/pricesPorts'
-import { APP_DATA_FOLDER, createFile, downloadFile, JSON_MIME_TYPE, listChildren, queryLiteral, uploadContent } from '../../../../shared/google/driveClient'
+import { APP_DATA_FOLDER, createFile, deleteFile, downloadFile, JSON_MIME_TYPE, listChildren, queryLiteral, uploadContent } from '../../../../shared/google/driveClient'
 import { tokenFor } from '../../../../shared/google/googleAuth'
 
 /** The page's token for the app's hidden folder, which the Keys step of the sync asks for. */
@@ -25,6 +25,10 @@ export function googleKeysDrive(): KeysDrive {
 
     async overwrite(fileId, text) {
       await uploadContent(await appFolderToken(), fileId, text, JSON_MIME_TYPE, false)
+    },
+
+    async delete(fileId) {
+      await deleteFile(await appFolderToken(), fileId)
     },
   }
 }

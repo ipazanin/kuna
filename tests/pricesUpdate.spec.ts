@@ -263,6 +263,25 @@ describe('the Prices step of a sync', () => {
     expect(stepState(sync)).toMatchObject({ kind: 'done', line: words.step.read })
   })
 
+  it('leaves the prices file its copy holds once that file is in the bin, and reads the one beside the Investments file instead', async () => {
+    const world = await worldOf()
+    const binned = await pricesOnDrive(world, fakePricesFile('late-prices', civil('2026-10-29')))
+    const sync = syncOf(world)
+    await sync.sync()
+    await backgroundSettled(world)
+    expect(world.update.state.copy?.fileId).toBe(binned)
+
+    await world.drive.trash(binned)
+    const beside = fakePricesFile('sample', TODAY)
+    const besideId = await pricesOnDrive(world, beside)
+    const binnedRevision = world.drive.file(binned).headRevisionId
+    await sync.sync()
+    await backgroundSettled(world)
+
+    expect(world.update.state.copy).toMatchObject({ fileId: besideId, file: beside })
+    expect(world.drive.file(binned).headRevisionId).toBe(binnedRevision)
+  })
+
   it('makes the prices file on the first sync of an Investments file without one, which the ECB fetch then fills without a key', async () => {
     const world = await worldOf()
     world.keys = {}
@@ -576,5 +595,30 @@ describe('a day whose fetch already wrote the prices file', () => {
     expect(await added).toBe('due')
     expect(world.asked).toEqual(['twelvedata:ABC', 'ecb:USD', 'ecb:GBP', 'ecb:CHF', 'twelvedata:NEW'])
     expect(world.update.state.copy?.file.series['twelvedata:NEW']).toBeDefined()
+  })
+})
+
+describe('the prices while the Investments file is removed', () => {
+  it('waits for the fetch under way, then lets no fetch or read start until the removal is over', async () => {
+    const world = await worldOf()
+    const release = world.hold()
+    const daily = world.update.fetchNow()
+    for (let round = 0; round < 50 && world.asked.length === 0; round += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 2))
+    }
+    const seen: string[] = []
+
+    const removal = world.update.whileStopped(async () => {
+      seen.push(`daily ${world.update.state.fetching === null ? 'over' : 'running'}`)
+      seen.push(`fetch ${String(await world.update.fetchNow())}`)
+      seen.push(`read ${(await world.update.read()).kind}`)
+      return 'removed'
+    })
+    release()
+    await daily
+
+    expect(await removal).toBe('removed')
+    expect(seen).toEqual(['daily over', 'fetch no-books', 'read not-on-drive'])
+    expect(await world.update.read()).toMatchObject({ kind: 'unchanged' })
   })
 })
