@@ -4,8 +4,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { comparedInstrument } from '../src/apps/investments/compare/domain/comparedLine'
 import type { PortfolioSources } from '../src/apps/investments/holdings/domain/holding'
+import type { ComparedPick } from '../src/apps/investments/compare/domain/comparedLine'
 import type { ComparedListing } from '../src/apps/investments/prices/domain/priceDemand'
-import type { SearchedListing } from '../src/apps/investments/prices/application/symbolSearch'
 import type { CivilDate } from '../src/shared/calendar/civilDate'
 import { USD, book, priceBookOf, rateBookOf } from './fixtures/investments'
 import { civil } from './fixtures/ledger'
@@ -63,21 +63,11 @@ function sourcesWith(rates: PortfolioSources['rates']): PortfolioSources {
   }
 }
 
-const FOUND: SearchedListing = {
-  symbol: 'EXQ',
-  name: 'Example Quality Fund',
-  mic: null,
-  market: 'NASDAQ',
-  currency: 'USD',
-  type: 'ETF',
-  foundBy: ['Twelve Data'],
-  sources: ['twelvedata'],
-  proposedType: null,
-}
+const FOUND: ComparedPick = { source: 'twelvedata', symbol: 'EXQ', currency: 'USD' }
 
-async function comparisonOn(days: { value: readonly CivilDate[] }, reading: 'as-quoted' | 'in-euros') {
+async function comparisonOn(days: { value: readonly CivilDate[] }, reading: 'as-quoted' | 'in-euros', address = '/investments/performance?period=all') {
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/investments/performance', component: { render: () => null } }] })
-  await router.push('/investments/performance?period=all')
+  await router.push(address)
   const app = createApp({}).use(router)
   return { router, comparison: app.runWithContext(() => useComparison(() => days.value, reading)) }
 }
@@ -115,6 +105,17 @@ describe('Compare with on a chart', () => {
     days.value = [civil('2026-01-30'), civil('2026-02-27')]
     await settle()
     expect(page.asked.map((asked) => asked.from)).toEqual(['2026-02-27', '2026-01-30'])
+  })
+
+  it('knows the currency of a named fund the address compares with, with nothing picked on the page', async () => {
+    page.sources = shallowRef(sourcesWith(DOLLAR_RATES))
+    page.asked.length = 0
+    const days = shallowRef([civil('2026-01-30'), civil('2026-02-27')])
+    const { comparison } = await comparisonOn(days, 'in-euros', '/investments/performance?compare=twelvedata:SPY')
+    await settle()
+
+    expect(page.asked).toEqual([{ source: 'twelvedata', symbol: 'SPY', currency: 'USD', from: '2026-01-30' }])
+    expect(comparison.note.value).toBe('No close of SPY for 30 Jan 2026, so it has no line.')
   })
 
   it('says a line in euros waits for an ECB rate when the closes are in but the rates are not', async () => {

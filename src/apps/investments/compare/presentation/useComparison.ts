@@ -3,10 +3,10 @@ import type { ComputedRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { words } from './words'
-import { changeAsQuoted, changeInEuros, comparedInstrument, comparedKey, comparedSourceOf, comparedSources, tickerNamed } from '../domain/comparedLine'
-import type { ComparedLine, ComparedTicker } from '../domain/comparedLine'
+import { changeAsQuoted, changeInEuros, comparedInstrument, comparedKey, comparedSources, tickerNamed } from '../domain/comparedLine'
+import type { ComparedLine, ComparedPick, ComparedTicker } from '../domain/comparedLine'
+import { INDEX_FUNDS } from '../domain/indexFunds'
 import { usePortfolio } from '../../holdings/presentation/usePortfolio'
-import type { SearchedListing } from '../../prices/application/symbolSearch'
 import { seriesKey } from '../../prices/domain/pricesFile'
 import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
 import { usePrices } from '../../prices/presentation/usePrices'
@@ -18,7 +18,11 @@ import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 /** The address keeps the ticker compared with as its series key, such as `?compare=twelvedata:EXQ`. */
 const COMPARE_QUERY = 'compare'
 
+/** A chart's line as quoted in its own currency, or in euros at each day's ECB rate. */
+export type ComparisonReading = 'as-quoted' | 'in-euros'
+
 export interface Comparison {
+  readonly reading: ComparisonReading
   /** The ticker the address names, or null while nothing is compared. */
   readonly ticker: ComputedRef<ComparedTicker | null>
   /** The ticker's line at each of the chart's days, once its closes are in. */
@@ -26,7 +30,7 @@ export interface Comparison {
   readonly fetching: ComputedRef<boolean>
   /** Why a ticker compared with has no line, in words, or null while it has one or none is compared. */
   readonly note: ComputedRef<string | null>
-  pick(listing: SearchedListing): void
+  pick(chosen: ComparedPick): void
   remove(): void
 }
 
@@ -35,19 +39,22 @@ export interface Comparison {
  * chart's days as quoted or in euros. Its closes from the chart's first day go into the prices file as a series, so a
  * chart opened again asks only for the days since.
  */
-export function useComparison(days: () => readonly CivilDate[], reading: 'as-quoted' | 'in-euros'): Comparison {
+export function useComparison(days: () => readonly CivilDate[], reading: ComparisonReading): Comparison {
   const route = useRoute()
   const router = useRouter()
   const prices = usePrices()
   const portfolio = usePortfolio()
-  /** The currency of each listing picked on this page, until its series in the prices file says it. */
+  /** The currency of each listing picked on this page, until its series in the prices file says it. A named fund's is known. */
   const picked = ref<Readonly<Record<string, string>>>({})
   const fetchingKey = ref<string | null>(null)
 
   const ticker = computed(() => tickerNamed(route.query[COMPARE_QUERY]))
   const key = computed(() => (ticker.value === null ? null : comparedKey(ticker.value)))
   const file = computed(() => prices.state.copy?.file ?? null)
-  const currency = computed(() => (key.value === null ? null : currencyCodeOf(file.value?.series[key.value]?.currency ?? picked.value[key.value] ?? '')))
+  const currency = computed(() => {
+    const asked = key.value
+    return asked === null ? null : currencyCodeOf(file.value?.series[asked]?.currency ?? picked.value[asked] ?? INDEX_FUNDS.find((fund) => comparedKey(fund) === asked)?.currency ?? '')
+  })
   const firstDay = computed(() => days()[0] ?? null)
 
   const compared = computed(() => {
@@ -105,15 +112,13 @@ export function useComparison(days: () => readonly CivilDate[], reading: 'as-quo
   }
 
   return {
+    reading,
     ticker,
     line,
     fetching: computed(() => fetchingKey.value !== null && fetchingKey.value === key.value),
     note,
-    pick(listing) {
-      const source = comparedSourceOf(listing)
-      if (source === null || listing.currency === null) return
-      const chosen = { source, symbol: listing.symbol }
-      picked.value = { ...picked.value, [comparedKey(chosen)]: listing.currency }
+    pick(chosen) {
+      picked.value = { ...picked.value, [comparedKey(chosen)]: chosen.currency }
       setQuery(comparedKey(chosen))
     },
     remove() {

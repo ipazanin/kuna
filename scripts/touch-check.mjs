@@ -20,7 +20,7 @@
  * brought back, the same from a row of the To review queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google with one token for every scope and the sync it resumes ending ready, with Drive read unticked ending in Allow access, a refused consent and a
  * forged answer leaving Allow access with no message, a refused silent trip marking the device so the next open waits for Allow access, Sign in to Google when Google asks
- * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, a k typed into the what-if's amount expanding at once, 1.255m keeping its third decimal, with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, a tap near a movement's dot on an informal loan's balance chart reading that month's repayment and its note, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, a tap near a holding's dot on its daily line reading that day's buy in the tooltip, Compare with on a holding's chart and on Performance's growth chart searching, picking, reading percent and removing the ticker, By class picked in the Mix card's select and a part of its class ring listing Holdings grouped by class with the ring kept, By currency picked in the grouping select with its sticky heading, Type its mix on a fund with no mix opening the Change dialog with its Dividends field, a closed position opening its page and the way back, a past close picked in On and Today, a tap on the map of holdings opening a holding's page, targets set with what 2k buys read and undone, a check's threshold changed on the Investments Checks tab and undone, the period of Investments Performance changed to 1Y, to a year in its dropdown and back to All, its Months tab switched to Against the index, the period changed on its Sources tab, the Overview's Income tile opening Performance on its Income tab without the period bar and its Coming and Returns tabs, 1k typed into the projection's Each month on the Saving tab and its end value read, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices tab, a key another browser saved taken by the sync on open, removed here and kept removed by the next sync, a key this browser saved lost to another browser's newer removal, Remove the Investments file on the sample on Drive asked first, cancelled and then removed to the first run with the vendor key kept, in English and Croatian, the same for a file kept in this browser, another device's file in the Drive bin failing the sync on open with a link to its Settings, a two-word country and a code in brackets typed into a holding's Country field and into a fund's country mix and picked with Enter, the Country field set back to Not set the same way, three made-up CSV files of closes imported on the Prices tab, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
+ * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, a k typed into the what-if's amount expanding at once, 1.255m keeping its third decimal, with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, a tap near a movement's dot on an informal loan's balance chart reading that month's repayment and its note, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, a tap near a holding's dot on its daily line reading that day's buy in the tooltip, Compare with on a holding's chart and on Performance's growth chart searching, picking, reading percent and removing the ticker, then pressing S&P 500 (SPY) and removing it, By class picked in the Mix card's select and a part of its class ring listing Holdings grouped by class with the ring kept, By currency picked in the grouping select with its sticky heading, Type its mix on a fund with no mix opening the Change dialog with its Dividends field, a closed position opening its page and the way back, a past close picked in On and Today, a tap on the map of holdings opening a holding's page, targets set with what 2k buys read and undone, a check's threshold changed on the Investments Checks tab and undone, the period of Investments Performance changed to 1Y, to a year in its dropdown, to Q2 of that year, to another year keeping Q2 and back to All, with Returns by year tinting only Yours and Difference, its Months tab switched to Against the index, the period changed on its Sources tab, the Overview's Income tile opening Performance on its Income tab without the period bar and its Coming and Returns tabs, 1k typed into the projection's Each month on the Saving tab and its end value read, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices tab, a key another browser saved taken by the sync on open, removed here and kept removed by the next sync, a key this browser saved lost to another browser's newer removal, Remove the Investments file on the sample on Drive asked first, cancelled and then removed to the first run with the vendor key kept, in English and Croatian, the same for a file kept in this browser, another device's file in the Drive bin failing the sync on open with a link to its Settings, a two-word country and a code in brackets typed into a holding's Country field and into a fund's country mix and picked with Enter, the Country field set back to Not set the same way, three made-up CSV files of closes imported on the Prices tab, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
@@ -66,6 +66,7 @@ import { launch } from 'puppeteer-core'
 import { en as sharedEnglish } from '../src/shared/app/words.ts'
 
 import { hr as analysisCroatian } from '../src/apps/company/analysis/presentation/words.ts'
+import { returnFill } from '../src/apps/investments/performance/presentation/returnFill.ts'
 import { en as billingEnglish, hr as billingCroatian } from '../src/apps/company/billingPlan/presentation/words.ts'
 import { en as overviewEnglish, hr as overviewCroatian } from '../src/apps/company/overview/presentation/words.ts'
 import { en as transactionsEnglish, hr as transactionsCroatian } from '../src/apps/company/transactions/presentation/words.ts'
@@ -2225,7 +2226,8 @@ async function checkWidth(width) {
     await expect(shown(), (text) => text === '20', 'Undo did not put back the threshold of 20')
   })
 
-  // The sample's Performance: a tap on 1Y and a year picked in the dropdown change the period and keep it in the address, and All takes it out again.
+  // The sample's Performance: a tap on 1Y, a year picked in the dropdown and a quarter of it change the period and keep it in the address,
+  // another year keeps the quarter, and All takes it out again. On All, Returns by year tints Yours and Difference only.
   await step('investments-performance-period', async () => {
     await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/performance`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Performance')
@@ -2236,6 +2238,7 @@ async function checkWidth(width) {
     await expect(pressed(), (label) => label === 'All', 'Performance does not open on All')
     const allHeader = await header()
     await inspect(page, `${width}px Performance on All`)
+    await yearTintsMatch(page)
     await (await waitForText(page, '[data-testid="performance-periods"] button', '1Y')).tap()
     await page.waitForFunction(() => document.querySelector('[data-testid="performance-periods"] [aria-pressed="true"]')?.textContent?.trim() === '1Y', { timeout: 5_000 })
     await expect(periodInAddress(), (period) => period === '1y', '1Y is not kept in the address')
@@ -2261,10 +2264,35 @@ async function checkWidth(width) {
     await expect(header(), (text) => text.includes('31 Dec 2023') && text.includes('31 Dec 2024'), 'the header does not run from the close of 2023 to the end of 2024')
     await inspect(page, `${width}px Performance on 2024`)
     await shoot('investments-performance-2024')
+    const part = () => page.$eval('[data-testid="performance-part"]', (element) => element.textContent?.trim() ?? '')
+    await expect(part(), (label) => label === 'Whole year', 'the part of the year does not offer Whole year once 2024 is picked')
+    await page.tap('[data-testid="performance-part"]')
+    await (await waitForText(page, '[role="option"]', 'Q2')).tap()
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await page.waitForFunction(() => document.querySelector('[data-testid="performance-part"]')?.textContent?.trim() === 'Q2', { timeout: 5_000 })
+    await expect(periodInAddress(), (period) => period === '2024q2', 'the second quarter of 2024 is not kept in the address')
+    await expect(header(), (text) => text.includes('31 Mar 2024') && text.includes('30 Jun 2024'), 'the header does not run from the close of March to the end of June 2024')
+    await page.waitForSelector('[data-testid="performance-growth"] .chart-body canvas')
+    await inspect(page, `${width}px Performance on the second quarter of 2024`)
+    await shoot('investments-performance-2024q2')
+    await page.tap('[data-testid="performance-year"]')
+    await (await waitForText(page, '[role="option"]', '2025')).tap()
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await page
+      .waitForFunction(() => new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('period') === '2025q2', { timeout: 5_000 })
+      .catch(() => {
+        throw new Error('another year does not keep the second quarter')
+      })
+    await expect(part(), (label) => label === 'Q2', 'the part of the year does not stay on Q2 in 2025')
     await (await waitForText(page, '[data-testid="performance-periods"] button', 'All')).tap()
     await page.waitForFunction(() => document.querySelector('[data-testid="performance-periods"] [aria-pressed="true"]')?.textContent?.trim() === 'All', { timeout: 5_000 })
     await expect(periodInAddress(), (period) => period === null, 'All stays in the address')
     await expect(header(), (text) => text === allHeader, 'All does not name its days again')
+    await expect(
+      page.evaluate(() => document.querySelector('[data-testid="performance-part"]') === null),
+      (hidden) => hidden,
+      'the part of the year stays on All',
+    )
   })
 
   // Performance's Months tab: a tap on the tab keeps it in the address and hides the period bar, and Against the index turns each return into its gap to the index.
@@ -2649,6 +2677,46 @@ function filterCount(page) {
 
 function totalOf(page) {
   return page.evaluate(() => document.querySelector('[data-testid="transaction-total"]')?.textContent?.trim() ?? '')
+}
+
+/** The percent a cell shows as a share, such as −12.34% as −0.1234, or null for a dash. */
+function shownShare(text) {
+  const match = /^([+−-])?([\d.,]+)%$/.exec(text.replace(/\s/g, ''))
+  if (match === null) return null
+  const share = Number(match[2].replace(/,/g, '')) / 100
+  return match[1] === '−' || match[1] === '-' ? -share : share
+}
+
+/**
+ * Returns by year tints Yours and Difference with the Months tab's fills at its yearly steps, and leaves Benchmark, its
+ * caption, Largest fall and Volatility plain. A figure shown rounded may sit on a step, so either side of it passes.
+ */
+async function yearTintsMatch(page) {
+  const rows = await page.$$eval('[data-testid="performance-years"] tbody tr', (rows) =>
+    rows
+      .map((row) => [...row.querySelectorAll('td')])
+      .filter((cells) => cells.length === 5)
+      .map((cells) => {
+        const fills = (element) => [element, ...element.querySelectorAll('*')].flatMap((inner) => [...inner.classList].filter((name) => /^bg-(gain|loss)-\d$/.test(name)))
+        return {
+          yours: { text: cells[0].textContent?.trim() ?? '', fills: fills(cells[0]) },
+          difference: { text: cells[2].textContent?.trim() ?? '', fills: fills(cells[2]) },
+          plain: [cells[1], cells[3], cells[4]].flatMap(fills),
+        }
+      }),
+  )
+  if (rows.length === 0) throw new Error('Returns by year shows no year with figures')
+  const tinted = rows.flatMap((row) => [row.yours, row.difference]).filter((cell) => cell.fills.length > 0)
+  if (tinted.length === 0) throw new Error('Returns by year tints no cell')
+  for (const row of rows) {
+    if (row.plain.length > 0) throw new Error(`Benchmark, Largest fall or Volatility carries a tint: ${row.plain.join(', ')}`)
+    for (const cell of [row.yours, row.difference]) {
+      const share = shownShare(cell.text)
+      const allowed = share === null ? [null] : [returnFill(share - 0.00005, 'year'), returnFill(share, 'year'), returnFill(share + 0.00005, 'year')]
+      if (cell.fills.length > 1 || !allowed.includes(cell.fills[0] ?? null))
+        throw new Error(`${cell.text} is tinted ${cell.fills.join(', ') || 'with nothing'}, not ${allowed.map((fill) => fill ?? 'nothing').join(' or ')}`)
+    }
+  }
 }
 
 async function expect(valuePromise, holds, message) {

@@ -16,6 +16,9 @@ import { recordIdOf } from '../../../../shared/storage/domain/recordId'
 /** A listing compared with on a chart, by the vendor that prices it and its symbol there, as the address keeps it. */
 export type ComparedTicker = Pick<ComparedListing, 'source' | 'symbol'>
 
+/** A listing to compare with and the currency of its closes, as a search or a named fund picks it. */
+export type ComparedPick = Omit<ComparedListing, 'from'>
+
 export function comparedKey(ticker: ComparedTicker): string {
   return seriesKey(ticker.source, ticker.symbol)
 }

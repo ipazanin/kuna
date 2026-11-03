@@ -1,9 +1,13 @@
 import { civilDate, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { dayMonthsLater } from '../../../../shared/calendar/monthKey'
+import { addMonths, dayMonthsLater, firstDayOf, lastDayOf, monthKey } from '../../../../shared/calendar/monthKey'
 
-/** What the Performance screen's period bar offers: the last one, three or five years, everything, or one calendar year. */
-export type PerformancePeriod = { readonly kind: 'years'; readonly years: 1 | 3 | 5 } | { readonly kind: 'all' } | { readonly kind: 'year'; readonly year: number }
+/** What the Performance screen's period bar offers: the last one, three or five years, everything, one calendar year, or one quarter of it. */
+export type PerformancePeriod =
+  | { readonly kind: 'years'; readonly years: 1 | 3 | 5 }
+  | { readonly kind: 'all' }
+  | { readonly kind: 'year'; readonly year: number }
+  | { readonly kind: 'quarter'; readonly year: number; readonly quarter: 1 | 2 | 3 | 4 }
 
 /** The two closes a period is measured between. */
 export interface PeriodSpan {
@@ -12,8 +16,9 @@ export interface PeriodSpan {
 }
 
 /**
- * A year runs from the close of the 31st of December before it to its own last day, or to today while it lasts. A
- * period that would start before the first deposit starts on it, and one that ends before it has no span.
+ * A year runs from the close of the 31st of December before it to its own last day, or to today while it lasts, and a
+ * quarter from the close of the quarter before it, so the quarters multiply up to the year. A period that would start
+ * before the first deposit starts on it, and one that ends before it has no span.
  */
 export function periodSpan(period: PerformancePeriod, firstDeposit: CivilDate, today: CivilDate): PeriodSpan | null {
   const asked = askedSpan(period, firstDeposit, today)
@@ -40,6 +45,11 @@ function askedSpan(period: PerformancePeriod, firstDeposit: CivilDate, today: Ci
       const yearEnd = civilDate(period.year, 12, 31)
       return { from: civilDate(period.year - 1, 12, 31), to: yearEnd < today ? yearEnd : today }
     }
+    case 'quarter': {
+      const lastMonth = monthKey(period.year, period.quarter * 3)
+      const quarterEnd = lastDayOf(lastMonth)
+      return { from: lastDayOf(addMonths(lastMonth, -3)), to: quarterEnd < today ? quarterEnd : today }
+    }
   }
 }
 
@@ -59,8 +69,19 @@ export function rollingPeriods(firstDeposit: CivilDate | null, today: CivilDate)
   return [...longer.map((years): PerformancePeriod => ({ kind: 'years', years })), { kind: 'all' }]
 }
 
-/** What Performance offers: the rolling periods, then each calendar year once there are two, since a single year is everything. */
+/** The quarters of a year that have started by today and end on or after the first deposit. */
+function quartersOf(year: number, firstDeposit: CivilDate, today: CivilDate): PerformancePeriod[] {
+  return ([1, 2, 3, 4] as const)
+    .filter((quarter) => firstDayOf(monthKey(year, quarter * 3 - 2)) <= today && lastDayOf(monthKey(year, quarter * 3)) >= firstDeposit)
+    .map((quarter): PerformancePeriod => ({ kind: 'quarter', year, quarter }))
+}
+
+/**
+ * What Performance offers: the rolling periods, then each calendar year followed by its quarters once there are two
+ * years, since a single year is everything.
+ */
 export function performancePeriods(firstDeposit: CivilDate | null, today: CivilDate): PerformancePeriod[] {
   const years = firstDeposit === null ? [] : yearsSince(firstDeposit, today)
-  return [...rollingPeriods(firstDeposit, today), ...(years.length < 2 ? [] : years.map((year): PerformancePeriod => ({ kind: 'year', year })))]
+  const calendar = firstDeposit === null || years.length < 2 ? [] : years.flatMap((year): PerformancePeriod[] => [{ kind: 'year', year }, ...quartersOf(year, firstDeposit, today)])
+  return [...rollingPeriods(firstDeposit, today), ...calendar]
 }

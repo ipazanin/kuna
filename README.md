@@ -2447,21 +2447,30 @@ the Investments Settings adds and changes accounts. Every write has Undo, and a 
 in its toast.
 
 Performance at `#/investments/performance` measures how the money grew over a period: the last one,
-three or five years where they start after the first deposit, All, and each calendar year once there
-are two, kept in `?period=` (`1y`, `3y`, `5y` or a year, with All left out of the address). Its tiles
-are the time-weighted return, split at every deposit and withdrawal and chained, with a deposit counted
-from the start of its day and a withdrawal until its end, with its rate a year
-for a period of a year or more, the money-weighted rate a year, the benchmark's own price return in
-euros and the difference between the two time-weighted figures. Under them come growth of €100.00 for
-the portfolio and the benchmark on one axis, read on the period's first day, each month end and its
-last day, the same deposits and withdrawals put into the benchmark on the same days with its value and
-rate a year beside the portfolio's, the largest fall and the volatility of the period, and each
-calendar year's returns. All, and any period asked from before the first deposit, opens before the
-first deposit's records, so that day's money counts as put in and its fees and trades inside the
-period, and All's rate a year is the Overview's yearly return. A calendar year opens at the close of the
-31st of December before it, so the years multiply up to All. A day the portfolio was worth less than
-nothing, as cash below zero from a missing record makes it, leaves out the time-weighted figures, and
-the screen names that day. A period in which nothing was held shows no difference. The figures are worked out in `performance/domain/` and proved by
+three or five years where they start after the first deposit and All, as buttons, and once there are two
+calendar years, a Year dropdown, newest first. A year picked opens a second dropdown of the whole year
+and each of its quarters that has started. The period is kept in `?period=` (`1y`, `3y`, `5y`, a year
+such as `2025` or a quarter such as `2025q3`, with All left out of the address). Its tiles are the
+time-weighted return, split at every deposit and withdrawal and chained, with a deposit counted from the
+start of its day and a withdrawal until its end, with its rate a year for a period of a year or more,
+the money-weighted rate a year, the benchmark's own price return in euros and the difference between the
+two time-weighted figures. Under them come growth of €100.00 for the portfolio and the benchmark on one
+axis, read on the period's first day, each month end and its last day, with a line under the chart that
+puts the same deposits and withdrawals into the benchmark on the same days and gives its value and rate
+a year beside the portfolio's, and then each calendar year's returns, your return and the difference
+tinted as the Months tab tints a year. Both cards take the full width. Compare with on that chart, and
+on a holding's price chart, offers five US funds by name above its search: S&P 500 (SPY), Dow Jones
+(DIA), Nasdaq-100 (QQQ), Nasdaq Composite (ONEQ) and Gold (GLD). They stand in for the indices and gold,
+which no free key of Kuna's vendors gives, so they are priced by Twelve Data in dollars, turned into
+euros at each day's ECB rate on Performance, without the dividends they pay out, and need its key. A
+pick is kept as `?compare=twelvedata:SPY`, as a searched ticker is. All, and any period asked from
+before the first deposit, opens before the first deposit's records, so that day's money counts as put in
+and its fees and trades inside the period, and All's rate a year is the Overview's yearly return. A
+calendar year opens at the close of the 31st of December before it, and a quarter at the close of the
+quarter before it, so the quarters multiply up to the year and the years up to All. A day the portfolio
+was worth less than nothing, as cash below zero from a missing record makes it, leaves out the
+time-weighted figures, and the screen names that day. A period in which nothing was held shows no
+difference. The figures are worked out in `performance/domain/` and proved by
 `tests/timeWeightedReturn.spec.ts` and `tests/portfolioPerformance.spec.ts`.
 
 The benchmark is an instrument of the file marked as such, held or not, chosen on the Benchmark card

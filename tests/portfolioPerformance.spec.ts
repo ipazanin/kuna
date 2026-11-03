@@ -782,20 +782,73 @@ describe('the periods', () => {
     expect(periodSpan({ kind: 'year', year: 2027 }, firstDeposit, today)).toBeNull()
   })
 
-  it('offers the last one, three and five years that start after the first deposit, everything, and each calendar year once there are two', () => {
+  it('runs a quarter from the close of the quarter before it, and this quarter to today', () => {
+    expect(periodSpan({ kind: 'quarter', year: 2024, quarter: 1 }, firstDeposit, today)).toEqual({ from: '2023-12-31', to: '2024-03-31' })
+    expect(periodSpan({ kind: 'quarter', year: 2024, quarter: 2 }, firstDeposit, today)).toEqual({ from: '2024-03-31', to: '2024-06-30' })
+    expect(periodSpan({ kind: 'quarter', year: 2023, quarter: 2 }, firstDeposit, today)).toEqual({ from: '2023-06-15', to: '2023-06-30' })
+    expect(periodSpan({ kind: 'quarter', year: 2026, quarter: 4 }, firstDeposit, today)).toEqual({ from: '2026-09-30', to: '2026-10-29' })
+    expect(periodSpan({ kind: 'quarter', year: 2023, quarter: 1 }, firstDeposit, today)).toBeNull()
+  })
+
+  it('offers the last one, three and five years that start after the first deposit, everything, and each calendar year with its quarters once there are two', () => {
+    const quarters = (year: number, ...numbers: (1 | 2 | 3 | 4)[]): PerformancePeriod[] => numbers.map((quarter) => ({ kind: 'quarter', year, quarter }))
     expect(performancePeriods(firstDeposit, today)).toEqual([
       { kind: 'years', years: 1 },
       { kind: 'years', years: 3 },
       { kind: 'all' },
       { kind: 'year', year: 2023 },
+      ...quarters(2023, 2, 3, 4),
       { kind: 'year', year: 2024 },
+      ...quarters(2024, 1, 2, 3, 4),
       { kind: 'year', year: 2025 },
+      ...quarters(2025, 1, 2, 3, 4),
       { kind: 'year', year: 2026 },
+      ...quarters(2026, 1, 2, 3, 4),
     ])
     // Seven months of one year are everything, so neither a rolling period nor the year itself is offered beside All.
     expect(performancePeriods(civil('2026-03-30'), today)).toEqual([{ kind: 'all' }])
-    expect(performancePeriods(civil('2025-11-03'), today)).toEqual([{ kind: 'all' }, { kind: 'year', year: 2025 }, { kind: 'year', year: 2026 }])
+    // The fourth quarter of 2026 starts on 1 October, so on 30 September only three are offered.
+    expect(performancePeriods(civil('2025-11-03'), civil('2026-09-30'))).toEqual([
+      { kind: 'all' },
+      { kind: 'year', year: 2025 },
+      ...quarters(2025, 4),
+      { kind: 'year', year: 2026 },
+      ...quarters(2026, 1, 2, 3),
+    ])
     expect(performancePeriods(null, today)).toEqual([{ kind: 'all' }])
+  })
+
+  it("chains a year's quarters up to the year, across a deposit and a withdrawal", () => {
+    const records = book({
+      accounts: [BROKER],
+      instruments: [FUND],
+      cashMovements: [cashMovement('deposit', BROKER, '2024-11-04', '1000'), cashMovement('deposit', BROKER, '2025-05-12', '500'), cashMovement('withdrawal', BROKER, '2025-08-20', '300')],
+      trades: [trade('buy', BROKER, FUND, '2024-11-04', '9', '100', '1'), trade('buy', BROKER, FUND, '2025-05-12', '4', '110', '1'), trade('sell', BROKER, FUND, '2025-08-20', '2', '120', '1')],
+    })
+    const closes = new Map<Instrument, readonly CloseRow[]>([
+      [
+        FUND,
+        [
+          ['2024-11-04', '100'],
+          ['2024-12-31', '102'],
+          ['2025-03-31', '97'],
+          ['2025-05-09', '108'],
+          ['2025-05-12', '110'],
+          ['2025-06-30', '114'],
+          ['2025-08-19', '119'],
+          ['2025-08-20', '120'],
+          ['2025-09-30', '116'],
+          ['2025-12-31', '125'],
+        ],
+      ],
+    ])
+    const sources = sourcesOf(records, closes, '2025-12-31')
+    const chained = ([1, 2, 3, 4] as const).reduce(
+      (product: number, quarter) => product * (1 + (figuresOf(sources, null, { kind: 'quarter', year: 2025, quarter }).portfolio.timeWeighted?.total ?? Number.NaN)),
+      1,
+    )
+
+    expect(chained - 1).toBeCloseTo(figuresOf(sources, null, { kind: 'year', year: 2025 }).portfolio.timeWeighted?.total ?? Number.NaN, 12)
   })
 
   it('has nothing to show before the first deposit, or without one', () => {

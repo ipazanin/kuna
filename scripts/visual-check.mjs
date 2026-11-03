@@ -29,7 +29,7 @@
  * the Investments Overview on the sample (`?investments=sample`), on the sample without a deposit so an account's cash is below zero (`?investments=cash-below-zero`) and with late prices whose last
  * fetch failed (`?prices=late-prices`), each in Croatian too and with its figures worked out from the same fake sets, the home with the Investments card's figures and its late-prices badge,
  * the sample's Holdings with its five mixes and closed positions, also with a late close and on a past close (`?on=`), and two holdings' pages, one in US dollars with a lot partly sold and its trades as dots sized by amount, and one from a spin-off that split, each in Croatian too,
- * the sample's Performance over everything against its benchmark, a portfolio too young for a rate a year with no benchmark chosen (`?investments=young`) and the sample whose
+ * the sample's Performance over everything against its benchmark and compared with a named fund, over 2024 where it is ahead of the benchmark, in Croatian too, and over a quarter, a portfolio too young for a rate a year with no benchmark chosen (`?investments=young`) and the sample whose
  * benchmark has no closes (`?prices=no-benchmark`), each in Croatian too, its Months, its Sources over everything and over the last year, its Falls, and its Income, Coming, Tax-free, Withheld, Costs and Saving tabs, in Croatian too,
  * the sample's Transactions, in Croatian too, and Transactions on an empty file, the import of the made-up portfolio workbook
  * into an empty Investments file with the fake prices, each step and the dry run in English and Croatian, and the same workbook again adding nothing,
@@ -460,15 +460,15 @@ const SAMPLE_SHARE_A_PAGE = fakeHoldingShows(SAMPLE_SHARE_A)
 const SAMPLE_SPIN_CO_PAGE = fakeHoldingShows(SAMPLE_SPIN_CO)
 
 /**
- * Performance over everything on a fake set, worked out as the screen works it out: the time-weighted return and its rate
- * a year, the money-weighted rate, and with a benchmark its own return, the difference and the same money in it beside
- * the portfolio's value.
+ * Performance over a period of a fake set, everything unless named, worked out as the screen works it out: the
+ * time-weighted return and its rate a year, the money-weighted rate, and with a benchmark its own return, the difference
+ * and the same money in it beside the portfolio's value.
  */
-function fakePerformanceShows(variant, pricesVariant) {
+function fakePerformanceShows(variant, pricesVariant, period = { kind: 'all' }) {
   const { workbook, rates } = fakePortfolio(variant, pricesVariant)
   const prices = fakePricesFile(pricesVariant, INVESTMENTS_DAY)
   const sources = { book: workbook.book, prices: pricesFileBook(prices, workbook.book.prices), rates, today: INVESTMENTS_DAY }
-  const performance = portfolioPerformance(sources, comparedBenchmark(benchmarkState(sources), workbook.book, prices.splits), { kind: 'all' })
+  const performance = portfolioPerformance(sources, comparedBenchmark(benchmarkState(sources), workbook.book, prices.splits), period)
   const { timeWeighted, moneyWeighted, value } = performance.portfolio
   const comparison = performance.benchmark
   return {
@@ -479,9 +479,21 @@ function fakePerformanceShows(variant, pricesVariant) {
       ...(moneyWeighted.kind === 'rate' ? [formatPercentChange(moneyWeighted.rate)] : []),
       ...(comparison === null
         ? []
-        : [formatPercentChange(comparison.priceReturn.total), formatPercentChange(comparison.difference), `${formatMoney(comparison.replay.value)} against your ${formatMoney(value)}`]),
+        : [
+            formatPercentChange(comparison.priceReturn.total),
+            formatPercentChange(comparison.difference),
+            `${formatMoney(comparison.replay.value)} against your ${formatMoney(value)}`,
+            `You are ${formatMoney(comparison.valueDifference, 'magnitude')} ${comparison.valueDifference < 0 ? 'behind' : 'ahead'}`,
+          ]),
     ],
-    croatian: comparison === null ? [] : [formatMoney(value, 'negative', CROATIAN_MONEY), formatMoney(comparison.replay.value, 'negative', CROATIAN_MONEY)],
+    croatian:
+      comparison === null
+        ? []
+        : [
+            formatMoney(value, 'negative', CROATIAN_MONEY),
+            formatMoney(comparison.replay.value, 'negative', CROATIAN_MONEY),
+            `${comparison.valueDifference < 0 ? 'Zaostajete' : 'Ispred ste'} ${formatMoney(comparison.valueDifference, 'magnitude', CROATIAN_MONEY)}`,
+          ],
   }
 }
 
@@ -548,6 +560,7 @@ const SAMPLE_PERFORMANCE_TABS = fakePerformanceTabsShows()
 const SAMPLE_INCOME = fakeIncomeShows()
 const YOUNG_PERFORMANCE = fakePerformanceShows('young', 'sample')
 const NO_BENCHMARK_PERFORMANCE = fakePerformanceShows('sample', 'no-benchmark')
+const YEAR_PERFORMANCE = fakePerformanceShows('sample', 'sample', { kind: 'year', year: 2024 })
 
 const SAMPLE_INVESTMENTS = fakeInvestmentsShows('sample', 'sample')
 const LATE_INVESTMENTS = fakeInvestmentsShows('sample', 'late-prices')
@@ -2194,6 +2207,42 @@ const SOURCE_SCREENS = [
     shows: ['Promjena od', 'EXQ u eurima po ECB-ovu tečaju dana', 'Vaš portfelj'],
   },
   {
+    name: 'investments-performance-compare-index',
+    query: 'investments=sample',
+    hash: '#/investments/performance?compare=twelvedata:SPY',
+    title: 'Performance',
+    charts: 1,
+    ready: '[data-testid="compare-chip"]',
+    shows: ['Change since', "SPY in euros at the day's ECB rate", 'Your portfolio'],
+  },
+  {
+    name: 'investments-performance-quarter',
+    query: 'investments=sample',
+    hash: '#/investments/performance?period=2024q2',
+    title: 'Performance',
+    charts: 1,
+    ready: '[data-testid="performance-part"]',
+    shows: ['From 31 Mar 2024 to 30 Jun 2024.', 'Q2', 'Growth of €100.00', 'Under a year', 'Returns by year'],
+  },
+  {
+    name: 'investments-performance-year-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments/performance?period=2024',
+    title: 'Uspješnost',
+    charts: 1,
+    ready: '[data-testid="performance-part"]',
+    shows: ['Cijela godina', 'Rast od 100,00', 'Prinosi po godinama', ...YEAR_PERFORMANCE.croatian],
+  },
+  {
+    name: 'investments-performance-year',
+    query: 'investments=sample',
+    hash: '#/investments/performance?period=2024',
+    title: 'Performance',
+    charts: 1,
+    ready: '[data-testid="performance-part"]',
+    shows: ['Whole year', ...YEAR_PERFORMANCE.english],
+  },
+  {
     name: 'investments-performance-months',
     query: 'investments=sample',
     hash: '#/investments/performance?tab=months',
@@ -2268,17 +2317,7 @@ const SOURCE_SCREENS = [
     title: 'Performance',
     charts: 1,
     ready: '[data-testid="performance-tiles"]',
-    shows: [
-      'Under a year',
-      'Shown for a period of a year or more',
-      'time-weighted',
-      'None chosen',
-      'Pick one in Settings',
-      'The same money in a benchmark',
-      'No benchmark to compare with',
-      'Open Settings',
-      ...YOUNG_PERFORMANCE.english,
-    ],
+    shows: ['Under a year', 'Shown for a period of a year or more', 'time-weighted', 'None chosen', 'Pick one in Settings', ...YOUNG_PERFORMANCE.english],
   },
   {
     name: 'investments-performance-young-croatian',
@@ -2287,7 +2326,7 @@ const SOURCE_SCREENS = [
     title: 'Uspješnost',
     charts: 1,
     ready: '[data-testid="performance-tiles"]',
-    shows: ['Manje od godine', 'vremenski ponderirano', 'Nije odabran', 'Nema indeksa za usporedbu', 'Isti novac u indeksu', 'Otvori postavke', ...YOUNG_PERFORMANCE.croatian],
+    shows: ['Manje od godine', 'vremenski ponderirano', 'Nije odabran', 'Odaberite ga u postavkama', ...YOUNG_PERFORMANCE.croatian],
   },
   {
     name: 'investments-performance-no-benchmark',
@@ -2296,7 +2335,7 @@ const SOURCE_SCREENS = [
     title: 'Performance',
     charts: 1,
     ready: '[data-testid="performance-notice"]',
-    shows: ['Example Index Fund has no close in the prices file yet', 'No closes yet', 'No closes of Example Index Fund yet', 'Nothing to compare with', ...NO_BENCHMARK_PERFORMANCE.english],
+    shows: ['Example Index Fund has no close in the prices file yet', 'No closes yet', 'Nothing to compare with', ...NO_BENCHMARK_PERFORMANCE.english],
   },
   {
     name: 'investments-performance-no-benchmark-croatian',
@@ -2305,13 +2344,7 @@ const SOURCE_SCREENS = [
     title: 'Uspješnost',
     charts: 1,
     ready: '[data-testid="performance-notice"]',
-    shows: [
-      'Example Index Fund: u datoteci cijena još nema zaključne cijene',
-      'Još nema cijena',
-      'Još nema cijena za indeks Example Index Fund',
-      'Nema usporedbe',
-      ...NO_BENCHMARK_PERFORMANCE.croatian,
-    ],
+    shows: ['Example Index Fund: u datoteci cijena još nema zaključne cijene', 'Još nema cijena', 'Nema usporedbe', ...NO_BENCHMARK_PERFORMANCE.croatian],
   },
   {
     name: 'investments-performance-income',

@@ -266,8 +266,8 @@ describe('late prices', () => {
     ).toEqual({ newest: civil('2026-10-26'), late: true })
     expect(figures.holdings.every((holding) => holding.late)).toBe(true)
     expect(figures.unpriced).toEqual([])
-    // A day's fetch asks nothing for the series a chart compared with.
-    const named = Object.values(FAKE_SERIES).filter((key) => key !== FAKE_SERIES.compared)
+    // A day's fetch asks nothing for the series charts compared with.
+    const named = Object.values(FAKE_SERIES).filter((key) => key !== FAKE_SERIES.compared && key !== FAKE_SERIES.indexFund)
     expect(new Set(file.failures.map((failure) => failure.series))).toEqual(new Set([...named, 'ecb:USD', 'ecb:GBP', 'ecb:CHF']))
     expect(file.failures.every((failure) => failure.day === today)).toBe(true)
   })

@@ -12,7 +12,8 @@ export type FakePricesVariant = 'sample' | 'late-prices' | 'no-benchmark'
 
 /**
  * The made-up series of the fake prices file: two US shares, a Xetra ETF and the US index fund the sample compares with,
- * by the keys their instruments name, and a US fund a chart compared with, which no instrument names.
+ * by the keys their instruments name, and a US fund a chart compared with through a search and one of the funds Compare
+ * with offers by name, which no instrument names.
  */
 export const FAKE_SERIES = {
   shareA: seriesKey('twelvedata', 'ABC'),
@@ -20,6 +21,7 @@ export const FAKE_SERIES = {
   worldEtf: seriesKey('alphavantage', 'XYZ.DEX'),
   benchmark: seriesKey('twelvedata', 'IDX'),
   compared: seriesKey('twelvedata', 'EXQ'),
+  indexFund: seriesKey('twelvedata', 'SPY'),
 } as const
 
 /** A fall in a straight line over the weekdays from `from` to `bottom`, by `steps`, and back up by `to`. */
@@ -53,6 +55,7 @@ const WALKS: Readonly<Record<string, Walk>> = {
   },
   [FAKE_SERIES.benchmark]: { currency: 'USD', start: 38_240, drift: 7, swing: 40, places: 2 },
   [FAKE_SERIES.compared]: { currency: 'USD', start: 26_410, drift: 9, swing: 6, places: 2 },
+  [FAKE_SERIES.indexFund]: { currency: 'USD', start: 38_150, drift: 11, swing: 30, places: 2 },
   [rateSeriesKey('USD')]: { currency: 'USD', start: 10_850, drift: 0, swing: 1, places: 4 },
   [rateSeriesKey('GBP')]: { currency: 'GBP', start: 8_520, drift: 0, swing: 1, places: 4 },
   [rateSeriesKey('CHF')]: { currency: 'CHF', start: 9_410, drift: 0, swing: 1, places: 4 },
@@ -167,7 +170,7 @@ export function fakePricesFile(variant: FakePricesVariant, today: CivilDate): Pr
   return {
     writtenAt: `${today}T05:41:00.000Z`,
     // The day's fetch asks for the series the records name, and a compared one only when its chart is open.
-    lastFetch: { asked: kept.filter((key) => key !== FAKE_SERIES.compared).length, upToDate: 0, factsAsked: 0, factsLeft: 0, factsKeyless: [] },
+    lastFetch: { asked: kept.filter((key) => key !== FAKE_SERIES.compared && key !== FAKE_SERIES.indexFund).length, upToDate: 0, factsAsked: 0, factsLeft: 0, factsKeyless: [] },
     series: Object.fromEntries(
       kept.map((key) => {
         const walk = WALKS[key]!

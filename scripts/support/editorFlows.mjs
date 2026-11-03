@@ -3948,7 +3948,8 @@ export const investmentsInstrumentSearchFlow = investmentsInstrumentSearchFlowIn
 /**
  * A chart's Compare with on the sample, with a made-up Twelve Data key kept for the page's life: the search asks the
  * fake responder for EXQ, the pick names it in a chip and in the address, the chart then reads as change in percent,
- * and the chip's Remove takes it away again. The key goes before the flow ends, so the steps after it start clean.
+ * and the chip's Remove takes it away again. Then S&P 500 (SPY), one of the funds the dialog names, does the same. The
+ * key goes before the flow ends, so the steps after it start clean.
  */
 export function investmentsCompareFlowIn(card, shotName) {
   const chart = `[data-testid="${card}"]`
@@ -3988,6 +3989,35 @@ export function investmentsCompareFlowIn(card, shotName) {
         })
       if ((await page.evaluate(() => window.location.hash)).includes('compare=')) throw new Error('Remove left the pick in the address')
       if ((await chartSays(page)).includes('EXQ')) throw new Error('Remove left the compared line on the chart')
+
+      await pressSelector(page, press, `${chart} [data-testid="compare-open"]`)
+      await page.waitForSelector('[data-testid="compare-funds"]', { visible: true, timeout: 10_000 })
+      await delay(400)
+      const funds = await page.$$eval('[data-testid="compare-fund"]', (buttons) => buttons.map((button) => button.textContent?.trim() ?? ''))
+      if (funds.join(', ') !== 'S&P 500 (SPY), Dow Jones (DIA), Nasdaq-100 (QQQ), Nasdaq Composite (ONEQ), Gold (GLD)') throw new Error(`the dialog names the funds ${funds.join(', ')}`)
+      await elementSays(page, '[data-testid="compare-funds-note"]', ['fund that tracks its index', 'without the dividends'], 'the dialog does not say what the funds are')
+      await inspect?.('the funds Compare with names')
+      await shoot(`${shotName}-funds`)
+      await pressLabelled(page, press, '[data-testid="compare-funds"]', 'S&P 500 (SPY)')
+      await dialogGone(page, '[data-testid="compare-funds"]')
+      await elementSays(page, `${chart} [data-testid="compare-chip"]`, ['SPY'], 'the fund picked shows no chip')
+      await page
+        .waitForFunction(() => decodeURIComponent(window.location.hash).includes('compare=twelvedata:SPY'), { timeout: 5_000 })
+        .catch(() => {
+          throw new Error('the fund picked is not kept in the address')
+        })
+      await page
+        .waitForFunction((selector) => /SPY [+−-]?[\d.,]+\s?%/.test(document.querySelector(selector)?.getAttribute('aria-label') ?? ''), { timeout: 10_000 }, `${chart} .chart-body [aria-label]`)
+        .catch(async () => {
+          throw new Error(`the chart does not read SPY in percent, it says: ${await chartSays(page)}`)
+        })
+      await shoot(`${shotName}-fund`)
+      await pressSelector(page, press, `${chart} [data-testid="compare-chip"]`)
+      await page
+        .waitForFunction((selector) => !document.querySelector(selector), { timeout: 5_000 }, `${chart} [data-testid="compare-chip"]`)
+        .catch(() => {
+          throw new Error('Remove left the fund')
+        })
     } finally {
       await page.evaluate(() => localStorage.removeItem('kuna.price-vendor-key.twelvedata'))
     }

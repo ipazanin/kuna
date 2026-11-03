@@ -1,3 +1,4 @@
+import type { IndexFundSymbol } from '../domain/indexFunds'
 import { language } from '../../../../shared/text/language'
 import type { Translation } from '../../../../shared/text/translation'
 
@@ -8,6 +9,10 @@ export const en = {
   description: "Both lines then show the change since the chart's first day.",
   searchLabel: 'Symbol or name',
   searchHelp: 'Only listings a price source gives free closes for are shown.',
+  funds: 'Indices and gold',
+  fundNames: { SPY: 'S&P 500 (SPY)', DIA: 'Dow Jones (DIA)', QQQ: 'Nasdaq-100 (QQQ)', ONEQ: 'Nasdaq Composite (ONEQ)', GLD: 'Gold (GLD)' } satisfies Record<IndexFundSymbol, string>,
+  fundsInEuros: "Each is a fund that tracks its index or the price of gold, in dollars turned into euros at each day's ECB rate, without the dividends it pays out.",
+  fundsAsQuoted: 'Each is a fund that tracks its index or the price of gold, in dollars, without the dividends it pays out.',
   since: (day: string) => `Change since ${day}`,
   sinceAsQuoted: (day: string) => `Change since ${day}, each line as quoted.`,
   inEuros: (symbol: string) => `${symbol} in euros at the day's ECB rate, on the first day, each month end and the last day.`,
@@ -25,6 +30,10 @@ export const hr: Translation<typeof en> = {
   description: 'Obje linije tada prikazuju promjenu od prvog dana grafikona.',
   searchLabel: 'Simbol ili naziv',
   searchHelp: 'Prikazane su samo kotacije za koje izvor cijena daje besplatne zaključne cijene.',
+  funds: 'Indeksi i zlato',
+  fundNames: { SPY: 'S&P 500 (SPY)', DIA: 'Dow Jones (DIA)', QQQ: 'Nasdaq-100 (QQQ)', ONEQ: 'Nasdaq Composite (ONEQ)', GLD: 'Zlato (GLD)' },
+  fundsInEuros: 'Svaki je fond koji prati svoj indeks ili cijenu zlata, u dolarima preračunatima u eure po ECB-ovu tečaju dana, bez dividendi koje isplaćuje.',
+  fundsAsQuoted: 'Svaki je fond koji prati svoj indeks ili cijenu zlata, u dolarima, bez dividendi koje isplaćuje.',
   since: (day) => `Promjena od ${day}`,
   sinceAsQuoted: (day) => `Promjena od ${day}, svaka linija kako kotira.`,
   inEuros: (symbol) => `${symbol} u eurima po ECB-ovu tečaju dana, prvog dana, na kraju svakog mjeseca i zadnjeg dana.`,

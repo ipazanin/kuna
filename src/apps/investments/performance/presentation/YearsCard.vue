@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 
 import type { YearPerformance } from '../domain/portfolioPerformance'
+import { returnFill } from './returnFill'
 import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { yearOf } from '../../../../shared/calendar/civilDate'
@@ -11,8 +12,9 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 
 /**
- * Each calendar year's time-weighted return beside the benchmark's, with its largest fall and its volatility. A narrow
- * card keeps four columns and moves the difference and the volatility under the figures they belong with.
+ * Each calendar year's time-weighted return beside the benchmark's, with its largest fall and its volatility, your return
+ * and the difference tinted as the Months tab tints a year. A narrow card keeps four columns and moves the difference and
+ * the volatility under the figures they belong with.
  */
 const props = defineProps<{
   years: readonly YearPerformance[]
@@ -29,15 +31,19 @@ const rows = computed(() =>
       return { year, soFar, belowZero: false, nothingHeld: false, figures: null }
     }
     const comparison = performance.benchmark
+    const yours = performance.portfolio.timeWeighted?.total ?? null
+    const difference = comparison?.difference ?? null
     return {
       year,
       soFar,
       belowZero: performance.belowZeroOn !== null,
       nothingHeld: performance.nothingHeld && comparison !== null,
       figures: {
-        yours: performance.portfolio.timeWeighted === null ? DASH : formatPercentChange(performance.portfolio.timeWeighted.total),
+        yours: yours === null ? DASH : formatPercentChange(yours),
+        yoursFill: yours === null ? null : returnFill(yours, 'year'),
         benchmark: comparison === null ? DASH : formatPercentChange(comparison.priceReturn.total),
-        difference: comparison === null || comparison.difference === null ? DASH : formatPercentChange(comparison.difference),
+        difference: difference === null ? DASH : formatPercentChange(difference),
+        differenceFill: difference === null ? null : returnFill(difference, 'year'),
         largestFall: performance.largestFall === null ? DASH : formatPercentChange(performance.largestFall),
         volatility: performance.volatility === null ? DASH : formatPercent(performance.volatility),
       },
@@ -73,12 +79,12 @@ const notes = computed(() => [
             <span v-if="row.soFar" class="block type-caption">{{ text.soFar }}</span>
           </th>
           <template v-if="row.figures !== null">
-            <td class="figure text-end">{{ row.figures.yours }}</td>
+            <td class="figure text-end text-default" :class="row.figures.yoursFill">{{ row.figures.yours }}</td>
             <td class="cell-wraps text-end">
               <span class="figure">{{ row.figures.benchmark }}</span>
               <span v-if="row.figures.difference !== DASH" class="block type-caption @md:hidden">{{ text.differenceOf(row.figures.difference) }}</span>
             </td>
-            <td class="figure hidden text-end @md:table-cell">{{ row.figures.difference }}</td>
+            <td class="figure hidden text-end text-default @md:table-cell" :class="row.figures.differenceFill">{{ row.figures.difference }}</td>
             <td class="cell-wraps text-end">
               <span class="figure">{{ row.figures.largestFall }}</span>
               <span v-if="row.figures.volatility !== DASH" class="block type-caption @md:hidden">{{ text.volatilityOf(row.figures.volatility) }}</span>

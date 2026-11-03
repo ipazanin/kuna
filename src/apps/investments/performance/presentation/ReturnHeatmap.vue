@@ -4,6 +4,8 @@ import { computed, ref } from 'vue'
 import { monthlyReturns } from '../domain/monthlyReturns'
 import type { ReturnAgainstIndex } from '../domain/monthlyReturns'
 import type { PeriodPerformance } from '../domain/portfolioPerformance'
+import { returnFill } from './returnFill'
+import type { ReturnSpan } from './returnFill'
 import { words } from './words'
 import { monthKey, monthNumber } from '../../../../shared/calendar/monthKey'
 import { shortMonthName } from '../../../../shared/calendar/monthLabel'
@@ -32,10 +34,6 @@ type View = 'yours' | 'against'
 const text = words.months
 const view = ref<View>('yours')
 const MONTHS = Array.from({ length: 12 }, (_, index) => index + 1)
-/** The share a tint steps up at, a month's and a year's: up to the first is the faintest step, past the second the strongest. */
-const STEPS = { month: [0.02, 0.05], year: [0.1, 0.25] } as const
-const GAIN_FILLS = ['bg-gain-1', 'bg-gain-2', 'bg-gain-3'] as const
-const LOSS_FILLS = ['bg-loss-1', 'bg-loss-2', 'bg-loss-3'] as const
 
 const growth = computed(() => props.performance.growth)
 const years = computed(() => monthlyReturns(growth.value).reverse())
@@ -65,21 +63,12 @@ const rows = computed(() =>
   }),
 )
 
-function cellOf(figures: ReturnAgainstIndex, span: keyof typeof STEPS): Cell {
+function cellOf(figures: ReturnAgainstIndex, span: ReturnSpan): Cell {
   const share = shown.value === 'yours' ? figures.portfolio : figures.gap
   if (share === null) {
     return { text: '–', fill: null }
   }
-  return { text: formatPercentChange(share), fill: fillOf(share, STEPS[span]) }
-}
-
-/** The tint of a cell by how far it rose or fell. A cell that shows zero has none. */
-function fillOf(share: number, [small, large]: readonly [number, number]): string | null {
-  if (Math.round(share * 10000) === 0) {
-    return null
-  }
-  const step = Math.abs(share) <= small ? 0 : Math.abs(share) <= large ? 1 : 2
-  return share > 0 ? GAIN_FILLS[step] : LOSS_FILLS[step]
+  return { text: formatPercentChange(share), fill: returnFill(share, span) }
 }
 </script>
 
