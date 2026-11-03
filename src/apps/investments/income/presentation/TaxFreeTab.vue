@@ -58,8 +58,8 @@ const shown = computed(() => {
         </tr>
       </thead>
       <tbody v-for="month in shown" :key="month.month" data-testid="tax-free-month">
-        <tr>
-          <th scope="rowgroup" colspan="6" class="pt-4 text-start font-medium text-highlighted">{{ monthLabel(month.month) }}</th>
+        <tr class="group-row">
+          <th scope="rowgroup" colspan="6" class="text-start">{{ monthLabel(month.month) }}</th>
         </tr>
         <tr v-for="entry in month.lots" :key="`${entry.holding.instrument.id}|${entry.place}`" data-testid="tax-free-lot">
           <th scope="row" class="cell-wraps text-start font-normal">

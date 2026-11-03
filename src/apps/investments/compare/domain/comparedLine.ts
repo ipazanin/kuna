@@ -63,6 +63,7 @@ export function comparedInstrument(ticker: ComparedTicker, currency: CurrencyCod
     sector: null,
     country: null,
     ter: null,
+    distribution: null,
     note: '',
   }
 }

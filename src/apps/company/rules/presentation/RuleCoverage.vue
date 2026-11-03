@@ -69,7 +69,7 @@ function rowsInWords(count: number): string {
         <p class="basis-full text-xs text-muted">{{ words.coverage.notCoveredHelp }}</p>
       </header>
       <ul class="border-t border-default" data-testid="coverage-not-covered">
-        <li v-for="group in coverage.notCovered" :key="group.key" class="group-row" data-testid="coverage-gap">
+        <li v-for="group in coverage.notCovered" :key="group.key" class="coverage-row" data-testid="coverage-gap">
           <div class="min-w-0">
             <p class="flex flex-wrap items-baseline gap-x-2">
               <span class="font-medium text-highlighted">{{ group.name || transactionWords.noCounterparty }}</span>
@@ -115,7 +115,7 @@ function rowsInWords(count: number): string {
         <p class="basis-full text-xs text-muted">{{ words.coverage.exceptionsHelp }}</p>
       </header>
       <ul class="border-t border-default" data-testid="coverage-exceptions">
-        <li v-for="group in coverage.exceptions" :key="group.key" class="group-row" data-testid="coverage-exception">
+        <li v-for="group in coverage.exceptions" :key="group.key" class="coverage-row" data-testid="coverage-exception">
           <div class="min-w-0">
             <p class="flex flex-wrap items-baseline gap-x-2">
               <span class="font-medium text-highlighted">{{ group.name || transactionWords.noCounterparty }}</span>
@@ -170,7 +170,7 @@ function rowsInWords(count: number): string {
   padding: 1rem 1rem 0.75rem;
 }
 
-.group-row {
+.coverage-row {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -192,7 +192,7 @@ function rowsInWords(count: number): string {
   }
 }
 
-.group-row + .group-row {
+.coverage-row + .coverage-row {
   border-top: 1px solid var(--border-default);
 }
 
@@ -201,7 +201,7 @@ function rowsInWords(count: number): string {
     padding-inline: 1.25rem;
   }
 
-  .group-row {
+  .coverage-row {
     flex-wrap: nowrap;
     padding-inline: 1.25rem;
   }

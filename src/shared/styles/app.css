@@ -152,6 +152,38 @@ body {
 }
 
 /*
+ * The heading of a group of rows, such as a class of holdings or a month of records: a table row, or the heading over a
+ * phone's list. It sits on the elevated surface under a strong line, in the weight of a total, with space before every
+ * group but the first. On a phone the heading stays below the bars at the top while its group scrolls under it. A table's
+ * row does not, since the table scrolls inside its own frame.
+ */
+.data-table .group-row > *,
+.group-row:not(tr) {
+  border-top: 1px solid var(--border-strong);
+  background: var(--surface-elevated);
+  font-weight: 500;
+  color: var(--ink-strong);
+}
+
+.data-table tbody + tbody > .group-row > * {
+  border-top: 0;
+  padding-top: calc(1.5rem + 1px);
+  background: linear-gradient(to bottom, transparent 1rem, var(--border-strong) 1rem calc(1rem + 1px), var(--surface-elevated) calc(1rem + 1px));
+}
+
+section + section > .group-row:not(tr) {
+  margin-top: 1rem;
+}
+
+@media (max-width: 639px) {
+  .group-row:not(tr) {
+    position: sticky;
+    top: var(--sticky-band);
+    z-index: var(--z-index-control);
+  }
+}
+
+/*
  * The phone layout. Every control a thumb can reach is at least 44 by 44 px. The rule is unlayered,
  * so it wins over the Tailwind sizes of Nuxt UI's small buttons, but only below the phone breakpoint.
  */

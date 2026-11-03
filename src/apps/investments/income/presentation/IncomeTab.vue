@@ -74,14 +74,14 @@ const thisYear = computed(() => yearOf(props.sources.today))
           </tr>
         </thead>
         <tbody v-for="year in years" :key="year.year" data-testid="income-year">
-          <tr>
-            <th scope="rowgroup" class="cell-wraps pt-4 text-start font-medium text-highlighted">
+          <tr class="group-row">
+            <th scope="rowgroup" class="cell-wraps text-start">
               {{ year.year }}
               <span v-if="year.year === thisYear" class="block type-caption font-normal">{{ words.soFar }}</span>
             </th>
-            <td class="pt-4 text-end"><MoneyText :cents="year.total.gross" class="font-medium text-highlighted" /></td>
-            <td class="pt-4 text-end"><MoneyText :cents="year.total.withheld" class="font-medium text-highlighted" /></td>
-            <td class="pt-4 text-end"><MoneyText :cents="year.total.received" class="font-medium text-highlighted" /></td>
+            <td class="text-end"><MoneyText :cents="year.total.gross" /></td>
+            <td class="text-end"><MoneyText :cents="year.total.withheld" /></td>
+            <td class="text-end"><MoneyText :cents="year.total.received" /></td>
           </tr>
           <tr v-for="group in year.groups" :key="group.group">
             <th scope="row" class="text-start font-normal text-toned">{{ words.byYear.groups[group.group] }}</th>

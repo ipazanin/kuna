@@ -67,7 +67,10 @@ describe('where a holding sits by sector and by country', () => {
   it('takes a fund mix as typed, ahead of the fund’s own field', () => {
     const records = book({ fundMixes: FUND_SECTORS })
 
-    expect(exposureOf({ ...FUND, sector: 'financials' }, 'sector', records, NOTHING_FETCHED).map((line) => [line.group, line.percent])).toEqual([
+    const exposure = exposureOf({ ...FUND, sector: 'financials' }, 'sector', records, NOTHING_FETCHED)
+
+    expect(exposure.from).toBe('fund-mix')
+    expect(exposure.lines.map((line) => [line.group, line.percent])).toEqual([
       ['information-technology', decimal('25')],
       ['financials', decimal('15')],
       ['health-care', decimal('10')],
@@ -76,24 +79,24 @@ describe('where a holding sits by sector and by country', () => {
   })
 
   it('takes the typed field when there is no fund mix', () => {
-    expect(exposureOf(SHARE, 'sector', book({}), NOTHING_FETCHED)).toEqual([{ group: 'information-technology', percent: decimal('100') }])
-    expect(exposureOf({ ...SHARE, country: countryOf('DE') }, 'country', book({}), NOTHING_FETCHED)).toEqual([{ group: 'DE', percent: decimal('100') }])
+    expect(exposureOf(SHARE, 'sector', book({}), NOTHING_FETCHED)).toEqual({ from: 'typed', lines: [{ group: 'information-technology', percent: decimal('100') }] })
+    expect(exposureOf({ ...SHARE, country: countryOf('DE') }, 'country', book({}), NOTHING_FETCHED)).toEqual({ from: 'typed', lines: [{ group: 'DE', percent: decimal('100') }] })
   })
 
   it('reads the country of an instrument typed a share from its ISIN, but never a fund’s, whose ISIN names where it is domiciled', () => {
-    expect(exposureOf(SHARE, 'country', book({}), NOTHING_FETCHED)).toEqual([{ group: 'US', percent: decimal('100') }])
-    expect(exposureOf({ ...SHARE, sector: null }, 'country', book({}), NOTHING_FETCHED)).toEqual([{ group: 'US', percent: decimal('100') }])
-    expect(exposureOf(FUND, 'country', book({}), NOTHING_FETCHED)).toEqual([])
-    expect(exposureOf({ ...FUND, ter: null }, 'country', book({}), NOTHING_FETCHED)).toEqual([])
-    expect(exposureOf({ ...SHARE, type: 'bond', class: 'bonds' }, 'country', book({}), NOTHING_FETCHED)).toEqual([])
-    expect(exposureOf({ ...SHARE, isin: 'XX0000000001' }, 'country', book({}), NOTHING_FETCHED)).toEqual([])
+    expect(exposureOf(SHARE, 'country', book({}), NOTHING_FETCHED)).toEqual({ from: 'isin', lines: [{ group: 'US', percent: decimal('100') }] })
+    expect(exposureOf({ ...SHARE, sector: null }, 'country', book({}), NOTHING_FETCHED)).toEqual({ from: 'isin', lines: [{ group: 'US', percent: decimal('100') }] })
+    expect(exposureOf(FUND, 'country', book({}), NOTHING_FETCHED)).toEqual({ from: null, lines: [] })
+    expect(exposureOf({ ...FUND, ter: null }, 'country', book({}), NOTHING_FETCHED)).toEqual({ from: null, lines: [] })
+    expect(exposureOf({ ...SHARE, type: 'bond', class: 'bonds' }, 'country', book({}), NOTHING_FETCHED)).toEqual({ from: null, lines: [] })
+    expect(exposureOf({ ...SHARE, isin: 'XX0000000001' }, 'country', book({}), NOTHING_FETCHED)).toEqual({ from: null, lines: [] })
   })
 
   it('leaves an instrument with no type not known, even a stock with a sector, no TER and no fund mix, since it may be a fund domiciled in Ireland', () => {
     const untyped = { ...SHARE, type: null }
     const { records, figures } = shareAndFund({ share: { type: null } })
 
-    expect(exposureOf(untyped, 'country', book({}), NOTHING_FETCHED)).toEqual([])
+    expect(exposureOf(untyped, 'country', book({}), NOTHING_FETCHED)).toEqual({ from: null, lines: [] })
     expect(holdingMix(figures, records, NOTHING_FETCHED, 'country').missing.map((holding) => holding.instrument.name)).toEqual(['Example Chips', 'Example Fund'])
   })
 })
@@ -232,23 +235,23 @@ describe('the mixes from fetched facts', () => {
         book({}),
         fetchedFactsBook({ ...FETCHED, profiles: { 'finnhub:DE0000000001': { asked: '2026-10-29', industry: null, country: 'NL' } } }),
       ),
-    ).toEqual([{ group: 'NL', percent: decimal('100') }])
-    expect(exposureOf(FUND, 'country', book({}), facts)).toEqual([])
-    expect(exposureOf(FUND, 'sector', book({}), fetchedFactsBook({ ...FETCHED, sectors: {} }))).toEqual([])
+    ).toEqual({ from: 'profile', lines: [{ group: 'NL', percent: decimal('100') }] })
+    expect(exposureOf(FUND, 'country', book({}), facts)).toEqual({ from: null, lines: [] })
+    expect(exposureOf(FUND, 'sector', book({}), fetchedFactsBook({ ...FETCHED, sectors: {} }))).toEqual({ from: null, lines: [] })
   })
 
   it('takes a typed sector ahead of the fetched fund weights, and no profile of an instrument with no type known', () => {
-    expect(exposureOf({ ...FUND, sector: 'utilities' }, 'sector', book({}), facts)).toEqual([{ group: 'utilities', percent: decimal('100') }])
-    expect(exposureOf({ ...SHARE, type: null, sector: null }, 'sector', book({}), facts)).toEqual([])
-    expect(exposureOf({ ...SHARE, sector: null }, 'sector', book({}), facts)).toEqual([{ group: 'information-technology', percent: decimal('100') }])
+    expect(exposureOf({ ...FUND, sector: 'utilities' }, 'sector', book({}), facts)).toEqual({ from: 'typed', lines: [{ group: 'utilities', percent: decimal('100') }] })
+    expect(exposureOf({ ...SHARE, type: null, sector: null }, 'sector', book({}), facts)).toEqual({ from: null, lines: [] })
+    expect(exposureOf({ ...SHARE, sector: null }, 'sector', book({}), facts)).toEqual({ from: 'profile', lines: [{ group: 'information-technology', percent: decimal('100') }] })
   })
 
   it('reads an untyped instrument whose search answer says Common Stock as a share on the country ring, and lets a typed Fund win over it', () => {
     const untyped = { ...SHARE, type: null, sector: null }
     const searched = fetchedFactsBook({ ...NO_FETCHED_FACTS, types: { 'twelvedata:SHARE': { asked: '2026-10-29', type: 'Common Stock' } } })
 
-    expect(exposureOf(untyped, 'country', book({}), NOTHING_FETCHED)).toEqual([])
-    expect(exposureOf(untyped, 'country', book({}), searched)).toEqual([{ group: 'US', percent: decimal('100') }])
-    expect(exposureOf({ ...untyped, type: 'fund' }, 'country', book({}), searched)).toEqual([])
+    expect(exposureOf(untyped, 'country', book({}), NOTHING_FETCHED)).toEqual({ from: null, lines: [] })
+    expect(exposureOf(untyped, 'country', book({}), searched)).toEqual({ from: 'isin', lines: [{ group: 'US', percent: decimal('100') }] })
+    expect(exposureOf({ ...untyped, type: 'fund' }, 'country', book({}), searched)).toEqual({ from: null, lines: [] })
   })
 })

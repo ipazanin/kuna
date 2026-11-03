@@ -1,5 +1,5 @@
-import { CLASS_OF_TYPE, INSTRUMENT_CLASSES, INSTRUMENT_TYPES, PRICE_SOURCES, TYPE_OF_QUOTING } from './instrument'
-import type { Instrument, InstrumentClass, InstrumentType, Quoting } from './instrument'
+import { CLASS_OF_TYPE, FUND_DISTRIBUTIONS, INSTRUMENT_CLASSES, INSTRUMENT_TYPES, PRICE_SOURCES, TYPE_OF_QUOTING } from './instrument'
+import type { FundDistribution, Instrument, InstrumentClass, InstrumentType, Quoting } from './instrument'
 import { decimalField, optionalCountry, optionalUnsigned, requiredCurrency } from './investmentFields'
 import { INSTRUMENT_RECORDS } from './investmentKinds'
 import { SECTORS } from './mixGroup'
@@ -65,6 +65,13 @@ function optionalType(fields: StoredFields, instrumentClass: InstrumentClass, qu
   return type
 }
 
+/** Blank until typed, and refused on anything but a fund. */
+function optionalDistribution(fields: StoredFields, type: InstrumentType | null): FundDistribution | null {
+  if (textOf(fields.distribution) === '') return null
+  const distribution = requiredChoice(fields, 'distribution', FUND_DISTRIBUTIONS, 'distribution')
+  return type === 'fund' ? distribution : refuse(words.distributionOfFundOnly)
+}
+
 export function instrumentOf(fields: StoredFields, id: RecordId | null): Instrument {
   const prices = requiredChoice(fields, 'prices', PRICE_SOURCES, 'price source')
   const sourceSymbol = textOf(fields.source_symbol)
@@ -87,7 +94,8 @@ export function instrumentOf(fields: StoredFields, id: RecordId | null): Instrum
     ter: optionalUnsigned(fields, 'ter'),
     note: textOf(fields.note),
   }
-  return { ...read, type: optionalType(fields, read.class, read.quoted) }
+  const type = optionalType(fields, read.class, read.quoted)
+  return { ...read, type, distribution: optionalDistribution(fields, type) }
 }
 
 export const INSTRUMENT_CODEC: RecordCodec<Instrument> = withIdField(
@@ -112,6 +120,7 @@ export const INSTRUMENT_CODEC: RecordCodec<Instrument> = withIdField(
       sector: instrument.sector,
       country: instrument.country,
       ter: decimalField(instrument.ter),
+      distribution: instrument.distribution,
       note: instrument.note,
     }),
 )

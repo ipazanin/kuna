@@ -45,8 +45,8 @@ const thisYear = computed(() => yearOf(props.sources.today))
         </tr>
       </thead>
       <tbody v-for="year in years" :key="year.year" data-testid="withheld-year">
-        <tr>
-          <th scope="rowgroup" colspan="5" class="pt-4 text-start font-medium text-highlighted">
+        <tr class="group-row">
+          <th scope="rowgroup" colspan="5" class="text-start">
             {{ year.year }}
             <span v-if="year.year === thisYear" class="type-caption font-normal">{{ words.soFar }}</span>
           </th>

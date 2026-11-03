@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
+import USelect from '@nuxt/ui/components/Select.vue'
 
 import { closedPositions } from '../domain/closedPositions'
 import { holdingMixes } from '../domain/holdingMix'
@@ -13,6 +14,7 @@ import { dayValuer } from '../../performance/domain/portfolioPerformance'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { hasTransactions } from '../../workbook/domain/investmentBook'
 import { MIXES } from '../../workbook/domain/mixGroup'
+import type { Mix } from '../../workbook/domain/mixGroup'
 import TransactionDialog from '../../transactions/presentation/TransactionDialog.vue'
 import { words as transactionWords } from '../../transactions/presentation/words'
 import ClosedPositionsCard from './ClosedPositionsCard.vue'
@@ -30,12 +32,11 @@ import { words } from './words'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel, shortDayLabel } from '../../../../shared/calendar/dayLabel'
-import { useMediaQuery, usePhoneLayout } from '../../../../shared/layout/viewport'
+import { useMediaQuery } from '../../../../shared/layout/viewport'
 import { DECIMAL_ZERO } from '../../../../shared/money/decimal'
-import { formatMoney, formatPercent } from '../../../../shared/money/moneyFormat'
+import { formatMoney, formatPercent, formatShare } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
-import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import DonutCard from '../../../../shared/ui/DonutCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
@@ -44,25 +45,31 @@ import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
 /**
- * The five mixes of the value with the target mix, a map of the holdings, every holding with its value, cost, gain, weight and last day, and the cash of each
- * account, grouped, found and sorted, then what was sold in full. `?on=` shows them at an earlier day's close.
+ * One mix of the value, picked from five, with the target mix, a map of the holdings, every holding with its value, cost, gain, weight and last day, and the
+ * cash of each account, grouped, found and sorted, then what was sold in full. `?on=` shows them at an earlier day's close.
  */
 const { state } = useInvestmentsBooks()
 const { sources, figures: today, facts } = usePortfolio()
 const route = useRoute()
 const router = useRouter()
 const wide = useMediaQuery('(min-width: 768px)')
-const phone = usePhoneLayout()
 
 const find = ref('')
 const sort = ref<HoldingsSort | null>(null)
 const adding = ref(false)
 const groupings = HOLDINGS_GROUPINGS.map((value) => ({ value, label: words.groupings[value] }))
+const splits = MIXES.map((value) => ({ value, label: words.mixes.titles[value] }))
 
 /** Kept in `?group=`, so a part of the class or currency ring opens the list grouped that way. Class stays out of the address. */
 const grouping = computed<HoldingsGrouping>({
   get: () => HOLDINGS_GROUPINGS.find((value) => value === route.query.group) ?? 'class',
   set: (value) => replaceQuery('group', value === 'class' ? null : value),
+})
+
+/** Kept in `?split=`, so a part of the class or currency ring keeps that ring while it opens the list grouped. Sector stays out of the address. */
+const split = computed<Mix>({
+  get: () => MIXES.find((value) => value === route.query.split) ?? 'sector',
+  set: (value) => replaceQuery('split', value === 'sector' ? null : value),
 })
 
 /** A day before today, else null for today. */
@@ -97,12 +104,8 @@ const nothingOnDay = computed(
 )
 
 const mixes = computed(() => (figures.value === null || sources.value === null ? null : holdingMixes(figures.value, sources.value.book, facts.value)))
-const donuts = computed(() => {
-  const split = mixes.value
-  const book = sources.value?.book
-  if (split === null || book === undefined) return []
-  return MIXES.map((mix) => ({ mix, missing: split[mix].missing, donut: mixDonut(split[mix], book, on.value) }))
-})
+const shownMix = computed(() => (mixes.value === null ? null : mixes.value[split.value]))
+const donut = computed(() => (shownMix.value === null || sources.value === null ? null : mixDonut(shownMix.value, sources.value.book, on.value)))
 
 const prices = usePrices()
 const fetchingLine = usePricesFetchingLine()
@@ -143,38 +146,42 @@ const description = computed(() => {
     <template v-else-if="list !== null">
       <DashboardGrid data-testid="holdings-mixes">
         <DonutCard
-          v-for="{ mix, missing, donut } in donuts"
-          :key="mix"
-          :title="words.mixes.titles[mix]"
+          v-if="donut !== null && shownMix !== null"
+          :title="words.mixes.title"
           :description="donut.description"
           :parts="donut.parts"
           :total="donut.total"
           :total-label="donut.totalLabel"
           v-bind="donut.opens === undefined ? {} : { opens: donut.opens }"
-          :collapse-id="`holdings.mix.${mix}`"
+          collapse-id="holdings.mix"
           :summary="donut.summary"
-          :start-collapsed="phone && mix !== 'sector'"
-          :data-mix="mix"
+          :data-mix="split"
         >
-          <template v-if="missing.length > 0 && (mix === 'sector' || mix === 'country')" #below>
-            <MixMissingLine :mix="mix" :missing="missing" class="mt-2 border-t border-default pt-2" />
+          <template #actions>
+            <USelect v-model="split" :items="splits" size="sm" :aria-label="words.mixes.pick" class="w-48" data-testid="holdings-split" />
+          </template>
+          <template v-if="shownMix.missing.length > 0 && (split === 'sector' || split === 'country')" #below>
+            <MixMissingLine :mix="split" :missing="shownMix.missing" class="mt-2 border-t border-default pt-2" />
           </template>
         </DonutCard>
         <TargetMixCard v-if="mixes !== null && sources !== null" :book="sources.book" :mixes="mixes" />
       </DashboardGrid>
       <HoldingsMapCard v-if="figures !== null && held > 0" :figures="figures" />
       <AppCard data-testid="holdings">
-        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 pt-4 pb-3 sm:px-5">
-          <ChoiceButtons v-model="grouping" :options="groupings" :label="words.groupBy" data-testid="holdings-group-by" />
-          <UInput v-model="find" icon="i-lucide-search" :placeholder="words.find" :aria-label="words.find" size="sm" class="w-full sm:w-56" data-testid="holdings-find" />
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 pt-4 pb-3 sm:px-5">
+          <UInput v-model="find" icon="i-lucide-search" :placeholder="words.find" :aria-label="words.find" size="sm" class="min-w-0 flex-1 sm:w-56 sm:flex-none" data-testid="holdings-find" />
+          <USelect v-model="grouping" :items="groupings" size="sm" :aria-label="words.groupBy" class="w-36 shrink-0" data-testid="holdings-group-by" />
         </div>
         <p v-if="list.groups.length === 0" class="px-4 pb-4 type-body sm:px-5" data-testid="holdings-none">{{ find === '' ? words.nothingHeld : words.noMatch(find) }}</p>
         <HoldingsTable v-else-if="wide" v-model:sort="sort" :list="list" />
         <div v-else class="pb-2" data-testid="holdings-rows">
           <section v-for="group in list.groups" :key="group.key">
-            <h2 v-if="group.key !== 'all'" class="flex items-baseline justify-between gap-3 border-t border-default px-4 pt-3 pb-1 type-label">
-              <span><HoldingsGroupName :group="group" /></span>
-              <MoneyText :cents="group.value" class="shrink-0" />
+            <h2 v-if="group.key !== 'all'" class="group-row flex items-baseline justify-between gap-3 px-4 py-2.5 type-body">
+              <span class="min-w-0"><HoldingsGroupName :group="group" /></span>
+              <span class="shrink-0 text-end">
+                <MoneyText :cents="group.value" />
+                <span v-if="group.weight !== null" class="block type-caption font-normal">{{ words.ofValue(formatShare(group.weight)) }}</span>
+              </span>
             </h2>
             <ul>
               <li

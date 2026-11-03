@@ -70,6 +70,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - `MoneyInput`'s k and m need a hardware keyboard or a paste, since a phone's decimal keypad has no letters. Ctrl+Z does not undo its edits, because it writes the field itself.
 - A `USelect` or `USelectMenu` that may stay empty offers the words for empty, such as Not set, as a row of its own whose value is a stand-in such as `-`, which the field maps to blank and back. No item has a blank value, because the list throws on one and its search then drops matches. A row also stays reachable by keyboard, touch and search, which a `clear` button is not.
 - A plain table of figures is a `FigureTable`. Sortable columns use `SortableHeader`. `UTable` is only for grouped or sorted lists.
+- A group of rows starts with a heading row of class `group-row`, a table's `tr` or the heading over a phone's list. `app.css` sets it on the elevated surface under a strong line with space above every group but the first, and keeps a phone's heading below the top bar. It names the group, its count and its total, and does not collapse.
 
 ## Layout and width
 

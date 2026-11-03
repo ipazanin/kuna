@@ -58,7 +58,7 @@ export function holdingMixes(figures: PortfolioFigures, book: InvestmentBook, fa
 }
 
 function exposureSplit(figures: PortfolioFigures, book: InvestmentBook, facts: FactsBook, mix: ExposureMix): Omit<HoldingMix<Mix>, 'mix'> {
-  const placed = heldHoldings(figures).map((holding) => ({ holding, value: holding.valuation?.value ?? null, exposure: exposureOf(holding.instrument, mix, book, facts) }))
+  const placed = heldHoldings(figures).map((holding) => ({ holding, value: holding.valuation?.value ?? null, exposure: exposureOf(holding.instrument, mix, book, facts).lines }))
   const values = placed.flatMap(({ value, exposure }): Valued[] => {
     if (value === null) return []
     const parts = moneyParts(

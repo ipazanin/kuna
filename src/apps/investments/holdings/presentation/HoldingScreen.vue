@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 
+import { holdingMix } from '../domain/holdingMix'
 import { holdingRecords } from '../domain/holdingRecords'
 import { latestRecords } from '../domain/latestRecords'
 import { priceHistory } from '../domain/priceHistory'
@@ -11,11 +12,14 @@ import { useComparison } from '../../compare/presentation/useComparison'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { hasTransactions } from '../../workbook/domain/investmentBook'
 import TransactionDialog from '../../transactions/presentation/TransactionDialog.vue'
+import HoldingDetailsCard from './HoldingDetailsCard.vue'
+import { holdingDetails } from './holdingDetails'
 import HoldingHero from './HoldingHero.vue'
 import HoldingIncomeCard from './HoldingIncomeCard.vue'
 import HoldingRecordsCard from './HoldingRecordsCard.vue'
 import InstrumentDialog from './InstrumentDialog.vue'
 import { HOLDINGS_ROUTE, holdingNamed } from './holdingLinks'
+import { mixDonut } from './mixDonut'
 import OpenLotsCard from './OpenLotsCard.vue'
 import { seriesKey } from '../../prices/domain/pricesFile'
 import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
@@ -35,15 +39,17 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
+import DonutCard from '../../../../shared/ui/DonutCard.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
 /**
  * One holding: its value beside its total return, its facts, its price with the average cost and its trades, or beside
- * a ticker it is compared with, the lots still held, its transactions and its income.
+ * a ticker it is compared with, what it is with a fund's mix by sector and by country, the lots still held, its
+ * transactions and its income.
  */
 const { state } = useInvestmentsBooks()
-const { sources, figures } = usePortfolio()
+const { sources, figures, facts } = usePortfolio()
 const route = useRoute()
 const phone = usePhoneLayout()
 
@@ -83,6 +89,16 @@ const pricesFrom = computed(() => {
   return firstClose === undefined || vendor === undefined || firstClose <= current.firstAcquired.date ? null : words.chart.pricesFrom(dayLabel(parseCivilDate(firstClose)!), vendor.name)
 })
 const chartSubtitle = computed(() => (chart.value === null ? '' : [chart.value.subtitle, pricesFrom.value].filter((part) => part !== null).join(' ')))
+
+const details = computed(() => (holding.value === null || sources.value === null ? null : holdingDetails(holding.value, sources.value.book, facts.value)))
+/** A ring per mix the holding spreads over, from the same split as the mixes of Holdings, of this holding alone. */
+const rings = computed(() => {
+  const current = holding.value
+  const book = sources.value?.book
+  if (details.value === null || current === null || figures.value === null || book === undefined) return []
+  const alone = { ...figures.value, holdings: [current], cash: [] }
+  return details.value.rings.map((mix) => ({ mix, donut: mixDonut(holdingMix(alone, book, facts.value, mix), book, null, 'holding') }))
+})
 
 const adding = ref(false)
 const changing = ref(false)
@@ -158,6 +174,17 @@ const description = computed(() => {
         </template>
       </ChartCard>
       <DashboardGrid data-testid="holding-cards">
+        <HoldingDetailsCard v-if="details !== null" :details="details" @change="changing = true" />
+        <DonutCard
+          v-for="{ mix, donut } in rings"
+          :key="mix"
+          :title="words.mixes.titles[mix]"
+          :description="donut.description"
+          :parts="donut.parts"
+          :total="donut.total"
+          :total-label="donut.totalLabel"
+          :data-mix="mix"
+        />
         <OpenLotsCard v-if="holding.lots.length > 0" :holding="holding" :today="sources.today" />
         <HoldingRecordsCard :holding="holding" :records="records" />
         <HoldingIncomeCard v-if="hasIncome" :records="records" />

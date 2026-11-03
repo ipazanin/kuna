@@ -465,6 +465,16 @@ describe('the instrument form', () => {
     expect(NOT_SET).not.toBe('')
   })
 
+  it('keeps a fund’s dividends as typed, blank as none, and drops them once the type is no longer a fund', () => {
+    const typed = { ...instrumentTexts(null), name: 'Example Fund', symbol: 'EMF', type: 'fund' as const, distribution: 'accumulating' as const }
+    const unit = { quoted: { kind: 'unit' }, benchmark: false } as const
+
+    expect(instrumentOfTexts(typed, [], recordIdOf(INSTRUMENT_RECORDS, 'new'), unit)).toMatchObject({ type: 'fund', distribution: 'accumulating' })
+    expect(instrumentOfTexts({ ...typed, distribution: '' }, [], recordIdOf(INSTRUMENT_RECORDS, 'new'), unit)).toMatchObject({ distribution: null })
+    expect(instrumentOfTexts({ ...typed, type: 'share' }, [], recordIdOf(INSTRUMENT_RECORDS, 'new'), unit)).toMatchObject({ type: 'share', distribution: null })
+    expect(instrumentTexts({ ...SHARE, type: 'fund', distribution: 'distributing' }).distribution).toBe('distributing')
+  })
+
   it('says what a fund’s mix lacks: a group, a group on one line only, a percent above 0 and at most 100, and lines that add up to 100%', () => {
     const typed = { sector: [mixLineTexts('', '60'), mixLineTexts('energy', '0'), mixLineTexts('energy', '120')], country: [] }
     const errors = fundMixErrors(typed)

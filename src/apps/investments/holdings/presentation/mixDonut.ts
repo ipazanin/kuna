@@ -37,12 +37,13 @@ const CLASS_COLOURS: Readonly<Record<ClassGroup, string>> = {
 /**
  * A mix as the parts of a ring. Class is a fixed list, so every class keeps its own colour. The others are open lists:
  * the four largest groups take the series colours by size, and the rest with what no source places yet is one grey
- * part. Class and currency parts open Holdings grouped that way, at the day `on` names, or today when it is null.
+ * part. Class and currency parts open Holdings grouped and split that way, at the day `on` names, or today when it is null.
+ * A ring of one holding's value names that holding under its total.
  */
-export function mixDonut<Of extends Mix>(mix: HoldingMix<Of>, book: Pick<InvestmentBook, 'accounts'>, on: CivilDate | null): MixDonut {
+export function mixDonut<Of extends Mix>(mix: HoldingMix<Of>, book: Pick<InvestmentBook, 'accounts'>, on: CivilDate | null, of: 'portfolio' | 'holding' = 'portfolio'): MixDonut {
   const kind: Mix = mix.mix
   const opened = kind === 'class' || kind === 'currency' ? kind : null
-  const to = opened === null ? null : { path: HOLDINGS_ROUTE, query: on === null ? { group: opened } : { group: opened, on } }
+  const to = opened === null ? null : { path: HOLDINGS_ROUTE, query: on === null ? { group: opened, split: opened } : { group: opened, split: opened, on } }
   const coloured =
     kind === 'class' ? mix.parts.map((part) => ({ part, colour: CLASS_COLOURS[part.group as ClassGroup] })) : mix.parts.slice(0, SHOWN).map((part, place) => ({ part, colour: OPEN_COLOURS[place]! }))
   const folded = mix.parts.slice(coloured.length)
@@ -57,7 +58,7 @@ export function mixDonut<Of extends Mix>(mix: HoldingMix<Of>, book: Pick<Investm
   return {
     parts,
     total,
-    totalLabel: kind === 'sector' || kind === 'country' ? words.mixes.ofHoldings : words.mixes.value,
+    totalLabel: of === 'holding' ? words.mixes.ofThisHolding : kind === 'sector' || kind === 'country' ? words.mixes.ofHoldings : words.mixes.value,
     description: words.mixes.description(title, total, parts.map((part) => words.mixes.part(part.label, formatMoney(part.value), shareOf(part.value, mix.whole))).join(', ')),
     summary: largest === undefined ? total : words.mixes.largest(groupName(kind, largest.group, book), shareOf(largest.value, mix.whole)),
     opens: opened === null ? undefined : words.mixes.opens[opened],

@@ -48,6 +48,16 @@ describe('a mix as the parts of a ring', () => {
       ['other', euros(1000), '--chart-deemphasis', null],
     ])
     expect(donut.parts[4]!.label).toBe(words.mixes.other)
+    expect(donut.totalLabel).toBe('of holdings')
+  })
+
+  it('names one holding under the total of a ring of that holding alone', () => {
+    const sectors = mixOf('sector', [
+      ['information-technology', 600],
+      ['financials', 400],
+    ])
+
+    expect(mixDonut(sectors, book({}), null, 'holding').totalLabel).toBe('of this holding')
   })
 
   it('gives every class its own colour whatever its size, gold and crypto too, in order of size', () => {
@@ -60,7 +70,7 @@ describe('a mix as the parts of a ring', () => {
       ['bonds', 500],
     ])
     const donut = mixDonut(classes, book({}), null)
-    const grouped = { ...HOLDINGS, query: { group: 'class' } }
+    const grouped = { ...HOLDINGS, query: { group: 'class', split: 'class' } }
 
     expect(donut.parts.map((part) => [part.key, part.label, part.value, part.colour, part.to])).toEqual([
       ['gold', words.classes.gold, euros(5000), '--invest-gold', grouped],
@@ -72,7 +82,7 @@ describe('a mix as the parts of a ring', () => {
     ])
   })
 
-  it('opens Holdings grouped by currency at the same day, and gives account parts no link', () => {
+  it('opens Holdings grouped and split by currency at the same day, and gives account parts no link', () => {
     const day = civil('2025-12-31')
     const currencies = mixDonut(
       mixOf('currency', [
@@ -86,8 +96,8 @@ describe('a mix as the parts of a ring', () => {
     const accounts = mixDonut(mixOf('account', [[first.id, 4000]]), book({ accounts: [first] }), day)
 
     expect(currencies.parts.map((part) => part.to)).toEqual([
-      { ...HOLDINGS, query: { group: 'currency', on: day } },
-      { ...HOLDINGS, query: { group: 'currency', on: day } },
+      { ...HOLDINGS, query: { group: 'currency', split: 'currency', on: day } },
+      { ...HOLDINGS, query: { group: 'currency', split: 'currency', on: day } },
     ])
     expect(accounts.parts.map((part) => [part.label, part.to])).toEqual([['First', null]])
     expect(accounts.opens).toBeUndefined()

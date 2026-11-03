@@ -2,10 +2,10 @@
 import { computed } from 'vue'
 
 import type { HoldingsGroup } from '../domain/holdingsList'
+import { groupCount } from './holdingText'
 import { words } from './words'
-import { plural } from '../../../../shared/text/translation'
 
-/** A group's name, a class, a currency or the cash, with how many holdings it has. */
+/** A group's name, a class, a currency or the cash, with how many holdings and cash balances it lists. */
 const props = defineProps<{
   group: HoldingsGroup
 }>()
@@ -18,5 +18,5 @@ const name = computed(() => NAMES[props.group.key] ?? props.group.key)
 
 <template>
   <span>{{ name }}</span>
-  <span v-if="group.holdings > 0" class="block type-caption font-normal">{{ plural(words.holdingCount(group.holdings), group.holdings) }}</span>
+  <span class="block type-caption font-normal">{{ groupCount(group) }}</span>
 </template>

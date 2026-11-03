@@ -83,9 +83,9 @@ function paymentKey(payment: ForecastPayment): string {
           </tr>
         </thead>
         <tbody v-for="month in months" :key="month.month" data-testid="coming-month">
-          <tr>
-            <th scope="rowgroup" colspan="3" class="pt-4 text-start font-medium text-highlighted">{{ monthLabel(month.month) }}</th>
-            <td class="pt-4 text-end"><MoneyText :cents="month.received" class="font-medium text-highlighted" /></td>
+          <tr class="group-row">
+            <th scope="rowgroup" colspan="3" class="text-start">{{ monthLabel(month.month) }}</th>
+            <td class="text-end"><MoneyText :cents="month.received" /></td>
           </tr>
           <tr v-for="payment in month.payments" :key="paymentKey(payment)" data-testid="coming-payment" :data-status="payment.kind">
             <th scope="row" class="text-start font-normal text-toned">{{ shortDayLabel(payment.date) }}</th>

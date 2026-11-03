@@ -142,8 +142,8 @@ function change(entry: ListedTransaction): void {
           </tr>
         </thead>
         <tbody v-for="month in months" :key="month.key">
-          <tr data-testid="transactions-month">
-            <th scope="rowgroup" colspan="5" class="pt-4 text-start font-medium text-highlighted">
+          <tr class="group-row" data-testid="transactions-month">
+            <th scope="rowgroup" colspan="5" class="text-start">
               {{ month.label }} <span class="type-caption font-normal">· {{ plural(words.inMonth(month.rows.length), month.rows.length) }}</span>
             </th>
           </tr>
@@ -169,9 +169,9 @@ function change(entry: ListedTransaction): void {
       </FigureTable>
       <div v-else class="pb-2" data-testid="transactions-rows">
         <section v-for="month in months" :key="month.key">
-          <h2 class="flex items-baseline justify-between gap-3 border-t border-default px-4 pt-3 pb-1 type-label" data-testid="transactions-month">
+          <h2 class="group-row flex items-baseline justify-between gap-3 px-4 py-2.5 type-body" data-testid="transactions-month">
             <span>{{ month.label }}</span>
-            <span class="type-caption">{{ plural(words.inMonth(month.rows.length), month.rows.length) }}</span>
+            <span class="type-caption font-normal">{{ plural(words.inMonth(month.rows.length), month.rows.length) }}</span>
           </h2>
           <ul>
             <li

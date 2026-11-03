@@ -3,6 +3,7 @@ import { computed, defineAsyncComponent, h, ref } from 'vue'
 import { getGroupedRowModel } from '@tanstack/vue-table'
 import type { ExpandedState, GroupingState, SortingState } from '@tanstack/vue-table'
 import UButton from '@nuxt/ui/components/Button.vue'
+import USelect from '@nuxt/ui/components/Select.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 import UTable from '@nuxt/ui/components/Table.vue'
 import type { TableColumn } from '@nuxt/ui/components/Table.vue'
@@ -149,6 +150,17 @@ const SECTOR_PARTS: readonly DonutPart[] = [
   { key: 'health-care', label: 'Health care', value: 40_000, colour: '--series-4', to: null },
   { key: 'other', label: 'Other and not known', value: 35_000, colour: '--chart-deemphasis', to: null },
 ]
+const REGION_PARTS: readonly DonutPart[] = [
+  { key: 'north-america', label: 'North America', value: 640_000, colour: '--series-1', to: null },
+  { key: 'europe', label: 'Europe', value: 250_000, colour: '--series-2', to: null },
+  { key: 'asia-pacific', label: 'Asia and Pacific', value: 100_000, colour: '--series-3', to: null },
+  { key: 'other', label: 'Other and not known', value: 45_000, colour: '--chart-deemphasis', to: null },
+]
+const OPEN_SPLITS = [
+  { value: 'sector', label: 'By sector' },
+  { value: 'region', label: 'By region' },
+]
+const openSplit = ref('sector')
 
 /** One of each state of the sync control, Allow access also after a closed popup, over a last sync whose statements step filed a statement. */
 const SYNC_CONTROLS: readonly SyncControl[] = [
@@ -614,7 +626,7 @@ const columns: TableColumn<SampleTransaction>[] = [
     <GallerySection
       id="donut-card"
       title="DonutCard"
-      description="One snapshot of at most five parts, the list beside the ring as its table, collapsible, with content below, and an open list coloured by size."
+      description="One snapshot of at most five parts, the list beside the ring as its table, collapsible, with content below, and an open list coloured by size with a select in its header."
     >
       <DashboardGrid>
         <DonutCard
@@ -643,13 +655,21 @@ const columns: TableColumn<SampleTransaction>[] = [
           </template>
         </DonutCard>
         <DonutCard
-          title="By sector"
-          description="Made-up holdings by sector for the gallery: information technology 68%, industrials 19%, financials 6%, health care 4%, other and not known 3%."
-          subtitle="An open list, its four largest in size order and the rest grey"
-          :parts="SECTOR_PARTS"
+          title="Mix"
+          :description="
+            openSplit === 'sector'
+              ? 'Made-up holdings by sector for the gallery: information technology 68%, industrials 19%, financials 6%, health care 4%, other and not known 3%.'
+              : 'Made-up holdings by region for the gallery: North America 62%, Europe 24%, Asia and Pacific 10%, other and not known 4%.'
+          "
+          subtitle="An open list, its four largest in size order and the rest grey, picked in the header"
+          :parts="openSplit === 'sector' ? SECTOR_PARTS : REGION_PARTS"
           :total="formatMoney(1_035_000)"
           total-label="of holdings"
-        />
+        >
+          <template #actions>
+            <USelect v-model="openSplit" :items="OPEN_SPLITS" size="sm" aria-label="Split the value" class="w-36" />
+          </template>
+        </DonutCard>
       </DashboardGrid>
     </GallerySection>
 

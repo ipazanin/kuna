@@ -44,13 +44,13 @@ const terOf = (ter: Decimal): string => text.ter(formatCostShare(Number(decimalT
         </tr>
       </thead>
       <tbody v-for="year in years" :key="year.year" data-testid="costs-year">
-        <tr>
-          <th scope="rowgroup" class="cell-wraps pt-4 text-start font-medium text-highlighted">
+        <tr class="group-row">
+          <th scope="rowgroup" class="cell-wraps text-start">
             {{ year.year }}
             <span v-if="year.year === thisYear" class="type-caption font-normal">{{ words.soFar }}</span>
             <span v-if="year.share !== null" class="block type-caption font-normal">{{ text.ofAverage(formatCostShare(year.share), formatMoney(year.averageValue)) }}</span>
           </th>
-          <td class="pt-4 text-end align-top"><MoneyText :cents="year.total" class="font-medium text-highlighted" /></td>
+          <td class="text-end align-top"><MoneyText :cents="year.total" /></td>
         </tr>
         <tr>
           <th scope="row" class="text-start font-normal text-toned">{{ text.trading }}</th>

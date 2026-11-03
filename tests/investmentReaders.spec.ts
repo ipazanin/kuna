@@ -234,6 +234,40 @@ describe('the Investments file', () => {
     ])
   })
 
+  it('reads whether a fund accumulates or distributes its dividends, blank as not typed, writes it back, and refuses it on anything but a fund', () => {
+    const books = booksOf({
+      instrument: [
+        { ...EURO_FUND, type: 'fund', distribution: 'Accumulating' },
+        { ...EURO_FUND, id: 'f2', name: 'Example Payer Fund', symbol: 'EPF', type: 'fund', distribution: 'distributing' },
+        { ...EURO_FUND, id: 'f3', name: 'Example Plain Fund', symbol: 'EPL', type: 'fund' },
+        DOLLAR_SHARE,
+      ],
+    })
+
+    expect(books.problems).toEqual([])
+    expect(books.book.instruments.map((instrument) => [instrument.name, instrument.distribution])).toEqual([
+      ['Example Fund', 'accumulating'],
+      ['Example Payer Fund', 'distributing'],
+      ['Example Plain Fund', null],
+      ['Example Tech', null],
+    ])
+    expect(roundTrip(INSTRUMENT_RECORDS, { ...EURO_FUND, type: 'fund', distribution: 'distributing' })).toEqual({ ...EURO_FUND, type: 'fund', distribution: 'distributing' })
+    expect(roundTrip(INSTRUMENT_RECORDS, { ...EURO_FUND, type: 'fund' })).toEqual({ ...EURO_FUND, type: 'fund' })
+    expect(
+      problemsOf({
+        instrument: [
+          { ...EURO_FUND, id: 'n1', type: 'fund', distribution: 'paying' },
+          { ...DOLLAR_SHARE, id: 'n2', type: 'share', distribution: 'distributing' },
+          { ...SPUN_OFF, id: 'n3', distribution: 'accumulating' },
+        ],
+      }),
+    ).toEqual([
+      ['instrument', 'Example Fund, EMF', '"paying" is not a distribution. Use accumulating, distributing'],
+      ['instrument', 'Example Tech, ABC', 'distribution belongs to type fund only'],
+      ['instrument', 'Example Spinco, GHI', 'distribution belongs to type fund only'],
+    ])
+  })
+
   it('keeps a fund’s mix only while its lines add up to 100% with each group once, by sector and by country apart', () => {
     const line = { instrument: FUND, mix: 'sector', group: 'energy', percent: '50' }
     expect(

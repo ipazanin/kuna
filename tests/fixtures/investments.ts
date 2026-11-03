@@ -65,6 +65,7 @@ export function instrument(key: string, overrides: Partial<Instrument> = {}): In
     sector: null,
     country: null,
     ter: null,
+    distribution: null,
     note: '',
     ...overrides,
   }

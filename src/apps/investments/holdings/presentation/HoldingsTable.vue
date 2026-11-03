@@ -54,20 +54,20 @@ function heldLine(holding: HoldingFigures): string {
       </tr>
     </thead>
     <tbody v-for="group in list.groups" :key="group.key" :data-group="group.key">
-      <tr v-if="group.key !== 'all'" data-testid="holdings-group">
-        <th scope="rowgroup" class="pt-4 text-start font-medium text-highlighted">
+      <tr v-if="group.key !== 'all'" class="group-row" data-testid="holdings-group">
+        <th scope="rowgroup" class="cell-wraps text-start">
           <HoldingsGroupName :group="group" />
         </th>
         <td class="hidden @4xl:table-cell" />
         <td class="hidden @4xl:table-cell" />
-        <td class="pt-4 text-end"><MoneyText v-if="group.cost !== 0" :cents="group.cost" class="font-medium text-highlighted" /></td>
-        <td class="pt-4 text-end"><MoneyText :cents="group.value" class="font-medium text-highlighted" /></td>
-        <td class="pt-4 text-end">
-          <MoneyText v-if="group.gain !== null" :cents="group.gain" sign="always" tone="outcome" class="font-medium" />
-          <span v-if="group.gainShare !== null" class="block type-caption">{{ formatPercent(group.gainShare, 'always') }}</span>
+        <td class="text-end"><MoneyText v-if="group.cost !== 0" :cents="group.cost" /></td>
+        <td class="text-end"><MoneyText :cents="group.value" /></td>
+        <td class="text-end">
+          <MoneyText v-if="group.gain !== null" :cents="group.gain" sign="always" tone="outcome" />
+          <span v-if="group.gainShare !== null" class="block type-caption font-normal">{{ formatPercent(group.gainShare, 'always') }}</span>
         </td>
-        <td class="figure pt-4 text-end font-medium text-highlighted">{{ group.weight === null ? '' : formatShare(group.weight) }}</td>
-        <td class="pt-4 text-end"><LastDayChange v-if="group.lastDay !== null" :change="group.lastDay" /></td>
+        <td class="figure text-end">{{ group.weight === null ? '' : formatShare(group.weight) }}</td>
+        <td class="text-end"><LastDayChange v-if="group.lastDay !== null" :change="group.lastDay" /></td>
       </tr>
       <tr v-for="line in group.lines" :key="line.kind === 'cash' ? `${line.balance.account}|${line.balance.currency}` : line.holding.instrument.id" data-testid="holding-line">
         <template v-if="line.kind === 'cash'">

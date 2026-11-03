@@ -5,7 +5,7 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import CurrencyField from './CurrencyField.vue'
-import { COUNTRY_ITEMS, NOT_SET, SECTOR_ITEMS, classOfType, typeItems } from './instrumentForm'
+import { COUNTRY_ITEMS, DISTRIBUTION_ITEMS, NOT_SET, SECTOR_ITEMS, classOfType, typeItems } from './instrumentForm'
 import type { InstrumentErrors, InstrumentTexts } from './instrumentForm'
 import { words } from './words'
 import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
@@ -41,6 +41,7 @@ const SOURCE_ITEMS = PRICE_SOURCES.map((value) => {
 const NOT_SET_ROW = { value: NOT_SET, label: text.notSet }
 const SECTOR_CHOICES = [NOT_SET_ROW, ...SECTOR_ITEMS]
 const COUNTRY_CHOICES = [NOT_SET_ROW, ...COUNTRY_ITEMS]
+const DISTRIBUTION_CHOICES = [NOT_SET_ROW, ...DISTRIBUTION_ITEMS]
 
 const shown = (error: string | null): string | false => (props.tried && error) || false
 
@@ -126,6 +127,17 @@ function update<Field extends keyof InstrumentTexts>(field: Field, value: Instru
     <UInput :model-value="texts.ter" inputmode="decimal" class="w-full" :data-testid="`${testId}-ter`" @update:model-value="update('ter', String($event))">
       <template #trailing><span class="text-muted">%</span></template>
     </UInput>
+  </UFormField>
+  <UFormField v-if="texts.type === 'fund'" :label="text.distribution" :help="text.distributionHelp">
+    <USelectMenu
+      :model-value="texts.distribution || NOT_SET"
+      :items="DISTRIBUTION_CHOICES"
+      value-key="value"
+      :search-input="false"
+      class="w-full"
+      :data-testid="`${testId}-distribution`"
+      @update:model-value="update('distribution', $event === NOT_SET ? '' : $event)"
+    />
   </UFormField>
   <UFormField :label="text.note">
     <UInput :model-value="texts.note" class="w-full" :data-testid="`${testId}-note`" @update:model-value="update('note', String($event))" />

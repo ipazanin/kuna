@@ -1,9 +1,12 @@
 import type { HoldingFigures } from '../domain/holding'
+import type { HoldingsGroup } from '../domain/holdingsList'
 import type { Instrument } from '../../workbook/domain/instrument'
 import { words } from './words'
 import { usePrices } from '../../prices/presentation/usePrices'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatCurrencyAmount } from '../../../../shared/money/moneyFormat'
+import { listInWords } from '../../../../shared/text/listInWords'
+import { plural } from '../../../../shared/text/translation'
 
 /** As many places as a broker books a fractional unit with. */
 export const QUANTITY_PLACES = 6
@@ -16,6 +19,12 @@ export function averageCostText(holding: Pick<HoldingFigures, 'instrument' | 'av
 /** The symbol, the exchange and the quote currency, such as "ABC · XNAS · USD". */
 export function listingLine(instrument: Instrument): string {
   return [instrument.symbol, instrument.exchange, instrument.currency].filter((part) => part !== null && part !== '').join(' · ')
+}
+
+/** How many holdings and cash balances a group lists, such as "2 holdings and 1 cash balance". */
+export function groupCount(group: Pick<HoldingsGroup, 'holdings' | 'lines'>): string {
+  const balances = group.lines.length - group.holdings
+  return listInWords([...(group.holdings > 0 ? [plural(words.holdingCount(group.holdings), group.holdings)] : []), ...(balances > 0 ? [plural(words.balanceCount(balances), balances)] : [])])
 }
 
 /** What a holding with no price says: Fetching while a fetch runs that may bring its close, else that it has none yet. */

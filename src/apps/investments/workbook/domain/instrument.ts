@@ -32,6 +32,11 @@ export const TYPE_OF_QUOTING: Readonly<Record<Exclude<Quoting['kind'], 'unit'>, 
   gram: 'gold',
 }
 
+/** What a fund does with the dividends of what it holds: keeps them in the fund, or pays them out to its holders. */
+export const FUND_DISTRIBUTIONS = ['accumulating', 'distributing'] as const
+
+export type FundDistribution = (typeof FUND_DISTRIBUTIONS)[number]
+
 /** The price vendor its daily closes come from, by its id in the vendor registry. A manual instrument has only the prices entered by hand. */
 export const PRICE_SOURCES = ['twelvedata', 'alphavantage', 'manual'] as const
 
@@ -85,5 +90,7 @@ export interface Instrument {
   readonly country: Country | null
   /** A fund's yearly cost in percent, so 0.2 is 0.20% a year. */
   readonly ter: Decimal | null
+  /** Typed by hand, and only on an instrument typed a fund. */
+  readonly distribution: FundDistribution | null
   readonly note: string
 }

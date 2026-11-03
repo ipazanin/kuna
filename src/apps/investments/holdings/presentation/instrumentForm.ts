@@ -1,7 +1,7 @@
 import { words } from './words'
 import type { SearchedListing } from '../../prices/application/symbolSearch'
-import { CLASS_OF_TYPE, INSTRUMENT_TYPES, PRICE_SOURCES, TYPE_OF_QUOTING } from '../../workbook/domain/instrument'
-import type { Instrument, InstrumentClass, InstrumentType, PriceSource, Quoting } from '../../workbook/domain/instrument'
+import { CLASS_OF_TYPE, FUND_DISTRIBUTIONS, INSTRUMENT_TYPES, PRICE_SOURCES, TYPE_OF_QUOTING } from '../../workbook/domain/instrument'
+import type { FundDistribution, Instrument, InstrumentClass, InstrumentType, PriceSource, Quoting } from '../../workbook/domain/instrument'
 import { ISIN, MIC } from '../../workbook/domain/instrumentReading'
 import { COUNTRY_CODES, REGIONS, SECTORS, countryOf } from '../../workbook/domain/mixGroup'
 import type { Sector } from '../../workbook/domain/mixGroup'
@@ -29,6 +29,8 @@ export interface InstrumentTexts {
   /** A country code or a region, blank for none. */
   country: string
   ter: string
+  /** Blank for none. Read only for a fund. */
+  distribution: FundDistribution | ''
   note: string
 }
 
@@ -45,6 +47,8 @@ export function typeItems(quoted: Quoting['kind']): { readonly value: Instrument
 export function classOfType(type: InstrumentType | ''): InstrumentClass | null {
   return type === '' ? null : CLASS_OF_TYPE[type]
 }
+
+export const DISTRIBUTION_ITEMS: { readonly value: FundDistribution; readonly label: string }[] = FUND_DISTRIBUTIONS.map((value) => ({ value, label: words.distributions[value] }))
 
 export const SECTOR_ITEMS: { readonly value: Sector; readonly label: string }[] = SECTORS.map((value) => ({ value, label: words.sectors[value] }))
 
@@ -78,6 +82,7 @@ export function instrumentTexts(instrument: Omit<Instrument, 'id'> | null): Inst
     sector: instrument?.sector ?? '',
     country: instrument?.country ?? '',
     ter: decimalShown(instrument?.ter ?? null),
+    distribution: instrument?.distribution ?? '',
     note: instrument?.note ?? '',
   }
 }
@@ -146,6 +151,7 @@ export function instrumentOfTexts(texts: InstrumentTexts, others: readonly Instr
     sector: texts.sector === '' ? null : texts.sector,
     country: countryOf(texts.country),
     ter: typedDecimal(texts.ter),
+    distribution: texts.type === 'fund' && texts.distribution !== '' ? texts.distribution : null,
     note: texts.note.trim(),
   }
 }

@@ -878,6 +878,7 @@ function proposedInstrument(rows: readonly WorkbookRow[], isin: string | null, t
     sector: null,
     country: null,
     ter: null,
+    distribution: null,
     note: '',
   }
 }

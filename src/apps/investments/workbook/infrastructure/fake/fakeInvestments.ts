@@ -86,6 +86,7 @@ const SHARE_A: Instrument = {
   sector: 'information-technology',
   country: countryOf('US'),
   ter: null,
+  distribution: null,
   note: '',
 }
 /** Its country comes from its ISIN. */
@@ -114,6 +115,7 @@ const WORLD_ETF: Instrument = {
   sector: null,
   country: null,
   ter: decimal('0.2'),
+  distribution: 'accumulating',
 }
 const MONEY_FUND: Instrument = {
   ...SHARE_A,
@@ -130,6 +132,7 @@ const MONEY_FUND: Instrument = {
   sector: null,
   country: countryOf('europe'),
   ter: null,
+  distribution: 'distributing',
   note: 'Priced from its monthly statement',
 }
 /** Nothing typed of its sector or country. */
@@ -142,6 +145,7 @@ const SPIN_CO: Instrument = {
   symbol: 'GHI',
   currency: USD,
   country: null,
+  distribution: null,
   note: 'Spun off from Example Dividend Co',
 }
 /** Never bought, only compared with on Performance. */
@@ -171,6 +175,7 @@ const RETIRED_CO: Instrument = {
   currency: USD,
   sector: 'industrials',
   country: null,
+  distribution: null,
   note: '',
 }
 

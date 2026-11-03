@@ -37,7 +37,8 @@ import { words } from './words'
 /**
  * One snapshot of at most five parts as a ring, or six for a fixed list with a colour per entry, with the total in
  * its middle. The list beside it gives each part's value and share and opens its rows, so it is also the table of the
- * chart. The `beside` slot sets another chart next to the ring, and the `aside` slot more content beside the list.
+ * chart. The `beside` slot sets another chart next to the ring, the `aside` slot more content beside the list, and the
+ * `actions` slot a control in the header, such as a select of what the ring splits.
  */
 const props = withDefaults(
   defineProps<{
@@ -119,6 +120,9 @@ function onSliceClick(event: { dataIndex?: number; name?: string }): void {
 
 <template>
   <AppCard data-testid="donut-card" :title="title" :subtitle="subtitle" :definition="definition" v-bind="collapseId === undefined ? {} : { collapseId, summary, startCollapsed, reveal }">
+    <template v-if="$slots.actions" #actions>
+      <slot name="actions" />
+    </template>
     <div class="donut px-4 pt-3 pb-4 sm:px-5 sm:pb-5" :class="{ 'has-beside': $slots.beside }">
       <div class="donut-ring">
         <VChart :option="option" :theme="theme" autoresize class="ring-chart" @click="onSliceClick" />
