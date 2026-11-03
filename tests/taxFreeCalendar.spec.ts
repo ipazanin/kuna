@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
-import { isAtALoss, taxFreeCalendar } from '../src/apps/investments/income/domain/taxFreeCalendar'
+import { isAtALoss, taxFreeCalendar } from '../src/apps/investments/tax/domain/taxFreeCalendar'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
 import type { Instrument } from '../src/apps/investments/workbook/domain/instrument'
 import { decimalText } from '../src/shared/money/decimal'

@@ -328,7 +328,10 @@ screen has. It shows a card per app, in the order `main.ts` installs them, and t
 link into the app's first screen. Company's card names the company and leads with the cash on hand
 over every account, with how many rows wait for review when any do. The Loans card leads with what
 you owe in all, and with what others owe you when they do. The Investments card says what the app
-keeps until its figures arrive. Each card shows money in its own app's
+keeps until its figures arrive, and then its badge names the nearest tax date: last year's INO-DOH by
+its safe day in January, last year's JOPPD for its sales until its deadline, or the tax on payments with
+nothing withheld abroad while their 30 days run. A tax date wins over late prices, and Kuna does not know
+what was filed, so a date stays until it passes. Each card shows money in its own app's
 currency and number format, which `MoneyText` takes as `format`, so two apps can differ. An app with
 nothing to show yet has a Set up card that opens its first run. While an app's books are being read
 its card shows a placeholder where the lead figure goes, and when reading them failed it says so and
@@ -2393,7 +2396,7 @@ holding is a row of two lines that opens its page. Each group starts with a head
 surface under a strong line, with space above every group but the first, that names how many holdings
 and cash balances it lists. On a phone the heading also gives the group's value and its share of the
 whole, and it stays below the top bar while its group scrolls under it. Investments Transactions and
-the Income, Coming, Tax-free, Withheld and Costs tabs head their months and years the same way, through
+the Income, Coming and Costs tabs and the Tax screen's lists head their months and years the same way, through
 the one `group-row` rule of `app.css`. A holding's page
 at `#/investments/holding?instrument=<uuid>` shows its value beside its total return, split into price,
 currency, realised on sales and income, then its facts, its month-end closes in its quote currency with
@@ -2438,7 +2441,9 @@ the same keys as the money fields, so 1,000 units in English and 1.000 in Croati
 record in another currency starts at the newest ECB rate on its day from the prices file, until the
 user types one. A buy or a sale says what it pays or receives in both currencies, the account's units
 and cash afterwards and the average cost, and a sale says how many of its units are past two years or
-that the account holds too few. New holding and the account's plus add an instrument or an account
+that the account holds too few. A sale also says the tax it adds to its year, the year's tax with it less
+the year's tax without it, so the year's losses count, and the year's tax with it. It reads "about" while
+HNB's rate of its settlement day is not out, and warns of a lot within five days of its tax-free day. New holding and the account's plus add an instrument or an account
 from inside the dialog. A holding's page changes its instrument with Change, where its type, its sector, its
 country or region, a fund's TER, whether a fund accumulates or distributes its dividends and a fund's own
 mix by sector and by country are typed too. The mix
@@ -2481,6 +2486,47 @@ notes when the file has none. While the prices file has no close of it, or none 
 day, Performance names it, shows the portfolio's own figures and compares with nothing. When its newest close is late, Performance names
 it and its figures use that close, as a holding's do.
 
+Tax at `#/investments/tax`, after Performance in the menu, works out the tax on the investments that
+you file yourself, for the year picked in a select under its header, kept in `?year=`. It lists each
+year with a sale or a payment and opens, without `?year=`, on the year whose JOPPD is due next: 2026
+until 1 Mar 2027, and 2027 from the day after. Its tabs are Year, Sales, Abroad, the foreign income,
+and Tax-free, the lots turning tax-free, which reads no year and hides the select. Every rule the figures rest on is marked on screen as settled, a reading or unconfirmed, in
+the Year tab's collapsible Rules Kuna uses, with its source. The figures are worked out in
+`tax/domain/` and proved by `tests/taxYear.spec.ts`, `tests/foreignIncome.spec.ts`, `tests/hnbRate.spec.ts`,
+`tests/settlementDay.spec.ts` and `tests/taxDeadlines.spec.ts` on made-up records.
+
+- **A sale's gain.** Each lot a sale closes carries its cost, proceeds and fees in the quote currency
+  (`RealisedLine` in `lots.ts`). Its gain in that currency converts once, at HNB's rate of the sale's
+  settlement day, never at the rate the record stores. HNB applies on a day the ECB rate of the TARGET
+  working day before it, read from the prices file, so a sale settling on a Monday takes Friday's rate.
+  While the prices file has no rate for that day yet the newest stands in and the euros read about, and
+  a sale before the file's first rate is listed and left out. The settlement day is estimated: one
+  weekday after the trade for a dollar instrument traded from 28 May 2024, two otherwise, and for a euro
+  instrument two TARGET working days, past TARGET's holidays. A sale traded
+  in December that settles in January counts in the year it was traded, and says so.
+- **The year.** Gains on lots under two years less losses on them, never below zero and never carried
+  to another year, taxed at the year's rate from `taxRules.ts`. A year with no row there takes the
+  nearest year's and says so. Gains on lots past two years are the JOPPD's code-02 line, and losses on
+  them lower nothing and are listed apart. The Year tab shows four tiles, what to type into the JOPPD
+  (report mark 26365 for 2026, recipient 1001, receipt 1006, fields 11 to 16.2 and the code-02 line) and
+  the deadlines: JOPPD and payment by the last day of February moved past a weekend, the INO-DOH by
+  31 January moved past a weekend with the weekday before as the safe day, the INO-IZJAVA eight days after
+  the year's first payment with tax withheld abroad, and each payment whose 30 days still run. A dividend
+  booked net counts as tax withheld abroad for those two dates. A sale or payment with no HNB rate for its
+  day is left out, and the Year tab and Sažetak say how many.
+- **Sales.** Each sale of the year with the lots it closed, its estimated settlement day, its HNB rate,
+  each lot's gain in its currency and in euros and its status: taxable, tax-free, loss, or an old loss
+  that is not offset. A lot sold within five days of its tax-free day is warned. Download for Porezna
+  writes `kuna-porez-<year>.xlsx` with Croatian headers whatever the language: Evidencija, every buy,
+  sale, split and spin-off of each instrument sold in the year in its own currency, then the year's
+  sales, its foreign income and Sažetak, the year's figures (`tax/infrastructure/taxRegisterFile.ts`).
+- **Abroad.** Each payment of the year but coupons and those of a Croatian ISIN, which are not income
+  from abroad, by the country of its ISIN, at HNB's rate of its day: gross, withheld abroad, the
+  Croatian 12%, the credit, which is the withheld tax up to the 12%, and what is left to pay. Tax withheld abroad goes on the INO-DOH. Nothing withheld means a JOPPD within
+  30 days, with its codes. A referral credit has its 30 days and no figure, since its rate is the city's.
+  A dividend Revolut booked net waits for its tax withheld to be typed, and other income, such as a
+  refund of tax, has no tax of its own. A reversal lowers its payer's figures.
+
 Import on the Overview, beside Add transaction and in an empty Overview, imports the portfolio
 workbook: an xlsx whose Transactions tab has a row for each thing a broker booked, read by its
 headers. Its dialog goes through the file, then an account in Kuna for each Account of the workbook,
@@ -2493,7 +2539,10 @@ names start as shares and every other one starts with no type. Then come the que
 the rows leave: each split's ratio, proposed from the units it adds over those held the day before,
 the spin-off's parent and share of cost, proposed from what the units received are worth over the
 cost the parent held, and the tax withheld from each dividend Revolut booked net, which imports as
-booked with a note when left blank. The dry run lists what Import adds, what waits and why, the rows
+booked with a note when left blank. A STOCK YIELD INCOME row imports as stock lending and a REFERRAL
+CREDIT row as a referral credit. A record an earlier import stored as other income keeps that kind,
+and the Tax screen counts it as stock lending or a referral credit when its note has either's label.
+The dry run lists what Import adds, what waits and why, the rows
 already in Kuna, the rows skipped, among them a row signed against its type and one the write rules
 of its kind would refuse, and the records an earlier import wrote whose rows are gone from the
 workbook. Each of those sits beside the row that looks like its edit and is kept unless ticked. It
@@ -2516,7 +2565,7 @@ the ECB rate of the day. Every kind an import writes takes an optional `import_k
 | `investment-account` | `name`. An account at a broker, which holds units and cash in each currency.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `instrument`         | `name`, the optional `type` (`share`, `fund` for a fund or an ETF, `bond`, `gold` for physical gold or `crypto` for a coin held directly, by what it is, and blank until typed), `class` (`stocks`, `bonds`, `money-market`, `crypto` or `gold`, by what it holds, so an equity ETF is stocks), the optional `isin` (unique in the file) and `exchange` (a market identifier code such as `XETR`), `symbol`, `currency` (the quote currency), `quoted` (`unit`, or `percent` for a bond with its `coupon` and `maturity`, or `gram`), `prices` (`twelvedata`, `alphavantage` or `manual`), `source_symbol`, the vendor's symbol, blank for `manual`, `benchmark`, `true` on the instrument Performance compares with and left out on the rest, and the optional `sector` (one of the eleven GICS sectors, such as `information-technology`), `country` (an ISO 3166 code such as `US`, or `world`, `europe`, `north-america`, `asia-pacific` or `emerging-markets`), `ter`, a fund's yearly cost in percent, and `distribution`, on an instrument typed `fund` only, `accumulating` for a fund that keeps its dividends or `distributing` for one that pays them out. Only an instrument typed `share` takes its country from its ISIN when none is typed. |
 | `trade`              | `account`, `instrument`, `side` (`buy` or `sell`), `date`, `quantity` (above zero), `price` and the optional `fees`, both in the instrument's currency, `rate`, filled exactly when that currency is not the euro, and `accrued`, a bond's accrued interest. A blank `fees` counts as zero.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `income`             | `account`, `kind` (`dividend`, `coupon`, `interest` or `other`), `instrument` (needed for a dividend or a coupon), `date`, `currency`, `gross` (above zero), the optional `withheld` (no more than `gross`) and `rate`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `income`             | `account`, `kind` (`dividend`, `coupon`, `interest`, `lending` for stock lending, `referral` for a referral credit, or `other`), `instrument` (needed for a dividend or a coupon), `date`, `currency`, `gross` (above zero), the optional `withheld` (no more than `gross`) and `rate`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `cash-movement`      | `account`, `kind` (`deposit`, `withdrawal`, `fee` or `fee-refund`), `date`, `currency`, `amount` (above zero) and `rate`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `exchange`           | `account`, `date`, `sold` in `sold_currency` and `bought` in `bought_currency`, two different currencies, each as booked after fees, and the optional `fees` with its `fee_currency`, both or neither.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `transfer`           | `from` and `to`, two different accounts, `date`, and either `instrument` and `quantity` or `currency` and `amount`. It moves units or cash and closes no lot.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { incomeForecast } from '../src/apps/investments/income/domain/incomeForecast'
 import { fetchedFactsBook } from '../src/apps/investments/prices/domain/factsBook'
 import { NO_FETCHED_FACTS } from '../src/apps/investments/prices/domain/pricesFile'
+import { NO_RATES } from '../src/apps/investments/prices/domain/rateBook'
 import type { FactsBook } from '../src/apps/investments/prices/domain/factsBook'
 import type { DividendRow } from '../src/apps/investments/prices/domain/pricesFile'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
@@ -90,7 +91,7 @@ describe('coming income', () => {
 
   it('shows a copy in a currency with no rate yet without euros, outside the total', () => {
     const records = dividendPayer()
-    const forecast = incomeForecast({ book: records, prices: WORKED_PRICES, rates: { unitsPerEuroOnOrBefore: () => null }, today: civil('2026-10-29') }, NOTHING_FETCHED)
+    const forecast = incomeForecast({ book: records, prices: WORKED_PRICES, rates: NO_RATES, today: civil('2026-10-29') }, NOTHING_FETCHED)
     expect(forecast.months.flatMap((month) => month.payments).map((copy) => copy.received)).toEqual([null])
     expect(forecast.received).toBe(euros(0))
   })

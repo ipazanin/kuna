@@ -68,7 +68,7 @@ function groupInLabel(fields: StoredFields): string {
 
 export const en = {
   sides: { buy: 'Buy', sell: 'Sell' },
-  incomeKinds: { dividend: 'Dividend', coupon: 'Coupon', interest: 'Interest', other: 'Other income' },
+  incomeKinds: { dividend: 'Dividend', coupon: 'Coupon', interest: 'Interest', lending: 'Stock lending', referral: 'Referral credit', other: 'Other income' },
   movementKinds: { deposit: 'Deposit', withdrawal: 'Withdrawal', fee: 'Fee', 'fee-refund': 'Fee refund' },
   mixes: { sector: 'sector', currency: 'currency', country: 'country', class: 'class', account: 'account' } satisfies Record<Mix, string>,
   /** The words that name a record of each kind, as its stored fields read. */
@@ -129,7 +129,7 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   sides: { buy: 'Kupnja', sell: 'Prodaja' },
-  incomeKinds: { dividend: 'Dividenda', coupon: 'Kupon', interest: 'Kamata', other: 'Drugi prihod' },
+  incomeKinds: { dividend: 'Dividenda', coupon: 'Kupon', interest: 'Kamata', lending: 'Posudba dionica', referral: 'Nagrada za preporuku', other: 'Drugi prihod' },
   movementKinds: { deposit: 'Uplata', withdrawal: 'Isplata', fee: 'Naknada', 'fee-refund': 'Povrat naknade' },
   mixes: { sector: 'sektor', currency: 'valuta', country: 'država', class: 'klasa', account: 'račun' },
   labels: {

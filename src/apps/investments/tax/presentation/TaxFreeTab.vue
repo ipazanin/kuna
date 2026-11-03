@@ -45,7 +45,7 @@ const shown = computed(() => {
 
 <template>
   <EmptyState v-if="total === 0" icon="i-lucide-calendar-check" :title="text.emptyTitle" :description="text.emptyDescription" data-testid="tax-free-empty" />
-  <AppCard v-else :title="text.title" :subtitle="text.subtitle" collapse-id="investments.performance.tax-free" :summary="summary" class="max-w-measure" data-testid="tax-free-lots">
+  <AppCard v-else :title="text.title" :subtitle="text.subtitle" collapse-id="investments.tax.tax-free" :summary="summary" class="max-w-measure" data-testid="tax-free-lots">
     <FigureTable class="mt-2 mb-2 px-1 sm:px-2" :label="text.title">
       <thead>
         <tr>

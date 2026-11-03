@@ -11,8 +11,6 @@ import ComingTab from '../../income/presentation/ComingTab.vue'
 import CostsTab from '../../income/presentation/CostsTab.vue'
 import IncomeTab from '../../income/presentation/IncomeTab.vue'
 import SavingTab from '../../income/presentation/SavingTab.vue'
-import TaxFreeTab from '../../income/presentation/TaxFreeTab.vue'
-import WithheldTab from '../../income/presentation/WithheldTab.vue'
 import { words as incomeWords } from '../../income/presentation/words'
 import { usePrices } from '../../prices/presentation/usePrices'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
@@ -33,8 +31,8 @@ import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
 /**
  * How the portfolio grew, in tabs: the period's returns against the benchmark, every month since the first deposit,
- * where the period's gain came from, how far it fell below its peaks, the income received, coming, turning tax-free
- * and withheld, the costs of each year, and how regularly money went in. Returns, Sources and Falls follow the period picked.
+ * where the period's gain came from, how far it fell below its peaks, the income received and coming, the costs of
+ * each year, and how regularly money went in. Returns, Sources and Falls follow the period picked.
  */
 const { state } = useInvestmentsBooks()
 const { sources, figures } = usePortfolio()
@@ -48,8 +46,6 @@ const TABS: readonly PageTab[] = [
   { value: 'falls', label: words.tabs.falls, icon: 'i-lucide-trending-down' },
   { value: 'income', label: incomeWords.tabs.income, icon: 'i-lucide-coins' },
   { value: 'coming', label: incomeWords.tabs.coming, icon: 'i-lucide-calendar-clock' },
-  { value: 'tax-free', label: incomeWords.tabs.taxFree, icon: 'i-lucide-calendar-check' },
-  { value: 'withheld', label: incomeWords.tabs.withheld, icon: 'i-lucide-landmark' },
   { value: 'costs', label: incomeWords.tabs.costs, icon: 'i-lucide-receipt' },
   { value: 'saving', label: incomeWords.tabs.saving, icon: 'i-lucide-piggy-bank' },
 ]
@@ -57,8 +53,6 @@ const TABS: readonly PageTab[] = [
 const INCOME_TAB_DESCRIPTIONS: Readonly<Record<string, string>> = {
   income: incomeWords.descriptions.income,
   coming: incomeWords.descriptions.coming,
-  'tax-free': incomeWords.descriptions.taxFree,
-  withheld: incomeWords.descriptions.withheld,
   costs: incomeWords.descriptions.costs,
   saving: incomeWords.descriptions.saving,
 }
@@ -130,8 +124,6 @@ const benchmarkName = computed(() => compared.value?.instrument.name ?? null)
         </template>
         <template #income><IncomeTab :sources="sources" /></template>
         <template #coming><ComingTab :sources="sources" /></template>
-        <template #tax-free><TaxFreeTab v-if="figures !== null" :figures="figures" :today="sources.today" /></template>
-        <template #withheld><WithheldTab :sources="sources" /></template>
         <template #costs><CostsTab :sources="sources" :valued-on="valuedOn" /></template>
         <template #saving><SavingTab v-if="figures !== null" :sources="sources" :value="figures.value" /></template>
       </PageTabs>

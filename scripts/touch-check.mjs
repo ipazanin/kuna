@@ -20,7 +20,7 @@
  * brought back, the same from a row of the To review queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google with one token for every scope and the sync it resumes ending ready, with Drive read unticked ending in Allow access, a refused consent and a
  * forged answer leaving Allow access with no message, a refused silent trip marking the device so the next open waits for Allow access, Sign in to Google when Google asks
- * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, a k typed into the what-if's amount expanding at once, 1.255m keeping its third decimal, with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, a tap near a movement's dot on an informal loan's balance chart reading that month's repayment and its note, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, a tap near a holding's dot on its daily line reading that day's buy in the tooltip, Compare with on a holding's chart and on Performance's growth chart searching, picking, reading percent and removing the ticker, then pressing S&P 500 (SPY) and removing it, By class picked in the Mix card's select and a part of its class ring listing Holdings grouped by class with the ring kept, By currency picked in the grouping select with its sticky heading, Type its mix on a fund with no mix opening the Change dialog with its Dividends field, a closed position opening its page and the way back, a past close picked in On and Today, a tap on the map of holdings opening a holding's page, targets set with what 2k buys read and undone, a check's threshold changed on the Investments Checks tab and undone, the period of Investments Performance changed to 1Y, to a year in its dropdown, to Q2 of that year, to another year keeping Q2 and back to All, with Returns by year tinting only Yours and Difference, its Months tab switched to Against the index, the period changed on its Sources tab, the Overview's Income tile opening Performance on its Income tab without the period bar and its Coming and Returns tabs, 1k typed into the projection's Each month on the Saving tab and its end value read, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices tab, a key another browser saved taken by the sync on open, removed here and kept removed by the next sync, a key this browser saved lost to another browser's newer removal, Remove the Investments file on the sample on Drive asked first, cancelled and then removed to the first run with the vendor key kept, in English and Croatian, the same for a file kept in this browser, another device's file in the Drive bin failing the sync on open with a link to its Settings, a two-word country and a code in brackets typed into a holding's Country field and into a fund's country mix and picked with Enter, the Country field set back to Not set the same way, three made-up CSV files of closes imported on the Prices tab, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
+ * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, a k typed into the what-if's amount expanding at once, 1.255m keeping its third decimal, with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, a tap near a movement's dot on an informal loan's balance chart reading that month's repayment and its note, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, a tap near a holding's dot on its daily line reading that day's buy in the tooltip, Compare with on a holding's chart and on Performance's growth chart searching, picking, reading percent and removing the ticker, then pressing S&P 500 (SPY) and removing it, By class picked in the Mix card's select and a part of its class ring listing Holdings grouped by class with the ring kept, By currency picked in the grouping select with its sticky heading, Type its mix on a fund with no mix opening the Change dialog with its Dividends field, a closed position opening its page and the way back, a past close picked in On and Today, a tap on the map of holdings opening a holding's page, targets set with what 2k buys read and undone, a check's threshold changed on the Investments Checks tab and undone, the period of Investments Performance changed to 1Y, to a year in its dropdown, to Q2 of that year, to another year keeping Q2 and back to All, with Returns by year tinting only Yours and Difference, its Months tab switched to Against the index, the period changed on its Sources tab, the Overview's Income tile opening Performance on its Income tab without the period bar and its Coming and Returns tabs, 1k typed into the projection's Each month on the Saving tab and its end value read, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a dollar sale typed with its tax line read as about, the Tax screen's Sales tab listing the sales by their lots and handing over kuna-porez-2026.xlsx, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices tab, a key another browser saved taken by the sync on open, removed here and kept removed by the next sync, a key this browser saved lost to another browser's newer removal, Remove the Investments file on the sample on Drive asked first, cancelled and then removed to the first run with the vendor key kept, in English and Croatian, the same for a file kept in this browser, another device's file in the Drive bin failing the sync on open with a link to its Settings, a two-word country and a code in brackets typed into a holding's Country field and into a fund's country mix and picked with Enter, the Country field set back to Not set the same way, three made-up CSV files of closes imported on the Prices tab, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
@@ -2454,6 +2454,76 @@ async function checkWidth(width) {
     await (await waitForText(page, 'button', 'Undo')).tap()
     await waitForText(page, '[data-slot="title"]', 'Undone')
     await expect(rows(), (count) => count === before, 'Undo did not take the buy off the list')
+  })
+
+  // A dollar sale typed today. Its tax line reads about while the settlement day's rate is not out, which depends on
+  // the day the check runs: on a weekend the sale settles on Monday, whose rate is Friday's and already in the file.
+  // Nothing is saved.
+  await step('investments-usd-sell', async () => {
+    await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/transactions`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Transactions')
+    await (await page.waitForSelector('[data-testid="transactions-add"]', { visible: true })).tap()
+    await page.waitForSelector('[data-testid="transaction-form"]', { visible: true })
+    await delay(300)
+    await (await waitForText(page, '[data-testid="transaction-happened"] button', 'Sell')).tap()
+    await delay(300)
+    await page.tap('[data-testid="transaction-instrument"]')
+    await (await waitForText(page, '[role="option"]', 'Example Tech')).tap()
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await page.tap('[data-testid="transaction-account"]')
+    await (await waitForText(page, '[role="option"]', 'Broker One')).tap()
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await delay(200)
+    for (const [field, text] of [
+      ['transaction-quantity', '2'],
+      ['transaction-price', '160'],
+    ]) {
+      await page.tap(`[data-testid="${field}"]`)
+      await page.type(`[data-testid="${field}"]`, text)
+    }
+    const tax = await waitForText(page, '[data-testid="transaction-summary"] dt', 'Tax on this sale')
+    await tax.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await expect(
+      tax.evaluate((element) => [element.nextElementSibling?.textContent?.trim() ?? '', element.parentElement?.textContent ?? '']),
+      ([value, fact]) => /^(About )?€[\d,.]+$/.test(value) && /\d{4} comes to €[\d,.]+ with it/.test(fact),
+      'the summary does not say how much tax the sale adds and the year with it',
+    )
+    await inspect(page, `${width}px a USD sale typed`)
+    await shoot('investments-usd-sell')
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('[data-testid="transaction-form"]'), { timeout: 5_000 })
+  })
+
+  // The Tax screen's Sales tab on a phone: each sale heads its lots, and Download for Porezna hands over the year's register.
+  await step('investments-tax-sales', async () => {
+    await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/tax?year=2026`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Tax')
+    await (await waitForText(page, '[data-testid="tax-tabs"] [role="tab"]', 'Sales')).tap()
+    await page.waitForSelector('[data-testid="tax-sales"]', { visible: true })
+    await expect(
+      page.$$eval('[data-testid="tax-sale"]', (sales) => sales.map((sale) => sale.querySelectorAll('[data-testid="tax-sale-line"]').length)),
+      (lines) => lines.length >= 2 && lines[0] === 2,
+      'the sales do not list the Example Tech sale with its two lots',
+    )
+    await inspect(page, `${width}px Tax on Sales`)
+    await shoot('investments-tax-sales')
+    // The browser's own save is out of reach of a check, so the link the download clicks is caught instead.
+    await page.evaluate(() => {
+      window.kunaDownloads = []
+      HTMLAnchorElement.prototype.click = function () {
+        window.kunaDownloads.push(this.download)
+      }
+    })
+    const download = await page.waitForSelector('[data-testid="tax-download"]', { visible: true })
+    await download.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(300)
+    await download.tap()
+    await page.waitForFunction(() => window.kunaDownloads.length === 1, { timeout: 10_000 })
+    await expect(
+      page.evaluate(() => window.kunaDownloads[0]),
+      (name) => name === 'kuna-porez-2026.xlsx',
+      'Download for Porezna did not hand over kuna-porez-2026.xlsx',
+    )
   })
 
   await step('open-file-browser', async () => {

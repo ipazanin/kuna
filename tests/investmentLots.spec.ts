@@ -61,6 +61,33 @@ describe('FIFO lots', () => {
     ])
   })
 
+  it('carries the cost, proceeds and fees of a dollar sale in dollars on each line', () => {
+    const tech = instrument('tech', { currency: USD })
+    const records = book({ instruments: [tech], trades: [trade('buy', BROKER, tech, '2025-03-10', '10', '100', '0', '1.08'), trade('sell', BROKER, tech, '2026-10-02', '10', '120', '0', '1.08')] })
+
+    const [line] = lotsOf(records, tech).sales[0]!.lines
+    expect([decimalText(line!.costInCurrency), decimalText(line!.proceedsInCurrency), decimalText(line!.feesInCurrency)]).toEqual(['1000', '1200', '0'])
+  })
+
+  it('splits a $1.00 fee over three one-unit lots as $0.33, $0.33 and $0.34', () => {
+    const tech = instrument('tech', { currency: USD })
+    const records = book({
+      instruments: [tech],
+      trades: [
+        trade('buy', BROKER, tech, '2026-01-05', '1', '50', '0', '1.1'),
+        trade('buy', BROKER, tech, '2026-02-05', '1', '50', '0', '1.1'),
+        trade('buy', BROKER, tech, '2026-03-05', '1', '50', '0', '1.1'),
+        trade('sell', BROKER, tech, '2026-04-01', '3', '60', '1', '1.1'),
+      ],
+    })
+
+    expect(lotsOf(records, tech).sales[0]!.lines.map((line) => [decimalText(line.proceedsInCurrency), decimalText(line.feesInCurrency)])).toEqual([
+      ['60', '0.33'],
+      ['60', '0.33'],
+      ['60', '0.34'],
+    ])
+  })
+
   it('keeps €2,000.00 of cost over 40 units after a 4-for-1 split', () => {
     const records = book({ instruments: [ETF], trades: [trade('buy', BROKER, ETF, '2025-05-02', '10', '199.8', '2')], splits: [split(ETF, '2026-06-10', 4, 1)] })
 
@@ -117,6 +144,8 @@ describe('FIFO lots', () => {
       ['2021-03-01', '2', 181.3, -41.3, true],
       ['2025-02-03', '2', 90.65, 49.35, false],
     ])
+    // 18.13% of the parent lots' 1,000.00 and 500.00 moved with the units, so 181.30 and 90.65 in the quote currency too.
+    expect(sold.sales.flatMap((sale) => sale.lines.map((line) => decimalText(line.costInCurrency)))).toEqual(['181.3', '90.65'])
   })
 
   it('moves units between accounts and closes nothing, so the lots keep their days and costs', () => {

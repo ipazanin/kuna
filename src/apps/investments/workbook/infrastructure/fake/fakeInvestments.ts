@@ -31,6 +31,7 @@ import type { Trade, TradeSide } from '../../domain/trade'
 import type { Transfer } from '../../domain/transfer'
 import { emptyInvestmentsDocument } from '../investmentsDocument'
 import { pricesDay } from '../../../prices/application/pricesUpdate'
+import { rateSeriesKey } from '../../../prices/domain/pricesFile'
 import { FAKE_SERIES, fakeClose, isWeekday } from '../../../prices/infrastructure/fake/fakePrices'
 import { addDays, parseCivilDate } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
@@ -396,6 +397,39 @@ const TARGETS: readonly Target[] = [
 /** The cash check raised from 10% to 15%. */
 const CHECKS: readonly CheckSetting[] = [{ id: nextId(CHECK_RECORDS), check: 'cash', threshold: decimal('15'), off: false }]
 
+// The records below are made after every record above, the fund mixes, targets and checks among them, so their ids stay as they were.
+
+/** The ECB rate of dollars per euro the fake prices file has on a weekday. */
+function fakeDollarRate(date: string): string {
+  return fakeClose(rateSeriesKey('USD'), day(date))
+}
+
+/** A sale of Example Tech closing its ten units past two years and two of the 8 Sep lot, and a sale of the spinco below what it cost, a loss on lots past two years. */
+const TAX_TRADES: readonly Trade[] = [
+  trade('sell', BROKER_ONE, SHARE_A, '2026-10-02', '12', fakeClose(FAKE_SERIES.shareA, day('2026-10-02')), '1.00', fakeDollarRate('2026-10-02')),
+  trade('sell', BROKER_ONE, SPIN_CO, '2026-10-19', '6', '8.95', '1.00', fakeDollarRate('2026-10-19')),
+]
+
+/** A US dividend with 30% withheld, a distribution of the Irish fund with nothing withheld, stock lending and a referral credit. */
+const TAX_INCOME: readonly Income[] = [
+  dividend('2026-10-15', '13.60', '4.08', fakeDollarRate('2026-10-15')),
+  {
+    id: nextId(INCOME_RECORDS),
+    account: BROKER_TWO.id,
+    kind: 'dividend',
+    instrument: WORLD_ETF.id,
+    date: day('2026-10-16'),
+    currency: EURO,
+    gross: decimal('21.40'),
+    withheld: DECIMAL_ZERO,
+    rate: null,
+    importKey: null,
+    note: '',
+  },
+  { ...interest(BROKER_ONE, '2026-10-05', '1.20'), kind: 'lending', currency: USD, rate: decimal(fakeDollarRate('2026-10-05')), note: '' },
+  { ...interest(BROKER_ONE, '2026-09-02', '40.00'), kind: 'referral', note: '' },
+]
+
 function stored<R>(kind: RecordKind<R>, records: readonly R[]): WorkbookDocument['records'] {
   const codec = codecOfInvestmentsKind(kind)
   return { [kind.name]: records.map((record) => codec.fieldsOf(record)) }
@@ -438,8 +472,9 @@ function youngRecords(today: CivilDate): WorkbookDocument['records'] {
  * The fake build's made-up Investments file: two accounts at made-up brokers, euros changed into dollars, buys and
  * sales of US shares, one of them sold in full, a Xetra ETF with its own mix and a money market fund priced by hand,
  * dividends with tax withheld, interest, an account fee and its refund, a transfer of units and one of cash, a
- * spin-off and a split of what it gave, a US index fund it compares with, class targets and one changed check. Every
- * figure in it is made up.
+ * spin-off and a split of what it gave, a US index fund it compares with, class targets, one changed check, and for
+ * the Tax screen two sales of 2026, a dividend with 30% withheld, one with nothing withheld, stock lending and a
+ * referral credit. Every figure in it is made up.
  */
 export function fakeInvestmentsDocument(savedAt: string, variant: FakeInvestmentsVariant = 'sample'): WorkbookDocument {
   if (variant === 'young') {
@@ -452,8 +487,8 @@ export function fakeInvestmentsDocument(savedAt: string, variant: FakeInvestment
     records: {
       ...stored(INVESTMENT_ACCOUNT_RECORDS, [BROKER_ONE, BROKER_TWO]),
       ...stored(INSTRUMENT_RECORDS, [SHARE_A, SHARE_B, WORLD_ETF, MONEY_FUND, SPIN_CO, INDEX_FUND, RETIRED_CO]),
-      ...stored(TRADE_RECORDS, [...TRADES, ...LATER_TRADES]),
-      ...stored(INCOME_RECORDS, [...INCOME, ...LATER_INCOME]),
+      ...stored(TRADE_RECORDS, [...TRADES, ...LATER_TRADES, ...TAX_TRADES]),
+      ...stored(INCOME_RECORDS, [...INCOME, ...LATER_INCOME, ...TAX_INCOME]),
       ...stored(CASH_MOVEMENT_RECORDS, movements),
       ...stored(EXCHANGE_RECORDS, EXCHANGES),
       ...stored(TRANSFER_RECORDS, TRANSFERS),

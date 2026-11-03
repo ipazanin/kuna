@@ -6,9 +6,26 @@ import type { RateBook } from '../../prices/domain/rateBook'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import type { Trade } from '../../workbook/domain/trade'
+import { isEstimate } from '../../tax/domain/hnbRate'
+import { capitalGainsYear } from '../../tax/domain/taxYear'
+import { yearOf } from '../../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { DECIMAL_ZERO, inEuros, sumDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
+import { subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+
+/** What a sale does to its year's capital gains tax. */
+export interface SaleTax {
+  readonly year: number
+  /** The year's tax with the sale less the year's tax without it, so the year's losses count. */
+  readonly onSale: Money
+  readonly forYear: Money
+  /** True while the settlement day's HNB rate is not out, as for a sale typed today. */
+  readonly estimated: boolean
+  /** The tax-free day of a lot it closes within five days of that day, or null. */
+  readonly nearTaxFreeDay: CivilDate | null
+}
 
 /** What a buy or a sale typed into the dialog would do, against every other record of the file. */
 export interface TradePreview {
@@ -26,6 +43,29 @@ export interface TradePreview {
   readonly averageCostAfter: Decimal | null
   /** For a sale, how many of its units come from lots past two years. */
   readonly taxSplit: SaleTaxSplit | null
+  /** For a sale with an HNB rate, the tax it adds. */
+  readonly tax: SaleTax | null
+}
+
+/** The tax a sale adds to its year, against the file without it. Null for a buy, and for a sale with no rate to convert it. */
+function saleTax(book: InvestmentBook, after: InvestmentBook, rates: RateBook, trade: Trade): SaleTax | null {
+  if (trade.side !== 'sell') {
+    return null
+  }
+  const year = yearOf(trade.date)
+  const withSale = capitalGainsYear(after, rates, year)
+  const sale = withSale.sales.find((candidate) => candidate.trade.id === trade.id)
+  if (sale === undefined || sale.rate.kind === 'missing') {
+    return null
+  }
+  const without = capitalGainsYear({ ...book, trades: book.trades.filter((other) => other.id !== trade.id) }, rates, year)
+  return {
+    year,
+    onSale: subtractMoney(withSale.tax, without.tax),
+    forYear: withSale.tax,
+    estimated: isEstimate(sale.rate),
+    nearTaxFreeDay: sale.lines.find((line) => line.nearTaxFreeDay)?.taxFreeFrom ?? null,
+  }
 }
 
 /** The trade in place of the record it changes, or added when it changes none. */
@@ -57,5 +97,6 @@ export function tradePreview(book: InvestmentBook, rates: RateBook, instrument: 
     averageCostBefore: averageCost(instrument, investmentLots(book).get(instrument.id)),
     averageCostAfter: averageCost(instrument, queue),
     taxSplit: sale === null ? null : taxSplitOf(sale),
+    tax: sale === null ? null : saleTax(book, after, rates, trade),
   }
 }

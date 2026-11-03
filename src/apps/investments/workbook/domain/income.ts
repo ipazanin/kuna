@@ -3,8 +3,8 @@ import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import type { Decimal } from '../../../../shared/money/decimal'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
-/** A dividend and a coupon name their instrument. Interest and other income may not. */
-export const INCOME_KINDS = ['dividend', 'coupon', 'interest', 'other'] as const
+/** A dividend and a coupon name their instrument. The rest may not. Stock lending and a referral credit are taxed apart from other income. */
+export const INCOME_KINDS = ['dividend', 'coupon', 'interest', 'lending', 'referral', 'other'] as const
 
 export type IncomeKind = (typeof INCOME_KINDS)[number]
 

@@ -41,6 +41,16 @@ describe('income by year', () => {
     expect(years[0]?.total).toEqual({ gross: euros(4.35), withheld: euros(0), received: euros(4.35) })
   })
 
+  it('counts stock lending and a referral credit as other income', () => {
+    const records = workedPortfolio()
+    const later: Income[] = [
+      { ...interest('2026-05-04', '1.20'), kind: 'lending' },
+      { ...interest('2026-06-01', '10.00'), kind: 'referral' },
+    ]
+    const [year] = incomeByYear({ ...records, income: [...records.income, ...later] }, TODAY)
+    expect(year?.groups.map((group) => [group.group, group.received])).toEqual([['other', euros(11.2)]])
+  })
+
   it("leaves out the part of a coupon that paid back the accrued interest bought with the bond, as the Overview's income does", () => {
     const terms: PercentQuoting = { kind: 'percent', coupon: decimal('3'), maturity: civil('2029-03-15') }
     const bond = instrument('bond', { name: 'State bond 2029', class: 'bonds', quoted: terms, prices: 'manual', sourceSymbol: '' })

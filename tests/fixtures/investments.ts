@@ -219,6 +219,11 @@ export function rateBookOf(rates: ReadonlyMap<CurrencyCode, readonly (readonly [
         .sort(([earlier], [later]) => earlier.localeCompare(later))
         .map(([, rate]) => decimal(rate))
         .at(-1) ?? null,
+    newestDay: (currency: CurrencyCode) =>
+      [...(rates.get(currency) ?? [])]
+        .map(([date]) => civil(date))
+        .sort()
+        .at(-1) ?? null,
   }
 }
 

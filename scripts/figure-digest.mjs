@@ -130,6 +130,8 @@ import { monthlyReturns } from '../src/apps/investments/performance/domain/month
 import { periodGains } from '../src/apps/investments/performance/domain/periodGains.ts'
 import { dayValuer, firstDepositIn, performanceByYear, portfolioPerformance } from '../src/apps/investments/performance/domain/portfolioPerformance.ts'
 import { underwater } from '../src/apps/investments/performance/domain/underwater.ts'
+import { foreignIncomeYear } from '../src/apps/investments/tax/domain/foreignIncome.ts'
+import { capitalGainsYear, taxYearsOf } from '../src/apps/investments/tax/domain/taxYear.ts'
 import { periodKey } from '../src/apps/investments/performance/presentation/performanceLinks.ts'
 import { fetchedFactsBook } from '../src/apps/investments/prices/domain/factsBook.ts'
 import { decodePricesFile, emptyPricesFile } from '../src/apps/investments/prices/domain/pricesFile.ts'
@@ -435,7 +437,7 @@ function pricesOfInput() {
  * figures, its last day, the Overview's cards, the five mixes, the target mix with what €2,000.00 would buy and the
  * closed positions of Holdings and its value over time, then the benchmark's closes, Performance over each period it
  * offers with where its gain came from and its falls below a peak, its returns by year and by month, the costs, the
- * saving and the Overview's portfolio checks.
+ * saving and the Overview's portfolio checks, then each tax year's capital gains and foreign income.
  */
 function investmentsGroups(add) {
   const document = options.investments === undefined ? fakeInvestmentsDocument(AT) : decodeDocument(readFileSync(options.investments, 'utf8'))
@@ -500,6 +502,10 @@ function investmentsGroups(add) {
   add('investments.income.costs', () => yearlyCosts(sources, valuedOn))
   add('investments.income.saving', investingRhythm(workbook.book, today))
   add('investments.overview.checks', () => portfolioChecks(figures, holdingMixes(figures, workbook.book, facts), recentCosts(sources, valuedOn), workbook.book.targets, workbook.book.checks))
+  for (const year of taxYearsOf(workbook.book, today)) {
+    add(`investments.tax.${year}`, () => capitalGainsYear(workbook.book, sources.rates, year))
+    add(`investments.tax.${year}.foreign`, () => foreignIncomeYear(workbook.book, sources.rates, year))
+  }
 }
 
 const digests = new WeakMap()

@@ -124,6 +124,15 @@ describe('the Investments file', () => {
     expect(books.book.trades[0]).toMatchObject({ quantity: decimal('0.123456789012'), price: decimal('190.000000000001'), fees: decimal('1'), rate: decimal('1.08') })
   })
 
+  it('reads other income an import noted as stock lending as other income, as the file stores it', () => {
+    const books = booksOf({
+      'investment-account': ACCOUNTS,
+      income: [{ id: 'i1', account: ONE, kind: 'other', date: '2026-06-30', currency: 'EUR', gross: '0.4', note: 'Stock yield income' }],
+    })
+
+    expect(books.book.income.map((payment) => payment.kind)).toEqual(['other'])
+  })
+
   it('reads every kind into the book, each in the file order', () => {
     const books = booksOf({
       'investment-account': ACCOUNTS,
@@ -531,8 +540,8 @@ describe('the Investments file', () => {
     expect(Object.fromEntries(Object.entries(books.book).map(([part, records]) => [part, records.length]))).toEqual({
       accounts: 2,
       instruments: 7,
-      trades: 12,
-      income: 9,
+      trades: 14,
+      income: 13,
       cashMovements: 9,
       exchanges: 1,
       transfers: 2,

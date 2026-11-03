@@ -15,6 +15,8 @@ import { words as overviewWords } from './overview/presentation/words'
 import { PERFORMANCE_ROUTE } from './performance/presentation/performanceLinks'
 import { words as performanceWords } from './performance/presentation/words'
 import { words as settingsWords } from './settings/presentation/words'
+import { TAX_ROUTE } from './tax/presentation/taxLinks'
+import { words as taxWords } from './tax/presentation/words'
 import { investmentsSyncGroup } from './sync/presentation/investmentsSyncGroup'
 import { words } from './words'
 import { useInvestmentsBooks } from './workbook/application/investmentsStore'
@@ -37,6 +39,7 @@ const PERFORMANCE: AppScreen = {
   icon: 'i-lucide-chart-spline',
   component: () => import('./performance/presentation/PerformanceScreen.vue'),
 }
+const TAX: AppScreen = { path: TAX_ROUTE, title: taxWords.title, icon: 'i-lucide-landmark', component: () => import('./tax/presentation/TaxScreen.vue') }
 const SETTINGS: AppScreen = { path: INVESTMENTS_SETTINGS_ROUTE, title: settingsWords.title, icon: 'i-lucide-settings', component: () => import('./settings/presentation/SettingsScreen.vue') }
 
 const { state } = useInvestmentsBooks()
@@ -60,11 +63,12 @@ export const investmentsApp: AppContribution = {
     HOLDINGS,
     TRANSACTIONS,
     PERFORMANCE,
+    TAX,
     { path: HOLDING_ROUTE, title: holdingsWords.holding, icon: 'i-lucide-chart-line', component: () => import('./holdings/presentation/HoldingScreen.vue') },
     SETTINGS,
     { path: INVESTMENTS_START_ROUTE, title: words.start, icon: 'i-lucide-door-open', component: () => import('./onboarding/presentation/StartScreen.vue'), bare: true },
   ],
-  menu: () => [OVERVIEW, HOLDINGS, TRANSACTIONS, PERFORMANCE],
+  menu: () => [OVERVIEW, HOLDINGS, TRANSACTIONS, PERFORMANCE, TAX],
   settings: SETTINGS,
   menuCount: (screen) => {
     let count = 0

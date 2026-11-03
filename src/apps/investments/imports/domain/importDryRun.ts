@@ -601,7 +601,7 @@ function incomeOf(entry: RowEntry, mapping: Mapping): Income {
   return {
     id: recordIdOf(INCOME_RECORDS, newRecordId()),
     account: account.id,
-    kind: isDividend ? 'dividend' : row.type === 'INTEREST' ? 'interest' : 'other',
+    kind: isDividend ? 'dividend' : row.type === 'INTEREST' ? 'interest' : row.type === 'STOCK YIELD INCOME' ? 'lending' : row.type === 'REFERRAL CREDIT' ? 'referral' : 'other',
     instrument: instrument?.id ?? null,
     date: row.date,
     currency,

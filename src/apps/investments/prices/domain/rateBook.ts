@@ -9,10 +9,12 @@ import type { Money } from '../../../../shared/money/money'
 export interface RateBook {
   /** The rate of the day, or of the latest earlier day the ECB published one. Null before the series starts. */
   unitsPerEuroOnOrBefore(currency: CurrencyCode, day: CivilDate): Decimal | null
+  /** The day of the newest rate of the currency, null when there is none. */
+  newestDay(currency: CurrencyCode): CivilDate | null
 }
 
 /** Rates before this browser has read the prices file, which convert nothing. */
-export const NO_RATES: RateBook = { unitsPerEuroOnOrBefore: () => null }
+export const NO_RATES: RateBook = { unitsPerEuroOnOrBefore: () => null, newestDay: () => null }
 
 /** The amount in euros at the ECB rate on or before the day. Null for a foreign amount the series has no rate for yet. */
 export function eurosAtEcbRate(amount: Decimal, currency: CurrencyCode, day: CivilDate, rates: RateBook): Money | null {

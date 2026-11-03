@@ -46,6 +46,15 @@ const facts = computed((): Fact[] => {
             caption: words.summary.taxFreeCaption,
           },
         ]),
+    ...(preview.tax === null
+      ? []
+      : [
+          {
+            label: words.summary.tax,
+            value: preview.tax.estimated ? words.summary.about(formatMoney(preview.tax.onSale)) : formatMoney(preview.tax.onSale),
+            caption: words.summary.taxForYear(formatMoney(preview.tax.forYear), preview.tax.year),
+          },
+        ]),
   ]
 })
 </script>
@@ -56,6 +65,12 @@ const facts = computed((): Fact[] => {
       <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0" />
       <span>{{ words.summary.beyondHeld(dayLabel(trade.date)) }}</span>
     </p>
-    <FactGrid v-else :facts="facts" />
+    <template v-else>
+      <FactGrid :facts="facts" />
+      <p v-if="preview.tax !== null && preview.tax.nearTaxFreeDay !== null" class="mt-3 flex items-start gap-2 type-body text-warning" data-testid="transaction-near-tax-free">
+        <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0" />
+        <span>{{ words.summary.nearTaxFreeDay(dayLabel(preview.tax.nearTaxFreeDay)) }}</span>
+      </p>
+    </template>
   </section>
 </template>

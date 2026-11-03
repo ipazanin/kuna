@@ -438,7 +438,7 @@ describe('the dry run with every answer', () => {
     expect(importedAt(dryRun, 7).record).toMatchObject({ kind: 'dividend', instrument: ABC_SHARE.id, gross: decimal('2.5'), withheld: decimal('0.38'), rate: decimal('1.04') })
     expect(importedAt(dryRun, 8).record).toMatchObject({ kind: 'dividend', gross: decimal('0.5'), withheld: decimal('0') })
     expect(importedAt(dryRun, 12).record).toMatchObject({ kind: 'interest', instrument: null, gross: decimal('3.2'), withheld: decimal('0.32'), rate: null })
-    expect(importedAt(dryRun, 30).record).toMatchObject({ kind: 'other', gross: decimal('0.12'), withheld: decimal('0.01'), note: `${words.stockYieldIncome}. Stock lending income` })
+    expect(importedAt(dryRun, 30).record).toMatchObject({ kind: 'lending', gross: decimal('0.12'), withheld: decimal('0.01'), note: `${words.stockYieldIncome}. Stock lending income` })
   })
 
   it('imports a dividend Revolut booked net at its net with a note, never asking for the tax', async () => {
@@ -450,7 +450,10 @@ describe('the dry run with every answer', () => {
   it('makes two equal referral credits two income records', async () => {
     const { dryRun } = await importedBook()
     const credits = dryRun.added.income.filter((payment) => payment.note === words.referralCredit)
-    expect(credits.map((payment) => decimalText(payment.gross))).toEqual(['10', '10'])
+    expect(credits.map((payment) => [payment.kind, decimalText(payment.gross)])).toEqual([
+      ['referral', '10'],
+      ['referral', '10'],
+    ])
     expect(new Set(credits.map((payment) => payment.importKey)).size).toBe(2)
   })
 
@@ -773,7 +776,7 @@ describe('a row signed against its type', () => {
 
   it('notes other income paid out as reversing an earlier payment', async () => {
     const dryRun = await dryRunOf([line('2025-04-02', { ...MAIN, Type: 'STOCK YIELD INCOME', Currency: 'EUR', 'Gross amount': -0.4, 'Net cash': -0.4 })])
-    expect(importedAt(dryRun, 2).record).toMatchObject({ kind: 'other', gross: decimal('-0.4'), note: `${words.reversesPayment}. ${words.stockYieldIncome}` })
+    expect(importedAt(dryRun, 2).record).toMatchObject({ kind: 'lending', gross: decimal('-0.4'), note: `${words.reversesPayment}. ${words.stockYieldIncome}` })
     expect(reversalNotes(dryRun)).toEqual([[2, words.reversesPayment]])
   })
 

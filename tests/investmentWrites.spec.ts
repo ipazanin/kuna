@@ -10,6 +10,7 @@ import { writeTransaction } from '../src/apps/investments/transactions/applicati
 import { listedTransactions, passesFilter, transactionCount } from '../src/apps/investments/transactions/domain/listedTransactions'
 import type { TransactionRecord } from '../src/apps/investments/transactions/domain/listedTransactions'
 import { tradePreview } from '../src/apps/investments/transactions/domain/tradePreview'
+import { DIVIDEND_CO, EXAMPLE_RATES, TECH, WORLD, exampleYear } from './fixtures/taxExample'
 import { ecbRateText, happeningsOfKind, keyOf, rateCurrency, textsOf, transactionDraft } from '../src/apps/investments/transactions/presentation/transactionForm'
 import type { TransactionTexts } from '../src/apps/investments/transactions/presentation/transactionForm'
 import type { FundMixLine } from '../src/apps/investments/workbook/domain/fundMix'
@@ -22,8 +23,8 @@ import type { WorkbookStore } from '../src/shared/storage/application/createWork
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
 import { EURO } from '../src/shared/money/currencyCode'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
-import { USD, account, book, cashMovement, cashTransfer, decimal, dividend, exchange, instrument, rateBookOf, spinOff, split, trade, unitTransfer } from './fixtures/investments'
-import { civil } from './fixtures/ledger'
+import { BROKER, USD, account, book, cashMovement, cashTransfer, decimal, dividend, exchange, instrument, rateBookOf, spinOff, split, trade, unitTransfer } from './fixtures/investments'
+import { civil, euros } from './fixtures/ledger'
 import { INVESTMENTS, browserHarness, forgetCaches } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -337,6 +338,38 @@ describe('the trade summary and the list', () => {
 
     expect(tradePreview(listed, NO_RATES, SHARE, trade('sell', ONE, SHARE, '2026-10-01', '12', '120', '1', '1.1')).taxSplit?.taxFree.quantity).toEqual(decimal('10'))
     expect(tradePreview(listed, NO_RATES, SHARE, trade('sell', TWO, SHARE, '2026-10-01', '1', '120', '1', '1.1')).beyondHeld).toBe(true)
+  })
+
+  it("previews the tax a sale adds to its year, against the year's losses, and reads about while its rate is not out", () => {
+    const records = exampleYear()
+    const tech = records.trades.find((record) => record.instrument === TECH.id && record.side === 'sell')!
+    const others = { ...records, trades: records.trades.filter((record) => record.id !== tech.id) }
+
+    // With the sale the year owes 16.30. Without it the June loss of 80.00 outweighs the World ETF's 49.17, so nothing.
+    // Alone, 12% of the sale's 166.67 would be 20.00.
+    expect(tradePreview(others, EXAMPLE_RATES, TECH, tech).tax).toEqual({ year: 2026, onSale: euros(16.3), forYear: euros(16.3), estimated: false, nearTaxFreeDay: null })
+    const alone = book({ ...records, trades: records.trades.filter((record) => record.instrument === TECH.id) })
+    expect(tradePreview(book({ ...alone, trades: alone.trades.filter((record) => record.id !== tech.id) }), EXAMPLE_RATES, TECH, tech).tax?.onSale).toBe(euros(20))
+    const typedToday = { ...tech, date: civil('2026-11-04') }
+    expect(tradePreview(others, EXAMPLE_RATES, TECH, typedToday).tax?.estimated).toBe(true)
+  })
+
+  it("tells the tax a sale adds apart from the year's tax with it", () => {
+    const records = exampleYear()
+    const tech = records.trades.find((record) => record.instrument === TECH.id && record.side === 'sell')!
+    const others = { ...records, trades: records.trades.filter((record) => record.id !== tech.id && !(record.instrument === DIVIDEND_CO.id && record.side === 'sell')) }
+
+    // Without the June loss the year has the World ETF's 49.17, 5.90 of tax. With Example Tech's 166.67 it has
+    // 215.84, 25.90 of tax, so the sale adds 20.00.
+    expect(tradePreview(others, EXAMPLE_RATES, TECH, tech).tax).toMatchObject({ onSale: euros(20), forYear: euros(25.9) })
+  })
+
+  it('warns on the sell form when a lot it closes turns tax-free within five days', () => {
+    // The 5 World ETF units left from 10 Jun 2025 turn tax-free on 11 Jun 2027.
+    const sale = trade('sell', BROKER, WORLD, '2027-06-09', '5', '140', '0')
+
+    expect(tradePreview(exampleYear(), EXAMPLE_RATES, WORLD, sale).tax?.nearTaxFreeDay).toBe('2027-06-11')
+    expect(tradePreview(exampleYear(), EXAMPLE_RATES, WORLD, { ...sale, date: civil('2027-06-05') }).tax?.nearTaxFreeDay).toBeNull()
   })
 
   it('lists hand prices with every record, newest first, and filters them by kind, account and holding', () => {

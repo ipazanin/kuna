@@ -102,6 +102,12 @@ const FOUR_FACTS: readonly Fact[] = [
   { label: 'You pay', value: formatMoney(22_382_653) },
 ]
 
+/** Labels that are a Croatian form's own field names, read in Croatian whatever the screen's language. */
+const FORM_FACTS: readonly Fact[] = [
+  { label: '11 Primitak', value: formatMoney(21_584), caption: 'A reading', lang: 'hr' },
+  { label: '14.1 Porez', value: formatMoney(1_630), caption: 'Settled', lang: 'hr' },
+]
+
 const bucketLegend = [
   { label: 'Income', colour: 'var(--bucket-income)' },
   { label: 'Operating', colour: 'var(--bucket-operating)' },
@@ -420,7 +426,7 @@ const columns: TableColumn<SampleTransaction>[] = [
     <GallerySection
       id="progress-meter"
       title="ProgressMeter and FactGrid"
-      description="A bar split into parts, striped where someone else pays, read out as one sentence, and labelled figures two to a row or in one."
+      description="A bar split into parts, striped where someone else pays, read out as one sentence, and labelled figures two to a row or in one, with a form's own field names marked Croatian."
     >
       <AppCard class="gap-4 p-4 sm:p-5">
         <ProgressMeter
@@ -441,6 +447,7 @@ const columns: TableColumn<SampleTransaction>[] = [
         />
         <FactGrid :facts="FOUR_FACTS" />
         <FactGrid :facts="FOUR_FACTS.slice(0, 3)" class="border-t border-default pt-4" />
+        <FactGrid :facts="FORM_FACTS" class="border-t border-default pt-4" />
       </AppCard>
     </GallerySection>
 

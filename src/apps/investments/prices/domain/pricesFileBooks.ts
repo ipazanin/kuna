@@ -103,5 +103,8 @@ export function pricesFileRateBook(file: PricesFile): RateBook {
     unitsPerEuroOnOrBefore(currency: CurrencyCode, day: CivilDate): Decimal | null {
       return latestOnOrBefore(rates(rateSeriesKey(currency)), day)?.value ?? null
     },
+    newestDay(currency: CurrencyCode): CivilDate | null {
+      return rates(rateSeriesKey(currency)).at(-1)?.date ?? null
+    },
   }
 }

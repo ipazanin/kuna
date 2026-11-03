@@ -184,6 +184,10 @@ export const en = {
     taxFree: 'Past two years',
     taxFreeUnits: (free: string, sold: string) => `${free} of ${sold}`,
     taxFreeCaption: 'units free of tax',
+    tax: 'Tax on this sale',
+    about: (amount: string) => `About ${amount}`,
+    taxForYear: (amount: string, year: number) => `${year} comes to ${amount} with it`,
+    nearTaxFreeDay: (day: string) => `Within five days of the tax-free day, ${day}. Settlement can move either end.`,
     beyondHeld: (day: string) => `The account holds fewer units on ${day}, so the sale cannot be saved.`,
   },
 }
@@ -362,6 +366,10 @@ export const hr: Translation<typeof en> = {
     taxFree: 'Starije od dvije godine',
     taxFreeUnits: (free, sold) => `${free} od ${sold}`,
     taxFreeCaption: 'jedinica bez poreza',
+    tax: 'Porez na ovu prodaju',
+    about: (amount) => `Oko ${amount}`,
+    taxForYear: (amount, year) => `S njom ${year}. iznosi ${amount}`,
+    nearTaxFreeDay: (day) => `Unutar pet dana od dana bez poreza (${day}). Namira može pomaknuti oba kraja.`,
     beyondHeld: (day) => `Račun ${day} ima manje jedinica, pa se prodaja ne može spremiti.`,
   },
 }

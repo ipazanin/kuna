@@ -14,7 +14,7 @@ const INCOME_GROUPS = ['dividends', 'interest', 'other'] as const
 
 export type IncomeGroup = (typeof INCOME_GROUPS)[number]
 
-const GROUP_OF: Readonly<Record<IncomeKind, IncomeGroup>> = { dividend: 'dividends', coupon: 'interest', interest: 'interest', other: 'other' }
+const GROUP_OF: Readonly<Record<IncomeKind, IncomeGroup>> = { dividend: 'dividends', coupon: 'interest', interest: 'interest', lending: 'other', referral: 'other', other: 'other' }
 
 /** A payment or a sum of them in euros, where gross less withheld is received to the cent. */
 export interface IncomeAmounts {

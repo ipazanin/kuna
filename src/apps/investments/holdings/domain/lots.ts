@@ -55,6 +55,12 @@ export interface RealisedLine {
   /** The lot's share of the sale's fees, in euros. */
   readonly fees: Money
   readonly gain: Money
+  /** The lot's share of its cost in the instrument's quote currency, fees included. */
+  readonly costInCurrency: Decimal
+  /** The lot's share of the sale's price × quantity in the quote currency, to the cent. */
+  readonly proceedsInCurrency: Decimal
+  /** The lot's share of the sale's fees in the quote currency, to the cent. */
+  readonly feesInCurrency: Decimal
   readonly daysHeld: number
   readonly taxFree: boolean
 }
@@ -264,11 +270,14 @@ function applySale(queue: Queue, trade: Trade): void {
   const weights = takes.map((take) => take.quantity)
   const proceeds = moneyParts(addMoney(inEuros(tradeTotal(trade, queue.quoting), trade.rate), fees), weights)
   const feeShares = moneyParts(fees, weights)
+  const feesInCurrency = trade.fees ?? DECIMAL_ZERO
+  const proceedsInCurrency = centParts(addDecimal(tradeTotal(trade, queue.quoting), feesInCurrency), weights)
+  const feeSharesInCurrency = centParts(feesInCurrency, weights)
   const kept: Lot[] = []
   const lines = takes.map(({ lot, quantity }, index): RealisedLine => {
     const keptQuantity = subtractDecimal(lot.quantity, quantity)
     const [cost = ZERO, keptCost = ZERO] = moneyParts(lot.cost, [quantity, keptQuantity])
-    const [, keptInCurrency = DECIMAL_ZERO] = decimalParts(lot.costInCurrency, [quantity, keptQuantity])
+    const [costInCurrency = DECIMAL_ZERO, keptInCurrency = DECIMAL_ZERO] = decimalParts(lot.costInCurrency, [quantity, keptQuantity])
     const [, keptAccrued = DECIMAL_ZERO] = decimalParts(lot.accrued, [quantity, keptQuantity])
     const [, keptAccruedCost = ZERO] = moneyParts(lot.accruedCost, [quantity, keptQuantity])
     if (keptQuantity > DECIMAL_ZERO) {
@@ -283,6 +292,9 @@ function applySale(queue: Queue, trade: Trade): void {
       proceeds: lineProceeds,
       fees: lineFees,
       gain: subtractMoney(subtractMoney(lineProceeds, lineFees), cost),
+      costInCurrency,
+      proceedsInCurrency: proceedsInCurrency[index]!,
+      feesInCurrency: feeSharesInCurrency[index]!,
       daysHeld: daysBetween(lot.opened, trade.date),
       taxFree: lotIsTaxFree(lot, trade.date),
     }
@@ -290,6 +302,14 @@ function applySale(queue: Queue, trade: Trade): void {
   queue.open = [...kept, ...queue.open.slice(takes.length)]
   queue.sales.push({ trade, lines })
   moveUnits(queue.units, trade.account, negateDecimal(trade.quantity))
+}
+
+/** An amount a broker booked, split in proportion to the weights to the cent, the last part taking the rest so the parts add up to it. */
+function centParts(total: Decimal, weights: readonly bigint[]): Decimal[] {
+  const leading = decimalParts(total, weights)
+    .slice(0, -1)
+    .map((part) => roundedDecimal(part, 2))
+  return weights.length === 0 ? [] : [...leading, subtractDecimal(total, sumDecimal(leading))]
 }
 
 /**
