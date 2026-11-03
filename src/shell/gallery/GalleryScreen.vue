@@ -538,8 +538,8 @@ const columns: TableColumn<SampleTransaction>[] = [
             <ChartLegend
               :entries="[
                 { label: 'Cash', colour: 'var(--series-3)', mark: 'line' },
-                { label: 'A deposit', colour: 'var(--chart-ink)', mark: 'dot' },
-                { label: 'A withdrawal', colour: 'var(--series-2)', mark: 'dot' },
+                { label: 'A deposit', colour: 'var(--invest-buy)', mark: 'dot' },
+                { label: 'A withdrawal', colour: 'var(--invest-sale)', mark: 'dot' },
                 { label: 'A new rate', colour: 'var(--loan-interest)', mark: 'ring' },
               ]"
             />

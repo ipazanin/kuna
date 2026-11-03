@@ -134,8 +134,8 @@ export function cashAtMonthEnd(tokens: ChartTokens): ChartOption {
           symbolSize: DOT_SIZE,
           label: { show: false },
           data: [
-            { name: '', coord: [SAMPLE_MONTHS[3], balances[3]], itemStyle: { color: tokens.ink, borderColor: tokens.surface, borderWidth: 1 } },
-            { name: '', coord: [SAMPLE_MONTHS[8], balances[8]], itemStyle: { color: tokens.series[1] ?? tokens.ink, borderColor: tokens.surface, borderWidth: 1 } },
+            { name: '', coord: [SAMPLE_MONTHS[3], balances[3]], itemStyle: { color: tokenColour('--invest-buy'), borderColor: tokens.surface, borderWidth: 1 } },
+            { name: '', coord: [SAMPLE_MONTHS[8], balances[8]], itemStyle: { color: tokenColour('--invest-sale'), borderColor: tokens.surface, borderWidth: 1 } },
             {
               name: '',
               coord: [SAMPLE_MONTHS[8], balances[8]],

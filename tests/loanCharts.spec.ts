@@ -4,6 +4,7 @@ import { paymentsByYear } from '../src/apps/loans/bankLoans/domain/loanFigures'
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
 import { paymentsChart } from '../src/apps/loans/bankLoans/presentation/paymentsChart'
 import { subsidyColourOf } from '../src/apps/loans/bankLoans/presentation/subsidyColour'
+import { words as bankWords } from '../src/apps/loans/bankLoans/presentation/words'
 import { splitOfRows } from '../src/apps/loans/bankLoans/domain/loanFigures'
 import { NO_COSTS } from '../src/apps/loans/scenarios/domain/loanScenario'
 import { scenarioPlan } from '../src/apps/loans/scenarios/domain/scenarioPlan'
@@ -130,6 +131,15 @@ describe('the balance chart', () => {
     expect(seriesOf(balanceChart(months, parseMonthKey('2026-12')!, TOKENS, false, OWED)).map((entry) => entry.name)).toEqual(['Owed so far'])
   })
 
+  it('says it draws the plan only while a month after the current one is shown, and the subtitle names the dashed line only then', () => {
+    const ahead = balanceChart(months, current, TOKENS, false, OWED).drawsPlan
+    const behind = balanceChart(months.slice(0, 2), current, TOKENS, false, OWED).drawsPlan
+
+    expect([ahead, behind]).toEqual([true, false])
+    expect(bankWords.balance.subtitle(ahead)).toBe('At each month end. The solid line is behind you, the dashed brass line is the plan still to come. Dots mark the payments and new rates.')
+    expect(bankWords.balance.subtitle(behind)).toBe('At each month end. Dots mark the payments and new rates.')
+  })
+
   it('notes the variable rate in the tooltip from its month on at every width, and marks it on the chart only on a wide screen', () => {
     const estimateFrom = parseMonthKey('2026-11')!
     const wide = balanceChart(months, current, TOKENS, false, { ...OWED, estimateFrom })
@@ -160,10 +170,10 @@ describe('the balance chart', () => {
       data: ('-' | { value: number; symbolOffset: [number, number] })[]
     }[]
 
-    // September's 400.00 and October's 20.00 are one size. October also raised what is owed, so its two dots sit 5 px either side of the month.
+    // September's 400.00 and October's 20.00 are one size. October also raised what is owed, so its two dots sit 6 px either side of the month.
     // The move of March 2027 falls outside the months.
-    expect(lowers!.data).toEqual([{ value: euros(1000), symbolOffset: [0, 0] }, { value: euros(900), symbolOffset: [-5, 0] }, '-', '-'])
-    expect(raises!.data).toEqual(['-', { value: euros(900), symbolOffset: [5, 0] }, '-', '-'])
+    expect(lowers!.data).toEqual([{ value: euros(1000), symbolOffset: [0, 0] }, { value: euros(900), symbolOffset: [-6, 0] }, '-', '-'])
+    expect(raises!.data).toEqual(['-', { value: euros(900), symbolOffset: [6, 0] }, '-', '-'])
     expect(rate!.data).toEqual(['-', '-', { value: euros(800), symbolOffset: [0, 0] }, '-'])
     expect([lowers, raises, rate].map((series) => [series!.symbolSize, series!.z, series!.itemStyle])).toEqual([
       [DOT_SIZE, 3, { color: '--loan-lowers', borderColor: 'surface', borderWidth: 1 }],

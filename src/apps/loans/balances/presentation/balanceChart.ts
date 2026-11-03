@@ -5,7 +5,7 @@ import { monthOf } from '../../../../shared/calendar/monthKey'
 import { monthAxisLabel, monthLabel } from '../../../../shared/calendar/monthLabel'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { moneyAxisLabel } from '../../../../shared/charts/chartTheme'
-import { DOT_SIZE, RING_SIZE, dotOffset, dotReach, namedFirst, nearestDotLines } from '../../../../shared/charts/chartDots'
+import { DOT_SIZE, RING_SIZE, dotLinesAt, dotOffset, namedFirst } from '../../../../shared/charts/chartDots'
 import { monthAxisLabels, shownPoints } from '../../../../shared/charts/monthAxis'
 import { tokenColour } from '../../../../shared/charts/chartTokens'
 import type { ChartTokens } from '../../../../shared/charts/chartTokens'
@@ -40,6 +40,8 @@ export interface BalanceChart {
   readonly description: string
   /** The lines and the kinds of dot the chart draws. */
   readonly legend: readonly LegendEntry[]
+  /** Whether it draws a bank loan's plan still to come, which only months after the current one hold. */
+  readonly drawsPlan: boolean
 }
 
 export interface BalanceMarks {
@@ -67,7 +69,7 @@ export interface BalanceMarks {
  * has its dot there. Each month's moves are a dot on
  * its balance, one size whatever their amount: one colour for what lowers what is owed and another for what
  * raises it, side by side in a month with both, and a violet ring for a new rate. The tooltip names the moves
- * of the nearest dot. The axis names years, not months.
+ * of the month's dots. The axis names years, not months.
  */
 export function balanceChart(months: readonly MonthBalance[], current: MonthKey, tokens: ChartTokens, phone: boolean, marks: BalanceMarks): BalanceChart {
   const categories: string[] = months.map((entry) => entry.month)
@@ -181,7 +183,7 @@ export function balanceChart(months: readonly MonthBalance[], current: MonthKey,
   const moveLine = (move: BalanceMove): string =>
     [shortDayLabel(move.date), move.amount === null ? move.kind : words.moveAmount(move.kind, formatMoney(move.amount)), move.note].filter((part) => part !== '').join(' · ')
   const movedMonths = [...new Set(moves.map((move) => monthOf(move.date)))]
-  const linesOf = nearestDotLines(
+  const linesOf = dotLinesAt(
     categories,
     movedMonths.map((month) => ({
       place: placeOf.get(month)!,
@@ -191,8 +193,6 @@ export function balanceChart(months: readonly MonthBalance[], current: MonthKey,
         (rest) => plural(words.moreMoves(rest.length, formatMoney(sumMoney(rest.map((move) => move.amount ?? ZERO)))), rest.length),
       ),
     })),
-    dotReach(months.length, phone),
-    (place) => monthAxisLabel('long')(categories[place]!),
   )
 
   return {
@@ -239,6 +239,7 @@ export function balanceChart(months: readonly MonthBalance[], current: MonthKey,
       ...(effects.has('raises') ? [{ label: words.raises, colour: 'var(--loan-raises)', mark: 'dot' as const }] : []),
       ...(effects.has('rate') ? [{ label: words.rateChange, colour: 'var(--loan-interest)', mark: 'ring' as const }] : []),
     ],
+    drawsPlan: hasPlan,
   }
 }
 

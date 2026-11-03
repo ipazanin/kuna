@@ -10,7 +10,7 @@ import { words } from './words'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import { monthAxisLabel } from '../../../../shared/calendar/monthLabel'
-import { DOT_SIZE, dotOffset, dotReach, namedFirst, nearestDotLines } from '../../../../shared/charts/chartDots'
+import { DOT_SIZE, dotLinesAt, dotOffset, namedFirst } from '../../../../shared/charts/chartDots'
 import { tokenColour } from '../../../../shared/charts/chartTokens'
 import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../shared/charts/chartTooltip'
@@ -119,13 +119,10 @@ export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 
       },
     ]
   }
-  // A day on a long daily line is narrower than a finger, so its tooltip names the trades of the nearest dot within reach, under that dot's day.
   const placeOf = new Map(points.map((point, place) => [point.date, place]))
-  const linesOf = nearestDotLines(
+  const linesOf = dotLinesAt(
     categories,
     history.dots.map((dot) => ({ place: placeOf.get(dot.date)!, lines: dotLines(dot, currency) })),
-    daily ? dotReach(points.length, phone) : 0,
-    (place) => dayLabel(points[place]!.date),
   )
   const lines = comparing ? [lineName, compared.name] : [lineName]
   const bounds = axisBounds([

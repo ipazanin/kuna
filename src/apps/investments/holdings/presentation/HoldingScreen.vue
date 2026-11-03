@@ -143,7 +143,7 @@ const description = computed(() => {
           <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
             <ChartLegend :entries="chart.legend" />
             <CompareWith
-              :symbol="comparison.ticker.value?.symbol ?? null"
+              :name="comparison.name.value"
               :fetching="comparison.fetching.value"
               :note="comparison.note.value"
               :reading="comparison.reading"

@@ -2195,12 +2195,13 @@ and what you pay, with a meter whose subsidy part is striped. Four tiles follow:
 when the subsidy ends with its instalments to go, the payoff date and this year's interest with what
 the subsidy pays of it. "Owed over time" draws the balance at each month end, red and solid up to
 today and brass and dashed for the plan after it, with a Today rule, a note where the variable rate
-starts and years on the axis. A dot on a month's balance marks what moved it, as Investments marks a
-holding's trades, through the shared `src/shared/charts/chartDots.ts`: one filled ink dot of one size
+starts and years on the axis. Its subtitle names the dashed plan only while the span picked shows some of it. A dot on a month's balance marks what moved it, as Investments marks a
+holding's trades, through the shared `src/shared/charts/chartDots.ts`: one filled plum dot of one size
 for the instalments due by today and the extra payments of a month, whatever they come to, and a
 violet ring for each rate after the first, wider than the dot and drawn around it, so a payment and a
-new rate of one month both show. A tap or a hover names the nearest dot's entries with
-their day, kind, amount and note, a late instalment with the day it went out. "Where the payments go" draws
+new rate of one month both show. A hover or a tap near a dot moves the tooltip onto the dot's month,
+which names its entries with their day, kind, amount and note, a late instalment with the day it went
+out. "Where the payments go" draws
 one stacked bar per year: an extra payment as an outline at the bottom, then the principal you pay,
 the principal and interest the subsidy pays, striped, and the interest you pay on top, with a brass
 rule under the years still to come. Above the bars, the same split over the whole loan. Both charts
@@ -2231,7 +2232,7 @@ plan then shows Expected payments: how far ahead or behind the borrower is, the 
 owed to you and you on one you owe, the plan, what it expects by today, what was repaid since it
 started and when the next instalment falls due. The last movement and the start follow as tiles,
 then the balance the loan's way at each month end with a dot on each movement's month, all one
-size, blue for borrowing and ink for the rest, side by side in a month with both. The line stops at
+size, blue for borrowing and plum for the rest, side by side in a month with both. The line stops at
 today, and a movement dated ahead keeps only its dot. A loan with an expected plan adds "Expected by
 the plan", brass and dashed with no wash: what it would owe at each month end had the borrower paid
 exactly the plan, which is what it owes then plus how far the borrower is ahead or behind
@@ -2400,12 +2401,12 @@ the Income, Coming and Costs tabs and the Tax screen's lists head their months a
 the one `group-row` rule of `app.css`. A holding's page
 at `#/investments/holding?instrument=<uuid>` shows its value beside its total return, split into price,
 currency, realised on sales and income, then its facts, its month-end closes in its quote currency with
-the average cost dashed and a filled dot per buy in ink and one per sale in orange, all one size,
+the average cost dashed and a filled dot per buy in plum and one per sale in orange, all one size,
 side by side on a point with both, the lots still held with the day
 each turns tax-free, its transactions and its income. Its Details card leads that last row with its
 type, class, sector, country or region, ISIN, a fund's TER and dividends and its price source, each with
-where it came from: typed, a search at its price vendor, its mix as typed, a fund's fetched weights, a
-company profile or its ISIN, by the same rule the mixes of Holdings follow (`holdings/domain/exposure.ts`).
+where it came from: typed, a search at its price vendor, its mix as typed, a fund's weights or a company
+profile from the vendor that gave them, such as "Company profile from Finnhub", or its ISIN, by the same rule the mixes of Holdings follow (`holdings/domain/exposure.ts`).
 A fact nobody gave reads Not known with a hint to type it with Change. Physical gold and a coin show a
 sector, a country or an ISIN only when one is typed. A fund spread over two sectors or more gets a By
 sector ring of its value, the four largest and the rest grey, and By country or region the same. A fund
@@ -2467,8 +2468,11 @@ tinted as the Months tab tints a year. Both cards take the full width. Compare w
 on a holding's price chart, offers five US funds by name above its search: S&P 500 (SPY), Dow Jones
 (DIA), Nasdaq-100 (QQQ), Nasdaq Composite (ONEQ) and Gold (GLD). They stand in for the indices and gold,
 which no free key of Kuna's vendors gives, so they are priced by Twelve Data in dollars, turned into
-euros at each day's ECB rate on Performance, without the dividends they pay out, and need its key. A
-pick is kept as `?compare=twelvedata:SPY`, as a searched ticker is. All, and any period asked from
+euros at each day's ECB rate on Performance, without the dividends they pay out, and need its key.
+Compare with shows without any key too: the funds then wait for a Twelve Data key with a link to the
+Prices settings, and the search shows once a vendor that searches has a key. A picked fund's chip, its
+legend and the chart's words call it by its name, such as S&P 500 (SPY), and a searched ticker by its
+symbol. A pick is kept as `?compare=twelvedata:SPY`, as a searched ticker is. All, and any period asked from
 before the first deposit, opens before the first deposit's records, so that day's money counts as put in
 and its fees and trades inside the period, and All's rate a year is the Overview's yearly return. A
 calendar year opens at the close of the 31st of December before it, and a quarter at the close of the

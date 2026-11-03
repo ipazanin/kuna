@@ -189,7 +189,7 @@ function openLate(key: string | null): void {
             v-if="chart !== null"
             v-model:range="loanRange.range.value"
             :title="words.balance.title"
-            :subtitle="words.balance.subtitle"
+            :subtitle="words.balance.subtitle(chart.drawsPlan)"
             :option="chart.option"
             :description="chart.description"
             :height="280"

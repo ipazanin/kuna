@@ -52,6 +52,7 @@ import { en as investmentsHomeEnglish, hr as investmentsHomeCroatian } from '../
 import { en as investmentsOverviewEnglish, hr as investmentsOverviewCroatian } from '../../src/apps/investments/overview/presentation/words.ts'
 import { en as investmentsSettingsEnglish, hr as investmentsSettingsCroatian } from '../../src/apps/investments/settings/presentation/words.ts'
 import { formatMoney } from '../../src/shared/money/moneyFormat.ts'
+import { settleCharts } from './settleCharts.mjs'
 import { en as mailDomainEnglish, hr as mailDomainCroatian } from '../../src/apps/company/mail/domain/words.ts'
 
 const TOAST = 'li[data-slot="base"]'
@@ -3946,6 +3947,65 @@ export function investmentsInstrumentSearchFlowIn(language) {
 export const investmentsInstrumentSearchFlow = investmentsInstrumentSearchFlowIn('en')
 
 /**
+ * A cursor a little beside the 8 Sep buy on Example Tech's daily Price chart still opens that buy's tooltip, though
+ * a day on the long line is about a pixel wide. The buy dots are found by their colour on the canvas, then the
+ * pointer moves out from inside the dot until the tooltip stops naming it.
+ */
+export async function investmentsHoldingDotHoverFlow(page, { inspect }) {
+  const canvas = '[data-testid="holding-price-chart"] .chart-body canvas'
+  await page.waitForSelector(canvas, { visible: true })
+  await page.$eval(canvas, (element) => element.scrollIntoView({ block: 'center' }))
+  await settleCharts(page)
+  const readsTheBuy = async (x, y) => {
+    await page.mouse.move(x, y)
+    await delay(50)
+    // A desktop chart's tooltip carries no class of Kuna's, so it is ECharts' own box inside the chart.
+    const text = await page.evaluate(
+      () => [...document.querySelectorAll('[data-testid="holding-price-chart"] .chart-body div')].find((box) => box.style.zIndex === '9999999' && box.style.display !== 'none')?.textContent ?? '',
+    )
+    return text.includes('Bought 3 units at $155.40') && !text.includes('Bought 5 units at $158.00') && !text.includes('Bought 2 units at $160.10')
+  }
+  const buyPixels = await page.$eval(canvas, (element) => {
+    const colour = getComputedStyle(document.documentElement).getPropertyValue('--invest-buy').trim()
+    const [red, green, blue] = [1, 3, 5].map((start) => parseInt(colour.slice(start, start + 2), 16))
+    const box = element.getBoundingClientRect()
+    const scale = element.width / box.width
+    const pixels = element.getContext('2d').getImageData(0, 0, element.width, element.height).data
+    const found = []
+    for (let y = 0; y < element.height; y += 3) {
+      for (let x = 0; x < element.width; x += 3) {
+        const at = (y * element.width + x) * 4
+        if (Math.abs(pixels[at] - red) + Math.abs(pixels[at + 1] - green) + Math.abs(pixels[at + 2] - blue) < 12) found.push({ x: box.x + x / scale, y: box.y + y / scale })
+      }
+    }
+    // September's buys lie near the right end of the line.
+    return found.sort((one, other) => other.x - one.x)
+  })
+  let inside = null
+  for (const pixel of buyPixels) {
+    if (await readsTheBuy(pixel.x, pixel.y)) {
+      inside = pixel
+      break
+    }
+  }
+  if (inside === null) throw new Error(`no pointer on any of ${buyPixels.length} buy-coloured pixels opens the 8 Sep buy`)
+  const lastReading = async (from, across, down) => {
+    let last = from
+    for (let step = 1; step <= 40; step += 1) {
+      const next = { x: from.x + across * step, y: from.y + down * step }
+      if (!(await readsTheBuy(next.x, next.y))) break
+      last = next
+    }
+    return last
+  }
+  const middle = { x: inside.x, y: ((await lastReading(inside, 0, -1)).y + (await lastReading(inside, 0, 1)).y) / 2 }
+  const reach = (await lastReading(middle, 1, 0)).x - (await lastReading(middle, -1, 0)).x
+  // A 12 px dot is 12 px across, and a cursor should open it from a little past its edge on both sides.
+  if (reach < 16) throw new Error(`a cursor opens the 8 Sep buy over ${reach} px across, so the dot is hard to point at`)
+  await inspect?.('a cursor beside the 8 Sep buy')
+}
+
+/**
  * A chart's Compare with on the sample, with a made-up Twelve Data key kept for the page's life: the search asks the
  * fake responder for EXQ, the pick names it in a chip and in the address, the chart then reads as change in percent,
  * and the chip's Remove takes it away again. Then S&P 500 (SPY), one of the funds the dialog names, does the same. The
@@ -3955,8 +4015,28 @@ export function investmentsCompareFlowIn(card, shotName) {
   const chart = `[data-testid="${card}"]`
   const chartSays = (page) => page.$eval(`${chart} .chart-body [aria-label]`, (element) => element.getAttribute('aria-label') ?? '').catch(() => '')
   return async (page, { press, shoot, inspect }) => {
-    await page.evaluate(() => localStorage.setItem('kuna.price-vendor-key.twelvedata', 'made-up-twelve-data-key-0042'))
     try {
+      // With no key of any vendor, Compare with still opens, its funds wait for a Twelve Data key with a link to the Prices settings, and the search is not offered.
+      await page.evaluate(() =>
+        Object.keys(localStorage)
+          .filter((key) => key.startsWith('kuna.price-vendor-key'))
+          .forEach((key) => localStorage.removeItem(key)),
+      )
+      await page.reload({ waitUntil: 'networkidle0' })
+      await pressSelector(page, press, `${chart} [data-testid="compare-open"]`)
+      await page.waitForSelector('[data-testid="compare-funds"]', { visible: true, timeout: 10_000 })
+      await delay(400)
+      const offered = await page.$$eval('[data-testid="compare-fund"]', (buttons) => buttons.map((button) => button.disabled))
+      if (offered.length !== 5 || offered.some((disabled) => !disabled)) throw new Error('the funds can be pressed without a Twelve Data key')
+      await elementSays(page, '[data-testid="compare-funds-note"]', ['No Twelve Data key in this browser.', 'Prices settings'], 'the funds do not say they need a Twelve Data key')
+      await page.waitForSelector('[data-testid="compare-funds-settings"]', { visible: true, timeout: 5_000 })
+      if (await page.$('[data-testid="instrument-search"]')) throw new Error('the search is offered with no key to search with')
+      await inspect?.('Compare with without a Twelve Data key')
+      await shoot(`${shotName}-no-key`)
+      await page.keyboard.press('Escape')
+      await dialogGone(page, '[data-testid="compare-funds"]')
+
+      await page.evaluate(() => localStorage.setItem('kuna.price-vendor-key.twelvedata', 'made-up-twelve-data-key-0042'))
       await page.reload({ waitUntil: 'networkidle0' })
       await pressSelector(page, press, `${chart} [data-testid="compare-open"]`)
       await page.waitForSelector('[data-testid="instrument-search"]', { visible: true, timeout: 10_000 })
@@ -4000,16 +4080,20 @@ export function investmentsCompareFlowIn(card, shotName) {
       await shoot(`${shotName}-funds`)
       await pressLabelled(page, press, '[data-testid="compare-funds"]', 'S&P 500 (SPY)')
       await dialogGone(page, '[data-testid="compare-funds"]')
-      await elementSays(page, `${chart} [data-testid="compare-chip"]`, ['SPY'], 'the fund picked shows no chip')
+      await elementSays(page, `${chart} [data-testid="compare-chip"]`, ['S&P 500 (SPY)'], 'the fund picked shows no chip with its name')
       await page
         .waitForFunction(() => decodeURIComponent(window.location.hash).includes('compare=twelvedata:SPY'), { timeout: 5_000 })
         .catch(() => {
           throw new Error('the fund picked is not kept in the address')
         })
       await page
-        .waitForFunction((selector) => /SPY [+−-]?[\d.,]+\s?%/.test(document.querySelector(selector)?.getAttribute('aria-label') ?? ''), { timeout: 10_000 }, `${chart} .chart-body [aria-label]`)
+        .waitForFunction(
+          (selector) => /S&P 500 \(SPY\) [+−-]?[\d.,]+\s?%/.test(document.querySelector(selector)?.getAttribute('aria-label') ?? ''),
+          { timeout: 10_000 },
+          `${chart} .chart-body [aria-label]`,
+        )
         .catch(async () => {
-          throw new Error(`the chart does not read SPY in percent, it says: ${await chartSays(page)}`)
+          throw new Error(`the chart does not read S&P 500 (SPY) in percent, it says: ${await chartSays(page)}`)
         })
       await shoot(`${shotName}-fund`)
       await pressSelector(page, press, `${chart} [data-testid="compare-chip"]`)

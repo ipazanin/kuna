@@ -134,7 +134,12 @@ export const en = {
     typed: 'You typed it',
     searched: (vendor: string) => `From a search at ${vendor}`,
     atSource: (symbol: string) => `As ${symbol} there`,
-    sources: { fundMix: 'Its mix, as you typed it', fundWeights: 'Fund weights, fetched', profile: 'Company profile, fetched', isin: 'From its ISIN' },
+    sources: {
+      fundMix: 'Its mix, as you typed it',
+      fundWeights: (vendor: string) => `Fund weights from ${vendor}`,
+      profile: (vendor: string) => `Company profile from ${vendor}`,
+      isin: 'From its ISIN',
+    },
     spread: {
       sector: (count: number): EnglishForms => ({ one: `${count} sector`, other: `${count} sectors` }),
       country: (count: number): EnglishForms => ({ one: `${count} country or region`, other: `${count} countries or regions` }),
@@ -490,7 +495,12 @@ export const hr: Translation<typeof en> = {
     typed: 'Upisali ste',
     searched: (vendor) => `Iz pretrage kod izvora ${vendor}`,
     atSource: (symbol) => `Kod izvora kao ${symbol}`,
-    sources: { fundMix: 'Raspodjela koju ste upisali', fundWeights: 'Udjeli fonda, dohvaćeno', profile: 'Profil tvrtke, dohvaćeno', isin: 'Iz ISIN-a' },
+    sources: {
+      fundMix: 'Raspodjela koju ste upisali',
+      fundWeights: (vendor) => `Udjeli fonda iz izvora ${vendor}`,
+      profile: (vendor) => `Profil tvrtke iz izvora ${vendor}`,
+      isin: 'Iz ISIN-a',
+    },
     spread: {
       sector: (count) => ({ one: `${count} sektor`, few: `${count} sektora`, other: `${count} sektora` }),
       country: (count) => ({ one: `${count} država ili regija`, few: `${count} države ili regije`, other: `${count} država ili regija` }),

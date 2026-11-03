@@ -101,11 +101,11 @@ describe("a holding's trade dots", () => {
       ['buy', '2026-03', '5', '98', euros(490)],
       ['sell', '2026-03', '1', '110', euros(110)],
     ])
-    // One size is 10 px, so the buy sits 5 px left of the month and the sale 5 px right, edge to edge, and neither hides the other.
+    // One size is 12 px, so the buy sits 6 px left of the month and the sale 6 px right, edge to edge, and neither hides the other.
     const series = (priceChart(busyHistory, busyHolding, TOKENS, false).option as { series: DrawnDots[] }).series
     expect(series.slice(1).map((drawn) => [drawn.name, drawn.data])).toEqual([
-      ['Buy', [{ value: 98, symbolOffset: [-5, 0] }]],
-      ['Sale', [{ value: 110, symbolOffset: [5, 0] }]],
+      ['Buy', [{ value: 98, symbolOffset: [-6, 0] }]],
+      ['Sale', [{ value: 110, symbolOffset: [6, 0] }]],
     ])
   })
 
@@ -255,15 +255,12 @@ describe("a holding's daily line", () => {
     ])
   })
 
-  it("names in a day's tooltip the trades of the nearest dot within reach, under that dot's day when it is not the day's own", () => {
+  it("names in a day's tooltip the trades of that day's dots alone, since the pointer moves onto a dot near it", () => {
     const tooltip = (priceChart(daily, dailyHolding, TOKENS, false).option as { tooltip: { formatter: (points: unknown) => string } }).tooltip.formatter
     const on = (day: string): string => tooltip([{ seriesName: 'Price', axisValueLabel: day, value: 100, color: 'blue' }])
-    // Nine closes reach one close either side, so 3 Mar reaches the dot of 2 Mar, and 4 Mar, two closes from either dot, reaches none.
     expect(on('2026-03-06')).toContain('Bought 1 unit at €104.00 · €104.00')
-    expect(on('2026-03-06')).not.toContain('margin-top:6px">6 Mar 2026</div>')
-    expect(on('2026-03-03')).toContain('margin-top:6px">2 Mar 2026</div>')
-    expect(on('2026-03-03')).toContain('Bought 2 units at €100.00 · €200.00')
-    expect(on('2026-03-04')).not.toContain('Bought')
+    expect(on('2026-03-02')).toContain('Bought 2 units at €100.00 · €200.00')
+    expect(on('2026-03-03')).not.toContain('Bought')
   })
 
   it('says the line is of daily closes, and gives the table a row a day', () => {

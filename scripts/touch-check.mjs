@@ -20,7 +20,7 @@
  * brought back, the same from a row of the To review queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google with one token for every scope and the sync it resumes ending ready, with Drive read unticked ending in Allow access, a refused consent and a
  * forged answer leaving Allow access with no message, a refused silent trip marking the device so the next open waits for Allow access, Sign in to Google when Google asks
- * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, a k typed into the what-if's amount expanding at once, 1.255m keeping its third decimal, with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, a tap near a movement's dot on an informal loan's balance chart reading that month's repayment and its note, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, a tap near a holding's dot on its daily line reading that day's buy in the tooltip, Compare with on a holding's chart and on Performance's growth chart searching, picking, reading percent and removing the ticker, then pressing S&P 500 (SPY) and removing it, By class picked in the Mix card's select and a part of its class ring listing Holdings grouped by class with the ring kept, By currency picked in the grouping select with its sticky heading, Type its mix on a fund with no mix opening the Change dialog with its Dividends field, a closed position opening its page and the way back, a past close picked in On and Today, a tap on the map of holdings opening a holding's page, targets set with what 2k buys read and undone, a check's threshold changed on the Investments Checks tab and undone, the period of Investments Performance changed to 1Y, to a year in its dropdown, to Q2 of that year, to another year keeping Q2 and back to All, with Returns by year tinting only Yours and Difference, its Months tab switched to Against the index, the period changed on its Sources tab, the Overview's Income tile opening Performance on its Income tab without the period bar and its Coming and Returns tabs, 1k typed into the projection's Each month on the Saving tab and its end value read, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a dollar sale typed with its tax line read as about, the Tax screen's Sales tab listing the sales by their lots and handing over kuna-porez-2026.xlsx, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices tab, a key another browser saved taken by the sync on open, removed here and kept removed by the next sync, a key this browser saved lost to another browser's newer removal, Remove the Investments file on the sample on Drive asked first, cancelled and then removed to the first run with the vendor key kept, in English and Croatian, the same for a file kept in this browser, another device's file in the Drive bin failing the sync on open with a link to its Settings, a two-word country and a code in brackets typed into a holding's Country field and into a fund's country mix and picked with Enter, the Country field set back to Not set the same way, three made-up CSV files of closes imported on the Prices tab, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
+ * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, a regular extra payment typed into a new scenario with the editor's headline changing, Try €5,000.00 extra on a loan's empty tab saved and compared beside A, a k typed into the what-if's amount expanding at once, 1.255m keeping its third decimal, with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, a tap near a movement's dot on an informal loan's balance chart reading that month's repayment and its note, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, a tap near a holding's dot on its daily line reading that day's buy in the tooltip, Compare with on a holding's chart and on Performance's growth chart opened with no key, its funds waiting for a Twelve Data key with a link to the Prices settings, then searching, picking, reading percent and removing the ticker, then pressing S&P 500 (SPY), named so on its chip and in the chart's words, and removing it, By class picked in the Mix card's select and a part of its class ring listing Holdings grouped by class with the ring kept, By currency picked in the grouping select with its sticky heading, Type its mix on a fund with no mix opening the Change dialog with its Dividends field, a closed position opening its page and the way back, a past close picked in On and Today, a tap on the map of holdings opening a holding's page, targets set with what 2k buys read and undone, a check's threshold changed on the Investments Checks tab and undone, the period of Investments Performance changed to 1Y, to a year in its dropdown, to Q2 of that year, to another year keeping Q2 and back to All, with Returns by year tinting only Yours and Difference, its Months tab switched to Against the index, the period changed on its Sources tab, the Overview's Income tile opening Performance on its Income tab without the period bar and its Coming and Returns tabs, 1k typed into the projection's Each month on the Saving tab and its end value read, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a dollar sale typed with its tax line read as about, the Tax screen's Sales tab listing the sales by their lots and handing over kuna-porez-2026.xlsx, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices tab, a key another browser saved taken by the sync on open, removed here and kept removed by the next sync, a key this browser saved lost to another browser's newer removal, Remove the Investments file on the sample on Drive asked first, cancelled and then removed to the first run with the vendor key kept, in English and Croatian, the same for a file kept in this browser, another device's file in the Drive bin failing the sync on open with a link to its Settings, a two-word country and a code in brackets typed into a holding's Country field and into a fund's country mix and picked with Enter, the Country field set back to Not set the same way, three made-up CSV files of closes imported on the Prices tab, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
@@ -1951,8 +1951,8 @@ async function checkWidth(width) {
     await shoot('loans-informal-loan-dot')
   })
 
-  // The Home loan's two charts share one span: 1Y on Owed over time keeps its last 13 month ends, presses 1Y on Where the
-  // payments go too and goes into the address, and All takes it out again.
+  // The Home loan's two charts share one span: 1Y on Owed over time keeps its last 13 month ends, drops the dashed plan from its
+  // subtitle, presses 1Y on Where the payments go too and goes into the address, and All takes it out again with the plan.
   await step('loans-chart-range', async () => {
     await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Home loan')
@@ -1974,6 +1974,8 @@ async function checkWidth(width) {
     await lastYear.tap()
     await page.waitForFunction(() => location.hash.includes('range=1y'))
     await expect(months(), (rows) => rows === 13 && rows < all, '1Y does not keep the last 13 month ends of Owed over time')
+    const subtitle = () => page.$eval('[data-testid="loan-balance-chart"]', (card) => card.textContent ?? '')
+    await expect(subtitle(), (text) => !text.includes('dashed brass line'), 'Owed over time names the plan still to come while the last year shows none of it')
     await expect(pressed('loan-payments-chart'), (label) => label === '1Y', 'Where the payments go does not follow the range picked on Owed over time')
     await settleCharts(page)
     await inspect(page, `${width}px the last year of a bank loan's charts`)
@@ -1981,6 +1983,7 @@ async function checkWidth(width) {
     await (await rangeButton('All')).tap()
     await page.waitForFunction(() => !location.hash.includes('range='))
     await expect(pressed('loan-balance-chart'), (label) => label === 'All', 'All is not pressed after it is picked')
+    await expect(subtitle(), (text) => text.includes('dashed brass line'), 'Owed over time does not name the plan still to come under All')
   })
 
   // The sample Investments file: a phone row on Holdings opens its holding's page, and the link at its top leads back.
@@ -2003,18 +2006,21 @@ async function checkWidth(width) {
     await inspect(page, `${width}px Holdings again`)
   })
 
-  // Example Tech's daily price chart: a tap near its 8 Sep dot reads that day's buy, its units, price and amount, apart from the buys of 15 and 22 Sep on their own days.
+  // Example Tech's daily price chart: a tap near its 8 Sep dot reads that day's buy, its units, price and amount, apart from the buys of 15 and 22 Sep at their own prices.
   await step('investments-holding-dot', async () => {
     const canvas = '[data-testid="holding-price-chart"] .chart-body canvas'
     await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/holding?instrument=${SAMPLE_SHARE_A}`, { waitUntil: 'networkidle0' })
     await page.waitForSelector(canvas)
     await settleCharts(page)
     const tooltip = () => page.evaluate(() => document.querySelector('.chart-tooltip')?.textContent ?? '')
-    // The tooltip follows the day under the tap, and September sits near the right end of the axis.
-    for (let column = 0.99; column > 0.85; column -= 0.004) {
-      await tapChart(page, { row: 0.5, column }, canvas)
-      await delay(150)
-      if ((await tooltip()).includes('Bought 3 units at $155.40')) break
+    // A tap moves onto a dot only near the dot itself, at its price, and September sits near the right end of the axis.
+    const found = async () => (await tooltip()).includes('Bought 3 units at $155.40')
+    for (const row of [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8]) {
+      for (let column = 0.99; column > 0.85 && !(await found()); column -= 0.004) {
+        await tapChart(page, { row, column }, canvas)
+        await delay(150)
+      }
+      if (await found()) break
     }
     await expect(
       tooltip(),

@@ -74,12 +74,13 @@ export function holdingDetails(holding: Pick<HoldingFigures, 'instrument' | 'qua
   }
 }
 
-const SOURCES: Readonly<Record<ExposureSource, string>> = {
-  'fund-mix': text.sources.fundMix,
-  typed: text.typed,
-  'fund-weights': text.sources.fundWeights,
-  profile: text.sources.profile,
-  isin: text.sources.isin,
+/** Where a sector or a country came from, a fetched one naming the vendor that gave it. */
+function sourceCaption(source: ExposureSource): string {
+  if (source.kind === 'fund-weights' || source.kind === 'profile') {
+    const vendor = PRICE_VENDORS.find((candidate) => candidate.id === source.vendor)?.name ?? source.vendor
+    return source.kind === 'profile' ? text.sources.profile(vendor) : text.sources.fundWeights(vendor)
+  }
+  return { 'fund-mix': text.sources.fundMix, typed: text.typed, isin: text.sources.isin }[source.kind]
 }
 
 function exposureFact(mix: ExposureMix, exposure: HoldingExposure<ExposureMix>, book: InvestmentBook): Fact {
@@ -87,5 +88,5 @@ function exposureFact(mix: ExposureMix, exposure: HoldingExposure<ExposureMix>, 
   const label = mix === 'sector' ? text.sector : text.country
   if (exposure.from === null || first === undefined) return { label, value: text.notKnown, caption: text.typeIt }
   const count = exposure.lines.length
-  return { label, value: second === undefined ? groupName(mix, first.group, book) : plural(text.spread[mix](count), count), caption: SOURCES[exposure.from] }
+  return { label, value: second === undefined ? groupName(mix, first.group, book) : plural(text.spread[mix](count), count), caption: sourceCaption(exposure.from) }
 }

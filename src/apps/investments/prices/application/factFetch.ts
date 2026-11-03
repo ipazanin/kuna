@@ -165,7 +165,8 @@ export function factWork(plans: readonly VendorPlan[], stored: FetchedFacts, boo
         plan,
         kind: 'sectors',
         key,
-        wanted: () => working.sectors[key] === undefined && [null, 'fund'].includes(facts.typeOf(instrument)) && !typed(instrument, book, 'sector') && facts.profileOf(instrument).sector === null,
+        wanted: () =>
+          working.sectors[key] === undefined && [null, 'fund'].includes(facts.typeOf(instrument)) && !typed(instrument, book, 'sector') && (facts.profileOf(instrument)?.sector ?? null) === null,
         request: () => fundSectors(plan.fetch, plan.key, symbol),
         kept(answer) {
           working.sectors[key] = { asked: day, sectors: answer?.sectors ?? [] } satisfies SectorsFact

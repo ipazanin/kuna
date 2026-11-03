@@ -62,13 +62,13 @@ describe('what a holding’s page says the holding is', () => {
     expect(details.ringsWaitFor).toBeNull()
   })
 
-  it('says a share’s sector and country came from its company profile, or its country from its ISIN', () => {
+  it('says a share’s sector and country came from its company profile at the vendor that gave it, or its country from its ISIN', () => {
     const untold = { ...SHARE, sector: null, country: null }
     const profiled = fetchedFactsBook({ ...NO_FETCHED_FACTS, profiles: { 'finnhub:US0000000001': { asked: '2026-10-29', industry: 'Semiconductors', country: 'US' } } })
 
     expect(factsOf(holdingDetails(held(untold), book({}), profiled)).slice(2, 4)).toEqual([
-      ['Sector', 'Information technology', 'Company profile, fetched'],
-      ['Country or region', 'United States', 'Company profile, fetched'],
+      ['Sector', 'Information technology', 'Company profile from Finnhub'],
+      ['Country or region', 'United States', 'Company profile from Finnhub'],
     ])
     expect(factsOf(holdingDetails(held(untold), book({}), NOTHING_FETCHED)).slice(2, 4)).toEqual([
       ['Sector', 'Not known', 'Type it with Change'],
@@ -121,7 +121,7 @@ describe('what a holding’s page says the holding is', () => {
     const details = holdingDetails(held({ ...FUND, country: countryOf('europe'), ter: null, distribution: null }), book({}), weighted)
 
     expect(factsOf(details).filter(([label]) => ['Sector', 'Country or region', 'TER', 'Dividends'].includes(label))).toEqual([
-      ['Sector', '2 sectors', 'Fund weights, fetched'],
+      ['Sector', '2 sectors', 'Fund weights from Alpha Vantage'],
       ['Country or region', 'Europe', 'You typed it'],
       ['TER', 'Not known', 'Type it with Change'],
       ['Dividends', 'Not known', 'Type it with Change'],

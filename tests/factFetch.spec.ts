@@ -135,17 +135,17 @@ describe('the facts a day’s fetch asks for after the closes', () => {
     expect(factsAsked(it.asked)).toEqual(['alphavantage DIVIDENDS DEF'])
   })
 
-  it('puts the fetched weights and the profile in the sector mix, and the profile’s country ahead of the ISIN', async () => {
+  it('puts the fetched weights and the profile in the sector mix with the vendor that gave each, and the profile’s country ahead of the ISIN', async () => {
     const facts = fetchedFactsBook((await browser().run('2026-11-02')).facts)
     expect(exposureOf(MONEY_FUND, 'sector', records(), facts)).toEqual({
-      from: 'fund-weights',
+      from: { kind: 'fund-weights', vendor: 'alphavantage' },
       lines: [
         { group: 'financials', percent: decimal('90') },
         { group: 'industrials', percent: decimal('10') },
       ],
     })
-    expect(exposureOf(PAYER, 'sector', records(), facts)).toEqual({ from: 'profile', lines: [{ group: 'consumer-staples', percent: decimal('100') }] })
-    expect(exposureOf(PAYER, 'country', records(), facts)).toEqual({ from: 'profile', lines: [{ group: 'US', percent: decimal('100') }] })
+    expect(exposureOf(PAYER, 'sector', records(), facts)).toEqual({ from: { kind: 'profile', vendor: 'finnhub' }, lines: [{ group: 'consumer-staples', percent: decimal('100') }] })
+    expect(exposureOf(PAYER, 'country', records(), facts)).toEqual({ from: { kind: 'profile', vendor: 'finnhub' }, lines: [{ group: 'US', percent: decimal('100') }] })
     expect(facts.typeOf(PAYER)).toBe('share')
   })
 

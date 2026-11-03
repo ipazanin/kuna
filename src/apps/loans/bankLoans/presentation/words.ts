@@ -65,7 +65,7 @@ export const en = {
   },
   balance: {
     title: 'Owed over time',
-    subtitle: 'At each month end. The solid line is behind you, the dashed brass line is the plan still to come. Dots mark the payments and new rates.',
+    subtitle: (withPlan: boolean) => `At each month end.${withPlan ? ' The solid line is behind you, the dashed brass line is the plan still to come.' : ''} Dots mark the payments and new rates.`,
   },
   payments: {
     title: 'Where the payments go',
@@ -344,7 +344,7 @@ export const hr: Translation<typeof en> = {
   },
   balance: {
     title: 'Dug kroz vrijeme',
-    subtitle: 'Na kraju svakog mjeseca. Puna linija je iza vas, a isprekidana mjedena linija plan je koji tek dolazi. Točke označavaju uplate i nove kamatne stope.',
+    subtitle: (withPlan) => `Na kraju svakog mjeseca.${withPlan ? ' Puna linija je iza vas, a isprekidana mjedena linija plan je koji tek dolazi.' : ''} Točke označavaju uplate i nove kamatne stope.`,
   },
   payments: {
     title: 'Kamo idu uplate',

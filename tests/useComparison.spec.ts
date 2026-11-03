@@ -87,6 +87,7 @@ describe('Compare with on a chart', () => {
     expect(page.asked).toEqual([{ source: 'twelvedata', symbol: 'EXQ', currency: 'USD', from: '2026-01-30' }])
     // $1.10 ÷ 1.10 and $1.20 ÷ 1.20 are €1.00 both days.
     expect(comparison.line.value).toEqual({ name: 'EXQ', change: [0, 0] })
+    expect(comparison.name.value).toBe('EXQ')
 
     comparison.remove()
     await settle()
@@ -107,7 +108,7 @@ describe('Compare with on a chart', () => {
     expect(page.asked.map((asked) => asked.from)).toEqual(['2026-02-27', '2026-01-30'])
   })
 
-  it('knows the currency of a named fund the address compares with, with nothing picked on the page', async () => {
+  it('knows the currency and the name of a named fund the address compares with, with nothing picked on the page', async () => {
     page.sources = shallowRef(sourcesWith(DOLLAR_RATES))
     page.asked.length = 0
     const days = shallowRef([civil('2026-01-30'), civil('2026-02-27')])
@@ -115,7 +116,8 @@ describe('Compare with on a chart', () => {
     await settle()
 
     expect(page.asked).toEqual([{ source: 'twelvedata', symbol: 'SPY', currency: 'USD', from: '2026-01-30' }])
-    expect(comparison.note.value).toBe('No close of SPY for 30 Jan 2026, so it has no line.')
+    expect(comparison.name.value).toBe('S&P 500 (SPY)')
+    expect(comparison.note.value).toBe('No close of S&P 500 (SPY) for 30 Jan 2026, so it has no line.')
   })
 
   it('says a line in euros waits for an ECB rate when the closes are in but the rates are not', async () => {
@@ -126,5 +128,27 @@ describe('Compare with on a chart', () => {
     await settle()
     expect(comparison.line.value).toBeNull()
     expect(comparison.note.value).toBe('No ECB rate of USD for 30 Jan 2026, so EXQ has no line in euros.')
+  })
+
+  it('asks for a search again when the address names a searched ticker whose currency this browser does not know', async () => {
+    page.sources = shallowRef(sourcesWith(DOLLAR_RATES))
+    page.asked.length = 0
+    const days = shallowRef([civil('2026-01-30'), civil('2026-02-27')])
+    const { comparison } = await comparisonOn(days, 'in-euros', '/investments/performance?compare=twelvedata:EXQ')
+    await settle()
+
+    expect(page.asked).toEqual([])
+    expect(comparison.name.value).toBe('EXQ')
+    expect(comparison.note.value).toBe('Search for EXQ again to fetch its closes.')
+  })
+
+  it('gives no note for a named fund while the portfolio is still opening', async () => {
+    page.sources = shallowRef(null)
+    const days = shallowRef([civil('2026-01-30'), civil('2026-02-27')])
+    const { comparison } = await comparisonOn(days, 'in-euros', '/investments/performance?compare=twelvedata:SPY')
+    await settle()
+
+    expect(comparison.line.value).toBeNull()
+    expect(comparison.note.value).toBeNull()
   })
 })

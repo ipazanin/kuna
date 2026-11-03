@@ -17,8 +17,11 @@ export interface Exposure<Mix extends ExposureMix> {
   readonly percent: Decimal
 }
 
-/** Which source placed a holding in a mix, in the order the sources count: its typed fund mix, its typed field, a fund's fetched weights, a share's fetched profile, a share's ISIN. */
-export type ExposureSource = 'fund-mix' | 'typed' | 'fund-weights' | 'profile' | 'isin'
+/**
+ * Which source placed a holding in a mix, in the order the sources count: its typed fund mix, its typed field, a fund's
+ * fetched weights, a share's fetched profile, a share's ISIN. A fetched source names the id of the vendor that gave it.
+ */
+export type ExposureSource = { readonly kind: 'fund-mix' | 'typed' | 'isin' } | { readonly kind: 'fund-weights' | 'profile'; readonly vendor: string }
 
 /** Where a holding sits in one mix, and which source said so. Null with no lines when none of them says. */
 export interface HoldingExposure<Mix extends ExposureMix> {
@@ -40,23 +43,23 @@ export function exposureOf<Mix extends ExposureMix>(instrument: Instrument, mix:
     group === null ? { from: null, lines: [] } : { from, lines: [{ group: group as ExposureGroup<Mix>, percent: WHOLE }] }
   const lines = book.fundMixes.filter((line) => line.instrument === instrument.id && line.slice.mix === mix)
   if (lines.length > 0) {
-    return { from: 'fund-mix', lines: lines.map((line) => ({ group: line.slice.group as ExposureGroup<Mix>, percent: line.percent })) }
+    return { from: { kind: 'fund-mix' }, lines: lines.map((line) => ({ group: line.slice.group as ExposureGroup<Mix>, percent: line.percent })) }
   }
   const typed = mix === 'sector' ? instrument.sector : instrument.country
   if (typed !== null) {
-    return whole('typed', typed)
+    return whole({ kind: 'typed' }, typed)
   }
-  const weights = mix === 'sector' ? facts.sectorWeightsOf(instrument) : []
-  if (weights.length > 0) {
-    return { from: 'fund-weights', lines: weights.map((weight) => ({ group: weight.sector as ExposureGroup<Mix>, percent: weight.percent })) }
+  const fund = mix === 'sector' ? facts.sectorWeightsOf(instrument) : null
+  if (fund !== null) {
+    return { from: { kind: 'fund-weights', vendor: fund.vendor }, lines: fund.weights.map((weight) => ({ group: weight.sector as ExposureGroup<Mix>, percent: weight.percent })) }
   }
   if (facts.typeOf(instrument) !== 'share') {
     return { from: null, lines: [] }
   }
   const profile = facts.profileOf(instrument)
-  const profiled = mix === 'sector' ? profile.sector : profile.country
-  if (profiled !== null) {
-    return whole('profile', profiled)
+  const profiled = profile === null ? null : mix === 'sector' ? profile.sector : profile.country
+  if (profile !== null && profiled !== null) {
+    return whole({ kind: 'profile', vendor: profile.vendor }, profiled)
   }
-  return whole('isin', mix === 'country' && instrument.isin !== null ? countryOf(instrument.isin.slice(0, 2)) : null)
+  return whole({ kind: 'isin' }, mix === 'country' && instrument.isin !== null ? countryOf(instrument.isin.slice(0, 2)) : null)
 }

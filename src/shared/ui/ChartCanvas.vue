@@ -5,6 +5,7 @@ import VChart from 'vue-echarts'
 import '../charts/echarts'
 import type { ChartOption } from '../charts/echarts'
 import { categoryData, isCategoryAxis } from '../charts/chartAxes'
+import { scatterDots, snappedDot } from '../charts/chartDots'
 import { buildChartTheme } from '../charts/chartTheme'
 import { chartTokens } from '../charts/chartTokens'
 import { usePhoneLayout } from '../layout/viewport'
@@ -85,6 +86,7 @@ function onChartClick(event: { seriesName?: string; name?: string; dataIndex?: n
  * index of the category axis band that holds it, so a thin bar is not the only target.
  */
 function onBandClick(event: { target?: unknown; offsetX: number; offsetY: number }): void {
+  snapTooltip(event)
   const instance = chart.value
   const pixel = [event.offsetX, event.offsetY]
   if (event.target || instance === null || !instance.containPixel({ gridIndex: 0 }, pixel)) {
@@ -100,6 +102,31 @@ function onBandClick(event: { target?: unknown; offsetX: number; offsetY: number
   }
 }
 
+const dotted = computed(() => (isCategoryAxis(props.option.xAxis) ? scatterDots(props.option) : []))
+
+/**
+ * A pointer or a tap near a dot moves the tooltip onto the dot's place, so a dot is as easy to hit with a cursor or a
+ * finger on a long line, where a place is narrower than a pixel, as on a short one. A pointer away from every dot,
+ * such as above or below the line, keeps the place under it.
+ */
+function snapTooltip(event: { offsetX: number; offsetY: number }): void {
+  const instance = chart.value
+  const pixel = [event.offsetX, event.offsetY]
+  if (dotted.value.length === 0 || instance === null || !instance.containPixel({ gridIndex: 0 }, pixel)) {
+    return
+  }
+  const centres = dotted.value.map((dot) => {
+    const [x = 0, y = 0] = instance.convertToPixel({ seriesIndex: dot.series }, [dot.place, dot.value]) as number[]
+    return { place: dot.place, x: x + dot.offset[0], y: y + dot.offset[1] }
+  })
+  const snapped = snappedDot({ x: event.offsetX, y: event.offsetY }, centres, phone.value)
+  // The chart's own pointer handling runs after this listener and shows the place under the pointer, so the dot's place follows it.
+  if (snapped !== null) {
+    const across = instance.convertToPixel({ xAxisIndex: 0 }, snapped.place) as number
+    queueMicrotask(() => instance.dispatchAction({ type: 'showTip', x: across, y: event.offsetY }))
+  }
+}
+
 /** The slider reports percentages. The axis indexes it settled on are read back from the chart. */
 function onDataZoom(): void {
   const [zoom] = (chart.value?.getOption() as { dataZoom?: { startValue?: number; endValue?: number }[] } | undefined)?.dataZoom ?? []
@@ -110,5 +137,15 @@ function onDataZoom(): void {
 </script>
 
 <template>
-  <VChart ref="chart" :option="renderedOption" :theme="theme" :class="{ 'overflow-clip': phone }" autoresize @click="onChartClick" @zr:click="onBandClick" @datazoom="onDataZoom" />
+  <VChart
+    ref="chart"
+    :option="renderedOption"
+    :theme="theme"
+    :class="{ 'overflow-clip': phone }"
+    autoresize
+    @click="onChartClick"
+    @zr:click="onBandClick"
+    @zr:mousemove="snapTooltip"
+    @datazoom="onDataZoom"
+  />
 </template>

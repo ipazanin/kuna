@@ -114,7 +114,8 @@
   /*
    * Gold and crypto on the class ring. No two more of the series pass beside the four class aliases below, so these are
    * steps of their own, plum and periwinkle, validated with those four over every pair in both themes. The periwinkle
-   * sits close to the portfolio's blue, so crypto never shares a chart with --invest-portfolio.
+   * sits close to the portfolio's blue, so crypto never shares a chart with --invest-portfolio. The plum also marks a buy
+   * and what lowers what is owed, on time charts that draw no class.
    */
   --invest-gold: #7d376e;
   --invest-crypto: #708df7;
@@ -250,12 +251,13 @@
 
   /*
    * A month's movements on a loan's Owed over time, one filled dot of one size each, as --invest-buy and
-   * --invest-sale are. What lowers what is owed is ink, as a buy is, and what raises it blue, which stays
-   * clear of the red or green balance line and the brass plan for every kind of colour blindness. Orange
-   * would not, since it and brass cannot be told apart. Blue sits too close to the violet of a new rate,
-   * so a raise and a new rate never share a chart.
+   * --invest-sale are. What lowers what is owed is plum, as a buy is, and stays clear of the red or green
+   * balance line, the brass plan, the violet ring of a new rate and the blue of a raise for every kind of colour
+   * blindness, at least ΔE 9 against blue under deuteranopia on the dark card. What raises it is blue, which stays
+   * clear of the balance line and the plan. Orange would not, since it and brass cannot be told apart. Blue sits
+   * too close to the violet of a new rate, so a raise and a new rate never share a chart.
    */
-  --loan-lowers: var(--chart-ink);
+  --loan-lowers: var(--invest-gold);
   --loan-raises: var(--series-3);
 
   /*
@@ -292,11 +294,12 @@
 
   /*
    * A buy and a sale on a price chart, one filled dot of one size each, told apart by colour and by the words in the
-   * legend, tooltip and table. A buy is ink and a sale orange, which both stay clear of the blue price line and the
-   * grey dashed lines for every kind of colour blindness and differ in lightness from each other. Neither is green or
-   * red, since a buy is money out and a sale money in, and neither is good or bad news.
+   * legend, tooltip and table. A buy is plum, the gold class's step, and a sale orange, which both stay clear of the
+   * blue price line and the grey dashed lines and of each other for every kind of colour blindness. Ink would read
+   * white on the dark card. Neither is green or red, since a buy is money out and a sale money in, and neither is
+   * good or bad news.
    */
-  --invest-buy: var(--chart-ink);
+  --invest-buy: var(--invest-gold);
   --invest-sale: var(--series-2);
 
   /*

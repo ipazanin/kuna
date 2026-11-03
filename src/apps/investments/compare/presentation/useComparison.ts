@@ -25,6 +25,8 @@ export interface Comparison {
   readonly reading: ComparisonReading
   /** The ticker the address names, or null while nothing is compared. */
   readonly ticker: ComputedRef<ComparedTicker | null>
+  /** What the chip, the legend and the tooltip call the ticker: a named fund by its name, such as S&P 500 (SPY), and any other by its symbol. */
+  readonly name: ComputedRef<string | null>
   /** The ticker's line at each of the chart's days, once its closes are in. */
   readonly line: ComputedRef<ComparedLine | null>
   readonly fetching: ComputedRef<boolean>
@@ -56,6 +58,10 @@ export function useComparison(days: () => readonly CivilDate[], reading: Compari
     return asked === null ? null : currencyCodeOf(file.value?.series[asked]?.currency ?? picked.value[asked] ?? INDEX_FUNDS.find((fund) => comparedKey(fund) === asked)?.currency ?? '')
   })
   const firstDay = computed(() => days()[0] ?? null)
+  const name = computed(() => {
+    const fund = INDEX_FUNDS.find((candidate) => comparedKey(candidate) === key.value)
+    return fund === undefined ? (ticker.value?.symbol ?? null) : words.fundNames[fund.symbol]
+  })
 
   const compared = computed(() => {
     if (ticker.value === null || currency.value === null || portfolio.sources.value === null) return null
@@ -66,7 +72,7 @@ export function useComparison(days: () => readonly CivilDate[], reading: Compari
     if (ticker.value === null || compared.value === null) return null
     const { instrument, sources } = compared.value
     const change = (reading === 'in-euros' ? changeInEuros : changeAsQuoted)(instrument, days(), sources)
-    return change === null ? null : { name: ticker.value.symbol, change }
+    return change === null || name.value === null ? null : { name: name.value, change }
   })
   /** Why a series the line needs failed today, as the prices settings say it, or null when it did not. */
   function failureOf(series: string, source: string): string | null {
@@ -76,17 +82,20 @@ export function useComparison(days: () => readonly CivilDate[], reading: Compari
   }
   const note = computed(() => {
     const shown = ticker.value
+    const named = name.value
     const from = firstDay.value
-    if (shown === null || line.value !== null || from === null) return null
-    if (currency.value === null || compared.value === null) return words.pickAgain(shown.symbol)
+    if (shown === null || named === null || line.value !== null || from === null) return null
+    // Only a searched ticker can lack its currency, since a named fund's is known.
+    if (currency.value === null) return words.pickAgain(shown.symbol)
+    if (compared.value === null) return null
     const { instrument, sources } = compared.value
     const day = dayLabel(from)
     // A line in euros also needs each day's rate, so with the first close in, what is missing is a rate.
     if (sources.prices.closeOnOrBefore(instrument, from) === null) {
-      return failureOf(comparedKey(shown), shown.source) ?? words.noCloseThen(shown.symbol, day)
+      return failureOf(comparedKey(shown), shown.source) ?? words.noCloseThen(named, day)
     }
     const ratesVendor = PRICE_VENDORS.find((vendor) => vendor.prices === 'rates')
-    return (ratesVendor === undefined ? null : failureOf(seriesKey(ratesVendor.id, currency.value), ratesVendor.id)) ?? words.noRateThen(shown.symbol, currency.value, day)
+    return (ratesVendor === undefined ? null : failureOf(seriesKey(ratesVendor.id, currency.value), ratesVendor.id)) ?? words.noRateThen(named, currency.value, day)
   })
 
   watch(
@@ -114,6 +123,7 @@ export function useComparison(days: () => readonly CivilDate[], reading: Compari
   return {
     reading,
     ticker,
+    name,
     line,
     fetching: computed(() => fetchingKey.value !== null && fetchingKey.value === key.value),
     note,
