@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import { leftOver } from '../src/apps/loans/scenarios/domain/leftOver'
 import { NO_COSTS } from '../src/apps/loans/scenarios/domain/loanScenario'
+import type { OfferTerms } from '../src/apps/loans/scenarios/domain/loanScenario'
 import { offerBase, scenarioPlan } from '../src/apps/loans/scenarios/domain/scenarioPlan'
 import type { ScenarioPlan } from '../src/apps/loans/scenarios/domain/scenarioPlan'
 import { civil, euros } from './fixtures/ledger'
 import { percent } from './fixtures/loans'
 
 function loanOver(instalments: number): ScenarioPlan {
-  const terms = {
+  const terms: OfferTerms = {
     lender: 'Example Bank',
     principal: euros(150_000),
     drawdown: civil('2026-01-05'),
@@ -16,6 +17,7 @@ function loanOver(instalments: number): ScenarioPlan {
     instalments,
     interimInterest: null,
     subsidy: null,
+    repayment: 'annuity',
     costs: NO_COSTS,
     bankEks: null,
   }

@@ -4,7 +4,8 @@ import { language } from '../../shared/text/language'
 import type { Translation } from '../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
-// The app is Krediti: a bank loan is kredit, a loan between people pozajmica and a bank loan's equal monthly payment anuitet.
+// The app is Krediti: a bank loan is kredit and a loan between people pozajmica. A bank loan's instalment is rata where loans sit together,
+// and on one loan's own page anuitet for an annuity loan and rata for an equal principal one.
 
 export const en = {
   name: 'Loans',

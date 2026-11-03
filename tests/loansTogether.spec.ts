@@ -95,6 +95,29 @@ describe('what goes out each month over the loans', () => {
   })
 })
 
+describe('an equal principal loan beside an annuity', () => {
+  // 1,200.00 over 12 instalments from 2026-02-05 at 12%: 100.00 of principal and a month's interest that falls by 1.00 each month.
+  const falling = bankLoan({ id: recordIdOf(BANK_LOAN_RECORDS, 'falling'), name: 'Falling loan', repayment: 'equal-principal' })
+  const loans = plannedLoans([book(CAR, [ratePeriod(CAR, '2026-02-20', '0', 'car')]), book(falling, [ratePeriod(falling, '2026-02-05', '12', 'falling')])])
+
+  it('shows its falling payments among the upcoming ones', () => {
+    expect(upcomingPayments(loans, [], civil('2026-02-01'), 4).map(({ loan, payment }) => [loan.name, payment])).toEqual([
+      ['Falling loan', euros(112)],
+      ['Car loan', euros(100)],
+      ['Falling loan', euros(111)],
+      ['Car loan', euros(100)],
+    ])
+  })
+
+  it('lowers what goes out each month as its interest falls', () => {
+    const totals = outgoingByMonth(loans).map((entry) => entry.total)
+
+    // February to July: the car loan's 100.00 beside 112.00, 111.00 and on down, then the equal principal loan alone.
+    expect(totals.slice(0, 7)).toEqual([212, 211, 210, 209, 208, 207, 106].map(euros))
+    expect(totals.at(-1)).toBe(euros(101))
+  })
+})
+
 describe('the payments coming up over the loans', () => {
   it('lists every scheduled payment after the day by due date, with the full payment and your share', () => {
     const upcoming = upcomingPayments(LOANS, [], DAY, Number.POSITIVE_INFINITY)

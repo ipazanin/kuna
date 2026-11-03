@@ -24,10 +24,11 @@ import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as loansWords } from '../../words'
-import { words } from './words'
+import { useLoanWords } from './useLoanWords'
 
 /** Principal paid back early, and whether the bank shortens the term or lowers the instalment for it. */
 const open = defineModel<boolean>('open', { required: true })
+const loanWords = useLoanWords()
 
 const props = defineProps<{
   book: BankLoanBook
@@ -37,7 +38,7 @@ const props = defineProps<{
 
 const writes = useRecordWrites(useLoansBooks())
 
-const EFFECT_ITEMS = EXTRA_PAYMENT_EFFECTS.map((effect) => ({ value: effect, ...words.extraDialog.effects[effect] }))
+const effectItems = computed(() => EXTRA_PAYMENT_EFFECTS.map((effect) => ({ value: effect, ...loanWords.value.extraDialog.effects[effect] })))
 
 const date = ref('')
 const amount = ref('')
@@ -62,7 +63,7 @@ const parsedAmount = computed(() => {
 const errors = computed(() => {
   const day = parseCivilDate(date.value)
   return {
-    date: day === null ? loansWords.form.aDate(civilDate(2027, 3, 1)) : day < props.book.loan.drawdown ? words.extraDialog.afterPayout : null,
+    date: day === null ? loansWords.form.aDate(civilDate(2027, 3, 1)) : day < props.book.loan.drawdown ? loanWords.value.extraDialog.afterPayout : null,
     amount: parsedAmount.value === null ? loansWords.form.anAmount : null,
   }
 })
@@ -75,33 +76,33 @@ async function save(): Promise<void> {
   const before = editing.value
   const written =
     before === null
-      ? await writes.write(words.extraDialog.added, (unit) => unit.of(EXTRA_PAYMENT_WRITES).add(typed), { failedTitle: loansWords.form.notAdded })
-      : await writes.write(words.extraDialog.saved, (unit) => unit.of(EXTRA_PAYMENT_WRITES).change(before, { ...typed, id: before.id }), { failedTitle: loansWords.form.notSaved })
+      ? await writes.write(loanWords.value.extraDialog.added, (unit) => unit.of(EXTRA_PAYMENT_WRITES).add(typed), { failedTitle: loansWords.form.notAdded })
+      : await writes.write(loanWords.value.extraDialog.saved, (unit) => unit.of(EXTRA_PAYMENT_WRITES).change(before, { ...typed, id: before.id }), { failedTitle: loansWords.form.notSaved })
   if (written) open.value = false
 }
 
 async function remove(): Promise<void> {
   const before = editing.value
   if (before === null) return
-  if (await writes.write(words.extraDialog.deleted, (unit) => unit.of(EXTRA_PAYMENT_WRITES).remove(before), { key: 'delete', failedTitle: loansWords.form.notDeleted })) open.value = false
+  if (await writes.write(loanWords.value.extraDialog.deleted, (unit) => unit.of(EXTRA_PAYMENT_WRITES).remove(before), { key: 'delete', failedTitle: loansWords.form.notDeleted })) open.value = false
 }
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="editing === null ? words.extraDialog.addTitle : words.extraDialog.changeTitle" :description="words.extraDialog.description">
+  <AppDialog v-model:open="open" :title="editing === null ? loanWords.extraDialog.addTitle : loanWords.extraDialog.changeTitle" :description="loanWords.extraDialog.description">
     <FormGrid id="extra-payment" as="form" data-testid="extra-payment-form" @submit.prevent="save">
-      <UFormField :label="words.extraDialog.paidOn" :error="(tried && errors.date) || false">
+      <UFormField :label="loanWords.extraDialog.paidOn" :error="(tried && errors.date) || false">
         <UInput v-model="date" type="date" class="w-full" data-testid="extra-payment-date" />
       </UFormField>
-      <UFormField :label="words.extraDialog.amount" :error="(tried && errors.amount) || false">
+      <UFormField :label="loanWords.extraDialog.amount" :error="(tried && errors.amount) || false">
         <MoneyInput v-model="amount" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="extra-payment-amount" />
       </UFormField>
-      <URadioGroup v-model="effect" :items="EFFECT_ITEMS" :legend="words.extraDialog.effect" data-testid="extra-payment-effect" />
+      <URadioGroup v-model="effect" :items="effectItems" :legend="loanWords.extraDialog.effect" data-testid="extra-payment-effect" />
     </FormGrid>
     <template #start>
       <UButton
         v-if="editing !== null"
-        :label="words.extraDialog.delete"
+        :label="loanWords.extraDialog.delete"
         icon="i-lucide-trash-2"
         color="error"
         variant="ghost"
@@ -116,7 +117,7 @@ async function remove(): Promise<void> {
       <UButton
         type="submit"
         form="extra-payment"
-        :label="editing === null ? words.extraDialog.add : words.extraDialog.save"
+        :label="editing === null ? loanWords.extraDialog.add : loanWords.extraDialog.save"
         :icon="editing === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.saving('save')"
         :disabled="writes.busy.value"

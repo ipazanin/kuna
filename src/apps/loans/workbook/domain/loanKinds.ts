@@ -21,7 +21,7 @@ export const EXTRA_PAYMENT_RECORDS = recordKind<ExtraPayment>('extra-payment', {
 })
 export const LATE_INSTALMENT_RECORDS = recordKind<LateInstalment>('late-instalment', {
   en: { one: 'late instalment', many: 'late instalments', article: 'a' },
-  hr: { one: 'zakašnjeli anuitet', of: 'zakašnjelog anuiteta', few: 'zakašnjela anuiteta', other: 'zakašnjelih anuiteta', gender: 'masculine' },
+  hr: { one: 'zakašnjela rata', of: 'zakašnjele rate', few: 'zakašnjele rate', other: 'zakašnjelih rata', gender: 'feminine' },
 })
 export const INFORMAL_LOAN_RECORDS = recordKind<InformalLoan>('informal-loan', {
   en: { one: 'informal loan', many: 'informal loans', article: 'an' },

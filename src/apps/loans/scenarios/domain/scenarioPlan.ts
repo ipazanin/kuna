@@ -46,6 +46,8 @@ export interface ScenarioPlan {
 export type ScenarioRefusal =
   | { readonly refused: 'not-a-due-date'; readonly date: CivilDate; readonly loan: string }
   | { readonly refused: 'rate-shares-day'; readonly date: CivilDate }
+  | { readonly refused: 'term-shares-day'; readonly date: CivilDate }
+  | { readonly refused: 'term-past-end'; readonly date: CivilDate; readonly loan: string }
   | { readonly refused: 'no-first-rate'; readonly firstInstalment: CivilDate }
   | { readonly refused: 'move-not-before-payoff'; readonly on: CivilDate }
   | { readonly refused: 'two-moves' }
@@ -58,9 +60,9 @@ export function asItStands(book: BankLoanBook): ScenarioPlan | null {
 
 /** An offer's terms as a bank loan named after its scenario, with no rate periods of its own, since its rate changes give them. */
 export function offerBase(name: string, terms: OfferTerms): ScenarioBase {
-  const { lender, principal, drawdown, firstInstalment, instalments, interimInterest, subsidy } = terms
+  const { lender, principal, drawdown, firstInstalment, instalments, interimInterest, subsidy, repayment } = terms
   return {
-    loan: { id: recordIdOf(BANK_LOAN_RECORDS, 'offer'), name, lender, principal, drawdown, firstInstalment, instalments, interimInterest, subsidy, note: '' },
+    loan: { id: recordIdOf(BANK_LOAN_RECORDS, 'offer'), name, lender, principal, drawdown, firstInstalment, instalments, interimInterest, subsidy, repayment, note: '' },
     ratePeriods: [],
     extraPayments: [],
     costs: terms.costs,
@@ -87,6 +89,7 @@ function movedTo(change: LoanChange, day: CivilDate): LoanChange {
       return { ...change, date: day }
     case 'regular-extra-payment':
     case 'rate-change':
+    case 'term-change':
       return { ...change, from: day }
     case 'move':
       return { ...change, on: day }
@@ -118,6 +121,19 @@ function withRateChanges(
   return [...periods.filter((period) => !changed.has(period.from)), ...laid].sort((earlier, later) => earlier.from.localeCompare(later.from))
 }
 
+/** Why the term changes on a loan with these due dates cannot hold: one off a due date, two on one, or one that runs past its last. */
+function termRefusal(loan: BankLoan, dueDates: readonly CivilDate[], changes: readonly Extract<LoanChange, { kind: 'term-change' }>[]): ScenarioRefusal | null {
+  const changed = new Set<CivilDate>()
+  for (const change of changes) {
+    const index = dueDates.indexOf(change.from)
+    if (index === -1) return { refused: 'not-a-due-date', date: change.from, loan: loan.name }
+    if (changed.has(change.from)) return { refused: 'term-shares-day', date: change.from }
+    if (index + change.instalments > dueDates.length) return { refused: 'term-past-end', date: change.from, loan: loan.name }
+    changed.add(change.from)
+  }
+  return null
+}
+
 /**
  * What the costs come to on their dates: the one-off amount on the start, the monthly amount with
  * every payment the loan schedules (its interim interest and each instalment), and the yearly amount
@@ -142,7 +158,8 @@ function datedCosts(costs: LoanCosts, start: CivilDate, rows: readonly PlanRow[]
  * instalment due on its day: the rows of the old loan up to it, then a new loan drawn that day for
  * what is still owed, due on the old loan's due dates from the next one, with no interim interest and
  * no subsidy, at the move's rate. The changes after the move apply to the new loan. No row repays the
- * old balance, since the new bank does.
+ * old balance, since the new bank does. A term change keeps the subsidy and the rate periods, must start
+ * on a due date, gives the instalments left from it and may not run past the loan's last due date.
  */
 export function scenarioPlan(base: ScenarioBase, changes: readonly LoanChange[], today: CivilDate | null): ScenarioPlan | ScenarioRefusal {
   const { loan } = base
@@ -165,6 +182,7 @@ export function scenarioPlan(base: ScenarioBase, changes: readonly LoanChange[],
   if (move !== null && !dues.includes(move.on)) return { refused: 'not-a-due-date', date: move.on, loan: loan.name }
   const beforeMove = (day: CivilDate): boolean => move === null || day <= move.on
   const keptInstalments = move === null ? loan.instalments : dues.indexOf(move.on) + 1
+  const termChanges = effective.filter((change) => change.kind === 'term-change')
   const lastDue = dayMonthsLater(loan.firstInstalment, keptInstalments + (move?.instalments ?? 0) - 1)
 
   const paidEarly = effective.flatMap((change): Pick<ExtraPayment, 'date' | 'amount' | 'effect'>[] => {
@@ -189,10 +207,17 @@ export function scenarioPlan(base: ScenarioBase, changes: readonly LoanChange[],
   )
   if ('refused' in oldPeriods) return oldPeriods
   if (!oldPeriods.some((period) => period.from === loan.firstInstalment)) return { refused: 'no-first-rate', firstInstalment: loan.firstInstalment }
+  const oldTerms = termRefusal(
+    loan,
+    dues,
+    termChanges.filter((change) => beforeMove(change.from)),
+  )
+  if (oldTerms !== null) return oldTerms
   const oldRows = loanPlan(
     loan,
     oldPeriods,
     extras.filter((extra) => beforeMove(extra.date)),
+    termChanges.filter((change) => beforeMove(change.from)),
   )
   const firstEarlyRepayment = [...paidEarly.map((extra) => extra.date), ...(move === null ? [] : [move.on])].reduce<CivilDate | null>(
     (earliest, day) => (earliest === null || day < earliest ? day : earliest),
@@ -215,20 +240,29 @@ export function scenarioPlan(base: ScenarioBase, changes: readonly LoanChange[],
     instalments: move.instalments,
     interimInterest: null,
     subsidy: null,
+    repayment: loan.repayment,
     note: '',
   }
+  const newDues = dueDatesOf(moved, loan.firstInstalment)
   const firstNewPeriod: RatePeriod = { id: recordIdOf(RATE_PERIOD_RECORDS, `${moved.id}-first`), loan: moved.id, from: moved.firstInstalment, rate: move.rate, rateType: move.rateType, note: '' }
   const newPeriods = withRateChanges(
     moved,
-    dueDatesOf(moved, loan.firstInstalment),
+    newDues,
     [firstNewPeriod],
     rateChanges.filter((change) => !beforeMove(change.from)),
   )
   if ('refused' in newPeriods) return newPeriods
+  const newTerms = termRefusal(
+    moved,
+    newDues,
+    termChanges.filter((change) => !beforeMove(change.from)),
+  )
+  if (newTerms !== null) return newTerms
   const newRows = loanPlan(
     moved,
     newPeriods,
     extras.filter((extra) => !beforeMove(extra.date)).map((extra) => ({ ...extra, loan: moved.id })),
+    termChanges.filter((change) => !beforeMove(change.from)),
     loan.firstInstalment,
   )
   return {

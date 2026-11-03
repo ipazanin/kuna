@@ -6,13 +6,10 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { monthNumber, monthOf, yearOfMonth } from '../../../../shared/calendar/monthKey'
-import { formatCount, formatMoney, formatPoints, formatRate } from '../../../../shared/money/moneyFormat'
+import { formatMoney, formatPoints, formatRate } from '../../../../shared/money/moneyFormat'
 import type { Money } from '../../../../shared/money/money'
 import { plural } from '../../../../shared/text/translation'
 import { words } from './words'
-
-/** A loan's tab compares its scenarios from today, with the loan as it stands as A. Offers compare whole loans. */
-export type ScenarioTab = 'loan' | 'offers'
 
 /** The most scenarios a comparison holds, A to D. */
 export const MOST_COMPARED = 4
@@ -43,6 +40,8 @@ export interface ComparisonColumn {
 export interface ComparisonCell {
   /** The figure as it reads, or a dash where the scenario has none. */
   readonly text: string
+  /** A second figure under the first, such as the last instalment where the instalment changes, or null. */
+  readonly second: string | null
   /** The one best figure of the line, which no other scenario holds. */
   readonly best: boolean
   /** Worked out at a variable rate, so the bank's figure may differ. */
@@ -56,7 +55,6 @@ export interface ComparisonCell {
 export interface ComparisonLine {
   readonly key: string
   readonly label: string
-  readonly group: 'instalments' | 'costs'
   readonly total: boolean
   readonly cells: readonly ComparisonCell[]
 }
@@ -101,7 +99,6 @@ type Better = 'lower' | 'higher' | 'none'
 interface LineSpec<Figure> {
   readonly key: string
   readonly label: string
-  readonly group: ComparisonLine['group']
   readonly total?: boolean
   readonly better: Better
   /** False where a tick would mislead. */
@@ -110,6 +107,7 @@ interface LineSpec<Figure> {
   readonly differences?: boolean
   readonly pick: (scenario: ComparedScenario) => Figure | null
   readonly estimate?: (outcome: ScenarioOutcome) => boolean
+  readonly second?: (outcome: ScenarioOutcome) => string | null
   readonly warning?: (outcome: ScenarioOutcome) => string | null
   /** How far the figure is above the other, in its own unit, which decides the best and the difference. */
   readonly above: (figure: Figure, other: Figure) => number
@@ -117,15 +115,8 @@ interface LineSpec<Figure> {
   readonly differenceText: (difference: number) => string
 }
 
-function moneyLine(
-  key: string,
-  label: string,
-  group: ComparisonLine['group'],
-  better: Better,
-  pick: (scenario: ComparedScenario) => number | null,
-  more: Partial<LineSpec<number>> = {},
-): LineSpec<number> {
-  return { key, label, group, better, pick, above: (figure, other) => figure - other, text: (cents) => formatMoney(cents), differenceText: (cents) => formatMoney(cents, 'always'), ...more }
+function moneyLine(key: string, label: string, better: Better, pick: (scenario: ComparedScenario) => number | null, more: Partial<LineSpec<number>> = {}): LineSpec<number> {
+  return { key, label, better, pick, above: (figure, other) => figure - other, text: (cents) => formatMoney(cents), differenceText: (cents) => formatMoney(cents, 'always'), ...more }
 }
 
 function lineOf<Figure>(spec: LineSpec<Figure>, scenarios: readonly ComparedScenario[], base: ComparedScenario | null): ComparisonLine {
@@ -138,13 +129,13 @@ function lineOf<Figure>(spec: LineSpec<Figure>, scenarios: readonly ComparedScen
   return {
     key: spec.key,
     label: spec.label,
-    group: spec.group,
     total: spec.total === true,
     cells: scenarios.map((scenario, index): ComparisonCell => {
       const figure = figures[index] ?? null
       const difference = figure === null || baseFigure === null || scenario === base || spec.differences === false ? 0 : spec.above(figure, baseFigure)
       return {
         text: figure === null ? NO_FIGURE : spec.text(figure),
+        second: figure === null ? null : (spec.second?.(scenario.outcome) ?? null),
         best: spec.ticks !== false && spec.better !== 'none' && single && figure !== null && spec.above(figure, lowest) === 0,
         estimate: figure !== null && spec.estimate !== undefined && spec.estimate(scenario.outcome),
         difference: difference === 0 ? null : spec.differenceText(difference),
@@ -155,60 +146,37 @@ function lineOf<Figure>(spec: LineSpec<Figure>, scenarios: readonly ComparedScen
 }
 
 /**
- * The compared scenarios side by side in the order of their slots, the base marked. Each line marks
- * the one best figure when a single scenario holds it, lower, fewer or earlier being better, and
- * gives every other column its difference to the base. Extra you put in and what the subsidy pays
- * have no better way. A money line every scenario holds at nothing drops, and the instalment after a
- * move shows only when a compared scenario moves. Offers of different numbers of instalments get no
- * tick on interest or the total, since a shorter loan always pays less interest. Offers add Kuna's
- * estimate of the effective rate, and the bank's when one is typed in. With a savings rate, a last
- * line gives what each scenario leaves you ahead, more being better.
+ * The compared offers side by side in the order of their slots, the base marked. The monthly
+ * instalment leads, its last under it where it changes, then interest, what you pay in all and the
+ * payoff. Extra you put in, costs, what the subsidy pays, Kuna's EKS, the bank's EKS and what each
+ * leaves you ahead at a savings rate follow, each only where a column has a figure. Each line marks
+ * the one best figure when a single offer holds it, lower or earlier being better, and gives every
+ * other column its difference to the base. Extra you put in and what the subsidy pays have no better
+ * way. Offers of different numbers of instalments get no tick on interest or the total, since a
+ * shorter loan always pays less interest.
  */
-export function compareScenarios(compared: readonly ComparedScenario[], base: string, tab: ScenarioTab, payer: string): ScenarioComparison {
+export function compareScenarios(compared: readonly ComparedScenario[], base: string): ScenarioComparison {
   const scenarios = [...compared].sort((first, second) => first.slot - second.slot)
   const baseScenario = scenarios.find((scenario) => scenario.key === base) ?? null
-  const sameTerm = new Set(scenarios.map((scenario) => scenario.outcome.instalments)).size <= 1
-  const termTicks = tab === 'loan' || sameTerm
+  const termTicks = new Set(scenarios.map((scenario) => scenario.outcome.instalments)).size <= 1
   const { lines: label } = words
 
-  const instalments: readonly LineSpec<number>[] = [
-    moneyLine('next-instalment', tab === 'loan' ? label.nextInstalment : label.firstInstalment, 'instalments', 'lower', ({ outcome }) => outcome.nextInstalment),
-    moneyLine('highest-instalment', label.highestInstalment, 'instalments', 'lower', ({ outcome }) => outcome.highestInstalment?.amount ?? null, {
-      estimate: (outcome) => outcome.highestInstalment?.estimate === true,
-    }),
-    ...(scenarios.some((scenario) => scenario.outcome.afterMove !== null) ? [moneyLine('after-move', label.afterMove, 'instalments', 'lower', ({ outcome }) => outcome.afterMove)] : []),
-  ]
-  const count: LineSpec<number> = {
-    key: 'instalments',
-    label: tab === 'loan' ? label.instalmentsLeft : label.instalmentsInAll,
-    group: 'instalments',
-    better: 'lower',
-    pick: ({ outcome }) => outcome.instalments,
-    above: (figure, other) => figure - other,
-    text: (instalments) => formatCount(instalments),
-    differenceText: (instalments) => formatCount(instalments, 'always'),
-  }
+  const instalment = moneyLine('instalment', label.instalment, 'lower', ({ outcome }) => outcome.nextInstalment, {
+    estimate: (outcome) => outcome.variableFrom !== null,
+    second: (outcome) => (outcome.instalmentChanges && outcome.lastInstalment !== null ? words.lastInstalment(formatMoney(outcome.lastInstalment)) : null),
+  })
   const payoff: LineSpec<CivilDate> = {
     key: 'payoff',
     label: label.payoff,
-    group: 'instalments',
     better: 'lower',
     pick: ({ outcome }) => outcome.payoff,
     above: (figure, other) => monthsLater(other, figure),
     text: (day) => monthLabel(monthOf(day)),
     differenceText: spanText,
   }
-  const costs: readonly LineSpec<number>[] = [
-    moneyLine('interest', tab === 'loan' ? label.interestLeft : label.interest, 'costs', 'lower', ({ outcome }) => outcome.interest, { ticks: termTicks }),
-    moneyLine('extra', label.extra, 'costs', 'none', ({ outcome }) => outcome.extra),
-    moneyLine('costs', label.costs, 'costs', 'lower', ({ outcome }) => outcome.costs),
-    moneyLine('subsidy', label.subsidyPays(payer), 'costs', 'none', ({ outcome }) => outcome.subsidy, { warning: (outcome) => (outcome.subsidyPayback === null ? null : words.paidBack) }),
-    moneyLine('total', label.total, 'costs', 'lower', ({ outcome }) => outcome.total, { total: true, ticks: termTicks }),
-  ]
   const rateLine = (key: string, lineLabel: string, better: Better, pick: (scenario: ComparedScenario) => YearlyRate | null): LineSpec<number> => ({
     key,
     label: lineLabel,
-    group: 'costs',
     better,
     pick,
     above: (figure, other) => figure - other,
@@ -218,27 +186,32 @@ export function compareScenarios(compared: readonly ComparedScenario[], base: st
       return plural(words.points(formatPoints(points), rate > 0), points)
     },
   })
-  const rates: readonly LineSpec<number>[] =
-    tab === 'offers'
-      ? [
-          rateLine('eks', label.eks, 'lower', (scenario) => scenario.eks ?? null),
-          ...(scenarios.some((scenario) => (scenario.bankEks ?? null) !== null) ? [rateLine('bank-eks', label.bankEks, 'none', (scenario) => scenario.bankEks ?? null)] : []),
-        ]
-      : []
-  const leftOverLine = (lineLabel: string): LineSpec<number> =>
-    moneyLine('left-over', lineLabel, 'costs', 'higher', (scenario) => scenario.leftOver ?? null, { differences: false, text: (cents) => formatMoney(cents, 'always') })
   const heldAtNothing = (spec: LineSpec<number>): boolean => scenarios.every((scenario) => (spec.pick(scenario) ?? 0) === 0)
-  const leftOvers = scenarios.some((scenario) => (scenario.leftOver ?? null) !== null) ? [leftOverLine(label.leftOver)] : []
+  const optional: readonly LineSpec<number>[] = [
+    moneyLine('extra', label.extra, 'none', ({ outcome }) => outcome.extra),
+    moneyLine('costs', label.costs, 'lower', ({ outcome }) => outcome.costs),
+    moneyLine('subsidy', label.subsidyPays, 'none', ({ outcome }) => outcome.subsidy, { warning: (outcome) => (outcome.subsidyPayback === null ? null : words.paidBack) }),
+    rateLine('eks', label.eks, 'lower', (scenario) => scenario.eks ?? null),
+    rateLine('bank-eks', label.bankEks, 'none', (scenario) => scenario.bankEks ?? null),
+    moneyLine('left-over', label.leftOver, 'higher', (scenario) => scenario.leftOver ?? null, { differences: false, text: (cents) => formatMoney(cents, 'always') }),
+  ]
 
   return {
     columns: scenarios.map((scenario) => ({ key: scenario.key, name: scenario.name, letter: letterOf(scenario.slot), colour: `--scenario-${scenario.slot}`, isBase: scenario === baseScenario })),
     lines: [
-      ...instalments.filter((spec) => !heldAtNothing(spec)).map((spec) => lineOf(spec, scenarios, baseScenario)),
-      lineOf(count, scenarios, baseScenario),
+      lineOf(instalment, scenarios, baseScenario),
+      lineOf(
+        moneyLine('interest', label.interest, 'lower', ({ outcome }) => outcome.interest, { ticks: termTicks }),
+        scenarios,
+        baseScenario,
+      ),
+      lineOf(
+        moneyLine('total', label.total, 'lower', ({ outcome }) => outcome.total, { total: true, ticks: termTicks }),
+        scenarios,
+        baseScenario,
+      ),
       lineOf(payoff, scenarios, baseScenario),
-      ...costs.filter((spec) => !heldAtNothing(spec)).map((spec) => lineOf(spec, scenarios, baseScenario)),
-      ...rates.filter((spec) => scenarios.some((scenario) => spec.pick(scenario) !== null)).map((spec) => lineOf(spec, scenarios, baseScenario)),
-      ...leftOvers.map((spec) => lineOf(spec, scenarios, baseScenario)),
+      ...optional.filter((spec) => !heldAtNothing(spec)).map((spec) => lineOf(spec, scenarios, baseScenario)),
     ],
   }
 }
@@ -250,6 +223,10 @@ export function refusalText(refusal: ScenarioRefusal): string {
       return words.refusals.notADueDate(dayLabel(refusal.date), refusal.loan)
     case 'rate-shares-day':
       return words.refusals.rateSharesDay(dayLabel(refusal.date))
+    case 'term-shares-day':
+      return words.refusals.termSharesDay(dayLabel(refusal.date))
+    case 'term-past-end':
+      return words.refusals.termPastEnd(dayLabel(refusal.date), refusal.loan)
     case 'no-first-rate':
       return words.refusals.noFirstRate(dayLabel(refusal.firstInstalment))
     case 'move-not-before-payoff':

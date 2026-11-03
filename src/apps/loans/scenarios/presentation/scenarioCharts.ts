@@ -147,7 +147,7 @@ export function scenarioBalanceChart(scenarios: readonly ChartedScenario[], base
  * its total from its payoff to the right edge, where its letter and what it has come to by then sit, pushed
  * apart when two are close. Over the whole span that is its total, which the description always gives.
  */
-export function scenarioInterestChart(scenarios: readonly ChartedScenario[], base: string, tokens: ChartTokens, phone: boolean, fromToday: boolean, shownDays: DateRange | null): ScenarioChart {
+export function scenarioInterestChart(scenarios: readonly ChartedScenario[], base: string, tokens: ChartTokens, phone: boolean, shownDays: DateRange | null): ScenarioChart {
   const months = monthsOfAll(scenarios).filter((month) => monthInRange(shownDays, month))
   const edge = months.at(-1)
   const totals = new Map(scenarios.map((scenario) => [scenario.key, scenario.months.at(-1)?.interest ?? 0]))
@@ -188,5 +188,5 @@ export function scenarioInterestChart(scenarios: readonly ChartedScenario[], bas
     }
   })
   const entries = scenarios.map((scenario) => words.charts.interestEntry(scenario.letter, scenario.name, formatMoney(totals.get(scenario.key)!)))
-  return { option: { ...frame(months, scenarios, tokens, phone, 88), series }, description: words.charts.interestDescription(fromToday, entries.join(' ')) }
+  return { option: { ...frame(months, scenarios, tokens, phone, 88), series }, description: words.charts.interestDescription(entries.join(' ')) }
 }

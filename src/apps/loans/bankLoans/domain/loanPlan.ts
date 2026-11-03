@@ -1,4 +1,4 @@
-import { annuity, monthlyInterest } from './yearlyRate'
+import { annuity, equalPrincipalInstalment, monthlyInterest } from './yearlyRate'
 import type { YearlyRate } from './yearlyRate'
 import type { BankLoan, LoanSubsidy } from '../../workbook/domain/bankLoan'
 import type { ExtraPayment } from '../../workbook/domain/extraPayment'
@@ -26,6 +26,12 @@ export interface PlanRow {
   readonly balance: Money
 }
 
+/** A new term from a due date on: how many instalments are left, the one due that day counting as the first. */
+export interface TermChange {
+  readonly from: CivilDate
+  readonly instalments: number
+}
+
 /** How many instalments of `instalment` repay the balance at the rate, or null when the instalment does not cover a month's interest. */
 function instalmentsToRepay(balance: Money, rate: YearlyRate, instalment: Money): number | null {
   let left = balance
@@ -37,6 +43,11 @@ function instalmentsToRepay(balance: Money, rate: YearlyRate, instalment: Money)
     count += 1
   }
   return count
+}
+
+/** How many shares of `shareBalance` over `shareCount` the balance still holds, the last one part of a share. */
+function sharesToRepay(balance: Money, shareBalance: Money, shareCount: number): number {
+  return Math.ceil((balance * shareCount) / shareBalance)
 }
 
 /** What the subsidy pays of the instalment with this number: its monthly amount, or the whole payment when that is less. */
@@ -55,19 +66,29 @@ export function dueDateOf(loan: BankLoan, number: number, anchor: CivilDate = lo
 }
 
 /**
- * The bank loan's plan from its terms, oldest first. The first instalment is the annuity of the
- * principal over every instalment at the first period's rate. Each month's interest is the balance
- * times the yearly rate over 12, and the rest of the instalment repays principal. A rate period
- * recomputes the instalment on the balance over the instalments left, so the loan still ends when it
- * would have. An extra payment lowers the balance on its date, after an instalment due that day:
- * with a lower instalment the next instalment is recomputed the same way, and with a shorter term
- * the instalment stays and the plan ends once the balance is repaid. The last instalment takes what
- * is left. The subsidy pays its amount of each instalment it covers and leaves principal, interest
- * and balance alone. Every period's `from` must be a due date of the loan and one must start at the
- * first instalment, as the reader keeps them. The due dates count from `anchor` as `dueDateOf` does.
+ * The bank loan's plan from its terms, oldest first. Each month's interest is the balance times the
+ * yearly rate over 12, and the rest of the instalment repays principal. An annuity's first instalment
+ * is the annuity of the principal over every instalment at the first period's rate, and a rate period
+ * recomputes it on the balance over the instalments left, so the loan still ends when it would have.
+ * An equal principal instalment is a share of principal, the principal over every instalment, plus the
+ * month's interest, and a rate period changes only the interest. An extra payment lowers the balance on
+ * its date, after an instalment due that day. With a lower instalment the annuity, or the share, is
+ * recomputed on the balance over the instalments left. With a shorter term the annuity, or the share,
+ * stays and the plan ends once the balance is repaid. A term change ends the plan after its instalments
+ * and works the annuity, or the share, out again over them. The last instalment takes what is left. The
+ * subsidy pays its amount of each instalment it covers and leaves principal, interest and balance
+ * alone. Every period's `from` must be a due date of the loan and one must start at the first
+ * instalment, as the reader keeps them. The due dates count from `anchor` as `dueDateOf` does.
  */
-export function loanPlan(loan: BankLoan, periods: readonly RatePeriod[], extraPayments: readonly ExtraPayment[], anchor: CivilDate = loan.firstInstalment): PlanRow[] {
+export function loanPlan(
+  loan: BankLoan,
+  periods: readonly RatePeriod[],
+  extraPayments: readonly ExtraPayment[],
+  termChanges: readonly TermChange[] = [],
+  anchor: CivilDate = loan.firstInstalment,
+): PlanRow[] {
   const rateOn = new Map(periods.map((period) => [period.from, period.rate]))
+  const termOn = new Map(termChanges.map((change) => [change.from, change.instalments]))
   const extras = [...extraPayments].sort((earlier, later) => earlier.date.localeCompare(later.date))
   const firstRate = rateOn.get(loan.firstInstalment)
   if (firstRate === undefined) {
@@ -76,7 +97,9 @@ export function loanPlan(loan: BankLoan, periods: readonly RatePeriod[], extraPa
   const rows: PlanRow[] = []
   let balance = loan.principal
   let rate = firstRate
-  let instalment = annuity(loan.principal, rate, loan.instalments)
+  const equalPrincipal = loan.repayment === 'equal-principal'
+  let instalment = equalPrincipal ? ZERO : annuity(loan.principal, rate, loan.instalments)
+  let share = { balance: loan.principal, count: loan.instalments }
   let last = loan.instalments
   let pending: ExtraPayment['effect'][] = []
   let nextExtra = 0
@@ -104,18 +127,29 @@ export function loanPlan(loan: BankLoan, periods: readonly RatePeriod[], extraPa
     payExtrasUpTo((date) => date < due)
     if (balance === 0) break
     for (const effect of pending) {
-      if (effect === 'lower-instalment') {
+      if (effect === 'lower-instalment' && equalPrincipal) {
+        share = { balance, count: last - number + 1 }
+      } else if (effect === 'lower-instalment') {
         instalment = annuity(balance, rate, last - number + 1)
       } else {
-        const left = instalmentsToRepay(balance, rate, instalment)
+        const left = equalPrincipal ? sharesToRepay(balance, share.balance, share.count) : instalmentsToRepay(balance, rate, instalment)
         last = left === null ? last : Math.min(last, number - 1 + left)
       }
     }
     pending = []
+    const term = termOn.get(due)
+    if (term !== undefined) {
+      last = number - 1 + term
+      if (equalPrincipal) share = { balance, count: term }
+      else instalment = annuity(balance, rate, term)
+    }
     const newRate = rateOn.get(due)
     if (number > 1 && newRate !== undefined) {
       rate = newRate
-      instalment = annuity(balance, rate, last - number + 1)
+      if (!equalPrincipal) instalment = annuity(balance, rate, last - number + 1)
+    }
+    if (equalPrincipal) {
+      instalment = equalPrincipalInstalment(share.balance, share.count, balance, rate)
     }
     const interest = monthlyInterest(balance, rate)
     const principal = number === last || instalment - interest >= balance ? balance : subtractMoney(instalment, interest)

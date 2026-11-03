@@ -18,7 +18,14 @@ export interface LoanSubsidy {
   readonly payer: string
 }
 
-/** A loan from a bank, repaid in monthly annuities on the first instalment's day of the month, which the borrower owes. */
+/** How a loan's instalments are set: the same amount every month, or the same share of principal plus a falling interest. */
+export const REPAYMENTS = ['annuity', 'equal-principal'] as const
+
+/**
+ * A loan from a bank, repaid in monthly instalments on the first instalment's day of the month, which the
+ * borrower owes. An annuity loan pays the same instalment every month, and an equal principal loan repays the
+ * same share of principal each month with the month's interest on top.
+ */
 export interface BankLoan {
   readonly id: RecordId
   readonly name: string
@@ -29,8 +36,9 @@ export interface BankLoan {
   readonly instalments: number
   readonly interimInterest: InterimInterest | null
   readonly subsidy: LoanSubsidy | null
+  readonly repayment: (typeof REPAYMENTS)[number]
   readonly note: string
 }
 
 /** The terms a bank loan shares with an offer you are weighing. */
-export type LoanTerms = Pick<BankLoan, 'lender' | 'principal' | 'drawdown' | 'firstInstalment' | 'instalments' | 'interimInterest' | 'subsidy'>
+export type LoanTerms = Pick<BankLoan, 'lender' | 'principal' | 'drawdown' | 'firstInstalment' | 'instalments' | 'interimInterest' | 'subsidy' | 'repayment'>

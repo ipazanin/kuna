@@ -221,7 +221,7 @@ describe('a move to another bank', () => {
     const before = scenarioOutcome(withoutMove, civil('2026-02-05'))
     const after = scenarioOutcome(withMove, civil('2026-02-05'))
 
-    expect(after.afterMove).toBe(euros(743.55))
+    expect(after.nextInstalment).toBe(euros(743.55))
     expect(before.interest).toBe(euros(51_222.18))
     expect(after.interest).toBe(euros(40_607.01))
     // 1,500.00 / 49.14 = 30.5, so the 31st new instalment, on 2028-09-05, is the first month end the costs are back.
@@ -271,7 +271,65 @@ describe('a move to another bank', () => {
     const outcome = scenarioOutcome(plan, civil('2026-02-05'))
 
     expect(outcome.variableFrom).toBe('2027-03-05')
-    expect(outcome.highestInstalment?.estimate).toBe(true)
+  })
+})
+
+describe('a term change', () => {
+  // 1,200.00 over 12 instalments at 12% with 50.00 of subsidy on the first 6, and a variable 6% from instalment 9.
+  const loan = bankLoan({ subsidy: { monthly: euros(50), firstInstalment: 1, instalments: 6, payer: 'APN' } })
+  const base = baseOf(loan, [ratePeriod(loan, '2026-02-05', '12'), { ...ratePeriod(loan, '2026-10-05', '6'), rateType: 'variable' }])
+  const shorter = { kind: 'term-change', from: civil('2026-05-05'), instalments: 6 } as const
+
+  it('ends after the instalments it leaves and keeps the subsidy, the later rate and no early repayment', () => {
+    const plan = worked(base, [shorter])
+    const rows = instalmentsOf(plan)
+
+    expect(rows).toHaveLength(9)
+    expect(rows.at(-1)!.date).toBe('2026-10-05')
+    expect(rows.at(-1)!.balance).toBe(0)
+    expect(rows.slice(0, 6).every((row) => row.subsidy === euros(50))).toBe(true)
+    // Instalment 9 on 2026-10-05 pays the 6% period's interest on what is left.
+    expect(rows[8]!.interest).toBe(Math.round((rows[7]!.balance * 6) / 1200))
+    expect(plan.firstEarlyRepayment).toBeNull()
+    expect(scenarioOutcome(plan, null).subsidyPayback).toBeNull()
+  })
+
+  it('works the annuity out again over the instalments left from its due date', () => {
+    const before = instalmentsOf(worked(base, []))
+    const rows = instalmentsOf(worked(base, [shorter]))
+
+    expect(rows[2]!.payment).toBe(before[2]!.payment)
+    expect(rows[3]!.payment).toBeGreaterThan(before[3]!.payment)
+  })
+
+  it('works the share out again on an equal principal loan', () => {
+    const equal = bankLoan({ repayment: 'equal-principal' })
+    const rows = instalmentsOf(worked(baseOf(equal, [ratePeriod(equal, '2026-02-05', '12')]), [shorter]))
+
+    // 900.00 is left after three shares of 100.00, so six shares of 150.00 from instalment 4: 150.00 plus 9.00 of interest.
+    expect(rows[3]!.payment).toBe(euros(159))
+    expect(rows).toHaveLength(9)
+  })
+
+  it('counts a term change dated by today from the first due date after it, and refuses one off a due date', () => {
+    const plan = worked(base, [{ ...shorter, from: civil('2026-03-05') }], civil('2026-04-10'))
+
+    expect(plan.passed).toHaveLength(1)
+    expect(instalmentsOf(plan).at(-1)!.date).toBe('2026-10-05')
+    expect(scenarioPlan(base, [{ ...shorter, from: civil('2026-05-06') }], null)).toEqual({ refused: 'not-a-due-date', date: '2026-05-06', loan: 'Car loan' })
+  })
+
+  it('refuses two term changes on one due date, whichever comes first in the file', () => {
+    const other = { ...shorter, instalments: 3 }
+
+    expect(scenarioPlan(base, [shorter, other], null)).toEqual({ refused: 'term-shares-day', date: '2026-05-05' })
+    expect(scenarioPlan(base, [other, shorter], null)).toEqual({ refused: 'term-shares-day', date: '2026-05-05' })
+  })
+
+  it('refuses a term that runs past the last due date of the loan, and takes one that ends on it', () => {
+    // Instalment 4 of 12 is due 2026-05-05, so 9 instalments from it end on the last due date and 10 run past it.
+    expect(scenarioPlan(base, [{ ...shorter, instalments: 10 }], null)).toEqual({ refused: 'term-past-end', date: '2026-05-05', loan: 'Car loan' })
+    expect(instalmentsOf(worked(base, [{ ...shorter, instalments: 9 }])).at(-1)!.date).toBe('2027-01-05')
   })
 })
 
@@ -284,6 +342,7 @@ describe('an offer', () => {
     instalments: 12,
     interimInterest: { amount: euros(3.5), date: civil('2026-01-20') },
     subsidy: null,
+    repayment: 'annuity',
     costs: costs(10, 1, 5),
     bankEks: null,
   }
@@ -313,21 +372,62 @@ describe('an offer', () => {
   })
 })
 
-describe('the highest instalment', () => {
+describe('the first and the last instalment', () => {
   // 10,000.00 over 12 instalments at a fixed 5%: 856.07 a month, and the last takes the rounding left over, 856.12.
   const loan = bankLoan({ principal: euros(10_000) })
   const plan = worked(baseOf(loan, [ratePeriod(loan, '2026-02-05', '5')]), [])
+  const example: OfferTerms = {
+    lender: 'Example Bank',
+    principal: euros(100_000),
+    drawdown: civil('2026-01-05'),
+    firstInstalment: civil('2026-02-05'),
+    instalments: 120,
+    interimInterest: null,
+    subsidy: null,
+    repayment: 'equal-principal',
+    costs: NO_COSTS,
+    bankEks: null,
+  }
+  const fourPercent = { kind: 'rate-change', from: civil('2026-02-05'), rate: percent('4'), rateType: 'fixed' } as const
 
-  it('leaves out the last instalment’s rounding, so a fixed loan’s highest is its regular instalment', () => {
+  it('reports no change on an annuity at one rate, whose last instalment only takes the rounding', () => {
     const outcome = scenarioOutcome(plan, null)
 
-    expect(instalmentsOf(plan).at(-1)!.payment).toBe(euros(856.12))
-    expect(outcome.highestInstalment?.amount).toBe(euros(856.07))
-    expect(outcome.highestInstalment?.amount).toBe(outcome.nextInstalment)
+    expect(outcome.nextInstalment).toBe(euros(856.07))
+    expect(outcome.lastInstalment).toBe(euros(856.12))
+    expect(outcome.instalmentChanges).toBe(false)
   })
 
-  it('counts the last instalment when it is the only one left', () => {
-    expect(scenarioOutcome(plan, civil('2026-12-05')).highestInstalment?.amount).toBe(euros(856.12))
+  it('reports a change on an annuity whose rate changes', () => {
+    const changed = worked(baseOf(loan, [ratePeriod(loan, '2026-02-05', '5'), ratePeriod(loan, '2026-08-05', '7')]), [])
+
+    expect(scenarioOutcome(changed, null).instalmentChanges).toBe(true)
+  })
+
+  it('gives an equal principal offer of 100,000.00 at 4% over 120 months its first 1,166.67 and last 836.11', () => {
+    const outcome = scenarioOutcome(worked(offerBase('Offer', example), [fourPercent]), null)
+
+    expect(outcome.nextInstalment).toBe(euros(1166.67))
+    expect(outcome.lastInstalment).toBe(euros(836.11))
+    expect(outcome.instalmentChanges).toBe(true)
+    expect(outcome.interest).toBe(euros(20_166.67))
+    expect(outcome.total).toBe(euros(120_166.67))
+  })
+
+  it('gives the same offer as an annuity 1,012.45 a month and no change', () => {
+    const outcome = scenarioOutcome(worked(offerBase('Offer', { ...example, repayment: 'annuity' }), [fourPercent]), null)
+
+    expect(outcome.nextInstalment).toBe(euros(1012.45))
+    expect(outcome.lastInstalment).toBe(euros(1012.7))
+    expect(outcome.instalmentChanges).toBe(false)
+    expect(outcome.interest).toBe(euros(21_494.25))
+  })
+
+  it('reports no change when only the last instalment is left', () => {
+    const outcome = scenarioOutcome(plan, civil('2026-12-05'))
+
+    expect(outcome.lastInstalment).toBe(euros(856.12))
+    expect(outcome.instalmentChanges).toBe(false)
   })
 })
 

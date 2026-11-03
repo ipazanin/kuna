@@ -1,6 +1,7 @@
 import type { LoanChange, LoanCosts } from '../domain/loanScenario'
 import { rateText, typedRate } from '../../bankLoans/domain/yearlyRate'
 import { words as bankWords } from '../../bankLoans/presentation/words'
+import { MOST_INSTALMENTS } from '../../workbook/domain/bankLoanReading'
 import type { ExtraPayment } from '../../workbook/domain/extraPayment'
 import type { RatePeriod } from '../../workbook/domain/ratePeriod'
 import { words as loansWords } from '../../words'
@@ -97,6 +98,8 @@ export function changeTextsOf(id: number, change: LoanChange): ChangeTexts {
         instalments: String(change.instalments),
         costs: costTexts(change.costs),
       }
+    case 'term-change':
+      return { ...blank, due: change.from, instalments: String(change.instalments) }
   }
 }
 
@@ -140,7 +143,7 @@ export function typedChange(texts: ChangeTexts, rules: ChangeRules): { readonly 
       return { change: due === null || rate === null ? null : { kind: 'rate-change', from: due, rate, rateType: texts.rate.rateType }, errors: { due: dueError, rate: rateError } }
     case 'move': {
       const instalments = typedCount(texts.instalments)
-      const instalmentsError = instalments === null ? bankWords.loanDialog.instalmentsError : instalments > 600 ? bankWords.loanDialog.tooMany : null
+      const instalmentsError = instalments === null ? bankWords.loanDialog.instalmentsError : instalments > MOST_INSTALMENTS ? bankWords.loanDialog.tooMany(MOST_INSTALMENTS) : null
       const { costs, errors } = typedCosts(texts.costs)
       return {
         change:
@@ -148,6 +151,14 @@ export function typedChange(texts: ChangeTexts, rules: ChangeRules): { readonly 
             ? null
             : { kind: 'move', on: due, lender: texts.lender.trim(), rate, rateType: texts.rate.rateType, instalments, costs },
         errors: { due: dueError, rate: rateError, instalments: instalmentsError, ...errors },
+      }
+    }
+    case 'term-change': {
+      const instalments = typedCount(texts.instalments)
+      const instalmentsError = instalments === null ? bankWords.loanDialog.instalmentsError : instalments > MOST_INSTALMENTS ? bankWords.loanDialog.tooMany(MOST_INSTALMENTS) : null
+      return {
+        change: due === null || instalments === null || instalmentsError !== null ? null : { kind: 'term-change', from: due, instalments },
+        errors: { due: dueError, instalments: instalmentsError },
       }
     }
   }

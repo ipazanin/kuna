@@ -1,8 +1,11 @@
+import type { BankLoan } from '../../workbook/domain/bankLoan'
 import { language } from '../../../../shared/text/language'
+import { withFullStop } from '../../../../shared/text/withFullStop'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
-// A bank loan is kredit and its equal monthly payment anuitet. Glavnica is principal, kamata interest and subvencija the subsidy.
+// A bank loan is kredit. An annuity loan's instalment is anuitet and an equal principal loan's rata (1 rata, 2 rate, 5 rata).
+// Glavnica is principal, kamata interest and subvencija the subsidy.
 // A dialog that adds is titled Novi, one that changes Uredi. A Croatian date ends in its own full stop.
 
 type Effect = 'shorter-term' | 'lower-instalment'
@@ -125,6 +128,8 @@ export const en = {
     onFile: (count: number): EnglishForms => ({ one: `${count} on file`, other: `${count} on file` }),
     change: 'Change',
     changeLine: (title: string) => `Change ${title}`,
+    delete: 'Delete',
+    deleteLine: (title: string) => `Delete ${title}`,
     ratePeriods: 'Rate periods',
     ratePeriodsSubtitle: 'The rate from each due date on. A new rate works the instalment out again.',
     noRatePeriod: 'No rate period yet.',
@@ -160,11 +165,13 @@ export const en = {
     nameError: 'A name, such as Home loan',
     lender: 'Lender',
     lenderPlaceholder: 'The bank',
+    repayment: 'Repayment',
+    repayments: { annuity: 'Annuity, the same every month', 'equal-principal': 'Equal principal, falling each month' },
     principal: 'Amount borrowed',
     instalments: 'Monthly instalments',
     instalmentsHelp: '240 for 20 years.',
     instalmentsError: 'A whole number above zero, such as 240',
-    tooMany: 'At most 600',
+    tooMany: (most: number) => `At most ${most}`,
     drawdown: 'Paid out on',
     firstInstalment: 'First instalment',
     firstInstalmentHelp: 'Every instalment falls on this day of the month.',
@@ -217,9 +224,26 @@ export const en = {
     saved: 'Late instalment saved',
     deleted: 'Late instalment deleted',
   },
+  /** What one instalment of the loan is called. */
+  instalment: {
+    monthly: 'Monthly instalment',
+    last: (amount: string) => `last ${amount}`,
+  },
   whatIf: {
-    title: 'What if I pay extra',
-    subtitle: 'Try an amount and a date. Nothing is saved until you apply it.',
+    title: 'What if',
+    subtitle: 'Try a change. Nothing is saved until you apply it or save the try.',
+    kind: 'What to try',
+    kinds: { extra: 'Extra payment', rate: 'Rate change', term: 'Shorter term' },
+    yearsLeft: 'Years left',
+    monthsLeft: 'Months left',
+    termError: 'Shorter than the term left then, and at least 1 month',
+    leftThen: (span: string) => `${span} left then.`,
+    save: 'Save this try',
+    extraName: (amount: string, day: string, effect: string) => `${amount} on ${day}, ${effect}`,
+    rateName: (rate: string, day: string) => `Rate ${rate} from ${day}`,
+    termName: (span: string, day: string) => `${span} left from ${day}`,
+    rateHint: 'Choose a due date still to come and type a rate to see what it does.',
+    termHint: 'Choose a due date still to come and type the term left to see what it does.',
     amount: 'Extra amount',
     amountPlaceholder: '10,000.00',
     paidOn: 'Paid on',
@@ -233,9 +257,19 @@ export const en = {
     soonerBy: 'Sooner by',
     months: (count: number): EnglishForms => ({ one: '1 month', other: `${count} months` }),
     interestSaved: 'Interest saved',
+    moreInterest: 'More interest',
     newInstalment: 'New instalment',
     apply: 'Apply',
     hint: 'Type an amount above zero and a date on or after the payout to see both ways side by side.',
+  },
+  savedTries: {
+    title: 'Saved tries',
+    subtitle: 'Against the loan as it stands, from today.',
+    empty: 'Nothing saved yet. Save a try above to keep it here.',
+    saved: 'Try saved',
+    deleted: 'Try deleted',
+    /** The try a toast names, in place of the records it writes. */
+    named: (name: string) => `“${name}”`,
   },
   subsidyDialog: {
     add: 'Add a subsidy',
@@ -260,6 +294,14 @@ export const en = {
     instalmentsHelp: 'A child born during the subsidy adds 24.',
     instalmentsError: 'A whole number above zero',
     pastTheEnd: (last: number) => `It runs past instalment ${last}, the loan's last`,
+  },
+  /** The fields of a move to another bank and of a new term in a scenario's change. */
+  changeFields: {
+    on: 'After the instalment due',
+    onHelp: 'The new bank pays the old loan off after that instalment.',
+    instalments: 'Monthly instalments',
+    instalmentsLeft: 'Instalments left',
+    instalmentsHelp: (count: number): EnglishForms => ({ one: 'The old loan has 1 left then.', other: `The old loan has ${count} left then.` }),
   },
   ratePeriodDialog: {
     addTitle: 'Add a rate period',
@@ -402,6 +444,8 @@ export const hr: Translation<typeof en> = {
     onFile: (count) => ({ one: `${count} zapis`, few: `${count} zapisa`, other: `${count} zapisa` }),
     change: 'Uredi',
     changeLine: (title) => `Uredi: ${title}`,
+    delete: 'Obriši',
+    deleteLine: (title) => `Obriši: ${title}`,
     ratePeriods: 'Razdoblja kamatne stope',
     ratePeriodsSubtitle: 'Kamatna stopa od svakog dospijeća nadalje. Nova stopa iznova izračunava anuitet.',
     noRatePeriod: 'Još nema razdoblja kamatne stope.',
@@ -436,11 +480,13 @@ export const hr: Translation<typeof en> = {
     nameError: 'Naziv, na primjer Stambeni kredit',
     lender: 'Banka',
     lenderPlaceholder: 'Naziv banke',
+    repayment: 'Način otplate',
+    repayments: { annuity: 'Anuitet, isti svaki mjesec', 'equal-principal': 'Jednake rate glavnice, svaki mjesec manja' },
     principal: 'Iznos kredita',
     instalments: 'Broj mjesečnih anuiteta',
     instalmentsHelp: '240 za 20 godina.',
     instalmentsError: 'Cijeli broj veći od nule, na primjer 240',
-    tooMany: 'Najviše 600',
+    tooMany: (most) => `Najviše ${most}`,
     drawdown: 'Datum isplate',
     firstInstalment: 'Prvi anuitet',
     firstInstalmentHelp: 'Svaki anuitet dospijeva na ovaj dan u mjesecu.',
@@ -493,9 +539,25 @@ export const hr: Translation<typeof en> = {
     saved: 'Zakašnjeli anuitet je spremljen',
     deleted: 'Zakašnjeli anuitet je obrisan',
   },
+  instalment: {
+    monthly: 'Mjesečni anuitet',
+    last: (amount) => `posljednji ${amount}`,
+  },
   whatIf: {
-    title: 'Što ako uplatim više',
-    subtitle: 'Isprobajte iznos i datum. Ništa se ne sprema dok ne primijenite.',
+    title: 'Što ako',
+    subtitle: 'Isprobajte promjenu. Ništa se ne sprema dok je ne primijenite ili spremite izračun.',
+    kind: 'Što isprobati',
+    kinds: { extra: 'Prijevremena otplata', rate: 'Promjena kamatne stope', term: 'Kraći rok otplate' },
+    yearsLeft: 'Preostalo godina',
+    monthsLeft: 'Preostalo mjeseci',
+    termError: 'Kraće od tada preostalog roka i najmanje 1 mjesec',
+    leftThen: (span) => `Tada preostaje ${withFullStop(span)}`,
+    save: 'Spremi izračun',
+    extraName: (amount, day, effect) => `${amount} ${day}, ${effect}`,
+    rateName: (rate, day) => `Stopa ${rate} od ${day}`,
+    termName: (span, day) => `Još ${span} od ${day}`,
+    rateHint: 'Odaberite dospijeće koje tek dolazi i upišite stopu da vidite što mijenja.',
+    termHint: 'Odaberite dospijeće koje tek dolazi i upišite preostali rok da vidite što mijenja.',
     amount: 'Iznos prijevremene otplate',
     amountPlaceholder: '10.000,00',
     paidOn: 'Datum uplate',
@@ -509,9 +571,18 @@ export const hr: Translation<typeof en> = {
     soonerBy: 'Ranije za',
     months: (count) => ({ one: `${count} mjesec`, few: `${count} mjeseca`, other: `${count} mjeseci` }),
     interestSaved: 'Ušteda na kamatama',
+    moreInterest: 'Dodatna kamata',
     newInstalment: 'Novi anuitet',
     apply: 'Primijeni',
     hint: 'Upišite iznos veći od nule i datum na dan isplate ili nakon nje da vidite obje mogućnosti jednu uz drugu.',
+  },
+  savedTries: {
+    title: 'Spremljeni izračuni',
+    subtitle: 'U odnosu na kredit kakav je sada, od danas.',
+    empty: 'Još ništa nije spremljeno. Spremite izračun iznad da ostane ovdje.',
+    saved: 'Izračun je spremljen',
+    deleted: 'Izračun je obrisan',
+    named: (name) => `„${name}”`,
   },
   subsidyDialog: {
     add: 'Nova subvencija',
@@ -536,6 +607,17 @@ export const hr: Translation<typeof en> = {
     instalmentsHelp: 'Dijete rođeno tijekom subvencije dodaje 24.',
     instalmentsError: 'Cijeli broj veći od nule',
     pastTheEnd: (last) => `Traje dulje od ${last}. anuiteta, posljednjeg anuiteta kredita`,
+  },
+  changeFields: {
+    on: 'Nakon anuiteta koji dospijeva',
+    onHelp: 'Nova banka otplaćuje stari kredit nakon tog anuiteta.',
+    instalments: 'Broj anuiteta',
+    instalmentsLeft: 'Broj preostalih anuiteta',
+    instalmentsHelp: (count) => ({
+      one: `Starom kreditu tada ostaje ${count} anuitet.`,
+      few: `Starom kreditu tada ostaju ${count} anuiteta.`,
+      other: `Starom kreditu tada ostaje ${count} anuiteta.`,
+    }),
   },
   ratePeriodDialog: {
     addTitle: 'Novo razdoblje kamatne stope',
@@ -569,4 +651,148 @@ export const hr: Translation<typeof en> = {
   },
 }
 
+const ENGLISH_EQUAL_PRINCIPAL_EFFECTS: typeof ENGLISH_EFFECTS = {
+  ...ENGLISH_EFFECTS,
+  'shorter-term': { label: 'Shorter term', description: 'Keep the share of principal and finish sooner.' },
+}
+
+const CROATIAN_EQUAL_PRINCIPAL_EFFECTS: typeof ENGLISH_EFFECTS = {
+  'shorter-term': { label: 'Kraći rok otplate', description: 'Glavnica u svakoj rati ostaje ista, a kredit se otplati ranije.' },
+  'lower-instalment': { label: 'Niža rata', description: 'Kraj ostaje isti, a mjesečno plaćate manje.' },
+}
+
+/** The English of an equal principal loan, where only what the bank does to its instalments differs. */
+const enEqualPrincipal: typeof en = {
+  ...en,
+  tiles: {
+    ...en.tiles,
+    subsidyThen: (count, after) => ({ one: `then from ${after} a month, falling, 1 instalment to go`, other: `then from ${after} a month, falling, ${count} instalments to go` }),
+  },
+  changes: { ...en.changes, ratePeriodsSubtitle: 'The rate from each due date on. A new rate changes only the interest.' },
+  extraDialog: { ...en.extraDialog, effects: ENGLISH_EQUAL_PRINCIPAL_EFFECTS },
+  whatIf: { ...en.whatIf, shorterNote: 'The share of principal stays, and the instalment keeps falling.' },
+  subsidyFields: { ...en.subsidyFields, monthlyHelp: 'What the subsidy pays of each covered instalment. Kuna takes it as this fixed amount, even as the instalment falls.' },
+  ratePeriodDialog: {
+    ...en.ratePeriodDialog,
+    description: 'The rate the bank applies from a due date until the next period. The share of principal stays, and only the interest follows the rate.',
+  },
+}
+
+/** The Croatian of an equal principal loan, whose instalment is rata. */
+const hrEqualPrincipal: Translation<typeof en> = {
+  ...hr,
+  terms: (count, principal) => ({ one: `${principal} u ${count} rati`, few: `${principal} u ${count} rate`, other: `${principal} u ${count} rata` }),
+  noPlan: (day) => `Nijedno razdoblje kamatne stope ne počinje s prvom ratom ${day} Dodajte ga u odjeljku Razdoblja kamatne stope.`,
+  hero: {
+    ...hr.hero,
+    totalOwedCaption: (count, day) => ({
+      one: `Glavnica i kamata ${count} preostale rate, do ${day}`,
+      few: `Glavnica i kamata ${count} preostale rate, do ${day}`,
+      other: `Glavnica i kamata ${count} preostalih rata, do ${day}`,
+    }),
+    totalOwedDefinition: 'Sve što još treba platiti: preostala glavnica i kamata svih budućih rata. Kamata po promjenjivoj kamatnoj stopi procjena je dok je banka ne odredi.',
+  },
+  tiles: {
+    ...hr.tiles,
+    subsidyThen: (count, after) => ({
+      one: `zatim od ${after} mjesečno i sve manje, još ${count} rata`,
+      few: `zatim od ${after} mjesečno i sve manje, još ${count} rate`,
+      other: `zatim od ${after} mjesečno i sve manje, još ${count} rata`,
+    }),
+    instalmentsLeft: (count) => ({ one: `još ${count} rata`, few: `još ${count} rate`, other: `još ${count} rata` }),
+    interestDefinition: 'Kamata banke na rate u godini. Subvencija najprije plaća kamatu rate, a glavnicu otplaćuje samo subvencija veća od kamate.',
+  },
+  payments: {
+    ...hr.payments,
+    subtitle: 'Rate svake godine, glavnica dolje i kamata iznad nje.',
+    subsidySubtitle: (payer) => `Rate svake godine, glavnica dolje i kamata iznad nje. Prugasto je ono što plaća ${payer === '' ? 'subvencija' : payer}.`,
+    year: (year, count) => ({ one: `${year}., ${count} rata`, few: `${year}., ${count} rate`, other: `${year}., ${count} rata` }),
+  },
+  plan: {
+    ...hr.plan,
+    instalments: (count) => ({ one: `${count} rata`, few: `${count} rate`, other: `${count} rata` }),
+    instalment: 'Rata',
+    lateMark: 'zakašnjela',
+  },
+  status: {
+    ...hr.status,
+    paidLate: (count, day) => ({ one: `Plaćena ${day}, ${count} dan nakon dospijeća`, few: `Plaćena ${day}, ${count} dana nakon dospijeća`, other: `Plaćena ${day}, ${count} dana nakon dospijeća` }),
+    paid: 'Plaćena',
+  },
+  moves: { ...hr.moves, instalment: (number) => `${number}. rata` },
+  changes: {
+    ...hr.changes,
+    ratePeriodsSubtitle: 'Kamatna stopa od svakog dospijeća nadalje. Nova stopa mijenja samo kamatu, a glavnica u rati ostaje ista.',
+    subsidySubtitle: 'Ono što treća strana plaća od svake rate koju pokriva.',
+    subsidyDetail: (pays, first, last, day) => `${pays} rate od ${first}. do ${last}., posljednja dospijeva ${day}`,
+    extraPaymentsSubtitle: 'Glavnica vraćena prije roka, za kraći rok otplate ili nižu ratu.',
+    extraDetail: (day, effect) => `${day}, ${CROATIAN_EQUAL_PRINCIPAL_EFFECTS[effect].label.toLowerCase()}`,
+    lateInstalments: 'Zakašnjele rate',
+    lateInstalmentsSubtitle: 'Svaka rata smatra se plaćenom na dan dospijeća, osim ako je ovdje.',
+    noLateInstalment: 'Svaka je rata plaćena na vrijeme.',
+  },
+  loanDialog: {
+    ...hr.loanDialog,
+    instalments: 'Broj mjesečnih rata',
+    firstInstalment: 'Prva rata',
+    firstInstalmentHelp: 'Svaka rata dospijeva na ovaj dan u mjesecu.',
+    interimHelp: 'Kamata koju je banka naplatila od isplate do prve rate, ako ju je naplatila.',
+    firstRate: 'Kamatna stopa od prve rate',
+    subsidised: 'Subvencija plaća dio svake rate',
+    subsidisedHelp: 'Na primjer APN-ova, za određen broj rata.',
+  },
+  extraDialog: { ...hr.extraDialog, description: 'Glavnica vraćena uz redovne rate. Za stambeni kredit banka za to ne naplaćuje naknadu.', effects: CROATIAN_EQUAL_PRINCIPAL_EFFECTS },
+  lateDialog: {
+    ...hr.lateDialog,
+    addTitle: 'Označi zakašnjelu ratu',
+    changeTitle: 'Uredi zakašnjelu ratu',
+    description: 'Dan kad je rata stvarno plaćena. Mijenja samo dan od kojeg se redak smatra plaćenim, a otplatni plan ostaje isti.',
+    due: 'Dospijeće rate',
+    choose: 'Odaberite ratu',
+    dueError: 'Odaberite ratu koja je plaćena sa zakašnjenjem',
+    added: 'Zakašnjela rata je dodana',
+    saved: 'Zakašnjela rata je spremljena',
+    deleted: 'Zakašnjela rata je obrisana',
+  },
+  instalment: { monthly: 'Mjesečna rata', last: (amount) => `posljednja ${amount}` },
+  whatIf: { ...hr.whatIf, shorterNote: 'Glavnica u svakoj rati ostaje ista, a rata se i dalje smanjuje.', lower: 'Niža rata', newInstalment: 'Nova rata' },
+  subsidyDialog: {
+    ...hr.subsidyDialog,
+    description: 'Fiksni iznos koji treća strana, na primjer APN, plaća od svake rate koju pokriva. Najprije plaća kamatu i ne mijenja preostali dug.',
+  },
+  subsidyFields: {
+    ...hr.subsidyFields,
+    monthlyHelp: 'Koliko subvencija plaća od svake pokrivene rate. Kuna je uzima kao ovaj fiksni iznos, iako se rata smanjuje.',
+    firstInstalment: 'Prva pokrivena rata',
+    firstInstalmentError: 'Broj prve rate koju pokriva, na primjer 1',
+    pastTheEnd: (last) => `Traje dulje od ${last}. rate, posljednje rate kredita`,
+  },
+  changeFields: {
+    on: 'Nakon rate koja dospijeva',
+    onHelp: 'Nova banka otplaćuje stari kredit nakon te rate.',
+    instalments: 'Broj rata',
+    instalmentsLeft: 'Broj preostalih rata',
+    instalmentsHelp: (count) => ({
+      one: `Starom kreditu tada ostaje ${count} rata.`,
+      few: `Starom kreditu tada ostaju ${count} rate.`,
+      other: `Starom kreditu tada ostaje ${count} rata.`,
+    }),
+  },
+  ratePeriodDialog: {
+    ...hr.ratePeriodDialog,
+    description: 'Kamatna stopa koju banka primjenjuje od jednog dospijeća do sljedećeg razdoblja. Glavnica u rati ostaje ista, a samo kamata prati stopu.',
+    from: 'Od rate koja dospijeva',
+    firstHelp: 'Prvo razdoblje počinje s prvom ratom.',
+    dueDate: (day, number) => `${day}, ${number}. rata`,
+    fromError: 'Odaberite dospijeće prve rate po ovoj stopi',
+  },
+}
+
 export const words = language === 'hr' ? hr : en
+
+const equalPrincipalWords = language === 'hr' ? hrEqualPrincipal : enEqualPrincipal
+
+/** The words of one loan's own page and dialogs, which follow how its instalments are set. */
+export function wordsFor(repayment: BankLoan['repayment']): typeof words {
+  return repayment === 'equal-principal' ? equalPrincipalWords : words
+}

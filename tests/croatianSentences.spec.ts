@@ -132,6 +132,7 @@ describe('full stops in Croatian', () => {
     const view = await inCroatian(() => import('../src/apps/loans/scenarios/presentation/scenariosView'))
     const comparison = await import('../src/apps/loans/scenarios/presentation/scenarioComparison')
     const scenarios = await import('../src/apps/loans/scenarios/presentation/words')
+    const bank = await import('../src/apps/loans/bankLoans/presentation/words')
     const { dayLabel } = await import('../src/shared/calendar/dayLabel')
     const { monthLabel } = await import('../src/shared/calendar/monthLabel')
     const move = {
@@ -144,18 +145,19 @@ describe('full stops in Croatian', () => {
       costs: { upfront: euros(1500), monthly: euros(0), yearly: euros(0) },
     } as const
     const sentences = [
-      view.changeSummary(move, { month: monthKey(2030, 1), months: 36 }),
+      view.changeSummary(move, bank.words.extraDialog.effects, { month: monthKey(2030, 1), months: 36 }),
       comparison.refusalText({ refused: 'rate-shares-day', date: civil('2027-01-20') }),
       comparison.refusalText({ refused: 'no-first-rate', firstInstalment: civil('2023-04-20') }),
       scenarios.words.charts.owedEntry('B', '5.000,00 € iduće proljeće', monthLabel(monthKey(2048, 3))),
       scenarios.words.table.subsidy(dayLabel(civil('2029-03-20')), '1.200,00 €'),
-      scenarios.words.summary.stands(`3,1 % fiksna, zatim 2,9 % fiksna od ${dayLabel(civil('2028-04-20'))}`),
+      view.changeSummary({ kind: 'term-change', from: civil('2028-04-20'), instalments: 180 }, bank.words.extraDialog.effects),
+      comparison.refusalText({ refused: 'term-shares-day', date: civil('2028-04-20') }),
     ]
 
     expect(sentences.filter((sentence) => sentence.includes('..'))).toEqual([])
     expect(sentences[0]).toMatch(/Troškovi se vrate do 31\. 1\. 2030\.$/)
     expect(sentences[4]).toContain('do 20. 3. 2029. Do prijevremene otplate')
-    expect(sentences[5]).toMatch(/20\. 4\. 2028\.$/)
+    expect(sentences[5]).toMatch(/^Od 20\.\s4\.\s2028\.\sjoš\s15\sg\.$/)
   })
 })
 

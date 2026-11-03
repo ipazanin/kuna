@@ -9,13 +9,9 @@ import type { Money } from '../../../../shared/money/money'
 /** What a scenario comes to from a day on, or over its whole loan. */
 export interface ScenarioOutcome {
   readonly nextInstalment: Money | null
-  /**
-   * The largest instalment, and whether it falls in a variable rate period, so the bank's figure may
-   * differ. The last instalment takes the rounding left over, so it counts only when no other is left.
-   */
-  readonly highestInstalment: { readonly amount: Money; readonly estimate: boolean } | null
-  /** The new loan's first instalment, or null without a move. */
-  readonly afterMove: Money | null
+  readonly lastInstalment: Money | null
+  /** Whether an instalment before the last differs from the first, since the last of an annuity only takes the rounding left over. */
+  readonly instalmentChanges: boolean
   readonly instalments: number
   readonly payoff: CivilDate | null
   /** The interest you pay, leaving out what the subsidy pays of it. */
@@ -40,17 +36,14 @@ export function scenarioOutcome(plan: ScenarioPlan, from: CivilDate | null): Sce
   const after = plan.rows.filter((row) => from === null || row.date > from)
   const instalments = after.filter((row) => row.kind === 'instalment')
   const variable = (date: CivilDate): boolean => ratePeriodOn(plan.periods, date)?.rateType === 'variable'
-  const regular = instalments.length > 1 ? instalments.slice(0, -1) : instalments
-  const highest = regular.reduce<(typeof instalments)[number] | null>((largest, row) => (largest === null || row.payment > largest.payment ? row : largest), null)
   const split = splitOfRows(after)
   const costs = sumMoney(plan.costs.filter((cost) => from === null || cost.date > from).map((cost) => cost.amount))
   const until = subsidyRepaidUntil(plan.loan)
   const early = plan.firstEarlyRepayment
-  const { move } = plan
   return {
     nextInstalment: instalments[0]?.payment ?? null,
-    highestInstalment: highest === null ? null : { amount: highest.payment, estimate: variable(highest.date) },
-    afterMove: move === null ? null : (plan.rows.find((row) => row.kind === 'instalment' && row.date > move)?.payment ?? null),
+    lastInstalment: instalments.at(-1)?.payment ?? null,
+    instalmentChanges: instalments.slice(0, -1).some((row) => row.payment !== instalments[0]!.payment),
     instalments: instalments.length,
     payoff: payoffDate(plan.rows),
     interest: split.interest,

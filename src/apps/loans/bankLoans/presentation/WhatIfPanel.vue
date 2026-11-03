@@ -4,39 +4,59 @@ import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
+import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
-import { whatIfExtraPayment } from '../domain/whatIf'
+import { triedRate, whatIfChange, whatIfExtraPayment } from '../domain/whatIf'
 import type { ExtraPaymentOutcome } from '../domain/whatIf'
+import { fractionOf, typedRate } from '../domain/yearlyRate'
 import type { ExtraPaymentStart } from './ExtraPaymentDialog.vue'
-import { scenariosLink } from '../../overview/presentation/loanLinks'
-import type { ScenarioDraft } from '../../scenarios/presentation/ScenarioEditor.vue'
-import { words as scenarioWords } from '../../scenarios/presentation/words'
+import TryOutcome from './TryOutcome.vue'
+import { typedTerm } from './typedTerm'
+import { useLoanWords } from './useLoanWords'
+import { newLoanScenario, saveScenario } from '../../scenarios/application/scenarioWrites'
+import type { LoanChange } from '../../scenarios/domain/loanScenario'
+import { spanOf } from '../../scenarios/presentation/scenarioComparison'
+import { useLoansBooks } from '../../workbook/application/loansStore'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
+import { words as loansWords } from '../../words'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { formatMoney, formatRate } from '../../../../shared/money/moneyFormat'
+import type { Money } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
-import AppCard from '../../../../shared/ui/AppCard.vue'
-import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'
-import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import AppCard from '../../../../shared/ui/AppCard.vue'
+import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
+import type { Fact } from '../../../../shared/ui/FactGrid.vue'
+import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
-import { words } from './words'
 
-/** An extra payment tried out against the plan, both ways the bank offers, without saving anything. */
+/**
+ * A change tried out against the plan without saving anything: an extra payment both ways the bank
+ * offers, a new rate from a due date, or a shorter term from a due date. Each try can be saved as it
+ * is, and an extra payment applied.
+ */
 const props = defineProps<{
   book: BankLoanBook
-  /** Where the date starts: the next due date. */
+  /** Where the dates start: the next due date. */
   defaultDate: CivilDate
+  today: CivilDate
 }>()
+const loanWords = useLoanWords()
 
 const emit = defineEmits<{
   /** Turn the tried payment into an extra payment, in its dialog. */
   apply: [start: ExtraPaymentStart]
-  /** Keep the tried payment as a scenario, in the scenario editor. */
-  keep: [draft: ScenarioDraft]
 }>()
+
+const store = useLoansBooks()
+const writes = useRecordWrites(store)
+
+type TryKind = 'extra' | 'rate' | 'term'
+const kind = ref<TryKind>('extra')
+const kindOptions = computed(() => (['extra', 'rate', 'term'] as const).map((value) => ({ value, label: loanWords.value.whatIf.kinds[value] })))
 
 const amount = ref('')
 const date = ref<string>(props.defaultDate)
@@ -55,87 +75,189 @@ const result = computed(() => {
 const shorter = computed(() => result.value?.outcomes.find((outcome) => outcome.effect === 'shorter-term') ?? null)
 const lower = computed(() => result.value?.outcomes.find((outcome) => outcome.effect === 'lower-instalment') ?? null)
 
-function months(count: number): string {
-  return plural(words.whatIf.months(count), count)
+/** The instalments still to come, which a new rate or term can start from. */
+const comingDues = computed(() => (props.book.plan ?? []).filter((row) => row.kind === 'instalment' && row.number !== null && row.date > props.today))
+const dueItems = computed(() => comingDues.value.map((row) => ({ label: loanWords.value.ratePeriodDialog.dueDate(dayLabel(row.date), row.number ?? 0), value: row.date })))
+const due = ref<CivilDate>(props.defaultDate)
+const rate = ref('')
+const years = ref('')
+const months = ref('')
+
+/** The instalments left from the picked due date on, the one due then included. */
+const leftThen = computed(() => comingDues.value.filter((row) => row.date >= due.value).length)
+const termInstalments = computed(() => {
+  const count = typedTerm(years.value, months.value)
+  return count !== null && count < leftThen.value ? count : null
+})
+const termError = computed(() => (years.value.trim() !== '' || months.value.trim() !== '') && termInstalments.value === null)
+
+const triedChange = computed((): LoanChange | null => {
+  const from = comingDues.value.some((row) => row.date === due.value) ? due.value : null
+  if (from === null) return null
+  if (kind.value === 'rate') {
+    const typedRateValue = typedRate(rate.value)
+    return typedRateValue === null ? null : triedRate(props.book, from, typedRateValue)
+  }
+  return termInstalments.value === null ? null : { kind: 'term-change', from, instalments: termInstalments.value }
+})
+const tried = computed(() => (triedChange.value === null ? null : whatIfChange(props.book, triedChange.value)))
+
+function monthsText(count: number): string {
+  return plural(loanWords.value.whatIf.months(count), count)
 }
+
+const payoffFact = (payoff: CivilDate | null): Fact => ({ label: loanWords.value.whatIf.paidOff, value: payoff === null ? '–' : dayLabel(payoff) })
+const instalmentFact = (instalment: Money | null): Fact => ({ label: loanWords.value.whatIf.newInstalment, value: instalment === null ? loanWords.value.whatIf.paidOff : formatMoney(instalment) })
+const soonerFact = (months: number): Fact => ({ label: loanWords.value.whatIf.soonerBy, value: monthsText(months) })
+/** Interest saved, or the interest added where a try costs more. */
+const interestFact = (saved: Money): Fact =>
+  saved < 0 ? { label: loanWords.value.whatIf.moreInterest, value: formatMoney(-saved) } : { label: loanWords.value.whatIf.interestSaved, value: formatMoney(saved) }
+
+const shorterFacts = computed((): Fact[] => (shorter.value === null ? [] : [payoffFact(shorter.value.payoff), soonerFact(shorter.value.monthsSaved), interestFact(shorter.value.interestSaved)]))
+const lowerFacts = computed((): Fact[] => (lower.value === null ? [] : [instalmentFact(lower.value.nextInstalment), payoffFact(lower.value.payoff), interestFact(lower.value.interestSaved)]))
+const triedFacts = computed((): Fact[] => {
+  const outcome = tried.value
+  if (outcome === null) return []
+  return [instalmentFact(outcome.nextInstalment), payoffFact(outcome.payoff), ...(kind.value === 'term' ? [soonerFact(outcome.monthsSaved)] : []), interestFact(outcome.interestSaved)]
+})
 
 function apply(outcome: ExtraPaymentOutcome): void {
   if (typed.value !== null) emit('apply', { ...typed.value, effect: outcome.effect, editing: null })
 }
 
-function keep(outcome: ExtraPaymentOutcome): void {
-  const tried = typed.value
-  if (tried === null) return
-  emit('keep', {
-    name: scenarioWords.whatIf.name(formatMoney(tried.amount), dayLabel(tried.date)),
-    loan: props.book.loan.id,
-    terms: null,
-    changes: [{ kind: 'extra-payment', date: tried.date, amount: tried.amount, effect: outcome.effect }],
-    editing: null,
+async function saveTry(name: string, change: LoanChange, key: string): Promise<void> {
+  const records = store.state.records
+  if (records === null) return
+  const scenario = newLoanScenario({ name, start: { kind: 'loan', loan: props.book.loan.id } })
+  await writes.write(loanWords.value.savedTries.saved, (unit) => saveScenario(unit, records, scenario, [change], null), {
+    description: loanWords.value.savedTries.named(name),
+    failedTitle: loansWords.form.notSaved,
+    key,
   })
+}
+
+function saveExtra(outcome: ExtraPaymentOutcome): void {
+  const payment = typed.value
+  if (payment === null) return
+  const name = loanWords.value.whatIf.extraName(formatMoney(payment.amount), dayLabel(payment.date), loanWords.value.extraDialog.effects[outcome.effect].label.toLowerCase())
+  void saveTry(name, { kind: 'extra-payment', date: payment.date, amount: payment.amount, effect: outcome.effect }, `try-${outcome.effect}`)
+}
+
+function saveTried(): void {
+  const change = triedChange.value
+  if (change === null) return
+  const name =
+    change.kind === 'rate-change'
+      ? loanWords.value.whatIf.rateName(formatRate(fractionOf(change.rate)), dayLabel(change.from))
+      : change.kind === 'term-change'
+        ? loanWords.value.whatIf.termName(spanOf(change.instalments), dayLabel(change.from))
+        : ''
+  void saveTry(name, change, 'try')
 }
 </script>
 
 <template>
-  <AppCard :title="words.whatIf.title" :subtitle="words.whatIf.subtitle" data-testid="what-if">
-    <template #actions>
-      <UButton :to="scenariosLink(book.loan)" :label="scenarioWords.whatIf.compare" icon="i-lucide-scale" color="neutral" variant="ghost" size="xs" class="-my-1" data-testid="what-if-compare" />
-    </template>
+  <AppCard :title="loanWords.whatIf.title" :subtitle="loanWords.whatIf.subtitle" data-testid="what-if">
     <div class="flex flex-col gap-4 px-4 pb-4 sm:px-5">
-      <FormGrid>
-        <UFormField :label="words.whatIf.amount">
-          <MoneyInput v-model="amount" :placeholder="words.whatIf.amountPlaceholder" class="w-full" data-testid="what-if-amount" />
-        </UFormField>
-        <UFormField :label="words.whatIf.paidOn">
-          <UInput v-model="date" type="date" class="w-full" data-testid="what-if-date" />
-        </UFormField>
-      </FormGrid>
-      <UAlert
-        v-if="result?.subsidyRepaidUntil"
-        icon="i-lucide-triangle-alert"
-        color="warning"
-        variant="subtle"
-        :title="words.whatIf.subsidyTitle"
-        :description="words.whatIf.subsidy(dayLabel(result.subsidyRepaidUntil))"
-        data-testid="what-if-subsidy"
-      />
-      <div v-if="shorter && lower" class="grid gap-3 sm:grid-cols-2" data-testid="what-if-outcomes">
-        <section class="flex flex-col gap-2 rounded-lg border border-default p-3" :aria-label="words.whatIf.shorter">
-          <h3 class="text-sm font-medium text-highlighted">{{ words.whatIf.shorter }}</h3>
-          <p class="text-xs text-muted">{{ words.whatIf.shorterNote }}</p>
-          <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-            <dt class="text-muted">{{ words.whatIf.paidOff }}</dt>
-            <dd class="text-end">{{ shorter.payoff === null ? '–' : dayLabel(shorter.payoff) }}</dd>
-            <dt class="text-muted">{{ words.whatIf.soonerBy }}</dt>
-            <dd class="figure text-end">{{ months(shorter.monthsSaved) }}</dd>
-            <dt class="text-muted">{{ words.whatIf.interestSaved }}</dt>
-            <dd class="text-end"><MoneyText :cents="shorter.interestSaved" /></dd>
-          </dl>
-          <div class="flex flex-wrap gap-1.5">
-            <UButton :label="words.whatIf.apply" icon="i-lucide-check" color="neutral" variant="outline" size="sm" data-testid="what-if-apply-shorter" @click="apply(shorter)" />
-            <UButton :label="scenarioWords.whatIf.saveAsScenario" icon="i-lucide-flask-conical" color="neutral" variant="ghost" size="sm" data-testid="what-if-keep-shorter" @click="keep(shorter)" />
-          </div>
-        </section>
-        <section class="flex flex-col gap-2 rounded-lg border border-default p-3" :aria-label="words.whatIf.lower">
-          <h3 class="text-sm font-medium text-highlighted">{{ words.whatIf.lower }}</h3>
-          <p class="text-xs text-muted">{{ words.whatIf.lowerNote }}</p>
-          <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-            <dt class="text-muted">{{ words.whatIf.newInstalment }}</dt>
-            <dd class="text-end">
-              <MoneyText v-if="lower.nextInstalment !== null" :cents="lower.nextInstalment" /><span v-else>{{ words.whatIf.paidOff }}</span>
-            </dd>
-            <dt class="text-muted">{{ words.whatIf.paidOff }}</dt>
-            <dd class="text-end">{{ lower.payoff === null ? '–' : dayLabel(lower.payoff) }}</dd>
-            <dt class="text-muted">{{ words.whatIf.interestSaved }}</dt>
-            <dd class="text-end"><MoneyText :cents="lower.interestSaved" /></dd>
-          </dl>
-          <div class="flex flex-wrap gap-1.5">
-            <UButton :label="words.whatIf.apply" icon="i-lucide-check" color="neutral" variant="outline" size="sm" data-testid="what-if-apply-lower" @click="apply(lower)" />
-            <UButton :label="scenarioWords.whatIf.saveAsScenario" icon="i-lucide-flask-conical" color="neutral" variant="ghost" size="sm" data-testid="what-if-keep-lower" @click="keep(lower)" />
-          </div>
-        </section>
-      </div>
-      <p v-else class="text-sm text-muted">{{ words.whatIf.hint }}</p>
+      <ChoiceButtons v-model="kind" :options="kindOptions" :label="loanWords.whatIf.kind" data-testid="what-if-kind" />
+      <template v-if="kind === 'extra'">
+        <FormGrid>
+          <UFormField :label="loanWords.whatIf.amount">
+            <MoneyInput v-model="amount" :placeholder="loanWords.whatIf.amountPlaceholder" class="w-full" data-testid="what-if-amount" />
+          </UFormField>
+          <UFormField :label="loanWords.whatIf.paidOn">
+            <UInput v-model="date" type="date" class="w-full" data-testid="what-if-date" />
+          </UFormField>
+        </FormGrid>
+        <UAlert
+          v-if="result?.subsidyRepaidUntil"
+          icon="i-lucide-triangle-alert"
+          color="warning"
+          variant="subtle"
+          :title="loanWords.whatIf.subsidyTitle"
+          :description="loanWords.whatIf.subsidy(dayLabel(result.subsidyRepaidUntil))"
+          data-testid="what-if-subsidy"
+        />
+        <div v-if="shorter && lower" class="grid gap-3 sm:grid-cols-2" data-testid="what-if-outcomes">
+          <TryOutcome :title="loanWords.whatIf.shorter" :note="loanWords.whatIf.shorterNote" :facts="shorterFacts">
+            <template #actions>
+              <div class="flex flex-wrap gap-1.5">
+                <UButton :label="loanWords.whatIf.apply" icon="i-lucide-check" color="neutral" variant="outline" size="sm" data-testid="what-if-apply-shorter" @click="apply(shorter)" />
+                <UButton
+                  :label="loanWords.whatIf.save"
+                  icon="i-lucide-bookmark-plus"
+                  color="neutral"
+                  variant="ghost"
+                  size="sm"
+                  :loading="writes.saving('try-shorter-term')"
+                  data-testid="what-if-save-shorter"
+                  @click="saveExtra(shorter)"
+                />
+              </div>
+            </template>
+          </TryOutcome>
+          <TryOutcome :title="loanWords.whatIf.lower" :note="loanWords.whatIf.lowerNote" :facts="lowerFacts">
+            <template #actions>
+              <div class="flex flex-wrap gap-1.5">
+                <UButton :label="loanWords.whatIf.apply" icon="i-lucide-check" color="neutral" variant="outline" size="sm" data-testid="what-if-apply-lower" @click="apply(lower)" />
+                <UButton
+                  :label="loanWords.whatIf.save"
+                  icon="i-lucide-bookmark-plus"
+                  color="neutral"
+                  variant="ghost"
+                  size="sm"
+                  :loading="writes.saving('try-lower-instalment')"
+                  data-testid="what-if-save-lower"
+                  @click="saveExtra(lower)"
+                />
+              </div>
+            </template>
+          </TryOutcome>
+        </div>
+        <p v-else class="type-body">{{ loanWords.whatIf.hint }}</p>
+      </template>
+      <template v-else>
+        <FormGrid>
+          <UFormField :label="loanWords.ratePeriodDialog.from" :class="{ 'sm:col-span-2': kind === 'term' }">
+            <USelectMenu
+              v-model="due"
+              :items="dueItems"
+              value-key="value"
+              :placeholder="loanWords.ratePeriodDialog.choose"
+              :search-input="{ placeholder: loanWords.ratePeriodDialog.search }"
+              class="w-full"
+              data-testid="what-if-due"
+            />
+          </UFormField>
+          <UFormField v-if="kind === 'rate'" :label="loanWords.rateFields.rate" :help="loanWords.rateFields.rateHelp">
+            <UInput v-model="rate" inputmode="decimal" :placeholder="loanWords.rateFields.ratePlaceholder" class="w-full" data-testid="what-if-rate" />
+          </UFormField>
+          <template v-else>
+            <UFormField :label="loanWords.whatIf.yearsLeft" :error="termError ? loanWords.whatIf.termError : false" :help="loanWords.whatIf.leftThen(spanOf(leftThen))">
+              <UInput v-model="years" inputmode="numeric" class="w-full" data-testid="what-if-years" />
+            </UFormField>
+            <UFormField :label="loanWords.whatIf.monthsLeft">
+              <UInput v-model="months" inputmode="numeric" class="w-full" data-testid="what-if-months" />
+            </UFormField>
+          </template>
+        </FormGrid>
+        <TryOutcome v-if="tried" :label="loanWords.whatIf.kinds[kind]" :facts="triedFacts" data-testid="what-if-tried">
+          <template #actions>
+            <UButton
+              :label="loanWords.whatIf.save"
+              icon="i-lucide-bookmark-plus"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              class="self-start"
+              :loading="writes.saving('try')"
+              data-testid="what-if-save"
+              @click="saveTried"
+            />
+          </template>
+        </TryOutcome>
+        <p v-else class="type-body">{{ kind === 'rate' ? loanWords.whatIf.rateHint : loanWords.whatIf.termHint }}</p>
+      </template>
     </div>
   </AppCard>
 </template>

@@ -18,10 +18,11 @@ import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import RateFields, { rateError } from './RateFields.vue'
 import type { RateTexts } from './RateFields.vue'
 import { words as loansWords } from '../../words'
-import { words } from './words'
+import { useLoanWords } from './useLoanWords'
 
 /** A rate the loan pays from one of its due dates on. The first period always starts at the first instalment. */
 const open = defineModel<boolean>('open', { required: true })
+const loanWords = useLoanWords()
 
 const props = defineProps<{
   book: BankLoanBook
@@ -43,7 +44,7 @@ const dueItems = computed(() => {
   const taken = new Set(props.book.ratePeriods.filter((period) => period.id !== props.editing?.id).map((period) => period.from))
   return Array.from({ length: loan.instalments }, (_, offset) => ({ number: offset + 1, date: dueDateOf(loan, offset + 1) }))
     .filter(({ number, date }) => (isFirst.value ? number === 1 : number > 1) && !taken.has(date))
-    .map(({ number, date }): { label: string; value: string } => ({ label: words.ratePeriodDialog.dueDate(dayLabel(date), number), value: date }))
+    .map(({ number, date }): { label: string; value: string } => ({ label: loanWords.value.ratePeriodDialog.dueDate(dayLabel(date), number), value: date }))
 })
 
 watch(open, (opened) => {
@@ -55,7 +56,7 @@ watch(open, (opened) => {
 })
 
 const errors = computed(() => ({
-  from: dueItems.value.some((item) => item.value === from.value) ? null : words.ratePeriodDialog.fromError,
+  from: dueItems.value.some((item) => item.value === from.value) ? null : loanWords.value.ratePeriodDialog.fromError,
   rate: rateError(rate.value),
 }))
 
@@ -68,25 +69,25 @@ async function save(): Promise<void> {
   const before = props.editing
   const written =
     before === null
-      ? await writes.write(words.ratePeriodDialog.added, (unit) => unit.of(RATE_PERIOD_WRITES).add(typed), { failedTitle: loansWords.form.notAdded })
-      : await writes.write(words.ratePeriodDialog.saved, (unit) => unit.of(RATE_PERIOD_WRITES).change(before, { ...typed, id: before.id }), { failedTitle: loansWords.form.notSaved })
+      ? await writes.write(loanWords.value.ratePeriodDialog.added, (unit) => unit.of(RATE_PERIOD_WRITES).add(typed), { failedTitle: loansWords.form.notAdded })
+      : await writes.write(loanWords.value.ratePeriodDialog.saved, (unit) => unit.of(RATE_PERIOD_WRITES).change(before, { ...typed, id: before.id }), { failedTitle: loansWords.form.notSaved })
   if (written) open.value = false
 }
 
 async function remove(): Promise<void> {
   const before = props.editing
   if (before === null) return
-  if (await writes.write(words.ratePeriodDialog.deleted, (unit) => unit.of(RATE_PERIOD_WRITES).remove(before), { key: 'delete', failedTitle: loansWords.form.notDeleted })) open.value = false
+  if (await writes.write(loanWords.value.ratePeriodDialog.deleted, (unit) => unit.of(RATE_PERIOD_WRITES).remove(before), { key: 'delete', failedTitle: loansWords.form.notDeleted })) open.value = false
 }
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="editing === null ? words.ratePeriodDialog.addTitle : words.ratePeriodDialog.changeTitle" :description="words.ratePeriodDialog.description">
+  <AppDialog v-model:open="open" :title="editing === null ? loanWords.ratePeriodDialog.addTitle : loanWords.ratePeriodDialog.changeTitle" :description="loanWords.ratePeriodDialog.description">
     <FormGrid id="rate-period" as="form" data-testid="rate-period-form" @submit.prevent="save">
       <UFormField
-        :label="words.ratePeriodDialog.from"
+        :label="loanWords.ratePeriodDialog.from"
         :error="(tried && errors.from) || false"
-        :help="isFirst ? words.ratePeriodDialog.firstHelp : words.ratePeriodDialog.laterHelp"
+        :help="isFirst ? loanWords.ratePeriodDialog.firstHelp : loanWords.ratePeriodDialog.laterHelp"
         class="sm:col-span-2"
       >
         <USelectMenu
@@ -94,8 +95,8 @@ async function remove(): Promise<void> {
           :items="dueItems"
           value-key="value"
           :disabled="isFirst"
-          :placeholder="words.ratePeriodDialog.choose"
-          :search-input="{ placeholder: words.ratePeriodDialog.search }"
+          :placeholder="loanWords.ratePeriodDialog.choose"
+          :search-input="{ placeholder: loanWords.ratePeriodDialog.search }"
           class="w-full"
           data-testid="rate-period-from"
         />
@@ -105,7 +106,7 @@ async function remove(): Promise<void> {
     <template #start>
       <UButton
         v-if="editing !== null && !isFirst"
-        :label="words.ratePeriodDialog.delete"
+        :label="loanWords.ratePeriodDialog.delete"
         icon="i-lucide-trash-2"
         color="error"
         variant="ghost"
@@ -120,7 +121,7 @@ async function remove(): Promise<void> {
       <UButton
         type="submit"
         form="rate-period"
-        :label="editing === null ? words.ratePeriodDialog.add : words.ratePeriodDialog.save"
+        :label="editing === null ? loanWords.ratePeriodDialog.add : loanWords.ratePeriodDialog.save"
         :icon="editing === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.saving('save')"
         :disabled="writes.busy.value"

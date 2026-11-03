@@ -56,6 +56,7 @@ const OFFER = newLoanScenario({
       instalments: 10,
       interimInterest: null,
       subsidy: null,
+      repayment: 'annuity',
       costs: NO_COSTS,
       bankEks: null,
     },

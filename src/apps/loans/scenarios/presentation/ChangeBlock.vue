@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
@@ -8,9 +9,10 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import ChangeRateFields from './ChangeRateFields.vue'
 import type { ChangeErrors, ChangeTexts } from './changeTexts'
 import CostFields from './CostFields.vue'
+import FoldBlock from './FoldBlock.vue'
 import { words } from './words'
 import type { YearlyRate } from '../../bankLoans/domain/yearlyRate'
-import { words as bankWords } from '../../bankLoans/presentation/words'
+import { useLoanWords } from '../../bankLoans/presentation/useLoanWords'
 import { EXTRA_PAYMENT_EFFECTS } from '../../workbook/domain/extraPayment'
 import { words as loansWords } from '../../words'
 import { plural } from '../../../../shared/text/translation'
@@ -38,7 +40,8 @@ const emit = defineEmits<{
   remove: []
 }>()
 
-const EFFECT_ITEMS = EXTRA_PAYMENT_EFFECTS.map((effect) => ({ value: effect, ...bankWords.extraDialog.effects[effect] }))
+const loanWords = useLoanWords()
+const effectItems = computed(() => EXTRA_PAYMENT_EFFECTS.map((effect) => ({ value: effect, ...loanWords.value.extraDialog.effects[effect] })))
 const EVERY_ITEMS = [
   { value: 'month', label: words.editor.month },
   { value: 'year', label: words.editor.year },
@@ -48,31 +51,28 @@ const shown = (error: string | null | undefined): string | false => (props.tried
 </script>
 
 <template>
-  <div class="rounded-lg border" :class="open ? 'border-accented' : 'border-default'" :data-change="texts.kind" data-testid="scenario-change">
-    <div class="flex items-center justify-between gap-2 py-2 ps-3 pe-2">
-      <button
-        type="button"
-        class="min-w-0 flex-1 text-start"
-        :aria-expanded="open"
-        :aria-label="words.editor.open(words.editor.kinds[texts.kind])"
-        data-testid="scenario-change-toggle"
-        @click="open = !open"
-      >
-        <span class="block text-sm font-medium text-highlighted">{{ words.editor.kinds[texts.kind] }}</span>
-        <span class="block type-caption" :class="{ 'text-warning': summary === null && tried }">{{ summary ?? words.editor.unfinished }}</span>
-      </button>
+  <FoldBlock
+    v-model:open="open"
+    :title="words.editor.kinds[texts.kind]"
+    :caption="summary ?? words.editor.unfinished"
+    :warning="summary === null && tried"
+    toggle-test-id="scenario-change-toggle"
+    :data-change="texts.kind"
+    data-testid="scenario-change"
+  >
+    <template #actions>
       <UButton icon="i-lucide-trash-2" color="neutral" variant="ghost" :aria-label="words.editor.remove(words.editor.kinds[texts.kind])" data-testid="scenario-change-remove" @click="emit('remove')" />
-    </div>
-    <FormGrid v-if="open" class="px-3 pt-1 pb-3">
+    </template>
+    <FormGrid>
       <UFormField v-if="texts.kind === 'extra-payment'" :label="words.editor.paidOn" :error="shown(errors.date)">
         <UInput v-model="texts.date" type="date" class="w-full" data-testid="scenario-change-date" />
       </UFormField>
       <UFormField
         v-else
         class="sm:col-span-2"
-        :label="texts.kind === 'move' ? words.editor.on : words.editor.from"
+        :label="texts.kind === 'move' ? loanWords.changeFields.on : loanWords.ratePeriodDialog.from"
         :error="shown(errors.due)"
-        v-bind="texts.kind === 'move' ? { help: words.editor.onHelp } : {}"
+        v-bind="texts.kind === 'move' ? { help: loanWords.changeFields.onHelp } : {}"
       >
         <USelectMenu
           v-model="texts.due"
@@ -103,17 +103,20 @@ const shown = (error: string | null | undefined): string | false => (props.tried
         <UInput v-model="texts.lender" :placeholder="words.editor.lenderPlaceholder" class="w-full" data-testid="scenario-change-lender" />
       </UFormField>
       <ChangeRateFields v-if="texts.kind === 'rate-change' || texts.kind === 'move'" v-model="texts.rate" :tried="tried" :current="currentRate" test-prefix="scenario-change" />
+      <UFormField v-if="texts.kind === 'term-change'" :label="loanWords.changeFields.instalmentsLeft" :error="shown(errors.instalments)">
+        <UInput v-model="texts.instalments" inputmode="numeric" class="w-full" data-testid="scenario-change-instalments" />
+      </UFormField>
       <template v-if="texts.kind === 'move'">
         <UFormField
-          :label="words.editor.instalments"
+          :label="loanWords.changeFields.instalments"
           :error="shown(errors.instalments)"
-          :help="leftAfter === null ? bankWords.loanDialog.instalmentsHelp : plural(words.editor.instalmentsHelp(leftAfter), leftAfter)"
+          :help="leftAfter === null ? loanWords.loanDialog.instalmentsHelp : plural(loanWords.changeFields.instalmentsHelp(leftAfter), leftAfter)"
         >
           <UInput v-model="texts.instalments" inputmode="numeric" class="w-full" data-testid="scenario-change-instalments" />
         </UFormField>
         <CostFields v-model="texts.costs" :tried="tried" test-prefix="scenario-change" />
       </template>
-      <URadioGroup v-if="texts.kind === 'extra-payment' || texts.kind === 'regular-extra-payment'" v-model="texts.effect" :items="EFFECT_ITEMS" :legend="words.editor.effect" class="sm:col-span-2" />
+      <URadioGroup v-if="texts.kind === 'extra-payment' || texts.kind === 'regular-extra-payment'" v-model="texts.effect" :items="effectItems" :legend="words.editor.effect" class="sm:col-span-2" />
     </FormGrid>
-  </div>
+  </FoldBlock>
 </template>

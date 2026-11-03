@@ -43,7 +43,7 @@ function isChangeKind(text: string): text is LoanChange['kind'] {
 
 export const en = {
   kinds: { borrowed: 'Borrowed', 'borrowed-in-kind': 'Borrowed in kind', repaid: 'Repaid', 'repaid-in-kind': 'Repaid in kind', forgiven: 'Forgiven' },
-  changeKinds: { 'extra-payment': 'Extra payment', 'regular-extra-payment': 'Regular extra payment', 'rate-change': 'Rate change', move: 'Move to another bank' },
+  changeKinds: { 'extra-payment': 'Extra payment', 'regular-extra-payment': 'Regular extra payment', 'rate-change': 'Rate change', move: 'Move to another bank', 'term-change': 'Shorter term' },
   /** The words that name a record of each kind, as its stored fields read. */
   labels: {
     movement: (fields: StoredFields) => labelWords([dayText(fields.date), textOf(fields.kind), numberText(fields.amount)]),
@@ -82,7 +82,13 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   kinds: { borrowed: 'Posuđeno', 'borrowed-in-kind': 'Posuđeno u naravi', repaid: 'Vraćeno', 'repaid-in-kind': 'Vraćeno u naravi', forgiven: 'Oprošteno' },
-  changeKinds: { 'extra-payment': 'Prijevremena otplata', 'regular-extra-payment': 'Redovita prijevremena otplata', 'rate-change': 'Promjena kamatne stope', move: 'Prelazak u drugu banku' },
+  changeKinds: {
+    'extra-payment': 'Prijevremena otplata',
+    'regular-extra-payment': 'Redovita prijevremena otplata',
+    'rate-change': 'Promjena kamatne stope',
+    move: 'Prelazak u drugu banku',
+    'term-change': 'Kraći rok otplate',
+  },
   labels: {
     movement: (fields) => {
       const kind = textOf(fields.kind)
@@ -101,12 +107,12 @@ export const hr: Translation<typeof en> = {
     },
   },
   notACount: (name, text) => `${name} „${text}” nije cijeli broj veći od nule`,
-  interimOutside: (date, drawdown, firstInstalment) => `interim_interest_date ${dayLabel(date)} nije između isplate ${dayLabel(drawdown)} i prvog anuiteta ${dayLabel(firstInstalment)}`,
+  interimOutside: (date, drawdown, firstInstalment) => `interim_interest_date ${dayLabel(date)} nije između isplate ${dayLabel(drawdown)} i prve rate ${dayLabel(firstInstalment)}`,
   payerWithoutSubsidy: 'subsidy_payer navodi platitelja, a subvencije nema',
   subsidyIncomplete: 'subsidy_monthly, subsidy_first_instalment i subsidy_instalments idu zajedno, a nisu sva popunjena',
-  subsidyPastEnd: (last) => `subvencija traje dulje od ${last}. anuiteta, posljednjeg anuiteta kredita`,
+  subsidyPastEnd: (last) => `subvencija traje dulje od ${last}. rate, posljednje rate kredita`,
   firstNotAfterDrawdown: (firstInstalment, drawdown) => `first_instalment ${dayLabel(firstInstalment)} nije nakon isplate ${dayLabel(drawdown)}`,
-  tooManyInstalments: (most) => `više od ${most} anuiteta`,
+  tooManyInstalments: (most) => `više od ${most} rata`,
   notARate: (name, text) => `${name} „${text}” nije godišnji postotak s najviše četiri decimale, na primjer 3.18`,
   paidNotAfterDue: (paid, due) => `plaćeno ${dayLabel(paid)}, a to nije nakon dospijeća ${dayLabel(due)}`,
   openingBelowZero: 'opening_balance je manji od nule',
@@ -117,10 +123,10 @@ export const hr: Translation<typeof en> = {
   noInformalLoan: 'u datoteci nema pozajmice koju navodi',
   notADueDate: (field, date, loan) => `${field} ${dayLabel(date)} nije dospijeće kredita „${loan}”`,
   rateSharesDay: (loan, from) => `i drugo razdoblje kamatne stope kredita „${loan}” počinje ${dayLabel(from)}`,
-  leavesWithoutRate: (from, loan, firstInstalment) => `from ${dayLabel(from)} ostavlja anuitete kredita „${loan}” od ${dayLabel(firstInstalment)} bez kamatne stope`,
+  leavesWithoutRate: (from, loan, firstInstalment) => `from ${dayLabel(from)} ostavlja rate kredita „${loan}” od ${dayLabel(firstInstalment)} bez kamatne stope`,
   beforeDrawdown: (date, loan, drawdown) => `datum ${dayLabel(date)} je prije isplate kredita „${loan}” ${dayLabel(drawdown)}`,
-  noPlan: (firstInstalment) => `nijedno razdoblje kamatne stope ne počinje s prvim anuitetom ${dayLabel(firstInstalment)}, pa se otplatni plan ne može izračunati`,
-  lateSharesDue: (loan, due) => `i drugi zakašnjeli anuitet kredita „${loan}” navodi dospijeće ${dayLabel(due)}`,
+  noPlan: (firstInstalment) => `nijedno razdoblje kamatne stope ne počinje s prvom ratom ${dayLabel(firstInstalment)}, pa se otplatni plan ne može izračunati`,
+  lateSharesDue: (loan, due) => `i druga zakašnjela rata kredita „${loan}” navodi dospijeće ${dayLabel(due)}`,
   beforeStart: (date, loan, start) => `datum ${dayLabel(date)} je prije početka pozajmice „${loan}” ${dayLabel(start)}`,
   costBelowZero: (name) => `polje ${name} je manje od nule`,
   offerFieldsOnLoan: (names) => `scenarij kredita nema uvjete ponude, a popunjeno je: ${names}`,

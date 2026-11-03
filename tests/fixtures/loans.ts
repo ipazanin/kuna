@@ -31,6 +31,7 @@ export function bankLoan(overrides: Partial<BankLoan> = {}): BankLoan {
     instalments: 12,
     interimInterest: null,
     subsidy: null,
+    repayment: 'annuity',
     note: '',
     ...overrides,
   }

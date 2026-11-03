@@ -33,6 +33,7 @@ describe("Kuna's estimate of the effective rate", () => {
       instalments: 360,
       interimInterest: { amount: euros(interim), date: civil('2025-02-01') },
       subsidy: null,
+      repayment: 'annuity',
       costs: { upfront: euros(insured ? 5474 : 2), monthly: euros(client ? 1.89 : 0), yearly: euros(33.18) },
       bankEks: null,
     }
@@ -52,6 +53,7 @@ describe("Kuna's estimate of the effective rate", () => {
       instalments: 240,
       interimInterest: null,
       subsidy: null,
+      repayment: 'annuity',
       costs: NO_COSTS,
       bankEks: null,
     }
@@ -69,6 +71,7 @@ describe("Kuna's estimate of the effective rate", () => {
       instalments: 240,
       interimInterest: null,
       subsidy: null,
+      repayment: 'annuity',
       costs: { upfront: euros(1000), monthly: euros(0), yearly: euros(0) },
       bankEks: null,
     }
@@ -89,11 +92,42 @@ describe("Kuna's estimate of the effective rate", () => {
       instalments: 240,
       interimInterest: null,
       subsidy: { monthly: euros(200), firstInstalment: 1, instalments: 60, payer: 'APN' },
+      repayment: 'annuity',
       costs: NO_COSTS,
       bankEks: null,
     }
     const plan = offerPlan(terms, '3')
 
     expect(effectiveRate(terms.principal, terms.drawdown, plan.rows, plan.costs)).toBe(percent('3.04'))
+  })
+
+  describe('on 100,000.00 at 4% over 120 months', () => {
+    const terms = (repayment: OfferTerms['repayment'], upfront: number): OfferTerms => ({
+      lender: 'Example Bank',
+      principal: euros(100_000),
+      drawdown: civil('2026-01-05'),
+      firstInstalment: civil('2026-02-05'),
+      instalments: 120,
+      interimInterest: null,
+      subsidy: null,
+      repayment,
+      costs: { upfront: euros(upfront), monthly: euros(0), yearly: euros(0) },
+      bankEks: null,
+    })
+    const eksOf = (offer: OfferTerms) => {
+      const plan = offerPlan(offer, '4')
+      return effectiveRate(offer.principal, offer.drawdown, plan.rows, plan.costs)
+    }
+
+    it('gives 4.07% for an annuity and for equal principal with no costs', () => {
+      // (1 + 0.04 / 12)^12 − 1 = 4.0742%, whatever the instalments are.
+      expect(eksOf(terms('annuity', 0))).toBe(percent('4.07'))
+      expect(eksOf(terms('equal-principal', 0))).toBe(percent('4.07'))
+    })
+
+    it('puts 1,000.00 up front a little higher on equal principal, which repays faster', () => {
+      expect(eksOf(terms('annuity', 1000))).toBe(percent('4.3'))
+      expect(eksOf(terms('equal-principal', 1000))).toBe(percent('4.31'))
+    })
   })
 })

@@ -6,7 +6,7 @@
  *   npm run check:figures -- --fake <drive, browser, one-employee or five-employees> [--today yyyy-mm-dd]
  *   npm run check:figures -- --workbook <path to an xlsx export or a Kuna file> [--today yyyy-mm-dd]
  *   npm run check:figures -- --loans <path to a Kuna Loans file> [--today yyyy-mm-dd]
- *   npm run check:figures -- --fake-loans <sample or house-and-car> [--today yyyy-mm-dd]
+ *   npm run check:figures -- --fake-loans <sample, house-and-car or equal-principal> [--today yyyy-mm-dd]
  *   npm run check:figures -- --investments <path to a Kuna Investments file> [--investments-prices <path to its prices file>] [--today yyyy-mm-dd]
  *   npm run check:figures -- --fake-investments sample [--today yyyy-mm-dd]
  *
@@ -97,14 +97,17 @@ import { civilDate, parseCivilDate, yearOf } from '../src/shared/calendar/civilD
 import { yearOfMonth } from '../src/shared/calendar/monthKey.ts'
 import { setMoneyFormat } from '../src/shared/money/moneyFormat.ts'
 import { paidSoFar, paymentsByYear, splitOfRows } from '../src/apps/loans/bankLoans/domain/loanFigures.ts'
-import { whatIfExtraPayment } from '../src/apps/loans/bankLoans/domain/whatIf.ts'
+import { triedRate, whatIfChange, whatIfExtraPayment } from '../src/apps/loans/bankLoans/domain/whatIf.ts'
 import { offerEks } from '../src/apps/loans/scenarios/domain/effectiveRate.ts'
 import { moveBreakEven, scenarioOutcome } from '../src/apps/loans/scenarios/domain/scenarioOutcome.ts'
 import { scenarioBaseOf, scenarioPlan } from '../src/apps/loans/scenarios/domain/scenarioPlan.ts'
-import { againstBase, scenarioCards, scenarioKey, scenarioRows, scenarioTabs, slotted, tabComparison, workedScenarios } from '../src/apps/loans/scenarios/presentation/scenariosView.ts'
-import { askedSlots, pickedOf, slotCount } from '../src/apps/loans/scenarios/presentation/useScenarioCompare.ts'
+import { MOST_COMPARED } from '../src/apps/loans/scenarios/presentation/scenarioComparison.ts'
+import { offersComparison, scenarioKey, scenarioRows, slotted, workedOffers } from '../src/apps/loans/scenarios/presentation/scenariosView.ts'
+import { askedSlots, pickedOf } from '../src/apps/loans/scenarios/presentation/useScenarioCompare.ts'
 import { rateOfText } from '../src/apps/loans/bankLoans/domain/yearlyRate.ts'
 import { bankLoanFigures, bankLoanMonths, bankLoanMoves, bankLoanPaidOffOn, planYears } from '../src/apps/loans/bankLoans/presentation/bankLoanView.ts'
+import { savedTries } from '../src/apps/loans/bankLoans/presentation/savedTries.ts'
+import { wordsFor } from '../src/apps/loans/bankLoans/presentation/words.ts'
 import { planStanding, plannedOwed } from '../src/apps/loans/informalLoans/domain/expectedPlan.ts'
 import { informalBalances } from '../src/apps/loans/informalLoans/domain/informalBalance.ts'
 import { informalClosedOn, informalLoanFigures, informalLoanMonths, informalLoanMoves, movementLines } from '../src/apps/loans/informalLoans/presentation/informalLoanView.ts'
@@ -166,12 +169,12 @@ if (
   (options['investments-prices'] !== undefined && options.investments === undefined) ||
   (!companyAsked && !loansAsked && !investmentsAsked) ||
   (options.fake !== undefined && !knownFake) ||
-  (options['fake-loans'] !== undefined && options['fake-loans'] !== 'sample' && options['fake-loans'] !== 'house-and-car') ||
+  (options['fake-loans'] !== undefined && !['sample', 'house-and-car', 'equal-principal'].includes(options['fake-loans'])) ||
   (options['fake-investments'] !== undefined && options['fake-investments'] !== 'sample') ||
   today === null
 ) {
   console.error(
-    'Usage: npm run check:figures -- [--fake <drive, browser, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample or house-and-car>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--today yyyy-mm-dd]',
+    'Usage: npm run check:figures -- [--fake <drive, browser, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car or equal-principal>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--today yyyy-mm-dd]',
   )
   process.exit(2)
 }
@@ -341,8 +344,8 @@ if (investmentsAsked) {
  * tries 1,000.00 extra on the day. The totals are the Overview's figures over every loan, and the
  * closed group the days the loans at zero were paid off or settled. Each scenario
  * is worked out from the day, an offer over its whole loan, with a move's break-even month and an
- * offer's effective rate. The Scenarios screen's tabs each compare their first scenarios against A
- * with savings earning 3%: the side by side, the cards, the bars and the list.
+ * offer's effective rate. Scenarios compares the first offers against A with savings earning 3%: the side
+ * by side and the list. Each bank loan's page lists the tries saved for it and tries a 3% rate from its next due date.
  */
 function loansGroups(add) {
   const document = options.loans === undefined ? fakeLoansDocument(AT, options['fake-loans']) : decodeDocument(readFileSync(options.loans, 'utf8'))
@@ -358,6 +361,11 @@ function loansGroups(add) {
     add(`${at}.months`, () => bankLoanMonths(book))
     add(`${at}.what-if`, () => whatIfExtraPayment(book, today, moneyFromAmount(1000)))
     add(`${at}.moves`, () => bankLoanMoves(book, today))
+    add(`${at}.saved-tries`, () => savedTries(book, workbook.scenarios, today, wordsFor(book.loan.repayment)))
+    add(`${at}.what-if-rate`, () => {
+      const next = book.plan?.find((row) => row.kind === 'instalment' && row.date > today) ?? null
+      return next && whatIfChange(book, triedRate(book, next.date, rateOfText('3')))
+    })
   }
   for (const [index, { scenario, changes }] of workbook.scenarios.entries()) {
     const at = `loans.scenario-${index + 1}`
@@ -375,23 +383,20 @@ function loansGroups(add) {
       return [scenarioOutcome(plan, from), 'refused' in withoutMove ? withoutMove : moveBreakEven(plan, withoutMove), scenario.start.kind === 'offer' ? offerEks(base, changes) : null]
     })
   }
-  add('loans.scenarios', () =>
-    scenarioTabs(workbook, today).map((tab) => {
-      const offers = tab.kind === 'offers'
-      const worked = workedScenarios(tab, today)
-      const picked = pickedOf(
-        askedSlots(
-          null,
-          tab.scenarios.map((book) => scenarioKey(book.scenario)),
-          slotCount(offers),
-        ),
-        offers,
-      )
-      const compared = slotted(worked, picked)
-      const base = picked[0]?.key ?? ''
-      return [tab.value, tabComparison(tab, compared, base, rateOfText('3')), scenarioCards(tab, compared, base, today), againstBase(compared, base), scenarioRows(worked, compared, base)]
-    }),
-  )
+  add('loans.scenarios', () => {
+    const offers = workbook.scenarios.filter(({ scenario }) => scenario.start.kind === 'offer')
+    const worked = workedOffers(offers)
+    const picked = pickedOf(
+      askedSlots(
+        null,
+        offers.map((book) => scenarioKey(book.scenario)),
+        MOST_COMPARED,
+      ),
+    )
+    const compared = slotted(worked, picked)
+    const base = picked[0]?.key ?? ''
+    return [offersComparison(compared, base, rateOfText('3')), scenarioRows(worked, compared, base)]
+  })
   for (const [index, book] of workbook.informalLoans.entries()) {
     const at = `loans.informal-loan-${index + 1}`
     add(`${at}.balances`, () => informalBalances(book.loan, book.movements))

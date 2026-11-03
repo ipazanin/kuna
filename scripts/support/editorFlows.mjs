@@ -77,6 +77,8 @@ const SCREEN_WORDS = {
     laterRateHelp: bankLoanEnglish.ratePeriodDialog.laterHelp,
     planFromHelp: informalLoanEnglish.loanDialog.planFromHelp,
     whatIf: bankLoanEnglish.whatIf,
+    savedTries: bankLoanEnglish.savedTries,
+    repayments: bankLoanEnglish.loanDialog.repayments,
     transactions: transactionsEnglish,
     rules: rulesEnglish,
     ruleChanges: ruleChangesEnglish.changes,
@@ -132,6 +134,8 @@ const SCREEN_WORDS = {
     laterRateHelp: bankLoanCroatian.ratePeriodDialog.laterHelp,
     planFromHelp: informalLoanCroatian.loanDialog.planFromHelp,
     whatIf: bankLoanCroatian.whatIf,
+    savedTries: bankLoanCroatian.savedTries,
+    repayments: bankLoanCroatian.loanDialog.repayments,
     transactions: transactionsCroatian,
     rules: rulesCroatian,
     ruleChanges: ruleChangesCroatian.changes,
@@ -4907,169 +4911,226 @@ export function loansWhatIfFlowIn(language) {
 
 export const loansWhatIfFlow = loansWhatIfFlowIn('en')
 
-/** The sample Loans file's scenarios of Home loan and its offers, by their bare UUIDs. */
-const SAMPLE_SCENARIOS = {
-  nextSpring: 'fa4e0000-0000-4000-8000-000000000020',
-  everyMonth: 'fa4e0000-0000-4000-8000-000000000021',
-  move: 'fa4e0000-0000-4000-8000-000000000022',
+/** The sample Loans file's offers, by their bare UUIDs. */
+const SAMPLE_OFFERS = {
+  jadran: 'fa4e0000-0000-4000-8000-000000000023',
   coastal: 'fa4e0000-0000-4000-8000-000000000024',
+  lighthouse: 'fa4e0000-0000-4000-8000-000000000032',
 }
 
-/** The keys of the scenarios Scenarios shows a card for, in their order. */
-function scenarioCards(page) {
-  return page.evaluate(() => [...document.querySelectorAll('[data-testid="scenario-card"]')].map((card) => card.dataset.scenario))
+/** The keys of the offers Side by side compares, in their order, from the table's head or a phone's cards. */
+function comparedColumns(page) {
+  return page.evaluate(() => [...document.querySelectorAll('[data-testid="scenario-comparison"] [data-column]')].map((column) => column.dataset.column))
 }
 
-async function cardsAre(page, wanted, failure) {
+async function columnsAre(page, wanted, failure) {
   await page
     .waitForFunction(
-      (keys) => JSON.stringify([...document.querySelectorAll('[data-testid="scenario-card"]')].map((card) => card.dataset.scenario)) === JSON.stringify(keys),
+      (keys) => JSON.stringify([...document.querySelectorAll('[data-testid="scenario-comparison"] [data-column]')].map((column) => column.dataset.column)) === JSON.stringify(keys),
       { timeout: 10_000 },
       wanted,
     )
     .catch(async () => {
-      throw new Error(`${failure}: the cards are ${JSON.stringify(await scenarioCards(page))}`)
+      throw new Error(`${failure}: the columns are ${JSON.stringify(await comparedColumns(page))}`)
     })
 }
 
-/** How many figures the total line of Side by side holds, as cells of the table or two by two on a phone. */
+/** How many figures the total line of Side by side holds, as cells of the table or one per card on a phone. */
 function totalFigures(page) {
-  return page.evaluate(() => document.querySelectorAll('[data-line="total"] td, [data-line="total"] [data-column]').length)
+  return page.evaluate(() => document.querySelectorAll('[data-line="total"] td, section[data-column] [data-line="total"]').length)
+}
+
+/** The words of the editor's headline in the dialog's foot. */
+function headlineOf(page) {
+  return page.$eval('[data-testid="scenario-headline"]', (element) => element.textContent?.replace(/\s+/g, ' ').trim() ?? '').catch(() => '')
+}
+
+async function headlineSays(page, wanted, failure) {
+  await page
+    .waitForFunction((text) => (document.querySelector('[data-testid="scenario-headline"]')?.textContent ?? '').replace(/\s+/g, ' ').includes(text), { timeout: 10_000 }, wanted)
+    .catch(async () => {
+      throw new Error(`${failure}: the foot says "${await headlineOf(page)}"`)
+    })
 }
 
 /**
- * Scenarios with the sample file: A and three scenarios of Home loan side by side, each line with its
- * four figures. Unpicking C leaves B and D their letters and repicking fills C again. Comparing
- * against B moves the Base mark. Deleting C takes it off the list and Undo brings it back.
+ * Scenarios with the sample file: its three offers side by side, the monthly instalment first and
+ * one figure per offer on each line. Unpicking B leaves C its letter and repicking fills B again.
+ * Comparing against B moves the base mark. Deleting B takes it off the list and Undo brings it back.
  */
 export async function loansScenariosFlow(page, { press, shoot, inspect }) {
-  const stands = 'as-it-stands'
-  const { nextSpring, everyMonth, move } = SAMPLE_SCENARIOS
-  await cardsAre(page, [stands, nextSpring, everyMonth, move], 'Scenarios does not compare A with the first three scenarios')
+  const { jadran, coastal, lighthouse } = SAMPLE_OFFERS
+  await columnsAre(page, [jadran, coastal, lighthouse], 'Scenarios does not compare the three offers')
   const figures = await totalFigures(page)
-  if (figures !== 4) throw new Error(`the total line of Side by side holds ${figures} figures, not 4`)
+  if (figures !== 3) throw new Error(`the total line of Side by side holds ${figures} figures, not 3`)
+  const first = await page.$eval('[data-testid="scenario-comparison"] [data-line]', (element) => element.dataset.line)
+  if (first !== 'instalment') throw new Error(`Side by side leads with ${first}, not the monthly instalment`)
   await inspect?.('Scenarios')
   await shoot('loans-scenarios-flow')
 
-  await pressSelector(page, press, `[data-testid="scenario-picker"] [data-option="${everyMonth}"]`)
-  await cardsAre(page, [stands, nextSpring, move], 'unpicking C did not take its card away')
-  await elementSays(page, `[data-testid="scenario-card"][data-scenario="${move}"]`, ['D'], 'D lost its letter when C was unpicked')
+  await pressSelector(page, press, `[data-testid="scenario-picker"] [data-option="${coastal}"]`)
+  await columnsAre(page, [jadran, lighthouse], 'unpicking B did not take its column away')
   if (!(await page.evaluate(() => window.location.hash.includes(',,')))) throw new Error('the freed slot is not kept in the address')
-  await pressSelector(page, press, `[data-testid="scenario-picker"] [data-option="${everyMonth}"]`)
-  await cardsAre(page, [stands, nextSpring, everyMonth, move], 'repicking C did not fill its slot')
+  await pressSelector(page, press, `[data-testid="scenario-picker"] [data-option="${coastal}"]`)
+  await columnsAre(page, [jadran, coastal, lighthouse], 'repicking B did not fill its slot')
 
   await chooseStartingWith(page, press, '[data-testid="scenario-base"]', 'B ·')
-  await elementSays(page, `[data-testid="scenario-card"][data-scenario="${nextSpring}"]`, ['Base'], 'B is not marked the base')
+  await elementSays(page, `[data-testid="scenario-comparison"] [data-column="${coastal}"]`, ['The base'], 'B is not marked the base')
   await inspect?.('Scenarios against B')
   await shoot('loans-scenarios-base')
 
   const rows = () => page.evaluate(() => document.querySelectorAll('[data-testid="scenario-row"]').length)
   const before = await rows()
-  await pressSelector(page, press, `[data-testid="scenario-row"][data-scenario="${everyMonth}"] [data-testid="scenario-delete"]`)
+  await pressSelector(page, press, `[data-testid="scenario-row"][data-scenario="${coastal}"] [data-testid="scenario-delete"]`)
   await toast(page, 'Scenario deleted')
   await page
     .waitForFunction((count) => document.querySelectorAll('[data-testid="scenario-row"]').length === count, { timeout: 10_000 }, before - 1)
     .catch(() => {
-      throw new Error('Delete left the scenario on the list')
+      throw new Error('Delete left the offer on the list')
     })
   await undo(page, press)
   await page
     .waitForFunction((count) => document.querySelectorAll('[data-testid="scenario-row"]').length === count, { timeout: 10_000 }, before)
     .catch(() => {
-      throw new Error('Undo did not bring the scenario back')
+      throw new Error('Undo did not bring the offer back')
     })
   await dismissToasts(page)
 }
 
+/** Types 100,000 at 4% over 10 years and 0 months into New scenario. */
+async function typeTheExample(page, press) {
+  await pressSelector(page, press, '[data-testid="scenario-new"]')
+  await page.waitForSelector('[data-testid="scenario-editor"]', { visible: true })
+  await fill(page, 'offer-principal', '100000')
+  await fill(page, 'offer-rate', '4')
+  await fill(page, 'offer-years', '10')
+  await fill(page, 'offer-months', '0')
+}
+
 /**
- * A new scenario of Home loan from New scenario: a regular extra payment typed into its block, whose
- * headline in the dialog's foot changes with the amount, saved and listed, then deleted again.
+ * New scenario: the amount, the rate, the years and the months typed, the foot reading the annuity,
+ * then Equal principal picked and the foot reading the first instalment falling to the last. Interim
+ * interest without its date, left under a closed More terms, makes Save open the section on its
+ * error. Cleared and saved without a name it is named from its figures, listed, and deleted again.
  */
 export async function loansScenarioEditorFlow(page, { press, shoot, inspect }) {
-  await pressSelector(page, press, '[data-testid="scenario-new"]')
-  await page.waitForSelector('[data-testid="new-scenario-form"]', { visible: true })
-  await fill(page, 'new-scenario-name', '€200 a month')
-  await pressSelector(page, press, '[data-testid="new-scenario-next"]')
-  await page.waitForSelector('[data-testid="scenario-editor"]', { visible: true })
-  await pressSelector(page, press, '[data-testid="scenario-add-regular-extra-payment"]')
-  await fill(page, 'scenario-change-amount', '200')
-  const headline = () => page.$eval('[data-testid="scenario-headline"]', (element) => element.textContent?.replace(/\s+/g, ' ').trim() ?? '').catch(() => '')
-  await page
-    .waitForFunction(() => document.querySelector('[data-testid="scenario-headline"]')?.textContent?.includes('less interest'), { timeout: 10_000 })
-    .catch(async () => {
-      throw new Error(`the foot does not give the headline, it says "${await headline()}"`)
-    })
-  const first = await headline()
+  await typeTheExample(page, press)
+  await headlineSays(page, '€1,012.45 a month', 'the foot does not read the annuity')
   await delay(200)
-  await inspect?.('the scenario editor with a regular extra payment')
+  await inspect?.('the new scenario with an annuity')
   await shoot('loans-scenario-editor')
-  await fill(page, 'scenario-change-amount', '400')
-  await page
-    .waitForFunction((was) => (document.querySelector('[data-testid="scenario-headline"]')?.textContent ?? '').replace(/\s+/g, ' ').trim() !== was, { timeout: 10_000 }, first)
-    .catch(() => {
-      throw new Error(`the headline stayed "${first}" when the amount doubled`)
-    })
+  await pressButton(page, press, '[data-testid="offer-repayment"] button', 'Equal principal')
+  await headlineSays(page, '€1,166.67 falling to €836.11', 'the foot does not read the equal principal instalments')
+  await inspect?.('the new scenario with equal principal')
+  await shoot('loans-scenario-editor-equal-principal')
+  await pressSelector(page, press, '[data-testid="offer-more-toggle"]')
+  await fill(page, 'offer-interim', '120')
+  await pressSelector(page, press, '[data-testid="offer-more-toggle"]')
+  await page.waitForSelector('[data-testid="offer-interim"]', { hidden: true, timeout: 5_000 })
+  await pressSelector(page, press, '[data-testid="scenario-save"]')
+  await page.waitForSelector('[data-testid="offer-interim"]', { visible: true, timeout: 5_000 }).catch(() => {
+    throw new Error('Save with a wrong field under a closed More terms did not open the section')
+  })
+  await elementSays(page, '[data-testid="scenario-editor"]', ['Both the amount and its date, or neither'], 'More terms opened on Save without the interim interest error')
+  await fill(page, 'offer-interim', '')
   await pressSelector(page, press, '[data-testid="scenario-save"]')
   await toast(page, 'Scenario added')
   await dialogGone(page, '[data-testid="scenario-editor"]')
-  await elementSays(page, '[data-testid="scenario-list"]', ['€200 a month', 'Not compared'], 'the new scenario is not listed')
+  const name = '€100,000.00 at 4% over 10 y'
+  await elementSays(page, '[data-testid="scenario-list"]', [name], 'the new offer is not listed under its name from its figures')
   await dismissToasts(page)
-  const added = await page.evaluate(() => [...document.querySelectorAll('[data-testid="scenario-row"]')].find((row) => row.textContent?.includes('€200 a month'))?.dataset.scenario ?? null)
+  const added = await page.evaluate((wanted) => [...document.querySelectorAll('[data-testid="scenario-row"]')].find((row) => row.textContent?.includes(wanted))?.dataset.scenario ?? null, name)
   await pressSelector(page, press, `[data-testid="scenario-row"][data-scenario="${added}"] [data-testid="scenario-delete"]`)
   await toast(page, 'Scenario deleted')
   await dismissToasts(page)
 }
 
-/** The house-and-car Loans file's Car loan tab on Scenarios, which has no scenarios. */
-export const CAR_LOAN_SCENARIOS = '#/loans/scenarios?tab=fa4e0000-0000-4000-8000-000000000030'
-
-/**
- * Car loan's tab with no scenarios and no `?compare=`: Try €5,000.00 extra opens the editor on the
- * payment, and the saved scenario is compared as B beside A rather than left out.
- */
-export async function loansTryExtraFlow(page, { press, shoot, inspect }) {
-  await page.waitForSelector('[data-testid="scenarios-empty"]', { visible: true })
-  await pressButton(page, press, '[data-testid="scenarios-empty"] button', 'Try ')
-  await page.waitForSelector('[data-testid="scenario-editor"]', { visible: true })
-  await pressSelector(page, press, '[data-testid="scenario-save"]')
-  await toast(page, 'Scenario added')
-  await dialogGone(page, '[data-testid="scenario-editor"]')
-  await page
-    .waitForFunction(() => document.querySelectorAll('[data-testid="scenario-card"]').length === 2, { timeout: 10_000 })
-    .catch(async () => {
-      throw new Error(`the tried payment is not compared beside A: the cards are ${JSON.stringify(await scenarioCards(page))}`)
+/** Tries a rate of 3% from the next due date on the loan's page, saves it, and waits for it in Saved tries. Returns its line's title. */
+async function saveRateTry(page, press, words) {
+  await pressButton(page, press, '[data-testid="what-if-kind"] button', words.whatIf.kinds.rate)
+  await fill(page, 'what-if-rate', '3')
+  await page.waitForSelector('[data-testid="what-if-tried"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('the rate change try shows no outcome')
+  })
+  await pressSelector(page, press, '[data-testid="what-if-save"]')
+  const title = await page
+    .waitForFunction(
+      () =>
+        [...document.querySelectorAll('[data-testid="saved-tries"] [data-testid="change-line"] p:first-child')].map((line) => line.textContent?.trim() ?? '').find((text) => /3\s?%/.test(text)) ??
+        null,
+      { timeout: 10_000 },
+    )
+    .then((handle) => handle.jsonValue())
+    .catch(() => {
+      throw new Error('the saved rate change is not in Saved tries')
     })
-  const [first] = await scenarioCards(page)
-  if (first !== 'as-it-stands') throw new Error(`the first card is ${first}, not the loan as it stands`)
-  if (await page.evaluate(() => document.querySelector('[data-testid="scenario-list"]')?.textContent?.includes('Not compared') ?? true)) {
-    throw new Error('the list says the tried payment is not compared')
-  }
-  await inspect?.('the tried payment compared')
-  await shoot('loans-scenarios-tried')
-  await dismissToasts(page)
+  return title
 }
 
-/** The what-if's Save as scenario keeps the tried payment as a scenario and opens it on Scenarios, picked. */
-export async function loansWhatIfScenarioFlow(page, { press, shoot, inspect }) {
-  await fill(page, 'what-if-amount', '3000')
-  await fill(page, 'what-if-date', '2027-06-20')
-  await pressSelector(page, press, '[data-testid="what-if-keep-shorter"]')
-  await page.waitForSelector('[data-testid="scenario-editor"]', { visible: true })
-  await elementSays(page, '[data-testid="scenario-outcome"]', ['Paid off', 'Interest left'], 'the editor does not work the tried payment out')
-  await inspect?.('the what-if kept as a scenario')
-  await shoot('loans-what-if-scenario')
-  await pressSelector(page, press, '[data-testid="scenario-save"]')
-  await toast(page, 'Scenario added')
-  await screenTitled(page, 'Scenarios')
-  await elementSays(page, '[data-testid="scenario-card"]', ['€3,000.00 on 20 Jun 2027'], 'the kept scenario is not picked on Scenarios')
-  await dismissToasts(page)
+/** The line of Saved tries with the title, its Delete pressed. */
+async function deleteTry(page, press, title) {
+  const button = await page
+    .waitForFunction(
+      (wanted) =>
+        [...document.querySelectorAll('[data-testid="saved-tries"] [data-testid="change-line"]')]
+          .find((entry) => entry.querySelector('p')?.textContent?.trim() === wanted)
+          ?.querySelector('[data-testid="change-delete"]') ?? null,
+      { timeout: 10_000 },
+      title,
+    )
+    .then((handle) => handle.asElement())
+  await button.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await press(button)
+}
+
+async function triesHold(page, title, held, failure) {
+  await page
+    .waitForFunction(
+      (wanted, expected) => [...document.querySelectorAll('[data-testid="saved-tries"] [data-testid="change-line"] p:first-child')].some((entry) => entry.textContent?.trim() === wanted) === expected,
+      { timeout: 10_000 },
+      title,
+      held,
+    )
+    .catch(() => {
+      throw new Error(failure)
+    })
 }
 
 /**
- * Scenarios of Home loan in a language: C unpicked and picked again, B made the base, C deleted and
- * brought back with Undo, a new scenario with a regular extra payment typed into the editor, saved and
- * deleted, and on the bank loan's page the what-if kept as a scenario. Each state is inspected, so
- * the visual check reads its words.
+ * On a bank loan's page: a new rate from the next due date tried, saved at once, listed in Saved tries,
+ * deleted, brought back with Undo and deleted again.
+ */
+export function loansSavedTriesFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const title = await saveRateTry(page, press, words)
+    const tries = await page.$('[data-testid="saved-tries"]')
+    await tries.evaluate((element) => element.scrollIntoView({ block: 'start' }))
+    await delay(300)
+    await inspect?.('the rate change saved in Saved tries')
+    await shoot('loans-saved-tries')
+    await dismissToasts(page)
+    await deleteTry(page, press, title)
+    await triesHold(page, title, false, 'Delete left the try in Saved tries')
+    await toast(page, words.savedTries.deleted)
+    await undoIn(page, press, words)
+    await triesHold(page, title, true, 'Undo did not bring the try back')
+    await dismissToasts(page)
+    await deleteTry(page, press, title)
+    await triesHold(page, title, false, 'the second Delete left the try in Saved tries')
+    await dismissToasts(page)
+  }
+}
+
+export const loansSavedTriesFlow = loansSavedTriesFlowIn('en')
+
+/**
+ * Scenarios in a language: B unpicked and picked again, B made the base, B deleted and brought back
+ * with Undo, the example typed into New scenario as an annuity and as equal principal, saved and
+ * deleted, and on the bank loan's page a rate change saved as a try and deleted. Each state is
+ * inspected, so the visual check reads its words.
  */
 export function loansScenariosFlowIn(language, bankLoan) {
   const words = SCREEN_WORDS[language]
@@ -5082,60 +5143,56 @@ export function loansScenariosFlowIn(language, bankLoan) {
       await delay(400)
       await inspect?.(when)
     }
-    const { nextSpring, everyMonth, move } = SAMPLE_SCENARIOS
-    await cardsAre(page, ['as-it-stands', nextSpring, everyMonth, move], 'Scenarios does not compare A with the first three scenarios')
-    await pressSelector(page, press, `[data-testid="scenario-picker"] [data-option="${everyMonth}"]`)
-    await cardsAre(page, ['as-it-stands', nextSpring, move], 'unpicking C did not take its card away')
-    await inspect?.('Scenarios with C unpicked')
-    await pressSelector(page, press, `[data-testid="scenario-picker"] [data-option="${everyMonth}"]`)
+    const { jadran, coastal, lighthouse } = SAMPLE_OFFERS
+    await columnsAre(page, [jadran, coastal, lighthouse], 'Scenarios does not compare the three offers')
+    await pressSelector(page, press, `[data-testid="scenario-picker"] [data-option="${coastal}"]`)
+    await columnsAre(page, [jadran, lighthouse], 'unpicking B did not take its column away')
+    await inspect?.('Scenarios with B unpicked')
+    await pressSelector(page, press, `[data-testid="scenario-picker"] [data-option="${coastal}"]`)
     await chooseStartingWith(page, press, '[data-testid="scenario-base"]', 'B ·')
     await inspect?.('Scenarios against B')
     await shoot('loans-scenarios-base')
-    await pressSelector(page, press, `[data-testid="scenario-row"][data-scenario="${everyMonth}"] [data-testid="scenario-delete"]`)
-    await toastShown('a scenario deleted')
+    await pressSelector(page, press, `[data-testid="scenario-row"][data-scenario="${coastal}"] [data-testid="scenario-delete"]`)
+    await toastShown('an offer deleted')
     await undoIn(page, press, words)
     await dismissToasts(page)
 
-    await pressSelector(page, press, '[data-testid="scenario-new"]')
-    await page.waitForSelector('[data-testid="new-scenario-form"]', { visible: true })
-    await fill(page, 'new-scenario-name', '€200 a month')
-    await inspect?.('the new scenario dialog')
-    await pressSelector(page, press, '[data-testid="new-scenario-next"]')
-    await page.waitForSelector('[data-testid="scenario-editor"]', { visible: true })
-    await pressSelector(page, press, '[data-testid="scenario-add-regular-extra-payment"]')
-    await fill(page, 'scenario-change-amount', '200')
+    await typeTheExample(page, press)
     await page
       .waitForFunction(() => (document.querySelector('[data-testid="scenario-headline"]')?.textContent ?? '').trim() !== '', { timeout: 10_000 })
       .catch(() => {
         throw new Error('the foot of the scenario editor gives no headline')
       })
     await delay(200)
-    await inspect?.('the scenario editor with a regular extra payment')
+    await inspect?.('the new scenario with an annuity')
     await shoot('loans-scenario-editor')
+    await pressButton(page, press, '[data-testid="offer-repayment"] button', words.repayments['equal-principal'])
+    await pressSelector(page, press, '[data-testid="offer-more-toggle"]')
+    await delay(300)
+    await inspect?.('the new scenario with equal principal and More terms open')
+    await shoot('loans-scenario-editor-more')
     await pressSelector(page, press, '[data-testid="scenario-save"]')
-    await toastShown('a scenario added')
+    await toastShown('an offer added')
     await dialogGone(page, '[data-testid="scenario-editor"]')
     await dismissToasts(page)
-    const added = await page.evaluate(() => [...document.querySelectorAll('[data-testid="scenario-row"]')].find((row) => row.textContent?.includes('€200 a month'))?.dataset.scenario ?? null)
+    const added = await page.evaluate(
+      (known) => [...document.querySelectorAll('[data-testid="scenario-row"]')].map((row) => row.dataset.scenario).find((key) => !known.includes(key)) ?? null,
+      [jadran, coastal, lighthouse],
+    )
     await pressSelector(page, press, `[data-testid="scenario-row"][data-scenario="${added}"] [data-testid="scenario-delete"]`)
-    await toastShown('the new scenario deleted')
+    await toastShown('the new offer deleted')
     await dismissToasts(page)
 
     await page.evaluate((loan) => {
       window.location.hash = `#/loans/bank-loan?loan=${loan}`
     }, bankLoan)
     await screenTitled(page, 'Home loan')
-    await fill(page, 'what-if-amount', '3000')
-    await fill(page, 'what-if-date', '2027-06-20')
-    await pressSelector(page, press, '[data-testid="what-if-keep-shorter"]')
-    await page.waitForSelector('[data-testid="scenario-editor"]', { visible: true })
-    await delay(300)
-    await inspect?.('the what-if kept as a scenario')
-    await shoot('loans-what-if-scenario')
-    await pressSelector(page, press, '[data-testid="scenario-save"]')
-    await toastShown('the what-if saved as a scenario')
-    await screenTitled(page, words.scenarios)
-    await inspect?.('Scenarios with the kept what-if')
+    const title = await saveRateTry(page, press, words)
+    await toastShown('a rate change saved as a try')
+    await shoot('loans-saved-tries')
+    await dismissToasts(page)
+    await deleteTry(page, press, title)
+    await toastShown('a try deleted')
     await dismissToasts(page)
   }
 }
@@ -5165,7 +5222,8 @@ async function goTo(page, hash, title) {
 /**
  * Every Loans dialog with the sample file, opened and closed again: a new bank loan with and without
  * a subsidy, a new informal loan, each loan's own dialog, an informal loan's with its expected plan,
- * and the dialog of each change of the bank loan, the subsidy's showing its payer.
+ * the dialog of each change of the bank loan, the subsidy's showing its payer, New scenario with More
+ * terms closed and open, and an offer's editor.
  */
 export function loansDialogsFlowIn(language) {
   const words = SCREEN_WORDS[language]
@@ -5207,21 +5265,19 @@ export function loansDialogsFlowIn(language) {
     await lookAtDialog(page, press, shoot, '[data-testid="informal-loan-edit"]', '[data-testid="informal-loan-form"]', 'dialog-informal-loan-plan', words.planFromHelp)
 
     await goTo(page, '#/loans/scenarios', words.scenarios)
-    await lookAtDialog(page, press, shoot, '[data-testid="scenario-new"]', '[data-testid="new-scenario-form"]', 'dialog-new-scenario')
+    await lookAtDialog(page, press, shoot, '[data-testid="scenario-new"]', '[data-testid="scenario-editor"]', 'dialog-new-scenario')
+    await pressSelector(page, press, '[data-testid="scenario-new"]')
+    await page.waitForSelector('[data-testid="scenario-editor"]', { visible: true })
+    await pressSelector(page, press, '[data-testid="offer-more-toggle"]')
+    await delay(400)
+    await shoot('dialog-new-scenario-more')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="scenario-editor"]')
     await lookAtDialog(
       page,
       press,
       shoot,
-      `[data-testid="scenario-row"][data-scenario="${SAMPLE_SCENARIOS.move}"] [data-testid="scenario-edit"]`,
-      '[data-testid="scenario-editor"]',
-      'dialog-scenario-editor',
-    )
-    await goTo(page, '#/loans/scenarios?tab=offers', words.scenarios)
-    await lookAtDialog(
-      page,
-      press,
-      shoot,
-      `[data-testid="scenario-row"][data-scenario="${SAMPLE_SCENARIOS.coastal}"] [data-testid="scenario-edit"]`,
+      `[data-testid="scenario-row"][data-scenario="${SAMPLE_OFFERS.coastal}"] [data-testid="scenario-edit"]`,
       '[data-testid="scenario-editor"]',
       'dialog-offer-editor',
     )

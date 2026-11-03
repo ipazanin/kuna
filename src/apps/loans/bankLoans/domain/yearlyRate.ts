@@ -63,3 +63,17 @@ export function annuity(balance: Money, rate: YearlyRate, count: number): Money 
   const denominator = perYear * (grown - perYear ** BigInt(count))
   return moneyFromCents(Number((2n * numerator + denominator) / (2n * denominator)))
 }
+
+/**
+ * An equal principal instalment: the share of principal, `shareBalance` over `shareCount` kept exact, plus the
+ * month's interest on the balance, unrounded, then rounded half up to the cent once.
+ */
+export function equalPrincipalInstalment(shareBalance: Money, shareCount: number, balance: Money, rate: YearlyRate): Money {
+  if (!Number.isInteger(shareCount) || shareCount < 1) {
+    throw new RangeError(`${shareCount} is not a number of instalments.`)
+  }
+  const perYear = BigInt(MONTHS_PER_YEAR * MILLIONTHS_PER_WHOLE)
+  const numerator = BigInt(shareBalance) * perYear + BigInt(shareCount) * BigInt(balance) * BigInt(rate)
+  const denominator = BigInt(shareCount) * perYear
+  return moneyFromCents(Number((2n * numerator + denominator) / (2n * denominator)))
+}

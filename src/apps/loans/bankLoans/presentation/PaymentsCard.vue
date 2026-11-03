@@ -6,7 +6,6 @@ import type { PlanRow } from '../domain/loanPlan'
 import { paymentsChart } from './paymentsChart'
 import PaymentSplitFigures from './PaymentSplitFigures.vue'
 import { subsidyColourOf } from './subsidyColour'
-import { words } from './words'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
 import { yearInRange } from '../../../../shared/charts/chartRange'
 import type { ChartRange } from '../../../../shared/charts/chartRange'
@@ -15,6 +14,7 @@ import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
+import { useLoanWords } from './useLoanWords'
 
 /** Where a bank loan's payments go, year by year and over the whole loan: principal, interest and what the subsidy pays of them. */
 const props = defineProps<{
@@ -29,6 +29,7 @@ const props = defineProps<{
   /** The days the picked range keeps, null for All. A year counts whole once any of its days is kept. */
   shownDays: DateRange | null
 }>()
+const loanWords = useLoanWords()
 
 const range = defineModel<ChartRange>('range', { required: true })
 
@@ -41,24 +42,25 @@ const chart = computed(() =>
     chartTokens(),
     phone.value,
     props.estimateFromYear,
+    loanWords.value,
   ),
 )
 const wholeLoan = computed(() => splitOfRows(props.plan))
 
 const legend = computed((): LegendEntry[] => [
-  { label: words.split.principal, colour: 'var(--loan-principal)' },
-  { label: words.split.interest, colour: 'var(--loan-interest)' },
-  ...(chart.value.hasSubsidy ? [{ label: words.subsidyPays(props.payer), colour: subsidyColourOf(wholeLoan.value), mark: 'hatched' as const }] : []),
-  ...(chart.value.hasExtra ? [{ label: words.payments.extra, colour: 'var(--loan-principal)', mark: 'outline' as const }] : []),
-  ...(chart.value.hasAhead ? [{ label: words.payments.ahead, colour: 'var(--loan-ahead)', mark: 'line' as const }] : []),
+  { label: loanWords.value.split.principal, colour: 'var(--loan-principal)' },
+  { label: loanWords.value.split.interest, colour: 'var(--loan-interest)' },
+  ...(chart.value.hasSubsidy ? [{ label: loanWords.value.subsidyPays(props.payer), colour: subsidyColourOf(wholeLoan.value), mark: 'hatched' as const }] : []),
+  ...(chart.value.hasExtra ? [{ label: loanWords.value.payments.extra, colour: 'var(--loan-principal)', mark: 'outline' as const }] : []),
+  ...(chart.value.hasAhead ? [{ label: loanWords.value.payments.ahead, colour: 'var(--loan-ahead)', mark: 'line' as const }] : []),
 ])
 </script>
 
 <template>
   <ChartCard
     v-model:range="range"
-    :title="words.payments.title"
-    :subtitle="chart.hasSubsidy ? words.payments.subsidySubtitle(payer) : words.payments.subtitle"
+    :title="loanWords.payments.title"
+    :subtitle="chart.hasSubsidy ? loanWords.payments.subsidySubtitle(payer) : loanWords.payments.subtitle"
     :option="chart.option"
     :description="chart.description"
     :height="280"
@@ -69,7 +71,7 @@ const legend = computed((): LegendEntry[] => [
     <template #legend>
       <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-3 rounded-control bg-elevated p-3 sm:p-4" data-testid="loan-whole-loan">
-          <p class="type-label">{{ words.payments.wholeLoan }}</p>
+          <p class="type-label">{{ loanWords.payments.wholeLoan }}</p>
           <PaymentSplitFigures :split="wholeLoan" :payer="payer" />
         </div>
         <ChartLegend :entries="legend" />

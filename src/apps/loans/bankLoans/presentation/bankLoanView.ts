@@ -12,7 +12,7 @@ import { ZERO, addMoney, subtractMoney } from '../../../../shared/money/money'
 import { formatRate } from '../../../../shared/money/moneyFormat'
 import type { Money } from '../../../../shared/money/money'
 import { plural } from '../../../../shared/text/translation'
-import { words } from './words'
+import { words, wordsFor } from './words'
 
 /** The figures a bank loan's card and page lead with, on a day. */
 export interface BankLoanFigures {
@@ -95,20 +95,21 @@ export interface PlanYear {
   readonly estimate: boolean
 }
 
-function statusOf(row: PlanRow, paidLate: CivilDate | undefined, day: CivilDate): string {
-  if (row.kind === 'extra-payment') return words.status.extra
-  if (row.kind === 'interim-interest') return row.date <= day ? words.status.interimPaid : words.status.interimDue
+function statusOf(row: PlanRow, paidLate: CivilDate | undefined, day: CivilDate, loanWords: typeof words): string {
+  if (row.kind === 'extra-payment') return loanWords.status.extra
+  if (row.kind === 'interim-interest') return row.date <= day ? loanWords.status.interimPaid : loanWords.status.interimDue
   if (paidLate !== undefined) {
     const days = daysBetween(row.date, paidLate)
-    return plural(words.status.paidLate(days, shortDayLabel(paidLate)), days)
+    return plural(loanWords.status.paidLate(days, shortDayLabel(paidLate)), days)
   }
-  return row.date <= day ? words.status.paid : words.status.due
+  return row.date <= day ? loanWords.status.paid : loanWords.status.due
 }
 
 const NO_TOTALS: PlanTotals = { payment: ZERO, yourShare: ZERO, interest: ZERO, principal: ZERO, subsidy: ZERO }
 
 /** The plan grouped by the calendar year its rows fall due in, with each year's totals, oldest first. */
 export function planYears(book: BankLoanBook, day: CivilDate): PlanYear[] {
+  const loanWords = wordsFor(book.loan.repayment)
   const paidLate = new Map(book.lateInstalments.map((late) => [late.due, late.paid]))
   const years = new Map<number, PlanLine[]>()
   for (const [index, row] of (book.plan ?? []).entries()) {
@@ -117,7 +118,7 @@ export function planYears(book: BankLoanBook, day: CivilDate): PlanYear[] {
       key: `${row.kind}-${row.date}-${index}`,
       estimate: isEstimate(row, book.ratePeriods, day),
       late: row.kind === 'instalment' && paidLate.has(row.date),
-      status: statusOf(row, row.kind === 'instalment' ? paidLate.get(row.date) : undefined, day),
+      status: statusOf(row, row.kind === 'instalment' ? paidLate.get(row.date) : undefined, day, loanWords),
     }
     const year = yearOf(row.date)
     years.set(year, [...(years.get(year) ?? []), line])
@@ -160,18 +161,19 @@ export function bankLoanMonths(book: BankLoanBook): MonthBalance[] {
  * the first instalment.
  */
 export function bankLoanMoves(book: BankLoanBook, day: CivilDate): BalanceMove[] {
+  const loanWords = wordsFor(book.loan.repayment)
   const paidLate = new Map(book.lateInstalments.map((late) => [late.due, late.paid]))
   const payments = (book.plan ?? []).flatMap((row): BalanceMove[] => {
-    if (row.kind === 'extra-payment') return [{ date: row.date, kind: words.status.extra, amount: row.payment, note: '', effect: 'lowers' }]
+    if (row.kind === 'extra-payment') return [{ date: row.date, kind: loanWords.status.extra, amount: row.payment, note: '', effect: 'lowers' }]
     if (row.kind !== 'instalment' || row.number === null || row.date > day) return []
     const late = paidLate.get(row.date)
     const days = late === undefined ? 0 : daysBetween(row.date, late)
     return [
       {
         date: row.date,
-        kind: words.moves.instalment(row.number),
+        kind: loanWords.moves.instalment(row.number),
         amount: row.payment,
-        note: late === undefined ? '' : plural(words.status.paidLate(days, shortDayLabel(late)), days),
+        note: late === undefined ? '' : plural(loanWords.status.paidLate(days, shortDayLabel(late)), days),
         effect: 'lowers',
       },
     ]
@@ -180,7 +182,7 @@ export function bankLoanMoves(book: BankLoanBook, day: CivilDate): BalanceMove[]
     .filter((period) => period.from !== book.loan.firstInstalment)
     .map((period): BalanceMove => ({
       date: period.from,
-      kind: words.moves.newRate(words.changes.rate(formatRate(fractionOf(period.rate)), words.changes.rateTypes[period.rateType])),
+      kind: loanWords.moves.newRate(loanWords.changes.rate(formatRate(fractionOf(period.rate)), loanWords.changes.rateTypes[period.rateType])),
       amount: null,
       note: period.note,
       effect: 'rate',

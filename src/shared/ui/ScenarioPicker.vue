@@ -5,8 +5,6 @@ export interface PickerOption {
   readonly label: string
   /** The name in the base select, when it says more than the toggle, such as with a letter. */
   readonly baseLabel?: string
-  /** Always picked, such as the plan every other is compared against. */
-  readonly locked?: boolean
 }
 </script>
 
@@ -30,8 +28,6 @@ const props = defineProps<{
   againstLabel: string
   /** What the row says once `most` are picked. */
   fullNote: string
-  /** What a locked toggle tells a screen reader. */
-  lockedNote: string
 }>()
 
 const emit = defineEmits<{
@@ -47,10 +43,6 @@ defineSlots<{
 const full = computed(() => props.picked.length >= props.most)
 const waiting = computed(() => full.value && props.options.some((option) => !props.picked.includes(option.value)))
 const baseItems = computed(() => props.options.filter((option) => props.picked.includes(option.value)).map((option) => ({ label: option.baseLabel ?? option.label, value: option.value })))
-
-function toggle(option: PickerOption): void {
-  if (option.locked !== true) emit('toggle', option.value)
-}
 </script>
 
 <template>
@@ -65,14 +57,12 @@ function toggle(option: PickerOption): void {
           size="sm"
           :class="picked.includes(option.value) ? 'ring-2 ring-inverted' : 'text-toned'"
           :aria-pressed="picked.includes(option.value)"
-          :aria-disabled="option.locked === true ? true : undefined"
           :disabled="!picked.includes(option.value) && full"
           :data-option="option.value"
-          @click="toggle(option)"
+          @click="emit('toggle', option.value)"
         >
           <slot name="mark" :option="option" :picked="picked.includes(option.value)" />
           {{ option.label }}
-          <span v-if="option.locked === true" class="sr-only">, {{ lockedNote }}</span>
         </UButton>
       </div>
       <p v-if="waiting" class="type-caption">{{ fullNote }}</p>

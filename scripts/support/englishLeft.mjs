@@ -152,7 +152,7 @@ const FAKE_DOCUMENTS = [
   fakeWorkbookDocument(FAKE_SAVED_AT, 'drive'),
   fakeWorkbookDocument(FAKE_SAVED_AT, 'browser'),
   ...['one-employee', 'five-employees'].map((variant) => fakeWorkbookDocument(FAKE_SAVED_AT, 'drive', fakeStaffOf(variant))),
-  ...['sample', 'one-loan', 'house-and-car'].map((set) => fakeLoansDocument(FAKE_SAVED_AT, set)),
+  ...['sample', 'one-loan', 'house-and-car', 'equal-principal'].map((set) => fakeLoansDocument(FAKE_SAVED_AT, set)),
   ...['sample', 'cash-below-zero'].map((variant) => fakeInvestmentsDocument(FAKE_SAVED_AT, variant)),
 ]
 

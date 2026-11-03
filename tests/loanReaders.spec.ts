@@ -76,6 +76,7 @@ describe('the Loans file', () => {
     }
     const kinds: [RecordKind<unknown>, RecordFields][] = [
       [BANK_LOAN_RECORDS, loan],
+      [BANK_LOAN_RECORDS, { ...LOAN, id: 'b2', repayment: 'equal-principal' }],
       [RATE_PERIOD_RECORDS, { ...FIRST_RATE, rate: '3.1825', rate_type: 'variable', note: '6M EURIBOR + 0.90' }],
       [EXTRA_PAYMENT_RECORDS, { id: 'x1', loan: LOAN_UUID, date: '2026-07-05', amount: '300.00', effect: 'shorter-term' }],
       [LATE_INSTALMENT_RECORDS, { id: 'l1', loan: LOAN_UUID, due: '2026-03-05', paid: '2026-03-23' }],
@@ -87,6 +88,7 @@ describe('the Loans file', () => {
         LOAN_SCENARIO_RECORDS,
         { ...OFFER, interim_interest: '4.20', interim_interest_date: '2026-04-01', subsidy_monthly: '10.00', subsidy_first_instalment: '1', subsidy_instalments: '3', subsidy_payer: 'APN' },
       ],
+      [LOAN_SCENARIO_RECORDS, { ...OFFER, id: 's3', repayment: 'equal-principal' }],
       [SCENARIO_CHANGE_RECORDS, { id: 'c1', scenario: SCENARIO_UUID, change: 'extra-payment', date: '2026-07-05', amount: '300.00', effect: 'shorter-term' }],
       [
         SCENARIO_CHANGE_RECORDS,
@@ -97,6 +99,7 @@ describe('the Loans file', () => {
         SCENARIO_CHANGE_RECORDS,
         { id: 'c4', scenario: SCENARIO_UUID, change: 'move', date: '2026-06-05', lender: 'Other Bank', rate: '8', rate_type: 'fixed', instalments: '6', upfront_costs: '15.00' },
       ],
+      [SCENARIO_CHANGE_RECORDS, { id: 'c5', scenario: SCENARIO_UUID, change: 'term-change', date: '2026-05-05', instalments: '6' }],
     ]
 
     for (const [kind, fields] of kinds) {
@@ -155,6 +158,33 @@ describe('the Loans file', () => {
       ['bank-loan', 'Car loan', "the subsidy runs past instalment 12, the loan's last"],
       ['bank-loan', 'Car loan', 'subsidy_payer names a payer of no subsidy'],
     ])
+  })
+
+  it('reads a blank repayment as an annuity and equal principal as written, and refuses any other word', () => {
+    const books = booksOf({
+      'bank-loan': [LOAN, { ...LOAN, id: 'b2', name: 'Boat loan', repayment: 'equal-principal' }, { ...LOAN, id: 'b3', name: 'Van loan', repayment: 'linear' }],
+      'rate-period': [FIRST_RATE, { ...FIRST_RATE, id: 'a2', loan: 'b2' }],
+      'loan-scenario': [
+        { ...OFFER, repayment: 'equal-principal' },
+        { ...LOAN_SCENARIO, id: 's3', name: 'Pay less', repayment: 'equal-principal' },
+      ],
+    })
+
+    expect(books.bankLoans.map((book) => [book.loan.name, book.loan.repayment])).toEqual([
+      ['Car loan', 'annuity'],
+      ['Boat loan', 'equal-principal'],
+    ])
+    expect(books.scenarios[0]!.scenario.start).toMatchObject({ kind: 'offer', terms: { repayment: 'equal-principal' } })
+    expect(books.problems.map((problem) => [problem.kind, problem.label, problem.reason])).toEqual([
+      ['bank-loan', 'Van loan', '"linear" is not a repayment type. Use annuity, equal-principal'],
+      ['loan-scenario', 'Pay less', 'a scenario of a bank loan holds no offer terms, but it fills repayment'],
+    ])
+  })
+
+  it('writes no repayment field for an annuity loan or offer, so their records stay as they were', () => {
+    expect(roundTrip(BANK_LOAN_RECORDS, LOAN)).not.toHaveProperty('repayment')
+    expect(roundTrip(LOAN_SCENARIO_RECORDS, OFFER)).not.toHaveProperty('repayment')
+    expect(roundTrip(BANK_LOAN_RECORDS, { ...LOAN, repayment: 'equal-principal' })).toHaveProperty('repayment', 'equal-principal')
   })
 
   it('reads a subsidy without a payer, as files saved before the field have it', () => {
@@ -334,6 +364,7 @@ describe('the Loans file', () => {
           { id: 'c5', scenario: OTHER_UUID, change: 'extra-payment', date: '2026-06-05', amount: '10.00', effect: 'shorter-term' },
           { id: 'c6', scenario: SCENARIO_UUID, change: 'move', date: '2026-06-05', rate: '8', rate_type: 'fixed', instalments: '6' },
           { id: 'c7', scenario: SCENARIO_UUID, change: 'move', date: '2026-07-05', rate: '7', rate_type: 'fixed', instalments: '5' },
+          { id: 'c8', scenario: SCENARIO_UUID, change: 'term-change', date: '2026-05-05' },
         ],
       }),
     ).toEqual([
@@ -343,10 +374,11 @@ describe('the Loans file', () => {
       ['loan-scenario', 'Other Bank offer', 'monthly_costs is below zero'],
       ['loan-scenario', 'Other Bank offer', 'bank_eks "3,2" is not a yearly percent with at most four decimals, such as 3.18'],
       ['loan-scenario', 'Pay extra', 'names no bank loan in the file'],
-      ['scenario-change', 'refinance, 2026-06-05', '"refinance" is not a scenario change. Use extra-payment, regular-extra-payment, rate-change, move'],
+      ['scenario-change', 'refinance, 2026-06-05', '"refinance" is not a scenario change. Use extra-payment, regular-extra-payment, rate-change, move, term-change'],
       ['scenario-change', 'regular-extra-payment, 2026-06-05', '"week" is not a repeat. Use month, year'],
       ['scenario-change', 'regular-extra-payment, 2026-06-05', 'until 2026-05-05 is before date 2026-06-05'],
       ['scenario-change', 'extra-payment, 2026-06-05', 'no scenario'],
+      ['scenario-change', 'term-change, 2026-05-05', 'no instalments'],
       ['scenario-change', 'extra-payment, 2026-06-05', 'names no scenario in the file'],
       ['scenario-change', 'move, 2026-06-05', 'another change of "Pay extra" is a move too, and a scenario moves once'],
       ['scenario-change', 'move, 2026-07-05', 'another change of "Pay extra" is a move too, and a scenario moves once'],

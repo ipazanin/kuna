@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
 import { bankLoanFigures, bankLoanMoves, planYears } from '../src/apps/loans/bankLoans/presentation/bankLoanView'
+import { wordsFor } from '../src/apps/loans/bankLoans/presentation/words'
+import { plural } from '../src/shared/text/translation'
 import { euros } from './fixtures/ledger'
 import { civil } from './fixtures/ledger'
 import { bankLoan, extraPayment, lateInstalment, ratePeriod } from './fixtures/loans'
@@ -55,5 +57,17 @@ describe("what a bank loan's balance chart marks", () => {
     ])
     expect(moves[0]!.amount).toBe(book.plan[1 - 1]!.payment)
     expect(moves.at(-1)!.amount).toBeNull()
+  })
+})
+
+describe("a bank loan's words by how it is repaid", () => {
+  it('says what follows the subsidy: the same instalment for an annuity, a falling one for equal principal', () => {
+    expect(plural(wordsFor('annuity').tiles.subsidyThen(12, '€800.00'), 12)).toBe('then €800.00 a month, 12 instalments to go')
+    expect(plural(wordsFor('equal-principal').tiles.subsidyThen(12, '€800.00'), 12)).toBe('then from €800.00 a month, falling, 12 instalments to go')
+  })
+
+  it('says a shorter term keeps the instalment of an annuity and the share of principal of equal principal', () => {
+    expect(wordsFor('annuity').whatIf.shorterNote).toBe('The instalment stays the same.')
+    expect(wordsFor('equal-principal').whatIf.shorterNote).toBe('The share of principal stays, and the instalment keeps falling.')
   })
 })

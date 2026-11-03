@@ -3,138 +3,82 @@ import { describe, expect, it } from 'vitest'
 import { rateOfText } from '../src/apps/loans/bankLoans/domain/yearlyRate'
 import { blankChange, typedChange, typedCosts } from '../src/apps/loans/scenarios/presentation/changeTexts'
 import type { ChangeRules } from '../src/apps/loans/scenarios/presentation/changeTexts'
-import { againstBase, changeSummary, scenarioCards, scenarioKey, scenarioRows, scenarioTabs, slotted, tabComparison, workedScenarios } from '../src/apps/loans/scenarios/presentation/scenariosView'
-import type { ScenariosTab } from '../src/apps/loans/scenarios/presentation/scenariosView'
-import { askedSlots, pickedOf, slotCount } from '../src/apps/loans/scenarios/presentation/useScenarioCompare'
+import { changeSummary, offersComparison, scenarioKey, scenarioRows, slotted, workedOffers } from '../src/apps/loans/scenarios/presentation/scenariosView'
+import { words as bankWords } from '../src/apps/loans/bankLoans/presentation/words'
+import { MOST_COMPARED } from '../src/apps/loans/scenarios/presentation/scenarioComparison'
+import { askedSlots, pickedOf } from '../src/apps/loans/scenarios/presentation/useScenarioCompare'
 import { fakeLoansDocument } from '../src/apps/loans/workbook/infrastructure/fake/fakeLoans'
 import type { FakeLoansSet } from '../src/apps/loans/workbook/infrastructure/fake/fakeLoans'
 import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument'
+import type { ScenarioBook } from '../src/apps/loans/workbook/domain/readLoanBook'
 import { civil, euros } from './fixtures/ledger'
 
-const TODAY = civil('2026-10-28')
-
-function tabsOf(set: FakeLoansSet): ScenariosTab[] {
+function offersOf(set: FakeLoansSet): ScenarioBook[] {
   const { workbook } = LOANS_DOCUMENT.read({
     meta: { id: 'scenarios', source: 'browser', title: 'scenarios', syncedAt: '2026-10-28T00:00:00Z', lastExportedAt: null, unexportedSince: null },
     revision: '1',
     document: fakeLoansDocument('2026-10-28T00:00:00Z', set),
   })
-  return scenarioTabs(workbook, TODAY)
+  return workbook.scenarios.filter(({ scenario }) => scenario.start.kind === 'offer')
 }
 
-/** The tab compared as it opens: its first scenarios, against the first column. */
-function opened(tab: ScenariosTab, savings: string | null = null) {
-  const offers = tab.kind === 'offers'
-  const worked = workedScenarios(tab, TODAY)
+/** The offers compared as the screen opens: the first ones, against the first column. */
+function opened(scenarios: readonly ScenarioBook[], savings: string | null = null) {
+  const worked = workedOffers(scenarios)
   const picked = pickedOf(
     askedSlots(
       null,
-      tab.scenarios.map((book) => scenarioKey(book.scenario)),
-      slotCount(offers),
+      scenarios.map((book) => scenarioKey(book.scenario)),
+      MOST_COMPARED,
     ),
-    offers,
   )
   const compared = slotted(worked, picked)
   const base = picked[0]!.key
-  return { worked, compared, base, comparison: tabComparison(tab, compared, base, savings === null ? null : rateOfText(savings)) }
+  return { worked, compared, base, comparison: offersComparison(compared, base, savings === null ? null : rateOfText(savings)) }
 }
 
 const line = (comparison: ReturnType<typeof opened>['comparison'], key: string) => comparison.lines.find((entry) => entry.key === key)!
 
-describe('the Scenarios tabs', () => {
-  it('gives each bank loan a tab with its scenarios and counts the offers on their own tab', () => {
-    expect(tabsOf('sample').map((tab) => [tab.kind, tab.label, tab.scenarios.length])).toEqual([
-      ['loan', 'Home loan', 3],
-      ['offers', 'Offers', 2],
-    ])
-    expect(tabsOf('house-and-car').map((tab) => [tab.label, tab.scenarios.length])).toEqual([
-      ['Home loan', 3],
-      ['Car loan', 0],
-      ['Offers', 2],
-    ])
+describe('the offers on Scenarios', () => {
+  it('keeps to offers, leaving the scenarios of a loan you have to its own page', () => {
+    expect(offersOf('sample').map(({ scenario }) => scenario.name)).toEqual(['Jadran Bank offer', 'Coastal Bank offer', 'Lighthouse Bank offer'])
   })
 
-  it("compares a loan's scenarios from today against the loan as it stands, with every line's four figures", () => {
-    const { comparison } = opened(tabsOf('sample')[0]!)
+  it("compares offers over their whole loan, the instalment first, with Kuna's EKS beside the bank's", () => {
+    const { comparison } = opened(offersOf('sample'))
 
-    expect(comparison.columns.map((column) => `${column.letter} ${column.name}`)).toEqual(['A As it stands', 'B €5,000 next spring', 'C €150 every month', 'D Move to Jadran Bank'])
-    expect(line(comparison, 'payoff').cells.map((cell) => [cell.text, cell.difference])).toEqual([
-      ['Mar 2048', null],
-      ['Apr 2047', '11 m sooner'],
-      ['Nov 2043', '4 y 4 m sooner'],
-      ['Mar 2048', null],
+    expect(comparison.lines[0]!.label).toBe('Monthly instalment')
+    // Coastal Bank turns variable after five years and Lighthouse Bank repays equal principal, so each shows its last instalment under its first.
+    expect(line(comparison, 'instalment').cells.map((cell) => [cell.text, cell.second])).toEqual([
+      ['€660.26', null],
+      ['€605.45', 'last €633.13'],
+      ['€1,166.67', 'last €836.11'],
     ])
-    expect(line(comparison, 'total').cells.map((cell) => cell.text)).toEqual(['€223,826.53', '€218,325.43', '€207,899.16', '€208,223.94'])
-    // B, C and D repay early by 20 Mar 2029, two years after the subsidy's last instalment, so the subsidy is paid back.
-    expect(line(comparison, 'subsidy').cells.map((cell) => cell.warning)).toEqual([null, 'then paid back', 'then paid back', 'then paid back'])
-  })
-
-  it('adds what each scenario leaves you ahead once the savings rate is typed in, more being better', () => {
-    const { comparison } = opened(tabsOf('sample')[0]!, '3')
-
-    expect(line(comparison, 'left-over').cells.map((cell) => [cell.text, cell.best, cell.difference])).toEqual([
-      ['€0.00', false, null],
-      ['+€1,110.66', false, null],
-      ['+€3,177.41', false, null],
-      ['+€17,287.42', true, null],
-    ])
-    expect(opened(tabsOf('sample')[0]!).comparison.lines.some((entry) => entry.key === 'left-over')).toBe(false)
-  })
-
-  it("compares offers over their whole loan with Kuna's EKS beside the bank's", () => {
-    const { comparison } = opened(tabsOf('sample')[1]!)
-
-    expect(line(comparison, 'next-instalment').label).toBe('First instalment')
     expect(line(comparison, 'eks').cells.map((cell) => [cell.text, cell.best, cell.difference])).toEqual([
       ['3.09%', true, null],
       ['3.56%', false, '0.47 points higher'],
+      ['4.07%', false, '0.98 points higher'],
     ])
-    expect(line(comparison, 'bank-eks').cells.map((cell) => cell.text)).toEqual(['3.09%', '–'])
-    expect(line(comparison, 'interest').cells.map((cell) => cell.best)).toEqual([false, false])
+    expect(line(comparison, 'bank-eks').cells.map((cell) => cell.text)).toEqual(['3.09%', '–', '–'])
+    expect(line(comparison, 'interest').cells.map((cell) => cell.best)).toEqual([false, false, false])
   })
 
-  it('cards each scenario with what it changes and its facts against the base', () => {
-    const tab = tabsOf('sample')[0]!
-    const { compared, base } = opened(tab)
-    const cards = scenarioCards(tab, compared, base, TODAY)
+  it('adds what each offer leaves you ahead once the savings rate is typed in', () => {
+    const scenarios = offersOf('sample')
 
-    expect(cards.map((card) => [card.letter, card.isBase, card.subsidyBack])).toEqual([
-      ['A', true, false],
-      ['B', false, true],
-      ['C', false, true],
-      ['D', false, true],
-    ])
-    expect(cards[0]!.summary).toBe('The plan in the file: 3.1% fixed, then 3.85% variable from 20 Apr 2028, an estimate.')
-    expect(cards[3]!.summary).toBe('A new loan from Jadran Bank pays this one off on 20 Mar 2028: 2.9% fixed over 240 instalments, costs €1,500.00 up front. Its costs are paid back by 31 Jan 2030.')
-    expect(cards[1]!.facts.map((fact) => fact.caption)).toEqual(['11 m sooner', '€5,501.10 less', '€5,501.10 less'])
+    expect(line(opened(scenarios, '3').comparison, 'left-over').cells[0]!.text).toBe('€0.00')
+    expect(opened(scenarios).comparison.lines.some((entry) => entry.key === 'left-over')).toBe(false)
   })
 
-  it('draws how much less each pays than the base and how much sooner, the longest bar the most', () => {
-    const { compared, base } = opened(tabsOf('sample')[0]!)
-    const { payLess, sooner } = againstBase(compared, base)
+  it('lists every offer, the ones not compared said so', () => {
+    const scenarios = offersOf('sample')
+    const worked = workedOffers(scenarios)
+    const compared = slotted(worked, pickedOf([scenarioKey(scenarios[1]!.scenario)]))
 
-    expect(payLess.map((bar) => [bar.letter, bar.text, bar.share])).toEqual([
-      ['B', '€5,501.10', 550_110 / 1_592_737],
-      ['C', '€15,927.37', 1],
-      ['D', '€15,602.59', 1_560_259 / 1_592_737],
-    ])
-    expect(sooner.map((bar) => [bar.letter, bar.text])).toEqual([
-      ['B', '11 m'],
-      ['C', '4 y 4 m'],
-      ['D', 'the same, Mar 2048'],
-    ])
-  })
-
-  it('lists every kept scenario, the ones not compared said so', () => {
-    const tab = tabsOf('sample')[0]!
-    const worked = workedScenarios(tab, TODAY)
-    const compared = slotted(worked, pickedOf(['fa4e0000-0000-4000-8000-000000000020'], false))
-
-    expect(scenarioRows(worked, compared, 'as-it-stands').map((row) => [row.mark?.letter ?? null, row.detail])).toEqual([
-      ['A', 'The loan itself. Change it on its own page.'],
-      ['B', '1 change · €5,501.10 less interest'],
-      [null, 'Not compared · 1 change · €15,927.37 less interest'],
-      [null, 'Not compared · 1 change · €17,102.59 less interest'],
+    expect(scenarioRows(worked, compared, scenarioKey(scenarios[1]!.scenario)).map((row) => [row.mark?.letter ?? null, row.detail.split(' · ')[0]])).toEqual([
+      [null, 'Not compared'],
+      ['A', '€140,000.00 over 360 instalments'],
+      [null, 'Not compared'],
     ])
   })
 })
@@ -142,7 +86,7 @@ describe('the Scenarios tabs', () => {
 describe('the slots the address asks for', () => {
   const available = ['b', 'c', 'd', 'e']
 
-  it('fills the first scenarios when the address asks for none, or only for keys of another tab', () => {
+  it('fills the first scenarios when the address asks for none, or only for keys it does not have', () => {
     expect(askedSlots(null, available, 3)).toEqual(['b', 'c', 'd'])
     expect(askedSlots('x,y', available, 3)).toEqual(['b', 'c', 'd'])
   })
@@ -161,7 +105,7 @@ describe('a change as the editor types it', () => {
     const { change } = typedChange(texts, rules)
 
     expect(change).toEqual({ kind: 'regular-extra-payment', from: civil('2027-01-20'), every: 'month', until: null, amount: euros(150), effect: 'shorter-term' })
-    expect(changeSummary(change!)).toBe('Extra €150.00 every month from 20 Jan 2027, shorter term.')
+    expect(changeSummary(change!, bankWords.extraDialog.effects)).toBe('Extra €150.00 every month from 20 Jan 2027, shorter term.')
   })
 
   it('refuses a due date that is not one, an end before the first payment and a cost below zero', () => {

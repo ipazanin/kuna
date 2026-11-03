@@ -5,7 +5,7 @@ import { typedAmount } from '../../../../shared/money/typedAmount'
 import { typedCount } from '../../../../shared/text/typedCount'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as loansWords } from '../../words'
-import { words } from './words'
+import type { words } from './words'
 
 export interface SubsidyTexts {
   monthly: string
@@ -20,10 +20,11 @@ export function subsidyTexts(subsidy: LoanSubsidy | null): SubsidyTexts {
     : { monthly: plainAmount(subsidy.monthly), payer: subsidy.payer, firstInstalment: String(subsidy.firstInstalment), instalments: String(subsidy.instalments) }
 }
 
-/** The subsidy the fields name, or why not, for a loan of this many instalments. */
+/** The subsidy the fields name, or why not in the loan's words, for a loan of this many instalments. */
 export function typedSubsidy(
   texts: SubsidyTexts,
   instalments: number | null,
+  fieldWords: typeof words.subsidyFields,
 ): { readonly subsidy: LoanSubsidy | null; readonly errors: Readonly<Record<Exclude<keyof SubsidyTexts, 'payer'>, string | null>> } {
   const monthly = typedAmount(texts.monthly)
   const firstInstalment = typedCount(texts.firstInstalment)
@@ -31,8 +32,8 @@ export function typedSubsidy(
   const pastTheEnd = firstInstalment !== null && count !== null && instalments !== null && firstInstalment + count - 1 > instalments
   const errors = {
     monthly: monthly === null || monthly <= 0 ? loansWords.form.anAmount : null,
-    firstInstalment: firstInstalment === null ? words.subsidyFields.firstInstalmentError : null,
-    instalments: count === null ? words.subsidyFields.instalmentsError : pastTheEnd && instalments !== null ? words.subsidyFields.pastTheEnd(instalments) : null,
+    firstInstalment: firstInstalment === null ? fieldWords.firstInstalmentError : null,
+    instalments: count === null ? fieldWords.instalmentsError : pastTheEnd && instalments !== null ? fieldWords.pastTheEnd(instalments) : null,
   }
   const subsidy = monthly !== null && monthly > 0 && firstInstalment !== null && count !== null && !pastTheEnd ? { monthly, firstInstalment, instalments: count, payer: texts.payer.trim() } : null
   return { subsidy, errors }
@@ -43,9 +44,11 @@ export function typedSubsidy(
 import { computed } from 'vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
+import { useLoanWords } from './useLoanWords'
 
 /** A fixed monthly amount a third party, such as APN, pays of each instalment it covers, and who that is. */
 const texts = defineModel<SubsidyTexts>({ required: true })
+const loanWords = useLoanWords()
 
 const props = defineProps<{
   tried: boolean
@@ -53,20 +56,20 @@ const props = defineProps<{
   loanInstalments: number | null
 }>()
 
-const errors = computed(() => typedSubsidy(texts.value, props.loanInstalments).errors)
+const errors = computed(() => typedSubsidy(texts.value, props.loanInstalments, loanWords.value.subsidyFields).errors)
 </script>
 
 <template>
-  <UFormField :label="words.subsidyFields.monthly" :error="(tried && errors.monthly) || false" :help="words.subsidyFields.monthlyHelp">
+  <UFormField :label="loanWords.subsidyFields.monthly" :error="(tried && errors.monthly) || false" :help="loanWords.subsidyFields.monthlyHelp">
     <MoneyInput v-model="texts.monthly" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="subsidy-monthly" />
   </UFormField>
-  <UFormField :label="words.subsidyFields.payer" :help="words.subsidyFields.payerHelp">
+  <UFormField :label="loanWords.subsidyFields.payer" :help="loanWords.subsidyFields.payerHelp">
     <UInput v-model="texts.payer" placeholder="APN" class="w-full" data-testid="subsidy-payer" />
   </UFormField>
-  <UFormField :label="words.subsidyFields.firstInstalment" :error="(tried && errors.firstInstalment) || false" :help="words.subsidyFields.firstInstalmentHelp">
+  <UFormField :label="loanWords.subsidyFields.firstInstalment" :error="(tried && errors.firstInstalment) || false" :help="loanWords.subsidyFields.firstInstalmentHelp">
     <UInput v-model="texts.firstInstalment" inputmode="numeric" class="w-full" data-testid="subsidy-first-instalment" />
   </UFormField>
-  <UFormField :label="words.subsidyFields.instalments" :error="(tried && errors.instalments) || false" :help="words.subsidyFields.instalmentsHelp">
+  <UFormField :label="loanWords.subsidyFields.instalments" :error="(tried && errors.instalments) || false" :help="loanWords.subsidyFields.instalmentsHelp">
     <UInput v-model="texts.instalments" inputmode="numeric" class="w-full" data-testid="subsidy-instalments" />
   </UFormField>
 </template>

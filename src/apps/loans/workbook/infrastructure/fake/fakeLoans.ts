@@ -61,6 +61,7 @@ const HOME_LOAN: BankLoan = {
   instalments: 300,
   interimInterest: { amount: euros(210.5), date: day('2023-04-20') },
   subsidy: { monthly: euros(210), firstInstalment: 1, instalments: 48, payer: 'APN' },
+  repayment: 'annuity',
   note: 'Made up for the fake build.',
 }
 
@@ -138,8 +139,8 @@ const OWED_TO_YOU_MOVEMENTS: readonly Movement[] = [
 
 /**
  * Three made-up scenarios of the home loan, an extra payment inside the subsidy's payback window, a
- * regular one and a move to another bank after the last fixed-rate instalment, and two made-up offers, one fixed
- * with a printed EKS and one fixed for five years and variable after.
+ * regular one and a move to another bank after the last fixed-rate instalment, and three made-up offers, one fixed
+ * with a printed EKS, one fixed for five years and variable after, and one repaid in equal principal.
  */
 const NEXT_SPRING: LoanScenario = { id: fixedId(LOAN_SCENARIO_RECORDS, 20), name: '€5,000 next spring', start: { kind: 'loan', loan: HOME_LOAN.id } }
 const EVERY_MONTH: LoanScenario = { id: fixedId(LOAN_SCENARIO_RECORDS, 21), name: '€150 every month', start: { kind: 'loan', loan: HOME_LOAN.id } }
@@ -158,6 +159,7 @@ const JADRAN: LoanScenario = {
       instalments: 300,
       interimInterest: null,
       subsidy: null,
+      repayment: 'annuity',
       costs: { upfront: euros(800), monthly: euros(0), yearly: euros(35) },
       bankEks: rate('3.09'),
     },
@@ -177,7 +179,28 @@ const COASTAL: LoanScenario = {
       instalments: 360,
       interimInterest: { amount: euros(373.33), date: day('2027-01-10') },
       subsidy: null,
+      repayment: 'annuity',
       costs: { upfront: euros(0), monthly: euros(2), yearly: euros(0) },
+      bankEks: null,
+    },
+  },
+}
+
+const LIGHTHOUSE: LoanScenario = {
+  id: fixedId(LOAN_SCENARIO_RECORDS, 32),
+  name: 'Lighthouse Bank offer',
+  start: {
+    kind: 'offer',
+    terms: {
+      lender: 'Lighthouse Bank',
+      principal: euros(100_000),
+      drawdown: day('2026-12-15'),
+      firstInstalment: day('2027-01-15'),
+      instalments: 120,
+      interimInterest: null,
+      subsidy: null,
+      repayment: 'equal-principal',
+      costs: { upfront: euros(0), monthly: euros(0), yearly: euros(0) },
       bankEks: null,
     },
   },
@@ -202,6 +225,7 @@ const SCENARIO_CHANGES: readonly ScenarioChange[] = [
   changeOf(28, JADRAN, { kind: 'rate-change', from: day('2027-01-01'), rate: rate('2.95'), rateType: 'fixed' }),
   changeOf(29, COASTAL, { kind: 'rate-change', from: day('2027-01-10'), rate: rate('3.2'), rateType: 'fixed' }),
   changeOf(30, COASTAL, { kind: 'rate-change', from: day('2032-01-10'), rate: rate('3.6'), rateType: 'variable' }),
+  changeOf(33, LIGHTHOUSE, { kind: 'rate-change', from: day('2027-01-15'), rate: rate('4'), rateType: 'fixed' }),
 ]
 
 function stored<R>(kind: RecordKind<R>, records: readonly R[]): WorkbookDocument['records'] {
@@ -220,10 +244,31 @@ const CAR_LOAN: BankLoan = {
   instalments: 60,
   interimInterest: null,
   subsidy: null,
+  repayment: 'annuity',
   note: 'Made up for the fake build.',
 }
 
 const CAR_RATE_PERIODS: readonly RatePeriod[] = [{ id: fixedId(RATE_PERIOD_RECORDS, 31), loan: CAR_LOAN.id, from: day('2024-10-05'), rate: rate('5.49'), rateType: 'fixed', note: '' }]
+
+/**
+ * A made-up flat loan of 100,000.00 at a fixed 4% over ten years, repaid in equal principal, with a subsidy of
+ * 150.00 on its first 24 instalments.
+ */
+const FLAT_LOAN: BankLoan = {
+  id: fixedId(BANK_LOAN_RECORDS, 70),
+  name: 'Flat loan',
+  lender: 'Example Bank',
+  principal: euros(100_000),
+  drawdown: day('2025-02-05'),
+  firstInstalment: day('2025-03-05'),
+  instalments: 120,
+  interimInterest: null,
+  subsidy: { monthly: euros(150), firstInstalment: 1, instalments: 24, payer: 'APN' },
+  repayment: 'equal-principal',
+  note: 'Made up for the fake build.',
+}
+
+const FLAT_RATE_PERIODS: readonly RatePeriod[] = [{ id: fixedId(RATE_PERIOD_RECORDS, 71), loan: FLAT_LOAN.id, from: day('2025-03-05'), rate: rate('4'), rateType: 'fixed', note: '' }]
 
 /** A made-up loan from a friend you mean to repay 250.00 a month from August, two instalments repaid and the third missed. */
 const FROM_DORA: InformalLoan = {
@@ -245,12 +290,16 @@ const DORA_MOVEMENTS: readonly Movement[] = movementsOf(FROM_DORA, 61, [
 /**
  * The fake build's made-up Loans files: `sample` with a bank loan and three informal loans, one you owe, one owed
  * to you whose borrower is behind on the expected plan and one owed to you and settled, `one-loan` with the bank
- * loan alone, and `house-and-car` with the home loan, a car loan and an informal loan you owe and are behind on.
+ * loan alone, `house-and-car` with the home loan, a car loan and an informal loan you owe and are behind on, each
+ * with the same scenarios and offers, and `equal-principal` with one equal principal bank loan and nothing else.
  */
-export type FakeLoansSet = 'sample' | 'one-loan' | 'house-and-car'
+export type FakeLoansSet = 'sample' | 'one-loan' | 'house-and-car' | 'equal-principal'
 
 /** The Loans file of the set, which the fake build keeps on the fake Drive. Every figure in it is made up, and its scenarios and offers are never counted as loans. */
 export function fakeLoansDocument(savedAt: string, set: FakeLoansSet = 'sample'): WorkbookDocument {
+  if (set === 'equal-principal') {
+    return { ...emptyLoansDocument(savedAt), records: { ...stored(BANK_LOAN_RECORDS, [FLAT_LOAN]), ...stored(RATE_PERIOD_RECORDS, FLAT_RATE_PERIODS) } }
+  }
   const withCar = set === 'house-and-car'
   const informalLoans = set === 'sample' ? [FROM_MARKO, TO_PETRA, SMALL_LOANS] : withCar ? [FROM_DORA] : []
   const movements = set === 'sample' ? [...MOVEMENTS, ...OWED_TO_YOU_MOVEMENTS] : withCar ? DORA_MOVEMENTS : []
@@ -263,7 +312,7 @@ export function fakeLoansDocument(savedAt: string, set: FakeLoansSet = 'sample')
       ...stored(LATE_INSTALMENT_RECORDS, LATE_INSTALMENTS),
       ...stored(INFORMAL_LOAN_RECORDS, informalLoans),
       ...stored(MOVEMENT_RECORDS, movements),
-      ...stored(LOAN_SCENARIO_RECORDS, [NEXT_SPRING, EVERY_MONTH, MOVE, JADRAN, COASTAL]),
+      ...stored(LOAN_SCENARIO_RECORDS, [NEXT_SPRING, EVERY_MONTH, MOVE, JADRAN, COASTAL, LIGHTHOUSE]),
       ...stored(SCENARIO_CHANGE_RECORDS, SCENARIO_CHANGES),
     },
   }

@@ -10,7 +10,7 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import { plural } from '../../../../shared/text/translation'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
-import { words } from './words'
+import { useLoanWords } from './useLoanWords'
 
 /**
  * The plan by year with each year's totals, the given year open. The table drops columns by the
@@ -22,6 +22,7 @@ const props = defineProps<{
   openYear: number
   hasSubsidy: boolean
 }>()
+const loanWords = useLoanWords()
 
 const opened = ref(new Set<number>([props.openYear]))
 const tapped = ref(new Set<string>())
@@ -35,16 +36,16 @@ function toggle<T>(set: Set<T>, entry: T): Set<T> {
 const summary = computed(() => {
   const instalments = props.years.flatMap((year) => year.lines).filter((line) => line.kind === 'instalment').length
   const years = props.years.length
-  return words.plan.summary(plural(words.plan.instalments(instalments), instalments), plural(words.plan.years(years), years))
+  return loanWords.value.plan.summary(plural(loanWords.value.plan.instalments(instalments), instalments), plural(loanWords.value.plan.years(years), years))
 })
 
 function dateOf(line: PlanLine): string {
-  return line.number === null ? shortDayLabel(line.date) : words.plan.numbered(shortDayLabel(line.date), line.number)
+  return line.number === null ? shortDayLabel(line.date) : loanWords.value.plan.numbered(shortDayLabel(line.date), line.number)
 }
 </script>
 
 <template>
-  <AppCard :title="words.plan.title" :subtitle="words.plan.subtitle" collapse-id="loans.plan" :summary="summary" data-testid="loan-plan">
+  <AppCard :title="loanWords.plan.title" :subtitle="loanWords.plan.subtitle" collapse-id="loans.plan" :summary="summary" data-testid="loan-plan">
     <ol class="flex flex-col pb-2">
       <li v-for="year in years" :key="year.year" class="border-t border-default first:border-t-0" :data-year="year.year">
         <button
@@ -56,25 +57,25 @@ function dateOf(line: PlanLine): string {
         >
           <span class="flex items-center gap-2 text-sm font-medium text-highlighted">
             <span class="figure">{{ year.year }}</span>
-            <UBadge v-if="year.estimate" :label="words.plan.estimate" color="neutral" variant="subtle" size="sm" />
+            <UBadge v-if="year.estimate" :label="loanWords.plan.estimate" color="neutral" variant="subtle" size="sm" />
           </span>
           <span class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-            <span class="whitespace-nowrap">{{ words.split.youPay }} <MoneyText :cents="year.totals.yourShare" class="text-toned" /></span>
-            <span class="whitespace-nowrap">{{ words.plan.owedAfter }} <MoneyText :cents="year.balance" class="text-toned" /></span>
+            <span class="whitespace-nowrap">{{ loanWords.split.youPay }} <MoneyText :cents="year.totals.yourShare" class="text-toned" /></span>
+            <span class="whitespace-nowrap">{{ loanWords.plan.owedAfter }} <MoneyText :cents="year.balance" class="text-toned" /></span>
             <UIcon name="i-lucide-chevron-down" class="size-4 transition-transform" :class="{ 'rotate-180': opened.has(year.year) }" aria-hidden="true" />
           </span>
         </button>
-        <FigureTable v-if="opened.has(year.year)" class="px-1 pb-2 sm:px-2" :label="words.plan.tableLabel(year.year)">
+        <FigureTable v-if="opened.has(year.year)" class="px-1 pb-2 sm:px-2" :label="loanWords.plan.tableLabel(year.year)">
           <thead>
             <tr>
-              <th scope="col" class="text-start">{{ words.plan.due }}</th>
-              <th scope="col" class="text-end">{{ words.split.youPay }}</th>
-              <th scope="col" class="hidden text-end @md:table-cell">{{ words.plan.instalment }}</th>
-              <th scope="col" class="hidden text-end @xl:table-cell">{{ words.split.interest }}</th>
-              <th scope="col" class="hidden text-end @xl:table-cell">{{ words.split.principal }}</th>
-              <th v-if="hasSubsidy" scope="col" class="hidden text-end @3xl:table-cell">{{ words.changes.subsidy }}</th>
-              <th scope="col" class="text-end">{{ words.plan.owedAfter }}</th>
-              <th scope="col" class="hidden text-start @4xl:table-cell">{{ words.plan.status }}</th>
+              <th scope="col" class="text-start">{{ loanWords.plan.due }}</th>
+              <th scope="col" class="text-end">{{ loanWords.split.youPay }}</th>
+              <th scope="col" class="hidden text-end @md:table-cell">{{ loanWords.plan.instalment }}</th>
+              <th scope="col" class="hidden text-end @xl:table-cell">{{ loanWords.split.interest }}</th>
+              <th scope="col" class="hidden text-end @xl:table-cell">{{ loanWords.split.principal }}</th>
+              <th v-if="hasSubsidy" scope="col" class="hidden text-end @3xl:table-cell">{{ loanWords.changes.subsidy }}</th>
+              <th scope="col" class="text-end">{{ loanWords.plan.owedAfter }}</th>
+              <th scope="col" class="hidden text-start @4xl:table-cell">{{ loanWords.plan.status }}</th>
             </tr>
           </thead>
           <tbody>
@@ -86,16 +87,16 @@ function dateOf(line: PlanLine): string {
                     variant="link"
                     class="-mx-1 px-1 @4xl:hidden"
                     :aria-expanded="tapped.has(line.key)"
-                    :aria-label="words.plan.showRest(dateOf(line))"
+                    :aria-label="loanWords.plan.showRest(dateOf(line))"
                     data-testid="plan-row-toggle"
                     @click="tapped = toggle(tapped, line.key)"
                   >
                     <span class="text-highlighted">{{ dateOf(line) }}</span>
                   </UButton>
                   <span class="hidden text-highlighted @4xl:inline">{{ dateOf(line) }}</span>
-                  <span v-if="line.estimate" class="ms-1 text-xs text-muted">{{ words.plan.estimateMark }}</span>
-                  <span v-if="line.late" class="ms-1 text-xs text-warning">{{ words.plan.lateMark }}</span>
-                  <span v-if="line.kind === 'extra-payment'" class="ms-1 text-xs text-muted">{{ words.plan.extraMark }}</span>
+                  <span v-if="line.estimate" class="ms-1 text-xs text-muted">{{ loanWords.plan.estimateMark }}</span>
+                  <span v-if="line.late" class="ms-1 text-xs text-warning">{{ loanWords.plan.lateMark }}</span>
+                  <span v-if="line.kind === 'extra-payment'" class="ms-1 text-xs text-muted">{{ loanWords.plan.extraMark }}</span>
                 </th>
                 <td class="text-end"><MoneyText :cents="line.yourShare" /></td>
                 <td class="hidden text-end @md:table-cell"><MoneyText :cents="line.payment" /></td>
@@ -108,18 +109,18 @@ function dateOf(line: PlanLine): string {
               <tr v-if="tapped.has(line.key)" class="@4xl:hidden" data-testid="plan-row-detail">
                 <td :colspan="hasSubsidy ? 8 : 7" class="cell-wraps">
                   <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
-                    <dt class="text-muted">{{ words.plan.instalment }}</dt>
+                    <dt class="text-muted">{{ loanWords.plan.instalment }}</dt>
                     <dd class="text-end"><MoneyText :cents="line.payment" /></dd>
-                    <dt class="text-muted">{{ words.split.interest }}</dt>
+                    <dt class="text-muted">{{ loanWords.split.interest }}</dt>
                     <dd class="text-end"><MoneyText :cents="line.interest" /></dd>
-                    <dt class="text-muted">{{ words.split.principal }}</dt>
+                    <dt class="text-muted">{{ loanWords.split.principal }}</dt>
                     <dd class="text-end"><MoneyText :cents="line.principal" /></dd>
                     <template v-if="hasSubsidy">
-                      <dt class="text-muted">{{ words.changes.subsidy }}</dt>
+                      <dt class="text-muted">{{ loanWords.changes.subsidy }}</dt>
                       <dd class="text-end"><MoneyText :cents="line.subsidy" /></dd>
                     </template>
-                    <dt class="text-muted">{{ words.plan.status }}</dt>
-                    <dd class="text-end">{{ line.estimate ? words.plan.anEstimate(line.status) : line.status }}</dd>
+                    <dt class="text-muted">{{ loanWords.plan.status }}</dt>
+                    <dd class="text-end">{{ line.estimate ? loanWords.plan.anEstimate(line.status) : line.status }}</dd>
                   </dl>
                 </td>
               </tr>
@@ -127,7 +128,7 @@ function dateOf(line: PlanLine): string {
           </tbody>
           <tfoot>
             <tr>
-              <th scope="row" class="text-start">{{ words.plan.total(year.year) }}</th>
+              <th scope="row" class="text-start">{{ loanWords.plan.total(year.year) }}</th>
               <td class="text-end"><MoneyText :cents="year.totals.yourShare" /></td>
               <td class="hidden text-end @md:table-cell"><MoneyText :cents="year.totals.payment" /></td>
               <td class="hidden text-end @xl:table-cell"><MoneyText :cents="year.totals.interest" /></td>

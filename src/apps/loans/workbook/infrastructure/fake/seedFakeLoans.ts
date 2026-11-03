@@ -21,7 +21,7 @@ const DAY = 86_400_000
  * and `browser` one kept in this browser with changes nine days past their last export, each chosen
  * on this device, `sample` a chosen file on the fake Drive holding made-up loans of both kinds,
  * `one-loan` the same with the bank loan alone, `house-and-car` the home loan beside a car loan that
- * ends earlier and an informal loan you owe on an expected plan, `other-device` an empty file on the fake Drive that
+ * ends earlier and an informal loan you owe on an expected plan, `equal-principal` one equal principal bank loan alone, `other-device` an empty file on the fake Drive that
  * another device made, which this device has not chosen, and `opening` the sample chosen on the fake
  * Drive with nothing in this browser and every read of it held, so the Loans screens stay opening.
  * Without it nothing is chosen, which is the Loans first run. Only the Loans app's install imports
@@ -33,11 +33,11 @@ export async function seedFakeLoans(variant: string | null): Promise<void> {
   const document =
     variant === 'sample' || variant === 'opening'
       ? fakeLoansDocument(savedAt)
-      : variant === 'one-loan' || variant === 'house-and-car'
+      : variant === 'one-loan' || variant === 'house-and-car' || variant === 'equal-principal'
         ? fakeLoansDocument(savedAt, variant)
         : emptyLoansDocument(savedAt)
   const text = encodeDocument(document)
-  if (variant === 'drive' || variant === 'sample' || variant === 'one-loan' || variant === 'house-and-car' || variant === 'other-device' || variant === 'opening') {
+  if (variant === 'drive' || variant === 'sample' || variant === 'one-loan' || variant === 'house-and-car' || variant === 'equal-principal' || variant === 'other-device' || variant === 'opening') {
     const created = await createDriveDocument(fakeDriveSession(), await fakeBooksFolder(), LOANS_APP, text)
     if (variant === 'opening') {
       saveWorkbookChoice(LOANS_APP, { source: 'drive', id: created.fileId, name: documentName(LOANS_APP) })

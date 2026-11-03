@@ -4,7 +4,7 @@ import { paymentsByYear } from '../src/apps/loans/bankLoans/domain/loanFigures'
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
 import { paymentsChart } from '../src/apps/loans/bankLoans/presentation/paymentsChart'
 import { subsidyColourOf } from '../src/apps/loans/bankLoans/presentation/subsidyColour'
-import { words as bankWords } from '../src/apps/loans/bankLoans/presentation/words'
+import { words } from '../src/apps/loans/bankLoans/presentation/words'
 import { splitOfRows } from '../src/apps/loans/bankLoans/domain/loanFigures'
 import { NO_COSTS } from '../src/apps/loans/scenarios/domain/loanScenario'
 import { scenarioPlan } from '../src/apps/loans/scenarios/domain/scenarioPlan'
@@ -55,7 +55,7 @@ describe('the payments chart', () => {
   const loan = bankLoan({ instalments: 18, subsidy: { monthly: euros(50), firstInstalment: 1, instalments: 5, payer: 'APN' } })
   const plan = loanPlan(loan, [ratePeriod(loan, '2026-02-05', '12')], [extraPayment(loan, '2026-04-20', 300, 'shorter-term')])
   const years = paymentsByYear(plan)
-  const chart = paymentsChart(years, 2026, 'APN', TOKENS, false, 2027)
+  const chart = paymentsChart(years, 2026, 'APN', TOKENS, false, 2027, words)
 
   it('stacks the extra payment, your principal, the subsidy principal, the subsidy interest and your interest, in that order, with the rule for the years to come last', () => {
     expect(seriesOf(chart).map((series) => series.name)).toEqual(['Extra payment', 'Principal you pay', 'Principal APN pays', 'Interest APN pays', 'Interest you pay', ''])
@@ -76,8 +76,8 @@ describe('the payments chart', () => {
   })
 
   it('runs the brass band from the current year on, and leaves out a part or a band that nothing needs', () => {
-    const withoutExtra = paymentsChart(paymentsByYear(loanPlan(loan, [ratePeriod(loan, '2026-02-05', '12')], [])), 2026, 'APN', TOKENS, false, null)
-    const inLastYear = paymentsChart(years, 2027, 'APN', TOKENS, false, null)
+    const withoutExtra = paymentsChart(paymentsByYear(loanPlan(loan, [ratePeriod(loan, '2026-02-05', '12')], [])), 2026, 'APN', TOKENS, false, null, words)
+    const inLastYear = paymentsChart(years, 2027, 'APN', TOKENS, false, null, words)
 
     expect(seriesOf(chart).at(-1)!.data).toEqual([0, 0])
     expect(seriesOf(withoutExtra).map((series) => series.name)).not.toContain('Extra payment')
@@ -136,8 +136,8 @@ describe('the balance chart', () => {
     const behind = balanceChart(months.slice(0, 2), current, TOKENS, false, OWED).drawsPlan
 
     expect([ahead, behind]).toEqual([true, false])
-    expect(bankWords.balance.subtitle(ahead)).toBe('At each month end. The solid line is behind you, the dashed brass line is the plan still to come. Dots mark the payments and new rates.')
-    expect(bankWords.balance.subtitle(behind)).toBe('At each month end. Dots mark the payments and new rates.')
+    expect(words.balance.subtitle(ahead)).toBe('At each month end. The solid line is behind you, the dashed brass line is the plan still to come. Dots mark the payments and new rates.')
+    expect(words.balance.subtitle(behind)).toBe('At each month end. Dots mark the payments and new rates.')
   })
 
   it('notes the variable rate in the tooltip from its month on at every width, and marks it on the chart only on a wide screen', () => {
@@ -335,7 +335,7 @@ describe('the scenario charts', () => {
       { key: 'a', letter: 'A', name: 'a', colour: '--scenario-1', months: [month('2026-05', 0), month('2026-06', 100), month('2026-07', 200)], variableFrom: null },
       { key: 'b', letter: 'B', name: 'b', colour: '--scenario-2', months: [month('2026-05', 0), month('2026-06', 195)], variableFrom: null },
     ]
-    const chart = scenarioInterestChart(close, 'a', TOKENS, false, true, null)
+    const chart = scenarioInterestChart(close, 'a', TOKENS, false, null)
     const series = seriesOf(chart) as unknown as { name: string; data: unknown[]; markPoint: { data: { coord: [string, number]; label: { formatter: string } }[] } }[]
 
     expect(series[0]!.name).toBe('B b')
@@ -346,16 +346,16 @@ describe('the scenario charts', () => {
       ['2026-07', euros(200)],
     ])
     expect(series[1]!.markPoint.data[0]!.label.formatter).toBe('A €200')
-    expect(chart.description).toBe('The interest you pay from today, added up month by month. A, a, comes to €200.00. B, b, comes to €195.00.')
+    expect(chart.description).toBe('The interest you pay over the loan, added up month by month. A, a, comes to €200.00. B, b, comes to €195.00.')
   })
 
   it('cuts both charts to a range, with a letter only where a payoff is shown and the interest reached at the new right edge', () => {
     // May to Oct 2026: B is paid off in Nov 2026 and A and C in Jan 2027, so no payoff letter shows.
     const window = { from: civil('2026-05-10'), to: civil('2026-10-31') }
     const owed = scenarioBalanceChart(scenarios, 'as it stands', TOKENS, false, window)
-    const interest = scenarioInterestChart(scenarios, 'as it stands', TOKENS, false, true, window)
+    const interest = scenarioInterestChart(scenarios, 'as it stands', TOKENS, false, window)
     const interestSeries = seriesOf(interest) as unknown as { data: number[]; markPoint: { data: { coord: [string, number]; label: { formatter: string } }[] } }[]
-    const all = scenarioInterestChart(scenarios, 'as it stands', TOKENS, false, true, null)
+    const all = scenarioInterestChart(scenarios, 'as it stands', TOKENS, false, null)
 
     expect((owed.option.xAxis as { data: string[] }).data).toEqual(['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10'])
     expect((seriesOf(owed) as unknown as { markPoint: { data: unknown[] } }[]).map((entry) => entry.markPoint.data)).toEqual([[], [], []])

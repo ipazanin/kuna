@@ -38,6 +38,8 @@ function loanChangeOf(fields: StoredFields): LoanChange {
       return { kind, from: date, rate: requiredRate(fields, 'rate'), rateType: rateType() }
     case 'move':
       return { kind, on: date, lender: textOf(fields.lender), rate: requiredRate(fields, 'rate'), rateType: rateType(), instalments: instalmentsOf(fields, 'instalments'), costs: loanCostsOf(fields) }
+    case 'term-change':
+      return { kind, from: date, instalments: instalmentsOf(fields, 'instalments') }
   }
 }
 
@@ -58,6 +60,8 @@ function changeFields(change: LoanChange): Readonly<Record<string, FieldValue | 
       return { rate: rateText(change.rate), rate_type: change.rateType }
     case 'move':
       return { lender: change.lender, rate: rateText(change.rate), rate_type: change.rateType, instalments: String(change.instalments), ...loanCostsFields(change.costs) }
+    case 'term-change':
+      return { instalments: String(change.instalments) }
   }
 }
 

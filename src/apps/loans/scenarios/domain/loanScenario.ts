@@ -32,7 +32,7 @@ export interface LoanScenario {
   readonly start: ScenarioStart
 }
 
-export const SCENARIO_CHANGE_KINDS = ['extra-payment', 'regular-extra-payment', 'rate-change', 'move'] as const
+export const SCENARIO_CHANGE_KINDS = ['extra-payment', 'regular-extra-payment', 'rate-change', 'move', 'term-change'] as const
 
 export const REPEATS = ['month', 'year'] as const
 
@@ -60,6 +60,13 @@ export type LoanChange =
       readonly instalments: number
       readonly costs: LoanCosts
     }
+  | {
+      readonly kind: 'term-change'
+      /** The due date of the first instalment of the new term. */
+      readonly from: CivilDate
+      /** The instalments left from that due date on, the one due then included. */
+      readonly instalments: number
+    }
 
 /** A change as the Loans file keeps it, naming its scenario. */
 export type ScenarioChange = LoanChange & { readonly id: RecordId; readonly scenario: RecordId }
@@ -71,6 +78,7 @@ export function changeDate(change: LoanChange): CivilDate {
       return change.date
     case 'regular-extra-payment':
     case 'rate-change':
+    case 'term-change':
       return change.from
     case 'move':
       return change.on

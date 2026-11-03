@@ -52,7 +52,13 @@ const facts = computed((): Fact[] => {
         ]),
     ...(subsidy === null || subsidy.ended
       ? []
-      : [{ label: words.card.subsidyEnds, value: dayLabel(subsidy.lastCovered), ...(subsidy.after === null ? {} : { caption: words.card.subsidyThen(formatMoney(subsidy.after)) }) }]),
+      : [
+          {
+            label: words.card.subsidyEnds,
+            value: dayLabel(subsidy.lastCovered),
+            ...(subsidy.after === null ? {} : { caption: (props.book.loan.repayment === 'equal-principal' ? words.card.subsidyThenFalling : words.card.subsidyThen)(formatMoney(subsidy.after)) }),
+          },
+        ]),
     ...(payoff === null ? [] : [{ label: words.card.paidOff, value: dayLabel(payoff), caption: plural(words.card.instalmentsLeft(figures.instalmentsLeft), figures.instalmentsLeft) }]),
   ]
 })

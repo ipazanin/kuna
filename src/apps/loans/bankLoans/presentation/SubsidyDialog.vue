@@ -12,10 +12,11 @@ import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import SubsidyFields, { subsidyTexts, typedSubsidy } from './SubsidyFields.vue'
 import type { SubsidyTexts } from './SubsidyFields.vue'
 import { words as loansWords } from '../../words'
-import { words } from './words'
+import { useLoanWords } from './useLoanWords'
 
 /** The loan's subsidy, which the loan record holds, so adding, changing and deleting it each change the loan. */
 const open = defineModel<boolean>('open', { required: true })
+const loanWords = useLoanWords()
 
 const props = defineProps<{
   book: BankLoanBook
@@ -32,7 +33,7 @@ watch(open, (opened) => {
   tried.value = false
 })
 
-const typed = computed(() => typedSubsidy(texts.value, props.book.loan.instalments).subsidy)
+const typed = computed(() => typedSubsidy(texts.value, props.book.loan.instalments, loanWords.value.subsidyFields).subsidy)
 
 async function write(title: string, subsidy: LoanSubsidy | null, failedTitle: string): Promise<void> {
   const { loan } = props.book
@@ -42,26 +43,26 @@ async function write(title: string, subsidy: LoanSubsidy | null, failedTitle: st
 async function save(): Promise<void> {
   tried.value = true
   if (typed.value === null) return
-  await write(props.book.loan.subsidy === null ? words.subsidyDialog.added : words.subsidyDialog.saved, typed.value, loansWords.form.notSaved)
+  await write(props.book.loan.subsidy === null ? loanWords.value.subsidyDialog.added : loanWords.value.subsidyDialog.saved, typed.value, loansWords.form.notSaved)
 }
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="book.loan.subsidy === null ? words.subsidyDialog.add : words.subsidyDialog.change" :description="words.subsidyDialog.description">
+  <AppDialog v-model:open="open" :title="book.loan.subsidy === null ? loanWords.subsidyDialog.add : loanWords.subsidyDialog.change" :description="loanWords.subsidyDialog.description">
     <FormGrid id="loan-subsidy" as="form" data-testid="subsidy-form" @submit.prevent="save">
       <SubsidyFields v-model="texts" :tried="tried" :loan-instalments="book.loan.instalments" />
     </FormGrid>
     <template #start>
       <UButton
         v-if="book.loan.subsidy !== null"
-        :label="words.subsidyDialog.delete"
+        :label="loanWords.subsidyDialog.delete"
         icon="i-lucide-trash-2"
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
         :disabled="writes.busy.value"
         data-testid="subsidy-delete"
-        @click="write(words.subsidyDialog.deleted, null, loansWords.form.notDeleted)"
+        @click="write(loanWords.subsidyDialog.deleted, null, loansWords.form.notDeleted)"
       />
     </template>
     <template #end>
@@ -69,7 +70,7 @@ async function save(): Promise<void> {
       <UButton
         type="submit"
         form="loan-subsidy"
-        :label="book.loan.subsidy === null ? words.subsidyDialog.addButton : words.subsidyDialog.saveButton"
+        :label="book.loan.subsidy === null ? loanWords.subsidyDialog.addButton : loanWords.subsidyDialog.saveButton"
         :icon="book.loan.subsidy === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.saving('save')"
         :disabled="writes.busy.value"

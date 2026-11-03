@@ -1,5 +1,7 @@
-import { subsidyRepaidUntil } from './loanFigures'
-import { NO_COSTS } from '../../scenarios/domain/loanScenario'
+import { ratePeriodOn, subsidyRepaidUntil } from './loanFigures'
+import type { YearlyRate } from './yearlyRate'
+import { NO_COSTS, changeDate } from '../../scenarios/domain/loanScenario'
+import type { LoanChange } from '../../scenarios/domain/loanScenario'
 import { scenarioOutcome } from '../../scenarios/domain/scenarioOutcome'
 import { asItStands, scenarioPlan } from '../../scenarios/domain/scenarioPlan'
 import { EXTRA_PAYMENT_EFFECTS } from '../../workbook/domain/extraPayment'
@@ -9,16 +11,20 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 
-/** What one effect of an extra payment does to the plan, against the plan without it. */
-export interface ExtraPaymentOutcome {
-  readonly effect: ExtraPayment['effect']
+/** What one change does to the plan, against the plan without it. */
+export interface TriedOutcome {
   readonly payoff: CivilDate | null
   /** Instalments the plan no longer has. */
   readonly monthsSaved: number
-  /** The interest you no longer pay, leaving out what the subsidy would have paid. */
+  /** The interest you no longer pay, leaving out what the subsidy would have paid. Below zero when you pay more. */
   readonly interestSaved: Money
-  /** The first instalment after the payment, or null once the payment repays the loan. */
+  /** The first instalment the change reaches, or null once it repays the loan. */
   readonly nextInstalment: Money | null
+}
+
+/** What one effect of an extra payment does to the plan. */
+export interface ExtraPaymentOutcome extends TriedOutcome {
+  readonly effect: ExtraPayment['effect']
 }
 
 export interface WhatIfExtraPayment {
@@ -28,28 +34,39 @@ export interface WhatIfExtraPayment {
 }
 
 /**
- * What an extra payment of the amount on the day would do with each effect, against the plan as it
- * stands, without saving anything. Each is a scenario of one extra payment. Null while the loan's
- * plan cannot be worked out.
+ * What one change would do against the plan as it stands, without saving anything, as a scenario of
+ * that change. An extra payment reaches the instalments after its day, a rate or term change the one
+ * due on its day. Null while the loan's plan, or the tried one, cannot be worked out.
  */
-export function whatIfExtraPayment(book: BankLoanBook, date: CivilDate, amount: Money): WhatIfExtraPayment | null {
+export function whatIfChange(book: BankLoanBook, change: LoanChange): TriedOutcome | null {
   const before = asItStands(book)
   if (before === null) return null
+  const tried = scenarioPlan({ ...book, costs: NO_COSTS }, [change], null)
+  if ('refused' in tried) return null
   const stands = scenarioOutcome(before, null)
+  const after = scenarioOutcome(tried, null)
+  const day = changeDate(change)
+  const reached = (date: CivilDate): boolean => (change.kind === 'extra-payment' ? date > day : date >= day)
+  return {
+    payoff: after.payoff,
+    monthsSaved: stands.instalments - after.instalments,
+    interestSaved: subtractMoney(stands.interest, after.interest),
+    nextInstalment: tried.rows.find((row) => row.kind === 'instalment' && reached(row.date))?.payment ?? null,
+  }
+}
+
+/** What an extra payment of the amount on the day would do with each effect. Null while the loan's plan cannot be worked out. */
+export function whatIfExtraPayment(book: BankLoanBook, date: CivilDate, amount: Money): WhatIfExtraPayment | null {
+  if (book.plan === null) return null
   const outcomes = EXTRA_PAYMENT_EFFECTS.flatMap((effect): ExtraPaymentOutcome[] => {
-    const tried = scenarioPlan({ ...book, costs: NO_COSTS }, [{ kind: 'extra-payment', date, amount, effect }], null)
-    if ('refused' in tried) return []
-    const after = scenarioOutcome(tried, null)
-    return [
-      {
-        effect,
-        payoff: after.payoff,
-        monthsSaved: stands.instalments - after.instalments,
-        interestSaved: subtractMoney(stands.interest, after.interest),
-        nextInstalment: tried.rows.find((row) => row.kind === 'instalment' && row.date > date)?.payment ?? null,
-      },
-    ]
+    const outcome = whatIfChange(book, { kind: 'extra-payment', date, amount, effect })
+    return outcome === null ? [] : [{ ...outcome, effect }]
   })
   const repaidUntil = subsidyRepaidUntil(book.loan)
   return { outcomes, subsidyRepaidUntil: repaidUntil !== null && date <= repaidUntil ? repaidUntil : null }
+}
+
+/** A new rate from a due date on, fixed or variable as the rate in force then is, since a reset keeps the loan's kind of rate. */
+export function triedRate(book: BankLoanBook, from: CivilDate, rate: YearlyRate): LoanChange {
+  return { kind: 'rate-change', from, rate, rateType: ratePeriodOn(book.ratePeriods, from)?.rateType ?? 'fixed' }
 }

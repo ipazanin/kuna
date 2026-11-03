@@ -22,7 +22,7 @@ import type { RateTexts } from './RateFields.vue'
 import SubsidyFields, { subsidyTexts, typedSubsidy } from './SubsidyFields.vue'
 import type { SubsidyTexts } from './SubsidyFields.vue'
 import { words as loansWords } from '../../words'
-import { words } from './words'
+import { provideLoanWords } from './useLoanWords'
 
 /**
  * Adds a bank loan with its first rate period and its subsidy in one write, or changes its terms.
@@ -41,6 +41,7 @@ const router = useRouter()
 
 const name = ref('')
 const terms = ref<LoanTermsTexts>(loanTermsTexts(null))
+const loanWords = provideLoanWords(() => terms.value.repayment)
 const note = ref('')
 const rate = ref<RateTexts>({ rate: '', rateType: 'fixed', note: '' })
 const subsidised = ref(false)
@@ -62,10 +63,11 @@ watch(open, (opened) => {
 const typed = computed(() => typedLoanTerms(terms.value))
 
 const errors = computed(() => ({
-  name: name.value.trim() === '' ? words.loanDialog.nameError : null,
+  name: name.value.trim() === '' ? loanWords.value.loanDialog.nameError : null,
   ...typed.value.errors,
   rate: props.book === null ? rateError(rate.value) : null,
-  subsidy: props.book === null && subsidised.value && typedSubsidy(subsidy.value, typed.value.instalments).subsidy === null ? words.loanDialog.subsidyError : null,
+  subsidy:
+    props.book === null && subsidised.value && typedSubsidy(subsidy.value, typed.value.instalments, loanWords.value.subsidyFields).subsidy === null ? loanWords.value.loanDialog.subsidyError : null,
 }))
 
 const valid = computed(() => Object.values(errors.value).every((error) => error === null))
@@ -77,7 +79,7 @@ function typedTerms(): Omit<BankLoan, 'id'> | null {
   return {
     ...fields,
     name: name.value,
-    subsidy: props.book === null ? (subsidised.value ? typedSubsidy(subsidy.value, fields.instalments).subsidy : null) : props.book.loan.subsidy,
+    subsidy: props.book === null ? (subsidised.value ? typedSubsidy(subsidy.value, fields.instalments, loanWords.value.subsidyFields).subsidy : null) : props.book.loan.subsidy,
     note: note.value,
   }
 }
@@ -93,7 +95,7 @@ async function save(): Promise<void> {
     const loan = newBankLoan(terms)
     const period = newRatePeriod({ loan: loan.id, from: loan.firstInstalment, rate: yearly, rateType: rate.value.rateType, note: rate.value.note })
     const added = await writes.write(
-      words.loanDialog.added,
+      loanWords.value.loanDialog.added,
       (unit) => {
         unit.of(BANK_LOAN_WRITES).add(loan)
         unit.of(RATE_PERIOD_WRITES).add(period)
@@ -109,7 +111,7 @@ async function save(): Promise<void> {
   const after: BankLoan = { ...newBankLoan(terms), id: book.loan.id }
   const firstPeriod = book.ratePeriods.find((period) => period.from === book.loan.firstInstalment) ?? null
   const saved = await writes.write(
-    words.loanDialog.saved,
+    loanWords.value.loanDialog.saved,
     (unit) => {
       unit.of(BANK_LOAN_WRITES).change(book.loan, after)
       if (firstPeriod !== null && after.firstInstalment !== book.loan.firstInstalment) unit.of(RATE_PERIOD_WRITES).change(firstPeriod, { ...firstPeriod, from: after.firstInstalment })
@@ -123,7 +125,7 @@ async function remove(): Promise<void> {
   const book = props.book
   const records = store.state.records
   if (book === null || records === null) return
-  const removed = await writes.write(words.loanDialog.deleted, (unit) => removeBankLoan(unit, records, book.loan), { key: 'delete', failedTitle: loansWords.form.notDeleted })
+  const removed = await writes.write(loanWords.value.loanDialog.deleted, (unit) => removeBankLoan(unit, records, book.loan), { key: 'delete', failedTitle: loansWords.form.notDeleted })
   if (removed) {
     open.value = false
     await router.push(LOANS_OVERVIEW_ROUTE)
@@ -134,18 +136,18 @@ async function remove(): Promise<void> {
 <template>
   <AppDialog
     v-model:open="open"
-    :title="book === null ? words.loanDialog.addTitle : words.loanDialog.changeTitle"
-    :description="book === null ? words.loanDialog.addDescription : words.loanDialog.changeDescription"
+    :title="book === null ? loanWords.loanDialog.addTitle : loanWords.loanDialog.changeTitle"
+    :description="book === null ? loanWords.loanDialog.addDescription : loanWords.loanDialog.changeDescription"
   >
     <FormGrid id="bank-loan" as="form" data-testid="bank-loan-form" @submit.prevent="save">
-      <UFormField :label="words.loanDialog.name" :error="(tried && errors.name) || false">
-        <UInput v-model="name" :placeholder="words.loanDialog.namePlaceholder" class="w-full" data-testid="bank-loan-name" />
+      <UFormField :label="loanWords.loanDialog.name" :error="(tried && errors.name) || false">
+        <UInput v-model="name" :placeholder="loanWords.loanDialog.namePlaceholder" class="w-full" data-testid="bank-loan-name" />
       </UFormField>
       <LoanTermsFields v-model="terms" :tried="tried" />
       <template v-if="book === null">
-        <p class="text-sm font-medium text-highlighted">{{ words.loanDialog.firstRate }}</p>
+        <p class="text-sm font-medium text-highlighted">{{ loanWords.loanDialog.firstRate }}</p>
         <RateFields v-model="rate" :tried="tried" />
-        <USwitch v-model="subsidised" :label="words.loanDialog.subsidised" :description="words.loanDialog.subsidisedHelp" data-testid="bank-loan-subsidised" />
+        <USwitch v-model="subsidised" :label="loanWords.loanDialog.subsidised" :description="loanWords.loanDialog.subsidisedHelp" data-testid="bank-loan-subsidised" />
         <SubsidyFields v-if="subsidised" v-model="subsidy" :tried="tried" :loan-instalments="typed.instalments" />
       </template>
       <UFormField :label="loansWords.form.note" class="sm:col-span-2">
@@ -155,7 +157,7 @@ async function remove(): Promise<void> {
     <template #start>
       <UButton
         v-if="book !== null"
-        :label="words.loanDialog.delete"
+        :label="loanWords.loanDialog.delete"
         icon="i-lucide-trash-2"
         color="error"
         variant="ghost"
@@ -170,7 +172,7 @@ async function remove(): Promise<void> {
       <UButton
         type="submit"
         form="bank-loan"
-        :label="book === null ? words.loanDialog.add : words.loanDialog.save"
+        :label="book === null ? loanWords.loanDialog.add : loanWords.loanDialog.save"
         :icon="book === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.saving('save')"
         :disabled="writes.busy.value"

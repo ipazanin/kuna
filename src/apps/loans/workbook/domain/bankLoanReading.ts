@@ -1,3 +1,4 @@
+import { REPAYMENTS } from './bankLoan'
 import type { BankLoan, InterimInterest, LoanSubsidy, LoanTerms } from './bankLoan'
 import { BANK_LOAN_RECORDS } from './loanKinds'
 import { labelWords, withIdField } from '../../../../shared/storage/domain/recordCodec'
@@ -5,13 +6,13 @@ import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
 import type { FieldValue } from '../../../../shared/storage/domain/recordFields'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { optionalDate, optionalMoney, ownId, positiveMoney, refuse, requiredDate, textOf, wholeNumberOf } from '../../../../shared/storage/domain/storedFields'
+import { optionalDate, optionalMoney, ownId, positiveMoney, refuse, requiredChoice, requiredDate, textOf, wholeNumberOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import { words as storedWords } from '../../../../shared/storage/domain/words'
 import { words } from './words'
 
 /** Fifty years of monthly instalments, more than any housing loan runs. */
-const MOST_INSTALMENTS = 600
+export const MOST_INSTALMENTS = 600
 
 function countOf(fields: StoredFields, name: string): number | null {
   if (fields[name] === undefined) return null
@@ -57,6 +58,7 @@ export const LOAN_TERM_FIELDS = [
   'subsidy_first_instalment',
   'subsidy_instalments',
   'subsidy_payer',
+  'repayment',
 ] as const
 
 /** A number of monthly instalments, from one to fifty years of them. */
@@ -79,6 +81,7 @@ export function loanTermsOf(fields: StoredFields): LoanTerms {
     instalments,
     interimInterest: interimInterestOf(fields, drawdown, firstInstalment),
     subsidy: subsidyOf(fields, instalments),
+    repayment: textOf(fields.repayment) === '' ? 'annuity' : requiredChoice(fields, 'repayment', REPAYMENTS, 'repayment type'),
   }
 }
 
@@ -95,6 +98,7 @@ export function loanTermsFields(terms: LoanTerms): Readonly<Record<(typeof LOAN_
     subsidy_first_instalment: terms.subsidy === null ? null : String(terms.subsidy.firstInstalment),
     subsidy_instalments: terms.subsidy === null ? null : String(terms.subsidy.instalments),
     subsidy_payer: terms.subsidy?.payer,
+    repayment: terms.repayment === 'annuity' ? null : terms.repayment,
   }
 }
 

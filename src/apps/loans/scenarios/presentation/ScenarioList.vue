@@ -7,7 +7,7 @@ import { words } from './words'
 import type { WriteSaving } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 
-/** Every scenario kept for the tab, compared or not, with what it changes, and Edit, Copy and Delete. */
+/** Every offer kept, compared or not, with its terms, and Edit, Copy and Delete. */
 defineProps<{
   title: string
   subtitle: string
@@ -40,7 +40,7 @@ const emit = defineEmits<{
           </p>
           <p class="mt-0.5 type-caption">{{ row.detail }}</p>
         </div>
-        <div v-if="row.kept" class="flex gap-0.5">
+        <div class="flex gap-0.5">
           <UButton icon="i-lucide-pencil" color="neutral" variant="ghost" :aria-label="words.list.edit(row.name)" data-testid="scenario-edit" @click="emit('edit', row)" />
           <UButton
             icon="i-lucide-copy"

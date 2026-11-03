@@ -1,7 +1,7 @@
 import { interestOf, subsidyShareOf, yourShareOf } from '../domain/loanFigures'
 import type { YearPayments } from '../domain/loanFigures'
 import { yearStep } from '../../../../shared/charts/monthAxis'
-import { words } from './words'
+import type { words } from './words'
 import { BAR_END_UP, moneyAxisLabel, stackGap, stripeDecal } from '../../../../shared/charts/chartTheme'
 import { tokenColour } from '../../../../shared/charts/chartTokens'
 import type { ChartTokens } from '../../../../shared/charts/chartTokens'
@@ -31,7 +31,15 @@ const STACK: readonly Part[] = ['extra', 'principal', 'subsidyPrincipal', 'subsi
  * top. A dashed rule marks this year, and a brass rule under the axis runs from it to the end.
  * The tooltip adds what you pay in the year, what the subsidy pays and whether the year holds an estimate.
  */
-export function paymentsChart(years: readonly YearPayments[], currentYear: number, payer: string, tokens: ChartTokens, phone: boolean, estimateFromYear: number | null): PaymentsChart {
+export function paymentsChart(
+  years: readonly YearPayments[],
+  currentYear: number,
+  payer: string,
+  tokens: ChartTokens,
+  phone: boolean,
+  estimateFromYear: number | null,
+  loanWords: typeof words,
+): PaymentsChart {
   const categories = years.map((entry) => String(entry.year))
   const principalColour = tokenColour('--loan-principal')
   const interestColour = tokenColour('--loan-interest')
@@ -41,11 +49,11 @@ export function paymentsChart(years: readonly YearPayments[], currentYear: numbe
   const topOf = (entry: YearPayments): Part | undefined => parts.filter((part) => entry[part] > 0).at(-1)
 
   const looks: Readonly<Record<Part, { name: string; style: Record<string, unknown> }>> = {
-    extra: { name: words.payments.extra, style: { color: tokens.surface, borderColor: principalColour, borderWidth: 1.5 } },
-    principal: { name: words.payments.principalYouPay, style: { color: principalColour, ...stackGap(tokens) } },
-    subsidyPrincipal: { name: words.payments.principalSubsidy(payer), style: { color: principalColour, decal: stripeDecal(tokens), ...stackGap(tokens) } },
-    subsidyInterest: { name: words.payments.interestSubsidy(payer), style: { color: interestColour, decal: stripeDecal(tokens), ...stackGap(tokens) } },
-    interest: { name: words.payments.interestYouPay, style: { color: interestColour, ...stackGap(tokens) } },
+    extra: { name: loanWords.payments.extra, style: { color: tokens.surface, borderColor: principalColour, borderWidth: 1.5 } },
+    principal: { name: loanWords.payments.principalYouPay, style: { color: principalColour, ...stackGap(tokens) } },
+    subsidyPrincipal: { name: loanWords.payments.principalSubsidy(payer), style: { color: principalColour, decal: stripeDecal(tokens), ...stackGap(tokens) } },
+    subsidyInterest: { name: loanWords.payments.interestSubsidy(payer), style: { color: interestColour, decal: stripeDecal(tokens), ...stackGap(tokens) } },
+    interest: { name: loanWords.payments.interestYouPay, style: { color: interestColour, ...stackGap(tokens) } },
   }
 
   const bars = parts.map((part): BarSeries => ({
@@ -60,7 +68,7 @@ export function paymentsChart(years: readonly YearPayments[], currentYear: numbe
             silent: true,
             symbol: 'none',
             lineStyle: { color: tokens.axis, type: 'dashed', width: 1 },
-            label: { formatter: words.payments.today, position: 'end', color: tokens.inkSecondary, fontSize: 11 },
+            label: { formatter: loanWords.payments.today, position: 'end', color: tokens.inkSecondary, fontSize: 11 },
             data: categories.includes(String(currentYear)) ? [{ xAxis: String(currentYear) }] : [],
           },
         }
@@ -84,9 +92,9 @@ export function paymentsChart(years: readonly YearPayments[], currentYear: numbe
     if (entry === undefined) return []
     const subsidy = subsidyShareOf(entry)
     return [
-      words.payments.youPayLine(formatMoney(yourShareOf(entry))),
-      ...(subsidy > 0 ? [words.payments.subsidyLine(words.subsidyPays(payer), formatMoney(subsidy), entry.subsidyPrincipal > 0 ? formatMoney(entry.subsidyPrincipal) : '')] : []),
-      ...(estimateFromYear !== null && entry.year >= estimateFromYear ? [words.payments.estimate] : []),
+      loanWords.payments.youPayLine(formatMoney(yourShareOf(entry))),
+      ...(subsidy > 0 ? [loanWords.payments.subsidyLine(loanWords.subsidyPays(payer), formatMoney(subsidy), entry.subsidyPrincipal > 0 ? formatMoney(entry.subsidyPrincipal) : '')] : []),
+      ...(estimateFromYear !== null && entry.year >= estimateFromYear ? [loanWords.payments.estimate] : []),
     ]
   }
   const first = years[0]
@@ -101,7 +109,7 @@ export function paymentsChart(years: readonly YearPayments[], currentYear: numbe
         formatter: (points: unknown) =>
           axisTooltip({
             tokens,
-            categoryLabel: (year) => plural(words.payments.year(year, yearsByLabel.get(year)?.instalments ?? 0), yearsByLabel.get(year)?.instalments ?? 0),
+            categoryLabel: (year) => plural(loanWords.payments.year(year, yearsByLabel.get(year)?.instalments ?? 0), yearsByLabel.get(year)?.instalments ?? 0),
             formatAmount: (amount) => formatMoney(amount),
             footnotes: footnotesOf,
           })((Array.isArray(points) ? points : [points]).filter((point: { seriesName?: string; value?: unknown }) => point.seriesName !== '' && typeof point.value === 'number' && point.value > 0)),
@@ -114,14 +122,14 @@ export function paymentsChart(years: readonly YearPayments[], currentYear: numbe
       yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
       series: [...bars, ...(hasAhead ? [stillToCome] : [])],
     },
-    description: descriptionOf(years, payer),
+    description: descriptionOf(years, payer, loanWords),
     hasSubsidy: present('subsidyPrincipal') || present('subsidyInterest'),
     hasExtra: present('extra'),
     hasAhead,
   }
 }
 
-function descriptionOf(years: readonly YearPayments[], payer: string): string {
+function descriptionOf(years: readonly YearPayments[], payer: string, loanWords: typeof words): string {
   const first = years[0]
   const last = years.at(-1)
   if (first === undefined || last === undefined) return ''
@@ -130,10 +138,10 @@ function descriptionOf(years: readonly YearPayments[], payer: string): string {
   const lastSubsidised = subsidised.at(-1)
   const most = years.reduce((largest, entry) => (interestOf(entry) > interestOf(largest) ? entry : largest), first)
   return (
-    words.payments.description(String(first.year), String(last.year)) +
+    loanWords.payments.description(String(first.year), String(last.year)) +
     (firstSubsidised === undefined || lastSubsidised === undefined
       ? ''
-      : words.payments.subsidyDescription(words.subsidyPays(payer), formatMoney(sumMoney(subsidised.map(subsidyShareOf))), String(firstSubsidised.year), String(lastSubsidised.year))) +
-    words.payments.interestDescription(formatMoney(interestOf(most)), String(most.year), formatMoney(interestOf(last)), String(last.year))
+      : loanWords.payments.subsidyDescription(loanWords.subsidyPays(payer), formatMoney(sumMoney(subsidised.map(subsidyShareOf))), String(firstSubsidised.year), String(lastSubsidised.year))) +
+    loanWords.payments.interestDescription(formatMoney(interestOf(most)), String(most.year), formatMoney(interestOf(last)), String(last.year))
   )
 }

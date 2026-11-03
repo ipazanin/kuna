@@ -17,7 +17,7 @@ import {
 } from '../src/apps/loans/bankLoans/domain/loanFigures'
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
 import type { PlanRow } from '../src/apps/loans/bankLoans/domain/loanPlan'
-import { annuity, monthlyInterest, rateOfText, rateText, typedRate } from '../src/apps/loans/bankLoans/domain/yearlyRate'
+import { annuity, equalPrincipalInstalment, monthlyInterest, rateOfText, rateText, typedRate } from '../src/apps/loans/bankLoans/domain/yearlyRate'
 import { sumMoney } from '../src/shared/money/money'
 import { civil, euros } from './fixtures/ledger'
 import { bankLoan, extraPayment, lateInstalment, percent, ratePeriod } from './fixtures/loans'
@@ -181,6 +181,92 @@ describe("a bank loan's plan", () => {
     expect(plan[1]).toMatchObject({ number: 2, payment: euros(106.62), interest: euros(11.05), subsidy: euros(50), yourShare: euros(56.62) })
     expect(plan.map((row) => row.subsidy / 100)).toEqual([0, 50, 50, 50, 0, 0, 0, 0, 0, 0, 0, 0])
     expect(table(plan)).toEqual(table(plain))
+  })
+})
+
+describe('an equal principal plan beside an annuity', () => {
+  // A worked example: 100,000.00 at 4% over 120 monthly instalments.
+  const annuityLoan = bankLoan({ principal: euros(100_000), instalments: 120 })
+  const equalLoan = bankLoan({ principal: euros(100_000), instalments: 120, repayment: 'equal-principal' })
+  const fourPercent = (loan: typeof annuityLoan) => [ratePeriod(loan, '2026-02-05', '4')]
+  const instalmentsOf = (rows: readonly PlanRow[]) => rows.filter((row) => row.kind === 'instalment')
+  const totalInterest = (rows: readonly PlanRow[]) => sumMoney(rows.map((row) => row.interest))
+  const totalPrincipal = (rows: readonly PlanRow[]) => sumMoney(rows.map((row) => row.principal))
+
+  it('pays 1,012.45 a month as an annuity, the last instalment taking the rounding', () => {
+    const rows = instalmentsOf(loanPlan(annuityLoan, fourPercent(annuityLoan), []))
+    expect(rows).toHaveLength(120)
+    expect(rows[0]!.payment).toBe(euros(1012.45))
+    expect(rows[118]!.payment).toBe(euros(1012.45))
+    expect(rows[119]!.payment).toBe(euros(1012.7))
+    expect(totalInterest(rows)).toBe(euros(21_494.25))
+    expect(totalPrincipal(rows)).toBe(euros(100_000))
+  })
+
+  it('starts at 1,166.67 and falls to 836.11 as equal principal, each instalment rounded once', () => {
+    const rows = instalmentsOf(loanPlan(equalLoan, fourPercent(equalLoan), []))
+    expect(rows).toHaveLength(120)
+    // 833.333… of principal plus 100,000.00 × 4% / 12 = 333.333… of interest is 1,166.666…, so 1,166.67.
+    expect(rows[0]!.payment).toBe(euros(1166.67))
+    expect(rows[0]!.interest).toBe(euros(333.33))
+    expect(rows[1]!.payment).toBe(euros(1163.89))
+    expect(rows[119]!.payment).toBe(euros(836.11))
+    // 4% / 12 × 100,000.00 × 121 / 2 = 20,166.67.
+    expect(totalInterest(rows)).toBe(euros(20_166.67))
+    expect(totalPrincipal(rows)).toBe(euros(100_000))
+    expect(rows[119]!.balance).toBe(0)
+  })
+
+  it('keeps the share at a new rate and changes only the interest', () => {
+    const periods = [...fourPercent(equalLoan), ratePeriod(equalLoan, '2031-02-05', '6')]
+    const rows = instalmentsOf(loanPlan(equalLoan, periods, []))
+    expect(rows[59]!.payment).toBe(euros(1002.78))
+    // 49,999.99 still owed at 6% / 12 is 250.00 of interest on top of the 833.33 share.
+    expect(rows[60]!.payment).toBe(euros(1083.33))
+    expect(rows[119]!.payment).toBe(euros(837.49))
+    expect(totalInterest(rows)).toBe(euros(22_708.33))
+    expect(totalPrincipal(rows)).toBe(euros(100_000))
+  })
+
+  it('keeps the share and ends after the shares left after an extra payment for a shorter term', () => {
+    const rows = loanPlan(equalLoan, fourPercent(equalLoan), [extraPayment(equalLoan, '2028-01-05', 10_000, 'shorter-term')])
+    const instalments = instalmentsOf(rows)
+    // 70,000.00 left after instalment 24 is exactly 84 shares, so the plan ends 12 instalments sooner.
+    expect(instalments).toHaveLength(108)
+    expect(instalments[24]!.payment).toBe(euros(1066.67))
+    expect(totalInterest(rows)).toBe(euros(17_150))
+    expect(totalPrincipal(rows)).toBe(euros(100_000))
+  })
+
+  it('works the share out again over the instalments left after an extra payment for a lower instalment', () => {
+    const rows = loanPlan(equalLoan, fourPercent(equalLoan), [extraPayment(equalLoan, '2028-01-05', 10_000, 'lower-instalment')])
+    const instalments = instalmentsOf(rows)
+    // 70,000.00 over 96 instalments is a share of 729.166…, plus 233.33 of interest.
+    expect(instalments).toHaveLength(120)
+    expect(instalments[24]!.payment).toBe(euros(962.5))
+    expect(instalments[119]!.payment).toBe(euros(731.62))
+    expect(totalInterest(rows)).toBe(euros(18_550.01))
+    expect(totalPrincipal(rows)).toBe(euros(100_000))
+  })
+
+  it('takes the subsidy as its fixed amount while the instalment falls, and the whole payment when that is less', () => {
+    const subsidised = bankLoan({ principal: euros(1200), instalments: 12, repayment: 'equal-principal', subsidy: { monthly: euros(105), firstInstalment: 1, instalments: 12, payer: 'APN' } })
+    const rows = instalmentsOf(loanPlan(subsidised, [ratePeriod(subsidised, '2026-02-05', '12')], []))
+    // 100.00 of principal plus 12.00 of interest, then a cent less of interest each month.
+    expect(rows[0]!.payment).toBe(euros(112))
+    expect(rows[0]!.subsidy).toBe(euros(105))
+    expect(rows[0]!.yourShare).toBe(euros(7))
+    expect(rows[11]!.payment).toBe(euros(101))
+    expect(rows[11]!.subsidy).toBe(euros(101))
+    expect(rows[11]!.yourShare).toBe(0)
+  })
+
+  it('pays the share alone at 0%', () => {
+    expect(equalPrincipalInstalment(euros(1000), 3, euros(1000), percent('0'))).toBe(euros(333.33))
+    const free = bankLoan({ principal: euros(1000), instalments: 3, repayment: 'equal-principal' })
+    const rows = instalmentsOf(loanPlan(free, [ratePeriod(free, '2026-02-05', '0')], []))
+    expect(rows.map((row) => row.payment)).toEqual([euros(333.33), euros(333.33), euros(333.34)])
+    expect(totalPrincipal(rows)).toBe(euros(1000))
   })
 })
 

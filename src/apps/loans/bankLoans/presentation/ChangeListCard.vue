@@ -16,7 +16,7 @@ import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import { words } from './words'
 
-/** A card of one kind of change to a bank loan, each record with its Change button, and Add in the header. */
+/** A card of one kind of change to a bank loan, each record with its Change button, or Delete where records are only removed, and Add in the header. */
 withDefaults(
   defineProps<{
     title: string
@@ -24,18 +24,24 @@ withDefaults(
     lines: readonly ChangeLine[]
     /** What the card says with no records. */
     empty: string
-    addLabel: string
+    /** The header's Add button, which only a card that can add shows. */
+    addLabel?: string
     /** The card's name for this device's memory of whether it is collapsed. */
     collapseId: string
-    /** False where the loan holds one record at most, such as its subsidy, and has it. */
+    /** False where the loan holds one record at most, such as its subsidy, and has it, or where records are added elsewhere. */
     canAdd?: boolean
+    /** Each record has Delete in place of Change. */
+    removable?: boolean
+    /** The record whose Delete is being written, which spins. */
+    removing?: string | null
   }>(),
-  { canAdd: true },
+  { addLabel: '', canAdd: true, removable: false, removing: null },
 )
 
 const emit = defineEmits<{
   add: []
   change: [key: string]
+  remove: [key: string]
 }>()
 </script>
 
@@ -52,6 +58,20 @@ const emit = defineEmits<{
           <p class="text-xs text-muted">{{ line.detail }}</p>
         </div>
         <UButton
+          v-if="removable"
+          :label="words.changes.delete"
+          icon="i-lucide-trash-2"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          class="shrink-0"
+          :aria-label="words.changes.deleteLine(line.title)"
+          :loading="removing === line.key"
+          data-testid="change-delete"
+          @click="emit('remove', line.key)"
+        />
+        <UButton
+          v-else
           :label="words.changes.change"
           icon="i-lucide-pencil"
           color="neutral"

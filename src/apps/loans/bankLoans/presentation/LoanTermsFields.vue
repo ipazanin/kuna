@@ -1,5 +1,6 @@
 <script lang="ts">
-import type { InterimInterest, LoanTerms } from '../../workbook/domain/bankLoan'
+import type { BankLoan, InterimInterest, LoanTerms } from '../../workbook/domain/bankLoan'
+import { MOST_INSTALMENTS } from '../../workbook/domain/bankLoanReading'
 import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { plainAmount } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
@@ -17,6 +18,7 @@ export interface LoanTermsTexts {
   instalments: string
   interimAmount: string
   interimDate: string
+  repayment: BankLoan['repayment']
 }
 
 const EXAMPLE_DRAWDOWN = civilDate(2025, 8, 12)
@@ -31,6 +33,7 @@ export function loanTermsTexts(terms: LoanTerms | null): LoanTermsTexts {
     instalments: terms === null ? '' : String(terms.instalments),
     interimAmount: terms?.interimInterest ? plainAmount(terms.interimInterest.amount) : '',
     interimDate: terms?.interimInterest?.date ?? '',
+    repayment: terms?.repayment ?? 'annuity',
   }
 }
 
@@ -55,14 +58,14 @@ export function typedLoanTerms(texts: LoanTermsTexts): { readonly terms: Omit<Lo
     principal: principal === null ? loansWords.form.anAmount : null,
     drawdown: drawdown === null ? loansWords.form.aDate(EXAMPLE_DRAWDOWN) : null,
     firstInstalment: firstInstalment === null ? loansWords.form.aDate(EXAMPLE_FIRST_INSTALMENT) : drawdown !== null && firstInstalment <= drawdown ? words.loanDialog.afterDrawdown : null,
-    instalments: instalments === null ? words.loanDialog.instalmentsError : instalments > 600 ? words.loanDialog.tooMany : null,
+    instalments: instalments === null ? words.loanDialog.instalmentsError : instalments > MOST_INSTALMENTS ? words.loanDialog.tooMany(MOST_INSTALMENTS) : null,
     interim: interim === undefined ? words.loanDialog.interimError : null,
   }
   const valid = Object.values(errors).every((error) => error === null)
   return {
     terms:
       valid && principal !== null && drawdown !== null && firstInstalment !== null && instalments !== null && interim !== undefined
-        ? { lender: texts.lender, principal, drawdown, firstInstalment, instalments, interimInterest: interim }
+        ? { lender: texts.lender, principal, drawdown, firstInstalment, instalments, interimInterest: interim, repayment: texts.repayment }
         : null,
     instalments,
     errors,
@@ -74,44 +77,42 @@ export function typedLoanTerms(texts: LoanTermsTexts): { readonly terms: Omit<Lo
 import { computed } from 'vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
+import RepaymentChoice from './RepaymentChoice.vue'
+import { useLoanWords } from './useLoanWords'
 
-/** The lender, amount, payout, instalments and interest before the first instalment, which a bank loan and an offer share. */
+/** A bank loan's lender, amount, how it is repaid, payout, instalments and interest before the first instalment. */
 const texts = defineModel<LoanTermsTexts>({ required: true })
+const loanWords = useLoanWords()
 
-const props = withDefaults(
-  defineProps<{
-    /** Whether to show the fields' errors, which wait for the first try to save. */
-    tried: boolean
-    /** What the fields' test ids start with. */
-    testPrefix?: string
-  }>(),
-  { testPrefix: 'bank-loan' },
-)
+defineProps<{
+  /** Whether to show the fields' errors, which wait for the first try to save. */
+  tried: boolean
+}>()
 
 const errors = computed(() => typedLoanTerms(texts.value).errors)
-const testId = (field: string): string => `${props.testPrefix}-${field}`
 </script>
 
 <template>
-  <UFormField :label="words.loanDialog.lender">
-    <UInput v-model="texts.lender" :placeholder="words.loanDialog.lenderPlaceholder" class="w-full" :data-testid="testId('lender')" />
+  <UFormField :label="loanWords.loanDialog.lender">
+    <UInput v-model="texts.lender" :placeholder="loanWords.loanDialog.lenderPlaceholder" class="w-full" data-testid="bank-loan-lender" />
   </UFormField>
-  <UFormField :label="words.loanDialog.principal" :error="(tried && errors.principal) || false">
-    <MoneyInput v-model="texts.principal" :placeholder="loansWords.form.amountPlaceholder" class="w-full" :data-testid="testId('principal')" />
+  <UFormField :label="loanWords.loanDialog.principal" :error="(tried && errors.principal) || false">
+    <MoneyInput v-model="texts.principal" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="bank-loan-principal" />
   </UFormField>
-  <UFormField :label="words.loanDialog.instalments" :error="(tried && errors.instalments) || false" :help="words.loanDialog.instalmentsHelp">
-    <UInput v-model="texts.instalments" inputmode="numeric" class="w-full" :data-testid="testId('instalments')" />
+  <RepaymentChoice v-model="texts.repayment" class="sm:col-span-2" data-testid="bank-loan-repayment" />
+  <UFormField :label="loanWords.loanDialog.instalments" :error="(tried && errors.instalments) || false" :help="loanWords.loanDialog.instalmentsHelp">
+    <UInput v-model="texts.instalments" inputmode="numeric" class="w-full" data-testid="bank-loan-instalments" />
   </UFormField>
-  <UFormField :label="words.loanDialog.drawdown" :error="(tried && errors.drawdown) || false">
-    <UInput v-model="texts.drawdown" type="date" class="w-full" :data-testid="testId('drawdown')" />
+  <UFormField :label="loanWords.loanDialog.drawdown" :error="(tried && errors.drawdown) || false">
+    <UInput v-model="texts.drawdown" type="date" class="w-full" data-testid="bank-loan-drawdown" />
   </UFormField>
-  <UFormField :label="words.loanDialog.firstInstalment" :error="(tried && errors.firstInstalment) || false" :help="words.loanDialog.firstInstalmentHelp">
-    <UInput v-model="texts.firstInstalment" type="date" class="w-full" :data-testid="testId('first-instalment')" />
+  <UFormField :label="loanWords.loanDialog.firstInstalment" :error="(tried && errors.firstInstalment) || false" :help="loanWords.loanDialog.firstInstalmentHelp">
+    <UInput v-model="texts.firstInstalment" type="date" class="w-full" data-testid="bank-loan-first-instalment" />
   </UFormField>
-  <UFormField :label="words.loanDialog.interim" :error="(tried && errors.interim) || false" :help="words.loanDialog.interimHelp">
+  <UFormField :label="loanWords.loanDialog.interim" :error="(tried && errors.interim) || false" :help="loanWords.loanDialog.interimHelp">
     <MoneyInput v-model="texts.interimAmount" :placeholder="loansWords.form.amountPlaceholder" class="w-full" />
   </UFormField>
-  <UFormField :label="words.loanDialog.interimDate">
+  <UFormField :label="loanWords.loanDialog.interimDate">
     <UInput v-model="texts.interimDate" type="date" class="w-full" />
   </UFormField>
 </template>
