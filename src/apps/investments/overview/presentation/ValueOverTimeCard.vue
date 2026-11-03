@@ -1,44 +1,49 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 
 import { shownValueOverTime } from '../domain/valueOverTime'
 import type { PortfolioSources } from '../../holdings/domain/holding'
-import { rollingPeriods } from '../../performance/domain/performancePeriod'
 import type { PerformancePeriod } from '../../performance/domain/performancePeriod'
 import { firstDepositIn } from '../../performance/domain/portfolioPerformance'
 import { valueChart } from './valueChart'
 import { words } from './words'
+import type { ChartRange } from '../../../../shared/charts/chartRange'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
+import { useChartRange } from '../../../../shared/charts/useChartRange'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { listInWords } from '../../../../shared/text/listInWords'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
-import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 
 /** The value at each month end against what was put in less what was taken out, over the period picked. */
 const props = defineProps<{
   sources: PortfolioSources
 }>()
 
-type PeriodKey = 1 | 3 | 5 | 'all'
+const PERIODS: Readonly<Record<Exclude<ChartRange, 'next-5y'>, PerformancePeriod>> = {
+  '1y': { kind: 'years', years: 1 },
+  '3y': { kind: 'years', years: 3 },
+  '5y': { kind: 'years', years: 5 },
+  all: { kind: 'all' },
+}
 
 const phone = usePhoneLayout()
-const picked = ref<PeriodKey>('all')
+const { ranges, range } = useChartRange(
+  () => {
+    const first = firstDepositIn(props.sources.book)
+    return first === null ? null : { from: first, to: props.sources.today }
+  },
+  () => props.sources.today,
+)
 
-const periods = computed(() => rollingPeriods(firstDepositIn(props.sources.book), props.sources.today).map((period): { key: PeriodKey; period: PerformancePeriod } => ({ key: keyOf(period), period })))
-const shown = computed(() => shownValueOverTime(props.sources, (periods.value.find((entry) => entry.key === picked.value) ?? periods.value.at(-1)!).period))
-const shownKey = computed(() => keyOf(shown.value.period))
-const periodChoices = computed(() => periods.value.map((entry) => ({ value: entry.key, label: words.value.period[entry.key] })))
+const shown = computed(() => shownValueOverTime(props.sources, range.value === 'next-5y' ? PERIODS.all : PERIODS[range.value]))
+const shownRange = computed((): ChartRange => (shown.value.period.kind === 'years' ? `${shown.value.period.years}y` : 'all'))
 const over = computed(() => shown.value.over)
 const chart = computed(() => valueChart(over.value, chartTokens(), phone.value))
 const emptyDescription = computed(() => {
   const names = listInWords(over.value.heldBack.instruments.map((instrument) => instrument.name))
   return names === '' ? words.value.emptyDescription : words.value.emptyHeldBack(names)
 })
-
-function keyOf(period: PerformancePeriod): PeriodKey {
-  return period.kind === 'years' ? period.years : 'all'
-}
 </script>
 
 <template>
@@ -52,25 +57,18 @@ function keyOf(period: PerformancePeriod): PeriodKey {
     :empty-description="emptyDescription"
     :height="300"
     :phone-height="220"
+    :ranges="ranges"
+    :range="shownRange"
     data-testid="investments-value-chart"
+    @update:range="range = $event"
   >
     <template #legend>
-      <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <ChartLegend
-          :entries="[
-            { label: words.value.value, colour: 'var(--invest-portfolio)', mark: 'line' },
-            { label: words.value.putIn, colour: 'var(--invest-reference)', mark: 'dashed' },
-          ]"
-        />
-        <ChoiceButtons
-          v-if="periods.length > 1"
-          :model-value="shownKey"
-          :options="periodChoices"
-          :label="words.value.periods"
-          data-testid="investments-value-periods"
-          @update:model-value="picked = $event"
-        />
-      </div>
+      <ChartLegend
+        :entries="[
+          { label: words.value.value, colour: 'var(--invest-portfolio)', mark: 'line' },
+          { label: words.value.putIn, colour: 'var(--invest-reference)', mark: 'dashed' },
+        ]"
+      />
     </template>
   </ChartCard>
 </template>

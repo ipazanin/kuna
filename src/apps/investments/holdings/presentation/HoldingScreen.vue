@@ -20,12 +20,15 @@ import OpenLotsCard from './OpenLotsCard.vue'
 import { seriesKey } from '../../prices/domain/pricesFile'
 import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
 import { usePrices } from '../../prices/presentation/usePrices'
-import { parseCivilDate } from '../../../../shared/calendar/civilDate'
+import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { rangeContains } from '../../../../shared/calendar/dateRange'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { priceChart } from './priceChart'
 import { usePortfolio } from './usePortfolio'
 import { words } from './words'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
+import { useChartRange } from '../../../../shared/charts/useChartRange'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { DECIMAL_ZERO } from '../../../../shared/money/decimal'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -49,7 +52,24 @@ const loading = computed(() => (state.workbook === null && state.status !== 'err
 const holding = computed(() => (figures.value === null ? null : holdingNamed(figures.value, route.query.instrument)))
 const records = computed(() => (holding.value === null || sources.value === null ? [] : latestRecords(holdingRecords(sources.value.book, holding.value.instrument.id), sources.value.rates)))
 const hasIncome = computed(() => records.value.some((entry) => entry.kind === 'income'))
-const history = computed(() => (holding.value === null || sources.value === null ? null : priceHistory(holding.value, sources.value)))
+const fullHistory = computed(() => (holding.value === null || sources.value === null ? null : priceHistory(holding.value, sources.value)))
+const priceRange = useChartRange(
+  () => {
+    const points = fullHistory.value?.points ?? []
+    const [first] = points
+    const last = points.at(-1)
+    return first === undefined || last === undefined ? null : { from: first.date, to: last.date }
+  },
+  () => sources.value?.today ?? today(),
+)
+/** The history over the range picked, its closes and its trades' dots both. */
+const history = computed(() => {
+  const full = fullHistory.value
+  if (full === null) return null
+  const kept = priceRange.window.value
+  const shown = (date: CivilDate): boolean => kept === null || rangeContains(kept, date)
+  return { ...full, points: full.points.filter((point) => shown(point.date)), dots: full.dots.filter((dot) => shown(dot.date)) }
+})
 const comparison = useComparison(() => history.value?.points.map((point) => point.date) ?? [], 'as-quoted')
 const chart = computed(() => (history.value === null || holding.value === null ? null : priceChart(history.value, holding.value, chartTokens(), phone.value, comparison.line.value)))
 
@@ -90,6 +110,7 @@ const description = computed(() => {
       <HoldingHero :holding="holding" :today="sources.today" />
       <ChartCard
         v-if="chart !== null && history !== null"
+        v-model:range="priceRange.range.value"
         :title="words.chart.title"
         :subtitle="chartSubtitle"
         :option="chart.option"
@@ -99,6 +120,7 @@ const description = computed(() => {
         :empty-description="words.chart.emptyDescription"
         :height="280"
         :phone-height="220"
+        :ranges="priceRange.ranges.value"
         data-testid="holding-price-chart"
       >
         <template #legend>

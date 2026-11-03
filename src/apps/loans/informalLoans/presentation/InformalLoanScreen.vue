@@ -12,13 +12,15 @@ import { informalLoanNamed, LOANS_OVERVIEW_ROUTE } from '../../overview/presenta
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import type { Movement } from '../../workbook/domain/movement'
 import InformalLoanDialog from './InformalLoanDialog.vue'
-import { MOVEMENT_KIND_NAMES, informalLoanFigures, informalLoanMonths, informalLoanMoves, movementLines, standingWords, whoOwes } from './informalLoanView'
+import { MOVEMENT_KIND_NAMES, informalLoanChartMonths, informalLoanFigures, informalLoanMoves, movementLines, standingWords, whoOwes } from './informalLoanView'
 import MovementDialog from './MovementDialog.vue'
 import { words } from './words'
 import { today } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthOf } from '../../../../shared/calendar/monthKey'
+import { monthInRange, wholeMonthsSpan } from '../../../../shared/charts/chartRange'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
+import { useChartRange } from '../../../../shared/charts/useChartRange'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
@@ -44,9 +46,26 @@ const book = computed(() => (state.workbook === null ? null : informalLoanNamed(
 const figures = computed(() => (book.value === null ? null : informalLoanFigures(book.value, day)))
 const phone = usePhoneLayout()
 const look = computed(() => DIRECTION_LOOKS[book.value?.loan.direction ?? 'you-owe'])
-const chart = computed(() =>
-  book.value === null ? null : balanceChart(informalLoanMonths(book.value, day), monthOf(day), chartTokens(), phone.value, { token: look.value.token, moves: informalLoanMoves(book.value) }),
+const chartMonths = computed(() => (book.value === null ? null : informalLoanChartMonths(book.value, day)))
+const owedRange = useChartRange(
+  () => {
+    const months = chartMonths.value?.months ?? []
+    const [first] = months
+    const last = months.at(-1)
+    return first === undefined || last === undefined ? null : wholeMonthsSpan(first.month, last.month)
+  },
+  () => day,
 )
+const chart = computed(() => {
+  if (book.value === null || chartMonths.value === null) return null
+  return balanceChart(
+    chartMonths.value.months.filter((entry) => monthInRange(owedRange.window.value, entry.month)),
+    monthOf(day),
+    chartTokens(),
+    phone.value,
+    { token: look.value.token, moves: informalLoanMoves(book.value), expected: chartMonths.value.expected },
+  )
+})
 const standing = computed(() => (book.value === null ? null : planStanding(book.value.loan, book.value.movements, day)))
 const standingLine = computed(() => (book.value === null || standing.value === null ? null : standingWords(book.value.loan, standing.value)))
 const planFacts = computed((): Fact[] => {
@@ -134,12 +153,14 @@ function openMovement(movement: Movement | null): void {
       <DashboardGrid layout="pair">
         <ChartCard
           v-if="chart !== null"
+          v-model:range="owedRange.range.value"
           :title="words.balance.title"
           :subtitle="book.loan.direction === 'owed-to-you' ? words.balance.subtitleOwedToYou : words.balance.subtitle"
           :option="chart.option"
           :description="chart.description"
           :height="260"
           :phone-height="220"
+          :ranges="owedRange.ranges.value"
           data-testid="loan-balance-chart"
         >
           <template #legend>

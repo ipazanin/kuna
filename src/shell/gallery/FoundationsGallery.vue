@@ -98,13 +98,22 @@ const COLOUR_GROUPS: readonly { readonly title: string; readonly measure: Measur
     swatches: [1, 2, 3, 4, 5].map((step) => ({ name: `Step ${step}`, token: `--ageing-${step}` })),
   },
   {
-    title: 'Investments: the portfolio, what it is measured against, a buy and a sale',
+    title: 'Investments: the portfolio and what it is measured against',
     measure: 'none',
     swatches: [
       { name: 'Portfolio', token: '--invest-portfolio' },
       { name: 'Reference', token: '--invest-reference' },
+    ],
+  },
+  {
+    title: 'Dots on a time chart, one size and filled: a buy and a sale, what lowers and what raises what is owed, and the ring of a new rate',
+    measure: 'none',
+    swatches: [
       { name: 'Buy', token: '--invest-buy' },
       { name: 'Sale', token: '--invest-sale' },
+      { name: 'Lowers what is owed', token: '--loan-lowers' },
+      { name: 'Raises what is owed', token: '--loan-raises' },
+      { name: 'New rate', token: '--loan-interest' },
     ],
   },
   {

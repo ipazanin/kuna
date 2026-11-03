@@ -1,7 +1,9 @@
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
+import type { DateRange } from '../../../../../../shared/calendar/dateRange'
 import { monthAxisLabel } from '../../../../../../shared/calendar/monthLabel'
 import { lastDayOf, monthOf, monthsFrom } from '../../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
+import { monthInRange, wholeMonthsSpan } from '../../../../../../shared/charts/chartRange'
 import { moneyAxisLabel } from '../../../../../../shared/charts/chartTheme'
 import type { ChartTokens } from '../../../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../../../shared/charts/chartTooltip'
@@ -30,14 +32,22 @@ interface AssetLine {
   readonly schedules: readonly DepreciationSchedule[]
 }
 
+/** The months the book value chart can show, from the first purchase to the last asset written off or at zero, null with nothing depreciated. */
+export function bookValueSpan(schedules: readonly DepreciationSchedule[]): DateRange | null {
+  const months = axisMonths(schedules.filter((schedule) => schedule.treatment === 'depreciated'))
+  const [first] = months
+  const last = months.at(-1)
+  return first === undefined || last === undefined ? null : wholeMonthsSpan(first, last)
+}
+
 /**
- * Book value of each depreciated asset at the end of every month, from the month it was bought to
- * the month it reaches zero. Small inventory never carries a book value, so it has no line. The
- * months after this one are tinted, since they follow the schedule rather than the ledger.
+ * Book value of each depreciated asset at the end of every month in the range, from the month it was
+ * bought to the month it reaches zero. Small inventory never carries a book value, so it has no line.
+ * The months after this one are tinted, since they follow the schedule rather than the ledger.
  */
-export function bookValueChart(schedules: readonly DepreciationSchedule[], today: CivilDate, tokens: ChartTokens): BookValueChart {
+export function bookValueChart(schedules: readonly DepreciationSchedule[], today: CivilDate, tokens: ChartTokens, range: DateRange | null): BookValueChart {
   const depreciated = schedules.filter((schedule) => schedule.treatment === 'depreciated')
-  const months = axisMonths(depreciated)
+  const months = axisMonths(depreciated).filter((month) => monthInRange(range, month))
   const lines = assetLines(depreciated, tokens)
   const series: LineSeries[] = lines.map((line, index) => ({
     type: 'line',

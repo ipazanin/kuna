@@ -6,13 +6,13 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import type { BenchmarkState } from '../domain/benchmark'
 import type { PerformancePeriod } from '../domain/performancePeriod'
 import type { Performance, PeriodPerformance } from '../domain/portfolioPerformance'
-import { words as overviewWords } from '../../overview/presentation/words'
 import PerformanceNotice from './PerformanceNotice.vue'
 import { periodKey } from './performanceLinks'
 import { words } from './words'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { listInWords } from '../../../../shared/text/listInWords'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
+import { words as chartWords } from '../../../../shared/ui/words'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 
 /** The period bar of a tab that follows the period picked, what its figures could not use, and the tab's cards once the period has figures. */
@@ -46,9 +46,9 @@ function periodChoice(offered: PerformancePeriod): { value: string; label: strin
 function periodLabel(offered: PerformancePeriod): string {
   switch (offered.kind) {
     case 'years':
-      return overviewWords.value.period[offered.years]
+      return chartWords.chart.ranges[`${offered.years}y`]
     case 'all':
-      return overviewWords.value.period.all
+      return chartWords.chart.ranges.all
     case 'year':
       return String(offered.year)
   }

@@ -4,7 +4,7 @@ import { portfolioFigures } from '../src/apps/investments/holdings/domain/portfo
 import { priceHistory } from '../src/apps/investments/holdings/domain/priceHistory'
 import { averageCostText } from '../src/apps/investments/holdings/presentation/holdingText'
 import { dotLines, priceChart } from '../src/apps/investments/holdings/presentation/priceChart'
-import { markSize } from '../src/shared/charts/chartDots'
+import { DOT_SIZE } from '../src/shared/charts/chartDots'
 import type { ChartTokens } from '../src/shared/charts/chartTokens'
 import { EURO } from '../src/shared/money/currencyCode'
 import { monthOf } from '../src/shared/calendar/monthKey'
@@ -55,7 +55,9 @@ const history = priceHistory(holding, sources)
 interface DrawnDots {
   name: string
   type: string
-  data: ('-' | { value: number; symbolSize: number })[]
+  symbolSize: number
+  itemStyle: { color: string; borderColor: string; borderWidth: number }
+  data: ('-' | { value: number; symbolOffset: [number, number] })[]
 }
 
 describe("a holding's trade dots", () => {
@@ -91,19 +93,26 @@ describe("a holding's trade dots", () => {
     })
     const busySources = { ...sources, book: busyRecords, prices: priceBookOf(new Map([[busyFund, [['2026-03-02', '100.00']]]])), today: civil('2026-03-31') }
     const busyHolding = portfolioFigures(busySources).holdings.find((figures) => figures.instrument.id === busyFund.id)!
-    const busyDots = priceHistory(busyHolding, busySources).dots
+    const busyHistory = priceHistory(busyHolding, busySources)
+    const busyDots = busyHistory.dots
 
     // The two buys are 400.00 + 90.00 = €490.00 for 5 units, €98.00 a unit.
     expect(busyDots.map((dot) => [dot.side, monthOf(dot.date), decimalText(dot.units), decimalText(dot.price), dot.amount])).toEqual([
       ['buy', '2026-03', '5', '98', euros(490)],
       ['sell', '2026-03', '1', '110', euros(110)],
     ])
+    // One size is 10 px, so the buy sits 5 px left of the month and the sale 5 px right, edge to edge, and neither hides the other.
+    const series = (priceChart(busyHistory, busyHolding, TOKENS, false).option as { series: DrawnDots[] }).series
+    expect(series.slice(1).map((drawn) => [drawn.name, drawn.data])).toEqual([
+      ['Buy', [{ value: 98, symbolOffset: [-5, 0] }]],
+      ['Sale', [{ value: 110, symbolOffset: [5, 0] }]],
+    ])
   })
 
-  it('tells a screen reader how many trades the merged dots hold and what their size means', () => {
-    expect(priceChart(history, holding, TOKENS, false).description).toContain(
-      " Dots show the 6 trades, a month's buys as one filled dot and its sales as one ring, each at the average price of its trades. Dot size is the amount.",
-    )
+  it('tells a screen reader how many trades the merged dots hold, and says nothing of their size', () => {
+    const { description } = priceChart(history, holding, TOKENS, false)
+    expect(description).toContain(" Dots show the 6 trades, a month's buys as one dot and its sales as another, each at the average price of its trades.")
+    expect(description).not.toContain('size')
   })
 
   it("writes gold's average cost to the cent, though its close per gram, from dividing the close per ounce, runs to six places", () => {
@@ -138,13 +147,7 @@ describe("a holding's trade dots", () => {
     expect(dotLines(priceHistory(dollarHolding, dollarSources).dots[0]!, USD)).toEqual(['Bought 2 units at $160.00 · €290.91'])
   })
 
-  it('sizes €6,728.10 at 22 px, €1,682.03 at 11 px and €100.00 at the least, 6 px', () => {
-    expect(markSize(euros(6728.1), euros(6728.1))).toBe(22)
-    expect(markSize(euros(1682.03), euros(6728.1))).toBeCloseTo(11, 3)
-    expect(markSize(euros(100), euros(6728.1))).toBe(6)
-  })
-
-  it('draws the buys as a dot and the sale as a ring at their months, which the legend and the table name', () => {
+  it('draws the buys and the sale as filled dots of one size at their months, told apart by colour, which the legend and the table name', () => {
     const chart = priceChart(history, holding, TOKENS, false)
     const series = (chart.option as { series: DrawnDots[] }).series
 
@@ -153,15 +156,20 @@ describe("a holding's trade dots", () => {
       ['scatter', 'Buy'],
       ['scatter', 'Sale'],
     ])
-    expect(series[1]!.data.map((point) => (point === '-' ? point : [point.value, point.symbolSize]))).toEqual([[517.546153846154, 22], '-'])
-    expect(series[2]!.data.map((point) => (point === '-' ? point : [point.value, Math.round(point.symbolSize)]))).toEqual(['-', [480.58, 11]])
+    // The €6,728.10 buy and the €1,682.03 sale are one size, each alone on its month.
+    expect(series.slice(1).map((drawn) => [drawn.symbolSize, drawn.itemStyle])).toEqual([
+      [DOT_SIZE, { color: '--invest-buy', borderColor: 'surface', borderWidth: 1 }],
+      [DOT_SIZE, { color: '--invest-sale', borderColor: 'surface', borderWidth: 1 }],
+    ])
+    expect(series[1]!.data).toEqual([{ value: 517.546153846154, symbolOffset: [0, 0] }, '-'])
+    expect(series[2]!.data).toEqual(['-', { value: 480.58, symbolOffset: [0, 0] }])
     expect(chart.legend.map((entry) => [entry.label, entry.colour, entry.mark])).toEqual([
       ['Price', 'var(--invest-portfolio)', 'line'],
       // The sale closes the first buy and half a unit of the second, so 9.5 units cost 780.75 + 516.00 + 2,073.00 + 1,549.00 = €4,918.75 with
       // their fees, €517.763157… a unit, shown to the cent as every cost is.
       ['Average cost €517.76', 'var(--invest-reference)', 'dashed'],
       ['Buy', 'var(--invest-buy)', 'dot'],
-      ['Sale', 'var(--invest-sale)', 'ring'],
+      ['Sale', 'var(--invest-sale)', 'dot'],
     ])
   })
 
@@ -260,10 +268,10 @@ describe("a holding's daily line", () => {
 
   it('says the line is of daily closes, and gives the table a row a day', () => {
     const chart = priceChart(daily, dailyHolding, TOKENS, false)
-    expect(chart.subtitle).toBe('Daily closes in EUR, as quoted. Dashed is your average cost. Dot size is the amount.')
+    expect(chart.subtitle).toBe('Daily closes in EUR, as quoted. Dashed is your average cost.')
     expect(chart.table.rowHeading).toBe('Day')
     expect(chart.table.rows).toHaveLength(9)
     expect(chart.table.rows[0]).toEqual({ label: '2 Mar 2026', close: '€100.00', compared: null, bought: '2 units at €100.00 · €200.00', sold: null })
-    expect(chart.description).toContain(" Dots show the 3 trades, a day's buys as one filled dot and its sales as one ring")
+    expect(chart.description).toContain(" Dots show the 3 trades, a day's buys as one dot and its sales as another")
   })
 })

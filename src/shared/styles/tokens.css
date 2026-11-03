@@ -249,6 +249,16 @@
   --loan-owed-to-you: var(--tone-positive);
 
   /*
+   * A month's movements on a loan's Owed over time, one filled dot of one size each, as --invest-buy and
+   * --invest-sale are. What lowers what is owed is ink, as a buy is, and what raises it blue, which stays
+   * clear of the red or green balance line and the brass plan for every kind of colour blindness. Orange
+   * would not, since it and brass cannot be told apart. Blue sits too close to the violet of a new rate,
+   * so a raise and a new rate never share a chart.
+   */
+  --loan-lowers: var(--chart-ink);
+  --loan-raises: var(--series-3);
+
+  /*
    * Each bank loan's band where the Overview stacks several, by the loan's place in the file. Blue,
    * pink and dark green pass the palette check with --loan-ahead in both themes, so brass stays the
    * part still to come. A fourth loan and later wear --chart-deemphasis.
@@ -280,9 +290,14 @@
   --invest-money-market: var(--series-6);
   --invest-cash: var(--loan-ahead);
 
-  /* A buy and a sale on a price chart, a filled dot and a ring, so the shape tells them apart as well. */
-  --invest-buy: var(--tone-positive);
-  --invest-sale: var(--tone-negative);
+  /*
+   * A buy and a sale on a price chart, one filled dot of one size each, told apart by colour and by the words in the
+   * legend, tooltip and table. A buy is ink and a sale orange, which both stay clear of the blue price line and the
+   * grey dashed lines for every kind of colour blindness and differ in lightness from each other. Neither is green or
+   * red, since a buy is money out and a sale money in, and neither is good or bad news.
+   */
+  --invest-buy: var(--chart-ink);
+  --invest-sale: var(--series-2);
 
   /*
    * Ink inside a filled mark. It keeps at least 3:1 on every swatch in both themes, enough for an

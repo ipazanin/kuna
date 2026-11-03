@@ -164,7 +164,7 @@ describe("a holding's price chart compared with a ticker", () => {
     expect(series.map((line) => line.name)).toEqual(['ECF', 'EXQ', 'Buy'])
     expect(series[0]!.data).toEqual([0, 0.10000000000000009])
     expect(chart.legend.map((entry) => entry.label)).toEqual(['ECF', 'EXQ', 'Buy'])
-    expect(chart.subtitle).toBe('Change since 31 Jan 2026, each line as quoted. Dot size is the amount.')
+    expect(chart.subtitle).toBe('Change since 31 Jan 2026, each line as quoted.')
   })
 
   it('gives the table both changes beside the trades', () => {

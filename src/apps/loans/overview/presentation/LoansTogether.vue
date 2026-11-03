@@ -3,13 +3,15 @@ import { computed } from 'vue'
 
 import type { InformalLoanBook } from '../../workbook/domain/readLoanBook'
 import { estimateFrom, outgoingByMonth, owedByMonth, upcomingPayments } from '../domain/loansTogether'
-import type { PlannedLoan } from '../domain/loansTogether'
+import type { LoansMonth, PlannedLoan } from '../domain/loansTogether'
 import { loanBandToken, outgoingChart, owedTogetherChart } from './togetherCharts'
 import UpcomingPaymentsCard from './UpcomingPaymentsCard.vue'
 import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { monthOf } from '../../../../shared/calendar/monthKey'
+import { monthInRange, wholeMonthsSpan } from '../../../../shared/charts/chartRange'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
+import { useChartRange } from '../../../../shared/charts/useChartRange'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
@@ -31,8 +33,20 @@ const UPCOMING_SHOWN = 6
 const phone = usePhoneLayout()
 const current = computed(() => monthOf(props.day))
 const estimate = computed(() => estimateFrom(props.loans, props.day))
-const owed = computed(() => owedTogetherChart(props.loans, owedByMonth(props.loans), current.value, props.freeOfDebtOn, chartTokens(), phone.value, estimate.value))
-const outgoing = computed(() => outgoingChart(props.loans, outgoingByMonth(props.loans), current.value, chartTokens(), phone.value, estimate.value))
+const owedMonths = computed(() => owedByMonth(props.loans))
+const outgoingMonths = computed(() => outgoingByMonth(props.loans))
+const monthRange = useChartRange(
+  () => {
+    const months = [...owedMonths.value, ...outgoingMonths.value].map((entry) => entry.month).sort()
+    const [first] = months
+    const last = months.at(-1)
+    return first === undefined || last === undefined ? null : wholeMonthsSpan(first, last)
+  },
+  () => props.day,
+)
+const shown = (entry: LoansMonth): boolean => monthInRange(monthRange.window.value, entry.month)
+const owed = computed(() => owedTogetherChart(props.loans, owedMonths.value.filter(shown), current.value, props.freeOfDebtOn, chartTokens(), phone.value, estimate.value))
+const outgoing = computed(() => outgoingChart(props.loans, outgoingMonths.value.filter(shown), current.value, chartTokens(), phone.value, estimate.value))
 const upcoming = computed(() => upcomingPayments(props.loans, props.informal, props.day, UPCOMING_SHOWN))
 
 const bands = computed((): LegendEntry[] => props.loans.map((loan, place) => ({ label: loan.loan.name, colour: `var(${loanBandToken(place)})` })))
@@ -41,12 +55,14 @@ const bands = computed((): LegendEntry[] => props.loans.map((loan, place) => ({ 
 <template>
   <DashboardGrid data-testid="loans-together">
     <ChartCard
+      v-model:range="monthRange.range.value"
       :title="words.together.owedTitle"
       :subtitle="words.together.owedSubtitle"
       :option="owed.option"
       :description="owed.description"
       :height="280"
       :phone-height="220"
+      :ranges="monthRange.ranges.value"
       data-testid="loans-owed-chart"
     >
       <template #legend>
@@ -54,12 +70,14 @@ const bands = computed((): LegendEntry[] => props.loans.map((loan, place) => ({ 
       </template>
     </ChartCard>
     <ChartCard
+      v-model:range="monthRange.range.value"
       :title="words.together.outgoingTitle"
       :subtitle="words.together.outgoingSubtitle"
       :option="outgoing.option"
       :description="outgoing.description"
       :height="280"
       :phone-height="220"
+      :ranges="monthRange.ranges.value"
       data-testid="loans-outgoing-chart"
     >
       <template #legend>

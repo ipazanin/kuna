@@ -1948,6 +1948,38 @@ async function checkWidth(width) {
     await shoot('loans-informal-loan-dot')
   })
 
+  // The Home loan's two charts share one span: 1Y on Owed over time keeps its last 13 month ends, presses 1Y on Where the
+  // payments go too and goes into the address, and All takes it out again.
+  await step('loans-chart-range', async () => {
+    await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Home loan')
+    const pressed = (card) => page.$eval(`[data-testid="${card}"] [data-testid="chart-range"] [aria-pressed="true"]`, (button) => button.textContent?.trim() ?? '')
+    const rangeButton = (label) => waitForText(page, '[data-testid="loan-balance-chart"] [data-testid="chart-range"] button', label)
+    const months = async () => {
+      const toggle = await page.waitForSelector('[data-testid="loan-balance-chart"] [data-testid="chart-table-toggle"]', { visible: true })
+      await toggle.tap()
+      const row = '[data-testid="loan-balance-chart"] [data-testid="chart-table"] tbody tr'
+      await page.waitForSelector(row)
+      const rows = await page.$$eval(row, (found) => found.length)
+      await toggle.tap()
+      return rows
+    }
+    const all = await months()
+    const lastYear = await rangeButton('1Y')
+    await lastYear.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await lastYear.tap()
+    await page.waitForFunction(() => location.hash.includes('range=1y'))
+    await expect(months(), (rows) => rows === 13 && rows < all, '1Y does not keep the last 13 month ends of Owed over time')
+    await expect(pressed('loan-payments-chart'), (label) => label === '1Y', 'Where the payments go does not follow the range picked on Owed over time')
+    await settleCharts(page)
+    await inspect(page, `${width}px the last year of a bank loan's charts`)
+    await shoot('loans-chart-range')
+    await (await rangeButton('All')).tap()
+    await page.waitForFunction(() => !location.hash.includes('range='))
+    await expect(pressed('loan-balance-chart'), (label) => label === 'All', 'All is not pressed after it is picked')
+  })
+
   // The sample Investments file: a phone row on Holdings opens its holding's page, and the link at its top leads back.
   await step('investments-holding-row', async () => {
     await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/holdings`, { waitUntil: 'networkidle0' })

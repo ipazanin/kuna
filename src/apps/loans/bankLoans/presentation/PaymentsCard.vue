@@ -7,6 +7,9 @@ import { paymentsChart } from './paymentsChart'
 import PaymentSplitFigures from './PaymentSplitFigures.vue'
 import { subsidyColourOf } from './subsidyColour'
 import { words } from './words'
+import type { DateRange } from '../../../../shared/calendar/dateRange'
+import { yearInRange } from '../../../../shared/charts/chartRange'
+import type { ChartRange } from '../../../../shared/charts/chartRange'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
@@ -21,10 +24,25 @@ const props = defineProps<{
   estimateFromYear: number | null
   /** Who pays the subsidy, empty when the loan does not say. */
   payer: string
+  /** The ranges the screen's Owed over time offers, so both charts pick from one list and show one span. */
+  ranges: readonly ChartRange[]
+  /** The days the picked range keeps, null for All. A year counts whole once any of its days is kept. */
+  shownDays: DateRange | null
 }>()
 
+const range = defineModel<ChartRange>('range', { required: true })
+
 const phone = usePhoneLayout()
-const chart = computed(() => paymentsChart(paymentsByYear(props.plan), props.currentYear, props.payer, chartTokens(), phone.value, props.estimateFromYear))
+const chart = computed(() =>
+  paymentsChart(
+    paymentsByYear(props.plan).filter((entry) => yearInRange(props.shownDays, entry.year)),
+    props.currentYear,
+    props.payer,
+    chartTokens(),
+    phone.value,
+    props.estimateFromYear,
+  ),
+)
 const wholeLoan = computed(() => splitOfRows(props.plan))
 
 const legend = computed((): LegendEntry[] => [
@@ -38,12 +56,14 @@ const legend = computed((): LegendEntry[] => [
 
 <template>
   <ChartCard
+    v-model:range="range"
     :title="words.payments.title"
     :subtitle="chart.hasSubsidy ? words.payments.subsidySubtitle(payer) : words.payments.subtitle"
     :option="chart.option"
     :description="chart.description"
     :height="280"
     :phone-height="240"
+    :ranges="ranges"
     data-testid="loan-payments-chart"
   >
     <template #legend>

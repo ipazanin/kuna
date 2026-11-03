@@ -1,5 +1,6 @@
 import { informalBalanceOn, informalBalances, informalTotals, lastMovement, raisesWhatIsOwed } from '../domain/informalBalance'
 import type { InformalTotals } from '../domain/informalBalance'
+import { plannedOwed } from '../domain/expectedPlan'
 import type { PlanStanding } from '../domain/expectedPlan'
 import { words } from './words'
 import type { BalanceMove, MonthBalance } from '../../balances/presentation/balanceChart'
@@ -9,6 +10,7 @@ import type { InformalLoanBook } from '../../workbook/domain/readLoanBook'
 import { words as bookWords } from '../../workbook/domain/words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { lastDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
+import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { negateMoney, subtractMoney } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { Money } from '../../../../shared/money/money'
@@ -61,13 +63,20 @@ export function movementLines(book: InformalLoanBook): MovementLine[] {
 }
 
 /**
- * What is owed the loan's way at each month end, from its start to the later of the day's month and its
- * newest movement: what you owe on a loan you owe, and what they owe you on one owed to you.
+ * What is owed the loan's way at each month end, from its start to the later of the day's month, its
+ * newest movement and `through`: what you owe on a loan you owe, and what they owe you on one owed to you.
  */
-export function informalLoanMonths(book: InformalLoanBook, day: CivilDate): MonthBalance[] {
+export function informalLoanMonths(book: InformalLoanBook, day: CivilDate, through: MonthKey | null = null): MonthBalance[] {
   const newest = lastMovement(book.movements)?.date ?? day
-  const end = monthOf(newest > day ? newest : day)
+  const recorded = monthOf(newest > day ? newest : day)
+  const end = through !== null && through > recorded ? through : recorded
   return monthsFrom(monthOf(book.loan.start), end).map((month) => ({ month, owed: informalBalanceOn(book.loan, book.movements, lastDayOf(month)) }))
+}
+
+/** What the loan's Owed over time draws: what is owed at each month end, and the expected plan's line, over months that run on to where the plan's line ends. */
+export function informalLoanChartMonths(book: InformalLoanBook, day: CivilDate): { readonly months: MonthBalance[]; readonly expected: MonthBalance[] } {
+  const expected = plannedOwed(book.loan, book.movements, day)
+  return { months: informalLoanMonths(book, day, expected.at(-1)?.month ?? null), expected }
 }
 
 /**

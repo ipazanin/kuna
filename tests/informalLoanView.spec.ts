@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { informalClosedOn, informalLoanMonths, informalLoanMoves, movementLines, whoOwes } from '../src/apps/loans/informalLoans/presentation/informalLoanView'
+import { informalClosedOn, informalLoanChartMonths, informalLoanMonths, informalLoanMoves, movementLines, whoOwes } from '../src/apps/loans/informalLoans/presentation/informalLoanView'
 import { civil, euros } from './fixtures/ledger'
 import { informalLoan, movement } from './fixtures/loans'
 
@@ -19,6 +19,26 @@ describe('an informal loan on its card and chart', () => {
       ['2026-06', euros(0)],
       ['2026-07', euros(0)],
     ])
+  })
+
+  it("runs its chart's months on to where its expected plan owes nothing, and keeps them to today without a plan", () => {
+    // 500.00 owed from 10 Mar, to be repaid at 100.00 on the 1st of each month from 1 Jun: the fifth instalment falls due on 1 Nov 2026.
+    const planned = { loan: { ...toLuka, expected: { monthly: euros(100), from: civil('2026-06-01'), day: 1 } }, movements: movements.slice(0, 2) }
+    const chart = informalLoanChartMonths(planned, civil('2026-07-15'))
+
+    expect(chart.expected.map((entry) => [entry.month, entry.owed])).toEqual([
+      ['2026-06', euros(500)],
+      ['2026-07', euros(400)],
+      ['2026-08', euros(300)],
+      ['2026-09', euros(200)],
+      ['2026-10', euros(100)],
+      ['2026-11', euros(0)],
+    ])
+    expect(chart.months.map((entry) => [entry.month, entry.owed]).slice(-2)).toEqual([
+      ['2026-10', euros(500)],
+      ['2026-11', euros(500)],
+    ])
+    expect(informalLoanChartMonths(book, civil('2026-07-15'))).toEqual({ months: informalLoanMonths(book, civil('2026-07-15')), expected: [] })
   })
 
   it('is settled on the day of its last movement once nothing is owed, and open while a movement is still to come', () => {

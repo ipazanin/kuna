@@ -34,7 +34,9 @@ import type { RatePeriod } from '../../workbook/domain/ratePeriod'
 import { daysBetween, today, yearOf } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthOf } from '../../../../shared/calendar/monthKey'
+import { monthInRange, wholeMonthsSpan } from '../../../../shared/charts/chartRange'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
+import { useChartRange } from '../../../../shared/charts/useChartRange'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { formatMoney, formatRate } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
@@ -57,13 +59,28 @@ const years = computed(() => (book.value === null ? [] : planYears(book.value, d
 const payer = computed(() => book.value?.loan.subsidy?.payer ?? '')
 const phone = usePhoneLayout()
 const estimateFrom = computed(() => years.value.flatMap((year) => year.lines).find((line) => line.estimate)?.date ?? null)
+const months = computed(() => (book.value === null ? [] : bankLoanMonths(book.value)))
+const loanRange = useChartRange(
+  () => {
+    const [first] = months.value
+    const last = months.value.at(-1)
+    return first === undefined || last === undefined ? null : wholeMonthsSpan(first.month, last.month)
+  },
+  () => day,
+)
 const chart = computed(() => {
   if (book.value === null) return null
-  return balanceChart(bankLoanMonths(book.value), monthOf(day), chartTokens(), phone.value, {
-    token: DIRECTION_LOOKS['you-owe'].token,
-    moves: bankLoanMoves(book.value, day),
-    estimateFrom: estimateFrom.value === null ? null : monthOf(estimateFrom.value),
-  })
+  return balanceChart(
+    months.value.filter((entry) => monthInRange(loanRange.window.value, entry.month)),
+    monthOf(day),
+    chartTokens(),
+    phone.value,
+    {
+      token: DIRECTION_LOOKS['you-owe'].token,
+      moves: bankLoanMoves(book.value, day),
+      estimateFrom: estimateFrom.value === null ? null : monthOf(estimateFrom.value),
+    },
+  )
 })
 /** The current year, or the plan's nearest year to it before the loan starts or after it ends. */
 const openYear = computed(() => {
@@ -170,19 +187,30 @@ function openLate(key: string | null): void {
         <DashboardGrid layout="pair">
           <ChartCard
             v-if="chart !== null"
+            v-model:range="loanRange.range.value"
             :title="words.balance.title"
             :subtitle="words.balance.subtitle"
             :option="chart.option"
             :description="chart.description"
             :height="280"
             :phone-height="220"
+            :ranges="loanRange.ranges.value"
             data-testid="loan-balance-chart"
           >
             <template #legend>
               <ChartLegend :entries="chart.legend" />
             </template>
           </ChartCard>
-          <PaymentsCard v-if="book.plan !== null" :plan="book.plan" :current-year="yearOf(day)" :estimate-from-year="estimateFrom === null ? null : yearOf(estimateFrom)" :payer="payer" />
+          <PaymentsCard
+            v-if="book.plan !== null"
+            v-model:range="loanRange.range.value"
+            :plan="book.plan"
+            :current-year="yearOf(day)"
+            :estimate-from-year="estimateFrom === null ? null : yearOf(estimateFrom)"
+            :payer="payer"
+            :ranges="loanRange.ranges.value"
+            :shown-days="loanRange.window.value"
+          />
         </DashboardGrid>
         <WhatIfPanel :book="book" :default-date="figures.next?.date ?? day" @apply="openExtra" @keep="keepAsScenario" />
         <PlanCard :years="years" :open-year="openYear" :has-subsidy="book.loan.subsidy !== null" />

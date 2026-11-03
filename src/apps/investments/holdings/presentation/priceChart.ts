@@ -10,7 +10,7 @@ import { words } from './words'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import { monthAxisLabel } from '../../../../shared/calendar/monthLabel'
-import { dotReach, markSize, namedFirst, nearestDotLines } from '../../../../shared/charts/chartDots'
+import { DOT_SIZE, dotOffset, dotReach, namedFirst, nearestDotLines } from '../../../../shared/charts/chartDots'
 import { tokenColour } from '../../../../shared/charts/chartTokens'
 import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../shared/charts/chartTooltip'
@@ -20,7 +20,7 @@ import { monthAxisLabels, shownPoints } from '../../../../shared/charts/monthAxi
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { DECIMAL_ZERO, decimalOfNumber, decimalText, sumDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
-import { ZERO, sumMoney } from '../../../../shared/money/money'
+import { sumMoney } from '../../../../shared/money/money'
 import { formatCurrencyAmount, formatMoney, formatPercentChange, formatQuantity, formatUnitPrice } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
@@ -57,8 +57,8 @@ export interface PriceChart {
 const PRICE_PLACES = 6
 
 /**
- * The close at each point as a blue line, the average cost as a dashed grey rule across it, and each point's buys as a
- * filled dot and its sales as a ring, at the price they came to and sized by their amount. A point is a day on a daily
+ * The close at each point as a blue line, the average cost as a dashed grey rule across it, and each point's buys as one
+ * dot and its sales as another of one size, told apart by colour, at the price they came to. A point is a day on a daily
  * line and a month end on a monthly one. With a ticker compared, the line and the dots read as change since the first
  * point, beside the ticker's change as a dashed grey line, and the average cost is left out. A canvas takes plain
  * numbers, so the decimals become numbers here and only for drawing.
@@ -79,7 +79,6 @@ export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 
   const averageCost = comparing ? null : holding.averageCost
   const averageText = averageCost === null ? null : averageCostText(holding)
   const lineName = comparing ? instrument.symbol || instrument.name : words.chart.price
-  const largest = history.dots.reduce((most, dot) => (dot.amount > most ? dot.amount : most), ZERO)
   const price: LineSeries = {
     type: 'line',
     name: lineName,
@@ -99,6 +98,8 @@ export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 
           },
         }),
   }
+  const bought = new Set(history.dots.filter((dot) => dot.side === 'buy').map((dot) => dot.date))
+  const bothSides = new Set(history.dots.filter((dot) => dot.side === 'sell' && bought.has(dot.date)).map((dot) => dot.date))
   const dotSeries = (side: TradeSide): ScatterSeries[] => {
     const dots = new Map(history.dots.filter((dot) => dot.side === side).map((dot) => [dot.date, dot]))
     if (dots.size === 0) return []
@@ -108,13 +109,12 @@ export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 
         name: side === 'buy' ? words.chart.buy : words.chart.sale,
         silent: true,
         symbol: 'circle',
-        // A ring is hollow and drawn over the dots, so a buy and a sale of one point both show.
-        z: side === 'buy' ? 3 : 4,
-        itemStyle:
-          side === 'buy' ? { color: tokenColour('--invest-buy'), borderColor: tokens.surface, borderWidth: 1 } : { color: 'transparent', borderColor: tokenColour('--invest-sale'), borderWidth: 2 },
+        symbolSize: DOT_SIZE,
+        z: 3,
+        itemStyle: { color: tokenColour(side === 'buy' ? '--invest-buy' : '--invest-sale'), borderColor: tokens.surface, borderWidth: 1 },
         data: points.map((point) => {
           const dot = dots.get(point.date)
-          return dot === undefined ? '-' : { value: onAxis(dot.price), symbolSize: markSize(dot.amount, largest) }
+          return dot === undefined ? '-' : { value: onAxis(dot.price), symbolOffset: dotOffset(bothSides.has(point.date), side === 'buy') }
         }),
       },
     ]
@@ -144,7 +144,7 @@ export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 
     return words.chart.dot(unitsText(dot.units), price, formatMoney(dot.amount))
   }
   const ourChange = comparing ? onAxis(last.price) : 0
-  const dotsLine = trades === 0 ? '' : `${plural(words.chart.trades(trades, daily ? words.chart.periods.day : words.chart.periods.month), trades)} ${words.chart.dotSize}`
+  const dotsLine = trades === 0 ? '' : plural(words.chart.trades(trades, daily ? words.chart.periods.day : words.chart.periods.month), trades)
   return {
     option: {
       grid: { top: 24, right: 16 },
@@ -187,18 +187,13 @@ export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 
                 formatUnitPrice(first.price, currency),
                 formatUnitPrice(last.price, currency),
               ) + (averageText === null ? '' : words.chart.averageCostLine(averageText))) + dotsLine,
-    subtitle: [
-      comparing ? compareWords.sinceAsQuoted(dayLabel(first.date)) : (daily ? words.chart.dailySubtitle : words.chart.subtitle)(currency),
-      history.dots.length === 0 ? null : words.chart.dotSize,
-    ]
-      .filter((part) => part !== null)
-      .join(' '),
+    subtitle: comparing ? compareWords.sinceAsQuoted(dayLabel(first.date)) : (daily ? words.chart.dailySubtitle : words.chart.subtitle)(currency),
     legend: [
       { label: lineName, colour: 'var(--invest-portfolio)', mark: 'line' },
       ...(comparing ? [comparedLegend(compared)] : []),
       ...(averageText === null ? [] : [{ label: words.chart.averageCost(averageText), colour: 'var(--invest-reference)', mark: 'dashed' as const }]),
       ...(sides.has('buy') ? [{ label: words.chart.buy, colour: 'var(--invest-buy)', mark: 'dot' as const }] : []),
-      ...(sides.has('sell') ? [{ label: words.chart.sale, colour: 'var(--invest-sale)', mark: 'ring' as const }] : []),
+      ...(sides.has('sell') ? [{ label: words.chart.sale, colour: 'var(--invest-sale)', mark: 'dot' as const }] : []),
     ],
     table: {
       rowHeading: daily ? words.chart.dayHeading : words.chart.monthHeading,

@@ -1,11 +1,11 @@
-import { informalBalanceOn } from './informalBalance'
+import { informalBalanceOn, lastMovement } from './informalBalance'
 import type { ExpectedPlan, InformalLoan } from '../../workbook/domain/informalLoan'
 import type { Movement } from '../../workbook/domain/movement'
 import { civilDate, dayOfMonth } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { addMonths, lastDayOf, monthNumber, monthOf, yearOfMonth } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
-import { ZERO, moneyFromCents, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { ZERO, addMoney, moneyFromCents, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 
 /** How a loan's repayments stand against its expected plan on a day. */
@@ -29,6 +29,15 @@ export interface PlanPayment {
   readonly overdue: boolean
 }
 
+/** What the loan would owe at a month end had the borrower paid exactly its expected plan. */
+export interface PlannedMonth {
+  readonly month: MonthKey
+  readonly owed: Money
+}
+
+/** How far past today's month a plan's line runs at most, so a plan of small instalments on a large loan stays readable. */
+const PLAN_LINE_MONTHS = 120
+
 /** The plan's day in the month, or the month's last day when the month is shorter. */
 function dueIn(month: MonthKey, plan: ExpectedPlan): CivilDate {
   const last = lastDayOf(month)
@@ -51,6 +60,8 @@ interface PlanDay {
   readonly plan: ExpectedPlan
   readonly expected: Money
   readonly repaid: Money
+  /** Still owed at the end of the day, never below zero. */
+  readonly owed: Money
   /** What the borrower is behind by, zero when on track or ahead. */
   readonly behind: Money
   /** Still owed at the end of the day and not yet due, which the instalments still to come ask for. */
@@ -73,7 +84,7 @@ function planDay(loan: InformalLoan, movements: readonly Movement[], day: CivilD
   const expected = asked < reachable ? asked : reachable
   const short = subtractMoney(expected, repaid)
   const behind = short > 0 ? short : ZERO
-  return { plan, expected, repaid, behind, notYetDue: subtractMoney(owed, behind), nextDate: dates.at(-1) ?? day }
+  return { plan, expected, repaid, owed, behind, notYetDue: subtractMoney(owed, behind), nextDate: dates.at(-1) ?? day }
 }
 
 /** The instalments still to come, the first on the next due date, each the plan's amount and the last only what is left. */
@@ -112,4 +123,27 @@ export function planPayments(loan: InformalLoan, movements: readonly Movement[],
   const state = planDay(loan, movements, day)
   if (state === null || count < 1) return []
   return [...(state.behind > 0 ? [{ date: day, amount: state.behind, overdue: true }] : []), ...instalmentsAhead(state, count)].slice(0, count)
+}
+
+/**
+ * What the loan would owe at each month end had the borrower paid exactly its expected plan: what it owes
+ * then, moved by how far the borrower is ahead or behind, so the gap to what is owed is the standing. It
+ * starts in the month the plan starts, or the loan does when that is later, and runs to the later of the
+ * day's month and the newest movement's, then on until it reaches zero, at most ten years past the day's
+ * month. Borrowing after the plan starts raises it, as it makes nobody behind. Empty for a loan without a plan.
+ */
+export function plannedOwed(loan: InformalLoan, movements: readonly Movement[], day: CivilDate): PlannedMonth[] {
+  const plan = loan.expected
+  if (plan === null) return []
+  const newest = lastMovement(movements)?.date ?? day
+  const recorded = monthOf(newest > day ? newest : day)
+  const cap = addMonths(monthOf(day), PLAN_LINE_MONTHS)
+  const months: PlannedMonth[] = []
+  for (let month = monthOf(plan.from > loan.start ? plan.from : loan.start); month <= cap; month = addMonths(month, 1)) {
+    const state = planDay(loan, movements, lastDayOf(month))!
+    const owed = addMoney(state.owed, subtractMoney(state.repaid, state.expected))
+    months.push({ month, owed })
+    if (month >= recorded && owed <= 0) break
+  }
+  return months
 }

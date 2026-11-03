@@ -13,6 +13,10 @@ export const en = {
   noMonths: 'No months to show.',
   description: (first: string, last: string, now: string, owed: string) => `What the loan owes at each month end from ${first} to ${last}. At the end of ${now} it is ${owed}.`,
   planDescription: (owed: string, month: string) => ` The plan reaches ${owed} by ${month}.`,
+  expected: 'Expected by the plan',
+  expectedDescription: (owed: string, now: string) => ` The dashed line is what would be owed at each month end had every instalment of the expected plan been paid, ${owed} at the end of ${now}.`,
+  expectedPaidOff: (month: string) => ` By the plan nothing is owed from ${month}.`,
+  expectedRunsOn: (owed: string, month: string) => ` By the plan ${owed} is still owed in ${month}, where the chart stops.`,
   lowers: 'Lowers what is owed',
   raises: 'Raises what is owed',
   rateChange: 'Rate change',
@@ -22,10 +26,10 @@ export const en = {
     one: ` A dot marks the one movement on its month: ${marks}.`,
     other: ` Dots mark the ${count} movements on their months: ${marks}.`,
   }),
-  lowersMark: 'what lowers the debt as a filled dot',
-  raisesMark: 'what raises the debt as a ring',
-  rateMark: 'a new rate as a violet ring',
-  sizedByAmount: ' A month’s movements of one kind share a dot, sized by what they come to.',
+  lowersMark: 'what lowers the debt',
+  raisesMark: 'what raises the debt',
+  rateMark: 'a new rate as a ring',
+  oneDotAMonth: ' A month’s movements of one kind share a dot.',
 }
 
 export const hr: Translation<typeof en> = {
@@ -37,6 +41,11 @@ export const hr: Translation<typeof en> = {
   noMonths: 'Nema mjeseci za prikaz.',
   description: (first, last, now, owed) => `Dug na kraju svakog mjeseca, razdoblje ${first} – ${last} Na kraju ${monthCase(now, 'genitive')} dug iznosi ${owed}.`,
   planDescription: (owed, month) => ` Prema otplatnom planu do kraja razdoblja ${month} pada na ${owed}.`,
+  expected: 'Očekivano prema planu',
+  expectedDescription: (owed, now) =>
+    ` Isprekidana linija prikazuje koliko bi se dugovalo na kraju svakog mjeseca da je plaćena svaka rata očekivanog plana. Na kraju ${monthCase(now, 'genitive')} to je ${owed}.`,
+  expectedPaidOff: (month) => ` Prema planu od razdoblja ${month} nema duga.`,
+  expectedRunsOn: (owed, month) => ` Prema planu dug u razdoblju ${month}, gdje grafikon završava, još iznosi ${owed}.`,
   lowers: 'Smanjuje dug',
   raises: 'Povećava dug',
   rateChange: 'Promjena kamatne stope',
@@ -51,10 +60,10 @@ export const hr: Translation<typeof en> = {
     few: ` Točkama su označene ${count} promjene u svojim mjesecima: ${marks}.`,
     other: ` Točkama je označeno ${count} promjena u svojim mjesecima: ${marks}.`,
   }),
-  lowersMark: 'ono što smanjuje dug kao puna točka',
-  raisesMark: 'ono što povećava dug kao prsten',
-  rateMark: 'nova kamatna stopa kao ljubičasti prsten',
-  sizedByAmount: ' Promjene iste vrste u jednom mjesecu dijele točku, veličinom prema svojem zbroju.',
+  lowersMark: 'ono što smanjuje dug',
+  raisesMark: 'ono što povećava dug',
+  rateMark: 'nova kamatna stopa kao prsten',
+  oneDotAMonth: ' Promjene iste vrste u jednom mjesecu dijele točku.',
 }
 
 export const words = language === 'hr' ? hr : en

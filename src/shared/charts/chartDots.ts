@@ -1,19 +1,22 @@
-import type { Money } from '../money/money'
+/** The diameter in pixels of every dot that marks money moving, whatever its amount, which the tooltip and the table give. */
+export const DOT_SIZE = 10
 
-/** The diameter of the dot of the largest amount on a chart, and the least any dot gets, in pixels. */
-const LARGEST_DOT = 22
-const SMALLEST_DOT = 6
+/** The diameter of a ring that marks a change with no amount, such as a new rate. It is wider than a dot, so a dot at the same place shows inside it. */
+export const RING_SIZE = DOT_SIZE + 8
 
 /** The entries of a dot its tooltip names one by one, before a line for the rest. */
 const ENTRIES_NAMED = 3
 
-/** How far from a dot, as a share of a chart's points, a tooltip still names what the dot holds: about a large dot's width. */
+/** How far from a dot, as a share of a chart's points, a tooltip still names what the dot holds. */
 const REACH = 0.01
 const REACH_ON_A_PHONE = 0.04
 
-/** A dot's diameter in pixels: its area grows with its amount against the largest on the chart, and it never shrinks out of sight. */
-export function markSize(amount: Money, largest: Money): number {
-  return largest <= 0 ? SMALLEST_DOT : Math.max(SMALLEST_DOT, LARGEST_DOT * Math.sqrt(amount / largest))
+/**
+ * Where a dot sits against its place, in pixels across and down. Two kinds of dot at one place sit side by side,
+ * the first kind to the left, so neither hides the other, and a dot alone sits on its place.
+ */
+export function dotOffset(shared: boolean, first: boolean): [number, number] {
+  return [shared ? (first ? -DOT_SIZE / 2 : DOT_SIZE / 2) : 0, 0]
 }
 
 /** How many points either side of the hovered one a tooltip still reaches a dot on a line of this many points, since a point on a long line is narrower than a finger. */

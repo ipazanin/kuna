@@ -6,7 +6,9 @@ import type { PortfolioSources } from '../../holdings/domain/holding'
 import { incomeByMonthChart } from './incomeCharts'
 import { words } from './words'
 import { yearOf } from '../../../../shared/calendar/civilDate'
+import { monthInRange, wholeMonthsSpan } from '../../../../shared/charts/chartRange'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
+import { useChartRange } from '../../../../shared/charts/useChartRange'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -23,15 +25,38 @@ const props = defineProps<{
 
 const phone = usePhoneLayout()
 const months = computed(() => incomeByMonth(props.sources.book, props.sources.today))
+const monthRange = useChartRange(
+  () => {
+    const [first] = months.value
+    const last = months.value.at(-1)
+    return first === undefined || last === undefined ? null : wholeMonthsSpan(first.month, last.month)
+  },
+  () => props.sources.today,
+)
 const years = computed(() => incomeByYear(props.sources.book, props.sources.today))
-const chart = computed(() => incomeByMonthChart(months.value, chartTokens(), phone.value))
+const chart = computed(() =>
+  incomeByMonthChart(
+    months.value.filter((entry) => monthInRange(monthRange.window.value, entry.month)),
+    chartTokens(),
+    phone.value,
+  ),
+)
 const thisYear = computed(() => yearOf(props.sources.today))
 </script>
 
 <template>
   <EmptyState v-if="years.length === 0" icon="i-lucide-coins" :title="words.noIncome.title" :description="words.noIncome.description" data-testid="income-empty" />
   <DashboardGrid v-else data-testid="income-cards">
-    <ChartCard :title="words.byMonth.title" :subtitle="words.byMonth.subtitle" :option="chart.option" :description="chart.description" :phone-height="220" data-testid="income-by-month" />
+    <ChartCard
+      v-model:range="monthRange.range.value"
+      :title="words.byMonth.title"
+      :subtitle="words.byMonth.subtitle"
+      :option="chart.option"
+      :description="chart.description"
+      :phone-height="220"
+      :ranges="monthRange.ranges.value"
+      data-testid="income-by-month"
+    />
     <AppCard
       :title="words.byYear.title"
       :subtitle="words.byYear.subtitle"

@@ -513,3 +513,26 @@ describe('the hr-doo screens in Croatian', () => {
     ])
   })
 })
+
+describe('the dots and the plan line in Croatian', () => {
+  it('names a lone trade as the only one and counts the rest with the form 1, 2 and 5 take', async () => {
+    const holdings = await inCroatian(() => import('../src/apps/investments/holdings/presentation/words'))
+    const { plural } = await import('../src/shared/text/translation')
+
+    expect([1, 21, 2, 5].map((count) => plural(holdings.words.chart.trades(count, holdings.words.chart.periods.month), count))).toEqual([
+      ' Točka označava jedinu trgovinu, po njezinoj cijeni.',
+      ' Točke prikazuju 21 trgovinu: kupnje jednog mjeseca kao jednu točku, a prodaje kao drugu, po prosječnoj cijeni tih trgovina.',
+      ' Točke prikazuju 2 trgovine: kupnje jednog mjeseca kao jednu točku, a prodaje kao drugu, po prosječnoj cijeni tih trgovina.',
+      ' Točke prikazuju 5 trgovina: kupnje jednog mjeseca kao jednu točku, a prodaje kao drugu, po prosječnoj cijeni tih trgovina.',
+    ])
+  })
+
+  it("says what the expected plan's line owes this month in a sentence of its own after the month's full stop", async () => {
+    const balances = await inCroatian(() => import('../src/apps/loans/balances/presentation/words'))
+    const months = await import('../src/shared/calendar/monthLabel')
+
+    expect(balances.words.expectedDescription('1.000,00 €', months.monthLabel(monthKey(2026, 11)))).toBe(
+      ' Isprekidana linija prikazuje koliko bi se dugovalo na kraju svakog mjeseca da je plaćena svaka rata očekivanog plana. Na kraju studenoga 2026. to je 1.000,00 €.',
+    )
+  })
+})

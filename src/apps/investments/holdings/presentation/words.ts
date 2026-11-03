@@ -130,10 +130,9 @@ export const en = {
     averageCostLine: (price: string) => ` The average cost is ${price}.`,
     trades: (count: number, period: string): EnglishForms => ({
       one: ' A dot marks the one trade at its price.',
-      other: ` Dots show the ${count} trades, a ${period}'s buys as one filled dot and its sales as one ring, each at the average price of its trades.`,
+      other: ` Dots show the ${count} trades, a ${period}'s buys as one dot and its sales as another, each at the average price of its trades.`,
     }),
     periods: { month: 'month', day: 'day' },
-    dotSize: 'Dot size is the amount.',
     units: (_count: number, shown: string): EnglishForms => ({ one: `${shown} unit`, other: `${shown} units` }),
     bought: (units: string, price: string, amount: string) => `Bought ${units} at ${price} · ${amount}`,
     sold: (units: string, price: string, amount: string) => `Sold ${units} at ${price} · ${amount}`,
@@ -452,12 +451,14 @@ export const hr: Translation<typeof en> = {
     dailyDescription: (from, to, first, last) => `Zaključna cijena svakog dana trgovanja od ${from} do ${to}, od ${first} do ${last}.`,
     averageCostLine: (price) => ` Prosječna nabavna cijena je ${price}.`,
     trades: (count, period) => ({
-      one: ` Točke prikazuju ${count} trgovinu: kupnje jednog ${period} kao jednu punu točku, a prodaje kao jedan prsten, po prosječnoj cijeni tih trgovina.`,
-      few: ` Točke prikazuju ${count} trgovine: kupnje jednog ${period} kao jednu punu točku, a prodaje kao jedan prsten, po prosječnoj cijeni tih trgovina.`,
-      other: ` Točke prikazuju ${count} trgovina: kupnje jednog ${period} kao jednu punu točku, a prodaje kao jedan prsten, po prosječnoj cijeni tih trgovina.`,
+      one:
+        count === 1
+          ? ' Točka označava jedinu trgovinu, po njezinoj cijeni.'
+          : ` Točke prikazuju ${count} trgovinu: kupnje jednog ${period} kao jednu točku, a prodaje kao drugu, po prosječnoj cijeni tih trgovina.`,
+      few: ` Točke prikazuju ${count} trgovine: kupnje jednog ${period} kao jednu točku, a prodaje kao drugu, po prosječnoj cijeni tih trgovina.`,
+      other: ` Točke prikazuju ${count} trgovina: kupnje jednog ${period} kao jednu točku, a prodaje kao drugu, po prosječnoj cijeni tih trgovina.`,
     }),
     periods: { month: 'mjeseca', day: 'dana' },
-    dotSize: 'Veličina točke je iznos.',
     units: (_count, shown) => ({ one: `${shown} kom.`, few: `${shown} kom.`, other: `${shown} kom.` }),
     bought: (units, price, amount) => `Kupljeno ${units} po ${price} · ${amount}`,
     sold: (units, price, amount) => `Prodano ${units} po ${price} · ${amount}`,

@@ -1538,7 +1538,7 @@ const SOURCE_SCREENS = [
     hash: `#/loans/informal-loan?loan=${SAMPLE_PLANNED_LOAN}`,
     title: 'To Petra',
     charts: 1,
-    shows: ['Owed to you', 'Petra owes you', 'Expected payments', 'Petra is', 'behind', 'Next instalment', 'What they owe you at each month end', 'Paid for the ferry tickets'],
+    shows: ['Owed to you', 'Petra owes you', 'Expected payments', 'Petra is', 'behind', 'Next instalment', 'What they owe you at each month end', 'Paid for the ferry tickets', 'Expected by the plan'],
   },
   {
     name: 'loans-informal-loan-settled',
@@ -1562,7 +1562,7 @@ const SOURCE_SCREENS = [
     hash: `#/loans/informal-loan?loan=${SAMPLE_PLANNED_LOAN}`,
     title: 'To Petra',
     charts: 1,
-    shows: ['Duguje vam se', 'Petra vam duguje', 'Očekivane otplate', 'Petra kasni s otplatom', 'Sljedeća rata', 'Koliko vam se duguje na kraju svakog mjeseca'],
+    shows: ['Duguje vam se', 'Petra vam duguje', 'Očekivane otplate', 'Petra kasni s otplatom', 'Sljedeća rata', 'Koliko vam se duguje na kraju svakog mjeseca', 'Očekivano prema planu'],
   },
   {
     name: 'loans-informal-loan-settled-croatian',
@@ -1928,7 +1928,6 @@ const SOURCE_SCREENS = [
       'Sell',
       'Buy',
       'Sale',
-      'Dot size is the amount.',
       ...SAMPLE_SHARE_A_PAGE.english,
     ],
     cards: false,
@@ -1950,7 +1949,6 @@ const SOURCE_SCREENS = [
       'Transakcije',
       'Kupnja',
       'Prodaja',
-      'Veličina točke je iznos.',
       ...SAMPLE_SHARE_A_PAGE.croatian,
     ],
     cards: false,
@@ -1980,7 +1978,7 @@ const SOURCE_SCREENS = [
     title: SAMPLE_SHARE_A_PAGE.name,
     charts: 1,
     ready: '[data-testid="compare-chip"]',
-    shows: ['Change since', 'each line as quoted', 'EXQ', 'Buy', 'Dot size is the amount.'],
+    shows: ['Change since', 'each line as quoted', 'EXQ', 'Buy'],
     cards: false,
   },
   {
@@ -1990,7 +1988,7 @@ const SOURCE_SCREENS = [
     title: SAMPLE_SHARE_A_PAGE.name,
     charts: 1,
     ready: '[data-testid="compare-chip"]',
-    shows: ['Promjena od', 'svaka linija kako kotira', 'EXQ', 'Kupnja', 'Veličina točke je iznos.'],
+    shows: ['Promjena od', 'svaka linija kako kotira', 'EXQ', 'Kupnja'],
     cards: false,
   },
   {

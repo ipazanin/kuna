@@ -62,8 +62,6 @@ export const en = {
     value: 'Value',
     putIn: 'Put in less taken out',
     gain: (amount: string) => `Gain ${amount}`,
-    periods: 'Period',
-    period: { 1: '1Y', 3: '3Y', 5: '5Y', all: 'All' },
     description: (from: string, to: string, value: string, putIn: string) =>
       `The value at each month end from ${from} to ${to}, against what was put in less what was taken out. On ${to} it is ${value} against ${putIn}.`,
     heldBack: (names: string) => ` The months before are left out, since ${names} had no price then.`,
@@ -200,8 +198,6 @@ export const hr: Translation<typeof en> = {
     value: 'Vrijednost',
     putIn: 'Uloženo umanjeno za isplaćeno',
     gain: (amount) => `Dobit ${amount}`,
-    periods: 'Razdoblje',
-    period: { 1: '1G', 3: '3G', 5: '5G', all: 'Sve' },
     description: (from, to, value, putIn) => `Vrijednost na kraju svakog mjeseca od ${from} do ${to}, prema uloženome umanjenome za isplaćeno. Za ${to} iznosi ${value} prema ${putIn}.`,
     heldBack: (names) => ` Raniji mjeseci su izostavljeni jer tada nije bilo cijene za: ${names}.`,
     emptyTitle: 'Još nema mjeseca za prikaz',

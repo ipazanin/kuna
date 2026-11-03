@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { planPayments, planStanding } from '../src/apps/loans/informalLoans/domain/expectedPlan'
+import { planPayments, planStanding, plannedOwed } from '../src/apps/loans/informalLoans/domain/expectedPlan'
 import { standingWords } from '../src/apps/loans/informalLoans/presentation/informalLoanView'
 import type { ExpectedPlan } from '../src/apps/loans/workbook/domain/informalLoan'
 import { civil, euros } from './fixtures/ledger'
@@ -114,5 +114,63 @@ describe('what an expected plan you owe still asks for', () => {
     expect(planPayments(informalLoan(), [], civil('2026-04-01'), 6)).toEqual([])
     expect(planPayments(fromDora, [movement(fromDora, '2026-07-03', 'repaid', 3500)], civil('2026-11-02'), 6)).toEqual([])
     expect(planPayments(fromDora, [movement(fromDora, '2026-07-03', 'repaid', 4000)], civil('2026-11-02'), 6)).toEqual([])
+  })
+})
+
+describe("an informal loan's planned owed line", () => {
+  // They owe 40,000.00 from 1 Aug 2023 and mean to repay 1,000.00 on the 1st of each month, so the first instalment falls due on 1 Sep 2023.
+  const toMarko = informalLoan({
+    counterparty: 'Marko',
+    direction: 'owed-to-you',
+    openingBalance: euros(40000),
+    start: civil('2023-08-01'),
+    expected: { monthly: euros(1000), from: civil('2023-08-01'), day: 1 },
+  })
+  const repaidSoFar = [movement(toMarko, '2024-06-02', 'repaid', 15000), movement(toMarko, '2026-01-02', 'repaid', 16000)]
+  const owedAt = (line: readonly { month: string; owed: number }[], month: string): number | undefined => line.find((entry) => entry.month === month)?.owed
+
+  it('runs from the plan start to the month it owes nothing, an instalment fewer at each month end, whatever was repaid', () => {
+    const line = plannedOwed(toMarko, repaidSoFar, civil('2026-11-15'))
+
+    // 40,000.00 at the end of Aug 2023, before the first due date, then one instalment a month: 39 by 30 Nov 2026 leaves 1,000.00, 40 by 31 Dec leaves nothing.
+    expect(line[0]).toEqual({ month: '2023-08', owed: euros(40000) })
+    expect(owedAt(line, '2023-09')).toBe(euros(39000))
+    expect(owedAt(line, '2026-11')).toBe(euros(1000))
+    expect(line.at(-1)).toEqual({ month: '2026-12', owed: euros(0) })
+    expect(line).toHaveLength(41)
+  })
+
+  it('stays the gap to what is owed that the standing says, 8,000.00 behind after 31,000.00 repaid', () => {
+    const day = civil('2026-11-30')
+    // 40,000.00 - 31,000.00 = 9,000.00 owed, and the plan has 1,000.00, so the borrower is 8,000.00 behind.
+    expect(owedAt(plannedOwed(toMarko, repaidSoFar, day), '2026-11')).toBe(euros(1000))
+    expect(planStanding(toMarko, repaidSoFar, day)!.ahead).toBe(euros(-8000))
+  })
+
+  it('rises with what is lent after the plan starts, so the plan ends later and the gap stays the standing', () => {
+    const lentMore = [...repaidSoFar, movement(toMarko, '2025-03-10', 'borrowed', 5000)]
+    const line = plannedOwed(toMarko, lentMore, civil('2026-11-30'))
+
+    // 4 + 12 + 2 = 18 instalments by the end of Feb 2025 leave 22,000.00, and Mar 2025 adds 5,000.00 less its own instalment: 26,000.00.
+    expect(owedAt(line, '2025-02')).toBe(euros(22000))
+    expect(owedAt(line, '2025-03')).toBe(euros(26000))
+    // 45,000.00 in all is 45 instalments, the last due on 1 May 2027: 14,000.00 owed against the plan's 6,000.00 in Nov 2026, still 8,000.00 behind.
+    expect(owedAt(line, '2026-11')).toBe(euros(6000))
+    expect(line.at(-1)).toEqual({ month: '2027-05', owed: euros(0) })
+    expect(planStanding(toMarko, lentMore, civil('2026-11-30'))!.ahead).toBe(euros(-8000))
+  })
+
+  it('keeps owing nothing up to today when the plan was done before it, and stops ten years past today on a plan that never ends', () => {
+    expect(plannedOwed(toMarko, repaidSoFar, civil('2028-03-15')).at(-1)).toEqual({ month: '2028-03', owed: euros(0) })
+
+    const slow = { ...toMarko, expected: { monthly: euros(10), from: civil('2023-08-01'), day: 1 } }
+    const line = plannedOwed(slow, [], civil('2026-11-15'))
+    expect(line.at(-1)!.month).toBe('2036-11')
+    // From 1 Sep 2023 to 1 Nov 2036 is 4 + 12 × 12 + 11 = 159 instalments of 10.00: 40,000.00 - 1,590.00.
+    expect(line.at(-1)!.owed).toBe(euros(38410))
+  })
+
+  it('is empty for a loan without a plan', () => {
+    expect(plannedOwed({ ...toMarko, expected: null }, repaidSoFar, civil('2026-11-15'))).toEqual([])
   })
 })

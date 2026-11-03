@@ -3,8 +3,10 @@ import { words } from './words'
 import { yearStep } from '../../../../shared/charts/monthAxis'
 import { words as balanceWords } from '../../balances/presentation/words'
 import { monthAxisLabel, monthLabel } from '../../../../shared/calendar/monthLabel'
+import type { DateRange } from '../../../../shared/calendar/dateRange'
 import { monthsFrom, yearOfMonth } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
+import { monthInRange, wholeMonthsSpan } from '../../../../shared/charts/chartRange'
 import { moneyAxisLabel } from '../../../../shared/charts/chartTheme'
 import { tokenColour } from '../../../../shared/charts/chartTokens'
 import type { ChartTokens } from '../../../../shared/charts/chartTokens'
@@ -48,6 +50,14 @@ function monthsOfAll(scenarios: readonly ChartedScenario[]): MonthKey[] {
   )
 }
 
+/** The span both charts can show, from the first month any scenario covers to the last, null with no scenario charted. */
+export function scenarioChartSpan(scenarios: readonly ChartedScenario[]): DateRange | null {
+  const months = monthsOfAll(scenarios)
+  const [first] = months
+  const last = months.at(-1)
+  return first === undefined || last === undefined ? null : wholeMonthsSpan(first, last)
+}
+
 /** The axes, grid and tooltip both charts share: years on a long axis, money up the side, a note under months at a variable rate. */
 function frame(months: readonly MonthKey[], scenarios: readonly ChartedScenario[], tokens: ChartTokens, phone: boolean, right: number): Pick<ChartOption, 'grid' | 'tooltip' | 'xAxis' | 'yAxis'> {
   const variable = earliestVariable(scenarios)
@@ -88,19 +98,20 @@ function lineOf(scenario: ChartedScenario, data: readonly (number | null)[]): Li
   return { type: 'line', name: `${scenario.letter} ${scenario.name}`, color: colour, showSymbol: false, lineStyle: { width: 2 }, data: [...data] }
 }
 
-/** A dashed hairline at the first variable month, on a wide screen only, since a phone notes it under the chart. */
-function variableRule(scenarios: readonly ChartedScenario[], tokens: ChartTokens, phone: boolean): Pick<LineSeries, 'markLine'> {
+/** A dashed hairline at the first variable month while the chart shows it, on a wide screen only, since a phone notes it under the chart. */
+function variableRule(scenarios: readonly ChartedScenario[], months: readonly MonthKey[], tokens: ChartTokens, phone: boolean): Pick<LineSeries, 'markLine'> {
   const variable = earliestVariable(scenarios)
-  if (phone || variable === null) return {}
+  if (phone || variable === null || !months.includes(variable)) return {}
   return { markLine: { silent: true, symbol: 'none', lineStyle: { color: tokens.axis, type: 'dashed', width: 1 }, label: { show: false }, data: [{ xAxis: variable }] } }
 }
 
 /**
- * What each scenario owes at each month end, one line each. Its letter sits where it is paid off,
- * and scenarios paid off in the same month share one label, such as "B C".
+ * What each scenario owes at each month end in the range, one line each. Its letter sits where it is paid off
+ * while the range shows that month, and scenarios paid off in the same month share one label, such as "B C".
+ * The description gives every payoff month, in the range or not.
  */
-export function scenarioBalanceChart(scenarios: readonly ChartedScenario[], base: string, tokens: ChartTokens, phone: boolean): ScenarioChart {
-  const months = monthsOfAll(scenarios)
+export function scenarioBalanceChart(scenarios: readonly ChartedScenario[], base: string, tokens: ChartTokens, phone: boolean, shownDays: DateRange | null): ScenarioChart {
+  const months = monthsOfAll(scenarios).filter((month) => monthInRange(shownDays, month))
   const ends = new Map<MonthKey, ChartedScenario[]>()
   for (const scenario of scenarios) {
     const last = scenario.months.at(-1)
@@ -115,13 +126,13 @@ export function scenarioBalanceChart(scenarios: readonly ChartedScenario[], base
         scenario,
         months.map((month) => owed.get(month) ?? null),
       ),
-      ...(index === 0 ? variableRule(scenarios, tokens, phone) : {}),
+      ...(index === 0 ? variableRule(scenarios, months, tokens, phone) : {}),
       markPoint: {
         silent: true,
         symbolSize: 0,
         label: { show: true, position: 'top', color: tokens.ink, fontSize: 12, fontWeight: 600 },
         data:
-          last === undefined || sharing[0] !== scenario
+          last === undefined || sharing[0] !== scenario || !months.includes(last.month)
             ? []
             : [{ name: sharing.map((held) => held.letter).join(' '), coord: [last.month, last.owed], label: { formatter: sharing.map((held) => held.letter).join(' ') } }],
       },
@@ -132,35 +143,47 @@ export function scenarioBalanceChart(scenarios: readonly ChartedScenario[], base
 }
 
 /**
- * The interest you pay, added up month by month, one line each. A line holds its total from its
- * payoff to the right edge, where its letter and total sit, pushed apart when two totals are close.
+ * The interest you pay, added up month by month, one line each, over the months in the range. A line holds
+ * its total from its payoff to the right edge, where its letter and what it has come to by then sit, pushed
+ * apart when two are close. Over the whole span that is its total, which the description always gives.
  */
-export function scenarioInterestChart(scenarios: readonly ChartedScenario[], base: string, tokens: ChartTokens, phone: boolean, fromToday: boolean): ScenarioChart {
-  const months = monthsOfAll(scenarios)
+export function scenarioInterestChart(scenarios: readonly ChartedScenario[], base: string, tokens: ChartTokens, phone: boolean, fromToday: boolean, shownDays: DateRange | null): ScenarioChart {
+  const months = monthsOfAll(scenarios).filter((month) => monthInRange(shownDays, month))
   const edge = months.at(-1)
   const totals = new Map(scenarios.map((scenario) => [scenario.key, scenario.months.at(-1)?.interest ?? 0]))
-  const tallest = Math.max(0, ...totals.values())
+  const interestBy = new Map(scenarios.map((scenario) => [scenario.key, new Map(scenario.months.map((entry) => [entry.month, entry.interest]))]))
+  const interestOn = (scenario: ChartedScenario, month: MonthKey): number | null => {
+    const first = scenario.months[0]?.month
+    return first === undefined || month < first ? null : (interestBy.get(scenario.key)!.get(month) ?? totals.get(scenario.key)!)
+  }
+  const atEdge = new Map(
+    scenarios.flatMap((scenario) => {
+      const reached = edge === undefined ? null : interestOn(scenario, edge)
+      return reached === null ? [] : [[scenario.key, reached] as const]
+    }),
+  )
+  const tallest = Math.max(0, ...atEdge.values())
   const labelAt = new Map<string, number>()
-  for (const scenario of [...scenarios].sort((first, second) => totals.get(second.key)! - totals.get(first.key)!)) {
+  for (const [key, reached] of [...atEdge].sort((first, second) => second[1] - first[1])) {
     const below = [...labelAt.values()].at(-1)
-    const total = totals.get(scenario.key)!
-    labelAt.set(scenario.key, below === undefined ? total : Math.min(total, below - LABEL_GAP * tallest))
+    labelAt.set(key, below === undefined ? reached : Math.min(reached, below - LABEL_GAP * tallest))
   }
   const series = drawingOrder(scenarios, base).map((scenario, index): LineSeries => {
-    const interest = new Map(scenario.months.map((entry) => [entry.month, entry.interest]))
-    const first = scenario.months[0]?.month
-    const total = totals.get(scenario.key)!
+    const reached = atEdge.get(scenario.key)
     return {
       ...lineOf(
         scenario,
-        months.map((month) => (first === undefined || month < first ? null : (interest.get(month) ?? total))),
+        months.map((month) => interestOn(scenario, month)),
       ),
-      ...(index === 0 ? variableRule(scenarios, tokens, phone) : {}),
+      ...(index === 0 ? variableRule(scenarios, months, tokens, phone) : {}),
       markPoint: {
         silent: true,
         symbolSize: 0,
         label: { show: true, position: 'right', color: tokens.ink, fontSize: 12 },
-        data: edge === undefined ? [] : [{ name: scenario.letter, coord: [edge, labelAt.get(scenario.key)!], label: { formatter: `${scenario.letter} ${formatCompactMoney(total)}` } }],
+        data:
+          edge === undefined || reached === undefined
+            ? []
+            : [{ name: scenario.letter, coord: [edge, labelAt.get(scenario.key)!], label: { formatter: `${scenario.letter} ${formatCompactMoney(reached)}` } }],
       },
     }
   })

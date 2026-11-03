@@ -22,12 +22,14 @@ import UEmpty from '@nuxt/ui/components/Empty.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import type { ChartOption } from '../charts/echarts'
+import type { ChartRange } from '../charts/chartRange'
 import { categoryData, isCategoryAxis } from '../charts/chartAxes'
 import { monthAxisLabel } from '../calendar/monthLabel'
 import { usePhoneLayout } from '../layout/viewport'
 import { formatMoney } from '../money/moneyFormat'
 import AppCard from './AppCard.vue'
 import ChartCanvas from './ChartCanvas.vue'
+import ChoiceButtons from './ChoiceButtons.vue'
 import DrillLink from './DrillLink.vue'
 import FigureTable from './FigureTable.vue'
 import { words } from './words'
@@ -60,6 +62,8 @@ const props = withDefaults(
     summary?: string
     startCollapsed?: boolean
     reveal?: boolean
+    /** The spans the chart can show, picked beside its legend with `v-model:range`. Shown only when there is more than All. */
+    ranges?: readonly ChartRange[]
   }>(),
   {
     formatValue: (value: number) => formatMoney(value),
@@ -72,8 +76,12 @@ const props = withDefaults(
     height: 260,
     startCollapsed: false,
     reveal: false,
+    ranges: () => [],
   },
 )
+
+const range = defineModel<ChartRange>('range', { default: 'all' })
+const rangeChoices = computed(() => (props.ranges.length > 1 ? props.ranges.map((value) => ({ value, label: words.chart.ranges[value] })) : []))
 
 const emit = defineEmits<{
   select: [selection: ChartPointSelection]
@@ -147,8 +155,12 @@ function valueOf(point: unknown): number | null {
         @click="showTable = !showTable"
       />
     </template>
-    <template v-if="$slots.legend && !empty" #header>
-      <slot name="legend" />
+    <template v-if="($slots.legend || rangeChoices.length > 0) && !empty" #header>
+      <div v-if="rangeChoices.length > 0" class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <slot name="legend" />
+        <ChoiceButtons v-model="range" :options="rangeChoices" :label="words.chart.range(title)" data-testid="chart-range" />
+      </div>
+      <slot v-else name="legend" />
     </template>
 
     <div class="chart-body grow px-2 pt-2 pb-3 sm:px-3" :style="{ height: `${plotHeight}px` }">

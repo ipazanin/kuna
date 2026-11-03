@@ -11,6 +11,7 @@ import type { LedgerWindow } from '../../../../../../shared/calendar/ledgerWindo
 import { monthOf } from '../../../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../../../../shared/charts/chartTokens'
+import { useChartRange } from '../../../../../../shared/charts/useChartRange'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../../../../shared/ui/ChartCard.vue'
@@ -43,7 +44,7 @@ import { clawbackExposure, deferredOn, grantResiduals } from '../../domain/grant
 import type { GrantReleaseSchedule } from '../../domain/grants/grantRelease'
 import { PACK_ROLES, categoriesWithRole } from '../../domain/packRoles'
 import { percentText } from '../../domain/payroll/payrollArithmetic'
-import { bookValueChart } from './assetCharts'
+import { bookValueChart, bookValueSpan } from './assetCharts'
 import AssetRegister from './AssetRegister.vue'
 import type { AssetLine } from './AssetRegister.vue'
 import DepreciationYears from './DepreciationYears.vue'
@@ -100,6 +101,16 @@ const view = computed(() => {
   }
 })
 
+const bookSchedules = computed(() => {
+  const shown = view.value
+  return shown === null || shown.failure !== null ? [] : shown.schedules
+})
+const bookRange = useChartRange(
+  () => bookValueSpan(bookSchedules.value),
+  () => today,
+)
+const bookValue = computed(() => bookValueChart(bookSchedules.value, today, chartTokens(), bookRange.window.value))
+
 function when(year: number): 'past' | 'current' | 'ahead' {
   return year < thisYear ? 'past' : year === thisYear ? 'current' : 'ahead'
 }
@@ -127,7 +138,6 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
     return exposure === null ? [] : [exposure.amount.amount]
   })
   const firstCondition = grants.flatMap((grant) => (grant.employmentRequiredUntil !== null && grant.employmentRequiredUntil >= today ? [grant.employmentRequiredUntil] : [])).sort()[0]
-  const chart = bookValueChart(shown.schedules, today, chartTokens())
   const unmatchedAssets = register.assets.filter((entry) => entry.payment === null).map((entry) => entry.asset.name)
   const held = lines.filter((line) => line.gone === null).length
 
@@ -193,7 +203,7 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
       to: drillLocation(payment.drill),
     })),
     threshold: formatMoney(threshold),
-    chart,
+    schedules: shown.schedules,
     bookValueSummary: words.bookValueSummary(plural(words.assets(lines.length), lines.length), formatMoney(bookValue)),
     yearsSummary: years.length === 0 ? words.noDepreciation : plural(words.yearsSummary(years.length, years[0]!.year, years[years.length - 1]!.year), years.length),
     years: years.map((entry): DepreciationYearLine => ({
@@ -405,21 +415,23 @@ function employmentState(until: CivilDate | null): string | null {
       </AppCard>
 
       <ChartCard
+        v-model:range="bookRange.range.value"
         :title="words.panel.bookValueTitle"
         :subtitle="words.panel.bookValueSubtitle(thisMonth)"
         :definition="words.panel.bookValueDefinition"
-        :option="view.chart.option"
-        :description="view.chart.description"
-        :empty="view.chart.empty"
+        :option="bookValue.option"
+        :description="bookValue.description"
+        :empty="bookValue.empty"
         :empty-title="words.panel.noDepreciation"
         :empty-description="words.panel.allSmallInventory"
         :height="300"
         :phone-height="240"
+        :ranges="bookRange.ranges.value"
         collapse-id="year.book-value"
         :summary="view.bookValueSummary"
         start-collapsed
       >
-        <template #legend><ChartLegend :entries="view.chart.legend" /></template>
+        <template #legend><ChartLegend :entries="bookValue.legend" /></template>
       </ChartCard>
 
       <AppCard :title="words.panel.perYearTitle" :subtitle="words.panel.perYearSubtitle" collapse-id="year.depreciation" :summary="view.yearsSummary" start-collapsed>

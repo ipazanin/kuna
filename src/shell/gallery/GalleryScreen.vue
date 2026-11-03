@@ -8,6 +8,7 @@ import UTable from '@nuxt/ui/components/Table.vue'
 import type { TableColumn } from '@nuxt/ui/components/Table.vue'
 
 import { dateFormat } from '../../shared/calendar/dateFormat'
+import type { ChartRange } from '../../shared/charts/chartRange'
 import { chartTokens } from '../../shared/charts/chartTokens'
 import { formatMoney, formatPercent } from '../../shared/money/moneyFormat'
 import type { SyncControl, SyncRun } from '../../shared/sync/application/syncRun'
@@ -193,6 +194,8 @@ const GALLERY_PERIODS = [
   { value: 'all', label: 'All' },
 ] as const
 const galleryPeriod = ref<(typeof GALLERY_PERIODS)[number]['value']>('all')
+const GALLERY_RANGES: readonly ChartRange[] = ['1y', '3y', 'next-5y', 'all']
+const galleryRange = ref<ChartRange>('all')
 const GALLERY_CHIPS = ['EXQ', 'Category: Software subscriptions', 'Counterparty: A supplier whose name runs far past the width of a chip']
 const galleryChips = ref<readonly string[]>(GALLERY_CHIPS)
 const SWATCHES = [1, 2, 3, 4, 5].map((slot) => ({ value: `series-${slot}`, name: `Slot ${slot}`, token: `--series-${slot}` }))
@@ -504,13 +507,21 @@ const columns: TableColumn<SampleTransaction>[] = [
           </template>
         </ChartCard>
 
-        <ChartCard title="Cash at month end" description="Made-up month-end cash for the gallery." subtitle="All accounts together" :option="charts.cashAtMonthEnd">
+        <ChartCard
+          v-model:range="galleryRange"
+          title="Cash at month end"
+          description="Made-up month-end cash for the gallery."
+          subtitle="All accounts together, with the span it shows picked beside the legend"
+          :option="charts.cashAtMonthEnd"
+          :ranges="GALLERY_RANGES"
+        >
           <template #legend>
             <ChartLegend
               :entries="[
                 { label: 'Cash', colour: 'var(--series-3)', mark: 'line' },
-                { label: 'A deposit', colour: 'var(--series-3)', mark: 'dot' },
-                { label: 'A withdrawal', colour: 'var(--series-3)', mark: 'ring' },
+                { label: 'A deposit', colour: 'var(--chart-ink)', mark: 'dot' },
+                { label: 'A withdrawal', colour: 'var(--series-2)', mark: 'dot' },
+                { label: 'A new rate', colour: 'var(--loan-interest)', mark: 'ring' },
               ]"
             />
           </template>

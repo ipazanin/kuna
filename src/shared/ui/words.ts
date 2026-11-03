@@ -20,6 +20,8 @@ export const en = {
     asTable: (title: string) => `Show ${title} as a table`,
     category: 'Category',
     openRows: (row: string, column: string) => `${row}, ${column}, open the rows`,
+    range: (title: string) => `Period of ${title}`,
+    ranges: { '1y': '1Y', '3y': '3Y', '5y': '5Y', 'next-5y': 'Next 5Y', all: 'All' },
   },
   donut: {
     rows: 'the rows',
@@ -44,6 +46,8 @@ export const hr: Translation<typeof en> = {
     asTable: (title) => `${title}: prikaži kao tablicu`,
     category: 'Kategorija',
     openRows: (row, column) => `${row}, ${column}, otvori stavke`,
+    range: (title) => `${title}: razdoblje`,
+    ranges: { '1y': '1G', '3y': '3G', '5y': '5G', 'next-5y': 'Idućih 5G', all: 'Sve' },
   },
   donut: {
     rows: 'stavke',

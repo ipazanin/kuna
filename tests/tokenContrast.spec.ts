@@ -26,6 +26,8 @@ const CHART_INKS = ['--chart-ink', '--chart-ink-secondary', '--chart-ink-muted']
 const STEPS = ['--gain-1', '--gain-2', '--gain-3', '--loss-1', '--loss-2', '--loss-3']
 /** The class ring's colours that are not series, marks on the card and on the chart's surface. */
 const CLASS_MARKS = ['--invest-gold', '--invest-crypto']
+/** The dots that mark a buy, a sale or a loan's movement on a time chart, and the ring of a new rate, as marks on the card and on the chart's surface. */
+const DOT_MARKS = ['--invest-buy', '--invest-sale', '--loan-lowers', '--loan-raises', '--loan-interest']
 const SERIES = ['--series-1', '--series-2', '--series-3', '--series-4', '--series-5', '--series-6', '--series-7', '--series-8']
 
 interface Pair {
@@ -62,10 +64,14 @@ function over(colour: string, surface: string, opacity = 1): string {
  * The pairs that carry text in one theme: every ink and tone on the page, a card and a popover, each
  * tone on the 10% wash of itself that Nuxt UI's subtle badges and alerts lie on, ink on the accent
  * wash of a picked row or tab, each app's colour on the surfaces as text and on its own tile as a mark, the label of a primary button, the chart's ink, and the ink inside a
- * filled chart mark, which carries icons and large text only, ink on each gain and loss step, and each class colour of its own as a mark.
+ * filled chart mark, which carries icons and large text only, ink on each gain and loss step, and each class colour and each dot colour as a mark.
  */
 function pairsOf(tokens: ReadonlyMap<string, string>): readonly Pair[] {
-  const colour = (name: string): string => tokens.get(name) ?? SHARED_TOKENS.get(name) ?? name
+  const colour = (name: string): string => {
+    const value = tokens.get(name) ?? SHARED_TOKENS.get(name) ?? name
+    const alias = /^var\((--[\w-]+)\)$/.exec(value)?.[1]
+    return alias === undefined ? value : colour(alias)
+  }
   const pair = (foreground: string, background: string, minimum = TEXT, backgroundColour = colour(background)): Pair => ({
     name: `${foreground} on ${background}`,
     foreground: colour(foreground),
@@ -82,7 +88,7 @@ function pairsOf(tokens: ReadonlyMap<string, string>): readonly Pair[] {
     pair('--accent-ink', '--accent'),
     ...CHART_INKS.flatMap((ink) => ['--chart-surface', '--chart-tooltip'].map((surface) => pair(ink, surface))),
     ...SERIES.map((series) => pair('--chart-on-fill', series, MARK)),
-    ...CLASS_MARKS.flatMap((mark) => ['--surface-raised', '--chart-surface'].map((surface) => pair(mark, surface, MARK))),
+    ...[...CLASS_MARKS, ...DOT_MARKS].flatMap((mark) => ['--surface-raised', '--chart-surface'].map((surface) => pair(mark, surface, MARK))),
     ...STEPS.flatMap((step) => ['--ink', '--ink-strong', '--chart-ink'].map((ink) => pair(ink, step))),
   ]
 }

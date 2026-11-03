@@ -7,7 +7,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import { copyScenario, removeScenario } from '../application/scenarioWrites'
 import AgainstBaseCard from './AgainstBaseCard.vue'
 import ScenarioCard from './ScenarioCard.vue'
-import { scenarioBalanceChart, scenarioInterestChart } from './scenarioCharts'
+import { scenarioBalanceChart, scenarioChartSpan, scenarioInterestChart } from './scenarioCharts'
 import { MOST_COMPARED } from './scenarioComparison'
 import ScenarioList from './ScenarioList.vue'
 import ScenarioMark from './ScenarioMark.vue'
@@ -24,6 +24,7 @@ import { words as loansWords } from '../../words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
+import { useChartRange } from '../../../../shared/charts/useChartRange'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { formatMoney, formatRate } from '../../../../shared/money/moneyFormat'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -79,8 +80,12 @@ const markOf = (key: string) => {
 const cards = computed(() => scenarioCards(props.tab, compared.value, base.value, props.today))
 const bars = computed(() => againstBase(compared.value, base.value))
 const charted = computed(() => chartedScenarios(compared.value, from.value))
-const balanceChart = computed(() => scenarioBalanceChart(charted.value, base.value, chartTokens(), phone.value))
-const interestChart = computed(() => scenarioInterestChart(charted.value, base.value, chartTokens(), phone.value, from.value !== null))
+const scenarioRange = useChartRange(
+  () => scenarioChartSpan(charted.value),
+  () => props.today,
+)
+const balanceChart = computed(() => scenarioBalanceChart(charted.value, base.value, chartTokens(), phone.value, scenarioRange.window.value))
+const interestChart = computed(() => scenarioInterestChart(charted.value, base.value, chartTokens(), phone.value, from.value !== null, scenarioRange.window.value))
 const legend = computed(() => charted.value.map((entry) => ({ label: `${entry.letter} ${entry.name}`, colour: `var(${entry.colour})`, mark: 'line' as const })))
 /** The first due date at a variable rate in any compared scenario, after which its figures are estimates. */
 const variableFrom = computed(() =>
@@ -225,12 +230,14 @@ function edit(row: ScenarioRow): void {
 
         <DashboardGrid v-if="charted.length > 0" layout="pair">
           <ChartCard
+            v-model:range="scenarioRange.range.value"
             :title="words.charts.owed"
             :subtitle="offers ? words.charts.owedOffers : words.charts.owedLoan"
             :option="balanceChart.option"
             :description="balanceChart.description"
             :height="260"
             :phone-height="220"
+            :ranges="scenarioRange.ranges.value"
             data-testid="scenario-balance-chart"
           >
             <template #legend><ChartLegend :entries="legend" /></template>
@@ -239,12 +246,14 @@ function edit(row: ScenarioRow): void {
             </template>
           </ChartCard>
           <ChartCard
+            v-model:range="scenarioRange.range.value"
             :title="offers ? words.charts.interestOffers : words.charts.interestLoan"
             :subtitle="words.charts.interestSubtitle"
             :option="interestChart.option"
             :description="interestChart.description"
             :height="260"
             :phone-height="220"
+            :ranges="scenarioRange.ranges.value"
             data-testid="scenario-interest-chart"
           >
             <template #legend><ChartLegend :entries="legend" /></template>

@@ -1,6 +1,8 @@
 import type { BarSeries, ChartOption, LineSeries } from '../../shared/charts/echarts'
 import { BAR_END_DOWN, BAR_END_RIGHT, BAR_END_UP, markIncomplete, moneyAxisLabel, stackGap } from '../../shared/charts/chartTheme'
+import { tokenColour } from '../../shared/charts/chartTokens'
 import type { ChartTokens } from '../../shared/charts/chartTokens'
+import { DOT_SIZE, RING_SIZE } from '../../shared/charts/chartDots'
 import { axisTooltip } from '../../shared/charts/chartTooltip'
 import { changeTreemap, changeTreemapTooltip } from '../../shared/charts/treemap'
 import { formatCompactMoney, formatMoney, formatPercent } from '../../shared/money/moneyFormat'
@@ -129,11 +131,17 @@ export function cashAtMonthEnd(tokens: ChartTokens): ChartOption {
         markPoint: {
           silent: true,
           symbol: 'circle',
-          symbolSize: 8,
+          symbolSize: DOT_SIZE,
           label: { show: false },
           data: [
-            { name: '', coord: [SAMPLE_MONTHS[3], balances[3]], itemStyle: { color: colour, borderColor: tokens.surface, borderWidth: 2 } },
-            { name: '', coord: [SAMPLE_MONTHS[8], balances[8]], itemStyle: { color: tokens.surface, borderColor: colour, borderWidth: 2 } },
+            { name: '', coord: [SAMPLE_MONTHS[3], balances[3]], itemStyle: { color: tokens.ink, borderColor: tokens.surface, borderWidth: 1 } },
+            { name: '', coord: [SAMPLE_MONTHS[8], balances[8]], itemStyle: { color: tokens.series[1] ?? tokens.ink, borderColor: tokens.surface, borderWidth: 1 } },
+            {
+              name: '',
+              coord: [SAMPLE_MONTHS[8], balances[8]],
+              symbolSize: RING_SIZE,
+              itemStyle: { color: 'transparent', borderColor: tokenColour('--loan-interest'), borderWidth: 2 },
+            },
           ],
         },
         endLabel: {

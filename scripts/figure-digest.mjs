@@ -105,7 +105,7 @@ import { againstBase, scenarioCards, scenarioKey, scenarioRows, scenarioTabs, sl
 import { askedSlots, pickedOf, slotCount } from '../src/apps/loans/scenarios/presentation/useScenarioCompare.ts'
 import { rateOfText } from '../src/apps/loans/bankLoans/domain/yearlyRate.ts'
 import { bankLoanFigures, bankLoanMonths, bankLoanMoves, bankLoanPaidOffOn, planYears } from '../src/apps/loans/bankLoans/presentation/bankLoanView.ts'
-import { planStanding } from '../src/apps/loans/informalLoans/domain/expectedPlan.ts'
+import { planStanding, plannedOwed } from '../src/apps/loans/informalLoans/domain/expectedPlan.ts'
 import { informalBalances } from '../src/apps/loans/informalLoans/domain/informalBalance.ts'
 import { informalClosedOn, informalLoanFigures, informalLoanMonths, informalLoanMoves, movementLines } from '../src/apps/loans/informalLoans/presentation/informalLoanView.ts'
 import { debtFreeOn, estimateFrom, interestAfter, interestInYear, outgoingByMonth, owedByMonth, plannedLoans, upcomingPayments } from '../src/apps/loans/overview/domain/loansTogether.ts'
@@ -334,7 +334,8 @@ if (investmentsAsked) {
 /**
  * The Loans groups: the records and problems, then per loan, named by its place in the file and never
  * by its name, the plan or the balances and the figures each screen shows on the day, with what its
- * balance chart marks as dots and an informal loan's standing against its expected plan. The what-if
+ * balance chart marks as dots, and an informal loan's standing against its expected plan with the plan's
+ * line of what it would owe at each month end. The what-if
  * tries 1,000.00 extra on the day. The totals are the Overview's figures over every loan, and the
  * closed group the days the loans at zero were paid off or settled. Each scenario
  * is worked out from the day, an offer over its whole loan, with a move's break-even month and an
@@ -396,6 +397,7 @@ function loansGroups(add) {
     add(`${at}.months`, () => informalLoanMonths(book, today))
     add(`${at}.moves`, () => informalLoanMoves(book))
     add(`${at}.plan`, () => planStanding(book.loan, book.movements, today))
+    add(`${at}.expected`, () => plannedOwed(book.loan, book.movements, today))
   }
   const planned = plannedLoans(workbook.bankLoans)
   add('loans.totals', () => [
