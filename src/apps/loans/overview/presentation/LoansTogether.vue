@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+import type { InformalLoanBook } from '../../workbook/domain/readLoanBook'
 import { estimateFrom, outgoingByMonth, owedByMonth, upcomingPayments } from '../domain/loansTogether'
 import type { PlannedLoan } from '../domain/loansTogether'
 import { loanBandToken, outgoingChart, owedTogetherChart } from './togetherCharts'
@@ -15,9 +16,10 @@ import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 
-/** Every bank loan together: what they owe over time, what goes out each month, and the payments coming up. */
+/** Every bank loan together: what they owe over time and what goes out each month, then the payments coming up on them and on the plans of informal loans you owe. */
 const props = defineProps<{
   loans: readonly PlannedLoan[]
+  informal: readonly InformalLoanBook[]
   day: CivilDate
   /** The day you are free of all debt, null while a loan has no end the plans give. */
   freeOfDebtOn: CivilDate | null
@@ -31,7 +33,7 @@ const current = computed(() => monthOf(props.day))
 const estimate = computed(() => estimateFrom(props.loans, props.day))
 const owed = computed(() => owedTogetherChart(props.loans, owedByMonth(props.loans), current.value, props.freeOfDebtOn, chartTokens(), phone.value, estimate.value))
 const outgoing = computed(() => outgoingChart(props.loans, outgoingByMonth(props.loans), current.value, chartTokens(), phone.value, estimate.value))
-const upcoming = computed(() => upcomingPayments(props.loans, props.day).slice(0, UPCOMING_SHOWN))
+const upcoming = computed(() => upcomingPayments(props.loans, props.informal, props.day, UPCOMING_SHOWN))
 
 const bands = computed((): LegendEntry[] => props.loans.map((loan, place) => ({ label: loan.loan.name, colour: `var(${loanBandToken(place)})` })))
 </script>

@@ -24,7 +24,7 @@
  * onboarding's first steps on a first run (`?fake=empty`), each tab of the company's Settings and the
  * Year page's editors for a workbook kept in this browser (`?fake=browser`), Settings, Books file for
  * a file a newer app saved (`?fake=newer-file`), the Loans Settings, the Loans Overview with one loan
- * (`?loans=one-loan`), with a house loan and a car loan (`?loans=house-and-car`) and while its file opens (`?loans=opening`), Scenarios on Home loan, on Offers and on a car loan with none, the home, Kuna settings, the Loans first run and every Loans screen in Croatian (`?lang=hr`),
+ * (`?loans=one-loan`), with a house loan, a car loan and an informal loan you owe on a plan (`?loans=house-and-car`) and while its file opens (`?loans=opening`), Scenarios on Home loan, on Offers and on a car loan with none, the home, Kuna settings, the Loans first run and every Loans screen in Croatian (`?lang=hr`),
  * the Investments first run, its empty Overview and its Settings on an empty file (`?investments=drive`) and its Overview while its file opens (`?investments=opening`), each in Croatian too,
  * the Investments Overview on the sample (`?investments=sample`), on the sample without a deposit so an account's cash is below zero (`?investments=cash-below-zero`) and with late prices whose last
  * fetch failed (`?prices=late-prices`), each in Croatian too and with its figures worked out from the same fake sets, the home with the Investments card's figures and its late-prices badge,
@@ -1407,14 +1407,18 @@ const SOURCE_SCREENS = [
     shows: [
       'Home loan',
       'Car loan',
+      'From Dora',
       'You owe',
       'Nobody owes you',
       'Interest still to pay',
-      'Free of all debt',
+      'Bank loans paid off',
+      'Overdue, to Dora',
       'Owed over time',
       'What goes out each month',
       'Your upcoming payments',
+      'you owe Dora',
       'Every payment of Car loan',
+      'Every payment of From Dora',
     ],
     cards: false,
   },
@@ -1424,7 +1428,17 @@ const SOURCE_SCREENS = [
     hash: '#/loans',
     title: 'Pregled',
     charts: 2,
-    shows: ['Car loan', 'Nitko vam ne duguje', 'Preostala kamata', 'Svi dugovi otplaćeni', 'Dug kroz vrijeme', 'Koliko plaćate svaki mjesec', 'Vaše sljedeće uplate'],
+    shows: [
+      'Car loan',
+      'Nitko vam ne duguje',
+      'Preostala kamata',
+      'Svi krediti otplaćeni',
+      'Kasnite s otplatom: Dora',
+      'Dug kroz vrijeme',
+      'Koliko plaćate svaki mjesec',
+      'Vaše sljedeće uplate',
+      'dugujete: Dora',
+    ],
     cards: false,
   },
   { name: 'loans-opening', query: 'loans=opening', hash: '#/loans', title: 'Overview', charts: 0, ready: '[data-testid="loans-loading"]', cards: false },

@@ -402,7 +402,7 @@ function loansGroups(add) {
     owedTotals({ bank: workbook.bankLoans.map((book) => bankLoanFigures(book, today)), informal: workbook.informalLoans.map((book) => informalLoanFigures(book, today)) }),
     owedByMonth(planned),
     outgoingByMonth(planned),
-    upcomingPayments(planned, today),
+    upcomingPayments(planned, workbook.informalLoans, today, Number.POSITIVE_INFINITY),
     interestInYear(planned, yearOf(today)),
     interestAfter(planned, today),
     debtFreeOn(workbook.bankLoans),

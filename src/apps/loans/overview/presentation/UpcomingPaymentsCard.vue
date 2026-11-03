@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
+import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import type { InformalLoan } from '../../workbook/domain/informalLoan'
 import type { PlannedLoan, UpcomingPayment } from '../domain/loansTogether'
-import { bankLoanLink } from './loanLinks'
+import { bankLoanLink, informalLoanLink } from './loanLinks'
 import { loanBandToken } from './togetherCharts'
 import { words } from './words'
 import { shortDayLabel } from '../../../../shared/calendar/dayLabel'
@@ -10,16 +13,28 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 
-/** The next payments over the bank loans in date order, then a way to each loan's whole plan. */
+/** The next payments over the bank loans and the plans of informal loans you owe in date order, then a way to each loan's page. */
 const props = defineProps<{
   payments: readonly UpcomingPayment[]
   /** The loans in the order the charts colour them. */
   loans: readonly PlannedLoan[]
 }>()
 
-function bandOf(payment: UpcomingPayment): string {
-  return `var(${loanBandToken(props.loans.findIndex((loan) => loan.loan.id === payment.loan.id))})`
+function bandOf(loan: PlannedLoan['loan']): string {
+  return `var(${loanBandToken(props.loans.findIndex((planned) => planned.loan.id === loan.id))})`
 }
+
+/** The informal loans the list shows a payment of, in the order they first come. */
+const informalLoans = computed(() => {
+  const seen = new Map<string, InformalLoan>()
+  for (const payment of props.payments) if (payment.kind === 'informal') seen.set(payment.loan.id, payment.loan)
+  return [...seen.values()]
+})
+
+const links = computed(() => [
+  ...props.loans.map((planned) => ({ key: planned.loan.id, name: planned.loan.name, to: bankLoanLink(planned.loan) })),
+  ...informalLoans.value.map((loan) => ({ key: loan.id, name: loan.name, to: informalLoanLink(loan) })),
+])
 </script>
 
 <template>
@@ -35,10 +50,22 @@ function bandOf(payment: UpcomingPayment): string {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="payment in payments" :key="`${payment.loan.id} ${payment.date}`" data-testid="upcoming-payment">
-          <th scope="row" class="text-start font-normal text-highlighted">{{ shortDayLabel(payment.date) }}</th>
+        <tr v-for="payment in payments" :key="`${payment.loan.id} ${payment.date} ${payment.kind === 'informal' && payment.overdue}`" data-testid="upcoming-payment">
+          <th scope="row" class="text-start font-normal text-highlighted">
+            <span v-if="payment.kind === 'informal' && payment.overdue" class="text-warning">{{ words.upcoming.overdue }}</span>
+            <template v-else>{{ shortDayLabel(payment.date) }}</template>
+          </th>
           <td class="text-start">
-            <span class="inline-flex items-center gap-1.5"><span class="swatch swatch-bar" :style="{ '--swatch': bandOf(payment) }" aria-hidden="true" />{{ payment.loan.name }}</span>
+            <span v-if="payment.kind === 'bank'" class="inline-flex items-center gap-1.5"
+              ><span class="swatch swatch-bar" :style="{ '--swatch': bandOf(payment.loan) }" aria-hidden="true" />{{ payment.loan.name }}</span
+            >
+            <span v-else class="inline-flex items-start gap-1.5" data-testid="upcoming-informal">
+              <UIcon name="i-lucide-handshake" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
+              <span>
+                {{ payment.loan.name }}
+                <span class="block type-caption">{{ words.card.youOweName(payment.loan.counterparty) }}</span>
+              </span>
+            </span>
           </td>
           <td class="text-end"><MoneyText :cents="payment.yourShare" /></td>
           <td class="hidden text-end @md:table-cell"><MoneyText :cents="payment.payment" /></td>
@@ -47,10 +74,10 @@ function bandOf(payment: UpcomingPayment): string {
     </FigureTable>
     <div class="mt-auto flex flex-wrap gap-x-4 gap-y-1 px-4 pt-2 pb-4 sm:px-5">
       <UButton
-        v-for="loan in loans"
-        :key="loan.loan.id"
-        :to="bankLoanLink(loan.loan)"
-        :label="words.upcoming.everyPayment(loan.loan.name)"
+        v-for="link in links"
+        :key="link.key"
+        :to="link.to"
+        :label="words.upcoming.everyPayment(link.name)"
         trailing-icon="i-lucide-arrow-right"
         color="neutral"
         variant="link"

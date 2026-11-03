@@ -2144,12 +2144,14 @@ The Overview at `#/loans` has a card per open loan, bank loans first. With two o
 two rows of tiles lead. The first adds up both directions by who owes on the day: You owe, Owed to you,
 and Net, the larger of the two less the smaller, saying which way it goes. You owe and Owed to you
 count their loans and name who is behind on an expected plan, or how many loans are. The second row
-covers the bank loans, which are all yours to pay: your next payment, this year's interest and the interest still to pay, each with what subsidies pay of it, and
+covers the bank loans, which are all yours to pay: your next payment, which also counts the expected plans of informal loans you owe, this year's interest and the interest still to pay, each with what subsidies pay of it, and
 when the last bank loan is paid off, which reads as free of all debt unless you still owe on an
 informal loan. With two or more bank loans, two charts and a list follow: what you owe on each bank
 loan at each month end stacked by loan, with the plans' total dashed in brass from today, your share
 of each month's instalments stacked by loan, where a loan ending shows as a drop, and your next six
-payments over the bank loans by due date with a link to each loan's page. Each figure comes from one
+payments by due date over the bank loans and the expected plans of informal loans you owe, with a link to
+each loan's page. A plan's row names the person you repay, and what you are behind by reads Overdue,
+due today. Loans owed to you stay out of both. Each figure comes from one
 function over the loans in `src/apps/loans/overview/domain/loansTogether.ts`, and which loans are open,
 the totals both ways and the net come from `loansOverview` in
 `src/apps/loans/overview/presentation/loansOverview.ts`. A bank loan's card shows what you owe today beside a sparkline of its whole plan,
@@ -2221,8 +2223,13 @@ shorter month. An instalment counts as due from the day after its due date. Repa
 in kind, count from the day the plan starts, and the plan never asks for more than was repaid and is
 still owed, so borrowing more makes nobody behind and forgiving part of the debt asks for less. €500
 on the 1st from 1 Jun 2026, with €1,500 repaid by 2 Nov 2026, expects five instalments, 1 Jul to 1 Nov,
-so the borrower is €1,000.00 behind and the next €500.00 falls due on 1 Dec 2026. `planStanding` in
-`src/apps/loans/informalLoans/domain/expectedPlan.ts` works it out.
+so the borrower is €1,000.00 behind and the next €500.00 falls due on 1 Dec 2026. What a plan still
+asks for starts with what the borrower is behind by, due now, since an instalment missed yesterday is
+still owed today, and then the instalments to come, each the plan's amount and the last only what is
+left, until together they come to what is still owed. With €2,000 still owed in the same example, that
+is €1,000.00 overdue, €500.00 on 1 Dec 2026 and €500.00 on 1 Jan 2027, and nothing after. On a loan you
+owe these are the rows the Overview's next payment and upcoming payments show. `planStanding` and
+`planPayments` in `src/apps/loans/informalLoans/domain/expectedPlan.ts` work them out.
 
 The dialogs follow the billing plan's: full screen on a phone, errors after the first try to save.
 Adding a bank loan writes the loan, its first rate period and its optional subsidy in one write, and

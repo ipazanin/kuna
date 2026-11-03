@@ -1,8 +1,10 @@
 import { balanceOn, interestOf, isEstimate, paymentsAfter, paymentsDueAfter, paymentsInYear, payoffDate, scheduledPayments } from '../../bankLoans/domain/loanFigures'
 import type { PaymentSplit } from '../../bankLoans/domain/loanFigures'
 import type { PlanRow } from '../../bankLoans/domain/loanPlan'
+import { planPayments } from '../../informalLoans/domain/expectedPlan'
 import type { BankLoan } from '../../workbook/domain/bankLoan'
-import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
+import type { InformalLoan } from '../../workbook/domain/informalLoan'
+import type { BankLoanBook, InformalLoanBook } from '../../workbook/domain/readLoanBook'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { lastDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
@@ -62,19 +64,39 @@ export function outgoingByMonth(loans: readonly PlannedLoan[]): LoansMonth[] {
   )
 }
 
-/** A payment still to fall due on one of the loans. */
-export interface UpcomingPayment {
-  readonly loan: BankLoan
+/** A payment still to make on a bank loan or on the expected plan of an informal loan you owe. */
+export type UpcomingPayment = {
   readonly date: CivilDate
+  /** The whole instalment, or what the plan asks. */
   readonly payment: Money
+  /** What you pay of it once a subsidy has paid its part. */
   readonly yourShare: Money
-}
+} & ({ readonly kind: 'bank'; readonly loan: BankLoan } | { readonly kind: 'informal'; readonly loan: InformalLoan; readonly overdue: boolean })
 
-/** Every scheduled payment after the day over the loans, by due date, and by the order of the loans on one day. */
-export function upcomingPayments(loans: readonly PlannedLoan[], day: CivilDate): UpcomingPayment[] {
-  return loans
-    .flatMap((loan) => paymentsDueAfter(loan.plan, day).map((row) => ({ loan: loan.loan, date: row.date, payment: row.payment, yourShare: row.yourShare })))
-    .sort((earlier, later) => earlier.date.localeCompare(later.date))
+/**
+ * The first `count` payments you still make from the day on, by date, and by the order of the loans on one day,
+ * bank loans first. A bank loan's are its scheduled payments after the day. An informal loan you owe adds what
+ * its expected plan asks, the amount you are behind by due on the day itself. Loans owed to you are left out.
+ */
+export function upcomingPayments(bank: readonly PlannedLoan[], informal: readonly InformalLoanBook[], day: CivilDate, count: number): UpcomingPayment[] {
+  const banks = bank.flatMap((loan) =>
+    paymentsDueAfter(loan.plan, day)
+      .slice(0, count)
+      .map((row): UpcomingPayment => ({ kind: 'bank', loan: loan.loan, date: row.date, payment: row.payment, yourShare: row.yourShare })),
+  )
+  const plans = informal.flatMap((book) =>
+    book.loan.direction === 'you-owe'
+      ? planPayments(book.loan, book.movements, day, count).map((due): UpcomingPayment => ({
+          kind: 'informal',
+          loan: book.loan,
+          date: due.date,
+          payment: due.amount,
+          yourShare: due.amount,
+          overdue: due.overdue,
+        }))
+      : [],
+  )
+  return [...banks, ...plans].sort((earlier, later) => earlier.date.localeCompare(later.date)).slice(0, count)
 }
 
 /** The bank's interest over the loans, and the part of it subsidies pay, which pay an instalment's interest first. */

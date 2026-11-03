@@ -10,12 +10,13 @@ import { informalClosedOn, informalLoanFigures, standingWords } from '../../info
 import type { InformalLoanFigures } from '../../informalLoans/presentation/informalLoanView'
 import type { LoanDirection } from '../../workbook/domain/informalLoan'
 import type { BankLoanBook, InformalLoanBook, LoanBook } from '../../workbook/domain/readLoanBook'
+import type { UpcomingPayment } from '../domain/loansTogether'
 import { bankLoanLink, informalLoanLink } from './loanLinks'
 import { owedTotals } from './owedTotals'
 import type { OwedTotals } from './owedTotals'
 import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import { dayLabel, shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import { negateMoney, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { plural } from '../../../../shared/text/translation'
@@ -100,4 +101,16 @@ export function directionCaption(overview: LoansOverview, direction: LoanDirecti
   const [only] = behind
   if (only === undefined) return loans
   return [loans, behind.length === 1 ? standingWords(only.loan, only.standing).text : plural(words.tiles.behindOnPlans(behind.length), behind.length)].join(', ')
+}
+
+/** When the next payment falls due and what it is for: the bank loan, or whom an informal loan's plan repays, now when you are behind. */
+export function nextPaymentCaption(payment: UpcomingPayment): string {
+  if (payment.kind === 'bank') return words.tiles.nextOn(shortDayLabel(payment.date), payment.loan.name)
+  const payee = payment.loan.counterparty || payment.loan.name
+  return payment.overdue ? words.tiles.overdueTo(payee) : words.tiles.nextTo(shortDayLabel(payment.date), payee)
+}
+
+/** The day the bank plans leave you free of all debt, null while an informal loan you owe is open, since nothing gives the day it ends. */
+export function freeOfAllDebtOn(overview: LoansOverview, bankLoansPaidOff: CivilDate | null): CivilDate | null {
+  return overview.openInformal.some((entry) => entry.figures.owedByYou > 0) ? null : bankLoansPaidOff
 }

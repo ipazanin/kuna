@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { planStanding } from '../src/apps/loans/informalLoans/domain/expectedPlan'
+import { planPayments, planStanding } from '../src/apps/loans/informalLoans/domain/expectedPlan'
 import { standingWords } from '../src/apps/loans/informalLoans/presentation/informalLoanView'
 import type { ExpectedPlan } from '../src/apps/loans/workbook/domain/informalLoan'
 import { civil, euros } from './fixtures/ledger'
@@ -70,5 +70,49 @@ describe("an informal loan's expected plan", () => {
     expect(planStanding(informalLoan(), [], civil('2026-04-01'))).toBeNull()
     const settled = [movement(toPetra, '2026-07-03', 'repaid', 6000)]
     expect(planStanding(toPetra, settled, civil('2026-11-02'))).toEqual({ expected: euros(2500), repaid: euros(6000), ahead: euros(3500), next: null })
+  })
+})
+
+describe('what an expected plan you owe still asks for', () => {
+  // You borrowed 3,500.00 from Dora on 15 May 2026 and mean to repay 500.00 on the 1st of each month from 1 Jun.
+  const fromDora = informalLoan({ name: 'From Dora', counterparty: 'Dora', openingBalance: euros(3500), start: civil('2026-05-15'), expected: PLAN })
+  const repaidToDora = [movement(fromDora, '2026-07-03', 'repaid', 500), movement(fromDora, '2026-08-02', 'repaid', 500), movement(fromDora, '2026-10-05', 'repaid-in-kind', 500)]
+
+  it('is what you are behind by, due now, then the instalments still to come up to what is still owed', () => {
+    // On 2 Nov 2026 five instalments, 1 Jul to 1 Nov, asked 2,500.00 and 1,500.00 was repaid, so 1,000.00 is overdue.
+    // 2,000.00 is still owed, so the 1,000.00 not yet due falls due as 500.00 on 1 Dec and 500.00 on 1 Jan, and nothing after.
+    expect(planPayments(fromDora, repaidToDora, civil('2026-11-02'), 6)).toEqual([
+      { date: civil('2026-11-02'), amount: euros(1000), overdue: true },
+      { date: civil('2026-12-01'), amount: euros(500), overdue: false },
+      { date: civil('2027-01-01'), amount: euros(500), overdue: false },
+    ])
+    expect(planStanding(fromDora, repaidToDora, civil('2026-11-02'))?.next).toEqual({ date: civil('2026-12-01'), amount: euros(500) })
+  })
+
+  it('has nothing overdue on a due date itself, and keeps to the count', () => {
+    // On 1 Nov four instalments asked 2,000.00, so 500.00 is overdue and the 500.00 of 1 Nov is due that day.
+    expect(planPayments(fromDora, repaidToDora, civil('2026-11-01'), 3)).toEqual([
+      { date: civil('2026-11-01'), amount: euros(500), overdue: true },
+      { date: civil('2026-11-01'), amount: euros(500), overdue: false },
+      { date: civil('2026-12-01'), amount: euros(500), overdue: false },
+    ])
+    expect(planPayments(fromDora, repaidToDora, civil('2026-11-02'), 1)).toEqual([{ date: civil('2026-11-02'), amount: euros(1000), overdue: true }])
+    expect(planPayments(fromDora, repaidToDora, civil('2026-11-02'), 0)).toEqual([])
+  })
+
+  it('asks for no more than is still owed when you are ahead, and the last instalment runs short', () => {
+    // 3,000.00 repaid by 25 Jun, before the first due date: 500.00 is still owed and falls due on 1 Jul.
+    const early = [movement(fromDora, '2026-06-20', 'repaid', 3000)]
+    expect(planPayments(fromDora, early, civil('2026-06-25'), 6)).toEqual([{ date: civil('2026-07-01'), amount: euros(500), overdue: false }])
+    // 3,200.00 repaid: the 300.00 still owed is the whole next instalment, on the card and in the list.
+    const almost = [movement(fromDora, '2026-06-20', 'repaid', 3200)]
+    expect(planPayments(fromDora, almost, civil('2026-06-25'), 6)).toEqual([{ date: civil('2026-07-01'), amount: euros(300), overdue: false }])
+    expect(planStanding(fromDora, almost, civil('2026-06-25'))?.next).toEqual({ date: civil('2026-07-01'), amount: euros(300) })
+  })
+
+  it('asks for nothing without a plan, once settled, or once the other side owes', () => {
+    expect(planPayments(informalLoan(), [], civil('2026-04-01'), 6)).toEqual([])
+    expect(planPayments(fromDora, [movement(fromDora, '2026-07-03', 'repaid', 3500)], civil('2026-11-02'), 6)).toEqual([])
+    expect(planPayments(fromDora, [movement(fromDora, '2026-07-03', 'repaid', 4000)], civil('2026-11-02'), 6)).toEqual([])
   })
 })

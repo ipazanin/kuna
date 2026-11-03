@@ -6,14 +6,14 @@ import { debtFreeOn, estimateFrom, interestAfter, interestInYear, outgoingByMont
 import { loanBandToken, outgoingChart, owedTogetherChart } from '../src/apps/loans/overview/presentation/togetherCharts'
 import type { BankLoan } from '../src/apps/loans/workbook/domain/bankLoan'
 import type { ExtraPayment } from '../src/apps/loans/workbook/domain/extraPayment'
-import { BANK_LOAN_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
+import { BANK_LOAN_RECORDS, INFORMAL_LOAN_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
 import type { RatePeriod } from '../src/apps/loans/workbook/domain/ratePeriod'
 import type { ChartTokens } from '../src/shared/charts/chartTokens'
 import { parseMonthKey } from '../src/shared/calendar/monthKey'
 import type { MonthKey } from '../src/shared/calendar/monthKey'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { civil, euros } from './fixtures/ledger'
-import { OTHER_UUID, bankLoan, extraPayment, ratePeriod } from './fixtures/loans'
+import { OTHER_UUID, bankLoan, extraPayment, informalLoan, movement, ratePeriod } from './fixtures/loans'
 
 /**
  * A house loan of 2,400.00 over 24 instalments from 2026-02-05 at 12%, so 1% a month, with a subsidy
@@ -97,7 +97,7 @@ describe('what goes out each month over the loans', () => {
 
 describe('the payments coming up over the loans', () => {
   it('lists every scheduled payment after the day by due date, with the full payment and your share', () => {
-    const upcoming = upcomingPayments(LOANS, DAY)
+    const upcoming = upcomingPayments(LOANS, [], DAY, Number.POSITIVE_INFINITY)
 
     expect(upcoming.slice(0, 3).map(({ loan, date, payment, yourShare }) => [loan.name, date, payment, yourShare])).toEqual([
       ['Car loan', '2026-03-20', euros(100), euros(100)],
@@ -111,11 +111,7 @@ describe('the payments coming up over the loans', () => {
   it('counts a payment due on the day as paid, as the loan card does', () => {
     const onDueDate = civil('2026-04-05')
 
-    expect(
-      upcomingPayments(LOANS, onDueDate)
-        .slice(0, 2)
-        .map(({ loan, date }) => [loan.name, date]),
-    ).toEqual([
+    expect(upcomingPayments(LOANS, [], onDueDate, 2).map(({ loan, date }) => [loan.name, date])).toEqual([
       ['Car loan', '2026-04-20'],
       ['House loan', '2026-05-05'],
     ])
@@ -126,11 +122,41 @@ describe('the payments coming up over the loans', () => {
     const sameDay = bankLoan({ id: recordIdOf(BANK_LOAN_RECORDS, 'same-day'), name: 'Boat loan', firstInstalment: civil('2026-02-20'), instalments: 2 })
     const loans = plannedLoans([book(CAR, [ratePeriod(CAR, '2026-02-20', '0', 'car')]), book(sameDay, [ratePeriod(sameDay, '2026-02-20', '0', 'boat')])])
 
-    expect(
-      upcomingPayments(loans, civil('2026-02-01'))
-        .slice(0, 2)
-        .map((payment) => payment.loan.name),
-    ).toEqual(['Car loan', 'Boat loan'])
+    expect(upcomingPayments(loans, [], civil('2026-02-01'), 2).map((payment) => payment.loan.name)).toEqual(['Car loan', 'Boat loan'])
+  })
+
+  it('adds the plan of an informal loan you owe among the bank instalments, what you are behind by first', () => {
+    // You owe Ana 1,000.00 from 1 Jan 2026 and mean to repay 100.00 on the 15th from then. By 10 Mar the instalments
+    // of 15 Jan and 15 Feb asked 200.00 and 100.00 was repaid, so 100.00 is overdue and 100.00 falls due on 15 Mar.
+    const fromAna = informalLoan({ openingBalance: euros(1000), start: civil('2026-01-01'), expected: { monthly: euros(100), from: civil('2026-01-01'), day: 15 } })
+    // Petra means to repay you on the 1st, which is hers to pay and stays out.
+    const toPetra = informalLoan({
+      id: recordIdOf(INFORMAL_LOAN_RECORDS, 'to-petra'),
+      name: 'To Petra',
+      direction: 'owed-to-you',
+      expected: { monthly: euros(100), from: civil('2026-01-01'), day: 1 },
+    })
+    const informal = [
+      { loan: fromAna, movements: [movement(fromAna, '2026-01-15', 'repaid', 100)] },
+      { loan: toPetra, movements: [] },
+    ]
+
+    expect(upcomingPayments(LOANS, informal, DAY, 5).map((payment) => [payment.loan.name, payment.date, payment.yourShare, payment.kind === 'informal' && payment.overdue])).toEqual([
+      ['From Ana', '2026-03-10', euros(100), true],
+      ['From Ana', '2026-03-15', euros(100), false],
+      ['Car loan', '2026-03-20', euros(100), false],
+      ['House loan', '2026-04-05', euros(62.98), false],
+      ['From Ana', '2026-04-15', euros(100), false],
+    ])
+  })
+
+  it('puts a bank instalment before a plan instalment due on the same day', () => {
+    const fromAna = informalLoan({ openingBalance: euros(1000), start: civil('2026-03-01'), expected: { monthly: euros(100), from: civil('2026-03-01'), day: 20 } })
+
+    expect(upcomingPayments(LOANS, [{ loan: fromAna, movements: [] }], DAY, 2).map((payment) => [payment.kind, payment.date])).toEqual([
+      ['bank', '2026-03-20'],
+      ['informal', '2026-03-20'],
+    ])
   })
 
   it('leaves out a loan whose plan cannot be worked out', () => {

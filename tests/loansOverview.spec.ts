@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
-import { directionCaption, loansOverview } from '../src/apps/loans/overview/presentation/loansOverview'
+import { directionCaption, freeOfAllDebtOn, loansOverview, nextPaymentCaption } from '../src/apps/loans/overview/presentation/loansOverview'
 import type { BankLoan } from '../src/apps/loans/workbook/domain/bankLoan'
 import type { InformalLoan } from '../src/apps/loans/workbook/domain/informalLoan'
 import { INFORMAL_LOAN_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
@@ -95,5 +95,28 @@ describe('the loans of the Overview', () => {
 
     expect(directionCaption(overviewOf([], [petraBehind, toIvo], '2026-11-02'), 'owed-to-you')).toBe('on 2 loans, 2 loans behind on their plans')
     expect(directionCaption(overviewOf([], [petraBehind], '2026-11-02'), 'you-owe')).toBe('You owe nothing')
+  })
+})
+
+describe('the next payment tile', () => {
+  it('names the bank loan, or whom an informal plan repays and that it is overdue', () => {
+    const fromDora = informalLoan({ name: 'From Dora', counterparty: 'Dora' })
+    const amounts = { payment: euros(500), yourShare: euros(500) }
+
+    expect(nextPaymentCaption({ kind: 'bank', loan: bankLoan({ name: 'Home loan' }), date: civil('2026-11-20'), ...amounts })).toBe('On 20 Nov, Home loan')
+    expect(nextPaymentCaption({ kind: 'informal', loan: fromDora, date: civil('2026-12-01'), overdue: false, ...amounts })).toBe('On 1 Dec, to Dora')
+    expect(nextPaymentCaption({ kind: 'informal', loan: fromDora, date: civil('2026-11-03'), overdue: true, ...amounts })).toBe('Overdue, to Dora')
+    expect(nextPaymentCaption({ kind: 'informal', loan: { ...fromDora, counterparty: '' }, date: civil('2026-12-01'), overdue: false, ...amounts })).toBe('On 1 Dec, to From Dora')
+  })
+})
+
+describe('the debt-free tile', () => {
+  it('is free of all debt on the last bank payoff only while you owe nobody informally', () => {
+    const lastPayoff = civil('2027-01-05')
+
+    expect(freeOfAllDebtOn(overviewOf([bankLoan()], [petraBehind], '2026-11-02'), lastPayoff)).toBe(lastPayoff)
+    expect(freeOfAllDebtOn(overviewOf([bankLoan()], [petraBehind, { loan: fromAna, movements: [] }], '2026-11-02'), lastPayoff)).toBeNull()
+    // Ana is paid back in full, so the loan you owe her is settled and no longer keeps you in debt.
+    expect(freeOfAllDebtOn(overviewOf([bankLoan()], [{ loan: fromAna, movements: [movement(fromAna, '2026-03-01', 'repaid', 3000)] }], '2026-11-02'), lastPayoff)).toBe(lastPayoff)
   })
 })

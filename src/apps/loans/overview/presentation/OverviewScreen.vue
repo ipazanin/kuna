@@ -12,10 +12,10 @@ import BankLoanCard from './BankLoanCard.vue'
 import CompletedLoansCard from './CompletedLoansCard.vue'
 import InformalLoanCard from './InformalLoanCard.vue'
 import LoansTogether from './LoansTogether.vue'
-import { directionCaption, loansOverview } from './loansOverview'
+import { directionCaption, freeOfAllDebtOn, loansOverview, nextPaymentCaption } from './loansOverview'
 import { words } from './words'
 import { today, yearOf } from '../../../../shared/calendar/civilDate'
-import { dayLabel, shortDayLabel } from '../../../../shared/calendar/dayLabel'
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import type { Money } from '../../../../shared/money/money'
@@ -31,8 +31,8 @@ import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 /**
  * Every loan the Loans file holds, one card each, the loans at zero apart under Completed. With two or
  * more open loans, tiles lead: what you owe, what is owed to you and the net of the two, then the bank
- * loans' figures, which are all yours to pay. With two or more bank loans, charts and the upcoming payments over
- * the bank loans follow.
+ * loans' figures, which are all yours to pay, and your next payment, which also counts the plans of informal loans
+ * you owe. With two or more bank loans, charts and the upcoming payments over the bank loans and those plans follow.
  */
 const { state } = useLoansBooks()
 const day = today()
@@ -47,12 +47,13 @@ const loanCount = computed(() => (state.workbook?.bankLoans.length ?? 0) + (stat
 const openCount = computed(() => overview.value.openBank.length + overview.value.openInformal.length)
 const netLook = computed(() => (overview.value.net.direction === null ? null : DIRECTION_LOOKS[overview.value.net.direction]))
 const planned = computed(() => plannedLoans(state.workbook?.bankLoans ?? []))
-const next = computed(() => upcomingPayments(planned.value, day)[0] ?? null)
+const informal = computed(() => state.workbook?.informalLoans ?? [])
+const next = computed(() => upcomingPayments(planned.value, informal.value, day, 1)[0] ?? null)
 const interestThisYear = computed(() => interestInYear(planned.value, year))
 const interestLeft = computed(() => interestAfter(planned.value, day))
 const unplanned = computed(() => (state.workbook?.bankLoans.length ?? 0) - planned.value.length)
 const debtFree = computed(() => debtFreeOn(state.workbook?.bankLoans ?? []))
-const owingInformally = computed(() => overview.value.openInformal.some((card) => card.figures.owedByYou > 0))
+const freeOfAllDebt = computed(() => freeOfAllDebtOn(overview.value, debtFree.value))
 const youOwe = DIRECTION_LOOKS['you-owe']
 const owedToYou = DIRECTION_LOOKS['owed-to-you']
 
@@ -124,7 +125,7 @@ const addingInformal = ref(false)
           />
         </DashboardGrid>
         <DashboardGrid v-if="openCount >= 2 && planned.length > 0" layout="tiles" data-testid="loans-tiles">
-          <KpiTile v-if="next" :label="words.tiles.nextPayment" :value="formatMoney(next.yourShare)" :caption="words.tiles.nextOn(shortDayLabel(next.date), next.loan.name)" :to="null" />
+          <KpiTile v-if="next" :label="words.tiles.nextPayment" :value="formatMoney(next.yourShare)" :caption="nextPaymentCaption(next)" :to="null" data-testid="loans-next-payment" />
           <KpiTile
             :label="words.tiles.interestIn(year)"
             :value="formatMoney(interestThisYear.interest)"
@@ -142,9 +143,9 @@ const addingInformal = ref(false)
           />
           <KpiTile
             v-if="debtFree"
-            :label="owingInformally ? words.tiles.paidOff : words.tiles.freeOfDebt"
+            :label="freeOfAllDebt ? words.tiles.freeOfDebt : words.tiles.paidOff"
             :value="monthLabel(monthOf(debtFree))"
-            :caption="owingInformally ? words.tiles.noEndDate : dayLabel(debtFree)"
+            :caption="freeOfAllDebt ? dayLabel(freeOfAllDebt) : words.tiles.noEndDate"
             :to="null"
             data-testid="loans-debt-free"
           />
@@ -155,7 +156,7 @@ const addingInformal = ref(false)
           :lines="problemLines"
           data-testid="loans-problems"
         />
-        <LoansTogether v-if="planned.length >= 2" :loans="planned" :day="day" :free-of-debt-on="owingInformally ? null : debtFree" />
+        <LoansTogether v-if="planned.length >= 2" :loans="planned" :informal="informal" :day="day" :free-of-debt-on="freeOfAllDebt" />
         <DashboardGrid v-if="openCount > 0" data-testid="loan-cards">
           <BankLoanCard v-for="card in overview.openBank" :key="card.book.loan.id" :book="card.book" :figures="card.figures" :day="day" :hero="openCount === 1" />
           <InformalLoanCard v-for="card in overview.openInformal" :key="card.book.loan.id" :card="card" :day="day" :hero="openCount === 1" />
