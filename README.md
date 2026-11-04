@@ -1971,6 +1971,10 @@ that a Croatian sentence only quotes as a stored key, such as „settings”, st
 
 ## Development
 
+Kuna runs on the current Node LTS, which CI follows as `lts/*`. `engines` in package.json gives the
+lowest version. The unit tests start Node with its built-in Web Storage off, so specs in jsdom get
+jsdom's `localStorage`.
+
 ```sh
 npm install
 npm run dev            # http://localhost:5173/kuna/, talks to Google

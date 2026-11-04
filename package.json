@@ -27,6 +27,9 @@
   "description": "Company books, loans and investments, each in an app of its own, computed in the browser over JSON files kept on Google Drive or in the browser",
   "license": "MIT",
   "private": true,
+  "engines": {
+    "node": ">=24"
+  },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
