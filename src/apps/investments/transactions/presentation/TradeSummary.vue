@@ -52,7 +52,7 @@ const facts = computed((): Fact[] => {
           {
             label: words.summary.tax,
             value: preview.tax.estimated ? words.summary.about(formatMoney(preview.tax.onSale)) : formatMoney(preview.tax.onSale),
-            caption: words.summary.taxForYear(formatMoney(preview.tax.forYear), preview.tax.year),
+            caption: (preview.tax.beforeSurtax ? words.summary.taxForYearBeforeSurtax : words.summary.taxForYear)(formatMoney(preview.tax.forYear), preview.tax.year),
           },
         ]),
   ]

@@ -7,6 +7,7 @@ export type RuleMark = 'settled' | 'reading' | 'unconfirmed'
 /** Each rule the tax figures rest on, by how sure it is. The screen lists them with their words and sources. */
 export const RULE_MARKS = {
   gainsRate: 'settled',
+  rates2023: 'settled',
   twoYears: 'settled',
   anniversary: 'reading',
   fifoAcrossAccounts: 'reading',
@@ -20,6 +21,7 @@ export const RULE_MARKS = {
   joppdDeadline: 'settled',
   joppdCodes: 'settled',
   joppdMapping: 'reading',
+  gainsRecipient: 'unconfirmed',
   codeTwoForShares: 'reading',
   foreignCredit: 'settled',
   usTreaty: 'settled',
@@ -30,6 +32,7 @@ export const RULE_MARKS = {
   brokerInterest: 'reading',
   stockLending: 'reading',
   referralCredit: 'unconfirmed',
+  referralContributions: 'settled',
   croatianIsin: 'reading',
   usSettlement: 'settled',
   europeSettlement: 'unconfirmed',
@@ -48,22 +51,32 @@ export interface CapitalTaxRules {
   readonly usWithholding: number
   /** Whether a treaty with the US is in force, which would lower that withholding. */
   readonly usTreaty: boolean
+  /** Whether the city's surtax is due on top of the tax, as it was on income up to 31 Dec 2023. */
+  readonly surtax: boolean
 }
 
-const RULES: readonly CapitalTaxRules[] = [2024, 2025, 2026].map((year) => ({ year, gainsRate: 12, incomeRate: 12, usWithholding: 30, usTreaty: false }))
+/** Income up to 2023 stays under the law as it stood then: 10% and the city's surtax. Prirez ends with 2023, and the rates rise to 12%. */
+const RULES: readonly CapitalTaxRules[] = [
+  { year: 2023, gainsRate: 10, incomeRate: 10, usWithholding: 30, usTreaty: false, surtax: true },
+  ...[2024, 2025, 2026].map((year) => ({ year, gainsRate: 12, incomeRate: 12, usWithholding: 30, usTreaty: false, surtax: false })),
+]
+
+/** The first year Kuna has rules for. Earlier years are not worked out at all. */
+export const FIRST_TAX_YEAR = RULES[0]!.year
 
 export interface YearRules {
   readonly rules: CapitalTaxRules
-  /** False for a year with no row of its own, which takes the nearest year's row. */
+  /** False for a year past the last row, which takes the last row. */
   readonly ownRow: boolean
 }
 
+/** The year's row, or the last row for a later year. A year before the first row has no rules, and asking for one is a mistake. */
 export function rulesOf(year: number): YearRules {
-  const own = RULES.find((rules) => rules.year === year)
-  if (own !== undefined) {
-    return { rules: own, ownRow: true }
+  if (year < FIRST_TAX_YEAR) {
+    throw new RangeError(`Kuna has no tax rules for ${year}.`)
   }
-  return { rules: year < RULES[0]!.year ? RULES[0]! : RULES.at(-1)!, ownRow: false }
+  const own = RULES.find((rules) => rules.year === year)
+  return own === undefined ? { rules: RULES.at(-1)!, ownRow: false } : { rules: own, ownRow: true }
 }
 
 /** A whole percent of an amount, rounded half away from zero to the cent. */

@@ -81,6 +81,8 @@ const ROUTES: Readonly<Record<IncomeRoute, string>> = {
 
 const YES = 'Da'
 const NO = 'Ne'
+const CITY_SURTAX = 'Stopa prireza vašeg grada na 14.1'
+const SALES_BY_SETTLEMENT = 'Po datumu namire, ZPDoh čl. 11. st. 3.'
 
 export function taxRegisterFileName(year: number): string {
   return `kuna-porez-${year}.xlsx`
@@ -232,6 +234,7 @@ function incomeRow(entry: ForeignPayment): Cell[] {
 function summaryRows(gains: CapitalGainsYear, income: ForeignIncomeYear): Cell[][] {
   return [
     ['Godina', gains.year],
+    ['Prodaje se računaju u godinu', SALES_BY_SETTLEMENT],
     ['Oznaka izvješća', gains.reportMark],
     ['6.1 Oznaka stjecatelja/osiguranika', '1001'],
     ['6.2 Oznaka primitka/obveze doprinosa', '1006'],
@@ -242,7 +245,7 @@ function summaryRows(gains: CapitalGainsYear, income: ForeignIncomeYear): Cell[]
     ['13.3 Dohodak', eurosCell(gains.base)],
     ['13.5 Porezna osnovica', eurosCell(gains.base)],
     [`14.1 Porez na dohodak ${gains.rules.rules.gainsRate}%`, eurosCell(gains.tax)],
-    ['14.2 Prirez', eurosCell(ZERO)],
+    ['14.2 Prirez', gains.rules.rules.surtax ? CITY_SURTAX : eurosCell(ZERO)],
     ['Primitak s oznakom 02, imovina dulje od dvije godine', eurosCell(gains.taxFreeGains)],
     ['Gubitak na imovini dulje od dvije godine, ne odbija se', eurosCell(gains.oldLosses)],
     ['Rok za JOPPD i uplatu poreza', dayCell(gains.due)],

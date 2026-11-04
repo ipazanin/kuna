@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { rulesOf } from '../src/apps/investments/tax/domain/taxRules'
-import { capitalGainsYear, taxYearsOf } from '../src/apps/investments/tax/domain/taxYear'
+import { capitalGainsYear, taxYearsOf, yearsWithoutRules } from '../src/apps/investments/tax/domain/taxYear'
 import type { CapitalGainsYear } from '../src/apps/investments/tax/domain/taxYear'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
 import { decimalText } from '../src/shared/money/decimal'
@@ -34,10 +34,10 @@ describe("a year's capital gains", () => {
     ])
   })
 
-  it("converts the Monday-settling Example Tech sale once at Friday's ECB rate, whatever rate the record stores", () => {
+  it("converts the Monday-settling Example Tech sale once at Monday's own rate, whatever rate the record stores", () => {
     const sale = capitalGainsYear(exampleYear(), EXAMPLE_RATES, 2026).sales.find((candidate) => candidate.instrument.id === TECH.id)!
 
-    // $200.00 of gain ÷ 1.2000 is 166.67. Monday's own 1.2100 would give 165.29, and the stored 1.08 would give 185.19.
+    // $200.00 of gain ÷ 1.2000, the list HNB publishes on Monday, is 166.67. Friday's 1.1900 would give 168.07, and the stored 1.08 would give 185.19.
     expect([sale.settles, sale.rate.kind === 'hnb' ? decimalText(sale.rate.rate.unitsPerEuro) : null, decimalText(sale.gainInCurrency), sale.gain]).toEqual(['2026-10-05', '1.2', '200', euros(166.67)])
     const storedElsewhere = exampleYear()
     const restated = { ...storedElsewhere, trades: storedElsewhere.trades.map((record) => (record.instrument === TECH.id ? { ...record, rate: decimal('1.5') } : record)) }
@@ -140,18 +140,44 @@ describe("a year's capital gains", () => {
     expect([year.estimated, year.taxableGains, year.leftOut]).toEqual([true, euros(100), 1])
   })
 
-  it('counts a Xetra sale of 30 Dec 2026 settling in January in 2026, and flags it', () => {
+  it('counts a Xetra sale of 30 Dec 2026 settling in January in 2027, and flags it', () => {
     const etf = instrument('etf')
     const records = withTrades(book({ instruments: [etf] }), [trade('buy', BROKER, etf, '2026-01-05', '10', '100', '0'), trade('sell', BROKER, etf, '2026-12-30', '10', '105', '0')])
 
-    const sale = capitalGainsYear(records, EXAMPLE_RATES, 2026).sales[0]!
+    const [sale] = capitalGainsYear(records, EXAMPLE_RATES, 2027).sales
     // TARGET is closed on 1 Jan, so two TARGET working days after Wednesday 30 Dec is Monday 4 Jan.
-    expect([sale.settles, sale.settlesNextYear, sale.gain]).toEqual(['2027-01-04', true, euros(50)])
-    expect(capitalGainsYear(records, EXAMPLE_RATES, 2027).sales).toEqual([])
+    expect([sale!.settles, sale!.settlesNextYear, sale!.gain]).toEqual(['2027-01-04', true, euros(50)])
+    expect(capitalGainsYear(records, EXAMPLE_RATES, 2026).sales).toEqual([])
+    expect(taxYearsOf(records, civil('2027-03-02'))).toEqual([2027])
+  })
+
+  it("marks a JOPPD dated 31 December with the year's two digits and the day of the year, 366 in a leap year", () => {
+    expect([2024, 2025, 2026, 2028].map((year) => capitalGainsYear(exampleYear(), EXAMPLE_RATES, year).reportMark)).toEqual(['24366', '25365', '26365', '28366'])
+  })
+
+  it("taxes 2023's gains at 10% before the city's surtax", () => {
+    const etf = instrument('etf')
+    const records = book({ instruments: [etf], trades: [trade('buy', BROKER, etf, '2023-01-09', '10', '100', '0'), trade('sell', BROKER, etf, '2023-06-01', '10', '110', '0')] })
+
+    // 100.00 of gain on a lot under two years, and 10% of it is 10.00, with the surtax of the city on top.
+    const year = capitalGainsYear(records, EXAMPLE_RATES, 2023)
+    expect([...figuresOf(year), year.rules.rules.surtax, year.rules.ownRow, year.reportMark, year.due]).toEqual([100, 0, 100, 10, 0, 0, true, true, '23365', '2024-02-29'])
+    expect(rulesOf(2024).rules.surtax).toBe(false)
+  })
+
+  it('works out no year before 2023 and lists it apart', () => {
+    const etf = instrument('etf')
+    const records = book({
+      instruments: [etf],
+      trades: [trade('buy', BROKER, etf, '2021-01-11', '10', '100', '0'), trade('sell', BROKER, etf, '2022-06-01', '5', '110', '0'), trade('sell', BROKER, etf, '2023-06-01', '5', '110', '0')],
+    })
+
+    expect([taxYearsOf(records, civil('2026-10-30')), yearsWithoutRules(records)]).toEqual([[2026, 2023], [2022]])
+    expect(() => rulesOf(2022)).toThrow(RangeError)
   })
 
   it("uses 2026's rules for 2027, which has no row yet, and says so", () => {
-    expect(rulesOf(2027)).toEqual({ rules: { year: 2026, gainsRate: 12, incomeRate: 12, usWithholding: 30, usTreaty: false }, ownRow: false })
+    expect(rulesOf(2027)).toEqual({ rules: { year: 2026, gainsRate: 12, incomeRate: 12, usWithholding: 30, usTreaty: false, surtax: false }, ownRow: false })
     expect(rulesOf(2026).ownRow).toBe(true)
     expect(capitalGainsYear(exampleYear(), EXAMPLE_RATES, 2027).rules.ownRow).toBe(false)
   })

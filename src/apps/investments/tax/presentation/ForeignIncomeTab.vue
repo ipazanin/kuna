@@ -45,11 +45,11 @@ function routeOf(entry: ForeignPayment): string {
   }
 }
 
-/** What the row says beside its route: its JOPPD codes, the city's rate, its rate standing in for one not out yet, or that it has none. */
+/** What the row says beside its route: its JOPPD codes, what a referral credit owes, its rate standing in for one not out yet, or that it has none. */
 function noteOf(entry: ForeignPayment): string {
   const notes: string[] = []
   if (entry.codes !== null) notes.push(text.codes(entry.codes.recipient, entry.codes.receipt))
-  if (entry.route === 'referral') notes.push(text.cityRate)
+  if (entry.route === 'referral') notes.push(text.referralTax)
   if (entry.rate.kind === 'missing') notes.push(text.noRate(dayLabel(entry.payment.date)))
   if (entry.rate.kind === 'hnb' && entry.rate.rate.estimatedFrom !== null) notes.push(text.rateNotOut(dayLabel(entry.rate.rate.estimatedFrom)))
   if (entry.route === 'none' && entry.payment.note !== '') notes.push(entry.payment.note)
@@ -80,7 +80,7 @@ function rateOf(entry: ForeignPayment): string {
           <th scope="col" class="cell-wraps hidden text-end @3xl:table-cell">{{ text.rate }}</th>
           <th scope="col" class="text-end">{{ text.gross }}</th>
           <th scope="col" class="cell-wraps hidden text-end @lg:table-cell">{{ text.withheld }}</th>
-          <th scope="col" class="cell-wraps hidden text-end @lg:table-cell">{{ text.croatian }}</th>
+          <th scope="col" class="cell-wraps hidden text-end @lg:table-cell">{{ text.croatian(rules.incomeRate) }}</th>
           <th scope="col" class="cell-wraps hidden text-end @lg:table-cell">{{ text.credit }}</th>
           <th scope="col" class="cell-wraps text-end">{{ text.leftToPay }}</th>
         </tr>
@@ -132,6 +132,7 @@ function rateOf(entry: ForeignPayment): string {
         </tr>
       </tbody>
     </FigureTable>
+    <p v-if="rules.surtax" class="px-4 pb-4 type-caption sm:px-5" data-testid="tax-foreign-before-surtax">{{ text.beforeSurtax(foreign.year) }}</p>
     <p v-if="foreign.couponsLeftOut > 0" class="px-4 pb-4 type-caption sm:px-5" data-testid="tax-coupons-left-out">{{ plural(text.couponsLeftOut(foreign.couponsLeftOut), foreign.couponsLeftOut) }}</p>
     <p v-if="foreign.croatianLeftOut > 0" class="px-4 pb-4 type-caption sm:px-5" data-testid="tax-croatian-left-out">
       {{ plural(text.croatianLeftOut(foreign.croatianLeftOut), foreign.croatianLeftOut) }}

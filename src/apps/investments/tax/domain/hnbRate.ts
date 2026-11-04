@@ -1,6 +1,5 @@
-import { targetDaysAfter } from './workingDays'
+import { targetDayOnOrBefore } from './workingDays'
 import type { RateBook } from '../../prices/domain/rateBook'
-import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { EURO } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
@@ -16,16 +15,17 @@ export interface HnbRate {
 }
 
 /**
- * The list HNB applies on the day, which carries the ECB rate of the TARGET working day before it, so a Monday takes
- * Friday's. Null before the prices file's first rate of the currency.
+ * The list HNB publishes on the day, which carries the ECB rate of that day, so a Monday takes Monday's. A weekend or
+ * TARGET holiday has no list and takes the last one before it. The prices file keeps ECB rates by the ECB's day. Null
+ * before its first rate of the currency.
  */
 export function hnbRate(rates: RateBook, currency: CurrencyCode, day: CivilDate): HnbRate | null {
-  const unitsPerEuro = rates.unitsPerEuroOnOrBefore(currency, addDays(day, -1))
+  const unitsPerEuro = rates.unitsPerEuroOnOrBefore(currency, day)
   if (unitsPerEuro === null) {
     return null
   }
   const newest = rates.newestDay(currency)
-  return { unitsPerEuro, estimatedFrom: newest === null || newest >= targetDaysAfter(day, -1) ? null : newest }
+  return { unitsPerEuro, estimatedFrom: newest === null || newest >= targetDayOnOrBefore(day) ? null : newest }
 }
 
 /** How an amount of a day reaches euros: it is in euros, at HNB's rate of the day, or there is no rate for the day. */

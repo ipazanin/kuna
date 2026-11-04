@@ -25,14 +25,14 @@ describe("a year's foreign income", () => {
     const year = foreignIncomeYear(exampleYear(), EXAMPLE_RATES, 2026)
 
     // $100.00 ÷ 1.1000 is 90.91 gross and $70.00 is 63.64 paid, so 27.27 withheld. 12% is 10.91, credited in full, and 16.36 is lost.
-    // Lending of $10.00 ÷ 1.1000 is 9.09, and 12% is 1.09 to pay. The Irish 50.00 owes 6.00. The referral credit has a date and no figure.
+    // Lending of $10.00 ÷ 1.1000 is 9.09, and 12% is 1.09 to pay. The Irish 50.00 owes 6.00. The referral credit has a date and codes and no figure.
     expect(year.payments.map(row)).toEqual([
       ['2026-07-15', 'ino-doh', [90.91, 27.27, 10.91, 10.91, 0, 16.36], null],
       ['2026-08-05', 'joppd', [9.09, 0, 1.09, 0, 1.09, 0], '2026-09-04'],
       ['2026-09-02', 'referral', null, '2026-10-02'],
       ['2026-10-16', 'joppd', [50, 0, 6, 0, 6, 0], '2026-11-15'],
     ])
-    expect(year.payments.map((entry) => entry.codes)).toEqual([null, { recipient: '1103', receipt: '1005' }, null, { recipient: '1003', receipt: '1001' }])
+    expect(year.payments.map((entry) => entry.codes)).toEqual([null, { recipient: '1103', receipt: '1005' }, { recipient: '4002', receipt: '4025' }, { recipient: '1003', receipt: '1001' }])
     expect(amounts(year.inoDoh)).toEqual([90.91, 27.27, 10.91, 10.91, 0, 16.36])
     expect(amounts(year.joppd)).toEqual([59.09, 0, 7.09, 0, 7.09, 0])
     expect([year.inoDohDue, year.inoIzjavaDue]).toEqual([{ due: '2027-02-01', fileBy: '2027-01-29' }, '2026-07-23'])

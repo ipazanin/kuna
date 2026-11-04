@@ -7,6 +7,8 @@ import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import type { Trade } from '../../workbook/domain/trade'
 import { isEstimate } from '../../tax/domain/hnbRate'
+import { settlementDay } from '../../tax/domain/settlementDay'
+import { FIRST_TAX_YEAR } from '../../tax/domain/taxRules'
 import { capitalGainsYear } from '../../tax/domain/taxYear'
 import { yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -17,12 +19,15 @@ import type { Money } from '../../../../shared/money/money'
 
 /** What a sale does to its year's capital gains tax. */
 export interface SaleTax {
+  /** The year the sale settles in, whose JOPPD it goes on. */
   readonly year: number
   /** The year's tax with the sale less the year's tax without it, so the year's losses count. */
   readonly onSale: Money
   readonly forYear: Money
   /** True while the settlement day's HNB rate is not out, as for a sale typed today. */
   readonly estimated: boolean
+  /** True for a year whose city surtax comes on top of the tax. */
+  readonly beforeSurtax: boolean
   /** The tax-free day of a lot it closes within five days of that day, or null. */
   readonly nearTaxFreeDay: CivilDate | null
 }
@@ -47,12 +52,12 @@ export interface TradePreview {
   readonly tax: SaleTax | null
 }
 
-/** The tax a sale adds to its year, against the file without it. Null for a buy, and for a sale with no rate to convert it. */
-function saleTax(book: InvestmentBook, after: InvestmentBook, rates: RateBook, trade: Trade): SaleTax | null {
-  if (trade.side !== 'sell') {
+/** The tax a sale adds to its year, against the file without it. Null for a buy, a sale with no rate to convert it, and a year Kuna has no rules for. */
+function saleTax(book: InvestmentBook, after: InvestmentBook, rates: RateBook, instrument: Instrument, trade: Trade): SaleTax | null {
+  const year = yearOf(settlementDay(trade.date, instrument.currency))
+  if (trade.side !== 'sell' || year < FIRST_TAX_YEAR) {
     return null
   }
-  const year = yearOf(trade.date)
   const withSale = capitalGainsYear(after, rates, year)
   const sale = withSale.sales.find((candidate) => candidate.trade.id === trade.id)
   if (sale === undefined || sale.rate.kind === 'missing') {
@@ -64,6 +69,7 @@ function saleTax(book: InvestmentBook, after: InvestmentBook, rates: RateBook, t
     onSale: subtractMoney(withSale.tax, without.tax),
     forYear: withSale.tax,
     estimated: isEstimate(sale.rate),
+    beforeSurtax: withSale.rules.rules.surtax,
     nearTaxFreeDay: sale.lines.find((line) => line.nearTaxFreeDay)?.taxFreeFrom ?? null,
   }
 }
@@ -97,6 +103,6 @@ export function tradePreview(book: InvestmentBook, rates: RateBook, instrument: 
     averageCostBefore: averageCost(instrument, investmentLots(book).get(instrument.id)),
     averageCostAfter: averageCost(instrument, queue),
     taxSplit: sale === null ? null : taxSplitOf(sale),
-    tax: sale === null ? null : saleTax(book, after, rates, trade),
+    tax: sale === null ? null : saleTax(book, after, rates, instrument, trade),
   }
 }

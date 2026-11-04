@@ -61,3 +61,8 @@ function isTargetDay(day: CivilDate): boolean {
 export function targetDaysAfter(day: CivilDate, count: number): CivilDate {
   return countedDaysAfter(day, count, isTargetDay)
 }
+
+/** The day itself when TARGET is open, otherwise the TARGET working day before it. */
+export function targetDayOnOrBefore(day: CivilDate): CivilDate {
+  return isTargetDay(day) ? day : targetDaysAfter(day, -1)
+}

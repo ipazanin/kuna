@@ -4,12 +4,13 @@ import { taxRegisterFile, taxRegisterFileName } from '../src/apps/investments/ta
 import { civilDateFromSerial } from '../src/shared/calendar/civilDate'
 import { readEveryTab } from '../src/shared/xlsx/sheetGrids'
 import { EURO } from '../src/shared/money/currencyCode'
+import { BROKER, book, instrument, trade } from './fixtures/investments'
 import { EXAMPLE_RATES, exampleYear, payment } from './fixtures/taxExample'
 
 type Grid = Awaited<ReturnType<typeof readEveryTab>>[number]['grid']
 
-async function exampleTabs(records = exampleYear()): Promise<Map<string, Grid>> {
-  const tabs = await readEveryTab(await taxRegisterFile(records, EXAMPLE_RATES, 2026))
+async function exampleTabs(records = exampleYear(), year = 2026): Promise<Map<string, Grid>> {
+  const tabs = await readEveryTab(await taxRegisterFile(records, EXAMPLE_RATES, year))
   return new Map(tabs.map((tab) => [tab.name, tab.grid]))
 }
 
@@ -143,5 +144,23 @@ describe('the tax register file', () => {
     ])
     expect(dayOf(summary.get('Rok za JOPPD i uplatu poreza'))).toBe('2027-03-01')
     expect(summary.get('Nije uračunato jer nema tečaja HNB-a (prodaje i isplate)')).toBe(0)
+    expect(summary.get('Prodaje se računaju u godinu')).toBe('Po datumu namire, ZPDoh čl. 11. st. 3.')
+  })
+
+  it('lists a sale of 30 Dec 2026 settling on 4 Jan 2027 in the 2027 register, and 2023 with its surtax left to the city', async () => {
+    const etf = instrument('etf', { name: 'Example ETF' })
+    const records = book({
+      instruments: [etf],
+      trades: [trade('buy', BROKER, etf, '2023-01-09', '20', '100', '0'), trade('sell', BROKER, etf, '2023-06-01', '10', '110', '0'), trade('sell', BROKER, etf, '2026-12-30', '10', '105', '0')],
+    })
+
+    const sold = async (year: number) =>
+      (await exampleTabs(records, year))
+        .get(`Prodaje ${year}`)!
+        .slice(1)
+        .map((row) => [dayOf(row[0]), dayOf(row[1])])
+    expect([await sold(2026), await sold(2027)]).toEqual([[], [['2026-12-30', '2027-01-04']]])
+    const summary = new Map((await exampleTabs(records, 2023)).get('Sažetak')!.map((row) => [row[0], row[1]]))
+    expect(['Oznaka izvješća', '14.1 Porez na dohodak 10%', '14.2 Prirez'].map((label) => summary.get(label))).toEqual(['23365', 10, 'Stopa prireza vašeg grada na 14.1'])
   })
 })

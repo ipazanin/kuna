@@ -35,6 +35,7 @@ const hasSales = computed(() => props.gains.sales.length > 0)
 const lossesBeyond = computed(() => subtractMoney(props.gains.losses, props.gains.lossesOffset))
 const leftOut = computed(() => props.gains.leftOut + props.foreign.leftOut)
 const rulesYear = computed(() => (props.gains.rules.ownRow ? null : props.gains.rules.rules.year))
+const surtax = computed(() => props.gains.rules.rules.surtax)
 
 const joppdFacts = computed((): Fact[] => {
   const { gains } = props
@@ -44,15 +45,15 @@ const joppdFacts = computed((): Fact[] => {
   return [
     field(fields.reportMark, gains.reportMark, marks.reading),
     field(fields.typeAndSubmitter, '11, 4', marks.reading),
-    field(fields.recipient, '1001', marks.reading),
+    field(fields.recipient, '1001', marks.unconfirmed),
     field(fields.receipt, '1006', marks.settled),
     field(fields.period, period, marks.reading),
     field(fields.receipts, formatMoney(gains.taxableGains), marks.reading),
     field(fields.expenses, formatMoney(gains.lossesOffset), marks.reading),
     field(fields.base, formatMoney(gains.base), marks.reading),
     field(fields.tax, formatMoney(gains.tax), text.joppd.rateSettled),
-    field(fields.surtax, formatMoney(0), marks.settled),
-    field(fields.payment, `1, ${formatMoney(gains.tax)}`, marks.reading),
+    field(fields.surtax, surtax.value ? text.joppd.citySurtax : formatMoney(0), marks.settled),
+    field(fields.payment, surtax.value ? text.joppd.paymentWithSurtax(formatMoney(gains.tax)) : `1, ${formatMoney(gains.tax)}`, marks.reading),
     field(fields.taxFreeLine, `02, ${formatMoney(gains.taxFreeGains)}, 0000`, text.joppd.codeSettled),
   ]
 })
@@ -101,7 +102,13 @@ const readings = computed(() => rules.value.filter((rule) => rule.mark !== 'sett
     <p v-if="rulesYear !== null" class="type-caption" data-testid="tax-other-rules">{{ text.otherRules(gains.year, rulesYear) }}</p>
     <template v-if="hasSales">
       <DashboardGrid layout="tiles" data-testid="tax-tiles">
-        <KpiTile :label="text.tiles.taxToPay" :value="formatMoney(gains.tax)" :to="null" :caption="text.tiles.taxToPayCaption(dayLabel(gains.due))" icon="i-lucide-landmark" />
+        <KpiTile
+          :label="surtax ? text.tiles.taxBeforeSurtax : text.tiles.taxToPay"
+          :value="formatMoney(gains.tax)"
+          :to="null"
+          :caption="surtax ? text.tiles.taxBeforeSurtaxCaption(gains.rules.rules.gainsRate, dayLabel(gains.due)) : text.tiles.taxToPayCaption(dayLabel(gains.due))"
+          icon="i-lucide-landmark"
+        />
         <KpiTile :label="text.tiles.taxableGains" :value="formatMoney(gains.taxableGains)" :to="taxLink(gains.year, 'sales')" :caption="text.tiles.taxableGainsCaption" />
         <KpiTile
           :label="text.tiles.lossesOffset"

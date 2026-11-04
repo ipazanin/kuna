@@ -12,20 +12,23 @@ export const DIVIDEND_CO = instrument('dividend-co', { name: 'Example Dividend C
 export const TECH = instrument('tech', { name: 'Example Tech', currency: USD, isin: 'US0000000TC3' })
 export const OLD_SHARE = instrument('old-share', { name: 'Example Old Share', isin: 'DE0000000OS4' })
 
-/** ECB rates of dollars per euro. HNB applies each on the TARGET working day after it. */
+/**
+ * ECB rates of dollars per euro. HNB's list published on a day carries that day's rate, so each settlement or payment
+ * day converts at its own row, and the day before differs to show it is not used.
+ */
 export const EXAMPLE_RATES = rateBookOf(
   new Map([
     [
       USD,
       [
-        ['2026-06-15', '1.2500'],
-        ['2026-06-16', '1.2600'],
-        ['2026-07-14', '1.1000'],
-        ['2026-07-15', '1.1050'],
-        ['2026-08-04', '1.1000'],
-        ['2026-08-05', '1.1050'],
-        ['2026-10-02', '1.2000'],
-        ['2026-10-05', '1.2100'],
+        ['2026-06-15', '1.2400'],
+        ['2026-06-16', '1.2500'],
+        ['2026-07-14', '1.0950'],
+        ['2026-07-15', '1.1000'],
+        ['2026-08-04', '1.0950'],
+        ['2026-08-05', '1.1000'],
+        ['2026-10-02', '1.1900'],
+        ['2026-10-05', '1.2000'],
         ['2026-11-02', '1.2200'],
       ],
     ],

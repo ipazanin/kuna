@@ -2485,7 +2485,15 @@ const SOURCE_SCREENS = [
     title: 'Tax',
     charts: 0,
     ready: '[data-testid="tax-foreign"]',
-    shows: ['Foreign income', 'United States', 'Ireland', 'No ISIN', 'No US treaty in force in 2026, 30% withheld', 'Rate set by your city, check. Unconfirmed.', ...SAMPLE_TAX.foreign],
+    shows: [
+      'Foreign income',
+      'United States',
+      'Ireland',
+      'No ISIN',
+      'No US treaty in force in 2026, 30% withheld',
+      "Owes 10% pension contributions and tax at your city's lower rate on the rest. Unconfirmed.",
+      ...SAMPLE_TAX.foreign,
+    ],
   },
   {
     name: 'investments-tax-foreign-croatian',
@@ -2494,7 +2502,14 @@ const SOURCE_SCREENS = [
     title: 'Porez',
     charts: 0,
     ready: '[data-testid="tax-foreign"]',
-    shows: ['Inozemni dohodak', 'Sjedinjene Američke Države', 'Irska', 'Bez ISIN-a', 'Stopu određuje vaš grad, provjerite. Nepotvrđeno.', ...SAMPLE_TAX.foreignCroatian],
+    shows: [
+      'Inozemni dohodak',
+      'Sjedinjene Američke Države',
+      'Irska',
+      'Bez ISIN-a',
+      'Duguje 10 % doprinosa za mirovinsko i porez po nižoj stopi vašeg grada na ostatak. Nepotvrđeno.',
+      ...SAMPLE_TAX.foreignCroatian,
+    ],
   },
   {
     name: 'investments-tax-tax-free',

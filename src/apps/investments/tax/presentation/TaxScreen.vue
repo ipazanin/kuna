@@ -4,7 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import { foreignIncomeYear } from '../domain/foreignIncome'
-import { capitalGainsYear, taxYearsOf } from '../domain/taxYear'
+import { FIRST_TAX_YEAR } from '../domain/taxRules'
+import { capitalGainsYear, taxYearsOf, yearsWithoutRules } from '../domain/taxYear'
 import ForeignIncomeTab from './ForeignIncomeTab.vue'
 import SalesTab from './SalesTab.vue'
 import { TAX_TABS, yearNamed } from './taxLinks'
@@ -43,6 +44,7 @@ const TABS: readonly PageTab[] = TAX_TABS.map((value) => ({ value, ...TAB_LOOKS[
 const loading = computed(() => (state.workbook === null && state.status !== 'error') || (state.workbook !== null && hasTransactions(state.workbook.book) && sources.value === null))
 const years = computed(() => (sources.value === null ? [] : taxYearsOf(sources.value.book, sources.value.today)))
 const year = computed(() => (sources.value === null ? null : yearNamed(years.value, route.query.year, sources.value.today)))
+const leftOutYears = computed(() => (sources.value === null ? [] : yearsWithoutRules(sources.value.book)))
 const yearChoices = computed(() => years.value.map((offered) => ({ value: String(offered), label: String(offered) })))
 const onTaxFree = computed(() => route.query.tab === 'tax-free')
 
@@ -73,6 +75,9 @@ function pickYear(picked: string): void {
         data-testid="tax-year"
         @update:model-value="pickYear(String($event))"
       />
+      <p v-if="leftOutYears.length > 0 && !onTaxFree" class="type-caption" data-testid="tax-years-without-rules">
+        {{ words.yearsWithoutRules(leftOutYears, FIRST_TAX_YEAR) }}
+      </p>
       <PageTabs :tabs="TABS" :label="words.tabs.label" data-testid="tax-tabs">
         <template #year>
           <EmptyState v-if="empty" icon="i-lucide-landmark" :title="words.empty.title(year)" :description="words.empty.description" data-testid="tax-empty" />

@@ -2521,18 +2521,20 @@ the Year tab's collapsible Rules Kuna uses, with its source. The figures are wor
 
 - **A sale's gain.** Each lot a sale closes carries its cost, proceeds and fees in the quote currency
   (`RealisedLine` in `lots.ts`). Its gain in that currency converts once, at HNB's rate of the sale's
-  settlement day, never at the rate the record stores. HNB applies on a day the ECB rate of the TARGET
-  working day before it, read from the prices file, so a sale settling on a Monday takes Friday's rate.
+  settlement day, never at the rate the record stores. That is the list HNB publishes on the settlement
+  day, which carries that day's ECB rate, read from the prices file (ZPDoh Art. 12(8), a reading). A
+  day with no list, such as a weekend or a TARGET holiday, takes the last list before it.
   While the prices file has no rate for that day yet the newest stands in and the euros read about, and
   a sale before the file's first rate is listed and left out. The settlement day is estimated: one
   weekday after the trade for a dollar instrument traded from 28 May 2024, two otherwise, and for a euro
   instrument two TARGET working days, past TARGET's holidays. A sale traded
-  in December that settles in January counts in the year it was traded, and says so.
+  in December that settles in January counts in the year it settles (Art. 11(3)), and says so.
 - **The year.** Gains on lots under two years less losses on them, never below zero and never carried
-  to another year, taxed at the year's rate from `taxRules.ts`. A year with no row there takes the
-  nearest year's and says so. Gains on lots past two years are the JOPPD's code-02 line, and losses on
+  to another year, taxed at the year's rate from `taxRules.ts`: 12% from 2024, and 10% for 2023 shown as tax before
+  surtax, since Kuna holds no 2023 surtax rates. Kuna computes no year before 2023 and says so. Gains on lots past two years are the JOPPD's code-02 line, and losses on
   them lower nothing and are listed apart. The Year tab shows four tiles, what to type into the JOPPD
-  (report mark 26365 for 2026, recipient 1001, receipt 1006, fields 11 to 16.2 and the code-02 line) and
+  (report mark the year and the day of the year, 26365 for 2026 and 24366 for 2024, recipient 1001,
+  marked unconfirmed, receipt 1006, fields 11 to 16.2 and the code-02 line) and
   the deadlines: JOPPD and payment by the last day of February moved past a weekend, the INO-DOH by
   31 January moved past a weekend with the weekday before as the safe day, the INO-IZJAVA eight days after
   the year's first payment with tax withheld abroad, and each payment whose 30 days still run. A dividend
@@ -2547,7 +2549,8 @@ the Year tab's collapsible Rules Kuna uses, with its source. The figures are wor
 - **Abroad.** Each payment of the year but coupons and those of a Croatian ISIN, which are not income
   from abroad, by the country of its ISIN, at HNB's rate of its day: gross, withheld abroad, the
   Croatian 12%, the credit, which is the withheld tax up to the 12%, and what is left to pay. Tax withheld abroad goes on the INO-DOH. Nothing withheld means a JOPPD within
-  30 days, with its codes. A referral credit has its 30 days and no figure, since its rate is the city's.
+  30 days, with its codes. A referral credit is other income from abroad (codes 4002 and 4025) with its 30 days, 10% pension
+  contributions and no figure, since its tax rate is the city's.
   A dividend Revolut booked net waits for its tax withheld to be typed, and other income, such as a
   refund of tax, has no tax of its own. A reversal lowers its payer's figures.
 

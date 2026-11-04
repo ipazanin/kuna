@@ -18,8 +18,9 @@ import type { Money } from '../../../../shared/money/money'
 
 /**
  * How a payment's tax is settled. Tax withheld abroad goes on the year's INO-DOH. Nothing withheld means a JOPPD
- * within 30 days. A referral credit is other income at the city's rate, so it has a date and no figure. A dividend
- * booked net waits for its tax withheld to be typed, and other income such as a refund of tax has no tax of its own.
+ * within 30 days. A referral credit is other income that owes pension contributions and tax at the city's rate, so
+ * it has a date and its codes and no figure. A dividend booked net waits for its tax withheld to be typed, and other
+ * income such as a refund of tax has no tax of its own.
  */
 export type IncomeRoute = 'ino-doh' | 'joppd' | 'referral' | 'booked-net' | 'none'
 
@@ -56,7 +57,7 @@ export interface ForeignPayment {
   readonly tax: IncomeTax | null
   /** The last day of a payment's 30 days. Null for the INO-DOH and for a reversal. */
   readonly due: CivilDate | null
-  /** Null outside the 30-day JOPPD. */
+  /** Null outside the 30-day JOPPD, a referral credit's among them. */
   readonly codes: JoppdCodes | null
 }
 
@@ -128,12 +129,20 @@ function routeOf(payment: Income, kind: IncomeKind): IncomeRoute {
   return payment.withheld === DECIMAL_ZERO ? 'joppd' : 'ino-doh'
 }
 
-/** Dividends take 1003 and 1001. Interest, stock lending among it, takes 1103 and 1005, other capital income, since broker cash is no savings deposit. */
+/**
+ * Dividends take 1003 and 1001. Interest, stock lending among it, takes 1103 and 1005, other capital income, since
+ * broker cash is no savings deposit. A referral credit takes 4002, other income that owes contributions, and 4025,
+ * other income received straight from abroad.
+ */
 function codesOf(kind: IncomeKind, route: IncomeRoute): JoppdCodes | null {
-  if (route !== 'joppd') {
-    return null
+  switch (route) {
+    case 'joppd':
+      return kind === 'dividend' ? { recipient: '1003', receipt: '1001' } : { recipient: '1103', receipt: '1005' }
+    case 'referral':
+      return { recipient: '4002', receipt: '4025' }
+    default:
+      return null
   }
-  return kind === 'dividend' ? { recipient: '1003', receipt: '1001' } : { recipient: '1103', receipt: '1005' }
 }
 
 /** The one nearer zero, so a reversal's negative credit is never larger than its negative tax. */

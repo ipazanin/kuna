@@ -347,11 +347,20 @@ describe('the trade summary and the list', () => {
 
     // With the sale the year owes 16.30. Without it the June loss of 80.00 outweighs the World ETF's 49.17, so nothing.
     // Alone, 12% of the sale's 166.67 would be 20.00.
-    expect(tradePreview(others, EXAMPLE_RATES, TECH, tech).tax).toEqual({ year: 2026, onSale: euros(16.3), forYear: euros(16.3), estimated: false, nearTaxFreeDay: null })
+    expect(tradePreview(others, EXAMPLE_RATES, TECH, tech).tax).toEqual({ year: 2026, onSale: euros(16.3), forYear: euros(16.3), estimated: false, beforeSurtax: false, nearTaxFreeDay: null })
     const alone = book({ ...records, trades: records.trades.filter((record) => record.instrument === TECH.id) })
     expect(tradePreview(book({ ...alone, trades: alone.trades.filter((record) => record.id !== tech.id) }), EXAMPLE_RATES, TECH, tech).tax?.onSale).toBe(euros(20))
     const typedToday = { ...tech, date: civil('2026-11-04') }
     expect(tradePreview(others, EXAMPLE_RATES, TECH, typedToday).tax?.estimated).toBe(true)
+  })
+
+  it('previews a late-December sale on the next year, a 2023 sale before surtax, and no tax for a year before 2023', () => {
+    const etf = instrument('etf')
+    const records = book({ instruments: [etf], trades: [trade('buy', BROKER, etf, '2021-03-01', '30', '100', '0')] })
+    const sell = (day: string) => tradePreview(records, EXAMPLE_RATES, etf, trade('sell', BROKER, etf, day, '10', '110', '0'))?.tax ?? null
+
+    // 10 units at 110.00 against 100.00 is 100.00 of gain, past two years in every case, so the tax line is zero.
+    expect([sell('2026-12-30')?.year, sell('2023-06-01')?.year, sell('2023-06-01')?.beforeSurtax, sell('2022-06-01')]).toEqual([2027, 2023, true, null])
   })
 
   it("tells the tax a sale adds apart from the year's tax with it", () => {
