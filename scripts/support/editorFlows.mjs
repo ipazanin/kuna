@@ -41,6 +41,7 @@ import { en as sharedEnglish, hr as sharedCroatian } from '../../src/shared/app/
 import { en as homeEnglish, hr as homeCroatian } from '../../src/shell/home/words.ts'
 import { en as uiEnglish, hr as uiCroatian } from '../../src/shared/ui/words.ts'
 import { en as kunaSettingsEnglish, hr as kunaSettingsCroatian } from '../../src/shell/settings/words.ts'
+import { en as hubOverviewEnglish, hr as hubOverviewCroatian } from '../../src/shell/overview/words.ts'
 import { en as syncEnglish, hr as syncCroatian } from '../../src/shared/sync/presentation/words.ts'
 import { en as storageEnglish, hr as storageCroatian } from '../../src/shared/storage/application/words.ts'
 import { en as loansFileEnglish, hr as loansFileCroatian } from '../../src/apps/loans/workbook/presentation/words.ts'
@@ -64,6 +65,7 @@ const SCREEN_WORDS = {
     homeLink: sharedEnglish.homeLink,
     setUp: homeEnglish.setUp,
     kunaSettings: kunaSettingsEnglish.menu,
+    hubOverview: hubOverviewEnglish.title,
     company: companyEnglish.name,
     companySettings: companySettingsEnglish.title,
     loans: loansEnglish.name,
@@ -121,6 +123,7 @@ const SCREEN_WORDS = {
     homeLink: sharedCroatian.homeLink,
     setUp: homeCroatian.setUp,
     kunaSettings: kunaSettingsCroatian.menu,
+    hubOverview: hubOverviewCroatian.title,
     company: companyCroatian.name,
     companySettings: companySettingsCroatian.title,
     loans: loansCroatian.name,
@@ -4499,7 +4502,8 @@ export function appMenuFlowIn(language) {
     }))
     if (bar.menuButton) throw new Error('the home has a menu button')
     if (!bar.sidebar && bar.topBar !== null && bar.topBar !== 'Kuna') throw new Error(`the phone top bar on the home says "${bar.topBar}"`)
-    if (JSON.stringify(bar.settings) !== JSON.stringify([words.kunaSettings])) throw new Error(`the home offers ${JSON.stringify(bar.settings)} instead of ${words.kunaSettings} once`)
+    const apart = bar.sidebar ? [words.hubOverview, words.kunaSettings] : [words.kunaSettings]
+    if (JSON.stringify(bar.settings) !== JSON.stringify(apart)) throw new Error(`the home offers ${JSON.stringify(bar.settings)} instead of ${JSON.stringify(apart)}`)
     if (bar.sidebar) {
       const home = await page.evaluate(menuShown)
       if (home.groups !== 0) throw new Error("the sidebar on the home shows an app's menu")
