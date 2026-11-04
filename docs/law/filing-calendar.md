@@ -20,12 +20,12 @@ Every deadline the other files describe, in one place. This file is an index. Ea
 
 Deadlines for income of year Y fall in Y+1.
 
-| When                                    | What                                                                     | Rule                                   | Owner                                                                                          |
-| --------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| 31 January                              | INO-DOH for income with tax withheld abroad                              | ZPDoh Art. 81(4), PravPDoh Art. 90(8)  | [Foreign capital income](foreign-capital-income.md#tax-withheld-abroad-ino-izjava-and-ino-doh) |
-| Last day of February                    | JOPPD for capital gains, report mark of 31 December, and the tax paid    | ZPDoh Art. 70(4), PravPDoh Art. 77(13) | [JOPPD for investors](joppd-for-investors.md#due-dates)                                        |
-| 15 days after the rješenje is delivered | The INO-DOH balance Porezna uprava assesses                              | ZPDoh Art. 81(6)                       | [Foreign capital income](foreign-capital-income.md#tax-withheld-abroad-ino-izjava-and-ino-doh) |
-| 30 November                             | Last day to send a confirmation of foreign tax not in hand by 31 January | ZPDoh Art. 81(4)                       | [Foreign capital income](foreign-capital-income.md#tax-withheld-abroad-ino-izjava-and-ino-doh) |
+| When                                    | What                                                                                                                                                 | Rule                                   | Owner                                                                                          |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| 31 January                              | INO-DOH for income with tax withheld abroad                                                                                                          | ZPDoh Art. 81(4), PravPDoh Art. 90(8)  | [Foreign capital income](foreign-capital-income.md#tax-withheld-abroad-ino-izjava-and-ino-doh) |
+| Last day of February                    | JOPPD for capital gains, report mark of 31 December, and the tax paid. None for lots under two years in a year whose losses on them exceed the gains | ZPDoh Art. 70(4), PravPDoh Art. 77(13) | [JOPPD for investors](joppd-for-investors.md#due-dates)                                        |
+| 15 days after the rješenje is delivered | The INO-DOH balance Porezna uprava assesses                                                                                                          | ZPDoh Art. 81(6)                       | [Foreign capital income](foreign-capital-income.md#tax-withheld-abroad-ino-izjava-and-ino-doh) |
+| 30 November                             | Last day to send a confirmation of foreign tax not in hand by 31 January                                                                             | ZPDoh Art. 81(4)                       | [Foreign capital income](foreign-capital-income.md#tax-withheld-abroad-ino-izjava-and-ino-doh) |
 
 ## Dates for 2026 income
 

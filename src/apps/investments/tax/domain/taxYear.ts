@@ -2,7 +2,7 @@ import { dayRate, inEurosAt, isEstimate } from './hnbRate'
 import type { DayRate } from './hnbRate'
 import { settlementDay } from './settlementDay'
 import { joppdDue, yearDueNext } from './taxDeadlines'
-import { FIRST_TAX_YEAR, percentOf, rulesOf } from './taxRules'
+import { FIRST_TAX_YEAR, joppdReportMark, percentOf, rulesOf } from './taxRules'
 import type { YearRules } from './taxRules'
 import { investmentLots, taxFreeFrom } from '../../holdings/domain/lots'
 import type { RealisedLine } from '../../holdings/domain/lots'
@@ -64,6 +64,12 @@ export interface CapitalGainsYear {
   readonly base: Money
   /** The year's rate of the base: field 14.1. For a year with surtax, the city's surtax comes on top. */
   readonly tax: Money
+  /** Field 16.2: the gains of field 11 less the tax. For a year with surtax, the city's surtax of field 14.2 still comes off it. */
+  readonly payout: Money
+  /** Losses on lots under two years beyond the gains on them, which leave the year a capital loss. */
+  readonly endsInLoss: boolean
+  /** Whether the JOPPD carries a line for lots under two years: they made a gain, and a year that ends in a loss owes none for them. */
+  readonly gainsLine: boolean
   /** Gains on lots past two years: the code-02 line. */
   readonly taxFreeGains: Money
   /** Losses on lots past two years, as a positive amount, which lower nothing. */
@@ -73,7 +79,8 @@ export interface CapitalGainsYear {
   /** Sales with no HNB rate for their settlement day, left out of every figure. */
   readonly leftOut: number
   readonly rules: YearRules
-  readonly due: CivilDate
+  /** The JOPPD and payment day, null when the year has no line to report. In a year that ends in a loss, tax-free gains keep it, which is unconfirmed. */
+  readonly due: CivilDate | null
   /** The JOPPD's report mark: the year's two digits and the day of the year of 31 December, 365 or 366. */
   readonly reportMark: string
 }
@@ -133,12 +140,6 @@ function sumOf(lines: readonly TaxLine[], status: LineStatus): Money {
   return sumMoney(lines.filter((line) => line.status === status).map((line) => line.gain ?? ZERO))
 }
 
-/** The JOPPD's report mark of a year's capital gains, dated 31 December: 26365 for 2026, 24366 for 2024. */
-function reportMarkOf(year: number): string {
-  const dayOfYear = daysBetween(civilDate(year, 1, 1), civilDate(year, 12, 31)) + 1
-  return `${String(year % 100).padStart(2, '0')}${dayOfYear}`
-}
-
 /**
  * The capital gains of the sales settling in the year. A sale traded in late December that settles in January counts
  * in January's year, since a receipt counts when it is paid.
@@ -151,6 +152,10 @@ export function capitalGainsYear(book: InvestmentBook, rates: RateBook, year: nu
   const lossesOffset = losses < taxableGains ? losses : taxableGains
   const base = subtractMoney(taxableGains, lossesOffset)
   const rules = rulesOf(year)
+  const tax = percentOf(base, rules.rules.gainsRate)
+  const endsInLoss = losses > taxableGains
+  const gainsLine = taxableGains > ZERO && !endsInLoss
+  const taxFreeGains = sumOf(counted, 'tax-free')
   return {
     year,
     sales,
@@ -158,14 +163,17 @@ export function capitalGainsYear(book: InvestmentBook, rates: RateBook, year: nu
     losses,
     lossesOffset,
     base,
-    tax: percentOf(base, rules.rules.gainsRate),
-    taxFreeGains: sumOf(counted, 'tax-free'),
+    tax,
+    payout: subtractMoney(taxableGains, tax),
+    endsInLoss,
+    gainsLine,
+    taxFreeGains,
     oldLosses: subtractMoney(ZERO, sumOf(counted, 'old-loss')),
     estimated: sales.some((sale) => isEstimate(sale.rate)),
     leftOut: sales.filter((sale) => sale.rate.kind === 'missing').length,
     rules,
-    due: joppdDue(year),
-    reportMark: reportMarkOf(year),
+    due: gainsLine || taxFreeGains > ZERO ? joppdDue(year) : null,
+    reportMark: joppdReportMark(civilDate(year, 12, 31)),
   }
 }
 

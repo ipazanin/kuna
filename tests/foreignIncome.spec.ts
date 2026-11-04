@@ -33,6 +33,8 @@ describe("a year's foreign income", () => {
       ['2026-10-16', 'joppd', [50, 0, 6, 0, 6, 0], '2026-11-15'],
     ])
     expect(year.payments.map((entry) => entry.codes)).toEqual([null, { recipient: '1103', receipt: '1005' }, { recipient: '4002', receipt: '4025' }, { recipient: '1003', receipt: '1001' }])
+    // A 30-day JOPPD carries the mark of the day received: 5 Aug is day 217 of 2026, 2 Sep day 245 and 16 Oct day 289.
+    expect(year.payments.map((entry) => entry.reportMark)).toEqual([null, '26217', '26245', '26289'])
     expect(amounts(year.inoDoh)).toEqual([90.91, 27.27, 10.91, 10.91, 0, 16.36])
     expect(amounts(year.joppd)).toEqual([59.09, 0, 7.09, 0, 7.09, 0])
     expect([year.inoDohDue, year.inoIzjavaDue]).toEqual([{ due: '2027-02-01', fileBy: '2027-01-29' }, '2026-07-23'])

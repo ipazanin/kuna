@@ -21,7 +21,7 @@ export function taxReminder(book: InvestmentBook, rates: RateBook, today: CivilD
     reminders.push({ kind: 'ino-doh', due: last.inoDohDue.fileBy })
   }
   const gains = capitalGainsYear(book, rates, lastYear)
-  if (today <= gains.due && gains.sales.length > 0) {
+  if (gains.due !== null && today <= gains.due) {
     reminders.push({ kind: 'joppd', due: gains.due })
   }
   const running = [...last.payments, ...foreignIncomeYear(book, rates, lastYear + 1).payments].flatMap((entry) =>

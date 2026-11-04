@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 
 import type { ForeignIncomeYear, ForeignPayment } from '../domain/foreignIncome'
+import { JOPPD_CODES } from '../domain/taxRules'
 import { payerOf } from './taxText'
 import { words } from './words'
 import { QUANTITY_PLACES } from '../../holdings/presentation/holdingText'
@@ -45,9 +46,10 @@ function routeOf(entry: ForeignPayment): string {
   }
 }
 
-/** What the row says beside its route: its JOPPD codes, what a referral credit owes, its rate standing in for one not out yet, or that it has none. */
+/** What the row says beside its route: its 30-day JOPPD's report type and mark, its JOPPD codes, what a referral credit owes, its rate standing in for one not out yet, or that it has none. */
 function noteOf(entry: ForeignPayment): string {
   const notes: string[] = []
+  if (entry.reportMark !== null) notes.push(text.report(JOPPD_CODES.foreignReportType, entry.reportMark))
   if (entry.codes !== null) notes.push(text.codes(entry.codes.recipient, entry.codes.receipt))
   if (entry.route === 'referral') notes.push(text.referralTax)
   if (entry.rate.kind === 'missing') notes.push(text.noRate(dayLabel(entry.payment.date)))

@@ -40,11 +40,18 @@ Mark: `reading`. Screen: A reading.
 ## Settlement cycles
 
 - **US markets.** The SEC "adopted rule changes to shorten the standard settlement cycle for most broker-dealer transactions in securities" "from two business days after the trade date (T+2) to one (T+1)", with "The compliance date for the final rules is May 28, 2024" (press release 2023-29, 15 February 2023). Kuna settles a dollar instrument one weekday after a trade from 28 May 2024, and two before. Mark: `confirmed-table`.
-- **EU trading venues.** CSDR Art. 5(2): for transferable securities executed on trading venues, "the intended settlement date shall be no later than on the second business day after the trading takes place." Regulation (EU) 2025/2075 replaces that with "no later than on the first business day after the trading takes place", and "It shall apply from 11 October 2027." Kuna settles a euro instrument two TARGET working days after the trade. Both read in the Official Journal texts through Cellar. Mark: `confirmed-nn`.
+- **EU trading venues.** CSDR Art. 5(2): for transferable securities executed on trading venues, "the intended settlement date shall be no later than on the second business day after the trading takes place." Regulation (EU) 2025/2075 replaces that with "no later than on the first business day after the trading takes place", and "It shall apply from 11 October 2027." Kuna settles a euro instrument two TARGET working days after a trade before 11 October 2027 and one after a trade from that day. A Xetra trade of Friday 8 October 2027 settles on Tuesday 12 October, and one of Monday 11 October on Tuesday 12 October too. Both read in the Official Journal texts through Cellar. Mark: `confirmed-nn`.
+
+| Market            | Currency | Kuna counts | One day from | Mark              |
+| ----------------- | -------- | ----------- | ------------ | ----------------- |
+| US markets        | USD      | weekdays    | 2024-05-28   | `confirmed-table` |
+| EU trading venues | EUR      | TARGET days | 2027-10-11   | `confirmed-nn`    |
+
+`tests/lawDocs.spec.ts` compares the "One day from" column with `ONE_DAY_SETTLEMENT_FROM` in `settlementDay.ts`. Trades before that day settle in two of the days Kuna counts.
 
 Kuna knows no exchange holidays, so the estimate can be a day early. A dollar instrument listed in Europe, such as a dollar line of an Irish ETF in London, settles on its venue's cycle, which Kuna does not know. It gives every dollar instrument the US cycle. The UK cycle was not researched.
 
-Screen: Settled for the US cycle. The European cycle is Unconfirmed on the screen today and Settled by this file, see the [watch list](sources/watch-list.md#where-the-screen-and-the-docs-differ).
+Screen: Settled.
 
 ## TARGET days
 
@@ -56,7 +63,6 @@ Mark: `confirmed-table`, from HNB's own page. Screen: part of the rate day row.
 
 - Which HNB list "objavljuje na dan isplate" means, the one published on the day or the one applied on it. HNB's written rule on `datum_primjene` was not loaded.
 - The day the two years count from and to, see [Capital gains](capital-gains.md#counting-the-two-years).
-- EU T+1 from 11 October 2027, which Kuna's euro estimate does not follow yet.
 - Settlement cycles of non-EU European venues such as London.
 
 ## Sources

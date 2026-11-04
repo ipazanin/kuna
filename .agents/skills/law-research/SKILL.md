@@ -38,7 +38,7 @@ Follow the recipe in [Versions and dates](../../../docs/law/sources/versions-and
 
 - Put the rule in the file that owns it, following the [`law-docs` rule](../../../.claude/rules/law-docs.md) and the conventions in [`docs/law/README.md`](../../../docs/law/README.md). Cite the act, article and NN issue, and give a confidence mark and the screen mark it supports.
 - Quote the key line in Croatian when the reading turns on the wording.
-- When a rule row is added or moved, set its `law` in `TAX_RULES` (`src/apps/investments/tax/domain/taxRules.ts`) to the file and heading. When a rate or a JOPPD code changes, change the table the spec reads and `taxRules.ts` together.
+- When a rule row is added or moved, set its `law` in `TAX_RULES` (`src/apps/investments/tax/domain/taxRules.ts`) to the file and heading. When a rate, a JOPPD code or a settlement day changes, change the table the spec reads and the code together. When a mark changes, change the heading's "Screen:" sentence and the rule's `mark` together.
 - Put anything unknown, pending or estimated on the [watch list](../../../docs/law/sources/watch-list.md) with what would settle it and when. Never soften `estimate`, `pending` or `unconfirmed`. List every place where the screen and a doc differ there too, and leave the code to its own change.
 - When you have verified a whole file, set its `checked` date and `nn_through` issue. Update the [filing calendar](../../../docs/law/filing-calendar.md) when a deadline changes, and [acts and issues](../../../docs/law/sources/acts-and-issues.md) when you cite a new act or issue.
 - Run `npm run law-index`, `npm run format` and `npm test`.

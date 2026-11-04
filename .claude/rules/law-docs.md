@@ -12,5 +12,6 @@ paths:
 - State each rule once, in the file that owns it, and link to it from elsewhere. When a deadline changes, update the [filing calendar](../../docs/law/filing-calendar.md) too.
 - Never state a figure without a citation and a confidence mark. Put anything unknown on the [watch list](../../docs/law/sources/watch-list.md).
 - Each rule row in `TAX_RULES` names the file and heading it rests on. A new row lands with its doc section, and a renamed heading lands with its new anchor. `tests/lawDocs.spec.ts` fails otherwise.
-- Keep the headers of the tables the spec reads: "Rates by year" in capital gains and foreign capital income, and "Codes" in JOPPD for investors.
+- Keep the headers of the tables the spec reads: "Rates by year" in capital gains and foreign capital income, "Codes" in JOPPD for investors, and "Settlement cycles" in HNB rates and settlement.
+- Under each heading a rule row names, keep one "Screen:" sentence that names the screen mark of every rule resting on it. Change it and the rule's `mark` together.
 - Write in English, quote Croatian where the reading turns on the wording, and use made-up figures in examples.

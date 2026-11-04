@@ -25,4 +25,12 @@ describe('the settlement day of a trade', () => {
   it('settles a Xetra trade of Thursday 2 Apr 2026 past Good Friday and Easter Monday', () => {
     expect(settlementDay(civil('2026-04-02'), EURO)).toBe('2026-04-08')
   })
+
+  it('settles a Xetra trade of Friday 8 Oct 2027 in two TARGET days, before the EU moves to one', () => {
+    expect(settlementDay(civil('2027-10-08'), EURO)).toBe('2027-10-12')
+  })
+
+  it('settles a Xetra trade of Monday 11 Oct 2027 in one TARGET day, from the day the EU moves to one', () => {
+    expect(settlementDay(civil('2027-10-11'), EURO)).toBe('2027-10-12')
+  })
 })

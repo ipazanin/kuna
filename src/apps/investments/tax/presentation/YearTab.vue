@@ -36,34 +36,55 @@ const lossesBeyond = computed(() => subtractMoney(props.gains.losses, props.gain
 const leftOut = computed(() => props.gains.leftOut + props.foreign.leftOut)
 const rulesYear = computed(() => (props.gains.rules.ownRow ? null : props.gains.rules.rules.year))
 const surtax = computed(() => props.gains.rules.rules.surtax)
+const taxCaption = computed(() => {
+  const { gains } = props
+  if (gains.due === null) {
+    return text.tiles.noJoppd
+  }
+  return surtax.value ? text.tiles.taxBeforeSurtaxCaption(gains.rules.rules.gainsRate, dayLabel(gains.due)) : text.tiles.taxToPayCaption(dayLabel(gains.due))
+})
 
+/** The year's JOPPD: its head, the line for lots under two years when it has one, and the code-02 line when it has tax-free gains. */
 const joppdFacts = computed((): Fact[] => {
   const { gains } = props
   const field = (label: string, value: string, caption: string): Fact => ({ label, value, caption, lang: 'hr' })
   const fields = text.joppd.fields
   const period = text.joppd.period(dayLabel(civilDate(gains.year, 1, 1)), dayLabel(civilDate(gains.year, 12, 31)))
-  return [
-    field(fields.reportMark, gains.reportMark, marks.reading),
-    field(fields.typeAndSubmitter, `${JOPPD_CODES.gainsReportType}, ${JOPPD_CODES.submitter}`, marks.reading),
-    field(fields.recipient, JOPPD_CODES.gains.recipient, marks.unconfirmed),
-    field(fields.receipt, JOPPD_CODES.gains.receipt, marks.settled),
-    field(fields.period, period, marks.reading),
-    field(fields.receipts, formatMoney(gains.taxableGains), marks.reading),
-    field(fields.expenses, formatMoney(gains.lossesOffset), marks.reading),
-    field(fields.base, formatMoney(gains.base), marks.reading),
-    field(fields.tax, formatMoney(gains.tax), text.joppd.rateSettled),
-    field(fields.surtax, surtax.value ? text.joppd.citySurtax : formatMoney(0), marks.settled),
-    field(fields.payment, surtax.value ? text.joppd.paymentWithSurtax(formatMoney(gains.tax)) : `1, ${formatMoney(gains.tax)}`, marks.reading),
-    field(fields.taxFreeLine, `${JOPPD_CODES.taxFree.nonTaxable}, ${formatMoney(gains.taxFreeGains)}, ${JOPPD_CODES.taxFree.recipientAndReceipt}`, text.joppd.codeSettled),
-  ]
+  const head = [field(fields.reportMark, gains.reportMark, marks.reading), field(fields.typeAndSubmitter, `${JOPPD_CODES.gainsReportType}, ${JOPPD_CODES.submitter}`, marks.reading)]
+  const gainsLine = gains.gainsLine
+    ? [
+        field(fields.recipient, JOPPD_CODES.gains.recipient, marks.unconfirmed),
+        field(fields.receipt, JOPPD_CODES.gains.receipt, marks.settled),
+        field(fields.period, period, marks.reading),
+        field(fields.receipts, formatMoney(gains.taxableGains), marks.reading),
+        field(fields.expenses, formatMoney(gains.lossesOffset), marks.reading),
+        field(fields.base, formatMoney(gains.base), marks.reading),
+        field(fields.tax, formatMoney(gains.tax), text.joppd.rateSettled),
+        field(fields.surtax, surtax.value ? text.joppd.citySurtax : formatMoney(0), marks.settled),
+        surtax.value
+          ? field(fields.payment, text.joppd.paymentWithSurtax(formatMoney(gains.payout)), marks.reading)
+          : field(fields.payment, `1, ${formatMoney(gains.payout)}`, text.joppd.payoutSettled),
+      ]
+    : []
+  const taxFreeLine =
+    gains.taxFreeGains > 0
+      ? [
+          field(
+            fields.taxFreeLine,
+            `${JOPPD_CODES.taxFree.nonTaxable}, ${formatMoney(gains.taxFreeGains)}, ${JOPPD_CODES.taxFree.recipientAndReceipt}`,
+            gains.endsInLoss ? marks.unconfirmed : marks.settled,
+          ),
+        ]
+      : []
+  return [...head, ...gainsLine, ...taxFreeLine]
 })
 
 /** The year's own dates, then each payment whose 30 days still run on the day. */
 const deadlineFacts = computed((): Fact[] => {
   const { gains, foreign, today } = props
   const dates: Fact[] = []
-  if (hasSales.value) {
-    dates.push({ label: text.deadlines.joppd, value: dayLabel(gains.due), caption: marks.settled })
+  if (gains.due !== null) {
+    dates.push({ label: text.deadlines.joppd, value: dayLabel(gains.due), caption: gains.endsInLoss ? text.deadlines.joppdTaxFreeOnly : marks.settled })
   }
   if (foreign.filesInoDoh) {
     const bookedNet = foreign.payments.filter((entry) => entry.route === 'booked-net').length
@@ -102,13 +123,7 @@ const readings = computed(() => rules.value.filter((rule) => rule.mark !== 'sett
     <p v-if="rulesYear !== null" class="type-caption" data-testid="tax-other-rules">{{ text.otherRules(gains.year, rulesYear) }}</p>
     <template v-if="hasSales">
       <DashboardGrid layout="tiles" data-testid="tax-tiles">
-        <KpiTile
-          :label="surtax ? text.tiles.taxBeforeSurtax : text.tiles.taxToPay"
-          :value="formatMoney(gains.tax)"
-          :to="null"
-          :caption="surtax ? text.tiles.taxBeforeSurtaxCaption(gains.rules.rules.gainsRate, dayLabel(gains.due)) : text.tiles.taxToPayCaption(dayLabel(gains.due))"
-          icon="i-lucide-landmark"
-        />
+        <KpiTile :label="surtax ? text.tiles.taxBeforeSurtax : text.tiles.taxToPay" :value="formatMoney(gains.tax)" :to="null" :caption="taxCaption" icon="i-lucide-landmark" />
         <KpiTile :label="text.tiles.taxableGains" :value="formatMoney(gains.taxableGains)" :to="taxLink(gains.year, 'sales')" :caption="text.tiles.taxableGainsCaption" />
         <KpiTile
           :label="text.tiles.lossesOffset"
@@ -119,9 +134,10 @@ const readings = computed(() => rules.value.filter((rule) => rule.mark !== 'sett
         <KpiTile :label="text.tiles.taxFreeGains" :value="formatMoney(gains.taxFreeGains)" :to="taxLink(gains.year, 'sales')" :caption="text.tiles.taxFreeGainsCaption" />
       </DashboardGrid>
       <p v-if="gains.oldLosses > 0" class="type-caption" data-testid="tax-old-losses">{{ text.oldLosses(formatMoney(gains.oldLosses)) }}</p>
+      <p v-if="gains.due === null" class="type-caption" data-testid="tax-no-joppd">{{ gains.endsInLoss ? text.noJoppd.lossYear : text.noJoppd.noGains }}</p>
     </template>
     <DashboardGrid layout="cards">
-      <AppCard v-if="hasSales" :title="text.joppd.title" :subtitle="text.joppd.subtitle(gains.year)" data-testid="tax-joppd">
+      <AppCard v-if="gains.due !== null" :title="text.joppd.title" :subtitle="text.joppd.subtitle(gains.year)" data-testid="tax-joppd">
         <div class="px-4 pt-3 pb-4 sm:px-5">
           <FactGrid :facts="joppdFacts" />
         </div>

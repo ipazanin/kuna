@@ -143,6 +143,8 @@ describe('the tax register file', () => {
       215.84, 80, 135.84, 135.84, 16.3, 0,
     ])
     expect(dayOf(summary.get('Rok za JOPPD i uplatu poreza'))).toBe('2027-03-01')
+    // Field 16.2 is field 11 less the tax: 215.84 − 16.30 = 199.54.
+    expect([summary.get('16.1 Oznaka načina isplate'), summary.get('16.2 Iznos za isplatu'), summary.get('Obveza JOPPD-a')]).toEqual([1, 199.54, 'Da'])
     expect(summary.get('Nije uračunato jer nema tečaja HNB-a (prodaje i isplate)')).toBe(0)
     expect(summary.get('Prodaje se računaju u godinu')).toBe('Po datumu namire, ZPDoh čl. 11. st. 3.')
   })

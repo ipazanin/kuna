@@ -39,13 +39,13 @@ Every act and bylaw these docs cite: its abbreviation, its title, the Narodne no
 
 ## Amending acts and NN items cited
 
-| NN issue, item | What it is                                                                                                                       | Page                                                                 |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| 138/20         | ZPDoh amendment, rates to 10% from tax year 2021 (Art. 16, 17)                                                                   | Read in the zakon.hr consolidated ZPDoh                              |
-| 114/23, 1609   | ZPDoh amendment, rates to 12% from 1 January 2024 (Art. 28), 2023 income under the old act (Art. 40), entry into force (Art. 42) | <https://narodne-novine.nn.hr/clanci/sluzbeni/2023_10_114_1609.html> |
-| 114/23, 1610   | ZLP amendment, the surtax deleted from 2024, city decisions kept to 31 December 2023 (Art. 5, 6, 11)                             | <https://narodne-novine.nn.hr/clanci/sluzbeni/2023_10_114_1610.html> |
-| 152/24         | ZPDoh amendment, income up to 31 December 2024 under the old act (Art. 16)                                                       | Read in the zakon.hr consolidated ZPDoh                              |
-| NN MU 6/2026   | Law confirming the Croatia and US treaty and its protocol                                                                        | Not loaded. Known from a news report                                 |
+| NN issue, item   | What it is                                                                                                                                                                                 | Page                                                                 |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| 138/20           | ZPDoh amendment, rates to 10% from tax year 2021 (Art. 16, 17)                                                                                                                             | Read in the zakon.hr consolidated ZPDoh                              |
+| 114/23, 1609     | ZPDoh amendment, rates to 12% from 1 January 2024 (Art. 28), 2023 income under the old act (Art. 40), entry into force (Art. 42)                                                           | <https://narodne-novine.nn.hr/clanci/sluzbeni/2023_10_114_1609.html> |
+| 114/23, 1610     | ZLP amendment, the surtax deleted from 2024, city decisions kept to 31 December 2023 (Art. 5, 6, 11)                                                                                       | <https://narodne-novine.nn.hr/clanci/sluzbeni/2023_10_114_1610.html> |
+| 152/24           | ZPDoh amendment, income up to 31 December 2024 under the old act (Art. 16)                                                                                                                 | Read in the zakon.hr consolidated ZPDoh                              |
+| NN MU 6/2026, 23 | Law confirming the Croatia and US treaty and its protocol, in force 7 November 2026 (Art. 6), the treaty not yet in force (Art. 5), the treaty's own entry into force and effect (Art. 29) | <https://narodne-novine.nn.hr/clanci/medunarodni/2026_10_6_23.html>  |
 
 ## Documents that are not acts
 
@@ -62,7 +62,6 @@ These inform the docs but are never the source of a rule on their own. A value t
 
 - The NN text of NN 138/20 and NN 152/24, and the base texts of ZPDoh, ZDop, OPZ and ZUP in NN. Each was read in a consolidated text.
 - The ZLP base act.
-- NN MU 6/2026.
 - The budget payment Naputak.
 
 ## Sources

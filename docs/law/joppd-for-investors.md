@@ -14,11 +14,15 @@ The figures themselves are in [Capital gains](capital-gains.md). The 30-day rout
 
 PravPDoh Art. 77(13): "Porezni obveznik – imatelj financijske imovine Obrazac JOPPD dostavlja do posljednjeg dana mjeseca veljače tekuće godine, s danom i oznakom izvješća dana 31. prosinca prethodne godine, za sve kapitalne dobitke ostvarene u prethodnoj godini umanjene za ostvarene kapitalne gubitke." A domestic intermediary may file for the person (Art. 77(14)), which a foreign broker does not do.
 
-The same paragraph ends: "Ako umanjenje kapitalnih dobitaka za ostvarene kapitalne gubitke rezultira kapitalnim gubitkom ne postoji obveza izvješćivanja putem Obrasca JOPPD." A year whose losses on lots under two years exceed the gains on them owes no JOPPD for those. Whether tax-free gains alone still call for one is open.
+The same paragraph ends: "Ako umanjenje kapitalnih dobitaka za ostvarene kapitalne gubitke rezultira kapitalnim gubitkom ne postoji obveza izvješćivanja putem Obrasca JOPPD." A year whose losses on lots under two years exceed the gains on them owes no JOPPD for those. Losses equal to the gains leave a base of zero, not a loss, so that line is still reported.
+
+Tax-free gains alone still call for a JOPPD. The middle sentence of Art. 77(13) reports them "na isti način", and Porezna uprava's notice of 6 February 2026 says "neovisno o neoporezivosti, porezni obveznik ima obvezu iskazivanja tog primitka putem Obrasca JOPPD", with an example JOPPD that carries only the code-02 line. A year with tax-free gains and no loss on lots under two years files that JOPPD.
+
+Tax-free gains in a year whose lots under two years end in a loss are open. The last sentence frees the year from the JOPPD after the middle sentence asks for tax-free gains, and neither that notice nor the notices for 2022 and 2025 gains address the case. Kuna keeps the date for such a year, for the code-02 line only, and marks it unconfirmed.
 
 Porezna uprava's notice for 2025 gains frees gains under 16.70 euros from a JOPPD, but only for gains through domestic intermediaries that sent a statement. It does not reach a foreign broker.
 
-Mark: `confirmed-consolidated`. Screen: part of the due dates row.
+Mark: `confirmed-consolidated` for a year that ends in a loss and for tax-free gains alone, `unconfirmed` for tax-free gains in a year that ends in a loss. Screen: Settled for a year that ends in a loss, Unconfirmed for its tax-free gains.
 
 ## The capital gains JOPPD
 
@@ -36,13 +40,13 @@ Mark: `confirmed-consolidated`. Screen: part of the due dates row.
 | Page B, 14.1 Porez                     | The year's rate of 13.5                                                                      | `confirmed-consolidated` |
 | Page B, 14.2 Prirez                    | 0.00 from 2024. For 2023, the city's surtax on 14.1                                          | `reading`                |
 | Page B, 16.1 Način isplate             | 1, payment to a current account                                                              | `reading`                |
-| Page B, 16.2 Iznos za isplatu          | Field 11 less the tax                                                                        | `confirmed-consolidated` |
+| Page B, 16.2 Iznos za isplatu          | Field 11 less the tax. For 2023, less the surtax too                                         | `confirmed-consolidated` |
 
 The report mark. PravPDoh Art. 81(2): the mark is "u obliku GG001 do GG365(366), a sastoji se od kombinacije oznake zadnje dvije znamenke godine i rednog broja dana u godini". With the day of 31 December from Art. 77(13), that is 26365 for 2026 and 24366 for 2024, a leap year. Porezna uprava's crypto example marks a report "na dan 31.12.2025." as 25365, and RRiF 1/2025 gives "24366" for the JOPPD filed in 2025.
 
 The report type. PravPDoh Art. 81(3) item 11: "oznaka 11 kada fizička osoba i/ili financijski posrednik u ime i za račun poreznog obveznika podnosi izvješće o dohotku ostvarenom po osnovi kapitalnih dobitaka". The submitter: annex 1 of the form, "4 Ostale fizičke osobe".
 
-Field 16.2. PravPDoh Art. 82(1) item 40: "Iznos za isplatu (pod 16.2.). – upisuje se iznos ukupnog primitka (oporezivog primitka i/ili neoporezivog primitka) umanjenog za iznos uplaćenih doprinosa iz primitka, te uplaćenog predujma poreza". Raiffeisen KAG's guide enters field 11 less the tax, and Finax's 13.5 less 14.1. Kuna shows the tax in 16.2 today, see the [watch list](sources/watch-list.md#where-the-screen-and-the-docs-differ).
+Field 16.2. PravPDoh Art. 82(1) item 40: "Iznos za isplatu (pod 16.2.). – upisuje se iznos ukupnog primitka (oporezivog primitka i/ili neoporezivog primitka) umanjenog za iznos uplaćenih doprinosa iz primitka, te uplaćenog predujma poreza". Raiffeisen KAG's guide enters "iznos oporezivog primitka umanjen za uplaćeni porez", and Finax's 13.5 less 14.1, which differs from field 11 only when there are losses. Kuna writes field 11 less the tax, as item 40 has it. Item 40 names only the tax, so taking the city's surtax of field 14.2 off as well for 2023 is a `reading`.
 
 The remaining field rules come from the two broker guides and the crypto example, since the Pravilnik's field list is written for salaries. They are a `reading`.
 
@@ -64,7 +68,7 @@ Screen: A reading.
 | Interest from abroad, receipt               | 6.2      | 1005 | `interest.receipt`            | `reading`                |
 | Referral credit, recipient                  | 6.1      | 4002 | `referral.recipient`          | `reading`                |
 | Referral credit, receipt                    | 6.2      | 4025 | `referral.receipt`            | `reading`                |
-| A 30-day report of income from abroad       | II.      | 8    | none                          | `confirmed-consolidated` |
+| A 30-day report of income from abroad       | II.      | 8    | `foreignReportType`           | `confirmed-consolidated` |
 
 The wording of each code in the form's annexes:
 
@@ -90,7 +94,7 @@ The line, from PravPDoh Art. 82(4) and the crypto example: 6.1 and 6.2 are 0000,
 
 Read in the Porezna uprava consolidation of the Pravilnik through NN 157/25, loaded 4 November 2026, which raises the duty for shares from the earlier `reading`.
 
-Mark: `confirmed-consolidated`. Screen: A reading today, Settled by this file.
+Mark: `confirmed-consolidated`. Screen: Settled.
 
 ## Due dates
 
@@ -114,8 +118,7 @@ Raiffeisen KAG's guide pays the tax to the account of the city of residence, mod
 ## Open points
 
 - Recipient 1001 or 1003 for gains through a foreign broker.
-- Whether a year with only tax-free gains and a net loss on taxable lots still calls for a JOPPD.
-- The 30-day JOPPD's report type 8 and its mark, which the screen does not show.
+- Whether tax-free gains in a year whose lots under two years end in a loss still call for a JOPPD.
 - The payment reference, from the budget Naputak.
 
 ## Sources

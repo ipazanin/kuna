@@ -32,7 +32,7 @@ The signals that show the law, a form or a market rule behind the Tax screen has
 | Capital gains notice                  | Porezna uprava news                  | 19 January 2023 for 2022 gains, 13 January 2026 for 2025 gains                   | January                                           |
 | JOPPD and payment for last year       | ZPDoh Art. 70(4)                     | 2 March 2026 for 2025 gains                                                      | 1 March 2027 for 2026 gains                       |
 | INO-DOH for last year                 | ZPDoh Art. 81(4)                     | 31 January each year                                                             | 1 February 2027 for 2026 income                   |
-| US treaty                             | NN MU, US Senate, exchange of notes  | Croatian law in NN MU 6/2026, in force 7 November 2026 (news report)             | After US Senate consent and the exchange of notes |
+| US treaty                             | NN MU, US Senate, exchange of notes  | Croatian law in NN MU 6/2026, in force 7 November 2026                           | After US Senate consent and the exchange of notes |
 | EU T+1 settlement                     | Regulation (EU) 2025/2075            | Published in the OJ in October 2025                                              | Applies from 11 October 2027                      |
 
 ## Sources

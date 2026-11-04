@@ -2,7 +2,7 @@
 
 The Croatian personal income tax law the Investments Tax screen (`src/apps/investments/tax/`) builds on, for one case: a resident individual who invests through foreign brokers and files their own JOPPD, INO-IZJAVA and INO-DOH. Each file gives the rates, codes, days, deadlines and edge cases, with a citation for each and a mark for how sure the research is.
 
-Law as researched on 4 November 2026. Consolidated texts on zakon.hr were current through NN 119/26, and the titles of NN 120/26 to 126/26 were checked for income tax, contribution and procedure acts. The Pravilnik o porezu na dohodak was read in the Porezna uprava consolidation through NN 157/25, and an NN title search found no 2026 amendment of it. Values that are not out yet, such as an entry into force of the US treaty or the EU move to T+1 settlement, stay open in each file and on the [watch list](sources/watch-list.md).
+Law as researched on 4 November 2026. Consolidated texts on zakon.hr were current through NN 119/26, and the titles of NN 120/26 to 126/26 were checked for income tax, contribution and procedure acts. The Pravilnik o porezu na dohodak was read in the Porezna uprava consolidation through NN 157/25, and an NN title search found no 2026 amendment of it. Values that are not out yet, such as an entry into force of the US treaty, stay open in each file and on the [watch list](sources/watch-list.md).
 
 This is research for building software. It is not legal or tax advice. Where the text leaves a real choice, the file says so and marks it `reading` or `unconfirmed`.
 
@@ -34,7 +34,7 @@ Every file has the same shape: what it covers, the rules under headings, a worke
 
 ## Tied to the code
 
-Each rule row on the Tax screen names the file and heading it rests on, in `TAX_RULES` in `src/apps/investments/tax/domain/taxRules.ts`. `tests/lawDocs.spec.ts` fails when a rule names a file or heading that is missing, when the rates under "Rates by year" in [Capital gains](capital-gains.md#rates-by-year) and [Foreign capital income](foreign-capital-income.md#rates-by-year) differ from the rows in `taxRules.ts`, and when the table under "Codes" in [JOPPD for investors](joppd-for-investors.md#codes) differs from `JOPPD_CODES`. Those three tables are read by the spec, so keep their headers as they are.
+Each rule row on the Tax screen names the file and heading it rests on, in `TAX_RULES` in `src/apps/investments/tax/domain/taxRules.ts`. `tests/lawDocs.spec.ts` fails when a rule names a file or heading that is missing, when the "Screen:" sentence under that heading does not name the screen marks of the rules resting on it, when the rates under "Rates by year" in [Capital gains](capital-gains.md#rates-by-year) and [Foreign capital income](foreign-capital-income.md#rates-by-year) differ from the rows in `taxRules.ts`, when the table under "Codes" in [JOPPD for investors](joppd-for-investors.md#codes) differs from `JOPPD_CODES`, and when the days under "Settlement cycles" in [HNB rates and settlement](hnb-rates-and-settlement.md#settlement-cycles) differ from `settlementDay.ts`. Those four tables are read by the spec, so keep their headers as they are.
 
 A rule changes in its owning file first, then in the code. The [filing calendar](filing-calendar.md) gathers the deadlines and names the file that owns each.
 

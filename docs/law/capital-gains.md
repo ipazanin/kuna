@@ -105,7 +105,7 @@ Kuna takes the gain as proceeds less the sale's fees less the cost, with the buy
 
 Example. Cost 1,000.00 with its buy fee, sale 1,200.00, sale fee 10.00. Kuna taxes 190.00. The strict reading taxes 200.00.
 
-Mark: `reading`. The Tax screen has no rule row for fees yet, see the [watch list](sources/watch-list.md#where-the-screen-and-the-docs-differ).
+Mark: `reading`. Screen: A reading.
 
 ## Losses
 
@@ -119,7 +119,7 @@ PravPDoh Art. 70(11): losses "priznaju se samo ako su ostvareni temeljem financi
 
 Example. In 2026 a three-year-old lot sells at a 200.00 loss, a one-year-old lot at a 500.00 gain and a six-month-old lot at a 100.00 loss. The base is 400.00 and the tax 48.00. The 200.00 is listed apart and lowers nothing.
 
-Mark: `confirmed-consolidated`. Screen: A reading today, Settled by this file.
+Mark: `confirmed-consolidated`. Screen: Settled.
 
 ## Worked example
 
@@ -132,12 +132,12 @@ A made-up year, 2026, all in euros.
 | Bought January 2023, sold April 2026  | 1,000.00     | tax-free            |
 | Bought February 2022, sold April 2026 | -150.00      | loss past two years |
 
-Field 11 is 800.00, field 13.1 is 300.00 and the base is 500.00. The tax is 12% of 500.00, 60.00, due on 1 March 2027. The 1,000.00 goes on the code-02 line. The 150.00 lowers nothing.
+Field 11 is 800.00, field 13.1 is 300.00 and the base is 500.00. The tax is 12% of 500.00, 60.00, due on 1 March 2027. Field 16.2 is 800.00 less 60.00, 740.00, see [JOPPD for investors](joppd-for-investors.md#the-capital-gains-joppd). The 1,000.00 goes on the code-02 line. The 150.00 lowers nothing.
 
 ## Open points
 
 - The day that counts for the two years, trade or settlement, is a reading.
-- Fees in the gain are a reading, and the screen has no row for them.
+- Fees in the gain are a reading.
 - The 2023 surtax reaching capital gains is a reading, and Kuna holds no 2023 surtax rates.
 - Gains on an exchange of fund units between two funds of different managers are not covered by Art. 67(4) item 4 and were not researched.
 

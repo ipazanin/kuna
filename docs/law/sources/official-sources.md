@@ -31,6 +31,7 @@ Narodne novine is the only binding text for Croatian law, and the Official Journ
 - Issue listing: `https://narodne-novine.nn.hr/search.aspx?sortiraj=4&kategorija=1&godina=2026&broj=126&rpp=200&qtype=1&pretraga=da` gives each item's title.
 - Title search: `search.aspx?upit=%22porezu+na+dohodak%22&naslovi=da&sortiraj=1&kategorija=1&godina=2026&rpp=50&qtype=3&pretraga=da`. On 4 November 2026 it found one 2026 item, a local rate decision of NN 118/26, and no amendment of ZPDoh or PravPDoh.
 - Item pages: `https://narodne-novine.nn.hr/clanci/sluzbeni/{year}_{month}_{issue}_{item}.html`, for example `2023_10_114_1609.html` for the ZPDoh amendment of NN 114/23.
+- The international part has its own issue listing, `search.aspx?sortiraj=4&kategorija=2&godina=2026&broj=6&rpp=200&qtype=1&pretraga=da`, and item pages under `clanci/medunarodni/`, as `2026_10_6_23.html` for the US treaty law.
 - NN metadata does not carry entry into force. Read it in the act's final articles.
 
 ## zakon.hr
@@ -91,7 +92,7 @@ Use them as leads: to learn that a bill exists, or how practice fills in a field
 
 ## Open points
 
-- The NN MU 6/2026 text of the US treaty law was not loaded. Its status comes from a news report.
+- The US Senate's step on the treaty comes from a news report, since congress.gov refused an automated fetch.
 - sec.gov was read only through a summarising fetch.
 
 ## Sources

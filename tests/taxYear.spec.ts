@@ -25,6 +25,8 @@ describe("a year's capital gains", () => {
     // off, 135.84, and 12% of it is 16.30. The 298.33 past two years is the code-02 line, the 2023 lot's 40.00 apart.
     expect(figuresOf(year)).toEqual([215.84, 80, 135.84, 16.3, 298.33, 40])
     expect([year.reportMark, year.due, year.estimated]).toEqual(['26365', '2027-03-01', false])
+    // Field 16.2 is field 11 less the tax: 215.84 − 16.30 = 199.54.
+    expect([year.payout, year.gainsLine, year.endsInLoss]).toEqual([euros(199.54), true, false])
     expect(year.sales.flatMap((sale) => sale.lines.map((line) => [sale.instrument.name, line.status, (line.gain ?? 0) / 100]))).toEqual([
       ['Example World ETF', 'tax-free', 298.33],
       ['Example World ETF', 'taxable', 49.17],
@@ -52,7 +54,37 @@ describe("a year's capital gains", () => {
     })
 
     // 50.00 of gain and 200.00 of loss: 50.00 is offset, and the 150.00 left lowers nothing.
-    expect(figuresOf(capitalGainsYear(records, EXAMPLE_RATES, 2026))).toEqual([50, 50, 0, 0, 0, 0])
+    const year = capitalGainsYear(records, EXAMPLE_RATES, 2026)
+    expect(figuresOf(year)).toEqual([50, 50, 0, 0, 0, 0])
+    expect([year.endsInLoss, year.gainsLine, year.due]).toEqual([true, false, null])
+  })
+
+  it('keeps the JOPPD of a year that ends in a loss for its tax-free gains only', () => {
+    const etf = instrument('etf')
+    const records = book({
+      instruments: [etf],
+      trades: [
+        trade('buy', BROKER, etf, '2023-01-09', '5', '100', '0'),
+        trade('buy', BROKER, etf, '2026-01-05', '5', '100', '0'),
+        trade('sell', BROKER, etf, '2026-03-02', '5', '120', '0'),
+        trade('sell', BROKER, etf, '2026-04-01', '5', '60', '0'),
+      ],
+    })
+
+    // The 2023 lot is past two years, a 100.00 code-02 gain. The 2026 lot loses 200.00, so the year ends in a loss.
+    const year = capitalGainsYear(records, EXAMPLE_RATES, 2026)
+    expect([year.taxFreeGains, year.losses, year.endsInLoss, year.gainsLine, year.due]).toEqual([euros(100), euros(200), true, false, '2027-03-01'])
+  })
+
+  it('reports losses that equal the gains on a zero line, since the year does not end in a loss', () => {
+    const etf = instrument('etf')
+    const records = book({
+      instruments: [etf],
+      trades: [trade('buy', BROKER, etf, '2026-01-05', '10', '100', '0'), trade('sell', BROKER, etf, '2026-02-02', '5', '110', '0'), trade('sell', BROKER, etf, '2026-03-02', '5', '90', '0')],
+    })
+
+    const year = capitalGainsYear(records, EXAMPLE_RATES, 2026)
+    expect([...figuresOf(year), year.endsInLoss, year.gainsLine, year.due]).toEqual([50, 50, 0, 0, 0, 0, false, true, '2027-03-01'])
   })
 
   it('leaves 2026 alone after a loss in 2025', () => {
@@ -63,7 +95,7 @@ describe("a year's capital gains", () => {
     })
 
     expect(figuresOf(capitalGainsYear(records, EXAMPLE_RATES, 2025))).toEqual([0, 0, 0, 0, 0, 0])
-    expect(capitalGainsYear(records, EXAMPLE_RATES, 2025).losses).toBe(euros(200))
+    expect([capitalGainsYear(records, EXAMPLE_RATES, 2025).losses, capitalGainsYear(records, EXAMPLE_RATES, 2025).due]).toEqual([euros(200), null])
     expect(figuresOf(capitalGainsYear(records, EXAMPLE_RATES, 2026))).toEqual([50, 0, 50, 6, 0, 0])
   })
 
@@ -109,7 +141,10 @@ describe("a year's capital gains", () => {
       transfers: [unitTransfer(BROKER, two, '2025-05-05', etf, '10')],
     })
 
-    expect(figuresOf(capitalGainsYear(records, EXAMPLE_RATES, 2026))).toEqual([0, 0, 0, 0, 300, 0])
+    const year = capitalGainsYear(records, EXAMPLE_RATES, 2026)
+    expect(figuresOf(year)).toEqual([0, 0, 0, 0, 300, 0])
+    // Tax-free gains alone still go on a JOPPD, with only the code-02 line.
+    expect([year.gainsLine, year.endsInLoss, year.due]).toEqual([false, false, '2027-03-01'])
   })
 
   it('marks a sale whose settlement day has no rate yet as an estimate at the newest rate, and leaves a sale before the first rate out', () => {

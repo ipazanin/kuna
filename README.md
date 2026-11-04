@@ -2525,7 +2525,7 @@ the Year tab's collapsible Rules Kuna uses, with its source. The figures are wor
 `tax/domain/` and proved by `tests/taxYear.spec.ts`, `tests/foreignIncome.spec.ts`, `tests/hnbRate.spec.ts`,
 `tests/settlementDay.spec.ts` and `tests/taxDeadlines.spec.ts` on made-up records.
 
-The law behind those rules is in `docs/law/`, one file per subject with citations, marks and the day it was checked, and the [law-research skill](.agents/skills/law-research/SKILL.md) says how to verify and update it. Each rule names its file and heading in `TAX_RULES`, and `tests/lawDocs.spec.ts` fails when a heading is missing, a rate or JOPPD code differs from the docs, or the index in `docs/law/README.md` is stale (`npm run law-index`).
+The law behind those rules is in `docs/law/`, one file per subject with citations, marks and the day it was checked, and the [law-research skill](.agents/skills/law-research/SKILL.md) says how to verify and update it. Each rule names its file and heading in `TAX_RULES`, and `tests/lawDocs.spec.ts` fails when a heading is missing, a heading's "Screen:" sentence differs from the marks of its rules, a rate, JOPPD code or settlement day differs from the docs, or the index in `docs/law/README.md` is stale (`npm run law-index`).
 
 - **A sale's gain.** Each lot a sale closes carries its cost, proceeds and fees in the quote currency
   (`RealisedLine` in `lots.ts`). Its gain in that currency converts once, at HNB's rate of the sale's
@@ -2535,14 +2535,16 @@ The law behind those rules is in `docs/law/`, one file per subject with citation
   While the prices file has no rate for that day yet the newest stands in and the euros read about, and
   a sale before the file's first rate is listed and left out. The settlement day is estimated: one
   weekday after the trade for a dollar instrument traded from 28 May 2024, two otherwise, and for a euro
-  instrument two TARGET working days, past TARGET's holidays. A sale traded
+  instrument two TARGET working days, past TARGET's holidays, and one from trades of 11 October 2027. A sale traded
   in December that settles in January counts in the year it settles (Art. 11(3)), and says so.
 - **The year.** Gains on lots under two years less losses on them, never below zero and never carried
   to another year, taxed at the year's rate from `taxRules.ts`: 12% from 2024, and 10% for 2023 shown as tax before
   surtax, since Kuna holds no 2023 surtax rates. Kuna computes no year before 2023 and says so. Gains on lots past two years are the JOPPD's code-02 line, and losses on
   them lower nothing and are listed apart. The Year tab shows four tiles, what to type into the JOPPD
   (report mark the year and the day of the year, 26365 for 2026 and 24366 for 2024, recipient 1001,
-  marked unconfirmed, receipt 1006, fields 11 to 16.2 and the code-02 line) and
+  marked unconfirmed, receipt 1006, fields 11 to 16.2 with field 11 less the tax in 16.2, and the code-02 line). A year whose
+  losses on lots under two years exceed the gains on them owes no JOPPD for those lots and shows none. Its tax-free gains
+  keep the JOPPD date for the code-02 line alone, marked unconfirmed. The Year tab also shows
   the deadlines: JOPPD and payment by the last day of February moved past a weekend, the INO-DOH by
   31 January moved past a weekend with the weekday before as the safe day, the INO-IZJAVA eight days after
   the year's first payment with tax withheld abroad, and each payment whose 30 days still run. A dividend
@@ -2557,7 +2559,7 @@ The law behind those rules is in `docs/law/`, one file per subject with citation
 - **Abroad.** Each payment of the year but coupons and those of a Croatian ISIN, which are not income
   from abroad, by the country of its ISIN, at HNB's rate of its day: gross, withheld abroad, the
   Croatian 12%, the credit, which is the withheld tax up to the 12%, and what is left to pay. Tax withheld abroad goes on the INO-DOH. Nothing withheld means a JOPPD within
-  30 days, with its codes. A referral credit is other income from abroad (codes 4002 and 4025) with its 30 days, 10% pension
+  30 days, with its report type 8, its mark of the day received and its codes. A referral credit is other income from abroad (codes 4002 and 4025) with its 30 days, 10% pension
   contributions and no figure, since its tax rate is the city's.
   A dividend Revolut booked net waits for its tax withheld to be typed, and other income, such as a
   refund of tax, has no tax of its own. A reversal lowers its payer's figures.

@@ -16,7 +16,7 @@ ZPDoh Art. 12(7): "Inozemni dohodak je dohodak iz članka 5. ovoga Zakona koji r
 
 Bond coupons are not interest for this tax: Art. 65(2)(4) excludes "primici od kamata ostvarenih ulaganjem u obveznice, neovisno o izdavatelju i vrsti obveznica". Kuna leaves coupons out of the Abroad tab.
 
-Mark: `confirmed-consolidated`. Screen: no row of its own.
+Mark: `confirmed-consolidated`. Screen: Settled.
 
 ## Rates by year
 
@@ -37,11 +37,11 @@ Screen: no row of its own. The rates row of capital gains covers the year table.
 
 The US withholds 30% of a dividend paid to a resident of Croatia. The IRS: "Most types of U.S. source income received by a foreign person are subject to U.S. tax of 30%", with a reduced rate where "there is a tax treaty between the foreign person's country of residence and the United States". Read through a summarising fetch with verbatim quotes.
 
-No treaty with the US is in force for 2026 income. Porezna uprava's treaty map lists the USA among the states "s kojima se čeka potvrđivanje ugovora". A news report of 3 November 2026 says the Sabor passed the law confirming the treaty and its 2026 protocol on 25 September 2026, the law appeared in NN MU 6/2026 on 30 October and enters into force on 7 November 2026, and the US Senate has not yet given consent (Treaty Document 119-2). The report adds that "datum stupanja na snagu još nije potvrđen". The NN MU text itself was not loaded.
+No treaty with the US applies to 2026 income. Porezna uprava's treaty map lists the USA among the states "s kojima se čeka potvrđivanje ugovora". The Croatian law confirming the treaty and its 2026 protocol is NN MU 6/2026, item 23, published on 30 October 2026. Its Art. 6 puts it in force "osmoga dana od dana objave", 7 November 2026, and its Art. 5 says "Na dan stupanja na snagu ovoga Zakona Konvencija i Protokol iz članka 1. ovoga Zakona nisu na snazi". The treaty itself enters into force on the later of the two notes the states exchange (Art. 29(2)), and has effect on taxes withheld at source "za iznose plaćene ili uračunate na ili nakon prvog dana drugog mjeseca koji slijedi nakon datuma na koji ova Konvencija stupa na snagu". The treaty cannot enter into force before the Croatian law does, so its effect on tax withheld starts on 1 January 2027 at the earliest, and no dividend paid in 2026 falls in it. A news report of 3 November 2026 adds that the US Senate has not yet given consent (Treaty Document 119-2).
 
 ZPDoh Art. 80(1) gives a treaty priority only once it is "na snazi", and Art. 80(4) caps the credit at what a treaty in force allows. Until the treaty applies, the US 30% stands and the credit is capped by the Croatian tax alone.
 
-Mark: `confirmed-table` for the treaty map, with the US rate from the IRS page and the treaty's progress from a news report. Screen: Settled.
+Mark: `confirmed-nn` for no treaty in 2026, from NN MU 6/2026 and the treaty's Art. 29, with the US rate from the IRS page and the Senate's step from a news report. Screen: Settled.
 
 ## The credit for tax withheld abroad
 
@@ -65,7 +65,7 @@ Mark: `confirmed-consolidated`. Screen: Settled.
 
 ## Nothing withheld: the 30-day JOPPD
 
-When nothing is withheld abroad, ZPDoh Art. 81(1) applies: the person "obvezan je ... na taj dohodak obračunati predujam poreza na dohodak, odnosno konačni porez, i uplatiti ga u roku od 30 dana od dana primitka" and file "propisano izvješće" in the same period. PravPDoh Art. 71(6) says the same for dividends "izravno iz inozemstva". PravPDoh Art. 79(1): such a JOPPD is filed within the 30 days "ali sa oznakom dana i izvješća kada je primitak stvarno ostvaren", and Art. 81(3) item 8 gives it report type 8. Kuna shows the date and the codes, not the report type or mark.
+When nothing is withheld abroad, ZPDoh Art. 81(1) applies: the person "obvezan je ... na taj dohodak obračunati predujam poreza na dohodak, odnosno konačni porez, i uplatiti ga u roku od 30 dana od dana primitka" and file "propisano izvješće" in the same period. PravPDoh Art. 71(6) says the same for dividends "izravno iz inozemstva". PravPDoh Art. 79(1): such a JOPPD is filed within the 30 days "ali sa oznakom dana i izvješća kada je primitak stvarno ostvaren", and Art. 81(3) item 8 gives it report type 8, "kada fizička osoba podnosi izvješće o obračunanom i uplaćenom predujmu poreza na dohodak po osnovi dohotka ostvarenog izravno iz inozemstva". The mark is written as Art. 81(2) sets out, the year's two digits and the day of the year. Kuna shows the date, the report type, the mark and the codes on the Abroad tab. A payment received on 16 October 2026, day 289 of the year, is marked 26289.
 
 Thirty days from 16 October end on 15 November (ZUP Art. 80(2) starts the count the day after). Kuna does not move the 30th day past a weekend, which is the cautious choice.
 
@@ -85,7 +85,6 @@ Mark: `reading`. Screen: A reading.
 
 ## Open points
 
-- The 30-day JOPPD's report type 8 and its mark of the day received are not shown on the screen.
 - The 2023 credit against the surtax was not researched.
 - Whether a dividend paid on a lent share is a dividend or a payment in lieu was not researched. Kuna treats it as the broker books it.
 - What counts as the foreign authority's confirmation (Art. 80(3)) for a broker that books a dividend net. A 1042-S or the broker's yearly tax statement is a `reading`.
@@ -94,7 +93,8 @@ Mark: `reading`. Screen: A reading.
 
 - ZPDoh, Zakon o porezu na dohodak: NN 115/16, 106/18, 121/19, 32/20, 138/20, 151/22, 114/23, 152/24. Art. 12(4), 12(7), 64, 65 (NN 115/16, 151/22, 114/23), 69, 70(1), 70(19), 80, 81 (NN 115/16, 106/18, 151/22, 114/23). <https://www.zakon.hr/z/85/Zakon-o-porezu-na-dohodak>, loaded 4 November 2026.
 - NN 114/23, item 1609, Art. 28, 42. <https://narodne-novine.nn.hr/clanci/sluzbeni/2023_10_114_1609.html>, loaded 4 November 2026.
-- PravPDoh, Pravilnik o porezu na dohodak: NN 10/17 to 157/25. Art. 71(6), 71(7), 79(1), 81(3), 88, 89, 90(8). <https://porezna-uprava.gov.hr/Propisi/GetBasicData/4>, loaded 4 November 2026.
+- NN MU 6/2026, item 23, Zakon o potvrđivanju Konvencije između Vlade Republike Hrvatske i Vlade Sjedinjenih Američkih Država o izbjegavanju dvostrukog oporezivanja, Art. 5, 6, and the treaty's Art. 29. <https://narodne-novine.nn.hr/clanci/medunarodni/2026_10_6_23.html>, loaded 4 November 2026.
+- PravPDoh, Pravilnik o porezu na dohodak: NN 10/17 to 157/25. Art. 71(6), 71(7), 79(1), 81(2), 81(3), 88, 89, 90(8). <https://porezna-uprava.gov.hr/Propisi/GetBasicData/4>, loaded 4 November 2026.
 - ZUP: NN 47/09, 110/21. Art. 80(2). <https://www.zakon.hr/z/65/Zakon-o-op%C4%87em-upravnom-postupku>, loaded 4 November 2026.
 - Porezna uprava: treaty map, <https://porezna-uprava.gov.hr/hr/ugovori-o-izbjegavanju-dvostrukog-oporezivanja/7559>. INO-IZJAVA, <https://porezna-uprava.gov.hr/hr/ino-izjava/4526>. INO-DOH, <https://porezna-uprava.gov.hr/hr/obrazac-ino-doh/4524>. Austrian dividend example, <https://porezna-uprava.gov.hr/UserDocsImages/Arhiva/HR_obrasci/Obrasci%20nesvrstani/INODOH/DIVIDENDA%20AUSTRIJA.pdf?vel=497838>. All loaded 4 November 2026.
 - IRS, NRA withholding, <https://www.irs.gov/individuals/international-taxpayers/nra-withholding>, loaded 4 November 2026 through a summarising fetch.

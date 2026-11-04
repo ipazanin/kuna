@@ -18,6 +18,13 @@ describe('the tax date on the home card', () => {
     expect(reminderOn('2027-02-15')).toEqual({ kind: 'joppd', due: '2027-03-01' })
   })
 
+  it('gives no JOPPD on 15 Feb 2027 for a year whose sales end in a loss', () => {
+    const records = exampleYear()
+    const losing = { ...records, income: [], trades: records.trades.filter((record) => record.side === 'buy' || record.instrument === DIVIDEND_CO.id) }
+
+    expect(taxReminder(losing, EXAMPLE_RATES, civil('2027-02-15'))).toBeNull()
+  })
+
   it('gives nothing on 2 Mar 2027', () => {
     expect(reminderOn('2027-03-02')).toBeNull()
   })

@@ -2,7 +2,10 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
+import { ONE_DAY_SETTLEMENT_FROM } from '../src/apps/investments/tax/domain/settlementDay'
 import { JOPPD_CODES, TAX_RULES, rulesOf } from '../src/apps/investments/tax/domain/taxRules'
+import type { RuleMark } from '../src/apps/investments/tax/domain/taxRules'
+import { en } from '../src/apps/investments/tax/presentation/words'
 import { LAW_README, indexedReadme } from '../scripts/law-index.mjs'
 
 const root = join(import.meta.dirname, '..')
@@ -29,17 +32,30 @@ function proseLines(path: string): string[] {
     })
 }
 
+/** The anchor GitHub gives a heading. */
+function anchorOf(heading: string): string {
+  return heading
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
+    .replace(/\s/g, '-')
+}
+
 /** The anchors GitHub gives a file's headings. */
 function anchorsOf(path: string): Set<string> {
-  const headings = proseLines(path).flatMap((line) => line.match(/^#{1,6} (.+)$/)?.slice(1) ?? [])
   return new Set(
-    headings.map((heading) =>
-      heading
-        .toLowerCase()
-        .replace(/[^\p{L}\p{N}\s_-]/gu, '')
-        .replace(/\s/g, '-'),
-    ),
+    proseLines(path)
+      .flatMap((line) => line.match(/^#{1,6} (.+)$/)?.slice(1) ?? [])
+      .map(anchorOf),
   )
+}
+
+/** The first sentence after "Screen: " in the section under a heading, up to the next heading of any level. */
+function screenSentenceOf(file: string, anchor: string): string | undefined {
+  const lines = proseLines(join(lawDir, file))
+  const start = lines.findIndex((line) => /^#{1,6} /.test(line) && anchorOf(line.replace(/^#+ /, '')) === anchor)
+  const end = lines.findIndex((line, index) => index > start && /^#{1,6} /.test(line))
+  const line = lines.slice(start + 1, end < 0 ? undefined : end).find((candidate) => candidate.includes('Screen: '))
+  return line?.slice(line.indexOf('Screen: ') + 'Screen: '.length).split(/\.( |$)/)[0]
 }
 
 const cellsOf = (line: string): string[] =>
@@ -81,6 +97,20 @@ describe('law docs', () => {
     const path = join(lawDir, file!)
     expect(existsSync(path), `docs/law/${file} is missing`).toBe(true)
     expect([...anchorsOf(path)]).toContain(anchor)
+  })
+
+  const marksByHeading = Object.entries(TAX_RULES).reduce<Record<string, RuleMark[]>>((byLaw, [, basis]) => ({ ...byLaw, [basis.law]: [...(byLaw[basis.law] ?? []), basis.mark] }), {})
+  it.each(Object.entries(marksByHeading))('names under %s the screen mark of each rule resting on it', (law, marks) => {
+    const [file, anchor] = law.split('#')
+    const sentence = screenSentenceOf(file!, anchor!)
+    expect(sentence, `${law} has no "Screen:" sentence`).toBeDefined()
+    const named = (Object.entries(en.marks) as [RuleMark, string][]).filter(([, label]) => sentence!.includes(label)).map(([mark]) => mark)
+    expect(named.sort()).toEqual([...new Set(marks)].sort())
+  })
+
+  it('states the day each market moves to settling one business day after the trade', () => {
+    const rows = tableUnder('hnb-rates-and-settlement.md', 'Settlement cycles')
+    expect(Object.fromEntries(rows.map((row) => [row.Currency, row['One day from']]))).toEqual(ONE_DAY_SETTLEMENT_FROM)
   })
 
   it('states the capital gains rate and surtax of every year Kuna has a row for', () => {

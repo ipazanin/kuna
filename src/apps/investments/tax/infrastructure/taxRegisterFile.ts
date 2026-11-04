@@ -84,6 +84,17 @@ const YES = 'Da'
 const NO = 'Ne'
 const CITY_SURTAX = 'Stopa prireza vašeg grada na 14.1'
 const SALES_BY_SETTLEMENT = 'Po datumu namire, ZPDoh čl. 11. st. 3.'
+const NO_JOPPD_AFTER_LOSS = 'Ne, gubici su veći od dobitaka (Pravilnik o porezu na dohodak čl. 77. st. 13.)'
+const NO_JOPPD_WITHOUT_GAINS = 'Ne, nema dobitka za prijavu'
+const JOPPD_TAX_FREE_ONLY = 'Samo za neoporezive dobitke, nepotvrđeno'
+
+/** Whether the year owes a JOPPD, and in a year that ends in a loss, that only its tax-free gains might. */
+function joppdDutyOf(gains: CapitalGainsYear): string {
+  if (gains.due === null) {
+    return gains.endsInLoss ? NO_JOPPD_AFTER_LOSS : NO_JOPPD_WITHOUT_GAINS
+  }
+  return gains.endsInLoss ? JOPPD_TAX_FREE_ONLY : YES
+}
 
 export function taxRegisterFileName(year: number): string {
   return `kuna-porez-${year}.xlsx`
@@ -247,9 +258,12 @@ function summaryRows(gains: CapitalGainsYear, income: ForeignIncomeYear): Cell[]
     ['13.5 Porezna osnovica', eurosCell(gains.base)],
     [`14.1 Porez na dohodak ${gains.rules.rules.gainsRate}%`, eurosCell(gains.tax)],
     ['14.2 Prirez', gains.rules.rules.surtax ? CITY_SURTAX : eurosCell(ZERO)],
+    ['16.1 Oznaka načina isplate', 1],
+    [gains.rules.rules.surtax ? '16.2 Iznos za isplatu, prije oduzimanja prireza' : '16.2 Iznos za isplatu', eurosCell(gains.payout)],
     ['Primitak s oznakom 02, imovina dulje od dvije godine', eurosCell(gains.taxFreeGains)],
     ['Gubitak na imovini dulje od dvije godine, ne odbija se', eurosCell(gains.oldLosses)],
-    ['Rok za JOPPD i uplatu poreza', dayCell(gains.due)],
+    ['Obveza JOPPD-a', joppdDutyOf(gains)],
+    ['Rok za JOPPD i uplatu poreza', gains.due === null ? undefined : dayCell(gains.due)],
     ['INO-DOH bruto', eurosCell(income.inoDoh.gross)],
     ['INO-DOH porez plaćen u inozemstvu', eurosCell(income.inoDoh.withheld)],
     [`INO-DOH porez u RH ${income.rules.rules.incomeRate}%`, eurosCell(income.inoDoh.croatian)],

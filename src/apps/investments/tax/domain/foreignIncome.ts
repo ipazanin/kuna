@@ -2,7 +2,7 @@ import { dayRate, inEurosAt, isEstimate } from './hnbRate'
 import type { DayRate } from './hnbRate'
 import { inoDohDue, inoIzjavaDue, thirtyDaysDue } from './taxDeadlines'
 import type { InoDohDue } from './taxDeadlines'
-import { JOPPD_CODES, percentOf, rulesOf } from './taxRules'
+import { JOPPD_CODES, joppdReportMark, percentOf, rulesOf } from './taxRules'
 import type { YearRules } from './taxRules'
 import { en as importEnglish, hr as importCroatian } from '../../imports/domain/words'
 import type { RateBook } from '../../prices/domain/rateBook'
@@ -57,6 +57,8 @@ export interface ForeignPayment {
   readonly tax: IncomeTax | null
   /** The last day of a payment's 30 days. Null for the INO-DOH and for a reversal. */
   readonly due: CivilDate | null
+  /** The 30-day JOPPD's report mark, of the day the payment was received. Null where `due` is. */
+  readonly reportMark: string | null
   /** Null outside the 30-day JOPPD, a referral credit's among them. */
   readonly codes: JoppdCodes | null
 }
@@ -209,7 +211,7 @@ export function foreignIncomeYear(book: InvestmentBook, rates: RateBook, year: n
       const rate = dayRate(rates, payment.currency, payment.date)
       const route = routeOf(payment, kind)
       const taxed = route === 'ino-doh' || route === 'joppd'
-      const reversal = payment.gross < DECIMAL_ZERO
+      const thirtyDays = (route === 'joppd' || route === 'referral') && payment.gross >= DECIMAL_ZERO
       return {
         payment,
         kind,
@@ -219,7 +221,8 @@ export function foreignIncomeYear(book: InvestmentBook, rates: RateBook, year: n
         rate,
         route,
         tax: taxed ? taxOf(payment, rate, rules.rules.incomeRate) : null,
-        due: (route === 'joppd' || route === 'referral') && !reversal ? thirtyDaysDue(payment.date) : null,
+        due: thirtyDays ? thirtyDaysDue(payment.date) : null,
+        reportMark: thirtyDays ? joppdReportMark(payment.date) : null,
         codes: codesOf(kind, route),
       }
     })

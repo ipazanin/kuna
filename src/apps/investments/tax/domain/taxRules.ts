@@ -1,3 +1,5 @@
+import { civilDate, daysBetween, yearOf } from '../../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dividedRounded, moneyFromCents } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 
@@ -23,25 +25,30 @@ export const TAX_RULES = {
   settlementDay: { mark: 'reading', law: 'hnb-rates-and-settlement.md#the-settlement-day-as-the-payment-day' },
   decemberSale: { mark: 'reading', law: 'capital-gains.md#which-year-a-sale-counts-in' },
   sameYearLosses: { mark: 'settled', law: 'capital-gains.md#losses' },
-  oldLosses: { mark: 'reading', law: 'capital-gains.md#losses-on-lots-past-two-years' },
+  oldLosses: { mark: 'settled', law: 'capital-gains.md#losses-on-lots-past-two-years' },
+  fees: { mark: 'reading', law: 'capital-gains.md#fees' },
   joppdDeadline: { mark: 'settled', law: 'joppd-for-investors.md#due-dates' },
+  lossYear: { mark: 'settled', law: 'joppd-for-investors.md#who-files' },
+  taxFreeInLossYear: { mark: 'unconfirmed', law: 'joppd-for-investors.md#who-files' },
   joppdCodes: { mark: 'settled', law: 'joppd-for-investors.md#codes' },
   joppdMapping: { mark: 'reading', law: 'joppd-for-investors.md#the-capital-gains-joppd' },
   gainsRecipient: { mark: 'unconfirmed', law: 'joppd-for-investors.md#recipient-1001-or-1003' },
-  codeTwoForShares: { mark: 'reading', law: 'joppd-for-investors.md#the-code-02-line' },
+  codeTwoForShares: { mark: 'settled', law: 'joppd-for-investors.md#the-code-02-line' },
   foreignCredit: { mark: 'settled', law: 'foreign-capital-income.md#the-credit-for-tax-withheld-abroad' },
   usTreaty: { mark: 'settled', law: 'foreign-capital-income.md#us-withholding' },
   withheldAbroad: { mark: 'settled', law: 'foreign-capital-income.md#tax-withheld-abroad-ino-izjava-and-ino-doh' },
   inoDohWeekend: { mark: 'reading', law: 'filing-calendar.md#weekends-and-holidays' },
   thirtyDays: { mark: 'settled', law: 'foreign-capital-income.md#nothing-withheld-the-30-day-joppd' },
+  thirtyDayReport: { mark: 'settled', law: 'foreign-capital-income.md#nothing-withheld-the-30-day-joppd' },
   thirtyDayCodes: { mark: 'reading', law: 'joppd-for-investors.md#codes' },
   brokerInterest: { mark: 'reading', law: 'foreign-capital-income.md#interest-a-broker-pays' },
+  bondCoupons: { mark: 'settled', law: 'foreign-capital-income.md#income-from-abroad' },
   stockLending: { mark: 'reading', law: 'other-investment-income.md#stock-lending' },
   referralCredit: { mark: 'unconfirmed', law: 'other-investment-income.md#referral-credits' },
   referralContributions: { mark: 'settled', law: 'other-investment-income.md#contributions-on-a-referral-credit' },
   croatianIsin: { mark: 'reading', law: 'foreign-capital-income.md#payments-of-a-croatian-isin' },
   usSettlement: { mark: 'settled', law: 'hnb-rates-and-settlement.md#settlement-cycles' },
-  europeSettlement: { mark: 'unconfirmed', law: 'hnb-rates-and-settlement.md#settlement-cycles' },
+  europeSettlement: { mark: 'settled', law: 'hnb-rates-and-settlement.md#settlement-cycles' },
 } as const satisfies Readonly<Record<string, RuleBasis>>
 
 export type TaxRule = keyof typeof TAX_RULES
@@ -52,6 +59,8 @@ export const JOPPD_CODES = {
   gainsReportType: '11',
   /** Submitter 4, a private person. */
   submitter: '4',
+  /** Report type 8, a JOPPD a person files within 30 days for income received straight from abroad. */
+  foreignReportType: '8',
   gains: { recipient: '1001', receipt: '1006' },
   /** Field 15.1 of the line for gains past two years, which carries 0000 in 6.1 and 6.2. */
   taxFree: { nonTaxable: '02', recipientAndReceipt: '0000' },
@@ -59,6 +68,12 @@ export const JOPPD_CODES = {
   interest: { recipient: '1103', receipt: '1005' },
   referral: { recipient: '4002', receipt: '4025' },
 } as const
+
+/** The JOPPD's report mark of a day: the year's two digits and the day of the year, 26365 for 31 December 2026. */
+export function joppdReportMark(day: CivilDate): string {
+  const dayOfYear = daysBetween(civilDate(yearOf(day), 1, 1), day) + 1
+  return `${String(yearOf(day) % 100).padStart(2, '0')}${String(dayOfYear).padStart(3, '0')}`
+}
 
 /** The tax on capital in one year, as the law in force that year sets it. */
 export interface CapitalTaxRules {
