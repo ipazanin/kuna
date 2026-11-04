@@ -16,7 +16,7 @@ import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import { ruleLink } from '../../ruleset/presentation/taxRuleLinks'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { dividendCapacity } from '../../domain/dividend/dividendCapacity'
-import type { InterimCash, PayoutOption, PayoutOptionId } from '../../domain/dividend/dividendCapacity'
+import type { CashNow, PayoutOption, PayoutOptionId } from '../../domain/dividend/dividendCapacity'
 import type { ForecastLine, ForecastMonth, LinePart, MonthBasis } from '../../domain/forecast/forecastLines'
 import { forecastYear } from '../../domain/forecast/forecastYear'
 import { planAgainstActual } from '../../domain/forecast/planAgainstActual'
@@ -288,7 +288,7 @@ function forecastView(workbook: HrDooWorkbook, year: number, asOf: CivilDate, co
       prudence: prudenceLines,
       deterioration: ruleChips([prudence.deterioration]),
       decideBy: dayLabel(capacity.decideBy),
-      payouts: capacity.options.map((option) => payoutView(option, linkOf)),
+      payouts: capacity.options.map((option) => payoutView(option, option.id === 'kept-now' ? capacity.keptProfit : null, linkOf)),
       summary: words.tiles.couldBePaidOut(formatMoney(capacity.maxPayout.amount)),
     },
     cashMonths,
@@ -375,21 +375,26 @@ function differenceWords(difference: number, cost: boolean): string {
   return words.difference(formatMoney(Math.abs(difference) as Money), cost, difference > 0)
 }
 
-function payoutView(option: PayoutOption, linkOf: (figure: TracedFigure | null) => RouteLocationRaw | null): PayoutView {
+/** `keptProfit` is what the kept profit paid out now starts from, and null for the other options. */
+function payoutView(option: PayoutOption, keptProfit: TracedFigure | null, linkOf: (figure: TracedFigure | null) => RouteLocationRaw | null): PayoutView {
   const shown = (key: string, label: string, figure: TracedFigure | null): ShownFigure[] => (figure === null ? [] : [{ key, label, cents: figure.amount, to: linkOf(figure) }])
   const { cashNow } = option
-  const cashShort = cashNow !== null && cashNow.largestPayout.amount < option.gross.amount
+  // A set-off needs no cash, so the test is on what leaves the bank, not on the gross.
+  const cashShort = cashNow !== null && cashNow.available.amount < option.cashOut.amount
+  const capped = keptProfit !== null && cashNow !== null && option.gross.amount < keptProfit.amount
   return {
     id: option.id,
     name: PAYOUT_NAMES[option.id],
     label: option.label,
     when: option.earliestOn === null || option.latestOn === null ? withFullStop(figureLabel(option.gross)) : words.payout.when(dayLabel(option.earliestOn), dayLabel(option.latestOn)),
-    warning: cashShort ? interimCashWarning(cashNow) : null,
+    warning: cashShort ? cashShortWarning(cashNow) : capped ? words.payout.cashCapped(formatMoney(keptProfit.amount), formatMoney(option.gross.amount)) : null,
     figures: [
+      ...shown('kept-profit', words.payout.keptProfit, keptProfit),
       ...shown('gross', words.payout.gross, option.gross),
       ...shown('tax', words.payout.tax, option.dividendTax),
       ...shown('net', words.payout.net, option.net),
       ...shown('set-off', words.payout.setOff, option.setOff),
+      ...shown('paid-to-owner', words.payout.paidToOwner, option.paidToOwner),
       ...shown('cash-out', words.payout.cashOut, option.cashOut),
       ...shown('cash-left', cashNow === null ? words.payout.cashLeft : words.payout.cashLeftAfter(dueOn(cashNow)), option.cashLeft),
       ...(cashShort ? shown('cash-allows', words.payout.cashAllows, cashNow.largestPayout) : []),
@@ -405,11 +410,11 @@ function payoutView(option: PayoutOption, linkOf: (figure: TracedFigure | null) 
   }
 }
 
-function interimCashWarning(cash: InterimCash): string {
+function cashShortWarning(cash: CashNow): string {
   return words.payout.cashShort(figureLabel(cash.cash), dueOn(cash), formatMoney(cash.largestPayout.amount))
 }
 
 /** The day by which what the cash must still pay falls due, or null when it names none. */
-function dueOn(cash: InterimCash): string | null {
+function dueOn(cash: CashNow): string | null {
   return cash.fallingDue.on === null ? null : dayLabel(cash.fallingDue.on)
 }

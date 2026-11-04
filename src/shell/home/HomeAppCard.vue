@@ -9,6 +9,7 @@ import AppCard from '../../shared/ui/AppCard.vue'
 import AppMark from '../../shared/ui/AppMark.vue'
 import MoneyText from '../../shared/ui/MoneyText.vue'
 import { entryPath } from '../routing/appRegistry'
+import OpeningPlaceholder from '../ui/OpeningPlaceholder.vue'
 import { words } from './words'
 
 /** One app on the home, the whole card a link: into its first screen with its figures, or into its first run, which it offers as Set up. */
@@ -34,7 +35,7 @@ const to = computed(() => entryPath(props.app))
         <UIcon name="i-lucide-arrow-right" class="size-4 shrink-0 text-muted" aria-hidden="true" />
       </div>
 
-      <span v-if="figures === 'opening'" class="block h-8 w-36 rounded-control bg-elevated motion-safe:animate-pulse" aria-hidden="true" data-testid="home-card-opening"></span>
+      <OpeningPlaceholder v-if="figures === 'opening'" data-testid="home-card-opening" />
       <p v-else-if="figures === 'failed'" class="type-body" data-testid="home-card-failed">{{ words.failed }}</p>
       <template v-else-if="figures !== null">
         <dl class="flex flex-wrap gap-x-8 gap-y-3">

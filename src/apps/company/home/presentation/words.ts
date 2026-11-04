@@ -7,12 +7,16 @@ export const en = {
   purpose: "Your company's books from its bank statements: cash, invoices, taxes and the year end.",
   cashOnHand: 'Cash on hand',
   toReview: (count: number): EnglishForms => ({ one: `${count} row to review`, other: `${count} rows to review` }),
+  ownerPayOff: 'What you could take out shows once owner pay is on.',
+  noBooking: 'What you could take out shows once the books hold a booking.',
 }
 
 export const hr: Translation<typeof en> = {
   purpose: 'Financije vaše tvrtke iz bankovnih izvoda: novac, računi, porezi i kraj godine.',
   cashOnHand: 'Novac na računima',
   toReview: (count) => ({ one: `${count} stavka za provjeru`, few: `${count} stavke za provjeru`, other: `${count} stavki za provjeru` }),
+  ownerPayOff: 'Iznos koji možete isplatiti prikazuje se kad je uključena plaća vlasnika.',
+  noBooking: 'Iznos koji možete isplatiti prikazuje se kad datoteka ima barem jednu knjižbu.',
 }
 
 export const words = language === 'hr' ? hr : en

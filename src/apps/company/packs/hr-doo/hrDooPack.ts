@@ -6,6 +6,7 @@ import { packPart } from '../../workbook/domain/packPart'
 import { ACCOUNTANT_MAIL_SOURCES } from './application/accountantMailSources'
 import { COMPANY_FACT_SETTINGS, companyFactsErrors } from './domain/companyFacts'
 import { HR_DOO, HR_DOO_PART, hrDooWorkbook } from './domain/hrDooPart'
+import { ownerTakeOut } from './presentation/ownerTakeOut'
 import { packWaitingJobs } from './presentation/packWaitingJobs'
 import { unaccountedInView } from './presentation/unaccountedInView'
 import { words as packWords } from './presentation/words'
@@ -27,6 +28,7 @@ export const hrDooPack: PackContribution = {
     { path: '/company/salaries', title: packWords.screens.salaries, icon: 'i-lucide-users', component: () => import('./presentation/salaries/SalariesScreen.vue') },
   ],
   waitingJobs: (workbook, asOf) => packWaitingJobs(hrDooWorkbook(workbook), asOf),
+  ownerTakeOut: (workbook, asOf) => ownerTakeOut(hrDooWorkbook(workbook), asOf),
   reviewCards: [
     {
       component: defineAsyncComponent(() => import('./presentation/UnaccountedCard.vue')),

@@ -1,14 +1,16 @@
 import type { AppContribution, AppScreen } from '../../shared/app/appContribution'
+import { homeCardFigures } from '../../shared/app/homeCardFigures'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
 import { autoSyncOn } from '../../shared/sync/infrastructure/autoSyncSwitch'
 import { bindFiltersToRouter } from './filters/application/filterStore'
 import { COMPANY_HOME_CARD } from './home/presentation/companyHomeCard'
+import { companyHubFigures } from './home/presentation/companyHubFigures'
 import { ONBOARDING_ROUTE } from './onboarding/presentation/useOnboarding'
 import { hrDooPack } from './packs/hr-doo/hrDooPack'
 import { HR_DOO_TABS } from './packs/hr-doo/infrastructure/hrDooTabs'
 import { installPack, shownPack } from './packs/packContribution'
 import { useSettings } from './settings/application/useSettings'
-import { amountLocaleOf } from './settings/domain/settings'
+import { moneyFormatOf } from './settings/domain/settings'
 import { words as analysisWords } from './analysis/presentation/words'
 import { words as invoicingWords } from './invoicing/presentation/words'
 import { words as onboardingWords } from './onboarding/presentation/words'
@@ -64,8 +66,9 @@ export const companyApp: AppContribution = {
     return count === 0 ? null : { count, opens: REVIEW_LINK }
   },
   subtitle: () => state.workbook?.settings.companyName || null,
-  moneyFormat: () => ({ currency: settings.value.currency, locale: amountLocaleOf(settings.value) }),
+  moneyFormat: () => moneyFormatOf(settings.value),
   homeCard: COMPANY_HOME_CARD,
+  hub: { counts: false, figures: () => homeCardFigures(state, companyHubFigures) },
   // Nothing chosen and nothing kept: onboarding takes it, whatever screen the address names.
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
   startPath: ONBOARDING_ROUTE,

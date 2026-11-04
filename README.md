@@ -347,11 +347,22 @@ own colour (brass for Company, teal for Loans, plum for Investments) and its sub
 it. Then its menu with counts, its own Settings set apart, and Sync at the foot. Below 1024 px the
 same list is in the drawer behind the top bar's menu button. On the home and Kuna settings the
 sidebar opens with the same Kuna mark and lists every app with its tile and name, linking where its card does and with a Set up badge
-while the app waits for its first run, then Kuna settings below a line, and Sync. On a phone the home's top bar shows Kuna and Sync
-with no menu button, and Kuna settings is a button under the cards. There is one Sync, in the same
+while the app waits for its first run, then Overview and Kuna settings below a line, and Sync. Below 1024 px the home's top bar shows Kuna and Sync
+with no menu button, Overview is a button over the cards and Kuna settings one under them. There is one Sync, in the same
 place on the home and in every app, and it syncs every app's file on Drive. Each first run starts
 with a quiet Kuna mark and name linking home, so a first run left half way goes back to the home. There is no app
 switcher, keyboard shortcut or bottom bar.
+
+Kuna's Overview at `#/overview` leads with Investments less loans: the Investments value plus what
+others owe you, less what you owe. It is not called net worth, and its caption says what it leaves out:
+bank accounts and property, which no app keeps yet, and holdings without a price. A tile per part
+follows, You owe in all with the next loan payment as its caption, each opening its app's Overview.
+A Loans or Investments file that failed to open holds the sum back and names the app, one still
+opening shows a placeholder, and an app not set up counts as nothing and is listed with Set up.
+Below, apart from the sum, the company's money is one figure: what the owner could take out now,
+the kept profit paid out today as Year's Pay tab works it out, after the dividend tax and with the
+owner's loan to the company settled first, or a line saying why there is none. It opens that option on the Pay tab. Each app gives its
+figures through `hub` on its `AppContribution`, and `src/shared/app/personalNet.ts` adds them up.
 
 The browser tab names the screen and then its app, such as "Overview, Company – Kuna" or "Settings,
 Tax rules, Company – Kuna". The phone top bar shows the screen's title alone, since the drawer names
@@ -1160,14 +1171,21 @@ disposals, which pay nothing, are not.
 what the forecast leaves to pay out: profit after tax, retained earnings at the start of the year,
 losses brought forward and what the year has paid out already, the distributable amount, and net
 assets after a payout against the share capital. Beside it stand the grant clawback exposure, cash
-at the year end with December settled less the tax balance, and what the owner owes. Three options
-carry their dividend tax, net, cash, loan and capital consequences: one payout once the members
-adopt the statements, set off against what the owner owes, an interim payout now on the profit of
-the complete months, with the part the year's profit does not cover taxed as the owner's income,
-or keeping the profit in the company. The interim payout is weighed against cash on the newest
-booking instead of the year end, less the corporate tax due by the end of that month and the pay
-of the last complete month the ledger has not paid yet. When the payout and its tax exceed that,
-the option gives the largest payout the cash covers. The figures are for planning with the
+at the year end with December settled less the tax balance, and what the owner owes. Four options
+carry their dividend tax, net, set-off, what reaches the owner, cash, loan and capital consequences:
+one payout once the members adopt the statements, the kept profit paid out now, an interim payout
+now on the profit of the complete months, with the part the year's profit does not cover taxed as
+the owner's income, or keeping the profit in the company. The first three settle what the owner owes
+the company before any of the net is paid in cash. The kept profit is the retained earnings after
+the newest year the year-end tab holds, less every payout the ledger booked since. This year's
+planned dividend comes off too once the tab holds last year, which it is paid from. It is offered
+only for the year of the newest booking, and without year-end figures it is nothing. Its option
+shows the kept profit and says when the cash cut the payout down. The kept profit and the interim payout are weighed against cash on the newest booking
+instead of the year end, less the corporate tax due by the end of that month and the pay of the
+last complete month the ledger has not paid yet, which in January is read from the year before.
+The kept profit pays no more than that. When what the interim payout pays out in cash with its
+tax exceeds it, the option warns and gives the most the cash allows. The part that settles the
+owner's loan needs no cash. The figures are for planning with the
 accountant, never filing advice.
 
 ## Pay scenarios
@@ -1319,7 +1337,7 @@ and links to Settings or to Salaries for whichever is missing. The scenarios can
 without them. Two to four scenarios are compared, picked with `compare=` in the address, with
 `base=` the one the others are compared against, by default the starting floor salary scenario.
 "What the scenarios start from" opens the company figures, each on its build-up. Dividend capacity
-follows, switching between the three payout options with `payout=interim` or `payout=keep` in the
+follows, switching between the four payout options with `payout=kept-now`, `payout=interim` or `payout=keep` in the
 address, and warning when the cash on the newest booking does not cover the interim payout. One
 100% bar per scenario splits the profit before owner pay into net to the owner, pillar II, each tax
 and contribution, and what the company keeps, and under the bars each scenario has a badge with its
@@ -1988,7 +2006,7 @@ npm run check:visual   # every screen at nine widths from 360 to 2560 in local C
 npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer of one app's menu under the link home, the home's top bar without a menu button and a fresh device's home in Set up, the tabs of the company's Settings with Back, a link to Year's Statements tab alone kept in its year, the Tax rules search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the categories searched, filtered from their sheet, sorted and edited while filtered, Owner opening on Taken with its net share and monthly net pay tiles, Owner's Filters button on the tab row setting one period for both tabs, the owner take under its ring against its tile, a month of the loan balance beside the ring opening its rows, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, one added outside the period and opened from its toast, the split editor on Transactions and its To review tab, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed and held on sync with each state of the sync control and its steps in a bottom sheet, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and back into onboarding's access step, and from the silent ask after a sign-in with the sync it carries, ending ready or in Allow access, Salaries for five made-up employees with the gross to net chart's tap-then-drill, the one problem's build-up and rows, People and Over time, the mail step off, saved, filing with its list and filing nothing new the second time, nothing new, a failed source, a failed upload, needing Gmail read access and saved with Gmail read asked in the same tap, the accountant's mail switched off, the payroll switched on without a sender, Gmail asking to slow down, the window after mail already there, Allow access whose Google window closed, onboarding on the fake Drive with statements by hand, from mail with its first sync and from a folder, in this browser, with an xlsx brought along and with books found on Drive, the statement step asking for Drive read before the Picker, a workbook moved there from Settings, Books file with the Drive read its folders need, a race kept on both sides, the newer-file notice, the Loans find a tap resumed ending on the Loans Overview, the sample Loans Overview and both loan pages with a plan row opened by a tap and the payments chart as a table, an extra payment entered and undone, the Home loan's two charts set to the last year together and back to All, Scenarios' picker, base select and Delete with Undo, 100,000 at 4% over 10 years typed into a new scenario with the editor's headline reading the annuity and then equal principal, a rate change saved as a try on a loan's page, deleted and undone, the Investments first run making its file on the fake Drive and ending on its empty Overview and Settings, a Holdings row opening its holding's page and the way back, the period of Performance changed to 1Y, to a year and back to All, a dollar buy typed on Transactions with 0.01k in its fees and its summary read, then added and undone, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # open as the document, write and read it, export and open again, counts only
-npm run check:figures -- --workbook <file.xlsx or .json>   # a count and a digest per group of figures behind every screen, or --fake <variant>, never a figure, so two trees compare with diff. --loans <kuna-loans.json> or --fake-loans sample (or house-and-car or equal-principal) adds the Loans groups, or gives them alone, and --investments <kuna-investments.json> with --investments-prices <kuna-investments-prices.json>, or --fake-investments sample with the fake prices file, adds the Investments groups: the records, each holding, each account's cash, the portfolio, the last day, the Overview's cards, the value over time, the benchmark's closes, Performance over each period it offers and its returns by year
+npm run check:figures -- --workbook <file.xlsx or .json>   # a count and a digest per group of figures behind every screen, or --fake <variant>, never a figure, so two trees compare with diff. --loans <kuna-loans.json> or --fake-loans sample (or house-and-car or equal-principal) adds the Loans groups, or gives them alone, and --investments <kuna-investments.json> with --investments-prices <kuna-investments-prices.json>, or --fake-investments sample with the fake prices file, adds the Investments groups: the records, each holding, each account's cash, the portfolio, the last day, the Overview's cards, the value over time, the benchmark's closes, Performance over each period it offers and its returns by year. With a Loans and an Investments input, hub.personal adds them up as Kuna's Overview does
 ```
 
 The fake workbook is an 18-month synthetic company: two accounts, one closed by a sweep into the
@@ -2068,9 +2086,10 @@ instalment, an extra payment and a late instalment, and a loan from a friend wit
 kind, borrowing back among them. The sample also keeps three scenarios of the home loan and three offers, one of them repaid in equal
 principal. `?loans=one-loan` keeps the home loan alone, `?loans=house-and-car`
 the home loan beside a five-year car loan that ends in 2029, `?loans=equal-principal` one flat loan
-repaid in equal principal with a subsidy and no scenarios or offers, and `?loans=opening`
+repaid in equal principal with a subsidy and no scenarios or offers, `?loans=opening`
 chooses the sample on the fake Drive with nothing in this browser and holds every read of it, so the
-Loans screens stay opening. Without it Loans starts on its first run. `?investments=drive` keeps an
+Loans screens stay opening, and `?loans=failed` chooses it with nothing in this browser and the file
+in the fake Drive's bin, so its first read fails. Without it Loans starts on its first run. `?investments=drive` keeps an
 empty Investments file on the fake Drive, and `?investments=sample` a file with a made-up portfolio
 (`src/apps/investments/workbook/infrastructure/fake/fakeInvestments.ts`): two accounts at made-up
 brokers, euros changed into dollars, two US shares on the fake prices file's series, one partly sold, a
@@ -2141,14 +2160,14 @@ each app's `app.ts` as the page starts, installs it, then mounts the shell. `src
 frame, the router, the app registry, the home and Kuna settings. `src/shared` is the kernel every app
 uses: the UI kit, the calendar, money and text helpers, Google, the document storage, and
 `AppContribution` in `src/shared/app/appContribution.ts`, which says what an app gives the shell:
-its name, its screens and menu, its Settings screen, its card on the home, its first run, its group
-of the page's sync and what it starts as the page opens. No app is special. The shell shows the
+its name, its screens and menu, its Settings screen, its card on the home, its figures on Kuna's
+Overview, its first run, its group of the page's sync and what it starts as the page opens. No app is special. The shell shows the
 menu of the app on screen only, as _The home and each app's menu_ describes. An app's first run
 takes the addresses under it and no others, so the home and Kuna settings stay the shell's.
 `src/apps/company` is the company app, and every route of it starts with `#/company`: Overview at
 `#/company`, Transactions at `#/company/transactions`, Settings at `#/company/settings`, onboarding
-at `#/company/start`. `#/` is the home, and so is an address no screen has. Kuna settings is the
-shell's, at `#/settings`. An app imports only its own folder and `src/shared`, so no app imports
+at `#/company/start`. `#/` is the home, and so is an address no screen has. Kuna's Overview and Kuna
+settings are the shell's, at `#/overview` and `#/settings`. An app imports only its own folder and `src/shared`, so no app imports
 another, and `tests/importBoundaries.spec.ts` checks it.
 
 ### Loans

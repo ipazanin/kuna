@@ -47,7 +47,7 @@ const props = defineProps<{
 /** At most this many scenarios sit side by side. */
 const MOST_COMPARED = 4
 
-const PAYOUTS: readonly PayoutOptionId[] = ['after-adoption', 'interim', 'keep']
+const PAYOUTS: readonly PayoutOptionId[] = ['after-adoption', 'kept-now', 'interim', 'keep']
 
 const { drillLocation } = useFilters()
 const route = useRoute()

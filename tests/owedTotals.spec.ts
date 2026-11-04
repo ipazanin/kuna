@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
 import { bankLoanFigures } from '../src/apps/loans/bankLoans/presentation/bankLoanView'
 import { informalLoanFigures } from '../src/apps/loans/informalLoans/presentation/informalLoanView'
-import { owedTotals } from '../src/apps/loans/overview/presentation/owedTotals'
+import { owedOnDay, owedTotals } from '../src/apps/loans/overview/presentation/owedTotals'
 import type { BankLoan } from '../src/apps/loans/workbook/domain/bankLoan'
 import type { InformalLoan } from '../src/apps/loans/workbook/domain/informalLoan'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
@@ -55,5 +55,19 @@ describe('what you owe over every loan', () => {
 
   it('adds nothing for a bank loan whose plan cannot be worked out', () => {
     expect(totalsOf([bankBook(bankLoan(), false)], [])).toEqual({ owed: euros(0), owedToYou: euros(0), loansYouOwe: 0, loansOwedToYou: 0 })
+  })
+})
+
+describe('what you owe over every loan of the file on a day', () => {
+  it('works out each loan’s figures on the day and adds them up', () => {
+    const toMarko = informalLoan({ id: recordIdOf(INFORMAL_LOAN_RECORDS, 'to-marko'), name: 'To Marko', direction: 'owed-to-you', openingBalance: euros(800), start: civil('2026-01-02') })
+
+    // Before the first instalment the bank loan's 1,200.00 is owed, and Marko owes you 800.00.
+    expect(owedOnDay({ bankLoans: [bankBook(bankLoan())], informalLoans: [informalBook(toMarko)] }, civil('2026-01-20'))).toEqual({
+      owed: euros(1200),
+      owedToYou: euros(800),
+      loansYouOwe: 1,
+      loansOwedToYou: 1,
+    })
   })
 })

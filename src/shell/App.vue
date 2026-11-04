@@ -12,7 +12,7 @@ import { startPageSync } from '../shared/sync/presentation/pageSync'
 import { words as homeWords } from './home/words'
 import { entryPath, firstRunAt, installedApps, ownsPath } from './routing/appRegistry'
 import { screenLoading } from './routing/router'
-import { HOME_SCREEN, KUNA_SETTINGS_SCREEN } from './routing/screens'
+import { HOME_SCREEN, KUNA_SETTINGS_SCREEN, OVERVIEW_SCREEN } from './routing/screens'
 import { words as settingsWords } from './settings/words'
 import { keepPageSynced } from './sync/keepPageSynced'
 import TopBarSync from './sync/TopBarSync.vue'
@@ -31,7 +31,7 @@ const route = useRoute()
 
 const appOnScreen = computed(() => installedApps().find((app) => ownsPath(app, route.path)) ?? null)
 
-/** Only the menu of the app on screen. The home and Kuna's own screens list every app, with Kuna settings set apart. */
+/** Only the menu of the app on screen. The home and Kuna's own screens list every app, with Overview and Kuna settings set apart. */
 const navigation = computed((): Navigation => {
   const app = appOnScreen.value
   if (app === null) {
@@ -45,7 +45,10 @@ const navigation = computed((): Navigation => {
         colour: installed.colour,
         badge: installed.firstRun() ? homeWords.setUp : null,
       })),
-      apart: [{ to: KUNA_SETTINGS_SCREEN.path, label: settingsWords.menu, icon: KUNA_SETTINGS_SCREEN.icon }],
+      apart: [
+        { to: OVERVIEW_SCREEN.path, label: OVERVIEW_SCREEN.title, icon: OVERVIEW_SCREEN.icon },
+        { to: KUNA_SETTINGS_SCREEN.path, label: settingsWords.menu, icon: KUNA_SETTINGS_SCREEN.icon },
+      ],
     }
   }
   return {

@@ -43,6 +43,18 @@ export interface PackOnboarding {
   readonly yes: string
 }
 
+/** What the owner could take out of the company now, for Kuna's Overview, with the page that shows how it is made up, or why the pack cannot work it out. */
+export type OwnerTakeOut =
+  | {
+      readonly kind: 'figure'
+      readonly label: string
+      readonly cents: number
+      /** What it is after, the owner's loan or the dividend tax, or why it is nothing. */
+      readonly caption: string
+      readonly to: RouteLocationRaw
+    }
+  | { readonly kind: 'missing'; readonly reason: string }
+
 /** What a pack adds to the core screens and figures. Its components are async, so the pack's code loads only with them. */
 export interface PackContribution {
   /** The pack's part of the workbook, read whatever the owner-pay switch says. */
@@ -51,6 +63,8 @@ export interface PackContribution {
   readonly screens: readonly AppScreen[]
   /** Jobs for Overview's Waiting for you, listed after the core jobs. */
   waitingJobs(workbook: Workbook, asOf: CivilDate): readonly WaitingJob[]
+  /** What the owner could take out on the newest booking. Null without a pack, which has no such figure. */
+  ownerTakeOut(workbook: Workbook, asOf: CivilDate): OwnerTakeOut | null
   readonly reviewCards: readonly PackReviewCard[]
   /** Tabs of Settings, after Accounts. */
   readonly settingsTabs: readonly SettingsTab[]
@@ -68,6 +82,7 @@ const NO_PACK: PackContribution = {
   workbook: null,
   screens: [],
   waitingJobs: () => [],
+  ownerTakeOut: () => null,
   reviewCards: [],
   settingsTabs: [],
   settingsCards: [],

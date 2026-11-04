@@ -5,18 +5,19 @@ import { words as sharedWords } from '../../shared/app/words'
 import DashboardGrid from '../../shared/ui/DashboardGrid.vue'
 import PageHeader from '../../shared/ui/PageHeader.vue'
 import { installedApps } from '../routing/appRegistry'
-import { KUNA_SETTINGS_SCREEN } from '../routing/screens'
+import { KUNA_SETTINGS_SCREEN, OVERVIEW_SCREEN } from '../routing/screens'
 import { words as settingsWords } from '../settings/words'
 import HomeAppCard from './HomeAppCard.vue'
 import { words } from './words'
 
-/** Kuna's home at `#/`: a card per installed app. Below 1024 px there is no menu, so Kuna settings is a link under the cards. */
+/** Kuna's home at `#/`: a card per installed app. Below 1024 px there is no menu, so Overview is a link above the cards and Kuna settings one under them. */
 const apps = installedApps()
 </script>
 
 <template>
   <section class="flex flex-col gap-6">
     <PageHeader :title="sharedWords.allApps" :description="words.description" />
+    <UButton :to="OVERVIEW_SCREEN.path" :label="OVERVIEW_SCREEN.title" :icon="OVERVIEW_SCREEN.icon" color="neutral" variant="outline" class="self-start lg:hidden" data-testid="home-overview" />
     <DashboardGrid data-testid="home-cards">
       <HomeAppCard v-for="app in apps" :key="app.id" :app="app" />
     </DashboardGrid>

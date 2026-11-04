@@ -3,13 +3,13 @@ import type { Transaction } from '../../../../workbook/domain/workbook'
 import type { HrDooWorkbook } from '../hrDooPart'
 import { civilDate, yearOf } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
-import { addMonths, lastDayOf, monthKey, monthOf } from '../../../../../../shared/calendar/monthKey'
+import { addMonths, lastDayOf, monthKey, monthOf, yearOfMonth } from '../../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
 import { ZERO, negateMoney, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
 import { ruleValue } from '../../ruleset/ruleset'
-import type { RuleCitation } from '../../ruleset/schema'
+import type { Rate, RuleCitation } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { withDrill } from '../accrual/accrualAdjustment'
 import { equityBroughtForward } from '../accrual/accrualBalanceSheet'
@@ -27,7 +27,7 @@ import type { RuleSource } from '../payroll/payrollArithmetic'
 import { words } from './words'
 
 /** The ways the year's profit can go to the owner, which a screen switches between. */
-export type PayoutOptionId = 'after-adoption' | 'interim' | 'keep'
+export type PayoutOptionId = 'after-adoption' | 'kept-now' | 'interim' | 'keep'
 
 export interface PayoutOption {
   readonly id: PayoutOptionId
@@ -37,16 +37,20 @@ export interface PayoutOption {
   /** The last day it can be decided or paid. Null when nothing is paid. */
   readonly latestOn: CivilDate | null
   readonly gross: TracedFigure
+  /** The dividend tax rate on the first day it can be paid, or at the year end when nothing is paid. */
+  readonly taxRate: Rate
   readonly dividendTax: TracedFigure
   readonly net: TracedFigure
   /** What the net payout settles of what the owner owes the company, instead of being paid out. */
   readonly setOff: TracedFigure
-  /** The net paid out in cash and the dividend tax paid to the state. */
+  /** The net less the set-off, the cash that reaches the owner's account. */
+  readonly paidToOwner: TracedFigure
+  /** The dividend tax paid to the state and what is paid to the owner. */
   readonly cashOut: TracedFigure
-  /** Cash left after the payout: of the interim cash for an interim payout, otherwise of cash at the year end with December settled and the tax balance paid. */
+  /** Cash left after the payout: of the cash now for a payout made now, otherwise of cash at the year end with December settled and the tax balance paid. */
   readonly cashLeft: TracedFigure
-  /** For the interim payout, the cash it is paid from. Null otherwise. */
-  readonly cashNow: InterimCash | null
+  /** For a payout made now, the cash it is paid from. Null otherwise. */
+  readonly cashNow: CashNow | null
   readonly owedByOwnerAfter: TracedFigure
   /** The yearly benefit in kind on what stays owed while no interest is charged, taxed through payroll. */
   readonly loanBenefitPerYear: TracedFigure
@@ -61,14 +65,14 @@ export interface PayoutOption {
   readonly retainedAfter: TracedFigure
 }
 
-/** The cash an interim payout is paid from, on the day of the forecast. */
-export interface InterimCash {
+/** The cash a payout made now is paid from, on the day of the forecast. */
+export interface CashNow {
   /** The bank balance on the newest booking. */
   readonly cash: TracedFigure
   /** Corporate tax and pay for complete months still unpaid, due by the end of the month of the newest booking. */
   readonly fallingDue: TracedFigure
   readonly available: TracedFigure
-  /** The largest interim payout, its tax included, that the available cash covers. */
+  /** The largest payout, its tax included, that the available cash covers. */
   readonly largestPayout: TracedFigure
 }
 
@@ -94,6 +98,12 @@ export interface DividendCapacity {
   /** Retained earnings the year starts with, before anything is paid out in it. */
   readonly retainedEarnings: TracedFigure
   readonly lossesBroughtForward: TracedFigure
+  /**
+   * The profit of the years the accountant has closed that is still in the company, after every payout booked since.
+   * The year's planned dividend counts only once the year before is closed, since until then that year's own profit
+   * covers it. Null when the year-end tab holds no year before it.
+   */
+  readonly keptProfit: TracedFigure | null
   /** Profit paid out in the year so far, with its tax. */
   readonly paidOutInYear: TracedFigure
   readonly distributable: TracedFigure
@@ -111,11 +121,12 @@ export interface DividendCapacity {
 }
 
 /**
- * What the year's forecast leaves to pay out, and the three ways to do it: one payout once the
- * members adopt the statements, set off against what the owner owes, an interim payout in the year
- * on the profit of its complete months, or keeping it in the company. Distributable profit is the
- * year's profit after tax plus retained earnings, less losses brought forward and what the year has
- * paid out already. Planning figures only.
+ * What the year's forecast leaves to pay out, and the four ways to do it: one payout once the
+ * members adopt the statements, the profit kept from closed years paid out now, an interim payout in
+ * the year on the profit of its complete months, or keeping it in the company. The first three are
+ * set off against what the owner owes. Distributable profit is the year's profit after tax plus
+ * retained earnings, less losses brought forward and what the year has paid out already. Planning
+ * figures only.
  */
 export function dividendCapacity(year: number, forecast: YearForecast, workbook: HrDooWorkbook, rules: RuleSource = ruleValue): DividendCapacity {
   if (forecast.year !== year) {
@@ -130,7 +141,9 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
     throw new RangeError(`The capital protection rule in force on ${yearEnd} does not set the floor at the share capital.`)
   }
 
-  const opening = openingEquity(year, forecast, workbook, rules)
+  let priorForecast: YearForecast | null = null
+  const yearBefore = (): YearForecast => (priorForecast ??= forecastYear(workbook, year - 1, asOf, rules))
+  const opening = openingEquity(year, forecast, workbook, rules, yearBefore)
   const retainedEarnings = { ...opening.retained, amount: opening.retained.amount > 0 ? opening.retained.amount : ZERO, label: words.capacity.retainedAtStart(year) }
   const lossesBroughtForward = tracedFigure(
     words.capacity.lossesInto(year),
@@ -140,6 +153,7 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
     [opening.retained],
   )
   const paidOutInYear = paidOutIn(year, rows, workbook, forecast)
+  const keptProfit = keptProfitBefore(year, rows, workbook, paidOutInYear)
   const distributableSteps = [forecast.profitAfterTax, retainedEarnings, deducted(lossesBroughtForward), deducted(paidOutInYear)]
   const distributable = tracedFigure(
     words.capacity.distributable,
@@ -184,7 +198,7 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
     deterioration: rules('hr.ztd.withhold-on-deterioration', yearEnd).citation,
   }
 
-  const payout: PayoutContext = { year, yearEnd, workbook, rules, netAssetsAtYearEnd, shareCapital, distributable, cashAfterObligations, owedByOwner }
+  const payout: PayoutContext = { year, yearEnd, workbook, rules, yearBefore, netAssetsAtYearEnd, shareCapital, distributable, cashAfterObligations, owedByOwner }
   const afterAdoption = payoutOption(payout, {
     id: 'after-adoption',
     label: words.capacity.afterAdoption(year),
@@ -195,6 +209,7 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
     shortfall: null,
     cashNow: null,
   })
+  const keptNow = keptNowPayout(payout, forecast, rows, keptProfit)
   const interim = interimPayout(payout, forecast, rows, opening.retained, paidOutInYear)
   const keep = payoutOption(payout, {
     id: 'keep',
@@ -212,6 +227,7 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
     profitAfterTax: forecast.profitAfterTax,
     retainedEarnings,
     lossesBroughtForward,
+    keptProfit,
     paidOutInYear,
     distributable,
     shareCapital,
@@ -220,7 +236,7 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
     maxPayout,
     decideBy,
     prudence,
-    options: [afterAdoption, interim, keep],
+    options: [afterAdoption, keptNow, interim, keep],
   }
 }
 
@@ -229,6 +245,8 @@ interface PayoutContext {
   readonly yearEnd: CivilDate
   readonly workbook: HrDooWorkbook
   readonly rules: RuleSource
+  /** The year before's forecast, made once however many figures read it. */
+  yearBefore(): YearForecast
   readonly netAssetsAtYearEnd: TracedFigure
   readonly shareCapital: TracedFigure
   readonly distributable: TracedFigure
@@ -245,8 +263,8 @@ interface PayoutChoice {
   /** Whether the net payout settles what the owner owes before any of it is paid in cash. */
   readonly setsOff: boolean
   readonly shortfall: TracedFigure | null
-  /** For an interim payout, the cash it is weighed against instead of cash at the year end. */
-  readonly cashNow: InterimCash | null
+  /** For a payout made now, the cash it is weighed against instead of cash at the year end. */
+  readonly cashNow: CashNow | null
 }
 
 function payoutOption(context: PayoutContext, choice: PayoutChoice): PayoutOption {
@@ -258,7 +276,8 @@ function payoutOption(context: PayoutContext, choice: PayoutChoice): PayoutOptio
   const net = tracedFigure(words.capacity.net, subtractMoney(gross.amount, dividendTax.amount), 'ledger', rulesOf([gross, dividendTax]), [gross, deducted(dividendTax)])
   const settled = choice.setsOff ? (net.amount < owedByOwner.amount ? net.amount : owedByOwner.amount) : ZERO
   const setOff = tracedFigure(choice.setsOff ? words.capacity.setOff : words.capacity.nothingSetOff, settled, 'ledger', [], choice.setsOff ? [net, owedByOwner] : [])
-  const cashOut = summed(words.capacity.cashOut, [dividendTax, net, deducted(setOff)], 'ledger')
+  const paidToOwner = summed(words.capacity.paidToOwner, [net, deducted(setOff)], 'ledger')
+  const cashOut = summed(words.capacity.cashOut, [dividendTax, paidToOwner], 'ledger')
   const owedAfter = summed(words.capacity.owedAfter, [owedByOwner, deducted(setOff)], 'ledger')
   const benefitRule = rules('hr.pit.loan-benefit', ruleDay)
   const prescribed = benefitRule.value.minimumInterestRate.basisPoints
@@ -270,9 +289,11 @@ function payoutOption(context: PayoutContext, choice: PayoutChoice): PayoutOptio
     earliestOn: choice.earliestOn,
     latestOn: choice.latestOn,
     gross,
+    taxRate: taxRule.value.rate.basisPoints,
     dividendTax,
     net,
     setOff,
+    paidToOwner,
     cashOut,
     cashLeft: summed(words.capacity.cashLeft, [choice.cashNow === null ? context.cashAfterObligations : choice.cashNow.available, deducted(cashOut)], 'ledger'),
     cashNow: choice.cashNow,
@@ -328,15 +349,51 @@ function interimPayout(context: PayoutContext, forecast: YearForecast, rows: rea
   const gross = tracedFigure(words.capacity.interimPayout, available.amount > 0 ? available.amount : ZERO, 'ledger', available.rules, [available])
   const covered = distributable.amount > 0 ? distributable.amount : ZERO
   const uncovered = subtractMoney(gross.amount, covered)
-  const cashNow = interimCash(forecast, rows, through, gross.amount)
+  const cashNow = cashNowFor(context, forecast, rows, through, gross.amount)
   return payoutOption(context, {
     id: 'interim',
     label,
     earliestOn: forecast.asOf,
     latestOn: yearEnd,
     gross,
-    setsOff: false,
+    setsOff: true,
     shortfall: tracedFigure(words.capacity.shortfall, uncovered > 0 ? uncovered : ZERO, 'ledger', [shortfallRule.citation], [gross, deducted(distributable)]),
+    cashNow,
+  })
+}
+
+/**
+ * The profit the closed years kept, paid out from the newest booking to the year end as far as the
+ * cash covers it, and set off against what the owner owes. Only the year of the newest booking has
+ * cash to pay it from.
+ */
+function keptNowPayout(context: PayoutContext, forecast: YearForecast, rows: readonly Transaction[], keptProfit: TracedFigure | null): PayoutOption {
+  const { year, yearEnd } = context
+  const label = words.capacity.keptNow(year)
+  const newestYear = yearOf(forecast.asOf)
+  if (newestYear !== year || keptProfit === null) {
+    return payoutOption(context, {
+      id: 'kept-now',
+      label,
+      earliestOn: null,
+      latestOn: null,
+      gross: tracedFigure(newestYear !== year ? words.capacity.onlyFor(newestYear) : words.capacity.noYearEnd, ZERO, 'ledger', []),
+      setsOff: false,
+      shortfall: null,
+      cashNow: null,
+    })
+  }
+  const { firstComplete, lastComplete } = forecast.calendar
+  const completeMonth = firstComplete !== null && lastComplete !== null && lastComplete >= firstComplete ? lastComplete : null
+  const cashNow = cashNowFor(context, forecast, rows, completeMonth, keptProfit.amount)
+  return payoutOption(context, {
+    id: 'kept-now',
+    label,
+    earliestOn: forecast.asOf,
+    latestOn: yearEnd,
+    gross: tracedFigure(words.capacity.keptNowPayout, cashNow.largestPayout.amount, 'ledger', [], [keptProfit, cashNow.available]),
+    setsOff: true,
+    shortfall: null,
     cashNow,
   })
 }
@@ -346,14 +403,10 @@ function interimPayout(context: PayoutContext, forecast: YearForecast, rows: rea
  * included, and the pay for the last complete month that the ledger has not paid yet. The dividend
  * tax is withheld from the gross, so the gross is all the cash the payout takes.
  */
-function interimCash(forecast: YearForecast, rows: readonly Transaction[], lastComplete: MonthKey, gross: Money): InterimCash {
+function cashNowFor(context: PayoutContext, forecast: YearForecast, rows: readonly Transaction[], lastComplete: MonthKey | null, gross: Money): CashNow {
   const dueBy = lastDayOf(monthOf(forecast.asOf))
   const taxDue = forecast.cit.history.filter((entry) => entry.outstanding > 0 && entry.obligation.dueOn <= dueBy).map(outstandingFigure)
-  const payDue = forecast.categories
-    .filter((entry) => entry.category.roles.includes(PACK_ROLES.arrears))
-    .map((entry) => monthOfLine(entry.forecast, lastComplete))
-    .filter((month) => !month.bases.includes('actual'))
-    .map((month) => deducted(month.figure))
+  const payDue = lastComplete === null ? [] : unpaidPay(context, forecast, lastComplete)
   const cash = cashOnNewestBooking(rows)
   const fallingDue = { ...summed(words.capacity.fallingDue, [...taxDue, ...payDue], 'ledger'), on: dueBy }
   const available = summed(words.capacity.cashNow, [cash, deducted(fallingDue)], 'ledger')
@@ -362,12 +415,28 @@ function interimCash(forecast: YearForecast, rows: readonly Transaction[], lastC
   return { cash, fallingDue, available, largestPayout }
 }
 
+/** The pay of a complete month that the ledger has not paid yet, from the forecast of that month's year, which in January is the year before. */
+function unpaidPay(context: PayoutContext, forecast: YearForecast, month: MonthKey): TracedFigure[] {
+  const holding = yearOfMonth(month) === forecast.year ? forecast : context.yearBefore()
+  return holding.categories
+    .filter((entry) => entry.category.roles.includes(PACK_ROLES.arrears))
+    .map((entry) => monthOfLine(entry.forecast, month))
+    .filter((line) => !line.bases.includes('actual'))
+    .map((line) => deducted(line.figure))
+}
+
 /**
  * Retained earnings and reserves the year starts with: nothing in a first period, the year-end
  * tab's figures when it holds the year before, or else the year before's own opening, less what it
  * paid out, plus its forecast profit after tax.
  */
-function openingEquity(year: number, forecast: YearForecast, workbook: HrDooWorkbook, rules: RuleSource): { readonly reserves: TracedFigure; readonly retained: TracedFigure } {
+function openingEquity(
+  year: number,
+  forecast: YearForecast,
+  workbook: HrDooWorkbook,
+  rules: RuleSource,
+  yearBefore: () => YearForecast,
+): { readonly reserves: TracedFigure; readonly retained: TracedFigure } {
   if (forecast.period.first) {
     return { reserves: tracedFigure(words.capacity.noReserves, ZERO, 'ledger', []), retained: tracedFigure(words.capacity.nothingRetained, ZERO, 'ledger', []) }
   }
@@ -375,8 +444,8 @@ function openingEquity(year: number, forecast: YearForecast, workbook: HrDooWork
   if (fromTab !== null) {
     return fromTab
   }
-  const prior = forecastYear(workbook, year - 1, forecast.asOf, rules)
-  const before = openingEquity(year - 1, prior, workbook, rules)
+  const prior = yearBefore()
+  const before = openingEquity(year - 1, prior, workbook, rules, () => forecastYear(workbook, year - 2, forecast.asOf, rules))
   const steps = [
     before.retained,
     deducted(
@@ -395,16 +464,41 @@ function openingEquity(year: number, forecast: YearForecast, workbook: HrDooWork
   }
 }
 
+/**
+ * The retained earnings after the newest year the year-end tab holds before the year, less what the
+ * ledger paid out in each year since. The year's planned dividend comes off too once the tab holds the
+ * year before, which it is paid from. Null without such a year.
+ */
+function keptProfitBefore(year: number, rows: readonly Transaction[], workbook: HrDooWorkbook, paidOutInYear: TracedFigure): TracedFigure | null {
+  const closedYears = [...new Set(workbook.yearEndLines.map((line) => line.year))].filter((closed) => closed < year).sort((earlier, later) => later - earlier)
+  const [newest] = closedYears.flatMap((closed) => {
+    const opening = equityBroughtForward(workbook.yearEndLines, closed + 1)
+    return opening === null ? [] : [{ closed, retained: opening.retained }]
+  })
+  if (newest === undefined) {
+    return null
+  }
+  const yearsBetween = Array.from({ length: year - newest.closed - 1 }, (_, offset) => newest.closed + 1 + offset)
+  const paidThisYear = newest.closed === year - 1 ? paidOutInYear : paidOutOfLedger(year, rows, workbook)
+  const steps = [newest.retained, ...yearsBetween.map((between) => deducted(paidOutOfLedger(between, rows, workbook))), deducted(paidThisYear)]
+  return summed(words.capacity.keptProfit(year), steps, 'ledger')
+}
+
 /** Profit paid out in the year and the tax on it, read positive, with the dividend the plan still has to come in it. */
 function paidOutIn(year: number, rows: readonly Transaction[], workbook: HrDooWorkbook, forecast: YearForecast): TracedFigure {
+  const fromLedger = paidOutOfLedger(year, rows, workbook)
+  const planned = forecast.plannedDividend
+  return planned === null ? fromLedger : summed(words.capacity.paidAndPlanned(year), [fromLedger, planned.gross], 'ledger')
+}
+
+/** Profit the ledger paid out in the year and the tax on it, read positive. */
+function paidOutOfLedger(year: number, rows: readonly Transaction[], workbook: HrDooWorkbook): TracedFigure {
   const slugs = categoriesWithRole(workbook.categories, PACK_ROLES.profitDistribution)
   const paid = rows.filter((row) => slugs.includes(row.category) && yearOf(row.date) === year)
-  const fromLedger = withDrill(
+  return withDrill(
     tracedFigure(words.capacity.paidOutIn(year), negateMoney(sumMoney(paid.map((row) => row.amount))), 'ledger', []),
     drillToTransactions({ period: { preset: 'year', year }, categories: slugs }),
   )
-  const planned = forecast.plannedDividend
-  return planned === null ? fromLedger : summed(words.capacity.paidAndPlanned(year), [fromLedger, planned.gross], 'ledger')
 }
 
 /** The share capital from the latest year-end tab before the year, else the statutory minimum. */

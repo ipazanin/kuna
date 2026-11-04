@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import type { RouteComponent, Router } from 'vue-router'
+import type { RouteComponent, RouteLocationRaw, Router } from 'vue-router'
 
 import type { RedirectReturn } from '../google/googleRedirect'
 import type { MoneyFormat, MoneyTone, SignDisplay } from '../money/moneyFormat'
@@ -51,7 +51,36 @@ export interface AppHomeCard {
   figures(): HomeFigures | 'opening' | 'failed' | null
 }
 
-/** What an app gives the shell: its screens and menu, its card on the home, its first run, its part of the page's sync, and what runs while the page is open. */
+/** A figure of the app on Kuna's Overview, which opens the screen it comes from. */
+export interface HubPart {
+  readonly label: string
+  readonly cents: number
+  readonly caption: string | null
+  readonly to: RouteLocationRaw
+}
+
+/** A part of the sum Kuna's Overview leads with: what you have, or what you owe, which is taken off. */
+export interface CountedHubPart extends HubPart {
+  readonly side: 'has' | 'owes'
+}
+
+/** What the app shows on Kuna's Overview. */
+export interface HubFigures<Part extends HubPart = HubPart> {
+  readonly parts: readonly Part[]
+  /** Lines under the parts, such as what they leave out ("1 holding without a price") or why there are none. */
+  readonly notes: readonly string[]
+}
+
+/** Null while the app has nothing to show, `opening` while its books are being read, and `failed` when reading them failed. */
+export type HubState<Part extends HubPart = HubPart> = HubFigures<Part> | 'opening' | 'failed' | null
+
+/**
+ * The app's part of Kuna's Overview. An app that counts adds its parts into the sum, and its wait or its failure
+ * holds the sum back. One that does not, such as the company, shows its parts beside the sum and never in it.
+ */
+export type AppHub = { readonly counts: true; figures(): HubState<CountedHubPart> } | { readonly counts: false; figures(): HubState }
+
+/** What an app gives the shell: its screens and menu, its card on the home, its figures on Kuna's Overview, its first run, its part of the page's sync, and what runs while the page is open. */
 export interface AppContribution {
   /** The first part of every route of the app, and the app the document names. */
   readonly id: string
@@ -74,6 +103,8 @@ export interface AppContribution {
   /** The currency and number locale of the app's books, which its screens and its card on the home format money in. */
   moneyFormat(): MoneyFormat
   readonly homeCard: AppHomeCard
+  /** Its figures on Kuna's Overview, for an app that has any. */
+  readonly hub?: AppHub
   /** True while the app has nothing to show, so the shell sends an address under the app to `startPath`, and its card on the home offers Set up. */
   firstRun(): boolean
   readonly startPath: `/${string}`

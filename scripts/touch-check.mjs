@@ -1,13 +1,14 @@
 /**
  * Drives the fake-mode build with touch at the two phone widths, as a thumb would: the top app bar
  * with its one-line Sync button and its navigation drawer of one app's menu under the link home, the
- * home's top bar with no menu button and a fresh device's home with every app in Set up, the tabs of Settings with Back through them, a link to Year's Statements tab alone kept in its year through two tabs and Back, the review and corporate tax lines of Overview's waiting card, the review line again in Croatian, a chart's tap-then-drill, the filter sheet with a
+ * home's top bar with no menu button and its Overview and Kuna settings buttons, Kuna's Overview opened from that button with each
+ * tile opening its app and Back and the company's figure opening Year's Pay tab on the kept profit, a fresh device's home with every app in Set up, the tabs of Settings with Back through them, a link to Year's Statements tab alone kept in its year through two tabs and Back, the review and corporate tax lines of Overview's waiting card, the review line again in Croatian, a chart's tap-then-drill, the filter sheet with a
  * filter added and removed,
  * grouped transactions that collapse and expand, a payee's category breakdown in English and Croatian, Analysis and its Compare tab in Croatian, an owner share changed and cleared and a new default share's fill, each undone, in Croatian, an xlsx file opened and kept in this browser,
  * confirming and recategorising a row on the To review tab of Transactions with Undo, the session's changes with Undo from
  * there, the coverage list split into rows no rule settles and exceptions to a rule, a paid month on the payroll calendar of Year, Taxes, the
  * doubled rates, a year's build-up and a payment on Year, Assets, a line's build-up and its rows on Year, Statements, the accountant's lines,
- * asset rows and grant rows on Year, a line's build-up on Year, Forecast, a payout option, the next year and the Plan tab from Year, Pay,
+ * asset rows and grant rows on Year, a line's build-up on Year, Forecast, two payout options, the next year and the Plan tab from Year, Pay,
  * a pay scenario's figure, warnings and starting figures on Year, Pay, a paid corporate tax advance on Year, Taxes, a repayment on the Owner loan list, the
  * Taken tab as Owner's default with its net share and monthly net pay tiles, the monthly net with the profit included opening its build-up and Year from it, and reading – without hr_company_registered, Owner's Filters button on the tab row setting the period of both tabs, the owner take under the ring against its tile, a month of the loan balance beside the ring, the tax the benefits from company costs avoided against a dividend full screen, Compare pay mixes and the Add advance form from Owner's header, an advance added outside the period opened from its toast,
  * the cost of a reimbursement with no cost on file added from the To review tab,
@@ -410,17 +411,57 @@ async function checkWidth(width) {
           menu: bar?.querySelector('[data-testid="open-navigation"]') !== null,
           title: bar?.querySelector('[data-testid="top-bar-title"]')?.textContent?.trim() ?? null,
           syncAtRight: sync !== undefined && sync.right > window.innerWidth - 24 && Math.round(sync.height) === 44,
+          overview: document.querySelector('[data-testid="home-overview"]')?.getClientRects().length === 1,
           settings: document.querySelector('[data-testid="home-kuna-settings"]')?.getClientRects().length === 1,
           apps: document.querySelector('[data-testid="nav-apps"]') !== null,
         }
       }),
-      (bar) => !bar.menu && bar.title === 'Kuna' && bar.syncAtRight && bar.settings && !bar.apps,
-      'the home top bar does not hold Kuna and one 44 px Sync button with no menu button, with Kuna settings and no list of apps beside the cards',
+      (bar) => !bar.menu && bar.title === 'Kuna' && bar.syncAtRight && bar.overview && bar.settings && !bar.apps,
+      'the home top bar does not hold Kuna and one 44 px Sync button with no menu button, with Overview and Kuna settings and no list of apps beside the cards',
     )
     await shoot('home')
     await (await page.waitForSelector('[data-testid="home-card"][data-app="company"]')).tap()
     await waitForTitle(page, 'Overview')
     await expect(topBarTitle(page), (title) => title === 'Overview', 'the Company card did not open Overview with its name in the top bar')
+  })
+
+  // The company kept in this browser beside the sample Loans and Investments files.
+  await step('kuna-overview', async () => {
+    await openFreshBrowser(page, '#/', 'All apps', '&loans=sample&investments=sample')
+    await (await page.waitForSelector('[data-testid="home-overview"]')).tap()
+    await waitForTitle(page, 'Overview')
+    await expect(hashOf(page), (hash) => hash === '#/overview', 'the home’s Overview button did not open Kuna’s Overview')
+    await page.waitForSelector('[data-testid="overview-net"][data-state="ready"]')
+    await page.waitForSelector('[data-testid="overview-apart-part"]')
+    await expect(
+      page.evaluate(() =>
+        [...document.querySelectorAll('[data-testid="overview-tiles"] .kpi-tile, [data-testid="overview-apart"] .kpi-tile')].map((tile) => Math.round(tile.getBoundingClientRect().height)),
+      ),
+      (heights) => heights.length >= 4 && heights.every((height) => height >= 44),
+      'a tile on Kuna’s Overview is under 44 px tall',
+    )
+    await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-kuna-overview.png`))
+    for (const [label, path] of [
+      ['Investments value', '#/investments'],
+      ['You owe in all', '#/loans'],
+    ]) {
+      const tile = await waitForText(page, '[data-testid="overview-part"] a', label)
+      await tile.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+      await delay(200)
+      await tile.tap()
+      await page.waitForFunction((wanted) => window.location.hash === wanted, { timeout: 10_000 }, path)
+      await waitForTitle(page, 'Overview')
+      await page.goBack({ waitUntil: 'networkidle0' })
+      await page.waitForFunction(() => window.location.hash === '#/overview', { timeout: 10_000 })
+      await page.waitForSelector('[data-testid="overview-net"][data-state="ready"]')
+    }
+    const takeOut = await waitForText(page, '[data-testid="overview-apart-part"] a', 'You could take out now')
+    await takeOut.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await takeOut.tap()
+    await waitForTitle(page, 'Year')
+    await expect(hashOf(page), (hash) => hash.includes('tab=pay') && hash.includes('payout=kept-now'), 'You could take out now did not open Year’s Pay tab on the kept profit')
+    await waitForText(page, '[data-testid="dividend-capacity"] p', 'Kept profit of the years before')
   })
 
   for (const [suffix, words] of [
@@ -688,6 +729,14 @@ async function checkWidth(width) {
     await shoot('forecast-line')
     await (await waitForText(page, '[role="tab"]', 'Pay')).tap()
     await expect(hashOf(page), (hash) => hash.includes('tab=pay'), 'the Pay tab did not put itself in the address')
+    const keptNow = await waitForText(page, '[data-testid="payout-switch"] button', 'Kept profit paid out now')
+    await keptNow.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await keptNow.tap()
+    await expect(hashOf(page), (hash) => hash.includes('payout=kept-now'), 'the payout switch did not put the kept profit in the address')
+    await waitForText(page, '[data-testid="dividend-capacity"] p', 'Kept profit of the years before 2026, paid out now')
+    await inspect(page, `${width}px pay, kept profit paid out now`)
+    await shoot('pay-kept-now')
     const interim = await waitForText(page, '[data-testid="payout-switch"] button', 'Interim payout now')
     await interim.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)

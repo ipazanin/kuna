@@ -2,6 +2,7 @@ import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { moneyFromAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import type { MoneyFormat } from '../../../../shared/money/moneyFormat'
 import { normaliseIban } from '../../../../shared/text/fold'
 import { intlLocale } from '../../../../shared/text/language'
 import { BUCKETS } from '../../workbook/domain/bucket'
@@ -787,6 +788,11 @@ export function currencyProblem(currency: string): string | null {
 /** The locale amounts are written in: the setting's, or the language's while it is blank. */
 export function amountLocaleOf(settings: Pick<Settings, 'numberLocale'>): string {
   return settings.numberLocale || intlLocale
+}
+
+/** The currency and number locale the company's screens and its figures elsewhere in Kuna show money in. */
+export function moneyFormatOf(settings: Pick<Settings, 'currency' | 'numberLocale'>): MoneyFormat {
+  return { currency: settings.currency, locale: amountLocaleOf(settings) }
 }
 
 function localeProblem(locale: string): string | null {

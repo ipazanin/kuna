@@ -11,7 +11,8 @@
  *   npm run check:figures -- --fake-investments sample [--today yyyy-mm-dd]
  *
  * A Loans or an Investments input goes with the others or alone, and its groups follow the company's, Loans before
- * Investments. An Investments file without its prices file is valued with no closes and no rates.
+ * Investments. With both, a last group adds them up as Kuna's Overview does. An Investments file without its prices
+ * file is valued with no closes and no rates.
  */
 
 import { createHash } from 'node:crypto'
@@ -112,7 +113,8 @@ import { planStanding, plannedOwed } from '../src/apps/loans/informalLoans/domai
 import { informalBalances } from '../src/apps/loans/informalLoans/domain/informalBalance.ts'
 import { informalClosedOn, informalLoanFigures, informalLoanMonths, informalLoanMoves, movementLines } from '../src/apps/loans/informalLoans/presentation/informalLoanView.ts'
 import { debtFreeOn, estimateFrom, interestAfter, interestInYear, outgoingByMonth, owedByMonth, plannedLoans, upcomingPayments } from '../src/apps/loans/overview/domain/loansTogether.ts'
-import { owedTotals } from '../src/apps/loans/overview/presentation/owedTotals.ts'
+import { owedOnDay } from '../src/apps/loans/overview/presentation/owedTotals.ts'
+import { loansHubFigures } from '../src/apps/loans/home/presentation/loansHubFigures.ts'
 import { fakeLoansDocument } from '../src/apps/loans/workbook/infrastructure/fake/fakeLoans.ts'
 import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument.ts'
 import { moneyFromAmount } from '../src/shared/money/money.ts'
@@ -143,6 +145,9 @@ import { fakePricesFile } from '../src/apps/investments/prices/infrastructure/fa
 import { fakeInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/fake/fakeInvestments.ts'
 import { MIXES } from '../src/apps/investments/workbook/domain/mixGroup.ts'
 import { INVESTMENTS_DOCUMENT } from '../src/apps/investments/workbook/infrastructure/investmentsDocument.ts'
+import { investmentsHubFigures } from '../src/apps/investments/home/presentation/investmentsHubFigures.ts'
+import { personalNet } from '../src/shared/app/personalNet.ts'
+import { DEFAULT_MONEY_FORMAT } from '../src/shared/money/moneyFormat.ts'
 import { installHrDooPack } from './support/installPack.mjs'
 
 const { values: options } = parseArgs({
@@ -328,12 +333,15 @@ if (companyAsked) {
   group('salaries.years', () => paydayYears(reconciliation).map((year) => salaryYearRows(reconciliation, year, null, ledgerWindowOf(salaryBooks.transactions).partMonth)))
 }
 
-if (loansAsked) {
-  loansGroups(group)
-}
-
-if (investmentsAsked) {
-  investmentsGroups(group)
+const loansHub = loansAsked ? loansGroups(group) : null
+const investmentsHub = investmentsAsked ? investmentsGroups(group) : null
+if (loansHub !== null && investmentsHub !== null) {
+  group('hub.personal', () =>
+    personalNet([
+      { name: 'Loans', notSetUp: false, currency: DEFAULT_MONEY_FORMAT.currency, figures: loansHub() },
+      { name: 'Investments', notSetUp: false, currency: DEFAULT_MONEY_FORMAT.currency, figures: investmentsHub() },
+    ]),
+  )
 }
 
 /**
@@ -346,6 +354,7 @@ if (investmentsAsked) {
  * is worked out from the day, an offer over its whole loan, with a move's break-even month and an
  * offer's effective rate. Scenarios compares the first offers against A with savings earning 3%: the side
  * by side and the list. Each bank loan's page lists the tries saved for it and tries a 3% rate from its next due date.
+ * Returns how Kuna's Overview reads the file.
  */
 function loansGroups(add) {
   const document = options.loans === undefined ? fakeLoansDocument(AT, options['fake-loans']) : decodeDocument(readFileSync(options.loans, 'utf8'))
@@ -408,7 +417,7 @@ function loansGroups(add) {
   }
   const planned = plannedLoans(workbook.bankLoans)
   add('loans.totals', () => [
-    owedTotals({ bank: workbook.bankLoans.map((book) => bankLoanFigures(book, today)), informal: workbook.informalLoans.map((book) => informalLoanFigures(book, today)) }),
+    owedOnDay(workbook, today),
     owedByMonth(planned),
     outgoingByMonth(planned),
     upcomingPayments(planned, workbook.informalLoans, today, Number.POSITIVE_INFINITY),
@@ -418,6 +427,7 @@ function loansGroups(add) {
     estimateFrom(planned, today),
   ])
   add('loans.closed', () => [workbook.bankLoans.map((book) => bankLoanPaidOffOn(book, today)), workbook.informalLoans.map((book) => informalClosedOn(book, today))])
+  return () => loansHubFigures(workbook, today)
 }
 
 /** The prices file of an Investments input: the fake one for the fake set, the one given, or none. */
@@ -442,7 +452,8 @@ function pricesOfInput() {
  * figures, its last day, the Overview's cards, the five mixes, the target mix with what €2,000.00 would buy and the
  * closed positions of Holdings and its value over time, then the benchmark's closes, Performance over each period it
  * offers with where its gain came from and its falls below a peak, its returns by year and by month, the costs, the
- * saving and the Overview's portfolio checks, then each tax year's capital gains and foreign income.
+ * saving and the Overview's portfolio checks, then each tax year's capital gains and foreign income. Returns how Kuna's
+ * Overview reads the portfolio.
  */
 function investmentsGroups(add) {
   const document = options.investments === undefined ? fakeInvestmentsDocument(AT) : decodeDocument(readFileSync(options.investments, 'utf8'))
@@ -511,6 +522,7 @@ function investmentsGroups(add) {
     add(`investments.tax.${year}`, () => capitalGainsYear(workbook.book, sources.rates, year))
     add(`investments.tax.${year}.foreign`, () => foreignIncomeYear(workbook.book, sources.rates, year))
   }
+  return () => investmentsHubFigures(figures)
 }
 
 const digests = new WeakMap()

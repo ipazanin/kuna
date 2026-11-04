@@ -20,7 +20,7 @@ export const en = {
     everyMonth: (words: string) => `Every month ${words}`,
     run: (first: MonthKey, last: MonthKey, words: string) => `${first === last ? shortMonthName(first) : `${shortMonthName(first)} to ${shortMonthName(last)}`} ${words}`,
   },
-  payouts: { 'after-adoption': 'One payout next year', interim: 'Interim payout now', keep: 'Keep it in the company' },
+  payouts: { 'after-adoption': 'One payout next year', 'kept-now': 'Kept profit paid out now', interim: 'Interim payout now', keep: 'Keep it in the company' },
   asPlanned: 'As planned',
   difference: (amount: string, cost: boolean, more: boolean) => `${amount} ${cost ? (more ? 'more spent' : 'less spent') : more ? 'more' : 'less'} than planned`,
   payout: {
@@ -29,10 +29,13 @@ export const en = {
     tax: 'Dividend tax',
     net: 'Net to the owner',
     setOff: 'Set off against what the owner owes',
+    paidToOwner: 'Paid to the owner',
     cashOut: 'Paid out in cash, with the tax',
     cashLeft: 'Cash left after it',
     cashLeftAfter: (fallingDue: string | null) => `Cash left after it and ${fallingDue === null ? 'what falls due' : `what falls due by ${fallingDue}`}`,
     cashAllows: 'The most the cash allows now',
+    keptProfit: 'Kept profit',
+    cashCapped: (kept: string, allowed: string) => `Kept profit ${kept}, cash allows ${allowed}.`,
     owedAfter: 'The owner still owes',
     benefit: 'Loan benefit in kind a year',
     netAssets: 'Net assets after it',
@@ -40,7 +43,7 @@ export const en = {
     shortfall: 'Taxed as the owner’s income',
     retained: 'Kept in the company',
     cashShort: (cash: string, fallingDue: string | null, largest: string) =>
-      `${cash}, less ${fallingDue === null ? 'what falls due' : `what falls due by ${fallingDue}`}, does not cover this payout and its tax. It covers an interim payout of at most ${largest}.`,
+      `${cash}, less ${fallingDue === null ? 'what falls due' : `what falls due by ${fallingDue}`}, does not cover what this payout pays out in cash with its tax. It covers at most ${largest} in cash, the tax included.`,
   },
   cashMonth: { ledger: 'The bank balance at the month end', projected: 'Projected' },
   employment: {
@@ -262,7 +265,7 @@ export const hr: Translation<typeof en> = {
     everyMonth: (words) => `Svaki mjesec ${words}`,
     run: (first, last, words) => `${first === last ? monthName(first) : `${monthName(first)} – ${monthName(last)}`} ${words}`,
   },
-  payouts: { 'after-adoption': 'Jedna isplata sljedeće godine', interim: 'Predujam dobiti sada', keep: 'Zadrži je u tvrtki' },
+  payouts: { 'after-adoption': 'Jedna isplata sljedeće godine', 'kept-now': 'Isplata zadržane dobiti sada', interim: 'Predujam dobiti sada', keep: 'Zadrži je u tvrtki' },
   asPlanned: 'Prema planu',
   difference: (amount, cost, more) => `${amount} ${cost ? (more ? 'više potrošeno' : 'manje potrošeno') : more ? 'više' : 'manje'} od plana`,
   payout: {
@@ -271,10 +274,13 @@ export const hr: Translation<typeof en> = {
     tax: 'Porez na dividendu',
     net: 'Neto vlasniku',
     setOff: 'Prebijeno s dugom vlasnika',
+    paidToOwner: 'Isplaćeno vlasniku',
     cashOut: 'Isplaćeno u novcu, s porezom',
     cashLeft: 'Novac koji nakon toga ostaje',
     cashLeftAfter: (fallingDue) => `Novac koji ostaje nakon toga i nakon onoga što dospijeva${fallingDue === null ? '' : ` do ${fallingDue}`}`,
     cashAllows: 'Najviše što novac sada dopušta',
+    keptProfit: 'Zadržana dobit',
+    cashCapped: (kept, allowed) => `Zadržana dobit ${kept}, novac dopušta ${allowed}.`,
     owedAfter: 'Vlasnik još duguje',
     benefit: 'Primitak u naravi od pozajmice godišnje',
     netAssets: 'Neto imovina nakon toga',
@@ -282,7 +288,7 @@ export const hr: Translation<typeof en> = {
     shortfall: 'Oporezuje se kao vlasnikov dohodak',
     retained: 'Ostaje u tvrtki',
     cashShort: (cash, fallingDue, largest) =>
-      `${cash}, umanjeno za ono što dospijeva${fallingDue === null ? '' : ` do ${fallingDue}`}, ne pokriva ovu isplatu i njezin porez. Pokriva predujam dobiti od najviše ${largest}.`,
+      `${cash}, umanjeno za ono što dospijeva${fallingDue === null ? '' : ` do ${fallingDue}`}, ne pokriva ono što ova isplata isplaćuje u novcu s porezom. Pokriva najviše ${largest} u novcu, s porezom.`,
   },
   cashMonth: { ledger: 'Stanje u banci na kraju mjeseca', projected: 'Projekcija' },
   employment: {

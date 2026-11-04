@@ -1,7 +1,11 @@
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { negateMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { bankLoanFigures } from '../../bankLoans/presentation/bankLoanView'
 import type { BankLoanFigures } from '../../bankLoans/presentation/bankLoanView'
+import { informalLoanFigures } from '../../informalLoans/presentation/informalLoanView'
 import type { InformalLoanFigures } from '../../informalLoans/presentation/informalLoanView'
+import type { LoanBook } from '../../workbook/domain/readLoanBook'
 
 export interface OwedTotals {
   /** What you owe over every loan. */
@@ -25,4 +29,9 @@ export function owedTotals(loans: LoanFigures): OwedTotals {
   const youOwe = owed.filter((amount) => amount > 0)
   const owedToYou = owed.filter((amount) => amount < 0).map(negateMoney)
   return { owed: sumMoney(youOwe), owedToYou: sumMoney(owedToYou), loansYouOwe: youOwe.length, loansOwedToYou: owedToYou.length }
+}
+
+/** The totals over every loan of the file on a day, for the figures shown outside the Overview. */
+export function owedOnDay(book: Pick<LoanBook, 'bankLoans' | 'informalLoans'>, day: CivilDate): OwedTotals {
+  return owedTotals({ bank: book.bankLoans.map((loan) => bankLoanFigures(loan, day)), informal: book.informalLoans.map((loan) => informalLoanFigures(loan, day)) })
 }

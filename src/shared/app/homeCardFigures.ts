@@ -1,11 +1,10 @@
 import type { WorkbookStatus } from '../storage/application/createWorkbookStore'
-import type { HomeFigures } from './appContribution'
 
-/** What an app's card on the home shows for its books: the figures once they are read, null where it has none to show, a wait while they open, or a failure. */
-export function homeCardFigures<Workbook>(
+/** What an app's card on the home or its part of Kuna's Overview shows for its books: the figures once they are read, null where it has none to show, a wait while they open, or a failure. */
+export function homeCardFigures<Workbook, Figures>(
   state: { readonly workbook: Workbook | null; readonly status: WorkbookStatus },
-  figuresOf: (workbook: Workbook) => HomeFigures | null,
-): HomeFigures | 'opening' | 'failed' | null {
+  figuresOf: (workbook: Workbook) => Figures | null,
+): Figures | 'opening' | 'failed' | null {
   if (state.workbook !== null) {
     return figuresOf(state.workbook)
   }

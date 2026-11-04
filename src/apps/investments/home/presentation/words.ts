@@ -12,6 +12,8 @@ export const en = {
   inoDohBy: (day: string) => `INO-DOH by ${day}`,
   joppdBy: (day: string) => `JOPPD by ${day}`,
   taxOnPayments: (count: number, day: string): EnglishForms => ({ one: `Tax on 1 payment by ${day}`, other: `Tax on ${count} payments by ${day}` }),
+  investmentsValue: 'Investments value',
+  unpriced: (count: number): EnglishForms => ({ one: `${count} holding without a price`, other: `${count} holdings without a price` }),
 }
 
 export const hr: Translation<typeof en> = {
@@ -26,6 +28,8 @@ export const hr: Translation<typeof en> = {
     few: `Porez na ${count} isplate do ${day}`,
     other: `Porez na ${count} isplata do ${day}`,
   }),
+  investmentsValue: 'Vrijednost ulaganja',
+  unpriced: (count) => ({ one: `${count} ulaganje bez cijene`, few: `${count} ulaganja bez cijene`, other: `${count} ulaganja bez cijene` }),
 }
 
 export const words = language === 'hr' ? hr : en

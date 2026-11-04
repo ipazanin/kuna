@@ -20,6 +20,10 @@
  * on its own or inside another, such as the Settings tabs, Year's tab link, both imports, Salaries,
  * the home, its Set up and the race on the To review tab.
  *
+ * Kuna's Overview renders on the sample Loans and Investments files beside the company on Drive and in this browser,
+ * while the Loans file opens, once its read fails (`?loans=failed`), with Investments alone and on a first run, with its
+ * figures worked out from the same fake sets, in Croatian too, and so does Year's Pay tab with the kept profit paid out now.
+ *
  * Beyond the screens of the fake workbook on Drive, it renders the home with every app in Set up and
  * onboarding's first steps on a first run (`?fake=empty`), each tab of the company's Settings and the
  * Year page's editors for a workbook kept in this browser (`?fake=browser`), Settings, Books file for
@@ -131,6 +135,8 @@ import { fileURLToPath } from 'node:url'
 import { launch } from 'puppeteer-core'
 import * as XLSX from 'xlsx'
 
+import { companyHubFigures } from '../src/apps/company/home/presentation/companyHubFigures.ts'
+import { readDocument } from '../src/apps/company/workbook/infrastructure/companyDocument.ts'
 import { fakeWorkbookDocument } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook.ts'
 import { tabsOfDocument } from '../src/apps/company/workbook/infrastructure/spreadsheetDocument.ts'
 import { templateColumnNames } from '../src/apps/company/workbook/infrastructure/workbookTemplate.ts'
@@ -165,6 +171,12 @@ import { pricesFileBook, pricesFileRateBook } from '../src/apps/investments/pric
 import { fakePricesFile } from '../src/apps/investments/prices/infrastructure/fake/fakePrices.ts'
 import { fakeInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/fake/fakeInvestments.ts'
 import { INVESTMENTS_DOCUMENT } from '../src/apps/investments/workbook/infrastructure/investmentsDocument.ts'
+import { investmentsHubFigures } from '../src/apps/investments/home/presentation/investmentsHubFigures.ts'
+import { loansHubFigures } from '../src/apps/loans/home/presentation/loansHubFigures.ts'
+import { fakeLoansDocument } from '../src/apps/loans/workbook/infrastructure/fake/fakeLoans.ts'
+import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument.ts'
+import { personalNet } from '../src/shared/app/personalNet.ts'
+import { today } from '../src/shared/calendar/civilDate.ts'
 import { dayLabel, shortDayLabel, weekdayDayLabel } from '../src/shared/calendar/dayLabel.ts'
 import { formatMoney, formatPercent, formatPercentChange } from '../src/shared/money/moneyFormat.ts'
 import { installHrDooPack } from './support/installPack.mjs'
@@ -417,6 +429,32 @@ function fakePortfolio(variant, pricesVariant) {
   return { workbook, rates, figures }
 }
 
+/**
+ * Kuna's Overview on the fake sets, worked out with the functions its screen calls: the sum of the sample Loans and
+ * Investments files with each of their parts, the sum of the Investments sample alone, and what the owner could take
+ * out of the company kept in this browser (`?fake=browser`). Money comes in English and in Croatian.
+ */
+function fakeOverviewShows() {
+  const at = `${INVESTMENTS_DAY}T09:00:00.000Z`
+  const meta = { id: 'visual', source: 'browser', title: 'visual', syncedAt: at }
+  const loans = loansHubFigures(LOANS_DOCUMENT.read({ meta, document: fakeLoansDocument(at) }).workbook, today())
+  const investments = investmentsHubFigures(fakePortfolio('sample', 'sample').figures)
+  const sumOf = (figures) => {
+    const { sum } = personalNet(figures.map((counted) => ({ name: 'visual', notSetUp: false, currency: 'EUR', figures: counted })))
+    return sum.cents
+  }
+  installHrDooPack()
+  const [takeOut] = companyHubFigures(readDocument(meta, fakeWorkbookDocument(at, 'browser', null)).workbook).parts
+  const amounts = [sumOf([loans, investments]), ...[...loans.parts, ...investments.parts].map((part) => part.cents)]
+  return {
+    english: amounts.map((cents) => formatMoney(cents)),
+    croatian: amounts.map((cents) => formatMoney(cents, 'negative', CROATIAN_MONEY)),
+    investmentsOnly: formatMoney(sumOf([investments])),
+    takeOut: formatMoney(takeOut.cents),
+    takeOutCroatian: formatMoney(takeOut.cents, 'negative', CROATIAN_MONEY),
+  }
+}
+
 /** The sample's Holdings figures: the value, the holdings' cost and their gain, in English and in Croatian. */
 function fakeHoldingsShows() {
   const { workbook, figures } = fakePortfolio('sample', 'sample')
@@ -620,6 +658,7 @@ const YEAR_PERFORMANCE = fakePerformanceShows('sample', 'sample', { kind: 'year'
 const SAMPLE_INVESTMENTS = fakeInvestmentsShows('sample', 'sample')
 const LATE_INVESTMENTS = fakeInvestmentsShows('sample', 'late-prices')
 const CASH_BELOW_ZERO_INVESTMENTS = fakeInvestmentsShows('cash-below-zero', 'sample')
+const OVERVIEW = fakeOverviewShows()
 
 const SCREENS = [
   { name: 'overview', hash: '#/company', title: 'Overview', charts: 2, shows: ['Waiting for you', 'A typical month', 'Every euro earned', 'Balance at month end'] },
@@ -880,8 +919,75 @@ const SCREENS = [
     collapsedBefore: ['settings.category-rules'],
     linkedRow: '[data-testid="rule-row"][aria-current="true"]',
   },
-  { name: 'home', hash: '#/', title: 'All apps', charts: 0, shows: ['Company', 'Cash on hand', '2 rows to review', 'Loans', 'Investments', 'Set up', 'Kuna settings'], cards: false },
-  { name: 'home-croatian', query: 'lang=hr', hash: '#/', title: 'Sve aplikacije', charts: 0, shows: ['Tvrtka', 'Novac na računima', 'Krediti', 'Ulaganja', 'Postavi'], cards: false },
+  { name: 'home', hash: '#/', title: 'All apps', charts: 0, shows: ['Company', 'Cash on hand', '2 rows to review', 'Loans', 'Investments', 'Set up', 'Overview', 'Kuna settings'], cards: false },
+  { name: 'home-croatian', query: 'lang=hr', hash: '#/', title: 'Sve aplikacije', charts: 0, shows: ['Tvrtka', 'Novac na računima', 'Krediti', 'Ulaganja', 'Postavi', 'Pregled'], cards: false },
+  {
+    name: 'kuna-overview',
+    query: 'loans=sample&investments=sample',
+    hash: '#/overview',
+    title: 'Overview',
+    charts: 0,
+    shows: ['Investments less loans', 'Leaves out bank accounts and property', 'Next ', ...OVERVIEW.english, 'What you could take out needs the company’s registration day in Settings.'],
+    cards: false,
+  },
+  {
+    name: 'kuna-overview-croatian',
+    query: 'loans=sample&investments=sample&lang=hr',
+    hash: '#/overview',
+    title: 'Pregled',
+    charts: 0,
+    shows: ['Ulaganja umanjena za kredite', 'Ne uključuje bankovne račune ni nekretnine', 'Sljedeća rata ', ...OVERVIEW.croatian, 'Novac tvrtke, izvan zbroja'],
+    cards: false,
+  },
+  {
+    name: 'kuna-overview-browser',
+    query: 'fake=browser&loans=sample&investments=sample',
+    hash: '#/overview',
+    title: 'Overview',
+    charts: 0,
+    shows: ['The company’s money, kept apart from the sum', 'You could take out now', OVERVIEW.takeOut, 'settles your loan to the company'],
+    cards: false,
+  },
+  {
+    name: 'kuna-overview-browser-croatian',
+    query: 'fake=browser&loans=sample&investments=sample&lang=hr',
+    hash: '#/overview',
+    title: 'Pregled',
+    charts: 0,
+    shows: ['Možete isplatiti sada', OVERVIEW.takeOutCroatian, 'zatvori vaš dug prema tvrtki'],
+    cards: false,
+  },
+  { name: 'kuna-overview-loans-opening', query: 'loans=opening&investments=sample', hash: '#/overview', title: 'Overview', charts: 0, ready: '[data-testid="overview-net-opening"]', cards: false },
+  {
+    name: 'kuna-overview-loans-failed',
+    query: 'loans=failed&investments=sample',
+    hash: '#/overview',
+    title: 'Overview',
+    charts: 0,
+    ready: '[data-testid="overview-net-held"]',
+    shows: 'Loans did not open, so nothing is added up.',
+    cards: false,
+  },
+  {
+    name: 'kuna-overview-loans-failed-croatian',
+    query: 'loans=failed&investments=sample&lang=hr',
+    hash: '#/overview',
+    title: 'Pregled',
+    charts: 0,
+    ready: '[data-testid="overview-net-held"]',
+    shows: 'Datoteka aplikacije Krediti nije se otvorila, pa se ništa ne zbraja.',
+    cards: false,
+  },
+  { name: 'kuna-overview-investments-only', query: 'investments=sample', hash: '#/overview', title: 'Overview', charts: 0, shows: [OVERVIEW.investmentsOnly, 'Not set up: Loans'], cards: false },
+  {
+    name: 'kuna-overview-fresh',
+    query: 'fake=empty',
+    hash: '#/overview',
+    title: 'Overview',
+    charts: 0,
+    shows: ['Nothing to add up until Loans or Investments is set up.', 'Not set up: Company', 'Not set up: Loans', 'Not set up: Investments'],
+    cards: false,
+  },
   { name: 'company-settings', hash: '#/company/settings', title: 'Settings', charts: 0, shows: ['The workbook', 'Mail', 'Company and owner facts', 'Bucket labels', 'Loans to the owner'] },
   {
     name: 'company-settings-loan-rate',
@@ -1316,6 +1422,22 @@ const SOURCE_SCREENS = [
     expandedBefore: ['year.comparison'],
   },
   { name: 'year-pay-2026-browser', query: 'fake=browser', hash: '#/company/year?year=2026&tab=pay', title: 'Year', charts: 0, shows: ['No scenario for 2026 to compare yet', 'Dividend capacity'] },
+  {
+    name: 'year-pay-kept-now',
+    query: 'fake=browser',
+    hash: '#/company/year?year=2026&tab=pay&payout=kept-now',
+    title: 'Year',
+    charts: 0,
+    shows: ['Kept profit of the years before 2026, paid out now, set off against what the owner owes', 'Paid to the owner', OVERVIEW.takeOut],
+  },
+  {
+    name: 'year-pay-kept-now-croatian',
+    query: 'fake=browser&lang=hr',
+    hash: '#/company/year?year=2026&tab=pay&payout=kept-now',
+    title: 'Godina',
+    charts: 0,
+    shows: ['Zadržana dobit iz godina prije 2026., isplaćena sada i prebijena s dugom vlasnika', 'Isplaćeno vlasniku', OVERVIEW.takeOutCroatian],
+  },
   { name: 'year-pay-no-scenarios', query: 'fake=no-scenarios', hash: '#/company/year?year=2027&tab=pay', title: 'Year', charts: 0, shows: 'No scenario is for 2027 yet' },
   { name: 'year-taxes-browser', query: 'fake=browser', hash: '#/company/year?tab=taxes', title: 'Year', charts: 0, shows: ['For 2026', '1 payment is overdue', 'Less tax refund'] },
   { name: 'year-accountant-browser-croatian', query: 'fake=browser&lang=hr', hash: '#/company/year?year=2025', title: 'Godina', charts: 1, shows: 'Pozajmice vlasniku nose 2,5' },

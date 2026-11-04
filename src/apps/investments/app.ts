@@ -3,6 +3,8 @@ import { DEFAULT_MONEY_FORMAT } from '../../shared/money/moneyFormat'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
 import { autoSyncOn } from '../../shared/sync/infrastructure/autoSyncSwitch'
 import { INVESTMENTS_HOME_CARD } from './home/presentation/investmentsHomeCard'
+import { investmentsHubFigures } from './home/presentation/investmentsHubFigures'
+import { shownPortfolio } from './home/presentation/shownPortfolio'
 import { INVESTMENTS_OVERVIEW_ROUTE, INVESTMENTS_SETTINGS_ROUTE, INVESTMENTS_START_ROUTE } from './overview/presentation/investmentLinks'
 import { heldHoldings } from './holdings/domain/holdingsList'
 import { HOLDING_ROUTE, HOLDINGS_ROUTE } from './holdings/presentation/holdingLinks'
@@ -80,6 +82,7 @@ export const investmentsApp: AppContribution = {
   // Every figure leaves the app in euros, so it shows them in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
   homeCard: INVESTMENTS_HOME_CARD,
+  hub: { counts: true, figures: () => shownPortfolio(({ figures }) => investmentsHubFigures(figures)) },
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
   startPath: INVESTMENTS_START_ROUTE,
   syncGroup: investmentsSyncGroup,

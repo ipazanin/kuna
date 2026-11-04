@@ -35,7 +35,7 @@ export interface Navigation {
   readonly group: NavigationGroup | null
   /** Every app, on the home and Kuna's own screens. Empty inside an app. */
   readonly apps: readonly NavigationApp[]
-  /** Settings, the app's or Kuna's, set apart below the app's entries or the list of apps. */
+  /** Kuna's own screens, or the app's Settings, set apart below the list of apps or the app's entries. */
   readonly apart: readonly NavigationEntry[]
 }
 </script>

@@ -113,6 +113,16 @@ export const en = {
   },
   /** The pack's pages as a link names them, a page and its tab. */
   links: { review: 'To review', yearTaxes: 'Year, Taxes', ownerTaken: 'Owner, Taken' },
+  /** The company's figure on Kuna's Overview. */
+  takeOut: {
+    label: 'You could take out now',
+    afterLoan: (amount: string) => `After ${amount} settles your loan to the company`,
+    afterTax: (rate: string) => `After ${rate} dividend tax`,
+    nothingKept: 'Nothing kept: the closed years’ profit is paid out',
+    noCashFree: 'No cash free after what falls due',
+    noRegistration: 'What you could take out needs the company’s registration day in Settings.',
+    forecastFailed: (year: number) => `What you could take out cannot be worked out, because the ${year} forecast failed. Year shows why.`,
+  },
   /** The To review tab's card of reimbursements to the owner that no cost on file accounts for. */
   unaccounted: {
     title: (count: number): EnglishForms => ({ one: `${count} reimbursement with no cost on file`, other: `${count} reimbursements with no cost on file` }),
@@ -582,6 +592,15 @@ export const hr: Translation<typeof en> = {
     }),
   },
   links: { review: 'Za provjeru', yearTaxes: 'Godina, Porezi', ownerTaken: 'Vlasnik, Uzeto' },
+  takeOut: {
+    label: 'Možete isplatiti sada',
+    afterLoan: (amount) => `Nakon što ${amount} zatvori vaš dug prema tvrtki`,
+    afterTax: (rate) => `Nakon ${rate} poreza na dividendu`,
+    nothingKept: 'Ništa zadržano: dobit zaključenih godina je isplaćena',
+    noCashFree: 'Nema slobodnog novca nakon onoga što dospijeva',
+    noRegistration: 'Za iznos koji možete isplatiti treba datum registracije tvrtke u Postavkama.',
+    forecastFailed: (year) => `Iznos koji možete isplatiti ne može se izračunati jer prognoza za ${year}. nije uspjela. Godina pokazuje zašto.`,
+  },
   unaccounted: {
     title: (count) => ({
       one: `${count} povrat troškova bez troška u datoteci`,

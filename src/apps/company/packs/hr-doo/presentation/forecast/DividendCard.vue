@@ -14,7 +14,7 @@ import type { PayoutView } from './forecastView'
 import { words as packWords } from '../words'
 import { words } from './words'
 
-/** What the year leaves to pay out, the three ways to do it as a switch, and the lines that weigh on how much. */
+/** What the year leaves to pay out, the ways to do it as a switch, and the lines that weigh on how much. */
 const props = defineProps<{
   year: number
   capacity: readonly BuildUpLine[]

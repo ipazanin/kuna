@@ -22,8 +22,10 @@ const DAY = 86_400_000
  * on this device, `sample` a chosen file on the fake Drive holding made-up loans of both kinds,
  * `one-loan` the same with the bank loan alone, `house-and-car` the home loan beside a car loan that
  * ends earlier and an informal loan you owe on an expected plan, `equal-principal` one equal principal bank loan alone, `other-device` an empty file on the fake Drive that
- * another device made, which this device has not chosen, and `opening` the sample chosen on the fake
- * Drive with nothing in this browser and every read of it held, so the Loans screens stay opening.
+ * another device made, which this device has not chosen, `opening` the sample chosen on the fake
+ * Drive with nothing in this browser and every read of it held, so the Loans screens stay opening, and
+ * `failed` the sample chosen on the fake Drive with nothing in this browser and the file in the bin, so
+ * the first read fails.
  * Without it nothing is chosen, which is the Loans first run. Only the Loans app's install imports
  * this, behind an inline VITE_FAKE_WORKBOOK comparison.
  */
@@ -31,17 +33,27 @@ export async function seedFakeLoans(variant: string | null): Promise<void> {
   const now = Date.now()
   const savedAt = new Date(now).toISOString()
   const document =
-    variant === 'sample' || variant === 'opening'
+    variant === 'sample' || variant === 'opening' || variant === 'failed'
       ? fakeLoansDocument(savedAt)
       : variant === 'one-loan' || variant === 'house-and-car' || variant === 'equal-principal'
         ? fakeLoansDocument(savedAt, variant)
         : emptyLoansDocument(savedAt)
   const text = encodeDocument(document)
-  if (variant === 'drive' || variant === 'sample' || variant === 'one-loan' || variant === 'house-and-car' || variant === 'equal-principal' || variant === 'other-device' || variant === 'opening') {
+  if (
+    variant === 'drive' ||
+    variant === 'sample' ||
+    variant === 'one-loan' ||
+    variant === 'house-and-car' ||
+    variant === 'equal-principal' ||
+    variant === 'other-device' ||
+    variant === 'opening' ||
+    variant === 'failed'
+  ) {
     const created = await createDriveDocument(fakeDriveSession(), await fakeBooksFolder(), LOANS_APP, text)
-    if (variant === 'opening') {
+    if (variant === 'opening' || variant === 'failed') {
       saveWorkbookChoice(LOANS_APP, { source: 'drive', id: created.fileId, name: documentName(LOANS_APP) })
-      holdReadsOf(created.fileId)
+      if (variant === 'opening') holdReadsOf(created.fileId)
+      else await fakeDriveSession().trash(created.fileId)
     } else if (variant !== 'other-device') {
       const meta = { id: created.fileId, source: 'drive', title: documentName(LOANS_APP), syncedAt: savedAt, lastExportedAt: null, unexportedSince: null } as const
       await keepChosen({ meta, revision: created.document.revision, document })
