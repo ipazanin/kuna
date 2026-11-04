@@ -26,23 +26,61 @@ function answering(answer: VendorAnswer): { readonly fetch: VendorFetch; readonl
 }
 
 describe("Finnhub's profiles and search", () => {
-  it('asks profile2 by ISIN with the key as token, and reads the industry and the country', async () => {
-    const vendor = answering(json(200, { country: 'US', currency: 'USD', finnhubIndustry: 'Semiconductors', name: 'Example Chips Inc', ticker: 'EXC' }))
-    expect(await finnhub.profile(vendor.fetch, 'made-up-key', { isin: 'US0000000001', symbol: 'EXC' })).toEqual({ kind: 'profile', industry: 'Semiconductors', country: 'US' })
+  it('asks profile2 by ISIN with the key as token, and reads the industry, country, exchange, market cap as text, currency and IPO', async () => {
+    const vendor = answering(
+      json(200, {
+        country: 'US',
+        currency: 'USD',
+        exchange: 'NASDAQ NMS - GLOBAL MARKET',
+        finnhubIndustry: 'Semiconductors',
+        ipo: '2004-08-19',
+        marketCapitalization: 2125400.5,
+        name: 'Example Chips Inc',
+        shareOutstanding: 13950.2,
+        ticker: 'EXC',
+      }),
+    )
+    expect(await finnhub.profile(vendor.fetch, 'made-up-key', { isin: 'US0000000001', symbol: 'EXC' })).toEqual({
+      kind: 'profile',
+      industry: 'Semiconductors',
+      country: 'US',
+      exchange: 'NASDAQ NMS - GLOBAL MARKET',
+      marketCap: '2125400.5',
+      currency: 'USD',
+      ipo: '2004-08-19',
+    })
     expect(vendor.asked).toEqual(['https://finnhub.io/api/v1/stock/profile2?isin=US0000000001&token=made-up-key'])
   })
 
   it('asks by symbol without an ISIN, and reads an empty answer as a profile of nulls', async () => {
     const vendor = answering(json(200, {}))
-    expect(await finnhub.profile(vendor.fetch, 'made-up-key', { isin: null, symbol: 'EXC' })).toEqual({ kind: 'profile', industry: null, country: null })
+    expect(await finnhub.profile(vendor.fetch, 'made-up-key', { isin: null, symbol: 'EXC' })).toEqual({
+      kind: 'profile',
+      industry: null,
+      country: null,
+      exchange: null,
+      marketCap: null,
+      currency: null,
+      ipo: null,
+    })
     expect(vendor.asked[0]).toContain('/stock/profile2?symbol=EXC&')
   })
 
-  it('reads a bad key as refused, a paid endpoint as for paid keys and 429 as the limit', async () => {
+  it('reads a market cap of zero, below zero or as text as none', async () => {
+    const marketCapOf = async (marketCapitalization: unknown) =>
+      ((await finnhub.profile(answering(json(200, { marketCapitalization })).fetch, 'made-up-key', { isin: null, symbol: 'EXC' })) as { readonly marketCap?: unknown }).marketCap
+    expect(await marketCapOf(0)).toBeNull()
+    expect(await marketCapOf(-5)).toBeNull()
+    expect(await marketCapOf('2125400.5')).toBeNull()
+    expect(await marketCapOf(1415993)).toBe('1415993')
+  })
+
+  it('reads a bad key as refused, a paid endpoint as for paid keys, 429 as the limit and a server error as no answer', async () => {
     const ask = (answer: VendorAnswer) => finnhub.profile(answering(answer).fetch, 'made-up-key', { isin: null, symbol: 'EXC' })
     expect(await ask(json(401, { error: 'Invalid API key' }))).toEqual({ kind: 'failed', reason: 'refused' })
     expect(await ask(json(403, { error: "You don't have access to this resource." }))).toEqual({ kind: 'failed', reason: 'not-on-free-key' })
     expect(await ask(json(429, { error: 'API limit reached.' }))).toEqual({ kind: 'failed', reason: 'limit' })
+    expect(await ask({ status: 503, text: 'Service Unavailable' })).toEqual({ kind: 'failed', reason: 'no-answer' })
     expect(finnhub.limitOf(json(429, {}))).toBe('minute')
   })
 
@@ -61,34 +99,83 @@ describe("Finnhub's profiles and search", () => {
   })
 })
 
-describe("Alpha Vantage's fund weights, dividends and search", () => {
-  it('reads ETF_PROFILE sectors as names and fractions as sent, an answer with none as empty, and leaves out a row it cannot read', async () => {
+describe("Alpha Vantage's fund profiles, dividends and search", () => {
+  it('reads every part of an ETF_PROFILE answer and counts its holdings', async () => {
     const vendor = answering(
       json(200, {
-        net_assets: '1000000',
+        net_assets: '18200000000',
+        net_expense_ratio: '0.0019',
+        portfolio_turnover: '0.04',
+        dividend_yield: '0.0145',
+        inception_date: '2019-07-23',
+        leveraged: 'NO',
         sectors: [
           { sector: 'INFORMATION TECHNOLOGY', weight: '0.251' },
           { sector: 'HEALTHCARE', weight: '0.1' },
         ],
-        holdings: [],
+        holdings: [
+          { symbol: 'EXA', description: 'EXAMPLE HOLDING A', weight: '0.05' },
+          { symbol: 'EXB', description: 'EXAMPLE HOLDING B', weight: '0.04' },
+          { symbol: 'EXC', description: 'EXAMPLE HOLDING C', weight: '0.03' },
+        ],
       }),
     )
-    expect(await alphaVantage.fundSectors(vendor.fetch, 'made-up-key', 'EXF')).toEqual({
-      kind: 'fund-sectors',
+    expect(await alphaVantage.fundProfile(vendor.fetch, 'av-key-made-up', 'EXF')).toEqual({
+      kind: 'fund-profile',
+      expenseRatio: '0.0019',
+      netAssets: '18200000000',
+      inception: '2019-07-23',
+      leveraged: 'NO',
+      holdings: 3,
+      dividendYield: '0.0145',
       sectors: [
         ['INFORMATION TECHNOLOGY', '0.251'],
         ['HEALTHCARE', '0.1'],
       ],
     })
     expect(new URL(vendor.asked[0]!).searchParams.get('function')).toBe('ETF_PROFILE')
-    expect(await alphaVantage.fundSectors(answering(json(200, {})).fetch, 'made-up-key', 'EXC')).toEqual({ kind: 'fund-sectors', sectors: [] })
-    const oneUnread = {
+  })
+
+  it('reads an empty ETF_PROFILE answer as a fund profile with nothing in it, and leaves out a part it cannot read', async () => {
+    expect(await alphaVantage.fundProfile(answering(json(200, {})).fetch, 'av-key-made-up', 'EXC')).toEqual({
+      kind: 'fund-profile',
+      expenseRatio: null,
+      netAssets: null,
+      inception: null,
+      leveraged: null,
+      holdings: null,
+      dividendYield: null,
+      sectors: [],
+    })
+    const partlyUnread = {
+      net_expense_ratio: 'None',
+      inception_date: '2019-02-30',
+      holdings: [],
       sectors: [
         { sector: 'ENERGY', weight: 0.5 },
         { sector: 'FINANCIALS', weight: '0.5' },
       ],
     }
-    expect(await alphaVantage.fundSectors(answering(json(200, oneUnread)).fetch, 'made-up-key', 'EXF')).toEqual({ kind: 'fund-sectors', sectors: [['FINANCIALS', '0.5']] })
+    expect(await alphaVantage.fundProfile(answering(json(200, partlyUnread)).fetch, 'av-key-made-up', 'EXF')).toMatchObject({
+      expenseRatio: null,
+      inception: null,
+      holdings: null,
+      sectors: [['FINANCIALS', '0.5']],
+    })
+    expect(await alphaVantage.fundProfile(answering(json(200, { holdings: 'many' })).fetch, 'av-key-made-up', 'EXF')).toEqual({ kind: 'failed', reason: 'unreadable' })
+  })
+
+  it('reads a premium note on ETF_PROFILE as for paid keys, a daily note as the limit, a bad key as refused, and any other note as a message', async () => {
+    const premium = json(200, {
+      Information: 'Thank you for using Alpha Vantage! This is a premium endpoint. You may subscribe to any of the premium plans to instantly unlock all premium endpoints.',
+    })
+    expect(await alphaVantage.fundProfile(answering(premium).fetch, 'av-key-made-up', 'EXF')).toEqual({ kind: 'failed', reason: 'not-on-free-key' })
+    const day = json(200, { Information: 'Our standard API rate limit is 25 requests per day. Please subscribe to any of the premium plans.' })
+    expect(await alphaVantage.fundProfile(answering(day).fetch, 'av-key-made-up', 'EXF')).toEqual({ kind: 'failed', reason: 'limit' })
+    const badKey = json(200, { 'Error Message': 'the parameter apikey is invalid or missing.' })
+    expect(await alphaVantage.fundProfile(answering(badKey).fetch, 'av-key-made-up', 'EXF')).toEqual({ kind: 'failed', reason: 'refused' })
+    const other = json(200, { Information: 'The demo key is for demo purposes only. Please claim your free API key.' })
+    expect(await alphaVantage.fundProfile(answering(other).fetch, 'av-key-made-up', 'EXF')).toEqual({ kind: 'failed', reason: 'message' })
   })
 
   it('reads DIVIDENDS with a known ex day and payment day, oldest payment first, leaving out one whose days are None and rows it cannot read', async () => {

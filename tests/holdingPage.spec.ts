@@ -6,12 +6,30 @@ import { latestRecords } from '../src/apps/investments/holdings/domain/latestRec
 import { lotIsTaxFree, taxFreeUnits } from '../src/apps/investments/holdings/domain/lots'
 import { portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
 import type { PortfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
-import { priceHistory } from '../src/apps/investments/holdings/domain/priceHistory'
+import { priceHistory, yearRange } from '../src/apps/investments/holdings/domain/priceHistory'
 import type { Instrument } from '../src/apps/investments/workbook/domain/instrument'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
+import { addDays, weekdaysBetween } from '../src/shared/calendar/civilDate'
 import { monthOf } from '../src/shared/calendar/monthKey'
 import { decimalText } from '../src/shared/money/decimal'
-import { BROKER, STOCK_B, WORKED_PRICES, WORKED_RATES, WORLD_ETF, book, cashMovement, decimal, instrument, priceBookOf, spinOff, split, trade, workedPortfolio } from './fixtures/investments'
+import {
+  BROKER,
+  STOCK_B,
+  WORKED_PRICES,
+  WORKED_RATES,
+  WORLD_ETF,
+  book,
+  cashMovement,
+  decimal,
+  instrument,
+  priceBookOf,
+  rateBookOf,
+  spinOff,
+  split,
+  trade,
+  workedPortfolio,
+} from './fixtures/investments'
+import type { CloseRow } from './fixtures/investments'
 import { civil, euros } from './fixtures/ledger'
 
 const TODAY = civil('2026-10-29')
@@ -150,6 +168,61 @@ describe("a holding's price history", () => {
     expect(decimalText(priceInTodaysUnits(records, splitCo, civil('2025-03-10'), decimal('100')))).toBe('100')
     expect(decimalText(quantityInTodaysUnits(records, splitCo, civil('2025-01-15'), decimal('10')))).toBe('20')
     expect(decimalText(quantityInTodaysUnits(records, splitCo, civil('2025-03-10'), decimal('10')))).toBe('10')
+  })
+})
+
+describe("a holding's 52-week range", () => {
+  const TECH = instrument('tech', { name: 'Example Tech' })
+
+  /** A close of 100 on every weekday from the first day to 29 October 2026, with the closes given in their place. */
+  function weekdayCloses(first: string, given: Readonly<Record<string, string>>): CloseRow[] {
+    const rows: CloseRow[] = []
+    for (let day = civil(first); day <= TODAY; day = addDays(day, 1)) {
+      if (weekdaysBetween(day, day) === 1) rows.push([day, given[day] ?? '100'])
+    }
+    return rows
+  }
+
+  function rangeOf(rows: readonly CloseRow[]) {
+    const sources = { book: book({ instruments: [TECH] }), prices: priceBookOf(new Map([[TECH, rows]])), rates: rateBookOf(new Map()), today: TODAY }
+    return yearRange(TECH, sources)
+  }
+
+  it('takes the lowest and highest close of the year to the day, leaving out a close from before it', () => {
+    const range = rangeOf([['2025-10-01', '50'], ...weekdayCloses('2025-10-30', { '2026-02-03': '80.5', '2026-08-12': '130.25' })])
+
+    expect(range).toEqual({
+      low: { date: civil('2026-02-03'), price: decimal('80.5') },
+      high: { date: civil('2026-08-12'), price: decimal('130.25') },
+      from: civil('2025-10-30'),
+      to: TODAY,
+      ended: false,
+      wholeYear: true,
+      daily: true,
+    })
+  })
+
+  it('says the closes do not cover the year when the first falls well inside it', () => {
+    expect(rangeOf(weekdayCloses('2026-03-02', {}))).toMatchObject({ from: civil('2026-03-02'), wholeYear: false, daily: true })
+    expect(rangeOf(weekdayCloses('2025-11-05', {}))).toMatchObject({ wholeYear: true })
+  })
+
+  it('says a range of month-end closes is not daily', () => {
+    const monthEnds: CloseRow[] = [
+      ['2025-11-28', '90'],
+      ['2025-12-31', '95'],
+      ['2026-01-30', '99'],
+      ['2026-02-27', '101'],
+    ]
+
+    expect(rangeOf(monthEnds)).toMatchObject({ low: { date: civil('2025-11-28'), price: decimal('90') }, daily: false })
+  })
+
+  it('ends the range of a holding sold in the year at its last close, and has none with no close in the year', () => {
+    const untilSale = weekdayCloses('2025-10-30', {}).filter(([day]) => day <= '2026-06-15')
+
+    expect(rangeOf(untilSale)).toMatchObject({ from: civil('2025-10-30'), to: civil('2026-06-15'), ended: true, wholeYear: false, daily: true })
+    expect(rangeOf([['2025-09-30', '100']])).toBeNull()
   })
 })
 

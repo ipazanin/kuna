@@ -118,6 +118,16 @@ describe("a year's foreign income", () => {
     expect(year.countries.find((country) => country.country === 'GB')!.payments.map((entry) => entry.tax)).toEqual([null])
   })
 
+  it('groups a payer whose ISIN starts with letters that are no country under no country', () => {
+    const international = instrument('international', { name: 'Example International Note', isin: 'XS0000000XS7' })
+    const paid = { ...dividend(BROKER, international, '2026-05-06', '25', '0'), currency: EURO }
+    const year = foreignIncomeYear(withIncome({ ...exampleYear(), instruments: [...exampleYear().instruments, international] }, [paid]), EXAMPLE_RATES, 2026)
+
+    expect(year.payments.find((entry) => entry.payment.id === paid.id)?.country).toBeNull()
+    expect(year.countries.find((country) => country.country === null)?.payments.map((entry) => entry.payment.id)).toContain(paid.id)
+    expect(year.countries.map((country) => country.country)).not.toContain('XS')
+  })
+
   it('leaves out a coupon, and lists a refund of tax withheld with no tax of its own', () => {
     const coupon: Income = { ...payment('interest', '2026-06-01', EURO, '12'), kind: 'coupon', instrument: DIVIDEND_CO.id }
     const refund = payment('other', '2026-06-02', EURO, '3', 'Refund of tax withheld at source')

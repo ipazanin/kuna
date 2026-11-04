@@ -10,6 +10,8 @@ import type { Income, IncomeKind } from '../../workbook/domain/income'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentAccount } from '../../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
+import { countryOfIsin } from '../../workbook/domain/mixGroup'
+import type { Country } from '../../workbook/domain/mixGroup'
 import { yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { DECIMAL_ZERO, subtractDecimal } from '../../../../shared/money/decimal'
@@ -49,8 +51,8 @@ export interface ForeignPayment {
   readonly kind: IncomeKind
   readonly account: InvestmentAccount | null
   readonly instrument: Instrument | null
-  /** The first two letters of the payer's ISIN, null for income with no ISIN, such as interest on cash. */
-  readonly country: string | null
+  /** The country of the payer's ISIN, null for income with no ISIN, such as interest on cash, or one whose first two letters are no country. */
+  readonly country: Country | null
   readonly rate: DayRate
   readonly route: IncomeRoute
   /** Null while the day has no rate, and for a route with no tax figure. */
@@ -64,7 +66,7 @@ export interface ForeignPayment {
 }
 
 export interface CountryIncome {
-  readonly country: string | null
+  readonly country: Country | null
   readonly payments: readonly ForeignPayment[]
   readonly total: IncomeTax
 }
@@ -181,9 +183,10 @@ function totalOf(payments: readonly ForeignPayment[]): IncomeTax {
   return sumTax(payments.flatMap((entry) => (entry.tax === null ? [] : [entry.tax])))
 }
 
-function countryOf(instrument: Instrument | null): string | null {
+/** The country of the payer's ISIN, or null for a payment with no instrument or ISIN. */
+function payerCountryOf(instrument: Instrument | null): Country | null {
   const isin = instrument?.isin ?? null
-  return isin === null || isin.length < 2 ? null : isin.slice(0, 2).toUpperCase()
+  return isin === null ? null : countryOfIsin(isin)
 }
 
 /** Tax withheld abroad, or a dividend booked net whose tax was withheld abroad but not typed. */
@@ -205,7 +208,7 @@ export function foreignIncomeYear(book: InvestmentBook, rates: RateBook, year: n
     .filter((payment) => payment.kind !== 'coupon')
     .map((payment) => ({ payment, instrument: payment.instrument === null ? null : (instruments.get(payment.instrument) ?? null) }))
   const payments = withInstrument
-    .filter(({ instrument }) => countryOf(instrument) !== 'HR')
+    .filter(({ instrument }) => payerCountryOf(instrument) !== 'HR')
     .map(({ payment, instrument }): ForeignPayment => {
       const kind = taxKindOf(payment)
       const rate = dayRate(rates, payment.currency, payment.date)
@@ -217,7 +220,7 @@ export function foreignIncomeYear(book: InvestmentBook, rates: RateBook, year: n
         kind,
         account: accounts.get(payment.account) ?? null,
         instrument,
-        country: countryOf(instrument),
+        country: payerCountryOf(instrument),
         rate,
         route,
         tax: taxed ? taxOf(payment, rate, rules.rules.incomeRate) : null,
@@ -227,7 +230,7 @@ export function foreignIncomeYear(book: InvestmentBook, rates: RateBook, year: n
       }
     })
     .sort((first, second) => first.payment.date.localeCompare(second.payment.date))
-  const byCountry = new Map<string | null, ForeignPayment[]>()
+  const byCountry = new Map<Country | null, ForeignPayment[]>()
   for (const entry of payments) {
     byCountry.set(entry.country, [...(byCountry.get(entry.country) ?? []), entry])
   }

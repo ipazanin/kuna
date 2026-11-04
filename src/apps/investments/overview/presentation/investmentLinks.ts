@@ -6,3 +6,6 @@ export const INVESTMENTS_SETTINGS_ROUTE = '/investments/settings'
 export const INVESTMENTS_PRICES_ROUTE = `${INVESTMENTS_SETTINGS_ROUTE}?tab=prices`
 /** The Checks tab of the Investments Settings, with each portfolio check's threshold and switch. */
 export const INVESTMENTS_CHECKS_ROUTE = `${INVESTMENTS_SETTINGS_ROUTE}?tab=checks`
+
+/** The Overview's Portfolio checks, opened even when this device folded them. */
+export const PORTFOLIO_CHECKS_ROUTE = `${INVESTMENTS_OVERVIEW_ROUTE}#portfolio-checks`

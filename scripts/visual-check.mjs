@@ -28,7 +28,7 @@
  * the Investments first run, its empty Overview and its Settings on an empty file (`?investments=drive`) and its Overview while its file opens (`?investments=opening`), each in Croatian too,
  * the Investments Overview on the sample (`?investments=sample`), on the sample without a deposit so an account's cash is below zero (`?investments=cash-below-zero`) and with late prices whose last
  * fetch failed (`?prices=late-prices`), each in Croatian too and with its figures worked out from the same fake sets, the home with the Investments card's figures and its badge, the nearest tax date or else the late prices,
- * the sample's Holdings with its five mixes and closed positions, also with a late close and on a past close (`?on=`), and two holdings' pages, one in US dollars with a lot partly sold and its trades as dots sized by amount, and one from a spin-off that split, each in Croatian too,
+ * the sample's Holdings with its five mixes and closed positions, also with a late close and on a past close (`?on=`), and two holdings' pages, one in US dollars with a lot partly sold and its trades as dots sized by amount, and one from a spin-off that split, each in Croatian too, a fund with an empty fund profile, a money fund with a whole one and a share whose company profile Finnhub refused, each with its Details and warnings and in Croatian too,
  * the sample's Performance over everything against its benchmark and compared with a named fund, over 2024 where it is ahead of the benchmark, in Croatian too, and over a quarter, a portfolio too young for a rate a year with no benchmark chosen (`?investments=young`) and the sample whose
  * benchmark has no closes (`?prices=no-benchmark`), each in Croatian too, its Months, its Sources over everything and over the last year, its Falls, and its Income, Coming, Costs and Saving tabs, in Croatian too,
  * the sample's Tax screen for 2026 with its Year, Sales, Foreign income and Turns tax-free tabs, in Croatian too,
@@ -136,6 +136,7 @@ import { tabsOfDocument } from '../src/apps/company/workbook/infrastructure/spre
 import { templateColumnNames } from '../src/apps/company/workbook/infrastructure/workbookTemplate.ts'
 import { holdingReturn } from '../src/apps/investments/holdings/domain/holding.ts'
 import { holdingMix, holdingMixes } from '../src/apps/investments/holdings/domain/holdingMix.ts'
+import { holdingDetails } from '../src/apps/investments/holdings/presentation/holdingDetails.ts'
 import { holdingsList } from '../src/apps/investments/holdings/domain/holdingsList.ts'
 import { targetGaps } from '../src/apps/investments/holdings/domain/targetMix.ts'
 import { latestRecords } from '../src/apps/investments/holdings/domain/latestRecords.ts'
@@ -432,6 +433,9 @@ const SAMPLE_SPIN_CO = 'fa4e1000-0000-4000-8000-000000000014'
 /** The sample's World ETF, accumulating, with its own mix by sector and by country, and its Index Fund, never bought, with no mix. */
 const SAMPLE_WORLD_ETF = 'fa4e1000-0000-4000-8000-000000000012'
 const SAMPLE_INDEX_FUND = 'fa4e1000-0000-4000-8000-000000000015'
+/** The sample's Example Dividend Co, whose company profile Finnhub refused, and its Money Fund, with a whole fund profile from Alpha Vantage and no TER typed. */
+const SAMPLE_SHARE_B = 'fa4e1000-0000-4000-8000-000000000011'
+const SAMPLE_MONEY_FUND = 'fa4e1000-0000-4000-8000-000000000013'
 
 /** A sample holding's page: its name, its value, its total return and its average cost, in English and in Croatian. */
 function fakeHoldingShows(key) {
@@ -466,8 +470,20 @@ function fakeTargetsShows() {
 /** The sentences of the sample's portfolio checks, as the Overview lists them in English. */
 function fakeChecksShows() {
   const { book, sources, figures, facts } = fakeSources()
-  const checks = portfolioChecks(figures, holdingMixes(figures, book, facts), recentCosts(sources, dayValuer(sources)), book.targets, book.checks)
+  const checks = portfolioChecks(figures, holdingMixes(figures, book, facts), recentCosts(sources, dayValuer(sources), facts), book.targets, book.checks)
   return checkLines(checks, book).map((line) => line.sentence)
+}
+
+/** The values and captions of a sample holding's Details card in English, with its warnings, as the fake prices file's facts give them. */
+function fakeDetailsShows(key) {
+  const { sources, figures, facts } = fakeSources()
+  const holding = figures.holdings.find((entry) => entry.instrument.id === `instrument:${key}`)
+  const details = holdingDetails(holding, sources, facts)
+  return [
+    ...details.facts.flatMap((fact) => [fact.value, ...(fact.caption === undefined ? [] : [fact.caption])]),
+    ...(details.problems?.sentences ?? []),
+    ...(details.leveraged === null ? [] : [details.leveraged]),
+  ]
 }
 
 const SAMPLE_TARGETS = fakeTargetsShows()
@@ -556,7 +572,7 @@ function fakeIncomeShows() {
   const [newestYear] = incomeByYear(workbook.book, INVESTMENTS_DAY)
   const coming = incomeForecast(sources, fetchedFactsBook(prices.facts)).received
   const [soonest] = taxFreeCalendar(figures, INVESTMENTS_DAY).flatMap((month) => month.lots)
-  const [newestCosts] = yearlyCosts(sources, dayValuer(sources))
+  const [newestCosts] = yearlyCosts(sources, dayValuer(sources), fetchedFactsBook(prices.facts))
   const rhythm = investingRhythm(workbook.book, INVESTMENTS_DAY)
   return {
     income: [formatMoney(newestYear.total.received)],
@@ -1826,6 +1842,9 @@ const SOURCE_SCREENS = [
       'Portfolio checks',
       'Change the thresholds',
       ...SAMPLE_CHECKS,
+      'Fetched facts',
+      'Vendors sent nothing usable for 2 holdings:',
+      'Example Dividend Co',
     ],
   },
   {
@@ -1846,6 +1865,8 @@ const SOURCE_SCREENS = [
       'Provjere portfelja',
       'Iznad praga',
       'Promijeni pragove',
+      'Dohvaćeni podaci',
+      'Izvori nisu poslali ništa upotrebljivo za 2 pozicije:',
     ],
   },
   {
@@ -2043,6 +2064,11 @@ const SOURCE_SCREENS = [
       'Buy',
       'Sale',
       ...SAMPLE_SHARE_A_PAGE.english,
+      'Market cap',
+      'Listed since',
+      '52-week range',
+      'From Finnhub, approximate',
+      ...fakeDetailsShows(SAMPLE_SHARE_A),
     ],
     cards: false,
   },
@@ -2064,6 +2090,10 @@ const SOURCE_SCREENS = [
       'Kupnja',
       'Prodaja',
       ...SAMPLE_SHARE_A_PAGE.croatian,
+      'Tržišna kapitalizacija',
+      'Na burzi od',
+      'Raspon u 52 tjedna',
+      'Iz izvora Finnhub, približno',
     ],
     cards: false,
   },
@@ -2085,6 +2115,8 @@ const SOURCE_SCREENS = [
       'Not known',
       'Type it with Change',
       'Company profile from Finnhub',
+      'Exchange',
+      'NEW YORK STOCK EXCHANGE, INC.',
       'Entered by hand',
       ...SAMPLE_SPIN_CO_PAGE.english,
     ],
@@ -2107,6 +2139,7 @@ const SOURCE_SCREENS = [
       'Nije poznato',
       'Upišite to pod Promijeni',
       'Profil tvrtke iz izvora Finnhub',
+      'Burza',
       ...SAMPLE_SPIN_CO_PAGE.croatian,
     ],
     cards: false,
@@ -2134,6 +2167,14 @@ const SOURCE_SCREENS = [
       'By country or region',
       'of this holding',
       'United States',
+      'Domicile',
+      'Ireland',
+      'From its ISIN',
+      '52-week range',
+      'Alpha Vantage sent no fund profile for XYZ.DEX',
+      'in its daily fetch. There is no Alpha Vantage key in this browser.',
+      'Prices settings',
+      ...fakeDetailsShows(SAMPLE_WORLD_ETF),
     ],
     cards: false,
   },
@@ -2144,7 +2185,91 @@ const SOURCE_SCREENS = [
     title: 'Example World ETF',
     charts: 1,
     ready: '[data-mix="country"] .donut-ring canvas',
-    shows: ['Pojedinosti', 'Fond ili ETF', 'Raspodjela koju ste upisali', '11 sektora', '8 država ili regija', 'Dividende', 'Akumulirajući', 'Po sektoru', 'Po državi ili regiji', 'ove pozicije'],
+    shows: [
+      'Pojedinosti',
+      'Fond ili ETF',
+      'Raspodjela koju ste upisali',
+      '11 sektora',
+      '8 država ili regija',
+      'Dividende',
+      'Akumulirajući',
+      'Po sektoru',
+      'Po državi ili regiji',
+      'ove pozicije',
+      'Sjedište fonda',
+      'Irska',
+      'Raspon u 52 tjedna',
+      'Alpha Vantage nije poslao profil fonda za XYZ.DEX',
+      'pri dnevnom dohvaćanju. U ovom pregledniku nema ključa za Alpha Vantage.',
+      'Postavke cijena',
+    ],
+    cards: false,
+  },
+  {
+    name: 'investments-holding-fund-profile',
+    query: 'investments=sample',
+    hash: `#/investments/holding?instrument=${SAMPLE_MONEY_FUND}`,
+    title: 'Example Money Fund',
+    charts: 1,
+    ready: '[data-testid="holding-details"]',
+    shows: [
+      'Details',
+      'TER',
+      '0.15%',
+      'Fund profile from Alpha Vantage',
+      'Fund size',
+      'From Alpha Vantage, no currency stated',
+      'Started',
+      '48 holdings',
+      'Listed by Alpha Vantage, maybe not all',
+      ...fakeDetailsShows(SAMPLE_MONEY_FUND),
+    ],
+    cards: false,
+  },
+  {
+    name: 'investments-holding-fund-profile-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: `#/investments/holding?instrument=${SAMPLE_MONEY_FUND}`,
+    title: 'Example Money Fund',
+    charts: 1,
+    ready: '[data-testid="holding-details"]',
+    shows: [
+      'Pojedinosti',
+      'TER',
+      'Profil fonda iz izvora Alpha Vantage',
+      'Veličina fonda',
+      'Iz izvora Alpha Vantage, bez valute',
+      'Osnovan',
+      '48 pozicija',
+      'Popis iz izvora Alpha Vantage, možda nepotpun',
+    ],
+    cards: false,
+  },
+  {
+    name: 'investments-holding-refused-profile',
+    query: 'investments=sample',
+    hash: `#/investments/holding?instrument=${SAMPLE_SHARE_B}`,
+    title: 'Example Dividend Co',
+    charts: 1,
+    ready: '[data-testid="holding-fact-problem"]',
+    shows: [
+      'Details',
+      'Finnhub refused the company profile for US000000DEF2: it needs a paid key',
+      'There is no Finnhub key in this browser.',
+      'Prices settings',
+      'From its ISIN',
+      ...fakeDetailsShows(SAMPLE_SHARE_B),
+    ],
+    cards: false,
+  },
+  {
+    name: 'investments-holding-refused-profile-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: `#/investments/holding?instrument=${SAMPLE_SHARE_B}`,
+    title: 'Example Dividend Co',
+    charts: 1,
+    ready: '[data-testid="holding-fact-problem"]',
+    shows: ['Pojedinosti', 'Finnhub odbio je profil tvrtke za US000000DEF2: traži plaćeni ključ', 'U ovom pregledniku nema ključa za Finnhub.', 'Postavke cijena', 'Iz ISIN-a'],
     cards: false,
   },
   {
@@ -2489,7 +2614,7 @@ const SOURCE_SCREENS = [
       'Foreign income',
       'United States',
       'Ireland',
-      'No ISIN',
+      'Country not known',
       'No US treaty in force in 2026, 30% withheld',
       "Owes 10% pension contributions and tax at your city's lower rate on the rest. Unconfirmed.",
       ...SAMPLE_TAX.foreign,
@@ -2506,7 +2631,7 @@ const SOURCE_SCREENS = [
       'Inozemni dohodak',
       'Sjedinjene Američke Države',
       'Irska',
-      'Bez ISIN-a',
+      'Država nije poznata',
       'Duguje 10 % doprinosa za mirovinsko i porez po nižoj stopi vašeg grada na ostatak. Nepotvrđeno.',
       ...SAMPLE_TAX.foreignCroatian,
     ],
@@ -2650,7 +2775,7 @@ const SOURCE_SCREENS = [
       'A free key takes 60 requests a minute.',
       'Gives daily closes and symbol search.',
       'Gives company profiles and symbol search.',
-      'Gives daily closes, splits, sector weights of funds, announced dividends and symbol search.',
+      'Gives daily closes, splits, fund profiles, announced dividends and symbol search.',
       'Import closes',
     ],
     cards: false,

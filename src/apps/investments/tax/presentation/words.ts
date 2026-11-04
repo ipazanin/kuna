@@ -228,7 +228,7 @@ export const en = {
     croatian: (percent: number) => `Croatian ${percent}%`,
     credit: 'Credit',
     leftToPay: 'Left to pay',
-    noIsin: 'No ISIN',
+    noCountry: 'Country not known',
     countryTotal: (country: string) => `${country} total`,
     noUsTreaty: (year: number, percent: number) => `No US treaty in force in ${year}, ${percent}% withheld`,
     routes: {
@@ -476,7 +476,7 @@ export const hr: Translation<typeof en> = {
     croatian: (percent) => `Hrvatskih ${percent} %`,
     credit: 'Odbitak',
     leftToPay: 'Za uplatu',
-    noIsin: 'Bez ISIN-a',
+    noCountry: 'Država nije poznata',
     countryTotal: (country) => `Ukupno ${country}`,
     noUsTreaty: (year, percent) => `Ugovor sa SAD-om u ${year}. nije na snazi, zadržava se ${percent} %`,
     routes: {

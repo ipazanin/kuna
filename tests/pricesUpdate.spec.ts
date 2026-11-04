@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { holdingLink } from '../src/apps/investments/holdings/presentation/holdingLinks'
 import { createPricesUpdate, pricesFetchVerdict, pricesFileBeside } from '../src/apps/investments/prices/application/pricesUpdate'
 import type { PricesFetchMoment, PricesUpdate } from '../src/apps/investments/prices/application/pricesUpdate'
 import type { PricesCache, PricesDrive, PricesPlace } from '../src/apps/investments/prices/application/pricesPorts'
@@ -13,6 +14,7 @@ import { openPricesCache } from '../src/apps/investments/prices/infrastructure/p
 import { runProblem } from '../src/apps/investments/prices/presentation/runProblem'
 import { pricesStep } from '../src/apps/investments/prices/presentation/pricesStep'
 import { words } from '../src/apps/investments/prices/presentation/words'
+import type { Instrument } from '../src/apps/investments/workbook/domain/instrument'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
 import { FOLDER_MIME_TYPE } from '../src/shared/google/driveClient'
 import { createFakeDrive } from '../src/shared/storage/infrastructure/fake/fakeDrive'
@@ -209,7 +211,7 @@ describe('the Prices step of a sync', () => {
           app: 'investments',
           name: 'Investments',
           books: { id: 'books', label: 'Books', scopes: () => ['drive.file'], startLine: '', on: () => true, run: async () => ({ kind: 'done', line: '', writeId: null, link: null }) },
-          steps: () => [pricesStep(world.update)],
+          steps: () => [pricesStep(world.update, () => world.records)],
           whenIdle: async () => {},
         },
       ],
@@ -242,6 +244,43 @@ describe('the Prices step of a sync', () => {
     expect(stepState(sync)).toEqual({ kind: 'done', line: words.step.unchanged, writeId: null, link: null })
     expect(world.drive.requests).toEqual(['headRevision'])
     expect(world.asked).toEqual([])
+  })
+
+  it('counts the held holdings a vendor sent nothing usable for, linking to the one holding or to the Overview checks for more', async () => {
+    const payer = instrument('def', { name: 'Example Dividend Co', type: 'share', currency: USD, isin: 'US000000DEF2' })
+    const worldEtf = instrument('world', { name: 'Example World ETF', type: 'fund', prices: 'alphavantage', sourceSymbol: 'XYZ.DEX' })
+    const held = (instruments: readonly Instrument[]): InvestmentBook =>
+      book({
+        accounts: [BROKER],
+        instruments: [SHARE, ...instruments],
+        cashMovements: [cashMovement('deposit', BROKER, '2025-01-02', '5000')],
+        trades: [trade('buy', BROKER, SHARE, '2025-03-03', '10', '50', '1', '1.05'), ...instruments.map((what) => trade('buy', BROKER, what, '2025-03-03', '10', '50', '1', '1.05'))],
+      })
+
+    const one = await worldOf({ records: held([payer]) })
+    await pricesOnDrive(one, fakePricesFile('sample', TODAY))
+    const oneSync = syncOf(one)
+    await oneSync.sync()
+    await backgroundSettled(one)
+    expect(stepState(oneSync)).toEqual({
+      kind: 'done',
+      line: 'Read the latest prices. A vendor sent nothing usable for 1 holding.',
+      writeId: null,
+      link: { label: 'Example Dividend Co', to: holdingLink(payer) },
+    })
+    expect(holdingLink(payer)).toMatch(/^\/investments\/holding\?instrument=[\w-]+$/)
+
+    const two = await worldOf({ records: held([payer, worldEtf]) })
+    await pricesOnDrive(two, fakePricesFile('sample', TODAY))
+    const twoSync = syncOf(two)
+    await twoSync.sync()
+    await backgroundSettled(two)
+    expect(stepState(twoSync)).toEqual({
+      kind: 'done',
+      line: 'Read the latest prices. Vendors sent nothing usable for 2 holdings.',
+      writeId: null,
+      link: { label: words.step.checks, to: '/investments#portfolio-checks' },
+    })
   })
 
   it('reads the file again once another device wrote it', async () => {
@@ -302,7 +341,7 @@ describe('the Prices step of a sync', () => {
     await sync.sync()
     const kept = world.update.state.copy
 
-    const newer = encodePricesFile(emptyPricesFile()).replace('"version": 2', '"version": 3')
+    const newer = encodePricesFile(emptyPricesFile()).replace('"version": 3', '"version": 4')
     await world.drive.upload(fileId, newer)
     await sync.sync()
     await backgroundSettled(world)

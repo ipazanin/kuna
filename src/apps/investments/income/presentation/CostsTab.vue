@@ -2,12 +2,14 @@
 import { computed } from 'vue'
 
 import { yearlyCosts } from '../domain/yearlyCosts'
+import type { FundTer } from '../../holdings/domain/fundTer'
 import type { PortfolioSources } from '../../holdings/domain/holding'
+import { usePortfolio } from '../../holdings/presentation/usePortfolio'
 import type { DayValuer } from '../../performance/domain/portfolioPerformance'
+import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
 import { words } from './words'
 import { yearOf } from '../../../../shared/calendar/civilDate'
 import { decimalText } from '../../../../shared/money/decimal'
-import type { Decimal } from '../../../../shared/money/decimal'
 import { formatCostShare, formatMoney } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -21,10 +23,14 @@ const props = defineProps<{
 }>()
 
 const text = words.costs
-const years = computed(() => yearlyCosts(props.sources, props.valuedOn))
+const { facts } = usePortfolio()
+const years = computed(() => yearlyCosts(props.sources, props.valuedOn, facts.value))
 const thisYear = computed(() => yearOf(props.sources.today))
-/** The TER is typed in percent, so 0.2 is 0.20%. */
-const terOf = (ter: Decimal): string => text.ter(formatCostShare(Number(decimalText(ter)) / 100))
+/** A TER is in percent, so 0.2 is 0.20%. A fetched one names the vendor that gave it. */
+function terOf(ter: FundTer): string {
+  const rate = formatCostShare(Number(decimalText(ter.percent)) / 100)
+  return ter.vendor === null ? text.ter(rate) : text.fetchedTer(rate, PRICE_VENDORS.find((vendor) => vendor.id === ter.vendor)?.name ?? ter.vendor)
+}
 </script>
 
 <template>

@@ -97,7 +97,7 @@ export function usePrices(): PricesUpdate {
 }
 
 /** The Prices step of the Investments sync. */
-export const PRICES_STEP = pricesStep(prices)
+export const PRICES_STEP = pricesStep(prices, () => store.state.workbook?.book ?? null)
 
 /** Forgets the copy of the prices of an Investments file this browser no longer shows, which would otherwise keep the list of its holdings. */
 export async function forgetPricesCopy(investmentsFileId: string): Promise<void> {

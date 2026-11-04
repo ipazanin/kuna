@@ -1,6 +1,6 @@
 import { RATES_FROM } from '../../domain/priceDemand'
 import { ECB_SOURCE, rateSeriesKey, seriesKey } from '../../domain/pricesFile'
-import type { CloseRow, FetchedFacts, PriceFailure, PricesFile } from '../../domain/pricesFile'
+import type { CloseRow, FetchedFacts, FundFact, PriceFailure, PricesFile, ProfileFact } from '../../domain/pricesFile'
 import { addDays, civilDate, weekdaysBetween } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 
@@ -121,25 +121,45 @@ export function fakeClose(series: string, day: CivilDate): string {
 }
 
 /**
- * What made-up vendors answered about the sample's holdings on `today`. A profile of the dividend payer agrees with
- * its ISIN. The spinco's profile gives its country but not its industry, so the spinco still has no sector. The money
- * fund has sector weights, the payer has an announced dividend a few days before the copy of its January payment, and
- * a search named what three of the listings are.
+ * What made-up vendors answered about the sample's holdings on `today`. The tech share's profile names its exchange,
+ * market capitalisation and IPO. Finnhub refused the dividend payer's profile as premium data, so its country comes
+ * from its ISIN. The spinco's profile gives its country but not its industry, so the spinco still has no sector. The
+ * money fund has a whole fund profile and the world fund's came back empty, though the fake Alpha Vantage answers it
+ * now, so Ask again fills it. The payer has an announced dividend a few days before the copy of its January payment,
+ * and a search named what three of the listings are.
  */
 function fakeFacts(today: CivilDate): FetchedFacts {
+  const profile: ProfileFact = { asked: today, industry: null, country: null, exchange: null, marketCap: null, currency: null, ipo: null, failed: null }
+  const fund: FundFact = { asked: today, expenseRatio: null, netAssets: null, inception: null, leveraged: null, holdings: null, dividendYield: null, sectors: [], failed: null }
   return {
     profiles: {
-      [seriesKey('finnhub', 'US000000DEF2')]: { asked: today, industry: 'Food Products', country: 'US' },
-      [seriesKey('finnhub', 'GHI')]: { asked: today, industry: null, country: 'US' },
+      [seriesKey('finnhub', 'XX000000ABC1')]: {
+        ...profile,
+        industry: 'Technology',
+        country: 'US',
+        exchange: 'NASDAQ NMS - GLOBAL MARKET',
+        marketCap: '2125400.5',
+        currency: 'USD',
+        ipo: '2004-08-19',
+      },
+      [seriesKey('finnhub', 'US000000DEF2')]: { ...profile, failed: 'not-on-free-key' },
+      [seriesKey('finnhub', 'GHI')]: { ...profile, country: 'US', exchange: 'NEW YORK STOCK EXCHANGE, INC.', currency: 'USD' },
     },
-    sectors: {
+    funds: {
       [seriesKey('alphavantage', 'EMF')]: {
-        asked: today,
+        ...fund,
+        expenseRatio: '0.0015',
+        netAssets: '2450000000',
+        inception: '2012-03-19',
+        leveraged: 'NO',
+        holdings: 48,
+        dividendYield: '0.031',
         sectors: [
           ['FINANCIALS', '0.900'],
           ['INDUSTRIALS', '0.100'],
         ],
       },
+      [seriesKey('alphavantage', 'XYZ.DEX')]: fund,
     },
     dividends: { [seriesKey('alphavantage', 'DEF')]: { asked: today, dividends: [['2026-12-28', '2027-01-12', '0.3400']] } },
     types: {

@@ -11,14 +11,15 @@ import type {
   VendorCloses,
   VendorDividends,
   VendorFetch,
-  VendorFundSectors,
+  VendorFundProfile,
   VendorLimit,
   VendorSearch,
   VendorSplits,
 } from '../../application/priceVendor'
 import { splitRatioOf } from '../../domain/splitFactor'
 
-// The field names of ETF_PROFILE (`sectors` of `sector` and `weight`), DIVIDENDS (`data` of `ex_dividend_date`,
+// The field names of ETF_PROFILE (`net_expense_ratio`, `net_assets`, `inception_date`, `leveraged`, `dividend_yield`,
+// `holdings` and `sectors` of `sector` and `weight`), DIVIDENDS (`data` of `ex_dividend_date`,
 // `payment_date` and `amount`) and SYMBOL_SEARCH (`bestMatches` of `1. symbol`, `2. name`, `3. type`, `4. region` and
 // `8. currency`) are read from Alpha Vantage's documentation, unconfirmed until a request with a real key.
 
@@ -55,7 +56,10 @@ function alphaVantageLimit(answer: VendorAnswer): VendorLimit | null {
   return note === null ? null : limitInNote(note)
 }
 
-/** The answer's JSON object, or why there is none: the vendor's error, premium, limit and information notes included. */
+/**
+ * The answer's JSON object, or why there is none. An error message about the key is the key refused, and any other
+ * error an unknown symbol. A note is a limit or a premium endpoint where it says so, else a message of its own.
+ */
 async function answerObject(fetch: VendorFetch, query: string, key: string): Promise<Fetched<{ readonly kind: 'object'; readonly answer: Readonly<Record<string, unknown>> }>> {
   const fetched = await answerOf(fetch, `https://www.alphavantage.co/query?${query}&apikey=${encodeURIComponent(key)}`)
   if (fetched.kind === 'failed') {
@@ -69,14 +73,17 @@ async function answerObject(fetch: VendorFetch, query: string, key: string): Pro
     return { kind: 'failed', reason: 'unreadable' }
   }
   if ('Error Message' in parsed) {
-    return { kind: 'failed', reason: 'unknown-symbol' }
+    return { kind: 'failed', reason: /apikey/i.test(String(parsed['Error Message'])) ? 'refused' : 'unknown-symbol' }
   }
   const note = noteOf(parsed)
-  if (note !== null && limitInNote(note) === null && /premium (endpoint|feature)/i.test(note)) {
+  if (note !== null && limitInNote(note) !== null) {
+    return { kind: 'failed', reason: 'limit' }
+  }
+  if (note !== null && /premium (endpoint|feature)/i.test(note)) {
     return { kind: 'failed', reason: 'not-on-free-key' }
   }
   if ('Note' in parsed || 'Information' in parsed) {
-    return { kind: 'failed', reason: 'limit' }
+    return { kind: 'failed', reason: 'message' }
   }
   return { kind: 'object', answer: parsed }
 }
@@ -157,8 +164,18 @@ function textOrNull(value: unknown): string | null {
   return typeof value === 'string' && value.trim() !== '' && value !== 'None' ? value.trim() : null
 }
 
-/** A fund's sector weights, each a fraction as text. An answer with no sectors, as for a share, is an empty answer, and a row Kuna cannot read is left out. */
-async function alphaVantageFundSectors(fetch: VendorFetch, key: string | null, symbol: string): Promise<Fetched<VendorFundSectors>> {
+/** Decimal text the answer sent, or null for anything else. */
+function decimalTextOrNull(value: unknown): string | null {
+  const text = textOrNull(value)
+  return text !== null && isCloseText(text) ? text : null
+}
+
+/**
+ * A fund's profile: its expense ratio and dividend yield as fractions, its net assets, inception day and whether it is
+ * leveraged, how many holdings it lists, and its sector weights. An answer with none of these, as for a share, has
+ * nothing in it, and a part Kuna cannot read is left out.
+ */
+async function alphaVantageFundProfile(fetch: VendorFetch, key: string | null, symbol: string): Promise<Fetched<VendorFundProfile>> {
   if (key === null) {
     return { kind: 'failed', reason: 'no-key' }
   }
@@ -166,8 +183,10 @@ async function alphaVantageFundSectors(fetch: VendorFetch, key: string | null, s
   if (fetched.kind === 'failed') {
     return fetched
   }
-  const listed = fetched.answer.sectors ?? []
-  if (!Array.isArray(listed)) {
+  const { answer } = fetched
+  const listed = answer.sectors ?? []
+  const holdings = answer.holdings ?? null
+  if (!Array.isArray(listed) || (holdings !== null && !Array.isArray(holdings))) {
     return { kind: 'failed', reason: 'unreadable' }
   }
   const sectors: SectorWeightRow[] = []
@@ -178,7 +197,17 @@ async function alphaVantageFundSectors(fetch: VendorFetch, key: string | null, s
       sectors.push([sector, weight])
     }
   }
-  return { kind: 'fund-sectors', sectors }
+  const inception = textOrNull(answer.inception_date)
+  return {
+    kind: 'fund-profile',
+    expenseRatio: decimalTextOrNull(answer.net_expense_ratio),
+    netAssets: decimalTextOrNull(answer.net_assets),
+    inception: inception !== null && isDay(inception) ? inception : null,
+    leveraged: textOrNull(answer.leveraged),
+    holdings: holdings === null || holdings.length === 0 ? null : holdings.length,
+    dividendYield: decimalTextOrNull(answer.dividend_yield),
+    sectors,
+  }
 }
 
 /** A listing's dividends with a known ex day and payment day, oldest payment first, each amount a unit as text. A row Kuna cannot read is left out. */
@@ -240,7 +269,7 @@ async function alphaVantageSearch(fetch: VendorFetch, key: string | null, text: 
   return { kind: 'found', listings }
 }
 
-export const alphaVantage: ClosesVendor & Required<Pick<ClosesVendor, 'splits' | 'fundSectors' | 'dividends' | 'search'>> = {
+export const alphaVantage: ClosesVendor & Required<Pick<ClosesVendor, 'splits' | 'fundProfile' | 'dividends' | 'search'>> = {
   id: 'alphavantage',
   name: words.alphaVantage.name,
   covers: words.alphaVantage.covers,
@@ -255,7 +284,7 @@ export const alphaVantage: ClosesVendor & Required<Pick<ClosesVendor, 'splits' |
   testSymbol: 'IBM',
   closes: alphaVantageCloses,
   splits: alphaVantageSplits,
-  fundSectors: alphaVantageFundSectors,
+  fundProfile: alphaVantageFundProfile,
   dividends: alphaVantageDividends,
   search: alphaVantageSearch,
 }

@@ -3,8 +3,9 @@ import { answerOf, parsedJson, statusFailure } from './vendorAnswers'
 import { isJsonObject } from '../../domain/pricesFile'
 import type { FactsVendor, Fetched, FoundListing, ProfileQuery, VendorFetch, VendorProfile, VendorSearch } from '../../application/priceVendor'
 
-// Finnhub's field names below are read from its documentation (profile2's `finnhubIndustry` and `country`, search's
-// `result` of `symbol`, `description` and `type`), unconfirmed until a request with a real key.
+// Finnhub's field names below are read from its OpenAPI file (profile2's `finnhubIndustry`, `country`, `exchange`,
+// `marketCapitalization`, `currency` and `ipo`, search's `result` of `symbol`, `description` and `type`), unconfirmed
+// until a request with a real key. The file states no unit for `marketCapitalization`.
 
 const API = 'https://finnhub.io/api/v1'
 
@@ -20,7 +21,7 @@ async function answerJson(fetch: VendorFetch, path: string, key: string): Promis
     return { kind: 'failed', reason: 'not-on-free-key' }
   }
   if (status !== 200) {
-    return { kind: 'failed', reason: status === 401 ? 'refused' : statusFailure(status) }
+    return { kind: 'failed', reason: statusFailure(status) }
   }
   const parsed = parsedJson(text)
   return parsed === undefined ? { kind: 'failed', reason: 'unreadable' } : { kind: 'json', parsed }
@@ -30,7 +31,16 @@ function textOrNull(value: unknown): string | null {
   return typeof value === 'string' && value.trim() !== '' ? value.trim() : null
 }
 
-/** A company's industry and home country, by ISIN where the instrument has one. An unknown company answers an empty object, kept as a profile of nulls. */
+/** A number the answer sent as decimal text, or null for anything that is no finite number above zero. */
+function amountOrNull(value: unknown): string | null {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    return null
+  }
+  const text = String(value)
+  return /^\d+(\.\d+)?$/.test(text) ? text : null
+}
+
+/** A company's profile, by ISIN where the instrument has one. An unknown company answers an empty object, kept as a profile of nulls. */
 async function finnhubProfile(fetch: VendorFetch, key: string | null, query: ProfileQuery): Promise<Fetched<VendorProfile>> {
   if (key === null) {
     return { kind: 'failed', reason: 'no-key' }
@@ -43,7 +53,16 @@ async function finnhubProfile(fetch: VendorFetch, key: string | null, query: Pro
   if (!isJsonObject(fetched.parsed)) {
     return { kind: 'failed', reason: 'unreadable' }
   }
-  return { kind: 'profile', industry: textOrNull(fetched.parsed.finnhubIndustry), country: textOrNull(fetched.parsed.country) }
+  const { finnhubIndustry, country, exchange, marketCapitalization, currency, ipo } = fetched.parsed
+  return {
+    kind: 'profile',
+    industry: textOrNull(finnhubIndustry),
+    country: textOrNull(country),
+    exchange: textOrNull(exchange),
+    marketCap: amountOrNull(marketCapitalization),
+    currency: textOrNull(currency),
+    ipo: textOrNull(ipo),
+  }
 }
 
 /** The listings Finnhub finds for the text. It gives no market and no currency. */

@@ -504,9 +504,9 @@ function investmentsGroups(add) {
   }
   add('investments.performance.years', () => performanceByYear(sources, compared, valuedOn))
   add('investments.performance.months', () => monthlyReturns(figuresOf({ kind: 'all' })?.growth ?? []))
-  add('investments.income.costs', () => yearlyCosts(sources, valuedOn))
+  add('investments.income.costs', () => yearlyCosts(sources, valuedOn, facts))
   add('investments.income.saving', investingRhythm(workbook.book, today))
-  add('investments.overview.checks', () => portfolioChecks(figures, holdingMixes(figures, workbook.book, facts), recentCosts(sources, valuedOn), workbook.book.targets, workbook.book.checks))
+  add('investments.overview.checks', () => portfolioChecks(figures, holdingMixes(figures, workbook.book, facts), recentCosts(sources, valuedOn, facts), workbook.book.targets, workbook.book.checks))
   for (const year of taxYearsOf(workbook.book, today)) {
     add(`investments.tax.${year}`, () => capitalGainsYear(workbook.book, sources.rates, year))
     add(`investments.tax.${year}.foreign`, () => foreignIncomeYear(workbook.book, sources.rates, year))

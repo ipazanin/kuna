@@ -47,6 +47,12 @@ export function countryOf(text: string): Country | null {
   return COUNTRIES.has(code) ? (code as Country) : null
 }
 
+/** The country of an ISIN's first two letters: the issuer's for a share and the domicile for a fund. Null for a prefix that is no country, such as XS. */
+export function countryOfIsin(isin: string): Country | null {
+  const code = isin.trim().slice(0, 2).toUpperCase()
+  return COUNTRIES.has(code) ? (code as Country) : null
+}
+
 /** The ways the value can be split. Sector and country split the holdings, the rest the whole value with its cash. */
 export const MIXES = ['sector', 'currency', 'country', 'class', 'account'] as const
 

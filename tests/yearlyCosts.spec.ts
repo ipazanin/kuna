@@ -3,18 +3,25 @@ import { describe, expect, it } from 'vitest'
 import type { PortfolioSources } from '../src/apps/investments/holdings/domain/holding'
 import { recentCosts, yearlyCosts } from '../src/apps/investments/income/domain/yearlyCosts'
 import { dayValuer } from '../src/apps/investments/performance/domain/portfolioPerformance'
+import { fetchedFactsBook } from '../src/apps/investments/prices/domain/factsBook'
+import type { FactsBook } from '../src/apps/investments/prices/domain/factsBook'
+import { NO_FETCHED_FACTS } from '../src/apps/investments/prices/domain/pricesFile'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
 import { EURO } from '../src/shared/money/currencyCode'
 import { BROKER, USD, WORKED_PRICES, WORKED_RATES, book, cashMovement, decimal, exchange, instrument, priceBookOf, rateBookOf, trade, workedPortfolio } from './fixtures/investments'
+import { fundFact } from './fixtures/facts'
 import { civil, euros } from './fixtures/ledger'
 
 const FUND = instrument('world-fund', { name: 'World fund', type: 'fund', ter: decimal('0.2') })
 const FUND_PRICES = priceBookOf(new Map([[FUND, [['2025-01-02', '100']] as const]]))
 const NO_RATES = rateBookOf(new Map())
+const NOTHING_FETCHED = fetchedFactsBook(NO_FETCHED_FACTS)
+/** Alpha Vantage's fund profile of the fund, with a TER of 0.30%. */
+const FETCHED_TER = fetchedFactsBook({ ...NO_FETCHED_FACTS, funds: { 'alphavantage:WORLD-FUND': fundFact('2026-01-02', { expenseRatio: '0.003' }) } })
 
-function costsOf(records: InvestmentBook, today: string, sources: Partial<PortfolioSources> = {}) {
+function costsOf(records: InvestmentBook, today: string, sources: Partial<PortfolioSources> = {}, facts: FactsBook = NOTHING_FETCHED) {
   const all: PortfolioSources = { book: records, prices: FUND_PRICES, rates: NO_RATES, today: civil(today), ...sources }
-  return yearlyCosts(all, dayValuer(all))
+  return yearlyCosts(all, dayValuer(all), facts)
 }
 
 /** €10,000.00 of the fund bought on the day out of a deposit of the same. */
@@ -43,7 +50,18 @@ describe('fund costs from the TER', () => {
   it('costs €20.00 for a fund at €10,000.00 at every month end of 2025 with a 0.20% TER', () => {
     const [, year2025] = costsOf(fundBoughtOn('2025-01-02'), '2026-01-15')
     expect(year2025).toMatchObject({ year: 2025, fundCosts: euros(20), total: euros(20), averageValue: euros(10000), share: 0.002 })
-    expect(year2025?.funds).toEqual([{ instrument: FUND, ter: decimal('0.2'), cost: euros(20) }])
+    expect(year2025?.funds).toEqual([{ instrument: FUND, ter: { percent: decimal('0.2'), vendor: null }, cost: euros(20) }])
+  })
+
+  it('costs a fund with no TER typed at the TER of its fetched fund profile, and a typed TER ahead of it', () => {
+    const records = fundBoughtOn('2025-01-02')
+    const fetchedFund = { ...FUND, ter: null }
+    const [, fetched] = costsOf({ ...records, instruments: [fetchedFund] }, '2026-01-15', {}, FETCHED_TER)
+    // 0.30% of €10,000.00 at every month end is €30.00.
+    expect(fetched?.funds).toEqual([{ instrument: fetchedFund, ter: { percent: decimal('0.3'), vendor: 'alphavantage' }, cost: euros(30) }])
+
+    const [, typed] = costsOf({ ...records, instruments: [{ ...fetchedFund, ter: decimal('0.2') }] }, '2026-01-15', {}, FETCHED_TER)
+    expect(typed?.funds.map((fund) => [fund.ter, fund.cost])).toEqual([[{ percent: decimal('0.2'), vendor: null }, euros(20)]])
   })
 
   it('costs €10.00 for the same fund held only from July, the months before counting zero', () => {
@@ -110,7 +128,7 @@ describe('fees by kind', () => {
 describe('the costs of the last 12 months', () => {
   function recentOf(records: InvestmentBook, today: string, sources: Partial<PortfolioSources> = {}) {
     const all: PortfolioSources = { book: records, prices: FUND_PRICES, rates: NO_RATES, today: civil(today), ...sources }
-    return recentCosts(all, dayValuer(all))
+    return recentCosts(all, dayValuer(all), NOTHING_FETCHED)
   }
 
   it('takes the TER of the twelve month ends since the day a year back, against their average value', () => {

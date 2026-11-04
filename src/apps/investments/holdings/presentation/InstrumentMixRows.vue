@@ -5,6 +5,7 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
+import FactsheetPaste from './FactsheetPaste.vue'
 import { COUNTRY_ITEMS, SECTOR_ITEMS } from './instrumentForm'
 import { mixHasErrors, mixLineTexts, mixSum } from './instrumentMixForm'
 import type { FundMix, FundMixErrors, FundMixTexts, MixLineTexts } from './instrumentMixForm'
@@ -28,6 +29,8 @@ const MIX_OPTIONS = FUND_MIXES.map((value) => ({ value, label: text.mixes[value]
 const GROUP_ITEMS: Record<FundMix, { readonly value: string; readonly label: string }[]> = { sector: SECTOR_ITEMS, country: COUNTRY_ITEMS }
 
 const picked = ref<FundMix>(texts.value.sector.length === 0 && texts.value.country.length > 0 ? 'country' : 'sector')
+/** Whether the country table from a factsheet is open for a paste. */
+const pasting = ref(false)
 
 /** The most places a percent keeps, as many as the file does. */
 const PERCENT_PLACES = 12
@@ -44,6 +47,11 @@ function replaced(next: MixLineTexts[]): void {
   texts.value = { ...texts.value, [picked.value]: next }
 }
 
+function filled(next: MixLineTexts[]): void {
+  replaced(next)
+  pasting.value = false
+}
+
 function update(index: number, field: 'group' | 'percent', value: string): void {
   replaced(lines.value.map((line, at) => (at === index ? { ...line, [field]: value } : line)))
 }
@@ -56,6 +64,7 @@ function update(index: number, field: 'group' | 'percent', value: string): void 
       <ChoiceButtons v-model="picked" :options="MIX_OPTIONS" :label="text.mixPick" data-testid="instrument-mix-pick" />
     </div>
     <p class="text-sm text-muted">{{ text.mixHelp }}</p>
+    <FactsheetPaste v-if="pasting && picked === 'country'" @fill="filled" @cancel="pasting = false" />
     <ol v-if="lines.length > 0" class="flex flex-col gap-2" :aria-label="text.mixes[picked]">
       <li v-for="(line, index) in lines" :key="line.key" class="grid grid-cols-[minmax(0,1fr)_7rem_auto] items-start gap-2" data-testid="instrument-mix-line">
         <UFormField :error="shown(errors.lines[picked][index]?.group ?? null)">
@@ -94,7 +103,19 @@ function update(index: number, field: 'group' | 'percent', value: string): void 
       </li>
     </ol>
     <div class="flex flex-wrap items-center justify-between gap-3">
-      <UButton :label="text.addLine" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="instrument-mix-add" @click="replaced([...lines, mixLineTexts('', '')])" />
+      <span class="flex flex-wrap gap-2">
+        <UButton :label="text.addLine" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="instrument-mix-add" @click="replaced([...lines, mixLineTexts('', '')])" />
+        <UButton
+          v-if="picked === 'country' && !pasting"
+          :label="text.paste.open"
+          icon="i-lucide-clipboard-paste"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          data-testid="instrument-mix-paste-open"
+          @click="pasting = true"
+        />
+      </span>
       <p v-if="lines.length > 0" class="text-sm" :class="sum === HUNDRED_PERCENT ? 'text-toned' : tried ? 'text-error' : 'text-muted'" data-testid="instrument-mix-sum">
         {{ text.mixSum(formatQuantity(sum, PERCENT_PLACES)) }}
       </p>

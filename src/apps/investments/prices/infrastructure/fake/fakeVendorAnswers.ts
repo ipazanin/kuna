@@ -104,18 +104,36 @@ const FAKE_SPLITS: Readonly<Record<string, readonly { readonly effective_date: s
   ABC: [{ effective_date: '2025-06-10', split_factor: '2.0000' }],
 }
 
-/** The sector weights the fake Alpha Vantage gives a made-up fund, each a fraction as text. */
-const FAKE_FUND_SECTORS: Readonly<Record<string, readonly { readonly sector: string; readonly weight: string }[]>> = {
-  EMF: [
-    { sector: 'FINANCIALS', weight: '0.900' },
-    { sector: 'INDUSTRIALS', weight: '0.100' },
-  ],
-  'XYZ.DEX': [
-    { sector: 'INFORMATION TECHNOLOGY', weight: '0.251' },
-    { sector: 'FINANCIALS', weight: '0.160' },
-    { sector: 'HEALTHCARE', weight: '0.110' },
-    { sector: 'INDUSTRIALS', weight: '0.479' },
-  ],
+/** The fund profiles the fake Alpha Vantage gives the made-up funds, as its ETF_PROFILE answers them. */
+const FAKE_FUND_PROFILES: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
+  EMF: {
+    net_assets: '2450000000',
+    net_expense_ratio: '0.0015',
+    portfolio_turnover: '0.12',
+    dividend_yield: '0.031',
+    inception_date: '2012-03-19',
+    leveraged: 'NO',
+    sectors: [
+      { sector: 'FINANCIALS', weight: '0.900' },
+      { sector: 'INDUSTRIALS', weight: '0.100' },
+    ],
+    holdings: Array.from({ length: 48 }, (_, place) => ({ symbol: `EX${place + 1}`, description: `EXAMPLE HOLDING ${place + 1}`, weight: '0.0208' })),
+  },
+  'XYZ.DEX': {
+    net_assets: '18200000000',
+    net_expense_ratio: '0.0019',
+    portfolio_turnover: '0.04',
+    dividend_yield: '0.0145',
+    inception_date: '2019-07-23',
+    leveraged: 'NO',
+    sectors: [
+      { sector: 'INFORMATION TECHNOLOGY', weight: '0.251' },
+      { sector: 'FINANCIALS', weight: '0.160' },
+      { sector: 'HEALTHCARE', weight: '0.110' },
+      { sector: 'INDUSTRIALS', weight: '0.479' },
+    ],
+    holdings: Array.from({ length: 120 }, (_, place) => ({ symbol: `EXW${place + 1}`, description: `EXAMPLE WORLD HOLDING ${place + 1}`, weight: '0.0083' })),
+  },
 }
 
 /** The dividends the fake Alpha Vantage lists of the made-up payer, one paid and one announced. */
@@ -132,8 +150,7 @@ function alphaVantage(query: URLSearchParams): VendorAnswer {
     return json(200, { symbol, data: FAKE_SPLITS[symbol] ?? [] })
   }
   if (query.get('function') === 'ETF_PROFILE') {
-    const sectors = FAKE_FUND_SECTORS[symbol]
-    return json(200, sectors === undefined ? {} : { net_assets: '1000000000', net_expense_ratio: '0.002', sectors, holdings: [] })
+    return json(200, FAKE_FUND_PROFILES[symbol] ?? {})
   }
   if (query.get('function') === 'DIVIDENDS') {
     return json(200, { symbol, data: FAKE_DIVIDENDS[symbol] ?? [] })
@@ -164,17 +181,33 @@ function ecb(url: string, query: URLSearchParams): VendorAnswer {
   return { status: 200, text: ['KEY,TIME_PERIOD,OBS_VALUE', ...lines].join('\r\n') }
 }
 
-/** The made-up companies the fake Finnhub has profiles of, by ISIN or symbol, its test symbol among them. */
-const FAKE_PROFILES: Readonly<Record<string, { readonly finnhubIndustry: string; readonly country: string; readonly name: string }>> = {
-  US000000DEF2: { finnhubIndustry: 'Food Products', country: 'US', name: 'Example Dividend Co' },
-  GHI: { finnhubIndustry: '', country: 'US', name: 'Example Spinco' },
-  AAPL: { finnhubIndustry: 'Technology', country: 'US', name: 'Example Test Co' },
+/** The made-up companies the fake Finnhub has profiles of, by ISIN or symbol, its test symbol among them, as profile2 answers them. */
+const FAKE_PROFILES: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
+  XX000000ABC1: {
+    finnhubIndustry: 'Technology',
+    country: 'US',
+    name: 'Example Tech',
+    currency: 'USD',
+    exchange: 'NASDAQ NMS - GLOBAL MARKET',
+    ipo: '2004-08-19',
+    marketCapitalization: 2125400.5,
+    shareOutstanding: 13950.2,
+  },
+  GHI: { finnhubIndustry: '', country: 'US', name: 'Example Spinco', currency: 'USD', exchange: 'NEW YORK STOCK EXCHANGE, INC.' },
+  AAPL: { finnhubIndustry: 'Technology', country: 'US', name: 'Example Test Co', currency: 'USD', exchange: 'NASDAQ NMS - GLOBAL MARKET', ipo: '1980-12-12', marketCapitalization: 1415993 },
 }
+
+/** The made-up companies whose profile the fake Finnhub keeps for paid keys, as it answers a premium endpoint. */
+const PREMIUM_PROFILES: ReadonlySet<string> = new Set(['US000000DEF2'])
 
 function finnhub(url: string, query: URLSearchParams): VendorAnswer {
   if (url.startsWith('https://finnhub.io/api/v1/stock/profile2?')) {
-    const profile = FAKE_PROFILES[query.get('isin') ?? query.get('symbol') ?? '']
-    return json(200, profile === undefined ? {} : { ...profile, currency: 'USD', exchange: 'EXAMPLE EXCHANGE', ticker: query.get('symbol') ?? '' })
+    const asked = query.get('isin') ?? query.get('symbol') ?? ''
+    if (PREMIUM_PROFILES.has(asked)) {
+      return json(403, { error: "You don't have access to this resource." })
+    }
+    const profile = FAKE_PROFILES[asked]
+    return json(200, profile === undefined ? {} : { ...profile, ticker: query.get('symbol') ?? '' })
   }
   const result = fakeListings(query.get('q') ?? '').map((listing) => ({ description: listing.name.toUpperCase(), displaySymbol: listing.symbol, symbol: listing.symbol, type: listing.type }))
   return json(200, { count: result.length, result })

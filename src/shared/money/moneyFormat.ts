@@ -55,6 +55,7 @@ interface Formatters {
   readonly decimal: Intl.NumberFormat
   readonly days: Intl.NumberFormat
   readonly count: Intl.NumberFormat
+  readonly compactCount: Intl.NumberFormat
   readonly unitName: string
 }
 
@@ -86,6 +87,7 @@ function formatters(format: MoneyFormat = active.value): Formatters {
       decimal: new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
       days: new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
       count: new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }),
+      compactCount: new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 }),
       unitName: unitNameOf(currency),
     }
     formattersByKey.set(key, found)
@@ -175,6 +177,13 @@ export function formatDays(days: number): string {
 /** A whole count, such as 31 instalments, signed as asked, such as −31 against another. */
 export function formatCount(count: number, sign: SignDisplay = 'negative'): string {
   return withSign(count, formatters().count.format(Math.abs(count)), sign)
+}
+
+/** A large amount in short in its own currency, such as $2.1T, or with no currency where nobody states one, such as 2.5B. */
+export function formatCompactAmount(value: Decimal, currency: CurrencyCode | null): string {
+  const units = Number(decimalText(value))
+  const formatter = currency === null ? formatters().compactCount : formatters({ currency, locale: active.value.locale }).compact
+  return withSign(units, formatter.format(Math.abs(units)), 'negative')
 }
 
 /** "euro", "US dollar": what one unit of the currency is called in running text. */

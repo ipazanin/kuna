@@ -15,6 +15,7 @@ import { countryOf } from '../src/apps/investments/workbook/domain/mixGroup'
 import type { FundMixGroup } from '../src/apps/investments/workbook/domain/mixGroup'
 import { EURO } from '../src/shared/money/currencyCode'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { fundFact, profileFact } from './fixtures/facts'
 import { BROKER, USD, WORKED_PRICES, WORKED_RATES, account, book, cashMovement, decimal, instrument, priceBookOf, rateBookOf, trade, unitTransfer, workedPortfolio } from './fixtures/investments'
 import type { CloseRow } from './fixtures/investments'
 import { civil, euros } from './fixtures/ledger'
@@ -183,17 +184,19 @@ describe('the mixes of the holdings', () => {
 /** What made-up vendors answered: Finnhub files the share under Semiconductors in the US, and Alpha Vantage weights the fund by sector. */
 const FETCHED: FetchedFacts = {
   ...NO_FETCHED_FACTS,
-  profiles: { 'finnhub:US0000000001': { asked: '2026-10-29', industry: 'Semiconductors', country: 'US' }, 'finnhub:IE0000000002': { asked: '2026-10-29', industry: 'Banking', country: 'US' } },
-  sectors: {
-    'alphavantage:FUND': {
-      asked: '2026-10-29',
+  profiles: {
+    'finnhub:US0000000001': profileFact('2026-10-29', { industry: 'Semiconductors', country: 'US' }),
+    'finnhub:IE0000000002': profileFact('2026-10-29', { industry: 'Banking', country: 'US' }),
+  },
+  funds: {
+    'alphavantage:FUND': fundFact('2026-10-29', {
       sectors: [
         ['INFORMATION TECHNOLOGY', '0.25'],
         ['FINANCIALS', '0.15'],
         ['HEALTHCARE', '0.10'],
         ['INDUSTRIALS', '0.50'],
       ],
-    },
+    }),
   },
 }
 
@@ -229,15 +232,10 @@ describe('the mixes from fetched facts', () => {
 
   it('takes the country of the profile ahead of the ISIN, and never a fund’s profile, which would be its issuer’s', () => {
     expect(
-      exposureOf(
-        { ...SHARE, isin: 'DE0000000001' },
-        'country',
-        book({}),
-        fetchedFactsBook({ ...FETCHED, profiles: { 'finnhub:DE0000000001': { asked: '2026-10-29', industry: null, country: 'NL' } } }),
-      ),
+      exposureOf({ ...SHARE, isin: 'DE0000000001' }, 'country', book({}), fetchedFactsBook({ ...FETCHED, profiles: { 'finnhub:DE0000000001': profileFact('2026-10-29', { country: 'NL' }) } })),
     ).toEqual({ from: { kind: 'profile', vendor: 'finnhub' }, lines: [{ group: 'NL', percent: decimal('100') }] })
     expect(exposureOf(FUND, 'country', book({}), facts)).toEqual({ from: null, lines: [] })
-    expect(exposureOf(FUND, 'sector', book({}), fetchedFactsBook({ ...FETCHED, sectors: {} }))).toEqual({ from: null, lines: [] })
+    expect(exposureOf(FUND, 'sector', book({}), fetchedFactsBook({ ...FETCHED, funds: {} }))).toEqual({ from: null, lines: [] })
   })
 
   it('takes a typed sector ahead of the fetched fund weights, and no profile of an instrument with no type known', () => {

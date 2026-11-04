@@ -2,10 +2,11 @@ import { priceInTodaysUnits, quantityInTodaysUnits } from './holding'
 import type { HoldingFigures, PortfolioSources } from './holding'
 import { closePerUnit, priceOfWorth, tradeWorth } from './quoting'
 import type { Close } from '../../prices/domain/priceBook'
+import type { Instrument } from '../../workbook/domain/instrument'
 import type { Trade, TradeSide } from '../../workbook/domain/trade'
-import { weekdaysBetween } from '../../../../shared/calendar/civilDate'
+import { addDays, weekdaysBetween } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { lastDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
+import { dayMonthsLater, lastDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
 import { DECIMAL_ZERO, inEuros, sumDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import { sumMoney } from '../../../../shared/money/money'
@@ -117,4 +118,48 @@ export function priceHistory(holding: Pick<HoldingFigures, 'instrument' | 'quant
       }
     })
   return { daily, points, dots }
+}
+
+/** The lowest and highest close of the last 52 weeks, in the quote currency and in today's units, and how much of the year the closes cover. */
+export interface YearRange {
+  readonly low: PricePoint
+  readonly high: PricePoint
+  /** The day of the first close in the year. */
+  readonly from: CivilDate
+  /** The day of the last close. */
+  readonly to: CivilDate
+  /** Whether the closes end more than a week before today, as those of a holding sold in the year end with its last trade. */
+  readonly ended: boolean
+  /** Whether the closes reach back to a year ago, give or take a week of holidays, and have not ended. */
+  readonly wholeYear: boolean
+  /** Whether a close falls on most weekdays of the span, so a vendor's month-end closes before its daily ones do not hide a low or a high between them. */
+  readonly daily: boolean
+}
+
+/** Closes that start within this many days of a year ago, or end within it of today, still cover the year, as a holiday or a weekend may fall on its first or last day. */
+const YEAR_SLACK_DAYS = 7
+
+/** The range of an instrument's closes from a year before the figures' day to that day, or null for one with no close in that time. */
+export function yearRange(instrument: Instrument, sources: PortfolioSources): YearRange | null {
+  const { book, prices, today } = sources
+  const yearAgo = dayMonthsLater(today, -12)
+  const closes = prices.closesBetween(instrument, addDays(yearAgo, 1), today)
+  const first = closes[0]
+  const last = closes[closes.length - 1]
+  if (first === undefined || last === undefined) {
+    return null
+  }
+  const ended = last.date < addDays(today, -YEAR_SLACK_DAYS)
+  const points = closes.map((close): PricePoint => ({ date: close.date, price: closePerUnit(instrument.quoted, priceInTodaysUnits(book, instrument, close.date, close.price)) }))
+  const low = points.reduce((lowest, point) => (point.price < lowest.price ? point : lowest))
+  const high = points.reduce((highest, point) => (point.price > highest.price ? point : highest))
+  return {
+    low,
+    high,
+    from: first.date,
+    to: last.date,
+    ended,
+    wholeYear: first.date <= addDays(yearAgo, YEAR_SLACK_DAYS) && !ended,
+    daily: closes.length >= DAILY_SHARE * weekdaysBetween(first.date, last.date),
+  }
 }

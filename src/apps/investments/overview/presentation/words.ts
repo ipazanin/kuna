@@ -135,6 +135,9 @@ export const en = {
     thresholds: 'Change the thresholds',
     allOff: 'Every check is switched off.',
     nothingYet: 'Nothing to check yet.',
+    facts: 'Fetched facts',
+    factsMissing: 'Missing',
+    factProblems: (count: number): EnglishForms => ({ one: `A vendor sent nothing usable for ${count} holding`, other: `Vendors sent nothing usable for ${count} holdings` }),
   },
 }
 
@@ -270,6 +273,13 @@ export const hr: Translation<typeof en> = {
     thresholds: 'Promijeni pragove',
     allOff: 'Sve su provjere isključene.',
     nothingYet: 'Još nema ničega za provjeru.',
+    facts: 'Dohvaćeni podaci',
+    factsMissing: 'Nedostaje',
+    factProblems: (count) => ({
+      one: `Izvor nije poslao ništa upotrebljivo za ${count} poziciju`,
+      few: `Izvori nisu poslali ništa upotrebljivo za ${count} pozicije`,
+      other: `Izvori nisu poslali ništa upotrebljivo za ${count} pozicija`,
+    }),
   },
 }
 

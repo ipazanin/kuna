@@ -10,8 +10,11 @@ export async function answerOf(fetch: VendorFetch, url: string): Promise<Fetched
   }
 }
 
-/** Why an HTTP status other than 200 got nothing. */
+/** Why an HTTP status other than 200 got nothing. A server error is a passing outage, read as no answer. */
 export function statusFailure(status: number): FailureReason {
+  if (status >= 500) {
+    return 'no-answer'
+  }
   return status === 404 ? 'unknown-symbol' : status === 429 ? 'limit' : 'refused'
 }
 

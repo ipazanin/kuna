@@ -67,6 +67,7 @@ export const en = {
     account: 'Account fees',
     funds: 'Fund costs, estimated',
     ter: (rate: string) => `TER ${rate}`,
+    fetchedTer: (rate: string, vendor: string) => `TER ${rate}, from ${vendor}`,
     ofAverage: (share: string, average: string) => `${share} of the average value of ${average}`,
     insidePrice: "Fund costs are already inside each fund's price, so they are never taken off again.",
     unratedExchanges: (count: number): EnglishForms => ({
@@ -172,6 +173,7 @@ export const hr: Translation<typeof en> = {
     account: 'Naknade računa',
     funds: 'Troškovi fondova, procjena',
     ter: (rate) => `TER ${rate}`,
+    fetchedTer: (rate, vendor) => `TER ${rate}, prema ${vendor}`,
     ofAverage: (share, average) => `${share} prosječne vrijednosti od ${average}`,
     insidePrice: 'Troškovi fondova već su uključeni u cijenu svakog fonda, pa se nikad ne oduzimaju još jednom.',
     unratedExchanges: (count) => ({

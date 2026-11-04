@@ -49,7 +49,7 @@ function investments(extra: Partial<InvestmentBook> = {}): InvestmentBook {
 const KEYS: Readonly<Record<string, string>> = { twelvedata: 'td-key-made-up', alphavantage: 'av-key-made-up' }
 
 /** The vendors as the closes see them, without the facts a day's fetch asks for after the closes, which `factFetch.spec.ts` covers. */
-const CLOSES_VENDORS: readonly PriceVendor[] = closesVendors(PRICE_VENDORS).map(({ profile, fundSectors, dividends, search, ...vendor }) => vendor)
+const CLOSES_VENDORS: readonly PriceVendor[] = closesVendors(PRICE_VENDORS).map(({ profile, fundProfile, dividends, search, ...vendor }) => vendor)
 
 const weekdaysThrough = new Map<string, readonly CivilDate[]>()
 
@@ -352,7 +352,8 @@ describe('fetching prices again', () => {
     expect(after.series).toEqual(before.series)
     expect(after.writtenAt).toBe('2026-11-02T07:41:00.000Z')
     expect(after.failures).toEqual([
-      { series: 'twelvedata:ABC', day: '2026-11-02', reason: 'refused' },
+      // A server error is a passing outage, so it reads as no answer.
+      { series: 'twelvedata:ABC', day: '2026-11-02', reason: 'no-answer' },
       { series: 'alphavantage:XYZ.DEX', day: '2026-11-02', reason: 'limit' },
       { series: 'twelvedata:IDX', day: '2026-11-02', reason: 'limit' },
       { series: 'ecb:USD', day: '2026-11-02', reason: 'no-answer' },
@@ -429,7 +430,7 @@ describe('fetching prices again', () => {
     const first = browser.prices()
     expect(closesOf(first, 'alphavantage:XYZ.DEX')).toHaveLength(99)
     expect(first.series['alphavantage:XYZ.DEX']!.from).toBe(closesOf(first, 'alphavantage:XYZ.DEX')[0]![0])
-    expect(first.failures).toEqual([{ series: 'alphavantage:XYZ.DEX', day: '2026-10-30', reason: 'limit' }])
+    expect(first.failures).toEqual([{ series: 'alphavantage:XYZ.DEX', day: '2026-10-30', reason: 'message' }])
     await browser.run('2026-11-02')
     expect(browser.asked('alphavantage').map((query) => query.get('function'))).toEqual(['TIME_SERIES_DAILY', 'TIME_SERIES_MONTHLY'])
     expect(browser.prices().series['alphavantage:XYZ.DEX']!.from).toBe('2025-01-03')
@@ -617,7 +618,7 @@ describe('the vendors without a key, at their limits and on their errors', () =>
 
   it('leaves alone a file that is no prices file, such as one a newer Kuna wrote', async () => {
     const browser = device()
-    browser.pricesText = JSON.stringify({ format: 'kuna-prices', version: 3, written_at: null, series: {}, splits: [], failures: [] })
+    browser.pricesText = JSON.stringify({ format: 'kuna-prices', version: 4, written_at: null, series: {}, splits: [], failures: [] })
     expect(await browser.run('2026-10-30')).toEqual({ kind: 'refused', reason: 'newer' })
     expect(browser.events).toEqual([])
     expect(browser.writes).toEqual([])
@@ -803,7 +804,7 @@ describe('asking only for what is missing', () => {
   it("does not ask again for the history before a vendor's earliest close, and asks from the last close after", async () => {
     const browser = device()
     // Alpha Vantage's monthly closes are refused, so the free key's 100 daily closes are all there is.
-    await browser.run('2026-10-30', { failing: new Map([['TIME_SERIES_MONTHLY', { status: 500, text: 'Internal Server Error' }]]) })
+    await browser.run('2026-10-30', { failing: new Map([['TIME_SERIES_MONTHLY', { status: 403, text: 'Forbidden' }]]) })
     const first = browser.prices().series['alphavantage:XYZ.DEX']!
     expect(first.from).toBe('2025-01-03')
     expect(first.closes).toHaveLength(99)

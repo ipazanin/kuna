@@ -40,7 +40,7 @@ function offers(vendor: PriceVendor): string {
     ...(vendor.prices === 'rates' ? [words.capabilities.rates] : vendor.prices === 'listings' ? [words.capabilities.closes] : []),
     ...(vendor.splits === undefined ? [] : [words.capabilities.splits]),
     ...(vendor.profile === undefined ? [] : [words.capabilities.profiles]),
-    ...(vendor.fundSectors === undefined ? [] : [words.capabilities.fundSectors]),
+    ...(vendor.fundProfile === undefined ? [] : [words.capabilities.fundProfiles]),
     ...(vendor.dividends === undefined ? [] : [words.capabilities.dividends]),
     ...(vendor.search === undefined ? [] : [words.capabilities.search]),
   ]

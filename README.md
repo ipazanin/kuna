@@ -2429,10 +2429,33 @@ currency, realised on sales and income, then its facts, its month-end closes in 
 the average cost dashed and a filled dot per buy in cyan, deep in the light theme and pale in the dark one, and one per sale in orange, all one size,
 side by side on a point with both, the lots still held with the day
 each turns tax-free, its transactions and its income. Its Details card leads that last row with its
-type, class, sector, country or region, ISIN, a fund's TER and dividends and its price source, each with
-where it came from: typed, a search at its price vendor, its mix as typed, a fund's weights or a company
-profile from the vendor that gave them, such as "Company profile from Finnhub", or its ISIN, by the same rule the mixes of Holdings follow (`holdings/domain/exposure.ts`).
-A fact nobody gave reads Not known with a hint to type it with Change. Physical gold and a coin show a
+type, class, sector, country or region, a fund's domicile, ISIN, a share's exchange, market cap and
+listing day, a fund's TER, size, start, number of holdings and dividends, its 52-week range and its
+price source, each with where it came from: typed, a search at its price vendor, its mix as typed, a
+fund's weights, a fund profile or a company profile from the vendor that gave them, such as "Company
+profile from Finnhub", or its ISIN, by the same rule the mixes of Holdings follow
+(`holdings/domain/exposure.ts`). A fund's domicile is the country of its ISIN's first two letters
+(`countryOfIsin` in `workbook/domain/mixGroup.ts`, which the mixes and the Tax screen's Abroad list
+read too), so Ireland for an IE ISIN. A typed TER wins over a fetched one, which shows with its
+vendor and counts wherever a typed one does, on the Costs tab and in the Overview's costs check
+(`holdings/domain/fundTer.ts`). Finnhub states no unit for a market cap, so Kuna reads it as millions,
+as its own example implies, and shows it as approximate. Alpha Vantage states no currency for a
+fund's size, so it shows with none. The number of holdings is the length of Alpha Vantage's list,
+which may leave out a big fund's smallest, so it says "maybe not all". The exchange shows only for a
+share typed with none, since the page's header names a typed one. The 52-week range is the lowest and
+highest close Kuna keeps of the last year, for a holding held or sold, and says when its closes start
+inside the year, end before today as a sold holding's do, or are partly month ends, as an Alpha
+Vantage listing's older closes are. A fund its vendor calls leveraged gets a warning. When a vendor
+sent nothing usable for a held share's company profile or a held fund's fund profile, the card shows
+a warning that names the vendor, what it was asked and what came back, such as "Alpha Vantage sent no
+fund profile for VWCE.DEX" or "Finnhub refused the company profile for DE0007164600: it needs a paid
+key", with the day it was asked and the day Kuna asks again by itself. Its Ask again asks the vendors
+for that one holding's profiles at once, whatever their day, and the warning then says it asked, or
+that it could not. Where this browser has no key of a vendor in the warning, it says so, and with no
+key of any of them it links to the Prices settings instead of Ask again. An untyped holding gets no
+such warning, as it may be a share that has no fund profile, and neither does a fact read from a
+version 2 prices file, which the next fetch asks again. A fact
+nobody gave reads Not known with a hint to type it with Change. Physical gold and a coin show a
 sector, a country or an ISIN only when one is typed. A fund spread over two sectors or more gets a By
 sector ring of its value, the four largest and the rest grey, and By country or region the same. A fund
 that nothing spreads gets an empty state whose Type its mix opens Change, and one held with no price yet
@@ -2451,7 +2474,8 @@ amount in it, in proportion when it cannot fill them all, the last such group ta
 The Overview's Portfolio checks measure the largest holding, currency, sector, country or region and
 account, the cash, the last 12 months' costs against the average value at their month ends since the
 first deposit, and the largest gap to a target in points, each against its threshold, failing checks
-first. The Checks tab of the Investments Settings changes a threshold or switches a check off, and the
+first. Below them, Fetched facts counts the holdings held that a vendor sent nothing usable for and
+links to each. The Checks tab of the Investments Settings changes a threshold or switches a check off, and the
 file keeps a record only for a check that differs from its default.
 
 Transactions at `#/investments/transactions`, counted in the menu, lists every record of the file and
@@ -2472,7 +2496,11 @@ the year's tax without it, so the year's losses count, and the year's tax with i
 HNB's rate of its settlement day is not out, and warns of a lot within five days of its tax-free day. New holding and the account's plus add an instrument or an account
 from inside the dialog. A holding's page changes its instrument with Change, where its type, its sector, its
 country or region, a fund's TER, whether a fund accumulates or distributes its dividends and a fund's own
-mix by sector and by country are typed too. The mix
+mix by sector and by country are typed too. The country mix has Paste from factsheet, which takes a
+country table pasted from a fund's factsheet, a line such as `United States 62.1%` or `Japan	5,4 %`
+with an English or Croatian name or an ISO code, a region such as Emerging markets among them, shows
+what it read of each line with every line it could not read flagged, and fills the mix with the lines
+it read once confirmed (`holdings/domain/factsheetCountries.ts`). The mix
 saves only once its lines add up to 100%, and deleting the holding deletes its mix with it. The Accounts card in
 the Investments Settings adds and changes accounts. Every write has Undo, and a refused one says why
 in its toast.
@@ -2557,7 +2585,8 @@ The law behind those rules is in `docs/law/`, one file per subject with citation
   sale, split and spin-off of each instrument sold in the year in its own currency, then the year's
   sales, its foreign income and Sažetak, the year's figures (`tax/infrastructure/taxRegisterFile.ts`).
 - **Abroad.** Each payment of the year but coupons and those of a Croatian ISIN, which are not income
-  from abroad, by the country of its ISIN, at HNB's rate of its day: gross, withheld abroad, the
+  from abroad, by the country of its ISIN, with those of no ISIN or of a prefix that is no country,
+  such as XS, under "Country not known", at HNB's rate of its day: gross, withheld abroad, the
   Croatian 12%, the credit, which is the withheld tax up to the 12%, and what is left to pay. Tax withheld abroad goes on the INO-DOH. Nothing withheld means a JOPPD within
   30 days, with its report type 8, its mark of the day received and its codes. A referral credit is other income from abroad (codes 4002 and 4025) with its 30 days, 10% pension
   contributions and no figure, since its tax rate is the city's.
@@ -2629,28 +2658,35 @@ its day, a split that leaves a lot with no units, or targets of a second mix bes
 
 Investments values holdings at daily closes that Kuna fetches itself, in the page, from price vendors
 with each user's own free keys, and asks the same vendors a few facts about the holdings: a company's
-industry and country, a fund's weights by sector, announced dividends and what a listing is. It writes
+profile, a fund's profile with its weights by sector, announced dividends and what a listing is. It writes
 them to a second Drive file, `kuna-investments-prices.json`, beside the Investments file, so every
 device reads the same closes and facts. Below are the prices file, how the figures read it, the
 vendors, the keys and how they reach every browser, the fetch that writes it, the Prices step of the page's sync, the once-a-day fetch, the
 Overview's line on how the prices stand and the Prices card in the Investments Settings.
 
 The prices file is defined once, in `src/apps/investments/prices/domain/pricesFile.ts`. It holds
-`format` `kuna-prices`, `version` 2, `written_at`, `last_fetch`, `series`, `splits`, `failures` and
-`facts`, and Kuna reads a version 1 file as one with no facts. A series is
+`format` `kuna-prices`, `version` 3, `written_at`, `last_fetch`, `series`, `splits`, `failures` and
+`facts`. Kuna reads a version 1 file as one with no facts, and a version 2 file's company profiles and
+fund weights, which kept fewer fields, as asked on 1 January 2000, so the next day's fetch asks them
+again. An older Kuna refuses a version 3 file, so it never rewrites it without the newer fields. A series is
 keyed by vendor and the vendor's symbol, such as `twelvedata:ABC`, `alphavantage:XYZ.DEX` or
 `ecb:USD`, so two instruments on one listing share it. Each has its `currency`, `from` (the earliest
 day Kuna asked the vendor for) and `closes`, one `[day, close]` a trading day, oldest first, every
 close decimal text as the vendor sent it. An `ecb:` series holds units of the currency per euro.
 `splits` are the splits a vendor reported, with `new` and `old` as whole numbers, for Kuna to offer as
 records. `failures` are the last fetch's only: the series, the day and a reason (`no-key`,
-`no-answer`, `refused`, `unknown-symbol`, `limit`, `not-on-free-key`, `unreadable`). `facts` holds four
+`no-answer`, `refused`, `unknown-symbol`, `limit`, `not-on-free-key`, `unreadable`, `message`). `facts` holds four
 kinds, each keyed like a series by vendor and what was asked, with the day it was asked and the
-vendor's words as it sent them: `profiles` (`finnhub:<ISIN or symbol>` with `industry` and `country`),
-`sectors` (`alphavantage:<symbol>` with `[sector, weight]` pairs, the weight a fraction as text),
+vendor's words as it sent them: `profiles` (`finnhub:<ISIN or symbol>` with `industry`, `country`,
+`exchange`, `market_cap` as decimal text, `currency` and `ipo`), `funds` (`alphavantage:<symbol>` with
+`expense_ratio` and `dividend_yield` as fractions, `net_assets`, `inception`, `leveraged`, the number
+of `holdings` and `sectors` as `[sector, weight]` pairs, the weight a fraction as text, one fact per
+`ETF_PROFILE` answer),
 `dividends` (`alphavantage:<symbol>` with `[ex day, payment day, amount a unit]`, from the day asked
 on) and `types` (the instrument's own series key with the `type` its vendor's search gave). An empty
-answer is kept as an empty fact, so it is not asked again. It is written one series or fact a line,
+answer is kept as an empty fact, so it is not asked again before it is due. A profile and a fund
+profile also keep `failed`, why the vendor sent nothing (`unknown-symbol`, `not-on-free-key`,
+`refused`, `limit`, `unreadable` or `message`), or null. It is written one series or fact a line,
 so Drive's preview reads it and a revision's diff shows the series that changed. Kuna refuses a file
 that is not JSON, not a prices file, of a newer version or out of shape. The file never holds a key.
 
@@ -2658,7 +2694,10 @@ The figures read the facts through the `FactsBook` port (`prices/domain/factsBoo
 the vendors' words to Kuna's through the fixed tables of `vendorWords.ts`: Finnhub's industries to
 the eleven GICS sectors, Alpha Vantage's sector names likewise, and the search answers' types, such
 as `Common Stock`, `Equity`, `ETF` or `Mutual Fund`, to share, fund, bond or crypto. A word missing
-from a table counts as not known. What is typed in the Investments file comes first: a holding's
+from a table counts as not known. A fund profile's expense ratio becomes its TER in percent, and its
+`leveraged` of `YES` a leveraged fund. A profile or a fund profile with a failure or with nothing in it
+is a problem of its holding (`problemsOf`), which the holding's page, the Overview's checks and the
+Prices step of the sync show. What is typed in the Investments file comes first: a holding's
 sector is its typed fund mix, then its typed sector, then the fetched fund weights, then the
 profile's. Its country is its typed fund mix, then its typed country, then the profile's, then the
 first two letters of its ISIN. Only a share takes a profile or its ISIN's country, since a fund's
@@ -2687,7 +2726,7 @@ Each vendor is a `PriceVendor` (`prices/application/priceVendor.ts`): its id, wh
 instrument names and its series' prefix, its name and what it covers for Settings, whether it needs
 a key, where to claim a free one, its limits per minute and per day, and for a vendor of closes a
 call that returns the closes of a symbol from a day. Any vendor may also give splits, company
-profiles, fund sector weights, dividends or a search. The adapters are in
+profiles, fund profiles, dividends or a search. The adapters are in
 `prices/infrastructure/vendors/`, and `priceVendors.ts` lists the ones Kuna supports:
 
 | Vendor                | Prices                                                                                                                                                  | Key                                           | Free limits                                                                                                           |
@@ -2781,14 +2820,23 @@ vendors' hosts. Once a day, the first device that opens Kuna after a new trading
    minute when needed, and stops asking a vendor for the day at its daily limit or once it answers that
    the limit is reached.
 5. On a day's fetch, after the closes and through the same pacing, asks for the facts of the
-   holdings held that no fact covers yet (`prices/application/factFetch.ts`). First it asks what
-   each untyped holding is, from a search of its own price vendor. Then it asks Finnhub for the
-   profile of each share whose sector or country is not typed, and Alpha Vantage for the fund
-   weights of each fund or untyped holding whose sector is not typed and that no profile placed.
-   Last come Alpha Vantage's dividends of each holding that paid in the last 13 months, once a
-   month. A vendor's daily limit leaves the rest for the next day, which the last fetch's line on
-   the Prices card says. An answer that the vendor does not know the symbol is kept as an empty
-   fact, and any other failure is asked again on the next day's fetch. A fact wanted from a vendor
+   holdings held that no fact covers yet, or that are due (`prices/application/factFetch.ts`).
+   First it asks what each untyped holding is, from a search of its own price vendor. Then it asks
+   Finnhub for the profile of each share, and Alpha Vantage for the fund profile of each fund, and
+   of each untyped holding whose sector is not typed and that no profile placed. A profile and a
+   fund profile are asked again once they are 90 days old, since a TER, a fund's size and a market
+   cap drift. Last come Alpha Vantage's dividends of each holding that paid in the last 13 months,
+   once a month. A vendor's daily limit, its own answer or Kuna's count of the requests it allows a
+   day, leaves the rest for the next day, which the last fetch's line on the Prices card says. A
+   profile or a fund profile that a vendor refused, as premium data, for its key or at its limit,
+   did not know, sent unreadable or answered with a note of another kind is kept with that failure,
+   and its holding shows the warning with Ask again. One the vendor did not know waits 90 days like
+   an answer. Any other failure is asked again at the next day's fetch, so a fixed key clears its
+   warnings by itself. Alpha
+   Vantage's error message about the key reads as the key refused, and a note that is neither a limit
+   nor a premium endpoint as a message, of which Kuna keeps no text. A search or dividends the vendor
+   does not know are kept as an empty fact. No answer at all, a server error included, is asked
+   again on the next day's fetch. A fact wanted from a vendor
    this browser has no key for is noted in the file, so a browser that holds that key fetches
    again the same day.
 6. Merges what came into each series, keeps every series a vendor failed as it was, notes each failure,
@@ -2818,7 +2866,9 @@ Drive or the fake Drive, the keys and the vendors.
   A key it brings shows on the Prices card at once.
 - **The Prices step.** After the keys, each sync of an Investments file on Drive asks Drive for the
   prices file's head revision and downloads it only when it differs from the copy's. A file Kuna
-  cannot read, such as one a newer Kuna wrote, fails the step and is left as it is. A prices file the
+  cannot read, such as one a newer Kuna wrote, fails the step and is left as it is. Its line counts the
+  holdings held that a vendor sent nothing usable for, and links to the one, or to the Overview,
+  whose checks list them all. A prices file the
   copy names that is now in the bin counts as gone, since Drive still answers for it, so the step
   takes the one beside the Investments file, or makes one there.
 - **The day's fetch.** After the Prices step, or once the records are read for a file kept in this
@@ -2856,8 +2906,11 @@ Drive or the fake Drive, the keys and the vendors.
   Alpha Vantage for any listing, Twelve Data for a US one. Otherwise the price source stays.
 - **The fake build** sends no request out of the page: the prices file is on the fake Drive, and every
   vendor request goes to `prices/infrastructure/fake/fakeVendorAnswers.ts`, which answers made-up
-  closes, profiles, fund weights, dividends and searches for any symbol and any key. The fake prices
-  file holds made-up facts of the sample's holdings.
+  closes, profiles, fund profiles, dividends and searches for any symbol and any key, and refuses the
+  dividend payer's profile as premium data. The fake prices file holds made-up facts of the sample's
+  holdings: a whole profile of the tech share, the payer's refused one, a whole fund profile of the
+  money fund and an empty one of the world ETF, which the fake Alpha Vantage now answers, so its Ask
+  again fills it.
 
 ### Core and the pack
 

@@ -27,6 +27,7 @@ import { OPEN_ITEMS, RULES } from '../../src/apps/company/packs/hr-doo/ruleset/r
 import { termLabel } from '../../src/apps/company/packs/hr-doo/ruleset/presentation/ruleWording.ts'
 import { fakeLoansDocument } from '../../src/apps/loans/workbook/infrastructure/fake/fakeLoans.ts'
 import { fakeInvestmentsDocument } from '../../src/apps/investments/workbook/infrastructure/fake/fakeInvestments.ts'
+import { fakePricesFile } from '../../src/apps/investments/prices/infrastructure/fake/fakePrices.ts'
 import { sampleWorkbookGrid } from '../../src/apps/investments/imports/infrastructure/fake/sampleWorkbook.ts'
 import { installHrDooPack } from './installPack.mjs'
 
@@ -313,6 +314,11 @@ export const ENGLISH_ALLOWED = [
     name: 'fake Google failures',
     reason: 'The fake Gmail and Drive fail a search or an upload with these answers, which stand in for the answer Google sends and a real failure shows as Google wrote it.',
     texts: [FAKE_SEARCH_FAILURE, FAKE_UPLOAD_FAILURE],
+  },
+  {
+    name: 'vendor words in fetched facts',
+    reason: 'A company profile names its exchange in the vendor’s words, which a Croatian screen shows as the vendor sent them.',
+    texts: Object.values(fakePricesFile('sample', '2026-10-30').facts.profiles).flatMap((profile) => (profile.exchange === null ? [] : [profile.exchange])),
   },
   {
     name: 'typed by the checks',

@@ -90,7 +90,7 @@ function rateOf(entry: ForeignPayment): string {
       <tbody v-for="country in foreign.countries" :key="country.country ?? ''" data-testid="tax-foreign-country">
         <tr class="group-row">
           <th scope="rowgroup" colspan="8" class="cell-wraps text-start">
-            {{ country.country === null ? text.noIsin : countryName(country.country) }}
+            {{ country.country === null ? text.noCountry : countryName(country.country) }}
             <span v-if="country.country === 'US' && !rules.usTreaty" class="block type-caption font-normal" data-testid="tax-no-treaty">
               {{ text.noUsTreaty(foreign.year, rules.usWithholding) }}
             </span>
@@ -123,7 +123,7 @@ function rateOf(entry: ForeignPayment): string {
           <td class="text-end"><MoneyText v-if="entry.tax !== null" :cents="entry.tax.leftToPay" /></td>
         </tr>
         <tr data-testid="tax-foreign-total">
-          <th scope="row" class="cell-wraps text-start">{{ text.countryTotal(country.country === null ? text.noIsin : countryName(country.country)) }}</th>
+          <th scope="row" class="cell-wraps text-start">{{ text.countryTotal(country.country === null ? text.noCountry : countryName(country.country)) }}</th>
           <td class="hidden @3xl:table-cell" />
           <td class="hidden @3xl:table-cell" />
           <td class="text-end font-medium"><MoneyText :cents="country.total.gross" /></td>

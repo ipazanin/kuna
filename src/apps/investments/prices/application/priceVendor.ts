@@ -49,11 +49,27 @@ export interface VendorProfile {
   readonly kind: 'profile'
   readonly industry: string | null
   readonly country: string | null
+  readonly exchange: string | null
+  /** Decimal text in the vendor's unit. */
+  readonly marketCap: string | null
+  /** The currency of the company's filings. */
+  readonly currency: string | null
+  readonly ipo: string | null
 }
 
-/** A fund's weights by sector, as the vendor wrote them. Empty for a listing that is no fund the vendor covers. */
-export interface VendorFundSectors {
-  readonly kind: 'fund-sectors'
+/** A fund's profile as the vendor wrote it, each part null where the answer had none. An answer for a listing that is no fund the vendor covers has nothing in it. */
+export interface VendorFundProfile {
+  readonly kind: 'fund-profile'
+  /** Decimal text of a fraction, such as `0.0018` for 0.18%. */
+  readonly expenseRatio: string | null
+  readonly netAssets: string | null
+  readonly inception: string | null
+  /** The vendor's word, such as `NO`. */
+  readonly leveraged: string | null
+  /** How many holdings the answer lists. */
+  readonly holdings: number | null
+  /** Decimal text of a fraction. */
+  readonly dividendYield: string | null
   readonly sectors: readonly SectorWeightRow[]
 }
 
@@ -110,8 +126,8 @@ interface VendorEntry {
   splits?(fetch: VendorFetch, key: string | null, symbol: string): Promise<Fetched<VendorSplits>>
   /** A company's profile, for a vendor that has them. */
   profile?(fetch: VendorFetch, key: string | null, query: ProfileQuery): Promise<Fetched<VendorProfile>>
-  /** A fund's weights by sector, for a vendor that has them. */
-  fundSectors?(fetch: VendorFetch, key: string | null, symbol: string): Promise<Fetched<VendorFundSectors>>
+  /** A fund's profile with its weights by sector, for a vendor that has them. */
+  fundProfile?(fetch: VendorFetch, key: string | null, symbol: string): Promise<Fetched<VendorFundProfile>>
   /** A listing's dividends, announced ones among them, for a vendor that lists them. */
   dividends?(fetch: VendorFetch, key: string | null, symbol: string): Promise<Fetched<VendorDividends>>
   /** The listings whose symbol or name matches the text, for a vendor that searches. */
@@ -136,7 +152,7 @@ export interface FactsVendor extends VendorEntry {
  * exports this, plus its entry in PRICE_VENDORS and its source in PRICE_SOURCES when instruments name it. It supplies
  * its id, name and coverage in both languages, what it gives, whether it needs a key and where to claim one, the
  * address its requests go to, its free limits, how to read a limit from its answers and a test symbol. A vendor of
- * closes gives the closes of a symbol from a day, and any vendor may give splits, profiles, fund sector weights,
+ * closes gives the closes of a symbol from a day, and any vendor may give splits, profiles, fund profiles,
  * dividends or a search. The Prices settings, the pacing and the fetch read everything from here, so nothing else
  * names a vendor.
  */

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 
@@ -22,10 +22,12 @@ import { HOLDINGS_ROUTE, holdingNamed } from './holdingLinks'
 import { mixDonut } from './mixDonut'
 import OpenLotsCard from './OpenLotsCard.vue'
 import { seriesKey } from '../../prices/domain/pricesFile'
+import { storedVendorKey } from '../../prices/infrastructure/vendorKeys'
 import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
 import { usePrices } from '../../prices/presentation/usePrices'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { rangeContains } from '../../../../shared/calendar/dateRange'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { priceChart } from './priceChart'
@@ -90,7 +92,7 @@ const pricesFrom = computed(() => {
 })
 const chartSubtitle = computed(() => (chart.value === null ? '' : [chart.value.subtitle, pricesFrom.value].filter((part) => part !== null).join(' ')))
 
-const details = computed(() => (holding.value === null || sources.value === null ? null : holdingDetails(holding.value, sources.value.book, facts.value)))
+const details = computed(() => (holding.value === null || sources.value === null ? null : holdingDetails(holding.value, sources.value, facts.value)))
 /** A ring per mix the holding spreads over, from the same split as the mixes of Holdings, of this holding alone. */
 const rings = computed(() => {
   const current = holding.value
@@ -102,6 +104,27 @@ const rings = computed(() => {
 
 const adding = ref(false)
 const changing = ref(false)
+
+/** Asks the vendors again for this holding's facts, and says whether it could. A run that fails leaves the warning as it was, and the next press asks again. */
+const asking = ref(false)
+const askedAgain = ref<'asked' | 'not-asked' | null>(null)
+watch(
+  () => route.query.instrument,
+  () => {
+    askedAgain.value = null
+  },
+)
+async function askAgain(instrument: RecordId): Promise<void> {
+  asking.value = true
+  try {
+    const run = await prices.askFactsAgain(instrument)
+    askedAgain.value = run !== 'no-books' && run.kind === 'written' ? 'asked' : 'not-asked'
+  } finally {
+    asking.value = false
+  }
+}
+/** The vendors of the holding's warning this browser keeps no key for, read again whenever the warning changes. */
+const keyless = computed(() => (details.value?.problems?.vendors ?? []).filter((vendor) => storedVendorKey(vendor.id) === null).map((vendor) => vendor.name))
 
 const description = computed(() => {
   const current = holding.value
@@ -181,7 +204,15 @@ const description = computed(() => {
         </template>
       </ChartCard>
       <DashboardGrid data-testid="holding-cards">
-        <HoldingDetailsCard v-if="details !== null" :details="details" @change="changing = true" />
+        <HoldingDetailsCard
+          v-if="details !== null"
+          :details="details"
+          :asking="asking"
+          :asked-again="askedAgain"
+          :keyless="keyless"
+          @change="changing = true"
+          @ask-again="askAgain(holding.instrument.id)"
+        />
         <DonutCard
           v-for="{ mix, donut } in rings"
           :key="mix"

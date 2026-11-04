@@ -17,6 +17,7 @@ const failureEn: Reasons = {
   limit: (vendor) => `${vendor}'s limit was reached.`,
   'not-on-free-key': (vendor) => `${vendor} keeps it for paid keys.`,
   unreadable: (vendor) => `${vendor}'s answer could not be read.`,
+  message: (vendor) => `${vendor} sent a message instead of closes.`,
 }
 
 const testEn: Reasons = {
@@ -27,6 +28,7 @@ const testEn: Reasons = {
   limit: (vendor) => `${vendor}'s limit is reached for now. Try again later.`,
   'not-on-free-key': (vendor) => `${vendor} wants a paid key for this.`,
   unreadable: (vendor) => `${vendor}'s answer could not be read.`,
+  message: (vendor) => `${vendor} sent a message instead of an answer. Try again later.`,
 }
 
 export const en = {
@@ -71,7 +73,7 @@ export const en = {
     rates: 'euro exchange rates',
     splits: 'splits',
     profiles: 'company profiles',
-    fundSectors: 'sector weights of funds',
+    fundProfiles: 'fund profiles',
     dividends: 'announced dividends',
     search: 'symbol search',
   },
@@ -106,6 +108,7 @@ export const en = {
     limit: () => 'Kuna asks again later today.',
     'not-on-free-key': () => 'Enter its prices by hand on the holding, or pick another source.',
     unreadable: () => 'Kuna asks again on the next fetch.',
+    message: () => 'Kuna asks again later today.',
     toSettings: 'Prices settings',
     toHolding: 'Open the holding',
   },
@@ -140,6 +143,7 @@ export const en = {
     unchanged: 'Up to date',
     read: 'Read the latest prices',
     settings: 'Settings',
+    checks: 'Portfolio checks',
   },
   keysStep: {
     label: 'Keys',
@@ -209,7 +213,7 @@ export const hr: Translation<typeof en> = {
     rates: 'tečajeve eura',
     splits: 'podjele dionica',
     profiles: 'profile tvrtki',
-    fundSectors: 'sektorske udjele fondova',
+    fundProfiles: 'profile fondova',
     dividends: 'najavljene dividende',
     search: 'pretragu simbola',
   },
@@ -254,6 +258,7 @@ export const hr: Translation<typeof en> = {
       limit: (vendor) => `${vendor}: dosegnuto je ograničenje.`,
       'not-on-free-key': (vendor) => `${vendor}: samo uz plaćeni ključ.`,
       unreadable: (vendor) => `${vendor}: odgovor nije čitljiv.`,
+      message: (vendor) => `${vendor}: umjesto cijena stigla je poruka.`,
     },
   },
   advice: {
@@ -264,6 +269,7 @@ export const hr: Translation<typeof en> = {
     limit: () => 'Kuna pita ponovno kasnije danas.',
     'not-on-free-key': () => 'Unesite cijene ručno na poziciji ili odaberite drugi izvor.',
     unreadable: () => 'Kuna pita ponovno pri sljedećem dohvaćanju.',
+    message: () => 'Kuna pita ponovno kasnije danas.',
     toSettings: 'Postavke cijena',
     toHolding: 'Otvori poziciju',
   },
@@ -288,6 +294,7 @@ export const hr: Translation<typeof en> = {
     limit: (vendor) => `${vendor}: ograničenje je zasad dosegnuto. Pokušajte kasnije.`,
     'not-on-free-key': (vendor) => `${vendor}: za ovo treba plaćeni ključ.`,
     unreadable: (vendor) => `${vendor}: odgovor nije čitljiv.`,
+    message: (vendor) => `${vendor}: umjesto odgovora stigla je poruka. Pokušajte kasnije.`,
   },
   run: {
     written: 'Cijene su dohvaćene',
@@ -306,6 +313,7 @@ export const hr: Translation<typeof en> = {
     unchanged: 'Ažurno',
     read: 'Pročitane su najnovije cijene',
     settings: 'Postavke',
+    checks: 'Provjere portfelja',
   },
   keysStep: {
     label: 'Ključevi',

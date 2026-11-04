@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { portfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
 import type { PricesCache, PricesCopy } from '../src/apps/investments/prices/application/pricesPorts'
 import { pricesAge } from '../src/apps/investments/prices/domain/priceBook'
-import { NO_FETCHED_FACTS, decodePricesFile, emptyPricesFile, encodePricesFile, rateSeriesKey, seriesKey } from '../src/apps/investments/prices/domain/pricesFile'
+import { NO_FETCHED_FACTS, OLDER_SHAPE_ASKED, decodePricesFile, emptyPricesFile, encodePricesFile, rateSeriesKey, seriesKey } from '../src/apps/investments/prices/domain/pricesFile'
 import type { PricesFile } from '../src/apps/investments/prices/domain/pricesFile'
 import { pricesFileBook, pricesFileRateBook } from '../src/apps/investments/prices/domain/pricesFileBooks'
 import { FAKE_SERIES, fakePricesFile } from '../src/apps/investments/prices/infrastructure/fake/fakePrices'
@@ -17,6 +17,7 @@ import { EURO } from '../src/shared/money/currencyCode'
 import { decimalText } from '../src/shared/money/decimal'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { BROKER, STOCK_B, USD, WORLD_ETF, book, cashMovement, decimal, instrument, trade, workedPortfolio } from './fixtures/investments'
+import { fundFact, profileFact } from './fixtures/facts'
 import { civil, euros } from './fixtures/ledger'
 
 /** The worked portfolio's closes and rates as a fetch would have written them. */
@@ -58,8 +59,30 @@ const WORKED_FILE: PricesFile = {
   splits: [{ series: seriesKey('twelvedata', 'STOCK-B'), date: '2024-06-10', newUnits: '10', oldUnits: '1' }],
   failures: [{ series: seriesKey('twelvedata', 'STOCK-C'), day: '2026-10-30', reason: 'unknown-symbol' }],
   facts: {
-    profiles: { 'finnhub:US0000000002': { asked: '2026-10-30', industry: 'Semiconductors', country: 'US' }, 'finnhub:FUND': { asked: '2026-10-30', industry: null, country: null } },
-    sectors: { 'alphavantage:WORLD-ETF': { asked: '2026-10-30', sectors: [['INFORMATION TECHNOLOGY', '0.25']] } },
+    profiles: {
+      'finnhub:US0000000002': profileFact('2026-10-30', {
+        industry: 'Semiconductors',
+        country: 'US',
+        exchange: 'NASDAQ NMS - GLOBAL MARKET',
+        marketCap: '2125400.5',
+        currency: 'USD',
+        ipo: '2004-08-19',
+      }),
+      'finnhub:FUND': profileFact('2026-10-30'),
+      'finnhub:US0000000003': profileFact('2026-10-30', { failed: 'not-on-free-key' }),
+    },
+    funds: {
+      'alphavantage:WORLD-ETF': fundFact('2026-10-30', {
+        expenseRatio: '0.0019',
+        netAssets: '18200000000',
+        inception: '2019-07-23',
+        leveraged: 'NO',
+        holdings: 120,
+        dividendYield: '0.0145',
+        sectors: [['INFORMATION TECHNOLOGY', '0.25']],
+      }),
+      'alphavantage:STOCK-B': fundFact('2026-10-30', { failed: 'limit' }),
+    },
     dividends: { 'alphavantage:STOCK-B': { asked: '2026-10-30', dividends: [['2026-11-14', '2026-12-15', '0.3100']] } },
     types: { 'twelvedata:STOCK-B': { asked: '2026-10-30', type: 'Common Stock' }, 'twelvedata:STOCK-C': { asked: '2026-10-30', type: null } },
   },
@@ -82,11 +105,13 @@ describe('the prices file', () => {
     const text = encodePricesFile(WORKED_FILE)
     expect(read(text)).toEqual(WORKED_FILE)
     const lines = text.split('\n')
-    expect(lines.slice(0, 4)).toEqual(['{', '  "format": "kuna-prices",', '  "version": 2,', '  "written_at": "2026-10-30T05:41:00.000Z",'])
+    expect(lines.slice(0, 4)).toEqual(['{', '  "format": "kuna-prices",', '  "version": 3,', '  "written_at": "2026-10-30T05:41:00.000Z",'])
     expect(lines.filter((line) => /^ {4}"[a-z]+:/.test(line)).map((line) => line.slice(5, line.indexOf('":')))).toEqual(['alphavantage:WORLD-ETF', 'ecb:USD', 'twelvedata:STOCK-B'])
     expect(lines.filter((line) => line.startsWith('      "')).map((line) => line.slice(7, line.indexOf('":')))).toEqual([
       'finnhub:FUND',
       'finnhub:US0000000002',
+      'finnhub:US0000000003',
+      'alphavantage:STOCK-B',
       'alphavantage:WORLD-ETF',
       'alphavantage:STOCK-B',
       'twelvedata:STOCK-B',
@@ -104,21 +129,72 @@ describe('the prices file', () => {
       series: {},
       splits: [],
       failures: [],
-      facts: { profiles: {}, sectors: {}, dividends: {}, types: {} },
+      facts: { profiles: {}, funds: {}, dividends: {}, types: {} },
     })
+  })
+
+  it('writes profiles and fund profiles under their JSON names, a failure among them, and reads them back', () => {
+    const text = encodePricesFile(WORKED_FILE)
+    expect(text).toContain(
+      '"finnhub:US0000000002": {"asked":"2026-10-30","industry":"Semiconductors","country":"US","exchange":"NASDAQ NMS - GLOBAL MARKET","market_cap":"2125400.5","currency":"USD","ipo":"2004-08-19","failed":null}',
+    )
+    expect(text).toContain('"finnhub:US0000000003": {"asked":"2026-10-30","industry":null,"country":null,"exchange":null,"market_cap":null,"currency":null,"ipo":null,"failed":"not-on-free-key"}')
+    expect(text).toContain(
+      '"alphavantage:WORLD-ETF": {"asked":"2026-10-30","expense_ratio":"0.0019","net_assets":"18200000000","inception":"2019-07-23","leveraged":"NO","holdings":120,"dividend_yield":"0.0145","sectors":[["INFORMATION TECHNOLOGY","0.25"]],"failed":null}',
+    )
+    expect(read(text).facts).toEqual(WORKED_FILE.facts)
+  })
+
+  it('reads a version 2 file’s sector weights as fund profiles and its profiles as they were, both asked on a day the next fetch asks again', () => {
+    const versionTwo = JSON.stringify({
+      format: 'kuna-prices',
+      version: 2,
+      written_at: '2026-10-30T05:41:00.000Z',
+      series: {},
+      splits: [],
+      failures: [],
+      facts: {
+        profiles: { 'finnhub:US0000000002': { asked: '2026-10-30', industry: 'Semiconductors', country: 'US' } },
+        sectors: { 'alphavantage:WORLD-ETF': { asked: '2026-10-30', sectors: [['FINANCIALS', '0.4']] } },
+        dividends: { 'alphavantage:STOCK-B': { asked: '2026-10-30', dividends: [] } },
+        types: { 'twelvedata:STOCK-B': { asked: '2026-10-30', type: 'Common Stock' } },
+      },
+    })
+    expect(OLDER_SHAPE_ASKED).toBe('2000-01-01')
+    expect(read(versionTwo).facts).toEqual({
+      profiles: { 'finnhub:US0000000002': profileFact('2000-01-01', { industry: 'Semiconductors', country: 'US' }) },
+      funds: { 'alphavantage:WORLD-ETF': fundFact('2000-01-01', { sectors: [['FINANCIALS', '0.4']] }) },
+      dividends: { 'alphavantage:STOCK-B': { asked: '2026-10-30', dividends: [] } },
+      types: { 'twelvedata:STOCK-B': { asked: '2026-10-30', type: 'Common Stock' } },
+    })
+  })
+
+  it('refuses a version 3 fact whose failure is no word it keeps', () => {
+    const withFacts = (facts: unknown): string => JSON.stringify({ format: 'kuna-prices', version: 3, written_at: null, series: {}, splits: [], failures: [], facts })
+    const empty = { profiles: {}, funds: {}, dividends: {}, types: {} }
+    expect(decodePricesFile(withFacts({ ...empty, profiles: { 'finnhub:ABC': { asked: '2026-10-30', failed: 'premium' } } }))).toEqual({ kind: 'refused', reason: 'not-in-shape' })
+    expect(decodePricesFile(withFacts({ ...empty, funds: { 'alphavantage:ABC': { asked: '2026-10-30', sectors: [], failed: 'no-key' } } }))).toEqual({ kind: 'refused', reason: 'not-in-shape' })
+    expect(decodePricesFile(withFacts({ ...empty, funds: { 'alphavantage:ABC': { asked: '2026-10-30', sectors: [], holdings: -1 } } }))).toEqual({ kind: 'refused', reason: 'not-in-shape' })
+    expect(read(withFacts({ ...empty, profiles: { 'finnhub:ABC': { asked: '2026-10-30', failed: 'refused' } } })).facts.profiles).toEqual({
+      'finnhub:ABC': profileFact('2026-10-30', { failed: 'refused' }),
+    })
+  })
+
+  it('refuses a version 4 file as newer', () => {
+    expect(decodePricesFile(JSON.stringify({ format: 'kuna-prices', version: 4, written_at: null, series: {}, splits: [], failures: [], facts: {} }))).toEqual({ kind: 'refused', reason: 'newer' })
   })
 
   it('reads a version 1 file with no facts and a last fetch that counted none', () => {
     const versionOne = JSON.stringify({ format: 'kuna-prices', version: 1, written_at: '2026-10-30T05:41:00.000Z', last_fetch: { asked: 2, up_to_date: 5 }, series: {}, splits: [], failures: [] })
-    expect(read(versionOne)).toMatchObject({ lastFetch: { asked: 2, upToDate: 5, factsAsked: 0, factsLeft: 0, factsKeyless: [] }, facts: { profiles: {}, sectors: {}, dividends: {}, types: {} } })
+    expect(read(versionOne)).toMatchObject({ lastFetch: { asked: 2, upToDate: 5, factsAsked: 0, factsLeft: 0, factsKeyless: [] }, facts: { profiles: {}, funds: {}, dividends: {}, types: {} } })
   })
 
   it('refuses facts out of shape', () => {
-    const withFacts = (facts: unknown): string => JSON.stringify({ format: 'kuna-prices', version: 2, written_at: null, series: {}, splits: [], failures: [], facts })
-    const empty = { profiles: {}, sectors: {}, dividends: {}, types: {} }
+    const withFacts = (facts: unknown): string => JSON.stringify({ format: 'kuna-prices', version: 3, written_at: null, series: {}, splits: [], failures: [], facts })
+    const empty = { profiles: {}, funds: {}, dividends: {}, types: {} }
     expect(decodePricesFile(withFacts(empty)).kind).toBe('read')
     expect(decodePricesFile(withFacts({ ...empty, types: { 'twelvedata:ABC': { asked: '2026-13-01', type: 'ETF' } } }))).toEqual({ kind: 'refused', reason: 'not-in-shape' })
-    expect(decodePricesFile(withFacts({ ...empty, sectors: { 'alphavantage:ABC': { asked: '2026-10-30', sectors: [['ENERGY', 0.5]] } } }))).toEqual({ kind: 'refused', reason: 'not-in-shape' })
+    expect(decodePricesFile(withFacts({ ...empty, funds: { 'alphavantage:ABC': { asked: '2026-10-30', sectors: [['ENERGY', 0.5]] } } }))).toEqual({ kind: 'refused', reason: 'not-in-shape' })
     expect(decodePricesFile(withFacts({ ...empty, dividends: { 'alphavantage:ABC': { asked: '2026-10-30', dividends: [['2026-11-14', 'None', '0.31']] } } }))).toEqual({
       kind: 'refused',
       reason: 'not-in-shape',
@@ -143,7 +219,7 @@ describe('the prices file', () => {
       JSON.stringify({ format: 'kuna-prices', version: 1, written_at: null, series: { 'twelvedata:ABC': { currency: 'USD', from: '2026-01-02', closes } }, splits: [], failures: [] })
     expect(decodePricesFile('not json')).toEqual({ kind: 'refused', reason: 'not-json' })
     expect(decodePricesFile(JSON.stringify({ format: 'kuna', app: 'investments' }))).toEqual({ kind: 'refused', reason: 'not-prices' })
-    expect(decodePricesFile(encodePricesFile(emptyPricesFile()).replace('"version": 2', '"version": 3'))).toEqual({ kind: 'refused', reason: 'newer' })
+    expect(decodePricesFile(encodePricesFile(emptyPricesFile()).replace('"version": 3', '"version": 4'))).toEqual({ kind: 'refused', reason: 'newer' })
     expect(decodePricesFile(withSeries([['2026-01-02', '10.5']])).kind).toBe('read')
     expect(decodePricesFile(withSeries([['2026-01-02', 10.5]]))).toEqual({ kind: 'refused', reason: 'not-in-shape' })
     expect(decodePricesFile(withSeries([['2026-02-30', '10.5']]))).toEqual({ kind: 'refused', reason: 'not-in-shape' })
@@ -358,7 +434,7 @@ describe('the prices cache', () => {
     cache.close()
     const raw = new Dexie('kuna-prices-investments-newer')
     raw.version(2).stores({ copy: 'key' })
-    await raw.table('copy').update('prices', { text: encodePricesFile(WORKED_FILE).replace('"version": 2', '"version": 99') })
+    await raw.table('copy').update('prices', { text: encodePricesFile(WORKED_FILE).replace('"version": 3', '"version": 99') })
     raw.close()
 
     await expect(cacheFor('investments-newer').read()).rejects.toThrow('newer')

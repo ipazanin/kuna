@@ -5,6 +5,7 @@ import { priceDemand } from '../domain/priceDemand'
 import type { ComparedListing, PriceDemand, RatesWanted } from '../domain/priceDemand'
 import { investmentLots } from '../../holdings/domain/lots'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { decodePricesFile, encodePricesFile, seriesKey } from '../domain/pricesFile'
 import type { CloseRow, FailureReason, PriceFailure, PriceSeries, PricesFile, PricesFileRefusal, SplitNote } from '../domain/pricesFile'
 import { addDays, parseCivilDate, weekdaysBetween } from '../../../../shared/calendar/civilDate'
@@ -70,7 +71,8 @@ function waitBefore(limits: VendorLimits, sentAt: readonly number[], clock: numb
  * The fetch through which every request of one vendor goes. It pauses so that no more than the vendor's per-minute
  * limit go out in any window. When the vendor still answers that the minute's limit is used up, it pauses a whole
  * window and asks once more. A daily limit, the vendor's own or its answer, or a second limit straight after that
- * pause stops the vendor, and from then on it answers as the vendor would, without asking.
+ * pause stops the vendor, and from then on it answers as the vendor would, without asking. The request that spends
+ * the vendor's day stops it at once, so a queue that checks `stopped` leaves the rest to the next day unasked.
  */
 export function pacedFetch(ports: Pick<PriceFetchPorts, 'fetch' | 'pause'>, vendor: Pick<PriceVendor, 'limits' | 'limitOf'>, paused: PausedTime, pacing: VendorPacing = newPacing()): VendorFetch {
   const { limits } = vendor
@@ -86,19 +88,21 @@ export function pacedFetch(ports: Pick<PriceFetchPorts, 'fetch' | 'pause'>, vend
     pacing.sentAt.push(paused.elapsed)
     return ports.fetch(url)
   }
+  const daySpent = (): boolean => limits.perDay !== null && pacing.sentAt.length >= limits.perDay
   return async (url) => {
-    if (pacing.stopped || (limits.perDay !== null && pacing.sentAt.length >= limits.perDay)) {
+    if (pacing.stopped || daySpent()) {
+      pacing.stopped = true
       return { status: 429, text: '' }
     }
     const answer = await send(url)
     const limit = vendor.limitOf(answer)
-    if (limit !== 'minute') {
-      pacing.stopped = limit === 'day'
+    if (limit !== 'minute' || daySpent()) {
+      pacing.stopped = limit === 'day' || daySpent()
       return answer
     }
     await pause(PACING_WINDOW_MILLISECONDS)
     const again = await send(url)
-    pacing.stopped = vendor.limitOf(again) !== null
+    pacing.stopped = vendor.limitOf(again) !== null || daySpent()
     return again
   }
 }
@@ -238,13 +242,15 @@ export interface Asking {
 
 /**
  * What a fetch asks for: the day's closes and rates, the ECB rates alone with those an import wants, a few series the
- * day's fetch did not bring, or the closes of a listing a chart compares with and the rates of its currency.
+ * day's fetch did not bring, the closes of a listing a chart compares with and the rates of its currency, or the facts
+ * of one holding asked again.
  */
 export type PriceFetchScope =
   | { readonly kind: 'day' }
   | { readonly kind: 'rates'; readonly wanted: RatesWanted }
   | { readonly kind: 'series'; readonly keys: readonly string[] }
   | { readonly kind: 'compared'; readonly compared: ComparedListing; readonly keys: readonly string[] }
+  | { readonly kind: 'facts'; readonly instrument: RecordId }
 
 const DAY_FETCH: PriceFetchScope = { kind: 'day' }
 
@@ -321,8 +327,8 @@ function mergedSplits(stored: readonly SplitNote[], reported: readonly SplitNote
   return [...byKey.values()]
 }
 
-/** Failures that may clear on their own: a vendor's limit and no answer at all. */
-const PASSING_FAILURES: readonly FailureReason[] = ['limit', 'no-answer']
+/** Failures that may clear on their own: a vendor's limit, a note such as one about maintenance, and no answer at all. */
+const PASSING_FAILURES: readonly FailureReason[] = ['limit', 'message', 'no-answer']
 
 /** How long a series that failed for a passing reason waits after the fetch that noted it, so a page shown again and again does not ask each time. */
 const ASK_AGAIN_AFTER_MILLISECONDS = 15 * 60_000
@@ -380,8 +386,8 @@ export function comparedSeriesToAsk(vendors: readonly PriceVendor[], stored: Pri
  * the closes leave of a vendor's day.
  *
  * The rates scope fetches the ECB rates alone, those wanted beside those the records need. That is no day's fetch, so
- * the file keeps the time of the last one, as it does for a compared listing. Every scope but the day's keeps the
- * failures noted for the series it did not ask for.
+ * the file keeps the time of the last one, as it does for a compared listing and for the facts of one holding, which
+ * asks for no closes. Every scope but the day's keeps the failures noted for the series it did not ask for.
  */
 export async function fetchPrices(ports: PriceFetchPorts, vendors: readonly PriceVendor[], clock: PriceFetchClock, scope: PriceFetchScope = DAY_FETCH): Promise<PriceFetchOutcome> {
   const read = decodePricesFile(await ports.readPrices())
@@ -419,12 +425,12 @@ export async function fetchPrices(ports: PriceFetchPorts, vendors: readonly Pric
     const wanted = wantedSeries(vendor, stored, book, clock.day, scope.kind === 'rates' ? scope.wanted : null, scope.kind === 'compared' ? scope.compared : null)
     const covered = wanted.filter((series) => upToDate(stored.series[series.key], series, clock.day))
     upToDateCount += covered.length
-    const inScope = (series: WantedSeries): boolean => (scope.kind !== 'series' && scope.kind !== 'compared') || scope.keys.includes(series.key)
+    const inScope = (series: WantedSeries): boolean => scope.kind !== 'facts' && ((scope.kind !== 'series' && scope.kind !== 'compared') || scope.keys.includes(series.key))
     asking.push(...wanted.filter((series) => !covered.includes(series) && inScope(series)).map((series) => ({ plan, series })))
   }
   const seriesAsked = askingOrder(asking)
   const changes: FetchChanges = { series: new Map(), splits: [], failures: [] }
-  const facts = scope.kind === 'day' ? factWork(plans, stored.facts, book, clock.day) : null
+  const facts = scope.kind === 'day' ? factWork(plans, stored.facts, book, clock.day) : scope.kind === 'facts' ? factWork(plans, stored.facts, book, clock.day, scope.instrument) : null
   const comparedKey = scope.kind === 'compared' ? seriesKey(scope.compared.source, scope.compared.symbol) : null
   const ordered: Asking[] = [...seriesAsked.map(({ plan, series }) => ({ plan, ask: () => fetchSeries(plan, series, stored, clock, changes, series.key === comparedKey) })), ...(facts?.asks ?? [])]
   ports.progress({ asked: 0, of: ordered.length, leftMilliseconds: pacingLeft(ordered, 0, 0), pause: null })
@@ -434,9 +440,13 @@ export async function fetchPrices(ports: PriceFetchPorts, vendors: readonly Pric
     await ask()
   }
   const askedSeries = new Set(seriesAsked.map(({ series }) => series.key))
-  // A fetch of a few series asks for no facts, so the day's counts of them stay.
-  const factCounts = facts?.counts() ?? { asked: stored.lastFetch?.factsAsked ?? 0, left: stored.lastFetch?.factsLeft ?? 0, keyless: stored.lastFetch?.factsKeyless ?? [] }
-  const dayKept = scope.kind === 'rates' || scope.kind === 'compared'
+  // A fetch of a few series, or of one holding's facts, leaves the day's counts of facts as they were.
+  const factCounts = (scope.kind === 'day' ? facts?.counts() : undefined) ?? {
+    asked: stored.lastFetch?.factsAsked ?? 0,
+    left: stored.lastFetch?.factsLeft ?? 0,
+    keyless: stored.lastFetch?.factsKeyless ?? [],
+  }
+  const dayKept = scope.kind === 'rates' || scope.kind === 'compared' || scope.kind === 'facts'
   const written: PricesFile = {
     writtenAt: dayKept ? stored.writtenAt : clock.at,
     lastFetch: dayKept

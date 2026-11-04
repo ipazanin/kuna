@@ -1,7 +1,7 @@
 import type { FactsBook } from '../../prices/domain/factsBook'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
-import { countryOf } from '../../workbook/domain/mixGroup'
+import { countryOfIsin } from '../../workbook/domain/mixGroup'
 import type { FundMixGroup } from '../../workbook/domain/mixGroup'
 import { decimalOfText } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
@@ -61,5 +61,5 @@ export function exposureOf<Mix extends ExposureMix>(instrument: Instrument, mix:
   if (profile !== null && profiled !== null) {
     return whole({ kind: 'profile', vendor: profile.vendor }, profiled)
   }
-  return whole({ kind: 'isin' }, mix === 'country' && instrument.isin !== null ? countryOf(instrument.isin.slice(0, 2)) : null)
+  return whole({ kind: 'isin' }, mix === 'country' && instrument.isin !== null ? countryOfIsin(instrument.isin) : null)
 }

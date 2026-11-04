@@ -10,6 +10,7 @@ import type { ComparedListing, RatesWanted } from '../domain/priceDemand'
 import { withImportedCloses } from '../domain/closesImport'
 import type { ClosesImportLine } from '../domain/closesImport'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { civilDateIn } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 
@@ -162,16 +163,19 @@ export interface PricesUpdate {
    * page under way is over. Answers current, asking nothing, when this browser's copy already holds them.
    */
   fetchCompared(compared: ComparedListing): Promise<PricesFetchRun | 'no-books'>
+  /** Asks the vendors again for one holding's profile and fund profile, whatever their day, once a fetch of this page under way is over. Asks for no closes. */
+  askFactsAgain(instrument: RecordId): Promise<PricesFetchRun | 'no-books'>
   /** Runs `work` once a fetch of this page under way is over, while no fetch or read starts, which answer as with no file open. */
   whileStopped<Result>(work: () => Promise<Result>): Promise<Result>
 }
 
-/** What a run was started for: the fetch of what is due, of everything now, of the ECB rates an import wants or of a listing a chart compares with, or closes imported from files. */
+/** What a run was started for: the fetch of what is due, of everything now, of the ECB rates an import wants, of a listing a chart compares with or of one holding's facts, or closes imported from files. */
 type FetchRequest =
   | { readonly kind: 'if-due' }
   | { readonly kind: 'now' }
   | { readonly kind: 'rates'; readonly wanted: RatesWanted }
   | { readonly kind: 'compared'; readonly compared: ComparedListing }
+  | { readonly kind: 'facts'; readonly instrument: RecordId }
   | { readonly kind: 'closes'; readonly lines: readonly ClosesImportLine[] }
 
 function messageOf(failure: unknown): string {
@@ -215,6 +219,9 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
   function scopeOf(request: Exclude<FetchRequest, { readonly kind: 'closes' }>, text: string, book: InvestmentBook, at: string): PriceFetchScope | null {
     if (request.kind === 'rates') {
       return { kind: 'rates', wanted: request.wanted }
+    }
+    if (request.kind === 'facts') {
+      return { kind: 'facts', instrument: request.instrument }
     }
     const decoded = decodePricesFile(text)
     const today = pricesDay(at)
@@ -434,6 +441,19 @@ export function createPricesUpdate(ports: PricesUpdatePorts): PricesUpdate {
         }
         if (!running) {
           return runFetch(found.place, found.book, { kind: 'rates', wanted })
+        }
+      }
+    },
+
+    async askFactsAgain(instrument) {
+      for (;;) {
+        await afterRun()
+        const found = await opened()
+        if (found === null) {
+          return 'no-books'
+        }
+        if (!running) {
+          return runFetch(found.place, found.book, { kind: 'facts', instrument })
         }
       }
     },

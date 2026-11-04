@@ -1,9 +1,12 @@
 import { accountFeesInEuros, exchangeFeesInEuros, tradeFeesInEuros } from '../../holdings/domain/fees'
+import { fundTerOf } from '../../holdings/domain/fundTer'
+import type { FundTer } from '../../holdings/domain/fundTer'
 import type { PortfolioSources } from '../../holdings/domain/holding'
 import type { PortfolioFigures } from '../../holdings/domain/portfolioFigures'
 import { yearsSince } from '../../performance/domain/performancePeriod'
 import { firstDepositIn } from '../../performance/domain/portfolioPerformance'
 import type { DayValuer } from '../../performance/domain/portfolioPerformance'
+import type { FactsBook } from '../../prices/domain/factsBook'
 import type { Instrument } from '../../workbook/domain/instrument'
 import { yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -16,8 +19,7 @@ import type { Money } from '../../../../shared/money/money'
 /** A fund's estimated cost over a year, already taken inside its price. */
 export interface FundCost {
   readonly instrument: Instrument
-  /** In percent a year, as typed on the instrument. */
-  readonly ter: Decimal
+  readonly ter: FundTer
   readonly cost: Money
 }
 
@@ -56,7 +58,7 @@ export interface RecentCosts {
  * of the year's 12 month-end values, a month end it had no value at and one still to come counting zero, so the day's
  * year shows the cost so far.
  */
-export function yearlyCosts(sources: PortfolioSources, valuedOn: DayValuer): YearCosts[] {
+export function yearlyCosts(sources: PortfolioSources, valuedOn: DayValuer, facts: FactsBook): YearCosts[] {
   const { today } = sources
   const firstDeposit = firstDepositIn(sources.book)
   if (firstDeposit === null || firstDeposit > today) {
@@ -69,25 +71,25 @@ export function yearlyCosts(sources: PortfolioSources, valuedOn: DayValuer): Yea
         .map(lastDayOf)
         .filter((date) => date <= today)
         .map(valuedOn)
-      const costs = costsOver(sources, (date) => date <= today && yearOf(date) === year, monthEnds)
+      const costs = costsOver(sources, facts, (date) => date <= today && yearOf(date) === year, monthEnds)
       const averageValue = averageValueOf(monthEnds)
       return { year, ...costs, averageValue, share: ratioOf(costs.total, averageValue) }
     })
 }
 
 /** The costs of the twelve months up to the day over the average value at their month ends, as `yearlyCosts` works out a year's. */
-export function recentCosts(sources: PortfolioSources, valuedOn: DayValuer): RecentCosts {
+export function recentCosts(sources: PortfolioSources, valuedOn: DayValuer, facts: FactsBook): RecentCosts {
   const { today } = sources
   const from = dayMonthsLater(today, -12)
   const inWindow = (date: CivilDate): boolean => date > from && date <= today
   const monthEnds = monthsFrom(monthOf(from), monthOf(today)).map(lastDayOf).filter(inWindow).map(valuedOn)
-  return { total: costsOver(sources, inWindow, monthEnds).total, averageValue: averageValueOf(monthEnds) }
+  return { total: costsOver(sources, facts, inWindow, monthEnds).total, averageValue: averageValueOf(monthEnds) }
 }
 
 type PeriodCosts = Omit<YearCosts, 'year' | 'averageValue' | 'share'>
 
-/** The fees of the records on the days `inPeriod` takes, and each fund's TER of the month-end values given over 12. */
-function costsOver(sources: PortfolioSources, inPeriod: (date: CivilDate) => boolean, monthEnds: readonly PortfolioFigures[]): PeriodCosts {
+/** The fees of the records on the days `inPeriod` takes, and each fund's TER, typed or fetched, of the month-end values given over 12. */
+function costsOver(sources: PortfolioSources, facts: FactsBook, inPeriod: (date: CivilDate) => boolean, monthEnds: readonly PortfolioFigures[]): PeriodCosts {
   const { book, rates } = sources
   const trading = sumMoney(book.trades.filter((trade) => inPeriod(trade.date)).map(tradeFeesInEuros))
   const exchangeFees = exchangeFeesInEuros(
@@ -96,11 +98,15 @@ function costsOver(sources: PortfolioSources, inPeriod: (date: CivilDate) => boo
   )
   const exchange = sumMoney(exchangeFees.map((fee) => fee.euros ?? ZERO))
   const account = accountFeesInEuros(book.cashMovements.filter((movement) => inPeriod(movement.date)))
-  const funds = book.instruments.flatMap((instrument): FundCost[] => {
-    const held = sumMoney(monthEnds.map((figures) => figures.holdings.find((holding) => holding.instrument.id === instrument.id)?.valuation?.value ?? ZERO))
-    return instrument.ter === null || held === ZERO ? [] : [{ instrument, ter: instrument.ter, cost: fundCost(instrument.ter, held) }]
+  const charged = book.instruments.flatMap((instrument) => {
+    const ter = fundTerOf(instrument, facts)
+    return ter === null ? [] : [{ instrument, ter }]
   })
-  const unpricedFunds = book.instruments.filter((instrument) => instrument.ter !== null && monthEnds.some((figures) => figures.unpriced.some((unpriced) => unpriced.id === instrument.id)))
+  const funds = charged.flatMap(({ instrument, ter }): FundCost[] => {
+    const held = sumMoney(monthEnds.map((figures) => figures.holdings.find((holding) => holding.instrument.id === instrument.id)?.valuation?.value ?? ZERO))
+    return held === ZERO ? [] : [{ instrument, ter, cost: fundCost(ter.percent, held) }]
+  })
+  const unpricedFunds = charged.filter(({ instrument }) => monthEnds.some((figures) => figures.unpriced.some((unpriced) => unpriced.id === instrument.id))).map(({ instrument }) => instrument)
   const fundCosts = sumMoney(funds.map((fund) => fund.cost))
   return {
     trading,
