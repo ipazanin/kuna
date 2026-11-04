@@ -1920,8 +1920,8 @@ English and Hrvatski. Browser language shows Croatian when the browser lists Cro
 choice is kept on this device, not in a file, and a new choice loads the app again. `?lang=hr` or
 `?lang=en` pins the language for one visit, as `?theme=` pins the theme.
 
-Dates and numbers follow the language: `1.219,01 €`, `2,99 %` and `28. 10. 2026.` in Croatian,
-`€1,219.01`, `2.99%` and `28 Oct 2026` in English. A Croatian day writes its month as a number, a
+Dates and numbers follow the language: `1.480,25 €`, `3,50 %` and `28. 10. 2026.` in Croatian,
+`€1,480.25`, `3.50%` and `28 Oct 2026` in English. A Croatian day writes its month as a number, a
 month on its own keeps its name (`listopad 2026.`), and a Croatian date never breaks across lines.
 The Company file's number format setting still wins for its amounts when it names one.
 
@@ -3194,7 +3194,7 @@ the database was deleted and made again.
   "schema": { "core": 1, "hr-doo": 1 },
   "savedAt": "2026-10-23T08:00:00.000Z",
   "records": {
-    "ledger-row": [{ "date": "2026-10-14", "account": "main", "amount": "-95.49", "balance": "1204.10", "category": "software", "flagged_by": "ivan", "id": "…" }],
+    "ledger-row": [{ "date": "2026-10-14", "account": "main", "amount": "-95.49", "balance": "1204.10", "category": "software", "flagged_by": "rule", "id": "…" }],
     "setting": [{ "key": "hr_company_registered", "value": "2025-05-12" }]
   }
 }
@@ -3330,6 +3330,12 @@ rates do not line up.
 2027 is a copy of 2026 marked unconfirmed until units adopt their 2027 rates by 30 November 2026.
 Once Porezna uprava publishes the 2027 table, rerun the script with it and give the 2027 version in
 `rules/owner-pay.ts` its rows.
+
+## Docs
+
+`docs/` holds the architecture, the plans and research behind each feature, one file per task with
+its status, and the Croatian law the Tax screen rests on. [docs/README.md](docs/README.md) says
+what goes where, and [docs/tasks/README.md](docs/tasks/README.md) lists the tasks by status.
 
 ## Licence
 

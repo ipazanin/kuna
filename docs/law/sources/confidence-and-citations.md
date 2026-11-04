@@ -83,4 +83,4 @@ The docs cover the tax years 2023 to 2026, the years Kuna computes. Kuna compute
 
 ## Sources
 
-- Not acts. The research notes of 3 and 4 November 2026 behind the Tax screen, and the confidence scale of the bilanca project's law docs, which this file adapts.
+- Not acts. The research notes of 3 and 4 November 2026 behind the Tax screen.

@@ -23,7 +23,8 @@
     "check:pwa": "node --import ./scripts/support/typescriptResolve.mjs scripts/check-pwa.mjs",
     "check:import": "node scripts/check-foreign-import.mjs",
     "check:figures": "node --import ./scripts/support/typescriptResolve.mjs scripts/figure-digest.mjs",
-    "law-index": "node scripts/law-index.mjs"
+    "law-index": "node scripts/law-index.mjs",
+    "tasks-index": "node scripts/tasks-index.mjs"
   },
   "description": "Company books, loans and investments, each in an app of its own, computed in the browser over JSON files kept on Google Drive or in the browser",
   "license": "MIT",
