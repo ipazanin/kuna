@@ -1,6 +1,6 @@
-# Croatian law for Kuna's Tax screen
+# Croatian law for Kuna's screens
 
-The Croatian personal income tax law the Investments Tax screen (`src/apps/investments/tax/`) builds on, for one case: a resident individual who invests through foreign brokers and files their own JOPPD, INO-IZJAVA and INO-DOH. Each file gives the rates, codes, days, deadlines and edge cases, with a citation for each and a mark for how sure the research is.
+The Croatian law Kuna's screens build on. Most of it is the personal income tax law the Investments Tax screen (`src/apps/investments/tax/`) builds on, for one case: a resident individual who invests through foreign brokers and files their own JOPPD, INO-IZJAVA and INO-DOH. [Used car value](used-car-value.md) holds the customs table the Assets app estimates a car by. Each file gives the rates, codes, days, deadlines and edge cases, with a citation for each and a mark for how sure the research is.
 
 Law as researched on 4 November 2026. Consolidated texts on zakon.hr were current through NN 119/26, and the titles of NN 120/26 to 126/26 were checked for income tax, contribution and procedure acts. The Pravilnik o porezu na dohodak was read in the Porezna uprava consolidation through NN 157/25, and an NN title search found no 2026 amendment of it. Values that are not out yet, such as an entry into force of the US treaty, stay open in each file and on the [watch list](sources/watch-list.md).
 
@@ -16,6 +16,7 @@ This is research for building software. It is not legal or tax advice. Where the
 | [JOPPD for investors](joppd-for-investors.md)           | Report mark, report type, codes, the fields Kuna fills, the code-02 line, due dates  |
 | [HNB rates and settlement](hnb-rates-and-settlement.md) | Which HNB list converts a payment, settlement cycles, TARGET days                    |
 | [Filing calendar](filing-calendar.md)                   | Every deadline in one table, each naming the file that owns it                       |
+| [Used car value](used-car-value.md)                     | Tablica 1 of NN 1/2017, how its months count, how the Assets app estimates a car     |
 | `sources/`                                              | Where to read the law, versions and dates, marks and citations, acts, the watch list |
 
 Every file starts with frontmatter that the index below is generated from:
@@ -83,6 +84,7 @@ Citations name the act by its abbreviation and the article, as `ZPDoh Art. 67(8)
 | [HNB rates and settlement](hnb-rates-and-settlement.md) | NN 126/26, 2026-11-04 | Which HNB list converts a sale or a payment in a foreign currency, how it relates to the ECB rate of the day, the settlement day as the day of payment, US and EU settlement cycles, and TARGET closing days                                          |
 | [JOPPD for investors](joppd-for-investors.md)           | NN 126/26, 2026-11-04 | The JOPPD a person files for a year's capital gains and within 30 days for income from abroad, its report mark and type, the recipient and receipt codes, the fields Kuna fills, the code-02 line and the due dates                                   |
 | [Other investment income](other-investment-income.md)   | NN 126/26, 2026-11-04 | Stock lending income read as interest at the capital income rate, and referral credits read as other income from abroad, with their 30 days, pension contributions and the city's lower rate                                                          |
+| [Used car value](used-car-value.md)                     | NN 1/17, 2026-11-04   | The customs table of NN 1/2017 that the Assets app estimates a car by, from its price and first registration, how its months count, and what the table is not                                                                                         |
 
 ### `sources/`
 

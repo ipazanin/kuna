@@ -24,10 +24,23 @@ function loans(figures: PersonalApp['figures'], notSetUp = false): PersonalApp {
   return { name: 'Loans', notSetUp, currency: 'EUR', figures }
 }
 
-describe('Investments less loans', () => {
+describe('What you own less what you owe', () => {
   it('adds what you have and takes off what you owe', () => {
     // 40,000.00 + 500.00 − 95,000.00.
     expect(personalNet([loans(loansFigures), investments])).toEqual({ sum: { state: 'ready', cents: euros(-54500) }, notSetUp: [], leavesOut: ['1 holding without a price'] })
+  })
+
+  it("adds the assets' whole value, and leaves what is yours after the loan as a caption that changes nothing", () => {
+    const assets: PersonalApp = {
+      name: 'Assets',
+      notSetUp: false,
+      currency: 'EUR',
+      figures: { parts: [{ label: 'Assets value', cents: euros(256_254.8), side: 'has', caption: '€88,884.80 yours after the Home loan', to: '/assets' }], notes: [] },
+    }
+    const withHomeLoan = loans({ parts: [loansFigures.parts[0]!, { ...loansFigures.parts[1]!, cents: euros(150_000) }], notes: [] })
+
+    // 40,000.00 + 500.00 + 256,254.80 − 150,000.00.
+    expect(personalNet([withHomeLoan, investments, assets]).sum).toEqual({ state: 'ready', cents: euros(146_754.8) })
   })
 
   it('counts an app not set up as nothing and names it', () => {

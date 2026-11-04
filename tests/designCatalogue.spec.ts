@@ -17,6 +17,7 @@ const AREAS: Readonly<Record<string, string>> = {
   Company: 'src/apps/company/**/*.vue',
   Loans: 'src/apps/loans/**/*.vue',
   Investments: 'src/apps/investments/**/*.vue',
+  Assets: 'src/apps/assets/**/*.vue',
   Shell: 'src/shell/**/*.vue',
   Shared: 'src/shared/**/*.vue',
 }

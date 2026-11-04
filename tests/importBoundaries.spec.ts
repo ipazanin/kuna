@@ -108,7 +108,18 @@ const ADAPTER_WIRING = [
   'src/apps/company/invoicing/application/invoiceGoogle.ts',
   'src/apps/loans/workbook/application/loansStore.ts',
   'src/apps/investments/workbook/application/investmentsStore.ts',
+  'src/apps/assets/workbook/application/assetsStore.ts',
 ]
+
+/** Each app's published file and the one file of another app that may import it. */
+const PUBLISHED: Readonly<Record<string, readonly string[]>> = {
+  'src/apps/loans/facts.ts': ['src/apps/assets/loans/application/assetLoans.ts'],
+}
+
+/** Whether an import reads another app's published file from a file allowed to. */
+function readsPublished(entry: Import): boolean {
+  return entry.target !== null && (PUBLISHED[entry.target] ?? []).includes(entry.from)
+}
 
 /** Data of the fake build, which only the fake build loads. */
 function isFakeSeed(file: string): boolean {
@@ -121,7 +132,7 @@ function broken(rule: (entry: Import) => boolean): string[] {
 
 describe('import boundaries', () => {
   it('reads the imports it checks', () => {
-    for (const app of ['company', 'loans', 'investments']) {
+    for (const app of ['company', 'loans', 'investments', 'assets']) {
       expect(IMPORTS.some((entry) => entry.from === 'src/main.ts' && entry.dynamic && entry.target === `src/apps/${app}/app.ts`)).toBe(true)
       expect(IMPORTS.some((entry) => appOf(entry.from) === app && entry.target?.startsWith(`src/apps/${app}/`))).toBe(true)
     }
@@ -140,8 +151,20 @@ describe('import boundaries', () => {
     ).toEqual([])
   })
 
-  it('keeps each app to its own folder and the shared kernel, so no app imports another', () => {
-    expect(broken((entry) => appOf(entry.from) === null || entry.target === null || entry.target.startsWith('src/shared/') || appOf(entry.target) === appOf(entry.from))).toEqual([])
+  it("keeps each app to its own folder and the shared kernel, so no app imports another but for another app's published file", () => {
+    expect(
+      broken((entry) => appOf(entry.from) === null || entry.target === null || entry.target.startsWith('src/shared/') || appOf(entry.target) === appOf(entry.from) || readsPublished(entry)),
+    ).toEqual([])
+  })
+
+  it('reads each published file from the reader it lists, and keeps the published file to its own app and the shared kernel', () => {
+    for (const [published, readers] of Object.entries(PUBLISHED)) {
+      for (const reader of readers) {
+        expect(existsSync(join(ROOT, reader)), `${reader} is missing`).toBe(true)
+        expect(IMPORTS.some((entry) => entry.from === reader && entry.target === published)).toBe(true)
+      }
+      expect(broken((entry) => entry.from !== published || entry.target === null || entry.target.startsWith('src/shared/') || appOf(entry.target) === appOf(published))).toEqual([])
+    }
   })
 
   it("keeps an app's code outside its packs free of pack code, which only its app.ts installs", () => {

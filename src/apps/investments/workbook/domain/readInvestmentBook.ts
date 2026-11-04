@@ -34,8 +34,8 @@ import { DECIMAL_ZERO, addDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordKind, RecordNoun } from '../../../../shared/storage/domain/recordKind'
-import { SHARED_ID_REASON, idSharing, problemOf, refusedProblems } from '../../../../shared/storage/domain/recordsRead'
-import type { ReadRecord, Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
+import { readEach } from '../../../../shared/storage/domain/recordsRead'
+import type { Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
 
 /** What the Investments file holds of each kind. */
@@ -106,19 +106,6 @@ export interface InvestmentBookReading {
   readonly readings: InvestmentReadings
   /** Every kind's problems, in the order of the kinds. */
   readonly problems: readonly InvestmentProblem[]
-}
-
-/** The records the reasons leave in, the rest as problems, after the problems of records the factory refused and of ids two records share. */
-function readEach<R>(read: RecordsRead<R>, reasonsOf: (stored: ReadRecord<R>) => readonly string[]): Reading<R> {
-  const sharesId = idSharing(read)
-  const facts: R[] = []
-  const problems: RecordProblem[] = refusedProblems(read)
-  for (const stored of read.records) {
-    const reasons = sharesId(stored) ? [SHARED_ID_REASON] : reasonsOf(stored)
-    if (reasons.length === 0) facts.push(stored.record)
-    problems.push(...reasons.map((reason) => problemOf(stored, reason)))
-  }
-  return { facts, problems }
 }
 
 /**

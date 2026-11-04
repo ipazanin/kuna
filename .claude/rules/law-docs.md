@@ -2,12 +2,13 @@
 paths:
   - 'docs/law/**'
   - 'src/apps/investments/tax/**'
+  - 'src/apps/assets/carValue/**'
 ---
 
 # Law docs
 
 - Follow the shape, citation format and confidence marks in [`docs/law/README.md`](../../docs/law/README.md). Use the [`law-research` skill](../../.agents/skills/law-research/SKILL.md) to find, date and verify the law.
-- The docs cover one case: a resident individual investing through foreign brokers. Law for the company's books belongs elsewhere.
+- The docs cover the law Kuna's screens apply: a resident individual's tax on investing through foreign brokers, the customs table the Assets app estimates a car by, and the company's tax rules as they come here. Each file says which screen rests on it.
 - Start every file with frontmatter: `checked` is the date its law was last verified, `nn_through` is the last Narodne novine issue that check covered, and `summary` says in one line what it covers. Update `checked` and `nn_through` only after verifying the whole file against the law, not after an edit. Run `npm run law-index` after adding a file or changing its frontmatter. Never edit the generated index by hand.
 - State each rule once, in the file that owns it, and link to it from elsewhere. When a deadline changes, update the [filing calendar](../../docs/law/filing-calendar.md) too.
 - Never state a figure without a citation and a confidence mark. Put anything unknown on the [watch list](../../docs/law/sources/watch-list.md).

@@ -52,6 +52,12 @@ import { en as loansHomeEnglish, hr as loansHomeCroatian } from '../../src/apps/
 import { en as investmentsHomeEnglish, hr as investmentsHomeCroatian } from '../../src/apps/investments/home/presentation/words.ts'
 import { en as investmentsOverviewEnglish, hr as investmentsOverviewCroatian } from '../../src/apps/investments/overview/presentation/words.ts'
 import { en as investmentsSettingsEnglish, hr as investmentsSettingsCroatian } from '../../src/apps/investments/settings/presentation/words.ts'
+import { en as assetsAppEnglish, hr as assetsAppCroatian } from '../../src/apps/assets/words.ts'
+import { en as assetPageEnglish, hr as assetPageCroatian } from '../../src/apps/assets/asset/presentation/words.ts'
+import { en as assetsHomeEnglish, hr as assetsHomeCroatian } from '../../src/apps/assets/home/presentation/words.ts'
+import { en as assetsOverviewEnglish, hr as assetsOverviewCroatian } from '../../src/apps/assets/overview/presentation/words.ts'
+import { en as assetValuesEnglish, hr as assetValuesCroatian } from '../../src/apps/assets/values/presentation/words.ts'
+import { en as assetsFileEnglish, hr as assetsFileCroatian } from '../../src/apps/assets/workbook/presentation/words.ts'
 import { formatMoney } from '../../src/shared/money/moneyFormat.ts'
 import { settleCharts } from './settleCharts.mjs'
 import { en as mailDomainEnglish, hr as mailDomainCroatian } from '../../src/apps/company/mail/domain/words.ts'
@@ -116,6 +122,12 @@ const SCREEN_WORDS = {
     loansHome: loansHomeEnglish,
     investmentsHome: investmentsHomeEnglish,
     investmentsOverview: investmentsOverviewEnglish.title,
+    assetsApp: assetsAppEnglish.name,
+    assetsHome: assetsHomeEnglish,
+    assetsOverview: assetsOverviewEnglish,
+    assetPage: assetPageEnglish,
+    assetValues: assetValuesEnglish,
+    assetsFile: assetsFileEnglish,
     locale: 'en-GB',
   },
   hr: {
@@ -174,6 +186,12 @@ const SCREEN_WORDS = {
     loansHome: loansHomeCroatian,
     investmentsHome: investmentsHomeCroatian,
     investmentsOverview: investmentsOverviewCroatian.title,
+    assetsApp: assetsAppCroatian.name,
+    assetsHome: assetsHomeCroatian,
+    assetsOverview: assetsOverviewCroatian,
+    assetPage: assetPageCroatian,
+    assetValues: assetValuesCroatian,
+    assetsFile: assetsFileCroatian,
     locale: 'hr-HR',
   },
 }
@@ -3610,6 +3628,7 @@ async function settingsShowFile(page, press, app, says, words = SCREEN_WORDS.en)
 
 const LOANS = { id: 'loans', name: 'Loans' }
 const INVESTMENTS = { id: 'investments', name: 'Investments' }
+const ASSETS = { id: 'assets', name: 'Assets' }
 
 /**
  * The Investments first run with the company books on the fake Drive: Investments opens on it, a new file on the fake
@@ -4261,25 +4280,30 @@ export function loansDriveFlowIn(language) {
 
 export const loansDriveFlow = loansDriveFlowIn('en')
 
-/** The Loans first run with the company books in this browser: a new Loans file in this browser, which the Loans Settings offers to export. */
-export function loansBrowserFlowIn(language) {
-  const words = SCREEN_WORDS[language]
-  return async (page, { press, shoot: shootAs, inspect }) => {
-    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    await firstRunAt(page, LOANS, 'home')
-    await chooseOption(page, press, 'loans-start-home', words.writes.firstRun.home.browser)
-    await pressSelector(page, press, '[data-testid="loans-start-continue"]')
-    await firstRunAt(page, LOANS, 'overview')
-    await pageSays(page, words.loansOverview.empty.inBrowser, true)
-    await inspect?.('the empty Loans Overview in this browser')
-    await shoot('loans-overview-browser')
-    await settingsShowFile(page, press, LOANS, words.writes.localFile.kept, words)
-    await inspect?.('the Loans Settings in this browser')
-    await shoot('loans-settings-browser')
-  }
+/** An app whose file the first run keeps: Loans or Assets, with what its screens call the file and its empty Overview. */
+const FILE_APPS = {
+  loans: { app: LOANS, file: 'kuna-loans.json', fileWords: (words) => words.loansFile, inBrowser: (words) => words.loansOverview.empty.inBrowser },
+  assets: { app: ASSETS, file: 'kuna-assets.json', fileWords: (words) => words.assetsFile, inBrowser: (words) => words.assetsOverview.empty.inBrowser },
 }
 
-export const loansBrowserFlow = loansBrowserFlowIn('en')
+/** The app's first run keeps a new file in this browser: the empty Overview says so, and so does its Settings. */
+export function firstRunBrowserFlowIn(id, language) {
+  const words = SCREEN_WORDS[language]
+  const { app, inBrowser } = FILE_APPS[id]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await firstRunAt(page, app, 'home')
+    await chooseOption(page, press, `${app.id}-start-home`, words.writes.firstRun.home.browser)
+    await pressSelector(page, press, `[data-testid="${app.id}-start-continue"]`)
+    await firstRunAt(page, app, 'overview')
+    await pageSays(page, inBrowser(words), true)
+    await inspect?.(`the empty ${app.name} Overview in this browser`)
+    await shoot(`${app.id}-overview-browser`)
+    await settingsShowFile(page, press, app, words.writes.localFile.kept, words)
+    await inspect?.(`the ${app.name} Settings in this browser`)
+    await shoot(`${app.id}-settings-browser`)
+  }
+}
 
 /** The Loans first run on a device that has not chosen the Loans file another device made on the fake Drive: Find the file opens it by its mark. */
 export function loansOpenFlowIn(language) {
@@ -4301,32 +4325,31 @@ export function loansOpenFlowIn(language) {
 
 export const loansOpenFlow = loansOpenFlowIn('en')
 
-/** A new Loans file on Drive on a device that has not chosen the one another device made: the folder step refuses a second file and offers the find step, which opens it. */
-export function loansStartOnDriveFlowIn(language) {
+/** A new file of the app on Drive on a device that has not chosen the one another device made: the folder step refuses a second file and offers the find step, which opens it. */
+export function firstRunOnDriveFlowIn(id, language) {
   const words = SCREEN_WORDS[language]
+  const { app, file, fileWords } = FILE_APPS[id]
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    await firstRunAt(page, LOANS, 'folder')
-    await pressSelector(page, press, '[data-testid="loans-start-choose-folder"]')
-    const alert = await page.waitForSelector('[data-testid="loans-start-on-drive"]', { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error('the Loans folder step does not say Drive already holds the Loans file')
+    await firstRunAt(page, app, 'folder')
+    await pressSelector(page, press, `[data-testid="${app.id}-start-choose-folder"]`)
+    const alert = await page.waitForSelector(`[data-testid="${app.id}-start-on-drive"]`, { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error(`the ${app.name} folder step does not say Drive already holds the ${app.name} file`)
     })
     const said = await alert.evaluate((element) => element.textContent ?? '')
-    const refusal = words.storage.alreadyOnDrive('kuna-loans.json')
-    if (!said.includes(refusal)) throw new Error(`the Loans folder step says "${said}", not ${refusal}`)
-    if (await page.$('[data-testid="loans-start-failure"]')) throw new Error('the Loans folder step shows the refusal as a failure too')
-    await inspect?.('the Loans folder step when Drive holds the file')
-    await shoot('loans-start-on-drive')
-    await pressSelector(page, press, '[data-testid="loans-start-open-on-drive"]')
-    await firstRunAt(page, LOANS, 'find')
-    await inspect?.('the Loans find step')
-    await pressSelector(page, press, '[data-testid="loans-start-find"]')
-    await toastMatching(page, exactly(words.loansFile.opened('kuna-loans.json')))
-    await firstRunAt(page, LOANS, 'overview')
+    const refusal = words.storage.alreadyOnDrive(file)
+    if (!said.includes(refusal)) throw new Error(`the ${app.name} folder step says "${said}", not ${refusal}`)
+    if (await page.$(`[data-testid="${app.id}-start-failure"]`)) throw new Error(`the ${app.name} folder step shows the refusal as a failure too`)
+    await inspect?.(`the ${app.name} folder step when Drive holds the file`)
+    await shoot(`${app.id}-start-on-drive`)
+    await pressSelector(page, press, `[data-testid="${app.id}-start-open-on-drive"]`)
+    await firstRunAt(page, app, 'find')
+    await inspect?.(`the ${app.name} find step`)
+    await pressSelector(page, press, `[data-testid="${app.id}-start-find"]`)
+    await toastMatching(page, exactly(fileWords(words).opened(file)))
+    await firstRunAt(page, app, 'overview')
   }
 }
-
-export const loansStartOnDriveFlow = loansStartOnDriveFlowIn('en')
 
 /** Opens the phone's or the tablet's drawer, where the top bar has a menu button. The sidebar needs nothing. */
 async function openMenu(page, press) {
@@ -4451,7 +4474,7 @@ function homeMenu() {
 
 /** The home's sidebar lists the apps of its cards in their order, each tiled in its card's colour, leading where its card does, and named with the badge its state calls for. */
 function sidebarMatchesCards(menu, cards, words = SCREEN_WORDS.en) {
-  const names = { company: words.company, loans: words.loans, investments: words.investments }
+  const names = { company: words.company, loans: words.loans, investments: words.investments, assets: words.assetsApp }
   const want = cards.map((card) => ({
     app: card.app,
     state: card.state,
@@ -4553,8 +4576,8 @@ function centsIn(text, language) {
 }
 
 /**
- * The home with the books of Company, Loans and Investments open: Company's card leads with the cash on hand
- * Overview shows and opens it, the Loans card with what you owe in all, which the Loans Overview says too, and the Investments card with the value, which its Overview's Value tile says too, and the total gain with its sign. Each
+ * The home with the books of Company, Loans, Investments and Assets open: Company's card leads with the cash on hand
+ * Overview shows and opens it, the Loans card with what you owe in all, which the Loans Overview says too, the Investments card with the value, which its Overview's Value tile says too, and the total gain with its sign, and the Assets card with what the assets are worth, which its Overview's tile says too. Each
  * card tiles its icon in a colour of its own. From 1024 px the sidebar lists every app as their cards do, and its
  * Company row opens Overview.
  */
@@ -4563,14 +4586,15 @@ export function homeFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const cards = await page.evaluate(homeCards)
-    const [company, loans, investments] = cards
-    if (cards.length !== 3 || company.app !== 'company' || loans.app !== 'loans' || investments.app !== 'investments')
-      throw new Error(`the home shows ${JSON.stringify(cards.map((card) => card.app))}, not Company, Loans and Investments`)
+    const [company, loans, investments, assets] = cards
+    if (cards.length !== 4 || company.app !== 'company' || loans.app !== 'loans' || investments.app !== 'investments' || assets.app !== 'assets')
+      throw new Error(`the home shows ${JSON.stringify(cards.map((card) => card.app))}, not Company, Loans, Investments and Assets`)
     if (company.state !== 'open' || !company.text.includes(words.companyHome.cashOnHand) || !/€/.test(company.figure ?? '')) throw new Error(`the Company card reads "${company.text}"`)
     if (loans.state !== 'open' || !loans.text.includes(words.loansHome.owed) || !/€/.test(loans.figure ?? '')) throw new Error(`the Loans card reads "${loans.text}"`)
     const gain = new RegExp(`${words.investmentsHome.totalGain}[+−]?(?:€|\\d)`)
     if (investments.state !== 'open' || !investments.text.includes(words.investmentsHome.value) || !gain.test(investments.text) || !/€/.test(investments.figure ?? ''))
       throw new Error(`the Investments card reads "${investments.text}"`)
+    if (assets.state !== 'open' || !assets.text.includes(words.assetsHome.value) || !/€/.test(assets.figure ?? '')) throw new Error(`the Assets card reads "${assets.text}"`)
     const colours = cards.map((card) => card.colour)
     if (colours.includes(null) || new Set(colours).size !== colours.length) throw new Error(`the cards tile their icons in ${colours.join(', ')}, not one colour each`)
     const menu = await page.evaluate(homeMenu)
@@ -4610,6 +4634,14 @@ export function homeFlowIn(language) {
       .then((handle) => handle.jsonValue())
     if (value !== investments.figure) throw new Error(`the Investments card says ${investments.figure}, the Overview's Value tile ${value}`)
 
+    await goHome(page, press, words)
+    await pressSelector(page, press, '[data-testid="home-card"][data-app="assets"]')
+    await screenTitled(page, words.overview)
+    const worth = await page
+      .waitForFunction(() => document.querySelector('[data-testid="assets-value"] .text-figure-lg')?.textContent?.trim() ?? null, { timeout: 10_000 })
+      .then((handle) => handle.jsonValue())
+    if (worth !== assets.figure) throw new Error(`the Assets card says ${assets.figure}, the Assets Overview's tile ${worth}`)
+
     if (menu === null) return
     await goHome(page, press, words)
     await pressSelector(page, press, 'aside [data-testid="nav-apps"] a[data-app="company"]')
@@ -4622,7 +4654,7 @@ export function homeFlowIn(language) {
 export const homeFlow = homeFlowIn('en')
 
 /**
- * A fresh device opens the home with every app in Set up. Loans and Investments can be set up first: each card opens
+ * A fresh device opens the home with every app in Set up. Loans, Investments and Assets can be set up first: each card opens
  * its first run, whose link home comes back, and the Company card opens the company's welcome.
  */
 export function setUpFlowIn(language) {
@@ -4630,7 +4662,7 @@ export function setUpFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const cards = await page.evaluate(homeCards)
-    if (cards.length !== 3 || cards.some((card) => card.state !== 'set-up' || !card.text.includes(words.setUp)))
+    if (cards.length !== 4 || cards.some((card) => card.state !== 'set-up' || !card.text.includes(words.setUp)))
       throw new Error(`the fresh home shows ${JSON.stringify(cards.map((card) => [card.app, card.state]))}`)
     if (await page.evaluate(() => document.querySelector('[data-testid="sync-status"]') !== null)) throw new Error('the fresh home shows a sync control')
     const menu = await page.evaluate(homeMenu)
@@ -4641,6 +4673,7 @@ export function setUpFlowIn(language) {
     for (const [app, name] of [
       [LOANS, words.loans],
       [INVESTMENTS, words.investments],
+      [ASSETS, words.assetsApp],
     ]) {
       await pressSelector(page, press, `[data-testid="home-card"][data-app="${app.id}"]`)
       await firstRunAt(page, app, 'home')
@@ -4659,6 +4692,128 @@ export function setUpFlowIn(language) {
 }
 
 export const setUpFlow = setUpFlowIn('en')
+
+async function assetCardShown(page, name, shown) {
+  await page
+    .waitForFunction(
+      (wanted, expected) => [...document.querySelectorAll('[data-testid="asset-card"] h2')].some((heading) => heading.textContent?.trim() === wanted) === expected,
+      { timeout: 10_000 },
+      name,
+      shown,
+    )
+    .catch(() => {
+      throw new Error(shown ? `the Assets Overview has no card for ${name}` : `the Assets Overview still has a card for ${name}`)
+    })
+}
+
+/**
+ * On an empty Assets file beside the sample Loans file: a flat added in the asset dialog with its region and the
+ * Home loan opens its page, which shows what is owed on the loan and what is yours. Its loan cleared, the page shows
+ * neither, and the flat deleted from its dialog leaves the Overview until Undo brings it back.
+ */
+export function assetsEditorFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { assetDialog } = words.assetPage
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const toastShown = async (title) => {
+      await toast(page, title)
+      await delay(600)
+      await inspect?.(title)
+    }
+    await pressSelector(page, press, '[data-testid="add-asset"]')
+    await page.waitForSelector('[data-testid="asset-form"]', { visible: true })
+    await fill(page, 'asset-name', 'Flat by the sea')
+    await pressButton(page, press, '[data-testid="asset-kind"] button', words.assetValues.kinds.home)
+    await fill(page, 'asset-bought', '2024-05-20')
+    await fill(page, 'asset-price', '150000')
+    await choose(page, press, await page.$('[data-testid="asset-region"]'), words.assetValues.regions.adriatic)
+    await choose(page, press, await page.$('[data-testid="asset-loan"]'), 'Home loan')
+    // The dialog grows into place, so it is measured once it settles.
+    await delay(300)
+    await inspect?.('the asset dialog')
+    await shoot('assets-new-flat-dialog')
+    await pressSelector(page, press, '[data-testid="asset-save"]')
+    await screenTitled(page, 'Flat by the sea')
+    await toastShown(assetDialog.added)
+    await dismissToasts(page)
+    await elementSays(page, '[data-testid="asset-owed"]', [words.assetPage.tiles.owedOn('Home loan')], 'the new flat does not show what is owed on its loan')
+    await page.waitForSelector('[data-testid="asset-yours"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the new flat does not show what is yours after its loan')
+    })
+    await shoot('assets-new-flat')
+
+    await pressSelector(page, press, '[data-testid="asset-edit"]')
+    await page.waitForSelector('[data-testid="asset-form"]', { visible: true })
+    await choose(page, press, await page.$('[data-testid="asset-loan"]'), assetDialog.noLoan)
+    await pressSelector(page, press, '[data-testid="asset-save"]')
+    await toastShown(assetDialog.saved)
+    await dismissToasts(page)
+    await page
+      .waitForFunction(() => document.querySelector('[data-testid="asset-owed"], [data-testid="asset-yours"]') === null, { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('the flat still shows its loan once the loan was cleared')
+      })
+
+    await pressSelector(page, press, '[data-testid="asset-edit"]')
+    await pressSelector(page, press, '[data-testid="asset-delete"]')
+    await screenTitled(page, words.assetsOverview.title)
+    await assetCardShown(page, 'Flat by the sea', false)
+    await toastShown(assetDialog.deleted)
+    await undoIn(page, press, words)
+    await assetCardShown(page, 'Flat by the sea', true)
+    await inspect?.('the Assets Overview after Undo')
+    await shoot('assets-undo-delete')
+    await dismissToasts(page)
+  }
+}
+
+export const assetsEditorFlow = assetsEditorFlowIn('en')
+
+/** On the sample car's page: a valuation added in its dialog takes the place of the customs table's estimate, and once deleted from its dialog Undo puts it back. */
+export function assetsValuationFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { valuationDialog } = words.assetPage
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const lines = () => page.evaluate(() => document.querySelectorAll('[data-testid="valuation-line"]').length)
+    const linesAre = (count, failure) =>
+      page
+        .waitForFunction((wanted) => document.querySelectorAll('[data-testid="valuation-line"]').length === wanted, { timeout: 10_000 }, count)
+        .catch(() => {
+          throw new Error(failure)
+        })
+    const before = await lines()
+    await pressSelector(page, press, '[data-testid="valuation-add"]')
+    await page.waitForSelector('[data-testid="valuation-form"]', { visible: true })
+    await fill(page, 'valuation-value', '19000')
+    await fill(page, 'valuation-note', 'Dealer offer')
+    // The dialog grows into place, so it is measured once it settles.
+    await delay(300)
+    await inspect?.('the valuation dialog')
+    await shoot('assets-valuation-dialog')
+    await pressSelector(page, press, '[data-testid="valuation-save"]')
+    await toast(page, valuationDialog.added)
+    await dismissToasts(page)
+    await linesAre(before + 1, 'the valuation is not in the list')
+    await elementSays(page, '[data-testid="asset-value"]', [words.assetValues.valuation('')], 'the car does not show the value typed')
+    const estimate = words.assetValues.customsNew('', '').split(':')[0]
+    if (await page.$eval('[data-testid="asset-value"]', (tile, said) => tile.textContent?.includes(said) ?? false, estimate)) throw new Error('the car still shows the estimate by the customs table')
+    await shoot('assets-valuation-added')
+
+    await pressSelector(page, press, '[data-testid="valuation-edit"]')
+    await page.waitForSelector('[data-testid="valuation-form"]', { visible: true })
+    await pressSelector(page, press, '[data-testid="valuation-delete"]')
+    await toast(page, valuationDialog.deleted)
+    await linesAre(before, 'the deleted valuation is still in the list')
+    await undoIn(page, press, words)
+    await linesAre(before + 1, 'Undo did not bring the valuation back')
+    await inspect?.("the car's page after Undo")
+    await dismissToasts(page)
+  }
+}
+
+export const assetsValuationFlow = assetsValuationFlowIn('en')
 
 async function fill(page, testId, value) {
   const input = await page.waitForSelector(`[data-testid="${testId}"]`, { visible: true, timeout: 10_000 }).catch(() => {

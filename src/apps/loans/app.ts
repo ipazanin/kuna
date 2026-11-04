@@ -16,7 +16,7 @@ import { loansSyncGroup } from './sync/presentation/loansSyncGroup'
 import { words } from './words'
 import { useLoansBooks } from './workbook/application/loansStore'
 import { LOANS_APP } from './workbook/infrastructure/loansDocument'
-import { useFindFile } from '../../shared/storage/presentation/useFindFile'
+import { resumeFileLookup } from '../../shared/storage/presentation/resumeFileLookup'
 import { words as fileWords } from './workbook/presentation/words'
 
 const OVERVIEW: AppScreen = { path: LOANS_OVERVIEW_ROUTE, title: overviewWords.title, icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') }
@@ -59,17 +59,7 @@ export const loansApp: AppContribution = {
   asksGoogleOnOpen: () => loadWorkbookChoice(LOANS_APP)?.source === 'drive' && autoSyncOn.value,
   // The shell hands over only a find or a pick the Loans file asked Google for. The page's sync resumes a sync.
   start(router, googleReturn) {
-    if (googleReturn?.kind === 'granted' && (googleReturn.resume === 'find' || googleReturn.resume === 'pick')) {
-      const store = useLoansBooks()
-      const findFile = useFindFile(store, fileWords)
-      const lookup = googleReturn.resume
-      void store.open().then(async () => {
-        const opened = await findFile(lookup)
-        await router.isReady()
-        // A find the first run left for ends on the Overview, as the find step's own tap does.
-        if (opened && router.currentRoute.value.path === LOANS_START_ROUTE) await router.push('/loans')
-      })
-    }
+    resumeFileLookup({ store: useLoansBooks(), words: fileWords, startRoute: LOANS_START_ROUTE, overviewRoute: LOANS_OVERVIEW_ROUTE }, router, googleReturn)
     return () => {}
   },
 }

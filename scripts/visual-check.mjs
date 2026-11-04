@@ -23,6 +23,15 @@
  * Kuna's Overview renders on the sample Loans and Investments files beside the company on Drive and in this browser,
  * while the Loans file opens, once its read fails (`?loans=failed`), with Investments alone and on a first run, with its
  * figures worked out from the same fake sets, in Croatian too, and so does Year's Pay tab with the kept profit paid out now.
+ * It also renders with the sample Assets file beside them, with the Assets file alone and while the house price index
+ * loads (`?index=opening`).
+ *
+ * The Assets app renders its first run, its empty Overview and its Settings (`?assets=drive`), its Settings for a file
+ * kept in this browser, the sample's Overview and the pages of its flat and its car beside the sample Loans file
+ * (`?assets=sample&loans=sample`), the flat without Loans, with its loan gone from Loans (`?assets=loan-gone`) and with
+ * the index failed (`?index=failed`), and its Overview while its file opens and once its read fails, in Croatian where
+ * a screen has words of its own. Its flows add a flat with its region and the Home loan, clear the loan, delete the
+ * flat and undo it, and add a valuation to the car and delete it and undo that, in English and Croatian.
  *
  * Beyond the screens of the fake workbook on Drive, it renders the home with every app in Set up and
  * onboarding's first steps on a first run (`?fake=empty`), each tab of the company's Settings and the
@@ -175,6 +184,15 @@ import { investmentsHubFigures } from '../src/apps/investments/home/presentation
 import { loansHubFigures } from '../src/apps/loans/home/presentation/loansHubFigures.ts'
 import { fakeLoansDocument } from '../src/apps/loans/workbook/infrastructure/fake/fakeLoans.ts'
 import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument.ts'
+import { assetsHubFigures, yoursCaption } from '../src/apps/assets/home/presentation/assetsHubFigures.ts'
+import { houseIndexOfAnswer } from '../src/apps/assets/houseIndex/infrastructure/dzsHouseIndex.ts'
+import { FAKE_HOUSE_INDEX_ANSWER } from '../src/apps/assets/houseIndex/infrastructure/fake/fakeHouseIndex.ts'
+import { assetLoansOf } from '../src/apps/assets/loans/application/assetLoans.ts'
+import { assetsOnDay, assetsTotal } from '../src/apps/assets/values/presentation/assetsOnDay.ts'
+import { valueCaption } from '../src/apps/assets/values/presentation/valueCaption.ts'
+import { ASSETS_DOCUMENT } from '../src/apps/assets/workbook/infrastructure/assetsDocument.ts'
+import { fakeAssetsDocument } from '../src/apps/assets/workbook/infrastructure/fake/fakeAssets.ts'
+import { bankLoansOf } from '../src/apps/loans/facts.ts'
 import { personalNet } from '../src/shared/app/personalNet.ts'
 import { today } from '../src/shared/calendar/civilDate.ts'
 import { dayLabel, shortDayLabel, weekdayDayLabel } from '../src/shared/calendar/dayLabel.ts'
@@ -192,6 +210,12 @@ import {
   appMenuFlowIn,
   assetFlow,
   assetFlowIn,
+  assetsEditorFlow,
+  firstRunBrowserFlowIn,
+  firstRunOnDriveFlowIn,
+  assetsEditorFlowIn,
+  assetsValuationFlow,
+  assetsValuationFlowIn,
   employeeFlow,
   employeeFlowIn,
   cardSettlementIbansFlow,
@@ -210,7 +234,6 @@ import {
   homeFlowIn,
   importCamtFlowIn,
   importTableFlowIn,
-  loansBrowserFlowIn,
   loansOpenFlowIn,
   mailSaveAsksFlowIn,
   ownerNetUnregisteredFlowIn,
@@ -233,7 +256,6 @@ import {
   invoiceRunFlow,
   invoiceRunFlowIn,
   invoicingDialogsFlowIn,
-  loansBrowserFlow,
   loansDialogsFlow,
   loansDialogsFlowIn,
   investmentsDialogsFlow,
@@ -251,8 +273,6 @@ import {
   loansEditorFlow,
   loansEditorFlowIn,
   loansOpenFlow,
-  loansStartOnDriveFlow,
-  loansStartOnDriveFlowIn,
   loansScenarioEditorFlow,
   loansScenariosFlow,
   loansScenariosFlowIn,
@@ -429,27 +449,65 @@ function fakePortfolio(variant, pricesVariant) {
   return { workbook, rates, figures }
 }
 
+/** The ids of the sample Assets file's flat, linked to the sample Home loan, and its car, `?assets=sample`. */
+const SAMPLE_FLAT = 'fa4e2000-0000-4000-8000-000000000001'
+const SAMPLE_CAR = 'fa4e2000-0000-4000-8000-000000000002'
+const FAKE_HOUSE_INDEX = houseIndexOfAnswer(FAKE_HOUSE_INDEX_ANSWER)
+
+/** The sample Assets file and the sample Loans file's bank loans as Assets reads them, on the check's day. */
+function fakeAssets(set = 'sample') {
+  const at = `${INVESTMENTS_DAY}T09:00:00.000Z`
+  const meta = { id: 'visual', source: 'browser', title: 'visual', syncedAt: at }
+  return {
+    book: ASSETS_DOCUMENT.read({ meta, document: fakeAssetsDocument(at, set) }).workbook,
+    loans: assetLoansOf(bankLoansOf(LOANS_DOCUMENT.read({ meta, document: fakeLoansDocument(at) }).workbook, today())),
+  }
+}
+
 /**
- * Kuna's Overview on the fake sets, worked out with the functions its screen calls: the sum of the sample Loans and
- * Investments files with each of their parts, the sum of the Investments sample alone, and what the owner could take
- * out of the company kept in this browser (`?fake=browser`). Money comes in English and in Croatian.
+ * The sample Assets file's figures, worked out with the functions its screens call: what the assets are worth beside the
+ * sample Loans file and alone, the flat with what is owed on the Home loan and what is yours, the flat at its price
+ * while the index fails, and the car by the customs table. Money comes in English and in Croatian.
+ */
+function fakeAssetsShows() {
+  const { book, loans } = fakeAssets()
+  const total = assetsTotal(book, today(), FAKE_HOUSE_INDEX, loans)
+  const [flat, car] = assetsOnDay(book, today(), FAKE_HOUSE_INDEX, loans)
+  const both = (cents) => ({ english: formatMoney(cents), croatian: formatMoney(cents, 'negative', CROATIAN_MONEY) })
+  return {
+    total: both(total.value),
+    alone: both(assetsTotal(book, today(), FAKE_HOUSE_INDEX, null).value),
+    yours: yoursCaption(total.yoursAfter),
+    flat: { value: both(flat.value.cents), caption: valueCaption(flat.value), owed: both(flat.equity.owed), yours: both(flat.equity.yours), price: both(flat.asset.price) },
+    car: { value: both(car.value.cents), caption: valueCaption(car.value) },
+  }
+}
+
+/**
+ * Kuna's Overview on the fake sets, worked out with the functions its screen calls: the sum of the sample Loans,
+ * Investments and Assets files with each of their parts and what is yours after the Home loan, the sum of the
+ * Investments sample alone and of the Assets sample alone, and what the owner could take out of the company kept in
+ * this browser (`?fake=browser`). Money comes in English and in Croatian.
  */
 function fakeOverviewShows() {
   const at = `${INVESTMENTS_DAY}T09:00:00.000Z`
   const meta = { id: 'visual', source: 'browser', title: 'visual', syncedAt: at }
   const loans = loansHubFigures(LOANS_DOCUMENT.read({ meta, document: fakeLoansDocument(at) }).workbook, today())
   const investments = investmentsHubFigures(fakePortfolio('sample', 'sample').figures)
+  const sample = fakeAssets()
+  const assets = assetsHubFigures(sample.book, today(), FAKE_HOUSE_INDEX, sample.loans)
   const sumOf = (figures) => {
     const { sum } = personalNet(figures.map((counted) => ({ name: 'visual', notSetUp: false, currency: 'EUR', figures: counted })))
     return sum.cents
   }
   installHrDooPack()
   const [takeOut] = companyHubFigures(readDocument(meta, fakeWorkbookDocument(at, 'browser', null)).workbook).parts
-  const amounts = [sumOf([loans, investments]), ...[...loans.parts, ...investments.parts].map((part) => part.cents)]
+  const amounts = [sumOf([loans, investments, assets]), ...[...loans.parts, ...investments.parts, ...assets.parts].map((part) => part.cents)]
   return {
-    english: amounts.map((cents) => formatMoney(cents)),
+    english: [...amounts.map((cents) => formatMoney(cents)), assets.parts[0].caption],
     croatian: amounts.map((cents) => formatMoney(cents, 'negative', CROATIAN_MONEY)),
     investmentsOnly: formatMoney(sumOf([investments])),
+    assetsOnly: formatMoney(sumOf([assetsHubFigures(sample.book, today(), FAKE_HOUSE_INDEX, null)])),
     takeOut: formatMoney(takeOut.cents),
     takeOutCroatian: formatMoney(takeOut.cents, 'negative', CROATIAN_MONEY),
   }
@@ -659,6 +717,7 @@ const SAMPLE_INVESTMENTS = fakeInvestmentsShows('sample', 'sample')
 const LATE_INVESTMENTS = fakeInvestmentsShows('sample', 'late-prices')
 const CASH_BELOW_ZERO_INVESTMENTS = fakeInvestmentsShows('cash-below-zero', 'sample')
 const OVERVIEW = fakeOverviewShows()
+const ASSETS = fakeAssetsShows()
 
 const SCREENS = [
   { name: 'overview', hash: '#/company', title: 'Overview', charts: 2, shows: ['Waiting for you', 'A typical month', 'Every euro earned', 'Balance at month end'] },
@@ -919,24 +978,52 @@ const SCREENS = [
     collapsedBefore: ['settings.category-rules'],
     linkedRow: '[data-testid="rule-row"][aria-current="true"]',
   },
-  { name: 'home', hash: '#/', title: 'All apps', charts: 0, shows: ['Company', 'Cash on hand', '2 rows to review', 'Loans', 'Investments', 'Set up', 'Overview', 'Kuna settings'], cards: false },
-  { name: 'home-croatian', query: 'lang=hr', hash: '#/', title: 'Sve aplikacije', charts: 0, shows: ['Tvrtka', 'Novac na računima', 'Krediti', 'Ulaganja', 'Postavi', 'Pregled'], cards: false },
+  {
+    name: 'home',
+    hash: '#/',
+    title: 'All apps',
+    charts: 0,
+    shows: ['Company', 'Cash on hand', '2 rows to review', 'Loans', 'Investments', 'Assets', 'Set up', 'Overview', 'Kuna settings'],
+    cards: false,
+  },
+  {
+    name: 'home-croatian',
+    query: 'lang=hr',
+    hash: '#/',
+    title: 'Sve aplikacije',
+    charts: 0,
+    shows: ['Tvrtka', 'Novac na računima', 'Krediti', 'Ulaganja', 'Imovina', 'Postavi', 'Pregled'],
+    cards: false,
+  },
   {
     name: 'kuna-overview',
-    query: 'loans=sample&investments=sample',
+    query: 'loans=sample&investments=sample&assets=sample',
     hash: '#/overview',
     title: 'Overview',
     charts: 0,
-    shows: ['Investments less loans', 'Leaves out bank accounts and property', 'Next ', ...OVERVIEW.english, 'What you could take out needs the company’s registration day in Settings.'],
+    shows: [
+      'What you own less what you owe',
+      'Leaves out bank accounts, which no app keeps yet',
+      'Next ',
+      ...OVERVIEW.english,
+      'What you could take out needs the company’s registration day in Settings.',
+    ],
     cards: false,
   },
   {
     name: 'kuna-overview-croatian',
-    query: 'loans=sample&investments=sample&lang=hr',
+    query: 'loans=sample&investments=sample&assets=sample&lang=hr',
     hash: '#/overview',
     title: 'Pregled',
     charts: 0,
-    shows: ['Ulaganja umanjena za kredite', 'Ne uključuje bankovne račune ni nekretnine', 'Sljedeća rata ', ...OVERVIEW.croatian, 'Novac tvrtke, izvan zbroja'],
+    shows: [
+      'Imovina umanjena za dugove',
+      'Ne uključuje bankovne račune, koje još nijedna aplikacija ne vodi',
+      'Sljedeća rata ',
+      ...OVERVIEW.croatian,
+      'vaše nakon kredita „Home loan”',
+      'Novac tvrtke, izvan zbroja',
+    ],
     cards: false,
   },
   {
@@ -978,14 +1065,40 @@ const SCREENS = [
     shows: 'Datoteka aplikacije Krediti nije se otvorila, pa se ništa ne zbraja.',
     cards: false,
   },
-  { name: 'kuna-overview-investments-only', query: 'investments=sample', hash: '#/overview', title: 'Overview', charts: 0, shows: [OVERVIEW.investmentsOnly, 'Not set up: Loans'], cards: false },
+  {
+    name: 'kuna-overview-investments-only',
+    query: 'investments=sample',
+    hash: '#/overview',
+    title: 'Overview',
+    charts: 0,
+    shows: [OVERVIEW.investmentsOnly, 'Not set up: Loans', 'Not set up: Assets'],
+    cards: false,
+  },
+  {
+    name: 'kuna-overview-assets-only',
+    query: 'assets=sample',
+    hash: '#/overview',
+    title: 'Overview',
+    charts: 0,
+    shows: [OVERVIEW.assetsOnly, 'Assets value', 'and 1 asset without a value', 'Not set up: Loans', 'Not set up: Investments'],
+    cards: false,
+  },
+  {
+    name: 'kuna-overview-index-opening',
+    query: 'loans=sample&investments=sample&assets=sample&index=opening',
+    hash: '#/overview',
+    title: 'Overview',
+    charts: 0,
+    ready: '[data-testid="overview-net-opening"]',
+    cards: false,
+  },
   {
     name: 'kuna-overview-fresh',
     query: 'fake=empty',
     hash: '#/overview',
     title: 'Overview',
     charts: 0,
-    shows: ['Nothing to add up until Loans or Investments is set up.', 'Not set up: Company', 'Not set up: Loans', 'Not set up: Investments'],
+    shows: ['Nothing to add up until an app is set up: Loans, Investments or Assets.', 'Not set up: Company', 'Not set up: Loans', 'Not set up: Investments', 'Not set up: Assets'],
     cards: false,
   },
   { name: 'company-settings', hash: '#/company/settings', title: 'Settings', charts: 0, shows: ['The workbook', 'Mail', 'Company and owner facts', 'Bucket labels', 'Loans to the owner'] },
@@ -1117,7 +1230,13 @@ const SOURCE_SCREENS = [
     hash: '#/',
     title: 'All apps',
     charts: 0,
-    shows: ['Set up', "Your company's books from its bank statements", 'Your loans in a file of their own', 'Every buy and sale at your brokers in a file of its own'],
+    shows: [
+      'Set up',
+      "Your company's books from its bank statements",
+      'Your loans in a file of their own',
+      'Every buy and sale at your brokers in a file of its own',
+      'Your flat, your car and the other things you own, in a file of their own',
+    ],
     cards: false,
   },
   {
@@ -1126,10 +1245,17 @@ const SOURCE_SCREENS = [
     hash: '#/',
     title: 'Sve aplikacije',
     charts: 0,
-    shows: ['Postavi', 'Financije vaše tvrtke iz bankovnih izvoda', 'Vaši krediti u zasebnoj datoteci', 'Svaka kupnja i prodaja kod vaših brokera u zasebnoj datoteci'],
+    shows: [
+      'Postavi',
+      'Financije vaše tvrtke iz bankovnih izvoda',
+      'Vaši krediti u zasebnoj datoteci',
+      'Svaka kupnja i prodaja kod vaših brokera u zasebnoj datoteci',
+      'Vaš stan, automobil i ostala imovina',
+    ],
     cards: false,
   },
   { name: 'home-loans', query: 'loans=sample', hash: '#/', title: 'All apps', charts: 0, shows: ['Cash on hand', 'You owe in all'], cards: false },
+  { name: 'home-assets', query: 'assets=sample', hash: '#/', title: 'All apps', charts: 0, shows: ['Assets value', ASSETS.alone.english, '1 asset without a value'], cards: false },
   {
     name: 'home-investments',
     query: 'investments=sample',
@@ -1875,6 +2001,166 @@ const SOURCE_SCREENS = [
     title: 'Postavke',
     charts: 0,
     shows: ['Datoteka kredita', 'Fake Loans file', 'Neke promjene još nisu ni u jednoj izvezenoj datoteci'],
+    cards: false,
+  },
+  { name: 'assets-start', hash: '#/assets', title: 'Assets', charts: 0, shows: ['Where the Assets file lives', 'A new file on Google Drive', 'My file on Google Drive'], cards: false },
+  {
+    name: 'assets-start-croatian',
+    query: 'lang=hr',
+    hash: '#/assets',
+    title: 'Imovina',
+    charts: 0,
+    shows: ['Gdje se čuva datoteka imovine', 'Nova datoteka na Google Driveu', 'Moja datoteka na Google Driveu'],
+    cards: false,
+  },
+  { name: 'assets-overview-empty', query: 'assets=drive', hash: '#/assets', title: 'Overview', charts: 0, shows: ['No assets yet', 'Add an asset', 'kuna-assets.json'], cards: false },
+  {
+    name: 'assets-overview-empty-croatian',
+    query: 'assets=drive&lang=hr',
+    hash: '#/assets',
+    title: 'Pregled',
+    charts: 0,
+    shows: ['Još nema imovine', 'Dodaj imovinu', 'kuna-assets.json'],
+    cards: false,
+  },
+  {
+    name: 'assets-overview',
+    query: 'assets=sample&loans=sample',
+    hash: '#/assets',
+    title: 'Overview',
+    charts: 0,
+    shows: ['Assets value', ASSETS.total.english, ASSETS.yours, ASSETS.flat.value.english, ASSETS.car.value.english, 'No value yet', '1 asset without a value'],
+    cards: false,
+  },
+  {
+    name: 'assets-overview-croatian',
+    query: 'assets=sample&loans=sample&lang=hr',
+    hash: '#/assets',
+    title: 'Pregled',
+    charts: 0,
+    shows: ['Vrijednost imovine', ASSETS.total.croatian, ASSETS.flat.value.croatian, ASSETS.car.value.croatian, 'Još nema vrijednosti', '1 stavka imovine bez vrijednosti'],
+    cards: false,
+  },
+  {
+    name: 'assets-flat',
+    query: 'assets=sample&loans=sample',
+    hash: `#/assets/asset?asset=${SAMPLE_FLAT}`,
+    title: 'Flat in Zagreb',
+    charts: 0,
+    shows: [ASSETS.flat.value.english, ASSETS.flat.caption, 'Owed on the Home loan', ASSETS.flat.owed.english, 'Yours after the loan', ASSETS.flat.yours.english, 'Valuations'],
+    cards: false,
+  },
+  {
+    name: 'assets-flat-croatian',
+    query: 'assets=sample&loans=sample&lang=hr',
+    hash: `#/assets/asset?asset=${SAMPLE_FLAT}`,
+    title: 'Flat in Zagreb',
+    charts: 0,
+    shows: [ASSETS.flat.value.croatian, 'preračunato na', 'Dug po kreditu „Home loan”', ASSETS.flat.owed.croatian, 'Vaše nakon kredita', ASSETS.flat.yours.croatian, 'Procjene'],
+    cards: false,
+  },
+  {
+    name: 'assets-flat-no-loans',
+    query: 'assets=sample',
+    hash: `#/assets/asset?asset=${SAMPLE_FLAT}`,
+    title: 'Flat in Zagreb',
+    charts: 0,
+    shows: [ASSETS.flat.value.english, ASSETS.flat.caption],
+    cards: false,
+  },
+  {
+    name: 'assets-flat-loan-gone',
+    query: 'assets=loan-gone&loans=sample',
+    hash: `#/assets/asset?asset=${SAMPLE_FLAT}`,
+    title: 'Flat in Zagreb',
+    charts: 0,
+    shows: [ASSETS.flat.value.english, 'Its loan is no longer in Loans'],
+    cards: false,
+  },
+  {
+    name: 'assets-flat-index-failed',
+    query: 'assets=sample&loans=sample&index=failed',
+    hash: `#/assets/asset?asset=${SAMPLE_FLAT}`,
+    title: 'Flat in Zagreb',
+    charts: 0,
+    shows: [ASSETS.flat.price.english, 'Price paid on 15 Mar 2025', 'The DZS index did not load, so flats show their valuation or the price paid.'],
+    cards: false,
+  },
+  {
+    name: 'assets-flat-loans-opening',
+    query: 'assets=sample&loans=opening',
+    hash: `#/assets/asset?asset=${SAMPLE_FLAT}`,
+    title: 'Flat in Zagreb',
+    charts: 0,
+    shows: [ASSETS.flat.value.english, 'Waiting for Loans to open'],
+    cards: false,
+  },
+  {
+    name: 'assets-flat-index-opening',
+    query: 'assets=sample&loans=sample&index=opening',
+    hash: `#/assets/asset?asset=${SAMPLE_FLAT}`,
+    title: 'Flat in Zagreb',
+    charts: 0,
+    ready: '[data-testid="asset-value-waiting"]',
+    cards: false,
+  },
+  {
+    name: 'assets-overview-index-opening-croatian',
+    query: 'assets=sample&loans=sample&index=opening&lang=hr',
+    hash: '#/assets',
+    title: 'Pregled',
+    charts: 0,
+    ready: '[data-testid="assets-value-waiting"]',
+    shows: 'Čeka se indeks DZS-a',
+    cards: false,
+  },
+  {
+    name: 'assets-car',
+    query: 'assets=sample&loans=sample',
+    hash: `#/assets/asset?asset=${SAMPLE_CAR}`,
+    title: 'Family car',
+    charts: 0,
+    shows: [ASSETS.car.value.english, ASSETS.car.caption, 'First registration'],
+    cards: false,
+  },
+  {
+    name: 'assets-car-croatian',
+    query: 'assets=sample&loans=sample&lang=hr',
+    hash: `#/assets/asset?asset=${SAMPLE_CAR}`,
+    title: 'Family car',
+    charts: 0,
+    shows: [ASSETS.car.value.croatian, 'Procjena prema carinskoj tablici', 'Prva registracija'],
+    cards: false,
+  },
+  { name: 'assets-opening', query: 'assets=opening', hash: '#/assets', title: 'Overview', charts: 0, ready: '[data-testid="assets-loading"]', cards: false },
+  { name: 'assets-failed', query: 'assets=failed', hash: '#/assets', title: 'Overview', charts: 0, cards: false },
+  {
+    name: 'assets-settings',
+    query: 'assets=drive',
+    hash: '#/assets/settings',
+    title: 'Settings',
+    charts: 0,
+    ready: '[data-testid="assets-books-card"] [data-testid="drive-file-place"] a',
+    shows: ['Assets file', 'kuna-assets.json', 'Switch storage'],
+    cards: false,
+  },
+  {
+    name: 'assets-settings-croatian',
+    query: 'assets=drive&lang=hr',
+    hash: '#/assets/settings',
+    title: 'Postavke',
+    charts: 0,
+    ready: '[data-testid="assets-books-card"] [data-testid="drive-file-place"] a',
+    shows: ['Datoteka imovine', 'kuna-assets.json', 'Promijeni mjesto'],
+    cards: false,
+  },
+  {
+    name: 'assets-settings-browser',
+    query: 'fake=browser&assets=browser',
+    hash: '#/assets/settings',
+    title: 'Settings',
+    charts: 0,
+    shows: ['Assets file', 'Fake Assets file', 'Some changes are in no exported file yet'],
     cards: false,
   },
   {
@@ -3834,21 +4120,32 @@ const FLOWS = [
     queries: { drive: '&lang=hr' },
   },
   { name: 'loans-drive', hash: '#/loans', title: 'Loans', run: loansDriveFlow, modes: ['drive'] },
-  { name: 'loans-browser', hash: '#/loans', title: 'Loans', run: loansBrowserFlow, modes: ['browser'] },
+  { name: 'loans-browser', hash: '#/loans', title: 'Loans', run: firstRunBrowserFlowIn('loans', 'en'), modes: ['browser'] },
   { name: 'loans-open', hash: '#/loans', title: 'Loans', run: loansOpenFlow, modes: ['drive'], queries: { drive: '&loans=other-device' } },
-  { name: 'loans-start-on-drive', hash: '#/loans/start?step=folder', title: 'Loans', run: loansStartOnDriveFlow, modes: ['drive'], queries: { drive: '&loans=other-device' } },
-  { name: 'loans-browser-croatian', hash: '#/loans', title: 'Krediti', run: loansBrowserFlowIn('hr'), modes: ['browser'], queries: { browser: '&fake=browser&lang=hr' } },
+  { name: 'loans-start-on-drive', hash: '#/loans/start?step=folder', title: 'Loans', run: firstRunOnDriveFlowIn('loans', 'en'), modes: ['drive'], queries: { drive: '&loans=other-device' } },
+  { name: 'loans-browser-croatian', hash: '#/loans', title: 'Krediti', run: firstRunBrowserFlowIn('loans', 'hr'), modes: ['browser'], queries: { browser: '&fake=browser&lang=hr' } },
   { name: 'loans-open-croatian', hash: '#/loans', title: 'Krediti', run: loansOpenFlowIn('hr'), modes: ['drive'], queries: { drive: '&loans=other-device&lang=hr' } },
   { name: 'loans-drive-croatian', hash: '#/loans', title: 'Krediti', run: loansDriveFlowIn('hr'), modes: ['drive'], queries: { drive: '&lang=hr' } },
   {
     name: 'loans-start-on-drive-croatian',
     hash: '#/loans/start?step=folder',
     title: 'Krediti',
-    run: loansStartOnDriveFlowIn('hr'),
+    run: firstRunOnDriveFlowIn('loans', 'hr'),
     modes: ['drive'],
     queries: { drive: '&loans=other-device&lang=hr' },
   },
   { name: 'loans-editor', hash: '#/loans', title: 'Overview', run: loansEditorFlow, modes: ['drive'], queries: { drive: '&loans=sample&investments=sample' } },
+  { name: 'assets-editor', hash: '#/assets', title: 'Overview', run: assetsEditorFlow, modes: ['drive'], queries: { drive: '&assets=drive&loans=sample' } },
+  { name: 'assets-editor-croatian', hash: '#/assets', title: 'Pregled', run: assetsEditorFlowIn('hr'), modes: ['drive'], queries: { drive: '&assets=drive&loans=sample&lang=hr' } },
+  { name: 'assets-valuation', hash: `#/assets/asset?asset=${SAMPLE_CAR}`, title: 'Family car', run: assetsValuationFlow, modes: ['drive'], queries: { drive: '&assets=sample&loans=sample' } },
+  {
+    name: 'assets-valuation-croatian',
+    hash: `#/assets/asset?asset=${SAMPLE_CAR}`,
+    title: 'Family car',
+    run: assetsValuationFlowIn('hr'),
+    modes: ['drive'],
+    queries: { drive: '&assets=sample&loans=sample&lang=hr' },
+  },
   { name: 'loans-editor-croatian', hash: '#/loans', title: 'Pregled', run: loansEditorFlowIn('hr'), modes: ['drive'], queries: { drive: '&loans=sample&lang=hr' } },
   {
     name: 'loans-scenarios-flow-croatian',
@@ -4033,11 +4330,18 @@ const FLOWS = [
     viewports: EVERY_VIEWPORT,
     queries: { drive: '&loans=drive&lang=hr', browser: '&fake=browser&loans=browser&lang=hr' },
   },
-  { name: 'home', hash: '#/', title: 'All apps', run: homeFlow, modes: ['drive'], queries: { drive: '&loans=sample&investments=sample' } },
-  { name: 'home-browser', hash: '#/', title: 'All apps', run: homeFlow, modes: ['browser'], queries: { browser: '&fake=browser&loans=sample&investments=sample' } },
+  { name: 'home', hash: '#/', title: 'All apps', run: homeFlow, modes: ['drive'], queries: { drive: '&loans=sample&investments=sample&assets=sample' } },
+  { name: 'home-browser', hash: '#/', title: 'All apps', run: homeFlow, modes: ['browser'], queries: { browser: '&fake=browser&loans=sample&investments=sample&assets=sample' } },
   { name: 'home-set-up', hash: '#/', title: 'All apps', run: setUpFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
-  { name: 'home-flow-croatian', hash: '#/', title: 'Sve aplikacije', run: homeFlowIn('hr'), modes: ['drive'], queries: { drive: '&loans=sample&investments=sample&lang=hr' } },
-  { name: 'home-browser-croatian', hash: '#/', title: 'Sve aplikacije', run: homeFlowIn('hr'), modes: ['browser'], queries: { browser: '&fake=browser&loans=sample&investments=sample&lang=hr' } },
+  { name: 'home-flow-croatian', hash: '#/', title: 'Sve aplikacije', run: homeFlowIn('hr'), modes: ['drive'], queries: { drive: '&loans=sample&investments=sample&assets=sample&lang=hr' } },
+  {
+    name: 'home-browser-croatian',
+    hash: '#/',
+    title: 'Sve aplikacije',
+    run: homeFlowIn('hr'),
+    modes: ['browser'],
+    queries: { browser: '&fake=browser&loans=sample&investments=sample&assets=sample&lang=hr' },
+  },
   { name: 'home-set-up-croatian', hash: '#/', title: 'Sve aplikacije', run: setUpFlowIn('hr'), modes: ['drive'], queries: { drive: '&fake=empty&lang=hr' } },
   { name: 'move-browser', hash: '#/company/settings?tab=books', title: 'Settings', run: moveFromBrowserFlow, modes: ['browser'] },
   { name: 'move-browser-croatian', hash: '#/company/settings?tab=books', title: 'Postavke', run: moveFromBrowserFlowIn('hr'), modes: ['browser'], queries: { browser: '&fake=browser&lang=hr' } },

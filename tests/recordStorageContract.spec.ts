@@ -22,6 +22,7 @@ import {
   TRADE_WRITES,
   TRANSFER_WRITES,
 } from '../src/apps/investments/transactions/application/transactionWrites'
+import { ASSET_WRITES, VALUATION_WRITES } from '../src/apps/assets/asset/application/assetWrites'
 import { BANK_LOAN_WRITES, EXTRA_PAYMENT_WRITES, LATE_INSTALMENT_WRITES, RATE_PERIOD_WRITES, removeBankLoan } from '../src/apps/loans/bankLoans/application/bankLoanWrites'
 import { INFORMAL_LOAN_WRITES, MOVEMENT_WRITES } from '../src/apps/loans/informalLoans/application/informalLoanWrites'
 import { LOAN_SCENARIO_WRITES, SCENARIO_CHANGE_WRITES } from '../src/apps/loans/scenarios/application/scenarioWrites'
@@ -44,7 +45,7 @@ import type { DocumentRecord, WorkbookDocument } from '../src/shared/storage/inf
 import type { DocumentCopy } from '../src/shared/storage/infrastructure/documentRecordStorage'
 import { newDocument } from '../src/shared/storage/infrastructure/documentRecordStorage'
 import { recordOnScreen, recordsOnScreen } from './fixtures/records'
-import { COMPANY, INVESTMENTS, LOANS, browserHarness, driveHarness, forgetCaches } from './fixtures/writeBack'
+import { ASSETS, COMPANY, INVESTMENTS, LOANS, browserHarness, driveHarness, forgetCaches } from './fixtures/writeBack'
 import type { AppUnderTest } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -868,6 +869,41 @@ const INVESTMENTS_FIXTURES: Readonly<Record<string, KindFixture>> = {
   },
 }
 
+const [OWNED_A, OWNED_B, OWNED_C, OWNED_R, FLAT] = ids('41', 5)
+const [VALUATION_A, VALUATION_B, VALUATION_C, VALUATION_R] = ids('42', 4)
+
+const ASSETS_FIXTURES: Readonly<Record<string, KindFixture>> = {
+  asset: {
+    records: [
+      { name: 'Flat in Zagreb', kind: 'home', bought: '2025-03-15', price: '200000.00', region: 'zagreb', loan: '0b6f3c1e-5d2a-4e8f-9a71-3c4d5e6f7a80', note: 'Top floor', id: OWNED_A! },
+      { name: 'Family car', kind: 'car', bought: '2024-01-15', price: '30000.00', first_registration: '2024-01-15', id: OWNED_B! },
+    ],
+    outside: { name: 'Boat', kind: 'other', id: OWNED_C! },
+    change: { field: 'note', value: 'Top floor, with a view' },
+    cleared: 'note',
+    refused: {
+      fields: { name: 'Plot', kind: 'land', id: OWNED_R! },
+      reason: 'is not a kind of asset',
+      fixed: { name: 'Plot', kind: 'other', id: OWNED_R! },
+    },
+  },
+  valuation: {
+    seed: { asset: [{ name: 'Flat in Zagreb', kind: 'home', bought: '2025-03-15', price: '200000.00', id: FLAT! }] },
+    records: [
+      { asset: FLAT!, date: '2026-01-10', value: '230000.00', note: "The bank's appraisal", id: VALUATION_A! },
+      { asset: FLAT!, date: '2026-06-01', value: '235000.00', id: VALUATION_B! },
+    ],
+    outside: { asset: FLAT!, date: '2026-09-01', value: '240000.00', id: VALUATION_C! },
+    change: { field: 'note', value: "The bank's second appraisal" },
+    cleared: 'note',
+    refused: {
+      fields: { asset: FLAT!, date: '2026-10-01', value: '-5.00', id: VALUATION_R! },
+      reason: 'value is below zero',
+      fixed: { asset: FLAT!, date: '2026-10-01', value: '5.00', id: VALUATION_R! },
+    },
+  },
+}
+
 const CORE_WRITES: readonly WriteRules<unknown>[] = [
   LEDGER_WRITES,
   CATEGORY_WRITES,
@@ -914,11 +950,14 @@ const INVESTMENTS_WRITES: readonly WriteRules<unknown>[] = [
 
 const INVESTMENTS_KINDS = INVESTMENTS_WRITES.map((rules) => [rules.kind.name, rules] as const)
 
+const ASSETS_KINDS = [ASSET_WRITES, VALUATION_WRITES].map((rules) => [rules.kind.name, rules as WriteRules<unknown>] as const)
+
 /** Every kind with the app whose document keeps it and its fixture. */
 const KINDS: readonly (readonly [string, WriteRules<unknown>, AppUnderTest<BooksRead>, KindFixture])[] = [
   ...COMPANY_KINDS.map(([name, rules]) => [name, rules, COMPANY, COMPANY_FIXTURES[name]!] as const),
   ...LOANS_KINDS.map(([name, rules]) => [name, rules, LOANS, LOANS_FIXTURES[name]!] as const),
   ...INVESTMENTS_KINDS.map(([name, rules]) => [name, rules, INVESTMENTS, INVESTMENTS_FIXTURES[name]!] as const),
+  ...ASSETS_KINDS.map(([name, rules]) => [name, rules, ASSETS, ASSETS_FIXTURES[name]!] as const),
 ]
 
 const STORAGES = [
@@ -934,6 +973,11 @@ it('has a fixture for every kind, core’s and the pack’s', () => {
 it('has a fixture for every Loans kind', () => {
   expect(LOANS_KINDS.map(([name]) => name).filter((name) => LOANS_FIXTURES[name] === undefined)).toEqual([])
   expect(LOANS_KINDS).toHaveLength(8)
+})
+
+it('has a fixture for every Assets kind', () => {
+  expect(ASSETS_KINDS.map(([name]) => name).filter((name) => ASSETS_FIXTURES[name] === undefined)).toEqual([])
+  expect(ASSETS_KINDS).toHaveLength(2)
 })
 
 it('has a fixture for every Investments kind', () => {

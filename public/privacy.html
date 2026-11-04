@@ -239,7 +239,8 @@
           <h2>Where your data goes</h2>
           <p>
             There is no server. The page talks to Google's own APIs to read and write your books on Drive, read your bank statements and your mail, file the invoices you make and save their drafts,
-            and for Investments to the price vendors named below. No analytics, no tracking, no third-party scripts beyond Google's sign-in and file picker.
+            for Investments to the price vendors named below, and for Assets to the Croatian Bureau of Statistics (DZS). No analytics, no tracking, no third-party scripts beyond Google's sign-in and
+            file picker.
           </p>
           <p>
             For Investments, the page also asks the price vendors named in the Investments Settings for daily closes and exchange rates: Twelve Data, Alpha Vantage and the European Central Bank. It
@@ -251,6 +252,10 @@
             by the instrument's ISIN where it has one and else its symbol, a fund's weights by sector and a listing's dividends from Alpha Vantage, and what a listing is from a search of its own price
             vendor, by its symbol. When you search in the dialog of a holding, the text you type goes to each of these vendors whose key this browser keeps. It never sends how many units you hold, an
             amount or anything else from your books. What the vendors answer is kept in the prices file beside your Investments file.
+          </p>
+          <p>
+            For a flat in your Assets file, the page asks the DZS for its house price index, once each time the page opens. It sends only the query for the index table, never a value, a region or
+            anything else of yours. The answer is kept in memory only, until the page closes.
           </p>
         </section>
         <section>

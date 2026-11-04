@@ -2,7 +2,7 @@
  * Drives the fake-mode build with touch at the two phone widths, as a thumb would: the top app bar
  * with its one-line Sync button and its navigation drawer of one app's menu under the link home, the
  * home's top bar with no menu button and its Overview and Kuna settings buttons, Kuna's Overview opened from that button with each
- * tile opening its app and Back and the company's figure opening Year's Pay tab on the kept profit, a fresh device's home with every app in Set up, the tabs of Settings with Back through them, a link to Year's Statements tab alone kept in its year through two tabs and Back, the review and corporate tax lines of Overview's waiting card, the review line again in Croatian, a chart's tap-then-drill, the filter sheet with a
+ * tile opening its app and Back, Assets value among them, and the company's figure opening Year's Pay tab on the kept profit, a fresh device's home with every app in Set up, the tabs of Settings with Back through them, a link to Year's Statements tab alone kept in its year through two tabs and Back, the review and corporate tax lines of Overview's waiting card, the review line again in Croatian, a chart's tap-then-drill, the filter sheet with a
  * filter added and removed,
  * grouped transactions that collapse and expand, a payee's category breakdown in English and Croatian, Analysis and its Compare tab in Croatian, an owner share changed and cleared and a new default share's fill, each undone, in Croatian, an xlsx file opened and kept in this browser,
  * confirming and recategorising a row on the To review tab of Transactions with Undo, the session's changes with Undo from
@@ -42,7 +42,10 @@
  * an xlsx file moved to the fake Drive through its summary, a workbook kept in this browser
  * moved there from Settings, Books file with the Drive read its folders need asked up front, the categories searched, filtered to a bucket from their sheet, sorted by a tap and the keyboard,
  * and a row edited while filtered and sorted, saved and undone, a row confirmed while another device files the other one, the notice for a file a
- * newer app saved, and every screen. The
+ * newer app saved, the Assets card opening the Assets Overview, the Assets first run finding the file another device made
+ * on Drive and keeping a new one in this browser, a flat added by touch with its region and the Home loan, its loan cleared and
+ * the flat deleted and brought back with Undo, a valuation added on the car in place of its estimate, deleted and brought back,
+ * and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
  * the payee breakdown has to stay inside the window and off its own row.
  * After each step it asserts that every visible control is at least 44 by 44 px and that nothing
@@ -121,7 +124,10 @@ import {
   loansScenariosFlow,
   loansSavedTriesFlow,
   invoiceRunFlowIn,
-  loansStartOnDriveFlow,
+  assetsEditorFlow,
+  assetsValuationFlow,
+  firstRunBrowserFlowIn,
+  firstRunOnDriveFlowIn,
   mailAccessFlow,
   mailFailedFlow,
   mailNothingNewFlow,
@@ -193,6 +199,8 @@ const SAMPLE_SHARE_A = 'fa4e1000-0000-4000-8000-000000000010'
 const SAMPLE_INDEX_FUND = 'fa4e1000-0000-4000-8000-000000000015'
 /** The sample Investments file's World ETF, with its own country mix typed and an empty fund profile from Alpha Vantage, which the fake Alpha Vantage now answers. */
 const SAMPLE_WORLD_ETF = 'fa4e1000-0000-4000-8000-000000000012'
+/** The sample Assets file's car, `?assets=sample`, which the customs table estimates. */
+const SAMPLE_CAR = 'fa4e2000-0000-4000-8000-000000000002'
 const OUTPUT_DIR = process.env.TOUCH_OUTPUT_DIR ?? join(ROOT, 'visual-check', 'touch')
 const WIDTHS = [360, 430]
 const SMALLEST_TARGET = 44
@@ -425,9 +433,18 @@ async function checkWidth(width) {
     await expect(topBarTitle(page), (title) => title === 'Overview', 'the Company card did not open Overview with its name in the top bar')
   })
 
-  // The company kept in this browser beside the sample Loans and Investments files.
+  await step('assets-home-card', async () => {
+    await open(page, `&assets=sample&load=${Date.now()}#/`, 'All apps')
+    await (await page.waitForSelector('[data-testid="home-card"][data-app="assets"][data-state="open"]')).tap()
+    await waitForTitle(page, 'Overview')
+    await expect(hashOf(page), (hash) => hash === '#/assets', 'the Assets card did not open the Assets Overview')
+    await page.waitForSelector('[data-testid="assets-value"]')
+    await shoot('assets-overview')
+  })
+
+  // The company kept in this browser beside the sample Loans, Investments and Assets files.
   await step('kuna-overview', async () => {
-    await openFreshBrowser(page, '#/', 'All apps', '&loans=sample&investments=sample')
+    await openFreshBrowser(page, '#/', 'All apps', '&loans=sample&investments=sample&assets=sample')
     await (await page.waitForSelector('[data-testid="home-overview"]')).tap()
     await waitForTitle(page, 'Overview')
     await expect(hashOf(page), (hash) => hash === '#/overview', 'the home’s Overview button did not open Kuna’s Overview')
@@ -443,6 +460,7 @@ async function checkWidth(width) {
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-kuna-overview.png`))
     for (const [label, path] of [
       ['Investments value', '#/investments'],
+      ['Assets value', '#/assets'],
       ['You owe in all', '#/loans'],
     ]) {
       const tile = await waitForText(page, '[data-testid="overview-part"] a', label)
@@ -2657,7 +2675,7 @@ async function checkWidth(width) {
     await waitForTitle(page, 'All apps')
     await expect(
       page.evaluate(() => [...document.querySelectorAll('[data-testid="home-card"]')].map((card) => card.dataset.state)),
-      (states) => states.length === 3 && states.every((state) => state === 'set-up'),
+      (states) => states.length === 4 && states.every((state) => state === 'set-up'),
       'a fresh device does not open the home with every app in Set up',
     )
     await expect(
@@ -2696,7 +2714,11 @@ async function checkWidth(width) {
     ['onboarding-start-over', 'empty', onboardingStartOverFlow],
     ['onboarding-on-drive', 'drive', onboardingOnDriveFlow, '#/company/start?step=folder'],
     ['onboarding-move-on-drive', 'browser-beside-drive', moveOntoDriveFlow, '#/company/settings?tab=books', 'Settings'],
-    ['loans-start-on-drive', 'drive&loans=other-device', loansStartOnDriveFlow, '#/loans/start?step=folder', 'Loans'],
+    ['loans-start-on-drive', 'drive&loans=other-device', firstRunOnDriveFlowIn('loans', 'en'), '#/loans/start?step=folder', 'Loans'],
+    ['assets-start-on-drive', 'drive&assets=other-device', firstRunOnDriveFlowIn('assets', 'en'), '#/assets/start?step=folder', 'Assets'],
+    ['assets-start-browser', 'drive', firstRunBrowserFlowIn('assets', 'en'), '#/assets', 'Assets'],
+    ['assets-flat', 'drive&assets=drive&loans=sample', assetsEditorFlow, '#/assets', 'Overview'],
+    ['assets-car-valuation', 'drive&assets=sample&loans=sample', assetsValuationFlow, `#/assets/asset?asset=${SAMPLE_CAR}`, 'Family car'],
     ['investments-start', 'drive', investmentsDriveFlow, '#/investments', 'Investments'],
     ['investments-price-key', 'drive&investments=sample', investmentsPriceKeyFlow, '#/investments/settings?tab=prices', 'Settings'],
     ['investments-key-synced', 'drive&investments=sample&keys=other-browser', investmentsKeyFromOtherBrowserFlow, '#/investments/settings?tab=prices', 'Settings'],

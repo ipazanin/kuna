@@ -9,10 +9,14 @@
  *   npm run check:figures -- --fake-loans <sample, house-and-car or equal-principal> [--today yyyy-mm-dd]
  *   npm run check:figures -- --investments <path to a Kuna Investments file> [--investments-prices <path to its prices file>] [--today yyyy-mm-dd]
  *   npm run check:figures -- --fake-investments sample [--today yyyy-mm-dd]
+ *   npm run check:figures -- --assets <path to a Kuna Assets file> [--house-index <path to a saved answer of the DZS>] [--today yyyy-mm-dd]
+ *   npm run check:figures -- --fake-assets <sample, house-and-car or loan-gone> [--today yyyy-mm-dd]
  *
- * A Loans or an Investments input goes with the others or alone, and its groups follow the company's, Loans before
- * Investments. With both, a last group adds them up as Kuna's Overview does. An Investments file without its prices
- * file is valued with no closes and no rates.
+ * A Loans, an Investments or an Assets input goes with the others or alone, and its groups follow the company's, in
+ * that order. With two or more, a last group adds them up as Kuna's Overview does. An Investments file without its
+ * prices file is valued with no closes and no rates, and an Assets file without a saved DZS answer as if the house
+ * price index failed. The fake Assets sets take the fake index. An asset's loan is read from the Loans input, and
+ * without one Loans counts as not set up.
  */
 
 import { createHash } from 'node:crypto'
@@ -114,6 +118,7 @@ import { informalBalances } from '../src/apps/loans/informalLoans/domain/informa
 import { informalClosedOn, informalLoanFigures, informalLoanMonths, informalLoanMoves, movementLines } from '../src/apps/loans/informalLoans/presentation/informalLoanView.ts'
 import { debtFreeOn, estimateFrom, interestAfter, interestInYear, outgoingByMonth, owedByMonth, plannedLoans, upcomingPayments } from '../src/apps/loans/overview/domain/loansTogether.ts'
 import { owedOnDay } from '../src/apps/loans/overview/presentation/owedTotals.ts'
+import { bankLoansOf } from '../src/apps/loans/facts.ts'
 import { loansHubFigures } from '../src/apps/loans/home/presentation/loansHubFigures.ts'
 import { fakeLoansDocument } from '../src/apps/loans/workbook/infrastructure/fake/fakeLoans.ts'
 import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument.ts'
@@ -146,6 +151,13 @@ import { fakeInvestmentsDocument } from '../src/apps/investments/workbook/infras
 import { MIXES } from '../src/apps/investments/workbook/domain/mixGroup.ts'
 import { INVESTMENTS_DOCUMENT } from '../src/apps/investments/workbook/infrastructure/investmentsDocument.ts'
 import { investmentsHubFigures } from '../src/apps/investments/home/presentation/investmentsHubFigures.ts'
+import { assetsHubFigures } from '../src/apps/assets/home/presentation/assetsHubFigures.ts'
+import { houseIndexOfAnswer } from '../src/apps/assets/houseIndex/infrastructure/dzsHouseIndex.ts'
+import { FAKE_HOUSE_INDEX_ANSWER } from '../src/apps/assets/houseIndex/infrastructure/fake/fakeHouseIndex.ts'
+import { assetLoansOf } from '../src/apps/assets/loans/application/assetLoans.ts'
+import { assetsOnDay, assetsTotal } from '../src/apps/assets/values/presentation/assetsOnDay.ts'
+import { ASSETS_DOCUMENT } from '../src/apps/assets/workbook/infrastructure/assetsDocument.ts'
+import { fakeAssetsDocument } from '../src/apps/assets/workbook/infrastructure/fake/fakeAssets.ts'
 import { personalNet } from '../src/shared/app/personalNet.ts'
 import { DEFAULT_MONEY_FORMAT } from '../src/shared/money/moneyFormat.ts'
 import { installHrDooPack } from './support/installPack.mjs'
@@ -159,6 +171,9 @@ const { values: options } = parseArgs({
     investments: { type: 'string' },
     'investments-prices': { type: 'string' },
     'fake-investments': { type: 'string' },
+    assets: { type: 'string' },
+    'house-index': { type: 'string' },
+    'fake-assets': { type: 'string' },
     today: { type: 'string', default: '2026-10-28' },
   },
 })
@@ -167,19 +182,23 @@ const knownFake = options.fake === 'drive' || options.fake === 'browser' || (opt
 const companyAsked = options.fake !== undefined || options.workbook !== undefined
 const loansAsked = options.loans !== undefined || options['fake-loans'] !== undefined
 const investmentsAsked = options.investments !== undefined || options['fake-investments'] !== undefined
+const assetsAsked = options.assets !== undefined || options['fake-assets'] !== undefined
 if (
   (options.fake !== undefined && options.workbook !== undefined) ||
   (options.loans !== undefined && options['fake-loans'] !== undefined) ||
   (options.investments !== undefined && options['fake-investments'] !== undefined) ||
   (options['investments-prices'] !== undefined && options.investments === undefined) ||
-  (!companyAsked && !loansAsked && !investmentsAsked) ||
+  (options.assets !== undefined && options['fake-assets'] !== undefined) ||
+  (options['house-index'] !== undefined && options.assets === undefined) ||
+  (!companyAsked && !loansAsked && !investmentsAsked && !assetsAsked) ||
   (options.fake !== undefined && !knownFake) ||
   (options['fake-loans'] !== undefined && !['sample', 'house-and-car', 'equal-principal'].includes(options['fake-loans'])) ||
   (options['fake-investments'] !== undefined && options['fake-investments'] !== 'sample') ||
+  (options['fake-assets'] !== undefined && !['sample', 'house-and-car', 'loan-gone'].includes(options['fake-assets'])) ||
   today === null
 ) {
   console.error(
-    'Usage: npm run check:figures -- [--fake <drive, browser, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car or equal-principal>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--today yyyy-mm-dd]',
+    'Usage: npm run check:figures -- [--fake <drive, browser, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car or equal-principal>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car or loan-gone>] [--today yyyy-mm-dd]',
   )
   process.exit(2)
 }
@@ -333,15 +352,14 @@ if (companyAsked) {
   group('salaries.years', () => paydayYears(reconciliation).map((year) => salaryYearRows(reconciliation, year, null, ledgerWindowOf(salaryBooks.transactions).partMonth)))
 }
 
-const loansHub = loansAsked ? loansGroups(group) : null
-const investmentsHub = investmentsAsked ? investmentsGroups(group) : null
-if (loansHub !== null && investmentsHub !== null) {
-  group('hub.personal', () =>
-    personalNet([
-      { name: 'Loans', notSetUp: false, currency: DEFAULT_MONEY_FORMAT.currency, figures: loansHub() },
-      { name: 'Investments', notSetUp: false, currency: DEFAULT_MONEY_FORMAT.currency, figures: investmentsHub() },
-    ]),
-  )
+const loans = loansAsked ? loansGroups(group) : null
+const personal = [
+  ...(loans === null ? [] : [{ name: 'Loans', figures: loans.hub }]),
+  ...(investmentsAsked ? [{ name: 'Investments', figures: investmentsGroups(group) }] : []),
+  ...(assetsAsked ? [{ name: 'Assets', figures: assetsGroups(group, loans?.book ?? null) }] : []),
+]
+if (personal.length >= 2) {
+  group('hub.personal', () => personalNet(personal.map(({ name, figures }) => ({ name, notSetUp: false, currency: DEFAULT_MONEY_FORMAT.currency, figures: figures() }))))
 }
 
 /**
@@ -354,7 +372,8 @@ if (loansHub !== null && investmentsHub !== null) {
  * is worked out from the day, an offer over its whole loan, with a move's break-even month and an
  * offer's effective rate. Scenarios compares the first offers against A with savings earning 3%: the side
  * by side and the list. Each bank loan's page lists the tries saved for it and tries a 3% rate from its next due date.
- * Returns how Kuna's Overview reads the file.
+ * The published group is the bank loans Loans gives another app. Returns how Kuna's Overview reads the file, and the
+ * loans it read.
  */
 function loansGroups(add) {
   const document = options.loans === undefined ? fakeLoansDocument(AT, options['fake-loans']) : decodeDocument(readFileSync(options.loans, 'utf8'))
@@ -427,7 +446,8 @@ function loansGroups(add) {
     estimateFrom(planned, today),
   ])
   add('loans.closed', () => [workbook.bankLoans.map((book) => bankLoanPaidOffOn(book, today)), workbook.informalLoans.map((book) => informalClosedOn(book, today))])
-  return () => loansHubFigures(workbook, today)
+  add('loans.published', () => bankLoansOf(workbook, today))
+  return { hub: () => loansHubFigures(workbook, today), book: workbook }
 }
 
 /** The prices file of an Investments input: the fake one for the fake set, the one given, or none. */
@@ -523,6 +543,35 @@ function investmentsGroups(add) {
     add(`investments.tax.${year}.foreign`, () => foreignIncomeYear(workbook.book, sources.rates, year))
   }
   return () => investmentsHubFigures(figures)
+}
+
+/** The house price index of an Assets input: the fake one for a fake set, the saved DZS answer given, or failed without one. */
+function houseIndexOfInput() {
+  if (options['fake-assets'] !== undefined) {
+    return houseIndexOfAnswer(FAKE_HOUSE_INDEX_ANSWER)
+  }
+  return options['house-index'] === undefined ? 'failed' : houseIndexOfAnswer(JSON.parse(readFileSync(options['house-index'], 'utf8')))
+}
+
+/**
+ * The Assets groups: the records and problems, then per asset, named by its place in the file and never by its name,
+ * its value on the day with how it was reached, and how its loan stands with what is counted and yours, then the total
+ * and Kuna's Overview's part. Returns how Kuna's Overview reads the file.
+ */
+function assetsGroups(add, loansBook) {
+  const document = options.assets === undefined ? fakeAssetsDocument(AT, options['fake-assets']) : decodeDocument(readFileSync(options.assets, 'utf8'))
+  const { records, workbook } = ASSETS_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
+  add('assets.read.records', records)
+  add('assets.read.problems', workbook.problems)
+  const index = houseIndexOfInput()
+  const loans = loansBook === null ? null : assetLoansOf(bankLoansOf(loansBook, today))
+  for (const [place, asset] of assetsOnDay(workbook, today, index, loans).entries()) {
+    add(`assets.asset-${place + 1}.value`, asset.value)
+    add(`assets.asset-${place + 1}.equity`, [asset.link, asset.equity])
+  }
+  add('assets.totals', () => assetsTotal(workbook, today, index, loans))
+  add('assets.hub', () => assetsHubFigures(workbook, today, index, loans))
+  return () => assetsHubFigures(workbook, today, index, loans)
 }
 
 const digests = new WeakMap()

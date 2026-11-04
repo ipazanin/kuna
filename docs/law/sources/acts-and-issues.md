@@ -23,6 +23,12 @@ Every act and bylaw these docs cite: its abbreviation, its title, the Narodne no
 | ZDop         | [Zakon o doprinosima](https://www.zakon.hr/z/365/Zakon-o-doprinosima)            | 84/08, 152/08, 94/09, 18/11, 22/12, 144/12, 148/13, 41/14, 143/14, 115/16, 106/18, 33/23, 114/23, 152/24          | Consolidated text only                                                                                                                                                                               |
 | ZLP          | Zakon o lokalnim porezima                                                        | 115/16, 101/17, 114/22, amended by 114/23                                                                         | NN page of the amendment, [NN 114/23, item 1610](https://narodne-novine.nn.hr/clanci/sluzbeni/2023_10_114_1610.html). The base act was not loaded                                                    |
 
+## Cars
+
+| Abbreviation | Act                                                                                                            | NN issues                                  | Read                                         |
+| ------------ | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------ | -------------------------------------------- |
+| PravPPMV     | [Pravilnik o posebnom porezu na motorna vozila](https://narodne-novine.nn.hr/clanci/sluzbeni/2017_01_1_2.html) | 1/17. Later amendments were not looked for | NN page, Art. 9(1), 9(3), 9(4) and Tablica 1 |
+
 ## Procedure
 
 | Abbreviation | Act                                                                                               | NN issues                                                    | Read                           |

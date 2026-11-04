@@ -23,7 +23,7 @@ import { investmentsSyncGroup } from './sync/presentation/investmentsSyncGroup'
 import { words } from './words'
 import { useInvestmentsBooks } from './workbook/application/investmentsStore'
 import { INVESTMENTS_APP } from './workbook/infrastructure/investmentsDocument'
-import { useFindFile } from '../../shared/storage/presentation/useFindFile'
+import { resumeFileLookup } from '../../shared/storage/presentation/resumeFileLookup'
 import { words as fileWords } from './workbook/presentation/words'
 import { startPrices } from './prices/presentation/usePrices'
 
@@ -93,17 +93,7 @@ export const investmentsApp: AppContribution = {
   // The prices of the file on screen come on screen with it, and a file kept in this browser fetches the day's prices once it is read.
   start(router, googleReturn) {
     const stopPrices = startPrices()
-    if (googleReturn?.kind === 'granted' && (googleReturn.resume === 'find' || googleReturn.resume === 'pick')) {
-      const store = useInvestmentsBooks()
-      const findFile = useFindFile(store, fileWords)
-      const lookup = googleReturn.resume
-      void store.open().then(async () => {
-        const opened = await findFile(lookup)
-        await router.isReady()
-        // A find the first run left for ends on the Overview, as the find step's own tap does.
-        if (opened && router.currentRoute.value.path === INVESTMENTS_START_ROUTE) await router.push(INVESTMENTS_OVERVIEW_ROUTE)
-      })
-    }
+    resumeFileLookup({ store: useInvestmentsBooks(), words: fileWords, startRoute: INVESTMENTS_START_ROUTE, overviewRoute: INVESTMENTS_OVERVIEW_ROUTE }, router, googleReturn)
     return stopPrices
   },
 }

@@ -67,7 +67,7 @@ const lead = computed(() => {
     case 'opening':
       return { text: '', held: false, to: null }
     case 'nothing':
-      return { text: words.nothing, held: true, to: null }
+      return { text: words.nothing(countedApps.map((entry) => entry.value.name)), held: true, to: null }
     case 'failed': {
       const [first] = sum.apps
       return { text: words.failed(sum.apps.map((entry) => entry.name)), held: true, to: first === undefined ? null : entryPath(first.app) }

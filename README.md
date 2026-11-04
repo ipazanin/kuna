@@ -353,12 +353,16 @@ place on the home and in every app, and it syncs every app's file on Drive. Each
 with a quiet Kuna mark and name linking home, so a first run left half way goes back to the home. There is no app
 switcher, keyboard shortcut or bottom bar.
 
-Kuna's Overview at `#/overview` leads with Investments less loans: the Investments value plus what
-others owe you, less what you owe. It is not called net worth, and its caption says what it leaves out:
-bank accounts and property, which no app keeps yet, and holdings without a price. A tile per part
-follows, You owe in all with the next loan payment as its caption, each opening its app's Overview.
-A Loans or Investments file that failed to open holds the sum back and names the app, one still
-opening shows a placeholder, and an app not set up counts as nothing and is listed with Set up.
+Kuna's Overview at `#/overview` leads with What you own less what you owe: the Investments value,
+the Assets value and what others owe you, less what you owe. It is not called net worth, and its
+caption says what it leaves out: bank accounts, which no app keeps yet, holdings without a price,
+assets without a value and the DZS index when it did not load. A tile per part follows, each opening
+its app's Overview: You owe in all with the next loan payment as its caption, and Assets value with
+what is yours after the loans on the assets. That caption is never added in, since Assets value counts
+each asset in full and You owe in all each loan in full. A Loans, Investments or Assets file that
+failed to open holds the sum back and names the app, one still opening, or the house price index
+still loading for a flat, shows a placeholder, and an app not set up counts as nothing and is listed
+with Set up.
 Below, apart from the sum, the company's money is one figure: what the owner could take out now,
 the kept profit paid out today as Year's Pay tab works it out, after the dividend tax and with the
 owner's loan to the company settled first, or a line saying why there is none. It opens that option on the Pay tab. Each app gives its
@@ -2006,7 +2010,7 @@ npm run check:visual   # every screen at nine widths from 360 to 2560 in local C
 npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer of one app's menu under the link home, the home's top bar without a menu button and a fresh device's home in Set up, the tabs of the company's Settings with Back, a link to Year's Statements tab alone kept in its year, the Tax rules search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the categories searched, filtered from their sheet, sorted and edited while filtered, Owner opening on Taken with its net share and monthly net pay tiles, Owner's Filters button on the tab row setting one period for both tabs, the owner take under its ring against its tile, a month of the loan balance beside the ring opening its rows, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, one added outside the period and opened from its toast, the split editor on Transactions and its To review tab, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed and held on sync with each state of the sync control and its steps in a bottom sheet, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and back into onboarding's access step, and from the silent ask after a sign-in with the sync it carries, ending ready or in Allow access, Salaries for five made-up employees with the gross to net chart's tap-then-drill, the one problem's build-up and rows, People and Over time, the mail step off, saved, filing with its list and filing nothing new the second time, nothing new, a failed source, a failed upload, needing Gmail read access and saved with Gmail read asked in the same tap, the accountant's mail switched off, the payroll switched on without a sender, Gmail asking to slow down, the window after mail already there, Allow access whose Google window closed, onboarding on the fake Drive with statements by hand, from mail with its first sync and from a folder, in this browser, with an xlsx brought along and with books found on Drive, the statement step asking for Drive read before the Picker, a workbook moved there from Settings, Books file with the Drive read its folders need, a race kept on both sides, the newer-file notice, the Loans find a tap resumed ending on the Loans Overview, the sample Loans Overview and both loan pages with a plan row opened by a tap and the payments chart as a table, an extra payment entered and undone, the Home loan's two charts set to the last year together and back to All, Scenarios' picker, base select and Delete with Undo, 100,000 at 4% over 10 years typed into a new scenario with the editor's headline reading the annuity and then equal principal, a rate change saved as a try on a loan's page, deleted and undone, the Investments first run making its file on the fake Drive and ending on its empty Overview and Settings, a Holdings row opening its holding's page and the way back, the period of Performance changed to 1Y, to a year and back to All, a dollar buy typed on Transactions with 0.01k in its fees and its summary read, then added and undone, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # open as the document, write and read it, export and open again, counts only
-npm run check:figures -- --workbook <file.xlsx or .json>   # a count and a digest per group of figures behind every screen, or --fake <variant>, never a figure, so two trees compare with diff. --loans <kuna-loans.json> or --fake-loans sample (or house-and-car or equal-principal) adds the Loans groups, or gives them alone, and --investments <kuna-investments.json> with --investments-prices <kuna-investments-prices.json>, or --fake-investments sample with the fake prices file, adds the Investments groups: the records, each holding, each account's cash, the portfolio, the last day, the Overview's cards, the value over time, the benchmark's closes, Performance over each period it offers and its returns by year. With a Loans and an Investments input, hub.personal adds them up as Kuna's Overview does
+npm run check:figures -- --workbook <file.xlsx or .json>   # a count and a digest per group of figures behind every screen, or --fake <variant>, never a figure, so two trees compare with diff. --loans <kuna-loans.json> or --fake-loans sample (or house-and-car or equal-principal) adds the Loans groups, or gives them alone, and --investments <kuna-investments.json> with --investments-prices <kuna-investments-prices.json>, or --fake-investments sample with the fake prices file, adds the Investments groups: the records, each holding, each account's cash, the portfolio, the last day, the Overview's cards, the value over time, the benchmark's closes, Performance over each period it offers and its returns by year. --assets <kuna-assets.json> with an optional --house-index <a saved answer of the DZS>, or --fake-assets sample (or house-and-car or loan-gone) with the fake index, adds the Assets groups: the records, each asset's value with how it was reached and its loan with what is yours, the total and its part of Kuna's Overview. An Assets file without a saved answer is valued as if the index failed, and an asset's loan is read from the Loans input. With two or more personal inputs, hub.personal adds them up as Kuna's Overview does
 ```
 
 The fake workbook is an 18-month synthetic company: two accounts, one closed by a sweep into the
@@ -2155,7 +2159,7 @@ lists only shrink. Inline disable comments have no effect. The kuna-design skill
 
 ### The shell and its apps
 
-The app is a thin shell with apps inside it, today three: the company's books, Loans and Investments. `src/main.ts` imports
+The app is a thin shell with apps inside it, today four: the company's books, Loans, Investments and Assets. `src/main.ts` imports
 each app's `app.ts` as the page starts, installs it, then mounts the shell. `src/shell` holds the
 frame, the router, the app registry, the home and Kuna settings. `src/shared` is the kernel every app
 uses: the UI kit, the calendar, money and text helpers, Google, the document storage, and
@@ -2168,7 +2172,8 @@ takes the addresses under it and no others, so the home and Kuna settings stay t
 `#/company`, Transactions at `#/company/transactions`, Settings at `#/company/settings`, onboarding
 at `#/company/start`. `#/` is the home, and so is an address no screen has. Kuna's Overview and Kuna
 settings are the shell's, at `#/overview` and `#/settings`. An app imports only its own folder and `src/shared`, so no app imports
-another, and `tests/importBoundaries.spec.ts` checks it.
+another, and `tests/importBoundaries.spec.ts` checks it. The one exception is an app's published `facts.ts`, read from the
+one file of another app the spec lists, which today is Loans' bank loans read by Assets.
 
 ### Loans
 
@@ -2930,6 +2935,52 @@ Drive or the fake Drive, the keys and the vendors.
   holdings: a whole profile of the tech share, the payer's refused one, a whole fund profile of the
   money fund and an empty one of the world ETF, which the fake Alpha Vantage now answers, so its Ask
   again fills it.
+
+### Assets app
+
+`src/apps/assets` is the fourth app, at `#/assets`, named so here because _Assets_ above is the
+company's register. It keeps its own file, `kuna-assets.json`, through the same document storage as
+Loans, with its own first run, Settings and card on the home. Its schema is `{"assets":1}`, with two
+kinds: `asset` and `valuation`, all in euros.
+
+- **An asset** has a name, a kind (Flat or house, Car or Other), the day it was bought and the price
+  paid, which needs that day, a flat's region for the house price index (City of Zagreb, Adriatic or
+  Rest of Croatia), a car's first registration, the bank loan on it by the loan's bare UUID, and a
+  note.
+- **A valuation** is what the asset was worth on a day, zero or more, as you typed it, never before
+  the day it was bought and one per asset and day.
+
+Deleting an asset deletes its valuations in the same write, and one Undo puts them back.
+
+**What an asset is worth** on a day is worked out on load and never stored, by `assetValueOn` in
+`values/domain/assetValue.ts`. The base is the newest valuation on or before the day, or else the
+price paid. A flat with a region carries its base by the DZS house price index (2025 = 100) of its
+region from the base's quarter to the newest quarter the DZS has published, and the page says it is
+an estimate with that quarter. A base newer than the index's newest quarter stays as typed. A car
+with no valuation is estimated by Tablica 1 of NN 1/2017 from its price, the day it was bought and its
+first registration, as [Used car value](docs/law/used-car-value.md) explains. Anything else keeps its
+base, and an asset with neither a price nor a valuation has no value.
+
+**The house price index** comes from one POST to the DZS PxWeb API for table `ME_PS14.px`, once per
+page load as soon as the file on screen holds a flat with a region, and is kept in memory only.
+`houseIndex/infrastructure/dzsHouseIndex.ts` reads its JSON-stat answer by dimension ids and sizes.
+While it loads, a flat's value and Kuna's sum wait. If it fails, a flat shows the value typed or the
+price paid, and the page says the index did not load. The fake build answers from
+`houseIndex/infrastructure/fake/fakeHouseIndex.ts`, cut from the DZS's real answer of 4 November 2026,
+and `?index=opening` or `?index=failed` hold or refuse it.
+
+**The mortgage** is linked from the asset. The asset's dialog offers the bank loans Loans publishes in
+`src/apps/loans/facts.ts`, which `loans/application/assetLoans.ts` reads, with No loan first. An
+asset's page shows what is owed on its loan, opening the loan's page, and what is yours after it. A
+loan gone from Loans, one whose plan Loans cannot work out, and Loans failing to open each say why
+instead. Assets counts each asset's whole value and Loans each loan in full, so Kuna's Overview adds
+Assets value and takes off You owe in all, and what is yours after the loans is only a caption. What
+is counted of an asset and its loan has one owner, `equityOf` in `values/domain/equity.ts`. A loan goes on one
+asset: the dialog hides a loan another asset names and keeps an asset's own loan, even while Loans does not list it,
+and a file where two assets name one loan is read with a problem on both, which then show nothing yours after it.
+
+The Overview at `#/assets` leads with Assets value and what is yours after the loans, then a card per
+asset with its value and how it was reached. An empty file shows an empty state with Add an asset.
 
 ### Core and the pack
 

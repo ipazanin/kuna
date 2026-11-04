@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
+import { CUSTOMS_TABLE } from '../src/apps/assets/carValue/domain/customsTable'
 import { ONE_DAY_SETTLEMENT_FROM } from '../src/apps/investments/tax/domain/settlementDay'
 import { JOPPD_CODES, TAX_RULES, rulesOf } from '../src/apps/investments/tax/domain/taxRules'
 import type { RuleMark } from '../src/apps/investments/tax/domain/taxRules'
@@ -111,6 +112,16 @@ describe('law docs', () => {
   it('states the day each market moves to settling one business day after the trade', () => {
     const rows = tableUnder('hnb-rates-and-settlement.md', 'Settlement cycles')
     expect(Object.fromEntries(rows.map((row) => [row.Currency, row['One day from']]))).toEqual(ONE_DAY_SETTLEMENT_FROM)
+  })
+
+  it('states every row of the customs table the Assets app estimates a car by', () => {
+    const rows = tableUnder('used-car-value.md', 'Tablica 1')
+    const shareOf = (cell: string | undefined): number => {
+      const match = cell?.match(/^(\d+)\.(\d{2})%$/)
+      expect(match, `"${cell}" is not a percent with two decimals`).not.toBeNull()
+      return Number(match![1]) * 100 + Number(match![2])
+    }
+    expect(rows.map((row) => ({ from: Number(row['From months']), to: Number(row['To months']), share: shareOf(row['Share left']) }))).toEqual(CUSTOMS_TABLE)
   })
 
   it('states the capital gains rate and surtax of every year Kuna has a row for', () => {

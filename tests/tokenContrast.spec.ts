@@ -19,7 +19,7 @@ const ACCENT = '--accent'
  */
 const WASHED_SURFACES = ['--surface-page', '--surface-raised']
 /** An app's identity colour, which paints its icon on a tile of the same colour at `APP_TILE_WASH` over the page or a card. */
-const APP_COLOURS = ['--app-company', '--app-loans', '--app-investments']
+const APP_COLOURS = ['--app-company', '--app-loans', '--app-investments', '--app-assets']
 const APP_TILE_WASH = 0.14
 const CHART_INKS = ['--chart-ink', '--chart-ink-secondary', '--chart-ink-muted']
 /** The gain and loss steps, which tint a tile or a cell under a figure in ink. */

@@ -46,12 +46,13 @@ OPZ Art. 10 provides a paid binding opinion only for future transactions, so a p
 
 ## Not loaded
 
-| Item                       | What is unknown                                                  | What settles it                                                   |
-| -------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------- |
-| The US Senate's consent    | Whether and when the Senate consents to Treaty Document 119-2    | congress.gov, which refused an automated fetch on 4 November 2026 |
-| The 2023 surtax            | Each city's 2023 rate, and how the foreign credit met the surtax | The 2023 surtax decisions, or a compiled table                    |
-| The budget payment Naputak | The payment reference for capital gains tax                      | The Naputak for the year in NN                                    |
-| The UK settlement cycle    | For a dollar line of a fund listed in London                     | The UK rule                                                       |
+| Item                       | What is unknown                                                                              | What settles it                                                   |
+| -------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| The US Senate's consent    | Whether and when the Senate consents to Treaty Document 119-2                                | congress.gov, which refused an automated fetch on 4 November 2026 |
+| The 2023 surtax            | Each city's 2023 rate, and how the foreign credit met the surtax                             | The 2023 surtax decisions, or a compiled table                    |
+| The budget payment Naputak | The payment reference for capital gains tax                                                  | The Naputak for the year in NN                                    |
+| The UK settlement cycle    | For a dollar line of a fund listed in London                                                 | The UK rule                                                       |
+| Amendments of Tablica 1    | Whether an NN issue after 1/2017 changed the customs table the Assets app estimates a car by | An NN search of the Pravilnik's amendments                        |
 
 ## Sources
 

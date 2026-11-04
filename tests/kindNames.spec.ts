@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { installedPack } from '../src/apps/company/packs/packContribution'
+import { codecOfAssetsKind } from '../src/apps/assets/workbook/application/assetsCodecs'
+import * as ASSET_KINDS from '../src/apps/assets/workbook/domain/assetKinds'
+import { ASSET_PARTS } from '../src/apps/assets/workbook/domain/readAssetBook'
 import { codecOfLoansKind } from '../src/apps/loans/workbook/application/loansCodecs'
 import * as LOAN_KINDS from '../src/apps/loans/workbook/domain/loanKinds'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
@@ -38,6 +41,21 @@ describe("the Loans app's kind names", () => {
     expect(kinds.filter((kind) => codecOfLoansKind(kind).kind !== kind).map((kind) => kind.name)).toEqual([])
     expect(
       Object.values(LOAN_PARTS)
+        .map((kind) => kind.name)
+        .sort(),
+    ).toEqual([...names].sort())
+  })
+})
+
+describe("the Assets app's kind names", () => {
+  const kinds: RecordKind<unknown>[] = Object.values(ASSET_KINDS)
+
+  it('names each kind once, finds its codec by it, and reads every kind into a part of the records', () => {
+    const names = kinds.map((kind) => kind.name)
+    expect(names.filter((name, index) => names.indexOf(name) !== index)).toEqual([])
+    expect(kinds.filter((kind) => codecOfAssetsKind(kind).kind !== kind).map((kind) => kind.name)).toEqual([])
+    expect(
+      Object.values(ASSET_PARTS)
         .map((kind) => kind.name)
         .sort(),
     ).toEqual([...names].sort())
