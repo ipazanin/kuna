@@ -117,6 +117,7 @@ export function offersComparison(compared: readonly SlottedScenario[], base: str
     name: entry.worked.name,
     slot: entry.slot,
     outcome: entry.outcome,
+    repayment: entry.plan.loan.repayment,
     eks: entry.worked.eks,
     bankEks: entry.worked.kept?.scenario.start.kind === 'offer' ? entry.worked.kept.scenario.start.terms.bankEks : null,
     leftOver: ahead?.[index] ?? null,

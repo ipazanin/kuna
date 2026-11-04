@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { triedRate, whatIfChange } from '../src/apps/loans/bankLoans/domain/whatIf'
-import { savedTries } from '../src/apps/loans/bankLoans/presentation/savedTries'
-import { words } from '../src/apps/loans/bankLoans/presentation/words'
+import { savedTries, tryName } from '../src/apps/loans/bankLoans/presentation/savedTries'
+import { hr, words } from '../src/apps/loans/bankLoans/presentation/words'
 import { NO_COSTS } from '../src/apps/loans/scenarios/domain/loanScenario'
 import { scenarioOutcome } from '../src/apps/loans/scenarios/domain/scenarioOutcome'
 import { scenarioPlan } from '../src/apps/loans/scenarios/domain/scenarioPlan'
@@ -44,6 +44,19 @@ describe("the tries saved on a loan's page", () => {
     const [tried] = savedTries(workbook.bankLoans[0]!, [offDue], TODAY, words)
 
     expect(tried!.detail).toBe('The rate is 3% fixed from 21 Apr 2027. 21 Apr 2027 is not a due date of Home loan.')
+  })
+
+  it('names a try of one term change Term change, also one a file keeps under its earlier name', () => {
+    const workbook = sample()
+    const [spring] = workbook.scenarios
+    const term = { ...spring!.changes[0]!, kind: 'term-change', from: civil('2026-11-20'), instalments: 180 } as const
+    const earlier = { ...spring!, scenario: { ...spring!.scenario, name: '15 y left from 20 Nov 2026' }, changes: [term] }
+    const [tried] = savedTries(workbook.bankLoans[0]!, [earlier], TODAY, words)
+
+    expect(tried!.title).toBe('Term change, 15 y left from 20 Nov 2026')
+    expect(tryName(term, words)).toBe(tried!.title)
+    expect(words.whatIf.kinds.term).toBe('Term change')
+    expect([hr.whatIf.kinds.term, hr.whatIf.termName('15 g.', '20. 11. 2026.')]).toEqual(['Promjena roka', 'Promjena roka, još 15 g. od 20. 11. 2026.'])
   })
 
   it('keeps no try of another loan', () => {

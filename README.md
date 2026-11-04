@@ -1924,7 +1924,8 @@ the invoice line as typed, and the mail draft names the month in the client's ma
 The Croatian words follow the glossary of the language plan: `kredit` for a bank loan, `pozajmica`
 for a loan between people, `anuitet` for an instalment on one annuity loan's own page and dialogs,
 `rata` for an equal principal loan's instalment and wherever loans of both types can sit together,
-such as the Overview and Scenarios, and `obrok` only for the instalments a subsidy covers. Sentences address you as `vi` in lower case, and buttons take the short imperative,
+such as the Overview and Scenarios, and `obrok` only for the instalments a subsidy covers. A late
+instalment is `zakašnjela rata` on every loan, in its toast's title as in the record's name under it. Sentences address you as `vi` in lower case, and buttons take the short imperative,
 such as `Spremi`, `Obriši` and `Poništi`.
 
 Each feature keeps its words in a `words.ts` beside it, which exports `en`, `hr` typed as
@@ -2203,7 +2204,7 @@ when the subsidy ends with its instalments to go, the payoff date and this year'
 the subsidy pays of it. "Owed over time" draws the balance at each month end, red and solid up to
 today and brass and dashed for the plan after it, with a Today rule, a note where the variable rate
 starts and years on the axis. Its subtitle names the dashed plan only while the span picked shows some of it. A dot on a month's balance marks what moved it, as Investments marks a
-holding's trades, through the shared `src/shared/charts/chartDots.ts`: one filled plum dot of one size
+holding's trades, through the shared `src/shared/charts/chartDots.ts`: one filled dot of one size, a deep cyan in the light theme and a pale one in the dark theme,
 for the instalments due by today and the extra payments of a month, whatever they come to, and a
 violet ring for each rate after the first, wider than the dot and drawn around it, so a payment and a
 new rate of one month both show. A hover or a tap near a dot moves the tooltip onto the dot's month,
@@ -2230,12 +2231,14 @@ instalments, each with Add and Change, and their dialogs delete too. What if tri
 changes without saving anything. Extra payment takes an amount and a date and shows a shorter term
 (new payoff date, months and interest saved) beside a lower instalment (new instalment and interest
 saved), and Apply opens the extra payment dialog filled in. Rate change takes a due date still to
-come and a rate, of the type in force then, and Shorter term a due date and the years and months left
+come and a rate, of the type in force then, and Term change a due date and the years and months left
 from it, and each shows the next instalment, the payoff and the interest against the loan as it
 stands. A date during the subsidy, or up to 24 months after its last covered instalment, shows that
 repaying early then means paying the subsidy back, as the APN loan contract says. Save this try writes
-the try at once as a scenario of the loan, named from what it changes, with Undo in its toast. Saved
-tries, under What if, lists every scenario of the loan worked out from today against the loan as it
+the try at once as a scenario of the loan, named from what it changes, with Undo in its toast. A term
+change is named Term change, with the years and months left and the due date, and a saved try of one
+term change shows that name whatever name the file keeps. Saved tries, beside What if on a wide screen
+and under it on a phone, lists every scenario of the loan worked out from today against the loan as it
 stands, with what it changes, the interest it saves and how much sooner the loan ends, or why Kuna
 cannot work it out, and Delete with Undo. A saved try is not edited, only deleted.
 
@@ -2245,7 +2248,7 @@ plan then shows Expected payments: how far ahead or behind the borrower is, the 
 owed to you and you on one you owe, the plan, what it expects by today, what was repaid since it
 started and when the next instalment falls due. The last movement and the start follow as tiles,
 then the balance the loan's way at each month end with a dot on each movement's month, all one
-size, blue for borrowing and plum for the rest, side by side in a month with both. The line stops at
+size, blue for borrowing and cyan, deep in the light theme and pale in the dark one, for the rest, side by side in a month with both. The line stops at
 today, and a movement dated ahead keeps only its dot. A loan with an expected plan adds "Expected by
 the plan", brass and dashed with no wash: what it would owe at each month end had the borrower paid
 exactly the plan, which is what it owes then plus how far the borrower is ahead or behind
@@ -2338,7 +2341,9 @@ when it changes before the end, the interest, what you pay in all and when it is
 extra you put in, the costs, what the subsidy pays, Kuna's EKS estimate, the EKS the bank printed and,
 with a savings rate, what each leaves you ahead by the earliest payoff, each of these only when some
 offer has a figure. A tick marks a line's one best figure and the difference to the base sits under
-each. Below 768 px each offer is one card of its lines. What each owes and what interest it pays over
+each. Offers of different terms get no tick on interest or what you pay in all, and annuity and equal
+principal offers together get none on the monthly instalment, since an equal principal one starts higher
+and falls. Below 768 px each offer is one card of its lines. What each owes and what interest it pays over
 time follow, folded until opened, then the list with Edit, Copy and Delete with Undo. New scenario asks
 for the amount, the yearly rate, the years and months and the repayment, and works the instalment out
 as you type, such as "€1,012.45 a month" or "€1,166.67 falling to €836.11". More terms, closed until
@@ -2421,7 +2426,7 @@ the Income, Coming and Costs tabs and the Tax screen's lists head their months a
 the one `group-row` rule of `app.css`. A holding's page
 at `#/investments/holding?instrument=<uuid>` shows its value beside its total return, split into price,
 currency, realised on sales and income, then its facts, its month-end closes in its quote currency with
-the average cost dashed and a filled dot per buy in plum and one per sale in orange, all one size,
+the average cost dashed and a filled dot per buy in cyan, deep in the light theme and pale in the dark one, and one per sale in orange, all one size,
 side by side on a point with both, the lots still held with the day
 each turns tax-free, its transactions and its income. Its Details card leads that last row with its
 type, class, sector, country or region, ISIN, a fund's TER and dividends and its price source, each with
@@ -2490,7 +2495,8 @@ on a holding's price chart, offers five US funds by name above its search: S&P 5
 which no free key of Kuna's vendors gives, so they are priced by Twelve Data in dollars, turned into
 euros at each day's ECB rate on Performance, without the dividends they pay out, and need its key.
 Compare with shows without any key too: the funds then wait for a Twelve Data key with a link to the
-Prices settings, and the search shows once a vendor that searches has a key. A picked fund's chip, its
+Prices settings, and the search shows once a vendor that searches has a key. With no key of any vendor,
+that one line under the funds says a Twelve Data key also turns on the search. A picked fund's chip, its
 legend and the chart's words call it by its name, such as S&P 500 (SPY), and a searched ticker by its
 symbol. A pick is kept as `?compare=twelvedata:SPY`, as a searched ticker is. All, and any period asked from
 before the first deposit, opens before the first deposit's records, so that day's money counts as put in

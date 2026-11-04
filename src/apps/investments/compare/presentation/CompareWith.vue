@@ -12,6 +12,7 @@ import { INDEX_FUNDS, INDEX_FUNDS_SOURCE } from '../domain/indexFunds'
 import InstrumentSearch from '../../holdings/presentation/InstrumentSearch.vue'
 import { INVESTMENTS_PRICES_ROUTE } from '../../overview/presentation/investmentLinks'
 import type { SearchedListing } from '../../prices/application/symbolSearch'
+import { useSymbolSearch } from '../../prices/presentation/useSymbolSearch'
 import { storedVendorKey } from '../../prices/infrastructure/vendorKeys'
 import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
 import { words as pricesWords } from '../../prices/presentation/words'
@@ -37,6 +38,7 @@ const emit = defineEmits<{
 }>()
 
 const fundsPriced = storedVendorKey(INDEX_FUNDS_SOURCE) !== null
+const searchable = useSymbolSearch().canSearch()
 const fundsVendor = PRICE_VENDORS.find((vendor) => vendor.id === INDEX_FUNDS_SOURCE)?.name ?? INDEX_FUNDS_SOURCE
 const open = ref(false)
 
@@ -79,7 +81,8 @@ function pickListing(listing: SearchedListing): void {
           <template #help>
             <span v-if="fundsPriced" data-testid="compare-funds-note">{{ reading === 'in-euros' ? words.fundsInEuros : words.fundsAsQuoted }}</span>
             <span v-else data-testid="compare-funds-note">
-              {{ pricesWords.failures.reason['no-key'](fundsVendor) }} {{ pricesWords.advice['no-key'](fundsVendor) }}
+              <template v-if="searchable">{{ pricesWords.failures.reason['no-key'](fundsVendor) }} {{ pricesWords.advice['no-key'](fundsVendor) }}</template>
+              <template v-else>{{ words.noKeyAtAll(fundsVendor) }}</template>
               <UButton :to="INVESTMENTS_PRICES_ROUTE" :label="pricesWords.advice.toSettings" color="neutral" variant="link" size="sm" class="inline-target px-0" data-testid="compare-funds-settings" />
             </span>
           </template>

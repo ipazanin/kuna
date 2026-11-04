@@ -43,7 +43,7 @@ function isChangeKind(text: string): text is LoanChange['kind'] {
 
 export const en = {
   kinds: { borrowed: 'Borrowed', 'borrowed-in-kind': 'Borrowed in kind', repaid: 'Repaid', 'repaid-in-kind': 'Repaid in kind', forgiven: 'Forgiven' },
-  changeKinds: { 'extra-payment': 'Extra payment', 'regular-extra-payment': 'Regular extra payment', 'rate-change': 'Rate change', move: 'Move to another bank', 'term-change': 'Shorter term' },
+  changeKinds: { 'extra-payment': 'Extra payment', 'regular-extra-payment': 'Regular extra payment', 'rate-change': 'Rate change', move: 'Move to another bank', 'term-change': 'Term change' },
   /** The words that name a record of each kind, as its stored fields read. */
   labels: {
     movement: (fields: StoredFields) => labelWords([dayText(fields.date), textOf(fields.kind), numberText(fields.amount)]),
@@ -87,7 +87,7 @@ export const hr: Translation<typeof en> = {
     'regular-extra-payment': 'Redovita prijevremena otplata',
     'rate-change': 'Promjena kamatne stope',
     move: 'Prelazak u drugu banku',
-    'term-change': 'Kraći rok otplate',
+    'term-change': 'Promjena roka',
   },
   labels: {
     movement: (fields) => {

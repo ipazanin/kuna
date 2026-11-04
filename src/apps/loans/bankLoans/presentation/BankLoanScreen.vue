@@ -155,10 +155,10 @@ const tries = computed(() => (book.value === null || state.workbook === null ? [
 
 async function removeTry(key: string): Promise<void> {
   const records = state.records
-  const kept = tries.value.find((entry) => entry.key === key)?.kept ?? null
-  if (records !== null && kept !== null) {
-    await writes.write(loanWords.value.savedTries.deleted, (unit) => removeScenario(unit, records, kept.scenario), {
-      description: loanWords.value.savedTries.named(kept.scenario.name),
+  const tried = tries.value.find((entry) => entry.key === key) ?? null
+  if (records !== null && tried !== null) {
+    await writes.write(loanWords.value.savedTries.deleted, (unit) => removeScenario(unit, records, tried.kept.scenario), {
+      description: loanWords.value.savedTries.named(tried.title),
       failedTitle: loansWords.form.notDeleted,
       key: `delete-${key}`,
     })
@@ -222,19 +222,21 @@ function openLate(key: string | null): void {
             :shown-days="loanRange.window.value"
           />
         </DashboardGrid>
-        <WhatIfPanel :book="book" :default-date="figures.next?.date ?? day" :today="day" @apply="openExtra" />
-        <ChangeListCard
-          :title="loanWords.savedTries.title"
-          :subtitle="loanWords.savedTries.subtitle"
-          :lines="tries"
-          :empty="loanWords.savedTries.empty"
-          :can-add="false"
-          removable
-          :removing="tries.find((entry) => writes.saving(`delete-${entry.key}`))?.key ?? null"
-          collapse-id="loans.saved-tries"
-          data-testid="saved-tries"
-          @remove="removeTry"
-        />
+        <DashboardGrid layout="pair">
+          <WhatIfPanel :book="book" :default-date="figures.next?.date ?? day" :today="day" @apply="openExtra" />
+          <ChangeListCard
+            :title="loanWords.savedTries.title"
+            :subtitle="loanWords.savedTries.subtitle"
+            :lines="tries"
+            :empty="loanWords.savedTries.empty"
+            :can-add="false"
+            removable
+            :removing="tries.find((entry) => writes.saving(`delete-${entry.key}`))?.key ?? null"
+            collapse-id="loans.saved-tries"
+            data-testid="saved-tries"
+            @remove="removeTry"
+          />
+        </DashboardGrid>
         <PlanCard :years="years" :open-year="openYear" :has-subsidy="book.loan.subsidy !== null" />
       </template>
       <DashboardGrid layout="pair">

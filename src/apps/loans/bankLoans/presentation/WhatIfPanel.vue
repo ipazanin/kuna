@@ -8,13 +8,14 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { triedRate, whatIfChange, whatIfExtraPayment } from '../domain/whatIf'
 import type { ExtraPaymentOutcome } from '../domain/whatIf'
-import { fractionOf, typedRate } from '../domain/yearlyRate'
+import { typedRate } from '../domain/yearlyRate'
 import type { ExtraPaymentStart } from './ExtraPaymentDialog.vue'
 import TryOutcome from './TryOutcome.vue'
+import { tryName } from './savedTries'
+import type { TriedChange } from './savedTries'
 import { typedTerm } from './typedTerm'
 import { useLoanWords } from './useLoanWords'
 import { newLoanScenario, saveScenario } from '../../scenarios/application/scenarioWrites'
-import type { LoanChange } from '../../scenarios/domain/loanScenario'
 import { spanOf } from '../../scenarios/presentation/scenarioComparison'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
@@ -22,7 +23,7 @@ import { words as loansWords } from '../../words'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { formatMoney, formatRate } from '../../../../shared/money/moneyFormat'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { Money } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -35,7 +36,7 @@ import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 
 /**
  * A change tried out against the plan without saving anything: an extra payment both ways the bank
- * offers, a new rate from a due date, or a shorter term from a due date. Each try can be saved as it
+ * offers, a new rate from a due date, or a new term from a due date. Each try can be saved as it
  * is, and an extra payment applied.
  */
 const props = defineProps<{
@@ -91,7 +92,7 @@ const termInstalments = computed(() => {
 })
 const termError = computed(() => (years.value.trim() !== '' || months.value.trim() !== '') && termInstalments.value === null)
 
-const triedChange = computed((): LoanChange | null => {
+const triedChange = computed((): TriedChange | null => {
   const from = comingDues.value.some((row) => row.date === due.value) ? due.value : null
   if (from === null) return null
   if (kind.value === 'rate') {
@@ -125,9 +126,10 @@ function apply(outcome: ExtraPaymentOutcome): void {
   if (typed.value !== null) emit('apply', { ...typed.value, effect: outcome.effect, editing: null })
 }
 
-async function saveTry(name: string, change: LoanChange, key: string): Promise<void> {
+async function saveTry(change: TriedChange, key: string): Promise<void> {
   const records = store.state.records
   if (records === null) return
+  const name = tryName(change, loanWords.value)
   const scenario = newLoanScenario({ name, start: { kind: 'loan', loan: props.book.loan.id } })
   await writes.write(loanWords.value.savedTries.saved, (unit) => saveScenario(unit, records, scenario, [change], null), {
     description: loanWords.value.savedTries.named(name),
@@ -139,20 +141,12 @@ async function saveTry(name: string, change: LoanChange, key: string): Promise<v
 function saveExtra(outcome: ExtraPaymentOutcome): void {
   const payment = typed.value
   if (payment === null) return
-  const name = loanWords.value.whatIf.extraName(formatMoney(payment.amount), dayLabel(payment.date), loanWords.value.extraDialog.effects[outcome.effect].label.toLowerCase())
-  void saveTry(name, { kind: 'extra-payment', date: payment.date, amount: payment.amount, effect: outcome.effect }, `try-${outcome.effect}`)
+  void saveTry({ kind: 'extra-payment', date: payment.date, amount: payment.amount, effect: outcome.effect }, `try-${outcome.effect}`)
 }
 
 function saveTried(): void {
   const change = triedChange.value
-  if (change === null) return
-  const name =
-    change.kind === 'rate-change'
-      ? loanWords.value.whatIf.rateName(formatRate(fractionOf(change.rate)), dayLabel(change.from))
-      : change.kind === 'term-change'
-        ? loanWords.value.whatIf.termName(spanOf(change.instalments), dayLabel(change.from))
-        : ''
-  void saveTry(name, change, 'try')
+  if (change !== null) void saveTry(change, 'try')
 }
 </script>
 

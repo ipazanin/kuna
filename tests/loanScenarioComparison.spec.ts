@@ -28,8 +28,8 @@ function outcome(overrides: Partial<ScenarioOutcome> = {}): ScenarioOutcome {
   }
 }
 
-function scenario(key: string, slot: number, overrides: Partial<ScenarioOutcome> = {}): ComparedScenario {
-  return { key, name: key, slot, outcome: outcome(overrides) }
+function scenario(key: string, slot: number, overrides: Partial<ScenarioOutcome> = {}, repayment: ComparedScenario['repayment'] = 'annuity'): ComparedScenario {
+  return { key, name: key, slot, outcome: outcome(overrides), repayment }
 }
 
 function line(comparison: ScenarioComparison, key: string) {
@@ -40,7 +40,12 @@ describe('offers side by side', () => {
   const plain = scenario('plain', 1)
   // B pays 5,000.00 extra and ends 2 years and 7 months sooner, C is equal principal with 1,500.00 of costs.
   const extra = scenario('extra', 2, { instalments: 209, payoff: civil('2045-08-20'), interest: euros(34_500), extra: euros(5000), total: euros(138_500) })
-  const falling = scenario('falling', 3, { nextInstalment: euros(766.67), lastInstalment: euros(417.36), instalmentChanges: true, interest: euros(32_000), costs: euros(1500), total: euros(137_500) })
+  const falling = scenario(
+    'falling',
+    3,
+    { nextInstalment: euros(766.67), lastInstalment: euros(417.36), instalmentChanges: true, interest: euros(32_000), costs: euros(1500), total: euros(137_500) },
+    'equal-principal',
+  )
 
   it('keeps the columns in their slots and marks the base, wherever the base is', () => {
     const comparison = compareScenarios([falling, plain, extra], 'extra')
@@ -72,7 +77,10 @@ describe('offers side by side', () => {
   })
 
   it('ticks the one best figure of a line, lower or earlier, and none a line has no better way for', () => {
-    const comparison = compareScenarios([plain, { ...extra, outcome: { ...extra.outcome, instalments: 240 } }, { ...falling, outcome: { ...falling.outcome, nextInstalment: euros(590) } }], 'plain')
+    const comparison = compareScenarios(
+      [plain, { ...extra, outcome: { ...extra.outcome, instalments: 240 } }, { ...falling, repayment: 'annuity', outcome: { ...falling.outcome, nextInstalment: euros(590) } }],
+      'plain',
+    )
     const ticks = (key: string) => line(comparison, key).cells.map((cell) => cell.best)
 
     expect(ticks('interest')).toEqual([false, false, true])
@@ -80,6 +88,19 @@ describe('offers side by side', () => {
     expect(ticks('total')).toEqual([false, false, true])
     expect(ticks('extra')).toEqual([false, false, false])
     expect(ticks('instalment')).toEqual([false, false, true])
+  })
+
+  it('ticks no monthly instalment across annuity and equal principal offers, and keeps the ticks on interest and the total', () => {
+    const sameTerm = { ...extra, outcome: { ...extra.outcome, instalments: 240 } }
+    const fallingFromLess = { ...falling, outcome: { ...falling.outcome, nextInstalment: euros(590) } }
+    const mixed = compareScenarios([plain, sameTerm, fallingFromLess], 'plain')
+    const allAnnuity = compareScenarios([plain, sameTerm, { ...fallingFromLess, repayment: 'annuity' }], 'plain')
+    const ticks = (comparison: ScenarioComparison, key: string) => line(comparison, key).cells.map((cell) => cell.best)
+
+    expect(ticks(mixed, 'instalment')).toEqual([false, false, false])
+    expect(ticks(mixed, 'interest')).toEqual([false, false, true])
+    expect(ticks(mixed, 'total')).toEqual([false, false, true])
+    expect(ticks(allAnnuity, 'instalment')).toEqual([false, false, true])
   })
 
   it('gives every other column its difference to the base, and leaves the base and an equal figure without one', () => {

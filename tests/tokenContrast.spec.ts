@@ -183,6 +183,13 @@ const DOTTED_CHARTS = [
   { chart: 'an informal loan owed to you', dots: ['--loan-lowers', '--loan-raises'], lines: ['--loan-owed-to-you', '--loan-ahead'] },
 ] as const
 
+/** The common dot as the charts paint it, a buy on a price chart and what lowers what is owed on a balance line. */
+const COMMON_DOTS = ['--invest-buy', '--loan-lowers']
+/** Every class colour on the class ring, which the common dot must not be mistaken for. */
+const CLASS_RING = ['--invest-stocks', '--invest-bonds', '--invest-money-market', '--invest-cash', '--invest-gold', '--invest-crypto']
+/** The colours of an open list's mix, the colours `MoneyText` paints money coming in, going out and below zero, and the accent. */
+const MIX_MONEY_FLOW_AND_ACCENT = ['--series-1', '--series-2', '--series-3', '--series-4', '--chart-deemphasis', '--tone-positive', '--tone-negative', '--ink', ACCENT]
+
 describe('the dot colours', () => {
   for (const [theme, tokens] of [
     ['light', LIGHT_TOKENS],
@@ -196,6 +203,16 @@ describe('the dot colours', () => {
             return normal >= DOT_APART && colourBlind >= DOT_APART_COLOUR_BLIND ? [] : [`${dot} and ${other} on ${chart}: ${normal.toFixed(1)}, colour blind ${colourBlind.toFixed(1)}`]
           }),
         ),
+      )
+      expect(failing).toEqual([])
+    })
+
+    it(`keep the common dot apart from every class on the class ring, every mix colour, the money-flow colours and the accent in the ${theme} theme`, () => {
+      const failing = COMMON_DOTS.flatMap((dot) =>
+        [...CLASS_RING, ...MIX_MONEY_FLOW_AND_ACCENT].flatMap((other) => {
+          const { normal } = distancesOf(colourOf(tokens, dot), colourOf(tokens, other))
+          return normal >= DOT_APART ? [] : [`${dot} and ${other}: ${normal.toFixed(1)}`]
+        }),
       )
       expect(failing).toEqual([])
     })

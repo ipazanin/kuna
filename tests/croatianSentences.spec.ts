@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PortfolioCheck } from '../src/apps/investments/overview/domain/portfolioChecks'
 import type { Instrument } from '../src/apps/investments/workbook/domain/instrument'
 import type { YearlyRate } from '../src/apps/loans/bankLoans/domain/yearlyRate'
-import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, RATE_PERIOD_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
+import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, LATE_INSTALMENT_RECORDS, RATE_PERIOD_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
 import { civilDate } from '../src/shared/calendar/civilDate'
 import { monthKey } from '../src/shared/calendar/monthKey'
 import { decimalOfText } from '../src/shared/money/decimal'
@@ -32,6 +32,18 @@ afterEach(() => {
 })
 
 describe('the change sentence in Croatian', () => {
+  it('names a late instalment a rata in the title and the description of its toast, on either kind of bank loan', async () => {
+    const { words } = await croatian()
+    const { wordsFor } = await inCroatian(() => import('../src/apps/loans/bankLoans/presentation/words'))
+    const description = words.changes([{ verb: 'add', noun: LATE_INSTALMENT_RECORDS.noun, labels: ['dospijeće 1. 3. 2027.'] }], false)
+
+    for (const repayment of ['annuity', 'equal-principal'] as const) {
+      const { added, saved, deleted } = wordsFor(repayment).lateDialog
+      expect([added, saved, deleted]).toEqual(['Zakašnjela rata je dodana', 'Zakašnjela rata je spremljena', 'Zakašnjela rata je obrisana'])
+    }
+    expect(description).toBe('Dodana je zakašnjela rata „dospijeće 1. 3. 2027.”')
+  })
+
   it('agrees the participle with the noun of one named record', async () => {
     const { words } = await croatian()
     const added = (noun: RecordNoun) => words.changes([{ verb: 'add', noun, labels: ['Stambeni'] }], false)

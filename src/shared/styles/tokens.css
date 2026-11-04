@@ -114,11 +114,17 @@
   /*
    * Gold and crypto on the class ring. No two more of the series pass beside the four class aliases below, so these are
    * steps of their own, plum and periwinkle, validated with those four over every pair in both themes. The periwinkle
-   * sits close to the portfolio's blue, so crypto never shares a chart with --invest-portfolio. The plum also marks a buy
-   * and what lowers what is owed, on time charts that draw no class.
+   * sits close to the portfolio's blue, so crypto never shares a chart with --invest-portfolio.
    */
   --invest-gold: #7d376e;
   --invest-crypto: #708df7;
+
+  /*
+   * A buy and a payment that lowers what is owed, the common dot on a time chart. A deep cyan on the light card and a
+   * pale one on the dark card, a hue no class, mix, money-flow figure or the accent wears, and clear of every chart
+   * line, dot and ring it meets for every kind of colour blindness.
+   */
+  --chart-dot: #004c6e;
 
   /* How late money owed is, one blue from not due yet to over 90 days. Validated as an ordinal ramp against the card surface. */
   --ageing-1: #88b1e8;
@@ -199,6 +205,8 @@
   --invest-gold: #b40eae;
   --invest-crypto: #3f55f7;
 
+  --chart-dot: #8ad3ff;
+
   /* On the dark card the ramp runs the other way, so the latest money is the brightest. */
   --ageing-1: #2c5288;
   --ageing-2: #3d6bad;
@@ -251,13 +259,11 @@
 
   /*
    * A month's movements on a loan's Owed over time, one filled dot of one size each, as --invest-buy and
-   * --invest-sale are. What lowers what is owed is plum, as a buy is, and stays clear of the red or green
-   * balance line, the brass plan, the violet ring of a new rate and the blue of a raise for every kind of colour
-   * blindness, at least ΔE 9 against blue under deuteranopia on the dark card. What raises it is blue, which stays
+   * --invest-sale are. What lowers what is owed wears --chart-dot, as a buy does. What raises it is blue, which stays
    * clear of the balance line and the plan. Orange would not, since it and brass cannot be told apart. Blue sits
    * too close to the violet of a new rate, so a raise and a new rate never share a chart.
    */
-  --loan-lowers: var(--invest-gold);
+  --loan-lowers: var(--chart-dot);
   --loan-raises: var(--series-3);
 
   /*
@@ -294,12 +300,11 @@
 
   /*
    * A buy and a sale on a price chart, one filled dot of one size each, told apart by colour and by the words in the
-   * legend, tooltip and table. A buy is plum, the gold class's step, and a sale orange, which both stay clear of the
-   * blue price line and the grey dashed lines and of each other for every kind of colour blindness. Ink would read
-   * white on the dark card. Neither is green or red, since a buy is money out and a sale money in, and neither is
-   * good or bad news.
+   * legend, tooltip and table. A buy wears --chart-dot and a sale is orange, which both stay clear of the blue price
+   * line and the grey dashed lines and of each other for every kind of colour blindness. Ink would read white on the
+   * dark card. Neither is green or red, since a buy is money out and a sale money in, and neither is good or bad news.
    */
-  --invest-buy: var(--invest-gold);
+  --invest-buy: var(--chart-dot);
   --invest-sale: var(--series-2);
 
   /*

@@ -1,6 +1,7 @@
 import type { ScenarioOutcome } from '../domain/scenarioOutcome'
 import type { ScenarioRefusal } from '../domain/scenarioPlan'
 import { fractionOf, MILLIONTHS_PER_PERCENT } from '../../bankLoans/domain/yearlyRate'
+import type { BankLoan } from '../../workbook/domain/bankLoan'
 import type { YearlyRate } from '../../bankLoans/domain/yearlyRate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -20,6 +21,7 @@ export interface ComparedScenario {
   readonly name: string
   readonly slot: number
   readonly outcome: ScenarioOutcome
+  readonly repayment: BankLoan['repayment']
   /** Kuna's estimate of an offer's effective rate, or null where Kuna has none. */
   readonly eks?: YearlyRate | null
   /** The effective rate the bank printed for an offer, or null when none was typed in. */
@@ -153,15 +155,18 @@ function lineOf<Figure>(spec: LineSpec<Figure>, scenarios: readonly ComparedScen
  * the one best figure when a single offer holds it, lower or earlier being better, and gives every
  * other column its difference to the base. Extra you put in and what the subsidy pays have no better
  * way. Offers of different numbers of instalments get no tick on interest or the total, since a
- * shorter loan always pays less interest.
+ * shorter loan always pays less interest. Annuity and equal principal offers together get no tick on
+ * the instalment, since an equal principal instalment starts higher and falls.
  */
 export function compareScenarios(compared: readonly ComparedScenario[], base: string): ScenarioComparison {
   const scenarios = [...compared].sort((first, second) => first.slot - second.slot)
   const baseScenario = scenarios.find((scenario) => scenario.key === base) ?? null
   const termTicks = new Set(scenarios.map((scenario) => scenario.outcome.instalments)).size <= 1
+  const instalmentTicks = new Set(scenarios.map((scenario) => scenario.repayment)).size <= 1
   const { lines: label } = words
 
   const instalment = moneyLine('instalment', label.instalment, 'lower', ({ outcome }) => outcome.nextInstalment, {
+    ticks: instalmentTicks,
     estimate: (outcome) => outcome.variableFrom !== null,
     second: (outcome) => (outcome.instalmentChanges && outcome.lastInstalment !== null ? words.lastInstalment(formatMoney(outcome.lastInstalment)) : null),
   })

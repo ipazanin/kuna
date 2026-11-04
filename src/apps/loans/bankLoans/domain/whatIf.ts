@@ -67,6 +67,6 @@ export function whatIfExtraPayment(book: BankLoanBook, date: CivilDate, amount: 
 }
 
 /** A new rate from a due date on, fixed or variable as the rate in force then is, since a reset keeps the loan's kind of rate. */
-export function triedRate(book: BankLoanBook, from: CivilDate, rate: YearlyRate): LoanChange {
+export function triedRate(book: BankLoanBook, from: CivilDate, rate: YearlyRate): Extract<LoanChange, { readonly kind: 'rate-change' }> {
   return { kind: 'rate-change', from, rate, rateType: ratePeriodOn(book.ratePeriods, from)?.rateType ?? 'fixed' }
 }

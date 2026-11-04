@@ -106,12 +106,11 @@ const COLOUR_GROUPS: readonly { readonly title: string; readonly measure: Measur
     ],
   },
   {
-    title: 'Dots on a time chart, one size and filled: a buy and a sale, what lowers and what raises what is owed, and the ring of a new rate',
+    title: 'Dots on a time chart, one size and filled: the common dot of a buy and of what lowers what is owed, a sale, what raises what is owed, and the ring of a new rate',
     measure: 'none',
     swatches: [
-      { name: 'Buy', token: '--invest-buy' },
+      { name: 'Buy, lowers what is owed', token: '--chart-dot' },
       { name: 'Sale', token: '--invest-sale' },
-      { name: 'Lowers what is owed', token: '--loan-lowers' },
       { name: 'Raises what is owed', token: '--loan-raises' },
       { name: 'New rate', token: '--loan-interest' },
     ],

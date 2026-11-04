@@ -4010,10 +4010,10 @@ export async function investmentsHoldingDotHoverFlow(page, { inspect }) {
 }
 
 /**
- * A chart's Compare with on the sample, with a made-up Twelve Data key kept for the page's life: the search asks the
- * fake responder for EXQ, the pick names it in a chip and in the address, the chart then reads as change in percent,
- * and the chip's Remove takes it away again. Then S&P 500 (SPY), one of the funds the dialog names, does the same. The
- * key goes before the flow ends, so the steps after it start clean.
+ * A chart's Compare with on the sample, first with no key and with a made-up Finnhub key, then with a made-up Twelve
+ * Data key kept for the page's life: the search asks the fake responder for EXQ, the pick names it in a chip and in the
+ * address, the chart then reads as change in percent, and the chip's Remove takes it away again. Then S&P 500 (SPY), one
+ * of the funds the dialog names, does the same. The keys go before the flow ends, so the steps after it start clean.
  */
 export function investmentsCompareFlowIn(card, shotName) {
   const chart = `[data-testid="${card}"]`
@@ -4032,13 +4032,37 @@ export function investmentsCompareFlowIn(card, shotName) {
       await delay(400)
       const offered = await page.$$eval('[data-testid="compare-fund"]', (buttons) => buttons.map((button) => button.disabled))
       if (offered.length !== 5 || offered.some((disabled) => !disabled)) throw new Error('the funds can be pressed without a Twelve Data key')
-      await elementSays(page, '[data-testid="compare-funds-note"]', ['No Twelve Data key in this browser.', 'Prices settings'], 'the funds do not say they need a Twelve Data key')
+      await elementSays(
+        page,
+        '[data-testid="compare-funds-note"]',
+        ['Add your Twelve Data key in the Prices settings to use these funds and the search.', 'Prices settings'],
+        'the funds do not say that they and the search need a Twelve Data key',
+      )
+      if ((await page.$$('[data-testid="compare-funds-settings"]')).length !== 1) throw new Error('Compare with shows more than one way to the Prices settings')
       await page.waitForSelector('[data-testid="compare-funds-settings"]', { visible: true, timeout: 5_000 })
       if (await page.$('[data-testid="instrument-search"]')) throw new Error('the search is offered with no key to search with')
       await inspect?.('Compare with without a Twelve Data key')
       await shoot(`${shotName}-no-key`)
       await page.keyboard.press('Escape')
       await dialogGone(page, '[data-testid="compare-funds"]')
+
+      // With another vendor's key the search is offered, and the funds still wait for a Twelve Data key with the one link.
+      await page.evaluate(() => localStorage.setItem('kuna.price-vendor-key.finnhub', 'made-up-finnhub-key-0042'))
+      await page.reload({ waitUntil: 'networkidle0' })
+      await pressSelector(page, press, `${chart} [data-testid="compare-open"]`)
+      await page.waitForSelector('[data-testid="instrument-search"]', { visible: true, timeout: 10_000 })
+      await delay(400)
+      await elementSays(
+        page,
+        '[data-testid="compare-funds-note"]',
+        ['No Twelve Data key in this browser. Add your Twelve Data key in the Prices settings.', 'Prices settings'],
+        'the funds do not say that they need a Twelve Data key while another vendor has one',
+      )
+      if ((await page.$$('[data-testid="compare-funds-settings"]')).length !== 1) throw new Error('Compare with shows more than one way to the Prices settings')
+      await inspect?.("Compare with with another vendor's key")
+      await page.keyboard.press('Escape')
+      await dialogGone(page, '[data-testid="compare-funds"]')
+      await page.evaluate(() => localStorage.removeItem('kuna.price-vendor-key.finnhub'))
 
       await page.evaluate(() => localStorage.setItem('kuna.price-vendor-key.twelvedata', 'made-up-twelve-data-key-0042'))
       await page.reload({ waitUntil: 'networkidle0' })
@@ -4107,7 +4131,7 @@ export function investmentsCompareFlowIn(card, shotName) {
           throw new Error('Remove left the fund')
         })
     } finally {
-      await page.evaluate(() => localStorage.removeItem('kuna.price-vendor-key.twelvedata'))
+      await page.evaluate(() => ['twelvedata', 'finnhub'].forEach((vendor) => localStorage.removeItem(`kuna.price-vendor-key.${vendor}`)))
     }
   }
 }
@@ -4955,7 +4979,8 @@ async function headlineSays(page, wanted, failure) {
 
 /**
  * Scenarios with the sample file: its three offers side by side, the monthly instalment first and
- * one figure per offer on each line. Unpicking B leaves C its letter and repicking fills B again.
+ * one figure per offer on each line. C is repaid in equal principal, so no monthly instalment is ticked
+ * until C is unpicked. Unpicking B leaves C its letter and repicking fills B again.
  * Comparing against B moves the base mark. Deleting B takes it off the list and Undo brings it back.
  */
 export async function loansScenariosFlow(page, { press, shoot, inspect }) {
@@ -4965,8 +4990,15 @@ export async function loansScenariosFlow(page, { press, shoot, inspect }) {
   if (figures !== 3) throw new Error(`the total line of Side by side holds ${figures} figures, not 3`)
   const first = await page.$eval('[data-testid="scenario-comparison"] [data-line]', (element) => element.dataset.line)
   if (first !== 'instalment') throw new Error(`Side by side leads with ${first}, not the monthly instalment`)
+  const instalmentTicks = () => page.$$eval('[data-testid="scenario-comparison"] [data-line="instalment"] .text-success', (icons) => icons.length)
+  if ((await instalmentTicks()) !== 0) throw new Error('Side by side ticks a monthly instalment across annuity and equal principal offers')
   await inspect?.('Scenarios')
   await shoot('loans-scenarios-flow')
+  await pressSelector(page, press, `[data-testid="scenario-picker"] [data-option="${lighthouse}"]`)
+  await columnsAre(page, [jadran, coastal], 'unpicking C did not take its column away')
+  if ((await instalmentTicks()) !== 1) throw new Error('Side by side ticks no monthly instalment across two annuity offers')
+  await pressSelector(page, press, `[data-testid="scenario-picker"] [data-option="${lighthouse}"]`)
+  await columnsAre(page, [jadran, coastal, lighthouse], 'repicking C did not fill its slot')
 
   await pressSelector(page, press, `[data-testid="scenario-picker"] [data-option="${coastal}"]`)
   await columnsAre(page, [jadran, lighthouse], 'unpicking B did not take its column away')
@@ -5099,7 +5131,8 @@ async function triesHold(page, title, held, failure) {
 
 /**
  * On a bank loan's page: a new rate from the next due date tried, saved at once, listed in Saved tries,
- * deleted, brought back with Undo and deleted again.
+ * deleted, brought back with Undo and deleted again. Then a term change of 15 years, its box named
+ * Term change for a screen reader, saved under that name in Saved tries and in its toast, and deleted.
  */
 export function loansSavedTriesFlowIn(language) {
   const words = SCREEN_WORDS[language]
@@ -5120,6 +5153,34 @@ export function loansSavedTriesFlowIn(language) {
     await dismissToasts(page)
     await deleteTry(page, press, title)
     await triesHold(page, title, false, 'the second Delete left the try in Saved tries')
+    await dismissToasts(page)
+
+    const term = words.whatIf.kinds.term
+    await pressButton(page, press, '[data-testid="what-if-kind"] button', term)
+    await fill(page, 'what-if-years', '15')
+    await page.waitForSelector('[data-testid="what-if-tried"]', { visible: true, timeout: 10_000 })
+    const box = await page.$eval('[data-testid="what-if-tried"]', (element) => element.getAttribute('aria-label'))
+    if (box !== term) throw new Error(`the term change try's box is named "${box}", not "${term}"`)
+    await pressSelector(page, press, '[data-testid="what-if-save"]')
+    await toast(page, words.savedTries.saved)
+    const termTitle = await page
+      .waitForFunction(
+        (kind) =>
+          [...document.querySelectorAll('[data-testid="saved-tries"] [data-testid="change-line"] p:first-child')]
+            .map((line) => line.textContent?.trim() ?? '')
+            .find((text) => text.startsWith(`${kind}, `)) ?? null,
+        { timeout: 10_000 },
+        term,
+      )
+      .then((handle) => handle.jsonValue())
+      .catch(() => {
+        throw new Error(`the saved term change is not in Saved tries as ${term}`)
+      })
+    await elementSays(page, TOAST, [termTitle], 'the toast does not name the saved term change')
+    await inspect?.('the term change saved in Saved tries')
+    await dismissToasts(page)
+    await deleteTry(page, press, termTitle)
+    await triesHold(page, termTitle, false, 'Delete left the term change in Saved tries')
     await dismissToasts(page)
   }
 }
