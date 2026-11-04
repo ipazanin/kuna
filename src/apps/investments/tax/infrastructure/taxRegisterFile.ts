@@ -3,6 +3,7 @@ import type { CellObject } from 'xlsx'
 import { foreignIncomeYear } from '../domain/foreignIncome'
 import type { ForeignIncomeYear, ForeignPayment, IncomeRoute } from '../domain/foreignIncome'
 import type { DayRate } from '../domain/hnbRate'
+import { JOPPD_CODES } from '../domain/taxRules'
 import { capitalGainsYear, taxSales } from '../domain/taxYear'
 import type { CapitalGainsYear, LineStatus, TaxSale } from '../domain/taxYear'
 import { tradeTotal } from '../../holdings/domain/lots'
@@ -236,8 +237,8 @@ function summaryRows(gains: CapitalGainsYear, income: ForeignIncomeYear): Cell[]
     ['Godina', gains.year],
     ['Prodaje se računaju u godinu', SALES_BY_SETTLEMENT],
     ['Oznaka izvješća', gains.reportMark],
-    ['6.1 Oznaka stjecatelja/osiguranika', '1001'],
-    ['6.2 Oznaka primitka/obveze doprinosa', '1006'],
+    ['6.1 Oznaka stjecatelja/osiguranika', JOPPD_CODES.gains.recipient],
+    ['6.2 Oznaka primitka/obveze doprinosa', JOPPD_CODES.gains.receipt],
     ['Razdoblje od', dayCell(civilDate(gains.year, 1, 1))],
     ['Razdoblje do', dayCell(civilDate(gains.year, 12, 31))],
     ['11 Primitak', eurosCell(gains.taxableGains)],

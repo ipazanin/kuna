@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import type { ForeignIncomeYear } from '../domain/foreignIncome'
-import { RULE_MARKS } from '../domain/taxRules'
+import { JOPPD_CODES, TAX_RULES } from '../domain/taxRules'
 import type { TaxRule } from '../domain/taxRules'
 import type { CapitalGainsYear } from '../domain/taxYear'
 import { taxLink } from './taxLinks'
@@ -44,9 +44,9 @@ const joppdFacts = computed((): Fact[] => {
   const period = text.joppd.period(dayLabel(civilDate(gains.year, 1, 1)), dayLabel(civilDate(gains.year, 12, 31)))
   return [
     field(fields.reportMark, gains.reportMark, marks.reading),
-    field(fields.typeAndSubmitter, '11, 4', marks.reading),
-    field(fields.recipient, '1001', marks.unconfirmed),
-    field(fields.receipt, '1006', marks.settled),
+    field(fields.typeAndSubmitter, `${JOPPD_CODES.gainsReportType}, ${JOPPD_CODES.submitter}`, marks.reading),
+    field(fields.recipient, JOPPD_CODES.gains.recipient, marks.unconfirmed),
+    field(fields.receipt, JOPPD_CODES.gains.receipt, marks.settled),
     field(fields.period, period, marks.reading),
     field(fields.receipts, formatMoney(gains.taxableGains), marks.reading),
     field(fields.expenses, formatMoney(gains.lossesOffset), marks.reading),
@@ -54,7 +54,7 @@ const joppdFacts = computed((): Fact[] => {
     field(fields.tax, formatMoney(gains.tax), text.joppd.rateSettled),
     field(fields.surtax, surtax.value ? text.joppd.citySurtax : formatMoney(0), marks.settled),
     field(fields.payment, surtax.value ? text.joppd.paymentWithSurtax(formatMoney(gains.tax)) : `1, ${formatMoney(gains.tax)}`, marks.reading),
-    field(fields.taxFreeLine, `02, ${formatMoney(gains.taxFreeGains)}, 0000`, text.joppd.codeSettled),
+    field(fields.taxFreeLine, `${JOPPD_CODES.taxFree.nonTaxable}, ${formatMoney(gains.taxFreeGains)}, ${JOPPD_CODES.taxFree.recipientAndReceipt}`, text.joppd.codeSettled),
   ]
 })
 
@@ -85,7 +85,7 @@ const deadlineFacts = computed((): Fact[] => {
   ]
 })
 
-const rules = computed(() => (Object.keys(RULE_MARKS) as TaxRule[]).map((key) => ({ key, mark: RULE_MARKS[key], ...text.rules.list[key] })))
+const rules = computed(() => (Object.keys(TAX_RULES) as TaxRule[]).map((key) => ({ key, mark: TAX_RULES[key].mark, ...text.rules.list[key] })))
 const readings = computed(() => rules.value.filter((rule) => rule.mark !== 'settled').length)
 </script>
 

@@ -2,7 +2,7 @@ import { dayRate, inEurosAt, isEstimate } from './hnbRate'
 import type { DayRate } from './hnbRate'
 import { inoDohDue, inoIzjavaDue, thirtyDaysDue } from './taxDeadlines'
 import type { InoDohDue } from './taxDeadlines'
-import { percentOf, rulesOf } from './taxRules'
+import { JOPPD_CODES, percentOf, rulesOf } from './taxRules'
 import type { YearRules } from './taxRules'
 import { en as importEnglish, hr as importCroatian } from '../../imports/domain/words'
 import type { RateBook } from '../../prices/domain/rateBook'
@@ -137,9 +137,9 @@ function routeOf(payment: Income, kind: IncomeKind): IncomeRoute {
 function codesOf(kind: IncomeKind, route: IncomeRoute): JoppdCodes | null {
   switch (route) {
     case 'joppd':
-      return kind === 'dividend' ? { recipient: '1003', receipt: '1001' } : { recipient: '1103', receipt: '1005' }
+      return kind === 'dividend' ? JOPPD_CODES.dividend : JOPPD_CODES.interest
     case 'referral':
-      return { recipient: '4002', receipt: '4025' }
+      return JOPPD_CODES.referral
     default:
       return null
   }

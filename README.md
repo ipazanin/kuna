@@ -2525,6 +2525,8 @@ the Year tab's collapsible Rules Kuna uses, with its source. The figures are wor
 `tax/domain/` and proved by `tests/taxYear.spec.ts`, `tests/foreignIncome.spec.ts`, `tests/hnbRate.spec.ts`,
 `tests/settlementDay.spec.ts` and `tests/taxDeadlines.spec.ts` on made-up records.
 
+The law behind those rules is in `docs/law/`, one file per subject with citations, marks and the day it was checked, and the [law-research skill](.agents/skills/law-research/SKILL.md) says how to verify and update it. Each rule names its file and heading in `TAX_RULES`, and `tests/lawDocs.spec.ts` fails when a heading is missing, a rate or JOPPD code differs from the docs, or the index in `docs/law/README.md` is stale (`npm run law-index`).
+
 - **A sale's gain.** Each lot a sale closes carries its cost, proceeds and fees in the quote currency
   (`RealisedLine` in `lots.ts`). Its gain in that currency converts once, at HNB's rate of the sale's
   settlement day, never at the rate the record stores. That is the list HNB publishes on the settlement

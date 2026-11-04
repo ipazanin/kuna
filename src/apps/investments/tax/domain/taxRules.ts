@@ -4,41 +4,61 @@ import type { Money } from '../../../../shared/money/money'
 /** How sure a rule is: the law or Porezna says it, it is a reading of the law, or no source says it. */
 export type RuleMark = 'settled' | 'reading' | 'unconfirmed'
 
-/** Each rule the tax figures rest on, by how sure it is. The screen lists them with their words and sources. */
-export const RULE_MARKS = {
-  gainsRate: 'settled',
-  rates2023: 'settled',
-  twoYears: 'settled',
-  anniversary: 'reading',
-  fifoAcrossAccounts: 'reading',
-  registerCurrency: 'settled',
-  convertOnce: 'reading',
-  hnbRateDay: 'reading',
-  settlementDay: 'reading',
-  decemberSale: 'reading',
-  sameYearLosses: 'settled',
-  oldLosses: 'reading',
-  joppdDeadline: 'settled',
-  joppdCodes: 'settled',
-  joppdMapping: 'reading',
-  gainsRecipient: 'unconfirmed',
-  codeTwoForShares: 'reading',
-  foreignCredit: 'settled',
-  usTreaty: 'settled',
-  withheldAbroad: 'settled',
-  inoDohWeekend: 'reading',
-  thirtyDays: 'settled',
-  thirtyDayCodes: 'reading',
-  brokerInterest: 'reading',
-  stockLending: 'reading',
-  referralCredit: 'unconfirmed',
-  referralContributions: 'settled',
-  croatianIsin: 'reading',
-  usSettlement: 'settled',
-  europeSettlement: 'unconfirmed',
-} as const satisfies Readonly<Record<string, RuleMark>>
+/** How sure a rule is, and the file and heading under docs/law/ that states it. */
+export interface RuleBasis {
+  readonly mark: RuleMark
+  readonly law: `${string}.md#${string}`
+}
 
-export type TaxRule = keyof typeof RULE_MARKS
+/** Each rule the tax figures rest on. The screen lists them with their words, marks and sources. */
+export const TAX_RULES = {
+  gainsRate: { mark: 'settled', law: 'capital-gains.md#rates-by-year' },
+  rates2023: { mark: 'settled', law: 'capital-gains.md#income-of-2023' },
+  twoYears: { mark: 'settled', law: 'capital-gains.md#the-two-year-exemption' },
+  anniversary: { mark: 'reading', law: 'capital-gains.md#counting-the-two-years' },
+  fifoAcrossAccounts: { mark: 'reading', law: 'capital-gains.md#fifo-per-isin-across-accounts' },
+  registerCurrency: { mark: 'settled', law: 'capital-gains.md#the-register-and-its-currency' },
+  convertOnce: { mark: 'reading', law: 'capital-gains.md#converting-a-gain-once' },
+  hnbRateDay: { mark: 'reading', law: 'hnb-rates-and-settlement.md#which-hnb-list' },
+  settlementDay: { mark: 'reading', law: 'hnb-rates-and-settlement.md#the-settlement-day-as-the-payment-day' },
+  decemberSale: { mark: 'reading', law: 'capital-gains.md#which-year-a-sale-counts-in' },
+  sameYearLosses: { mark: 'settled', law: 'capital-gains.md#losses' },
+  oldLosses: { mark: 'reading', law: 'capital-gains.md#losses-on-lots-past-two-years' },
+  joppdDeadline: { mark: 'settled', law: 'joppd-for-investors.md#due-dates' },
+  joppdCodes: { mark: 'settled', law: 'joppd-for-investors.md#codes' },
+  joppdMapping: { mark: 'reading', law: 'joppd-for-investors.md#the-capital-gains-joppd' },
+  gainsRecipient: { mark: 'unconfirmed', law: 'joppd-for-investors.md#recipient-1001-or-1003' },
+  codeTwoForShares: { mark: 'reading', law: 'joppd-for-investors.md#the-code-02-line' },
+  foreignCredit: { mark: 'settled', law: 'foreign-capital-income.md#the-credit-for-tax-withheld-abroad' },
+  usTreaty: { mark: 'settled', law: 'foreign-capital-income.md#us-withholding' },
+  withheldAbroad: { mark: 'settled', law: 'foreign-capital-income.md#tax-withheld-abroad-ino-izjava-and-ino-doh' },
+  inoDohWeekend: { mark: 'reading', law: 'filing-calendar.md#weekends-and-holidays' },
+  thirtyDays: { mark: 'settled', law: 'foreign-capital-income.md#nothing-withheld-the-30-day-joppd' },
+  thirtyDayCodes: { mark: 'reading', law: 'joppd-for-investors.md#codes' },
+  brokerInterest: { mark: 'reading', law: 'foreign-capital-income.md#interest-a-broker-pays' },
+  stockLending: { mark: 'reading', law: 'other-investment-income.md#stock-lending' },
+  referralCredit: { mark: 'unconfirmed', law: 'other-investment-income.md#referral-credits' },
+  referralContributions: { mark: 'settled', law: 'other-investment-income.md#contributions-on-a-referral-credit' },
+  croatianIsin: { mark: 'reading', law: 'foreign-capital-income.md#payments-of-a-croatian-isin' },
+  usSettlement: { mark: 'settled', law: 'hnb-rates-and-settlement.md#settlement-cycles' },
+  europeSettlement: { mark: 'unconfirmed', law: 'hnb-rates-and-settlement.md#settlement-cycles' },
+} as const satisfies Readonly<Record<string, RuleBasis>>
+
+export type TaxRule = keyof typeof TAX_RULES
+
+/** The JOPPD codes Kuna writes, from the form's annexes. A recipient code goes in field 6.1 and a receipt code in 6.2. */
+export const JOPPD_CODES = {
+  /** Report type 11, a capital gains report a person files. */
+  gainsReportType: '11',
+  /** Submitter 4, a private person. */
+  submitter: '4',
+  gains: { recipient: '1001', receipt: '1006' },
+  /** Field 15.1 of the line for gains past two years, which carries 0000 in 6.1 and 6.2. */
+  taxFree: { nonTaxable: '02', recipientAndReceipt: '0000' },
+  dividend: { recipient: '1003', receipt: '1001' },
+  interest: { recipient: '1103', receipt: '1005' },
+  referral: { recipient: '4002', receipt: '4025' },
+} as const
 
 /** The tax on capital in one year, as the law in force that year sets it. */
 export interface CapitalTaxRules {
