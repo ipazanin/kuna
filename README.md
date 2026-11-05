@@ -1705,10 +1705,11 @@ The document lives in IndexedDB, under its own id, as the store of record. The a
 to keep it (`navigator.storage.persist()`, which Firefox shows as a prompt). Clearing the site's data
 deletes it, so the exported files are its only other copies until it moves to Drive.
 
-- **New books.** Onboarding starts new books on Drive or in this browser: a default category set
-  for a freelancer or a small company, and a row for every setting. VAT refunds have their own `vat-refund` category in the operating bucket, and
-  `tax-refund` in the taxes bucket is for income tax refunds. `benefits-from-company-costs` in the
-  owner-pay bucket carries the `owner-benefit` role.
+- **New books.** Onboarding starts new books on Drive or in this browser: the Croatian d.o.o.
+  starting set, each category with one tax class from `docs/law/company/tax-classes.md`, the
+  category rules that file the year's payments to the state at review confidence, and a row for
+  every setting. VAT paid or refunded goes to `vat` and profit tax to `corporate-income-tax`, both in
+  the taxes bucket. `benefits-from-company-costs` in the owner-pay bucket carries the `owner-benefit` role.
 - **Open a file.** Open or drop an xlsx file, such as a download of the Google Sheet, or a
   Kuna file, such as a backup from the Drive folder. It opens as the app's document, every
   ledger row with an id, and a summary shows before anything is replaced: transactions, dates,
@@ -2577,7 +2578,7 @@ the Year tab's collapsible Rules Kuna uses, with its source. The figures are wor
 `tax/domain/` and proved by `tests/taxYear.spec.ts`, `tests/foreignIncome.spec.ts`, `tests/hnbRate.spec.ts`,
 `tests/settlementDay.spec.ts` and `tests/taxDeadlines.spec.ts` on made-up records.
 
-The law behind those rules is in `docs/law/`, one file per subject with citations, marks and the day it was checked, and the [law-research skill](.agents/skills/law-research/SKILL.md) says how to verify and update it. Each rule names its file and heading in `TAX_RULES`, and `tests/lawDocs.spec.ts` fails when a heading is missing, a heading's "Screen:" sentence differs from the marks of its rules, a rate, JOPPD code or settlement day differs from the docs, or the index in `docs/law/README.md` is stale (`npm run law-index`).
+The law behind those rules is in `docs/law/investments/`, one file per subject with citations, marks and the day it was checked, and the [law-research skill](.agents/skills/law-research/SKILL.md) says how to verify and update it. Each rule names its file and heading in `TAX_RULES`, and `tests/lawDocs.spec.ts` fails when a heading is missing, a heading's "Screen:" sentence differs from the marks of its rules, a rate, JOPPD code or settlement day differs from the docs, or the index in `docs/law/README.md` is stale (`npm run law-index`).
 
 - **A sale's gain.** Each lot a sale closes carries its cost, proceeds and fees in the quote currency
   (`RealisedLine` in `lots.ts`). Its gain in that currency converts once, at HNB's rate of the sale's
@@ -2958,7 +2959,7 @@ price paid. A flat with a region carries its base by the DZS house price index (
 region from the base's quarter to the newest quarter the DZS has published, and the page says it is
 an estimate with that quarter. A base newer than the index's newest quarter stays as typed. A car
 with no valuation is estimated by Tablica 1 of NN 1/2017 from its price, the day it was bought and its
-first registration, as [Used car value](docs/law/used-car-value.md) explains. Anything else keeps its
+first registration, as [Used car value](docs/law/assets/used-car-value.md) explains. Anything else keeps its
 base, and an asset with neither a price nor a valuation has no value.
 
 **The house price index** comes from one POST to the DZS PxWeb API for table `ME_PS14.px`, once per

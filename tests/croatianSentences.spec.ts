@@ -5,6 +5,7 @@ import type { Instrument } from '../src/apps/investments/workbook/domain/instrum
 import type { YearlyRate } from '../src/apps/loans/bankLoans/domain/yearlyRate'
 import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, LATE_INSTALMENT_RECORDS, RATE_PERIOD_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
 import { civilDate } from '../src/shared/calendar/civilDate'
+import { STARTING_CATEGORIES } from '../src/apps/company/packs/hr-doo/preset/domain/startingCategories'
 import { monthKey } from '../src/shared/calendar/monthKey'
 import { decimalOfText } from '../src/shared/money/decimal'
 import type { RecordNoun } from '../src/shared/storage/domain/recordKind'
@@ -177,8 +178,7 @@ describe('Company names Kuna seeds, in Croatian', () => {
   it('names every category and family new books start with', async () => {
     const { displayName } = await inCroatian(() => import('../src/apps/company/workbook/domain/displayName'))
     const { slugInWords } = await import('../src/apps/company/workbook/domain/slugInWords')
-    const { emptyWorkbookTabs } = await import('../src/apps/company/workbook/infrastructure/emptyWorkbook')
-    const seeded = emptyWorkbookTabs().categories.flatMap((row) => [String(row.cells.category), String(row.cells.family)])
+    const seeded = STARTING_CATEGORIES.flatMap((category) => [category.slug, category.family])
 
     expect([...new Set(seeded)].filter((slug) => displayName(slug) === slugInWords(slug))).toEqual(['marketing'])
     expect(displayName('office-rent')).toBe('Najam ureda')

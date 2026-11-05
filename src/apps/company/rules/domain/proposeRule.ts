@@ -1,3 +1,4 @@
+import { RECEIVABLE_ROLES } from '../../receivables/domain/invoiceMatching'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import type { Transaction, Workbook } from '../../workbook/domain/workbook'
 import { categorise } from './categorise'
@@ -6,9 +7,6 @@ import type { Rule, RuleCondition } from './rule'
 import { foldRuleText } from './transactionFacts'
 import type { CategorisableTransaction, CategorisationContext } from './transactionFacts'
 
-/** Roles of the categories that come in a credit and a debit pair, so one side of the pair never files the other. */
-const DIRECTION_PAIRED_ROLES: ReadonlySet<string> = new Set(['revenue', 'client-refund', 'owner-loan-out', 'owner-loan-repaid', 'reimbursement'])
-
 /**
  * A rule that files rows like this one in its category: by the counterparty IBAN when the row has
  * one, else by the counterparty's name as a merchant fragment, and by direction when the category
@@ -16,8 +14,15 @@ const DIRECTION_PAIRED_ROLES: ReadonlySet<string> = new Set(['revenue', 'client-
  * by the merchant after the description mark, since the IBAN is the bank's. It goes just before
  * the rule that decides the row today, or last when none does. Where that needs other rules
  * renumbered, the order here ties and the save renumbers them. Null when the row's category is not defined or nothing names the counterparty.
+ * `packPairedRoles` are the installed pack's roles of categories that come in a credit and a debit pair,
+ * beside core's revenue and client refund, so one side of a pair never files the other.
  */
-export function proposeRule(transaction: CategorisableTransaction & Pick<Transaction, 'category'>, workbook: Pick<Workbook, 'rules' | 'categories'>, context: CategorisationContext): Rule | null {
+export function proposeRule(
+  transaction: CategorisableTransaction & Pick<Transaction, 'category'>,
+  workbook: Pick<Workbook, 'rules' | 'categories'>,
+  context: CategorisationContext,
+  packPairedRoles: readonly string[],
+): Rule | null {
   const category = workbook.categories.find((candidate) => candidate.slug === transaction.category)
   if (category === undefined) {
     return null
@@ -29,7 +34,8 @@ export function proposeRule(transaction: CategorisableTransaction & Pick<Transac
   if (identity === null) {
     return null
   }
-  const directionPaired = category.roles.some((role) => DIRECTION_PAIRED_ROLES.has(role))
+  const paired = new Set([...Object.values(RECEIVABLE_ROLES), ...packPairedRoles])
+  const directionPaired = category.roles.some((role) => paired.has(role))
   const direction = transaction.amount > 0 ? 'credit' : 'debit'
   const conditions: RuleCondition[] = directionPaired ? [identity, { column: 'direction', direction }] : [identity]
   const stem = identity.column === 'counterparty_iban' ? `iban-${category.slug}` : `merchant-${slugOf(merchant)}`

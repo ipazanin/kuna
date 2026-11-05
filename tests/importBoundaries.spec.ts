@@ -6,6 +6,8 @@ import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 import { parse } from 'vue/compiler-sfc'
 
+import { PACK_ROLES } from '../src/apps/company/packs/hr-doo/domain/packRoles'
+
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 
 interface Import {
@@ -66,6 +68,23 @@ function linesHolding(pattern: RegExp, allowed: (file: string) => boolean): stri
       .split('\n')
       .flatMap((line, index) => (pattern.test(line) ? [`${file}:${index + 1}`] : [])),
   )
+}
+
+/** Each line of `src` that holds the text in single or double quotes, as `file:line`, but the lines `allowed` keeps. */
+function linesQuoting(text: string, allowed: (file: string, line: string) => boolean): string[] {
+  const quoted = new RegExp(`(['"])${text}\\1`)
+  return SOURCE_FILES.flatMap((file) =>
+    readFileSync(join(ROOT, file), 'utf8')
+      .split('\n')
+      .flatMap((line, index) => (quoted.test(line) && !allowed(file, line) ? [`${file}:${index + 1}`] : [])),
+  )
+}
+
+const STARTING_CATEGORIES_FILE = 'src/apps/company/packs/hr-doo/preset/domain/startingCategories.ts'
+
+/** A line of the Croatian names of the categories new books start with, where a category may share its class's name. */
+function seededName(file: string, line: string): boolean {
+  return file === 'src/apps/company/workbook/domain/words.ts' && /^\s*\['[a-z-]+', '[^']*'\],$/.test(line)
 }
 
 /** The app a file belongs to, such as `company` for `src/apps/company/`, or null outside the apps. */
@@ -216,5 +235,33 @@ describe('import boundaries', () => {
 
   it('keeps application code off infrastructure, but for the files that wire the adapters', () => {
     expect(broken((entry) => !/\/application\//.test(entry.from) || entry.target === null || !/\/infrastructure\//.test(entry.target) || ADAPTER_WIRING.includes(entry.from))).toEqual([])
+  })
+
+  it("keeps a pack's ruleset off its preset, which reads the ruleset", () => {
+    expect(SOURCE_FILES.some((file) => /\/packs\/[^/]+\/preset\//.test(file))).toBe(true)
+    expect(broken((entry) => !/\/packs\/[^/]+\/ruleset\//.test(entry.from) || entry.target === null || !/\/packs\/[^/]+\/preset\//.test(entry.target))).toEqual([])
+  })
+
+  it("keeps a pack's preset to domain code outside its presentation", () => {
+    expect(SOURCE_FILES.filter((file) => /\/packs\/[^/]+\/preset\//.test(file) && !/\/preset\/(domain|presentation)\//.test(file))).toEqual([])
+  })
+
+  it('spells the new tax class roles in the pack roles alone, where other-income is also a category of the starting set', () => {
+    const roleHome = (file: string): boolean => file === 'src/apps/company/packs/hr-doo/domain/packRoles.ts' || isFakeSeed(file)
+    for (const role of ['deductible-cost', 'outside-profit', 'vehicle-insurance-and-interest']) {
+      expect(linesQuoting(role, roleHome), role).toEqual([])
+    }
+    expect(linesQuoting('other-income', (file, line) => roleHome(file) || (file === STARTING_CATEGORIES_FILE && /^\s*\['other-income', \[/.test(line)) || seededName(file, line))).toEqual([])
+  })
+
+  it('names no pack role in the company app outside its packs, revenue aside, which receivables also spell', () => {
+    const packRoles = Object.values(PACK_ROLES).filter((role) => role !== 'revenue')
+    // The same word as another concept core knows: a VAT treatment, and a kind of record a slug names.
+    const otherMeaning = (file: string, line: string): boolean =>
+      ((file === 'src/apps/company/workbook/domain/vatTreatment.ts' || file === 'src/apps/company/settings/presentation/words.ts') && /'representation'/.test(line)) ||
+      (file === 'src/apps/company/workbook/domain/words.ts' && /^export type SlugNoun = /.test(line))
+    const coreFile = (file: string): boolean => file.startsWith('src/apps/company/') && packOf(file) === null && !isFakeSeed(file)
+    const found = packRoles.flatMap((role) => linesQuoting(role, (file, line) => !coreFile(file) || seededName(file, line) || otherMeaning(file, line)).map((line) => `${line} ${role}`))
+    expect(found).toEqual([])
   })
 })

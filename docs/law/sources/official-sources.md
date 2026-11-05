@@ -64,7 +64,7 @@ The Mišljenja SU list is at `https://porezna-uprava.gov.hr/hr/misljenja-su/3951
 
 - `https://api.hnb.hr/` documents the API and says: "Tečajna lista za klijente HNB-a objavljuje se svakoga radnog dana platnog sustava TARGET u periodu između 15:30 i 17 sati, a ne objavljuje se na neradne dane platnog sustava TARGET, što uključuje subote i nedjelje, 1. siječnja, Veliki petak, Uskrsni ponedjeljak, 1. svibnja te 25. i 26. prosinca."
 - `https://api.hnb.hr/tecajn-eur/v3?datum-primjene-od=2026-10-28&datum-primjene-do=2026-11-04` returns one row per currency and `datum_primjene`, weekends included, with decimal commas. Rates are per 1 EUR.
-- How a list's `datum_primjene` relates to the ECB day is set out in [HNB rates and settlement](../hnb-rates-and-settlement.md#which-hnb-list).
+- How a list's `datum_primjene` relates to the ECB day is set out in [HNB rates and settlement](../investments/hnb-rates-and-settlement.md#which-hnb-list).
 
 ## ECB
 

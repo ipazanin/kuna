@@ -21,7 +21,7 @@ export const en = {
   banner: {
     title: 'Planning figures to discuss with your accountant, not filing advice',
     checked: (checkedOn: string, forecastSeenOn: string | null) =>
-      `The rules behind them were last checked against their sources on ${checkedOn}.${forecastSeenOn === null ? '' : ` The forecast is seen on ${forecastSeenOn}, the newest booking.`}`,
+      `The sources of the rules behind them were checked on or after ${checkedOn}.${forecastSeenOn === null ? '' : ` The forecast is seen on ${forecastSeenOn}, the newest booking.`}`,
   },
   watchedFor: (wording: string, year: number, rules: string) => `${wording} for ${year}: ${rules}.`,
   noPaymentCalendar: 'no tax has a payment calendar',
@@ -49,7 +49,7 @@ export const hr: Translation<typeof en> = {
   banner: {
     title: 'Brojke za planiranje s knjigovođom, a ne savjet za predaju prijava',
     checked: (checkedOn, forecastSeenOn) =>
-      `Odredbe na kojima počivaju zadnji su put provjerene prema izvorima ${withFullStop(checkedOn)}${forecastSeenOn === null ? '' : ` Prognoza se gleda na dan ${forecastSeenOn}, dan najnovije stavke.`}`,
+      `Izvori odredbi na kojima počivaju provjereni su ${withFullStop(checkedOn)} ili kasnije.${forecastSeenOn === null ? '' : ` Prognoza se gleda na dan ${forecastSeenOn}, dan najnovije stavke.`}`,
   },
   watchedFor: (wording, year, rules) => `${wording} za ${year}.: ${rules}.`,
   noPaymentCalendar: 'nijedan porez nema kalendar plaćanja',

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { backtestRuleChange } from '../src/apps/company/rules/domain/backtestRule'
 import { categorise } from '../src/apps/company/rules/domain/categorise'
 import { proposeRule } from '../src/apps/company/rules/domain/proposeRule'
+import { HR_DOO_PART } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 import type { Rule, RuleCondition } from '../src/apps/company/rules/domain/rule'
 import { categorisationContextOf } from '../src/apps/company/rules/domain/transactionFacts'
 import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
@@ -93,13 +94,15 @@ describe('backtestRuleChange', () => {
   })
 })
 
+const PAIRED = HR_DOO_PART.directionPairedRoles
+
 describe('proposeRule', () => {
   const workbook = { rules: RULES, categories: CATEGORIES }
 
   it('names the counterparty by IBAN when the row has one, and goes after the rules when none decides the row', () => {
     const [row] = ledger([{ date: '2026-09-01', amount: -10, counterparty: 'Desk Co', iban: 'XX00FAKE0000000013', category: 'equipment', flaggedBy: 'ivan' }])
 
-    expect(proposeRule(row!, workbook, context)).toEqual({
+    expect(proposeRule(row!, workbook, context, PAIRED)).toEqual({
       id: 'iban-equipment',
       order: 400,
       enabled: true,
@@ -113,7 +116,7 @@ describe('proposeRule', () => {
   it('takes a merchant fragment from the name, and goes just before the rule that decides the row today', () => {
     const [row] = ledger([{ date: '2026-09-01', amount: -20, counterparty: 'Model Api Inc · monthly', description: '411111XXXXXX1111, X', category: 'ai-services', flaggedBy: 'ivan' }])
 
-    const proposed = proposeRule(row!, workbook, context)
+    const proposed = proposeRule(row!, workbook, context, PAIRED)
 
     expect(proposed).toMatchObject({ id: 'merchant-model-api-inc', order: 250, conditions: [{ column: 'counterparty_contains', fragment: 'MODEL API INC' }] })
     expect(categorise(row!, [...RULES, proposed!], context)).toMatchObject({ category: 'ai-services', flaggedBy: 'rule' })
@@ -123,7 +126,7 @@ describe('proposeRule', () => {
     const [row] = ledger([{ date: '2026-09-01', amount: 900, counterparty: 'Client Ltd', iban: CLIENT_IBAN, category: 'revenue', flaggedBy: 'ivan' }])
     const taken = { rules: [...RULES, rule('iban-revenue-credit', 900, [{ column: 'purpose', code: 'X' }], 'revenue')], categories: CATEGORIES }
 
-    expect(proposeRule(row!, taken, context)).toMatchObject({
+    expect(proposeRule(row!, taken, context, PAIRED)).toMatchObject({
       id: 'iban-revenue-credit-2',
       conditions: [
         { column: 'counterparty_iban', iban: CLIENT_IBAN },
@@ -135,7 +138,7 @@ describe('proposeRule', () => {
   it('goes ahead of the first rule when that rule decides the row', () => {
     const [row] = ledger([{ date: '2026-09-01', amount: -20, counterparty: 'AIRLINE CO', category: 'equipment', flaggedBy: 'ivan' }])
 
-    expect(proposeRule(row!, workbook, context)?.order).toBe(0)
+    expect(proposeRule(row!, workbook, context, PAIRED)?.order).toBe(0)
   })
 
   it('names a card purchase by its merchant, not by the bank account it settles against', () => {
@@ -147,7 +150,7 @@ describe('proposeRule', () => {
     })
     const [row] = ledger([{ date: '2026-09-01', amount: -19, counterparty: 'Example Bank d.d. · VISA OFFICE,EXAMPLE.GOV', iban: settlement, category: 'travel', flaggedBy: 'ivan' }])
 
-    expect(proposeRule(row!, workbook, cardContext)).toMatchObject({
+    expect(proposeRule(row!, workbook, cardContext, PAIRED)).toMatchObject({
       id: 'merchant-visa-office-example-gov',
       conditions: [{ column: 'counterparty_contains', fragment: 'VISA OFFICE,EXAMPLE.GOV' }],
     })
@@ -159,7 +162,7 @@ describe('proposeRule', () => {
       { date: '2026-09-02', amount: -20, counterparty: '', category: 'equipment', flaggedBy: 'ivan' },
     ])
 
-    expect(proposeRule(unknownCategory!, workbook, context)).toBeNull()
-    expect(proposeRule(nameless!, workbook, context)).toBeNull()
+    expect(proposeRule(unknownCategory!, workbook, context, PAIRED)).toBeNull()
+    expect(proposeRule(nameless!, workbook, context, PAIRED)).toBeNull()
   })
 })

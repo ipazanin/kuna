@@ -236,7 +236,8 @@ if (companyAsked) {
   const forecastOf = (year) => forecastYear(books, year, asOf)
 
   group('read.records', records)
-  group('read.workbook', raw)
+  // The categories' other fields, which the digest of a category leaves out, so a change to the tab still shows here.
+  group('read.workbook', [raw, raw.categories.map((category) => [category.label, category.family, category.colour.stored, category.roles])])
   group('settings.problems', booked.problems)
   group('settings.unread-keys', unreadSettingKeys(recordsOf(records.settings), installedPack().workbook?.settings ?? null))
   group('settings.uses', () => [categoryUses((kind) => recordsOfKindIn(records, kind)), accountUses((kind) => recordsOfKindIn(records, kind))])
@@ -577,7 +578,17 @@ function assetsGroups(add, loansBook) {
 const digests = new WeakMap()
 const sha256 = (text) => createHash('sha256').update(text).digest('hex')
 
-/** A SHA-256 of the figures as plain data: keys sorted, functions and undefined fields left out, and a part shared by several figures hashed once. */
+/** The fields of a category left out of its hash. Roles, a label, a colour and a family pick or draw categories, so they move a figure only through the figure. */
+const CATEGORY_FIELDS_LEFT_OUT = new Set(['roles', 'label', 'colour', 'family'])
+
+function isCategory(value) {
+  return ['slug', 'family', 'bucket', 'colour', 'roles', 'vat', 'ownerShare'].every((key) => Object.hasOwn(value, key))
+}
+
+/**
+ * A SHA-256 of the figures as plain data: keys sorted, functions and undefined fields left out, a
+ * category without the fields it is picked or drawn by, and a part shared by several figures hashed once.
+ */
 function digestOf(value) {
   if (value === null || typeof value !== 'object') {
     // A decimal is a bigint, which JSON cannot write, so it is hashed as its digits with an n.
@@ -590,6 +601,7 @@ function digestOf(value) {
         : value instanceof Set || Array.isArray(value)
           ? [...value].map((entry, index) => [index, entry])
           : Object.keys(value)
+              .filter((key) => !isCategory(value) || !CATEGORY_FIELDS_LEFT_OUT.has(key))
               .sort()
               .flatMap((key) => (typeof value[key] === 'function' || value[key] === undefined ? [] : [[key, value[key]]]))
     const shape = value instanceof Map ? 'map' : Array.isArray(value) || value instanceof Set ? 'list' : 'record'

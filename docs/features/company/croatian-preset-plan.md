@@ -197,21 +197,21 @@ One commit per stage, each checked with `npm run check`, both builds, `check:fig
 
 New strings:
 
-| English                                                                                               | Croatian                                                                                                  |
-| ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Kuna counts it as                                                                                     | Kuna to broji kao                                                                                         |
-| Pick how Kuna counts it                                                                               | Odaberite kako je Kuna broji                                                                              |
-| Pick how Kuna counts this category.                                                                   | Odaberite kako Kuna broji ovu kategoriju.                                                                 |
-| Not classified yet. Kuna counts it by its bucket and VAT until you pick.                              | Još nije razvrstano. Kuna je broji po skupini i PDV-u dok ne odaberete.                                   |
-| Kuna counts a category one way, and this one has {classes}.                                           | Kuna kategoriju broji na jedan način, a ova ima {classes}.                                                |
-| Kuna counts {class} with {treatments} only.                                                           | Kuna {class} broji samo uz {treatments}.                                                                  |
-| Kuna counts {class} in {buckets} only.                                                                | Kuna {class} broji samo u skupini {buckets}.                                                              |
-| Set by how Kuna counts it                                                                             | Određeno time kako je Kuna broji                                                                          |
-| The accountant keeps the books and decides each booking. Kuna uses these classes for its estimates.   | Knjige vodi računovođa i on odlučuje o svakom knjiženju. Kuna ove razrede koristi za svoje procjene.      |
-| {n} categories have no tax class yet: {names}. Pick one for each on Settings, Categories.             | {n} kategorija još nema porezni razred: {names}. Odaberite ga za svaku u Postavkama, Kategorije.          |
-| Kuna counts "{slug}" as {class}, but its VAT reads {vat}. Change one of them on Settings, Categories. | Kuna "{slug}" broji kao {class}, ali PDV glasi {vat}. Promijenite jedno od toga u Postavkama, Kategorije. |
-| Kuna counts {class} in {buckets}, and "{slug}" sits in {bucket}.                                      | Kuna {class} broji u skupini {buckets}, a "{slug}" je u skupini {bucket}.                                 |
-| Rule on Tax rules                                                                                     | Pravilo u Poreznim pravilima                                                                              |
+| English                                                                                               | Croatian                                                                                                      |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Kuna counts it as                                                                                     | Kuna to broji kao                                                                                             |
+| Pick how Kuna counts it                                                                               | Odaberite kako je Kuna broji                                                                                  |
+| Pick how Kuna counts this category.                                                                   | Odaberite kako Kuna broji ovu kategoriju.                                                                     |
+| Not classified yet. Kuna counts it by its bucket and VAT until you pick.                              | Još nije razvrstano. Kuna je broji po skupini i PDV-u dok ne odaberete.                                       |
+| Kuna counts a category one way, and this one has {classes}.                                           | Kuna kategoriju broji na jedan način, a ova ima {classes}.                                                    |
+| Kuna counts {class} with {treatments} only.                                                           | Kuna {class} broji samo uz {treatments}.                                                                      |
+| Kuna counts {class} in {buckets} only.                                                                | Kuna {class} broji samo u skupini {buckets}.                                                                  |
+| Set by how Kuna counts it                                                                             | Određeno time kako je Kuna broji                                                                              |
+| The accountant keeps the books and decides each booking. Kuna uses these classes for its estimates.   | Knjige vodi računovođa i on odlučuje o svakom knjiženju. Kuna ove porezne tretmane koristi za svoje procjene. |
+| {n} categories have no tax class yet: {names}. Pick one for each on Settings, Categories.             | {n} kategorija još nema porezni tretman: {names}. Odaberite ga za svaku u Postavkama, Kategorije.             |
+| Kuna counts "{slug}" as {class}, but its VAT reads {vat}. Change one of them on Settings, Categories. | Kuna "{slug}" broji kao {class}, ali PDV glasi {vat}. Promijenite jedno od toga u Postavkama, Kategorije.     |
+| Kuna counts {class} in {buckets}, and "{slug}" sits in {bucket}.                                      | Kuna {class} broji u skupini {buckets}, a "{slug}" je u skupini {bucket}.                                     |
+| Rule on Tax rules                                                                                     | Pravilo u Poreznim pravilima                                                                                  |
 
 The class names and sentences, with `{share}` and `{vatShare}` read from the ruleset on the newest booking's day:
 

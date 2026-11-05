@@ -11,7 +11,7 @@ import { uncapitalised } from '../../../../../../shared/text/capitalised'
 export const en = {
   tab: 'Tax rules',
   intro: (checkedOn: string) =>
-    `The Croatian law behind the pack's figures: each rule's value per year, the article it comes from, and how sure that value is. Checked against the sources on ${checkedOn}.`,
+    `The Croatian law behind the pack's figures: each rule's value per year, the article it comes from, and how sure that value is. Each rule's sources were checked on or after ${checkedOn}, and each source shows its own day.`,
   localRatesHint: 'Search for a city or municipality, or show them all. Set where the director lives on Salaries to open on that one.',
   search: 'Search by rule id, name, act or article',
   searchLabel: 'Search the ruleset',
@@ -32,6 +32,7 @@ export const en = {
     accounting: { label: 'Accounting', description: 'Size class, statements, recognition and the asset and grant policies.' },
     vat: { label: 'VAT', description: 'Registration, rates, place of supply, deductions, periods and refunds.' },
     'company-law': { label: 'Company law', description: 'Share capital, reserves, profit payouts and the decisions they need.' },
+    'state-payments': { label: 'State payments', description: 'The model and revenue codes a payment to the state budget carries.' },
   },
   confidence: {
     'confirmed-nn': { label: 'Confirmed in NN', meaning: 'Read in the text published in Narodne novine.' },
@@ -87,7 +88,7 @@ export const en = {
     summary: (count: number): EnglishForms => ({ one: `${count} value to watch`, other: `${count} values to watch` }),
     shownOf: (shown: number, total: number) => `${shown} of ${total}`,
     about: (checkedOn: string) =>
-      `Values that are estimates, still pending or unconfirmed, and matters the ruleset has no value for yet. Each needs a new look once the official text is out. The ruleset was last checked against its sources on ${checkedOn}.`,
+      `Values that are estimates, still pending or unconfirmed, and matters the ruleset has no value for yet. Each needs a new look once the official text is out. Each rule's sources were checked on or after ${checkedOn}.`,
     nothing: 'Nothing to watch in this selection.',
     openSource: 'Open the source',
     opensInNewTab: ', opens in a new tab',
@@ -98,7 +99,7 @@ export const en = {
 export const hr: Translation<typeof en> = {
   tab: 'Porezna pravila',
   intro: (checkedOn) =>
-    `Hrvatski propisi iza izračuna paketa: vrijednost svake odredbe po godini, članak iz kojeg dolazi i koliko je ta vrijednost sigurna. Provjereno prema izvorima ${withFullStop(checkedOn)}`,
+    `Hrvatski propisi iza izračuna paketa: vrijednost svake odredbe po godini, članak iz kojeg dolazi i koliko je ta vrijednost sigurna. Izvori svake odredbe provjereni su ${withFullStop(checkedOn)} ili kasnije, a svaki izvor pokazuje svoj dan.`,
   localRatesHint: 'Potražite grad ili općinu ili ih prikažite sve. Na zaslonu Plaće postavite gdje direktor živi da se tablica otvori na toj jedinici.',
   search: 'Pretraži po oznaci, nazivu, propisu ili članku',
   searchLabel: 'Pretraži propise',
@@ -119,6 +120,7 @@ export const hr: Translation<typeof en> = {
     accounting: { label: 'Računovodstvo', description: 'Razred veličine, izvještaji, priznavanje i politike za imovinu i potpore.' },
     vat: { label: 'PDV', description: 'Registracija, stope, mjesto isporuke, odbici, razdoblja i povrati.' },
     'company-law': { label: 'Pravo društava', description: 'Temeljni kapital, rezerve, isplate dobiti i odluke koje za njih trebaju.' },
+    'state-payments': { label: 'Uplate državi', description: 'Model i šifre vrsta prihoda koje nosi uplata u državni proračun.' },
   },
   confidence: {
     'confirmed-nn': { label: 'Potvrđeno u NN', meaning: 'Pročitano u tekstu objavljenom u Narodnim novinama.' },
@@ -174,7 +176,7 @@ export const hr: Translation<typeof en> = {
     summary: (count) => ({ one: `${count} vrijednost za praćenje`, few: `${count} vrijednosti za praćenje`, other: `${count} vrijednosti za praćenje` }),
     shownOf: (shown, total) => `${shown} od ${total}`,
     about: (checkedOn) =>
-      `Vrijednosti koje su procjene, još na čekanju ili nepotvrđene, i pitanja za koja propisi još nemaju vrijednost. Svaku treba ponovno pogledati kad izađe službeni tekst. Propisi su zadnji put provjereni prema izvorima ${withFullStop(checkedOn)}`,
+      `Vrijednosti koje su procjene, još na čekanju ili nepotvrđene, i pitanja za koja propisi još nemaju vrijednost. Svaku treba ponovno pogledati kad izađe službeni tekst. Izvori svake odredbe provjereni su ${withFullStop(checkedOn)} ili kasnije.`,
     nothing: 'U ovom odabiru nema ničega za praćenje.',
     openSource: 'Otvori izvor',
     opensInNewTab: ', otvara se u novoj kartici',

@@ -13,6 +13,7 @@ import { readWorkbookFile, workbookGrids, writeWorkbookFile } from '../src/apps/
 import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
 import type { CellValue, WorkbookSnapshot, WorkbookTabs } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
 import { emptyWorkbookTabs } from '../src/apps/company/workbook/infrastructure/emptyWorkbook'
+import { civil } from './fixtures/ledger'
 import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 import type { HrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 
@@ -38,8 +39,8 @@ function xlsxOf(tabs: Record<string, CellValue[][]>): Uint8Array<ArrayBuffer> {
 }
 
 describe('the template', () => {
-  it('has the sixteen tabs, a note on every header, the default categories and settings, and no rows to fill', async () => {
-    const tabs = emptyWorkbookTabs()
+  it('has the sixteen tabs, a note on every header, the Croatian starting set, the year’s state rules and the settings, and no other rows to fill', async () => {
+    const tabs = emptyWorkbookTabs(civil('2026-10-30'))
     const book = XLSX.read(await writeWorkbookFile(tabs, workbookOf(tabs)), { type: 'array' })
 
     expect(book.SheetNames).toEqual([
@@ -101,12 +102,19 @@ describe('the template', () => {
     expect(workbook.settings).toEqual(DEFAULT_SETTINGS)
     expect(workbook.categories.find((category) => category.roles.includes('owner-benefit'))).toMatchObject({ slug: 'benefits-from-company-costs', bucket: 'owner-pay' })
     expect(new Set(workbook.categories.map((category) => category.bucket))).toEqual(new Set(['income', 'operating', 'taxes', 'owner-pay', 'financing', 'neutral']))
-    expect(workbook.categories.find((category) => category.slug === 'vat-refund')).toMatchObject({ bucket: 'operating', roles: ['vat-settlement'] })
-    expect(workbook.categories.find((category) => category.slug === 'tax-refund')).toMatchObject({ bucket: 'taxes', roles: [] })
+    expect(workbook.categories.find((category) => category.slug === 'vat')).toMatchObject({ bucket: 'taxes', roles: ['vat-settlement'], vat: 'none' })
+    expect(workbook.categories.find((category) => category.slug === 'representation')).toMatchObject({ bucket: 'operating', roles: ['representation'], vat: 'representation' })
+    expect(workbook.rules.map((rule) => [rule.id, rule.category, rule.confidence])).toEqual([
+      ['state-vat', 'vat', 'review'],
+      ['state-profit-tax', 'corporate-income-tax', 'review'],
+      ['state-pension-pillar-one', 'payroll-contributions', 'review'],
+      ['state-pension-pillar-two', 'payroll-contributions', 'review'],
+      ['state-health-insurance', 'payroll-contributions', 'review'],
+    ])
   })
 
   it('reads back as the same empty workbook', async () => {
-    const tabs = emptyWorkbookTabs()
+    const tabs = emptyWorkbookTabs(civil('2026-10-30'))
     const contents = await readWorkbookFile(await writeWorkbookFile(tabs, workbookOf(tabs)))
 
     expect(contents.missingTabs).toEqual([])
@@ -246,6 +254,14 @@ describe('reading an xlsx file', () => {
     expect(logged).toHaveBeenCalledWith('Reading broken.xlsx failed', (failure as Error).cause)
     logged.mockRestore()
     expect((await previewImport(new File(['not a spreadsheet'], 'notes.txt'))).summary.refusal).toMatch(/not a Kuna workbook/)
+  })
+
+  it('lists the categories with no tax class apart from the rows it could not use, since the figures still count them', async () => {
+    const [handFilled] = FOREIGN_WORKBOOK_FILES
+    const preview = await previewImport(new File([foreignWorkbookBytes(handFilled!)], handFilled!.name))
+
+    expect(preview.summary.problems).toEqual([])
+    expect(preview.summary.categoriesToSort).toEqual([{ tab: 'categories', id: null, label: 'No tax class yet', reason: 'Revenue, Telecom and Transfer. Pick one for each on Settings, Categories.' }])
   })
 
   it.each(FOREIGN_WORKBOOK_FILES)('reads $name, which another program wrote', async (foreignFile) => {

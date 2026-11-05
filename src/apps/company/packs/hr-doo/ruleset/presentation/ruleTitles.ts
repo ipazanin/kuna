@@ -18,6 +18,7 @@ const CROATIAN_RULE_TITLES: Readonly<Record<RuleId, string>> = {
   'hr.ztd.members-decision-deadline': 'Članovi odlučuju o izvještajima i upotrebi dobiti',
   'hr.ztd.asset-purchase-decision': 'Članovi odlučuju o većim nabavama u prvim godinama',
   'hr.ztd.sole-member-deals': 'Poslovi između jedinog člana i društva',
+  'hr.state.revenue-codes': 'Šifre vrsta prihoda za uplate u državni proračun',
   'hr.contrib.average-wage': 'Prosječna plaća iza osnovica za doprinose',
   'hr.contrib.director-floor': 'Najniža osnovica za doprinose zaposlenog direktora',
   'hr.contrib.board-only-base': 'Osnovica za doprinose člana uprave koji nije zaposlen',

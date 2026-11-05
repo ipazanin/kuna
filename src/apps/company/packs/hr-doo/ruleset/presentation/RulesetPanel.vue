@@ -17,7 +17,7 @@ import { amountLocaleOf } from '../../../../settings/domain/settings'
 import { useWorkbook } from '../../../../workbook/application/workbookStore'
 import { hrDooWorkbook } from '../../domain/hrDooPart'
 import { findLocalUnit } from '../localUnits'
-import { RULES, RULESET_CHECKED_ON, watchItems } from '../ruleset'
+import { RULES, sourcesCheckedSince, watchItems } from '../ruleset'
 import type { RuleId } from '../ruleset'
 import type { GeneralRule, RuleArea } from '../schema'
 import ConfidenceBadge from './ConfidenceBadge.vue'
@@ -39,7 +39,7 @@ const phone = usePhoneLayout()
 
 const generalRules: readonly GeneralRule[] = RULES
 const areas: readonly RuleArea[] = [...new Set(generalRules.map((rule) => rule.area))]
-const checkedOn = dayLabel(RULESET_CHECKED_ON)
+const checkedOn = dayLabel(sourcesCheckedSince())
 
 const rules = computed(() => {
   const format = termFormat(amountLocaleOf(settings.value))

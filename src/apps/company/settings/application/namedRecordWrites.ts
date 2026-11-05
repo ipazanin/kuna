@@ -9,7 +9,7 @@ import { readClients } from '../../workbook/domain/clientsReading'
 import { slugListOf, slugOf, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import { accountChangeRefusals } from '../domain/accountGuards'
-import { categoryChangeRefusals, categoryColourRefusals, categoryRoleRefusals, categoryShareRefusals, knownRoles } from '../domain/categoryGuards'
+import { categoryChangeRefusals, categoryClassRefusals, categoryColourRefusals, categoryRoleRefusals, categoryShareRefusals, knownRoles } from '../domain/categoryGuards'
 import { storedOwnerShare } from '../../owner-share/domain/ownerShare'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
 import { clientChangeRefusals } from '../domain/clientGuards'
@@ -82,16 +82,24 @@ function categoryFieldsOf(fields: StoredFields): {
   readonly bucket: string
   readonly colour: string
   readonly roles: readonly string[]
+  readonly vat: string
   readonly ownerShare: OwnerShare | null
 } {
-  return { slug: slugOf(fields.category), bucket: slugOf(fields.bucket), colour: textOf(fields.colour), roles: slugListOf(fields.roles), ownerShare: storedOwnerShare(fields.owner_share) }
+  return {
+    slug: slugOf(fields.category),
+    bucket: slugOf(fields.bucket),
+    colour: textOf(fields.colour),
+    roles: slugListOf(fields.roles),
+    vat: slugOf(fields.vat),
+    ownerShare: storedOwnerShare(fields.owner_share),
+  }
 }
 
 /**
  * A category keeps to the slug format, once on its tab, keeps its name while anything names it, and
  * keeps owner advances in an operating or taxes bucket. Unless Undo puts them back, a colour it is
- * given comes from the palette, a role it is given is one the app knows, and an owner share it holds
- * keeps to the share guards.
+ * given comes from the palette, a role it is given is one the app knows, an owner share it holds
+ * keeps to the share guards, and roles, VAT or a bucket it is given keep to the pack's classes.
  */
 export const CATEGORY_WRITES: WriteRules<CategoryRecord> = {
   kind: CATEGORY_RECORDS,
@@ -121,6 +129,7 @@ export const CATEGORY_WRITES: WriteRules<CategoryRecord> = {
               edits,
               change.after.records.map((stored) => categoryFieldsOf(stored.fields)),
             ),
+            ...categoryClassRefusals(edits, installedPack().workbook?.categoryClasses ?? []),
           ]),
     ]
   },

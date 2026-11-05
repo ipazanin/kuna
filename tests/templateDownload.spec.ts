@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { DEFAULT_CATEGORY_NAMES } from '../src/apps/company/workbook/infrastructure/emptyWorkbook'
+import { startingCategoryNames } from '../src/apps/company/workbook/infrastructure/emptyWorkbook'
 import { readWorkbookFile } from '../src/apps/company/workbook/infrastructure/workbookFile'
 import { templateColumnNames } from '../src/apps/company/workbook/infrastructure/workbookTemplate'
 import { WORKBOOK_TABS } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
@@ -34,18 +34,19 @@ describe('the template download', () => {
     }
   })
 
-  it('reads back with no tab missing, no rows to fill and nothing the reader refuses', async () => {
+  it('reads back with no tab missing, the starting categories and state rules, no rows to fill and nothing the reader refuses', async () => {
     const { bytes, fileName } = await downloadedTemplate()
     const contents = await readWorkbookFile(bytes)
     const preview = await previewImport(new File([bytes.slice()], fileName))
 
     expect(contents.missingTabs).toEqual([])
-    for (const tab of WORKBOOK_TABS.filter((name) => name !== 'categories' && name !== 'settings')) {
+    for (const tab of WORKBOOK_TABS.filter((name) => name !== 'categories' && name !== 'settings' && name !== 'rules')) {
       expect(contents.tabs[tab], tab).toEqual([])
     }
-    expect(contents.tabs.categories.map((row) => row.cells.category)).toEqual([...DEFAULT_CATEGORY_NAMES])
+    expect(contents.tabs.categories.map((row) => row.cells.category)).toEqual(startingCategoryNames())
+    expect(contents.tabs.rules.map((row) => row.cells.revenue_code ?? row.cells.counterparty_iban)).toEqual(['1201', '1651', '8168', 'HR7610010051700036001', 'HR6510010051550100001'])
     expect(contents.tabs.settings.length).toBeGreaterThan(0)
     expect(preview.summary).toMatchObject({ transactionCount: 0, accounts: [], defaultedTabs: [], problems: [], refusal: null })
-    expect(preview.counts.map((kind) => kind.name).sort()).toEqual(['categories', 'settings'])
+    expect(preview.counts.map((kind) => kind.name).sort()).toEqual(['categories', 'rules', 'settings'])
   })
 })

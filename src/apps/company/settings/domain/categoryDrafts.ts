@@ -8,6 +8,8 @@ import { slugOf, storedFieldOfValue, textOf } from '../../../../shared/storage/d
 import type { StoredField, StoredFields } from '../../../../shared/storage/domain/storedFields'
 import { isVatTreatment } from '../../workbook/domain/vatTreatment'
 import type { StoredRecord } from '../../../../shared/storage/domain/recordsRead'
+import { sameClassedFields } from './categoryClasses'
+import type { ClassedFields } from './categoryClasses'
 import { madeOfDrafts } from './recordDrafts'
 import type { MadeDraft } from './recordDrafts'
 import { words } from './words'
@@ -120,6 +122,20 @@ export function categoryDraftErrors(drafts: readonly CategoryDraft[], usedNames:
     }
   })
   return errors
+}
+
+/**
+ * Whether the row was added, or its roles, VAT or bucket differ from the row it was read from. Such a
+ * row keeps to the pack's classes, and a row left as it was saves with what it holds.
+ */
+export function classChanged(draft: CategoryDraft, baseline: readonly CategoryDraft[]): boolean {
+  const saved = draft.saved === null ? undefined : baseline[draft.saved]
+  return saved === undefined || !sameClassedFields(classedFieldsOf(draft), classedFieldsOf(saved))
+}
+
+/** The fields a class constrains, as the draft holds them. */
+export function classedFieldsOf(draft: CategoryDraft): ClassedFields {
+  return { roles: rolesOfText(draft.roles), vat: draft.vat.trim().toLowerCase(), bucket: draft.bucket.trim().toLowerCase() }
 }
 
 /**

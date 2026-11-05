@@ -238,13 +238,17 @@ const COMPANY_FIXTURES: Readonly<Record<string, KindFixture>> = {
   },
   category: {
     records: [
-      { category: 'groceries', family: 'operating', bucket: 'operating', colour: '#2a78d6', roles: 'watched', label: 'Groceries', vat: 'deductible-25', owner_share: '30' },
+      { category: 'groceries', family: 'operating', bucket: 'operating', colour: '#2a78d6', roles: 'deductible-cost, watched', label: 'Groceries', vat: 'deductible-25', owner_share: '30' },
       { category: 'owner-benefits', family: 'owner', bucket: 'owner-pay', roles: 'owner-benefit' },
     ],
-    outside: { category: 'travel', family: 'operating', bucket: 'operating' },
+    outside: { category: 'travel', family: 'operating', bucket: 'operating', roles: 'deductible-cost' },
     change: { field: 'family', value: 'office' },
     cleared: 'colour',
-    refused: { fields: { category: 'misc', family: 'operating', bucket: 'operatng' }, reason: '"operatng" is not a bucket', fixed: { category: 'misc', family: 'operating', bucket: 'operating' } },
+    refused: {
+      fields: { category: 'misc', family: 'operating', bucket: 'operatng', roles: 'deductible-cost' },
+      reason: '"operatng" is not a bucket',
+      fixed: { category: 'misc', family: 'operating', bucket: 'operating', roles: 'deductible-cost' },
+    },
   },
   account: {
     records: [
@@ -1132,7 +1136,7 @@ describe.each(STORAGES)('records kept in %s', (_storage, open) => {
   })
 
   describe('a write across two kinds', () => {
-    const category = { category: 'groceries', family: 'operating', bucket: 'operating' }
+    const category = { category: 'groceries', family: 'operating', bucket: 'operating', roles: 'deductible-cost' }
     const client = { client: 'northwind', iban: 'GB82WEST12345698765432' }
 
     it('applies whole', async () => {

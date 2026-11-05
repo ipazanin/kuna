@@ -8,6 +8,7 @@ import type { ImportPreview } from '../../workbook/presentation/workbookFiles'
 import { plural } from '../../../../shared/text/translation'
 import ProblemList from './ProblemList.vue'
 import { words } from './words'
+import { words as settingsWords } from '../../settings/presentation/words'
 
 /** What a file opened as books holds, its record counts by tab and the rows the app could not use, or why it was refused. */
 const props = defineProps<{
@@ -80,6 +81,11 @@ const facts = computed(() => {
           <UIcon name="i-lucide-check" class="size-4 text-success" aria-hidden="true" />
           {{ words.summary.clean }}
         </p>
+        <section v-if="preview.summary.categoriesToSort.length" class="flex flex-col gap-2" data-testid="import-categories-to-sort">
+          <h3 class="text-sm font-medium text-highlighted">{{ settingsWords.categoriesToSort.title }}</h3>
+          <p class="text-sm text-muted">{{ settingsWords.categoriesToSort.help }}</p>
+          <ProblemList :problems="preview.summary.categoriesToSort" />
+        </section>
         <slot />
       </template>
     </template>

@@ -19,8 +19,8 @@ Each point moves into its law file once settled, then into the code.
 
 ## Docs
 
-- [JOPPD for investors](../law/joppd-for-investors.md#open-points)
-- [Capital gains](../law/capital-gains.md#open-points)
-- [Foreign capital income](../law/foreign-capital-income.md)
+- [JOPPD for investors](../law/investments/joppd-for-investors.md#open-points)
+- [Capital gains](../law/investments/capital-gains.md#open-points)
+- [Foreign capital income](../law/investments/foreign-capital-income.md)
 - [Watch list](../law/sources/watch-list.md)
 - [Investments tax plan](../features/investments/tax-plan.md)

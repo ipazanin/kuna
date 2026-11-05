@@ -8,6 +8,12 @@ import { JOPPD_CODES, TAX_RULES, rulesOf } from '../src/apps/investments/tax/dom
 import type { RuleMark } from '../src/apps/investments/tax/domain/taxRules'
 import { en } from '../src/apps/investments/tax/presentation/words'
 import { LAW_README, indexedReadme } from '../scripts/law-index.mjs'
+import { TAX_CLASSES } from '../src/apps/company/packs/hr-doo/preset/domain/taxClasses'
+import { startingRules } from '../src/apps/company/packs/hr-doo/preset/domain/startingRules'
+import { ruleValue } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
+import type { CivilDate } from '../src/shared/calendar/civilDate'
+import { civilDate, parseCivilDate } from '../src/shared/calendar/civilDate'
+import type { VatTreatment } from '../src/apps/company/workbook/domain/vatTreatment'
 
 const root = join(import.meta.dirname, '..')
 const lawDir = join(root, 'docs/law')
@@ -92,6 +98,30 @@ function flatCodes(codes: object, prefix = ''): [string, string][] {
   return Object.entries(codes).flatMap(([key, code]): [string, string][] => (typeof code === 'string' ? [[`${prefix}${key}`, code]] : flatCodes(code as object, `${prefix}${key}.`)))
 }
 
+/** A share in basis points as the docs write it, such as 50%. */
+function percentText(basisPoints: number): string {
+  return `${basisPoints / 100}%`
+}
+
+/** The share of the VAT inside a purchase Kuna counts as input VAT for a treatment, or null for one that splits no VAT out. */
+function inputVatBack(treatment: VatTreatment, on: CivilDate): number | null {
+  const deduction = ruleValue('hr.vat.input-deduction', on).value
+  switch (treatment) {
+    case 'deductible-25':
+    case 'deductible-13':
+    case 'deductible-5':
+      return deduction.deductibleOnBusinessPurchases.holds ? 10_000 : 0
+    case 'representation':
+      return deduction.representationDeductible.holds ? 10_000 : 0
+    case 'car-50':
+      return deduction.personalCarDeductibleShare.basisPoints
+    case 'none':
+    case 'reverse-charge':
+    case 'foreign-vat':
+      return null
+  }
+}
+
 describe('law docs', () => {
   it.each(Object.entries(TAX_RULES))('ties the rule %s to a heading in docs/law', (_rule, basis) => {
     const [file, anchor] = basis.law.split('#')
@@ -110,12 +140,12 @@ describe('law docs', () => {
   })
 
   it('states the day each market moves to settling one business day after the trade', () => {
-    const rows = tableUnder('hnb-rates-and-settlement.md', 'Settlement cycles')
+    const rows = tableUnder('investments/hnb-rates-and-settlement.md', 'Settlement cycles')
     expect(Object.fromEntries(rows.map((row) => [row.Currency, row['One day from']]))).toEqual(ONE_DAY_SETTLEMENT_FROM)
   })
 
   it('states every row of the customs table the Assets app estimates a car by', () => {
-    const rows = tableUnder('used-car-value.md', 'Tablica 1')
+    const rows = tableUnder('assets/used-car-value.md', 'Tablica 1')
     const shareOf = (cell: string | undefined): number => {
       const match = cell?.match(/^(\d+)\.(\d{2})%$/)
       expect(match, `"${cell}" is not a percent with two decimals`).not.toBeNull()
@@ -125,7 +155,7 @@ describe('law docs', () => {
   })
 
   it('states the capital gains rate and surtax of every year Kuna has a row for', () => {
-    const rows = tableUnder('capital-gains.md', 'Rates by year')
+    const rows = tableUnder('investments/capital-gains.md', 'Rates by year')
     const years = rows.map((row) => Number(row.Year))
     for (const row of rows) {
       const { rules, ownRow } = rulesOf(Number(row.Year))
@@ -137,8 +167,8 @@ describe('law docs', () => {
   })
 
   it('states the income rate and the US withholding of every year Kuna has a row for', () => {
-    const rows = tableUnder('foreign-capital-income.md', 'Rates by year')
-    expect(rows.map((row) => Number(row.Year))).toEqual(tableUnder('capital-gains.md', 'Rates by year').map((row) => Number(row.Year)))
+    const rows = tableUnder('investments/foreign-capital-income.md', 'Rates by year')
+    expect(rows.map((row) => Number(row.Year))).toEqual(tableUnder('investments/capital-gains.md', 'Rates by year').map((row) => Number(row.Year)))
     for (const row of rows) {
       const { rules } = rulesOf(Number(row.Year))
       expect({ incomeRate: rules.incomeRate, usWithholding: rules.usWithholding, usTreaty: rules.usTreaty }).toEqual({
@@ -150,7 +180,7 @@ describe('law docs', () => {
   })
 
   it('states every JOPPD code Kuna writes, and no other under a Kuna key', () => {
-    const rows = tableUnder('joppd-for-investors.md', 'Codes').filter((row) => row['Kuna key'] !== 'none')
+    const rows = tableUnder('investments/joppd-for-investors.md', 'Codes').filter((row) => row['Kuna key'] !== 'none')
     expect(rows.map((row) => [row['Kuna key'], row.Code]).sort()).toEqual(flatCodes(JOPPD_CODES).sort())
   })
 
@@ -172,5 +202,54 @@ describe('law docs', () => {
 
   it('keeps the index in docs/law/README.md in step with the files, so run npm run law-index after changing one', async () => {
     expect(readFileSync(LAW_README, 'utf8')).toBe(await indexedReadme())
+  })
+})
+
+describe('company law docs', () => {
+  const classRows = tableUnder('company/tax-classes.md', 'Classes')
+  const listed = (cell: string | undefined): string[] => (cell ?? '').split(',').map((entry) => entry.trim())
+
+  it.each(TAX_CLASSES.map((taxClass) => [taxClass.id, taxClass.law] as const))('ties the class %s to a heading in docs/law', (_id, law) => {
+    const [file, anchor] = law.split('#')
+    const path = join(lawDir, file!)
+    expect(existsSync(path), `docs/law/${file} is missing`).toBe(true)
+    expect([...anchorsOf(path)]).toContain(anchor)
+  })
+
+  it('lists every class under "Classes" once, and nothing else', () => {
+    expect(classRows.map((row) => row.Class)).toEqual(TAX_CLASSES.map((taxClass) => taxClass.id))
+  })
+
+  it.each(TAX_CLASSES.map((taxClass) => [taxClass.id, taxClass] as const))('states the add-back, input VAT, treatments and buckets of %s as the ruleset and the class have them', (id, taxClass) => {
+    const row = classRows.find((candidate) => candidate.Class === id)!
+    const from = parseCivilDate(row.From ?? '')
+    expect(from, `"${row.From}" is not a day`).not.toBeNull()
+    const addBack = taxClass.addBack === null ? 0 : ruleValue(taxClass.addBack, from!).value.addBackShare.basisPoints
+    const vatBack = [...new Set(taxClass.vat.flatMap((treatment) => inputVatBack(treatment, from!) ?? []))]
+    expect({
+      addBack: row['CIT add-back'],
+      vatBack: row['Input VAT back'],
+      vat: listed(row['VAT treatments']),
+      buckets: listed(row.Buckets),
+    }).toEqual({
+      addBack: percentText(addBack),
+      vatBack: vatBack.length === 0 ? 'none' : vatBack.map(percentText).join(' or '),
+      vat: taxClass.vat,
+      buckets: taxClass.buckets,
+    })
+  })
+
+  it('states the revenue code and model of each seeded payment as the ruleset has them on 1 January, with the category its rule files to', () => {
+    const rows = tableUnder('company/state-payments.md', 'Revenue codes')
+    for (const year of new Set(rows.map((row) => Number(row.Year)))) {
+      const on = civilDate(year, 1, 1)
+      const codes = ruleValue('hr.state.revenue-codes', on).value
+      const byCode = startingRules(on).flatMap((rule) => rule.conditions.flatMap((condition) => (condition.column === 'revenue_code' ? [[condition.code, rule.category] as const] : [])))
+      expect(
+        rows.filter((row) => Number(row.Year) === year).map((row) => [row.Code, row.Model, row.Category]),
+        String(year),
+      ).toEqual(byCode.map(([code, category]) => [code, codes.model.text, category]))
+      expect(byCode.map(([code]) => code)).toEqual([codes.vatCode.text, codes.profitTaxCode.text, codes.pensionPillarOneCode.text])
+    }
   })
 })

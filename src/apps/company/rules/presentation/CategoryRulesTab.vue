@@ -11,6 +11,7 @@ import { DISMISSAL_WRITES, dismissalOfGroup } from '../application/dismissalWrit
 import { withoutDismissed } from '../domain/dismissedSuggestions'
 import type { CoverageGroup } from '../domain/ruleCoverage'
 import { ruleCoverage } from '../domain/ruleCoverage'
+import { installedPack } from '../../packs/packContribution'
 import { draftForRow } from '../domain/ruleDraft'
 import { categorisationContextOf } from '../domain/transactionFacts'
 import DismissedSuggestions from './DismissedSuggestions.vue'
@@ -42,7 +43,12 @@ function makeRuleForGroup(group: CoverageGroup<Transaction>): void {
   const mostCommon = group.categories[0]?.category
   const newest = group.rows.find((row) => row.category === mostCommon)
   if (workbook === null || newest === undefined) return
-  editorSource.value = { title: words.suggestions.makeRuleFor(group.name), draft: draftForRow(newest, workbook, categorisationContextOf(workbook)), edited: null, split: group.categories }
+  editorSource.value = {
+    title: words.suggestions.makeRuleFor(group.name),
+    draft: draftForRow(newest, workbook, categorisationContextOf(workbook), installedPack().workbook?.directionPairedRoles ?? []),
+    edited: null,
+    split: group.categories,
+  }
   editorOpen.value = true
 }
 

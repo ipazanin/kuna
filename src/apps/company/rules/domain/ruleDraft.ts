@@ -92,9 +92,14 @@ function fieldsOfDraft(draft: RuleDraft): RuleFields {
   return fields
 }
 
-/** A draft that files rows like this one, as `proposeRule` words it, tried just before the rule that decides the row now. */
-export function draftForRow(transaction: CategorisableTransaction & Pick<Transaction, 'category'>, workbook: Pick<Workbook, 'rules' | 'categories'>, context: CategorisationContext): RuleDraft {
-  const proposal = proposeRule(transaction, workbook, context)
+/** A draft that files rows like this one, as `proposeRule` words it with the pack's paired roles, tried just before the rule that decides the row now. */
+export function draftForRow(
+  transaction: CategorisableTransaction & Pick<Transaction, 'category'>,
+  workbook: Pick<Workbook, 'rules' | 'categories'>,
+  context: CategorisationContext,
+  packPairedRoles: readonly string[],
+): RuleDraft {
+  const proposal = proposeRule(transaction, workbook, context, packPairedRoles)
   if (proposal === null) {
     return { ...blankDraft(workbook.rules), category: workbook.categories.some((category) => category.slug === transaction.category) ? transaction.category : '' }
   }

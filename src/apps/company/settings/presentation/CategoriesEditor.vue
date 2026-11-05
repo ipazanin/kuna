@@ -7,16 +7,23 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import { bucketTone } from '../../../../shared/charts/chartTokens'
 import { listInWords } from '../../../../shared/text/listInWords'
 import ColourSwatchPicker from '../../../../shared/ui/ColourSwatchPicker.vue'
+import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import SortableHeader from '../../../../shared/ui/SortableHeader.vue'
 import type { SortDirection } from '../../../../shared/ui/SortableHeader.vue'
+import type { CategoryClassHelp } from '../../packs/packContribution'
 import { BUCKETS } from '../../workbook/domain/bucket'
+import type { DefinedBucket } from '../../workbook/domain/bucket'
+import type { CategoryClass } from '../../workbook/domain/packPart'
 import { SWATCHES, swatchOf } from '../../workbook/domain/categoryColour'
 import type { SlugUses } from '../../workbook/domain/slug'
-import { VAT_TREATMENTS } from '../../workbook/domain/vatTreatment'
+import { VAT_TREATMENTS, vatCell } from '../../workbook/domain/vatTreatment'
+import type { VatTreatment } from '../../workbook/domain/vatTreatment'
 import { displayName } from '../../workbook/domain/displayName'
 import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
-import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf, keepsItsName, pickedColour } from '../domain/categoryDrafts'
+import { classOf } from '../domain/categoryClasses'
+import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf, keepsItsName, pickedColour, rolesOfText } from '../domain/categoryDrafts'
+import { categoryClassMessages } from './categoryClassMessages'
 import type { CategoryDraft } from '../domain/categoryDrafts'
 import { NO_FILTERS, categoryListing, matchesFilters } from '../domain/categoryListing'
 import type { CategoryFilters, CategorySort, CategorySortColumn } from '../domain/categoryListing'
@@ -33,6 +40,10 @@ const props = defineProps<{
   uses: SlugUses
   /** The roles core and the pack pick categories by. */
   roles: readonly string[]
+  /** The pack's classes, one of which each category carries among its roles. None hides the column. */
+  classes: readonly CategoryClass[]
+  /** What the editor says under a class: its sentence and the rule it rests on. */
+  classHelp: (role: string) => CategoryClassHelp | null
   /** Whether the owner share shows, which it does while the owner-pay module is on. */
   shares: boolean
   saving: boolean
@@ -48,7 +59,24 @@ const drafts = ref<CategoryDraft[]>([...baseline.value])
 
 const usedNames = computed(() => new Set(props.uses.keys()))
 const dirty = computed(() => JSON.stringify(drafts.value) !== JSON.stringify(baseline.value))
-const errors = computed(() => categoryDraftErrors(drafts.value, usedNames.value, props.roles, props.shares))
+const classMessages = computed(() =>
+  categoryClassMessages(drafts.value, baseline.value, props.classes, {
+    className: (role) => props.classHelp(role)?.name ?? role,
+    treatment: vatLabel,
+    bucket: words.categories.bucketChoice,
+  }),
+)
+/** The field errors of the rows, a field's own error before what its tax class says. */
+const errors = computed(() => {
+  const found = categoryDraftErrors(drafts.value, usedNames.value, props.roles, props.shares)
+  return new Map(
+    drafts.value.flatMap((_, index) => {
+      const merged = { ...classMessages.value.errors.get(index), ...found.get(index) }
+      return Object.keys(merged).length === 0 ? [] : [[index, merged] as const]
+    }),
+  )
+})
+const hints = computed(() => classMessages.value.hints)
 
 const filters = ref<CategoryFilters>(NO_FILTERS)
 const sort = ref<CategorySort | null>(null)
@@ -84,7 +112,13 @@ watch(errors, (found) => {
   if (hidden.length > 0) listed.value = [...listed.value, ...hidden]
 })
 
-const rows = computed(() => listed.value.map((index) => ({ index, draft: drafts.value[index]! })))
+const rows = computed(() =>
+  listed.value.map((index) => {
+    const draft = drafts.value[index]!
+    const taxClass = classOf(rolesOfText(draft.roles), props.classes)
+    return { index, draft, taxClass, help: taxClass === null ? null : props.classHelp(taxClass.role) }
+  }),
+)
 
 /** The rows on screen that no longer match the filters, shown for their unsaved change or error. */
 const kept = computed(() => rows.value.filter(({ draft }) => !matchesFilters({ draft, unsaved: unsaved(draft), inError: false }, filters.value)).length)
@@ -97,8 +131,60 @@ function sortBy(column: CategorySortColumn, direction: SortDirection | null): vo
   sort.value = direction === null ? null : { column, descending: direction === 'descending' }
 }
 
-const bucketItems = BUCKETS.map((bucket): { value: string; label: string } => ({ value: bucket, label: words.categories.bucketChoice(bucket) }))
-const vatItems = VAT_TREATMENTS.map((treatment): { value: string; label: string } => ({ value: treatment, label: words.categories.vatTreatments[treatment] }))
+const classRoles = computed(() => new Set(props.classes.map((taxClass) => taxClass.role)))
+const modifiers = computed(() => props.roles.filter((role) => !classRoles.value.has(role)))
+
+/** The draft's value as one of the choices, a value the choices lack, such as a contradiction the file holds, offered too so the field shows it. */
+function withValue(choices: readonly string[], value: string): string[] {
+  return value === '' || choices.includes(value) ? [...choices] : [...choices, value]
+}
+
+/** The classes that may sit in the row's bucket, and the class the row has. */
+function classItems(draft: CategoryDraft, taxClass: CategoryClass | null): { value: string; label: string }[] {
+  const bucket = draft.bucket.trim().toLowerCase()
+  const fitting = props.classes.filter((taxClass) => (taxClass.buckets as readonly string[]).includes(bucket)).map((taxClass) => taxClass.role)
+  return withValue(fitting, taxClass?.role ?? '').map((role) => ({ value: role, label: props.classHelp(role)?.name ?? role }))
+}
+
+/** The buckets the row's class allows, or all six while it has none. */
+function bucketItems(draft: CategoryDraft, taxClass: CategoryClass | null): { value: string; label: string }[] {
+  const allowed: readonly DefinedBucket[] = taxClass?.buckets ?? BUCKETS
+  return withValue(allowed, draft.bucket.trim().toLowerCase()).map((bucket) => ({ value: bucket, label: words.categories.bucketChoice(bucket) }))
+}
+
+/** The VAT treatments the row's class allows, or all of them while it has none. */
+function vatItems(draft: CategoryDraft, taxClass: CategoryClass | null): { value: string; label: string }[] {
+  const allowed: readonly VatTreatment[] = taxClass?.vat ?? VAT_TREATMENTS
+  return withValue(allowed, draft.vat.trim().toLowerCase() || 'none').map((treatment) => ({ value: treatment, label: vatLabel(treatment) }))
+}
+
+function vatLabel(treatment: string): string {
+  return Object.entries(words.categories.vatTreatments).find(([value]) => value === treatment)?.[1] ?? treatment
+}
+
+/** Gives the row the class in place of any other, keeping its other roles, and the one VAT treatment a class with one allows. */
+function pickClass(index: number, role: string): void {
+  const draft = drafts.value[index]!
+  const picked = props.classes.find((taxClass) => taxClass.role === role)
+  const kept = rolesOfText(draft.roles).filter((other) => !classRoles.value.has(other))
+  drafts.value = drafts.value.map((other, position) =>
+    position === index ? { ...other, roles: [role, ...kept].join(', '), vat: picked?.vat.length === 1 ? vatCell(picked.vat[0]!) : other.vat } : other,
+  )
+}
+
+/** The row's roles that carry no class, which the roles menu edits. */
+function modifiersOf(draft: CategoryDraft): string {
+  return rolesOfText(draft.roles)
+    .filter((role) => !classRoles.value.has(role))
+    .join(', ')
+}
+
+/** Puts the picked roles beside the row's classes. */
+function updateModifiers(index: number, text: string): void {
+  const draft = drafts.value[index]!
+  const classes = rolesOfText(draft.roles).filter((role) => classRoles.value.has(role))
+  update(index, 'roles', [...classes, ...rolesOfText(text)].join(', '))
+}
 
 function update(index: number, field: keyof Omit<CategoryDraft, 'saved' | 'savedName'>, text: string): void {
   drafts.value = drafts.value.map((draft, position) => (position === index ? { ...draft, [field]: text } : draft))
@@ -171,6 +257,7 @@ function save(): void {
           <SortableHeader :label="words.categories.columns.family" :model-value="directionOf('family')" @update:model-value="sortBy('family', $event)" />
           <SortableHeader :label="words.categories.columns.bucket" :model-value="directionOf('bucket')" @update:model-value="sortBy('bucket', $event)" />
           <th scope="col" class="text-start">{{ words.categories.columns.colour }}</th>
+          <th v-if="classes.length > 0" scope="col" class="text-start">{{ words.categories.columns.countsAs }}</th>
           <SortableHeader :label="words.categories.columns.roles" :model-value="directionOf('roles')" @update:model-value="sortBy('roles', $event)" />
           <SortableHeader :label="words.categories.columns.vat" :model-value="directionOf('vat')" @update:model-value="sortBy('vat', $event)" />
           <SortableHeader v-if="shares" :label="words.categories.columns.ownerShare" :model-value="directionOf('ownerShare')" @update:model-value="sortBy('ownerShare', $event)" />
@@ -181,12 +268,12 @@ function save(): void {
       </thead>
       <tbody ref="body">
         <tr v-if="rows.length === 0 && drafts.length > 0">
-          <td :colspan="shares ? 9 : 8" class="py-6 text-muted" data-testid="no-category-matches">
+          <td :colspan="8 + (shares ? 1 : 0) + (classes.length > 0 ? 1 : 0)" class="py-6 text-muted" data-testid="no-category-matches">
             {{ words.categories.noMatch }}
             <UButton :label="words.categories.clearFilters" color="neutral" variant="link" size="sm" class="inline-target" @click="filters = NO_FILTERS" />
           </td>
         </tr>
-        <tr v-for="{ index, draft } in rows" :key="draft.saved ?? `new-${index}`" :data-position="index" data-testid="category-row">
+        <tr v-for="{ index, draft, taxClass, help } in rows" :key="draft.saved ?? `new-${index}`" :data-position="index" data-testid="category-row">
           <td>
             <UInput
               :model-value="draft.category"
@@ -226,7 +313,7 @@ function save(): void {
           <td>
             <USelect
               :model-value="draft.bucket"
-              :items="bucketItems"
+              :items="bucketItems(draft, taxClass)"
               :color="errors.get(index)?.bucket ? 'error' : 'neutral'"
               :highlight="Boolean(errors.get(index)?.bucket)"
               :placeholder="draft.bucket || words.categories.choose"
@@ -236,6 +323,7 @@ function save(): void {
               @update:model-value="update(index, 'bucket', String($event))"
             />
             <p v-if="errors.get(index)?.bucket" class="field-error">{{ errors.get(index)?.bucket }}</p>
+            <p v-else-if="hints.get(index)?.bucket" class="field-hint">{{ hints.get(index)?.bucket }}</p>
           </td>
           <td>
             <ColourSwatchPicker
@@ -247,22 +335,48 @@ function save(): void {
               @update:model-value="update(index, 'colour', pickedColour(draft, $event, stored))"
             />
           </td>
+          <td v-if="classes.length > 0">
+            <USelect
+              :model-value="taxClass?.role ?? ''"
+              :items="classItems(draft, taxClass)"
+              :color="errors.get(index)?.class ? 'error' : 'neutral'"
+              :highlight="Boolean(errors.get(index)?.class)"
+              :placeholder="words.categories.pickClass"
+              :aria-label="words.categories.columns.countsAs"
+              size="sm"
+              class="w-60"
+              data-testid="category-class"
+              @update:model-value="pickClass(index, String($event))"
+            />
+            <p v-if="errors.get(index)?.class" class="field-error">{{ errors.get(index)?.class }}</p>
+            <p v-else-if="hints.get(index)?.class" class="field-hint" data-testid="category-class-hint">{{ hints.get(index)?.class }}</p>
+            <template v-else-if="help !== null">
+              <p class="field-hint" data-testid="category-class-sentence">{{ help.sentence }}</p>
+              <p class="field-hint">
+                <DrillLink :to="help.link.to">{{ help.link.label }}</DrillLink>
+              </p>
+            </template>
+          </td>
           <td>
-            <RolesSelect :model-value="draft.roles" :known="roles" :error="errors.get(index)?.roles" @update:model-value="update(index, 'roles', $event)" />
+            <RolesSelect :model-value="modifiersOf(draft)" :known="modifiers" :error="errors.get(index)?.roles" @update:model-value="updateModifiers(index, $event)" />
             <p v-if="errors.get(index)?.roles" class="field-error">{{ errors.get(index)?.roles }}</p>
           </td>
           <td>
             <USelect
               :model-value="draft.vat || 'none'"
-              :items="vatItems"
+              :items="vatItems(draft, taxClass)"
+              :disabled="taxClass?.vat.length === 1 && !errors.get(index)?.vat && !hints.get(index)?.vat"
               :color="errors.get(index)?.vat ? 'error' : 'neutral'"
               :highlight="Boolean(errors.get(index)?.vat)"
               :aria-label="words.categories.columns.vat"
               size="sm"
               class="w-44"
-              @update:model-value="update(index, 'vat', String($event))"
+              data-testid="category-vat"
+              @update:model-value="update(index, 'vat', vatCell(String($event)))"
             />
             <p v-if="errors.get(index)?.vat" class="field-error">{{ errors.get(index)?.vat }}</p>
+            <p v-else-if="hints.get(index)?.vat" class="field-hint">{{ hints.get(index)?.vat }}</p>
+            <p v-else-if="taxClass?.vat.length === 1" class="field-hint">{{ words.categories.vatSet }}</p>
           </td>
           <td v-if="shares">
             <template v-if="draft.bucket === 'operating' || draft.ownerShare.trim() !== ''">
@@ -341,11 +455,17 @@ function save(): void {
   vertical-align: top;
 }
 
-.field-error {
+.field-error,
+.field-hint {
   margin-top: 0.25rem;
   max-width: 13rem;
   white-space: normal;
   font-size: 0.75rem;
   color: var(--tone-negative);
+}
+
+.field-hint {
+  max-width: 15rem;
+  color: var(--ink-muted);
 }
 </style>

@@ -12,15 +12,15 @@ How to tell which text of an act applied to a given year's income. The dates pri
 
 Rules from loaded texts:
 
-1. The tax rule. OPZ Art. 5: "U postupku oporezivanja primjenjuju se propisi koji su bili na snazi u vrijeme nastanka činjenica na kojima se temelji oporezivanje." The date of the taxable fact picks the version. For a sale that is the day the proceeds are paid, as [Capital gains](../capital-gains.md#which-year-a-sale-counts-in) sets out.
+1. The tax rule. OPZ Art. 5: "U postupku oporezivanja primjenjuju se propisi koji su bili na snazi u vrijeme nastanka činjenica na kojima se temelji oporezivanje." The date of the taxable fact picks the version. For a sale that is the day the proceeds are paid, as [Capital gains](../investments/capital-gains.md#which-year-a-sale-counts-in) sets out.
 2. Each amending act decides its own start. Read its last articles, usually under "Prijelazne i završne odredbe". Patterns seen in ZPDoh:
    - Income earned before the change: NN 114/23 Art. 40, "Dohodak ostvaren do 31. prosinca 2023. oporezivat će se po Zakonu o porezu na dohodak (»Narodne novine«, br. 115/16., 106/18., 121/19., 32/20., 138/20. i 151/22.)." NN 152/24 Art. 16 says the same for income up to 31 December 2024.
    - A split start: NN 114/23 Art. 42, "stupa na snagu prvoga dana od dana objave ..., osim članaka 1. do 8. i članaka 10. do 37. ovoga Zakona koji stupaju na snagu 1. siječnja 2024."
    - Applied from a tax year: NN 138/20 Art. 17(1), "Odredbe članaka 4. i 16. ovoga Zakona primjenjuju se pri utvrđivanju poreza na dohodak za 2021. godinu i nadalje."
    - A bylaw follow-up: NN 114/23 Art. 39 gives the Minister 90 days to align the Pravilnik. Until then the old Pravilnik keeps applying where it does not conflict, which is a `reading`.
-3. Procedure. OPZ Art. 4 applies ZUP to tax procedure. ZUP Art. 81(2): "Kad zadnji dan roka pada u nedjelju, na blagdan ili u drugi dan kad javnopravno tijelo ne radi, rok istječe prvoga sljedećega radnog dana." [Filing calendar](../filing-calendar.md#weekends-and-holidays) owns how Kuna applies it.
+3. Procedure. OPZ Art. 4 applies ZUP to tax procedure. ZUP Art. 81(2): "Kad zadnji dan roka pada u nedjelju, na blagdan ili u drugi dan kad javnopravno tijelo ne radi, rok istječe prvoga sljedećega radnog dana." [Filing calendar](../investments/filing-calendar.md#weekends-and-holidays) owns how Kuna applies it.
 4. A correction (ispravak) is its own NN item and fixes the published text to match the adopted original. Apply the corrected text from the original item's date, which is a `reading`.
-5. A treaty applies only once it is in force for both states. The Croatian law confirming it can be in force before that, as with the US treaty in [Foreign capital income](../foreign-capital-income.md#us-withholding).
+5. A treaty applies only once it is in force for both states. The Croatian law confirming it can be in force before that, as with the US treaty in [Foreign capital income](../investments/foreign-capital-income.md#us-withholding).
 
 Recipe for "which text applied to income of year Y":
 

@@ -9,8 +9,9 @@ import { accountingOpenItems, accountingRules } from '../src/apps/company/packs/
 import { companyLawOpenItems, companyLawRules } from '../src/apps/company/packs/hr-doo/ruleset/rules/company-law'
 import { ownerPayOpenItems, ownerPayRules } from '../src/apps/company/packs/hr-doo/ruleset/rules/owner-pay'
 import { profitTaxOpenItems, profitTaxRules } from '../src/apps/company/packs/hr-doo/ruleset/rules/profit-tax'
+import { statePaymentOpenItems, statePaymentRules } from '../src/apps/company/packs/hr-doo/ruleset/rules/state-payments'
 import { vatOpenItems, vatRules } from '../src/apps/company/packs/hr-doo/ruleset/rules/vat'
-import { OPEN_ITEMS, RULES, RULESET_CHECKED_ON, RULESET_FIRST_DAY, citationOf, ruleValue, rulesFor, versionOn, watchItems } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
+import { OPEN_ITEMS, RULES, RULESET_FIRST_DAY, sourcesCheckedSince, citationOf, ruleValue, rulesFor, versionOn, watchItems } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
 import type { RuleId } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
 import { ruleView, termFormat } from '../src/apps/company/packs/hr-doo/ruleset/presentation/ruleWording'
 import { basisPoints, cents, count, day, flag, isWatchedConfidence, table, text } from '../src/apps/company/packs/hr-doo/ruleset/schema'
@@ -22,6 +23,7 @@ const AREA_FILES: readonly { readonly area: RuleArea; readonly rules: readonly G
   { area: 'accounting', rules: accountingRules, openItems: accountingOpenItems },
   { area: 'vat', rules: vatRules, openItems: vatOpenItems },
   { area: 'company-law', rules: companyLawRules, openItems: companyLawOpenItems },
+  { area: 'state-payments', rules: statePaymentRules, openItems: statePaymentOpenItems },
 ]
 
 const AREA_BY_ID_PREFIX: readonly (readonly [string, RuleArea])[] = [
@@ -33,6 +35,7 @@ const AREA_BY_ID_PREFIX: readonly (readonly [string, RuleArea])[] = [
   ['hr.vat.', 'vat'],
   ['hr.ztd.', 'company-law'],
   ['hr.levy.', 'company-law'],
+  ['hr.state.', 'state-payments'],
 ]
 
 const rules: readonly GeneralRule[] = RULES
@@ -190,8 +193,6 @@ function sourceProblems(where: string, source: LegalSource): string[] {
   }
   if (!isCivilDate(source.loadedOn)) {
     problems.push(`${where}: load date ${source.loadedOn} is not a date`)
-  } else if (source.loadedOn > RULESET_CHECKED_ON) {
-    problems.push(`${where}: loaded on ${source.loadedOn}, after the ruleset was checked`)
   }
   if (source.quote !== undefined && source.quote.trim() === '') {
     problems.push(`${where}: an empty quote`)
@@ -517,6 +518,22 @@ describe('the values derived from other values', () => {
     }
     expect(localRates?.versions.length).toBeGreaterThan(1)
     expect(problems).toEqual([])
+  })
+
+  it('says every source was checked on or after the oldest day one was loaded on', () => {
+    const days = rules.flatMap((rule) => rule.versions.flatMap((version) => version.sources.map((source) => source.loadedOn)))
+    expect(days.every((loaded) => loaded >= sourcesCheckedSince())).toBe(true)
+    expect(days).toContain(sourcesCheckedSince())
+  })
+
+  it('gives the Naputak of 2026 revenue codes for VAT, profit tax and pillar I, with model HR68, until a later one exists', () => {
+    const codes = ruleValue('hr.state.revenue-codes', day('2026-01-01'))
+
+    expect(codes.version.sources.map((source) => source.act)).toEqual(['Naputak2026'])
+    expect(ACTS.Naputak2026.nn).toEqual(['18/26', '39/26'])
+    expect([codes.value.model.text, codes.value.vatCode.text, codes.value.profitTaxCode.text, codes.value.pensionPillarOneCode.text]).toEqual(['HR68', '1201', '1651', '8168'])
+    expect(ruleValue('hr.state.revenue-codes', day('2027-06-01')).version).toBe(codes.version)
+    expect(() => ruleValue('hr.state.revenue-codes', day('2025-12-31'))).toThrow(RangeError)
   })
 
   it('names the depreciation groups the way the assets tab does', () => {

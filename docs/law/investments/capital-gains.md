@@ -31,7 +31,7 @@ The tax is final. It is not part of the annual income tax return and takes no pe
 
 ZPDoh Art. 70(4) (NN 114/23): "obračunati, obustaviti i uplatiti do posljednjeg dana mjeseca veljače tekuće godine za sve kapitalne dobitke ostvarene u prethodnoj godini umanjene za ostvarene kapitalne gubitke ... po stopi od 12%". NN 114/23 Art. 28 replaced "od 10 %" with "od 12 %" in Art. 70(1), (4), (17) and (19), and NN 114/23 Art. 42 put that article in force on 1 January 2024. Both read in the NN text. Porezna uprava's notice for 2025 gains (13 January 2026) applies 12%.
 
-2027 assumed: no enacted change was found through NN 126/26. A 2027 bill adds a Croatian investment account and leaves the 12% alone, see the [watch list](sources/watch-list.md#bills-and-drafts). Kuna uses the 2026 row for a later year and says so.
+2027 assumed: no enacted change was found through NN 126/26. A 2027 bill adds a Croatian investment account and leaves the 12% alone, see the [watch list](../sources/watch-list.md#bills-and-drafts). Kuna uses the 2026 row for a later year and says so.
 
 Screen: Settled.
 

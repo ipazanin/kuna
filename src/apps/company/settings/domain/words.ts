@@ -1,4 +1,5 @@
 import { language } from '../../../../shared/text/language'
+import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
 import type { Translation } from '../../../../shared/text/translation'
 
@@ -97,6 +98,10 @@ export const en = {
     shareBucket: (slug: string, bucket: string) => `"${slug}" is in the ${bucket} bucket, and only an operating category holds an owner share.`,
     shareRole: (slug: string, role: string) => `"${slug}" holds an owner share only once a category carries the ${role} role, where the owner's part counts.`,
     unknownRoles: (slug: string, roles: string) => `"${slug}" takes only roles the app knows, not ${roles}.`,
+    noClass: (slug: string) => `Pick how Kuna counts "${slug}".`,
+    oneClass: (slug: string, classes: readonly string[]) => `Kuna counts a category one way, and "${slug}" has ${listInWords(classes)}.`,
+    classVat: (slug: string, taxClass: string, treatments: readonly string[], vat: string) => `"${slug}" carries ${taxClass}, which allows only ${listInWords(treatments, 'or')}, not ${vat}.`,
+    classBucket: (slug: string, taxClass: string, buckets: readonly string[], bucket: string) => `"${slug}" carries ${taxClass}, which allows only ${listInWords(buckets, 'or')}, not ${bucket}.`,
   },
   /** Why a new IBAN on the accounts or the clients tab is refused. */
   notAnIban: (iban: string) => `"${iban}" is not a valid IBAN.`,
@@ -174,6 +179,11 @@ export const hr: Translation<typeof en> = {
     shareBucket: (slug, bucket) => `„${slug}” je u skupini ${croatianBucket(bucket)}, a udio vlasnika ima samo kategorija skupine ${croatianBucket('operating')}.`,
     shareRole: (slug, role) => `„${slug}” može imati udio vlasnika tek kad neka kategorija ima ulogu ${role}, u kojoj se broji vlasnikov dio.`,
     unknownRoles: (slug, roles) => `„${slug}” uzima samo uloge koje aplikacija poznaje, a ne ${roles}.`,
+    noClass: (slug) => `Odaberite kako Kuna broji „${slug}”.`,
+    oneClass: (slug, classes) => `Kuna kategoriju broji na jedan način, a „${slug}” ima ${listInWords(classes)}.`,
+    classVat: (slug, taxClass, treatments, vat) => `„${slug}” ima porezni tretman ${taxClass}, koji dopušta samo ${listInWords(treatments, 'or')}, a ne ${vat}.`,
+    classBucket: (slug, taxClass, buckets, bucket) =>
+      `„${slug}” ima porezni tretman ${taxClass}, koji dopušta samo skupinu ${listInWords(buckets.map(croatianBucket), 'or')}, a ne ${croatianBucket(bucket)}.`,
   },
   notAnIban: (iban) => `„${iban}” nije ispravan IBAN.`,
   clients: {

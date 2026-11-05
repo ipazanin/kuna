@@ -11,6 +11,7 @@ import { plural } from '../../../../shared/text/translation'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
 import { shownPack } from '../../packs/packContribution'
 import type { Verdict } from '../../rules/domain/categorise'
+import { installedPack } from '../../packs/packContribution'
 import { draftForRow } from '../../rules/domain/ruleDraft'
 import { categorisationContextOf } from '../../rules/domain/transactionFacts'
 import RuleEditor from '../../rules/presentation/RuleEditor.vue'
@@ -84,7 +85,12 @@ const editorSource = ref<RuleEditorSource | null>(null)
 function makeRule(transaction: Transaction): void {
   const workbook = state.workbook
   if (workbook === null) return
-  editorSource.value = { title: words.review.makeRuleFromRow, draft: draftForRow(transaction, workbook, categorisationContextOf(workbook)), edited: null, split: [] }
+  editorSource.value = {
+    title: words.review.makeRuleFromRow,
+    draft: draftForRow(transaction, workbook, categorisationContextOf(workbook), installedPack().workbook?.directionPairedRoles ?? []),
+    edited: null,
+    split: [],
+  }
   editorOpen.value = true
 }
 

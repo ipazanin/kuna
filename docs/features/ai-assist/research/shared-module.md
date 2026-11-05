@@ -222,7 +222,7 @@ Before building stage 3, count the real prompts once with the free `count_tokens
 
 1. **Everything in the prompt.** About 35,000 to 45,000 tokens for the 79 rules, without local rates. Simple, and the model sees cross-references. But it re-sends 40,000 tokens per question, cites nothing machine-readable unless asked to, and grows with every rule the owner adds.
 2. **A cached system prompt.** The same content behind `cache_control`. A 5-minute cache write costs 1.25 times base input, a read 0.1 times, and 0.05 times on Opus 5.5 and Sonnet 5.5. The minimum cacheable prompt is 512 tokens on Opus 5.5, Sonnet 5.5 and Haiku 5.5. Order is tools, then system, then messages, and up to 4 breakpoints ([Prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)). This only pays when follow-up questions come within the TTL, which suits a chat about one figure. A one-off question pays the 25% write premium for nothing. OpenAI caches automatically from 1,024 tokens, "discounted up to 95%", for about 5 to 10 minutes ([OpenAI prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching)).
-3. **Tools the model calls.** The cached system prompt holds the rule index (id, area, title, about 3,000 tokens) and the day the ruleset was checked (`RULESET_CHECKED_ON`, `src/apps/company/packs/hr-doo/ruleset/ruleset.ts:22`). Tools return what is needed:
+3. **Tools the model calls.** The cached system prompt holds the rule index (id, area, title, about 3,000 tokens) and the oldest day a rule source was checked (`sourcesCheckedSince` in `src/apps/company/packs/hr-doo/ruleset/ruleset.ts`). Tools return what is needed:
 
 | Tool                                | Calls                                                                           | Returns                                                            |
 | ----------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
@@ -305,7 +305,7 @@ The code checks, before anything shows:
 
 - Every `sources` entry is a real rule id in `RULES`, or a `TAX_RULES` law anchor that `tests/lawDocs.spec.ts:95` already proves, and it was returned by a tool in this run (`ToolAnswer.sources`). An unknown or unseen id drops that part and marks the answer "partly unchecked".
 - Each cited rule shows as the chip the ruleset screen already uses, linking to `/company/settings?tab=tax-rules&rule=<id>` (`src/apps/company/packs/hr-doo/ruleset/presentation/taxRuleLinks.ts:10`), with its confidence badge. Any version with a watched confidence (`estimate`, `pending`, `unconfirmed`, `isWatchedConfidence` at `schema.ts:118`) is said out loud in the answer, not left to a badge.
-- Every law answer ends with the day the ruleset was checked (`RULESET_CHECKED_ON`).
+- Every law answer ends with the oldest day a rule source was checked (`sourcesCheckedSince`).
 - A question the library does not cover comes back in `outsideTheLibrary`, shown as "Kuna's rules do not cover this", pointing to the watch list. Whether the model may add general knowledge there is decision 6.
 
 ### Figures only through tools

@@ -5,7 +5,10 @@ import { RECEIVABLE_ROLES } from '../../receivables/domain/invoiceMatching'
 import { isPaletteColour } from '../../workbook/domain/categoryColour'
 import { slugChangeRefusals } from '../../workbook/domain/slug'
 import type { SlugUses } from '../../workbook/domain/slug'
+import type { CategoryClass } from '../../workbook/domain/packPart'
 import { ADVANCE_BUCKETS } from '../../workbook/domain/workbook'
+import { classFindings, sameClassedFields } from './categoryClasses'
+import type { ClassedFields } from './categoryClasses'
 import { words } from './words'
 
 /** One categories row before and after a change, as the fields a check reads. `before` is null for an added row, `after` for a deleted one. */
@@ -105,5 +108,30 @@ export function categoryRoleRefusals(edits: readonly CategoryEdit<{ readonly slu
   return edits.flatMap((edit) => {
     const unknown = (edit.after?.roles ?? []).filter((role) => !known.includes(role) && !(edit.before?.roles ?? []).includes(role))
     return edit.after === null || unknown.length === 0 ? [] : [words.refusals.unknownRoles(edit.after.slug, unknown.map((role) => `"${role}"`).join(', '))]
+  })
+}
+
+/**
+ * A category a change adds, or whose roles, VAT or bucket it changes, carries one of the pack's
+ * classes and keeps to that class's VAT treatments and buckets. A category the change leaves alone
+ * keeps what it was saved with, so the tab saves before every category is classified.
+ */
+export function categoryClassRefusals(edits: readonly CategoryEdit<ClassedFields & { readonly slug: string }>[], classes: readonly CategoryClass[]): string[] {
+  return edits.flatMap(({ before, after }) => {
+    if (after === null || (before !== null && sameClassedFields(before, after))) {
+      return []
+    }
+    return classFindings(after, classes).map((finding) => {
+      switch (finding.kind) {
+        case 'unclassed':
+          return words.refusals.noClass(after.slug)
+        case 'classes':
+          return words.refusals.oneClass(after.slug, finding.roles)
+        case 'vat':
+          return words.refusals.classVat(after.slug, finding.taxClass.role, finding.taxClass.vat, after.vat === '' ? 'none' : after.vat)
+        case 'bucket':
+          return words.refusals.classBucket(after.slug, finding.taxClass.role, finding.taxClass.buckets, after.bucket)
+      }
+    })
   })
 }

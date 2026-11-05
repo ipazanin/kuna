@@ -119,7 +119,7 @@ export function isWatchedConfidence(confidence: Confidence): confidence is Watch
   return confidence === 'estimate' || confidence === 'pending' || confidence === 'unconfirmed'
 }
 
-export type RuleArea = 'profit-tax' | 'owner-pay' | 'accounting' | 'vat' | 'company-law'
+export type RuleArea = 'profit-tax' | 'owner-pay' | 'accounting' | 'vat' | 'company-law' | 'state-payments'
 
 /** Which date picks a rule's version: the tax period's first day, the payment date, the supply date or the event's date. */
 export type AppliesBy = 'tax-period' | 'month-worked' | 'payment-date' | 'supply-date' | 'event-date'

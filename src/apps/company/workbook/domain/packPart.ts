@@ -1,3 +1,5 @@
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import type { Rule } from '../../rules/domain/rule'
 import type { PackSettings } from '../../settings/domain/settings'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -5,6 +7,8 @@ import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
+import type { DefinedBucket } from './bucket'
+import type { VatTreatment } from './vatTreatment'
 import type { OwnerAdvance, Workbook, WorkbookProblem } from './workbook'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 
@@ -31,6 +35,24 @@ export interface CategoryNaming {
   categoriesOf(fields: StoredFields): readonly string[]
 }
 
+/** A way a pack counts a category, which the category takes by carrying its role, with the VAT treatments and buckets it allows. */
+export interface CategoryClass {
+  readonly role: string
+  readonly vat: readonly VatTreatment[]
+  readonly buckets: readonly DefinedBucket[]
+}
+
+/** A category new books start with, as its row on the categories tab holds it. */
+export interface StartingCategory {
+  readonly slug: string
+  readonly family: string
+  readonly bucket: DefinedBucket
+  /** As the tab stores it. A colour outside the palette draws in the bucket's colour. */
+  readonly colour: string
+  readonly roles: readonly string[]
+  readonly vat: VatTreatment
+}
+
 /**
  * How a pack makes its part of the workbook: the settings keys it reads, which core leaves to it,
  * and the part made from its records once core's records are read.
@@ -50,6 +72,14 @@ export interface PackPart<Part, Values> {
   readonly ownerAdvanceNaming: CategoryNaming
   /** The roles the pack picks categories by, as the `roles` column spells them. */
   readonly categoryRoles: readonly string[]
+  /** The classes a category carries one of, each by one of `categoryRoles`. None means categories need no class. */
+  readonly categoryClasses: readonly CategoryClass[]
+  /** The roles of categories that come in a credit and a debit pair, such as a loan out and its repayment, whose proposed rules go by direction. */
+  readonly directionPairedRoles: readonly string[]
+  /** The categories new books start with. */
+  readonly startingCategories: readonly StartingCategory[]
+  /** The category rules new books made on the day start with. */
+  startingRules(on: CivilDate): readonly Rule[]
   /** The part, from the pack's records, the values its settings keys hold and core's workbook, with the problems of its records and its keys. */
   assemble(records: PackRecords, values: Values, core: Workbook): { readonly part: Part; readonly problems: readonly WorkbookProblem[] }
   /** The costs the owner paid privately that the part holds, which profit and loss, Transactions and the filters count beside the bank rows. */

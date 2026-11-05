@@ -19,8 +19,13 @@ export function civilDate(year: number, month: number, day: number): CivilDate {
 
 /** The day it is on this device. */
 export function today(): CivilDate {
-  const now = new Date()
-  return civilDate(now.getFullYear(), now.getMonth() + 1, now.getDate())
+  return localDayAt(Date.now())
+}
+
+/** The day an instant, in epoch milliseconds, falls on where the app runs. */
+export function localDayAt(instant: number): CivilDate {
+  const at = new Date(instant)
+  return civilDate(at.getFullYear(), at.getMonth() + 1, at.getDate())
 }
 
 /** A Sheets serial date such as 46310. A fraction is a time of day, which is dropped. */

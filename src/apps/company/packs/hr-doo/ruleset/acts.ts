@@ -9,6 +9,7 @@ export type ActId =
   | 'PravDop'
   | 'Naredba2025'
   | 'Naredba2026'
+  | 'Naputak2026'
   | 'ZMP'
   | 'UredbaMP2025'
   | 'UredbaMP2026'
@@ -101,6 +102,13 @@ export const ACTS: Readonly<Record<ActId, Act>> = {
     nn: ['150/25'],
     nnComplete: true,
     textUrl: 'https://narodne-novine.nn.hr/clanci/sluzbeni/2025_12_150_2237.html',
+  },
+  Naputak2026: {
+    id: 'Naputak2026',
+    title: 'Naputak o načinu uplaćivanja prihoda proračuna, obveznih doprinosa te prihoda za financiranje drugih javnih potreba u 2026. godini',
+    nn: ['18/26', '39/26'],
+    nnComplete: false,
+    textUrl: 'https://narodne-novine.nn.hr/clanci/sluzbeni/2026_02_18_197.html',
   },
   ZMP: {
     id: 'ZMP',

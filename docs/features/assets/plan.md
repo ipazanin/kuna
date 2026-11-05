@@ -76,7 +76,7 @@ A new case checks that every listed reader exists and imports the file, and that
 Both live inside Assets.
 
 - **The DZS index** (`src/apps/assets/houseIndex/`) has one user. Investments fetches security closes by GET with no headers (`src/apps/investments/prices/infrastructure/browserPricePorts.ts:3-7`). The DZS needs a POST with a JSON body and parses JSON-stat. The two change for different reasons, vendor quotas against a statistics office's release cycle, so there is nothing to share. A second user of JSON-stat, say a Eurostat fallback, would be the time to move the parser to `src/shared`.
-- **The customs table** (`src/apps/assets/carValue/`) has one user. The company's car depreciation is a tax rule of the hr-doo ruleset, which changes when the tax law changes. The customs table changes when the special tax rules on cars change. The table follows the repo's law convention: its rows live in `docs/law/used-car-value.md` with their source, and `tests/lawDocs.spec.ts` compares them with the code, as it does for the tax rates (the repo's `docs/law/README.md`, "Tied to the code").
+- **The customs table** (`src/apps/assets/carValue/`) has one user. The company's car depreciation is a tax rule of the hr-doo ruleset, which changes when the tax law changes. The customs table changes when the special tax rules on cars change. The table follows the repo's law convention: its rows live in `docs/law/assets/used-car-value.md` with their source, and `tests/lawDocs.spec.ts` compares them with the code, as it does for the tax rates (the repo's `docs/law/README.md`, "Tied to the code").
 
 ### What moves to `src/shared` now
 
@@ -243,7 +243,7 @@ One commit for the whole wave, checked with lint, format, typecheck, vitest, bot
 ### 3. The values
 
 - New: `houseIndex/` (domain, the adapter, its fake, `useHouseIndex.ts`), `carValue/domain/customsTable.ts`, `values/domain/assetValue.ts`.
-- New: `docs/law/used-car-value.md` with Tablica 1, its source and "Open points", then `npm run law-index`. `tests/lawDocs.spec.ts` compares its table with `CUSTOMS_TABLE`. The law README's opening line widens from the Tax screen to Kuna's screens.
+- New: `docs/law/assets/used-car-value.md` with Tablica 1, its source and "Open points", then `npm run law-index`. `tests/lawDocs.spec.ts` compares its table with `CUSTOMS_TABLE`. The law README's opening line widens from the Tax screen to Kuna's screens.
 - Changed: `index.html:7` `connect-src` gains `https://web.dzs.hr`. `public/privacy.html:242-246` names the DZS beside the price vendors: Kuna asks it for the house price index, sending only the table's query, never anything of yours.
 - New specs:
   - `tests/houseIndex.spec.ts`: the worked example's €238,884.80, a valuation newer than the index, a home without a region, the quarter of a day at each quarter's edges, and the reader over a saved JSON-stat answer with its ids reordered.

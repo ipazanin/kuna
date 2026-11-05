@@ -155,7 +155,7 @@ From stage 4 every explanation and question uses one answer shape:
 - `figures` are refs Kuna gave each amount, such as `f.0.2`. The screen shows the amount from Kuna's own value with `MoneyText`.
 - Code scans each part's text for amounts and rates in both `1.234,56` and `1,234.56` forms. Any amount that does not equal one Kuna sent or a tool returned flags "Contains a figure Kuna did not compute", with one retry offered. It is never corrected silently.
 - `ownKnowledge` is what the model adds from its own knowledge. It shows below the cited parts, in a warning box titled **Not from Kuna's rules**, with no source chips. Its amounts carry the same flag.
-- A law answer ends with the day the ruleset was checked (`RULESET_CHECKED_ON`, `packs/hr-doo/ruleset/ruleset.ts:22`), or the day the docs/law file was checked.
+- A law answer ends with the oldest day a rule source was checked (`sourcesCheckedSince` in `packs/hr-doo/ruleset/ruleset.ts`), or the day the docs/law file was checked.
 
 ### Never
 
@@ -386,7 +386,7 @@ Each preset also holds its base URL, its key test and its retention sentence. Ha
 - New `src/shared/ai/domain/citedAnswer.ts`: the answer schema and `checkCitedAnswer`, as under the rules.
 - New `src/shared/ai/presentation/CitedAnswerView.vue`: the parts, a chip per source through a `sourceLink` the app passes, the figures through `MoneyText`, the own-knowledge box, the flags and the usage line.
 - New `packs/hr-doo/assist/application/explainFigure.ts`, task `hr-doo.explain-figure`, effort `medium`, no tools:
-  - **Input:** the `TracedFigure` tree (`packs/hr-doo/ruleset/tracedFigure.ts:12-23`) with a ref per node (`f`, `f.0`, `f.0.2`), each label, day, amount and basis, the whole tree with no depth cap. For each `RuleCitation` (`packs/hr-doo/ruleset/schema.ts:183-189`) the version's terms through `versionOn` (`ruleset.ts:61`), its sources and its confidence. Then `RULESET_CHECKED_ON`. The ledger rows behind `drill` are never sent.
+  - **Input:** the `TracedFigure` tree (`packs/hr-doo/ruleset/tracedFigure.ts:12-23`) with a ref per node (`f`, `f.0`, `f.0.2`), each label, day, amount and basis, the whole tree with no depth cap. For each `RuleCitation` (`packs/hr-doo/ruleset/schema.ts:183-189`) the version's terms through `versionOn` (`ruleset.ts:61`), its sources and its confidence. Then `sourcesCheckedSince()`. The ledger rows behind `drill` are never sent.
   - **Check:** `checkCitedAnswer`, where the sources Kuna sent are the cited rule ids and the amounts are the tree's.
 - Changed `packs/hr-doo/presentation/tracedFigureView.ts`: `FigureDetail` (`:52-61`) gains `figure: TracedFigure` and `employees: boolean`, set by `figureDetail` (`:96-106`). The calls in `packs/hr-doo/presentation/salaries/salariesView.ts` (`:375`, `:406`, `:437`, `:453`, `:460`) pass `employees: true`.
 - Changed `packs/hr-doo/presentation/FigureDialog.vue`: an **Explain** button under the rules (`:31-44`) and `CitedAnswerView` below, its chips linking with `ruleLink` (`packs/hr-doo/ruleset/presentation/taxRuleLinks.ts:9`). A figure with `employees` asks for the task's employee switch first.
@@ -425,7 +425,7 @@ Two tasks, one per app, since the ruleset is the pack's and docs/law is Investme
 
 **Company: ask the rules**
 
-- New `packs/hr-doo/assist/application/askRules.ts`, task `hr-doo.ask-rules`, effort `medium`. The system prompt, cached with `cache_control` on Anthropic: what the ruleset is, the index of every rule (id, area, title through `ruleTitle`, `packs/hr-doo/ruleset/presentation/ruleTitles.ts:102`), the areas (`schema.ts:122`) and `RULESET_CHECKED_ON`. Measured at about 7,800 characters in the research, so about 2,500 to 3,500 tokens.
+- New `packs/hr-doo/assist/application/askRules.ts`, task `hr-doo.ask-rules`, effort `medium`. The system prompt, cached with `cache_control` on Anthropic: what the ruleset is, the index of every rule (id, area, title through `ruleTitle`, `packs/hr-doo/ruleset/presentation/ruleTitles.ts:102`), the areas (`schema.ts:122`) and `sourcesCheckedSince()`. Measured at about 7,800 characters in the research, so about 2,500 to 3,500 tokens.
 - New `packs/hr-doo/assist/application/ruleTools.ts`:
 
 | Tool                        | Calls                                                                         | Returns                                                                       |

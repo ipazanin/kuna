@@ -8,6 +8,8 @@ import { COMPANY_FACT_SETTINGS, companyFactsErrors } from './domain/companyFacts
 import { HR_DOO, HR_DOO_PART, hrDooWorkbook } from './domain/hrDooPart'
 import { ownerTakeOut } from './presentation/ownerTakeOut'
 import { packWaitingJobs } from './presentation/packWaitingJobs'
+import { categoriesToSort } from './preset/presentation/categoriesToSort'
+import { categoryClassHelp } from './preset/presentation/categoryClassHelp'
 import { unaccountedInView } from './presentation/unaccountedInView'
 import { words as packWords } from './presentation/words'
 import { TAX_RULES_TAB } from './ruleset/presentation/taxRuleLinks'
@@ -47,6 +49,8 @@ export const hrDooPack: PackContribution = {
     },
   },
   costGroupLinks: (group) => COST_GROUP_LINKS[group] ?? null,
+  categoryClassHelp,
+  categoriesToSort,
   mailSources: ACCOUNTANT_MAIL_SOURCES,
   onboarding: packWords.onboarding,
 }

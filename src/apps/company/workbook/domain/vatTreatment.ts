@@ -9,3 +9,8 @@ export type VatTreatment = (typeof VAT_TREATMENTS)[number]
 export function isVatTreatment(text: string): text is VatTreatment {
   return (VAT_TREATMENTS as readonly string[]).includes(text)
 }
+
+/** A treatment as the `vat` column holds it: none as a blank cell. */
+export function vatCell(treatment: string): string {
+  return treatment === 'none' ? '' : treatment
+}

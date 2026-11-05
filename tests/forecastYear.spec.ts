@@ -6,6 +6,9 @@ import { forecastYear } from '../src/apps/company/packs/hr-doo/domain/forecast/f
 import type { YearForecast } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastYear'
 import { accrualYear } from '../src/apps/company/packs/hr-doo/domain/accrual/accrualYear'
 import type { Money } from '../src/shared/money/money'
+import type { TaxBase } from '../src/apps/company/packs/hr-doo/domain/cit/taxBase'
+import type { VatTreatment } from '../src/apps/company/workbook/domain/vatTreatment'
+import { STUDIO_CATEGORIES, exampleStudio } from './fixtures/exampleStudio'
 import { planRow } from './fixtures/billingPlan'
 import { civil, euros } from './fixtures/ledger'
 import { STEADY_INVOICES, planLine, planOwnerPay, planPurchase, steadyStudio } from './fixtures/steadyStudio'
@@ -388,5 +391,24 @@ describe('forecastYear without a registration day', () => {
     const unregistered = { ...workbook, companyFacts: { ...workbook.companyFacts, companyRegistered: null } }
 
     expect(() => forecastYear(unregistered, 2026, civil('2026-10-19'))).toThrow('hr_company_registered')
+  })
+})
+
+describe('forecastYear and accrualYear on a closed year’s representation', () => {
+  const representationAddBack = (base: TaxBase): Money | undefined => base.increases.steps.find((entry) => entry.label.startsWith('PD line 6, representation'))?.amount
+  const addBacks = (vat: VatTreatment): { readonly forecast: Money | undefined; readonly accrual: Money | undefined } => {
+    const workbook = exampleStudio({ categories: STUDIO_CATEGORIES.map((category) => (category.slug === 'representation' ? { ...category, vat } : category)) })
+    return {
+      forecast: representationAddBack(forecastYear(workbook, 2025, civil('2026-10-18')).taxBase),
+      accrual: representationAddBack(accrualYear(workbook, 2025, { depreciation: { depreciationDoubled: false }, citAdvancesPaid: null }).taxBase),
+    }
+  }
+
+  it('adds back the same half of 80.00 in both while representation carries its own VAT', () => {
+    expect(addBacks('representation')).toEqual({ forecast: euros(40), accrual: euros(40) })
+  })
+
+  it.fails('adds back the same representation in both when it is stored with a deductible rate', () => {
+    expect(addBacks('deductible-25')).toEqual({ forecast: euros(40), accrual: euros(40) })
   })
 })

@@ -18,6 +18,8 @@ import { writeDrafts } from '../application/draftWrites'
 import { CATEGORY_WRITES, categoryUses } from '../application/namedRecordWrites'
 import type { RecordsOfKind } from '../application/namedRecordWrites'
 import { knownRoles } from '../domain/categoryGuards'
+import { newestBookingOf } from '../../workbook/domain/workbook'
+import { today } from '../../../../shared/calendar/civilDate'
 import CategoriesEditor from './CategoriesEditor.vue'
 import { storedCount } from './settingsCounts'
 import { words } from './words'
@@ -32,6 +34,10 @@ const writes = useRecordWrites(useWorkbook())
 const recordsOnScreen: RecordsOfKind = (kind) => (state.records === null ? NO_RECORDS : recordsOfKindIn(state.records, kind))
 const categoriesInUse = computed(() => categoryUses(recordsOnScreen))
 const roles = knownRoles(installedPack().workbook?.categoryRoles ?? [])
+const classes = installedPack().workbook?.categoryClasses ?? []
+/** The day the classes' shares are read on: the newest booking's, or today's in books with none yet. */
+const sharesOn = computed(() => newestBookingOf(state.workbook?.transactions ?? []) ?? today())
+const classHelp = (role: string) => installedPack().categoryClassHelp(role, sharesOn.value)
 const categories = computed(() => state.records?.categories ?? NO_RECORDS)
 const saving = computed(() => writes.busy.value || state.writing)
 
@@ -85,8 +91,17 @@ function writeCategories(made: MadeCategories, fills: readonly ShareFill[]): voi
 
 <template>
   <AppCard :title="words.categories.title" collapse-id="settings.categories" :summary="plural(words.categories.count(storedCount(categories)), storedCount(categories))" :reveal="linked">
-    <template #subtitle>{{ words.categories.subtitle }}</template>
-    <CategoriesEditor :records="categories" :uses="categoriesInUse" :roles="roles" :shares="settings.ownerPayModule" :saving="saving" @save="saveCategories" />
+    <template #subtitle>{{ classes.length > 0 ? `${words.categories.subtitle} ${words.categories.classesNote}` : words.categories.subtitle }}</template>
+    <CategoriesEditor
+      :records="categories"
+      :uses="categoriesInUse"
+      :roles="roles"
+      :classes="classes"
+      :class-help="classHelp"
+      :shares="settings.ownerPayModule"
+      :saving="saving"
+      @save="saveCategories"
+    />
   </AppCard>
   <ShareFillDialog v-if="filling" v-model:open="fillOpen" :fills="filling.fills" @answer="answerFill" />
 </template>

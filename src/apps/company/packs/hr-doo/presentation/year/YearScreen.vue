@@ -22,7 +22,7 @@ import { useDisplayNames } from '../../../../workbook/application/useDisplayName
 import type { RecordId } from '../../../../../../shared/storage/domain/recordId'
 import EmptyState from '../../../../../../shared/ui/EmptyState.vue'
 import ConfidenceBadge from '../../ruleset/presentation/ConfidenceBadge.vue'
-import { RULESET_CHECKED_ON } from '../../ruleset/ruleset'
+import { sourcesCheckedSince } from '../../ruleset/ruleset'
 import { planDefaults } from '../../domain/forecast/forecastYear'
 import { PACK_ROLES, categoriesWithRole } from '../../domain/packRoles'
 import { employmentFreeFrom } from '../../domain/scenarios/startingScenarios'
@@ -67,7 +67,7 @@ const { drillLocation } = useFilters()
 const route = useRoute()
 const router = useRouter()
 
-const checkedOn = dayLabel(RULESET_CHECKED_ON)
+const checkedOn = dayLabel(sourcesCheckedSince())
 
 /** The newest booking. Its year is the current one, which a link without a year opens. */
 const asOf = computed(() => newestBookingOf(ledger.value?.workbook.transactions ?? []))

@@ -13,13 +13,15 @@ export interface ImportSummary {
   readonly dateRange: DateRange | null
   readonly categoryCount: number
   readonly problems: readonly WorkbookProblem[]
+  /** The categories the pack cannot count one way yet, which are no reading problem. */
+  readonly categoriesToSort: readonly WorkbookProblem[]
   /** Optional tabs the file lacks, whose defaults apply. */
   readonly defaultedTabs: readonly WorkbookTabName[]
   /** Why the file cannot be imported at all, or null. */
   readonly refusal: string | null
 }
 
-export function importSummary(workbook: Workbook, missingTabs: readonly WorkbookTabName[]): ImportSummary {
+export function importSummary(workbook: Workbook, missingTabs: readonly WorkbookTabName[], categoriesToSort: readonly WorkbookProblem[]): ImportSummary {
   const dates = workbook.transactions.map((transaction) => transaction.date).sort()
   const first = dates[0]
   const last = dates[dates.length - 1]
@@ -29,6 +31,7 @@ export function importSummary(workbook: Workbook, missingTabs: readonly Workbook
     dateRange: first === undefined || last === undefined ? null : { from: first, to: last },
     categoryCount: workbook.categories.length,
     problems: workbook.problems,
+    categoriesToSort,
     defaultedTabs: missingTabs.filter((tab) => tab !== 'ledger'),
     refusal: missingTabs.includes('ledger') ? words.noLedger : null,
   }

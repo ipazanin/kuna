@@ -24,6 +24,9 @@ import { SCENARIO_CODEC, readScenarios } from './scenarios/scenariosReading'
 import type { YearEndLine } from './yearEnd/yearEnd'
 import { YEAR_END_CODEC, readYearEnd } from './yearEnd/yearEndReading'
 import { counted } from '../../../workbook/domain/slug'
+import { STARTING_CATEGORIES } from '../preset/domain/startingCategories'
+import { startingRules } from '../preset/domain/startingRules'
+import { CATEGORY_CLASSES } from '../preset/domain/taxClassOf'
 import { words } from './words'
 
 /** The pack's part of the workbook: the records only the pack reads, the costs it hands core, and the facts its settings keys hold. */
@@ -81,6 +84,10 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
   ],
   ownerAdvanceNaming: OWNER_ADVANCE_NAMING,
   categoryRoles: [...Object.values(PACK_ROLES), ...TAX_FREE_ROLES],
+  categoryClasses: CATEGORY_CLASSES,
+  directionPairedRoles: [PACK_ROLES.ownerLoanOut, PACK_ROLES.ownerLoanRepaid, PACK_ROLES.reimbursement],
+  startingCategories: STARTING_CATEGORIES,
+  startingRules,
   assemble: (records, companyFacts, core) => {
     const categorySlugs = new Set(core.categories.map((category) => category.slug))
     const grants = readGrants(recordsOfKind(records, GRANT_RECORDS))

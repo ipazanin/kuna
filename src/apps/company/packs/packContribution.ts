@@ -9,7 +9,8 @@ import type { Settings } from '../settings/domain/settings'
 import type { SettingsTab } from '../settings/presentation/settingsTabs'
 import type { FilteredLedger } from '../transactions/application/useFilteredLedger'
 import type { PackPart } from '../workbook/domain/packPart'
-import type { Workbook } from '../workbook/domain/workbook'
+import type { Category, Workbook } from '../workbook/domain/workbook'
+import type { RecordProblem } from '../../../shared/storage/domain/recordsRead'
 
 /**
  * A card on the To review tab of Transactions, under the rows to review. It takes `busy`, true while another write
@@ -55,6 +56,14 @@ export type OwnerTakeOut =
     }
   | { readonly kind: 'missing'; readonly reason: string }
 
+/** How the categories editor explains a class: its name, what Kuna counts with it, and where the rule behind it shows. */
+export interface CategoryClassHelp {
+  readonly name: string
+  /** Such as "Kuna counts this as representation". */
+  readonly sentence: string
+  readonly link: { readonly label: string; readonly to: RouteLocationRaw }
+}
+
 /** What a pack adds to the core screens and figures. Its components are async, so the pack's code loads only with them. */
 export interface PackContribution {
   /** The pack's part of the workbook, read whatever the owner-pay switch says. */
@@ -73,6 +82,13 @@ export interface PackContribution {
   readonly companyFacts: PackCompanyFacts<unknown> | null
   /** Where the spending breakdown links a cost group the pack breaks down further. */
   costGroupLinks(group: string): { readonly label: string; readonly to: RouteLocationRaw } | null
+  /** The help for the class a role carries, with the law's figures in force on the day, or null for a role that carries none. */
+  categoryClassHelp(role: string, on: CivilDate): CategoryClassHelp | null
+  /**
+   * The categories that do not count one way yet, each with what to change, with the law's figures in
+   * force on the day. They are no reading problem: the figures still count each by its bucket and VAT.
+   */
+  categoriesToSort(categories: readonly Category[], on: CivilDate): readonly RecordProblem[]
   /** Kinds of mail the sync's mail step looks for after core's, in order. */
   readonly mailSources: readonly MailSource[]
   readonly onboarding: PackOnboarding | null
@@ -88,6 +104,8 @@ const NO_PACK: PackContribution = {
   settingsCards: [],
   companyFacts: null,
   costGroupLinks: () => null,
+  categoryClassHelp: () => null,
+  categoriesToSort: () => [],
   mailSources: [],
   onboarding: null,
 }

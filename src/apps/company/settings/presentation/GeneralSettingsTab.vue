@@ -8,6 +8,8 @@ import ProblemList from '../../workbook-files/presentation/ProblemList.vue'
 import { installedPack, shownPack } from '../../packs/packContribution'
 import { presentedWorkbook } from '../../transactions/application/presentedWorkbook'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import { newestBookingOf, tabProblems } from '../../workbook/domain/workbook'
+import { today } from '../../../../shared/calendar/civilDate'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { removeSettings } from '../application/settingWrites'
 import { unreadSettingKeys } from '../domain/settings'
@@ -23,6 +25,11 @@ const writes = useRecordWrites(useWorkbook())
 
 /** The reader's problems and the splits the figures leave out, such as one of a row an asset claims. */
 const problems = computed(() => (state.workbook === null ? [] : presentedWorkbook(state.workbook).problems))
+
+/** The categories that do not count one way yet, which the figures still count by bucket and VAT, so they are no reading problem. */
+const toSort = computed(() =>
+  state.workbook === null ? [] : tabProblems('categories', installedPack().categoriesToSort(state.workbook.categories, newestBookingOf(state.workbook.transactions) ?? today())),
+)
 
 const settingRecords = computed(() => state.records?.settings ?? NO_RECORDS)
 /** The keys the settings tab holds that no setting reads, unknown keys and import profiles, with how many rows hold each. */
@@ -74,6 +81,11 @@ const saving = computed(() => writes.busy.value || state.writing)
           </template>
         </ProblemList>
         <p v-else class="text-sm text-muted">{{ words.problems.allRead }}</p>
+      </div>
+    </AppCard>
+    <AppCard v-if="toSort.length > 0" :title="words.categoriesToSort.title" :subtitle="words.categoriesToSort.help" collapse-id="settings.categories-to-sort" data-testid="categories-to-sort">
+      <div class="px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
+        <ProblemList :problems="toSort" />
       </div>
     </AppCard>
   </div>

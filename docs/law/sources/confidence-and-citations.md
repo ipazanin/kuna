@@ -74,12 +74,12 @@ The docs cover the tax years 2023 to 2026, the years Kuna computes. Kuna compute
 
 ### Which date picks the value
 
-| Date           | Used for                                                                                         |
-| -------------- | ------------------------------------------------------------------------------------------------ |
-| Settlement day | A sale's tax year, its rate and its HNB conversion. See [Capital gains](../capital-gains.md)     |
-| Payment day    | A dividend's, interest's or referral credit's tax year, rate and conversion                      |
-| Trade day      | The two-year test, as a reading. See [Capital gains](../capital-gains.md#counting-the-two-years) |
-| 31 December    | The capital gains JOPPD's report mark                                                            |
+| Date           | Used for                                                                                                     |
+| -------------- | ------------------------------------------------------------------------------------------------------------ |
+| Settlement day | A sale's tax year, its rate and its HNB conversion. See [Capital gains](../investments/capital-gains.md)     |
+| Payment day    | A dividend's, interest's or referral credit's tax year, rate and conversion                                  |
+| Trade day      | The two-year test, as a reading. See [Capital gains](../investments/capital-gains.md#counting-the-two-years) |
+| 31 December    | The capital gains JOPPD's report mark                                                                        |
 
 ## Sources
 

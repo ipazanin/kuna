@@ -8,6 +8,7 @@
 import { en as companyEnglish, hr as companyCroatian } from '../../src/apps/company/words.ts'
 import { FAKE_KEY_SAVED_AT } from '../../src/apps/investments/prices/infrastructure/fake/fakeKeys.ts'
 import { en as companySettingsEnglish, hr as companySettingsCroatian } from '../../src/apps/company/settings/presentation/words.ts'
+import { en as classWordsEnglish, hr as classWordsCroatian } from '../../src/apps/company/packs/hr-doo/preset/presentation/classWords.ts'
 import { en as rulesEnglish, hr as rulesCroatian } from '../../src/apps/company/rules/presentation/words.ts'
 import { en as ruleChangesEnglish, hr as ruleChangesCroatian } from '../../src/apps/company/rules/domain/words.ts'
 import { en as transactionsEnglish, hr as transactionsCroatian } from '../../src/apps/company/transactions/presentation/words.ts'
@@ -100,6 +101,7 @@ const SCREEN_WORDS = {
     billing: billingEnglish,
     clientColumns: companySettingsEnglish.clientColumns,
     settings: companySettingsEnglish,
+    classes: classWordsEnglish.classes,
     settingsReasons: settingsReasonsEnglish,
     onboarding: onboardingEnglish,
     books: booksEnglish,
@@ -164,6 +166,7 @@ const SCREEN_WORDS = {
     billing: billingCroatian,
     clientColumns: companySettingsCroatian.clientColumns,
     settings: companySettingsCroatian,
+    classes: classWordsCroatian.classes,
     settingsReasons: settingsReasonsCroatian,
     onboarding: onboardingCroatian,
     books: booksCroatian,
@@ -361,6 +364,11 @@ async function pickCategoryColour(page, press, row, words, name) {
     })
 }
 
+/** The selector of a categories row's "Kuna counts it as" menu. */
+async function classSelectIn(row) {
+  return `[data-position="${await row.evaluate((element) => element.getAttribute('data-position'))}"] [data-testid="category-class"]`
+}
+
 /** Picks a role in a categories row's menu of roles and checks it shows as a chip. */
 async function chooseRole(page, press, row, role) {
   const trigger = await row.$('[data-testid="category-roles"]')
@@ -382,8 +390,9 @@ async function chooseRole(page, press, row, role) {
 
 /**
  * Categories: add stationery, which scrolls the table to the new row under its sticky header and
- * focuses its name, give it a colour from the pop-up, a label on a tab without the column and a
- * role, delete it, and Undo the delete.
+ * focuses its name and waits on how Kuna counts it, count it as a deductible cost, give it a colour
+ * from the pop-up, a label on a tab without the column, representation, which sets its VAT and locks
+ * it, and a role, delete it, and Undo the delete.
  */
 export function categoryFlowIn(language) {
   const words = SCREEN_WORDS[language]
@@ -413,6 +422,8 @@ export function categoryFlowIn(language) {
     await setField(await fieldIn(added, said.columns.family), 'operating')
     await delay(200)
     await shoot('categories-draft')
+    await chooseStartingWith(page, press, await classSelectIn(added), words.classes.deductibleCost)
+    await shoot('categories-class')
     await pressSelector(page, press, '[data-testid="save-categories"]')
     await toast(page, said.saved)
     await shoot('categories-saved')
@@ -431,7 +442,24 @@ export function categoryFlowIn(language) {
 
     const named = await rowNamed(page, '[data-testid="category-row"]', 'stationery')
     await setField(await fieldIn(named, said.columns.label), 'Paper and pens')
-    await chooseRole(page, press, named, 'representation')
+    await chooseStartingWith(page, press, await classSelectIn(named), words.classes.representation('').split(':')[0])
+    const vat = await named.$('[data-testid="category-vat"]')
+    const locked = await vat.evaluate((element) => ({ disabled: element.hasAttribute('disabled') || element.getAttribute('data-disabled') !== null, shown: element.textContent?.trim() ?? '' }))
+    if (!locked.disabled || locked.shown !== said.vatTreatments.representation) throw new Error(`representation leaves the VAT select ${locked.disabled ? 'locked' : 'open'} at "${locked.shown}"`)
+    await shoot('categories-class-vat-locked')
+    await pressSelector(page, press, `${(await classSelectIn(named)).split(' ')[0]} [aria-label="${said.columns.bucket}"]`)
+    const buckets = await page.$$eval('[role="option"]', (options) => options.map((option) => option.textContent?.trim() ?? ''))
+    if (buckets.join() !== said.bucketChoice('operating')) throw new Error(`the bucket menu of representation offers ${buckets.join(', ')}`)
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await chooseStartingWith(page, press, await classSelectIn(named), words.classes.personalTransport('', '').split(':')[0])
+    const refused = await named.$$eval('.field-error', (errors) => errors.map((error) => error.textContent?.trim() ?? ''))
+    if (!refused.some((error) => error.includes(said.vatTreatments['car-50'])) || (await page.$eval('[data-testid="save-categories"]', (button) => !button.disabled))) {
+      throw new Error(`personal transport with representation VAT shows ${refused.join(' | ') || 'no error'} and leaves Save open`)
+    }
+    await shoot('categories-class-vat-error')
+    await chooseStartingWith(page, press, await classSelectIn(named), words.classes.representation('').split(':')[0])
+    await chooseRole(page, press, named, 'watched')
     await shoot('categories-label-and-role')
     await pressSelector(page, press, '[data-testid="save-categories"]')
     await toast(page, said.saved)
@@ -576,6 +604,8 @@ export function categoryFiltersFlowIn(language) {
     await categoriesShow(page, order, 'typing a family that sorts last')
     await choose(page, press, await row.$(`[aria-label="${said.columns.bucket}"]`), said.bucketChoice('income'))
     await categoriesShow(page, order, 'a new bucket outside the filter')
+    // A category whose bucket changes needs a class, which the fake books' refund does not carry yet.
+    await chooseStartingWith(page, press, await classSelectIn(row), words.classes.otherIncome)
     await page
       .waitForFunction((kept) => document.querySelector('[data-testid="category-kept"]')?.textContent?.trim() === kept, { timeout: 5_000 }, countedIn(words, said.kept(1), 1))
       .catch(() => {

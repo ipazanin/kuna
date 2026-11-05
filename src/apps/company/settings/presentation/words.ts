@@ -1,6 +1,7 @@
 import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import { agreeing } from '../../../../shared/storage/domain/words'
 import { language } from '../../../../shared/text/language'
+import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 import type { VatTreatment } from '../../workbook/domain/vatTreatment'
@@ -51,6 +52,11 @@ export const en = {
     bucketLabelsHelp: 'What each bucket is called on screen. The categories tab keeps the bucket names on the right.',
     save: 'Save settings',
     discard: 'Discard changes',
+  },
+  /** The card of the categories the pack cannot count one way yet, on Settings, General and in an import's summary. */
+  categoriesToSort: {
+    title: 'Categories to sort',
+    help: 'Kuna counts these by bucket and VAT until each has a tax class.',
   },
   /** The card of what the reader could not use, under Settings, General. */
   problems: {
@@ -122,7 +128,29 @@ export const en = {
       other: `${count} of them show only for an unsaved change or an error.`,
     }),
     clearFilters: 'Clear filters',
-    columns: { category: 'Category', label: 'Shown as', family: 'Family', bucket: 'Bucket', colour: 'Colour', roles: 'Roles', vat: 'VAT', ownerShare: 'Owner share', delete: 'Delete' },
+    columns: {
+      category: 'Category',
+      label: 'Shown as',
+      family: 'Family',
+      bucket: 'Bucket',
+      colour: 'Colour',
+      countsAs: 'Kuna counts it as',
+      roles: 'Roles',
+      vat: 'VAT',
+      ownerShare: 'Owner share',
+      delete: 'Delete',
+    },
+    pickClass: 'Pick how Kuna counts it',
+    vatSet: 'Set by how Kuna counts it',
+    /** What the editor says under a field the row's tax class constrains. */
+    classes: {
+      pick: 'Pick how Kuna counts this category.',
+      notClassified: 'Not classified yet. Kuna counts it by its bucket and VAT until you pick.',
+      oneClass: (classes: readonly string[]) => `Kuna counts a category one way, and this one has ${listInWords(classes.map((name) => `"${name}"`))}.`,
+      vat: (treatments: readonly string[]) => `This tax class allows only ${listInWords(treatments, 'or')}.`,
+      bucket: (buckets: readonly string[]) => `This tax class allows only ${listInWords(buckets, 'or')}.`,
+    },
+    classesNote: 'The accountant keeps the books and decides each booking. Kuna uses these classes for its estimates.',
     /** A VAT treatment among the choices, by the name the tab stores. */
     vatTreatments: {
       none: 'none',
@@ -222,6 +250,10 @@ export const hr: Translation<typeof en> = {
     save: 'Spremi postavke',
     discard: 'Odbaci promjene',
   },
+  categoriesToSort: {
+    title: 'Kategorije za razvrstavanje',
+    help: 'Kuna ih broji po skupini i PDV-u dok svaka ne dobije porezni tretman.',
+  },
   problems: {
     title: 'Retci koje aplikacija nije mogla upotrijebiti kako su napisani',
     subtitle: 'Svaki se izostavlja ili čita sa zadanom vrijednošću dok se ne ispravi u datoteci.',
@@ -295,7 +327,28 @@ export const hr: Translation<typeof en> = {
       other: `Od toga se ${count} prikazuje samo zbog nespremljene promjene ili pogreške.`,
     }),
     clearFilters: 'Ukloni filtre',
-    columns: { category: 'Kategorija', label: 'Prikazuje se kao', family: 'Grupa', bucket: 'Skupina', colour: 'Boja', roles: 'Uloge', vat: 'PDV', ownerShare: 'Udio vlasnika', delete: 'Obriši' },
+    columns: {
+      category: 'Kategorija',
+      label: 'Prikazuje se kao',
+      family: 'Grupa',
+      bucket: 'Skupina',
+      colour: 'Boja',
+      countsAs: 'Kuna to broji kao',
+      roles: 'Uloge',
+      vat: 'PDV',
+      ownerShare: 'Udio vlasnika',
+      delete: 'Obriši',
+    },
+    pickClass: 'Odaberite kako je Kuna broji',
+    vatSet: 'Određeno time kako je Kuna broji',
+    classes: {
+      pick: 'Odaberite kako Kuna broji ovu kategoriju.',
+      notClassified: 'Još nije razvrstana. Kuna je broji po skupini i PDV-u dok ne odaberete.',
+      oneClass: (classes) => `Kuna kategoriju broji na jedan način, a ova ima ${listInWords(classes.map((name) => `„${name}”`))}.`,
+      vat: (treatments) => `Ovaj porezni tretman dopušta samo ${listInWords(treatments, 'or')}.`,
+      bucket: (buckets) => `Ovaj porezni tretman dopušta samo skupinu ${listInWords(buckets, 'or')}.`,
+    },
+    classesNote: 'Knjige vodi računovođa i on odlučuje o svakom knjiženju. Kuna ove porezne tretmane koristi za svoje procjene.',
     vatTreatments: {
       none: 'Bez PDV-a',
       'deductible-25': 'Pretporez 25\u00a0%',

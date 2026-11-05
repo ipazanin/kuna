@@ -7,6 +7,9 @@ import { newBooksDocument } from '../src/apps/company/workbook/presentation/work
 import { statementSettingsOf } from '../src/apps/company/onboarding/domain/statementsChoice'
 import type { StatementMail, StatementsSource } from '../src/apps/company/onboarding/domain/onboardingSteps'
 import type { CivilDate } from '../src/shared/calendar/civilDate'
+import { STARTING_CATEGORIES } from '../src/apps/company/packs/hr-doo/preset/domain/startingCategories'
+import { startingRules } from '../src/apps/company/packs/hr-doo/preset/domain/startingRules'
+import { civil } from './fixtures/ledger'
 
 const SAVED = '2026-10-26T09:00:00.000Z'
 
@@ -72,6 +75,22 @@ describe('new books', () => {
     expect(workbook.settings).toMatchObject({ statementsSync: true, statementsFolder: ['.', 'statements'], statementsMailFrom: ['netbanking.support@erstebank.hr'], mailSince: '2026-01-01' })
     expect(workbook.problems).toEqual([])
     expect(gettingSetUp(workbook).map((line) => line.key)).toEqual(['first-statement', 'categories'])
+  })
+})
+
+describe('new books of a Croatian d.o.o.', () => {
+  it('start with the Croatian set and the state rules of the day they are saved on, with no problem to read', () => {
+    const { workbook } = read(newBooks('hand'))
+
+    expect(workbook.categories.map((category) => category.slug)).toEqual(STARTING_CATEGORIES.map((category) => category.slug))
+    expect(workbook.categories.find((category) => category.slug === 'car-costs')).toMatchObject({ roles: ['personal-transport'], vat: 'car-50', bucket: 'operating' })
+    expect(workbook.rules.map((rule) => rule.id)).toEqual(startingRules(civil('2026-10-26')).map((rule) => rule.id))
+    expect(workbook.problems).toEqual([])
+  })
+
+  it('start with no state rules on a day before the ruleset has a Naputak', () => {
+    const { workbook } = read(newBooksDocument({}, '2025-06-01T09:00:00.000Z'))
+    expect(workbook.rules).toEqual([])
   })
 })
 

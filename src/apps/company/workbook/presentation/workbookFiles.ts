@@ -8,13 +8,16 @@ import type { Settings } from '../../settings/domain/settings'
 import type { ImportSummary } from '../../workbook-files/domain/importSummary'
 import type { WorkbookStore } from '../../../../shared/storage/application/createWorkbookStore'
 import type { CompanyBooks } from '../domain/readWorkbook'
+import { newestBookingOf, tabProblems } from '../domain/workbook'
 import type { Category, Workbook } from '../domain/workbook'
 import { NEWER_FILE, decodeDocument, savedByNewerApp } from '../../../../shared/storage/infrastructure/documentFormat'
 import { documentName } from '../../../../shared/storage/infrastructure/driveDocument'
 import type { WorkbookDocument } from '../../../../shared/storage/infrastructure/documentFormat'
 import type { DocumentCopy } from '../../../../shared/storage/infrastructure/documentRecordStorage'
 import { COMPANY_APP, installedSchema, readDocument } from '../infrastructure/companyDocument'
-import { DEFAULT_CATEGORY_NAMES, emptyWorkbookTabs } from '../infrastructure/emptyWorkbook'
+import { emptyWorkbookTabs, startingCategoryNames } from '../infrastructure/emptyWorkbook'
+import { localDayAt, today } from '../../../../shared/calendar/civilDate'
+import { installedPack } from '../../packs/packContribution'
 import { documentOfTabs, recordCountsOf, tabsOfDocument } from '../infrastructure/spreadsheetDocument'
 import { readWorkbookFile, writeWorkbookFile } from '../infrastructure/workbookFile'
 import { words } from './words'
@@ -42,7 +45,7 @@ export async function previewImport(file: File): Promise<ImportPreview> {
   const { document, missingTabs } = file.name.toLowerCase().endsWith('.json') ? await documentOfFile(file) : await documentOfWorkbookFile(file)
   const workbook = readDocument(previewIdentity(file.name), document).workbook
   const counts = recordCountsOf(document)
-  const summary = importSummary(workbook, missingTabs)
+  const summary = importSummary(workbook, missingTabs, tabProblems('categories', installedPack().categoriesToSort(workbook.categories, newestBookingOf(workbook.transactions) ?? today())))
   return {
     fileName: file.name,
     title: workbook.settings.companyName || withoutExtension(file.name),
@@ -86,19 +89,21 @@ export const BOOKS_FILE_NAME = documentName(COMPANY_APP)
 export const NEW_BOOKS_TITLE = 'New books'
 
 /**
- * The document of new books: the default categories, no accounts or rows, and a row for every
- * setting, so the books name each choice instead of leaving it to a default a later app may change.
+ * The document of new books: the pack's starting categories and its category rules for the day the
+ * books are saved on here, no accounts or rows, and a row for every setting, so the books name each
+ * choice instead of leaving it to a default a later app may change.
  * `choices` are the settings onboarding chose, such as how statements arrive, and the rest are the
  * defaults: the owner-pay module off and the pack's folders blank until the person says otherwise.
  */
 export function newBooksDocument(choices: Partial<Settings>, savedAt: string): WorkbookDocument {
-  return documentOfTabs(COMPANY_APP, emptyWorkbookTabs({ ...DEFAULT_SETTINGS, ...choices }), savedAt)
+  return documentOfTabs(COMPANY_APP, emptyWorkbookTabs(localDayAt(Date.parse(savedAt)), { ...DEFAULT_SETTINGS, ...choices }), savedAt)
 }
 
 /** Whether the categories are the ones new books start with, none added, removed or renamed. */
 export function categoriesAsNewBooksStart(categories: readonly Pick<Category, 'slug'>[]): boolean {
   const names = new Set(categories.map((category) => category.slug))
-  return names.size === DEFAULT_CATEGORY_NAMES.length && DEFAULT_CATEGORY_NAMES.every((name) => names.has(name))
+  const starting = startingCategoryNames()
+  return names.size === starting.length && starting.every((name) => names.has(name))
 }
 
 /** Writes the workbook on screen in the template format, hands it to the browser, and notes the export. */

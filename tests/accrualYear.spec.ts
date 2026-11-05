@@ -7,6 +7,8 @@ import type { AccrualYear } from '../src/apps/company/packs/hr-doo/domain/accrua
 import type { HrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 import { sumMoney } from '../src/shared/money/money'
 import type { Money } from '../src/shared/money/money'
+import type { VatTreatment } from '../src/apps/company/workbook/domain/vatTreatment'
+import type { Category } from '../src/apps/company/workbook/domain/workbook'
 import { STUDIO_CATEGORIES, exampleStudio, yearEndLine } from './fixtures/exampleStudio'
 import { euros } from './fixtures/ledger'
 
@@ -213,5 +215,23 @@ describe('accrualYear against the accountant', () => {
 
     expect(result.bridge.unexplainedBeforeTax).toMatchObject({ id: 'unexplained-before-tax', kind: 'open' })
     expect(result.bridge.unexplainedBeforeTax?.figure.amount).toBe(euros(118.3))
+  })
+})
+
+describe('accrualYear, a representation category its VAT or its roles contradict', () => {
+  const representationWith = (changes: { readonly vat?: VatTreatment; readonly roles?: readonly string[] }): readonly Category[] =>
+    STUDIO_CATEGORIES.map((category) => (category.slug === 'representation' ? { ...category, ...changes } : category))
+
+  it.fails('takes no input VAT out of representation stored with a deductible rate', () => {
+    const result = accrual(2025, exampleStudio({ categories: representationWith({ vat: 'deductible-25' }) }))
+
+    expect(amountOfStep(result, 'input-vat')).toBe(euros(691.25))
+    expect(result.bridge.profitBeforeTax.amount).toBe(euros(8881.7))
+  })
+
+  it.fails('adds representation that also carries non-deductible back once', () => {
+    const result = accrual(2025, exampleStudio({ categories: representationWith({ roles: ['representation', 'non-deductible'] }) }))
+
+    expect(lineAmount(result, 'tax', 'increases')).toBe(lineAmount(accrual(2025), 'tax', 'increases'))
   })
 })

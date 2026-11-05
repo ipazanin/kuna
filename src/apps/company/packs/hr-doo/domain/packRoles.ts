@@ -29,6 +29,14 @@ export const PACK_ROLES = {
   prepaidAnnual: 'prepaid-annual',
   /** A cost the corporate tax never allows, such as a fine or a private cost. */
   nonDeductible: 'non-deductible',
+  /** An ordinary cost the corporate tax allows. */
+  deductibleCost: 'deductible-cost',
+  /** Operating income other than sales, such as interest on the company's account. */
+  otherIncome: 'other-income',
+  /** Money that never enters profit: transfers, bank loans, capital and reimbursements. */
+  outsideProfit: 'outside-profit',
+  /** Car insurance and car loan interest, which the personal transport add-back leaves out. */
+  vehicleInsuranceAndInterest: 'vehicle-insurance-and-interest',
 } as const
 
 export type PackRole = (typeof PACK_ROLES)[keyof typeof PACK_ROLES]
@@ -44,7 +52,12 @@ export const TAX_FREE_ROLES: readonly string[] = [...new Set(ruleValue('hr.pit.n
 /** The ruleset's key of the tax-free payment the category holds, or null for a category with no such role. */
 export function taxFreePaymentOf(category: Category): string | null {
   const role = category.roles.find((candidate) => TAX_FREE_ROLES.includes(candidate))
-  return role === undefined ? null : role.slice(TAX_FREE_ROLE.length)
+  return role === undefined ? null : paymentOfTaxFreeRole(role)
+}
+
+/** The ruleset's key of the payment a tax-free role names, such as `results-bonus` for `tax-free:results-bonus`. */
+export function paymentOfTaxFreeRole(role: string): string {
+  return role.slice(TAX_FREE_ROLE.length)
 }
 
 /** The taxes and contributions owed because an employee was paid, a dividend's tax left out. */

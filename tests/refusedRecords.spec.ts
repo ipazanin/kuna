@@ -18,10 +18,10 @@ afterEach(async () => {
   await forgetCaches(used)
 })
 
-/** The fake workbook with the bucket of `consulting` misspelt, as a person might type it in a file. */
+/** The fake workbook with the bucket of `consulting` misspelt, as a person might type it in a file, and its tax class given, which a fixed bucket needs. */
 function withMisspeltBucket(source: 'drive' | 'browser'): WorkbookDocument {
   const document = fakeWorkbookDocument('2026-10-16T08:00:00.000Z', source)
-  const categories = (document.records.category ?? []).map((record) => (record.category === 'consulting' ? { ...record, bucket: 'operatng' } : record))
+  const categories = (document.records.category ?? []).map((record) => (record.category === 'consulting' ? { ...record, bucket: 'operatng', roles: 'deductible-cost' } : record))
   return { ...document, records: { ...document.records, category: categories } }
 }
 

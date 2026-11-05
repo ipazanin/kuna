@@ -8,25 +8,30 @@ import { ownerPayOpenItems, ownerPayRules } from './rules/owner-pay'
 import type { OwnerPayValues } from './rules/owner-pay'
 import { profitTaxOpenItems, profitTaxRules } from './rules/profit-tax'
 import type { ProfitTaxValues } from './rules/profit-tax'
+import { statePaymentOpenItems, statePaymentRules } from './rules/state-payments'
+import type { StatePaymentValues } from './rules/state-payments'
 import { vatOpenItems, vatRules } from './rules/vat'
 import type { VatValues } from './rules/vat'
 import { day, isWatchedConfidence } from './schema'
 import type { GeneralRule, OpenItem, Rule, RuleCitation, RuleIn, RuleTerms, RuleVersion } from './schema'
 
 /** One value type per rule id, so `ruleValue('hr.cit.rate', …)` is typed. */
-export type RuleValues = ProfitTaxValues & OwnerPayValues & AccountingValues & VatValues & CompanyLawValues
+export type RuleValues = ProfitTaxValues & OwnerPayValues & AccountingValues & VatValues & CompanyLawValues & StatePaymentValues
 
 export type RuleId = keyof RuleValues & string
-
-/** The day the rule texts were last checked against their sources. */
-export const RULESET_CHECKED_ON = day('2026-10-18')
 
 /** The first day the ruleset models. A version never starts earlier, even when its wording is older. */
 export const RULESET_FIRST_DAY = day('2025-01-01')
 
-export const RULES: readonly RuleIn<RuleValues>[] = [...profitTaxRules, ...ownerPayRules, ...accountingRules, ...vatRules, ...companyLawRules]
+export const RULES: readonly RuleIn<RuleValues>[] = [...profitTaxRules, ...ownerPayRules, ...accountingRules, ...vatRules, ...companyLawRules, ...statePaymentRules]
 
-export const OPEN_ITEMS: readonly OpenItem[] = [...profitTaxOpenItems, ...ownerPayOpenItems, ...accountingOpenItems, ...vatOpenItems, ...companyLawOpenItems]
+export const OPEN_ITEMS: readonly OpenItem[] = [...profitTaxOpenItems, ...ownerPayOpenItems, ...accountingOpenItems, ...vatOpenItems, ...companyLawOpenItems, ...statePaymentOpenItems]
+
+/** The oldest day a source of the rules was loaded on, so every rule's sources were checked on it or after it. Each source keeps its own day. */
+export function sourcesCheckedSince(rules: readonly GeneralRule[] = RULES): CivilDate {
+  const days = rules.flatMap((rule) => rule.versions.flatMap((version) => version.sources.map((source) => source.loadedOn)))
+  return days.reduce((oldest, loaded) => (loaded < oldest ? loaded : oldest))
+}
 
 export interface RuleLookup<Value> {
   readonly value: Value
