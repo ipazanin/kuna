@@ -4,10 +4,14 @@ import { codecOfSpendingKind } from '../../application/spendingCodecs'
 import type { Account } from '../../domain/account'
 import type { Budget } from '../../domain/budget'
 import type { Category } from '../../domain/category'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, TRANSACTION_RECORDS } from '../../domain/spendingKinds'
+import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../domain/spendingKinds'
+import type { SpendingRule } from '../../domain/spendingRule'
+import { NO_BANK_FACTS } from '../../domain/transaction'
 import type { Transaction } from '../../domain/transaction'
 import { spendingDocumentOf } from '../spendingDocument'
-import { parseCivilDate, today } from '../../../../../shared/calendar/civilDate'
+import { revolutStatement } from '../../../statements/domain/revolutStatement'
+import { sampleRevolutRows } from '../../../statements/infrastructure/fake/sampleRevolutFiles'
+import { addDays, parseCivilDate, today } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { addMonths, firstDayOf, monthOf } from '../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../shared/calendar/monthKey'
@@ -21,10 +25,11 @@ import { language } from '../../../../../shared/text/language'
 
 /**
  * The fake build's Spending sets: `sample` the worked example's four accounts with three months of rows up to the day,
- * Food's limit carrying from two months back and a transfer pair, `foreign` only the dollar account, and `over` the
- * sample with two limits overspent. Each figure is made up.
+ * Food's limit carrying from two months back and a transfer pair, `foreign` only the dollar account, `over` the
+ * sample with two limits overspent, and `statements` the sample with rows of earlier statements waiting on review, a pair,
+ * a lone leg, a rule, and typed rows the sample Revolut export pairs with. Each figure is made up.
  */
-export type FakeSpendingSet = 'sample' | 'foreign' | 'over'
+export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements'
 
 const USD = currencyCodeOf('USD')!
 
@@ -110,6 +115,70 @@ function dollarRows(month: MonthKey, day: CivilDate): Row[] {
   return [{ account: REVOLUT_USD, date: dayIn(month, 10, day), amount: -30, payee: 'Diner in Boston', category: 'Travel/On the trip' }]
 }
 
+const REVOLUT_IBAN = 'LT000000000000000001'
+const PHARMACY_IBAN = 'HR1100000000000000099'
+
+/** A row an earlier statement brought, on no category unless it says so. */
+function statementRow(place: number, account: RecordId, date: CivilDate, amount: number, payee: string, fields: Partial<Transaction> = {}): Transaction {
+  return {
+    ...NO_BANK_FACTS,
+    id: fixedId(TRANSACTION_RECORDS, place),
+    account,
+    date,
+    amount: moneyFromAmount(amount),
+    payee,
+    category: null,
+    note: '',
+    source: 'statement',
+    pair: null,
+    description: payee,
+    importKey: `earlier-${place}`,
+    statement: 'earlier-statement.csv',
+    categorisedBy: null,
+    ...fields,
+  }
+}
+
+/**
+ * What the statements set adds to the sample: rows of earlier statements, and typed rows. The Harbour bistro row is the
+ * one the sample export repeats, so it takes its key from there.
+ */
+function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, categories: readonly Category[], accounts: readonly Account[]): readonly Transaction[] {
+  const back = (days: number): CivilDate => addDays(day, -days)
+  const between = idOf('Between my accounts')
+  const read = revolutStatement(sampleRevolutRows(day), 'earlier-statement.csv', { accounts, categories })
+  const bistroKey = 'statement' in read ? (read.statement.rows.find((row) => row.payee === 'Harbour bistro')?.importKey ?? '') : ''
+  const [paidOut, paidIn] = [fixedId(TRANSACTION_RECORDS, 1703), fixedId(TRANSACTION_RECORDS, 1704)]
+  const typed = (place: number, account: RecordId, date: CivilDate, amount: number, payee: string, category: string): Transaction => ({
+    ...NO_BANK_FACTS,
+    id: fixedId(TRANSACTION_RECORDS, place),
+    account,
+    date,
+    amount: moneyFromAmount(amount),
+    payee,
+    category: idOf(category),
+    note: '',
+    source: 'typed',
+    pair: null,
+    categorisedBy: 'person',
+  })
+  return [
+    typed(1701, REVOLUT_EUR, back(3), -4.2, 'Café on the square', 'Food/Coffee'),
+    typed(1702, REVOLUT_EUR, back(6), -25, 'Bookshop', 'Leisure/Hobbies'),
+    statementRow(1703, OTP, back(12), -150, 'Transfer to Revolut', { category: between, pair: paidIn, counterpartyIban: REVOLUT_IBAN }),
+    statementRow(1704, REVOLUT_EUR, back(12), 150, 'Top-up from OTP', { category: between, pair: paidOut }),
+    statementRow(1705, REVOLUT_EUR, back(10), -32, 'Harbour bistro', { category: idOf('Food/Restaurants'), categorisedBy: 'person', importKey: bistroKey }),
+    statementRow(1706, OTP, back(14), -22.4, 'Corner market', { category: idOf('Food/Groceries'), categorisedBy: 'rule' }),
+    statementRow(1707, OTP, back(9), -12, 'City pharmacy', { counterpartyIban: PHARMACY_IBAN }),
+    statementRow(1708, OTP, back(8), -60, 'Card top-up'),
+    statementRow(1709, REVOLUT_EUR, back(7), 60, 'Top-up by card'),
+    statementRow(1710, REVOLUT_EUR, back(5), -26.5, 'Old Town Bookshop'),
+    statementRow(1711, OTP, back(4), -18.9, 'City pharmacy', { counterpartyIban: PHARMACY_IBAN }),
+    statementRow(1713, REVOLUT_EUR, back(3), -15, 'Pocket Winter coat', { category: between, movedAt: `${back(3)} 09:30:00`, pocket: true }),
+    statementRow(1712, OTP, back(2), -75, 'Transfer to Revolut', { category: between, counterpartyIban: REVOLUT_IBAN }),
+  ]
+}
+
 export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sample', day: CivilDate = today()): WorkbookDocument {
   const { categories, idOf } = fakeCategories()
   const month = monthOf(day)
@@ -134,14 +203,17 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
     note: '',
     source: 'typed',
     pair: null,
+    ...NO_BANK_FACTS,
+    categorisedBy: null,
   }))
+  if (set === 'statements') transactions.push(...earlierStatementRows(day, idOf, categories, accounts))
   if (set !== 'foreign') {
     const [out, into] = [fixedId(TRANSACTION_RECORDS, 1501), fixedId(TRANSACTION_RECORDS, 1502)]
     const date = dayIn(oneBack, 3, day)
     const between = idOf('Between my accounts')
     transactions.push(
-      { id: out, account: OTP, date, amount: moneyFromAmount(-200), payee: 'Top-up', category: between, note: '', source: 'typed', pair: into },
-      { id: into, account: REVOLUT_EUR, date, amount: moneyFromAmount(200), payee: 'Top-up', category: between, note: '', source: 'typed', pair: out },
+      { ...NO_BANK_FACTS, id: out, account: OTP, date, amount: moneyFromAmount(-200), payee: 'Top-up', category: between, note: '', source: 'typed', pair: into, categorisedBy: null },
+      { ...NO_BANK_FACTS, id: into, account: REVOLUT_EUR, date, amount: moneyFromAmount(200), payee: 'Top-up', category: between, note: '', source: 'typed', pair: out, categorisedBy: null },
     )
   }
   // Each account opens with what makes its balance on the day the worked example's.
@@ -160,7 +232,12 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
     ...stored(CATEGORY_RECORDS, categories),
     ...stored(TRANSACTION_RECORDS, transactions),
     ...stored(BUDGET_RECORDS, budgets),
+    ...stored(RULE_RECORDS, set === 'statements' ? fakeRules(idOf) : []),
   })
+}
+
+function fakeRules(idOf: (path: string) => RecordId): readonly SpendingRule[] {
+  return [{ id: fixedId(RULE_RECORDS, 1801), order: 1, condition: { column: 'counterparty_contains', fragment: 'Corner market' }, category: idOf('Food/Groceries') }]
 }
 
 /** The starter categories alone, with fixed keys, as a new file on the fake Drive holds them. */

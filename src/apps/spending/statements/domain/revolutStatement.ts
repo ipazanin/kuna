@@ -1,0 +1,246 @@
+import type { StatementReading, StatementRow } from './statementRows'
+import { words } from './words'
+import { bankFeesCategory } from '../../categories/domain/starterCategories'
+import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
+import { civilDateFromSerial, parseCivilDate } from '../../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { EURO, currencyCodeOf } from '../../../../shared/money/currencyCode'
+import { addMoney, moneyFromAmount, moneyFromCents, subtractMoney, ZERO } from '../../../../shared/money/money'
+import type { Money } from '../../../../shared/money/money'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { amountText } from '../../../../shared/storage/domain/recordFields'
+import { decimalOf } from '../../../../shared/storage/domain/storedFields'
+import { occurrenceKeys } from '../../../../shared/text/factKey'
+import { intlLocale } from '../../../../shared/text/language'
+import { plural } from '../../../../shared/text/translation'
+
+/** A cell of a spreadsheet file: text, a number, a date as a serial number, or a flag. */
+type SheetCell = string | number | boolean | undefined
+
+/** The columns of Revolut's export, as the open-source parsers name them, since Revolut publishes no definition. */
+const COLUMNS = ['Type', 'Product', 'Started Date', 'Completed Date', 'Description', 'Amount', 'Fee', 'Currency', 'State', 'Balance'] as const
+
+type Column = (typeof COLUMNS)[number]
+
+function cellText(cell: SheetCell): string {
+  return cell === undefined ? '' : String(cell).trim()
+}
+
+function isBlank(row: readonly SheetCell[]): boolean {
+  return row.every((cell) => cellText(cell) === '')
+}
+
+const SECONDS_PER_DAY = 86_400
+
+/** When a row started: its day, and one text however the file writes it. */
+interface Started {
+  readonly date: CivilDate
+  readonly at: string
+}
+
+/** A started time as one text, whether the file writes it as text or as a date cell, so one row gets one key from either file. */
+function startedOf(cell: SheetCell): Started | null {
+  if (typeof cell === 'number') {
+    const seconds = Math.round(cell * SECONDS_PER_DAY)
+    const date = civilDateFromSerial(Math.floor(seconds / SECONDS_PER_DAY))
+    const inDay = seconds % SECONDS_PER_DAY
+    const [hours, minutes, rest] = [Math.floor(inDay / 3600), Math.floor(inDay / 60) % 60, inDay % 60].map((part) => String(part).padStart(2, '0'))
+    return { date, at: `${date} ${hours}:${minutes}:${rest}` }
+  }
+  const [, day, hours = '0', minutes = '00', seconds = '00'] = /^(\d{4}-\d{2}-\d{2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/.exec(cellText(cell)) ?? []
+  const date = parseCivilDate(day ?? '')
+  return date === null ? null : { date, at: `${date} ${hours.padStart(2, '0')}:${minutes}:${seconds}` }
+}
+
+function moneyOf(cell: SheetCell): Money | null {
+  if (typeof cell === 'number') return moneyFromAmount(cell)
+  const amount = decimalOf(cellText(cell))
+  return amount === null ? null : moneyFromAmount(amount)
+}
+
+class Refused extends Error {}
+
+/** A row the file completed, on a product Kuna reads. */
+interface CompletedRow {
+  readonly started: Started
+  readonly amount: Money
+  readonly fee: Money
+  readonly onSavings: boolean
+  readonly exchange: boolean
+  readonly currency: string
+  readonly description: string
+  /** Empty or null where the file leaves them out. */
+  readonly completedAt: string
+  readonly balance: Money | null
+}
+
+/**
+ * A note for each product and currency whose last balance differs from what its rows add up to, as the first balance plus
+ * each later row's amount less its fee, in the order they completed. A row missing from the export shows this way. It
+ * never refuses, since the balance is the bank's word and the rows are what count.
+ */
+function balanceNotes(rows: readonly CompletedRow[]): string[] {
+  const chains = new Map<string, CompletedRow[]>()
+  for (const row of rows) {
+    if (row.balance === null || row.completedAt === '') continue
+    const key = `${row.onSavings ? 'Savings' : 'Current'} ${row.currency}`
+    chains.set(key, [...(chains.get(key) ?? []), row])
+  }
+  return [...chains].flatMap(([key, chain]) => {
+    const [first, ...later] = [...chain].sort((earlier, next) => earlier.completedAt.localeCompare(next.completedAt))
+    const last = later.at(-1)
+    if (first?.balance == null || last?.balance == null) return []
+    const worked = later.reduce((sum, row) => addMoney(sum, subtractMoney(row.amount, row.fee)), first.balance)
+    if (worked === last.balance) return []
+    const [product = '', currency = ''] = key.split(' ')
+    const format = { currency: currencyCodeOf(currency) ?? EURO, locale: intlLocale }
+    return [words.balanceDiffers(product, formatMoney(last.balance, 'negative', format), formatMoney(worked, 'negative', format))]
+  })
+}
+
+/** The legs of each pocket move, a current row and a savings row of the opposite amount in the same second, one to one, each with the time both legs share. */
+function pocketMoves(rows: readonly CompletedRow[]): ReadonlyMap<CompletedRow, string> {
+  const keyOf = (row: CompletedRow, amount: number): string => `${row.currency} ${amount} ${row.started.at}`
+  const savingsRows = new Map<string, CompletedRow[]>()
+  for (const row of rows) {
+    if (row.onSavings) savingsRows.set(keyOf(row, row.amount), [...(savingsRows.get(keyOf(row, row.amount)) ?? []), row])
+  }
+  const times = new Map<CompletedRow, string>()
+  for (const row of rows) {
+    const mirror = row.onSavings || row.amount === ZERO ? undefined : savingsRows.get(keyOf(row, -row.amount))?.shift()
+    if (mirror !== undefined) {
+      times.set(row, row.started.at)
+      times.set(mirror, row.started.at)
+    }
+  }
+  return times
+}
+
+/**
+ * Reads a Revolut export, its columns found by the header's names. Only completed rows count, and what it leaves out is
+ * counted in a note. A row goes to the open Revolut account of its currency, or a closed one when no other fits, or a
+ * `Savings` row to the Revolut savings account of that currency, left out with a note when there is none. A row of any other
+ * product is left out with a note naming it. A current row and a savings row of the opposite amount in the same second are
+ * a pocket move, whose legs share a time, as an exchange's do. A currency no
+ * Revolut account keeps refuses the file, and so do two open accounts it could go to, and so
+ * does a date or an amount that cannot be read, since a row left out would throw every balance after it. A fee becomes a
+ * row of its own in Bank fees. A last balance its rows do not add up to is a note, per product.
+ */
+export function revolutStatement(grid: readonly (readonly SheetCell[])[], fileName: string, book: Pick<SpendingBook, 'accounts' | 'categories'>): StatementReading {
+  try {
+    return { statement: readRows(grid, fileName, book) }
+  } catch (failure) {
+    if (failure instanceof Refused) return { refusal: failure.message }
+    throw failure
+  }
+}
+
+function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, book: Pick<SpendingBook, 'accounts' | 'categories'>): { label: string; rows: StatementRow[]; notes: string[] } {
+  const headerAt = grid.findIndex((row) => !isBlank(row))
+  const header = (grid[headerAt] ?? []).map((cell) => cellText(cell).toLowerCase())
+  const place = new Map<Column, number>(COLUMNS.map((column) => [column, header.indexOf(column.toLowerCase())]))
+  const absent = COLUMNS.find((column) => place.get(column)! < 0)
+  if (absent !== undefined) throw new Refused(words.noColumn(absent))
+  const cellOf = (row: readonly SheetCell[], column: Column): SheetCell => row[place.get(column)!]
+  const revolut = book.accounts.filter((account) => account.bank === 'revolut')
+  const feeCategory = bankFeesCategory(book.categories)?.id ?? null
+
+  let pending = 0
+  let otherStates = 0
+  const savingsLeftOut: string[] = []
+  const otherProducts = new Map<string, number>()
+  const completed: CompletedRow[] = []
+
+  grid.slice(headerAt + 1).forEach((row, offset) => {
+    if (isBlank(row)) return
+    const state = cellText(cellOf(row, 'State')).toUpperCase()
+    if (state === 'PENDING') pending += 1
+    else if (state !== 'COMPLETED') otherStates += 1
+    if (state !== 'COMPLETED') return
+    const fileRow = headerAt + offset + 2
+    const started = startedOf(cellOf(row, 'Started Date')) ?? refuseRow(words.notADay(fileRow, cellText(cellOf(row, 'Started Date'))))
+    const amount = moneyOf(cellOf(row, 'Amount')) ?? refuseRow(words.notAnAmount(fileRow, cellText(cellOf(row, 'Amount'))))
+    const fee = cellText(cellOf(row, 'Fee')) === '' ? ZERO : (moneyOf(cellOf(row, 'Fee')) ?? refuseRow(words.notAnAmount(fileRow, cellText(cellOf(row, 'Fee')))))
+    const product = cellText(cellOf(row, 'Product'))
+    const onSavings = product.toLowerCase() === 'savings'
+    if (!onSavings && product.toLowerCase() !== 'current') {
+      otherProducts.set(product, (otherProducts.get(product) ?? 0) + 1)
+      return
+    }
+    completed.push({
+      started,
+      amount,
+      fee,
+      onSavings,
+      exchange: cellText(cellOf(row, 'Type')).toUpperCase() === 'EXCHANGE',
+      currency: cellText(cellOf(row, 'Currency')).toUpperCase(),
+      description: cellText(cellOf(row, 'Description')),
+      completedAt: startedOf(cellOf(row, 'Completed Date'))?.at ?? '',
+      balance: moneyOf(cellOf(row, 'Balance')),
+    })
+  })
+
+  const pocketTimes = pocketMoves(completed)
+  const kept: Omit<StatementRow, 'importKey'>[] = []
+  const facts: string[][] = []
+  const fees: Money[] = []
+
+  for (const row of completed) {
+    const fitting = revolut.filter((candidate) => candidate.currency === row.currency && candidate.kind === (row.onSavings ? 'savings' : 'bank'))
+    const open = fitting.filter((candidate) => !candidate.closed)
+    if (open.length > 1) throw new Refused(words.manyRevolutAccounts(open.map((candidate) => candidate.name).join(', '), row.currency))
+    const account = open[0] ?? fitting[0]
+    if (account === undefined) {
+      if (!row.onSavings) throw new Refused(words.noRevolutAccount(row.currency))
+      savingsLeftOut.push(row.currency)
+      continue
+    }
+    const pocketAt = pocketTimes.get(row)
+    kept.push({
+      account: account.id,
+      date: row.started.date,
+      amount: row.amount,
+      payee: row.description,
+      category: null,
+      description: row.description,
+      counterpartyIban: '',
+      movedAt: pocketAt ?? (row.exchange ? row.started.at : ''),
+      pocket: pocketAt !== undefined,
+    })
+    facts.push([account.id, row.started.at, amountText(row.amount), amountText(row.fee), row.description])
+    fees.push(row.fee)
+  }
+
+  const keys = occurrenceKeys(facts)
+  const rows = kept.flatMap((row, index): StatementRow[] => {
+    const importKey = keys[index]!
+    const fee = fees[index]!
+    return [
+      ...(row.amount === ZERO ? [] : [{ ...row, importKey }]),
+      ...(fee === ZERO
+        ? []
+        : [
+            {
+              ...row,
+              amount: moneyFromCents(-Math.abs(fee)),
+              payee: words.revolut,
+              category: feeCategory,
+              description: words.feeOn(row.description),
+              movedAt: '',
+              pocket: false,
+              importKey: `${importKey}-fee`,
+            },
+          ]),
+    ]
+  })
+  const notes = [
+    ...(pending === 0 ? [] : [plural(words.pendingLeftOut(pending), pending)]),
+    ...(otherStates === 0 ? [] : [plural(words.otherStatesLeftOut(otherStates), otherStates)]),
+    ...(savingsLeftOut.length === 0 ? [] : [plural(words.savingsLeftOut(savingsLeftOut.length, [...new Set(savingsLeftOut)].join(', ')), savingsLeftOut.length)]),
+  ]
+  return { label: fileName, rows, notes: [...notes, ...balanceNotes(completed), ...[...otherProducts].map(([product, count]) => plural(words.otherProductLeftOut(count, product), count))] }
+}
+
+function refuseRow(reason: string): never {
+  throw new Refused(reason)
+}

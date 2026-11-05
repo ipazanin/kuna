@@ -1,25 +1,43 @@
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import { TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import { NO_BANK_FACTS } from '../../workbook/domain/transaction'
 import type { Transaction } from '../../workbook/domain/transaction'
+import { words } from '../../workbook/domain/words'
 import { moneyFromCents, negateMoney } from '../../../../shared/money/money'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
+import { textOf } from '../../../../shared/storage/domain/storedFields'
+import { pickedEdits } from '../../../../shared/storage/domain/writeRules'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 
-/** An entry may be a transfer's leg, which its other leg names back, so a write keeps both or neither. */
+/** An entry may be a transfer's leg, which its other leg names back, so a write keeps both or neither. A row a statement brought stays on its account. */
 export const TRANSACTION_WRITES: WriteRules<Transaction> = {
   kind: TRANSACTION_RECORDS,
   reads: SPENDING_KINDS,
   undoable: true,
   read: (read, records) => bookWith(TRANSACTION_RECORDS, read, records).readings.transactions,
-  refusals: (_change, fresh, after) => dependentRefusals(['transactions'], fresh, after),
+  refusals: (change, fresh, after) => [
+    ...pickedEdits(change, (fields) => ({ account: textOf(fields.account), importKey: textOf(fields.import_key) })).flatMap(({ before, after: changed }) =>
+      before !== null && changed !== null && before.importKey !== '' && before.account !== changed.account ? [words.accountOfStatementRow] : [],
+    ),
+    ...dependentRefusals(['transactions'], fresh, after),
+  ],
 }
 
 /** A new typed entry, its text trimmed, with an id of its own. */
-export function newEntry(entry: Omit<Transaction, 'id' | 'source' | 'pair'>): Transaction {
-  return { ...entry, payee: entry.payee.trim(), note: entry.note.trim(), source: 'typed', pair: null, id: recordIdOf(TRANSACTION_RECORDS, newRecordId()) }
+export function newEntry(entry: Pick<Transaction, 'account' | 'date' | 'amount' | 'payee' | 'category' | 'note'>): Transaction {
+  return { ...entry, ...NO_BANK_FACTS, payee: entry.payee.trim(), note: entry.note.trim(), source: 'typed', pair: null, categorisedBy: 'person', id: recordIdOf(TRANSACTION_RECORDS, newRecordId()) }
+}
+
+/**
+ * What you typed over a row on the file. It keeps its id, its source and what the bank said, so a later statement still
+ * skips it, and a category you changed is yours from then on.
+ */
+export function retypedEntry(before: Transaction, typed: Transaction): Transaction {
+  const { description, counterpartyIban, importKey, statement, movedAt, pocket, id, source } = before
+  return { ...typed, description, counterpartyIban, importKey, statement, movedAt, pocket, id, source, categorisedBy: typed.category === before.category ? before.categorisedBy : 'person' }
 }
 
 /** One leg of a transfer between two of your accounts. */
@@ -33,11 +51,25 @@ export interface TransferLeg {
 export function newTransfer(from: TransferLeg, to: TransferLeg, entry: Pick<Transaction, 'date' | 'payee' | 'note' | 'category'>): readonly [Transaction, Transaction] {
   const outId = recordIdOf(TRANSACTION_RECORDS, newRecordId())
   const inId = recordIdOf(TRANSACTION_RECORDS, newRecordId())
-  const shared = { date: entry.date, payee: entry.payee.trim(), note: entry.note.trim(), category: entry.category, source: 'typed' as const }
+  const shared = { ...NO_BANK_FACTS, date: entry.date, payee: entry.payee.trim(), note: entry.note.trim(), category: entry.category, source: 'typed' as const, categorisedBy: 'person' as const }
   return [
     { ...shared, id: outId, account: from.account, amount: negateMoney(moneyFromCents(Math.abs(from.amount))), pair: inId },
     { ...shared, id: inId, account: to.account, amount: moneyFromCents(Math.abs(to.amount)), pair: outId },
   ]
+}
+
+/**
+ * A plain row turned into a transfer: it stays the leg its money already is, so money in stays money in, and the other
+ * leg joins it.
+ */
+export function transferOver(before: Transaction, [outLeg, inLeg]: readonly [Transaction, Transaction]): { readonly kept: Transaction; readonly added: Transaction } {
+  const [stays, joins] = before.amount < 0 ? [outLeg, inLeg] : [inLeg, outLeg]
+  return { kept: { ...retypedEntry(before, stays), pair: joins.id }, added: { ...joins, pair: before.id } }
+}
+
+/** Whether deleting these rows lets the next overlapping statement bring one back, since nothing remembers a deleted row's key. */
+export function deleteComesBack(rows: readonly Transaction[]): boolean {
+  return rows.some((row) => row.importKey !== '')
 }
 
 /** The entry's other leg in the file, or null for an entry that is no transfer's leg. */

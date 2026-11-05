@@ -12,7 +12,7 @@
  *   npm run check:figures -- --assets <path to a Kuna Assets file> [--house-index <path to a saved answer of the DZS>] [--today yyyy-mm-dd]
  *   npm run check:figures -- --fake-assets <sample, house-and-car or loan-gone> [--today yyyy-mm-dd]
  *   npm run check:figures -- --spending <path to a Kuna Spending file> [--spending-rates <folder of saved ECB answers>] [--today yyyy-mm-dd]
- *   npm run check:figures -- --fake-spending <sample, foreign or over> [--today yyyy-mm-dd]
+ *   npm run check:figures -- --fake-spending <sample, foreign, over or statements> [--today yyyy-mm-dd]
  *
  * A Loans, an Investments, an Assets or a Spending input goes with the others or alone, and its groups follow the
  * company's, in that order. With two or more, a last group adds them up as Kuna's Overview does. An Investments file
@@ -164,6 +164,11 @@ import { assetsOnDay, assetsTotal } from '../src/apps/assets/values/presentation
 import { ASSETS_DOCUMENT } from '../src/apps/assets/workbook/infrastructure/assetsDocument.ts'
 import { fakeAssetsDocument } from '../src/apps/assets/workbook/infrastructure/fake/fakeAssets.ts'
 import { accountOnDay } from '../src/apps/spending/rates/domain/euroRows.ts'
+import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement.ts'
+import { reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue.ts'
+import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun.ts'
+import { SAMPLE_REVOLUT_FILE_NAME, sampleRevolutCsv } from '../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles.ts'
+import { readFirstSheet } from '../src/shared/xlsx/sheetGrids.ts'
 import { ratesStateOf } from '../src/apps/spending/rates/domain/ratesState.ts'
 import { ratesNeeded } from '../src/apps/spending/rates/domain/ratesNeeded.ts'
 import { monthFlow } from '../src/apps/spending/analytics/domain/monthFlow.ts'
@@ -216,11 +221,11 @@ if (
   (options['fake-loans'] !== undefined && !['sample', 'house-and-car', 'equal-principal'].includes(options['fake-loans'])) ||
   (options['fake-investments'] !== undefined && options['fake-investments'] !== 'sample') ||
   (options['fake-assets'] !== undefined && !['sample', 'house-and-car', 'loan-gone'].includes(options['fake-assets'])) ||
-  (options['fake-spending'] !== undefined && !['sample', 'foreign', 'over'].includes(options['fake-spending'])) ||
+  (options['fake-spending'] !== undefined && !['sample', 'foreign', 'over', 'statements'].includes(options['fake-spending'])) ||
   today === null
 ) {
   console.error(
-    'Usage: npm run check:figures -- [--fake <drive, browser, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car or equal-principal>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car or loan-gone>] [--spending <path to .json> [--spending-rates <folder of USD.csv and the like>] | --fake-spending <sample, foreign or over>] [--today yyyy-mm-dd]',
+    'Usage: npm run check:figures -- [--fake <drive, browser, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car or equal-principal>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car or loan-gone>] [--spending <path to .json> [--spending-rates <folder of USD.csv and the like>] | --fake-spending <sample, foreign, over or statements>] [--today yyyy-mm-dd]',
   )
   process.exit(2)
 }
@@ -630,7 +635,27 @@ async function ratesOfInput(workbook) {
 async function spendingGroups(add) {
   const document = options.spending === undefined ? fakeSpendingDocument(AT, options['fake-spending'], today) : decodeDocument(readFileSync(options.spending, 'utf8'))
   const { records, workbook } = SPENDING_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
-  add('spending.read.records', records)
+  // The bank's fields and the kinds only statements use have a group of their own, so a file with none of them keeps this digest.
+  const { accounts, categories, transactions, budgets, rules } = records
+  const typedFieldsOf = ({ description, counterpartyIban, importKey, statement, categorisedBy, movedAt, pocket, ...typedFields }) => typedFields
+  add('spending.read.records', {
+    accounts,
+    categories,
+    budgets,
+    transactions: { ...transactions, records: transactions.records.map((stored) => ({ ...stored, record: typedFieldsOf(stored.record) })) },
+  })
+  add('spending.read.statements', {
+    rules,
+    bankFields: transactions.records.map(({ record: { description, counterpartyIban, importKey, statement, categorisedBy, movedAt, pocket } }) => [
+      description,
+      counterpartyIban,
+      importKey,
+      statement,
+      categorisedBy,
+      movedAt,
+      pocket,
+    ]),
+  })
   add('spending.read.problems', workbook.problems)
   const rates = await ratesOfInput(workbook)
   for (const [place, account] of workbook.accounts.entries()) {
@@ -650,6 +675,12 @@ async function spendingGroups(add) {
     add(`spending.budgets.${month}`, () => figures.limitsIn(month))
   }
   add('spending.hub', () => spendingHubFigures(workbook, rates, today))
+  add('spending.review', () => reviewQueue(workbook, today))
+  add('spending.rules', workbook.rules)
+  if (options['fake-spending'] === 'statements') {
+    const reading = revolutStatement(await readFirstSheet(sampleRevolutCsv(today)), SAMPLE_REVOLUT_FILE_NAME, workbook)
+    add('spending.import.revolut', () => ('statement' in reading ? statementDryRun(workbook, reading.statement, today) : reading))
+  }
   return () => spendingHubFigures(workbook, rates, today)
 }
 

@@ -45,6 +45,7 @@ export const en = {
     added: 'Entry added',
     saved: 'Entry saved',
     deleted: 'Entry deleted',
+    comesBack: 'A statement brought this entry. If you delete it, the next export that covers its day brings it back.',
   },
 }
 
@@ -87,6 +88,7 @@ export const hr: Translation<typeof en> = {
     added: 'Unos je dodan',
     saved: 'Unos je spremljen',
     deleted: 'Unos je obrisan',
+    comesBack: 'Ovaj je unos došao iz izvoda. Ako ga obrišete, vratit će ga sljedeći izvoz koji obuhvaća taj dan.',
   },
 }
 

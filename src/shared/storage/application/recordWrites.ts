@@ -2,7 +2,7 @@ import { listInWords } from '../../text/listInWords'
 import { plural } from '../../text/translation'
 import type { RecordId } from '../domain/recordId'
 import type { RecordKind } from '../domain/recordKind'
-import { sameRecord, storedOf } from '../domain/recordsRead'
+import { readingLookup, sameRecord, storedOf } from '../domain/recordsRead'
 import type { Reading, StoredRecord } from '../domain/recordsRead'
 import type { FreshRecords, KindChange, RecordEdit, WriteRules } from '../domain/writeRules'
 import type { RecordChange, StorageView } from './recordStorage'
@@ -119,8 +119,9 @@ function findStored(storage: StorageView, fresh: FreshRecords, change: Exclude<R
 
 /** What a reading says of one record: whether it counts, and every reason given for it. A record without an identity is known by its label. */
 function outcomeOf(reading: Reading<{ readonly id: RecordId }>, stored: StoredRecord<unknown>): { readonly kept: boolean; readonly reasons: readonly string[] } {
-  const reasons = reading.problems.filter((problem) => (stored.id === null ? problem.id === null && problem.label === stored.label : problem.id === stored.id)).map((problem) => problem.reason)
-  return { kept: stored.id !== null && reading.facts.some((fact) => fact.id === stored.id), reasons: [...new Set(reasons)] }
+  const { kept, problems } = readingLookup(reading)
+  const reasons = (problems.get(stored.id) ?? []).filter((problem) => stored.id !== null || problem.label === stored.label).map((problem) => problem.reason)
+  return { kept: stored.id !== null && kept.has(stored.id), reasons: [...new Set(reasons)] }
 }
 
 /**

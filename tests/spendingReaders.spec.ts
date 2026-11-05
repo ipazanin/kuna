@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { SPENDING_APP, SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import type { DocumentRecord } from '../src/shared/storage/infrastructure/documentFormat'
 import { newDocument } from '../src/shared/storage/infrastructure/documentRecordStorage'
@@ -34,7 +34,7 @@ const CATEGORIES: readonly RecordFields[] = [
   { id: COMPANY, name: 'For the company', kind: 'company', order: '15' },
 ]
 
-type Records = Partial<Record<'account' | 'category' | 'transaction' | 'budget', readonly DocumentRecord[]>>
+type Records = Partial<Record<'account' | 'category' | 'transaction' | 'budget' | 'rule', readonly DocumentRecord[]>>
 
 function bookOf(records: Records) {
   const document = newDocument(SPENDING_APP, { spending: 1 }, records, '2026-11-04T09:00:00.000Z')
@@ -283,6 +283,71 @@ describe('problems in the Spending file, listed by kind', () => {
 
     expect(book.problems).toEqual([])
     expect(book.budgets).toHaveLength(3)
+  })
+
+  it('reads and writes back the bank fields of an entry, with a blank field stored as nothing', () => {
+    const fields = entry(40, {
+      description: 'CAFE 12',
+      counterparty_iban: 'HR2200000000000000022',
+      import_key: 'abc-1',
+      statement: 'export.csv',
+      categorised_by: 'rule',
+      moved_at: '2026-10-12 09:00:00',
+      pocket: true,
+    })
+
+    expect(roundTrip(TRANSACTION_RECORDS, fields)).toMatchObject(fields)
+    expect(Object.keys(roundTrip(TRANSACTION_RECORDS, entry(41, {})))).not.toContain('categorised_by')
+  })
+
+  it('refuses a categorised_by it does not know, and two entries of one account with one import key, while the key may repeat on another account', () => {
+    const problems = problemsOf({
+      account: ACCOUNTS,
+      category: CATEGORIES,
+      transaction: [
+        entry(42, { categorised_by: 'magic' }),
+        entry(43, { import_key: 'same' }),
+        entry(44, { import_key: 'same' }),
+        entry(45, { import_key: 'other', account: REVOLUT_EUR }),
+        entry(46, { import_key: 'other' }),
+      ],
+    })
+
+    expect(problems.map(([, , reason]) => reason)).toEqual([expect.stringContaining('categorised_by'), expect.stringContaining('import key same'), expect.stringContaining('import key same')])
+  })
+
+  it('reads a rule of either condition, in its order, and writes it back', () => {
+    const rules = [
+      { id: uuid(51), order: '2', counterparty_contains: 'Corner market', category: GROCERIES },
+      { id: uuid(52), order: '1', counterparty_iban: 'HR22 0000 0000 0000 0002 2', category: RESTAURANTS },
+    ]
+    const book = bookOf({ category: CATEGORIES, rule: rules })
+
+    expect(book.problems).toEqual([])
+    expect(book.rules.map((rule) => rule.condition)).toEqual([
+      { column: 'counterparty_iban', iban: 'HR2200000000000000022' },
+      { column: 'counterparty_contains', fragment: 'Corner market' },
+    ])
+    expect(roundTrip(RULE_RECORDS, rules[0]!)).toEqual(rules[0])
+  })
+
+  it('refuses a rule with no condition, with both, with one Spending does not read, or naming no category that counts', () => {
+    const problems = problemsOf({
+      category: CATEGORIES,
+      rule: [
+        { id: uuid(53), order: '1', category: GROCERIES },
+        { id: uuid(54), order: '2', counterparty_contains: 'Shop', counterparty_iban: 'HR1', category: GROCERIES },
+        { id: uuid(55), order: '3', counterparty_contains: 'Shop', is_card: 'TRUE', category: GROCERIES },
+        { id: uuid(56), order: '4', counterparty_contains: 'Shop', category: uuid(99) },
+      ],
+    })
+
+    expect(problems.map(([kind, , reason]) => [kind, reason])).toEqual([
+      ['rule', expect.stringContaining('only one of them')],
+      ['rule', expect.stringContaining('only one of them')],
+      ['rule', expect.stringContaining('is_card')],
+      ['rule', 'names no category in the file'],
+    ])
   })
 
   it('lists the problems of every kind in the order of the kinds', () => {

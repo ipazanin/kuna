@@ -13,6 +13,6 @@ export function categorisationContextOf(workbook: {
     clientIbans: new Set(workbook.clients.flatMap((client) => client.ibans)),
     cardSettlementIbans: new Set(workbook.settings.cardSettlementIbans),
     accountCurrencies: new Map(workbook.accounts.filter((account) => account.currency !== '').map((account) => [account.slug, account.currency.toUpperCase()])),
-    workbookCurrency: workbook.settings.currency.toUpperCase(),
+    defaultCurrency: workbook.settings.currency.toUpperCase(),
   }
 }

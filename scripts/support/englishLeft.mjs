@@ -29,10 +29,12 @@ import { termLabel } from '../../src/apps/company/packs/hr-doo/ruleset/presentat
 import { fakeLoansDocument } from '../../src/apps/loans/workbook/infrastructure/fake/fakeLoans.ts'
 import { fakeAssetsDocument } from '../../src/apps/assets/workbook/infrastructure/fake/fakeAssets.ts'
 import { starterCategories } from '../../src/apps/spending/categories/domain/starterCategories.ts'
+import { sampleRevolutRows } from '../../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles.ts'
 import { fakeSpendingDocument } from '../../src/apps/spending/workbook/infrastructure/fake/fakeSpending.ts'
 import { fakeInvestmentsDocument } from '../../src/apps/investments/workbook/infrastructure/fake/fakeInvestments.ts'
 import { fakePricesFile } from '../../src/apps/investments/prices/infrastructure/fake/fakePrices.ts'
 import { sampleWorkbookGrid } from '../../src/apps/investments/imports/infrastructure/fake/sampleWorkbook.ts'
+import { civilDate } from '../../src/shared/calendar/civilDate.ts'
 import { installHrDooPack } from './installPack.mjs'
 
 const SOURCE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'src')
@@ -160,7 +162,7 @@ const FAKE_DOCUMENTS = [
   ...['sample', 'one-loan', 'house-and-car', 'equal-principal'].map((set) => fakeLoansDocument(FAKE_SAVED_AT, set)),
   ...['sample', 'cash-below-zero'].map((variant) => fakeInvestmentsDocument(FAKE_SAVED_AT, variant)),
   ...['sample', 'house-and-car', 'loan-gone'].map((set) => fakeAssetsDocument(FAKE_SAVED_AT, set)),
-  ...['sample', 'foreign', 'over'].map((set) => fakeSpendingDocument(FAKE_SAVED_AT, set)),
+  ...['sample', 'foreign', 'over', 'statements'].map((set) => fakeSpendingDocument(FAKE_SAVED_AT, set)),
 ]
 
 /** The words of the field names of the Company, Loans, Investments, Assets and Spending files, which a Croatian reason writes in lower case as the file stores them. */
@@ -234,7 +236,15 @@ async function typedInFakeFiles() {
   const camt = [...sampleCamtXml().matchAll(/>([^<>]+)</g)].map((match) => match[1])
   const table = XLSX.read(await sampleTableFile(), { type: 'buffer' })
   const tableCells = Object.values(table.Sheets).flatMap((sheet) => XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false }).flat())
-  return [...FAKE_DOCUMENTS.flatMap(stringsIn), ...fakeMails().flatMap(stringsIn), FAKE_BOOKS_FOLDER, ...camt, ...tableCells.map(String), ...sampleWorkbookGrid().flat().map(String)]
+  return [
+    ...FAKE_DOCUMENTS.flatMap(stringsIn),
+    ...fakeMails().flatMap(stringsIn),
+    FAKE_BOOKS_FOLDER,
+    ...camt,
+    ...tableCells.map(String),
+    ...sampleWorkbookGrid().flat().map(String),
+    ...sampleRevolutRows(civilDate(2026, 10, 16)).flat(),
+  ]
     .map((text) => text.trim())
     .filter((text) => !SEEDED_IN_ENGLISH.has(text) && !/^\p{Ll}+$/u.test(text) && wordsOf(text).some((word) => ENGLISH_WORDS.has(word)))
 }

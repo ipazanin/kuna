@@ -12,6 +12,8 @@ interface StarterGroup {
   readonly children: readonly Named[]
 }
 
+const BANK_FEES: Named = ['Bank fees', 'Bankovne naknade']
+
 const STARTER_GROUPS: readonly StarterGroup[] = [
   {
     name: ['Food', 'Hrana'],
@@ -105,12 +107,7 @@ const STARTER_GROUPS: readonly StarterGroup[] = [
   {
     name: ['Money and fees', 'Novac i naknade'],
     kind: 'spending',
-    children: [
-      ['Bank fees', 'Bankovne naknade'],
-      ['Taxes and charges', 'Porezi i pristojbe'],
-      ['Insurance', 'Osiguranja'],
-      ['Loan instalments', 'Rate kredita'],
-    ],
+    children: [BANK_FEES, ['Taxes and charges', 'Porezi i pristojbe'], ['Insurance', 'Osiguranja'], ['Loan instalments', 'Rate kredita']],
   },
   { name: ['Other', 'Ostalo'], kind: 'spending', children: [['Other', 'Ostalo']] },
   {
@@ -127,6 +124,11 @@ const STARTER_GROUPS: readonly StarterGroup[] = [
   { name: ['Saved to investments', 'Prijenos u ulaganja'], kind: 'saving', children: [] },
   { name: ['For the company', 'Za tvrtku'], kind: 'company', children: [] },
 ]
+
+/** The starter category a statement's fee goes in, by its name in either language, or undefined once it was renamed or deleted. */
+export function bankFeesCategory(categories: readonly Category[]): Category | undefined {
+  return categories.find((category) => category.kind === 'spending' && BANK_FEES.includes(category.name))
+}
 
 /**
  * The categories a new Spending file starts with, named in the first run's language: eleven spending groups with their

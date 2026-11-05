@@ -52,7 +52,9 @@
  * the Spending first run finding the file another device made on Drive and keeping a new one in this browser, money
  * out added by touch with its amount on the number pad and a category and undone, a move between two accounts read in
  * both balances, deleted and brought back, a group of the spending ring opening its categories and one of them opening
- * Transactions filtered by it and Back, and Food's limit raised with its carry kept,
+ * Transactions filtered by it and Back, Food's limit raised with its carry kept, a Revolut export dropped, read as a dry
+ * run, imported and undone, Not a pair and a category on To review undone, and a rule made from To review, read on Settings,
+ * Rules, deleted and brought back,
  * and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
  * the payee breakdown has to stay inside the window and off its own row.
@@ -139,8 +141,13 @@ import {
   invoiceRunFlowIn,
   assetsEditorFlow,
   assetsValuationFlow,
+  spendingCreditToTransferFlowIn,
+  spendingDeleteNoteFlowIn,
   spendingFoodLimitFlow,
+  spendingImportFlowIn,
   spendingMoneyOutFlow,
+  spendingReviewFlowIn,
+  spendingRuleFlowIn,
   spendingTransferFlow,
   firstRunBrowserFlowIn,
   firstRunOnDriveFlowIn,
@@ -197,7 +204,7 @@ import {
   statementsFolderFlow,
   syncRunningFlow,
 } from './support/editorFlows.mjs'
-import { writeImportSamples } from './support/importSampleFiles.mjs'
+import { writeImportSamples, writeSpendingImportSamples } from './support/importSampleFiles.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
@@ -268,6 +275,7 @@ if (!selection.limited) {
 }
 const TEMPLATE_FILE = await writeFakeTemplateFile(join(OUTPUT_DIR, 'filled-template.xlsx'))
 const IMPORT_SAMPLES = await writeImportSamples(OUTPUT_DIR)
+const SPENDING_IMPORT_SAMPLES = writeSpendingImportSamples(OUTPUT_DIR)
 const WORKBOOK_SAMPLES = await writeWorkbookSamples(OUTPUT_DIR)
 const CLOSES_SAMPLES = writeClosesSamples(OUTPUT_DIR)
 
@@ -2781,6 +2789,11 @@ async function checkWidth(width) {
     ['spending-money-out', 'drive&spending=sample', spendingMoneyOutFlow, '#/spending/transactions', 'Entries'],
     ['spending-transfer', 'drive&spending=sample', spendingTransferFlow, '#/spending/accounts', 'Accounts'],
     ['spending-limit', 'drive&spending=sample', spendingFoodLimitFlow, '#/spending/budgets', 'Limits'],
+    ['spending-credit-transfer', 'drive&spending=sample', spendingCreditToTransferFlowIn('en'), '#/spending/transactions', 'Entries'],
+    ['spending-delete-note', 'drive&spending=statements', spendingDeleteNoteFlowIn('en'), '#/spending/transactions', 'Entries'],
+    ['spending-import', 'drive&spending=statements', spendingImportFlowIn('en', SPENDING_IMPORT_SAMPLES), '#/spending/transactions?tab=import', 'Entries'],
+    ['spending-review', 'drive&spending=statements', spendingReviewFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
+    ['spending-rule', 'drive&spending=statements', spendingRuleFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     ['investments-start', 'drive', investmentsDriveFlow, '#/investments', 'Investments'],
     ['investments-price-key', 'drive&investments=sample', investmentsPriceKeyFlow, '#/investments/settings?tab=prices', 'Settings'],
     ['investments-key-synced', 'drive&investments=sample&keys=other-browser', investmentsKeyFromOtherBrowserFlow, '#/investments/settings?tab=prices', 'Settings'],

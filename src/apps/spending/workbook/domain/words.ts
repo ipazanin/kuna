@@ -45,6 +45,11 @@ export const en = {
   notSpending: 'is on a category that is not spending, which no limit counts',
   budgetSharesMonth: (month: MonthKey) => `another limit of the category starts in ${month} too`,
   budgetOnGroupAndChild: 'is on a group and on one of its children in the same months, so no euro counts against two limits',
+  accountOfStatementRow: 'a row a statement brought stays on its account, since the next statement finds it there by its key',
+  importKeyShared: (key: string) => `another entry of the account has the import key ${key} too`,
+  ruleNeedsOneCondition: 'a rule states counterparty_contains or counterparty_iban, and only one of them',
+  ruleOtherCondition: (column: string) => `Spending's rules read no ${column}`,
+  ruleLabel: (fields: StoredFields) => labelWords([textOf(fields.counterparty_contains), textOf(fields.counterparty_iban)]),
 }
 
 export const hr: Translation<typeof en> = {
@@ -71,6 +76,11 @@ export const hr: Translation<typeof en> = {
   notSpending: 'je na kategoriji koja nije potrošnja, pa je ograničenje ne broji',
   budgetSharesMonth: (month) => `i drugo ograničenje te kategorije počinje u mjesecu ${monthLabel(month)}`,
   budgetOnGroupAndChild: 'je na skupini i na jednoj od njezinih podređenih kategorija u istim mjesecima, pa se nijedan euro ne broji u dva ograničenja',
+  accountOfStatementRow: 'stavka iz izvoda ostaje na svom računu jer je sljedeći izvod tamo pronalazi po ključu',
+  importKeyShared: (key) => `i drugi unos računa ima ključ uvoza ${key}`,
+  ruleNeedsOneCondition: 'pravilo navodi counterparty_contains ili counterparty_iban, i samo jedno od njih',
+  ruleOtherCondition: (column) => `pravila potrošnje ne čitaju ${column}`,
+  ruleLabel: (fields) => labelWords([textOf(fields.counterparty_contains), textOf(fields.counterparty_iban)]),
 }
 
 /** A stored month as Croatian names it, or the text as it is when it is no month. */

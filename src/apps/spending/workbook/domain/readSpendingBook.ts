@@ -3,7 +3,8 @@ import { ibanKey } from './accountReading'
 import type { Budget } from './budget'
 import type { Category } from './category'
 import { isFixedKind } from './category'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
+import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
+import type { SpendingRule } from './spendingRule'
 import type { Transaction } from './transaction'
 import { words } from './words'
 import { limitRuns, runsOverlap } from '../../budgets/domain/budgetCarry'
@@ -18,6 +19,7 @@ export interface SpendingRecords {
   readonly categories: RecordsRead<Category>
   readonly transactions: RecordsRead<Transaction>
   readonly budgets: RecordsRead<Budget>
+  readonly rules: RecordsRead<SpendingRule>
 }
 
 /** The kind each part of the records holds. */
@@ -26,11 +28,18 @@ export const SPENDING_PARTS: { readonly [Part in keyof SpendingRecords]: RecordK
   categories: CATEGORY_RECORDS,
   transactions: TRANSACTION_RECORDS,
   budgets: BUDGET_RECORDS,
+  rules: RULE_RECORDS,
 }
 
 /** The records of every Spending kind, as `of` gives each kind. */
 export function spendingRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>): SpendingRecords {
-  return { accounts: of(SPENDING_PARTS.accounts), categories: of(SPENDING_PARTS.categories), transactions: of(SPENDING_PARTS.transactions), budgets: of(SPENDING_PARTS.budgets) }
+  return {
+    accounts: of(SPENDING_PARTS.accounts),
+    categories: of(SPENDING_PARTS.categories),
+    transactions: of(SPENDING_PARTS.transactions),
+    budgets: of(SPENDING_PARTS.budgets),
+    rules: of(SPENDING_PARTS.rules),
+  }
 }
 
 /** Which records of each kind count, and why the rest do not or are doubted. */
@@ -49,6 +58,8 @@ export interface SpendingBook {
   /** Oldest first, and in the order of the file within a day. */
   readonly transactions: readonly Transaction[]
   readonly budgets: readonly Budget[]
+  /** In the order they are tried. */
+  readonly rules: readonly SpendingRule[]
   readonly readings: SpendingReadings
   /** Every kind's problems, in the order of the kinds. */
   readonly problems: readonly SpendingProblem[]
@@ -100,8 +111,14 @@ function readCategories(read: RecordsRead<Category>): Reading<Category> {
 
 function readTransactions(read: RecordsRead<Transaction>, accounts: ReadonlySet<string>, categories: ReadonlySet<string>): Reading<Transaction> {
   const byId = new Map(read.records.map((stored) => [stored.id, stored.record]))
+  const keyOf = (transaction: Transaction): string => `${transaction.account} ${transaction.importKey}`
+  const sharingKey = sharedKeys(
+    read.records.filter((stored) => stored.record.importKey !== ''),
+    (stored) => keyOf(stored.record),
+  )
   const reading = readEach(read, ({ record: transaction }) => {
     if (!accounts.has(transaction.account)) return [words.noAccount]
+    if (transaction.importKey !== '' && sharingKey.has(keyOf(transaction))) return [words.importKeyShared(transaction.importKey)]
     if (transaction.category !== null && !categories.has(transaction.category)) return [words.noCategory]
     if (transaction.pair === null) return []
     const other = byId.get(transaction.pair)
@@ -130,23 +147,32 @@ function readBudgets(read: RecordsRead<Budget>, categories: readonly Category[])
   })
 }
 
+function readRules(read: RecordsRead<SpendingRule>, categories: ReadonlySet<string>): Reading<SpendingRule> {
+  const reading = readEach(read, ({ record: rule }) => (categories.has(rule.category) ? [] : [words.noCategory]))
+  return { ...reading, facts: [...reading.facts].sort((earlier, later) => earlier.order - later.order) }
+}
+
 /**
  * Reads the Spending file with the rules across records. A child names a group of its kind that counts, and each of the
  * three fixed kinds is one category. An entry names an account and a category that count, and its other leg names it
  * back from another account. A limit is on a spending category, one a month, and never on a group and its child in the
- * same months. Two accounts with one IBAN and currency, and a second category of a fixed kind, count but are doubted.
+ * same months. A rule names a category that counts. Two accounts with one IBAN and currency, and a second category of a fixed
+ * kind, count but are doubted. Two entries of an account with one import key are refused.
  */
 export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const accounts = readAccounts(records.accounts)
   const categories = readCategories(records.categories)
-  const transactions = readTransactions(records.transactions, new Set(accounts.facts.map((account) => account.id)), new Set(categories.facts.map((category) => category.id)))
+  const categoryIds = new Set(categories.facts.map((category) => category.id))
+  const transactions = readTransactions(records.transactions, new Set(accounts.facts.map((account) => account.id)), categoryIds)
   const budgets = readBudgets(records.budgets, categories.facts)
-  const readings: SpendingReadings = { accounts, categories, transactions, budgets }
+  const rules = readRules(records.rules, categoryIds)
+  const readings: SpendingReadings = { accounts, categories, transactions, budgets, rules }
   return {
     accounts: accounts.facts,
     categories: categories.facts,
     transactions: transactions.facts,
     budgets: budgets.facts,
+    rules: rules.facts,
     readings,
     problems: (Object.keys(SPENDING_PARTS) as (keyof SpendingRecords)[]).flatMap((part) =>
       readings[part].problems.map((problem) => ({ kind: SPENDING_PARTS[part].name, noun: SPENDING_PARTS[part].noun, ...problem })),

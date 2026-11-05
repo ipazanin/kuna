@@ -47,7 +47,8 @@
  * file beside the other samples, alone, and while the ECB rates load (`?rates=opening`). At every width it opens the
  * entry dialog for money out and for a move between two currencies. Its flows add, change and delete money out and undo
  * the delete, move money between two accounts and read both balances, rename, move and delete a category into another
- * and undo it, and set and end a limit and undo that, find the Spending file another device made on Drive and keep a new
+ * and undo it, set and end a limit and undo that, read a Revolut export as a dry run, import it and undo it, refuse an export
+ * with a column missing, send a pair back to review and undo it, make a rule from To review and delete it, find the Spending file another device made on Drive and keep a new
  * one in this browser, in English and Croatian.
  *
  * Beyond the screens of the fake workbook on Drive, it renders the home with every app in Set up and
@@ -251,8 +252,14 @@ import {
   assetsValuationFlowIn,
   spendingCategoryFlowIn,
   spendingEntryDialogFlowIn,
+  spendingCreditToTransferFlowIn,
+  spendingDeleteNoteFlowIn,
   spendingEntryFlowIn,
+  spendingImportFlowIn,
+  spendingImportRefusedFlowIn,
   spendingLimitFlowIn,
+  spendingReviewFlowIn,
+  spendingRuleFlowIn,
   spendingTransferFlowIn,
   employeeFlow,
   employeeFlowIn,
@@ -384,7 +391,7 @@ import {
   syncRunningFlow,
   syncStatesFlowIn,
 } from './support/editorFlows.mjs'
-import { writeImportSamples } from './support/importSampleFiles.mjs'
+import { writeImportSamples, writeSpendingImportSamples } from './support/importSampleFiles.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
 import { runSelection } from './support/runSelection.mjs'
@@ -1431,6 +1438,24 @@ const SOURCE_SCREENS = [
   { name: 'home-loans', query: 'loans=sample', hash: '#/', title: 'All apps', charts: 0, shows: ['Cash on hand', 'You owe in all'], cards: false },
   { name: 'home-assets', query: 'assets=sample', hash: '#/', title: 'All apps', charts: 0, shows: ['Assets value', ASSETS.alone.english, '1 asset without a value'], cards: false },
   {
+    name: 'home-spending-review',
+    query: 'spending=statements',
+    hash: '#/',
+    title: 'All apps',
+    charts: 0,
+    shows: ['Spent this month', '5 rows to review'],
+    cards: false,
+  },
+  {
+    name: 'home-spending-review-croatian',
+    query: 'spending=statements&lang=hr',
+    hash: '#/',
+    title: 'Sve aplikacije',
+    charts: 0,
+    shows: ['Potrošeno ovaj mjesec', 'Za pregled: 5'],
+    cards: false,
+  },
+  {
     name: 'home-spending',
     query: 'spending=sample',
     hash: '#/',
@@ -2409,6 +2434,42 @@ const SOURCE_SCREENS = [
     title: 'Unosi',
     charts: 0,
     shows: [...SPENDING.payees, 'Svi računi', 'Sve kategorije'],
+    cards: false,
+  },
+  {
+    name: 'spending-review',
+    query: 'spending=statements',
+    hash: '#/spending/transactions?tab=review',
+    title: 'Entries',
+    charts: 0,
+    shows: ['Rows to review', 'Old Town Bookshop', 'Maybe the same money', 'Maybe a transfer', 'Paired transfers', 'Not a pair', 'Waiting for the other side', 'Wants a Revolut savings account'],
+    cards: false,
+  },
+  {
+    name: 'spending-review-croatian',
+    query: 'spending=statements&lang=hr',
+    hash: '#/spending/transactions?tab=review',
+    title: 'Unosi',
+    charts: 0,
+    shows: ['Stavke za pregled', 'Old Town Bookshop', 'Možda isti novac', 'Možda prijenos', 'Spojeni prijenosi', 'Nije par', 'Čeka drugu stranu', 'Treba Revolutov štedni račun'],
+    cards: false,
+  },
+  {
+    name: 'spending-settings-rules',
+    query: 'spending=statements',
+    hash: '#/spending/settings?tab=rules',
+    title: 'Settings',
+    charts: 0,
+    shows: ['Rules', 'Payee contains Corner market'],
+    cards: false,
+  },
+  {
+    name: 'spending-settings-rules-croatian',
+    query: 'spending=statements&lang=hr',
+    hash: '#/spending/settings?tab=rules',
+    title: 'Postavke',
+    charts: 0,
+    shows: ['Pravila', 'Primatelj sadrži Corner market'],
     cards: false,
   },
   {
@@ -4133,6 +4194,7 @@ function writeImportFile() {
 
 const IMPORT_FILE = writeImportFile()
 const IMPORT_SAMPLES = await writeImportSamples(SCREENSHOT_DIR)
+const SPENDING_IMPORT_SAMPLES = writeSpendingImportSamples(SCREENSHOT_DIR)
 const WORKBOOK_SAMPLES = await writeWorkbookSamples(SCREENSHOT_DIR)
 const CLOSES_SAMPLES = writeClosesSamples(SCREENSHOT_DIR)
 
@@ -4551,6 +4613,28 @@ const FLOWS = [
     viewports: EVERY_VIEWPORT,
     queries: { drive: '&spending=sample' },
   },
+  {
+    name: 'spending-import-revolut',
+    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
+    hash: '#/spending/transactions?tab=import',
+    title: 'Entries',
+    run: spendingImportFlowIn('en', SPENDING_IMPORT_SAMPLES),
+    modes: ['drive'],
+    queries: { drive: '&spending=statements' },
+  },
+  {
+    name: 'spending-import-refused',
+    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
+    hash: '#/spending/transactions?tab=import',
+    title: 'Entries',
+    run: spendingImportRefusedFlowIn('en', SPENDING_IMPORT_SAMPLES),
+    modes: ['drive'],
+    queries: { drive: '&spending=statements' },
+  },
+  { name: 'spending-review-editor', hash: '#/spending/transactions?tab=review', title: 'Entries', run: spendingReviewFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=statements' } },
+  { name: 'spending-rule-editor', hash: '#/spending/transactions?tab=review', title: 'Entries', run: spendingRuleFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=statements' } },
+  { name: 'spending-credit-transfer-editor', hash: '#/spending/transactions', title: 'Entries', run: spendingCreditToTransferFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=sample' } },
+  { name: 'spending-delete-note', hash: '#/spending/transactions', title: 'Entries', run: spendingDeleteNoteFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=statements' } },
   { name: 'spending-entry-editor', hash: '#/spending/transactions', title: 'Entries', run: spendingEntryFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=sample' } },
   { name: 'spending-transfer-editor', hash: '#/spending/accounts', title: 'Accounts', run: spendingTransferFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=sample' } },
   { name: 'spending-category-editor', hash: '#/spending/settings', title: 'Settings', run: spendingCategoryFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=sample' } },
@@ -4573,6 +4657,49 @@ const FLOWS = [
     viewports: EVERY_VIEWPORT,
     queries: { drive: '&spending=sample&lang=hr' },
   },
+  {
+    name: 'spending-import-revolut-croatian',
+    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
+    hash: '#/spending/transactions?tab=import',
+    title: 'Unosi',
+    run: spendingImportFlowIn('hr', SPENDING_IMPORT_SAMPLES),
+    modes: ['drive'],
+    queries: { drive: '&spending=statements&lang=hr' },
+  },
+  {
+    name: 'spending-import-refused-croatian',
+    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
+    hash: '#/spending/transactions?tab=import',
+    title: 'Unosi',
+    run: spendingImportRefusedFlowIn('hr', SPENDING_IMPORT_SAMPLES),
+    modes: ['drive'],
+    queries: { drive: '&spending=statements&lang=hr' },
+  },
+  {
+    name: 'spending-review-editor-croatian',
+    hash: '#/spending/transactions?tab=review',
+    title: 'Unosi',
+    run: spendingReviewFlowIn('hr'),
+    modes: ['drive'],
+    queries: { drive: '&spending=statements&lang=hr' },
+  },
+  {
+    name: 'spending-rule-editor-croatian',
+    hash: '#/spending/transactions?tab=review',
+    title: 'Unosi',
+    run: spendingRuleFlowIn('hr'),
+    modes: ['drive'],
+    queries: { drive: '&spending=statements&lang=hr' },
+  },
+  {
+    name: 'spending-credit-transfer-editor-croatian',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    run: spendingCreditToTransferFlowIn('hr'),
+    modes: ['drive'],
+    queries: { drive: '&spending=sample&lang=hr' },
+  },
+  { name: 'spending-delete-note-croatian', hash: '#/spending/transactions', title: 'Unosi', run: spendingDeleteNoteFlowIn('hr'), modes: ['drive'], queries: { drive: '&spending=statements&lang=hr' } },
   { name: 'spending-entry-editor-croatian', hash: '#/spending/transactions', title: 'Unosi', run: spendingEntryFlowIn('hr'), modes: ['drive'], queries: { drive: '&spending=sample&lang=hr' } },
   { name: 'spending-transfer-editor-croatian', hash: '#/spending/accounts', title: 'Računi', run: spendingTransferFlowIn('hr'), modes: ['drive'], queries: { drive: '&spending=sample&lang=hr' } },
   { name: 'spending-category-editor-croatian', hash: '#/spending/settings', title: 'Postavke', run: spendingCategoryFlowIn('hr'), modes: ['drive'], queries: { drive: '&spending=sample&lang=hr' } },

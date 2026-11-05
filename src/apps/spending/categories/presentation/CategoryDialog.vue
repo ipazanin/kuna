@@ -127,7 +127,12 @@ const moving = computed(() => {
   if (category === null || records === null) return words.dialog.nothingMoves
   const entries = recordsOf(records.transactions).filter((entry) => entry.category === category.id).length
   const limits = recordsOf(records.budgets).filter((budget) => budget.category === category.id).length
-  const lines = [...(entries > 0 ? [words.dialog.moving(plural(words.dialog.entries(entries), entries))] : []), ...(limits > 0 ? [plural(words.dialog.limitsEnd(limits), limits)] : [])]
+  const rules = recordsOf(records.rules).filter((rule) => rule.category === category.id).length
+  const lines = [
+    ...(entries > 0 ? [words.dialog.moving(plural(words.dialog.entries(entries), entries))] : []),
+    ...(rules > 0 ? [plural(words.dialog.rulesMove(rules), rules)] : []),
+    ...(limits > 0 ? [plural(words.dialog.limitsEnd(limits), limits)] : []),
+  ]
   return lines.length === 0 ? words.dialog.nothingMoves : lines.join(' ')
 })
 

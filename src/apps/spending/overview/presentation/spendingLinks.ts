@@ -11,6 +11,10 @@ export const SPENDING_OVERVIEW_ROUTE = '/spending'
 /** The Spending first run, with its step in the query. */
 export const SPENDING_START_ROUTE = '/spending/start'
 export const SPENDING_TRANSACTIONS_ROUTE = '/spending/transactions'
+/** The To review tab's value in `?tab=`. */
+export const SPENDING_REVIEW_TAB = 'review'
+/** The rows that wait for you, on the To review tab of Entries. */
+export const SPENDING_REVIEW_LINK = `${SPENDING_TRANSACTIONS_ROUTE}?tab=${SPENDING_REVIEW_TAB}`
 export const SPENDING_BUDGETS_ROUTE = '/spending/budgets'
 export const SPENDING_ACCOUNTS_ROUTE = '/spending/accounts'
 export const SPENDING_ACCOUNT_ROUTE = '/spending/account'

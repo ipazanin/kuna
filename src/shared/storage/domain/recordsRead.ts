@@ -56,6 +56,19 @@ export interface Reading<R> {
 /** What a storage without any record of a kind holds of it. */
 export const NO_RECORDS: RecordsRead<never> = { records: [], refused: [] }
 
+const READING_LOOKUPS = new WeakMap<Reading<{ readonly id: RecordId }>, { readonly kept: ReadonlySet<RecordId>; readonly problems: ReadonlyMap<RecordId | null, readonly RecordProblem[]> }>()
+
+/** A reading's kept ids and its problems by id, worked out once, since a check asks after every record of a kind on each write. */
+export function readingLookup(reading: Reading<{ readonly id: RecordId }>): { readonly kept: ReadonlySet<RecordId>; readonly problems: ReadonlyMap<RecordId | null, readonly RecordProblem[]> } {
+  const held = READING_LOOKUPS.get(reading)
+  if (held !== undefined) return held
+  const problems = new Map<RecordId | null, RecordProblem[]>()
+  for (const problem of reading.problems) problems.set(problem.id, [...(problems.get(problem.id) ?? []), problem])
+  const lookup = { kept: new Set(reading.facts.map((fact) => fact.id)), problems }
+  READING_LOOKUPS.set(reading, lookup)
+  return lookup
+}
+
 /** A problem on a stored record, named as the storage names it. */
 export function problemOf(stored: Pick<RefusedRecord, 'id' | 'label'>, reason: string): RecordProblem {
   return { id: stored.id, label: stored.label, reason }

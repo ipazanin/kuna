@@ -5,12 +5,14 @@ import {
   SPENDING_ACCOUNTS_ROUTE,
   SPENDING_BUDGETS_ROUTE,
   SPENDING_OVERVIEW_ROUTE,
+  SPENDING_REVIEW_LINK,
   SPENDING_SETTINGS_ROUTE,
   SPENDING_START_ROUTE,
   SPENDING_TRANSACTIONS_ROUTE,
 } from './overview/presentation/spendingLinks'
 import { startRates, useRates } from './rates/presentation/useRates'
 import { words as screenWords } from './screenWords'
+import { reviewCount } from './statements/domain/reviewQueue'
 import { spendingSyncGroup } from './sync/presentation/spendingSyncGroup'
 import { words } from './words'
 import { useSpendingBooks } from './workbook/application/spendingStore'
@@ -56,7 +58,10 @@ export const spendingApp: AppContribution = {
   ],
   menu: () => [OVERVIEW, TRANSACTIONS, BUDGETS, ACCOUNTS],
   settings: SETTINGS,
-  menuCount: () => null,
+  menuCount: (screen) => {
+    const count = screen.path === SPENDING_TRANSACTIONS_ROUTE && state.workbook !== null ? reviewCount(state.workbook) : 0
+    return count === 0 ? null : { count, opens: SPENDING_REVIEW_LINK }
+  },
   subtitle: () => null,
   // Every figure on the Spending screens and on Kuna's Overview is in euros, so it shows them in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,

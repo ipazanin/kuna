@@ -1,6 +1,8 @@
 import { optionalReference, requiredReference } from './recordReference'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
-import { TRANSACTION_SOURCES } from './transaction'
+import { ibanKey } from './accountReading'
+import { flagOf } from './fieldReading'
+import { CATEGORISED_BY, TRANSACTION_SOURCES } from './transaction'
 import type { Transaction } from './transaction'
 import { words } from './words'
 import { withIdField } from '../../../../shared/storage/domain/recordCodec'
@@ -24,6 +26,13 @@ export function transactionOf(fields: StoredFields, id: RecordId | null): Transa
     note: textOf(fields.note),
     source: requiredChoice(fields, 'source', TRANSACTION_SOURCES),
     pair: optionalReference(fields, 'pair', TRANSACTION_RECORDS),
+    description: textOf(fields.description),
+    counterpartyIban: ibanKey(textOf(fields.counterparty_iban)),
+    importKey: textOf(fields.import_key),
+    statement: textOf(fields.statement),
+    categorisedBy: fields.categorised_by === undefined ? null : requiredChoice(fields, 'categorised_by', CATEGORISED_BY),
+    movedAt: textOf(fields.moved_at),
+    pocket: flagOf(fields, 'pocket'),
   }
 }
 
@@ -37,5 +46,12 @@ export const TRANSACTION_CODEC: RecordCodec<Transaction> = withIdField(TRANSACTI
     note: transaction.note,
     source: transaction.source,
     pair: transaction.pair === null ? null : keyOfRecordId(TRANSACTION_RECORDS, transaction.pair),
+    description: transaction.description,
+    counterparty_iban: transaction.counterpartyIban,
+    import_key: transaction.importKey,
+    statement: transaction.statement,
+    categorised_by: transaction.categorisedBy,
+    moved_at: transaction.movedAt,
+    pocket: transaction.pocket ? true : null,
   }),
 )

@@ -5,7 +5,10 @@ import { accountBalance } from '../src/apps/spending/accounts/domain/accountBala
 import { ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accountWrites'
 import { setLimit } from '../src/apps/spending/budgets/application/budgetWrites'
 import { CATEGORY_WRITES, deleteInto } from '../src/apps/spending/categories/application/categoryWrites'
-import { TRANSACTION_WRITES, newEntry, newTransfer, removeEntry } from '../src/apps/spending/entries/application/entryWrites'
+import { TRANSACTION_WRITES, newEntry, newTransfer, deleteComesBack, removeEntry, retypedEntry, transferOver } from '../src/apps/spending/entries/application/entryWrites'
+import { fileRow, joinWithTyped, notAPair, pairRows, writeDryRun, writeRule } from '../src/apps/spending/statements/application/statementWrites'
+import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
+import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
@@ -113,6 +116,226 @@ describe('Spending writes', () => {
     await store.write('Added', (unit) => unit.of(TRANSACTION_WRITES).add(coffee('2026-10-16', -3.5)))
 
     await expect(store.write('Deleted', (unit) => unit.of(ACCOUNT_WRITES).remove(OTP))).rejects.toThrow('names no account in the file')
+  })
+})
+
+describe('a statement in the Spending file', () => {
+  const rowOf = (payee: string, amount: number, date = '2026-10-20') => ({
+    account: OTP.id,
+    date: civil(date),
+    amount: euros(amount),
+    payee,
+    category: null,
+    description: payee,
+    counterpartyIban: '',
+    importKey: `key-${payee}`,
+    movedAt: '',
+    pocket: false,
+  })
+
+  it('is one write: a new row, a filled typed row and a pair, and one Undo takes it all back', async () => {
+    const store = await spendingStore()
+    const typed = coffee('2026-10-19', -5)
+    await store.write('Added', (unit) => unit.of(TRANSACTION_WRITES).add(typed))
+    const before = store.state.workbook!.transactions
+    const rows = [rowOf('CAFE', -5), rowOf('Shop', -7), { ...rowOf('To Revolut', -75), counterpartyIban: REVOLUT_EUR.iban }, { ...rowOf('Top-up', 75), account: REVOLUT_EUR.id }]
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows, notes: [] }, civil('2026-10-30'))
+
+    const receipt = await store.write('Imported', (unit) => writeDryRun(unit, run))
+
+    expect(store.state.workbook!.problems).toEqual([])
+    expect(store.state.workbook!.transactions).toMatchObject([
+      { id: typed.id, category: typed.category, importKey: 'key-CAFE', statement: 'export.csv', date: civil('2026-10-20') },
+      { payee: 'Shop', category: null, source: 'statement', importKey: 'key-Shop' },
+      { payee: 'To Revolut', category: BETWEEN.id },
+      { payee: 'Top-up', category: BETWEEN.id },
+    ])
+    const [, , out, into] = store.state.workbook!.transactions
+    expect([out?.pair, into?.pair]).toEqual([into?.id, out?.id])
+
+    await store.undo(store.state.writes.find((write) => write.receipt === receipt)!)
+
+    expect(store.state.workbook!.transactions).toEqual(before)
+  })
+
+  /** The file after an import of a transfer's two legs and one more row. */
+  async function withAPair(): Promise<WorkbookStore<SpendingBooks>> {
+    const store = await spendingStore()
+    const rows = [
+      { ...rowOf('To Revolut', -75), counterpartyIban: REVOLUT_EUR.iban },
+      { ...rowOf('Top-up', 75), account: REVOLUT_EUR.id },
+    ]
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows, notes: [] }, civil('2026-10-30'))
+    await store.write('Imported', (unit) => writeDryRun(unit, run))
+    return store
+  }
+
+  it('Not a pair clears both legs in one write, and one Undo puts the pair back', async () => {
+    const store = await withAPair()
+    const before = store.state.workbook!.transactions
+    const [pair] = reviewQueue(store.state.workbook!, civil('2026-10-30')).pairs
+
+    const receipt = await store.write('Not a pair', (unit) => notAPair(unit, pair!))
+
+    expect(store.state.workbook!.problems).toEqual([])
+    expect(store.state.workbook!.transactions).toMatchObject([
+      { pair: null, category: null, categorisedBy: 'person' },
+      { pair: null, category: null, categorisedBy: 'person' },
+    ])
+    await store.undo(store.state.writes.find((write) => write.receipt === receipt)!)
+    expect(store.state.workbook!.transactions).toEqual(before)
+  })
+
+  it('pairs two offered rows through the store, and they read as a pair', async () => {
+    const store = await spendingStore()
+    const rows = [rowOf('Card top-up', -60), { ...rowOf('Top-up', 60), account: REVOLUT_EUR.id }]
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows, notes: [] }, civil('2026-10-30'))
+    await store.write('Imported', (unit) => writeDryRun(unit, run))
+    const offered = reviewQueue(store.state.workbook!, civil('2026-10-30')).waiting[0]!.maybeTransfer!
+
+    await store.write('Paired', (unit) => pairRows(unit, offered, BETWEEN.id))
+
+    expect(store.state.workbook!.problems).toEqual([])
+    expect(reviewQueue(store.state.workbook!, civil('2026-10-30')).pairs).toHaveLength(1)
+    expect(reviewCount(store.state.workbook!)).toBe(0)
+  })
+
+  it('joins a near bank row with the typed one through the store, and one Undo puts both back', async () => {
+    const store = await spendingStore()
+    const typed = coffee('2026-10-19', -5)
+    await store.write('Added', (unit) => unit.of(TRANSACTION_WRITES).add(typed))
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('CAFE', -5.2)], notes: [] }, civil('2026-10-30'))
+    await store.write('Imported', (unit) => writeDryRun(unit, run))
+    const before = store.state.workbook!.transactions
+    const near = reviewQueue(store.state.workbook!, civil('2026-10-30')).waiting[0]!.maybeTyped!
+
+    const receipt = await store.write('Joined', (unit) => joinWithTyped(unit, near.typed, near.bank))
+
+    expect(store.state.workbook!.transactions).toMatchObject([{ id: typed.id, amount: euros(-5.2), importKey: 'key-CAFE', category: typed.category }])
+    await store.undo(store.state.writes.find((write) => write.receipt === receipt)!)
+    expect(byId(store.state.workbook!.transactions)).toEqual(byId(before))
+  })
+
+  it('keeps a typed leg sent back to review, with no offer to join it with itself', async () => {
+    const store = await spendingStore()
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('Shop', -30)], notes: [] }, civil('2026-10-30'))
+    await store.write('Imported', (unit) => writeDryRun(unit, run))
+    const [bank] = store.state.workbook!.transactions
+    const { kept, added } = transferOver(bank!, topUp(30))
+    await store.write('Turned into a transfer', (unit) => {
+      unit.of(TRANSACTION_WRITES).change(bank!, kept)
+      unit.of(TRANSACTION_WRITES).add(added)
+    })
+
+    const [pair] = reviewQueue(store.state.workbook!, civil('2026-10-30')).pairs
+    await store.write('Not a pair', (unit) => notAPair(unit, pair!))
+
+    const typedLeg = reviewQueue(store.state.workbook!, civil('2026-10-30')).waiting.find(({ row }) => row.source === 'typed')!
+    expect(typedLeg.maybeTyped).toBeNull()
+    expect(store.state.workbook!.transactions).toHaveLength(2)
+  })
+
+  it('turns money in into a transfer with its sign and its bank facts, the new leg being money out', () => {
+    const credit = { ...coffee('2026-10-19', 75), account: REVOLUT_EUR.id, importKey: 'kept', source: 'statement' as const }
+    const { kept, added } = transferOver(credit, topUp(75))
+
+    expect(kept).toMatchObject({ id: credit.id, amount: euros(75), account: REVOLUT_EUR.id, importKey: 'kept', pair: added.id, category: BETWEEN.id })
+    expect(added).toMatchObject({ amount: euros(-75), account: OTP.id, pair: credit.id })
+  })
+
+  it('refuses to move a row a statement brought to another account, since the next export would bring it again', async () => {
+    const store = await spendingStore()
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('Shop', -5)], notes: [] }, civil('2026-10-30'))
+    await store.write('Imported', (unit) => writeDryRun(unit, run))
+    const [row] = store.state.workbook!.transactions
+
+    await expect(store.write('Moved', (unit) => unit.of(TRANSACTION_WRITES).change(row!, { ...row!, account: REVOLUT_EUR.id }))).rejects.toThrow('stays on its account')
+    await store.write('Changed', (unit) => unit.of(TRANSACTION_WRITES).change(row!, { ...row!, note: 'Mine' }))
+    expect(store.state.workbook!.transactions).toMatchObject([{ account: OTP.id, note: 'Mine' }])
+  })
+
+  it('files a refund under a spending category through the store, where it counts against spending', async () => {
+    const store = await spendingStore()
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('Shop refund', 40)], notes: [] }, civil('2026-10-30'))
+    await store.write('Imported', (unit) => writeDryRun(unit, run))
+    const [row] = store.state.workbook!.transactions
+
+    await store.write('Filed', (unit) => fileRow(unit, row!, category('Personal/Clothes and shoes')))
+
+    expect(store.state.workbook!.transactions).toMatchObject([{ amount: euros(40), category: category('Personal/Clothes and shoes').id, categorisedBy: 'person' }])
+  })
+
+  it('says a deleted statement row comes back, and it does on the next overlapping export, while a typed row does not', async () => {
+    const store = await spendingStore()
+    const statement = { label: 'export.csv', rows: [rowOf('Shop', -5)], notes: [] }
+    await store.write('Imported', (unit) => writeDryRun(unit, statementDryRun(store.state.workbook!, statement, civil('2026-10-30'))))
+    const [row] = store.state.workbook!.transactions
+
+    expect(deleteComesBack([row!])).toBe(true)
+    expect(deleteComesBack([coffee('2026-10-19', -5)])).toBe(false)
+    expect(deleteComesBack([coffee('2026-10-19', -5), row!])).toBe(true)
+
+    await store.write('Deleted', (unit) => removeEntry(unit, store.state.records!, row!))
+    expect(statementDryRun(store.state.workbook!, statement, civil('2026-10-30'))).toMatchObject({ newRows: 1, alreadyIn: 0 })
+  })
+
+  it('undoes a first import of thousands of rows in seconds, not minutes', async () => {
+    const store = await spendingStore()
+    const rows = Array.from({ length: 4_300 }, (_, place) => ({ ...rowOf(`Shop ${place}`, -1 - place / 100, `2026-10-${String((place % 28) + 1).padStart(2, '0')}`) }))
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows, notes: [] }, civil('2026-10-30'))
+    const receipt = await store.write('Imported', (unit) => writeDryRun(unit, run))
+    const started = performance.now()
+
+    await store.undo(store.state.writes.find((write) => write.receipt === receipt)!)
+
+    expect(store.state.workbook!.transactions).toEqual([])
+    expect(performance.now() - started).toBeLessThan(15_000)
+  }, 120_000)
+
+  it('keeps what the bank said on a row you retype, so a later statement still skips it, and marks a changed category as yours', () => {
+    const filed = { ...coffee('2026-10-19', -5), importKey: 'kept', description: 'CAFE 12', statement: 'export.csv', source: 'statement' as const, categorisedBy: 'rule' as const }
+    const typedSame = newEntry({ account: OTP.id, date: civil('2026-10-20'), amount: euros(-6), payee: 'Coffee', category: filed.category, note: '' })
+    const typedOther = newEntry({ account: OTP.id, date: civil('2026-10-20'), amount: euros(-6), payee: 'Coffee', category: category('Food/Groceries').id, note: '' })
+
+    expect(retypedEntry(filed, typedSame)).toMatchObject({
+      id: filed.id,
+      source: 'statement',
+      importKey: 'kept',
+      description: 'CAFE 12',
+      statement: 'export.csv',
+      amount: euros(-6),
+      categorisedBy: 'rule',
+    })
+    expect(retypedEntry(filed, typedOther)).toMatchObject({ importKey: 'kept', categorisedBy: 'person' })
+  })
+
+  it('makes a rule and files the rows waiting in one write', async () => {
+    const store = await spendingStore()
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('Shop', -7)], notes: [] }, civil('2026-10-30'))
+    await store.write('Imported', (unit) => writeDryRun(unit, run))
+
+    await store.write('Rule', (unit) => writeRule(unit, store.state.workbook!, { column: 'counterparty_contains', fragment: 'shop' }, category('Food/Groceries').id))
+
+    expect(store.state.workbook!.rules).toMatchObject([{ order: 1, category: category('Food/Groceries').id }])
+    expect(store.state.workbook!.transactions).toMatchObject([{ category: category('Food/Groceries').id, categorisedBy: 'rule' }])
+  })
+
+  it('moves a rule with its category when that is deleted into another, and one Undo puts it back', async () => {
+    const store = await spendingStore()
+    await store.write('Rule', (unit) => writeRule(unit, store.state.workbook!, { column: 'counterparty_contains', fragment: 'Shop' }, category('Food/Groceries').id))
+
+    const receipt = await store.write('Deleted', (unit) => deleteInto(unit, store.state.records!, category('Food/Groceries'), category('Food/Restaurants')))
+
+    expect(store.state.workbook!.rules).toMatchObject([{ category: category('Food/Restaurants').id }])
+    await store.undo(store.state.writes.find((write) => write.receipt === receipt)!)
+    expect(store.state.workbook!.rules).toMatchObject([{ category: category('Food/Groceries').id }])
+  })
+
+  it('refuses to delete a category a rule names, which delete-into moves first', async () => {
+    const store = await spendingStore()
+    await store.write('Rule', (unit) => writeRule(unit, store.state.workbook!, { column: 'counterparty_contains', fragment: 'Shop' }, category('Food/Groceries').id))
+
+    await expect(store.write('Deleted', (unit) => unit.of(CATEGORY_WRITES).remove(category('Food/Groceries')))).rejects.toThrow()
   })
 })
 

@@ -4,6 +4,7 @@ import type { Account } from '../../src/apps/spending/workbook/domain/account'
 import type { Budget } from '../../src/apps/spending/workbook/domain/budget'
 import type { Category } from '../../src/apps/spending/workbook/domain/category'
 import { ACCOUNT_RECORDS, BUDGET_RECORDS, TRANSACTION_RECORDS } from '../../src/apps/spending/workbook/domain/spendingKinds'
+import { NO_BANK_FACTS } from '../../src/apps/spending/workbook/domain/transaction'
 import type { Transaction } from '../../src/apps/spending/workbook/domain/transaction'
 import { EURO, currencyCodeOf } from '../../src/shared/money/currencyCode'
 import { recordIdOf } from '../../src/shared/storage/domain/recordId'
@@ -50,7 +51,7 @@ export const ACCOUNTS: readonly Account[] = [OTP, REVOLUT_EUR, REVOLUT_USD, CASH
 let rowPlace = 2000
 
 /** A typed row on the account, in its currency, on a starter category or waiting on review. */
-export function row(on: Account, date: string, amount: number, path: string | null, fields: Partial<Pick<Transaction, 'id' | 'payee' | 'pair'>> = {}): Transaction {
+export function row(on: Account, date: string, amount: number, path: string | null, fields: Partial<Transaction> = {}): Transaction {
   return {
     id: recordIdOf(TRANSACTION_RECORDS, keyOf((rowPlace += 1))),
     account: on.id,
@@ -61,6 +62,8 @@ export function row(on: Account, date: string, amount: number, path: string | nu
     note: '',
     source: 'typed',
     pair: null,
+    ...NO_BANK_FACTS,
+    categorisedBy: null,
     ...fields,
   }
 }

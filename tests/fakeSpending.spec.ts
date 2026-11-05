@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import { accountBalance } from '../src/apps/spending/accounts/domain/accountBalance'
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
+import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement'
+import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
+import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
+import { SAMPLE_REVOLUT_FILE_NAME, sampleRefusedCsv, sampleRevolutCsv } from '../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles'
+import { readFirstSheet } from '../src/shared/xlsx/sheetGrids'
 import { fakeSpendingDocument, fakeStarterDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending'
 import type { FakeSpendingSet } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending'
 import { SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
@@ -20,7 +25,7 @@ function bookOf(document: WorkbookDocument) {
   }).workbook
 }
 
-const SETS: readonly FakeSpendingSet[] = ['sample', 'foreign', 'over']
+const SETS: readonly FakeSpendingSet[] = ['sample', 'foreign', 'over', 'statements']
 
 describe("the fake build's Spending sets", () => {
   it.each(SETS.flatMap((set) => ['2026-11-04', '2026-12-01', '2027-03-31'].map((day) => [set, day] as const)))('read the %s set on %s with no problems', (set, day) => {
@@ -55,6 +60,50 @@ describe("the fake build's Spending sets", () => {
         .limitsIn(monthOf(civil('2026-10-04')))
         .map((limit) => limit.left < 0),
     ).toEqual([true, true])
+  })
+
+  it.each(['2026-11-04', '2026-12-01', '2027-03-31'])('wait in the statements set with five rows, a pair, two lone legs and offers on %s', (day) => {
+    const book = bookOf(fakeSpendingDocument(SAVED_AT, 'statements', civil(day)))
+    const queue = reviewQueue(book, civil(day))
+
+    expect(reviewCount(book)).toBe(5)
+    expect(queue.pairs).toHaveLength(1)
+    expect(queue.loneLegs).toHaveLength(2)
+    expect(queue.wantingSavings).toBe(1)
+    expect(queue.waiting.filter((waiting) => waiting.maybeTyped !== null).map((waiting) => waiting.row.payee)).toEqual(['Old Town Bookshop'])
+    expect(queue.waiting.filter((waiting) => waiting.maybeTransfer !== null).map((waiting) => waiting.row.payee)).toEqual(['Top-up by card', 'Card top-up'])
+  })
+
+  it.each(['2026-11-04', '2026-12-01', '2027-03-31'])("read the sample Revolut export through the csv path as the statements set's dry run on %s", async (day) => {
+    const book = bookOf(fakeSpendingDocument(SAVED_AT, 'statements', civil(day)))
+    const reading = revolutStatement(await readFirstSheet(sampleRevolutCsv(civil(day))), SAMPLE_REVOLUT_FILE_NAME, book)
+    if (!('statement' in reading)) throw new Error(reading.refusal)
+
+    const run = statementDryRun(book, reading.statement, civil(day))
+
+    expect(reading.statement.notes).toEqual([
+      '1 pending row left out. It comes with the next export.',
+      '1 reverted or declined row left out.',
+      '2 savings rows left out, since no Revolut savings account keeps EUR.',
+    ])
+    expect(run).toMatchObject({ newRows: 8, alreadyIn: 1, filled: 1 })
+    expect(run.notes).toContain('1 pocket move counts as a transfer and waits for a Revolut savings account.')
+    expect(run.added.map((row) => row.payee)).toEqual([
+      'Top-up from OTP',
+      'Fuel station abroad',
+      'Revolut',
+      'Corner market',
+      'Exchanged to USD',
+      'Exchanged from EUR',
+      'Pocket Summer trip',
+      'Unknown shop',
+    ])
+  })
+
+  it('refuse the sample export without its Fee column', async () => {
+    const book = bookOf(fakeSpendingDocument(SAVED_AT, 'statements', civil('2026-11-04')))
+
+    expect(revolutStatement(await readFirstSheet(sampleRefusedCsv(civil('2026-11-04'))), SAMPLE_REVOLUT_FILE_NAME, book)).toEqual({ refusal: 'The file has no Fee column' })
   })
 
   it('hold only the dollar account and its row in the foreign set', () => {

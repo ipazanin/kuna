@@ -12,9 +12,9 @@ export interface CategorisationContext {
    * these as its counterparty instead of the merchant.
    */
   readonly cardSettlementIbans: ReadonlySet<string>
-  /** Each account's currency, upper case. An account not listed counts in `workbookCurrency`. */
+  /** Each account's currency, upper case. An account not listed counts in `defaultCurrency`. */
   readonly accountCurrencies: ReadonlyMap<string, string>
-  readonly workbookCurrency: string
+  readonly defaultCurrency: string
 }
 
 /** What a camt statement said about an entry beyond its money. Every field is blank on a row from a statement PDF or typed by hand. */
@@ -74,7 +74,7 @@ export function transactionFacts(transaction: CategorisableRow, context: Categor
     purpose: foldRuleText(signals.purpose),
     revenueCode: budgetRevenueCode(signals.creditorReference, description),
     isCard: isCardTransaction(signals, counterpartyIban, description, context),
-    foreignCurrency: isForeignCurrency(signals, description, context.accountCurrencies.get(transaction.account) ?? context.workbookCurrency),
+    foreignCurrency: isForeignCurrency(signals, description, context.accountCurrencies.get(transaction.account) ?? context.defaultCurrency),
   }
 }
 

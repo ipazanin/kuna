@@ -6,6 +6,7 @@ import { identityOf, labelOfRecord } from '../domain/recordCodec'
 import type { CodecOfKind } from '../domain/recordCodec'
 import type { RecordFields } from '../domain/recordFields'
 import { recordIdOf } from '../domain/recordId'
+import type { RecordId } from '../domain/recordId'
 import type { RecordKind } from '../domain/recordKind'
 import { sameRecord } from '../domain/recordsRead'
 import type { RecordsRead, RefusedRecord, StoredRecord } from '../domain/recordsRead'
@@ -53,20 +54,42 @@ function freshRecordsOf(document: WorkbookDocument, codecOf: CodecOfKind): Fresh
   }
 }
 
-/** The index of the one record a change names: by its identity and the record it reads as, or for a refused one by its identity and fields. */
-function indexOfRecord(kind: RecordKind<unknown>, records: readonly DocumentRecord[], change: Exclude<RecordChange, { readonly verb: 'add' }>, codecOf: CodecOfKind): number {
-  const holds = (record: DocumentRecord): boolean => {
+/**
+ * Finds the records of one kind by identity within one write, reading each once, since a statement's import touches
+ * thousands of records in a write and reading them all for each would take minutes.
+ */
+function recordFinder(kind: RecordKind<unknown>, records: readonly DocumentRecord[], codecOf: CodecOfKind) {
+  const byId = new Map<RecordId | null, { readonly record: DocumentRecord; readonly stored: StoredRecord<unknown> }[]>()
+  const index = (record: DocumentRecord): void => {
     const stored = storedOfDocument(kind, record, codecOf)
-    if (change.verb === 'repair' || change.verb === 'discard') {
-      return !('record' in stored) && stored.id === change.refused.id && sameRecord(stored.fields, change.refused.fields)
-    }
-    return 'record' in stored && stored.id !== null && stored.id === identityOf(codecOf(kind), change.before) && sameRecord(stored.record, change.before)
+    byId.set(stored.id, [...(byId.get(stored.id) ?? []), { record, stored }])
   }
-  const holding = records.flatMap((record, index) => (holds(record) ? [index] : []))
-  if (holding.length !== 1) {
-    throw new WorkbookWriteRefused(words.notOnce(kind.noun))
+  records.forEach(index)
+  return {
+    added: index,
+    removed(record: DocumentRecord): void {
+      for (const [id, held] of byId) {
+        if (held.some((entry) => entry.record === record))
+          byId.set(
+            id,
+            held.filter((entry) => entry.record !== record),
+          )
+      }
+    },
+    /** The one record a change names: by its identity and the record it reads as, or for a refused one by its identity and fields. */
+    named(change: Exclude<RecordChange, { readonly verb: 'add' }>): DocumentRecord {
+      const id = change.verb === 'repair' || change.verb === 'discard' ? change.refused.id : identityOf(codecOf(kind), change.before)
+      const holding = (byId.get(id) ?? []).filter(({ stored }) =>
+        change.verb === 'repair' || change.verb === 'discard'
+          ? !('record' in stored) && sameRecord(stored.fields, change.refused.fields)
+          : 'record' in stored && id !== null && sameRecord(stored.record, change.before),
+      )
+      if (holding.length !== 1) {
+        throw new WorkbookWriteRefused(words.notOnce(kind.noun))
+      }
+      return holding[0]!.record
+    },
   }
-  return holding[0]!
 }
 
 /** The record with the fields a change alters set to their new values, a cleared one taken out, and every other field kept. */
@@ -110,22 +133,34 @@ function changedDocument(
     throw new WorkbookWriteRefused(NEWER_FILE)
   }
   const records: Record<string, DocumentRecord[]> = Object.fromEntries(Object.entries(document.records).map(([name, held]) => [name, [...held]]))
+  const finders = new Map<string, ReturnType<typeof recordFinder>>()
   const written = changes.map((change): DocumentRecord | null => {
     const kind = change.kind
     const held = (records[kind.name] ??= [])
     const codec = codecOf(kind)
+    const finderOfKind = (): ReturnType<typeof recordFinder> => {
+      const finder = finders.get(kind.name) ?? recordFinder(kind, held, codecOf)
+      finders.set(kind.name, finder)
+      return finder
+    }
     if (change.verb === 'add') {
       const added = codec.fieldsOf(change.after)
       held.push(added)
+      if (finders.has(kind.name)) finderOfKind().added(added)
       return added
     }
-    const index = indexOfRecord(kind, held, change, codecOf)
+    const finder = finderOfKind()
+    const named = finder.named(change)
+    const index = held.indexOf(named)
     if (change.verb === 'remove' || change.verb === 'discard') {
       held.splice(index, 1)
+      finder.removed(named)
       return null
     }
     const after = change.verb === 'change' ? withAltered(held[index]!, codec.fieldsOf(change.before), codec.fieldsOf(change.after)) : repaired(kind, held[index]!, change.after, codecOf)
     held[index] = after
+    finder.removed(named)
+    finder.added(after)
     return after
   })
   return { document: { ...document, schema, savedAt, records }, written }

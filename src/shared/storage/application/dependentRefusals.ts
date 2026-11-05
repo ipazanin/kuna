@@ -1,12 +1,13 @@
 import type { RecordId } from '../domain/recordId'
 import type { RecordKind } from '../domain/recordKind'
-import { storedOf } from '../domain/recordsRead'
+import { readingLookup, storedOf } from '../domain/recordsRead'
 import type { Reading } from '../domain/recordsRead'
 import type { FreshRecords } from '../domain/writeRules'
 import { words } from './words'
 
 function outcomeOf(reading: Reading<{ readonly id: RecordId }>, id: RecordId): { readonly kept: boolean; readonly reasons: readonly string[] } {
-  return { kept: reading.facts.some((fact) => fact.id === id), reasons: reading.problems.filter((problem) => problem.id === id).map((problem) => problem.reason) }
+  const { kept, problems } = readingLookup(reading)
+  return { kept: kept.has(id), reasons: (problems.get(id) ?? []).map((problem) => problem.reason) }
 }
 
 /**

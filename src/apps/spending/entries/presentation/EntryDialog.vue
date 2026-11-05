@@ -9,7 +9,7 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import { entryCategoryChoices } from './categoryChoices'
 import { rememberLastAccount, startingAccount } from './lastAccount'
 import { words } from './words'
-import { newEntry, newTransfer, otherLegOf, removeEntry, TRANSACTION_WRITES } from '../application/entryWrites'
+import { newEntry, newTransfer, otherLegOf, deleteComesBack, removeEntry, retypedEntry, transferOver, TRANSACTION_WRITES } from '../application/entryWrites'
 import { fixedCategories } from '../../categories/domain/categoryTree'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Account } from '../../workbook/domain/account'
@@ -105,6 +105,25 @@ watch(open, (opened) => {
   tried.value = false
 })
 
+/** A row stays on its own side as its kind changes: money in stays the To side of a transfer, and any row goes back to its account as a plain entry. */
+watch(kind, (picked) => {
+  const entry = props.entry
+  if (entry === null || (picked === 'transfer' && legs.value !== null)) return
+  if (picked !== 'transfer') {
+    account.value = entry.account
+  } else if (entry.amount > 0) {
+    toAccount.value = entry.account
+    account.value = choosable.value.find((candidate) => candidate.id !== entry.account)?.id ?? ''
+    toAmount.value = amount.value
+  }
+})
+
+/** The rows on each side of the form, whose account a statement fixed when it brought them. */
+const rowOnFrom = computed(() => legs.value?.[0] ?? (kind.value !== 'transfer' || (props.entry?.amount ?? 0) < 0 ? props.entry : null))
+const rowOnTo = computed(() => legs.value?.[1] ?? (kind.value === 'transfer' && (props.entry?.amount ?? 0) > 0 ? props.entry : null))
+const fromFixed = computed(() => (rowOnFrom.value?.importKey ?? '') !== '')
+const toFixed = computed(() => (rowOnTo.value?.importKey ?? '') !== '')
+
 /** An amount above zero, or null. */
 function positive(text: string): Money | null {
   const typed = typedAmount(text)
@@ -153,7 +172,7 @@ function entryWrite(fromAccount: Account, typed: Money, on: CivilDate): ((unit: 
       entries.add(entry)
       return
     }
-    entries.change(before, { ...entry, id: before.id, source: before.source })
+    entries.change(before, retypedEntry(before, entry))
     if (other !== undefined) entries.remove(other)
   }
 }
@@ -177,12 +196,13 @@ function transferWrite(fromAccount: Account, typed: Money, on: CivilDate): ((uni
       entries.add(outLeg)
       entries.add(inLeg)
     } else if (pair === null) {
-      entries.change(before, { ...outLeg, id: before.id, source: before.source, pair: inLeg.id })
-      entries.add({ ...inLeg, pair: before.id })
+      const { kept, added } = transferOver(before, [outLeg, inLeg])
+      entries.change(before, kept)
+      entries.add(added)
     } else {
       const [oldOut, oldIn] = pair
-      entries.change(oldOut, { ...outLeg, id: oldOut.id, source: oldOut.source, pair: oldIn.id })
-      entries.change(oldIn, { ...inLeg, id: oldIn.id, source: oldIn.source, pair: oldOut.id })
+      entries.change(oldOut, { ...retypedEntry(oldOut, outLeg), pair: oldIn.id })
+      entries.change(oldIn, { ...retypedEntry(oldIn, inLeg), pair: oldOut.id })
     }
   }
 }
@@ -205,11 +225,11 @@ async function remove(): Promise<void> {
         <MoneyInput v-model="amount" :placeholder="spendingWords.form.amountPlaceholder" class="w-full" data-testid="spending-entry-amount" />
       </UFormField>
       <UFormField :label="kind === 'transfer' ? words.dialog.fromAccount : words.dialog.account" :error="(tried && errors.account) || false">
-        <USelect v-model="account" :items="accountItems" class="w-full" data-testid="spending-entry-account" />
+        <USelect v-model="account" :items="accountItems" :disabled="fromFixed" class="w-full" data-testid="spending-entry-account" />
       </UFormField>
       <template v-if="kind === 'transfer'">
         <UFormField :label="words.dialog.toAccount" :error="(tried && errors.toAccount) || false">
-          <USelect v-model="toAccount" :items="accountItems" class="w-full" data-testid="spending-entry-to-account" />
+          <USelect v-model="toAccount" :items="accountItems" :disabled="toFixed" class="w-full" data-testid="spending-entry-to-account" />
         </UFormField>
         <UFormField v-if="twoCurrencies" :label="words.dialog.amountIn(to?.currency ?? '')" :help="words.dialog.arrivedHelp" :error="(tried && errors.toAmount) || false">
           <MoneyInput v-model="toAmount" :placeholder="spendingWords.form.amountPlaceholder" class="w-full" data-testid="spending-entry-to-amount" />
@@ -227,6 +247,7 @@ async function remove(): Promise<void> {
       <UFormField :label="spendingWords.form.note" class="sm:col-span-2">
         <UInput v-model="note" class="w-full" data-testid="spending-entry-note" />
       </UFormField>
+      <p v-if="deleteComesBack(legs ?? (entry === null ? [] : [entry]))" class="type-caption sm:col-span-2" data-testid="spending-entry-comes-back">{{ words.dialog.comesBack }}</p>
     </FormGrid>
     <template #start>
       <UButton

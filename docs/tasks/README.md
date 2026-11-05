@@ -24,13 +24,13 @@ After adding a task or changing its frontmatter, run `npm run tasks-index`. `npm
 | ------------------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------- |
 | [AI help across the apps](ai-assist.md)                 | ai-assist | One AI module and one key shared by every app, to help enter data and explain figures.          |
 | [A Croatian company preset](company-croatian-preset.md) | company   | A Croatian d.o.o. preset for the company app's categories, roles and rules, taken from the law. |
+| [Personal bank statements](personal-bank-statements.md) | spending  | OTP and Revolut statements read into the spending app.                                          |
 
 ### Planned
 
-| Task                                                    | Feature  | Summary                                                                                                     |
-| ------------------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------- |
-| [Personal bank statements](personal-bank-statements.md) | spending | OTP and Revolut statements read into the spending app.                                                      |
-| [Receipt reading](receipt-reading.md)                   | spending | A receipt photo read by an AI model with the user's own key, its lines sorted into the spending categories. |
+| Task                                  | Feature  | Summary                                                                                                     |
+| ------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------- |
+| [Receipt reading](receipt-reading.md) | spending | A receipt photo read by an AI model with the user's own key, its lines sorted into the spending categories. |
 
 ### Waiting
 

@@ -64,6 +64,10 @@ import { en as assetsFileEnglish, hr as assetsFileCroatian } from '../../src/app
 import { en as spendingAppEnglish, hr as spendingAppCroatian } from '../../src/apps/spending/words.ts'
 import { en as spendingScreensEnglish, hr as spendingScreensCroatian } from '../../src/apps/spending/screenWords.ts'
 import { en as spendingEntriesEnglish, hr as spendingEntriesCroatian } from '../../src/apps/spending/entries/presentation/words.ts'
+import { addDays, today } from '../../src/shared/calendar/civilDate.ts'
+import { monthOf } from '../../src/shared/calendar/monthKey.ts'
+import { en as spendingStatementsEnglish, hr as spendingStatementsCroatian } from '../../src/apps/spending/statements/presentation/words.ts'
+import { en as spendingStatementReadingEnglish, hr as spendingStatementReadingCroatian } from '../../src/apps/spending/statements/domain/words.ts'
 import { en as spendingBudgetsEnglish, hr as spendingBudgetsCroatian } from '../../src/apps/spending/budgets/presentation/words.ts'
 import { en as spendingCategoriesEnglish, hr as spendingCategoriesCroatian } from '../../src/apps/spending/categories/presentation/words.ts'
 import { en as spendingHomeEnglish, hr as spendingHomeCroatian } from '../../src/apps/spending/home/presentation/words.ts'
@@ -156,6 +160,8 @@ const SCREEN_WORDS = {
     spendingApp: spendingAppEnglish.name,
     spendingScreens: spendingScreensEnglish,
     spendingEntries: spendingEntriesEnglish,
+    spendingStatements: spendingStatementsEnglish,
+    spendingStatementReading: spendingStatementReadingEnglish,
     spendingBudgets: spendingBudgetsEnglish,
     spendingCategories: spendingCategoriesEnglish,
     spendingHome: spendingHomeEnglish,
@@ -231,6 +237,8 @@ const SCREEN_WORDS = {
     spendingApp: spendingAppCroatian.name,
     spendingScreens: spendingScreensCroatian,
     spendingEntries: spendingEntriesCroatian,
+    spendingStatements: spendingStatementsCroatian,
+    spendingStatementReading: spendingStatementReadingCroatian,
     spendingBudgets: spendingBudgetsCroatian,
     spendingCategories: spendingCategoriesCroatian,
     spendingHome: spendingHomeCroatian,
@@ -5082,6 +5090,268 @@ export function spendingEntryFlowIn(language) {
 }
 
 export const spendingEntryFlow = spendingEntryFlowIn('en')
+
+/**
+ * On the sample's Transactions: money in on OTP current, reopened and turned into a move between two accounts, stays money in
+ * on OTP current, with the money out on the other account, and Undo takes that back.
+ */
+export function spendingCreditToTransferFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { dialog } = words.spendingEntries
+  return async (page, { press, inspect }) => {
+    await newSpendingEntry(page, press, words, 'in')
+    await typeAmount(page, press, 'spending-entry-amount', '25')
+    await chooseStartingWith(page, press, '[data-testid="spending-entry-account"]', 'OTP current')
+    await choose(page, press, await page.$('[data-testid="spending-entry-category"]'), words.spendingStarter.Salary)
+    await fill(page, 'spending-entry-payee', SPENDING_PAYEE)
+    await saveSpendingEntry(page, press, dialog.added)
+    await dismissToasts(page)
+    await openSpendingRow(page, press, SPENDING_PAYEE, 2500)
+    await pressButton(page, press, '[data-testid="spending-entry-kind"] button', dialog.kinds.transfer)
+    await delay(300)
+    await inspect?.('money in turned into a move between two accounts')
+    await saveSpendingEntry(page, press, dialog.saved)
+    await spendingRowShown(page, 'OTP current', 2500, true)
+    await spendingRowShown(page, SPENDING_PAYEE, -2500, true)
+    await spendingRowShown(page, 'OTP current', -2500, false)
+    await undoIn(page, press, words)
+    await spendingRowShown(page, SPENDING_PAYEE, -2500, false)
+    await dismissToasts(page)
+  }
+}
+
+/** A statement row of the statements set opened in its dialog says that deleting it brings it back with the next export. */
+export function spendingDeleteNoteFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, inspect }) => {
+    const month = monthOf(addDays(today(), -2))
+    await page.evaluate((wanted) => {
+      window.location.hash = `#/spending/transactions?month=${wanted}`
+    }, month)
+    await openSpendingRow(page, press, 'Transfer to Revolut', -7500)
+    const wanted = words.spendingEntries.dialog.comesBack
+    await page
+      .waitForFunction((text) => document.querySelector('[data-testid="spending-entry-comes-back"]')?.textContent?.includes(text) ?? false, { timeout: 10_000 }, wanted)
+      .catch(() => {
+        throw new Error('a statement row does not say that deleting it brings it back')
+      })
+    await delay(300)
+    await inspect?.('a statement row in the entry dialog')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+  }
+}
+
+const SPENDING_DRY_RUN_SUMMARY = '[data-testid="spending-dry-run-summary"]'
+
+async function dropSpendingFile(page, path) {
+  const input = await page.waitForSelector('[data-testid="spending-import-file"] input[type="file"]', { timeout: 10_000 }).catch(() => {
+    throw new Error('Import offers no file input')
+  })
+  await input.uploadFile(path)
+}
+
+async function spendingDryRunSays(page, text) {
+  await page
+    .waitForFunction((selector, wanted) => document.querySelector(selector)?.textContent?.includes(wanted) ?? false, { timeout: 10_000 }, SPENDING_DRY_RUN_SUMMARY, text)
+    .catch(async () => {
+      const said = await page.evaluate((selector) => document.querySelector(selector)?.textContent?.trim(), SPENDING_DRY_RUN_SUMMARY)
+      throw new Error(`the dry run does not say "${text}", it says: ${said ?? 'nothing'}`)
+    })
+}
+
+/**
+ * On Spending's Import with the statements set: the sample Revolut export read as a dry run of 8 new rows, 1 already in and
+ * 1 paired with a typed row, with nothing written. Imported, nothing is new, and one Undo brings the dry run back.
+ */
+export function spendingImportFlowIn(language, paths) {
+  const words = SCREEN_WORDS[language]
+  const panel = words.spendingStatements.import
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const before = panel.summary(8, 1, 1)
+    await dropSpendingFile(page, paths.revolut)
+    await spendingDryRunSays(page, before)
+    await delay(300)
+    await inspect?.('the Revolut dry run')
+    await shoot('spending-import-revolut')
+    await pressSelector(page, press, '[data-testid="spending-import-confirm"]')
+    await toast(page, panel.imported)
+    await spendingDryRunSays(page, panel.summary(0, 10, 0))
+    await page.waitForSelector('[data-testid="spending-import-nothing"]', { visible: true, timeout: 10_000 })
+    await undoIn(page, press, words)
+    await spendingDryRunSays(page, before)
+    await dismissToasts(page)
+  }
+}
+
+/** On Spending's Import: the export without a Fee column is refused, naming the column, with no dry run. */
+export function spendingImportRefusedFlowIn(language, paths) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await dropSpendingFile(page, paths.refused)
+    const wanted = words.spendingStatementReading.noColumn('Fee')
+    await page
+      .waitForFunction((text) => document.querySelector('[data-testid="spending-import-refused"]')?.textContent?.includes(text) ?? false, { timeout: 10_000 }, wanted)
+      .catch(() => {
+        throw new Error(`the refused file does not say "${wanted}"`)
+      })
+    if ((await page.$('[data-testid="spending-dry-run"]')) !== null) throw new Error('a refused file still shows a dry run')
+    await delay(300)
+    await inspect?.('the refused Revolut export')
+    await shoot('spending-import-refused')
+  }
+}
+
+async function reviewRowOf(page, payee) {
+  const handle = await page.evaluateHandle((wanted) => [...document.querySelectorAll('[data-testid="spending-review-row"]')].find((row) => row.textContent?.includes(wanted)) ?? null, payee)
+  const row = handle.asElement()
+  if (row === null) throw new Error(`To review has no row for ${payee}`)
+  return row
+}
+
+async function countOf(page, selector, wanted, what) {
+  await page
+    .waitForFunction((rows, count) => document.querySelectorAll(rows).length === count, { timeout: 10_000 }, selector, wanted)
+    .catch(() => {
+      throw new Error(`${what}: not ${wanted} of ${selector}`)
+    })
+}
+
+/**
+ * On To review with the statements set: Not a pair sends both legs back to review, and a leg takes a category until Undo.
+ * On a fresh load Not a pair is undone, a near match is joined with the typed row and undone, an offered transfer is paired
+ * and undone, and money in is filed as a lone leg under Between my accounts and undone, then as a refund.
+ */
+export function spendingReviewFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const review = words.spendingStatements.review
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const ROW = '[data-testid="spending-review-row"]'
+    const PAIR = '[data-testid="spending-pair"]'
+    await countOf(page, ROW, 5, 'the set should wait with five rows')
+    await pressSelector(page, press, '[data-testid="spending-not-a-pair"]')
+    await toast(page, review.pairUndone)
+    await countOf(page, ROW, 7, 'Not a pair should send both legs back')
+    await countOf(page, PAIR, 0, 'Not a pair should end the pair')
+    await dismissToasts(page)
+    const leg = await reviewRowOf(page, 'Top-up from OTP')
+    await choose(page, press, await leg.$('[data-testid="spending-review-category"]'), words.spendingStarter['Other income'])
+    await toast(page, review.filed)
+    await countOf(page, ROW, 6, 'a category should take the leg off review')
+    await inspect?.('To review after Not a pair')
+    await shoot('spending-review-not-a-pair')
+    await undoIn(page, press, words)
+    await countOf(page, ROW, 7, 'Undo should bring the leg back')
+    await dismissToasts(page)
+    // A fresh load seeds the set again.
+    await page.reload({ waitUntil: 'load' })
+    await countOf(page, ROW, 5, 'a fresh load should wait with five rows')
+
+    await pressSelector(page, press, '[data-testid="spending-not-a-pair"]')
+    await toast(page, review.pairUndone)
+    await countOf(page, ROW, 7, 'Not a pair should send both legs back')
+    await undoIn(page, press, words)
+    await countOf(page, ROW, 5, 'Undo should put the pair back')
+    await countOf(page, PAIR, 1, 'Undo should put the pair back')
+    await dismissToasts(page)
+
+    await pressSelector(page, press, '[data-testid="spending-review-join"]')
+    await toast(page, review.joined)
+    await countOf(page, ROW, 4, 'joining should take the bank row off review')
+    await undoIn(page, press, words)
+    await countOf(page, ROW, 5, 'Undo should bring the bank row back')
+    await dismissToasts(page)
+
+    await pressSelector(page, press, '[data-testid="spending-review-pair"]')
+    await toast(page, review.paired)
+    await countOf(page, ROW, 3, 'pairing should take both rows off review')
+    await countOf(page, PAIR, 2, 'pairing should list the new pair')
+    await undoIn(page, press, words)
+    await countOf(page, ROW, 5, 'Undo should bring both rows back')
+    await dismissToasts(page)
+
+    const topUp = await reviewRowOf(page, 'Top-up by card')
+    await choose(page, press, await topUp.$('[data-testid="spending-review-category"]'), words.spendingStarter['Between my accounts'])
+    await toast(page, review.filed)
+    await countOf(page, ROW, 4, 'Between my accounts should take the top-up off review')
+    await countOf(page, '[data-testid="spending-lone-leg"]', 3, 'the top-up should wait as a lone leg')
+    await undoIn(page, press, words)
+    await countOf(page, ROW, 5, 'Undo should bring the top-up back')
+    await dismissToasts(page)
+    const refund = await reviewRowOf(page, 'Top-up by card')
+    await choose(page, press, await refund.$('[data-testid="spending-review-category"]'), words.spendingStarter.Pharmacy)
+    await toast(page, review.filed)
+    await countOf(page, ROW, 4, 'a spending category should file money in as a refund')
+    await dismissToasts(page)
+  }
+}
+
+/**
+ * On To review with the statements set: the first City pharmacy row takes a category, Always for this payee on its toast
+ * says it files one row and can be cancelled, and confirmed it files the other row by the same IBAN, and the rule shows on Settings, Rules, where deleting it sends that row back.
+ */
+export function spendingRuleFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { review, rules } = words.spendingStatements
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const ROW = '[data-testid="spending-review-row"]'
+    await countOf(page, ROW, 5, 'the set should wait with five rows')
+    const fileThenAsk = async () => {
+      const row = await reviewRowOf(page, 'City pharmacy')
+      await choose(page, press, await row.$('[data-testid="spending-review-category"]'), words.spendingStarter.Pharmacy)
+      await toast(page, review.filed)
+      await countOf(page, ROW, 4, 'a category should take the row off review')
+      const always = await page.waitForFunction(
+        (label) => [...document.querySelectorAll('[data-sonner-toast] button, [role="alert"] button, li button')].find((button) => button.textContent?.trim() === label) ?? null,
+        { timeout: 5_000 },
+        review.always,
+      )
+      await press(always.asElement())
+      const wanted = countedIn(words, rules.files(1), 1)
+      await page
+        .waitForFunction((text) => document.querySelector('[data-testid="spending-rule-files"]')?.textContent?.trim() === text, { timeout: 10_000 }, wanted)
+        .catch(() => {
+          throw new Error(`the rule dialog does not say "${wanted}"`)
+        })
+      await delay(300)
+    }
+    await fileThenAsk()
+    await inspect?.('the rule dialog with how many rows it files')
+    await shoot('spending-rule-asks')
+    await pressSelector(page, press, '[data-testid="spending-rule-cancel"]')
+    await page.waitForFunction(() => document.querySelector('[data-testid="spending-rule-files"]') === null, { timeout: 5_000 })
+    await countOf(page, ROW, 4, 'Cancel should file nothing more')
+    await dismissToasts(page)
+    // A fresh load seeds the set again, with no rule written.
+    await page.reload({ waitUntil: 'load' })
+    await countOf(page, ROW, 5, 'a fresh load should wait with five rows')
+    await fileThenAsk()
+    await pressSelector(page, press, '[data-testid="spending-rule-confirm"]')
+    await toast(page, rules.made)
+    await countOf(page, ROW, 3, 'the rule should file the other row of that payee')
+    await inspect?.('To review after a rule')
+    await dismissToasts(page)
+    await page.evaluate(() => {
+      window.location.hash = '#/spending/settings?tab=rules'
+    })
+    await page.waitForSelector('[data-testid="spending-rule"]', { visible: true, timeout: 10_000 })
+    await countOf(page, '[data-testid="spending-rule"]', 2, 'Settings, Rules should list both rules')
+    await delay(300)
+    await inspect?.('Settings, Rules with the new rule')
+    await shoot('spending-rule-made')
+    const buttons = await page.$$('[data-testid="spending-rule-delete"]')
+    await press(buttons.at(-1))
+    await toast(page, rules.deleted)
+    await countOf(page, '[data-testid="spending-rule"]', 1, 'Delete should take the rule off')
+    await undoIn(page, press, words)
+    await countOf(page, '[data-testid="spending-rule"]', 2, 'Undo should bring the rule back')
+    await dismissToasts(page)
+  }
+}
 
 /** Money out added by touch on the sample Spending file's Transactions: the amount on the number pad, a category, saved onto today's list, and taken off again with Undo. */
 export async function spendingMoneyOutFlow(page, { press, shoot, inspect }) {
