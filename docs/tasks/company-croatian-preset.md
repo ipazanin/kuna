@@ -1,5 +1,5 @@
 ---
-status: planned
+status: building
 feature: company
 summary: A Croatian d.o.o. preset for the company app's categories, roles and rules, taken from the law.
 ---
@@ -48,3 +48,9 @@ Three suspected bugs, found by reading the code and not yet reproduced:
 - [A Croatian d.o.o. preset for Company categories](../features/company/research/croatian-preset/preset.md)
 
 The build plan is written and waits for the owner's review: [the Croatian preset plan](../features/company/croatian-preset-plan.md).
+
+## Where it stands
+
+Stages 0 to 3 are on main: the three bug specs (still `it.fails`), the tax classes and their law docs in `docs/law/company`, the editor's guards, the "Categories to sort" card, and the Croatian starting set with seeded state-payment rules. Every existing figure is unchanged.
+
+Next is stage 4. The owner's live categories get a class each in a review done in the browser, with the owner confirming every batch and the Year figures compared before and after. Then one commit makes the class decide VAT, which turns the three `it.fails` specs into passing ones and moves the figures the review accepted.

@@ -13,8 +13,8 @@ export const TASKS_DIR = join(dirname(fileURLToPath(import.meta.url)), '../docs/
 export const TASKS_README = join(TASKS_DIR, 'README.md')
 const KEYS = ['status', 'feature', 'summary']
 /** The statuses in the order the index lists them. */
-export const STATUSES = ['researching', 'planned', 'waiting', 'idea', 'done']
-const HEADINGS = { researching: 'Researching', planned: 'Planned', waiting: 'Waiting', idea: 'Ideas', done: 'Done' }
+export const STATUSES = ['building', 'researching', 'planned', 'waiting', 'idea', 'done']
+const HEADINGS = { building: 'Building', researching: 'Researching', planned: 'Planned', waiting: 'Waiting', idea: 'Ideas', done: 'Done' }
 const START = '<!-- TASKS-INDEX:START -->'
 const END = '<!-- TASKS-INDEX:END -->'
 

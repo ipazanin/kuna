@@ -1,5 +1,5 @@
 ---
-status: planned
+status: building
 feature: spending
 summary: A personal spending app with accounts, typed spending, two-level categories, budgets and analytics.
 ---
@@ -36,3 +36,9 @@ A fifth app for personal money: several accounts (bank, cash and savings), spend
 - [Module map](../architecture/modules.md)
 
 The build plan is written and waits for the owner's review: [the spending plan](../features/spending/plan.md).
+
+## Where it stands
+
+Stages 0 and 1 are built and reviewed, with every review finding fixed. The owner chose that deleting a category deletes its limits in the same write. The work sits on a local branch rebased onto main and is not pushed yet. What is left: one combined check of the branch on top of main (lint, tests, builds, figure digests identical to main without a Spending input, the targeted visual and touch runs), then the push. After it, Kuna's Overview reads "Net worth".
+
+Known gaps, listed in the [plan](../features/spending/plan.md): money lent to someone has no category, and a same-currency transfer with a fee cannot be typed.

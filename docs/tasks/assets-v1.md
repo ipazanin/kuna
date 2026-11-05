@@ -1,5 +1,5 @@
 ---
-status: planned
+status: done
 feature: assets
 summary: A fourth app for a flat, a car and other things the owner has, with values carried forward and the mortgage linked through Loans.
 ---
@@ -30,3 +30,7 @@ Assets becomes a fourth app at `#/assets`, with its own file `kuna-assets.json`,
 - [Assets plan](../features/assets/plan.md)
 - [Code research](../features/assets/research/lane1-code.md) and [domain research](../features/assets/research/lane2-domain.md)
 - [Module map](../architecture/modules.md)
+
+## Where it stands
+
+Shipped. Assets is the fourth app: a flat carried by the DZS house price index, a car estimated by the customs table, and an asset's equity after the bank loan it names through Loans' published list, one asset per loan. Kuna's Overview reads "What you own less what you owe". Known limits are in the [plan](../features/assets/plan.md): no retry of the index when the browser comes back online, and no note under Kuna's sum that some parts are estimates.

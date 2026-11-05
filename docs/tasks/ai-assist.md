@@ -1,5 +1,5 @@
 ---
-status: planned
+status: building
 feature: ai-assist
 summary: One AI module and one key shared by every app, to help enter data and explain figures.
 ---
@@ -43,3 +43,13 @@ New boundary rules keep AI hosts in the adapters, keep `shared/ai` away from wri
 - The [module map](../architecture/modules.md) has the move of the key store to `src/shared/secrets`.
 
 The build plan is written and waits for the owner's review: [the AI assist plan](../features/ai-assist/plan.md).
+
+## Where it stands
+
+Stages 1 to 4 are built on a local branch and not yet reviewed: the shared secrets file `kuna-secrets.json` with the migration of the old keys files, the AI module with both adapters and a model picker, suggested categories on the review queue, and Explain on a figure. The visual and touch checks for the new pages pass with a fake provider.
+
+Before it can ship:
+
+- Explain refuses about half of Year's Pay tab figures because their input passes 100,000 tokens, against the plan's estimate of about 15,000 for a forecast year. The figure tree sent to the model needs trimming.
+- An independent review, a verify pass with figure digests identical, and a rebase onto main, where Assets, the preset and Spending have landed since the branch was cut.
+- The first real call needs the owner's own key.
