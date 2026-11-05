@@ -56,7 +56,7 @@ const CAR: Asset = {
 
 const BOAT: Asset = {
   id: fixedId(ASSET_RECORDS, 3),
-  name: 'Boat',
+  name: 'Sailing boat',
   kind: 'other',
   bought: day('2022-06-01'),
   price: moneyFromAmount(18_000),
