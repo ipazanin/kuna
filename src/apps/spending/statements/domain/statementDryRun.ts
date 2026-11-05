@@ -1,8 +1,9 @@
 import { ruleVerdicts, spendingCategorisationContext } from './spendingCategorisation'
 import type { RowChange } from './spendingCategorisation'
+import { isBankSyncKey } from './statementRows'
 import type { StatementRow, StatementRows } from './statementRows'
 import { words } from './words'
-import { sameMoney } from '../../pairing/domain/sameMoney'
+import { sameBooking, sameMoney } from '../../pairing/domain/sameMoney'
 import { wantsSavingsAccount } from '../../pairing/domain/wantsSavingsAccount'
 import { isPairable, legsOfPair, transferPairs } from '../../pairing/domain/transferPairs'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
@@ -18,8 +19,8 @@ import { plural } from '../../../../shared/text/translation'
 /** How far before today and before the statement's oldest new row the pairing looks for the other leg among rows on the file. */
 const PAIRING_DAYS = 30
 
-/** What happens to a row: `before-opening` is left out, `already-in` skipped, `filled` joins a typed row, `new` is added, and `refiled` is a row already on the file that the pairing changes. */
-export type DryRunOutcome = 'before-opening' | 'already-in' | 'filled' | 'new' | 'refiled'
+/** What happens to a row: `before-opening` is left out, `already-in` skipped, `other-source` skipped since the other of a file and the bank sync brought it, `filled` joins a typed row, `new` is added, and `refiled` is a row already on the file that the pairing changes. */
+export type DryRunOutcome = 'before-opening' | 'already-in' | 'other-source' | 'filled' | 'new' | 'refiled'
 
 export interface DryRunLine {
   readonly row: StatementRow
@@ -67,7 +68,8 @@ export function typedRowsOf(book: Pick<SpendingBook, 'transactions'>): readonly 
 
 /**
  * Works out a statement against the file, row by row: a row before its account opened is left out, as the entry dialog
- * refuses one, and a row whose key is on the account is skipped. Else a row of the same money as a typed row fills it, and
+ * refuses one, and a row whose key is on the account is skipped, as is a row the other of a file and the bank sync brought
+ * on the same day. Else a row of the same money as a typed row fills it, and
  * any other row is new, filed by the reader or the first rule that holds, or waiting on review. A row that moves money
  * between your accounts fills only a typed transfer leg, and a row the reader filed fills nothing. Then the new rows and the
  * unpaired rows from 30 days back are paired into transfers. `newKey` makes each new row's bare UUID.
@@ -77,7 +79,21 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   const onFile = new Set(book.transactions.filter((row) => row.importKey !== '').map((row) => `${row.account} ${row.importKey}`))
   const beforeOpening = (row: StatementRow): boolean => row.date < (accounts.get(row.account)?.openedOn ?? row.date)
   const alreadyIn = (row: StatementRow): boolean => onFile.has(`${row.account} ${row.importKey}`)
-  const coming = statement.rows.filter((row) => !beforeOpening(row) && !alreadyIn(row))
+  const notOnFile = statement.rows.filter((row) => !beforeOpening(row) && !alreadyIn(row))
+  const onFileWithKey = book.transactions.filter((row) => row.importKey !== '')
+  const otherSource = new Set<StatementRow>(
+    [
+      ...sameBooking(
+        onFileWithKey.filter((row) => !isBankSyncKey(row.importKey)),
+        notOnFile.filter((row) => isBankSyncKey(row.importKey)),
+      ),
+      ...sameBooking(
+        onFileWithKey.filter((row) => isBankSyncKey(row.importKey)),
+        notOnFile.filter((row) => !isBankSyncKey(row.importKey)),
+      ),
+    ].map(({ bank }) => bank),
+  )
+  const coming = notOnFile.filter((row) => !otherSource.has(row))
 
   const context = spendingCategorisationContext(book)
   const transfer = book.categories.find((category) => category.kind === 'transfer')?.id ?? null
@@ -131,6 +147,7 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   const fileLines = statement.rows.map((row): DryRunLine => {
     if (beforeOpening(row)) return { row, outcome: 'before-opening', category: null }
     if (alreadyIn(row)) return { row, outcome: 'already-in', category: null }
+    if (otherSource.has(row)) return { row, outcome: 'other-source', category: null }
     const typed = typedOf.get(row)
     if (typed !== undefined) return { row, outcome: 'filled', category: typed.category }
     const fresh = newRowOf.get(row)!
@@ -139,6 +156,8 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   const lines = [...fileLines, ...pairedOnFile.map(({ before, after }): DryRunLine => ({ row: before, outcome: 'refiled', category: after.category }))]
   const leftOut = lines.filter((line) => line.outcome === 'before-opening').length
   const wanting = added.filter((row) => wantsSavingsAccount(row, book.accounts)).length
+  const broughtByFile = [...otherSource].filter((row) => isBankSyncKey(row.importKey)).length
+  const broughtBySync = otherSource.size - broughtByFile
   return {
     lines,
     added,
@@ -146,7 +165,13 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
     newRows: added.length,
     alreadyIn: lines.filter((line) => line.outcome === 'already-in').length,
     filled: filledRows.length,
-    notes: [...statement.notes, ...(leftOut === 0 ? [] : [plural(words.beforeOpeningLeftOut(leftOut), leftOut)]), ...(wanting === 0 ? [] : [plural(words.pocketsWaiting(wanting), wanting)])],
+    notes: [
+      ...statement.notes,
+      ...(leftOut === 0 ? [] : [plural(words.beforeOpeningLeftOut(leftOut), leftOut)]),
+      ...(wanting === 0 ? [] : [plural(words.pocketsWaiting(wanting), wanting)]),
+      ...(broughtByFile === 0 ? [] : [plural(words.broughtByFile(broughtByFile), broughtByFile)]),
+      ...(broughtBySync === 0 ? [] : [plural(words.broughtBySync(broughtBySync), broughtBySync)]),
+    ],
   }
 }
 

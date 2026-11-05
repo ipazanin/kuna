@@ -1,4 +1,5 @@
 import { spendingFigures } from '../../analytics/presentation/spendingFigures'
+import { bankLinkLines } from '../../bankSync/presentation/bankLinkLines'
 import { leftToSpend } from '../../budgets/domain/budgetCarry'
 import { reviewCount } from '../../statements/domain/reviewQueue'
 import { ratesIn, waitsForRates } from '../../rates/domain/ratesState'
@@ -30,9 +31,10 @@ export const SPENDING_HOME_CARD: AppHomeCard = {
       // This month's rows are all in the month's own count, so only the earlier months the limits carry from add to it.
       const unrated = totals.unrated + limits.reduce((sum, limit) => sum + limit.unratedCarried, 0)
       const toReview = reviewCount(book)
+      const ending = bankLinkLines(book.settings, today())
       return {
         amounts: [{ label: words.spentThisMonth, cents: totals.spent }, ...(limits.length === 0 ? [] : [{ label: words.leftThisMonth, cents: leftToSpend(limits) }])],
-        waiting: [toReview === 0 ? null : plural(words.toReview(toReview), toReview), unratedNote(unrated)].filter((line) => line !== null).join(' · ') || null,
+        waiting: [toReview === 0 ? null : plural(words.toReview(toReview), toReview), unratedNote(unrated), ...ending].filter((line) => line !== null).join(' · ') || null,
       }
     }),
 }

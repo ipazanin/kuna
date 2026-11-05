@@ -22,6 +22,8 @@ export const en = {
     notImported: 'Not imported',
     outcome: {
       alreadyIn: 'Already in',
+      broughtByFile: 'Already brought by a file',
+      broughtBySync: 'Already brought by the bank sync',
       filled: 'Paired with what you typed',
       beforeOpening: 'Before the account opened',
       waits: 'Waits on review',
@@ -84,7 +86,15 @@ export const hr: Translation<typeof en> = {
     nothing: 'Ovdje nema ničega novog.',
     imported: 'Izvod je uvezen',
     notImported: 'Nije uvezeno',
-    outcome: { alreadyIn: 'Već uneseno', filled: 'Spojeno s vašim unosom', beforeOpening: 'Prije otvaranja računa', waits: 'Čeka pregled', refiled: (category) => `Već u datoteci, sada ${category}` },
+    outcome: {
+      alreadyIn: 'Već uneseno',
+      broughtByFile: 'Već uneseno iz datoteke',
+      broughtBySync: 'Već uneseno sinkronizacijom s bankom',
+      filled: 'Spojeno s vašim unosom',
+      beforeOpening: 'Prije otvaranja računa',
+      waits: 'Čeka pregled',
+      refiled: (category) => `Već u datoteci, sada ${category}`,
+    },
   },
   review: {
     title: 'Stavke za pregled',

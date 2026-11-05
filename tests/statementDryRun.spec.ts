@@ -9,6 +9,7 @@ import type { SpendingBook } from '../src/apps/spending/workbook/domain/readSpen
 import { RULE_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { SpendingRule, SpendingRuleCondition } from '../src/apps/spending/workbook/domain/spendingRule'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
+import { spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
 import type { UnitOfWork } from '../src/shared/storage/application/repository'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { account, ACCOUNTS, CATEGORIES, category, OTP, REVOLUT_EUR, REVOLUT_USD, row, transactionId } from './fixtures/spending'
@@ -17,7 +18,7 @@ import { civil, euros } from './fixtures/ledger'
 const DAY = civil('2026-10-30')
 
 function bookOf(transactions: readonly Transaction[], rules: readonly SpendingRule[] = []): SpendingBook {
-  return { accounts: ACCOUNTS, categories: CATEGORIES, transactions, budgets: [], rules, readings: {} as SpendingBook['readings'], problems: [] }
+  return { accounts: ACCOUNTS, categories: CATEGORIES, transactions, budgets: [], rules, settings: spendingSettingsOf([]), readings: {} as SpendingBook['readings'], problems: [] }
 }
 
 function statementRow(on: typeof OTP, date: string, amount: number, payee: string, fields: Partial<StatementRow> = {}): StatementRow {

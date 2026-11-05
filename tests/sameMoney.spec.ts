@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { sameMoney } from '../src/apps/spending/pairing/domain/sameMoney'
+import { sameBooking, sameMoney } from '../src/apps/spending/pairing/domain/sameMoney'
 import { OTP, REVOLUT_EUR, row } from './fixtures/spending'
-import { euros } from './fixtures/ledger'
+import { civil, euros } from './fixtures/ledger'
 
 const typedOn = (date: string, amount = -10) => row(OTP, date, amount, 'Food/Coffee')
 const bankOn = (date: string, amount = -10, on = OTP) => row(on, date, amount, null, { source: 'statement' })
@@ -71,5 +71,21 @@ describe('same money', () => {
     const typed = typedOn('2026-10-10')
 
     expect(sameMoney([typed], [bankOn('2026-10-11', -20), bankOn('2026-10-11', 10), bankOn('2026-11-10')]).near).toEqual([])
+  })
+})
+
+describe('sameBooking', () => {
+  const held = (date: string, amount: number) => ({ account: OTP.id, date: civil(date), amount: euros(amount) })
+
+  it('matches only an equal account, amount and day', () => {
+    expect(sameBooking([held('2026-10-28', -6.5)], [held('2026-10-28', -6.5)])).toHaveLength(1)
+    expect(sameBooking([held('2026-10-28', -6.5)], [held('2026-10-27', -6.5)])).toEqual([])
+    expect(sameBooking([held('2026-10-28', -6.5)], [held('2026-10-28', -6.6)])).toEqual([])
+    expect(sameBooking([held('2026-10-28', -6.5)], [{ ...held('2026-10-28', -6.5), account: REVOLUT_EUR.id }])).toEqual([])
+  })
+
+  it('matches one to one, so a second equal row stays out', () => {
+    const coming = [held('2026-10-28', -6.5), held('2026-10-28', -6.5)]
+    expect(sameBooking([held('2026-10-28', -6.5)], coming).map(({ bank }) => bank)).toEqual([coming[0]])
   })
 })

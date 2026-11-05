@@ -54,20 +54,19 @@ export function nearestTo<Row extends Pick<Transaction, 'date'>>(date: CivilDate
   return rows.reduce<Row | undefined>((nearest, row) => (nearest === undefined || away(row) < away(nearest) ? row : nearest), undefined)
 }
 
-/**
- * Pairs what you typed with what a bank booked. They are the same money on one account, at an equal amount, when the
- * bank's day is from 3 days before to 7 days after the typed day. Typed rows take their nearest candidate one to one in
- * date order, so two equal coffees on one day stay two. What is left over may be offered as a near match, one to one as well.
- */
-export function sameMoney<Typed extends MoneyRow, Bank extends MoneyRow>(typedRows: readonly Typed[], bankRows: readonly Bank[]): SameMoney<Typed, Bank> {
-  const banks = byDate(bankRows)
-  const taken = new Set<Bank>()
+/** Each typed row in date order takes the nearest bank row of the same money that `fits`, and leaves it taken. */
+function oneToOne<Typed extends MoneyRow, Bank extends MoneyRow>(
+  typedRows: readonly Typed[],
+  banks: readonly Bank[],
+  taken: Set<Bank>,
+  fits: (typed: MoneyRow, bank: MoneyRow) => boolean,
+): { readonly matches: SameMoneyMatch<Typed, Bank>[]; readonly unmatched: Typed[] } {
   const matches: SameMoneyMatch<Typed, Bank>[] = []
   const unmatched: Typed[] = []
   for (const typed of byDate(typedRows)) {
     const bank = nearestTo(
       typed.date,
-      banks.filter((candidate) => !taken.has(candidate) && candidate.account === typed.account && candidate.amount === typed.amount && inWindow(typed, candidate)),
+      banks.filter((candidate) => !taken.has(candidate) && candidate.account === typed.account && candidate.amount === typed.amount && fits(typed, candidate)),
     )
     if (bank === undefined) {
       unmatched.push(typed)
@@ -76,6 +75,18 @@ export function sameMoney<Typed extends MoneyRow, Bank extends MoneyRow>(typedRo
       matches.push({ typed, bank })
     }
   }
+  return { matches, unmatched }
+}
+
+/**
+ * Pairs what you typed with what a bank booked. They are the same money on one account, at an equal amount, when the
+ * bank's day is from 3 days before to 7 days after the typed day. Typed rows take their nearest candidate one to one in
+ * date order, so two equal coffees on one day stay two. What is left over may be offered as a near match, one to one as well.
+ */
+export function sameMoney<Typed extends MoneyRow, Bank extends MoneyRow>(typedRows: readonly Typed[], bankRows: readonly Bank[]): SameMoney<Typed, Bank> {
+  const banks = byDate(bankRows)
+  const taken = new Set<Bank>()
+  const { matches, unmatched } = oneToOne(typedRows, banks, taken, inWindow)
   const near: NearMatch<Typed, Bank>[] = []
   for (const typed of unmatched) {
     const bank = nearestTo(
@@ -88,4 +99,12 @@ export function sameMoney<Typed extends MoneyRow, Bank extends MoneyRow>(typedRo
     }
   }
   return { matches, near }
+}
+
+/**
+ * Pairs what one bank source brought with the same money from another, a file and the bank sync. They are one row when the
+ * account, the amount and the day are equal, one to one, so two equal payments on a day stay two until both sources hold both.
+ */
+export function sameBooking<Held extends MoneyRow, Coming extends MoneyRow>(heldRows: readonly Held[], comingRows: readonly Coming[]): readonly SameMoneyMatch<Held, Coming>[] {
+  return oneToOne(heldRows, byDate(comingRows), new Set<Coming>(), (held, coming) => held.date === coming.date).matches
 }

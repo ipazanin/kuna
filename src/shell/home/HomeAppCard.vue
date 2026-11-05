@@ -46,7 +46,16 @@ const to = computed(() => entryPath(props.app))
             </dd>
           </div>
         </dl>
-        <UBadge v-if="figures.waiting" :label="figures.waiting" icon="i-lucide-inbox" color="warning" variant="subtle" class="self-start" data-testid="home-card-waiting" />
+        <UBadge
+          v-if="figures.waiting"
+          :label="figures.waiting"
+          icon="i-lucide-inbox"
+          color="warning"
+          variant="subtle"
+          class="max-w-full self-start"
+          :ui="{ label: 'whitespace-normal' }"
+          data-testid="home-card-waiting"
+        />
       </template>
       <template v-else>
         <p class="type-body">{{ app.homeCard.purpose }}</p>

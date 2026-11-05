@@ -4,6 +4,7 @@ import UBadge from '@nuxt/ui/components/Badge.vue'
 
 import { wantsSavingsAccount } from '../../pairing/domain/wantsSavingsAccount'
 import type { DryRunLine } from '../domain/statementDryRun'
+import { isBankSyncKey } from '../domain/statementRows'
 import { words } from './words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -27,16 +28,18 @@ const shown = computed(() => {
     const outcome =
       line.outcome === 'already-in'
         ? { label: words.import.outcome.alreadyIn, color: 'neutral' as const }
-        : line.outcome === 'filled'
-          ? { label: words.import.outcome.filled, color: 'info' as const }
-          : line.outcome === 'before-opening'
-            ? { label: words.import.outcome.beforeOpening, color: 'neutral' as const }
-            : line.outcome === 'refiled'
-              ? { label: words.import.outcome.refiled(named), color: 'info' as const }
-              : line.outcome === 'new' && wantsSavingsAccount(line.row, state.workbook?.accounts ?? [])
-                ? { label: words.review.wantsSavings, color: 'warning' as const }
-                : { label: named, color: line.category === null ? ('warning' as const) : ('success' as const) }
-    return { line, outcome, account: accounts.get(line.row.account) ?? null, faded: line.outcome === 'already-in' || line.outcome === 'before-opening' }
+        : line.outcome === 'other-source'
+          ? { label: isBankSyncKey(line.row.importKey) ? words.import.outcome.broughtByFile : words.import.outcome.broughtBySync, color: 'neutral' as const }
+          : line.outcome === 'filled'
+            ? { label: words.import.outcome.filled, color: 'info' as const }
+            : line.outcome === 'before-opening'
+              ? { label: words.import.outcome.beforeOpening, color: 'neutral' as const }
+              : line.outcome === 'refiled'
+                ? { label: words.import.outcome.refiled(named), color: 'info' as const }
+                : line.outcome === 'new' && wantsSavingsAccount(line.row, state.workbook?.accounts ?? [])
+                  ? { label: words.review.wantsSavings, color: 'warning' as const }
+                  : { label: named, color: line.category === null ? ('warning' as const) : ('success' as const) }
+    return { line, outcome, account: accounts.get(line.row.account) ?? null, faded: line.outcome === 'already-in' || line.outcome === 'other-source' || line.outcome === 'before-opening' }
   })
 })
 </script>

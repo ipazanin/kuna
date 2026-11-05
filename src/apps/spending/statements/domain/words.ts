@@ -24,6 +24,8 @@ export const en = {
   }),
   balanceDiffers: (product: string, balance: string, worked: string) => `The export's last ${product} balance is ${balance}, but its rows add up to ${worked}, so a row may be missing.`,
   beforeOpeningLeftOut: (count: number): EnglishForms => ({ one: '1 row before its account opened left out.', other: `${count} rows before their accounts opened left out.` }),
+  broughtByFile: (count: number): EnglishForms => ({ one: '1 row already brought by a file.', other: `${count} rows already brought by a file.` }),
+  broughtBySync: (count: number): EnglishForms => ({ one: '1 row already brought by the bank sync.', other: `${count} rows already brought by the bank sync.` }),
 }
 
 export const hr: Translation<typeof en> = {
@@ -64,6 +66,12 @@ export const hr: Translation<typeof en> = {
     one: `Izostavljeno redaka prije otvaranja računa: ${count}.`,
     few: `Izostavljeno redaka prije otvaranja računa: ${count}.`,
     other: `Izostavljeno redaka prije otvaranja računa: ${count}.`,
+  }),
+  broughtByFile: (count): CroatianForms => ({ one: `Već uneseno iz datoteke: ${count}.`, few: `Već uneseno iz datoteke: ${count}.`, other: `Već uneseno iz datoteke: ${count}.` }),
+  broughtBySync: (count): CroatianForms => ({
+    one: `Već uneseno sinkronizacijom s bankom: ${count}.`,
+    few: `Već uneseno sinkronizacijom s bankom: ${count}.`,
+    other: `Već uneseno sinkronizacijom s bankom: ${count}.`,
   }),
 }
 

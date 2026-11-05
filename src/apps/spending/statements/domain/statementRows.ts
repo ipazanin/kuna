@@ -7,6 +7,13 @@ import type { Transaction } from '../../workbook/domain/transaction'
  */
 export type StatementRow = Pick<Transaction, 'account' | 'date' | 'amount' | 'payee' | 'category' | 'description' | 'counterpartyIban' | 'importKey' | 'movedAt' | 'pocket'>
 
+/** What starts the import key of a row the bank sync brought, so the dry run can tell it from a row a file brought. A file's key never starts so. */
+export const BANK_SYNC_KEY_PREFIX = 'bank-'
+
+export function isBankSyncKey(importKey: string): boolean {
+  return importKey.startsWith(BANK_SYNC_KEY_PREFIX)
+}
+
 /** What any bank's reader makes of a file, which is all the dry run knows of the bank. */
 export interface StatementRows {
   /** The label each row of the file carries. */

@@ -95,7 +95,8 @@ function booksStep(group: PageSyncGroup): SyncStep {
   }
 }
 
-function whenIdle(store: AppSyncGroup['store']): Promise<void> {
+/** Resolves once no read or write of the books is under way. */
+export function whenIdle(store: Pick<AppSyncGroup['store'], 'state'>): Promise<void> {
   return new Promise<void>((resolve) => {
     const stop = watch(
       () => !store.state.writing && store.state.status !== 'syncing',

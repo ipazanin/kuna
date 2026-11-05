@@ -1,0 +1,27 @@
+import { readSettingRows, settingRow } from '../domain/spendingSettings'
+import type { SettingRow } from '../domain/spendingSettings'
+import { SETTING_RECORDS } from '../domain/spendingKinds'
+import type { UnitOfWork } from '../../../../shared/storage/application/repository'
+import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
+
+/** Settings read nothing else, and keep no Undo. */
+export const SETTING_WRITES: WriteRules<SettingRow> = {
+  kind: SETTING_RECORDS,
+  reads: [],
+  undoable: false,
+  read: readSettingRows,
+  refusals: () => [],
+}
+
+/** The key holds this value, or no row at all for a blank one. */
+export function setSetting(unit: UnitOfWork, rows: readonly SettingRow[], key: string, value: string): void {
+  const held = rows.find((row) => row.key === key)
+  const settings = unit.of(SETTING_WRITES)
+  if (held === undefined) {
+    if (value !== '') settings.add(settingRow(key, value))
+  } else if (value === '') {
+    settings.remove(held)
+  } else if (held.value !== value) {
+    settings.change(held, settingRow(key, value))
+  }
+}

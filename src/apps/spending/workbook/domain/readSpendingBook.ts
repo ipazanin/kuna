@@ -3,8 +3,10 @@ import { ibanKey } from './accountReading'
 import type { Budget } from './budget'
 import type { Category } from './category'
 import { isFixedKind } from './category'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
+import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
 import type { SpendingRule } from './spendingRule'
+import { readSettingRows, spendingSettingsOf } from './spendingSettings'
+import type { SettingRow, SpendingSettings } from './spendingSettings'
 import type { Transaction } from './transaction'
 import { words } from './words'
 import { limitRuns, runsOverlap } from '../../budgets/domain/budgetCarry'
@@ -20,6 +22,7 @@ export interface SpendingRecords {
   readonly transactions: RecordsRead<Transaction>
   readonly budgets: RecordsRead<Budget>
   readonly rules: RecordsRead<SpendingRule>
+  readonly settings: RecordsRead<SettingRow>
 }
 
 /** The kind each part of the records holds. */
@@ -29,6 +32,7 @@ export const SPENDING_PARTS: { readonly [Part in keyof SpendingRecords]: RecordK
   transactions: TRANSACTION_RECORDS,
   budgets: BUDGET_RECORDS,
   rules: RULE_RECORDS,
+  settings: SETTING_RECORDS,
 }
 
 /** The records of every Spending kind, as `of` gives each kind. */
@@ -39,6 +43,7 @@ export function spendingRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>
     transactions: of(SPENDING_PARTS.transactions),
     budgets: of(SPENDING_PARTS.budgets),
     rules: of(SPENDING_PARTS.rules),
+    settings: of(SPENDING_PARTS.settings),
   }
 }
 
@@ -60,6 +65,7 @@ export interface SpendingBook {
   readonly budgets: readonly Budget[]
   /** In the order they are tried. */
   readonly rules: readonly SpendingRule[]
+  readonly settings: SpendingSettings
   readonly readings: SpendingReadings
   /** Every kind's problems, in the order of the kinds. */
   readonly problems: readonly SpendingProblem[]
@@ -166,13 +172,15 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const transactions = readTransactions(records.transactions, new Set(accounts.facts.map((account) => account.id)), categoryIds)
   const budgets = readBudgets(records.budgets, categories.facts)
   const rules = readRules(records.rules, categoryIds)
-  const readings: SpendingReadings = { accounts, categories, transactions, budgets, rules }
+  const settings = readSettingRows(records.settings)
+  const readings: SpendingReadings = { accounts, categories, transactions, budgets, rules, settings }
   return {
     accounts: accounts.facts,
     categories: categories.facts,
     transactions: transactions.facts,
     budgets: budgets.facts,
     rules: rules.facts,
+    settings: spendingSettingsOf(settings.facts),
     readings,
     problems: (Object.keys(SPENDING_PARTS) as (keyof SpendingRecords)[]).flatMap((part) =>
       readings[part].problems.map((problem) => ({ kind: SPENDING_PARTS[part].name, noun: SPENDING_PARTS[part].noun, ...problem })),

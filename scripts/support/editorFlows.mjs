@@ -68,6 +68,8 @@ import { addDays, today } from '../../src/shared/calendar/civilDate.ts'
 import { monthOf } from '../../src/shared/calendar/monthKey.ts'
 import { en as spendingStatementsEnglish, hr as spendingStatementsCroatian } from '../../src/apps/spending/statements/presentation/words.ts'
 import { en as spendingStatementReadingEnglish, hr as spendingStatementReadingCroatian } from '../../src/apps/spending/statements/domain/words.ts'
+import { en as spendingBankSyncEnglish, hr as spendingBankSyncCroatian } from '../../src/apps/spending/bankSync/presentation/words.ts'
+import { en as spendingBankSyncReadingEnglish, hr as spendingBankSyncReadingCroatian } from '../../src/apps/spending/bankSync/domain/words.ts'
 import { en as spendingBudgetsEnglish, hr as spendingBudgetsCroatian } from '../../src/apps/spending/budgets/presentation/words.ts'
 import { en as spendingCategoriesEnglish, hr as spendingCategoriesCroatian } from '../../src/apps/spending/categories/presentation/words.ts'
 import { en as spendingHomeEnglish, hr as spendingHomeCroatian } from '../../src/apps/spending/home/presentation/words.ts'
@@ -162,6 +164,8 @@ const SCREEN_WORDS = {
     spendingEntries: spendingEntriesEnglish,
     spendingStatements: spendingStatementsEnglish,
     spendingStatementReading: spendingStatementReadingEnglish,
+    spendingBankSync: spendingBankSyncEnglish,
+    spendingBankSyncReading: spendingBankSyncReadingEnglish,
     spendingBudgets: spendingBudgetsEnglish,
     spendingCategories: spendingCategoriesEnglish,
     spendingHome: spendingHomeEnglish,
@@ -239,6 +243,8 @@ const SCREEN_WORDS = {
     spendingEntries: spendingEntriesCroatian,
     spendingStatements: spendingStatementsCroatian,
     spendingStatementReading: spendingStatementReadingCroatian,
+    spendingBankSync: spendingBankSyncCroatian,
+    spendingBankSyncReading: spendingBankSyncReadingCroatian,
     spendingBudgets: spendingBudgetsCroatian,
     spendingCategories: spendingCategoriesCroatian,
     spendingHome: spendingHomeCroatian,
@@ -5182,6 +5188,102 @@ export function spendingImportFlowIn(language, paths) {
     await undoIn(page, press, words)
     await spendingDryRunSays(page, before)
     await dismissToasts(page)
+  }
+}
+
+/** What the Bank sync tab's last sync says, or fails with, once it says something. A sync of the page may have run before the flow, so Sync now is tapped only when none has. */
+async function bankSyncSettled(page, press, selector) {
+  const shown = await page.waitForSelector(selector, { visible: true, timeout: 4_000 }).catch(() => null)
+  if (shown !== null) return
+  await pressSelector(page, press, '[data-testid="spending-bank-sync-now"]')
+  await page.waitForSelector(selector, { visible: true, timeout: 10_000 })
+}
+
+/**
+ * On Settings, Bank sync with nothing saved: no link and no way to sync. Save a made-up deployment, link Revolut, come back
+ * on the fake return with the code taken out of the address, read the synced rows on Entries, then Undo the import.
+ */
+export function spendingBankSyncFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const bank = words.spendingBankSync
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="spending-bank-sync-deployment"] input', { visible: true, timeout: 10_000 })
+    if ((await page.$('[data-testid="spending-bank-link"]')) !== null) throw new Error('Bank sync offers a link with no script saved')
+    await page.type('[data-testid="spending-bank-sync-deployment"] input', 'AKfycb-made-up')
+    await pressSelector(page, press, '[data-testid="spending-bank-sync-save"]')
+    await page.waitForSelector('[data-testid="spending-bank-link-revolut"]', { visible: true, timeout: 10_000 })
+    await delay(300)
+    await inspect?.('the bank sync with a script saved')
+    await shoot('spending-settings-bank-sync-saved')
+    await dismissToasts(page)
+    await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30_000 }), pressSelector(page, press, '[data-testid="spending-bank-link-revolut"]')])
+    await page.waitForSelector('[data-testid="spending-bank-link-finish"], [data-testid="spending-bank-sync-result"]', { visible: true, timeout: 15_000 })
+    if ((await page.$('[data-testid="spending-bank-sync-result"]')) === null) await pressSelector(page, press, '[data-testid="spending-bank-link-finish"]')
+    await page.waitForSelector('[data-testid="spending-bank-sync-result"]', { visible: true, timeout: 15_000 })
+    const address = await page.evaluate(() => window.location.search)
+    if (address.includes('code=') || address.includes('state=')) throw new Error(`the address still holds the bank's answer: ${address}`)
+    await waitForTextIn(page, '[data-testid="spending-bank-link-state"]', bank.linkedUntil(''))
+    await toast(page, words.spendingBankSyncReading.imported)
+    await page.evaluate(() => {
+      window.location.hash = '#/spending/transactions'
+    })
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="spending-row"]')].some((row) => row.textContent?.includes('Corner market')), { timeout: 10_000 })
+    await delay(300)
+    await inspect?.('the synced rows on Entries')
+    await shoot('spending-bank-sync-rows')
+    await undoIn(page, press, words)
+    await dismissToasts(page)
+  }
+}
+
+async function waitForTextIn(page, selector, text) {
+  await page.waitForFunction(
+    (where, wanted) => [...document.querySelectorAll(where)].some((element) => element.textContent?.includes(wanted)),
+    { timeout: 10_000 },
+    selector,
+    text.trim().replace(/\s+\S*$/, ''),
+  )
+}
+
+/** On Settings, Bank sync with both banks linked: the last sync's rows, the one a file brought skipped and the account Kuna does not keep listed. */
+export function spendingBankSyncRowsFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-result"]')
+    await waitForTextIn(page, '[data-testid="spending-bank-sync-notes"] li', words.spendingStatementReading.broughtByFile(1).one)
+    await page.waitForSelector('[data-testid="spending-bank-sync-unknown"]', { visible: true, timeout: 5_000 })
+    await delay(300)
+    await inspect?.('the bank sync with rows a file brought')
+    await shoot('spending-import-bank-sync')
+  }
+}
+
+/** On Settings, Bank sync when one bank gives no rows: the line about it, with the other bank's rows in. */
+export function spendingBankSyncPartFlowIn(language, shot, line) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-problem"]')
+    await waitForTextIn(page, '[data-testid="spending-bank-sync-problem"]', line(words.spendingBankSyncReading))
+    await page.waitForFunction(() => document.querySelector('[data-testid="spending-bank-sync-result"]')?.textContent?.includes('Corner market') ?? false, { timeout: 5_000 })
+    await delay(300)
+    await inspect?.('the bank sync when one bank gives no rows')
+    await shoot(shot)
+  }
+}
+
+/** On Settings, Bank sync when the script answers an error: the reason shows with what is saved still there. */
+export function spendingBankSyncFailedFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-failed"]')
+    await waitForTextIn(page, '[data-testid="spending-bank-sync-failed"]', words.spendingBankSyncReading.didNotAnswer(''))
+    await delay(300)
+    await inspect?.('the bank sync when the script fails')
+    await shoot('spending-bank-sync-failed')
   }
 }
 

@@ -50,6 +50,8 @@ export const en = {
   ruleNeedsOneCondition: 'a rule states counterparty_contains or counterparty_iban, and only one of them',
   ruleOtherCondition: (column: string) => `Spending's rules read no ${column}`,
   ruleLabel: (fields: StoredFields) => labelWords([textOf(fields.counterparty_contains), textOf(fields.counterparty_iban)]),
+  settingUnknown: (key: string) => `this Kuna knows no setting ${key}`,
+  settingNotADay: (key: string, text: string) => `${key} "${text}" is not a date such as 2027-05-03`,
 }
 
 export const hr: Translation<typeof en> = {
@@ -81,6 +83,8 @@ export const hr: Translation<typeof en> = {
   ruleNeedsOneCondition: 'pravilo navodi counterparty_contains ili counterparty_iban, i samo jedno od njih',
   ruleOtherCondition: (column) => `pravila potrošnje ne čitaju ${column}`,
   ruleLabel: (fields) => labelWords([textOf(fields.counterparty_contains), textOf(fields.counterparty_iban)]),
+  settingUnknown: (key) => `ova Kuna ne poznaje postavku ${key}`,
+  settingNotADay: (key, text) => `${key} „${text}” nije datum kao 2027-05-03`,
 }
 
 /** A stored month as Croatian names it, or the text as it is when it is no month. */

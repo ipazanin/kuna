@@ -17,17 +17,20 @@ Fetch and parse personal bank statements into spending, starting with OTP and Re
 
 ## Proposal
 
-OTP from the mailed PDF, with a new `pdfjs-dist` dependency and a parser built against real statements. Revolut from a dropped Excel export, completed rows only. Transfers and exchanges are paired automatically. Enable Banking comes later if the export becomes a chore. The rules engine core moves to `src/shared` first, as the [module map](../architecture/modules.md) orders, and the company's camt and spreadsheet readers stay in Company.
+OTP from the mailed PDF, with a new `pdfjs-dist` dependency and a parser built against real statements. Revolut from a dropped Excel export, completed rows only. Transfers and exchanges are paired automatically. Enable Banking follows as a second source. The rules engine core moves to `src/shared` first, as the [module map](../architecture/modules.md) orders, and the company's camt and spreadsheet readers stay in Company.
 
 ## Where it stands
 
 Built: a dropped Revolut export read as a dry run with one Undo, typed rows filled, transfer and exchange pairs, the To review tab, rules with Always for this payee, Settings' Rules tab and the home card's waiting line. No real export has been read yet.
+
+Built against fakes and off until a deployment ID is saved: the Enable Banking sync through the script in `apps-script/bank-sync`, as a second source into the same dry run, with rows a file brought skipped either way round. The owner deploys it by [its how-to](../../apps-script/bank-sync/README.md), and that is its first trial.
 
 Waits for a real OTP statement PDF: `pdfjs-dist`, `pdfText.ts`, `otpStatement`, the OTP mail source with the `setting` kind, the sync's mail and statements steps, Settings' Statements tab and `spending-import-otp`. OTP's reader hands the dry run the same `StatementRows` as Revolut's.
 
 ## Open
 
 - Whether OTP's web banking offers an export for private customers.
+- The first real trial of the bank sync, with the checks its how-to lists.
 
 ## Docs
 

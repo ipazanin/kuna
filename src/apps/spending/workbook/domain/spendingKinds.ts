@@ -2,6 +2,7 @@ import type { Account } from './account'
 import type { Budget } from './budget'
 import type { Category } from './category'
 import type { SpendingRule } from './spendingRule'
+import type { SettingRow } from './spendingSettings'
 import type { Transaction } from './transaction'
 import { recordKind } from '../../../../shared/storage/domain/recordKind'
 
@@ -24,4 +25,8 @@ export const BUDGET_RECORDS = recordKind<Budget>('budget', {
 export const RULE_RECORDS = recordKind<SpendingRule>('rule', {
   en: { one: 'rule', many: 'rules', article: 'a' },
   hr: { one: 'pravilo', of: 'pravila', few: 'pravila', other: 'pravila', gender: 'neuter' },
+})
+export const SETTING_RECORDS = recordKind<SettingRow>('setting', {
+  en: { one: 'setting', many: 'settings', article: 'a' },
+  hr: { one: 'postavka', of: 'postavke', few: 'postavke', other: 'postavki', gender: 'feminine' },
 })

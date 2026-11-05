@@ -1,3 +1,4 @@
+import { noteBankReturn, openBankSyncAfterReturn } from './bankSync/presentation/bankReturnOnOpen'
 import { SPENDING_HOME_CARD } from './home/presentation/spendingHomeCard'
 import { spendingHubFigures } from './home/presentation/spendingHubFigures'
 import {
@@ -41,10 +42,14 @@ export const spendingApp: AppContribution = {
   name: words.name,
   colour: '--app-spending',
   async install() {
+    noteBankReturn()
     // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
       const { seedFakeSpending } = await import('./workbook/infrastructure/fake/seedFakeSpending')
-      await seedFakeSpending(new URLSearchParams(window.location.search).get('spending'))
+      const { saveLastFetch } = await import('./bankSync/infrastructure/bankBrowserState')
+      saveLastFetch(null)
+      const query = new URLSearchParams(window.location.search)
+      await seedFakeSpending(query.get('spending'), query.get('banksync'))
     }
   },
   screens: [
@@ -74,6 +79,7 @@ export const spendingApp: AppContribution = {
   // The shell hands over only a find or a pick the Spending file asked Google for. The page's sync resumes a sync.
   start(router, googleReturn) {
     const stopRates = startRates()
+    openBankSyncAfterReturn(router)
     resumeFileLookup({ store: useSpendingBooks(), words: fileWords, startRoute: SPENDING_START_ROUTE, overviewRoute: SPENDING_OVERVIEW_ROUTE }, router, googleReturn)
     return stopRates
   },

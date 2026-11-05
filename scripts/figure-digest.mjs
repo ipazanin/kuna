@@ -166,6 +166,8 @@ import { fakeAssetsDocument } from '../src/apps/assets/workbook/infrastructure/f
 import { accountOnDay } from '../src/apps/spending/rates/domain/euroRows.ts'
 import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement.ts'
 import { reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue.ts'
+import { readBanks } from '../src/apps/spending/bankSync/application/bankSync.ts'
+import { fakeBankSync } from '../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync.ts'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun.ts'
 import { SAMPLE_REVOLUT_FILE_NAME, sampleRevolutCsv } from '../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles.ts'
 import { readFirstSheet } from '../src/shared/xlsx/sheetGrids.ts'
@@ -680,6 +682,11 @@ async function spendingGroups(add) {
   if (options['fake-spending'] === 'statements') {
     const reading = revolutStatement(await readFirstSheet(sampleRevolutCsv(today)), SAMPLE_REVOLUT_FILE_NAME, workbook)
     add('spending.import.revolut', () => ('statement' in reading ? statementDryRun(workbook, reading.statement, today) : reading))
+    const bankRead = await readBanks(fakeBankSync('linked', today), workbook, today)
+    add('spending.import.bank-sync', () => {
+      let place = 0
+      return statementDryRun(workbook, bankRead.statement, today, () => `fa4e3000-0000-4000-8000-${String((place += 1)).padStart(12, '0')}`)
+    })
   }
   return () => spendingHubFigures(workbook, rates, today)
 }

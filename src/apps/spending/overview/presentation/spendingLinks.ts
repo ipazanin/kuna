@@ -19,6 +19,8 @@ export const SPENDING_BUDGETS_ROUTE = '/spending/budgets'
 export const SPENDING_ACCOUNTS_ROUTE = '/spending/accounts'
 export const SPENDING_ACCOUNT_ROUTE = '/spending/account'
 export const SPENDING_SETTINGS_ROUTE = '/spending/settings'
+/** Settings' Bank sync tab. */
+export const SPENDING_BANK_SYNC_LINK = `${SPENDING_SETTINGS_ROUTE}?tab=bank-sync`
 
 /** An account's page, which names the account by its bare UUID in `?account=`. */
 export function accountLink(account: Account): RouteLocationRaw {

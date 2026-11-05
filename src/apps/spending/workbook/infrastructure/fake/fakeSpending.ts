@@ -4,8 +4,10 @@ import { codecOfSpendingKind } from '../../application/spendingCodecs'
 import type { Account } from '../../domain/account'
 import type { Budget } from '../../domain/budget'
 import type { Category } from '../../domain/category'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../domain/spendingKinds'
+import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../../domain/spendingKinds'
 import type { SpendingRule } from '../../domain/spendingRule'
+import { BANK_SYNC_DEPLOYMENT_KEY, bankLinkKey, settingRow } from '../../domain/spendingSettings'
+import type { SettingRow } from '../../domain/spendingSettings'
 import { NO_BANK_FACTS } from '../../domain/transaction'
 import type { Transaction } from '../../domain/transaction'
 import { spendingDocumentOf } from '../spendingDocument'
@@ -179,7 +181,18 @@ function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, 
   ]
 }
 
-export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sample', day: CivilDate = today()): WorkbookDocument {
+/**
+ * The bank sync's settings as `?banksync=` names them: `saved` a saved script with no link, `linked`, `failed`,
+ * `unknown-account`, `otp-failed` and `ended` both banks linked for months yet, and `ending` OTP's link with 13 days left. Any other variant holds none.
+ */
+function fakeBankSyncSettings(variant: string | null, day: CivilDate): readonly SettingRow[] {
+  if (variant === null || !['saved', 'linked', 'ending', 'failed', 'unknown-account', 'otp-failed', 'ended'].includes(variant)) return []
+  const deployment = settingRow(BANK_SYNC_DEPLOYMENT_KEY, 'AKfycb-fake-deployment')
+  if (variant === 'saved') return [deployment]
+  return [deployment, settingRow(bankLinkKey('otp'), addDays(day, variant === 'ending' ? 13 : 120)), settingRow(bankLinkKey('revolut'), addDays(day, 120))]
+}
+
+export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sample', day: CivilDate = today(), bankSync: string | null = null): WorkbookDocument {
   const { categories, idOf } = fakeCategories()
   const month = monthOf(day)
   const [twoBack, oneBack] = [addMonths(month, -2), addMonths(month, -1)]
@@ -233,6 +246,7 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
     ...stored(TRANSACTION_RECORDS, transactions),
     ...stored(BUDGET_RECORDS, budgets),
     ...stored(RULE_RECORDS, set === 'statements' ? fakeRules(idOf) : []),
+    ...(bankSync === null ? {} : stored(SETTING_RECORDS, fakeBankSyncSettings(bankSync, day))),
   })
 }
 

@@ -1,7 +1,7 @@
 import { startsAtBooksFolder } from '../text/folderPath'
 
 /** A Google permission the app asks for, by the short name the sync and the settings use. */
-export type GoogleScope = 'drive.file' | 'drive.readonly' | 'drive.appdata' | 'gmail.readonly' | 'gmail.compose'
+export type GoogleScope = 'drive.file' | 'drive.readonly' | 'drive.appdata' | 'gmail.readonly' | 'gmail.compose' | 'script.external_request'
 
 const SCOPE_NAMES: Readonly<Record<GoogleScope, string>> = {
   'drive.file': 'https://www.googleapis.com/auth/drive.file',
@@ -9,10 +9,11 @@ const SCOPE_NAMES: Readonly<Record<GoogleScope, string>> = {
   'drive.appdata': 'https://www.googleapis.com/auth/drive.appdata',
   'gmail.readonly': 'https://www.googleapis.com/auth/gmail.readonly',
   'gmail.compose': 'https://www.googleapis.com/auth/gmail.compose',
+  'script.external_request': 'https://www.googleapis.com/auth/script.external_request',
 }
 
 /** Every scope the app knows, in the order a request lists them. */
-export const GOOGLE_SCOPES: readonly GoogleScope[] = ['drive.file', 'drive.readonly', 'drive.appdata', 'gmail.readonly', 'gmail.compose']
+export const GOOGLE_SCOPES: readonly GoogleScope[] = ['drive.file', 'drive.readonly', 'drive.appdata', 'gmail.readonly', 'gmail.compose', 'script.external_request']
 
 /** Asked for with every request, so the app can read which account signed in, for the login hint. */
 const SIGN_IN_SCOPES = 'openid email'
