@@ -2717,7 +2717,7 @@ const SOURCE_SCREENS = [
     title: 'Transactions',
     charts: 0,
     ready: '[data-testid="transactions"] [data-testid="transaction-row"]',
-    shows: ['records, newest first', 'Add transaction', 'All kinds', 'Fee refund', 'Exchange', 'EUR into USD', 'Spin-off', 'Example Spinco from Example Dividend Co', '2 for 1', 'Statement of 30 Sep'],
+    shows: ['records, newest first', 'Add transaction', 'All kinds', 'Fee refund', 'Exchange', 'EUR into USD', 'Spin-off', 'Example Spinco from Example Dividend Co', '2 for 1', 'Monthly statement'],
     cards: false,
   },
   {

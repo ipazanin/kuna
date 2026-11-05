@@ -476,7 +476,7 @@ function pricesOfInput() {
  * Overview reads the portfolio.
  */
 function investmentsGroups(add) {
-  const document = options.investments === undefined ? fakeInvestmentsDocument(AT) : decodeDocument(readFileSync(options.investments, 'utf8'))
+  const document = options.investments === undefined ? fakeInvestmentsDocument(AT, 'sample', today) : decodeDocument(readFileSync(options.investments, 'utf8'))
   const { records, workbook } = INVESTMENTS_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
   add('investments.read.records', records)
   add('investments.read.problems', workbook.problems)

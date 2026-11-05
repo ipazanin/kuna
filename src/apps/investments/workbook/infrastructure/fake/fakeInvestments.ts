@@ -35,7 +35,7 @@ import { rateSeriesKey } from '../../../prices/domain/pricesFile'
 import { FAKE_SERIES, fakeClose, isWeekday } from '../../../prices/infrastructure/fake/fakePrices'
 import { addDays, parseCivilDate } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
-import { dayMonthsLater } from '../../../../../shared/calendar/monthKey'
+import { addMonths, dayMonthsLater, lastDayOf, monthOf } from '../../../../../shared/calendar/monthKey'
 import { EURO, currencyCodeOf } from '../../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../../shared/money/currencyCode'
 import { DECIMAL_ZERO, decimalOfText } from '../../../../../shared/money/decimal'
@@ -304,7 +304,7 @@ function handPrice(what: Instrument, date: string, price: string, note = ''): Ha
 
 const HAND_PRICES: readonly HandPrice[] = [
   handPrice(MONEY_FUND, '2026-06-30', '10.42', 'Statement of 30 Jun'),
-  handPrice(MONEY_FUND, '2026-09-30', '10.51', 'Statement of 30 Sep'),
+  handPrice(MONEY_FUND, '2026-09-30', '10.51', 'Monthly statement'),
   handPrice(SPIN_CO, '2024-12-31', '21.40'),
   handPrice(SPIN_CO, '2026-09-30', '11.20'),
   handPrice(MONEY_FUND, '2023-03-31', '10.02', 'Statement of 31 Mar 2023'),
@@ -355,6 +355,22 @@ const LATER_HAND_PRICES: readonly HandPrice[] = [
   handPrice(RETIRED_CO, '2025-08-01', '38.00'),
   handPrice(SPIN_CO, '2026-10-15', '8.95'),
 ]
+
+const MONEY_FUND_STATEMENT = HAND_PRICES[1]
+const SPIN_CO_LATEST = LATER_HAND_PRICES[4]
+
+/**
+ * The newest prices entered by hand follow the fake build's day, as the fetched closes do, so they never turn late: the
+ * money fund's statement of the last month end, and the spin-off's price fifteen days back.
+ */
+function withRecentHandPrices(prices: readonly HandPrice[], today: CivilDate): HandPrice[] {
+  return prices.map((price) => {
+    if (price === MONEY_FUND_STATEMENT) {
+      return { ...price, date: lastDayOf(addMonths(monthOf(today), -1)) }
+    }
+    return price === SPIN_CO_LATEST ? { ...price, date: addDays(today, -15) } : price
+  })
+}
 
 function fundMix(what: Instrument, mix: FundMixGroup['mix'], percents: readonly (readonly [string, string])[]): FundMixLine[] {
   return percents.map(([group, percent]) => ({ id: nextId(FUND_MIX_RECORDS), instrument: what.id, slice: { mix, group } as FundMixGroup, percent: decimal(percent) }))
@@ -476,9 +492,9 @@ function youngRecords(today: CivilDate): WorkbookDocument['records'] {
  * the Tax screen two sales of 2026, a dividend with 30% withheld, one with nothing withheld, stock lending and a
  * referral credit. Every figure in it is made up.
  */
-export function fakeInvestmentsDocument(savedAt: string, variant: FakeInvestmentsVariant = 'sample'): WorkbookDocument {
+export function fakeInvestmentsDocument(savedAt: string, variant: FakeInvestmentsVariant = 'sample', today: CivilDate = pricesDay(savedAt)): WorkbookDocument {
   if (variant === 'young') {
-    return { ...emptyInvestmentsDocument(savedAt), records: youngRecords(pricesDay(savedAt)) }
+    return { ...emptyInvestmentsDocument(savedAt), records: youngRecords(today) }
   }
   const allMovements = [...CASH_MOVEMENTS, ...LATER_CASH_MOVEMENTS]
   const movements = variant === 'sample' ? allMovements : allMovements.filter((movement) => !(movement.account === BROKER_TWO.id && movement.kind === 'deposit'))
@@ -494,7 +510,7 @@ export function fakeInvestmentsDocument(savedAt: string, variant: FakeInvestment
       ...stored(TRANSFER_RECORDS, TRANSFERS),
       ...stored(SPLIT_RECORDS, SPLITS),
       ...stored(SPIN_OFF_RECORDS, SPIN_OFFS),
-      ...stored(PRICE_RECORDS, [...HAND_PRICES, ...LATER_HAND_PRICES]),
+      ...stored(PRICE_RECORDS, withRecentHandPrices([...HAND_PRICES, ...LATER_HAND_PRICES], today)),
       ...stored(FUND_MIX_RECORDS, FUND_MIXES),
       ...stored(TARGET_RECORDS, TARGETS),
       ...stored(CHECK_RECORDS, CHECKS),
