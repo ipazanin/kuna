@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
 
-import type { FiledFile, MailFolders, Mailbox } from '../../src/apps/company/mail/application/mailFiling'
-import { MailRateLimited } from '../../src/apps/company/mail/application/mailFiling'
-import { MAIL_DATE_PROPERTY } from '../../src/apps/company/mail/domain/mailSource'
+import type { FiledFile, MailFolders, Mailbox } from '../../src/shared/mail-filing/application/mailFiling'
+import { MailRateLimited } from '../../src/shared/mail-filing/application/mailFiling'
+import { MAIL_DATE_PROPERTY } from '../../src/shared/mail-filing/domain/mailSource'
 import { fold } from '../../src/shared/text/fold'
 
 /** A mail as a test writes it: an ISO time, and each attachment's name with the text its bytes are. */

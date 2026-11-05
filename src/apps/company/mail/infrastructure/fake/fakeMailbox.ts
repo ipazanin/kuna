@@ -1,21 +1,16 @@
 import { addDays, parseCivilDate } from '../../../../../shared/calendar/civilDate'
-import { sha256Hex } from '../../../../../shared/files/sha256'
-import { fold } from '../../../../../shared/text/fold'
+import type { MailFolders, Mailbox } from '../../../../../shared/mail-filing/application/mailFiling'
+import { fakeMailFoldersOf, fakeMailboxOf } from '../../../../../shared/mail-filing/infrastructure/fake/fakeMail'
+import type { FakeFiled, FakeMadeFile, FakeMail } from '../../../../../shared/mail-filing/infrastructure/fake/fakeMail'
 import { sampleCamtLabel, sampleCamtXml } from '../../../imports/infrastructure/fake/sampleImportFiles'
 import { FAKE_BOOKS_STATEMENTS, PAGE_FAKE_MADE_FILES, sampleStatementByMail } from '../../../workbook/infrastructure/fake/fakeFolderFiles'
-import type { FakeMadeFile } from '../../../workbook/infrastructure/fake/fakeFolderFiles'
 import { FAKE_FOLDERS, fakeWorkbookRecords } from '../../../workbook/infrastructure/fake/fakeWorkbook'
-import { MailRateLimited } from '../../application/mailFiling'
-import type { FiledFile, MailFolders, Mailbox } from '../../application/mailFiling'
-import { MAIL_DATE_PROPERTY } from '../../domain/mailSource'
-import type { MailMessage } from '../../domain/mailSource'
 
 /**
  * The fake build's Gmail and the folders its mail goes into, for `?fake=mail`, `?fake=mail-nothing-new`,
  * `?fake=mail-failed`, `?fake=mail-upload-failed`, `?fake=mail-rate-limited`, `?fake=mail-switches-off`
  * and `?fake=mail-no-sender`. The bank and the accountant mail from example.com addresses, and every
- * subject and file name copies the shape of a real one with made-up names. The mailbox answers a
- * search by its subject phrase and its window, three ids a page, so a run reads more than one page.
+ * subject and file name copies the shape of a real one with made-up names.
  */
 
 const BANK = 'statements@bank.example.com'
@@ -39,34 +34,6 @@ export function fakeMailSettings(variant: string | null): readonly { readonly ke
     { key: 'hr_invoices_mail_subject', value: 'Račun za' },
     { key: 'hr_incoming_invoices_folder', value: FAKE_FOLDERS.incomingInvoices.join('/') },
   ]
-}
-
-const PAGE_SIZE = 3
-
-/** One attachment of a fake mail: text whose bytes it carries, or the sample camt statement. */
-interface FakeAttachment {
-  readonly name: string
-  readonly content: string | 'sample-camt'
-}
-
-interface FakeMail {
-  readonly id: string
-  readonly subject: string
-  /** An ISO time. */
-  readonly at: string
-  readonly attachments: readonly FakeAttachment[]
-  /** Whether `?fake=mail-nothing-new` keeps it, since its files are already in the folders. */
-  readonly filed: boolean
-}
-
-/** A file the fake folders hold, by its source folder, the folders below it and its name, with the text its bytes are or no checksum. */
-interface FakeFiled {
-  readonly folder: readonly string[]
-  readonly folders: readonly string[]
-  readonly name: string
-  /** An ISO time. */
-  readonly created: string
-  readonly content: string | null
 }
 
 /** The main account's newest statement on the fake ledger, which the folders already hold as a PDF. */
@@ -186,86 +153,17 @@ function fakeFiled(variant: string | null): FakeFiled[] {
   ]
 }
 
-function bytesOf(content: string | 'sample-camt'): ArrayBuffer {
+function bytesOf(content: string): ArrayBuffer {
   return new TextEncoder().encode(content === 'sample-camt' ? sampleCamtXml() : content).buffer as ArrayBuffer
 }
 
-/** What the fake Gmail answers when `?fake=mail-failed` fails a search, in place of the answer Google would send. */
-export const FAKE_SEARCH_FAILURE = 'Gmail did not answer the search. Sync again later'
-
-/** What the fake Drive answers when `?fake=mail-upload-failed` fails an upload, in place of the answer Google would send. */
-export const FAKE_UPLOAD_FAILURE = 'Drive did not take the upload. Sync again later'
-
-/** The fake Gmail. `?fake=mail-failed` fails the VAT return search, so one source fails beside the others, and `?fake=mail-rate-limited` answers every search as Gmail still asking to slow down after the retries. */
+/** The fake Gmail, where `?fake=mail-failed` fails the VAT return search, so one source fails beside the others. */
 export function fakeMailbox(variant: string | null): Mailbox {
-  const mails = fakeMails().filter((mail) => variant !== 'mail-nothing-new' || mail.filed)
-  const byId = new Map(mails.map((mail) => [mail.id, mail]))
-  return {
-    async search(query, pageToken) {
-      const phrase = /subject:"([^"]*)"/.exec(query)?.[1] ?? ''
-      const after = Number(/after:(\d+)/.exec(query)?.[1] ?? '0') * 1000
-      if (variant === 'mail-failed' && phrase === 'PDV za') {
-        throw new Error(FAKE_SEARCH_FAILURE)
-      }
-      if (variant === 'mail-rate-limited') {
-        throw new MailRateLimited()
-      }
-      const found = mails.filter((mail) => fold(mail.subject).includes(fold(phrase)) && Date.parse(mail.at) > after).map((mail) => mail.id)
-      const start = pageToken === null ? 0 : Number(pageToken)
-      return { ids: found.slice(start, start + PAGE_SIZE), next: start + PAGE_SIZE < found.length ? String(start + PAGE_SIZE) : null }
-    },
-
-    async message(id): Promise<MailMessage> {
-      const mail = byId.get(id)
-      if (mail === undefined) throw new Error(`The fake mailbox holds no mail ${id}.`)
-      return { id, subject: mail.subject, date: Date.parse(mail.at), attachments: mail.attachments.map((attachment, index) => ({ id: `${id}-${index}`, name: attachment.name })) }
-    },
-
-    async attachment(messageId, attachmentId) {
-      const attachment = byId.get(messageId)?.attachments[Number(attachmentId.slice(messageId.length + 1))]
-      if (attachment === undefined) throw new Error(`The fake mailbox holds no attachment ${attachmentId}.`)
-      return bytesOf(attachment.content)
-    },
-  }
+  return fakeMailboxOf({ mails: fakeMails(), failingSearchPhrase: 'PDV za', bytesOf }, variant)
 }
 
-/**
- * The fake folders the mail goes into, at the paths the fake books name and the statements folder
- * new books from mail make beside the books file. They hold what another app filed and what a sync
- * made, kept in `made`, the page's files unless a test gives others. `?fake=mail-upload-failed` fails the upload of every PDF, so a statement's PDF fails beside its XML and the accountant's PDFs beside the other files.
- */
+/** The fake folders the mail goes into, at the paths the fake books name and the statements folder new books from mail make beside the books file. */
 export function fakeMailFolders(variant: string | null, made: FakeMadeFile[] = PAGE_FAKE_MADE_FILES): MailFolders {
-  const filed = fakeFiled(variant)
-  const known = [FAKE_FOLDERS.statements, FAKE_BOOKS_STATEMENTS, FAKE_FOLDERS.payroll, FAKE_FOLDERS.vatReturns, FAKE_FOLDERS.incomingInvoices].map((folder) => folder.join('/'))
-  return {
-    async filesIn(folder, below) {
-      const where = folder.join('/')
-      if (!known.includes(where)) {
-        return { kind: 'refused', reason: `The fake Drive holds no folder at ${where}` }
-      }
-      const inFolder = (file: { readonly folder: readonly string[]; readonly folders: readonly string[] }): boolean =>
-        file.folder.join('/') === where && below.some((path) => path.every((name, index) => file.folders[index] === name))
-      const byOthers: Promise<FiledFile>[] = filed.filter(inFolder).map(async (file) => ({
-        folders: file.folders,
-        name: file.name,
-        createdTime: Date.parse(file.created),
-        sha256: file.content === null ? null : await sha256Hex(bytesOf(file.content)),
-        filedFrom: null,
-      }))
-      const byApp: Promise<FiledFile>[] = made.filter(inFolder).map(async (file) => ({
-        folders: file.folders,
-        name: file.name,
-        createdTime: Date.parse(file.created),
-        sha256: await sha256Hex(file.bytes),
-        filedFrom: Date.parse(file.appProperties[MAIL_DATE_PROPERTY] ?? file.created),
-      }))
-      return { kind: 'listed', files: await Promise.all([...byOthers, ...byApp]) }
-    },
-
-    async create(folder, below, file) {
-      if (!known.includes(folder.join('/'))) throw new Error(`The fake Drive holds no folder at ${folder.join('/')}`)
-      if (variant === 'mail-upload-failed' && file.name.endsWith('.pdf')) throw new Error(FAKE_UPLOAD_FAILURE)
-      made.push({ folder, folders: below, name: file.name, created: new Date().toISOString(), bytes: file.bytes, appProperties: file.properties })
-    },
-  }
+  const known = [FAKE_FOLDERS.statements, FAKE_BOOKS_STATEMENTS, FAKE_FOLDERS.payroll, FAKE_FOLDERS.vatReturns, FAKE_FOLDERS.incomingInvoices]
+  return fakeMailFoldersOf({ filed: fakeFiled(variant), known, bytesOf }, variant, made)
 }

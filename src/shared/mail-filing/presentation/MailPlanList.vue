@@ -2,8 +2,8 @@
 import { computed, reactive } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
-import { dateFormat } from '../../../../shared/calendar/dateFormat'
-import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
+import { dateFormat } from '../../calendar/dateFormat'
+import ShowAllButton, { FIRST_SHOWN } from '../../ui/ShowAllButton.vue'
 import { words as sourceWords } from '../domain/words'
 import { mailCounts, notFiledLine } from '../application/mailFiling'
 import type { MailPlan, PlanEntry, SourcePlan } from '../application/mailFiling'

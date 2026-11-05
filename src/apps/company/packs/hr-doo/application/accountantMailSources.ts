@@ -1,6 +1,6 @@
-import type { MailSource } from '../../../mail/application/mailFiling'
-import { sourceTerms } from '../../../mail/domain/mailSource'
-import type { SourceTerms } from '../../../mail/domain/mailSource'
+import type { MailSource } from '../../../../../shared/mail-filing/application/mailFiling'
+import { sourceTerms } from '../../../../../shared/mail-filing/domain/mailSource'
+import type { SourceTerms } from '../../../../../shared/mail-filing/domain/mailSource'
 import type { Workbook } from '../../../workbook/domain/workbook'
 import { invoiceNamings, payrollNamings, vatNamings } from '../domain/accountant/accountantMailFiling'
 import type { CompanyFacts } from '../domain/companyFacts'
@@ -19,13 +19,13 @@ function accountantTerms(workbook: Workbook, kind: (facts: CompanyFacts) => { re
  * other bytes being a correction, and each read only from mail whose subject starts with its words.
  * Nothing in the app reads the files they file.
  */
-export const ACCOUNTANT_MAIL_SOURCES: readonly MailSource[] = [
+export const ACCOUNTANT_MAIL_SOURCES: readonly MailSource<Workbook>[] = [
   {
     id: 'hr-doo.payroll',
     label: words.accountantMail.payroll,
     duplicates: 'correction',
     terms: (workbook) => accountantTerms(workbook, (facts) => ({ on: facts.payrollMailSync, subject: facts.payrollMailSubject, folder: facts.payrollFolder })),
-    name: async (message, terms, reading) => payrollNamings(message, terms.subject, terms.folder, hrDooWorkbook(reading.workbook).employees),
+    name: async (message, terms, reading) => payrollNamings(message, terms.subject, terms.folder, hrDooWorkbook(reading.books).employees),
   },
   {
     id: 'hr-doo.vat-returns',

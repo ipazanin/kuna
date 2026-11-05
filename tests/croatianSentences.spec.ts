@@ -268,7 +268,7 @@ describe('imports, sync and mail in Croatian', () => {
   })
 
   it('counts the mail step’s files and names the ones it could not file', async () => {
-    const { words } = await inCroatian(() => import('../src/apps/company/mail/domain/words'))
+    const { words } = await inCroatian(() => import('../src/shared/mail-filing/domain/words'))
     const none = { filed: 0, notFiled: 0, already: 0, corrections: 0, unchecked: 0, unmatched: 0 }
 
     expect(words.counts({ ...none, filed: 9, already: 4, corrections: 1, unchecked: 1, unmatched: 2 })).toBe('Spremljeno 9, već postoji 4, ispravci 1, nije uspoređeno 1, bez pravila 2')

@@ -1,5 +1,5 @@
 import { FAKE_BOOKS_STATEMENTS, PAGE_FAKE_MADE_FILES, sampleStatementByMail } from '../../../workbook/infrastructure/fake/fakeFolderFiles'
-import type { FakeMadeFile } from '../../../workbook/infrastructure/fake/fakeFolderFiles'
+import type { FakeMadeFile } from '../../../../../shared/mail-filing/infrastructure/fake/fakeMail'
 import { FAKE_FOLDERS, fakeWorkbookRecords } from '../../../workbook/infrastructure/fake/fakeWorkbook'
 import type { StatementFolder } from '../../application/statementFolder'
 import type { StatementFile } from '../../domain/statementFiles'

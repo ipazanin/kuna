@@ -1,6 +1,6 @@
-import { civilDate } from '../../../../shared/calendar/civilDate'
-import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { fold } from '../../../../shared/text/fold'
+import { civilDate } from '../../calendar/civilDate'
+import type { CivilDate } from '../../calendar/civilDate'
+import { fold } from '../../text/fold'
 import { words } from './words'
 
 /** One file attached to a mail, by Gmail's id and the name the sender gave it. */

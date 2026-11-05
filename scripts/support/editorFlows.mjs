@@ -19,6 +19,7 @@ import { en as onboardingEnglish, hr as onboardingCroatian } from '../../src/app
 import { en as settingsReasonsEnglish, hr as settingsReasonsCroatian } from '../../src/apps/company/settings/domain/words.ts'
 import { en as booksEnglish, hr as booksCroatian } from '../../src/apps/company/workbook/presentation/words.ts'
 import { en as mailEnglish, hr as mailCroatian } from '../../src/apps/company/mail/presentation/words.ts'
+import { en as mailPlanEnglish, hr as mailPlanCroatian } from '../../src/shared/mail-filing/presentation/words.ts'
 import { en as invoicingEnglish, hr as invoicingCroatian } from '../../src/apps/company/invoicing/presentation/words.ts'
 import { en as receivablesEnglish, hr as receivablesCroatian } from '../../src/apps/company/receivables/presentation/words.ts'
 import { en as billingEnglish, hr as billingCroatian } from '../../src/apps/company/billingPlan/presentation/words.ts'
@@ -71,7 +72,7 @@ import { en as spendingFileEnglish, hr as spendingFileCroatian } from '../../src
 import { starterCategories } from '../../src/apps/spending/categories/domain/starterCategories.ts'
 import { formatMoney } from '../../src/shared/money/moneyFormat.ts'
 import { settleCharts } from './settleCharts.mjs'
-import { en as mailDomainEnglish, hr as mailDomainCroatian } from '../../src/apps/company/mail/domain/words.ts'
+import { en as mailDomainEnglish, hr as mailDomainCroatian } from '../../src/shared/mail-filing/domain/words.ts'
 import { en as assistEnglish, hr as assistCroatian } from '../../src/shared/ai/presentation/words.ts'
 import { en as secretsEnglish, hr as secretsCroatian } from '../../src/shared/secrets/presentation/words.ts'
 import { en as suggestEnglish, hr as suggestCroatian } from '../../src/apps/company/assist/presentation/words.ts'
@@ -117,6 +118,7 @@ const SCREEN_WORDS = {
     sortBy: uiEnglish.sortBy,
     imports: importEnglish,
     mail: mailEnglish,
+    mailPlan: mailPlanEnglish.plan,
     invoicing: invoicingEnglish,
     receivables: receivablesEnglish,
     billing: billingEnglish,
@@ -191,6 +193,7 @@ const SCREEN_WORDS = {
     sortBy: uiCroatian.sortBy,
     imports: importCroatian,
     mail: mailCroatian,
+    mailPlan: mailPlanCroatian.plan,
     invoicing: invoicingCroatian,
     receivables: receivablesCroatian,
     billing: billingCroatian,
@@ -2118,7 +2121,7 @@ export function mailListFlowIn(language) {
     await shoot('mail-step')
     await openMailList(page, press, SYNC_CARD)
     await mailListShows(page, ALL_SOURCES)
-    await elementSays(page, MAIL_CARD, [words.mail.card.title, words.mail.card.lastSync, words.mail.plan.kinds.filed], 'the mail card is not in its language')
+    await elementSays(page, MAIL_CARD, [words.mail.card.title, words.mail.card.lastSync, words.mailPlan.kinds.filed], 'the mail card is not in its language')
     await scrollToTop(page, MAIL_PLAN)
     await inspect?.('the mail list')
     await shoot('mail-list')

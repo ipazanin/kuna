@@ -5,7 +5,7 @@ import { dryRunFor, statementReadings } from '../src/apps/company/imports/applic
 import { accountNamedIn, fileShapeOf } from '../src/apps/company/imports/domain/profileGuess'
 import { statementFilesToRead } from '../src/apps/company/imports/domain/statementFiles'
 import { FAKE_FOLDERS } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
-import type { FakeMadeFile } from '../src/apps/company/workbook/infrastructure/fake/fakeFolderFiles'
+import type { FakeMadeFile } from '../src/shared/mail-filing/infrastructure/fake/fakeMail'
 import { fakeStatementFolder } from '../src/apps/company/imports/infrastructure/fake/fakeStatementFolder'
 import { SAMPLE_CAMT_FILE_NAME, SAMPLE_TABLE_FILE_NAME, sampleCamtLabel, sampleCamtXml, sampleTableGrid } from '../src/apps/company/imports/infrastructure/fake/sampleImportFiles'
 import { loadImportFile } from '../src/apps/company/imports/infrastructure/importFiles'

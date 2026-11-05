@@ -2,10 +2,12 @@ import { civilDateIn } from '../../../../shared/calendar/civilDate'
 import { accountsByIban } from '../../imports/application/importStatements'
 import type { LoadedImportFile } from '../../imports/application/importStatements'
 import { camtStatementHead } from '../../imports/domain/camtStatement'
-import { statementPdfNaming, statementXmlNaming } from '../domain/statementMailFiling'
-import { sourceTerms } from '../domain/mailSource'
-import type { AttachmentNaming } from '../domain/mailSource'
-import type { MailSource } from './mailFiling'
+import { statementPdfNaming } from '../../../../shared/mail-filing/domain/statementMailFiling'
+import { statementXmlNaming } from '../domain/statementXmlNaming'
+import { sourceTerms } from '../../../../shared/mail-filing/domain/mailSource'
+import type { AttachmentNaming } from '../../../../shared/mail-filing/domain/mailSource'
+import type { MailSource } from '../../../../shared/mail-filing/application/mailFiling'
+import type { Workbook } from '../../workbook/domain/workbook'
 import { words } from './words'
 
 /**
@@ -15,7 +17,7 @@ import { words } from './words'
  * HTML copy the bank mails beside each PDF, is passed over. `timeZone` is this device's, which the
  * day of a mail is read in.
  */
-export function statementMailSource(load: (fileName: string, bytes: ArrayBuffer) => Promise<LoadedImportFile>, timeZone: string): MailSource {
+export function statementMailSource(load: (fileName: string, bytes: ArrayBuffer) => Promise<LoadedImportFile>, timeZone: string): MailSource<Workbook> {
   return {
     id: 'statements',
     label: words.statements.label,
@@ -39,7 +41,7 @@ export function statementMailSource(load: (fileName: string, bytes: ArrayBuffer)
             } catch (failure) {
               return { kind: 'unmatched', attachment, reason: failure instanceof Error ? failure.message : String(failure) }
             }
-            const head = loaded.kind === 'camt' ? camtStatementHead(loaded.document, accountsByIban(reading.workbook)) : null
+            const head = loaded.kind === 'camt' ? camtStatementHead(loaded.document, accountsByIban(reading.books)) : null
             return head === null ? { kind: 'unmatched', attachment, reason: words.statements.notCamt } : statementXmlNaming(attachment, head, terms.folder)
           }),
       ),

@@ -3,7 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 
 import type { AppScreen, AssistTaskSummary } from '../../../shared/app/appContribution'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
-import type { MailSource } from '../mail/application/mailFiling'
+import type { MailSource } from '../../../shared/mail-filing/application/mailFiling'
 import type { WaitingJob } from '../overview/presentation/waitingForYou'
 import type { Settings } from '../settings/domain/settings'
 import type { SettingsTab } from '../settings/presentation/settingsTabs'
@@ -91,7 +91,7 @@ export interface PackContribution {
    */
   categoriesToSort(categories: readonly Category[], on: CivilDate): readonly RecordProblem[]
   /** Kinds of mail the sync's mail step looks for after core's, in order. */
-  readonly mailSources: readonly MailSource[]
+  readonly mailSources: readonly MailSource<Workbook>[]
   readonly onboarding: PackOnboarding | null
   /** The pack's assist tasks, for the Assistant card after core's. */
   readonly assist: readonly AssistTaskSummary[]

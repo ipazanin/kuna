@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { MailRateLimited } from '../src/apps/company/mail/application/mailFiling'
-import { gmailMailbox } from '../src/apps/company/mail/infrastructure/gmailMailbox'
-import { googleMailFolders } from '../src/apps/company/mail/infrastructure/googleMailFolders'
+import { MailRateLimited } from '../src/shared/mail-filing/application/mailFiling'
+import { gmailMailbox } from '../src/shared/mail-filing/infrastructure/gmailMailbox'
+import { googleMailFolders } from '../src/shared/mail-filing/infrastructure/googleMailFolders'
 
 /** A Google that answers each request with what the handler gives for its URL, and records every request. */
 function stubGoogle(answer: (url: URL) => unknown): URL[] {

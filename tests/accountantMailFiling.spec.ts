@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { fileMail, planLine } from '../src/apps/company/mail/application/mailFiling'
-import type { PlanEntry } from '../src/apps/company/mail/application/mailFiling'
-import type { MailMessage } from '../src/apps/company/mail/domain/mailSource'
+import { fileMail, planLine } from '../src/shared/mail-filing/application/mailFiling'
+import type { PlanEntry } from '../src/shared/mail-filing/application/mailFiling'
+import type { MailMessage } from '../src/shared/mail-filing/domain/mailSource'
 import { ACCOUNTANT_MAIL_SOURCES } from '../src/apps/company/packs/hr-doo/application/accountantMailSources'
 import { invoiceNamings, payrollMonthOf, payrollNamings, vatNamings, vatPeriodOf } from '../src/apps/company/packs/hr-doo/domain/accountant/accountantMailFiling'
 import { COMPANY_FACT_SETTINGS } from '../src/apps/company/packs/hr-doo/domain/companyFacts'
@@ -160,7 +160,7 @@ async function planVat(mails: readonly TestMail[], filed: readonly TestFiled[], 
       return { mailbox, folders }
     },
     sources: ACCOUNTANT_MAIL_SOURCES,
-    workbook: exampleStudio({ companyFacts: facts, employees: [director()] }),
+    books: exampleStudio({ companyFacts: facts, employees: [director()] }),
     sinceStart: Date.parse('2025-12-31T23:00:00Z'),
     years: [2026],
     hash: hashOf,

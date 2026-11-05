@@ -1,7 +1,7 @@
 import { parseCivilDate } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { folderPathOf } from '../../../../../shared/text/folderPath'
-import { mailAddressesOf, mailAddressesProblem, mailSubjectProblem } from '../../../mail/domain/mailSource'
+import { mailAddressesOf, mailAddressesProblem, mailSubjectProblem } from '../../../../../shared/mail-filing/domain/mailSource'
 import { booleanOf, flagText } from '../../../settings/domain/settings'
 import type { PackSettings, SettingDefinition } from '../../../settings/domain/settings'
 import { words as settingsWords } from '../../../settings/domain/words'

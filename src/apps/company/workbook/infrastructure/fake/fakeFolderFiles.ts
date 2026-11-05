@@ -1,16 +1,6 @@
+import type { FakeMadeFile } from '../../../../../shared/mail-filing/infrastructure/fake/fakeMail'
 import { BOOKS_FOLDER } from '../../../../../shared/text/folderPath'
 import { MAIL_STATEMENTS_FOLDER } from '../../../onboarding/domain/statementsChoice'
-
-/** A file a sync of the fake build made in one of the fake folders: its source folder, the folders below it, its name, when it was made, its bytes and its properties. */
-export interface FakeMadeFile {
-  readonly folder: readonly string[]
-  readonly folders: readonly string[]
-  readonly name: string
-  /** An ISO time. */
-  readonly created: string
-  readonly bytes: ArrayBuffer
-  readonly appProperties: Readonly<Record<string, string>>
-}
 
 /** The statements folder onboarding makes beside new books whose statements come from mail, as their `statements_folder` names it. */
 export const FAKE_BOOKS_STATEMENTS: readonly string[] = [BOOKS_FOLDER, MAIL_STATEMENTS_FOLDER]

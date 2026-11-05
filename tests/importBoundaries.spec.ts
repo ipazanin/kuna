@@ -110,7 +110,15 @@ function isDomain(file: string): boolean {
   return /\/domain\//.test(file) || (packOf(file) !== null && /\/ruleset\//.test(file) && !/\/presentation\//.test(file))
 }
 
-const DOMAIN_SHARED = ['src/shared/storage/domain/', 'src/shared/calendar/', 'src/shared/money/', 'src/shared/text/', 'src/shared/charts/swatches.ts', 'src/shared/categorising/domain/']
+const DOMAIN_SHARED = [
+  'src/shared/storage/domain/',
+  'src/shared/calendar/',
+  'src/shared/money/',
+  'src/shared/text/',
+  'src/shared/charts/swatches.ts',
+  'src/shared/categorising/domain/',
+  'src/shared/mail-filing/domain/',
+]
 
 /** Where the books are kept: the kernel's document storage and each app's workbook. */
 function isStorage(file: string): boolean {

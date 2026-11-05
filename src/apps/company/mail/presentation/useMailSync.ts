@@ -12,12 +12,12 @@ import { loadImportFile } from '../../imports/infrastructure/importFiles'
 import { installedPack, shownPack } from '../../packs/packContribution'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { Workbook } from '../../workbook/domain/workbook'
-import { fileMail, hasProblem, planLine } from '../application/mailFiling'
-import type { MailAccess, MailPlan, MailSource } from '../application/mailFiling'
+import { fileMail, hasProblem, planLine } from '../../../../shared/mail-filing/application/mailFiling'
+import type { MailAccess, MailPlan, MailSource } from '../../../../shared/mail-filing/application/mailFiling'
 import { statementMailSource } from '../application/statementMailSource'
-import { mailSinceDefault, yearsSince } from '../domain/mailSource'
-import { gmailMailbox } from '../infrastructure/gmailMailbox'
-import { googleMailFolders } from '../infrastructure/googleMailFolders'
+import { mailSinceDefault, yearsSince } from '../../../../shared/mail-filing/domain/mailSource'
+import { gmailMailbox } from '../../../../shared/mail-filing/infrastructure/gmailMailbox'
+import { googleMailFolders } from '../../../../shared/mail-filing/infrastructure/googleMailFolders'
 import { words } from './words'
 
 /** Where the step's line links, the mail card on Settings, General, which lists what the last run found. */
@@ -38,7 +38,7 @@ const DEVICE_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
 const STATEMENTS = statementMailSource(loadImportFile, DEVICE_TIME_ZONE)
 
 /** Core's source, then the pack's while the owner-pay module shows it. */
-function sourcesOf(workbook: Workbook): readonly MailSource[] {
+function sourcesOf(workbook: Workbook): readonly MailSource<Workbook>[] {
   return [STATEMENTS, ...installedPack().mailSources.filter((source) => shownPack(workbook.settings).mailSources.includes(source))]
 }
 
@@ -118,7 +118,7 @@ export function useMailSync(): MailSync {
           state.plan = await fileMail({
             open: () => openMail(workbook, choice.id),
             sources: sourcesOf(workbook),
-            workbook,
+            books: workbook,
             sinceStart: startOfDayIn(since, DEVICE_TIME_ZONE),
             years: yearsSince(since, now),
             hash: sha256Hex,

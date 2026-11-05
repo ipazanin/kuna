@@ -23,7 +23,7 @@ import { BOOKS_FOLDER, folderPathOf } from '../../../../shared/text/folderPath'
 import { DEFAULT_FILE_PATH, filePathProblem } from '../../invoicing/domain/invoiceFiling'
 import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT, mailTemplateProblem } from '../../invoicing/domain/invoiceMail'
 import { DEFAULT_NUMBER_PATTERN, numberPatternProblem } from '../../invoicing/domain/invoiceNumber'
-import { mailAddressesOf, mailAddressesProblem, mailSubjectProblem } from '../../mail/domain/mailSource'
+import { mailAddressesOf, mailAddressesProblem, mailSubjectProblem } from '../../../../shared/mail-filing/domain/mailSource'
 import { words as recordWords } from '../../../../shared/storage/domain/words'
 import { words } from './words'
 

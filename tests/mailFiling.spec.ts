@@ -3,11 +3,11 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-import { MailRateLimited, fileMail, hasProblem, planLine } from '../src/apps/company/mail/application/mailFiling'
-import type { MailFolders, MailSource, Mailbox, PlanEntry, SourcePlan } from '../src/apps/company/mail/application/mailFiling'
+import { MailRateLimited, fileMail, hasProblem, planLine } from '../src/shared/mail-filing/application/mailFiling'
+import type { MailFolders, MailSource, Mailbox, PlanEntry, SourcePlan } from '../src/shared/mail-filing/application/mailFiling'
 import { statementMailSource } from '../src/apps/company/mail/application/statementMailSource'
-import { mailSinceDefault, yearFolderName, yearsSince } from '../src/apps/company/mail/domain/mailSource'
-import type { AttachmentNaming } from '../src/apps/company/mail/domain/mailSource'
+import { mailSinceDefault, yearFolderName, yearsSince } from '../src/shared/mail-filing/domain/mailSource'
+import type { AttachmentNaming } from '../src/shared/mail-filing/domain/mailSource'
 import { loadImportFile } from '../src/apps/company/imports/infrastructure/importFiles'
 import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import type { Settings } from '../src/apps/company/settings/domain/settings'
@@ -43,7 +43,7 @@ async function plan(
     readonly workbook?: Workbook
     readonly mailbox?: Mailbox
     readonly folders?: MailFolders
-    readonly sources?: readonly MailSource[]
+    readonly sources?: readonly MailSource<Workbook>[]
     readonly opened?: string[]
     readonly reports?: string[]
   } = {},
@@ -56,7 +56,7 @@ async function plan(
       return { mailbox, folders }
     },
     sources: options.sources ?? [STATEMENTS],
-    workbook: options.workbook ?? books(),
+    books: options.workbook ?? books(),
     sinceStart: SINCE,
     years: [2031],
     hash: hashOf,
@@ -272,7 +272,7 @@ describe('the mail step', () => {
   })
 
   it('lets a source that fails leave the others running, and says both in its line', async () => {
-    const failing: MailSource = {
+    const failing: MailSource<Workbook> = {
       id: 'broken',
       label: 'VAT returns',
       duplicates: 'correction',
@@ -458,7 +458,7 @@ describe('a blank mail-since day at the turn of the year', () => {
     const found = await fileMail({
       open: async () => ({ mailbox, folders }),
       sources: [STATEMENTS],
-      workbook: books(),
+      books: books(),
       sinceStart: startOfDayIn(since, 'Europe/Zagreb'),
       years: yearsSince(since, today),
       hash: hashOf,
@@ -474,7 +474,7 @@ describe('a blank mail-since day at the turn of the year', () => {
 
 describe('the sources at the same time', () => {
   /** A source that files each attachment of the mail whose subject holds its phrase into its year folder, named by the mail, reading the attachment's bytes to name it. */
-  function readingSource(id: string, label: string, subject: string): MailSource {
+  function readingSource(id: string, label: string, subject: string): MailSource<Workbook> {
     return {
       id,
       label,

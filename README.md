@@ -211,7 +211,7 @@ Sync again."
 holds, searches Gmail, reads each mail's subject, date and attachment names, names each attachment
 as the filing scripts name it, checks the name against the folder, and files what is new. Nothing in
 the app reads what the accountant's three sources file. The step never trashes, renames or
-overwrites a Drive file, and never marks, labels or moves a mail. `fileMail` in `src/apps/company/mail/application/mailFiling.ts` does the work for each
+overwrites a Drive file, and never marks, labels or moves a mail. `fileMail` in `src/shared/mail-filing/application/mailFiling.ts` does the work for each
 kind of mail, a source, which core and the pack contribute. Each source runs on its own, so one
 that fails leaves the others running.
 
@@ -2058,7 +2058,7 @@ new. `?fake=held-statement` adds a statement of an account the accounts tab lack
 label alone, which the sync holds until the account is named on Import, and `?fake=slow-statements` takes three seconds to list the folder,
 so a check sees the sync control while the step runs. `?fake=mail` names the bank's and the
 accountant's mail at example.com addresses, and a mailbox held in memory
-(`src/apps/company/mail/infrastructure/fake/fakeMailbox.ts`) answers the mail step with made-up subjects
+(`src/apps/company/mail/infrastructure/fake/fakeMailbox.ts`, over `src/shared/mail-filing/infrastructure/fake/fakeMail.ts`) answers the mail step with made-up subjects
 and file names: mail to file, mail already in the folders, a VAT correction, a return Drive gives no
 checksum for, and two unmatched attachments. There the sample statement comes by mail, so the
 statements folder lacks it until a sync files it, and the statements step of that sync reads it. The

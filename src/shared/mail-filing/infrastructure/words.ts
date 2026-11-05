@@ -1,6 +1,6 @@
-import { en as googleEnglish, hr as googleCroatian } from '../../../../shared/google/words'
-import { language } from '../../../../shared/text/language'
-import type { Translation } from '../../../../shared/text/translation'
+import { en as googleEnglish, hr as googleCroatian } from '../../google/words'
+import { language } from '../../text/language'
+import type { Translation } from '../../text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // A folder's own name stays as Drive writes it.

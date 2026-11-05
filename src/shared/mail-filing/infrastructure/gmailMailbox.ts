@@ -1,4 +1,4 @@
-import { backoff, googleFetch, isRateLimited } from '../../../../shared/google/googleApi'
+import { backoff, googleFetch, isRateLimited } from '../../google/googleApi'
 import { MailRateLimited } from '../application/mailFiling'
 import type { Mailbox } from '../application/mailFiling'
 import type { MailAttachment } from '../domain/mailSource'

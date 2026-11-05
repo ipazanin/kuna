@@ -1,6 +1,6 @@
-import { capitalised } from '../../../../shared/text/capitalised'
-import { language } from '../../../../shared/text/language'
-import type { Translation } from '../../../../shared/text/translation'
+import { capitalised } from '../../text/capitalised'
+import { language } from '../../text/language'
+import type { Translation } from '../../text/translation'
 import type { MailCounts, MailTermPiece } from './mailSource'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.

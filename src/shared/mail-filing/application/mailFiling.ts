@@ -1,5 +1,4 @@
-import { isUnauthorized } from '../../../../shared/google/googleApi'
-import type { Workbook } from '../../workbook/domain/workbook'
+import { isUnauthorized } from '../../google/googleApi'
 import { filedMailProperties, mailQuery, mailWindow, windowReaches, yearFolderName } from '../domain/mailSource'
 import type { AttachmentNaming, MailAttachment, MailCounts, MailMessage, MailTerms, MailWindow, SourceTerms } from '../domain/mailSource'
 import { words as sourceWords } from '../domain/words'
@@ -49,26 +48,26 @@ export interface MailFolders {
 }
 
 /** What a source names an attachment by: the mail, its bytes when a name needs them, and the books. */
-export interface MailReading {
-  readonly workbook: Workbook
+export interface MailReading<Books> {
+  readonly books: Books
   bytes(attachment: MailAttachment): Promise<ArrayBuffer>
 }
 
 /**
- * One kind of mail the step files, such as the bank's statements, which core or the pack
- * contributes. A redelivery source skips any file of the same name, or of the same redelivery
- * ending. A correction source takes a same-named file from an older mail with other bytes as a
- * correction, as the accountant's resends are.
+ * One kind of mail the step files, such as the bank's statements, which an app contributes. A
+ * redelivery source skips any file of the same name, or of the same redelivery ending. A correction
+ * source takes a same-named file from an older mail with other bytes as a correction, as the
+ * accountant's resends are.
  */
-export interface MailSource {
+export interface MailSource<Books> {
   readonly id: string
   /** Its name in the step's line and the list, such as Bank statements. */
   readonly label: string
   readonly duplicates: 'redelivery' | 'correction'
   /** Whether the books turn it on, and what they search for and file into. */
-  terms(workbook: Workbook): SourceTerms
+  terms(books: Books): SourceTerms
   /** Where each attachment of one mail goes, or why it matches no rule. */
-  name(message: MailMessage, terms: MailTerms, reading: MailReading): Promise<readonly AttachmentNaming[]>
+  name(message: MailMessage, terms: MailTerms, reading: MailReading<Books>): Promise<readonly AttachmentNaming[]>
 }
 
 /** One mail as the list names it. */
@@ -111,10 +110,10 @@ export interface MailAccess {
   readonly folders: MailFolders
 }
 
-export interface MailFilingPorts {
+export interface MailFilingPorts<Books> {
   open(): Promise<MailAccess>
-  readonly sources: readonly MailSource[]
-  readonly workbook: Workbook
+  readonly sources: readonly MailSource<Books>[]
+  readonly books: Books
   /** The start of the day the earliest mail may come, in epoch milliseconds. */
   readonly sinceStart: number
   /** The years from the mail-since day's to this one's, whose folders a source lists before it searches. */
@@ -143,20 +142,20 @@ const GMAIL_AT_ONCE = 10
  * source has stopped, so the sync can ask for access or say so, and the next run finds what this one
  * filed in the folder. The plan lists the sources in their order, whichever ends first.
  */
-export async function fileMail(ports: MailFilingPorts): Promise<MailPlan> {
+export async function fileMail<Books>(ports: MailFilingPorts<Books>): Promise<MailPlan> {
   const access = once(async () => sharedAccess(await ports.open()))
   const lines = new Map<string, string>()
   // Only the space after each dot breaks, so a phone wraps the line between sources, never inside one.
   const reportRunning = (): void => {
     if (lines.size > 0) ports.report([...lines.values()].join(' · '))
   }
-  const show = (source: MailSource, line: string): void => {
+  const show = (source: MailSource<Books>, line: string): void => {
     lines.set(source.id, `${source.label}: ${line}`.replaceAll(' ', ' '))
     reportRunning()
   }
   const settled = await Promise.allSettled(
     ports.sources.map(async (source): Promise<SourcePlan | null> => {
-      const terms = source.terms(ports.workbook)
+      const terms = source.terms(ports.books)
       if (terms.kind === 'off') return null
       if (terms.kind === 'incomplete') {
         return { kind: 'failed', id: source.id, label: source.label, reason: sourceWords.incompleteOnSettings(terms.missing) }
@@ -275,7 +274,7 @@ interface Comparable {
  * there moves it as mail the app filed does. A folder of an older year that a mail names is listed
  * after the search. Its mails are read and named at the same time, and its files made one by one.
  */
-async function planSource(source: MailSource, terms: MailTerms, { mailbox, folders }: MailAccess, ports: MailFilingPorts, report: (line: string) => void): Promise<SourcePlan> {
+async function planSource<Books>(source: MailSource<Books>, terms: MailTerms, { mailbox, folders }: MailAccess, ports: MailFilingPorts<Books>, report: (line: string) => void): Promise<SourcePlan> {
   const yearFolders = ports.years.map((year) => yearFolderName(year, terms.folder))
   const listing = await folders.filesIn(
     terms.folder,
@@ -294,7 +293,7 @@ async function planSource(source: MailSource, terms: MailTerms, { mailbox, folde
       downloads.set(attachment.id, download)
       return download
     }
-    const namings = await source.name(message, terms, { workbook: ports.workbook, bytes })
+    const namings = await source.name(message, terms, { books: ports.books, bytes })
     return { message, namings: namings.map((naming) => ({ message, naming, bytes: () => bytes(naming.attachment) })) }
   })
   const named = byMail.sort((first, second) => first.message.date - second.message.date || first.message.id.localeCompare(second.message.id)).flatMap((mail) => mail.namings)
@@ -363,7 +362,7 @@ interface ToFile {
 }
 
 /** Downloads one attachment and makes its file, or says why it could not, unless the failure stops the step. */
-async function fileOne(filing: ToFile, source: MailSource, terms: MailTerms, folders: MailFolders): Promise<PlanEntry> {
+async function fileOne<Books>(filing: ToFile, source: MailSource<Books>, terms: MailTerms, folders: MailFolders): Promise<PlanEntry> {
   const { at } = filing
   try {
     await folders.create(terms.folder, filing.folders, { name: at.name, properties: filedMailProperties(source.id, at.mail), bytes: await filing.bytes() })

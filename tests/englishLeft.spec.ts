@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { ENGLISH_ALLOWED, englishIn } from '../scripts/support/englishLeft.mjs'
-import { FAKE_SEARCH_FAILURE } from '../src/apps/company/mail/infrastructure/fake/fakeMailbox'
+import { FAKE_SEARCH_FAILURE } from '../src/shared/mail-filing/infrastructure/fake/fakeMail'
 
 describe('the scan for English left on a Croatian screen', () => {
   it('flags the short labels a Croatian sentence also quotes as stored keys', () => {

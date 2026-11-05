@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 
-import { MailRateLimited, fileMail, planLine } from '../src/apps/company/mail/application/mailFiling'
+import { MailRateLimited, fileMail, planLine } from '../src/shared/mail-filing/application/mailFiling'
 import { statementMailSource } from '../src/apps/company/mail/application/statementMailSource'
 import { fakeMailFolders, fakeMailSettings, fakeMailbox } from '../src/apps/company/mail/infrastructure/fake/fakeMailbox'
 import { loadImportFile } from '../src/apps/company/imports/infrastructure/importFiles'
@@ -12,7 +12,7 @@ import { sha256Hex } from '../src/shared/files/sha256'
 import { ACCOUNTANT_MAIL_SOURCES } from '../src/apps/company/packs/hr-doo/application/accountantMailSources'
 import { fakeStatementFolder } from '../src/apps/company/imports/infrastructure/fake/fakeStatementFolder'
 import { sampleCamtLabel, sampleCamtXml } from '../src/apps/company/imports/infrastructure/fake/sampleImportFiles'
-import type { FakeMadeFile } from '../src/apps/company/workbook/infrastructure/fake/fakeFolderFiles'
+import type { FakeMadeFile } from '../src/shared/mail-filing/infrastructure/fake/fakeMail'
 import { FAKE_FOLDERS } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
 
 const AT = '2026-10-16T08:00:00.000Z'
@@ -30,7 +30,7 @@ function planFake(variant: string, made: FakeMadeFile[] = []) {
   return fileMail({
     open: async () => ({ mailbox: fakeMailbox(variant), folders: fakeMailFolders(variant, made) }),
     sources: [statementMailSource(loadImportFile, 'Europe/Zagreb'), ...ACCOUNTANT_MAIL_SOURCES],
-    workbook,
+    books: workbook,
     sinceStart: Date.parse('2025-12-31T23:00:00Z'),
     years: [2026],
     hash: sha256Hex,
