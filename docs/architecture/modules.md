@@ -85,7 +85,7 @@ The rules "no app imports another" and "shared imports no app" are what force ev
 | `src/shared/storage`      | Record kinds and ids, the store, the Drive and browser homes, the first run                                                                                                                              |
 | `src/shared/styles`       | The app's CSS and design tokens                                                                                                                                                                          |
 | `src/shared/sync`         | The page's one sync over every app's group                                                                                                                                                               |
-| `src/shared/text`         | Folding, the rules' folding, plurals, the language and the translation types                                                                                                                             |
+| `src/shared/text`         | Folding, the rules' folding, fact and occurrence keys, plurals, the language and the translation types                                                                                                   |
 | `src/shared/theme`        | Light and dark                                                                                                                                                                                           |
 | `src/shared/ui`           | The design library: cards, dialogs, form grids, tiles, figure tables, the money input and others                                                                                                         |
 | `src/shared/xlsx`         | Sheet grids for the xlsx export                                                                                                                                                                          |
@@ -101,15 +101,9 @@ A capability gets one owner in `src/shared` when two modules use it and both cha
 
 A shared module's contract is its exported types and functions, and none of them takes an app's books. Each app builds the input from its own model and keeps that builder, as `categorisationContextOf` does for the company (`src/apps/company/rules/domain/categorisationContext.ts`).
 
-## Extractions planned for spending
+## Extractions for spending and AI assist
 
-These are what the company app and Investments hold today that spending would change for the same reason.
-
-| Shared module                | Holds                                                                                                                                                                           | From                                                      | Users                 |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | --------------------- |
-| `src/shared/money`, grown    | `RateBook` and `eurosAtEcbRate`, one conversion rule                                                                                                                            | `src/apps/investments/prices/domain/rateBook.ts:9`, `:20` | Investments, spending |
-| `src/shared/rates`           | The ECB fetch and its CSV lines. Each app keeps where it stores the rates                                                                                                       | Investments' price vendors                                | Investments, spending |
-| `src/shared/bank-statements` | Only the duplicate-row key, beside `factKey`. The camt and profile readers stay in Company, since neither OTP nor Revolut gives camt and the profile reader cannot read Revolut | `src/apps/company/imports/domain/`                        | Company, spending     |
+What the company app and Investments held and spending and AI assist would change for the same reason has moved, up to spending's statements stage. The duplicate-row key has no module of its own: `occurrenceKeys` sits beside `factKey` in `src/shared/text/factKey.ts`, and the camt and profile readers stay in Company, since neither OTP nor Revolut gives camt and the profile reader cannot read Revolut.
 
 Each move is a relocation plus import paths, lands in its own commit with `npm run check`, the boundary spec and `check:figures` identical before and after, and only then does spending import it. The order:
 
@@ -117,7 +111,7 @@ Each move is a relocation plus import paths, lands in its own commit with `npm r
 2. Spending v1, which imports none of the moved company code.
 3. `foldRuleText` into `src/shared/text`, beside `fold` (`src/shared/text/fold.ts`), then the rules core.
 4. Mail filing made generic, then moved.
-5. The duplicate-row key.
+5. The duplicate-row key, into `src/shared/text`.
 6. Spending's statements stage.
 7. The secrets file, as the first stage of the AI assist plan.
 8. Spending's receipts stage.
@@ -129,9 +123,9 @@ The [spending plan](../features/spending/plan.md) and the [AI assist plan](../fe
 None of these is a new kind of rule.
 
 1. Add `spending` and `assets` to the apps the first test checks (`tests/importBoundaries.spec.ts:124`), and their stores to `ADAPTER_WIRING` (`:106-111`).
-2. Add `src/shared/bank-statements/domain/` and `src/shared/rates/domain/` to `DOMAIN_SHARED`, beside `src/shared/categorising/domain/` and `src/shared/mail-filing/domain/`, so an app's domain code may import them. Their adapters go in `infrastructure` folders, which domain code still may not import.
+2. `DOMAIN_SHARED` holds `src/shared/categorising/domain/` and `src/shared/mail-filing/domain/`, so an app's domain code may import them. A shared module's adapters go in `infrastructure` folders, which domain code still may not import, and `src/shared/rates` holds only those.
 3. Keep "no app imports another" (`:143-145`) with one table of exceptions: each published `facts.ts` and the one file of another app that may import it, starting with `src/apps/loans/facts.ts` read by `src/apps/assets/loans/application/assetLoans.ts`. A new case checks that every listed reader exists and imports the file, and that `facts.ts` imports nothing outside its app and `src/shared`.
-4. A shared capability module imports no other capability module except through its domain, so `categorising` and `bank-statements` do not grow into one. Moving `foldRuleText` to `src/shared/text` removes the only edge between them.
+4. A shared capability module imports no other capability module except through its domain, so `categorising`, `mail-filing` and `rates` do not grow into one. Moving `foldRuleText` to `src/shared/text` removes the only edge between them.
 
 `tests/kindNames.spec.ts` extends to the new apps' kinds.
 

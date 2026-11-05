@@ -2,7 +2,7 @@ import { civilDate, civilDateFromSerial } from '../../../../shared/calendar/civi
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { addMoney, moneyFromAmount, negateMoney, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
-import { factKey } from '../../../../shared/text/factKey'
+import { occurrenceKeys } from '../../../../shared/text/factKey'
 import { fold, normaliseIban } from '../../../../shared/text/fold'
 import { profileColumns } from './importProfile'
 import type { DateFormat, DecimalMark, ImportProfile } from './importProfile'
@@ -129,15 +129,11 @@ function tabularStatement(grid: CellGrid, profile: ImportProfile, fileName: stri
   }
   const ordered = inBookingOrder(rows, fileName)
   checkBalances(ordered)
-  const occurrences = new Map<string, number>()
+  const withoutReference = ordered.filter((row) => row.reference === '')
+  const keys = occurrenceKeys(withoutReference.map((row) => rowFacts(profile.account, row)))
+  const keyOfRow = new Map(withoutReference.map((row, index) => [row, keys[index]]))
   const imported: ImportedRow[] = ordered.map((row) => {
-    let reference = row.reference
-    if (reference === '') {
-      const key = rowKey(profile.account, row)
-      const occurrence = (occurrences.get(key) ?? 0) + 1
-      occurrences.set(key, occurrence)
-      reference = `row-${key}-${occurrence}`
-    }
+    const reference = row.reference === '' ? `row-${keyOfRow.get(row)}` : row.reference
     return {
       date: row.date,
       amount: row.amount,
@@ -266,8 +262,8 @@ export function moneyOf(cell: StatementCell | undefined, decimal: DecimalMark): 
 }
 
 /** The facts that tell a row from every other row of its account, so a key from another export of the same row matches. */
-function rowKey(account: string, row: ReadRow): string {
-  return factKey([account, row.date, String(row.amount), String(row.balance ?? ''), fold(row.description), fold(row.counterparty), normaliseIban(row.counterpartyIban)])
+function rowFacts(account: string, row: ReadRow): string[] {
+  return [account, row.date, String(row.amount), String(row.balance ?? ''), fold(row.description), fold(row.counterparty), normaliseIban(row.counterpartyIban)]
 }
 
 function cellString(cell: StatementCell | undefined): string {
