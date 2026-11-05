@@ -20,11 +20,10 @@ After adding a task or changing its frontmatter, run `npm run tasks-index`. `npm
 
 ### Building
 
-| Task                                                    | Feature   | Summary                                                                                             |
-| ------------------------------------------------------- | --------- | --------------------------------------------------------------------------------------------------- |
-| [AI help across the apps](ai-assist.md)                 | ai-assist | One AI module and one key shared by every app, to help enter data and explain figures.              |
-| [A Croatian company preset](company-croatian-preset.md) | company   | A Croatian d.o.o. preset for the company app's categories, roles and rules, taken from the law.     |
-| [Spending v1](spending-v1.md)                           | spending  | A personal spending app with accounts, typed spending, two-level categories, budgets and analytics. |
+| Task                                                    | Feature   | Summary                                                                                         |
+| ------------------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------- |
+| [AI help across the apps](ai-assist.md)                 | ai-assist | One AI module and one key shared by every app, to help enter data and explain figures.          |
+| [A Croatian company preset](company-croatian-preset.md) | company   | A Croatian d.o.o. preset for the company app's categories, roles and rules, taken from the law. |
 
 ### Planned
 
@@ -79,6 +78,7 @@ After adding a task or changing its frontmatter, run `npm run tasks-index`. `npm
 | [Second storage](second-storage.md)                                 | platform    | A shared store, one sync over every file and Loans as an empty second app with its own file.                                      |
 | [Simpler loan simulator](simple-loan-simulator.md)                  | loans       | A four-field scenario dialog, equal principal loans and tries saved on a loan's page.                                             |
 | [A simpler UI](simpler-ui.md)                                       | platform    | Nineteen menu items became eight, with tabs inside pages and one home per figure.                                                 |
+| [Spending v1](spending-v1.md)                                       | spending    | A personal spending app with accounts, typed spending, two-level categories, budgets and analytics.                               |
 | [Statements in the app](statements-in-the-app.md)                   | company     | Bank statements parsed by the app, with the script only fetching and filing them.                                                 |
 | [Storage boundary](storage-boundary.md)                             | platform    | Repositories per record kind, one unit of work per write, record ids and the pack seam.                                           |
 | [Year end and planning](year-end-and-planning.md)                   | company     | The year-end cross-check, the Croatian ruleset as an app module, the forecast and pay scenarios.                                  |

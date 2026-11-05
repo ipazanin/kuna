@@ -1,6 +1,6 @@
 import { tradeTotal } from './lots'
-import { eurosAtEcbRate } from '../../prices/domain/rateBook'
-import type { RateBook } from '../../prices/domain/rateBook'
+import { eurosAtEcbRate } from '../../../../shared/money/rateBook'
+import type { RateBook } from '../../../../shared/money/rateBook'
 import { addsCash } from '../../workbook/domain/cashMovement'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { EURO } from '../../../../shared/money/currencyCode'

@@ -1,5 +1,5 @@
 import { targetDayOnOrBefore } from './workingDays'
-import type { RateBook } from '../../prices/domain/rateBook'
+import type { RateBook } from '../../../../shared/money/rateBook'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { EURO } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'

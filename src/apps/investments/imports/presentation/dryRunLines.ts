@@ -3,7 +3,7 @@ import type { ImportedRecord, WaitReason, WorkbookDryRun } from '../domain/impor
 import { WORKBOOK_COLUMNS } from '../domain/portfolioWorkbook'
 import type { RoundedCell, SkipReason, WorkbookRow } from '../domain/portfolioWorkbook'
 import { words } from './words'
-import type { RateBook } from '../../prices/domain/rateBook'
+import type { RateBook } from '../../../../shared/money/rateBook'
 import { listedTransactions } from '../../transactions/domain/listedTransactions'
 import type { ListedTransaction } from '../../transactions/domain/listedTransactions'
 import { transactionLine } from '../../transactions/presentation/transactionLine'

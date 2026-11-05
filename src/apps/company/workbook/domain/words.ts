@@ -111,7 +111,6 @@ export const en = {
   },
   /** What a category or family is called while the file gives it no label: Kuna's name for one new books start with, else its slug in words. */
   unlabelled: (slug: string) => slugInWords(slug),
-  swatches: { green: 'Green', orange: 'Orange', blue: 'Blue', amber: 'Amber', pink: 'Pink', darkGreen: 'Dark green', violet: 'Violet', red: 'Red', grey: 'Grey' },
   categories: {
     notAllFilled: 'category, family and bucket are not all filled',
     notABucket: (bucket: string) => `"${bucket}" is not a bucket`,
@@ -195,7 +194,6 @@ export const hr: Translation<typeof en> = {
     billingItem: (fields) => labelWords([textOf(fields.item), textOf(fields.client), dayInWords(fields.date), moneyInWords(fields.amount)]),
   },
   unlabelled: (slug) => SEEDED_NAMES.get(slug) ?? slugInWords(slug),
-  swatches: { green: 'Zelena', orange: 'Narančasta', blue: 'Plava', amber: 'Jantarna', pink: 'Ružičasta', darkGreen: 'Tamnozelena', violet: 'Ljubičasta', red: 'Crvena', grey: 'Siva' },
   categories: {
     notAllFilled: 'category, family i bucket nisu svi popunjeni',
     notABucket: (bucket) => `„${bucket}” nije skupina`,

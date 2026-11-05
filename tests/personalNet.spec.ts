@@ -24,23 +24,58 @@ function loans(figures: PersonalApp['figures'], notSetUp = false): PersonalApp {
   return { name: 'Loans', notSetUp, currency: 'EUR', figures }
 }
 
-describe('What you own less what you owe', () => {
+const assets: PersonalApp = {
+  name: 'Assets',
+  notSetUp: false,
+  currency: 'EUR',
+  figures: { parts: [{ label: 'Assets value', cents: euros(256_254.8), side: 'has', caption: '€88,884.80 yours after the Home loan', to: '/assets' }], notes: [] },
+}
+
+const withHomeLoan = loans({ parts: [loansFigures.parts[0]!, { ...loansFigures.parts[1]!, cents: euros(150_000) }], notes: [] })
+
+describe('Net worth', () => {
   it('adds what you have and takes off what you owe', () => {
     // 40,000.00 + 500.00 − 95,000.00.
     expect(personalNet([loans(loansFigures), investments])).toEqual({ sum: { state: 'ready', cents: euros(-54500) }, notSetUp: [], leavesOut: ['1 holding without a price'] })
   })
 
   it("adds the assets' whole value, and leaves what is yours after the loan as a caption that changes nothing", () => {
-    const assets: PersonalApp = {
-      name: 'Assets',
-      notSetUp: false,
-      currency: 'EUR',
-      figures: { parts: [{ label: 'Assets value', cents: euros(256_254.8), side: 'has', caption: '€88,884.80 yours after the Home loan', to: '/assets' }], notes: [] },
-    }
-    const withHomeLoan = loans({ parts: [loansFigures.parts[0]!, { ...loansFigures.parts[1]!, cents: euros(150_000) }], notes: [] })
-
     // 40,000.00 + 500.00 + 256,254.80 − 150,000.00.
     expect(personalNet([withHomeLoan, investments, assets]).sum).toEqual({ state: 'ready', cents: euros(146_754.8) })
+  })
+
+  it("adds Spending's bank and cash to the other three apps, as Kuna's Overview example reads it", () => {
+    const spending: PersonalApp = {
+      name: 'Spending',
+      notSetUp: false,
+      currency: 'EUR',
+      figures: { parts: [{ label: 'Bank and cash', cents: euros(2_390.46), side: 'has', caption: 'Across 4 accounts', to: '/spending/accounts' }], notes: [] },
+    }
+
+    // 40,000.00 + 500.00 + 256,254.80 + 2,390.46 − 150,000.00.
+    expect(personalNet([withHomeLoan, investments, assets, spending]).sum).toEqual({ state: 'ready', cents: euros(149_145.26) })
+  })
+
+  it("takes an overdrawn account off, and lists Spending's note of a foreign account the rates did not convert", () => {
+    const spending: PersonalApp = {
+      name: 'Spending',
+      notSetUp: false,
+      currency: 'EUR',
+      figures: {
+        parts: [
+          { label: 'Bank and cash', cents: euros(2_234.5), side: 'has', caption: 'Across 3 accounts', to: '/spending/accounts' },
+          { label: 'Overdrawn', cents: euros(30), side: 'owes', caption: null, to: '/spending/accounts' },
+        ],
+        notes: ['1 account in another currency, since the ECB rates did not load'],
+      },
+    }
+
+    // 40,000.00 + 2,234.50 − 30.00.
+    expect(personalNet([investments, spending])).toEqual({
+      sum: { state: 'ready', cents: euros(42_204.5) },
+      notSetUp: [],
+      leavesOut: ['1 holding without a price', '1 account in another currency, since the ECB rates did not load'],
+    })
   })
 
   it('counts an app not set up as nothing and names it', () => {

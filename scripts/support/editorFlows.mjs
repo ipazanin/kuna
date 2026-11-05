@@ -41,6 +41,7 @@ import { en as workbookImportEnglish, hr as workbookImportCroatian } from '../..
 import { en as sharedEnglish, hr as sharedCroatian } from '../../src/shared/app/words.ts'
 import { en as homeEnglish, hr as homeCroatian } from '../../src/shell/home/words.ts'
 import { en as uiEnglish, hr as uiCroatian } from '../../src/shared/ui/words.ts'
+import { en as chartsEnglish, hr as chartsCroatian } from '../../src/shared/charts/words.ts'
 import { en as kunaSettingsEnglish, hr as kunaSettingsCroatian } from '../../src/shell/settings/words.ts'
 import { en as hubOverviewEnglish, hr as hubOverviewCroatian } from '../../src/shell/overview/words.ts'
 import { en as syncEnglish, hr as syncCroatian } from '../../src/shared/sync/presentation/words.ts'
@@ -59,11 +60,27 @@ import { en as assetsHomeEnglish, hr as assetsHomeCroatian } from '../../src/app
 import { en as assetsOverviewEnglish, hr as assetsOverviewCroatian } from '../../src/apps/assets/overview/presentation/words.ts'
 import { en as assetValuesEnglish, hr as assetValuesCroatian } from '../../src/apps/assets/values/presentation/words.ts'
 import { en as assetsFileEnglish, hr as assetsFileCroatian } from '../../src/apps/assets/workbook/presentation/words.ts'
+import { en as spendingAppEnglish, hr as spendingAppCroatian } from '../../src/apps/spending/words.ts'
+import { en as spendingScreensEnglish, hr as spendingScreensCroatian } from '../../src/apps/spending/screenWords.ts'
+import { en as spendingEntriesEnglish, hr as spendingEntriesCroatian } from '../../src/apps/spending/entries/presentation/words.ts'
+import { en as spendingBudgetsEnglish, hr as spendingBudgetsCroatian } from '../../src/apps/spending/budgets/presentation/words.ts'
+import { en as spendingCategoriesEnglish, hr as spendingCategoriesCroatian } from '../../src/apps/spending/categories/presentation/words.ts'
+import { en as spendingHomeEnglish, hr as spendingHomeCroatian } from '../../src/apps/spending/home/presentation/words.ts'
+import { en as spendingOverviewEnglish, hr as spendingOverviewCroatian } from '../../src/apps/spending/overview/presentation/words.ts'
+import { en as spendingFileEnglish, hr as spendingFileCroatian } from '../../src/apps/spending/workbook/presentation/words.ts'
+import { starterCategories } from '../../src/apps/spending/categories/domain/starterCategories.ts'
 import { formatMoney } from '../../src/shared/money/moneyFormat.ts'
 import { settleCharts } from './settleCharts.mjs'
 import { en as mailDomainEnglish, hr as mailDomainCroatian } from '../../src/apps/company/mail/domain/words.ts'
 
 const TOAST = 'li[data-slot="base"]'
+
+/** The starter categories' names in a language by their English names, as a new Spending file and the fake sets name them. */
+function spendingStarterIn(language) {
+  const english = starterCategories('en')
+  const named = starterCategories(language)
+  return Object.fromEntries(english.map((category, place) => [category.name, named[place].name]))
+}
 
 /** What the menus, the Loans screens and the Company screens say in each language, from the app's own words. */
 const SCREEN_WORDS = {
@@ -92,7 +109,7 @@ const SCREEN_WORDS = {
     rules: rulesEnglish,
     ruleChanges: ruleChangesEnglish.changes,
     categoryName: companyBooksEnglish.unlabelled,
-    swatches: companyBooksEnglish.swatches,
+    swatches: chartsEnglish.swatches,
     sortBy: uiEnglish.sortBy,
     imports: importEnglish,
     mail: mailEnglish,
@@ -130,6 +147,15 @@ const SCREEN_WORDS = {
     assetPage: assetPageEnglish,
     assetValues: assetValuesEnglish,
     assetsFile: assetsFileEnglish,
+    spendingApp: spendingAppEnglish.name,
+    spendingScreens: spendingScreensEnglish,
+    spendingEntries: spendingEntriesEnglish,
+    spendingBudgets: spendingBudgetsEnglish,
+    spendingCategories: spendingCategoriesEnglish,
+    spendingHome: spendingHomeEnglish,
+    spendingOverview: spendingOverviewEnglish,
+    spendingFile: spendingFileEnglish,
+    spendingStarter: spendingStarterIn('en'),
     locale: 'en-GB',
   },
   hr: {
@@ -157,7 +183,7 @@ const SCREEN_WORDS = {
     rules: rulesCroatian,
     ruleChanges: ruleChangesCroatian.changes,
     categoryName: companyBooksCroatian.unlabelled,
-    swatches: companyBooksCroatian.swatches,
+    swatches: chartsCroatian.swatches,
     sortBy: uiCroatian.sortBy,
     imports: importCroatian,
     mail: mailCroatian,
@@ -195,6 +221,15 @@ const SCREEN_WORDS = {
     assetPage: assetPageCroatian,
     assetValues: assetValuesCroatian,
     assetsFile: assetsFileCroatian,
+    spendingApp: spendingAppCroatian.name,
+    spendingScreens: spendingScreensCroatian,
+    spendingEntries: spendingEntriesCroatian,
+    spendingBudgets: spendingBudgetsCroatian,
+    spendingCategories: spendingCategoriesCroatian,
+    spendingHome: spendingHomeCroatian,
+    spendingOverview: spendingOverviewCroatian,
+    spendingFile: spendingFileCroatian,
+    spendingStarter: spendingStarterIn('hr'),
     locale: 'hr-HR',
   },
 }
@@ -3659,6 +3694,7 @@ async function settingsShowFile(page, press, app, says, words = SCREEN_WORDS.en)
 const LOANS = { id: 'loans', name: 'Loans' }
 const INVESTMENTS = { id: 'investments', name: 'Investments' }
 const ASSETS = { id: 'assets', name: 'Assets' }
+const SPENDING = { id: 'spending', name: 'Spending' }
 
 /**
  * The Investments first run with the company books on the fake Drive: Investments opens on it, a new file on the fake
@@ -4314,6 +4350,7 @@ export const loansDriveFlow = loansDriveFlowIn('en')
 const FILE_APPS = {
   loans: { app: LOANS, file: 'kuna-loans.json', fileWords: (words) => words.loansFile, inBrowser: (words) => words.loansOverview.empty.inBrowser },
   assets: { app: ASSETS, file: 'kuna-assets.json', fileWords: (words) => words.assetsFile, inBrowser: (words) => words.assetsOverview.empty.inBrowser },
+  spending: { app: SPENDING, file: 'kuna-spending.json', fileWords: (words) => words.spendingFile, inBrowser: (words) => words.spendingOverview.empty.inBrowser },
 }
 
 /** The app's first run keeps a new file in this browser: the empty Overview says so, and so does its Settings. */
@@ -4504,7 +4541,7 @@ function homeMenu() {
 
 /** The home's sidebar lists the apps of its cards in their order, each tiled in its card's colour, leading where its card does, and named with the badge its state calls for. */
 function sidebarMatchesCards(menu, cards, words = SCREEN_WORDS.en) {
-  const names = { company: words.company, loans: words.loans, investments: words.investments, assets: words.assetsApp }
+  const names = { company: words.company, loans: words.loans, investments: words.investments, assets: words.assetsApp, spending: words.spendingApp }
   const want = cards.map((card) => ({
     app: card.app,
     state: card.state,
@@ -4606,8 +4643,8 @@ function centsIn(text, language) {
 }
 
 /**
- * The home with the books of Company, Loans, Investments and Assets open: Company's card leads with the cash on hand
- * Overview shows and opens it, the Loans card with what you owe in all, which the Loans Overview says too, the Investments card with the value, which its Overview's Value tile says too, and the total gain with its sign, and the Assets card with what the assets are worth, which its Overview's tile says too. Each
+ * The home with the books of Company, Loans, Investments, Assets and Spending open: Company's card leads with the cash on hand
+ * Overview shows and opens it, the Loans card with what you owe in all, which the Loans Overview says too, the Investments card with the value, which its Overview's Value tile says too, and the total gain with its sign, the Assets card with what the assets are worth, which its Overview's tile says too, and the Spending card with what this month spent, which its Overview's Spent tile says too. Each
  * card tiles its icon in a colour of its own. From 1024 px the sidebar lists every app as their cards do, and its
  * Company row opens Overview.
  */
@@ -4616,15 +4653,16 @@ export function homeFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const cards = await page.evaluate(homeCards)
-    const [company, loans, investments, assets] = cards
-    if (cards.length !== 4 || company.app !== 'company' || loans.app !== 'loans' || investments.app !== 'investments' || assets.app !== 'assets')
-      throw new Error(`the home shows ${JSON.stringify(cards.map((card) => card.app))}, not Company, Loans, Investments and Assets`)
+    const [company, loans, investments, assets, spending] = cards
+    if (cards.length !== 5 || company.app !== 'company' || loans.app !== 'loans' || investments.app !== 'investments' || assets.app !== 'assets' || spending.app !== 'spending')
+      throw new Error(`the home shows ${JSON.stringify(cards.map((card) => card.app))}, not Company, Loans, Investments, Assets and Spending`)
     if (company.state !== 'open' || !company.text.includes(words.companyHome.cashOnHand) || !/€/.test(company.figure ?? '')) throw new Error(`the Company card reads "${company.text}"`)
     if (loans.state !== 'open' || !loans.text.includes(words.loansHome.owed) || !/€/.test(loans.figure ?? '')) throw new Error(`the Loans card reads "${loans.text}"`)
     const gain = new RegExp(`${words.investmentsHome.totalGain}[+−]?(?:€|\\d)`)
     if (investments.state !== 'open' || !investments.text.includes(words.investmentsHome.value) || !gain.test(investments.text) || !/€/.test(investments.figure ?? ''))
       throw new Error(`the Investments card reads "${investments.text}"`)
     if (assets.state !== 'open' || !assets.text.includes(words.assetsHome.value) || !/€/.test(assets.figure ?? '')) throw new Error(`the Assets card reads "${assets.text}"`)
+    if (spending.state !== 'open' || !spending.text.includes(words.spendingHome.spentThisMonth) || !/€/.test(spending.figure ?? '')) throw new Error(`the Spending card reads "${spending.text}"`)
     const colours = cards.map((card) => card.colour)
     if (colours.includes(null) || new Set(colours).size !== colours.length) throw new Error(`the cards tile their icons in ${colours.join(', ')}, not one colour each`)
     const menu = await page.evaluate(homeMenu)
@@ -4672,6 +4710,14 @@ export function homeFlowIn(language) {
       .then((handle) => handle.jsonValue())
     if (worth !== assets.figure) throw new Error(`the Assets card says ${assets.figure}, the Assets Overview's tile ${worth}`)
 
+    await goHome(page, press, words)
+    await pressSelector(page, press, '[data-testid="home-card"][data-app="spending"]')
+    await screenTitled(page, words.spendingScreens.overview)
+    const spent = await page
+      .waitForFunction(() => document.querySelector('[data-testid="spending-spent"] .text-figure-lg')?.textContent?.trim() ?? null, { timeout: 10_000 })
+      .then((handle) => handle.jsonValue())
+    if (spent !== spending.figure) throw new Error(`the Spending card says ${spending.figure} spent, the Spending Overview's tile ${spent}`)
+
     if (menu === null) return
     await goHome(page, press, words)
     await pressSelector(page, press, 'aside [data-testid="nav-apps"] a[data-app="company"]')
@@ -4684,7 +4730,7 @@ export function homeFlowIn(language) {
 export const homeFlow = homeFlowIn('en')
 
 /**
- * A fresh device opens the home with every app in Set up. Loans, Investments and Assets can be set up first: each card opens
+ * A fresh device opens the home with every app in Set up. Loans, Investments, Assets and Spending can be set up first: each card opens
  * its first run, whose link home comes back, and the Company card opens the company's welcome.
  */
 export function setUpFlowIn(language) {
@@ -4692,7 +4738,7 @@ export function setUpFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const cards = await page.evaluate(homeCards)
-    if (cards.length !== 4 || cards.some((card) => card.state !== 'set-up' || !card.text.includes(words.setUp)))
+    if (cards.length !== 5 || cards.some((card) => card.state !== 'set-up' || !card.text.includes(words.setUp)))
       throw new Error(`the fresh home shows ${JSON.stringify(cards.map((card) => [card.app, card.state]))}`)
     if (await page.evaluate(() => document.querySelector('[data-testid="sync-status"]') !== null)) throw new Error('the fresh home shows a sync control')
     const menu = await page.evaluate(homeMenu)
@@ -4704,6 +4750,7 @@ export function setUpFlowIn(language) {
       [LOANS, words.loans],
       [INVESTMENTS, words.investments],
       [ASSETS, words.assetsApp],
+      [SPENDING, words.spendingApp],
     ]) {
       await pressSelector(page, press, `[data-testid="home-card"][data-app="${app.id}"]`)
       await firstRunAt(page, app, 'home')
@@ -4844,6 +4891,383 @@ export function assetsValuationFlowIn(language) {
 }
 
 export const assetsValuationFlow = assetsValuationFlowIn('en')
+
+/** The payee the Spending flows type, as anyone might. */
+const SPENDING_PAYEE = 'Bakery by the port'
+/** The name a Spending flow gives a starter category, as anyone might type it. */
+const SPENDING_RENAMED = 'Coffee and tea'
+const SPENDING_ROW = '[data-testid="spending-row"]'
+const SPENDING_ENTRY_DIALOG = '[data-testid="spending-entry-dialog"]'
+
+/** Taps an amount field, checks it opens the phone's number pad, and types the amount over what it holds. */
+async function typeAmount(page, press, testId, amount) {
+  const field = await pressSelector(page, press, `[data-testid="${testId}"]`)
+  const pad = await field.evaluate((element) => element.getAttribute('inputmode'))
+  if (pad !== 'decimal') throw new Error(`${testId} opens no number pad on a phone, its inputmode is ${pad}`)
+  await field.evaluate((element) => element.select())
+  await page.keyboard.type(amount)
+}
+
+/** Waits until Transactions lists a row reading `title` with this amount in cents, or until it no longer does. */
+async function spendingRowShown(page, title, cents, shown) {
+  await page
+    .waitForFunction(
+      (selector, wanted, amount, expected) => [...document.querySelectorAll(selector)].some((row) => row.dataset.amount === String(amount) && row.textContent?.includes(wanted)) === expected,
+      { timeout: 10_000 },
+      SPENDING_ROW,
+      title,
+      cents,
+      shown,
+    )
+    .catch(() => {
+      throw new Error(shown ? `Transactions lists no "${title}" row of ${cents} cents` : `Transactions still lists the "${title}" row of ${cents} cents`)
+    })
+}
+
+async function openSpendingRow(page, press, title, cents) {
+  const row = await page
+    .waitForFunction(
+      (selector, wanted, amount) => [...document.querySelectorAll(selector)].find((element) => element.dataset.amount === String(amount) && element.textContent?.includes(wanted)) ?? null,
+      { timeout: 10_000 },
+      SPENDING_ROW,
+      title,
+      cents,
+    )
+    .then((handle) => handle.asElement())
+  await row.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await press(row)
+  await page.waitForSelector(SPENDING_ENTRY_DIALOG, { visible: true, timeout: 10_000 })
+  await delay(300)
+}
+
+/** Opens a new entry on Transactions and picks its kind by the label of its button. */
+async function newSpendingEntry(page, press, words, kind) {
+  await pressSelector(page, press, '[data-testid="spending-add-entry"]')
+  await page.waitForSelector(SPENDING_ENTRY_DIALOG, { visible: true, timeout: 10_000 })
+  await delay(300)
+  await pressButton(page, press, '[data-testid="spending-entry-kind"] button', words.spendingEntries.dialog.kinds[kind])
+}
+
+/** Money out of 25 on Groceries to the checks' payee, typed into a new entry. */
+async function typeMoneyOut(page, press, words) {
+  await newSpendingEntry(page, press, words, 'out')
+  await typeAmount(page, press, 'spending-entry-amount', '25')
+  await choose(page, press, await page.$('[data-testid="spending-entry-category"]'), words.spendingStarter.Groceries)
+  await fill(page, 'spending-entry-payee', SPENDING_PAYEE)
+}
+
+/** A move of 100 euros from OTP current that reaches Revolut USD as 108 dollars, typed into a new entry. */
+async function typeTransfer(page, press, words) {
+  await newSpendingEntry(page, press, words, 'transfer')
+  await typeAmount(page, press, 'spending-entry-amount', '100')
+  await chooseStartingWith(page, press, '[data-testid="spending-entry-account"]', 'OTP current')
+  await chooseStartingWith(page, press, '[data-testid="spending-entry-to-account"]', 'Revolut USD')
+  await typeAmount(page, press, 'spending-entry-to-amount', '108')
+}
+
+async function saveSpendingEntry(page, press, title) {
+  await pressSelector(page, press, '[data-testid="spending-entry-save"]')
+  await toast(page, title)
+}
+
+/** The entry dialog opened on the sample Spending file's Transactions, as money out or as a move between two accounts in two currencies, and closed again. */
+export function spendingEntryDialogFlowIn(language, kind) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    if (kind === 'transfer') await typeTransfer(page, press, words)
+    else await typeMoneyOut(page, press, words)
+    // The dialog grows into place, so it is measured once it settles.
+    await delay(300)
+    await inspect?.(kind === 'transfer' ? 'the entry dialog between two currencies' : 'the entry dialog')
+    await shoot(kind === 'transfer' ? 'spending-transfer' : 'spending-entry')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+  }
+}
+
+/**
+ * On the sample Spending file's Transactions: money out typed in the entry dialog, its amount on the number pad, lands
+ * on today's list. Changed, it shows its new amount, and deleted from its dialog it leaves the list until Undo brings
+ * it back.
+ */
+export function spendingEntryFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { dialog } = words.spendingEntries
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await typeMoneyOut(page, press, words)
+    await saveSpendingEntry(page, press, dialog.added)
+    await dismissToasts(page)
+    await spendingRowShown(page, SPENDING_PAYEE, -2500, true)
+    await inspect?.('Transactions with the new entry')
+    await shoot('spending-entry-added')
+
+    await openSpendingRow(page, press, SPENDING_PAYEE, -2500)
+    await typeAmount(page, press, 'spending-entry-amount', '30')
+    await saveSpendingEntry(page, press, dialog.saved)
+    await dismissToasts(page)
+    await spendingRowShown(page, SPENDING_PAYEE, -3000, true)
+
+    await openSpendingRow(page, press, SPENDING_PAYEE, -3000)
+    await pressSelector(page, press, '[data-testid="spending-entry-delete"]')
+    await toast(page, dialog.deleted)
+    await spendingRowShown(page, SPENDING_PAYEE, -3000, false)
+    await undoIn(page, press, words)
+    await spendingRowShown(page, SPENDING_PAYEE, -3000, true)
+    await inspect?.('Transactions after Undo')
+    await shoot('spending-entry-undo-delete')
+    await dismissToasts(page)
+  }
+}
+
+export const spendingEntryFlow = spendingEntryFlowIn('en')
+
+/** Money out added by touch on the sample Spending file's Transactions: the amount on the number pad, a category, saved onto today's list, and taken off again with Undo. */
+export async function spendingMoneyOutFlow(page, { press, shoot, inspect }) {
+  const words = SCREEN_WORDS.en
+  await typeMoneyOut(page, press, words)
+  await delay(300)
+  await inspect?.('the entry dialog with its amount typed')
+  await shoot('spending-money-out-dialog')
+  await saveSpendingEntry(page, press, words.spendingEntries.dialog.added)
+  await spendingRowShown(page, SPENDING_PAYEE, -2500, true)
+  await inspect?.('Transactions with the new entry')
+  await shoot('spending-money-out')
+  await undoIn(page, press, words)
+  await spendingRowShown(page, SPENDING_PAYEE, -2500, false)
+  await dismissToasts(page)
+}
+
+/** The balance an account's row on Spending's Accounts shows, in cents of the account's own currency. */
+async function spendingBalanceOf(page, name) {
+  const text = await page
+    .waitForFunction(
+      (wanted) =>
+        [...document.querySelectorAll('[data-testid="spending-account-row"]')]
+          .find((row) => row.textContent?.includes(wanted))
+          ?.querySelector('[data-testid="spending-account-balance"]')
+          ?.textContent?.trim() ?? null,
+      { timeout: 10_000 },
+      name,
+    )
+    .then((handle) => handle.jsonValue())
+    .catch(() => {
+      throw new Error(`Accounts shows no balance for ${name}`)
+    })
+  const cents = Number(text.replace(/\D/g, ''))
+  return /[−-]/.test(text) ? -cents : cents
+}
+
+/**
+ * From the sample Spending file's Accounts: 100 euros moved from OTP current to Revolut USD, arriving as 108 dollars,
+ * lists both legs on Transactions and moves both balances by as much. Deleting one leg takes both off until Undo puts
+ * them back.
+ */
+export function spendingTransferFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { dialog } = words.spendingEntries
+  const screens = words.spendingScreens
+  const title = words.spendingStarter['Between my accounts']
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const before = { out: await spendingBalanceOf(page, 'OTP current'), into: await spendingBalanceOf(page, 'Revolut USD') }
+    await goTo(page, '#/spending/transactions', screens.entries)
+    await typeTransfer(page, press, words)
+    await saveSpendingEntry(page, press, dialog.added)
+    await dismissToasts(page)
+    await spendingRowShown(page, title, -10000, true)
+    await spendingRowShown(page, title, 10800, true)
+
+    await goTo(page, '#/spending/accounts', screens.accounts)
+    const after = { out: await spendingBalanceOf(page, 'OTP current'), into: await spendingBalanceOf(page, 'Revolut USD') }
+    if (after.out !== before.out - 10000 || after.into !== before.into + 10800)
+      throw new Error(`the move took OTP current from ${before.out} to ${after.out} cents and Revolut USD from ${before.into} to ${after.into}, not by 100 euros and 108 dollars`)
+    await inspect?.('Accounts after the move')
+    await shoot('spending-transfer-balances')
+
+    await goTo(page, '#/spending/transactions', screens.entries)
+    await openSpendingRow(page, press, title, -10000)
+    await pressSelector(page, press, '[data-testid="spending-entry-delete"]')
+    await toast(page, dialog.deleted)
+    await spendingRowShown(page, title, -10000, false)
+    await spendingRowShown(page, title, 10800, false)
+    await undoIn(page, press, words)
+    await spendingRowShown(page, title, -10000, true)
+    await spendingRowShown(page, title, 10800, true)
+    await inspect?.('Transactions after Undo')
+    await dismissToasts(page)
+  }
+}
+
+export const spendingTransferFlow = spendingTransferFlowIn('en')
+
+/** The names of the rows of Spending's categories card, in their order. */
+function spendingCategoryNames(page) {
+  return page.$$eval('[data-testid="spending-category-row"]', (rows) => rows.map((row) => row.querySelector('.min-w-0')?.firstChild?.textContent?.trim() ?? ''))
+}
+
+async function spendingCategoryShown(page, name, shown) {
+  await page
+    .waitForFunction(
+      (wanted, expected) => [...document.querySelectorAll('[data-testid="spending-category-row"] .min-w-0')].some((cell) => cell.textContent?.trim() === wanted) === expected,
+      { timeout: 10_000 },
+      name,
+      shown,
+    )
+    .catch(() => {
+      throw new Error(shown ? `the categories card lists no ${name}` : `the categories card still lists ${name}`)
+    })
+}
+
+/**
+ * On the sample Spending file's Settings: Coffee renamed in its dialog, moved up above Restaurants, then deleted with its
+ * entries moved to Groceries, which takes it off the card until Undo brings it back.
+ */
+export function spendingCategoryFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const categories = words.spendingCategories
+  const starter = words.spendingStarter
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await pressSelector(page, press, `[data-testid="spending-category-edit"][aria-label="${categories.edit(starter.Coffee)}"]`)
+    await page.waitForSelector('[data-testid="spending-category-dialog"]', { visible: true, timeout: 10_000 })
+    await fill(page, 'spending-category-name', SPENDING_RENAMED)
+    await delay(300)
+    await inspect?.('the category dialog')
+    await shoot('spending-category-dialog')
+    await pressSelector(page, press, '[data-testid="spending-category-save"]')
+    await toast(page, categories.saved)
+    await dismissToasts(page)
+    await spendingCategoryShown(page, SPENDING_RENAMED, true)
+
+    await pressSelector(page, press, `[data-testid="spending-category-up"][aria-label="${categories.moveUp(SPENDING_RENAMED)}"]`)
+    await toast(page, categories.moved)
+    await dismissToasts(page)
+    const order = await spendingCategoryNames(page)
+    if (order.indexOf(SPENDING_RENAMED) !== order.indexOf(starter.Restaurants) - 1) throw new Error(`${SPENDING_RENAMED} did not move above ${starter.Restaurants}: ${order.join(', ')}`)
+
+    await pressSelector(page, press, `[data-testid="spending-category-edit"][aria-label="${categories.edit(SPENDING_RENAMED)}"]`)
+    await page.waitForSelector('[data-testid="spending-category-dialog"]', { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="spending-category-delete-into"]')
+    await choose(page, press, await page.waitForSelector('[data-testid="spending-category-target"]', { visible: true }), starter.Groceries)
+    await delay(300)
+    await inspect?.('the category dialog moving its entries')
+    await shoot('spending-category-delete')
+    await pressSelector(page, press, '[data-testid="spending-category-delete"]')
+    await toast(page, categories.deleted)
+    await spendingCategoryShown(page, SPENDING_RENAMED, false)
+    await undoIn(page, press, words)
+    await spendingCategoryShown(page, SPENDING_RENAMED, true)
+    await inspect?.('the categories card after Undo')
+    await dismissToasts(page)
+  }
+}
+
+export const spendingCategoryFlow = spendingCategoryFlowIn('en')
+
+/** The row of Spending's Limits whose category reads `name`, or null. */
+function spendingLimitRow(page, name) {
+  return page.evaluateHandle(
+    (wanted) => [...document.querySelectorAll('[data-testid="spending-budget-row"]')].find((row) => row.querySelector('[data-testid="spending-limit-change"]')?.textContent?.trim() === wanted) ?? null,
+    name,
+  )
+}
+
+async function spendingLimitShown(page, name, shown) {
+  await page
+    .waitForFunction(
+      (wanted, expected) =>
+        [...document.querySelectorAll('[data-testid="spending-budget-row"] [data-testid="spending-limit-change"]')].some((button) => button.textContent?.trim() === wanted) === expected,
+      { timeout: 10_000 },
+      name,
+      shown,
+    )
+    .catch(() => {
+      throw new Error(shown ? `Limits lists no limit on ${name}` : `Limits still lists a limit on ${name}`)
+    })
+}
+
+/** On the sample Spending file's Limits: a monthly limit set on Transport, then ended from its dialog, which takes it off until Undo puts it back. */
+export function spendingLimitFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const limits = words.spendingBudgets
+  const transport = words.spendingStarter.Transport
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await pressSelector(page, press, '[data-testid="spending-limit-add"]')
+    await page.waitForSelector('[data-testid="spending-limit-dialog"]', { visible: true, timeout: 10_000 })
+    await choose(page, press, await page.$('[data-testid="spending-limit-category"]'), transport)
+    await typeAmount(page, press, 'spending-limit-amount', '120')
+    await delay(300)
+    await inspect?.('the limit dialog')
+    await shoot('spending-limit-dialog')
+    await pressSelector(page, press, '[data-testid="spending-limit-save"]')
+    await toast(page, limits.dialog.set)
+    await dismissToasts(page)
+    await spendingLimitShown(page, transport, true)
+    await shoot('spending-limit-set')
+
+    await pressSelector(page, press, `[data-testid="spending-limit-change"][aria-label="${limits.table.change(transport)}"]`)
+    await page.waitForSelector('[data-testid="spending-limit-dialog"]', { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="spending-limit-end"]')
+    await toast(page, limits.dialog.ended)
+    await spendingLimitShown(page, transport, false)
+    await undoIn(page, press, words)
+    await spendingLimitShown(page, transport, true)
+    await inspect?.('Limits after Undo')
+    await dismissToasts(page)
+  }
+}
+
+export const spendingLimitFlow = spendingLimitFlowIn('en')
+
+/**
+ * On the sample Spending file's Limits by touch: Food's limit raised to 450 from this month keeps what carried in, which
+ * the row says under its name on a phone, and its available becomes 450 and that carry.
+ */
+export async function spendingFoodLimitFlow(page, { press, shoot, inspect }) {
+  const words = SCREEN_WORDS.en
+  const food = words.spendingStarter.Food
+  const read = async () => {
+    const row = await spendingLimitRow(page, food)
+    if ((await row.jsonValue()) === null) throw new Error(`Limits lists no limit on ${food}`)
+    return row.evaluate((element) => ({
+      carriedIn: Number(element.dataset.carriedIn),
+      available: Number(element.dataset.available),
+      carry: [...element.querySelectorAll('[data-testid="spending-budget-carry"]')].filter((caption) => caption.getClientRects().length > 0).map((caption) => caption.textContent?.trim()),
+    }))
+  }
+  const before = await read()
+  if (before.carriedIn === 0 || before.carry.length !== 1) throw new Error(`${food} shows no carry on a phone: ${JSON.stringify(before)}`)
+  await pressSelector(page, press, `[data-testid="spending-limit-change"][aria-label="${words.spendingBudgets.table.change(food)}"]`)
+  await page.waitForSelector('[data-testid="spending-limit-dialog"]', { visible: true, timeout: 10_000 })
+  await typeAmount(page, press, 'spending-limit-amount', '450')
+  await delay(300)
+  await inspect?.('the limit dialog on Food')
+  await pressSelector(page, press, '[data-testid="spending-limit-save"]')
+  await toast(page, words.spendingBudgets.dialog.set)
+  await dismissToasts(page)
+  await page
+    .waitForFunction(
+      (wanted, carried, available) =>
+        [...document.querySelectorAll('[data-testid="spending-budget-row"]')].some(
+          (row) =>
+            row.querySelector('[data-testid="spending-limit-change"]')?.textContent?.trim() === wanted && row.dataset.carriedIn === String(carried) && row.dataset.available === String(available),
+        ),
+      { timeout: 10_000 },
+      food,
+      before.carriedIn,
+      45000 + before.carriedIn,
+    )
+    .catch(async () => {
+      throw new Error(`${food} at 450 does not keep its carry of ${before.carriedIn} cents and make ${45000 + before.carriedIn} available: ${JSON.stringify(await read())}`)
+    })
+  const after = await read()
+  if (JSON.stringify(after.carry) !== JSON.stringify(before.carry)) throw new Error(`${food} read ${before.carry.join()} carried in, then ${after.carry.join()}`)
+  await shoot('spending-limit-food')
+}
 
 async function fill(page, testId, value) {
   const input = await page.waitForSelector(`[data-testid="${testId}"]`, { visible: true, timeout: 10_000 }).catch(() => {

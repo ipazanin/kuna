@@ -2,6 +2,7 @@ import type { VendorAnswer, VendorFetch } from '../../application/priceVendor'
 import { isWeekday } from './fakePrices'
 import { addDays, parseCivilDate, today } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
+import { fakeEcbFetch } from '../../../../../shared/rates/infrastructure/fake/fakeEcbRates'
 
 /** The fake build's answers start no earlier than this, however far back a request asks. */
 const EARLIEST = '2023-01-02'
@@ -175,12 +176,6 @@ function alphaVantage(query: URLSearchParams): VendorAnswer {
   return json(200, { 'Meta Data': { '2. Symbol': symbol }, 'Monthly Time Series': rows(monthEnds) })
 }
 
-function ecb(url: string, query: URLSearchParams): VendorAnswer {
-  const currency = url.split('/EXR/D.')[1]?.split('.EUR.')[0] ?? ''
-  const lines = weekdaysFrom(query.get('startPeriod') ?? EARLIEST).map((day) => `EXR.D.${currency}.EUR.SP00.A,${day},1.${madeUpClose(currency, day, 10).replace('.', '')}`)
-  return { status: 200, text: ['KEY,TIME_PERIOD,OBS_VALUE', ...lines].join('\r\n') }
-}
-
 /** The made-up companies the fake Finnhub has profiles of, by ISIN or symbol, its test symbol among them, as profile2 answers them. */
 const FAKE_PROFILES: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
   XX000000ABC1: {
@@ -233,7 +228,7 @@ export const fakeVendorFetch: VendorFetch = async (url) => {
     return alphaVantage(query)
   }
   if (url.startsWith('https://data-api.ecb.europa.eu/service/data/EXR/D.')) {
-    return ecb(url, query)
+    return fakeEcbFetch(url)
   }
   return json(404, { message: 'The fake build knows no such vendor address.' })
 }

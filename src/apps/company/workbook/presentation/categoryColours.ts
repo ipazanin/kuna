@@ -4,12 +4,7 @@ import type { ComputedRef } from 'vue'
 import { bucketTone } from '../../../../shared/charts/chartTokens'
 import { useWorkbook } from '../application/workbookStore'
 import type { Bucket } from '../domain/bucket'
-import type { Swatch } from '../domain/categoryColour'
-
-/** The token a swatch paints with: its chart slot's, or the recessive grey's. The theme picks the light or the dark step. */
-export function swatchToken(swatch: Swatch): string {
-  return swatch.slot === null ? '--chart-deemphasis' : `--series-${swatch.slot}`
-}
+import { swatchToken } from '../../../../shared/charts/swatches'
 
 /**
  * The colour each category of the workbook on screen is drawn in, as CSS, by its name and the

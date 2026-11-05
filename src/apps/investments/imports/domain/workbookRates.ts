@@ -1,6 +1,6 @@
 import type { WorkbookRow, WorkbookType } from './portfolioWorkbook'
 import type { RatesWanted } from '../../prices/domain/priceDemand'
-import type { RateBook } from '../../prices/domain/rateBook'
+import type { RateBook } from '../../../../shared/money/rateBook'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { EURO } from '../../../../shared/money/currencyCode'
 

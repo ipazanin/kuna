@@ -105,7 +105,7 @@ Spending publishes nothing to another app. The later H7 matching of the company'
 
 - **The home** has a Spending card: spent this month, what is left of the limits, and later "N rows to review".
 - **Overview** at `#/spending`: this month's spending by group against its limits, the month's income, spending and saving, twelve months by group, and the accounts with their balances.
-- **Transactions** at `#/spending/transactions`: rows by day, filtered by month, account and category, with Add. Later a To review tab, Import, and Add a receipt.
+- **Entries** at `#/spending/transactions`: rows by day, filtered by month, account and category, with Add. Later a To review tab, Import, and Add a receipt.
 - **Limits** at `#/spending/budgets`: each limited category with its limit, what carried in, what is available, spent and left.
 - **Accounts** at `#/spending/accounts`, and an account's page at `#/spending/account?account=<uuid>`.
 - **Settings:** Categories, the books file, later Statements, Rules, Bank sync and Receipts.
@@ -184,18 +184,18 @@ A loan instalment is spending under "Loan instalments" in Money and fees. Loans 
 
 ### Balances
 
-**Owner:** `accountBalance(account, rows, day)` in `src/apps/spending/accounts/domain/accountBalance.ts`: the opening plus every row from `opened_on` to the day, in the account's currency. Balances are worked out, never read from a bank. A statement's own closing balance is a check in stage 2, and a mismatch is a note, not a refusal.
+**Owner:** `accountBalance(account, rows, day)` in `src/apps/spending/accounts/domain/accountBalance.ts`: the opening plus every row from `opened_on` to the day, in the account's currency. The opening may be below zero, for an account that was overdrawn on the day counting starts, which the account dialog takes as an amount and an "Overdrawn on that day" switch, since a phone's number pad has no minus. An account keeps its currency once entries name it, which `ACCOUNT_WRITES` refuses to change. A closed account still counts in Bank and cash while it holds money, so closing it never drops money from Net worth (`countedAccounts` in `rates/domain/euroRows.ts`). Balances are worked out, never read from a bank. A statement's own closing balance is a check in stage 2, and a mismatch is a note, not a refusal.
 
 ### Euros
 
 - **A row in euros:** `euroRows(book, rates)` in `src/apps/spending/rates/domain/euroRows.ts` is the one place that gives each row its euro amount, through the shared `eurosAtEcbRate(decimalOfMoney(amount), currency, date, rates)` (`rateBook.ts:20-26`, `src/shared/money/decimal.ts:104`). A euro account passes through. A row the rates do not cover yet is unrated and listed, never guessed.
 - **A balance in euros:** the account's balance on the day, converted at that day's rate, by the same `eurosAtEcbRate`.
 - **Card spends abroad on a euro account** need nothing: the bank booked euros.
-- **Where the rates come from:** `startRates()` in `src/apps/spending/rates/presentation/useRates.ts`, called from Spending's `start()` as Investments starts its prices (`src/apps/investments/app.ts:95`). It fetches each foreign currency of the file once per page load through the shared ECB fetch, from the oldest day it needs, and keeps the answer in memory only, as Assets keeps the DZS index. ECB rates are public and can be fetched again, so they need no file. Its state is loading, the rates, or failed. The CSP already allows the ECB (`index.html:7`).
+- **Where the rates come from:** `startRates()` in `src/apps/spending/rates/presentation/useRates.ts`, called from Spending's `start()` as Investments starts its prices (`src/apps/investments/app.ts:95`). It fetches each foreign currency of the file once per page load through the shared ECB fetch, from the oldest day it needs, and keeps the answer in memory only, as Assets keeps the DZS index. ECB rates are public and can be fetched again, so they need no file. Its state is loading, or the rates with whether any currency failed (`ratesStateOf` in `rates/domain/ratesState.ts`). A currency the file comes to need waits as loading until its answer arrives. The rate on or before a day is `rateBookOfSeries` in `src/shared/money/rateBook.ts`, which Investments' prices file builds on too. A sync's ECB rates step asks for them again. The CSP already allows the ECB (`index.html:7`).
 
 ### Categories
 
-The starter set is seeded on the first run, in Croatian as the owner asked, and in English for a first run in English, from one table. Everything is editable: rename, move a child to another group, reorder, recolour, hide, and delete into another category, which moves its rows, lines, budgets and rules in one write. Hiding keeps history. Income stays its own group of kind `income`.
+The starter set is seeded on the first run, in Croatian as the owner asked, and in English for a first run in English, from one table. Everything is editable: rename, move a child to another group, reorder, recolour, hide, and delete into another category, which moves its rows, lines and rules and deletes its limits in one write, so one Undo puts it all back. The other category keeps its own limits, whose carry would change if they took on the deleted one's history (the owner's answer of 5 Nov). Hiding keeps history. Income stays its own group of kind `income`.
 
 | Group (EN / HR)                      | Children (EN / HR)                                                                                                                                                                                     |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -210,7 +210,7 @@ The starter set is seeded on the first run, in Croatian as the owner asked, and 
 | Family and gifts / Obitelj i pokloni | Gifts / Pokloni. Donations / Donacije. Pets / Ljubimci                                                                                                                                                 |
 | Money and fees / Novac i naknade     | Bank fees / Bankovne naknade. Taxes and charges / Porezi i pristojbe. Insurance / Osiguranja. Loan instalments / Rate kredita                                                                          |
 | Other / Ostalo                       | Other / Ostalo                                                                                                                                                                                         |
-| Income / Prihodi                     | Salary / Plaća. Profit payout / Isplata dobiti. Interest / Kamate. Refunds from the company / Povrati od tvrtke. Other income / Ostali prihodi                                                         |
+| Income / Prihodi                     | Salary / Plaća. Profit payout / Isplata dobiti. Interest / Kamate. Other income / Ostali prihodi                                                                                                       |
 
 Beside the groups, fixed: Between my accounts / Između mojih računa (`transfer`), Saved to investments / Prijenos u ulaganja (`saving`), For the company / Za tvrtku (`company`).
 
@@ -225,6 +225,8 @@ The repayment of company costs from the company lands in For the company, the sa
 - A carry can go below zero and stays there until later months make it up. Available below zero reads "Over by".
 - The month still filling shows left so far. Its carry reaches next month only once it ends.
 - `left to spend` on the home card is the sum of available less spent over the limited categories of the month.
+- A row the rates do not reach counts as nothing, and `BudgetMonth` counts such rows in the month and in the months its carry comes from. Limits, the Overview's limits card and the home card then say how many entries in another currency are not counted. A month that starts below zero draws its carried debt apart from what it spent.
+- A limit's history is worked out on load, never stored, so a later rate, a child moved into a limited group or a category deleted into another changes past months' carry.
 
 ### Analytics
 
@@ -273,7 +275,7 @@ One commit.
 
 **Domain, one owner per figure:** `accountBalance`, `euroRows`, `rowSide`, `monthTotals`, `budgetMonths`, `monthFlow`, `spendingHubFigures`, and `starterCategories(language)` in `categories/domain/starterCategories.ts`.
 
-**Screens.** Overview, Transactions with the entry dialog, Limits, Accounts and an account's page, Settings with Categories. Built from `PageHeader`, `DashboardGrid`, `KpiTile`, `AppCard`, `FigureTable`, `ChartCard`, `DonutCard`, `ProgressMeter`, `FormGrid`, `AppDialog`, `MoneyInput` and `ColourSwatchPicker` in `src/shared/ui`. No new shared component.
+**Screens.** Overview, Entries with the entry dialog, Limits, Accounts and an account's page, Settings with Categories. Built from `PageHeader`, `DashboardGrid`, `KpiTile`, `AppCard`, `FigureTable`, `ChartCard`, `DonutCard`, `ProgressMeter`, `FormGrid`, `AppDialog`, `MoneyInput` and `ColourSwatchPicker` in `src/shared/ui`. No new shared component.
 
 **The entry dialog.** Money out, money in, or between my accounts. Amount, category, account (the last used), date (today), payee, note. Between my accounts takes a second account, and a second amount when the currencies differ, and writes both legs with `pair` set in one write. On a phone the amount field opens the number pad.
 
@@ -281,7 +283,7 @@ One commit.
 
 - `tests/spendingReaders.spec.ts`: each read rule in the records table, problems listed by kind.
 - `tests/spendingFirstRun.spec.ts`, as `tests/loansFirstRun.spec.ts`, with `kuna-spending.json` and the starter set in both languages.
-- `tests/spendingWrites.spec.ts`: a transfer's two legs in one write, deleting one leg takes the other and one Undo restores both, delete-into moves rows, lines, budgets and rules, a budget on a group and its child refused.
+- `tests/spendingWrites.spec.ts`: a transfer's two legs in one write, deleting one leg takes the other and one Undo restores both, delete-into moves rows, lines and rules and deletes its limits, as Groceries into Restaurants keeps Restaurants' own limit, a budget on a group and its child refused.
 - `tests/accountBalance.spec.ts`: the worked example's balances, a row before `opened_on` left out.
 - `tests/euroRows.spec.ts`: the $30.00 row at €27.78, a balance at the day's rate, a day with no rate taking the newest earlier one, an unrated row before the series starts.
 - `tests/budgetCarry.spec.ts`: the worked example's three months, a budget of 0 ending the carry, a new amount from a month keeping the carry, a refund lowering spent, a group counting its children, a carry staying below zero.
@@ -350,7 +352,7 @@ One commit.
 | Available                                                                      | Raspoloživo                                                                                                   |
 | Left this month                                                                | Preostalo ovaj mjesec                                                                                         |
 | Over by {amount}                                                               | Prekoračeno za {amount}                                                                                       |
-| Spent, Income, Saved                                                           | Potrošeno, Prihodi, Ušteđeno                                                                                  |
+| Spent, Income, Saved to investments                                            | Potrošeno, Prihodi, Prijenos u ulaganja                                                                       |
 | Savings rate                                                                   | Stopa štednje                                                                                                 |
 | Bank and cash                                                                  | Banka i gotovina                                                                                              |
 | Across {n} account(s)                                                          | Na {n} računu (računa), through the plural helper                                                             |
@@ -554,6 +556,8 @@ Carried from the research, for the owner to check where marked:
 - **Firefox:** whether Firefox for Android offers the camera for `capture="environment"` in the installed app as MDN's data says, and whether Firefox desktop decodes an uploaded HEIC.
 - **`pdfjs-dist` under Kuna's CSP:** whether it runs with `worker-src 'self'` and without `eval`.
 - **The receipt cost** on Sonnet is worked from list prices and lane 3's token estimate, not measured.
+- **Lending money to someone** has no category. Loans keeps what is owed to you, but the money that leaves an account for a friend can only be spending or income, so the month's spending is off while Net worth is right. A fourth fixed kind, or Between my accounts on a lone leg, would cover it.
+- **A transfer with a fee in one currency**, such as €100.00 out of OTP and €99.50 into Revolut, cannot be typed as one pair, since the dialog takes a second amount only when the currencies differ.
 - **The Croatian strings** have not been checked at 360 px.
 - **Digest identity** of the groups that must stay the same is expected from the code, not run.
 
@@ -566,6 +570,10 @@ Carried from the research, for the owner to check where marked:
 - [The module map](../../architecture/modules.md) and [the hub design](../../architecture/hub.md).
 - [The overview plan](../overview/plan.md) and [the Assets plan](../assets/plan.md), the hub contract and the owner's answer on Net worth.
 - [The AI-assist plan](../ai-assist/plan.md), the shared AI module and the secrets file.
+
+## The owner's answer, 2026-11-05
+
+- Deleting a category into another deletes its limits in the same write, and one Undo restores both. The target category keeps its own limits.
 
 ## The owner's answers, 2026-11-04
 

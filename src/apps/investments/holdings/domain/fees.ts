@@ -1,5 +1,5 @@
-import { eurosAtEcbRate } from '../../prices/domain/rateBook'
-import type { RateBook } from '../../prices/domain/rateBook'
+import { eurosAtEcbRate } from '../../../../shared/money/rateBook'
+import type { RateBook } from '../../../../shared/money/rateBook'
 import type { CashMovement } from '../../workbook/domain/cashMovement'
 import type { Exchange } from '../../workbook/domain/exchange'
 import type { Trade } from '../../workbook/domain/trade'

@@ -1,60 +1,22 @@
 import { words } from './words'
-import { answerOf, statusFailure } from './vendorAnswers'
-import { ECB_SOURCE, isCloseText, isDay } from '../../domain/pricesFile'
-import type { CloseRow } from '../../domain/pricesFile'
+import { statusFailure } from './vendorAnswers'
+import { ECB_SOURCE } from '../../domain/pricesFile'
 import type { ClosesVendor, Fetched, VendorCloses, VendorFetch } from '../../application/priceVendor'
+import { ecbRates } from '../../../../../shared/rates/infrastructure/ecbRates'
 
-/** The fields of one CSV line, with quoted fields that hold commas or doubled quotes. */
-function csvFields(line: string): string[] {
-  const fields: string[] = []
-  let field = ''
-  let quoted = false
-  for (let place = 0; place < line.length; place += 1) {
-    const character = line[place]!
-    if (quoted && character === '"' && line[place + 1] === '"') {
-      field += '"'
-      place += 1
-    } else if (character === '"') {
-      quoted = !quoted
-    } else if (character === ',' && !quoted) {
-      fields.push(field)
-      field = ''
-    } else {
-      field += character
-    }
+/** The ECB's rates of a currency from the day on, as the closes of its series. */
+async function ecbCloses(fetch: VendorFetch, _key: string | null, currency: string, from: string): Promise<Fetched<VendorCloses>> {
+  const answer = await ecbRates(fetch, currency, from)
+  switch (answer.kind) {
+    case 'rates':
+      return { kind: 'closes', closes: answer.rates, splits: [], earlierFailure: null }
+    case 'no-answer':
+      return { kind: 'failed', reason: 'no-answer' }
+    case 'status':
+      return { kind: 'failed', reason: statusFailure(answer.status) }
+    case 'unreadable':
+      return { kind: 'failed', reason: 'unreadable' }
   }
-  fields.push(field)
-  return fields
-}
-
-/** The ECB's daily euro reference rates of a currency from the day on, in units of it per euro. A currency the ECB does not publish answers 404. */
-async function ecbRates(fetch: VendorFetch, _key: string | null, currency: string, from: string): Promise<Fetched<VendorCloses>> {
-  const url = `https://data-api.ecb.europa.eu/service/data/EXR/D.${encodeURIComponent(currency)}.EUR.SP00.A?startPeriod=${from}&format=csvdata&detail=dataonly`
-  const fetched = await answerOf(fetch, url)
-  if (fetched.kind === 'failed') {
-    return fetched
-  }
-  if (fetched.answer.status !== 200) {
-    return { kind: 'failed', reason: statusFailure(fetched.answer.status) }
-  }
-  const [header, ...lines] = fetched.answer.text.split(/\r?\n/).filter((line) => line.trim() !== '')
-  if (header === undefined) {
-    return { kind: 'closes', closes: [], splits: [], earlierFailure: null }
-  }
-  const names = csvFields(header)
-  const column = { day: names.indexOf('TIME_PERIOD'), rate: names.indexOf('OBS_VALUE') }
-  if (column.day < 0 || column.rate < 0) {
-    return { kind: 'failed', reason: 'unreadable' }
-  }
-  const closes: CloseRow[] = []
-  for (const line of lines) {
-    const fields = csvFields(line)
-    const [day, rate] = [fields[column.day] ?? '', fields[column.rate] ?? '']
-    if (isDay(day) && isCloseText(rate)) {
-      closes.push([day, rate])
-    }
-  }
-  return { kind: 'closes', closes: closes.sort(([earlier], [later]) => (earlier < later ? -1 : 1)), splits: [], earlierFailure: null }
 }
 
 export const ecb: ClosesVendor = {
@@ -69,5 +31,5 @@ export const ecb: ClosesVendor = {
   // The ECB states no limits, so a 429 can only be a request to slow down for a while.
   limitOf: (answer) => (answer.status === 429 ? 'minute' : null),
   testSymbol: 'USD',
-  closes: ecbRates,
+  closes: ecbCloses,
 }

@@ -1,0 +1,194 @@
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import UButton from '@nuxt/ui/components/Button.vue'
+import UFormField from '@nuxt/ui/components/FormField.vue'
+import UInput from '@nuxt/ui/components/Input.vue'
+import USelect from '@nuxt/ui/components/Select.vue'
+import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
+import USwitch from '@nuxt/ui/components/Switch.vue'
+
+import { words } from './words'
+import { ACCOUNT_WRITES, newAccount } from '../application/accountWrites'
+import { SPENDING_ACCOUNTS_ROUTE } from '../../overview/presentation/spendingLinks'
+import { useSpendingBooks } from '../../workbook/application/spendingStore'
+import { ACCOUNT_BANKS, ACCOUNT_KINDS } from '../../workbook/domain/account'
+import type { Account, AccountBank, AccountKind } from '../../workbook/domain/account'
+import { words as spendingWords } from '../../words'
+import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
+import { CURRENCY_CODES, EURO } from '../../../../shared/money/currencyCode'
+import { ZERO, negateMoney } from '../../../../shared/money/money'
+import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
+import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
+import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
+
+/** One of your accounts in one currency: its name, kind, bank, what it held on the day you start counting from, and its IBAN. One with entries is closed rather than deleted. */
+const open = defineModel<boolean>('open', { required: true })
+
+const props = defineProps<{
+  /** The account to change, or null to add one. */
+  account: Account | null
+}>()
+
+const store = useSpendingBooks()
+const writes = useRecordWrites(store)
+const router = useRouter()
+
+/** What the bank select holds for no bank, since a select's value cannot be empty. */
+const NONE = 'none'
+
+const KIND_OPTIONS = ACCOUNT_KINDS.map((kind) => ({ value: kind, label: words.kinds[kind] }))
+const BANK_ITEMS = [{ label: words.dialog.noBank, value: NONE }, ...ACCOUNT_BANKS.map((bank) => ({ label: words.banks[bank], value: bank }))]
+const CURRENCY_ITEMS = [EURO, ...CURRENCY_CODES.filter((code) => code !== EURO)].map((code) => ({ label: code, value: code as string }))
+
+const name = ref('')
+const kind = ref<AccountKind>('bank')
+const bank = ref<AccountBank | typeof NONE>(NONE)
+const currency = ref<string>(EURO)
+const opening = ref('')
+/** The opening is typed as an amount of zero or more, since a phone's number pad has no minus, and this says it was below zero. */
+const overdrawn = ref(false)
+const openedOn = ref('')
+const iban = ref('')
+const tried = ref(false)
+
+/** An account that entries name keeps its currency, since their amounts are in it. */
+const hasEntries = computed(() => props.account !== null && (store.state.workbook?.transactions ?? []).some((row) => row.account === props.account?.id))
+
+watch(open, (opened) => {
+  if (!opened) return
+  const account = props.account
+  name.value = account?.name ?? ''
+  kind.value = account?.kind ?? 'bank'
+  bank.value = account?.bank ?? NONE
+  currency.value = account?.currency ?? EURO
+  opening.value = account === null ? '' : amountForTyping(account.opening < 0 ? negateMoney(account.opening) : account.opening)
+  overdrawn.value = account !== null && account.opening < 0
+  openedOn.value = account?.openedOn ?? today()
+  iban.value = account?.iban ?? ''
+  tried.value = false
+})
+
+const openingAmount = computed(() => {
+  const typed = opening.value.trim() === '' ? ZERO : typedAmount(opening.value)
+  return typed !== null && overdrawn.value ? negateMoney(typed) : typed
+})
+const openedDay = computed(() => parseCivilDate(openedOn.value))
+const pickedCurrency = computed(() => CURRENCY_CODES.find((code) => code === currency.value) ?? null)
+
+const errors = computed(() => ({
+  name: name.value.trim() === '' ? words.dialog.nameError : null,
+  opening: openingAmount.value === null ? words.dialog.anAmount : null,
+  openedOn: openedDay.value === null ? spendingWords.form.aDate(civilDate(2026, 1, 1)) : null,
+}))
+
+async function save(): Promise<void> {
+  tried.value = true
+  const amount = openingAmount.value
+  const day = openedDay.value
+  const code = pickedCurrency.value
+  if (Object.values(errors.value).some((error) => error !== null) || amount === null || day === null || code === null) return
+  const cash = kind.value === 'cash'
+  const typed = newAccount({
+    name: name.value,
+    kind: kind.value,
+    bank: cash || bank.value === NONE ? null : bank.value,
+    currency: code,
+    opening: amount,
+    openedOn: day,
+    iban: cash ? '' : iban.value,
+    closed: props.account?.closed ?? false,
+  })
+  const before = props.account
+  const written =
+    before === null
+      ? await writes.write(words.dialog.added, (unit) => unit.of(ACCOUNT_WRITES).add(typed), { failedTitle: spendingWords.form.notAdded })
+      : await writes.write(words.dialog.saved, (unit) => unit.of(ACCOUNT_WRITES).change(before, { ...typed, id: before.id }), { failedTitle: spendingWords.form.notSaved })
+  if (written) open.value = false
+}
+
+async function closeOrReopen(): Promise<void> {
+  const before = props.account
+  if (before === null) return
+  const title = before.closed ? words.dialog.reopened : words.dialog.closedToast
+  if (await writes.write(title, (unit) => unit.of(ACCOUNT_WRITES).change(before, { ...before, closed: !before.closed }), { key: 'close', failedTitle: spendingWords.form.notSaved })) open.value = false
+}
+
+async function remove(): Promise<void> {
+  const before = props.account
+  if (before === null) return
+  if (await writes.write(words.dialog.deleted, (unit) => unit.of(ACCOUNT_WRITES).remove(before), { key: 'delete', failedTitle: spendingWords.form.notDeleted })) {
+    open.value = false
+    await router.push(SPENDING_ACCOUNTS_ROUTE)
+  }
+}
+</script>
+
+<template>
+  <AppDialog v-model:open="open" :title="account === null ? words.dialog.addTitle : words.dialog.changeTitle" :description="words.dialog.description">
+    <FormGrid id="spending-account" as="form" data-testid="spending-account-dialog" @submit.prevent="save">
+      <UFormField :label="words.dialog.name" :error="(tried && errors.name) || false" class="sm:col-span-2">
+        <UInput v-model="name" :placeholder="words.dialog.namePlaceholder" class="w-full" data-testid="spending-account-name" />
+      </UFormField>
+      <UFormField :label="words.dialog.kind" class="sm:col-span-2">
+        <ChoiceButtons v-model="kind" :options="KIND_OPTIONS" :label="words.dialog.kind" data-testid="spending-account-kind" />
+      </UFormField>
+      <UFormField v-if="kind !== 'cash'" :label="words.dialog.bank">
+        <USelect v-model="bank" :items="BANK_ITEMS" class="w-full" data-testid="spending-account-bank" />
+      </UFormField>
+      <UFormField :label="words.dialog.currency" v-bind="hasEntries ? { help: words.dialog.currencyKept } : {}">
+        <USelectMenu v-model="currency" :items="CURRENCY_ITEMS" value-key="value" :disabled="hasEntries" class="w-full" data-testid="spending-account-currency" />
+      </UFormField>
+      <UFormField :label="words.dialog.opening" :help="words.dialog.openingHelp" :error="(tried && errors.opening) || false">
+        <MoneyInput v-model="opening" :placeholder="spendingWords.form.amountPlaceholder" class="w-full" data-testid="spending-account-opening" />
+        <USwitch v-model="overdrawn" :label="words.dialog.overdrawn" class="mt-2 min-h-11" data-testid="spending-account-overdrawn" />
+      </UFormField>
+      <UFormField :label="words.dialog.openedOn" :error="(tried && errors.openedOn) || false">
+        <UInput v-model="openedOn" type="date" class="w-full" data-testid="spending-account-opened-on" />
+      </UFormField>
+      <UFormField v-if="kind !== 'cash'" :label="words.dialog.iban" class="sm:col-span-2">
+        <UInput v-model="iban" autocomplete="off" spellcheck="false" class="w-full" data-testid="spending-account-iban" />
+      </UFormField>
+      <p v-if="account !== null && hasEntries" class="type-caption sm:col-span-2" data-testid="spending-account-has-entries">{{ words.dialog.hasEntries }}</p>
+    </FormGrid>
+    <template #start>
+      <UButton
+        v-if="account !== null && !hasEntries"
+        :label="words.dialog.delete"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="ghost"
+        :loading="writes.saving('delete')"
+        :disabled="writes.busy.value"
+        data-testid="spending-account-delete"
+        @click="remove"
+      />
+      <UButton
+        v-if="account !== null && (hasEntries || account.closed)"
+        :label="account.closed ? words.dialog.reopen : words.dialog.close"
+        :icon="account.closed ? 'i-lucide-archive-restore' : 'i-lucide-archive'"
+        color="neutral"
+        variant="ghost"
+        :loading="writes.saving('close')"
+        :disabled="writes.busy.value"
+        data-testid="spending-account-close"
+        @click="closeOrReopen"
+      />
+    </template>
+    <template #end>
+      <UButton :label="spendingWords.form.cancel" color="neutral" variant="ghost" @click="open = false" />
+      <UButton
+        type="submit"
+        form="spending-account"
+        :label="account === null ? words.dialog.add : words.dialog.save"
+        :icon="account === null ? 'i-lucide-plus' : 'i-lucide-save'"
+        :loading="writes.saving('save')"
+        :disabled="writes.busy.value"
+        data-testid="spending-account-save"
+      />
+    </template>
+  </AppDialog>
+</template>

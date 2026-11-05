@@ -33,6 +33,17 @@
  * a screen has words of its own. Its flows add a flat with its region and the Home loan, clear the loan, delete the
  * flat and undo it, and add a valuation to the car and delete it and undo that, in English and Croatian.
  *
+ * The Spending app renders its first run, its empty Overview and its Settings (`?spending=drive`), its Settings for a
+ * file kept in this browser, the sample's Overview, Transactions, Limits, Accounts, the dollar account with its ECB rate
+ * line and Settings with the categories (`?spending=sample`), Limits with two overspent (`?spending=over`), Accounts
+ * while the ECB rates fail (`?rates=failed`), and its Overview while its file opens and once its read fails, each in
+ * Croatian too, with its figures worked out from the same fake sets. Kuna's Overview renders with the sample Spending
+ * file beside the other samples, alone, and while the ECB rates load (`?rates=opening`). At every width it opens the
+ * entry dialog for money out and for a move between two currencies. Its flows add, change and delete money out and undo
+ * the delete, move money between two accounts and read both balances, rename, move and delete a category into another
+ * and undo it, and set and end a limit and undo that, find the Spending file another device made on Drive and keep a new
+ * one in this browser, in English and Croatian.
+ *
  * Beyond the screens of the fake workbook on Drive, it renders the home with every app in Set up and
  * onboarding's first steps on a first run (`?fake=empty`), each tab of the company's Settings and the
  * Year page's editors for a workbook kept in this browser (`?fake=browser`), Settings, Books file for
@@ -193,6 +204,22 @@ import { valueCaption } from '../src/apps/assets/values/presentation/valueCaptio
 import { ASSETS_DOCUMENT } from '../src/apps/assets/workbook/infrastructure/assetsDocument.ts'
 import { fakeAssetsDocument } from '../src/apps/assets/workbook/infrastructure/fake/fakeAssets.ts'
 import { bankLoansOf } from '../src/apps/loans/facts.ts'
+import { formatAccountMoney } from '../src/apps/spending/accounts/presentation/accountMoney.ts'
+import { accountsOnDay } from '../src/apps/spending/accounts/presentation/accountsOnDay.ts'
+import { euroLine } from '../src/apps/spending/accounts/presentation/euroLine.ts'
+import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures.ts'
+import { leftToSpend } from '../src/apps/spending/budgets/domain/budgetCarry.ts'
+import { en as budgetsEnglish, hr as budgetsCroatian } from '../src/apps/spending/budgets/presentation/words.ts'
+import { spendingHubFigures } from '../src/apps/spending/home/presentation/spendingHubFigures.ts'
+import { ratesStateOf } from '../src/apps/spending/rates/domain/ratesState.ts'
+import { ratesNeeded } from '../src/apps/spending/rates/domain/ratesNeeded.ts'
+import { fakeSpendingDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending.ts'
+import { SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/spendingDocument.ts'
+import { en as hubOverviewEnglish } from '../src/shell/overview/words.ts'
+import { monthOf } from '../src/shared/calendar/monthKey.ts'
+import { EURO } from '../src/shared/money/currencyCode.ts'
+import { ecbRates } from '../src/shared/rates/infrastructure/ecbRates.ts'
+import { fakeEcbFetch } from '../src/shared/rates/infrastructure/fake/fakeEcbRates.ts'
 import { personalNet } from '../src/shared/app/personalNet.ts'
 import { today } from '../src/shared/calendar/civilDate.ts'
 import { dayLabel, shortDayLabel, weekdayDayLabel } from '../src/shared/calendar/dayLabel.ts'
@@ -216,6 +243,11 @@ import {
   assetsEditorFlowIn,
   assetsValuationFlow,
   assetsValuationFlowIn,
+  spendingCategoryFlowIn,
+  spendingEntryDialogFlowIn,
+  spendingEntryFlowIn,
+  spendingLimitFlowIn,
+  spendingTransferFlowIn,
   employeeFlow,
   employeeFlowIn,
   cardSettlementIbansFlow,
@@ -483,31 +515,93 @@ function fakeAssetsShows() {
   }
 }
 
+/** The sample Spending file's USD account, `?spending=sample`, which the made-up ECB rates turn into euros. */
+const SAMPLE_USD_ACCOUNT = 'fa4e3000-0000-4000-8000-000000001003'
+
+/** A fake Spending set as its screens read it on the check's day, with the made-up ECB rates its foreign accounts need, or with the rates failed. */
+async function fakeSpending(set, ratesFailed = false) {
+  const at = new Date().toISOString()
+  const meta = { id: 'visual', source: 'browser', title: 'visual', syncedAt: at }
+  const book = SPENDING_DOCUMENT.read({ meta, document: fakeSpendingDocument(at, set) }).workbook
+  const answers = new Map()
+  for (const [currency, from] of ratesNeeded(book)) {
+    const answer = ratesFailed ? null : await ecbRates(fakeEcbFetch, currency, from)
+    answers.set(currency, answer?.kind === 'rates' ? answer.rates : null)
+  }
+  return { book, rates: ratesStateOf(answers) }
+}
+
+/**
+ * The fake Spending sets' figures, worked out with the functions its screens call: this month's spent, income and saved,
+ * what is left of its limits, Food's limit with its carry, the limits `over` overspends, what the open accounts hold in
+ * euros with the rates and while they fail, the dollar account in dollars and in euros with its rate line, and the
+ * payees of this month. Money comes in English and in Croatian.
+ */
+async function fakeSpendingShows(sample) {
+  const failed = await fakeSpending('sample', true)
+  const over = await fakeSpending('over')
+  const day = today()
+  const month = monthOf(day)
+  const both = (cents, sign = 'negative') => ({ english: formatMoney(cents, sign), croatian: formatMoney(cents, sign, CROATIAN_MONEY) })
+  const figures = spendingFigures(sample.book, sample.rates.book)
+  const totals = figures.totalsOf(month)
+  const limits = figures.limitsIn(month)
+  const food = limits.find((limit) => sample.book.categories.find((category) => category.id === limit.category)?.name === 'Food')
+  const [held] = spendingHubFigures(sample.book, sample.rates, day).parts
+  const [heldWhileFailed] = spendingHubFigures(failed.book, failed.rates, day).parts
+  const dollars = accountsOnDay(sample.book, day, sample.rates.book).find((entry) => entry.account.currency !== EURO)
+  const overspent = spendingFigures(over.book, over.rates.book)
+    .limitsIn(month)
+    .filter((limit) => limit.left < 0)
+  return {
+    spent: both(totals.spent),
+    left: both(leftToSpend(limits)),
+    food: { available: both(food.available), left: both(food.left), carriedIn: both(food.carriedIn, 'always') },
+    held: { ...both(held.cents), caption: held.caption },
+    heldWhileFailed: { ...both(heldWhileFailed.cents), caption: heldWhileFailed.caption },
+    dollars: {
+      balance: { english: formatAccountMoney(dollars.balance, dollars.account.currency), croatian: formatMoney(dollars.balance, 'negative', { currency: dollars.account.currency, locale: 'hr-HR' }) },
+      euros: both(dollars.euros),
+      rateLine: euroLine(dollars, sample.rates, day).caption,
+    },
+    over: {
+      english: overspent.map((limit) => budgetsEnglish.overBy(formatMoney(-limit.left))),
+      croatian: overspent.map((limit) => budgetsCroatian.overBy(formatMoney(-limit.left, 'negative', CROATIAN_MONEY))),
+    },
+    payees: [...new Set(sample.book.transactions.filter((row) => monthOf(row.date) === month).map((row) => row.payee))],
+  }
+}
+
 /**
  * Kuna's Overview on the fake sets, worked out with the functions its screen calls: the sum of the sample Loans,
- * Investments and Assets files with each of their parts and what is yours after the Home loan, the sum of the
- * Investments sample alone and of the Assets sample alone, and what the owner could take out of the company kept in
- * this browser (`?fake=browser`). Money comes in English and in Croatian.
+ * Investments, Assets and Spending files with each of their parts, what is yours after the Home loan and what the
+ * accounts span, with what the sum leaves out, the sum of the Investments, the Assets and the Spending sample alone,
+ * and what the owner could take out of the company kept in this browser (`?fake=browser`). Money comes in English and
+ * in Croatian.
  */
-function fakeOverviewShows() {
+function fakeOverviewShows(spendingSample) {
   const at = `${INVESTMENTS_DAY}T09:00:00.000Z`
   const meta = { id: 'visual', source: 'browser', title: 'visual', syncedAt: at }
   const loans = loansHubFigures(LOANS_DOCUMENT.read({ meta, document: fakeLoansDocument(at) }).workbook, today())
   const investments = investmentsHubFigures(fakePortfolio('sample', 'sample').figures)
   const sample = fakeAssets()
   const assets = assetsHubFigures(sample.book, today(), FAKE_HOUSE_INDEX, sample.loans)
-  const sumOf = (figures) => {
-    const { sum } = personalNet(figures.map((counted) => ({ name: 'visual', notSetUp: false, currency: 'EUR', figures: counted })))
-    return sum.cents
-  }
+  const assetsAlone = assetsHubFigures(sample.book, today(), FAKE_HOUSE_INDEX, null)
+  const spending = spendingHubFigures(spendingSample.book, spendingSample.rates, today())
+  const netOf = (figures) => personalNet(figures.map((counted) => ({ name: 'visual', notSetUp: false, currency: 'EUR', figures: counted })))
+  const sumOf = (figures) => netOf(figures).sum.cents
+  const leavesOut = (figures) => hubOverviewEnglish.leavesOut(netOf(figures).leavesOut)
   installHrDooPack()
   const [takeOut] = companyHubFigures(readDocument(meta, fakeWorkbookDocument(at, 'browser', null)).workbook).parts
-  const amounts = [sumOf([loans, investments, assets]), ...[...loans.parts, ...investments.parts, ...assets.parts].map((part) => part.cents)]
+  const every = [loans, investments, assets, spending]
+  const amounts = [sumOf(every), ...every.flatMap((figures) => figures.parts).map((part) => part.cents)]
   return {
-    english: [...amounts.map((cents) => formatMoney(cents)), assets.parts[0].caption],
+    english: [...amounts.map((cents) => formatMoney(cents)), assets.parts[0].caption, spending.parts[0].caption, leavesOut(every)].filter((text) => text !== ''),
     croatian: amounts.map((cents) => formatMoney(cents, 'negative', CROATIAN_MONEY)),
     investmentsOnly: formatMoney(sumOf([investments])),
-    assetsOnly: formatMoney(sumOf([assetsHubFigures(sample.book, today(), FAKE_HOUSE_INDEX, null)])),
+    assetsOnly: formatMoney(sumOf([assetsAlone])),
+    assetsOnlyLeavesOut: leavesOut([assetsAlone]),
+    spendingOnly: { english: formatMoney(sumOf([spending])), croatian: formatMoney(sumOf([spending]), 'negative', CROATIAN_MONEY), caption: spending.parts[0].caption },
     takeOut: formatMoney(takeOut.cents),
     takeOutCroatian: formatMoney(takeOut.cents, 'negative', CROATIAN_MONEY),
   }
@@ -716,8 +810,10 @@ const YEAR_PERFORMANCE = fakePerformanceShows('sample', 'sample', { kind: 'year'
 const SAMPLE_INVESTMENTS = fakeInvestmentsShows('sample', 'sample')
 const LATE_INVESTMENTS = fakeInvestmentsShows('sample', 'late-prices')
 const CASH_BELOW_ZERO_INVESTMENTS = fakeInvestmentsShows('cash-below-zero', 'sample')
-const OVERVIEW = fakeOverviewShows()
+const SPENDING_SAMPLE = await fakeSpending('sample')
+const OVERVIEW = fakeOverviewShows(SPENDING_SAMPLE)
 const ASSETS = fakeAssetsShows()
+const SPENDING = await fakeSpendingShows(SPENDING_SAMPLE)
 
 const SCREENS = [
   { name: 'overview', hash: '#/company', title: 'Overview', charts: 2, shows: ['Waiting for you', 'A typical month', 'Every euro earned', 'Balance at month end'] },
@@ -983,7 +1079,7 @@ const SCREENS = [
     hash: '#/',
     title: 'All apps',
     charts: 0,
-    shows: ['Company', 'Cash on hand', '2 rows to review', 'Loans', 'Investments', 'Assets', 'Set up', 'Overview', 'Kuna settings'],
+    shows: ['Company', 'Cash on hand', '2 rows to review', 'Loans', 'Investments', 'Assets', 'Spending', 'Set up', 'Overview', 'Kuna settings'],
     cards: false,
   },
   {
@@ -992,38 +1088,25 @@ const SCREENS = [
     hash: '#/',
     title: 'Sve aplikacije',
     charts: 0,
-    shows: ['Tvrtka', 'Novac na računima', 'Krediti', 'Ulaganja', 'Imovina', 'Postavi', 'Pregled'],
+    shows: ['Tvrtka', 'Novac na računima', 'Krediti', 'Ulaganja', 'Imovina', 'Potrošnja', 'Postavi', 'Pregled'],
     cards: false,
   },
   {
     name: 'kuna-overview',
-    query: 'loans=sample&investments=sample&assets=sample',
+    query: 'loans=sample&investments=sample&assets=sample&spending=sample',
     hash: '#/overview',
     title: 'Overview',
     charts: 0,
-    shows: [
-      'What you own less what you owe',
-      'Leaves out bank accounts, which no app keeps yet',
-      'Next ',
-      ...OVERVIEW.english,
-      'What you could take out needs the company’s registration day in Settings.',
-    ],
+    shows: ['Net worth', 'Next ', 'Bank and cash', ...OVERVIEW.english, 'What you could take out needs the company’s registration day in Settings.'],
     cards: false,
   },
   {
     name: 'kuna-overview-croatian',
-    query: 'loans=sample&investments=sample&assets=sample&lang=hr',
+    query: 'loans=sample&investments=sample&assets=sample&spending=sample&lang=hr',
     hash: '#/overview',
     title: 'Pregled',
     charts: 0,
-    shows: [
-      'Imovina umanjena za dugove',
-      'Ne uključuje bankovne račune, koje još nijedna aplikacija ne vodi',
-      'Sljedeća rata ',
-      ...OVERVIEW.croatian,
-      'vaše nakon kredita „Home loan”',
-      'Novac tvrtke, izvan zbroja',
-    ],
+    shows: ['Neto imovina', 'Sljedeća rata ', 'Banka i gotovina', ...OVERVIEW.croatian, 'vaše nakon kredita „Home loan”', 'Novac tvrtke, izvan zbroja'],
     cards: false,
   },
   {
@@ -1071,7 +1154,7 @@ const SCREENS = [
     hash: '#/overview',
     title: 'Overview',
     charts: 0,
-    shows: [OVERVIEW.investmentsOnly, 'Not set up: Loans', 'Not set up: Assets'],
+    shows: [OVERVIEW.investmentsOnly, 'Not set up: Loans', 'Not set up: Assets', 'Not set up: Spending'],
     cards: false,
   },
   {
@@ -1080,7 +1163,34 @@ const SCREENS = [
     hash: '#/overview',
     title: 'Overview',
     charts: 0,
-    shows: [OVERVIEW.assetsOnly, 'Assets value', 'and 1 asset without a value', 'Not set up: Loans', 'Not set up: Investments'],
+    shows: [OVERVIEW.assetsOnly, 'Assets value', OVERVIEW.assetsOnlyLeavesOut, 'Not set up: Loans', 'Not set up: Investments', 'Not set up: Spending'],
+    cards: false,
+  },
+  {
+    name: 'kuna-overview-spending-only',
+    query: 'spending=sample',
+    hash: '#/overview',
+    title: 'Overview',
+    charts: 0,
+    shows: [OVERVIEW.spendingOnly.english, 'Bank and cash', OVERVIEW.spendingOnly.caption, 'Not set up: Loans', 'Not set up: Investments', 'Not set up: Assets'],
+    cards: false,
+  },
+  {
+    name: 'kuna-overview-spending-only-croatian',
+    query: 'spending=sample&lang=hr',
+    hash: '#/overview',
+    title: 'Pregled',
+    charts: 0,
+    shows: [OVERVIEW.spendingOnly.croatian, 'Banka i gotovina', 'Nije postavljeno: Krediti'],
+    cards: false,
+  },
+  {
+    name: 'kuna-overview-rates-opening',
+    query: 'loans=sample&investments=sample&assets=sample&spending=sample&rates=opening',
+    hash: '#/overview',
+    title: 'Overview',
+    charts: 0,
+    ready: '[data-testid="overview-net-opening"]',
     cards: false,
   },
   {
@@ -1098,7 +1208,14 @@ const SCREENS = [
     hash: '#/overview',
     title: 'Overview',
     charts: 0,
-    shows: ['Nothing to add up until an app is set up: Loans, Investments or Assets.', 'Not set up: Company', 'Not set up: Loans', 'Not set up: Investments', 'Not set up: Assets'],
+    shows: [
+      'Nothing to add up until an app is set up: Loans, Investments, Assets or Spending.',
+      'Not set up: Company',
+      'Not set up: Loans',
+      'Not set up: Investments',
+      'Not set up: Assets',
+      'Not set up: Spending',
+    ],
     cards: false,
   },
   {
@@ -1242,6 +1359,7 @@ const SOURCE_SCREENS = [
       'Your loans in a file of their own',
       'Every buy and sale at your brokers in a file of its own',
       'Your flat, your car and the other things you own, in a file of their own',
+      'Your accounts, what you spend and your monthly limits, in a file of their own.',
     ],
     cards: false,
   },
@@ -1257,11 +1375,30 @@ const SOURCE_SCREENS = [
       'Vaši krediti u zasebnoj datoteci',
       'Svaka kupnja i prodaja kod vaših brokera u zasebnoj datoteci',
       'Vaš stan, automobil i ostala imovina',
+      'Vaši računi, potrošnja i mjesečna ograničenja u zasebnoj datoteci.',
     ],
     cards: false,
   },
   { name: 'home-loans', query: 'loans=sample', hash: '#/', title: 'All apps', charts: 0, shows: ['Cash on hand', 'You owe in all'], cards: false },
   { name: 'home-assets', query: 'assets=sample', hash: '#/', title: 'All apps', charts: 0, shows: ['Assets value', ASSETS.alone.english, '1 asset without a value'], cards: false },
+  {
+    name: 'home-spending',
+    query: 'spending=sample',
+    hash: '#/',
+    title: 'All apps',
+    charts: 0,
+    shows: ['Spent this month', SPENDING.spent.english, 'Left this month', SPENDING.left.english],
+    cards: false,
+  },
+  {
+    name: 'home-spending-croatian',
+    query: 'spending=sample&lang=hr',
+    hash: '#/',
+    title: 'Sve aplikacije',
+    charts: 0,
+    shows: ['Potrošeno ovaj mjesec', SPENDING.spent.croatian, 'Preostalo ovaj mjesec', SPENDING.left.croatian],
+    cards: false,
+  },
   {
     name: 'home-investments',
     query: 'investments=sample',
@@ -2169,6 +2306,190 @@ const SOURCE_SCREENS = [
     shows: ['Assets file', 'Fake Assets file', 'Some changes are in no exported file yet'],
     cards: false,
   },
+  { name: 'spending-start', hash: '#/spending', title: 'Spending', charts: 0, shows: ['Where the Spending file lives', 'A new file on Google Drive', 'My file on Google Drive'], cards: false },
+  {
+    name: 'spending-start-croatian',
+    query: 'lang=hr',
+    hash: '#/spending',
+    title: 'Potrošnja',
+    charts: 0,
+    shows: ['Gdje se čuva datoteka potrošnje', 'Nova datoteka na Google Driveu', 'Moja datoteka na Google Driveu'],
+    cards: false,
+  },
+  { name: 'spending-overview-empty', query: 'spending=drive', hash: '#/spending', title: 'Overview', charts: 0, shows: ['No entries yet', 'Add an account', 'kuna-spending.json'], cards: false },
+  {
+    name: 'spending-overview-empty-croatian',
+    query: 'spending=drive&lang=hr',
+    hash: '#/spending',
+    title: 'Pregled',
+    charts: 0,
+    shows: ['Još nema unosa', 'Dodaj račun', 'kuna-spending.json'],
+    cards: false,
+  },
+  {
+    name: 'spending-overview',
+    query: 'spending=sample',
+    hash: '#/spending',
+    title: 'Overview',
+    charts: 2,
+    shows: ['Spent', SPENDING.spent.english, 'Left this month', SPENDING.left.english, 'Spending by group', 'Limits this month', 'Bank and cash', SPENDING.held.english],
+    cards: false,
+  },
+  {
+    name: 'spending-overview-croatian',
+    query: 'spending=sample&lang=hr',
+    hash: '#/spending',
+    title: 'Pregled',
+    charts: 2,
+    shows: ['Potrošeno', SPENDING.spent.croatian, 'Preostalo ovaj mjesec', SPENDING.left.croatian, 'Potrošnja po skupinama', 'Ograničenja ovaj mjesec', 'Banka i gotovina', SPENDING.held.croatian],
+    cards: false,
+  },
+  {
+    name: 'spending-transactions',
+    query: 'spending=sample',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    charts: 0,
+    shows: [...SPENDING.payees, 'All accounts', 'All categories'],
+    cards: false,
+  },
+  {
+    name: 'spending-transactions-croatian',
+    query: 'spending=sample&lang=hr',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    charts: 0,
+    shows: [...SPENDING.payees, 'Svi računi', 'Sve kategorije'],
+    cards: false,
+  },
+  {
+    name: 'spending-budgets',
+    query: 'spending=sample',
+    hash: '#/spending/budgets',
+    title: 'Limits',
+    charts: 0,
+    shows: ['Food', SPENDING.food.available.english, SPENDING.food.left.english, SPENDING.food.carriedIn.english],
+    cards: false,
+  },
+  {
+    name: 'spending-budgets-croatian',
+    query: 'spending=sample&lang=hr',
+    hash: '#/spending/budgets',
+    title: 'Ograničenja',
+    charts: 0,
+    shows: ['Hrana', SPENDING.food.available.croatian, SPENDING.food.left.croatian, SPENDING.food.carriedIn.croatian],
+    cards: false,
+  },
+  { name: 'spending-budgets-over', query: 'spending=over', hash: '#/spending/budgets', title: 'Limits', charts: 0, shows: SPENDING.over.english, cards: false },
+  { name: 'spending-budgets-over-croatian', query: 'spending=over&lang=hr', hash: '#/spending/budgets', title: 'Ograničenja', charts: 0, shows: SPENDING.over.croatian, cards: false },
+  {
+    name: 'spending-accounts',
+    query: 'spending=sample',
+    hash: '#/spending/accounts',
+    title: 'Accounts',
+    charts: 0,
+    shows: ['Bank and cash', SPENDING.held.english, SPENDING.held.caption, 'OTP current', 'Revolut USD', SPENDING.dollars.balance.english, SPENDING.dollars.euros.english],
+    cards: false,
+  },
+  {
+    name: 'spending-accounts-croatian',
+    query: 'spending=sample&lang=hr',
+    hash: '#/spending/accounts',
+    title: 'Računi',
+    charts: 0,
+    shows: ['Banka i gotovina', SPENDING.held.croatian, 'Revolut USD', SPENDING.dollars.balance.croatian, SPENDING.dollars.euros.croatian],
+    cards: false,
+  },
+  {
+    name: 'spending-account-usd',
+    query: 'spending=sample',
+    hash: `#/spending/account?account=${SAMPLE_USD_ACCOUNT}`,
+    title: 'Revolut USD',
+    charts: 0,
+    shows: ['Balance today', SPENDING.dollars.balance.english, SPENDING.dollars.euros.english, SPENDING.dollars.rateLine],
+    cards: false,
+  },
+  {
+    name: 'spending-account-usd-croatian',
+    query: 'spending=sample&lang=hr',
+    hash: `#/spending/account?account=${SAMPLE_USD_ACCOUNT}`,
+    title: 'Revolut USD',
+    charts: 0,
+    shows: ['Stanje danas', SPENDING.dollars.balance.croatian, SPENDING.dollars.euros.croatian, 'Po tečaju ESB-a od'],
+    cards: false,
+  },
+  {
+    name: 'spending-rates-failed',
+    query: 'spending=sample&rates=failed',
+    hash: '#/spending/accounts',
+    title: 'Accounts',
+    charts: 0,
+    shows: ['1 account in another currency not converted: the ECB rates did not load', SPENDING.heldWhileFailed.english, SPENDING.heldWhileFailed.caption],
+    cards: false,
+  },
+  {
+    name: 'spending-rates-failed-croatian',
+    query: 'spending=sample&rates=failed&lang=hr',
+    hash: '#/spending/accounts',
+    title: 'Računi',
+    charts: 0,
+    shows: ['1 račun u drugoj valuti nije preračunat: tečajevi ESB-a nisu se učitali', SPENDING.heldWhileFailed.croatian],
+    cards: false,
+  },
+  {
+    name: 'spending-categories',
+    query: 'spending=sample',
+    hash: '#/spending/settings',
+    title: 'Settings',
+    charts: 0,
+    shows: ['Categories', 'Food', 'Groceries', 'Outside spending and income', 'Between my accounts', 'Saved to investments', 'For the company', 'Counted in no spending, income or limit figure'],
+  },
+  {
+    name: 'spending-categories-croatian',
+    query: 'spending=sample&lang=hr',
+    hash: '#/spending/settings',
+    title: 'Postavke',
+    charts: 0,
+    shows: ['Kategorije', 'Hrana', 'Namirnice', 'Izvan potrošnje i prihoda', 'Između mojih računa', 'Prijenos u ulaganja', 'Za tvrtku', 'Ne ulazi ni u potrošnju, ni u prihode, ni u ograničenja'],
+  },
+  {
+    name: 'spending-settings',
+    query: 'spending=drive',
+    hash: '#/spending/settings',
+    title: 'Settings',
+    charts: 0,
+    ready: '[data-testid="spending-books-card"] [data-testid="drive-file-place"] a',
+    shows: ['Spending file', 'kuna-spending.json', 'Switch storage'],
+  },
+  {
+    name: 'spending-settings-croatian',
+    query: 'spending=drive&lang=hr',
+    hash: '#/spending/settings',
+    title: 'Postavke',
+    charts: 0,
+    ready: '[data-testid="spending-books-card"] [data-testid="drive-file-place"] a',
+    shows: ['Datoteka potrošnje', 'kuna-spending.json', 'Promijeni mjesto'],
+  },
+  {
+    name: 'spending-settings-browser',
+    query: 'fake=browser&spending=browser',
+    hash: '#/spending/settings',
+    title: 'Settings',
+    charts: 0,
+    shows: ['Spending file', 'Fake Spending file', 'Some changes are in no exported file yet'],
+  },
+  {
+    name: 'spending-settings-browser-croatian',
+    query: 'fake=browser&spending=browser&lang=hr',
+    hash: '#/spending/settings',
+    title: 'Postavke',
+    charts: 0,
+    shows: ['Datoteka potrošnje', 'Fake Spending file', 'Neke promjene još nisu ni u jednoj izvezenoj datoteci'],
+  },
+  { name: 'spending-opening', query: 'spending=opening', hash: '#/spending', title: 'Overview', charts: 0, ready: '[data-testid="spending-loading"]', cards: false },
+  { name: 'spending-opening-croatian', query: 'spending=opening&lang=hr', hash: '#/spending', title: 'Pregled', charts: 0, ready: '[data-testid="spending-loading"]', cards: false },
+  { name: 'spending-failed', query: 'spending=failed', hash: '#/spending', title: 'Overview', charts: 0, cards: false },
+  { name: 'spending-failed-croatian', query: 'spending=failed&lang=hr', hash: '#/spending', title: 'Pregled', charts: 0, cards: false },
   {
     name: 'investments-start',
     hash: '#/investments',
@@ -4154,6 +4475,68 @@ const FLOWS = [
   },
   { name: 'loans-editor-croatian', hash: '#/loans', title: 'Pregled', run: loansEditorFlowIn('hr'), modes: ['drive'], queries: { drive: '&loans=sample&lang=hr' } },
   {
+    name: 'spending-entry',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    run: spendingEntryDialogFlowIn('en', 'out'),
+    modes: ['drive'],
+    viewports: EVERY_VIEWPORT,
+    queries: { drive: '&spending=sample' },
+  },
+  {
+    name: 'spending-transfer',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    run: spendingEntryDialogFlowIn('en', 'transfer'),
+    modes: ['drive'],
+    viewports: EVERY_VIEWPORT,
+    queries: { drive: '&spending=sample' },
+  },
+  { name: 'spending-entry-editor', hash: '#/spending/transactions', title: 'Entries', run: spendingEntryFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=sample' } },
+  { name: 'spending-transfer-editor', hash: '#/spending/accounts', title: 'Accounts', run: spendingTransferFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=sample' } },
+  { name: 'spending-category-editor', hash: '#/spending/settings', title: 'Settings', run: spendingCategoryFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=sample' } },
+  { name: 'spending-limit-editor', hash: '#/spending/budgets', title: 'Limits', run: spendingLimitFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=sample' } },
+  {
+    name: 'spending-entry-croatian',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    run: spendingEntryDialogFlowIn('hr', 'out'),
+    modes: ['drive'],
+    viewports: EVERY_VIEWPORT,
+    queries: { drive: '&spending=sample&lang=hr' },
+  },
+  {
+    name: 'spending-transfer-croatian',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    run: spendingEntryDialogFlowIn('hr', 'transfer'),
+    modes: ['drive'],
+    viewports: EVERY_VIEWPORT,
+    queries: { drive: '&spending=sample&lang=hr' },
+  },
+  { name: 'spending-entry-editor-croatian', hash: '#/spending/transactions', title: 'Unosi', run: spendingEntryFlowIn('hr'), modes: ['drive'], queries: { drive: '&spending=sample&lang=hr' } },
+  { name: 'spending-transfer-editor-croatian', hash: '#/spending/accounts', title: 'Računi', run: spendingTransferFlowIn('hr'), modes: ['drive'], queries: { drive: '&spending=sample&lang=hr' } },
+  { name: 'spending-category-editor-croatian', hash: '#/spending/settings', title: 'Postavke', run: spendingCategoryFlowIn('hr'), modes: ['drive'], queries: { drive: '&spending=sample&lang=hr' } },
+  { name: 'spending-limit-editor-croatian', hash: '#/spending/budgets', title: 'Ograničenja', run: spendingLimitFlowIn('hr'), modes: ['drive'], queries: { drive: '&spending=sample&lang=hr' } },
+  {
+    name: 'spending-start-on-drive',
+    hash: '#/spending/start?step=folder',
+    title: 'Spending',
+    run: firstRunOnDriveFlowIn('spending', 'en'),
+    modes: ['drive'],
+    queries: { drive: '&spending=other-device' },
+  },
+  {
+    name: 'spending-start-on-drive-croatian',
+    hash: '#/spending/start?step=folder',
+    title: 'Potrošnja',
+    run: firstRunOnDriveFlowIn('spending', 'hr'),
+    modes: ['drive'],
+    queries: { drive: '&spending=other-device&lang=hr' },
+  },
+  { name: 'spending-browser', hash: '#/spending', title: 'Spending', run: firstRunBrowserFlowIn('spending', 'en'), modes: ['browser'] },
+  { name: 'spending-browser-croatian', hash: '#/spending', title: 'Potrošnja', run: firstRunBrowserFlowIn('spending', 'hr'), modes: ['browser'], queries: { browser: '&fake=browser&lang=hr' } },
+  {
     name: 'loans-scenarios-flow-croatian',
     hash: '#/loans/scenarios',
     title: 'Scenariji',
@@ -4336,17 +4719,24 @@ const FLOWS = [
     viewports: EVERY_VIEWPORT,
     queries: { drive: '&loans=drive&lang=hr', browser: '&fake=browser&loans=browser&lang=hr' },
   },
-  { name: 'home', hash: '#/', title: 'All apps', run: homeFlow, modes: ['drive'], queries: { drive: '&loans=sample&investments=sample&assets=sample' } },
-  { name: 'home-browser', hash: '#/', title: 'All apps', run: homeFlow, modes: ['browser'], queries: { browser: '&fake=browser&loans=sample&investments=sample&assets=sample' } },
+  { name: 'home', hash: '#/', title: 'All apps', run: homeFlow, modes: ['drive'], queries: { drive: '&loans=sample&investments=sample&assets=sample&spending=sample' } },
+  { name: 'home-browser', hash: '#/', title: 'All apps', run: homeFlow, modes: ['browser'], queries: { browser: '&fake=browser&loans=sample&investments=sample&assets=sample&spending=sample' } },
   { name: 'home-set-up', hash: '#/', title: 'All apps', run: setUpFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
-  { name: 'home-flow-croatian', hash: '#/', title: 'Sve aplikacije', run: homeFlowIn('hr'), modes: ['drive'], queries: { drive: '&loans=sample&investments=sample&assets=sample&lang=hr' } },
+  {
+    name: 'home-flow-croatian',
+    hash: '#/',
+    title: 'Sve aplikacije',
+    run: homeFlowIn('hr'),
+    modes: ['drive'],
+    queries: { drive: '&loans=sample&investments=sample&assets=sample&spending=sample&lang=hr' },
+  },
   {
     name: 'home-browser-croatian',
     hash: '#/',
     title: 'Sve aplikacije',
     run: homeFlowIn('hr'),
     modes: ['browser'],
-    queries: { browser: '&fake=browser&loans=sample&investments=sample&assets=sample&lang=hr' },
+    queries: { browser: '&fake=browser&loans=sample&investments=sample&assets=sample&spending=sample&lang=hr' },
   },
   { name: 'home-set-up-croatian', hash: '#/', title: 'Sve aplikacije', run: setUpFlowIn('hr'), modes: ['drive'], queries: { drive: '&fake=empty&lang=hr' } },
   { name: 'move-browser', hash: '#/company/settings?tab=books', title: 'Settings', run: moveFromBrowserFlow, modes: ['browser'] },

@@ -5,7 +5,7 @@ import { portfolioFigures } from '../src/apps/investments/holdings/domain/portfo
 import type { PortfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
 import { closeIsLate } from '../src/apps/investments/prices/domain/priceBook'
 import type { PriceBook } from '../src/apps/investments/prices/domain/priceBook'
-import type { RateBook } from '../src/apps/investments/prices/domain/rateBook'
+import type { RateBook } from '../src/shared/money/rateBook'
 import type { Instrument } from '../src/apps/investments/workbook/domain/instrument'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
 import { decimalText } from '../src/shared/money/decimal'

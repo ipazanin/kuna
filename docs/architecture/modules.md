@@ -14,10 +14,10 @@ The reasons for this shape, and the patterns it was weighed against, are in the 
 | `src/apps/loans`                | Bank loans and their plans, rate periods, the subsidy, informal loans and their movements, scenarios, kept in `kuna-loans.json`                                                        | `loansApp`, whose hub parts count as has and owes (`src/apps/loans/app.ts:55`)                                                 | Its own folder and `src/shared`                                                                                            |
 | `src/apps/investments`          | Instruments, trades, income, cash per account, FIFO lots, the prices file, vendor keys, performance and tax, kept in `kuna-investments.json` with its prices file beside it            | `investmentsApp`, whose hub part counts as has (`src/apps/investments/app.ts:85`)                                              | Its own folder and `src/shared`                                                                                            |
 | `src/apps/assets`               | Assets and valuations, a flat's value carried by the DZS index, a car's estimate from the customs table, equity after a linked loan, kept in `kuna-assets.json`                        | `assetsApp`, whose hub part counts as has (`src/apps/assets/app.ts`)                                                           | Its own folder, `src/shared`, and Loans' published `facts.ts` from one file only                                           |
-| `src/apps/spending`, planned    | Accounts, transactions and their lines, categories with a parent, budgets, receipts, its own rules and dry run, pairing a typed row with a statement row                               | An `AppContribution` whose hub parts count as has and owes                                                                     | Its own folder and `src/shared`                                                                                            |
+| `src/apps/spending`             | Accounts per currency, transactions, categories with a parent, budgets with carry-over, kept in `kuna-spending.json`                                                                   | `spendingApp`, whose hub parts count as has and owes (`src/apps/spending/app.ts`)                                              | Its own folder and `src/shared`                                                                                            |
 | `src/shared`                    | The kernel: value types, the document storage, Google, sync, the UI kit and charts                                                                                                     | Exported types and functions, never an app's records                                                                           | `src/shared` only                                                                                                          |
 
-`src/apps/company/spending` is the company's cost breakdown, a feature of the company app. The planned spending app gets its own folder, `src/apps/spending`.
+`src/apps/company/spending` is the company's cost breakdown, a feature of the company app. The Spending app has its own folder, `src/apps/spending`.
 
 ## Inside a module
 
@@ -71,11 +71,12 @@ The rules "no app imports another" and "shared imports no app" are what force ev
 | --------------------- | ------------------------------------------------------------------------------------------------ |
 | `src/shared/app`      | `AppContribution`, the hub contract, `personalNet` and `homeCardFigures`                         |
 | `src/shared/calendar` | `CivilDate`, month keys, date ranges and their labels                                            |
-| `src/shared/charts`   | ECharts setup, axes, tooltips, chart dots and the chart range select                             |
+| `src/shared/charts`   | ECharts setup, axes, tooltips, chart dots, the chart range select and the category swatches      |
 | `src/shared/files`    | Downloading a file and hashing it                                                                |
 | `src/shared/google`   | Sign-in, scopes, the Drive client and the Picker                                                 |
 | `src/shared/layout`   | The viewport and sticky bands                                                                    |
-| `src/shared/money`    | `Money`, decimals, money formats and typed amounts                                               |
+| `src/shared/money`    | `Money`, decimals, money formats, typed amounts and the ECB conversion rule (`RateBook`)         |
+| `src/shared/rates`    | The ECB fetch and its fake twin                                                                  |
 | `src/shared/routing`  | The browser tab's title                                                                          |
 | `src/shared/storage`  | Record kinds and ids, the store, the Drive and browser homes, the first run                      |
 | `src/shared/styles`   | The app's CSS and design tokens                                                                  |

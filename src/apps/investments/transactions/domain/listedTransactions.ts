@@ -1,6 +1,6 @@
 import { latestRecords } from '../../holdings/domain/latestRecords'
 import type { LatestRecord } from '../../holdings/domain/latestRecords'
-import type { RateBook } from '../../prices/domain/rateBook'
+import type { RateBook } from '../../../../shared/money/rateBook'
 import type { CashMovement } from '../../workbook/domain/cashMovement'
 import type { Exchange } from '../../workbook/domain/exchange'
 import type { HandPrice } from '../../workbook/domain/handPrice'

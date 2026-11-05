@@ -1,6 +1,6 @@
 import { foreignIncomeYear } from './foreignIncome'
 import { capitalGainsYear } from './taxYear'
-import type { RateBook } from '../../prices/domain/rateBook'
+import type { RateBook } from '../../../../shared/money/rateBook'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'

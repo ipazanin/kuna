@@ -6,7 +6,7 @@ import type { InstrumentErrors, InstrumentTexts } from '../../holdings/presentat
 import type { ReportedSplit } from '../../prices/application/priceVendor'
 import type { SplitsLookedUp } from '../../prices/application/splitLookup'
 import type { CloseRow } from '../../prices/domain/pricesFile'
-import type { RateBook } from '../../prices/domain/rateBook'
+import type { RateBook } from '../../../../shared/money/rateBook'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentAccount } from '../../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'

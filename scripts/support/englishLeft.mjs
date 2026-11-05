@@ -27,6 +27,8 @@ import { OPEN_ITEMS, RULES } from '../../src/apps/company/packs/hr-doo/ruleset/r
 import { termLabel } from '../../src/apps/company/packs/hr-doo/ruleset/presentation/ruleWording.ts'
 import { fakeLoansDocument } from '../../src/apps/loans/workbook/infrastructure/fake/fakeLoans.ts'
 import { fakeAssetsDocument } from '../../src/apps/assets/workbook/infrastructure/fake/fakeAssets.ts'
+import { starterCategories } from '../../src/apps/spending/categories/domain/starterCategories.ts'
+import { fakeSpendingDocument } from '../../src/apps/spending/workbook/infrastructure/fake/fakeSpending.ts'
 import { fakeInvestmentsDocument } from '../../src/apps/investments/workbook/infrastructure/fake/fakeInvestments.ts'
 import { fakePricesFile } from '../../src/apps/investments/prices/infrastructure/fake/fakePrices.ts'
 import { sampleWorkbookGrid } from '../../src/apps/investments/imports/infrastructure/fake/sampleWorkbook.ts'
@@ -157,9 +159,10 @@ const FAKE_DOCUMENTS = [
   ...['sample', 'one-loan', 'house-and-car', 'equal-principal'].map((set) => fakeLoansDocument(FAKE_SAVED_AT, set)),
   ...['sample', 'cash-below-zero'].map((variant) => fakeInvestmentsDocument(FAKE_SAVED_AT, variant)),
   ...['sample', 'house-and-car', 'loan-gone'].map((set) => fakeAssetsDocument(FAKE_SAVED_AT, set)),
+  ...['sample', 'foreign', 'over'].map((set) => fakeSpendingDocument(FAKE_SAVED_AT, set)),
 ]
 
-/** The words of the field names of the Company, Loans, Investments and Assets files, which a Croatian reason writes in lower case as the file stores them. */
+/** The words of the field names of the Company, Loans, Investments, Assets and Spending files, which a Croatian reason writes in lower case as the file stores them. */
 const FILE_FIELDS = new Set(
   [
     ...WORKBOOK_TABS.flatMap((tab) => templateColumnNames(tab)),
@@ -207,7 +210,12 @@ export const ENGLISH_WORDS = new Set(
 )
 
 /** What Kuna writes into a file in English and names in Croatian on a Croatian screen, so it is never data that may stay English. */
-const SEEDED_IN_ENGLISH = new Set([...Object.values(settingsEnglish.bucketLabels), ...Object.values(scenariosEnglish.starting), NEW_BOOKS_TITLE])
+const SEEDED_IN_ENGLISH = new Set([
+  ...Object.values(settingsEnglish.bucketLabels),
+  ...Object.values(scenariosEnglish.starting),
+  NEW_BOOKS_TITLE,
+  ...starterCategories('en').map((category) => category.name),
+])
 
 /** Every string anywhere in a value, such as a fake file's records. */
 function stringsIn(value) {
@@ -325,7 +333,7 @@ export const ENGLISH_ALLOWED = [
   {
     name: 'typed by the checks',
     reason: 'What the flows of the visual check type, and the search a screen opens with, are data like anything a person types.',
-    texts: ['Paper and pens', 'Train tickets, changed', 'Checked in the editor.', 'purchase, laptop', '€200 a month', 'Flat by the sea', 'Dealer offer'],
+    texts: ['Paper and pens', 'Train tickets, changed', 'Checked in the editor.', 'purchase, laptop', '€200 a month', 'Flat by the sea', 'Dealer offer', 'Bakery by the port', 'Coffee and tea'],
   },
   {
     name: 'invoice mail in the client language',

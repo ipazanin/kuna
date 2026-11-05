@@ -1,5 +1,5 @@
 import type { TransactionKind, TransactionRecord } from '../domain/listedTransactions'
-import type { RateBook } from '../../prices/domain/rateBook'
+import type { RateBook } from '../../../../shared/money/rateBook'
 import type { CashMovementKind } from '../../workbook/domain/cashMovement'
 import type { IncomeKind } from '../../workbook/domain/income'
 import type { Instrument } from '../../workbook/domain/instrument'

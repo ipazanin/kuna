@@ -11,16 +11,21 @@
  *   npm run check:figures -- --fake-investments sample [--today yyyy-mm-dd]
  *   npm run check:figures -- --assets <path to a Kuna Assets file> [--house-index <path to a saved answer of the DZS>] [--today yyyy-mm-dd]
  *   npm run check:figures -- --fake-assets <sample, house-and-car or loan-gone> [--today yyyy-mm-dd]
+ *   npm run check:figures -- --spending <path to a Kuna Spending file> [--spending-rates <folder of saved ECB answers>] [--today yyyy-mm-dd]
+ *   npm run check:figures -- --fake-spending <sample, foreign or over> [--today yyyy-mm-dd]
  *
- * A Loans, an Investments or an Assets input goes with the others or alone, and its groups follow the company's, in
- * that order. With two or more, a last group adds them up as Kuna's Overview does. An Investments file without its
- * prices file is valued with no closes and no rates, and an Assets file without a saved DZS answer as if the house
- * price index failed. The fake Assets sets take the fake index. An asset's loan is read from the Loans input, and
- * without one Loans counts as not set up.
+ * A Loans, an Investments, an Assets or a Spending input goes with the others or alone, and its groups follow the
+ * company's, in that order. With two or more, a last group adds them up as Kuna's Overview does. An Investments file
+ * without its prices file is valued with no closes and no rates, and an Assets file without a saved DZS answer as if
+ * the house price index failed. The fake Assets sets take the fake index. An asset's loan is read from the Loans input,
+ * and without one Loans counts as not set up. The Spending rates folder holds the ECB's csvdata answer of each foreign
+ * currency in a file named by it, such as USD.csv, and a currency without one, or a Spending file without the folder,
+ * leaves its rows unrated. The fake Spending sets take the fake ECB.
  */
 
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 
 import { billingTotals } from '../src/apps/company/billingPlan/domain/billingTotals.ts'
@@ -99,7 +104,7 @@ import { unaccountedInView } from '../src/apps/company/packs/hr-doo/presentation
 import { yearOptions } from '../src/apps/company/packs/hr-doo/presentation/year/yearChoice.ts'
 import { ruleValue } from '../src/apps/company/packs/hr-doo/ruleset/ruleset.ts'
 import { civilDate, parseCivilDate, yearOf } from '../src/shared/calendar/civilDate.ts'
-import { yearOfMonth } from '../src/shared/calendar/monthKey.ts'
+import { addMonths, monthOf, monthsFrom, yearOfMonth } from '../src/shared/calendar/monthKey.ts'
 import { setMoneyFormat } from '../src/shared/money/moneyFormat.ts'
 import { paidSoFar, paymentsByYear, splitOfRows } from '../src/apps/loans/bankLoans/domain/loanFigures.ts'
 import { triedRate, whatIfChange, whatIfExtraPayment } from '../src/apps/loans/bankLoans/domain/whatIf.ts'
@@ -158,6 +163,16 @@ import { assetLoansOf } from '../src/apps/assets/loans/application/assetLoans.ts
 import { assetsOnDay, assetsTotal } from '../src/apps/assets/values/presentation/assetsOnDay.ts'
 import { ASSETS_DOCUMENT } from '../src/apps/assets/workbook/infrastructure/assetsDocument.ts'
 import { fakeAssetsDocument } from '../src/apps/assets/workbook/infrastructure/fake/fakeAssets.ts'
+import { accountOnDay } from '../src/apps/spending/rates/domain/euroRows.ts'
+import { ratesStateOf } from '../src/apps/spending/rates/domain/ratesState.ts'
+import { ratesNeeded } from '../src/apps/spending/rates/domain/ratesNeeded.ts'
+import { monthFlow } from '../src/apps/spending/analytics/domain/monthFlow.ts'
+import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures.ts'
+import { spendingHubFigures } from '../src/apps/spending/home/presentation/spendingHubFigures.ts'
+import { fakeSpendingDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending.ts'
+import { SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/spendingDocument.ts'
+import { ecbRates } from '../src/shared/rates/infrastructure/ecbRates.ts'
+import { fakeEcbFetch } from '../src/shared/rates/infrastructure/fake/fakeEcbRates.ts'
 import { personalNet } from '../src/shared/app/personalNet.ts'
 import { DEFAULT_MONEY_FORMAT } from '../src/shared/money/moneyFormat.ts'
 import { installHrDooPack } from './support/installPack.mjs'
@@ -174,6 +189,9 @@ const { values: options } = parseArgs({
     assets: { type: 'string' },
     'house-index': { type: 'string' },
     'fake-assets': { type: 'string' },
+    spending: { type: 'string' },
+    'spending-rates': { type: 'string' },
+    'fake-spending': { type: 'string' },
     today: { type: 'string', default: '2026-10-28' },
   },
 })
@@ -183,6 +201,7 @@ const companyAsked = options.fake !== undefined || options.workbook !== undefine
 const loansAsked = options.loans !== undefined || options['fake-loans'] !== undefined
 const investmentsAsked = options.investments !== undefined || options['fake-investments'] !== undefined
 const assetsAsked = options.assets !== undefined || options['fake-assets'] !== undefined
+const spendingAsked = options.spending !== undefined || options['fake-spending'] !== undefined
 if (
   (options.fake !== undefined && options.workbook !== undefined) ||
   (options.loans !== undefined && options['fake-loans'] !== undefined) ||
@@ -190,15 +209,18 @@ if (
   (options['investments-prices'] !== undefined && options.investments === undefined) ||
   (options.assets !== undefined && options['fake-assets'] !== undefined) ||
   (options['house-index'] !== undefined && options.assets === undefined) ||
-  (!companyAsked && !loansAsked && !investmentsAsked && !assetsAsked) ||
+  (options.spending !== undefined && options['fake-spending'] !== undefined) ||
+  (options['spending-rates'] !== undefined && options.spending === undefined) ||
+  (!companyAsked && !loansAsked && !investmentsAsked && !assetsAsked && !spendingAsked) ||
   (options.fake !== undefined && !knownFake) ||
   (options['fake-loans'] !== undefined && !['sample', 'house-and-car', 'equal-principal'].includes(options['fake-loans'])) ||
   (options['fake-investments'] !== undefined && options['fake-investments'] !== 'sample') ||
   (options['fake-assets'] !== undefined && !['sample', 'house-and-car', 'loan-gone'].includes(options['fake-assets'])) ||
+  (options['fake-spending'] !== undefined && !['sample', 'foreign', 'over'].includes(options['fake-spending'])) ||
   today === null
 ) {
   console.error(
-    'Usage: npm run check:figures -- [--fake <drive, browser, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car or equal-principal>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car or loan-gone>] [--today yyyy-mm-dd]',
+    'Usage: npm run check:figures -- [--fake <drive, browser, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car or equal-principal>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car or loan-gone>] [--spending <path to .json> [--spending-rates <folder of USD.csv and the like>] | --fake-spending <sample, foreign or over>] [--today yyyy-mm-dd]',
   )
   process.exit(2)
 }
@@ -358,6 +380,7 @@ const personal = [
   ...(loans === null ? [] : [{ name: 'Loans', figures: loans.hub }]),
   ...(investmentsAsked ? [{ name: 'Investments', figures: investmentsGroups(group) }] : []),
   ...(assetsAsked ? [{ name: 'Assets', figures: assetsGroups(group, loans?.book ?? null) }] : []),
+  ...(spendingAsked ? [{ name: 'Spending', figures: await spendingGroups(group) }] : []),
 ]
 if (personal.length >= 2) {
   group('hub.personal', () => personalNet(personal.map(({ name, figures }) => ({ name, notSetUp: false, currency: DEFAULT_MONEY_FORMAT.currency, figures: figures() }))))
@@ -573,6 +596,61 @@ function assetsGroups(add, loansBook) {
   add('assets.totals', () => assetsTotal(workbook, today, index, loans))
   add('assets.hub', () => assetsHubFigures(workbook, today, index, loans))
   return () => assetsHubFigures(workbook, today, index, loans)
+}
+
+/** The ECB answer of each saved file in the Spending rates folder, by the currency its name gives. */
+function savedRates() {
+  const folder = options['spending-rates']
+  if (folder === undefined) {
+    return new Map()
+  }
+  const saved = readdirSync(folder).filter((name) => /^[A-Z]{3}\.csv$/.test(name))
+  return new Map(saved.map((name) => [name.slice(0, 3), readFileSync(join(folder, name), 'utf8')]))
+}
+
+/** The rates of a Spending input as the page holds them once fetched: the fake ECB's for a fake set, else the saved answers, a currency without one failed. */
+async function ratesOfInput(workbook) {
+  const saved = savedRates()
+  const fetchOf = (currency) => (options['fake-spending'] !== undefined ? fakeEcbFetch : async () => (saved.has(currency) ? { status: 200, text: saved.get(currency) } : { status: 404, text: '' }))
+  const answers = await Promise.all([...ratesNeeded(workbook)].map(async ([currency, from]) => [currency, await ecbRates(fetchOf(currency), currency, from)]))
+  const unreadable = answers.find(([, answer]) => answer.kind === 'unreadable')
+  if (unreadable !== undefined) {
+    console.error(`The saved ECB answer of ${unreadable[0]} has no TIME_PERIOD and OBS_VALUE columns.`)
+    process.exit(2)
+  }
+  return ratesStateOf(new Map(answers.map(([currency, answer]) => [currency, answer.kind === 'rates' ? answer.rates : null])))
+}
+
+/**
+ * The Spending groups: the records and problems, then per account, named by its place in the file and never by its
+ * name, its balance on the day in its currency and in euros, then income, spending and saved for every month from the
+ * oldest row to the day's, then for the newest complete month and the day's month what each category and group counts
+ * and each limit with its carry, then Kuna's Overview's part. Returns how Kuna's Overview reads the file.
+ */
+async function spendingGroups(add) {
+  const document = options.spending === undefined ? fakeSpendingDocument(AT, options['fake-spending'], today) : decodeDocument(readFileSync(options.spending, 'utf8'))
+  const { records, workbook } = SPENDING_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
+  add('spending.read.records', records)
+  add('spending.read.problems', workbook.problems)
+  const rates = await ratesOfInput(workbook)
+  for (const [place, account] of workbook.accounts.entries()) {
+    const { balance, euros } = accountOnDay(account, workbook.transactions, today, rates.book)
+    add(`spending.account-${place + 1}.balance`, [balance, euros])
+  }
+  const figures = spendingFigures(workbook, rates.book)
+  const thisMonth = monthOf(today)
+  // The book keeps its rows oldest first.
+  const oldest = workbook.transactions[0]?.date ?? null
+  add('spending.months', () => monthFlow(oldest === null ? [] : monthsFrom(monthOf(oldest), thisMonth).map((month) => figures.totalsOf(month))))
+  for (const month of [addMonths(thisMonth, -1), thisMonth]) {
+    add(`spending.month.${month}.categories`, () => {
+      const { byCategory, byGroup } = figures.totalsOf(month)
+      return [byCategory, byGroup]
+    })
+    add(`spending.budgets.${month}`, () => figures.limitsIn(month))
+  }
+  add('spending.hub', () => spendingHubFigures(workbook, rates, today))
+  return () => spendingHubFigures(workbook, rates, today)
 }
 
 const digests = new WeakMap()

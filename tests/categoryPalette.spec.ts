@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { SWATCHES } from '../src/apps/company/workbook/domain/categoryColour'
-import { swatchToken } from '../src/apps/company/workbook/presentation/categoryColours'
+import { SWATCHES, swatchToken } from '../src/shared/charts/swatches'
 import { DARK_TOKENS, LIGHT_TOKENS } from './fixtures/tokens'
 
 describe('the category palette', () => {

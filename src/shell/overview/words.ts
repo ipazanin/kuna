@@ -6,9 +6,9 @@ import type { Translation } from '../../shared/text/translation'
 
 export const en = {
   title: 'Overview',
-  description: 'Your money across Loans, Investments and Assets, and what the company could pay you.',
-  net: 'What you own less what you owe',
-  leavesOut: (more: readonly string[]) => `Leaves out bank accounts, which no app keeps yet${more.length === 0 ? '' : `, and ${listInWords(more)}`}.`,
+  description: 'Your money across Loans, Investments, Assets and Spending, and what the company could pay you.',
+  net: 'Net worth',
+  leavesOut: (notes: readonly string[]) => (notes.length === 0 ? '' : `Leaves out ${listInWords(notes)}.`),
   notSetUp: (app: string) => `Not set up: ${app}`,
   failed: (apps: readonly string[]) => `${listInWords(apps)} did not open, so nothing is added up.`,
   nothing: (apps: readonly string[]) => `Nothing to add up until an app is set up: ${listInWords(apps, 'or')}.`,
@@ -18,9 +18,9 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   title: 'Pregled',
-  description: 'Vaš novac u Kreditima, Ulaganjima i Imovini te što vam tvrtka može isplatiti.',
-  net: 'Imovina umanjena za dugove',
-  leavesOut: (more) => `Ne uključuje bankovne račune, koje još nijedna aplikacija ne vodi${more.length === 0 ? '' : `, ni ${listInWords(more)}`}.`,
+  description: 'Vaš novac u Kreditima, Ulaganjima, Imovini i Potrošnji te što vam tvrtka može isplatiti.',
+  net: 'Neto imovina',
+  leavesOut: (notes) => (notes.length === 0 ? '' : `Ne uključuje ${listInWords(notes)}.`),
   notSetUp: (app) => `Nije postavljeno: ${app}`,
   failed: (apps) =>
     apps.length === 1 ? `Datoteka aplikacije ${listInWords(apps)} nije se otvorila, pa se ništa ne zbraja.` : `Datoteke aplikacija ${listInWords(apps)} nisu se otvorile, pa se ništa ne zbraja.`,

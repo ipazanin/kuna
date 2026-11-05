@@ -1,7 +1,7 @@
 # Kuna
 
-Three apps over files of their own, computed in the browser: Company's finance dashboards over a
-workbook of bank transactions, Loans, and Investments. Company's workbook is one JSON document,
+Five apps over files of their own, computed in the browser: Company's finance dashboards over a
+workbook of bank transactions, Loans, Investments, Assets and Spending. Company's workbook is one JSON document,
 `kuna-company.json`, in a Google Drive folder the user picks, or the same document kept in this browser. There is no backend. It deploys to GitHub Pages at
 `https://ipazanin.github.io/kuna/`, with a privacy page at `privacy.html`.
 
@@ -353,16 +353,19 @@ place on the home and in every app, and it syncs every app's file on Drive. Each
 with a quiet Kuna mark and name linking home, so a first run left half way goes back to the home. There is no app
 switcher, keyboard shortcut or bottom bar.
 
-Kuna's Overview at `#/overview` leads with What you own less what you owe: the Investments value,
-the Assets value and what others owe you, less what you owe. It is not called net worth, and its
-caption says what it leaves out: bank accounts, which no app keeps yet, holdings without a price,
-assets without a value and the DZS index when it did not load. A tile per part follows, each opening
-its app's Overview: You owe in all with the next loan payment as its caption, and Assets value with
-what is yours after the loans on the assets. That caption is never added in, since Assets value counts
-each asset in full and You owe in all each loan in full. A Loans, Investments or Assets file that
-failed to open holds the sum back and names the app, one still opening, or the house price index
-still loading for a flat, shows a placeholder, and an app not set up counts as nothing and is listed
-with Set up.
+Kuna's Overview at `#/overview` leads with Net worth: Bank and cash, the Investments value, the
+Assets value and what others owe you, less what you owe. Bank and cash is Spending's part, the open
+accounts at or above zero in euros at the ECB rate of the day, and an overdrawn account counts with
+what you owe. The caption lists only what the apps' parts leave out, such as holdings without a
+price, assets without a value, the DZS index when it did not load and an account in another currency
+when the ECB rates did not load, and with nothing left out there is no caption. A tile per part
+follows, each opening its app: You owe in all with the next loan payment as its caption, Assets value
+with what is yours after the loans on the assets, and Bank and cash with how many accounts it adds
+up, which opens Spending's Accounts. The Assets caption is never added in, since Assets value counts
+each asset in full and You owe in all each loan in full. A Loans, Investments, Assets or Spending file
+that failed to open holds the sum back and names the app. One still opening, the house price index
+still loading for a flat, or the ECB rates still loading for an account in another currency, shows a
+placeholder, and an app not set up counts as nothing and is listed with Set up.
 Below, apart from the sum, the company's money is one figure: what the owner could take out now,
 the kept profit paid out today as Year's Pay tab works it out, after the dividend tax and with the
 owner's loan to the company settled first, or a line saying why there is none. It opens that option on the Pay tab. Each app gives its
@@ -629,7 +632,7 @@ colour, reads as the bucket colour with no problem and stays in the tab as it is
 a swatch. A chart by category gives such a category the next chart slot that no category of its
 bucket was given, in the order of the tab, so a category with nothing in the period never repaints
 the others. Charts of whole buckets, such as Overview's ring and the profit and loss, keep the
-bucket colours. `SWATCHES` in `src/apps/company/workbook/domain/categoryColour.ts` lists the palette,
+bucket colours. `SWATCHES` in `src/shared/charts/swatches.ts` lists the palette,
 and `tests/categoryPalette.spec.ts` fails when it and `tokens.css` disagree.
 
 `flagged_by` values `rule` and `ai` belong to the categoriser: `ai` marks a guess that waits for
@@ -2011,7 +2014,7 @@ npm run check:visual   # every screen at nine widths from 360 to 2560 in local C
 npm run check:touch    # touch at 360 and 430 px: top bar with its one-line Sync button and drawer of one app's menu under the link home, the home's top bar without a menu button and a fresh device's home in Set up, the tabs of the company's Settings with Back, a link to Year's Statements tab alone kept in its year, the Tax rules search and a rule in its sheet, Overview's waiting card with its review and corporate tax lines, drills, the Year screen's tabs and three editors, a forecast line, a payout option, the Plan tab, a pay scenario's warnings, figures and starting figures with the base beside one scenario, filter sheet, import, the categories searched, filtered from their sheet, sorted and edited while filtered, Owner opening on Taken with its net share and monthly net pay tiles, Owner's Filters button on the tab row setting one period for both tabs, the owner take under its ring against its tile, a month of the loan balance beside the ring opening its rows, the tax the benefits from company costs avoided against a dividend full screen, a card collapsed and expanded per screen, the row editors, an owner advance changed and deleted, one added outside the period and opened from its toast, the split editor on Transactions and its To review tab, a category changed on Transactions, an owner share changed and cleared, a default saved with the fill offer, a dismissal, a rule changed and deleted from its editor with undo, and both statement imports in both modes, statements filed and held on sync with each state of the sync control and its steps in a bottom sheet, the statements folder saved from Settings, General, the way back from Google's sign-in page and from the Drive read grant, silent or asked, and back into onboarding's access step, and from the silent ask after a sign-in with the sync it carries, ending ready or in Allow access, Salaries for five made-up employees with the gross to net chart's tap-then-drill, the one problem's build-up and rows, People and Over time, the mail step off, saved, filing with its list and filing nothing new the second time, nothing new, a failed source, a failed upload, needing Gmail read access and saved with Gmail read asked in the same tap, the accountant's mail switched off, the payroll switched on without a sender, Gmail asking to slow down, the window after mail already there, Allow access whose Google window closed, onboarding on the fake Drive with statements by hand, from mail with its first sync and from a folder, in this browser, with an xlsx brought along and with books found on Drive, the statement step asking for Drive read before the Picker, a workbook moved there from Settings, Books file with the Drive read its folders need, a race kept on both sides, the newer-file notice, the Loans find a tap resumed ending on the Loans Overview, the sample Loans Overview and both loan pages with a plan row opened by a tap and the payments chart as a table, an extra payment entered and undone, the Home loan's two charts set to the last year together and back to All, Scenarios' picker, base select and Delete with Undo, 100,000 at 4% over 10 years typed into a new scenario with the editor's headline reading the annuity and then equal principal, a rate change saved as a try on a loan's page, deleted and undone, the Investments first run making its file on the fake Drive and ending on its empty Overview and Settings, a Holdings row opening its holding's page and the way back, the period of Performance changed to 1Y, to a year and back to All, a dollar buy typed on Transactions with 0.01k in its fees and its summary read, then added and undone, 44 px targets, in visual-check/touch/
 npm run check:pwa      # after npm run build: manifest, offline reload, update prompt. Add -- --firefox for Firefox
 npm run check:round-trip -- --workbook <file.xlsx>   # open as the document, write and read it, export and open again, counts only
-npm run check:figures -- --workbook <file.xlsx or .json>   # a count and a digest per group of figures behind every screen, or --fake <variant>, never a figure, so two trees compare with diff. --loans <kuna-loans.json> or --fake-loans sample (or house-and-car or equal-principal) adds the Loans groups, or gives them alone, and --investments <kuna-investments.json> with --investments-prices <kuna-investments-prices.json>, or --fake-investments sample with the fake prices file, adds the Investments groups: the records, each holding, each account's cash, the portfolio, the last day, the Overview's cards, the value over time, the benchmark's closes, Performance over each period it offers and its returns by year. --assets <kuna-assets.json> with an optional --house-index <a saved answer of the DZS>, or --fake-assets sample (or house-and-car or loan-gone) with the fake index, adds the Assets groups: the records, each asset's value with how it was reached and its loan with what is yours, the total and its part of Kuna's Overview. An Assets file without a saved answer is valued as if the index failed, and an asset's loan is read from the Loans input. With two or more personal inputs, hub.personal adds them up as Kuna's Overview does
+npm run check:figures -- --workbook <file.xlsx or .json>   # a count and a digest per group of figures behind every screen, or --fake <variant>, never a figure, so two trees compare with diff. --loans <kuna-loans.json> or --fake-loans sample (or house-and-car or equal-principal) adds the Loans groups, or gives them alone, and --investments <kuna-investments.json> with --investments-prices <kuna-investments-prices.json>, or --fake-investments sample with the fake prices file, adds the Investments groups: the records, each holding, each account's cash, the portfolio, the last day, the Overview's cards, the value over time, the benchmark's closes, Performance over each period it offers and its returns by year. --assets <kuna-assets.json> with an optional --house-index <a saved answer of the DZS>, or --fake-assets sample (or house-and-car or loan-gone) with the fake index, adds the Assets groups: the records, each asset's value with how it was reached and its loan with what is yours, the total and its part of Kuna's Overview. An Assets file without a saved answer is valued as if the index failed, and an asset's loan is read from the Loans input. --spending <kuna-spending.json> with an optional --spending-rates <a folder of saved ECB answers, one per currency named like USD.csv>, or --fake-spending sample (or foreign or over) with the fake ECB, adds the Spending groups: the records, each account's balance in its currency and in euros, income, spending and saved for every month from the oldest row, what each category and group counts and each limit with its carry for the newest complete month and the day's month, and its part of Kuna's Overview. A Spending file without saved rates leaves its foreign rows unrated. With two or more personal inputs, hub.personal adds them up as Kuna's Overview does
 ```
 
 The fake workbook is an 18-month synthetic company: two accounts, one closed by a sweep into the
@@ -2160,7 +2163,7 @@ lists only shrink. Inline disable comments have no effect. The kuna-design skill
 
 ### The shell and its apps
 
-The app is a thin shell with apps inside it, today four: the company's books, Loans, Investments and Assets. `src/main.ts` imports
+The app is a thin shell with apps inside it, today five: the company's books, Loans, Investments, Assets and Spending. `src/main.ts` imports
 each app's `app.ts` as the page starts, installs it, then mounts the shell. `src/shell` holds the
 frame, the router, the app registry, the home and Kuna settings. `src/shared` is the kernel every app
 uses: the UI kit, the calendar, money and text helpers, Google, the document storage, and
@@ -2982,6 +2985,91 @@ and a file where two assets name one loan is read with a problem on both, which 
 
 The Overview at `#/assets` leads with Assets value and what is yours after the loans, then a card per
 asset with its value and how it was reached. An empty file shows an empty state with Add an asset.
+
+### Spending app
+
+`src/apps/spending` is the fifth app, at `#/spending`, named so here because the company's books have
+a spending breakdown of their own. It keeps the owner's personal bank, cash and savings accounts in
+its own file, `kuna-spending.json`, through the same document storage as Loans, with its own first
+run, Settings and card on the home. Its menu is Overview, Entries, Limits and Accounts, with
+Settings apart. Its schema is `{"spending":1}`, with four kinds: `account`, `category`, `transaction`
+and `budget`.
+
+- **An account** has a name, a kind (Bank account, Cash or Savings), its bank (OTP, Revolut or other),
+  one currency, the opening balance on the day it opened, below zero for one that was overdrawn, an
+  IBAN, blank on cash, and whether it is closed. A Revolut card that holds euros and dollars is two
+  accounts, and no two accounts share an IBAN and a currency. An account keeps its currency once
+  entries name it.
+- **An entry** is a `transaction`: its account, day, amount in the account's currency with money in
+  above zero, payee, category, note and, for money between your accounts, the other leg as its
+  `pair`. An entry without a category waits on review and counts nowhere until it has one.
+- **A category** is a group or a child of a group of the same kind.
+- **A budget** is a monthly limit in euros on a spending category or group from a month on. One of 0
+  ends it, and a group and one of its children never both have one.
+
+Money between your accounts writes both legs in one write, and deleting one leg deletes the other,
+with one Undo for both.
+
+**Balances** are worked out on load and never read from a bank, by `accountBalance` in
+`accounts/domain/accountBalance.ts`: the opening plus every entry from the day the account opened to
+the day, in the account's currency. **Euros** have one owner, `euroRows` in `rates/domain/euroRows.ts`,
+which gives each entry its euros at the ECB rate of its day, or of the newest earlier day with one,
+through `eurosAtEcbRate` in `src/shared/money/rateBook.ts`, the conversion Investments uses too. A
+balance is converted at the rate of the day it is shown for. A euro account passes through, and so
+does a card spend abroad on one, since the bank booked euros. An entry older than the rates in hand is
+unrated and counts as nothing, never guessed.
+
+**The ECB rates** come from `src/shared/rates/infrastructure/ecbRates.ts`, the fetch Investments'
+ECB vendor uses too. `rates/presentation/useRates.ts` asks for each foreign currency of the file once
+per page load, from a week before its oldest account or entry, and again on Sync, and keeps the
+answer in memory only, since the rates are public and can be fetched again. While they load, a
+figure that needs them waits. If they fail, a foreign account is left out of the euro figures and the
+page says so. The fake build answers made-up rates from
+`src/shared/rates/infrastructure/fake/fakeEcbRates.ts`, and `?rates=opening` or `?rates=failed` hold
+or refuse them.
+
+**Categories** are two levels, seeded on the first run in Croatian or English from one table,
+`categories/domain/starterCategories.ts`: eleven spending groups, such as Food, Home, Transport and
+Boat, each with its children, and Income with its own. Each can be renamed, moved to another group,
+reordered, recoloured, hidden, which keeps its history, or deleted into another category, which moves
+its entries there and deletes its limits in the same write, while the other category keeps its own. A category takes its own swatch or its group's. Three fixed
+categories sit beside the groups and never count as spending. They can only be renamed:
+
+- **Between my accounts** counts nowhere and only moves balances.
+- **Saved to investments** is money sent to the broker. It is neither spending nor income, and the
+  month shows it under Saved to investments.
+- **For the company** counts in no spending, income or limit figure. A company cost paid privately and
+  its repayment from the company both land here, so the pair nets out.
+
+What a row counts as has one owner, `rowSide` in `categories/domain/rowSide.ts`. On a spending
+category money out is spending and money in a refund that lowers it, and on an income category money
+in is income. A loan instalment is spending under Loan instalments, so Spending takes the whole
+instalment off the account while Loans takes the principal off what you owe, and Net worth moves by
+the interest only.
+
+**Limits carry over**, by `budgetMonths` in `budgets/domain/budgetCarry.ts`. A category's limit in a
+month is its newest budget from that month or before. Available is the limit plus what carried in,
+and what is left carries into the next month once the month ends. Overspending carries in below zero
+and lowers the next month until later months make it up, and available below zero reads "Over by". A
+group's spending counts its children's. A budget of 0 ends the run, so nothing carries past it, and a
+later budget starts a new one from nothing. A new amount from a month keeps the carry. An entry the
+rates do not reach counts as nothing in a limit, and Limits and the home card say how many.
+
+**On the home and Kuna's Overview.** The home card shows Spent this month and, with a limit set,
+Left this month. Spending adds Bank and cash to Kuna's Overview, the accounts at or above zero, the
+open ones and a closed one that still holds money,
+in euros at the day's rate with how many accounts it adds up, and Overdrawn on the side you owe when
+an account is below zero. Both open Accounts. An account in another currency the rates did not reach
+is left out with a note under the sum, and while the rates load for one, the sum waits. It is built in
+`home/presentation/spendingHubFigures.ts`, and Spending publishes nothing to another app.
+
+The fake build's `?spending=` keeps `drive`, a new file with the starter categories on the fake
+Drive, `browser`, one in this browser nine days past its export, `sample`, four accounts, one of them
+in dollars, three months of entries up to the day, a carry on Food and a transfer pair, `foreign`,
+the dollar account alone, `over`, the sample with two limits overspent, `other-device`, one on the
+fake Drive this device has not chosen, `opening`, which holds every read, and `failed`, whose file
+is in the fake Drive's bin (`workbook/infrastructure/fake/fakeSpending.ts`). Without it Spending
+starts on its first run.
 
 ### Core and the pack
 

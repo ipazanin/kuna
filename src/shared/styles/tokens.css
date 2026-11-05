@@ -74,11 +74,12 @@
   --accent-wash: rgba(138, 100, 33, 0.1);
   --accent-ink: #ffffff;
 
-  /* An app's identity colour, on the tile of its icon. Company keeps the brass, and Loans, Investments and Assets are a teal, a plum and a slate no tone or chart series uses. */
+  /* An app's identity colour, on the tile of its icon. Company keeps the brass, and Loans, Investments, Assets and Spending are a teal, a plum, a slate and an olive no tone or chart series uses. */
   --app-company: #8a6421;
   --app-loans: #0d7a73;
   --app-investments: #8a3f8c;
   --app-assets: #4d6080;
+  --app-spending: #5f6b1f;
 
   --tone-positive: #107348;
   --tone-negative: #b4372d;
@@ -172,6 +173,7 @@
   --app-loans: #45c4b8;
   --app-investments: #d08ad3;
   --app-assets: #9fb3d1;
+  --app-spending: #b9c46d;
 
   --tone-positive: #4fc28d;
   --tone-negative: #f0857c;

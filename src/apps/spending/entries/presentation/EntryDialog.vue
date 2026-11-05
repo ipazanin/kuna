@@ -1,0 +1,257 @@
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import UButton from '@nuxt/ui/components/Button.vue'
+import UFormField from '@nuxt/ui/components/FormField.vue'
+import UInput from '@nuxt/ui/components/Input.vue'
+import USelect from '@nuxt/ui/components/Select.vue'
+import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
+
+import { entryCategoryChoices } from './categoryChoices'
+import { rememberLastAccount, startingAccount } from './lastAccount'
+import { words } from './words'
+import { newEntry, newTransfer, otherLegOf, removeEntry, TRANSACTION_WRITES } from '../application/entryWrites'
+import { fixedCategories } from '../../categories/domain/categoryTree'
+import { useSpendingBooks } from '../../workbook/application/spendingStore'
+import type { Account } from '../../workbook/domain/account'
+import type { Transaction } from '../../workbook/domain/transaction'
+import { words as spendingWords } from '../../words'
+import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { moneyFromCents, negateMoney } from '../../../../shared/money/money'
+import type { Money } from '../../../../shared/money/money'
+import type { UnitOfWork } from '../../../../shared/storage/application/repository'
+import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
+import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
+import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
+
+/** Money out of an account, money into one, or a move between two of your accounts, typed as a positive amount. */
+const open = defineModel<boolean>('open', { required: true })
+
+const props = defineProps<{
+  /** The entry to change, either leg of a transfer, or null to add one. */
+  entry: Transaction | null
+}>()
+
+const store = useSpendingBooks()
+const writes = useRecordWrites(store)
+
+type EntryKind = 'out' | 'in' | 'transfer'
+
+const accounts = computed(() => store.state.workbook?.accounts ?? [])
+const categories = computed(() => store.state.workbook?.categories ?? [])
+const transferCategory = computed(() => fixedCategories(categories.value).find((category) => category.kind === 'transfer') ?? null)
+
+const kind = ref<EntryKind>('out')
+const amount = ref('')
+const toAmount = ref('')
+const category = ref('')
+const account = ref('')
+const toAccount = ref('')
+const date = ref('')
+const payee = ref('')
+const note = ref('')
+const tried = ref(false)
+
+/** The entry and its other leg as the file holds them, the money-out leg first. */
+const legs = computed((): readonly [Transaction, Transaction] | null => {
+  const records = store.state.records
+  if (props.entry === null || records === null) return null
+  const other = otherLegOf(records, props.entry)
+  if (other === null) return null
+  return props.entry.amount < 0 ? [props.entry, other] : [other, props.entry]
+})
+
+/** The open accounts, and the closed ones the entry is already on. */
+const choosable = computed(() => {
+  const own = new Set([props.entry?.account, ...(legs.value ?? []).map((leg) => leg.account)])
+  return accounts.value.filter((candidate) => !candidate.closed || own.has(candidate.id))
+})
+const accountItems = computed(() => choosable.value.map((candidate) => ({ label: candidate.name, value: candidate.id as string, description: candidate.currency })))
+
+const kindOptions = computed(() => [
+  { value: 'out' as const, label: words.dialog.kinds.out },
+  { value: 'in' as const, label: words.dialog.kinds.in },
+  ...(transferCategory.value !== null && (choosable.value.length > 1 || legs.value !== null) ? [{ value: 'transfer' as const, label: words.dialog.kinds.transfer }] : []),
+])
+
+const categoryItems = computed(() => (kind.value === 'transfer' ? [] : entryCategoryChoices(categories.value, kind.value, props.entry?.category ?? null)))
+const pickable = computed(() => new Set(categoryItems.value.flat().flatMap((choice) => (choice.value === undefined ? [] : [choice.value]))))
+
+function accountOf(id: string): Account | null {
+  return accounts.value.find((candidate) => candidate.id === id) ?? null
+}
+
+const from = computed(() => accountOf(account.value))
+const to = computed(() => accountOf(toAccount.value))
+const twoCurrencies = computed(() => kind.value === 'transfer' && from.value !== null && to.value !== null && from.value.currency !== to.value.currency)
+
+watch(open, (opened) => {
+  if (!opened) return
+  const entry = props.entry
+  const pair = legs.value
+  const first = startingAccount(accounts.value)
+  kind.value = pair !== null ? 'transfer' : entry === null || entry.amount < 0 ? 'out' : 'in'
+  account.value = (pair?.[0] ?? entry)?.account ?? first?.id ?? ''
+  toAccount.value = pair?.[1].account ?? choosable.value.find((candidate) => candidate.id !== account.value)?.id ?? ''
+  amount.value = entry === null ? '' : amountForTyping(moneyFromCents(Math.abs((pair?.[0] ?? entry).amount)))
+  toAmount.value = pair === null ? '' : amountForTyping(moneyFromCents(Math.abs(pair[1].amount)))
+  category.value = entry?.category ?? ''
+  date.value = entry?.date ?? today()
+  payee.value = entry?.payee ?? ''
+  note.value = entry?.note ?? ''
+  tried.value = false
+})
+
+/** An amount above zero, or null. */
+function positive(text: string): Money | null {
+  const typed = typedAmount(text)
+  return typed === null || typed <= 0 ? null : typed
+}
+
+const day = computed(() => parseCivilDate(date.value))
+
+function openedAfter(on: CivilDate, onAccount: Account | null): string | null {
+  return onAccount !== null && on < onAccount.openedOn ? words.dialog.beforeOpened(onAccount.openedOn) : null
+}
+
+const errors = computed(() => ({
+  amount: positive(amount.value) === null ? words.dialog.anAmount : null,
+  toAmount: twoCurrencies.value && positive(toAmount.value) === null ? words.dialog.anAmount : null,
+  category: kind.value !== 'transfer' && !pickable.value.has(category.value) ? words.dialog.pickCategory : null,
+  account: from.value === null ? words.dialog.pickAccount : null,
+  toAccount: kind.value === 'transfer' && (to.value === null || to.value.id === from.value?.id) ? words.dialog.otherAccount : null,
+  date: day.value === null ? spendingWords.form.aDate(civilDate(2026, 3, 15)) : (openedAfter(day.value, from.value) ?? (kind.value === 'transfer' ? openedAfter(day.value, to.value) : null)),
+}))
+
+async function save(): Promise<void> {
+  tried.value = true
+  const typed = positive(amount.value)
+  const fromAccount = from.value
+  const on = day.value
+  if (Object.values(errors.value).some((error) => error !== null) || typed === null || fromAccount === null || on === null) return
+  const work = kind.value === 'transfer' ? transferWrite(fromAccount, typed, on) : entryWrite(fromAccount, typed, on)
+  if (work === null) return
+  const adding = props.entry === null
+  if (!(await writes.write(adding ? words.dialog.added : words.dialog.saved, work, { failedTitle: adding ? spendingWords.form.notAdded : spendingWords.form.notSaved }))) return
+  rememberLastAccount(fromAccount)
+  open.value = false
+}
+
+/** One entry added, or changed in place, which drops the other leg of what was a transfer. */
+function entryWrite(fromAccount: Account, typed: Money, on: CivilDate): ((unit: UnitOfWork) => void) | null {
+  const filed = categories.value.find((candidate) => candidate.id === category.value)
+  if (filed === undefined) return null
+  const entry = newEntry({ account: fromAccount.id, date: on, amount: kind.value === 'out' ? negateMoney(typed) : typed, payee: payee.value, category: filed.id, note: note.value })
+  const before = props.entry
+  const other = legs.value?.find((leg) => leg.id !== before?.id)
+  return (unit) => {
+    const entries = unit.of(TRANSACTION_WRITES)
+    if (before === null) {
+      entries.add(entry)
+      return
+    }
+    entries.change(before, { ...entry, id: before.id, source: before.source })
+    if (other !== undefined) entries.remove(other)
+  }
+}
+
+/** Both legs in one write: added, changed in place, or a plain entry turned into the money-out leg with the other leg beside it. */
+function transferWrite(fromAccount: Account, typed: Money, on: CivilDate): ((unit: UnitOfWork) => void) | null {
+  const toAccountPicked = to.value
+  const fixed = transferCategory.value
+  if (toAccountPicked === null || fixed === null) return null
+  const arrived = twoCurrencies.value ? (positive(toAmount.value) ?? typed) : typed
+  const [outLeg, inLeg] = newTransfer(
+    { account: fromAccount.id, amount: typed },
+    { account: toAccountPicked.id, amount: arrived },
+    { date: on, payee: payee.value, note: note.value, category: fixed.id },
+  )
+  const before = props.entry
+  const pair = legs.value
+  return (unit) => {
+    const entries = unit.of(TRANSACTION_WRITES)
+    if (before === null) {
+      entries.add(outLeg)
+      entries.add(inLeg)
+    } else if (pair === null) {
+      entries.change(before, { ...outLeg, id: before.id, source: before.source, pair: inLeg.id })
+      entries.add({ ...inLeg, pair: before.id })
+    } else {
+      const [oldOut, oldIn] = pair
+      entries.change(oldOut, { ...outLeg, id: oldOut.id, source: oldOut.source, pair: oldIn.id })
+      entries.change(oldIn, { ...inLeg, id: oldIn.id, source: oldIn.source, pair: oldOut.id })
+    }
+  }
+}
+
+async function remove(): Promise<void> {
+  const entry = props.entry
+  const records = store.state.records
+  if (entry === null || records === null) return
+  if (await writes.write(words.dialog.deleted, (unit) => removeEntry(unit, records, entry), { key: 'delete', failedTitle: spendingWords.form.notDeleted })) open.value = false
+}
+</script>
+
+<template>
+  <AppDialog v-model:open="open" :title="entry === null ? words.dialog.addTitle : words.dialog.changeTitle" :description="words.dialog.description">
+    <FormGrid id="spending-entry" as="form" data-testid="spending-entry-dialog" @submit.prevent="save">
+      <UFormField :label="words.dialog.kind" class="sm:col-span-2">
+        <ChoiceButtons v-model="kind" :options="kindOptions" :label="words.dialog.kind" data-testid="spending-entry-kind" />
+      </UFormField>
+      <UFormField :label="words.dialog.amountIn(from?.currency ?? '')" :error="(tried && errors.amount) || false">
+        <MoneyInput v-model="amount" :placeholder="spendingWords.form.amountPlaceholder" class="w-full" data-testid="spending-entry-amount" />
+      </UFormField>
+      <UFormField :label="kind === 'transfer' ? words.dialog.fromAccount : words.dialog.account" :error="(tried && errors.account) || false">
+        <USelect v-model="account" :items="accountItems" class="w-full" data-testid="spending-entry-account" />
+      </UFormField>
+      <template v-if="kind === 'transfer'">
+        <UFormField :label="words.dialog.toAccount" :error="(tried && errors.toAccount) || false">
+          <USelect v-model="toAccount" :items="accountItems" class="w-full" data-testid="spending-entry-to-account" />
+        </UFormField>
+        <UFormField v-if="twoCurrencies" :label="words.dialog.amountIn(to?.currency ?? '')" :help="words.dialog.arrivedHelp" :error="(tried && errors.toAmount) || false">
+          <MoneyInput v-model="toAmount" :placeholder="spendingWords.form.amountPlaceholder" class="w-full" data-testid="spending-entry-to-amount" />
+        </UFormField>
+      </template>
+      <UFormField v-else :label="words.dialog.category" :error="(tried && errors.category) || false">
+        <USelectMenu v-model="category" :items="categoryItems" value-key="value" :placeholder="words.dialog.pickCategory" class="w-full" data-testid="spending-entry-category" />
+      </UFormField>
+      <UFormField :label="words.dialog.date" :error="(tried && errors.date) || false">
+        <UInput v-model="date" type="date" class="w-full" data-testid="spending-entry-date" />
+      </UFormField>
+      <UFormField :label="words.dialog.payee">
+        <UInput v-model="payee" class="w-full" data-testid="spending-entry-payee" />
+      </UFormField>
+      <UFormField :label="spendingWords.form.note" class="sm:col-span-2">
+        <UInput v-model="note" class="w-full" data-testid="spending-entry-note" />
+      </UFormField>
+    </FormGrid>
+    <template #start>
+      <UButton
+        v-if="entry !== null"
+        :label="words.dialog.delete"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="ghost"
+        :loading="writes.saving('delete')"
+        :disabled="writes.busy.value"
+        data-testid="spending-entry-delete"
+        @click="remove"
+      />
+    </template>
+    <template #end>
+      <UButton :label="spendingWords.form.cancel" color="neutral" variant="ghost" @click="open = false" />
+      <UButton
+        type="submit"
+        form="spending-entry"
+        :label="entry === null ? words.dialog.add : words.dialog.save"
+        :icon="entry === null ? 'i-lucide-plus' : 'i-lucide-save'"
+        :loading="writes.saving('save')"
+        :disabled="writes.busy.value"
+        data-testid="spending-entry-save"
+      />
+    </template>
+  </AppDialog>
+</template>

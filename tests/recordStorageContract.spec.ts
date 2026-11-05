@@ -23,6 +23,10 @@ import {
   TRANSFER_WRITES,
 } from '../src/apps/investments/transactions/application/transactionWrites'
 import { ASSET_WRITES, VALUATION_WRITES } from '../src/apps/assets/asset/application/assetWrites'
+import { ACCOUNT_WRITES as SPENDING_ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accountWrites'
+import { BUDGET_WRITES } from '../src/apps/spending/budgets/application/budgetWrites'
+import { CATEGORY_WRITES as SPENDING_CATEGORY_WRITES } from '../src/apps/spending/categories/application/categoryWrites'
+import { TRANSACTION_WRITES } from '../src/apps/spending/entries/application/entryWrites'
 import { BANK_LOAN_WRITES, EXTRA_PAYMENT_WRITES, LATE_INSTALMENT_WRITES, RATE_PERIOD_WRITES, removeBankLoan } from '../src/apps/loans/bankLoans/application/bankLoanWrites'
 import { INFORMAL_LOAN_WRITES, MOVEMENT_WRITES } from '../src/apps/loans/informalLoans/application/informalLoanWrites'
 import { LOAN_SCENARIO_WRITES, SCENARIO_CHANGE_WRITES } from '../src/apps/loans/scenarios/application/scenarioWrites'
@@ -45,7 +49,7 @@ import type { DocumentRecord, WorkbookDocument } from '../src/shared/storage/inf
 import type { DocumentCopy } from '../src/shared/storage/infrastructure/documentRecordStorage'
 import { newDocument } from '../src/shared/storage/infrastructure/documentRecordStorage'
 import { recordOnScreen, recordsOnScreen } from './fixtures/records'
-import { ASSETS, COMPANY, INVESTMENTS, LOANS, browserHarness, driveHarness, forgetCaches } from './fixtures/writeBack'
+import { ASSETS, COMPANY, INVESTMENTS, LOANS, SPENDING, browserHarness, driveHarness, forgetCaches } from './fixtures/writeBack'
 import type { AppUnderTest } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -908,6 +912,80 @@ const ASSETS_FIXTURES: Readonly<Record<string, KindFixture>> = {
   },
 }
 
+const [HELD_A, HELD_B, HELD_C, HELD_R, ENTRY_ACCOUNT] = ids('51', 5)
+const [GROUP_A, GROUP_B, GROUP_C, GROUP_R, ENTRY_CATEGORY, LIMIT_FOOD, LIMIT_TRANSPORT] = ids('52', 7)
+const [ENTRY_A, ENTRY_B, ENTRY_C, ENTRY_R] = ids('53', 4)
+const [LIMIT_A, LIMIT_B, LIMIT_C, LIMIT_R] = ids('54', 4)
+
+const SPENDING_FIXTURES: Readonly<Record<string, KindFixture>> = {
+  account: {
+    records: [
+      { name: 'OTP current', kind: 'bank', bank: 'otp', currency: 'EUR', opening: '1550.00', opened_on: '2026-09-01', iban: 'HR0000000000000000001', id: HELD_A! },
+      { name: 'Cash', kind: 'cash', currency: 'EUR', opened_on: '2026-09-01', id: HELD_B! },
+    ],
+    outside: { name: 'Revolut EUR', kind: 'bank', currency: 'EUR', opened_on: '2026-09-01', id: HELD_C! },
+    change: { field: 'name', value: 'OTP main' },
+    cleared: 'iban',
+    refused: {
+      fields: { name: 'Play money', kind: 'bank', currency: 'XYZ', opened_on: '2026-09-01', id: HELD_R! },
+      reason: 'is not a currency code',
+      fixed: { name: 'Play money', kind: 'bank', currency: 'USD', opened_on: '2026-09-01', id: HELD_R! },
+    },
+  },
+  category: {
+    records: [
+      { name: 'Food', kind: 'spending', order: '1', colour: '#d4e8ff', id: GROUP_A! },
+      { name: 'Income', kind: 'income', order: '12', id: GROUP_B! },
+    ],
+    outside: { name: 'Travel', kind: 'spending', order: '8', id: GROUP_C! },
+    change: { field: 'name', value: 'Food and drink' },
+    cleared: 'colour',
+    refused: {
+      fields: { name: 'Broker', kind: 'saving', parent: GROUP_A!, id: GROUP_R! },
+      reason: 'a fixed category has no parent',
+      fixed: { name: 'Broker', kind: 'saving', order: '14', id: GROUP_R! },
+    },
+  },
+  transaction: {
+    seed: {
+      account: [{ name: 'OTP current', kind: 'bank', currency: 'EUR', opened_on: '2026-09-01', id: ENTRY_ACCOUNT! }],
+      category: [{ name: 'Food', kind: 'spending', order: '1', id: ENTRY_CATEGORY! }],
+    },
+    records: [
+      { account: ENTRY_ACCOUNT!, date: '2026-10-12', amount: '-45.30', payee: 'Corner market', category: ENTRY_CATEGORY!, note: 'Weekly shop', source: 'typed', id: ENTRY_A! },
+      { account: ENTRY_ACCOUNT!, date: '2026-10-13', amount: '-12.00', source: 'typed', id: ENTRY_B! },
+    ],
+    outside: { account: ENTRY_ACCOUNT!, date: '2026-10-14', amount: '2400.00', payee: 'Example Studio d.o.o.', source: 'statement', id: ENTRY_C! },
+    change: { field: 'note', value: 'Weekly shop, and wine' },
+    cleared: 'note',
+    refused: {
+      fields: { account: ENTRY_ACCOUNT!, date: '2026-10-15', amount: '0.00', source: 'typed', id: ENTRY_R! },
+      reason: 'amount is zero',
+      fixed: { account: ENTRY_ACCOUNT!, date: '2026-10-15', amount: '-1.00', source: 'typed', id: ENTRY_R! },
+    },
+  },
+  budget: {
+    seed: {
+      category: [
+        { name: 'Food', kind: 'spending', order: '1', id: LIMIT_FOOD! },
+        { name: 'Transport', kind: 'spending', order: '3', id: LIMIT_TRANSPORT! },
+      ],
+    },
+    records: [
+      { category: LIMIT_FOOD!, from: '2026-09', amount: '400.00', id: LIMIT_A! },
+      { category: LIMIT_TRANSPORT!, from: '2026-09', amount: '100.00', id: LIMIT_B! },
+    ],
+    outside: { category: LIMIT_FOOD!, from: '2026-12', amount: '0.00', id: LIMIT_C! },
+    change: { field: 'amount', value: '450.00' },
+    cleared: null,
+    refused: {
+      fields: { category: LIMIT_FOOD!, from: '2026-10', amount: '-5.00', id: LIMIT_R! },
+      reason: 'amount is below zero',
+      fixed: { category: LIMIT_FOOD!, from: '2026-10', amount: '5.00', id: LIMIT_R! },
+    },
+  },
+}
+
 const CORE_WRITES: readonly WriteRules<unknown>[] = [
   LEDGER_WRITES,
   CATEGORY_WRITES,
@@ -956,12 +1034,15 @@ const INVESTMENTS_KINDS = INVESTMENTS_WRITES.map((rules) => [rules.kind.name, ru
 
 const ASSETS_KINDS = [ASSET_WRITES, VALUATION_WRITES].map((rules) => [rules.kind.name, rules as WriteRules<unknown>] as const)
 
+const SPENDING_KINDS = [SPENDING_ACCOUNT_WRITES, SPENDING_CATEGORY_WRITES, TRANSACTION_WRITES, BUDGET_WRITES].map((rules) => [rules.kind.name, rules as WriteRules<unknown>] as const)
+
 /** Every kind with the app whose document keeps it and its fixture. */
 const KINDS: readonly (readonly [string, WriteRules<unknown>, AppUnderTest<BooksRead>, KindFixture])[] = [
   ...COMPANY_KINDS.map(([name, rules]) => [name, rules, COMPANY, COMPANY_FIXTURES[name]!] as const),
   ...LOANS_KINDS.map(([name, rules]) => [name, rules, LOANS, LOANS_FIXTURES[name]!] as const),
   ...INVESTMENTS_KINDS.map(([name, rules]) => [name, rules, INVESTMENTS, INVESTMENTS_FIXTURES[name]!] as const),
   ...ASSETS_KINDS.map(([name, rules]) => [name, rules, ASSETS, ASSETS_FIXTURES[name]!] as const),
+  ...SPENDING_KINDS.map(([name, rules]) => [name, rules, SPENDING, SPENDING_FIXTURES[name]!] as const),
 ]
 
 const STORAGES = [
@@ -982,6 +1063,11 @@ it('has a fixture for every Loans kind', () => {
 it('has a fixture for every Assets kind', () => {
   expect(ASSETS_KINDS.map(([name]) => name).filter((name) => ASSETS_FIXTURES[name] === undefined)).toEqual([])
   expect(ASSETS_KINDS).toHaveLength(2)
+})
+
+it('has a fixture for every Spending kind', () => {
+  expect(SPENDING_KINDS.map(([name]) => name).filter((name) => SPENDING_FIXTURES[name] === undefined)).toEqual([])
+  expect(SPENDING_KINDS).toHaveLength(4)
 })
 
 it('has a fixture for every Investments kind', () => {

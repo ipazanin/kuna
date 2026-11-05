@@ -107,7 +107,7 @@ function isDomain(file: string): boolean {
   return /\/domain\//.test(file) || (packOf(file) !== null && /\/ruleset\//.test(file) && !/\/presentation\//.test(file))
 }
 
-const DOMAIN_SHARED = ['src/shared/storage/domain/', 'src/shared/calendar/', 'src/shared/money/', 'src/shared/text/']
+const DOMAIN_SHARED = ['src/shared/storage/domain/', 'src/shared/calendar/', 'src/shared/money/', 'src/shared/text/', 'src/shared/charts/swatches.ts']
 
 /** Where the books are kept: the kernel's document storage and each app's workbook. */
 function isStorage(file: string): boolean {
@@ -128,6 +128,7 @@ const ADAPTER_WIRING = [
   'src/apps/loans/workbook/application/loansStore.ts',
   'src/apps/investments/workbook/application/investmentsStore.ts',
   'src/apps/assets/workbook/application/assetsStore.ts',
+  'src/apps/spending/workbook/application/spendingStore.ts',
 ]
 
 /** Each app's published file and the one file of another app that may import it. */
@@ -138,6 +139,13 @@ const PUBLISHED: Readonly<Record<string, readonly string[]>> = {
 /** Whether an import reads another app's published file from a file allowed to. */
 function readsPublished(entry: Import): boolean {
   return entry.target !== null && (PUBLISHED[entry.target] ?? []).includes(entry.from)
+}
+
+/** The shared modules that each hold one capability two apps use, which stay apart so none grows into another. */
+const CAPABILITIES = ['src/shared/rates/', 'src/shared/categorising/', 'src/shared/mail-filing/']
+
+function capabilityOf(file: string): string | null {
+  return CAPABILITIES.find((folder) => file.startsWith(folder)) ?? null
 }
 
 /** Data of the fake build, which only the fake build loads. */
@@ -151,7 +159,7 @@ function broken(rule: (entry: Import) => boolean): string[] {
 
 describe('import boundaries', () => {
   it('reads the imports it checks', () => {
-    for (const app of ['company', 'loans', 'investments', 'assets']) {
+    for (const app of ['company', 'loans', 'investments', 'assets', 'spending']) {
       expect(IMPORTS.some((entry) => entry.from === 'src/main.ts' && entry.dynamic && entry.target === `src/apps/${app}/app.ts`)).toBe(true)
       expect(IMPORTS.some((entry) => appOf(entry.from) === app && entry.target?.startsWith(`src/apps/${app}/`))).toBe(true)
     }
@@ -231,6 +239,10 @@ describe('import boundaries', () => {
           (packOf(entry.from) !== null && /\/infrastructure\//.test(entry.from) && SPREADSHEET_MAPPING.includes(entry.target)),
       ),
     ).toEqual([])
+  })
+
+  it('keeps each shared capability module off the others', () => {
+    expect(broken((entry) => capabilityOf(entry.from) === null || entry.target === null || capabilityOf(entry.target) === null || capabilityOf(entry.target) === capabilityOf(entry.from))).toEqual([])
   })
 
   it('keeps application code off infrastructure, but for the files that wire the adapters', () => {

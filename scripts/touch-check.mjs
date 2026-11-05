@@ -45,6 +45,11 @@
  * newer app saved, the Assets card opening the Assets Overview, the Assets first run finding the file another device made
  * on Drive and keeping a new one in this browser, a flat added by touch with its region and the Home loan, its loan cleared and
  * the flat deleted and brought back with Undo, a valuation added on the car in place of its estimate, deleted and brought back,
+ * the Spending card opening the Spending Overview, Kuna's Overview's Bank and cash opening Spending's Accounts and Back,
+ * the Spending first run finding the file another device made on Drive and keeping a new one in this browser, money
+ * out added by touch with its amount on the number pad and a category and undone, a move between two accounts read in
+ * both balances, deleted and brought back, a group of the spending ring opening its categories and one of them opening
+ * Transactions filtered by it and Back, and Food's limit raised with its carry kept,
  * and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
  * the payee breakdown has to stay inside the window and off its own row.
@@ -126,6 +131,9 @@ import {
   invoiceRunFlowIn,
   assetsEditorFlow,
   assetsValuationFlow,
+  spendingFoodLimitFlow,
+  spendingMoneyOutFlow,
+  spendingTransferFlow,
   firstRunBrowserFlowIn,
   firstRunOnDriveFlowIn,
   mailAccessFlow,
@@ -201,6 +209,9 @@ const SAMPLE_INDEX_FUND = 'fa4e1000-0000-4000-8000-000000000015'
 const SAMPLE_WORLD_ETF = 'fa4e1000-0000-4000-8000-000000000012'
 /** The sample Assets file's car, `?assets=sample`, which the customs table estimates. */
 const SAMPLE_CAR = 'fa4e2000-0000-4000-8000-000000000002'
+/** The sample Spending file's Food group and its Groceries, `?spending=sample`, which this month has spent on. */
+const SAMPLE_FOOD = 'fa4e3000-0000-4000-8000-000000000001'
+const SAMPLE_GROCERIES = 'fa4e3000-0000-4000-8000-000000000002'
 const OUTPUT_DIR = process.env.TOUCH_OUTPUT_DIR ?? join(ROOT, 'visual-check', 'touch')
 const WIDTHS = [360, 430]
 const SMALLEST_TARGET = 44
@@ -442,9 +453,47 @@ async function checkWidth(width) {
     await shoot('assets-overview')
   })
 
-  // The company kept in this browser beside the sample Loans, Investments and Assets files.
+  await step('spending-home-card', async () => {
+    await open(page, `&spending=sample&load=${Date.now()}#/`, 'All apps')
+    await (await page.waitForSelector('[data-testid="home-card"][data-app="spending"][data-state="open"]')).tap()
+    await waitForTitle(page, 'Overview')
+    await expect(hashOf(page), (hash) => hash === '#/spending', 'the Spending card did not open the Spending Overview')
+    await page.waitForSelector('[data-testid="spending-spent"]')
+    await shoot('spending-overview')
+  })
+
+  // On a phone a tap on the ring only shows its tooltip, so the list beside the ring holds the links.
+  await step('spending-donut', async () => {
+    await open(page, `&spending=sample&load=${Date.now()}#/spending`, 'Overview')
+    const legend = '[data-testid="spending-donut"] [data-testid="donut-legend"] a'
+    const food = await waitForText(page, legend, 'Food')
+    await food.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await food.tap()
+    await page.waitForFunction((group) => window.location.hash === `#/spending?group=${group}`, { timeout: 10_000 }, SAMPLE_FOOD)
+    await waitForText(page, '[data-testid="spending-donut"] h2', 'Food by category')
+    await inspect(page, `${width}px the spending ring on Food`)
+    await shoot('spending-donut-food')
+    const groceries = await waitForText(page, legend, 'Groceries')
+    await groceries.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await groceries.tap()
+    await waitForTitle(page, 'Entries')
+    await expect(hashOf(page), (hash) => hash.includes(`category=${SAMPLE_GROCERIES}`), 'Groceries on the ring did not open Entries filtered by it')
+    await expect(
+      page.$$eval('[data-testid="spending-row"]', (rows) => rows.map((row) => row.textContent ?? '')),
+      (rows) => rows.length > 0 && rows.every((row) => row.includes('Groceries')),
+      'Entries filtered by Groceries lists rows of other categories, or none',
+    )
+    await shoot('spending-donut-transactions')
+    await page.goBack({ waitUntil: 'networkidle0' })
+    await page.waitForFunction((group) => window.location.hash === `#/spending?group=${group}`, { timeout: 10_000 }, SAMPLE_FOOD)
+    await waitForText(page, '[data-testid="spending-donut"] h2', 'Food by category')
+  })
+
+  // The company kept in this browser beside the sample Loans, Investments, Assets and Spending files.
   await step('kuna-overview', async () => {
-    await openFreshBrowser(page, '#/', 'All apps', '&loans=sample&investments=sample&assets=sample')
+    await openFreshBrowser(page, '#/', 'All apps', '&loans=sample&investments=sample&assets=sample&spending=sample')
     await (await page.waitForSelector('[data-testid="home-overview"]')).tap()
     await waitForTitle(page, 'Overview')
     await expect(hashOf(page), (hash) => hash === '#/overview', 'the home’s Overview button did not open Kuna’s Overview')
@@ -458,17 +507,18 @@ async function checkWidth(width) {
       'a tile on Kuna’s Overview is under 44 px tall',
     )
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-kuna-overview.png`))
-    for (const [label, path] of [
-      ['Investments value', '#/investments'],
-      ['Assets value', '#/assets'],
-      ['You owe in all', '#/loans'],
+    for (const [label, path, title] of [
+      ['Investments value', '#/investments', 'Overview'],
+      ['Assets value', '#/assets', 'Overview'],
+      ['Bank and cash', '#/spending/accounts', 'Accounts'],
+      ['You owe in all', '#/loans', 'Overview'],
     ]) {
       const tile = await waitForText(page, '[data-testid="overview-part"] a', label)
       await tile.evaluate((element) => element.scrollIntoView({ block: 'center' }))
       await delay(200)
       await tile.tap()
       await page.waitForFunction((wanted) => window.location.hash === wanted, { timeout: 10_000 }, path)
-      await waitForTitle(page, 'Overview')
+      await waitForTitle(page, title)
       await page.goBack({ waitUntil: 'networkidle0' })
       await page.waitForFunction(() => window.location.hash === '#/overview', { timeout: 10_000 })
       await page.waitForSelector('[data-testid="overview-net"][data-state="ready"]')
@@ -2675,7 +2725,7 @@ async function checkWidth(width) {
     await waitForTitle(page, 'All apps')
     await expect(
       page.evaluate(() => [...document.querySelectorAll('[data-testid="home-card"]')].map((card) => card.dataset.state)),
-      (states) => states.length === 4 && states.every((state) => state === 'set-up'),
+      (states) => states.length === 5 && states.every((state) => state === 'set-up'),
       'a fresh device does not open the home with every app in Set up',
     )
     await expect(
@@ -2719,6 +2769,11 @@ async function checkWidth(width) {
     ['assets-start-browser', 'drive', firstRunBrowserFlowIn('assets', 'en'), '#/assets', 'Assets'],
     ['assets-flat', 'drive&assets=drive&loans=sample', assetsEditorFlow, '#/assets', 'Overview'],
     ['assets-car-valuation', 'drive&assets=sample&loans=sample', assetsValuationFlow, `#/assets/asset?asset=${SAMPLE_CAR}`, 'Family car'],
+    ['spending-start-on-drive', 'drive&spending=other-device', firstRunOnDriveFlowIn('spending', 'en'), '#/spending/start?step=folder', 'Spending'],
+    ['spending-start-browser', 'drive', firstRunBrowserFlowIn('spending', 'en'), '#/spending', 'Spending'],
+    ['spending-money-out', 'drive&spending=sample', spendingMoneyOutFlow, '#/spending/transactions', 'Entries'],
+    ['spending-transfer', 'drive&spending=sample', spendingTransferFlow, '#/spending/accounts', 'Accounts'],
+    ['spending-limit', 'drive&spending=sample', spendingFoodLimitFlow, '#/spending/budgets', 'Limits'],
     ['investments-start', 'drive', investmentsDriveFlow, '#/investments', 'Investments'],
     ['investments-price-key', 'drive&investments=sample', investmentsPriceKeyFlow, '#/investments/settings?tab=prices', 'Settings'],
     ['investments-key-synced', 'drive&investments=sample&keys=other-browser', investmentsKeyFromOtherBrowserFlow, '#/investments/settings?tab=prices', 'Settings'],

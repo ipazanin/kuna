@@ -2,8 +2,8 @@ import { computed, shallowReactive, shallowRef } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { RatesWanted } from '../src/apps/investments/prices/domain/priceDemand'
-import type { RateBook } from '../src/apps/investments/prices/domain/rateBook'
-import { NO_RATES } from '../src/apps/investments/prices/domain/rateBook'
+import type { RateBook } from '../src/shared/money/rateBook'
+import { NO_RATES } from '../src/shared/money/rateBook'
 import { sampleWorkbookFile } from '../src/apps/investments/imports/infrastructure/fake/sampleWorkbook'
 import { book, USD, rateBookOf } from './fixtures/investments'
 

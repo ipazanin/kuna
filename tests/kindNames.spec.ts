@@ -9,6 +9,9 @@ import * as LOAN_KINDS from '../src/apps/loans/workbook/domain/loanKinds'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { LOAN_PARTS } from '../src/apps/loans/workbook/domain/readLoanBook'
 import { codecOfKind } from '../src/apps/company/workbook/application/recordCodecs'
+import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
+import { SPENDING_PARTS } from '../src/apps/spending/workbook/domain/readSpendingBook'
+import * as SPENDING_KINDS from '../src/apps/spending/workbook/domain/spendingKinds'
 import * as CORE_KINDS from '../src/apps/company/workbook/domain/coreKinds'
 
 const pack = installedPack().workbook!
@@ -56,6 +59,21 @@ describe("the Assets app's kind names", () => {
     expect(kinds.filter((kind) => codecOfAssetsKind(kind).kind !== kind).map((kind) => kind.name)).toEqual([])
     expect(
       Object.values(ASSET_PARTS)
+        .map((kind) => kind.name)
+        .sort(),
+    ).toEqual([...names].sort())
+  })
+})
+
+describe("the Spending app's kind names", () => {
+  const kinds: RecordKind<unknown>[] = Object.values(SPENDING_KINDS)
+
+  it('names each kind once, finds its codec by it, and reads every kind into a part of the records', () => {
+    const names = kinds.map((kind) => kind.name)
+    expect(names.filter((name, index) => names.indexOf(name) !== index)).toEqual([])
+    expect(kinds.filter((kind) => codecOfSpendingKind(kind).kind !== kind).map((kind) => kind.name)).toEqual([])
+    expect(
+      Object.values(SPENDING_PARTS)
         .map((kind) => kind.name)
         .sort(),
     ).toEqual([...names].sort())

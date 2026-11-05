@@ -26,7 +26,7 @@
     "law-index": "node scripts/law-index.mjs",
     "tasks-index": "node scripts/tasks-index.mjs"
   },
-  "description": "Company books, loans, investments and assets, each in an app of its own, computed in the browser over JSON files kept on Google Drive or in the browser",
+  "description": "Company books, loans, investments, assets and spending, each in an app of its own, computed in the browser over JSON files kept on Google Drive or in the browser",
   "license": "MIT",
   "private": true,
   "engines": {

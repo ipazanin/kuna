@@ -1,7 +1,7 @@
 import { OWNER_SHARE_ROLES, typedOwnerShare } from '../../owner-share/domain/ownerShare'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import { categoryOfFields } from '../../workbook/domain/categoriesReading'
-import { swatchOf } from '../../workbook/domain/categoryColour'
+import { swatchOf } from '../../../../shared/charts/swatches'
 import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import { slugProblem } from '../../workbook/domain/slug'
 import { slugOf, storedFieldOfValue, textOf } from '../../../../shared/storage/domain/storedFields'

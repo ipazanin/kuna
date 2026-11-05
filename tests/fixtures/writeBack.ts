@@ -13,6 +13,10 @@ import { LOAN_PARTS } from '../../src/apps/loans/workbook/domain/readLoanBook'
 import type { LoansRecords } from '../../src/apps/loans/workbook/domain/readLoanBook'
 import type { LoansBooks } from '../../src/apps/loans/workbook/domain/loansBooks'
 import { LOANS_APP, LOANS_DOCUMENT } from '../../src/apps/loans/workbook/infrastructure/loansDocument'
+import { SPENDING_PARTS } from '../../src/apps/spending/workbook/domain/readSpendingBook'
+import type { SpendingRecords } from '../../src/apps/spending/workbook/domain/readSpendingBook'
+import type { SpendingBooks } from '../../src/apps/spending/workbook/domain/spendingBooks'
+import { SPENDING_APP, SPENDING_DOCUMENT } from '../../src/apps/spending/workbook/infrastructure/spendingDocument'
 import { createWorkbookStore } from '../../src/shared/storage/application/createWorkbookStore'
 import type { BooksRead, WorkbookStore, WorkbookStorePorts } from '../../src/shared/storage/application/createWorkbookStore'
 import { recordsOfKindIn } from '../../src/apps/company/workbook/domain/readWorkbook'
@@ -148,6 +152,18 @@ export const ASSETS: AppUnderTest<AssetsBooks> = {
     const part = (Object.keys(ASSET_PARTS) as (keyof AssetsRecords)[]).find((candidate) => ASSET_PARTS[candidate].name === kind.name)
     if (part === undefined) {
       throw new Error(`The Assets file keeps no ${kind.noun.en.many}.`)
+    }
+    return records[part] as RecordsRead<unknown> as RecordsRead<R>
+  },
+}
+
+export const SPENDING: AppUnderTest<SpendingBooks> = {
+  app: SPENDING_APP,
+  document: SPENDING_DOCUMENT,
+  recordsOfKind<R>(records: SpendingRecords, kind: RecordKind<R>): RecordsRead<R> {
+    const part = (Object.keys(SPENDING_PARTS) as (keyof SpendingRecords)[]).find((candidate) => SPENDING_PARTS[candidate].name === kind.name)
+    if (part === undefined) {
+      throw new Error(`The Spending file keeps no ${kind.noun.en.many}.`)
     }
     return records[part] as RecordsRead<unknown> as RecordsRead<R>
   },
