@@ -14,9 +14,7 @@ import { PRICES_FILE_NAME, encodePricesFile } from '../../../prices/domain/price
 import { fakePricesFile } from '../../../prices/infrastructure/fake/fakePrices'
 import type { FakePricesVariant } from '../../../prices/infrastructure/fake/fakePrices'
 import { PRICES_DATABASE_PREFIX, openPricesCache } from '../../../prices/infrastructure/pricesCache'
-import { encodeKeysFile, keysFileName } from '../../../prices/domain/keysFile'
-import { fakeKeys, isFakeKeysVariant } from '../../../prices/infrastructure/fake/fakeKeys'
-import { APP_DATA_FOLDER } from '../../../../../shared/google/driveClient'
+import { seedFakeSecrets } from '../../../../../shared/secrets/infrastructure/fake/seedFakeSecrets'
 import { AUTO_SYNC_INTERVAL_MS } from '../../../../../shared/sync/application/autoSync'
 
 /**
@@ -28,8 +26,8 @@ import { AUTO_SYNC_INTERVAL_MS } from '../../../../../shared/sync/application/au
  * and `browser` the sample kept in this browser with its prices. Without it nothing is chosen, which is the Investments
  * first run. The sample has the fake prices file beside it, in this browser too, as `?prices=late-prices` or
  * `?prices=no-benchmark` names it or else `sample`, and the empty file has it only when `?prices=` names it, so a first
- * import finds its rates. `?keys=other-browser` or `?keys=removed` puts the keys file another browser left in the app's
- * hidden folder for the chosen file. With it, and for `binned`, the copy here is marked read longer ago than a sync on
+ * import finds its rates. `?keys=` puts what another browser left in the app's hidden folder, as `seedFakeSecrets`
+ * says, the old keys file named after the chosen file. With it, and for `binned`, the copy here is marked read longer ago than a sync on
  * open waits, so the open syncs. Only the Investments app's install imports this, behind an inline VITE_FAKE_WORKBOOK
  * comparison.
  */
@@ -49,10 +47,7 @@ export async function seedFakeInvestments(variant: string | null, pricesVariant:
   const created = await createDriveDocument(fakeDriveSession(), folder, INVESTMENTS_APP, encodeDocument(document))
   const choice = { source: 'drive', id: created.fileId, name: documentName(INVESTMENTS_APP) } as const
   const pricesFileId = variant !== 'drive' || pricesVariant !== null ? await seedFakePrices(folder, created.fileId, pricesVariantOf(pricesVariant), savedAt) : null
-  const keysSeeded = isFakeKeysVariant(keysVariant)
-  if (keysSeeded) {
-    await fakeDriveSession().createFile(APP_DATA_FOLDER, keysFileName(created.fileId), encodeKeysFile(fakeKeys(keysVariant)))
-  }
+  const keysSeeded = await seedFakeSecrets(keysVariant, created.fileId)
   if (variant === 'opening') {
     saveWorkbookChoice(INVESTMENTS_APP, choice)
     holdReadsOf(created.fileId)

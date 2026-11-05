@@ -12,21 +12,22 @@ import { PRICE_VENDORS } from '../infrastructure/vendors/priceVendors'
 import { listInWords } from '../../../../shared/text/listInWords'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
-import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
-import { PAGE_KEY_STORE, useKeysChanged } from './useKeysSync'
+import { PAGE_SECRET_STORE, useSecretsChanged } from '../../../../shared/secrets/presentation/pageSecrets'
+import { usePageSync } from '../../../../shared/sync/presentation/pageSync'
+import { useSecretRows } from '../../../../shared/secrets/presentation/useSecretRows'
+import { words as secretWords } from '../../../../shared/secrets/presentation/words'
 import { pageVendorFetch, useRequestsToday } from './usePrices'
-import { useVendorKeys } from './useVendorKeys'
 import { words } from './words'
 
 /**
  * The Prices tab's vendors, one row each from the registry: what it covers and gives, its free limits and this
- * browser's requests today, its key in this browser with Save, Test and Remove, and where to claim a free key. With the
- * Investments file on Drive, the sync carries the keys through the Google account, and a key it brings shows at once.
+ * browser's requests today, its key in this browser with Save, Test and Remove, and where to claim a free key. With any
+ * app's file on Drive, the sync carries the keys through the Google account, and a key it brings shows at once.
  */
-const keys = useVendorKeys(PRICE_VENDORS, PAGE_KEY_STORE, (vendor, key) => testVendor(vendor, pageVendorFetch, key, pricesDay(new Date().toISOString())))
-watch(useKeysChanged(), () => keys.reread())
-const { state } = useInvestmentsBooks()
-const subtitle = computed(() => (state.choice?.source === 'drive' ? words.card.subtitleOnDrive : words.card.subtitle))
+const keys = useSecretRows(PRICE_VENDORS, PAGE_SECRET_STORE, (vendor, key) => testVendor(vendor, pageVendorFetch, key, pricesDay(new Date().toISOString())))
+watch(useSecretsChanged(), () => keys.reread())
+const { someOnDrive } = usePageSync()
+const subtitle = computed(() => (someOnDrive.value ? words.card.subtitleOnDrive : words.card.subtitle))
 const requestsToday = useRequestsToday()
 /** What is typed in each key field, which goes nowhere until Save. */
 const typed = reactive<Record<string, string>>(Object.fromEntries(PRICE_VENDORS.map((vendor) => [vendor.id, ''])))
@@ -58,10 +59,10 @@ const vendorRows = computed(() =>
       offers: offers(vendor),
       limits: words.freeLimits(vendor.limits.perMinute, vendor.limits.perDay),
       usage: words.usedToday(requestsToday(vendor.id), vendor.limits.perDay),
-      keyLine: !kept ? words.noKey : ending === null ? words.kept : words.keptEnding(ending),
+      keyLine: !kept ? secretWords.keyRow.noKey : ending === null ? secretWords.keyRow.kept : secretWords.keyRow.keptEnding(ending),
       testing: test === 'testing',
       testWorks: tested?.kind === 'works',
-      testLine: tested === null ? null : tested.kind === 'works' ? (vendor.needsKey ? words.works : words.answers) : words.testFailed[tested.reason](vendor.name),
+      testLine: tested === null ? null : tested.kind === 'works' ? (vendor.needsKey ? secretWords.keyRow.works : words.answers) : words.testFailed[tested.reason](vendor.name),
     }
   }),
 )
@@ -95,7 +96,7 @@ const vendorRows = computed(() =>
                 autocomplete="off"
                 autocapitalize="off"
                 :spellcheck="false"
-                :placeholder="words.keyPlaceholder"
+                :placeholder="secretWords.keyRow.placeholder"
                 class="w-full"
                 data-testid="price-vendor-key"
                 @keydown.enter.prevent="save(row.vendor)"
@@ -108,7 +109,7 @@ const vendorRows = computed(() =>
           <UButton
             v-if="row.vendor.needsKey"
             icon="i-lucide-key-round"
-            :label="words.save"
+            :label="secretWords.keyRow.save"
             color="neutral"
             variant="outline"
             size="sm"
@@ -118,7 +119,7 @@ const vendorRows = computed(() =>
           />
           <UButton
             icon="i-lucide-plug-zap"
-            :label="words.test"
+            :label="secretWords.keyRow.test"
             color="neutral"
             variant="outline"
             size="sm"
@@ -130,7 +131,7 @@ const vendorRows = computed(() =>
           <UButton
             v-if="row.vendor.needsKey && row.kept"
             icon="i-lucide-trash-2"
-            :label="words.forget"
+            :label="secretWords.keyRow.forget"
             color="neutral"
             variant="ghost"
             size="sm"

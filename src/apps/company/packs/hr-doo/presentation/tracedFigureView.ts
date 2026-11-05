@@ -58,6 +58,10 @@ export interface FigureDetail {
   readonly rules: readonly RuleChip[]
   /** Rules among them the ruleset marks estimated, pending or unconfirmed for the year. */
   readonly watched: readonly WatchedRules[]
+  /** The figure itself, which Explain sends, or null for a build-up made of several figures. */
+  readonly figure: TracedFigure | null
+  /** Whether the figure names employees or their pay, so Explain asks for its own switch first. */
+  readonly employees: boolean
 }
 
 /** The rules a figure rests on that carry one watched mark. */
@@ -92,8 +96,8 @@ export function watchedIn(figures: readonly TracedFigure[]): WatchedRules[] {
   return watchedGroups(watchedCitations(figures))
 }
 
-/** A figure ready to open on its build-up. */
-export function figureDetail(figure: TracedFigure, subtitle: string, link: (drill: DrillTarget | null) => RouteLocationRaw | null): FigureDetail {
+/** A figure ready to open on its build-up. `employees` marks one that names employees or their pay. */
+export function figureDetail(figure: TracedFigure, subtitle: string, link: (drill: DrillTarget | null) => RouteLocationRaw | null, employees = false): FigureDetail {
   return {
     title: figureLabel(figure),
     subtitle,
@@ -102,5 +106,7 @@ export function figureDetail(figure: TracedFigure, subtitle: string, link: (dril
     steps: stepsOf(figure, (step) => link(step.drill)),
     rules: ruleChips(figure.rules),
     watched: watchedIn([figure]),
+    figure,
+    employees,
   }
 }

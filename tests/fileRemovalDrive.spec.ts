@@ -9,11 +9,9 @@ vi.mock('../src/shared/google/googleAuth', () => ({
   },
 }))
 
-const { deleteKeysFiles } = await import('../src/apps/investments/prices/application/keysSync')
 const { trashPricesFilesBeside } = await import('../src/apps/investments/prices/application/pricesUpdate')
 const { PRICES_FILE_NAME } = await import('../src/apps/investments/prices/domain/pricesFile')
-const { keysFileName } = await import('../src/apps/investments/prices/domain/keysFile')
-const { keysDriveOn } = await import('../src/apps/investments/prices/infrastructure/fake/fakeKeysDrive')
+const { SECRETS_FILE_NAME } = await import('../src/shared/secrets/domain/secretsFile')
 const { pricesDriveOn } = await import('../src/apps/investments/prices/infrastructure/fake/fakePricesDrive')
 const { googlePricesDrive } = await import('../src/apps/investments/prices/infrastructure/googlePricesDrive')
 const { APP_DATA_FOLDER } = await import('../src/shared/google/driveClient')
@@ -25,38 +23,26 @@ afterEach(() => {
 })
 
 describe('the Drive side of removing the Investments file', () => {
-  it('deletes every keys file of the Investments file, the second one two browsers made among them, and no other', async () => {
-    const drive = createFakeDrive()
-    const name = keysFileName('investments-1')
-    const first = await drive.createFile(APP_DATA_FOLDER, name, '{}')
-    const second = await drive.createFile(APP_DATA_FOLDER, name, '{}')
-    const other = await drive.createFile(APP_DATA_FOLDER, keysFileName('investments-2'), '{}')
-
-    await deleteKeysFiles(keysDriveOn(drive), 'investments-1')
-
-    expect(() => drive.file(first.id)).toThrow('404')
-    expect(() => drive.file(second.id)).toThrow('404')
-    expect(drive.file(other.id).trashed).toBe(false)
-  })
-
-  it('moves every prices file beside the Investments file to the bin and makes none', async () => {
+  it('moves every prices file beside the Investments file to the bin, makes none, and leaves the secrets file in the hidden folder', async () => {
     const drive = createFakeDrive()
     const folder = await drive.createFolder('root', 'Books')
     const investments = await drive.createFile(folder, 'kuna-investments.json', '{}')
     const prices = await drive.createFile(folder, PRICES_FILE_NAME, '{}')
     const madeAtOnce = await drive.createFile(folder, PRICES_FILE_NAME, '{}')
+    const secrets = await drive.createFile(APP_DATA_FOLDER, SECRETS_FILE_NAME, '{}')
 
     await trashPricesFilesBeside(pricesDriveOn(drive), investments.id)
 
     expect([drive.file(prices.id).trashed, drive.file(madeAtOnce.id).trashed, drive.file(investments.id).trashed]).toEqual([true, true, false])
-    expect(drive.requests.filter((request) => request === 'createFile')).toHaveLength(3)
+    expect((await drive.children(APP_DATA_FOLDER)).map((entry) => entry.id)).toEqual([secrets.id])
+    expect(drive.requests.filter((request) => request === 'createFile')).toHaveLength(4)
     await trashPricesFilesBeside(pricesDriveOn(drive), investments.id)
-    expect(drive.requests.filter((request) => request === 'createFile')).toHaveLength(3)
+    expect(drive.requests.filter((request) => request === 'createFile')).toHaveLength(4)
   })
 
   it("refuses to move a file of the app's hidden folder to the bin, as Drive does", async () => {
     const drive = createFakeDrive()
-    const keys = await drive.createFile(APP_DATA_FOLDER, keysFileName('investments-1'), '{}')
+    const keys = await drive.createFile(APP_DATA_FOLDER, SECRETS_FILE_NAME, '{}')
 
     await expect(drive.trash(keys.id)).rejects.toThrow('403')
   })

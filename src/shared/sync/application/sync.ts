@@ -16,8 +16,8 @@ export interface SyncStep {
   readonly startLine: string
   /** Whether the settings of the books on screen turn it on. Before the first copy it counts as on. */
   on(): boolean
-  /** Runs the step and says what it did. `report` changes the line it shows while it runs. */
-  run(report: (line: string) => void): Promise<StepResult>
+  /** Runs the step and says what it did. `report` changes the line it shows while it runs, and `startedAt` names the run, which every group's steps share. */
+  run(report: (line: string) => void, startedAt: string): Promise<StepResult>
 }
 
 /** One app's part of a sync: its books step, whose failure skips the rest of the group, then its own steps. */
@@ -91,7 +91,7 @@ export function createSync(ports: SyncPorts): Sync {
     return state.run?.groups.find((group) => group.app === app)?.steps.find((step) => step.id === id)?.state.kind
   }
 
-  async function runStep(app: string, step: SyncStep): Promise<void> {
+  async function runStep(app: string, step: SyncStep, startedAt: string): Promise<void> {
     const missing = step.scopes().filter((scope) => !ports.granted(scope))
     if (missing.length > 0) {
       update((run) => withStep(run, app, step.id, needsAccess(missing)))
@@ -99,7 +99,7 @@ export function createSync(ports: SyncPorts): Sync {
     }
     update((run) => withStep(run, app, step.id, { kind: 'running', line: step.startLine }))
     try {
-      const result = await step.run((line) => update((run) => withStep(run, app, step.id, { kind: 'running', line })))
+      const result = await step.run((line) => update((run) => withStep(run, app, step.id, { kind: 'running', line })), startedAt)
       update((run) => withStep(run, app, step.id, result))
     } catch (failure) {
       if (isUnauthorized(failure)) {
@@ -110,10 +110,10 @@ export function createSync(ports: SyncPorts): Sync {
     }
   }
 
-  async function runGroup(group: SyncGroup, steps: readonly SyncStep[]): Promise<void> {
+  async function runGroup(group: SyncGroup, steps: readonly SyncStep[], startedAt: string): Promise<void> {
     // Waited for here, not once for the whole run, so a save that starts while an earlier group runs is over before these books are read.
     await group.whenIdle()
-    await runStep(group.app, group.books)
+    await runStep(group.app, group.books, startedAt)
     if (stateOf(group.app, group.books.id) !== 'done') {
       update((run) => skippedAfter(run, group.app, group.books.id))
       return
@@ -121,20 +121,21 @@ export function createSync(ports: SyncPorts): Sync {
     update((run) => replanned(run, group.app, steps.map(planned)))
     for (const step of steps) {
       if (stateOf(group.app, step.id) === 'queued') {
-        await runStep(group.app, step)
+        await runStep(group.app, step, startedAt)
       }
     }
   }
 
   async function syncOnce(): Promise<void> {
     const groups = ports.groups().map((group) => ({ group, steps: group.steps() }))
+    const startedAt = ports.now()
     state.run = startedRun(
       groups.map(({ group, steps }) => ({ app: group.app, name: group.name, steps: [group.books, ...steps].map(planned) })),
-      ports.now(),
+      startedAt,
     )
     // One group after another, so the page never asks Google for two tokens at once.
     for (const { group, steps } of groups) {
-      await runGroup(group, steps)
+      await runGroup(group, steps, startedAt)
     }
     update((run) => finishedRun(run, ports.now()))
   }

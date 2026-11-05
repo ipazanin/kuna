@@ -23,10 +23,6 @@ function portsOf({
     if (failing.includes(step)) throw new Error(`Drive refused ${step}.`)
   }
   const ports: FileRemovalPorts = {
-    async deleteKeysFiles(id) {
-      calls.push(`delete keys of ${id}`)
-      fail('keys')
-    },
     async trashPricesFiles(id) {
       calls.push(`trash prices beside ${id}`)
       fail('prices-file')
@@ -59,16 +55,15 @@ function portsOf({
 }
 
 describe('removing the Investments file', () => {
-  it('on Drive deletes the keys files, then trashes the prices files, then drops the file, then forgets its prices here, with no price fetch meanwhile', async () => {
+  it('on Drive trashes the prices files, then drops the file, then forgets its prices here, with no price fetch meanwhile and the keys left alone', async () => {
     const { ports, calls } = portsOf()
 
     const report = await removeInvestmentsFile(ports, ON_DRIVE)
 
-    expect(calls).toEqual(['prices stopped', 'syncs over', 'drop file-1 starts', 'delete keys of file-1', 'trash prices beside file-1', 'drop file-1', 'forget prices copy of file-1', 'prices go on'])
+    expect(calls).toEqual(['prices stopped', 'syncs over', 'drop file-1 starts', 'trash prices beside file-1', 'drop file-1', 'forget prices copy of file-1', 'prices go on'])
     expect(report).toEqual({
       removed: true,
       steps: [
-        { step: 'keys', outcome: { kind: 'done' } },
         { step: 'prices-file', outcome: { kind: 'done' } },
         { step: 'file', outcome: { kind: 'done' } },
         { step: 'prices-copy', outcome: { kind: 'done' } },
@@ -86,31 +81,20 @@ describe('removing the Investments file', () => {
     expect(report.removed).toBe(true)
   })
 
-  it('stops at a refused keys delete, before the prices file or the file is touched, so the file stays open and Remove can run again', async () => {
-    const { ports, calls } = portsOf({ failing: ['keys'] })
-
-    const report = await removeInvestmentsFile(ports, ON_DRIVE)
-
-    expect(calls).toEqual(['prices stopped', 'syncs over', 'drop file-1 starts', 'delete keys of file-1', 'prices go on'])
-    expect(report).toEqual({
-      removed: false,
-      steps: [
-        { step: 'keys', outcome: { kind: 'failed', message: 'Drive refused keys.' } },
-        { step: 'prices-file', outcome: { kind: 'not-run' } },
-        { step: 'file', outcome: { kind: 'not-run' } },
-        { step: 'prices-copy', outcome: { kind: 'not-run' } },
-      ],
-    })
-  })
-
-  it('stops at a refused prices trash with the keys files already deleted and the file still chosen', async () => {
+  it('stops at a refused prices trash, before the file is touched, so the file stays open and Remove can run again', async () => {
     const { ports, calls } = portsOf({ failing: ['prices-file'] })
 
     const report = await removeInvestmentsFile(ports, ON_DRIVE)
 
-    expect(calls).not.toContain('drop file-1')
-    expect(report.removed).toBe(false)
-    expect(report.steps.map(({ outcome }) => outcome.kind)).toEqual(['done', 'failed', 'not-run', 'not-run'])
+    expect(calls).toEqual(['prices stopped', 'syncs over', 'drop file-1 starts', 'trash prices beside file-1', 'prices go on'])
+    expect(report).toEqual({
+      removed: false,
+      steps: [
+        { step: 'prices-file', outcome: { kind: 'failed', message: 'Drive refused prices-file.' } },
+        { step: 'file', outcome: { kind: 'not-run' } },
+        { step: 'prices-copy', outcome: { kind: 'not-run' } },
+      ],
+    })
   })
 
   it('reports the file not dropped, with the reason the drop gives, and leaves the prices kept here alone', async () => {
@@ -120,8 +104,8 @@ describe('removing the Investments file', () => {
 
     expect(calls).not.toContain('forget prices copy of file-1')
     expect(report.removed).toBe(false)
-    expect(report.steps[2]).toEqual({ step: 'file', outcome: { kind: 'failed', message: '500 from Drive.' } })
-    expect(report.steps[3]).toEqual({ step: 'prices-copy', outcome: { kind: 'not-run' } })
+    expect(report.steps[1]).toEqual({ step: 'file', outcome: { kind: 'failed', message: '500 from Drive.' } })
+    expect(report.steps[2]).toEqual({ step: 'prices-copy', outcome: { kind: 'not-run' } })
   })
 
   it('puts a refusal before any step, such as a sync under way, on the file itself', async () => {
@@ -137,14 +121,13 @@ describe('removing the Investments file', () => {
 
     expect(report.removed).toBe(false)
     expect(report.steps.map(({ step, outcome }) => [step, outcome.kind])).toEqual([
-      ['keys', 'not-run'],
       ['prices-file', 'not-run'],
       ['file', 'failed'],
       ['prices-copy', 'not-run'],
     ])
   })
 
-  it('waits for a sync under way, whose Keys step could write the keys file again, before it touches anything', async () => {
+  it('waits for a sync under way, whose Prices step could write the prices file again, before it touches anything', async () => {
     let over: () => void = () => {}
     const { ports, calls } = portsOf({ syncOver: new Promise<void>((resolve) => (over = resolve)) })
 
@@ -154,7 +137,7 @@ describe('removing the Investments file', () => {
     expect(calls).toEqual(['prices stopped'])
     over()
     expect((await removal).removed).toBe(true)
-    expect(calls.indexOf('syncs over')).toBeLessThan(calls.indexOf('delete keys of file-1'))
+    expect(calls.indexOf('syncs over')).toBeLessThan(calls.indexOf('trash prices beside file-1'))
   })
 
   it('refuses with nothing deleted when a sync started after the wait, as the file is taken, and puts the refusal on the file', async () => {
@@ -166,7 +149,6 @@ describe('removing the Investments file', () => {
     expect(report).toEqual({
       removed: false,
       steps: [
-        { step: 'keys', outcome: { kind: 'not-run' } },
         { step: 'prices-file', outcome: { kind: 'not-run' } },
         { step: 'file', outcome: { kind: 'failed', message: storageWords.busy } },
         { step: 'prices-copy', outcome: { kind: 'not-run' } },

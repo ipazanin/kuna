@@ -5,7 +5,7 @@ import type { Translation } from '../../shared/text/translation'
 
 export const en = {
   menu: 'Kuna settings',
-  description: "Sync, look and language on this device, for every app. Where an app keeps its books is on that app's Settings.",
+  description: "Sync, the assistant, look and language on this device, for every app. Where an app keeps its books is on that app's Settings.",
   language: {
     legend: 'Language',
     browser: 'Browser language',
@@ -18,7 +18,8 @@ export const en = {
     light: 'Light',
     dark: 'Dark',
     themeNote: "System follows this device's setting as it changes. Light or Dark is remembered on this device.",
-    privacy: "There is no server. Nothing leaves this browser except calls to Google's APIs for the books on Drive, your statements and your invoices.",
+    privacy:
+      "There is no server. Nothing leaves this browser except calls to Google's APIs for the books on Drive, your statements and your invoices, to the price vendors for Investments, and to the AI provider of your key for an app you switched the assistant on for.",
     privacyLink: 'Read the privacy notes',
   },
   sync: {
@@ -30,11 +31,24 @@ export const en = {
     signedOut: 'Signed out of Google',
     signedOutNote: 'The next sync asks Google to sign you in again.',
   },
+  keys: {
+    title: 'Keys in your Google account',
+    subtitle: 'With a file of yours on Drive, each sync keeps your keys in a hidden folder of your Google account. This deletes them from there, also after your last file left Drive.',
+    action: 'Delete my keys from my Google account',
+    confirmTitle: 'Delete your keys from your Google account?',
+    confirmDescription: "This deletes the keys file in Kuna's hidden folder, and any old keys file left by an Investments file. It cannot be undone.",
+    stayHere: 'The keys in this browser stay. To stop using a key, remove it on its card too.',
+    syncsAgain: 'While a file of yours is on Drive, the next sync saves the keys of this browser to your Google account again, and so does the next sync of any other browser that holds keys.',
+    cancel: 'Cancel',
+    confirm: 'Delete',
+    deleted: 'No Kuna keys are left in your Google account',
+    failed: 'The keys were not deleted',
+  },
 }
 
 export const hr: Translation<typeof en> = {
   menu: 'Postavke Kune',
-  description: 'Sinkronizacija, izgled i jezik na ovom uređaju, za sve aplikacije. Gdje aplikacija čuva svoju datoteku, piše u postavkama te aplikacije.',
+  description: 'Sinkronizacija, asistent, izgled i jezik na ovom uređaju, za sve aplikacije. Gdje aplikacija čuva svoju datoteku, piše u postavkama te aplikacije.',
   language: {
     legend: 'Jezik',
     browser: 'Jezik preglednika',
@@ -47,7 +61,8 @@ export const hr: Translation<typeof en> = {
     light: 'Svijetla',
     dark: 'Tamna',
     themeNote: 'Sustav prati postavku ovog uređaja kad se promijeni. Svijetla ili Tamna pamti se na ovom uređaju.',
-    privacy: 'Nema poslužitelja. Iz ovog preglednika ništa ne odlazi osim poziva Googleovim sučeljima za datoteke na Driveu, vaše izvode i vaše račune.',
+    privacy:
+      'Nema poslužitelja. Iz ovog preglednika ništa ne odlazi osim poziva Googleovim sučeljima za datoteke na Driveu, vaše izvode i vaše račune, izvorima cijena za Ulaganja i pružatelju AI-ja vašeg ključa za aplikaciju za koju ste uključili asistenta.',
     privacyLink: 'Pročitajte napomene o privatnosti',
   },
   sync: {
@@ -58,6 +73,21 @@ export const hr: Translation<typeof en> = {
     signOut: 'Odjava s Googlea',
     signedOut: 'Odjavljeni ste s Googlea',
     signedOutNote: 'Sljedeća sinkronizacija traži od Googlea da vas ponovno prijavi.',
+  },
+  keys: {
+    title: 'Ključevi na vašem Google računu',
+    subtitle:
+      'Dok je neka vaša datoteka na Driveu, svaka sinkronizacija čuva vaše ključeve u skrivenoj mapi vašeg Google računa. Ovo ih odande briše, i nakon što je vaša zadnja datoteka napustila Drive.',
+    action: 'Obriši moje ključeve s mog Google računa',
+    confirmTitle: 'Obrisati ključeve s vašeg Google računa?',
+    confirmDescription: 'Ovo briše datoteku ključeva u skrivenoj mapi Kune i svaku staru datoteku ključeva koju je ostavila datoteka ulaganja. To se ne može poništiti.',
+    stayHere: 'Ključevi u ovom pregledniku ostaju. Ako ključ više ne želite koristiti, uklonite ga i na njegovoj kartici.',
+    syncsAgain:
+      'Dok je neka vaša datoteka na Driveu, sljedeća sinkronizacija ponovno sprema ključeve ovog preglednika na vaš Google račun, a isto čini i sljedeća sinkronizacija svakog drugog preglednika koji čuva ključeve.',
+    cancel: 'Odustani',
+    confirm: 'Obriši',
+    deleted: 'Na vašem Google računu više nema ključeva Kune',
+    failed: 'Ključevi nisu obrisani',
   },
 }
 

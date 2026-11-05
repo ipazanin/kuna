@@ -3,11 +3,10 @@ import type { WorkbookChoice } from '../../../../shared/storage/application/work
 import { WorkbookWriteRefused } from '../../../../shared/storage/application/workbookWriteRefused'
 
 /**
- * The steps of a removal, in the order they run: the keys files in the app's hidden folder, the prices file beside the
- * Investments file, the Investments file itself, then the prices this browser keeps of it. A file kept in this browser
- * has only the last two.
+ * The steps of a removal, in the order they run: the prices file beside the Investments file, the Investments file
+ * itself, then the prices this browser keeps of it. A file kept in this browser has only the last two.
  */
-export type RemovalStep = 'keys' | 'prices-file' | 'file' | 'prices-copy'
+export type RemovalStep = 'prices-file' | 'file' | 'prices-copy'
 
 export type RemovalOutcome = { readonly kind: 'done' } | { readonly kind: 'failed'; readonly message: string } | { readonly kind: 'not-run' }
 
@@ -19,8 +18,6 @@ export interface RemovalReport {
 }
 
 export interface FileRemovalPorts {
-  /** Deletes for good every keys file of the Investments file on Drive. */
-  deleteKeysFiles(investmentsFileId: string): Promise<void>
   /** Moves every prices file beside the Investments file on Drive to the bin. */
   trashPricesFiles(investmentsFileId: string): Promise<void>
   /**
@@ -44,13 +41,14 @@ function messageOf(failure: unknown): string {
 }
 
 /**
- * Removes the Investments file this browser shows, once a sync under way is over. On Drive the keys files go first and
- * the prices files next, each step stopping the removal when it fails, so a failure leaves the Investments file chosen
- * and readable and Remove can run again. The Investments file goes after them, since forgetting it also forgets the id
- * that finds the others. The prices this browser keeps go last, once nothing reads them. Each step's outcome is reported.
+ * Removes the Investments file this browser shows, once a sync under way is over. On Drive the prices files go first,
+ * and a failure there stops the removal, so the Investments file stays chosen and readable and Remove can run again. The
+ * Investments file goes after them, since forgetting it also forgets the id that finds them. The prices this browser
+ * keeps go last, once nothing reads them. The keys stay, since they belong to the Google account. Each step's outcome
+ * is reported.
  */
 export async function removeInvestmentsFile(ports: FileRemovalPorts, choice: WorkbookChoice): Promise<RemovalReport> {
-  const order: readonly RemovalStep[] = choice.source === 'drive' ? ['keys', 'prices-file', 'file', 'prices-copy'] : ['file', 'prices-copy']
+  const order: readonly RemovalStep[] = choice.source === 'drive' ? ['prices-file', 'file', 'prices-copy'] : ['file', 'prices-copy']
   const outcomes = new Map<RemovalStep, RemovalOutcome>(order.map((step) => [step, { kind: 'not-run' }]))
   const report = (removed: boolean): RemovalReport => ({ steps: order.map((step) => ({ step, outcome: outcomes.get(step)! })), removed })
 
@@ -69,12 +67,11 @@ export async function removeInvestmentsFile(ports: FileRemovalPorts, choice: Wor
     let refusal: string | null
     try {
       refusal = await ports.dropFile(choice.id, async () => {
-        // A sync that started since would run the Keys step on the file being removed and could make its keys file again.
+        // A sync that started since would read the file being removed, and its Prices step could make its prices file again.
         if (ports.syncing()) {
           throw new WorkbookWriteRefused(storageWords.busy)
         }
         if (choice.source === 'drive') {
-          await run('keys', () => ports.deleteKeysFiles(choice.id))
           await run('prices-file', () => ports.trashPricesFiles(choice.id))
         }
       })

@@ -1,16 +1,17 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-
+import AiAssistCard from '../../shared/ai/presentation/AiAssistCard.vue'
 import { usePageSync } from '../../shared/sync/presentation/pageSync'
 import DashboardGrid from '../../shared/ui/DashboardGrid.vue'
 import PageHeader from '../../shared/ui/PageHeader.vue'
+import { installedApps } from '../routing/appRegistry'
 import AppearanceCard from './AppearanceCard.vue'
+import DeleteKeysCard from './DeleteKeysCard.vue'
 import SyncCard from './SyncCard.vue'
 import { words } from './words'
 
-/** Kuna settings at `#/settings`, for every app on this device: the page's one sync while some app's file is on Drive, then the look and the language. */
-const { groups } = usePageSync()
-const someOnDrive = computed(() => groups.some((group) => group.store.state.choice?.source === 'drive'))
+/** Kuna settings at `#/settings`, for every app on this device: the page's one sync while some app's file is on Drive, the assistant, the keys in the Google account, then the look and the language. */
+const { someOnDrive } = usePageSync()
+const assistApps = installedApps().flatMap((app) => (app.assist === undefined ? [] : [{ id: app.id, name: app.name, assist: app.assist }]))
 </script>
 
 <template>
@@ -18,6 +19,8 @@ const someOnDrive = computed(() => groups.some((group) => group.store.state.choi
     <PageHeader :title="words.menu" :description="words.description" />
     <DashboardGrid>
       <SyncCard v-if="someOnDrive" />
+      <AiAssistCard :apps="assistApps" :on-drive="someOnDrive" />
+      <DeleteKeysCard />
       <AppearanceCard />
     </DashboardGrid>
   </section>

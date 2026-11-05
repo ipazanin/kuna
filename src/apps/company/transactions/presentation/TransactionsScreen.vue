@@ -242,7 +242,7 @@ function besideHeading(rowClass = ''): { class: { td: (cell: EntryCell) => strin
 function reviewBadge(listed: ListedRow) {
   if (listed.kind === 'owner-advance') return null
   if (listed.bucket === UNCLASSIFIED) return h(UBadge, { label: words.unclassified, color: 'warning', variant: 'subtle', size: 'sm' })
-  if (listed.flaggedBy === 'ai') return h(UBadge, { label: words.aiGuess, color: 'info', variant: 'subtle', size: 'sm' })
+  if (listed.flaggedBy === 'ai') return h(UBadge, { label: words.noRule, color: 'info', variant: 'subtle', size: 'sm' })
   return null
 }
 

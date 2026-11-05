@@ -2414,19 +2414,17 @@ Investments file. Export downloads `kuna-investments-export-<yyyy-mm-dd>.json`. 
 is `--app-investments`, a plum.
 
 Remove the Investments file always asks first, in a dialog that names what goes and what stays. For
-a file on Drive it deletes the file's keys files in Kuna's hidden app folder (`files.delete` under
-`drive.appdata`, since Drive lets no file of that folder into the bin), moves every
-`kuna-investments-prices.json` beside the file to the bin (`files.update` with `trashed: true` under
-`drive.file`), then moves the Investments file to the bin, where Drive keeps it for 30 days, and
-forgets it here, and last deletes the prices this browser kept of it. For a file kept in this
-browser it deletes the file, then its prices here. Either way this browser lands on the Investments
-first run, as one that never had a file. The vendor keys in this browser stay, since they belong to
-the vendor accounts, and so do the backups folder and the exported files. A step that fails stops
-the removal, and the dialog lists each step's outcome. The keys and the prices files go first, so a
-failure there leaves the Investments file chosen and readable, and Remove can run again. The
-Investments file goes after them, since forgetting it also forgets the id that finds the others. It
-waits for a sync under way, whose Keys step could make the keys file again, and is refused with
-nothing done when a sync starts in the meantime. No sync, write or price fetch starts while it runs
+a file on Drive it moves every `kuna-investments-prices.json` beside the file to the bin
+(`files.update` with `trashed: true` under `drive.file`), then moves the Investments file to the bin,
+where Drive keeps it for 30 days, and forgets it here, and last deletes the prices this browser kept
+of it. For a file kept in this browser it deletes the file, then its prices here. Either way this
+browser lands on the Investments first run, as one that never had a file. The keys stay, in this
+browser and in the Google account's secrets file, since every Kuna app uses them, and so do the
+backups folder and the exported files. A step that fails stops the removal, and the dialog lists each
+step's outcome. The prices files go first, so a failure there leaves the Investments file chosen and
+readable, and Remove can run again. The Investments file goes after them, since forgetting it also
+forgets the id that finds them. It waits for a sync under way, and is refused with nothing done when
+a sync starts in the meantime. No sync, write or price fetch starts while it runs
 (`settings/application/fileRemoval.ts`). Once done, a note says to restore both the Investments file
 and its prices file from the bin to get it back. A device that still holds the prices file in the
 bin reads the one beside the Investments file instead, as _Investments prices_ says.
@@ -2774,54 +2772,63 @@ vendor's origin.
 
 #### Keys in this browser and in the Google account
 
-A user enters their own keys in the Investments Settings. Each is kept in this browser's
-`localStorage` under `kuna.price-vendor-key.<vendor>`, with the time it was saved or removed under
-`kuna.price-vendor-key-changed.<vendor>`, never in the Investments file or the prices file, never
-logged and never in an error message. A key kept before keys carried a time counts as saved at the
-start of 1970, so any change with a time outdates it. The keys go in the request's address, as every
-vendor takes them (Finnhub's as `token`), because a header of its own would make the browser ask the
-vendor first with a CORS preflight.
+A user enters their own keys in the Investments Settings, and the AI keys in Kuna settings. Each is
+kept in this browser's `localStorage` under `kuna.secret.<id>`, with the time it was saved or removed
+under `kuna.secret-changed.<id>`, never in a books file or the prices file, never logged and never in
+an error message (`src/shared/secrets/infrastructure/browserSecrets.ts`). The ids are the price
+vendors' (`twelvedata`, `alphavantage`, `finnhub`) and the AI providers' (`anthropic`, `openai`,
+`openrouter`), which a spec keeps apart. A key kept before keys carried a time counts as saved at the
+start of 1970, so any change with a time outdates it. As the page starts, each key an older Kuna kept
+under `kuna.price-vendor-key.<id>` moves to the new names with its time, unless the new name holds a
+newer change, and the old pair is removed only once the new one is written. The price keys go in the
+request's address, as every vendor takes them (Finnhub's as `token`), because a header of its own
+would make the browser ask the vendor first with a CORS preflight.
 
-With the Investments file on Drive, the Keys step of the page's sync carries them through the
-Google account, so every browser signed in to it gets them. They go to one small file in Drive's
-hidden app folder (`appDataFolder`, the `drive.appdata` scope), `kuna-investments-keys-<Investments
-file id>.json`, which Drive does not show, which nobody can share, and which only Kuna
-reads. Sharing the folder of the Investments file never shares the keys. The file holds `format`
-`kuna-vendor-keys`, `version` 1 and, per vendor, the `key` or null once it was removed, and
-`changed_at`. A vendor this Kuna does not know, as a newer Kuna may add, passes through as it is. A
-time in this browser that the file does not take counts as the start of 1970, so the step never writes
-a file it would refuse. The step merges the file with this browser's keys, and for each vendor the newer save
-or removal wins, the file's on the same time, then writes whichever side was behind
-(`prices/application/keysSync.ts`). So the last saved or removed key wins in every browser on its
-next sync:
+With an app's file on Drive, the Keys step of the page's sync carries every key through the Google
+account, so every browser signed in to it gets them. They go to one small file in Drive's hidden app
+folder (`appDataFolder`, the `drive.appdata` scope), `kuna-secrets.json`, which Drive does not show,
+which nobody can share, and which only Kuna reads. The file holds `format` `kuna-secrets`, `version`
+1 and, per id, the `key` or null once it was removed, and `changed_at`. An id this Kuna does not
+name, as a newer Kuna may add, syncs like any other. A time in this browser that the file does not
+take counts as the start of 1970, so the step never writes a file it would refuse. The step lists
+the hidden folder once and merges the secrets file, every other file that holds keys and this
+browser's keys, and for each id the newer save or removal wins, a file's on the same time, then
+writes the secrets file when it differs (`src/shared/secrets/application/secretsSync.ts`). So the
+last saved or removed key wins in every browser on its next sync:
 
 - Browser A saves a key at 10:00 and syncs. Browser B syncs and takes it, removes it at 10:05 and
   syncs. A syncs at 10:10, finds the removal of 10:05 newer than its save, and loses the key.
 - A saves one key at 10:00 and B another at 10:02, neither synced. Whichever syncs first, both hold
   B's key once each has synced after B. When A synced first, its second sync takes B's key.
 
-The times are each browser's clock, so a clock set minutes wrong can let an older change win. The
-step runs after the books and before the Prices step, so the day's fetch has the keys another
-browser saved. It runs while this browser saved or removed a key or a holding is priced by a
-vendor that needs one, which is also when the page asks Google for `drive.appdata`. Before that
-grant the step waits in "Allow access" and the Prices step still runs. A keys file Kuna does not
-write, or one a newer Kuna wrote, fails the step and is left as it is. The file is made only once
-there is a key or a removal to keep. Of two files two browsers made at once, each takes the one whose
-id sorts first, the other one's changes reach it on the next sync, and the other file stays in the
-app folder until Remove the Investments file deletes both. A key saved or removed on the card while
-the step writes stays, as the newer change.
-The file is overwritten without keeping its revisions forever, but Drive may keep its earlier
-versions, which only Kuna reads, for about 30 days, as it does for any file it does not keep forever.
-Keys stay a browser's own when
-it moves to another Investments file: its next sync merges them into that file's keys file. An
-Investments file kept in this browser has no keys file, and its keys stay in this browser alone, as
-the Prices card says. Clearing the site data forgets them here, and the next sync brings them back
-from the Google account. A device with no keys still reads the prices file another device wrote.
+The other files it folds in are a second `kuna-secrets.json` two browsers made at once, the one
+whose id sorts first being kept, and each `kuna-investments-keys-<Investments file id>.json` an older
+Kuna wrote, one per Investments file, in the format `kuna-vendor-keys` version 1. Each is deleted only
+after the secrets file holds what it held, and a delete that fails leaves it to fold in again on the
+next sync, which changes nothing. A file Kuna does not write, or one a newer Kuna wrote, fails the
+step before anything is written or deleted, and links to Kuna settings. A failed write, or a lost
+connection, leaves every file and this browser as they were.
 
-The fake Drive keeps its app folder as the parent `appDataFolder`. `?keys=other-browser` puts there
-a made-up Twelve Data key another browser saved at 10:00 on 30 October 2026, and `?keys=removed` that
-key's removal at 10:05, for the chosen Investments file. Either marks the file read eleven minutes
-before, so the open syncs and takes it.
+The times are each browser's clock, so a clock set minutes wrong can let an older change win. Every
+app that keeps a key lists the step in its sync group: Investments after its books and before the
+Prices step, so the day's fetch has the keys another browser saved, and Company while its assistant is
+switched on. In one run only the first group's step reaches Drive, and the others say Up to date. The
+step runs while its app wants it or this browser saved or removed any key, which is also when the page
+asks Google for `drive.appdata`. Before that grant the step waits in "Allow access" and the Prices step
+still runs. The file is made only once there is a key or a removal to keep. A key saved or removed on
+a card while the step writes stays, as the newer change. The file is overwritten without keeping its
+revisions forever, but Drive may keep its earlier versions, which only Kuna reads, for about 30 days,
+as it does for any file it does not keep forever. A device whose every file is kept in this browser
+has no Keys step, and its keys stay in this browser alone, as the Prices card says. Clearing the site
+data forgets them here, and the next sync brings them back from the Google account. A device with no
+keys still reads the prices file another device wrote.
+
+The fake Drive keeps its app folder as the parent `appDataFolder`. `?keys=other-browser` puts there a
+secrets file with a made-up Twelve Data key another browser saved at 10:00 on 30 October 2026, and
+`?keys=removed` that key's removal at 10:05. `?keys=legacy` puts only an old keys file for the chosen
+Investments file, and `?keys=legacy-and-new` both files, the old one with a newer Twelve Data key and
+a Finnhub key. Each marks the file read eleven minutes before, so the open syncs and folds them in.
+`window.kunaFakeHiddenFiles()` lists the names in the fake hidden folder.
 
 #### The fetch
 
@@ -2890,7 +2897,7 @@ Drive or the fake Drive, the keys and the vendors.
   copy names. The file is overwritten without keeping its revisions forever, which would fill Drive's
   200 in as many days.
 - **The Keys step.** After the books, each sync of an Investments file on Drive merges this browser's
-  keys with the keys file in the app folder, as _Keys in this browser and in the Google account_ says.
+  keys with the secrets file in the app folder, as _Keys in this browser and in the Google account_ says.
   A key it brings shows on the Prices card at once.
 - **The Prices step.** After the keys, each sync of an Investments file on Drive asks Drive for the
   prices file's head revision and downloads it only when it differs from the copy's. A file Kuna
@@ -2914,8 +2921,8 @@ Drive or the fake Drive, the keys and the vendors.
   prices file, and the fetch writes it alone. Moving the Investments file to Drive starts its prices
   over, since the new file has a new id. The copy of the prices of an Investments file that leaves the
   screen is deleted from this browser. When Switch storage or Find moves this browser to another
-  file, the prices file beside the old one and its keys file stay, for the devices that still use it.
-  Remove the Investments file moves the prices file to the bin and deletes the keys file.
+  file, the prices file beside the old one stays, for the devices that still use it.
+  Remove the Investments file moves the prices file to the bin and leaves the keys alone.
 - **The Overview** says how recent the holdings' closes are, and once they are late, a warning with
   the newest close, how many series the last fetch missed and a link to the Prices card.
 - **The Prices card** in the Investments Settings shows the last fetch's time, what it missed and why,
@@ -3403,12 +3410,15 @@ SHA-256 hash, which picks the theme before the first paint so the loading screen
 colour. Editing that script means replacing its hash in the policy. Frames load only from Google's
 Picker and sign-in hosts, and requests go only to these hosts:
 
-| Host                           | What the app asks it                                                                                                                                                                                                                                                                                                                                                                     |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `www.googleapis.com`           | Drive: the books' file, its revisions and its backups, listing the invoice folders, making one, and uploading an invoice PDF (`/upload/drive/v3`), listing and downloading the files of the statements folder, uploading a statement filed from mail and making its year folder, listing the folders the accountant's mail goes into, and the price keys file in the app's hidden folder |
-| `gmail.googleapis.com`         | The invoice mail draft, only once the user turned it on, and the mail step's search, mails and attachments, only while a kind of mail has a sender                                                                                                                                                                                                                                       |
-| `openidconnect.googleapis.com` | The userinfo endpoint                                                                                                                                                                                                                                                                                                                                                                    |
-| `oauth2.googleapis.com`        | Token revocation, where `google.accounts.oauth2.revoke` posts                                                                                                                                                                                                                                                                                                                            |
+| Host                           | What the app asks it                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `www.googleapis.com`           | Drive: the books' file, its revisions and its backups, listing the invoice folders, making one, and uploading an invoice PDF (`/upload/drive/v3`), listing and downloading the files of the statements folder, uploading a statement filed from mail and making its year folder, listing the folders the accountant's mail goes into, and the secrets file in the app's hidden folder |
+| `gmail.googleapis.com`         | The invoice mail draft, only once the user turned it on, and the mail step's search, mails and attachments, only while a kind of mail has a sender                                                                                                                                                                                                                                    |
+| `openidconnect.googleapis.com` | The userinfo endpoint                                                                                                                                                                                                                                                                                                                                                                 |
+| `oauth2.googleapis.com`        | Token revocation, where `google.accounts.oauth2.revoke` posts                                                                                                                                                                                                                                                                                                                         |
+| `api.anthropic.com`            | The assistant's requests and its free key test, only for an app switched on and only while Anthropic is the provider in use                                                                                                                                                                                                                                                           |
+| `api.openai.com`               | The same, while OpenAI is the provider in use                                                                                                                                                                                                                                                                                                                                         |
+| `openrouter.ai`                | The same, while OpenRouter is the provider in use                                                                                                                                                                                                                                                                                                                                     |
 
 The manifest and the service worker come from this origin only. Styles allow `'unsafe-inline'`
 because Nuxt UI writes its colour variables into an inline `<style>`, and the Google Picker and

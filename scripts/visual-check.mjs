@@ -20,6 +20,12 @@
  * on its own or inside another, such as the Settings tabs, Year's tab link, both imports, Salaries,
  * the home, its Set up and the race on the To review tab.
  *
+ * Kuna settings shows the Assistant card with no key, with a made-up Anthropic key kept and with Company switched on, in
+ * Croatian too. On the To review tab Suggest categories asks to switch Company on and then suggests a category with its Use
+ * button, in Croatian too, or says the model declined (`?ai=refused`). A pay scenario's figure on Year's Pay tab explains
+ * itself with its sources, in Croatian too, flagged for a figure Kuna did not compute (`?ai=invented-figure`), and a figure
+ * on Salaries that names employees asks for the employee switch first.
+ *
  * Kuna's Overview renders on the sample Loans and Investments files beside the company on Drive and in this browser,
  * while the Loans file opens, once its read fails (`?loans=failed`), with Investments alone and on a first run, with its
  * figures worked out from the same fake sets, in Croatian too, and so does Year's Pay tab with the kept profit paid out now.
@@ -58,7 +64,7 @@
  * the sample's Tax screen for 2026 with its Year, Sales, Foreign income and Turns tax-free tabs, in Croatian too,
  * the sample's Transactions, in Croatian too, and Transactions on an empty file, the import of the made-up portfolio workbook
  * into an empty Investments file with the fake prices, each step and the dry run in English and Croatian, and the same workbook again adding nothing,
- * the Prices tab of the Investments Settings on the sample with current prices, with made-up keys kept, with a key another browser saved taken by the sync on open and a key this browser kept lost to another browser's newer removal (`?keys=`), and with late prices, its General tab, on a file another device left in the Drive bin (`?investments=binned`) in Croatian too, three made-up CSV files of closes imported on it, Remove the Investments file on the sample on Drive asked first, cancelled and removed to the first run in English and Croatian, the same for the sample kept in this browser (`?investments=browser`), the sync on open of the binned file with its steps,
+ * the Prices tab of the Investments Settings on the sample with current prices, with made-up keys kept, with a key another browser saved taken by the sync on open, a key this browser kept lost to another browser's newer removal and a key the Investments file's old keys file held (`?keys=`), and with late prices, its General tab, on a file another device left in the Drive bin (`?investments=binned`) in Croatian too, three made-up CSV files of closes imported on it, Remove the Investments file on the sample on Drive asked first, cancelled and removed to the first run in English and Croatian, the same for the sample kept in this browser (`?investments=browser`), the sync on open of the binned file with its steps,
  * the fetch after the import waiting out the fake vendor's minute and then back at its close, Company's
  * Overview, Transactions with its To review and Import tabs, every tab of Analysis, Invoicing with its Plan and Clients tabs, every tab of Settings and onboarding's first steps in Croatian (`?lang=hr`),
  * Year, Salaries and Owner in Croatian in the fake file on Drive, in this browser and with one and five employees, Salaries for one
@@ -170,7 +176,7 @@ import { figuresClose, portfolioFigures } from '../src/apps/investments/holdings
 import { averageCostText } from '../src/apps/investments/holdings/presentation/holdingText.ts'
 import { incomeForecast } from '../src/apps/investments/income/domain/incomeForecast.ts'
 import { fetchedFactsBook } from '../src/apps/investments/prices/domain/factsBook.ts'
-import { FAKE_KEY_SAVED_AT } from '../src/apps/investments/prices/infrastructure/fake/fakeKeys.ts'
+import { FAKE_KEY_SAVED_AT } from '../src/shared/secrets/infrastructure/fake/fakeSecrets.ts'
 import { incomeByYear } from '../src/apps/investments/income/domain/incomeHistory.ts'
 import { investingRhythm } from '../src/apps/investments/income/domain/investingRhythm.ts'
 import { foreignIncomeYear } from '../src/apps/investments/tax/domain/foreignIncome.ts'
@@ -269,8 +275,12 @@ import {
   loansOpenFlowIn,
   mailSaveAsksFlowIn,
   ownerNetUnregisteredFlowIn,
+  payFigureExplainFlowIn,
   raceFlowIn,
+  deleteKeysFlowIn,
+  reviewSuggestFlowIn,
   salariesFlowIn,
+  salaryFigureExplainAsksFlowIn,
   setUpFlowIn,
   statementsFolderFlowIn,
   dismissFlow,
@@ -1323,8 +1333,8 @@ const SCREENS = [
     hash: '#/settings',
     title: 'Kuna settings',
     charts: 0,
-    ready: '[data-testid="sync-card"]',
-    shows: ['Sync as the app opens', 'Sign out of Google', 'Appearance and privacy'],
+    ready: '[data-testid="assist-card"]',
+    shows: ['Sync as the app opens', 'Sign out of Google', 'Appearance and privacy', 'Assistant', 'Key for Anthropic', 'No key in this browser.', 'Suggest categories'],
     cards: false,
   },
   {
@@ -1333,8 +1343,47 @@ const SCREENS = [
     hash: '#/settings',
     title: 'Postavke Kune',
     charts: 0,
-    ready: '[data-testid="sync-card"]',
-    shows: ['Sinkronizacija, izgled i jezik', 'Jezik preglednika', 'Hrvatski', 'Kad promijenite jezik, aplikacija se ponovno učita.'],
+    ready: '[data-testid="assist-card"]',
+    shows: [
+      'Sinkronizacija, asistent, izgled i jezik',
+      'Jezik preglednika',
+      'Hrvatski',
+      'Kad promijenite jezik, aplikacija se ponovno učita.',
+      'Asistent',
+      'Ključ za Anthropic',
+      'U ovom pregledniku nema ključa.',
+    ],
+    cards: false,
+  },
+  {
+    name: 'kuna-settings-assist',
+    hash: '#/settings',
+    title: 'Kuna settings',
+    charts: 0,
+    ready: '[data-testid="assist-in-use"]',
+    stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
+    shows: ['A key ending in 0042 is kept in this browser.', 'In use', 'Sonnet 5.5 (default)'],
+    cards: false,
+  },
+  {
+    name: 'kuna-settings-assist-croatian',
+    query: 'lang=hr',
+    hash: '#/settings',
+    title: 'Postavke Kune',
+    charts: 0,
+    ready: '[data-testid="assist-in-use"]',
+    stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
+    shows: ['U ovom pregledniku čuva se ključ koji završava na 0042.', 'U upotrebi', 'Sonnet 5.5 (zadano)'],
+    cards: false,
+  },
+  {
+    name: 'kuna-settings-assist-on',
+    hash: '#/settings',
+    title: 'Kuna settings',
+    charts: 0,
+    ready: '[data-testid="assist-switch-company"][aria-checked="true"]',
+    stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042', 'kuna.assist.company': 'on' },
+    shows: ['A key ending in 0042 is kept in this browser.', 'Include rows that name employees', 'Include figures that name employees'],
     cards: false,
   },
 ]
@@ -3603,7 +3652,7 @@ const SOURCE_SCREENS = [
     title: 'Settings',
     charts: 0,
     ready: '[data-testid="investments-prices-card"] [data-testid="price-vendor-forget"]',
-    stored: { 'kuna.price-vendor-key.twelvedata': 'made-up-twelve-data-key-0042', 'kuna.price-vendor-key.alphavantage': 'MADEUPKEY01' },
+    stored: { 'kuna.secret.twelvedata': 'made-up-twelve-data-key-0042', 'kuna.secret.alphavantage': 'MADEUPKEY01' },
     shows: ['A key ending in 0042 is kept in this browser.', 'A key is kept in this browser.', 'Remove'],
     cards: false,
   },
@@ -3614,7 +3663,7 @@ const SOURCE_SCREENS = [
     title: 'Postavke',
     charts: 0,
     ready: '[data-testid="investments-prices-card"] [data-testid="price-vendor-forget"]',
-    stored: { 'kuna.price-vendor-key.twelvedata': 'made-up-twelve-data-key-0042', 'kuna.price-vendor-key.alphavantage': 'MADEUPKEY01' },
+    stored: { 'kuna.secret.twelvedata': 'made-up-twelve-data-key-0042', 'kuna.secret.alphavantage': 'MADEUPKEY01' },
     shows: ['U ovom pregledniku čuva se ključ koji završava na 0042.', 'U ovom pregledniku čuva se ključ.', 'Ukloni'],
     cards: false,
   },
@@ -3645,8 +3694,18 @@ const SOURCE_SCREENS = [
     title: 'Settings',
     charts: 0,
     ready: '[data-testid="investments-prices-card"] [data-vendor="twelvedata"][data-kept="false"]',
-    stored: { 'kuna.price-vendor-key.twelvedata': 'made-up-twelve-data-key-0042', 'kuna.price-vendor-key-changed.twelvedata': FAKE_KEY_SAVED_AT },
+    stored: { 'kuna.secret.twelvedata': 'made-up-twelve-data-key-0042', 'kuna.secret-changed.twelvedata': FAKE_KEY_SAVED_AT },
     shows: ['No key in this browser.', 'Each sync saves them to your Google account, hidden from Drive'],
+    cards: false,
+  },
+  {
+    name: 'investments-prices-legacy-keys',
+    query: 'investments=sample&keys=legacy',
+    hash: '#/investments/settings?tab=prices',
+    title: 'Settings',
+    charts: 0,
+    ready: '[data-testid="investments-prices-card"] [data-vendor="twelvedata"][data-kept="true"]',
+    shows: ['A key ending in 5307 is kept in this browser.', 'Each sync saves them to your Google account, hidden from Drive'],
     cards: false,
   },
   {
@@ -4743,6 +4802,86 @@ const FLOWS = [
   { name: 'move-browser-croatian', hash: '#/company/settings?tab=books', title: 'Postavke', run: moveFromBrowserFlowIn('hr'), modes: ['browser'], queries: { browser: '&fake=browser&lang=hr' } },
   { name: 'race', hash: '#/company/transactions?tab=review', title: 'Transactions', run: raceFlow, modes: ['drive'], queries: { drive: '&fake=race' } },
   { name: 'race-croatian', hash: '#/company/transactions?tab=review', title: 'Transakcije', run: raceFlowIn('hr'), modes: ['drive'], queries: { drive: '&fake=race&lang=hr' } },
+  {
+    name: 'review-suggested',
+    hash: '#/company/transactions?tab=review',
+    title: 'Transactions',
+    run: reviewSuggestFlowIn('en'),
+    viewports: EVERY_VIEWPORT,
+    modes: ['drive'],
+    queries: { drive: '&ai=ok' },
+  },
+  {
+    name: 'review-suggested-croatian',
+    hash: '#/company/transactions?tab=review',
+    title: 'Transakcije',
+    run: reviewSuggestFlowIn('hr'),
+    viewports: EVERY_VIEWPORT,
+    modes: ['drive'],
+    queries: { drive: '&ai=ok&lang=hr' },
+  },
+  {
+    name: 'kuna-settings-delete-keys',
+    hash: '#/settings',
+    title: 'Kuna settings',
+    run: deleteKeysFlowIn('en'),
+    viewports: EVERY_VIEWPORT,
+    modes: ['drive'],
+  },
+  {
+    name: 'kuna-settings-delete-keys-croatian',
+    hash: '#/settings',
+    title: 'Postavke Kune',
+    run: deleteKeysFlowIn('hr'),
+    viewports: EVERY_VIEWPORT,
+    modes: ['drive'],
+    queries: { drive: '&lang=hr' },
+  },
+  {
+    name: 'review-suggest-refused',
+    hash: '#/company/transactions?tab=review',
+    title: 'Transactions',
+    run: reviewSuggestFlowIn('en', { refused: true }),
+    viewports: EVERY_VIEWPORT,
+    modes: ['drive'],
+    queries: { drive: '&ai=refused' },
+  },
+  {
+    name: 'pay-figure-explained',
+    hash: '#/company/year?year=2027&tab=pay',
+    title: 'Year',
+    run: payFigureExplainFlowIn('en'),
+    viewports: EVERY_VIEWPORT,
+    modes: ['browser'],
+    queries: { browser: '&fake=browser&ai=ok' },
+  },
+  {
+    name: 'pay-figure-explained-croatian',
+    hash: '#/company/year?year=2027&tab=pay',
+    title: 'Godina',
+    run: payFigureExplainFlowIn('hr'),
+    viewports: EVERY_VIEWPORT,
+    modes: ['browser'],
+    queries: { browser: '&fake=browser&ai=ok&lang=hr' },
+  },
+  {
+    name: 'pay-figure-explain-stray',
+    hash: '#/company/year?year=2027&tab=pay',
+    title: 'Year',
+    run: payFigureExplainFlowIn('en', { stray: true }),
+    viewports: EVERY_VIEWPORT,
+    modes: ['browser'],
+    queries: { browser: '&fake=browser&ai=invented-figure' },
+  },
+  {
+    name: 'salary-figure-explain-asks',
+    hash: '#/company/salaries',
+    title: 'Salaries',
+    run: salaryFigureExplainAsksFlowIn('en'),
+    viewports: EVERY_VIEWPORT,
+    modes: ['drive'],
+    queries: { drive: '&fake=five-employees' },
+  },
 ]
 const MODES = [
   { name: 'drive', query: '' },

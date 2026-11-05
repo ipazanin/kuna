@@ -65,18 +65,6 @@ export interface PricesDrive {
   trash(fileId: string): Promise<void>
 }
 
-/** The Drive requests the keys file needs in the app's hidden folder, which only Kuna sees and nobody can share. */
-export interface KeysDrive {
-  /** The ids of the files in the app's folder with this name. */
-  filesNamed(name: string): Promise<readonly string[]>
-  /** Makes the file in the app's folder and gives its id. */
-  createFile(name: string, text: string): Promise<string>
-  download(fileId: string): Promise<string>
-  overwrite(fileId: string, text: string): Promise<void>
-  /** Deletes the file for good, since Drive keeps no file of the app's folder in the bin. */
-  delete(fileId: string): Promise<void>
-}
-
 /** Where the prices of the Investments file on screen are kept. */
 export interface PricesPlace {
   readonly investmentsFileId: string

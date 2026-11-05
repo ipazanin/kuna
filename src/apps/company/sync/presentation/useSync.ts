@@ -13,6 +13,9 @@ import LocalWorkbookStatus from '../../workbook-files/presentation/LocalWorkbook
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import { assistOn } from '../../../../shared/ai/infrastructure/assistSettings'
+import { secretsNeeds, secretsStep } from '../../../../shared/secrets/presentation/secretsStep'
+import { suggestCategories } from '../../assist/application/suggestCategories'
 import { words } from './words'
 
 /** The Google permissions books on Drive and this device's settings need, by what needs each: the books, each step their settings turn on, and Gmail while invoice drafts are on. */
@@ -24,15 +27,17 @@ function needsOfBooks(workbook: Workbook | null): AccessNeed[] {
   ]
 }
 
-/** The company's part of the page's sync: its books, then mail, then statements. */
+/** The company's part of the page's sync: its books, then mail, then statements, then the keys while the assistant is on for the company. */
 export function companySyncGroup(): AppSyncGroup {
   const store = useWorkbook()
   const writes = useRecordWrites(store)
-  const steps = [useMailSync().step, useStatementSync().step]
+  const assistWanted = () => assistOn(suggestCategories.app)
+  const steps = [useMailSync().step, useStatementSync().step, secretsStep(assistWanted)]
   return {
     store,
     steps: () => steps,
-    needs: () => needsOfBooks(store.state.workbook),
+    // A file in the bin or gone has no keys step to reach, so it asks for no access the keys would need.
+    needs: () => [...needsOfBooks(store.state.workbook), ...(store.state.missing ? [] : secretsNeeds(assistWanted))],
     undo: writes.undo,
     exportControl: LocalWorkbookStatus,
     fileCard: BOOKS_FILE_LINK,

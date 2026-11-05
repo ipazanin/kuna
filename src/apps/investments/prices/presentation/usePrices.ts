@@ -8,7 +8,7 @@ import { exclusivelyInBrowser } from '../infrastructure/browserLock'
 import { browserFetch, browserPause } from '../infrastructure/browserPricePorts'
 import { googlePricesDrive } from '../infrastructure/googlePricesDrive'
 import { openPricesCache } from '../infrastructure/pricesCache'
-import { storedVendorKey } from '../infrastructure/vendorKeys'
+import { storedSecret } from '../../../../shared/secrets/infrastructure/browserSecrets'
 import { countRequest, requestsToday } from '../infrastructure/vendorUsage'
 import { PRICE_VENDORS } from '../infrastructure/vendors/priceVendors'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
@@ -85,7 +85,7 @@ const prices: PricesUpdate = createPricesUpdate({
   vendors: PRICE_VENDORS,
   fetch: pageVendorFetch,
   pause: pagePause,
-  key: storedVendorKey,
+  key: storedSecret,
   exclusively: exclusivelyInBrowser,
   now: () => new Date().toISOString(),
   newRevision: () => `browser-${crypto.randomUUID()}`,

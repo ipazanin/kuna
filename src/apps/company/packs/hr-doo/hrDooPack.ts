@@ -4,7 +4,10 @@ import type { RouteLocationRaw } from 'vue-router'
 import type { PackContribution } from '../packContribution'
 import { packPart } from '../../workbook/domain/packPart'
 import { ACCOUNTANT_MAIL_SOURCES } from './application/accountantMailSources'
+import { EXPLAIN_FIGURE_SUMMARY } from './assist/presentation/packAssist'
 import { COMPANY_FACT_SETTINGS, companyFactsErrors } from './domain/companyFacts'
+import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
+import { EMPLOYEE_RECORDS } from './domain/hrDooKinds'
 import { HR_DOO, HR_DOO_PART, hrDooWorkbook } from './domain/hrDooPart'
 import { ownerTakeOut } from './presentation/ownerTakeOut'
 import { packWaitingJobs } from './presentation/packWaitingJobs'
@@ -53,4 +56,8 @@ export const hrDooPack: PackContribution = {
   categoriesToSort,
   mailSources: ACCOUNTANT_MAIL_SOURCES,
   onboarding: packWords.onboarding,
+  assist: [EXPLAIN_FIGURE_SUMMARY],
+  // The records, not the workbook's employees, which drop an IBAN two of them share and a row listed twice.
+  employeeIbans: (records) => new Set(recordsOfKindIn(records, EMPLOYEE_RECORDS).records.flatMap((stored) => stored.record.ibans)),
+  employeeNames: (records) => recordsOfKindIn(records, EMPLOYEE_RECORDS).records.map((stored) => stored.record.name || stored.record.slug),
 }

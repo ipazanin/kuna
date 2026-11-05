@@ -22,7 +22,7 @@ import { HOLDINGS_ROUTE, holdingNamed } from './holdingLinks'
 import { mixDonut } from './mixDonut'
 import OpenLotsCard from './OpenLotsCard.vue'
 import { seriesKey } from '../../prices/domain/pricesFile'
-import { storedVendorKey } from '../../prices/infrastructure/vendorKeys'
+import { storedSecret } from '../../../../shared/secrets/infrastructure/browserSecrets'
 import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
 import { usePrices } from '../../prices/presentation/usePrices'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
@@ -124,7 +124,7 @@ async function askAgain(instrument: RecordId): Promise<void> {
   }
 }
 /** The vendors of the holding's warning this browser keeps no key for, read again whenever the warning changes. */
-const keyless = computed(() => (details.value?.problems?.vendors ?? []).filter((vendor) => storedVendorKey(vendor.id) === null).map((vendor) => vendor.name))
+const keyless = computed(() => (details.value?.problems?.vendors ?? []).filter((vendor) => storedSecret(vendor.id) === null).map((vendor) => vendor.name))
 
 const description = computed(() => {
   const current = holding.value

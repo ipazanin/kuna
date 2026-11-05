@@ -2,6 +2,7 @@ import type { AppContribution, AppScreen } from '../../shared/app/appContributio
 import { homeCardFigures } from '../../shared/app/homeCardFigures'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
 import { autoSyncOn } from '../../shared/sync/infrastructure/autoSyncSwitch'
+import { SUGGEST_CATEGORIES_SUMMARY } from './assist/presentation/companyAssist'
 import { bindFiltersToRouter } from './filters/application/filterStore'
 import { COMPANY_HOME_CARD } from './home/presentation/companyHomeCard'
 import { companyHubFigures } from './home/presentation/companyHubFigures'
@@ -48,8 +49,15 @@ export const companyApp: AppContribution = {
     installPackTabs(HR_DOO_TABS)
     // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
-      const [{ seedFakeWorkbook }, { fakeStaffOf }] = await Promise.all([import('./workbook/infrastructure/fake/seedFakeWorkbook'), import('./packs/hr-doo/infrastructure/fake/fakeStaff')])
+      const [{ seedFakeWorkbook }, { fakeStaffOf }, { registerFakeSuggestions }, { registerFakeExplanation }] = await Promise.all([
+        import('./workbook/infrastructure/fake/seedFakeWorkbook'),
+        import('./packs/hr-doo/infrastructure/fake/fakeStaff'),
+        import('./assist/infrastructure/fake/fakeSuggestions'),
+        import('./packs/hr-doo/assist/infrastructure/fake/fakeExplanation'),
+      ])
       await seedFakeWorkbook(new URLSearchParams(window.location.search).get('fake'), fakeStaffOf)
+      registerFakeSuggestions()
+      registerFakeExplanation()
     }
   },
   screens: [
@@ -69,6 +77,7 @@ export const companyApp: AppContribution = {
   moneyFormat: () => moneyFormatOf(settings.value),
   homeCard: COMPANY_HOME_CARD,
   hub: { counts: false, figures: () => homeCardFigures(state, companyHubFigures) },
+  assist: { tasks: () => [SUGGEST_CATEGORIES_SUMMARY, ...shownPack(settings.value).assist] },
   // Nothing chosen and nothing kept: onboarding takes it, whatever screen the address names.
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
   startPath: ONBOARDING_ROUTE,

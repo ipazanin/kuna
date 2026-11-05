@@ -6,7 +6,7 @@
  */
 
 import { en as companyEnglish, hr as companyCroatian } from '../../src/apps/company/words.ts'
-import { FAKE_KEY_SAVED_AT } from '../../src/apps/investments/prices/infrastructure/fake/fakeKeys.ts'
+import { FAKE_KEY_SAVED_AT } from '../../src/shared/secrets/infrastructure/fake/fakeSecrets.ts'
 import { en as companySettingsEnglish, hr as companySettingsCroatian } from '../../src/apps/company/settings/presentation/words.ts'
 import { en as classWordsEnglish, hr as classWordsCroatian } from '../../src/apps/company/packs/hr-doo/preset/presentation/classWords.ts'
 import { en as rulesEnglish, hr as rulesCroatian } from '../../src/apps/company/rules/presentation/words.ts'
@@ -72,6 +72,10 @@ import { starterCategories } from '../../src/apps/spending/categories/domain/sta
 import { formatMoney } from '../../src/shared/money/moneyFormat.ts'
 import { settleCharts } from './settleCharts.mjs'
 import { en as mailDomainEnglish, hr as mailDomainCroatian } from '../../src/apps/company/mail/domain/words.ts'
+import { en as assistEnglish, hr as assistCroatian } from '../../src/shared/ai/presentation/words.ts'
+import { en as secretsEnglish, hr as secretsCroatian } from '../../src/shared/secrets/presentation/words.ts'
+import { en as suggestEnglish, hr as suggestCroatian } from '../../src/apps/company/assist/presentation/words.ts'
+import { en as explainEnglish, hr as explainCroatian } from '../../src/apps/company/packs/hr-doo/assist/presentation/words.ts'
 
 const TOAST = 'li[data-slot="base"]'
 
@@ -3749,7 +3753,7 @@ export async function investmentsPriceKeyFlow(page, { press, shoot, inspect }) {
   if (left !== '') throw new Error(`the key field still holds "${left}" after Save`)
   const shown = await page.evaluate((key) => document.body.innerText.includes(key) || [...document.querySelectorAll('input')].some((element) => element.value === key), MADE_UP_PRICE_KEY)
   if (shown) throw new Error('the whole key came back on screen after Save')
-  const kept = await page.evaluate(() => localStorage.getItem('kuna.price-vendor-key.twelvedata'))
+  const kept = await page.evaluate(() => localStorage.getItem('kuna.secret.twelvedata'))
   if (kept !== MADE_UP_PRICE_KEY) throw new Error(`this browser keeps "${kept}" as the Twelve Data key`)
   await pressSelector(page, press, `${vendor} [data-testid="price-vendor-test"]`)
   await page
@@ -3761,7 +3765,7 @@ export async function investmentsPriceKeyFlow(page, { press, shoot, inspect }) {
   await shoot('investments-price-key')
   await pressSelector(page, press, `${vendor} [data-testid="price-vendor-forget"]`)
   await pageSays(page, 'A key ending in 7319', false)
-  const forgotten = await page.evaluate(() => localStorage.getItem('kuna.price-vendor-key.twelvedata'))
+  const forgotten = await page.evaluate(() => localStorage.getItem('kuna.secret.twelvedata'))
   if (forgotten !== null) throw new Error('Remove left the key in this browser')
 
   const finnhub = '[data-testid="investments-prices-card"] [data-vendor="finnhub"]'
@@ -3778,10 +3782,10 @@ export async function investmentsPriceKeyFlow(page, { press, shoot, inspect }) {
   await inspect?.('a Finnhub key tested')
   await pressSelector(page, press, `${finnhub} [data-testid="price-vendor-forget"]`)
   await pageSays(page, 'A key ending in 5521', false)
-  if ((await page.evaluate(() => localStorage.getItem('kuna.price-vendor-key.finnhub'))) !== null) throw new Error('Remove left the Finnhub key in this browser')
+  if ((await page.evaluate(() => localStorage.getItem('kuna.secret.finnhub'))) !== null) throw new Error('Remove left the Finnhub key in this browser')
   // Remove keeps when it happened, so the removal outdates an older save in another browser. The next flows start without it.
   await page.evaluate(() => {
-    for (const vendor of ['twelvedata', 'finnhub']) localStorage.removeItem(`kuna.price-vendor-key-changed.${vendor}`)
+    for (const vendor of ['twelvedata', 'finnhub']) localStorage.removeItem(`kuna.secret-changed.${vendor}`)
   })
 
   await pressSelector(page, press, '[data-testid="prices-fetch-now"]')
@@ -3798,8 +3802,8 @@ const TWELVE_DATA_ROW = '[data-testid="investments-prices-card"] [data-vendor="t
 /** Forgets the Twelve Data key and the time of its last change in this browser, so the next flows start without them. */
 async function forgetTwelveDataKey(page) {
   await page.evaluate(() => {
-    localStorage.removeItem('kuna.price-vendor-key.twelvedata')
-    localStorage.removeItem('kuna.price-vendor-key-changed.twelvedata')
+    localStorage.removeItem('kuna.secret.twelvedata')
+    localStorage.removeItem('kuna.secret-changed.twelvedata')
   })
 }
 
@@ -3814,7 +3818,7 @@ export async function investmentsKeyFromOtherBrowserFlow(page, { press, shoot, i
   })
   await pageSays(page, 'A key ending in 8642 is kept in this browser.', true)
   await pageSays(page, 'Each sync saves them to your Google account, hidden from Drive, so every browser you sign in to gets them.', true)
-  const [key, changedAt] = await page.evaluate(() => [localStorage.getItem('kuna.price-vendor-key.twelvedata'), localStorage.getItem('kuna.price-vendor-key-changed.twelvedata')])
+  const [key, changedAt] = await page.evaluate(() => [localStorage.getItem('kuna.secret.twelvedata'), localStorage.getItem('kuna.secret-changed.twelvedata')])
   if (key !== 'made-up-twelve-data-key-8642' || changedAt !== FAKE_KEY_SAVED_AT) throw new Error(`this browser keeps the key "${key}" changed at ${changedAt}, not the other browser's`)
   await inspect?.('a key synced from another browser')
   await shoot('investments-key-synced')
@@ -3826,7 +3830,7 @@ export async function investmentsKeyFromOtherBrowserFlow(page, { press, shoot, i
   if (await page.$(`${TWELVE_DATA_ROW}[data-kept="true"]`)) throw new Error("the sync brought back the key removed here after the other browser's older save")
   const [control, removedAt] = await page.evaluate(() => [
     [...document.querySelectorAll('[data-testid="sync-status"]')].find((element) => element.offsetParent !== null)?.dataset.control ?? '',
-    localStorage.getItem('kuna.price-vendor-key-changed.twelvedata'),
+    localStorage.getItem('kuna.secret-changed.twelvedata'),
   ])
   if (control !== 'ready') throw new Error(`the sync after the removal ended as "${control}", so the Keys step may not have saved it`)
   if (removedAt === null || removedAt <= FAKE_KEY_SAVED_AT) throw new Error(`this browser keeps the removal at ${removedAt}, not newer than the other browser's save`)
@@ -3840,18 +3844,68 @@ export async function investmentsKeyFromOtherBrowserFlow(page, { press, shoot, i
  */
 export async function investmentsKeyRemovedElsewhereFlow(page, { inspect }) {
   await page.evaluate((at) => {
-    localStorage.setItem('kuna.price-vendor-key.twelvedata', 'made-up-twelve-data-key-0042')
-    localStorage.setItem('kuna.price-vendor-key-changed.twelvedata', at)
+    localStorage.setItem('kuna.secret.twelvedata', 'made-up-twelve-data-key-0042')
+    localStorage.setItem('kuna.secret-changed.twelvedata', at)
   }, FAKE_KEY_SAVED_AT)
   await page.goto(page.url().replace(/load=\d+/, `load=${Date.now()}`), { waitUntil: 'networkidle0' })
   await page.waitForSelector(`${TWELVE_DATA_ROW}[data-kept="false"]`, { timeout: 10_000 }).catch(() => {
     throw new Error('the sync on open kept the key another browser removed later')
   })
   await pageSays(page, 'A key ending in 0042', false)
-  const [key, changedAt] = await page.evaluate(() => [localStorage.getItem('kuna.price-vendor-key.twelvedata'), localStorage.getItem('kuna.price-vendor-key-changed.twelvedata')])
+  const [key, changedAt] = await page.evaluate(() => [localStorage.getItem('kuna.secret.twelvedata'), localStorage.getItem('kuna.secret-changed.twelvedata')])
   if (key !== null || changedAt !== '2026-10-30T10:05:00.000Z') throw new Error(`this browser keeps the key "${key}" changed at ${changedAt} after the other browser's removal`)
   await inspect?.("a key lost to another browser's removal")
   await forgetTwelveDataKey(page)
+}
+
+const FINNHUB_ROW = '[data-testid="investments-prices-card"] [data-vendor="finnhub"]'
+
+/** Waits until the fake hidden folder holds only the secrets file, the sync having folded the old keys file into it and deleted it. */
+async function onlySecretsFileLeft(page) {
+  await page
+    .waitForFunction(async () => (await window.kunaFakeHiddenFiles()).join() === 'kuna-secrets.json', { timeout: 10_000, polling: 200 })
+    .catch(async () => {
+      const left = await page.evaluate(() => window.kunaFakeHiddenFiles())
+      throw new Error(`the hidden folder holds ${left.join(', ') || 'nothing'} after the sync, not kuna-secrets.json alone`)
+    })
+}
+
+/**
+ * The Prices tab on the sample, whose app folder on the fake Drive holds only the old keys file of the Investments file,
+ * with a made-up Twelve Data key (`?keys=legacy`): the sync on open takes the key, writes it to the secrets file and
+ * deletes the old file.
+ */
+export async function investmentsKeyLegacyFlow(page, { shoot, inspect }) {
+  await page.waitForSelector(`${TWELVE_DATA_ROW}[data-kept="true"]`, { timeout: 10_000 }).catch(() => {
+    throw new Error('the sync on open did not take the key the old keys file held')
+  })
+  await pageSays(page, 'A key ending in 5307 is kept in this browser.', true)
+  await onlySecretsFileLeft(page)
+  await inspect?.('a key taken from the old keys file')
+  await shoot('investments-key-legacy')
+  await forgetTwelveDataKey(page)
+}
+
+/**
+ * The Prices tab on the sample, whose app folder holds both files (`?keys=legacy-and-new`): the secrets file with a
+ * Twelve Data key saved at 10:00, and the old keys file with a newer Twelve Data key at 10:05 and a Finnhub key. The sync
+ * on open keeps the newer key of each vendor, so both rows show the old file's keys, and only the secrets file is left.
+ */
+export async function investmentsKeyLegacyAndNewFlow(page, { shoot, inspect }) {
+  await page.waitForSelector(`${FINNHUB_ROW}[data-kept="true"]`, { timeout: 10_000 }).catch(() => {
+    throw new Error('the sync on open did not take the Finnhub key the old keys file held')
+  })
+  await pageSays(page, 'A key ending in 5307 is kept in this browser.', true)
+  await pageSays(page, 'A key ending in 7720 is kept in this browser.', true)
+  await pageSays(page, 'A key ending in 8642', false)
+  await onlySecretsFileLeft(page)
+  await inspect?.('the newer key of each vendor from both files')
+  await shoot('investments-key-legacy-and-new')
+  await forgetTwelveDataKey(page)
+  await page.evaluate(() => {
+    localStorage.removeItem('kuna.secret.finnhub')
+    localStorage.removeItem('kuna.secret-changed.finnhub')
+  })
 }
 
 const INVESTMENTS_SETTINGS_WORDS = { en: investmentsSettingsEnglish, hr: investmentsSettingsCroatian }
@@ -3886,22 +3940,22 @@ async function openRemoveDialog(page, press, goes, stays) {
 }
 
 /**
- * Investments Settings on the sample on the fake Drive, whose keys file another browser left in the app's hidden folder
+ * Investments Settings on the sample on the fake Drive, whose secrets file another browser left in the app's hidden folder
  * (`?keys=other-browser`), so the sync on open brings a made-up Twelve Data key into this browser. Remove the Investments
  * file asks first, naming what goes and what stays, and Cancel keeps the file. Remove then moves the file and its prices
- * file to the bin and deletes the keys file, and this browser lands on the Investments first run, as one that never had a
- * file, with its copy and its prices gone and the vendor key still kept.
+ * file to the bin, and this browser lands on the Investments first run, as one that never had a file, with its copy and
+ * its prices gone, the vendor key still kept and the secrets file still in the hidden folder, since every app uses it.
  */
 export function investmentsRemoveDriveFlowIn(language) {
   const text = INVESTMENTS_SETTINGS_WORDS[language].removal
-  const goes = [text.driveGoes.file('kuna-investments.json'), text.driveGoes.prices('kuna-investments-prices.json'), text.driveGoes.keys]
+  const goes = [text.driveGoes.file('kuna-investments.json'), text.driveGoes.prices('kuna-investments-prices.json')]
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     // A step before this one, with no Investments file on Drive, leaves needs without drive.appdata, and the silent token on open carries only those.
     await page.evaluate(() => localStorage.removeItem('kuna.google-needed'))
     await page.reload({ waitUntil: 'networkidle0' })
     await page
-      .waitForFunction(() => localStorage.getItem('kuna.price-vendor-key.twelvedata') !== null, { timeout: 10_000 })
+      .waitForFunction(() => localStorage.getItem('kuna.secret.twelvedata') !== null, { timeout: 10_000 })
       .catch(() => {
         throw new Error('the sync on open did not take the key another browser saved')
       })
@@ -3919,9 +3973,11 @@ export function investmentsRemoveDriveFlowIn(language) {
     await pressSelector(page, press, '[data-testid="investments-remove-confirm"]')
     await toastMatching(page, exactly(text.driveRemoved))
     await firstRunAt(page, INVESTMENTS, 'home')
-    const [choice, key] = await page.evaluate(() => [localStorage.getItem('kuna.workbook-file.investments'), localStorage.getItem('kuna.price-vendor-key.twelvedata')])
+    const [choice, key] = await page.evaluate(() => [localStorage.getItem('kuna.workbook-file.investments'), localStorage.getItem('kuna.secret.twelvedata')])
     if (choice !== null) throw new Error(`this browser still names an Investments file after Remove: ${choice}`)
     if (key !== 'made-up-twelve-data-key-8642') throw new Error('Remove took the vendor key kept in this browser')
+    const hidden = await page.evaluate(() => window.kunaFakeHiddenFiles())
+    if (!hidden.includes('kuna-secrets.json')) throw new Error(`Remove took the secrets file from the hidden folder, which holds ${hidden.join(', ') || 'nothing'}`)
     const after = await investmentsDatabases(page)
     if (after.some((name) => name.startsWith('kuna-prices-'))) throw new Error(`the prices kept in this browser stayed after Remove: ${after.join(', ')}`)
     await inspect?.('the Investments first run after Remove')
@@ -4010,7 +4066,7 @@ export function investmentsInstrumentSearchFlowIn(language) {
   const share = croatian ? 'Dionica' : 'Share'
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(croatian ? `${name}-${language}` : name)
-    await page.evaluate(() => localStorage.setItem('kuna.price-vendor-key.twelvedata', 'made-up-twelve-data-key-0042'))
+    await page.evaluate(() => localStorage.setItem('kuna.secret.twelvedata', 'made-up-twelve-data-key-0042'))
     await pressSelector(page, press, '[data-testid="benchmark-add"]')
     await page.waitForSelector('[data-testid="instrument-search"]', { visible: true, timeout: 10_000 })
     await shoot('investments-instrument-search-empty')
@@ -4032,7 +4088,7 @@ export function investmentsInstrumentSearchFlowIn(language) {
     await page.keyboard.press('Escape')
     await dialogGone(page, '[data-testid="instrument-form"]')
     // The import step after this one runs without keys, so its parent pick looks up no closes.
-    await page.evaluate(() => localStorage.removeItem('kuna.price-vendor-key.twelvedata'))
+    await page.evaluate(() => localStorage.removeItem('kuna.secret.twelvedata'))
   }
 }
 
@@ -4111,7 +4167,7 @@ export function investmentsCompareFlowIn(card, shotName) {
       // With no key of any vendor, Compare with still opens, its funds wait for a Twelve Data key with a link to the Prices settings, and the search is not offered.
       await page.evaluate(() =>
         Object.keys(localStorage)
-          .filter((key) => key.startsWith('kuna.price-vendor-key'))
+          .filter((key) => key.startsWith('kuna.secret'))
           .forEach((key) => localStorage.removeItem(key)),
       )
       await page.reload({ waitUntil: 'networkidle0' })
@@ -4135,7 +4191,7 @@ export function investmentsCompareFlowIn(card, shotName) {
       await dialogGone(page, '[data-testid="compare-funds"]')
 
       // With another vendor's key the search is offered, and the funds still wait for a Twelve Data key with the one link.
-      await page.evaluate(() => localStorage.setItem('kuna.price-vendor-key.finnhub', 'made-up-finnhub-key-0042'))
+      await page.evaluate(() => localStorage.setItem('kuna.secret.finnhub', 'made-up-finnhub-key-0042'))
       await page.reload({ waitUntil: 'networkidle0' })
       await pressSelector(page, press, `${chart} [data-testid="compare-open"]`)
       await page.waitForSelector('[data-testid="instrument-search"]', { visible: true, timeout: 10_000 })
@@ -4150,9 +4206,9 @@ export function investmentsCompareFlowIn(card, shotName) {
       await inspect?.("Compare with with another vendor's key")
       await page.keyboard.press('Escape')
       await dialogGone(page, '[data-testid="compare-funds"]')
-      await page.evaluate(() => localStorage.removeItem('kuna.price-vendor-key.finnhub'))
+      await page.evaluate(() => localStorage.removeItem('kuna.secret.finnhub'))
 
-      await page.evaluate(() => localStorage.setItem('kuna.price-vendor-key.twelvedata', 'made-up-twelve-data-key-0042'))
+      await page.evaluate(() => localStorage.setItem('kuna.secret.twelvedata', 'made-up-twelve-data-key-0042'))
       await page.reload({ waitUntil: 'networkidle0' })
       await pressSelector(page, press, `${chart} [data-testid="compare-open"]`)
       await page.waitForSelector('[data-testid="instrument-search"]', { visible: true, timeout: 10_000 })
@@ -4219,7 +4275,7 @@ export function investmentsCompareFlowIn(card, shotName) {
           throw new Error('Remove left the fund')
         })
     } finally {
-      await page.evaluate(() => ['twelvedata', 'finnhub'].forEach((vendor) => localStorage.removeItem(`kuna.price-vendor-key.${vendor}`)))
+      await page.evaluate(() => ['twelvedata', 'finnhub'].forEach((vendor) => localStorage.removeItem(`kuna.secret.${vendor}`)))
     }
   }
 }
@@ -6384,7 +6440,7 @@ export function investmentsImportFlowIn(language, { workbook: path, edited }, { 
     const shoot = (name) => shootAs(croatian ? `${name}-${language}` : name)
     await page.waitForSelector('[data-testid="investments-empty"]', { visible: true, timeout: 10_000 })
     // A made-up Alpha Vantage key, so the fake vendor lists the made-up workbook's split.
-    await page.evaluate(() => localStorage.setItem('kuna.price-vendor-key.alphavantage', 'MADEUPKEY01'))
+    await page.evaluate(() => localStorage.setItem('kuna.secret.alphavantage', 'MADEUPKEY01'))
     await pressSelector(page, press, '[data-testid="investments-import"]')
     await importStep(page, 'file')
     if ((await page.$('[data-testid="import-template-download"]')) === null) throw new Error('the workbook import offers no template download')
@@ -6429,7 +6485,7 @@ export function investmentsImportFlowIn(language, { workbook: path, edited }, { 
     await inspect?.('the dry run')
     await shoot('investments-import-dry-run')
     // A made-up Twelve Data key, so the fetch after the import asks for NewCo and meets the fake vendor's minute limit once.
-    await page.evaluate(() => localStorage.setItem('kuna.price-vendor-key.twelvedata', 'made-up-twelve-data-key-0042'))
+    await page.evaluate(() => localStorage.setItem('kuna.secret.twelvedata', 'made-up-twelve-data-key-0042'))
     await pressSelector(page, press, '[data-testid="workbook-import-confirm"]')
     await toast(page, text.imported)
     await dialogGone(page, '[data-testid="workbook-import"]')
@@ -6490,8 +6546,390 @@ export function investmentsImportFlowIn(language, { workbook: path, edited }, { 
 async function forgetImportKeys(page) {
   await page.evaluate(() => {
     for (const vendor of ['alphavantage', 'twelvedata']) {
-      localStorage.removeItem(`kuna.price-vendor-key.${vendor}`)
-      localStorage.removeItem(`kuna.price-vendor-key-changed.${vendor}`)
+      localStorage.removeItem(`kuna.secret.${vendor}`)
+      localStorage.removeItem(`kuna.secret-changed.${vendor}`)
     }
   })
+}
+
+const ASSIST_WORDS = {
+  en: { ...assistEnglish, keyRow: secretsEnglish.keyRow, suggest: suggestEnglish.suggest, explain: explainEnglish.explain },
+  hr: { ...assistCroatian, keyRow: secretsCroatian.keyRow, suggest: suggestCroatian.suggest, explain: explainCroatian.explain },
+}
+
+/** A made-up Anthropic key the Assistant card is given, whose whole text must never come back on screen. */
+const MADE_UP_ANTHROPIC_KEY = 'made-up-anthropic-key-0042'
+const ANTHROPIC_ROW = '[data-testid="assist-card"] [data-provider="anthropic"]'
+const COMPANY_SWITCH = '[data-testid="assist-switch-company"]'
+const SUGGEST_BUTTON = '[data-testid="assist-company.suggest-categories"]'
+const EXPLAIN_BUTTON = '[data-testid="assist-hr-doo.explain-figure"]'
+const CONSENT = '[data-testid="assist-consent"]'
+
+/** Keeps the made-up Anthropic key in this browser, and with `companyOn` Company's assistant switched on, then loads the page again with them. */
+async function keepAssistKey(page, { companyOn = false } = {}) {
+  await page.evaluate(
+    (key, on) => {
+      localStorage.setItem('kuna.secret.anthropic', key)
+      if (on) localStorage.setItem('kuna.assist.company', 'on')
+    },
+    MADE_UP_ANTHROPIC_KEY,
+    companyOn,
+  )
+  await page.reload({ waitUntil: 'networkidle0' })
+}
+
+/** Forgets the Anthropic key, the time of its last change, the assistant's switches and its models in this browser, so the next flows start without them. */
+async function forgetAssist(page) {
+  await page.evaluate(() =>
+    Object.keys(localStorage)
+      .filter((key) => key === 'kuna.secret.anthropic' || key === 'kuna.secret-changed.anthropic' || key.startsWith('kuna.assist'))
+      .forEach((key) => localStorage.removeItem(key)),
+  )
+}
+
+/** Opens the first-use dialog of an assist button and waits for it to say what it asks, then presses its confirm. */
+async function consentTo(page, press, { inspect, shoot }, texts, shotName) {
+  await page.waitForSelector(CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('the first tap opened no consent dialog')
+  })
+  await elementSays(page, '[role="dialog"]', texts, 'the consent dialog does not say what it asks')
+  // The dialog grows in, and its controls reach their size once it has.
+  await delay(400)
+  await inspect?.('the consent dialog')
+  if (shotName) await shoot(shotName)
+  await pressSelector(page, press, '[data-testid="assist-consent-confirm"]')
+  await dialogGone(page, CONSENT)
+}
+
+/**
+ * Kuna settings, Assistant: a made-up Anthropic key typed and saved shows only how it ends, empties its field and puts
+ * the provider in use, Test says it works with the fake build's test, Opus 5.5 picked in the model select stays picked
+ * in this browser, and Remove forgets the key.
+ */
+export async function assistKeyFlow(page, { press, shoot, inspect }) {
+  try {
+    const input = await pressSelector(page, press, `${ANTHROPIC_ROW} [data-testid="assist-key"]`)
+    await input.type(MADE_UP_ANTHROPIC_KEY)
+    const fieldType = await input.evaluate((element) => element.type)
+    if (fieldType !== 'password') throw new Error(`the key field is type "${fieldType}", not password`)
+    await pressSelector(page, press, `${ANTHROPIC_ROW} [data-testid="assist-key-save"]`)
+    await elementSays(page, `${ANTHROPIC_ROW} [data-testid="assist-key-kept"]`, ['A key ending in 0042 is kept in this browser.'], 'Save did not keep the key')
+    const left = await input.evaluate((element) => element.value)
+    if (left !== '') throw new Error(`the key field still holds "${left}" after Save`)
+    const shown = await page.evaluate((key) => document.body.innerText.includes(key) || [...document.querySelectorAll('input')].some((element) => element.value === key), MADE_UP_ANTHROPIC_KEY)
+    if (shown) throw new Error('the whole key came back on screen after Save')
+    const kept = await page.evaluate(() => localStorage.getItem('kuna.secret.anthropic'))
+    if (kept !== MADE_UP_ANTHROPIC_KEY) throw new Error(`this browser keeps "${kept}" as the Anthropic key`)
+    await page.waitForSelector(`${ANTHROPIC_ROW} [data-testid="assist-in-use"]`, { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('the only provider with a key is not marked in use')
+    })
+
+    await pressSelector(page, press, `${ANTHROPIC_ROW} [data-testid="assist-key-test"]`)
+    await page
+      .waitForFunction((selector) => document.querySelector(selector)?.textContent?.trim() === 'The key works.', { timeout: 10_000 }, `${ANTHROPIC_ROW} [data-testid="assist-key-test-result"]`)
+      .catch(() => {
+        throw new Error('Test against the fake build does not say the key works')
+      })
+    await inspect?.('an Anthropic key tested')
+    await shoot('assist-key')
+
+    await choose(page, press, await page.$(`${ANTHROPIC_ROW} [data-testid="assist-model"]`), 'Opus 5.5')
+    const model = await page.evaluate(() => localStorage.getItem('kuna.assist-model.anthropic'))
+    if (model !== 'claude-opus-5-5') throw new Error(`this browser keeps "${model}" as the Anthropic model, not claude-opus-5-5`)
+    await elementSays(page, `${ANTHROPIC_ROW} [data-testid="assist-model"]`, ['Opus 5.5'], 'the model select does not show Opus 5.5')
+    await inspect?.('Opus 5.5 picked')
+
+    await pressSelector(page, press, `${ANTHROPIC_ROW} [data-testid="assist-key-forget"]`)
+    await elementSays(page, `${ANTHROPIC_ROW} [data-testid="assist-key-kept"]`, ['No key in this browser.'], 'Remove did not forget the key')
+    if ((await page.evaluate(() => localStorage.getItem('kuna.secret.anthropic'))) !== null) throw new Error('Remove left the key in this browser')
+  } finally {
+    await forgetAssist(page)
+  }
+}
+
+/** Whether a switch is on, as it tells a screen reader. */
+function switchOn(page, selector) {
+  return page.$eval(selector, (element) => element.getAttribute('aria-checked') === 'true')
+}
+
+/**
+ * Kuna settings, Assistant: Company's switch turned on stays on after a reload and lets its employee switches be
+ * pressed, and turned off again forgets the choice.
+ */
+export async function assistSwitchFlow(page, { press, shoot, inspect }) {
+  const employees = '[data-testid="assist-employees-company.suggest-categories"]'
+  try {
+    if (await switchOn(page, COMPANY_SWITCH)) throw new Error("Company's assistant is on before it was switched on")
+    if (!(await page.$eval(employees, (element) => element.disabled))) throw new Error("an employee switch can be pressed while Company's assistant is off")
+    await pressSelector(page, press, COMPANY_SWITCH)
+    await page
+      .waitForFunction((selector) => document.querySelector(selector)?.getAttribute('aria-checked') === 'true', { timeout: 5_000 }, COMPANY_SWITCH)
+      .catch(() => {
+        throw new Error("Company's switch did not turn on")
+      })
+    if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== 'on') throw new Error('this browser does not keep Company switched on')
+    await inspect?.("Company's assistant switched on")
+    await shoot('assist-switch')
+
+    await page.reload({ waitUntil: 'networkidle0' })
+    await page.waitForSelector(COMPANY_SWITCH, { visible: true, timeout: 10_000 })
+    if (!(await switchOn(page, COMPANY_SWITCH))) throw new Error("Company's switch is off again after a reload")
+    if (await page.$eval(employees, (element) => element.disabled)) throw new Error("the employee switch cannot be pressed with Company's assistant on")
+    await inspect?.("Company's assistant on after a reload")
+
+    await pressSelector(page, press, COMPANY_SWITCH)
+    await page.waitForFunction((selector) => document.querySelector(selector)?.getAttribute('aria-checked') === 'false', { timeout: 5_000 }, COMPANY_SWITCH)
+    if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== null) throw new Error('switching Company off left the choice in this browser')
+  } finally {
+    await forgetAssist(page)
+  }
+}
+
+/** A queue row's summary, which opens and closes its details. */
+async function queueRow(page, counterparty) {
+  const row = await page
+    .waitForFunction(
+      (wanted) => [...document.querySelectorAll('[data-testid="review-row"] > button')].find((button) => button.textContent?.includes(wanted)) ?? null,
+      { timeout: 10_000 },
+      counterparty,
+    )
+    .catch(() => {
+      throw new Error(`no queue row of ${counterparty}`)
+    })
+  return row.asElement()
+}
+
+/** Suggest categories on the To review tab with the made-up key kept: the first tap asks to switch Company on, and its confirm runs the fake model. */
+async function suggestOnQueue(page, press, language, { inspect, shoot }, shotName = null) {
+  const words = ASSIST_WORDS[language]
+  await keepAssistKey(page)
+  await pressSelector(page, press, SUGGEST_BUTTON)
+  await consentTo(page, press, { inspect, shoot }, [words.suggest.sends, words.retention.anthropic, words.consent.switchOn(SCREEN_WORDS[language].company)], shotName)
+  await page.waitForSelector('[data-testid="review-suggest-line"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Suggest categories gave no line under the queue card')
+  })
+}
+
+/** Opens a queue row's details, unless they are open, and waits for its suggestion. */
+async function openSuggestion(page, press, counterparty) {
+  const row = await queueRow(page, counterparty)
+  if ((await row.evaluate((element) => element.getAttribute('aria-expanded'))) !== 'true') {
+    await row.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await press(row)
+  }
+  await page.waitForSelector('[data-testid="review-details"] [data-testid="review-suggestion"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error(`the details of ${counterparty} show no suggestion`)
+  })
+  await delay(300)
+}
+
+/**
+ * The To review tab with the made-up key kept and the fake model as `?ai=` names it: Suggest categories asks to switch
+ * Company on, and after it the snack kiosk's row suggests Representation, likely, with its Use button, or with `refused`
+ * the card says the model declined and no row has a suggestion.
+ */
+export function deleteKeysFlowIn(language) {
+  const words = language === 'hr' ? kunaSettingsCroatian : kunaSettingsEnglish
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await pressSelector(page, press, '[data-testid="delete-keys"]')
+    await page.waitForSelector('[data-testid="delete-keys-dialog"]', { visible: true, timeout: 5_000 })
+    await delay(250)
+    await inspect?.('the delete keys dialog')
+    await shoot('delete-keys-dialog')
+    await pressSelector(page, press, '[data-testid="delete-keys-confirm"]')
+    await toast(page, words.keys.deleted)
+    if (await page.$('[data-testid="delete-keys-dialog"]')) throw new Error('the delete keys dialog stayed open')
+    await inspect?.('the keys deleted')
+    await shoot('delete-keys-done')
+  }
+}
+
+export function reviewSuggestFlowIn(language, { refused = false } = {}) {
+  const words = ASSIST_WORDS[language]
+  const representation = SCREEN_WORDS[language].categoryName('representation')
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await suggestOnQueue(page, press, language, { inspect, shoot }, refused ? null : 'review-suggest-consent')
+    const lines = await page.$$eval('[data-testid="review-suggest-line"]', (elements) => elements.map((element) => element.textContent?.trim() ?? ''))
+    if (refused) {
+      const declined = words.result.refused('')
+      if (!lines.some((line) => line.startsWith(declined))) throw new Error(`the card does not say the model declined, it says: ${lines.join(' | ')}`)
+      if (await page.$('[data-testid="review-suggestion"]')) throw new Error('a row shows a suggestion after the model declined')
+      await inspect?.('the model declined')
+      await shoot('review-suggest-refused')
+      return
+    }
+    if (lines.length !== 1 || !lines[0].includes('Sonnet 5.5')) throw new Error(`the card does not say only the usage line, it says: ${lines.join(' | ')}`)
+    await openSuggestion(page, press, 'SNACK KIOSK')
+    await elementSays(
+      page,
+      '[data-testid="review-details"] [data-testid="review-suggestion"]',
+      [words.suggest.suggested(representation, words.suggest.confidence.medium), words.suggest.use(representation)],
+      'the snack kiosk does not suggest Representation, likely, with its Use button',
+    )
+    await inspect?.('the suggestions')
+    await shoot('review-suggested')
+  }
+}
+
+/**
+ * The To review tab in the workbook kept in this browser with the made-up key kept: Suggest categories asks first, the
+ * snack kiosk's Use Representation files the row with Undo, Undo brings it back, and Use again offers Make a rule, which
+ * opens the rule editor on the row's counterparty.
+ */
+export async function reviewSuggestUseFlow(page, { press, shoot, inspect }) {
+  const words = SCREEN_WORDS.en
+  try {
+    await suggestOnQueue(page, press, 'en', { inspect, shoot })
+    const waiting = () => page.evaluate(() => document.querySelectorAll('[data-testid="review-row"]').length)
+    if ((await waiting()) !== 2) throw new Error(`the queue holds ${await waiting()} rows, not the two fake rows`)
+    await openSuggestion(page, press, 'SNACK KIOSK')
+    await inspect?.('a suggestion on a phone')
+    await shoot('review-suggest')
+    await pressSelector(page, press, '[data-testid="review-details"] [data-testid="use-suggestion"]')
+    await toast(page, words.transactions.review.filedAs('Representation'))
+    if ((await waiting()) !== 1) throw new Error('the row filed by its suggestion is still waiting')
+    await undoIn(page, press, words)
+    if ((await waiting()) !== 2) throw new Error('Undo did not bring the row back')
+    await dismissToasts(page)
+
+    await openSuggestion(page, press, 'SNACK KIOSK')
+    await pressSelector(page, press, '[data-testid="review-details"] [data-testid="use-suggestion"]')
+    await toast(page, words.transactions.review.filedAs('Representation'))
+    const makeRule = await page
+      .waitForFunction(
+        (selector, label) => [...document.querySelectorAll(`${selector} button`)].find((element) => element.textContent?.trim() === label) ?? null,
+        { timeout: 5_000 },
+        TOAST,
+        words.transactions.review.makeRule,
+      )
+      .catch(() => {
+        throw new Error(`the toast does not offer ${words.transactions.review.makeRule}`)
+      })
+    await press(makeRule.asElement())
+    await page.waitForSelector('[data-testid="rule-editor"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('Make a rule opened no rule editor')
+    })
+    await delay(400)
+    const conditions = await page.$$eval('[data-testid="rule-condition"] input', (inputs) => inputs.map((input) => input.value))
+    if (!conditions.some((value) => value.includes('SNACK'))) throw new Error(`the rule editor's conditions do not name the row, they read ${conditions.join(', ') || 'nothing'}`)
+    await inspect?.('the rule editor from a suggestion')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[role="dialog"] [data-testid="rule-editor"]')
+    await dismissToasts(page)
+  } finally {
+    await forgetAssist(page)
+  }
+}
+
+/** Year's Pay tab of 2027: opens the comparison, unless it is open, and the net salary of its first scenario on its build-up. */
+async function openPayFigure(page, press) {
+  const toggle = await page.waitForSelector('[data-card="year.comparison"] [data-testid="card-toggle"]', { timeout: 10_000 })
+  if ((await toggle.evaluate((element) => element.getAttribute('aria-expanded'))) === 'false') {
+    await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await press(toggle)
+    await delay(300)
+  }
+  await pressSelector(page, press, '[data-testid="scenario-comparison"] [data-line="net-salary"] button')
+  await page.waitForSelector('[data-testid="figure-detail"]', { visible: true, timeout: 10_000 })
+  // The dialog grows in, and its controls reach their size once it has.
+  await delay(400)
+}
+
+/** Explain in an open figure's dialog: the first tap asks to switch Company on, and its confirm runs the fake model until the answer shows. */
+async function explainOpenFigure(page, press, language, { inspect, shoot }) {
+  const words = ASSIST_WORDS[language]
+  await pressSelector(page, press, EXPLAIN_BUTTON)
+  await consentTo(page, press, { inspect, shoot }, [words.explain.sends, words.consent.switchOn(SCREEN_WORDS[language].company)])
+  await page.waitForSelector('[data-testid="cited-answer"]', { visible: true, timeout: 10_000 }).catch(async () => {
+    const line = await page.evaluate(() => document.querySelector('[data-testid="explain-line"]')?.textContent?.trim() ?? 'nothing')
+    throw new Error(`Explain gave no answer, the dialog says: ${line}`)
+  })
+  await page.$eval('[data-testid="cited-answer"]', (element) => element.scrollIntoView({ block: 'start' }))
+  await delay(300)
+}
+
+/**
+ * Year's Pay tab in the workbook kept in this browser with the made-up key kept: a scenario's net salary opens on its
+ * build-up, Explain asks to switch Company on and then shows the fake model's answer, its parts with source chips, what
+ * the model added on its own apart, and the day the rules were checked. With `stray`, on `?ai=invented-figure`, the
+ * answer is flagged for a figure Kuna did not compute and offers Try again.
+ */
+export function payFigureExplainFlowIn(language, { stray = false } = {}) {
+  const words = ASSIST_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await keepAssistKey(page)
+    await openPayFigure(page, press)
+    await explainOpenFigure(page, press, language, { inspect, shoot })
+    const answer = await page.$eval('[data-testid="cited-answer"]', (element) => ({
+      parts: element.querySelectorAll('[data-testid="cited-part"]').length,
+      sources: element.querySelectorAll('[data-testid="cited-source"]').length,
+      text: element.textContent ?? '',
+    }))
+    if (answer.parts < 2 || answer.sources < 1) throw new Error(`the answer shows ${answer.parts} parts and ${answer.sources} source chips`)
+    for (const text of [words.answer.notFromRules, words.answer.ownKnowledge, words.explain.checked('')]) {
+      if (!answer.text.includes(text)) throw new Error(`the answer lacks "${text}"`)
+    }
+    const flagged = (await page.$('[data-testid="cited-flags"]')) !== null
+    if (flagged !== stray) throw new Error(stray ? 'the answer with a figure Kuna did not compute is not flagged' : "an answer of Kuna's own figures is flagged")
+    if (stray) {
+      await elementSays(page, '[data-testid="cited-flags"]', [words.answer.strayFigure, words.answer.tryAgain], 'the flags do not name the figure Kuna did not compute and offer Try again')
+    }
+    await inspect?.(stray ? 'an answer with a figure Kuna did not compute' : 'a figure explained')
+    await shoot(stray ? 'pay-figure-explain-stray' : 'pay-figure-explained')
+  }
+}
+
+/**
+ * Salaries with five made-up employees, the made-up key kept and Company switched on: the one problem's build-up names
+ * an employee, so Explain asks for the task's employee switch first with the warning of what it sends, and Cancel sends
+ * nothing.
+ */
+export function salaryFigureExplainAsksFlowIn(language) {
+  const words = ASSIST_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await keepAssistKey(page, { companyOn: true })
+    await pressButton(page, press, '[data-testid="salaries-problem"] button', SCREEN_WORDS[language].salaries.problemList.howWorkedOut)
+    await page.waitForSelector('[data-testid="figure-detail"]', { visible: true, timeout: 10_000 })
+    await delay(400)
+    await pressSelector(page, press, EXPLAIN_BUTTON)
+    await page.waitForSelector(CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error("Explain on an employee's figure did not ask first")
+    })
+    await elementSays(page, '[role="dialog"]', [words.explain.employeesWarning('Anthropic'), words.explain.employees], 'the dialog does not warn that the figure names employees')
+    await delay(400)
+    await inspect?.("Explain asking before it sends an employee's pay")
+    await shoot('salary-figure-explain-asks')
+    await pressButton(page, press, `[role="dialog"] button`, words.consent.cancel)
+    await dialogGone(page, CONSENT)
+    if (await page.$('[data-testid="cited-answer"]')) throw new Error('Cancel still explained the figure')
+  }
+}
+
+/**
+ * Year's Pay tab in the workbook kept in this browser with the made-up key kept: Explain on a scenario's net salary
+ * shows the answer, a rule's chip opens Settings on the tax rules tab with the rule in the address, and Back returns to
+ * Year.
+ */
+export async function figureExplainFlow(page, { press, shoot, inspect }) {
+  try {
+    await keepAssistKey(page)
+    await openPayFigure(page, press)
+    await explainOpenFigure(page, press, 'en', { inspect })
+    await inspect?.('a figure explained on a phone')
+    await shoot('figure-explain')
+    await pressSelector(page, press, '[data-testid="cited-answer"] [data-testid="cited-source"]')
+    await screenTitled(page, SCREEN_WORDS.en.companySettings)
+    const hash = await page.evaluate(() => window.location.hash)
+    if (!hash.includes('tab=tax-rules') || !/[?&]rule=/.test(hash)) throw new Error(`the rule's chip opened ${hash}, not the tax rules tab with the rule`)
+    await page.goBack()
+    await screenTitled(page, SCREEN_WORDS.en.pack.screens.year)
+  } finally {
+    await forgetAssist(page)
+  }
 }

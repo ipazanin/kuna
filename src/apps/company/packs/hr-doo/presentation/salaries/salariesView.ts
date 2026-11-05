@@ -372,7 +372,7 @@ function lineRow<Line extends EmployeeLine>(check: LineCheck<Line>, subject: str
   return {
     key: check.line,
     label: LINE_LABELS[check.line],
-    app: check.app === null ? null : figureDetail(check.app, words.byApp(subject), linkOf),
+    app: check.app === null ? null : figureDetail(check.app, words.byApp(subject), linkOf, true),
     bank: check.bank === null ? null : { cents: check.bank.amount, to: linkOf(check.bank.drill) },
     verdict: check.app === null || check.bank === null ? null : check.agrees ? 'agrees' : 'differs',
   }
@@ -403,7 +403,7 @@ function personStrip(entry: EmployeePayday, figures: PersonFigures, label: strin
     gross: figures.gross,
     net: figures.net,
     paidOn: paidOn === null ? null : dayLabel(paidOn),
-    netDetail: net === null ? null : figureDetail(net, words.grossToNetOf(employeeName(entry.employee), label), linkOf),
+    netDetail: net === null ? null : figureDetail(net, words.grossToNetOf(employeeName(entry.employee), label), linkOf, true),
   }
 }
 
@@ -434,7 +434,7 @@ function problemView(problem: SalaryProblem, index: number, month: string, linkO
       return {
         ...plain,
         text: who === null ? words.problems.differsForEveryone(line, amountsText(problem.check)) : words.problems.differs(name, line, amountsText(problem.check)),
-        detail: problem.check.app === null ? null : figureDetail(problem.check.app, words.problems.asApp(subject), linkOf),
+        detail: problem.check.app === null ? null : figureDetail(problem.check.app, words.problems.asApp(subject), linkOf, true),
         rows: linkOf(problem.check.bank?.drill ?? null),
       }
     }
@@ -450,14 +450,14 @@ function problemView(problem: SalaryProblem, index: number, month: string, linkO
       return {
         ...plain,
         text: words.problems.belowMinimum(name, formatMoney(problem.warning.agreed.amount), formatMoney(problem.warning.minimum.amount)),
-        detail: figureDetail(problem.warning.minimum, words.problems.minimumIn(name, month), linkOf),
+        detail: figureDetail(problem.warning.minimum, words.problems.minimumIn(name, month), linkOf, true),
         fact: true,
       }
     case 'over-cap':
       return {
         ...plain,
         text: words.problems.overCap(name, problem.usage.payment, problem.usage.periodKey, formatMoney(problem.usage.excess.amount)),
-        detail: figureDetail(problem.usage.paid, words.problems.againstCap(name, problem.usage.payment, problem.usage.periodKey), linkOf),
+        detail: figureDetail(problem.usage.paid, words.problems.againstCap(name, problem.usage.payment, problem.usage.periodKey), linkOf, true),
         rows: linkOf(problem.usage.paid.drill),
       }
   }

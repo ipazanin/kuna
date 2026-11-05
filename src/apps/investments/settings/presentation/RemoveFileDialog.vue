@@ -22,8 +22,8 @@ const text = words.removal
 const source = computed<WorkbookChoice['source']>(() => state.choice?.source ?? 'browser')
 const onDrive = computed(() => source.value === 'drive')
 const goes = computed(() => {
-  const { file, prices, keys, copy } = text.driveGoes
-  return onDrive.value ? [file(state.choice?.name ?? ''), prices(PRICES_FILE_NAME), keys, copy] : text.browserGoes
+  const { file, prices, copy } = text.driveGoes
+  return onDrive.value ? [file(state.choice?.name ?? ''), prices(PRICES_FILE_NAME), copy] : text.browserGoes
 })
 const stays = computed(() => (onDrive.value ? text.driveStays : text.browserStays))
 

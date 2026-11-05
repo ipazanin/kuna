@@ -80,6 +80,30 @@ export type HubState<Part extends HubPart = HubPart> = HubFigures<Part> | 'openi
  */
 export type AppHub = { readonly counts: true; figures(): HubState<CountedHubPart> } | { readonly counts: false; figures(): HubState }
 
+/** The switch a task needs before it may send employee names or pay, with what it says as it asks. */
+export interface AssistEmployeeSwitch {
+  /** Its label on the Assistant card, such as "Include rows paid to employees". */
+  readonly label: string
+  /** What switching it on sends, to the provider named. */
+  warning(provider: string): string
+}
+
+/** What one task sends, for the Assistant card and the first-use dialog. */
+export interface AssistTaskSummary {
+  readonly id: `${string}.${string}`
+  readonly title: string
+  /** What leaves the device, in one plain sentence. */
+  readonly sends: string
+  /** The switch of a task that can send employee names or pay, or null for one that never does. */
+  readonly employees: AssistEmployeeSwitch | null
+}
+
+/** What the app's assistant may do, for the Assistant card in Kuna settings. */
+export interface AppAssist {
+  /** Its tasks as the books on screen offer them, a pack's among them while the pack shows. */
+  tasks(): readonly AssistTaskSummary[]
+}
+
 /** What an app gives the shell: its screens and menu, its card on the home, its figures on Kuna's Overview, its first run, its part of the page's sync, and what runs while the page is open. */
 export interface AppContribution {
   /** The first part of every route of the app, and the app the document names. */
@@ -112,6 +136,8 @@ export interface AppContribution {
   syncGroup(): AppSyncGroup
   /** The app's own specimens for the gallery, which only development and fake builds load. */
   readonly gallery?: () => Promise<Component>
+  /** What the app's assistant may do, for an app that has one. */
+  readonly assist?: AppAssist
   /** Whether the page should fetch its Google token on the way in, with no screen at Google. */
   asksGoogleOnOpen(): boolean
   /**

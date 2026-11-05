@@ -86,6 +86,7 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
   categoryRoles: [...Object.values(PACK_ROLES), ...TAX_FREE_ROLES],
   categoryClasses: CATEGORY_CLASSES,
   directionPairedRoles: [PACK_ROLES.ownerLoanOut, PACK_ROLES.ownerLoanRepaid, PACK_ROLES.reimbursement],
+  pairSides: { [PACK_ROLES.ownerLoanOut]: 'debit', [PACK_ROLES.ownerLoanRepaid]: 'credit' },
   startingCategories: STARTING_CATEGORIES,
   startingRules,
   assemble: (records, companyFacts, core) => {

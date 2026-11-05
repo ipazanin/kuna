@@ -42,7 +42,7 @@ It knows no vendor and no provider. A secret is an id, a key or nothing, and whe
 ### What `src/shared/ai` owns
 
 - **Domain:** `AiTask`, `AiTool`, `ToolAnswer`, `AiPart`, `TaskResult`, the strict schema subset both adapters accept, `maskIdentifiers`, and from stage 4 the cited answer schema and its check.
-- **Application:** `runTask`, the one loop over a `ModelPort`: masking, tool rounds (at most 6), a cap of 100,000 input tokens per run, stop reasons turned into typed results, the schema check in code, then the task's own check.
+- **Application:** `runTask`, the one loop over a `ModelPort`: masking, tool rounds (at most 6), a cap of 100,000 input tokens per run, an `AbortSignal` passed through `ModelRequest` to `fetch`, stop reasons turned into typed results, the schema check in code, then the task's own check. A reply off the provider's shape fails as `ModelRequestFailed`, which carries any tokens it spent.
 - **Infrastructure:** `anthropicMessages.ts` and `openAiCompatible.ts` (the only files that name AI hosts or import AI SDKs), `providerPresets.ts`, `assistSettings.ts` (the switches and model choices in this browser), and a fake model for the fake build.
 - **Presentation:** `useAiTask`, the Assistant card for Kuna settings, the first-use consent dialog, and from stage 4 `CitedAnswerView.vue`.
 
@@ -82,7 +82,7 @@ export interface AppAssist {
 // AppContribution gains: readonly assist?: AppAssist
 ```
 
-The pack's tasks reach the company's summary through a new `PackContribution.assist: readonly AssistTaskSummary[]` (`src/apps/company/packs/packContribution.ts:59-79`, `NO_PACK` answers `[]` at `:81`), read through `shownPack(settings)` as the hub part reads `ownerTakeOut`. The pack also publishes `employeeIbans(workbook): ReadonlySet<string>`, so core can keep employee rows out of the review queue's request (stage 3).
+The pack's tasks reach the company's summary through a new `PackContribution.assist: readonly AssistTaskSummary[]` (`src/apps/company/packs/packContribution.ts:59-79`, `NO_PACK` answers `[]` at `:81`), read through `shownPack(settings)` as the hub part reads `ownerTakeOut`. The pack also publishes `employeeIbans(records): ReadonlySet<string>` and `employeeNames(records): readonly string[]`, read from the records so a shared IBAN and a row listed twice count, so core can keep employee rows out of the review queue's request (stage 3).
 
 ### What spending will call
 
@@ -97,7 +97,7 @@ New cases in `tests/importBoundaries.spec.ts`, written like the existing ones, e
 1. **Only `src/shared/secrets` names the secrets.** `linesHolding(/kuna\.secret|kuna-secrets|kuna-investments-keys-|kuna\.price-vendor-key/, (file) => file.startsWith('src/shared/secrets/'))` is empty. Stage 1.
 2. **Only the secrets adapter reaches the hidden folder.** `linesHolding(/\bAPP_DATA_FOLDER\b|tokenFor\('drive\.appdata'/, ...)` is empty outside `src/shared/secrets/`, `src/shared/google/` and `src/shared/storage/infrastructure/fake/`. Stage 1.
 3. **Only the AI adapters talk to AI hosts.** `linesHolding(/api\.anthropic\.com|api\.openai\.com|openrouter\.ai|generativelanguage\.googleapis\.com|api\.mistral\.ai|api\.groq\.com|localhost:11434|localhost:1234/, ...)` is empty outside `src/shared/ai/infrastructure/`, and `@anthropic-ai/sdk` and `openai` are imported only from there. Stage 2.
-4. **The AI module writes nothing.** No file in `src/shared/ai/` imports `src/shared/google/`, `src/shared/storage/application/`, `src/shared/storage/presentation/` or `src/shared/sync/`. Stage 2.
+4. **The AI module writes nothing.** No file in `src/shared/ai/`, nor any file it loads as it starts, imports `src/shared/google/`, `src/shared/storage/application/`, `src/shared/storage/presentation/` or `src/shared/sync/`. Stage 2.
 5. **No model gets the web.** `linesHolding(/web_search|web_fetch|:online\b/, () => false)` is empty in `src`. Stage 2.
 6. **Assist code only reads.** No file under an `/assist/` folder imports a target matching `/Writes\.ts$|useRecordWrites|recordWrites|\/mail\/|\/invoicing\/infrastructure\/|src\/shared\/google\//`. Stage 3.
 7. **Assist code reaches a model only through the module's door.** No `/assist/` file outside a fake folder imports `src/shared/ai/infrastructure/`. Stage 3.
@@ -121,7 +121,7 @@ The switches, the provider in use and the model per provider are kept per device
 
 ### Masking
 
-`maskIdentifiers` runs inside `runTask` on every text part a task builds, so no task can forget it. An IBAN, with or without spaces, becomes its country code and last four digits (`HR•• ••••1234`). An 11-digit OIB standing on its own becomes `[OIB]`. A PDF or a photo cannot be masked, so a document task says in its `sends` line that the whole document goes. Counterparty names, client names and employee names never appear in a schema's `enum`, since Anthropic caches schemas apart from prompts for up to 24 hours.
+`maskIdentifiers` runs inside `runTask` on every text part a task builds, so no task can forget it. An IBAN in upper or lower case, glued to the word IBAN or not, with any run of spaces, no-break spaces or hyphens between its characters, becomes its country code and last four characters (`HR•• ••••1234`) when it has an IBAN's length and passes the mod-97 check, so an invoice number stays readable and a number with a wrong check digit goes as written. An 11-digit OIB standing on its own, or written `123 456 789 01`, becomes `[OIB]`. A PDF or a photo cannot be masked, so a document task says in its `sends` line that the whole document goes. Counterparty names, client names and employee names never appear in a schema's `enum`, since Anthropic caches schemas apart from prompts for up to 24 hours.
 
 ### Cited answers and the model's own knowledge
 
@@ -151,9 +151,9 @@ From stage 4 every explanation and question uses one answer shape:
 }
 ```
 
-- `sources` are rule ids such as `hr.vat.rates` or law anchors such as `capital-gains.md#losses`. Code drops a part whose source was neither sent in the input nor returned by a tool in this run, and marks the answer "Partly unchecked".
+- `sources` are rule ids such as `hr.vat.rates` or law anchors such as `capital-gains.md#losses`. Code drops a part whose source was neither sent in the input nor returned by a tool in this run, and marks the answer "Partly unchecked". A part that names no source stays, and marks the answer the same way when Kuna gave sources.
 - `figures` are refs Kuna gave each amount, such as `f.0.2`. The screen shows the amount from Kuna's own value with `MoneyText`.
-- Code scans each part's text for amounts and rates in both `1.234,56` and `1,234.56` forms. Any amount that does not equal one Kuna sent or a tool returned flags "Contains a figure Kuna did not compute", with one retry offered. It is never corrected silently.
+- Code scans each part's text for amounts and rates in the `1.234,56`, `1,234.56` and `1 234,56` forms. A number is an amount with a currency on either side (a symbol, `euro` and its forms, `kn`, or an ISO code in capitals), or with a thousands separator or two decimals unless it reads as a day and a month. It is a rate before `%`, `posto` or `percent`. A bare whole number such as "4300" reads as a count and is not checked. Amounts and rates written in the labels and subtitle Kuna sent count as sent. Any amount that does not equal one Kuna sent or a tool returned flags "Contains a figure Kuna did not compute", with one retry offered. It is never corrected silently.
 - `ownKnowledge` is what the model adds from its own knowledge. It shows below the cited parts, in a warning box titled **Not from Kuna's rules**, with no source chips. Its amounts carry the same flag.
 - A law answer ends with the oldest day a rule source was checked (`sourcesCheckedSince` in `packs/hr-doo/ruleset/ruleset.ts`), or the day the docs/law file was checked.
 
@@ -186,7 +186,8 @@ Move, rename, migrate. No model is called yet.
 | `src/shared/secrets/infrastructure/browserSecrets.ts`                                                | `prices/infrastructure/vendorKeys.ts`, plus `moveBrowserSecrets`                                                                                                              |
 | `src/shared/secrets/infrastructure/googleSecretsDrive.ts`                                            | `prices/infrastructure/googleKeysDrive.ts`                                                                                                                                    |
 | `src/shared/secrets/infrastructure/fake/fakeSecrets.ts`, `fakeSecretsDrive.ts`, `seedFakeSecrets.ts` | `prices/infrastructure/fake/fakeKeys.ts`, `fakeKeysDrive.ts`, and the seeding at `seedFakeInvestments.ts:52-54`                                                               |
-| `src/shared/secrets/presentation/secretsStep.ts`                                                     | `prices/presentation/useKeysSync.ts`: `PAGE_SECRET_STORE`, `useSecretsChanged`, `pageSecretsDrive`, `secretsStep(wanted)`, `secretsNeeds(wanted)`                             |
+| `src/shared/secrets/presentation/pageSecrets.ts`                                                     | `prices/presentation/useKeysSync.ts`: `PAGE_SECRET_STORE`, `useSecretsChanged`, which the AI module reads without reaching the Google adapter                                 |
+| `src/shared/secrets/presentation/secretsStep.ts`                                                     | `prices/presentation/useKeysSync.ts`: `pageSecretsDrive`, `secretsStep(wanted)`, `secretsNeeds(wanted)`, and the new `deleteKeysFromGoogle`                                   |
 | `src/shared/secrets/presentation/useSecretRows.ts`                                                   | `prices/presentation/useVendorKeys.ts`, over any `{ id, needsKey }` instead of `PriceVendor`                                                                                  |
 | `src/shared/secrets/presentation/words.ts`                                                           | `keysStep` and `keysRefused` from `prices/presentation/words.ts:148-158` and `:318-328`                                                                                       |
 
@@ -197,7 +198,7 @@ Move, rename, migrate. No model is called yet.
 **The sync.** `syncSecrets(ports)` replaces `syncVendorKeys(ports, investmentsFileId)` (`keysSync.ts:27`):
 
 1. List the hidden folder once. Take the `kuna-secrets.json` whose id sorts first, and every other file: a second `kuna-secrets.json` and each `kuna-investments-keys-*.json`. The old name holds an Investments file id the sync no longer knows, so it lists instead of asking by name.
-2. Decode every file. If any is refused (`not-keys` or `newer`), stop: write nothing, delete nothing, and say so, as today (`keysSync.ts:33-35`).
+2. Decode every file. If any is refused (`not-keys` or `newer`), stop: write nothing, delete nothing, and say so, as today (`keysSync.ts:33-35`). The `not-keys` message points to Delete my keys from my Google account in Kuna settings.
 3. Merge all files and this browser's secrets, the newest change of each id winning, a removal as much as a save (`keysFile.ts:72-81`). There is no list of known ids any more. Every id in the file or in this browser syncs.
 4. Write `kuna-secrets.json` when the merge differs from it, or create it.
 5. Only after that write resolved, delete every other file. A failed delete leaves the file to fold again on the next sync, which changes nothing.
@@ -208,6 +209,10 @@ A stale Kuna tab in another browser may make an old file again from its own keys
 **This browser.** `kuna.price-vendor-key.<id>` becomes `kuna.secret.<id>` and `kuna.price-vendor-key-changed.<id>` becomes `kuna.secret-changed.<id>`. `moveBrowserSecrets()` runs once from `src/main.ts` before the apps install (`:20-22`): each old pair moves unless the new pair holds a newer time, then the old pair is removed. Denied storage leaves everything as it is. `kuna.price-vendor-usage.*` are request counts, not secrets, and stay.
 
 **The step.** `secretsStep(wanted)` is a `SyncStep` with id `secrets` and the label Keys. It is on when `wanted()` holds or this browser holds any secret change. It remembers the run it served, by the run's `startedAt` (`src/shared/sync/application/syncRun.ts:52`), so when several groups list it, only the first touches Drive and the others say "Up to date". Its refusal links to Kuna settings, not the Prices tab.
+
+**One file for every app.** Any app's file on Drive turns the step on, so a key saved beside a browser-kept Investments file also goes to the secrets file. The Prices card and the Assistant card word their subtitles by whether any app's file is on Drive, through `PageSync.someOnDrive`.
+
+**Delete my keys from my Google account.** A card in Kuna settings, shown with or without a file on Drive. After a confirmation it deletes the secrets file and every old keys file, read or not, and leaves this browser's keys alone. It is the way out of a refused file, and the way to clear a key once the last file has left Drive, where no sync runs. While a file is on Drive, the next sync of any browser holding keys saves them again, which the confirmation says.
 
 **Changed**
 
@@ -238,6 +243,7 @@ A stale Kuna tab in another browser may make an old file again from its own keys
 | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | Access to the app's hidden folder on Drive was not allowed, so your keys stay in this browser alone. | Pristup skrivenoj mapi aplikacije na Driveu nije dopušten, pa vaši ključevi ostaju samo u ovom pregledniku. |
 | Your keys in your Google account, which every Kuna app uses.                                         | Vaši ključevi na Google računu, koje koriste sve aplikacije Kune.                                           |
+| Delete my keys from my Google account                                                                | Obriši moje ključeve s mog Google računa                                                                    |
 
 **Cost.** None. No model is called.
 
@@ -281,14 +287,14 @@ export type TaskResult<Output> =
 | OpenAI     | OpenAI-compatible | `gpt-6-luna` $0.10 / $0.50, `gpt-6.1-terra` $1 / $5, `gpt-6.1-sol` $2 / $10, `gpt-6-astra` $10 / $50                  | `gpt-6.1-sol`                 | `file` parts     |
 | OpenRouter | OpenAI-compatible | `anthropic/claude-sonnet-5-5`, `anthropic/claude-haiku-5-5`, `openai/gpt-6.1-sol`, at the underlying provider's price | `anthropic/claude-sonnet-5-5` | not offered      |
 
-Each preset also holds its base URL, its key test and its retention sentence. Haiku 5.5's price rises to $0.50 / $2.50 above 100,000 prompt tokens, which the run cap keeps below.
+Each preset also holds its base URL, its key test and its retention sentence. OpenRouter's also sends `provider: { require_parameters: true }`, so a strict request goes only to endpoints that honour it. Haiku 5.5's price rises to $0.50 / $2.50 above 100,000 prompt tokens, which the run cap keeps below.
 
 - New `src/shared/ai/infrastructure/assistSettings.ts`: `kuna.assist.<app>` and `kuna.assist-task.<task id>` switches, `kuna.assist-provider`, `kuna.assist-model.<provider>`, all off or default when absent or denied.
 - New `src/shared/ai/infrastructure/fake/fakeModel.ts`: answers by task id from what the apps' fake seeds register, by the `?ai=` variant.
-- New `src/shared/ai/presentation/useAiTask.ts`: reads the provider in use, its model and its key (`storedSecret`), returns `switched-off` or `no-key` without a request, builds the `ModelPort` (the fake one in the fake build, inline as `pageKeysDrive` does at `useKeysSync.ts:58-65`), and runs the task.
+- New `src/shared/ai/presentation/useAiTask.ts`: reads the provider in use, its model and its key (`storedSecret`), returns `switched-off` or `no-key` without a request, builds the `ModelPort` (the fake one in the fake build, inline as `pageKeysDrive` does at `useKeysSync.ts:58-65`), and runs the task. A reset, a new run and leaving the screen abort the run under way and drop its result, a run stops after five minutes, and anything thrown ends as a `failed` result.
 - New `src/shared/ai/presentation/AiAssistCard.vue`, `AssistConsent.vue`, `words.ts`. The card takes the apps as a prop, since shared code cannot import the shell.
 - Changed `src/shared/app/appContribution.ts:84-122`: `assist?: AppAssist`.
-- Changed `src/shell/settings/SettingsScreen.vue:11-22`: the card with `installedApps()` that have `assist` (`src/shell/routing/appRegistry.ts:11`). It shows with or without a file on Drive. `src/shell/settings/words.ts`: the description names the assistant.
+- Changed `src/shell/settings/SettingsScreen.vue:11-22`: the card with `installedApps()` that have `assist` (`src/shell/routing/appRegistry.ts:11`), and whether some file is on Drive as a prop, since the AI module may not import the sync. It shows with or without a file on Drive. `src/shell/settings/words.ts`: the description names the assistant.
 - Changed `index.html:7`: `connect-src` adds `https://api.anthropic.com https://api.openai.com https://openrouter.ai`. The dev policy widens this one (`scripts/devContentSecurityPolicy.ts:8-10`), so it needs no change.
 - Dependencies: `@anthropic-ai/sdk` and `openai`, both with `dangerouslyAllowBrowser`, loaded in the lazy chunk of the first task. Their typed errors and retries on 429 and 5xx are why. The chunk sizes are measured in this stage, and if they are out of line, the adapters use `fetch` instead.
 
@@ -343,8 +349,8 @@ Each preset also holds its base URL, its key test and its retention sentence. Ha
   - **Input**, one request for the whole queue, at most 50 rows: each row as a ref (`r1`, `r2` and so on), the counterparty folded with `foldRuleText` (`src/apps/company/rules/domain/transactionFacts.ts:9`), the description, the amount with its sign, the account's name and the month. The counterparty IBAN is never sent. Then the categories: slug, name, family, bucket and roles (`src/apps/company/workbook/domain/workbook.ts:23-35`).
   - **Output:** `{ suggestions: [{ row, category, confidence, why }] }`, with `row` an enum of the refs, `category` an enum of the defined slugs, and `confidence` one of `high`, `medium`, `low`.
   - **Check:** drop a suggestion for an unknown ref or slug, for an unclassified bucket, or for one side of a credit and debit pair that the row's sign contradicts (the pair roles at `src/apps/company/rules/domain/proposeRule.ts:10`).
-  - **Employees:** rows whose counterparty IBAN is in the pack's `employeeIbans(workbook)` stay out unless the task's employee switch is on.
-- Changed `src/apps/company/packs/packContribution.ts`: `PackContribution` (`:59-79`) gains `assist` and `employeeIbans`, `NO_PACK` (`:81`) answers `[]` and an empty set. `packs/hr-doo/hrDooPack.ts` answers from the pack's employees.
+  - **Employees:** a row stays out unless the task's employee switch is on when its counterparty IBAN is in the pack's `employeeIbans(records)`, or its folded counterparty and description hold every word of a name in `employeeNames(records)`. When that leaves nothing to send, Suggest categories sends no request and the queue says the switch holds the rows back.
+- Changed `src/apps/company/packs/packContribution.ts`: `PackContribution` (`:59-79`) gains `assist`, `employeeIbans` and `employeeNames`, `NO_PACK` (`:81`) answers `[]`, an empty set and `[]`. `packs/hr-doo/hrDooPack.ts` answers from the pack's employees.
 - Changed `src/apps/company/transactions/presentation/ReviewQueue.vue`: a **Suggest categories** button on the queue card (`:112-139`). Suggestions are kept by row id for this page only. Each `ReviewQueueItem` gets its suggestion.
 - Changed `src/apps/company/transactions/presentation/ReviewQueueItem.vue`: under the rules' verdict (`:96-104`) the line "Suggested: Software, likely" with its reason, and a **Use Software** button that emits `recategorise` (`:36-37`). The queue's `recategorise` (`ReviewQueue.vue:71-79`) writes it through `fileRows` with Undo and offers Make rule, which runs `draftForRow` (`src/apps/company/rules/domain/ruleDraft.ts:96`) as today. The row takes the owner's review label (`src/apps/company/transactions/domain/verdictChanges.ts:36-38`), so nothing new is stored.
 - Changed `src/apps/company/transactions/presentation/words.ts:102`, `:298`: the badge for rows no rule decided reads "No rule" and "Bez pravila", not "AI guess", since a real suggestion now exists beside it (`ReviewQueueItem.vue:53`).
@@ -365,17 +371,17 @@ Each preset also holds its base URL, its key test and its retention sentence. Ha
 
 **New strings**
 
-| English                                                                                                                                | Croatian                                                                                                                |
-| -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Suggest categories                                                                                                                     | Predloži kategorije                                                                                                     |
-| Suggested: {category}, {confidence}                                                                                                    | Prijedlog: {category}, {confidence}                                                                                     |
-| sure / likely / unsure                                                                                                                 | sigurno / vjerojatno / nesigurno                                                                                        |
-| Use {category}                                                                                                                         | Koristi {category}                                                                                                      |
-| No suggestion for {count} row(s)                                                                                                       | Nema prijedloga za {count} redak (retka, redaka), through the plural helper                                             |
-| No rule                                                                                                                                | Bez pravila                                                                                                             |
-| Counterparty names, descriptions, amounts and accounts of the rows waiting for review, and your categories. IBANs and OIBs are masked. | Nazive protustrana, opise, iznose i račune redaka koji čekaju pregled te vaše kategorije. IBAN-ovi i OIB-i su skriveni. |
-| Include rows paid to employees                                                                                                         | Uključi retke isplaćene zaposlenicima                                                                                   |
-| This sends their names and the amounts paid to {provider}.                                                                             | Ovo šalje njihova imena i isplaćene iznose pružatelju {provider}.                                                       |
+| English                                                                                                                                        | Croatian                                                                                                                         |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Suggest categories                                                                                                                             | Predloži kategorije                                                                                                              |
+| Suggested: {category}, {confidence}                                                                                                            | Prijedlog: {category}, {confidence}                                                                                              |
+| sure / likely / unsure                                                                                                                         | sigurno / vjerojatno / nesigurno                                                                                                 |
+| Use {category}                                                                                                                                 | Koristi {category}                                                                                                               |
+| No suggestion for {count} row(s)                                                                                                               | Nema prijedloga za {count} redak (retka, redaka), through the plural helper                                                      |
+| No rule                                                                                                                                        | Bez pravila                                                                                                                      |
+| Counterparty names, descriptions, amounts, months and accounts of the rows waiting for review, and your categories. IBANs and OIBs are masked. | Nazive protustrana, opise, iznose, mjesece i račune redaka koji čekaju pregled te vaše kategorije. IBAN-ovi i OIB-i su skriveni. |
+| Include rows that name employees                                                                                                               | Uključi retke koji navode zaposlenike                                                                                            |
+| This sends their names and the amounts paid to {provider}.                                                                                     | Ovo šalje njihova imena i isplaćene iznose pružatelju {provider}.                                                                |
 
 **Cost.** Thirty rows are about 4,800 tokens in and 1,200 out: about 2.2 US cents on Sonnet 5.5 or `gpt-6.1-sol`, 0.1 cent on Haiku 5.5 or `gpt-6-luna`, 4.3 cents on Opus 5.5.
 
@@ -386,7 +392,7 @@ Each preset also holds its base URL, its key test and its retention sentence. Ha
 - New `src/shared/ai/domain/citedAnswer.ts`: the answer schema and `checkCitedAnswer`, as under the rules.
 - New `src/shared/ai/presentation/CitedAnswerView.vue`: the parts, a chip per source through a `sourceLink` the app passes, the figures through `MoneyText`, the own-knowledge box, the flags and the usage line.
 - New `packs/hr-doo/assist/application/explainFigure.ts`, task `hr-doo.explain-figure`, effort `medium`, no tools:
-  - **Input:** the `TracedFigure` tree (`packs/hr-doo/ruleset/tracedFigure.ts:12-23`) with a ref per node (`f`, `f.0`, `f.0.2`), each label, day, amount and basis, the whole tree with no depth cap. For each `RuleCitation` (`packs/hr-doo/ruleset/schema.ts:183-189`) the version's terms through `versionOn` (`ruleset.ts:61`), its sources and its confidence. Then `sourcesCheckedSince()`. The ledger rows behind `drill` are never sent.
+  - **Input:** the `TracedFigure` tree (`packs/hr-doo/ruleset/tracedFigure.ts:12-23`) with a ref per node (`f`, `f.0`, `f.0.2`), each label, day, amount and basis. Steps for one ledger row or advance stay home, since their labels name the other side of the payment, and so do planned revenue steps built from a client or item name, marked where they are made with a symbol key that the figure digest does not read. The tree goes down only as many whole levels as fit in 300 steps. A forecast's cash runs to thousands of steps, about 200,000 tokens uncut. A step that lost steps carries `stepsLeftOut`. For each `RuleCitation` (`packs/hr-doo/ruleset/schema.ts:183-189`) the version's terms through `versionOn` (`ruleset.ts:61`), its sources and its confidence. Then `RULESET_CHECKED_ON`. The ledger rows behind `drill` are never sent.
   - **Check:** `checkCitedAnswer`, where the sources Kuna sent are the cited rule ids and the amounts are the tree's.
 - Changed `packs/hr-doo/presentation/tracedFigureView.ts`: `FigureDetail` (`:52-61`) gains `figure: TracedFigure` and `employees: boolean`, set by `figureDetail` (`:96-106`). The calls in `packs/hr-doo/presentation/salaries/salariesView.ts` (`:375`, `:406`, `:437`, `:453`, `:460`) pass `employees: true`.
 - Changed `packs/hr-doo/presentation/FigureDialog.vue`: an **Explain** button under the rules (`:31-44`) and `CitedAnswerView` below, its chips linking with `ruleLink` (`packs/hr-doo/ruleset/presentation/taxRuleLinks.ts:9`). A figure with `employees` asks for the task's employee switch first.
@@ -411,13 +417,13 @@ Each preset also holds its base URL, its key test and its retention sentence. Ha
 | Not from Kuna's rules                                                               | Nije iz Kuninih pravila                                                                       |
 | The model added this from its own knowledge. Kuna did not check it.                 | Model je ovo dodao iz vlastitog znanja. Kuna to nije provjerila.                              |
 | Contains a figure Kuna did not compute                                              | Sadrži iznos koji Kuna nije izračunala                                                        |
-| Partly unchecked: the model named a source it was not given                         | Djelomično neprovjereno: model je naveo izvor koji nije dobio                                 |
+| Partly unchecked: the model named a source it was not given, or none at all         | Djelomično neprovjereno: model je naveo izvor koji nije dobio ili nije naveo nijedan          |
 | Try again                                                                           | Pokušaj ponovno                                                                               |
 | Rules checked on {day}                                                              | Pravila provjerena {day}                                                                      |
 | The figure's build-up, its amounts and the rules it rests on                        | Razradu iznosa, njegove iznose i pravila na kojima počiva                                     |
 | This figure names employees. Explaining it sends their names and pay to {provider}. | Ovaj iznos navodi zaposlenike. Objašnjenje šalje njihova imena i plaće pružatelju {provider}. |
 
-**Cost.** About 6,000 tokens in and 1,500 out: 2.7 US cents on Sonnet 5.5, 0.14 cents on Haiku 5.5, 5.4 cents on Opus 5.5. A whole forecast year can reach 15,000 tokens in, about 4.5 cents on Sonnet 5.5.
+**Cost.** About 6,000 tokens in and 1,500 out: 2.7 US cents on Sonnet 5.5, 0.14 cents on Haiku 5.5, 5.4 cents on Opus 5.5. The largest figures, cut at 300 steps, are about 15,000 tokens in, about 4.5 cents on Sonnet 5.5.
 
 ### 5. Questions with tools over the ruleset index and docs/law
 

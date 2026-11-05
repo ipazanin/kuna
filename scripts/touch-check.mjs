@@ -21,7 +21,10 @@
  * brought back, the same from a row of the To review queue, a group of rows no rule repeats dismissed, restored and the restore undone,
  * the way back from Google with one token for every scope and the sync it resumes ending ready, with Drive read unticked ending in Allow access, a refused consent and a
  * forged answer leaving Allow access with no message, a refused silent trip marking the device so the next open waits for Allow access, Sign in to Google when Google asks
- * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, 100,000 at 4% over 10 years typed into a new scenario with the editor's headline reading the annuity and then equal principal, a rate change tried on a loan's page, saved in Saved tries, deleted and undone, a k typed into the what-if's amount expanding at once, 1.255m keeping its third decimal, with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, a tap near a movement's dot on an informal loan's balance chart reading that month's repayment and its note, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, a tap near a holding's dot on its daily line reading that day's buy in the tooltip, Compare with on a holding's chart and on Performance's growth chart opened with no key, its funds waiting for a Twelve Data key with a link to the Prices settings, then searching, picking, reading percent and removing the ticker, then pressing S&P 500 (SPY), named so on its chip and in the chart's words, and removing it, By class picked in the Mix card's select and a part of its class ring listing Holdings grouped by class with the ring kept, By currency picked in the grouping select with its sticky heading, Type its mix on a fund with no mix opening the Change dialog with its Dividends field, Paste from factsheet in a fund's Change dialog reading an English and Croatian country table, flagging what it cannot read and filling the country mix on Fill, a fund's empty fund profile warning on its Details card cleared by Ask again, a closed position opening its page and the way back, a past close picked in On and Today, a tap on the map of holdings opening a holding's page, targets set with what 2k buys read and undone, a check's threshold changed on the Investments Checks tab and undone, the period of Investments Performance changed to 1Y, to a year in its dropdown, to Q2 of that year, to another year keeping Q2 and back to All, with Returns by year tinting only Yours and Difference, its Months tab switched to Against the index, the period changed on its Sources tab, the Overview's Income tile opening Performance on its Income tab without the period bar and its Coming and Returns tabs, 1k typed into the projection's Each month on the Saving tab and its end value read, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a dollar sale typed with its tax line read as about, the Tax screen's Sales tab listing the sales by their lots and handing over kuna-porez-2026.xlsx, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices tab, a key another browser saved taken by the sync on open, removed here and kept removed by the next sync, a key this browser saved lost to another browser's newer removal, Remove the Investments file on the sample on Drive asked first, cancelled and then removed to the first run with the vendor key kept, in English and Croatian, the same for a file kept in this browser, another device's file in the Drive bin failing the sync on open with a link to its Settings, a two-word country and a code in brackets typed into a holding's Country field and into a fund's country mix and picked with Enter, the Country field set back to Not set the same way, three made-up CSV files of closes imported on the Prices tab, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
+ * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, 100,000 at 4% over 10 years typed into a new scenario with the editor's headline reading the annuity and then equal principal, a rate change tried on a loan's page, saved in Saved tries, deleted and undone, a k typed into the what-if's amount expanding at once, 1.255m keeping its third decimal, with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, a tap near a movement's dot on an informal loan's balance chart reading that month's repayment and its note, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, a tap near a holding's dot on its daily line reading that day's buy in the tooltip, Compare with on a holding's chart and on Performance's growth chart opened with no key, its funds waiting for a Twelve Data key with a link to the Prices settings, then searching, picking, reading percent and removing the ticker, then pressing S&P 500 (SPY), named so on its chip and in the chart's words, and removing it, By class picked in the Mix card's select and a part of its class ring listing Holdings grouped by class with the ring kept, By currency picked in the grouping select with its sticky heading, Type its mix on a fund with no mix opening the Change dialog with its Dividends field, Paste from factsheet in a fund's Change dialog reading an English and Croatian country table, flagging what it cannot read and filling the country mix on Fill, a fund's empty fund profile warning on its Details card cleared by Ask again, a closed position opening its page and the way back, a past close picked in On and Today, a tap on the map of holdings opening a holding's page, targets set with what 2k buys read and undone, a check's threshold changed on the Investments Checks tab and undone, the period of Investments Performance changed to 1Y, to a year in its dropdown, to Q2 of that year, to another year keeping Q2 and back to All, with Returns by year tinting only Yours and Difference, its Months tab switched to Against the index, the period changed on its Sources tab, the Overview's Income tile opening Performance on its Income tab without the period bar and its Coming and Returns tabs, 1k typed into the projection's Each month on the Saving tab and its end value read, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a dollar sale typed with its tax line read as about, the Tax screen's Sales tab listing the sales by their lots and handing over kuna-porez-2026.xlsx, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices tab, a key another browser saved taken by the sync on open, removed here and kept removed by the next sync, a key this browser saved lost to another browser's newer removal, a key in the Investments file's old keys file taken by the sync on open, alone and beside an older one in the secrets file, with the secrets file left alone in the hidden folder, Remove the Investments file on the sample on Drive asked first, cancelled and then removed to the first run with the vendor key and the secrets file kept, in English and Croatian, the same for a file kept in this browser, another device's file in the Drive bin failing the sync on open with a link to its Settings, a two-word country and a code in brackets typed into a holding's Country field and into a fund's country mix and picked with Enter, the Country field set back to Not set the same way, three made-up CSV files of closes imported on the Prices tab, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
+ * a made-up AI key typed, saved, tested, given Opus 5.5 and removed on Kuna settings, Company's assistant switched on and still on after a reload,
+ * Suggest categories on the To review tab asking first, a suggestion used, undone and used again with Make a rule from its toast,
+ * Explain on a pay scenario's figure asking first, with a rule's chip opening its tax rule and Back,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
@@ -90,6 +93,8 @@ import {
   advanceFlowIn,
   assetFlow,
   assetFlowIn,
+  assistKeyFlow,
+  assistSwitchFlow,
   employeeFlow,
   employeeFlowIn,
   cardSettlementIbansFlow,
@@ -104,10 +109,13 @@ import {
   clientIbansFlowIn,
   dismissFlow,
   dismissFlowIn,
+  figureExplainFlow,
   heldStatementFlow,
   importCamtFlow,
   importFlowIn,
   heldStatementFlowIn,
+  investmentsKeyLegacyAndNewFlow,
+  investmentsKeyLegacyFlow,
   mailListFlowIn,
   importTableFlow,
   invoiceFlow,
@@ -164,6 +172,7 @@ import {
   ownerNetUnregisteredFlow,
   ownerShareFlow,
   ownerShareFlowIn,
+  reviewSuggestUseFlow,
   salariesFlow,
   planFlow,
   planFlowIn,
@@ -2265,7 +2274,7 @@ async function checkWidth(width) {
   // A fund whose fund profile came back empty warns on its Details card, naming Alpha Vantage and its symbol there. Ask again asks for it at once, with a made-up key this step removes, and the fake Alpha Vantage's answer clears the warning and shows the fund's size.
   await step('investments-holding-ask-again', async () => {
     await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments`, { waitUntil: 'networkidle0' })
-    await page.evaluate(() => localStorage.setItem('kuna.price-vendor-key.alphavantage', 'made-up-alpha-vantage-key-7311'))
+    await page.evaluate(() => localStorage.setItem('kuna.secret.alphavantage', 'made-up-alpha-vantage-key-7311'))
     try {
       await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/holding?instrument=${SAMPLE_WORLD_ETF}`, { waitUntil: 'networkidle0' })
       await waitForTitle(page, 'Example World ETF')
@@ -2279,9 +2288,7 @@ async function checkWidth(width) {
       await page.waitForFunction(() => document.querySelector('[data-testid="holding-details"]')?.textContent?.includes('Fund size') === true, { timeout: 5_000 })
       await inspect(page, `${width}px the fund after Ask again`)
     } finally {
-      await page.evaluate(() =>
-        ['kuna.price-vendor-key.alphavantage', 'kuna.price-vendor-key-changed.alphavantage', 'kuna.price-vendor-usage.alphavantage'].forEach((key) => localStorage.removeItem(key)),
-      )
+      await page.evaluate(() => ['kuna.secret.alphavantage', 'kuna.secret-changed.alphavantage', 'kuna.price-vendor-usage.alphavantage'].forEach((key) => localStorage.removeItem(key)))
     }
   })
 
@@ -2778,6 +2785,12 @@ async function checkWidth(width) {
     ['investments-price-key', 'drive&investments=sample', investmentsPriceKeyFlow, '#/investments/settings?tab=prices', 'Settings'],
     ['investments-key-synced', 'drive&investments=sample&keys=other-browser', investmentsKeyFromOtherBrowserFlow, '#/investments/settings?tab=prices', 'Settings'],
     ['investments-key-removed', 'drive&investments=sample&keys=removed', investmentsKeyRemovedElsewhereFlow, '#/investments/settings?tab=prices', 'Settings'],
+    ['investments-key-legacy', 'drive&investments=sample&keys=legacy', investmentsKeyLegacyFlow, '#/investments/settings?tab=prices', 'Settings'],
+    ['investments-key-legacy-and-new', 'drive&investments=sample&keys=legacy-and-new', investmentsKeyLegacyAndNewFlow, '#/investments/settings?tab=prices', 'Settings'],
+    ['assist-key', 'drive', assistKeyFlow, '#/settings', 'Kuna settings'],
+    ['assist-switch', 'drive', assistSwitchFlow, '#/settings', 'Kuna settings'],
+    ['review-suggest', 'browser', reviewSuggestUseFlow, '#/company/transactions?tab=review', 'Transactions'],
+    ['figure-explain', 'browser', figureExplainFlow, '#/company/year?year=2027&tab=pay', 'Year'],
     ['investments-instrument-search', 'drive&investments=sample', investmentsInstrumentSearchFlow, '#/investments/settings', 'Settings'],
     [
       'investments-holding-compare',

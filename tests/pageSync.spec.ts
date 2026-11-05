@@ -111,3 +111,14 @@ describe('a file in the bin or gone', () => {
     expect(startPageSync([loans.app]).run.value?.groups[0]?.steps[0]?.state).toEqual({ kind: 'failed', line: '500 from Drive.', link: null })
   })
 })
+
+describe('whether some file is on Drive', () => {
+  it('holds while any app has its file there, so a browser-kept file does not hide where the keys go', () => {
+    const company = appOf('company', 'drive', [])
+    const investments = appOf('investments', 'browser', [])
+    const page = startPageSync([company.app, investments.app])
+    expect(page.someOnDrive.value).toBe(true)
+    company.state.choice = { source: 'browser', id: 'company-file', name: 'kuna-company.json' }
+    expect(page.someOnDrive.value).toBe(false)
+  })
+})

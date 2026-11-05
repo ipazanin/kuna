@@ -175,10 +175,10 @@
               reads nothing else with it and changes nothing.
             </li>
             <li>
-              <code>drive.appdata</code>, "See, create, and delete its own configuration data in your Google Drive". Asked only while your Investments file is on Drive and you saved a price vendor key
-              or hold an instrument priced by a vendor that needs a key, and when you remove an Investments file on Drive, to delete its keys file. It covers one hidden folder of Kuna's own in your
-              Drive, which you do not see in Drive, which nobody can share and which no other app reads. The app keeps your price vendor keys there in one small file per Investments file, so every
-              browser you sign in to gets them. It reads, writes and deletes nothing else with it.
+              <code>drive.appdata</code>, "See, create, and delete its own configuration data in your Google Drive". Asked only while a file of yours is on Drive and you saved a key, hold an
+              instrument priced by a vendor that needs a key, or switched the assistant on for the company. It covers one hidden folder of Kuna's own in your Drive, which you do not see in Drive,
+              which nobody can share and which no other app reads. The app keeps your keys there in one small file, so every browser you sign in to gets them. It also deletes there the keys files an
+              older Kuna made, one per Investments file, once their keys are in the new file. It reads, writes and deletes nothing else with it.
             </li>
             <li>
               <code>gmail.readonly</code>, "View your email messages and settings". Asked only while you name the address your bank mails from, or switch on a kind of your accountant's mail. Google's
@@ -218,14 +218,14 @@
             vendors again. The file holds no key.
           </p>
           <p>
-            With your Investments file on Drive, each sync writes your price vendor keys, and when you last saved or removed each one, into
-            <code>kuna-investments-keys-&lt;id of the Investments file&gt;.json</code> in Kuna's hidden app folder in your Drive. A key you remove in one browser is removed from the others on their
-            next sync. Drive may keep earlier versions of that file, which only Kuna can read, for about 30 days, as it does for other files.
+            With a file of yours on Drive, each sync writes your keys, for the price vendors and for the assistant, and when you last saved or removed each one, into
+            <code>kuna-secrets.json</code> in Kuna's hidden app folder in your Drive. A key you remove in one browser is removed from the others on their next sync. Drive may keep earlier versions of
+            that file, which only Kuna can read, for about 30 days, as it does for other files.
           </p>
           <p>
             Remove the Investments file, in the Investments Settings, asks first. For a file on Drive it moves <code>kuna-investments.json</code> and <code>kuna-investments-prices.json</code> to your
-            Drive bin, where you can restore them for 30 days, and deletes the keys file in Kuna's hidden folder for good, since Drive keeps no bin for that folder. For a file kept in this browser it
-            deletes the file and its prices here. The price vendor keys kept in this browser stay, and so do the backups folder and the files you exported.
+            Drive bin, where you can restore them for 30 days. For a file kept in this browser it deletes the file and its prices here. Your keys stay, in this browser and in Kuna's hidden folder,
+            since every Kuna app uses them, and so do the backups folder and the files you exported.
           </p>
           <p>
             While you name the address your bank mails statements from, each sync files the attachments of its new statement mail, the statement PDF and XML, into your statements folder in Drive, in a
@@ -244,8 +244,16 @@
           </p>
           <p>
             For Investments, the page also asks the price vendors named in the Investments Settings for daily closes and exchange rates: Twelve Data, Alpha Vantage and the European Central Bank. It
-            calls them with your own keys, kept in this browser and, with your Investments file on Drive, in Kuna's hidden folder in your Drive, where a vendor needs one. It sends them only the
-            symbols of the instruments and the currencies your records name, plus USD, GBP and CHF, and the day it needs closes from, never an amount or anything else from your books.
+            calls them with your own keys, kept in this browser and, with a file of yours on Drive, in Kuna's hidden folder in your Drive, where a vendor needs one. It sends them only the symbols of
+            the instruments and the currencies your records name, plus USD, GBP and CHF, and the day it needs closes from, never an amount or anything else from your books.
+          </p>
+          <p>
+            The assistant is off for every app until you switch it on in Kuna settings, and it runs only with your own key for Anthropic, OpenAI or OpenRouter, kept like the price vendor keys. Each
+            task says before its first run what it sends. Suggest categories sends the counterparty names, descriptions, amounts, months and accounts of the rows waiting for review, and your
+            categories, with IBANs and OIBs masked and no row that names an employee unless you switch that on. Explain sends a figure's build-up, its amounts and the rules it rests on, and a figure
+            that names employees only once you switch that on. It never sends a ledger row behind a figure or a planned revenue step that names a client or an invoice item, and it never reaches the
+            web. What comes back is only a suggestion on screen, which you save yourself. Testing a key sends nothing from your books. Anthropic deletes what Kuna sends within 30 days, OpenAI keeps it
+            up to 30 days for abuse checks, and neither trains on it. OpenRouter keeps nothing by default, and the model's own provider keeps what its terms say.
           </p>
           <p>
             For the mixes and the coming income of Investments, it also asks Finnhub, Alpha Vantage and Twelve Data about the instruments you hold: a company's industry and home country from Finnhub,
@@ -262,10 +270,11 @@
           <h2>Where your data is kept</h2>
           <p>With your books on Google Drive, the file there is the original. The app keeps a copy in this browser's storage so the figures show at once.</p>
           <p>
-            The keys you enter for the price vendors are kept in this browser's storage. With your Investments file on Drive, each sync also keeps them in Kuna's hidden app folder in your Drive, which
-            Drive does not show, nobody can share and no other app reads, so every browser signed in to your account gets them. They never go into the Investments file, the prices file or a folder you
-            see. With your Investments file kept in this browser, they stay only in this browser. A device without keys reads the closes another device fetched. Clearing this site's data in the
-            browser forgets them here. Google lets you delete an app's hidden folder yourself, and its help page
+            The keys you enter for the price vendors and the assistant are kept in this browser's storage. With a file of yours on Drive, each sync also keeps them in Kuna's hidden app folder in your
+            Drive, which Drive does not show, nobody can share and no other app reads, so every browser signed in to your account gets them. They never go into a books file, the prices file or a
+            folder you see. With every file kept in this browser, they stay only in this browser. The assistant's switches and the model you pick stay on this device. A device without keys reads the
+            closes another device fetched. Clearing this site's data in the browser forgets them here. Delete my keys from my Google account, in Kuna settings, deletes the keys file from that folder
+            and leaves this browser's keys, which the next sync saves again while a file of yours is on Drive. Google lets you delete an app's hidden folder yourself, and its help page
             <a href="https://support.google.com/drive/answer/2523073">Use Google Drive apps</a> says where Drive lists the apps you use.
           </p>
           <p>

@@ -17,6 +17,7 @@ import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
 import { ZERO, divideMoney, negateMoney, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
 import { ruleValue } from '../../ruleset/ruleset'
+import { NAMES_A_PARTY } from '../../ruleset/tracedFigure'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { withDrill } from '../accrual/accrualAdjustment'
 import { vatPosition } from '../accrual/accrualBalanceSheet'
@@ -724,7 +725,11 @@ function expectedRevenue(due: readonly ExpectedInvoice[], month: MonthKey, clien
     return null
   }
   const rows = due.flatMap((invoice) =>
-    invoice.items.map((openRow): TracedFigure => ({ ...tracedFigure(words.figures.billable(openRow.row.item, clientName(invoice.client)), openRow.open, 'plan', []), on: openRow.row.date })),
+    invoice.items.map((openRow): TracedFigure => ({
+      ...tracedFigure(words.figures.billable(openRow.row.item, clientName(invoice.client)), openRow.open, 'plan', []),
+      on: openRow.row.date,
+      [NAMES_A_PARTY]: true,
+    })),
   )
   return summed(words.figures.plannedRevenue(monthLabel(month)), rows, 'plan')
 }
@@ -745,7 +750,7 @@ function billedPlan(known: HrDooWorkbook, month: MonthKey, clientName: (slug: st
   }
   return summed(
     words.figures.billedPlan(monthLabel(month)),
-    rows.map((row) => ({ ...tracedFigure(words.figures.itemFor(row.item, clientName(row.client)), row.amount, 'plan', []), on: row.date })),
+    rows.map((row) => ({ ...tracedFigure(words.figures.itemFor(row.item, clientName(row.client)), row.amount, 'plan', []), on: row.date, [NAMES_A_PARTY]: true })),
     'plan',
   )
 }

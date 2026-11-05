@@ -76,6 +76,8 @@ export interface PackPart<Part, Values> {
   readonly categoryClasses: readonly CategoryClass[]
   /** The roles of categories that come in a credit and a debit pair, such as a loan out and its repayment, whose proposed rules go by direction. */
   readonly directionPairedRoles: readonly string[]
+  /** The side each of the pack's paired roles takes, where a reimbursement has none since it goes either way. */
+  readonly pairSides: Readonly<Record<string, 'credit' | 'debit'>>
   /** The categories new books start with. */
   readonly startingCategories: readonly StartingCategory[]
   /** The category rules new books made on the day start with. */

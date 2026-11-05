@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
-import { storedVendorKey } from '../infrastructure/vendorKeys'
+import { storedSecret } from '../../../../shared/secrets/infrastructure/browserSecrets'
 import { PRICE_VENDORS } from '../infrastructure/vendors/priceVendors'
 import { pricesAge } from '../domain/priceBook'
 import { usePortfolio } from '../../holdings/presentation/usePortfolio'
@@ -12,7 +12,7 @@ import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { plural } from '../../../../shared/text/translation'
 import { fetchingAnnouncement } from './fetchingLine'
 import { runProblem } from './runProblem'
-import { useKeysChanged } from './useKeysSync'
+import { useSecretsChanged } from '../../../../shared/secrets/presentation/pageSecrets'
 import { usePrices } from './usePrices'
 import { words } from './words'
 
@@ -24,10 +24,10 @@ const prices = usePrices()
 const { sources, figures } = usePortfolio()
 
 /** Whether this browser keeps a key for a vendor that needs one, which decides what advice a missing close gets. */
-const keysChanged = useKeysChanged()
+const keysChanged = useSecretsChanged()
 const keyKept = computed(() => {
   void keysChanged.value
-  return PRICE_VENDORS.some((vendor) => vendor.needsKey && storedVendorKey(vendor.id) !== null)
+  return PRICE_VENDORS.some((vendor) => vendor.needsKey && storedSecret(vendor.id) !== null)
 })
 const problem = computed(() => runProblem(prices.state.lastRun))
 

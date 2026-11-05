@@ -56,5 +56,7 @@ export function ownerNetDetail(net: OwnerNetWithProfit, period: string, link: (d
     steps,
     rules: ruleChips(net.profit.rules),
     watched: watchedIn([net.profit]),
+    figure: null,
+    employees: false,
   }
 }

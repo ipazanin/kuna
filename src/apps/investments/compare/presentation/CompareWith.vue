@@ -13,7 +13,7 @@ import InstrumentSearch from '../../holdings/presentation/InstrumentSearch.vue'
 import { INVESTMENTS_PRICES_ROUTE } from '../../overview/presentation/investmentLinks'
 import type { SearchedListing } from '../../prices/application/symbolSearch'
 import { useSymbolSearch } from '../../prices/presentation/useSymbolSearch'
-import { storedVendorKey } from '../../prices/infrastructure/vendorKeys'
+import { storedSecret } from '../../../../shared/secrets/infrastructure/browserSecrets'
 import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
 import { words as pricesWords } from '../../prices/presentation/words'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
@@ -37,7 +37,7 @@ const emit = defineEmits<{
   remove: []
 }>()
 
-const fundsPriced = storedVendorKey(INDEX_FUNDS_SOURCE) !== null
+const fundsPriced = storedSecret(INDEX_FUNDS_SOURCE) !== null
 const searchable = useSymbolSearch().canSearch()
 const fundsVendor = PRICE_VENDORS.find((vendor) => vendor.id === INDEX_FUNDS_SOURCE)?.name ?? INDEX_FUNDS_SOURCE
 const open = ref(false)

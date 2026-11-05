@@ -3,6 +3,12 @@ import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../../shared/money/money'
 import type { RuleCitation } from './schema'
 
+/**
+ * Set where a step is made whose label holds a client's name or an invoice item's name, so Explain keeps it home. A
+ * symbol key, so the mark survives a spread and stays out of the figure digest, which reads string keys.
+ */
+export const NAMES_A_PARTY = Symbol('names a party')
+
 export type FigureBasis = 'ledger' | 'invoices' | 'assets' | 'plan' | 'accountant' | 'assumption'
 
 /**
@@ -20,4 +26,5 @@ export interface TracedFigure {
   readonly basis: FigureBasis
   readonly rules: readonly RuleCitation[]
   readonly steps: readonly TracedFigure[]
+  readonly [NAMES_A_PARTY]?: true
 }

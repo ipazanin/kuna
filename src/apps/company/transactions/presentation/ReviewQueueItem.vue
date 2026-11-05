@@ -7,6 +7,8 @@ import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { capitalised } from '../../../../shared/text/capitalised'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { reviewReasonLabel } from '../../imports/domain/camtStatement'
+import type { CategorySuggestion } from '../../assist/application/suggestCategories'
+import { words as assistWords } from '../../assist/presentation/words'
 import type { Verdict } from '../../rules/domain/categorise'
 import CategoryChip from './CategoryChip.vue'
 import CategoryPicker from './CategoryPicker.vue'
@@ -28,6 +30,8 @@ const props = defineProps<{
   split: boolean
   busy: boolean
   saving: WriteSaving
+  /** What the model suggests for the row on this page, or null. */
+  suggestion: CategorySuggestion | null
 }>()
 
 const emit = defineEmits<{
@@ -50,7 +54,7 @@ const signals = computed(() =>
 
 const reasons = computed(() => [
   ...(props.transaction.bucket === UNCLASSIFIED ? [{ label: words.unclassified, color: 'warning' as const }] : []),
-  ...(props.transaction.flaggedBy === 'ai' ? [{ label: words.aiGuess, color: 'info' as const }] : []),
+  ...(props.transaction.flaggedBy === 'ai' ? [{ label: words.noRule, color: 'info' as const }] : []),
   ...props.transaction.reviewReasons.map((reason) => ({ label: capitalised(reviewReasonLabel(reason)), color: 'warning' as const })),
 ])
 
@@ -101,6 +105,23 @@ function recategorise(category: string | undefined): void {
               >{{ verdict.flaggedBy === 'ai' ? words.review.item.sendsToReview : '' }}
             </span>
             <span v-else class="text-xs text-muted">{{ words.review.item.noRuleDecides }}</span>
+          </dd>
+        </div>
+        <div v-if="suggestion" data-testid="review-suggestion">
+          <dt>{{ assistWords.suggest.suggested(names.category(suggestion.category), assistWords.suggest.confidence[suggestion.confidence]) }}</dt>
+          <dd class="flex flex-col items-start gap-1.5">
+            <span class="text-xs text-muted" data-testid="review-suggestion-why">{{ suggestion.why }}</span>
+            <UButton
+              :label="assistWords.suggest.use(names.category(suggestion.category))"
+              icon="i-lucide-wand-sparkles"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              :loading="saving(`recategorise-${transaction.id}`)"
+              :disabled="busy"
+              data-testid="use-suggestion"
+              @click="emit('recategorise', suggestion.category)"
+            />
           </dd>
         </div>
         <div v-if="transaction.counterpartyIban">

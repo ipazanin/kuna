@@ -24,7 +24,6 @@ export const en = {
     driveGoes: {
       file: (fileName: string) => `${fileName} goes to the Drive bin, where you can restore it for 30 days.`,
       prices: (pricesName: string) => `${pricesName}, its prices file beside it, goes to the bin too.`,
-      keys: 'The price keys Kuna saved for this file in its hidden folder on Drive are deleted for good, since Drive keeps no bin for that folder.',
       copy: 'The copy kept in this browser, and the prices kept with it, are deleted.',
     },
     browserGoes: [
@@ -33,7 +32,7 @@ export const en = {
     ],
     driveStays: [
       'The backups folder beside the file, and the files you exported.',
-      'The price vendor keys kept in this browser, since they belong to your vendor accounts, not to the file.',
+      'Your keys in your Google account, which every Kuna app uses.',
       'Another browser that has the file open keeps its copy, and its next sync says the file is in the bin.',
     ],
     browserStays: ['The files you exported.', 'The price vendor keys kept in this browser, since they belong to your vendor accounts, not to the file.'],
@@ -44,7 +43,6 @@ export const en = {
     copyLeft: 'The Investments file is removed, but the prices kept in this browser were not deleted',
     notRemoved: 'The Investments file was not removed.',
     steps: {
-      keys: 'Deleting the price keys on Drive',
       'prices-file': 'Moving the prices file to the bin',
       'drive-file': 'Moving the Investments file to the bin',
       'browser-file': 'Deleting the Investments file in this browser',
@@ -130,7 +128,6 @@ export const hr: Translation<typeof en> = {
     driveGoes: {
       file: (fileName) => `„${fileName}” ide u otpad na Driveu, iz kojeg je možete vratiti u roku od 30 dana.`,
       prices: (pricesName) => `„${pricesName}”, datoteka cijena uz nju, također ide u otpad.`,
-      keys: 'Ključevi za cijene koje je Kuna za ovu datoteku spremila u svoju skrivenu mapu na Driveu brišu se zauvijek jer Drive za tu mapu nema otpada.',
       copy: 'Kopija u ovom pregledniku i cijene koje se uz nju čuvaju brišu se.',
     },
     browserGoes: [
@@ -139,7 +136,7 @@ export const hr: Translation<typeof en> = {
     ],
     driveStays: [
       'Mapa sa sigurnosnim kopijama uz datoteku i datoteke koje ste izvezli.',
-      'Ključevi za izvore cijena u ovom pregledniku jer pripadaju vašim računima kod tih izvora, a ne datoteci.',
+      'Vaši ključevi na Google računu, koje koriste sve aplikacije Kune.',
       'Drugi preglednik u kojem je datoteka otvorena zadržava svoju kopiju, a njegova sljedeća sinkronizacija javlja da je datoteka u otpadu.',
     ],
     browserStays: ['Datoteke koje ste izvezli.', 'Ključevi za izvore cijena u ovom pregledniku jer pripadaju vašim računima kod tih izvora, a ne datoteci.'],
@@ -150,7 +147,6 @@ export const hr: Translation<typeof en> = {
     copyLeft: 'Datoteka ulaganja uklonjena je, ali cijene u ovom pregledniku nisu obrisane',
     notRemoved: 'Datoteka ulaganja nije uklonjena.',
     steps: {
-      keys: 'Brisanje ključeva za cijene na Driveu',
       'prices-file': 'Premještanje datoteke cijena u otpad',
       'drive-file': 'Premještanje datoteke ulaganja u otpad',
       'browser-file': 'Brisanje datoteke ulaganja u ovom pregledniku',

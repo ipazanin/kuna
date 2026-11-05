@@ -78,7 +78,7 @@ function toggleRow(key: string): void {
 function badgeOf(row: ListedRow): { label: string; color: 'warning' | 'info' | 'neutral' } | null {
   if (row.kind === 'owner-advance') return partPlace(row) === null ? { label: words.ownerAdvance, color: 'neutral' } : null
   if (row.bucket === UNCLASSIFIED) return { label: words.unclassified, color: 'warning' }
-  if (row.flaggedBy === 'ai') return { label: words.aiGuess, color: 'info' }
+  if (row.flaggedBy === 'ai') return { label: words.noRule, color: 'info' }
   return null
 }
 

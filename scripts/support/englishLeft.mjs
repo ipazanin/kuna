@@ -321,6 +321,11 @@ export const ENGLISH_ALLOWED = [
     texts: TYPED_IN_FAKE_FILES,
   },
   {
+    name: 'what the model wrote',
+    reason: "A suggestion's reason and an answer's parts are the model's own words, shown as they came, and the fake model answers in English.",
+    selector: '[data-testid="review-suggestion-why"], [data-testid="cited-text"], [data-testid="cited-own-text"]',
+  },
+  {
     name: 'fake Google failures',
     reason: 'The fake Gmail and Drive fail a search or an upload with these answers, which stand in for the answer Google sends and a real failure shows as Google wrote it.',
     texts: [FAKE_SEARCH_FAILURE, FAKE_UPLOAD_FAILURE],

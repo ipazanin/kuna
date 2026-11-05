@@ -1,7 +1,7 @@
 import type { Component } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
-import type { AppScreen } from '../../../shared/app/appContribution'
+import type { AppScreen, AssistTaskSummary } from '../../../shared/app/appContribution'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { MailSource } from '../mail/application/mailFiling'
 import type { WaitingJob } from '../overview/presentation/waitingForYou'
@@ -9,6 +9,7 @@ import type { Settings } from '../settings/domain/settings'
 import type { SettingsTab } from '../settings/presentation/settingsTabs'
 import type { FilteredLedger } from '../transactions/application/useFilteredLedger'
 import type { PackPart } from '../workbook/domain/packPart'
+import type { WorkbookRecords } from '../workbook/domain/readWorkbook'
 import type { Category, Workbook } from '../workbook/domain/workbook'
 import type { RecordProblem } from '../../../shared/storage/domain/recordsRead'
 
@@ -92,6 +93,12 @@ export interface PackContribution {
   /** Kinds of mail the sync's mail step looks for after core's, in order. */
   readonly mailSources: readonly MailSource[]
   readonly onboarding: PackOnboarding | null
+  /** The pack's assist tasks, for the Assistant card after core's. */
+  readonly assist: readonly AssistTaskSummary[]
+  /** The IBANs on the employees' records, normalised, shared ones too, so a row paid to one can be kept from a model. */
+  employeeIbans(records: WorkbookRecords): ReadonlySet<string>
+  /** The employees' names from their records, so a row that names one can be kept from a model whatever its IBAN. */
+  employeeNames(records: WorkbookRecords): readonly string[]
 }
 
 const NO_PACK: PackContribution = {
@@ -108,6 +115,9 @@ const NO_PACK: PackContribution = {
   categoriesToSort: () => [],
   mailSources: [],
   onboarding: null,
+  assist: [],
+  employeeIbans: () => new Set(),
+  employeeNames: () => [],
 }
 
 let installed: PackContribution = NO_PACK

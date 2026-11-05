@@ -12,6 +12,8 @@ import { EMPLOYEE_WRITES } from '../src/apps/company/packs/hr-doo/domain/hrDooWr
 import { payrollMonth } from '../src/apps/company/packs/hr-doo/domain/payroll/payrollMonth'
 import { payScenarios } from '../src/apps/company/packs/hr-doo/domain/scenarios/payScenarios'
 import { payState } from '../src/apps/company/packs/hr-doo/presentation/payScenarios/payScenariosView'
+import type { WorkbookRecords } from '../src/apps/company/workbook/domain/readWorkbook'
+import { hrDooPack } from '../src/apps/company/packs/hr-doo/hrDooPack'
 import { director } from './fixtures/employees'
 import { exampleStudio } from './fixtures/exampleStudio'
 import { civil, euros, month } from './fixtures/ledger'
@@ -208,5 +210,21 @@ describe('the payroll of a director row', () => {
     expect(() => payScenarios(registered, 2027, civil('2026-10-01'))).toThrow(RangeError)
     const owner = director()
     expect(needs(exampleStudio({ employees: [owner], director: owner }))).toBe('ready')
+  })
+})
+
+describe('what the pack says of who must not reach a model', () => {
+  it('keeps an IBAN two employees share, and the name and IBAN of a row left out', () => {
+    const shared = 'HR1210010051863000160'
+    const read = tab(
+      { employee: 'mia', name: 'Mia Primjer', iban: shared, residence_city: 'Split', from: '2026-01-12' },
+      { employee: 'tomo', iban: `${shared}, DE89370400440532013000`, residence_city: 'Split', from: '2026-01-12' },
+      { employee: 'ana', name: 'Ana Dvaput', iban: 'NL91ABNA0417164300', residence_city: 'Split', from: '2026-01-12' },
+      { employee: 'ana', name: 'Ana Dvaput', residence_city: 'Split', from: '2026-01-12' },
+    )
+    const records = { pack: new Map([[EMPLOYEE_RECORDS.name, read]]) } as unknown as WorkbookRecords
+    expect(readEmployees(read).facts.flatMap((employee) => employee.ibans)).toEqual(['DE89370400440532013000'])
+    expect([...hrDooPack.employeeIbans(records)]).toEqual([shared, 'DE89370400440532013000', 'NL91ABNA0417164300'])
+    expect(hrDooPack.employeeNames(records)).toEqual(['Mia Primjer', 'tomo', 'Ana Dvaput', 'Ana Dvaput'])
   })
 })

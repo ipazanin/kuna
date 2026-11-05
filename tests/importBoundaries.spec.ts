@@ -19,6 +19,8 @@ interface Import {
   readonly target: string | null
   /** An `import()` call rather than a declaration. */
   readonly dynamic: boolean
+  /** `import type` or `export type`, which loads nothing. */
+  readonly typeOnly: boolean
 }
 
 /** Every import in `src`, with type-only ones, `export ... from` and dynamic imports, each relative one resolved to its file. */
@@ -34,6 +36,7 @@ function importsInSource(): Import[] {
         specifier: imported.fileName,
         target: imported.fileName.startsWith('.') ? resolvedFile(dirname(path), imported.fileName) : null,
         dynamic: /\bimport\s*\(\s*$/.test(code.slice(0, imported.pos)),
+        typeOnly: /\b(?:import|export)\s+type\b[^'"]*$/.test(code.slice(0, imported.pos)),
       })),
     )
   })
@@ -243,6 +246,73 @@ describe('import boundaries', () => {
 
   it('keeps each shared capability module off the others', () => {
     expect(broken((entry) => capabilityOf(entry.from) === null || entry.target === null || capabilityOf(entry.target) === null || capabilityOf(entry.target) === capabilityOf(entry.from))).toEqual([])
+  })
+
+  it('leaves the names of the secrets, in this browser and on Drive, to the secrets module alone', () => {
+    expect(linesHolding(/kuna\.secret|kuna-secrets|kuna-investments-keys-|kuna\.price-vendor-key/, (file) => file.startsWith('src/shared/secrets/'))).toEqual([])
+  })
+
+  it("leaves the app's hidden folder on Drive to the secrets adapter, the Google client and the fake Drive", () => {
+    expect(
+      linesHolding(
+        /\bAPP_DATA_FOLDER\b|tokenFor\('drive\.appdata'/,
+        (file) => file.startsWith('src/shared/secrets/') || file.startsWith('src/shared/google/') || file.startsWith('src/shared/storage/infrastructure/fake/'),
+      ),
+    ).toEqual([])
+  })
+
+  it('leaves the AI hosts and the AI SDKs to the AI adapters', () => {
+    expect(
+      linesHolding(/api\.anthropic\.com|api\.openai\.com|openrouter\.ai|generativelanguage\.googleapis\.com|api\.mistral\.ai|api\.groq\.com|localhost:11434|localhost:1234/, (file) =>
+        file.startsWith('src/shared/ai/infrastructure/'),
+      ),
+    ).toEqual([])
+    expect(broken((entry) => !/^(@anthropic-ai\/sdk|openai)(\/|$)/.test(entry.specifier) || entry.from.startsWith('src/shared/ai/infrastructure/'))).toEqual([])
+  })
+
+  it('keeps the AI module off Google, the stores, their writes and the sync, so it can write nothing', () => {
+    expect(
+      broken(
+        (entry) =>
+          !entry.from.startsWith('src/shared/ai/') ||
+          entry.target === null ||
+          !['src/shared/google/', 'src/shared/storage/application/', 'src/shared/storage/presentation/', 'src/shared/sync/'].some((folder) => entry.target!.startsWith(folder)),
+      ),
+    ).toEqual([])
+  })
+
+  it('keeps the AI module off the same folders through every file it loads as it starts', () => {
+    const loaded = new Set(IMPORTS.filter((entry) => entry.from.startsWith('src/shared/ai/')).map((entry) => entry.from))
+    for (const file of loaded) {
+      for (const entry of IMPORTS) {
+        if (entry.from === file && entry.target !== null && !entry.dynamic && !entry.typeOnly) loaded.add(entry.target)
+      }
+    }
+    expect(
+      [...loaded].filter((file) => ['src/shared/google/', 'src/shared/storage/application/', 'src/shared/storage/presentation/', 'src/shared/sync/'].some((folder) => file.startsWith(folder))),
+    ).toEqual([])
+  })
+
+  it('offers no model the web', () => {
+    expect(linesHolding(/web_search|web_fetch|:online\b/, () => false)).toEqual([])
+  })
+
+  it("keeps an app's assist code to reading: no writes, no mail, no invoice run and no Google", () => {
+    expect(
+      broken(
+        (entry) =>
+          !/\/assist\//.test(entry.from) || entry.target === null || !/Writes\.ts$|useRecordWrites|recordWrites|\/mail\/|\/invoicing\/infrastructure\/|src\/shared\/google\//.test(entry.target),
+      ),
+    ).toEqual([])
+  })
+
+  it("lets an app's assist code reach a model only through the AI module's door, but for its fake answers", () => {
+    expect(broken((entry) => !/\/assist\//.test(entry.from) || isFakeSeed(entry.from) || entry.target === null || !entry.target.startsWith('src/shared/ai/infrastructure/'))).toEqual([])
+  })
+
+  it('reads the assist and secrets imports the cases above check', () => {
+    expect(IMPORTS.some((entry) => /\/assist\//.test(entry.from) && entry.target?.startsWith('src/shared/ai/'))).toBe(true)
+    expect(IMPORTS.some((entry) => appOf(entry.from) !== null && entry.target?.startsWith('src/shared/secrets/'))).toBe(true)
   })
 
   it('keeps application code off infrastructure, but for the files that wire the adapters', () => {

@@ -1,4 +1,3 @@
-import type { KeysFileRefusal } from '../domain/keysFile'
 import type { FailureReason, PricesFileRefusal } from '../domain/pricesFile'
 import { language } from '../../../../shared/text/language'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
@@ -34,7 +33,7 @@ const testEn: Reasons = {
 export const en = {
   card: {
     title: 'Prices',
-    subtitle: 'Kuna fetches the closes once a day, with your own free keys. Each key stays in this browser and never goes into a file.',
+    subtitle: 'Kuna fetches the closes once a day, with your own free keys. They stay in this browser while no file of yours is on Drive.',
     subtitleOnDrive:
       'Kuna fetches the closes once a day, with your own free keys. Each sync saves them to your Google account, hidden from Drive, so every browser you sign in to gets them. They never go into the Investments file or the prices file.',
   },
@@ -115,15 +114,7 @@ export const en = {
   vendors: 'Where prices come from',
   needsNoKey: 'Needs no key.',
   key: (vendor: string) => `${vendor} key`,
-  keyPlaceholder: 'Paste your key',
-  keptEnding: (ending: string) => `A key ending in ${ending} is kept in this browser.`,
-  kept: 'A key is kept in this browser.',
-  noKey: 'No key in this browser.',
   claim: 'Get a free key',
-  save: 'Save',
-  forget: 'Remove',
-  test: 'Test',
-  works: 'The key works.',
   answers: 'It answers.',
   testFailed: testEn,
   run: {
@@ -145,17 +136,6 @@ export const en = {
     settings: 'Settings',
     checks: 'Portfolio checks',
   },
-  keysStep: {
-    label: 'Keys',
-    reading: 'Reading the keys in your Google account',
-    unchanged: 'Up to date',
-    sent: "Saved this browser's keys to your Google account",
-    received: 'Took the changes another browser saved',
-  },
-  keysRefused: {
-    'not-keys': 'The keys file in your Google account is not one Kuna writes, so Kuna left it as it is.',
-    newer: 'A newer version of Kuna wrote the keys file. Reload Kuna to read it.',
-  } satisfies Record<KeysFileRefusal, string>,
   refused: {
     'not-json': 'The prices file is not JSON, so Kuna left it as it is.',
     'not-prices': 'The prices file holds something else, so Kuna left it as it is.',
@@ -175,7 +155,7 @@ export const en = {
 export const hr: Translation<typeof en> = {
   card: {
     title: 'Cijene',
-    subtitle: 'Kuna jednom dnevno dohvaća zaključne cijene s vašim besplatnim ključevima. Svaki ključ ostaje u ovom pregledniku i nikad ne ide u datoteku.',
+    subtitle: 'Kuna jednom dnevno dohvaća zaključne cijene s vašim besplatnim ključevima. Ostaju u ovom pregledniku dok nijedna vaša datoteka nije na Driveu.',
     subtitleOnDrive:
       'Kuna jednom dnevno dohvaća zaključne cijene s vašim besplatnim ključevima. Svaka ih sinkronizacija sprema na vaš Google račun, u skrivenu mapu koju Drive ne prikazuje, pa ih dobiva svaki preglednik u kojem ste prijavljeni. Nikad ne idu u datoteku ulaganja ni u datoteku cijena.',
   },
@@ -276,15 +256,7 @@ export const hr: Translation<typeof en> = {
   vendors: 'Odakle dolaze cijene',
   needsNoKey: 'Ne treba ključ.',
   key: (vendor) => `Ključ za ${vendor}`,
-  keyPlaceholder: 'Zalijepite ključ',
-  keptEnding: (ending) => `U ovom pregledniku čuva se ključ koji završava na ${ending}.`,
-  kept: 'U ovom pregledniku čuva se ključ.',
-  noKey: 'U ovom pregledniku nema ključa.',
   claim: 'Besplatan ključ',
-  save: 'Spremi',
-  forget: 'Ukloni',
-  test: 'Provjeri',
-  works: 'Ključ radi.',
   answers: 'Odgovara.',
   testFailed: {
     'no-key': () => 'Najprije spremite ključ.',
@@ -314,17 +286,6 @@ export const hr: Translation<typeof en> = {
     read: 'Pročitane su najnovije cijene',
     settings: 'Postavke',
     checks: 'Provjere portfelja',
-  },
-  keysStep: {
-    label: 'Ključevi',
-    reading: 'Čitanje ključeva s vašeg Google računa',
-    unchanged: 'Ažurno',
-    sent: 'Ključevi ovog preglednika spremljeni su na vaš Google račun',
-    received: 'Preuzete su promjene spremljene u drugom pregledniku',
-  },
-  keysRefused: {
-    'not-keys': 'Datoteka ključeva na vašem Google računu nije ona koju Kuna zapisuje, pa ju je Kuna ostavila kakva jest.',
-    newer: 'Datoteku ključeva zapisala je novija Kuna. Ponovno učitajte Kunu da je pročitate.',
   },
   refused: {
     'not-json': 'Datoteka cijena nije JSON, pa ju je Kuna ostavila kakva jest.',

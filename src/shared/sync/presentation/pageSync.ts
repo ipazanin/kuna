@@ -40,6 +40,8 @@ export interface PageSync {
   /** The last run of this page, with a failed read of an app's books outside a run, such as a find, shown as its books step. */
   readonly run: ComputedRef<SyncRun | null>
   readonly control: ComputedRef<SyncControl>
+  /** Whether some app's file is on Drive, so a sync carries the keys of every app. */
+  readonly someOnDrive: ComputedRef<boolean>
   /** Every group of the apps with a file on Drive, as `Sync.sync` says. Call it from a click handler. */
   sync(): Promise<void>
   /** Whether a sync is under way, as `Sync.running` says. */
@@ -171,6 +173,7 @@ export function startPageSync(apps: readonly Pick<AppContribution, 'id' | 'name'
     groups,
     run,
     control,
+    someOnDrive: computed(() => driveGroups().length > 0),
     sync: () => (driveGroups().length > 0 ? sync.sync() : Promise.resolve()),
     running: sync.running,
     settled: sync.settled,

@@ -40,16 +40,12 @@ New boundary rules keep AI hosts in the adapters, keep `shared/ai` away from wri
 
 - [One AI module shared by every app](../features/ai-assist/research/shared-module.md)
 - The [receipt research](../features/spending/research/lane3-receipts.md) found that two adapters cover the hosted and local providers.
-- The [module map](../architecture/modules.md) has the move of the key store to `src/shared/secrets`.
+- The [module map](../architecture/modules.md) lists the key store in `src/shared/secrets`.
 
 The build plan is written and waits for the owner's review: [the AI assist plan](../features/ai-assist/plan.md).
 
 ## Where it stands
 
-Stages 1 to 4 are built on a local branch and not yet reviewed: the shared secrets file `kuna-secrets.json` with the migration of the old keys files, the AI module with both adapters and a model picker, suggested categories on the review queue, and Explain on a figure. The visual and touch checks for the new pages pass with a fake provider.
+Stages 1 to 4 are on main: the shared secrets file `kuna-secrets.json` with the migration of the old keys files, the AI module with both adapters and a model picker, suggested categories on the review queue, and Explain on a figure. Explain sends no row-level step and at most 300 steps of a figure's tree.
 
-Before it can ship:
-
-- Explain refuses about half of Year's Pay tab figures because their input passes 100,000 tokens, against the plan's estimate of about 15,000 for a forecast year. The figure tree sent to the model needs trimming.
-- An independent review, a verify pass with figure digests identical, and a rebase onto main, where Assets, the preset and Spending have landed since the branch was cut.
-- The first real call needs the owner's own key.
+The first real call needs the owner's own key. It must confirm that `count_tokens` answers from a browser, since Test has no fallback, and that OpenRouter accepts `require_parameters`. Questions with tools, documents and the rest of the plan are still to build.
