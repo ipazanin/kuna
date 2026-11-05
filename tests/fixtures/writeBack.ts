@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 
-import { RULE_COLUMNS } from '../../src/apps/company/rules/domain/rule'
+import { RULE_COLUMNS } from '../../src/apps/company/rules/domain/readRules'
 import { ASSET_PARTS } from '../../src/apps/assets/workbook/domain/readAssetBook'
 import type { AssetsRecords } from '../../src/apps/assets/workbook/domain/readAssetBook'
 import type { AssetsBooks } from '../../src/apps/assets/workbook/domain/assetsBooks'

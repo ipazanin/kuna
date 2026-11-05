@@ -6,7 +6,7 @@ import { exportFileName, previewImport } from '../src/apps/company/workbook/pres
 import { NEWER_FILE, encodeDocument } from '../src/shared/storage/infrastructure/documentFormat'
 import { newDocument } from '../src/shared/storage/infrastructure/documentRecordStorage'
 import { COMPANY_APP, installedSchema } from '../src/apps/company/workbook/infrastructure/companyDocument'
-import { RULE_COLUMNS } from '../src/apps/company/rules/domain/rule'
+import { RULE_COLUMNS } from '../src/apps/company/rules/domain/readRules'
 import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
 import { readWorkbookFile, workbookGrids, writeWorkbookFile } from '../src/apps/company/workbook/infrastructure/workbookFile'

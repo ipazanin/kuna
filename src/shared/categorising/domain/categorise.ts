@@ -1,7 +1,7 @@
 import { inTryingOrder } from './rule'
 import type { Rule, RuleCondition } from './rule'
 import { transactionFacts } from './transactionFacts'
-import type { CategorisableTransaction, CategorisationContext, TransactionFacts } from './transactionFacts'
+import type { CategorisableRow, CategorisationContext, TransactionFacts } from './transactionFacts'
 
 /** What the categoriser writes for a row no rule decides, or a `review` rule with no category. */
 export const UNKNOWN_CATEGORY = 'unknown'
@@ -15,7 +15,7 @@ export interface Verdict {
 }
 
 /** The first enabled rule, in order, whose every condition holds decides the row. No match is `unknown` / `ai`. */
-export function categorise(transaction: CategorisableTransaction, rules: readonly Rule[], context: CategorisationContext): Verdict {
+export function categorise(transaction: CategorisableRow, rules: readonly Rule[], context: CategorisationContext): Verdict {
   const facts = transactionFacts(transaction, context)
   const deciding = inTryingOrder(rules).find((rule) => rule.enabled && ruleMatches(rule, facts))
   if (deciding === undefined) {

@@ -1,5 +1,5 @@
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
-import type { Rule, RuleCondition } from '../../../../rules/domain/rule'
+import type { Rule, RuleCondition } from '../../../../../../shared/categorising/domain/rule'
 import { CONTRIBUTION_ACCOUNTS } from '../../domain/salaries/contributionAccounts'
 import { hasVersionOn, ruleValue } from '../../ruleset/ruleset'
 

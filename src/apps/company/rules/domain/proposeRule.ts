@@ -1,11 +1,11 @@
 import { RECEIVABLE_ROLES } from '../../receivables/domain/invoiceMatching'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import type { Transaction, Workbook } from '../../workbook/domain/workbook'
-import { categorise } from './categorise'
+import { categorise } from '../../../../shared/categorising/domain/categorise'
 import { placeBefore } from './rulePlacement'
-import type { Rule, RuleCondition } from './rule'
-import { foldRuleText } from './transactionFacts'
-import type { CategorisableTransaction, CategorisationContext } from './transactionFacts'
+import type { Rule, RuleCondition } from '../../../../shared/categorising/domain/rule'
+import { foldRuleText } from '../../../../shared/text/fold'
+import type { CategorisableRow, CategorisationContext } from '../../../../shared/categorising/domain/transactionFacts'
 
 /**
  * A rule that files rows like this one in its category: by the counterparty IBAN when the row has
@@ -18,7 +18,7 @@ import type { CategorisableTransaction, CategorisationContext } from './transact
  * beside core's revenue and client refund, so one side of a pair never files the other.
  */
 export function proposeRule(
-  transaction: CategorisableTransaction & Pick<Transaction, 'category'>,
+  transaction: CategorisableRow & Pick<Transaction, 'category'>,
   workbook: Pick<Workbook, 'rules' | 'categories'>,
   context: CategorisationContext,
   packPairedRoles: readonly string[],

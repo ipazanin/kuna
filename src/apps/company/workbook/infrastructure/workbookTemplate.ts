@@ -1,4 +1,4 @@
-import { RULE_COLUMNS } from '../../rules/domain/rule'
+import { RULE_COLUMNS } from '../../rules/domain/readRules'
 import { SUGGESTION_KINDS } from '../domain/dismissals'
 import { ID_FIELD } from '../../../../shared/storage/domain/recordCodec'
 import { VAT_TREATMENTS } from '../domain/vatTreatment'

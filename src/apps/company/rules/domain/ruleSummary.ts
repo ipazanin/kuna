@@ -1,5 +1,5 @@
 import { cellText } from '../../../../shared/text/cellText'
-import type { RuleCondition } from './rule'
+import type { RuleCondition } from '../../../../shared/categorising/domain/rule'
 import type { RuleRowEdit, RulesTabChange } from './rulesTabChange'
 import { words } from './words'
 

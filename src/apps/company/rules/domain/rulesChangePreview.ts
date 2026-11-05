@@ -5,10 +5,10 @@ import { backtestRuleChange } from './backtestRule'
 import type { BacktestTransaction, RuleBacktest } from './backtestRule'
 import { readRules } from './readRules'
 import type { RuleTabRow } from './readRules'
-import type { Rule } from './rule'
+import type { Rule } from '../../../../shared/categorising/domain/rule'
 import { rulesTabAfter } from './rulesTabChange'
 import type { RulesTabChange } from './rulesTabChange'
-import type { CategorisationContext } from './transactionFacts'
+import type { CategorisationContext } from '../../../../shared/categorising/domain/transactionFacts'
 
 export interface RulesChangePreview<Row> {
   /** Why the save would be refused. Empty when it can be saved. */

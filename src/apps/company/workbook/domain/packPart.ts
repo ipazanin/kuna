@@ -1,5 +1,5 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import type { Rule } from '../../rules/domain/rule'
+import type { Rule } from '../../../../shared/categorising/domain/rule'
 import type { PackSettings } from '../../settings/domain/settings'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'

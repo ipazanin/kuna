@@ -1,20 +1,11 @@
-import { normaliseIban } from '../../../../shared/text/fold'
-import type { Settings } from '../../settings/domain/settings'
-import type { Account, Client, Transaction, TransactionSignals } from '../../workbook/domain/workbook'
-
-/**
- * Text folded for the rules: accents stripped, upper case, whitespace collapsed. Unlike the app's
- * own `fold`, `đ` survives, so the rules on the tab keep matching the rows they were written for.
- */
-export function foldRuleText(text: string): string {
-  return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim()
-}
+import type { Money } from '../../money/money'
+import { foldRuleText, normaliseIban } from '../../text/fold'
 
 /** What the rules know besides the row itself. */
 export interface CategorisationContext {
-  /** The workbook's own account IBANs, normalised. */
+  /** The owner's own account IBANs, normalised. */
   readonly ownIbans: ReadonlySet<string>
-  /** Every IBAN the `clients` tab names, normalised. */
+  /** Every client's IBAN, normalised. */
   readonly clientIbans: ReadonlySet<string>
   /**
    * The bank accounts a card purchase settles against, normalised. A PDF-era card row names one of
@@ -26,22 +17,25 @@ export interface CategorisationContext {
   readonly workbookCurrency: string
 }
 
-/** The context a workbook gives the rules: its own IBANs and currencies, its clients' IBANs, and the card settlement accounts from its settings. */
-export function categorisationContextOf(workbook: {
-  readonly accounts: readonly Account[]
-  readonly clients: readonly Client[]
-  readonly settings: Pick<Settings, 'currency' | 'cardSettlementIbans'>
-}): CategorisationContext {
-  return {
-    ownIbans: new Set(workbook.accounts.map((account) => account.iban).filter((iban) => iban !== '')),
-    clientIbans: new Set(workbook.clients.flatMap((client) => client.ibans)),
-    cardSettlementIbans: new Set(workbook.settings.cardSettlementIbans),
-    accountCurrencies: new Map(workbook.accounts.filter((account) => account.currency !== '').map((account) => [account.slug, account.currency.toUpperCase()])),
-    workbookCurrency: workbook.settings.currency.toUpperCase(),
-  }
+/** What a camt statement said about an entry beyond its money. Every field is blank on a row from a statement PDF or typed by hand. */
+export interface TransactionSignals {
+  readonly purpose: string
+  readonly txDomain: string
+  readonly txFamily: string
+  readonly txSubFamily: string
+  readonly creditorReference: string
+  readonly instructedCurrency: string
 }
 
-export type CategorisableTransaction = Pick<Transaction, 'account' | 'amount' | 'counterparty' | 'counterpartyIban' | 'description' | 'signals'>
+/** The fields of a bank row the rules read. Each app's own row type carries them. */
+export interface CategorisableRow {
+  readonly account: string
+  readonly amount: Money
+  readonly counterparty: string
+  readonly counterpartyIban: string
+  readonly description: string
+  readonly signals: TransactionSignals
+}
 
 /** Everything a rule can test about one transaction, worked out once rather than per rule. */
 export interface TransactionFacts {
@@ -61,7 +55,7 @@ export interface TransactionFacts {
   readonly foreignCurrency: boolean
 }
 
-export function transactionFacts(transaction: CategorisableTransaction, context: CategorisationContext): TransactionFacts {
+export function transactionFacts(transaction: CategorisableRow, context: CategorisationContext): TransactionFacts {
   const description = foldRuleText(transaction.description)
   const counterpartyIban = normaliseIban(transaction.counterpartyIban)
   const { signals } = transaction

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { categorise } from '../src/apps/company/rules/domain/categorise'
-import type { Rule, RuleCondition } from '../src/apps/company/rules/domain/rule'
-import { budgetRevenueCode, categorisationContextOf, foldRuleText, isCardTransaction, isForeignCurrency, postedCurrency, transactionFacts } from '../src/apps/company/rules/domain/transactionFacts'
-import type { CategorisableTransaction } from '../src/apps/company/rules/domain/transactionFacts'
+import { categorise } from '../src/shared/categorising/domain/categorise'
+import type { Rule, RuleCondition } from '../src/shared/categorising/domain/rule'
+import { budgetRevenueCode, isCardTransaction, isForeignCurrency, postedCurrency, transactionFacts } from '../src/shared/categorising/domain/transactionFacts'
+import { categorisationContextOf } from '../src/apps/company/rules/domain/categorisationContext'
+import { foldRuleText } from '../src/shared/text/fold'
+import type { CategorisableRow } from '../src/shared/categorising/domain/transactionFacts'
 import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import { moneyFromAmount } from '../src/shared/money/money'
 import { NO_SIGNALS } from './fixtures/ledger'
@@ -22,7 +24,7 @@ const context = categorisationContextOf({
   settings: { ...DEFAULT_SETTINGS, cardSettlementIbans: [CARD_SETTLEMENT_IBAN] },
 })
 
-function row(overrides: Partial<Omit<CategorisableTransaction, 'amount' | 'signals'>> & { amount?: number; signals?: Partial<CategorisableTransaction['signals']> } = {}): CategorisableTransaction {
+function row(overrides: Partial<Omit<CategorisableRow, 'amount' | 'signals'>> & { amount?: number; signals?: Partial<CategorisableRow['signals']> } = {}): CategorisableRow {
   return {
     account: overrides.account ?? 'main',
     amount: moneyFromAmount(overrides.amount ?? -10),
@@ -47,7 +49,7 @@ function rule(conditions: RuleCondition[], outcome: Partial<Rule> = {}): Rule {
   }
 }
 
-function matches(condition: RuleCondition, transaction: CategorisableTransaction): boolean {
+function matches(condition: RuleCondition, transaction: CategorisableRow): boolean {
   return categorise(transaction, [rule([condition])], context).category === 'matched'
 }
 

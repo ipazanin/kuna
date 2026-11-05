@@ -254,7 +254,7 @@ The class names and sentences, with `{share}` and `{vatShare}` read from the rul
 A VAT left out is `none`. A deductible rate is the supplier's fact, so the owner changes it per category. Colours are the generic seed's per family (`src/apps/company/workbook/infrastructure/emptyWorkbook.ts:17-70`).
 
 - New rule in the ruleset: `hr.state.revenue-codes` in `packs/hr-doo/ruleset/rules/state-payments.ts`, a new area `state-payments` (`packs/hr-doo/ruleset/schema.ts:122`), with a 2026 version citing a new act `Naputak2026` (`ruleset/acts.ts:3-35`): VAT 1201, profit tax 1651, pension pillar I 8168, each with model HR68. The codes stay in the ruleset as dated law values and show on Settings, Tax rules. A new Naputak is a new version.
-- New: `packs/hr-doo/preset/domain/startingRules.ts`. `startingRules(on)` gives `review`-confidence rules (`src/apps/company/rules/domain/rule.ts:4`) for the version in force on `on`, each with `direction: debit`. The note reads, for example, "Naputak 2026 (NN 18/26): VAT, revenue code 1201, model HR68".
+- New: `packs/hr-doo/preset/domain/startingRules.ts`. `startingRules(on)` gives `review`-confidence rules (`src/shared/categorising/domain/rule.ts:4`) for the version in force on `on`, each with `direction: debit`. The note reads, for example, "Naputak 2026 (NN 18/26): VAT, revenue code 1201, model HR68".
   - `revenue_code` 1201 files to `vat`
   - `revenue_code` 1651 files to `corporate-income-tax`
   - `revenue_code` 8168 files to `payroll-contributions`
@@ -343,7 +343,7 @@ Each moved figure group is matched to a confirmed row of the review table. A gro
 - **The editor refuses a contradiction.** Its draft errors are whole-tab (`categoryDrafts.ts:77-123`), so refusing untouched rows would block every save until the review. The errors cover added and changed rows, and untouched rows get a hint.
 - **Undo.** Undo skips every category guard (`namedRecordWrites.ts:115-125`), so it can put a contradiction back. The read reports it, and from stage 4 Kuna counts the class's treatment.
 - **The Croatian set belongs to the preset, but its Croatian names live in core.** `SEEDED_NAMES` (`src/apps/company/workbook/domain/words.ts:37-77`) sits in core's domain, which may not import the pack. The names stay there, and the seed spec keeps the two in step.
-- **Model HR68.** Kuna strips the model from the reference before it reads the code (`src/apps/company/rules/domain/transactionFacts.ts:92-102`), so a rule cannot require HR68. The model goes in the rule's note and the law doc.
+- **Model HR68.** Kuna strips the model from the reference before it reads the code (`src/shared/categorising/domain/transactionFacts.ts`, `budgetRevenueCode`), so a rule cannot require HR68. The model goes in the rule's note and the law doc.
 - **Only the review moves figures.** The digest hashes whole category records (`scripts/figure-digest.mjs:532-549`), so a role-only change would look like a figure change. The digest changes first.
 - **The read stays lenient until the review.** Kuna's figures follow the stored VAT through stages 2 and 3, so no figure moves before the owner confirms. The class decides only from stage 4.
 - **The loan switch** writes buckets through the category guard (`LoanBucketSwitch.vue:34-38`), so the loan classes allow both of its buckets.

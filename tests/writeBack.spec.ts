@@ -10,7 +10,7 @@ import type { RuleFields, RulesTabChange } from '../src/apps/company/rules/domai
 import { draftOfRule } from '../src/apps/company/rules/domain/ruleDraft'
 import { previewRulesChange } from '../src/apps/company/rules/domain/rulesChangePreview'
 import { rulesChangeInWords } from '../src/apps/company/rules/domain/ruleSummary'
-import { categorisationContextOf } from '../src/apps/company/rules/domain/transactionFacts'
+import { categorisationContextOf } from '../src/apps/company/rules/domain/categorisationContext'
 import { removeSettings, setSettings } from '../src/apps/company/settings/application/settingWrites'
 import { changedSettings, unreadSettingKeys } from '../src/apps/company/settings/domain/settings'
 import { installedPack } from '../src/apps/company/packs/packContribution'

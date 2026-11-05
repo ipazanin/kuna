@@ -51,7 +51,7 @@ What a merged row does to today's code, checked on the export with the two rows 
 
 - `CLIENT_WRITES: WriteRules<ClientRecord>` (`workbookTabRows.ts:206-221`) with the new guard input. Its `reads` stay accounts, invoices, billing items and settings. After stage 7 the `CLIENT_ROWS` path at `workbookTabRows.ts:97-132` is gone already, so this fix touches one rule set.
 - The readers that need the slugs keep `definedClientSlugs` (`billingPlanRows.ts:44`, `invoiceRows.ts:75`). `readWorkbook` reads `withoutIds(keep('clients', readClients(...)))` in place of `clientsOf(...)` (`readWorkbook.ts:70`), as categories do one line above.
-- Payer matching does not change: `receivablesOf` builds its IBAN map from `Client.ibans` (`receivables/domain/invoiceMatching.ts:88`), and so do the rules' context (`rules/domain/transactionFacts.ts:43`) and the counterparty links on Invoices (`InvoicesPanel.vue:122`).
+- Payer matching does not change: `receivablesOf` builds its IBAN map from `Client.ibans` (`receivables/domain/invoiceMatching.ts:88`), and so do the rules' context (`rules/domain/categorisationContext.ts:13`) and the counterparty links on Invoices (`InvoicesPanel.vue:122`).
 - Merging the two Acme rows needs no new application code. The editor drafts from stored fields, refused and left-out records included (`settings/domain/tabRowDrafts.ts:41-44`). The adapter finds a record by its identity and the record the row reads as (`spreadsheetRecordStorage.ts:172-180`). So two rows that share the slug `acme` but differ in IBAN are each found exactly once, and one save can change the first and remove the second.
 
 ### Infrastructure

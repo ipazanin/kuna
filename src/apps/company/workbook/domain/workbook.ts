@@ -7,7 +7,8 @@ import type { Money } from '../../../../shared/money/money'
 import { naturalOrder } from '../../../../shared/text/naturalOrder'
 import type { OwnerPart, OwnerPartOf } from '../../owner-share/domain/ownerParts'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
-import type { Rule } from '../../rules/domain/rule'
+import type { Rule } from '../../../../shared/categorising/domain/rule'
+import type { TransactionSignals } from '../../../../shared/categorising/domain/transactionFacts'
 import type { Settings } from '../../settings/domain/settings'
 import type { BillingItem } from './billingPlan'
 import type { Bucket, DefinedBucket } from './bucket'
@@ -49,19 +50,6 @@ export interface Account {
   readonly currency: string
 }
 
-/**
- * What a camt statement said about an entry beyond its money, from ledger columns O to T. Every
- * field is blank on a row from a statement PDF or typed by hand.
- */
-export interface TransactionSignals {
-  readonly purpose: string
-  readonly txDomain: string
-  readonly txFamily: string
-  readonly txSubFamily: string
-  readonly creditorReference: string
-  readonly instructedCurrency: string
-}
-
 /** One booked bank entry from the `ledger` tab. Credits are positive. */
 export interface Transaction {
   readonly account: string
@@ -85,6 +73,7 @@ export interface Transaction {
   readonly bucket: Bucket
   readonly flaggedBy: string
   readonly reference: string
+  /** Ledger columns O to T. */
   readonly signals: TransactionSignals
   /** Why the statement parser wants a person to look at the row, such as `reversal`. Column U. */
   readonly reviewReasons: readonly string[]

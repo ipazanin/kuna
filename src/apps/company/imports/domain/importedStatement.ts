@@ -1,6 +1,6 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../shared/money/money'
-import type { TransactionSignals } from '../../workbook/domain/workbook'
+import type { TransactionSignals } from '../../../../shared/categorising/domain/transactionFacts'
 
 /** One booked entry of a statement, as the ledger will hold it. */
 export interface ImportedRow {

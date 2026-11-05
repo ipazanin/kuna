@@ -13,11 +13,11 @@ import { monthlyProfitAndLoss } from '../src/apps/company/trends/domain/monthlyP
 import { ledgerWindowOf, newestBookingOf } from '../src/apps/company/workbook/domain/workbook'
 import { fakeWorkbookDocument, fakeWorkbookRecords } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
 import { presentedWorkbook } from '../src/apps/company/transactions/application/presentedWorkbook'
-import { categorise } from '../src/apps/company/rules/domain/categorise'
+import { categorise } from '../src/shared/categorising/domain/categorise'
 import { forecastYear } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastYear'
 import { planAgainstActual } from '../src/apps/company/packs/hr-doo/domain/forecast/planAgainstActual'
 import { ruleCoverage } from '../src/apps/company/rules/domain/ruleCoverage'
-import { categorisationContextOf } from '../src/apps/company/rules/domain/transactionFacts'
+import { categorisationContextOf } from '../src/apps/company/rules/domain/categorisationContext'
 import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 
 const SYNCED = '2026-10-16T08:00:00.000Z'

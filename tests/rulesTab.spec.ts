@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { RULE_COLUMNS } from '../src/apps/company/rules/domain/rule'
+import { RULE_COLUMNS } from '../src/apps/company/rules/domain/readRules'
 import { needsReview } from '../src/apps/company/workbook/domain/needsReview'
 import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
 import { sheetRowsFromValues } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'

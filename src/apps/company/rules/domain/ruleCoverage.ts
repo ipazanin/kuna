@@ -2,11 +2,11 @@ import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import { isHumanConfirmed } from '../../workbook/domain/needsReview'
 import type { Transaction } from '../../workbook/domain/workbook'
-import { categorise } from './categorise'
-import type { Rule } from './rule'
-import type { CategorisableTransaction, CategorisationContext } from './transactionFacts'
+import { categorise } from '../../../../shared/categorising/domain/categorise'
+import type { Rule } from '../../../../shared/categorising/domain/rule'
+import type { CategorisableRow, CategorisationContext } from '../../../../shared/categorising/domain/transactionFacts'
 
-type CoverageRow = CategorisableTransaction & Pick<Transaction, 'category' | 'flaggedBy' | 'bucket'>
+type CoverageRow = CategorisableRow & Pick<Transaction, 'category' | 'flaggedBy' | 'bucket'>
 
 export interface CategoryCount {
   readonly category: string
@@ -51,7 +51,7 @@ export interface RuleAgainst {
  * The rule that would settle the row in another category than the one a person files it in, so
  * the row becomes one of the exceptions the Category rules tab lists. Null when no rule settles it or one agrees.
  */
-export function ruleAgainst(transaction: CategorisableTransaction, category: string, rules: readonly Rule[], context: CategorisationContext): RuleAgainst | null {
+export function ruleAgainst(transaction: CategorisableRow, category: string, rules: readonly Rule[], context: CategorisationContext): RuleAgainst | null {
   const verdict = categorise(transaction, rules, context)
   return verdict.flaggedBy === 'rule' && verdict.ruleId !== null && verdict.category !== category ? { ruleId: verdict.ruleId, category: verdict.category } : null
 }

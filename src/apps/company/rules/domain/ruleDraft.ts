@@ -1,15 +1,15 @@
 import { cellText } from '../../../../shared/text/cellText'
 import type { FieldValue } from '../../../../shared/storage/domain/recordFields'
 import type { Transaction, Workbook } from '../../workbook/domain/workbook'
-import { categorise } from './categorise'
+import { categorise } from '../../../../shared/categorising/domain/categorise'
 import { proposeRule, unusedId } from './proposeRule'
 import type { RuleTabRow } from './readRules'
-import { CONDITION_COLUMNS, inTryingOrder } from './rule'
-import type { Rule, RuleConfidence } from './rule'
+import { CONDITION_COLUMNS, inTryingOrder } from '../../../../shared/categorising/domain/rule'
+import type { Rule, RuleConfidence } from '../../../../shared/categorising/domain/rule'
 import { placeBefore } from './rulePlacement'
 import { ruleFieldsOf, sameId } from './rulesTabChange'
 import type { RuleFields, RuleRowEdit, RulesTabChange } from './rulesTabChange'
-import type { CategorisableTransaction, CategorisationContext } from './transactionFacts'
+import type { CategorisableRow, CategorisationContext } from '../../../../shared/categorising/domain/transactionFacts'
 
 export type ConditionColumn = (typeof CONDITION_COLUMNS)[number]
 
@@ -94,7 +94,7 @@ function fieldsOfDraft(draft: RuleDraft): RuleFields {
 
 /** A draft that files rows like this one, as `proposeRule` words it with the pack's paired roles, tried just before the rule that decides the row now. */
 export function draftForRow(
-  transaction: CategorisableTransaction & Pick<Transaction, 'category'>,
+  transaction: CategorisableRow & Pick<Transaction, 'category'>,
   workbook: Pick<Workbook, 'rules' | 'categories'>,
   context: CategorisationContext,
   packPairedRoles: readonly string[],

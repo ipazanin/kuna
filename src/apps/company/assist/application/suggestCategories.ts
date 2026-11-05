@@ -3,7 +3,7 @@ import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
 import { plainAmount } from '../../../../shared/money/money'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { fold, normaliseIban } from '../../../../shared/text/fold'
-import { foldRuleText } from '../../rules/domain/transactionFacts'
+import { foldRuleText } from '../../../../shared/text/fold'
 import type { Account, Category, Transaction } from '../../workbook/domain/workbook'
 
 export const SUGGEST_CATEGORIES = 'company.suggest-categories'

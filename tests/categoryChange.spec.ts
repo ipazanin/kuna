@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { recategorisation } from '../src/apps/company/transactions/domain/verdictChanges'
-import type { Rule } from '../src/apps/company/rules/domain/rule'
+import type { Rule } from '../src/shared/categorising/domain/rule'
 import { ruleAgainst } from '../src/apps/company/rules/domain/ruleCoverage'
-import { categorisationContextOf } from '../src/apps/company/rules/domain/transactionFacts'
+import { categorisationContextOf } from '../src/apps/company/rules/domain/categorisationContext'
 import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import { categoryChangeOf } from '../src/apps/company/transactions/domain/categoryChange'
 import { listedRows } from '../src/apps/company/transactions/domain/listedRows'

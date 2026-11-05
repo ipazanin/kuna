@@ -1,7 +1,7 @@
 import { language } from '../../../../shared/text/language'
 import { plural } from '../../../../shared/text/translation'
 import type { Translation } from '../../../../shared/text/translation'
-import type { CONDITION_COLUMNS } from './rule'
+import type { CONDITION_COLUMNS } from '../../../../shared/categorising/domain/rule'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // A rule files a row (razvrstava stavku), a counterparty is partner, and a row of the rules tab is redak. A column keeps its name as the file stores it, such as direction.

@@ -1,5 +1,5 @@
 import { moneyFromAmount } from '../../../../../shared/money/money'
-import { RULE_COLUMNS } from '../../../rules/domain/rule'
+import { RULE_COLUMNS } from '../../../rules/domain/readRules'
 import { ID_FIELD } from '../../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../../shared/storage/domain/recordFields'
 import type { FieldValue, RecordFields } from '../../../../../shared/storage/domain/recordFields'

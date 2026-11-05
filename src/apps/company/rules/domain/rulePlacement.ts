@@ -1,5 +1,5 @@
-import { inTryingOrder } from './rule'
-import type { Rule } from './rule'
+import { inTryingOrder } from '../../../../shared/categorising/domain/rule'
+import type { Rule } from '../../../../shared/categorising/domain/rule'
 
 /** The step the seeded orders use, so there is room between any two rules. */
 const ORDER_STEP = 100

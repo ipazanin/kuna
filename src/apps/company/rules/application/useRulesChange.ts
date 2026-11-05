@@ -7,7 +7,7 @@ import type { Transaction } from '../../workbook/domain/workbook'
 import { previewRulesChange } from '../domain/rulesChangePreview'
 import type { RulesChangePreview } from '../domain/rulesChangePreview'
 import type { RulesTabChange } from '../domain/rulesTabChange'
-import { categorisationContextOf } from '../domain/transactionFacts'
+import { categorisationContextOf } from '../domain/categorisationContext'
 
 /** The back-test and the checks of a rules change, kept current as the change is edited. Null without a workbook or a change. */
 export function useRulesChangePreview(change: () => RulesTabChange | null): ComputedRef<RulesChangePreview<Transaction> | null> {

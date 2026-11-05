@@ -1,4 +1,4 @@
-import { normaliseIban } from '../../../../shared/text/fold'
+import { foldRuleText, normaliseIban } from '../../../../shared/text/fold'
 import { RULE_RECORDS } from '../../workbook/domain/coreKinds'
 import { filledKey, labelWords } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
@@ -9,10 +9,12 @@ import type { RecordProblem } from '../../../../shared/storage/domain/recordsRea
 import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
 import { slugOf, textOf as fieldTextOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
-import { CONDITION_COLUMNS, RULE_COLUMNS, inTryingOrder } from './rule'
-import type { Rule, RuleCondition, RuleConfidence } from './rule'
-import { foldRuleText } from './transactionFacts'
+import { CONDITION_COLUMNS, inTryingOrder } from '../../../../shared/categorising/domain/rule'
+import type { Rule, RuleCondition, RuleConfidence } from '../../../../shared/categorising/domain/rule'
 import { words } from './words'
+
+/** Every column of the `rules` tab in its seeded order. */
+export const RULE_COLUMNS = ['rule', 'order', 'enabled', ...CONDITION_COLUMNS, 'category', 'confidence', 'note'] as const
 
 /** One stored rule as its fields, a flag as true or false and anything else as its text, blank fields left out. */
 export interface RuleTabRow {

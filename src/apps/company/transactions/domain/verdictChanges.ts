@@ -1,8 +1,8 @@
 import { filedIn } from '../../owner-share/domain/ownerShare'
 import type { ShareDefault } from '../../owner-share/domain/ownerShare'
-import { categorise } from '../../rules/domain/categorise'
-import type { Rule } from '../../rules/domain/rule'
-import type { CategorisableTransaction, CategorisationContext } from '../../rules/domain/transactionFacts'
+import { categorise } from '../../../../shared/categorising/domain/categorise'
+import type { Rule } from '../../../../shared/categorising/domain/rule'
+import type { CategorisableRow, CategorisationContext } from '../../../../shared/categorising/domain/transactionFacts'
 import type { Settings } from '../../settings/domain/settings'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import type { LedgerEntry } from '../../workbook/domain/ledgerReading'
@@ -51,7 +51,7 @@ export function withVerdict(entry: LedgerEntry, verdict: LedgerVerdict, categori
  * a person confirmed. Each takes the rule's category and `rule`, as a sync or an import would have
  * written had the rule existed.
  */
-export function waitingRowsSettledBy(ruleId: string, transactions: readonly (ReviewedRow & CategorisableTransaction)[], rules: readonly Rule[], context: CategorisationContext): RowVerdict[] {
+export function waitingRowsSettledBy(ruleId: string, transactions: readonly (ReviewedRow & CategorisableRow)[], rules: readonly Rule[], context: CategorisationContext): RowVerdict[] {
   const verdicts: RowVerdict[] = []
   for (const transaction of transactions) {
     if (isHumanConfirmed(transaction) || (transaction.flaggedBy !== 'ai' && transaction.bucket !== UNCLASSIFIED)) {

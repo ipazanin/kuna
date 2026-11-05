@@ -66,7 +66,7 @@ What does not move, and why:
 
 - **The camt reader, the profile reader and the profile guess stay in Company.** Neither personal bank gives camt, and the profile reader cannot read Revolut. It knows no state, fee or second date (`importProfile.ts:23-37`), and it refuses a file whose balances do not follow row by row (`tabularStatement.ts:131`), which a file with its pending rows left out breaks. They move when a second user appears, such as an OTP CSV export (see Unconfirmed).
 - **The OTP PDF reader, the Revolut reader and the Enable Banking reader stay in Spending.** One user each. The PDF text reader moves to `src/shared` if Company ever reads a statement PDF.
-- **The rules tab UI, `proposeRule`, the backtest, drafts, coverage and the context builder stay in Company.** They read the company's clients, settings and buckets (`transactionFacts.ts:2-3`, `:30-42`, `proposeRule.ts:20`). Spending writes its own small builder and its own rule list.
+- **The rules tab UI, `proposeRule`, the backtest, drafts, coverage and the context builder stay in Company.** They read the company's clients, settings and buckets (`src/apps/company/rules/domain/categorisationContext.ts`, `proposeRule.ts:20`). Spending writes its own small builder and its own rule list.
 - **The QR decoder and the scripts.run adapter stay in Spending.** One user each.
 - **The file loader** `loadImportFile` (`imports/infrastructure/importFiles.ts:13-29`) stays in Company. Spending reads a sheet straight through `readFirstSheet`, already shared (`src/shared/xlsx/sheetGrids.ts:48`).
 - **No shared ledger.** Spending's transaction shares with Company's only the fields the rules read, and the structural row type in `src/shared/categorising` covers that.

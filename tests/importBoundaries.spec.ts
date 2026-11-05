@@ -110,7 +110,7 @@ function isDomain(file: string): boolean {
   return /\/domain\//.test(file) || (packOf(file) !== null && /\/ruleset\//.test(file) && !/\/presentation\//.test(file))
 }
 
-const DOMAIN_SHARED = ['src/shared/storage/domain/', 'src/shared/calendar/', 'src/shared/money/', 'src/shared/text/', 'src/shared/charts/swatches.ts']
+const DOMAIN_SHARED = ['src/shared/storage/domain/', 'src/shared/calendar/', 'src/shared/money/', 'src/shared/text/', 'src/shared/charts/swatches.ts', 'src/shared/categorising/domain/']
 
 /** Where the books are kept: the kernel's document storage and each app's workbook. */
 function isStorage(file: string): boolean {
@@ -214,7 +214,7 @@ describe('import boundaries', () => {
     ).toEqual([])
   })
 
-  it("keeps domain code to its own app's domain code, the record types and the calendar, money and text helpers", () => {
+  it("keeps domain code to its own app's domain code, the record types, the rules core and the calendar, money and text helpers", () => {
     expect(
       broken(
         (entry) =>

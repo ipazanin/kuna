@@ -1,5 +1,5 @@
 import type { Money } from '../../../../shared/money/money'
-import { categorisationContextOf } from '../../rules/domain/transactionFacts'
+import { categorisationContextOf } from '../../rules/domain/categorisationContext'
 import { ACCOUNT_WRITES } from '../../settings/application/namedRecordWrites'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { accountOfFields } from '../../workbook/domain/accountsReading'

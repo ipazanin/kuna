@@ -2,7 +2,7 @@ import { cellText } from '../../../../shared/text/cellText'
 import { filledFields } from '../../../../shared/storage/domain/recordFields'
 import type { FieldValue } from '../../../../shared/storage/domain/recordFields'
 import type { RuleTabRow } from './readRules'
-import type { Rule, RuleCondition } from './rule'
+import type { Rule, RuleCondition } from '../../../../shared/categorising/domain/rule'
 import { words } from './words'
 
 export type RuleFields = RuleTabRow['fields']

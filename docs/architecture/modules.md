@@ -67,26 +67,27 @@ The rules "no app imports another" and "shared imports no app" are what force ev
 
 ## Shared modules
 
-| Folder                | Holds                                                                                                                                                                                     |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/app`      | `AppContribution`, the hub contract, `personalNet` and `homeCardFigures`                                                                                                                  |
-| `src/shared/ai`       | The AI tasks and tools as types, masking, the cited answer, the run loop, the two adapters, the provider list, this device's assistant switches and the Assistant card. It writes nothing |
-| `src/shared/calendar` | `CivilDate`, month keys, date ranges and their labels                                                                                                                                     |
-| `src/shared/charts`   | ECharts setup, axes, tooltips, chart dots, the chart range select and the category swatches                                                                                               |
-| `src/shared/files`    | Downloading a file and hashing it                                                                                                                                                         |
-| `src/shared/google`   | Sign-in, scopes, the Drive client and the Picker                                                                                                                                          |
-| `src/shared/layout`   | The viewport and sticky bands                                                                                                                                                             |
-| `src/shared/money`    | `Money`, decimals, money formats, typed amounts and the ECB conversion rule (`RateBook`)                                                                                                  |
-| `src/shared/rates`    | The ECB fetch and its fake twin                                                                                                                                                           |
-| `src/shared/routing`  | The browser tab's title                                                                                                                                                                   |
-| `src/shared/secrets`  | `kuna-secrets.json` in the app's hidden Drive folder, its merge and sync, the fold of the old keys files, this browser's secrets and the key rows of a card                               |
-| `src/shared/storage`  | Record kinds and ids, the store, the Drive and browser homes, the first run                                                                                                               |
-| `src/shared/styles`   | The app's CSS and design tokens                                                                                                                                                           |
-| `src/shared/sync`     | The page's one sync over every app's group                                                                                                                                                |
-| `src/shared/text`     | Folding, plurals, the language and the translation types                                                                                                                                  |
-| `src/shared/theme`    | Light and dark                                                                                                                                                                            |
-| `src/shared/ui`       | The design library: cards, dialogs, form grids, tiles, figure tables, the money input and others                                                                                          |
-| `src/shared/xlsx`     | Sheet grids for the xlsx export                                                                                                                                                           |
+| Folder                    | Holds                                                                                                                                                                                     |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/app`          | `AppContribution`, the hub contract, `personalNet` and `homeCardFigures`                                                                                                                  |
+| `src/shared/ai`           | The AI tasks and tools as types, masking, the cited answer, the run loop, the two adapters, the provider list, this device's assistant switches and the Assistant card. It writes nothing |
+| `src/shared/calendar`     | `CivilDate`, month keys, date ranges and their labels                                                                                                                                     |
+| `src/shared/categorising` | `Rule`, `categorise`, `TransactionFacts`, the IBAN and card tests, and `CategorisableRow`, the structural row the rules read                                                              |
+| `src/shared/charts`       | ECharts setup, axes, tooltips, chart dots, the chart range select and the category swatches                                                                                               |
+| `src/shared/files`        | Downloading a file and hashing it                                                                                                                                                         |
+| `src/shared/google`       | Sign-in, scopes, the Drive client and the Picker                                                                                                                                          |
+| `src/shared/layout`       | The viewport and sticky bands                                                                                                                                                             |
+| `src/shared/money`        | `Money`, decimals, money formats, typed amounts and the ECB conversion rule (`RateBook`)                                                                                                  |
+| `src/shared/rates`        | The ECB fetch and its fake twin                                                                                                                                                           |
+| `src/shared/routing`      | The browser tab's title                                                                                                                                                                   |
+| `src/shared/secrets`      | `kuna-secrets.json` in the app's hidden Drive folder, its merge and sync, the fold of the old keys files, this browser's secrets and the key rows of a card                               |
+| `src/shared/storage`      | Record kinds and ids, the store, the Drive and browser homes, the first run                                                                                                               |
+| `src/shared/styles`       | The app's CSS and design tokens                                                                                                                                                           |
+| `src/shared/sync`         | The page's one sync over every app's group                                                                                                                                                |
+| `src/shared/text`         | Folding, the rules' folding, plurals, the language and the translation types                                                                                                              |
+| `src/shared/theme`        | Light and dark                                                                                                                                                                            |
+| `src/shared/ui`           | The design library: cards, dialogs, form grids, tiles, figure tables, the money input and others                                                                                          |
+| `src/shared/xlsx`         | Sheet grids for the xlsx export                                                                                                                                                           |
 
 ### When a capability moves into `src/shared`
 
@@ -97,25 +98,24 @@ A capability gets one owner in `src/shared` when two modules use it and both cha
 - **Stays apart.** Performance's periods and the shared chart ranges look alike, but they change for different reasons, so Performance's domain does not import `src/shared/charts`.
 - **No shared ledger.** Company and spending share only the fields the rules read. A shared transaction type would pull owner share and the balance chain into spending, or strip them from the company.
 
-A shared module's contract is its exported types and functions, and none of them takes an app's books. Each app builds the input from its own model and keeps that builder, as `categorisationContextOf` does for the company (`src/apps/company/rules/domain/transactionFacts.ts:30`).
+A shared module's contract is its exported types and functions, and none of them takes an app's books. Each app builds the input from its own model and keeps that builder, as `categorisationContextOf` does for the company (`src/apps/company/rules/domain/categorisationContext.ts`).
 
 ## Extractions planned for spending
 
 These are what the company app and Investments hold today that spending would change for the same reason.
 
-| Shared module                | Holds                                                                                                                                                                           | From                                                                            | Users                                        |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------- |
-| `src/shared/money`, grown    | `RateBook` and `eurosAtEcbRate`, one conversion rule                                                                                                                            | `src/apps/investments/prices/domain/rateBook.ts:9`, `:20`                       | Investments, spending                        |
-| `src/shared/rates`           | The ECB fetch and its CSV lines. Each app keeps where it stores the rates                                                                                                       | Investments' price vendors                                                      | Investments, spending                        |
-| `src/shared/categorising`    | `Rule`, `categorise`, `TransactionFacts`, the IBAN and card tests, and a structural type for a row the rules can read                                                           | `src/apps/company/rules/domain/rule.ts`, `categorise.ts`, `transactionFacts.ts` | Company, spending                            |
-| `src/shared/bank-statements` | Only the duplicate-row key, beside `factKey`. The camt and profile readers stay in Company, since neither OTP nor Revolut gives camt and the profile reader cannot read Revolut | `src/apps/company/imports/domain/`                                              | Company, spending                            |
-| `src/shared/mail-filing`     | Gmail search, naming and Drive filing, made generic before it moves                                                                                                             | The company app's mail feature                                                  | Company, spending (OTP mails its statements) |
+| Shared module                | Holds                                                                                                                                                                           | From                                                      | Users                                        |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------- |
+| `src/shared/money`, grown    | `RateBook` and `eurosAtEcbRate`, one conversion rule                                                                                                                            | `src/apps/investments/prices/domain/rateBook.ts:9`, `:20` | Investments, spending                        |
+| `src/shared/rates`           | The ECB fetch and its CSV lines. Each app keeps where it stores the rates                                                                                                       | Investments' price vendors                                | Investments, spending                        |
+| `src/shared/bank-statements` | Only the duplicate-row key, beside `factKey`. The camt and profile readers stay in Company, since neither OTP nor Revolut gives camt and the profile reader cannot read Revolut | `src/apps/company/imports/domain/`                        | Company, spending                            |
+| `src/shared/mail-filing`     | Gmail search, naming and Drive filing, made generic before it moves                                                                                                             | The company app's mail feature                            | Company, spending (OTP mails its statements) |
 
 Each move is a relocation plus import paths, lands in its own commit with `npm run check`, the boundary spec and `check:figures` identical before and after, and only then does spending import it. The order:
 
 1. The ECB rule and fetch, and the category swatches, before spending v1.
 2. Spending v1, which imports none of the moved company code.
-3. `foldRuleText` (`src/apps/company/rules/domain/transactionFacts.ts:9`) into `src/shared/text`, beside `fold` (`src/shared/text/fold.ts`), then the rules core.
+3. `foldRuleText` into `src/shared/text`, beside `fold` (`src/shared/text/fold.ts`), then the rules core.
 4. Mail filing made generic, then moved.
 5. The duplicate-row key.
 6. Spending's statements stage.
@@ -129,7 +129,7 @@ The [spending plan](../features/spending/plan.md) and the [AI assist plan](../fe
 None of these is a new kind of rule.
 
 1. Add `spending` and `assets` to the apps the first test checks (`tests/importBoundaries.spec.ts:124`), and their stores to `ADAPTER_WIRING` (`:106-111`).
-2. Add `src/shared/categorising/domain/`, `src/shared/bank-statements/domain/` and `src/shared/rates/domain/` to `DOMAIN_SHARED` (`:91`), so an app's domain code may import them. Their adapters go in `infrastructure` folders, which domain code still may not import.
+2. Add `src/shared/bank-statements/domain/` and `src/shared/rates/domain/` to `DOMAIN_SHARED`, beside `src/shared/categorising/domain/`, so an app's domain code may import them. Their adapters go in `infrastructure` folders, which domain code still may not import.
 3. Keep "no app imports another" (`:143-145`) with one table of exceptions: each published `facts.ts` and the one file of another app that may import it, starting with `src/apps/loans/facts.ts` read by `src/apps/assets/loans/application/assetLoans.ts`. A new case checks that every listed reader exists and imports the file, and that `facts.ts` imports nothing outside its app and `src/shared`.
 4. A shared capability module imports no other capability module except through its domain, so `categorising` and `bank-statements` do not grow into one. Moving `foldRuleText` to `src/shared/text` removes the only edge between them.
 

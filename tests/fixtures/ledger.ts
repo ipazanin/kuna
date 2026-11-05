@@ -8,7 +8,8 @@ import type { MonthKey } from '../../src/shared/calendar/monthKey'
 import { moneyFromAmount, moneyFromCents } from '../../src/shared/money/money'
 import type { Money } from '../../src/shared/money/money'
 import type { Bucket } from '../../src/apps/company/workbook/domain/bucket'
-import type { Transaction, TransactionSignals } from '../../src/apps/company/workbook/domain/workbook'
+import type { Transaction } from '../../src/apps/company/workbook/domain/workbook'
+import type { TransactionSignals } from '../../src/shared/categorising/domain/transactionFacts'
 import { recordIdOf } from '../../src/shared/storage/domain/recordId'
 
 /** Buckets and families of the categories the specs use, as the Sheet's seed defines them. */
