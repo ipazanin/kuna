@@ -3,12 +3,12 @@
  * drop them on Import through the file input, as a person picks a file.
  */
 
-import { writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { SAMPLE_CAMT_FILE_NAME, SAMPLE_TABLE_FILE_NAME, sampleCamtXml, sampleTableFile } from '../../src/apps/company/imports/infrastructure/fake/sampleImportFiles.ts'
 import { SAMPLE_REFUSED_FILE_NAME, SAMPLE_REVOLUT_FILE_NAME, sampleRefusedCsv, sampleRevolutCsv } from '../../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles.ts'
-import { SAMPLE_RECEIPT_TOTALS, sampleFiscalQrText, sampleReceiptPng } from '../../src/apps/spending/receipts/infrastructure/fake/sampleReceiptPhoto.ts'
+import { SAMPLE_RECEIPT_TOTALS, jpegWithMadeUpPlace, sampleFiscalQrText, sampleReceiptPng } from '../../src/apps/spending/receipts/infrastructure/fake/sampleReceiptPhoto.ts'
 import { today } from '../../src/shared/calendar/civilDate.ts'
 
 export async function writeImportSamples(folder) {
@@ -37,4 +37,17 @@ export function writeSpendingReceiptSamples(folder) {
   }
   const coded = Object.entries(SAMPLE_RECEIPT_TOTALS).map(([name, cents]) => [name, write(`sample-receipt-${name}.png`, sampleFiscalQrText(today(), cents))])
   return { ...Object.fromEntries(coded), noCode: write('sample-receipt-no-code.png', null) }
+}
+
+/** Writes a made-up JPEG of a PNG the page drew, with a made-up GPS position in its Exif, so the page reads the place from the file as taken. */
+export async function writeJpegWithPlace(page, pngPath, jpegPath) {
+  const base64 = await page.evaluate(async (png) => {
+    const blob = new Blob([Uint8Array.from(atob(png), (character) => character.charCodeAt(0))], { type: 'image/png' })
+    const bitmap = await createImageBitmap(blob)
+    const canvas = Object.assign(document.createElement('canvas'), { width: bitmap.width, height: bitmap.height })
+    canvas.getContext('2d').drawImage(bitmap, 0, 0)
+    return canvas.toDataURL('image/jpeg', 0.95).split(',')[1]
+  }, readFileSync(pngPath).toString('base64'))
+  writeFileSync(jpegPath, jpegWithMadeUpPlace(Uint8Array.from(Buffer.from(base64, 'base64')), { latitude: 43.5081, longitude: 16.4402 }))
+  return jpegPath
 }

@@ -106,6 +106,11 @@ export function sameMoney<Typed extends MoneyRow, Bank extends MoneyRow>(typedRo
   return { matches, near }
 }
 
+/** The rows on the file you typed or a receipt made, which no bank row filled yet. */
+export function typedRowsOf(book: { readonly transactions: readonly Transaction[] }): readonly Transaction[] {
+  return book.transactions.filter((row) => row.source !== 'statement' && row.importKey === '')
+}
+
 /**
  * Pairs what one bank source brought with the same money from another, a file and the bank sync. They are one row when the
  * account, the amount and the day are equal, one to one, so two equal payments on a day stay two until both sources hold both.

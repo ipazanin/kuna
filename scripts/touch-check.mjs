@@ -53,7 +53,7 @@
  * out added by touch with its amount on the number pad and a category and undone, a move between two accounts read in
  * both balances, deleted and brought back, a group of the spending ring opening its categories and one of them opening
  * Transactions filtered by it and Back, Food's limit raised with its carry kept, a Revolut export dropped, read as a dry
- * run, imported and undone, a receipt photo read by its QR code, split and undone, a pick of two payments, a near one and a new entry,
+ * run, imported and undone, a receipt photo read by its QR code, split and undone, a pick of two payments, a near one and a new entry, the assistant's read with a line moved and undone, an R1 receipt,
  * Not a pair and a category on To review undone, and a rule made from To review, read on Settings,
  * Rules, deleted and brought back,
  * and every screen. The
@@ -148,7 +148,13 @@ import {
   spendingBankSyncFlowIn,
   spendingImportFlowIn,
   spendingReceiptFlowIn,
+  spendingReceiptNoEuroFlow,
   spendingReceiptPickFlowIn,
+  spendingReceiptPlaceFlowIn,
+  spendingReceiptR1BareFlowIn,
+  spendingReceiptR1FlowIn,
+  spendingReviewNearFlowIn,
+  spendingReceiptReadFlowIn,
   spendingMoneyOutFlow,
   spendingReviewFlowIn,
   spendingRuleFlowIn,
@@ -2808,6 +2814,12 @@ async function checkWidth(width) {
     ['spending-import', 'drive&spending=statements', spendingImportFlowIn('en', SPENDING_IMPORT_SAMPLES), '#/spending/transactions?tab=import', 'Entries'],
     ['spending-receipt', 'drive&spending=receipts', spendingReceiptFlowIn('en', SPENDING_RECEIPT_SAMPLES), '#/spending/transactions', 'Entries'],
     ['spending-receipt-pick', 'drive&spending=receipts', spendingReceiptPickFlowIn('en', SPENDING_RECEIPT_SAMPLES), '#/spending/transactions', 'Entries'],
+    ['spending-receipt-no-euro', 'drive&spending=foreign', spendingReceiptNoEuroFlow, '#/spending/transactions', 'Entries'],
+    ['spending-receipt-read', 'drive&spending=receipts', spendingReceiptReadFlowIn('en', SPENDING_RECEIPT_SAMPLES), '#/spending/transactions', 'Entries'],
+    ['spending-receipt-r1', 'drive&spending=receipts&receipt=r1', spendingReceiptR1FlowIn('en', SPENDING_RECEIPT_SAMPLES), '#/spending/transactions', 'Entries'],
+    ['spending-receipt-place', 'drive&spending=receipts', spendingReceiptPlaceFlowIn('en', SPENDING_RECEIPT_SAMPLES), '#/spending/transactions', 'Entries'],
+    ['spending-receipt-r1-ask', 'drive&spending=receipts&receipt=r1-bare', spendingReceiptR1BareFlowIn('en', SPENDING_RECEIPT_SAMPLES), '#/spending/transactions', 'Entries'],
+    ['spending-review-near', 'drive&spending=statements', spendingReviewNearFlowIn('en', SPENDING_IMPORT_SAMPLES), '#/spending/transactions?tab=import', 'Entries'],
     ['spending-review', 'drive&spending=statements', spendingReviewFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     ['spending-rule', 'drive&spending=statements', spendingRuleFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     ['investments-start', 'drive', investmentsDriveFlow, '#/investments', 'Investments'],

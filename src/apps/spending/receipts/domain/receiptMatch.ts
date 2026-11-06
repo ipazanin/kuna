@@ -1,4 +1,5 @@
 import { inWindow, isNear } from '../../pairing/domain/sameMoney'
+import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { Receipt } from '../../workbook/domain/receipt'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -22,18 +23,49 @@ export interface ReceiptCandidate {
 export type ReceiptMatches =
   { readonly kind: 'ready'; readonly candidates: readonly ReceiptCandidate[] } | { readonly kind: 'pick'; readonly candidates: readonly ReceiptCandidate[] } | { readonly kind: 'none' }
 
-/** Words of the merchant's name, without the bits a company form leaves, such as D.O.O. */
-function merchantWords(merchant: string): readonly string[] {
-  return fold(merchant)
-    .split(/[^A-Z0-9]+/)
-    .filter((word) => word.length >= 3)
+/** A company form says nothing of who a merchant is. */
+const COMPANY_FORMS: ReadonlySet<string> = new Set(['DOO', 'JDOO', 'OBRT', 'OPG'])
+
+/** The words of a name that can tell a merchant apart, without short bits such as those of D.O.O. and without a company form. */
+function distinctWords(text: string): ReadonlySet<string> {
+  return new Set(
+    fold(text)
+      .split(/[^A-Z0-9]+/)
+      .filter((word) => word.length >= 3 && !COMPANY_FORMS.has(word)),
+  )
+}
+
+/** The accounts a fiscal receipt can be on: open and in euros, since its total is. */
+export function receiptAccounts(accounts: readonly Account[]): readonly Account[] {
+  return accounts.filter((account) => !account.closed && account.currency === EURO)
+}
+
+/** The radio value of a new entry, beside the candidates' row ids. */
+export const NEW_ENTRY = 'new'
+
+/**
+ * Where a receipt goes as things stand: your pick while it is still on offer, else the ready candidate, a new entry when
+ * nothing matches, and blank while you must pick. Worked out each time, so a merchant typed or a read finishing never moves your pick.
+ */
+export function placeOf(matches: ReceiptMatches | null, picked: string | null): string {
+  if (matches === null) return ''
+  const candidates = matches.kind === 'none' ? [] : matches.candidates
+  if (picked !== null && (picked === NEW_ENTRY || candidates.some((candidate) => candidate.row.id === picked))) return picked
+  if (matches.kind === 'none') return NEW_ENTRY
+  return matches.kind === 'ready' ? (candidates[0]?.row.id ?? '') : ''
+}
+
+/** The receipt already on the file with this JIR or ZKI, which name one fiscal receipt. A blank one names none. */
+export function heldReceiptOf(codes: Pick<Receipt, 'jir' | 'zki'>, receipts: readonly Receipt[]): Receipt | null {
+  return receipts.find((held) => (codes.jir !== '' && held.jir === codes.jir) || (codes.zki !== '' && held.zki === codes.zki)) ?? null
 }
 
 /**
  * The rows a receipt may split, which only a row on a euro account can, since a fiscal total is in euros and a row on
  * another account is not the same money at the same number. No row with a receipt, and no row that moves money between
- * your accounts. Rows at minus the total within `sameMoney`'s window come first, by the merchant's words in the row's text and then
- * the nearest day. Only with none of those do the near ones show, such as a card payment with a tip, and those are always a pick.
+ * your accounts. Rows at minus the total within `sameMoney`'s window come first, by the merchant's words among the row's words and then
+ * the nearest day. One is clear when more of the merchant's words name it than the next, or when it is alone and no merchant is known to
+ * disagree with it. Only with none of those do the near ones show, such as a card payment with a tip, and those are always a pick.
  */
 export function receiptMatches(receipt: ReceiptFacts, book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'receipts'>): ReceiptMatches {
   const euroAccounts = new Set(book.accounts.filter((account) => account.currency === EURO).map((account) => account.id))
@@ -50,10 +82,10 @@ export function receiptMatches(receipt: ReceiptFacts, book: Pick<SpendingBook, '
       !ownIbans.has(normaliseIban(row.counterpartyIban)),
   )
   const asTyped = { date: receipt.issuedOn, amount: negateMoney(receipt.total) }
-  const words = merchantWords(receipt.merchant)
+  const words = distinctWords(receipt.merchant)
   const wordsIn = (row: Transaction): number => {
-    const text = fold(`${row.payee} ${row.description}`)
-    return words.filter((word) => text.includes(word)).length
+    const named = distinctWords(`${row.payee} ${row.description}`)
+    return [...words].filter((word) => named.has(word)).length
   }
   const away = (row: Transaction): number => Math.abs(daysBetween(receipt.issuedOn, row.date))
   const ranked = (rows: readonly Transaction[]): Transaction[] => [...rows].sort((one, other) => wordsIn(other) - wordsIn(one) || away(one) - away(other) || one.date.localeCompare(other.date))
@@ -62,7 +94,7 @@ export function receiptMatches(receipt: ReceiptFacts, book: Pick<SpendingBook, '
   const equal = ranked(open.filter((row) => row.amount === asTyped.amount && inWindow(asTyped, row)))
   const [first, second] = equal
   if (first !== undefined) {
-    const clear = second === undefined || wordsIn(first) > wordsIn(second)
+    const clear = second === undefined ? words.size === 0 || wordsIn(first) > 0 : wordsIn(first) > wordsIn(second)
     return { kind: clear ? 'ready' : 'pick', candidates: equal.map(candidateOf) }
   }
   const near = ranked(open.filter((row) => isNear(asTyped, row)))

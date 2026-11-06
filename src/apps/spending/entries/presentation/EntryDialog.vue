@@ -12,6 +12,7 @@ import { words } from './words'
 import { newEntry, newTransfer, otherLegOf, deleteComesBack, removeEntry, retypedEntry, transferOver, TRANSACTION_WRITES } from '../application/entryWrites'
 import { fixedCategories } from '../../categories/domain/categoryTree'
 import { removeReceiptOf } from '../../receipts/application/receiptRecords'
+import { mapLinkOf } from '../../receipts/domain/photoPlace'
 import RowLines from '../../receipts/presentation/RowLines.vue'
 import { words as receiptWords } from '../../receipts/presentation/words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
@@ -70,6 +71,12 @@ const legs = computed((): readonly [Transaction, Transaction] | null => {
 /** What a receipt split the entry into, whose sum holds its amount and whose categories count in place of its own. */
 const entryLines = computed(() => (store.state.workbook?.lines ?? []).filter((line) => line.transaction === props.entry?.id))
 const split = computed(() => entryLines.value.length > 0)
+/** Where the entry's receipt was photographed, when its photo held a position. */
+const receiptPlace = computed(() => {
+  const held = (store.state.workbook?.receipts ?? []).find((receipt) => receipt.transaction === props.entry?.id)
+  const link = held === undefined ? null : mapLinkOf(held)
+  return held === undefined || link === null ? null : { text: receiptWords.place(held.latitude, held.longitude), link }
+})
 
 /** The open accounts, and the closed ones the entry is already on. */
 const choosable = computed(() => {
@@ -264,6 +271,10 @@ async function remove(): Promise<void> {
       <div v-if="split" class="flex flex-col items-start gap-2 sm:col-span-2" data-testid="spending-entry-lines">
         <p class="type-caption">{{ receiptWords.splitNote }}</p>
         <RowLines :lines="entryLines" :categories="categories" :currency="from?.currency ?? 'EUR'" class="w-full" />
+        <p v-if="receiptPlace !== null" class="flex flex-col items-start text-sm" data-testid="spending-entry-place">
+          <span>{{ receiptPlace.text }}</span>
+          <a :href="receiptPlace.link" target="_blank" rel="noopener noreferrer" class="quiet-link" data-testid="spending-entry-place-link">{{ receiptWords.openMap }}</a>
+        </p>
         <UButton
           :label="receiptWords.remove"
           icon="i-lucide-receipt"

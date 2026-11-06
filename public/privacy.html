@@ -177,9 +177,9 @@
             </li>
             <li>
               <code>drive.appdata</code>, "See, create, and delete its own configuration data in your Google Drive". Asked only while a file of yours is on Drive and you saved a key, hold an
-              instrument priced by a vendor that needs a key, or switched the assistant on for the company. It covers one hidden folder of Kuna's own in your Drive, which you do not see in Drive,
-              which nobody can share and which no other app reads. The app keeps your keys there in one small file, so every browser you sign in to gets them. It also deletes there the keys files an
-              older Kuna made, one per Investments file, once their keys are in the new file. It reads, writes and deletes nothing else with it.
+              instrument priced by a vendor that needs a key, or switched the assistant on for an app. It covers one hidden folder of Kuna's own in your Drive, which you do not see in Drive, which
+              nobody can share and which no other app reads. The app keeps your keys there in one small file, so every browser you sign in to gets them. It also deletes there the keys files an older
+              Kuna made, one per Investments file, once their keys are in the new file. It reads, writes and deletes nothing else with it.
             </li>
             <li>
               <code>gmail.readonly</code>, "View your email messages and settings". Asked only while you name the address your bank mails from, or switch on a kind of your accountant's mail. Google's
@@ -208,8 +208,8 @@
             <code>drive.readonly</code>, <code>gmail.readonly</code> and <code>gmail.compose</code>, and the app stays within the 100 users Google allows an unverified app.
           </p>
           <p>
-            A file you open or drop on the page, an .xlsx workbook or a Kuna file, is read in this browser only. So is a receipt photo: the page reads its QR code here and sends it nowhere. It is gone
-            when the dialog closes, unless you switch on Keep the photo on Drive.
+            A file you open or drop on the page, an .xlsx workbook or a Kuna file, is read in this browser only. So is a receipt photo's QR code. The photo leaves this browser only when you tap Read
+            the lines or switch on Keep the photo on Drive, and it is gone from here when the dialog closes.
           </p>
         </section>
         <section>
@@ -238,9 +238,12 @@
             since every Kuna app uses them, and so do the backups folder and the files you exported.
           </p>
           <p>
-            When you save a receipt, it writes what you confirmed into your Spending file: the date, time and total, the JIR or ZKI of its QR code, and the merchant and category you gave. With Keep
-            the photo on Drive on, it uploads the photo as you took it, which can show a masked card number and a shop's address, into a <code>Receipts</code> folder beside that file and keeps the
-            file's id with the receipt. Removing the receipt or an Undo leaves that photo on your Drive for you to delete.
+            When you save a receipt, it writes what you confirmed into your Spending file: the date, time and total, the JIR or ZKI, the merchant, its OIB and a buyer's OIB when a read gave them, the
+            lines with their categories, and the model that read them. With Keep the photo on Drive on, it uploads the photo as you took it, which can show a masked card number and a shop's address
+            and, from a phone, can hold the place it was taken, into a <code>Receipts</code> folder beside that file and keeps the file's id with the receipt. Removing the receipt or an Undo leaves
+            that photo on your Drive for you to delete. When the photo you pick holds a GPS position, the page reads it from the file in this browser and your Spending file stores it with the receipt
+            as a latitude and a longitude, whether or not you keep the photo. Kuna sends it to no one, and the photo sent to the assistant leaves it behind. The entry shows those coordinates with a
+            link to <code>openstreetmap.org</code>, which sees them only if you tap it.
           </p>
           <p>
             While you name the address your bank mails statements from, each sync files the attachments of its new statement mail, the statement PDF and XML, into your statements folder in Drive, in a
@@ -272,8 +275,10 @@
             task says before its first run what it sends. Suggest categories sends the counterparty names, descriptions, amounts, months and accounts of the rows waiting for review, and your
             categories, with IBANs and OIBs masked and no row that names an employee unless you switch that on. Explain sends a figure's build-up, its amounts and the rules it rests on, and a figure
             that names employees only once you switch that on. It never sends a ledger row behind a figure or a planned revenue step that names a client or an invoice item, and it never reaches the
-            web. What comes back is only a suggestion on screen, which you save yourself. Testing a key sends nothing from your books. Anthropic deletes what Kuna sends within 30 days, OpenAI keeps it
-            up to 30 days for abuse checks, and neither trains on it. OpenRouter keeps nothing by default, and the model's own provider keeps what its terms say.
+            web. What comes back is only a suggestion on screen, which you save yourself. Read a receipt sends the whole photo, downscaled and without its camera data, which can show a masked card
+            number, a loyalty card and the shop, with your categories and earlier lines at the same shop, and it cannot mask what the photo shows. Testing a key sends nothing from your books.
+            Anthropic deletes what Kuna sends within 30 days, OpenAI keeps it up to 30 days for abuse checks, and neither trains on it. OpenRouter keeps nothing by default, and the model's own
+            provider keeps what its terms say.
           </p>
           <p>
             For the mixes and the coming income of Investments, it also asks Finnhub, Alpha Vantage and Twelve Data about the instruments you hold: a company's industry and home country from Finnhub,

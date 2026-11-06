@@ -6,7 +6,7 @@ summary: A receipt photo that splits the payment it matches, read by its QR code
 
 # Receipt reading
 
-The owner photographs or uploads a receipt. Its fiscal QR code gives the date and total, which match the bank payment, and one category files the whole receipt. That part is built. Next, a model reads the lines, puts each into the owner's categories or suggests new ones, and adds the amounts. The user brings their own key for Anthropic, OpenAI or another popular or open-source model.
+The owner photographs or uploads a receipt. Its fiscal QR code gives the date and total, which match the bank payment, and one category files the whole receipt. A model can then read the lines, put each into the owner's categories or suggest new ones, and every figure is checked in code. Both are built, and the read has only run against the fake model. The user brings their own key for Anthropic, OpenAI or another popular or open-source model.
 
 ## What the research found
 
@@ -19,12 +19,12 @@ The owner photographs or uploads a receipt. Its fiscal QR code gives the date an
 
 ## Order
 
-QR only first, which is built as the plan's 4a. Then the AI read as 4b, with its model picked by a test on 20 receipts, then more providers, and PDFs.
+QR only first, then the AI read, both built as the plan's 4a and 4b. Next, a first run with a real key and a test on 20 receipts, then more providers, and PDFs.
 
 ## Open
 
 - Unconfirmed: OpenAI's key-safety page, an OpenAI model's image tokens, Mistral's retention, LM Studio's structured output, HEIC photos and a real receipt's QR address. The check page's script still reads the parameters the plan names, but no real receipt has been scanned.
-- How it meets [one AI module for all apps](ai-assist.md), which is 4b.
+- What a real key must confirm: see Unconfirmed in [the spending plan](../features/spending/plan.md).
 
 ## Docs
 

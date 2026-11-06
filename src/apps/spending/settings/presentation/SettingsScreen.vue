@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import BankSyncCard from '../../bankSync/presentation/BankSyncCard.vue'
 import CategoriesCard from '../../categories/presentation/CategoriesCard.vue'
+import ReceiptsCard from '../../receipts/presentation/ReceiptsCard.vue'
 import { words as screenWords } from '../../screenWords'
 import RulesCard from '../../statements/presentation/RulesCard.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
@@ -12,6 +13,7 @@ const TABS = [
   { value: 'general', label: words.tabs.general, icon: 'i-lucide-settings' },
   { value: 'rules', label: words.tabs.rules, icon: 'i-lucide-list-ordered' },
   { value: 'bank-sync', label: words.tabs.bankSync, icon: 'i-lucide-landmark' },
+  { value: 'receipts', label: words.tabs.receipts, icon: 'i-lucide-receipt' },
 ]
 </script>
 
@@ -30,6 +32,9 @@ const TABS = [
       </template>
       <template #bank-sync>
         <BankSyncCard />
+      </template>
+      <template #receipts>
+        <ReceiptsCard />
       </template>
     </PageTabs>
   </section>

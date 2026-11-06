@@ -10,39 +10,48 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
-import { receiptPhotos } from './receiptPhotosPort'
+import ReceiptReview from './ReceiptReview.vue'
+import { canKeepPhotoNow, receiptPhotos } from './receiptPhotosPort'
 import { useReceiptPhoto } from './useReceiptPhoto'
+import { useReceiptSave } from './useReceiptSave'
 import { words } from './words'
 import { writeReceiptSplit } from '../application/receiptWrites'
-import { receiptMatches } from '../domain/receiptMatch'
+import { readReceipt } from '../assist/application/readReceipt'
+import { READ_RECEIPT_SUMMARY } from '../assist/presentation/receiptAssist'
+import { NEW_ENTRY, heldReceiptOf, placeOf, receiptAccounts, receiptMatches } from '../domain/receiptMatch'
 import type { ReceiptCandidate } from '../domain/receiptMatch'
-import { receiptSplit } from '../domain/receiptSplit'
-import type { ReceiptPlace } from '../domain/receiptSplit'
+import { NEW_CHOICE_PREFIX as NEW_PREFIX, choicesAfterR1, firstChoices, fiscalFactsOf } from '../domain/receiptDraft'
+import type { R1Answer, ReceiptRead } from '../domain/receiptDraft'
+import { receiptSplit, wholeReceipt } from '../domain/receiptSplit'
+import type { ReceiptPart, ReceiptPlace } from '../domain/receiptSplit'
+import { newCategory } from '../../categories/application/categoryWrites'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
 import { rememberLastAccount, startingAccount } from '../../entries/presentation/lastAccount'
 import { words as entryWords } from '../../entries/presentation/words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
+import type { Category } from '../../workbook/domain/category'
 import { words as spendingWords } from '../../words'
+import AssistButton from '../../../../shared/ai/presentation/AssistButton.vue'
+import { imagePartOf } from '../../../../shared/ai/presentation/imagePartOf'
+import { resultLine, usageLine, useAiTask } from '../../../../shared/ai/presentation/useAiTask'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { EURO } from '../../../../shared/money/currencyCode'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
-import { typedAmount } from '../../../../shared/money/typedAmount'
+import { ZERO, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import FileDrop from '../../../../shared/ui/FileDrop.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 
-/** A receipt photo to the payment it splits: the QR code's date and total, or typed ones, and one category for the whole receipt. Nothing is written until Save, and closing the dialog drops the photo. */
+/** A receipt photo to the payment it splits: the QR code's date and total, or typed ones, with one category for the whole receipt or the lines the assistant read. The model only drafts: nothing is written until Save, and closing the dialog drops the photo and aborts a read under way. */
 const open = defineModel<boolean>('open', { required: true })
 
 const store = useSpendingBooks()
 const writes = useRecordWrites(store)
-const { photo, preview, reading, qr, read, forget } = useReceiptPhoto()
-
-/** The radio value of a new entry, beside the candidates' row ids. */
-const NEW_ENTRY = 'new'
+const { photo, preview, reading, qr, place: photoPlace, read, forget } = useReceiptPhoto()
 
 const book = computed(() => store.state.workbook)
 const categories = computed(() => book.value?.categories ?? [])
@@ -57,6 +66,44 @@ const account = ref('')
 const keepPhoto = ref(false)
 const tried = ref(false)
 const failure = ref<string | null>(null)
+const keepAllowed = ref(true)
+
+const saves = useReceiptSave(() => receiptPhotos(store.state.choice?.id ?? ''))
+
+const assist = useAiTask(readReceipt)
+const preparing = ref(false)
+const photoFailure = ref<string | null>(null)
+const lineChoices = ref<readonly string[]>([])
+const acceptedNames = ref<Readonly<Record<string, string>>>({})
+
+const r1Answer = ref<R1Answer | ''>('')
+
+const assistResult = computed(() => (assist.state.value.kind === 'done' ? assist.state.value.result : null))
+const readDraft = computed((): ReceiptRead | null => (assistResult.value?.kind === 'draft' ? assistResult.value.draft.read : null))
+const readNotes = computed((): readonly string[] => (assistResult.value?.kind === 'draft' ? assistResult.value.problems : []))
+const readModel = computed(() => (assistResult.value?.kind === 'draft' ? assistResult.value.usage.model : ''))
+const assistLine = computed(() => photoFailure.value ?? (assistResult.value === null ? null : resultLine(assistResult.value)))
+const assistUsage = computed(() => (assistResult.value === null ? null : usageLine(assistResult.value)))
+const reviewing = computed(() => (readDraft.value?.lines.length ?? 0) > 0)
+const assistBusy = computed(() => preparing.value || assist.state.value.kind === 'running')
+
+// A new photo drops the read of the last one, and `useAiTask` drops a result that comes after the reset.
+watch(photo, () => {
+  assist.reset()
+  photoFailure.value = null
+})
+
+// The read fills a blank merchant and total and the date, and the QR code's date and total stay as they are.
+watch(readDraft, (read) => {
+  lineChoices.value = read === null ? [] : firstChoices(read)
+  r1Answer.value = ''
+  acceptedNames.value = {}
+  if (read === null) return
+  if (merchant.value.trim() === '') merchant.value = read.merchant
+  if (qr.value !== null) return
+  if (read.total !== null && typedTotal.value.trim() === '') typedTotal.value = amountForTyping(read.total)
+  if (read.issuedOn !== null) typedDate.value = read.issuedOn
+})
 
 watch(picked, (file) => {
   if (file !== null) void read(file)
@@ -66,6 +113,7 @@ watch(open, (opened) => {
   if (opened) {
     typedDate.value = today()
     account.value = startingAccount(euroAccounts.value)?.id ?? ''
+    keepAllowed.value = canKeepPhotoNow()
     return
   }
   forget()
@@ -79,7 +127,7 @@ watch(open, (opened) => {
   failure.value = null
 })
 
-const euroAccounts = computed(() => (book.value?.accounts ?? []).filter((candidate) => !candidate.closed && candidate.currency === EURO))
+const euroAccounts = computed(() => receiptAccounts(book.value?.accounts ?? []))
 const accountItems = computed(() => euroAccounts.value.map((candidate) => ({ label: candidate.name, value: candidate.id as string })))
 
 const total = computed(() => {
@@ -93,18 +141,10 @@ const matches = computed(() => {
   const current = book.value
   return current === null || total.value === null || issuedOn.value === null ? null : receiptMatches({ merchant: merchant.value, issuedOn: issuedOn.value, total: total.value }, current)
 })
-watch(matches, () => {
-  pickedPlace.value = null
-})
 
 const candidates = computed((): readonly ReceiptCandidate[] => (matches.value === null || matches.value.kind === 'none' ? [] : matches.value.candidates))
 
-/** A ready candidate is taken unless you say otherwise, and with none the receipt makes a new entry. */
-const place = computed(() => {
-  if (pickedPlace.value !== null) return pickedPlace.value
-  if (matches.value?.kind === 'ready') return candidates.value[0]?.row.id ?? ''
-  return matches.value?.kind === 'none' ? NEW_ENTRY : ''
-})
+const place = computed(() => placeOf(matches.value, pickedPlace.value))
 const chosenRow = computed(() => candidates.value.find((candidate) => candidate.row.id === place.value)?.row ?? null)
 
 const accountOfRow = (accountId: string) => book.value?.accounts.find((candidate) => candidate.id === accountId) ?? null
@@ -125,6 +165,23 @@ const placeItems = computed(() => [
   { value: NEW_ENTRY, label: words.newEntry },
 ])
 
+async function readLines(): Promise<void> {
+  const file = photo.value
+  const current = book.value
+  if (file === null || current === null) return
+  photoFailure.value = null
+  preparing.value = true
+  try {
+    const part = await imagePartOf(file)
+    if (photo.value !== file) return
+    await assist.run({ photo: part, book: current, qr: qr.value, merchant: merchant.value.trim() || (chosenRow.value?.payee ?? ''), companyOib: current.settings.companyOib })
+  } catch {
+    photoFailure.value = words.photoNotSent
+  } finally {
+    preparing.value = false
+  }
+}
+
 /** The category of the row picked is the first offer. */
 const categoryItems = computed(() => entryCategoryChoices(categories.value, 'out', chosenRow.value?.category ?? null))
 const pickable = computed(() => new Set(categoryItems.value.flat().flatMap((choice) => (choice.value === undefined ? [] : [choice.value]))))
@@ -135,12 +192,34 @@ const category = computed<string>({
   },
 })
 
+const companyCategory = computed(() => categories.value.find((candidate) => candidate.kind === 'company') ?? null)
+const r1Options = computed(() => [
+  { value: 'company' as const, label: companyCategory.value?.name ?? '' },
+  { value: 'personal' as const, label: words.r1Personal },
+])
+
+function answerR1(answer: R1Answer | ''): void {
+  r1Answer.value = answer
+  const read = readDraft.value
+  const company = companyCategory.value
+  if (answer !== '' && read !== null && company !== null) lineChoices.value = choicesAfterR1(read, answer, company.id)
+}
+
 const onDrive = computed(() => store.state.choice?.source === 'drive')
+const keepReason = computed(() => (!onDrive.value ? words.keepOnlyDrive : keepAllowed.value ? null : words.keepNeedsAccess))
+
+/** The entry that holds this fiscal receipt already, as its JIR or ZKI names it. */
+const fiscalFacts = computed(() => fiscalFactsOf(readDraft.value, qr.value))
+const heldRow = computed(() => {
+  const held = heldReceiptOf(fiscalFacts.value, book.value?.receipts ?? [])
+  return held === null ? null : (book.value?.transactions.find((row) => row.id === held.transaction) ?? null)
+})
 
 const newAccount = computed(() => euroAccounts.value.find((candidate) => candidate.id === account.value) ?? null)
 const newEntryPlaced = computed(() => place.value === NEW_ENTRY)
 
 const errors = computed(() => ({
+  held: heldRow.value === null ? null : words.alreadyHeld(heldRow.value.date, formatMoney(heldRow.value.amount)),
   total: total.value === null ? words.aTotal : null,
   date: issuedOn.value === null ? spendingWords.form.aDate(civilDate(2026, 3, 15)) : null,
   place: place.value === '' ? words.pickError : null,
@@ -152,8 +231,29 @@ const errors = computed(() => ({
         : issuedOn.value < newAccount.value.openedOn
           ? entryWords.dialog.beforeOpened(newAccount.value.openedOn)
           : null,
-  category: !pickable.value.has(category.value) ? words.pickCategory : null,
+  category: !reviewing.value && !pickable.value.has(category.value) ? words.pickCategory : null,
+  lines: reviewing.value && lineChoices.value.some(waitsForChoice) ? words.linesWait : null,
+  r1: readDraft.value?.r1Asked === true && r1Answer.value === '' ? words.r1Wait : null,
 }))
+
+function waitsForChoice(choice: string): boolean {
+  if (choice === '') return true
+  return choice.startsWith(NEW_PREFIX) && (acceptedNames.value[choice.slice(NEW_PREFIX.length)] ?? '').trim() === ''
+}
+
+/** What the confirmed lines leave of the row, which one Difference line then shows. */
+const linesDifference = computed(() => {
+  const read = readDraft.value
+  if (read === null || total.value === null) return ZERO
+  return subtractMoney(chosenRow.value?.amount ?? negateMoney(total.value), sumMoney(read.lines.map((line) => line.amount)))
+})
+
+/** Each new category you accepted that a line still names, by the name suggested. */
+function acceptedCategories(): ReadonlyMap<string, Category> {
+  const order = Math.max(0, ...categories.value.filter((candidate) => candidate.parent === null).map((candidate) => candidate.order))
+  const named = [...new Set(lineChoices.value.filter((choice) => choice.startsWith(NEW_PREFIX)).map((choice) => choice.slice(NEW_PREFIX.length)))]
+  return new Map(named.map((name, place) => [name, newCategory({ name: acceptedNames.value[name] ?? name, kind: 'spending', parent: null, order: order + place + 1, colour: '', hidden: false })]))
+}
 
 async function save(): Promise<void> {
   tried.value = true
@@ -164,32 +264,44 @@ async function save(): Promise<void> {
   const row = chosenRow.value
   const chosenAccount = newAccount.value
   const filed = categories.value.find((candidate) => candidate.id === category.value)
+  const read = readDraft.value
   const where: ReceiptPlace | null = row !== null ? { row } : chosenAccount === null ? null : { account: chosenAccount.id }
-  const fileId = store.state.choice?.id
-  if (Object.values(errors.value).some((error) => error !== null) || file === null || day === null || sum === null || filed === undefined || where === null) return
-  let photoId = ''
-  if (keepPhoto.value && fileId !== undefined) {
-    try {
-      // First in the click, since Firefox opens Google's popup only while the click is recent. Its id has to be in the one write.
-      photoId = await (await receiptPhotos(fileId)).keep(file, day)
-    } catch (reason) {
-      failure.value = `${words.notKept}: ${reason instanceof Error ? reason.message : String(reason)}`
-      return
-    }
+  if (Object.values(errors.value).some((error) => error !== null) || file === null || day === null || sum === null || where === null || (read === null && filed === undefined)) return
+  const made = acceptedCategories()
+  const parts: readonly ReceiptPart[] = reviewing.value
+    ? (read?.lines ?? []).map((line, place) => {
+        const choice = lineChoices.value[place] ?? ''
+        return { printed: line.printed, text: line.text, amount: line.amount, category: made.get(choice.slice(NEW_PREFIX.length))?.id ?? (choice as ReceiptPart['category']) }
+      })
+    : wholeReceipt(sum, (filed as Category).id)
+  const draft = {
+    merchant: merchant.value,
+    merchantOib: read?.merchantOib ?? '',
+    buyerOib: read?.buyerOib ?? '',
+    issuedOn: day,
+    total: sum,
+    readBy: read === null ? '' : readModel.value,
+    ...fiscalFacts.value,
+    latitude: photoPlace.value?.latitude ?? '',
+    longitude: photoPlace.value?.longitude ?? '',
   }
-  const split = receiptSplit(
-    { merchant: merchant.value, issuedOn: day, issuedTime: qr.value?.issuedTime ?? '', total: sum, jir: qr.value?.jir ?? '', zki: qr.value?.zki ?? '', photo: photoId },
-    where,
-    filed.id,
+  const outcome = await saves.save(keepPhoto.value && keepReason.value === null ? { file, issuedOn: day } : null, (photoId) =>
+    writes.write(words.saved, (unit) => writeReceiptSplit(unit, receiptSplit({ ...draft, photo: photoId }, where, parts), [...made.values()]), { failedTitle: words.notSaved }),
   )
-  if (!(await writes.write(words.saved, (unit) => writeReceiptSplit(unit, split), { failedTitle: words.notSaved }))) return
+  if (outcome.kind === 'photo-failed') failure.value = `${words.notKept}: ${outcome.reason}`
+  if (outcome.kind !== 'saved') return
   if (chosenAccount !== null && row === null) rememberLastAccount(chosenAccount)
   open.value = false
+}
+
+/** A save under way finishes before the dialog closes, so what it writes is what the dialog showed. */
+function closeAsked(wanted: boolean): void {
+  if (!saves.saving.value) open.value = wanted
 }
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="words.add" :description="words.description">
+  <AppDialog :open="open" :title="words.add" :description="words.description" @update:open="closeAsked">
     <div v-if="photo === null" class="grid gap-3 sm:grid-cols-2" data-testid="spending-receipt-take">
       <div data-testid="spending-receipt-camera">
         <FileDrop v-model="picked" accept="image/*" capture="environment" icon="i-lucide-camera" :label="words.take" :description="words.takeHelp" />
@@ -212,8 +324,25 @@ async function save(): Promise<void> {
           </template>
           <p v-else-if="reading === 'unreadable'" class="text-highlighted" data-testid="spending-receipt-unreadable">{{ words.unreadable }}</p>
           <p v-else class="text-muted" data-testid="spending-receipt-no-code">{{ words.noCode }}</p>
+          <p v-if="photoPlace !== null" class="type-caption" data-testid="spending-receipt-place-found">{{ words.placeFound(photoPlace.latitude, photoPlace.longitude) }}</p>
         </div>
       </div>
+      <div v-if="reading !== 'reading' && reading !== 'unreadable' && readDraft === null" class="flex flex-col items-start gap-2" data-testid="spending-receipt-assist">
+        <AssistButton :app="readReceipt.app" :app-name="spendingWords.name" :task="READ_RECEIPT_SUMMARY" :label="words.read" :loading="assistBusy" @run="readLines" />
+        <p v-if="assistBusy" class="text-sm text-muted" data-testid="spending-receipt-assist-running">{{ words.readRunning }}</p>
+      </div>
+      <p v-if="assistLine !== null" class="text-sm text-error" data-testid="spending-receipt-assist-line">{{ assistLine }}</p>
+      <p v-if="assistUsage !== null" class="type-caption" data-testid="spending-receipt-usage">{{ assistUsage }}</p>
+      <UAlert v-if="errors.held !== null" icon="i-lucide-copy-x" color="error" variant="subtle" :title="errors.held" data-testid="spending-receipt-held" />
+      <div v-if="readDraft?.r1Asked" class="flex flex-col gap-2" data-testid="spending-receipt-r1-ask">
+        <p class="text-sm text-highlighted">{{ words.r1Ask }}</p>
+        <ChoiceButtons :model-value="r1Answer" :options="r1Options" :label="words.r1Ask" data-testid="spending-receipt-r1-choice" @update:model-value="answerR1" />
+        <p v-if="tried && errors.r1 !== null" class="text-sm text-error" data-testid="spending-receipt-r1-error">{{ errors.r1 }}</p>
+      </div>
+      <UAlert v-if="readDraft?.r1" icon="i-lucide-building-2" color="warning" variant="subtle" :title="words.r1" data-testid="spending-receipt-r1" />
+      <ul v-if="readNotes.length > 0" class="flex flex-col gap-1 text-sm text-warning" data-testid="spending-receipt-notes">
+        <li v-for="note in readNotes" :key="note">{{ note }}</li>
+      </ul>
       <template v-if="reading !== 'reading' && qr === null">
         <UFormField :label="words.total" :error="(tried && errors.total) || false">
           <MoneyInput v-model="typedTotal" :placeholder="spendingWords.form.amountPlaceholder" class="w-full" data-testid="spending-receipt-total" />
@@ -225,7 +354,7 @@ async function save(): Promise<void> {
       <UFormField :label="words.merchant" :help="words.merchantHelp">
         <UInput v-model="merchant" class="w-full" data-testid="spending-receipt-merchant" />
       </UFormField>
-      <UFormField :label="words.category" :error="(tried && errors.category) || false">
+      <UFormField v-if="!reviewing" :label="words.category" :error="(tried && errors.category) || false">
         <USelectMenu v-model="category" :items="categoryItems" value-key="value" :placeholder="words.pickCategory" class="w-full" data-testid="spending-receipt-category" />
       </UFormField>
       <URadioGroup
@@ -244,21 +373,30 @@ async function save(): Promise<void> {
       <UFormField v-if="newEntryPlaced" :label="words.account" :help="words.accountHelp" :error="(tried && errors.account) || false">
         <USelect v-model="account" :items="accountItems" class="w-full" data-testid="spending-receipt-account" />
       </UFormField>
+      <ReceiptReview
+        v-if="reviewing && readDraft !== null"
+        v-model:choices="lineChoices"
+        v-model:accepted="acceptedNames"
+        :lines="readDraft.lines"
+        :categories="categories"
+        :difference="linesDifference"
+      />
+      <p v-if="tried && errors.lines !== null" class="text-sm text-error" data-testid="spending-receipt-lines-error">{{ errors.lines }}</p>
       <UFormField class="sm:col-span-2">
-        <USwitch v-model="keepPhoto" :label="words.keep" :description="onDrive ? words.keepHelp : words.keepOnlyDrive" :disabled="!onDrive" data-testid="spending-receipt-keep" />
+        <USwitch v-model="keepPhoto" :label="words.keep" :description="keepReason ?? words.keepHelp" :disabled="keepReason !== null" data-testid="spending-receipt-keep" />
       </UFormField>
       <UAlert v-if="failure !== null" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="failure" data-testid="spending-receipt-failure" />
     </FormGrid>
     <template #end>
-      <UButton :label="spendingWords.form.cancel" color="neutral" variant="ghost" @click="open = false" />
+      <UButton :label="spendingWords.form.cancel" color="neutral" variant="ghost" :disabled="saves.saving.value" @click="closeAsked(false)" />
       <UButton
         v-if="photo !== null"
         type="submit"
         form="spending-receipt"
         :label="words.save"
         icon="i-lucide-save"
-        :loading="writes.saving('save')"
-        :disabled="reading === 'reading' || writes.busy.value"
+        :loading="saves.saving.value"
+        :disabled="reading === 'reading' || assistBusy || saves.saving.value"
         data-testid="spending-receipt-save"
       />
     </template>

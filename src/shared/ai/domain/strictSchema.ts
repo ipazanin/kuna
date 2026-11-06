@@ -1,7 +1,7 @@
 /**
  * A JSON schema in the subset both adapters accept for strict output and strict tools: objects with every property
  * required and no others, arrays, strings with an optional enum, integers, numbers, booleans and null, and a type list
- * such as `["string", "null"]`. No recursion, no references, no formats.
+ * such as `["number", "null"]`. No recursion, no references, no formats.
  */
 export type StrictSchema =
   | {
@@ -14,13 +14,13 @@ export type StrictSchema =
   | { readonly type: 'array'; readonly items: StrictSchema; readonly description?: string }
   | { readonly type: 'string'; readonly enum?: readonly string[]; readonly description?: string }
   | { readonly type: 'integer' | 'number' | 'boolean' | 'null'; readonly description?: string }
-  | { readonly type: readonly ('string' | 'null')[]; readonly description?: string }
+  | { readonly type: readonly ('string' | 'number' | 'null')[]; readonly description?: string }
 
 /** What in the value does not match the schema, each as a path and what is wrong, such as `suggestions.0.row is not one of the allowed values`. Empty when it matches. */
 export function schemaProblems(value: unknown, schema: StrictSchema, path = ''): string[] {
   const at = path === '' ? 'The answer' : path
   if (Array.isArray(schema.type)) {
-    return schema.type.some((type) => (type === 'null' ? value === null : typeof value === type)) ? [] : [`${at} is not ${schema.type.join(' or ')}`]
+    return schema.type.some((type) => (type === 'null' ? value === null : typeof value === type && (type !== 'number' || Number.isFinite(value)))) ? [] : [`${at} is not ${schema.type.join(' or ')}`]
   }
   switch (schema.type) {
     case 'object': {

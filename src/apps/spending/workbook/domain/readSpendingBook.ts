@@ -17,6 +17,7 @@ import type { Money } from '../../../../shared/money/money'
 import type { RecordKind, RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import { problemOf, readEach } from '../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
 
 /** What the Spending file holds of each kind. */
@@ -173,24 +174,37 @@ function readRules(read: RecordsRead<SpendingRule>, categories: ReadonlySet<stri
 
 function readReceipts(read: RecordsRead<Receipt>, transactions: ReadonlySet<string>): Reading<Receipt> {
   const sharingRow = sharedKeys(read.records, (stored) => stored.record.transaction)
+  const codes = read.records.flatMap(({ record }) => [record.jir, record.zki].filter((code) => code !== ''))
+  const sharingCode = sharedKeys(codes, (code) => code)
   return readEach(read, ({ record: receipt }) => {
     if (!transactions.has(receipt.transaction)) return [words.noEntry]
-    return sharingRow.has(receipt.transaction) ? [words.entryHasReceipt] : []
+    if (sharingRow.has(receipt.transaction)) return [words.entryHasReceipt]
+    return sharingCode.has(receipt.jir) || sharingCode.has(receipt.zki) ? [words.fiscalCodeShared] : []
   })
 }
 
 function readLines(read: RecordsRead<ReceiptLine>, transactions: readonly Transaction[], receipts: readonly Receipt[], categories: ReadonlySet<string>): Reading<ReceiptLine> {
   const rows = new Map(transactions.map((row) => [row.id, row]))
   const receiptOf = new Map(receipts.map((receipt) => [receipt.id, receipt]))
-  const sums = new Map<string, Money[]>()
-  for (const { record: line } of read.records) sums.set(line.transaction, [...(sums.get(line.transaction) ?? []), line.amount])
+  const ownReason = (line: ReceiptLine): string | null => {
+    if (!rows.has(line.transaction)) return words.noEntry
+    if (receiptOf.get(line.receipt)?.transaction !== line.transaction) return words.noReceipt
+    return categories.has(line.category) ? null : words.noCategory
+  }
+  const sums = new Map<RecordId, Money[]>()
+  const brokenRows = new Set<RecordId>()
+  for (const { record: line } of read.records) {
+    sums.set(line.transaction, [...(sums.get(line.transaction) ?? []), line.amount])
+    if (ownReason(line) !== null) brokenRows.add(line.transaction)
+  }
   return readEach(read, ({ record: line }) => {
-    const row = rows.get(line.transaction)
-    if (row === undefined) return [words.noEntry]
-    if (receiptOf.get(line.receipt)?.transaction !== line.transaction) return [words.noReceipt]
-    if (!categories.has(line.category)) return [words.noCategory]
+    const own = ownReason(line)
+    if (own !== null) return [own]
+    // All or none, since lines left counting without their sibling would drop its money from every figure.
+    if (brokenRows.has(line.transaction)) return [words.siblingLineLeftOut]
     const sum = sumMoney(sums.get(line.transaction) ?? [])
-    return sum === row.amount ? [] : [words.linesDoNotAddUp(plainAmount(sum), plainAmount(row.amount))]
+    const amount = rows.get(line.transaction)?.amount
+    return sum === amount ? [] : [words.linesDoNotAddUp(plainAmount(sum), plainAmount(amount ?? sum))]
   })
 }
 
@@ -198,8 +212,8 @@ function readLines(read: RecordsRead<ReceiptLine>, transactions: readonly Transa
  * Reads the Spending file with the rules across records. A child names a group of its kind that counts, and each of the
  * three fixed kinds is one category. An entry names an account and a category that count, and its other leg names it
  * back from another account. A limit is on a spending category, one a month, and never on a group and its child in the
- * same months. A rule names a category that counts. A receipt names an entry that counts, which no other receipt names. A line
- * names that entry, its receipt and a category that counts, and the lines of an entry add up to its amount. Two accounts with one IBAN and currency, and a second category of a fixed
+ * same months. A rule names a category that counts. A receipt names an entry that counts, which no other receipt names, and no other receipt holds its JIR or ZKI. A line
+ * names that entry, its receipt and a category that counts, and the lines of an entry add up to its amount and count all or none. Two accounts with one IBAN and currency, and a second category of a fixed
  * kind, count but are doubted. Two entries of an account with one import key are refused.
  */
 export function readSpendingBook(records: SpendingRecords): SpendingBook {

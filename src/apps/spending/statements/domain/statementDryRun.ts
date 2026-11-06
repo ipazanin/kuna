@@ -3,7 +3,7 @@ import type { RowChange } from './spendingCategorisation'
 import { isBankSyncKey } from './statementRows'
 import type { StatementRow, StatementRows } from './statementRows'
 import { words } from './words'
-import { sameBooking, sameMoney } from '../../pairing/domain/sameMoney'
+import { sameBooking, sameMoney, typedRowsOf } from '../../pairing/domain/sameMoney'
 import { wantsSavingsAccount } from '../../pairing/domain/wantsSavingsAccount'
 import { isPairable, legsOfPair, transferPairs } from '../../pairing/domain/transferPairs'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
@@ -61,16 +61,12 @@ export function filledByBank(
   }
 }
 
-/** The rows on the file you typed or a receipt made, which no bank row filled yet. */
-export function typedRowsOf(book: Pick<SpendingBook, 'transactions'>): readonly Transaction[] {
-  return book.transactions.filter((row) => row.source !== 'statement' && row.importKey === '')
-}
-
 /**
  * Works out a statement against the file, row by row: a row before its account opened is left out, as the entry dialog
  * refuses one, and a row whose key is on the account is skipped, as is a row the other of a file and the bank sync brought
  * on the same day. Else a row of the same money as a typed row fills it, and
- * any other row is new, filed by the reader or the first rule that holds, or waiting on review. A row that moves money
+ * any other row is new, filed by the reader or the first rule that holds, or waiting on review. A row near a typed row waits
+ * whatever a rule says, since filing it would count that money twice until you noticed. A row that moves money
  * between your accounts fills only a typed transfer leg, and a row the reader filed fills nothing. Then the new rows and the
  * unpaired rows from 30 days back are paired into transfers. `newKey` makes each new row's bare UUID.
  */
@@ -102,13 +98,12 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   const typedRows = typedRowsOf(book)
   const legsFilled = sameMoney(typedRows.filter(isTypedLeg), coming.filter(movesOwnMoney)).matches
   const legsTaken = new Set(legsFilled.map(({ typed }) => typed))
-  const matches = [
-    ...legsFilled,
-    ...sameMoney(
-      typedRows.filter((typed) => !legsTaken.has(typed)),
-      coming.filter((row) => row.category === null && !movesOwnMoney(row)),
-    ).matches,
-  ]
+  const sameMoneyAsTyped = sameMoney(
+    typedRows.filter((typed) => !legsTaken.has(typed)),
+    coming.filter((row) => row.category === null && !movesOwnMoney(row)),
+  )
+  const matches = [...legsFilled, ...sameMoneyAsTyped.matches]
+  const nearTyped = new Set(sameMoneyAsTyped.near.map(({ bank }) => bank))
   const typedOf = new Map(matches.map(({ typed, bank }) => [bank, typed]))
   const filledRows: RowChange[] = matches.map(({ typed, bank }) => ({ before: typed, after: filledByBank(typed, { ...bank, statement: statement.label }) }))
 
@@ -117,7 +112,7 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
     coming
       .filter((row) => !typedOf.has(row))
       .map((row) => {
-        const byRule = row.category === null ? categoryByRule(row) : null
+        const byRule = row.category === null && !nearTyped.has(row) ? categoryByRule(row) : null
         return [
           row,
           {

@@ -13,6 +13,7 @@ import {
 } from './overview/presentation/spendingLinks'
 import { startRates, useRates } from './rates/presentation/useRates'
 import { words as screenWords } from './screenWords'
+import { READ_RECEIPT_SUMMARY } from './receipts/assist/presentation/receiptAssist'
 import { reviewCount } from './statements/domain/reviewQueue'
 import { spendingSyncGroup } from './sync/presentation/spendingSyncGroup'
 import { words } from './words'
@@ -47,7 +48,9 @@ export const spendingApp: AppContribution = {
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
       const { seedFakeSpending } = await import('./workbook/infrastructure/fake/seedFakeSpending')
       const { saveLastFetch } = await import('./bankSync/infrastructure/bankBrowserState')
+      const { registerFakeReceiptRead } = await import('./receipts/assist/infrastructure/fake/fakeReceiptRead')
       saveLastFetch(null)
+      registerFakeReceiptRead()
       const query = new URLSearchParams(window.location.search)
       await seedFakeSpending(query.get('spending'), query.get('banksync'))
     }
@@ -72,6 +75,7 @@ export const spendingApp: AppContribution = {
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
   homeCard: SPENDING_HOME_CARD,
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => spendingHubFigures(book, rates.value, today())) },
+  assist: { tasks: () => [READ_RECEIPT_SUMMARY] },
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
   startPath: SPENDING_START_ROUTE,
   syncGroup: spendingSyncGroup,

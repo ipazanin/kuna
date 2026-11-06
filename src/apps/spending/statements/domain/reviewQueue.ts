@@ -1,6 +1,5 @@
-import { typedRowsOf } from './statementDryRun'
 import { wantsSavingsAccount } from '../../pairing/domain/wantsSavingsAccount'
-import { sameMoney } from '../../pairing/domain/sameMoney'
+import { sameMoney, typedRowsOf } from '../../pairing/domain/sameMoney'
 import type { NearMatch } from '../../pairing/domain/sameMoney'
 import { isPairable, transferPairs } from '../../pairing/domain/transferPairs'
 import type { TransferPair } from '../../pairing/domain/transferPairs'

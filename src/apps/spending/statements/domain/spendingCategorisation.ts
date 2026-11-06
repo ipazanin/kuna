@@ -1,3 +1,4 @@
+import { sameMoney, typedRowsOf } from '../../pairing/domain/sameMoney'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { SpendingRule } from '../../workbook/domain/spendingRule'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -70,13 +71,18 @@ export interface RowChange {
 /**
  * What a set of rules does to the file: a row a rule filed follows the rules, back to waiting when none holds any more,
  * and a row waiting on review takes the first rule that holds. A row you set, or that the file reader or the pairing
- * filed, stays as it is.
+ * filed, stays as it is, and so does a row To review offers as the same money as a typed row, until you answer.
  */
 export function rulesRerun(book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions'>, rules: readonly SpendingRule[]): readonly RowChange[] {
   const categoryOf = ruleVerdicts(rules, book)
+  const { matches, near } = sameMoney(
+    typedRowsOf(book),
+    book.transactions.filter((row) => row.source === 'statement' && row.category === null),
+  )
+  const offered = new Set([...matches, ...near].map(({ bank }) => bank))
   return book.transactions.flatMap((before) => {
     const waiting = before.category === null && before.categorisedBy === null
-    if (before.categorisedBy !== 'rule' && !waiting) return []
+    if ((before.categorisedBy !== 'rule' && !waiting) || offered.has(before)) return []
     const category = categoryOf(before)
     return category === before.category ? [] : [{ before, after: { ...before, category, categorisedBy: category === null ? null : ('rule' as const) } }]
   })

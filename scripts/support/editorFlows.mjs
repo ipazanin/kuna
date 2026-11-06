@@ -66,7 +66,10 @@ import { en as spendingScreensEnglish, hr as spendingScreensCroatian } from '../
 import { en as spendingEntriesEnglish, hr as spendingEntriesCroatian } from '../../src/apps/spending/entries/presentation/words.ts'
 import { addDays, today } from '../../src/shared/calendar/civilDate.ts'
 import { monthOf } from '../../src/shared/calendar/monthKey.ts'
+import { writeJpegWithPlace } from './importSampleFiles.mjs'
+import { en as spendingReceiptAssistEnglish, hr as spendingReceiptAssistCroatian } from '../../src/apps/spending/receipts/assist/presentation/words.ts'
 import { en as spendingReceiptsEnglish, hr as spendingReceiptsCroatian } from '../../src/apps/spending/receipts/presentation/words.ts'
+import { en as spendingReceiptNotesEnglish, hr as spendingReceiptNotesCroatian } from '../../src/apps/spending/receipts/domain/words.ts'
 import { en as spendingStatementsEnglish, hr as spendingStatementsCroatian } from '../../src/apps/spending/statements/presentation/words.ts'
 import { en as spendingStatementReadingEnglish, hr as spendingStatementReadingCroatian } from '../../src/apps/spending/statements/domain/words.ts'
 import { en as spendingBankSyncEnglish, hr as spendingBankSyncCroatian } from '../../src/apps/spending/bankSync/presentation/words.ts'
@@ -165,6 +168,8 @@ const SCREEN_WORDS = {
     spendingEntries: spendingEntriesEnglish,
     spendingStatements: spendingStatementsEnglish,
     spendingReceipts: spendingReceiptsEnglish,
+    spendingReceiptAssist: spendingReceiptAssistEnglish,
+    spendingReceiptNotes: spendingReceiptNotesEnglish,
     spendingStatementReading: spendingStatementReadingEnglish,
     spendingBankSync: spendingBankSyncEnglish,
     spendingBankSyncReading: spendingBankSyncReadingEnglish,
@@ -245,6 +250,8 @@ const SCREEN_WORDS = {
     spendingEntries: spendingEntriesCroatian,
     spendingStatements: spendingStatementsCroatian,
     spendingReceipts: spendingReceiptsCroatian,
+    spendingReceiptAssist: spendingReceiptAssistCroatian,
+    spendingReceiptNotes: spendingReceiptNotesCroatian,
     spendingStatementReading: spendingStatementReadingCroatian,
     spendingBankSync: spendingBankSyncCroatian,
     spendingBankSyncReading: spendingBankSyncReadingCroatian,
@@ -5234,6 +5241,13 @@ async function saveReceipt(page, press, words) {
   await dialogGone(page, SPENDING_RECEIPT_FORM)
 }
 
+/** A file with no open euro account offers no receipt, since a fiscal total is in euros. */
+export async function spendingReceiptNoEuroFlow(page, { inspect }) {
+  await page.waitForSelector('[data-testid="spending-add-entry"]', { visible: true, timeout: 10_000 })
+  if ((await page.$('[data-testid="spending-add-receipt"]')) !== null) throw new Error('Add a receipt shows with no open euro account')
+  await inspect?.('Entries with no euro account')
+}
+
 /** How many lines the row of this payee and amount shows on Entries. */
 async function rowLinesAre(page, title, cents, count) {
   await page
@@ -5282,11 +5296,21 @@ export function spendingReceiptFlowIn(language, photos) {
     await pressSelector(page, press, '[data-testid="spending-receipt-keep"]')
     await delay(300)
     await inspect?.('the receipt matched to its payment')
-    await shoot('spending-receipt-review')
+    await shoot('spending-receipt-matched')
     await saveReceipt(page, press, words)
     await rowLinesAre(page, 'Corner market', -2349, 1)
     await inspect?.('the split row on Entries')
     await dismissToasts(page)
+
+    await uploadReceiptPhoto(page, press, photos.oneMatch)
+    await page.waitForSelector('[data-testid="spending-receipt-held"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('the same fiscal receipt again does not say it is already saved')
+    })
+    await delay(300)
+    await inspect?.('a fiscal receipt already saved')
+    await shoot('spending-receipt-held')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_RECEIPT_FORM)
 
     await openSpendingRow(page, press, 'Corner market', -2349)
     await page.waitForSelector('[data-testid="spending-entry-lines"]', { visible: true, timeout: 10_000 })
@@ -5340,7 +5364,16 @@ export function spendingReceiptPickFlowIn(language, photos) {
     await delay(300)
     await inspect?.('a receipt nothing matches')
     await shoot('spending-receipt-no-match')
-    await saveReceipt(page, press, words)
+    await pressSelector(page, press, '[data-testid="spending-receipt-keep"]')
+    const saveButton = await page.$('[data-testid="spending-receipt-save"]')
+    await page.evaluate((button) => {
+      button.click()
+      button.click()
+    }, saveButton)
+    await toast(page, receipt.saved)
+    await dialogGone(page, SPENDING_RECEIPT_FORM)
+    const made = await page.$$eval(SPENDING_ROW, (rows, payee) => rows.filter((row) => row.textContent?.includes(payee)).length, SPENDING_PAYEE)
+    if (made !== 1) throw new Error(`two taps on Save made ${made} rows`)
     await rowLinesAre(page, SPENDING_PAYEE, -1700, 1)
     await undoIn(page, press, words)
     await spendingRowShown(page, SPENDING_PAYEE, -1700, false)
@@ -5353,6 +5386,235 @@ export function spendingReceiptPickFlowIn(language, photos) {
     await shoot('spending-receipt-no-code')
     await page.keyboard.press('Escape')
     await dialogGone(page, SPENDING_RECEIPT_FORM)
+  }
+}
+
+const READ_RECEIPT_BUTTON = '[data-testid="assist-spending.read-receipt"]'
+const RECEIPT_REVIEW = '[data-testid="spending-receipt-review"]'
+
+/** Taps Read the lines and waits for the draft, with the first-use dialog when `asks`. */
+async function readReceiptLines(page, press, words, context, asks) {
+  await pressSelector(page, press, READ_RECEIPT_BUTTON)
+  if (asks) await consentTo(page, press, context, [words.spendingReceiptAssist.sends], null)
+  await page.waitForSelector(RECEIPT_REVIEW, { visible: true, timeout: 15_000 }).catch(async () => {
+    const said = await page.$eval('[data-testid="spending-receipt-assist-line"]', (element) => element.textContent).catch(() => 'nothing')
+    throw new Error(`the read gave no lines, and says ${said}`)
+  })
+  await delay(300)
+}
+
+async function receiptLineCategory(page, printed) {
+  const line = await page.evaluateHandle((wanted) => [...document.querySelectorAll('[data-testid="spending-receipt-line"]')].find((element) => element.textContent?.includes(wanted)) ?? null, printed)
+  const trigger = await line.asElement()?.$('[data-testid="spending-receipt-line-category"]')
+  if (trigger === undefined || trigger === null) throw new Error(`no read line says ${printed}`)
+  return trigger
+}
+
+async function acceptSuggestedCategory(page, press, words) {
+  await pressSelector(page, press, '[data-testid="spending-receipt-new-accept"]')
+  await page.waitForFunction((text) => document.querySelector('[data-testid="spending-receipt-review"]')?.textContent?.includes(text) ?? false, { timeout: 5_000 }, words.spendingReceipts.newAccepted)
+}
+
+/**
+ * The assistant on the receipts set: a read aborted by closing the dialog leaves no draft, and a read cancelled writes nothing.
+ * Then a read shows the lines in groups and what it cost, Save waits for the new category to be accepted, one line moves to
+ * Household goods, and Save writes it all with one Undo.
+ */
+export function spendingReceiptReadFlowIn(language, photos) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await keepAssistKey(page)
+    await uploadReceiptPhoto(page, press, photos.oneMatch)
+    await readReceiptLines(page, press, words, { inspect, shoot: shootAs }, true)
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_RECEIPT_FORM)
+    await rowLinesAre(page, 'Corner market', -2349, 0)
+
+    await uploadReceiptPhoto(page, press, photos.oneMatch)
+    await pressSelector(page, press, READ_RECEIPT_BUTTON)
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_RECEIPT_FORM)
+    await delay(800)
+    await uploadReceiptPhoto(page, press, photos.oneMatch)
+    if ((await page.$(RECEIPT_REVIEW)) !== null) throw new Error('a read aborted by closing the dialog still left a draft')
+
+    await readReceiptLines(page, press, words, { inspect, shoot: shootAs }, false)
+    await page.waitForSelector('[data-testid="spending-receipt-usage"]', { visible: true, timeout: 5_000 })
+    if ((await page.$('[data-testid="spending-receipt-notes"]')) !== null) throw new Error('a read whose checks hold shows notes')
+    await pressSelector(page, press, '[data-testid="spending-receipt-save"]')
+    await page.waitForSelector('[data-testid="spending-receipt-lines-error"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('Save went ahead with a new category nobody accepted')
+    })
+    await acceptSuggestedCategory(page, press, words)
+    await choose(page, press, await receiptLineCategory(page, 'kruh polubijeli'), words.spendingStarter['Household goods'])
+    await delay(300)
+    const titleInset = await page.$eval('[role="dialog"]', (dialog) => dialog.querySelector('h2').getBoundingClientRect().top - dialog.getBoundingClientRect().top)
+    if (titleInset < 12) throw new Error(`a long dialog squeezes its header, with its title ${titleInset} px from the top`)
+    await inspect?.('the lines the assistant read')
+    await shoot('spending-receipt-review')
+    await saveReceipt(page, press, words)
+    await rowLinesAre(page, 'Corner market', -2349, 5)
+    await undoIn(page, press, words)
+    await rowLinesAre(page, 'Corner market', -2349, 0)
+    await dismissToasts(page)
+    await forgetAssist(page)
+  }
+}
+
+/** `?receipt=sum-off`: lines of €22.99 against €23.49 show the note and the Difference line, and Save keeps the read lines as they are and adds that line. */
+export function spendingReceiptSumOffFlowIn(language, photos) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await keepAssistKey(page)
+    await uploadReceiptPhoto(page, press, photos.oneMatch)
+    await readReceiptLines(page, press, words, { inspect, shoot: shootAs }, true)
+    await page.waitForSelector('[data-testid="spending-receipt-notes"]', { visible: true, timeout: 5_000 })
+    await page.waitForSelector('[data-testid="spending-receipt-difference"]', { visible: true, timeout: 5_000 })
+    await delay(300)
+    await inspect?.('a read whose lines do not add up')
+    await shoot('spending-receipt-sum-off')
+    await acceptSuggestedCategory(page, press, words)
+    await saveReceipt(page, press, words)
+    await rowLinesAre(page, 'Corner market', -2349, 6)
+    await undoIn(page, press, words)
+    await rowLinesAre(page, 'Corner market', -2349, 0)
+    await dismissToasts(page)
+    await forgetAssist(page)
+  }
+}
+
+/** `?receipt=r1`: a buyer's OIB with no Company OIB saved lands every line in For the company and says so. */
+export function spendingReceiptR1FlowIn(language, photos) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await keepAssistKey(page)
+    await uploadReceiptPhoto(page, press, photos.oneMatch)
+    await readReceiptLines(page, press, words, { inspect, shoot: shootAs }, true)
+    await waitForTextIn(page, '[data-testid="spending-receipt-r1"]', words.spendingReceipts.r1)
+    const groups = await page.$$eval('[data-testid="spending-receipt-group"]', (shown) => shown.length)
+    if (groups !== 1) throw new Error(`an R1 receipt shows ${groups} groups, not one`)
+    await delay(300)
+    await inspect?.('an R1 receipt')
+    await shoot('spending-receipt-r1')
+    await saveReceipt(page, press, words)
+    await rowLinesAre(page, 'Corner market', -2349, 5)
+    await undoIn(page, press, words)
+    await rowLinesAre(page, 'Corner market', -2349, 0)
+    await dismissToasts(page)
+    await forgetAssist(page)
+  }
+}
+
+/** `?receipt=r1-bare`: marked R1 with no OIB, the draft asks whose it is and Save waits, nothing is under For the company until the answer, and Personal puts the lines back. */
+export function spendingReceiptR1BareFlowIn(language, photos) {
+  const words = SCREEN_WORDS[language]
+  const receipt = words.spendingReceipts
+  const company = words.spendingStarter['For the company']
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const groupNames = () => page.$$eval('[data-testid="spending-receipt-group"] h3', (titles) => titles.map((title) => title.textContent?.trim()))
+    await keepAssistKey(page)
+    await uploadReceiptPhoto(page, press, photos.oneMatch)
+    await readReceiptLines(page, press, words, { inspect, shoot: shootAs }, true)
+    await page.waitForSelector('[data-testid="spending-receipt-r1-ask"]', { visible: true, timeout: 5_000 })
+    if ((await groupNames()).includes(company)) throw new Error('a line went under For the company before the answer')
+    await acceptSuggestedCategory(page, press, words)
+    await pressSelector(page, press, '[data-testid="spending-receipt-save"]')
+    await page.waitForSelector('[data-testid="spending-receipt-r1-error"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('Save went ahead with nobody saying whose the receipt is')
+    })
+    await delay(300)
+    await inspect?.('a receipt marked R1 with no OIB')
+    await shoot('spending-receipt-r1-ask')
+    await pressButton(page, press, '[data-testid="spending-receipt-r1-choice"] button', company)
+    await page.waitForFunction(
+      (name) => {
+        const titles = [...document.querySelectorAll('[data-testid="spending-receipt-group"] h3')].map((title) => title.textContent?.trim())
+        return titles.length === 1 && titles[0] === name
+      },
+      { timeout: 5_000 },
+      company,
+    )
+    await pressButton(page, press, '[data-testid="spending-receipt-r1-choice"] button', receipt.r1Personal)
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid="spending-receipt-group"]').length > 1, { timeout: 5_000 })
+    await pressButton(page, press, '[data-testid="spending-receipt-r1-choice"] button', company)
+    await saveReceipt(page, press, words)
+    await rowLinesAre(page, 'Corner market', -2349, 5)
+    await undoIn(page, press, words)
+    await dismissToasts(page)
+    await forgetAssist(page)
+  }
+}
+
+/**
+ * A made-up JPEG with GPS in its Exif: the dialog shows the place before Save, the read sends a photo with none, as the fake model
+ * checks, and the entry shows the coordinates with a link that leaves only on a tap. The set's own split row shows its place too.
+ */
+export function spendingReceiptPlaceFlowIn(language, photos) {
+  const words = SCREEN_WORDS[language]
+  const receipt = words.spendingReceipts
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await keepAssistKey(page)
+    const jpeg = await writeJpegWithPlace(page, photos.oneMatch, photos.oneMatch.replace(/\.png$/, `-place-${language}.jpg`))
+    await uploadReceiptPhoto(page, press, jpeg)
+    await waitForTextIn(page, '[data-testid="spending-receipt-place-found"]', '43.508100, 16.440200')
+    await readReceiptLines(page, press, words, { inspect, shoot: shootAs }, true)
+    await acceptSuggestedCategory(page, press, words)
+    await delay(300)
+    await inspect?.('a receipt photo with a place')
+    await shoot('spending-receipt-place-found')
+    await saveReceipt(page, press, words)
+    await dismissToasts(page)
+    await openSpendingRow(page, press, 'Corner market', -2349)
+    await waitForTextIn(page, '[data-testid="spending-entry-place"]', receipt.place('43.508100', '16.440200'))
+    const link = await page.$eval('[data-testid="spending-entry-place-link"]', (anchor) => [anchor.getAttribute('href'), anchor.getAttribute('rel')])
+    if (link[0] !== 'https://www.openstreetmap.org/?mlat=43.5081&mlon=16.4402#map=18/43.5081/16.4402' || !link[1].includes('noreferrer')) throw new Error(`the place links to ${link.join(' ')}`)
+    await delay(300)
+    await inspect?.('an entry with a place')
+    await shoot('spending-entry-place')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+    await openSpendingRow(page, press, 'Corner market', -6120)
+    await waitForTextIn(page, '[data-testid="spending-entry-place"]', '43.508100')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+    await forgetAssist(page)
+  }
+}
+
+/** The sample export on the statements set: the row the rule would file near what was typed waits on To review as maybe the same money, with the rule's category. It files by that, and joins, each with one Undo. */
+export function spendingReviewNearFlowIn(language, paths) {
+  const words = SCREEN_WORDS[language]
+  const { review, import: panel } = words.spendingStatements
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await dropSpendingFile(page, paths.revolut)
+    await pressSelector(page, press, '[data-testid="spending-import-confirm"]')
+    await toast(page, panel.imported)
+    await dismissToasts(page)
+    await page.evaluate(() => {
+      window.location.hash = '#/spending/transactions?tab=review'
+    })
+    const row = await reviewRowOf(page, 'Corner market')
+    await row.waitForSelector('[data-testid="spending-review-maybe-typed"]', { timeout: 10_000 })
+    await row.waitForSelector('[data-testid="spending-review-rule-says"]', { timeout: 10_000 })
+    await waitForTextIn(page, '[data-testid="spending-review-rule-says"]', review.ruleSays(words.spendingStarter.Groceries))
+    await delay(300)
+    await inspect?.('a row a rule would file, near what was typed')
+    await shoot('spending-review-near')
+    await press(await row.$('[data-testid="spending-review-file-as-rule"]'))
+    await toast(page, review.filed)
+    await undoIn(page, press, words)
+    await dismissToasts(page)
+    const back = await reviewRowOf(page, 'Corner market')
+    await press(await back.$('[data-testid="spending-review-join"]'))
+    await toast(page, review.joined)
+    await undoIn(page, press, words)
+    await dismissToasts(page)
   }
 }
 

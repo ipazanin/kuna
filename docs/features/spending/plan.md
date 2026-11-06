@@ -165,7 +165,7 @@ Schema `{ spending: 1 }`. Ids, references, dates and money as Loans and Assets k
 | `setting`     | `key`, `value`                                                                                                                                                                                                            | Read into `SpendingSettings` by one reader. An unknown key is listed, not refused. Landed with the bank sync, and OTP's mail adds its keys                       | 3     |
 | `transaction` | gains `description`, `counterparty_iban`, `import_key`, `statement` (the label of its file), `categorised_by` (`person` or `rule`), `moved_at` (the time the two legs of an exchange or a pocket move share), `pocket`    | `import_key` once per account                                                                                                                                    | 2     |
 | `rule`        | `order`, one of `counterparty_contains` and `counterparty_iban`, `category` a Spending category id                                                                                                                        | Exactly one of the two conditions. Any other condition column is refused. Names a category that counts                                                           | 2     |
-| `receipt`     | `transaction`, `merchant`, `merchant_oib`, `buyer_oib`, `issued_at`, `total`, `jir`, `zki`, `read_by` (the model), `photo` (a Drive file id or blank)                                                                     | Names a transaction. `total` above zero                                                                                                                          | 4     |
+| `receipt`     | `transaction`, `merchant`, `merchant_oib`, `buyer_oib`, `issued_at`, `total`, `jir`, `zki`, `read_by` (the model), `photo` (a Drive file id or blank), `latitude` and `longitude` (decimal degrees as text, or blank)     | Names a transaction. `total` above zero                                                                                                                          | 4     |
 | `line`        | `transaction`, `receipt`, `printed`, `text`, `amount`, `category`                                                                                                                                                         | The lines of a transaction add up to its amount. Each names a category that counts                                                                               | 4     |
 
 The reader is `readSpendingBook`, shaped like `readLoanBook`. Writes refuse to orphan a row, a budget, a line or a receipt through `dependentRefusalsOf` (`src/shared/storage/application/dependentRefusals.ts:17`). Deleting one leg of a transfer deletes the other in the same write, and one Undo puts both back.
@@ -502,7 +502,7 @@ Two commits. 4b needs the AI-assist plan's stages 1 and 2 landed: `src/shared/se
 
 - **`rowSide(row, categories)` keeps its two parameters,** since `EuroRow` now carries the row's `lines`, so every reader of the row has them.
 - **Only euro accounts.** A fiscal total is in euros, so `receiptMatches` offers only rows on euro accounts and a new row goes only on an open euro account. A row on a foreign account would read as the same number in another money.
-- **A second receipt on a row is refused,** as a read rule the records table did not name, and a line must name a receipt of its own row.
+- **A second receipt on a row is refused,** as a read rule the records table did not name, and a line must name a receipt of its own row. So is a second receipt with the same JIR or ZKI, since they name one fiscal receipt, and the dialog says which entry holds it. The lines of a row count all or none.
 - **A row a receipt split** holds its amount and account, and its dialog lists the lines and has Remove the receipt, which keeps the row under its category. Deleting the row takes its receipt and lines in the same write. A photo kept on Drive stays there after either, and after an Undo.
 - **A photo with no code, or one the browser cannot decode,** asks for the date and total by hand, so it never dead-ends.
 - **A near bank row joined on To review** adds a Difference line to a row a receipt made, so its lines keep adding up.
@@ -518,7 +518,22 @@ Two commits. 4b needs the AI-assist plan's stages 1 and 2 landed: `src/shared/se
 - **Keep the photo:** a switch per receipt, off by default, uploads the photo as taken to a Receipts folder beside the Spending file through `createFile` (`src/shared/google/driveClient.ts:201`) with `drive.file`, as invoice PDFs are uploaded (`src/apps/company/invoicing/infrastructure/googleInvoiceDrive.ts:30-32`). Off, the photo is gone once the dialog closes. A file kept in this browser has the switch disabled with its reason.
 - **Without the AI read** this commit takes the QR's date and total and one category for the whole receipt.
 
-**4b. The AI read.** As the code stands, the task's path follows Company's as `receipts/assist/application/readReceipt.ts`, since `src/apps/company/assist` keeps its task under `application/`. The boundary cases match any `/assist/` folder.
+**4b. The AI read.** Built against the fake model, and no real key has run it. As built, it differs from the lines below in these ways:
+
+- **The task's path** follows Company's: `receipts/assist/application/readReceipt.ts`.
+- **The category `enum` holds short refs,** `c1` and on, in the file's order, not record ids, as Company's rows use `r1`. A UUID costs more tokens twice over for each category, and the check maps the ref back.
+- **A category has no meaning field,** so the request sends each one's name, group and kind.
+- **Examples need a merchant known before the read:** one typed, or the payee of the payment picked. With neither, the request sends none. The memory after the read, by OIB or name, always runs.
+- **The strict schema's type list** gains `number`, for a quantity or price that is null.
+- **Lines that do not add up** stay as read. Save adds one Difference line for what is left, which the review shows first, since the read rule wants the lines to add up to the row.
+- **A new category** goes in as a group of its own with no parent, once you accept it, and you can move it on Settings.
+- **`?receipt=`** is only `sum-off` and `r1`. No key is the QR-only path, and which photo is uploaded decides `no-match`.
+- **Only spending categories go to the model.** For the company comes only from the R1 rule, and a line remembered under a category the picker no longer offers starts from the model's pick.
+- **`paymentMethod` and the VAT `rate`** are gone from the schema, since nothing read them. A discount above zero gets a note, so `kind` stays.
+- **A receipt marked R1 with no buyer's OIB,** the schema's `markedR1` or a buyer field with no 11 digits, asks on the review, For the company or Personal, and Save waits. Nothing goes to For the company until he answers. An R1 with its OIB behaves as above. The owner's answer of 6 Nov.
+- **The place.** When the photo is a JPEG with GPS in its Exif, the receipt stores its latitude and longitude as text, whether or not the photo is kept, read from the original file before any canvas, and never sent to the model. The entry links it to OpenStreetMap, which leaves only on a tap, with no reverse geocoding, and the CSP does not change. The owner's answer of 6 Nov.
+- **The photo** goes at about 1.8 megapixels and at most 2,576 px on the long edge, as a JPEG under 600 KB when a quality step can reach it, since `runTask` counts a photo's bytes against its input cap.
+- **Refused and cut-off reads** say so on the dialog with what they spent, and the owner can still file the receipt whole.
 
 - **The task:** `receipts/assist/readReceipt.ts`, an `AiTask` in the AI-assist plan's shape, run through `useAiTask` (its "What spending will call"). `imagePartOf(file)` lands in `src/shared/ai/presentation/` with this task, as that plan says, since its size rules follow each provider's image limits. Its input is the photo, the category list with each one's meaning, and up to ten recent confirmed lines of the same merchant. Its output schema is lane 3's (merchant with OIB, buyer OIB, date and time, JIR, ZKI, lines with printed and plain text, kind, quantity, unit price, line total and a category from an `enum` of the file's category ids plus `new`, VAT table, total, payment method, unreadable parts). It runs on the model the owner picks in Kuna settings, a medium model such as Sonnet by default. A receipt costs about $0.03 on Sonnet at lane 3's prices.
 - **The draft:** `receiptDraft(answer, categories)` in `receipts/domain/receiptDraft.ts` turns amounts into cents at once and checks in code: the lines add up to the total within a cent a line, each line's quantity times price, the VAT table against the total, the QR total and time, and the OIB's check digit. A failed check is a note on the draft with the difference, never a fix. A line's category comes from the newest confirmed line with the same folded printed text at the same merchant, then the model's pick. A `new` category is a suggestion to accept, rename or map, never made silently.
@@ -609,7 +624,8 @@ Carried from the research, for the owner to check where marked:
 - **The Croatian receipt words** in lane 3 come from general knowledge.
 - **Firefox:** whether Firefox for Android offers the camera for `capture="environment"` in the installed app as MDN's data says, and whether Firefox desktop decodes an uploaded HEIC.
 - **`pdfjs-dist` under Kuna's CSP:** whether it runs with `worker-src 'self'` and without `eval`.
-- **The receipt cost** on Sonnet is worked from list prices and lane 3's token estimate, not measured.
+- **Whether a phone hands the page a photo's GPS.** Browsers and phones often strip it from a picked photo, and a HEIC or PNG is not read at all, as a HEIC reader would be a dependency. Only made-up Exif bytes have been tried. A receipt whose photo held none simply stores no place.
+- **The first run with a real key,** none of it tried yet: that each provider takes the schema, as Anthropic names limits on strict schemas that lane 3 could not place on `output_config.format`. What a photo really costs, read off the dialog's usage line, against the $0.03 worked for Sonnet from list prices and token estimates. Whether effort `low` reads Croatian thermal paper well enough, and whether a long receipt fits the 16,000 output tokens with thinking on. Whether the model copies `R1` and the buyer's OIB into `buyerOib`. Lane 3's test on 20 real receipts has not been run.
 - **Lending money to someone** has no category. Loans keeps what is owed to you, but the money that leaves an account for a friend can only be spending or income, so the month's spending is off while Net worth is right. A fourth fixed kind, or Between my accounts on a lone leg, would cover it.
 - **A transfer with a fee in one currency**, such as €100.00 out of OTP and €99.50 into Revolut, cannot be typed as one pair, since the dialog takes a second amount only when the currencies differ.
 - **The Croatian strings** have not been checked at 360 px.
@@ -626,6 +642,13 @@ Carried from the research, for the owner to check where marked:
 - [The AI-assist plan](../ai-assist/plan.md), the shared AI module and the secrets file.
 - Enable Banking, all loaded on 5 Nov 2026: [API reference](https://enablebanking.com/docs/api/reference/), [FAQ](https://enablebanking.com/docs/faq/), [quick start](https://enablebanking.com/docs/api/quick-start/), [restricted mode](https://enablebanking.com/docs/api/linked-accounts/).
 - Google, all loaded on 5 Nov 2026: [`scripts.run`](https://developers.google.com/apps-script/api/reference/rest/v1/scripts/run), [Execute functions](https://developers.google.com/apps-script/api/how-tos/execute), [Utilities](https://developers.google.com/apps-script/reference/utilities/utilities), [UrlFetchApp](https://developers.google.com/apps-script/reference/url-fetch/url-fetch-app), [Properties](https://developers.google.com/apps-script/reference/properties/properties), [scopes](https://developers.google.com/apps-script/concepts/scopes), [manifest](https://developers.google.com/apps-script/manifest), [API executables](https://developers.google.com/apps-script/manifest/web-app-api-executable), [deployments](https://developers.google.com/apps-script/concepts/deployments).
+
+## The owner's answers on receipts, 2026-11-06
+
+- A rule-filed bank row near a receipt or typed row waits on To review as maybe the same money, with the rule's category as a suggestion, so it can be joined or filed. Stage 2's import does this for rows it brings, and `rulesRerun` leaves such a row waiting.
+- A receipt marked R1 with no buyer's OIB depends: the draft asks, For the company or Personal.
+- The same fiscal receipt a second time is refused, and the dialog names the entry.
+- A photo's location is useful: the receipt stores it as text when the photo has one, whether or not the photo is kept.
 
 ## The owner's answers on statements, 2026-11-05
 

@@ -182,3 +182,54 @@ export function sampleReceiptPng(qrText: string | null): Uint8Array {
   }
   return pngOf(rows)
 }
+
+/** A JPEG with a made-up Exif segment holding this GPS position in degrees, north and east when `north` and `east` hold. Only tests and checks write these. */
+export function jpegWithMadeUpPlace(
+  jpeg: Uint8Array,
+  degrees: { readonly latitude: number; readonly longitude: number; readonly north?: boolean; readonly east?: boolean },
+  littleEndian = true,
+): Uint8Array {
+  const tiff = new DataView(new ArrayBuffer(128))
+  const short = (at: number, value: number): void => tiff.setUint16(at, value, littleEndian)
+  const long = (at: number, value: number): void => tiff.setUint32(at, value, littleEndian)
+  tiff.setUint16(0, littleEndian ? 0x4949 : 0x4d4d)
+  short(2, 42)
+  long(4, 8)
+  short(8, 1)
+  short(10, 0x8825)
+  short(12, 4)
+  long(14, 1)
+  long(18, 26)
+  long(22, 0)
+  short(26, 4)
+  const asciiEntry = (at: number, tag: number, letter: string): void => {
+    short(at, tag)
+    short(at + 2, 2)
+    long(at + 4, 2)
+    tiff.setUint8(at + 8, letter.charCodeAt(0))
+  }
+  const rationalEntry = (at: number, tag: number, offset: number): void => {
+    short(at, tag)
+    short(at + 2, 5)
+    long(at + 4, 3)
+    long(at + 8, offset)
+  }
+  asciiEntry(28, 1, degrees.north === false ? 'S' : 'N')
+  rationalEntry(40, 2, 80)
+  asciiEntry(52, 3, degrees.east === false ? 'W' : 'E')
+  rationalEntry(64, 4, 104)
+  const rationals = (at: number, value: number): void => {
+    const whole = Math.floor(value)
+    long(at, whole)
+    long(at + 4, 1)
+    long(at + 8, 0)
+    long(at + 12, 1)
+    long(at + 16, Math.round((value - whole) * 3600 * 10000))
+    long(at + 20, 10000)
+  }
+  rationals(80, degrees.latitude)
+  rationals(104, degrees.longitude)
+  const exif = [...new TextEncoder().encode('Exif\0\0'), ...new Uint8Array(tiff.buffer)]
+  const size = exif.length + 2
+  return Uint8Array.from([...jpeg.subarray(0, 2), 0xff, 0xe1, size >>> 8, size & 255, ...exif, ...jpeg.subarray(2)])
+}

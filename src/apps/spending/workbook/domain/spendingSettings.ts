@@ -29,9 +29,12 @@ export interface SpendingSettings {
   readonly bankSyncDeployment: string
   /** The day each bank's approval runs out, or null for a bank not linked. */
   readonly bankLinks: Readonly<Record<LinkableBank, CivilDate | null>>
+  /** The company's OIB, which tells an R1 receipt for it. Blank until you save one. */
+  readonly companyOib: string
 }
 
 export const BANK_SYNC_DEPLOYMENT_KEY = 'bank_sync_deployment'
+export const COMPANY_OIB_KEY = 'company_oib'
 
 export function bankLinkKey(bank: LinkableBank): string {
   return `bank_link_${bank}`
@@ -55,7 +58,7 @@ export function settingRow(key: string, value: string): SettingRow {
 /** A key Kuna does not know is listed and left out, so a newer app's setting never stops this file from opening. */
 export function readSettingRows(read: RecordsRead<SettingRow>): Reading<SettingRow> {
   return readEach(read, ({ record: { key, value } }) => {
-    if (key !== BANK_SYNC_DEPLOYMENT_KEY && !LINK_KEYS.includes(key)) return [words.settingUnknown(key)]
+    if (key !== BANK_SYNC_DEPLOYMENT_KEY && key !== COMPANY_OIB_KEY && !LINK_KEYS.includes(key)) return [words.settingUnknown(key)]
     return LINK_KEYS.includes(key) && parseCivilDate(value) === null ? [words.settingNotADay(key, value)] : []
   })
 }
@@ -64,5 +67,5 @@ export function readSettingRows(read: RecordsRead<SettingRow>): Reading<SettingR
 export function spendingSettingsOf(rows: readonly SettingRow[]): SpendingSettings {
   const valueOf = (key: string): string => rows.find((row) => row.key === key)?.value ?? ''
   const linkOf = (bank: LinkableBank): CivilDate | null => parseCivilDate(valueOf(bankLinkKey(bank)))
-  return { bankSyncDeployment: valueOf(BANK_SYNC_DEPLOYMENT_KEY), bankLinks: { otp: linkOf('otp'), revolut: linkOf('revolut') } }
+  return { bankSyncDeployment: valueOf(BANK_SYNC_DEPLOYMENT_KEY), bankLinks: { otp: linkOf('otp'), revolut: linkOf('revolut') }, companyOib: valueOf(COMPANY_OIB_KEY) }
 }

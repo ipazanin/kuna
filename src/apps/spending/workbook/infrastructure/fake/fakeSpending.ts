@@ -32,7 +32,7 @@ import { language } from '../../../../../shared/text/language'
  * The fake build's Spending sets: `sample` the worked example's four accounts with three months of rows up to the day,
  * Food's limit carrying from two months back and a transfer pair, `foreign` only the dollar account, `over` the
  * sample with two limits overspent, and `statements` the sample with rows of earlier statements waiting on review, a pair,
- * a lone leg, a rule, and typed rows the sample Revolut export pairs with, and `receipts` the sample with the payments the
+ * a lone leg, a rule, and typed rows the sample Revolut export pairs with, one of them near a row the rule would file, and `receipts` the sample with the payments the
  * sample receipt photos match and a row a receipt split. Each figure is made up.
  */
 export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements' | 'receipts'
@@ -171,6 +171,7 @@ function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, 
   return [
     typed(1701, REVOLUT_EUR, back(3), -4.2, 'Café on the square', 'Food/Coffee'),
     typed(1702, REVOLUT_EUR, back(6), -25, 'Bookshop', 'Leisure/Hobbies'),
+    typed(1714, REVOLUT_EUR, back(2), -12, 'Corner market', 'Food/Groceries'),
     statementRow(1703, OTP, back(12), -150, 'Transfer to Revolut', { category: between, pair: paidIn, counterpartyIban: REVOLUT_IBAN }),
     statementRow(1704, REVOLUT_EUR, back(12), 150, 'Top-up from OTP', { category: between, pair: paidOut }),
     statementRow(1705, REVOLUT_EUR, back(10), -32, 'Harbour bistro', { category: idOf('Food/Restaurants'), categorisedBy: 'person', importKey: bistroKey }),
@@ -241,10 +242,12 @@ function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { re
         issuedOn: day,
         issuedTime: '18:42',
         total: moneyFromAmount(61.2),
-        jir: '1a2b3c4d-0000-4000-8000-1234567890ab',
+        jir: '2b3c4d5e-0000-4000-8000-1234567890ab',
         zki: '',
         readBy: '',
         photo: '',
+        latitude: '43.508100',
+        longitude: '16.440200',
       },
     ],
     lines: [line(1952, -48.7, 'Food/Groceries'), line(1953, -12.5, 'Home/Household goods')],

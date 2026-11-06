@@ -21,4 +21,7 @@ export interface Receipt {
   readonly readBy: string
   /** The photo's Drive file id, or blank when it was not kept. */
   readonly photo: string
+  /** Where the photo was taken, in decimal degrees as text, or blank when it held no position. */
+  readonly latitude: string
+  readonly longitude: string
 }

@@ -5,6 +5,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 
 import { fileRow, joinWithTyped, notAPair, pairRows, payeeCondition, rowsRuleWouldFile, writeRule } from '../application/statementWrites'
 import { reviewQueue } from '../domain/reviewQueue'
+import { ruleVerdicts } from '../domain/spendingCategorisation'
 import type { WaitingRow } from '../domain/reviewQueue'
 import ReviewRow from './ReviewRow.vue'
 import { ruleTestOf } from './ruleTest'
@@ -34,6 +35,8 @@ const writes = useRecordWrites(store)
 const book = computed(() => store.state.workbook)
 const queue = computed(() => (book.value === null ? null : reviewQueue(book.value, today())))
 const accounts = computed(() => book.value?.accounts ?? [])
+/** What your rules would file a row under, which To review only suggests for a row that may be the same money as a typed one. */
+const ruleSays = computed(() => (book.value === null ? null : ruleVerdicts(book.value.rules, book.value)))
 const categories = computed(() => book.value?.categories ?? [])
 const transfer = computed(() => categories.value.find((category) => category.kind === 'transfer') ?? null)
 
@@ -98,6 +101,7 @@ async function undoPair(legs: TransferPair): Promise<void> {
           :waiting="waiting"
           :categories="categories"
           :accounts="accounts"
+          :rule-category="waiting.maybeTyped === null ? null : (categories.find((category) => category.id === ruleSays?.(waiting.row)) ?? null)"
           @file="file(waiting.row, $event)"
           @join="join(waiting)"
           @pair="pair(waiting)"

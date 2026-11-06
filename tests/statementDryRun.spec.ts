@@ -526,3 +526,42 @@ describe('what To review and the import write', () => {
     expect(run.added[0]?.pair).toBe(filed.id)
   })
 })
+
+describe('a rule-filed bank row near a typed row', () => {
+  const corner = { column: 'counterparty_contains', fragment: 'KONZUM' } as const
+  const rule: SpendingRule = { id: recordIdOf(RULE_RECORDS, '5e000000-0000-4000-8000-000000009001'), order: 1, condition: corner, category: category('Food/Groceries').id }
+  const typed = row(OTP, '2026-10-20', -23.49, 'Food/Groceries', { source: 'receipt', categorisedBy: 'person' })
+
+  it('waits on review, with no category and no rule mark, so the money does not count twice', () => {
+    const run = statementDryRun(bookOf([typed], [rule]), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -25.84, 'KONZUM')], notes: [] }, DAY)
+
+    expect(run.added).toMatchObject([{ category: null, categorisedBy: null, payee: 'KONZUM' }])
+    expect(run.lines[0]).toMatchObject({ outcome: 'new', category: null })
+  })
+
+  it('is offered on To review as maybe the same money', () => {
+    const run = statementDryRun(bookOf([typed], [rule]), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -25.84, 'KONZUM')], notes: [] }, DAY)
+    const [waiting] = reviewQueue(bookOf([typed, ...run.added], [rule]), DAY).waiting
+
+    expect(waiting?.maybeTyped).toMatchObject({ typed, difference: euros(-2.35) })
+  })
+
+  it('stays waiting when any rule is written or removed, until you answer', () => {
+    const waiting = row(OTP, '2026-10-21', -25.84, null, { source: 'statement', payee: 'KONZUM', description: 'KONZUM', importKey: 'key-1' })
+    const alone = row(OTP, '2026-10-21', -40, null, { source: 'statement', payee: 'KONZUM', description: 'KONZUM', importKey: 'key-2' })
+
+    expect(rulesRerun(bookOf([typed, waiting, alone]), [rule]).map(({ before }) => before)).toEqual([alone])
+  })
+
+  it('is filed by the rule when no typed row is near', () => {
+    const run = statementDryRun(bookOf([], [rule]), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -25.84, 'KONZUM')], notes: [] }, DAY)
+
+    expect(run.added).toMatchObject([{ category: category('Food/Groceries').id, categorisedBy: 'rule' }])
+  })
+
+  it('still fills a typed row of the same money', () => {
+    const run = statementDryRun(bookOf([typed], [rule]), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -23.49, 'KONZUM')], notes: [] }, DAY)
+
+    expect([run.filled, run.newRows]).toEqual([1, 0])
+  })
+})

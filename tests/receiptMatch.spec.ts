@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { receiptMatches } from '../src/apps/spending/receipts/domain/receiptMatch'
+import { NEW_ENTRY, heldReceiptOf, placeOf, receiptAccounts, receiptMatches } from '../src/apps/spending/receipts/domain/receiptMatch'
 import { RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { Receipt } from '../src/apps/spending/workbook/domain/receipt'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
@@ -103,6 +103,8 @@ describe('which rows a receipt may split', () => {
       zki: '',
       readBy: '',
       photo: '',
+      latitude: '',
+      longitude: '',
     }
 
     expect(matchesOf([card], '', 23.49, [receipt])).toEqual({ kind: 'none' })
@@ -114,5 +116,81 @@ describe('which rows a receipt may split', () => {
 
   it('offers a typed cash row', () => {
     expect(matchesOf([row(CASH, '2026-11-03', -23.49, 'Food/Coffee')]).kind).toBe('ready')
+  })
+
+  it('never lets a company form or a piece of a word win the match', () => {
+    const konzum = row(OTP, '2026-11-04', -23.49, null, { payee: 'KONZUM DOO' })
+    const bakery = row(OTP, '2026-11-04', -23.49, null, { payee: 'PEK 12' })
+
+    expect(matchesOf([konzum, bakery], 'Pekara Dora DOO').kind).toBe('pick')
+    expect(matchesOf([row(OTP, '2026-11-04', -23.49, null, { payee: 'SUPERKONZUMA' }), bakery], 'Konzum').kind).toBe('pick')
+  })
+
+  it('asks about a lone payment when a known merchant is not in its text', () => {
+    const parking = row(OTP, '2026-11-09', -23.49, 'Transport/Parking and tolls', { payee: 'PARKING ZAGREB' })
+
+    expect(matchesOf([parking], 'Pekara').kind).toBe('pick')
+    expect(matchesOf([parking], 'Parking Zagreb').kind).toBe('ready')
+    expect(matchesOf([parking]).kind).toBe('ready')
+  })
+})
+
+describe('where a receipt goes', () => {
+  const first = row(OTP, '2026-11-04', -23.49, null)
+  const second = row(REVOLUT_EUR, '2026-11-04', -23.49, null)
+  const asked = matchesOf([first, second])
+  const ready = matchesOf([first])
+
+  it('takes the ready one, waits for a pick, and makes a new entry when nothing matches', () => {
+    expect([placeOf(ready, null), placeOf(asked, null), placeOf({ kind: 'none' }, null), placeOf(null, null)]).toEqual([first.id, '', NEW_ENTRY, ''])
+  })
+
+  it('keeps your pick when the matching runs again, whatever it now calls ready', () => {
+    const named = { ...second, payee: 'Konzum' }
+    const after = matchesOf([first, named], 'Konzum')
+
+    expect(after.kind).toBe('ready')
+    expect(placeOf(after, first.id)).toBe(first.id)
+    expect(placeOf(ready, NEW_ENTRY)).toBe(NEW_ENTRY)
+  })
+
+  it('drops a pick that is no longer on offer', () => {
+    expect(placeOf(ready, second.id)).toBe(first.id)
+    expect(placeOf(asked, 'gone')).toBe('')
+  })
+})
+
+describe('the accounts a receipt can go on', () => {
+  it('are the open euro ones', () => {
+    expect(receiptAccounts([...ACCOUNTS, { ...OTP, closed: true, id: REVOLUT_USD.id }]).map((account) => account.name)).toEqual(['OTP current', 'Revolut EUR', 'Cash'])
+  })
+})
+
+describe('a fiscal receipt already on the file', () => {
+  const receipt = (jir: string, zki: string): Receipt => ({
+    id: recordIdOf(RECEIPT_RECORDS, '5e000000-0000-4000-8000-000000006002'),
+    transaction: row(OTP, '2026-11-04', -1, null).id,
+    merchant: '',
+    merchantOib: '',
+    buyerOib: '',
+    issuedOn: ISSUED,
+    issuedTime: '',
+    total: euros(1),
+    jir,
+    zki,
+    readBy: '',
+    photo: '',
+    latitude: '',
+    longitude: '',
+  })
+
+  it('is found by its JIR or its ZKI', () => {
+    expect(heldReceiptOf({ jir: 'J', zki: '' }, [receipt('J', '')])).not.toBeNull()
+    expect(heldReceiptOf({ jir: '', zki: 'Z' }, [receipt('', 'Z')])).not.toBeNull()
+  })
+
+  it('is not found by a blank code', () => {
+    expect(heldReceiptOf({ jir: '', zki: '' }, [receipt('', '')])).toBeNull()
+    expect(heldReceiptOf({ jir: 'J', zki: '' }, [receipt('K', '')])).toBeNull()
   })
 })

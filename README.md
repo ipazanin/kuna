@@ -2811,8 +2811,7 @@ connection, leaves every file and this browser as they were.
 
 The times are each browser's clock, so a clock set minutes wrong can let an older change win. Every
 app that keeps a key lists the step in its sync group: Investments after its books and before the
-Prices step, so the day's fetch has the keys another browser saved, and Company while its assistant is
-switched on. In one run only the first group's step reaches Drive, and the others say Up to date. The
+Prices step, so the day's fetch has the keys another browser saved, and Company and Spending while their assistant is switched on. In one run only the first group's step reaches Drive, and the others say Up to date. The
 step runs while its app wants it or this browser saved or removed any key, which is also when the page
 asks Google for `drive.appdata`. Before that grant the step waits in "Allow access" and the Prices step
 still runs. The file is made only once there is a key or a removal to keep. A key saved or removed on
@@ -3093,7 +3092,9 @@ always a pick and takes a Difference line, and none makes a row of source `recei
 receipt, its `line` records and the row in one write, with one Undo. The figures count a row's lines in place of its category
 (`rowSide`), and a balance still reads only the row, so the lines change no balance. The lines of a row add up to its amount, which
 the reader and the row's dialog hold. The photo is gone when the dialog closes, unless Keep the photo on Drive puts it as taken in a
-`Receipts` folder beside the Spending file. `?spending=receipts` is the fake set, and the checks upload made-up photos with a real QR code.
+`Receipts` folder beside the Spending file. When a JPEG photo holds a GPS position in its Exif, `placeInJpeg` reads it from the file itself and the receipt stores it as text, whether or not the photo is kept. The entry shows it with a link to OpenStreetMap that leaves only on a tap. `?spending=receipts` is the fake set, and the checks upload made-up photos with a real QR code.
+
+With a key kept and Spending's assistant on, Read the lines sends the downscaled photo through `src/shared/ai` as `receipts/assist/application/readReceipt.ts`. `receiptDraft` turns the answer into cents and checks it in code: the lines against the total, quantity times price, the VAT table, the QR code's total and time, and each OIB's check digit. A failed check is a note, and no figure changes to pass one, so lines that fall short take one visible Difference line on Save. A line's category comes from the newest confirmed line of the same printed text at the same merchant, then the model's pick, and a new category waits for you to accept, rename or map it. A receipt whose buyer is the Company OIB on Settings, Receipts, or with none saved any receipt naming a buyer, starts every line under For the company. Nothing is written until Save, and closing the dialog aborts a read under way. The fake build's read follows `?receipt=sum-off` or `r1`.
 
 ### Core and the pack
 

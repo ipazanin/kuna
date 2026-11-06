@@ -35,6 +35,8 @@ export function receiptOf(fields: StoredFields, id: RecordId | null): Receipt {
     zki: textOf(fields.zki),
     readBy: textOf(fields.read_by),
     photo: textOf(fields.photo),
+    latitude: textOf(fields.latitude),
+    longitude: textOf(fields.longitude),
   }
 }
 
@@ -50,5 +52,7 @@ export const RECEIPT_CODEC: RecordCodec<Receipt> = withIdField(RECEIPT_RECORDS, 
     zki: receipt.zki,
     read_by: receipt.readBy,
     photo: receipt.photo,
+    latitude: receipt.latitude,
+    longitude: receipt.longitude,
   }),
 )

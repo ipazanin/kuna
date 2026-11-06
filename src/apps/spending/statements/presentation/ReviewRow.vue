@@ -19,6 +19,8 @@ const props = defineProps<{
   waiting: WaitingRow
   categories: readonly Category[]
   accounts: readonly Account[]
+  /** What a rule would file this row under, offered beside joining it with what you typed. */
+  ruleCategory: Category | null
 }>()
 
 const emit = defineEmits<{
@@ -73,6 +75,10 @@ function picked(id: string | undefined): void {
     <div v-if="typedLine !== null" class="flex flex-wrap items-center gap-x-3 gap-y-1">
       <span class="min-w-0 flex-1 basis-48 text-sm text-muted" data-testid="spending-review-maybe-typed">{{ typedLine }}</span>
       <UButton color="neutral" variant="outline" :label="words.review.join" data-testid="spending-review-join" @click="emit('join')" />
+    </div>
+    <div v-if="ruleCategory !== null" class="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <span class="min-w-0 flex-1 basis-48 text-sm text-muted" data-testid="spending-review-rule-says">{{ words.review.ruleSays(ruleCategory.name) }}</span>
+      <UButton color="neutral" variant="outline" :label="words.review.fileAsRule" data-testid="spending-review-file-as-rule" @click="emit('file', ruleCategory!)" />
     </div>
     <div v-if="transferLine !== null" class="flex flex-wrap items-center gap-x-3 gap-y-1">
       <span class="min-w-0 flex-1 basis-48 text-sm text-muted" data-testid="spending-review-maybe-transfer">{{ transferLine }}</span>

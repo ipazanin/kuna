@@ -25,7 +25,8 @@ const props = withDefaults(
 const WIDTHS = { md: 'sm:max-w-md', xl: 'sm:max-w-xl', '2xl': 'sm:max-w-2xl', '3xl': 'sm:max-w-3xl' } as const
 
 const phone = usePhoneLayout()
-const ui = computed(() => ({ content: props.width === undefined ? '' : WIDTHS[props.width] }))
+// A long body must not squeeze the header and footer, which keep their padding while the body scrolls.
+const ui = computed(() => ({ content: props.width === undefined ? '' : WIDTHS[props.width], header: 'shrink-0', footer: 'shrink-0' }))
 </script>
 
 <template>
