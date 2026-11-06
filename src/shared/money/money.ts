@@ -1,3 +1,4 @@
+import { stepsOfNumber } from './numberRounding'
 import type { Share } from './percent'
 
 /**
@@ -13,12 +14,18 @@ function roundHalfAwayFromZero(fractionalCents: number): number {
   return Math.sign(fractionalCents) * Math.round(Math.abs(fractionalCents)) + 0
 }
 
-/** Reads a decimal amount as a Sheet cell holds it, for example `-39.9`. */
+/** Reads a decimal amount as a Sheet cell holds it, for example `-39.9`, rounded half away from zero to the cent, so 1.005 is 1.01. */
 export function moneyFromAmount(amount: number): Money {
-  if (!Number.isFinite(amount)) {
+  const cents = stepsOfNumber(amount, 2)
+  if (cents === null) {
     throw new RangeError(`${amount} is not an amount of money.`)
   }
-  return roundHalfAwayFromZero(amount * 100) as Money
+  return (Number(cents) + 0) as Money
+}
+
+/** A figure worked out in fractional cents, rounded half away from zero, so a loss and a gain of the same size round alike. */
+export function moneyFromFractionalCents(fractionalCents: number): Money {
+  return roundHalfAwayFromZero(fractionalCents) as Money
 }
 
 export function moneyFromCents(cents: number): Money {

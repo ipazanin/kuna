@@ -347,7 +347,7 @@ function fakeKinds(source: WorkbookSource, staff: FakeStaff | null): Readonly<Re
                 ['company_name', 'Example Studio'],
                 ['currency', 'EUR'],
                 ['hr_company_registered', '2025-05-12'],
-                ['hr_owner_loan_interest', 0.025],
+                ['hr_owner_loan_interest', '2.5%'],
                 ['billing_monthly_amount', 7200],
                 ['billing_monthly_item', 'Monthly Fee'],
                 ['billing_subscription_amount', 60],

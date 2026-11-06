@@ -4,7 +4,7 @@ import { fractionOf } from '../../bankLoans/domain/yearlyRate'
 import type { YearlyRate } from '../../bankLoans/domain/yearlyRate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { wholeMonthsBetween } from '../../../../shared/calendar/monthKey'
-import { ZERO, moneyFromCents } from '../../../../shared/money/money'
+import { ZERO, moneyFromFractionalCents } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 
 /** Everything the scenario has cost you by the horizon, each payment grown monthly at the savings rate from its day, plus what it still owes then, in fractional cents. */
@@ -25,5 +25,5 @@ export function leftOver(plans: readonly ScenarioPlan[], base: ScenarioPlan, sav
   if (horizon === null) return plans.map(() => ZERO)
   const monthlyGrowth = fractionOf(savingsRate) / 12
   const baseCost = costByHorizon(base, horizon, monthlyGrowth)
-  return plans.map((plan) => (plan === base ? ZERO : moneyFromCents(Math.round(baseCost - costByHorizon(plan, horizon, monthlyGrowth)))))
+  return plans.map((plan) => (plan === base ? ZERO : moneyFromFractionalCents(baseCost - costByHorizon(plan, horizon, monthlyGrowth))))
 }

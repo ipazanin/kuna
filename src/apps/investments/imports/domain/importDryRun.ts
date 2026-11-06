@@ -160,8 +160,10 @@ export interface SpinOffQuestion {
   readonly currency: CurrencyCode | null
   /** The parent's symbol or ISIN as the row's Spin-off from cell gives it, blank for none. */
   readonly from: string
-  /** The row's Cost share, null when blank or unreadable, with the cell as written. */
+  /** The row's Cost share, null when blank, unreadable or unclear, with the cell as written. */
   readonly costShare: Decimal | null
+  /** The number of a Cost share cell below 1 with no percent sign, which could be either reading. */
+  readonly costShareUnclear: Decimal | null
   readonly costShareText: string
 }
 
@@ -723,6 +725,7 @@ function spinOffOf(row: WorkbookRow, key: string, mapping: Mapping): SpinOff {
     currency: row.currency,
     from: row.spinOffFrom,
     costShare: row.costShare,
+    costShareUnclear: row.costShareUnclear,
     costShareText: row.costShareText,
   })
   const received = instrumentFor(row, mapping)

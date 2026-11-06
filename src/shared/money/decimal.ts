@@ -1,5 +1,6 @@
 import { moneyFromCents } from './money'
 import type { Money } from './money'
+import { dividedHalfAwayFromZero, stepsOfNumber } from './numberRounding'
 import { AMOUNT_SEPARATORS } from './typedAmount'
 import { language } from '../text/language'
 import type { Language } from '../text/language'
@@ -44,8 +45,6 @@ export function decimalShown(value: Decimal | null): string {
   return value === null ? '' : decimalText(value).replace('.', AMOUNT_SEPARATORS[language].decimal)
 }
 
-const NUMBER_TEXT = /^(-?)(\d+)(?:\.(\d+))?(?:e([+-]\d+))?$/
-
 /**
  * A number, as a spreadsheet's number cell gives it, rounded half away from zero to `places` places, from none to
  * twelve. It is read from the shortest text that gives the number back, so 0.1 + 0.2 is 0.3 at twelve places. Null
@@ -55,16 +54,8 @@ export function decimalOfNumber(value: number, places: number): Decimal | null {
   if (!Number.isInteger(places) || places < 0 || places > PLACES) {
     throw new RangeError(`Cannot round to ${places} places.`)
   }
-  const match = NUMBER_TEXT.exec(String(value))
-  if (match === null) {
-    return null
-  }
-  const fraction = match[3] ?? ''
-  const digits = BigInt(`${match[2]}${fraction}`)
-  const shift = places - fraction.length + Number(match[4] ?? '0')
-  const steps = shift >= 0 ? digits * 10n ** BigInt(shift) : dividedHalfAwayFromZero(digits, 10n ** BigInt(-shift))
-  const scaled = steps * 10n ** BigInt(PLACES - places)
-  return (match[1] === '-' ? -scaled : scaled) as Decimal
+  const steps = stepsOfNumber(value, places)
+  return steps === null ? null : ((steps * 10n ** BigInt(PLACES - places)) as Decimal)
 }
 
 /** The shortest text that reads back as the same decimal, such as `100` or `-0.00841`. */
@@ -159,13 +150,4 @@ function proportionalParts(total: bigint, weights: readonly bigint[]): bigint[] 
   const whole = weights.reduce((sum, weight) => sum + weight, 0n)
   const leading = weights.slice(0, -1).map((weight) => (whole === 0n ? 0n : dividedHalfAwayFromZero(total * weight, whole)))
   return weights.length === 0 ? [] : [...leading, total - leading.reduce((sum, part) => sum + part, 0n)]
-}
-
-function dividedHalfAwayFromZero(numerator: bigint, denominator: bigint): bigint {
-  if (denominator <= 0n) {
-    throw new RangeError(`Cannot divide by ${denominator}.`)
-  }
-  const magnitude = numerator < 0n ? -numerator : numerator
-  const quotient = (2n * magnitude + denominator) / (2n * denominator)
-  return numerator < 0n ? -quotient : quotient
 }

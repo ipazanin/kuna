@@ -23,7 +23,8 @@ export const en = {
     notADay: (value: string) => `"${value}" is not a date such as 2025-05-12`,
     neither: (value: string, choices: readonly string[]) => `"${value}" is neither ${choices.join(' nor ')}`,
     notARate: (value: string) => `"${value}" is not a rate such as 2%`,
-    rateAboveOne: (number: number) => `${number} reads as ${number * 100}%. Enter the rate as a percentage cell, such as 2%`,
+    rateAboveOne: (number: number) => `${number} reads as ${formatRate(number)}. Write the rate with its percent sign, such as 2%`,
+    rateNeedsSign: (number: number) => `${number} has no percent sign, so it could be ${formatRate(number / 100)} or ${formatRate(number)}. Write the rate with its percent sign, such as 2%`,
     rateRange: 'use a rate from 0% to 100% with at most two decimals, such as 2%',
   },
   /** How a refusal counts the pack's records that name a category, a grant or a scenario. */
@@ -93,7 +94,7 @@ export const en = {
     amountNotANumber: (text: string) => `amount "${text}" is not a number`,
     amountNotADate: (text: string) => `amount "${text}" is not a date cell, and this line is a date`,
     amountNotARate: (text: string) => `amount "${text}" is not a rate`,
-    rateAboveOne: (rate: number) => `amount ${rate} reads as ${rate * 100}%. Enter the rate as a percentage cell, such as 10%`,
+    rateAboveOne: (rate: number) => `amount ${rate} reads as ${formatRate(rate)}. Enter the rate as a percentage cell, such as 10%`,
     amountNotWhole: (text: string) => `amount "${text}" is not a whole number`,
     categoriesOnKontoOnly: 'categories is read on konto rows only, so it is ignored here',
     notOnCategoriesTab: (categories: readonly string[]) => `${categories.map((category) => `"${category}"`).join(', ')} ${categories.length === 1 ? 'is' : 'are'} not on the categories tab`,
@@ -155,7 +156,8 @@ export const hr: Translation<typeof en> = {
     notADay: (value) => `„${value}” nije datum poput 2025-05-12`,
     neither: (value, choices) => `„${value}” nije ni ${choices.join(' ni ')}`,
     notARate: (value) => `„${value}” nije stopa poput 2 %`,
-    rateAboveOne: (number) => `${number} se čita kao ${formatRate(number)}. Upišite stopu kao postotnu ćeliju, na primjer 2 %`,
+    rateAboveOne: (number) => `${number} se čita kao ${formatRate(number)}. Upišite stopu sa znakom postotka, na primjer 2 %`,
+    rateNeedsSign: (number) => `${number} nema znak postotka, pa može značiti ${formatRate(number / 100)} ili ${formatRate(number)}. Upišite stopu sa znakom postotka, na primjer 2 %`,
     rateRange: 'upišite stopu od 0 % do 100 % s najviše dvije decimale, na primjer 2 %',
   },
   uses: {

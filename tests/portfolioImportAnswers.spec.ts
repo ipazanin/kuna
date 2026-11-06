@@ -166,12 +166,47 @@ describe('a spin-off whose row names its parent and its share of the cost', () =
     return settledImport(rows, book({}), RATES, NO_CHOICES, keyed(new Map()))
   }
 
-  it('reads the share as a percent from 1 up, as the fraction below 1 a percent cell keeps, and as text with a percent sign', () => {
-    for (const costShare of [5.2051, 0.052051, '5.2051%', '5,2051 %']) {
+  it('reads the share as a percent from 1 up, and as a percent in text with a percent sign, whatever its size', () => {
+    for (const costShare of [5.2051, '5.2051%', '5,2051 %']) {
       const settled = spinOffWith({ spinOffFrom: 'ABC', costShare })
       expect(settled.spinOffs[0]).toMatchObject({ answeredByRow: true, workbookProblem: null })
       expect(settled.dryRun.added.spinOffs.map((spinOff) => decimalText(spinOff.costShare))).toEqual(['0.052051'])
     }
+  })
+
+  it('reads 1.2, 1 and 0.8% as they say, so the scale does not flip at 1', () => {
+    const shares = [1.2, 1, '0.8%'].map((costShare) => spinOffWith({ spinOffFrom: 'ABC', costShare }).dryRun.added.spinOffs.map((spinOff) => decimalText(spinOff.costShare)))
+    expect(shares).toEqual([['0.012'], ['0.01'], ['0.008']])
+  })
+
+  it('asks about a number below 1 with no percent sign, showing both readings, and adds nothing until it is answered', () => {
+    for (const [costShare, readings] of [
+      [0.8, ['0.8', '80']],
+      ['0,8', ['0.8', '80']],
+      [0.052051, ['0.052051', '5.2051']],
+    ] as const) {
+      const settled = spinOffWith({ spinOffFrom: 'ABC', costShare })
+      expect(settled.spinOffs[0]).toMatchObject({ answeredByRow: false, workbookProblem: null, costShare: '', costShareReadings: readings })
+      expect(settled.spinOffs[0]?.problems.costShare).toBe(words.questions.costShareReadingMissing)
+      // A proposal stands by the field, and is not taken in place of the answer.
+      expect(settled.spinOffs[0]?.proposed).not.toBeNull()
+      expect(settled.dryRun.added.spinOffs).toEqual([])
+    }
+  })
+
+  it('takes the reading the person picks', () => {
+    const asked = spinOffWith({ spinOffFrom: 'ABC', costShare: 0.8 }).spinOffs[0]!
+    const rows = rowsOf(
+      line('2025-01-02', { ...MAIN, type: 'DEPOSIT', currency: 'USD', netCash: 5000, revolutRate: 1.04 }),
+      line('2025-01-06', { ...MAIN, ...ABC, type: 'BUY', quantity: 10, price: 100, currency: 'USD', gross: -1000, commission: 1, netCash: -1001 }),
+      line('2025-07-01', { ...MAIN, ...NEWCO, type: 'SPINOFF', quantity: 4, price: 12, currency: 'USD', spinOffFrom: 'ABC', costShare: 0.8 }),
+    )
+    const answered = (reading: string) =>
+      settledImport(rows, book({}), RATES, { ...NO_CHOICES, spinOffs: { [asked.question.key]: { parent: asked.parent, costShare: reading } } }, keyed(new Map())).dryRun.added.spinOffs.map((spinOff) =>
+        decimalText(spinOff.costShare),
+      )
+    expect(answered(asked.costShareReadings![0])).toEqual(['0.008'])
+    expect(answered(asked.costShareReadings![1])).toEqual(['0.8'])
   })
 
   it('finds the parent by its ISIN as well', () => {

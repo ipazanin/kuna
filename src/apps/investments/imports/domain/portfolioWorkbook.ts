@@ -119,6 +119,8 @@ export interface WorkbookRow {
   readonly spinOffFrom: string
   /** The fraction of a spin-off parent's cost that moves to the units received, above zero and below one, or null when blank or unreadable. */
   readonly costShare: Decimal | null
+  /** The number of a Cost share cell below 1 with no percent sign, which the person reads, or null. */
+  readonly costShareUnclear: Decimal | null
   /** The Cost share cell as written, so a share that cannot be read can be named. */
   readonly costShareText: string
   /** The row's facts with its count among rows of the file with the same facts. */
@@ -273,7 +275,7 @@ function rowOf(fileRow: number, cellAt: (column: WorkbookColumn | OptionalColumn
     note: text('note'),
     sourceFile: text('sourceFile'),
     spinOffFrom: text('spinOffFrom'),
-    costShare: costShareOf(cellAt('costShare')),
+    ...costShareOf(cellAt('costShare')),
     costShareText: text('costShare'),
   }
 }
@@ -282,19 +284,22 @@ const HUNDRED = decimalOfText('100')!
 const ONE = decimalOfText('1')!
 
 /**
- * A cost share as a fraction. A number below 1 is the fraction itself, which is what a cell formatted as a percent
- * keeps, and a number from 1 up is a percent. Text reads the same way, and with a percent sign it is always a percent.
- * Null for a blank cell, anything unreadable, and a share not above zero and below one.
+ * A cost share as a fraction. A number from 1 up, and any number with a percent sign, is a percent. A number above 0
+ * and below 1 with no sign could be a percent or the fraction a percent cell keeps, so it goes to the person as unclear.
+ * The share is null for a blank cell, anything unreadable, and a share not above zero and below one.
  */
-function costShareOf(cell: WorkbookCell | undefined): Decimal | null {
+function costShareOf(cell: WorkbookCell | undefined): { readonly costShare: Decimal | null; readonly costShareUnclear: Decimal | null } {
   const written = typeof cell === 'number' ? String(cell) : cellText(cell).replace(',', '.')
   const percentSign = written.endsWith('%')
   const value = typeof cell === 'number' ? decimalOfNumber(cell, 12) : decimalOfText(written.replace(/\s*%$/, '').trim())
   if (value === null) {
-    return null
+    return { costShare: null, costShareUnclear: null }
   }
-  const share = percentSign || value >= ONE ? dividedDecimal(value, HUNDRED) : value
-  return share > DECIMAL_ZERO && share < ONE ? share : null
+  if (!percentSign && value > DECIMAL_ZERO && value < ONE) {
+    return { costShare: null, costShareUnclear: value }
+  }
+  const share = dividedDecimal(value, HUNDRED)
+  return { costShare: share > DECIMAL_ZERO && share < ONE ? share : null, costShareUnclear: null }
 }
 
 function dateOf(cell: WorkbookCell | undefined): CivilDate {

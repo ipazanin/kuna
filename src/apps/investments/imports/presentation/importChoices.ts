@@ -96,6 +96,8 @@ export interface SpinOffStep {
   readonly received: RecordId | null
   readonly parent: RecordId | null
   readonly costShare: string
+  /** The two percents an unclear Cost share cell can mean, as the field takes them: 0.8 is 0.8 and 80. Null when the cell is clear. */
+  readonly costShareReadings: readonly [asPercent: string, asFraction: string] | null
   /** The fraction of the parent's cost proposed for the parent picked. */
   readonly proposed: Decimal | null
   /** The day of both closes the proposal comes from, or null when it is the units' worth over the cost held. */
@@ -265,7 +267,8 @@ function splitStep(question: SplitQuestion, instrument: Instrument | null, choic
  * The parent and the share come from the row's Spin-off from and Cost share cells where they can be used, else from
  * the person. The share is typed in percent, as the transaction dialog takes it, and proposed for the parent picked:
  * by market value from both closes on the first trading day, else as the units' worth over the cost held. The field
- * shows the proposal to two places, and the answer keeps it exact until the person types over it.
+ * shows the proposal to two places, and the answer keeps it exact until the person types over it. A row's cell that
+ * could mean two things has no answer until the person picks a reading or types a share, whatever the proposal says.
  */
 function spinOffStep(
   question: SpinOffQuestion,
@@ -291,14 +294,16 @@ function spinOffStep(
   const proposed = fromCloses?.share ?? (parent === null ? null : proposedCostShare(dryRun.planned, parent, question))
   const typed = chosen?.costShare ?? null
   const fromRow = question.costShare
-  const costShare =
-    typed ?? (fromRow !== null ? decimalShown(timesDecimal(fromRow, PERCENT)) : decimalShown(proposed === null ? null : roundedDecimal(timesDecimal(proposed, PERCENT), SHOWN_PERCENT_PLACES)))
+  const unclear = question.costShareUnclear
+  const costShareReadings: SpinOffStep['costShareReadings'] = unclear === null ? null : [decimalShown(unclear), decimalShown(timesDecimal(unclear, PERCENT))]
+  const shownProposal = unclear === null && proposed !== null ? roundedDecimal(timesDecimal(proposed, PERCENT), SHOWN_PERCENT_PLACES) : null
+  const costShare = typed ?? decimalShown(fromRow !== null ? timesDecimal(fromRow, PERCENT) : shownProposal)
   const percent = typed === null ? null : typedDecimal(typed)
-  const fraction = typed === null ? (fromRow ?? proposed) : percent === null || percent <= DECIMAL_ZERO || percent > PERCENT ? null : scaledDecimal(percent, 1n, 100n)
+  const fraction = typed === null ? (unclear === null ? (fromRow ?? proposed) : null) : percent === null || percent <= DECIMAL_ZERO || percent > PERCENT ? null : scaledDecimal(percent, 1n, 100n)
   const workbookProblem =
     question.from !== '' && named === null
       ? words.questions.parentNotFound(question.from)
-      : question.costShareText !== '' && fromRow === null
+      : question.costShareText !== '' && fromRow === null && unclear === null
         ? words.questions.costShareUnreadable(question.costShareText)
         : null
   return {
@@ -307,9 +312,13 @@ function spinOffStep(
       received,
       parent,
       costShare,
+      costShareReadings,
       proposed,
       proposedOn: fromCloses?.day ?? null,
-      problems: { parent: parent === null ? words.questions.parentMissing : null, costShare: fraction === null ? words.questions.costShareProblem : null },
+      problems: {
+        parent: parent === null ? words.questions.parentMissing : null,
+        costShare: fraction === null ? (unclear !== null && typed === null ? words.questions.costShareReadingMissing : words.questions.costShareProblem) : null,
+      },
       workbookProblem,
       answeredByRow: named !== null && fromRow !== null,
     },

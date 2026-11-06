@@ -25,6 +25,12 @@ describe('money', () => {
     expect(amountOf(moneyFromAmount(-1043.67))).toBe(-1043.67)
   })
 
+  it('rounds a third decimal half away from zero, by what the cell says and not its float times 100', () => {
+    expect([1.005, 1.255, 8.325, 1.004, -1.005, -8.325].map(moneyFromAmount)).toEqual([101, 126, 833, 100, -101, -833])
+    expect(Object.is(moneyFromAmount(-0.001), 0)).toBe(true)
+    expect(moneyFromAmount(1e21)).toBe(1e23)
+  })
+
   it('refuses what is not an amount', () => {
     expect(() => moneyFromAmount(Number.NaN)).toThrow(RangeError)
     expect(() => moneyFromCents(1.5)).toThrow(RangeError)

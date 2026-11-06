@@ -262,7 +262,7 @@ describe.each([
   it('adds a key of the pack the tab lacks, which the pack reads, and refuses a value the pack would not use', async () => {
     const { store } = await harnessOf(used)
 
-    await changeSettings(store, [{ key: 'hr_owner_loan_interest', value: '0.02' }])
+    await changeSettings(store, [{ key: 'hr_owner_loan_interest', value: '2%' }])
 
     expect(hrDooWorkbook(store.state.workbook!).companyFacts.ownerLoanInterest).toBe(200)
     expect(store.state.workbook!.problems.filter((problem) => problem.tab === 'settings')).toEqual([])

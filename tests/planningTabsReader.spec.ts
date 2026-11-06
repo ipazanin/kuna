@@ -271,7 +271,7 @@ describe('the year-end tab', () => {
       ['2025 notes sales', '"notes" is not a statement. Use pl, balance, tax, distribution, grant, konto'],
       ['2025 pl turnover', '"turnover" is not a line of pl'],
       ['2025 konto', 'no konto number in line'],
-      ['2025 tax rate', 'amount 10 reads as 1000%. Enter the rate as a percentage cell, such as 10%'],
+      ['2025 tax rate', 'amount 10 reads as 1,000%. Enter the rate as a percentage cell, such as 10%'],
       ['2025 tax paid-on', 'amount "April" is not a date cell, and this line is a date'],
       ['2025 pl sales', 'amount "lots" is not a number'],
       ['2025 pl material-costs', 'categories is read on konto rows only, so it is ignored here'],

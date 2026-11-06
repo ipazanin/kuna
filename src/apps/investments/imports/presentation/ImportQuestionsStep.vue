@@ -11,6 +11,7 @@ import { QUANTITY_PLACES } from '../../holdings/presentation/holdingText'
 import { decimalText } from '../../../../shared/money/decimal'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatCurrencyAmount, formatPercent, formatQuantity } from '../../../../shared/money/moneyFormat'
+import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 
 /** What the rows cannot say: the ratio of each split no vendor lists, and the parent and share of cost of a spin-off its row does not give. */
@@ -70,6 +71,14 @@ function typeShare(step: SpinOffStep, text: string): void {
   props.workbookImport.choose('spinOffs', step.question.key, { parent: step.parent, costShare: text })
 }
 
+function unclearLine(step: SpinOffStep, [asPercent, asFraction]: readonly [string, string]): string {
+  return words.questions.costShareUnclear(step.question.costShareText, words.questions.costShareReading(asPercent), words.questions.costShareReading(asFraction))
+}
+
+function readingItems(readings: readonly string[]): { value: string; label: string }[] {
+  return readings.map((reading) => ({ value: reading, label: words.questions.costShareReading(reading) }))
+}
+
 function shareHelp(step: SpinOffStep): string {
   if (step.proposed === null) return words.questions.costShareHelp
   const share = formatPercent(Number(decimalText(step.proposed)))
@@ -111,6 +120,16 @@ function shareHelp(step: SpinOffStep): string {
             <span class="type-caption">{{ words.questions.spinOffRows(units(step.question.quantity), worthOf(step)) }}</span>
             <span v-if="step.workbookProblem" class="type-caption text-warning" data-testid="import-spin-off-row-problem">{{ step.workbookProblem }}</span>
           </p>
+          <div v-if="step.costShareReadings" class="flex flex-col gap-1.5">
+            <p class="type-caption text-warning" data-testid="import-spin-off-unclear">{{ unclearLine(step, step.costShareReadings) }}</p>
+            <ChoiceButtons
+              :model-value="step.costShare"
+              :options="readingItems(step.costShareReadings)"
+              :label="words.questions.costShareReadings"
+              data-testid="import-spin-off-readings"
+              @update:model-value="typeShare(step, String($event))"
+            />
+          </div>
           <FormGrid>
             <UFormField :label="words.questions.parent" :error="step.problems.parent ?? false">
               <USelect

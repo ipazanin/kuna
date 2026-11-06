@@ -8,6 +8,7 @@ import { words as settingsWords } from '../../../settings/domain/words'
 import { words } from './words'
 
 const BASIS_POINTS_PER_WHOLE = 10_000
+const BASIS_POINTS_PER_PERCENT = 100
 
 /** Which corporate tax return the company files: `pd` on the accrual profit, `pd-nn` on cash received and paid. */
 export const CIT_RETURNS = ['pd', 'pd-nn'] as const
@@ -113,9 +114,9 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
     },
     {
       key: 'hr_owner_loan_interest',
-      note: "The yearly interest rate the owner's loans from the company carry, as a percentage cell such as 2%. Blank means 0%. Below the income tax law's rate the difference is a benefit in kind.",
+      note: "The yearly interest rate the owner's loans from the company carry, with its percent sign, such as 2%. Blank means 0%. Below the income tax law's rate the difference is a benefit in kind.",
       type: 'number',
-      valueOf: (facts) => String(facts.ownerLoanInterest / BASIS_POINTS_PER_WHOLE),
+      valueOf: (facts) => `${facts.ownerLoanInterest / BASIS_POINTS_PER_PERCENT}%`,
       apply: (facts, value) => {
         const rate = rateOf(value)
         return typeof rate === 'string' ? rate : (ownerLoanInterestProblem(rate) ?? withFacts(facts, { ownerLoanInterest: rate }))
@@ -224,9 +225,8 @@ export function companyFactsErrors(facts: CompanyFacts): Partial<Record<CompanyF
 }
 
 /**
- * A rate in basis points from a fraction such as 0.025, which a percentage cell holds for 2.5%, or
- * from text such as 2% or 2,5 %. A number above 1 is refused, as the year-end tab refuses it, since 2
- * would read as 200%.
+ * A rate in basis points from text with a percent sign, such as 2% or 2,5 %, or a plain 0. A number above zero with no
+ * sign is refused, since 0.5 could be 0.5% or 50%, and a percentage cell holds the same number as a plain one.
  */
 function rateOf(value: string): number | string {
   const text = value.trim().replace(/\s+/g, '').replace(',', '.')
@@ -234,6 +234,7 @@ function rateOf(value: string): number | string {
   const number = Number(percent ? text.slice(0, -1) : text)
   if (!Number.isFinite(number) || text === '' || text === '%') return words.facts.notARate(value)
   if (!percent && number > 1) return words.facts.rateAboveOne(number)
+  if (!percent && number > 0) return words.facts.rateNeedsSign(number)
   return Math.round((percent ? number / 100 : number) * BASIS_POINTS_PER_WHOLE * 1_000) / 1_000
 }
 

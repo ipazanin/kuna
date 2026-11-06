@@ -193,7 +193,6 @@
     "src/apps/investments/imports/domain/portfolioWorkbook.ts",
     "src/apps/investments/prices/domain/splitFactor.ts",
     "src/apps/loans/scenarios/domain/effectiveRate.ts",
-    "src/apps/loans/scenarios/domain/leftOver.ts",
     "src/apps/spending/receipts/domain/photoPlace.ts",
     "src/apps/spending/statements/domain/revolutStatement.ts",
     "src/shared/ai/domain/citedAnswer.ts"

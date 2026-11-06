@@ -63,7 +63,7 @@ export const en = {
       sourceFile: 'The statement file the row came from.',
       spinOffFrom: 'For a spin-off, the symbol or ISIN of the holding it came from. Blank otherwise.',
       costShare:
-        'For a spin-off, the share of the parent cost that moves to the units received. A percent cell, a number from 1 up such as 5.2051 for 5.2051%, or text with a % sign. A plain number below 1 is read as the fraction itself, so 0.052051 is 5.2051%.',
+        'For a spin-off, the share of the parent cost that moves to the units received. A number from 1 up such as 5.2051 for 5.2051%, or text with a % sign. A number below 1 with no sign, which is also what a percent cell holds, could mean two things, so the import asks.',
     },
     types: {
       BUY: 'Units bought, with Quantity, Price and Net cash.',
@@ -134,6 +134,10 @@ export const en = {
     costShareProblem: 'A percent above 0 and up to 100',
     parentNotFound: (named: string) => `The row's Spin-off from names ${named}, which is no holding here.`,
     costShareUnreadable: (text: string) => `The row's Cost share "${text}" cannot be read.`,
+    costShareUnclear: (cell: string, asPercent: string, asFraction: string) => `The row's Cost share ${cell} has no percent sign. It can mean ${asPercent} or ${asFraction}.`,
+    costShareReadings: "What the row's Cost share means",
+    costShareReading: (percent: string) => `${percent}%`,
+    costShareReadingMissing: 'Pick what the row means, or type the percent',
     unlisted: {
       'no-key': (vendor: string) => `Proposed from the units held, as this browser has no ${vendor} key to look the split up.`,
       pending: (vendor: string) => `Proposed from the units held while ${vendor} is asked.`,
@@ -284,7 +288,7 @@ export const hr: Translation<typeof en> = {
       sourceFile: 'Datoteka izvoda iz koje je redak.',
       spinOffFrom: 'Za izdvajanje, oznaka ili ISIN pozicije iz koje je izdvojeno. Inače prazno.',
       costShare:
-        'Za izdvajanje, udio troška matične pozicije koji prelazi na primljene jedinice. Ćelija u postotku, broj od 1 naviše, na primjer 5,2051 za 5,2051 %, ili tekst sa znakom %. Običan broj manji od 1 čita se kao sam udio, pa je 0,052051 isto što i 5,2051 %.',
+        'Za izdvajanje, udio troška matične pozicije koji prelazi na primljene jedinice. Broj od 1 naviše, na primjer 5,2051 za 5,2051 %, ili tekst sa znakom %. Broj manji od 1 bez znaka, kakav drži i postotna ćelija, može značiti dvije stvari, pa uvoz pita.',
     },
     types: {
       BUY: 'Kupljene jedinice, s količinom, cijenom i neto novcem.',
@@ -355,6 +359,10 @@ export const hr: Translation<typeof en> = {
     costShareProblem: 'Postotak veći od 0 i najviše 100',
     parentNotFound: (named) => `Stupac Spin-off from u retku navodi ${named}, a takve pozicije ovdje nema.`,
     costShareUnreadable: (text) => `Udio Cost share „${text}” iz retka ne može se pročitati.`,
+    costShareUnclear: (cell, asPercent, asFraction) => `Cost share ${cell} iz retka nema znak postotka. Može značiti ${asPercent} ili ${asFraction}.`,
+    costShareReadings: 'Što znači Cost share iz retka',
+    costShareReading: (percent) => `${percent} %`,
+    costShareReadingMissing: 'Odaberite što redak znači ili upišite postotak',
     unlisted: {
       'no-key': (vendor) => `Predloženo prema držanim jedinicama jer u ovom pregledniku nema ključa za ${vendor}.`,
       pending: (vendor) => `Predloženo prema držanim jedinicama dok se pita ${vendor}.`,

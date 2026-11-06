@@ -162,3 +162,15 @@ describe('quantity and unit price formatting', () => {
     expect(formatUnitPrice(decimal('190.5'), 'USD' as CurrencyCode)).toBe('190,50\u00a0$')
   })
 })
+
+describe('a figure that rounds to zero', () => {
+  it('shows no sign on an amount or a share', () => {
+    expect(formatCompactMoney(-40)).toBe(formatCompactMoney(40))
+    expect(formatCompactMoney(-40, 'always')).toBe(formatCompactMoney(0))
+    expect(formatCompactMoney(-50)).toBe(`−${formatCompactMoney(50)}`)
+    expect(formatPercent(-0.0004)).toBe('0%')
+    expect(formatPercent(0.0004, 'always')).toBe('0%')
+    expect(formatPercent(-0.0005)).toBe('−0.1%')
+    expect(formatPercent(0.0005, 'always')).toBe('+0.1%')
+  })
+})

@@ -19,6 +19,7 @@ import { euros, ledger } from './fixtures/ledger'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { storedFieldOf } from '../src/shared/storage/domain/storedFields'
 import { COMPANY_FACT_SETTINGS, companyFactsErrors } from '../src/apps/company/packs/hr-doo/domain/companyFacts'
+import { words as hrDooWords } from '../src/apps/company/packs/hr-doo/domain/words'
 
 /** A cell of the value column, undefined for a blank one. */
 type Cell = string | number | boolean | undefined
@@ -264,7 +265,7 @@ describe('company facts', () => {
         ['hr_cit_return', 'PD-NN'],
         ['hr_vat_principle', 'cash'],
         ['hr_depreciation_doubled', 'TRUE'],
-        ['hr_owner_loan_interest', 0.025],
+        ['hr_owner_loan_interest', '2.5%'],
         ['hr_vat_returns_folder', ' finance / vat '],
         ['hr_payroll_folder', 'finance/payroll/'],
         ['hr_accountant_mail_from', 'Office@Accountant.example.com, desk@accountant.example.com'],
@@ -337,7 +338,7 @@ describe('company facts', () => {
 
     expect(changedPackSettings(COMPANY_FACT_SETTINGS, before, { ...before, ownerLoanInterest: 200, citReturn: 'pd-nn' })).toEqual([
       { key: 'hr_cit_return', value: 'pd-nn' },
-      { key: 'hr_owner_loan_interest', value: '0.02' },
+      { key: 'hr_owner_loan_interest', value: '2%' },
     ])
   })
 
@@ -360,16 +361,40 @@ describe('company facts', () => {
 
   it('read the owner loan interest as a percentage cell or as a percent typed as text', () => {
     const rate = (cell: Cell) => readPackSettings(rows(['hr_owner_loan_interest', cell]), COMPANY_FACT_SETTINGS)
-    expect(rate(0.02).values.ownerLoanInterest).toBe(200)
     expect(rate('2%').values.ownerLoanInterest).toBe(200)
     expect(rate('2,5 %').values.ownerLoanInterest).toBe(250)
-    expect(rate('0.0265').values.ownerLoanInterest).toBe(265)
+    expect(rate('0.5%').values.ownerLoanInterest).toBe(50)
     expect(rate(0).values.ownerLoanInterest).toBe(0)
-    expect(rate(2).problems).toEqual([settingProblem('hr_owner_loan_interest', '2 reads as 200%. Enter the rate as a percentage cell, such as 2%, so the default is used')])
+    expect(rate(2).problems).toEqual([settingProblem('hr_owner_loan_interest', '2 reads as 200%. Write the rate with its percent sign, such as 2%, so the default is used')])
     expect(rate('two').problems[0]?.reason).toBe('"two" is not a rate such as 2%, so the default is used')
     expect(rate(-0.01).problems[0]?.reason).toBe('use a rate from 0% to 100% with at most two decimals, such as 2%, so the default is used')
     expect(rate('2.345%').problems[0]?.reason).toBe('use a rate from 0% to 100% with at most two decimals, such as 2%, so the default is used')
     expect(companyFactsErrors({ ...COMPANY_FACT_SETTINGS.defaults, ownerLoanInterest: Number.NaN }).ownerLoanInterest).toBe('use a rate from 0% to 100% with at most two decimals, such as 2%')
+  })
+
+  it('say what a cell above 1 reads as without float noise', () => {
+    const read = readPackSettings(rows(['hr_owner_loan_interest', 2.3]), COMPANY_FACT_SETTINGS)
+    expect(read.problems[0]?.reason).toContain('2.3 reads as 230%.')
+    expect(hrDooWords.reading.rateAboveOne(2.3)).toBe('amount 2.3 reads as 230%. Enter the rate as a percentage cell, such as 10%')
+  })
+
+  it('refuse a rate with no percent sign, saying both readings, and read back what the app writes', () => {
+    const rate = (cell: Cell) => readPackSettings(rows(['hr_owner_loan_interest', cell]), COMPANY_FACT_SETTINGS)
+    for (const [cell, readings] of [
+      [0.5, ['0.5%', '50%']],
+      ['0.5', ['0.5%', '50%']],
+      [1, ['1%', '100%']],
+      [0.02, ['0.02%', '2%']],
+    ] as const) {
+      const read = rate(cell)
+      expect(read.values.ownerLoanInterest).toBe(0)
+      expect(read.problems[0]?.reason).toContain(`so it could be ${readings[0]} or ${readings[1]}`)
+    }
+    const definition = COMPANY_FACT_SETTINGS.definitions.find((candidate) => candidate.key === 'hr_owner_loan_interest')!
+    for (const ownerLoanInterest of [0, 1, 50, 200, 265, 10_000]) {
+      const written = definition.valueOf({ ...COMPANY_FACT_SETTINGS.defaults, ownerLoanInterest })
+      expect(rate(written)).toMatchObject({ values: { ownerLoanInterest }, problems: [] })
+    }
   })
 
   it('are listed in the template with their defaults, a blank registration day among them', () => {
@@ -378,7 +403,7 @@ describe('company facts', () => {
       { key: 'hr_cit_return', value: 'pd' },
       { key: 'hr_vat_principle', value: 'invoice' },
       { key: 'hr_depreciation_doubled', value: 'FALSE' },
-      { key: 'hr_owner_loan_interest', value: '0' },
+      { key: 'hr_owner_loan_interest', value: '0%' },
       { key: 'hr_vat_returns_folder', value: '' },
       { key: 'hr_payroll_folder', value: '' },
       { key: 'hr_accountant_mail_from', value: '' },
