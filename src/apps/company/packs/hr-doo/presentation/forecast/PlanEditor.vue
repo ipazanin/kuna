@@ -18,6 +18,7 @@ import { monthKey } from '../../../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import type { Money } from '../../../../../../shared/money/money'
+import { absMoney } from '../../../../../../shared/money/money'
 import type { PlanDefault } from '../../domain/forecast/forecastYear'
 import { isOwnerPayCost } from '../../domain/packRoles'
 import CategoryPlanDialog from './CategoryPlanDialog.vue'
@@ -102,7 +103,7 @@ const entries = computed((): CategoryEntry[] => {
 })
 
 function money(cents: Money): string {
-  return formatMoney(Math.abs(cents) as Money)
+  return formatMoney(absMoney(cents))
 }
 
 function captionOf(category: Category, lines: readonly AmountLine[], average: Money | null, lastMonth: boolean): string {

@@ -18,7 +18,8 @@ import { SETTING_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { euros, ledger } from './fixtures/ledger'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { storedFieldOf } from '../src/shared/storage/domain/storedFields'
-import { COMPANY_FACT_SETTINGS, companyFactsErrors } from '../src/apps/company/packs/hr-doo/domain/companyFacts'
+import { COMPANY_FACT_SETTINGS, companyFactsErrors, typedLoanInterest } from '../src/apps/company/packs/hr-doo/domain/companyFacts'
+import { percentFromBasisPoints } from '../src/shared/money/percent'
 import { words as hrDooWords } from '../src/apps/company/packs/hr-doo/domain/words'
 
 /** A cell of the value column, undefined for a blank one. */
@@ -369,7 +370,10 @@ describe('company facts', () => {
     expect(rate('two').problems[0]?.reason).toBe('"two" is not a rate such as 2%, so the default is used')
     expect(rate(-0.01).problems[0]?.reason).toBe('use a rate from 0% to 100% with at most two decimals, such as 2%, so the default is used')
     expect(rate('2.345%').problems[0]?.reason).toBe('use a rate from 0% to 100% with at most two decimals, such as 2%, so the default is used')
-    expect(companyFactsErrors({ ...COMPANY_FACT_SETTINGS.defaults, ownerLoanInterest: Number.NaN }).ownerLoanInterest).toBe('use a rate from 0% to 100% with at most two decimals, such as 2%')
+    expect(rate('0.8%').values.ownerLoanInterest).toBe(80)
+    expect(rate('100%').values.ownerLoanInterest).toBe(10_000)
+    expect(rate('100.01%').problems[0]?.reason).toBe('use a rate from 0% to 100% with at most two decimals, such as 2%, so the default is used')
+    expect(companyFactsErrors({ ...COMPANY_FACT_SETTINGS.defaults, ownerLoanInterest: null }).ownerLoanInterest).toBe('use a rate from 0% to 100% with at most two decimals, such as 2%')
   })
 
   it('say what a cell above 1 reads as without float noise', () => {
@@ -381,6 +385,7 @@ describe('company facts', () => {
   it('refuse a rate with no percent sign, saying both readings, and read back what the app writes', () => {
     const rate = (cell: Cell) => readPackSettings(rows(['hr_owner_loan_interest', cell]), COMPANY_FACT_SETTINGS)
     for (const [cell, readings] of [
+      [0.8, ['0.8%', '80%']],
       [0.5, ['0.5%', '50%']],
       ['0.5', ['0.5%', '50%']],
       [1, ['1%', '100%']],
@@ -392,9 +397,26 @@ describe('company facts', () => {
     }
     const definition = COMPANY_FACT_SETTINGS.definitions.find((candidate) => candidate.key === 'hr_owner_loan_interest')!
     for (const ownerLoanInterest of [0, 1, 50, 200, 265, 10_000]) {
-      const written = definition.valueOf({ ...COMPANY_FACT_SETTINGS.defaults, ownerLoanInterest })
+      const written = definition.valueOf({ ...COMPANY_FACT_SETTINGS.defaults, ownerLoanInterest: percentFromBasisPoints(ownerLoanInterest) })
       expect(rate(written)).toMatchObject({ values: { ownerLoanInterest }, problems: [] })
     }
+  })
+
+  it.each([
+    ['', 0],
+    ['  ', 0],
+    ['0.8', 80],
+    ['0,8', 80],
+    ['2.5', 250],
+    ['2,65', 265],
+    ['100', 10_000],
+    ['100.01', null],
+    ['2.345', null],
+    ['-1', null],
+    ['two', null],
+    ['2%', null],
+  ])('read %j typed into the facts card as a percent, %j basis points', (typed, points) => {
+    expect(typedLoanInterest(typed)).toBe(points)
   })
 
   it('are listed in the template with their defaults, a blank registration day among them', () => {
@@ -520,7 +542,7 @@ describe('settingsErrors', () => {
   })
 
   it('names the company facts the editor must not save', () => {
-    const errors = companyFactsErrors({ ...COMPANY_FACT_SETTINGS.defaults, ownerLoanInterest: 1.5, payrollFolder: [] })
+    const errors = companyFactsErrors({ ...COMPANY_FACT_SETTINGS.defaults, ownerLoanInterest: null, payrollFolder: [] })
 
     expect(errors).toEqual({ ownerLoanInterest: 'use a rate from 0% to 100% with at most two decimals, such as 2%' })
   })

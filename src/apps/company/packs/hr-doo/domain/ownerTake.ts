@@ -4,6 +4,7 @@ import { monthOf } from '../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../shared/calendar/monthKey'
 import { divideMoney, negateMoney, subtractMoney, sumMoney } from '../../../../../shared/money/money'
 import type { Money } from '../../../../../shared/money/money'
+import { moneyAt } from '../../../../../shared/money/percent'
 import { drillToTransactions, monthPeriod } from '../../../filters/domain/drillTarget'
 import type { Figure } from '../../../filters/domain/drillTarget'
 import { transactionsInPeriod } from '../../../filters/domain/filterState'
@@ -13,7 +14,6 @@ import type { Booking, Category } from '../../../workbook/domain/workbook'
 import { RULESET_FIRST_DAY, ruleValue } from '../ruleset/ruleset'
 import { PACK_ROLES, categoriesInBucket, categoriesWithRole, dividendCategories } from './packRoles'
 import { paidOut } from './paidOut'
-import { atRate } from './payroll/payrollArithmetic'
 import type { RuleSource } from './payroll/payrollArithmetic'
 
 /** One category's money between the company and the owner. Paid to the owner reads positive. */
@@ -100,7 +100,7 @@ function rentTaxOn(rows: readonly Booking[], rules: RuleSource): Money {
       .map((booking) => {
         const { flatExpenseShare, taxRate } = rules('hr.pit.rent', booking.date).value
         const rent = negateMoney(booking.amount)
-        return atRate(subtractMoney(rent, atRate(rent, flatExpenseShare.basisPoints)), taxRate.basisPoints)
+        return moneyAt(subtractMoney(rent, moneyAt(rent, flatExpenseShare.basisPoints)), taxRate.basisPoints)
       }),
   )
 }

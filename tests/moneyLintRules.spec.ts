@@ -22,7 +22,6 @@ describe('money and domain lint rules', { timeout: 120_000 }, () => {
     ['a cast through unknown', DOMAIN, 'export const a = 1 as unknown as Percent', 'kuna/money-casts'],
     ['a cast to a nullable brand', DOMAIN, 'export const a = 1 as Share | null', 'kuna/money-casts'],
     ['a cast to a list of a brand', DOMAIN, 'export const a = [] as Decimal[]', 'kuna/money-casts'],
-    ['a cast to the old name of a rate', DOMAIN, 'export const a = 1 as Rate', 'kuna/money-casts'],
     ['a cast in a script block', SCREEN, '<script setup lang="ts">\nconst a = 1 as Money\n</script>\n<template><p>{{ a }}</p></template>', 'kuna/money-casts'],
     ['a cast in a template', SCREEN, '<script setup lang="ts">\nconst a = 1\n</script>\n<template><p>{{ a as Money }}</p></template>', 'kuna/money-casts'],
     ['a division by 100', DOMAIN, 'export const a = (b: number) => b / 100', 'kuna/money-scale'],

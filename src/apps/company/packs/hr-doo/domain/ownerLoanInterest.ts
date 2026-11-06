@@ -1,27 +1,22 @@
 import type { HrDooWorkbook } from './hrDooPart'
 import { civilDate, daysBetween } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
-import { ZERO, dividedRounded, moneyFromCents, sumMoney } from '../../../../../shared/money/money'
+import { ZERO, sumMoney } from '../../../../../shared/money/money'
 import type { Money } from '../../../../../shared/money/money'
-import type { Rate, RuleCitation } from '../ruleset/schema'
+import { moneyAtPartOfYear, percentFromBasisPoints, percentText } from '../../../../../shared/money/percent'
+import type { Percent } from '../../../../../shared/money/percent'
+import type { RuleCitation } from '../ruleset/schema'
 import type { TracedFigure } from '../ruleset/tracedFigure'
 import type { CarriedLoss } from './cit/taxBase'
 import { ownerLoans } from './ownerLoans'
 import type { OwnerLoan } from './ownerLoans'
-import { percentText, tracedFigure } from './payroll/payrollArithmetic'
+import { tracedFigure } from './payroll/payrollArithmetic'
 import type { RuleSource } from './payroll/payrollArithmetic'
 import { words } from './words'
 
-const BASIS_POINTS_PER_WHOLE = 10_000
-
 /** What the owner's loans carry below a rate the law sets, and nothing when they carry at least that. */
-export function shortfallRate(prescribed: Rate, carried: Rate): Rate {
-  return (prescribed > carried ? prescribed - carried : 0) as Rate
-}
-
-/** The yearly interest rate the workbook says the owner's loans carry. */
-export function carriedRate(workbook: HrDooWorkbook): Rate {
-  return workbook.companyFacts.ownerLoanInterest as Rate
+export function shortfallRate(prescribed: Percent, carried: Percent): Percent {
+  return percentFromBasisPoints(prescribed > carried ? prescribed - carried : 0)
 }
 
 /** Days from `from` to `to` that fall after `after` and on or before `through`. */
@@ -56,7 +51,7 @@ function balanceDays(loan: OwnerLoan, after: CivilDate, through: CivilDate): { r
  * day it was repaid, within `year` up to `through`. A yearly rate, so a day is a 365th, or a 366th in
  * a leap year. Each loan is rounded to the cent and the figure adds them up.
  */
-export function interestOnLoans(label: string, loans: readonly OwnerLoan[], year: number, through: CivilDate, rate: Rate, rules: readonly RuleCitation[]): TracedFigure {
+export function interestOnLoans(label: string, loans: readonly OwnerLoan[], year: number, through: CivilDate, rate: Percent, rules: readonly RuleCitation[]): TracedFigure {
   const after = civilDate(year - 1, 12, 31)
   const yearEnd = civilDate(year, 12, 31)
   const end = through < yearEnd ? through : yearEnd
@@ -68,7 +63,7 @@ export function interestOnLoans(label: string, loans: readonly OwnerLoan[], year
       {
         label: words.owner.daysOwed(owed.days, year),
         on: loan.lentOn,
-        amount: moneyFromCents(dividedRounded(owed.centDays * rate, BASIS_POINTS_PER_WHOLE * yearDays)),
+        amount: moneyAtPartOfYear(owed.centDays, rate, yearDays),
         drill: loan.drill,
         basis: 'ledger',
         rules: [],
@@ -83,8 +78,8 @@ export function interestOnLoans(label: string, loans: readonly OwnerLoan[], year
 export interface LoanBenefit {
   readonly year: number
   /** The rate below which a loan from the employer gives a benefit in kind. */
-  readonly prescribed: Rate
-  readonly carried: Rate
+  readonly prescribed: Percent
+  readonly carried: Percent
   /** The difference between the two rates on every day's balance. Zero when the loans carry at least the prescribed rate. */
   readonly figure: TracedFigure
   /** How many loans had a balance in the year up to `through`. */
@@ -102,7 +97,7 @@ export function loanBenefit(workbook: HrDooWorkbook, year: number, through: Civi
   const end = through < yearEnd ? through : yearEnd
   const rule = rules('hr.pit.loan-benefit', end)
   const prescribed = rule.value.minimumInterestRate.basisPoints
-  const carried = carriedRate(workbook)
+  const carried = workbook.companyFacts.ownerLoanInterest
   const loans = ownerLoans(workbook.transactions, workbook.categories).loans
   const owed = interestOnLoans(words.owner.loanBenefit(year), loans, year, end, shortfallRate(prescribed, carried), [rule.citation])
   if (owed.steps.length === 0) return null
@@ -118,7 +113,7 @@ export function relatedPartyInterest(workbook: HrDooWorkbook, year: number, prof
     return tracedFigure(words.owner.noTaxLoss, ZERO, 'ledger', [])
   }
   const rate = rules('hr.cit.related-party-rate', civilDate(year, 1, 1))
-  const carried = carriedRate(workbook)
+  const carried = workbook.companyFacts.ownerLoanInterest
   return interestOnLoans(
     carried === 0 ? words.owner.relatedPartyNone : words.owner.relatedPartyLess(percentText(carried)),
     ownerLoans(workbook.transactions, workbook.categories).loans,

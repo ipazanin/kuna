@@ -8,9 +8,9 @@ import type { Category, Transaction } from '../../../../workbook/domain/workbook
 import { daysBetween } from '../../../../../../shared/calendar/civilDate'
 import { addMoney, negateMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
+import { moneyAt } from '../../../../../../shared/money/percent'
 import { hasVersionOn, ruleValue } from '../../ruleset/ruleset'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
-import { atRate } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { words } from './words'
 
@@ -183,7 +183,7 @@ function vatRateKnown(row: Transaction): boolean {
 function paysFor(row: Transaction, costNet: Money, rules: RuleSource): boolean {
   const paid = negateMoney(row.amount)
   const standardRate = rules('hr.vat.rates', row.date).value.standardRate.basisPoints
-  return paid === costNet || paid === addMoney(costNet, atRate(costNet, standardRate))
+  return paid === costNet || paid === addMoney(costNet, moneyAt(costNet, standardRate))
 }
 
 /** The row paid closest to the day the asset was bought, the earlier booking on a tie. */

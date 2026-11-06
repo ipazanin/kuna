@@ -3,13 +3,14 @@ import type { Grant } from '../grants/grants'
 import { civilDate } from '../../../../../../shared/calendar/civilDate'
 import { subtractMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
+import { moneyAt, percentText } from '../../../../../../shared/money/percent'
+import type { Percent } from '../../../../../../shared/money/percent'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { RuleLookup, RuleValues } from '../../ruleset/ruleset'
-import type { Rate } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { grantRelease } from '../grants/grantRelease'
 import type { GrantReleaseSchedule } from '../grants/grantRelease'
-import { atRate, deducted, percentText, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
+import { deducted, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { depreciationSchedule } from './depreciationSchedule'
 import type { DepreciationSchedule, DepreciationSettings, DepreciationYear } from './depreciationSchedule'
@@ -43,7 +44,7 @@ export interface DoubledRatesYear {
   readonly grantReleased: TracedFigure
   readonly profitBeforeTax: TracedFigure
   /** The corporate tax rate of the year, which the profit tax change applies to the profit change. */
-  readonly rate: Rate
+  readonly rate: Percent
   readonly profitTax: TracedFigure
 }
 
@@ -123,14 +124,14 @@ export function doubledRatesEffect(
   return { doubled, years, changesAnything: years.some((entry) => entry.depreciation.amount !== 0) }
 }
 
-function profitTaxChange(year: number, profitBeforeTax: TracedFigure, grantReleased: TracedFigure, revenue: Money, rules: RuleSource): { readonly rate: Rate; readonly profitTax: TracedFigure } {
+function profitTaxChange(year: number, profitBeforeTax: TracedFigure, grantReleased: TracedFigure, revenue: Money, rules: RuleSource): { readonly rate: Percent; readonly profitTax: TracedFigure } {
   const lookup = rules('hr.cit.rate', civilDate(year, 1, 1))
   const high = revenue >= lookup.value.threshold.cents
   const rate = high ? lookup.value.highRate.basisPoints : lookup.value.lowRate.basisPoints
   const grantRevenue = grantReleased.amount === 0 ? [] : [taxableGrantRevenue(year, rules).citation]
   const profitTax = tracedFigure(
     words.books.taxChange(year, percentText(rate), high),
-    atRate(profitBeforeTax.amount, rate),
+    moneyAt(profitBeforeTax.amount, rate),
     'assets',
     [lookup.citation, ...grantRevenue, ...profitBeforeTax.rules],
     [profitBeforeTax],

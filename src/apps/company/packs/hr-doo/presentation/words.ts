@@ -3,7 +3,8 @@ import { dayLabel } from '../../../../../shared/calendar/dayLabel'
 import type { MonthKey } from '../../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../../shared/calendar/monthLabel'
 import { withFullStop } from '../../../../../shared/text/withFullStop'
-import { formatRate } from '../../../../../shared/money/moneyFormat'
+import { percentText } from '../../../../../shared/money/percent'
+import type { Percent } from '../../../../../shared/money/percent'
 import { language } from '../../../../../shared/text/language'
 import type { EnglishForms, Translation } from '../../../../../shared/text/translation'
 import { croatianBucket } from '../../../settings/domain/words'
@@ -29,8 +30,8 @@ export const en = {
   facts: {
     title: 'Company and owner facts',
     subtitle: "What the tax figures need to know beyond the law. They stay in this workbook. The owner's facts for the payroll are on the director's row on Salaries.",
-    summary: (registered: CivilDate | null, basisPoints: number) =>
-      `${registered === null ? 'The registration day is not set' : `Registered on ${dayLabel(registered)}`}. Loans to the owner carry ${basisPoints / 100}%.`,
+    summary: (registered: CivilDate | null, loanInterest: Percent) =>
+      `${registered === null ? 'The registration day is not set' : `Registered on ${dayLabel(registered)}`}. Loans to the owner carry ${percentText(loanInterest)}.`,
     registered: 'Company registered on',
     registeredHelp: 'Starts the first tax period.',
     loanInterest: "Interest the owner's loans carry, % a year",
@@ -506,8 +507,8 @@ export const hr: Translation<typeof en> = {
   facts: {
     title: 'Podaci o tvrtki i vlasniku',
     subtitle: 'Što porezni izračuni trebaju znati osim onoga što piše u zakonu. Ostaju u ovoj datoteci. Podaci o vlasniku za plaće nalaze se u retku direktora na zaslonu Plaće.',
-    summary: (registered, basisPoints) =>
-      `${withFullStop(registered === null ? 'Dan registracije nije postavljen' : `Registrirana ${dayLabel(registered)}`)} Pozajmice vlasniku nose ${formatRate(basisPoints / 10_000)}.`,
+    summary: (registered, loanInterest) =>
+      `${withFullStop(registered === null ? 'Dan registracije nije postavljen' : `Registrirana ${dayLabel(registered)}`)} Pozajmice vlasniku nose ${percentText(loanInterest)}.`,
     registered: 'Tvrtka registrirana',
     registeredHelp: 'Počinje prvo porezno razdoblje.',
     loanInterest: 'Kamata na pozajmice vlasniku, % godišnje',

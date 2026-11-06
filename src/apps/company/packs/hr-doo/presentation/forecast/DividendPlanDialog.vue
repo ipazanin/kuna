@@ -6,7 +6,6 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import type { PlanLine } from '../../domain/forecast/plan'
-import type { Money } from '../../../../../../shared/money/money'
 import { dividendPlanLine, replacePlanLines } from '../../application/planWrites'
 import { fieldAmount, monthsOf } from './planWording'
 import { typedAmount } from '../../../../../../shared/money/typedAmount'
@@ -52,8 +51,8 @@ const invalid = computed(() => gross.value === null || gross.value <= 0)
 
 async function save(): Promise<void> {
   tried.value = true
-  if (invalid.value) return
-  const line = dividendPlanLine(props.year, month.value, gross.value as Money, note.value)
+  if (invalid.value || gross.value === null) return
+  const line = dividendPlanLine(props.year, month.value, gross.value, note.value)
   const before = props.dividend === null ? null : writes.stored(props.dividend)
   if (props.dividend !== null && before === null) return
   const held = before === null ? [] : [{ key: 'dividend', line: before }]

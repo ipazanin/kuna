@@ -2,11 +2,12 @@ import type { YearEndLine } from '../yearEnd/yearEnd'
 import { civilDate } from '../../../../../../shared/calendar/civilDate'
 import { ZERO, addMoney, minMoney, moneyFromCents, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
-import { restOf } from '../../../../../../shared/money/percent'
+import { moneyAt, percentText, restOf } from '../../../../../../shared/money/percent'
+import type { Percent } from '../../../../../../shared/money/percent'
 import { ruleValue } from '../../ruleset/ruleset'
-import type { Rate, RuleCitation } from '../../ruleset/schema'
+import type { RuleCitation } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
-import { atRate, deducted, percentText, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
+import { deducted, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { words } from './words'
 
@@ -141,8 +142,8 @@ export function lossesCarriedInto(year: number, yearEnd: readonly YearEndLine[],
  * The part of a cost the tax does not allow. The deductible part is rounded to the cent and the
  * rest is added back, the way the accountant splits representation over two konto lines.
  */
-function addBack(label: string, cost: TracedFigure, share: Rate, citations: readonly RuleCitation[]): TracedFigure {
-  const deductible = atRate(cost.amount, restOf(share))
+function addBack(label: string, cost: TracedFigure, share: Percent, citations: readonly RuleCitation[]): TracedFigure {
+  const deductible = moneyAt(cost.amount, restOf(share))
   return tracedFigure(words.base.addedBack(label, percentText(share)), subtractMoney(cost.amount, deductible), 'ledger', [...citations, ...cost.rules], [cost])
 }
 

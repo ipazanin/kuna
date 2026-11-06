@@ -486,7 +486,13 @@ export function salaryYearRows(reconciliation: SalaryReconciliation, year: numbe
       const contributions = contributionsIn(payday, employee)
       const bankOf = (line: ContributionLine) => contributions?.find((check) => check.line === line)?.bank ?? null
       const paidDrill = drillOfAll(people.map((entry) => entry.lines.find((check) => check.line === 'paidToEmployee')?.bank ?? null))
-      const parts = Object.fromEntries(PAY_PARTS.map((part) => [part, partValue(figures, part)])) as Record<PayPart, Money>
+      const parts: Readonly<Record<PayPart, Money>> = {
+        employee: partValue(figures, 'employee'),
+        pensionSavings: partValue(figures, 'pensionSavings'),
+        pension: partValue(figures, 'pension'),
+        incomeTax: partValue(figures, 'incomeTax'),
+        health: partValue(figures, 'health'),
+      }
       const drills = Object.fromEntries(
         PAY_PARTS.map((part) => {
           const line = PART_LINES[part]

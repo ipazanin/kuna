@@ -16,6 +16,7 @@ import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
 import { ZERO, divideMoney, negateMoney, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
+import { moneyAt, percentText } from '../../../../../../shared/money/percent'
 import { ruleValue } from '../../ruleset/ruleset'
 import { NAMES_A_PARTY } from '../../ruleset/tracedFigure'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
@@ -44,7 +45,7 @@ import { owedByOwnerOn } from '../dividend/owedByOwner'
 import { relatedPartyInterest } from '../ownerLoanInterest'
 import { PACK_ROLES, categoriesWithRole, isOwnerPayCost } from '../packRoles'
 import type { PackRole } from '../packRoles'
-import { atRate, deducted, percentText, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
+import { deducted, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { salaryDropped } from '../scenarios/scenarioOutcome'
 import type { ScenarioWarning } from '../scenarios/scenarioOutcome'
@@ -584,7 +585,7 @@ function plannedDividendOf(plan: readonly PlanLine[], calendar: ForecastCalendar
     return null
   }
   const taxRule = rules('hr.pit.dividend', firstDayOf(month))
-  const tax = tracedFigure(words.figures.dividendTax(percentText(taxRule.value.rate.basisPoints)), atRate(gross.amount, taxRule.value.rate.basisPoints), 'plan', [taxRule.citation], [gross])
+  const tax = tracedFigure(words.figures.dividendTax(percentText(taxRule.value.rate.basisPoints)), moneyAt(gross.amount, taxRule.value.rate.basisPoints), 'plan', [taxRule.citation], [gross])
   const net = summed(words.figures.dividendNet, [gross, deducted(tax)], 'plan')
   const owed = owedByOwnerOn(known, asOf)
   const setOff = tracedFigure(words.figures.setOff, net.amount < owed.amount ? net.amount : owed.amount, 'plan', [], [net, owed])

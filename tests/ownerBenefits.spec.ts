@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { percentFromWhole } from '../src/shared/money/percent'
 import type { ChartTokens } from '../src/shared/charts/chartTokens'
 import type { DrillTarget } from '../src/apps/company/filters/domain/drillTarget'
 import { DEFAULT_FILTERS } from '../src/apps/company/filters/domain/filterState'
@@ -11,12 +12,11 @@ import { ownerCost } from '../src/apps/company/packs/hr-doo/domain/ownerCost'
 import { dividendComparison, ownerBenefits } from '../src/apps/company/packs/hr-doo/domain/ownerBenefits'
 import { paidOut } from '../src/apps/company/packs/hr-doo/domain/paidOut'
 import { benefitsRing, categorySeries } from '../src/apps/company/packs/hr-doo/presentation/packCharts'
-import type { Rate } from '../src/apps/company/packs/hr-doo/ruleset/schema'
 import type { TracedFigure } from '../src/apps/company/packs/hr-doo/ruleset/tracedFigure'
 import { civil, euros, windowOf } from './fixtures/ledger'
 import { BENEFIT, CATEGORIES, EXAMPLE, WINDOW, YEAR, rows, workbookOf } from './fixtures/ownerShareExample'
 
-const rateOf = (percent: number): TracedRate => ({ label: 'PD line 43', basisPoints: (percent * 100) as Rate, rules: [] })
+const rateOf = (percent: number): TracedRate => ({ label: 'PD line 43', basisPoints: percentFromWhole(percent), rules: [] })
 const cashOf = (transactions: typeof EXAMPLE) => withOwnerParts(workbookOf(transactions)).transactions as readonly Booking[]
 const steps = (figure: TracedFigure) => figure.steps.map((step) => [step.label, step.amount, step.steps.map((inner) => [inner.label, inner.amount])])
 

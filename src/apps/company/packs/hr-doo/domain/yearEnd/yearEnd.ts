@@ -1,5 +1,6 @@
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../../../shared/money/money'
+import type { Percent } from '../../../../../../shared/money/percent'
 import type { RecordId } from '../../../../../../shared/storage/domain/recordId'
 import { words } from './words'
 
@@ -14,7 +15,7 @@ export type YearEndFigureKind = 'money' | 'date' | 'rate' | 'count'
 export type YearEndFigure =
   | { readonly kind: 'money'; readonly amount: Money }
   | { readonly kind: 'date'; readonly date: CivilDate }
-  | { readonly kind: 'rate'; readonly basisPoints: number }
+  | { readonly kind: 'rate'; readonly basisPoints: Percent }
   | { readonly kind: 'count'; readonly count: number }
 
 /** Which side of a check a line adds to: income less expenses is profit before tax, assets are equity plus liabilities. */

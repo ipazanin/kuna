@@ -11,9 +11,9 @@ import type { ScenarioCompany } from '../src/apps/company/packs/hr-doo/domain/sc
 import { scenarioOutcome } from '../src/apps/company/packs/hr-doo/domain/scenarios/scenarioOutcome'
 import type { ScenarioOutcome, ScenarioWarning } from '../src/apps/company/packs/hr-doo/domain/scenarios/scenarioOutcome'
 import { startingScenarios } from '../src/apps/company/packs/hr-doo/domain/scenarios/startingScenarios'
-import type { Rate } from '../src/apps/company/packs/hr-doo/ruleset/schema'
 import type { TracedFigure } from '../src/apps/company/packs/hr-doo/ruleset/tracedFigure'
 import { addMoney, subtractMoney, sumMoney } from '../src/shared/money/money'
+import { percentFromBasisPoints } from '../src/shared/money/percent'
 import { civil, euros } from './fixtures/ledger'
 import { STEADY_GRANT, steadyStudio } from './fixtures/steadyStudio'
 import { ZAGREB_RESIDENT } from './fixtures/zagrebResident'
@@ -322,7 +322,7 @@ describe('scenarioOutcome refuses what a guard stops', () => {
 })
 
 describe('marginalEuro, the next 100.00 of company money in 2026', () => {
-  const rate = { label: 'PD line 43', basisPoints: 1000 as Rate, rules: [] }
+  const rate = { label: 'PD line 43', basisPoints: percentFromBasisPoints(1000), rules: [] }
 
   it('recomputes the owner-pay lane table from the rules, for a Zagreb resident', () => {
     const routes = marginalEuro(2026, ZAGREB_RESIDENT, rate)

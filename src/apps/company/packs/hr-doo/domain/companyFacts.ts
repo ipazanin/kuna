@@ -1,5 +1,7 @@
 import { parseCivilDate } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
+import { percentFromBasisPoints, percentFromWhole, percentFromWritten, writtenPercent } from '../../../../../shared/money/percent'
+import type { Percent } from '../../../../../shared/money/percent'
 import { folderPathOf } from '../../../../../shared/text/folderPath'
 import { mailAddressesOf, mailAddressesProblem, mailSubjectProblem } from '../../../../../shared/mail-filing/domain/mailSource'
 import { booleanOf, flagText } from '../../../settings/domain/settings'
@@ -7,8 +9,7 @@ import type { PackSettings, SettingDefinition } from '../../../settings/domain/s
 import { words as settingsWords } from '../../../settings/domain/words'
 import { words } from './words'
 
-const BASIS_POINTS_PER_WHOLE = 10_000
-const BASIS_POINTS_PER_PERCENT = 100
+const HIGHEST_LOAN_INTEREST = percentFromWhole(100)
 
 /** Which corporate tax return the company files: `pd` on the accrual profit, `pd-nn` on cash received and paid. */
 export const CIT_RETURNS = ['pd', 'pd-nn'] as const
@@ -32,8 +33,8 @@ export interface CompanyFacts {
   readonly vatPrinciple: VatPrinciple
   /** The default for assets: whether the accountant doubles depreciation rates. */
   readonly depreciationDoubled: boolean
-  /** The yearly interest rate the owner's loans carry, in basis points, so 200 is 2%. */
-  readonly ownerLoanInterest: number
+  /** The yearly interest rate the owner's loans carry. */
+  readonly ownerLoanInterest: Percent
   /** The Drive folder the accountant's VAT return mail is filed in, as folder names from My Drive down. None until one is chosen. */
   readonly vatReturnsFolder: readonly string[]
   /** The Drive folder the accountant's payroll mail is filed in, as folder names from My Drive down. None until one is chosen. */
@@ -52,6 +53,9 @@ export interface CompanyFacts {
   readonly incomingInvoicesFolder: readonly string[]
 }
 
+/** The facts as the settings form drafts them. Loan interest that is typed but is no rate is null, so the field shows its error and the form does not save. */
+export type CompanyFactsDraft = Omit<CompanyFacts, 'ownerLoanInterest'> & { readonly ownerLoanInterest: Percent | null }
+
 /** The pack's settings keys, read and checked whatever the owner-pay switch says. */
 export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
   defaults: {
@@ -59,7 +63,7 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
     citReturn: 'pd',
     vatPrinciple: 'invoice',
     depreciationDoubled: false,
-    ownerLoanInterest: 0,
+    ownerLoanInterest: percentFromBasisPoints(0),
     vatReturnsFolder: [],
     payrollFolder: [],
     accountantMailFrom: [],
@@ -116,10 +120,10 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
       key: 'hr_owner_loan_interest',
       note: "The yearly interest rate the owner's loans from the company carry, with its percent sign, such as 2%. Blank means 0%. Below the income tax law's rate the difference is a benefit in kind.",
       type: 'number',
-      valueOf: (facts) => `${facts.ownerLoanInterest / BASIS_POINTS_PER_PERCENT}%`,
+      valueOf: (facts) => `${writtenPercent(facts.ownerLoanInterest)}%`,
       apply: (facts, value) => {
         const rate = rateOf(value)
-        return typeof rate === 'string' ? rate : (ownerLoanInterestProblem(rate) ?? withFacts(facts, { ownerLoanInterest: rate }))
+        return typeof rate === 'string' ? rate : withFacts(facts, { ownerLoanInterest: rate })
       },
     },
     {
@@ -211,10 +215,9 @@ function withFacts(facts: CompanyFacts, changed: Partial<CompanyFacts>): Company
 export type CompanyFactsField = 'ownerLoanInterest' | 'accountantMailFrom' | MailSubjectFact
 
 /** What is wrong with facts typed in the app, by field. The same rules as reading the keys, so facts saved from the app read back without a problem. */
-export function companyFactsErrors(facts: CompanyFacts): Partial<Record<CompanyFactsField, string>> {
+export function companyFactsErrors(facts: CompanyFactsDraft): Partial<Record<CompanyFactsField, string>> {
   const errors: Partial<Record<CompanyFactsField, string>> = {}
-  const loanInterest = ownerLoanInterestProblem(facts.ownerLoanInterest)
-  if (loanInterest !== null) errors.ownerLoanInterest = loanInterest
+  if (facts.ownerLoanInterest === null) errors.ownerLoanInterest = words.facts.rateRange
   const senders = mailAddressesProblem(facts.accountantMailFrom)
   if (senders !== null) errors.accountantMailFrom = senders
   for (const fact of ['payrollMailSubject', 'vatMailSubject', 'invoicesMailSubject'] as const) {
@@ -225,21 +228,28 @@ export function companyFactsErrors(facts: CompanyFacts): Partial<Record<CompanyF
 }
 
 /**
- * A rate in basis points from text with a percent sign, such as 2% or 2,5 %, or a plain 0. A number above zero with no
+ * A rate from text with a percent sign, such as 2% or 2,5 %, or a plain 0. A number above zero with no
  * sign is refused, since 0.5 could be 0.5% or 50%, and a percentage cell holds the same number as a plain one.
  */
-function rateOf(value: string): number | string {
+function rateOf(value: string): Percent | string {
   const text = value.trim().replace(/\s+/g, '').replace(',', '.')
   const percent = text.endsWith('%')
   const number = Number(percent ? text.slice(0, -1) : text)
   if (!Number.isFinite(number) || text === '' || text === '%') return words.facts.notARate(value)
   if (!percent && number > 1) return words.facts.rateAboveOne(number)
   if (!percent && number > 0) return words.facts.rateNeedsSign(number)
-  return Math.round((percent ? number / 100 : number) * BASIS_POINTS_PER_WHOLE * 1_000) / 1_000
+  return loanInterestOf(number) ?? words.facts.rateRange
 }
 
-function ownerLoanInterestProblem(basisPoints: number): string | null {
-  return Number.isInteger(basisPoints) && basisPoints >= 0 && basisPoints <= BASIS_POINTS_PER_WHOLE ? null : words.facts.rateRange
+/** The rate the facts card's field holds, typed as a percent with no sign, so 2.5 and 0.8 are 2.5% and 0.8%. A blank field is 0%. Null for what is no rate the loans can carry. */
+export function typedLoanInterest(text: string): Percent | null {
+  const typed = text.trim().replace(',', '.')
+  return loanInterestOf(typed === '' ? 0 : Number(typed))
+}
+
+function loanInterestOf(written: number): Percent | null {
+  const rate = percentFromWritten(written)
+  return rate !== null && rate <= HIGHEST_LOAN_INTEREST ? rate : null
 }
 
 function isOneOf<Word extends string>(text: string, words: readonly Word[]): text is Word {

@@ -9,6 +9,7 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import { chartTokens } from '../../../../../../shared/charts/chartTokens'
 import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
 import { formatPercent } from '../../../../../../shared/money/moneyFormat'
+import { shareFromPercent } from '../../../../../../shared/money/percent'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../../../../shared/ui/ChartLegend.vue'
@@ -186,7 +187,7 @@ function openDetail(opened: FigureDetail): void {
           :definition="words.panel.barsDefinition"
           :option="bars.option"
           :description="bars.description"
-          :format-value="(share: number) => formatPercent(share / 100)"
+          :format-value="(share: number) => formatPercent(shareFromPercent(share))"
           :height="Math.max(140, 56 * shown.splits.length + 48)"
         >
           <template #legend><ChartLegend :entries="bars.legend" /></template>

@@ -1,6 +1,6 @@
 import type { Category, Transaction } from '../../../workbook/domain/workbook'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
-import { ZERO, addMoney, negateMoney, subtractMoney } from '../../../../../shared/money/money'
+import { ZERO, absMoney, addMoney, minMoney, subtractMoney } from '../../../../../shared/money/money'
 import type { Money } from '../../../../../shared/money/money'
 import { PACK_ROLES, categoriesWithRole } from './packRoles'
 
@@ -33,18 +33,14 @@ export function netReimbursements(transactions: readonly Transaction[], categori
 function lessReturns(payments: readonly Transaction[], otherWay: readonly Transaction[]): NetReimbursement[] {
   const otherWayByDay = new Map<CivilDate, Money>()
   for (const row of otherWay) {
-    otherWayByDay.set(row.date, addMoney(otherWayByDay.get(row.date) ?? ZERO, positive(row.amount)))
+    otherWayByDay.set(row.date, addMoney(otherWayByDay.get(row.date) ?? ZERO, absMoney(row.amount)))
   }
   return payments.flatMap((payment) => {
-    const paid = positive(payment.amount)
+    const paid = absMoney(payment.amount)
     const otherWayLeft = otherWayByDay.get(payment.date) ?? ZERO
-    const returned = (paid < otherWayLeft ? paid : otherWayLeft) as Money
+    const returned = minMoney(paid, otherWayLeft)
     otherWayByDay.set(payment.date, subtractMoney(otherWayLeft, returned))
     const amount = subtractMoney(paid, returned)
     return amount === 0 ? [] : [{ payment, amount }]
   })
-}
-
-function positive(amount: Money): Money {
-  return amount < 0 ? negateMoney(amount) : amount
 }

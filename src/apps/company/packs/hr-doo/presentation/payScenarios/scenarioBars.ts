@@ -3,6 +3,7 @@ import type { ChartTokens } from '../../../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../../../shared/charts/chartTooltip'
 import type { BarSeries, ChartOption } from '../../../../../../shared/charts/echarts'
 import { formatMoney, formatPercent } from '../../../../../../shared/money/moneyFormat'
+import { shareFromPercent } from '../../../../../../shared/money/percent'
 import type { LegendEntry } from '../../../../../../shared/ui/ChartLegend.vue'
 import { SEGMENT_LABELS } from './payScenariosView'
 import type { ScenarioSplit, SplitSegment } from './payScenariosView'
@@ -56,9 +57,9 @@ export function scenarioBars(splits: readonly ScenarioSplit[], tokens: ChartToke
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      formatter: axisTooltip({ tokens, formatAmount: (share) => formatPercent(share / 100) }),
+      formatter: axisTooltip({ tokens, formatAmount: (share) => formatPercent(shareFromPercent(share)) }),
     },
-    xAxis: { type: 'value', max: 100, axisLabel: { color: tokens.inkMuted, fontSize: 11, formatter: (share: number) => formatPercent(share / 100), hideOverlap: true } },
+    xAxis: { type: 'value', max: 100, axisLabel: { color: tokens.inkMuted, fontSize: 11, formatter: (share: number) => formatPercent(shareFromPercent(share)), hideOverlap: true } },
     yAxis: { type: 'category', inverse: true, data: splits.map((split) => split.label), axisLabel: { color: tokens.inkSecondary, width: narrow ? 88 : 140, overflow: narrow ? 'truncate' : 'break' } },
     series,
   }
@@ -69,7 +70,7 @@ export function scenarioBars(splits: readonly ScenarioSplit[], tokens: ChartToke
         formatMoney(split.whole),
         split.parts
           .filter((part) => shareOf(part.cents, split) > 0)
-          .map((part) => `${uncapitalised(SEGMENT_LABELS[part.segment])} ${formatPercent(shareOf(part.cents, split) / 100)}`)
+          .map((part) => `${uncapitalised(SEGMENT_LABELS[part.segment])} ${formatPercent(shareFromPercent(shareOf(part.cents, split)))}`)
           .join(', '),
       ),
     )

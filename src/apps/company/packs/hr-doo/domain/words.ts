@@ -1,4 +1,5 @@
 import { formatRate } from '../../../../../shared/money/moneyFormat'
+import { shareFromPercent } from '../../../../../shared/money/percent'
 import { language } from '../../../../../shared/text/language'
 import { listInWords } from '../../../../../shared/text/listInWords'
 import { plural } from '../../../../../shared/text/translation'
@@ -24,7 +25,8 @@ export const en = {
     neither: (value: string, choices: readonly string[]) => `"${value}" is neither ${choices.join(' nor ')}`,
     notARate: (value: string) => `"${value}" is not a rate such as 2%`,
     rateAboveOne: (number: number) => `${number} reads as ${formatRate(number)}. Write the rate with its percent sign, such as 2%`,
-    rateNeedsSign: (number: number) => `${number} has no percent sign, so it could be ${formatRate(number / 100)} or ${formatRate(number)}. Write the rate with its percent sign, such as 2%`,
+    rateNeedsSign: (number: number) =>
+      `${number} has no percent sign, so it could be ${formatRate(shareFromPercent(number))} or ${formatRate(number)}. Write the rate with its percent sign, such as 2%`,
     rateRange: 'use a rate from 0% to 100% with at most two decimals, such as 2%',
   },
   /** How a refusal counts the pack's records that name a category, a grant or a scenario. */
@@ -157,7 +159,7 @@ export const hr: Translation<typeof en> = {
     neither: (value, choices) => `„${value}” nije ni ${choices.join(' ni ')}`,
     notARate: (value) => `„${value}” nije stopa poput 2 %`,
     rateAboveOne: (number) => `${number} se čita kao ${formatRate(number)}. Upišite stopu sa znakom postotka, na primjer 2 %`,
-    rateNeedsSign: (number) => `${number} nema znak postotka, pa može značiti ${formatRate(number / 100)} ili ${formatRate(number)}. Upišite stopu sa znakom postotka, na primjer 2 %`,
+    rateNeedsSign: (number) => `${number} nema znak postotka, pa može značiti ${formatRate(shareFromPercent(number))} ili ${formatRate(number)}. Upišite stopu sa znakom postotka, na primjer 2 %`,
     rateRange: 'upišite stopu od 0 % do 100 % s najviše dvije decimale, na primjer 2 %',
   },
   uses: {

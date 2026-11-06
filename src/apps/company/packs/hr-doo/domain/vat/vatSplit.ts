@@ -1,12 +1,13 @@
 import type { Booking, Category } from '../../../../workbook/domain/workbook'
 import type { VatTreatment } from '../../../../workbook/domain/vatTreatment'
 import { ZERO, subtractMoney } from '../../../../../../shared/money/money'
-import { moneyInside } from '../../../../../../shared/money/percent'
+import { moneyAt, moneyInside, percentText } from '../../../../../../shared/money/percent'
+import type { Percent } from '../../../../../../shared/money/percent'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { RuleValues } from '../../ruleset/ruleset'
-import type { Rate, RuleCitation } from '../../ruleset/schema'
+import type { RuleCitation } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
-import { atRate, deducted, percentText, rulesOf, tracedFigure } from '../payroll/payrollArithmetic'
+import { deducted, rulesOf, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { words } from './words'
 
@@ -55,14 +56,14 @@ export function vatSplit(booking: Booking, category: Category, rules: RuleSource
       const rate = rates.value.standardRate.basisPoints
       const share = deduction.value.personalCarDeductibleShare.basisPoints
       const vat = tracedFigure(words.split.inside(percentText(rate)), moneyInside(amount, rate), 'ledger', [rates.citation], [paid])
-      const inputVat = tracedFigure(words.split.car(percentText(share)), atRate(vat.amount, share), 'ledger', [rates.citation, deduction.citation], [vat])
+      const inputVat = tracedFigure(words.split.car(percentText(share)), moneyAt(vat.amount, share), 'ledger', [rates.citation, deduction.citation], [vat])
       return split(treatment, paid, inputVat)
     }
   }
 }
 
 /** The VAT inside an amount that includes it, rounded to the cent. */
-function rateOf(treatment: 'deductible-25' | 'deductible-13' | 'deductible-5', rates: RuleValues['hr.vat.rates']): Rate {
+function rateOf(treatment: 'deductible-25' | 'deductible-13' | 'deductible-5', rates: RuleValues['hr.vat.rates']): Percent {
   switch (treatment) {
     case 'deductible-25':
       return rates.standardRate.basisPoints

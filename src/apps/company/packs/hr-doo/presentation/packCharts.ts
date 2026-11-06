@@ -6,6 +6,7 @@ import { axisTooltip } from '../../../../../shared/charts/chartTooltip'
 import type { BarSeries, ChartOption, LineSeries } from '../../../../../shared/charts/echarts'
 import { negateMoney } from '../../../../../shared/money/money'
 import { formatMoney, formatPercent } from '../../../../../shared/money/moneyFormat'
+import { shareFromPercent } from '../../../../../shared/money/percent'
 import type { LegendEntry } from '../../../../../shared/ui/ChartLegend.vue'
 import { drillToTransactions } from '../../../filters/domain/drillTarget'
 import type { DrillTarget, Figure } from '../../../filters/domain/drillTarget'
@@ -201,7 +202,7 @@ export function benefitsRing(benefits: OwnerBenefits, series: readonly CategoryS
     label: nameOf(source.category),
     value: source.amount.amount,
     colour: tokenOf.get(source.category) ?? '--chart-deemphasis',
-    note: source.share === 'mixed' ? words.benefits.mixed : source.share === null ? '–' : formatPercent(source.share / 100),
+    note: source.share === 'mixed' ? words.benefits.mixed : source.share === null ? '–' : formatPercent(shareFromPercent(source.share)),
     drill: source.amount.drill,
   }))
 }

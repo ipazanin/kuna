@@ -1,7 +1,8 @@
 import { SHARED_ID_REASON, idSharing, problemOf, refusedProblems } from '../../../../../../shared/storage/domain/recordsRead'
 import type { ReadRecord, Reading, RecordProblem, RecordsRead } from '../../../../../../shared/storage/domain/recordsRead'
-import { negateMoney, plainAmount, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
+import { absMoney, negateMoney, plainAmount, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
+import { percentFromFraction, shareOfPercent } from '../../../../../../shared/money/percent'
 import { withIdField } from '../../../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../../../shared/storage/domain/recordFields'
@@ -50,7 +51,7 @@ function figureText(figure: YearEndFigure): string {
     case 'date':
       return figure.date
     case 'rate':
-      return String(figure.basisPoints / 10_000)
+      return String(shareOfPercent(figure.basisPoints))
     case 'count':
       return String(figure.count)
   }
@@ -93,7 +94,7 @@ function figureOf(field: StoredField | undefined, kind: YearEndFigureKind): Year
       const rate = field.number
       if (rate === null || rate < 0) refuse(words.reading.amountNotARate(field.text))
       if (rate > 1) refuse(words.reading.rateAboveOne(rate))
-      return { kind, basisPoints: Math.round(rate * 10_000) }
+      return { kind, basisPoints: percentFromFraction(rate) }
     }
     case 'count': {
       const count = wholeNumberOf(field)
@@ -163,7 +164,7 @@ function tieProblems(kept: readonly ReadRecord<YearEndLine>[]): RecordProblem[] 
       const computed = sumMoney(parts)
       const stated = total.figure.amount
       if (computed !== stated) {
-        const apart = plainAmount(Math.abs(subtractMoney(computed, stated)) as Money)
+        const apart = plainAmount(absMoney(subtractMoney(computed, stated)))
         problems.push(
           problemOf(
             kept.find((stored) => stored.record === total)!,

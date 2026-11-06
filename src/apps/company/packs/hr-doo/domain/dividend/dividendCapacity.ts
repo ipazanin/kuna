@@ -8,8 +8,10 @@ import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
 import { ZERO, negateMoney, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
+import { moneyAt, percentText } from '../../../../../../shared/money/percent'
+import type { Percent } from '../../../../../../shared/money/percent'
 import { ruleValue } from '../../ruleset/ruleset'
-import type { Rate, RuleCitation } from '../../ruleset/schema'
+import type { RuleCitation } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { withDrill } from '../accrual/accrualAdjustment'
 import { equityBroughtForward } from '../accrual/accrualBalanceSheet'
@@ -20,9 +22,9 @@ import { forecastYear } from '../forecast/forecastYear'
 import type { YearForecast } from '../forecast/forecastYear'
 import { clawbackExposure } from '../grants/grantRelease'
 import { owedByOwnerOn } from './owedByOwner'
-import { carriedRate, shortfallRate } from '../ownerLoanInterest'
+import { shortfallRate } from '../ownerLoanInterest'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
-import { atRate, deducted, percentText, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
+import { deducted, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { words } from './words'
 
@@ -38,7 +40,7 @@ export interface PayoutOption {
   readonly latestOn: CivilDate | null
   readonly gross: TracedFigure
   /** The dividend tax rate on the first day it can be paid, or at the year end when nothing is paid. */
-  readonly taxRate: Rate
+  readonly taxRate: Percent
   readonly dividendTax: TracedFigure
   readonly net: TracedFigure
   /** What the net payout settles of what the owner owes the company, instead of being paid out. */
@@ -272,7 +274,13 @@ function payoutOption(context: PayoutContext, choice: PayoutChoice): PayoutOptio
   const ruleDay = choice.earliestOn ?? context.yearEnd
   const taxRule = rules('hr.pit.dividend', ruleDay)
   const gross = choice.gross
-  const dividendTax = tracedFigure(words.capacity.dividendTax(percentText(taxRule.value.rate.basisPoints)), atRate(gross.amount, taxRule.value.rate.basisPoints), 'ledger', [taxRule.citation], [gross])
+  const dividendTax = tracedFigure(
+    words.capacity.dividendTax(percentText(taxRule.value.rate.basisPoints)),
+    moneyAt(gross.amount, taxRule.value.rate.basisPoints),
+    'ledger',
+    [taxRule.citation],
+    [gross],
+  )
   const net = tracedFigure(words.capacity.net, subtractMoney(gross.amount, dividendTax.amount), 'ledger', rulesOf([gross, dividendTax]), [gross, deducted(dividendTax)])
   const settled = choice.setsOff ? (net.amount < owedByOwner.amount ? net.amount : owedByOwner.amount) : ZERO
   const setOff = tracedFigure(choice.setsOff ? words.capacity.setOff : words.capacity.nothingSetOff, settled, 'ledger', [], choice.setsOff ? [net, owedByOwner] : [])
@@ -281,7 +289,7 @@ function payoutOption(context: PayoutContext, choice: PayoutChoice): PayoutOptio
   const owedAfter = summed(words.capacity.owedAfter, [owedByOwner, deducted(setOff)], 'ledger')
   const benefitRule = rules('hr.pit.loan-benefit', ruleDay)
   const prescribed = benefitRule.value.minimumInterestRate.basisPoints
-  const carried = carriedRate(context.workbook)
+  const carried = context.workbook.companyFacts.ownerLoanInterest
   const netAssetsAfter = summed(words.capacity.netAssetsAfter, [context.netAssetsAtYearEnd, deducted(gross)], 'ledger')
   return {
     id: choice.id,
@@ -300,7 +308,7 @@ function payoutOption(context: PayoutContext, choice: PayoutChoice): PayoutOptio
     owedByOwnerAfter: owedAfter,
     loanBenefitPerYear: tracedFigure(
       carried === 0 ? words.capacity.benefitNoInterest(percentText(prescribed)) : words.capacity.benefitLess(percentText(prescribed), percentText(carried)),
-      atRate(owedAfter.amount, shortfallRate(prescribed, carried)),
+      moneyAt(owedAfter.amount, shortfallRate(prescribed, carried)),
       'ledger',
       [benefitRule.citation],
       [owedAfter],
@@ -342,7 +350,7 @@ function interimPayout(context: PayoutContext, forecast: YearForecast, rows: rea
     'ledger',
   )
   const { rate } = forecast.liability
-  const tax = tracedFigure(words.capacity.taxOnIt(percentText(rate.basisPoints)), atRate(toDate.amount > 0 ? toDate.amount : ZERO, rate.basisPoints), 'ledger', rate.rules, [toDate])
+  const tax = tracedFigure(words.capacity.taxOnIt(percentText(rate.basisPoints)), moneyAt(toDate.amount > 0 ? toDate.amount : ZERO, rate.basisPoints), 'ledger', rate.rules, [toDate])
   const interimProfit = summed(words.capacity.interimProfit, [toDate, deducted(tax)], 'ledger')
   const available = summed(words.capacity.available, [interimProfit, openingRetained, deducted(paidOut)], 'ledger')
   const shortfallRule = rules('hr.cit.profit-advance-shortfall', yearEnd)

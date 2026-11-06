@@ -5,6 +5,7 @@ import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
 import { ZERO, dividedRounded, moneyFromCents, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
+import { moneyAt, percentText } from '../../../../../../shared/money/percent'
 import { ruleValue } from '../../ruleset/ruleset'
 import { isWatchedConfidence } from '../../ruleset/schema'
 import type { RuleCitation } from '../../ruleset/schema'
@@ -15,7 +16,7 @@ import { taxBase } from '../cit/taxBase'
 import { clawbackExposure } from '../grants/grantRelease'
 import type { AnnualSettlement } from '../payroll/annualSettlement'
 import type { EmployeeFacts } from '../payroll/incomeTax'
-import { atRate, deducted, percentText, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
+import { deducted, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import type { PayrollMonth } from '../payroll/payrollMonth'
 import { HUNDRED } from './marginalEuro'
@@ -296,7 +297,7 @@ function dividendOf(schedule: ScenarioSchedule, company: ScenarioCompany, profit
         ? tracedFigure(words.outcome.maxDividend, ofYear > 0 ? ofYear : ZERO, BASIS, maxPayout.rules, [profitAfterTax, maxPayout])
         : tracedFigure(words.outcome.dividend, chosen.amount, BASIS, [distributableRule.citation])
   const taxRule = rules('hr.pit.dividend', civilDate(year + 1, 1, 1))
-  const tax = tracedFigure(words.outcome.dividendTax(percentText(taxRule.value.rate.basisPoints)), atRate(gross.amount, taxRule.value.rate.basisPoints), BASIS, [taxRule.citation], [gross])
+  const tax = tracedFigure(words.outcome.dividendTax(percentText(taxRule.value.rate.basisPoints)), moneyAt(gross.amount, taxRule.value.rate.basisPoints), BASIS, [taxRule.citation], [gross])
   const net = summed(words.outcome.dividendNet, [gross, deducted(tax)], BASIS)
   const owed = company.owedByOwner.amount > 0 ? company.owedByOwner.amount : ZERO
   const setOff = tracedFigure(words.outcome.setOff, net.amount < owed ? net.amount : owed, BASIS, [], [net, company.owedByOwner])

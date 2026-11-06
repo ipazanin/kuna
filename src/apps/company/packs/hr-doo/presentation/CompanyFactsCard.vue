@@ -11,9 +11,12 @@ import { folderPathOf } from '../../../../../shared/text/folderPath'
 import { mailAddressesOf, missingTerms } from '../../../../../shared/mail-filing/domain/mailSource'
 import { words as mailWords } from '../../../../../shared/mail-filing/domain/words'
 import type { MailTermPiece } from '../../../../../shared/mail-filing/domain/mailSource'
+import { writtenPercent } from '../../../../../shared/money/percent'
+import type { Percent } from '../../../../../shared/money/percent'
 import AppCard from '../../../../../shared/ui/AppCard.vue'
 import FormGrid from '../../../../../shared/ui/FormGrid.vue'
-import type { CitReturn, CompanyFacts, CompanyFactsField, VatPrinciple } from '../domain/companyFacts'
+import { typedLoanInterest } from '../domain/companyFacts'
+import type { CitReturn, CompanyFacts, CompanyFactsDraft, CompanyFactsField, VatPrinciple } from '../domain/companyFacts'
 import { words } from './words'
 
 /**
@@ -23,14 +26,14 @@ import { words } from './words'
  */
 const props = defineProps<{
   /** The facts as drafted. */
-  facts: CompanyFacts
+  facts: CompanyFactsDraft
   /** The facts as the workbook holds them, which the collapsed card sums up. */
   saved: CompanyFacts
   errors: Partial<Record<CompanyFactsField, string>>
 }>()
 
 const emit = defineEmits<{
-  update: [facts: CompanyFacts]
+  update: [facts: CompanyFactsDraft]
 }>()
 
 /** The facts other screens link to, by the id their link's hash names. */
@@ -78,32 +81,26 @@ const summary = computed(() => {
   return words.facts.summary(companyRegistered, ownerLoanInterest)
 })
 
-function updateFact<Fact extends keyof CompanyFacts>(fact: Fact, value: CompanyFacts[Fact]): void {
+function updateFact<Fact extends keyof CompanyFactsDraft>(fact: Fact, value: CompanyFactsDraft[Fact]): void {
   emit('update', { ...props.facts, [fact]: value })
 }
 
-/** The number fields as typed. Text that is not a number goes into the draft as NaN, so the field shows its error. */
-const loanInterestText = ref(textOfBasisPoints(props.facts.ownerLoanInterest))
+/** The rate as typed. Text that is no rate goes into the draft as null, so the field shows its error. */
+const loanInterestText = ref(textOfRate(props.facts.ownerLoanInterest))
 watch(
   () => props.facts,
   (facts) => {
-    if (!Object.is(basisPointsOf(loanInterestText.value), facts.ownerLoanInterest)) loanInterestText.value = textOfBasisPoints(facts.ownerLoanInterest)
+    if (typedLoanInterest(loanInterestText.value) !== facts.ownerLoanInterest) loanInterestText.value = textOfRate(facts.ownerLoanInterest)
   },
 )
 
-/** A rate typed as a percent, so 2.5 is 250 basis points. A blank field is 0%. */
-function basisPointsOf(text: string): number {
-  const typed = text.trim().replace(',', '.')
-  return typed === '' ? 0 : Math.round(Number(typed) * 100 * 1_000) / 1_000
-}
-
-function textOfBasisPoints(basisPoints: number): string {
-  return String(basisPoints / 100)
+function textOfRate(rate: Percent | null): string {
+  return rate === null ? '' : String(writtenPercent(rate))
 }
 
 function updateLoanInterest(text: string): void {
   loanInterestText.value = text
-  updateFact('ownerLoanInterest', basisPointsOf(text))
+  updateFact('ownerLoanInterest', typedLoanInterest(text))
 }
 
 /** The folder paths as typed, so a trailing slash survives until the next folder name is written. */

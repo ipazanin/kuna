@@ -6,11 +6,9 @@ import { percentFromBasisPoints } from '../../../../../shared/money/percent'
 import type { Percent } from '../../../../../shared/money/percent'
 import type { ActId } from './acts'
 
-export type Rate = Percent
-
 export interface RateTerm {
   readonly kind: 'rate'
-  readonly basisPoints: Rate
+  readonly basisPoints: Percent
 }
 
 export interface MoneyTerm {

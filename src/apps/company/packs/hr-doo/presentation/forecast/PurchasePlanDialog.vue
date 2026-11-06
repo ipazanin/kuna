@@ -9,7 +9,6 @@ import { ASSET_GROUPS } from '../../domain/assets/assets'
 import type { AssetGroup } from '../../domain/assets/assets'
 import type { PlanLine } from '../../domain/forecast/plan'
 import { parseCivilDate, yearOf } from '../../../../../../shared/calendar/civilDate'
-import type { Money } from '../../../../../../shared/money/money'
 import { purchasePlanLine, replacePlanLines } from '../../application/planWrites'
 import { GROUP_WORDS, fieldAmount } from './planWording'
 import { typedAmount } from '../../../../../../shared/money/typedAmount'
@@ -63,8 +62,8 @@ const valid = computed(() => Object.values(errors.value).every((error) => error 
 
 async function save(): Promise<void> {
   tried.value = true
-  if (!valid.value || day.value === null) return
-  const line = purchasePlanLine(props.year, day.value, cost.value as Money, group.value, name.value)
+  if (!valid.value || day.value === null || cost.value === null) return
+  const line = purchasePlanLine(props.year, day.value, cost.value, group.value, name.value)
   const before = props.purchase === null ? null : writes.stored(props.purchase)
   if (props.purchase !== null && before === null) return
   const held = before === null ? [] : [{ key: 'purchase', line: before }]

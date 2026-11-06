@@ -5,6 +5,7 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 
 import type { PlanLine } from '../../domain/forecast/plan'
+import { absMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import { categoryPlanLine, replacePlanLines } from '../../application/planWrites'
@@ -70,11 +71,12 @@ async function save(): Promise<void> {
   tried.value = true
   if (!valid.value) return
   const noteOf = (month: number | null) => props.lines.find((line) => line.month === month)?.note ?? ''
+  const everyMonth = typedAmount(every.value)
   const wanted = [
-    ...(every.value.trim() === '' ? [] : [{ key: 'every', line: categoryPlanLine(props.year, null, props.slug, typedAmount(every.value) as Money, noteOf(null)) }]),
+    ...(everyMonth === null ? [] : [{ key: 'every', line: categoryPlanLine(props.year, null, props.slug, everyMonth, noteOf(null)) }]),
     ...calendar.value.flatMap((month, index) => {
-      const text = months.value[index] ?? ''
-      return text.trim() === '' ? [] : [{ key: String(month.number), line: categoryPlanLine(props.year, month.number, props.slug, typedAmount(text) as Money, noteOf(month.number)) }]
+      const amount = typedAmount(months.value[index] ?? '')
+      return amount === null ? [] : [{ key: String(month.number), line: categoryPlanLine(props.year, month.number, props.slug, amount, noteOf(month.number)) }]
     }),
   ]
   const holding = held()
@@ -105,7 +107,7 @@ async function clear(): Promise<void> {
     <form id="category-plan" class="flex flex-col gap-4" data-testid="category-plan-form" @submit.prevent="save">
       <UFormField
         :label="words.planDialogs.category.everyMonth"
-        :help="average === null ? words.planDialogs.category.noAverage : words.planDialogs.category.average(averageWords, formatMoney(Math.abs(average) as Money))"
+        :help="average === null ? words.planDialogs.category.noAverage : words.planDialogs.category.average(averageWords, formatMoney(absMoney(average)))"
         :error="(tried && errors.every && words.planDialogs.category.everyError) || false"
       >
         <UInput v-model="every" inputmode="decimal" :placeholder="words.planDialogs.amountPlaceholder" class="w-full" data-testid="plan-every-month" />

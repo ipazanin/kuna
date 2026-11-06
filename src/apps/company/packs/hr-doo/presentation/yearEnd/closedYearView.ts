@@ -1,5 +1,6 @@
 import type { RouteLocationRaw } from 'vue-router'
 
+import { percentText } from '../../../../../../shared/money/percent'
 import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import { bridgeChart } from '../../../../../../shared/charts/bridgeChart'
 import type { BridgeBar } from '../../../../../../shared/charts/bridgeChart'
@@ -8,13 +9,11 @@ import type { DonutPart } from '../../../../../../shared/ui/DonutCard.vue'
 import type { DrillTarget } from '../../../../filters/domain/drillTarget'
 import type { HrDooWorkbook } from '../../domain/hrDooPart'
 import type { YearEndFigure } from '../../domain/yearEnd/yearEnd'
-import type { Rate } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import type { AccrualAdjustment } from '../../domain/accrual/accrualAdjustment'
 import type { AccrualLine } from '../../domain/accrual/accrualLines'
 import { accrualYear } from '../../domain/accrual/accrualYear'
 import { amountOnLine } from '../../domain/accrual/closedYear'
-import { percentText } from '../../domain/payroll/payrollArithmetic'
 import { compareYearEnd } from '../../domain/yearEnd/yearEndComparison'
 import type { ComparedLine, ComparedStatement, LineStatus } from '../../domain/yearEnd/yearEndComparison'
 import { yearEndOpenItems } from '../../domain/yearEnd/yearEndOpenItems'
@@ -187,7 +186,7 @@ function shownText(figure: YearEndFigure): string {
     case 'money':
       return ''
     case 'rate':
-      return percentText(figure.basisPoints as Rate)
+      return percentText(figure.basisPoints)
     case 'count':
       return String(figure.count)
     case 'date':

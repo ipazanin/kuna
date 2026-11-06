@@ -8,6 +8,7 @@ import { civilDate } from '../src/shared/calendar/civilDate'
 import { STARTING_CATEGORIES } from '../src/apps/company/packs/hr-doo/preset/domain/startingCategories'
 import { monthKey } from '../src/shared/calendar/monthKey'
 import { decimalOfText } from '../src/shared/money/decimal'
+import { percentFromBasisPoints } from '../src/shared/money/percent'
 import type { RecordNoun } from '../src/shared/storage/domain/recordKind'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import { civil, euros } from './fixtures/ledger'
@@ -377,8 +378,8 @@ describe('settings and onboarding in Croatian', () => {
   it('sums up the company facts with a Croatian day, rate and one full stop', async () => {
     const { words } = await inCroatian(() => import('../src/apps/company/packs/hr-doo/presentation/words'))
 
-    expect(words.facts.summary(civilDate(2025, 5, 12), 250)).toBe('Registrirana 12.\u00a05.\u00a02025. Pozajmice vlasniku nose 2,5\u00a0%.')
-    expect(words.facts.summary(null, 0)).toBe('Dan registracije nije postavljen. Pozajmice vlasniku nose 0\u00a0%.')
+    expect(words.facts.summary(civilDate(2025, 5, 12), percentFromBasisPoints(250))).toBe('Registrirana 12.\u00a05.\u00a02025. Pozajmice vlasniku nose 2,5\u00a0%.')
+    expect(words.facts.summary(null, percentFromBasisPoints(0))).toBe('Dan registracije nije postavljen. Pozajmice vlasniku nose 0\u00a0%.')
   })
 })
 
@@ -438,9 +439,9 @@ describe('overview and analysis in Croatian', () => {
 
 describe('the hr-doo screens in Croatian', () => {
   it('writes a rate the Croatian way, with its decimal comma and a space before the sign', async () => {
-    const { percentText } = await inCroatian(() => import('../src/apps/company/packs/hr-doo/domain/payroll/payrollArithmetic'))
+    const { percentFromBasisPoints, percentText } = await inCroatian(() => import('../src/shared/money/percent'))
 
-    expect([2150, 1000, 250].map((rate) => percentText(rate as Parameters<typeof percentText>[0]))).toEqual(['21,5 %', '10 %', '2,5 %'])
+    expect([2150, 1000, 250].map((rate) => percentText(percentFromBasisPoints(rate)))).toEqual(['21,5 %', '10 %', '2,5 %'])
   })
 
   it('lowers a label inside a sentence but keeps a first word in capitals', async () => {

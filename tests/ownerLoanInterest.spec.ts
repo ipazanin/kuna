@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
+import { percentFromBasisPoints } from '../src/shared/money/percent'
 import type { HrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 import { loanBenefit, relatedPartyInterest, shortfallRate } from '../src/apps/company/packs/hr-doo/domain/ownerLoanInterest'
 import { ruleValue } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
-import type { Rate } from '../src/apps/company/packs/hr-doo/ruleset/schema'
 import { exampleStudio } from './fixtures/exampleStudio'
 import { withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger } from './fixtures/ledger'
@@ -14,7 +14,7 @@ function studio(rows: readonly RowSpec[], ownerLoanInterest = 0): HrDooWorkbook 
   const workbook = exampleStudio()
   return exampleStudio({
     transactions: withPackBuckets(ledger(rows), workbook.categories),
-    companyFacts: { ...COMPANY_FACT_SETTINGS.defaults, ownerLoanInterest },
+    companyFacts: { ...COMPANY_FACT_SETTINGS.defaults, ownerLoanInterest: percentFromBasisPoints(ownerLoanInterest) },
   })
 }
 
@@ -22,10 +22,10 @@ const LENT_ON_NEW_YEAR: readonly RowSpec[] = [{ date: '2025-01-01', amount: -365
 
 describe('shortfallRate', () => {
   it('is what the loans carry below the prescribed rate, and nothing at or above it', () => {
-    expect(shortfallRate(200 as Rate, 0 as Rate)).toBe(200)
-    expect(shortfallRate(200 as Rate, 50 as Rate)).toBe(150)
-    expect(shortfallRate(200 as Rate, 200 as Rate)).toBe(0)
-    expect(shortfallRate(200 as Rate, 250 as Rate)).toBe(0)
+    expect(shortfallRate(percentFromBasisPoints(200), percentFromBasisPoints(0))).toBe(200)
+    expect(shortfallRate(percentFromBasisPoints(200), percentFromBasisPoints(50))).toBe(150)
+    expect(shortfallRate(percentFromBasisPoints(200), percentFromBasisPoints(200))).toBe(0)
+    expect(shortfallRate(percentFromBasisPoints(200), percentFromBasisPoints(250))).toBe(0)
   })
 })
 

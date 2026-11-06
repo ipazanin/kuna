@@ -1,6 +1,7 @@
 import type { LedgerWindow } from '../../../../../shared/calendar/ledgerWindow'
 import { ratioOf, sumMoney } from '../../../../../shared/money/money'
 import type { Money } from '../../../../../shared/money/money'
+import type { Share } from '../../../../../shared/money/percent'
 import { drillToTransactions } from '../../../filters/domain/drillTarget'
 import type { Figure } from '../../../filters/domain/drillTarget'
 import { transactionsInPeriod } from '../../../filters/domain/filterState'
@@ -20,7 +21,7 @@ export interface OwnerCost {
   /** The gross cost without loans. A loan is neither pay nor a cost, so it stays out. */
   readonly grossWithoutLoans: Money
   /** The take without loans over its gross cost, such as 0.8. Null when that cost is zero. */
-  readonly netShare: number | null
+  readonly netShare: Share | null
 }
 
 /**

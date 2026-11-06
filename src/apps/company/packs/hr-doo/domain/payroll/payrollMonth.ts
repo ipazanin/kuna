@@ -3,12 +3,13 @@ import { firstDayOf } from '../../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
 import { ZERO, addMoney, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
+import { moneyAt, percentText } from '../../../../../../shared/money/percent'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { RuleLookup, RuleValues } from '../../ruleset/ruleset'
 import type { FigureBasis, TracedFigure } from '../../ruleset/tracedFigure'
 import { localRates, personalAllowance, taxInBrackets } from './incomeTax'
 import type { EmployeeFacts } from './incomeTax'
-import { atRate, deducted, percentText, prorated, rulesOf, tracedFigure } from './payrollArithmetic'
+import { deducted, prorated, rulesOf, tracedFigure } from './payrollArithmetic'
 import type { RuleSource } from './payrollArithmetic'
 import { words } from './words'
 
@@ -124,9 +125,15 @@ export function payrollMonth(input: PayrollMonthInput, facts: EmployeeFacts, rul
   const pillarOneBase = tracedFigure(words.month.pillarOneBase, pillarOneBaseAmount, basis, [maximumBase.citation, reliefRule.citation], [pillarOnePensionable, deducted(pensionRelief)])
   const rates = contributionRates.value
   const pillarOneRate = facts.pensionPillarTwo ? rates.pillarOneRateWithPillarTwo.basisPoints : rates.pillarOneRateWithoutPillarTwo.basisPoints
-  const pensionPillarOne = tracedFigure(words.month.pillarOne(percentText(pillarOneRate)), atRate(pillarOneBase.amount, pillarOneRate), basis, [contributionRates.citation], [pillarOneBase])
+  const pensionPillarOne = tracedFigure(words.month.pillarOne(percentText(pillarOneRate)), moneyAt(pillarOneBase.amount, pillarOneRate), basis, [contributionRates.citation], [pillarOneBase])
   const pensionPillarTwo = facts.pensionPillarTwo
-    ? tracedFigure(words.month.pillarTwo(percentText(rates.pillarTwoRate.basisPoints)), atRate(pensionable.amount, rates.pillarTwoRate.basisPoints), basis, [contributionRates.citation], [pensionable])
+    ? tracedFigure(
+        words.month.pillarTwo(percentText(rates.pillarTwoRate.basisPoints)),
+        moneyAt(pensionable.amount, rates.pillarTwoRate.basisPoints),
+        basis,
+        [contributionRates.citation],
+        [pensionable],
+      )
     : tracedFigure(words.month.notAMember, ZERO, basis, [contributionRates.citation])
 
   const income = tracedFigure(
@@ -151,7 +158,7 @@ export function payrollMonth(input: PayrollMonthInput, facts: EmployeeFacts, rul
   const net = tracedFigure(words.month.net, subtractMoney(income.amount, incomeTax.amount), basis, rulesOf([income, incomeTax]), [income, deducted(incomeTax)])
 
   const healthRate = rates.healthRate.basisPoints
-  const health = tracedFigure(words.month.health(percentText(healthRate)), atRate(gross.amount, healthRate), basis, [contributionRates.citation], [gross])
+  const health = tracedFigure(words.month.health(percentText(healthRate)), moneyAt(gross.amount, healthRate), basis, [contributionRates.citation], [gross])
   const employerCost = tracedFigure(words.month.employerCost, addMoney(gross.amount, health.amount), basis, rulesOf([gross, health]), [gross, health])
 
   const nontaxablePayments = nontaxableTotal(input.nontaxablePayments, capsRule, basis)
@@ -232,7 +239,7 @@ function reductionOf(gross: Money, relief: RuleValues['hr.contrib.low-pay-relief
   }
   const partialLimit = relief.partialReductionGrossLimit.cents
   if (gross <= partialLimit) {
-    return atRate(subtractMoney(partialLimit, gross), relief.partialReductionShare.basisPoints)
+    return moneyAt(subtractMoney(partialLimit, gross), relief.partialReductionShare.basisPoints)
   }
   return ZERO
 }

@@ -1,5 +1,6 @@
 import type { LedgerWindow } from '../../../../../shared/calendar/ledgerWindow'
 import { ZERO, addMoney, ratioOf } from '../../../../../shared/money/money'
+import type { Share } from '../../../../../shared/money/percent'
 import { drillToTransactions } from '../../../filters/domain/drillTarget'
 import type { Figure } from '../../../filters/domain/drillTarget'
 import { transactionsInPeriod } from '../../../filters/domain/filterState'
@@ -14,7 +15,7 @@ export interface EffectiveTaxRate {
   /** The categories with the `revenue` role, signed as booked. */
   readonly revenue: Figure
   /** Net taxes over revenue. Null when no revenue came in. */
-  readonly rate: number | null
+  readonly rate: Share | null
 }
 
 /**

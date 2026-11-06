@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { percentFromWhole } from '../src/shared/money/percent'
 import type { Period } from '../src/apps/company/filters/domain/filterState'
 import { monthKey } from '../src/shared/calendar/monthKey'
 import type { LedgerWindow } from '../src/shared/calendar/ledgerWindow'
@@ -13,7 +14,6 @@ import { ownerNetWithProfit } from '../src/apps/company/packs/hr-doo/domain/owne
 import type { OwnerNetWithProfit } from '../src/apps/company/packs/hr-doo/domain/ownerNetWithProfit'
 import { ownerTake } from '../src/apps/company/packs/hr-doo/domain/ownerTake'
 import { summed, tracedFigure } from '../src/apps/company/packs/hr-doo/domain/payroll/payrollArithmetic'
-import type { Rate } from '../src/apps/company/packs/hr-doo/ruleset/schema'
 import { ownerNetDetail } from '../src/apps/company/packs/hr-doo/presentation/ownerNetDetail'
 import { RENT_TAX_LABEL } from '../src/apps/company/packs/hr-doo/presentation/packCharts'
 import { PACK_CATEGORIES, withPackBuckets } from './fixtures/hrDooCategories'
@@ -21,7 +21,7 @@ import { civil, euros, ledger, windowOf } from './fixtures/ledger'
 import type { RowSpec } from './fixtures/ledger'
 import { STEADY_CATEGORIES, steadyStudio } from './fixtures/steadyStudio'
 
-const rateOf = (percent: number): TracedRate => ({ label: 'PD line 43', basisPoints: (percent * 100) as Rate, rules: [] })
+const rateOf = (percent: number): TracedRate => ({ label: 'PD line 43', basisPoints: percentFromWhole(percent), rules: [] })
 
 /** A year's profit before tax, the given euros in each month it names and nothing in the others. */
 function profitLine(year: number, euroByMonth: (month: number) => number): ForecastLine {

@@ -1,3 +1,5 @@
+import { shareOfPercent } from '../../../../../../shared/money/percent'
+import { amountOf } from '../../../../../../shared/money/money'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import { fold } from '../../../../../../shared/text/fold'
@@ -143,9 +145,9 @@ function textWording(wording: string): string {
 export function scalarWording(key: string, term: ScalarTerm, format: TermFormat): string {
   switch (term.kind) {
     case 'rate':
-      return isCoefficient(key) ? format.factor.format(term.basisPoints / 10_000) : format.percent.format(term.basisPoints / 10_000)
+      return isCoefficient(key) ? format.factor.format(shareOfPercent(term.basisPoints)) : format.percent.format(shareOfPercent(term.basisPoints))
     case 'money':
-      return format.euros.format(term.cents / 100)
+      return format.euros.format(amountOf(term.cents))
     case 'count':
       return String(term.count)
     case 'flag':

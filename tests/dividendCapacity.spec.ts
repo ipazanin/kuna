@@ -6,6 +6,7 @@ import { forecastYear } from '../src/apps/company/packs/hr-doo/domain/forecast/f
 import { forecastState } from '../src/apps/company/packs/hr-doo/presentation/forecast/forecastView'
 import type { HrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 import { subtractMoney } from '../src/shared/money/money'
+import { percentFromBasisPoints } from '../src/shared/money/percent'
 import { yearEndLine } from './fixtures/exampleStudio'
 import { withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger } from './fixtures/ledger'
@@ -135,7 +136,7 @@ describe('dividendCapacity, after a payout already made in the year', () => {
 
   it('takes the rate the owner loans carry off the yearly benefit in kind', () => {
     const workbook = steadyStudio()
-    const carried = { ...workbook, companyFacts: { ...workbook.companyFacts, ownerLoanInterest: 50 } }
+    const carried = { ...workbook, companyFacts: { ...workbook.companyFacts, ownerLoanInterest: percentFromBasisPoints(50) } }
 
     // 2% less the 0.5% the loans carry, on the 3,000.00 that stays lent: 3,000.00 × 1.5% = 45.00.
     expect(option(capacity(2026, carried), 'keep').loanBenefitPerYear.amount).toBe(euros(45))

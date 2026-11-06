@@ -23,7 +23,7 @@ Do not build a generic `Scaled<Unit>`, an add or multiply for percents with no c
 
 | Scale                | Type         | Holds                                                    | Applied to money by                    |
 | -------------------- | ------------ | -------------------------------------------------------- | -------------------------------------- |
-| Basis points         | `Percent`    | Rates the law states, coefficients, VAT                  | `moneyAt`, `moneyInside`               |
+| Basis points         | `Percent`    | Rates the law states, coefficients, VAT                  | `moneyAt` and the rest of `percent.ts` |
 | Ratio where 1 is all | `Share`      | What `ratioOf` measures. A gain can be below 0 or over 1 | Never. Formatters take it              |
 | Millionths           | `YearlyRate` | A bank's rate with four decimals of a percent            | `monthlyInterest`, `annuity`, in Loans |
 | Whole percent, 0-100 | `OwnerShare` | An owner's share, whole by that feature's rule           | `ownerPartOf`                          |

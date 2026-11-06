@@ -1,10 +1,12 @@
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { ZERO, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
+import { moneyAt, percentText, shareOfPercent } from '../../../../../../shared/money/percent'
+import type { Percent } from '../../../../../../shared/money/percent'
 import { findLocalUnit } from '../../ruleset/localUnits'
-import type { Rate, RuleCitation } from '../../ruleset/schema'
+import type { RuleCitation } from '../../ruleset/schema'
 import type { FigureBasis, TracedFigure } from '../../ruleset/tracedFigure'
-import { atRate, percentText, tracedFigure } from './payrollArithmetic'
+import { tracedFigure } from './payrollArithmetic'
 import type { RuleSource } from './payrollArithmetic'
 import { words } from './words'
 
@@ -22,8 +24,8 @@ export interface EmployeeFacts {
 }
 
 export interface LocalRates {
-  readonly lowerRate: Rate
-  readonly higherRate: Rate
+  readonly lowerRate: Percent
+  readonly higherRate: Percent
   readonly citation: RuleCitation
 }
 
@@ -51,7 +53,7 @@ export function personalAllowance(dependants: number, on: CivilDate, basis: Figu
   const citations = [lookup.citation]
   const dependantShares = coefficients
     .filter((row) => row.position.count <= dependants)
-    .map((row) => tracedFigure(words.allowance.dependant(row.position.count, row.coefficient.basisPoints / 10_000), atRate(basicAllowance, row.coefficient.basisPoints), basis, citations))
+    .map((row) => tracedFigure(words.allowance.dependant(row.position.count, shareOfPercent(row.coefficient.basisPoints)), moneyAt(basicAllowance, row.coefficient.basisPoints), basis, citations))
   const steps = [tracedFigure(words.allowance.basic, basicAllowance, basis, citations), ...dependantShares]
   return tracedFigure(words.allowance.personal, sumMoney(steps.map((step) => step.amount)), basis, citations, steps)
 }
@@ -66,7 +68,7 @@ export function taxInBrackets(taxable: Money, threshold: Money, rates: LocalRate
   const lowerPart = taxable < threshold ? taxable : threshold
   const higherPart = taxable > threshold ? subtractMoney(taxable, threshold) : ZERO
   return {
-    lowerRateTax: tracedFigure(words.allowance.lowerRate(percentText(rates.lowerRate)), atRate(lowerPart, rates.lowerRate), basis, rules),
-    higherRateTax: tracedFigure(words.allowance.higherRate(percentText(rates.higherRate)), atRate(higherPart, rates.higherRate), basis, rules),
+    lowerRateTax: tracedFigure(words.allowance.lowerRate(percentText(rates.lowerRate)), moneyAt(lowerPart, rates.lowerRate), basis, rules),
+    higherRateTax: tracedFigure(words.allowance.higherRate(percentText(rates.higherRate)), moneyAt(higherPart, rates.higherRate), basis, rules),
   }
 }

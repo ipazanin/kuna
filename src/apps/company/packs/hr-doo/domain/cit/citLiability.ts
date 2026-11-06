@@ -2,10 +2,12 @@ import { civilDate, yearOf } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { monthCountBetween, monthOf } from '../../../../../../shared/calendar/monthKey'
 import { ZERO, dividedRounded, moneyFromCents, subtractMoney } from '../../../../../../shared/money/money'
+import { moneyAt, percentText } from '../../../../../../shared/money/percent'
+import type { Percent } from '../../../../../../shared/money/percent'
 import { ruleValue } from '../../ruleset/ruleset'
-import type { Rate, RuleCitation } from '../../ruleset/schema'
+import type { RuleCitation } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
-import { atRate, deducted, percentText, rulesOf, tracedFigure } from '../payroll/payrollArithmetic'
+import { deducted, rulesOf, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import type { TaxBase } from './taxBase'
 import { words } from './words'
@@ -19,7 +21,7 @@ export interface TaxPeriod {
 
 export interface TracedRate {
   readonly label: string
-  readonly basisPoints: Rate
+  readonly basisPoints: Percent
   readonly rules: readonly RuleCitation[]
 }
 
@@ -65,7 +67,7 @@ export function citLiability(base: TaxBase, period: TaxPeriod, advancesPaid: Tra
     rules: [rateRule.citation, testRule.citation],
   }
   const taxable = base.base.amount > 0 ? base.base.amount : ZERO
-  const liability = tracedFigure(words.liability.tax(percentText(basisPoints)), atRate(taxable, basisPoints), 'ledger', [...rate.rules, ...base.base.rules], [base.base])
+  const liability = tracedFigure(words.liability.tax(percentText(basisPoints)), moneyAt(taxable, basisPoints), 'ledger', [...rate.rules, ...base.base.rules], [base.base])
 
   const advanceRule = rules('hr.cit.monthly-advance', taxPeriod)
   const periodMonths = monthCountBetween(monthOf(period.from), monthOf(period.to))

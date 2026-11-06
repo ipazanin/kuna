@@ -8,6 +8,7 @@ import type { YearEndOpenItem } from '../src/apps/company/packs/hr-doo/domain/ye
 import { STUDIO_ROWS, exampleStudio, yearEndLine } from './fixtures/exampleStudio'
 import { withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger } from './fixtures/ledger'
+import { percentFromBasisPoints } from '../src/shared/money/percent'
 
 function openItems(workbook: HrDooWorkbook, year = 2025): YearEndOpenItem[] {
   return yearEndOpenItems(workbook, accrualYear(workbook, year, { depreciation: { depreciationDoubled: false }, citAdvancesPaid: null }))
@@ -79,7 +80,7 @@ describe('yearEndOpenItems', () => {
 
   it('settles the loan benefit when the loans carry the income tax law’s rate', () => {
     const workbook = exampleStudio()
-    const carried = exampleStudio({ companyFacts: { ...workbook.companyFacts, ownerLoanInterest: 200 } })
+    const carried = exampleStudio({ companyFacts: { ...workbook.companyFacts, ownerLoanInterest: percentFromBasisPoints(200) } })
 
     expect(openItems(carried).find((item) => item.key === 'loan-benefit')).toMatchObject({ figure: null, settled: true })
   })

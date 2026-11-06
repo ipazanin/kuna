@@ -114,7 +114,7 @@ const refusedSyntax = (selectors, message) => ({
   },
 })
 
-const castedBrand = String.raw`[typeName.name=/^(?:Money|Percent|Rate|Share|Decimal)$/]`
+const castedBrand = String.raw`[typeName.name=/^(?:Money|Percent|Share|Decimal)$/]`
 const castedAs = (cast) => [`${cast} > TSTypeReference.typeAnnotation${castedBrand}`, `${cast} > *.typeAnnotation TSTypeReference${castedBrand}`]
 
 // esquery's regular expressions only read strings, so these read a literal's raw text rather than its value.

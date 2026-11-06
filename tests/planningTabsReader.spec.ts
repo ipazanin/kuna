@@ -247,6 +247,18 @@ describe('the year-end tab', () => {
     expect(problemsOn(workbook, 'year-end')).toEqual([])
   })
 
+  it.each([
+    [0.8, 8000],
+    [0.1, 1000],
+    [0.18, 1800],
+    [1, 10_000],
+    [0, 0],
+  ])('reads a rate line of %d as a percentage cell, %d basis points', (cell, points) => {
+    const workbook = workbookWith({ 'year-end': [header, [2025, 'tax', 'rate', 'Stopa', cell]] })
+
+    expect(workbook.yearEndLines.map((line) => line.figure)).toEqual([{ kind: 'rate', basisPoints: points }])
+  })
+
   it('leaves out an unknown line, a figure of the wrong kind and a key used twice, and reports a stray categories cell', () => {
     const workbook = workbookWith({
       'year-end': [

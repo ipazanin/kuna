@@ -3,17 +3,19 @@ import type { OwnerPayScenario } from './ownerPayScenarios'
 import { firstDayOf, lastDayOf } from '../../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
-import { subtractMoney } from '../../../../../../shared/money/money'
+import { minMoney, subtractMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
+import { moneyAt, percentFromWhole, percentText } from '../../../../../../shared/money/percent'
+import type { Percent } from '../../../../../../shared/money/percent'
 import { naturalOrder } from '../../../../../../shared/text/naturalOrder'
 import { ruleValue } from '../../ruleset/ruleset'
-import type { Rate, RuleCitation } from '../../ruleset/schema'
+import type { RuleCitation } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { annualSettlement } from '../payroll/annualSettlement'
 import type { AnnualSettlement } from '../payroll/annualSettlement'
 import type { EmployeeFacts } from '../payroll/incomeTax'
 import { nontaxableUsage } from '../payroll/nontaxableUsage'
-import { atRate, percentText, prorated, summed, tracedFigure } from '../payroll/payrollArithmetic'
+import { prorated, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { payrollMonth } from '../payroll/payrollMonth'
 import type { NontaxablePayment, PayrollMonth } from '../payroll/payrollMonth'
@@ -114,10 +116,10 @@ export function scenarioPay(scenario: OwnerPayScenario, facts: EmployeeFacts, ru
     const paid = tracedFigure(part.days === part.daysInMonth ? words.pay.rent(monthLabel(part.month)) : words.pay.rentFor(part.days, part.daysInMonth, monthLabel(part.month)), amount, BASIS, [
       rentRule.citation,
     ])
-    const taxed = subtractMoney(amount, atRate(amount, flatExpenseShare.basisPoints))
+    const taxed = subtractMoney(amount, moneyAt(amount, flatExpenseShare.basisPoints))
     const tax = tracedFigure(
       words.pay.rentTax(monthLabel(part.month), percentText(taxRate.basisPoints), percentText(flatExpenseShare.basisPoints)),
-      atRate(taxed, taxRate.basisPoints),
+      moneyAt(taxed, taxRate.basisPoints),
       BASIS,
       [rentRule.citation],
       [paid],
@@ -143,7 +145,7 @@ function splitAtCaps(schedule: ScenarioSchedule, usage: ReturnType<typeof nontax
     .sort((earlier, later) => earlier.month.localeCompare(later.month) || naturalOrder(earlier.item.item, later.item.item) || earlier.item.amount - later.item.amount)
     .map((plan) => {
       const cap = left.get(plan.item.item) ?? null
-      const within = cap === null ? plan.item.amount : ((plan.item.amount < cap ? plan.item.amount : cap) as Money)
+      const within = cap === null ? plan.item.amount : minMoney(plan.item.amount, cap)
       if (cap !== null) {
         left.set(plan.item.item, subtractMoney(cap, within))
       }
@@ -170,11 +172,11 @@ function boardOnlyContributions(schedule: ScenarioSchedule, facts: EmployeeFacts
       )
       const rates = rateRule.value
       const pillarOneRate = facts.pensionPillarTwo ? rates.pillarOneRateWithPillarTwo.basisPoints : rates.pillarOneRateWithoutPillarTwo.basisPoints
-      const at = (label: string, rate: Rate) =>
-        tracedFigure(words.pay.at(label, percentText(rate), monthLabel(month.month)), atRate(base.amount, rate), BASIS, [rateRule.citation, ...citations], [base])
+      const at = (label: string, rate: Percent) =>
+        tracedFigure(words.pay.at(label, percentText(rate), monthLabel(month.month)), moneyAt(base.amount, rate), BASIS, [rateRule.citation, ...citations], [base])
       return {
         pillarOne: at(words.pay.pillarOne, pillarOneRate),
-        pillarTwo: at(words.pay.pillarTwo, facts.pensionPillarTwo ? rates.pillarTwoRate.basisPoints : (0 as Rate)),
+        pillarTwo: at(words.pay.pillarTwo, facts.pensionPillarTwo ? rates.pillarTwoRate.basisPoints : percentFromWhole(0)),
         health: at(words.pay.health, rates.healthRate.basisPoints),
       }
     })

@@ -8,8 +8,6 @@ import type { FigureBasis, TracedFigure } from '../../ruleset/tracedFigure'
 /** Where the payroll engines read the law. Production passes `ruleValue`. A test can pass a lookup that adds a synthetic row. */
 export type RuleSource = <Id extends RuleId>(id: Id, on: CivilDate) => RuleLookup<RuleValues[Id]>
 
-export { moneyAt as atRate, percentText } from '../../../../../../shared/money/percent'
-
 /** An amount times `part / whole`, such as a monthly gross for the working days worked, rounded to the cent. */
 export function prorated(amount: Money, part: number, whole: number): Money {
   if (!Number.isInteger(part) || !Number.isInteger(whole) || whole <= 0 || part < 0 || part > whole) {

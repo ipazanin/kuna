@@ -5,6 +5,7 @@ import { civilDate, yearOf } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
 import { negateMoney } from '../../../../../../shared/money/money'
+import { moneyAt, percentText } from '../../../../../../shared/money/percent'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { RuleId } from '../../ruleset/ruleset'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
@@ -16,7 +17,7 @@ import { loanBenefit } from '../ownerLoanInterest'
 import type { LoanBenefit } from '../ownerLoanInterest'
 import { ownerLoans } from '../ownerLoans'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
-import { atRate, percentText, summed, tracedFigure } from '../payroll/payrollArithmetic'
+import { summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { words } from './words'
 
@@ -238,7 +239,7 @@ function assetDecisionItems(workbook: HrDooWorkbook, accrual: AccrualYear, rules
   const anniversary = `${yearOf(registered) + years}${registered.slice(4)}`
   const capitalLine = workbook.yearEndLines.find((line) => line.year === accrual.year && line.statement === 'balance' && line.line === 'share-capital')
   const capital = capitalLine?.figure.kind === 'money' ? capitalLine.figure.amount : rules('hr.ztd.min-share-capital', registered).value.minimumShareCapital.cents
-  const above = atRate(capital, decision.priceShareOfCapital.basisPoints)
+  const above = moneyAt(capital, decision.priceShareOfCapital.basisPoints)
   const purchases = accrual.bookings.filter(
     (entry) => entry.treatment === 'capitalised' && yearOf(entry.booking.date) === accrual.year && entry.booking.date < anniversary && negateMoney(entry.booking.amount) > above,
   )

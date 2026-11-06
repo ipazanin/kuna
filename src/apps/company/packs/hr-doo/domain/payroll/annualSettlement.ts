@@ -1,12 +1,14 @@
 import { civilDate, yearOf } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { ZERO, addMoney, moneyFromCents, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
+import { moneyAt, percentText } from '../../../../../../shared/money/percent'
+import type { Percent } from '../../../../../../shared/money/percent'
 import { ruleValue } from '../../ruleset/ruleset'
-import type { Rate, RuleCitation } from '../../ruleset/schema'
+import type { RuleCitation } from '../../ruleset/schema'
 import type { FigureBasis, TracedFigure } from '../../ruleset/tracedFigure'
 import { localRates, personalAllowance, taxInBrackets } from './incomeTax'
 import type { EmployeeFacts } from './incomeTax'
-import { atRate, deducted, percentText, tracedFigure } from './payrollArithmetic'
+import { deducted, tracedFigure } from './payrollArithmetic'
 import type { RuleSource } from './payrollArithmetic'
 import type { PayrollMonth } from './payrollMonth'
 import { words } from './words'
@@ -119,6 +121,6 @@ function youthReliefOn(lowerRateTax: TracedFigure, birthYear: number | null, yea
   if (band === undefined) {
     return tracedFigure(words.settlement.notThisBirthYear, ZERO, basis, citations)
   }
-  const share: Rate = band.reliefShare.basisPoints
-  return tracedFigure(words.settlement.youthRelief(percentText(share)), atRate(lowerRateTax.amount, share), basis, citations, [lowerRateTax])
+  const share: Percent = band.reliefShare.basisPoints
+  return tracedFigure(words.settlement.youthRelief(percentText(share)), moneyAt(lowerRateTax.amount, share), basis, citations, [lowerRateTax])
 }

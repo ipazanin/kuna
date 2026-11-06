@@ -6,11 +6,12 @@ import { addMonths, lastDayOf, monthNumber, monthOf, yearOfMonth } from '../../.
 import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
 import { ZERO, dividedRounded, moneyFromCents, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
+import { moneyAtPartOfYear, percentFromBasisPoints, percentText } from '../../../../../../shared/money/percent'
+import type { Percent } from '../../../../../../shared/money/percent'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { RuleLookup, RuleValues } from '../../ruleset/ruleset'
-import type { Rate } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
-import { deducted, percentText, rulesOf, tracedFigure } from '../payroll/payrollArithmetic'
+import { deducted, rulesOf, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { words } from './words'
 
@@ -24,7 +25,7 @@ export interface DepreciationMonth {
 export interface DepreciationYear {
   readonly year: number
   /** The yearly rate the year's charge used, doubled already when `doubled` holds. */
-  readonly rate: Rate
+  readonly rate: Percent
   readonly doubled: boolean
   readonly charge: TracedFigure
   /** The part of the charge the corporate tax allows. Less than the charge only for a car above the cost cap. */
@@ -48,7 +49,6 @@ export interface DepreciationSchedule {
   readonly writeOff: AssetWriteOff | null
 }
 
-const BASIS_POINTS_PER_WHOLE = 10_000
 const MONTHS_PER_YEAR = 12
 
 /**
@@ -121,7 +121,7 @@ function lastDepreciatedMonth(disposed: CivilDate, rules: RuleSource): { readonl
 }
 
 interface YearRate {
-  readonly rate: Rate
+  readonly rate: Percent
   readonly doubled: boolean
   readonly lookup: RuleLookup<RuleValues['hr.cit.depreciation-rates']>
 }
@@ -137,7 +137,7 @@ function groupRate(asset: Asset, year: number, doubledAsked: boolean, rules: Rul
     throw new RangeError(`The depreciation rate of ${asset.group} in ${year} is not above zero.`)
   }
   const doubled = doubledAsked && lookup.value.doublingAllowed.holds
-  return { rate: (doubled ? single * 2 : single) as Rate, doubled, lookup }
+  return { rate: percentFromBasisPoints(doubled ? single * 2 : single), doubled, lookup }
 }
 
 function rateText(yearRate: YearRate): string {
@@ -148,7 +148,7 @@ function rateText(yearRate: YearRate): string {
  * The charge of each month from `firstMonth` until the cost is written off or `lastMonth` passes.
  * Within a year, month k carries the year's charge for k months, rounded, less that for k - 1.
  */
-function monthlyCharges(base: Money, firstMonth: MonthKey, lastMonth: MonthKey | null, rateOf: (year: number) => Rate): DepreciationMonth[] {
+function monthlyCharges(base: Money, firstMonth: MonthKey, lastMonth: MonthKey | null, rateOf: (year: number) => Percent): DepreciationMonth[] {
   const months: DepreciationMonth[] = []
   let remaining: number = base
   let month = firstMonth
@@ -165,8 +165,8 @@ function monthlyCharges(base: Money, firstMonth: MonthKey, lastMonth: MonthKey |
   return months
 }
 
-function chargeForMonths(base: Money, rate: Rate, months: number): number {
-  return dividedRounded(base * rate * months, BASIS_POINTS_PER_WHOLE * MONTHS_PER_YEAR)
+function chargeForMonths(base: Money, rate: Percent, months: number): Money {
+  return moneyAtPartOfYear(base * months, rate, MONTHS_PER_YEAR)
 }
 
 function deductibleOf(charge: TracedFigure, cost: Money, capRule: RuleLookup<RuleValues['hr.cit.car-depreciation-cap']> | null): TracedFigure {

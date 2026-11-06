@@ -5,6 +5,7 @@ import { accrualYear } from '../src/apps/company/packs/hr-doo/domain/accrual/acc
 import { compareYearEnd } from '../src/apps/company/packs/hr-doo/domain/yearEnd/yearEndComparison'
 import type { ComparedLine, YearEndComparison } from '../src/apps/company/packs/hr-doo/domain/yearEnd/yearEndComparison'
 import { sumMoney } from '../src/shared/money/money'
+import { percentFromBasisPoints } from '../src/shared/money/percent'
 import { civil, euros } from './fixtures/ledger'
 import { exampleStudio, yearEndLine } from './fixtures/exampleStudio'
 
@@ -27,7 +28,7 @@ describe('compareYearEnd', () => {
   })
 
   it('marks a line matched when ours agrees and the cash view has nothing to adjust', () => {
-    const comparison = compared([yearEndLine(2025, 'balance', 'tangible-assets', 1600), yearEndLine(2025, 'tax', 'rate', { kind: 'rate', basisPoints: 1000 })])
+    const comparison = compared([yearEndLine(2025, 'balance', 'tangible-assets', 1600), yearEndLine(2025, 'tax', 'rate', { kind: 'rate', basisPoints: percentFromBasisPoints(1000) })])
 
     expect(line(comparison, 'balance', 'tangible-assets')).toMatchObject({ cash: null, difference: null, residual: euros(0), status: 'matched' })
     expect(line(comparison, 'balance', 'tangible-assets')?.explainedBy.map((adjustment) => adjustment.id)).toEqual(['capital-purchases'])
