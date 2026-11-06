@@ -16,7 +16,7 @@ export interface StepLink {
  * is skipped when its app's books could not be read.
  */
 export type StepState =
-  | { readonly kind: 'off' }
+  | { readonly kind: 'off'; readonly line: string }
   | { readonly kind: 'queued' }
   | { readonly kind: 'running'; readonly line: string }
   | { readonly kind: 'done'; readonly line: string; readonly writeId: number | null; readonly link: StepLink | null }
@@ -56,12 +56,17 @@ export interface SyncRun {
 /** The books step, which every group of a sync runs first. */
 export const BOOKS_STEP: Pick<RunStep, 'id' | 'label' | 'scopes'> = { id: 'books', label: words.books, scopes: ['drive.file'] }
 
-/** A step as a run starts it: on or off, as the settings say. */
+/** A step as a run starts it: on or off, with the line it shows while off. */
 export interface PlannedStep {
   readonly id: string
   readonly label: string
   readonly scopes: readonly GoogleScope[]
   readonly on: boolean
+  readonly offLine: string
+}
+
+function plannedState(step: PlannedStep): StepState {
+  return step.on ? { kind: 'queued' } : { kind: 'off', line: step.offLine }
 }
 
 /** An app's group as a run starts it, its books step first. */
@@ -79,7 +84,7 @@ export function stepsOf(run: SyncRun | null): readonly RunStep[] {
 /** A run with every step that is on queued, in the order given. */
 export function startedRun(groups: readonly PlannedGroup[], at: string): SyncRun {
   return {
-    groups: groups.map(({ app, name, steps }) => ({ app, name, steps: steps.map(({ id, label, scopes, on }) => ({ id, label, scopes, state: on ? { kind: 'queued' } : { kind: 'off' } })) })),
+    groups: groups.map(({ app, name, steps }) => ({ app, name, steps: steps.map((step) => ({ id: step.id, label: step.label, scopes: step.scopes, state: plannedState(step) })) })),
     startedAt: at,
     finishedAt: null,
   }
@@ -98,7 +103,7 @@ export function replanned(run: SyncRun, app: string, plan: readonly PlannedStep[
   return withGroupSteps(run, app, (steps) =>
     steps.map((step) => {
       const planned = plan.find((candidate) => candidate.id === step.id)
-      return planned === undefined || (step.state.kind !== 'queued' && step.state.kind !== 'off') ? step : { ...step, scopes: planned.scopes, state: planned.on ? { kind: 'queued' } : { kind: 'off' } }
+      return planned === undefined || (step.state.kind !== 'queued' && step.state.kind !== 'off') ? step : { ...step, scopes: planned.scopes, state: plannedState(planned) }
     }),
   )
 }

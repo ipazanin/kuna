@@ -87,7 +87,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - Menu items and app rows share one grid: a 24 px column for the icon or tile, then the name, so an item's name lines up with its app's. The open app stands out by weight and its tile, never by indenting or tinting. The selected item keeps the accent.
 - A pill on a menu item means something waits there, and nothing else. A closed app's row adds up its items' pills, and an open app's row shows none, since its item carries it. An app in its first run has no file, so it is left out.
 - While any app is left out, a quiet Add an app row closes the list and leads to the home, whose cards offer every app. Before any app is set up, Net worth is left out too, since it has nothing to show.
-- Kuna's home at `#/` has a card per app, and no app is open in its menu. The phone home has no drawer, so its cards stay the way in, with Net worth as a button over them and Kuna settings as one under them.
+- Kuna's home at `#/` has a card per app, and no app is open in its menu. The phone home has the same drawer as every screen, so Net worth and Kuna settings are reached there and the home carries no buttons for them.
 - Kuna settings at `#/settings` holds only what is the same for every app: sync, sign-out, where new files go, the AI key and model, theme and language. What an app may send sits in that app's Settings, with a read-only line and a link in Kuna settings.
 - A first run starts with the quiet `HomeLink`, so it can be left for the home.
 

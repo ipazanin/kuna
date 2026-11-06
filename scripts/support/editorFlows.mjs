@@ -3509,7 +3509,7 @@ export function kunaWelcomeFlowIn(language) {
     })
     if (await page.$('[data-testid="home-card"]')) throw new Error('the welcome shows beside the cards')
     if (!(await page.$eval('[data-testid="kuna-welcome-continue"]', (button) => button.disabled))) throw new Error('the welcome goes on with no app picked')
-    if (!(await page.$('[data-testid="home-kuna-settings"]'))) throw new Error('the welcome leaves no way to Kuna settings')
+    await kunaSettingsInMenu(page, press, 'the welcome')
     await inspect?.('the welcome')
     await shoot('kuna-welcome')
     await pressButton(page, press, '[data-testid="kuna-welcome-apps"] label', words.loans)
@@ -3523,7 +3523,6 @@ export function kunaWelcomeFlowIn(language) {
     await page.waitForSelector('[data-testid="home-other-cards"] [data-testid="home-card"][data-app="company"]', { visible: true, timeout: 10_000 }).catch(() => {
       throw new Error('an app left out does not wait under the others')
     })
-    if (await page.$('[data-testid="home-overview"]')) throw new Error('with no file yet the home offers Net worth')
     if ((await page.evaluate(homeMenu)) !== null) {
       if ((await page.evaluate(menuShown)).apps.length !== 0) throw new Error('the sidebar lists an app with no file')
       await pressSelector(page, press, '[data-testid="nav-add-app"]')
@@ -4638,6 +4637,16 @@ async function openMenu(page, press) {
   await delay(300)
 }
 
+/** Checks that the sidebar or the drawer holds Kuna settings, and closes the drawer again. */
+async function kunaSettingsInMenu(page, press, where) {
+  await openMenu(page, press)
+  if (!(await page.$('aside [data-testid="nav-kuna-settings"], [role="dialog"] [data-testid="nav-kuna-settings"]'))) throw new Error(`${where} leaves no way to Kuna settings`)
+  if (await page.$('[role="dialog"]')) {
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), { timeout: 5_000 })
+  }
+}
+
 /**
  * The menu in the sidebar or the open drawer, read in the page: the link home with its Kuna mark in line with the app
  * tiles, whether a line runs under it, the open apps, how the open app's row reads against its pages and a closed row,
@@ -4776,7 +4785,7 @@ function sidebarMatchesCards(menu, cards, words = SCREEN_WORDS.en) {
  * The one menu, in the sidebar or the drawer: the Kuna mark first in one row as the link home, named Kuna, all apps, with
  * a line under it, Net worth, the apps with a file with Loans open and its Overview, Scenarios and Settings under it, then Add an
  * app and Kuna settings. The arrow on Company shows Company's pages in place of Loans' without leaving the screen, and shows them no
- * more when pressed again, and a press on the row of Loans opens its pages again, closing the drawer. The link home shows the home, with no app open, and the phone's top bar there has no menu button.
+ * more when pressed again, and a press on the row of Loans opens its pages again, closing the drawer. The link home shows the home, with no app open, and the phone's top bar there has its menu button like any screen.
  * From the home, Company opens, whose Transactions item opens its To review tab while rows wait.
  */
 export function appMenuFlowIn(language) {
@@ -4817,16 +4826,16 @@ export function appMenuFlowIn(language) {
     const homeTitle = await page.title()
     if (homeTitle !== 'Kuna') throw new Error(`the browser tab on the home says "${homeTitle}"`)
     const bar = await page.evaluate(() => ({
-      menuButton: document.querySelector('[data-testid="open-navigation"]') !== null,
+      menuButton: document.querySelector('[data-testid="open-navigation"]')?.getClientRects().length > 0,
       sidebar: document.querySelector('aside') !== null,
       topBar: document.querySelector('[data-testid="top-bar-title"]')?.textContent?.trim() ?? null,
-      settings: [...document.querySelectorAll('aside [data-testid="nav-net-worth"], aside [data-testid="nav-kuna-settings"], [data-testid="home-kuna-settings"]')]
+      settings: [...document.querySelectorAll('aside [data-testid="nav-net-worth"], aside [data-testid="nav-kuna-settings"]')]
         .filter((link) => link.getClientRects().length > 0)
         .map((link) => link.textContent?.trim()),
     }))
-    if (bar.menuButton) throw new Error('the home has a menu button')
+    if (bar.menuButton === bar.sidebar) throw new Error(`the home has ${bar.sidebar ? 'a sidebar and a menu button' : 'neither a sidebar nor a menu button'}`)
     if (!bar.sidebar && bar.topBar !== null && bar.topBar !== 'Kuna') throw new Error(`the phone top bar on the home says "${bar.topBar}"`)
-    const around = bar.sidebar ? [words.netWorth, words.kunaSettings] : [words.kunaSettings]
+    const around = bar.sidebar ? [words.netWorth, words.kunaSettings] : []
     if (JSON.stringify(bar.settings) !== JSON.stringify(around)) throw new Error(`the home offers ${JSON.stringify(bar.settings)} instead of ${JSON.stringify(around)}`)
     if (bar.sidebar) {
       // Loans' pages take 200 ms to close and stay in the page until then.
@@ -5120,7 +5129,6 @@ export function setUpFlowIn(language) {
       const inWelcome = await page.evaluate(() => Boolean(document.activeElement?.closest('[data-testid="kuna-welcome-apps"]')))
       if (!inWelcome) throw new Error('Add an app on the welcome did not move focus to its first app')
     }
-    if (await page.$('[data-testid="home-overview"]')) throw new Error('before any app is set up the home offers Net worth')
     await inspect?.('the home on a fresh device')
     await shoot('home-set-up')
     for (const name of [words.company, words.loans, words.investments, words.assetsApp, words.spendingApp]) {
@@ -5128,7 +5136,6 @@ export function setUpFlowIn(language) {
     }
     await pressSelector(page, press, '[data-testid="kuna-welcome-continue"]')
     await page.waitForSelector('[data-testid="home-card"]', { visible: true, timeout: 10_000 })
-    if (await page.$('[data-testid="home-overview"]')) throw new Error('with no file yet the home offers Net worth')
     const cards = await page.evaluate(homeCards)
     if (cards.length !== 5 || cards.some((card) => card.state !== 'set-up' || !card.text.includes(words.setUp)))
       throw new Error(`the answered home shows ${JSON.stringify(cards.map((card) => [card.app, card.state]))}`)

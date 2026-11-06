@@ -24,6 +24,8 @@ const ENOUGH: PageAccess = { kind: 'enough' }
 
 const DONE: StepState = { kind: 'done', line: 'Up to date', writeId: null, link: null }
 
+const OFF_LINE = 'Off in Settings'
+
 const COMPANY = { app: 'company', name: 'Company' } as const
 
 /** The company's books, statements, a mail step that is off, and the accountant, as a run starts them. */
@@ -33,10 +35,10 @@ function started(): SyncRun {
       {
         ...COMPANY,
         steps: [
-          { ...BOOKS_STEP, on: true },
-          { id: 'statements', label: 'Statements', scopes: ['drive.readonly'], on: true },
-          { id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.readonly'], on: false },
-          { id: 'accountant', label: 'Accountant', scopes: ['drive.readonly'], on: true },
+          { ...BOOKS_STEP, on: true, offLine: OFF_LINE },
+          { id: 'statements', label: 'Statements', scopes: ['drive.readonly'], on: true, offLine: OFF_LINE },
+          { id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.readonly'], on: false, offLine: OFF_LINE },
+          { id: 'accountant', label: 'Accountant', scopes: ['drive.readonly'], on: true, offLine: OFF_LINE },
         ],
       },
     ],
@@ -57,11 +59,17 @@ describe('a sync run', () => {
     expect(started().finishedAt).toBeNull()
   })
 
+  it('gives an off step the line its plan names', () => {
+    const run = startedRun([{ ...COMPANY, steps: [{ id: 'rates', label: 'Rates', scopes: [], on: false, offLine: 'No account is in another currency' }] }], STARTED)
+
+    expect(stepsOf(run)[0]!.state).toEqual({ kind: 'off', line: 'No account is in another currency' })
+  })
+
   it('turns the queued steps on or off again with their scopes once the books are read, and leaves a step the plan does not name as it was', () => {
     const run = replanned(withStep(started(), 'company', 'books', DONE), 'company', [
-      { id: 'books', label: 'Books', scopes: ['drive.file'], on: false },
-      { id: 'statements', label: 'Statements', scopes: ['drive.file'], on: false },
-      { id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.file'], on: true },
+      { id: 'books', label: 'Books', scopes: ['drive.file'], on: false, offLine: OFF_LINE },
+      { id: 'statements', label: 'Statements', scopes: ['drive.file'], on: false, offLine: OFF_LINE },
+      { id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.file'], on: true, offLine: OFF_LINE },
     ])
 
     expect(kinds(run)).toEqual([
@@ -97,7 +105,7 @@ describe('a sync run', () => {
   })
 
   it('turns a later step that shares any scope with the one Google turned away into Allow access, and names every scope in its line', () => {
-    const mailOn = replanned(withStep(started(), 'company', 'books', DONE), 'company', [{ id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.readonly'], on: true }])
+    const mailOn = replanned(withStep(started(), 'company', 'books', DONE), 'company', [{ id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.readonly'], on: true, offLine: OFF_LINE }])
     const run = accessLostFrom(withStep(mailOn, 'company', 'statements', { kind: 'running', line: 'Filing 4 rows' }), 'company', 'statements')
 
     expect(stepsOf(run)[2]!.state).toEqual({ kind: 'needs-access', scopes: ['gmail.readonly', 'drive.readonly'], line: 'Waits for your Gmail read access and your Drive read access' })
@@ -109,13 +117,13 @@ describe('a run over two apps', () => {
   function twoApps(): SyncRun {
     return startedRun(
       [
-        ...started().groups.map((group) => ({ ...group, steps: group.steps.map((step) => ({ ...step, on: step.state.kind === 'queued' })) })),
+        ...started().groups.map((group) => ({ ...group, steps: group.steps.map((step) => ({ ...step, on: step.state.kind === 'queued', offLine: OFF_LINE })) })),
         {
           app: 'loans',
           name: 'Loans',
           steps: [
-            { ...BOOKS_STEP, on: true },
-            { id: 'rates', label: 'Rates', scopes: ['drive.readonly'], on: true },
+            { ...BOOKS_STEP, on: true, offLine: OFF_LINE },
+            { id: 'rates', label: 'Rates', scopes: ['drive.readonly'], on: true, offLine: OFF_LINE },
           ],
         },
       ],

@@ -1,7 +1,7 @@
 /**
  * Drives the fake-mode build with touch at the two phone widths, as a thumb would: the top app bar
  * with its one-line Sync button and its navigation drawer of the whole menu under the link home, the arrow in it showing another app's pages with the drawer open and one of those pages closing it, the
- * home's top bar with no menu button and its Net worth and Kuna settings buttons, Net worth opened from that button with each
+ * home's top bar with its menu button and no Net worth or Kuna settings button beside the cards, Net worth opened from the drawer with each
  * tile opening its app and Back, Assets value among them, and the company's figure opening Year's Pay tab on the kept profit, a fresh device's home with every app in Set up, the tabs of Settings with Back through them, a link to Year's Statements tab alone kept in its year through two tabs and Back, the review and corporate tax lines of Overview's waiting card, the review line again in Croatian, a chart's tap-then-drill, the filter sheet with a
  * filter added and removed,
  * grouped transactions that collapse and expand, a payee's category breakdown in English and Croatian, Analysis and its Compare tab in Croatian, an owner share changed and cleared and a new default share's fill, each undone, in Croatian, an xlsx file opened and kept in this browser,
@@ -579,18 +579,30 @@ async function checkWidth(width) {
       page.evaluate(() => {
         const bar = document.querySelector('header')
         const sync = bar?.querySelector('[data-testid="sync-button"]')?.getBoundingClientRect()
+        const menu = bar?.querySelector('[data-testid="open-navigation"]')?.getBoundingClientRect()
         return {
-          menu: bar?.querySelector('[data-testid="open-navigation"]') !== null,
+          menuAtLeft: menu !== undefined && Math.round(menu.height) >= 44 && menu.left < 16,
           title: bar?.querySelector('[data-testid="top-bar-title"]')?.textContent?.trim() ?? null,
           syncAtRight: sync !== undefined && sync.right > window.innerWidth - 24 && Math.round(sync.height) === 44,
-          overview: document.querySelector('[data-testid="home-overview"]')?.getClientRects().length === 1,
-          settings: document.querySelector('[data-testid="home-kuna-settings"]')?.getClientRects().length === 1,
+          overview: document.querySelector('[data-testid="home-overview"]') !== null,
+          settings: document.querySelector('[data-testid="home-kuna-settings"]') !== null,
           apps: document.querySelector('[data-testid="nav-apps"]') !== null,
         }
       }),
-      (bar) => !bar.menu && bar.title === 'Kuna' && bar.syncAtRight && bar.overview && bar.settings && !bar.apps,
-      'the home top bar does not hold Kuna and one 44 px Sync button with no menu button, with Net worth and Kuna settings and no list of apps beside the cards',
+      (bar) => bar.menuAtLeft && bar.title === 'Kuna' && bar.syncAtRight && !bar.overview && !bar.settings && !bar.apps,
+      'the home top bar does not hold the menu button, Kuna and one 44 px Sync button, with no Net worth or Kuna settings button and no list of apps beside the cards',
     )
+    await openDrawer(page)
+    await expect(
+      page.evaluate(() => {
+        const drawer = document.querySelector('[role="dialog"]')
+        return { netWorth: drawer?.querySelector('[data-testid="nav-net-worth"]') !== null, kunaSettings: drawer?.querySelector('[data-testid="nav-kuna-settings"]') !== null }
+      }),
+      (drawer) => drawer.netWorth && drawer.kunaSettings,
+      'the home drawer does not hold Net worth and Kuna settings',
+    )
+    await page.keyboard.press('Escape')
+    await drawerClosed(page)
     await shoot('home')
     await (await page.waitForSelector('[data-testid="home-card"][data-app="company"]')).tap()
     await waitForTitle(page, 'Overview')
@@ -647,9 +659,11 @@ async function checkWidth(width) {
   // The company kept in this browser beside the sample Loans, Investments, Assets and Spending files.
   await step('kuna-overview', async () => {
     await openFreshBrowser(page, '#/', 'All apps', '&loans=sample&investments=sample&assets=sample&spending=sample')
-    await (await page.waitForSelector('[data-testid="home-overview"]')).tap()
+    await openDrawer(page)
+    await (await page.waitForSelector('[role="dialog"] [data-testid="nav-net-worth"]')).tap()
     await waitForTitle(page, 'Net worth')
-    await expect(hashOf(page), (hash) => hash === '#/overview', 'the home’s Net worth button did not open its screen')
+    await drawerClosed(page)
+    await expect(hashOf(page), (hash) => hash === '#/overview', 'the home drawer’s Net worth did not open its screen')
     await page.waitForSelector('[data-testid="overview-net"][data-state="ready"]')
     await page.waitForSelector('[data-testid="overview-apart-part"]')
     await expect(

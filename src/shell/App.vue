@@ -11,7 +11,6 @@ import { language } from '../shared/text/language'
 import { startPageSync } from '../shared/sync/presentation/pageSync'
 import { appAt, firstRunAt, installedApps } from './routing/appRegistry'
 import { screenLoading } from './routing/router'
-import { HOME_SCREEN } from './routing/screens'
 import { keepPageSynced } from './sync/keepPageSynced'
 import TopBarSync from './sync/TopBarSync.vue'
 import AppShell from './ui/AppShell.vue'
@@ -80,12 +79,7 @@ const uiLocale = language === 'hr' ? hr : en_gb
 <template>
   <UApp :toaster="toaster" :locale="uiLocale">
     <RouterView v-if="bare" />
-    <AppShell
-      v-else-if="inFirstRun === null"
-      :app-on-screen="appOnScreen === null ? null : { icon: appOnScreen.homeCard.icon, colour: appOnScreen.colour }"
-      :drawer="route.path !== HOME_SCREEN.path"
-      @drawer-closed="followAddress"
-    >
+    <AppShell v-else-if="inFirstRun === null" :app-on-screen="appOnScreen === null ? null : { icon: appOnScreen.homeCard.icon, colour: appOnScreen.colour }" @drawer-closed="followAddress">
       <RouterView v-slot="{ Component }">
         <ScreenSkeleton v-if="screenLoading || !Component" />
         <component :is="Component" v-else />

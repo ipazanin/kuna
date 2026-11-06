@@ -46,6 +46,7 @@ export function secretsStep(wanted: () => boolean): SyncStep {
     label: words.step.label,
     scopes: () => ['drive.appdata'],
     startLine: words.step.reading,
+    offLine: words.step.off,
     on: () => wanted() || secretsHeldHere(),
     async run(_report, startedAt) {
       if (servedRun === startedAt) {

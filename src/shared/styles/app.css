@@ -117,15 +117,15 @@ body {
   white-space: nowrap;
 }
 
-/* In a phone's card the cells sit closer, so three columns of figures with cents fit without scrolling. */
+/* In a phone's card the cells sit closer, so three columns of figures with cents fit without scrolling. The first cell keeps its full inset, which puts its text under the card's title. */
 @container (max-width: 26rem) {
   .data-table th,
   .data-table td {
-    padding-inline: 0.25rem;
+    padding-inline: 0.125rem 0.25rem;
   }
 
   .data-table th:first-child {
-    padding-inline-start: 0;
+    padding-inline-start: 0.75rem;
   }
 }
 

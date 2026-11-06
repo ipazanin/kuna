@@ -18,6 +18,7 @@ export const RATES_STEP: SyncStep = {
   label: words.step.label,
   scopes: () => [],
   startLine: words.step.start,
+  offLine: words.step.none,
   on: () => store.state.workbook === null || currencies().length > 0,
   async run() {
     await refreshRates()

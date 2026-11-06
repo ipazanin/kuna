@@ -45,8 +45,6 @@ const when = computed(() => {
 function lineOf(step: RunStep): string {
   const { state } = step
   switch (state.kind) {
-    case 'off':
-      return words.steps.off
     case 'queued':
       return syncWords.waiting
     default:

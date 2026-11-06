@@ -1127,7 +1127,7 @@ const SCREENS = [
     hash: '#/',
     title: 'All apps',
     charts: 0,
-    shows: ['Company', 'Cash on hand', '2 rows to review', 'Loans', 'Investments', 'Assets', 'Spending', 'Set up', 'Net worth', 'Kuna settings'],
+    shows: ['Company', 'Cash on hand', '2 rows to review', 'Loans', 'Investments', 'Assets', 'Spending', 'Set up'],
     cards: false,
   },
   {
@@ -1136,7 +1136,7 @@ const SCREENS = [
     hash: '#/',
     title: 'Sve aplikacije',
     charts: 0,
-    shows: ['Tvrtka', 'Novac na računima', 'Krediti', 'Ulaganja', 'Imovina', 'Potrošnja', 'Postavi', 'Neto imovina'],
+    shows: ['Tvrtka', 'Novac na računima', 'Krediti', 'Ulaganja', 'Imovina', 'Potrošnja', 'Postavi'],
     cards: false,
   },
   {

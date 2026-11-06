@@ -17,11 +17,9 @@ const props = withDefaults(
   defineProps<{
     /** The tile of the app on screen, for the phone top bar. A peek at another app's pages does not change it. */
     appOnScreen?: { readonly icon: string; readonly colour: `--${string}` } | null
-    /** False on the home, whose cards are the way into the apps, so below 1024 px its top bar has no menu button. */
-    drawer?: boolean
     title?: string
   }>(),
-  { appOnScreen: null, drawer: true, title: 'Kuna' },
+  { appOnScreen: null, title: 'Kuna' },
 )
 
 const emit = defineEmits<{
@@ -86,14 +84,8 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
       </div>
     </aside>
 
-    <header
-      v-else
-      ref="topBar"
-      class="top-bar sticky top-0 z-top-bar flex h-14 items-center gap-2 border-b border-default bg-page/85 px-2 backdrop-blur-md sm:px-4"
-      :class="{ 'without-menu': !drawer }"
-    >
+    <header v-else ref="topBar" class="top-bar sticky top-0 z-top-bar flex h-14 items-center gap-2 border-b border-default bg-page/85 px-2 backdrop-blur-md sm:px-4">
       <USlideover
-        v-if="drawer"
         v-model:open="menuOpen"
         side="left"
         :title="title"
@@ -116,7 +108,7 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
           </div>
         </template>
       </USlideover>
-      <AppBrand v-if="phone" :title="drawer ? screenTitle : title" :icon="appOnScreen?.icon" :colour="appOnScreen?.colour" data-testid="top-bar-title" />
+      <AppBrand v-if="phone" :title="screenTitle" :icon="appOnScreen?.icon" :colour="appOnScreen?.colour" data-testid="top-bar-title" />
       <span v-else class="truncate type-wordmark">{{ title }}</span>
       <!-- The screen's name gives way, so the sync or export controls keep their labels. -->
       <div v-if="$slots.sync" class="ms-auto shrink-0">
@@ -139,11 +131,6 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
     height: calc(3.5rem + env(safe-area-inset-top));
     padding-top: env(safe-area-inset-top);
     padding-inline: max(0.25rem, env(safe-area-inset-left)) max(0.75rem, env(safe-area-inset-right));
-  }
-
-  /* With no menu button the mark lines up with the screen's own edge. */
-  .top-bar.without-menu {
-    padding-inline-start: max(1rem, env(safe-area-inset-left));
   }
 
   .app-main {
