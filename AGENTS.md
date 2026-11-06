@@ -24,3 +24,11 @@ When you see something worth improving that the work at hand should not take on,
 - Search open and closed issues first. Nothing is created without the owner's yes.
 - A subagent lists proposals at the end of its report, apart from findings to fix now. The lead brings them to the owner at the end of a chunk as pickers: create, drop or merge into an existing issue.
 - Approved ones get the `tech-debt` label. A rule problem is fixed in the rule or skill and, where possible, in a lint or boundary check.
+
+## Review what a person sees
+
+A change to anything a person sees gets a design review before it is pushed. That covers screens, components, styles, tokens and layout. A word change alone does not need it, unless it may no longer fit.
+
+- Run the `design-reviewer` agent on the diff, with the `frontend-design` skill as well as `kuna-design`, and give it screenshots at 360, 640, 1024 and 1440 px, both languages and both themes, with the before where one exists. A builder that cannot start agents says so, and the lead runs it.
+- Fix what it finds, or bring it to the owner. What is out of scope becomes a proposal.
+- Use the existing component library, colours and tokens first. A change may extend them or propose new ones, stating what it replaces or why nothing fits, with at least two uses or a clear second one coming. Removing or merging is a good outcome.
