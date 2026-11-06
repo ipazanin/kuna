@@ -1,7 +1,5 @@
 import { civilDate, daysBetween, yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { dividedRounded, moneyFromCents } from '../../../../shared/money/money'
-import type { Money } from '../../../../shared/money/money'
 
 /** How sure a rule is: the law or Porezna says it, it is a reading of the law, or no source says it. */
 export type RuleMark = 'settled' | 'reading' | 'unconfirmed'
@@ -112,9 +110,4 @@ export function rulesOf(year: number): YearRules {
   }
   const own = RULES.find((rules) => rules.year === year)
   return own === undefined ? { rules: RULES.at(-1)!, ownRow: false } : { rules: own, ownRow: true }
-}
-
-/** A whole percent of an amount, rounded half away from zero to the cent. */
-export function percentOf(amount: Money, percent: number): Money {
-  return moneyFromCents(dividedRounded(amount * percent, 100))
 }

@@ -2,7 +2,7 @@ import { dayRate, inEurosAt, isEstimate } from './hnbRate'
 import type { DayRate } from './hnbRate'
 import { inoDohDue, inoIzjavaDue, thirtyDaysDue } from './taxDeadlines'
 import type { InoDohDue } from './taxDeadlines'
-import { JOPPD_CODES, joppdReportMark, percentOf, rulesOf } from './taxRules'
+import { JOPPD_CODES, joppdReportMark, rulesOf } from './taxRules'
 import type { YearRules } from './taxRules'
 import { en as importEnglish, hr as importCroatian } from '../../imports/domain/words'
 import type { RateBook } from '../../../../shared/money/rateBook'
@@ -17,6 +17,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { DECIMAL_ZERO, subtractDecimal } from '../../../../shared/money/decimal'
 import { subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { moneyAt, percentFromWhole } from '../../../../shared/money/percent'
 
 /**
  * How a payment's tax is settled. Tax withheld abroad goes on the year's INO-DOH. Nothing withheld means a JOPPD
@@ -162,7 +163,7 @@ function taxOf(payment: Income, rate: DayRate, incomeRate: number): IncomeTax | 
     return null
   }
   const withheld = subtractMoney(gross, paid)
-  const croatian = percentOf(gross, incomeRate)
+  const croatian = moneyAt(gross, percentFromWhole(incomeRate))
   const credit = nearerZero(withheld, croatian)
   return { gross, withheld, croatian, credit, leftToPay: subtractMoney(croatian, credit), lost: subtractMoney(withheld, credit) }
 }

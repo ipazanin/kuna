@@ -103,6 +103,53 @@ const templateFormatting = [
 ]
 
 /**
+ * A rule that refuses what a selector finds, in a script and in a component's template. Each has an id of its own, since
+ * flat config replaces no-restricted-syntax rather than merging it, and a baseline list exempts a file from one rule id.
+ */
+const refusedSyntax = (selectors, message) => ({
+  meta: { type: 'problem', schema: [] },
+  create(context) {
+    const visitors = { [selectors.join(', ')]: (node) => context.report({ node, message }) }
+    return context.sourceCode.parserServices.defineTemplateBodyVisitor?.(visitors, visitors) ?? visitors
+  },
+})
+
+const castedBrand = String.raw`[typeName.name=/^(?:Money|Percent|Rate|Share|Decimal)$/]`
+const castedAs = (cast) => [`${cast} > TSTypeReference.typeAnnotation${castedBrand}`, `${cast} > *.typeAnnotation TSTypeReference${castedBrand}`]
+
+// esquery's regular expressions only read strings, so these read a literal's raw text rather than its value.
+const scaleLiteral = String.raw`/^(?:100|10_?000)n?$/`
+const scaleConstant = String.raw`/^10_?000n?$/`
+
+const kunaPlugin = {
+  rules: {
+    'money-casts': refusedSyntax(
+      [...castedAs('TSAsExpression'), ...castedAs('TSTypeAssertion')],
+      'Make Money, Percent, Share and Decimal with the functions in src/shared/money. A cast skips the check that keeps the brand true.',
+    ),
+    'money-scale': refusedSyntax(
+      [
+        `BinaryExpression[operator=/^[*\\/]$/][right.raw=${scaleLiteral}]`,
+        `BinaryExpression[operator=/^[*\\/]$/][left.raw=${scaleLiteral}]`,
+        `AssignmentExpression[operator=/^[*\\/]=$/][right.raw=${scaleLiteral}]`,
+        `VariableDeclarator[init.raw=${scaleConstant}]:not([id.name=/DURATION|TIMEOUT|_MS$/])`,
+      ],
+      'Scale money and percentages with the functions in src/shared/money, such as moneyAt, shareOfPercent or amountOf, not by hand with 100 or 10,000.',
+    ),
+    'domain-rounding': refusedSyntax(
+      ["CallExpression[callee.object.name='Math'][callee.property.name='round']"],
+      'Domain code rounds through src/shared/money, half away from zero. Math.round rounds a tie up on both signs.',
+    ),
+    'domain-classes': refusedSyntax(
+      ['ClassDeclaration:not([superClass.name=/Error$/])', 'ClassExpression:not([superClass.name=/Error$/])'],
+      'A domain model is an immutable record with pure functions beside it. check:figures reads object shapes, so a class can hide a figure from it. Only an Error subclass stays.',
+    ),
+  },
+}
+
+const domainCode = { files: ['src/**/domain/**/*.{ts,vue}', 'src/apps/**/ruleset/**/*.{ts,vue}'], ignores: ['src/apps/**/ruleset/presentation/**'] }
+
+/**
  * The rules scripts/lint-baseline.json exempts files from, each with the files it covers and the files it never
  * covers. A listed file breaks the rule today and may until it changes, and a test fails once it no longer needs its place.
  */
@@ -125,6 +172,20 @@ const baselineRules = {
       'no-restricted-properties': ['error', ...formattingMethods.map((property) => ({ property, message: formattingMessage }))],
       'vue/no-restricted-syntax': ['error', ...templateFormatting],
     },
+  },
+  moneyCasts: {
+    files: ['src/**/*.{ts,vue}'],
+    ignores: ['src/shared/money/**'],
+    rules: { 'kuna/money-casts': 'error' },
+  },
+  moneyScale: {
+    files: ['src/**/*.{ts,vue}'],
+    ignores: ['src/shared/money/**', 'src/shared/charts/**', 'src/**/infrastructure/fake/**', 'src/apps/loans/bankLoans/domain/yearlyRate.ts'],
+    rules: { 'kuna/money-scale': 'error' },
+  },
+  domainRounding: {
+    ...domainCode,
+    rules: { 'kuna/domain-rounding': 'error' },
   },
 }
 
@@ -180,6 +241,8 @@ export function kunaConfig(exempt) {
       },
     },
     ...scopedClassConfigs,
+    { name: 'kuna/plugin', plugins: { kuna: kunaPlugin } },
+    { name: 'kuna/domain-classes', ...domainCode, rules: { 'kuna/domain-classes': 'error' } },
     ...Object.entries(baselineRules).map(([list, { files, ignores, rules }]) => ({ name: `kuna/baseline-${list}`, files, ignores: [...ignores, ...exempt[list]], rules })),
     prettier,
   )

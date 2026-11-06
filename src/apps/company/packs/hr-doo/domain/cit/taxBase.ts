@@ -1,7 +1,8 @@
 import type { YearEndLine } from '../yearEnd/yearEnd'
 import { civilDate } from '../../../../../../shared/calendar/civilDate'
-import { ZERO, addMoney, moneyFromCents, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
+import { ZERO, addMoney, minMoney, moneyFromCents, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
+import { restOf } from '../../../../../../shared/money/percent'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { Rate, RuleCitation } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
@@ -53,8 +54,6 @@ export interface TaxBase {
   /** What is left to set against later years, oldest first, the year's own loss included. */
   readonly lossesCarried: readonly CarriedLoss[]
 }
-
-const BASIS_POINTS_PER_WHOLE = 10_000
 
 /**
  * Accounting profit increased by the costs the corporate tax does not allow and decreased by what
@@ -143,7 +142,7 @@ export function lossesCarriedInto(year: number, yearEnd: readonly YearEndLine[],
  * rest is added back, the way the accountant splits representation over two konto lines.
  */
 function addBack(label: string, cost: TracedFigure, share: Rate, citations: readonly RuleCitation[]): TracedFigure {
-  const deductible = atRate(cost.amount, (BASIS_POINTS_PER_WHOLE - share) as Rate)
+  const deductible = atRate(cost.amount, restOf(share))
   return tracedFigure(words.base.addedBack(label, percentText(share)), subtractMoney(cost.amount, deductible), 'ledger', [...citations, ...cost.rules], [cost])
 }
 
@@ -161,7 +160,7 @@ function lossRelief(year: number, baseBeforeLosses: Money, brought: readonly Car
     if (!usable(loss, year)) {
       continue
     }
-    const applied = Math.min(room, loss.remaining) as Money
+    const applied = minMoney(room, loss.remaining)
     if (applied > 0) {
       steps.push(tracedFigure(words.base.lossSetOff(loss.year), applied, 'accountant', [rule.citation]))
       room = subtractMoney(room, applied)

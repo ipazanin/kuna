@@ -10,7 +10,7 @@ import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { monthKey, yearOfMonth } from '../../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
-import { negateMoney, sumMoney } from '../../../../../../shared/money/money'
+import { absMoney, negateMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import { ruleLink } from '../../ruleset/presentation/taxRuleLinks'
@@ -368,11 +368,11 @@ function partSteps(part: LinePart, key: string, year: number, context: ForecastV
   ]
 }
 
-function differenceWords(difference: number, cost: boolean): string {
+function differenceWords(difference: Money, cost: boolean): string {
   if (difference === 0) {
     return words.asPlanned
   }
-  return words.difference(formatMoney(Math.abs(difference) as Money), cost, difference > 0)
+  return words.difference(formatMoney(absMoney(difference)), cost, difference > 0)
 }
 
 /** `keptProfit` is what the kept profit paid out now starts from, and null for the other options. */

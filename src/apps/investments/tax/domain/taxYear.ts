@@ -2,7 +2,7 @@ import { dayRate, inEurosAt, isEstimate } from './hnbRate'
 import type { DayRate } from './hnbRate'
 import { settlementDay } from './settlementDay'
 import { joppdDue, yearDueNext } from './taxDeadlines'
-import { FIRST_TAX_YEAR, joppdReportMark, percentOf, rulesOf } from './taxRules'
+import { FIRST_TAX_YEAR, joppdReportMark, rulesOf } from './taxRules'
 import type { YearRules } from './taxRules'
 import { investmentLots, taxFreeFrom } from '../../holdings/domain/lots'
 import type { RealisedLine } from '../../holdings/domain/lots'
@@ -16,6 +16,7 @@ import { DECIMAL_ZERO, subtractDecimal, sumDecimal } from '../../../../shared/mo
 import type { Decimal } from '../../../../shared/money/decimal'
 import { ZERO, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { moneyAt, percentFromWhole } from '../../../../shared/money/percent'
 
 /** A sale this many days or fewer from a lot's tax-free day, either side, is warned, since settlement can move either end. */
 const NEAR_TAX_FREE_DAYS = 5
@@ -152,7 +153,7 @@ export function capitalGainsYear(book: InvestmentBook, rates: RateBook, year: nu
   const lossesOffset = losses < taxableGains ? losses : taxableGains
   const base = subtractMoney(taxableGains, lossesOffset)
   const rules = rulesOf(year)
-  const tax = percentOf(base, rules.rules.gainsRate)
+  const tax = moneyAt(base, percentFromWhole(rules.rules.gainsRate))
   const endsInLoss = losses > taxableGains
   const gainsLine = taxableGains > ZERO && !endsInLoss
   const taxFreeGains = sumOf(counted, 'tax-free')

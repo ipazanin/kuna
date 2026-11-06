@@ -164,6 +164,53 @@ function isFakeSeed(file: string): boolean {
   return /\/infrastructure\/fake\//.test(file)
 }
 
+/** The files that declare a branded type. Adding one here is a decision the `kuna-domain` skill describes. */
+const BRAND_OWNERS = [
+  'src/apps/company/owner-share/domain/ownerShare.ts',
+  'src/apps/company/workbook/domain/packPart.ts',
+  'src/apps/investments/workbook/domain/mixGroup.ts',
+  'src/apps/loans/bankLoans/domain/yearlyRate.ts',
+  'src/shared/calendar/civilDate.ts',
+  'src/shared/calendar/monthKey.ts',
+  'src/shared/money/currencyCode.ts',
+  'src/shared/money/decimal.ts',
+  'src/shared/money/money.ts',
+  'src/shared/money/percent.ts',
+  'src/shared/storage/domain/recordId.ts',
+  'src/shared/storage/domain/recordKind.ts',
+]
+
+/** What the figure digest still reads from presentation. A figure belongs in domain, so this list only shrinks. */
+const FIGURES_IN_PRESENTATION = [
+  'src/apps/assets/home/presentation/assetsHubFigures.ts',
+  'src/apps/assets/values/presentation/assetsOnDay.ts',
+  'src/apps/company/overview/presentation/waitingForYou.ts',
+  'src/apps/company/packs/hr-doo/presentation/accrualRoles.ts',
+  'src/apps/company/packs/hr-doo/presentation/packWaitingJobs.ts',
+  'src/apps/company/packs/hr-doo/presentation/salaries/salariesView.ts',
+  'src/apps/company/packs/hr-doo/presentation/unaccountedInView.ts',
+  'src/apps/company/packs/hr-doo/presentation/year/yearChoice.ts',
+  'src/apps/investments/home/presentation/investmentsHubFigures.ts',
+  'src/apps/investments/performance/presentation/performanceLinks.ts',
+  'src/apps/loans/bankLoans/presentation/bankLoanView.ts',
+  'src/apps/loans/bankLoans/presentation/savedTries.ts',
+  'src/apps/loans/bankLoans/presentation/words.ts',
+  'src/apps/loans/home/presentation/loansHubFigures.ts',
+  'src/apps/loans/informalLoans/presentation/informalLoanView.ts',
+  'src/apps/loans/overview/presentation/owedTotals.ts',
+  'src/apps/loans/scenarios/presentation/scenarioComparison.ts',
+  'src/apps/loans/scenarios/presentation/scenariosView.ts',
+  'src/apps/loans/scenarios/presentation/useScenarioCompare.ts',
+  'src/apps/spending/analytics/presentation/spendingFigures.ts',
+  'src/apps/spending/home/presentation/spendingHubFigures.ts',
+]
+
+function digestImportsFromPresentation(): string[] {
+  const digest = readFileSync(join(ROOT, 'scripts/figure-digest.mjs'), 'utf8')
+  const imported = ts.preProcessFile(digest, true, true).importedFiles.filter((file) => file.fileName.startsWith('.'))
+  return [...new Set(imported.map((file) => resolvedFile(join(ROOT, 'scripts'), file.fileName)))].filter((file) => /\/presentation\//.test(file)).sort()
+}
+
 function broken(rule: (entry: Import) => boolean): string[] {
   return IMPORTS.filter((entry) => !rule(entry)).map((entry) => `${entry.at} imports ${entry.specifier}`)
 }
@@ -236,6 +283,16 @@ describe('import boundaries', () => {
     expect(linesHolding(/\bsheetRow\b/, () => false).length).toBeGreaterThan(0)
     expect(linesHolding(/\bsheetRows?\b/, isStorageAdapter)).toEqual([])
     expect(linesHolding(/\bas RecordId\b/, (file) => file === 'src/shared/storage/domain/recordId.ts')).toEqual([])
+  })
+
+  it('declares a brand only in the files that own one', () => {
+    const brand = /\breadonly __[a-zA-Z]+\??:/
+    expect(linesHolding(brand, (file) => BRAND_OWNERS.includes(file))).toEqual([])
+    expect(BRAND_OWNERS.filter((file) => !brand.test(readFileSync(join(ROOT, file), 'utf8')))).toEqual([])
+  })
+
+  it('reads the figures of the digest from domain code, but for a list that only shrinks', () => {
+    expect(digestImportsFromPresentation()).toEqual(FIGURES_IN_PRESENTATION)
   })
 
   it("keeps the storage adapters inside the kernel's storage and the app's workbook, which its app.ts wires in and a pack maps its tabs with", () => {

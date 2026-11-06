@@ -1,3 +1,5 @@
+import type { Share } from './percent'
+
 /**
  * An amount of money as a whole number of cents. Integer cents make sums exact, so no figure needs
  * the half-cent tolerance the Sheet formulas carry.
@@ -43,6 +45,18 @@ export function negateMoney(money: Money): Money {
   return (0 - money) as Money
 }
 
+export function absMoney(money: Money): Money {
+  return Math.abs(money) as Money
+}
+
+export function minMoney(left: Money, right: Money): Money {
+  return left < right ? left : right
+}
+
+export function maxMoney(left: Money, right: Money): Money {
+  return left > right ? left : right
+}
+
 export function sumMoney(amounts: Iterable<Money>): Money {
   let total = 0
   for (const amount of amounts) {
@@ -65,9 +79,9 @@ export function divideMoney(money: Money, divisor: number): Money {
   return roundHalfAwayFromZero(money / divisor) as Money
 }
 
-/** One amount as a fraction of another, or null when the whole is zero. */
-export function ratioOf(part: Money, whole: Money): number | null {
-  return whole === 0 ? null : part / whole
+/** One amount as a share of another, or null when the whole is zero. */
+export function ratioOf(part: Money, whole: Money): Share | null {
+  return whole === 0 ? null : ((part / whole) as Share)
 }
 
 /** An amount written for a person to read in a problem, such as `-1234.50`, the same in every locale. */

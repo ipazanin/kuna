@@ -2,10 +2,11 @@ import { parseCivilDate } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { moneyFromCents } from '../../../../../shared/money/money'
 import type { Money } from '../../../../../shared/money/money'
+import { percentFromBasisPoints } from '../../../../../shared/money/percent'
+import type { Percent } from '../../../../../shared/money/percent'
 import type { ActId } from './acts'
 
-/** A rate as a whole number of basis points: 10% is 1000, 16.5% is 1650, a coefficient of 0.65 is 6500. */
-export type Rate = number & { readonly __unit: 'basis-points' }
+export type Rate = Percent
 
 export interface RateTerm {
   readonly kind: 'rate'
@@ -50,10 +51,7 @@ export type Term = ScalarTerm | TableTerm
 export type RuleTerms = Readonly<Record<string, Term>>
 
 export function basisPoints(points: number): RateTerm {
-  if (!Number.isInteger(points) || points < 0) {
-    throw new RangeError(`${points} is not a whole number of basis points.`)
-  }
-  return { kind: 'rate', basisPoints: points as Rate }
+  return { kind: 'rate', basisPoints: percentFromBasisPoints(points) }
 }
 
 export function cents(amount: number): MoneyTerm {

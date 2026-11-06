@@ -1,12 +1,12 @@
 import type { Booking, Category } from '../../../../workbook/domain/workbook'
 import type { VatTreatment } from '../../../../workbook/domain/vatTreatment'
 import { ZERO, subtractMoney } from '../../../../../../shared/money/money'
-import type { Money } from '../../../../../../shared/money/money'
+import { moneyInside } from '../../../../../../shared/money/percent'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { RuleValues } from '../../ruleset/ruleset'
 import type { Rate, RuleCitation } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
-import { atRate, deducted, percentText, prorated, rulesOf, tracedFigure } from '../payroll/payrollArithmetic'
+import { atRate, deducted, percentText, rulesOf, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { words } from './words'
 
@@ -18,8 +18,6 @@ export interface VatSplit {
   /** A claim on the state rather than a cost, zero when nothing is deductible. Both parts carry the booking's sign and add up to its amount. */
   readonly inputVat: TracedFigure
 }
-
-const BASIS_POINTS_PER_WHOLE = 10_000
 
 /**
  * Splits a ledger amount by its category's `vat` column, so that cost and input VAT add up to the
@@ -48,7 +46,7 @@ export function vatSplit(booking: Booking, category: Category, rules: RuleSource
       const rates = rules('hr.vat.rates', booking.date)
       const deduction = rules('hr.vat.input-deduction', booking.date)
       const rate = rateOf(treatment, rates.value)
-      const inputVat = tracedFigure(words.split.deductible(percentText(rate)), vatInside(amount, rate), 'ledger', [rates.citation, deduction.citation], [paid])
+      const inputVat = tracedFigure(words.split.deductible(percentText(rate)), moneyInside(amount, rate), 'ledger', [rates.citation, deduction.citation], [paid])
       return split(treatment, paid, inputVat)
     }
     case 'car-50': {
@@ -56,7 +54,7 @@ export function vatSplit(booking: Booking, category: Category, rules: RuleSource
       const deduction = rules('hr.vat.input-deduction', booking.date)
       const rate = rates.value.standardRate.basisPoints
       const share = deduction.value.personalCarDeductibleShare.basisPoints
-      const vat = tracedFigure(words.split.inside(percentText(rate)), vatInside(amount, rate), 'ledger', [rates.citation], [paid])
+      const vat = tracedFigure(words.split.inside(percentText(rate)), moneyInside(amount, rate), 'ledger', [rates.citation], [paid])
       const inputVat = tracedFigure(words.split.car(percentText(share)), atRate(vat.amount, share), 'ledger', [rates.citation, deduction.citation], [vat])
       return split(treatment, paid, inputVat)
     }
@@ -64,10 +62,6 @@ export function vatSplit(booking: Booking, category: Category, rules: RuleSource
 }
 
 /** The VAT inside an amount that includes it, rounded to the cent. */
-function vatInside(amount: Money, rate: Rate): Money {
-  return prorated(amount, rate, BASIS_POINTS_PER_WHOLE + rate)
-}
-
 function rateOf(treatment: 'deductible-25' | 'deductible-13' | 'deductible-5', rates: RuleValues['hr.vat.rates']): Rate {
   switch (treatment) {
     case 'deductible-25':

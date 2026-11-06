@@ -1,6 +1,21 @@
 import { describe, expect, it } from 'vitest'
 
-import { ZERO, addMoney, amountOf, divideMoney, dividedRounded, moneyFromAmount, moneyFromCents, negateMoney, ratioOf, subtractMoney, sumMoney } from '../src/shared/money/money'
+import {
+  ZERO,
+  absMoney,
+  addMoney,
+  amountOf,
+  divideMoney,
+  dividedRounded,
+  maxMoney,
+  minMoney,
+  moneyFromAmount,
+  moneyFromCents,
+  negateMoney,
+  ratioOf,
+  subtractMoney,
+  sumMoney,
+} from '../src/shared/money/money'
 
 describe('money', () => {
   it('reads a decimal amount as whole cents, without floating-point drift', () => {
@@ -23,6 +38,14 @@ describe('money', () => {
     expect(subtractMoney(moneyFromCents(5), moneyFromCents(7))).toBe(-2)
     expect(negateMoney(ZERO)).toBe(0)
     expect(Object.is(negateMoney(ZERO), -0)).toBe(false)
+  })
+
+  it('takes the size, the smaller and the larger of two amounts', () => {
+    expect(absMoney(moneyFromCents(-5))).toBe(5)
+    expect(absMoney(moneyFromCents(5))).toBe(5)
+    expect(Object.is(absMoney(ZERO), 0)).toBe(true)
+    expect(minMoney(moneyFromCents(-5), moneyFromCents(7))).toBe(-5)
+    expect(maxMoney(moneyFromCents(-5), moneyFromCents(7))).toBe(7)
   })
 
   it('divides whole numbers exactly, rounding half away from zero on both signs', () => {

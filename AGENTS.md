@@ -4,6 +4,8 @@ Work is tracked in [GitHub issues](https://github.com/ipazanin/kuna/issues), del
 
 Kuna is a modular monolith. The [module map](docs/architecture/modules.md) says what each module owns and what it may import, and `tests/importBoundaries.spec.ts` enforces it.
 
+Money, percentages and domain models have rules in `.claude/rules/kuna-money.md` and `.claude/rules/kuna-domain.md`, and the `kuna-domain` skill holds the reasoning. Read it before adding a value type, a brand or a shared module.
+
 ## Leave the code better than you found it
 
 A new feature is not a licence to add code beside the old. When new code touches older code, improve what it touches in the same change.

@@ -1,5 +1,5 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { ZERO, addMoney, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { ZERO, addMoney, maxMoney, minMoney, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { drillToTransactions } from '../../filters/domain/drillTarget'
 import type { DrillTarget } from '../../filters/domain/drillTarget'
@@ -191,12 +191,4 @@ function paymentRow(transaction: Transaction): PaymentRow {
       amount: { min: transaction.amount, max: transaction.amount },
     }),
   }
-}
-
-function minMoney(left: Money, right: Money): Money {
-  return (left < right ? left : right) as Money
-}
-
-function maxMoney(left: Money, right: Money): Money {
-  return (left > right ? left : right) as Money
 }
