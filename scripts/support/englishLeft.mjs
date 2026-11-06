@@ -332,6 +332,21 @@ export const ENGLISH_ALLOWED = [
     texts: TYPED_IN_FAKE_FILES,
   },
   {
+    name: 'country codes in the fund profile menus',
+    reason: 'A country in a menu ends with its ISO code in capitals, and some codes read as English words, such as (NO) or (IS).',
+    pattern: /\([A-Z]{2}\)/gu,
+  },
+  {
+    name: 'a place name in the country menu',
+    reason: 'Svalbard i Jan Mayen is a proper name, and Jan is also an English month.',
+    texts: ['Svalbard i Jan Mayen'],
+  },
+  {
+    name: 'currency codes in the currency menus',
+    reason: 'A currency menu lists ISO codes, and some read as English words in capitals.',
+    pattern: /^(ALL|TOP|TRY)$/gu,
+  },
+  {
     name: 'what the model wrote',
     reason: "A suggestion's reason and an answer's parts are the model's own words, shown as they came, and the fake model answers in English.",
     selector: '[data-testid="review-suggestion-why"], [data-testid="cited-text"], [data-testid="cited-own-text"]',

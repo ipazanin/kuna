@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
@@ -69,6 +69,10 @@ const confirmable = computed(() => props.transaction.bucket !== UNCLASSIFIED)
 
 const picked = ref<string | undefined>(undefined)
 
+/** A suggestion comes into view as it appears, whether a run or a tap opened the row, so its reason and Use are not below the fold. */
+const suggestionFact = useTemplateRef<HTMLElement>('suggestionFact')
+watch(suggestionFact, (fact) => fact?.scrollIntoView({ block: 'nearest' }), { flush: 'post' })
+
 function recategorise(category: string | undefined): void {
   if (category !== undefined && category !== '') {
     emit('recategorise', category)
@@ -88,6 +92,16 @@ function recategorise(category: string | undefined): void {
         <span class="flex min-w-0 flex-wrap items-center gap-1.5">
           <CategoryChip :category="transaction.category" :bucket="transaction.bucket" />
           <UBadge v-for="reason in reasons" :key="reason.label" :label="reason.label" :color="reason.color" variant="subtle" size="sm" />
+          <UBadge
+            v-if="suggestion"
+            :label="assistWords.suggest.suggested(names.category(suggestion.category), assistWords.suggest.confidence[suggestion.confidence])"
+            icon="i-lucide-wand-sparkles"
+            color="primary"
+            variant="subtle"
+            size="sm"
+            class="max-w-full"
+            data-testid="review-suggestion-badge"
+          />
         </span>
         <span class="figure shrink-0">{{ dayLabel(transaction.date) }}, {{ names.account(transaction.account) }}</span>
       </span>
@@ -108,7 +122,7 @@ function recategorise(category: string | undefined): void {
             <span v-else class="text-xs text-muted">{{ words.review.item.noRuleDecides }}</span>
           </dd>
         </div>
-        <div v-if="suggestion" data-testid="review-suggestion">
+        <div v-if="suggestion" ref="suggestionFact" data-testid="review-suggestion">
           <dt>{{ assistWords.suggest.suggested(names.category(suggestion.category), assistWords.suggest.confidence[suggestion.confidence]) }}</dt>
           <dd class="flex flex-col items-start gap-1.5">
             <span class="text-xs text-muted" data-testid="review-suggestion-why">{{ suggestion.why }}</span>

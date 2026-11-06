@@ -59,7 +59,7 @@
  * and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
  * the payee breakdown has to stay inside the window and off its own row.
- * After each step it asserts that every visible control is at least 44 by 44 px and that nothing
+ * After each step it asserts that no text overlaps other text, by `support/textOverlap.mjs`, that every visible control is at least 44 by 44 px and that nothing
  * scrolls the page sideways. No console errors and no request to another origin are allowed.
  *
  * Run against a preview of the fake build:
@@ -219,6 +219,7 @@ import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
 import { runSelection } from './support/runSelection.mjs'
+import { textOverlapsOn } from './support/textOverlap.mjs'
 import { settleCharts } from './support/settleCharts.mjs'
 import { screenshotWholePage } from './support/wholePage.mjs'
 
@@ -3097,6 +3098,8 @@ async function inspect(page, scope) {
   }, SMALLEST_TARGET)
   if (report.tooSmall.length) throw new Error(`${report.tooSmall.length} control(s) under 44 px: ${report.tooSmall.slice(0, 6).join(', ')}`)
   if (report.scrollWidth > report.clientWidth + 1) throw new Error(`page scrolls sideways: ${report.scrollWidth} > ${report.clientWidth}`)
+  const overlaps = await textOverlapsOn(page)
+  if (overlaps.length > 0) throw new Error(overlaps.join('. '))
   return scope
 }
 

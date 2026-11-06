@@ -40,6 +40,8 @@ const colours = useCategoryColours()
 interface Choice {
   readonly label: string
   readonly value: string
+  /** The category's slug, which the menu shows beside or under the label as room allows. */
+  readonly description?: string
   /** The category's colour, null for "No category". */
   readonly colour: string | null
 }
@@ -47,7 +49,7 @@ interface Choice {
 const items = computed<Choice[]>(() => [
   ...(props.allowNone ? [{ label: words.noCategory, value: NONE, colour: null }] : []),
   ...props.categories
-    .map((category): Choice => ({ label: names.value.category(category.slug), value: category.slug, colour: colours.value(category.slug, category.bucket) }))
+    .map((category): Choice => ({ label: names.value.category(category.slug), value: category.slug, description: category.slug, colour: colours.value(category.slug, category.bucket) }))
     .sort((left, right) => naturalOrder(left.label, right.label)),
 ])
 
@@ -62,7 +64,12 @@ const picked = computed(() => items.value.find((item) => item.value === menuValu
     :filter-fields="['label', 'value']"
     :search-input="{ placeholder: words.picker.search }"
     :content="{ align: 'start', collisionPadding: 12 }"
-    :ui="{ content: 'min-w-64' }"
+    :ui="{
+      content: 'w-max min-w-[max(16rem,var(--reka-combobox-trigger-width))] max-w-[calc(100vw-1.5rem)]',
+      itemWrapper: 'flex-row flex-wrap items-baseline gap-x-3',
+      itemLabel: 'whitespace-normal',
+      itemDescription: 'identifier ms-auto',
+    }"
     :disabled="disabled"
     :loading="loading"
     color="neutral"
@@ -77,9 +84,6 @@ const picked = computed(() => items.value.find((item) => item.value === menuValu
     <span v-else class="text-muted">{{ placeholder }}</span>
     <template #item-leading="{ item }">
       <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: item.colour ?? 'transparent' }" aria-hidden="true" />
-    </template>
-    <template #item-trailing="{ item }">
-      <span v-if="item.value !== NONE" class="identifier text-xs text-muted">{{ item.value }}</span>
     </template>
   </USelectMenu>
 </template>

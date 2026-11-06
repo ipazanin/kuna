@@ -81,6 +81,7 @@ import { en as spendingOverviewEnglish, hr as spendingOverviewCroatian } from '.
 import { en as spendingFileEnglish, hr as spendingFileCroatian } from '../../src/apps/spending/workbook/presentation/words.ts'
 import { starterCategories } from '../../src/apps/spending/categories/domain/starterCategories.ts'
 import { formatMoney } from '../../src/shared/money/moneyFormat.ts'
+import { openEachMenuIn } from './menuFlows.mjs'
 import { settleCharts } from './settleCharts.mjs'
 import { en as mailDomainEnglish, hr as mailDomainCroatian } from '../../src/shared/mail-filing/domain/words.ts'
 import { en as assistEnglish, hr as assistCroatian } from '../../src/shared/ai/presentation/words.ts'
@@ -6729,7 +6730,7 @@ export function loansScenariosFlowIn(language, bankLoan) {
   }
 }
 
-/** Opens a dialog with `opener`, waits for `shown` in it, shoots it under `name` and closes it with Escape. */
+/** Opens a dialog with `opener`, waits for `shown` in it, shoots it under `name`, opens each of its menus and closes it with Escape. */
 async function lookAtDialog(page, press, shoot, opener, shown, name, says = null) {
   await pressSelector(page, press, opener)
   await page.waitForSelector(shown, { visible: true, timeout: 10_000 }).catch(() => {
@@ -6738,6 +6739,7 @@ async function lookAtDialog(page, press, shoot, opener, shown, name, says = null
   if (says !== null) await elementSays(page, shown, [says], `${shown} does not say "${says}"`)
   await delay(400)
   await shoot(name)
+  await openEachMenuIn(page, press, shown)
   await page.keyboard.press('Escape')
   await dialogGone(page, shown)
 }
@@ -7512,6 +7514,27 @@ async function suggestOnQueue(page, press, language, { inspect, shoot }, shotNam
   })
 }
 
+/** A finished run with no row open opens the first row with a suggestion, its reason and Use in view. */
+async function firstSuggestionOpened(page, counterparty) {
+  await page.waitForSelector('[data-testid="review-details"] [data-testid="use-suggestion"]', { visible: true, timeout: 5_000 }).catch(() => {
+    throw new Error('the run opened no row with its suggestion')
+  })
+  await delay(300)
+  const opened = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('[data-testid="review-row"] > button[aria-expanded="true"]')]
+    const use = document.querySelector('[data-testid="use-suggestion"]').getBoundingClientRect()
+    return { rows: rows.map((row) => row.textContent ?? ''), useInView: use.top >= 0 && use.bottom <= window.innerHeight }
+  })
+  if (opened.rows.length !== 1 || !opened.rows[0].includes(counterparty)) throw new Error(`the run opened ${opened.rows.join(' | ') || 'no row'}, not ${counterparty}`)
+  if (!opened.useInView) throw new Error('the row the run opened keeps Use out of view')
+}
+
+/** A run leaves the queue as it was and the page's changes empty, since nothing is written until Use. */
+async function suggestionsWroteNothing(page) {
+  const after = await page.evaluate(() => ({ rows: document.querySelectorAll('[data-testid="review-row"]').length, changes: document.querySelectorAll('[data-testid="session-write"]').length }))
+  if (after.rows !== 2 || after.changes !== 0) throw new Error(`the run wrote something: ${after.rows} rows wait and the page lists ${after.changes} changes`)
+}
+
 /** Opens a queue row's details, unless they are open, and waits for its suggestion. */
 async function openSuggestion(page, press, counterparty) {
   const row = await queueRow(page, counterparty)
@@ -7563,8 +7586,10 @@ export function reviewSuggestFlowIn(language, { refused = false } = {}) {
       await shoot('review-suggest-refused')
       return
     }
-    if (lines.length !== 1 || !lines[0].includes('Sonnet 5.5')) throw new Error(`the card does not say only the usage line, it says: ${lines.join(' | ')}`)
-    await openSuggestion(page, press, 'SNACK KIOSK')
+    const outcome = words.suggest.outcome(2)
+    if (lines.length !== 2 || lines[0] !== (outcome.few ?? outcome.other) || !lines[1].includes('Sonnet 5.5'))
+      throw new Error(`the card does not say what the run did and then what it spent, it says: ${lines.join(' | ')}`)
+    await firstSuggestionOpened(page, 'SNACK KIOSK')
     await elementSays(
       page,
       '[data-testid="review-details"] [data-testid="review-suggestion"]',
@@ -7572,7 +7597,62 @@ export function reviewSuggestFlowIn(language, { refused = false } = {}) {
       'the snack kiosk does not suggest Representation, likely, with its Use button',
     )
     await inspect?.('the suggestions')
+    await shoot('review-suggested-open')
+    await press(await queueRow(page, 'SNACK KIOSK'))
+    await page.waitForFunction(() => !document.querySelector('[data-testid="review-details"]'), { timeout: 5_000 })
+    const equipment = SCREEN_WORDS[language].categoryName('equipment')
+    for (const [counterparty, says] of [
+      ['SNACK KIOSK', words.suggest.suggested(representation, words.suggest.confidence.medium)],
+      ['GADGET CORNER', words.suggest.suggested(equipment, words.suggest.confidence.high)],
+    ]) {
+      const badge = await (await queueRow(page, counterparty)).$eval('[data-testid="review-suggestion-badge"]', (element) => element.textContent?.trim() ?? '').catch(() => null)
+      if (badge !== says) throw new Error(`the closed row of ${counterparty} says "${badge}", not "${says}"`)
+    }
+    await suggestionsWroteNothing(page)
+    await delay(200)
+    await inspect?.('the closed rows with their suggestions')
     await shoot('review-suggested')
+    await press(await queueRow(page, 'GADGET CORNER'))
+    await page.waitForSelector('[data-testid="review-details"]', { visible: true, timeout: 5_000 })
+    await pressSelector(page, press, SUGGEST_BUTTON)
+    await delay(800)
+    const open = await page.$$eval('[data-testid="review-row"] > button[aria-expanded="true"]', (rows) => rows.map((row) => row.textContent ?? ''))
+    if (open.length !== 1 || !open[0].includes('GADGET CORNER')) throw new Error(`a second run with a row open left these open: ${open.join(' | ')}`)
+  }
+}
+
+/**
+ * The category picker wherever it sits: on a queue row, searched down to the category with the longest name and slug,
+ * in the rule editor and the split dialog of that row, and in the dialog that changes a settled row's category.
+ */
+export function categoryPickerFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await press(await queueRow(page, 'GADGET CORNER'))
+    await page.waitForSelector('[data-testid="recategorise-row"]', { visible: true, timeout: 5_000 })
+    await pressSelector(page, press, '[data-testid="recategorise-row"]')
+    await page.waitForSelector('[role="listbox"]', { visible: true, timeout: 5_000 })
+    await page.keyboard.type('benefits')
+    await page
+      .waitForFunction(() => document.querySelectorAll('[role="option"]').length === 1, { timeout: 5_000 })
+      .catch(() => {
+        throw new Error('searching the picker for benefits does not leave one category')
+      })
+    await delay(250)
+    await inspect?.('the picker on the long category')
+    await shoot('category-picker-long')
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await lookAtDialog(page, press, shoot, '[data-testid="make-rule"]', '[data-testid="rule-category"]', 'category-picker-rule')
+    await lookAtDialog(page, press, shoot, '[data-testid="split-row"]', '[data-testid="split-part-category"]', 'category-picker-split')
+    await goTo(page, '#/company/transactions?p=all&q=CODE%20HOST', words.transactions.title)
+    await openChangeOfRow(page, press)
+    await page.waitForSelector('[data-testid="change-category"]', { visible: true, timeout: 5_000 })
+    await delay(400)
+    await openEachMenuIn(page, press, '[data-testid="change-category"]')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="change-category"]')
   }
 }
 
@@ -7587,6 +7667,12 @@ export async function reviewSuggestUseFlow(page, { press, shoot, inspect }) {
     await suggestOnQueue(page, press, 'en', { inspect, shoot })
     const waiting = () => page.evaluate(() => document.querySelectorAll('[data-testid="review-row"]').length)
     if ((await waiting()) !== 2) throw new Error(`the queue holds ${await waiting()} rows, not the two fake rows`)
+    const lines = await page.$$eval('[data-testid="review-suggest-line"]', (elements) => elements.map((element) => element.textContent?.trim() ?? ''))
+    if (lines[0] !== ASSIST_WORDS.en.suggest.outcome(2).other) throw new Error(`the card's first line is "${lines[0]}", not what the run did`)
+    await firstSuggestionOpened(page, 'SNACK KIOSK')
+    const badge = await (await queueRow(page, 'GADGET CORNER')).$('[data-testid="review-suggestion-badge"]')
+    if (badge === null) throw new Error('the closed row of GADGET CORNER shows no suggestion')
+    await suggestionsWroteNothing(page)
     await openSuggestion(page, press, 'SNACK KIOSK')
     await inspect?.('a suggestion on a phone')
     await shoot('review-suggest')

@@ -15,14 +15,17 @@
  * a collapsed card must open it and land on their row. At 360, 430 and 1440 px each screen
  * collapses and expands one card. The total and the label in the middle of every donut must sit
  * inside the ring's hole with 2 px to spare.
+ * On every screen, at every step of a flow and in every menu a flow opens, no text may overlap other text by more than 2 px
+ * and no label may be cut to under half its width with no ellipsis, other than what `support/textOverlap.mjs` allows by name.
+ * The category picker flows and the menu flows open each kind of picker at 360, 640, 1024 and 1440 px.
  * On every screen and at every step of a flow in Croatian it fails on English left on the page,
  * other than the data `support/englishLeft.mjs` lets through by name. Every flow has a Croatian run,
  * on its own or inside another, such as the Settings tabs, Year's tab link, both imports, Salaries,
  * the home, its Set up and the race on the To review tab.
  *
  * Kuna settings shows the Assistant card with no key, with a made-up Anthropic key kept and with Company switched on, in
- * Croatian too. On the To review tab Suggest categories asks to switch Company on and then suggests a category with its Use
- * button, in Croatian too, or says the model declined (`?ai=refused`). A pay scenario's figure on Year's Pay tab explains
+ * Croatian too. On the To review tab Suggest categories asks to switch Company on, says what it did, shows the suggestion on
+ * each closed row and opens the first with its Use button, in Croatian too, or says the model declined (`?ai=refused`). A pay scenario's figure on Year's Pay tab explains
  * itself with its sources, in Croatian too, flagged for a figure Kuna did not compute (`?ai=invented-figure`), and a figure
  * on Salaries that names employees asks for the employee switch first.
  *
@@ -236,6 +239,7 @@ import { installHrDooPack } from './support/installPack.mjs'
 import { chromePath, ENGLISH_CHROME_ARG } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { englishLeftOn } from './support/englishLeft.mjs'
+import { textOverlapsOn } from './support/textOverlap.mjs'
 import { pageTabsFlow, pageTabsFlowIn, yearTabLinkFlow, yearTabLinkFlowIn } from './support/pageTabFlows.mjs'
 import {
   accessClosedFlow,
@@ -309,6 +313,7 @@ import {
   heldStatementFlowIn,
   importFlowIn,
   mailListFlowIn,
+  categoryPickerFlowIn,
   dataSourceDialogsFlowIn,
   homeFlow,
   importCamtFlow,
@@ -405,6 +410,7 @@ import {
   syncStatesFlowIn,
 } from './support/editorFlows.mjs'
 import { writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
+import { screenMenusFlow } from './support/menuFlows.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
 import { runSelection } from './support/runSelection.mjs'
@@ -4300,6 +4306,8 @@ const CLOSES_SAMPLES = writeClosesSamples(SCREENSHOT_DIR)
 
 /** The dialog flows run at every width, so the uneven form row rule sees each dialog as every width lays it out. */
 const EVERY_VIEWPORT = VIEWPORTS.map((viewport) => viewport.name)
+/** The menu flows run at the widths where a menu's text wraps differently, so the text overlap rule sees every picker open. */
+const MENU_VIEWPORTS = ['phone', 'small-tablet', 'tablet-wide', 'desktop']
 
 /** The editors' flows, each on a fresh load, so the fake file on Drive and the workbook kept in this browser start from their seed. */
 const FLOWS = [
@@ -5212,6 +5220,85 @@ const FLOWS = [
     modes: ['drive'],
     queries: { drive: '&investments=sample&lang=hr' },
   },
+  { name: 'category-picker', hash: '#/company/transactions?tab=review', title: 'Transactions', run: categoryPickerFlowIn('en'), viewports: MENU_VIEWPORTS, modes: ['drive'] },
+  {
+    name: 'category-picker-croatian',
+    hash: '#/company/transactions?tab=review',
+    title: 'Transakcije',
+    run: categoryPickerFlowIn('hr'),
+    viewports: MENU_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&lang=hr' },
+  },
+  {
+    name: 'menus-company',
+    hash: '#/company/transactions?p=all',
+    title: 'Transactions',
+    run: screenMenusFlow([
+      { hash: '#/company/transactions?p=all', title: 'Transactions' },
+      { hash: '#/company/transactions?tab=import', title: 'Transactions' },
+      { hash: '#/company/invoicing?p=all', title: 'Invoicing' },
+      { hash: '#/company/settings', title: 'Settings' },
+      { hash: '#/company/settings?tab=categories', title: 'Settings' },
+      { hash: '#/company/owner?tab=owed', title: 'Owner' },
+    ]),
+    viewports: MENU_VIEWPORTS,
+    modes: ['drive'],
+  },
+  {
+    name: 'menus-spending',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    run: screenMenusFlow([
+      { hash: '#/spending/transactions', title: 'Entries', dialogs: ['[data-testid="spending-add-entry"]'] },
+      { hash: '#/spending/transactions?tab=review', title: 'Entries' },
+      { hash: '#/spending/budgets', title: 'Limits' },
+    ]),
+    viewports: MENU_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&spending=statements' },
+  },
+  {
+    name: 'menus-investments',
+    hash: '#/investments/transactions',
+    title: 'Transactions',
+    run: screenMenusFlow([
+      { hash: '#/investments/transactions', title: 'Transactions' },
+      { hash: '#/investments/holdings', title: 'Holdings' },
+      { hash: '#/investments/performance', title: 'Performance' },
+      { hash: '#/investments/tax?year=2026', title: 'Tax' },
+      { hash: '#/investments/settings', title: 'Settings' },
+    ]),
+    viewports: MENU_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&investments=sample' },
+  },
+  {
+    name: 'menus-loans',
+    hash: '#/loans',
+    title: 'Overview',
+    run: screenMenusFlow([{ hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, shows: '[data-testid="loan-subsidy"]' }]),
+    viewports: MENU_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&loans=sample' },
+  },
+  {
+    name: 'menus-assets',
+    hash: '#/assets',
+    title: 'Overview',
+    run: screenMenusFlow([{ hash: '#/assets', title: 'Overview', dialogs: ['[data-testid="add-asset"]'] }]),
+    viewports: MENU_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&assets=sample&loans=sample' },
+  },
+  {
+    name: 'menus-kuna',
+    hash: '#/settings',
+    title: 'Kuna settings',
+    run: screenMenusFlow([{ hash: '#/settings', title: 'Kuna settings' }]),
+    viewports: MENU_VIEWPORTS,
+    modes: ['drive'],
+  },
   { name: 'dialogs-company', hash: '#/company/invoicing?p=all', title: 'Invoicing', run: companyDialogsFlow, viewports: EVERY_VIEWPORT, modes: ['drive'] },
   {
     name: 'dialogs-company-croatian',
@@ -5447,6 +5534,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
 
     const report = await readPage(page)
     if (inCroatian(visit.query)) for (const english of await englishLeftOn(page)) fail(scope, english)
+    for (const overlap of await textOverlapsOn(page)) fail(scope, overlap)
     if (!rendered) fail(scope, `nothing matched ${ready} within 10 s`)
     if (report.title !== visit.title) fail(scope, `title was ${JSON.stringify(report.title)}, expected "${visit.title}"`)
     if (report.themeClass !== visit.theme) fail(scope, `rendered ${report.themeClass}, expected the ${visit.theme} theme`)
@@ -5547,23 +5635,36 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
         await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme }])
         const file = (name) => join(SCREENSHOT_DIR, `${viewport.name}-${mode.name}-${name}-${theme}.png`)
         const query = flow.queries?.[mode.name] ?? mode.query
-        const englishSeen = new Set()
+        const toldOnce = new Set()
         const stateCheck = async (when) => {
           const report = await readPage(page)
           if (report.scrollWidth > report.clientWidth + 1) fail(scope, `${when}: horizontal overflow, scrollWidth ${report.scrollWidth} > clientWidth ${report.clientWidth}`)
           for (const row of report.unevenFieldRows) fail(scope, `${when}: uneven form row: ${row}`)
-          if (!inCroatian(query)) return
-          // A text left in English stays on screen through the states after it, so each is told once.
-          for (const english of (await englishLeftOn(page)).filter((text) => !englishSeen.has(text))) {
-            englishSeen.add(english)
-            fail(scope, `${when}: ${english}`)
+          // A text left in English or an overlap stays on screen through the states after it, so each is told once.
+          const lingering = [...(await textOverlapsOn(page)), ...(inCroatian(query) ? await englishLeftOn(page) : [])]
+          for (const problem of lingering.filter((text) => !toldOnce.has(text))) {
+            toldOnce.add(problem)
+            fail(scope, `${when}: ${problem}`)
           }
+        }
+        /** A press that opens a menu looks at the open menu too, so every menu any flow opens is checked. */
+        const pressLookingAtMenus = async (handle) => {
+          const opensMenu = await handle.evaluate((element) => element.matches('[role="combobox"], [aria-haspopup="listbox"]') && element.getAttribute('aria-expanded') !== 'true')
+          await handle.click()
+          if (!opensMenu) return
+          const opened = await page
+            .waitForSelector('[role="listbox"]', { visible: true, timeout: 2_000 })
+            .then(() => true)
+            .catch(() => false)
+          if (!opened) return
+          await new Promise((resolve) => setTimeout(resolve, 250))
+          await stateCheck('an open menu')
         }
         try {
           await page.goto(`${BASE}?theme=${theme}${query}${flow.hash}`, { waitUntil: 'networkidle0' })
           await page.waitForFunction((title) => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === title, { timeout: 10_000 }, flow.title)
           await flow.run(page, {
-            press: (handle) => handle.click(),
+            press: pressLookingAtMenus,
             shoot: async (name) => {
               await stateCheck(name)
               await page.screenshot({ path: file(name) })

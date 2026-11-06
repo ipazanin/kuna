@@ -182,8 +182,8 @@ function ownerPartNote(row: ListedRow): string | null {
                 <span v-else class="min-w-0 truncate font-medium text-highlighted">{{ entry.row.counterparty || words.noCounterparty }}</span>
                 <MoneyText :cents="entry.row.amount" tone="flow" class="shrink-0 font-medium" />
               </span>
-              <span class="flex items-center justify-between gap-3 text-xs text-muted">
-                <span class="flex min-w-0 items-center gap-1.5">
+              <span class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-muted">
+                <span class="flex min-w-0 flex-wrap items-center gap-1.5">
                   <span class="size-2 shrink-0 rounded-[2px]" :style="{ background: colours(entry.row.category, entry.row.bucket) }" aria-hidden="true" />
                   <span v-if="ownerPartNote(entry.row)" class="text-toned">{{ names.category(entry.row.category) }}, {{ ownerPartNote(entry.row) }}</span>
                   <span v-else class="truncate text-toned">{{ entry.row.category === '' ? words.noCategory : names.category(entry.row.category) }}</span>

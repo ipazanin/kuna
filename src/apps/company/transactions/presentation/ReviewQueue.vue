@@ -73,6 +73,8 @@ const suggestionOf = computed(() => {
   const suggestions: readonly CategorySuggestion[] = run.kind === 'done' && run.result.kind === 'draft' ? run.result.draft.suggestions : []
   return new Map(suggestions.map((suggestion) => [suggestion.rowId, suggestion]))
 })
+/** The rows still waiting that have a suggestion, so a row filed by its suggestion stops counting. */
+const suggestedRows = computed(() => props.queue.filter(({ transaction }) => suggestionOf.value.has(transaction.id)))
 
 const employees = computed(() =>
   state.records === null
@@ -93,6 +95,7 @@ const suggestLines = computed(() => {
   const missing = result?.kind === 'draft' ? result.draft.asked - result.draft.suggestions.length : 0
   return [
     heldBack.value ? assistWords.suggest.heldBack : null,
+    suggestedRows.value.length > 0 ? plural(assistWords.suggest.outcome(suggestedRows.value.length), suggestedRows.value.length) : null,
     missing > 0 ? plural(assistWords.suggest.none(missing), missing) : null,
     result === null ? null : resultLine(result),
     result === null ? null : usageLine(result),
@@ -114,7 +117,10 @@ function suggestInput(): SuggestInput | null {
 
 async function suggest(): Promise<void> {
   const input = suggestInput()
-  if (input !== null && sentRows(input).length > 0) await suggesting.run(input, sendsEmployees(input))
+  if (input !== null && sentRows(input).length > 0) {
+    await suggesting.run(input, sendsEmployees(input))
+    expandedRow.value ??= suggestedRows.value[0]?.transaction.id ?? null
+  }
 }
 
 function file(title: string, verdict: RowVerdict, options: RecordWriteOptions): Promise<boolean> {
