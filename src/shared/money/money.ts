@@ -9,8 +9,8 @@ export type Money = number & { readonly __unit: 'cents' }
 
 export const ZERO = 0 as Money
 
-/** Rounds half away from zero, so a negative amount rounds the same way as its positive twin. */
-function roundHalfAwayFromZero(fractionalCents: number): number {
+/** Rounds half away from zero, so a negative number rounds the same way as its positive twin. */
+export function roundHalfAwayFromZero(fractionalCents: number): number {
   return Math.sign(fractionalCents) * Math.round(Math.abs(fractionalCents)) + 0
 }
 

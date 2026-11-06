@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import type { BenchmarkState } from '../domain/benchmark'
 import type { PeriodPerformance } from '../domain/portfolioPerformance'
 import { INVESTMENTS_SETTINGS_ROUTE } from '../../overview/presentation/investmentLinks'
+import { showsAsLevel } from './returnFill'
 import { words } from './words'
 import { formatPercentChange } from '../../../../shared/money/moneyFormat'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
@@ -69,7 +70,7 @@ const differenceTile = computed(() => {
     return props.performance.nothingHeld ? { value: text.nothingHeld, caption: text.nothingHeldCaption } : { value: text.leftOut, caption: text.belowZeroCaption }
   }
   // Level once it rounds to zero at the two decimals of a percent the tile shows.
-  const level = Math.round(Math.abs(comparison.difference) * 10_000) === 0
+  const level = showsAsLevel(Math.abs(comparison.difference))
   const caption = level ? text.level(benchmarkName.value) : comparison.difference > 0 ? text.ahead(benchmarkName.value) : text.behind(benchmarkName.value)
   return { value: formatPercentChange(comparison.difference), caption }
 })

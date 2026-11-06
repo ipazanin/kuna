@@ -4,6 +4,7 @@ import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { DECIMAL_ZERO, decimalOfNumber, decimalOfText, decimalText, dividedDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
+import { roundHalfAwayFromZero } from '../../../../shared/money/money'
 import { cellText } from '../../../../shared/text/cellText'
 import { factKey } from '../../../../shared/text/factKey'
 import { fold } from '../../../../shared/text/fold'
@@ -310,12 +311,14 @@ function dateOf(cell: WorkbookCell | undefined): CivilDate {
   return date
 }
 
+const SECONDS_PER_DAY = 86_400
+
 /** A time cell as `hh:mm:ss`, from the fraction of a day a spreadsheet gives, or the text as written. */
 function timeOf(cell: WorkbookCell | undefined): string {
   if (typeof cell !== 'number') {
     return cellText(cell)
   }
-  const seconds = Math.round((cell - Math.floor(cell)) * 86_400)
+  const seconds = roundHalfAwayFromZero((cell - Math.floor(cell)) * SECONDS_PER_DAY)
   return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map((part) => String(part).padStart(2, '0')).join(':')
 }
 

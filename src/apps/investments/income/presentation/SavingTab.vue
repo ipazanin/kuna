@@ -13,10 +13,11 @@ import { monthOf } from '../../../../shared/calendar/monthKey'
 import { monthName } from '../../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
-import { decimalText, typedDecimal } from '../../../../shared/money/decimal'
+import { typedDecimal } from '../../../../shared/money/decimal'
 import { ZERO } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { formatCount, formatMoney, formatRate } from '../../../../shared/money/moneyFormat'
+import { shareFromPercent, shareOfDecimalPercent } from '../../../../shared/money/percent'
 import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
 import { typedCount } from '../../../../shared/text/typedCount'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -36,7 +37,7 @@ const props = defineProps<{
 }>()
 
 const MOST_YEARS = 60
-const MOST_PERCENT = 100
+const MOST_RETURN = shareFromPercent(100)
 
 const text = words.saving
 const projectionText = words.projection
@@ -53,11 +54,11 @@ const typedMonthly = computed(() => {
   const amount = typedAmount(eachMonth.value)
   return amount !== null && amount >= 0 ? amount : null
 })
-/** The return as a fraction, typed in percent. */
+/** The yearly return, typed in percent. */
 const typedRate = computed(() => {
   const percent = typedDecimal(rate.value)
-  const fraction = percent === null ? null : Number(decimalText(percent)) / 100
-  return fraction !== null && fraction >= 0 && fraction <= MOST_PERCENT / 100 ? fraction : null
+  const yearlyReturn = percent === null ? null : shareOfDecimalPercent(percent)
+  return yearlyReturn !== null && yearlyReturn >= 0 && yearlyReturn <= MOST_RETURN ? yearlyReturn : null
 })
 const typedYears = computed(() => {
   const count = typedCount(years.value)

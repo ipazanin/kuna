@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { customsEstimate } from '../src/apps/assets/carValue/domain/customsTable'
 import { valueCaption } from '../src/apps/assets/values/presentation/valueCaption'
+import { percentFromBasisPoints } from '../src/shared/money/percent'
 import { civil, euros } from './fixtures/ledger'
 
 describe('how an asset value was reached, in words', () => {
@@ -16,10 +17,10 @@ describe('how an asset value was reached, in words', () => {
   })
 
   it('reads a car bought new by the share of its price', () => {
-    expect(valueCaption({ cents: euros(17_370), basis: { kind: 'customs', onDay: { months: 33, share: 5790 }, whenBought: null } })).toBe(
+    expect(valueCaption({ cents: euros(17_370), basis: { kind: 'customs', onDay: { months: 33, share: percentFromBasisPoints(5790) }, whenBought: null } })).toBe(
       'Estimate by the customs table: 57.90% of the price after 33 months from first registration',
     )
-    expect(valueCaption({ cents: euros(28_800), basis: { kind: 'customs', onDay: { months: 1, share: 9300 }, whenBought: null } })).toBe(
+    expect(valueCaption({ cents: euros(28_800), basis: { kind: 'customs', onDay: { months: 1, share: percentFromBasisPoints(9300) }, whenBought: null } })).toBe(
       'Estimate by the customs table: 93.00% of the price after 1 month from first registration',
     )
   })

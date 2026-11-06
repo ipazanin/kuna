@@ -9,7 +9,7 @@ import type { DayValuer } from '../../performance/domain/portfolioPerformance'
 import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
 import { words } from './words'
 import { yearOf } from '../../../../shared/calendar/civilDate'
-import { decimalText } from '../../../../shared/money/decimal'
+import { shareOfDecimalPercent } from '../../../../shared/money/percent'
 import { formatCostShare, formatMoney } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -28,7 +28,7 @@ const years = computed(() => yearlyCosts(props.sources, props.valuedOn, facts.va
 const thisYear = computed(() => yearOf(props.sources.today))
 /** A TER is in percent, so 0.2 is 0.20%. A fetched one names the vendor that gave it. */
 function terOf(ter: FundTer): string {
-  const rate = formatCostShare(Number(decimalText(ter.percent)) / 100)
+  const rate = formatCostShare(shareOfDecimalPercent(ter.percent))
   return ter.vendor === null ? text.ter(rate) : text.fetchedTer(rate, PRICE_VENDORS.find((vendor) => vendor.id === ter.vendor)?.name ?? ter.vendor)
 }
 </script>

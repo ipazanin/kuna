@@ -12,9 +12,9 @@ import { words } from './words'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import type { Mix } from '../../workbook/domain/mixGroup'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
-import { decimalText } from '../../../../shared/money/decimal'
 import { ZERO } from '../../../../shared/money/money'
 import { formatMoney, formatShare } from '../../../../shared/money/moneyFormat'
+import { shareOfDecimalPercent } from '../../../../shared/money/percent'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
@@ -91,7 +91,7 @@ const summary = computed(() => {
               <span class="block type-caption @md:hidden">{{ line.share === null ? '–' : formatShare(line.share) }}</span>
             </th>
             <td class="figure hidden text-end @md:table-cell">{{ line.share === null ? '–' : formatShare(line.share) }}</td>
-            <td class="figure text-end">{{ formatShare(Number(decimalText(line.target)) / 100) }}</td>
+            <td class="figure text-end">{{ formatShare(shareOfDecimalPercent(line.target)) }}</td>
             <td class="text-end"><MoneyText :cents="line.gap" sign="always" data-testid="targets-gap" /></td>
             <td v-if="buys !== null" class="text-end"><MoneyText :cents="buys.get(line.group) ?? ZERO" data-testid="targets-buy" /></td>
           </tr>

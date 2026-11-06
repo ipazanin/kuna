@@ -13,6 +13,8 @@ import { axisTooltip } from '../../../../shared/charts/chartTooltip'
 import { dayAxisLabels, dayOfCategory } from '../../../../shared/charts/dayAxis'
 import type { ChartOption, LineSeries } from '../../../../shared/charts/echarts'
 import { shownPoints } from '../../../../shared/charts/monthAxis'
+import { moneyFromAmount } from '../../../../shared/money/money'
+import type { Money } from '../../../../shared/money/money'
 import { formatMoney, formatPercentChange } from '../../../../shared/money/moneyFormat'
 
 export interface GrowthChart {
@@ -65,7 +67,7 @@ export function growthChart(growth: readonly GrowthPoint[], benchmarkName: strin
       formatValue: formatPercentChange,
     }
   }
-  const cents = (grown: number): number => Math.round(grown * 100)
+  const cents = (grown: number): Money => moneyFromAmount(grown)
   const hasBenchmark = benchmarkName !== null && growth.every((point) => point.benchmark !== null)
   const benchmark: LineSeries[] = hasBenchmark
     ? [

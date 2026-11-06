@@ -1,5 +1,7 @@
 import { dividedRounded, moneyFromCents } from './money'
 import type { Money } from './money'
+import { decimalText } from './decimal'
+import type { Decimal } from './decimal'
 import { formatRate } from './moneyFormat'
 import { stepsOfNumber } from './numberRounding'
 
@@ -89,6 +91,21 @@ export function shareFromPercent(percent: number): Share {
 /** The rate on the scale of 0 to 100, as a cell or a field holds it, so 250 basis points is 2.5, the same in every locale. */
 export function writtenPercent(rate: Percent): number {
   return rate / BASIS_POINTS_PER_PERCENT
+}
+
+/** An exact percent such as a fund's cost or a bond's coupon as a share, so 0.2 is 0.002. */
+export function shareOfDecimalPercent(percent: Decimal): Share {
+  return shareFromPercent(Number(decimalText(percent)))
+}
+
+/** A share on the scale of 0 to 100, for a figure shown in points. */
+export function pointsOfShare(share: Share): number {
+  return share * PERCENT_PER_WHOLE
+}
+
+/** A ratio where 1 is the whole, in basis points and not rounded, so 0.00005 is 0.5. */
+export function basisPointsOfRatio(ratio: number): number {
+  return ratio * BASIS_POINTS_PER_WHOLE
 }
 
 /** A rate as people write it: 2150 basis points is 21.5%, or 21,5 % in Croatian. */

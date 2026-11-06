@@ -14,8 +14,9 @@ import { FUND_MIXES, countryOfIsin } from '../../workbook/domain/mixGroup'
 import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { DECIMAL_ZERO, decimalText, scaledDecimal } from '../../../../shared/money/decimal'
+import { DECIMAL_ZERO, scaledDecimal } from '../../../../shared/money/decimal'
 import { formatCompactAmount, formatCostShare, formatCount, formatUnitPrice } from '../../../../shared/money/moneyFormat'
+import { shareOfDecimalPercent } from '../../../../shared/money/percent'
 import { countryName } from '../../../../shared/text/countryName'
 import { plural } from '../../../../shared/text/translation'
 import type { Fact } from '../../../../shared/ui/FactGrid.vue'
@@ -105,7 +106,7 @@ export function holdingDetails(holding: Pick<HoldingFigures, 'instrument' | 'qua
         ? [
             {
               label: text.ter,
-              value: ter === null ? text.notKnown : formatCostShare(Number(decimalText(ter.percent)) / 100),
+              value: ter === null ? text.notKnown : formatCostShare(shareOfDecimalPercent(ter.percent)),
               caption: ter === null ? text.typeIt : ter.vendor === null ? text.typed : text.sources.fundProfile(vendorName(ter.vendor)),
             },
           ]

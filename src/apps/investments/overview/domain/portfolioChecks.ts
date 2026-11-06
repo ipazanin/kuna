@@ -11,8 +11,10 @@ import type { Mix, MixGroup } from '../../workbook/domain/mixGroup'
 import type { Target } from '../../workbook/domain/target'
 import { decimalOfMoney, timesDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
-import { ZERO } from '../../../../shared/money/money'
+import { ZERO, ratioOf } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { shareFromPercent } from '../../../../shared/money/percent'
+import type { Share } from '../../../../shared/money/percent'
 
 /** What a check measured: a holding, a group of a mix, or the cash or the costs as a whole. */
 export type CheckedSubject = { readonly kind: 'holding'; readonly instrument: Instrument } | { readonly kind: 'group'; readonly slice: MixGroup } | { readonly kind: 'whole' }
@@ -24,7 +26,7 @@ export interface PortfolioCheck {
    * As a fraction: of the value, of the holdings for sector and country, of the average value for the costs, and for
    * the target gap the points away from the target over 100.
    */
-  readonly measured: number
+  readonly measured: Share
   /** In percent, and in points for the target gap. */
   readonly threshold: Decimal
   readonly over: boolean
@@ -51,8 +53,9 @@ export function portfolioChecks(figures: PortfolioFigures, mixes: HoldingMixes, 
       return gap === null ? [] : [{ check, subject: gap.subject, measured: gap.points, threshold, over: gap.beyond(threshold) }]
     }
     const measured = measuredBy(check, figures, mixes, costs)
-    if (measured === null || measured.whole <= 0) return []
-    return [{ check, subject: measured.subject, measured: measured.part / measured.whole, threshold, over: shareAbove(measured.part, measured.whole, threshold) }]
+    const share = measured === null || measured.whole <= 0 ? null : ratioOf(measured.part, measured.whole)
+    if (measured === null || share === null) return []
+    return [{ check, subject: measured.subject, measured: share, threshold, over: shareAbove(measured.part, measured.whole, threshold) }]
   })
   return [...checked.filter((entry) => entry.over), ...checked.filter((entry) => !entry.over)]
 }
@@ -80,7 +83,7 @@ function largestPart(mix: HoldingMix<Mix>): Measured | null {
 }
 
 /** The group of the targeted mix furthest from its target, in points either way, of the placed value as the target card measures it. */
-function largestGap(mixes: HoldingMixes, targets: readonly Target[]): { subject: CheckedSubject; points: number; beyond: (threshold: Decimal) => boolean } | null {
+function largestGap(mixes: HoldingMixes, targets: readonly Target[]): { subject: CheckedSubject; points: Share; beyond: (threshold: Decimal) => boolean } | null {
   const targeted = targetedMix(targets)
   if (targeted === null) return null
   const mix: HoldingMix<Mix> = mixes[targeted.mix]
@@ -96,7 +99,7 @@ function largestGap(mixes: HoldingMixes, targets: readonly Target[]): { subject:
   if (furthest === undefined) return null
   return {
     subject: { kind: 'group', slice: { mix: targeted.mix, group: furthest.group } as MixGroup },
-    points: Number(furthest.away) / Number(whole) / 100,
+    points: shareFromPercent(Number(furthest.away) / Number(whole)),
     beyond: (threshold) => furthest.away > timesDecimal(threshold, whole),
   }
 }

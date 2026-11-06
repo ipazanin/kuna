@@ -7,6 +7,8 @@ import type { Decimal } from '../../../../shared/money/decimal'
 
 const GRAMS_PER_TROY_OUNCE = decimalOfText('31.1034768')!
 const PERCENT = decimalOfText('100')!
+/** A coupon is stated in percent, so a share of it divides by this. */
+const PERCENT_DENOMINATOR = 100n
 
 /** What a quantity at a price comes to in the quote currency: a bond's nominal at a price in percent of it, anything else units × price. */
 export function tradeWorth(quoting: Quoting, quantity: Decimal, price: Decimal): Decimal {
@@ -46,5 +48,5 @@ export function accruedInterest(nominal: Decimal, bond: PercentQuoting, day: Civ
   }
   const next = dayMonthsLater(bond.maturity, -12 * yearsBefore)
   const last = dayMonthsLater(bond.maturity, -12 * (yearsBefore + 1))
-  return scaledDecimal(timesDecimal(nominal, bond.coupon), BigInt(daysBetween(last, day)), BigInt(daysBetween(last, next)) * 100n)
+  return scaledDecimal(timesDecimal(nominal, bond.coupon), BigInt(daysBetween(last, day)), BigInt(daysBetween(last, next)) * PERCENT_DENOMINATOR)
 }

@@ -15,7 +15,9 @@ import { axisTooltip } from '../../../../shared/charts/chartTooltip'
 import type { BarSeries, ChartOption, LineSeries } from '../../../../shared/charts/echarts'
 import { monthAxisLabels, shownPoints, yearStep } from '../../../../shared/charts/monthAxis'
 import { ZERO, sumMoney } from '../../../../shared/money/money'
+import type { Money } from '../../../../shared/money/money'
 import { formatMoney, formatRate } from '../../../../shared/money/moneyFormat'
+import type { Share } from '../../../../shared/money/percent'
 import { plural } from '../../../../shared/text/translation'
 
 export interface IncomeChart {
@@ -77,7 +79,7 @@ export function savingChart(rhythm: InvestingRhythm, tokens: ChartTokens, phone:
 }
 
 /** The projected value now and every 12 months after, each labelled with the year it falls in. */
-export function projectionChart(projected: Projection, monthly: number, yearlyRate: number, thisYear: number, tokens: ChartTokens, phone: boolean): IncomeChart {
+export function projectionChart(projected: Projection, monthly: Money, yearlyReturn: Share, thisYear: number, tokens: ChartTokens, phone: boolean): IncomeChart {
   const years = projected.years.map((point) => String(thisYear + point.year))
   const colour = tokenColour('--invest-portfolio')
   const value: LineSeries = {
@@ -99,7 +101,7 @@ export function projectionChart(projected: Projection, monthly: number, yearlyRa
       yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
       series: [value],
     },
-    description: plural(words.projection.description(count, formatMoney(monthly), formatRate(yearlyRate), formatMoney(projected.years[0]?.value ?? 0), formatMoney(projected.end)), count),
+    description: plural(words.projection.description(count, formatMoney(monthly), formatRate(yearlyReturn), formatMoney(projected.years[0]?.value ?? 0), formatMoney(projected.end)), count),
   }
 }
 

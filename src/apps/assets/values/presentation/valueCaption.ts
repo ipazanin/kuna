@@ -3,6 +3,7 @@ import type { Quarter } from '../../houseIndex/domain/houseIndex'
 import type { AssetValue } from '../domain/assetValue'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatCostShare, formatMoney } from '../../../../shared/money/moneyFormat'
+import { shareOfPercent } from '../../../../shared/money/percent'
 import { plural } from '../../../../shared/text/translation'
 import { words } from './words'
 
@@ -15,7 +16,7 @@ function monthsText(months: number): string {
 }
 
 function shareText(share: TableShare): string {
-  return formatCostShare(share.share / 10_000)
+  return formatCostShare(shareOfPercent(share.share))
 }
 
 /** How the value was reached, as its figure's caption says. */

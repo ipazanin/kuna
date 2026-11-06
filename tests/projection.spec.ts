@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import { projection } from '../src/apps/investments/income/domain/projection'
+import { shareFromPercent } from '../src/shared/money/percent'
 import { euros } from './fixtures/ledger'
 
 describe('the projection', () => {
   it('grows €100,000.00 with €500.00 a month at 5% over 20 years to €468,232.01', () => {
-    const projected = projection(euros(100000), euros(500), 0.05, 20)
+    const projected = projection(euros(100000), euros(500), shareFromPercent(5), 20)
     expect(projected.end).toBe(euros(468232.01))
     expect(projected.years).toHaveLength(21)
     expect(projected.years[0]).toEqual({ year: 0, value: euros(100000) })
@@ -17,14 +18,14 @@ describe('the projection', () => {
   })
 
   it('adds each saving at its month end, so a year at 0% adds twelve of them', () => {
-    expect(projection(euros(1000), euros(100), 0, 1).end).toBe(euros(2200))
+    expect(projection(euros(1000), euros(100), shareFromPercent(0), 1).end).toBe(euros(2200))
   })
 
   it('compounds a year at the yearly rate when nothing is saved', () => {
-    expect(projection(euros(1000), euros(0), 0.05, 1).end).toBe(euros(1050))
+    expect(projection(euros(1000), euros(0), shareFromPercent(5), 1).end).toBe(euros(1050))
   })
 
   it('ends at the value now over no years', () => {
-    expect(projection(euros(1000), euros(100), 0.05, 0)).toMatchObject({ end: euros(1000), years: [{ year: 0, value: euros(1000) }] })
+    expect(projection(euros(1000), euros(100), shareFromPercent(5), 0)).toMatchObject({ end: euros(1000), years: [{ year: 0, value: euros(1000) }] })
   })
 })

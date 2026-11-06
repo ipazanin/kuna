@@ -1,5 +1,6 @@
 import type { HouseRegion } from '../../workbook/domain/asset'
 import type { HouseIndex, Quarter, RegionIndex } from '../domain/houseIndex'
+import { stepsOfNumber } from '../../../../shared/money/numberRounding'
 
 /** Tabela 1.4 of the DZS, Indeksi cijena stambenih objekata, po tromjesečjima. */
 const TABLE_URL = 'https://web.dzs.hr/PXWeb/api/v1/hr/Cijene/Indeksi%20cijena%20stambenih%20objekata/ME_PS14.px'
@@ -99,7 +100,8 @@ export function houseIndexOfAnswer(answer: unknown): HouseIndex {
     new Map(
       quarters.flatMap((quarter) => {
         const value = valueAt({ Kategorije: category, Indikatori: INDEX_INDICATOR, Tromjesečje: quarter })
-        return value === null ? [] : [[quarter, Math.round(value * 100)] as const]
+        const hundredths = value === null ? null : stepsOfNumber(value, 2)
+        return hundredths === null ? [] : [[quarter, Number(hundredths)] as const]
       }),
     )
   return { zagreb: regionIndex(REGION_CATEGORIES.zagreb), adriatic: regionIndex(REGION_CATEGORIES.adriatic), rest: regionIndex(REGION_CATEGORIES.rest) }

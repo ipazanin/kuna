@@ -6,6 +6,7 @@ import { words } from './words'
 import { decimalText } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import { formatCostShare, formatDecimal, formatQuantity, formatShare } from '../../../../shared/money/moneyFormat'
+import { pointsOfShare } from '../../../../shared/money/percent'
 import { plural } from '../../../../shared/text/translation'
 
 /** A check as the card lists it. */
@@ -38,7 +39,7 @@ export function checkLines(checks: readonly PortfolioCheck[], book: Pick<Investm
       entry.subject.kind === 'holding' ? entry.subject.instrument.name : entry.subject.kind === 'group' ? groupName(entry.subject.slice.mix, entry.subject.slice.group, book) : text.labels.cash
     const sentence =
       entry.check === 'target-gap'
-        ? text.gap(name, formatDecimal(entry.measured * 100), bound)
+        ? text.gap(name, formatDecimal(pointsOfShare(entry.measured)), bound)
         : entry.check === 'costs'
           ? text.costs(formatCostShare(entry.measured), bound)
           : entry.check === 'sector' || entry.check === 'country'

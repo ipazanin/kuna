@@ -8,7 +8,7 @@ import { civilDate } from '../src/shared/calendar/civilDate'
 import { STARTING_CATEGORIES } from '../src/apps/company/packs/hr-doo/preset/domain/startingCategories'
 import { monthKey } from '../src/shared/calendar/monthKey'
 import { decimalOfText } from '../src/shared/money/decimal'
-import { percentFromBasisPoints } from '../src/shared/money/percent'
+import { percentFromBasisPoints, shareFromPercent } from '../src/shared/money/percent'
 import type { RecordNoun } from '../src/shared/storage/domain/recordKind'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import { civil, euros } from './fixtures/ledger'
@@ -117,7 +117,7 @@ describe('the portfolio checks in Croatian', () => {
   it('says a holding’s share with its threshold, and a gap in points in the case the number asks for', async () => {
     const { checkLines, thresholdText } = await inCroatian(() => import('../src/apps/investments/overview/presentation/checkLines'))
     const tech = { id: 'instrument:tech', name: 'Example Tech' } as unknown as Instrument
-    const over: PortfolioCheck = { check: 'holding', subject: { kind: 'holding', instrument: tech }, measured: 0.342, threshold: decimalOfText('20')!, over: true }
+    const over: PortfolioCheck = { check: 'holding', subject: { kind: 'holding', instrument: tech }, measured: shareFromPercent(34.2), threshold: decimalOfText('20')!, over: true }
 
     expect(checkLines([over], { accounts: [] }).map((line) => [line.label, line.sentence])).toEqual([['Najveća pozicija', 'Example Tech čini 34,2\u00a0% vrijednosti, iznad 20\u00a0%']])
     expect(['1', '2', '5', '2.5'].map((points) => thresholdText('target-gap', decimalOfText(points)!))).toEqual(['1 postotnog boda', '2 postotna boda', '5 postotnih bodova', '2,5 postotnih bodova'])

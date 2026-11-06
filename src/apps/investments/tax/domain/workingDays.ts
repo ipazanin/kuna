@@ -33,11 +33,13 @@ export function weekdayOnOrBefore(day: CivilDate): CivilDate {
   return isWeekday(day) ? day : weekdaysAfter(day, -1)
 }
 
+const YEARS_PER_CENTURY = 100
+
 /** Easter Sunday by the Gregorian computus. */
 function easterSunday(year: number): CivilDate {
   const golden = year % 19
-  const century = Math.floor(year / 100)
-  const ofCentury = year % 100
+  const century = Math.floor(year / YEARS_PER_CENTURY)
+  const ofCentury = year % YEARS_PER_CENTURY
   const epact = (19 * golden + century - Math.floor(century / 4) - Math.floor((century - Math.floor((century - 8) / 25) + 1) / 3) + 15) % 30
   const weekday = (32 + 2 * (century % 4) + 2 * Math.floor(ofCentury / 4) - epact - (ofCentury % 4)) % 7
   const shift = Math.floor((golden + 11 * epact + 22 * weekday) / 451)

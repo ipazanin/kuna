@@ -1,3 +1,5 @@
+import { roundHalfAwayFromZero } from '../../../../shared/money/money'
+
 /** The most units either side of a split, such as the 100 of a 1 for 100 reverse split. */
 const MOST_UNITS = 100
 /** The smaller side of a split is at most this, so a price adjustment such as 1.0460 is not read as 91 for 87. */
@@ -11,7 +13,7 @@ export function splitRatioOf(factor: number): { readonly newUnits: number; reado
     return null
   }
   for (let oldUnits = 1; oldUnits <= MOST_UNITS; oldUnits += 1) {
-    const newUnits = Math.round(factor * oldUnits)
+    const newUnits = roundHalfAwayFromZero(factor * oldUnits)
     if (newUnits >= 1 && newUnits <= MOST_UNITS && Math.min(newUnits, oldUnits) <= MOST_SMALLER_SIDE && Math.abs(newUnits / oldUnits - factor) <= TOLERANCE) {
       return newUnits === oldUnits ? null : { newUnits, oldUnits }
     }
