@@ -20,19 +20,19 @@ After adding a task or changing its frontmatter, run `npm run tasks-index`. `npm
 
 ### Building
 
-| Task                                                    | Feature   | Summary                                                                                         |
-| ------------------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------- |
-| [AI help across the apps](ai-assist.md)                 | ai-assist | One AI module and one key shared by every app, to help enter data and explain figures.          |
-| [A Croatian company preset](company-croatian-preset.md) | company   | A Croatian d.o.o. preset for the company app's categories, roles and rules, taken from the law. |
-| [Personal bank statements](personal-bank-statements.md) | spending  | OTP and Revolut statements read into the spending app.                                          |
+| Task                                                    | Feature    | Summary                                                                                                      |
+| ------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
+| [AI help across the apps](ai-assist.md)                 | ai-assist  | One AI module and one key shared by every app, to help enter data and explain figures.                       |
+| [AI chat across the apps](ai-chat.md)                   | ai-assist  | One docked chat in every app that knows the app on screen, reads what the owner allows and proposes changes. |
+| [A Croatian company preset](company-croatian-preset.md) | company    | A Croatian d.o.o. preset for the company app's categories, roles and rules, taken from the law.              |
+| [Onboarding with and without AI](onboarding-flows.md)   | onboarding | A first useful figure in each app with or without AI, starting from one choice of whether to set up AI.      |
+| [Personal bank statements](personal-bank-statements.md) | spending   | OTP and Revolut statements read into the spending app.                                                       |
 
 ### Planned
 
-| Task                                                  | Feature    | Summary                                                                                                      |
-| ----------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
-| [AI chat across the apps](ai-chat.md)                 | ai-assist  | One docked chat in every app that knows the app on screen, reads what the owner allows and proposes changes. |
-| [Onboarding with and without AI](onboarding-flows.md) | onboarding | A first useful figure in each app with or without AI, starting from one choice of whether to set up AI.      |
-| [Receipt reading](receipt-reading.md)                 | spending   | A receipt photo read by an AI model with the user's own key, its lines sorted into the spending categories.  |
+| Task                                  | Feature  | Summary                                                                                                     |
+| ------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------- |
+| [Receipt reading](receipt-reading.md) | spending | A receipt photo read by an AI model with the user's own key, its lines sorted into the spending categories. |
 
 ### Waiting
 
@@ -43,13 +43,14 @@ After adding a task or changing its frontmatter, run `npm run tasks-index`. `npm
 
 ### Ideas
 
-| Task                                                      | Feature      | Summary                                                                                                |
-| --------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------ |
-| [Co-owned assets and loans](assets-ownership-share.md)    | assets       | Co-owned assets and loans, counted by the owner's share.                                               |
-| [Company facts for the personal apps](company-facts.md)   | company      | The company app publishes owner facts, such as the owner loan, for the personal apps to read live.     |
-| [Matching company and personal money](ledger-matching.md) | architecture | Money that crosses between the company and the owner, matched across the company and personal ledgers. |
-| [Node 26 script warning](node-26-warning.md)              | platform     | The Node scripts print one ExperimentalWarning on Node 26.                                             |
-| [Overview follow-ups](overview-followups.md)              | overview     | Three small things left on Kuna's Overview after it shipped.                                           |
+| Task                                                        | Feature      | Summary                                                                                                |
+| ----------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------ |
+| [Co-owned assets and loans](assets-ownership-share.md)      | assets       | Co-owned assets and loans, counted by the owner's share.                                               |
+| [Company facts for the personal apps](company-facts.md)     | company      | The company app publishes owner facts, such as the owner loan, for the personal apps to read live.     |
+| [Readers for every Croatian bank](croatian-bank-readers.md) | spending     | Parsers and integrations for every Croatian bank, beyond OTP and Revolut.                              |
+| [Matching company and personal money](ledger-matching.md)   | architecture | Money that crosses between the company and the owner, matched across the company and personal ledgers. |
+| [Node 26 script warning](node-26-warning.md)                | platform     | The Node scripts print one ExperimentalWarning on Node 26.                                             |
+| [Overview follow-ups](overview-followups.md)                | overview     | Three small things left on Kuna's Overview after it shipped.                                           |
 
 ### Done
 

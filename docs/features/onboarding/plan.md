@@ -2,7 +2,18 @@
 
 A first useful figure in each app with or without AI, and one question at the start that decides which path a person takes. The full research is in [the flows research](research/flows.md).
 
-This plan waits for the owner's review.
+## The owner's answers, 2026-11-06
+
+These override the recommendations further down wherever the two differ.
+
+- **Documents:** they go whole after one plain warning. Nothing with employee data goes at all.
+- **Storage:** one `Kuna` folder on Drive with a subfolder per app, chosen once. Existing files keep working where they are, and Settings offers a move into Kuna's folder that takes a file with its statements, invoices and receipts.
+- **The AI question:** at the very start, with "I have no key" going straight to step by step.
+- **Many proposals:** rules into an existing category go as one group, and a new category or a tax class one at a time.
+- **Mail and folder delivery:** after the first statement, by hand first.
+- **Spending from other banks:** the model can read a statement into the dry run. Readers for every Croatian bank come later, as [their own task](../../tasks/croatian-bank-readers.md).
+- **Investments without full history:** allowed, and tax figures are left out until the history is complete. The owner said to ignore them. This plan reads that as not showing them, rather than showing them marked.
+- **Which provider is named first:** the better reader on five real Croatian documents, tested with the owner's keys.
 
 ## Staged proposal
 

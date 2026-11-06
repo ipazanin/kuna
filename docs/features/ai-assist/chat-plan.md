@@ -2,7 +2,18 @@
 
 One docked chat in every app, for anyone who keeps an AI key. It knows the app on screen, reads only what the owner allows, and proposes changes the owner accepts as one write with one Undo. The full research is in [the chat research](research/chat.md).
 
-This plan waits for the owner's review.
+## The owner's answers, 2026-11-06
+
+These override the recommendations further down wherever the two differ.
+
+- **Who fills IBANs and mail addresses:** the model may, with a warning on the line. Google folder ids and `bank_sync_deployment` stay out of its reach.
+- **Reading:** a yes lasts per chat, with Always optional on this device.
+- **The web:** search and fetch are allowed, behind a warning. This replaces "no outbound path other than the provider" and the boundary case that offers no model the web. It stays a switch the owner turns on, off by default, and a run with it on says so. A hostile row could try to leak figures in a query, so the switch's text says that plainly.
+- **History:** this browser only, kept 30 days, with Clear.
+- **Cost:** the panel shows a cost estimate and never stops a chat. The spend limit on the key is the only ceiling.
+- **The dock:** from 1408 px. Narrower, the panel takes the page's place.
+- **Many proposals:** rules into an existing category go as one group with the rows shown and one Undo. A new category or a tax class goes one at a time.
+- **Statements from other banks:** the model can read a statement and fill the import's dry run. Readers and integrations for every Croatian bank are the long-term plan, as [their own task](../../tasks/croatian-bank-readers.md).
 
 ## Recommended architecture
 
