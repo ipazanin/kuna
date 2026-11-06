@@ -1837,7 +1837,11 @@ async function checkWidth(width) {
     await expect(hashOf(page), (hash) => hash === '#/company/transactions', 'the return did not land on the route the tap left')
     await expect(fragmentGone(), (gone) => gone, 'the token stayed in the address')
     await expect(tokenKept(), (kept) => !kept, 'the token was kept in site storage, not in page memory only')
-    await expect(granted(), (scopes) => JSON.stringify(scopes) === JSON.stringify(['drive.file', 'drive.readonly', 'drive.appdata', 'gmail.readonly', 'gmail.compose', 'script.external_request']), 'the full grant was not noted')
+    await expect(
+      granted(),
+      (scopes) => JSON.stringify(scopes) === JSON.stringify(['drive.file', 'drive.readonly', 'drive.appdata', 'gmail.readonly', 'gmail.compose', 'script.external_request']),
+      'the full grant was not noted',
+    )
     await expect(noMessage(), (none) => none, 'the full grant showed a message')
     await inspect(page, `${width}px full grant return`)
     await shoot('google-return-full-grant')
@@ -1849,7 +1853,11 @@ async function checkWidth(width) {
     await controlShows('allow-access', 'a grant without Drive read did not leave Allow access in the sync control')
     const partial = await control()
     if (!partial.name.includes('Statements needs your Drive read access')) throw new Error(`after a partial grant a screen reader hears "${partial.name}"`)
-    await expect(granted(), (scopes) => JSON.stringify(scopes) === JSON.stringify(['drive.file', 'drive.appdata', 'gmail.compose']), 'the partial grant was not noted without Drive read')
+    await expect(
+      granted(),
+      (scopes) => JSON.stringify(scopes) === JSON.stringify(['drive.file', 'drive.appdata', 'gmail.compose', 'script.external_request']),
+      'the partial grant was not noted without Drive read',
+    )
     await expect(noMessage(), (none) => none, 'the partial grant showed a message')
     await inspect(page, `${width}px partial grant return`)
     await shoot('google-return-partial-grant')
