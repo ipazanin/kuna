@@ -14,7 +14,7 @@ import { PRICES_FILE_NAME, encodePricesFile } from '../../../prices/domain/price
 import { fakePricesFile } from '../../../prices/infrastructure/fake/fakePrices'
 import type { FakePricesVariant } from '../../../prices/infrastructure/fake/fakePrices'
 import { PRICES_DATABASE_PREFIX, openPricesCache } from '../../../prices/infrastructure/pricesCache'
-import { keepSetUpAnswer } from '../../../../../shared/app/setUpAnswer'
+import { forgetSetUpAnswer, keepSetUpAnswer } from '../../../../../shared/app/setUpAnswer'
 import { HISTORY_COMPLETE } from '../../../tax/domain/historyAnswer'
 import { seedFakeSecrets } from '../../../../../shared/secrets/infrastructure/fake/seedFakeSecrets'
 import { AUTO_SYNC_INTERVAL_MS } from '../../../../../shared/sync/application/autoSync'
@@ -50,7 +50,8 @@ export async function seedFakeInvestments(variant: string | null, pricesVariant:
   const folder = await fakeBooksFolder()
   const created = await createDriveDocument(fakeDriveSession(), folder, INVESTMENTS_APP, encodeDocument(document))
   const choice = { source: 'drive', id: created.fileId, name: documentName(INVESTMENTS_APP) } as const
-  if (variant !== 'partial-history') keepSetUpAnswer(created.fileId, HISTORY_COMPLETE)
+  if (variant === 'partial-history') forgetSetUpAnswer(created.fileId, HISTORY_COMPLETE)
+  else keepSetUpAnswer(created.fileId, HISTORY_COMPLETE)
   const pricesFileId = variant !== 'drive' || pricesVariant !== null ? await seedFakePrices(folder, created.fileId, pricesVariantOf(pricesVariant), savedAt) : null
   const keysSeeded = await seedFakeSecrets(keysVariant, created.fileId)
   if (variant === 'opening') {
