@@ -1,6 +1,6 @@
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { moneyFromAmount } from '../../../../shared/money/money'
+import { amountOf, moneyFromAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { MoneyFormat } from '../../../../shared/money/moneyFormat'
 import { normaliseIban } from '../../../../shared/text/fold'
@@ -819,7 +819,7 @@ function billingErrors(terms: BillingTerms): Partial<Record<BillingAmountField |
   ] as const
   for (const [amountField, itemField] of pairs) {
     const amount = terms[amountField]
-    const amountProblem = amount === null ? null : billingAmountProblem(amount / 100)
+    const amountProblem = amount === null ? null : billingAmountProblem(amountOf(amount))
     if (amountProblem !== null) errors[amountField] = amountProblem
     const itemProblem = billingItemProblem(terms[itemField])
     if (itemProblem !== null) errors[itemField] = itemProblem

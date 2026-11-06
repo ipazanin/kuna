@@ -9,6 +9,8 @@ export const AGEING_BUCKETS = ['not-due', 'days-0-30', 'days-31-60', 'days-61-90
 
 export type AgeingBucket = (typeof AGEING_BUCKETS)[number]
 
+const NOTHING_OWED: Readonly<Record<AgeingBucket, Money>> = { 'not-due': ZERO, 'days-0-30': ZERO, 'days-31-60': ZERO, 'days-61-90': ZERO, 'days-over-90': ZERO }
+
 /** Days from the due date, else the issue date, to the day the ageing is taken. Negative before it is due. */
 export function daysPastDue(matched: MatchedInvoice, asOf: CivilDate): number {
   return daysBetween(matched.invoice.due ?? matched.invoice.issued, asOf)
@@ -24,7 +26,7 @@ export function ageingBucketOf(days: number): AgeingBucket {
 
 /** What is still owed, split by how late it is on the given day. Every bucket is present, zero when empty. */
 export function ageingOf(invoices: readonly MatchedInvoice[], asOf: CivilDate): Readonly<Record<AgeingBucket, Money>> {
-  const totals = Object.fromEntries(AGEING_BUCKETS.map((bucket) => [bucket, ZERO])) as Record<AgeingBucket, Money>
+  const totals: Record<AgeingBucket, Money> = { ...NOTHING_OWED }
   for (const matched of invoices) {
     if (matched.remaining > 0) {
       const bucket = ageingBucketOf(daysPastDue(matched, asOf))

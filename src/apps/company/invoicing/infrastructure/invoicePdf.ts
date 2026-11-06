@@ -3,7 +3,7 @@ import { PDFDocument, rgb } from 'pdf-lib'
 import type { Color, PDFFont, PDFPage } from 'pdf-lib'
 
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { amountOf } from '../../../../shared/money/money'
+import { ZERO, amountOf } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { InvoiceDocument } from '../domain/invoiceDocument'
 
@@ -209,7 +209,7 @@ export async function renderInvoicePdf(invoice: InvoiceDocument, fonts: InvoiceF
   const totalsTop = tableBottom + 1.6
   const totals: [string, string][] = [
     ['Net amount', printedAmount(invoice.total, invoice)],
-    ['VAT*', printedAmount(0 as Money, invoice)],
+    ['VAT*', printedAmount(ZERO, invoice)],
     ['Total invoice amount', printedAmount(invoice.total, invoice)],
   ]
   const totalsBottom = totalsTop + TOTALS_ROW * totals.length

@@ -4,6 +4,8 @@ import { monthOf } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { ZERO, addMoney, negateMoney, ratioOf, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { shareOfScale } from '../../../../shared/money/percent'
+import type { Share } from '../../../../shared/money/percent'
 import { directionOf } from '../../workbook/domain/bucket'
 import type { Bucket } from '../../workbook/domain/bucket'
 import { bucketTotals } from '../../workbook/domain/bucketTotals'
@@ -18,7 +20,7 @@ export type Grouping = 'none' | 'month' | 'category' | 'counterparty'
  */
 export interface GroupShare {
   readonly of: 'income' | 'cost' | 'money-in' | 'money-out'
-  readonly fraction: number
+  readonly fraction: Share
 }
 
 interface GroupMembers {
@@ -141,7 +143,7 @@ function counterpartyGroups(rows: readonly ListedRow[], labels: ReadonlyMap<stri
       total,
       label: labels.get(key) ?? '',
       iban: members[0].counterpartyIban,
-      share: total > 0 ? { of: 'money-in', fraction: total / moneyIn } : total < 0 ? { of: 'money-out', fraction: -total / moneyOut } : null,
+      share: total > 0 ? { of: 'money-in', fraction: shareOfScale(total, moneyIn) } : total < 0 ? { of: 'money-out', fraction: shareOfScale(-total, moneyOut) } : null,
     })),
     (group) => group.label,
   )

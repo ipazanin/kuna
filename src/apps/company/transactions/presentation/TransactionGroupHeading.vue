@@ -4,6 +4,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { formatPercent } from '../../../../shared/money/moneyFormat'
+import { pointsOfShare } from '../../../../shared/money/percent'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { inSentence } from '../../settings/domain/profitAndLossLabels'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
@@ -104,7 +105,7 @@ const groupName = computed(() => {
       <template v-else>
         <span v-if="share" class="share" :title="words.group.shareOf(formatPercent(share.fraction), shareWhole)">
           <span class="share-track" aria-hidden="true">
-            <span class="share-fill" :style="{ width: `${Math.min(1, Math.max(0, share.fraction)) * 100}%`, background: shareColour }" />
+            <span class="share-fill" :style="{ width: `${Math.min(100, Math.max(0, pointsOfShare(share.fraction)))}%`, background: shareColour }" />
           </span>
           <span class="figure share-figure">{{ formatPercent(share.fraction) }}</span>
           <span class="sr-only">{{ words.group.ofWhole(shareWhole) }}</span>

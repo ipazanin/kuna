@@ -1,5 +1,5 @@
-import { divideMoney, moneyFromCents } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { moneyAt, percentFromWhole } from '../../../../shared/money/percent'
 import { countedSplits } from '../../transactions/domain/countedSplits'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { wholeNumberOf } from '../../../../shared/storage/domain/storedFields'
@@ -51,7 +51,7 @@ export function ownerShareProblem(field: StoredField | undefined): string | null
 
 /** The owner's part of an amount at a share, rounded to the cent. The rest is the company's, so the two add up to the amount. */
 export function ownerPartOf(amount: Money, share: OwnerShare): Money {
-  return divideMoney(moneyFromCents(amount * share), 100)
+  return moneyAt(amount, percentFromWhole(share))
 }
 
 /** What a record's share is copied from: its category's default. */

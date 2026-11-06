@@ -1,6 +1,6 @@
 import { monthRange } from '../../../../shared/calendar/dateRange'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
-import { negateMoney } from '../../../../shared/money/money'
+import { maxMoney, minMoney, negateMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { OwnerAdvance, Transaction } from '../../workbook/domain/workbook'
 import { EVERY_OWNER_ADVANCE } from './filterState'
@@ -85,14 +85,14 @@ function intersectSelections<Value>(current: readonly Value[], drilled: readonly
 }
 
 function intersectAmounts(current: AmountRange, drilled: AmountRange): AmountRange | null {
-  const min = boundOf(current.min, drilled.min, Math.max)
-  const max = boundOf(current.max, drilled.max, Math.min)
+  const min = boundOf(current.min, drilled.min, maxMoney)
+  const max = boundOf(current.max, drilled.max, minMoney)
   return min !== null && max !== null && min > max ? null : { min, max }
 }
 
-function boundOf(left: Money | null, right: Money | null, pick: (a: number, b: number) => number): Money | null {
+function boundOf(left: Money | null, right: Money | null, pick: (first: Money, second: Money) => Money): Money | null {
   if (left === null) {
     return right
   }
-  return right === null ? left : (pick(left, right) as Money)
+  return right === null ? left : pick(left, right)
 }

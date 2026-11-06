@@ -9,6 +9,7 @@ import { parseMonthKey } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { formatPercent } from '../../../../shared/money/moneyFormat'
+import { pointsOfShare } from '../../../../shared/money/percent'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
@@ -246,7 +247,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
                     <span class="min-w-0 truncate text-sm text-toned">{{ entry.item }}</span>
                     <span class="figure text-xs text-muted">{{ formatPercent(entry.share) }}</span>
                     <MoneyText :cents="entry.amount" class="text-sm text-highlighted" />
-                    <span class="share-bar" aria-hidden="true"><span :style="{ width: `${entry.share * 100}%`, background: entry.colour }" /></span>
+                    <span class="share-bar" aria-hidden="true"><span :style="{ width: `${pointsOfShare(entry.share)}%`, background: entry.colour }" /></span>
                   </li>
                 </ul>
                 <div v-if="references.length > 0" class="border-t border-default py-3">

@@ -1,6 +1,7 @@
 import { daysBetween } from '../../../../shared/calendar/civilDate'
 import { rangeContains } from '../../../../shared/calendar/dateRange'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
+import { roundHalfAwayFromZero } from '../../../../shared/money/money'
 import type { MatchedInvoice } from './invoiceMatching'
 
 export interface DaysToPaid {
@@ -9,6 +10,11 @@ export interface DaysToPaid {
   /** Null when no invoice was paid in the range. */
   readonly median: number | null
   readonly mean: number | null
+}
+
+/** The median as whole days, a half rounded away from zero. Null when no invoice was paid. */
+export function medianInWholeDays(paid: DaysToPaid): number | null {
+  return paid.median === null ? null : roundHalfAwayFromZero(paid.median)
 }
 
 /**

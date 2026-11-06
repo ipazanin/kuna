@@ -118,37 +118,13 @@
     "src/shared/ui/SparkLine.vue",
     "src/shell/gallery/FoundationsGallery.vue"
   ],
-  "moneyCasts": [
-    "src/apps/company/filters/domain/drillTarget.ts",
-    "src/apps/company/imports/domain/tabularStatement.ts",
-    "src/apps/company/invoicing/infrastructure/invoicePdf.ts",
-    "src/apps/company/invoicing/presentation/InvoicingTermsForm.vue",
-    "src/apps/company/invoicing/presentation/useInvoiceRun.ts",
-    "src/apps/company/receivables/domain/ageing.ts",
-    "src/apps/spending/receipts/domain/receiptDraft.ts"
-  ],
+  "moneyCasts": ["src/apps/spending/receipts/domain/receiptDraft.ts"],
   "moneyScale": [
-    "src/apps/company/billingPlan/presentation/BillingPlanPanel.vue",
-    "src/apps/company/imports/domain/camtStatement.ts",
-    "src/apps/company/imports/domain/tabularStatement.ts",
-    "src/apps/company/owner-share/presentation/ShareFillDialog.vue",
-    "src/apps/company/receivables/presentation/DaysToPaidStrip.vue",
-    "src/apps/company/settings/domain/recordDrafts.ts",
-    "src/apps/company/settings/domain/settings.ts",
-    "src/apps/company/spending/presentation/CostByCategory.vue",
-    "src/apps/company/transactions/presentation/TransactionGroupHeading.vue",
     "src/apps/spending/receipts/domain/fiscalQr.ts",
     "src/shared/ai/domain/citedAnswer.ts",
     "src/shared/ai/presentation/useAiTask.ts",
     "src/shared/storage/domain/recordFields.ts",
     "src/shared/ui/DonutCard.vue"
   ],
-  "domainRounding": [
-    "src/apps/company/overview/domain/headline.ts",
-    "src/apps/company/packs/hr-doo/domain/forecast/forecastCash.ts",
-    "src/apps/company/settings/domain/recordDrafts.ts",
-    "src/apps/spending/receipts/domain/photoPlace.ts",
-    "src/apps/spending/statements/domain/revolutStatement.ts",
-    "src/shared/ai/domain/citedAnswer.ts"
-  ]
+  "domainRounding": ["src/apps/spending/receipts/domain/photoPlace.ts", "src/apps/spending/statements/domain/revolutStatement.ts", "src/shared/ai/domain/citedAnswer.ts"]
 }

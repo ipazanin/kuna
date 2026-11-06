@@ -3,9 +3,10 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { monthKey, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
-import { ZERO, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { ZERO, ratioOf, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney, formatPercent } from '../../../../shared/money/moneyFormat'
+import { shareFromPercent } from '../../../../shared/money/percent'
 import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { billingItemOrder } from '../../workbook/domain/billingPlan'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -15,6 +16,8 @@ import type { MatchedBillingItem } from '../domain/plannedAgainstInvoiced'
 import { itemColours, itemYearsChart } from './billingCharts'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
+
+const NO_SHARE = shareFromPercent(0)
 
 export type BillingStatus = 'invoiced' | 'part' | 'open'
 
@@ -147,7 +150,7 @@ export function billingView(figures: BillingPlanFigures, register: { readonly cl
       item: entry.item,
       colour: colours.get(entry.item) ?? tokens.deemphasis,
       amount: entry.amount,
-      share: yearStatistics.total === 0 ? 0 : entry.amount / yearStatistics.total,
+      share: ratioOf(entry.amount, yearStatistics.total) ?? NO_SHARE,
     })) ?? []
   const largest = items[0]
   return {

@@ -15,8 +15,10 @@ import {
   restOf,
   shareFromPercent,
   shareOfPercent,
+  shareOfScale,
   wholePercentOf,
   writtenPercent,
+  writtenPercentOfFraction,
 } from '../src/shared/money/percent'
 import type { Percent, Share } from '../src/shared/money/percent'
 import type { YearlyRate } from '../src/apps/loans/bankLoans/domain/yearlyRate'
@@ -157,5 +159,21 @@ describe('percent', () => {
     [2, 3, 66],
   ])('gives %d cents of %d as %d whole percent, rounded down', (part, whole, percent) => {
     expect(wholePercentOf(moneyFromCents(part), moneyFromCents(whole))).toBe(percent)
+  })
+
+  it.each([
+    [0.1, 10],
+    [0.125, 12.5],
+    [0.0235, 2.35],
+    [0.123456, 12.3456],
+    [0.00001, 0.001],
+    [-0.0000005, -0.0001],
+  ])('writes a stored fraction of %s as %s on the scale of 0 to 100', (fraction, written) => {
+    expect(writtenPercentOfFraction(fraction)).toBe(written)
+  })
+
+  it('measures a part over its whole as a share', () => {
+    expect(shareOfScale(15, 60)).toBe(0.25)
+    expect(shareOfScale(0, 60)).toBe(0)
   })
 })

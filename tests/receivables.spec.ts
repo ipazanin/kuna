@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { AGEING_BUCKETS, ageingOf } from '../src/apps/company/receivables/domain/ageing'
-import { daysToPaid } from '../src/apps/company/receivables/domain/daysToPaid'
+import { daysToPaid, medianInWholeDays } from '../src/apps/company/receivables/domain/daysToPaid'
 import { receivablesOf } from '../src/apps/company/receivables/domain/invoiceMatching'
 import type { ClientReceivables, Receivables } from '../src/apps/company/receivables/domain/invoiceMatching'
 import { INVOICE_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
@@ -224,6 +224,15 @@ describe('days to get paid', () => {
     // 5, 10 and 81 days.
     expect(daysToPaid(north.invoices, null)).toEqual({ days: [5, 10, 81], median: 10, mean: 32 })
     expect(daysToPaid(north.invoices, { from: civil('2026-03-01'), to: civil('2026-12-31') })).toEqual({ days: [10, 81], median: 45.5, mean: 45.5 })
+  })
+
+  it.each([
+    [10, 10],
+    [45.5, 46],
+    [-2.5, -3],
+    [null, null],
+  ])('reads a median of %s days as %s whole days, a half away from zero', (median, whole) => {
+    expect(medianInWholeDays({ days: [], median, mean: null })).toBe(whole)
   })
 
   it('has no figure when nothing was paid in the range', () => {

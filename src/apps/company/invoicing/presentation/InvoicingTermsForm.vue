@@ -6,7 +6,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import UTextarea from '@nuxt/ui/components/Textarea.vue'
 
-import { amountOf } from '../../../../shared/money/money'
+import { UNREADABLE_AMOUNT, amountOf } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
@@ -54,7 +54,7 @@ function textOfAmount(amount: Money | null): string {
   return amount === null ? '' : String(amountOf(amount))
 }
 
-/** The amounts as typed. Text that is not an amount goes into the draft as NaN, so the field shows its error. */
+/** The amounts as typed. Text that is not an amount goes into the draft as an unreadable amount, so the field shows its error. */
 const billingAmountTexts = ref<Record<BillingAmountField, string>>({
   monthlyAmount: textOfAmount(props.settings.billing.monthlyAmount),
   subscriptionAmount: textOfAmount(props.settings.billing.subscriptionAmount),
@@ -74,7 +74,7 @@ watch(
 /** A blank field is no amount. */
 function amountOfText(text: string): BillingTerms[BillingAmountField] {
   if (text.trim() === '') return null
-  return typedAmount(text) ?? (Number.NaN as Money)
+  return typedAmount(text) ?? UNREADABLE_AMOUNT
 }
 
 function updateBillingAmount(field: BillingAmountField, text: string): void {

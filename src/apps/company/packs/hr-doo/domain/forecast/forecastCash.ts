@@ -1,5 +1,5 @@
 import { latestBalances } from '../../../../cash/domain/balances'
-import { daysToPaid } from '../../../../receivables/domain/daysToPaid'
+import { daysToPaid, medianInWholeDays } from '../../../../receivables/domain/daysToPaid'
 import { receivablesOf } from '../../../../receivables/domain/invoiceMatching'
 import type { Asset } from '../assets/assets'
 import { displayName } from '../../../../workbook/domain/displayName'
@@ -87,11 +87,13 @@ const KIND_ORDER: readonly CashKind[] = ['carried-revenue', 'carried-costs', 'op
 /** The median days from issue to payment of every invoice paid so far, or a day when none is, so the revenue of a month comes in the month after. */
 export function paymentLagOf(known: HrDooWorkbook): PaymentLag {
   const receivables = receivablesOf(known.transactions, known.categories, known.invoices, known.clients)
-  const median = daysToPaid(
-    receivables.clients.flatMap((client) => client.invoices),
-    null,
-  ).median
-  return median === null ? { days: 1, label: words.cash.noInvoicePaid } : { days: Math.round(median), label: words.cash.clientsPay(Math.round(median)) }
+  const medianDays = medianInWholeDays(
+    daysToPaid(
+      receivables.clients.flatMap((client) => client.invoices),
+      null,
+    ),
+  )
+  return medianDays === null ? { days: 1, label: words.cash.noInvoicePaid } : { days: medianDays, label: words.cash.clientsPay(medianDays) }
 }
 
 /**

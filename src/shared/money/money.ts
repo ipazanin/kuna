@@ -9,6 +9,9 @@ export type Money = number & { readonly __unit: 'cents' }
 
 export const ZERO = 0 as Money
 
+/** What a typed amount that reads as no amount stands for, so a field can show its error. It is no figure and is never summed. */
+export const UNREADABLE_AMOUNT = Number.NaN as Money
+
 /** Rounds half away from zero, so a negative number rounds the same way as its positive twin. */
 export function roundHalfAwayFromZero(fractionalCents: number): number {
   return Math.sign(fractionalCents) * Math.round(Math.abs(fractionalCents)) + 0

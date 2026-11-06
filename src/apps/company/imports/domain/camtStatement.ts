@@ -1,6 +1,6 @@
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { ZERO, addMoney, moneyFromCents, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { ZERO, addMoney, moneyFromAmount, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { foldRuleText, normaliseIban } from '../../../../shared/text/fold'
 import { StatementRefused } from './importedStatement'
@@ -358,7 +358,7 @@ function amountOf(element: Element | null, description: string): Money {
   if (/[1-9]/.test(fraction.slice(2))) {
     throw new StatementRefused(words.camt.finerThanACent(description, text))
   }
-  return moneyFromCents(Number(match[2]) * 100 + Number(fraction.slice(0, 2)))
+  return moneyFromAmount(Number(`${match[2]}.${fraction.slice(0, 2)}`))
 }
 
 function childrenNamed(element: Element | null, name: string): Element[] {

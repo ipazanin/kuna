@@ -16,6 +16,7 @@ export interface DaysToPaidRow {
 <script setup lang="ts">
 import { computed } from 'vue'
 
+import { pointsOfShare, shareOfScale } from '../../../../shared/money/percent'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import { words } from './words'
 
@@ -32,7 +33,7 @@ const ticks = computed(() => {
 
 /** Where a number of days sits along the strip, as a share of its width. */
 function at(days: number): string {
-  return `${(days / scaleEnd.value) * 100}%`
+  return `${pointsOfShare(shareOfScale(days, scaleEnd.value))}%`
 }
 
 function daysText(days: number | null): string {

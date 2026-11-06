@@ -1,4 +1,4 @@
-import { dividedRounded, moneyFromCents } from './money'
+import { dividedRounded, moneyFromCents, roundHalfAwayFromZero } from './money'
 import type { Money } from './money'
 import { decimalText } from './decimal'
 import type { Decimal } from './decimal'
@@ -17,6 +17,8 @@ const PERCENT_PER_WHOLE = 100
 const BASIS_POINT_PLACES_OF_FRACTION = 4
 const WRITTEN_PERCENT_PLACES = 5
 const WRITTEN_STEPS_PER_BASIS_POINT = 1000n
+const FRACTION_STEPS_PER_WHOLE = 1_000_000
+const WRITTEN_STEPS_PER_WHOLE = 10_000
 
 export function percentFromBasisPoints(points: number): Percent {
   if (!Number.isInteger(points) || points < 0) {
@@ -93,9 +95,19 @@ export function writtenPercent(rate: Percent): number {
   return rate / BASIS_POINTS_PER_PERCENT
 }
 
+/** A stored fraction as a person writes it, on the scale of 0 to 100 to four decimals of a percent, so 0.125 is 12.5. */
+export function writtenPercentOfFraction(fraction: number): number {
+  return roundHalfAwayFromZero(fraction * FRACTION_STEPS_PER_WHOLE) / WRITTEN_STEPS_PER_WHOLE
+}
+
 /** An exact percent such as a fund's cost or a bond's coupon as a share, so 0.2 is 0.002. */
 export function shareOfDecimalPercent(percent: Decimal): Share {
   return shareFromPercent(Number(decimalText(percent)))
+}
+
+/** A measured part over its whole, such as days along a scale of days. A whole of 0 gives no number. */
+export function shareOfScale(part: number, whole: number): Share {
+  return (part / whole) as Share
 }
 
 /** A share on the scale of 0 to 100, for a figure shown in points. */

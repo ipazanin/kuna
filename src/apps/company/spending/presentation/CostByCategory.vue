@@ -30,6 +30,7 @@ export interface CostSection {
 import { computed } from 'vue'
 
 import { formatMoney, formatPercent } from '../../../../shared/money/moneyFormat'
+import { pointsOfShare, shareOfScale } from '../../../../shared/money/percent'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
@@ -60,7 +61,7 @@ const summary = computed(() => {
 })
 
 function widthOf(amount: number): string {
-  return `${(Math.max(0, amount) / scale.value) * 100}%`
+  return `${pointsOfShare(shareOfScale(Math.max(0, amount), scale.value))}%`
 }
 
 function changeText(change: CostChange | null): string {

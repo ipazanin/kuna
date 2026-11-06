@@ -5,7 +5,7 @@ import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
 import { downloadFile } from '../../../../shared/files/downloadFile'
-import type { Money } from '../../../../shared/money/money'
+import { UNREADABLE_AMOUNT } from '../../../../shared/money/money'
 import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
 import { expectedInvoices } from '../../billingPlan/domain/expectedInvoices'
 import { INVOICE_WRITES } from '../../receivables/application/invoiceWrites'
@@ -50,7 +50,7 @@ export type RunStage =
   | { readonly kind: 'finished' }
 
 function linesOf(drafts: readonly LineDraft[]): InvoiceLine[] {
-  return drafts.map((draft) => ({ description: draft.description.trim(), amount: typedAmount(draft.amount) ?? (Number.NaN as Money) }))
+  return drafts.map((draft) => ({ description: draft.description.trim(), amount: typedAmount(draft.amount) ?? UNREADABLE_AMOUNT }))
 }
 
 async function pdfOf(document: InvoiceDocument): Promise<Uint8Array> {

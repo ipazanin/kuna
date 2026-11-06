@@ -1,5 +1,5 @@
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
-import { negateMoney } from '../../../../shared/money/money'
+import { negateMoney, roundHalfAwayFromZero } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { Figure } from '../../filters/domain/drillTarget'
 import { plural } from '../../../../shared/text/translation'
@@ -39,9 +39,9 @@ export function runwayInWords(months: number | null): string | null {
     return words.runway.underAMonth
   }
   if (months < 18) {
-    const whole = Math.round(months)
+    const whole = roundHalfAwayFromZero(months)
     return whole === 1 ? words.runway.aboutAMonth : plural(words.runway.aboutMonths(whole), whole)
   }
-  const years = Math.round(months / 12)
+  const years = roundHalfAwayFromZero(months / 12)
   return plural(words.runway.aboutYears(years), years)
 }

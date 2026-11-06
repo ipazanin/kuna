@@ -1,4 +1,5 @@
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
+import { shareFromPercent, writtenPercentOfFraction } from '../../../../shared/money/percent'
 import { ibanListOf } from '../../workbook/domain/iban'
 import type { FieldValue } from '../../../../shared/storage/domain/recordFields'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -70,7 +71,7 @@ export function draftTextOf(field: StoredField | undefined, kind: DraftFieldKind
     case 'date':
       return field.date ?? field.text
     case 'percent':
-      return field.number === null ? field.text : String(Math.round(field.number * 1_000_000) / 10_000)
+      return field.number === null ? field.text : String(writtenPercentOfFraction(field.number))
     case 'flag':
       return field.flag === true || field.text.toLowerCase() === 'true' ? 'TRUE' : ''
     default:
@@ -93,7 +94,7 @@ export function valueOfDraftText(text: string, kind: DraftFieldKind): FieldValue
     case 'whole-number':
       return Number.isFinite(number) ? String(number) : trimmed
     case 'percent':
-      return Number.isFinite(number) ? String(number / 100) : trimmed
+      return Number.isFinite(number) ? String(shareFromPercent(number)) : trimmed
     case 'flag':
       return trimmed === 'TRUE'
     case 'amount-or-word':

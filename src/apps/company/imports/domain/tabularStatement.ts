@@ -1,6 +1,6 @@
 import { civilDate, civilDateFromSerial } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { addMoney, moneyFromAmount, negateMoney, subtractMoney } from '../../../../shared/money/money'
+import { absMoney, addMoney, moneyFromAmount, negateMoney, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
 import { fold, normaliseIban } from '../../../../shared/text/fold'
@@ -188,7 +188,7 @@ function amountOfRow(
   if (creditPart !== null && creditPart < 0) {
     return words.table.negativeCredit(cellString(creditCell))
   }
-  return debitPart !== null ? negateMoney(Math.abs(debitPart) as Money) : creditPart!
+  return debitPart !== null ? negateMoney(absMoney(debitPart)) : creditPart!
 }
 
 /** Oldest first. A file listing newest first is turned round whole, so a day's rows keep the bank's order. */
@@ -257,8 +257,8 @@ export function moneyOf(cell: StatementCell | undefined, decimal: DecimalMark): 
     .replace(/[\s']/g, grouping)
   const match = TEXT_AMOUNT[decimal].exec(text)
   if (match === null || (match[1] === '-' && match[4] === '-')) return null
-  const cents = Number(match[2]!.split(grouping).join('')) * 100 + Number((match[3] ?? '').padEnd(2, '0'))
-  return (match[1] === '-' || match[4] === '-' ? -cents : cents) as Money
+  const magnitude = moneyFromAmount(Number(`${match[2]!.split(grouping).join('')}.${match[3] ?? '0'}`))
+  return match[1] === '-' || match[4] === '-' ? negateMoney(magnitude) : magnitude
 }
 
 /** The facts that tell a row from every other row of its account, so a key from another export of the same row matches. */
