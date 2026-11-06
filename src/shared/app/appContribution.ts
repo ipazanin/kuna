@@ -90,24 +90,26 @@ export type AppHub = { readonly counts: true; figures(): HubState<CountedHubPart
 
 /** The switch a task needs before it may send employee names or pay, with what it says as it asks. */
 export interface AssistEmployeeSwitch {
-  /** Its label on the Assistant card, such as "Include rows paid to employees". */
+  /** Its label on the app's Assistant tab, such as "Include rows that name employees". */
   readonly label: string
-  /** What switching it on sends, to the provider named. */
-  warning(provider: string): string
+  /** What stays out until it is on and what goes then, to the provider named. */
+  note(provider: string): string
 }
 
-/** What one task sends, for the Assistant card and the first-use dialog. */
+/** What one task sends, for the app's Assistant tab and the dialog that asks first. */
 export interface AssistTaskSummary {
   readonly id: `${string}.${string}`
   readonly title: string
-  /** What leaves the device, in one plain sentence. */
+  /** What leaves the device, in plain sentences that follow "What leaves this device:". */
   readonly sends: string
   /** The switch of a task that can send employee names or pay, or null for one that never does. */
   readonly employees: AssistEmployeeSwitch | null
 }
 
-/** What the app's assistant may do, for the Assistant card in Kuna settings. */
+/** What the app's assistant may do, for its Assistant tab and its line in Kuna settings. */
 export interface AppAssist {
+  /** Where the app's own switches are, which Kuna settings links to, as the shell cannot know an app's tabs. */
+  readonly settings: RouteLocationRaw
   /** Its tasks as the books on screen offer them, a pack's among them while the pack shows. */
   tasks(): readonly AssistTaskSummary[]
 }

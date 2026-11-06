@@ -14,6 +14,7 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { PAGE_SECRET_STORE, useSecretsChanged } from '../../../../shared/secrets/presentation/pageSecrets'
 import { usePageSync } from '../../../../shared/sync/presentation/pageSync'
+import { useKeyRemoval } from '../../../../shared/secrets/presentation/useKeyRemoval'
 import { useSecretRows } from '../../../../shared/secrets/presentation/useSecretRows'
 import { words as secretWords } from '../../../../shared/secrets/presentation/words'
 import { pageVendorFetch, useRequestsToday } from './usePrices'
@@ -26,6 +27,7 @@ import { words } from './words'
  */
 const keys = useSecretRows(PRICE_VENDORS, PAGE_SECRET_STORE, (vendor, key) => testVendor(vendor, pageVendorFetch, key, pricesDay(new Date().toISOString())))
 watch(useSecretsChanged(), () => keys.reread())
+const announceRemoval = useKeyRemoval()
 const { someOnDrive } = usePageSync()
 const subtitle = computed(() => (someOnDrive.value ? words.card.subtitleOnDrive : words.card.subtitle))
 const requestsToday = useRequestsToday()
@@ -136,7 +138,7 @@ const vendorRows = computed(() =>
             variant="ghost"
             size="sm"
             data-testid="price-vendor-forget"
-            @click="keys.forget(row.vendor.id)"
+            @click="announceRemoval(keys.forget(row.vendor.id))"
           />
           <UButton
             v-if="row.vendor.keyAddress !== null"

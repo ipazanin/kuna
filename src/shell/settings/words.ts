@@ -5,7 +5,7 @@ import type { Translation } from '../../shared/text/translation'
 
 export const en = {
   menu: 'Kuna settings',
-  description: "Sync, the assistant, look and language on this device, for every app. Where an app keeps its books is on that app's Settings.",
+  description: "Sync, the assistant, look and language on this device, for every app. Where an app keeps its books, and what it may send to the assistant, is on that app's Settings.",
   language: {
     legend: 'Language',
     browser: 'Browser language',
@@ -19,7 +19,7 @@ export const en = {
     dark: 'Dark',
     themeNote: "System follows this device's setting as it changes. Light or Dark is remembered on this device.",
     privacy:
-      "There is no server. Nothing leaves this browser except calls to Google's APIs for the books on Drive, your statements and your invoices, to the price vendors for Investments, and to the AI provider of your key for an app you switched the assistant on for.",
+      "There is no server. Nothing leaves this browser except calls to Google's APIs for the books on Drive, your statements and your invoices, to the price vendors for Investments, and to the AI company of your key, when you use the assistant.",
     privacyLink: 'Read the privacy notes',
   },
   filesHome: {
@@ -55,7 +55,7 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   menu: 'Postavke Kune',
-  description: 'Sinkronizacija, asistent, izgled i jezik na ovom uređaju, za sve aplikacije. Gdje aplikacija čuva svoju datoteku, piše u postavkama te aplikacije.',
+  description: 'Sinkronizacija, asistent, izgled i jezik na ovom uređaju, za sve aplikacije. Gdje aplikacija čuva svoju datoteku i što smije slati asistentu, piše u postavkama te aplikacije.',
   language: {
     legend: 'Jezik',
     browser: 'Jezik preglednika',
@@ -69,7 +69,7 @@ export const hr: Translation<typeof en> = {
     dark: 'Tamna',
     themeNote: 'Sustav prati postavku ovog uređaja kad se promijeni. Svijetla ili Tamna pamti se na ovom uređaju.',
     privacy:
-      'Nema poslužitelja. Iz ovog preglednika ništa ne odlazi osim poziva Googleovim sučeljima za datoteke na Driveu, vaše izvode i vaše račune, izvorima cijena za Ulaganja i pružatelju AI-ja vašeg ključa za aplikaciju za koju ste uključili asistenta.',
+      'Nema poslužitelja. Iz ovog preglednika ništa ne odlazi osim poziva Googleovim sučeljima za datoteke na Driveu, vaše izvode i vaše račune, izvorima cijena za Ulaganja i AI tvrtki vašeg ključa kad koristite asistenta.',
     privacyLink: 'Pročitajte napomene o privatnosti',
   },
   filesHome: {

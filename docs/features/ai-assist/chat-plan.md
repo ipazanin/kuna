@@ -98,7 +98,7 @@ Built, waiting for the first run with a real key:
 
 ### Stage 3. Reading with grants, Spending first
 
-- **Work:** field classes for Spending's six kinds, `find_records`, `get_record`, `read_figures`, refs, `GrantCard`, `SentRow`, hostile-model spec, boundary cases 10 and 11. `AssistConsent` removed.
+- **Work:** field classes for Spending's six kinds, `find_records`, `get_record`, `read_figures`, refs, `GrantCard`, `SentRow`, hostile-model spec, boundary cases 10 and 11. `AssistConsent` stays for the buttons outside the chat (Suggest categories, Explain, Read a receipt, and onboarding's), and goes only once all of them route through the chat. `GrantCard` asks inside the chat, and its Always writes the same switch as the app's Send without asking.
 - **The owner gets:** "What did I spend on food in October, and why was it higher?" with figures Kuna computed, an inline ask before the first read, and the exact text sent one tap away.
 - **Check:** hostile model, canaries, `figuresIn`, a live pass with a hostile statement row.
 

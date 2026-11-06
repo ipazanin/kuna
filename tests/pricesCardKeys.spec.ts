@@ -72,6 +72,19 @@ describe('the keys of the Prices card', () => {
     expect(keys.rows.alphavantage).toEqual({ kept: false, ending: null, test: null })
   })
 
+  it('puts a removed key back on Undo, and leaves a key saved since then as it is', () => {
+    storeSecret('twelvedata', LONG_KEY, SAVED_AT)
+    const { keys } = cardKeys()
+    keys.forget('twelvedata')()
+    expect(storedSecret('twelvedata')).toBe(LONG_KEY)
+    expect(keys.rows.twelvedata).toEqual({ kept: true, ending: 'cdef', test: null })
+
+    const undo = keys.forget('twelvedata')
+    keys.save('twelvedata', 'made-up-twelve-data-key-8642')
+    undo()
+    expect(storedSecret('twelvedata')).toBe('made-up-twelve-data-key-8642')
+  })
+
   it('shows a key a sync took from another browser once the rows are read again, keeping the last Test', async () => {
     const { keys } = cardKeys()
     await keys.test(ecb)
@@ -167,8 +180,8 @@ describe('what the keys cards say of where a key goes', () => {
     expect(card).not.toContain('useInvestmentsBooks')
   })
 
-  it('follows it on the Assistant card, which Kuna settings tells', () => {
-    expect(read('src/shared/ai/presentation/AiAssistCard.vue')).toContain('onDrive ? words.card.subtitleOnDrive : words.card.subtitle')
+  it("says a sync saves the key on the assistant's card only while some app's file is on Drive, which Kuna settings tells", () => {
+    expect(read('src/shared/ai/presentation/AiAssistCard.vue')).toContain('v-if="onDrive"')
     expect(read('src/shell/settings/SettingsScreen.vue')).toContain(':on-drive="someOnDrive"')
   })
 
@@ -177,10 +190,8 @@ describe('what the keys cards say of where a key goes', () => {
       expect(dictionary.card.subtitle).not.toMatch(/never|nikad/)
       expect(dictionary.card.subtitle).toMatch(/Drive/)
     }
-    expect(assist.en.card.subtitle).toMatch(/while no file of yours is on Drive/)
-    expect(assist.hr.card.subtitle).toMatch(/dok nijedna vaša datoteka nije na Driveu/)
-    expect(assist.en.card.subtitleOnDrive).toMatch(/Google account/)
-    expect(assist.hr.card.subtitleOnDrive).toMatch(/Google račun/)
+    expect(assist.en.card.synced).toMatch(/Google account/)
+    expect(assist.hr.card.synced).toMatch(/Google račun/)
   })
 })
 

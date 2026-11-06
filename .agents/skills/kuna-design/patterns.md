@@ -65,7 +65,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 
 ## Forms
 
-- Fields go in `FormGrid`: two to a row from 640 px, labels in one row and inputs in the next, so inputs line up whatever a label's length. Every field takes one column, and one that takes a whole row, such as a field around a switch or a checkbox, says `sm:col-span-2`. Anything that is not a field, such as a bare radio group or a note, takes the whole row.
+- Fields go in `FormGrid`: two to a row from 640 px, labels in one row and inputs in the next, so inputs line up whatever a label's length. Every field takes one column, and one that takes a whole row, such as a field around a switch or a checkbox, says `sm:col-span-2`. Anything that is not a field, such as a bare radio group or a note, takes the whole row. A card whose fields have lines between them, such as the assistant's, stacks its fields in one column.
 - An amount of money is a `MoneyInput` bound to text that `typedAmount` reads. A rate, a percent or a count stays a `UInput` with its own `inputmode`.
 - `MoneyInput`'s k and m need a hardware keyboard or a paste, since a phone's decimal keypad has no letters. Ctrl+Z does not undo its edits, because it writes the field itself.
 - A `USelect` or `USelectMenu` that may stay empty offers the words for empty, such as Not set, as a row of its own whose value is a stand-in such as `-`, which the field maps to blank and back. No item has a blank value, because the list throws on one and its search then drops matches. A row also stays reachable by keyboard, touch and search, which a `clear` button is not.
@@ -88,7 +88,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - A pill on a menu item means something waits there, and nothing else. A closed app's row adds up its items' pills, and an open app's row shows none, since its item carries it. An app in its first run has no file, so it is left out.
 - While any app is left out, a quiet Add an app row closes the list and leads to the home, whose cards offer every app. Before any app is set up, Net worth is left out too, since it has nothing to show.
 - Kuna's home at `#/` has a card per app, and no app is open in its menu. The phone home has no drawer, so its cards stay the way in, with Net worth as a button over them and Kuna settings as one under them.
-- Kuna settings at `#/settings` holds only what is the same for every app: sync, sign-out, theme and language.
+- Kuna settings at `#/settings` holds only what is the same for every app: sync, sign-out, where new files go, the AI key and model, theme and language. What an app may send sits in that app's Settings, with a read-only line and a link in Kuna settings.
 - A first run starts with the quiet `HomeLink`, so it can be left for the home.
 
 ## Phone

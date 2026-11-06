@@ -2,7 +2,7 @@ import type { AppContribution, AppScreen } from '../../shared/app/appContributio
 import { homeCardFigures } from '../../shared/app/homeCardFigures'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
 import { autoSyncOn } from '../../shared/sync/infrastructure/autoSyncSwitch'
-import { SUGGEST_CATEGORIES_SUMMARY } from './assist/presentation/companyAssist'
+import { COMPANY_ASSIST } from './assist/presentation/companyAssist'
 import { bindFiltersToRouter } from './filters/application/filterStore'
 import { COMPANY_HOME_CARD } from './home/presentation/companyHomeCard'
 import { companyHubFigures } from './home/presentation/companyHubFigures'
@@ -82,7 +82,7 @@ export const companyApp: AppContribution = {
   moneyFormat: () => moneyFormatOf(settings.value),
   homeCard: COMPANY_HOME_CARD,
   hub: { counts: false, figures: () => homeCardFigures(state, companyHubFigures) },
-  assist: { tasks: () => [SUGGEST_CATEGORIES_SUMMARY, ...shownPack(settings.value).assist] },
+  assist: COMPANY_ASSIST,
   // Nothing chosen and nothing kept: onboarding takes it, whatever screen the address names.
   setUpLines: () => (state.workbook === null ? [] : gettingSetUp(state.workbook, categoriesLookRight.value, deliveryOffered.value)),
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,

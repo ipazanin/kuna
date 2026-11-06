@@ -11,27 +11,29 @@ import { CATEGORY_RULES_TAB } from '../../rules/presentation/ruleLinks'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { useSettings } from '../application/useSettings'
 import AccountsSettingsTab from './AccountsSettingsTab.vue'
+import AssistantSettingsTab from './AssistantSettingsTab.vue'
 import CategoriesSettingsTab from './CategoriesSettingsTab.vue'
 import DataSourceCard from './DataSourceCard.vue'
 import GeneralSettingsTab from './GeneralSettingsTab.vue'
-import { BOOKS_FILE_TAB, LINKED_SETTINGS_TAB } from './settingsTabs'
+import { ASSISTANT_TAB, BOOKS_FILE_TAB, LINKED_SETTINGS_TAB } from './settingsTabs'
 import type { SettingsTab } from './settingsTabs'
 import { words } from './words'
 
-/** The company's Settings at `#/company/settings`: the books' tabs with the pack's, and Books file, where the books are kept. */
+/** The company's Settings at `#/company/settings`: the books' tabs with the pack's, the assistant's, and Books file, where the books are kept. */
 const CORE_TABS: readonly SettingsTab[] = [
   { value: 'general', label: words.tabNames.general, icon: 'i-lucide-sliders-horizontal', component: GeneralSettingsTab },
   { value: 'categories', label: words.tabNames.categories, icon: 'i-lucide-tags', component: CategoriesSettingsTab },
   { value: CATEGORY_RULES_TAB, label: words.tabNames.categoryRules, icon: 'i-lucide-list-ordered', component: CategoryRulesTab },
   { value: 'accounts', label: words.tabNames.accounts, icon: 'i-lucide-landmark', component: AccountsSettingsTab },
 ]
+const ASSISTANT: SettingsTab = { value: ASSISTANT_TAB, label: words.tabNames.assistant, icon: 'i-lucide-sparkles', component: AssistantSettingsTab }
 
 const { state } = useWorkbook()
 const settings = useSettings()
 
 /** The books' tabs need books on screen, and Books file is there before any. Two tabs with one value would share a `?tab=` link, so they are refused. */
 const bookTabs = computed(() => {
-  const found = state.workbook === null ? [] : [...CORE_TABS, ...shownPack(settings.value).settingsTabs]
+  const found = state.workbook === null ? [] : [...CORE_TABS, ...shownPack(settings.value).settingsTabs, ASSISTANT]
   const values = [...found.map((tab) => tab.value), BOOKS_FILE_TAB]
   const repeated = values.find((value, index) => values.indexOf(value) !== index)
   if (repeated !== undefined) {

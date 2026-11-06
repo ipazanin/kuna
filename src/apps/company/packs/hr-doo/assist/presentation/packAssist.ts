@@ -2,10 +2,10 @@ import type { AssistTaskSummary } from '../../../../../../shared/app/appContribu
 import { EXPLAIN_FIGURE } from '../application/explainFigure'
 import { words } from './words'
 
-/** What explaining a figure sends, for the Assistant card and the first-use dialog. */
+/** What explaining a figure sends, for the Assistant tab and the dialog that asks first. */
 export const EXPLAIN_FIGURE_SUMMARY: AssistTaskSummary = {
   id: EXPLAIN_FIGURE,
   title: words.explain.title,
   sends: words.explain.sends,
-  employees: { label: words.explain.employees, warning: words.explain.employeesWarning },
+  employees: { label: words.explain.employees, note: words.explain.employeesNote },
 }

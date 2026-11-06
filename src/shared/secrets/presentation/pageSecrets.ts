@@ -5,6 +5,9 @@ import { keepSecretChanges, storeSecret, storedSecret } from '../infrastructure/
 import type { SecretChanges } from '../domain/secretsFile'
 import type { SecretStore } from './useSecretRows'
 
+/** Kuna settings, where the assistant's key is kept and where the refusal of a secrets file leads. */
+export const KUNA_SETTINGS_ROUTE = '/settings'
+
 /** Bumped whenever this page changes a secret in this browser, by a card or by a sync, so what shows the keys reads them again. */
 const changed = ref(0)
 

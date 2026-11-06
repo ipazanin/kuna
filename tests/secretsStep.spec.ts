@@ -43,7 +43,7 @@ vi.mock('../src/apps/investments/prices/presentation/usePrices', () => ({ PRICES
 vi.mock('../src/apps/investments/workbook/presentation/LocalInvestmentsStatus.vue', () => ({ default: {} }))
 vi.mock('../src/apps/loans/workbook/presentation/LocalLoansStatus.vue', () => ({ default: {} }))
 
-const { deleteKeysFromGoogle, secretsNeeds, secretsStep } = await import('../src/shared/secrets/presentation/secretsStep')
+const { deleteKeysFromGoogle, fetchKeysFromGoogle, secretsNeeds, secretsStep } = await import('../src/shared/secrets/presentation/secretsStep')
 const { PAGE_SECRET_STORE } = await import('../src/shared/secrets/presentation/pageSecrets')
 const { investmentsSyncGroup } = await import('../src/apps/investments/sync/presentation/investmentsSyncGroup')
 const { loansSyncGroup } = await import('../src/apps/loans/sync/presentation/loansSyncGroup')
@@ -81,6 +81,27 @@ describe('when the Keys step runs and what it asks Google for', () => {
     expect(secretsStep(() => false).on()).toBe(true)
     PAGE_SECRET_STORE.write('anthropic', null)
     expect(secretsNeeds(() => false)).toEqual([{ scope: 'drive.appdata', label: 'Keys' }])
+  })
+})
+
+describe('Get it from Google on the assistant card', () => {
+  it('takes a key another browser saved, for a browser that holds none and wants none', async () => {
+    const saved = { anthropic: { key: 'made-up-anthropic-key-5521', changedAt: '2026-10-30T10:00:00.000Z' } }
+    await page.drive.createFile(APP_DATA_FOLDER, SECRETS_FILE_NAME, encodeSecretsFile(saved))
+    expect(await fetchKeysFromGoogle()).toBeNull()
+    expect(PAGE_SECRET_STORE.read('anthropic')).toBe('made-up-anthropic-key-5521')
+  })
+
+  it('takes nothing and writes no file when the account holds no key', async () => {
+    expect(await fetchKeysFromGoogle()).toBeNull()
+    expect(PAGE_SECRET_STORE.read('anthropic')).toBeNull()
+    expect(await page.drive.children(APP_DATA_FOLDER)).toEqual([])
+  })
+
+  it('says why a file it cannot read was left as it is, and never quotes a key', async () => {
+    await page.drive.createFile(APP_DATA_FOLDER, SECRETS_FILE_NAME, 'not the keys file')
+    expect(await fetchKeysFromGoogle()).toBe(en.refused['not-keys'])
+    expect(PAGE_SECRET_STORE.read('anthropic')).toBeNull()
   })
 })
 

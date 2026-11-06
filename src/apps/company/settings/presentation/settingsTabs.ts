@@ -6,6 +6,12 @@ export const BOOKS_FILE_TAB = 'books'
 /** The Books file tab of Settings. */
 export const BOOKS_FILE_LINK = `/company/settings?tab=${BOOKS_FILE_TAB}`
 
+/** The Assistant tab's value in `?tab=` on Settings. */
+export const ASSISTANT_TAB = 'assistant'
+
+/** The Assistant tab of Settings, which Kuna settings links to. */
+export const ASSISTANT_SETTINGS_LINK = `/company/settings?tab=${ASSISTANT_TAB}`
+
 /** A tab of the company's Settings, core's or the pack's, before Books file. */
 export interface SettingsTab {
   readonly value: string

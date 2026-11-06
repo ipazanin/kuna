@@ -28,7 +28,8 @@ export interface SecretRows<Owner extends SecretOwner, Test> {
   readonly rows: Readonly<Record<string, SecretRow<Test>>>
   /** Keeps the typed key, and says whether there was one to keep. */
   save(id: string, typed: string): boolean
-  forget(id: string): void
+  /** Forgets the key, and returns what puts it back, which does nothing once another key was saved. */
+  forget(id: string): () => void
   /** Reads every row's key again, as after a sync took the keys another browser saved. A row keeps its last Test only while its key still ends the same. */
   reread(): void
   /** One cheap request with the key kept for the owner, or with none for one that needs none. */
@@ -55,8 +56,14 @@ export function useSecretRows<Owner extends SecretOwner, Test>(owners: readonly 
       return row.kept
     },
     forget(id) {
+      const key = store.read(id)
       store.write(id, null)
       rows[id] = rowOf(id)
+      return () => {
+        if (key === null || store.read(id) !== null) return
+        store.write(id, key)
+        rows[id] = rowOf(id)
+      }
     },
     reread() {
       for (const owner of owners) {

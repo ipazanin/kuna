@@ -1,36 +1,36 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
-import UBadge from '@nuxt/ui/components/Badge.vue'
+import { computed, ref, watch } from 'vue'
+import type { RouteLocationRaw } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import UInputMenu from '@nuxt/ui/components/InputMenu.vue'
-import USwitch from '@nuxt/ui/components/Switch.vue'
+import USelect from '@nuxt/ui/components/Select.vue'
 
-import type { AppAssist } from '../../app/appContribution'
 import { PAGE_SECRET_STORE, useSecretsChanged } from '../../secrets/presentation/pageSecrets'
+import { useKeyRemoval } from '../../secrets/presentation/useKeyRemoval'
 import { useSecretRows } from '../../secrets/presentation/useSecretRows'
 import { words as secretWords } from '../../secrets/presentation/words'
 import AppCard from '../../ui/AppCard.vue'
-import FormGrid from '../../ui/FormGrid.vue'
-import { assistOn, employeesOn, modelOf, pickModel, pickProvider, switchAssist, switchEmployees } from '../infrastructure/assistSettings'
+import { assistOn, modelOf, pickModel } from '../infrastructure/assistSettings'
 import { testProviderKey } from '../infrastructure/modelAccess'
-import { PROVIDER_PRESETS, turnsOnWebSearch } from '../infrastructure/providerPresets'
-import type { KeyTest, ModelChoice, ProviderId, ProviderPreset } from '../infrastructure/providerPresets'
-import { providerInUse } from './useAiTask'
+import { PROVIDER_PRESETS, presetOf, turnsOnWebSearch } from '../infrastructure/providerPresets'
+import type { KeyTest, ProviderId, ProviderPreset } from '../infrastructure/providerPresets'
+import { assistKeyKept, pinProviderInUse, providerInUse, switchProvider } from './useAiTask'
 import { words } from './words'
 
 /**
- * Kuna settings' Assistant: one row per provider with its key in this browser, its model and whether it is the one in
- * use, then one switch per app that has an assistant, each with what its tasks send and a switch for each task that can
- * send employee data. The keys sync through the Google account while some app's file is on Drive, and the switches and
- * models stay on this device.
+ * Kuna settings' assistant: one company at a time, its key and its model, and a line per app with a link to that app's
+ * own switches. A company with a key takes over at once. One with no key changes nothing until a key is saved, so a
+ * person who is only looking keeps the assistant they had.
  */
 const props = defineProps<{
-  apps: readonly { readonly id: string; readonly name: string; readonly assist: AppAssist }[]
+  apps: readonly { readonly id: string; readonly name: string; readonly to: RouteLocationRaw }[]
   /** Whether some app's file is on Drive, so a sync carries the keys. */
   onDrive: boolean
+  /** Asks Google for the keys another browser saved, and says why they could not be read, or null. */
+  fetchKeys: () => Promise<string | null>
 }>()
 
 const keys = useSecretRows(
@@ -38,182 +38,286 @@ const keys = useSecretRows(
   PAGE_SECRET_STORE,
   (preset, key): Promise<KeyTest> => testProviderKey(preset, key ?? ''),
 )
-watch(useSecretsChanged(), () => keys.reread())
-/** What is typed in each key field, which goes nowhere until Save. */
-const typed = reactive<Record<string, string>>(Object.fromEntries(PROVIDER_PRESETS.map((preset) => [preset.id, ''])))
+const announceRemoval = useKeyRemoval()
 
-function save(preset: ProviderPreset): void {
-  if (keys.save(preset.id, typed[preset.id] ?? '')) typed[preset.id] = ''
-}
+const shownId = ref<ProviderId>(providerInUse()?.id ?? PROVIDER_PRESETS[0]!.id)
+const shown = computed(() => presetOf(shownId.value))
+const row = computed(() => keys.rows[shownId.value]!)
+const tested = computed(() => (row.value.test === null || row.value.test === 'testing' ? null : row.value.test))
 
-/** What each model field holds while it has focus, which may be empty while the stored model falls back to the default. */
-const modelDrafts = reactive<Partial<Record<ProviderId, string>>>({})
+/** What is typed in the key field, which goes nowhere until Save. */
+const typed = ref('')
+const replacing = ref(false)
+/** What the model field holds while it has focus, which may be empty while the stored model falls back to the default. */
+const modelDraft = ref<string | null>(null)
+/** The last move of the assistant on this card, for the lines that say what it did. */
+const moved = ref<{ readonly to: ProviderId; readonly from: ProviderId | null; readonly employeesReset: boolean } | null>(null)
+const fetching = ref(false)
+const fetchLine = ref<string | null>(null)
 
-function typeModel(id: ProviderId, text: string): void {
-  modelDrafts[id] = text
-  pickModel(id, text)
-}
+const refused = computed(() => tested.value?.kind === 'refused')
+const fieldOpen = computed(() => !row.value.kept || replacing.value || refused.value)
+const inUse = computed(() => providerInUse())
 
-function settleModel(id: ProviderId): void {
-  delete modelDrafts[id]
-}
+const keyLine = computed(() => (row.value.ending === null ? secretWords.keyRow.kept : secretWords.keyRow.keptEnding(row.value.ending)))
+const companies = computed(() =>
+  PROVIDER_PRESETS.map((preset) => ({
+    label: preset.name,
+    value: preset.id,
+    description: keys.rows[preset.id]!.kept ? `${words.card.about[preset.id]}. ${words.card.keySaved}` : words.card.about[preset.id],
+  })),
+)
+const keepsUsing = computed(() => {
+  const current = inUse.value
+  return !row.value.kept && current !== null && current.id !== shownId.value && keys.rows[current.id]!.kept ? words.card.keepsUsing(current.name, shown.value.name) : null
+})
+const movedHere = computed(() => (moved.value?.to === shownId.value && row.value.kept ? moved.value : null))
+const otherKept = computed(() => {
+  const from = movedHere.value?.from ?? null
+  return from !== null && keys.rows[from]!.kept ? presetOf(from) : null
+})
 
-function modelNote(preset: ProviderPreset, model: ModelChoice): string {
-  if (model.price === null) return words.card.typedModel[preset.id]
-  return model.id === preset.defaultModel ? words.card.defaultModel(model.name) : model.name
-}
+const model = computed(() => modelOf(shownId.value))
+const modelText = computed(() => modelDraft.value ?? model.value.id)
+const modelIds = computed(() => shown.value.models.map((listed) => listed.id))
+// A whole listed id shows every suggestion, so another can be picked without clearing the field first.
+const showsAllModels = computed(() => modelIds.value.includes(modelText.value))
+const modelNote = computed(() => {
+  if (model.value.price === null) return words.card.typedModel[shownId.value]
+  return model.value.id === shown.value.defaultModel ? words.card.defaultModel(model.value.name) : model.value.name
+})
 
-const inUse = computed(() => providerInUse()?.id ?? null)
+const testLine = computed(() => {
+  const test = tested.value
+  if (test === null) return null
+  if (test.kind === 'works') return words.card.accepted(shown.value.name)
+  return test.kind === 'refused' ? words.card.refused(shown.value.name) : words.card.testFailed(test.reason)
+})
 
-const providerRows = computed(() =>
-  PROVIDER_PRESETS.map((preset) => {
-    const { kept, ending, test } = keys.rows[preset.id]!
-    const tested = test === null || test === 'testing' ? null : test
-    const model = modelOf(preset.id)
-    const modelText = modelDrafts[preset.id] ?? model.id
-    return {
-      preset,
-      kept,
-      inUse: inUse.value === preset.id,
-      keyLine: !kept ? secretWords.keyRow.noKey : ending === null ? secretWords.keyRow.kept : secretWords.keyRow.keptEnding(ending),
-      modelText,
-      modelIds: preset.models.map((listed) => listed.id),
-      // A whole listed id shows every suggestion, so another can be picked without clearing the field first.
-      showsAllModels: preset.models.some((listed) => listed.id === modelText),
-      modelNote: modelNote(preset, model),
-      modelRefusal: turnsOnWebSearch(modelText) ? words.card.searchesWeb : false,
-      testing: test === 'testing',
-      testWorks: tested?.kind === 'works',
-      testLine: tested === null ? null : tested.kind === 'works' ? secretWords.keyRow.works : tested.kind === 'refused' ? words.card.refused(preset.name) : words.card.testFailed(tested.reason),
-    }
-  }),
+watch(shownId, () => {
+  typed.value = ''
+  replacing.value = false
+  modelDraft.value = null
+  fetchLine.value = null
+})
+
+// The card follows the assistant when a sync moves it.
+watch(
+  () => inUse.value?.id,
+  (id) => {
+    if (id !== undefined) shownId.value = id
+  },
 )
 
-const providerName = computed(() => providerInUse()?.name ?? PROVIDER_PRESETS[0]!.name)
+watch(useSecretsChanged(), () => {
+  keys.reread()
+  // A key a sync brought for a company on screen is not a pick. A key saved here has a Test under way or a refusal, and stays on screen.
+  if (row.value.kept && row.value.test === null && inUse.value !== null) shownId.value = inUse.value.id
+})
+
+function moveTo(id: ProviderId): void {
+  const before = inUse.value
+  const employeesReset = switchProvider(id)
+  if (before?.id !== id) moved.value = { to: id, from: before !== null && keys.rows[before.id]!.kept ? before.id : null, employeesReset }
+}
+
+function pick(id: ProviderId): void {
+  shownId.value = id
+  if (keys.rows[id]!.kept) moveTo(id)
+}
+
+function testKey(preset: ProviderPreset): Promise<void> {
+  return keys.test({ ...preset, needsKey: true })
+}
+
+/** Keeps the key whatever its Test says, since a Test can fail for being offline, and moves the assistant unless the company refused the key. */
+async function save(): Promise<void> {
+  const id = shownId.value
+  if (!keys.save(id, typed.value)) return
+  typed.value = ''
+  replacing.value = false
+  await testKey(presetOf(id))
+  const test = keys.rows[id]!.test
+  const refusedHere = test !== null && test !== 'testing' && test.kind === 'refused'
+  if (!refusedHere && shownId.value === id) moveTo(id)
+}
+
+/** Removes a key at once with Undo. The assistant stays on the company it was on, and never moves to another saved key by itself. */
+function remove(id: ProviderId): void {
+  pinProviderInUse()
+  announceRemoval(keys.forget(id))
+}
+
+async function fetchKey(): Promise<void> {
+  fetching.value = true
+  fetchLine.value = null
+  try {
+    const refusal = await props.fetchKeys()
+    keys.reread()
+    const kept = PROVIDER_PRESETS.find((preset) => keys.rows[preset.id]!.kept)
+    if (refusal !== null) fetchLine.value = refusal
+    else if (kept === undefined) fetchLine.value = words.card.fetchNone
+    else if (!row.value.kept) pick(kept.id)
+  } catch (failure) {
+    fetchLine.value = words.card.fetchFailed(failure instanceof Error ? failure.message : String(failure))
+  } finally {
+    fetching.value = false
+  }
+}
+
+function typeModel(text: string): void {
+  modelDraft.value = text
+  pickModel(shownId.value, text)
+}
 </script>
 
 <template>
-  <AppCard :title="words.card.title" :subtitle="onDrive ? words.card.subtitleOnDrive : words.card.subtitle" data-testid="assist-card">
-    <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
-      <div
-        v-for="row in providerRows"
-        :key="row.preset.id"
-        class="flex flex-col gap-3 border-t border-default pt-3 first:border-t-0 first:pt-0"
-        data-testid="assist-provider"
-        :data-provider="row.preset.id"
-        :data-kept="row.kept"
-        :data-in-use="row.inUse"
-      >
-        <div class="flex flex-col gap-0.5">
-          <p class="flex items-center gap-2 type-body text-highlighted">
-            {{ row.preset.name }}
-            <UBadge v-if="row.inUse && row.kept" :label="words.card.inUse" color="primary" variant="subtle" size="sm" data-testid="assist-in-use" />
+  <AppCard :title="words.card.title" :subtitle="assistKeyKept ? words.card.subtitleKey : words.card.subtitleNoKey" data-testid="assist-card">
+    <div class="flex flex-col gap-4 px-4 pt-3 pb-4 sm:px-5 sm:pb-5" data-testid="assist-provider" :data-provider="shownId" :data-kept="row.kept">
+      <div class="flex flex-col gap-1.5">
+        <UFormField :label="words.card.company" :help="words.retention[shownId]">
+          <USelect :model-value="shownId" :items="companies" :ui="{ itemDescription: 'whitespace-normal' }" class="w-full" data-testid="assist-provider-select" @update:model-value="pick($event)" />
+        </UFormField>
+        <p v-if="keepsUsing !== null" class="type-caption" data-testid="assist-keeps-using">{{ keepsUsing }}</p>
+        <div v-if="movedHere !== null" role="status" class="flex flex-col gap-0.5" data-testid="assist-moved">
+          <p class="type-caption">{{ words.card.nowSends(shown.name) }}</p>
+          <p v-if="movedHere.employeesReset" class="type-caption" data-testid="assist-employees-reset">{{ words.card.employeesReset }}</p>
+          <p v-if="otherKept !== null" class="flex flex-wrap items-center gap-x-1 type-caption" data-testid="assist-other-kept">
+            {{ words.card.otherKept(otherKept.name) }}
+            <UButton :label="words.card.removeIt" color="neutral" variant="link" size="sm" class="inline-target quiet-link px-0" data-testid="assist-other-forget" @click="remove(otherKept.id)" />
           </p>
-          <p class="type-caption">{{ words.retention[row.preset.id] }}</p>
-          <p class="type-caption" data-testid="assist-key-kept">{{ row.keyLine }}</p>
         </div>
-        <FormGrid>
-          <UFormField :label="words.card.key(row.preset.name)">
-            <UInput
-              v-model="typed[row.preset.id]"
-              type="password"
-              autocomplete="off"
-              autocapitalize="off"
-              :spellcheck="false"
-              :placeholder="secretWords.keyRow.placeholder"
-              class="w-full"
-              data-testid="assist-key"
-              @keydown.enter.prevent="save(row.preset)"
-            />
-          </UFormField>
-          <UFormField :label="words.card.model" :help="row.modelNote" :error="row.modelRefusal">
-            <UInputMenu
-              mode="autocomplete"
-              :model-value="row.modelText"
-              :items="row.modelIds"
-              :ignore-filter="row.showsAllModels"
-              :placeholder="row.preset.defaultModel"
-              open-on-click
-              autocomplete="off"
-              autocapitalize="off"
-              :spellcheck="false"
-              class="w-full"
-              data-testid="assist-model"
-              @update:model-value="typeModel(row.preset.id, String($event ?? ''))"
-              @focusout="settleModel(row.preset.id)"
-            />
-          </UFormField>
-        </FormGrid>
-        <div class="flex flex-wrap items-center gap-2">
-          <UButton
-            icon="i-lucide-key-round"
-            :label="secretWords.keyRow.save"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            :disabled="(typed[row.preset.id] ?? '').trim() === ''"
-            data-testid="assist-key-save"
-            @click="save(row.preset)"
-          />
-          <UButton
-            icon="i-lucide-plug-zap"
-            :label="secretWords.keyRow.test"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            :loading="row.testing"
-            :disabled="!row.kept || row.testing"
-            data-testid="assist-key-test"
-            @click="keys.test({ ...row.preset, needsKey: true })"
-          />
-          <UButton
-            v-if="row.kept"
-            icon="i-lucide-trash-2"
-            :label="secretWords.keyRow.forget"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            data-testid="assist-key-forget"
-            @click="keys.forget(row.preset.id)"
-          />
-          <UButton
-            v-if="row.kept && !row.inUse"
-            icon="i-lucide-circle-check"
-            :label="words.card.use"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            data-testid="assist-use"
-            @click="pickProvider(row.preset.id)"
-          />
-          <UButton :to="row.preset.keyAddress" target="_blank" rel="noopener noreferrer" trailing-icon="i-lucide-external-link" :label="words.card.getKey" color="neutral" variant="link" size="sm" />
-        </div>
-        <p v-if="row.testLine !== null" role="status" class="flex items-center gap-1.5 type-body" :class="row.testWorks ? 'text-success' : 'text-error'" data-testid="assist-key-test-result">
-          <UIcon :name="row.testWorks ? 'i-lucide-circle-check' : 'i-lucide-circle-alert'" class="size-4 shrink-0" aria-hidden="true" />
-          {{ row.testLine }}
-        </p>
       </div>
 
-      <section v-if="props.apps.length > 0" class="flex flex-col gap-3 border-t border-default pt-3" :aria-label="words.card.apps">
-        <h3 class="text-xs font-medium text-muted">{{ words.card.apps }}</h3>
-        <div v-for="app in props.apps" :key="app.id" class="flex flex-col gap-2" data-testid="assist-app" :data-app="app.id">
-          <USwitch :model-value="assistOn(app.id)" :label="app.name" :data-testid="`assist-switch-${app.id}`" @update:model-value="switchAssist(app.id, $event)" />
-          <ul class="flex flex-col gap-2 ps-12">
-            <li v-for="task in app.assist.tasks()" :key="task.id" class="flex flex-col gap-1.5">
-              <p class="type-body text-highlighted">{{ task.title }}</p>
-              <p class="type-caption">{{ words.consent.sends(task.sends) }}</p>
-              <USwitch
-                v-if="task.employees"
-                :model-value="employeesOn(task.id)"
-                :label="task.employees.label"
-                :description="task.employees.warning(providerName)"
-                :disabled="!assistOn(app.id)"
-                :data-testid="`assist-employees-${task.id}`"
-                @update:model-value="switchEmployees(task.id, $event)"
+      <ol v-if="!row.kept" class="flex list-decimal flex-col gap-1.5 ps-5 type-body" data-testid="assist-key-steps">
+        <li>{{ words.card.steps.account(shown.name) }}</li>
+        <li>{{ words.card.steps.credit }}</li>
+        <li>{{ words.card.steps.paste }}</li>
+      </ol>
+
+      <div v-if="row.kept" class="flex flex-col gap-0.5">
+        <p class="type-body" data-testid="assist-key-kept">{{ keyLine }}</p>
+        <p v-if="onDrive" class="type-caption">{{ words.card.synced }}</p>
+      </div>
+
+      <p v-if="testLine !== null" role="status" class="flex items-center gap-1.5 type-body" :class="tested?.kind === 'works' ? 'text-success' : 'text-error'" data-testid="assist-key-test-result">
+        <UIcon :name="tested?.kind === 'works' ? 'i-lucide-circle-check' : 'i-lucide-circle-alert'" class="size-4 shrink-0" aria-hidden="true" />
+        {{ testLine }}
+      </p>
+
+      <UFormField v-if="fieldOpen" :label="words.card.yourKey">
+        <UInput
+          v-model="typed"
+          type="password"
+          autocomplete="off"
+          autocapitalize="off"
+          :spellcheck="false"
+          :placeholder="secretWords.keyRow.placeholder"
+          class="w-full"
+          data-testid="assist-key"
+          @keydown.enter.prevent="save"
+        />
+      </UFormField>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <UButton
+          v-if="fieldOpen"
+          icon="i-lucide-key-round"
+          :label="secretWords.keyRow.save"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          :disabled="typed.trim() === ''"
+          data-testid="assist-key-save"
+          @click="save"
+        />
+        <UButton
+          v-if="row.kept"
+          icon="i-lucide-plug-zap"
+          :label="secretWords.keyRow.test"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          :loading="row.test === 'testing'"
+          :disabled="row.test === 'testing'"
+          data-testid="assist-key-test"
+          @click="testKey(shown)"
+        />
+        <UButton
+          v-if="row.kept && !fieldOpen"
+          :label="words.card.replace"
+          icon="i-lucide-replace"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          data-testid="assist-key-replace"
+          @click="replacing = true"
+        />
+        <UButton v-if="replacing && !refused" :label="words.card.keepKey" color="neutral" variant="ghost" size="sm" data-testid="assist-key-keep" @click="replacing = false" />
+        <UButton v-if="row.kept" icon="i-lucide-trash-2" :label="secretWords.keyRow.forget" color="neutral" variant="ghost" size="sm" data-testid="assist-key-forget" @click="remove(shownId)" />
+        <UButton
+          v-if="fieldOpen"
+          :to="shown.keyAddress"
+          target="_blank"
+          rel="noopener noreferrer"
+          trailing-icon="i-lucide-external-link"
+          :label="words.card.getKey"
+          color="neutral"
+          variant="link"
+          size="sm"
+          data-testid="assist-get-key"
+        />
+      </div>
+
+      <p v-if="!row.kept" class="type-caption">{{ words.card.pay(shown.name) }}</p>
+
+      <div v-if="!row.kept && onDrive" class="flex flex-col gap-1" data-testid="assist-fetch">
+        <p class="flex flex-wrap items-center gap-x-1 type-caption">
+          {{ words.card.fetchAsk }}
+          <UButton :label="words.card.fetch" color="neutral" variant="link" size="sm" class="inline-target quiet-link px-0" :loading="fetching" data-testid="assist-fetch-key" @click="fetchKey" />
+        </p>
+        <p v-if="fetchLine !== null" role="status" class="type-caption" data-testid="assist-fetch-line">{{ fetchLine }}</p>
+      </div>
+
+      <UFormField v-if="row.kept" :label="words.card.model" :help="modelNote" :error="turnsOnWebSearch(modelText) ? words.card.searchesWeb : false">
+        <UInputMenu
+          mode="autocomplete"
+          :model-value="modelText"
+          :items="modelIds"
+          :ignore-filter="showsAllModels"
+          :placeholder="shown.defaultModel"
+          open-on-click
+          autocomplete="off"
+          autocapitalize="off"
+          :spellcheck="false"
+          class="w-full"
+          data-testid="assist-model"
+          @update:model-value="typeModel(String($event ?? ''))"
+          @focusout="modelDraft = null"
+        />
+      </UFormField>
+
+      <section v-if="row.kept && apps.length > 0" class="flex flex-col gap-2 border-t border-default pt-3" :aria-label="words.card.inApps">
+        <h3 class="type-label">{{ words.card.inApps }}</h3>
+        <ul class="flex flex-col gap-1">
+          <li v-for="app in apps" :key="app.id" class="flex flex-wrap items-center justify-between gap-x-3" data-testid="assist-app" :data-app="app.id">
+            <span class="type-body text-highlighted">{{ app.name }}</span>
+            <span class="flex flex-wrap items-center gap-x-2">
+              <span class="type-caption" data-testid="assist-app-state">{{ assistOn(app.id) ? words.card.sendsFreely : words.card.asksFirst }}</span>
+              <UButton
+                :to="app.to"
+                :label="words.card.settings"
+                :aria-label="`${app.name}: ${words.card.settings}`"
+                trailing-icon="i-lucide-arrow-right"
+                color="neutral"
+                variant="link"
+                size="sm"
+                class="px-0"
+                data-testid="assist-app-link"
               />
-            </li>
-          </ul>
-        </div>
+            </span>
+          </li>
+        </ul>
       </section>
     </div>
   </AppCard>

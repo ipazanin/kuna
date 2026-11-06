@@ -6,9 +6,9 @@ import type { Translation } from '../../../../../../shared/text/translation'
 export const en = {
   explain: {
     title: 'Explain',
-    sends: "The figure's build-up, its amounts and the rules it rests on",
+    sends: 'how the figure is worked out, its amounts and the rules behind it.',
     employees: 'Include figures that name employees',
-    employeesWarning: (provider: string) => `This figure names employees. Explaining it sends their names and pay to ${provider}.`,
+    employeesNote: (provider: string) => `Left out until you switch this on. Then their names and pay go to ${provider}.`,
     checked: (day: string) => `Rules checked on ${day}`,
   },
 }
@@ -16,9 +16,9 @@ export const en = {
 export const hr: Translation<typeof en> = {
   explain: {
     title: 'Objasni',
-    sends: 'Razradu iznosa, njegove iznose i pravila na kojima počiva',
+    sends: 'kako je iznos izračunat, brojke od kojih se sastoji i pravila iza njega.',
     employees: 'Uključi iznose koji navode zaposlenike',
-    employeesWarning: (provider) => `Ovaj iznos navodi zaposlenike. Objašnjenje šalje njihova imena i plaće pružatelju ${provider}.`,
+    employeesNote: (provider) => `Izostavljeno dok ovo ne uključite. Tada njihova imena i plaće idu tvrtki ${provider}.`,
     checked: (day) => `Pravila provjerena ${day}`,
   },
 }

@@ -3,9 +3,10 @@ import type { KeyTest, ModelChoice, ProviderPreset } from '../providerPresets'
 
 /**
  * How the fake model answers, as `?ai=` names it: `ok` with a good answer, `refused` with a refusal, `cut-off` at the
- * length limit, and `invented-figure` with an answer that holds an amount Kuna did not send. Without it, `ok`.
+ * length limit, `invented-figure` with an answer that holds an amount Kuna did not send, and `key-refused` turning away
+ * every key on a Test. Without it, `ok`.
  */
-export type FakeAiVariant = 'ok' | 'refused' | 'cut-off' | 'invented-figure'
+export type FakeAiVariant = 'ok' | 'refused' | 'cut-off' | 'invented-figure' | 'key-refused'
 
 /** The fake build's answer to one task: the JSON its answer holds, built from the request, or another reply for a variant. */
 export type FakeAnswer = (request: ModelRequest, variant: FakeAiVariant) => unknown
@@ -19,7 +20,7 @@ export function registerFakeAnswer(taskId: string, answer: FakeAnswer): void {
 
 export function fakeAiVariant(): FakeAiVariant {
   const variant = new URLSearchParams(window.location.search).get('ai')
-  return variant === 'refused' || variant === 'cut-off' || variant === 'invented-figure' ? variant : 'ok'
+  return variant === 'refused' || variant === 'cut-off' || variant === 'invented-figure' || variant === 'key-refused' ? variant : 'ok'
 }
 
 const TOKENS = { input: 812, cacheRead: 3400, cacheWrite: 600, output: 1190 }
@@ -47,7 +48,8 @@ export function fakeModelPort(taskId: string, model: ModelChoice): ModelPort {
   }
 }
 
-/** The fake build's Test of a key, which takes any key and, as Anthropic's does, turns away a model no preset lists. */
+/** The fake build's Test of a key, which takes any key unless told otherwise and, as Anthropic's does, turns away a model no preset lists. */
 export async function fakeKeyTest(preset: ProviderPreset, model: ModelChoice): Promise<KeyTest> {
+  if (fakeAiVariant() === 'key-refused') return { kind: 'refused' }
   return preset.models.some((listed) => listed.id === model.id) ? { kind: 'works' } : { kind: 'failed', reason: `model: ${model.id}` }
 }

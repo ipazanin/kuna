@@ -366,6 +366,46 @@ Each stage leaves Kuna working with no key. Per the repo's checks: `npm run chec
 
 **Against chat stage 2.** Stages 1 to 3 go first. They are all in the Settings surfaces, chat stage 2 touches `AppShell.vue` and new panel files, so they barely collide. Stage 2's panel reads `providerInUse()` and `words.retention`, both unchanged. Going first gives the panel one company to name and no leftover "which provider" question. Stage 2 sends no user data, so no app switch logic is waiting on it. Chat stage 3 then adds one thing to `AppAssistCard`, what the assistant may read, and its "Always" writes the same switch. The key steps in this card become onboarding stage 4's walk-through, and that is when the key part splits into its own component.
 
+## Built: stages 1 to 3, with stage 4's Get it from Google
+
+Built on the `chat` branch, issue #50. Delete my keys stays out of the card, and stage 5 is not done. The tables in section 6 show the words as first proposed, and `words.ts` holds the corrected ones listed below.
+
+**Where the code overruled this plan.**
+
+- `pickProvider` could not keep its plain signature and rule alone. The fallback in `providerInUse()` needs the keys, and `assistSettings.ts` may not read them. So `pickProvider` takes back the yeses on a real change and returns whether it did, `pinProvider` stores a pick and takes nothing back, and `switchProvider` in `useAiTask.ts` pins first, so storing the company already in use is no change.
+- With no stored pick, a key a sync brings can move the assistant to a company earlier in the list, with a yes on employee data still on. The plan's "a second browser falls to the first saved key" misses this. A tap on an assist button now stores the company in use as the pick. A flip before that first tap is not caught.
+- Suggest categories never asks about employee data. Its button has no `sendsEmployees`: it leaves those rows out, says so when none are left, and has its own switch on To review naming the company. After a change of company that switch is off and names the new one, so "the next such run asks" holds as a dialog only for Explain.
+- `KUNA_SETTINGS_ROUTE` could not be exported from `secretsStep.ts` for the tab's link, because that file loads Google and the AI module may not. It now lives in `pageSecrets.ts`.
+- The same rule stops the card calling `fetchKeysFromGoogle` itself, so Kuna settings passes it in as a prop.
+- `AppAssistCard` takes `app` and `tasks`. The planned `appName` had no use.
+- The Assistant tab sits after the pack's tabs, as the sketch shows, not inside `CORE_TABS`.
+- A refused key needs a fake answer to be seen, so `?ai=key-refused` turns away every key on a Test.
+
+**Added beyond this plan.**
+
+- `card.keepKey` closes the Replace field, which otherwise has no way back but Save.
+- `card.fetchFailed` says when Google could not be read.
+- `consent.stopsAsking` is one line in the dialog. A yes there turns the app's switch on, so the dialog says it stops asking and where to change that.
+
+**Croatian corrected from section 6.**
+
+| Key                    | Plan                                                        | Now                                                                     | Why                                                               |
+| ---------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `card.about.anthropic` | Izrađuje Claude                                             | Izrađuje Claudea                                                        | Claude is a name and takes the accusative                         |
+| `card.steps.account`   | Idite na {p} i napravite...                                 | Otvorite stranicu tvrtke {p} i napravite...                             | "Idite na Anthropic" is not said of a company                     |
+| `card.steps.credit`    | Kupite malo kredita... je zasebna                           | Uplatite manji iznos... zasebna je                                      | "Kredit" reads as a bank loan                                     |
+| `card.accepted`        | {p} je prihvatio ključ. Ako nemate kredita...               | Tvrtka {p} prihvatila je ključ. Ako nemate uplaćenih sredstava...       | The same loan reading, and the gender of a company name           |
+| `card.refused`         | {p} je odbio ovaj ključ                                     | Tvrtka {p} odbila je ovaj ključ                                         | The gender of a company name                                      |
+| `card.otherKept`       | ...ako se poželite vratiti                                  | ...za slučaj da se želite vratiti                                       | Says "in case", as the English does                               |
+| `appCard.canHelp`      | Asistent ovdje može pomoći: {titles}                        | Asistent ovdje može pomoći s ovim: {titles}                             | The sentence had no object                                        |
+| `consent.switchOn`     | Dopusti za {a}                                              | Dopusti u aplikaciji {a}                                                | "Dopusti za Tvrtka" breaks the case of the app's name             |
+| `suggest.sends`        | Nazive, opise, iznose...                                    | Nazivi, opisi, iznosi...                                                | It follows "Što napušta ovaj uređaj:", so it takes the nominative |
+| `explain.sends`        | Kako je iznos izračunat, njegove iznose i pravila iza njega | Kako je iznos izračunat, brojke od kojih se sastoji i pravila iza njega | The same case, and "iznos... iznosi" repeated                     |
+
+A Croatian native should still read these once. The outside claims in "Unconfirmed, to check before shipping" stay unconfirmed, and nobody has walked the key screens with a real account.
+
+**Left open.** A yes in the dialog turns the switch on for good, so off asks once per app and not each time. Chat's per-chat grant will need a yes that lasts for one chat. Issue #52 replaces the interim rule on employee data.
+
 ## The owner's answers, 2026-11-06
 
 These override the recommendations below wherever the two differ.

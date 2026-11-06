@@ -163,7 +163,7 @@ describe('a row that names an employee', () => {
 describe('what the task says it sends', () => {
   it('names the month, in both languages and on the privacy page', () => {
     expect(en.suggest.sends).toContain('months')
-    expect(hr.suggest.sends).toContain('mjesece')
+    expect(hr.suggest.sends).toContain('mjeseci')
     expect(readFileSync(join(import.meta.dirname, '..', 'public/privacy.html'), 'utf8')).toMatch(/descriptions, amounts, months and accounts/)
   })
 })

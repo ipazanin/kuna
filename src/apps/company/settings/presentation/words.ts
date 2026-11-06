@@ -98,7 +98,7 @@ export const en = {
     switch: 'Switch data source',
     keepOnDrive: 'Keep on Google Drive',
   },
-  tabNames: { general: 'General', categories: 'Categories', categoryRules: 'Category rules', accounts: 'Accounts' },
+  tabNames: { general: 'General', categories: 'Categories', categoryRules: 'Category rules', accounts: 'Accounts', assistant: 'Assistant' },
   categories: {
     title: 'Categories',
     count: (count: number): EnglishForms => ({ one: `${count} category`, other: `${count} categories` }),
@@ -294,7 +294,7 @@ export const hr: Translation<typeof en> = {
     switch: 'Promijeni izvor podataka',
     keepOnDrive: 'Čuvaj na Google Driveu',
   },
-  tabNames: { general: 'Općenito', categories: 'Kategorije', categoryRules: 'Pravila kategorija', accounts: 'Računi u banci' },
+  tabNames: { general: 'Općenito', categories: 'Kategorije', categoryRules: 'Pravila kategorija', accounts: 'Računi u banci', assistant: 'Asistent' },
   categories: {
     title: 'Kategorije',
     count: (count) => ({ one: `${count} kategorija`, few: `${count} kategorije`, other: `${count} kategorija` }),

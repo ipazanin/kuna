@@ -5698,7 +5698,7 @@ export function spendingReceiptPickFlowIn(language, photos) {
 const READ_RECEIPT_BUTTON = '[data-testid="assist-spending.read-receipt"]'
 const RECEIPT_REVIEW = '[data-testid="spending-receipt-review"]'
 
-/** Taps Read the lines and waits for the draft, with the first-use dialog when `asks`. */
+/** Taps Read the lines and waits for the draft, with the dialog that asks first when `asks`. */
 async function readReceiptLines(page, press, words, context, asks) {
   await pressSelector(page, press, READ_RECEIPT_BUTTON)
   if (asks) await consentTo(page, press, context, [words.spendingReceiptAssist.sends], null)
@@ -7669,9 +7669,12 @@ const ASSIST_WORDS = {
   hr: { ...assistCroatian, keyRow: secretsCroatian.keyRow, suggest: suggestCroatian.suggest, explain: explainCroatian.explain },
 }
 
-/** A made-up Anthropic key the Assistant card is given, whose whole text must never come back on screen. */
+/** A made-up Anthropic key the assistant's card is given, whose whole text must never come back on screen. */
 const MADE_UP_ANTHROPIC_KEY = 'made-up-anthropic-key-0042'
 const ANTHROPIC_ROW = '[data-testid="assist-card"] [data-provider="anthropic"]'
+const OPENAI_ROW = '[data-testid="assist-card"] [data-provider="openai"]'
+const OPENROUTER_ROW = '[data-testid="assist-card"] [data-provider="openrouter"]'
+const COMPANY_SELECT = '[data-testid="assist-provider-select"]'
 const COMPANY_SWITCH = '[data-testid="assist-switch-company"]'
 const SUGGEST_BUTTON = '[data-testid="assist-company.suggest-categories"]'
 const EXPLAIN_BUTTON = '[data-testid="assist-hr-doo.explain-figure"]'
@@ -7690,16 +7693,16 @@ async function keepAssistKey(page, { companyOn = false } = {}) {
   await page.reload({ waitUntil: 'networkidle0' })
 }
 
-/** Forgets the Anthropic key, the time of its last change, the assistant's switches and its models in this browser, so the next flows start without them. */
+/** Forgets the AI keys, the times of their last changes, the assistant's switches and its models in this browser, so the next flows start without them. */
 async function forgetAssist(page) {
   await page.evaluate(() =>
     Object.keys(localStorage)
-      .filter((key) => key === 'kuna.secret.anthropic' || key === 'kuna.secret-changed.anthropic' || key.startsWith('kuna.assist'))
+      .filter((key) => /^kuna\.secret(-changed)?\.(anthropic|openai|openrouter)$/.test(key) || key.startsWith('kuna.assist'))
       .forEach((key) => localStorage.removeItem(key)),
   )
 }
 
-/** Opens the first-use dialog of an assist button and waits for it to say what it asks, then presses its confirm. */
+/** Opens the dialog of an assist button that asks first and waits for it to say what it asks, then presses its confirm. */
 async function consentTo(page, press, { inspect, shoot }, texts, shotName) {
   await page.waitForSelector(CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
     throw new Error('the first tap opened no consent dialog')
@@ -7713,39 +7716,102 @@ async function consentTo(page, press, { inspect, shoot }, texts, shotName) {
   await dialogGone(page, CONSENT)
 }
 
+/** Opens the select of AI companies, and returns what each option says, by its company's name. */
+async function openCompanies(page, press) {
+  const trigger = await page.$(COMPANY_SELECT)
+  if (trigger === null) throw new Error('no select of AI companies')
+  await trigger.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(150)
+  await press(trigger)
+  await page.waitForSelector('[role="option"]', { visible: true, timeout: 5_000 }).catch(() => {
+    throw new Error('the select of AI companies did not open')
+  })
+  return page.$$eval('[role="option"]', (options) => options.map((option) => option.textContent?.trim() ?? ''))
+}
+
+/** Picks an AI company from the select that is open, whose option starts with its name and goes on to say what it is. */
+async function pickCompany(page, press, name) {
+  const option = await page.waitForFunction(
+    (wanted) => [...document.querySelectorAll('[role="option"]')].find((element) => element.textContent?.trim().startsWith(wanted)) ?? null,
+    { timeout: 5_000 },
+    name,
+  )
+  await press(option.asElement())
+  await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+  await delay(200)
+}
+
+/** Types a key into the open field and presses Save, the Test that follows answering by itself. */
+async function saveTypedKey(page, press, row, key) {
+  const input = await pressSelector(page, press, `${row} [data-testid="assist-key"]`)
+  await input.type(key)
+  const fieldType = await input.evaluate((element) => element.type)
+  if (fieldType !== 'password') throw new Error(`the key field is type "${fieldType}", not password`)
+  await pressSelector(page, press, `${row} [data-testid="assist-key-save"]`)
+}
+
+/** Presses Undo on the toast that says a key was removed. */
+async function undoKeyRemoval(page, press, words) {
+  await toast(page, words.keyRow.removed)
+  const undo = await page
+    .waitForFunction(
+      (selector, label) => [...document.querySelectorAll(`${selector} button`)].find((element) => element.textContent?.trim() === label) ?? null,
+      { timeout: 5_000 },
+      TOAST,
+      words.keyRow.undo,
+    )
+    .catch(() => {
+      throw new Error('the toast of a removed key offers no Undo')
+    })
+  await press(undo.asElement())
+}
+
+/** Waits for the card's Test to end saying this. */
+async function testLineSays(page, row, text, failure) {
+  await page
+    .waitForFunction((selector, wanted) => document.querySelector(selector)?.textContent?.includes(wanted), { timeout: 10_000 }, `${row} [data-testid="assist-key-test-result"]`, text)
+    .catch(() => {
+      throw new Error(failure)
+    })
+}
+
 /**
- * Kuna settings, Assistant: a made-up Anthropic key typed and saved shows only how it ends, empties its field and puts
- * the provider in use, Test says it works with the fake build's test, Opus 5.5 picked from the model field's suggestions
- * stays picked in this browser, a typed model with no price says so and Test shows the provider's refusal of it, an
- * emptied field goes back to the default, an OpenRouter id that turns on web search says it is refused and goes back to
- * the default when the field is left, and Remove forgets the key.
+ * Kuna settings, the assistant's card: with no key it shows the steps and hides the model. A made-up Anthropic key typed
+ * and saved shows only how it ends, closes its field, is tested by itself and becomes the pick. Replace opens the field
+ * and Keep this key closes it. Opus 5.5 picked from the model field's suggestions stays picked in this browser, a typed
+ * model with no price says so and Test shows the provider's refusal of it, an emptied field goes back to the default. OpenRouter
+ * changes nothing until its key is saved, its id that turns on web search is refused and goes back to the default when
+ * the field is left, and Remove with Undo puts a key back and then Remove forgets it.
  */
 export async function assistKeyFlow(page, { press, shoot, inspect }) {
+  const words = ASSIST_WORDS.en
   try {
-    const input = await pressSelector(page, press, `${ANTHROPIC_ROW} [data-testid="assist-key"]`)
-    await input.type(MADE_UP_ANTHROPIC_KEY)
-    const fieldType = await input.evaluate((element) => element.type)
-    if (fieldType !== 'password') throw new Error(`the key field is type "${fieldType}", not password`)
-    await pressSelector(page, press, `${ANTHROPIC_ROW} [data-testid="assist-key-save"]`)
+    await page.waitForSelector(`${ANTHROPIC_ROW} [data-testid="assist-key-steps"]`, { visible: true, timeout: 10_000 })
+    if (await page.$('[data-testid="assist-model"]')) throw new Error('the model field shows with no key')
+    if (await page.$('[data-testid="assist-app"]')) throw new Error('the lines of the apps show with no key')
+    await inspect?.('the card with no key')
+
+    await saveTypedKey(page, press, ANTHROPIC_ROW, MADE_UP_ANTHROPIC_KEY)
     await elementSays(page, `${ANTHROPIC_ROW} [data-testid="assist-key-kept"]`, ['A key ending in 0042 is kept in this browser.'], 'Save did not keep the key')
-    const left = await input.evaluate((element) => element.value)
-    if (left !== '') throw new Error(`the key field still holds "${left}" after Save`)
+    await testLineSays(page, ANTHROPIC_ROW, words.card.accepted('Anthropic'), 'Save did not test the key by itself')
+    await page.waitForSelector('[data-testid="assist-key"]', { hidden: true, timeout: 5_000 }).catch(() => {
+      throw new Error('the key field stays open after Save')
+    })
+    if (await page.$('[data-testid="assist-key-steps"]')) throw new Error('the steps stay once a key is saved')
+    if (await page.$('[data-testid="assist-get-key"]')) throw new Error('Get a key stays once a key is saved and accepted')
     const shown = await page.evaluate((key) => document.body.innerText.includes(key) || [...document.querySelectorAll('input')].some((element) => element.value === key), MADE_UP_ANTHROPIC_KEY)
     if (shown) throw new Error('the whole key came back on screen after Save')
-    const kept = await page.evaluate(() => localStorage.getItem('kuna.secret.anthropic'))
+    const [kept, pick] = await page.evaluate(() => [localStorage.getItem('kuna.secret.anthropic'), localStorage.getItem('kuna.assist-provider')])
     if (kept !== MADE_UP_ANTHROPIC_KEY) throw new Error(`this browser keeps "${kept}" as the Anthropic key`)
-    await page.waitForSelector(`${ANTHROPIC_ROW} [data-testid="assist-in-use"]`, { visible: true, timeout: 5_000 }).catch(() => {
-      throw new Error('the only provider with a key is not marked in use')
-    })
-
-    await pressSelector(page, press, `${ANTHROPIC_ROW} [data-testid="assist-key-test"]`)
-    await page
-      .waitForFunction((selector) => document.querySelector(selector)?.textContent?.trim() === 'The key works.', { timeout: 10_000 }, `${ANTHROPIC_ROW} [data-testid="assist-key-test-result"]`)
-      .catch(() => {
-        throw new Error('Test against the fake build does not say the key works')
-      })
-    await inspect?.('an Anthropic key tested')
+    if (pick !== 'anthropic') throw new Error(`a saved and accepted key leaves "${pick}" as the pick`)
+    await inspect?.('an Anthropic key saved and tested')
     await shoot('assist-key')
+
+    await pressSelector(page, press, `${ANTHROPIC_ROW} [data-testid="assist-key-replace"]`)
+    await page.waitForSelector(`${ANTHROPIC_ROW} [data-testid="assist-key"]`, { visible: true, timeout: 5_000 })
+    await inspect?.('replacing a key')
+    await pressSelector(page, press, `${ANTHROPIC_ROW} [data-testid="assist-key-keep"]`)
+    await page.waitForSelector('[data-testid="assist-key"]', { hidden: true, timeout: 5_000 })
 
     const modelField = `${ANTHROPIC_ROW} [data-testid="assist-model"]`
     await choose(page, press, await page.$(modelField), 'claude-opus-5-5')
@@ -7764,15 +7830,8 @@ export async function assistKeyFlow(page, { press, shoot, inspect }) {
     const typed = await page.evaluate(() => localStorage.getItem('kuna.assist-model.anthropic'))
     if (typed !== 'claude-made-up-model') throw new Error(`this browser keeps "${typed}" as the typed model`)
     await pressSelector(page, press, `${ANTHROPIC_ROW} [data-testid="assist-key-test"]`)
-    await page
-      .waitForFunction(
-        (selector) => document.querySelector(selector)?.textContent?.includes('model: claude-made-up-model'),
-        { timeout: 10_000 },
-        `${ANTHROPIC_ROW} [data-testid="assist-key-test-result"]`,
-      )
-      .catch(() => {
-        throw new Error("Test does not show the provider's refusal of a typed model")
-      })
+    await testLineSays(page, ANTHROPIC_ROW, 'model: claude-made-up-model', "Test does not show the provider's refusal of a typed model")
+    if (await page.$('[data-testid="assist-key"]')) throw new Error('a refused model opened the key field, though the key may be fine')
     await inspect?.('a typed model refused')
 
     const emptiedField = await pressSelector(page, press, modelField)
@@ -7781,7 +7840,15 @@ export async function assistKeyFlow(page, { press, shoot, inspect }) {
     await page.keyboard.press('Escape')
     if ((await page.evaluate(() => localStorage.getItem('kuna.assist-model.anthropic'))) !== null) throw new Error('an emptied model field did not go back to the default')
 
-    const OPENROUTER_ROW = '[data-testid="assist-provider"][data-provider="openrouter"]'
+    await openCompanies(page, press)
+    await pickCompany(page, press, 'OpenRouter')
+    await elementSays(page, '[data-testid="assist-keeps-using"]', [words.card.keepsUsing('Anthropic', 'OpenRouter')], 'looking at a company with no key does not say the assistant stays')
+    if ((await page.evaluate(() => localStorage.getItem('kuna.assist-provider'))) !== 'anthropic') throw new Error('looking at a company with no key moved the assistant')
+    await inspect?.('OpenRouter on screen with no key')
+    await saveTypedKey(page, press, OPENROUTER_ROW, 'made-up-openrouter-key-0042')
+    await testLineSays(page, OPENROUTER_ROW, words.card.accepted('OpenRouter'), "OpenRouter's key was not tested by itself")
+    await page.waitForFunction(() => localStorage.getItem('kuna.assist-provider') === 'openrouter', { timeout: 5_000 })
+
     const searchingField = await pressSelector(page, press, `${OPENROUTER_ROW} [data-testid="assist-model"]`)
     await searchingField.evaluate((element) => element.select())
     await searchingField.type('made-up/model:online')
@@ -7800,9 +7867,17 @@ export async function assistKeyFlow(page, { press, shoot, inspect }) {
         throw new Error('the model field does not go back to the default after a refused id')
       })
 
-    await pressSelector(page, press, `${ANTHROPIC_ROW} [data-testid="assist-key-forget"]`)
-    await elementSays(page, `${ANTHROPIC_ROW} [data-testid="assist-key-kept"]`, ['No key in this browser.'], 'Remove did not forget the key')
-    if ((await page.evaluate(() => localStorage.getItem('kuna.secret.anthropic'))) !== null) throw new Error('Remove left the key in this browser')
+    await pressSelector(page, press, `${OPENROUTER_ROW} [data-testid="assist-key-forget"]`)
+    await page.waitForSelector(`${OPENROUTER_ROW}[data-kept="false"]`, { timeout: 5_000 }).catch(() => {
+      throw new Error('Remove did not forget the key')
+    })
+    if ((await page.evaluate(() => localStorage.getItem('kuna.secret.openrouter'))) !== null) throw new Error('Remove left the key in this browser')
+    if ((await page.evaluate(() => localStorage.getItem('kuna.assist-provider'))) !== 'openrouter') throw new Error('Remove moved the assistant to another saved key')
+    await undoKeyRemoval(page, press, words)
+    await page.waitForSelector(`${OPENROUTER_ROW}[data-kept="true"]`, { timeout: 5_000 }).catch(() => {
+      throw new Error('Undo did not put the key back')
+    })
+    if ((await page.evaluate(() => localStorage.getItem('kuna.secret.openrouter'))) !== 'made-up-openrouter-key-0042') throw new Error('Undo put back another key')
   } finally {
     await forgetAssist(page)
   }
@@ -7813,34 +7888,282 @@ function switchOn(page, selector) {
   return page.$eval(selector, (element) => element.getAttribute('aria-checked') === 'true')
 }
 
+/** Waits for a switch to say this state, as it tells a screen reader. */
+async function switchSays(page, selector, on, failure) {
+  await page
+    .waitForFunction((css, wanted) => document.querySelector(css)?.getAttribute('aria-checked') === wanted, { timeout: 5_000 }, selector, String(on))
+    .catch(() => {
+      throw new Error(failure)
+    })
+}
+
+/** Goes to a route of the page without loading it again, and waits for what it should show. */
+async function goToRoute(page, hash, ready) {
+  await page.evaluate((target) => {
+    window.location.hash = target
+  }, hash)
+  await page.waitForSelector(ready, { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error(`${hash} does not show ${ready}`)
+  })
+  await delay(200)
+}
+
 /**
- * Kuna settings, Assistant: Company's switch turned on stays on after a reload and lets its employee switches be
- * pressed, and turned off again forgets the choice.
+ * Company's Assistant tab with a made-up key kept: its switch turned on stays on after a reload and shows the employee
+ * switches, which do not show while it is off, and turned off again forgets the choice.
  */
 export async function assistSwitchFlow(page, { press, shoot, inspect }) {
   const employees = '[data-testid="assist-employees-company.suggest-categories"]'
   try {
-    if (await switchOn(page, COMPANY_SWITCH)) throw new Error("Company's assistant is on before it was switched on")
-    if (!(await page.$eval(employees, (element) => element.disabled))) throw new Error("an employee switch can be pressed while Company's assistant is off")
+    await keepAssistKey(page)
+    await page.waitForSelector(COMPANY_SWITCH, { visible: true, timeout: 10_000 })
+    if (await switchOn(page, COMPANY_SWITCH)) throw new Error("Company's switch is on before it was switched on")
+    if (await page.$(employees)) throw new Error("an employee switch shows while Company's switch is off")
     await pressSelector(page, press, COMPANY_SWITCH)
-    await page
-      .waitForFunction((selector) => document.querySelector(selector)?.getAttribute('aria-checked') === 'true', { timeout: 5_000 }, COMPANY_SWITCH)
-      .catch(() => {
-        throw new Error("Company's switch did not turn on")
-      })
+    await switchSays(page, COMPANY_SWITCH, true, "Company's switch did not turn on")
     if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== 'on') throw new Error('this browser does not keep Company switched on')
-    await inspect?.("Company's assistant switched on")
+    await inspect?.("Company's switch on")
     await shoot('assist-switch')
 
     await page.reload({ waitUntil: 'networkidle0' })
     await page.waitForSelector(COMPANY_SWITCH, { visible: true, timeout: 10_000 })
     if (!(await switchOn(page, COMPANY_SWITCH))) throw new Error("Company's switch is off again after a reload")
-    if (await page.$eval(employees, (element) => element.disabled)) throw new Error("the employee switch cannot be pressed with Company's assistant on")
-    await inspect?.("Company's assistant on after a reload")
+    await page.waitForSelector(employees, { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error("an employee switch does not show with Company's switch on")
+    })
+    await inspect?.("Company's switch on after a reload")
 
     await pressSelector(page, press, COMPANY_SWITCH)
-    await page.waitForFunction((selector) => document.querySelector(selector)?.getAttribute('aria-checked') === 'false', { timeout: 5_000 }, COMPANY_SWITCH)
+    await switchSays(page, COMPANY_SWITCH, false, "Company's switch did not turn off")
     if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== null) throw new Error('switching Company off left the choice in this browser')
+  } finally {
+    await forgetAssist(page)
+  }
+}
+
+/**
+ * The Assistant tab and Kuna settings over one state: with no key the tab says what could be done and links to Kuna
+ * settings, and with a key the line in Kuna settings leads to the tab, whose switch the line then follows. Spending has
+ * its own tab with no employee switch, and an app with no tasks has no line.
+ */
+export function assistTabFlowIn(language) {
+  const words = ASSIST_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const companyState = '[data-testid="assist-app"][data-app="company"] [data-testid="assist-app-state"]'
+    try {
+      await page.waitForSelector('[data-testid="assist-add-key"]', { visible: true, timeout: 10_000 }).catch(() => {
+        throw new Error('the tab with no key does not link to Kuna settings')
+      })
+      if (await page.$(COMPANY_SWITCH)) throw new Error('the tab shows a switch with no key')
+      await elementSays(page, '[data-testid="app-assist-card"]', [words.suggest.title], 'the tab with no key does not say what the assistant could do')
+      await inspect?.('the Assistant tab with no key')
+      await pressSelector(page, press, '[data-testid="assist-add-key"]')
+      await page.waitForSelector('[data-testid="assist-card"]', { visible: true, timeout: 10_000 }).catch(() => {
+        throw new Error('the link did not open Kuna settings')
+      })
+
+      await keepAssistKey(page)
+      await page.waitForSelector(companyState, { visible: true, timeout: 10_000 })
+      await elementSays(page, companyState, [words.card.asksFirst], "Company's line does not say it asks first")
+      if (await page.$('[data-testid="assist-app"][data-app="loans"]')) throw new Error('an app with no tasks has a line')
+      if (await page.$('[data-testid="assist-app"][data-app="investments"]')) throw new Error('an app with no tasks has a line')
+      if (await page.$('[data-testid="assist-app"][data-app="assets"]')) throw new Error('an app with no tasks has a line')
+      await inspect?.('the lines of the apps')
+      await pressSelector(page, press, '[data-testid="assist-app"][data-app="company"] [data-testid="assist-app-link"]')
+      await page.waitForSelector(COMPANY_SWITCH, { visible: true, timeout: 10_000 }).catch(() => {
+        throw new Error("Company's line did not open its Assistant tab")
+      })
+      await pressSelector(page, press, COMPANY_SWITCH)
+      await switchSays(page, COMPANY_SWITCH, true, "Company's switch did not turn on")
+      await elementSays(
+        page,
+        '[data-testid="app-assist-card"]',
+        [words.suggest.employees, words.suggest.employeesNote('Anthropic'), words.explain.title],
+        'the tab does not list the tasks and their employee switches',
+      )
+      await inspect?.("Company's Assistant tab")
+      await shoot('assist-tab')
+
+      await goToRoute(page, '#/settings', companyState)
+      await elementSays(page, companyState, [words.card.sendsFreely], "Company's line does not follow its switch")
+      await pressSelector(page, press, '[data-testid="assist-app"][data-app="spending"] [data-testid="assist-app-link"]')
+      await page.waitForSelector('[data-testid="assist-switch-spending"]', { visible: true, timeout: 10_000 }).catch(() => {
+        throw new Error("Spending's line did not open its Assistant tab")
+      })
+      if (await page.$('[data-testid^="assist-employees-"]')) throw new Error('Spending shows an employee switch')
+      await inspect?.("Spending's Assistant tab")
+      await shoot('assist-tab-spending')
+    } finally {
+      await forgetAssist(page)
+    }
+  }
+}
+
+/** Keeps made-up keys for Anthropic and OpenAI, Anthropic picked, Company sending without asking and a yes on employee data, then loads the page again with them. */
+async function keepTwoKeysWithYes(page, task) {
+  await page.evaluate(
+    (key, taskId) => {
+      localStorage.setItem('kuna.secret.anthropic', key)
+      localStorage.setItem('kuna.secret.openai', 'made-up-openai-key-0077')
+      localStorage.setItem('kuna.assist-provider', 'anthropic')
+      localStorage.setItem('kuna.assist.company', 'on')
+      localStorage.setItem(`kuna.assist-task.${taskId}`, 'on')
+    },
+    MADE_UP_ANTHROPIC_KEY,
+    task,
+  )
+  await page.reload({ waitUntil: 'networkidle0' })
+}
+
+/**
+ * The select of AI companies: a company with a key says so and takes over at once. The other key stays, with Remove and
+ * Undo, Company's switch stays, and a yes on employee data goes off, which the tab then shows under the new company's name.
+ */
+export function assistProviderSwitchFlowIn(language) {
+  const words = ASSIST_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const task = 'company.suggest-categories'
+    try {
+      await keepTwoKeysWithYes(page, task)
+      await page.waitForSelector(`${ANTHROPIC_ROW} [data-testid="assist-key-kept"]`, { visible: true, timeout: 10_000 })
+      const offered = await openCompanies(page, press)
+      if (!offered.find((option) => option.startsWith('OpenAI'))?.includes(words.card.keySaved)) throw new Error(`the select does not mark the saved key: ${offered.join(' | ')}`)
+      if (offered.find((option) => option.startsWith('OpenRouter'))?.includes(words.card.keySaved)) throw new Error('the select marks a key that is not saved')
+      // The list fades in, and its options read only once it has.
+      await delay(400)
+      await inspect?.('the select open')
+      await shoot('assist-companies')
+      await pickCompany(page, press, 'OpenAI')
+
+      await elementSays(
+        page,
+        `${OPENAI_ROW} [data-testid="assist-moved"]`,
+        [words.card.nowSends('OpenAI'), words.card.employeesReset, words.card.otherKept('Anthropic')],
+        'the switch does not say what it did',
+      )
+      const [pick, anthropic, yes, app] = await page.evaluate(
+        (taskId) => [
+          localStorage.getItem('kuna.assist-provider'),
+          localStorage.getItem('kuna.secret.anthropic'),
+          localStorage.getItem(`kuna.assist-task.${taskId}`),
+          localStorage.getItem('kuna.assist.company'),
+        ],
+        task,
+      )
+      if (pick !== 'openai') throw new Error(`the pick is "${pick}" after picking OpenAI`)
+      if (anthropic !== MADE_UP_ANTHROPIC_KEY) throw new Error('the switch lost the other key')
+      if (yes !== null) throw new Error('a yes on employee data stayed through a change of company')
+      if (app !== 'on') throw new Error("the switch of company changed Company's own switch")
+      await inspect?.('after a switch of company')
+      await shoot('assist-provider-switched')
+
+      await pressSelector(page, press, `${OPENAI_ROW} [data-testid="assist-other-forget"]`)
+      await page.waitForSelector('[data-testid="assist-other-kept"]', { hidden: true, timeout: 5_000 }).catch(() => {
+        throw new Error('Remove it left the line of the other key')
+      })
+      if ((await page.evaluate(() => localStorage.getItem('kuna.secret.anthropic'))) !== null) throw new Error('Remove it left the other key in this browser')
+      if ((await page.evaluate(() => localStorage.getItem('kuna.assist-provider'))) !== 'openai') throw new Error('Remove it moved the assistant')
+      await undoKeyRemoval(page, press, words)
+      await page.waitForSelector('[data-testid="assist-other-kept"]', { visible: true, timeout: 5_000 }).catch(() => {
+        throw new Error('Undo did not bring back the other key')
+      })
+
+      await goToRoute(page, '#/company/settings?tab=assistant', `[data-testid="assist-employees-${task}"]`)
+      if (await switchOn(page, `[data-testid="assist-employees-${task}"]`)) throw new Error('the tab shows the yes on employee data still on')
+      await elementSays(page, '[data-testid="app-assist-card"]', [words.appCard.uses('OpenAI'), words.suggest.employeesNote('OpenAI')], 'the tab does not name the new company')
+    } finally {
+      await forgetAssist(page)
+    }
+  }
+}
+
+/** Five made-up employees, a yes on employee data for Explain under Anthropic, then a switch to OpenAI: Explain on an employee's figure asks again and names OpenAI. */
+export async function assistEmployeesAskAfterSwitchFlow(page, { press, shoot, inspect }) {
+  const words = ASSIST_WORDS.en
+  try {
+    await keepTwoKeysWithYes(page, 'hr-doo.explain-figure')
+    await page.waitForSelector(COMPANY_SELECT, { visible: true, timeout: 10_000 })
+    await openCompanies(page, press)
+    await pickCompany(page, press, 'OpenAI')
+    await goToRoute(page, '#/company/salaries', '[data-testid="salaries-problem"]')
+    await pressButton(page, press, '[data-testid="salaries-problem"] button', SCREEN_WORDS.en.salaries.problemList.howWorkedOut)
+    await page.waitForSelector('[data-testid="figure-detail"]', { visible: true, timeout: 10_000 })
+    await delay(400)
+    await pressSelector(page, press, EXPLAIN_BUTTON)
+    await page.waitForSelector(CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error("Explain on an employee's figure did not ask again after a change of company")
+    })
+    await elementSays(page, '[role="dialog"]', [words.explain.employeesNote('OpenAI'), words.retention.openai, words.explain.employees], 'the dialog does not name the new company')
+    await delay(400)
+    await inspect?.('Explain asking again after a change of company')
+    await shoot('assist-employees-after-switch')
+    await pressButton(page, press, '[role="dialog"] button', words.consent.cancel)
+    await dialogGone(page, CONSENT)
+  } finally {
+    await forgetAssist(page)
+  }
+}
+
+/** A key the company refuses (`?ai=key-refused`): it stays kept and the field opens beside Get a key, and the assistant does not move from the company it was on. */
+export function assistKeyRefusedFlowIn(language) {
+  const words = ASSIST_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await keepAssistKey(page)
+      await page.evaluate(() => localStorage.setItem('kuna.assist-provider', 'anthropic'))
+      await page.waitForSelector(COMPANY_SELECT, { visible: true, timeout: 10_000 })
+      await openCompanies(page, press)
+      await pickCompany(page, press, 'OpenAI')
+      await saveTypedKey(page, press, OPENAI_ROW, 'made-up-openai-key-0077')
+      await testLineSays(page, OPENAI_ROW, words.card.refused('OpenAI'), 'the refusal of the key does not show')
+      await page.waitForSelector(`${OPENAI_ROW} [data-testid="assist-key"]`, { visible: true, timeout: 5_000 }).catch(() => {
+        throw new Error('the key field stays closed after a refusal')
+      })
+      await page.waitForSelector(`${OPENAI_ROW} [data-testid="assist-get-key"]`, { visible: true, timeout: 5_000 }).catch(() => {
+        throw new Error('Get a key does not show after a refusal')
+      })
+      const [pick, kept] = await page.evaluate(() => [localStorage.getItem('kuna.assist-provider'), localStorage.getItem('kuna.secret.openai')])
+      if (pick !== 'anthropic') throw new Error(`a refused key moved the assistant to "${pick}"`)
+      if (kept !== 'made-up-openai-key-0077') throw new Error('a refused key was not kept')
+      await inspect?.('a key refused')
+      await shoot('assist-key-refused')
+    } finally {
+      await forgetAssist(page)
+    }
+  }
+}
+
+/** A new browser with the sync on open off and a key on the fake Drive: Get it from Google brings the key, with no switch needed first. */
+export async function assistFetchKeyFlow(page, { press, shoot, inspect }) {
+  try {
+    await page.evaluate(() => localStorage.setItem('kuna.auto-sync', 'off'))
+    await forgetAssist(page)
+    await page.reload({ waitUntil: 'networkidle0' })
+    await page.waitForSelector('[data-testid="assist-fetch-key"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the no-key card on Drive does not offer Get it from Google')
+    })
+    await inspect?.('Get it from Google offered')
+    await pressSelector(page, press, '[data-testid="assist-fetch-key"]')
+    await elementSays(page, `${ANTHROPIC_ROW} [data-testid="assist-key-kept"]`, ['A key ending in 0042 is kept in this browser.'], 'Get it from Google did not bring the key')
+    await inspect?.('the key fetched')
+    await shoot('assist-key-fetched')
+    if ((await page.evaluate(() => localStorage.getItem('kuna.secret.anthropic'))) !== MADE_UP_ANTHROPIC_KEY) throw new Error('this browser keeps another key than the fake Drive held')
+  } finally {
+    await page.evaluate(() => localStorage.removeItem('kuna.auto-sync'))
+    await forgetAssist(page)
+  }
+}
+
+/** Get it from Google with no key in the Google account says so and leaves the steps on screen. */
+export async function assistFetchNoneFlow(page, { press, inspect }) {
+  try {
+    await pressSelector(page, press, '[data-testid="assist-fetch-key"]')
+    await elementSays(page, '[data-testid="assist-fetch-line"]', [ASSIST_WORDS.en.card.fetchNone], 'Get it from Google does not say the account holds no key')
+    if (!(await page.$('[data-testid="assist-key-steps"]'))) throw new Error('the steps went with no key fetched')
+    await inspect?.('no key in the Google account')
   } finally {
     await forgetAssist(page)
   }
@@ -8146,7 +8469,7 @@ export function salaryFigureExplainAsksFlowIn(language) {
     await page.waitForSelector(CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
       throw new Error("Explain on an employee's figure did not ask first")
     })
-    await elementSays(page, '[role="dialog"]', [words.explain.employeesWarning('Anthropic'), words.explain.employees], 'the dialog does not warn that the figure names employees')
+    await elementSays(page, '[role="dialog"]', [words.explain.employeesNote('Anthropic'), words.explain.employees], 'the dialog does not warn that the figure names employees')
     await delay(400)
     await inspect?.("Explain asking before it sends an employee's pay")
     await shoot('salary-figure-explain-asks')

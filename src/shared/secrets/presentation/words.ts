@@ -14,6 +14,8 @@ export const en = {
     forget: 'Remove',
     test: 'Test',
     works: 'The key works.',
+    removed: 'Key removed',
+    undo: 'Undo',
   },
   step: {
     label: 'Keys',
@@ -39,6 +41,8 @@ export const hr: Translation<typeof en> = {
     forget: 'Ukloni',
     test: 'Provjeri',
     works: 'Ključ radi.',
+    removed: 'Ključ je uklonjen',
+    undo: 'Poništi',
   },
   step: {
     label: 'Ključevi',

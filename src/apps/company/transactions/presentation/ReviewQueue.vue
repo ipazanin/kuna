@@ -205,7 +205,7 @@ function openSplit(row: Transaction): void {
                 v-if="paysEmployees"
                 :model-value="employeesOn(SUGGEST_CATEGORIES)"
                 :label="assistWords.suggest.employees"
-                :description="assistWords.suggest.employeesWarning(providerInUse()?.name ?? '')"
+                :description="assistWords.suggest.employeesNote(providerInUse()?.name ?? '')"
                 data-testid="review-suggest-employees"
                 @update:model-value="switchEmployees(SUGGEST_CATEGORIES, $event)"
               />

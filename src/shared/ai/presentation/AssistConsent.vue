@@ -7,7 +7,7 @@ import AppDialog from '../../ui/AppDialog.vue'
 import type { ProviderPreset } from '../infrastructure/providerPresets'
 import { words } from './words'
 
-/** Asks before a task first sends anything: what leaves the device, what the provider keeps, and the switch it turns on. */
+/** Asks before a task sends with its switch off: what leaves the device, what the provider keeps, and what a yes changes. Buttons outside the chat need it until they route through the chat. */
 const open = defineModel<boolean>('open', { required: true })
 
 defineProps<{
@@ -25,7 +25,8 @@ const emit = defineEmits<{ confirm: [] }>()
   <AppDialog v-model:open="open" :title="task.title" :description="words.consent.sends(task.sends)">
     <div class="flex flex-col gap-3" data-testid="assist-consent">
       <p class="type-body">{{ words.retention[provider.id] }}</p>
-      <UAlert v-if="asks === 'employees' && task.employees" color="warning" variant="subtle" icon="i-lucide-users" :title="task.employees.warning(provider.name)" />
+      <p v-if="asks === 'app'" class="type-body">{{ words.consent.stopsAsking(appName) }}</p>
+      <UAlert v-if="asks === 'employees' && task.employees" color="neutral" variant="subtle" icon="i-lucide-info" :title="task.employees.note(provider.name)" />
     </div>
     <template #end>
       <UButton :label="words.consent.cancel" color="neutral" variant="outline" @click="open = false" />

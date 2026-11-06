@@ -14,7 +14,7 @@ import {
 import { spendingSetUp } from './overview/presentation/spendingSetUp'
 import { startRates, useRates } from './rates/presentation/useRates'
 import { words as screenWords } from './screenWords'
-import { READ_RECEIPT_SUMMARY } from './receipts/assist/presentation/receiptAssist'
+import { SPENDING_ASSIST } from './receipts/assist/presentation/receiptAssist'
 import { reviewCount } from './statements/domain/reviewQueue'
 import { spendingSyncGroup } from './sync/presentation/spendingSyncGroup'
 import { words } from './words'
@@ -76,7 +76,7 @@ export const spendingApp: AppContribution = {
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
   homeCard: SPENDING_HOME_CARD,
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => spendingHubFigures(book, rates.value, today())) },
-  assist: { tasks: () => [READ_RECEIPT_SUMMARY] },
+  assist: SPENDING_ASSIST,
   setUpLines: () => (state.workbook === null ? [] : spendingSetUp(state.workbook)),
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
   startPath: SPENDING_START_ROUTE,

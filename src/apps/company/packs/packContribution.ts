@@ -95,7 +95,7 @@ export interface PackContribution {
   /** The Drive folders the pack's settings name, as paths, which a move of the books file has to respect. */
   folderSettings(workbook: Workbook): readonly (readonly string[])[]
   readonly onboarding: PackOnboarding | null
-  /** The pack's assist tasks, for the Assistant card after core's. */
+  /** The pack's assist tasks, for the Assistant tab after core's. */
   readonly assist: readonly AssistTaskSummary[]
   /** The IBANs on the employees' records, normalised, shared ones too, so a row paid to one can be kept from a model. */
   employeeIbans(records: WorkbookRecords): ReadonlySet<string>

@@ -5,11 +5,8 @@ import { allowHiddenFolder, googleSecretsDrive } from '../infrastructure/googleS
 import { storedSecretChanges } from '../infrastructure/browserSecrets'
 import type { SyncStep } from '../../sync/application/sync'
 import type { AccessNeed } from '../../sync/application/syncRun'
-import { keepSyncedSecrets, useSecretsChanged } from './pageSecrets'
+import { KUNA_SETTINGS_ROUTE, keepSyncedSecrets, useSecretsChanged } from './pageSecrets'
 import { words } from './words'
-
-/** Kuna settings, where the refusal of a secrets file leads. */
-const KUNA_SETTINGS_ROUTE = '/settings'
 
 /** Whether this browser saved or removed some secret, reactively, which the sync then carries. */
 function secretsHeldHere(): boolean {
@@ -70,6 +67,16 @@ export function secretsStep(wanted: () => boolean): SyncStep {
 export async function deleteKeysFromGoogle(): Promise<void> {
   await allowHiddenFolder()
   await deleteSecretsFiles(await pageSecretsDrive())
+}
+
+/**
+ * Runs one sync of the secrets for a browser that holds no key yet, asking Google for the hidden folder in this tap when
+ * the page lacks it. Returns why the file was left as it is, or null. Call it first in a click handler.
+ */
+export async function fetchKeysFromGoogle(): Promise<string | null> {
+  await allowHiddenFolder()
+  const result = await syncHere()
+  return result.kind === 'refused' ? words.refused[result.reason] : null
 }
 
 /** What an app's file on Drive needs of Google for the secrets, by the step that needs it. */

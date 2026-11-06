@@ -4,9 +4,10 @@ import { PROVIDER_PRESETS, modelChoice, presetOf } from './providerPresets'
 import type { ModelChoice, ProviderId } from './providerPresets'
 
 /**
- * This device's choices for the assistant, each under its own key: a switch per app and per task that can send
- * employee data, the provider in use and the model of each provider. Absent or denied storage means off and the
- * defaults, and a choice made while storage is denied holds for the visit.
+ * This device's choices for the assistant, each under its own key: a switch per app that sends without asking, a
+ * switch per task that can send employee data, the provider in use and the model of each provider. Every screen reads
+ * these choices here and keeps no copy. Absent or denied storage means off and the defaults, and a choice made while
+ * storage is denied holds for the visit.
  */
 const APP_PREFIX = 'kuna.assist.'
 const TASK_PREFIX = 'kuna.assist-task.'
@@ -33,7 +34,7 @@ function choose(key: string, value: string | null): void {
   choices[key] = value
 }
 
-/** Whether the app may send anything to a model from this device. Off until switched on. */
+/** Whether the app sends to a model without asking. Off until switched on, and while off Kuna asks first. */
 export function assistOn(app: string): boolean {
   return choice(`${APP_PREFIX}${app}`) === 'on'
 }
@@ -58,8 +59,25 @@ export function pickedProvider(): ProviderId | null {
   return PROVIDER_PRESETS.find((preset) => preset.id === picked)?.id ?? null
 }
 
-export function pickProvider(id: ProviderId): void {
+/** Stores the provider already in use as the pick, which moves nothing and takes no yes back. A pick already stored stays. */
+export function pinProvider(id: ProviderId): void {
+  if (pickedProvider() === null) choose(PROVIDER_KEY, id)
+}
+
+/**
+ * Picks the provider. A yes on employee data named the provider it was given for, so a real change takes every such yes
+ * back, and the next run with employee data asks again. Says whether it took one back. App switches stay.
+ */
+export function pickProvider(id: ProviderId): boolean {
+  const changed = pickedProvider() !== id
   choose(PROVIDER_KEY, id)
+  return changed && forgetEmployeeChoices()
+}
+
+function forgetEmployeeChoices(): boolean {
+  const yeses = [...new Set([...storedNames(), ...Object.keys(choices)])].filter((key) => key.startsWith(TASK_PREFIX) && choice(key) === 'on')
+  yeses.forEach((key) => choose(key, null))
+  return yeses.length > 0
 }
 
 /** The model this device runs on the provider, its default unless another was picked or typed. */
@@ -71,6 +89,14 @@ export function modelOf(id: ProviderId): ModelChoice {
 export function pickModel(id: ProviderId, model: string): void {
   const typed = model.trim()
   choose(`${MODEL_PREFIX}${id}`, typed === '' || typed === presetOf(id).defaultModel ? null : typed)
+}
+
+function storedNames(): readonly string[] {
+  try {
+    return Object.keys(localStorage)
+  } catch {
+    return []
+  }
 }
 
 function read(key: string): string | null {

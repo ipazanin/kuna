@@ -4,10 +4,10 @@ import type { ComputedRef, DeepReadonly, Ref } from 'vue'
 import { runTask } from '../application/runTask'
 import type { AiTask, TaskResult } from '../domain/aiTask'
 import type { AiUsage } from '../domain/modelUsage'
-import { assistOn, employeesOn, pickedProvider } from '../infrastructure/assistSettings'
+import { assistOn, employeesOn, pickProvider, pickedProvider, pinProvider } from '../infrastructure/assistSettings'
 import { keyKept, modelPort } from '../infrastructure/modelAccess'
 import { PROVIDER_PRESETS, presetOf } from '../infrastructure/providerPresets'
-import type { ProviderPreset } from '../infrastructure/providerPresets'
+import type { ProviderId, ProviderPreset } from '../infrastructure/providerPresets'
 import { useSecretsChanged } from '../../secrets/presentation/pageSecrets'
 import { formatCount, formatMoney } from '../../money/moneyFormat'
 import { intlLocale } from '../../text/language'
@@ -23,6 +23,21 @@ export function providerInUse(): ProviderPreset | null {
   void secretsChanged.value
   const picked = pickedProvider()
   return picked !== null ? presetOf(picked) : (PROVIDER_PRESETS.find((preset) => keyKept(preset.id)) ?? null)
+}
+
+/**
+ * Stores the provider in use as the pick. With none stored, a key a sync brought could otherwise move the assistant, and
+ * any yes on employee data, to another company without a word.
+ */
+export function pinProviderInUse(): void {
+  const preset = providerInUse()
+  if (preset !== null) pinProvider(preset.id)
+}
+
+/** Moves the assistant to the provider, and says whether that took back a yes on employee data. Staying on the provider in use takes none back. */
+export function switchProvider(id: ProviderId): boolean {
+  pinProviderInUse()
+  return pickProvider(id)
 }
 
 /** Whether a key is kept here for the provider in use, so an app shows its assist buttons. Reactive. */

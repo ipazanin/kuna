@@ -61,6 +61,53 @@ describe("this device's assistant settings", () => {
     expect(modelOf('openrouter').id).toBe('anthropic/claude-sonnet-5-5')
   })
 
+  it('takes back every yes on employee data on a real change of provider, and nothing else', async () => {
+    localStorage.setItem('kuna.assist-task.company.suggest-categories', 'on')
+    localStorage.setItem('kuna.assist-task.hr-doo.explain-figure', 'on')
+    localStorage.setItem('kuna.assist.company', 'on')
+    localStorage.setItem('kuna.assist-provider', 'anthropic')
+    localStorage.setItem('kuna.assist-model.anthropic', 'claude-opus-5-5')
+    localStorage.setItem('kuna.secret.anthropic', 'made-up-anthropic-key-0042')
+    const { assistOn, employeesOn, modelOf, pickProvider } = await settings()
+
+    expect(pickProvider('anthropic')).toBe(false)
+    expect(employeesOn('hr-doo.explain-figure')).toBe(true)
+
+    expect(pickProvider('openai')).toBe(true)
+    expect(employeesOn('company.suggest-categories')).toBe(false)
+    expect(employeesOn('hr-doo.explain-figure')).toBe(false)
+    expect(localStorage.getItem('kuna.assist-task.company.suggest-categories')).toBeNull()
+    expect(localStorage.getItem('kuna.assist-task.hr-doo.explain-figure')).toBeNull()
+    expect(assistOn('company')).toBe(true)
+    expect(modelOf('anthropic').id).toBe('claude-opus-5-5')
+    expect(localStorage.getItem('kuna.secret.anthropic')).toBe('made-up-anthropic-key-0042')
+
+    expect(pickProvider('anthropic')).toBe(false)
+  })
+
+  it('takes back a yes given this visit while storage is denied', async () => {
+    const { employeesOn, pickProvider, switchEmployees } = await settings()
+    pickProvider('anthropic')
+    for (const method of ['getItem', 'setItem', 'removeItem'] as const) {
+      vi.spyOn(Storage.prototype, method).mockImplementation(() => {
+        throw new DOMException('denied', 'SecurityError')
+      })
+    }
+    switchEmployees('company.suggest-categories', true)
+    expect(pickProvider('openai')).toBe(true)
+    expect(employeesOn('company.suggest-categories')).toBe(false)
+  })
+
+  it('pins the provider in use with no yes taken back, and leaves a stored pick alone', async () => {
+    localStorage.setItem('kuna.assist-task.company.suggest-categories', 'on')
+    const { employeesOn, pickedProvider, pinProvider } = await settings()
+    pinProvider('openai')
+    expect(pickedProvider()).toBe('openai')
+    expect(employeesOn('company.suggest-categories')).toBe(true)
+    pinProvider('anthropic')
+    expect(pickedProvider()).toBe('openai')
+  })
+
   it('holds a choice for the visit when storage is denied', async () => {
     for (const method of ['getItem', 'setItem', 'removeItem'] as const) {
       vi.spyOn(Storage.prototype, method).mockImplementation(() => {

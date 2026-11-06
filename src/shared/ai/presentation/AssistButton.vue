@@ -5,11 +5,11 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import type { AssistTaskSummary } from '../../app/appContribution'
 import { assistOn, employeesOn, switchAssist, switchEmployees } from '../infrastructure/assistSettings'
 import AssistConsent from './AssistConsent.vue'
-import { assistKeyKept, providerInUse } from './useAiTask'
+import { assistKeyKept, pinProviderInUse, providerInUse } from './useAiTask'
 
 /**
  * An app's button for one assist task, shown only while a key is kept for the provider in use. While a switch the run
- * needs is off, the tap asks first, and Run follows only once the person switched it on.
+ * needs is off, the tap asks first, and Run follows only once the person said yes.
  */
 const props = withDefaults(
   defineProps<{
@@ -42,6 +42,7 @@ function waitsFor(): 'app' | 'employees' | null {
 }
 
 function tap(): void {
+  pinProviderInUse()
   asking.value = waitsFor()
   if (asking.value === null) emit('run')
 }
