@@ -41,11 +41,11 @@ function strictObjects(schema: StrictSchema): boolean {
 
 function modelAnswering(text: string, seen: unknown[] = []): ModelPort {
   return {
-    model: { name: 'Sonnet 5.5', inputPerMillion: 2, outputPerMillion: 10 },
+    model: { name: 'Sonnet 5.5', price: { inputPerMillion: 2, cacheReadPerMillion: 0.1, cacheWritePerMillion: 2.5, outputPerMillion: 10 } },
     readsPdf: true,
     send: async (request) => {
       seen.push(request)
-      return { kind: 'answer', text, tokens: { input: 5000, output: 1500 } }
+      return { kind: 'answer', text, raw: null, tokens: { input: 5000, cacheRead: 0, cacheWrite: 0, output: 1500 } }
     },
   }
 }

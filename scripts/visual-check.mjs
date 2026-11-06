@@ -1403,6 +1403,37 @@ const SCREENS = [
     cards: false,
   },
   {
+    name: 'kuna-settings-assist-typed-model',
+    hash: '#/settings',
+    title: 'Kuna settings',
+    charts: 0,
+    ready: '[data-testid="assist-in-use"]',
+    stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042', 'kuna.assist-model.anthropic': 'claude-made-up-model' },
+    shows: ['Kuna knows no price for this model, so its runs say price unknown.'],
+    cards: false,
+  },
+  {
+    name: 'kuna-settings-assist-typed-model-croatian',
+    query: 'lang=hr',
+    hash: '#/settings',
+    title: 'Postavke Kune',
+    charts: 0,
+    ready: '[data-testid="assist-in-use"]',
+    stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042', 'kuna.assist-model.anthropic': 'claude-made-up-model' },
+    shows: ['Kuna ne zna cijenu ovog modela, pa uz njegova pokretanja piše cijena nepoznata.'],
+    cards: false,
+  },
+  {
+    name: 'kuna-settings-assist-typed-model-openrouter',
+    hash: '#/settings',
+    title: 'Kuna settings',
+    charts: 0,
+    ready: '[data-testid="assist-in-use"]',
+    stored: { 'kuna.secret.openrouter': 'made-up-openrouter-key-0042', 'kuna.assist-model.openrouter': 'made-up/model' },
+    shows: ['A typed model may search the web on its own side, which Kuna cannot see.'],
+    cards: false,
+  },
+  {
     name: 'kuna-settings-assist-on',
     hash: '#/settings',
     title: 'Kuna settings',
@@ -4164,7 +4195,8 @@ function readPage(page) {
           const style = getComputedStyle(element)
           if (style.position === 'fixed' || style.textOverflow === 'ellipsis') continue
           let content = 0
-          if (element instanceof HTMLElement && element.clientWidth > 1 && clips(style) && element.scrollWidth > element.clientWidth + 1) {
+          // A one-line input scrolls a long value inside itself, which never widens its card.
+          if (element instanceof HTMLElement && !(element instanceof HTMLInputElement) && element.clientWidth > 1 && clips(style) && element.scrollWidth > element.clientWidth + 1) {
             content = element.scrollWidth - element.clientWidth + edge.width
           } else if (element !== card) {
             const box = element.getBoundingClientRect()

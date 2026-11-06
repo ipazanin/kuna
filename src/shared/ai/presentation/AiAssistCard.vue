@@ -5,7 +5,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import USelect from '@nuxt/ui/components/Select.vue'
+import UInputMenu from '@nuxt/ui/components/InputMenu.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import type { AppAssist } from '../../app/appContribution'
@@ -15,9 +15,10 @@ import { words as secretWords } from '../../secrets/presentation/words'
 import AppCard from '../../ui/AppCard.vue'
 import FormGrid from '../../ui/FormGrid.vue'
 import { assistOn, employeesOn, modelOf, pickModel, pickProvider, switchAssist, switchEmployees } from '../infrastructure/assistSettings'
-import { PROVIDER_PRESETS } from '../infrastructure/providerPresets'
-import type { KeyTest, ProviderPreset } from '../infrastructure/providerPresets'
-import { providerInUse, testProviderKey } from './useAiTask'
+import { testProviderKey } from '../infrastructure/modelAccess'
+import { PROVIDER_PRESETS, turnsOnWebSearch } from '../infrastructure/providerPresets'
+import type { KeyTest, ModelChoice, ProviderId, ProviderPreset } from '../infrastructure/providerPresets'
+import { providerInUse } from './useAiTask'
 import { words } from './words'
 
 /**
@@ -45,19 +46,42 @@ function save(preset: ProviderPreset): void {
   if (keys.save(preset.id, typed[preset.id] ?? '')) typed[preset.id] = ''
 }
 
+/** What each model field holds while it has focus, which may be empty while the stored model falls back to the default. */
+const modelDrafts = reactive<Partial<Record<ProviderId, string>>>({})
+
+function typeModel(id: ProviderId, text: string): void {
+  modelDrafts[id] = text
+  pickModel(id, text)
+}
+
+function settleModel(id: ProviderId): void {
+  delete modelDrafts[id]
+}
+
+function modelNote(preset: ProviderPreset, model: ModelChoice): string {
+  if (model.price === null) return words.card.typedModel[preset.id]
+  return model.id === preset.defaultModel ? words.card.defaultModel(model.name) : model.name
+}
+
 const inUse = computed(() => providerInUse()?.id ?? null)
 
 const providerRows = computed(() =>
   PROVIDER_PRESETS.map((preset) => {
     const { kept, ending, test } = keys.rows[preset.id]!
     const tested = test === null || test === 'testing' ? null : test
+    const model = modelOf(preset.id)
+    const modelText = modelDrafts[preset.id] ?? model.id
     return {
       preset,
       kept,
       inUse: inUse.value === preset.id,
       keyLine: !kept ? secretWords.keyRow.noKey : ending === null ? secretWords.keyRow.kept : secretWords.keyRow.keptEnding(ending),
-      model: modelOf(preset.id).id,
-      models: preset.models.map((model) => ({ value: model.id, label: model.id === preset.defaultModel ? words.card.defaultModel(model.name) : model.name })),
+      modelText,
+      modelIds: preset.models.map((listed) => listed.id),
+      // A whole listed id shows every suggestion, so another can be picked without clearing the field first.
+      showsAllModels: preset.models.some((listed) => listed.id === modelText),
+      modelNote: modelNote(preset, model),
+      modelRefusal: turnsOnWebSearch(modelText) ? words.card.searchesWeb : false,
       testing: test === 'testing',
       testWorks: tested?.kind === 'works',
       testLine: tested === null ? null : tested.kind === 'works' ? secretWords.keyRow.works : tested.kind === 'refused' ? words.card.refused(preset.name) : words.card.testFailed(tested.reason),
@@ -102,8 +126,22 @@ const providerName = computed(() => providerInUse()?.name ?? PROVIDER_PRESETS[0]
               @keydown.enter.prevent="save(row.preset)"
             />
           </UFormField>
-          <UFormField :label="words.card.model">
-            <USelect :model-value="row.model" :items="row.models" class="w-full" data-testid="assist-model" @update:model-value="pickModel(row.preset.id, String($event))" />
+          <UFormField :label="words.card.model" :help="row.modelNote" :error="row.modelRefusal">
+            <UInputMenu
+              mode="autocomplete"
+              :model-value="row.modelText"
+              :items="row.modelIds"
+              :ignore-filter="row.showsAllModels"
+              :placeholder="row.preset.defaultModel"
+              open-on-click
+              autocomplete="off"
+              autocapitalize="off"
+              :spellcheck="false"
+              class="w-full"
+              data-testid="assist-model"
+              @update:model-value="typeModel(row.preset.id, String($event ?? ''))"
+              @focusout="settleModel(row.preset.id)"
+            />
           </UFormField>
         </FormGrid>
         <div class="flex flex-wrap items-center gap-2">

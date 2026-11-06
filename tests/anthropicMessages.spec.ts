@@ -6,9 +6,11 @@ import type { AiTask } from '../src/shared/ai/domain/aiTask'
 import type { StrictSchema } from '../src/shared/ai/domain/strictSchema'
 import { anthropicMessages, testAnthropicKey } from '../src/shared/ai/infrastructure/anthropicMessages'
 import type { ModelChoice } from '../src/shared/ai/infrastructure/providerPresets'
+import { eventsAsStream, streamCutByAbort, streamFixture, streamResponse } from './support/sseResponse'
 
 const KEY = 'made-up-anthropic-key-0042'
-const SONNET: ModelChoice = { id: 'claude-sonnet-5-5', name: 'Sonnet 5.5', inputPerMillion: 2, outputPerMillion: 10 }
+const SONNET_PRICE = { inputPerMillion: 2, cacheReadPerMillion: 0.1, cacheWritePerMillion: 2.5, outputPerMillion: 10 }
+const SONNET: ModelChoice = { id: 'claude-sonnet-5-5', name: 'Sonnet 5.5', price: SONNET_PRICE }
 
 interface SentRequest {
   readonly url: string
@@ -50,17 +52,31 @@ const TOOL_USE_CONTENT = [
   { type: 'tool_use', id: 'toolu_01B7xKp2', name: 'rule', input: { id: 'pdv-13' } },
 ]
 
-function message(fields: Record<string, unknown>): Response {
-  return Response.json({
-    id: 'msg_01XFDUDYJgAACzvnptvVoYEL',
-    type: 'message',
-    role: 'assistant',
-    model: 'claude-sonnet-5-5',
-    stop_sequence: null,
-    stop_details: null,
-    usage: { input_tokens: 412, cache_creation_input_tokens: 1800, cache_read_input_tokens: 0, output_tokens: 96 },
-    ...fields,
-  })
+const USAGE = { input_tokens: 412, cache_creation_input_tokens: 1800, cache_read_input_tokens: 0, output_tokens: 96 }
+const TOKENS = { input: 412, cacheRead: 0, cacheWrite: 1800, output: 96 }
+
+/** The stream Anthropic sends for a message of these blocks, one piece of each at a time. */
+function message(fields: { readonly content: readonly Record<string, unknown>[]; readonly stop_reason: string; readonly stop_details?: unknown; readonly usage?: Record<string, number> }): Response {
+  const usage = fields.usage ?? USAGE
+  return streamResponse(
+    eventsAsStream([
+      { type: 'message_start', message: { id: 'msg_01MadeUp', type: 'message', role: 'assistant', content: [], model: 'claude-sonnet-5-5', usage: { ...usage, output_tokens: 1 } } },
+      { type: 'ping' },
+      ...fields.content.flatMap((block, index) => blockEvents(block, index)),
+      { type: 'message_delta', delta: { stop_reason: fields.stop_reason, stop_sequence: null, stop_details: fields.stop_details ?? null }, usage: { output_tokens: usage.output_tokens } },
+      { type: 'message_stop' },
+    ]),
+  )
+}
+
+function blockEvents(block: Record<string, unknown>, index: number): { readonly type: string; readonly [field: string]: unknown }[] {
+  const pieces = {
+    text: [{ type: 'text_delta', text: block['text'] }],
+    thinking: [{ type: 'signature_delta', signature: block['signature'] }],
+    tool_use: [{ type: 'input_json_delta', partial_json: JSON.stringify(block['input']) }],
+  }[String(block['type'])]
+  const started = block['type'] === 'text' ? { type: 'text', text: '' } : block['type'] === 'thinking' ? { type: 'thinking', thinking: '' } : { ...block, input: {} }
+  return [{ type: 'content_block_start', index, content_block: started }, ...(pieces ?? []).map((delta) => ({ type: 'content_block_delta', index, delta })), { type: 'content_block_stop', index }]
 }
 
 function request(fields: Partial<ModelRequest> = {}): ModelRequest {
@@ -102,7 +118,8 @@ describe('the Anthropic Messages request', () => {
     expect(body.model).toBe('claude-sonnet-5-5')
     expect(body.max_tokens).toBe(16000)
     expect(body.output_config).toEqual({ effort: 'low', format: { type: 'json_schema', schema: CATEGORY_SCHEMA } })
-    expect(Object.keys(body).sort()).toEqual(['max_tokens', 'messages', 'model', 'output_config', 'system'])
+    expect(body.stream).toBe(true)
+    expect(Object.keys(body).sort()).toEqual(['max_tokens', 'messages', 'model', 'output_config', 'stream', 'system'])
     expect(Object.keys(requests[0]!.headers)).not.toContain('anthropic-beta')
   })
 
@@ -189,7 +206,7 @@ describe('the Anthropic Messages request', () => {
 })
 
 describe('the Anthropic Messages reply', () => {
-  it('reads an end_turn as the answer from its text blocks, with every input token counted, cached ones too', async () => {
+  it('reads an end_turn as the answer from its text blocks, with fresh, cache read and cache write tokens apart', async () => {
     stubFetch(
       message({
         content: [THINKING_BLOCK, { type: 'text', text: '{"category":' }, { type: 'text', text: '"office"}' }],
@@ -198,7 +215,7 @@ describe('the Anthropic Messages reply', () => {
       }),
     )
 
-    expect(await anthropicMessages(KEY, SONNET).send(request())).toEqual({ kind: 'answer', text: '{"category":"office"}', tokens: { input: 4240, output: 18 } })
+    expect(await anthropicMessages(KEY, SONNET).send(request())).toMatchObject({ kind: 'answer', text: '{"category":"office"}', tokens: { input: 40, cacheRead: 3000, cacheWrite: 1200, output: 18 } })
   })
 
   it('reads a tool_use as the calls to run, keeping the whole content to send back', async () => {
@@ -211,7 +228,7 @@ describe('the Anthropic Messages reply', () => {
         { id: 'toolu_01B7xKp2', name: 'rule', args: { id: 'pdv-13' } },
       ],
       raw: TOOL_USE_CONTENT,
-      tokens: { input: 2212, output: 96 },
+      tokens: TOKENS,
     })
   })
 
@@ -227,7 +244,7 @@ describe('the Anthropic Messages reply', () => {
     expect(await anthropicMessages(KEY, SONNET).send(request())).toEqual({
       kind: 'refused',
       reason: 'This request looks like it asks for help with malware.',
-      tokens: { input: 2212, output: 96 },
+      tokens: TOKENS,
     })
   })
 
@@ -244,7 +261,7 @@ describe('the Anthropic Messages reply', () => {
     )
     const model = anthropicMessages(KEY, SONNET)
 
-    expect(await model.send(request())).toEqual({ kind: 'cut-off', tokens: { input: 2212, output: 96 } })
+    expect(await model.send(request())).toEqual({ kind: 'cut-off', tokens: TOKENS })
     expect(await model.send(request())).toMatchObject({ kind: 'cut-off' })
   })
 
@@ -362,7 +379,15 @@ describe('a task run over the Anthropic adapter', () => {
       kind: 'draft',
       draft: { rate: 25, rule: 'pdv-25' },
       problems: [],
-      usage: { model: 'Sonnet 5.5', inputTokens: 3820, outputTokens: 100, dollars: (3820 * 2 + 100 * 10) / 1_000_000 },
+      usage: {
+        model: 'Sonnet 5.5',
+        inputTokens: 420,
+        cacheReadTokens: 1700,
+        cacheWriteTokens: 1700,
+        outputTokens: 100,
+        // 420 fresh at $2, 1,700 read at $0.10, 1,700 written at $2.50 and 100 out at $10 per million.
+        dollars: (420 * 2 + 1700 * 0.1 + 1700 * 2.5 + 100 * 10) / 1_000_000,
+      },
     })
     expect(requests).toHaveLength(2)
     expect(requests[1]!.body.messages).toEqual([
@@ -373,22 +398,160 @@ describe('a task run over the Anthropic adapter', () => {
   })
 })
 
-describe('a reply off the shape the Messages API documents', () => {
-  it.each([
-    ['no content', { stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }],
-    ['no usage', { stop_reason: 'end_turn', content: [] }],
-    ['usage without tokens', { stop_reason: 'end_turn', content: [], usage: {} }],
-  ])('fails as a failed request with %s', async (_name, reply) => {
-    stubFetch(Response.json(reply))
+describe('a stream that goes wrong', () => {
+  function sendFixture(name: string): Promise<unknown> {
+    stubFetch(streamResponse(streamFixture(`anthropic/${name}`)))
+    return anthropicMessages(KEY, SONNET)
+      .send(request())
+      .catch((error: unknown) => error)
+  }
+
+  const STARTED = { input: 412, cacheRead: 3000, cacheWrite: 1800, output: 1 }
+
+  it('fails a stream cut mid-way, keeping the tokens so far and running no half-written tool', async () => {
+    const failure = await sendFixture('cut-midway')
+    expect(failure).toBeInstanceOf(ModelRequestFailed)
+    expect(failure).toMatchObject({ message: 'The stream ended before the answer did.', tokens: STARTED })
+  })
+
+  it('fails on overloaded_error mid-stream with its message and the tokens so far', async () => {
+    expect(await sendFixture('overloaded')).toMatchObject({ name: 'ModelRequestFailed', status: 200, message: 'Overloaded', tokens: STARTED })
+  })
+
+  it('fails on a stop reason it does not know and keeps the tokens', async () => {
+    const failure = await sendFixture('unknown-stop')
+    expect(failure).toMatchObject({ status: 200, tokens: { ...STARTED, output: 7 } })
+    expect((failure as Error).message).toContain('a_made_up_stop_reason')
+  })
+
+  it('fails on an event that is not JSON', async () => {
+    stubFetch(streamResponse('event: ping\ndata: {not json\n\n'))
+    await expect(anthropicMessages(KEY, SONNET).send(request())).rejects.toMatchObject({ name: 'ModelRequestFailed', message: 'The provider sent an event that is not JSON.' })
+  })
+
+  it('fails on a stream that says nothing of usage', async () => {
+    stubFetch(streamResponse(eventsAsStream([{ type: 'message_start' }, { type: 'message_delta', delta: { stop_reason: 'end_turn' } }, { type: 'message_stop' }])))
     await expect(anthropicMessages(KEY, SONNET).send(request())).rejects.toBeInstanceOf(ModelRequestFailed)
   })
 
-  it('keeps the tokens of a stop reason it does not know', async () => {
-    stubFetch(message({ content: [], stop_reason: 'something_new' }))
+  it('fails as a failed request on events with no body', async () => {
+    stubFetch(
+      streamResponse(
+        eventsAsStream([
+          { type: 'content_block_start', index: 0 },
+          { type: 'content_block_delta', index: 0 },
+          { type: 'content_block_delta', index: 9, delta: { type: 'text_delta', text: 'x' } },
+        ]),
+      ),
+    )
+    await expect(anthropicMessages(KEY, SONNET).send(request())).rejects.toBeInstanceOf(ModelRequestFailed)
+  })
+
+  it('cuts the key out of what the provider says back', async () => {
+    stubFetch(streamResponse(eventsAsStream([{ type: 'error', error: { message: `Bad key ${KEY}` } }])))
     const failure = await anthropicMessages(KEY, SONNET)
       .send(request())
       .catch((error: unknown) => error)
-    expect(failure).toMatchObject({ status: 200, tokens: { input: 2212, output: 96 } })
+    expect((failure as Error).message).toBe('Bad key [key]')
+    stubFetch(Response.json({ error: { message: `Bad key ${KEY}` } }, { status: 401 }))
+    expect(await testAnthropicKey(KEY, 'claude-sonnet-5-5')).toEqual({ kind: 'refused' })
+    stubFetch(Response.json({ error: { message: `Odd key ${KEY}` } }, { status: 400 }))
+    expect(await testAnthropicKey(KEY, 'claude-sonnet-5-5')).toEqual({ kind: 'failed', reason: 'Odd key [key]' })
+  })
+
+  it('never puts the key in the address or the body', async () => {
+    const requests = stubFetch(streamResponse(streamFixture('anthropic/answer')))
+    await anthropicMessages(KEY, SONNET).send(request())
+    expect(requests[0]!.url).not.toContain(KEY)
+    expect(JSON.stringify(requests[0]!.body)).not.toContain(KEY)
+  })
+
+  it("shows the provider's words when it refuses a model, on a run and on a Test", async () => {
+    const refusal = { type: 'error', error: { type: 'not_found_error', message: 'model: claude-made-up-model' } }
+    stubFetch(Response.json(refusal, { status: 404 }))
+    const typed: ModelChoice = { id: 'claude-made-up-model', name: 'claude-made-up-model', price: null }
+    await expect(anthropicMessages(KEY, typed).send(request())).rejects.toMatchObject({ status: 404, message: 'model: claude-made-up-model' })
+    stubFetch(Response.json(refusal, { status: 404 }))
+    expect(await testAnthropicKey(KEY, typed.id)).toEqual({ kind: 'failed', reason: 'model: claude-made-up-model' })
+  })
+})
+
+describe('a whole stream', () => {
+  it('adds up in any chunks, a character split across two among them, and says its text as it comes', async () => {
+    for (const chunkBytes of [1, 7, 4096]) {
+      stubFetch(streamResponse(streamFixture('anthropic/answer'), chunkBytes))
+      const deltas: string[] = []
+      const reply = await anthropicMessages(KEY, SONNET).send(request({ onDelta: (text) => deltas.push(text) }))
+      expect(reply).toMatchObject({ kind: 'answer', text: '{"category":"uredski pribor č"}', tokens: { input: 412, cacheRead: 3000, cacheWrite: 1800, output: 18 } })
+      expect(deltas.join('')).toBe('{"category":"uredski pribor č"}')
+    }
+  })
+
+  it('keeps every block as it came to send back, skips events it does not know, and calls only the client tool', async () => {
+    stubFetch(streamResponse(streamFixture('anthropic/tool-round')))
+    const reply = await anthropicMessages(KEY, SONNET).send(request())
+    expect(reply).toMatchObject({ kind: 'tool-calls', calls: [{ id: 'toolu_made_up_1', name: 'rule', args: { id: 'pdv-25' } }], tokens: { output: 89 } })
+    expect(reply.kind === 'tool-calls' && reply.raw).toEqual([
+      { type: 'thinking', thinking: 'I need the rule.', signature: 'made-up-signature-AIzaMadeUpMadeUpMadeUpMadeUpMadeUpMadeUpMade' },
+      { type: 'text', text: 'I will look it up.' },
+      { type: 'made_up_server_block', id: 'srv_made_up', input: { query: 'a made-up query' } },
+      { type: 'tool_use', id: 'toolu_made_up_1', name: 'rule', input: { id: 'pdv-25' } },
+    ])
+  })
+
+  it('keeps the counts from the start of a stream when a later usage leaves them null', async () => {
+    stubFetch(
+      streamResponse(
+        eventsAsStream([
+          { type: 'message_start', message: { usage: { input_tokens: 412, cache_creation_input_tokens: 700, cache_read_input_tokens: 5000, output_tokens: 1 } } },
+          { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '{}' } },
+          { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { input_tokens: null, cache_creation_input_tokens: null, cache_read_input_tokens: null, output_tokens: 42 } },
+          { type: 'message_stop' },
+        ]),
+      ),
+    )
+    expect(await anthropicMessages(KEY, SONNET).send(request())).toMatchObject({ kind: 'answer', tokens: { input: 412, cacheRead: 5000, cacheWrite: 700, output: 42 } })
+  })
+
+  it('hands a tool input that is not JSON to the schema check, and still sends the block back as an object', async () => {
+    stubFetch(
+      streamResponse(
+        eventsAsStream([
+          { type: 'message_start', message: { usage: USAGE } },
+          { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: 'toolu_made_up_2', name: 'rule', input: {} } },
+          { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: '{"id":' } },
+          { type: 'content_block_stop', index: 0 },
+          { type: 'message_delta', delta: { stop_reason: 'tool_use' } },
+          { type: 'message_stop' },
+        ]),
+      ),
+    )
+    expect(await anthropicMessages(KEY, SONNET).send(request())).toMatchObject({ kind: 'tool-calls', calls: [{ args: { not_json: '{"id":' } }] })
+  })
+
+  it('reads plain text with no format when a request asks for no schema', async () => {
+    const requests = stubFetch(streamResponse(streamFixture('anthropic/answer')))
+    await anthropicMessages(KEY, SONNET).send(request({ output: null }))
+    expect(requests[0]!.body.output_config).toEqual({ effort: 'low' })
+  })
+
+  it('gives a task an answer off its schema as a failure with the usage', async () => {
+    stubFetch(streamResponse(streamFixture('anthropic/off-schema')))
+    const offered: AiTask<null, null> = {
+      id: 'test.off-schema',
+      app: 'test',
+      effort: 'low',
+      system: () => [],
+      input: () => [{ kind: 'text', text: 'Row' }],
+      output: () => CATEGORY_SCHEMA,
+      tools: [],
+      check: () => ({ draft: null, problems: [] }),
+    }
+    expect(await runTask(offered, null, { model: anthropicMessages(KEY, SONNET), appOn: true, employees: { sends: false, on: false } })).toMatchObject({
+      kind: 'failed',
+      reason: 'category is not one of the allowed values',
+      usage: { inputTokens: 412 },
+    })
   })
 })
 
@@ -404,5 +567,13 @@ describe('an aborted Messages request', () => {
     const sending = anthropicMessages(KEY, SONNET).send(request({ signal: controller.signal }))
     controller.abort(new Error('Too slow.'))
     await expect(sending).rejects.toMatchObject({ status: 0, message: 'Too slow.' })
+  })
+
+  it('fails with the reason it was aborted for when the abort cuts a stream under way, keeping the tokens so far', async () => {
+    const controller = new AbortController()
+    vi.stubGlobal('fetch', async () => streamCutByAbort(streamFixture('anthropic/cut-midway').split('event: content_block_start')[0]!, controller.signal))
+    const sending = anthropicMessages(KEY, SONNET).send(request({ signal: controller.signal }))
+    setTimeout(() => controller.abort(new Error('Too slow.')), 10)
+    await expect(sending).rejects.toMatchObject({ status: 0, message: 'Too slow.', tokens: { input: 412, cacheRead: 3000, cacheWrite: 1800, output: 1 } })
   })
 })

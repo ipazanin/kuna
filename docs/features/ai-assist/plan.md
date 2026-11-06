@@ -7,7 +7,7 @@ The assistant from [the shared-module research](research/shared-module.md), buil
 ## Summary
 
 - **One secrets file for all of Kuna.** The Investments keys file becomes `kuna-secrets.json` in the app's hidden Drive folder, owned by a new `src/shared/secrets`. It holds the price vendor keys and the AI keys, is no longer tied to one Investments file, and survives Remove the Investments file. The old file folds into the new one on the next sync and is deleted only after the new one is written.
-- **One AI module, `src/shared/ai`.** It owns the two adapters (Anthropic Messages, OpenAI-compatible Chat Completions), the request and tool loop, masking, the cited answer check, the provider list with a model choice per provider, and the Assistant card in Kuna settings. It writes nothing and reads keys only through `src/shared/secrets`.
+- **One AI module, `src/shared/ai`.** It owns one adapter per provider (Anthropic Messages, OpenAI Responses, OpenRouter Chat Completions), the request and tool loop, masking, the cited answer check, the provider list with a model choice per provider, and the Assistant card in Kuna settings. It writes nothing and reads keys only through `src/shared/secrets`.
 - **Each app owns its tasks.** A task is a prompt, an output schema, read-only tools over the app's own domain functions, and a check against the app's own rules. The draft lands in a screen the app already has and is written through its existing write path, with Undo.
 - **Defaults.** The assistant is off for every app until switched on. The default model is Claude Sonnet 5.5 on Anthropic and `gpt-6.1-sol` on OpenAI. Payroll and employee data go out only behind a per-task switch with a warning. IBANs and OIBs are masked in every row Kuna builds.
 - **Never.** No tax form is filed, no mail is drafted or sent, and no web search or fetch tool is ever offered to a model. The AI computes no figure, so `check:figures` stays identical in every stage.
@@ -18,7 +18,7 @@ The assistant from [the shared-module research](research/shared-module.md), buil
 ```
 src/shared/secrets/        the secrets file, its merge and sync, this browser's copy, the key rows
 src/shared/ai/             tasks and tools as types, masking, the cited answer, the run loop,
-                           the two adapters, provider presets, assist settings, the Assistant card
+                           the adapters, provider presets, assist settings, the Assistant card
 src/apps/company/assist/                  core tasks: suggest categories, later a rule from rows, column mapping
 src/apps/company/packs/hr-doo/assist/     pack tasks: explain a figure, ask the rules, later pay and year-end
 src/apps/loans/assist/                    read an offer PDF
@@ -42,8 +42,8 @@ It knows no vendor and no provider. A secret is an id, a key or nothing, and whe
 ### What `src/shared/ai` owns
 
 - **Domain:** `AiTask`, `AiTool`, `ToolAnswer`, `AiPart`, `TaskResult`, the strict schema subset both adapters accept, `maskIdentifiers`, and from stage 4 the cited answer schema and its check.
-- **Application:** `runTask`, the one loop over a `ModelPort`: masking, tool rounds (at most 6), a cap of 100,000 input tokens per run, an `AbortSignal` passed through `ModelRequest` to `fetch`, stop reasons turned into typed results, the schema check in code, then the task's own check. A reply off the provider's shape fails as `ModelRequestFailed`, which carries any tokens it spent.
-- **Infrastructure:** `anthropicMessages.ts` and `openAiCompatible.ts` (the only files that name AI hosts or import AI SDKs), `providerPresets.ts`, `assistSettings.ts` (the switches and model choices in this browser), and a fake model for the fake build.
+- **Application:** `runModelLoop`, the one loop over a `ModelPort`: masking, tool rounds, a limit on one request's prompt, an `AbortSignal` passed through `ModelRequest` to `fetch`. `runTask` is that loop with at most 6 rounds, 100,000 tokens a request and the schema check. `guardedModel` refuses a request that holds a secret, stop reasons turned into typed results, the schema check in code, then the task's own check. A reply off the provider's shape fails as `ModelRequestFailed`, which carries any tokens it spent.
+- **Infrastructure:** `anthropicMessages.ts`, `openAiResponses.ts` and `openRouterChat.ts` (the only files that name AI hosts or import AI SDKs), `providerFetch.ts` with `serverSentEvents.ts` beneath them, `modelAccess.ts` (the one file that reads a key), `providerPresets.ts`, `assistSettings.ts` (the switches and model choices in this browser), and a fake model for the fake build.
 - **Presentation:** `useAiTask`, the Assistant card for Kuna settings, the first-use consent dialog, and from stage 4 `CitedAnswerView.vue`.
 
 It never imports `src/shared/google`, `src/shared/storage/application`, `src/shared/storage/presentation` or `src/shared/sync`. It has no port that writes.
@@ -108,7 +108,7 @@ New cases in `tests/importBoundaries.spec.ts`, written like the existing ones, e
 
 - **Kuna settings** gets an **Assistant** card beside Sync and Appearance (`src/shell/settings/SettingsScreen.vue:19-22`). One row per provider: its key with Save, Test and Remove, its model picker with the default marked, and **Use this provider**. Under them one switch per installed app that has `assist`, each with its tasks and what they send, and an indented switch for each task that can send employee data, with the warning.
 - **An app with its switch off** shows its assist buttons only once a key is kept in this browser. The first tap opens the consent dialog: what this task sends, the provider's retention in one sentence, and **Switch on for Company**.
-- **A draft** shows in the screen that would take the same data typed by hand, with a usage line under it, such as "Sonnet 5.5, 4,812 in, 1,190 out, about $0.02". Nothing is stored until the owner saves there.
+- **A draft** shows in the screen that would take the same data typed by hand, with a usage line under it, such as "Sonnet 5.5, 812 in, 3,400 from cache, 600 to cache, 1,190 out, about $0.02". A model typed by hand with no known price says "price unknown" there. Nothing is stored until the owner saves there.
 
 The switches, the provider in use and the model per provider are kept per device, like the auto-sync switch (`src/shared/sync/infrastructure/autoSyncSwitch.ts:3-30`). The keys sync through the secrets file. Consent does not travel.
 
@@ -278,14 +278,14 @@ export type TaskResult<Output> =
 - New `src/shared/ai/domain/maskIdentifiers.ts`.
 - New `src/shared/ai/application/runTask.ts` and `modelPort.ts`.
 - New `src/shared/ai/infrastructure/anthropicMessages.ts`: `POST /v1/messages` with `anthropic-dangerous-direct-browser-access: true`, `output_config.format` with the schema, strict tools, `tool_choice` `auto` (forced choice returns a 400 on Sonnet 5.5 and Opus 5.5), the task's `effort`, no `temperature`, a `document` block for a PDF, `cache_control` on the system prompt. `stop_reason` is checked before any parse.
-- New `src/shared/ai/infrastructure/openAiCompatible.ts`: `POST {baseUrl}/chat/completions`, `response_format` json_schema strict for a task without tools, and for a task with tools a final `answer` function whose strict parameters are the output schema, since whether `response_format` combines with `tools` is not documented. Arguments arrive as a JSON string and are checked in code. `finish_reason` is checked before any parse.
+- New `src/shared/ai/infrastructure/openRouterChat.ts`, for OpenRouter only since the chat plan's first stage: `POST {baseUrl}/chat/completions`, `response_format` json_schema strict for a task without tools, and for a task with tools a final `answer` function whose strict parameters are the output schema, since whether `response_format` combines with `tools` is not documented. Arguments arrive as a JSON string and are checked in code. `finish_reason` is checked before any parse.
 - New `src/shared/ai/infrastructure/providerPresets.ts`:
 
-| Provider   | Adapter           | Models, price in / out per million tokens                                                                             | Default                       | PDF              |
-| ---------- | ----------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ---------------- |
-| Anthropic  | Messages          | `claude-haiku-5-5` $0.10 / $0.50, `claude-sonnet-5-5` $2 / $10, `claude-opus-5-5` $4 / $20                            | `claude-sonnet-5-5`           | `document` block |
-| OpenAI     | OpenAI-compatible | `gpt-6-luna` $0.10 / $0.50, `gpt-6.1-terra` $1 / $5, `gpt-6.1-sol` $2 / $10, `gpt-6-astra` $10 / $50                  | `gpt-6.1-sol`                 | `file` parts     |
-| OpenRouter | OpenAI-compatible | `anthropic/claude-sonnet-5-5`, `anthropic/claude-haiku-5-5`, `openai/gpt-6.1-sol`, at the underlying provider's price | `anthropic/claude-sonnet-5-5` | not offered      |
+| Provider   | Adapter          | Models, price in / out per million tokens                                                                             | Default                       | PDF              |
+| ---------- | ---------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------------------- | ---------------- |
+| Anthropic  | Messages         | `claude-haiku-5-5` $0.10 / $0.50, `claude-sonnet-5-5` $2 / $10, `claude-opus-5-5` $4 / $20                            | `claude-sonnet-5-5`           | `document` block |
+| OpenAI     | Responses        | `gpt-6-luna` $0.10 / $0.50, `gpt-6.1-terra` $1 / $5, `gpt-6.1-sol` $2 / $10, `gpt-6-astra` $10 / $50                  | `gpt-6.1-sol`                 | `file` parts     |
+| OpenRouter | Chat Completions | `anthropic/claude-sonnet-5-5`, `anthropic/claude-haiku-5-5`, `openai/gpt-6.1-sol`, at the underlying provider's price | `anthropic/claude-sonnet-5-5` | not offered      |
 
 Each preset also holds its base URL, its key test and its retention sentence. OpenRouter's also sends `provider: { require_parameters: true }`, so a strict request goes only to endpoints that honour it. Haiku 5.5's price rises to $0.50 / $2.50 above 100,000 prompt tokens, which the run cap keeps below.
 
@@ -303,8 +303,8 @@ Each preset also holds its base URL, its key test and its retention sentence. Op
 **Specs**
 
 - `tests/anthropicMessages.spec.ts`: the request body (browser header, schema, strict tools, `tool_choice` `auto`, no `temperature`, no server tool), and each reply (`end_turn`, `tool_use`, `refusal` with its explanation, `max_tokens`) mapped to its result.
-- `tests/openAiCompatible.spec.ts`: `response_format` without tools, the `answer` function with tools, `tool_calls` parsed and checked, `length` and `content_filter`.
-- `tests/runTask.spec.ts`: every built text part masked and a PDF part untouched, the tool round cap, the input cap stopping before 100,000 tokens, a reply off the schema giving problems, `switched-off` and `no-key` sending nothing.
+- `tests/openRouterChat.spec.ts`: `response_format` without tools, the `answer` function with tools, `tool_calls` parsed and checked, `length` and `content_filter`.
+- `tests/runTask.spec.ts`: every built text part masked and a PDF part untouched, the tool round cap, the cap on one request stopping before 100,000 tokens, a reply off the schema giving problems, `switched-off` and `no-key` sending nothing.
 - `tests/maskIdentifiers.spec.ts`: a Croatian IBAN with and without spaces, a German one, an OIB alone and inside a reference, an amount with separators left alone.
 - `tests/providerPresets.spec.ts`: every preset's origin in `connect-src`, as `tests/priceFetch.spec.ts:648-654` does for the price vendors, each default in its own list, and provider ids apart from the price vendor ids.
 - `tests/assistSettings.spec.ts`: off by default, on per app, a choice that holds for the visit when storage is denied.
@@ -461,7 +461,7 @@ A year the ruleset does not reach is refused by `rulesFor` itself, and the refus
 - `tests/ruleTools.spec.ts`: each tool on a fixed day returns one version with its sources, `local_rate` returns two rates for a known place and a tool error for an unknown one, and every answer's source ids are real rule ids.
 - `tests/askRules.spec.ts`: a cited rule the tools never returned drops its part, a rate from a returned rule passes, and own knowledge shows apart.
 - `tests/lawSections.spec.ts`: every `TAX_RULES` anchor is a section `sectionsOf` finds, and `tests/lawDocs.spec.ts` passes on the moved functions.
-- `tests/runTask.spec.ts` gains tool loop cases: results of one turn go back in one message, the sixth round stops, and the input cap stops a loop before 100,000 tokens.
+- `tests/runTask.spec.ts` gains tool loop cases: results of one turn go back in one message, the sixth round stops, and the cap on one request stops a loop before 100,000 tokens.
 - Boundary case 9.
 
 **Checks.** `check:figures` identical. Before this stage ships, the real prompts are counted once with the free `count_tokens` endpoint, and the counts replace the estimates here.
@@ -546,7 +546,7 @@ Each lands as its own commit with the same kinds of specs, checks, pages, steps 
 
 Then the providers and API features:
 
-- Gemini, Mistral and Groq presets on the OpenAI-compatible adapter, each a preset row and a CSP entry.
+- Gemini, Mistral and Groq presets on a Chat Completions adapter, each a preset row and a CSP entry.
 - Ollama and LM Studio presets for the laptop only, with the `OLLAMA_ORIGINS` note and `http://localhost:11434`, `http://127.0.0.1:11434` and `http://localhost:1234` in `connect-src`.
 - OpenRouter's PKCE sign-in, so a phone never pastes a key.
 - Anthropic's native citations through `search_result` blocks, for answers that do not need `output_config.format`, which refuses citations.

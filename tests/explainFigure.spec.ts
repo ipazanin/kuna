@@ -48,10 +48,10 @@ function answering(answer: unknown): ModelPort & { readonly sent: ModelRequest[]
   return {
     sent,
     readsPdf: true,
-    model: { name: 'Sonnet 5.5', inputPerMillion: 2, outputPerMillion: 10 },
+    model: { name: 'Sonnet 5.5', price: { inputPerMillion: 2, cacheReadPerMillion: 0.1, cacheWritePerMillion: 2.5, outputPerMillion: 10 } },
     async send(request) {
       sent.push(request)
-      return { kind: 'answer', text: JSON.stringify(answer), tokens: { input: 6000, output: 1500 } }
+      return { kind: 'answer', text: JSON.stringify(answer), raw: null, tokens: { input: 6000, cacheRead: 0, cacheWrite: 0, output: 1500 } }
     },
   }
 }
@@ -123,7 +123,7 @@ describe('what Explain sends for a figure', () => {
         .input({ figure, subtitle: 'x' })
         .map((part) => (part as AiTextPart).text)
         .join('\n')
-      // runTask counts three characters a token, so this is 30,000 tokens against its cap of 100,000.
+      // The model loop counts three characters a token, so this is 30,000 tokens against a task's cap of 100,000 a request.
       expect(text.length).toBeLessThan(90_000)
       expect(citedInputOf({ figure, subtitle: 'x' }).figures.size).toBeLessThanOrEqual(300)
     }

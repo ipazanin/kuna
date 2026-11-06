@@ -1,14 +1,16 @@
-import type { AiPart, AiTask, AiUsage, TaskResult, ToolAnswer } from '../domain/aiTask'
-import { maskIdentifiers } from '../domain/maskIdentifiers'
+import type { AiTask, TaskResult, ToolAnswer } from '../domain/aiTask'
+import type { AiUsage } from '../domain/modelUsage'
 import { schemaProblems } from '../domain/strictSchema'
 import type { StrictSchema } from '../domain/strictSchema'
-import type { ModelPort, ModelTokens, ModelTurn } from './modelPort'
-import { ModelRequestFailed } from './modelPort'
+import type { ModelPort } from './modelPort'
+import { runModelLoop } from './runModelLoop'
 
-/** The most tool rounds one run may take before it stops. */
+/** The most tool rounds one task may take before it stops. */
 export const MAX_TOOL_ROUNDS = 6
-/** The most input tokens one run may send, all its requests together, which keeps every model below a higher price. */
-export const MAX_INPUT_TOKENS = 100_000
+/** The largest prompt one request of a task may send, cached tokens included, as Haiku 5.5's higher price counts them per request too. */
+export const MAX_REQUEST_TOKENS = 100_000
+/** What the requests of one task may weigh together before it sends no more, so a tool loop stays under about $3 on the dearest preset. A single request always goes. */
+export const MAX_RUN_TOKENS = 100_000
 
 export interface RunPorts {
   /** The model of the provider in use, or null while this browser keeps no key for it. */
@@ -22,7 +24,7 @@ export interface RunPorts {
 }
 
 /**
- * Runs one task: masks every text part it built, sends it, runs the tools the model asks for, and checks the final
+ * Runs one task: sends what it built through the model loop, answers the tools the model asks for, and checks the final
  * answer against the task's schema and then the task's own rules. Nothing is sent while a switch is off or no key is
  * kept, and nothing is written: the result is a draft for a screen to show.
  */
@@ -37,65 +39,32 @@ export async function runTask<Input, Output>(task: AiTask<Input, Output>, input:
   if (model === null) {
     return { kind: 'no-key' }
   }
-  const parts = task.input(input).map(masked)
+  const parts = task.input(input)
   if (!model.readsPdf && parts.some((part) => part.kind === 'pdf')) {
     return { kind: 'no-pdf' }
   }
-  const system = task.system().map((part) => ({ ...part, text: maskIdentifiers(part.text) }))
-  const tools = task.tools.map(({ name, description, input: schema }) => ({ name, description, input: schema }))
   const output = task.output(input)
-  const turns: ModelTurn[] = [{ role: 'user', parts }]
   const answers: ToolAnswer[] = []
-  let used: ModelTokens = { input: 0, output: 0 }
-  let lastInput = 0
-  const usage = (): AiUsage => usageOf(model, used)
-
-  for (let round = 0; round <= MAX_TOOL_ROUNDS; round += 1) {
-    // A conversation only grows, so the next request sends at least what the last one did.
-    if (used.input + Math.max(estimatedTokens(system, turns), lastInput) > MAX_INPUT_TOKENS) {
-      return { kind: 'too-long', reason: String(MAX_INPUT_TOKENS), usage: used.input === 0 ? null : usage() }
-    }
-    let reply
-    try {
-      reply = await model.send({ system, turns, output, tools, effort: task.effort, signal: ports.signal })
-    } catch (failure) {
-      if (failure instanceof ModelRequestFailed) {
-        used = { input: used.input + failure.tokens.input, output: used.output + failure.tokens.output }
-        return { kind: 'failed', reason: failure.message, usage: used.input === 0 ? null : usage() }
-      }
-      throw failure
-    }
-    used = { input: used.input + reply.tokens.input, output: used.output + reply.tokens.output }
-    lastInput = reply.tokens.input
-    switch (reply.kind) {
-      case 'refused':
-        return { kind: 'refused', reason: reply.reason, usage: usage() }
-      case 'cut-off':
-        return { kind: 'cut-off', reason: '', usage: usage() }
-      case 'answer':
-        return checkedAnswer(task, input, output, reply.text, answers, usage())
-      case 'tool-calls': {
-        if (round === MAX_TOOL_ROUNDS) break
-        const results = await Promise.all(
-          reply.calls.map(async (call) => {
-            const answer = await toolAnswer(task, call.name, call.args)
-            if (typeof answer === 'string') return { callId: call.id, text: answer, isError: true }
-            answers.push(answer)
-            return { callId: call.id, text: maskIdentifiers(answer.text), isError: false }
-          }),
-        )
-        turns.push({ role: 'assistant', calls: reply.calls, raw: reply.raw }, { role: 'tool-results', results })
-      }
-    }
-  }
-  return { kind: 'failed', reason: `more than ${MAX_TOOL_ROUNDS} rounds of lookups`, usage: usage() }
+  const end = await runModelLoop({
+    model,
+    system: task.system(),
+    turns: [{ role: 'user', parts }],
+    output,
+    tools: task.tools.map(({ name, description, input: schema }) => ({ name, description, input: schema })),
+    runTool: async (call) => {
+      const answer = await toolAnswer(task, call.name, call.args)
+      if (typeof answer === 'string') return { text: answer, isError: true }
+      answers.push(answer)
+      return { text: answer.text, isError: false }
+    },
+    effort: task.effort,
+    signal: ports.signal,
+    limits: { rounds: MAX_TOOL_ROUNDS, requestTokens: MAX_REQUEST_TOKENS, runTokens: MAX_RUN_TOKENS },
+  })
+  return end.kind === 'answer' ? checkedAnswer(task, input, output, end.text, answers, end.usage) : end
 }
 
-function masked(part: AiPart): AiPart {
-  return part.kind === 'text' ? { kind: 'text', text: maskIdentifiers(part.text) } : part
-}
-
-function checkedAnswer<Input, Output>(task: AiTask<Input, Output>, input: Input, schema: StrictSchema, text: string, answers: readonly ToolAnswer[], usage: AiUsage): TaskResult<Output> {
+function checkedAnswer<Input, Output>(task: AiTask<Input, Output>, input: Input, schema: StrictSchema, text: string, answers: readonly ToolAnswer[], usage: AiUsage | null): TaskResult<Output> {
   let output: unknown
   try {
     output = JSON.parse(text)
@@ -125,26 +94,5 @@ async function toolAnswer<Input, Output>(task: AiTask<Input, Output>, name: stri
   } catch (failure) {
     if (failure instanceof RangeError) return failure.message
     throw failure
-  }
-}
-
-/** A cautious count of the tokens a request sends: three characters a token of text, and a PDF or photo by its size. */
-function estimatedTokens(system: readonly { readonly text: string }[], turns: readonly ModelTurn[]): number {
-  const characters =
-    system.reduce((sum, part) => sum + part.text.length, 0) +
-    turns.reduce((sum, turn) => {
-      if (turn.role === 'user') return sum + turn.parts.reduce((partSum, part) => partSum + (part.kind === 'text' ? part.text.length : part.base64.length / 4), 0)
-      if (turn.role === 'tool-results') return sum + turn.results.reduce((resultSum, result) => resultSum + result.text.length, 0)
-      return sum + JSON.stringify(turn.calls).length
-    }, 0)
-  return Math.ceil(characters / 3)
-}
-
-function usageOf(model: ModelPort, tokens: ModelTokens): AiUsage {
-  return {
-    model: model.model.name,
-    inputTokens: tokens.input,
-    outputTokens: tokens.output,
-    dollars: (tokens.input * model.model.inputPerMillion + tokens.output * model.model.outputPerMillion) / 1_000_000,
   }
 }

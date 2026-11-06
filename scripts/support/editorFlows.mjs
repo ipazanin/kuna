@@ -7407,8 +7407,10 @@ async function consentTo(page, press, { inspect, shoot }, texts, shotName) {
 
 /**
  * Kuna settings, Assistant: a made-up Anthropic key typed and saved shows only how it ends, empties its field and puts
- * the provider in use, Test says it works with the fake build's test, Opus 5.5 picked in the model select stays picked
- * in this browser, and Remove forgets the key.
+ * the provider in use, Test says it works with the fake build's test, Opus 5.5 picked from the model field's suggestions
+ * stays picked in this browser, a typed model with no price says so and Test shows the provider's refusal of it, an
+ * emptied field goes back to the default, an OpenRouter id that turns on web search says it is refused and goes back to
+ * the default when the field is left, and Remove forgets the key.
  */
 export async function assistKeyFlow(page, { press, shoot, inspect }) {
   try {
@@ -7437,11 +7439,58 @@ export async function assistKeyFlow(page, { press, shoot, inspect }) {
     await inspect?.('an Anthropic key tested')
     await shoot('assist-key')
 
-    await choose(page, press, await page.$(`${ANTHROPIC_ROW} [data-testid="assist-model"]`), 'Opus 5.5')
+    const modelField = `${ANTHROPIC_ROW} [data-testid="assist-model"]`
+    await choose(page, press, await page.$(modelField), 'claude-opus-5-5')
     const model = await page.evaluate(() => localStorage.getItem('kuna.assist-model.anthropic'))
     if (model !== 'claude-opus-5-5') throw new Error(`this browser keeps "${model}" as the Anthropic model, not claude-opus-5-5`)
-    await elementSays(page, `${ANTHROPIC_ROW} [data-testid="assist-model"]`, ['Opus 5.5'], 'the model select does not show Opus 5.5')
+    const shownModel = await page.$eval(modelField, (element) => element.value)
+    if (shownModel !== 'claude-opus-5-5') throw new Error(`the model field shows "${shownModel}" after picking claude-opus-5-5`)
+    await elementSays(page, ANTHROPIC_ROW, ['Opus 5.5'], 'the model field does not name Opus 5.5')
     await inspect?.('Opus 5.5 picked')
+
+    const typedField = await pressSelector(page, press, modelField)
+    await typedField.evaluate((element) => element.select())
+    await typedField.type('claude-made-up-model')
+    await page.keyboard.press('Escape')
+    await elementSays(page, ANTHROPIC_ROW, ['Kuna knows no price for this model, so its runs say price unknown.'], 'a typed model does not say its price is unknown')
+    const typed = await page.evaluate(() => localStorage.getItem('kuna.assist-model.anthropic'))
+    if (typed !== 'claude-made-up-model') throw new Error(`this browser keeps "${typed}" as the typed model`)
+    await pressSelector(page, press, `${ANTHROPIC_ROW} [data-testid="assist-key-test"]`)
+    await page
+      .waitForFunction(
+        (selector) => document.querySelector(selector)?.textContent?.includes('model: claude-made-up-model'),
+        { timeout: 10_000 },
+        `${ANTHROPIC_ROW} [data-testid="assist-key-test-result"]`,
+      )
+      .catch(() => {
+        throw new Error("Test does not show the provider's refusal of a typed model")
+      })
+    await inspect?.('a typed model refused')
+
+    const emptiedField = await pressSelector(page, press, modelField)
+    await emptiedField.evaluate((element) => element.select())
+    await page.keyboard.press('Backspace')
+    await page.keyboard.press('Escape')
+    if ((await page.evaluate(() => localStorage.getItem('kuna.assist-model.anthropic'))) !== null) throw new Error('an emptied model field did not go back to the default')
+
+    const OPENROUTER_ROW = '[data-testid="assist-provider"][data-provider="openrouter"]'
+    const searchingField = await pressSelector(page, press, `${OPENROUTER_ROW} [data-testid="assist-model"]`)
+    await searchingField.evaluate((element) => element.select())
+    await searchingField.type('made-up/model:online')
+    await page.keyboard.press('Escape')
+    await elementSays(
+      page,
+      OPENROUTER_ROW,
+      ['This model id turns on web search, which Kuna keeps off, so runs stay on the default model.'],
+      'a model id that turns on web search is not refused on the card',
+    )
+    await inspect?.('a model id that turns on web search refused')
+    await searchingField.evaluate((element) => element.blur())
+    await page
+      .waitForFunction((selector) => document.querySelector(selector)?.value === 'anthropic/claude-sonnet-5-5', { timeout: 5_000 }, `${OPENROUTER_ROW} [data-testid="assist-model"]`)
+      .catch(() => {
+        throw new Error('the model field does not go back to the default after a refused id')
+      })
 
     await pressSelector(page, press, `${ANTHROPIC_ROW} [data-testid="assist-key-forget"]`)
     await elementSays(page, `${ANTHROPIC_ROW} [data-testid="assist-key-kept"]`, ['No key in this browser.'], 'Remove did not forget the key')

@@ -1,5 +1,5 @@
 import type { ModelPort, ModelReply, ModelRequest } from '../../application/modelPort'
-import type { KeyTest, ModelChoice } from '../providerPresets'
+import type { KeyTest, ModelChoice, ProviderPreset } from '../providerPresets'
 
 /**
  * How the fake model answers, as `?ai=` names it: `ok` with a good answer, `refused` with a refusal, `cut-off` at the
@@ -22,7 +22,7 @@ export function fakeAiVariant(): FakeAiVariant {
   return variant === 'refused' || variant === 'cut-off' || variant === 'invented-figure' ? variant : 'ok'
 }
 
-const TOKENS = { input: 4812, output: 1190 }
+const TOKENS = { input: 812, cacheRead: 3400, cacheWrite: 600, output: 1190 }
 
 /** The fake build's model for one task, which never leaves the page. It answers after a short pause, as a real one would. */
 export function fakeModelPort(taskId: string, model: ModelChoice): ModelPort {
@@ -42,12 +42,12 @@ export function fakeModelPort(taskId: string, model: ModelChoice): ModelPort {
       if (answer === undefined) {
         throw new Error(`The fake model has no answer for ${taskId}.`)
       }
-      return { kind: 'answer', text: JSON.stringify(answer(request, variant)), tokens: TOKENS }
+      return { kind: 'answer', text: JSON.stringify(answer(request, variant)), raw: null, tokens: TOKENS }
     },
   }
 }
 
-/** The fake build's Test of a key, which takes any key. */
-export async function fakeKeyTest(): Promise<KeyTest> {
-  return { kind: 'works' }
+/** The fake build's Test of a key, which takes any key and, as Anthropic's does, turns away a model no preset lists. */
+export async function fakeKeyTest(preset: ProviderPreset, model: ModelChoice): Promise<KeyTest> {
+  return preset.models.some((listed) => listed.id === model.id) ? { kind: 'works' } : { kind: 'failed', reason: `model: ${model.id}` }
 }

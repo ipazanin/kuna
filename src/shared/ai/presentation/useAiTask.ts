@@ -2,12 +2,12 @@ import { computed, onScopeDispose, readonly, shallowRef } from 'vue'
 import type { ComputedRef, DeepReadonly, Ref } from 'vue'
 
 import { runTask } from '../application/runTask'
-import type { ModelPort } from '../application/modelPort'
-import type { AiTask, AiUsage, TaskResult } from '../domain/aiTask'
-import { assistOn, employeesOn, modelOf, pickedProvider } from '../infrastructure/assistSettings'
+import type { AiTask, TaskResult } from '../domain/aiTask'
+import type { AiUsage } from '../domain/modelUsage'
+import { assistOn, employeesOn, pickedProvider } from '../infrastructure/assistSettings'
+import { keyKept, modelPort } from '../infrastructure/modelAccess'
 import { PROVIDER_PRESETS, presetOf } from '../infrastructure/providerPresets'
-import type { KeyTest, ProviderPreset } from '../infrastructure/providerPresets'
-import { storedSecret } from '../../secrets/infrastructure/browserSecrets'
+import type { ProviderPreset } from '../infrastructure/providerPresets'
 import { useSecretsChanged } from '../../secrets/presentation/pageSecrets'
 import { formatCount, formatMoney } from '../../money/moneyFormat'
 import { intlLocale } from '../../text/language'
@@ -15,55 +15,21 @@ import { words } from './words'
 
 const secretsChanged = useSecretsChanged()
 
-/** How long one run may take, which leaves room for a large model writing a full answer without streaming. */
+/** How long one run may take, its rounds together, which also ends a stream that stalls. */
 const MOST_RUN_MILLISECONDS = 5 * 60_000
 
 /** The provider this device runs: the one picked, or else the first that has a key kept here. Reactive. */
 export function providerInUse(): ProviderPreset | null {
   void secretsChanged.value
   const picked = pickedProvider()
-  return picked !== null ? presetOf(picked) : (PROVIDER_PRESETS.find((preset) => storedSecret(preset.id) !== null) ?? null)
+  return picked !== null ? presetOf(picked) : (PROVIDER_PRESETS.find((preset) => keyKept(preset.id)) ?? null)
 }
 
 /** Whether a key is kept here for the provider in use, so an app shows its assist buttons. Reactive. */
 export const assistKeyKept: ComputedRef<boolean> = computed(() => {
   const preset = providerInUse()
-  return preset !== null && storedSecret(preset.id) !== null
+  return preset !== null && keyKept(preset.id)
 })
-
-/** The model port for the provider's key and chosen model, the fake one in the fake build, or null without a key. */
-async function modelPort(taskId: string, preset: ProviderPreset): Promise<ModelPort | null> {
-  const key = storedSecret(preset.id)
-  if (key === null) {
-    return null
-  }
-  const model = modelOf(preset.id)
-  // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
-  if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
-    const { fakeModelPort } = await import('../infrastructure/fake/fakeModel')
-    return fakeModelPort(taskId, model)
-  }
-  if (preset.adapter === 'anthropic-messages') {
-    const { anthropicMessages } = await import('../infrastructure/anthropicMessages')
-    return anthropicMessages(key, model)
-  }
-  const { openAiCompatible } = await import('../infrastructure/openAiCompatible')
-  return openAiCompatible(preset.baseUrl, key, model, preset.readsPdf, preset.requiresParameters)
-}
-
-/** One cheap request with the provider's key that sends nothing from the books. The fake build takes any key. */
-export async function testProviderKey(preset: ProviderPreset, key: string): Promise<KeyTest> {
-  if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
-    const { fakeKeyTest } = await import('../infrastructure/fake/fakeModel')
-    return fakeKeyTest()
-  }
-  if (preset.keyTestUrl === null) {
-    const { testAnthropicKey } = await import('../infrastructure/anthropicMessages')
-    return testAnthropicKey(key, modelOf(preset.id).id)
-  }
-  const { testOpenAiCompatibleKey } = await import('../infrastructure/openAiCompatible')
-  return testOpenAiCompatibleKey(preset.keyTestUrl, key)
-}
 
 export type AiRunState<Output> = { readonly kind: 'idle' | 'running' } | { readonly kind: 'done'; readonly result: TaskResult<Output> }
 
@@ -121,14 +87,28 @@ export function useAiTask<Input, Output>(task: AiTask<Input, Output>): AiTaskRun
   }
 }
 
-/** What a run spent, as "Sonnet 5.5, 4,812 in, 1,190 out, about $0.02", a run under a cent counting as one, or null for a run that spent nothing. */
+/** What a run spent, as "Sonnet 5.5, 812 in, 3,400 from cache, 600 to cache, 1,190 out, about $0.02", or null for a run that spent nothing. */
 export function usageLine(result: DeepReadonly<TaskResult<unknown>>): string | null {
   if (!('usage' in result) || result.usage === null) {
     return null
   }
   const usage: DeepReadonly<AiUsage> = result.usage
-  const cents = Math.max(1, Math.round(usage.dollars * 100))
-  return words.usage(usage.model, formatCount(usage.inputTokens), formatCount(usage.outputTokens), formatMoney(cents, 'negative', { currency: 'USD', locale: intlLocale }))
+  const counts = [
+    words.usage.input(formatCount(usage.inputTokens)),
+    ...(usage.cacheReadTokens > 0 ? [words.usage.cacheRead(formatCount(usage.cacheReadTokens))] : []),
+    ...(usage.cacheWriteTokens > 0 ? [words.usage.cacheWrite(formatCount(usage.cacheWriteTokens))] : []),
+    words.usage.output(formatCount(usage.outputTokens)),
+  ]
+  return words.usage.line(usage.model, counts.join(', '), costWords(usage.dollars))
+}
+
+function costWords(dollars: number | null): string {
+  if (dollars === null) {
+    return words.usage.priceUnknown
+  }
+  const cents = Math.round(dollars * 100)
+  const amount = (wholeCents: number): string => formatMoney(wholeCents, 'negative', { currency: 'USD', locale: intlLocale })
+  return cents === 0 ? words.usage.underCent(amount(1)) : words.usage.about(amount(cents))
 }
 
 /** What a run that gave no draft says, or null for a draft. */
@@ -142,8 +122,12 @@ export function resultLine(result: DeepReadonly<TaskResult<unknown>>): string | 
       return words.result.cutOff
     case 'too-long':
       return words.result.tooLong(formatCount(Number(result.reason)))
+    case 'over-budget':
+      return words.result.overBudget
     case 'failed':
       return words.result.failed(result.reason)
+    case 'holds-secret':
+      return words.result.holdsSecret
     case 'no-pdf':
       return words.result.noPdf(providerInUse()?.name ?? '')
     case 'no-key':

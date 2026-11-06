@@ -1,0 +1,15 @@
+event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_made_up","status":"in_progress","output":[],"usage":null}}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":1,"item_id":"fc_made_up","output_index":1,"delta":"{\"id\":"}
+
+event: response.function_call_arguments.done
+data: {"type":"response.function_call_arguments.done","sequence_number":2,"item_id":"fc_made_up","output_index":1,"arguments":"{\"id\":\"pdv-25\"}"}
+
+event: response.a_made_up_event_kuna_does_not_know
+data: {"type":"response.a_made_up_event_kuna_does_not_know","sequence_number":3}
+
+event: response.completed
+data: {"type":"response.completed","sequence_number":4,"response":{"id":"resp_made_up","status":"completed","error":null,"incomplete_details":null,"store":false,"output":[{"id":"rs_made_up","type":"reasoning","summary":[],"encrypted_content":"made-up-encrypted-AIzaMadeUpMadeUpMadeUpMadeUpMadeUpMadeUpMade"},{"id":"srv_made_up","type":"made_up_server_call","status":"completed"},{"id":"fc_made_up","type":"function_call","status":"completed","call_id":"call_made_up_1","name":"rule","arguments":"{\"id\":\"pdv-25\"}"}],"usage":{"input_tokens":5200,"input_tokens_details":{"cached_tokens":3000,"cache_write_tokens":1800},"output_tokens":96,"output_tokens_details":{"reasoning_tokens":40},"total_tokens":5296}}}
+

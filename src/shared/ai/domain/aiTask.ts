@@ -1,3 +1,4 @@
+import type { AiUsage } from './modelUsage'
 import type { StrictSchema } from './strictSchema'
 
 export interface AiTextPart {
@@ -52,21 +53,13 @@ export interface AiTask<Input, Output> {
   check(output: unknown, input: Input, log: ToolLog): Checked<Output>
 }
 
-/** What one run used, and about what it cost at the provider's list price. */
-export interface AiUsage {
-  /** The model's name, such as Sonnet 5.5. */
-  readonly model: string
-  readonly inputTokens: number
-  readonly outputTokens: number
-  readonly dollars: number
-}
-
 /**
  * How a run ended: a draft with the problems the checks found, a reply that gave no draft, or no request at all.
- * `switched-off` names the switch that is off: the app's, or the one a task needs for employee data.
+ * `holds-secret` is a request the egress guard kept from leaving. `switched-off` names the switch that is off: the
+ * app's, or the one a task needs for employee data.
  */
 export type TaskResult<Output> =
-  | { readonly kind: 'draft'; readonly draft: Output; readonly problems: readonly string[]; readonly usage: AiUsage }
-  | { readonly kind: 'refused' | 'cut-off' | 'too-long' | 'failed'; readonly reason: string; readonly usage: AiUsage | null }
+  | { readonly kind: 'draft'; readonly draft: Output; readonly problems: readonly string[]; readonly usage: AiUsage | null }
+  | { readonly kind: 'refused' | 'cut-off' | 'too-long' | 'over-budget' | 'failed' | 'holds-secret'; readonly reason: string; readonly usage: AiUsage | null }
   | { readonly kind: 'switched-off'; readonly which: 'app' | 'employees' }
   | { readonly kind: 'no-key' | 'no-pdf' }

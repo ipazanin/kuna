@@ -1,10 +1,15 @@
-/** A model a provider offers, with its list price in US dollars per million tokens. */
+import type { ModelPrice } from '../domain/modelUsage'
+
+/** A model to run: one a provider's preset lists, or one typed by hand, whose price Kuna does not know. */
 export interface ModelChoice {
   readonly id: string
-  /** Its short name, such as Sonnet 5.5. */
+  /** Its short name, such as Sonnet 5.5, and for a typed model its id. */
   readonly name: string
-  readonly inputPerMillion: number
-  readonly outputPerMillion: number
+  readonly price: ModelPrice | null
+}
+
+function priced(inputPerMillion: number, cacheReadPerMillion: number, cacheWritePerMillion: number, outputPerMillion: number): ModelPrice {
+  return { inputPerMillion, cacheReadPerMillion, cacheWritePerMillion, outputPerMillion }
 }
 
 export type ProviderId = 'anthropic' | 'openai' | 'openrouter'
@@ -16,13 +21,10 @@ export interface ProviderPreset {
   /** Its id, which is also the id of its key in the secrets file. */
   readonly id: ProviderId
   readonly name: string
-  readonly adapter: 'anthropic-messages' | 'openai-compatible'
+  readonly adapter: 'anthropic-messages' | 'openai-responses' | 'openrouter-chat'
   readonly baseUrl: string
   readonly models: readonly ModelChoice[]
   readonly defaultModel: string
-  readonly readsPdf: boolean
-  /** Whether it must route a request only to endpoints that honour every parameter, which OpenRouter's strict answers need. */
-  readonly requiresParameters: boolean
   /** The address a Test of a key asks, which answers without the key only when the key is refused. Null for the Anthropic adapter's own test. */
   readonly keyTestUrl: string | null
   /** Where a person makes a key. */
@@ -37,46 +39,40 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     adapter: 'anthropic-messages',
     baseUrl: 'https://api.anthropic.com',
     models: [
-      { id: 'claude-haiku-5-5', name: 'Haiku 5.5', inputPerMillion: 0.1, outputPerMillion: 0.5 },
-      { id: 'claude-sonnet-5-5', name: 'Sonnet 5.5', inputPerMillion: 2, outputPerMillion: 10 },
-      { id: 'claude-opus-5-5', name: 'Opus 5.5', inputPerMillion: 4, outputPerMillion: 20 },
+      { id: 'claude-haiku-5-5', name: 'Haiku 5.5', price: priced(0.1, 0.01, 0.125, 0.5) },
+      { id: 'claude-sonnet-5-5', name: 'Sonnet 5.5', price: priced(2, 0.1, 2.5, 10) },
+      { id: 'claude-opus-5-5', name: 'Opus 5.5', price: priced(4, 0.2, 5, 20) },
     ],
     defaultModel: 'claude-sonnet-5-5',
-    readsPdf: true,
-    requiresParameters: false,
     keyTestUrl: null,
     keyAddress: 'https://platform.claude.com/settings/keys',
   },
   {
     id: 'openai',
     name: 'OpenAI',
-    adapter: 'openai-compatible',
+    adapter: 'openai-responses',
     baseUrl: 'https://api.openai.com/v1',
     models: [
-      { id: 'gpt-6-luna', name: 'GPT-6 Luna', inputPerMillion: 0.1, outputPerMillion: 0.5 },
-      { id: 'gpt-6.1-terra', name: 'GPT-6.1 Terra', inputPerMillion: 1, outputPerMillion: 5 },
-      { id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol', inputPerMillion: 2, outputPerMillion: 10 },
-      { id: 'gpt-6-astra', name: 'GPT-6 Astra', inputPerMillion: 10, outputPerMillion: 50 },
+      { id: 'gpt-6-luna', name: 'GPT-6 Luna', price: priced(0.1, 0.01, 0.125, 0.5) },
+      { id: 'gpt-6.1-terra', name: 'GPT-6.1 Terra', price: priced(1, 0.05, 1.25, 5) },
+      { id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol', price: priced(2, 0.1, 2.5, 10) },
+      { id: 'gpt-6-astra', name: 'GPT-6 Astra', price: priced(10, 1, 12.5, 50) },
     ],
     defaultModel: 'gpt-6.1-sol',
-    readsPdf: true,
-    requiresParameters: false,
     keyTestUrl: 'https://api.openai.com/v1/models',
     keyAddress: 'https://platform.openai.com/api-keys',
   },
   {
     id: 'openrouter',
     name: 'OpenRouter',
-    adapter: 'openai-compatible',
+    adapter: 'openrouter-chat',
     baseUrl: 'https://openrouter.ai/api/v1',
     models: [
-      { id: 'anthropic/claude-sonnet-5-5', name: 'Sonnet 5.5', inputPerMillion: 2, outputPerMillion: 10 },
-      { id: 'anthropic/claude-haiku-5-5', name: 'Haiku 5.5', inputPerMillion: 0.1, outputPerMillion: 0.5 },
-      { id: 'openai/gpt-6.1-sol', name: 'GPT-6.1 Sol', inputPerMillion: 2, outputPerMillion: 10 },
+      { id: 'anthropic/claude-sonnet-5-5', name: 'Sonnet 5.5', price: priced(2, 0.1, 2.5, 10) },
+      { id: 'anthropic/claude-haiku-5-5', name: 'Haiku 5.5', price: priced(0.1, 0.01, 0.125, 0.5) },
+      { id: 'openai/gpt-6.1-sol', name: 'GPT-6.1 Sol', price: priced(2, 0.1, 2.5, 10) },
     ],
     defaultModel: 'anthropic/claude-sonnet-5-5',
-    readsPdf: false,
-    requiresParameters: true,
     // Its list of models answers without a key, so the Test asks about the key itself.
     keyTestUrl: 'https://openrouter.ai/api/v1/key',
     keyAddress: 'https://openrouter.ai/settings/keys',
@@ -87,7 +83,13 @@ export function presetOf(id: ProviderId): ProviderPreset {
   return PROVIDER_PRESETS.find((preset) => preset.id === id)!
 }
 
-/** The model of the preset with this id, or its default when the id is not one it lists. */
+/** Whether the id itself turns on OpenRouter's web search, which no request field shows and which would get around the owner's switch for the web. */
+export function turnsOnWebSearch(modelId: string): boolean {
+  return /:online(?::|$)/i.test(modelId.trim())
+}
+
+/** The model with this id, whether the preset lists it or it was typed by hand, or the preset's default for no id at all or one that turns on web search. */
 export function modelChoice(preset: ProviderPreset, id: string | null): ModelChoice {
-  return preset.models.find((model) => model.id === id) ?? preset.models.find((model) => model.id === preset.defaultModel)!
+  const wanted = id === null || turnsOnWebSearch(id) ? preset.defaultModel : id
+  return preset.models.find((model) => model.id === wanted) ?? { id: wanted, name: wanted, price: null }
 }

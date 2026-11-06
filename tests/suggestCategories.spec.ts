@@ -48,10 +48,10 @@ function answering(answer: unknown): ModelPort & { readonly sent: ModelRequest[]
   return {
     sent,
     readsPdf: true,
-    model: { name: 'Haiku 5.5', inputPerMillion: 0.1, outputPerMillion: 0.5 },
+    model: { name: 'Haiku 5.5', price: { inputPerMillion: 0.1, cacheReadPerMillion: 0.01, cacheWritePerMillion: 0.125, outputPerMillion: 0.5 } },
     async send(request) {
       sent.push(request)
-      return { kind: 'answer', text: JSON.stringify(answer), tokens: { input: 4800, output: 1200 } }
+      return { kind: 'answer', text: JSON.stringify(answer), raw: null, tokens: { input: 4800, cacheRead: 0, cacheWrite: 0, output: 1200 } }
     },
   }
 }

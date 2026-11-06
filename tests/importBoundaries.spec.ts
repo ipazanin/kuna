@@ -301,8 +301,12 @@ describe('import boundaries', () => {
     ).toEqual([])
   })
 
-  it('offers no model the web', () => {
-    expect(linesHolding(/web_search|web_fetch|:online\b/, () => false)).toEqual([])
+  it('reads a key in the AI module only through its one door', () => {
+    expect(linesHolding(/\bstoredSecret(Changes)?\b/, (file) => !file.startsWith('src/shared/ai/') || file === 'src/shared/ai/infrastructure/modelAccess.ts')).toEqual([])
+  })
+
+  it('offers no model the web, and names the suffix that would turn it on only where a typed model is refused for it', () => {
+    expect(linesHolding(/web_search|web_fetch|:online\b/, (file) => file === 'src/shared/ai/infrastructure/providerPresets.ts')).toEqual([])
   })
 
   it("keeps an app's assist code to reading: no writes, no mail, no invoice run and no Google", () => {

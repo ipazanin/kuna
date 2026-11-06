@@ -45,12 +45,20 @@ describe("this device's assistant settings", () => {
     expect(localStorage.getItem('kuna.assist-model.anthropic')).toBeNull()
   })
 
-  it('reads a stored value it does not know as no choice', async () => {
+  it('reads a provider it does not know as no choice', async () => {
     localStorage.setItem('kuna.assist-provider', 'someone-else')
-    localStorage.setItem('kuna.assist-model.anthropic', 'claude-made-up')
-    const { modelOf, pickedProvider } = await settings()
+    const { pickedProvider } = await settings()
     expect(pickedProvider()).toBeNull()
-    expect(modelOf('anthropic').id).toBe('claude-sonnet-5-5')
+  })
+
+  it('keeps a typed model, trimmed and with no price, and an empty field goes back to the default', async () => {
+    const { modelOf, pickModel } = await settings()
+    pickModel('openrouter', '  made-up/model:free ')
+    expect(localStorage.getItem('kuna.assist-model.openrouter')).toBe('made-up/model:free')
+    expect(modelOf('openrouter')).toEqual({ id: 'made-up/model:free', name: 'made-up/model:free', price: null })
+    pickModel('openrouter', '   ')
+    expect(localStorage.getItem('kuna.assist-model.openrouter')).toBeNull()
+    expect(modelOf('openrouter').id).toBe('anthropic/claude-sonnet-5-5')
   })
 
   it('holds a choice for the visit when storage is denied', async () => {

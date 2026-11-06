@@ -62,14 +62,15 @@ export function pickProvider(id: ProviderId): void {
   choose(PROVIDER_KEY, id)
 }
 
-/** The model this device runs on the provider, its default unless another of its models was picked. */
+/** The model this device runs on the provider, its default unless another was picked or typed. */
 export function modelOf(id: ProviderId): ModelChoice {
   return modelChoice(presetOf(id), choice(`${MODEL_PREFIX}${id}`))
 }
 
-/** Picks a model of the provider, and its default forgets the choice. */
+/** Picks a model of the provider by its id, listed or typed by hand. Its default and an empty field forget the choice. */
 export function pickModel(id: ProviderId, model: string): void {
-  choose(`${MODEL_PREFIX}${id}`, model === presetOf(id).defaultModel ? null : model)
+  const typed = model.trim()
+  choose(`${MODEL_PREFIX}${id}`, typed === '' || typed === presetOf(id).defaultModel ? null : typed)
 }
 
 function read(key: string): string | null {

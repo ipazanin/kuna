@@ -1,8 +1,10 @@
 import type { ModelPort, ModelReply, ModelRequest, ModelTurn, ToolCall } from '../application/modelPort'
 import { ModelRequestFailed } from '../application/modelPort'
 import type { AiPart } from '../domain/aiTask'
+import type { ModelTokens } from '../domain/modelUsage'
 import type { StrictSchema } from '../domain/strictSchema'
-import type { KeyTest, ModelChoice } from './providerPresets'
+import { bearerHeaders, jsonAnswer } from './providerFetch'
+import type { ModelChoice } from './providerPresets'
 
 const MAX_OUTPUT_TOKENS = 16_000
 /** The function a model with tools calls to hand in its final answer, since a strict answer format may not combine with tools. */
@@ -23,50 +25,53 @@ interface AssistantMessage {
 
 interface ChatResponse {
   readonly choices?: readonly { readonly finish_reason: string; readonly message?: AssistantMessage | null }[]
-  readonly usage?: { readonly prompt_tokens: number; readonly completion_tokens: number }
+  readonly usage?: Usage
 }
 
-/** The model behind a key for a provider that speaks OpenAI's Chat Completions, such as OpenAI itself or OpenRouter. */
-export function openAiCompatible(baseUrl: string, key: string, model: ModelChoice, readsPdf: boolean, requiresParameters = false): ModelPort {
+interface Usage {
+  readonly prompt_tokens: number
+  readonly completion_tokens: number
+  readonly prompt_tokens_details?: { readonly cached_tokens?: number; readonly cache_write_tokens?: number }
+  readonly cost?: number
+}
+
+/** The model behind an OpenRouter key over Chat Completions. It does not stream, and it reads no PDF in Kuna. */
+export function openRouterChat(baseUrl: string, key: string, model: ModelChoice): ModelPort {
   return {
-    model: { name: model.name, inputPerMillion: model.inputPerMillion, outputPerMillion: model.outputPerMillion },
-    readsPdf,
+    model,
+    readsPdf: false,
     send: async (request) => {
       return replyOf(
-        (await called(`${baseUrl}/chat/completions`, key, {
+        (await jsonAnswer({
+          address: `${baseUrl}/chat/completions`,
           method: 'POST',
-          body: JSON.stringify(completionsBody(model.id, request, requiresParameters)),
-          signal: request.signal ?? null,
+          headers: bearerHeaders(key),
+          body: completionsBody(model.id, request),
+          key,
+          signal: request.signal,
         })) as ChatResponse,
       )
     },
   }
 }
 
-/** Lists the provider's models with the key, which sends nothing from the books. */
-export async function testOpenAiCompatibleKey(url: string, key: string): Promise<KeyTest> {
-  try {
-    await called(url, key, { method: 'GET' })
-    return { kind: 'works' }
-  } catch (failure) {
-    if (!(failure instanceof ModelRequestFailed)) throw failure
-    return failure.status === 401 || failure.status === 403 ? { kind: 'refused' } : { kind: 'failed', reason: failure.message }
-  }
-}
-
-function completionsBody(modelId: string, request: ModelRequest, requiresParameters: boolean): object {
+function completionsBody(modelId: string, request: ModelRequest): object {
   const system = request.system.map((part) => part.text).join('\n\n')
   return {
     model: modelId,
     max_completion_tokens: MAX_OUTPUT_TOKENS,
     messages: [...(system === '' ? [] : [{ role: 'system', content: system }]), ...request.turns.flatMap(messages)],
-    ...(requiresParameters ? { provider: { require_parameters: true } } : {}),
+    // Strict answers need every endpoint OpenRouter routes to to honour every parameter.
+    provider: { require_parameters: true },
+    ...(request.tools.length === 0 && request.output !== null ? { response_format: { type: 'json_schema', json_schema: { name: ANSWER_FUNCTION, strict: true, schema: request.output } } } : {}),
     ...(request.tools.length === 0
-      ? { response_format: { type: 'json_schema', json_schema: { name: ANSWER_FUNCTION, strict: true, schema: request.output } } }
+      ? {}
       : {
           tools: [
             ...request.tools.map((tool) => functionTool(tool.name, tool.description, tool.input)),
-            functionTool(ANSWER_FUNCTION, 'Call this once with your final answer when you have everything you need. Do not answer in plain text.', request.output),
+            ...(request.output === null
+              ? []
+              : [functionTool(ANSWER_FUNCTION, 'Call this once with your final answer when you have everything you need. Do not answer in plain text.', request.output)]),
           ],
           tool_choice: 'auto',
         }),
@@ -97,7 +102,7 @@ function contentPart(part: AiPart): object {
       return { type: 'text', text: part.text }
     }
     case 'pdf': {
-      return { type: 'file', file: { filename: part.name, file_data: `data:application/pdf;base64,${part.base64}` } }
+      throw new ModelRequestFailed(0, 'OpenRouter reads no PDF in Kuna.')
     }
     case 'image': {
       return { type: 'image_url', image_url: { url: `data:${part.mediaType};base64,${part.base64}` } }
@@ -111,16 +116,16 @@ function replyOf(response: ChatResponse): ModelReply {
     throw new ModelRequestFailed(200, 'The provider answered with no choice.')
   }
   const message = choice.message
-  const tokens = { input: response.usage?.prompt_tokens ?? 0, output: response.usage?.completion_tokens ?? 0 }
+  const tokens = tokensOf(response.usage)
   switch (choice.finish_reason) {
     case 'stop': {
-      return typeof message.refusal === 'string' ? { kind: 'refused', reason: message.refusal, tokens } : { kind: 'answer', text: message.content ?? '', tokens }
+      return typeof message.refusal === 'string' ? { kind: 'refused', reason: message.refusal, tokens } : { kind: 'answer', text: message.content ?? '', raw: message, tokens }
     }
     case 'tool_calls': {
       const functionCalls = message.tool_calls ?? []
       const answer = functionCalls.find((call) => call.function.name === ANSWER_FUNCTION)
       if (answer !== undefined) {
-        return { kind: 'answer', text: answer.function.arguments, tokens }
+        return { kind: 'answer', text: answer.function.arguments, raw: message, tokens }
       }
       if (functionCalls.length === 0) {
         throw new ModelRequestFailed(200, 'The provider stopped for tool calls but sent none.', tokens)
@@ -149,24 +154,15 @@ function parsedArguments(text: string): unknown {
   }
 }
 
-async function called(address: string, key: string, init: { readonly method: 'GET' | 'POST'; readonly body?: string; readonly signal?: AbortSignal | null }): Promise<unknown> {
-  let response: Response
-  try {
-    response = await fetch(address, { ...init, headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' } })
-  } catch (failure) {
-    throw new ModelRequestFailed(0, failure instanceof Error ? failure.message : String(failure))
+/** `prompt_tokens` counts the cached tokens too, so the fresh input is what remains. */
+function tokensOf(usage: Usage | undefined): ModelTokens {
+  const cacheRead = usage?.prompt_tokens_details?.cached_tokens ?? 0
+  const cacheWrite = usage?.prompt_tokens_details?.cache_write_tokens ?? 0
+  return {
+    input: Math.max(0, (usage?.prompt_tokens ?? 0) - cacheRead - cacheWrite),
+    cacheRead,
+    cacheWrite,
+    output: usage?.completion_tokens ?? 0,
+    ...(typeof usage?.cost === 'number' ? { chargedDollars: usage.cost } : {}),
   }
-  const answer: unknown = await response.json().catch(() => null)
-  if (!response.ok) {
-    throw new ModelRequestFailed(response.status, errorMessage(answer) ?? (response.statusText || `HTTP ${response.status}`))
-  }
-  if (answer === null) {
-    throw new ModelRequestFailed(response.status, 'The provider answered with something that is not JSON.')
-  }
-  return answer
-}
-
-function errorMessage(answer: unknown): string | null {
-  const message = (answer as { error?: { message?: unknown } } | null)?.error?.message
-  return typeof message === 'string' ? message : null
 }

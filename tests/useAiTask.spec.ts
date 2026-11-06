@@ -3,9 +3,11 @@ import { effectScope } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AiTask } from '../src/shared/ai/domain/aiTask'
-import { switchAssist } from '../src/shared/ai/infrastructure/assistSettings'
+import { pickModel, pickProvider, switchAssist } from '../src/shared/ai/infrastructure/assistSettings'
+import { hr } from '../src/shared/ai/presentation/words'
 import { resultLine, usageLine, useAiTask } from '../src/shared/ai/presentation/useAiTask'
 import { storeSecret } from '../src/shared/secrets/infrastructure/browserSecrets'
+import { eventsAsStream, streamResponse } from './support/sseResponse'
 
 const TASK: AiTask<string, string> = {
   id: 'test.say',
@@ -19,7 +21,14 @@ const TASK: AiTask<string, string> = {
 }
 
 function reply(): Response {
-  return Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: '{}' }], usage: { input_tokens: 10, output_tokens: 5 } })
+  return streamResponse(
+    eventsAsStream([
+      { type: 'message_start', message: { usage: { input_tokens: 10, output_tokens: 1 } } },
+      { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '{}' } },
+      { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 5 } },
+      { type: 'message_stop' },
+    ]),
+  )
 }
 
 /** A provider that answers each request only when told to, and rejects it once it is aborted. */
@@ -126,7 +135,7 @@ describe('a run from a screen', () => {
 })
 
 describe('the lines of a result', () => {
-  const USAGE = { model: 'Opus 5.5', inputTokens: 1000, outputTokens: 16000, dollars: 0.32 }
+  const USAGE = { model: 'Opus 5.5', inputTokens: 1000, cacheReadTokens: 0, cacheWriteTokens: 0, outputTokens: 16000, dollars: 0.32 }
 
   it('gives what a run spent with or without a draft, and nothing for a run that spent nothing', () => {
     expect(usageLine({ kind: 'cut-off', reason: '', usage: USAGE })).toContain('Opus 5.5')
@@ -138,5 +147,70 @@ describe('the lines of a result', () => {
   it('words a refusal with no explanation as a whole sentence', () => {
     expect(resultLine({ kind: 'refused', reason: '', usage: USAGE })).toBe('The model declined this request.')
     expect(resultLine({ kind: 'refused', reason: 'Not this.', usage: USAGE })).toBe('The model declined this request: Not this.')
+  })
+
+  it('shows cache tokens apart only when a run used them', () => {
+    expect(usageLine({ kind: 'cut-off', reason: '', usage: USAGE })).toBe('Opus 5.5, 1,000 in, 16,000 out, about $0.32')
+    expect(usageLine({ kind: 'cut-off', reason: '', usage: { ...USAGE, cacheReadTokens: 3400, cacheWriteTokens: 600 } })).toBe(
+      'Opus 5.5, 1,000 in, 3,400 from cache, 600 to cache, 16,000 out, about $0.32',
+    )
+  })
+
+  it('says under a cent instead of rounding a small cost up', () => {
+    expect(usageLine({ kind: 'cut-off', reason: '', usage: { ...USAGE, dollars: 0.001 } })).toBe('Opus 5.5, 1,000 in, 16,000 out, under $0.01')
+  })
+
+  it('says price unknown for a model with no known price', () => {
+    expect(usageLine({ kind: 'cut-off', reason: '', usage: { ...USAGE, dollars: null } })).toBe('Opus 5.5, 1,000 in, 16,000 out, price unknown')
+    expect(hr.usage.priceUnknown).toBe('cijena nepoznata')
+  })
+
+  it('words a task that reached its limit', () => {
+    expect(resultLine({ kind: 'over-budget', reason: '', usage: USAGE })).toBe('This task reached the most one task may spend, so Kuna stopped before another request.')
+  })
+
+  it('words a request the guard stopped without saying what it found', () => {
+    expect(resultLine({ kind: 'holds-secret', reason: '', usage: null })).toBe('This request holds a key or a token, so Kuna did not send it.')
+  })
+})
+
+describe('a run through the door to the keys', () => {
+  it('stops a request that holds another stored secret before anything leaves, and sends the same request once the secret is gone', async () => {
+    const SECRET = 'made-up-price-vendor-key-1234'
+    storeSecret('twelvedata', SECRET, '2026-10-30T10:00:00.000Z')
+    const sent: string[] = []
+    vi.stubGlobal('fetch', async (_input: string, init: RequestInit) => {
+      sent.push(String(init.body))
+      return reply()
+    })
+    const scope = effectScope()
+    const run = scope.run(() => useAiTask(TASK))!
+
+    expect(await run.run(`Note: ${SECRET}`)).toMatchObject({ kind: 'holds-secret', usage: null })
+    expect(sent).toEqual([])
+
+    storeSecret('twelvedata', null, '2026-10-30T11:00:00.000Z')
+    expect(await run.run(`Note: ${SECRET}`)).toMatchObject({ kind: 'draft' })
+    expect(sent).toHaveLength(1)
+    scope.stop()
+  })
+
+  it("runs a typed model with no price, and shows the provider's words when it refuses one", async () => {
+    pickProvider('anthropic')
+    pickModel('anthropic', '  claude-made-up-model ')
+    const models: unknown[] = []
+    vi.stubGlobal('fetch', async (_input: string, init: RequestInit) => {
+      models.push((JSON.parse(String(init.body)) as { model: unknown }).model)
+      return models.length === 1 ? reply() : Response.json({ type: 'error', error: { type: 'not_found_error', message: 'model: claude-made-up-model' } }, { status: 404 })
+    })
+    const scope = effectScope()
+    const run = scope.run(() => useAiTask(TASK))!
+
+    const worked = await run.run('Say it.')
+    expect(models).toEqual(['claude-made-up-model'])
+    expect(usageLine(worked)).toContain('price unknown')
+
+    expect(resultLine(await run.run('Say it again.'))).toBe('The assistant could not answer: model: claude-made-up-model')
+    scope.stop()
   })
 })

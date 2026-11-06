@@ -259,7 +259,12 @@ const TYPED_LABELS = new Set(TYPED_IN_FAKE_FILES.filter((text) => wordsOf(text).
 
 /** The labels a category shows without one of its own, where Kuna has no Croatian name for its slug. */
 function unseededCategoryLabels() {
-  const slugs = new Set((FAKE_DOCUMENTS[0].records.category ?? []).map((category) => category.category))
+  const slugs = new Set(
+    Object.values(FAKE_DOCUMENTS[0].records)
+      .flat()
+      .map((record) => record.category)
+      .filter((slug) => typeof slug === 'string' && slug !== ''),
+  )
   return [...slugs].filter((slug) => companyBooksCroatian.unlabelled(slug) === companyBooksEnglish.unlabelled(slug)).map((slug) => companyBooksEnglish.unlabelled(slug))
 }
 

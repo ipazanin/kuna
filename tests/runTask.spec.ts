@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
-import { MAX_INPUT_TOKENS, MAX_TOOL_ROUNDS, runTask } from '../src/shared/ai/application/runTask'
+import { MAX_REQUEST_TOKENS, MAX_RUN_TOKENS, MAX_TOOL_ROUNDS, runTask } from '../src/shared/ai/application/runTask'
 import type { RunPorts } from '../src/shared/ai/application/runTask'
 import { ModelRequestFailed } from '../src/shared/ai/application/modelPort'
+import { runModelLoop } from '../src/shared/ai/application/runModelLoop'
 import type { ModelPort, ModelReply, ModelRequest } from '../src/shared/ai/application/modelPort'
 import type { AiPart, AiTask, AiTool } from '../src/shared/ai/domain/aiTask'
 import type { StrictSchema } from '../src/shared/ai/domain/strictSchema'
 
 const OUTPUT: StrictSchema = { type: 'object', additionalProperties: false, required: ['label'], properties: { label: { type: 'string', enum: ['software', 'travel'] } } }
-const TOKENS = { input: 1000, output: 200 }
+const TOKENS = { input: 1000, cacheRead: 0, cacheWrite: 0, output: 200 }
+const SONNET = { name: 'Sonnet 5.5', price: { inputPerMillion: 2, cacheReadPerMillion: 0.1, cacheWritePerMillion: 2.5, outputPerMillion: 10 } }
 
 const LOOKUP: AiTool = {
   name: 'lookup',
@@ -43,7 +45,7 @@ function modelOf(replies: readonly ModelReply[], readsPdf = true): ModelPort & {
   return {
     sent,
     readsPdf,
-    model: { name: 'Sonnet 5.5', inputPerMillion: 2, outputPerMillion: 10 },
+    model: SONNET,
     async send(request) {
       sent.push(structuredClone(request))
       const reply = replies[sent.length - 1]
@@ -57,7 +59,7 @@ function portsOf(model: ModelPort | null, change: Partial<RunPorts> = {}): RunPo
   return { model, appOn: true, employees: { sends: false, on: false }, ...change }
 }
 
-const answer = (label: string): ModelReply => ({ kind: 'answer', text: JSON.stringify({ label }), tokens: TOKENS })
+const answer = (label: string): ModelReply => ({ kind: 'answer', text: JSON.stringify({ label }), raw: null, tokens: TOKENS })
 const ROW: AiPart = { kind: 'text', text: 'GITHUB INC, card, from HR12 1001 0051 8630 0016 0, OIB 98765432106' }
 
 describe('a run of a task', () => {
@@ -86,11 +88,14 @@ describe('a run of a task', () => {
 
   it('fails an answer off the schema, or not JSON, with what is wrong and no draft', async () => {
     expect(await runTask(taskOf([ROW]), null, portsOf(modelOf([answer('groceries')])))).toMatchObject({ kind: 'failed', reason: 'label is not one of the allowed values' })
-    expect(await runTask(taskOf([ROW]), null, portsOf(modelOf([{ kind: 'answer', text: '{"label":"software","extra":1}', tokens: TOKENS }])))).toMatchObject({
+    expect(await runTask(taskOf([ROW]), null, portsOf(modelOf([{ kind: 'answer', text: '{"label":"software","extra":1}', raw: null, tokens: TOKENS }])))).toMatchObject({
       kind: 'failed',
       reason: 'extra is not asked for',
     })
-    expect(await runTask(taskOf([ROW]), null, portsOf(modelOf([{ kind: 'answer', text: 'Sure! Software.', tokens: TOKENS }])))).toMatchObject({ kind: 'failed', reason: 'The answer is not JSON.' })
+    expect(await runTask(taskOf([ROW]), null, portsOf(modelOf([{ kind: 'answer', text: 'Sure! Software.', raw: null, tokens: TOKENS }])))).toMatchObject({
+      kind: 'failed',
+      reason: 'The answer is not JSON.',
+    })
   })
 
   it('turns a refusal and a cut-off into their own results', async () => {
@@ -130,8 +135,8 @@ describe('a run that sends nothing', () => {
 
   it('stops before a request that would pass the input cap', async () => {
     const model = modelOf([answer('software')])
-    const long: AiPart = { kind: 'text', text: 'x'.repeat(MAX_INPUT_TOKENS * 3) }
-    expect(await runTask(taskOf([long]), null, portsOf(model))).toEqual({ kind: 'too-long', reason: String(MAX_INPUT_TOKENS), usage: null })
+    const long: AiPart = { kind: 'text', text: 'x'.repeat(MAX_REQUEST_TOKENS * 3) }
+    expect(await runTask(taskOf([long]), null, portsOf(model))).toEqual({ kind: 'too-long', reason: String(MAX_REQUEST_TOKENS), usage: null })
     expect(model.sent).toEqual([])
   })
 })
@@ -192,19 +197,102 @@ describe('the tool rounds of a run', () => {
     expect(model.sent).toHaveLength(MAX_TOOL_ROUNDS + 1)
   })
 
-  it('stops a loop before its next request would pass the input cap, counting what earlier requests used', async () => {
-    const heavy: ModelReply = { kind: 'tool-calls', calls: [{ id: 'a', name: 'lookup', args: { id: 'hr.vat.rates' } }], raw: null, tokens: { input: 45_000, output: 100 } }
-    const model = modelOf([heavy, heavy, answer('software')])
-    // Two requests of 45,000 use 90,000, and a third at least as large would pass 100,000.
-    expect(await runTask(taskOf([ROW], [LOOKUP]), null, portsOf(model))).toMatchObject({ kind: 'too-long', usage: { inputTokens: 90_000 } })
-    expect(model.sent).toHaveLength(2)
+  it('counts one request against the cap and not the whole run, so cached tokens read again and again do not stop it', async () => {
+    const cached: ModelReply = {
+      kind: 'tool-calls',
+      calls: [{ id: 'a', name: 'lookup', args: { id: 'hr.vat.rates' } }],
+      raw: null,
+      tokens: { input: 1000, cacheRead: 45_000, cacheWrite: 0, output: 100 },
+    }
+    const model = modelOf([cached, cached, cached, answer('software')])
+    // Three requests of 46,000 add up to 138,000, which the old sum over a run would have stopped.
+    expect(await runTask(taskOf([ROW], [LOOKUP]), null, portsOf(model))).toMatchObject({ kind: 'draft', usage: { inputTokens: 4000, cacheReadTokens: 135_000 } })
+    expect(model.sent).toHaveLength(4)
+  })
+
+  it('stops a run away tool loop on the dearest model well under several dollars, with each kind of token at its real weight', async () => {
+    // Every reply at the 16,000 output limit, priced as GPT-6 Astra.
+    const round: ModelReply = {
+      kind: 'tool-calls',
+      calls: [{ id: 'a', name: 'lookup', args: { id: 'hr.vat.rates' } }],
+      raw: null,
+      tokens: { input: 19_000, cacheRead: 0, cacheWrite: 0, output: 16_000 },
+    }
+    const astra = {
+      ...modelOf(Array.from({ length: MAX_TOOL_ROUNDS + 1 }, () => round)),
+      model: { name: 'GPT-6 Astra', price: { inputPerMillion: 10, cacheReadPerMillion: 1, cacheWritePerMillion: 12.5, outputPerMillion: 50 } },
+    }
+    const result = await runTask(taskOf([ROW], [LOOKUP]), null, portsOf(astra))
+    // One request weighs 19,000 + 5 x 16,000 = 99,000, so a second one goes and a third does not.
+    expect(result).toMatchObject({ kind: 'over-budget', usage: { outputTokens: 32_000 } })
+    expect(result.kind === 'over-budget' && result.usage!.dollars).toBeLessThan(3)
+    expect(astra.sent).toHaveLength(2)
+  })
+
+  it('lets a run go on while cached reads are all it spends', async () => {
+    // 200,000 tokens read from the cache weigh 20,000, far under the limit.
+    const cached: ModelReply = { kind: 'tool-calls', calls: [{ id: 'a', name: 'lookup', args: { id: 'hr.vat.rates' } }], raw: null, tokens: { input: 0, cacheRead: 40_000, cacheWrite: 0, output: 0 } }
+    const model = modelOf([cached, cached, cached, cached, cached, answer('software')])
+    expect(MAX_RUN_TOKENS).toBe(100_000)
+    expect(await runTask(taskOf([ROW], [LOOKUP]), null, portsOf(model))).toMatchObject({ kind: 'draft' })
+  })
+
+  it('stops a loop before a request whose prompt, cached tokens included, has reached the cap', async () => {
+    const heavy: ModelReply = {
+      kind: 'tool-calls',
+      calls: [{ id: 'a', name: 'lookup', args: { id: 'hr.vat.rates' } }],
+      raw: null,
+      tokens: { input: 1000, cacheRead: 99_500, cacheWrite: 0, output: 100 },
+    }
+    const model = modelOf([heavy, answer('software')])
+    expect(await runTask(taskOf([ROW], [LOOKUP]), null, portsOf(model))).toMatchObject({ kind: 'too-long', reason: String(MAX_REQUEST_TOKENS), usage: { cacheReadTokens: 99_500 } })
+    expect(model.sent).toHaveLength(1)
+  })
+
+  it('prices each kind of token at its own rate, and gives no price for a model with none', async () => {
+    const tokens = { input: 1000, cacheRead: 10_000, cacheWrite: 2000, output: 500 }
+    const answered: ModelReply = { kind: 'answer', text: JSON.stringify({ label: 'software' }), raw: null, tokens }
+    // 1,000 at $2, 10,000 at $0.10, 2,000 at $2.50 and 500 at $10 per million.
+    expect(await runTask(taskOf([ROW]), null, portsOf(modelOf([answered])))).toMatchObject({ usage: { dollars: (2000 + 1000 + 5000 + 5000) / 1_000_000 } })
+    const unpriced = { ...modelOf([answered]), model: { name: 'made-up-model', price: null } }
+    expect(await runTask(taskOf([ROW]), null, portsOf(unpriced))).toMatchObject({ usage: { model: 'made-up-model', inputTokens: 1000, dollars: null } })
+  })
+
+  it('hands back the turns a chat keeps, ending with the whole assistant turn, and passes the pieces of the text along', async () => {
+    const seen: unknown[] = []
+    const model: ModelPort = {
+      readsPdf: true,
+      model: SONNET,
+      async send(request) {
+        seen.push(request.output, request.onDelta)
+        return { kind: 'answer', text: 'Plain words.', raw: [{ type: 'text', text: 'Plain words.' }], tokens: TOKENS }
+      },
+    }
+    const onDelta = (): void => undefined
+    const end = await runModelLoop({
+      model,
+      system: [],
+      turns: [{ role: 'user', parts: [{ kind: 'text', text: 'Account HR1210010051863000160?' }] }],
+      output: null,
+      tools: [],
+      runTool: () => Promise.reject(new Error('no tool here')),
+      effort: 'low',
+      onDelta,
+      limits: { rounds: 1, requestTokens: 1000, runTokens: 1000 },
+    })
+    expect(seen).toEqual([null, onDelta])
+    expect(end).toMatchObject({ kind: 'answer', text: 'Plain words.' })
+    expect(end.kind === 'answer' && end.turns).toEqual([
+      { role: 'user', parts: [{ kind: 'text', text: 'Account HR•• ••••0160?' }] },
+      { role: 'assistant', calls: [], raw: [{ type: 'text', text: 'Plain words.' }] },
+    ])
   })
 
   it('passes its signal to the model on each request', async () => {
     const seen: (AbortSignal | undefined)[] = []
     const model: ModelPort = {
       readsPdf: true,
-      model: { name: 'Sonnet 5.5', inputPerMillion: 2, outputPerMillion: 10 },
+      model: SONNET,
       async send(request) {
         seen.push(request.signal)
         return answer('software')
@@ -218,9 +306,9 @@ describe('the tool rounds of a run', () => {
   it('counts the tokens a failure spent, with those of the requests before it', async () => {
     const model: ModelPort = {
       readsPdf: true,
-      model: { name: 'Sonnet 5.5', inputPerMillion: 2, outputPerMillion: 10 },
+      model: SONNET,
       async send() {
-        throw new ModelRequestFailed(200, 'It stopped for a reason Kuna does not know.', { input: 500, output: 100 })
+        throw new ModelRequestFailed(200, 'It stopped for a reason Kuna does not know.', { input: 500, cacheRead: 0, cacheWrite: 0, output: 100 })
       },
     }
     expect(await runTask(taskOf([ROW]), null, portsOf(model))).toMatchObject({ kind: 'failed', usage: { inputTokens: 500, outputTokens: 100 } })

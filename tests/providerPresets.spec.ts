@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-import { PROVIDER_PRESETS, modelChoice, presetOf } from '../src/shared/ai/infrastructure/providerPresets'
+import { PROVIDER_PRESETS, modelChoice, presetOf, turnsOnWebSearch } from '../src/shared/ai/infrastructure/providerPresets'
 import { PRICE_VENDORS } from '../src/apps/investments/prices/infrastructure/vendors/priceVendors'
 
 describe('the AI providers', () => {
@@ -21,10 +21,20 @@ describe('the AI providers', () => {
     expect(presetOf('openai').defaultModel).toBe('gpt-6.1-sol')
   })
 
-  it("falls back to the provider's default for a model it does not list", () => {
-    expect(modelChoice(presetOf('anthropic'), 'claude-opus-5-5').name).toBe('Opus 5.5')
-    expect(modelChoice(presetOf('anthropic'), 'gpt-6.1-sol').id).toBe('claude-sonnet-5-5')
+  it('takes a listed model with its price, a typed one with none, and the default for no model at all', () => {
+    expect(modelChoice(presetOf('anthropic'), 'claude-opus-5-5')).toMatchObject({ name: 'Opus 5.5', price: { inputPerMillion: 4 } })
+    expect(modelChoice(presetOf('anthropic'), 'claude-made-up-model')).toEqual({ id: 'claude-made-up-model', name: 'claude-made-up-model', price: null })
     expect(modelChoice(presetOf('anthropic'), null).id).toBe('claude-sonnet-5-5')
+  })
+
+  it.each(['anthropic/claude-sonnet-5-5:online', 'made-up/model:online:free', ' made-up/model:ONLINE '])('refuses %s, whose id turns on web search, and runs the default instead', (id) => {
+    expect(turnsOnWebSearch(id)).toBe(true)
+    expect(modelChoice(presetOf('openrouter'), id).id).toBe('anthropic/claude-sonnet-5-5')
+  })
+
+  it('leaves an id alone that only looks like it', () => {
+    expect(turnsOnWebSearch('made-up/online-model')).toBe(false)
+    expect(modelChoice(presetOf('openrouter'), 'made-up/online-model').id).toBe('made-up/online-model')
   })
 
   it('keeps the provider ids apart from the price vendor ids, since both name keys in one secrets file', () => {

@@ -1,16 +1,19 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ModelRequest } from '../src/shared/ai/application/modelPort'
 import { ModelRequestFailed } from '../src/shared/ai/application/modelPort'
+import { runModelLoop } from '../src/shared/ai/application/runModelLoop'
 import { runTask } from '../src/shared/ai/application/runTask'
 import type { AiTask } from '../src/shared/ai/domain/aiTask'
 import type { StrictSchema } from '../src/shared/ai/domain/strictSchema'
-import { openAiCompatible, testOpenAiCompatibleKey } from '../src/shared/ai/infrastructure/openAiCompatible'
-import { PROVIDER_PRESETS } from '../src/shared/ai/infrastructure/providerPresets'
+import { bearerHeaders, keyTestOf } from '../src/shared/ai/infrastructure/providerFetch'
+import { openRouterChat } from '../src/shared/ai/infrastructure/openRouterChat'
 import type { ModelChoice } from '../src/shared/ai/infrastructure/providerPresets'
+import { streamCutByAbort } from './support/sseResponse'
 
-const KEY = 'made-up-openai-key-0042'
-const BASE_URL = 'https://api.openai.com/v1'
-const SOL: ModelChoice = { id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol', inputPerMillion: 2, outputPerMillion: 10 }
+const KEY = 'made-up-openrouter-key-0042'
+const BASE_URL = 'https://openrouter.ai/api/v1'
+const SOL_PRICE = { inputPerMillion: 2, cacheReadPerMillion: 0.1, cacheWritePerMillion: 2.5, outputPerMillion: 10 }
+const SOL: ModelChoice = { id: 'openai/gpt-6.1-sol', name: 'GPT-6.1 Sol', price: SOL_PRICE }
 
 interface SentRequest {
   readonly url: string
@@ -44,12 +47,12 @@ const CATEGORY_SCHEMA: StrictSchema = {
 
 const RULE_INPUT: StrictSchema = { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false }
 
-function completion(finishReason: string, message: Record<string, unknown>, usage = { prompt_tokens: 812, completion_tokens: 64, total_tokens: 876 }): Response {
+function completion(finishReason: string, message: Record<string, unknown>, usage: Record<string, unknown> = { prompt_tokens: 812, completion_tokens: 64, total_tokens: 876 }): Response {
   return Response.json({
     id: 'chatcmpl-CfQ8made-up',
     object: 'chat.completion',
     created: 1793833200,
-    model: 'gpt-6.1-sol',
+    model: 'openai/gpt-6.1-sol',
     choices: [{ index: 0, message: { role: 'assistant', content: null, refusal: null, annotations: [], ...message }, logprobs: null, finish_reason: finishReason }],
     usage,
   })
@@ -79,12 +82,12 @@ describe('the Chat Completions request', () => {
   it('posts to the base address with the bearer key, and joins the system parts into one message', async () => {
     const requests = stubFetch(completion('stop', { content: '{"category":"office"}' }))
 
-    await openAiCompatible(BASE_URL, KEY, SOL, true).send(request())
+    await openRouterChat(BASE_URL, KEY, SOL).send(request())
 
-    expect(requests[0]!.url).toBe('https://api.openai.com/v1/chat/completions')
+    expect(requests[0]!.url).toBe('https://openrouter.ai/api/v1/chat/completions')
     expect(requests[0]!.method).toBe('POST')
     expect(requests[0]!.headers).toEqual({ authorization: `Bearer ${KEY}`, 'content-type': 'application/json' })
-    expect(requests[0]!.body!.model).toBe('gpt-6.1-sol')
+    expect(requests[0]!.body!.model).toBe('openai/gpt-6.1-sol')
     expect(requests[0]!.body!.max_completion_tokens).toBe(16000)
     expect(requests[0]!.body!.messages).toEqual([
       { role: 'system', content: 'You sort bank rows into categories.\n\nAnswer with the category only.' },
@@ -95,16 +98,16 @@ describe('the Chat Completions request', () => {
   it('asks for the schema as a strict response format when the task has no tools', async () => {
     const requests = stubFetch(completion('stop', { content: '{"category":"office"}' }))
 
-    await openAiCompatible(BASE_URL, KEY, SOL, true).send(request())
+    await openRouterChat(BASE_URL, KEY, SOL).send(request())
 
     expect(requests[0]!.body!.response_format).toEqual({ type: 'json_schema', json_schema: { name: 'answer', strict: true, schema: CATEGORY_SCHEMA } })
-    expect(Object.keys(requests[0]!.body!).sort()).toEqual(['max_completion_tokens', 'messages', 'model', 'response_format'])
+    expect(Object.keys(requests[0]!.body!).sort()).toEqual(['max_completion_tokens', 'messages', 'model', 'provider', 'response_format'])
   })
 
   it('sends strict functions and a last answer function with the schema, without a response format, when the task has tools', async () => {
     const requests = stubFetch(completion('stop', { content: '{"category":"office"}' }))
 
-    await openAiCompatible(BASE_URL, KEY, SOL, true).send(request(WITH_TOOLS))
+    await openRouterChat(BASE_URL, KEY, SOL).send(request(WITH_TOOLS))
 
     const body = requests[0]!.body!
     expect(body.response_format).toBeUndefined()
@@ -117,17 +120,16 @@ describe('the Chat Completions request', () => {
     expect(Object.keys(body)).not.toContain('temperature')
   })
 
-  it('sends a PDF as a file part and a photo as an image part', async () => {
+  it('sends a photo as an image part', async () => {
     const requests = stubFetch(completion('stop', { content: '{"category":"office"}' }))
 
-    await openAiCompatible(BASE_URL, KEY, SOL, true).send(
+    await openRouterChat(BASE_URL, KEY, SOL).send(
       request({
         turns: [
           {
             role: 'user',
             parts: [
               { kind: 'text', text: 'Read this offer.' },
-              { kind: 'pdf', base64: 'JVBERi0xLjcK', name: 'offer.pdf' },
               { kind: 'image', base64: '/9j/4AAQSkZJRg==', mediaType: 'image/jpeg' },
             ],
           },
@@ -139,7 +141,6 @@ describe('the Chat Completions request', () => {
       role: 'user',
       content: [
         { type: 'text', text: 'Read this offer.' },
-        { type: 'file', file: { filename: 'offer.pdf', file_data: 'data:application/pdf;base64,JVBERi0xLjcK' } },
         { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==' } },
       ],
     })
@@ -155,7 +156,7 @@ describe('the Chat Completions request', () => {
     }
     const requests = stubFetch(completion('stop', { content: '{"category":"office"}' }))
 
-    await openAiCompatible(BASE_URL, KEY, SOL, true).send(
+    await openRouterChat(BASE_URL, KEY, SOL).send(
       request({
         ...WITH_TOOLS,
         turns: [
@@ -184,20 +185,24 @@ describe('the Chat Completions reply', () => {
   it('reads stop as the answer, with the tokens from the usage', async () => {
     stubFetch(completion('stop', { content: '{"category":"office"}' }))
 
-    expect(await openAiCompatible(BASE_URL, KEY, SOL, true).send(request())).toEqual({ kind: 'answer', text: '{"category":"office"}', tokens: { input: 812, output: 64 } })
+    expect(await openRouterChat(BASE_URL, KEY, SOL).send(request())).toMatchObject({ kind: 'answer', text: '{"category":"office"}', tokens: { input: 812, cacheRead: 0, cacheWrite: 0, output: 64 } })
   })
 
   it('reads stop with a refusal as refused, with the refusal text', async () => {
     stubFetch(completion('stop', { refusal: 'I cannot help with that request.' }))
 
-    expect(await openAiCompatible(BASE_URL, KEY, SOL, true).send(request())).toEqual({ kind: 'refused', reason: 'I cannot help with that request.', tokens: { input: 812, output: 64 } })
+    expect(await openRouterChat(BASE_URL, KEY, SOL).send(request())).toEqual({
+      kind: 'refused',
+      reason: 'I cannot help with that request.',
+      tokens: { input: 812, cacheRead: 0, cacheWrite: 0, output: 64 },
+    })
   })
 
   it('reads tool_calls as the calls to run, with their arguments parsed and the message kept to send back', async () => {
     const toolCalls = [functionCall('call_Qm3x', 'rule', '{"id":"pdv-25"}'), functionCall('call_Zt8k', 'rule', '{"id": "pdv-')]
     stubFetch(completion('tool_calls', { tool_calls: toolCalls }))
 
-    const reply = await openAiCompatible(BASE_URL, KEY, SOL, true).send(request(WITH_TOOLS))
+    const reply = await openRouterChat(BASE_URL, KEY, SOL).send(request(WITH_TOOLS))
 
     expect(reply).toEqual({
       kind: 'tool-calls',
@@ -206,33 +211,110 @@ describe('the Chat Completions reply', () => {
         { id: 'call_Zt8k', name: 'rule', args: undefined },
       ],
       raw: { role: 'assistant', content: null, refusal: null, annotations: [], tool_calls: toolCalls },
-      tokens: { input: 812, output: 64 },
+      tokens: { input: 812, cacheRead: 0, cacheWrite: 0, output: 64 },
     })
   })
 
   it('reads a call to the answer function as the answer, with its arguments as the text', async () => {
     stubFetch(completion('tool_calls', { tool_calls: [functionCall('call_Ans1', 'answer', '{"category":"travel"}')] }))
 
-    expect(await openAiCompatible(BASE_URL, KEY, SOL, true).send(request(WITH_TOOLS))).toEqual({ kind: 'answer', text: '{"category":"travel"}', tokens: { input: 812, output: 64 } })
+    expect(await openRouterChat(BASE_URL, KEY, SOL).send(request(WITH_TOOLS))).toMatchObject({
+      kind: 'answer',
+      text: '{"category":"travel"}',
+      tokens: { input: 812, cacheRead: 0, cacheWrite: 0, output: 64 },
+    })
   })
 
   it('reads length as an answer cut off and content_filter as refused', async () => {
     stubFetch(completion('length', { content: '{"categ' }), completion('content_filter', { content: null }))
-    const model = openAiCompatible(BASE_URL, KEY, SOL, true)
+    const model = openRouterChat(BASE_URL, KEY, SOL)
 
-    expect(await model.send(request())).toEqual({ kind: 'cut-off', tokens: { input: 812, output: 64 } })
-    expect(await model.send(request())).toEqual({ kind: 'refused', reason: 'content_filter', tokens: { input: 812, output: 64 } })
+    expect(await model.send(request())).toEqual({ kind: 'cut-off', tokens: { input: 812, cacheRead: 0, cacheWrite: 0, output: 64 } })
+    expect(await model.send(request())).toEqual({ kind: 'refused', reason: 'content_filter', tokens: { input: 812, cacheRead: 0, cacheWrite: 0, output: 64 } })
   })
 
   it('fails on a finish reason it does not know', async () => {
     stubFetch(completion('function_call', { content: null }))
 
-    await expect(openAiCompatible(BASE_URL, KEY, SOL, true).send(request())).rejects.toMatchObject({ name: 'ModelRequestFailed', status: 200 })
+    await expect(openRouterChat(BASE_URL, KEY, SOL).send(request())).rejects.toMatchObject({ name: 'ModelRequestFailed', status: 200 })
   })
 
-  it('takes whether it reads a PDF from its caller', () => {
-    expect(openAiCompatible('https://openrouter.ai/api/v1', KEY, SOL, false).readsPdf).toBe(false)
-    expect(openAiCompatible(BASE_URL, KEY, SOL, true).model).toEqual({ name: 'GPT-6.1 Sol', inputPerMillion: 2, outputPerMillion: 10 })
+  it('reads no PDF and shows its price', () => {
+    const model = openRouterChat(BASE_URL, KEY, SOL)
+    expect(model.readsPdf).toBe(false)
+    expect(model.model.price).toEqual(SOL_PRICE)
+  })
+
+  it('splits the prompt tokens into fresh, cache read and cache write', async () => {
+    stubFetch(
+      completion(
+        'stop',
+        { content: '{"category":"office"}' },
+        { prompt_tokens: 5200, completion_tokens: 64, total_tokens: 5264, prompt_tokens_details: { cached_tokens: 3000, cache_write_tokens: 1800 } },
+      ),
+    )
+    expect(await openRouterChat(BASE_URL, KEY, SOL).send(request())).toMatchObject({ tokens: { input: 400, cacheRead: 3000, cacheWrite: 1800, output: 64 } })
+  })
+
+  it('keeps what OpenRouter says it charged, and a whole run shows it instead of the list price', async () => {
+    const usage = { prompt_tokens: 900, completion_tokens: 40, total_tokens: 940, cost: 0.0123 }
+    stubFetch(
+      completion('tool_calls', { tool_calls: [functionCall('call_a', 'rule', '{"id":"pdv-25"}')] }, usage),
+      completion('tool_calls', { tool_calls: [functionCall('call_b', 'answer', '{"category":"office"}')] }, { ...usage, cost: 0.0077 }),
+    )
+    const typed: ModelChoice = { id: 'made-up/model', name: 'made-up/model', price: null }
+    const task: AiTask<null, unknown> = {
+      id: 'test.charged',
+      app: 'test',
+      effort: 'low',
+      system: () => [],
+      input: () => [{ kind: 'text', text: 'Row' }],
+      output: () => CATEGORY_SCHEMA,
+      tools: [{ name: 'rule', description: 'Reads one rule.', input: RULE_INPUT, run: async () => ({ text: 'A rule.', sources: [], figures: [] }) }],
+      check: (output) => ({ draft: output, problems: [] }),
+    }
+    const result = await runTask(task, null, { model: openRouterChat(BASE_URL, KEY, typed), appOn: true, employees: { sends: false, on: false } })
+    expect(result).toMatchObject({ kind: 'draft', usage: { dollars: 0.0123 + 0.0077 } })
+  })
+
+  it('reports no charge when a reply has none, which leaves the list price to the run', async () => {
+    stubFetch(completion('length', {}, { prompt_tokens: 1000, completion_tokens: 100, total_tokens: 1100 }))
+    expect(await openRouterChat(BASE_URL, KEY, SOL).send(request())).toEqual({ kind: 'cut-off', tokens: { input: 1000, cacheRead: 0, cacheWrite: 0, output: 100 } })
+  })
+
+  it('shows no cost line for a reply with no usage at all, rather than a cost of nothing', async () => {
+    vi.stubGlobal('fetch', async () => Response.json({ choices: [{ finish_reason: 'length', message: { role: 'assistant', content: null } }] }))
+    const end = await runModelLoop({
+      model: openRouterChat(BASE_URL, KEY, SOL),
+      system: [],
+      turns: [],
+      output: null,
+      tools: [],
+      runTool: () => Promise.reject(new Error('no tool here')),
+      effort: 'low',
+      limits: { rounds: 1, requestTokens: 1000, runTokens: 1000 },
+    })
+    expect(end).toEqual({ kind: 'cut-off', reason: '', usage: null })
+  })
+
+  it('says a timeout during a slow body as the timeout, not as a body that is not JSON', async () => {
+    const controller = new AbortController()
+    vi.stubGlobal('fetch', async () => streamCutByAbort('{"choices":', controller.signal))
+    const sending = openRouterChat(BASE_URL, KEY, SOL).send(request({ signal: controller.signal }))
+    setTimeout(() => controller.abort(new Error('Too slow.')), 10)
+    await expect(sending).rejects.toMatchObject({ status: 0, message: 'Too slow.' })
+  })
+
+  it('offers no answer function and no format when a request asks for no schema', async () => {
+    const requests = stubFetch(completion('stop', { content: 'Plain words.' }))
+    await openRouterChat(BASE_URL, KEY, SOL).send(request({ ...WITH_TOOLS, output: null }))
+    expect((requests[0]!.body!.tools as { function: { name: string } }[]).map((tool) => tool.function.name)).toEqual(['rule'])
+    expect(requests[0]!.body!.response_format).toBeUndefined()
+  })
+
+  it('cuts the key out of what the provider says back', async () => {
+    stubFetch(Response.json({ error: { message: `Bad key ${KEY}` } }, { status: 400 }))
+    await expect(openRouterChat(BASE_URL, KEY, SOL).send(request())).rejects.toMatchObject({ message: 'Bad key [key]' })
   })
 })
 
@@ -245,7 +327,7 @@ describe('a Chat Completions request that fails', () => {
       ),
     )
 
-    const failure = await openAiCompatible(BASE_URL, KEY, SOL, true)
+    const failure = await openRouterChat(BASE_URL, KEY, SOL)
       .send(request())
       .catch((error: unknown) => error)
     expect(failure).toBeInstanceOf(ModelRequestFailed)
@@ -257,7 +339,7 @@ describe('a Chat Completions request that fails', () => {
       Response.json({ error: { message: 'The server is overloaded.', type: 'server_error', param: null, code: null } }, { status: 503 }),
       new Response('upstream connect error', { status: 502, statusText: 'Bad Gateway' }),
     )
-    const model = openAiCompatible(BASE_URL, KEY, SOL, true)
+    const model = openRouterChat(BASE_URL, KEY, SOL)
 
     await expect(model.send(request())).rejects.toMatchObject({ status: 503, message: 'The server is overloaded.' })
     await expect(model.send(request())).rejects.toMatchObject({ status: 502, message: 'Bad Gateway' })
@@ -266,7 +348,7 @@ describe('a Chat Completions request that fails', () => {
   it('reports a request that never reached the provider with status 0', async () => {
     vi.stubGlobal('fetch', () => Promise.reject(new TypeError('NetworkError when attempting to fetch resource.')))
 
-    await expect(openAiCompatible(BASE_URL, KEY, SOL, true).send(request())).rejects.toMatchObject({
+    await expect(openRouterChat(BASE_URL, KEY, SOL).send(request())).rejects.toMatchObject({
       name: 'ModelRequestFailed',
       status: 0,
       message: 'NetworkError when attempting to fetch resource.',
@@ -274,12 +356,12 @@ describe('a Chat Completions request that fails', () => {
   })
 })
 
-describe('the OpenAI-compatible key test', () => {
+describe('the bearer key test', () => {
   it('lists the models with the bearer key and sends no body', async () => {
-    const requests = stubFetch(Response.json({ object: 'list', data: [{ id: 'gpt-6.1-sol', object: 'model', created: 1790000000, owned_by: 'openai' }] }))
+    const requests = stubFetch(Response.json({ object: 'list', data: [{ id: 'openai/gpt-6.1-sol', object: 'model', created: 1790000000, owned_by: 'openai' }] }))
 
-    expect(await testOpenAiCompatibleKey(`${BASE_URL}/models`, KEY)).toEqual({ kind: 'works' })
-    expect(requests[0]).toMatchObject({ url: 'https://api.openai.com/v1/models', method: 'GET', body: null })
+    expect(await keyTestOf({ address: `${BASE_URL}/models`, method: 'GET', headers: bearerHeaders(KEY), key: KEY })).toEqual({ kind: 'works' })
+    expect(requests[0]).toMatchObject({ url: 'https://openrouter.ai/api/v1/models', method: 'GET', body: null })
     expect(requests[0]!.headers.authorization).toBe(`Bearer ${KEY}`)
   })
 
@@ -290,19 +372,19 @@ describe('the OpenAI-compatible key test', () => {
       Response.json({ error: { message: 'Rate limit reached for requests.', type: 'requests', param: null, code: 'rate_limit_exceeded' } }, { status: 429 }),
     )
 
-    expect(await testOpenAiCompatibleKey(`${BASE_URL}/models`, KEY)).toEqual({ kind: 'refused' })
-    expect(await testOpenAiCompatibleKey(`${BASE_URL}/models`, KEY)).toEqual({ kind: 'refused' })
-    expect(await testOpenAiCompatibleKey(`${BASE_URL}/models`, KEY)).toEqual({ kind: 'failed', reason: 'Rate limit reached for requests.' })
+    expect(await keyTestOf({ address: `${BASE_URL}/models`, method: 'GET', headers: bearerHeaders(KEY), key: KEY })).toEqual({ kind: 'refused' })
+    expect(await keyTestOf({ address: `${BASE_URL}/models`, method: 'GET', headers: bearerHeaders(KEY), key: KEY })).toEqual({ kind: 'refused' })
+    expect(await keyTestOf({ address: `${BASE_URL}/models`, method: 'GET', headers: bearerHeaders(KEY), key: KEY })).toEqual({ kind: 'failed', reason: 'Rate limit reached for requests.' })
   })
 
   it('says the test failed when the provider cannot be reached', async () => {
     vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')))
 
-    expect(await testOpenAiCompatibleKey(`${BASE_URL}/models`, KEY)).toEqual({ kind: 'failed', reason: 'Failed to fetch' })
+    expect(await keyTestOf({ address: `${BASE_URL}/models`, method: 'GET', headers: bearerHeaders(KEY), key: KEY })).toEqual({ kind: 'failed', reason: 'Failed to fetch' })
   })
 })
 
-describe('a task run over the OpenAI-compatible adapter', () => {
+describe('a task run over the OpenRouter adapter', () => {
   const ANSWER_SCHEMA: StrictSchema = {
     type: 'object',
     properties: { rate: { type: 'integer' }, rule: { type: 'string' } },
@@ -335,13 +417,13 @@ describe('a task run over the OpenAI-compatible adapter', () => {
       completion('tool_calls', { tool_calls: [functionCall('call_Ans1', 'answer', '{"rate":25,"rule":"pdv-25"}')] }, { prompt_tokens: 980, completion_tokens: 30, total_tokens: 1010 }),
     )
 
-    const result = await runTask(task, 'Which VAT rate applies to office chairs?', { model: openAiCompatible(BASE_URL, KEY, SOL, true), appOn: true, employees: { sends: false, on: false } })
+    const result = await runTask(task, 'Which VAT rate applies to office chairs?', { model: openRouterChat(BASE_URL, KEY, SOL), appOn: true, employees: { sends: false, on: false } })
 
     expect(result).toEqual({
       kind: 'draft',
       draft: { rate: 25, rule: 'pdv-25' },
       problems: [],
-      usage: { model: 'GPT-6.1 Sol', inputTokens: 1880, outputTokens: 70, dollars: (1880 * 2 + 70 * 10) / 1_000_000 },
+      usage: { model: 'GPT-6.1 Sol', inputTokens: 1880, cacheReadTokens: 0, cacheWriteTokens: 0, outputTokens: 70, dollars: (1880 * 2 + 70 * 10) / 1_000_000 },
     })
     expect(requests).toHaveLength(2)
     expect(requests[1]!.body!.messages).toEqual([
@@ -361,27 +443,23 @@ describe('a Chat Completions reply off the documented shape', () => {
     ['a null message', { choices: [{ finish_reason: 'stop', message: null }] }],
   ])('fails as a failed request with %s', async (_name, reply) => {
     stubFetch(Response.json(reply))
-    await expect(openAiCompatible(BASE_URL, KEY, SOL, true).send(request())).rejects.toBeInstanceOf(ModelRequestFailed)
+    await expect(openRouterChat(BASE_URL, KEY, SOL).send(request())).rejects.toBeInstanceOf(ModelRequestFailed)
   })
 
   it('keeps the tokens of a finish reason it does not know', async () => {
     stubFetch(completion('function_call', { content: null }))
-    const failure = await openAiCompatible(BASE_URL, KEY, SOL, true)
+    const failure = await openRouterChat(BASE_URL, KEY, SOL)
       .send(request())
       .catch((error: unknown) => error)
-    expect(failure).toMatchObject({ status: 200, tokens: { input: 812, output: 64 } })
+    expect(failure).toMatchObject({ status: 200, tokens: { input: 812, cacheRead: 0, cacheWrite: 0, output: 64 } })
   })
 })
 
 describe('the routing of a Chat Completions request', () => {
-  it('asks OpenRouter alone to route only to endpoints that honour every parameter', async () => {
-    const requests = stubFetch(completion('stop', { content: '{}' }), completion('stop', { content: '{}' }))
-    const presets = PROVIDER_PRESETS.filter((preset) => preset.requiresParameters).map((preset) => preset.id)
-    expect(presets).toEqual(['openrouter'])
-    await openAiCompatible('https://openrouter.ai/api/v1', KEY, SOL, false, true).send(request())
-    await openAiCompatible(BASE_URL, KEY, SOL, true).send(request())
+  it('asks OpenRouter to route only to endpoints that honour every parameter', async () => {
+    const requests = stubFetch(completion('stop', { content: '{}' }))
+    await openRouterChat(BASE_URL, KEY, SOL).send(request())
     expect(requests[0]!.body!.provider).toEqual({ require_parameters: true })
-    expect(requests[1]!.body!.provider).toBeUndefined()
   })
 
   it('hands fetch the signal', async () => {
@@ -391,7 +469,7 @@ describe('the routing of a Chat Completions request', () => {
       return completion('stop', { content: '{}' })
     })
     const { signal } = new AbortController()
-    await openAiCompatible(BASE_URL, KEY, SOL, true).send(request({ signal }))
+    await openRouterChat(BASE_URL, KEY, SOL).send(request({ signal }))
     expect(seen).toEqual([signal])
   })
 })

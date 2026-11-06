@@ -1,59 +1,86 @@
-import type { ModelPort, ModelReply, ModelRequest, ModelTokens, ModelTurn, ToolCall } from '../application/modelPort'
+import type { ModelPort, ModelReply, ModelRequest, ModelTurn, ToolCall } from '../application/modelPort'
 import { ModelRequestFailed } from '../application/modelPort'
 import type { AiPart, AiTextPart } from '../domain/aiTask'
+import { NO_TOKENS } from '../domain/modelUsage'
+import type { ModelTokens } from '../domain/modelUsage'
+import { keyTestOf, streamedEvents, withoutKey } from './providerFetch'
+import type { ProviderCall } from './providerFetch'
 import type { KeyTest, ModelChoice } from './providerPresets'
 
 const MESSAGES_ADDRESS = 'https://api.anthropic.com/v1/messages'
 const COUNT_TOKENS_ADDRESS = 'https://api.anthropic.com/v1/messages/count_tokens'
+/** Bounds what one request can write, thinking included. Streaming would allow more, and no task needs it. */
 const MAX_OUTPUT_TOKENS = 16_000
 
-interface TextBlock {
-  readonly type: 'text'
-  readonly text: string
-}
-
-interface ToolUseBlock {
-  readonly type: 'tool_use'
-  readonly id: string
-  readonly name: string
-  readonly input: unknown
-}
-
-type ResponseBlock = TextBlock | ToolUseBlock | { readonly type: 'thinking' | 'redacted_thinking' }
-
-interface MessagesResponse {
-  readonly stop_reason: string | null
-  readonly stop_details?: { readonly explanation?: string | null } | null
-  readonly content?: readonly ResponseBlock[]
-  readonly usage?: Usage
+/** A content block as the stream built it, with every field it came with, since it goes back byte for byte on the next request. */
+interface ContentBlock {
+  readonly type: string
+  [field: string]: unknown
 }
 
 interface Usage {
-  readonly input_tokens: number
-  readonly output_tokens: number
-  readonly cache_creation_input_tokens?: number | null
-  readonly cache_read_input_tokens?: number | null
+  readonly input_tokens?: number | null | undefined
+  readonly output_tokens?: number | null | undefined
+  readonly cache_creation_input_tokens?: number | null | undefined
+  readonly cache_read_input_tokens?: number | null | undefined
 }
 
-/** The model behind an Anthropic key, called straight from the browser over the Messages API. */
+type StreamEvent =
+  | { readonly type: 'message_start'; readonly message?: { readonly usage?: Usage } }
+  | { readonly type: 'content_block_start'; readonly index: number; readonly content_block?: ContentBlock }
+  | { readonly type: 'content_block_delta'; readonly index: number; readonly delta?: BlockDelta }
+  | { readonly type: 'content_block_stop'; readonly index: number }
+  | {
+      readonly type: 'message_delta'
+      readonly delta?: { readonly stop_reason?: string | null; readonly stop_details?: { readonly explanation?: string | null } | null }
+      readonly usage?: Usage
+    }
+  | { readonly type: 'message_stop' }
+  | { readonly type: 'error'; readonly error?: { readonly message?: string } }
+
+type BlockDelta =
+  | { readonly type: 'text_delta'; readonly text: string }
+  | { readonly type: 'thinking_delta'; readonly thinking: string }
+  | { readonly type: 'signature_delta'; readonly signature: string }
+  | { readonly type: 'input_json_delta'; readonly partial_json: string }
+
+/** The message a whole stream adds up to. */
+interface StreamedMessage {
+  readonly stopReason: string | null
+  readonly explanation: string | null
+  readonly content: readonly ContentBlock[]
+  readonly usage: Usage
+}
+
+/** The model behind an Anthropic key, called straight from the browser over the Messages API, always streaming. */
 export function anthropicMessages(key: string, model: ModelChoice): ModelPort {
   return {
-    model: { name: model.name, inputPerMillion: model.inputPerMillion, outputPerMillion: model.outputPerMillion },
+    model,
     readsPdf: true,
     send: async (request) => {
-      return replyOf((await posted(MESSAGES_ADDRESS, key, messagesBody(model.id, request), request.signal)) as MessagesResponse)
+      return replyOf(await streamedMessage(key, messagesBody(model.id, request), request))
     },
   }
 }
 
 /** Asks Anthropic to count the tokens of one word, which is free and sends nothing from the books. */
 export async function testAnthropicKey(key: string, modelId: string): Promise<KeyTest> {
-  try {
-    await posted(COUNT_TOKENS_ADDRESS, key, { model: modelId, messages: [{ role: 'user', content: 'Hi' }] })
-    return { kind: 'works' }
-  } catch (failure) {
-    if (!(failure instanceof ModelRequestFailed)) throw failure
-    return failure.status === 401 || failure.status === 403 ? { kind: 'refused' } : { kind: 'failed', reason: failure.message }
+  return keyTestOf(callOf(COUNT_TOKENS_ADDRESS, key, { model: modelId, messages: [{ role: 'user', content: 'Hi' }] }))
+}
+
+function callOf(address: string, key: string, body: object, signal?: AbortSignal): ProviderCall {
+  return {
+    address,
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2026-10-21',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body,
+    key,
+    signal,
   }
 }
 
@@ -61,9 +88,10 @@ function messagesBody(modelId: string, request: ModelRequest): object {
   return {
     model: modelId,
     max_tokens: MAX_OUTPUT_TOKENS,
+    stream: true,
     system: request.system.map((part, index) => systemBlock(part, index === request.system.length - 1)),
     messages: request.turns.map(message),
-    output_config: { effort: request.effort, format: { type: 'json_schema', schema: request.output } },
+    output_config: { effort: request.effort, ...(request.output === null ? {} : { format: { type: 'json_schema', schema: request.output } }) },
     ...(request.tools.length === 0
       ? {}
       : {
@@ -109,73 +137,135 @@ function contentBlock(part: AiPart): object {
   }
 }
 
-function replyOf(response: MessagesResponse): ModelReply {
-  if (!Array.isArray(response.content) || typeof response.usage?.input_tokens !== 'number' || typeof response.usage.output_tokens !== 'number') {
+/**
+ * Adds a stream up to its message. A block of a kind Kuna does not know is kept as it came, and an event of a kind it
+ * does not know is skipped, as Anthropic's versioning says new ones may come. A failure carries the tokens spent so far.
+ */
+async function streamedMessage(key: string, body: object, request: ModelRequest): Promise<StreamedMessage> {
+  const content: ContentBlock[] = []
+  const toolInputs = new Map<number, string>()
+  let usage: Usage = {}
+  let stopReason: string | null = null
+  let explanation: string | null = null
+  let stopped = false
+
+  function blockAt(index: number): ContentBlock {
+    const block = content[index]
+    if (block === undefined) throw new ModelRequestFailed(200, 'Anthropic streamed a part of a block it never started.', tokensOf(usage))
+    return block
+  }
+
+  try {
+    for await (const untyped of streamedEvents(callOf(MESSAGES_ADDRESS, key, body, request.signal))) {
+      const event = untyped as StreamEvent
+      switch (event.type) {
+        case 'message_start':
+          usage = laterUsage(usage, event.message?.usage)
+          break
+        case 'content_block_start':
+          content[event.index] = { type: 'unreadable', ...event.content_block }
+          break
+        case 'content_block_delta': {
+          const block = blockAt(event.index)
+          const { delta } = event
+          if (delta?.type === 'text_delta') {
+            content[event.index] = { ...block, text: `${String(block['text'] ?? '')}${delta.text}` }
+            request.onDelta?.(delta.text)
+          } else if (delta?.type === 'thinking_delta') {
+            content[event.index] = { ...block, thinking: `${String(block['thinking'] ?? '')}${delta.thinking}` }
+          } else if (delta?.type === 'signature_delta') {
+            content[event.index] = { ...block, signature: delta.signature }
+          } else if (delta?.type === 'input_json_delta') {
+            toolInputs.set(event.index, `${toolInputs.get(event.index) ?? ''}${delta.partial_json}`)
+          }
+          break
+        }
+        case 'content_block_stop': {
+          const written = toolInputs.get(event.index)
+          if (written !== undefined && written !== '') content[event.index] = { ...blockAt(event.index), input: parsedInput(written) }
+          break
+        }
+        case 'message_delta':
+          usage = laterUsage(usage, event.usage)
+          stopReason = event.delta?.stop_reason ?? stopReason
+          explanation = event.delta?.stop_details?.explanation ?? explanation
+          break
+        case 'error':
+          throw new ModelRequestFailed(200, withoutKey(event.error?.message ?? 'Anthropic sent an error it did not explain.', key), tokensOf(usage))
+        case 'message_stop':
+          stopped = true
+          break
+      }
+      if (stopped) break
+    }
+  } catch (failure) {
+    if (failure instanceof ModelRequestFailed && failure.tokens === NO_TOKENS) {
+      throw new ModelRequestFailed(failure.status, failure.message, tokensOf(usage))
+    }
+    throw failure
+  }
+  if (!stopped) {
+    throw new ModelRequestFailed(200, 'The stream ended before the answer did.', tokensOf(usage))
+  }
+  return { stopReason, explanation, content, usage }
+}
+
+/** The input as written, or an unusable marker when it is not JSON. The block must still go back as an object, and the schema check reports the marker to the model. */
+function parsedInput(written: string): unknown {
+  try {
+    return JSON.parse(written) as unknown
+  } catch {
+    return { not_json: written }
+  }
+}
+
+function replyOf(streamed: StreamedMessage): ModelReply {
+  const { content } = streamed
+  if (typeof streamed.usage.input_tokens !== 'number' || typeof streamed.usage.output_tokens !== 'number') {
     throw new ModelRequestFailed(200, 'Anthropic answered with a reply Kuna cannot read.')
   }
-  const content: readonly ResponseBlock[] = response.content
-  const tokens = tokensOf(response.usage)
-  switch (response.stop_reason) {
+  const tokens = tokensOf(streamed.usage)
+  switch (streamed.stopReason) {
     case 'end_turn':
     case 'stop_sequence': {
       const text = content
-        .filter((block): block is TextBlock => block.type === 'text')
-        .map((block) => block.text)
+        .filter((block) => block.type === 'text')
+        .map((block) => String(block['text'] ?? ''))
         .join('')
-      return { kind: 'answer', text, tokens }
+      return { kind: 'answer', text, raw: content, tokens }
     }
     case 'tool_use': {
-      const calls: ToolCall[] = content.filter((block): block is ToolUseBlock => block.type === 'tool_use').map((block) => ({ id: block.id, name: block.name, args: block.input }))
+      const calls: ToolCall[] = content.filter((block) => block.type === 'tool_use').map((block) => ({ id: String(block['id']), name: String(block['name']), args: block['input'] }))
       return { kind: 'tool-calls', calls, raw: content, tokens }
     }
     case 'refusal': {
-      return { kind: 'refused', reason: response.stop_details?.explanation ?? '', tokens }
+      return { kind: 'refused', reason: streamed.explanation ?? '', tokens }
     }
     case 'max_tokens':
     case 'model_context_window_exceeded': {
       return { kind: 'cut-off', tokens }
     }
     default: {
-      throw new ModelRequestFailed(200, `Anthropic stopped for a reason Kuna does not know: ${String(response.stop_reason)}`, tokens)
+      throw new ModelRequestFailed(200, `Anthropic stopped for a reason Kuna does not know: ${String(streamed.stopReason)}`, tokens)
     }
+  }
+}
+
+/** The counts so far, each replaced only by a later count, as Anthropic may leave a field out or null in `message_delta`. */
+function laterUsage(known: Usage, later: Usage = {}): Usage {
+  return {
+    input_tokens: later.input_tokens ?? known.input_tokens,
+    output_tokens: later.output_tokens ?? known.output_tokens,
+    cache_creation_input_tokens: later.cache_creation_input_tokens ?? known.cache_creation_input_tokens,
+    cache_read_input_tokens: later.cache_read_input_tokens ?? known.cache_read_input_tokens,
   }
 }
 
 function tokensOf(usage: Usage): ModelTokens {
   return {
-    input: usage.input_tokens + (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0),
-    output: usage.output_tokens,
+    input: usage.input_tokens ?? 0,
+    cacheRead: usage.cache_read_input_tokens ?? 0,
+    cacheWrite: usage.cache_creation_input_tokens ?? 0,
+    output: usage.output_tokens ?? 0,
   }
-}
-
-async function posted(address: string, key: string, body: object, signal?: AbortSignal): Promise<unknown> {
-  let response: Response
-  try {
-    response = await fetch(address, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2026-10-21',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify(body),
-      signal: signal ?? null,
-    })
-  } catch (failure) {
-    throw new ModelRequestFailed(0, failure instanceof Error ? failure.message : String(failure))
-  }
-  const answer: unknown = await response.json().catch(() => null)
-  if (!response.ok) {
-    throw new ModelRequestFailed(response.status, errorMessage(answer) ?? (response.statusText || `HTTP ${response.status}`))
-  }
-  if (answer === null) {
-    throw new ModelRequestFailed(response.status, 'Anthropic answered with something that is not JSON.')
-  }
-  return answer
-}
-
-function errorMessage(answer: unknown): string | null {
-  const message = (answer as { error?: { message?: unknown } } | null)?.error?.message
-  return typeof message === 'string' ? message : null
 }
