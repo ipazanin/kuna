@@ -26,6 +26,10 @@ The repo is public, so an issue holds no personal data: no names, IBANs, OIBs, a
 5. Watch the run: `gh run watch <id> --exit-status`. Read a failure before retrying it.
 6. Once CI is green and the deploy is done, close the issue if its work is complete: `gh issue close <n> --reason completed`. A stage that leaves work open keeps the issue open, with a comment saying where it stands only if that is useful.
 
+## Proposals
+
+Agents propose out-of-scope improvements as `AGENTS.md` says, and an issue is created only after the owner's yes. Label each one `tech-debt` with its `app:` label and a status.
+
 ## Asking and telling
 
 Commits and pushes on Kuna have standing approval once checked. Decisions that are the owner's are asked as pickers, and the answer goes in the plan. A commit that belongs to no issue, such as a typo in a doc, needs none.

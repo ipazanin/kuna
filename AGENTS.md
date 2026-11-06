@@ -15,3 +15,12 @@ A new feature is not a licence to add code beside the old. When new code touches
 - Delete what a change leaves unused in that same change.
 - Stay in proportion. Refactor what the work touches, and name a larger problem in the plan or as a task rather than rewriting it unasked.
 - A refactor moves no figure. `npm run check:figures` stays identical, or the change says which groups move and why.
+
+## Propose what is out of scope
+
+When you see something worth improving that the work at hand should not take on, propose an issue instead of expanding the scope or leaving it in a report. This covers an implementation you are not happy with, tech debt, missing tests, and a bad or missing rule or skill.
+
+- Give what is wrong with file and line, one concrete failure or cost, the fix in a sentence or two, a rough size, and whether a mechanical check could stop it coming back.
+- Search open and closed issues first. Nothing is created without the owner's yes.
+- A subagent lists proposals at the end of its report, apart from findings to fix now. The lead brings them to the owner at the end of a chunk as pickers: create, drop or merge into an existing issue.
+- Approved ones get the `tech-debt` label. A rule problem is fixed in the rule or skill and, where possible, in a lint or boundary check.
