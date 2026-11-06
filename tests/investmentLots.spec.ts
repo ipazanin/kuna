@@ -42,7 +42,7 @@ describe('FIFO lots', () => {
     expect(decimalText(lots.open[0]!.costInCurrency)).toBe('600.5')
   })
 
-  it('splits a €1.00 fee over three one-unit lots as €0.33, €0.33 and €0.34', () => {
+  it('splits a €1.00 fee over three one-unit lots as €0.33, €0.34 and €0.33', () => {
     const records = book({
       instruments: [ETF],
       trades: [
@@ -53,11 +53,11 @@ describe('FIFO lots', () => {
       ],
     })
 
-    // Each lot gets a third: 0.333 rounds to 0.33 twice and the last takes the rest, 1.00 − 0.66 = 0.34.
+    // The running sum of the fee is 0.33, 0.67 and 1.00, so the parts are 0.33, 0.34 and 0.33.
     expect(lotsOf(records, ETF).sales[0]!.lines.map((line) => [line.proceeds / 100, line.fees / 100, line.gain / 100])).toEqual([
       [60, 0.33, 9.67],
-      [60, 0.33, 9.67],
       [60, 0.34, 9.66],
+      [60, 0.33, 9.67],
     ])
   })
 
@@ -69,7 +69,7 @@ describe('FIFO lots', () => {
     expect([decimalText(line!.costInCurrency), decimalText(line!.proceedsInCurrency), decimalText(line!.feesInCurrency)]).toEqual(['1000', '1200', '0'])
   })
 
-  it('splits a $1.00 fee over three one-unit lots as $0.33, $0.33 and $0.34', () => {
+  it('splits a $1.00 fee over three one-unit lots as $0.33, $0.34 and $0.33', () => {
     const tech = instrument('tech', { currency: USD })
     const records = book({
       instruments: [tech],
@@ -83,8 +83,8 @@ describe('FIFO lots', () => {
 
     expect(lotsOf(records, tech).sales[0]!.lines.map((line) => [decimalText(line.proceedsInCurrency), decimalText(line.feesInCurrency)])).toEqual([
       ['60', '0.33'],
-      ['60', '0.33'],
       ['60', '0.34'],
+      ['60', '0.33'],
     ])
   })
 
@@ -200,9 +200,9 @@ describe('FIFO lots', () => {
       splits: [split(ETF, '2026-07-01', 1, 3)],
     })
 
-    // 300 units scaled once is 100. Each of the first two lots gets 33.333333333333 and the last takes the rest.
+    // 300 units scaled once is 100. The running sum gives the middle lot the extra step.
     const lots = investmentLots({ ...records, trades: records.trades.slice(0, 3) }).get(ETF.id)!
-    expect(lots.open.map((lot) => decimalText(lot.quantity))).toEqual(['33.333333333333', '33.333333333333', '33.333333333334'])
+    expect(lots.open.map((lot) => decimalText(lot.quantity))).toEqual(['33.333333333333', '33.333333333334', '33.333333333333'])
     expect(decimalText(lots.units.get(BROKER.id)!)).toBe('100')
 
     const sold = lotsOf(records, ETF)

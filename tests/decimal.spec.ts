@@ -4,6 +4,7 @@ import {
   decimalOfMoney,
   decimalOfNumber,
   decimalOfText,
+  decimalCentParts,
   decimalParts,
   decimalText,
   dividedDecimal,
@@ -190,11 +191,34 @@ describe('decimal division', () => {
 })
 
 describe('parts of a total', () => {
-  it('rounds every part but the last, which takes the rest, so the parts add up', () => {
-    expect(moneyParts(moneyFromCents(100), [1n, 1n, 1n])).toEqual([33, 33, 34])
+  it('rounds a running sum, so the parts add up', () => {
+    // The running sum is 33.33, 66.67 and 100, rounded to 33, 67 and 100.
+    expect(moneyParts(moneyFromCents(100), [1n, 1n, 1n])).toEqual([33, 34, 33])
     // 1,949.00 over 10 and 5 units: 1,299.333… rounds to 1,299.33, and 649.67 is the rest.
     expect(moneyParts(moneyFromCents(194_900), [decimal('10'), decimal('5')])).toEqual([129_933, 64_967])
     expect(decimalParts(decimal('1001'), [decimal('5'), decimal('15')]).map(decimalText)).toEqual(['250.25', '750.75'])
+  })
+
+  it('never gives a part the opposite sign, where each part rounded on its own and a last part taking the rest would', () => {
+    const tenEqual = Array.from({ length: 10 }, () => 1n)
+    // Rounded on their own these were nine cents and -4.
+    expect(moneyParts(moneyFromCents(5), tenEqual)).toEqual([1, 0, 1, 0, 1, 0, 1, 0, 1, 0])
+    expect(moneyParts(moneyFromCents(-5), tenEqual)).toEqual([-1, 0, -1, 0, -1, 0, -1, 0, -1, 0])
+    // Rounded on their own these were 1, 1, 1, 1, 1 and -2.
+    expect(moneyParts(moneyFromCents(3), [1n, 1n, 1n, 1n, 1n, 1n])).toEqual([1, 0, 1, 0, 1, 0])
+    expect(moneyParts(moneyFromCents(5), [1n, 0n, 1n, 0n])).toEqual([3, 0, 2, 0])
+  })
+
+  it('rounds the running sum to the cent for a booked amount, and the last part keeps the finer places', () => {
+    expect(
+      decimalCentParts(
+        decimal('0.05'),
+        Array.from({ length: 10 }, () => 1n),
+      ).map(decimalText),
+    ).toEqual(['0.01', '0', '0.01', '0', '0.01', '0', '0.01', '0', '0.01', '0'])
+    expect(decimalCentParts(decimal('1.001'), [1n, 1n, 1n]).map(decimalText)).toEqual(['0.33', '0.34', '0.331'])
+    // The running sum 1.0055 rounds to 1.01, past the total 1.006, so it stops at the total and the last part is not negative.
+    expect(decimalCentParts(decimal('1.006'), [9995n, 5n]).map(decimalText)).toEqual(['1.006', '0'])
   })
 
   it('gives the whole total to the last part when the weights are all zero, and nothing to split for no weights', () => {

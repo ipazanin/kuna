@@ -4,9 +4,8 @@ import { monthsOfRange } from '../../../../../../shared/calendar/dateRange'
 import type { DateRange } from '../../../../../../shared/calendar/dateRange'
 import { firstDayOf, lastDayOf } from '../../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
-import { moneyFromCents } from '../../../../../../shared/money/money'
+import { moneyParts } from '../../../../../../shared/money/decimal'
 import type { Money } from '../../../../../../shared/money/money'
-import { prorated } from '../payroll/payrollArithmetic'
 
 /** The part of an amount that falls in one month, by the days of the range in it. */
 export interface DayShare {
@@ -21,25 +20,22 @@ export interface DaySpread {
   readonly shares: readonly DayShare[]
 }
 
-/** Spreads an amount evenly over the days of a range, rounding the running total so no cent is lost. */
+/** Spreads an amount evenly over the days of a range, so no cent is lost. */
 export function spreadByDays(amount: Money, range: DateRange): DaySpread {
   const totalDays = daysInclusive(range.from, range.to)
   if (totalDays < 1) {
     throw new RangeError(`${range.from} to ${range.to} is not a range of days.`)
   }
-  let daysSoFar = 0
-  let spreadSoFar = 0
-  const shares = monthsOfRange(range).map((month): DayShare => {
+  const months = monthsOfRange(range).map((month) => {
     const from = range.from > firstDayOf(month) ? range.from : firstDayOf(month)
     const to = range.to < lastDayOf(month) ? range.to : lastDayOf(month)
-    const days = daysInclusive(from, to)
-    daysSoFar += days
-    const runningTotal = prorated(amount, daysSoFar, totalDays)
-    const share = moneyFromCents(runningTotal - spreadSoFar)
-    spreadSoFar = runningTotal
-    return { month, days, amount: share }
+    return { month, days: daysInclusive(from, to) }
   })
-  return { totalDays, shares }
+  const amounts = moneyParts(
+    amount,
+    months.map(({ days }) => BigInt(days)),
+  )
+  return { totalDays, shares: months.map(({ month, days }, index) => ({ month, days, amount: amounts[index]! })) }
 }
 
 function daysInclusive(from: CivilDate, to: CivilDate): number {

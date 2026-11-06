@@ -14,6 +14,7 @@ import {
   DECIMAL_ZERO,
   addDecimal,
   decimalOfMoney,
+  decimalCentParts,
   decimalParts,
   inEuros,
   moneyParts,
@@ -271,8 +272,8 @@ function applySale(queue: Queue, trade: Trade): void {
   const proceeds = moneyParts(addMoney(inEuros(tradeTotal(trade, queue.quoting), trade.rate), fees), weights)
   const feeShares = moneyParts(fees, weights)
   const feesInCurrency = trade.fees ?? DECIMAL_ZERO
-  const proceedsInCurrency = centParts(addDecimal(tradeTotal(trade, queue.quoting), feesInCurrency), weights)
-  const feeSharesInCurrency = centParts(feesInCurrency, weights)
+  const proceedsInCurrency = decimalCentParts(addDecimal(tradeTotal(trade, queue.quoting), feesInCurrency), weights)
+  const feeSharesInCurrency = decimalCentParts(feesInCurrency, weights)
   const kept: Lot[] = []
   const lines = takes.map(({ lot, quantity }, index): RealisedLine => {
     const keptQuantity = subtractDecimal(lot.quantity, quantity)
@@ -302,14 +303,6 @@ function applySale(queue: Queue, trade: Trade): void {
   queue.open = [...kept, ...queue.open.slice(takes.length)]
   queue.sales.push({ trade, lines })
   moveUnits(queue.units, trade.account, negateDecimal(trade.quantity))
-}
-
-/** An amount a broker booked, split in proportion to the weights to the cent, the last part taking the rest so the parts add up to it. */
-function centParts(total: Decimal, weights: readonly bigint[]): Decimal[] {
-  const leading = decimalParts(total, weights)
-    .slice(0, -1)
-    .map((part) => roundedDecimal(part, 2))
-  return weights.length === 0 ? [] : [...leading, subtractDecimal(total, sumDecimal(leading))]
 }
 
 /**

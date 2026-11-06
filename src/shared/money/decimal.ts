@@ -121,16 +121,22 @@ export function roundedDecimal(value: Decimal, places: number): Decimal {
 }
 
 /**
- * The total split in proportion to the weights. Each part but the last is rounded half away from zero to twelve
- * places and the last takes the rest, so the parts always add up to the total. Weights are zero or more.
+ * The total split in proportion to the weights, each part the rise of a running sum rounded half away from zero to
+ * twelve places. So the parts add up to the total, and none has the opposite sign. Weights are zero or more, and when
+ * all are zero the last part takes the whole total.
  */
 export function decimalParts(total: Decimal, weights: readonly bigint[]): Decimal[] {
-  return proportionalParts(total, weights) as Decimal[]
+  return proportionalParts(total, weights, 1n) as Decimal[]
 }
 
-/** The same split as `decimalParts`, of euros to the cent, so a €1.00 fee over three equal lots is €0.33, €0.33 and €0.34. */
+/** The same split with the running sum rounded to the cent, for an amount a broker booked. The last part keeps any finer places of the total. */
+export function decimalCentParts(total: Decimal, weights: readonly bigint[]): Decimal[] {
+  return proportionalParts(total, weights, STEPS_PER_CENT) as Decimal[]
+}
+
+/** The same split of euros to the cent, so a €1.00 fee over three equal lots is €0.33, €0.34 and €0.33. */
 export function moneyParts(total: Money, weights: readonly bigint[]): Money[] {
-  return proportionalParts(BigInt(total), weights).map((cents) => moneyFromCents(Number(cents)))
+  return proportionalParts(BigInt(total), weights, 1n).map((cents) => moneyFromCents(Number(cents)))
 }
 
 /** The amount in euros at a rate of units per euro, rounded half away from zero to the cent. A null rate is for an amount already in euros. */
@@ -146,8 +152,20 @@ function decimalOfDigits(negative: boolean, whole: string, fraction: string): De
   return (negative ? -steps : steps) as Decimal
 }
 
-function proportionalParts(total: bigint, weights: readonly bigint[]): bigint[] {
+function proportionalParts(total: bigint, weights: readonly bigint[], step: bigint): bigint[] {
   const whole = weights.reduce((sum, weight) => sum + weight, 0n)
-  const leading = weights.slice(0, -1).map((weight) => (whole === 0n ? 0n : dividedHalfAwayFromZero(total * weight, whole)))
-  return weights.length === 0 ? [] : [...leading, total - leading.reduce((sum, part) => sum + part, 0n)]
+  let weightSoFar = 0n
+  let sharedSoFar = 0n
+  return weights.map((weight, index) => {
+    weightSoFar += weight
+    const rounded = whole === 0n ? 0n : dividedHalfAwayFromZero(total * weightSoFar, whole * step) * step
+    const upToHere = index === weights.length - 1 || absolute(rounded) > absolute(total) ? total : rounded
+    const part = upToHere - sharedSoFar
+    sharedSoFar = upToHere
+    return part
+  })
+}
+
+function absolute(amount: bigint): bigint {
+  return amount < 0n ? -amount : amount
 }

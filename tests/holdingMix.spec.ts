@@ -156,7 +156,7 @@ describe('the mixes of the holdings', () => {
     ])
   })
 
-  it('splits a holding in three accounts by its units there, the last account taking the rest', () => {
+  it('splits a holding in three accounts by its units there, by a running sum', () => {
     const first = account('first', 'First')
     const second = account('second', 'Second')
     const third = account('third', 'Third')
@@ -170,12 +170,12 @@ describe('the mixes of the holdings', () => {
     })
     const figures = figuresOf(records, new Map([[etf, [['2026-10-29', '33.333333']]]]))
 
-    // 3 × 33.333333 is €100.00, a unit in each account: €33.33 twice, and the third account, the last to hold it, takes the cent left.
+    // 3 × 33.333333 is €100.00, a unit in each account: the running sum is €33.33, €66.67 and €100.00, so the second account takes the extra cent.
     expect(new Map(holdingMix(figures, records, NOTHING_FETCHED, 'account').parts.map((part) => [part.group, part.value]))).toEqual(
       new Map([
         [first.id, euros(33.33)],
-        [second.id, euros(33.33)],
-        [third.id, euros(33.34)],
+        [second.id, euros(33.34)],
+        [third.id, euros(33.33)],
       ]),
     )
   })
