@@ -15,9 +15,12 @@ export const en = {
   addInformalLoan: 'Add informal loan',
   empty: {
     title: 'No loans yet',
-    description: 'Add a bank loan from its contract and Kuna works out its plan, its subsidy and what is still owed. Or keep an informal loan between people.',
+    description: 'Add a bank loan with your contract beside you. Six details give you what you owe today and every payment to come. A loan between people goes in as an informal loan.',
     onDrive: (name: string) => `Your Loans file is ready, kept on Google Drive as ${name}.`,
     inBrowser: 'Your Loans file is ready, kept in this browser.',
+  },
+  setUp: {
+    firstLoan: 'Add your first loan',
   },
   problems: {
     title: (count: number): EnglishForms => ({ one: 'A record in the Loans file is left out or doubted', other: `${count} records in the Loans file are left out or doubted` }),
@@ -126,9 +129,12 @@ export const hr: Translation<typeof en> = {
   addInformalLoan: 'Dodaj pozajmicu',
   empty: {
     title: 'Još nema kredita ni pozajmica',
-    description: 'Dodajte kredit iz ugovora i Kuna će izračunati otplatni plan, subvenciju i preostali dug. Ili vodite pozajmicu među ljudima.',
+    description: 'Dodajte kredit s ugovorom pri ruci. Šest podataka daje dug na današnji dan i svaku buduću uplatu. Pozajmicu među ljudima dodajte zasebno.',
     onDrive: (name) => `Datoteka kredita je spremna i čuva se na Google Driveu kao ${name}.`,
     inBrowser: 'Datoteka kredita je spremna i čuva se u ovom pregledniku.',
+  },
+  setUp: {
+    firstLoan: 'Dodajte svoj prvi kredit',
   },
   problems: {
     title: (count) => ({

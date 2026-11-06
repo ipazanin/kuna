@@ -14,13 +14,16 @@ import { PRICES_FILE_NAME, encodePricesFile } from '../../../prices/domain/price
 import { fakePricesFile } from '../../../prices/infrastructure/fake/fakePrices'
 import type { FakePricesVariant } from '../../../prices/infrastructure/fake/fakePrices'
 import { PRICES_DATABASE_PREFIX, openPricesCache } from '../../../prices/infrastructure/pricesCache'
+import { keepSetUpAnswer } from '../../../../../shared/app/setUpAnswer'
+import { HISTORY_COMPLETE } from '../../../tax/domain/historyAnswer'
 import { seedFakeSecrets } from '../../../../../shared/secrets/infrastructure/fake/seedFakeSecrets'
 import { AUTO_SYNC_INTERVAL_MS } from '../../../../../shared/sync/application/autoSync'
 
 /**
  * Sets up the fake build's Investments file as `?investments=` names it, each on the fake Drive but `browser`: `drive`
  * an empty file chosen on this device, `sample` a chosen file holding the made-up portfolio, `cash-below-zero` the
- * sample without the deposit of its second account, `young` a portfolio seven months old with no benchmark, `opening`
+ * sample without the deposit of its second account, `young` a portfolio seven months old with no benchmark, `partial-history`
+ * the sample with nobody having said its history is complete, as the others have, `opening`
  * the sample chosen with nothing in this browser and every read of it held, so the Investments screens stay opening,
  * `binned` the sample as another device left it, moved to the bin with its prices file after this browser last read it,
  * and `browser` the sample kept in this browser with its prices. Without it nothing is chosen, which is the Investments
@@ -37,15 +40,17 @@ export async function seedFakeInvestments(variant: string | null, pricesVariant:
     await seedInBrowser(pricesVariant)
     return
   }
-  if (variant !== 'drive' && variant !== 'sample' && variant !== 'cash-below-zero' && variant !== 'young' && variant !== 'opening' && variant !== 'binned') {
+  if (variant !== 'drive' && variant !== 'sample' && variant !== 'cash-below-zero' && variant !== 'young' && variant !== 'partial-history' && variant !== 'opening' && variant !== 'binned') {
     saveWorkbookChoice(INVESTMENTS_APP, null)
     return
   }
   const savedAt = new Date().toISOString()
-  const document = variant === 'drive' ? emptyInvestmentsDocument(savedAt) : fakeInvestmentsDocument(savedAt, variant === 'opening' || variant === 'binned' ? 'sample' : variant)
+  const document =
+    variant === 'drive' ? emptyInvestmentsDocument(savedAt) : fakeInvestmentsDocument(savedAt, variant === 'opening' || variant === 'binned' || variant === 'partial-history' ? 'sample' : variant)
   const folder = await fakeBooksFolder()
   const created = await createDriveDocument(fakeDriveSession(), folder, INVESTMENTS_APP, encodeDocument(document))
   const choice = { source: 'drive', id: created.fileId, name: documentName(INVESTMENTS_APP) } as const
+  if (variant !== 'partial-history') keepSetUpAnswer(created.fileId, HISTORY_COMPLETE)
   const pricesFileId = variant !== 'drive' || pricesVariant !== null ? await seedFakePrices(folder, created.fileId, pricesVariantOf(pricesVariant), savedAt) : null
   const keysSeeded = await seedFakeSecrets(keysVariant, created.fileId)
   if (variant === 'opening') {
@@ -86,6 +91,7 @@ const FAKE_LOCAL_INVESTMENTS_ID = 'local-fake-investments'
 
 /** The sample kept in this browser and chosen, with the fake prices as this browser keeps them for a file with no prices file on Drive. */
 async function seedInBrowser(pricesVariant: string | null): Promise<void> {
+  keepSetUpAnswer(FAKE_LOCAL_INVESTMENTS_ID, HISTORY_COMPLETE)
   const savedAt = new Date().toISOString()
   const document = fakeInvestmentsDocument(savedAt, 'sample')
   const stored = await replaceBrowserDocument(FAKE_LOCAL_INVESTMENTS_ID, encodeDocument(document))

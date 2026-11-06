@@ -11,9 +11,13 @@ export const en = {
   addAsset: 'Add an asset',
   empty: {
     title: 'No assets yet',
-    description: "Add your flat, your car or anything else you own. Kuna carries a flat's price by the house price index and estimates a car by the customs table.",
+    description:
+      "Add your flat, your car or anything else you own. Kuna moves a flat's price with the official house price index and estimates a car from the customs table, which is not a market price. These are estimates, so add a valuation when you have one.",
     onDrive: (name: string) => `Your Assets file is ready, kept on Google Drive as ${name}.`,
     inBrowser: 'Your Assets file is ready, kept in this browser.',
+  },
+  setUp: {
+    firstAsset: 'Add your first asset',
   },
   problems: {
     title: (count: number): EnglishForms => ({ one: 'A record in the Assets file is left out or doubted', other: `${count} records in the Assets file are left out or doubted` }),
@@ -32,9 +36,13 @@ export const hr: Translation<typeof en> = {
   addAsset: 'Dodaj imovinu',
   empty: {
     title: 'Još nema imovine',
-    description: 'Dodajte stan, automobil ili bilo što drugo što posjedujete. Kuna cijenu stana preračunava indeksom cijena stambenih objekata, a automobil procjenjuje carinskom tablicom.',
+    description:
+      'Dodajte stan, automobil ili bilo što drugo što posjedujete. Kuna cijenu stana prati službenim indeksom cijena stambenih objekata, a automobil procjenjuje carinskom tablicom, koja nije tržišna cijena. To su procjene, pa dodajte procjenu vrijednosti kad je imate.',
     onDrive: (name) => `Datoteka imovine je spremna i čuva se na Google Driveu kao „${name}”.`,
     inBrowser: 'Datoteka imovine je spremna i čuva se u ovom pregledniku.',
+  },
+  setUp: {
+    firstAsset: 'Dodajte svoju prvu imovinu',
   },
   problems: {
     title: (count): CroatianForms => ({

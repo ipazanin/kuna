@@ -58,6 +58,9 @@ export const en = {
     addTitle: 'Add a transaction',
     changeTitle: 'Change a transaction',
     description: 'Start from what happened. Undo takes back any change.',
+    alreadyHeldTitle: 'Add what you hold',
+    alreadyHeld: 'Kuna also adds a deposit for what this buy cost, so your cash stays as it was and the value is what you hold. One Undo takes back both.',
+    alreadyHeldNote: 'Added with a holding, to pay for it',
     happened: 'What happened',
     summary: 'What it does',
     happenings: {
@@ -242,6 +245,9 @@ export const hr: Translation<typeof en> = {
     addTitle: 'Dodaj transakciju',
     changeTitle: 'Promijeni transakciju',
     description: 'Krenite od onoga što se dogodilo. Svaku promjenu možete poništiti.',
+    alreadyHeldTitle: 'Dodajte što držite',
+    alreadyHeld: 'Kuna dodaje i uplatu za ono što je ova kupnja koštala, pa novac ostaje kakav je bio, a vrijednost je ono što držite. Jedno poništavanje vraća oboje.',
+    alreadyHeldNote: 'Dodano uz poziciju, kao njezino plaćanje',
     happened: 'Što se dogodilo',
     summary: 'Što mijenja',
     happenings: {

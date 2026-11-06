@@ -11,6 +11,7 @@ import { usePrices } from '../../prices/presentation/usePrices'
 import AccountsCard from './AccountsCard.vue'
 import BenchmarkCard from './BenchmarkCard.vue'
 import ChecksCard from './ChecksCard.vue'
+import HistoryCard from './HistoryCard.vue'
 import InvestmentsBooksCard from './InvestmentsBooksCard.vue'
 import { words } from './words'
 
@@ -33,6 +34,7 @@ const tabs = computed(() => [
           <InvestmentsBooksCard />
           <AccountsCard />
           <BenchmarkCard />
+          <HistoryCard />
         </div>
       </template>
       <template #prices>

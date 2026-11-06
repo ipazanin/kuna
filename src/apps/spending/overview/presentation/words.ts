@@ -8,11 +8,16 @@ import type { CroatianForms, EnglishForms, Translation } from '../../../../share
 export const en = {
   description: 'What you spent this month by group and against your limits, the months before, and your accounts.',
   empty: {
-    title: 'No entries yet',
-    description: 'Add your bank accounts and your cash on Accounts, then type what comes in and goes out.',
+    title: 'Start with one account',
+    description: 'The account you use most, with what it held on the first of this month. Then import a Revolut export on Import or type a few entries. The other accounts can wait.',
     addAccount: 'Add an account',
     onDrive: (name: string) => `Your Spending file is ready, kept on Google Drive as ${name}.`,
     inBrowser: 'Your Spending file is ready, kept in this browser.',
+  },
+  setUp: {
+    firstAccount: 'Add one account',
+    firstEntries: 'Import a Revolut export, or type your first entries on Entries',
+    importLink: 'Import',
   },
   problems: {
     title: (count: number): EnglishForms => ({ one: 'A record in the Spending file is left out or doubted', other: `${count} records in the Spending file are left out or doubted` }),
@@ -66,11 +71,16 @@ export const en = {
 export const hr: Translation<typeof en> = {
   description: 'Što ste ovaj mjesec potrošili po skupinama i prema ograničenjima, prethodni mjeseci i vaši računi.',
   empty: {
-    title: 'Još nema unosa',
-    description: 'Dodajte bankovne račune i gotovinu na stranici Računi, a zatim unosite što dolazi i odlazi.',
+    title: 'Počnite s jednim računom',
+    description: 'Račun kojim se najviše služite i njegovo stanje prvog u mjesecu. Zatim u Uvozu uvezite izvoz iz Revoluta ili upišite nekoliko unosa. Ostali računi mogu pričekati.',
     addAccount: 'Dodaj račun',
     onDrive: (name) => `Datoteka potrošnje je spremna i čuva se na Google Driveu kao „${name}”.`,
     inBrowser: 'Datoteka potrošnje je spremna i čuva se u ovom pregledniku.',
+  },
+  setUp: {
+    firstAccount: 'Dodajte jedan račun',
+    firstEntries: 'Uvezite izvoz iz Revoluta ili upišite prve unose na stranici Unosi',
+    importLink: 'Uvoz',
   },
   problems: {
     title: (count): CroatianForms => ({

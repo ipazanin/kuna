@@ -3080,7 +3080,7 @@ export function onboardingDriveFlowIn(language) {
     await toastCounted(page, (count) => words.importWrites.imported(['main'], count))
     await onboardingAt(page, 'overview')
     const lines = await setUpLines(page)
-    if (JSON.stringify(lines) !== JSON.stringify(['categories'])) throw new Error(`Getting set up lists ${lines.join(', ')}, not the categories alone`)
+    if (JSON.stringify(lines) !== JSON.stringify(['first-rules', 'categories'])) throw new Error(`Getting set up lists ${lines.join(', ')}, not the first rules and the categories`)
     await inspect?.('Overview getting set up')
     await shoot('onboarding-overview')
     await dismissToasts(page)
@@ -3278,6 +3278,12 @@ export function onboardingBrowserFlowIn(language) {
     if (JSON.stringify(lines) !== JSON.stringify(['first-statement', 'categories'])) throw new Error(`Getting set up lists ${lines.join(', ')}`)
     await inspect?.('new books in this browser')
     await shoot('onboarding-browser')
+    await pressSelector(page, press, '[data-testid="set-up-categories-look-right"]')
+    await page
+      .waitForFunction(() => !document.querySelector('[data-line="categories"]'), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('These look right did not clear the categories line')
+      })
     await pressButton(page, press, '[data-line="first-statement"] a', setUp.importLink)
     await page.waitForSelector('[data-testid="import-file"]', { visible: true, timeout: 10_000 }).catch(() => {
       throw new Error('Getting set up did not open Import')
@@ -6197,6 +6203,7 @@ async function addChange(page, press, card) {
 export async function loansEditorFlow(page, { press, shoot, inspect }) {
   await pressSelector(page, press, '[data-testid="add-bank-loan"]')
   await page.waitForSelector('[data-testid="bank-loan-form"]', { visible: true })
+  if (await page.$('[data-testid="bank-loan-lender"]')) throw new Error('a new bank loan shows its lender before More details is opened')
   await fill(page, 'bank-loan-name', 'Car loan')
   await fill(page, 'bank-loan-principal', '12000')
   await fill(page, 'bank-loan-instalments', '48')
@@ -6215,6 +6222,7 @@ export async function loansEditorFlow(page, { press, shoot, inspect }) {
   await page.waitForSelector('[data-testid="rate-period-form"]', { visible: true })
   await chooseStartingWith(page, press, '[data-testid="rate-period-from"]', '10 Feb 2027')
   await fill(page, 'rate-field', '5.9')
+  await fill(page, 'rate-period-note', '3M EURIBOR + 0.67')
   await shoot('loans-add-rate-period')
   await pressSelector(page, press, '[data-testid="rate-period-save"]')
   await toast(page, 'Rate period added')
@@ -6766,6 +6774,7 @@ export function loansDialogsFlowIn(language) {
     await lookAtDialog(page, press, shoot, '[data-testid="add-informal-loan"]', '[data-testid="informal-loan-form"]', 'dialog-add-informal-loan')
     await lookAtDialog(page, press, shoot, '[data-testid="add-bank-loan"]', '[data-testid="bank-loan-form"]', 'dialog-add-bank-loan')
     await pressSelector(page, press, '[data-testid="add-bank-loan"]')
+    await pressSelector(page, press, '[data-testid="bank-loan-more-toggle"]')
     await pressSelector(page, press, ':is([data-testid="bank-loan-subsidised"][role="switch"], [data-testid="bank-loan-subsidised"] [role="switch"])')
     await switchIs(page, 'bank-loan-subsidised', true)
     await delay(300)
@@ -7869,4 +7878,125 @@ export async function figureExplainFlow(page, { press, shoot, inspect }) {
   } finally {
     await forgetAssist(page)
   }
+}
+
+/** A file with its history not said to be complete: Overview's set-up line says tax figures are out, Tax holds them back, and My history is complete brings them on. */
+export async function investmentsHistoryFlow(page, { press, shoot, inspect }) {
+  await page.waitForSelector('[data-testid="getting-set-up"] [data-line="history"]', { visible: true, timeout: 10_000 })
+  await inspect?.('the set-up line of a file whose history is not complete')
+  const holdingSaysTaxFree = async () => {
+    await goTo(page, '#/investments/holdings', 'Holdings')
+    await pressSelector(page, press, '[data-testid="holdings-rows"] a[data-testid="holding-row"]')
+    await page.waitForSelector('[data-testid="holding-facts"]', { visible: true, timeout: 10_000 })
+    return page.evaluate(() => ['holding-facts', 'holding-lots'].some((testId) => document.querySelector(`[data-testid="${testId}"]`)?.textContent?.toLowerCase().includes('tax-free') === true))
+  }
+  const saleSaysTax = async () => {
+    await goTo(page, '#/investments/transactions', 'Transactions')
+    await pressSelector(page, press, '[data-testid="transactions-add"]')
+    await page.waitForSelector('[data-testid="transaction-form"]', { visible: true })
+    await pressLabelled(page, press, '[data-testid="transaction-happened"]', 'Sell')
+    await chooseStartingWith(page, press, '[data-testid="transaction-instrument"]', 'Example Tech')
+    await chooseStartingWith(page, press, '[data-testid="transaction-account"]', 'Broker One')
+    await fill(page, 'transaction-quantity', '2')
+    await fill(page, 'transaction-price', '160')
+    await page.waitForSelector('[data-testid="transaction-summary"]', { visible: true, timeout: 10_000 })
+    await delay(300)
+    const says = await page.$eval('[data-testid="transaction-summary"]', (summary) => summary.textContent?.includes('Tax on this sale') === true)
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="transaction-form"]')
+    return says
+  }
+  if (await holdingSaysTaxFree()) throw new Error('a holding page says what turns tax-free before the history is complete')
+  if (await saleSaysTax()) throw new Error('a sale says its tax before the history is complete')
+  await goTo(page, '#/investments', 'Overview')
+  await pressSelector(page, press, '[data-line="history"] a')
+  await page.waitForSelector('[data-testid="tax-history"]', { visible: true, timeout: 10_000 })
+  await shoot('investments-tax-history')
+  await pressLabelled(page, press, '[data-testid="tax-tabs"]', 'Abroad')
+  await page
+    .waitForFunction(() => !document.querySelector('[data-testid="tax-history"]'), { timeout: 10_000 })
+    .catch(() => {
+      throw new Error('income from abroad waits for the history, though it reads no buys')
+    })
+  await pressLabelled(page, press, '[data-testid="tax-tabs"]', 'Year')
+  await pressSelector(page, press, '[data-testid="tax-history-confirm"]')
+  await page
+    .waitForFunction(() => !document.querySelector('[data-testid="tax-history"]'), { timeout: 10_000 })
+    .catch(() => {
+      throw new Error('My history is complete did not bring the tax figures on')
+    })
+  if (!(await holdingSaysTaxFree())) throw new Error('a holding page leaves out what turns tax-free once the history is complete')
+  if (!(await saleSaysTax())) throw new Error('a sale leaves out its tax once the history is complete')
+  await goTo(page, '#/investments/settings', 'Settings')
+  await pressSelector(page, press, '[data-testid="history-not-complete"]')
+  await page
+    .waitForFunction(() => !document.querySelector('[data-testid="investments-history"]'), { timeout: 10_000 })
+    .catch(() => {
+      throw new Error('My history is not complete yet did not take the answer back')
+    })
+  await goTo(page, '#/investments/tax', 'Tax')
+  await page.waitForSelector('[data-testid="tax-history"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Tax on sales still shows after the answer was taken back')
+  })
+}
+
+/** Add what I hold now on the sample before its history is said complete: one buy writes one deposit too, cash ends where it was, and one Undo takes both. */
+export async function investmentsAddHeldFlow(page, { press, shoot, inspect }) {
+  await pressSelector(page, press, '[data-testid="investments-add-held"]')
+  await page.waitForSelector('[data-testid="transaction-form"]', { visible: true, timeout: 10_000 })
+  if (await page.$('[data-testid="transaction-happened"]')) throw new Error('adding what you hold offers more than a buy')
+  await delay(300)
+  await elementSays(page, '[role="dialog"]', ['Kuna also adds a deposit'], 'the dialog does not say it adds a deposit')
+  await inspect?.('the dialog of what you hold')
+  await shoot('investments-add-held')
+  await chooseStartingWith(page, press, '[data-testid="transaction-instrument"]', 'Example World')
+  await chooseStartingWith(page, press, '[data-testid="transaction-account"]', 'Broker One')
+  await fill(page, 'transaction-quantity', '1')
+  await fill(page, 'transaction-price', '100')
+  await pressSelector(page, press, '[data-testid="transaction-save"]')
+  await toast(page, 'Buy added')
+  await goTo(page, '#/investments/transactions', 'Transactions')
+  await elementSays(page, '[data-testid="transactions"]', ['+€100.00', '−€100.00'], 'the deposit was not written with the buy')
+  await undo(page, press)
+  await delay(500)
+  const leftBehind = await page.$eval('[data-testid="transactions"]', (list) => list.textContent?.includes('+€100.00') === true || list.textContent?.includes('−€100.00') === true)
+  if (leftBehind) throw new Error('one Undo left the buy or its deposit behind')
+  await dismissToasts(page)
+}
+
+/** A new account from Accounts starts today, so a balance typed from the bank's screen is not counted twice. */
+export async function spendingAccountOpensTodayFlow(page, { press }) {
+  await pressSelector(page, press, '[data-testid="spending-add-account"]')
+  await page.waitForSelector('[data-testid="spending-account-dialog"]', { visible: true, timeout: 10_000 })
+  const shown = await page.$eval('input[data-testid="spending-account-opened-on"], [data-testid="spending-account-opened-on"] input', (input) => input.value)
+  const local = await page.evaluate(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  })
+  if (shown !== local) throw new Error(`a new account from Accounts opens on ${shown}, not today`)
+  await delay(300)
+}
+
+/** A new Spending file asks for one account in place, then says what comes next and opens Import. */
+export async function spendingFirstAccountFlow(page, { press, shoot, inspect }) {
+  await page.waitForSelector('[data-testid="spending-empty"]', { visible: true, timeout: 10_000 })
+  await pressSelector(page, press, '[data-testid="spending-overview-add-account"]')
+  await page.waitForSelector('[data-testid="spending-account-dialog"]', { visible: true, timeout: 10_000 })
+  await delay(300)
+  const openedOn = await page.$eval('input[data-testid="spending-account-opened-on"], [data-testid="spending-account-opened-on"] input', (input) => input.value)
+  if (!openedOn.endsWith('-01')) throw new Error(`the first account on Overview opens on ${openedOn}, not the first of the month`)
+  await inspect?.('the account dialog on an empty Overview')
+  await shoot('spending-first-account')
+  await fill(page, 'spending-account-name', 'Current account')
+  await pressSelector(page, press, '[data-testid="spending-account-save"]')
+  await page.waitForSelector('[data-testid="getting-set-up"] [data-line="first-entries"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Overview does not say what comes after the first account')
+  })
+  await dismissToasts(page)
+  await pressSelector(page, press, '[data-line="first-entries"] a')
+  await page
+    .waitForFunction(() => window.location.hash.includes('tab=import'), { timeout: 10_000 })
+    .catch(() => {
+      throw new Error('The first entries line did not open Import')
+    })
 }

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { matchingDeposit } from '../domain/matchingDeposit'
+import { CASH_MOVEMENT_RECORDS } from '../../workbook/domain/investmentKinds'
 import { computed, reactive, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
@@ -25,7 +27,7 @@ import type { Happening, TransactionStart, TransactionTexts } from './transactio
 import { words } from './words'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { newRecordId } from '../../../../shared/storage/domain/recordId'
+import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
@@ -43,6 +45,8 @@ const props = defineProps<{
   editing: TransactionRecord | null
   /** Where a new record starts, a buy with no holding unless given. */
   start?: Partial<Omit<TransactionStart, 'today'>>
+  /** A buy of something already held: only buys are offered, and each is written with the deposit that paid for it, so one Undo takes both. */
+  alreadyHeld?: boolean
 }>()
 
 const store = useInvestmentsBooks()
@@ -58,7 +62,7 @@ const tried = ref(false)
 /** Whether the rate is the user's own rather than the ECB's, so a new date or currency leaves it alone. */
 const rateTyped = ref(false)
 
-const happenings = computed((): readonly Happening[] => (props.editing === null ? HAPPENINGS : happeningsOfKind(props.editing.kind)))
+const happenings = computed((): readonly Happening[] => (props.alreadyHeld === true ? ['buy'] : props.editing === null ? HAPPENINGS : happeningsOfKind(props.editing.kind)))
 const happeningOptions = computed(() => happenings.value.map((value) => ({ value, label: words.dialog.happenings[value] })))
 
 const currencyOfRate = computed(() => rateCurrency(texts, book.value))
@@ -110,9 +114,19 @@ async function save(): Promise<void> {
   const record = draft.value.record
   if (record === null) return
   const before = props.editing
-  const written = await writes.write(before === null ? words.dialog.added(kindName.value) : words.dialog.saved(kindName.value), (unit) => writeTransaction(unit, before, record), {
-    failedTitle: before === null ? words.dialog.notAdded : words.dialog.notSaved,
-  })
+  const instrument = book.value.instruments.find((candidate) => record.kind === 'trade' && candidate.id === record.record.instrument)
+  const deposit =
+    props.alreadyHeld === true && record.kind === 'trade' && instrument !== undefined
+      ? matchingDeposit(record.record, instrument, recordIdOf(CASH_MOVEMENT_RECORDS, newRecordId()), words.dialog.alreadyHeldNote)
+      : null
+  const written = await writes.write(
+    before === null ? words.dialog.added(kindName.value) : words.dialog.saved(kindName.value),
+    (unit) => {
+      writeTransaction(unit, before, record)
+      if (deposit !== null) writeTransaction(unit, null, { kind: 'cash-movement', record: deposit })
+    },
+    { failedTitle: before === null ? words.dialog.notAdded : words.dialog.notSaved },
+  )
   if (written) open.value = false
 }
 
@@ -124,7 +138,12 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="editing === null ? words.dialog.addTitle : words.dialog.changeTitle" :description="words.dialog.description" width="2xl">
+  <AppDialog
+    v-model:open="open"
+    :title="alreadyHeld ? words.dialog.alreadyHeldTitle : editing === null ? words.dialog.addTitle : words.dialog.changeTitle"
+    :description="alreadyHeld ? words.dialog.alreadyHeld : words.dialog.description"
+    width="2xl"
+  >
     <div v-if="happenings.length > 1" class="mb-5">
       <p class="mb-2 type-label">{{ words.dialog.happened }}</p>
       <ChoiceButtons v-model="texts.happened" :options="happeningOptions" :label="words.dialog.happened" data-testid="transaction-happened" />

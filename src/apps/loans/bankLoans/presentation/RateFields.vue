@@ -1,7 +1,6 @@
 <script lang="ts">
 import { typedRate } from '../domain/yearlyRate'
 import type { RatePeriod } from '../../workbook/domain/ratePeriod'
-import { words as loansWords } from '../../words'
 import { words } from './words'
 
 export interface RateTexts {
@@ -20,7 +19,7 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 
-/** The rate of a period, whether the bank can change it, and for a variable rate its index and margin. */
+/** The rate of a period and whether the bank can change it. */
 const texts = defineModel<RateTexts>({ required: true })
 
 defineProps<{
@@ -39,7 +38,4 @@ const RATE_TYPES = [
     <UInput v-model="texts.rate" inputmode="decimal" :placeholder="words.rateFields.ratePlaceholder" class="w-full" data-testid="rate-field" />
   </UFormField>
   <URadioGroup v-model="texts.rateType" :items="RATE_TYPES" :legend="words.rateFields.type" orientation="vertical" data-testid="rate-type" />
-  <UFormField :label="loansWords.form.note" :help="words.rateFields.noteHelp" class="sm:col-span-2">
-    <UInput v-model="texts.note" class="w-full" />
-  </UFormField>
 </template>

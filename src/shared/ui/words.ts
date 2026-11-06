@@ -7,6 +7,11 @@ export const en = {
   back: 'Back',
   about: (subject: string) => `About ${subject}`,
   sortBy: (column: string) => `Sort by ${column.toLowerCase()}`,
+  setUp: {
+    title: 'Getting set up',
+    subtitle: 'What is still missing. Each line goes once it is done.',
+    open: (line: string, link: string) => `${line}, open ${link}`,
+  },
   showFewer: 'Show fewer',
   showAll: (total: number) => `Show all ${total}`,
   shownOf: (shown: number, total: number) => `${shown} of ${total} shown`,
@@ -33,6 +38,11 @@ export const hr: Translation<typeof en> = {
   back: 'Natrag',
   about: (subject) => `Objašnjenje: ${subject}`,
   sortBy: (column) => `Poredaj po stupcu ${column}`,
+  setUp: {
+    title: 'Postavljanje',
+    subtitle: 'Što još nedostaje. Svaki redak nestaje kad se obavi.',
+    open: (line, link) => `${line}, otvorite: ${link}`,
+  },
   showFewer: 'Prikaži manje',
   showAll: (total) => `Prikaži sve (${total})`,
   shownOf: (shown, total) => `Prikazano ${shown} od ${total}`,

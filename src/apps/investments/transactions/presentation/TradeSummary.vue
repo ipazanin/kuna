@@ -7,12 +7,15 @@ import { QUANTITY_PLACES } from '../../holdings/presentation/holdingText'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { Trade } from '../../workbook/domain/trade'
 import { words } from './words'
+import { useTaxShown } from '../../tax/presentation/useTaxShown'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatCurrencyAmount, formatMoney, formatQuantity } from '../../../../shared/money/moneyFormat'
 import FactGrid from '../../../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../../../shared/ui/FactGrid.vue'
 
 /** What a buy or a sale comes to in both currencies, and what the account holds afterwards, with a sale's units past two years. */
+const taxShown = useTaxShown()
+
 const props = defineProps<{
   preview: TradePreview
   trade: Trade
@@ -37,7 +40,7 @@ const facts = computed((): Fact[] => {
     { label: words.summary.holdAfter, value: words.lines.units(formatQuantity(preview.unitsAfter, QUANTITY_PLACES)), caption: words.summary.inAccount(props.account) },
     { label: words.summary.cashAfter(currency), value: formatCurrencyAmount(preview.cashAfter, currency), caption: words.summary.inAccount(props.account) },
     ...(after === '' ? [] : [{ label: words.summary.averageCost, value: after, ...(before !== '' && before !== after ? { caption: words.summary.averageCostFrom(before) } : {}) }]),
-    ...(preview.taxSplit === null
+    ...(preview.taxSplit === null || !taxShown.value
       ? []
       : [
           {
@@ -46,7 +49,7 @@ const facts = computed((): Fact[] => {
             caption: words.summary.taxFreeCaption,
           },
         ]),
-    ...(preview.tax === null
+    ...(preview.tax === null || !taxShown.value
       ? []
       : [
           {
@@ -67,7 +70,7 @@ const facts = computed((): Fact[] => {
     </p>
     <template v-else>
       <FactGrid :facts="facts" />
-      <p v-if="preview.tax !== null && preview.tax.nearTaxFreeDay !== null" class="mt-3 flex items-start gap-2 type-body text-warning" data-testid="transaction-near-tax-free">
+      <p v-if="taxShown && preview.tax !== null && preview.tax.nearTaxFreeDay !== null" class="mt-3 flex items-start gap-2 type-body text-warning" data-testid="transaction-near-tax-free">
         <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0" />
         <span>{{ words.summary.nearTaxFreeDay(dayLabel(preview.tax.nearTaxFreeDay)) }}</span>
       </p>

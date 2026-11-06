@@ -15,9 +15,25 @@ export const en = {
   closeLine: (day: string) => `At the close of ${day}. Prices update once a day, when Kuna opens.`,
   empty: {
     title: 'No transactions yet',
-    description: 'Kuna keeps every buy, sale, dividend, deposit and exchange of your brokers here, and works out what they are worth and what they earned.',
+    description: 'Two ways to start.',
+    byHand: 'Add a buy for each thing you hold and see its value today. Kuna adds the deposit that paid for it. Tax on sales stays out until your history is complete.',
+    fullHistory: 'Or fill in the template with every buy and sale since your first. Kuna counts a gain from what you paid, so a tax figure needs them all.',
+    addHoldings: 'Add what I hold now',
+    importHistory: 'Import my full history',
     onDrive: (name: string) => `Your Investments file is ready, kept on Google Drive as ${name}.`,
     inBrowser: 'Your Investments file is ready, kept in this browser.',
+  },
+  setUp: {
+    firstHoldings: 'Add what you hold, or import your full history',
+    cashBelowZero: 'Cash is below zero, so the value is too low. Add the deposit that paid for your buys',
+    transactionsLink: 'Transactions',
+    prices: (count: number): EnglishForms => ({
+      one: '1 holding has no price, so it is left out of the value. Add a free price key or type a price',
+      other: `${count} holdings have no price, so they are left out of the value. Add a free price key or type prices`,
+    }),
+    pricesLink: 'Prices',
+    history: 'Tell Kuna when this is your whole history, to see tax on your sales',
+    taxLink: 'Tax',
   },
   problems: {
     title: (count: number): EnglishForms => ({ one: 'A record in the Investments file is left out or doubted', other: `${count} records in the Investments file are left out or doubted` }),
@@ -147,9 +163,26 @@ export const hr: Translation<typeof en> = {
   closeLine: (day) => `${withFullStop(`Stanje na zatvaranju: ${day}`)} Cijene se ažuriraju jednom dnevno, kad otvorite Kunu.`,
   empty: {
     title: 'Još nema transakcija',
-    description: 'Kuna ovdje čuva svaku kupnju, prodaju, dividendu, uplatu i konverziju kod vaših brokera te izračunava vrijednost i zaradu vaših ulaganja.',
+    description: 'Dva načina za početak.',
+    byHand: 'Dodajte kupnju za sve što držite i vidite vrijednost danas. Kuna dodaje uplatu kojom je plaćena. Porez na prodaje ostaje izostavljen dok povijest nije potpuna.',
+    fullHistory: 'Ili u predložak upišite svaku kupnju i prodaju od prve nadalje. Kuna dobit računa iz onoga što ste platili, pa porezni podaci trebaju sve.',
+    addHoldings: 'Dodaj što držim',
+    importHistory: 'Uvezi cijelu povijest',
     onDrive: (name) => `Datoteka ulaganja je spremna i čuva se na Google Driveu kao ${name}.`,
     inBrowser: 'Datoteka ulaganja je spremna i čuva se u ovom pregledniku.',
+  },
+  setUp: {
+    firstHoldings: 'Dodajte što držite ili uvezite cijelu povijest',
+    cashBelowZero: 'Novac je ispod nule, pa je vrijednost preniska. Dodajte uplatu kojom su plaćene kupnje',
+    transactionsLink: 'Transakcije',
+    prices: (count) => ({
+      one: `${count} pozicija nema cijenu, pa nije u vrijednosti. Dodajte besplatni ključ za cijene ili upišite cijenu`,
+      few: `${count} pozicije nemaju cijenu, pa nisu u vrijednosti. Dodajte besplatni ključ za cijene ili upišite cijene`,
+      other: `${count} pozicija nema cijenu, pa nisu u vrijednosti. Dodajte besplatni ključ za cijene ili upišite cijene`,
+    }),
+    pricesLink: 'Cijene',
+    history: 'Javite Kuni kad je ovo cijela povijest, da vidite porez na prodaje',
+    taxLink: 'Porez',
   },
   problems: {
     title: (count) => ({

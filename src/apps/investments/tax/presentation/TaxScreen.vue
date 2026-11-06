@@ -11,6 +11,8 @@ import SalesTab from './SalesTab.vue'
 import { TAX_TABS, yearNamed } from './taxLinks'
 import type { TaxTab } from './taxLinks'
 import TaxFreeTab from './TaxFreeTab.vue'
+import TaxHistoryGate from './TaxHistoryGate.vue'
+import { useTaxShown } from './useTaxShown'
 import { words } from './words'
 import YearTab from './YearTab.vue'
 import { usePortfolio } from '../../holdings/presentation/usePortfolio'
@@ -28,6 +30,7 @@ import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
  * sales by the lots they closed, its income from abroad, and the lots that turn tax-free, which reads no year.
  */
 const { state } = useInvestmentsBooks()
+const taxShown = useTaxShown()
 const { sources, figures } = usePortfolio()
 const route = useRoute()
 const router = useRouter()
@@ -50,6 +53,8 @@ const onTaxFree = computed(() => route.query.tab === 'tax-free')
 
 const gains = computed(() => (sources.value === null || year.value === null ? null : capitalGainsYear(sources.value.book, sources.value.rates, year.value)))
 const foreign = computed(() => (sources.value === null || year.value === null ? null : foreignIncomeYear(sources.value.book, sources.value.rates, year.value)))
+/** The year, its sales and the tax-free dates read past buys, while income from abroad reads only the income. */
+const gated = computed(() => sources.value !== null && hasTransactions(sources.value.book) && !taxShown.value)
 const empty = computed(() => gains.value !== null && foreign.value !== null && gains.value.sales.length === 0 && foreign.value.payments.length === 0)
 
 /** The year whose JOPPD is due next is the default and stays out of the address. */
@@ -80,11 +85,13 @@ function pickYear(picked: string): void {
       </p>
       <PageTabs :tabs="TABS" :label="words.tabs.label" data-testid="tax-tabs">
         <template #year>
-          <EmptyState v-if="empty" icon="i-lucide-landmark" :title="words.empty.title(year)" :description="words.empty.description" data-testid="tax-empty" />
+          <TaxHistoryGate v-if="gated" />
+          <EmptyState v-else-if="empty" icon="i-lucide-landmark" :title="words.empty.title(year)" :description="words.empty.description" data-testid="tax-empty" />
           <YearTab v-else :gains="gains" :foreign="foreign" :today="sources.today" />
         </template>
         <template #sales>
-          <EmptyState v-if="empty" icon="i-lucide-receipt" :title="words.empty.title(year)" :description="words.empty.description" data-testid="tax-empty" />
+          <TaxHistoryGate v-if="gated" />
+          <EmptyState v-else-if="empty" icon="i-lucide-receipt" :title="words.empty.title(year)" :description="words.empty.description" data-testid="tax-empty" />
           <EmptyState v-else-if="gains.sales.length === 0" icon="i-lucide-receipt" :title="words.noSales(year)" :description="words.empty.description" data-testid="tax-no-sales" />
           <SalesTab v-else :gains="gains" :sources="sources" />
         </template>
@@ -94,7 +101,8 @@ function pickYear(picked: string): void {
           <ForeignIncomeTab v-else :foreign="foreign" />
         </template>
         <template #tax-free>
-          <TaxFreeTab v-if="figures !== null" :figures="figures" :today="sources.today" />
+          <TaxHistoryGate v-if="gated" />
+          <TaxFreeTab v-else-if="figures !== null" :figures="figures" :today="sources.today" />
           <ScreenSkeleton v-else :heading="false" :cards="1" />
         </template>
       </PageTabs>

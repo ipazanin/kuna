@@ -91,6 +91,21 @@ export function ruleCoverage<Row extends CoverageRow>(transactions: readonly Row
   return { notCovered: largestFirst(notCovered), exceptions: largestFirst(exceptions) }
 }
 
+/** The rows waiting for review by counterparty, grouped as coverage groups them, the payee with the most rows first. */
+export function payeesWaiting<Row extends Pick<Transaction, 'category' | 'counterparty' | 'counterpartyIban'>>(
+  waiting: readonly Row[],
+  cardSettlementIbans: ReadonlySet<string>,
+): CoverageGroup<Row>[] {
+  const groups = new Map<string, { name: string; iban: string; rows: Row[] }>()
+  for (const row of waiting) {
+    const identity = counterpartyIdentity(row, cardSettlementIbans)
+    const group = groups.get(identity.key) ?? { name: identity.writtenName, iban: identity.iban, rows: [] }
+    group.rows.push(row)
+    groups.set(identity.key, group)
+  }
+  return largestFirst(groups)
+}
+
 function largestFirst<Group extends { name: string; rows: readonly Pick<Transaction, 'category'>[] }>(groups: ReadonlyMap<string, Group>): (Group & { key: string; categories: CategoryCount[] })[] {
   return [...groups.entries()]
     .map(([key, group]) => ({ key, ...group, categories: categoryCounts(group.rows) }))

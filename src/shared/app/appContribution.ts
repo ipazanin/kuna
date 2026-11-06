@@ -41,6 +41,14 @@ export interface HomeFigures {
   readonly waiting: string | null
 }
 
+/** One thing an app still lacks, said in a line. */
+export interface SetUpLine {
+  readonly key: string
+  readonly text: string
+  /** The screen that does it, or none for a line only the home card shows, whose screen already leads with it. */
+  readonly link?: { readonly label: string; readonly to: RouteLocationRaw }
+}
+
 /** The app's card on the Kuna home. */
 export interface AppHomeCard {
   /** A Lucide icon name such as `i-lucide-landmark`. */
@@ -129,6 +137,8 @@ export interface AppContribution {
   readonly homeCard: AppHomeCard
   /** Its figures on Kuna's Overview, for an app that has any. */
   readonly hub?: AppHub
+  /** What the app still lacks, most pressing first, gone one by one as it is done. None while it has no file open. */
+  setUpLines(): readonly SetUpLine[]
   /** True while the app has nothing to show, so the shell sends an address under the app to `startPath`, and its card on the home offers Set up. */
   firstRun(): boolean
   readonly startPath: `/${string}`

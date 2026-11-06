@@ -11,18 +11,21 @@ export type TaxReminder = { readonly kind: 'ino-doh' | 'joppd'; readonly due: Ci
 
 /**
  * The nearest tax date on the day. Kuna does not know what was filed, so each stays until its day passes. The INO-DOH
- * shows in January only, by the safe day before the weekend move.
+ * shows in January only, by the safe day before the weekend move. The JOPPD reads what past buys cost, so it waits for a
+ * complete history, and the other two read only the income.
  */
-export function taxReminder(book: InvestmentBook, rates: RateBook, today: CivilDate): TaxReminder | null {
+export function taxReminder(book: InvestmentBook, rates: RateBook, today: CivilDate, historyComplete = true): TaxReminder | null {
   const lastYear = yearOf(today) - 1
   const reminders: TaxReminder[] = []
   const last = foreignIncomeYear(book, rates, lastYear)
   if (today.slice(5, 7) === '01' && today <= last.inoDohDue.fileBy && last.filesInoDoh) {
     reminders.push({ kind: 'ino-doh', due: last.inoDohDue.fileBy })
   }
-  const gains = capitalGainsYear(book, rates, lastYear)
-  if (gains.due !== null && today <= gains.due) {
-    reminders.push({ kind: 'joppd', due: gains.due })
+  if (historyComplete) {
+    const gains = capitalGainsYear(book, rates, lastYear)
+    if (gains.due !== null && today <= gains.due) {
+      reminders.push({ kind: 'joppd', due: gains.due })
+    }
   }
   const running = [...last.payments, ...foreignIncomeYear(book, rates, lastYear + 1).payments].flatMap((entry) =>
     entry.due !== null && entry.payment.gross > DECIMAL_ZERO && entry.payment.date <= today && today <= entry.due ? [entry.due] : [],

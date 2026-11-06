@@ -15,7 +15,7 @@ const options = computed(() => REPAYMENTS.map((value) => ({ value, label: loanWo
 </script>
 
 <template>
-  <UFormField :label="loanWords.loanDialog.repayment">
+  <UFormField :label="loanWords.loanDialog.repayment" :help="loanWords.loanDialog.repaymentHelp">
     <ChoiceButtons v-model="repayment" :options="options" :label="loanWords.loanDialog.repayment" />
   </UFormField>
 </template>

@@ -6,12 +6,14 @@ import type { Translation } from '../../shared/text/translation'
 export const en = {
   description: 'Each app keeps its own books, and one sync keeps them all up to date.',
   setUp: 'Set up',
+  next: (line: string) => `Next: ${line}`,
   failed: 'The books did not open. Open the app to see why.',
 }
 
 export const hr: Translation<typeof en> = {
   description: 'Svaka aplikacija ima svoju datoteku, a jedna sinkronizacija ažurira sve.',
   setUp: 'Postavi',
+  next: (line) => `Sljedeće: ${line}`,
   failed: 'Datoteka se nije otvorila. Otvorite aplikaciju da vidite zašto.',
 }
 

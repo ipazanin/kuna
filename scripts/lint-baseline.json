@@ -10,7 +10,6 @@
     "src/apps/company/imports/presentation/DryRunStatementCard.vue",
     "src/apps/company/invoicing/presentation/InvoiceLinesEditor.vue",
     "src/apps/company/invoicing/presentation/InvoiceRunDialog.vue",
-    "src/apps/company/onboarding/presentation/GettingSetUpCard.vue",
     "src/apps/company/overview/presentation/OverviewScreen.vue",
     "src/apps/company/overview/presentation/WindowComparison.vue",
     "src/apps/company/owner-share/presentation/OwnerShareDialog.vue",

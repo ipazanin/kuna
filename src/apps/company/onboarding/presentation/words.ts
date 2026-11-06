@@ -1,6 +1,6 @@
 import { language } from '../../../../shared/text/language'
 import { plural } from '../../../../shared/text/translation'
-import type { Translation } from '../../../../shared/text/translation'
+import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons and choices take the short imperative: Nastavi, Odaberi, Kreni ispočetka.
 // The books file is datoteka, so that knjige keeps its legal sense of the accountant's books. A choice quoted in a sentence keeps its button's words, as in „Nastavi”.
@@ -107,7 +107,7 @@ export const en = {
   },
   statement: {
     title: 'Your first statement',
-    subtitle: 'Nothing is written until you import it. You can skip this and import later.',
+    subtitle: 'In your online bank, download the statement as XML, also called camt.053. A table export works too. Nothing is written until you import it, and you can skip this and import later.',
     byHand: 'Books kept in this browser take their statements by hand, here or on Import. Filing them from your mail or from a Drive folder needs the books on Google Drive.',
     fromMail: 'Statements from your mail',
     fromMailNote: "Each sync files the bank's mail into the statements folder beside your books file, then imports it. A statement of an account the books do not hold yet waits on Import.",
@@ -117,7 +117,7 @@ export const en = {
     pickerTitle: 'Choose the folder of your bank statements',
     noDriveRead: 'Google did not allow Drive read, so the app cannot name the folder’s path. Choose the folder again to ask Google once more, or skip and name it later on Settings, General.',
     noFolder: 'No folder was chosen',
-    drop: 'Drop a camt.053 file or a bank export',
+    drop: 'Drop your statement file',
     dropNote: 'or click to choose one',
     sample: "The made-up company's camt.053 statement",
     table: 'A bank export needs its columns named first',
@@ -146,19 +146,20 @@ export const en = {
     trashFile: 'Trash the file',
     deleteBooks: 'Delete the books',
   },
-  /** Overview's card of what new books still lack. */
+  /** Overview's lines of what new books still lack. */
   setUp: {
-    title: 'Getting set up',
-    subtitle: 'What the books still lack. Each line goes once it is done.',
     firstStatement: 'Import your first bank statement',
+    filed: (filed: number, rows: number): EnglishForms => ({ one: `Kuna filed ${filed} of 1 row.`, other: `Kuna filed ${filed} of ${rows} rows.` }),
+    teach: (names: string) => `Teach it the names that appear most: ${names}.`,
+    reviewLink: 'To review',
     importLink: 'Import',
     statementsFolder: 'Name the Drive folder your bank statements are filed in, or switch filing on sync off',
     settingsLink: 'Settings',
-    categories: 'Look over the categories, which are still the ones new books start with',
+    categories: 'Check the categories Kuna starts with',
+    categoriesLookRight: 'These look right',
     categoriesLink: 'Categories',
     invoiceTerms: 'Fill in what your invoices print about your company',
     clientsLink: 'Clients',
-    open: (line: string, link: string) => `${line}, open ${link}`,
   },
 }
 
@@ -263,7 +264,7 @@ export const hr: Translation<typeof en> = {
   },
   statement: {
     title: 'Vaš prvi izvod',
-    subtitle: 'Ništa se ne upisuje dok ga ne uvezete. Ovo možete preskočiti i uvesti kasnije.',
+    subtitle: 'U internetskom bankarstvu preuzmite izvod kao XML, zove se i camt.053. Može i tablični izvoz. Ništa se ne upisuje dok ga ne uvezete, a ovo možete preskočiti i uvesti kasnije.',
     byHand: 'Datoteka u ovom pregledniku prima izvode ručno, ovdje ili kroz Uvoz. Za spremanje iz pošte ili iz mape na Driveu datoteka mora biti na Google Driveu.',
     fromMail: 'Izvodi iz vaše pošte',
     fromMailNote: 'Svaka sinkronizacija sprema poštu banke u mapu izvoda uz vašu datoteku, a zatim je uvozi. Izvod računa kojeg datoteka još nema čeka u Uvozu.',
@@ -274,7 +275,7 @@ export const hr: Translation<typeof en> = {
     noDriveRead:
       'Google nije dopustio čitanje Drivea, pa aplikacija ne može imenovati put do mape. Ponovno odaberite mapu da Google pita još jednom ili preskočite i imenujte je kasnije u postavkama, pod Općenito.',
     noFolder: 'Nije odabrana nijedna mapa',
-    drop: 'Ispustite camt.053 datoteku ili izvoz iz banke',
+    drop: 'Ispustite datoteku izvoda',
     dropNote: 'ili kliknite da je odaberete',
     sample: 'Izvod camt.053 izmišljene tvrtke',
     table: 'Izvozu iz banke najprije treba imenovati stupce',
@@ -305,17 +306,22 @@ export const hr: Translation<typeof en> = {
     deleteBooks: 'Obriši datoteku',
   },
   setUp: {
-    title: 'Postavljanje',
-    subtitle: 'Što datoteci još nedostaje. Svaki redak nestaje kad se obavi.',
     firstStatement: 'Uvezite svoj prvi bankovni izvod',
+    filed: (filed, rows) => ({
+      one: `Kuna je razvrstala ${filed} od ${rows} retka.`,
+      few: `Kuna je razvrstala ${filed} od ${rows} retka.`,
+      other: `Kuna je razvrstala ${filed} od ${rows} redaka.`,
+    }),
+    teach: (names) => `Naučite je imena koja se najčešće pojavljuju: ${names}.`,
+    reviewLink: 'Za provjeru',
     importLink: 'Uvoz',
     statementsFolder: 'Imenujte mapu na Driveu u koju se spremaju bankovni izvodi ili isključite upisivanje pri sinkronizaciji',
     settingsLink: 'Postavke',
-    categories: 'Pregledajte kategorije, koje su još one s kojima počinje nova datoteka',
+    categories: 'Provjerite kategorije s kojima Kuna počinje',
+    categoriesLookRight: 'Ove su u redu',
     categoriesLink: 'Kategorije',
     invoiceTerms: 'Upišite što vaši računi ispisuju o vašoj tvrtki',
     clientsLink: 'Klijenti',
-    open: (line, link) => `${line}, otvorite: ${link}`,
   },
 }
 

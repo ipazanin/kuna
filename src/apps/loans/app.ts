@@ -9,6 +9,7 @@ import { LOANS_HOME_CARD } from './home/presentation/loansHomeCard'
 import { loansHubFigures } from './home/presentation/loansHubFigures'
 import { words as informalLoanWords } from './informalLoans/presentation/words'
 import { BANK_LOAN_ROUTE, INFORMAL_LOAN_ROUTE, LOANS_OVERVIEW_ROUTE, LOANS_SETTINGS_ROUTE, LOANS_START_ROUTE, SCENARIOS_ROUTE } from './overview/presentation/loanLinks'
+import { loansSetUp } from './overview/presentation/loansSetUp'
 import { words as overviewWords } from './overview/presentation/words'
 import { words as scenarioWords } from './scenarios/presentation/words'
 import { words as settingsWords } from './settings/presentation/words'
@@ -53,6 +54,7 @@ export const loansApp: AppContribution = {
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
   homeCard: LOANS_HOME_CARD,
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => loansHubFigures(book, today())) },
+  setUpLines: () => (state.workbook === null ? [] : loansSetUp(state.workbook)),
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
   startPath: LOANS_START_ROUTE,
   syncGroup: loansSyncGroup,

@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { holdingReturn } from '../domain/holding'
 import type { FirstAcquired, HoldingFigures } from '../domain/holding'
 import { taxFreeUnits } from '../domain/lots'
+import { useTaxShown } from '../../tax/presentation/useTaxShown'
 import { QUANTITY_PLACES, averageCostText, useNoPriceWord } from './holdingText'
 import PriceMarkNote from './PriceMarkNote.vue'
 import { words } from './words'
@@ -78,6 +79,8 @@ const parts = computed((): ReturnPart[] => {
   ]
 })
 
+const taxShown = useTaxShown()
+
 const facts = computed((): Fact[] => {
   const { holding, today } = props
   const taxFree = taxFreeUnits(holding.lots, today)
@@ -112,7 +115,7 @@ const facts = computed((): Fact[] => {
   return [
     ...heldFacts,
     { label: words.facts.feesPaid, value: formatMoney(holding.feesPaid), caption: holding.feesMissing ? words.facts.feesMissing : words.facts.feesPaidCaption },
-    ...(held.value
+    ...(held.value && taxShown.value
       ? [
           {
             label: words.facts.taxFree,

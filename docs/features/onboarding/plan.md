@@ -14,12 +14,26 @@ These override the recommendations further down wherever the two differ.
 - **Spending from other banks:** the model can read a statement into the dry run. Readers for every Croatian bank come later, as [their own task](../../tasks/croatian-bank-readers.md).
 - **Investments without full history:** allowed, and tax figures are left out until the history is complete. The owner said to ignore them. This plan reads that as not showing them, rather than showing them marked.
 - **Which provider is named first:** the better reader on five real Croatian documents, tested with the owner's keys.
+- **Add what I hold now:** writes a matching deposit with each buy, only in this path, in one write with one Undo, and the dialog says so. A file's existing deposits are untouched.
+- **Taking the history back:** "My history is not complete yet" sits in Investments Settings.
+- **Set-up answers:** they stay on the device.
+
+## Built
+
+Stages 1 and 2 are built on the `onboarding` branch and work with no AI.
+
+- **Set-up lines.** `AppContribution.setUpLines()` publishes what each app still lacks. `GettingSetUpCard` moved to `src/shared/ui`. Company, Investments and Spending show it on Overview, and the home card shows each app's next line.
+- **Answers stay on the device.** "These look right" and "My history is complete" live in this browser through `src/shared/app/setUpAnswer.ts`, per file. A new setting or record kind would have moved `read.workbook` and `investments.read.records`. A person's file stays untouched, a second device asks once more, and a lost answer can only hide figures that read past buys, never show a wrong one.
+- **Tax without full history.** Until someone says the history is complete, Investments leaves out what reads past buys: the Tax screen's year, sales and tax-free tabs, the JOPPD date on the home card, the tax-free lines on a holding's page and the tax lines in a sale's summary. Income from abroad reads no buys, so its tab, the INO-DOH date and the 30-day payment dates stay. Value, cost and gains stay. An existing file asks too, once, since nothing in a file can show its history is whole.
+- **Loans' six fields.** Name, amount, instalments, paid out on, first instalment and rate. Repayment and fixed or variable stay visible with their defaults, because a wrong answer silently gives a wrong figure.
+- **Company's five payees.** The line names who appears most among the rows a rule could file, and goes once no such row is left or the books hold five working rules that file on their own. To review keeps its order.
+- **A buy without a deposit.** The value adds cash, so a buy with no deposit lowers it. "Add what I hold now" writes the deposit with the buy, and stays offered on Overview until the history is said complete. On any other path a set-up line leads while cash is below zero.
 
 ## Staged proposal
 
-**Stage 1: the words.** Fix empty states, field help and the jargon, with no new concept. Spending names Import. Company explains the statement file. The categories line gains "These look right" or clears on visit. Loans fields say what they mean. _A new user understands each screen and reaches a figure with fewer dead ends._ Files: `words.ts` in each app, `EmptyState`, `gettingSetUp.ts`, `RateFields`, `LoanTermsFields`.
+**Stage 1: the words (built).** Fix empty states, field help and the jargon, with no new concept. Spending names Import. Company explains the statement file. The categories line gains "These look right" or clears on visit. Loans fields say what they mean. _A new user understands each screen and reaches a figure with fewer dead ends._ Files: `words.ts` in each app, `EmptyState`, `gettingSetUp.ts`, `RateFields`, `LoanTermsFields`.
 
-**Stage 2: first figure per app.**
+**Stage 2: first figure per app (built).**
 
 - `BankLoanDialog` shows six fields first.
 - Company gets "teach it your five biggest payees" after the first import, from `ruleCoverage`, To review and `makeRule`.

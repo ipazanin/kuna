@@ -29,7 +29,10 @@ const paidOff = computed(() => props.figures.owed === 0 && props.figures.next ==
 <template>
   <AppCard as="article" class="gap-5 p-4 sm:flex-row sm:gap-0 sm:p-5" data-testid="bank-loan-hero">
     <div class="flex min-w-0 flex-col gap-2 sm:flex-1 sm:pe-6">
-      <p class="text-sm text-muted">{{ paidOff && figures.payoff !== null ? loanWords.hero.paidOffOn(dayLabel(figures.payoff)) : loanWords.hero.owedToday }}</p>
+      <p class="flex items-center gap-1 text-sm text-muted">
+        {{ paidOff && figures.payoff !== null ? loanWords.hero.paidOffOn(dayLabel(figures.payoff)) : loanWords.hero.owedToday }}
+        <InfoPopover v-if="!paidOff" :subject="loanWords.hero.owedToday" :definition="loanWords.hero.owedTodayDefinition" />
+      </p>
       <MoneyText :cents="figures.owed" class="block text-figure-lg font-semibold text-highlighted sm:text-figure-xl" />
       <p class="type-caption">{{ loanWords.hero.paidBack(formatMoney(figures.paidBack), formatMoney(loan.principal), figures.paidBackPercent) }}</p>
       <ProgressMeter

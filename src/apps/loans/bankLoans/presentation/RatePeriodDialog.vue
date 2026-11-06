@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
+import UInput from '@nuxt/ui/components/Input.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { RATE_PERIOD_WRITES, newRatePeriod } from '../application/bankLoanWrites'
@@ -102,6 +103,9 @@ async function remove(): Promise<void> {
         />
       </UFormField>
       <RateFields v-model="rate" :tried="tried" />
+      <UFormField :label="loansWords.form.note" :help="loanWords.rateFields.noteHelp" class="sm:col-span-2">
+        <UInput v-model="rate.note" class="w-full" data-testid="rate-period-note" />
+      </UFormField>
     </FormGrid>
     <template #start>
       <UButton

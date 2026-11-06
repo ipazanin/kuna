@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { RouteLocationRaw } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
@@ -21,11 +21,13 @@ import { words as screenWords } from '../../screenWords'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import AccountsCard from './AccountsCard.vue'
 import LimitsCard from './LimitsCard.vue'
-import { SPENDING_ACCOUNTS_ROUTE, SPENDING_BUDGETS_ROUTE, SPENDING_OVERVIEW_ROUTE, categoryIdNamed, transactionsLink } from './spendingLinks'
+import { SPENDING_BUDGETS_ROUTE, SPENDING_OVERVIEW_ROUTE, categoryIdNamed, transactionsLink } from './spendingLinks'
+import AccountDialog from '../../accounts/presentation/AccountDialog.vue'
 import { spendingRing } from './spendingRing'
+import { spendingSetUp } from './spendingSetUp'
 import { words } from './words'
 import { today } from '../../../../shared/calendar/civilDate'
-import { addMonths, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
+import { addMonths, firstDayOf, monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
@@ -38,6 +40,7 @@ import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import DonutCard from '../../../../shared/ui/DonutCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
+import GettingSetUpCard from '../../../../shared/ui/GettingSetUpCard.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
@@ -50,6 +53,8 @@ const router = useRouter()
 const phone = usePhoneLayout()
 const day = today()
 const month = monthOf(day)
+
+const addingAccount = ref(false)
 
 const loading = computed(() => state.workbook === null && state.status !== 'error')
 const fileNote = computed(() => (state.choice?.source === 'drive' ? words.empty.onDrive(state.choice.name) : words.empty.inBrowser))
@@ -120,12 +125,13 @@ function openGroupMonth(selection: ChartPointSelection): void {
         </template>
         <template #actions>
           <div class="flex flex-col items-center gap-4">
-            <UButton :to="SPENDING_ACCOUNTS_ROUTE" :label="words.empty.addAccount" icon="i-lucide-plus" data-testid="spending-overview-add-account" />
+            <UButton :label="words.empty.addAccount" icon="i-lucide-plus" data-testid="spending-overview-add-account" @click="addingAccount = true" />
             <span class="type-caption">{{ fileNote }}</span>
           </div>
         </template>
       </EmptyState>
       <template v-else>
+        <GettingSetUpCard :lines="spendingSetUp(state.workbook)" />
         <DashboardGrid layout="tiles" data-testid="spending-tiles">
           <KpiTile :label="figureWords.spent" :value="formatMoney(totals.spent)" :caption="monthLabel(month)" :to="transactionsLink(month)" data-testid="spending-spent">
             <template v-if="waiting" #value>
@@ -230,5 +236,6 @@ function openGroupMonth(selection: ChartPointSelection): void {
         </DashboardGrid>
       </template>
     </template>
+    <AccountDialog v-model:open="addingAccount" :account="null" :opening-day="firstDayOf(month)" />
   </section>
 </template>

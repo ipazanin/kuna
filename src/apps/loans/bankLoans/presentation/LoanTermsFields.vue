@@ -80,7 +80,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import RepaymentChoice from './RepaymentChoice.vue'
 import { useLoanWords } from './useLoanWords'
 
-/** A bank loan's lender, amount, how it is repaid, payout, instalments and interest before the first instalment. */
+/** What a bank loan's plan cannot do without: the amount, how it is repaid, the instalments and the two days. */
 const texts = defineModel<LoanTermsTexts>({ required: true })
 const loanWords = useLoanWords()
 
@@ -93,26 +93,17 @@ const errors = computed(() => typedLoanTerms(texts.value).errors)
 </script>
 
 <template>
-  <UFormField :label="loanWords.loanDialog.lender">
-    <UInput v-model="texts.lender" :placeholder="loanWords.loanDialog.lenderPlaceholder" class="w-full" data-testid="bank-loan-lender" />
-  </UFormField>
-  <UFormField :label="loanWords.loanDialog.principal" :error="(tried && errors.principal) || false">
+  <UFormField :label="loanWords.loanDialog.principal" :error="(tried && errors.principal) || false" :help="loanWords.loanDialog.principalHelp">
     <MoneyInput v-model="texts.principal" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="bank-loan-principal" />
   </UFormField>
   <RepaymentChoice v-model="texts.repayment" class="sm:col-span-2" data-testid="bank-loan-repayment" />
   <UFormField :label="loanWords.loanDialog.instalments" :error="(tried && errors.instalments) || false" :help="loanWords.loanDialog.instalmentsHelp">
     <UInput v-model="texts.instalments" inputmode="numeric" class="w-full" data-testid="bank-loan-instalments" />
   </UFormField>
-  <UFormField :label="loanWords.loanDialog.drawdown" :error="(tried && errors.drawdown) || false">
+  <UFormField :label="loanWords.loanDialog.drawdown" :error="(tried && errors.drawdown) || false" :help="loanWords.loanDialog.drawdownHelp">
     <UInput v-model="texts.drawdown" type="date" class="w-full" data-testid="bank-loan-drawdown" />
   </UFormField>
   <UFormField :label="loanWords.loanDialog.firstInstalment" :error="(tried && errors.firstInstalment) || false" :help="loanWords.loanDialog.firstInstalmentHelp">
     <UInput v-model="texts.firstInstalment" type="date" class="w-full" data-testid="bank-loan-first-instalment" />
-  </UFormField>
-  <UFormField :label="loanWords.loanDialog.interim" :error="(tried && errors.interim) || false" :help="loanWords.loanDialog.interimHelp">
-    <MoneyInput v-model="texts.interimAmount" :placeholder="loansWords.form.amountPlaceholder" class="w-full" />
-  </UFormField>
-  <UFormField :label="loanWords.loanDialog.interimDate">
-    <UInput v-model="texts.interimDate" type="date" class="w-full" />
   </UFormField>
 </template>

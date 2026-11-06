@@ -16,6 +16,7 @@ import { ACCOUNT_BANKS, ACCOUNT_KINDS } from '../../workbook/domain/account'
 import type { Account, AccountBank, AccountKind } from '../../workbook/domain/account'
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { CURRENCY_CODES, EURO } from '../../../../shared/money/currencyCode'
 import { ZERO, negateMoney } from '../../../../shared/money/money'
 import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
@@ -31,6 +32,8 @@ const open = defineModel<boolean>('open', { required: true })
 const props = defineProps<{
   /** The account to change, or null to add one. */
   account: Account | null
+  /** The day a new account's balance starts from, for a screen that says so. Otherwise today, so a balance typed from the bank's screen is not counted twice. */
+  openingDay?: CivilDate
 }>()
 
 const store = useSpendingBooks()
@@ -67,7 +70,7 @@ watch(open, (opened) => {
   currency.value = account?.currency ?? EURO
   opening.value = account === null ? '' : amountForTyping(account.opening < 0 ? negateMoney(account.opening) : account.opening)
   overdrawn.value = account !== null && account.opening < 0
-  openedOn.value = account?.openedOn ?? today()
+  openedOn.value = account?.openedOn ?? props.openingDay ?? today()
   iban.value = account?.iban ?? ''
   tried.value = false
 })
@@ -142,10 +145,12 @@ async function remove(): Promise<void> {
       <UFormField :label="words.dialog.currency" v-bind="hasEntries ? { help: words.dialog.currencyKept } : {}">
         <USelectMenu v-model="currency" :items="CURRENCY_ITEMS" value-key="value" :disabled="hasEntries" class="w-full" data-testid="spending-account-currency" />
       </UFormField>
-      <UFormField :label="words.dialog.opening" :help="words.dialog.openingHelp" :error="(tried && errors.opening) || false">
-        <MoneyInput v-model="opening" :placeholder="spendingWords.form.amountPlaceholder" class="w-full" data-testid="spending-account-opening" />
-        <USwitch v-model="overdrawn" :label="words.dialog.overdrawn" class="mt-2 min-h-11" data-testid="spending-account-overdrawn" />
-      </UFormField>
+      <div class="flex flex-col gap-2">
+        <UFormField :label="words.dialog.opening" :help="words.dialog.openingHelp" :error="(tried && errors.opening) || false">
+          <MoneyInput v-model="opening" :placeholder="spendingWords.form.amountPlaceholder" class="w-full" data-testid="spending-account-opening" />
+        </UFormField>
+        <USwitch v-model="overdrawn" :label="words.dialog.overdrawn" class="min-h-11" data-testid="spending-account-overdrawn" />
+      </div>
       <UFormField :label="words.dialog.openedOn" :error="(tried && errors.openedOn) || false">
         <UInput v-model="openedOn" type="date" class="w-full" data-testid="spending-account-opened-on" />
       </UFormField>

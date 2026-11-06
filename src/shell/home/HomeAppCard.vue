@@ -20,6 +20,7 @@ const props = defineProps<{
 const setUp = computed(() => props.app.firstRun())
 const figures = computed(() => (setUp.value ? null : props.app.homeCard.figures()))
 const subtitle = computed(() => (setUp.value ? null : props.app.subtitle()))
+const next = computed(() => (setUp.value ? undefined : props.app.setUpLines()[0]))
 const to = computed(() => entryPath(props.app))
 </script>
 
@@ -61,6 +62,7 @@ const to = computed(() => entryPath(props.app))
         <p class="type-body">{{ app.homeCard.purpose }}</p>
         <UBadge v-if="setUp" :label="words.setUp" trailing-icon="i-lucide-arrow-right" color="primary" variant="solid" class="self-start" data-testid="home-card-set-up" />
       </template>
+      <p v-if="next !== undefined && figures !== 'opening' && figures !== 'failed'" class="type-caption" data-testid="home-card-next">{{ words.next(next.text) }}</p>
     </AppCard>
   </RouterLink>
 </template>

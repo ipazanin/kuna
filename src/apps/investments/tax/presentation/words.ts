@@ -35,6 +35,13 @@ export const en = {
   },
   noSales: (year: number) => `No sale in ${year}`,
   noForeign: (year: number) => `No income from abroad in ${year}`,
+  /** What the screen says while the file may lack earlier buys. */
+  history: {
+    title: 'Tax on sales is left out for now',
+    description:
+      'Kuna counts a gain as a sale less what you paid, so a missing buy gives a wrong gain and wrong tax. Tell Kuna once every buy and sale since your first is in the file. Income from abroad needs no buys, so it has its own tab.',
+    confirm: 'My history is complete',
+  },
   empty: {
     title: (year: number) => `No sale and no foreign income in ${year}`,
     description: 'A sale or a payment from abroad shows here once you add it on Transactions.',
@@ -267,6 +274,12 @@ export const hr: Translation<typeof en> = {
   },
   noSales: (year) => `Nema prodaja u ${year}.`,
   noForeign: (year) => `Nema dohotka iz inozemstva u ${year}.`,
+  history: {
+    title: 'Porez na prodaje zasad je izostavljen',
+    description:
+      'Kuna dobit računa kao prodaju umanjenu za ono što ste platili, pa kupnja koja nedostaje daje pogrešnu dobit i pogrešan porez. Javite Kuni kad je u datoteci svaka kupnja i prodaja od prve nadalje. Inozemnom dohotku kupnje ne trebaju, pa ima svoju karticu.',
+    confirm: 'Povijest je potpuna',
+  },
   empty: {
     title: (year) => `Nema prodaja ni inozemnog dohotka u ${year}.`,
     description: 'Prodaja ili isplata iz inozemstva prikazuje se ovdje kad je dodate u transakcijama.',

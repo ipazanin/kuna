@@ -13,11 +13,13 @@ import { transactionCount } from './transactions/domain/listedTransactions'
 import { TRANSACTIONS_ROUTE } from './transactions/presentation/transactionLinks'
 import { words as transactionWords } from './transactions/presentation/words'
 import { words as holdingsWords } from './holdings/presentation/words'
+import { investmentsSetUp } from './overview/presentation/investmentsSetUp'
 import { words as overviewWords } from './overview/presentation/words'
 import { PERFORMANCE_ROUTE } from './performance/presentation/performanceLinks'
 import { words as performanceWords } from './performance/presentation/words'
 import { words as settingsWords } from './settings/presentation/words'
 import { TAX_ROUTE } from './tax/presentation/taxLinks'
+import { useTaxShown } from './tax/presentation/useTaxShown'
 import { words as taxWords } from './tax/presentation/words'
 import { investmentsSyncGroup } from './sync/presentation/investmentsSyncGroup'
 import { words } from './words'
@@ -46,6 +48,7 @@ const SETTINGS: AppScreen = { path: INVESTMENTS_SETTINGS_ROUTE, title: settingsW
 
 const { state } = useInvestmentsBooks()
 const { figures } = usePortfolio()
+const taxShown = useTaxShown()
 
 /** The investments kept in a file of their own: every trade, income, deposit, exchange and transfer of the brokers' accounts. */
 export const investmentsApp: AppContribution = {
@@ -83,6 +86,7 @@ export const investmentsApp: AppContribution = {
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
   homeCard: INVESTMENTS_HOME_CARD,
   hub: { counts: true, figures: () => shownPortfolio(({ figures }) => investmentsHubFigures(figures)) },
+  setUpLines: () => (state.workbook === null ? [] : investmentsSetUp(state.workbook.book, figures.value, taxShown.value)),
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
   startPath: INVESTMENTS_START_ROUTE,
   syncGroup: investmentsSyncGroup,

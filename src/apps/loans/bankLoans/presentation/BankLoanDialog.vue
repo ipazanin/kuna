@@ -15,6 +15,8 @@ import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import FoldBlock from './FoldBlock.vue'
+import LoanMoreTermsFields from './LoanMoreTermsFields.vue'
 import LoanTermsFields, { loanTermsTexts, typedLoanTerms } from './LoanTermsFields.vue'
 import type { LoanTermsTexts } from './LoanTermsFields.vue'
 import RateFields, { rateError } from './RateFields.vue'
@@ -47,6 +49,7 @@ const rate = ref<RateTexts>({ rate: '', rateType: 'fixed', note: '' })
 const subsidised = ref(false)
 const subsidy = ref<SubsidyTexts>(subsidyTexts(null))
 const tried = ref(false)
+const moreOpen = ref(false)
 
 watch(open, (opened) => {
   if (!opened) return
@@ -58,6 +61,7 @@ watch(open, (opened) => {
   subsidised.value = false
   subsidy.value = subsidyTexts(null)
   tried.value = false
+  moreOpen.value = loan !== null
 })
 
 const typed = computed(() => typedLoanTerms(terms.value))
@@ -69,6 +73,8 @@ const errors = computed(() => ({
   subsidy:
     props.book === null && subsidised.value && typedSubsidy(subsidy.value, typed.value.instalments, loanWords.value.subsidyFields).subsidy === null ? loanWords.value.loanDialog.subsidyError : null,
 }))
+
+const moreWrong = computed(() => tried.value && (errors.value.interim !== null || errors.value.subsidy !== null))
 
 const valid = computed(() => Object.values(errors.value).every((error) => error === null))
 
@@ -86,6 +92,7 @@ function typedTerms(): Omit<BankLoan, 'id'> | null {
 
 async function save(): Promise<void> {
   tried.value = true
+  if (moreWrong.value) moreOpen.value = true
   const terms = typedTerms()
   if (terms === null) return
   const book = props.book
@@ -100,7 +107,7 @@ async function save(): Promise<void> {
         unit.of(BANK_LOAN_WRITES).add(loan)
         unit.of(RATE_PERIOD_WRITES).add(period)
       },
-      { failedTitle: loansWords.form.notAdded },
+      { description: loanWords.value.loanDialog.addedNote, failedTitle: loansWords.form.notAdded },
     )
     if (added) {
       open.value = false
@@ -145,14 +152,32 @@ async function remove(): Promise<void> {
       </UFormField>
       <LoanTermsFields v-model="terms" :tried="tried" />
       <template v-if="book === null">
-        <p class="text-sm font-medium text-highlighted">{{ loanWords.loanDialog.firstRate }}</p>
+        <p class="text-sm font-medium text-highlighted sm:col-span-2">{{ loanWords.loanDialog.firstRate }}</p>
         <RateFields v-model="rate" :tried="tried" />
-        <USwitch v-model="subsidised" :label="loanWords.loanDialog.subsidised" :description="loanWords.loanDialog.subsidisedHelp" data-testid="bank-loan-subsidised" />
-        <SubsidyFields v-if="subsidised" v-model="subsidy" :tried="tried" :loan-instalments="typed.instalments" />
       </template>
-      <UFormField :label="loansWords.form.note" class="sm:col-span-2">
-        <UInput v-model="note" class="w-full" />
-      </UFormField>
+      <FoldBlock
+        v-model:open="moreOpen"
+        :title="loanWords.loanDialog.more"
+        :caption="moreWrong ? loanWords.loanDialog.moreWrong : book === null ? loanWords.loanDialog.moreHelp : loanWords.loanDialog.moreHelpChange"
+        :warning="moreWrong"
+        toggle-test-id="bank-loan-more-toggle"
+        class="sm:col-span-2"
+        data-testid="bank-loan-more"
+      >
+        <FormGrid>
+          <LoanMoreTermsFields v-model="terms" :tried="tried" />
+          <template v-if="book === null">
+            <UFormField :label="loanWords.loanDialog.rateNote" :help="loanWords.rateFields.noteHelp" class="sm:col-span-2">
+              <UInput v-model="rate.note" class="w-full" />
+            </UFormField>
+            <USwitch v-model="subsidised" :label="loanWords.loanDialog.subsidised" :description="loanWords.loanDialog.subsidisedHelp" class="sm:col-span-2" data-testid="bank-loan-subsidised" />
+            <SubsidyFields v-if="subsidised" v-model="subsidy" :tried="tried" :loan-instalments="typed.instalments" />
+          </template>
+          <UFormField :label="loansWords.form.note" class="sm:col-span-2">
+            <UInput v-model="note" class="w-full" />
+          </UFormField>
+        </FormGrid>
+      </FoldBlock>
     </FormGrid>
     <template #start>
       <UButton

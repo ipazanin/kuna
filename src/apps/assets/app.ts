@@ -11,6 +11,7 @@ import { assetsHubFigures } from './home/presentation/assetsHubFigures'
 import { startHouseIndex, useHouseIndex } from './houseIndex/presentation/useHouseIndex'
 import { assetLoans } from './loans/application/assetLoans'
 import { ASSET_ROUTE, ASSETS_OVERVIEW_ROUTE, ASSETS_SETTINGS_ROUTE, ASSETS_START_ROUTE } from './overview/presentation/assetLinks'
+import { assetsSetUp } from './overview/presentation/assetsSetUp'
 import { words as overviewWords } from './overview/presentation/words'
 import { words as settingsWords } from './settings/presentation/words'
 import { assetsSyncGroup } from './sync/presentation/assetsSyncGroup'
@@ -51,6 +52,7 @@ export const assetsApp: AppContribution = {
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
   homeCard: ASSETS_HOME_CARD,
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => assetsHubFigures(book, today(), index.value, assetLoans(today()))) },
+  setUpLines: () => (state.workbook === null ? [] : assetsSetUp(state.workbook)),
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
   startPath: ASSETS_START_ROUTE,
   syncGroup: assetsSyncGroup,

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 
 import type { HoldingFigures } from '../domain/holding'
 import { lotIsTaxFree } from '../domain/lots'
+import { useTaxShown } from '../../tax/presentation/useTaxShown'
 import { priceOfWorth } from '../domain/quoting'
 import { QUANTITY_PLACES } from './holdingText'
 import { words } from './words'
@@ -19,6 +20,8 @@ const props = defineProps<{
   holding: HoldingFigures
   today: CivilDate
 }>()
+
+const taxShown = useTaxShown()
 
 const rows = computed(() =>
   props.holding.lots.map((lot, place) => ({
@@ -46,7 +49,7 @@ const shown = computed(() => (showAll.value ? rows.value : rows.value.slice(0, F
         <tr v-for="row in shown" :key="row.key" data-testid="holding-lot">
           <th scope="row" class="cell-wraps text-start font-normal">
             <span class="text-toned">{{ dayLabel(row.lot.opened) }}</span>
-            <span class="block type-caption">{{ row.taxFree ? words.lots.taxFreeSince(dayLabel(row.lot.taxFreeFrom)) : words.lots.taxFreeFrom(dayLabel(row.lot.taxFreeFrom)) }}</span>
+            <span v-if="taxShown" class="block type-caption">{{ row.taxFree ? words.lots.taxFreeSince(dayLabel(row.lot.taxFreeFrom)) : words.lots.taxFreeFrom(dayLabel(row.lot.taxFreeFrom)) }}</span>
           </th>
           <td class="figure text-end">{{ formatQuantity(row.lot.quantity, QUANTITY_PLACES) }}</td>
           <td class="cell-wraps text-end">

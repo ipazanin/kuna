@@ -64,6 +64,11 @@ export const en = {
     add: 'Add account',
     change: (name: string) => `Change ${name}`,
   },
+  history: {
+    title: 'Your history',
+    subtitle: 'You told Kuna this file holds every buy and sale since your first, so it shows tax on your sales. Take that back if buys are still missing.',
+    notComplete: 'My history is not complete yet',
+  },
   benchmark: {
     title: 'Benchmark',
     subtitle: 'What Performance compares your portfolio with',
@@ -167,6 +172,11 @@ export const hr: Translation<typeof en> = {
     none: 'Još nema računa. Račun se dodaje i s prvom transakcijom.',
     add: 'Dodaj račun',
     change: (name) => `Promijeni ${name}`,
+  },
+  history: {
+    title: 'Vaša povijest',
+    subtitle: 'Javili ste Kuni da je u ovoj datoteci svaka kupnja i prodaja od prve nadalje, pa prikazuje porez na prodaje. Povucite to ako kupnje još nedostaju.',
+    notComplete: 'Povijest još nije potpuna',
   },
   benchmark: {
     title: 'Referentni indeks',

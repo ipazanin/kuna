@@ -35,6 +35,7 @@ function withArticle(noun: string): string {
 
 /** The names of the categories and families new books start with, as Croatian screens show them while the file gives no label. */
 const SEEDED_NAMES: ReadonlyMap<string, string> = new Map([
+  ['unknown', 'Nepoznato'],
   ['income', 'Prihodi'],
   ['operating', 'Poslovni rashodi'],
   ['taxes', 'Porezi'],

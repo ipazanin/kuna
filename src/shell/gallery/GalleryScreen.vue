@@ -25,6 +25,7 @@ import DonutCard from '../../shared/ui/DonutCard.vue'
 import type { DonutPart } from '../../shared/ui/DonutCard.vue'
 import DrillLink from '../../shared/ui/DrillLink.vue'
 import EmptyState from '../../shared/ui/EmptyState.vue'
+import GettingSetUpCard from '../../shared/ui/GettingSetUpCard.vue'
 import FactGrid from '../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../shared/ui/FactGrid.vue'
 import FigureTable from '../../shared/ui/FigureTable.vue'
@@ -79,6 +80,7 @@ const CONTENTS = [
   ['donut-card', 'DonutCard'],
   ['page-tabs', 'PageTabs'],
   ['empty-state', 'EmptyState'],
+  ['getting-set-up-card', 'GettingSetUpCard'],
   ['screen-skeleton', 'ScreenSkeleton'],
   ['form-grid', 'FormGrid'],
   ['dialog', 'AppDialog'],
@@ -686,6 +688,19 @@ const columns: TableColumn<SampleTransaction>[] = [
         <template #second><p class="type-body">Picking a tab writes it into the address, so Back steps through tabs.</p></template>
         <template #third><p class="type-body">A count shows as a badge, and a screen reader hears it with the label.</p></template>
       </PageTabs>
+    </GallerySection>
+
+    <GallerySection id="getting-set-up-card" title="GettingSetUpCard" description="What an app still lacks, with the screen that does each line. An action can settle a line where it stands.">
+      <GettingSetUpCard
+        :lines="[
+          { key: 'first-statement', text: 'Import your first bank statement', link: { label: 'Import', to: '/gallery' } },
+          { key: 'first-rules', text: 'Kuna filed 31 of 48 rows. Teach it your biggest payees: Alpha Hosting, Beta Telecom and Gamma Rent.', link: { label: 'To review', to: '/gallery' } },
+        ]"
+      >
+        <template #action="{ line }">
+          <UButton v-if="line.key === 'first-statement'" label="Not now" color="neutral" variant="outline" size="sm" class="shrink-0" />
+        </template>
+      </GettingSetUpCard>
     </GallerySection>
 
     <GallerySection id="empty-state" title="EmptyState" description="In place of what a screen has nothing of yet, dashed, or of what could not be worked out, with an error edge.">

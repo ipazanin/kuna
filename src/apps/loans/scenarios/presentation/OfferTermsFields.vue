@@ -159,7 +159,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import CostFields from './CostFields.vue'
-import FoldBlock from './FoldBlock.vue'
+import FoldBlock from '../../bankLoans/presentation/FoldBlock.vue'
 import RepaymentChoice from '../../bankLoans/presentation/RepaymentChoice.vue'
 import SubsidyFields from '../../bankLoans/presentation/SubsidyFields.vue'
 import { useLoanWords } from '../../bankLoans/presentation/useLoanWords'

@@ -43,4 +43,14 @@ describe('the tax date on the home card', () => {
   it('counts the lending payment and the referral credit while their 30 days run', () => {
     expect(reminderOn('2026-09-03')).toEqual({ kind: 'payments', count: 2, due: '2026-09-04' })
   })
+
+  it('leaves out the JOPPD with the history not said to be complete, and keeps the dates that read only the income', () => {
+    const records = exampleYear()
+    expect(taxReminder(records, EXAMPLE_RATES, civil('2027-02-15'), false)?.kind).not.toBe('joppd')
+    expect(taxReminder(records, EXAMPLE_RATES, civil('2027-02-15'))?.kind).toBe('joppd')
+    const net = records.income.map((payment) => payment)
+    expect(taxReminder({ ...records, trades: [], income: net }, EXAMPLE_RATES, civil('2027-01-10'), false)).toEqual(
+      taxReminder({ ...records, trades: [], income: net }, EXAMPLE_RATES, civil('2027-01-10')),
+    )
+  })
 })
