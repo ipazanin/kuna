@@ -11,6 +11,9 @@ import { rememberLastAccount, startingAccount } from './lastAccount'
 import { words } from './words'
 import { newEntry, newTransfer, otherLegOf, deleteComesBack, removeEntry, retypedEntry, transferOver, TRANSACTION_WRITES } from '../application/entryWrites'
 import { fixedCategories } from '../../categories/domain/categoryTree'
+import { removeReceiptOf } from '../../receipts/application/receiptRecords'
+import RowLines from '../../receipts/presentation/RowLines.vue'
+import { words as receiptWords } from '../../receipts/presentation/words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Account } from '../../workbook/domain/account'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -63,6 +66,10 @@ const legs = computed((): readonly [Transaction, Transaction] | null => {
   if (other === null) return null
   return props.entry.amount < 0 ? [props.entry, other] : [other, props.entry]
 })
+
+/** What a receipt split the entry into, whose sum holds its amount and whose categories count in place of its own. */
+const entryLines = computed(() => (store.state.workbook?.lines ?? []).filter((line) => line.transaction === props.entry?.id))
+const split = computed(() => entryLines.value.length > 0)
 
 /** The open accounts, and the closed ones the entry is already on. */
 const choosable = computed(() => {
@@ -139,7 +146,7 @@ function openedAfter(on: CivilDate, onAccount: Account | null): string | null {
 const errors = computed(() => ({
   amount: positive(amount.value) === null ? words.dialog.anAmount : null,
   toAmount: twoCurrencies.value && positive(toAmount.value) === null ? words.dialog.anAmount : null,
-  category: kind.value !== 'transfer' && !pickable.value.has(category.value) ? words.dialog.pickCategory : null,
+  category: kind.value !== 'transfer' && !split.value && !pickable.value.has(category.value) ? words.dialog.pickCategory : null,
   account: from.value === null ? words.dialog.pickAccount : null,
   toAccount: kind.value === 'transfer' && (to.value === null || to.value.id === from.value?.id) ? words.dialog.otherAccount : null,
   date: day.value === null ? spendingWords.form.aDate(civilDate(2026, 3, 15)) : (openedAfter(day.value, from.value) ?? (kind.value === 'transfer' ? openedAfter(day.value, to.value) : null)),
@@ -207,6 +214,13 @@ function transferWrite(fromAccount: Account, typed: Money, on: CivilDate): ((uni
   }
 }
 
+async function removeReceipt(): Promise<void> {
+  const entry = props.entry
+  const records = store.state.records
+  if (entry === null || records === null) return
+  if (await writes.write(receiptWords.removed, (unit) => removeReceiptOf(unit, records, entry), { key: 'remove-receipt', failedTitle: spendingWords.form.notSaved })) open.value = false
+}
+
 async function remove(): Promise<void> {
   const entry = props.entry
   const records = store.state.records
@@ -218,14 +232,14 @@ async function remove(): Promise<void> {
 <template>
   <AppDialog v-model:open="open" :title="entry === null ? words.dialog.addTitle : words.dialog.changeTitle" :description="words.dialog.description">
     <FormGrid id="spending-entry" as="form" data-testid="spending-entry-dialog" @submit.prevent="save">
-      <UFormField :label="words.dialog.kind" class="sm:col-span-2">
+      <UFormField v-if="!split" :label="words.dialog.kind" class="sm:col-span-2">
         <ChoiceButtons v-model="kind" :options="kindOptions" :label="words.dialog.kind" data-testid="spending-entry-kind" />
       </UFormField>
       <UFormField :label="words.dialog.amountIn(from?.currency ?? '')" :error="(tried && errors.amount) || false">
-        <MoneyInput v-model="amount" :placeholder="spendingWords.form.amountPlaceholder" class="w-full" data-testid="spending-entry-amount" />
+        <MoneyInput v-model="amount" :placeholder="spendingWords.form.amountPlaceholder" :disabled="split" class="w-full" data-testid="spending-entry-amount" />
       </UFormField>
       <UFormField :label="kind === 'transfer' ? words.dialog.fromAccount : words.dialog.account" :error="(tried && errors.account) || false">
-        <USelect v-model="account" :items="accountItems" :disabled="fromFixed" class="w-full" data-testid="spending-entry-account" />
+        <USelect v-model="account" :items="accountItems" :disabled="fromFixed || split" class="w-full" data-testid="spending-entry-account" />
       </UFormField>
       <template v-if="kind === 'transfer'">
         <UFormField :label="words.dialog.toAccount" :error="(tried && errors.toAccount) || false">
@@ -235,7 +249,7 @@ async function remove(): Promise<void> {
           <MoneyInput v-model="toAmount" :placeholder="spendingWords.form.amountPlaceholder" class="w-full" data-testid="spending-entry-to-amount" />
         </UFormField>
       </template>
-      <UFormField v-else :label="words.dialog.category" :error="(tried && errors.category) || false">
+      <UFormField v-else-if="!split" :label="words.dialog.category" :error="(tried && errors.category) || false">
         <USelectMenu v-model="category" :items="categoryItems" value-key="value" :placeholder="words.dialog.pickCategory" class="w-full" data-testid="spending-entry-category" />
       </UFormField>
       <UFormField :label="words.dialog.date" :error="(tried && errors.date) || false">
@@ -247,6 +261,20 @@ async function remove(): Promise<void> {
       <UFormField :label="spendingWords.form.note" class="sm:col-span-2">
         <UInput v-model="note" class="w-full" data-testid="spending-entry-note" />
       </UFormField>
+      <div v-if="split" class="flex flex-col items-start gap-2 sm:col-span-2" data-testid="spending-entry-lines">
+        <p class="type-caption">{{ receiptWords.splitNote }}</p>
+        <RowLines :lines="entryLines" :categories="categories" :currency="from?.currency ?? 'EUR'" class="w-full" />
+        <UButton
+          :label="receiptWords.remove"
+          icon="i-lucide-receipt"
+          color="neutral"
+          variant="outline"
+          :loading="writes.saving('remove-receipt')"
+          :disabled="writes.busy.value"
+          data-testid="spending-entry-remove-receipt"
+          @click="removeReceipt"
+        />
+      </div>
       <p v-if="deleteComesBack(legs ?? (entry === null ? [] : [entry]))" class="type-caption sm:col-span-2" data-testid="spending-entry-comes-back">{{ words.dialog.comesBack }}</p>
     </FormGrid>
     <template #start>

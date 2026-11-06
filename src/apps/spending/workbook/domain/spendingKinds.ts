@@ -1,6 +1,8 @@
 import type { Account } from './account'
 import type { Budget } from './budget'
 import type { Category } from './category'
+import type { Receipt } from './receipt'
+import type { ReceiptLine } from './receiptLine'
 import type { SpendingRule } from './spendingRule'
 import type { SettingRow } from './spendingSettings'
 import type { Transaction } from './transaction'
@@ -25,6 +27,14 @@ export const BUDGET_RECORDS = recordKind<Budget>('budget', {
 export const RULE_RECORDS = recordKind<SpendingRule>('rule', {
   en: { one: 'rule', many: 'rules', article: 'a' },
   hr: { one: 'pravilo', of: 'pravila', few: 'pravila', other: 'pravila', gender: 'neuter' },
+})
+export const RECEIPT_RECORDS = recordKind<Receipt>('receipt', {
+  en: { one: 'receipt', many: 'receipts', article: 'a' },
+  hr: { one: 'fiskalni račun', of: 'fiskalnog računa', few: 'fiskalna računa', other: 'fiskalnih računa', gender: 'masculine' },
+})
+export const LINE_RECORDS = recordKind<ReceiptLine>('line', {
+  en: { one: 'receipt line', many: 'receipt lines', article: 'a' },
+  hr: { one: 'stavka računa', of: 'stavke računa', few: 'stavke računa', other: 'stavki računa', gender: 'feminine' },
 })
 export const SETTING_RECORDS = recordKind<SettingRow>('setting', {
   en: { one: 'setting', many: 'settings', article: 'a' },

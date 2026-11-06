@@ -50,6 +50,16 @@ export const en = {
   ruleNeedsOneCondition: 'a rule states counterparty_contains or counterparty_iban, and only one of them',
   ruleOtherCondition: (column: string) => `Spending's rules read no ${column}`,
   ruleLabel: (fields: StoredFields) => labelWords([textOf(fields.counterparty_contains), textOf(fields.counterparty_iban)]),
+  /** The words that name a receipt, as its stored fields read. */
+  receiptLabel: (fields: StoredFields) => labelWords([textOf(fields.issued_at), numberText(fields.total), textOf(fields.merchant)]),
+  /** The words that name a receipt line, as its stored fields read. */
+  lineLabel: (fields: StoredFields) => labelWords([textOf(fields.text), textOf(fields.printed), numberText(fields.amount)]),
+  notIssuedAt: (text: string) => `issued_at "${text}" is not a date, or a date and time, such as 2026-11-03 18:42`,
+  totalNotAboveZero: 'total is not above zero',
+  noEntry: 'names no entry in the file',
+  noReceipt: 'names no receipt of its entry in the file',
+  entryHasReceipt: 'names an entry another receipt names too',
+  linesDoNotAddUp: (sum: string, amount: string) => `the lines of its entry add up to ${sum}, and the entry says ${amount}`,
   settingUnknown: (key: string) => `this Kuna knows no setting ${key}`,
   settingNotADay: (key: string, text: string) => `${key} "${text}" is not a date such as 2027-05-03`,
 }
@@ -83,6 +93,14 @@ export const hr: Translation<typeof en> = {
   ruleNeedsOneCondition: 'pravilo navodi counterparty_contains ili counterparty_iban, i samo jedno od njih',
   ruleOtherCondition: (column) => `pravila potrošnje ne čitaju ${column}`,
   ruleLabel: (fields) => labelWords([textOf(fields.counterparty_contains), textOf(fields.counterparty_iban)]),
+  receiptLabel: (fields) => labelWords([textOf(fields.issued_at), numberText(fields.total), textOf(fields.merchant)]),
+  lineLabel: (fields) => labelWords([textOf(fields.text), textOf(fields.printed), numberText(fields.amount)]),
+  notIssuedAt: (text) => `issued_at „${text}” nije datum, ni datum i vrijeme, kao 2026-11-03 18:42`,
+  totalNotAboveZero: 'total nije veći od nule',
+  noEntry: 'u datoteci nema unosa koji navodi',
+  noReceipt: 'u datoteci nema fiskalnog računa njezina unosa koji navodi',
+  entryHasReceipt: 'navodi unos koji navodi i drugi fiskalni račun',
+  linesDoNotAddUp: (sum, amount) => `stavke njezina unosa daju ${sum}, a na unosu piše ${amount}`,
   settingUnknown: (key) => `ova Kuna ne poznaje postavku ${key}`,
   settingNotADay: (key, text) => `${key} „${text}” nije datum kao 2027-05-03`,
 }

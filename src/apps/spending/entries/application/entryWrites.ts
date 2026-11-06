@@ -1,3 +1,4 @@
+import { removeReceiptOf } from '../../receipts/application/receiptRecords'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import { TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
@@ -12,7 +13,7 @@ import { textOf } from '../../../../shared/storage/domain/storedFields'
 import { pickedEdits } from '../../../../shared/storage/domain/writeRules'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 
-/** An entry may be a transfer's leg, which its other leg names back, so a write keeps both or neither. A row a statement brought stays on its account. */
+/** An entry may be a transfer's leg, which its other leg names back, so a write keeps both or neither. A row a statement brought stays on its account. A row a receipt split keeps the amount its lines add up to. */
 export const TRANSACTION_WRITES: WriteRules<Transaction> = {
   kind: TRANSACTION_RECORDS,
   reads: SPENDING_KINDS,
@@ -22,7 +23,7 @@ export const TRANSACTION_WRITES: WriteRules<Transaction> = {
     ...pickedEdits(change, (fields) => ({ account: textOf(fields.account), importKey: textOf(fields.import_key) })).flatMap(({ before, after: changed }) =>
       before !== null && changed !== null && before.importKey !== '' && before.account !== changed.account ? [words.accountOfStatementRow] : [],
     ),
-    ...dependentRefusals(['transactions'], fresh, after),
+    ...dependentRefusals(['transactions', 'receipts', 'lines'], fresh, after),
   ],
 }
 
@@ -77,9 +78,11 @@ export function otherLegOf(records: SpendingRecords, entry: Transaction): Transa
   return entry.pair === null ? null : (recordsOf(records.transactions).find((other) => other.id === entry.pair) ?? null)
 }
 
-/** Deletes the entry and its other leg in one write, so one Undo puts both back. */
+/** Deletes the entry with its other leg and its receipt in one write, so one Undo puts them all back. */
 export function removeEntry(unit: UnitOfWork, records: SpendingRecords, entry: Transaction): void {
   const other = otherLegOf(records, entry)
-  unit.of(TRANSACTION_WRITES).remove(entry)
-  if (other !== null) unit.of(TRANSACTION_WRITES).remove(other)
+  for (const row of other === null ? [entry] : [entry, other]) {
+    unit.of(TRANSACTION_WRITES).remove(row)
+    removeReceiptOf(unit, records, row)
+  }
 }

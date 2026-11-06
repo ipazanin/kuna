@@ -33,12 +33,17 @@ export interface SameMoney<Typed, Bank> {
   readonly near: readonly NearMatch<Typed, Bank>[]
 }
 
-function inWindow(typed: MoneyRow, bank: MoneyRow): boolean {
+/** What the same-money tests read of each side, which need not be a row yet, as a receipt is not. */
+export type DatedMoney = Pick<Transaction, 'date' | 'amount'>
+
+/** Whether the bank's day falls from 3 days before to 7 days after the typed day. */
+export function inWindow(typed: DatedMoney, bank: DatedMoney): boolean {
   const days = daysBetween(typed.date, bank.date)
   return days >= -BOOKED_DAYS_BEFORE && days <= BOOKED_DAYS_AFTER
 }
 
-function isNear(typed: MoneyRow, bank: MoneyRow): boolean {
+/** Whether a bank row is close enough to be offered: an equal amount within 14 days, or within a tenth of the larger amount inside the window. */
+export function isNear(typed: DatedMoney, bank: DatedMoney): boolean {
   if (typed.amount === bank.amount) return Math.abs(daysBetween(typed.date, bank.date)) <= NEAR_DAYS
   const sameWay = typed.amount < 0 === bank.amount < 0
   return sameWay && inWindow(typed, bank) && Math.abs(typed.amount - bank.amount) <= NEAR_AMOUNT_SHARE * Math.max(Math.abs(typed.amount), Math.abs(bank.amount))

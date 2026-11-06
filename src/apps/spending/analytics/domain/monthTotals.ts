@@ -43,17 +43,18 @@ export function monthTotals(rows: readonly EuroRow[], categories: readonly Categ
   let unrated = 0
   for (const row of rows) {
     if (monthOf(row.transaction.date) !== month) continue
-    for (const part of rowSide(row, byId)) {
-      if (part.side === 'nowhere' || part.category === null) continue
-      if (part.counted === null) {
-        unrated += 1
-        counted(unratedByCategory, part.category.id)
-        counted(unratedByGroup, part.category.parent ?? part.category.id)
-        continue
-      }
-      totals[part.side] = addMoney(totals[part.side], part.counted)
-      added(byCategory, part.category.id, part.counted)
-      added(byGroup, part.category.parent ?? part.category.id, part.counted)
+    const parts = rowSide(row, byId).flatMap((part) => (part.side === 'nowhere' || part.category === null ? [] : [{ ...part, side: part.side, category: part.category }]))
+    const notReached = parts.filter((part) => part.counted === null).map((part) => part.category)
+    if (notReached.length > 0) {
+      unrated += 1
+      for (const id of new Set(notReached.map((category) => category.id))) counted(unratedByCategory, id)
+      for (const id of new Set(notReached.map((category) => category.parent ?? category.id))) counted(unratedByGroup, id)
+    }
+    for (const { category, side, counted: euros } of parts) {
+      if (euros === null) continue
+      totals[side] = addMoney(totals[side], euros)
+      added(byCategory, category.id, euros)
+      added(byGroup, category.parent ?? category.id, euros)
     }
   }
   return { month, spent: totals.spending, income: totals.income, saved: totals.saved, byCategory, byGroup, unrated, unratedByCategory, unratedByGroup }

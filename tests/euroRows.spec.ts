@@ -12,7 +12,7 @@ import { civil, euros } from './fixtures/ledger'
 import { ACCOUNTS, CASH, DAY, OTP, RATES, REVOLUT_EUR, REVOLUT_USD, ROWS, USD, account, row } from './fixtures/spending'
 
 function eurosOf(rows: Parameters<typeof euroRows>[0]['transactions'], rates = RATES) {
-  return euroRows({ accounts: ACCOUNTS, transactions: rows }, rates).map((entry) => entry.euros)
+  return euroRows({ accounts: ACCOUNTS, transactions: rows, lines: [] }, rates).map((entry) => entry.euros)
 }
 
 describe('a row in euros', () => {
@@ -27,7 +27,7 @@ describe('a row in euros', () => {
   })
 
   it('leaves a row before the series starts unrated, never guessed', () => {
-    const rows = euroRows({ accounts: ACCOUNTS, transactions: [row(REVOLUT_USD, '2026-08-20', -30, 'Travel/On the trip')] }, RATES)
+    const rows = euroRows({ accounts: ACCOUNTS, transactions: [row(REVOLUT_USD, '2026-08-20', -30, 'Travel/On the trip')], lines: [] }, RATES)
 
     expect(rows).toMatchObject([{ account: { name: 'Revolut USD' }, euros: null }])
   })
@@ -37,7 +37,7 @@ describe('a row in euros', () => {
   })
 
   it('gives every row of the worked example its account, and only the dollar row a rate', () => {
-    const rows = euroRows({ accounts: ACCOUNTS, transactions: ROWS }, RATES)
+    const rows = euroRows({ accounts: ACCOUNTS, transactions: ROWS, lines: [] }, RATES)
 
     expect(rows.map((entry) => entry.account.name)).toEqual(ROWS.map((entry) => ACCOUNTS.find((held) => held.id === entry.account)!.name))
     expect(rows.filter((entry) => entry.euros !== entry.transaction.amount).map((entry) => [entry.transaction.payee, entry.euros])).toEqual([['Diner in Boston', euros(-27.78)]])
@@ -46,7 +46,7 @@ describe('a row in euros', () => {
   it('leaves out a row whose account is not in the book', () => {
     const elsewhere = account(9, { ...OTP, name: 'Elsewhere' })
 
-    expect(euroRows({ accounts: ACCOUNTS, transactions: [row(elsewhere, '2026-10-12', -1, 'Food/Groceries')] }, RATES)).toEqual([])
+    expect(euroRows({ accounts: ACCOUNTS, transactions: [row(elsewhere, '2026-10-12', -1, 'Food/Groceries')], lines: [] }, RATES)).toEqual([])
   })
 })
 

@@ -41,6 +41,7 @@
     "@tanstack/vue-table": "^8.21.3",
     "dexie": "^4.4.6",
     "echarts": "^6.1.0",
+    "jsqr": "^1.4.0",
     "pdf-lib": "^1.17.1",
     "tailwindcss": "^4.3.3",
     "vue": "^3.5.44",

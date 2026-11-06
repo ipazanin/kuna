@@ -3,13 +3,17 @@ import { ibanKey } from './accountReading'
 import type { Budget } from './budget'
 import type { Category } from './category'
 import { isFixedKind } from './category'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
+import type { Receipt } from './receipt'
+import type { ReceiptLine } from './receiptLine'
+import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
 import type { SpendingRule } from './spendingRule'
 import { readSettingRows, spendingSettingsOf } from './spendingSettings'
 import type { SettingRow, SpendingSettings } from './spendingSettings'
 import type { Transaction } from './transaction'
 import { words } from './words'
 import { limitRuns, runsOverlap } from '../../budgets/domain/budgetCarry'
+import { plainAmount, sumMoney } from '../../../../shared/money/money'
+import type { Money } from '../../../../shared/money/money'
 import type { RecordKind, RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import { problemOf, readEach } from '../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
@@ -22,6 +26,8 @@ export interface SpendingRecords {
   readonly transactions: RecordsRead<Transaction>
   readonly budgets: RecordsRead<Budget>
   readonly rules: RecordsRead<SpendingRule>
+  readonly receipts: RecordsRead<Receipt>
+  readonly lines: RecordsRead<ReceiptLine>
   readonly settings: RecordsRead<SettingRow>
 }
 
@@ -32,6 +38,8 @@ export const SPENDING_PARTS: { readonly [Part in keyof SpendingRecords]: RecordK
   transactions: TRANSACTION_RECORDS,
   budgets: BUDGET_RECORDS,
   rules: RULE_RECORDS,
+  receipts: RECEIPT_RECORDS,
+  lines: LINE_RECORDS,
   settings: SETTING_RECORDS,
 }
 
@@ -43,6 +51,8 @@ export function spendingRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>
     transactions: of(SPENDING_PARTS.transactions),
     budgets: of(SPENDING_PARTS.budgets),
     rules: of(SPENDING_PARTS.rules),
+    receipts: of(SPENDING_PARTS.receipts),
+    lines: of(SPENDING_PARTS.lines),
     settings: of(SPENDING_PARTS.settings),
   }
 }
@@ -65,6 +75,9 @@ export interface SpendingBook {
   readonly budgets: readonly Budget[]
   /** In the order they are tried. */
   readonly rules: readonly SpendingRule[]
+  readonly receipts: readonly Receipt[]
+  /** In the order of the file. */
+  readonly lines: readonly ReceiptLine[]
   readonly settings: SpendingSettings
   readonly readings: SpendingReadings
   /** Every kind's problems, in the order of the kinds. */
@@ -158,11 +171,35 @@ function readRules(read: RecordsRead<SpendingRule>, categories: ReadonlySet<stri
   return { ...reading, facts: [...reading.facts].sort((earlier, later) => earlier.order - later.order) }
 }
 
+function readReceipts(read: RecordsRead<Receipt>, transactions: ReadonlySet<string>): Reading<Receipt> {
+  const sharingRow = sharedKeys(read.records, (stored) => stored.record.transaction)
+  return readEach(read, ({ record: receipt }) => {
+    if (!transactions.has(receipt.transaction)) return [words.noEntry]
+    return sharingRow.has(receipt.transaction) ? [words.entryHasReceipt] : []
+  })
+}
+
+function readLines(read: RecordsRead<ReceiptLine>, transactions: readonly Transaction[], receipts: readonly Receipt[], categories: ReadonlySet<string>): Reading<ReceiptLine> {
+  const rows = new Map(transactions.map((row) => [row.id, row]))
+  const receiptOf = new Map(receipts.map((receipt) => [receipt.id, receipt]))
+  const sums = new Map<string, Money[]>()
+  for (const { record: line } of read.records) sums.set(line.transaction, [...(sums.get(line.transaction) ?? []), line.amount])
+  return readEach(read, ({ record: line }) => {
+    const row = rows.get(line.transaction)
+    if (row === undefined) return [words.noEntry]
+    if (receiptOf.get(line.receipt)?.transaction !== line.transaction) return [words.noReceipt]
+    if (!categories.has(line.category)) return [words.noCategory]
+    const sum = sumMoney(sums.get(line.transaction) ?? [])
+    return sum === row.amount ? [] : [words.linesDoNotAddUp(plainAmount(sum), plainAmount(row.amount))]
+  })
+}
+
 /**
  * Reads the Spending file with the rules across records. A child names a group of its kind that counts, and each of the
  * three fixed kinds is one category. An entry names an account and a category that count, and its other leg names it
  * back from another account. A limit is on a spending category, one a month, and never on a group and its child in the
- * same months. A rule names a category that counts. Two accounts with one IBAN and currency, and a second category of a fixed
+ * same months. A rule names a category that counts. A receipt names an entry that counts, which no other receipt names. A line
+ * names that entry, its receipt and a category that counts, and the lines of an entry add up to its amount. Two accounts with one IBAN and currency, and a second category of a fixed
  * kind, count but are doubted. Two entries of an account with one import key are refused.
  */
 export function readSpendingBook(records: SpendingRecords): SpendingBook {
@@ -172,14 +209,18 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const transactions = readTransactions(records.transactions, new Set(accounts.facts.map((account) => account.id)), categoryIds)
   const budgets = readBudgets(records.budgets, categories.facts)
   const rules = readRules(records.rules, categoryIds)
+  const receipts = readReceipts(records.receipts, new Set(transactions.facts.map((row) => row.id)))
+  const lines = readLines(records.lines, transactions.facts, receipts.facts, categoryIds)
   const settings = readSettingRows(records.settings)
-  const readings: SpendingReadings = { accounts, categories, transactions, budgets, rules, settings }
+  const readings: SpendingReadings = { accounts, categories, transactions, budgets, rules, receipts, lines, settings }
   return {
     accounts: accounts.facts,
     categories: categories.facts,
     transactions: transactions.facts,
     budgets: budgets.facts,
     rules: rules.facts,
+    receipts: receipts.facts,
+    lines: lines.facts,
     settings: spendingSettingsOf(settings.facts),
     readings,
     problems: (Object.keys(SPENDING_PARTS) as (keyof SpendingRecords)[]).flatMap((part) =>

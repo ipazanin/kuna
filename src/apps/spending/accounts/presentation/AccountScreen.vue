@@ -69,7 +69,7 @@ const rows = computed(() => {
   const book = state.workbook
   const shown = account.value
   if (book === null || shown === null) return []
-  return euroRows({ accounts: [shown], transactions: book.transactions }, ratesIn(rates.value)).reverse()
+  return euroRows({ accounts: [shown], transactions: book.transactions, lines: book.lines }, ratesIn(rates.value)).reverse()
 })
 const expanded = ref(false)
 const listed = computed(() => (expanded.value ? rows.value : rows.value.slice(0, FIRST_SHOWN)))

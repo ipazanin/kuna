@@ -152,7 +152,7 @@
         </svg>
         <h1>Privacy</h1>
       </header>
-      <p class="lead">Kuna is a web page that works out company finance figures in your browser. Updated 2 November 2026.</p>
+      <p class="lead">Kuna is a web page that works out company finance figures in your browser. Updated 6 November 2026.</p>
 
       <article>
         <section>
@@ -166,7 +166,8 @@
               <code>drive.file</code>, "See, edit, create, and delete only the specific Google Drive files you use with this app". Always asked. It covers the files and folders you pick in Google's
               file picker and the files the app makes. The app reads and saves your books in <code>kuna-company.json</code>, the file it makes in the folder you pick, and reads the names of that
               folder and of the backups beside the file. When you make an invoice, it lists the folders inside the invoice folder you picked, and files the PDF there. When a sync files your bank's
-              statement mail or a kind of your accountant's mail you switched on, it makes the files, and a missing year or month folder, in that mail's folder.
+              statement mail or a kind of your accountant's mail you switched on, it makes the files, and a missing year or month folder, in that mail's folder. When you switch on Keep the photo on
+              Drive for a receipt, it makes the photo's file, and a <code>Receipts</code> folder when it is missing, beside your Spending file.
             </li>
             <li>
               <code>drive.readonly</code>, "See and download all your Google Drive files". Asked only while you have the app read bank statements from a Drive folder or file your mail into one.
@@ -206,7 +207,10 @@
             Kuna is not verified by Google. Google shows a warning on its consent screen for the restricted permissions
             <code>drive.readonly</code>, <code>gmail.readonly</code> and <code>gmail.compose</code>, and the app stays within the 100 users Google allows an unverified app.
           </p>
-          <p>A file you open or drop on the page, an .xlsx workbook or a Kuna file, is read in this browser only.</p>
+          <p>
+            A file you open or drop on the page, an .xlsx workbook or a Kuna file, is read in this browser only. So is a receipt photo: the page reads its QR code here and sends it nowhere. It is gone
+            when the dialog closes, unless you switch on Keep the photo on Drive.
+          </p>
         </section>
         <section>
           <h2>What the app writes</h2>
@@ -232,6 +236,11 @@
             Remove the Investments file, in the Investments Settings, asks first. For a file on Drive it moves <code>kuna-investments.json</code> and <code>kuna-investments-prices.json</code> to your
             Drive bin, where you can restore them for 30 days. For a file kept in this browser it deletes the file and its prices here. Your keys stay, in this browser and in Kuna's hidden folder,
             since every Kuna app uses them, and so do the backups folder and the files you exported.
+          </p>
+          <p>
+            When you save a receipt, it writes what you confirmed into your Spending file: the date, time and total, the JIR or ZKI of its QR code, and the merchant and category you gave. With Keep
+            the photo on Drive on, it uploads the photo as you took it, which can show a masked card number and a shop's address, into a <code>Receipts</code> folder beside that file and keeps the
+            file's id with the receipt. Removing the receipt or an Undo leaves that photo on your Drive for you to delete.
           </p>
           <p>
             While you name the address your bank mails statements from, each sync files the attachments of its new statement mail, the statement PDF and XML, into your statements folder in Drive, in a

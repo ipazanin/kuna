@@ -12,6 +12,8 @@ defineProps<{
   description: string
   /** The file types offered when choosing, such as `.xlsx,.csv`. */
   accept: string
+  /** Opens this camera straight away on a phone. A desktop browser ignores it and shows its file picker. */
+  capture?: 'environment' | 'user'
   icon?: string
   /** Takes several files at once, and the model holds them all. */
   multiple?: Many
@@ -22,6 +24,7 @@ defineProps<{
   <UFileUpload
     v-model="file"
     :accept="accept"
+    :capture="capture"
     :multiple="multiple ?? false"
     :preview="false"
     reset

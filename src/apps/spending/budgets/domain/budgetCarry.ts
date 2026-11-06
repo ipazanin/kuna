@@ -100,7 +100,7 @@ export function leftToSpend(months: readonly BudgetMonth[]): Money {
   return months.reduce((sum, entry) => addMoney(sum, entry.left), ZERO)
 }
 
-/** How many rows the limits of the month count as nothing, this month's and those of the months they carry from. Limits never share a row. */
+/** How many rows the limits of the month count as nothing, this month's and those of the months they carry from. A row a receipt split across two limits counts under each. */
 export function limitsUnrated(months: readonly BudgetMonth[]): number {
   return months.reduce((sum, entry) => sum + entry.unrated + entry.unratedCarried, 0)
 }

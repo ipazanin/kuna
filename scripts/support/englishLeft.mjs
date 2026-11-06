@@ -162,7 +162,7 @@ const FAKE_DOCUMENTS = [
   ...['sample', 'one-loan', 'house-and-car', 'equal-principal'].map((set) => fakeLoansDocument(FAKE_SAVED_AT, set)),
   ...['sample', 'cash-below-zero'].map((variant) => fakeInvestmentsDocument(FAKE_SAVED_AT, variant)),
   ...['sample', 'house-and-car', 'loan-gone'].map((set) => fakeAssetsDocument(FAKE_SAVED_AT, set)),
-  ...['sample', 'foreign', 'over', 'statements'].map((set) => fakeSpendingDocument(FAKE_SAVED_AT, set)),
+  ...['sample', 'foreign', 'over', 'statements', 'receipts'].map((set) => fakeSpendingDocument(FAKE_SAVED_AT, set)),
 ]
 
 /** The words of the field names of the Company, Loans, Investments, Assets and Spending files, which a Croatian reason writes in lower case as the file stores them. */

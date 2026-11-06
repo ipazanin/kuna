@@ -18,7 +18,18 @@ import { civil, euros } from './fixtures/ledger'
 const DAY = civil('2026-10-30')
 
 function bookOf(transactions: readonly Transaction[], rules: readonly SpendingRule[] = []): SpendingBook {
-  return { accounts: ACCOUNTS, categories: CATEGORIES, transactions, budgets: [], rules, settings: spendingSettingsOf([]), readings: {} as SpendingBook['readings'], problems: [] }
+  return {
+    accounts: ACCOUNTS,
+    categories: CATEGORIES,
+    transactions,
+    budgets: [],
+    rules,
+    receipts: [],
+    lines: [],
+    settings: spendingSettingsOf([]),
+    readings: {} as SpendingBook['readings'],
+    problems: [],
+  }
 }
 
 function statementRow(on: typeof OTP, date: string, amount: number, payee: string, fields: Partial<StatementRow> = {}): StatementRow {

@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 
 import { categoryColours } from '../../categories/presentation/categoryColours'
+import RowLines from '../../receipts/presentation/RowLines.vue'
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { Category } from '../../workbook/domain/category'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -49,7 +50,7 @@ const days = computed(() => {
       row,
       title: transaction.payee === '' ? categoryName : transaction.payee,
       colour: `var(${category === null ? '--chart-deemphasis' : colours.value(category)})`,
-      details: [transaction.payee === '' ? '' : categoryName, props.showAccount ? account.name : '', transaction.note].filter((part) => part !== '').join(' · '),
+      details: [transaction.payee === '' || row.lines.length > 0 ? '' : categoryName, props.showAccount ? account.name : '', transaction.note].filter((part) => part !== '').join(' · '),
       euros: account.currency === EURO || row.euros === null ? '' : formatMoney(row.euros, 'always'),
     }
     const last = groups.at(-1)
@@ -77,6 +78,7 @@ const days = computed(() => {
             <span class="flex min-w-0 flex-1 flex-col gap-0.5">
               <span class="break-words text-sm text-highlighted">{{ line.title }}</span>
               <span v-if="line.details !== ''" class="break-words type-caption">{{ line.details }}</span>
+              <RowLines v-if="line.row.lines.length > 0" :lines="line.row.lines" :categories="categories" :currency="line.row.account.currency" />
             </span>
             <span class="flex shrink-0 flex-col items-end gap-0.5 type-body">
               <MoneyText :cents="line.row.transaction.amount" sign="always" tone="flow" :format="{ currency: line.row.account.currency, locale: intlLocale }" />

@@ -209,7 +209,7 @@ describe('a statement in the Spending file', () => {
     const before = store.state.workbook!.transactions
     const near = reviewQueue(store.state.workbook!, civil('2026-10-30')).waiting[0]!.maybeTyped!
 
-    const receipt = await store.write('Joined', (unit) => joinWithTyped(unit, near.typed, near.bank))
+    const receipt = await store.write('Joined', (unit) => joinWithTyped(unit, near.typed, near.bank, []))
 
     expect(store.state.workbook!.transactions).toMatchObject([{ id: typed.id, amount: euros(-5.2), importKey: 'key-CAFE', category: typed.category }])
     await store.undo(store.state.writes.find((write) => write.receipt === receipt)!)

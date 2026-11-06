@@ -3,15 +3,132 @@ import { describe, expect, it } from 'vitest'
 import { monthFlow } from '../src/apps/spending/analytics/domain/monthFlow'
 import { categoryTotal, monthTotals } from '../src/apps/spending/analytics/domain/monthTotals'
 import { euroRows } from '../src/apps/spending/rates/domain/euroRows'
+import type { ReceiptLine } from '../src/apps/spending/workbook/domain/receiptLine'
+import { LINE_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import type { RateBook } from '../src/shared/money/rateBook'
 import { euros, month } from './fixtures/ledger'
 import { ACCOUNTS, CATEGORIES, OTP, RATES, REVOLUT_EUR, REVOLUT_USD, ROWS, category, row, transactionId } from './fixtures/spending'
 
 function totalsOf(rows: readonly Transaction[], asked: string, rates: RateBook = RATES) {
-  return monthTotals(euroRows({ accounts: ACCOUNTS, transactions: rows }, rates), CATEGORIES, month(asked))
+  return monthTotals(euroRows({ accounts: ACCOUNTS, transactions: rows, lines: [] }, rates), CATEGORIES, month(asked))
 }
+
+/** A row's lines, as a receipt split it, in the row's currency. */
+function linesOf(transaction: Transaction, parts: readonly (readonly [number, string])[]): readonly ReceiptLine[] {
+  return parts.map(([amount, path], place) => ({
+    id: recordIdOf(LINE_RECORDS, `5e000000-0000-4000-8000-00000000${String(7000 + place)}`),
+    transaction: transaction.id,
+    receipt: recordIdOf(RECEIPT_RECORDS, '5e000000-0000-4000-8000-000000006000'),
+    printed: '',
+    text: '',
+    amount: euros(amount),
+    category: category(path).id,
+  }))
+}
+
+describe("a split row's totals", () => {
+  const split = row(OTP, '2026-10-12', -61.2, 'Food/Groceries')
+  const totals = monthTotals(
+    euroRows(
+      {
+        accounts: ACCOUNTS,
+        transactions: [split],
+        lines: linesOf(split, [
+          [-48.7, 'Food/Groceries'],
+          [-12.5, 'Home/Household goods'],
+        ]),
+      },
+      RATES,
+    ),
+    CATEGORIES,
+    month('2026-10'),
+  )
+
+  it('counts each line on its own category and group, and the whole row once in the month', () => {
+    expect(totals.spent).toEqual(euros(61.2))
+    expect(totals.byCategory.get(category('Food/Groceries').id)).toEqual(euros(48.7))
+    expect(totals.byCategory.get(category('Home/Household goods').id)).toEqual(euros(12.5))
+    expect(totals.byGroup.get(category('Food').id)).toEqual(euros(48.7))
+    expect(totals.byGroup.get(category('Home').id)).toEqual(euros(12.5))
+  })
+
+  it('leaves out a line on a category that counts nowhere, as an R1 line for the company', () => {
+    const rows = euroRows(
+      {
+        accounts: ACCOUNTS,
+        transactions: [split],
+        lines: linesOf(split, [
+          [-48.7, 'Food/Groceries'],
+          [-12.5, 'For the company'],
+        ]),
+      },
+      RATES,
+    )
+
+    expect(monthTotals(rows, CATEGORIES, month('2026-10')).spent).toEqual(euros(48.7))
+  })
+
+  it('takes a Difference line above zero off the spending', () => {
+    const paid = row(OTP, '2026-10-12', -22, 'Food/Groceries')
+    const rows = euroRows(
+      {
+        accounts: ACCOUNTS,
+        transactions: [paid],
+        lines: linesOf(paid, [
+          [-23.49, 'Food/Groceries'],
+          [1.49, 'Food/Groceries'],
+        ]),
+      },
+      RATES,
+    )
+
+    expect(monthTotals(rows, CATEGORIES, month('2026-10')).byCategory.get(category('Food/Groceries').id)).toEqual(euros(22))
+  })
+
+  it("shares a foreign row's euros between its lines so they add up to the row", () => {
+    const dollars = row(REVOLUT_USD, '2026-10-10', -30, 'Travel/On the trip')
+    const rows = euroRows(
+      {
+        accounts: ACCOUNTS,
+        transactions: [dollars],
+        lines: linesOf(dollars, [
+          [-10, 'Travel/On the trip'],
+          [-10, 'Food/Coffee'],
+          [-10, 'Food/Groceries'],
+        ]),
+      },
+      RATES,
+    )
+    const october = monthTotals(rows, CATEGORIES, month('2026-10'))
+
+    // $30.00 ÷ 1.0800 = €27.78, and each share is the running sum's less the one before: 9.26, 9.26, 9.26.
+    expect(october.spent).toEqual(euros(27.78))
+    expect(rows[0]!.euros).toEqual(euros(-27.78))
+  })
+
+  it('counts a foreign row the rates do not reach once, however many lines it has', () => {
+    const dollars = row(REVOLUT_USD, '2026-10-10', -30, 'Travel/On the trip')
+    const rows = euroRows(
+      {
+        accounts: ACCOUNTS,
+        transactions: [dollars],
+        lines: linesOf(dollars, [
+          [-10, 'Food/Coffee'],
+          [-20, 'Food/Groceries'],
+        ]),
+      },
+      NO_RATES,
+    )
+    const october = monthTotals(rows, CATEGORIES, month('2026-10'))
+
+    expect(october.unrated).toBe(1)
+    expect(october.unratedByGroup.get(category('Food').id)).toBe(1)
+    expect(october.unratedByCategory.get(category('Food/Coffee').id)).toBe(1)
+  })
+})
 
 describe("a month's totals", () => {
   it("puts each of October's rows on its side: spending, income and saved, in euros", () => {

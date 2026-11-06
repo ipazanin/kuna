@@ -11,10 +11,13 @@ import EntryList from './EntryList.vue'
 import { words } from './words'
 import { words as accountWords } from '../../accounts/presentation/words'
 import { accountNamed, categoryIdNamed, SPENDING_ACCOUNTS_ROUTE, SPENDING_REVIEW_TAB } from '../../overview/presentation/spendingLinks'
+import { categoriesOfRow } from '../../categories/domain/rowSide'
 import { euroRows } from '../../rates/domain/euroRows'
 import { ratesIn } from '../../rates/domain/ratesState'
 import { useRates } from '../../rates/presentation/useRates'
 import { words as screenWords } from '../../screenWords'
+import ReceiptDialog from '../../receipts/presentation/ReceiptDialog.vue'
+import { words as receiptWords } from '../../receipts/presentation/words'
 import { reviewCount } from '../../statements/domain/reviewQueue'
 import ImportPanel from '../../statements/presentation/ImportPanel.vue'
 import ReviewPanel from '../../statements/presentation/ReviewPanel.vue'
@@ -102,8 +105,7 @@ const rows = computed(() => {
   const under = filedUnder.value
   return euroRows(book, ratesIn(rates.value))
     .filter(
-      ({ transaction }) =>
-        monthOf(transaction.date) === month.value && (account === null || transaction.account === account.id) && (under === null || (transaction.category !== null && under.has(transaction.category))),
+      (row) => monthOf(row.transaction.date) === month.value && (account === null || row.transaction.account === account.id) && (under === null || categoriesOfRow(row).some((id) => under.has(id))),
     )
     .reverse()
 })
@@ -116,6 +118,7 @@ const tabs = computed(() => [
 
 const canAdd = computed(() => accounts.value.some((candidate) => !candidate.closed))
 
+const receiptOpen = ref(false)
 const dialogOpen = ref(false)
 const editing = ref<Transaction | null>(null)
 
@@ -129,6 +132,7 @@ function openEntry(entry: Transaction | null): void {
   <section class="flex max-w-measure flex-col gap-6">
     <PageHeader :title="screenWords.entries">
       <template v-if="canAdd" #actions>
+        <UButton :label="receiptWords.add" icon="i-lucide-receipt" color="neutral" variant="outline" data-testid="spending-add-receipt" @click="receiptOpen = true" />
         <UButton :label="words.add" icon="i-lucide-plus" data-testid="spending-add-entry" @click="openEntry(null)" />
       </template>
     </PageHeader>
@@ -174,5 +178,6 @@ function openEntry(entry: Transaction | null): void {
       </template>
     </PageTabs>
     <EntryDialog v-if="state.workbook !== null" v-model:open="dialogOpen" :entry="editing" />
+    <ReceiptDialog v-if="state.workbook !== null" v-model:open="receiptOpen" />
   </section>
 </template>

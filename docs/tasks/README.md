@@ -20,19 +20,14 @@ After adding a task or changing its frontmatter, run `npm run tasks-index`. `npm
 
 ### Building
 
-| Task                                                    | Feature    | Summary                                                                                                      |
-| ------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
-| [AI help across the apps](ai-assist.md)                 | ai-assist  | One AI module and one key shared by every app, to help enter data and explain figures.                       |
-| [AI chat across the apps](ai-chat.md)                   | ai-assist  | One docked chat in every app that knows the app on screen, reads what the owner allows and proposes changes. |
-| [A Croatian company preset](company-croatian-preset.md) | company    | A Croatian d.o.o. preset for the company app's categories, roles and rules, taken from the law.              |
-| [Onboarding with and without AI](onboarding-flows.md)   | onboarding | A first useful figure in each app with or without AI, starting from one choice of whether to set up AI.      |
-| [Personal bank statements](personal-bank-statements.md) | spending   | OTP and Revolut statements read into the spending app.                                                       |
-
-### Planned
-
-| Task                                  | Feature  | Summary                                                                                                     |
-| ------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------- |
-| [Receipt reading](receipt-reading.md) | spending | A receipt photo read by an AI model with the user's own key, its lines sorted into the spending categories. |
+| Task                                                    | Feature    | Summary                                                                                                                        |
+| ------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| [AI help across the apps](ai-assist.md)                 | ai-assist  | One AI module and one key shared by every app, to help enter data and explain figures.                                         |
+| [AI chat across the apps](ai-chat.md)                   | ai-assist  | One docked chat in every app that knows the app on screen, reads what the owner allows and proposes changes.                   |
+| [A Croatian company preset](company-croatian-preset.md) | company    | A Croatian d.o.o. preset for the company app's categories, roles and rules, taken from the law.                                |
+| [Onboarding with and without AI](onboarding-flows.md)   | onboarding | A first useful figure in each app with or without AI, starting from one choice of whether to set up AI.                        |
+| [Personal bank statements](personal-bank-statements.md) | spending   | OTP and Revolut statements read into the spending app.                                                                         |
+| [Receipt reading](receipt-reading.md)                   | spending   | A receipt photo that splits the payment it matches, read by its QR code first and then by an AI model with the user's own key. |
 
 ### Waiting
 

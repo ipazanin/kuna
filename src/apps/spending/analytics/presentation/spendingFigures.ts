@@ -15,7 +15,7 @@ export interface SpendingFigures {
   limitsIn(month: MonthKey): readonly BudgetMonth[]
 }
 
-export function spendingFigures(book: Pick<SpendingBook, 'accounts' | 'transactions' | 'categories' | 'budgets'>, rates: RateBook): SpendingFigures {
+export function spendingFigures(book: Pick<SpendingBook, 'accounts' | 'transactions' | 'categories' | 'budgets' | 'lines'>, rates: RateBook): SpendingFigures {
   const rows = euroRows(book, rates)
   const categories = new Map(book.categories.map((category) => [category.id, category]))
   const months = new Map<MonthKey, MonthTotals>()

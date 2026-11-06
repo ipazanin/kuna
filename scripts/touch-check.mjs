@@ -53,7 +53,8 @@
  * out added by touch with its amount on the number pad and a category and undone, a move between two accounts read in
  * both balances, deleted and brought back, a group of the spending ring opening its categories and one of them opening
  * Transactions filtered by it and Back, Food's limit raised with its carry kept, a Revolut export dropped, read as a dry
- * run, imported and undone, Not a pair and a category on To review undone, and a rule made from To review, read on Settings,
+ * run, imported and undone, a receipt photo read by its QR code, split and undone, a pick of two payments, a near one and a new entry,
+ * Not a pair and a category on To review undone, and a rule made from To review, read on Settings,
  * Rules, deleted and brought back,
  * and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
@@ -146,6 +147,8 @@ import {
   spendingFoodLimitFlow,
   spendingBankSyncFlowIn,
   spendingImportFlowIn,
+  spendingReceiptFlowIn,
+  spendingReceiptPickFlowIn,
   spendingMoneyOutFlow,
   spendingReviewFlowIn,
   spendingRuleFlowIn,
@@ -205,7 +208,7 @@ import {
   statementsFolderFlow,
   syncRunningFlow,
 } from './support/editorFlows.mjs'
-import { writeImportSamples, writeSpendingImportSamples } from './support/importSampleFiles.mjs'
+import { writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
@@ -277,6 +280,7 @@ if (!selection.limited) {
 const TEMPLATE_FILE = await writeFakeTemplateFile(join(OUTPUT_DIR, 'filled-template.xlsx'))
 const IMPORT_SAMPLES = await writeImportSamples(OUTPUT_DIR)
 const SPENDING_IMPORT_SAMPLES = writeSpendingImportSamples(OUTPUT_DIR)
+const SPENDING_RECEIPT_SAMPLES = writeSpendingReceiptSamples(OUTPUT_DIR)
 const WORKBOOK_SAMPLES = await writeWorkbookSamples(OUTPUT_DIR)
 const CLOSES_SAMPLES = writeClosesSamples(OUTPUT_DIR)
 
@@ -2802,6 +2806,8 @@ async function checkWidth(width) {
     ['spending-delete-note', 'drive&spending=statements', spendingDeleteNoteFlowIn('en'), '#/spending/transactions', 'Entries'],
     ['spending-bank-sync', 'drive&spending=statements', spendingBankSyncFlowIn('en'), '#/spending/settings?tab=bank-sync', 'Settings'],
     ['spending-import', 'drive&spending=statements', spendingImportFlowIn('en', SPENDING_IMPORT_SAMPLES), '#/spending/transactions?tab=import', 'Entries'],
+    ['spending-receipt', 'drive&spending=receipts', spendingReceiptFlowIn('en', SPENDING_RECEIPT_SAMPLES), '#/spending/transactions', 'Entries'],
+    ['spending-receipt-pick', 'drive&spending=receipts', spendingReceiptPickFlowIn('en', SPENDING_RECEIPT_SAMPLES), '#/spending/transactions', 'Entries'],
     ['spending-review', 'drive&spending=statements', spendingReviewFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     ['spending-rule', 'drive&spending=statements', spendingRuleFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     ['investments-start', 'drive', investmentsDriveFlow, '#/investments', 'Investments'],

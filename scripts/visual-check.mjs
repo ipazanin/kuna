@@ -42,7 +42,8 @@
  * The Spending app renders its first run, its empty Overview and its Settings (`?spending=drive`), its Settings for a
  * file kept in this browser, the sample's Overview, Transactions, Limits, Accounts, the dollar account with its ECB rate
  * line and Settings with the categories (`?spending=sample`), Limits with two overspent (`?spending=over`), Accounts
- * while the ECB rates fail (`?rates=failed`), and its Overview while its file opens and once its read fails, each in
+ * while the ECB rates fail (`?rates=failed`), its Overview while its file opens and once its read fails, and Entries with a
+ * row a receipt split (`?spending=receipts`), each in
  * Croatian too, with its figures worked out from the same fake sets. Kuna's Overview renders with the sample Spending
  * file beside the other samples, alone, and while the ECB rates load (`?rates=opening`). At every width it opens the
  * entry dialog for money out and for a move between two currencies. Its flows add, change and delete money out and undo
@@ -261,6 +262,8 @@ import {
   spendingBankSyncRowsFlowIn,
   spendingImportFlowIn,
   spendingImportRefusedFlowIn,
+  spendingReceiptFlowIn,
+  spendingReceiptPickFlowIn,
   spendingLimitFlowIn,
   spendingReviewFlowIn,
   spendingRuleFlowIn,
@@ -395,7 +398,7 @@ import {
   syncRunningFlow,
   syncStatesFlowIn,
 } from './support/editorFlows.mjs'
-import { writeImportSamples, writeSpendingImportSamples } from './support/importSampleFiles.mjs'
+import { writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
 import { runSelection } from './support/runSelection.mjs'
@@ -2441,6 +2444,26 @@ const SOURCE_SCREENS = [
     cards: false,
   },
   {
+    name: 'spending-transaction-lines',
+    query: 'spending=receipts',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    charts: 0,
+    ready: '[data-testid="spending-row-lines"]',
+    shows: ['Corner market', 'Groceries', 'Household goods'],
+    cards: false,
+  },
+  {
+    name: 'spending-transaction-lines-croatian',
+    query: 'spending=receipts&lang=hr',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    charts: 0,
+    ready: '[data-testid="spending-row-lines"]',
+    shows: ['Corner market', 'Namirnice', 'Kućanske potrepštine'],
+    cards: false,
+  },
+  {
     name: 'spending-review',
     query: 'spending=statements',
     hash: '#/spending/transactions?tab=review',
@@ -4245,6 +4268,7 @@ function writeImportFile() {
 const IMPORT_FILE = writeImportFile()
 const IMPORT_SAMPLES = await writeImportSamples(SCREENSHOT_DIR)
 const SPENDING_IMPORT_SAMPLES = writeSpendingImportSamples(SCREENSHOT_DIR)
+const SPENDING_RECEIPT_SAMPLES = writeSpendingReceiptSamples(SCREENSHOT_DIR)
 const WORKBOOK_SAMPLES = await writeWorkbookSamples(SCREENSHOT_DIR)
 const CLOSES_SAMPLES = writeClosesSamples(SCREENSHOT_DIR)
 
@@ -4664,6 +4688,24 @@ const FLOWS = [
     queries: { drive: '&spending=sample' },
   },
   {
+    name: 'spending-receipt-review',
+    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    run: spendingReceiptFlowIn('en', SPENDING_RECEIPT_SAMPLES),
+    modes: ['drive'],
+    queries: { drive: '&spending=receipts' },
+  },
+  {
+    name: 'spending-receipt-pick',
+    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    run: spendingReceiptPickFlowIn('en', SPENDING_RECEIPT_SAMPLES),
+    modes: ['drive'],
+    queries: { drive: '&spending=receipts' },
+  },
+  {
     name: 'spending-import-revolut',
     viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
     hash: '#/spending/transactions?tab=import',
@@ -4796,6 +4838,24 @@ const FLOWS = [
     run: spendingBankSyncPartFlowIn('hr', 'spending-bank-sync-ended', (words) => words.sessionEnded('OTP banka')),
     modes: ['drive'],
     queries: { drive: '&spending=statements&banksync=ended&lang=hr' },
+  },
+  {
+    name: 'spending-receipt-review-croatian',
+    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    run: spendingReceiptFlowIn('hr', SPENDING_RECEIPT_SAMPLES),
+    modes: ['drive'],
+    queries: { drive: '&spending=receipts&lang=hr' },
+  },
+  {
+    name: 'spending-receipt-pick-croatian',
+    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    run: spendingReceiptPickFlowIn('hr', SPENDING_RECEIPT_SAMPLES),
+    modes: ['drive'],
+    queries: { drive: '&spending=receipts&lang=hr' },
   },
   {
     name: 'spending-import-revolut-croatian',

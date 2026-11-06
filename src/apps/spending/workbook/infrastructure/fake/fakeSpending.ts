@@ -4,13 +4,16 @@ import { codecOfSpendingKind } from '../../application/spendingCodecs'
 import type { Account } from '../../domain/account'
 import type { Budget } from '../../domain/budget'
 import type { Category } from '../../domain/category'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../../domain/spendingKinds'
+import type { Receipt } from '../../domain/receipt'
+import type { ReceiptLine } from '../../domain/receiptLine'
+import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../../domain/spendingKinds'
 import type { SpendingRule } from '../../domain/spendingRule'
 import { BANK_SYNC_DEPLOYMENT_KEY, bankLinkKey, settingRow } from '../../domain/spendingSettings'
 import type { SettingRow } from '../../domain/spendingSettings'
 import { NO_BANK_FACTS } from '../../domain/transaction'
 import type { Transaction } from '../../domain/transaction'
 import { spendingDocumentOf } from '../spendingDocument'
+import { SAMPLE_RECEIPT_TOTALS } from '../../../receipts/infrastructure/fake/sampleReceiptPhoto'
 import { revolutStatement } from '../../../statements/domain/revolutStatement'
 import { sampleRevolutRows } from '../../../statements/infrastructure/fake/sampleRevolutFiles'
 import { addDays, parseCivilDate, today } from '../../../../../shared/calendar/civilDate'
@@ -29,9 +32,10 @@ import { language } from '../../../../../shared/text/language'
  * The fake build's Spending sets: `sample` the worked example's four accounts with three months of rows up to the day,
  * Food's limit carrying from two months back and a transfer pair, `foreign` only the dollar account, `over` the
  * sample with two limits overspent, and `statements` the sample with rows of earlier statements waiting on review, a pair,
- * a lone leg, a rule, and typed rows the sample Revolut export pairs with. Each figure is made up.
+ * a lone leg, a rule, and typed rows the sample Revolut export pairs with, and `receipts` the sample with the payments the
+ * sample receipt photos match and a row a receipt split. Each figure is made up.
  */
-export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements'
+export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements' | 'receipts'
 
 const USD = currencyCodeOf('USD')!
 
@@ -181,6 +185,72 @@ function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, 
   ]
 }
 
+const SPLIT_ROW_PLACE = 1906
+
+/**
+ * What the receipts set adds to the sample: a card payment one photo matches, two equal payments another must pick from, a card
+ * payment with a tip on it, and a cash day. A row a receipt split shows its lines on Entries.
+ */
+function receiptRows(day: CivilDate, idOf: (path: string) => RecordId): readonly Transaction[] {
+  const back = (days: number): CivilDate => (addDays(day, -days) < firstDayOf(monthOf(day)) ? day : addDays(day, -days))
+  const spent = (cents: number): number => -cents / 100
+  const { oneMatch, twoMatches, near } = SAMPLE_RECEIPT_TOTALS
+  return [
+    statementRow(1901, OTP, day, spent(oneMatch), 'Corner market'),
+    statementRow(1902, OTP, back(1), spent(twoMatches), 'Fuel station', { category: idOf('Transport/Fuel'), categorisedBy: 'rule' }),
+    statementRow(1903, REVOLUT_EUR, back(2), spent(twoMatches), 'Harbour bistro'),
+    statementRow(1904, REVOLUT_EUR, back(1), spent(near + 150), 'Harbour bistro', { category: idOf('Food/Restaurants'), categorisedBy: 'person' }),
+    {
+      ...NO_BANK_FACTS,
+      id: fixedId(TRANSACTION_RECORDS, 1905),
+      account: CASH,
+      date: day,
+      amount: moneyFromAmount(-8.4),
+      payee: 'Café on the square',
+      category: idOf('Food/Coffee'),
+      note: '',
+      source: 'typed',
+      pair: null,
+      categorisedBy: 'person',
+    },
+    statementRow(SPLIT_ROW_PLACE, OTP, day, -61.2, 'Corner market', { category: idOf('Food/Groceries'), categorisedBy: 'person' }),
+  ]
+}
+
+/** The receipt of the row a receipt split, with a line on each of two categories. */
+function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { readonly receipts: readonly Receipt[]; readonly lines: readonly ReceiptLine[] } {
+  const row = fixedId(TRANSACTION_RECORDS, SPLIT_ROW_PLACE)
+  const receipt = fixedId(RECEIPT_RECORDS, 1951)
+  const line = (place: number, amount: number, category: string): ReceiptLine => ({
+    id: fixedId(LINE_RECORDS, place),
+    transaction: row,
+    receipt,
+    printed: '',
+    text: '',
+    amount: moneyFromAmount(amount),
+    category: idOf(category),
+  })
+  return {
+    receipts: [
+      {
+        id: receipt,
+        transaction: row,
+        merchant: 'Corner market',
+        merchantOib: '',
+        buyerOib: '',
+        issuedOn: day,
+        issuedTime: '18:42',
+        total: moneyFromAmount(61.2),
+        jir: '1a2b3c4d-0000-4000-8000-1234567890ab',
+        zki: '',
+        readBy: '',
+        photo: '',
+      },
+    ],
+    lines: [line(1952, -48.7, 'Food/Groceries'), line(1953, -12.5, 'Home/Household goods')],
+  }
+}
+
 /**
  * The bank sync's settings as `?banksync=` names them: `saved` a saved script with no link, `linked`, `failed`,
  * `unknown-account`, `otp-failed` and `ended` both banks linked for months yet, and `ending` OTP's link with 13 days left. Any other variant holds none.
@@ -220,6 +290,7 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
     categorisedBy: null,
   }))
   if (set === 'statements') transactions.push(...earlierStatementRows(day, idOf, categories, accounts))
+  if (set === 'receipts') transactions.push(...receiptRows(day, idOf))
   if (set !== 'foreign') {
     const [out, into] = [fixedId(TRANSACTION_RECORDS, 1501), fixedId(TRANSACTION_RECORDS, 1502)]
     const date = dayIn(oneBack, 3, day)
@@ -246,8 +317,13 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
     ...stored(TRANSACTION_RECORDS, transactions),
     ...stored(BUDGET_RECORDS, budgets),
     ...stored(RULE_RECORDS, set === 'statements' ? fakeRules(idOf) : []),
+    ...(set === 'receipts' ? storedReceipts(splitRowReceipt(day, idOf)) : {}),
     ...(bankSync === null ? {} : stored(SETTING_RECORDS, fakeBankSyncSettings(bankSync, day))),
   })
+}
+
+function storedReceipts({ receipts, lines }: ReturnType<typeof splitRowReceipt>): WorkbookDocument['records'] {
+  return { ...stored(RECEIPT_RECORDS, receipts), ...stored(LINE_RECORDS, lines) }
 }
 
 function fakeRules(idOf: (path: string) => RecordId): readonly SpendingRule[] {

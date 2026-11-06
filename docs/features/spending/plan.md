@@ -498,7 +498,17 @@ One commit. A second source into stage 2's dry run, for OTP and Revolut alike. B
 
 Two commits. 4b needs the AI-assist plan's stages 1 and 2 landed: `src/shared/secrets` with `kuna-secrets.json`, and `src/shared/ai` with `useAiTask`, the model picker and `AppAssist`.
 
-**4a. Receipts, the QR code and matching.**
+**4a. Receipts, the QR code and matching.** Built. As built, it differs from the lines below in these ways:
+
+- **`rowSide(row, categories)` keeps its two parameters,** since `EuroRow` now carries the row's `lines`, so every reader of the row has them.
+- **Only euro accounts.** A fiscal total is in euros, so `receiptMatches` offers only rows on euro accounts and a new row goes only on an open euro account. A row on a foreign account would read as the same number in another money.
+- **A second receipt on a row is refused,** as a read rule the records table did not name, and a line must name a receipt of its own row.
+- **A row a receipt split** holds its amount and account, and its dialog lists the lines and has Remove the receipt, which keeps the row under its category. Deleting the row takes its receipt and lines in the same write. A photo kept on Drive stays there after either, and after an Undo.
+- **A photo with no code, or one the browser cannot decode,** asks for the date and total by hand, so it never dead-ends.
+- **A near bank row joined on To review** adds a Difference line to a row a receipt made, so its lines keep adding up.
+- **A cash row's wording:** a match on a cash account says "Matches the cash payment of {date}" beside the plan's card wording, and the Croatian says "Odgovara plaćanju gotovinom od {date}".
+- **A row filled by a later import** keeps its `source` of `receipt`, as a typed row keeps `typed`.
+- **Fakes and checks in 4a:** `?spending=receipts`, and photos the checks write with a real made-up QR code (`receipts/infrastructure/fake/sampleReceiptPhoto.ts`), so the page's own decoder reads them. The pages are `spending-receipt-take`, `spending-receipt-review`, `spending-receipt-pick`, `spending-receipt-no-match`, `spending-receipt-no-code` and `spending-transaction-lines`, each with a Croatian twin. `?receipt=`, `spending-receipt-sum-off`, `spending-receipt-r1` and `spending-settings-receipts` wait for 4b.
 
 - **Records:** `receipt` and `line`.
 - **The photo:** `FileDrop` (`src/shared/ui/FileDrop.vue:10-18`) gains an optional `capture` prop. Take a photo passes `accept="image/*" capture="environment"`, Upload passes `accept="image/*"`. `img-src` (`index.html:7`) gains `blob:` for the preview. The photo is used at three sizes, each by its one owner: the QR decoder draws it on a canvas at most 1,600 px on its long edge, the AI read sends `imagePartOf(file)` from `src/shared/ai` (4b), and a kept photo is the file as taken.
@@ -508,7 +518,7 @@ Two commits. 4b needs the AI-assist plan's stages 1 and 2 landed: `src/shared/se
 - **Keep the photo:** a switch per receipt, off by default, uploads the photo as taken to a Receipts folder beside the Spending file through `createFile` (`src/shared/google/driveClient.ts:201`) with `drive.file`, as invoice PDFs are uploaded (`src/apps/company/invoicing/infrastructure/googleInvoiceDrive.ts:30-32`). Off, the photo is gone once the dialog closes. A file kept in this browser has the switch disabled with its reason.
 - **Without the AI read** this commit takes the QR's date and total and one category for the whole receipt.
 
-**4b. The AI read.**
+**4b. The AI read.** As the code stands, the task's path follows Company's as `receipts/assist/application/readReceipt.ts`, since `src/apps/company/assist` keeps its task under `application/`. The boundary cases match any `/assist/` folder.
 
 - **The task:** `receipts/assist/readReceipt.ts`, an `AiTask` in the AI-assist plan's shape, run through `useAiTask` (its "What spending will call"). `imagePartOf(file)` lands in `src/shared/ai/presentation/` with this task, as that plan says, since its size rules follow each provider's image limits. Its input is the photo, the category list with each one's meaning, and up to ten recent confirmed lines of the same merchant. Its output schema is lane 3's (merchant with OIB, buyer OIB, date and time, JIR, ZKI, lines with printed and plain text, kind, quantity, unit price, line total and a category from an `enum` of the file's category ids plus `new`, VAT table, total, payment method, unreadable parts). It runs on the model the owner picks in Kuna settings, a medium model such as Sonnet by default. A receipt costs about $0.03 on Sonnet at lane 3's prices.
 - **The draft:** `receiptDraft(answer, categories)` in `receipts/domain/receiptDraft.ts` turns amounts into cents at once and checks in code: the lines add up to the total within a cent a line, each line's quantity times price, the VAT table against the total, the QR total and time, and the OIB's check digit. A failed check is a note on the draft with the difference, never a fix. A line's category comes from the newest confirmed line with the same folded printed text at the same merchant, then the model's pick. A `new` category is a suggestion to accept, rename or map, never made silently.
@@ -593,7 +603,8 @@ Carried from the research, for the owner to check where marked:
 - **Whether adding `script.external_request` to the consent screen** shows a new unverified-app screen for a production client.
 - **Whether `GET /accounts/{id}/details` counts against a bank's four background fetches a day.** The FAQ says "data fetches". The sync asks for details on every fetch since the script keeps no account data, so a limit may bite sooner than six hours would.
 - **Whether Apps Script takes the `.pem` Enable Banking's browser saves.** Its format was not read. The how-to gives the conversion to try.
-- **The fiscal QR's form** on real receipts. The Pravilnik says "minimalno", so extra parameters are possible, and the form was read from the check page's own script.
+- **The fiscal QR's form** on real receipts. No real receipt has been scanned. On 6 Nov 2026 the check page's own script (`porezna.gov.hr/rn/assets/index-CU4QgkZ0.js`) still reads `jir`, `zki`, `datv` split on `_`, and `izn`, and takes a comma or a dot in `izn`. The Pravilnik says "minimalno", so extra parameters are possible, and `fiscalQr` ignores them. That `https://porezna.gov.hr/rn` is the address every till prints comes from lane 3's reading, not from a receipt.
+- **Whether a phone photo's QR code decodes at 1,600 px on the long edge.** A small code on a tall receipt may not. Only the made-up sample codes have gone through the page's decoder.
 - **The OIB check digit,** ISO 7064 MOD 11,10, was not read from a primary source.
 - **The Croatian receipt words** in lane 3 come from general knowledge.
 - **Firefox:** whether Firefox for Android offers the camera for `capture="environment"` in the installed app as MDN's data says, and whether Firefox desktop decodes an uploaded HEIC.

@@ -66,6 +66,7 @@ import { en as spendingScreensEnglish, hr as spendingScreensCroatian } from '../
 import { en as spendingEntriesEnglish, hr as spendingEntriesCroatian } from '../../src/apps/spending/entries/presentation/words.ts'
 import { addDays, today } from '../../src/shared/calendar/civilDate.ts'
 import { monthOf } from '../../src/shared/calendar/monthKey.ts'
+import { en as spendingReceiptsEnglish, hr as spendingReceiptsCroatian } from '../../src/apps/spending/receipts/presentation/words.ts'
 import { en as spendingStatementsEnglish, hr as spendingStatementsCroatian } from '../../src/apps/spending/statements/presentation/words.ts'
 import { en as spendingStatementReadingEnglish, hr as spendingStatementReadingCroatian } from '../../src/apps/spending/statements/domain/words.ts'
 import { en as spendingBankSyncEnglish, hr as spendingBankSyncCroatian } from '../../src/apps/spending/bankSync/presentation/words.ts'
@@ -163,6 +164,7 @@ const SCREEN_WORDS = {
     spendingScreens: spendingScreensEnglish,
     spendingEntries: spendingEntriesEnglish,
     spendingStatements: spendingStatementsEnglish,
+    spendingReceipts: spendingReceiptsEnglish,
     spendingStatementReading: spendingStatementReadingEnglish,
     spendingBankSync: spendingBankSyncEnglish,
     spendingBankSyncReading: spendingBankSyncReadingEnglish,
@@ -242,6 +244,7 @@ const SCREEN_WORDS = {
     spendingScreens: spendingScreensCroatian,
     spendingEntries: spendingEntriesCroatian,
     spendingStatements: spendingStatementsCroatian,
+    spendingReceipts: spendingReceiptsCroatian,
     spendingStatementReading: spendingStatementReadingCroatian,
     spendingBankSync: spendingBankSyncCroatian,
     spendingBankSyncReading: spendingBankSyncReadingCroatian,
@@ -5188,6 +5191,168 @@ export function spendingImportFlowIn(language, paths) {
     await undoIn(page, press, words)
     await spendingDryRunSays(page, before)
     await dismissToasts(page)
+  }
+}
+
+const SPENDING_RECEIPT_FORM = '[data-testid="spending-receipt-form"]'
+
+/** Opens the receipt dialog on Entries and uploads a photo, then waits for its QR code to be read or found missing. */
+async function uploadReceiptPhoto(page, press, path, reading = 'read') {
+  await pressSelector(page, press, '[data-testid="spending-add-receipt"]')
+  const input = await page.waitForSelector('[data-testid="spending-receipt-upload"] input[type="file"]', { timeout: 10_000 }).catch(() => {
+    throw new Error('the receipt dialog offers no file input')
+  })
+  await input.uploadFile(path)
+  await page.waitForSelector(`[data-testid="spending-receipt-reading"][data-reading="${reading}"]`, { visible: true, timeout: 15_000 }).catch(async () => {
+    const shown = await page.$eval('[data-testid="spending-receipt-reading"]', (element) => element.dataset.reading).catch(() => 'no form')
+    throw new Error(`the receipt photo reads as ${shown}, not ${reading}`)
+  })
+  // The preview goes through `img-src`, so a policy without blob: leaves it empty.
+  await page
+    .waitForFunction(() => (document.querySelector('[data-testid="spending-receipt-preview"]')?.naturalWidth ?? 0) > 0, { timeout: 5_000 })
+    .catch(() => {
+      throw new Error('the receipt photo shows no preview')
+    })
+  await delay(300)
+}
+
+async function receiptPlaceSays(page, text) {
+  await page
+    .waitForFunction((wanted) => document.querySelector('[data-testid="spending-receipt-place"]')?.textContent?.includes(wanted) ?? false, { timeout: 10_000 }, text)
+    .catch(() => {
+      throw new Error(`the receipt's payments do not say "${text}"`)
+    })
+}
+
+async function pickReceiptCategory(page, press, words, name) {
+  await choose(page, press, await page.$('[data-testid="spending-receipt-category"]'), words.spendingStarter[name])
+}
+
+async function saveReceipt(page, press, words) {
+  await pressSelector(page, press, '[data-testid="spending-receipt-save"]')
+  await toast(page, words.spendingReceipts.saved)
+  await dialogGone(page, SPENDING_RECEIPT_FORM)
+}
+
+/** How many lines the row of this payee and amount shows on Entries. */
+async function rowLinesAre(page, title, cents, count) {
+  await page
+    .waitForFunction(
+      (selector, wanted, amount, lines) =>
+        [...document.querySelectorAll(selector)].some(
+          (row) => row.dataset.amount === String(amount) && row.textContent?.includes(wanted) && row.querySelectorAll('[data-testid="spending-row-line"]').length === lines,
+        ),
+      { timeout: 10_000 },
+      SPENDING_ROW,
+      title,
+      cents,
+      count,
+    )
+    .catch(() => {
+      throw new Error(`Transactions lists no "${title}" row of ${cents} cents with ${count} lines`)
+    })
+}
+
+/**
+ * On the receipts set's Entries: the two buttons, then a photo whose QR code matches the card payment, which is offered ready and
+ * splits under one category with the keep-photo switch on. The row shows its line and files out of To review, its dialog holds
+ * the amount and removes the receipt, and one Undo takes it all back.
+ */
+export function spendingReceiptFlowIn(language, photos) {
+  const words = SCREEN_WORDS[language]
+  const receipt = words.spendingReceipts
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await pressSelector(page, press, '[data-testid="spending-add-receipt"]')
+    await page.waitForSelector('[data-testid="spending-receipt-take"]', { visible: true, timeout: 10_000 })
+    await delay(300)
+    const capture = await page.$eval('[data-testid="spending-receipt-camera"] input[type="file"]', (input) => input.getAttribute('capture'))
+    if (capture !== 'environment') throw new Error(`Take a photo opens the camera "${capture}", not the rear one`)
+    await inspect?.('the receipt dialog before a photo')
+    await shoot('spending-receipt-take')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="spending-receipt-take"]')
+
+    await uploadReceiptPhoto(page, press, photos.oneMatch)
+    await waitForTextIn(page, '[data-testid="spending-receipt-qr"]', receipt.qrSays(''))
+    await page.waitForSelector('[data-testid="spending-receipt-place"][data-match="ready"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the receipt is not offered its one payment ready')
+    })
+    await pickReceiptCategory(page, press, words, 'Household goods')
+    await pressSelector(page, press, '[data-testid="spending-receipt-keep"]')
+    await delay(300)
+    await inspect?.('the receipt matched to its payment')
+    await shoot('spending-receipt-review')
+    await saveReceipt(page, press, words)
+    await rowLinesAre(page, 'Corner market', -2349, 1)
+    await inspect?.('the split row on Entries')
+    await dismissToasts(page)
+
+    await openSpendingRow(page, press, 'Corner market', -2349)
+    await page.waitForSelector('[data-testid="spending-entry-lines"]', { visible: true, timeout: 10_000 })
+    if (!(await page.$eval('[data-testid="spending-entry-amount"] input, input[data-testid="spending-entry-amount"]', (input) => input.disabled))) throw new Error('a split row lets its amount change')
+    await inspect?.('a split row in the entry dialog')
+    await pressSelector(page, press, '[data-testid="spending-entry-remove-receipt"]')
+    await toast(page, receipt.removed)
+    await rowLinesAre(page, 'Corner market', -2349, 0)
+    await undoIn(page, press, words)
+    await rowLinesAre(page, 'Corner market', -2349, 1)
+    await dismissToasts(page)
+  }
+}
+
+/**
+ * On the receipts set's Entries: a photo two payments could match asks for a pick and refuses to save without one, a total near
+ * a payment takes a Difference line and one Undo takes it back, a total nothing matches makes a new entry on the account picked, and a
+ * photo with no code asks for its date and total.
+ */
+export function spendingReceiptPickFlowIn(language, photos) {
+  const words = SCREEN_WORDS[language]
+  const receipt = words.spendingReceipts
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await uploadReceiptPhoto(page, press, photos.twoMatches)
+    await receiptPlaceSays(page, receipt.pick)
+    await pressSelector(page, press, '[data-testid="spending-receipt-save"]')
+    await page.waitForSelector('[data-testid="spending-receipt-place-error"]', { visible: true, timeout: 10_000 })
+    await delay(300)
+    await inspect?.('a receipt two payments could match')
+    await shoot('spending-receipt-pick')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_RECEIPT_FORM)
+
+    await uploadReceiptPhoto(page, press, photos.near)
+    await receiptPlaceSays(page, receipt.pick)
+    await pressButton(page, press, '[data-testid="spending-receipt-place"] label', 'Harbour bistro')
+    await delay(300)
+    await inspect?.('a receipt near a payment')
+    await saveReceipt(page, press, words)
+    await rowLinesAre(page, 'Harbour bistro', -3300, 2)
+    await undoIn(page, press, words)
+    await rowLinesAre(page, 'Harbour bistro', -3300, 0)
+    await dismissToasts(page)
+
+    await uploadReceiptPhoto(page, press, photos.noMatch)
+    await page.waitForSelector('[data-testid="spending-receipt-no-match"]', { visible: true, timeout: 10_000 })
+    await pickReceiptCategory(page, press, words, 'Groceries')
+    await fill(page, 'spending-receipt-merchant', SPENDING_PAYEE)
+    await chooseStartingWith(page, press, '[data-testid="spending-receipt-account"]', 'Cash')
+    await delay(300)
+    await inspect?.('a receipt nothing matches')
+    await shoot('spending-receipt-no-match')
+    await saveReceipt(page, press, words)
+    await rowLinesAre(page, SPENDING_PAYEE, -1700, 1)
+    await undoIn(page, press, words)
+    await spendingRowShown(page, SPENDING_PAYEE, -1700, false)
+    await dismissToasts(page)
+
+    await uploadReceiptPhoto(page, press, photos.noCode, 'no-code')
+    await page.waitForSelector('[data-testid="spending-receipt-total"]', { visible: true, timeout: 10_000 })
+    await delay(300)
+    await inspect?.('a receipt photo with no QR code')
+    await shoot('spending-receipt-no-code')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_RECEIPT_FORM)
   }
 }
 
