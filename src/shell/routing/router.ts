@@ -5,7 +5,7 @@ import type { RouteRecordRaw, Router } from 'vue-router'
 import type { AppContribution } from '../../shared/app/appContribution'
 import { nameScreen } from '../../shared/routing/browserTitle'
 import { installedApps, ownsPath } from './appRegistry'
-import { HOME_SCREEN, KUNA_SETTINGS_SCREEN, OVERVIEW_SCREEN } from './screens'
+import { HOME_SCREEN, KUNA_SETTINGS_SCREEN, NET_WORTH_SCREEN } from './screens'
 
 const loading = ref(false)
 
@@ -32,7 +32,7 @@ export function createAppRouter(): Router {
   const routes: RouteRecordRaw[] = [
     { path: HOME_SCREEN.path, component: HOME_SCREEN.component, meta: { bare: false } },
     ...apps.flatMap((app) => app.screens.map((screen) => ({ path: screen.path, component: screen.component, meta: { bare: screen.bare === true, title: screen.title, app: app.name } }))),
-    ...[OVERVIEW_SCREEN, KUNA_SETTINGS_SCREEN].map((screen) => ({ path: screen.path, component: screen.component, meta: { bare: false, title: screen.title } })),
+    ...[NET_WORTH_SCREEN, KUNA_SETTINGS_SCREEN].map((screen) => ({ path: screen.path, component: screen.component, meta: { bare: false, title: screen.title } })),
     // Written inline so the production build folds it to false and drops the gallery chunk entirely.
     // The fake build keeps it, because the visual check screenshots the gallery from that build.
     ...(import.meta.env.DEV || import.meta.env.VITE_FAKE_WORKBOOK === 'true'

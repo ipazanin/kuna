@@ -23,7 +23,7 @@ interface HubApp<Part extends HubPart> {
 }
 
 /**
- * Kuna's Overview at `#/overview`: what you have less what you owe over the apps whose figures add up, each part
+ * Net worth at `#/overview`: what you have less what you owe over the apps whose figures add up, each part
  * opening its app, and below it the money of an app kept apart, such as the company's. Each app's figures sit in a
  * computed of their own, so the company's forecast runs only while this screen is open and only when its books change.
  */

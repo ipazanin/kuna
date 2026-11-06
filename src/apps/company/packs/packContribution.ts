@@ -45,7 +45,7 @@ export interface PackOnboarding {
   readonly yes: string
 }
 
-/** What the owner could take out of the company now, for Kuna's Overview, with the page that shows how it is made up, or why the pack cannot work it out. */
+/** What the owner could take out of the company now, for Net worth, with the page that shows how it is made up, or why the pack cannot work it out. */
 export type OwnerTakeOut =
   | {
       readonly kind: 'figure'

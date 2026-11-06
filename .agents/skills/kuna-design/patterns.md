@@ -82,9 +82,12 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 
 ## Navigation
 
-- Every menu, in the sidebar and the drawer, opens with `HomeLink` in its lead look: the Kuna mark as the menu's largest icon, centred over Kuna, the whole block a link home, with a thin line under it. Inside an app the menu under it is that app's alone. The app's name is the heading over its menu, in `type-wordmark` beside a medium `AppMark` that is smaller than the Kuna mark and lines up with the menu items, with its subtitle in `type-caption` and more space under it before the first item. Its Settings are a screen of the app, set apart at the foot of its menu.
-- Menu items keep one size and one indent. The sidebar is narrow, so the heading stands out by size and weight, never by indenting the items under it.
-- Kuna's home at `#/` has a card per app. Its sidebar, and that of Kuna settings, lists every app with a small `AppMark`, leading where the app's card does, with a Set up badge during its first run, and Kuna settings set apart below a line. The phone home has no drawer, so its cards stay the way in.
+- One menu holds every app, in the sidebar and the drawer alike. It opens with `HomeLink` in its standard look: a 24 px Kuna mark and the name in one row, a link home, with a thin line under it. Net worth comes next, then a row per app in use with a small `AppMark`, then Kuna settings pinned over Sync, so it keeps one place while the list scrolls. Below 1024 px the same menu is in the drawer, pinned the same way.
+- One app is open at a time, and the address decides which, so nothing about it is stored. An open app shows its optional subtitle in `type-caption`, its menu and its Settings. The small arrow on a closed app's row opens its pages without leaving the screen, and the next change of address closes them. The arrow is a button beside the row's link, never inside it, and 44 px on a phone.
+- Menu items and app rows share one grid: a 24 px column for the icon or tile, then the name, so an item's name lines up with its app's. The open app stands out by weight and its tile, never by indenting or tinting. The selected item keeps the accent.
+- A pill on a menu item means something waits there, and nothing else. A closed app's row adds up its items' pills, and an open app's row shows none, since its item carries it. An app in its first run has no file, so it is left out.
+- While any app is left out, a quiet Add an app row closes the list and leads to the home, whose cards offer every app. Before any app is set up, Net worth is left out too, since it has nothing to show.
+- Kuna's home at `#/` has a card per app, and no app is open in its menu. The phone home has no drawer, so its cards stay the way in, with Net worth as a button over them and Kuna settings as one under them.
 - Kuna settings at `#/settings` holds only what is the same for every app: sync, sign-out, theme and language.
 - A first run starts with the quiet `HomeLink`, so it can be left for the home.
 

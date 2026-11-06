@@ -8,7 +8,7 @@ import { owedOnDay } from '../../overview/presentation/owedTotals'
 import type { LoanBook } from '../../workbook/domain/readLoanBook'
 import { words } from './words'
 
-/** What you owe over every loan, with your next payment under it, and what others owe you when they do, for Kuna's Overview. */
+/** What you owe over every loan, with your next payment under it, and what others owe you when they do, for Net worth. */
 export function loansHubFigures(book: Pick<LoanBook, 'bankLoans' | 'informalLoans'>, day: CivilDate): HubFigures<CountedHubPart> {
   const { owed, owedToYou } = owedOnDay(book, day)
   const [next] = upcomingPayments(plannedLoans(book.bankLoans), book.informalLoans, day, 1)

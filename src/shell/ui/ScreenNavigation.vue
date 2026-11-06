@@ -1,171 +1,104 @@
-<script lang="ts">
-export interface NavigationEntry {
-  readonly to: string
-  /** Its name in the menu, such as Overview. */
-  readonly label: string
-  /** A Lucide icon name such as `i-lucide-wallet`. */
-  readonly icon: string
-  /** What waits on the screen, such as the rows to review, shown beside its name. Left out at zero. */
-  readonly count?: number
-}
-
-/** The app on screen: its entries under its name, with a line such as the company the books belong to. */
-export interface NavigationGroup {
-  readonly name: string
-  /** The app's icon and the custom property of its colour, which tile its name. */
-  readonly icon: string
-  readonly colour: `--${string}`
-  readonly subtitle: string | null
-  readonly entries: readonly NavigationEntry[]
-}
-
-/** An app in the menu of the home and Kuna's own screens, its icon on a tile in its colour. */
-export interface NavigationApp {
-  readonly id: string
-  readonly to: string
-  readonly name: string
-  readonly icon: string
-  readonly colour: `--${string}`
-  /** Shown beside its name while the app waits for its first run, such as Set up. */
-  readonly badge: string | null
-}
-
-export interface Navigation {
-  /** Null on the home and Kuna's own screens. */
-  readonly group: NavigationGroup | null
-  /** Every app, on the home and Kuna's own screens. Empty inside an app. */
-  readonly apps: readonly NavigationApp[]
-  /** Kuna's own screens, or the app's Settings, set apart below the list of apps or the app's entries. */
-  readonly apart: readonly NavigationEntry[]
-}
-</script>
-
 <script setup lang="ts">
-import { useId } from 'vue'
-import { RouterLink } from 'vue-router'
-import UBadge from '@nuxt/ui/components/Badge.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
+import { onMounted, useId, useTemplateRef, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import UButton from '@nuxt/ui/components/Button.vue'
+import UCollapsible from '@nuxt/ui/components/Collapsible.vue'
 
-import { plural } from '../../shared/text/translation'
-import AppMark from '../../shared/ui/AppMark.vue'
+import type { Navigation } from './navigation'
+import NavigationLink from './NavigationLink.vue'
 import { words } from './words'
 
 defineProps<{
   navigation: Navigation
 }>()
 
+const emit = defineEmits<{
+  /** The arrow on an app's row, which opens or closes its pages without leaving the screen. */
+  toggle: [appId: string]
+  /** A press on an app's row, whose link stays put when that page is already on screen. */
+  open: [appId: string]
+}>()
+
 const id = useId()
+const route = useRoute()
+const list = useTemplateRef<HTMLElement>('list')
+
+/** On the home the row's link stays put, so it moves to the first card that offers Set up. Elsewhere the home is not drawn yet and the link does the work. */
+function showFirstCardToSetUp(): void {
+  document.querySelector<HTMLElement>('[data-testid="home-card"][data-state="set-up"]')?.focus({ focusVisible: true })
+}
+
+function currentPage(): Element | null {
+  return list.value?.querySelector('[aria-current="page"]') ?? null
+}
+
+function showCurrentPage(): void {
+  currentPage()?.scrollIntoView({ block: 'nearest' })
+}
+
+/** An app's pages only have their full height once they finish opening. A peek at another app stays where it is. */
+function showCurrentPageOnceOpen(event: AnimationEvent): void {
+  if (event.target instanceof Element && event.target.contains(currentPage())) showCurrentPage()
+}
+
+onMounted(showCurrentPage)
+watch(() => route.path, showCurrentPage, { flush: 'post' })
 </script>
 
 <template>
-  <nav :aria-label="words.navigation.label" class="flex flex-col gap-4">
-    <div
-      v-if="navigation.group !== null"
-      role="group"
-      :aria-labelledby="`${id}-name`"
-      :aria-describedby="navigation.group.subtitle ? `${id}-subtitle` : undefined"
-      class="flex flex-col gap-3"
-      data-testid="nav-group"
-    >
-      <div class="flex items-center gap-2.5 px-3">
-        <AppMark :icon="navigation.group.icon" :colour="navigation.group.colour" size="medium" />
-        <div class="min-w-0">
-          <p :id="`${id}-name`" class="truncate type-wordmark" data-testid="nav-heading">{{ navigation.group.name }}</p>
-          <p v-if="navigation.group.subtitle" :id="`${id}-subtitle`" class="truncate type-caption">{{ navigation.group.subtitle }}</p>
-        </div>
-      </div>
-      <ul class="flex flex-col gap-0.5">
-        <li v-for="entry in navigation.group.entries" :key="entry.to">
-          <RouterLink :to="entry.to" class="nav-link" active-class="is-active">
-            <UIcon :name="entry.icon" class="size-4 shrink-0" aria-hidden="true" />
-            <span>{{ entry.label }}</span>
-            <template v-if="entry.count">
-              <span class="nav-count figure" aria-hidden="true" data-testid="nav-count">{{ entry.count }}</span>
-              <span class="sr-only">{{ plural(words.navigation.waiting(entry.count), entry.count) }}</span>
+  <nav :aria-label="words.navigation.label" class="flex min-h-0 flex-1 flex-col">
+    <div ref="list" class="min-h-0 flex-1 overflow-y-auto px-3 py-1 [scrollbar-gutter:stable]" @animationend="showCurrentPageOnceOpen">
+      <NavigationLink v-if="navigation.netWorth !== null" v-bind="navigation.netWorth" class="mb-1.5" data-testid="nav-net-worth" />
+      <ul class="flex flex-col sm:gap-0.5" data-testid="nav-apps">
+        <li v-for="app in navigation.apps" :key="app.id" data-testid="nav-app" :data-app="app.id">
+          <div class="flex items-center gap-0.5">
+            <NavigationLink
+              :to="app.to"
+              :label="app.name"
+              :icon="app.icon"
+              :colour="app.colour"
+              :count="app.open ? undefined : app.waiting"
+              :marks-current="false"
+              class="min-w-0 flex-1"
+              :class="{ 'is-open': app.open }"
+              :data-app="app.id"
+              data-testid="nav-app-link"
+              @click="emit('open', app.id)"
+            />
+            <UButton
+              :icon="app.open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              class="shrink-0 justify-center text-muted max-lg:size-11"
+              :aria-label="words.navigation.pages(app.name)"
+              :aria-expanded="app.open"
+              :aria-controls="app.open ? `${id}-${app.id}` : undefined"
+              :data-app="app.id"
+              data-testid="nav-arrow"
+              @click="emit('toggle', app.id)"
+            />
+          </div>
+          <UCollapsible :open="app.open" :ui="{ content: 'overflow-hidden' }">
+            <template #content>
+              <div :id="`${id}-${app.id}`">
+                <p v-if="app.subtitle" :id="`${id}-${app.id}-subtitle`" class="truncate ps-11.5 type-caption" data-testid="nav-subtitle">{{ app.subtitle }}</p>
+                <ul :aria-label="app.name" :aria-describedby="app.subtitle ? `${id}-${app.id}-subtitle` : undefined" class="flex flex-col pt-0.5 pb-1 sm:gap-0.5" data-testid="nav-entries">
+                  <li v-for="entry in app.entries" :key="entry.to">
+                    <NavigationLink v-bind="entry" />
+                  </li>
+                </ul>
+              </div>
             </template>
-          </RouterLink>
+          </UCollapsible>
+        </li>
+        <li v-if="navigation.addApp !== null">
+          <NavigationLink v-bind="navigation.addApp" :marks-current="false" data-testid="nav-add-app" @click="showFirstCardToSetUp" />
         </li>
       </ul>
     </div>
-    <ul v-if="navigation.apps.length > 0" class="flex flex-col gap-0.5" data-testid="nav-apps">
-      <li v-for="app in navigation.apps" :key="app.id">
-        <RouterLink :to="app.to" class="nav-link" :data-app="app.id" :data-state="app.badge === null ? 'open' : 'set-up'">
-          <AppMark :icon="app.icon" :colour="app.colour" />
-          <span class="min-w-0 truncate">{{ app.name }}</span>
-          <UBadge v-if="app.badge !== null" :label="app.badge" color="primary" variant="subtle" size="sm" class="ms-auto shrink-0" />
-        </RouterLink>
-      </li>
-    </ul>
-    <ul class="flex flex-col gap-0.5" :class="{ 'set-apart': navigation.group !== null || navigation.apps.length > 0 }" data-testid="nav-apart">
-      <li v-for="entry in navigation.apart" :key="entry.to">
-        <RouterLink :to="entry.to" class="nav-link" active-class="is-active">
-          <UIcon :name="entry.icon" class="size-4 shrink-0" aria-hidden="true" />
-          <span>{{ entry.label }}</span>
-        </RouterLink>
-      </li>
-    </ul>
+    <div class="mx-3 border-t border-default py-2">
+      <NavigationLink v-bind="navigation.kunaSettings" data-testid="nav-kuna-settings" />
+    </div>
   </nav>
 </template>
-
-<style scoped>
-.set-apart {
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--border-default);
-}
-
-.nav-link {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  padding: 0.4375rem 0.75rem;
-  border-radius: var(--radius-control);
-  font-size: 0.875rem;
-  color: var(--ink-muted);
-  transition:
-    background-color 120ms ease,
-    color 120ms ease;
-}
-
-.nav-count {
-  margin-inline-start: auto;
-  min-width: 1.375rem;
-  padding: 0 0.375rem;
-  border-radius: 999px;
-  background: var(--surface-elevated);
-  color: var(--ink-secondary);
-  font-size: 0.75rem;
-  line-height: 1.25rem;
-  text-align: center;
-}
-
-.nav-link.is-active .nav-count {
-  background: var(--accent);
-  color: var(--accent-ink);
-}
-
-.nav-link:hover {
-  color: var(--ink-strong);
-  background: var(--surface-elevated);
-}
-
-.nav-link.is-active {
-  color: var(--ink-strong);
-  background: var(--accent-wash);
-  font-weight: 500;
-}
-
-.nav-link.is-active::before {
-  content: '';
-  position: absolute;
-  inset-block: 0.4375rem;
-  inset-inline-start: 0;
-  width: 2px;
-  border-radius: 1px;
-  background: var(--accent);
-}
-
-.nav-link.is-active :deep(svg) {
-  color: var(--accent);
-}
-</style>

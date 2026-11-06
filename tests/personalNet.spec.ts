@@ -44,7 +44,7 @@ describe('Net worth', () => {
     expect(personalNet([withHomeLoan, investments, assets]).sum).toEqual({ state: 'ready', cents: euros(146_754.8) })
   })
 
-  it("adds Spending's bank and cash to the other three apps, as Kuna's Overview example reads it", () => {
+  it("adds Spending's bank and cash to the other three apps, as the Net worth example reads it", () => {
     const spending: PersonalApp = {
       name: 'Spending',
       notSetUp: false,

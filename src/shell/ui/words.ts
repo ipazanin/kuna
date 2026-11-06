@@ -8,6 +8,8 @@ export const en = {
     sidebar: 'Application',
     open: 'Open navigation',
     label: 'Screens',
+    pages: (app: string) => `Pages of ${app}`,
+    addApp: 'Add an app',
     waiting: (count: number): EnglishForms => ({ one: `, ${count} waiting`, other: `, ${count} waiting` }),
   },
   update: {
@@ -26,6 +28,8 @@ export const hr: Translation<typeof en> = {
     sidebar: 'Aplikacija',
     open: 'Otvori izbornik',
     label: 'Zasloni',
+    pages: (app) => `Stranice aplikacije ${app}`,
+    addApp: 'Dodaj aplikaciju',
     waiting: (count) => ({ one: `, ${count} čeka`, few: `, ${count} čekaju`, other: `, ${count} čeka` }),
   },
   update: {

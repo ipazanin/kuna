@@ -6,10 +6,8 @@ import { INVESTMENTS_HOME_CARD } from './home/presentation/investmentsHomeCard'
 import { investmentsHubFigures } from './home/presentation/investmentsHubFigures'
 import { shownPortfolio } from './home/presentation/shownPortfolio'
 import { INVESTMENTS_OVERVIEW_ROUTE, INVESTMENTS_SETTINGS_ROUTE, INVESTMENTS_START_ROUTE } from './overview/presentation/investmentLinks'
-import { heldHoldings } from './holdings/domain/holdingsList'
 import { HOLDING_ROUTE, HOLDINGS_ROUTE } from './holdings/presentation/holdingLinks'
 import { usePortfolio } from './holdings/presentation/usePortfolio'
-import { transactionCount } from './transactions/domain/listedTransactions'
 import { TRANSACTIONS_ROUTE } from './transactions/presentation/transactionLinks'
 import { words as transactionWords } from './transactions/presentation/words'
 import { words as holdingsWords } from './holdings/presentation/words'
@@ -75,12 +73,7 @@ export const investmentsApp: AppContribution = {
   ],
   menu: () => [OVERVIEW, HOLDINGS, TRANSACTIONS, PERFORMANCE, TAX],
   settings: SETTINGS,
-  menuCount: (screen) => {
-    let count = 0
-    if (screen === HOLDINGS && figures.value !== null) count = heldHoldings(figures.value).length
-    if (screen === TRANSACTIONS && state.workbook !== null) count = transactionCount(state.workbook.book)
-    return count === 0 ? null : { count }
-  },
+  menuCount: () => null,
   subtitle: () => null,
   // Every figure leaves the app in euros, so it shows them in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,

@@ -9,7 +9,7 @@ import { negateMoney, sumMoney } from '../../../../shared/money/money'
 import { plural } from '../../../../shared/text/translation'
 import { words } from './words'
 
-/** What Spending adds to Kuna's Overview: what its accounts hold in euros today, and what the overdrawn ones owe. A closed account counts while it still holds money. */
+/** What Spending adds to Net worth: what its accounts hold in euros today, and what the overdrawn ones owe. A closed account counts while it still holds money. */
 export function spendingHubFigures(book: Pick<SpendingBook, 'accounts' | 'transactions'>, rates: RatesState, day: CivilDate): HubFigures<CountedHubPart> | 'opening' | null {
   if (book.accounts.length === 0) return null
   const counted = countedAccounts(book, day, ratesIn(rates))

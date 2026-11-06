@@ -8,7 +8,7 @@ import { ACCOUNTS, CASH, DAY, OTP, RATES, REVOLUT_EUR, REVOLUT_USD, ROWS, row } 
 
 const LOADED: RatesState = { book: RATES, failed: false }
 
-describe("what Spending adds to Kuna's Overview", () => {
+describe('what Spending adds to Net worth', () => {
   it("is the worked example's €2,390.46 of bank and cash across 4 accounts, the dollars at 4 Nov's 1.0900", () => {
     // 1,850.00 + 320.50 + 155.96 + 64.00, with 170.00 ÷ 1.0900 = 155.963…
     expect(spendingHubFigures({ accounts: ACCOUNTS, transactions: ROWS }, LOADED, DAY)).toEqual({

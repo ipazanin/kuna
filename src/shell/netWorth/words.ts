@@ -5,7 +5,7 @@ import type { Translation } from '../../shared/text/translation'
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 
 export const en = {
-  title: 'Overview',
+  title: 'Net worth',
   description: 'Your money across Loans, Investments, Assets and Spending, and what the company could pay you.',
   net: 'Net worth',
   leavesOut: (notes: readonly string[]) => (notes.length === 0 ? '' : `Leaves out ${listInWords(notes)}.`),
@@ -17,7 +17,7 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
-  title: 'Pregled',
+  title: 'Neto imovina',
   description: 'Vaš novac u Kreditima, Ulaganjima, Imovini i Potrošnji te što vam tvrtka može isplatiti.',
   net: 'Neto imovina',
   leavesOut: (notes) => (notes.length === 0 ? '' : `Ne uključuje ${listInWords(notes)}.`),

@@ -4,7 +4,7 @@ import type { PortfolioFigures } from '../../holdings/domain/portfolioFigures'
 import { INVESTMENTS_OVERVIEW_ROUTE } from '../../overview/presentation/investmentLinks'
 import { words } from './words'
 
-/** The portfolio's value for Kuna's Overview, and the held instruments with no price that it leaves out. */
+/** The portfolio's value for Net worth, and the held instruments with no price that it leaves out. */
 export function investmentsHubFigures(figures: Pick<PortfolioFigures, 'value' | 'unpriced'>): HubFigures<CountedHubPart> {
   const unpriced = figures.unpriced.length
   return {

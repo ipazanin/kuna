@@ -15,7 +15,7 @@
  *   npm run check:figures -- --fake-spending <sample, foreign, over, statements or receipts> [--today yyyy-mm-dd]
  *
  * A Loans, an Investments, an Assets or a Spending input goes with the others or alone, and its groups follow the
- * company's, in that order. With two or more, a last group adds them up as Kuna's Overview does. An Investments file
+ * company's, in that order. With two or more, a last group adds them up as Net worth does. An Investments file
  * without its prices file is valued with no closes and no rates, and an Assets file without a saved DZS answer as if
  * the house price index failed. The fake Assets sets take the fake index. An asset's loan is read from the Loans input,
  * and without one Loans counts as not set up. The Spending rates folder holds the ECB's csvdata answer of each foreign
@@ -405,7 +405,7 @@ if (personal.length >= 2) {
  * is worked out from the day, an offer over its whole loan, with a move's break-even month and an
  * offer's effective rate. Scenarios compares the first offers against A with savings earning 3%: the side
  * by side and the list. Each bank loan's page lists the tries saved for it and tries a 3% rate from its next due date.
- * The published group is the bank loans Loans gives another app. Returns how Kuna's Overview reads the file, and the
+ * The published group is the bank loans Loans gives another app. Returns how Net worth reads the file, and the
  * loans it read.
  */
 function loansGroups(add) {
@@ -505,8 +505,8 @@ function pricesOfInput() {
  * figures, its last day, the Overview's cards, the five mixes, the target mix with what €2,000.00 would buy and the
  * closed positions of Holdings and its value over time, then the benchmark's closes, Performance over each period it
  * offers with where its gain came from and its falls below a peak, its returns by year and by month, the costs, the
- * saving and the Overview's portfolio checks, then each tax year's capital gains and foreign income. Returns how Kuna's
- * Overview reads the portfolio.
+ * saving and the Overview's portfolio checks, then each tax year's capital gains and foreign income. Returns how Net
+ * worth reads the portfolio.
  */
 function investmentsGroups(add) {
   const document = options.investments === undefined ? fakeInvestmentsDocument(AT, 'sample', today) : decodeDocument(readFileSync(options.investments, 'utf8'))
@@ -589,7 +589,7 @@ function houseIndexOfInput() {
 /**
  * The Assets groups: the records and problems, then per asset, named by its place in the file and never by its name,
  * its value on the day with how it was reached, and how its loan stands with what is counted and yours, then the total
- * and Kuna's Overview's part. Returns how Kuna's Overview reads the file.
+ * and Net worth's part. Returns how Net worth reads the file.
  */
 function assetsGroups(add, loansBook) {
   const document = options.assets === undefined ? fakeAssetsDocument(AT, options['fake-assets']) : decodeDocument(readFileSync(options.assets, 'utf8'))
@@ -634,7 +634,7 @@ async function ratesOfInput(workbook) {
  * The Spending groups: the records and problems, then per account, named by its place in the file and never by its
  * name, its balance on the day in its currency and in euros, then income, spending and saved for every month from the
  * oldest row to the day's, then for the newest complete month and the day's month what each category and group counts
- * and each limit with its carry, then Kuna's Overview's part. Returns how Kuna's Overview reads the file.
+ * and each limit with its carry, then Net worth's part. Returns how Net worth reads the file.
  */
 async function spendingGroups(add) {
   const document = options.spending === undefined ? fakeSpendingDocument(AT, options['fake-spending'], today) : decodeDocument(readFileSync(options.spending, 'utf8'))

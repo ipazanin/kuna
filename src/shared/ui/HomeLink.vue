@@ -4,12 +4,12 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import AppBrand from './AppBrand.vue'
 
-/** The Kuna mark and name, which open the home with every app: quiet beside a grid icon on a first run, or the largest mark centred at the top of a menu. */
+/** The Kuna mark and name, which open the home with every app: quiet beside a grid icon on a first run, or standard at the top of a menu. */
 defineProps<{
   /** The link's name for a screen reader and its tooltip, which starts with the visible Kuna, such as "Kuna, all apps". */
   label: string
-  /** Quiet beside a grid icon on a first run, or lead for the largest mark centred at the top of a menu. */
-  look: 'quiet' | 'lead'
+  /** Quiet beside a grid icon on a first run, or standard in one row at the top of a menu. */
+  look: 'quiet' | 'standard'
 }>()
 </script>
 
@@ -18,8 +18,8 @@ defineProps<{
     to="/"
     :title="label"
     :aria-label="label"
-    class="flex rounded-control transition-colors hover:bg-elevated"
-    :class="look === 'lead' ? 'justify-center px-2 py-3' : '-mx-2 items-center gap-2 px-2 py-1.5'"
+    class="flex items-center rounded-control py-1.5 transition-colors hover:bg-elevated"
+    :class="look === 'standard' ? 'px-3' : '-mx-2 gap-2 px-2'"
     data-testid="home-link"
   >
     <AppBrand title="Kuna" :look="look" />

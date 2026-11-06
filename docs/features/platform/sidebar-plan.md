@@ -4,7 +4,54 @@
 
 This reverses two decided things, so say yes knowingly. On 2026-10-29 you asked for "No shared sidebar for every app" and "Inside an app, only that app's sidebar" (`docs/features/platform/design-plan.md`). `patterns.md` also says every menu opens with the largest Kuna mark, centred. The "nineteen menu items became eight" decision is not touched, since it was about Company's own pages, and those stay as they are.
 
-**How far to trust the numbers.** Heights are worked out from the CSS and your two screenshots: a menu row is 36 px, an app row 40, the logo block 127, the Sync block 86. Nothing was rendered. Your window looks like about 1350 x 880, judged from the 240 px sidebar in the home screenshot, so that is an estimate too.
+**How far to trust the numbers.** The heights in "What was built" below are measured in Chrome on the fake build. Other heights here were worked out from the CSS and your two screenshots before anything was built, and sections 1 to 7 keep them as the reasoning at the time. Your window looks like about 1350 x 880, judged from the 240 px sidebar in the home screenshot, so that is an estimate too.
+
+## What was built
+
+Stages 1, 2 and 3 are built: the logo in one row, the tree with one app open at a time in 240 px, the arrow, Net worth (Neto imovina) everywhere, Investments' totals gone, closed apps' counts, the phone drawer and reduced motion. Stage 4's `under` and skip link, stage 5's Cmd+K and the icon form are not.
+
+**Measured heights.** A row is 36 px, the logo block 53, Kuna settings with its line and padding 53, Sync 85, and Company's name line 16.
+
+| Sidebar, Company open with its name line | Height needed | Result                                                       |
+| ---------------------------------------- | ------------- | ------------------------------------------------------------ |
+| 1280 x 800                               | 753 px        | Fits, 47 px spare                                            |
+| 1366 x 768                               | 753 px        | Fits, 15 px spare                                            |
+| 1366 x 650                               | 753 px        | Only the list scrolls, with Kuna settings and Sync on screen |
+
+Without a company name it needs 737 px. The 719 px in section 1 was low because it left out the name line and the 2 px between rows. The 759 px with the chat's button in section 5 becomes about 793 px, so **with that button Company's list scrolls at 768**, and 32 px rows on a laptop would bring it back to about 753 px.
+
+On the phone at 360 x 780 the head is 61 px and Kuna settings 61, which leaves the list 658. Company with its name fits without scrolling, needing about 652 by adding up its rows, where section 4 expected 767 without a name. The phone rows have no gaps between them to get there. A shorter phone scrolls the list, and the drawer opens with the current page in view.
+
+**The sidebar adjusts to what is set up.** Add an app reads Dodaj aplikaciju in Croatian and leads to the home, whose five cards still offer every app. `navigationOf` asks each app's `firstRun()`, the same fact the home's Set up word uses, so `AppContribution` gains nothing. `firstRun()` is false while a file opens, after its read fails and for a file on Drive not yet looked up, since each of those has a remembered choice, so all of them stay listed. Net worth leaves only when every app is in its first run. The Add an app row replaces a hidden app's row one for one, so the tallest sidebar stays at 753 px.
+
+The first moment after a load needs no waiting state. `App.vue`'s setup calls `keepPageSynced`, which opens every store before the first draw, and the part of opening that reads the remembered choice from `localStorage` runs at once. A store with no choice is ready in that same step. So the first draw already has the final list, and the `sidebar-one-app` and `sidebar-file-*` flows record every list the sidebar draws during a load and fail if there is more than one.
+
+An app on screen in its first run is not in the menu, since the shell draws no sidebar during a first run. The first run itself is how setting up finishes, with its quiet link home. A first run that keeps the shell would need that app listed, which is one condition in `navigationOf`.
+
+The phone home's Net worth button stays before any app is set up, as this change is about the sidebar and another branch is working on the home.
+
+**Where it differs from section 7.**
+
+- `navigationOf` in `src/shell/ui/navigation.ts` builds the menu's plain data, so it has a test. `App.vue` only holds `openApp`, and `NavigationLink` is the one row, so the row's look has one owner. The row's styles moved from a `<style>` block to `app.css`.
+- `AppShell` takes the menu as a slot beside its Sync slot, so it no longer knows the menu's data. It takes `appOnScreen` for the phone's top bar, which a peek must not change.
+- Add an app on the home, where its link stays put, moves focus to the first card in Set up.
+- In the drawer a tap on the page already on screen closes it, and closing it ends a peek. On a laptop a peek stays until the address changes.
+- The arrow is 44 px wherever the drawer is, below 1024 px, since a thumb presses it on a tablet or a phone on its side too.
+- The list reserves room for a classic scrollbar, so rows stay put when one appears on a short window.
+- Net worth's icon is a scale, since a wallet is Spending's tile, and the old grid looked like each app's Overview.
+- A press on an app's row also opens its pages. Its link stays on the same address when you are already on that page, so the address alone would leave a peek or a closed app as it was.
+- The route is still `/` when the shell first draws, so section 7's watch alone would animate a deep link's app open on load. `openApp` starts from the address the router has yet to read.
+- `UCollapsible` crops only while closing, so its pages would spill over the rows below them for 200 ms while opening. The menu crops in both directions, and a focus ring inside a row stays inside it.
+- The arrow's name is "Pages of Company", with `aria-expanded` saying whether they show, since "Show" would be wrong while they do.
+- `AppContribution` did not change. `AppMark`'s `medium` size lost its only user with the old heading, so it went with `lead`.
+- The screen moved to `src/shell/netWorth`. Its address stays `/overview`, as this plan says, and the check's flow name `kuna-overview` and its `overview-*` test ids stay too.
+
+**The icon form, for chat stage 2.** It is a small addition because every row is already one component on one grid. A row's tile or icon sits 24 px from the sidebar's edge, whatever the row is, Add an app included, and the menu's data already holds each app's icon, colour and count, so `AppContribution` needs nothing new. It takes four changes:
+
+1. A `compact` slot prop on `#navigation`, as `#sync` already has, passed to `ScreenNavigation` and on to `NavigationLink`.
+2. In `NavigationLink`, hide the label and note, add a tooltip with the label, and turn the count into a dot or small figure on the tile.
+3. In `ScreenNavigation`, drop the arrows and the subtitle, and show the app rows with the open app's pages as icons.
+4. In `AppShell`, switch the grid column from `15rem` to `3.5rem` while the chat is docked, and move the rows 8 px left.
 
 ## 1. Is the idea right?
 
@@ -12,7 +59,7 @@ Yes. Today another app's page takes three clicks and a stop at the home: Kuna ma
 
 Where it strains:
 
-- **Height. The literal idea does not fit.** With Company open, the sidebar as it stands would need 834 px: logo 127, top padding 20, five app rows 200, eight Company rows 288, the gaps, Overview and Kuna settings 88, Sync 86. That is over the check's 800 px laptop and a 768 px one. A 1366 x 768 screen leaves roughly 650 px for the page once the browser's bars are drawn. With the logo at one row and the apps at 36 px each, it comes to about 719 px, so it fits 768 and scrolls only the list at 650.
+- **Height. The literal idea does not fit.** With Company open, the sidebar as it stands would need 834 px: logo 127, top padding 20, five app rows 200, eight Company rows 288, the gaps, Overview and Kuna settings 88, Sync 86. That is over the check's 800 px laptop and a 768 px one. A 1366 x 768 screen leaves roughly 650 px for the page once the browser's bars are drawn. With the logo at one row and the apps at 36 px each, it was estimated at about 719 px and measures 753 px, so it fits 768 and scrolls only the list at 650.
 - **Rows move. This is its real cost.** Spending sits about 300 px lower while Company is open than when no app is open, so you cannot hit it from memory. Company is the longest menu and comes first, which is the worst case. Nothing in a tree fixes this.
 - **More to read.** Fifteen rows at worst against nine today. It is still far from the old nineteen in one list, because only one app is ever open.
 - **Two Overviews.** "Overview" (all apps) and "Overview" (Company) would sit on screen together, and which one is lit becomes ambiguous. Kuna's should get another name, see decision 2.
@@ -79,7 +126,7 @@ The 1408 px threshold is one sum: 240 sidebar + 784 smallest page + 384 panel. E
 
 ## 6. The sketches
 
-Company open at 1280 x 800. The sidebar is about 719 px tall, so about 80 px spare above Sync.
+Company open at 1280 x 800, as planned before it was built. The sidebar measures 753 px tall, so 47 px spare above Kuna settings.
 
 ```
 +----------------------------+---------------------------------
@@ -204,7 +251,7 @@ A filter or tab change keeps the path, so it does not undo a peek. The money for
 
 **Motion.** `UCollapsible` already animates height over 200 ms and leaves closed content out of the page. The global reduced motion rule in `app.css` already cuts animations and transitions to almost nothing, so there is no new code for it. Check once that opening on first load does not animate.
 
-**Accessibility.** The arrow is a `button` with `aria-expanded`, `aria-controls` and a name such as "Show Company's pages". `aria-current` stays on the link. When `under` lights a parent item, that item gets the look but not `aria-current`, since it is not the current page.
+**Accessibility.** The arrow is a `button` with `aria-expanded`, `aria-controls` and a name such as "Pages of Company". `aria-current` stays on the link. When `under` lights a parent item, that item gets the look but not `aria-current`, since it is not the current page.
 
 **Checks**
 
@@ -225,14 +272,14 @@ A filter or tab change keeps the path, so it does not undo a peek. The money for
 
 | Stage | Change                                                                                                                                       | What you get                                                                 |
 | ----- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| 1     | Logo becomes one row in sidebar and drawer. `lead` removed. Docs and flows follow                                                            | 75 px back on every screen, nothing else moves                               |
-| 2     | The tree, opened by the address only, with Net worth above and Kuna settings pinned. Investments' totals go and closed apps show their count | Any app from anywhere in one click, the main thing you asked for             |
-| 3     | The arrow                                                                                                                                    | Another app's page without landing on its Overview                           |
+| 1     | Built. Logo becomes one row in sidebar and drawer. `lead` removed. Docs and flows follow                                                     | 74 px back on every screen, nothing else moves                               |
+| 2     | Built. The tree, opened by the address only, with Net worth above and Kuna settings pinned. Investments' totals go, closed apps show a count | Any app from anywhere in one click, the main thing you asked for             |
+| 3     | Built, in one chunk with stage 2. The arrow                                                                                                  | Another app's page without landing on its Overview                           |
 | 4     | `under` on detail screens, and the skip link                                                                                                 | You keep your place on a holding or a loan, and keyboard users skip the menu |
 | 5     | Cmd+K, after testing in Firefox                                                                                                              | Any page from the keyboard, which relieves the moving rows                   |
 | Later | Icon-only sidebar while the chat is docked, in chat stage 2 if you pick it                                                                   | Dock on your laptop                                                          |
 
-After stage 2, use it for a few days before building stage 3. If landing on Overview does not bother you, stage 3 can go.
+Stages 2 and 3 were built together. If landing on Overview never bothers you, the arrow can go.
 
 ## The owner's answers, 2026-11-06
 
@@ -276,7 +323,7 @@ Example: at your window of about 1350 px, the chat as planned replaces the page,
 
 I recommend deciding when chat stage 2 starts, and leaning to shrink if your window really is under 1408 px. What is your usual window width?
 
-**5. What does someone with one app see?**
+**5. What does someone with one app see?** Decided differently from both options below: apps with no file are left out, with an Add an app row. See the owner's answers.
 Example: a new person who only uses Spending sees four more apps with Set up on every screen.
 
 - **Show all five, with a quiet Set up word.** One simple rule, and apps stay easy to discover. Four rows do nothing for that person.

@@ -18,7 +18,7 @@ export function yoursCaption(yoursAfter: AssetsTotal['yoursAfter']): string | nu
 }
 
 /**
- * What the assets are worth on the day for Kuna's Overview, with what is yours after the loans on them under it, and the
+ * What the assets are worth on the day for Net worth, with what is yours after the loans on them under it, and the
  * assets it counts as nothing. It waits while the house price index loads for a home with a region, and a file with no
  * assets has nothing to show.
  */

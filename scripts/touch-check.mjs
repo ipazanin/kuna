@@ -1,7 +1,7 @@
 /**
  * Drives the fake-mode build with touch at the two phone widths, as a thumb would: the top app bar
- * with its one-line Sync button and its navigation drawer of one app's menu under the link home, the
- * home's top bar with no menu button and its Overview and Kuna settings buttons, Kuna's Overview opened from that button with each
+ * with its one-line Sync button and its navigation drawer of the whole menu under the link home, the arrow in it showing another app's pages with the drawer open and one of those pages closing it, the
+ * home's top bar with no menu button and its Net worth and Kuna settings buttons, Net worth opened from that button with each
  * tile opening its app and Back, Assets value among them, and the company's figure opening Year's Pay tab on the kept profit, a fresh device's home with every app in Set up, the tabs of Settings with Back through them, a link to Year's Statements tab alone kept in its year through two tabs and Back, the review and corporate tax lines of Overview's waiting card, the review line again in Croatian, a chart's tap-then-drill, the filter sheet with a
  * filter added and removed,
  * grouped transactions that collapse and expand, a payee's category breakdown in English and Croatian, Analysis and its Compare tab in Croatian, an owner share changed and cleared and a new default share's fill, each undone, in Croatian, an xlsx file opened and kept in this browser,
@@ -48,7 +48,7 @@
  * newer app saved, the Assets card opening the Assets Overview, the Assets first run finding the file another device made
  * on Drive and keeping a new one in this browser, a flat added by touch with its region and the Home loan, its loan cleared and
  * the flat deleted and brought back with Undo, a valuation added on the car in place of its estimate, deleted and brought back,
- * the Spending card opening the Spending Overview, Kuna's Overview's Bank and cash opening Spending's Accounts and Back,
+ * the Spending card opening the Spending Overview, Net worth's Bank and cash opening Spending's Accounts and Back,
  * the Spending first run finding the file another device made on Drive and keeping a new one in this browser, money
  * out added by touch with its amount on the number pad and a category and undone, a move between two accounts read in
  * both balances, deleted and brought back, a group of the spending ring opening its categories and one of them opening
@@ -388,32 +388,26 @@ async function checkWidth(width) {
     await expect(
       page.evaluate((homeLink) => {
         const drawer = document.querySelector('[role="dialog"]')
+        const links = [...(drawer?.querySelectorAll('[data-testid="nav-app-link"]') ?? [])]
         return {
           home: drawer?.querySelector('a') === drawer?.querySelector('[data-testid="home-link"]') && drawer?.querySelector('[data-testid="home-link"]')?.getAttribute('aria-label') === homeLink,
-          groups: [...(drawer?.querySelectorAll('[data-testid="nav-heading"]') ?? [])].map((heading) => heading.textContent?.trim()),
-          apps: drawer?.querySelector('[data-testid="nav-apps"]') !== null,
-          apart: [...(drawer?.querySelectorAll('[data-testid="nav-apart"] a') ?? [])].map((link) => link.textContent?.trim()),
+          apps: links.map((link) => link.querySelector('[data-testid="nav-label"]')?.textContent?.trim()),
+          open: [...(drawer?.querySelectorAll('[data-testid="nav-app"]:has([data-testid="nav-entries"]) [data-testid="nav-label"]') ?? [])][0]?.textContent?.trim(),
+          lastPage: [...(drawer?.querySelectorAll('[data-testid="nav-entries"] a') ?? [])].at(-1)?.textContent?.trim(),
+          netWorth: drawer?.querySelector('[data-testid="nav-net-worth"]')?.textContent?.trim(),
+          kunaSettings: drawer?.querySelector('[data-testid="nav-kuna-settings"]')?.textContent?.trim(),
+          oneLine: [...(drawer?.querySelectorAll('nav [data-testid="nav-label"]') ?? [])].every((label) => label.getBoundingClientRect().height <= parseFloat(getComputedStyle(label).lineHeight) + 1),
         }
       }, sharedEnglish.homeLink),
-      (drawer) => drawer.home && JSON.stringify(drawer.groups) === JSON.stringify(['Company']) && !drawer.apps && JSON.stringify(drawer.apart) === JSON.stringify(['Settings']),
-      "the drawer does not start with the link home and hold Company's menu alone, with its Settings set apart",
-    )
-    await expect(
-      page.evaluate(() => {
-        const heading = document.querySelector('[role="dialog"] [data-testid="nav-heading"]')
-        const entry = document.querySelector('[role="dialog"] [data-testid="nav-group"] a')
-        if (heading === null || entry === null) return null
-        return {
-          heading: parseFloat(getComputedStyle(heading).fontSize),
-          entry: parseFloat(getComputedStyle(entry).fontSize),
-          gap: Math.round(entry.getBoundingClientRect().top - heading.parentElement.parentElement.getBoundingClientRect().bottom),
-          oneLine: [...document.querySelectorAll('[role="dialog"] [data-testid="nav-group"] a span:not(.sr-only)')].every(
-            (label) => label.getBoundingClientRect().height <= parseFloat(getComputedStyle(label).lineHeight) + 1,
-          ),
-        }
-      }),
-      (sizes) => sizes !== null && sizes.heading > sizes.entry && sizes.gap >= 10 && sizes.oneLine,
-      "the drawer's Company heading is not larger than its menu items and clear of them, or an item runs onto a second line",
+      (drawer) =>
+        drawer.home &&
+        JSON.stringify(drawer.apps) === JSON.stringify(['Company']) &&
+        drawer.open === 'Company' &&
+        drawer.lastPage === 'Settings' &&
+        drawer.netWorth === 'Net worth' &&
+        drawer.kunaSettings === 'Kuna settings' &&
+        drawer.oneLine,
+      'the drawer does not start with the link home and hold Company, the one app set up, with its pages open between Net worth and Kuna settings, each name on one line',
     )
     await inspect(page, `${width}px drawer open`)
     await shoot('drawer-open')
@@ -449,6 +443,121 @@ async function checkWidth(width) {
     )
   })
 
+  // The arrow shows Loans' pages with the drawer still open and Company's closed under its count. A tap on one of them closes the drawer on that page, and on a short phone the drawer opens with the current page in view.
+  await step('drawer-peek', async () => {
+    await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}#/company`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Overview')
+    await openDrawer(page)
+    await (await page.waitForSelector('[role="dialog"] [data-testid="nav-app-link"][data-app="company"]')).tap()
+    await drawerClosed(page).catch(() => {
+      throw new Error('a tap on the row of the app on screen left the drawer open')
+    })
+    await delay(300)
+    await openDrawer(page)
+    await (await page.waitForSelector('[role="dialog"] a[aria-current="page"]')).tap()
+    await drawerClosed(page).catch(() => {
+      throw new Error('a tap on the lit page left the drawer open')
+    })
+    await delay(300)
+    await openDrawer(page)
+    await (await page.waitForSelector('[role="dialog"] [data-testid="nav-arrow"][data-app="loans"]')).tap()
+    await delay(300)
+    await page.touchscreen.tap(width - 16, 400)
+    await drawerClosed(page)
+    await delay(300)
+    await openDrawer(page)
+    await expect(
+      page.evaluate(() => ({
+        company: document.querySelector('[data-testid="nav-arrow"][data-app="company"]')?.getAttribute('aria-expanded'),
+        loans: document.querySelector('[data-testid="nav-arrow"][data-app="loans"]')?.getAttribute('aria-expanded'),
+      })),
+      (arrows) => arrows.company === 'true' && arrows.loans === 'false',
+      'a peek outlived the drawer that showed it',
+    )
+    const arrow = await page.waitForSelector('[role="dialog"] [data-testid="nav-arrow"][data-app="loans"]')
+    await expect(
+      arrow.evaluate((button) => {
+        const box = button.getBoundingClientRect()
+        return { width: box.width, height: box.height, expanded: button.getAttribute('aria-expanded'), name: button.getAttribute('aria-label') }
+      }),
+      (button) => button.width >= 44 && button.height >= 44 && button.expanded === 'false' && button.name === 'Pages of Loans',
+      "Loans' arrow in the drawer is under 44 px, or is not named and closed",
+    )
+    await arrow.tap()
+    await delay(300)
+    await expect(
+      page.evaluate(() => ({
+        drawer: document.querySelector('[role="dialog"]') !== null,
+        hash: window.location.hash,
+        expanded: document.querySelector('[data-testid="nav-arrow"][data-app="loans"]')?.getAttribute('aria-expanded'),
+        controlled: document.getElementById(document.querySelector('[data-testid="nav-arrow"][data-app="loans"]')?.getAttribute('aria-controls') ?? '') !== null,
+        companyCount: document.querySelector('[data-testid="nav-app-link"][data-app="company"] [data-testid="nav-count"]')?.textContent?.trim(),
+        title: document.querySelector('[data-testid="top-bar-title"]')?.textContent?.trim(),
+      })),
+      (peek) => peek.drawer && peek.hash === '#/company' && peek.expanded === 'true' && peek.controlled && Number(peek.companyCount) > 0 && peek.title === 'Overview',
+      "the arrow did not show Loans' pages with the drawer open on the same screen and Company closed under its count",
+    )
+    await inspect(page, `${width}px drawer peek`)
+    await shoot('drawer-peek')
+    await (await waitForText(page, '[role="dialog"] a', 'Scenarios')).tap()
+    await waitForTitle(page, 'Scenarios')
+    await drawerClosed(page)
+    await expect(hashOf(page), (hash) => hash === '#/loans/scenarios', "a tap on Loans' Scenarios did not open it")
+    await page.setViewport({ width, height: 560, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+    await page.goto(`${BASE}?theme=dark&load=${Date.now()}#/company/settings`, { waitUntil: 'networkidle0' })
+    await waitForTitle(page, 'Settings')
+    await openDrawer(page)
+    await expect(
+      page.evaluate(() => {
+        const list = document.querySelector('[role="dialog"] nav > div')
+        const current = list?.querySelector('a[aria-current="page"]')?.getBoundingClientRect()
+        const box = list?.getBoundingClientRect()
+        return current !== undefined && box !== undefined && list.scrollHeight > list.clientHeight && current.top >= box.top - 1 && current.bottom <= box.bottom + 1
+      }),
+      (inView) => inView,
+      'on a short phone the drawer does not open with the current page in view',
+    )
+    await page.setViewport({ width, height: 800, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+    await page.keyboard.press('Escape')
+    await drawerClosed(page)
+  })
+
+  // With one app set up the drawer lists it alone with Add an app, in both languages, and Add an app leads to the home's five cards.
+  await step('drawer-one-app', async () => {
+    for (const [query, title, company, netWorth, addApp, home] of [
+      ['', 'Overview', 'Company', 'Net worth', 'Add an app', 'All apps'],
+      ['&lang=hr', 'Pregled', 'Tvrtka', 'Neto imovina', 'Dodaj aplikaciju', 'Sve aplikacije'],
+    ]) {
+      await page.goto(`${BASE}?theme=dark${query}&load=${Date.now()}#/company`, { waitUntil: 'networkidle0' })
+      await waitForTitle(page, title)
+      await openDrawer(page)
+      await expect(
+        page.evaluate(() => {
+          const drawer = document.querySelector('[role="dialog"]')
+          const add = drawer?.querySelector('[data-testid="nav-add-app"]')
+          return {
+            apps: [...(drawer?.querySelectorAll('[data-testid="nav-app-link"] [data-testid="nav-label"]') ?? [])].map((label) => label.textContent?.trim()),
+            netWorth: drawer?.querySelector('[data-testid="nav-net-worth"]')?.textContent?.trim(),
+            add: add?.textContent?.trim(),
+            height: add?.getBoundingClientRect().height ?? 0,
+          }
+        }),
+        (drawer) => JSON.stringify(drawer.apps) === JSON.stringify([company]) && drawer.netWorth === netWorth && drawer.add === addApp && drawer.height >= 44,
+        `the drawer does not hold ${company} alone with ${netWorth} and a 44 px ${addApp}`,
+      )
+      await inspect(page, `${width}px drawer with one app${query}`)
+      await shoot(`drawer-one-app${query === '' ? '' : '-hr'}`)
+      await (await page.waitForSelector('[role="dialog"] [data-testid="nav-add-app"]')).tap()
+      await waitForTitle(page, home)
+      await drawerClosed(page)
+      await expect(
+        page.evaluate(() => document.querySelectorAll('[data-testid="home-card"]').length),
+        (cards) => cards === 5,
+        'the home after Add an app does not show all five cards',
+      )
+    }
+  })
+
   await step('home-top-bar', async () => {
     await open(page, '#/company', 'Overview')
     await openDrawer(page)
@@ -469,7 +578,7 @@ async function checkWidth(width) {
         }
       }),
       (bar) => !bar.menu && bar.title === 'Kuna' && bar.syncAtRight && bar.overview && bar.settings && !bar.apps,
-      'the home top bar does not hold Kuna and one 44 px Sync button with no menu button, with Overview and Kuna settings and no list of apps beside the cards',
+      'the home top bar does not hold Kuna and one 44 px Sync button with no menu button, with Net worth and Kuna settings and no list of apps beside the cards',
     )
     await shoot('home')
     await (await page.waitForSelector('[data-testid="home-card"][data-app="company"]')).tap()
@@ -528,8 +637,8 @@ async function checkWidth(width) {
   await step('kuna-overview', async () => {
     await openFreshBrowser(page, '#/', 'All apps', '&loans=sample&investments=sample&assets=sample&spending=sample')
     await (await page.waitForSelector('[data-testid="home-overview"]')).tap()
-    await waitForTitle(page, 'Overview')
-    await expect(hashOf(page), (hash) => hash === '#/overview', 'the home’s Overview button did not open Kuna’s Overview')
+    await waitForTitle(page, 'Net worth')
+    await expect(hashOf(page), (hash) => hash === '#/overview', 'the home’s Net worth button did not open its screen')
     await page.waitForSelector('[data-testid="overview-net"][data-state="ready"]')
     await page.waitForSelector('[data-testid="overview-apart-part"]')
     await expect(
@@ -537,7 +646,7 @@ async function checkWidth(width) {
         [...document.querySelectorAll('[data-testid="overview-tiles"] .kpi-tile, [data-testid="overview-apart"] .kpi-tile')].map((tile) => Math.round(tile.getBoundingClientRect().height)),
       ),
       (heights) => heights.length >= 4 && heights.every((height) => height >= 44),
-      'a tile on Kuna’s Overview is under 44 px tall',
+      'a tile on Net worth is under 44 px tall',
     )
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-kuna-overview.png`))
     for (const [label, path, title] of [
@@ -2909,7 +3018,7 @@ async function waitForTitle(page, title) {
 
 async function openDrawer(page) {
   await page.tap('[data-testid="open-navigation"]')
-  await waitForText(page, '[role="dialog"] a', 'Transactions')
+  await page.waitForSelector('[role="dialog"] [data-testid="nav-kuna-settings"]', { visible: true })
   // The drawer slides in. A tap or a screenshot should meet it in place.
   await delay(300)
 }

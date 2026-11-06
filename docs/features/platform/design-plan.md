@@ -6,6 +6,8 @@ From three lanes in `research/design/`: [the design library](research/design/lan
 
 ## What the owner asked, 2026-10-29
 
+Answers 1 and 2 were replaced on 2026-11-06 by the one menu in [the sidebar plan](sidebar-plan.md).
+
 1. No shared sidebar for every app. A Kuna home to choose an app, reachable from every app.
 2. Inside an app, only that app's sidebar.
 3. A designed Loans Overview.

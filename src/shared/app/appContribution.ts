@@ -59,7 +59,7 @@ export interface AppHomeCard {
   figures(): HomeFigures | 'opening' | 'failed' | null
 }
 
-/** A figure of the app on Kuna's Overview, which opens the screen it comes from. */
+/** A figure of the app on Net worth, which opens the screen it comes from. */
 export interface HubPart {
   readonly label: string
   readonly cents: number
@@ -67,12 +67,12 @@ export interface HubPart {
   readonly to: RouteLocationRaw
 }
 
-/** A part of the sum Kuna's Overview leads with: what you have, or what you owe, which is taken off. */
+/** A part of the sum Net worth leads with: what you have, or what you owe, which is taken off. */
 export interface CountedHubPart extends HubPart {
   readonly side: 'has' | 'owes'
 }
 
-/** What the app shows on Kuna's Overview. */
+/** What the app shows on Net worth. */
 export interface HubFigures<Part extends HubPart = HubPart> {
   readonly parts: readonly Part[]
   /** Lines under the parts, such as what they leave out ("1 holding without a price") or why there are none. */
@@ -83,7 +83,7 @@ export interface HubFigures<Part extends HubPart = HubPart> {
 export type HubState<Part extends HubPart = HubPart> = HubFigures<Part> | 'opening' | 'failed' | null
 
 /**
- * The app's part of Kuna's Overview. An app that counts adds its parts into the sum, and its wait or its failure
+ * The app's part of Net worth. An app that counts adds its parts into the sum, and its wait or its failure
  * holds the sum back. One that does not, such as the company, shows its parts beside the sum and never in it.
  */
 export type AppHub = { readonly counts: true; figures(): HubState<CountedHubPart> } | { readonly counts: false; figures(): HubState }
@@ -112,13 +112,13 @@ export interface AppAssist {
   tasks(): readonly AssistTaskSummary[]
 }
 
-/** What an app gives the shell: its screens and menu, its card on the home, its figures on Kuna's Overview, its first run, its part of the page's sync, and what runs while the page is open. */
+/** What an app gives the shell: its screens and menu, its card on the home, its figures on Net worth, its first run, its part of the page's sync, and what runs while the page is open. */
 export interface AppContribution {
   /** The first part of every route of the app, and the app the document names. */
   readonly id: string
-  /** The app's name, over its menu and on its card on the home, and in the browser tab of its screens, such as Company. */
+  /** The app's name, on its row in the menu and its card on the home, and in the browser tab of its screens, such as Company. */
   readonly name: string
-  /** The custom property of the app's identity colour, such as `--app-company`, on the tile of its icon on the home card, in its menu and in the phone top bar. */
+  /** The custom property of the app's identity colour, such as `--app-company`, on the tile of its icon on the home card, on its row in the menu and in the phone top bar. */
   readonly colour: `--${string}`
   /** Called once before the router is made and before any books are read. */
   install(): Promise<void>
@@ -126,7 +126,7 @@ export interface AppContribution {
   readonly screens: readonly AppScreen[]
   /** The menu items, in order, without Settings. */
   menu(): readonly AppScreen[]
-  /** The app's Settings, one of its screens, set apart at the foot of its menu. */
+  /** The app's Settings, one of its screens, last among its pages in the menu. */
   readonly settings: AppScreen
   /** What waits on a screen, shown beside its menu item, or null when nothing waits. */
   menuCount(screen: AppScreen): MenuCount | null
@@ -135,11 +135,11 @@ export interface AppContribution {
   /** The currency and number locale of the app's books, which its screens and its card on the home format money in. */
   moneyFormat(): MoneyFormat
   readonly homeCard: AppHomeCard
-  /** Its figures on Kuna's Overview, for an app that has any. */
+  /** Its figures on Net worth, for an app that has any. */
   readonly hub?: AppHub
   /** What the app still lacks, most pressing first, gone one by one as it is done. None while it has no file open. */
   setUpLines(): readonly SetUpLine[]
-  /** True while the app has nothing to show, so the shell sends an address under the app to `startPath`, and its card on the home offers Set up. */
+  /** True while the app has nothing to show, so the shell sends an address under the app to `startPath`, the menu leaves it out, and its card on the home offers Set up. */
   firstRun(): boolean
   readonly startPath: `/${string}`
   /** The app's part of the page's one sync, which the shell asks for once as it starts. */

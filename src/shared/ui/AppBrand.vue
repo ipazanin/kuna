@@ -7,19 +7,19 @@ withDefaults(
     title: string
     icon?: string | undefined
     colour?: `--${string}` | undefined
-    /** `quiet` is a smaller mark and a muted name, for a link that should not outrank the heading under it. `lead` is the largest mark with the name centred under it, to open a menu. */
-    look?: 'standard' | 'quiet' | 'lead'
+    /** `quiet` is a smaller mark and a muted name, for a link that should not outrank the heading under it. */
+    look?: 'standard' | 'quiet'
   }>(),
   { look: 'standard' },
 )
 
-const LAYOUT = { standard: 'items-center gap-2.5', quiet: 'items-center gap-2', lead: 'flex-col items-center gap-1.5' }
-const MARK = { standard: 'size-6', quiet: 'size-5', lead: 'size-12' }
-const NAME = { standard: 'type-wordmark', quiet: 'type-label', lead: 'type-wordmark' }
+const GAP = { standard: 'gap-2.5', quiet: 'gap-2' }
+const MARK = { standard: 'size-6', quiet: 'size-5' }
+const NAME = { standard: 'type-wordmark', quiet: 'type-label' }
 </script>
 
 <template>
-  <span class="flex min-w-0" :class="LAYOUT[look]">
+  <span class="flex min-w-0 items-center" :class="GAP[look]">
     <AppMark v-if="icon !== undefined && colour !== undefined" :icon="icon" :colour="colour" />
     <svg v-else viewBox="0 0 32 32" class="shrink-0" :class="MARK[look]" aria-hidden="true">
       <rect width="32" height="32" rx="7" fill="var(--accent)" />

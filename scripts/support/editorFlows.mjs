@@ -44,7 +44,8 @@ import { en as homeEnglish, hr as homeCroatian } from '../../src/shell/home/word
 import { en as uiEnglish, hr as uiCroatian } from '../../src/shared/ui/words.ts'
 import { en as chartsEnglish, hr as chartsCroatian } from '../../src/shared/charts/words.ts'
 import { en as kunaSettingsEnglish, hr as kunaSettingsCroatian } from '../../src/shell/settings/words.ts'
-import { en as hubOverviewEnglish, hr as hubOverviewCroatian } from '../../src/shell/overview/words.ts'
+import { en as netWorthEnglish, hr as netWorthCroatian } from '../../src/shell/netWorth/words.ts'
+import { en as shellEnglish, hr as shellCroatian } from '../../src/shell/ui/words.ts'
 import { en as syncEnglish, hr as syncCroatian } from '../../src/shared/sync/presentation/words.ts'
 import { en as storageEnglish, hr as storageCroatian } from '../../src/shared/storage/application/words.ts'
 import { en as loansFileEnglish, hr as loansFileCroatian } from '../../src/apps/loans/workbook/presentation/words.ts'
@@ -105,7 +106,8 @@ const SCREEN_WORDS = {
     homeLink: sharedEnglish.homeLink,
     setUp: homeEnglish.setUp,
     kunaSettings: kunaSettingsEnglish.menu,
-    hubOverview: hubOverviewEnglish.title,
+    netWorth: netWorthEnglish.title,
+    addApp: shellEnglish.navigation.addApp,
     company: companyEnglish.name,
     companySettings: companySettingsEnglish.title,
     loans: loansEnglish.name,
@@ -187,7 +189,8 @@ const SCREEN_WORDS = {
     homeLink: sharedCroatian.homeLink,
     setUp: homeCroatian.setUp,
     kunaSettings: kunaSettingsCroatian.menu,
-    hubOverview: hubOverviewCroatian.title,
+    netWorth: netWorthCroatian.title,
+    addApp: shellCroatian.navigation.addApp,
     company: companyCroatian.name,
     companySettings: companySettingsCroatian.title,
     loans: loansCroatian.name,
@@ -3720,7 +3723,7 @@ async function firstRunAt(page, app, step) {
 /** An app's Settings, reached from its menu, naming where its file is. */
 async function settingsShowFile(page, press, app, says, words = SCREEN_WORDS.en) {
   await openMenu(page, press)
-  await pressButton(page, press, '[data-testid="nav-apart"] a', words.loansSettings)
+  await pressButton(page, press, '[data-testid="nav-entries"] a', words.loansSettings)
   await screenTitled(page, words.loansSettings)
   await page
     .waitForFunction((card, wanted) => document.querySelector(`[data-testid="${card}"]`)?.textContent?.includes(wanted) === true, { timeout: 10_000 }, `${app.id}-books-card`, says)
@@ -4513,31 +4516,30 @@ async function openMenu(page, press) {
   const button = await page.$('[data-testid="open-navigation"]')
   if (button === null || (await button.boundingBox()) === null) return
   await press(button)
-  await page.waitForSelector('[role="dialog"] [data-testid="nav-apart"]', { visible: true, timeout: 10_000 })
+  await page.waitForSelector('[role="dialog"] [data-testid="nav-kuna-settings"]', { visible: true, timeout: 10_000 })
   await delay(300)
 }
 
 /**
- * The menu in the sidebar or the open drawer, read in the page: the link home, whether its Kuna mark is
- * centred and larger than every app tile, and whether a line runs under it, the app's heading with its
- * size against a menu item's and its tile in line with the items' icons, its entries and what is set apart.
+ * The menu in the sidebar or the open drawer, read in the page: the link home with its Kuna mark in line with the app
+ * tiles, whether a line runs under it, the open apps, how the open app's row reads against its pages and a closed row,
+ * and what is pinned under them.
  */
 function menuShown() {
-  const shown = (element) => element.getClientRects().length > 0
   const scope = document.querySelector('[role="dialog"]') ?? document.querySelector('aside')
   const home = scope?.querySelector('[data-testid="home-link"]') ?? null
-  const groups = [...(scope?.querySelectorAll('[data-testid="nav-group"]') ?? [])].filter(shown)
-  const group = groups[0] ?? null
-  const heading = group?.querySelector('[data-testid="nav-heading"]') ?? null
-  const firstEntry = group?.querySelector('a') ?? null
+  const nav = scope?.querySelector('nav') ?? null
+  const rows = [...(scope?.querySelectorAll('[data-testid="nav-app"]') ?? [])]
+  const group = rows.find((row) => row.querySelector('[data-testid="nav-entries"]') !== null) ?? null
+  const closed = rows.find((row) => row !== group) ?? null
+  const appLink = group?.querySelector('[data-testid="nav-app-link"]') ?? null
+  const firstEntry = group?.querySelector('[data-testid="nav-entries"] a') ?? null
   const mark = home?.querySelector('svg') ?? null
-  const tile = group?.querySelector('[data-testid="app-mark"]') ?? null
-  const middle = (element) => {
-    const box = element.getBoundingClientRect()
-    return box.left + box.width / 2
-  }
+  const firstTile = rows[0]?.querySelector('[data-testid="app-mark"]') ?? null
+  const labelLeft = (link) => link?.querySelector('[data-testid="nav-label"]')?.getBoundingClientRect().left ?? null
+  const weight = (row) => (row === null ? 0 : Number(getComputedStyle(row.querySelector('[data-testid="nav-app-link"]')).fontWeight))
   const ruledUnder = (start) => {
-    for (let node = start; node !== null && node !== scope && !node.contains(group); node = node.parentElement) {
+    for (let node = start; node !== null && node !== scope && !node.contains(nav); node = node.parentElement) {
       const next = node.nextElementSibling
       if (parseFloat(getComputedStyle(node).borderBottomWidth) > 0 || (next !== null && parseFloat(getComputedStyle(next).borderTopWidth) > 0)) return true
     }
@@ -4552,46 +4554,48 @@ function menuShown() {
             shown: home.textContent?.trim() ?? '',
             tooltip: home.getAttribute('title'),
             first: scope.querySelector('a') === home,
-            centred: mark !== null && Math.abs(middle(mark) - middle(scope)) <= 2,
-            largest: mark !== null && [...scope.querySelectorAll('[data-testid="app-mark"]')].every((other) => other.getBoundingClientRect().width < mark.getBoundingClientRect().width),
+            inLine: mark !== null && firstTile !== null && Math.abs(mark.getBoundingClientRect().left - firstTile.getBoundingClientRect().left) <= 1,
           },
-    ruled: home !== null && group !== null && ruledUnder(home),
-    groups: groups.length,
-    name: heading?.textContent?.trim() ?? null,
-    tiled: tile !== null,
-    tileInLine:
-      tile !== null && firstEntry !== null && Math.abs(tile.getBoundingClientRect().left - firstEntry.getBoundingClientRect().left - parseFloat(getComputedStyle(firstEntry).paddingLeft)) <= 1,
-    subtitle: group?.querySelectorAll('p')[1]?.textContent?.trim() ?? null,
-    sizes:
-      heading === null || firstEntry === null
-        ? null
-        : {
-            heading: parseFloat(getComputedStyle(heading).fontSize),
-            entry: parseFloat(getComputedStyle(firstEntry).fontSize),
-            gap: Math.round(firstEntry.getBoundingClientRect().top - heading.parentElement.parentElement.getBoundingClientRect().bottom),
-          },
-    entries: [...(group?.querySelectorAll('a') ?? [])].map((link) => link.textContent?.trim() ?? ''),
-    apps: [...(scope?.querySelectorAll('[data-testid="nav-apps"] a') ?? [])].filter(shown).map((link) => link.dataset.app),
+    ruled: home !== null && ruledUnder(home),
+    groups: rows.filter((row) => row.querySelector('[data-testid="nav-entries"]') !== null).length,
+    name: appLink?.querySelector('[data-testid="nav-label"]')?.textContent?.trim() ?? null,
+    expanded: group?.querySelector('[data-testid="nav-arrow"]')?.getAttribute('aria-expanded') ?? null,
+    heavier: closed === null || weight(group) > weight(closed),
+    linedUp: appLink !== null && firstEntry !== null && Math.abs(labelLeft(appLink) - labelLeft(firstEntry)) <= 1,
+    subtitle: group?.querySelector('[data-testid="nav-subtitle"]')?.textContent?.trim() ?? null,
+    countOnOpenRow: appLink?.querySelector('[data-testid="nav-count"]') !== null && appLink !== null,
+    entries: [...(group?.querySelectorAll('[data-testid="nav-entries"] a') ?? [])].map((link) => link.textContent?.trim() ?? ''),
+    apps: [...(scope?.querySelectorAll('[data-testid="nav-app-link"]') ?? [])].map((link) => link.dataset.app),
     current: scope?.querySelector('a[aria-current="page"]')?.textContent?.trim() ?? null,
-    apart: [...(scope?.querySelectorAll('[data-testid="nav-apart"] a') ?? [])].map((link) => link.textContent?.trim() ?? ''),
+    netWorth: scope?.querySelector('[data-testid="nav-net-worth"]')?.textContent?.trim() ?? null,
+    addApp: scope?.querySelector('[data-testid="nav-add-app"]')?.textContent?.trim() ?? null,
+    drawerArrows: [...document.querySelectorAll('[role="dialog"] [data-testid="nav-arrow"]')].map((arrow) =>
+      Math.round(Math.min(arrow.getBoundingClientRect().width, arrow.getBoundingClientRect().height)),
+    ),
+    kunaSettings: scope?.querySelector('[data-testid="nav-kuna-settings"]')?.textContent?.trim() ?? null,
   }
 }
 
-/** The menu opens with the link home: the Kuna mark centred over Kuna and larger than every app tile, the whole block named as the words say. */
-function markLeads(menu, words, where) {
+/** The menu opens with the link home in one row, its Kuna mark in line with the app tiles and its whole block named as the words say. */
+function homeLinkLeads(menu, words, where) {
   const home = menu.home
   if (home === null || home.name !== words.homeLink || home.tooltip !== words.homeLink || home.shown !== 'Kuna' || !home.first)
     throw new Error(`${where} does not start with the link home named ${words.homeLink}: ${JSON.stringify(home)}`)
-  if (!home.centred || !home.largest) throw new Error(`the Kuna mark in ${where} is not centred and larger than every app tile: ${JSON.stringify(home)}`)
+  if (!home.inLine) throw new Error(`the Kuna mark in ${where} is not in line with the app tiles: ${JSON.stringify(home)}`)
+  if (!menu.ruled) throw new Error(`no line runs under the link home in ${where}`)
 }
 
-/** The menu of the app on screen leads with its name as a heading, larger than its items and clear of them, its tile in line with their icons, under a line below the link home. */
-function headingStandsOut(menu, app) {
-  if (!menu.ruled) throw new Error(`no line runs under the link home over the ${app} menu`)
-  if (!menu.tileInLine) throw new Error(`the ${app} heading's tile is not in line with its menu items' icons`)
-  if (menu.sizes === null || menu.sizes.heading <= menu.sizes.entry) throw new Error(`the ${app} heading is not larger than its menu items: ${JSON.stringify(menu.sizes)}`)
-  if (menu.sizes.gap < 10) throw new Error(`the ${app} heading sits ${menu.sizes.gap} px over its first menu item`)
-  if (menu.apps.length > 0) throw new Error(`the ${app} menu also lists the apps ${menu.apps.join(', ')}`)
+/** The menu holds the apps in use and one is open: Net worth over them, Add an app and Kuna settings under them, and the open app's name heavier, in line with its pages' names and without its own count. */
+function appLeadsItsPages(menu, app, listed, words) {
+  if (menu.groups !== 1 || menu.name !== app) throw new Error(`the menu opens ${menu.groups} apps, the first ${menu.name}, instead of ${app} alone`)
+  if (menu.expanded !== 'true') throw new Error(`the arrow of the open ${app} reads aria-expanded ${menu.expanded}`)
+  if (!menu.heavier) throw new Error(`the name of the open ${app} is no heavier than a closed app's`)
+  if (!menu.linedUp) throw new Error(`the name of ${app} is not in line with its pages' names`)
+  if (menu.drawerArrows.some((side) => side < 44)) throw new Error(`an arrow in the drawer is only ${Math.min(...menu.drawerArrows)} px, where a thumb presses it`)
+  if (menu.countOnOpenRow) throw new Error(`the open ${app} shows a count on its row and on its page`)
+  if (JSON.stringify(menu.apps) !== JSON.stringify(listed)) throw new Error(`the ${app} menu lists the apps ${menu.apps.join(', ')}, not ${listed.join(', ')}`)
+  if (menu.netWorth !== words.netWorth || menu.kunaSettings !== words.kunaSettings || menu.addApp !== words.addApp)
+    throw new Error(`the ${app} menu shows ${menu.netWorth}, ${menu.addApp} and ${menu.kunaSettings} around the apps`)
 }
 
 /** Takes the link home from the sidebar or the drawer, to the home with every app. */
@@ -4616,57 +4620,79 @@ function homeCards() {
 /** The apps the home's sidebar lists, read in the page in the shape of `homeCards`, with the name and badge of each row. Null with no sidebar. */
 function homeMenu() {
   if (document.querySelector('aside') === null) return null
-  return [...document.querySelectorAll('aside [data-testid="nav-apps"] a')].map((link) => ({
+  return [...document.querySelectorAll('aside [data-testid="nav-app-link"]')].map((link) => ({
     app: link.dataset.app,
-    state: link.dataset.state,
-    text: [...link.children]
-      .map((part) => part.textContent?.trim() ?? '')
-      .filter((part) => part !== '')
-      .join(' '),
+    text: link.querySelector('[data-testid="nav-label"]')?.textContent?.trim() ?? '',
     tiled: link.querySelector('[data-testid="app-mark"]') !== null,
     colour: link.querySelector('[data-testid="app-mark"]') === null ? null : getComputedStyle(link.querySelector('[data-testid="app-mark"]')).color,
     href: link.getAttribute('href'),
   }))
 }
 
-/** The home's sidebar lists the apps of its cards in their order, each tiled in its card's colour, leading where its card does, and named with the badge its state calls for. */
+/** The count on each closed app's row in the sidebar, for the apps that show one. */
+function closedRowCounts() {
+  return Object.fromEntries(
+    [...document.querySelectorAll('aside [data-testid="nav-app-link"]:has([data-testid="nav-count"])')].map((link) => [
+      link.dataset.app,
+      link.querySelector('[data-testid="nav-count"]')?.textContent?.trim(),
+    ]),
+  )
+}
+
+/** The home's sidebar lists the apps of its cards that are set up, in their order, each tiled in its card's colour and leading where its card does. */
 function sidebarMatchesCards(menu, cards, words = SCREEN_WORDS.en) {
   const names = { company: words.company, loans: words.loans, investments: words.investments, assets: words.assetsApp, spending: words.spendingApp }
-  const want = cards.map((card) => ({
-    app: card.app,
-    state: card.state,
-    text: card.state === 'set-up' ? `${names[card.app]} ${words.setUp}` : names[card.app],
-    tiled: true,
-    colour: card.colour,
-    href: card.href,
-  }))
+  const want = cards
+    .filter((card) => card.state !== 'set-up')
+    .map((card) => ({
+      app: card.app,
+      text: names[card.app],
+      tiled: true,
+      colour: card.colour,
+      href: card.href,
+    }))
   if (JSON.stringify(menu) !== JSON.stringify(want)) throw new Error(`the home's sidebar lists ${JSON.stringify(menu)}, not the cards' apps ${JSON.stringify(want)}`)
 }
 
 /**
- * Inside an app only its own menu, in the sidebar or the drawer: the Kuna mark centred first as the link
- * home, named Kuna, all apps, with a line under it, then Loans as a heading larger than Overview,
- * Overview and Scenarios under it, Settings set apart, and the browser tab naming the app. The link home shows the
- * home, whose sidebar lists every app over Kuna settings, and the phone's top bar there has no menu
- * button. From the home, Company shows only its own menu, whose Transactions item opens its To review tab while rows wait.
+ * The one menu, in the sidebar or the drawer: the Kuna mark first in one row as the link home, named Kuna, all apps, with
+ * a line under it, Net worth, the apps with a file with Loans open and its Overview, Scenarios and Settings under it, then Add an
+ * app and Kuna settings. The arrow on Company shows Company's pages in place of Loans' without leaving the screen, and shows them no
+ * more when pressed again, and a press on the row of Loans opens its pages again, closing the drawer. The link home shows the home, with no app open, and the phone's top bar there has no menu button.
+ * From the home, Company opens, whose Transactions item opens its To review tab while rows wait.
  */
 export function appMenuFlowIn(language) {
   const words = SCREEN_WORDS[language]
   return async (page, { press, shoot, inspect }) => {
     await openMenu(page, press)
     const loans = await page.evaluate(menuShown)
-    markLeads(loans, words, 'the Loans menu')
-    if (!loans.tiled) throw new Error('the Loans menu heading has no icon tile')
-    if (loans.groups !== 1 || loans.name !== words.loans) throw new Error(`the Loans menu shows ${loans.groups} groups, the first ${loans.name}`)
-    headingStandsOut(loans, words.loans)
-    if (loans.subtitle !== null) throw new Error(`Loans shows "${loans.subtitle}" under its heading`)
-    if (JSON.stringify(loans.entries) !== JSON.stringify([words.overview, words.scenarios]) || loans.current !== words.overview)
+    homeLinkLeads(loans, words, 'the Loans menu')
+    appLeadsItsPages(loans, words.loans, ['company', 'loans'], words)
+    if (loans.subtitle !== null) throw new Error(`Loans shows "${loans.subtitle}" under its name`)
+    if (JSON.stringify(loans.entries) !== JSON.stringify([words.overview, words.scenarios, words.loansSettings]) || loans.current !== words.overview)
       throw new Error(`Loans lists ${loans.entries.join(', ')} with ${loans.current} marked`)
-    if (JSON.stringify(loans.apart) !== JSON.stringify([words.loansSettings])) throw new Error(`Loans sets apart ${loans.apart.join(', ')}`)
     const loansTitle = await page.title()
     if (loansTitle !== `${words.overview}, ${words.loans} – Kuna`) throw new Error(`the browser tab says "${loansTitle}"`)
     await inspect?.('the Loans menu')
     await shoot(language === 'en' ? 'app-menu-loans' : `app-menu-loans-${language}`)
+
+    const companyArrow = '[data-testid="nav-arrow"][data-app="company"]'
+    await pressSelector(page, press, companyArrow)
+    await delay(300)
+    const peek = await page.evaluate(menuShown)
+    if (peek.groups !== 1 || peek.name !== words.company) throw new Error(`the arrow on Company opens ${peek.groups} apps, the first ${peek.name}`)
+    if ((await page.evaluate(() => window.location.hash)) !== '#/loans' || (await page.title()) !== loansTitle) throw new Error('the arrow on Company left the screen')
+    await inspect?.('a peek at Company from Loans')
+    await pressSelector(page, press, companyArrow)
+    await delay(300)
+    if ((await page.evaluate(menuShown)).groups !== 0) throw new Error('the arrow on Company did not close its pages')
+    await pressSelector(page, press, '[data-testid="nav-app-link"][data-app="loans"]')
+    await delay(500)
+    // In the drawer the press also closes it, since Loans is already on screen.
+    if ((await page.$('[role="dialog"]')) !== null) throw new Error('a press on the row of the Loans on screen left the drawer open')
+    await openMenu(page, press)
+    const backOnLoans = await page.evaluate(menuShown)
+    if (backOnLoans.groups !== 1 || backOnLoans.name !== words.loans) throw new Error(`a press on the row of the Loans on screen left ${backOnLoans.groups} apps open`)
 
     await pressSelector(page, press, '[data-testid="home-link"]')
     await screenTitled(page, words.allApps)
@@ -4676,18 +4702,20 @@ export function appMenuFlowIn(language) {
       menuButton: document.querySelector('[data-testid="open-navigation"]') !== null,
       sidebar: document.querySelector('aside') !== null,
       topBar: document.querySelector('[data-testid="top-bar-title"]')?.textContent?.trim() ?? null,
-      settings: [...document.querySelectorAll('aside [data-testid="nav-apart"] a, [data-testid="home-kuna-settings"]')]
+      settings: [...document.querySelectorAll('aside [data-testid="nav-net-worth"], aside [data-testid="nav-kuna-settings"], [data-testid="home-kuna-settings"]')]
         .filter((link) => link.getClientRects().length > 0)
         .map((link) => link.textContent?.trim()),
     }))
     if (bar.menuButton) throw new Error('the home has a menu button')
     if (!bar.sidebar && bar.topBar !== null && bar.topBar !== 'Kuna') throw new Error(`the phone top bar on the home says "${bar.topBar}"`)
-    const apart = bar.sidebar ? [words.hubOverview, words.kunaSettings] : [words.kunaSettings]
-    if (JSON.stringify(bar.settings) !== JSON.stringify(apart)) throw new Error(`the home offers ${JSON.stringify(bar.settings)} instead of ${JSON.stringify(apart)}`)
+    const around = bar.sidebar ? [words.netWorth, words.kunaSettings] : [words.kunaSettings]
+    if (JSON.stringify(bar.settings) !== JSON.stringify(around)) throw new Error(`the home offers ${JSON.stringify(bar.settings)} instead of ${JSON.stringify(around)}`)
     if (bar.sidebar) {
+      // Loans' pages take 200 ms to close and stay in the page until then.
+      await delay(300)
       const home = await page.evaluate(menuShown)
-      if (home.groups !== 0) throw new Error("the sidebar on the home shows an app's menu")
-      markLeads(home, words, "the home's sidebar")
+      if (home.groups !== 0) throw new Error("the sidebar on the home shows an app's pages")
+      homeLinkLeads(home, words, "the home's sidebar")
       sidebarMatchesCards(await page.evaluate(homeMenu), await page.evaluate(homeCards), words)
     }
     await inspect?.('the home')
@@ -4696,23 +4724,17 @@ export function appMenuFlowIn(language) {
     await screenTitled(page, words.companyOverview)
     await openMenu(page, press)
     const company = await page.evaluate(menuShown)
-    if (company.groups !== 1 || company.name !== words.company) throw new Error(`the Company menu shows ${company.groups} groups, the first ${company.name}`)
-    markLeads(company, words, 'the Company menu')
-    headingStandsOut(company, words.company)
-    if (
-      !company.entries.includes(words.companyOverview) ||
-      !company.entries.some((entry) => entry.startsWith(words.transactions.title)) ||
-      company.entries.some((entry) => entry === words.companySettings)
-    )
+    homeLinkLeads(company, words, 'the Company menu')
+    appLeadsItsPages(company, words.company, ['company', 'loans'], words)
+    if (!company.entries.includes(words.companyOverview) || !company.entries.some((entry) => entry.startsWith(words.transactions.title)) || company.entries.at(-1) !== words.companySettings)
       throw new Error(`Company lists ${company.entries.join(', ')}`)
-    if (JSON.stringify(company.apart) !== JSON.stringify([words.companySettings])) throw new Error(`Company sets apart ${company.apart.join(', ')}`)
     const companyTitle = await page.title()
     if (companyTitle !== `${words.companyOverview}, ${words.company} – Kuna`) throw new Error(`the browser tab says "${companyTitle}"`)
     await inspect?.('the Company menu')
     await shoot(language === 'en' ? 'app-menu-company' : `app-menu-company-${language}`)
 
     // The fake books hold rows that wait, so the counted item opens their queue.
-    const counted = '[data-testid="nav-group"] a:has([data-testid="nav-count"])'
+    const counted = '[data-testid="nav-entries"] a:has([data-testid="nav-count"])'
     await pressSelector(page, press, `[role="dialog"] ${counted}, aside ${counted}`)
     await screenTitled(page, words.transactions.title)
     const opened = await page.evaluate(() => ({
@@ -4725,6 +4747,141 @@ export function appMenuFlowIn(language) {
 }
 
 export const appMenuFlow = appMenuFlowIn('en')
+
+/**
+ * The menu adjusts to what is set up. From the first draw after a load it lists exactly `listed`, so nothing flickers in and out while files open or
+ * wait to be looked up, with Net worth over the apps. Add an app leads to the home, whose cards still offer all five apps.
+ */
+export function sidebarAdjustsFlowIn(language, listed) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot, inspect }) => {
+    await openMenu(page, press)
+    const menu = await page.evaluate(menuShown)
+    if (JSON.stringify(menu.apps) !== JSON.stringify(listed)) throw new Error(`the menu lists ${menu.apps.join(', ')}, not ${listed.join(', ')}`)
+    if (menu.netWorth !== words.netWorth) throw new Error(`the menu shows ${menu.netWorth} over the apps`)
+    if (menu.addApp !== words.addApp) throw new Error(`the menu shows ${menu.addApp} for Add an app`)
+    await inspect?.('the menu with some apps set up')
+    await shoot(`sidebar-adjusts-${listed.join('-')}${language === 'en' ? '' : `-${language}`}`)
+
+    if (await page.evaluate(() => document.querySelector('aside') !== null)) {
+      await page.evaluateOnNewDocument(() => {
+        window.menusSeen = new Set()
+        const read = () => {
+          const aside = document.querySelector('aside')
+          if (aside !== null) window.menusSeen.add([...aside.querySelectorAll('[data-testid="nav-app-link"]')].map((link) => link.dataset.app).join())
+        }
+        new MutationObserver(read).observe(document, { childList: true, subtree: true })
+      })
+      await page.reload({ waitUntil: 'networkidle0' })
+      await delay(300)
+      const seen = await page.evaluate(() => [...window.menusSeen])
+      if (seen.some((rows) => rows !== listed.join())) throw new Error(`after a load the sidebar listed ${JSON.stringify(seen)}, not only ${listed.join()}`)
+    }
+
+    await pressSelector(page, press, '[data-testid="nav-add-app"]')
+    await screenTitled(page, words.allApps)
+    const cards = await page.evaluate(homeCards)
+    if (cards.length !== 5) throw new Error(`the home shows ${cards.length} cards after Add an app`)
+    await inspect?.('the home after Add an app')
+  }
+}
+
+/** An address under an app that no screen has lands on the home, and leaves that app closed. */
+export async function sidebarDeadAddressFlow(page) {
+  const menu = await page.evaluate(menuShown)
+  if (menu.groups !== 0) throw new Error(`an address no screen has left ${menu.name} open on the home`)
+  const expanded = await page.evaluate(() => [...document.querySelectorAll('aside [data-testid="nav-arrow"]')].filter((arrow) => arrow.getAttribute('aria-expanded') === 'true').length)
+  if (expanded !== 0) throw new Error(`an address no screen has left ${expanded} arrow expanded on the home`)
+}
+
+/**
+ * The sidebar's height, with Company and its name line open as the longest menu there is. At 1280 x 800 and 1366 x 768 the whole
+ * list fits, and at 1366 x 650 only the list scrolls, with the current page, Kuna settings and Sync on screen. Opening
+ * an app's pages runs 200 ms and hardly any time under reduced motion, and a deep link opens its app with no animation on load.
+ */
+export function sidebarFitFlowIn(language) {
+  return async (page, { shoot, inspect }) => {
+    const before = page.viewport()
+    const fit = () =>
+      page.evaluate(() => {
+        const list = document.querySelector('aside nav > div')
+        const onScreen = (element) => {
+          const box = element.getBoundingClientRect()
+          return box.top >= 0 && box.bottom <= window.innerHeight
+        }
+        const listBox = list.getBoundingClientRect()
+        const inList = (element) => {
+          const box = element.getBoundingClientRect()
+          return box.top >= listBox.top - 1 && box.bottom <= listBox.bottom + 1
+        }
+        return {
+          subtitle: document.querySelector('aside [data-testid="nav-subtitle"]') !== null,
+          width: Math.round(document.querySelector('aside').getBoundingClientRect().width),
+          scrolls: list.scrollHeight > list.clientHeight,
+          gutter: getComputedStyle(list).scrollbarGutter,
+          lastPage: inList(document.querySelector('aside [data-testid="nav-entries"] li:last-child a')),
+          lastApp: inList(document.querySelector('aside [data-testid="nav-app"]:last-child')),
+          current: inList(document.querySelector('aside a[aria-current="page"]')),
+          kunaSettings: onScreen(document.querySelector('aside [data-testid="nav-kuna-settings"]')),
+          sync: onScreen(document.querySelector('aside nav').nextElementSibling),
+        }
+      })
+    try {
+      for (const [width, height] of [
+        [1280, 800],
+        [1366, 768],
+      ]) {
+        await page.setViewport({ ...before, width, height })
+        await delay(300)
+        const fitted = await fit()
+        if (fitted.gutter !== 'stable' || !fitted.subtitle || fitted.width !== 240 || fitted.scrolls || !fitted.lastPage || !fitted.lastApp || !fitted.kunaSettings || !fitted.sync)
+          throw new Error(`Company's sidebar does not fit ${width} x ${height}: ${JSON.stringify(fitted)}`)
+        await inspect?.(`the sidebar at ${width} x ${height}`)
+        await shoot(`sidebar-company-${width}x${height}${language === 'en' ? '' : `-${language}`}`)
+      }
+      await page.setViewport({ ...before, width: 1366, height: 650 })
+      await delay(300)
+      const short = await fit()
+      if (!short.scrolls || !short.current || !short.kunaSettings || !short.sync) throw new Error(`at 1366 x 650 only the list should scroll: ${JSON.stringify(short)}`)
+      await inspect?.('the sidebar at 1366 x 650')
+      await page.setViewport(before)
+      await delay(300)
+
+      const openingTakes = () =>
+        page.evaluate(async () => {
+          document.querySelector('[data-testid="nav-arrow"][data-app="loans"]').click()
+          await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+          return document
+            .getAnimations()
+            .filter((animation) => animation.animationName?.startsWith('collapsible'))
+            .map((animation) => animation.effect.getComputedTiming().duration)
+        })
+      const moving = await openingTakes()
+      if (moving.length === 0 || moving.some((duration) => duration !== 200)) throw new Error(`opening Loans runs ${JSON.stringify(moving)} ms`)
+      await delay(300)
+      await inspect?.('a peek at Loans from Company')
+      await page.evaluate(() => document.querySelector('[data-testid="nav-arrow"][data-app="company"]').click())
+      await delay(300)
+      await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }])
+      const still = await openingTakes()
+      if (still.some((duration) => duration > 1)) throw new Error(`under reduced motion opening Loans still runs ${JSON.stringify(still)} ms`)
+      await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'no-preference' }])
+
+      await page.evaluateOnNewDocument(() => {
+        window.collapsiblesAnimated = 0
+        document.addEventListener('animationstart', (event) => {
+          if (event.animationName.startsWith('collapsible')) window.collapsiblesAnimated += 1
+        })
+      })
+      await page.reload({ waitUntil: 'networkidle0' })
+      await delay(300)
+      const onLoad = await page.evaluate(() => window.collapsiblesAnimated)
+      if (onLoad !== 0) throw new Error(`a deep link to Company animated ${onLoad} app's pages on load`)
+    } finally {
+      await page.setViewport(before)
+    }
+  }
+}
 
 /** The cents of the first amount in euros a text writes, in the way the language writes money. */
 function centsIn(text, language) {
@@ -4756,7 +4913,11 @@ export function homeFlowIn(language) {
     const colours = cards.map((card) => card.colour)
     if (colours.includes(null) || new Set(colours).size !== colours.length) throw new Error(`the cards tile their icons in ${colours.join(', ')}, not one colour each`)
     const menu = await page.evaluate(homeMenu)
-    if (menu !== null) sidebarMatchesCards(menu, cards, words)
+    if (menu !== null) {
+      sidebarMatchesCards(menu, cards, words)
+      const counts = await page.evaluate(closedRowCounts)
+      if (!(Number(counts.company) > 0) || 'investments' in counts) throw new Error(`the closed apps' rows count ${JSON.stringify(counts)}, when Company has rows waiting and Investments nothing`)
+    }
     await inspect?.('the home with every app')
     await shoot('home')
 
@@ -4810,7 +4971,7 @@ export function homeFlowIn(language) {
 
     if (menu === null) return
     await goHome(page, press, words)
-    await pressSelector(page, press, 'aside [data-testid="nav-apps"] a[data-app="company"]')
+    await pressSelector(page, press, 'aside [data-testid="nav-app-link"][data-app="company"]')
     await screenTitled(page, words.companyOverview)
     const title = `${words.companyOverview}, ${words.company} – Kuna`
     if ((await page.title()) !== title) throw new Error(`the Company row in the home's sidebar opened "${await page.title()}"`)
@@ -4832,7 +4993,15 @@ export function setUpFlowIn(language) {
       throw new Error(`the fresh home shows ${JSON.stringify(cards.map((card) => [card.app, card.state]))}`)
     if (await page.evaluate(() => document.querySelector('[data-testid="sync-status"]') !== null)) throw new Error('the fresh home shows a sync control')
     const menu = await page.evaluate(homeMenu)
-    if (menu !== null) sidebarMatchesCards(menu, cards, words)
+    if (menu !== null) {
+      sidebarMatchesCards(menu, cards, words)
+      const fresh = await page.evaluate(menuShown)
+      if (fresh.addApp !== words.addApp || fresh.netWorth !== null) throw new Error(`before any app is set up the sidebar shows ${fresh.addApp} and ${fresh.netWorth}`)
+      await pressSelector(page, press, '[data-testid="nav-add-app"]')
+      const focused = await page.evaluate(() => ({ card: document.activeElement?.dataset.testid, state: document.activeElement?.dataset.state, app: document.activeElement?.dataset.app }))
+      if (focused.card !== 'home-card' || focused.state !== 'set-up' || focused.app !== 'company')
+        throw new Error(`Add an app on the home moved focus to ${JSON.stringify(focused)}, not the first card in Set up`)
+    }
     await inspect?.('the home on a fresh device')
     await shoot('home-set-up')
 

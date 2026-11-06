@@ -72,7 +72,7 @@ export const spendingApp: AppContribution = {
     return count === 0 ? null : { count, opens: SPENDING_REVIEW_LINK }
   },
   subtitle: () => null,
-  // Every figure on the Spending screens and on Kuna's Overview is in euros, so it shows them in the language's format.
+  // Every figure on the Spending screens and on Net worth is in euros, so it shows them in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
   homeCard: SPENDING_HOME_CARD,
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => spendingHubFigures(book, rates.value, today())) },

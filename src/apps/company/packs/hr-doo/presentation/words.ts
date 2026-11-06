@@ -113,7 +113,7 @@ export const en = {
   },
   /** The pack's pages as a link names them, a page and its tab. */
   links: { review: 'To review', yearTaxes: 'Year, Taxes', ownerTaken: 'Owner, Taken' },
-  /** The company's figure on Kuna's Overview. */
+  /** The company's figure on Net worth. */
   takeOut: {
     label: 'You could take out now',
     afterLoan: (amount: string) => `After ${amount} settles your loan to the company`,

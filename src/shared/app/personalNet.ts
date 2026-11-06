@@ -2,7 +2,7 @@ import { moneyFromCents, negateMoney, sumMoney } from '../money/money'
 import type { Money } from '../money/money'
 import type { CountedHubPart, HubState } from './appContribution'
 
-/** An app whose figures add up into the personal sum, as Kuna's Overview reads it. */
+/** An app whose figures add up into the personal sum, as Net worth reads it. */
 export interface PersonalApp {
   readonly name: string
   /** The app has not been set up, so it counts as nothing. */

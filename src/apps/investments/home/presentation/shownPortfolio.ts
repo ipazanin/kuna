@@ -10,7 +10,7 @@ const { state } = useInvestmentsBooks()
 const { sources, figures } = usePortfolio()
 
 /**
- * The portfolio as the home card and Kuna's Overview show it: what `shownOf` makes of its figures, a wait
+ * The portfolio as the home card and Net worth show it: what `shownOf` makes of its figures, a wait
  * while the file or this browser's copy of its prices is read, and nothing for a file with no transactions.
  */
 export function shownPortfolio<Shown>(

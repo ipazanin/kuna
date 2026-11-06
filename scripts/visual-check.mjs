@@ -29,7 +29,7 @@
  * itself with its sources, in Croatian too, flagged for a figure Kuna did not compute (`?ai=invented-figure`), and a figure
  * on Salaries that names employees asks for the employee switch first.
  *
- * Kuna's Overview renders on the sample Loans and Investments files beside the company on Drive and in this browser,
+ * Net worth renders on the sample Loans and Investments files beside the company on Drive and in this browser,
  * while the Loans file opens, once its read fails (`?loans=failed`), with Investments alone and on a first run, with its
  * figures worked out from the same fake sets, in Croatian too, and so does Year's Pay tab with the kept profit paid out now.
  * It also renders with the sample Assets file beside them, with the Assets file alone and while the house price index
@@ -47,7 +47,7 @@
  * line and Settings with the categories (`?spending=sample`), Limits with two overspent (`?spending=over`), Accounts
  * while the ECB rates fail (`?rates=failed`), its Overview while its file opens and once its read fails, and Entries with a
  * row a receipt split (`?spending=receipts`), each in
- * Croatian too, with its figures worked out from the same fake sets. Kuna's Overview renders with the sample Spending
+ * Croatian too, with its figures worked out from the same fake sets. Net worth renders with the sample Spending
  * file beside the other samples, alone, and while the ECB rates load (`?rates=opening`). At every width it opens the
  * entry dialog for money out and for a move between two currencies. Its flows add, change and delete money out and undo
  * the delete, move money between two accounts and read both balances, rename, move and delete a category into another
@@ -226,7 +226,7 @@ import { ratesStateOf } from '../src/apps/spending/rates/domain/ratesState.ts'
 import { ratesNeeded } from '../src/apps/spending/rates/domain/ratesNeeded.ts'
 import { fakeSpendingDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending.ts'
 import { SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/spendingDocument.ts'
-import { en as hubOverviewEnglish } from '../src/shell/overview/words.ts'
+import { en as netWorthEnglish } from '../src/shell/netWorth/words.ts'
 import { monthOf } from '../src/shared/calendar/monthKey.ts'
 import { EURO } from '../src/shared/money/currencyCode.ts'
 import { ecbRates } from '../src/shared/rates/infrastructure/ecbRates.ts'
@@ -247,6 +247,9 @@ import {
   advanceFlowIn,
   appMenuFlow,
   appMenuFlowIn,
+  sidebarFitFlowIn,
+  sidebarAdjustsFlowIn,
+  sidebarDeadAddressFlow,
   assetFlow,
   assetFlowIn,
   assetsEditorFlow,
@@ -611,7 +614,7 @@ async function fakeSpendingShows(sample) {
 }
 
 /**
- * Kuna's Overview on the fake sets, worked out with the functions its screen calls: the sum of the sample Loans,
+ * Net worth on the fake sets, worked out with the functions its screen calls: the sum of the sample Loans,
  * Investments, Assets and Spending files with each of their parts, what is yours after the Home loan and what the
  * accounts span, with what the sum leaves out, the sum of the Investments, the Assets and the Spending sample alone,
  * and what the owner could take out of the company kept in this browser (`?fake=browser`). Money comes in English and
@@ -628,7 +631,7 @@ function fakeOverviewShows(spendingSample) {
   const spending = spendingHubFigures(spendingSample.book, spendingSample.rates, today())
   const netOf = (figures) => personalNet(figures.map((counted) => ({ name: 'visual', notSetUp: false, currency: 'EUR', figures: counted })))
   const sumOf = (figures) => netOf(figures).sum.cents
-  const leavesOut = (figures) => hubOverviewEnglish.leavesOut(netOf(figures).leavesOut)
+  const leavesOut = (figures) => netWorthEnglish.leavesOut(netOf(figures).leavesOut)
   installHrDooPack()
   const [takeOut] = companyHubFigures(readDocument(meta, fakeWorkbookDocument(at, 'browser', null)).workbook).parts
   const every = [loans, investments, assets, spending]
@@ -1117,7 +1120,7 @@ const SCREENS = [
     hash: '#/',
     title: 'All apps',
     charts: 0,
-    shows: ['Company', 'Cash on hand', '2 rows to review', 'Loans', 'Investments', 'Assets', 'Spending', 'Set up', 'Overview', 'Kuna settings'],
+    shows: ['Company', 'Cash on hand', '2 rows to review', 'Loans', 'Investments', 'Assets', 'Spending', 'Set up', 'Net worth', 'Kuna settings'],
     cards: false,
   },
   {
@@ -1126,14 +1129,14 @@ const SCREENS = [
     hash: '#/',
     title: 'Sve aplikacije',
     charts: 0,
-    shows: ['Tvrtka', 'Novac na računima', 'Krediti', 'Ulaganja', 'Imovina', 'Potrošnja', 'Postavi', 'Pregled'],
+    shows: ['Tvrtka', 'Novac na računima', 'Krediti', 'Ulaganja', 'Imovina', 'Potrošnja', 'Postavi', 'Neto imovina'],
     cards: false,
   },
   {
     name: 'kuna-overview',
     query: 'loans=sample&investments=sample&assets=sample&spending=sample',
     hash: '#/overview',
-    title: 'Overview',
+    title: 'Net worth',
     charts: 0,
     shows: ['Net worth', 'Next ', 'Bank and cash', ...OVERVIEW.english, 'What you could take out needs the company’s registration day in Settings.'],
     cards: false,
@@ -1142,7 +1145,7 @@ const SCREENS = [
     name: 'kuna-overview-croatian',
     query: 'loans=sample&investments=sample&assets=sample&spending=sample&lang=hr',
     hash: '#/overview',
-    title: 'Pregled',
+    title: 'Neto imovina',
     charts: 0,
     shows: ['Neto imovina', 'Sljedeća rata ', 'Banka i gotovina', ...OVERVIEW.croatian, 'vaše nakon kredita „Home loan”', 'Novac tvrtke, izvan zbroja'],
     cards: false,
@@ -1151,7 +1154,7 @@ const SCREENS = [
     name: 'kuna-overview-browser',
     query: 'fake=browser&loans=sample&investments=sample',
     hash: '#/overview',
-    title: 'Overview',
+    title: 'Net worth',
     charts: 0,
     shows: ['The company’s money, kept apart from the sum', 'You could take out now', OVERVIEW.takeOut, 'settles your loan to the company'],
     cards: false,
@@ -1160,17 +1163,17 @@ const SCREENS = [
     name: 'kuna-overview-browser-croatian',
     query: 'fake=browser&loans=sample&investments=sample&lang=hr',
     hash: '#/overview',
-    title: 'Pregled',
+    title: 'Neto imovina',
     charts: 0,
     shows: ['Možete isplatiti sada', OVERVIEW.takeOutCroatian, 'zatvori vaš dug prema tvrtki'],
     cards: false,
   },
-  { name: 'kuna-overview-loans-opening', query: 'loans=opening&investments=sample', hash: '#/overview', title: 'Overview', charts: 0, ready: '[data-testid="overview-net-opening"]', cards: false },
+  { name: 'kuna-overview-loans-opening', query: 'loans=opening&investments=sample', hash: '#/overview', title: 'Net worth', charts: 0, ready: '[data-testid="overview-net-opening"]', cards: false },
   {
     name: 'kuna-overview-loans-failed',
     query: 'loans=failed&investments=sample',
     hash: '#/overview',
-    title: 'Overview',
+    title: 'Net worth',
     charts: 0,
     ready: '[data-testid="overview-net-held"]',
     shows: 'Loans did not open, so nothing is added up.',
@@ -1180,7 +1183,7 @@ const SCREENS = [
     name: 'kuna-overview-loans-failed-croatian',
     query: 'loans=failed&investments=sample&lang=hr',
     hash: '#/overview',
-    title: 'Pregled',
+    title: 'Neto imovina',
     charts: 0,
     ready: '[data-testid="overview-net-held"]',
     shows: 'Datoteka aplikacije Krediti nije se otvorila, pa se ništa ne zbraja.',
@@ -1190,7 +1193,7 @@ const SCREENS = [
     name: 'kuna-overview-investments-only',
     query: 'investments=sample',
     hash: '#/overview',
-    title: 'Overview',
+    title: 'Net worth',
     charts: 0,
     shows: [OVERVIEW.investmentsOnly, 'Not set up: Loans', 'Not set up: Assets', 'Not set up: Spending'],
     cards: false,
@@ -1199,7 +1202,7 @@ const SCREENS = [
     name: 'kuna-overview-assets-only',
     query: 'assets=sample',
     hash: '#/overview',
-    title: 'Overview',
+    title: 'Net worth',
     charts: 0,
     shows: [OVERVIEW.assetsOnly, 'Assets value', OVERVIEW.assetsOnlyLeavesOut, 'Not set up: Loans', 'Not set up: Investments', 'Not set up: Spending'],
     cards: false,
@@ -1208,7 +1211,7 @@ const SCREENS = [
     name: 'kuna-overview-spending-only',
     query: 'spending=sample',
     hash: '#/overview',
-    title: 'Overview',
+    title: 'Net worth',
     charts: 0,
     shows: [OVERVIEW.spendingOnly.english, 'Bank and cash', OVERVIEW.spendingOnly.caption, 'Not set up: Loans', 'Not set up: Investments', 'Not set up: Assets'],
     cards: false,
@@ -1217,7 +1220,7 @@ const SCREENS = [
     name: 'kuna-overview-spending-only-croatian',
     query: 'spending=sample&lang=hr',
     hash: '#/overview',
-    title: 'Pregled',
+    title: 'Neto imovina',
     charts: 0,
     shows: [OVERVIEW.spendingOnly.croatian, 'Banka i gotovina', 'Nije postavljeno: Krediti'],
     cards: false,
@@ -1226,7 +1229,7 @@ const SCREENS = [
     name: 'kuna-overview-rates-opening',
     query: 'loans=sample&investments=sample&assets=sample&spending=sample&rates=opening',
     hash: '#/overview',
-    title: 'Overview',
+    title: 'Net worth',
     charts: 0,
     ready: '[data-testid="overview-net-opening"]',
     cards: false,
@@ -1235,7 +1238,7 @@ const SCREENS = [
     name: 'kuna-overview-index-opening',
     query: 'loans=sample&investments=sample&assets=sample&index=opening',
     hash: '#/overview',
-    title: 'Overview',
+    title: 'Net worth',
     charts: 0,
     ready: '[data-testid="overview-net-opening"]',
     cards: false,
@@ -1244,7 +1247,7 @@ const SCREENS = [
     name: 'kuna-overview-fresh',
     query: 'fake=empty',
     hash: '#/overview',
-    title: 'Overview',
+    title: 'Net worth',
     charts: 0,
     shows: [
       'Nothing to add up until an app is set up: Loans, Investments, Assets or Spending.',
@@ -5406,6 +5409,30 @@ const FLOWS = [
     run: appMenuFlowIn('hr'),
     viewports: EVERY_VIEWPORT,
     queries: { drive: '&loans=drive&lang=hr', browser: '&fake=browser&loans=browser&lang=hr' },
+  },
+  { name: 'sidebar-one-app', hash: '#/company', title: 'Overview', run: sidebarAdjustsFlowIn('en', ['company']), modes: ['drive'], queries: { drive: '' } },
+  { name: 'sidebar-one-app-croatian', hash: '#/company', title: 'Pregled', run: sidebarAdjustsFlowIn('hr', ['company']), modes: ['drive'], queries: { drive: '&lang=hr' } },
+  { name: 'sidebar-file-opening', hash: '#/company', title: 'Overview', run: sidebarAdjustsFlowIn('en', ['company', 'loans']), modes: ['drive'], queries: { drive: '&loans=opening' } },
+  { name: 'sidebar-file-failed', hash: '#/company', title: 'Overview', run: sidebarAdjustsFlowIn('en', ['company', 'loans']), modes: ['drive'], queries: { drive: '&loans=failed' } },
+  { name: 'sidebar-file-failed-croatian', hash: '#/company', title: 'Pregled', run: sidebarAdjustsFlowIn('hr', ['company', 'loans']), modes: ['drive'], queries: { drive: '&loans=failed&lang=hr' } },
+  { name: 'sidebar-dead-address', hash: '#/company/no-such-screen', title: 'All apps', run: sidebarDeadAddressFlow, viewports: ['desktop'], modes: ['drive'], queries: { drive: '' } },
+  {
+    name: 'sidebar-fit',
+    hash: '#/company',
+    title: 'Overview',
+    run: sidebarFitFlowIn('en'),
+    viewports: ['laptop'],
+    modes: ['browser'],
+    queries: { browser: '&fake=browser&loans=sample&investments=sample&assets=sample&spending=sample' },
+  },
+  {
+    name: 'sidebar-fit-croatian',
+    hash: '#/company',
+    title: 'Pregled',
+    run: sidebarFitFlowIn('hr'),
+    viewports: ['laptop'],
+    modes: ['browser'],
+    queries: { browser: '&fake=browser&loans=sample&investments=sample&assets=sample&spending=sample&lang=hr' },
   },
   { name: 'home', hash: '#/', title: 'All apps', run: homeFlow, modes: ['drive'], queries: { drive: '&loans=sample&investments=sample&assets=sample&spending=sample' } },
   { name: 'home-browser', hash: '#/', title: 'All apps', run: homeFlow, modes: ['browser'], queries: { browser: '&fake=browser&loans=sample&investments=sample&assets=sample&spending=sample' } },
