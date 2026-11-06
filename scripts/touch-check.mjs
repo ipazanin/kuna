@@ -1837,7 +1837,7 @@ async function checkWidth(width) {
     await expect(hashOf(page), (hash) => hash === '#/company/transactions', 'the return did not land on the route the tap left')
     await expect(fragmentGone(), (gone) => gone, 'the token stayed in the address')
     await expect(tokenKept(), (kept) => !kept, 'the token was kept in site storage, not in page memory only')
-    await expect(granted(), (scopes) => JSON.stringify(scopes) === JSON.stringify(['drive.file', 'drive.readonly', 'drive.appdata', 'gmail.readonly', 'gmail.compose']), 'the full grant was not noted')
+    await expect(granted(), (scopes) => JSON.stringify(scopes) === JSON.stringify(['drive.file', 'drive.readonly', 'drive.appdata', 'gmail.readonly', 'gmail.compose', 'script.external_request']), 'the full grant was not noted')
     await expect(noMessage(), (none) => none, 'the full grant showed a message')
     await inspect(page, `${width}px full grant return`)
     await shoot('google-return-full-grant')
