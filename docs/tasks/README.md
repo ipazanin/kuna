@@ -47,8 +47,10 @@ After adding a task or changing its frontmatter, run `npm run tasks-index`. `npm
 | ----------------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------ |
 | [Co-owned assets and loans](assets-ownership-share.md)      | assets       | Co-owned assets and loans, counted by the owner's share.                                               |
 | [Company facts for the personal apps](company-facts.md)     | company      | The company app publishes owner facts, such as the owner loan, for the personal apps to read live.     |
+| [More Croatian legal forms](company-legal-forms.md)         | company      | Presets for a paušalni obrt, an obrt and a j.d.o.o., beside the Croatian d.o.o. preset.                |
 | [Readers for every Croatian bank](croatian-bank-readers.md) | spending     | Parsers and integrations for every Croatian bank, beyond OTP and Revolut.                              |
 | [Matching company and personal money](ledger-matching.md)   | architecture | Money that crosses between the company and the owner, matched across the company and personal ledgers. |
+| [Several companies for one person](multiple-companies.md)   | company      | One person with several companies, or a company and an obrt, each with its own books and legal form.   |
 | [Node 26 script warning](node-26-warning.md)                | platform     | The Node scripts print one ExperimentalWarning on Node 26.                                             |
 | [Overview follow-ups](overview-followups.md)                | overview     | Three small things left on Kuna's Overview after it shipped.                                           |
 
