@@ -17,10 +17,12 @@ These override the recommendations further down wherever the two differ.
 - **Add what I hold now:** writes a matching deposit with each buy, only in this path, in one write with one Undo, and the dialog says so. A file's existing deposits are untouched.
 - **Taking the history back:** "My history is not complete yet" sits in Investments Settings.
 - **Set-up answers:** they stay on the device.
+- **What a move takes:** "Move only kuna files, dont move anything that is not owned by kuna, so statements fetched from mail can come, my accountant files cant."
+- **A picked file:** marked on open with one private property, no new revision and no content change, so a new device cannot make an empty twin of it.
 
 ## Built
 
-Stages 1 and 2 are built on the `onboarding` branch and work with no AI.
+Stages 1 to 3 are built and work with no AI.
 
 - **Set-up lines.** `AppContribution.setUpLines()` publishes what each app still lacks. `GettingSetUpCard` moved to `src/shared/ui`. Company, Investments and Spending show it on Overview, and the home card shows each app's next line.
 - **Answers stay on the device.** "These look right" and "My history is complete" live in this browser through `src/shared/app/setUpAnswer.ts`, per file. A new setting or record kind would have moved `read.workbook` and `investments.read.records`. A person's file stays untouched, a second device asks once more, and a lost answer can only hide figures that read past buys, never show a wrong one.
@@ -28,6 +30,79 @@ Stages 1 and 2 are built on the `onboarding` branch and work with no AI.
 - **Loans' six fields.** Name, amount, instalments, paid out on, first instalment and rate. Repayment and fixed or variable stay visible with their defaults, because a wrong answer silently gives a wrong figure.
 - **Company's five payees.** The line names who appears most among the rows a rule could file, and goes once no such row is left or the books hold five working rules that file on their own. To review keeps its order.
 - **A buy without a deposit.** The value adds cash, so a buy with no deposit lowers it. "Add what I hold now" writes the deposit with the buy, and stays offered on Overview until the history is said complete. On any other path a set-up line leads while cash is below zero.
+
+### Stage 3: one start
+
+- **The welcome.** A new device with no app set up sees one card on the home in place of the app cards: which apps, and where the files live. `src/shell/home/KunaWelcome.vue`. It writes one answer to this device through `src/shared/app/kunaStart.ts`, and makes nothing on Drive. The apps left out wait under the others until they have a file, and no app without a file is in the sidebar, whichever list holds its card. Add an app moves focus to the welcome's first app, or once answered to the first card in Set up. An app can suggest an order through `AppContribution.setUpOrder`, which Assets uses to name Loans first.
+- **The AI part.** Stage 4 adds a section to `KunaWelcome.vue` and a field to `KunaStart`. There is no key UI and no AI words yet.
+- **The answer skips the steps.** Said Drive, `useFirstRun` starts on the folder step and Company's `stepsOf` drops the home step. Said this browser, the home step stays as the one tap that makes the file, with no question on it. Someone with no answer, such as a person with files from before who opens an app they never set up, gets the home step once, and that counts as the answer. An app whose file is open and whose Settings leads back to its start still asks, because that person came to change it. Kuna settings says where new files go and offers Ask me again.
+- **One Kuna folder.** `Kuna` at the top of My Drive, with a folder inside it named by the app's id, so a second device in another language finds the same one. It is marked with the `kuna` app property and found by search wherever the person puts it, so its id is never stored. Where it goes is asked only until it exists. Nothing is made until a tap on Create the file here. `src/shared/storage/infrastructure/kunaFolder.ts`.
+- **Delivery after the first statement.** The access step asks for the books file and invoice drafts only. New books take statements by hand. Once a first statement is in books on Drive, Getting set up offers a line that opens `StatementDeliveryDialog`, with the Erste preset, another bank, or a Drive folder, or "I import by hand", which clears it on this device. The dialog writes the settings, and the next sync asks Google for what they need, so a phone that leaves for Google loses nothing typed. Books that already name a folder or a sender never see the line.
+
+### The move into Kuna's folder
+
+Settings on each app, on the card that already says where the file is. It is per app and not in Kuna settings because one move touches one file and fails alone, each app alone knows what sits beside its file, and the shell would otherwise need a new contract to see that. The button shows only while the page holds a token and the file sits outside its subfolder. Nothing moves until Move is pressed in the dialog, which first lists what goes and what stays.
+
+A move takes what Kuna itself made, one file at a time, and a folder never moves, since it may hold what Kuna did not make. What the settings reach and how Kuna knows a file is its own, read from the code:
+
+| What                                   | How the code finds it                                      | How Kuna knows it made it                         | On a move                                                                  |
+| -------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------- |
+| The file itself                        | By id on every device                                      | It is the file                                    | Goes first, id unchanged                                                   |
+| Backups                                | By name in `backups` beside the file                       | App-made, and the name is `kuna-<app>-<day>.json` | Go, this app's alone                                                       |
+| Statements filed from mail             | Under the statements folder                                | App-made, with `kuna-mail` = `statements`         | Go to `Kuna/<app>/statements`, year folders kept, ids kept                 |
+| A statement a script or a person filed | The same folder                                            | No such property                                  | Stays                                                                      |
+| The accountant's mail                  | Its own folder from My Drive, or wherever it was filed     | `kuna-mail` names another source                  | Stays, as he asked, even though Kuna filed it                              |
+| A receipt's photo                      | The record holds its id, new ones go by name to `Receipts` | App-made                                          | Goes, id kept. A photo Kuna did not make stays                             |
+| `kuna-investments-prices.json`         | By name beside the file                                    | App-made                                          | Goes                                                                       |
+| `invoice_folder_id`                    | By id                                                      | A folder the person picked, so not Kuna's         | Stays with every invoice in it, including ones Kuna filed. The id finds it |
+| A person's other files in the folder   | Nothing points at them                                     | Not Kuna's                                        | Stay                                                                       |
+
+**A statements setting named from My Drive.** With mail on, Kuna's statements land in `Kuna/<app>/statements` and the press rewrites `statements_folder` to `./statements`, as its last step before the move counts as over. With mail off, nothing of Kuna's is there, so the setting and the folder stay, and whatever fills that folder goes on being read. An accountant's folder named `./` from the file cannot follow and may not move, so it holds the move back with a line saying so.
+
+**A Drive script that files into the old folder.** The owner's `shadow-accounting/scripts/Code.gs` can write there. Nothing about the script breaks: its folder stays with its files, and it goes on filing. Kuna stops reading that folder after a move, so a statement only the script filed would go unread. Mail covers that, because the same statements come from the same mail: the next sync sees few files in the new folder, so its window goes back to `mail_since`, and it files them again into `Kuna/<app>/statements`. The result is the same statement in both folders, and each is imported once. A file someone dropped into the old folder by hand, and not yet imported, is not read after a move, which the dialog's count of files that stay is the warning for.
+
+**"Already imported" after a move.** It reads the file's name for the label and account (`statementFilesToRead`), then the rows' `reference`. It reads no id and no folder, and a moved file keeps its name, so it holds. Mail filing's own "already filed" compares names within the folder it lists, which is why the year folders keep their names. A year folder from a statements folder not named `statements` keeps its old name, so mail files that year once more beside it, which changes nothing in the books.
+
+**What Kuna cannot tell.** A file without `kuna-mail` looks like a script's. That includes what Kuna filed before the rename on 2026-10-28, which carries `ledgerboard-mail`. Those stay, and the dialog says it cannot say who made them.
+
+**A refusal moves nothing.** The file goes first, since it is the one request Drive may refuse: Kuna made everything else, or it is a folder the settings name. A refusal then moves nothing, and the dialog's failure line says Google's docs do not settle whether an app may take a file out of a folder it was never given. The only thing left behind is the empty `Kuna/<app>` folder, which the next try uses.
+
+**A move that stops part way.** The request that moves the file also marks it with a `movedFrom` property naming the old folder, in one request, so there is no gap between the two. A later failure leaves the mark. Settings shows Finish the move, on any device, and pressing it brings what is still in the old folder and clears the mark. Until then the backups of that day land in the new folder, older ones sit in the old one, and a `./` folder setting reports its folder missing on a sync. Pressing again merges a folder of the same name. A file whose name is taken stays where it was and is named in the toast, so nothing is overwritten. A folder a setting holds by id is never merged, since that would leave the setting on an empty folder: it stays and is named too.
+
+**The settings are read fresh.** A move reads the file first, so a `./statements` set on another device goes along. A failed read moves nothing.
+
+**A new device.** Drive's search finds a file the app marked. A file someone picked is now marked when it opens, and a file a device already chose is marked on its first read of a page, with one private property, no new revision and no content change. The mark waits while another file holds it, since the search must find one. A file no device has opened since this change is still unseen, so the folder step keeps Open a file I already have beside Create, and says why. A search that fails stops the Create with the error, and makes nothing.
+
+**Another person's Kuna folder.** The search for the Kuna folder takes only a folder the person owns, read from Drive's `ownedByMe` field rather than `'me' in owners`. The [files reference](https://developers.google.com/workspace/drive/api/reference/rest/v3/files) documents that field, while the [search terms](https://developers.google.com/workspace/drive/api/guides/ref-search-terms) list `owners` with no `me` example.
+
+**What Google's docs say, loaded 2026-11-06.**
+
+- Moving: "To add or remove parents for an existing file, use the files.update() method" with "the addParents and removeParents query parameters", and "A file can only have one parent folder" ([Create and populate folders](https://developers.google.com/workspace/drive/api/guides/folder)). [About files](https://developers.google.com/workspace/drive/api/guides/about-files) still says a file on My Drive "can be in multiple folders", and [files.update](https://developers.google.com/workspace/drive/api/reference/rest/v3/files/update) calls adding to several "no longer supported". Kuna always removes the old parent.
+- Scope: files.update lists `drive.file`, and "Update requests must use the addParents and removeParents parameters" ([files](https://developers.google.com/workspace/drive/api/reference/rest/v3/files)). `drive.file` covers files an app creates or that a person opens or shares with it through the Picker ([Choose scopes](https://developers.google.com/workspace/drive/api/guides/api-specific-auth)).
+- The id: "File IDs are stable throughout the life of the file, even if the file name changes" ([About files](https://developers.google.com/workspace/drive/api/guides/about-files)). No page says in words that a move keeps it. The move samples update the file under the same `fileId`.
+- Revisions: a revision is "a change to the file's contents (not metadata)" ([Changes and revisions](https://developers.google.com/workspace/drive/api/guides/change-overview)), so a move leaves the head revision alone, and a save racing it sees nothing moved.
+- A new folder: "If the `parents` field isn't specified, the file is placed directly in the user's My Drive folder" ([Create and populate folders](https://developers.google.com/workspace/drive/api/guides/folder)). Kuna names no parent for a Kuna folder at the top, since `root` answers 404 under `drive.file` (spike 4 in the [onboarding and sync spikes](../platform/research/onboarding-and-sync/spikes.md)).
+
+**Unconfirmed, and untested against real Drive.** No page I could read answers these, and only the fake Drive has run them. Try the move on a throwaway file, then the Assets file, before the others.
+
+- Whether `isAppAuthorized` reads true for every file the app made, when listed. [The files reference](https://developers.google.com/workspace/drive/api/reference/rest/v3/files) says "created or opened by the requesting app". If it reads false, the file stays, which is the safe way round.
+- Whether `removeParents` works under `drive.file` when the old parent folder is one the app was never granted. A refusal there moves nothing, since the file goes first.
+- Whether `files.get` gives `parents` for such a file. Settings then shows no place and no button, and nothing moves.
+- Whether `appProperties` merge on update and whether setting one to null removes it. [Properties](https://developers.google.com/workspace/drive/api/guides/properties) says so only of public `properties`. If the clearing fails, Finish the move stays, and pressing it does no harm.
+- Whether a search with `appProperties` finds the Kuna folder from a second device. [Search](https://developers.google.com/workspace/drive/api/guides/search-files) describes the query and is silent on `drive.file`, though Kuna's file search already relies on the same thing.
+
+### Where this plan and the code disagreed
+
+The code won in each.
+
+- The answer on storage says a move takes a file "with its statements, invoices and receipts". His later answer narrows that to what Kuna made. The invoice folder is one he picked, and Kuna's invoice PDFs carry no property of their own, so invoices stay.
+- Stage 3 says `FirstRunHomeStep` skips itself if answered. It cannot wholly for this browser, since that step makes the file. It stays with no question on it.
+- The bank presets and the `./statements` folder lived only on the access step, and Settings has plain fields. Taking delivery out of the stepper would have lost them, so they moved to the delivery dialog.
+- The module map's line numbers are against `0717599` and have drifted. This change does not chase them.
+
+### Open questions for the owner
+
+1. **The first real move.** A press changes where Drive for Desktop shows the file, so anything that reads `kuna-*.json` by path on the Mac, such as a `check:figures` command, needs the new path. The recommendation is to move Assets first and look, and Company last, since it is the one that rewrites a setting.
 
 ## Staged proposal
 
@@ -43,7 +118,7 @@ Stages 1 and 2 are built on the `onboarding` branch and work with no AI.
 
 _A new user gets one true figure in each app, and knows what is left._
 
-**Stage 3: one start.** Add a home welcome asking which apps and where the files live, once. `FirstRunHomeStep` and `FirstRunFolderStep` skip themselves if answered. _Five storage questions become one, and the order Loans then Assets is suggested._ This also moves delivery to set-up lines if decision 5 agrees.
+**Stage 3: one start (built).** Add a home welcome asking which apps and where the files live, once. `FirstRunHomeStep` and `FirstRunFolderStep` skip themselves if answered. _Five storage questions become one, and the order Loans then Assets is suggested._ This also moves delivery to set-up lines if decision 5 agrees.
 
 **Stage 4: the AI choice and the key.** First-screen question, key walk-through, one consent. Before this, make the first real call with a real key, which [issue #41](https://github.com/ipazanin/kuna/issues/41) still lists as open. _A person with a key has it working, with Explain and suggested categories already useful._
 

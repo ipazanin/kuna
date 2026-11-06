@@ -4,20 +4,16 @@ import { gettingSetUp } from '../src/apps/company/onboarding/presentation/gettin
 import type { WorkbookDocument } from '../src/shared/storage/infrastructure/documentFormat'
 import { readDocument } from '../src/apps/company/workbook/infrastructure/companyDocument'
 import { newBooksDocument } from '../src/apps/company/workbook/presentation/workbookFiles'
-import { statementSettingsOf } from '../src/apps/company/onboarding/domain/statementsChoice'
-import type { StatementMail, StatementsSource } from '../src/apps/company/onboarding/domain/onboardingSteps'
-import type { CivilDate } from '../src/shared/calendar/civilDate'
+import { STATEMENTS_BY_HAND } from '../src/apps/company/onboarding/domain/statementsChoice'
 import { STARTING_CATEGORIES } from '../src/apps/company/packs/hr-doo/preset/domain/startingCategories'
 import { startingRules } from '../src/apps/company/packs/hr-doo/preset/domain/startingRules'
 import { civil } from './fixtures/ledger'
 
 const SAVED = '2026-10-26T09:00:00.000Z'
 
-const ERSTE: StatementMail = { bank: 'erste', from: '', subject: '', since: null }
-
-/** New books as onboarding makes them for a statements choice. */
-function newBooks(source: StatementsSource): WorkbookDocument {
-  return newBooksDocument(statementSettingsOf(source, ERSTE, '2026-10-26' as CivilDate), SAVED)
+/** New books as onboarding makes them. */
+function newBooks(): WorkbookDocument {
+  return newBooksDocument(STATEMENTS_BY_HAND, SAVED)
 }
 
 function read(document: WorkbookDocument) {
@@ -37,7 +33,7 @@ function withRows(document: WorkbookDocument, values: Readonly<Record<string, st
 
 describe('new books', () => {
   it('hold an explicit row for every choice, statements by hand switching filing on sync off, and no account, row or folder', () => {
-    const document = newBooks('hand')
+    const document = newBooks()
     const rows = rowsOf(document)
 
     expect(rows).toMatchObject({
@@ -54,33 +50,11 @@ describe('new books', () => {
     expect(workbook.transactions).toEqual([])
     expect(workbook.problems).toEqual([])
   })
-
-  it('switch filing on sync on for statements from a Drive folder, which the statement step names', () => {
-    const rows = rowsOf(newBooks('folder'))
-    expect(rows).toMatchObject({ statements_sync: 'true', statements_folder: '', statements_mail_from: '', statements_mail_subject: '', mail_since: '' })
-  })
-
-  it('name the bank’s mail, mail since and the statements folder beside the books file for statements from mail, and never the accountant’s mail', () => {
-    const document = newBooks('mail')
-    expect(rowsOf(document)).toMatchObject({
-      statements_sync: 'true',
-      statements_folder: './statements',
-      statements_mail_from: 'netbanking.support@erstebank.hr',
-      statements_mail_subject: 'ERSTE Izvadak',
-      mail_since: '2026-01-01',
-      hr_accountant_mail_from: '',
-      hr_payroll_mail_subject: '',
-    })
-    const { workbook } = read(document)
-    expect(workbook.settings).toMatchObject({ statementsSync: true, statementsFolder: ['.', 'statements'], statementsMailFrom: ['netbanking.support@erstebank.hr'], mailSince: '2026-01-01' })
-    expect(workbook.problems).toEqual([])
-    expect(gettingSetUp(workbook).map((line) => line.key)).toEqual(['first-statement', 'categories'])
-  })
 })
 
 describe('new books of a Croatian d.o.o.', () => {
   it('start with the Croatian set and the state rules of the day they are saved on, with no problem to read', () => {
-    const { workbook } = read(newBooks('hand'))
+    const { workbook } = read(newBooks())
 
     expect(workbook.categories.map((category) => category.slug)).toEqual(STARTING_CATEGORIES.map((category) => category.slug))
     expect(workbook.categories.find((category) => category.slug === 'car-costs')).toMatchObject({ roles: ['personal-transport'], vat: 'car-50', bucket: 'operating' })
@@ -98,10 +72,10 @@ describe('getting set up', () => {
   const keysOf = (document: WorkbookDocument) => gettingSetUp(read(document).workbook).map((line) => line.key)
 
   it('lists what new books lack, asks a Croatian d.o.o. for nothing more, and each line goes once it is done', () => {
-    const fresh = newBooks('folder')
-    expect(keysOf(fresh)).toEqual(['first-statement', 'statements-folder', 'categories'])
+    const syncing = withRows(newBooks(), { statements_sync: true })
+    expect(keysOf(syncing)).toEqual(['first-statement', 'statements-folder', 'categories'])
 
-    const croatian = withRows(fresh, { owner_pay_module: true })
+    const croatian = withRows(syncing, { owner_pay_module: true })
     expect(keysOf(croatian)).toEqual(['first-statement', 'statements-folder', 'categories'])
 
     const named = withRows(croatian, { statements_folder: 'finance/statements' })
@@ -112,11 +86,11 @@ describe('getting set up', () => {
   })
 
   it('stops asking about the categories once someone says they look right', () => {
-    expect(gettingSetUp(read(newBooks('hand')).workbook, true).map((line) => line.key)).toEqual(['first-statement'])
+    expect(gettingSetUp(read(newBooks()).workbook, true).map((line) => line.key)).toEqual(['first-statement'])
   })
 
   it('leaves the statements folder alone for statements by hand, and links each line to its screen', () => {
-    expect(gettingSetUp(read(newBooks('hand')).workbook)).toEqual([
+    expect(gettingSetUp(read(newBooks()).workbook)).toEqual([
       { key: 'first-statement', text: 'Import your first bank statement', link: { label: 'Import', to: { path: '/company/transactions', query: { tab: 'import' } } } },
       {
         key: 'categories',
@@ -124,5 +98,18 @@ describe('getting set up', () => {
         link: { label: 'Categories', to: { path: '/company/settings', query: { tab: 'categories' } } },
       },
     ])
+  })
+
+  it('offers delivery only after the first statement, only while offered, and never to books that already take statements on their own', () => {
+    const { workbook } = read(newBooks())
+    const withRow = { ...workbook, transactions: [{} as (typeof workbook.transactions)[number]] }
+    const delivery = (books: typeof workbook, offered: boolean) => gettingSetUp(books, true, offered).some((line) => line.key === 'statement-delivery')
+
+    expect(delivery(workbook, true)).toBe(false)
+    expect(delivery(withRow, true)).toBe(true)
+    expect(delivery(withRow, false)).toBe(false)
+    expect(delivery({ ...withRow, settings: { ...withRow.settings, statementsFolder: ['work', 'dss', 'statements'] } }, true)).toBe(false)
+    expect(delivery({ ...withRow, settings: { ...withRow.settings, statementsMailFrom: ['a@example.com'] } }, true)).toBe(false)
+    expect(delivery({ ...withRow, settings: { ...withRow.settings, statementsSync: true } }, true)).toBe(false)
   })
 })

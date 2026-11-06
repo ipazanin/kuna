@@ -12,6 +12,7 @@ import { words } from './words'
 /** The Loans first run at `#/loans/start?step=…`. */
 const store = useLoansBooks()
 const firstRun: FileFirstRun = {
+  appId: 'loans',
   testId: 'loans-start',
   appName: appWords.name,
   startRoute: LOANS_START_ROUTE,

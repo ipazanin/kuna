@@ -55,6 +55,7 @@ export const assetsApp: AppContribution = {
   setUpLines: () => (state.workbook === null ? [] : assetsSetUp(state.workbook)),
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
   startPath: ASSETS_START_ROUTE,
+  setUpOrder: { after: 'loans', why: words.setUpAfterLoans },
   syncGroup: assetsSyncGroup,
   asksGoogleOnOpen: () => loadWorkbookChoice(ASSETS_APP)?.source === 'drive' && autoSyncOn.value,
   // The shell hands over only a find or a pick the Assets file asked Google for. The page's sync resumes a sync.

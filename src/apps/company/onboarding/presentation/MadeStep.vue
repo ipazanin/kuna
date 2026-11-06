@@ -71,7 +71,7 @@ async function startOver(): Promise<void> {
     <div v-if="books" class="flex flex-col gap-2 rounded-control border border-default bg-elevated/40 px-3 py-3" data-testid="onboarding-made">
       <template v-if="onDrive">
         <p class="text-sm text-muted">{{ words.made.savedIn }}</p>
-        <p v-if="where" class="identifier text-sm font-medium break-words text-highlighted" data-testid="onboarding-made-folder">{{ where.folderName }}</p>
+        <p v-if="where" class="identifier text-sm font-medium break-words text-highlighted" data-testid="onboarding-made-folder">{{ where.folderName ?? words.made.aDriveFolder }}</p>
         <p v-else class="text-sm text-toned">{{ words.made.aDriveFolder }}</p>
       </template>
       <p v-else class="text-sm text-muted">{{ words.made.inBrowser }}</p>

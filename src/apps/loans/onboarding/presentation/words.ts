@@ -16,7 +16,6 @@ export const en = {
   folder: {
     title: 'Where the Loans file is saved',
     savedIn: 'The Loans file will be saved in',
-    choose: 'Choose the folder the Loans file goes in. The app writes only its file there and the backups folder beside it.',
     onDriveTitle: 'Your Loans file is on Drive already',
     onDriveDrops: (message: string) => `${message} Opening it deletes the Loans file in this browser, which exists only here and in the files you exported. Export it first if you want to keep it.`,
     openOnDrive: 'Open the Loans file on Drive',
@@ -39,7 +38,6 @@ export const hr: Translation<typeof en> = {
   folder: {
     title: 'Gdje se sprema datoteka kredita',
     savedIn: 'Datoteka kredita spremit će se u mapu',
-    choose: 'Odaberite mapu za datoteku kredita. Aplikacija ondje upisuje samo svoju datoteku i mapu sa sigurnosnim kopijama uz nju.',
     onDriveTitle: 'Datoteka kredita već je na Driveu',
     onDriveDrops: (message) =>
       `${message} Ako je otvorite, briše se datoteka kredita u ovom pregledniku, koja postoji samo ovdje i u datotekama koje ste izvezli. Najprije je izvezite ako je želite sačuvati.`,

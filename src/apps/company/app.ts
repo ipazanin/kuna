@@ -22,6 +22,7 @@ import { companySyncGroup } from './sync/presentation/useSync'
 import { words } from './words'
 import { gettingSetUp } from './onboarding/presentation/gettingSetUp'
 import { useCategoriesLookRight } from './onboarding/presentation/useCategoriesLookRight'
+import { useDeliveryOffer } from './onboarding/presentation/useDeliveryOffer'
 import { useWorkbook } from './workbook/application/workbookStore'
 import { reviewCount } from './workbook/domain/needsReview'
 import { COMPANY_APP } from './workbook/infrastructure/companyDocument'
@@ -40,6 +41,7 @@ const SETTINGS: AppScreen = { path: '/company/settings', title: settingsWords.ti
 
 const { state } = useWorkbook()
 const { lookRight: categoriesLookRight } = useCategoriesLookRight()
+const { offered: deliveryOffered } = useDeliveryOffer()
 const settings = useSettings()
 
 /** The company's books, figures and setup, with the Croatian d.o.o. pack installed. */
@@ -82,7 +84,7 @@ export const companyApp: AppContribution = {
   hub: { counts: false, figures: () => homeCardFigures(state, companyHubFigures) },
   assist: { tasks: () => [SUGGEST_CATEGORIES_SUMMARY, ...shownPack(settings.value).assist] },
   // Nothing chosen and nothing kept: onboarding takes it, whatever screen the address names.
-  setUpLines: () => (state.workbook === null ? [] : gettingSetUp(state.workbook, categoriesLookRight.value)),
+  setUpLines: () => (state.workbook === null ? [] : gettingSetUp(state.workbook, categoriesLookRight.value, deliveryOffered.value)),
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
   startPath: ONBOARDING_ROUTE,
   syncGroup: companySyncGroup,

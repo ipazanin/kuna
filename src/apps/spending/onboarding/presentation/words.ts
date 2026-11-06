@@ -16,7 +16,6 @@ export const en = {
   folder: {
     title: 'Where the Spending file is saved',
     savedIn: 'The Spending file will be saved in',
-    choose: 'Choose the folder the Spending file goes in. The app writes only its file there and the backups folder beside it.',
     onDriveTitle: 'Your Spending file is on Drive already',
     onDriveDrops: (message: string) => `${message} Opening it deletes the Spending file in this browser, which exists only here and in the files you exported. Export it first if you want to keep it.`,
     openOnDrive: 'Open the Spending file on Drive',
@@ -40,7 +39,6 @@ export const hr: Translation<typeof en> = {
   folder: {
     title: 'Gdje se sprema datoteka potrošnje',
     savedIn: 'Datoteka potrošnje spremit će se u mapu',
-    choose: 'Odaberite mapu za datoteku potrošnje. Aplikacija ondje upisuje samo svoju datoteku i mapu sa sigurnosnim kopijama uz nju.',
     onDriveTitle: 'Datoteka potrošnje već je na Driveu',
     onDriveDrops: (message) =>
       `${message} Ako je otvorite, briše se datoteka potrošnje u ovom pregledniku, koja postoji samo ovdje i u datotekama koje ste izvezli. Najprije je izvezite ako je želite sačuvati.`,

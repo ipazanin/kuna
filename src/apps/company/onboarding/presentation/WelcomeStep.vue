@@ -21,7 +21,7 @@ const CHOICES: { label: string; description?: string; value: OnboardingPath }[] 
 const chosen = ref<OnboardingPath>(onboarding.place.value.path === 'move' ? 'new' : onboarding.place.value.path)
 
 function proceed(): void {
-  void onboarding.go({ path: chosen.value, step: stepsOf(chosen.value, onboarding.place.value.home)[1]! })
+  void onboarding.go({ path: chosen.value, step: stepsOf(chosen.value, onboarding.place.value.home, onboarding.place.value.asksHome)[1]! })
 }
 </script>
 

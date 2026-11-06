@@ -14,7 +14,7 @@ export function googlePricesDrive(): PricesDrive {
   const decoder = new TextDecoder()
   return {
     async parentOf(fileId) {
-      const [parentId] = (await getFile(await driveToken(), fileId, ['parents'])).parents
+      const parentId = (await getFile(await driveToken(), fileId, ['parents'])).parents?.[0]
       if (parentId === undefined) {
         throw new Error(words.noFolder)
       }

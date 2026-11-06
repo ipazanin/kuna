@@ -16,7 +16,6 @@ export const en = {
   folder: {
     title: 'Where the Investments file is saved',
     savedIn: 'The Investments file will be saved in',
-    choose: 'Choose the folder the Investments file goes in. The app writes only its file there and the backups folder beside it.',
     onDriveTitle: 'Your Investments file is on Drive already',
     onDriveDrops: (message: string) =>
       `${message} Opening it deletes the Investments file in this browser, which exists only here and in the files you exported. Export it first if you want to keep it.`,
@@ -41,7 +40,6 @@ export const hr: Translation<typeof en> = {
   folder: {
     title: 'Gdje se sprema datoteka ulaganja',
     savedIn: 'Datoteka ulaganja spremit će se u mapu',
-    choose: 'Odaberite mapu za datoteku ulaganja. Aplikacija ondje upisuje samo svoju datoteku i mapu sa sigurnosnim kopijama uz nju.',
     onDriveTitle: 'Datoteka ulaganja već je na Driveu',
     onDriveDrops: (message) =>
       `${message} Ako je otvorite, briše se datoteka ulaganja u ovom pregledniku, koja postoji samo ovdje i u datotekama koje ste izvezli. Najprije je izvezite ako je želite sačuvati.`,

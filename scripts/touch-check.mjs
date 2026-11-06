@@ -179,12 +179,15 @@ import {
   onboardingBrowserFlowIn,
   onboardingDriveFlow,
   onboardingDriveFlowIn,
-  onboardingDriveReadFlow,
-  onboardingMailFlow,
+  kunaWelcomeBrowserFlow,
+  kunaWelcomeFlow,
+  moveIntoKunaFlow,
+  moveStatementsIntoKunaFlow,
+  onboardingDeliveryFlow,
+  onboardingPackFlow,
   onboardingOnDriveFlow,
   onboardingOpenFlow,
   onboardingStartOverFlow,
-  onboardingStatementAccessFlow,
   ownerNetFlow,
   ownerNetUnregisteredFlow,
   ownerShareFlow,
@@ -2037,13 +2040,13 @@ async function checkWidth(width) {
     await waitForText(page, 'li[data-slot="base"]', 'Your books are already open')
 
     // Onboarding's access step resumes nothing: the route brings the person back to it, and it says what Google allowed, with no message.
-    await comeBack('empty', { ...tapAsk, scopes: ['drive.file', 'drive.readonly'], resume: 'none', route: '#/company/start?step=access&statements=folder' }, tokenOf(scopeOf('drive.file')))
+    await comeBack('empty', { ...tapAsk, scopes: ['drive.file'], resume: 'none', route: '#/company/start?step=access' }, tokenOf(scopeOf('drive.file')))
     await waitForTitle(page, 'Company')
-    await expect(hashOf(page), (hash) => hash === '#/company/start?step=access&statements=folder', 'the return did not land on the step the tap left')
+    await expect(hashOf(page), (hash) => hash === '#/company/start?step=access', 'the return did not land on the step the tap left')
     await page
-      .waitForFunction(() => [...document.querySelectorAll('[data-testid="access-status"]')].map((badge) => badge.textContent?.trim()).join(',') === 'Allowed,Not allowed', { timeout: 10_000 })
+      .waitForFunction(() => [...document.querySelectorAll('[data-testid="access-status"]')].map((badge) => badge.textContent?.trim()).join(',') === 'Allowed', { timeout: 10_000 })
       .catch(() => {
-        throw new Error('the access step does not say Google allowed the books file and not Drive read')
+        throw new Error('the access step does not say Google allowed the books file')
       })
     await expect(noMessage(), (none) => none, 'the return to the access step showed a message')
     await inspect(page, `${width}px access step after Google`)
@@ -2872,9 +2875,9 @@ async function checkWidth(width) {
     await page.goto(`${BASE}?theme=dark&fake=empty#/`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'All apps')
     await expect(
-      page.evaluate(() => [...document.querySelectorAll('[data-testid="home-card"]')].map((card) => card.dataset.state)),
-      (states) => states.length === 5 && states.every((state) => state === 'set-up'),
-      'a fresh device does not open the home with every app in Set up',
+      page.evaluate(() => document.querySelector('[data-testid="kuna-welcome"]') !== null && document.querySelector('[data-testid="home-card"]') === null),
+      (welcomed) => welcomed,
+      'a fresh device does not open the home with the welcome in place of the cards',
     )
     await expect(
       page.evaluate(() => document.querySelector('[data-testid="sync-status"]') === null),
@@ -2883,6 +2886,9 @@ async function checkWidth(width) {
     )
     await inspect(page, `${width}px home on a fresh device`)
     await shoot('home-set-up')
+    await (await waitForText(page, '[data-testid="kuna-welcome-apps"] label', 'Company')).tap()
+    await (await waitForText(page, '[data-testid="kuna-welcome-home"] label', 'Only this browser')).tap()
+    await (await page.waitForSelector('[data-testid="kuna-welcome-continue"]:not([disabled])')).tap()
     await (await page.waitForSelector('[data-testid="home-card"][data-app="company"]')).tap()
     await waitForTitle(page, 'Company')
     await inspect(page, `${width}px welcome`)
@@ -2902,8 +2908,12 @@ async function checkWidth(width) {
 
   for (const [name, variant, run, hash = '#/company/start', title = 'Company'] of [
     ['onboarding-drive', 'empty', onboardingDriveFlow],
-    ['onboarding-drive-read', 'empty', onboardingDriveReadFlow],
-    ['onboarding-mail', 'empty', onboardingMailFlow],
+    ['onboarding-pack', 'empty', onboardingPackFlow],
+    ['onboarding-delivery', 'empty', onboardingDeliveryFlow],
+    ['kuna-welcome', 'empty', kunaWelcomeFlow, '#/', 'All apps'],
+    ['kuna-welcome-browser', 'empty', kunaWelcomeBrowserFlow, '#/', 'All apps'],
+    ['move-into-kuna', 'drive', moveIntoKunaFlow, '#/company/settings?tab=books', 'Settings'],
+    ['move-into-kuna-statements', 'mail-move', moveStatementsIntoKunaFlow, '#/company/settings?tab=books', 'Settings'],
     ['onboarding-browser', 'empty', onboardingBrowserFlow],
     ['onboarding-drive-croatian', 'empty&lang=hr', onboardingDriveFlowIn('hr'), '#/company/start', 'Tvrtka'],
     ['onboarding-browser-croatian', 'empty&lang=hr', onboardingBrowserFlowIn('hr'), '#/company/start', 'Tvrtka'],
@@ -2965,7 +2975,6 @@ async function checkWidth(width) {
     ['loans-scenarios', 'drive&loans=sample', loansScenariosFlow, '#/loans/scenarios', 'Scenarios'],
     ['loans-scenario-editor', 'drive&loans=sample', loansScenarioEditorFlow, '#/loans/scenarios', 'Scenarios'],
     ['loans-saved-tries', 'drive&loans=sample', loansSavedTriesFlow, `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, 'Home loan'],
-    ['onboarding-statement-access', 'drive', onboardingStatementAccessFlow, '#/company/start?step=statement&statements=folder'],
     ['move-browser', 'browser', moveFromBrowserFlow, '#/company/settings?tab=books', 'Settings'],
     ['race', 'race', raceFlow, '#/company/transactions?tab=review', 'Transactions'],
     ['investments-remove-drive', 'drive&investments=sample&keys=other-browser', investmentsRemoveDriveFlowIn('en'), '#/investments/settings', 'Settings'],

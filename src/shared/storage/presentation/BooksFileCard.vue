@@ -1,24 +1,36 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import { dateFormat } from '../../calendar/dateFormat'
+import { googleAccess } from '../../google/googleAuth'
 import AppCard from '../../ui/AppCard.vue'
 import type { BooksRead, WorkbookStore } from '../application/createWorkbookStore'
-import type { DriveFilePlace } from '../application/workbookPorts'
+import type { DriveFileBeside } from '../application/workbookPorts'
 import { exportReminderDue } from '../domain/exportReminder'
 import type { WorkbookDocument } from '../infrastructure/documentFormat'
 import type { DocumentCopy } from '../infrastructure/documentRecordStorage'
+import MoveIntoKunaDialog from './MoveIntoKunaDialog.vue'
+import { useDriveFilePlace } from './useDriveFilePlace'
 import { words } from './words'
 
+/** A file with nothing of Kuna's beside it but its backups. */
+const NOTHING_BESIDE: DriveFileBeside = { files: [], folders: [], stays: [], blockedBy: [] }
+
 /**
- * An app's Settings: where its file is kept, when it was saved, synced and exported, and a
- * link to it on Drive. The app's own buttons go in `actions`, and its notices in the default slot.
+ * An app's Settings: where its file is kept, when it was saved, synced and exported, a link to it on Drive, and while it sits
+ * elsewhere the move into the Kuna folder. The app's own buttons go in `actions`, and its notices in the default slot.
  */
 const props = defineProps<{
   title: string
-  store: Pick<WorkbookStore<BooksRead, DocumentCopy, WorkbookDocument>, 'state' | 'driveFilePlace'>
+  /** The app's id, which names its subfolder of the Kuna folder. */
+  appId: string
+  store: Pick<WorkbookStore<BooksRead, DocumentCopy, WorkbookDocument>, 'state' | 'driveFilePlace' | 'hasKunaFolder' | 'pickDriveFolder' | 'planMoveIntoKuna' | 'moveIntoKuna'>
+  /** What goes along when the file moves, read as the move opens, for a file that has more beside it than its backups. */
+  beside?: (() => DriveFileBeside) | undefined
+  /** What the move changes in the app's settings, for a file with such a setting. */
+  afterMove?: (() => Promise<void>) | undefined
   /** The title the app stores on a file it makes, and the words shown for it in the language on screen. */
   seededTitle?: { readonly stored: string; readonly shown: string }
 }>()
@@ -43,23 +55,10 @@ const savedAt = computed(() => {
 })
 const fileLink = computed(() => (source.value === 'drive' && meta.value !== null ? `https://drive.google.com/file/d/${encodeURIComponent(meta.value.id)}/view` : null))
 
-/** Where the Drive file sits and its newest backup, read again after each save or sync while the page holds a token, since asking for one needs a click. */
-const place = ref<{ readonly fileId: string; readonly found: DriveFilePlace } | null>(null)
-const shownPlace = computed(() => (place.value !== null && place.value.fileId === meta.value?.id ? place.value.found : null))
-watch(
-  () => (source.value === 'drive' ? (state.value.snapshot?.revision ?? null) : null),
-  async (revision) => {
-    const fileId = meta.value?.id
-    if (revision === null || fileId === undefined) return
-    try {
-      const found = await props.store.driveFilePlace()
-      if (state.value.snapshot?.revision === revision) place.value = found === null ? null : { fileId, found }
-    } catch {
-      // The folder and the backup are extras. The file itself still syncs and saves.
-    }
-  },
-  { immediate: true },
-)
+const { place: shownPlace, read: readPlace } = useDriveFilePlace(props.store, () => googleAccess().scopes !== null)
+const moving = ref(false)
+const movable = computed(() => shownPlace.value !== null && (!shownPlace.value.inKunaFolder || shownPlace.value.moveUnfinished) && !state.value.missing)
+const beside = (): DriveFileBeside => props.beside?.() ?? NOTHING_BESIDE
 const folderLink = computed(() => (shownPlace.value === null ? null : `https://drive.google.com/drive/folders/${encodeURIComponent(shownPlace.value.folderId)}`))
 const lastBackup = computed(() => (shownPlace.value?.lastBackup ? day(new Date(`${shownPlace.value.lastBackup}T12:00:00`)) : null))
 </script>
@@ -83,7 +82,7 @@ const lastBackup = computed(() => (shownPlace.value?.lastBackup ? day(new Date(`
           <template v-if="shownPlace">
             <dt>{{ words.booksFile.folder }}</dt>
             <dd>
-              <a :href="folderLink ?? undefined" target="_blank" rel="noopener" class="settings-link inline-target">{{ shownPlace.folderName }}</a>
+              <a :href="folderLink ?? undefined" target="_blank" rel="noopener" class="settings-link inline-target">{{ shownPlace.folderName ?? words.booksFile.unnamedFolder }}</a>
             </dd>
           </template>
           <template v-if="savedAt">
@@ -104,9 +103,21 @@ const lastBackup = computed(() => (shownPlace.value?.lastBackup ? day(new Date(`
       <slot />
       <div class="flex flex-wrap gap-2">
         <slot name="actions" />
+        <UButton
+          v-if="movable"
+          icon="i-lucide-folder-input"
+          :label="shownPlace?.moveUnfinished ? words.moveIntoKuna.finish : words.moveIntoKuna.action"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          :disabled="state.writing"
+          data-testid="move-into-kuna-open"
+          @click="moving = true"
+        />
         <UButton v-if="fileLink" :to="fileLink" target="_blank" :label="words.booksFile.openInDrive" icon="i-lucide-external-link" color="neutral" variant="ghost" size="sm" />
       </div>
     </div>
+    <MoveIntoKunaDialog v-model:open="moving" :app-id="appId" :file-name="fileName ?? ''" :store="store" :beside="beside" :after-move="afterMove" @ended="readPlace" />
   </AppCard>
 </template>
 

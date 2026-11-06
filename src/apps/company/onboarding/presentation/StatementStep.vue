@@ -5,16 +5,12 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UFileUpload from '@nuxt/ui/components/FileUpload.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
-import { folderTrail } from '../../../../shared/text/folderPath'
 import { importTitle, statementReadings, writeImport } from '../../imports/application/importStatements'
 import type { LoadedImportFile } from '../../imports/application/importStatements'
 import { loadImportFile } from '../../imports/infrastructure/importFiles'
 import DryRunStatementCard from '../../imports/presentation/DryRunStatementCard.vue'
 import { useDryRun } from '../../imports/presentation/useDryRun'
-import { setSettings } from '../../settings/application/settingWrites'
-import { words as settingsWords } from '../../settings/presentation/words'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { useOnboarding } from './useOnboarding'
 import { words } from './words'
@@ -23,8 +19,7 @@ import StepCard from '../../../../shared/ui/StepCard.vue'
 /**
  * The first statement: a camt.053 file, whose IBAN, currency and opening balance make the account
  * the person names, as Import's dry run offers. A bank export needs its columns named, which Import
- * does, so it waits for there. With statements from a Drive folder, the folder is chosen here. With
- * statements from mail, it says where each sync files them.
+ * does, so it waits for there. How later statements arrive is offered once this one is in.
  */
 const onboarding = useOnboarding()
 const store = useWorkbook()
@@ -34,16 +29,12 @@ const writes = useRecordWrites(store)
 const offersSample = import.meta.env.VITE_FAKE_WORKBOOK === 'true'
 
 const workbook = computed(() => store.state.workbook)
-const source = computed(() => onboarding.place.value.statements)
 const inBrowser = computed(() => onboarding.place.value.home === 'browser')
-const folder = computed(() => workbook.value?.settings.statementsFolder ?? [])
 
 const picked = ref<File | null>(null)
 // Shallow, so the parsed document stays a plain object.
 const loaded = shallowRef<LoadedImportFile | null>(null)
 const loadFailure = ref<string | null>(null)
-const choosing = ref(false)
-const folderFailure = ref<string | null>(null)
 
 async function load(fileName: string, bytes: Promise<ArrayBuffer>): Promise<void> {
   loadFailure.value = null
@@ -70,24 +61,6 @@ const readings = computed(() => (loaded.value?.kind === 'camt' && workbook.value
 const starts = useDryRun(readings)
 const { dryRun, started, typedOpenings, accountNames, accountNameProblems } = starts
 
-async function chooseFolder(): Promise<void> {
-  choosing.value = true
-  folderFailure.value = null
-  try {
-    const chosen = await withGoogleAccess(['drive.readonly'], () => store.pickDriveFolder(words.statement.pickerTitle))
-    if (chosen !== null && chosen.path === null) {
-      folderFailure.value = words.statement.noDriveRead
-    } else if (chosen?.path) {
-      const path = chosen.path
-      await store.write(settingsWords.saved, (unit) => setSettings(unit, store.state.records?.settings ?? NO_RECORDS, [{ key: 'statements_folder', value: path.join('/') }]))
-    }
-  } catch (failure) {
-    folderFailure.value = failure instanceof Error ? failure.message : String(failure)
-  } finally {
-    choosing.value = false
-  }
-}
-
 async function importNow(): Promise<void> {
   const run = dryRun.value
   if (run === null || run.newRows === 0) return
@@ -107,25 +80,6 @@ async function importNow(): Promise<void> {
 <template>
   <StepCard :title="words.statement.title" :subtitle="words.statement.subtitle">
     <p v-if="inBrowser" class="text-sm text-muted" data-testid="onboarding-statements-by-hand">{{ words.statement.byHand }}</p>
-    <div v-else-if="source === 'mail'" class="flex items-start gap-3 rounded-control border border-default bg-elevated/40 px-3 py-3" data-testid="onboarding-statements-mail">
-      <UIcon name="i-lucide-mail" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
-      <div class="min-w-0">
-        <p class="text-sm text-highlighted">{{ words.statement.fromMail }}</p>
-        <p class="text-xs text-muted">{{ words.statement.fromMailNote }}</p>
-      </div>
-    </div>
-    <div
-      v-else-if="source === 'folder'"
-      class="flex flex-wrap items-center justify-between gap-2 rounded-control border border-default bg-elevated/40 px-3 py-3"
-      data-testid="onboarding-statements-folder"
-    >
-      <div class="min-w-0">
-        <p class="text-sm text-highlighted">{{ words.statement.folder }}</p>
-        <p class="identifier text-xs break-words text-muted">{{ folder.length ? folderTrail(folder) : words.statement.notChosen }}</p>
-      </div>
-      <UButton :label="words.statement.chooseFolder" icon="i-lucide-folder-search" color="neutral" variant="outline" size="sm" :loading="choosing" @click="chooseFolder" />
-    </div>
-    <UAlert v-if="folderFailure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.statement.noFolder" :description="folderFailure" />
 
     <UFileUpload
       v-model="picked"

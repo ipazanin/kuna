@@ -164,10 +164,12 @@
           <ul>
             <li>
               <code>drive.file</code>, "See, edit, create, and delete only the specific Google Drive files you use with this app". Always asked. It covers the files and folders you pick in Google's
-              file picker and the files the app makes. The app reads and saves your books in <code>kuna-company.json</code>, the file it makes in the folder you pick, and reads the names of that
-              folder and of the backups beside the file. When you make an invoice, it lists the folders inside the invoice folder you picked, and files the PDF there. When a sync files your bank's
-              statement mail or a kind of your accountant's mail you switched on, it makes the files, and a missing year or month folder, in that mail's folder. When you switch on Keep the photo on
-              Drive for a receipt, it makes the photo's file, and a <code>Receipts</code> folder when it is missing, beside your Spending file.
+              file picker and the files the app makes. The app reads and saves your books in <code>kuna-company.json</code>, the file it makes in a folder inside its own Kuna folder, and reads the
+              names of that folder and of the backups beside the file. When you press Move in an app's Settings, it moves into the Kuna folder that file and what the app itself made: its backups, its
+              prices file, receipt photos and statements it filed from your mail. Everything else stays, your accountant's files among them. When you make an invoice, it lists the folders inside the
+              invoice folder you picked, and files the PDF there. When a sync files your bank's statement mail or a kind of your accountant's mail you switched on, it makes the files, and a missing
+              year or month folder, in that mail's folder. When you switch on Keep the photo on Drive for a receipt, it makes the photo's file, and a <code>Receipts</code> folder when it is missing,
+              beside your Spending file.
             </li>
             <li>
               <code>drive.readonly</code>, "See and download all your Google Drive files". Asked only while you have the app read bank statements from a Drive folder or file your mail into one.

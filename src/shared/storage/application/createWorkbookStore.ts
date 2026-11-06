@@ -6,7 +6,7 @@ import { DriveFileMissing } from './driveFileMissing'
 import { changesOf, checkWrite, isUndoable, receiptOf, undoOf } from './recordWrites'
 import type { RuledChange, WriteReceipt } from './recordWrites'
 import type { UnitOfWork } from './repository'
-import type { CopyMeta, CopyStorage, DriveFileLookup, DriveFilePlace, PickedFolder, WorkbookCache, WorkbookChoice, WorkbookCopy } from './workbookPorts'
+import type { CopyMeta, CopyStorage, DriveFileBeside, DriveFileLookup, DriveFilePlace, DriveMovePlan, PickedFolder, WorkbookCache, WorkbookChoice, WorkbookCopy } from './workbookPorts'
 import { words } from './words'
 import { trackWrite } from './writesInFlight'
 import { WorkbookWriteRefused } from './workbookWriteRefused'
@@ -81,21 +81,29 @@ export interface WorkbookStorePorts<Books extends BooksRead, Copy extends Workbo
    * none, and with `pick` the one picked. Refuses a backup and another app's file. Null when cancelled.
    */
   findDriveFile(lookup: DriveFileLookup): Promise<Copy | null>
-  /**
-   * The folder the person picks in the Picker, opened at My Drive, for the books. Throws
-   * `BooksAlreadyOnDrive` before the Picker opens when Drive already holds the file the app marked
-   * as its books. Null when cancelled.
-   */
-  pickBooksFolder(): Promise<PickedFolder | null>
   /** A folder the person picks in the Picker, opened at My Drive, under this title. Null when cancelled. */
   pickDriveFolder(title: string): Promise<PickedFolder | null>
   /**
-   * Creates the app's file in the folder, holding these contents, reads it back and throws unless it
-   * holds the same records. The folders named are made beside it first, each one the app made there
-   * before found instead, so a try again makes no second one. Throws `BooksAlreadyOnDrive`, making
-   * nothing, when Drive already holds the file the app marked as its books.
+   * The app's subfolder of the Kuna folder, each made when missing, with a new Kuna folder in `parentId`, or at the top of My Drive for
+   * null. Throws `BooksAlreadyOnDrive`, making nothing, when Drive already holds the file the app marked as its books.
    */
-  createDriveFile(folderId: string, contents: Contents, folders: readonly string[]): Promise<Copy>
+  driveHomeOfApp(parentId: string | null): Promise<string>
+  /** Whether Drive already holds the Kuna folder, null while the page holds no token, so that stays unknown. */
+  hasKunaFolder(): Promise<boolean | null>
+  /** Makes a folder of this name beside the file, unless the app made one there before. */
+  folderBesideFile(fileId: string, name: string): Promise<void>
+  /** What a move of the file into the Kuna folder would take and leave, changing nothing. */
+  planMoveIntoKuna(fileId: string, beside: DriveFileBeside): Promise<DriveMovePlan>
+  /** Moves the file into the app's subfolder of the Kuna folder, as `moveDriveDocument` says, and gives the names that stayed because theirs was taken. */
+  moveIntoKuna(fileId: string, beside: DriveFileBeside, parentId: string | null): Promise<readonly string[]>
+  /** The move is over, so the file stops offering to finish it. */
+  finishMoveIntoKuna(fileId: string): Promise<void>
+  /**
+   * Creates the app's file in the folder, holding these contents, reads it back and throws unless it
+   * holds the same records. Throws `BooksAlreadyOnDrive`, making nothing, when Drive already holds the
+   * file the app marked as its books.
+   */
+  createDriveFile(folderId: string, contents: Contents): Promise<Copy>
   /** Where the Drive file sits and its newest backup, or null while the page holds no token, since asking for one needs a click. */
   driveFilePlace(fileId: string): Promise<DriveFilePlace | null>
   /** Moves the Drive file to the bin, from which the person can restore it for 30 days. `drive.file` allows it for a file the app made. */
@@ -140,18 +148,31 @@ export interface WorkbookStore<Books extends BooksRead, Copy extends WorkbookCop
    * failure the previous workbook stays chosen. Leaving a workbook kept in this browser deletes it.
    */
   chooseDriveFile(lookup: DriveFileLookup): Promise<void>
-  /** The folder the person picks for the books, as `WorkbookStorePorts.pickBooksFolder` says. */
-  pickBooksFolder(): Promise<PickedFolder | null>
   /** A folder the person picks, as `WorkbookStorePorts.pickDriveFolder` says. */
   pickDriveFolder(title: string): Promise<PickedFolder | null>
+  /** The app's subfolder of the Kuna folder, as `WorkbookStorePorts.driveHomeOfApp` says. */
+  driveHomeOfApp(parentId: string | null): Promise<string>
+  /** Whether Drive already holds the Kuna folder, as `WorkbookStorePorts.hasKunaFolder` says. */
+  hasKunaFolder(): Promise<boolean | null>
+  /** Makes a folder of this name beside the chosen Drive file. Does nothing for a workbook kept in this browser. */
+  folderBesideFile(name: string): Promise<void>
+  /** What a move of the chosen Drive file into the Kuna folder would take and leave, read from the file as it is now, or null for a workbook kept in this browser. */
+  planMoveIntoKuna(beside: () => DriveFileBeside): Promise<DriveMovePlan | null>
+  /**
+   * Moves the chosen Drive file into the app's subfolder of the Kuna folder, with a new Kuna folder in `parentId`, or at the top of My Drive
+   * for null. It reads the file first, so what goes along comes from the settings as they are now, not as this device last saw them. No write or
+   * sync runs meanwhile, and `WorkbookWriteRefused` says so while one does. The file keeps its id, so this and every other device keep reading
+   * it. `afterMove` writes what the move changed in the settings, before the move counts as over, so a failure there can be pressed again. Gives the
+   * names that stayed because theirs was taken.
+   */
+  moveIntoKuna(beside: () => DriveFileBeside, parentId: string | null, afterMove?: () => Promise<void>): Promise<readonly string[]>
   /**
    * Keeps the contents, an opened file's, a fresh start's or the workbook kept in this browser, in a
    * new file in the folder, and shows that file once it reads back with the same records. Leaving a
-   * workbook kept in this browser deletes it. The folders named are made beside the file, as
-   * `WorkbookStorePorts.createDriveFile` says. On a failure the previous workbook stays chosen.
+   * workbook kept in this browser deletes it. On a failure the previous workbook stays chosen.
    * Throws `BooksAlreadyOnDrive`, changing nothing, when Drive already holds the app's file.
    */
-  keepOnDrive(folderId: string, contents: Contents, folders: readonly string[]): Promise<void>
+  keepOnDrive(folderId: string, contents: Contents): Promise<void>
   /** Where the chosen Drive file sits and its newest backup. Null for a workbook kept in this browser, or while the page holds no token. */
   driveFilePlace(): Promise<DriveFilePlace | null>
   /**
@@ -398,6 +419,12 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
     }
   }
 
+  /** Reads the chosen Drive file again, and throws when that fails, so what follows never works from what this device last saw. */
+  async function readChosenNow(choice: WorkbookChoice): Promise<void> {
+    await readDrive(() => ports.readDriveFile(choice, state.snapshot?.meta.id === choice.id ? state.snapshot : null), true)
+    if (state.status === 'error') throw new Error(state.error ?? words.busy)
+  }
+
   let opened: Promise<void> | null = null
 
   return {
@@ -424,16 +451,53 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
       return readDrive(() => ports.findDriveFile(lookup))
     },
 
-    pickBooksFolder() {
-      return ports.pickBooksFolder()
-    },
-
     pickDriveFolder(title) {
       return ports.pickDriveFolder(title)
     },
 
-    keepOnDrive(folderId, contents, folders) {
-      return readDrive(() => ports.createDriveFile(folderId, contents, folders))
+    driveHomeOfApp(parentId) {
+      return ports.driveHomeOfApp(parentId)
+    },
+
+    hasKunaFolder() {
+      return ports.hasKunaFolder()
+    },
+
+    async folderBesideFile(name) {
+      const choice = state.choice
+      if (choice?.source === 'drive') await ports.folderBesideFile(choice.id, name)
+    },
+
+    async planMoveIntoKuna(beside) {
+      const choice = state.choice
+      if (choice?.source !== 'drive') return null
+      await readChosenNow(choice)
+      return ports.planMoveIntoKuna(choice.id, beside())
+    },
+
+    async moveIntoKuna(beside, parentId, afterMove) {
+      const choice = state.choice
+      if (choice?.source !== 'drive') {
+        return []
+      }
+      if (state.writing || state.status === 'syncing') {
+        throw new WorkbookWriteRefused(words.busy)
+      }
+      await readChosenNow(choice)
+      state.writing = true
+      let left: readonly string[]
+      try {
+        left = await ports.moveIntoKuna(choice.id, beside(), parentId)
+      } finally {
+        state.writing = false
+      }
+      await afterMove?.()
+      await ports.finishMoveIntoKuna(choice.id)
+      return left
+    },
+
+    keepOnDrive(folderId, contents) {
+      return readDrive(() => ports.createDriveFile(folderId, contents))
     },
 
     async driveFilePlace() {

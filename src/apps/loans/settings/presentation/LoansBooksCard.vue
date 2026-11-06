@@ -15,7 +15,7 @@ const { exporting, exportNow } = useLoansExport()
 </script>
 
 <template>
-  <BooksFileCard :title="words.books" :store="store" :seeded-title="{ stored: LOCAL_LOANS_TITLE, shown: words.localTitle }" data-testid="loans-books-card">
+  <BooksFileCard :title="words.books" app-id="loans" :store="store" :seeded-title="{ stored: LOCAL_LOANS_TITLE, shown: words.localTitle }" data-testid="loans-books-card">
     <template #actions>
       <UButton icon="i-lucide-download" :label="words.export" color="neutral" variant="outline" size="sm" :loading="exporting" :disabled="exporting || state.snapshot === null" @click="exportNow" />
       <UButton :to="LOANS_START_ROUTE" icon="i-lucide-arrow-left-right" :label="words.switchStorage" color="neutral" variant="outline" size="sm" data-testid="loans-switch-storage" />

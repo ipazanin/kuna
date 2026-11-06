@@ -65,15 +65,15 @@ describe('the Assets first run on the fake Drive', () => {
     expect(store.state.choice).toBeNull()
   })
 
-  it('keeps a new file on Drive as kuna-assets.json, marked as the Assets file, beside the company file', async () => {
+  it('keeps a new file on Drive as kuna-assets.json, marked as the Assets file, in its subfolder of the Kuna folder', async () => {
     const store = useAssetsBooks()
 
-    const folder = await store.pickBooksFolder()
-    await store.keepOnDrive(folder!.id, newAssetsFileContents(store), [])
+    await store.keepOnDrive(await store.driveHomeOfApp(null), newAssetsFileContents(store))
 
     expect(store.state.error).toBeNull()
     expect(store.state.choice).toMatchObject({ source: 'drive', name: 'kuna-assets.json' })
-    expect(await booksFolder()).toEqual({ 'kuna-company.json': 'company', 'kuna-assets.json': 'assets' })
+    expect(fakeDriveSession().file(fakeDriveSession().file(store.state.choice!.id).parents[0]!).name).toBe('assets')
+    expect(await booksFolder()).toEqual({ 'kuna-company.json': 'company' })
     const stored = decodeDocument(await fakeDriveSession().download(store.state.choice!.id))
     expect(stored).toMatchObject({ app: 'assets', schema: { assets: 1 }, records: {} })
     expect(assetsApp.firstRun()).toBe(false)
@@ -83,10 +83,10 @@ describe('the Assets first run on the fake Drive', () => {
     const store = otherDevice()
     await store.open()
 
-    await expect(store.pickBooksFolder()).rejects.toThrow(BooksAlreadyOnDrive)
-    await expect(store.keepOnDrive(await fakeBooksFolder(), newAssetsFileContents(store), [])).rejects.toThrow('Drive already holds kuna-assets.json')
+    await expect(store.driveHomeOfApp(null)).rejects.toThrow(BooksAlreadyOnDrive)
+    await expect(store.keepOnDrive(await fakeBooksFolder(), newAssetsFileContents(store))).rejects.toThrow('Drive already holds kuna-assets.json')
     expect(store.state).toMatchObject({ status: 'ready', error: null, choice: null })
-    expect(await booksFolder()).toEqual({ 'kuna-company.json': 'company', 'kuna-assets.json': 'assets' })
+    expect(await booksFolder()).toEqual({ 'kuna-company.json': 'company' })
   })
 
   it('lets a second device find the Assets file by its mark, and its Picker pick it, never the company file', async () => {

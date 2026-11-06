@@ -28,7 +28,7 @@ The first moment after a load needs no waiting state. `App.vue`'s setup calls `k
 
 An app on screen in its first run is not in the menu, since the shell draws no sidebar during a first run. The first run itself is how setting up finishes, with its quiet link home. A first run that keeps the shell would need that app listed, which is one condition in `navigationOf`.
 
-The phone home's Net worth button stays before any app is set up, as this change is about the sidebar and another branch is working on the home.
+The phone home's Net worth button goes while no app has a file, as the sidebar's Net worth does, and the sidebar and top bar keep no empty place for Sync until some app has a file. On a fresh device the home shows the welcome from the [onboarding plan](../onboarding/plan.md) in place of the cards, so Add an app moves focus to the welcome's first app. Once answered it moves to the first card in Set up, the picked apps' before those under Other apps. An app with no file stays out of the sidebar whichever list holds its card.
 
 **Where it differs from section 7.**
 

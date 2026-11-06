@@ -92,6 +92,7 @@ export const en = {
   books: {
     title: 'Company books',
     newBooks: 'New books',
+    invoiceFolder: 'Your invoices folder, with every invoice in it, which Kuna finds wherever it is',
     export: 'Export to Excel',
     import: 'Import a file',
     switch: 'Switch data source',
@@ -287,6 +288,7 @@ export const hr: Translation<typeof en> = {
   books: {
     title: 'Datoteka tvrtke',
     newBooks: 'Nova datoteka',
+    invoiceFolder: 'Vaša mapa računa, sa svim računima u njoj, koju Kuna pronalazi gdje god bila',
     export: 'Izvezi u Excel',
     import: 'Uvezi datoteku',
     switch: 'Promijeni izvor podataka',

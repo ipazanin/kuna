@@ -28,6 +28,10 @@ export interface DriveFile {
   readonly sha256Checksum?: string
   /** The properties this app gave the file, which only it sees. */
   readonly appProperties?: Readonly<Record<string, string>>
+  /** Whether this app made the file, or a person opened it with this app. */
+  readonly isAppAuthorized: boolean
+  /** Whether the person owns the file. Drive leaves it out for an item in a shared drive. */
+  readonly ownedByMe?: boolean
   /** Whether the file is in the bin, put there itself or with a folder above it. `files.get` still answers for it. */
   readonly trashed: boolean
 }
@@ -111,7 +115,7 @@ async function folderBelow(accessToken: string, startId: string, start: string, 
 }
 
 /** Where a path of folder names from My Drive leads, which needs a token that reads the whole Drive. */
-function folderOfPath(accessToken: string, path: readonly string[]): Promise<FolderOfPath> {
+export function folderOfMyDrivePath(accessToken: string, path: readonly string[]): Promise<FolderOfPath> {
   return folderBelow(accessToken, 'root', textWords.myDrive, path)
 }
 
@@ -122,7 +126,7 @@ function folderOfPath(accessToken: string, path: readonly string[]): Promise<Fol
  */
 export async function folderOfSetting(accessToken: string, path: readonly string[], booksFileId: string): Promise<FolderOfPath> {
   if (!startsAtBooksFolder(path)) {
-    return folderOfPath(accessToken, path)
+    return folderOfMyDrivePath(accessToken, path)
   }
   const start = words.booksFolder
   const parent = (await getFile(accessToken, booksFileId, ['parents'])).parents?.[0]
@@ -188,11 +192,12 @@ export async function filesWithAppProperty<Field extends keyof DriveFile>(access
   return listChildren(accessToken, `appProperties has { key=${queryLiteral(key)} and value=${queryLiteral(value)} } and trashed = false`, fields)
 }
 
-export async function createFolder(accessToken: string, parentId: string, name: string): Promise<Pick<DriveFile, 'id' | 'name' | 'mimeType'>> {
+/** Makes a folder in the parent, or at the top of My Drive for a null parent, where Drive puts a file that names none. */
+export async function createFolder(accessToken: string, parentId: string | null, name: string, appProperties?: Readonly<Record<string, string>>): Promise<Pick<DriveFile, 'id' | 'name' | 'mimeType'>> {
   const response = await googleFetch(`${DRIVE_FILES_API}?fields=id,name,mimeType`, accessToken, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, mimeType: FOLDER_MIME_TYPE, parents: [parentId] }),
+    body: JSON.stringify({ name, mimeType: FOLDER_MIME_TYPE, ...(appProperties === undefined ? {} : { appProperties }), ...(parentId === null ? {} : { parents: [parentId] }) }),
   })
   return (await response.json()) as Pick<DriveFile, 'id' | 'name' | 'mimeType'>
 }
@@ -228,6 +233,25 @@ export async function uploadContent(accessToken: string, fileId: string, content
     body: new Blob([content], { type: mimeType }),
   })
   return ((await response.json()) as Pick<DriveFile, 'headRevisionId'>).headRevisionId
+}
+
+/** Moves a file or a folder from one folder to another in one request, with these properties set by the same request. Its id and its revisions stay as they are. */
+export async function moveFile(accessToken: string, fileId: string, fromParentId: string, toParentId: string, appProperties?: Readonly<Record<string, string>>): Promise<void> {
+  const query = new URLSearchParams({ addParents: toParentId, removeParents: fromParentId, fields: 'id' })
+  await googleFetch(`${DRIVE_FILES_API}/${encodeURIComponent(fileId)}?${query}`, accessToken, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(appProperties === undefined ? {} : { appProperties }),
+  })
+}
+
+/** Sets a property only this app sees, or removes it for null. A property is metadata, so the file's content and revisions stay as they are. */
+export async function setAppProperty(accessToken: string, fileId: string, key: string, value: string | null): Promise<void> {
+  await googleFetch(`${DRIVE_FILES_API}/${encodeURIComponent(fileId)}?fields=id`, accessToken, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ appProperties: { [key]: value } }),
+  })
 }
 
 /** Moves a file to the bin, from which a person can still restore it for 30 days. */

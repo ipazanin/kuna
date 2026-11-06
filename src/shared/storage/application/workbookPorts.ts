@@ -50,8 +50,52 @@ export type DriveFileLookup = 'find' | 'pick'
 /** Where a Drive file sits, and the day of its newest backup, null before the first. */
 export interface DriveFilePlace {
   readonly folderId: string
-  readonly folderName: string
+  /** Null for a folder the app was never given, which it can name no more than read. */
+  readonly folderName: string | null
   readonly lastBackup: CivilDate | null
+  /** Whether it sits in the app's subfolder of the Kuna folder. */
+  readonly inKunaFolder: boolean
+  /** Whether the file went ahead of what goes with it, and a press still has to bring the rest. */
+  readonly moveUnfinished: boolean
+}
+
+/** A folder whose files Kuna made may go along. The folder itself never moves, since it may hold what Kuna did not make. */
+export interface KunaFilesFolder {
+  /** The folder's name, beside the file or, with `fromPath`, in the app's subfolder of the Kuna folder. */
+  readonly name: string
+  /** Where a setting names it from My Drive, for one that is not beside the file. */
+  readonly fromPath?: readonly string[]
+  /** The mail source that files into it, whose files are the only ones that go, or null for every file the app made. */
+  readonly mailSource: string | null
+}
+
+/** What goes along when an app's file moves into the Kuna folder: only what Kuna made. */
+export interface DriveFileBeside {
+  readonly files: readonly string[]
+  readonly folders: readonly KunaFilesFolder[]
+  /** Words for what a setting reaches elsewhere and stays, by a path from My Drive or an id. */
+  readonly stays: readonly string[]
+  /** Folders named from the file's own folder that hold what may not move, so a move would lose them. A move waits until these name a path from My Drive. */
+  readonly blockedBy: readonly string[]
+}
+
+/** How many files of one folder go, and how many stay because Kuna cannot say it made them. */
+export interface KunaFilesInFolder {
+  readonly name: string
+  readonly kuna: number
+  readonly others: number
+  /** Where a setting names it from My Drive, which Kuna stops reading once the file has moved. */
+  readonly fromPath?: readonly string[]
+}
+
+/** What a move into the Kuna folder would take and leave. */
+export interface DriveMovePlan {
+  readonly files: readonly string[]
+  readonly folders: readonly KunaFilesInFolder[]
+  /** How many of this app's backups go with it. */
+  readonly backups: number
+  readonly stays: readonly string[]
+  readonly blockedBy: readonly string[]
 }
 
 /** A Drive folder the person picked, with the names of the folders from My Drive down to it, or null where the app cannot see them. */

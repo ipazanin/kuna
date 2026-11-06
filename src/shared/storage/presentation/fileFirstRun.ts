@@ -15,7 +15,6 @@ export interface FirstRunWords {
   readonly folder: {
     readonly title: string
     readonly savedIn: string
-    readonly choose: string
     readonly onDriveTitle: string
     readonly onDriveDrops: (message: string) => string
     readonly openOnDrive: string
@@ -30,9 +29,11 @@ export interface FirstRunWords {
 
 /** What the folder and find steps read of the app's file on Drive. An app whose first run has steps of its own hands them this alone. */
 export interface DriveFirstRun {
+  /** The app's id, which names its subfolder of the Kuna folder. */
+  readonly appId: string
   /** What the test ids of the first run's controls start with, such as `loans-start` for `loans-start-create`. */
   readonly testId: string
-  readonly store: Pick<WorkbookStore<BooksRead, DocumentCopy, WorkbookDocument>, 'state' | 'pickBooksFolder' | 'keepOnDrive'>
+  readonly store: Pick<WorkbookStore<BooksRead, DocumentCopy, WorkbookDocument>, 'state' | 'pickDriveFolder' | 'hasKunaFolder' | 'driveHomeOfApp' | 'keepOnDrive'>
   /** The name of the file on Drive. */
   readonly fileName: string
   /** What a new file holds. */
@@ -48,7 +49,7 @@ export interface FileFirstRun extends DriveFirstRun {
   readonly startRoute: string
   /** Where the first run ends. */
   readonly overviewRoute: string
-  readonly store: Pick<WorkbookStore<BooksRead, DocumentCopy, WorkbookDocument>, 'state' | 'pickBooksFolder' | 'keepOnDrive' | 'replaceLocalWorkbook'>
+  readonly store: Pick<WorkbookStore<BooksRead, DocumentCopy, WorkbookDocument>, 'state' | 'pickDriveFolder' | 'hasKunaFolder' | 'driveHomeOfApp' | 'keepOnDrive' | 'replaceLocalWorkbook'>
   /** The title of a file made in this browser, which is stored with it. */
   readonly localTitle: string
   readonly words: FirstRunWords

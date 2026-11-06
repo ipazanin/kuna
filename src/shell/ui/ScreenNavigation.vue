@@ -23,9 +23,12 @@ const id = useId()
 const route = useRoute()
 const list = useTemplateRef<HTMLElement>('list')
 
-/** On the home the row's link stays put, so it moves to the first card that offers Set up. Elsewhere the home is not drawn yet and the link does the work. */
-function showFirstCardToSetUp(): void {
-  document.querySelector<HTMLElement>('[data-testid="home-card"][data-state="set-up"]')?.focus({ focusVisible: true })
+/**
+ * On the home the row's link stays put, so it moves to where an app is added: the first card that offers Set up, the picked apps' before the others',
+ * or the welcome's first app while the welcome shows in place of the cards. Elsewhere the home is not drawn yet and the link does the work.
+ */
+function showWhereToAddApp(): void {
+  document.querySelector<HTMLElement>('[data-testid="home-card"][data-state="set-up"], [data-testid="kuna-welcome-apps"] [role="checkbox"]')?.focus({ focusVisible: true })
 }
 
 function currentPage(): Element | null {
@@ -93,7 +96,7 @@ watch(() => route.path, showCurrentPage, { flush: 'post' })
           </UCollapsible>
         </li>
         <li v-if="navigation.addApp !== null">
-          <NavigationLink v-bind="navigation.addApp" :marks-current="false" data-testid="nav-add-app" @click="showFirstCardToSetUp" />
+          <NavigationLink v-bind="navigation.addApp" :marks-current="false" data-testid="nav-add-app" @click="showWhereToAddApp" />
         </li>
       </ul>
     </div>

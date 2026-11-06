@@ -10,6 +10,7 @@ export const en = {
   name: 'Assets',
   start: 'Start',
   pickFile: 'Pick your Assets file',
+  setUpAfterLoans: 'Set up Loans before Assets, so an asset with a loan shows what is yours after the loan.',
   /** What every Assets form says and offers. */
   form: {
     aDate: (example: CivilDate) => `A date, such as ${example}`,
@@ -26,6 +27,7 @@ export const hr: Translation<typeof en> = {
   name: 'Imovina',
   start: 'Početak',
   pickFile: 'Odaberite datoteku imovine',
+  setUpAfterLoans: 'Postavite Kredite prije Imovine, da imovina s kreditom pokaže što je vaše nakon kredita.',
   form: {
     aDate: (example) => `Datum, na primjer ${dayLabel(example)}`,
     amountPlaceholder: '0,00',

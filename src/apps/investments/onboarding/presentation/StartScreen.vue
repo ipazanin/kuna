@@ -13,6 +13,7 @@ import { words } from './words'
 /** The Investments first run at `#/investments/start?step=…`. */
 const store = useInvestmentsBooks()
 const firstRun: FileFirstRun = {
+  appId: 'investments',
   testId: 'investments-start',
   appName: appWords.name,
   startRoute: INVESTMENTS_START_ROUTE,

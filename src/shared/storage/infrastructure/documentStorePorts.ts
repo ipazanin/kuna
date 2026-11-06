@@ -11,7 +11,8 @@ import { decodeDocument, encodeDocument } from './documentFormat'
 import type { WorkbookDocument } from './documentFormat'
 import { documentRecordStorage } from './documentRecordStorage'
 import type { DocumentCopy } from './documentRecordStorage'
-import { createDriveDocument, documentName, driveDocumentHome, findDriveDocument, placeOfDriveDocument, refuseBackup } from './driveDocument'
+import { findKunaFolder, finishDriveMove, isKunaFolderOfApp, kunaFolderOfApp, moveDriveDocument, planDriveMove, unfinishedMoveOf } from './kunaFolder'
+import { APP_PROPERTY, createDriveDocument, documentName, driveDocumentHome, findDriveDocument, placeOfDriveDocument, refuseBackup } from './driveDocument'
 import type { DocumentDrive } from './driveDocument'
 import { openWorkbookCache } from './workbookCache'
 import { words } from './words'
@@ -47,9 +48,14 @@ export type DocumentStorePorts<Books extends BooksRead> = Pick<
   | 'openCache'
   | 'readDriveFile'
   | 'findDriveFile'
-  | 'pickBooksFolder'
   | 'pickDriveFolder'
+  | 'driveHomeOfApp'
+  | 'folderBesideFile'
+  | 'hasKunaFolder'
   | 'createDriveFile'
+  | 'planMoveIntoKuna'
+  | 'moveIntoKuna'
+  | 'finishMoveIntoKuna'
   | 'driveFilePlace'
   | 'trashDriveFile'
   | 'read'
@@ -69,6 +75,7 @@ export function documentStorePorts<Books extends BooksRead>(
   now: () => string,
 ): DocumentStorePorts<Books> {
   const driveHomes = new Map<string, DocumentHome>()
+  const markChecked = new Set<string>()
 
   async function driveHome(fileId: string): Promise<DocumentHome> {
     const home = driveHomes.get(fileId) ?? driveDocumentHome((await driveAccess()).drive, fileId, app)
@@ -92,6 +99,23 @@ export function documentStorePorts<Books extends BooksRead>(
     return { id: fileId, source: 'drive', title, syncedAt: now(), lastExportedAt: null, unexportedSince: null }
   }
 
+  /**
+   * Gives a file the person opened the app's mark, once a page, so another device's search can find it and never makes an empty twin. The mark is a
+   * private property, so the file's content and revisions stay as they are. It waits when another file holds the mark, since a search must find one.
+   * It is an extra: a failure here leaves the file working, and the next page tries again.
+   */
+  async function markOpenedFile(drive: DocumentDrive, fileId: string): Promise<void> {
+    if (markChecked.has(fileId)) return
+    markChecked.add(fileId)
+    try {
+      if ((await drive.appPropertyOf(fileId, APP_PROPERTY)) === null && (await drive.findByAppProperty(APP_PROPERTY, app)).length === 0) {
+        await drive.setAppProperty(fileId, APP_PROPERTY, app)
+      }
+    } catch {
+      markChecked.delete(fileId)
+    }
+  }
+
   /** The file as it is now, refused when it holds another app's books. */
   async function readFile(fileId: string, held: DocumentCopy | null, title: string): Promise<DocumentCopy> {
     const cached = held === null ? null : { revision: held.revision, text: encodeDocument(held.document) }
@@ -111,8 +135,11 @@ export function documentStorePorts<Books extends BooksRead>(
     openCache: openWorkbookCache,
 
     async readDriveFile(choice, held) {
-      await (await driveAccess()).signIn({ resume: 'sync' })
-      return readFile(choice.id, held, choice.name)
+      const access = await driveAccess()
+      await access.signIn({ resume: 'sync' })
+      const copy = await readFile(choice.id, held, choice.name)
+      await markOpenedFile(access.drive, choice.id)
+      return copy
     },
 
     async findDriveFile(lookup) {
@@ -128,25 +155,50 @@ export function documentStorePorts<Books extends BooksRead>(
       }
       const name = await access.drive.nameOf(picked)
       refuseBackup(name, app)
-      return readFile(picked, null, name)
-    },
-
-    async pickBooksFolder() {
-      await refuseSecondFile((await driveAccess()).drive)
-      return pickDriveFolder(words.pickFolder)
+      const copy = await readFile(picked, null, name)
+      await markOpenedFile(access.drive, picked)
+      return copy
     },
 
     pickDriveFolder,
 
-    async createDriveFile(folderId, contents, folders) {
+    async driveHomeOfApp(parentId) {
+      const { drive } = await driveAccess()
+      await refuseSecondFile(drive)
+      return kunaFolderOfApp(drive, app, parentId)
+    },
+
+    async hasKunaFolder() {
+      const access = await driveAccess()
+      return access.signedIn() ? (await findKunaFolder(access.drive)) !== null : null
+    },
+
+    async folderBesideFile(fileId, name) {
+      const { drive } = await driveAccess()
+      const parentId = await drive.parentOf(fileId)
+      const inside = await drive.children(parentId)
+      if (!inside.some((entry) => entry.mimeType === FOLDER_MIME_TYPE && entry.name === name)) {
+        await drive.createFolder(parentId, name)
+      }
+    },
+
+    async planMoveIntoKuna(fileId, beside) {
+      return planDriveMove((await driveAccess()).drive, fileId, app, beside)
+    },
+
+    async moveIntoKuna(fileId, beside, parentId) {
+      const access = await driveAccess()
+      await access.signIn(null)
+      return moveDriveDocument(access.drive, fileId, app, beside, parentId)
+    },
+
+    async finishMoveIntoKuna(fileId) {
+      return finishDriveMove((await driveAccess()).drive, fileId)
+    },
+
+    async createDriveFile(folderId, contents) {
       const access = await driveAccess()
       await refuseSecondFile(access.drive)
-      const inside = folders.length === 0 ? [] : await access.drive.children(folderId)
-      for (const name of folders) {
-        if (!inside.some((entry) => entry.mimeType === FOLDER_MIME_TYPE && entry.name === name)) {
-          await access.drive.createFolder(folderId, name)
-        }
-      }
       const document = { ...contents, savedAt: now() }
       const { fileId } = await createDriveDocument(access.drive, folderId, app, encodeDocument(document))
       const created = await readFile(fileId, null, documentName(app))
@@ -158,7 +210,9 @@ export function documentStorePorts<Books extends BooksRead>(
 
     async driveFilePlace(fileId) {
       const access = await driveAccess()
-      return access.signedIn() ? placeOfDriveDocument(access.drive, fileId, app) : null
+      if (!access.signedIn()) return null
+      const place = await placeOfDriveDocument(access.drive, fileId, app)
+      return { ...place, inKunaFolder: await isKunaFolderOfApp(access.drive, app, place.folderId), moveUnfinished: (await unfinishedMoveOf(access.drive, fileId)) !== null }
     },
 
     async trashDriveFile(fileId) {

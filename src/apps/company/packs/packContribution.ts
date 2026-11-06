@@ -92,6 +92,8 @@ export interface PackContribution {
   categoriesToSort(categories: readonly Category[], on: CivilDate): readonly RecordProblem[]
   /** Kinds of mail the sync's mail step looks for after core's, in order. */
   readonly mailSources: readonly MailSource<Workbook>[]
+  /** The Drive folders the pack's settings name, as paths, which a move of the books file has to respect. */
+  folderSettings(workbook: Workbook): readonly (readonly string[])[]
   readonly onboarding: PackOnboarding | null
   /** The pack's assist tasks, for the Assistant card after core's. */
   readonly assist: readonly AssistTaskSummary[]
@@ -114,6 +116,7 @@ const NO_PACK: PackContribution = {
   categoryClassHelp: () => null,
   categoriesToSort: () => [],
   mailSources: [],
+  folderSettings: () => [],
   onboarding: null,
   assist: [],
   employeeIbans: () => new Set(),

@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
-import { createApp } from 'vue'
+import { createApp, shallowReactive } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
+import { answerKunaStart, forgetKunaStart } from '../src/shared/app/kunaStart'
 import { useFirstRun } from '../src/shared/storage/presentation/useFirstRun'
 
 const screen = { render: () => null }
 
-async function startAt(startRoute: string, overviewRoute: string, address: string) {
+async function startAt(startRoute: string, overviewRoute: string, address: string, state: { choice: unknown } = { choice: null }) {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -17,7 +18,7 @@ async function startAt(startRoute: string, overviewRoute: string, address: strin
   })
   await router.push(address)
   const app = createApp(screen).use(router)
-  const steps = app.runWithContext(() => useFirstRun({ startRoute, overviewRoute }))
+  const steps = app.runWithContext(() => useFirstRun({ startRoute, overviewRoute, store: { state: state as never } }))
   return { router, steps }
 }
 
@@ -53,5 +54,23 @@ describe('the shared first run routing', () => {
 
     await steps.finish()
     expect(router.currentRoute.value.fullPath).toBe('/one')
+  })
+
+  it('keeps the step on screen when the file it made arrives, so the question does not flash', async () => {
+    answerKunaStart({ apps: ['one'], home: 'drive' })
+    const state = shallowReactive<{ choice: unknown }>({ choice: null })
+    const { steps } = await startAt('/one/start', '/one', '/one/start', state)
+    expect(steps.step.value).toBe('folder')
+
+    state.choice = { source: 'drive', id: 'file-1', name: 'kuna-one.json' }
+    expect(steps.step.value).toBe('folder')
+    forgetKunaStart()
+  })
+
+  it('asks where the file lives when someone with a file open came to change it', async () => {
+    answerKunaStart({ apps: ['one'], home: 'drive' })
+    const { steps } = await startAt('/one/start', '/one', '/one/start', { choice: { source: 'drive', id: 'file-1', name: 'kuna-one.json' } })
+    expect(steps.step.value).toBe('home')
+    forgetKunaStart()
   })
 })

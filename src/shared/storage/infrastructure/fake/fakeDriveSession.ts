@@ -48,12 +48,9 @@ async function unlessHeld(fileId: string): Promise<void> {
   if (held.has(fileId)) await new Promise<never>(() => {})
 }
 
-/** The app's file in the books folder, which the fake build's Picker always picks, or null while the folder holds none. */
+/** The app's file wherever it sits, which the fake build's Picker always picks, or null while Drive holds none. */
 async function fakeBooksFile(app: string): Promise<string | null> {
-  const drive = fakeDriveSession()
-  const folder = (await drive.children('root')).find((entry) => entry.mimeType === FOLDER_MIME_TYPE && entry.name === FAKE_BOOKS_FOLDER)
-  const files = folder === undefined ? [] : await drive.children(folder.id)
-  return files.find((entry) => entry.mimeType !== FOLDER_MIME_TYPE && drive.file(entry.id).appProperties[APP_PROPERTY] === app)?.id ?? null
+  return (await fakeDriveSession().findByAppProperty(APP_PROPERTY, app))[0] ?? null
 }
 
 /** The names of the folders from My Drive down to this one on the fake Drive. */
@@ -67,7 +64,7 @@ function fakePathOf(drive: FakeDrive, folderId: string): string[] {
 
 /**
  * The fake build never goes to Google: it is always signed in, and its Picker picks the books folder
- * or the app's file in it. Its folder path, like Google's, needs a token that carries Drive read.
+ * or the app's file. Its folder path, like Google's, needs a token that carries Drive read.
  */
 export function fakeDriveAccess(app: string): DriveAccess {
   const drive = fakeDriveSession()

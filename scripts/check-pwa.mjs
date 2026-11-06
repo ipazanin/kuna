@@ -197,10 +197,12 @@ try {
 
   // The first visit opens the home. Its Company card starts onboarding, which brings an xlsx file into this browser, kept in IndexedDB.
   await waitForTitle(page, 'All apps')
+  await clickStart(page, '[data-testid="kuna-welcome-apps"] label', 'Company')
+  await clickStart(page, '[data-testid="kuna-welcome-home"] label', 'Only this browser')
+  await clickText(page, '[data-testid="kuna-welcome-continue"]', 'Continue')
   await clickStart(page, '[data-testid="home-card"]', 'Company')
   await clickStart(page, '[data-testid="onboarding-path"] label', 'Bring my books')
   await clickText(page, '[data-testid="onboarding-step"] button', 'Continue')
-  await clickStart(page, '[data-testid="onboarding-home"] label', 'Only this browser')
   await clickText(page, '[data-testid="onboarding-step"] button', 'Continue')
   await (await page.waitForSelector('input[data-testid="onboarding-file"]')).uploadFile(templateFile)
   await page.waitForSelector('[data-testid="import-summary"] dl')
@@ -209,9 +211,9 @@ try {
   await clickText(page, '[data-testid="onboarding-step"] button', 'Continue')
   await waitForTitle(page, 'Overview')
   await page.waitForSelector('.chart-body canvas')
-  // The Loans first run keeps its own file in this browser too.
+  // The Loans first run keeps its own file in this browser too, and asks nothing, since the welcome said this browser.
   await page.goto(`${appUrl}#/loans`)
-  await clickStart(page, '[data-testid="loans-start-home"] label', 'A new file in this browser')
+  await page.waitForSelector('[data-testid="loans-start-in-browser"]')
   await clickText(page, '[data-testid="onboarding-step"] button', 'Continue')
   await page.waitForSelector('[data-testid="loans-empty"]')
   assert.deepEqual(await cachedForeignUrls(page, origin), [], 'Nothing from another origin may be cached.')

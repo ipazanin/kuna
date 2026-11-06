@@ -12,6 +12,7 @@ import { words } from './words'
 /** The Spending first run at `#/spending/start?step=…`. */
 const store = useSpendingBooks()
 const firstRun: FileFirstRun = {
+  appId: 'spending',
   testId: 'spending-start',
   appName: appWords.name,
   startRoute: SPENDING_START_ROUTE,

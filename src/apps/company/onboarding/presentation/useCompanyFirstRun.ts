@@ -1,19 +1,16 @@
-import { computed } from 'vue'
-import type { ComputedRef } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { today } from '../../../../shared/calendar/civilDate'
 import type { DriveFirstRun } from '../../../../shared/storage/presentation/fileFirstRun'
 import type { FirstRunMoves } from '../../../../shared/storage/presentation/useFirstRun'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { useFindDriveFile } from '../../workbook/presentation/useFindDriveFile'
 import { BOOKS_FILE_NAME, newBooksDocument } from '../../workbook/presentation/workbookFiles'
-import { statementSettingsOf } from '../domain/statementsChoice'
+import { STATEMENTS_BY_HAND } from '../domain/statementsChoice'
 import { onboardingStart, useOnboarding } from './useOnboarding'
 import { words } from './words'
 
 export interface CompanyFirstRun {
-  readonly firstRun: ComputedRef<DriveFirstRun>
+  readonly firstRun: DriveFirstRun
   readonly steps: FirstRunMoves
 }
 
@@ -24,27 +21,24 @@ export function useCompanyFirstRun(): CompanyFirstRun {
   const store = useWorkbook()
   const { findDriveFile } = useFindDriveFile()
 
-  const firstRun = computed<DriveFirstRun>(() => {
-    const { statements, mail } = onboarding.place.value
-    return {
-      testId: 'company-start',
-      store,
-      fileName: BOOKS_FILE_NAME,
-      newContents: () => newBooksDocument(statementSettingsOf(statements, mail, today()), new Date().toISOString()),
-      findFile: findDriveFile,
-      words: {
-        folder: {
-          title: words.folder.title,
-          savedIn: words.folder.savedIn,
-          choose: words.folder.choose(statements === 'mail'),
-          onDriveTitle: words.folder.onDriveTitle,
-          onDriveDrops: words.folder.onDriveDrops,
-          openOnDrive: words.folder.openOnDrive,
-        },
-        find: words.find,
+  const firstRun: DriveFirstRun = {
+    appId: 'company',
+    testId: 'company-start',
+    store,
+    fileName: BOOKS_FILE_NAME,
+    newContents: () => newBooksDocument(STATEMENTS_BY_HAND, new Date().toISOString()),
+    findFile: findDriveFile,
+    words: {
+      folder: {
+        title: words.folder.title,
+        savedIn: words.folder.savedIn,
+        onDriveTitle: words.folder.onDriveTitle,
+        onDriveDrops: words.folder.onDriveDrops,
+        openOnDrive: words.folder.openOnDrive,
       },
-    }
-  })
+      find: words.find,
+    },
+  }
 
   return {
     firstRun,

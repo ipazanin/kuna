@@ -240,7 +240,7 @@ describe('workbook store with a Drive file', () => {
 
     await store.sync()
 
-    expect(side.drive.requests).toEqual(['headRevision'])
+    expect(side.drive.requests.filter((request) => request !== 'appPropertyOf')).toEqual(['headRevision'])
     expect(store.state.syncedAt).toBe('2026-10-16T09:00:00.000Z')
   })
 
@@ -438,14 +438,14 @@ describe('workbook store with a Drive file', () => {
     const store = storeOf(harness(choice, side).ports)
     await store.open()
     const folderId = side.drive.file(choice.id).parents[0]!
-    expect(await store.driveFilePlace()).toEqual({ folderId, folderName: 'books', lastBackup: null })
+    expect(await store.driveFilePlace()).toEqual({ folderId, folderName: 'books', lastBackup: null, inKunaFolder: false, moveUnfinished: false })
 
     const backups = await side.drive.createFolder(folderId, 'backups')
     await side.drive.createFile(backups, 'kuna-company-2026-10-20.json', '')
     await side.drive.createFile(backups, 'kuna-company-2026-10-22.json', '')
     await side.drive.createFile(backups, 'notes.json', '')
 
-    expect(await store.driveFilePlace()).toEqual({ folderId, folderName: 'books', lastBackup: '2026-10-22' })
+    expect(await store.driveFilePlace()).toEqual({ folderId, folderName: 'books', lastBackup: '2026-10-22', inKunaFolder: false, moveUnfinished: false })
   })
 
   it('asks Drive nothing about the file while no token is kept', async () => {
@@ -632,9 +632,8 @@ describe('workbook store with a workbook kept in this browser', () => {
     await store.replaceLocalWorkbook(document, 'Studio')
     side.pickedFolder = await side.drive.createFolder('root', 'books')
 
-    const folder = await store.pickBooksFolder()
     expect(chosen()?.source).toBe('browser')
-    await store.keepOnDrive(folder!.id, document, [])
+    await store.keepOnDrive(side.pickedFolder, document)
 
     const choice = chosen()!
     used.add(choice.id)
@@ -652,29 +651,13 @@ describe('workbook store with a workbook kept in this browser', () => {
     await store.open()
     side.pickedFolder = await side.drive.createFolder('root', 'books')
 
-    await store.keepOnDrive(side.pickedFolder, documentOf([10, 20, 30]), [])
+    await store.keepOnDrive(side.pickedFolder, documentOf([10, 20, 30]))
 
     const choice = chosen()!
     used.add(choice.id)
     expect(choice).toMatchObject({ source: 'drive', name: 'kuna-company.json' })
     expect(store.state.workbook?.transactions).toHaveLength(3)
     expect(used.has('local-1')).toBe(false)
-  })
-
-  it('makes the folders asked for beside the new file, and finds the one it made on an earlier try instead of making a second', async () => {
-    const side = driveSide()
-    const { ports, chosen } = harness(null, side)
-    const store = storeOf(ports)
-    await store.open()
-    side.pickedFolder = await side.drive.createFolder('root', 'books')
-    const madeBefore = await side.drive.createFolder(side.pickedFolder, 'statements')
-
-    await store.keepOnDrive(side.pickedFolder, documentOf([10]), ['statements', 'inbox'])
-
-    used.add(chosen()!.id)
-    const inside = await side.drive.children(side.pickedFolder)
-    expect(inside.filter((entry) => entry.name === 'statements').map((entry) => entry.id)).toEqual([madeBefore])
-    expect(inside.map((entry) => entry.name).sort()).toEqual(['inbox', 'kuna-company.json', 'statements'])
   })
 
   it('confirms a picked folder by its path from My Drive with Drive read access, and by its name alone without it, writing nothing', async () => {
@@ -685,9 +668,8 @@ describe('workbook store with a workbook kept in this browser', () => {
     side.pickedFolder = await side.drive.createFolder(work, 'books')
     const requests = side.drive.requests.length
 
-    expect(await store.pickBooksFolder()).toEqual({ id: side.pickedFolder, name: 'books', path: null })
+    expect(await store.pickDriveFolder('Choose')).toEqual({ id: side.pickedFolder, name: 'books', path: null })
     side.readsDrive = true
-    expect(await store.pickBooksFolder()).toEqual({ id: side.pickedFolder, name: 'books', path: ['work', 'books'] })
     expect(await store.pickDriveFolder('Choose the folder of your bank statements')).toEqual({ id: side.pickedFolder, name: 'books', path: ['work', 'books'] })
     expect(side.drive.requests.slice(requests).filter((request) => !request.startsWith('find'))).toEqual([])
     expect(store.state.choice).toBeNull()
@@ -699,14 +681,14 @@ describe('workbook store with a workbook kept in this browser', () => {
     await store.open()
     await store.replaceLocalWorkbook(documentOf([10]), 'Studio')
 
-    expect(await store.pickBooksFolder()).toBeNull()
+    expect(await store.pickDriveFolder('Choose')).toBeNull()
 
     expect(store.state.choice).toEqual({ source: 'browser', id: 'local-1', name: 'Studio' })
     expect(store.state.status).toBe('ready')
     expect(await storedCopy('local-1')).not.toBeNull()
   })
 
-  it('makes no second file when Drive holds the app’s file already, refusing before the Picker opens and on the make, and keeps the browser’s workbook', async () => {
+  it('makes no second file when Drive holds the app’s file already, refusing before any folder is made and on the make, and keeps the browser’s workbook', async () => {
     const side = driveSide()
     await onDrive(side, documentOf([1]))
     const store = storeOf(harness(null, side).ports)
@@ -714,14 +696,134 @@ describe('workbook store with a workbook kept in this browser', () => {
     await store.replaceLocalWorkbook(documentOf([10]), 'Studio')
     side.pickedFolder = await side.drive.createFolder('root', 'books')
 
-    await expect(store.pickBooksFolder()).rejects.toThrow(BooksAlreadyOnDrive)
-    await expect(store.keepOnDrive(side.pickedFolder, documentOf([10]), ['statements'])).rejects.toThrow(BooksAlreadyOnDrive)
+    await expect(store.driveHomeOfApp(null)).rejects.toThrow(BooksAlreadyOnDrive)
+    await expect(store.keepOnDrive(side.pickedFolder, documentOf([10]))).rejects.toThrow(BooksAlreadyOnDrive)
 
-    await expect(store.pickBooksFolder()).rejects.toThrow('Drive already holds kuna-company.json, so the app does not make a second one. Open that file, or trash it in Drive first.')
+    await expect(store.driveHomeOfApp(null)).rejects.toThrow('Drive already holds kuna-company.json, so the app does not make a second one. Open that file, or trash it in Drive first.')
     expect(store.state).toMatchObject({ status: 'ready', error: null })
     expect(await side.drive.children(side.pickedFolder)).toEqual([])
     expect(store.state.choice?.source).toBe('browser')
     expect(await storedCopy('local-1')).not.toBeNull()
+  })
+})
+
+describe('workbook store moving its file into the Kuna folder', () => {
+  it('reads the file first, so what goes along comes from the settings as another device left them', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([1]))
+    used.add(choice.id)
+    const store = storeOf(harness(choice, side).ports)
+    await store.open()
+    await store.sync()
+    const parent = side.drive.file(choice.id).parents[0]!
+    await side.drive.createFolder(parent, 'statements')
+    await side.drive.upload(choice.id, encodeDocument(documentOf([1, 2])))
+
+    const seen: number[] = []
+    const beside = () => {
+      seen.push(store.state.workbook?.transactions.length ?? 0)
+      return { files: [], folders: [{ name: 'statements', mailSource: null }], stays: [], blockedBy: [] }
+    }
+    await store.moveIntoKuna(beside, null)
+
+    expect(seen).toEqual([2])
+  })
+
+  it('counts the move as over only once what it changes in the settings is written', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([1]))
+    used.add(choice.id)
+    const store = storeOf(harness(choice, side).ports)
+    await store.open()
+    const nothing = () => ({ files: [], folders: [], stays: [], blockedBy: [] })
+
+    await expect(store.moveIntoKuna(nothing, null, async () => Promise.reject(new Error('not saved')))).rejects.toThrow('not saved')
+    expect(side.drive.file(choice.id).appProperties.movedFrom).toBeDefined()
+
+    await store.moveIntoKuna(nothing, null, async () => {})
+    expect(side.drive.file(choice.id).appProperties.movedFrom).toBeUndefined()
+  })
+
+  it('moves nothing when that read fails', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([1]))
+    used.add(choice.id)
+    const store = storeOf(harness(choice, side).ports)
+    await store.open()
+    const parent = side.drive.file(choice.id).parents[0]!
+    await side.drive.trash(choice.id)
+
+    await expect(store.moveIntoKuna(() => ({ files: [], folders: [], stays: [], blockedBy: [] }), null)).rejects.toThrow()
+
+    expect(side.drive.file(choice.id).parents).toEqual([parent])
+  })
+})
+
+describe('workbook store marking a file the person opened', () => {
+  async function unmarked(side: DriveSide): Promise<string> {
+    const folder = await side.drive.createFolder('root', 'books')
+    const { id } = await side.drive.createFile(folder, 'my-books.json', encodeDocument(documentOf([1])))
+    used.add(id)
+    return id
+  }
+
+  it('marks a picked file on open with one private property, with no new revision and no change to its content', async () => {
+    const side = driveSide()
+    const fileId = await unmarked(side)
+    const [revision, text] = [await side.drive.headRevision(fileId), await side.drive.download(fileId)]
+    side.pickedFile = fileId
+    const store = storeOf(harness(null, side).ports)
+    await store.open()
+
+    await store.chooseDriveFile('pick')
+
+    expect(side.drive.file(fileId).appProperties).toEqual({ kuna: COMPANY_APP })
+    expect(await side.drive.headRevision(fileId)).toBe(revision)
+    expect(await side.drive.download(fileId)).toBe(text)
+    expect(await side.drive.findByAppProperty('kuna', COMPANY_APP)).toEqual([fileId])
+  })
+
+  it('marks a file this device already chose, as a person’s older file is, once a page', async () => {
+    const side = driveSide()
+    const fileId = await unmarked(side)
+    const store = storeOf(harness({ source: 'drive', id: fileId, name: 'my-books.json' }, side).ports)
+    await store.open()
+
+    await store.sync()
+    await store.sync()
+
+    expect(side.drive.file(fileId).appProperties).toEqual({ kuna: COMPANY_APP })
+    expect(side.drive.requests.filter((request) => request === 'setAppProperty')).toHaveLength(1)
+  })
+
+  it('leaves it unmarked when another file holds the mark, since a search must find one', async () => {
+    const side = driveSide()
+    await onDrive(side, documentOf([9]))
+    const fileId = await unmarked(side)
+    side.pickedFile = fileId
+    const store = storeOf(harness(null, side).ports)
+    await store.open()
+
+    await store.chooseDriveFile('pick')
+
+    expect(side.drive.file(fileId).appProperties).toEqual({})
+    expect(store.state.choice?.id).toBe(fileId)
+  })
+
+  it('still opens the file when the mark fails', async () => {
+    const side = driveSide()
+    const fileId = await unmarked(side)
+    side.pickedFile = fileId
+    side.before = async (request) => {
+      if (request === 'setAppProperty') throw new Error('403')
+    }
+    const store = storeOf(harness(null, side).ports)
+    await store.open()
+
+    await store.chooseDriveFile('pick')
+
+    expect(store.state.choice?.id).toBe(fileId)
+    expect(store.state.status).toBe('ready')
   })
 })
 
@@ -732,7 +834,7 @@ describe('workbook store dropping the workbook a first run made', () => {
     const store = storeOf(ports)
     await store.open()
     side.pickedFolder = await side.drive.createFolder('root', 'books')
-    await store.keepOnDrive(side.pickedFolder, documentOf([10]), [])
+    await store.keepOnDrive(side.pickedFolder, documentOf([10]))
     const made = chosen()!
     used.add(made.id)
 
@@ -742,7 +844,7 @@ describe('workbook store dropping the workbook a first run made', () => {
     expect(chosen()).toBeNull()
     expect(store.state).toMatchObject({ choice: null, workbook: null, records: null, snapshot: null, status: 'ready', error: null })
     expect(await storedCopy(made.id)).toBeNull()
-    expect(await store.pickBooksFolder()).toMatchObject({ id: side.pickedFolder })
+    expect(await side.drive.findByAppProperty('kuna', COMPANY_APP)).toEqual([])
   })
 
   it('deletes the workbook kept in this browser and chooses none', async () => {

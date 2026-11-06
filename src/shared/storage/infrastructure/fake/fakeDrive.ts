@@ -16,8 +16,12 @@ export interface FakeDriveFile {
   readonly id: string
   readonly name: string
   readonly mimeType: string
-  readonly parents: readonly string[]
-  readonly appProperties: Readonly<Record<string, string>>
+  parents: readonly string[]
+  appProperties: Readonly<Record<string, string>>
+  /** False for a file a script or a person made, which only a token with Drive read lists. */
+  isAppAuthorized: boolean
+  /** False for a file someone shared with the person. */
+  ownedByMe: boolean
   trashed: boolean
   /** In the order they landed. Drive lists them by modified time instead. */
   readonly revisions: FakeRevision[]
@@ -82,6 +86,8 @@ export function createFakeDrive(): FakeDrive {
       mimeType,
       parents: [parentId],
       appProperties,
+      isAppAuthorized: true,
+      ownedByMe: true,
       trashed: false,
       revisions: [{ ...revision, keepForever: false, text }],
       headRevisionId: revision.id,
@@ -213,12 +219,46 @@ export function createFakeDrive(): FakeDrive {
 
     async children(folderId) {
       requests.push('children')
-      return [...files.values()].filter((file) => !file.trashed && file.parents.includes(folderId)).map(({ id, name, mimeType }) => ({ id, name, mimeType }))
+      return [...files.values()]
+        .filter((file) => !file.trashed && file.parents.includes(folderId))
+        .map(({ id, name, mimeType, appProperties, isAppAuthorized }) => ({ id, name, mimeType, appProperties, isAppAuthorized }))
     },
 
-    async createFolder(parentId, name) {
+    async createFolder(parentId, name, appProperties = {}) {
       requests.push('createFolder')
-      return add(parentId, name, FOLDER_MIME_TYPE, '', {}).id
+      return add(parentId ?? 'root', name, FOLDER_MIME_TYPE, '', appProperties).id
+    },
+
+    async move(fileId, fromParentId, toParentId, appProperties = {}) {
+      requests.push('move')
+      const file = fileOf(fileId)
+      if (!file.parents.includes(fromParentId)) {
+        throw new Error(`400 from the fake Drive: ${fileId} is not in ${fromParentId}.`)
+      }
+      file.parents = [toParentId]
+      file.appProperties = { ...file.appProperties, ...appProperties }
+    },
+
+    async appPropertyOf(fileId, key) {
+      requests.push('appPropertyOf')
+      return fileOf(fileId).appProperties[key] ?? null
+    },
+
+    async setAppProperty(fileId, key, value) {
+      requests.push('setAppProperty')
+      const file = fileOf(fileId)
+      file.appProperties = Object.fromEntries(Object.entries({ ...file.appProperties, [key]: value }).filter((entry): entry is [string, string] => entry[1] !== null))
+    },
+
+    async folderAtPath(path) {
+      requests.push('folderAtPath')
+      let current = 'root'
+      for (const name of path) {
+        const next = [...files.values()].find((file) => !file.trashed && file.parents.includes(current) && file.mimeType === FOLDER_MIME_TYPE && file.name === name)
+        if (next === undefined) return null
+        current = next.id
+      }
+      return current
     },
 
     async createFile(parentId, name, text, appProperties = {}) {
@@ -240,6 +280,11 @@ export function createFakeDrive(): FakeDrive {
       requests.push('delete')
       fileOf(fileId)
       files.delete(fileId)
+    },
+
+    async findOwnedByAppProperty(key, value) {
+      requests.push('findOwnedByAppProperty')
+      return [...files.values()].filter((file) => !file.trashed && file.ownedByMe && file.appProperties[key] === value).map((file) => file.id)
     },
 
     async findByAppProperty(key, value) {

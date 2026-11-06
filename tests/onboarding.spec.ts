@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import type { CivilDate } from '../src/shared/calendar/civilDate'
 import { scopesOfChoices } from '../src/apps/company/onboarding/application/onboardingScopes'
-import { OTHER_BANK, makingStep, nextStep, onboardingPlaceOf, onboardingQueryOf, previousStep, stepsOf } from '../src/apps/company/onboarding/domain/onboardingSteps'
-import type { BooksHome, OnboardingPath, OnboardingPlace, StatementMail } from '../src/apps/company/onboarding/domain/onboardingSteps'
-import { statementMailProblems, statementSettingsOf } from '../src/apps/company/onboarding/domain/statementsChoice'
+import { answerForRun, makingStep, nextStep, onboardingPlaceOf, onboardingQueryOf, previousStep, stepsOf } from '../src/apps/company/onboarding/domain/onboardingSteps'
+import type { BooksHome, OnboardingPath, OnboardingPlace } from '../src/apps/company/onboarding/domain/onboardingSteps'
+import { folderDeliveryRows, mailDeliveryRows, OTHER_BANK, statementMailProblems } from '../src/apps/company/onboarding/domain/statementsChoice'
+import type { StatementMail } from '../src/apps/company/onboarding/domain/statementsChoice'
 
 const ERSTE: StatementMail = { bank: 'erste', from: '', subject: '', since: null }
 
-const place = (changes: Partial<OnboardingPlace>): OnboardingPlace => ({ path: 'new', home: 'drive', statements: 'hand', mail: ERSTE, step: 'welcome', made: null, ...changes })
+const place = (changes: Partial<OnboardingPlace>): OnboardingPlace => ({ path: 'new', home: 'drive', asksHome: true, step: 'welcome', made: null, ...changes })
 
 const TODAY = '2026-10-27' as CivilDate
 
@@ -24,29 +25,26 @@ describe('the onboarding steps', () => {
 
   it('read the place from the route, so a trip to Google comes back into the step it left', () => {
     expect(onboardingPlaceOf({})).toEqual(place({}))
-    expect(onboardingPlaceOf({ step: 'access', path: 'bring', statements: 'folder' })).toEqual(place({ path: 'bring', statements: 'folder', step: 'access' }))
+    expect(onboardingPlaceOf({ step: 'access', path: 'bring' })).toEqual(place({ path: 'bring', step: 'access' }))
     expect(onboardingPlaceOf({ step: 'find', path: 'new' }).step).toBe('welcome')
     expect(onboardingPlaceOf({ step: 'access', path: 'open', home: 'browser' })).toMatchObject({ home: 'drive', step: 'access' })
-    expect(onboardingPlaceOf({ path: 'sideways', home: 'cloud', statements: 'post' })).toEqual(place({}))
-    const typed = place({ step: 'access', statements: 'mail', mail: { bank: OTHER_BANK, from: 'statements@bank.example.com', subject: 'Statement', since: '2025-01-01' as CivilDate } })
-    for (const written of [
-      place({ step: 'folder', statements: 'folder' }),
-      place({ path: 'bring', home: 'browser', step: 'file' }),
-      place({ path: 'move', step: 'access' }),
-      place({ statements: 'mail', step: 'access' }),
-      typed,
-    ]) {
+    expect(onboardingPlaceOf({ path: 'sideways', home: 'cloud' })).toEqual(place({}))
+    for (const written of [place({ step: 'folder' }), place({ path: 'bring', home: 'browser', step: 'file' }), place({ path: 'move', step: 'access' })]) {
       expect(onboardingPlaceOf(onboardingQueryOf(written))).toEqual(written)
     }
     expect(onboardingQueryOf(place({ step: 'home' }))).toEqual({ step: 'home' })
-    expect(onboardingQueryOf(typed)).toEqual({ step: 'access', statements: 'mail', bank: 'other', from: 'statements@bank.example.com', subject: 'Statement', since: '2025-01-01' })
   })
 
-  it('offer statements from mail only to new books on Drive, since books brought along or kept in this browser carry their own way', () => {
-    expect(onboardingPlaceOf({ step: 'access', statements: 'mail' }).statements).toBe('mail')
-    expect(onboardingPlaceOf({ step: 'access', path: 'bring', statements: 'mail' }).statements).toBe('hand')
-    expect(onboardingPlaceOf({ step: 'statement', home: 'browser', statements: 'mail' }).statements).toBe('hand')
-    expect(onboardingPlaceOf({ step: 'access', statements: 'mail', bank: 'a-bank-with-no-preset' }).mail.bank).toBe('erste')
+  it('read the one answer: said Drive the home step goes, said this browser it stays with nothing to ask, and either way the query cannot change it', () => {
+    expect(stepsOf('new', 'drive', false)).toEqual(['welcome', 'access', 'folder', 'company', 'statement'])
+    expect(stepsOf('bring', 'drive', false)).toEqual(['welcome', 'access', 'file', 'folder', 'company'])
+    expect(stepsOf('new', 'browser', false)).toEqual(['welcome', 'home', 'company', 'statement'])
+    expect(onboardingPlaceOf({ home: 'browser' }, 'drive')).toMatchObject({ home: 'drive', asksHome: false })
+    expect(onboardingPlaceOf({}, 'browser')).toMatchObject({ home: 'browser', asksHome: false })
+    expect(onboardingPlaceOf({ step: 'home' }, 'drive').step).toBe('welcome')
+    expect(onboardingPlaceOf({ path: 'open' }, 'browser').home).toBe('drive')
+    expect(nextStep(onboardingPlaceOf({ step: 'welcome' }, 'drive'))).toBe('access')
+    expect(previousStep(onboardingPlaceOf({ step: 'access' }, 'drive'))).toBe('welcome')
   })
 
   it('go forward to Overview after the last step', () => {
@@ -91,37 +89,50 @@ describe('the onboarding steps', () => {
     expect(onboardingPlaceOf({ path: 'open', step: 'find', made: 'file-1' }).made).toBeNull()
   })
 
-  it('ask Google for the books file, and for Drive read and Gmail only as the choices switch them on', () => {
+  it('leave the answer out for someone with other books open, who came to change them, and keep it through the run that made its own', () => {
+    expect(answerForRun('drive', null, undefined)).toBe('drive')
+    expect(answerForRun('drive', 'file-1', 'file-1')).toBe('drive')
+    expect(answerForRun('drive', 'file-1', undefined)).toBeNull()
+    const changing = onboardingPlaceOf({ step: 'home' }, answerForRun('drive', 'file-1', undefined))
+    expect(changing).toMatchObject({ step: 'home', asksHome: true })
+    expect(stepsOf(changing.path, changing.home, changing.asksHome)).toContain('home')
+  })
+
+  it('ask Google for the books file and invoice drafts alone, since how statements arrive is asked after the first one', () => {
     expect(scopesOfChoices(place({}), false)).toEqual(['drive.file'])
-    expect(scopesOfChoices(place({ statements: 'folder' }), false)).toEqual(['drive.file', 'drive.readonly'])
-    expect(scopesOfChoices(place({ statements: 'mail' }), false)).toEqual(['drive.file', 'gmail.readonly'])
-    expect(scopesOfChoices(place({ statements: 'mail' }), true)).toEqual(['drive.file', 'gmail.readonly', 'gmail.compose'])
     expect(scopesOfChoices(place({ path: 'bring' }), true)).toEqual(['drive.file', 'gmail.compose'])
-    expect(scopesOfChoices(place({ path: 'open', statements: 'folder' }), true)).toEqual(['drive.file'])
+    expect(scopesOfChoices(place({ path: 'open' }), true)).toEqual(['drive.file'])
     expect(scopesOfChoices(place({ path: 'move' }), true)).toEqual(['drive.file'])
   })
 })
 
-describe('the statements choice', () => {
-  it('writes an explicit row for each setting: filing on sync off by hand, on for a Drive folder the statement step names', () => {
-    const blank = { statementsFolder: [], statementsMailFrom: [], statementsMailSubject: '', mailSince: null }
-    expect(statementSettingsOf('hand', ERSTE, TODAY)).toEqual({ ...blank, statementsSync: false })
-    expect(statementSettingsOf('folder', ERSTE, TODAY)).toEqual({ ...blank, statementsSync: true })
+describe('how later statements arrive', () => {
+  it('files mail into a statements folder beside the books file, with the preset bank’s sender and subject words and mail since the first day of this year', () => {
+    expect(mailDeliveryRows(ERSTE, TODAY)).toEqual([
+      { key: 'statements_sync', value: 'true' },
+      { key: 'statements_folder', value: './statements' },
+      { key: 'statements_mail_from', value: 'netbanking.support@erstebank.hr' },
+      { key: 'statements_mail_subject', value: 'ERSTE Izvadak' },
+      { key: 'mail_since', value: '2026-01-01' },
+    ])
   })
 
-  it('files mail into a statements folder beside the books file, with the preset bank’s sender and subject words and mail since the first day of this year', () => {
-    expect(statementSettingsOf('mail', ERSTE, TODAY)).toEqual({
-      statementsSync: true,
-      statementsFolder: ['.', 'statements'],
-      statementsMailFrom: ['netbanking.support@erstebank.hr'],
-      statementsMailSubject: 'ERSTE Izvadak',
-      mailSince: '2026-01-01',
-    })
+  it('reads a folder by its path from My Drive', () => {
+    expect(folderDeliveryRows(['work', 'statements'])).toEqual([
+      { key: 'statements_sync', value: 'true' },
+      { key: 'statements_folder', value: 'work/statements' },
+    ])
   })
 
   it('takes another bank’s sender and subject words as typed, with the day picked, and says what is missing or does not hold', () => {
     const typed: StatementMail = { bank: OTHER_BANK, from: ' Statements@Bank.example.com, ', subject: ' Statement ', since: '2025-06-01' as CivilDate }
-    expect(statementSettingsOf('mail', typed, TODAY)).toMatchObject({ statementsMailFrom: ['statements@bank.example.com'], statementsMailSubject: 'Statement', mailSince: '2025-06-01' })
+    expect(mailDeliveryRows(typed, TODAY)).toEqual(
+      expect.arrayContaining([
+        { key: 'statements_mail_from', value: 'statements@bank.example.com' },
+        { key: 'statements_mail_subject', value: 'Statement' },
+        { key: 'mail_since', value: '2025-06-01' },
+      ]),
+    )
     expect(statementMailProblems(typed)).toEqual({})
     expect(statementMailProblems(ERSTE)).toEqual({})
     expect(statementMailProblems({ ...typed, from: '', subject: '' })).toEqual({ from: 'Type the address the bank mails statements from', subject: 'Type the words before the statement number' })

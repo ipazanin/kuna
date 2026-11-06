@@ -12,6 +12,7 @@ import { words } from './words'
 /** The Assets first run at `#/assets/start?step=…`. */
 const store = useAssetsBooks()
 const firstRun: FileFirstRun = {
+  appId: 'assets',
   testId: 'assets-start',
   appName: appWords.name,
   startRoute: ASSETS_START_ROUTE,

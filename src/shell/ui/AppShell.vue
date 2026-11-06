@@ -80,7 +80,7 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
           <HomeLink :label="sharedWords.homeLink" look="standard" />
         </div>
         <slot name="navigation" />
-        <div v-if="$slots.sync" class="border-t border-default px-4 py-4">
+        <div v-if="$slots.sync" class="border-t border-default px-4 py-4" data-testid="sidebar-sync">
           <slot name="sync" :compact="false" />
         </div>
       </div>

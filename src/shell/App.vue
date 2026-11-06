@@ -48,6 +48,8 @@ function togglePages(appId: string): void {
 const navigation = computed(() => navigationOf(installedApps(), openApp.value))
 
 const pageSync = startPageSync(installedApps())
+/** The sync or export control has nothing to show until some app has a file, so its place stays out of the shell too. */
+const someFileChosen = computed(() => pageSync.groups.some((group) => group.store.state.choice !== null))
 // Each app resumes only the find or pick it asked Google for, and the page's sync resumes after them.
 const stops = [...installedApps().map((app) => app.start(router, resumedBy(props.googleReturn, app.id))), keepPageSynced(pageSync, props.googleReturn)]
 onBeforeUnmount(() => stops.forEach((stop) => stop()))
@@ -91,7 +93,7 @@ const uiLocale = language === 'hr' ? hr : en_gb
       <template #navigation>
         <ScreenNavigation :navigation="navigation" @toggle="togglePages" @open="openApp = $event" />
       </template>
-      <template #sync="{ compact }">
+      <template v-if="someFileChosen" #sync="{ compact }">
         <TopBarSync :compact="compact" />
       </template>
     </AppShell>

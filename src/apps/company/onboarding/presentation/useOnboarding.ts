@@ -2,10 +2,11 @@ import { computed, shallowRef } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { kunaStart } from '../../../../shared/app/kunaStart'
 import type { WorkbookChoice } from '../../../../shared/storage/application/workbookPorts'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { ImportPreview } from '../../workbook/presentation/workbookFiles'
-import { nextStep, onboardingPlaceOf, onboardingQueryOf, previousStep, stepsOf } from '../domain/onboardingSteps'
+import { answerForRun, nextStep, onboardingPlaceOf, onboardingQueryOf, previousStep, stepsOf } from '../domain/onboardingSteps'
 import type { OnboardingPath, OnboardingPlace, OnboardingStep } from '../domain/onboardingSteps'
 
 /** The route onboarding lives on, with its place in the query. */
@@ -42,7 +43,7 @@ export function useOnboarding(): Onboarding {
   const route = useRoute()
   const router = useRouter()
   const store = useWorkbook()
-  const place = computed(() => onboardingPlaceOf(route.query))
+  const place = computed(() => onboardingPlaceOf(route.query, answerForRun(kunaStart()?.home ?? null, store.state.choice?.id ?? null, route.query.made)))
   const at = (changes: Partial<OnboardingPlace>) => ({ path: ONBOARDING_ROUTE, query: onboardingQueryOf({ ...place.value, ...changes }) })
 
   async function go(changes: Partial<OnboardingPlace>): Promise<void> {
@@ -61,7 +62,7 @@ export function useOnboarding(): Onboarding {
 
   return {
     place,
-    steps: computed(() => stepsOf(place.value.path, place.value.home)),
+    steps: computed(() => stepsOf(place.value.path, place.value.home, place.value.asksHome)),
     madeBooks: computed(() => (store.state.choice?.id === place.value.made ? store.state.choice : null)),
     heldFile,
     hold(file) {

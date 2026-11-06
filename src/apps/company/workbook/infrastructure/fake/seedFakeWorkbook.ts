@@ -1,3 +1,4 @@
+import { answerKunaStart, forgetKunaStart } from '../../../../../shared/app/kunaStart'
 import { replaceBrowserDocument } from '../../../../../shared/storage/infrastructure/browserDocument'
 import { decodeDocument, encodeDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
 import type { DocumentCopy } from '../../../../../shared/storage/infrastructure/documentRecordStorage'
@@ -6,13 +7,20 @@ import { createDriveDocument, documentName } from '../../../../../shared/storage
 import { fakeBooksFolder, fakeDriveSession, raceTheNextSave, slowUploads } from '../../../../../shared/storage/infrastructure/fake/fakeDriveSession'
 import { openWorkbookCache } from '../../../../../shared/storage/infrastructure/workbookCache'
 import { saveWorkbookChoice } from '../../../../../shared/storage/infrastructure/workbookChoice'
+import { MAIL_SOURCE_PROPERTY } from '../../../../../shared/mail-filing/domain/mailSource'
 import { fakeMailSettings } from '../../../mail/infrastructure/fake/fakeMailbox'
-import { FAKE_WORKBOOK_ID, fakeWorkbookDocument } from './fakeWorkbook'
+import { FAKE_FOLDERS, FAKE_WORKBOOK_ID, fakeWorkbookDocument } from './fakeWorkbook'
 import type { FakeStaff } from './fakeWorkbook'
 
 const DAY = 86_400_000
 
 /** The variants that start without the records of a kind, by the end of their name. */
+/** Each load of the fake build starts with the home welcome unanswered, unless the address says otherwise, so one check's answer does not reach the next. */
+function seedFakeStart(home: string | null): void {
+  forgetKunaStart()
+  if (home === 'drive' || home === 'browser') answerKunaStart({ home, apps: ['company', 'loans', 'assets'] })
+}
+
 const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
   ['no-billing-plan', 'billing-item'],
   ['no-scenarios', 'hr-doo.scenario-component'],
@@ -22,16 +30,17 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
 /**
  * Fills the browser from the synthetic workbook, as a successful sync would, and chooses it: a file
  * on the fake build's Drive, or with `?fake=browser` a workbook kept in this browser with changes nine
- * days past their last export, and `?fake=browser-beside-drive` that workbook with a file another
+ * days past their last export, and `?fake=mail-move` books whose statements folder on the fake Drive holds a mix for a move, `?fake=browser-beside-drive` that workbook with a file another
  * device made on the fake Drive too. `?fake=empty` keeps nothing, which is a first run. A variant that ends
  * in `no-billing-plan`, `no-scenarios` or `no-plan` starts without those records. `?fake=newer-file`
  * is a file a newer app saved, and with `?fake=race` another device saves at the same moment as the
  * first save, and with `?fake=slow-writes` every save takes a few seconds to land. A variant that starts with `mail` names the bank's and the accountant's mail, which the
  * fake mailbox answers. A variant a pack pays a made-up staff in, which `staffOf` gives, pays them in place of
  * the owner's flat salary. Only the company app's install imports this, behind an inline VITE_FAKE_WORKBOOK comparison,
- * so the module and its fixture never reach a production chunk.
+ * so the module and its fixture never reach a production chunk. `?start=drive` or `?start=browser` is a person who already answered the home welcome.
  */
 export async function seedFakeWorkbook(variant: string | null, staffOf: (variant: string | null) => FakeStaff | null): Promise<void> {
+  seedFakeStart(new URLSearchParams(window.location.search).get('start'))
   if (variant === 'empty') {
     saveWorkbookChoice(COMPANY_APP, null)
     return
@@ -69,6 +78,9 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
           document,
         }
       : await onFakeDrive(text, savedAt, document)
+  if (variant === 'mail-move') {
+    await seedMixedStatements()
+  }
   const cache = openWorkbookCache(copy.meta.id)
   try {
     await cache.replace(copy)
@@ -83,6 +95,18 @@ function otherDeviceSave(text: string): string {
   const document = decodeDocument(text)
   const ledger = (document.records['ledger-row'] ?? []).map((row) => (row.counterparty === 'SNACK KIOSK' ? { ...row, category: 'travel', flagged_by: 'phone' } : row))
   return encodeDocument({ ...document, records: { ...document.records, 'ledger-row': ledger } })
+}
+
+/** A made-up statements folder holding a statement Kuna filed from mail, one a script filed and the accountant's mail, for the move to sort out. */
+async function seedMixedStatements(): Promise<void> {
+  const drive = fakeDriveSession()
+  const finance = await drive.createFolder('root', FAKE_FOLDERS.statements[0])
+  const statements = await drive.createFolder(finance, FAKE_FOLDERS.statements[1])
+  const year = await drive.createFolder(statements, `2026-${FAKE_FOLDERS.statements[1]}`)
+  await drive.createFile(year, '2026-09-01-statement-010-main.xml', '<Document/>', { [MAIL_SOURCE_PROPERTY]: 'statements' })
+  const scripted = await drive.createFile(year, '2026-09-02-statement-011-main.xml', '<Document/>')
+  drive.file(scripted.id).isAppAuthorized = false
+  await drive.createFile(year, '2026-09-pdv.xlsx', 'made up', { [MAIL_SOURCE_PROPERTY]: 'vat' })
 }
 
 async function onFakeDrive(text: string, savedAt: string, document: DocumentCopy['document']): Promise<DocumentCopy> {

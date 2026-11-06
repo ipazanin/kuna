@@ -108,6 +108,8 @@ const SCREEN_WORDS = {
     kunaSettings: kunaSettingsEnglish.menu,
     netWorth: netWorthEnglish.title,
     addApp: shellEnglish.navigation.addApp,
+    filesHome: kunaSettingsEnglish.filesHome,
+    home: homeEnglish,
     company: companyEnglish.name,
     companySettings: companySettingsEnglish.title,
     loans: loansEnglish.name,
@@ -191,6 +193,8 @@ const SCREEN_WORDS = {
     kunaSettings: kunaSettingsCroatian.menu,
     netWorth: netWorthCroatian.title,
     addApp: shellCroatian.navigation.addApp,
+    filesHome: kunaSettingsCroatian.filesHome,
+    home: homeCroatian,
     company: companyCroatian.name,
     companySettings: companySettingsCroatian.title,
     loans: loansCroatian.name,
@@ -2915,14 +2919,14 @@ async function pressButton(page, press, selector, label) {
 }
 
 /** Settings, Books file names the file on the fake Drive, its folder, and that no backup is made yet, or with `saved` that the save onboarding made today made one. */
-async function booksShowDriveFile(page, saved, words) {
+async function booksShowDriveFile(page, saved, words, inKuna = true) {
   await page.evaluate(() => {
     window.location.hash = '#/company/settings?tab=books'
   })
   await page
-    .waitForFunction(() => document.querySelector('[data-testid="drive-file-place"] a')?.textContent?.trim() === 'Books', { timeout: 10_000 })
+    .waitForFunction((folder) => document.querySelector('[data-testid="drive-file-place"] a')?.textContent?.trim() === folder, { timeout: 10_000 }, inKuna ? 'company' : 'Books')
     .catch(() => {
-      throw new Error('Settings, Books file does not name the Books folder the file sits in')
+      throw new Error('Settings, Books file does not name the folder the file sits in')
     })
   await pageSays(page, 'kuna-company.json', true)
   await pageSays(page, words.writes.booksFile.noBackup, !saved)
@@ -2972,16 +2976,19 @@ async function allowGoogle(page, press, { shoot, inspect }, words = SCREEN_WORDS
   await pressSelector(page, press, '[data-testid="onboarding-continue"]')
 }
 
-/** The folder step: the fake Picker picks Books, the confirm names it as `named`, and Create the file here makes the file. */
+/** The app's subfolder of a new Kuna folder at the top of My Drive, as the folder step and the toast name it. */
+function inKunaFolder(words, appId) {
+  return `${words.myDrive} › Kuna › ${appId}`
+}
+
+/** The folder step: the confirm names the new Kuna folder at the top of My Drive, and Create the file here makes the folders and the file. */
 async function confirmFolder(page, press, { shoot, inspect }, named) {
   await onboardingAt(page, 'folder')
-  await pressSelector(page, press, '[data-testid="company-start-choose-folder"]')
   const confirm = await page.waitForSelector('[data-testid="company-start-folder-confirm"]', { visible: true, timeout: 10_000 })
   const said = await confirm.evaluate((element) => element.textContent ?? '')
   if (!said.includes(named)) throw new Error(`the folder confirm says "${said}", not ${named}`)
-  if (!(await page.$('[data-testid="company-start-folder-link"]'))) throw new Error('the folder confirm has no link to the folder in Drive')
   await inspect?.('the folder confirm')
-  await shoot(named.includes(' › ') ? 'onboarding-folder-path' : 'onboarding-folder-name')
+  await shoot('onboarding-folder')
   await pressSelector(page, press, '[data-testid="company-start-create"]')
 }
 
@@ -3018,7 +3025,7 @@ async function confirmStartOver(page, press) {
 /** The folder step's choice refused since Drive already holds the books: it says so, keeps "trash it in Drive first", and `dropsBrowserBooks` says whether it warns that opening them deletes the books in this browser. */
 async function folderRefusedOnDrive(page, press, dropsBrowserBooks, words) {
   await onboardingAt(page, 'folder')
-  await pressSelector(page, press, '[data-testid="company-start-choose-folder"]')
+  await pressSelector(page, press, '[data-testid="company-start-create"]')
   const alert = await page.waitForSelector('[data-testid="company-start-on-drive"]', { visible: true, timeout: 10_000 }).catch(() => {
     throw new Error('the folder step does not say Drive already holds the books')
   })
@@ -3039,10 +3046,10 @@ async function setUpLines(page) {
 }
 
 /**
- * New books on the fake Drive with statements by hand: the access step asks for the books file
- * alone, so the folder confirm names Books with no path, as `drive.file` cannot read its parents.
- * The file's toast names where it was made. The first statement's IBAN becomes the account main,
- * and Overview's Getting set up card asks only for a look over the categories.
+ * New books on the fake Drive: the access step asks for the books file alone, and the folder confirm
+ * names the app's subfolder of a new Kuna folder. The file's toast names where it was made. The first
+ * statement's IBAN becomes the account main, and Overview's Getting set up card asks for the first
+ * rules and a look over the categories, then offers how later statements arrive.
  */
 export function onboardingDriveFlowIn(language) {
   const words = SCREEN_WORDS[language]
@@ -3056,13 +3063,13 @@ export function onboardingDriveFlowIn(language) {
     await shoot('onboarding-home')
     await pressSelector(page, press, '[data-testid="onboarding-continue"]')
     await allowGoogle(page, press, { shoot, inspect }, words)
-    await confirmFolder(page, press, { shoot, inspect }, `Books${words.writes.firstRun.folder.unseen}`)
-    await toast(page, words.writes.firstRun.folder.created('kuna-company.json', 'Books'))
+    await confirmFolder(page, press, { shoot, inspect }, inKunaFolder(words, 'company'))
+    await toast(page, words.writes.firstRun.folder.created('kuna-company.json', inKunaFolder(words, 'company')))
     await dismissToasts(page)
     await onboardingAt(page, 'company')
     await inspect?.('the company step')
     await shoot('onboarding-company')
-    await backToMade(page, press, 'folder', ['Books', 'kuna-company.json'])
+    await backToMade(page, press, 'folder', ['company', 'kuna-company.json'])
     await inspect?.('the folder step of the books made')
     await shoot('onboarding-folder-made')
     await pressSelector(page, press, '[data-testid="onboarding-continue"]')
@@ -3083,7 +3090,8 @@ export function onboardingDriveFlowIn(language) {
     await toastCounted(page, (count) => words.importWrites.imported(['main'], count))
     await onboardingAt(page, 'overview')
     const lines = await setUpLines(page)
-    if (JSON.stringify(lines) !== JSON.stringify(['first-rules', 'categories'])) throw new Error(`Getting set up lists ${lines.join(', ')}, not the first rules and the categories`)
+    if (JSON.stringify(lines) !== JSON.stringify(['first-rules', 'categories', 'statement-delivery']))
+      throw new Error(`Getting set up lists ${lines.join(', ')}, not the first rules, the categories and delivery`)
     await inspect?.('Overview getting set up')
     await shoot('onboarding-overview')
     await dismissToasts(page)
@@ -3094,49 +3102,27 @@ export function onboardingDriveFlowIn(language) {
 export const onboardingDriveFlow = onboardingDriveFlowIn('en')
 
 /**
- * New books on the fake Drive with statements from a Drive folder: the token carries Drive read, so
- * the folder confirm names the full path, and the toast does too. A Croatian d.o.o. answers Yes in
- * the company step, which asks for no folder of the accountant's, chooses the statements folder in
- * the statement step, skips the statement, and Getting set up lists the first statement and the
- * categories.
+ * New books of a Croatian d.o.o. on the fake Drive: the company step answers Yes and asks for no folder
+ * of the accountant's, the statement is skipped, and Getting set up lists the first statement and the categories.
  */
-export function onboardingDriveReadFlowIn(language) {
+export function onboardingPackFlowIn(language) {
   const words = SCREEN_WORDS[language]
-  const trail = `${words.myDrive} › Books`
-  const { access, statement } = words.onboarding
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await onboardingAt(page, 'welcome')
     await pressSelector(page, press, '[data-testid="onboarding-continue"]')
     await onboardingAt(page, 'home')
     await pressSelector(page, press, '[data-testid="onboarding-continue"]')
-    await onboardingAt(page, 'access')
-    await chooseOption(page, press, 'onboarding-statements', access.folder)
-    await page
-      .waitForFunction(() => window.location.hash.includes('statements=folder'), { timeout: 5_000 })
-      .catch(() => {
-        throw new Error('the statements choice did not reach the address, so a trip to Google would lose it')
-      })
     await allowGoogle(page, press, { shoot, inspect }, words)
-    await confirmFolder(page, press, { shoot, inspect }, trail)
-    await toastMatching(page, exactly(words.writes.firstRun.folder.created('kuna-company.json', trail)))
+    await confirmFolder(page, press, { shoot, inspect }, inKunaFolder(words, 'company'))
+    await toastMatching(page, exactly(words.writes.firstRun.folder.created('kuna-company.json', inKunaFolder(words, 'company'))))
     await dismissToasts(page)
     await onboardingAt(page, 'company')
     await chooseOption(page, press, 'onboarding-pack', words.pack.onboarding.yes)
-    const asksFolder = await page.$$eval('[data-testid="onboarding-step"] button', (buttons, choose) => buttons.some((button) => button.textContent?.trim() === choose), statement.chooseFolder)
-    if (asksFolder) throw new Error('the company step of a Croatian d.o.o. still asks for a folder')
     await inspect?.('the company step of a Croatian d.o.o.')
     await shoot('onboarding-company-pack')
     await pressSelector(page, press, '[data-testid="onboarding-continue"]')
     await onboardingAt(page, 'statement')
-    await pressButton(page, press, '[data-testid="onboarding-statements-folder"] button', statement.chooseFolder)
-    await page
-      .waitForFunction((wanted) => document.querySelector('[data-testid="onboarding-statements-folder"]')?.textContent?.includes(wanted) ?? false, { timeout: 10_000 }, trail)
-      .catch(() => {
-        throw new Error('the statement step does not show the statements folder chosen')
-      })
-    await inspect?.('the statement step with the folder chosen')
-    await shoot('onboarding-statements-folder')
     await pressSelector(page, press, '[data-testid="onboarding-skip"]')
     await onboardingAt(page, 'overview')
     const lines = await setUpLines(page)
@@ -3146,88 +3132,64 @@ export function onboardingDriveReadFlowIn(language) {
   }
 }
 
-export const onboardingDriveReadFlow = onboardingDriveReadFlowIn('en')
+export const onboardingPackFlow = onboardingPackFlowIn('en')
 
 /**
- * New books on the fake Drive with statements from mail: the access step offers Erste with its
- * sender and mail since at the first day of this year, then another bank typed in, all kept in the
- * address, and asks Google for Gmail read beside the books file and never for Drive read. The folder
- * confirm names the statements folder the app makes beside the books, and the statement step says
- * each sync files the mail there. A sync then files the bank's mail into that folder, and the same
- * sync holds the statement of the account the new books lack, with 1 problem in the sync control.
+ * Delivery comes after the first statement: the access step offers no statements choice, and Getting set up offers how later ones arrive.
+ * Its dialog names the Erste preset, then another bank typed in, which goes on only once named. Saving makes the statements folder and takes the
+ * line away. A sync then asks Google for Gmail read, as any sync of books with mail settings does. "I import by hand" takes the line away too.
  */
-export function onboardingMailFlowIn(language) {
+export function onboardingDeliveryFlowIn(language) {
   const words = SCREEN_WORDS[language]
-  const { access } = words.onboarding
+  const { delivery } = words.onboarding
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    const shootMail = (name) => shoot(name.replace(/^onboarding-/, 'onboarding-mail-'))
     await onboardingAt(page, 'welcome')
     await pressSelector(page, press, '[data-testid="onboarding-continue"]')
     await onboardingAt(page, 'home')
     await pressSelector(page, press, '[data-testid="onboarding-continue"]')
     await onboardingAt(page, 'access')
-    await chooseOption(page, press, 'onboarding-statements', access.mail)
-    const fields = await page.waitForSelector('[data-testid="onboarding-mail"]', { visible: true, timeout: 5_000 }).catch(() => {
-      throw new Error('From my mail shows no bank and mail since')
-    })
-    if (!(await fields.evaluate((element) => element.textContent ?? '')).includes('netbanking.support@erstebank.hr')) throw new Error('the Erste preset does not name the address it mails from')
-    const since = await page.$eval('input[data-testid="onboarding-mail-since"]', (input) => input.value)
-    if (since !== `${new Date().getFullYear()}-01-01`) throw new Error(`mail since starts at ${since}, not the first day of this year`)
-    await inspect?.('the access step with mail from Erste')
-    await shoot('onboarding-access-mail')
-    await choose(page, press, await page.waitForSelector('[data-testid="onboarding-bank"]'), access.anotherBank)
-    if (!(await page.$eval('[data-testid="onboarding-google"], [data-testid="onboarding-continue"]', (button) => button.disabled)))
-      throw new Error('the access step goes on before another bank is named')
-    await setField(await page.waitForSelector('input[data-testid="onboarding-mail-from"]', { visible: true }), 'statements@bank.example.com')
-    await setField(await page.waitForSelector('input[data-testid="onboarding-mail-subject"]'), 'Izvadak')
-    await page
-      .waitForFunction(() => /statements=mail/.test(window.location.hash) && /bank=other/.test(window.location.hash) && /subject=Izvadak/.test(window.location.hash), { timeout: 5_000 })
-      .catch(() => {
-        throw new Error('the mail typed did not reach the address, so a trip to Google would lose it')
-      })
-    await shoot('onboarding-access-mail-other')
-    await allowGoogle(page, press, { shoot: shootMail, inspect }, words)
-    const asked = await page.evaluate(() => JSON.parse(window.localStorage.getItem('kuna.google-needed') ?? '[]'))
-    if (JSON.stringify(asked) !== JSON.stringify(['drive.file', 'gmail.readonly'])) throw new Error(`the access step asked Google for ${asked.join(', ')}, not Gmail read beside the books file alone`)
-    await onboardingAt(page, 'folder')
-    await pressSelector(page, press, '[data-testid="company-start-choose-folder"]')
-    await page.waitForSelector('[data-testid="company-start-folder-confirm"] [data-testid="onboarding-folder-statements"]', { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error('the folder confirm does not name the statements folder the app makes')
-    })
-    await inspect?.('the folder confirm with the statements folder')
-    await shoot('onboarding-folder-mail')
-    await pressSelector(page, press, '[data-testid="company-start-create"]')
-    await toastMatching(page, exactly(words.writes.firstRun.folder.created('kuna-company.json', 'Books')))
+    if (await page.$('[data-testid="onboarding-statements"]')) throw new Error('the access step still asks how statements arrive')
+    await allowGoogle(page, press, { shoot: () => {} }, words)
+    await confirmFolder(page, press, { shoot: () => {} }, inKunaFolder(words, 'company'))
     await dismissToasts(page)
     await onboardingAt(page, 'company')
     await pressSelector(page, press, '[data-testid="onboarding-continue"]')
     await onboardingAt(page, 'statement')
-    await page.waitForSelector('[data-testid="onboarding-statements-mail"]', { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error('the statement step does not say where each sync files the mail')
-    })
-    if (await page.$('[data-testid="onboarding-statements-folder"]')) throw new Error('statements from mail are offered a Drive folder to choose')
-    await inspect?.('the statement step with statements from mail')
-    await shoot('onboarding-statement-mail')
-    await pressSelector(page, press, '[data-testid="onboarding-skip"]')
+    await pressSelector(page, press, '[data-testid="sample-camt"]')
+    await page.waitForSelector('[data-testid="dry-run-new-account"]', { visible: true, timeout: 10_000 })
+    await pressButton(page, press, '[data-testid="onboarding-step"] button', words.onboarding.statement.addAndImport)
     await onboardingAt(page, 'overview')
-    const lines = await setUpLines(page)
-    if (JSON.stringify(lines) !== JSON.stringify(['first-statement', 'categories'])) throw new Error(`Getting set up lists ${lines.join(', ')}`)
-
-    await syncAndSettle(page, press)
-    const control = await controlShows(page, 'problems')
-    const problems = countedIn(words, words.sync.problems(1), 1)
-    if (control.label !== problems) throw new Error(`the sync control says "${control.label}", not ${problems}`)
-    await press(await syncButton(page))
-    await stepSays(page, '', 'mail', 'done', words.mailFiled)
-    await stepSays(page, '', 'statements', 'waits', new RegExp(countedIn(words, words.imports.step.held(1), 1).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+    await dismissToasts(page)
+    if (!(await setUpLines(page)).includes('statement-delivery')) throw new Error('Getting set up does not offer delivery after the first statement')
+    await pressSelector(page, press, '[data-testid="set-up-delivery"]')
+    const fields = await page.waitForSelector('[data-testid="statement-delivery-mail"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('the delivery dialog shows no bank and mail since')
+    })
     await delay(400)
-    await inspect?.('the first sync of books whose statements come from mail')
-    await shoot('onboarding-mail-sync')
+    if (!(await fields.evaluate((element) => element.textContent ?? '')).includes('netbanking.support@erstebank.hr')) throw new Error('the Erste preset does not name the address it mails from')
+    const since = await page.$eval('input[data-testid="statement-delivery-since"]', (input) => input.value)
+    if (since !== `${new Date().getFullYear()}-01-01`) throw new Error(`mail since starts at ${since}, not the first day of this year`)
+    await inspect?.('the delivery dialog with mail from Erste')
+    await shoot('onboarding-delivery')
+    await choose(page, press, await page.waitForSelector('[data-testid="statement-delivery-bank"]'), delivery.anotherBank)
+    if (!(await page.$eval('[data-testid="statement-delivery-save"]', (button) => button.disabled))) throw new Error('the delivery dialog goes on before another bank is named')
+    await setField(await page.waitForSelector('input[data-testid="statement-delivery-from"]', { visible: true }), 'statements@bank.example.com')
+    await setField(await page.waitForSelector('input[data-testid="statement-delivery-subject"]'), 'Izvadak')
+    await delay(200)
+    await inspect?.('the delivery dialog with another bank')
+    await shoot('onboarding-delivery-other')
+    await pressSelector(page, press, '[data-testid="statement-delivery-save"]')
+    await page.waitForFunction(() => !document.querySelector('[data-testid="statement-delivery"]'), { timeout: 10_000 })
+    await dismissToasts(page)
+    const lines = await setUpLines(page)
+    if (lines.includes('statement-delivery')) throw new Error('Getting set up still offers delivery once it is set up')
+    await inspect?.('Getting set up once delivery is set up')
+    await shoot('onboarding-delivered')
   }
 }
 
-export const onboardingMailFlow = onboardingMailFlowIn('en')
+export const onboardingDeliveryFlow = onboardingDeliveryFlowIn('en')
 
 /**
  * New books in this browser: no Google at all. Back from the company step shows them made on the
@@ -3255,12 +3217,12 @@ export function onboardingBrowserFlowIn(language) {
     await inspect?.('Start over asking before it deletes the books in this browser')
     await shoot('onboarding-start-over-browser')
     await confirmStartOver(page, press)
-    await page.waitForSelector('[data-testid="onboarding-home"]', { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error('Start over did not bring back the choice of where the books live')
+    await page.waitForSelector('[data-testid="onboarding-in-browser"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('Start over did not bring back the step that makes the books')
     })
     await onboardingAt(page, 'home')
     if (await page.$('[data-testid="onboarding-made"]')) throw new Error('the home step still shows the books made after Start over')
-    await chooseOption(page, press, 'onboarding-home', home.browser)
+    if (await page.$('[data-testid="onboarding-home"]')) throw new Error('Start over asks where the books live again, after the person said')
     await pressSelector(page, press, '[data-testid="onboarding-continue"]')
     await onboardingAt(page, 'company')
     await setField(await page.waitForSelector('input[data-testid="onboarding-company-name"]'), 'Example Studio')
@@ -3268,7 +3230,6 @@ export function onboardingBrowserFlowIn(language) {
     await shoot('onboarding-company-browser')
     await pressSelector(page, press, '[data-testid="onboarding-continue"]')
     await onboardingAt(page, 'statement')
-    if (await page.$('[data-testid="onboarding-statements-folder"]')) throw new Error('books kept in this browser are offered a statements folder')
     if (!(await page.$('[data-testid="onboarding-statements-by-hand"]'))) throw new Error('the statement step does not say books kept in this browser take statements by hand')
     await inspect?.('the statement step of books kept in this browser')
     await shoot('onboarding-statement-browser')
@@ -3311,7 +3272,6 @@ export const onboardingBrowserFlow = onboardingBrowserFlowIn('en')
  */
 export function onboardingBringFlowIn(language, path) {
   const words = SCREEN_WORDS[language]
-  const unseen = `Books${words.writes.firstRun.folder.unseen.split('.')[0]}`
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await onboardingAt(page, 'welcome')
@@ -3339,7 +3299,7 @@ export function onboardingBringFlowIn(language, path) {
     await inspect?.('the file summary')
     await shoot('onboarding-file')
     await pressSelector(page, press, '[data-testid="onboarding-continue"]')
-    await confirmFolder(page, press, { shoot, inspect }, unseen)
+    await confirmFolder(page, press, { shoot, inspect }, inKunaFolder(words, 'company'))
     await toastMatching(page, anyCount(words.writes.firstRun.folder.moved(1000)))
     await dismissToasts(page)
     await onboardingAt(page, 'company')
@@ -3391,8 +3351,7 @@ export const onboardingOpenFlow = onboardingOpenFlowIn('en')
 export function onboardingStartOverFlowIn(language) {
   const words = SCREEN_WORDS[language]
   const { made, statement } = words.onboarding
-  const unseen = `Books${words.writes.firstRun.folder.unseen.split('.')[0]}`
-  const created = exactly(words.writes.firstRun.folder.created('kuna-company.json', 'Books'))
+  const created = exactly(words.writes.firstRun.folder.created('kuna-company.json', inKunaFolder(words, 'company')))
   const trash = made.trash('kuna-company.json')
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
@@ -3401,11 +3360,11 @@ export function onboardingStartOverFlowIn(language) {
     await onboardingAt(page, 'home')
     await pressSelector(page, press, '[data-testid="onboarding-continue"]')
     await allowGoogle(page, press, { shoot: () => {} }, words)
-    await confirmFolder(page, press, { shoot: () => {} }, unseen)
+    await confirmFolder(page, press, { shoot: () => {} }, 'company')
     await toastMatching(page, created)
     await dismissToasts(page)
     await onboardingAt(page, 'company')
-    await backToMade(page, press, 'folder', ['Books', 'kuna-company.json'])
+    await backToMade(page, press, 'folder', ['company', 'kuna-company.json'])
     await startOverAsks(page, press, [trash, made.trashNote, made.holds(0, 1000).split('1000')[0]])
     await inspect?.('Start over asking before it trashes the books')
     await pressSelector(page, press, '[data-testid="onboarding-keep-books"]')
@@ -3413,14 +3372,14 @@ export function onboardingStartOverFlowIn(language) {
     if (!(await page.$('[data-testid="onboarding-made"]'))) throw new Error('Keep them dropped the books')
     await startOverAsks(page, press, [trash])
     await confirmStartOver(page, press)
-    await page.waitForSelector('[data-testid="company-start-choose-folder"]', { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error('Start over did not bring back the choice of a folder')
+    await page.waitForSelector('[data-testid="company-start-create"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('Start over did not bring back the folder step')
     })
     if (await page.$('[data-testid="onboarding-made"]')) throw new Error('the folder step still shows the books made after Start over')
     await inspect?.('the folder step after Start over')
     await shoot('onboarding-start-over')
-    await confirmFolder(page, press, { shoot: () => {} }, unseen)
-    await toastMatching(page, created)
+    await confirmFolder(page, press, { shoot: () => {} }, 'company')
+    await toastMatching(page, exactly(words.writes.firstRun.folder.created('kuna-company.json', 'Kuna › company')))
     await dismissToasts(page)
     await onboardingAt(page, 'company')
     await pressSelector(page, press, '[data-testid="onboarding-continue"]')
@@ -3496,7 +3455,7 @@ export function moveOntoDriveFlowIn(language) {
     await toastMatching(page, exactly(words.books.find.opened('kuna-company.json')))
     await onboardingAt(page, 'overview')
     await dismissToasts(page)
-    await booksShowDriveFile(page, false, words)
+    await booksShowDriveFile(page, false, words, false)
     await inspect?.('Settings, Books file once the books on Drive are open')
   }
 }
@@ -3506,7 +3465,7 @@ export const moveOntoDriveFlow = moveOntoDriveFlowIn('en')
 /**
  * Settings, Books file: the books kept in this browser move to a new file on the fake Drive through
  * onboarding's access and folder steps. The access step asks for the Drive read their statements
- * folder needs, so the folder confirm names the full path, and the sync control
+ * folder needs, the folder confirm names the app's subfolder of the Kuna folder, and the sync control
  * shows no Allow access once they are there.
  */
 export function moveFromBrowserFlowIn(language) {
@@ -3522,7 +3481,7 @@ export function moveFromBrowserFlowIn(language) {
     await allowGoogle(page, press, { shoot, inspect }, words)
     const asked = await page.evaluate(() => JSON.parse(window.localStorage.getItem('kuna.google-needed') ?? '[]'))
     if (JSON.stringify(asked) !== JSON.stringify(['drive.file', 'drive.readonly'])) throw new Error(`the move asked Google for ${asked.join(', ')}, not the books file and Drive read`)
-    await confirmFolder(page, press, { shoot, inspect }, `${words.myDrive} › Books`)
+    await confirmFolder(page, press, { shoot, inspect }, inKunaFolder(words, 'company'))
     await toastMatching(page, anyCount(words.writes.firstRun.folder.moved(1000)))
     await onboardingAt(page, 'overview')
     await dismissToasts(page)
@@ -3536,36 +3495,198 @@ export function moveFromBrowserFlowIn(language) {
 export const moveFromBrowserFlow = moveFromBrowserFlowIn('en')
 
 /**
- * The statement step of statements from a Drive folder on a page whose token lacks Drive read, as
- * after a reload: Choose folder asks Google in the same tap before the Picker, so the folder comes
- * back with its path, and nothing points to a sync control onboarding does not show.
+ * The one start on the home of a new device: the welcome shows in place of the cards, picks Loans and Assets and suggests their order, and goes on
+ * only with an app picked. Saying Drive makes nothing. The cards then lead the picked apps, the others wait under them, and Assets asks no storage
+ * question: its folder step names its subfolder of the new Kuna folder, and Loans' names the same folder without offering to put it elsewhere.
+ * Kuna settings says where new files go, and asks again.
  */
-export function onboardingStatementAccessFlowIn(language) {
+export function kunaWelcomeFlowIn(language) {
   const words = SCREEN_WORDS[language]
-  const trail = `${words.myDrive} › Books`
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    await page.evaluate(() => localStorage.setItem('kuna.google-granted', JSON.stringify(['drive.file', 'gmail.compose'])))
-    await page.reload({ waitUntil: 'networkidle0' })
-    await onboardingAt(page, 'statement')
-    await pressButton(page, press, '[data-testid="onboarding-statements-folder"] button', words.onboarding.statement.chooseFolder)
-    await page
-      .waitForFunction((wanted) => document.querySelector('[data-testid="onboarding-statements-folder"]')?.textContent?.includes(wanted) ?? false, { timeout: 10_000 }, trail)
-      .catch(async () => {
-        const said = await page.$eval(STEP, (element) => element.textContent ?? '')
-        throw new Error(`the statement step does not show the folder chosen with its path, it says: ${said}`)
-      })
-    const syncControl = { en: 'sync control', hr: 'Gumb za sinkronizaciju' }[language]
-    if ((await page.$eval(STEP, (element) => element.textContent ?? '')).includes(syncControl)) throw new Error('the statement step points to the sync control')
-    const granted = await page.evaluate(() => JSON.parse(localStorage.getItem('kuna.google-granted') ?? '[]'))
-    if (!granted.includes('drive.readonly')) throw new Error(`Choose folder asked Google for ${granted.join(', ')}, without Drive read`)
-    await inspect?.('the statement step once Drive read was asked in the tap')
-    await shoot('onboarding-statement-access')
-    await page.evaluate(() => localStorage.removeItem('kuna.google-granted'))
+    await page.waitForSelector('[data-testid="kuna-welcome"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('a new device shows no welcome on the home')
+    })
+    if (await page.$('[data-testid="home-card"]')) throw new Error('the welcome shows beside the cards')
+    if (!(await page.$eval('[data-testid="kuna-welcome-continue"]', (button) => button.disabled))) throw new Error('the welcome goes on with no app picked')
+    if (!(await page.$('[data-testid="home-kuna-settings"]'))) throw new Error('the welcome leaves no way to Kuna settings')
+    await inspect?.('the welcome')
+    await shoot('kuna-welcome')
+    await pressButton(page, press, '[data-testid="kuna-welcome-apps"] label', words.loans)
+    await pressButton(page, press, '[data-testid="kuna-welcome-apps"] label', words.assetsApp)
+    await page.waitForSelector('[data-testid="kuna-welcome-order"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('the welcome does not suggest Loans before Assets')
+    })
+    await inspect?.('the welcome with its order line')
+    await shoot('kuna-welcome-picked')
+    await pressSelector(page, press, '[data-testid="kuna-welcome-continue"]')
+    await page.waitForSelector('[data-testid="home-other-cards"] [data-testid="home-card"][data-app="company"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('an app left out does not wait under the others')
+    })
+    if (await page.$('[data-testid="home-overview"]')) throw new Error('with no file yet the home offers Net worth')
+    if ((await page.evaluate(homeMenu)) !== null) {
+      if ((await page.evaluate(menuShown)).apps.length !== 0) throw new Error('the sidebar lists an app with no file')
+      await pressSelector(page, press, '[data-testid="nav-add-app"]')
+      const focused = await page.evaluate(() => document.activeElement?.dataset.app)
+      if (focused !== 'loans') throw new Error(`Add an app moved focus to ${focused}, not the first picked app in Set up`)
+    }
+    await inspect?.('the home after the welcome')
+    await shoot('kuna-welcome-answered')
+    await pressSelector(page, press, '[data-testid="home-card"][data-app="assets"]')
+    await firstRunAt(page, ASSETS, 'folder')
+    const assetsConfirm = await page.waitForSelector('[data-testid="assets-start-folder-confirm"]', { visible: true, timeout: 10_000 })
+    const said = await assetsConfirm.evaluate((element) => element.textContent ?? '')
+    if (!said.includes(inKunaFolder(words, 'assets'))) throw new Error(`the Assets folder step says "${said}"`)
+    if (await page.$('[data-testid="onboarding-back"]')) throw new Error('the folder step of someone who answered goes back to a question')
+    if (!(await page.$('[data-testid="assets-start-open-existing"]'))) throw new Error('the folder step offers no way to open a file the person already has')
+    await inspect?.('the Assets folder step after the welcome')
+    await shoot('kuna-welcome-assets')
+    await pressSelector(page, press, '[data-testid="assets-start-open-existing"]')
+    await firstRunAt(page, ASSETS, 'find')
+    await pressSelector(page, press, '[data-testid="onboarding-back"]')
+    await firstRunAt(page, ASSETS, 'folder')
+    await pressSelector(page, press, '[data-testid="assets-start-create"]')
+    await toastMatching(page, exactly(words.writes.firstRun.folder.created('kuna-assets.json', inKunaFolder(words, 'assets'))))
+    await firstRunAt(page, ASSETS, 'overview')
+    await dismissToasts(page)
+    if ((await page.evaluate(homeMenu)) !== null) {
+      const listed = (await page.evaluate(menuShown)).apps
+      if (JSON.stringify(listed) !== JSON.stringify(['assets'])) throw new Error(`with one file the sidebar lists ${listed.join()}, not Assets alone, whichever list the others wait in`)
+    }
+    await page.evaluate(() => {
+      window.location.hash = '#/loans/start'
+    })
+    await firstRunAt(page, LOANS, 'folder')
+    await page.waitForFunction((wanted) => document.querySelector('[data-testid="loans-start-folder-confirm"]')?.textContent?.includes(wanted) ?? false, { timeout: 10_000 }, `Kuna › loans`)
+    if (await page.$('[data-testid="loans-start-elsewhere"]')) throw new Error('a Kuna folder that exists is offered a new place')
+    await page.evaluate(() => {
+      window.location.hash = '#/settings'
+    })
+    const card = await page.waitForSelector('[data-testid="files-home-answer"]', { visible: true, timeout: 10_000 })
+    if ((await card.evaluate((element) => element.textContent ?? '')) !== words.filesHome.onDrive) throw new Error('Kuna settings does not say where new files go')
+    await inspect?.('Kuna settings with the answer')
+    await shoot('kuna-welcome-settings')
   }
 }
 
-export const onboardingStatementAccessFlow = onboardingStatementAccessFlowIn('en')
+export const kunaWelcomeFlow = kunaWelcomeFlowIn('en')
+
+/** Saying this browser at the welcome: the app's first run asks nothing, says where the file goes, and one tap makes it. */
+export function kunaWelcomeBrowserFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="kuna-welcome"]', { visible: true, timeout: 10_000 })
+    await pressButton(page, press, '[data-testid="kuna-welcome-apps"] label', words.loans)
+    await pressButton(page, press, '[data-testid="kuna-welcome-home"] label', words.home.welcome.browser)
+    await pressSelector(page, press, '[data-testid="kuna-welcome-continue"]')
+    await pressSelector(page, press, '[data-testid="home-card"][data-app="loans"]')
+    await firstRunAt(page, LOANS, 'home')
+    await page.waitForSelector('[data-testid="loans-start-in-browser"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the first run of someone who said this browser does not say so')
+    })
+    if (await page.$('[data-testid="loans-start-home"]')) throw new Error('the first run asks where the file lives again')
+    await inspect?.('the Loans first run after this browser')
+    await shoot('kuna-welcome-browser')
+    await pressSelector(page, press, '[data-testid="loans-start-continue"]')
+    await firstRunAt(page, LOANS, 'overview')
+  }
+}
+
+export const kunaWelcomeBrowserFlow = kunaWelcomeBrowserFlowIn('en')
+
+/**
+ * Settings, Books file on the fake Drive: the file sits outside the Kuna folder and stays there until the person presses. The dialog names what
+ * goes and what stays, with the statements folder staying since its setting is a path from My Drive. Moving keeps the file open and working, the
+ * Settings then names its new folder and stops offering the move, and a sync afterwards still reads it.
+ */
+export function moveIntoKunaFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const text = words.writes.moveIntoKuna
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page
+      .waitForFunction(() => document.querySelector('[data-testid="drive-file-place"] a')?.textContent?.trim() === 'Books', { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('the seeded file does not start in its own folder')
+      })
+    await inspect?.('Settings, Books file offering the move')
+    await shoot('move-into-kuna-offer')
+    await pressSelector(page, press, '[data-testid="move-into-kuna-open"]')
+    const goes = await page.waitForSelector('[data-testid="move-into-kuna-goes"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the move does not list what goes')
+    })
+    await delay(400)
+    if (!(await goes.evaluate((element) => element.textContent ?? '')).includes('kuna-company.json')) throw new Error('the move does not name the file')
+    const stays = await page.$eval('[data-testid="move-into-kuna-stays"]', (element) => element.textContent ?? '').catch(() => '')
+    if (!stays.includes(words.myDrive)) throw new Error(`the move says "${stays}" stays, without the statements folder named from My Drive`)
+    await inspect?.('the move dialog')
+    await shoot('move-into-kuna')
+    await pressSelector(page, press, '[data-testid="move-into-kuna-confirm"]')
+    await toastMatching(page, exactly(text.moved('kuna-company.json', inKunaFolder(words, 'company'))))
+    await page
+      .waitForFunction(() => document.querySelector('[data-testid="drive-file-place"] a')?.textContent?.trim() === 'company', { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('Settings does not name the new folder')
+      })
+    await page
+      .waitForFunction(() => !document.querySelector('[data-testid="move-into-kuna-open"]'), { timeout: 5_000 })
+      .catch(() => {
+        throw new Error('Settings still offers the move')
+      })
+    await dismissToasts(page)
+    await inspect?.('Settings, Books file after the move')
+    await shoot('move-into-kuna-done')
+    await syncAndSettle(page, press)
+    await pageSays(page, 'kuna-company.json', true)
+  }
+}
+
+export const moveIntoKunaFlow = moveIntoKunaFlowIn('en')
+
+/**
+ * The statements folder holds a statement Kuna filed from mail, one a script filed and the accountant's mail. The dialog counts one going and two
+ * staying, and says it cannot tell who made them. Moving takes the one, and the setting then names the folder beside the file.
+ */
+export function moveStatementsIntoKunaFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const text = words.writes.moveIntoKuna
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await pressSelector(page, press, '[data-testid="move-into-kuna-open"]')
+    const goes = await page.waitForSelector('[data-testid="move-into-kuna-goes"]', { visible: true, timeout: 10_000 })
+    await delay(400)
+    const going = await goes.evaluate((element) => element.textContent ?? '')
+    if (!going.includes('statements')) throw new Error(`the move says "${going}" goes, without the statements Kuna filed`)
+    const others = await page.$eval('[data-testid="move-into-kuna-others"]', (element) => element.textContent ?? '').catch(() => '')
+    if (
+      !others.includes(
+        (() => {
+          const forms = words.writes.moveIntoKuna.others(2)
+          return (forms.few ?? forms.other).split(' ').slice(0, 3).join(' ')
+        })(),
+      )
+    )
+      throw new Error(`the move says "${others}" of the rest`)
+    if (!(await page.$('[data-testid="move-into-kuna-stops-reading"]'))) throw new Error('the move does not say Kuna stops reading the old statements folder')
+    await inspect?.('the move dialog with statements')
+    await shoot('move-statements-into-kuna')
+    await pressSelector(page, press, '[data-testid="move-into-kuna-confirm"]')
+    await toastMatching(page, exactly(text.moved('kuna-company.json', inKunaFolder(words, 'company'))))
+    await dismissToasts(page)
+    await page.evaluate(() => {
+      window.location.hash = '#/company/settings'
+    })
+    await page
+      .waitForFunction(() => document.querySelector('[data-testid="statements-folder"] input')?.value === './statements', { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('the statements setting does not name the folder beside the file after the move')
+      })
+    await inspect?.('Settings, General after the move')
+  }
+}
+
+export const moveStatementsIntoKunaFlow = moveStatementsIntoKunaFlowIn('en')
 
 function queueLength(page) {
   return page.evaluate(() => document.querySelectorAll('[data-testid="review-row"]').length)
@@ -3739,7 +3860,7 @@ const SPENDING = { id: 'spending', name: 'Spending' }
 
 /**
  * The Investments first run with the company books on the fake Drive: Investments opens on it, a new file on the fake
- * Drive lands in Books as kuna-investments.json, the Investments Overview says it holds no transactions yet, and the
+ * Drive lands in its Kuna folder as kuna-investments.json, the Investments Overview says it holds no transactions yet, and the
  * Investments Settings names the file.
  */
 export async function investmentsDriveFlow(page, { press, shoot, inspect }) {
@@ -3749,14 +3870,13 @@ export async function investmentsDriveFlow(page, { press, shoot, inspect }) {
   await chooseOption(page, press, 'investments-start-home', 'A new file on Google Drive')
   await pressSelector(page, press, '[data-testid="investments-start-continue"]')
   await firstRunAt(page, INVESTMENTS, 'folder')
-  await pressSelector(page, press, '[data-testid="investments-start-choose-folder"]')
   const confirm = await page.waitForSelector('[data-testid="investments-start-folder-confirm"]', { visible: true, timeout: 10_000 })
   const said = await confirm.evaluate((element) => element.textContent ?? '')
-  if (!said.includes('Books') || !said.includes('kuna-investments.json')) throw new Error(`the folder confirm says "${said}", not Books and kuna-investments.json`)
+  if (!said.includes('Kuna › investments') || !said.includes('kuna-investments.json')) throw new Error(`the folder confirm says "${said}", not its Kuna folder and kuna-investments.json`)
   await inspect?.('the Investments folder confirm')
   await shoot('investments-start-folder')
   await pressSelector(page, press, '[data-testid="investments-start-create"]')
-  await toastMatching(page, /^Created kuna-investments\.json in (My Drive › )?Books$/)
+  await toastMatching(page, /^Created kuna-investments\.json in My Drive › Kuna › investments$/)
   await firstRunAt(page, INVESTMENTS, 'overview')
   await pageSays(page, 'on Google Drive as kuna-investments.json', true)
   await inspect?.('the empty Investments Overview')
@@ -4403,13 +4523,12 @@ export function investmentsClosesImportFlowIn(language, files) {
 
 /**
  * The Loans first run with the company books on the fake Drive: Loans opens on it, a new file on the
- * fake Drive lands in Books as kuna-loans.json, the Loans Overview says it holds no loans yet, and the
+ * fake Drive lands in its Kuna folder as kuna-loans.json, the Loans Overview says it holds no loans yet, and the
  * Loans Settings names the file.
  */
 export function loansDriveFlowIn(language) {
   const words = SCREEN_WORDS[language]
-  const { created } = words.writes.firstRun.folder
-  const createdIn = new RegExp(`${exactly(created('kuna-loans.json', 'Books')).source}|${exactly(created('kuna-loans.json', `${words.myDrive} › Books`)).source}`)
+  const createdIn = exactly(words.writes.firstRun.folder.created('kuna-loans.json', inKunaFolder(words, 'loans')))
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await firstRunAt(page, LOANS, 'home')
@@ -4418,10 +4537,9 @@ export function loansDriveFlowIn(language) {
     await chooseOption(page, press, 'loans-start-home', words.writes.firstRun.home.drive)
     await pressSelector(page, press, '[data-testid="loans-start-continue"]')
     await firstRunAt(page, LOANS, 'folder')
-    await pressSelector(page, press, '[data-testid="loans-start-choose-folder"]')
     const confirm = await page.waitForSelector('[data-testid="loans-start-folder-confirm"]', { visible: true, timeout: 10_000 })
     const said = await confirm.evaluate((element) => element.textContent ?? '')
-    if (!said.includes('Books') || !said.includes('kuna-loans.json')) throw new Error(`the folder confirm says "${said}", not Books and kuna-loans.json`)
+    if (!said.includes('Kuna › loans') || !said.includes('kuna-loans.json')) throw new Error(`the folder confirm says "${said}", not its Kuna folder and kuna-loans.json`)
     await inspect?.('the Loans folder confirm')
     await shoot('loans-start-folder')
     await pressSelector(page, press, '[data-testid="loans-start-create"]')
@@ -4492,7 +4610,7 @@ export function firstRunOnDriveFlowIn(id, language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await firstRunAt(page, app, 'folder')
-    await pressSelector(page, press, `[data-testid="${app.id}-start-choose-folder"]`)
+    await pressSelector(page, press, `[data-testid="${app.id}-start-create"]`)
     const alert = await page.waitForSelector(`[data-testid="${app.id}-start-on-drive"]`, { visible: true, timeout: 10_000 }).catch(() => {
       throw new Error(`the ${app.name} folder step does not say Drive already holds the ${app.name} file`)
     })
@@ -4981,29 +5099,41 @@ export function homeFlowIn(language) {
 export const homeFlow = homeFlowIn('en')
 
 /**
- * A fresh device opens the home with every app in Set up. Loans, Investments, Assets and Spending can be set up first: each card opens
- * its first run, whose link home comes back, and the Company card opens the company's welcome.
+ * A fresh device opens the home with the welcome in place of the cards, and a sidebar with Add an app alone, which moves focus to the welcome's first
+ * app, no Net worth and no empty strip where Sync would be. Once answered every app shows in Set up. Loans, Investments, Assets and Spending can be set
+ * up first: each card opens its first run, whose link home comes back, and the Company card opens the company's welcome.
  */
 export function setUpFlowIn(language) {
   const words = SCREEN_WORDS[language]
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    const cards = await page.evaluate(homeCards)
-    if (cards.length !== 5 || cards.some((card) => card.state !== 'set-up' || !card.text.includes(words.setUp)))
-      throw new Error(`the fresh home shows ${JSON.stringify(cards.map((card) => [card.app, card.state]))}`)
+    await page.waitForSelector('[data-testid="kuna-welcome"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the fresh home shows no welcome')
+    })
     if (await page.evaluate(() => document.querySelector('[data-testid="sync-status"]') !== null)) throw new Error('the fresh home shows a sync control')
-    const menu = await page.evaluate(homeMenu)
-    if (menu !== null) {
-      sidebarMatchesCards(menu, cards, words)
+    if ((await page.evaluate(homeMenu)) !== null) {
       const fresh = await page.evaluate(menuShown)
-      if (fresh.addApp !== words.addApp || fresh.netWorth !== null) throw new Error(`before any app is set up the sidebar shows ${fresh.addApp} and ${fresh.netWorth}`)
+      if (fresh.apps.length !== 0 || fresh.addApp !== words.addApp || fresh.netWorth !== null)
+        throw new Error(`before any app is set up the sidebar shows ${fresh.apps.join()}, ${fresh.addApp} and ${fresh.netWorth}`)
+      if (await page.$('[data-testid="sidebar-sync"]')) throw new Error('before any app is set up the sidebar keeps an empty strip where Sync would be')
       await pressSelector(page, press, '[data-testid="nav-add-app"]')
-      const focused = await page.evaluate(() => ({ card: document.activeElement?.dataset.testid, state: document.activeElement?.dataset.state, app: document.activeElement?.dataset.app }))
-      if (focused.card !== 'home-card' || focused.state !== 'set-up' || focused.app !== 'company')
-        throw new Error(`Add an app on the home moved focus to ${JSON.stringify(focused)}, not the first card in Set up`)
+      const inWelcome = await page.evaluate(() => Boolean(document.activeElement?.closest('[data-testid="kuna-welcome-apps"]')))
+      if (!inWelcome) throw new Error('Add an app on the welcome did not move focus to its first app')
     }
+    if (await page.$('[data-testid="home-overview"]')) throw new Error('before any app is set up the home offers Net worth')
     await inspect?.('the home on a fresh device')
     await shoot('home-set-up')
+    for (const name of [words.company, words.loans, words.investments, words.assetsApp, words.spendingApp]) {
+      await pressButton(page, press, '[data-testid="kuna-welcome-apps"] label', name)
+    }
+    await pressSelector(page, press, '[data-testid="kuna-welcome-continue"]')
+    await page.waitForSelector('[data-testid="home-card"]', { visible: true, timeout: 10_000 })
+    if (await page.$('[data-testid="home-overview"]')) throw new Error('with no file yet the home offers Net worth')
+    const cards = await page.evaluate(homeCards)
+    if (cards.length !== 5 || cards.some((card) => card.state !== 'set-up' || !card.text.includes(words.setUp)))
+      throw new Error(`the answered home shows ${JSON.stringify(cards.map((card) => [card.app, card.state]))}`)
+    const menu = await page.evaluate(homeMenu)
+    if (menu !== null) sidebarMatchesCards(menu, cards, words)
 
     for (const [app, name] of [
       [LOANS, words.loans],
@@ -5012,7 +5142,7 @@ export function setUpFlowIn(language) {
       [SPENDING, words.spendingApp],
     ]) {
       await pressSelector(page, press, `[data-testid="home-card"][data-app="${app.id}"]`)
-      await firstRunAt(page, app, 'home')
+      await firstRunAt(page, app, 'folder')
       await screenTitled(page, name)
       await inspect?.(`the ${app.name} first run from the home`)
       await pressSelector(page, press, '[data-testid="home-link"]')

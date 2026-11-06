@@ -15,6 +15,12 @@ export const CATEGORIES_LINE = 'categories'
 /** The answer that clears it. */
 export const CATEGORIES_LOOK_RIGHT = 'categories-look-right'
 
+/** The line that offers mail or folder delivery after the first statement. */
+export const DELIVERY_LINE = 'statement-delivery'
+
+/** The answer that clears it for someone who keeps importing by hand. */
+export const DELIVERY_BY_HAND = 'statements-by-hand'
+
 /** How many payees a first statement teaches, and how many rules of a person's own end the teaching. */
 const PAYEES_TO_TEACH = 5
 
@@ -38,10 +44,11 @@ function firstRulesLine(workbook: Workbook): SetUpLine | null {
 /**
  * What the books still lack after onboarding, each gone once done: a first statement, its biggest
  * payees taught as rules, the statements folder while filing on sync is on without one, a look over
- * the categories new books start with until someone says they look right, and the company's invoice
- * details once there is a client to invoice.
+ * the categories new books start with until someone says they look right, the company's invoice
+ * details once there is a client to invoice, and how later statements arrive, once a first one is in
+ * books on Drive that take them by hand.
  */
-export function gettingSetUp(workbook: Workbook, categoriesLookRight = false): SetUpLine[] {
+export function gettingSetUp(workbook: Workbook, categoriesLookRight = false, offersDelivery = false): SetUpLine[] {
   const firstRules = firstRulesLine(workbook)
   const lines: SetUpLine[] = firstRules === null ? [] : [firstRules]
   if (workbook.transactions.length === 0) {
@@ -59,6 +66,10 @@ export function gettingSetUp(workbook: Workbook, categoriesLookRight = false): S
   }
   if (workbook.clients.length > 0 && REQUIRED_ISSUER.some(([field]) => workbook.settings.invoicing[field].trim() === '')) {
     lines.push({ key: 'invoice-terms', text: words.setUp.invoiceTerms, link: { label: words.setUp.clientsLink, to: { path: '/company/invoicing', query: { tab: 'clients' } } } })
+  }
+  const { statementsSync, statementsFolder, statementsMailFrom } = workbook.settings
+  if (offersDelivery && workbook.transactions.length > 0 && !statementsSync && statementsFolder.length === 0 && statementsMailFrom.length === 0) {
+    lines.push({ key: DELIVERY_LINE, text: words.setUp.delivery })
   }
   return lines
 }

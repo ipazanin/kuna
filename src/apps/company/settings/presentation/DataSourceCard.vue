@@ -3,6 +3,7 @@ import { computed, ref, useTemplateRef } from 'vue'
 import { useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 
+import type { DriveFileBeside } from '../../../../shared/storage/application/workbookPorts'
 import BooksFileCard from '../../../../shared/storage/presentation/BooksFileCard.vue'
 import SwitchSourceDialog from '../../data-source/presentation/SwitchSourceDialog.vue'
 import { onboardingStart } from '../../onboarding/presentation/useOnboarding'
@@ -11,6 +12,9 @@ import { useExport } from '../../workbook-files/presentation/useExport'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import NewerFileNotice from '../../workbook/presentation/NewerFileNotice.vue'
 import { NEW_BOOKS_TITLE, WORKBOOK_FILE_TYPES } from '../../workbook/presentation/workbookFiles'
+import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
+import { setSettings } from '../application/settingWrites'
+import { companyFileBeside, settingsAfterMove } from './companyFileBeside'
 import { words } from './words'
 
 /** Settings, Books file: where the company's books are, with the export, the import and the switch to another source. */
@@ -29,6 +33,15 @@ function moveToDrive(): void {
 
 const switching = ref(false)
 
+function beside(): DriveFileBeside {
+  return state.workbook === null ? { files: [], folders: [], stays: [], blockedBy: [] } : companyFileBeside(state.workbook)
+}
+
+async function afterMove(): Promise<void> {
+  const rows = state.workbook === null ? [] : settingsAfterMove(state.workbook)
+  if (rows.length > 0) await store.write(words.saved, (unit) => setSettings(unit, state.records?.settings ?? NO_RECORDS, rows))
+}
+
 const pickedFile = ref<File | null>(null)
 const fileInput = useTemplateRef<HTMLInputElement>('fileInput')
 
@@ -40,7 +53,15 @@ function takeFile(event: Event): void {
 </script>
 
 <template>
-  <BooksFileCard :title="words.books.title" :store="store" :seeded-title="{ stored: NEW_BOOKS_TITLE, shown: words.books.newBooks }" data-testid="data-source-card">
+  <BooksFileCard
+    :title="words.books.title"
+    app-id="company"
+    :store="store"
+    :beside="beside"
+    :after-move="afterMove"
+    :seeded-title="{ stored: NEW_BOOKS_TITLE, shown: words.books.newBooks }"
+    data-testid="data-source-card"
+  >
     <NewerFileNotice />
     <input ref="fileInput" type="file" :accept="WORKBOOK_FILE_TYPES" class="sr-only" tabindex="-1" aria-hidden="true" @change="takeFile" />
     <template #actions>

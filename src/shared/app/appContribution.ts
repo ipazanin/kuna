@@ -112,6 +112,12 @@ export interface AppAssist {
   tasks(): readonly AssistTaskSummary[]
 }
 
+/** The app that is better set up first, and what a person gains by it. */
+export interface SetUpOrder {
+  readonly after: string
+  readonly why: string
+}
+
 /** What an app gives the shell: its screens and menu, its card on the home, its figures on Net worth, its first run, its part of the page's sync, and what runs while the page is open. */
 export interface AppContribution {
   /** The first part of every route of the app, and the app the document names. */
@@ -142,6 +148,8 @@ export interface AppContribution {
   /** True while the app has nothing to show, so the shell sends an address under the app to `startPath`, the menu leaves it out, and its card on the home offers Set up. */
   firstRun(): boolean
   readonly startPath: `/${string}`
+  /** The order the home welcome suggests when the person picks both apps. It is a suggestion, and no first run waits for it. */
+  readonly setUpOrder?: SetUpOrder
   /** The app's part of the page's one sync, which the shell asks for once as it starts. */
   syncGroup(): AppSyncGroup
   /** The app's own specimens for the gallery, which only development and fake builds load. */

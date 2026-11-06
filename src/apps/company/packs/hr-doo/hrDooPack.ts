@@ -55,6 +55,10 @@ export const hrDooPack: PackContribution = {
   categoryClassHelp,
   categoriesToSort,
   mailSources: ACCOUNTANT_MAIL_SOURCES,
+  folderSettings: (workbook) => {
+    const facts = packPart(workbook, HR_DOO)?.companyFacts
+    return facts === undefined ? [] : [facts.vatReturnsFolder, facts.payrollFolder, facts.incomingInvoicesFolder]
+  },
   onboarding: packWords.onboarding,
   assist: [EXPLAIN_FIGURE_SUMMARY],
   // The records, not the workbook's employees, which drop an IBAN two of them share and a row listed twice.

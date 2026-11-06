@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import UButton from '@nuxt/ui/components/Button.vue'
 
+import { RECEIPTS_FOLDER } from '../../receipts/application/receiptPhotos'
 import BooksFileCard from '../../../../shared/storage/presentation/BooksFileCard.vue'
 import { SPENDING_START_ROUTE } from '../../overview/presentation/spendingLinks'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
@@ -15,7 +16,14 @@ const { exporting, exportNow } = useSpendingExport()
 </script>
 
 <template>
-  <BooksFileCard :title="words.books" :store="store" :seeded-title="{ stored: LOCAL_SPENDING_TITLE, shown: words.localTitle }" data-testid="spending-books-card">
+  <BooksFileCard
+    :title="words.books"
+    app-id="spending"
+    :beside="() => ({ files: [], folders: [{ name: RECEIPTS_FOLDER, mailSource: null }], stays: [], blockedBy: [] })"
+    :store="store"
+    :seeded-title="{ stored: LOCAL_SPENDING_TITLE, shown: words.localTitle }"
+    data-testid="spending-books-card"
+  >
     <template #actions>
       <UButton icon="i-lucide-download" :label="words.export" color="neutral" variant="outline" size="sm" :loading="exporting" :disabled="exporting || state.snapshot === null" @click="exportNow" />
       <UButton :to="SPENDING_START_ROUTE" icon="i-lucide-arrow-left-right" :label="words.switchStorage" color="neutral" variant="outline" size="sm" data-testid="spending-switch-storage" />

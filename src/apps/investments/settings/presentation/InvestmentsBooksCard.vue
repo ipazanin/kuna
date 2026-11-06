@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
+import { PRICES_FILE_NAME } from '../../prices/domain/pricesFile'
 import BooksFileCard from '../../../../shared/storage/presentation/BooksFileCard.vue'
 import { INVESTMENTS_START_ROUTE } from '../../overview/presentation/investmentLinks'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
@@ -21,7 +22,14 @@ const removing = ref(false)
 </script>
 
 <template>
-  <BooksFileCard :title="words.books" :store="store" :seeded-title="{ stored: LOCAL_INVESTMENTS_TITLE, shown: words.localTitle }" data-testid="investments-books-card">
+  <BooksFileCard
+    :title="words.books"
+    app-id="investments"
+    :beside="() => ({ files: [PRICES_FILE_NAME], folders: [], stays: [], blockedBy: [] })"
+    :store="store"
+    :seeded-title="{ stored: LOCAL_INVESTMENTS_TITLE, shown: words.localTitle }"
+    data-testid="investments-books-card"
+  >
     <template #actions>
       <UButton icon="i-lucide-download" :label="words.export" color="neutral" variant="outline" size="sm" :loading="exporting" :disabled="exporting || state.snapshot === null" @click="exportNow" />
       <UButton :to="INVESTMENTS_START_ROUTE" icon="i-lucide-arrow-left-right" :label="words.switchStorage" color="neutral" variant="outline" size="sm" data-testid="investments-switch-storage" />

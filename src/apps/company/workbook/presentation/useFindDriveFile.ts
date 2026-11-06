@@ -29,7 +29,7 @@ export function useFindDriveFile(): FindDriveFile {
       return false
     }
     const place = await store.driveFilePlace().catch(() => null)
-    const where = place === null ? words.find.onDrive : words.find.inFolder(place.folderName)
+    const where = place?.folderName == null ? words.find.onDrive : words.find.inFolder(place.folderName)
     const already = before?.source === 'drive' && before.id === chosen.id
     toast.add({
       title: already ? words.find.alreadyOpen : words.find.opened(chosen.name),

@@ -22,6 +22,13 @@ export const en = {
       "There is no server. Nothing leaves this browser except calls to Google's APIs for the books on Drive, your statements and your invoices, to the price vendors for Investments, and to the AI provider of your key for an app you switched the assistant on for.",
     privacyLink: 'Read the privacy notes',
   },
+  filesHome: {
+    title: 'Where new files go',
+    onDrive: "New files go in Kuna's folder on Google Drive, with a folder inside it for each app. Your existing files stay where they are. Each app's Settings can move its file.",
+    inBrowser: 'New files stay in this browser. Your existing files stay where they are.',
+    askAgainNote: 'The next app you set up on this device asks again. Nothing moves.',
+    askAgain: 'Ask me again',
+  },
   sync: {
     title: 'Sync',
     subtitle: 'Each sync reads the books on Drive, then runs every step their settings turn on, in order.',
@@ -64,6 +71,13 @@ export const hr: Translation<typeof en> = {
     privacy:
       'Nema poslužitelja. Iz ovog preglednika ništa ne odlazi osim poziva Googleovim sučeljima za datoteke na Driveu, vaše izvode i vaše račune, izvorima cijena za Ulaganja i pružatelju AI-ja vašeg ključa za aplikaciju za koju ste uključili asistenta.',
     privacyLink: 'Pročitajte napomene o privatnosti',
+  },
+  filesHome: {
+    title: 'Gdje idu nove datoteke',
+    onDrive: 'Nove datoteke idu u mapu Kuna na Google Driveu, s mapom za svaku aplikaciju. Postojeće datoteke ostaju gdje jesu. Postavke svake aplikacije mogu premjestiti njezinu datoteku.',
+    inBrowser: 'Nove datoteke ostaju u ovom pregledniku. Postojeće datoteke ostaju gdje jesu.',
+    askAgainNote: 'Sljedeća aplikacija koju postavite na ovom uređaju ponovno pita. Ništa se ne premješta.',
+    askAgain: 'Pitaj me ponovno',
   },
   sync: {
     title: 'Sinkronizacija',

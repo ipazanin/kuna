@@ -23,12 +23,23 @@ export interface DocumentDrive {
   deleteRevision(fileId: string, revisionId: string): Promise<void>
   parentOf(fileId: string): Promise<string>
   nameOf(fileId: string): Promise<string>
-  children(folderId: string): Promise<readonly Pick<DriveFile, 'id' | 'name' | 'mimeType'>[]>
-  createFolder(parentId: string, name: string): Promise<string>
+  children(folderId: string): Promise<readonly Pick<DriveFile, 'id' | 'name' | 'mimeType' | 'appProperties' | 'isAppAuthorized'>[]>
+  /** Makes a folder in the parent, or at the top of My Drive for a null parent. */
+  createFolder(parentId: string | null, name: string, appProperties?: Readonly<Record<string, string>>): Promise<string>
+  /** Moves a file or a folder between folders in one request, its id unchanged, and sets these properties with it. */
+  move(fileId: string, fromParentId: string, toParentId: string, appProperties?: Readonly<Record<string, string>>): Promise<void>
+  /** The value of a property this app gave the file, or null. */
+  appPropertyOf(fileId: string, key: string): Promise<string | null>
+  /** Sets a property only this app sees, or removes it for null, with no new revision. */
+  setAppProperty(fileId: string, key: string, value: string | null): Promise<void>
+  /** The folder at this path from My Drive, or null when the page cannot read one there. */
+  folderAtPath(path: readonly string[]): Promise<string | null>
   createFile(parentId: string, name: string, text: string, appProperties?: Readonly<Record<string, string>>): Promise<{ readonly id: string; readonly revision: string }>
   trash(fileId: string): Promise<void>
   /** The ids of the files the app gave this property, the trashed ones left out. */
   findByAppProperty(key: string, value: string): Promise<readonly string[]>
+  /** The same, of the files the person owns, so a folder someone shared is not taken for their own. */
+  findOwnedByAppProperty(key: string, value: string): Promise<readonly string[]>
 }
 
 /** The `appProperties` key that names which Kuna app a document belongs to. */
@@ -36,7 +47,7 @@ export const APP_PROPERTY = 'kuna'
 /** Drive refuses a 201st kept revision, so the app deletes its oldest beyond this many. */
 const KEPT_REVISIONS = 100
 const DAILY_BACKUPS = 30
-const BACKUPS_FOLDER = 'backups'
+export const BACKUPS_FOLDER = 'backups'
 /** How often a save lists the revisions before it gives up on a file that keeps changing under it. */
 const POST_CHECKS = 5
 
@@ -49,7 +60,7 @@ function backupName(app: string, day: CivilDate): string {
   return `kuna-${app}-${day}.json`
 }
 
-function backupDayOf(app: string, name: string): CivilDate | null {
+export function backupDayOf(app: string, name: string): CivilDate | null {
   const prefix = `kuna-${app}-`
   return name.startsWith(prefix) && name.endsWith('.json') ? parseCivilDate(name.slice(prefix.length, -'.json'.length)) : null
 }
@@ -60,9 +71,10 @@ async function backupsFolderOf(drive: DocumentDrive, parentId: string): Promise<
 }
 
 /** The folder the document sits in and the day of its newest backup, null before the first. */
-export async function placeOfDriveDocument(drive: DocumentDrive, fileId: string, app: string): Promise<DriveFilePlace> {
+export async function placeOfDriveDocument(drive: DocumentDrive, fileId: string, app: string): Promise<Omit<DriveFilePlace, 'inKunaFolder' | 'moveUnfinished'>> {
   const folderId = await drive.parentOf(fileId)
-  const [folderName, backupsId] = await Promise.all([drive.nameOf(folderId), backupsFolderOf(drive, folderId)])
+  // A folder the app was never given answers 404 under `drive.file`, which leaves the file's place known and only its name missing.
+  const [folderName, backupsId] = await Promise.all([drive.nameOf(folderId).catch(() => null), backupsFolderOf(drive, folderId).catch(() => null)])
   const days = backupsId === null ? [] : (await drive.children(backupsId)).flatMap((entry) => backupDayOf(app, entry.name) ?? [])
   return { folderId, folderName, lastBackup: days.sort().at(-1) ?? null }
 }

@@ -5,10 +5,13 @@ import {
   downloadRevision,
   JSON_MIME_TYPE,
   filesWithAppProperty,
+  folderOfMyDrivePath,
   getFile,
   listChildren,
   listRevisions,
+  moveFile,
   queryLiteral,
+  setAppProperty,
   trashFile,
   deleteRevision,
   uploadContent,
@@ -66,7 +69,7 @@ export function googleDocumentDrive(accessToken: () => Promise<string>): Documen
     },
 
     async parentOf(fileId) {
-      const [parentId] = (await getFile(await accessToken(), fileId, ['parents'])).parents
+      const parentId = (await getFile(await accessToken(), fileId, ['parents'])).parents?.[0]
       if (parentId === undefined) {
         throw new Error(words.noFolder)
       }
@@ -78,11 +81,28 @@ export function googleDocumentDrive(accessToken: () => Promise<string>): Documen
     },
 
     async children(folderId) {
-      return listChildren(await accessToken(), `${queryLiteral(folderId)} in parents and trashed = false`, ['id', 'name', 'mimeType'])
+      return listChildren(await accessToken(), `${queryLiteral(folderId)} in parents and trashed = false`, ['id', 'name', 'mimeType', 'appProperties', 'isAppAuthorized'])
     },
 
-    async createFolder(parentId, name) {
-      return (await createFolder(await accessToken(), parentId, name)).id
+    async createFolder(parentId, name, appProperties) {
+      return (await createFolder(await accessToken(), parentId, name, appProperties)).id
+    },
+
+    async move(fileId, fromParentId, toParentId, appProperties) {
+      return moveFile(await accessToken(), fileId, fromParentId, toParentId, appProperties)
+    },
+
+    async appPropertyOf(fileId, key) {
+      return (await getFile(await accessToken(), fileId, ['appProperties'])).appProperties?.[key] ?? null
+    },
+
+    async setAppProperty(fileId, key, value) {
+      return setAppProperty(await accessToken(), fileId, key, value)
+    },
+
+    async folderAtPath(path) {
+      const folder = await folderOfMyDrivePath(await accessToken(), path)
+      return folder.kind === 'found' ? folder.id : null
     },
 
     async createFile(parentId, name, text, appProperties = {}) {
@@ -96,6 +116,10 @@ export function googleDocumentDrive(accessToken: () => Promise<string>): Documen
 
     async findByAppProperty(key, value) {
       return (await filesWithAppProperty(await accessToken(), key, value, ['id'])).map((file) => file.id)
+    },
+
+    async findOwnedByAppProperty(key, value) {
+      return (await filesWithAppProperty(await accessToken(), key, value, ['id', 'ownedByMe'])).filter((file) => file.ownedByMe === true).map((file) => file.id)
     },
   }
 }

@@ -15,7 +15,7 @@ import type { FirstRunStep } from './useFirstRun'
 const props = defineProps<{ firstRun: FileFirstRun }>()
 
 const start = useFirstRun(props.firstRun)
-const flow: StepFlow = { step: start.step, canGoBack: computed(() => start.step.value !== 'home'), back: () => void start.go('home') }
+const flow: StepFlow = { step: start.step, canGoBack: computed(() => start.step.value !== start.first.value), back: () => void start.go('home') }
 
 const STEPS: Readonly<Record<FirstRunStep, Component>> = { home: FirstRunHomeStep, folder: FirstRunFolderStep, find: FirstRunFindStep }
 
