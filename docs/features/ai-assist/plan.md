@@ -590,7 +590,7 @@ Then the providers and API features:
 - [Receipt photos to draft transactions](../spending/research/lane3-receipts.md), for browser access, CORS preflights, the two adapters, PDF and image support and provider retention.
 - [Module map](../../architecture/modules.md), for the boundaries and the planned key store move.
 - [Hub overview plan](../overview/plan.md), the shape this plan follows.
-- [AI help across the apps](../../tasks/ai-assist.md), the task.
+- [AI help across the apps](https://github.com/ipazanin/kuna/issues/41), the task.
 - [docs/law](../../law/README.md), the law the Investments question reads.
 - The bundled Claude API reference of this session, for the model ids and prices of Haiku 5.5, Sonnet 5.5 and Opus 5.5, forced `tool_choice` returning a 400 on Sonnet 5.5 and Opus 5.5, thinking that cannot be switched off on Opus 5.5, citations refused with `output_config.format`, and the PDF `document` block.
 

@@ -3503,9 +3503,9 @@ Once Porezna uprava publishes the 2027 table, rerun the script with it and give 
 
 ## Docs
 
-`docs/` holds the architecture, the plans and research behind each feature, one file per task with
-its status, and the Croatian law the Tax screen rests on. [docs/README.md](docs/README.md) says
-what goes where, and [docs/tasks/README.md](docs/tasks/README.md) lists the tasks by status.
+`docs/` holds the architecture, the plans and research behind each feature, and the Croatian law
+the Tax screen rests on. [docs/README.md](docs/README.md) says what goes where, and work is tracked
+in [GitHub issues](https://github.com/ipazanin/kuna/issues).
 
 ## Licence
 

@@ -240,7 +240,7 @@ _A new user gets one true figure in each app, and knows what is left._
 
 **Stage 3: one start.** Add a home welcome asking which apps and where the files live, once. `FirstRunHomeStep` and `FirstRunFolderStep` skip themselves if answered. _Five storage questions become one, and the order Loans then Assets is suggested._ This also moves delivery to set-up lines if decision 5 agrees.
 
-**Stage 4: the AI choice and the key.** First-screen question, key walk-through, one consent. Before this, make the first real call with a real key, which `docs/tasks/ai-assist.md` still lists as open. _A person with a key has it working, with Explain and suggested categories already useful._
+**Stage 4: the AI choice and the key.** First-screen question, key walk-through, one consent. Before this, make the first real call with a real key, which [issue #41](https://github.com/ipazanin/kuna/issues/41) still lists as open. _A person with a key has it working, with Explain and suggested categories already useful._
 
 **Stage 5: documents one by one, from each app's own screen, no chat needed.** In order: loan contract, asset photo, court extract, broker PDF (the plan's stage 6, plus `imagePartOf`). Test each on real Croatian documents before it ships. _Documents fill forms. This has most of the value, and proves accuracy before a chat depends on it._
 
@@ -293,8 +293,8 @@ Stages 1 and 2 stand alone even if AI were dropped. Stage 5 also stands alone.
 - **The Console's key screens**, and OpenAI's own billing and key steps, were not walked.
 - **All cost figures** are my estimates from list prices. The 4,000 tokens per page is an assumption, since I did not load Anthropic's image-cost page.
 - **Reading accuracy on Croatian contracts, handwriting and bank layouts** is untested, and so is Haiku against Sonnet. Everything in stage 5 depends on this.
-- **A real provider call from Kuna.** Still open per `docs/tasks/ai-assist.md`, including whether `count_tokens` answers from a browser.
-- **HEIC photos** and phone camera capture in Firefox, listed as open in `docs/tasks/receipt-reading.md`.
+- **A real provider call from Kuna.** Still open per [issue #41](https://github.com/ipazanin/kuna/issues/41), including whether `count_tokens` answers from a browser.
+- **HEIC photos** and phone camera capture in Firefox, listed as open in [issue #46](https://github.com/ipazanin/kuna/issues/46).
 - **Whether Anthropic's and OpenAI's retention lines in Kuna's words are current.** I did not reload them, that is the other lane's job.
 - **Screens were read, not seen.** Layout judgements such as "heaviest screen" come from the code and may look different on the page.
 
@@ -307,7 +307,7 @@ Stages 1 and 2 stand alone even if AI were dropped. Stage 5 also stands alone.
 - **Assets:** `asset/presentation/AssetDialog.vue`, `ValuationDialog.vue`, `values/presentation/words.ts`.
 - **Spending:** `accounts/presentation/AccountDialog.vue`, `statements/presentation/ImportPanel.vue`, `ReviewPanel.vue`, `budgets/presentation/LimitDialog.vue`, `categories/domain/starterCategories.ts`.
 - **AI:** `src/shared/ai/presentation/AiAssistCard.vue`, `AssistConsent.vue`, `application/runTask.ts`, `domain/maskIdentifiers.ts`, `infrastructure/providerPresets.ts`, `src/shared/app/appContribution.ts`.
-- **Plans:** `docs/features/ai-assist/plan.md` (stage 6 and 7), `docs/features/company/croatian-preset-plan.md`, `docs/features/platform/onboarding-and-sync.md`, `docs/tasks/ai-assist.md`.
+- **Plans:** `docs/features/ai-assist/plan.md` (stage 6 and 7), `docs/features/company/croatian-preset-plan.md`, `docs/features/platform/onboarding-and-sync.md`, [issue #41](https://github.com/ipazanin/kuna/issues/41).
 
 ## Sources
 

@@ -1,13 +1,10 @@
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
-
-import { TASKS_README, indexedTasksReadme, taskFile, taskPaths } from '../scripts/tasks-index.mjs'
 
 const root = join(import.meta.dirname, '..')
 const docsDir = join(root, 'docs')
 const lawDir = join(docsDir, 'law')
-const featuresDir = join(docsDir, 'features')
 
 /** Every Markdown file under docs, docs/law left out, since tests/lawDocs.spec.ts checks its links. */
 function markdownFiles(dir: string): string[] {
@@ -38,19 +35,6 @@ function relativeLinks(path: string): string[] {
 }
 
 describe('docs', () => {
-  it('keeps the index in docs/tasks/README.md in step with the tasks, so run npm run tasks-index after changing one', async () => {
-    expect(readFileSync(TASKS_README, 'utf8')).toBe(await indexedTasksReadme())
-  })
-
-  it.each(taskPaths().map((path) => relative(root, path)))('has frontmatter in %s that names a known status and feature', (file) => {
-    const task = taskFile(join(root, file))
-    const featureDir = join(featuresDir, task.feature)
-    expect(
-      task.feature === 'architecture' || (existsSync(featureDir) && statSync(featureDir).isDirectory()),
-      `${file} names the feature ${task.feature}, which has no folder under docs/features`,
-    ).toBe(true)
-  })
-
   it.each(markdownFiles(docsDir).map((path) => relative(root, path)))('has links in %s that reach a file', (file) => {
     const path = join(root, file)
     const missing = relativeLinks(path).filter((link) => {

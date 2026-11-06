@@ -1,5 +1,7 @@
 # Working on Kuna
 
+Work is tracked in [GitHub issues](https://github.com/ipazanin/kuna/issues), delivered straight to `main` with the issue number in each commit. The `github` skill says how.
+
 Kuna is a modular monolith. The [module map](docs/architecture/modules.md) says what each module owns and what it may import, and `tests/importBoundaries.spec.ts` enforces it.
 
 ## Leave the code better than you found it

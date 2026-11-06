@@ -14,7 +14,7 @@ These override the recommendations further down wherever the two differ.
 - **The dock:** from 1408 px. Narrower, the panel takes the page's place.
 - **Many proposals:** rules into an existing category go as one group with the rows shown and one Undo. A new category or a tax class goes one at a time.
 - **A row that fits no category:** Suggest categories keeps choosing among existing ones until the chat reaches Company. Then a row on To review opens in the chat, tagged with that row, and the model can propose a new category with its name, bucket and tax class, for the owner to accept one at a time.
-- **Statements from other banks:** the model can read a statement and fill the import's dry run. Readers and integrations for every Croatian bank are the long-term plan, as [their own task](../../tasks/croatian-bank-readers.md).
+- **Statements from other banks:** the model can read a statement and fill the import's dry run. Readers and integrations for every Croatian bank are the long-term plan, as [their own task](https://github.com/ipazanin/kuna/issues/34).
 
 ## Recommended architecture
 
