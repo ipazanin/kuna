@@ -14,7 +14,7 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { PAGE_SECRET_STORE, useSecretsChanged } from '../../../../shared/secrets/presentation/pageSecrets'
 import { usePageSync } from '../../../../shared/sync/presentation/pageSync'
-import { useKeyRemoval } from '../../../../shared/secrets/presentation/useKeyRemoval'
+import { useKeyUndo } from '../../../../shared/secrets/presentation/useKeyUndo'
 import { useSecretRows } from '../../../../shared/secrets/presentation/useSecretRows'
 import { words as secretWords } from '../../../../shared/secrets/presentation/words'
 import { pageVendorFetch, useRequestsToday } from './usePrices'
@@ -27,15 +27,19 @@ import { words } from './words'
  */
 const keys = useSecretRows(PRICE_VENDORS, PAGE_SECRET_STORE, (vendor, key) => testVendor(vendor, pageVendorFetch, key, pricesDay(new Date().toISOString())))
 watch(useSecretsChanged(), () => keys.reread())
-const announceRemoval = useKeyRemoval()
-const { someOnDrive } = usePageSync()
-const subtitle = computed(() => (someOnDrive.value ? words.card.subtitleOnDrive : words.card.subtitle))
+const announce = useKeyUndo()
+const { keysSync } = usePageSync()
+const subtitle = computed(() => (keysSync.value ? words.card.subtitleOnDrive : words.card.subtitle))
 const requestsToday = useRequestsToday()
 /** What is typed in each key field, which goes nowhere until Save. */
 const typed = reactive<Record<string, string>>(Object.fromEntries(PRICE_VENDORS.map((vendor) => [vendor.id, ''])))
 
 function save(vendor: PriceVendor): void {
-  if (keys.save(vendor.id, typed[vendor.id] ?? '')) typed[vendor.id] = ''
+  const hadKey = keys.rows[vendor.id]!.kept
+  const undo = keys.save(vendor.id, typed[vendor.id] ?? '')
+  if (undo === null) return
+  typed[vendor.id] = ''
+  if (hadKey) announce(secretWords.keyRow.replaced, undo)
 }
 
 function offers(vendor: PriceVendor): string {
@@ -138,7 +142,7 @@ const vendorRows = computed(() =>
             variant="ghost"
             size="sm"
             data-testid="price-vendor-forget"
-            @click="announceRemoval(keys.forget(row.vendor.id))"
+            @click="announce(secretWords.keyRow.removed, keys.forget(row.vendor.id))"
           />
           <UButton
             v-if="row.vendor.keyAddress !== null"

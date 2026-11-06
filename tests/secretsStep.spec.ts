@@ -15,6 +15,7 @@ const page = vi.hoisted(() => ({
   state: null as unknown as { choice: { source: 'drive' | 'browser'; id: string; name: string } | null; workbook: { book: unknown } | null; missing: boolean },
   companyState: null as unknown as { workbook: null; missing: boolean },
   drive: null as unknown as FakeDrive,
+  order: [] as string[],
 }))
 
 vi.mock('../src/apps/investments/workbook/application/investmentsStore', () => ({
@@ -26,7 +27,9 @@ vi.mock('../src/apps/investments/workbook/application/investmentsStore', () => (
 }))
 vi.mock('../src/shared/secrets/infrastructure/googleSecretsDrive', () => ({
   googleSecretsDrive: () => secretsDriveOn(page.drive),
-  allowHiddenFolder: async () => {},
+  allowHiddenFolder: async () => {
+    page.order.push('asked Google')
+  },
 }))
 vi.mock('../src/apps/company/workbook/application/workbookStore', () => ({
   useWorkbook: () => ({
@@ -49,6 +52,7 @@ const { investmentsSyncGroup } = await import('../src/apps/investments/sync/pres
 const { loansSyncGroup } = await import('../src/apps/loans/sync/presentation/loansSyncGroup')
 const { companySyncGroup } = await import('../src/apps/company/sync/presentation/useSync')
 
+const settled = async (): Promise<void> => {}
 const OTHER_KEY = 'made-up-twelve-data-key-8642'
 let runs = 0
 
@@ -88,20 +92,30 @@ describe('Get it from Google on the assistant card', () => {
   it('takes a key another browser saved, for a browser that holds none and wants none', async () => {
     const saved = { anthropic: { key: 'made-up-anthropic-key-5521', changedAt: '2026-10-30T10:00:00.000Z' } }
     await page.drive.createFile(APP_DATA_FOLDER, SECRETS_FILE_NAME, encodeSecretsFile(saved))
-    expect(await fetchKeysFromGoogle()).toBeNull()
+    expect(await fetchKeysFromGoogle(settled)).toBeNull()
     expect(PAGE_SECRET_STORE.read('anthropic')).toBe('made-up-anthropic-key-5521')
   })
 
   it('takes nothing and writes no file when the account holds no key', async () => {
-    expect(await fetchKeysFromGoogle()).toBeNull()
+    expect(await fetchKeysFromGoogle(settled)).toBeNull()
     expect(PAGE_SECRET_STORE.read('anthropic')).toBeNull()
     expect(await page.drive.children(APP_DATA_FOLDER)).toEqual([])
   })
 
-  it('says why a file it cannot read was left as it is, and never quotes a key', async () => {
-    await page.drive.createFile(APP_DATA_FOLDER, SECRETS_FILE_NAME, 'not the keys file')
-    expect(await fetchKeysFromGoogle()).toBe(en.refused['not-keys'])
+  it('says why a file it cannot read was left as it is, and quotes nothing of that file', async () => {
+    await page.drive.createFile(APP_DATA_FOLDER, SECRETS_FILE_NAME, 'made-up-anthropic-key-5521 in a file that is not the keys file')
+    const refusal = await fetchKeysFromGoogle(settled)
+    expect(refusal).toBe(en.refused['not-keys'])
+    expect(refusal).not.toContain('made-up-anthropic-key-5521')
     expect(PAGE_SECRET_STORE.read('anthropic')).toBeNull()
+  })
+
+  it('asks Google before it waits for the sync under way, as the window opens only during the tap', async () => {
+    page.order = []
+    await fetchKeysFromGoogle(async () => {
+      page.order.push('sync settled')
+    })
+    expect(page.order).toEqual(['asked Google', 'sync settled'])
   })
 })
 

@@ -15,6 +15,7 @@ export const en = {
     test: 'Test',
     works: 'The key works.',
     removed: 'Key removed',
+    replaced: 'Key replaced',
     undo: 'Undo',
   },
   step: {
@@ -42,6 +43,7 @@ export const hr: Translation<typeof en> = {
     test: 'Provjeri',
     works: 'Ključ radi.',
     removed: 'Ključ je uklonjen',
+    replaced: 'Ključ je zamijenjen',
     undo: 'Poništi',
   },
   step: {

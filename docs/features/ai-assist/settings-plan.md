@@ -370,11 +370,23 @@ Each stage leaves Kuna working with no key. Per the repo's checks: `npm run chec
 
 Built on the `chat` branch, issue #50. Delete my keys stays out of the card, and stage 5 is not done. The tables in section 6 show the words as first proposed, and `words.ts` holds the corrected ones listed below.
 
+**The rule since the review.** The provider changes only by a person's act on the select. Saving a key, a Test, Get it from Google, a sync and an Undo never move it. This overrides section 2 where it says Save moves the pick and where it says a saved key is kept whatever the Test says.
+
+- Save tests what was typed first, and a key the company refuses is never kept, so it cannot take over or push out a working key. A Test that only failed, as offline, still keeps the key.
+- A key saved for a company not in use goes aside. The card returns to the company in use and says to pick the other on the select.
+- Picking a company with no key moves the assistant only while it has no key to lose.
+- `holdProviderInUse` stores the company in use as the pick when the shell starts and after each change of a key, so the fallback to the first saved key can no longer move anyone. A new browser takes the first key it gets.
+- Replacing a key shows the same 10-second Undo as Remove, on the Prices card too.
+- Another tab's change of a switch, the pick or a key arrives through a `storage` listener.
+- The card's rules live in `useAssistantCard.ts`, which specs run without mounting the card.
+
+**The dialog, by the owner's answer.** Send once sends this one time, through `allowOnce`, and leaves the switches as they are, so off asks each time. Don't ask again turns on the app's switch, and the task's yes on employee data when this run sends it. A run that sends employee data says so plainly in the dialog, naming the company, whatever the switches say. Try again on Explain goes through the same tap, so it asks too.
+
 **Where the code overruled this plan.**
 
 - `pickProvider` could not keep its plain signature and rule alone. The fallback in `providerInUse()` needs the keys, and `assistSettings.ts` may not read them. So `pickProvider` takes back the yeses on a real change and returns whether it did, `pinProvider` stores a pick and takes nothing back, and `switchProvider` in `useAiTask.ts` pins first, so storing the company already in use is no change.
-- With no stored pick, a key a sync brings can move the assistant to a company earlier in the list, with a yes on employee data still on. The plan's "a second browser falls to the first saved key" misses this. A tap on an assist button now stores the company in use as the pick. A flip before that first tap is not caught.
-- Suggest categories never asks about employee data. Its button has no `sendsEmployees`: it leaves those rows out, says so when none are left, and has its own switch on To review naming the company. After a change of company that switch is off and names the new one, so "the next such run asks" holds as a dialog only for Explain.
+- With no stored pick, a key a sync brought or took could move the assistant, with a yes on employee data still on. The plan's "a second browser falls to the first saved key" misses this. `holdProviderInUse` closes it.
+- Suggest categories does not ask for employee data when its yes is off: it leaves those rows out, says so when none are left, and has its own switch on To review naming the company. After a change of company that switch is off and names the new one. With the yes on and the app's switch off, its dialog says the names go.
 - `KUNA_SETTINGS_ROUTE` could not be exported from `secretsStep.ts` for the tab's link, because that file loads Google and the AI module may not. It now lives in `pageSecrets.ts`.
 - The same rule stops the card calling `fetchKeysFromGoogle` itself, so Kuna settings passes it in as a prop.
 - `AppAssistCard` takes `app` and `tasks`. The planned `appName` had no use.
@@ -385,7 +397,6 @@ Built on the `chat` branch, issue #50. Delete my keys stays out of the card, and
 
 - `card.keepKey` closes the Replace field, which otherwise has no way back but Save.
 - `card.fetchFailed` says when Google could not be read.
-- `consent.stopsAsking` is one line in the dialog. A yes there turns the app's switch on, so the dialog says it stops asking and where to change that.
 
 **Croatian corrected from section 6.**
 
@@ -404,7 +415,7 @@ Built on the `chat` branch, issue #50. Delete my keys stays out of the card, and
 
 A Croatian native should still read these once. The outside claims in "Unconfirmed, to check before shipping" stay unconfirmed, and nobody has walked the key screens with a real account.
 
-**Left open.** A yes in the dialog turns the switch on for good, so off asks once per app and not each time. Chat's per-chat grant will need a yes that lasts for one chat. Issue #52 replaces the interim rule on employee data.
+**Left open.** Chat's per-chat grant will need a yes that lasts for one chat. Issue #52 replaces the interim rule on employee data.
 
 ## The owner's answers, 2026-11-06
 

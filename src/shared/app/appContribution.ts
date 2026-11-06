@@ -94,6 +94,8 @@ export interface AssistEmployeeSwitch {
   readonly label: string
   /** What stays out until it is on and what goes then, to the provider named. */
   note(provider: string): string
+  /** What the dialog says when this run sends them, to the provider named. */
+  goes(provider: string): string
 }
 
 /** What one task sends, for the app's Assistant tab and the dialog that asks first. */

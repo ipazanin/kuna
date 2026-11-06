@@ -10,7 +10,7 @@ export const SUGGEST_CATEGORIES_SUMMARY: AssistTaskSummary = {
   id: SUGGEST_CATEGORIES,
   title: words.suggest.title,
   sends: words.suggest.sends,
-  employees: { label: words.suggest.employees, note: words.suggest.employeesNote },
+  employees: { label: words.suggest.employees, note: words.suggest.employeesNote, goes: words.suggest.employeesGo },
 }
 
 const settings = useSettings()

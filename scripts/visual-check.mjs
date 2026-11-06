@@ -1412,7 +1412,7 @@ const SCREENS = [
     charts: 0,
     ready: '[data-testid="assist-key-kept"]',
     stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
-    shows: ['A key ending in 0042 is kept in this browser.', 'Sonnet 5.5 (default)', 'In your apps', 'Asks first'],
+    shows: ['A key ending in 0042 is kept in this browser.', 'A sync also saves it in your Google account', 'Sonnet 5.5 (default)', 'In your apps', 'Asks first'],
     cards: false,
   },
   {

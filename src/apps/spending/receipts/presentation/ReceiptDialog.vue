@@ -328,7 +328,7 @@ function closeAsked(wanted: boolean): void {
         </div>
       </div>
       <div v-if="reading !== 'reading' && reading !== 'unreadable' && readDraft === null" class="flex flex-col items-start gap-2" data-testid="spending-receipt-assist">
-        <AssistButton :app="readReceipt.app" :app-name="spendingWords.name" :task="READ_RECEIPT_SUMMARY" :label="words.read" :loading="assistBusy" @run="readLines" />
+        <AssistButton :app="readReceipt.app" :task="READ_RECEIPT_SUMMARY" :label="words.read" :loading="assistBusy" @run="readLines" />
         <p v-if="assistBusy" class="text-sm text-muted" data-testid="spending-receipt-assist-running">{{ words.readRunning }}</p>
       </div>
       <p v-if="assistLine !== null" class="text-sm text-error" data-testid="spending-receipt-assist-line">{{ assistLine }}</p>

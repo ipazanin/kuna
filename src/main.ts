@@ -30,6 +30,8 @@ async function start(): Promise<void> {
   await installApp(investmentsApp)
   await installApp(assetsApp)
   await installApp(spendingApp)
+  const { holdProviderInUse } = await import('./shared/ai/presentation/useAiTask')
+  holdProviderInUse()
   const googleReturn = takeGoogleRedirect()
   if (googleReturn === null && navigator.onLine && installedApps().some((app) => app.asksGoogleOnOpen()) && askSilentlyOnOpen()) {
     return

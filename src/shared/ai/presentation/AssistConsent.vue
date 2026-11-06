@@ -7,35 +7,28 @@ import AppDialog from '../../ui/AppDialog.vue'
 import type { ProviderPreset } from '../infrastructure/providerPresets'
 import { words } from './words'
 
-/** Asks before a task sends with its switch off: what leaves the device, what the provider keeps, and what a yes changes. Buttons outside the chat need it until they route through the chat. */
+/** Asks before a task sends with a switch off: what leaves the device, what the provider keeps, and employee names or pay whenever this run sends them. Buttons outside the chat need it until they route through the chat. */
 const open = defineModel<boolean>('open', { required: true })
 
 defineProps<{
   task: AssistTaskSummary
-  appName: string
   provider: ProviderPreset
-  /** Which switch the run waits for: the app's, or the task's own for employee data. */
-  asks: 'app' | 'employees'
+  sendsEmployees: boolean
 }>()
 
-const emit = defineEmits<{ confirm: [] }>()
+const emit = defineEmits<{ once: []; always: [] }>()
 </script>
 
 <template>
   <AppDialog v-model:open="open" :title="task.title" :description="words.consent.sends(task.sends)">
     <div class="flex flex-col gap-3" data-testid="assist-consent">
       <p class="type-body">{{ words.retention[provider.id] }}</p>
-      <p v-if="asks === 'app'" class="type-body">{{ words.consent.stopsAsking(appName) }}</p>
-      <UAlert v-if="asks === 'employees' && task.employees" color="neutral" variant="subtle" icon="i-lucide-info" :title="task.employees.note(provider.name)" />
+      <UAlert v-if="sendsEmployees && task.employees" color="neutral" variant="subtle" icon="i-lucide-info" :title="task.employees.goes(provider.name)" data-testid="assist-consent-employees" />
     </div>
     <template #end>
       <UButton :label="words.consent.cancel" color="neutral" variant="outline" @click="open = false" />
-      <UButton
-        :label="asks === 'employees' && task.employees ? task.employees.label : words.consent.switchOn(appName)"
-        icon="i-lucide-sparkles"
-        data-testid="assist-consent-confirm"
-        @click="emit('confirm')"
-      />
+      <UButton :label="words.consent.dontAsk" color="neutral" variant="outline" data-testid="assist-consent-always" @click="emit('always')" />
+      <UButton :label="words.consent.sendOnce" icon="i-lucide-sparkles" data-testid="assist-consent-confirm" @click="emit('once')" />
     </template>
   </AppDialog>
 </template>

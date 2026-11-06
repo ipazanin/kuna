@@ -31,6 +31,11 @@ export function storedSecretChanges(): SecretChanges {
   )
 }
 
+/** Whether a name in this browser's storage holds a secret or the time of its last change. */
+export function namesSecret(name: string): boolean {
+  return name.startsWith(KEY_PREFIX) || name.startsWith(CHANGED_PREFIX)
+}
+
 /** Keeps each change as it is, its time too. */
 export function keepSecretChanges(changes: SecretChanges): void {
   try {

@@ -1,4 +1,4 @@
-import { computed, onScopeDispose, readonly, shallowRef } from 'vue'
+import { computed, onScopeDispose, readonly, shallowRef, watch } from 'vue'
 import type { ComputedRef, DeepReadonly, Ref } from 'vue'
 
 import { runTask } from '../application/runTask'
@@ -34,7 +34,13 @@ export function pinProviderInUse(): void {
   if (preset !== null) pinProvider(preset.id)
 }
 
-/** Moves the assistant to the provider, and says whether that took back a yes on employee data. Staying on the provider in use takes none back. */
+/** Pins the provider in use now and after every change of a key, before a sync or a key saved on a card could move it. The shell calls it once as it starts. */
+export function holdProviderInUse(): void {
+  pinProviderInUse()
+  watch(secretsChanged, pinProviderInUse, { flush: 'sync' })
+}
+
+/** A person's act on the select: moves the assistant to the provider, and says whether that took back a yes on employee data. Staying on the provider in use takes none back. */
 export function switchProvider(id: ProviderId): boolean {
   pinProviderInUse()
   return pickProvider(id)
@@ -46,6 +52,19 @@ export const assistKeyKept: ComputedRef<boolean> = computed(() => {
   return preset !== null && keyKept(preset.id)
 })
 
+/** The tasks a person allowed for their next send alone. */
+const allowedOnce = new Set<string>()
+
+/** Lets the task's next run send once, whatever its switches say. Every run starts from a tap on its button, which says this first. */
+export function allowOnce(taskId: string): void {
+  allowedOnce.add(taskId)
+}
+
+/** Takes back a yes no run used, as when a tap ended with nothing to send. */
+export function forgetOnce(taskId: string): void {
+  allowedOnce.delete(taskId)
+}
+
 export type AiRunState<Output> = { readonly kind: 'idle' | 'running' } | { readonly kind: 'done'; readonly result: TaskResult<Output> }
 
 export interface AiTaskRun<Input, Output> {
@@ -56,8 +75,8 @@ export interface AiTaskRun<Input, Output> {
 }
 
 /**
- * A task run from a screen, with its state for the screen to show. Nothing is sent while a switch is off or no key is
- * kept. A new run, a reset and leaving the screen each abort the run under way, whose result is then dropped.
+ * A task run from a screen, with its state for the screen to show. Nothing is sent with no key kept, or while a switch is
+ * off unless the person allowed this one send. A new run, a reset and leaving the screen each abort the run under way, whose result is then dropped.
  */
 export function useAiTask<Input, Output>(task: AiTask<Input, Output>): AiTaskRun<Input, Output> {
   const state = shallowRef<AiRunState<Output>>({ kind: 'idle' })
@@ -80,11 +99,12 @@ export function useAiTask<Input, Output>(task: AiTask<Input, Output>): AiTaskRun
       const timeout = setTimeout(() => controller.abort(new Error(words.result.timedOut)), MOST_RUN_MILLISECONDS)
       let result: TaskResult<Output>
       try {
+        const once = allowedOnce.delete(task.id)
         const preset = providerInUse()
         result = await runTask(task, input, {
           model: preset === null ? null : await modelPort(task.id, preset),
-          appOn: assistOn(task.app),
-          employees: { sends: sendsEmployees, on: employeesOn(task.id) },
+          appOn: once || assistOn(task.app),
+          employees: { sends: sendsEmployees, on: once || employeesOn(task.id) },
           signal: controller.signal,
         })
       } catch (failure) {

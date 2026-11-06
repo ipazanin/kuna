@@ -6,6 +6,7 @@ import { storedSecretChanges } from '../infrastructure/browserSecrets'
 import type { SyncStep } from '../../sync/application/sync'
 import type { AccessNeed } from '../../sync/application/syncRun'
 import { KUNA_SETTINGS_ROUTE, keepSyncedSecrets, useSecretsChanged } from './pageSecrets'
+import { SECRETS_STEP } from '../../sync/application/syncSteps'
 import { words } from './words'
 
 /** Whether this browser saved or removed some secret, reactively, which the sync then carries. */
@@ -41,7 +42,7 @@ async function syncHere(): Promise<SecretsSyncResult> {
  */
 export function secretsStep(wanted: () => boolean): SyncStep {
   return {
-    id: 'secrets',
+    id: SECRETS_STEP,
     label: words.step.label,
     scopes: () => ['drive.appdata'],
     startLine: words.step.reading,
@@ -70,11 +71,13 @@ export async function deleteKeysFromGoogle(): Promise<void> {
 }
 
 /**
- * Runs one sync of the secrets for a browser that holds no key yet, asking Google for the hidden folder in this tap when
- * the page lacks it. Returns why the file was left as it is, or null. Call it first in a click handler.
+ * Runs one sync of the secrets for a browser that holds no key yet. It asks Google for the hidden folder before anything
+ * else, as a browser opens Google's window only during the tap, then waits for `settled`, the sync under way. Returns why
+ * the file was left as it is, or null. Call it first in a click handler.
  */
-export async function fetchKeysFromGoogle(): Promise<string | null> {
+export async function fetchKeysFromGoogle(settled: () => Promise<void>): Promise<string | null> {
   await allowHiddenFolder()
+  await settled()
   const result = await syncHere()
   return result.kind === 'refused' ? words.refused[result.reason] : null
 }

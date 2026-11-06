@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, useTemplateRef, watch } from 'vue'
 
 import AssistButton from '../../../../../shared/ai/presentation/AssistButton.vue'
 import CitedAnswerView from '../../../../../shared/ai/presentation/CitedAnswerView.vue'
@@ -14,7 +14,6 @@ import { EXPLAIN_FIGURE_SUMMARY } from '../assist/presentation/packAssist'
 import { words as assistWords } from '../assist/presentation/words'
 import { sourcesCheckedSince } from '../ruleset/ruleset'
 import type { RuleId } from '../ruleset/ruleset'
-import { words as companyWords } from '../../../words'
 import { WATCHED_WORDING, chipsOf } from './tracedFigureView'
 import type { FigureDetail } from './tracedFigureView'
 import { words } from './words'
@@ -27,6 +26,7 @@ const props = defineProps<{
 }>()
 
 const explaining = useAiTask(explainFigure)
+const assistButton = useTemplateRef('assistButton')
 watch([() => props.detail, open], () => explaining.reset())
 
 function explain(): void {
@@ -77,15 +77,15 @@ const checked = assistWords.explain.checked(dayLabel(sourcesCheckedSince()))
       </section>
       <section v-if="detail.figure" class="flex flex-col items-start gap-3" :aria-label="assistWords.explain.title">
         <AssistButton
+          ref="assistButton"
           :app="explainFigure.app"
-          :app-name="companyWords.name"
           :task="EXPLAIN_FIGURE_SUMMARY"
           :label="assistWords.explain.title"
           :loading="explaining.state.value.kind === 'running'"
           :sends-employees="detail.employees"
           @run="explain"
         />
-        <CitedAnswerView v-if="outcome?.answer" :answer="outcome.answer" :source-link="sourceLink" :usage="outcome.usage" :checked="checked" @retry="explain" />
+        <CitedAnswerView v-if="outcome?.answer" :answer="outcome.answer" :source-link="sourceLink" :usage="outcome.usage" :checked="checked" @retry="assistButton?.tap()" />
         <template v-else-if="outcome">
           <p v-if="outcome.line" role="status" class="text-xs text-muted" data-testid="explain-line">{{ outcome.line }}</p>
           <p v-if="outcome.usage" class="text-xs text-muted" data-testid="explain-usage">{{ outcome.usage }}</p>

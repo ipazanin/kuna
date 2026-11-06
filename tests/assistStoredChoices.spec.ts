@@ -3,6 +3,9 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { AppContribution } from '../src/shared/app/appContribution'
+import { assistLines } from '../src/shell/settings/assistLines'
+
 const OWNER_KEY = 'made-up-anthropic-key-0042'
 const OTHER_KEY = 'made-up-openai-key-0077'
 const SAVED_AT = '2026-10-30T10:00:00.000Z'
@@ -46,7 +49,7 @@ describe('what a browser already holds of the assistant', () => {
     expect(storedNow()).toEqual(BEFORE_THIS_CHANGE)
   })
 
-  it('takes no yes back when the company already in use gets stored as the pick', async () => {
+  it('takes no yes back when the shell stores the company already in use as the pick', async () => {
     const { employeesOn, pinProviderInUse, providerInUse, switchProvider } = await page()
     pinProviderInUse()
     expect(localStorage.getItem('kuna.assist-provider')).toBe('anthropic')
@@ -65,28 +68,55 @@ describe('what a browser already holds of the assistant', () => {
     expect(localStorage.getItem('kuna.secret.anthropic')).toBe(OWNER_KEY)
     expect(localStorage.getItem('kuna.secret.openai')).toBe(OTHER_KEY)
   })
+})
 
-  it('once pinned, stays on its company when a sync brings a key that sorts first', async () => {
-    localStorage.removeItem('kuna.secret.anthropic')
-    localStorage.removeItem('kuna.secret-changed.anthropic')
-    const { employeesOn, pinProviderInUse, providerInUse } = await page()
-    const { keepSyncedSecrets } = await import('../src/shared/secrets/presentation/pageSecrets')
-    expect(providerInUse()?.id).toBe('openai')
-    pinProviderInUse()
-    keepSyncedSecrets({ anthropic: { key: OWNER_KEY, changedAt: SAVED_AT } })
-    expect(providerInUse()?.id).toBe('openai')
-    expect(employeesOn('company.suggest-categories')).toBe(true)
+describe('the lines of the apps in Kuna settings', () => {
+  const app = (id: string, assist: unknown, firstRun = false) => ({ id, name: id, assist, firstRun: () => firstRun }) as unknown as AppContribution
+  const tasks = (count: number) => ({ settings: `/${count}`, tasks: () => Array.from({ length: count }) })
+
+  it('leaves out an app with no assistant, with no tasks or in its first run', () => {
+    expect(assistLines([app('none', undefined), app('empty', tasks(0)), app('setting-up', tasks(1), true), app('company', tasks(2))])).toEqual([{ id: 'company', name: 'company', to: '/2' }])
+  })
+
+  it.each(['loans', 'assets', 'investments'])('%s names no assistant in its registration, so it gets no tab and no line', (id) => {
+    expect(readFileSync(join(import.meta.dirname, `../src/apps/${id}/app.ts`), 'utf8')).not.toMatch(/assist/i)
   })
 })
 
-describe('where the assistant has no tasks', () => {
-  const read = (file: string) => readFileSync(join(import.meta.dirname, '..', file), 'utf8')
+describe('a change in another tab', () => {
+  function otherTabWrites(key: string, value: string | null): void {
+    if (value === null) localStorage.removeItem(key)
+    else localStorage.setItem(key, value)
+    window.dispatchEvent(new StorageEvent('storage', { key, newValue: value }))
+  }
 
-  it.each(['loans', 'assets', 'investments'])('%s publishes no assistant, so it gets no tab and no line in Kuna settings', (app) => {
-    expect(read(`src/apps/${app}/app.ts`)).not.toMatch(/\bassist\s*:/)
+  it('reaches the switches and the pick here, so a stale tab neither sends without asking nor uses the old company', async () => {
+    const { assistOn, employeesOn, providerInUse } = await page()
+    expect(assistOn('company')).toBe(true)
+    expect(employeesOn('company.suggest-categories')).toBe(true)
+    otherTabWrites('kuna.assist.company', null)
+    otherTabWrites('kuna.assist-task.company.suggest-categories', null)
+    otherTabWrites('kuna.assist-provider', 'openai')
+    expect(assistOn('company')).toBe(false)
+    expect(employeesOn('company.suggest-categories')).toBe(false)
+    expect(providerInUse()?.id).toBe('openai')
   })
 
-  it('leaves out an app with no assistant, with no tasks or in its first run', () => {
-    expect(read('src/shell/settings/SettingsScreen.vue')).toContain('app.assist === undefined || app.firstRun() || app.assist.tasks().length === 0')
+  it('reaches what shows the keys here', async () => {
+    const { useSecretsChanged } = await import('../src/shared/secrets/presentation/pageSecrets')
+    const changed = useSecretsChanged()
+    const before = changed.value
+    otherTabWrites('kuna.assist.spending', 'on')
+    expect(changed.value).toBe(before)
+    otherTabWrites('kuna.secret.openrouter', 'made-up-openrouter-key-0042')
+    expect(changed.value).toBe(before + 1)
+  })
+
+  it('keeps a pick another tab has only just stored when this tab pins', async () => {
+    const { pickedProvider, pinProvider } = await page()
+    expect(pickedProvider()).toBeNull()
+    localStorage.setItem('kuna.assist-provider', 'openai')
+    pinProvider('anthropic')
+    expect(localStorage.getItem('kuna.assist-provider')).toBe('openai')
   })
 })

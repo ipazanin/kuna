@@ -7702,7 +7702,7 @@ async function forgetAssist(page) {
   )
 }
 
-/** Opens the dialog of an assist button that asks first and waits for it to say what it asks, then presses its confirm. */
+/** Opens the dialog of an assist button that asks first and waits for it to say what it asks, then presses Send once. */
 async function consentTo(page, press, { inspect, shoot }, texts, shotName) {
   await page.waitForSelector(CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
     throw new Error('the first tap opened no consent dialog')
@@ -7846,7 +7846,16 @@ export async function assistKeyFlow(page, { press, shoot, inspect }) {
     if ((await page.evaluate(() => localStorage.getItem('kuna.assist-provider'))) !== 'anthropic') throw new Error('looking at a company with no key moved the assistant')
     await inspect?.('OpenRouter on screen with no key')
     await saveTypedKey(page, press, OPENROUTER_ROW, 'made-up-openrouter-key-0042')
-    await testLineSays(page, OPENROUTER_ROW, words.card.accepted('OpenRouter'), "OpenRouter's key was not tested by itself")
+    await elementSays(
+      page,
+      `${ANTHROPIC_ROW} [data-testid="assist-saved-aside"]`,
+      [words.card.accepted('OpenRouter'), words.card.savedKeepsUsing('OpenRouter', 'Anthropic')],
+      'saving a key for another company does not say the assistant stays',
+    )
+    if ((await page.evaluate(() => localStorage.getItem('kuna.assist-provider'))) !== 'anthropic') throw new Error('saving a key moved the assistant')
+    await inspect?.("OpenRouter's key saved with Anthropic in use")
+    await openCompanies(page, press)
+    await pickCompany(page, press, 'OpenRouter')
     await page.waitForFunction(() => localStorage.getItem('kuna.assist-provider') === 'openrouter', { timeout: 5_000 })
 
     const searchingField = await pressSelector(page, press, `${OPENROUTER_ROW} [data-testid="assist-model"]`)
@@ -8000,6 +8009,81 @@ export function assistTabFlowIn(language) {
   }
 }
 
+/**
+ * With no pick stored and OpenAI's key kept, as an older Kuna left a browser, a key saved for Anthropic stays aside, and
+ * the assistant stays on OpenAI until Anthropic is picked on the select.
+ */
+export async function assistSaveKeepsCompanyFlow(page, { press, inspect }) {
+  const words = ASSIST_WORDS.en
+  try {
+    await page.evaluate(() => localStorage.setItem('kuna.secret.openai', 'made-up-openai-key-0077'))
+    await page.reload({ waitUntil: 'networkidle0' })
+    await page.waitForSelector(`${OPENAI_ROW} [data-testid="assist-key-kept"]`, { visible: true, timeout: 10_000 })
+    await openCompanies(page, press)
+    await pickCompany(page, press, 'Anthropic')
+    await saveTypedKey(page, press, ANTHROPIC_ROW, MADE_UP_ANTHROPIC_KEY)
+    await elementSays(page, `${OPENAI_ROW} [data-testid="assist-saved-aside"]`, [words.card.savedKeepsUsing('Anthropic', 'OpenAI')], 'a key saved aside does not say the assistant stays')
+    if ((await page.evaluate(() => localStorage.getItem('kuna.assist-provider'))) !== 'openai') throw new Error('saving a key moved the assistant')
+    await inspect?.('a key saved aside')
+    await openCompanies(page, press)
+    await pickCompany(page, press, 'Anthropic')
+    await elementSays(page, `${ANTHROPIC_ROW} [data-testid="assist-moved"]`, [words.card.nowSends('Anthropic'), words.card.otherKept('OpenAI')], 'a pick on the select does not say what it did')
+  } finally {
+    await forgetAssist(page)
+  }
+}
+
+/**
+ * Salaries with five made-up employees, a kept yes and Company's switch off. The dialog says names and pay go, whatever
+ * the yes says. Send once sends and leaves the switch off, so the next press asks again, and Don't ask again turns the
+ * switches on, so the press after it sends with no dialog.
+ */
+export function assistSendOnceFlowIn(language) {
+  const words = ASSIST_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const asksAndNames = async () => {
+      await pressSelector(page, press, EXPLAIN_BUTTON)
+      await page.waitForSelector(CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
+        throw new Error('Explain did not ask with the switch off')
+      })
+      await elementSays(page, '[data-testid="assist-consent-employees"]', [words.explain.employeesGo('Anthropic')], 'the dialog does not say names and pay go')
+      await delay(400)
+    }
+    try {
+      await page.evaluate((key) => {
+        localStorage.setItem('kuna.secret.anthropic', key)
+        localStorage.setItem('kuna.assist-task.hr-doo.explain-figure', 'on')
+      }, MADE_UP_ANTHROPIC_KEY)
+      await page.reload({ waitUntil: 'networkidle0' })
+      await pressButton(page, press, '[data-testid="salaries-problem"] button', SCREEN_WORDS[language].salaries.problemList.howWorkedOut)
+      await page.waitForSelector('[data-testid="figure-detail"]', { visible: true, timeout: 10_000 })
+      await delay(400)
+
+      await asksAndNames()
+      await inspect?.('the dialog with a kept yes and the switch off')
+      await shoot('assist-send-once')
+      await pressSelector(page, press, '[data-testid="assist-consent-confirm"]')
+      await dialogGone(page, CONSENT)
+      await page.waitForSelector('[data-testid="cited-answer"]', { visible: true, timeout: 10_000 }).catch(() => {
+        throw new Error('Send once did not send')
+      })
+      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== null) throw new Error('Send once turned the switch on')
+
+      await asksAndNames()
+      await pressSelector(page, press, '[data-testid="assist-consent-always"]')
+      await dialogGone(page, CONSENT)
+      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== 'on') throw new Error("Don't ask again did not turn the switch on")
+      await page.waitForSelector(`${EXPLAIN_BUTTON}:not([disabled])`, { visible: true, timeout: 10_000 })
+      await pressSelector(page, press, EXPLAIN_BUTTON)
+      await delay(300)
+      if (await page.$(CONSENT)) throw new Error("Explain still asks after Don't ask again")
+    } finally {
+      await forgetAssist(page)
+    }
+  }
+}
+
 /** Keeps made-up keys for Anthropic and OpenAI, Anthropic picked, Company sending without asking and a yes on employee data, then loads the page again with them. */
 async function keepTwoKeysWithYes(page, task) {
   await page.evaluate(
@@ -8095,7 +8179,7 @@ export async function assistEmployeesAskAfterSwitchFlow(page, { press, shoot, in
     await page.waitForSelector(CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
       throw new Error("Explain on an employee's figure did not ask again after a change of company")
     })
-    await elementSays(page, '[role="dialog"]', [words.explain.employeesNote('OpenAI'), words.retention.openai, words.explain.employees], 'the dialog does not name the new company')
+    await elementSays(page, '[role="dialog"]', [words.explain.employeesGo('OpenAI'), words.retention.openai], 'the dialog does not name the new company')
     await delay(400)
     await inspect?.('Explain asking again after a change of company')
     await shoot('assist-employees-after-switch')
@@ -8106,7 +8190,7 @@ export async function assistEmployeesAskAfterSwitchFlow(page, { press, shoot, in
   }
 }
 
-/** A key the company refuses (`?ai=key-refused`): it stays kept and the field opens beside Get a key, and the assistant does not move from the company it was on. */
+/** A key the company refuses (`?ai=key-refused`): it is not kept, the field stays open beside Get a key, and the assistant does not move from the company it was on. */
 export function assistKeyRefusedFlowIn(language) {
   const words = ASSIST_WORDS[language]
   return async (page, { press, shoot: shootAs, inspect }) => {
@@ -8127,7 +8211,8 @@ export function assistKeyRefusedFlowIn(language) {
       })
       const [pick, kept] = await page.evaluate(() => [localStorage.getItem('kuna.assist-provider'), localStorage.getItem('kuna.secret.openai')])
       if (pick !== 'anthropic') throw new Error(`a refused key moved the assistant to "${pick}"`)
-      if (kept !== 'made-up-openai-key-0077') throw new Error('a refused key was not kept')
+      if (kept !== null) throw new Error('a refused key was kept')
+      await elementSays(page, '[data-testid="assist-keeps-using"]', [words.card.keepsUsing('Anthropic', 'OpenAI')], 'a refused key does not say the assistant stays')
       await inspect?.('a key refused')
       await shoot('assist-key-refused')
     } finally {
@@ -8161,7 +8246,7 @@ export async function assistFetchKeyFlow(page, { press, shoot, inspect }) {
 export async function assistFetchNoneFlow(page, { press, inspect }) {
   try {
     await pressSelector(page, press, '[data-testid="assist-fetch-key"]')
-    await elementSays(page, '[data-testid="assist-fetch-line"]', [ASSIST_WORDS.en.card.fetchNone], 'Get it from Google does not say the account holds no key')
+    await elementSays(page, '[data-testid="assist-fetch-line"]', [ASSIST_WORDS.en.card.fetchNone('Anthropic')], 'Get it from Google does not say the account holds no key')
     if (!(await page.$('[data-testid="assist-key-steps"]'))) throw new Error('the steps went with no key fetched')
     await inspect?.('no key in the Google account')
   } finally {
@@ -8188,7 +8273,7 @@ async function suggestOnQueue(page, press, language, { inspect, shoot }, shotNam
   const words = ASSIST_WORDS[language]
   await keepAssistKey(page)
   await pressSelector(page, press, SUGGEST_BUTTON)
-  await consentTo(page, press, { inspect, shoot }, [words.suggest.sends, words.retention.anthropic, words.consent.switchOn(SCREEN_WORDS[language].company)], shotName)
+  await consentTo(page, press, { inspect, shoot }, [words.suggest.sends, words.retention.anthropic, words.consent.sendOnce], shotName)
   await page.waitForSelector('[data-testid="review-suggest-line"]', { visible: true, timeout: 10_000 }).catch(() => {
     throw new Error('Suggest categories gave no line under the queue card')
   })
@@ -8411,7 +8496,7 @@ async function openPayFigure(page, press) {
 async function explainOpenFigure(page, press, language, { inspect, shoot }) {
   const words = ASSIST_WORDS[language]
   await pressSelector(page, press, EXPLAIN_BUTTON)
-  await consentTo(page, press, { inspect, shoot }, [words.explain.sends, words.consent.switchOn(SCREEN_WORDS[language].company)])
+  await consentTo(page, press, { inspect, shoot }, [words.explain.sends, words.consent.sendOnce])
   await page.waitForSelector('[data-testid="cited-answer"]', { visible: true, timeout: 10_000 }).catch(async () => {
     const line = await page.evaluate(() => document.querySelector('[data-testid="explain-line"]')?.textContent?.trim() ?? 'nothing')
     throw new Error(`Explain gave no answer, the dialog says: ${line}`)
@@ -8469,7 +8554,7 @@ export function salaryFigureExplainAsksFlowIn(language) {
     await page.waitForSelector(CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
       throw new Error("Explain on an employee's figure did not ask first")
     })
-    await elementSays(page, '[role="dialog"]', [words.explain.employeesNote('Anthropic'), words.explain.employees], 'the dialog does not warn that the figure names employees')
+    await elementSays(page, '[role="dialog"]', [words.explain.employeesGo('Anthropic'), words.consent.sendOnce, words.consent.dontAsk], 'the dialog does not say that the figure names employees')
     await delay(400)
     await inspect?.("Explain asking before it sends an employee's pay")
     await shoot('salary-figure-explain-asks')

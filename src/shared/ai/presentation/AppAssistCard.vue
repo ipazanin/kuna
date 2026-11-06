@@ -12,7 +12,8 @@ import { assistKeyKept, providerInUse } from './useAiTask'
 import { words } from './words'
 
 /**
- * An app's Assistant tab: whether it sends without asking, what each task sends, and each task's employee switch. It
+ * An app's Assistant tab: whether it sends without asking, what each task sends, and each task's employee switch, which
+ * shows while the app sends without asking and always while its yes is on, so a yes can be seen and taken back. It
  * reads and writes the choices in `assistSettings` and holds none. With no key it only says what the assistant could do here.
  */
 const props = defineProps<{
@@ -37,7 +38,7 @@ const sendsFreely = computed(() => assistOn(props.app))
           <p class="type-body text-highlighted">{{ task.title }}</p>
           <p class="type-caption">{{ words.consent.sends(task.sends) }}</p>
           <USwitch
-            v-if="task.employees && sendsFreely"
+            v-if="task.employees && (sendsFreely || employeesOn(task.id))"
             :model-value="employeesOn(task.id)"
             :label="task.employees.label"
             :description="task.employees.note(provider.name)"

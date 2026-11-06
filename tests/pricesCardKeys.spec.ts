@@ -39,7 +39,7 @@ function cardKeys(answer: (vendor: PriceVendor, key: string | null) => VendorTes
 describe('the keys of the Prices card', () => {
   it('keeps a typed key in this browser alone, trimmed, and shows only its last four characters', () => {
     const { keys } = cardKeys()
-    expect(keys.save('twelvedata', `  ${LONG_KEY} `)).toBe(true)
+    expect(keys.save('twelvedata', `  ${LONG_KEY} `)).not.toBeNull()
 
     expect(storedSecret('twelvedata')).toBe(LONG_KEY)
     expect(keys.rows.twelvedata).toEqual({ kept: true, ending: 'cdef', test: null })
@@ -56,7 +56,7 @@ describe('the keys of the Prices card', () => {
   it('keeps nothing from an empty field, and leaves a kept key as it was', () => {
     storeSecret('twelvedata', LONG_KEY, SAVED_AT)
     const { keys } = cardKeys()
-    expect(keys.save('twelvedata', '   ')).toBe(false)
+    expect(keys.save('twelvedata', '   ')).toBeNull()
     expect(storedSecret('twelvedata')).toBe(LONG_KEY)
     expect(keys.rows.twelvedata?.kept).toBe(true)
   })
@@ -129,6 +129,30 @@ describe('the keys of the Prices card', () => {
   })
 })
 
+describe('a key that changes while it is tested', () => {
+  it('drops a result about a key removed or replaced during its Test', async () => {
+    let answer: () => void = () => {}
+    const keys = useSecretRows(PRICE_VENDORS, PAGE_SECRET_STORE, () => new Promise<VendorTest>((resolve) => (answer = () => resolve({ kind: 'works' }))))
+    keys.save('twelvedata', LONG_KEY)
+    const running = keys.test(twelveData)
+    keys.forget('twelvedata')
+    answer()
+    await running
+    expect(keys.rows.twelvedata).toEqual({ kept: false, ending: null, test: null })
+  })
+
+  it('puts back the key a Save replaced, and leaves a key saved since then as it is', () => {
+    const { keys } = cardKeys()
+    keys.save('twelvedata', LONG_KEY)
+    keys.save('twelvedata', 'made-up-twelve-data-key-8642')!()
+    expect(storedSecret('twelvedata')).toBe(LONG_KEY)
+    const undo = keys.save('twelvedata', 'made-up-twelve-data-key-8642')!
+    keys.save('twelvedata', 'made-up-twelve-data-key-9753')
+    undo()
+    expect(storedSecret('twelvedata')).toBe('made-up-twelve-data-key-9753')
+  })
+})
+
 describe('the Test of a vendor', () => {
   const today = civil('2026-10-30')
 
@@ -176,13 +200,8 @@ describe('what the keys cards say of where a key goes', () => {
 
   it('follows whether any app has a file on Drive on the Prices card, not the Investments file alone', () => {
     const card = read('src/apps/investments/prices/presentation/PriceVendorsCard.vue')
-    expect(card).toContain('someOnDrive.value ? words.card.subtitleOnDrive : words.card.subtitle')
+    expect(card).toContain('keysSync.value ? words.card.subtitleOnDrive : words.card.subtitle')
     expect(card).not.toContain('useInvestmentsBooks')
-  })
-
-  it("says a sync saves the key on the assistant's card only while some app's file is on Drive, which Kuna settings tells", () => {
-    expect(read('src/shared/ai/presentation/AiAssistCard.vue')).toContain('v-if="onDrive"')
-    expect(read('src/shell/settings/SettingsScreen.vue')).toContain(':on-drive="someOnDrive"')
   })
 
   it('no longer promises a key never goes into a file while it could', () => {

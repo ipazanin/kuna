@@ -6,6 +6,7 @@ import { currentToken, googleAccess, needScopes, requestAccess, signsInByRedirec
 import type { GoogleScope } from '../../google/googleScopes'
 import { canUndo } from '../../storage/application/createWorkbookStore'
 import type { BooksRead, SessionWrite, WorkbookStore } from '../../storage/application/createWorkbookStore'
+import { SECRETS_STEP } from '../application/syncSteps'
 import { createSync } from '../application/sync'
 import type { SyncGroup, SyncStep } from '../application/sync'
 import { BOOKS_STEP, oldestRead, pageAccessOf, syncControlOf, withBooksFailure } from '../application/syncRun'
@@ -40,8 +41,10 @@ export interface PageSync {
   /** The last run of this page, with a failed read of an app's books outside a run, such as a find, shown as its books step. */
   readonly run: ComputedRef<SyncRun | null>
   readonly control: ComputedRef<SyncControl>
-  /** Whether some app's file is on Drive, so a sync carries the keys of every app. */
+  /** Whether some app's file is on Drive. */
   readonly someOnDrive: ComputedRef<boolean>
+  /** Whether an app with a file on Drive lists the Keys step, so a sync carries the keys. Loans and Assets keep no key and list none. */
+  readonly keysSync: ComputedRef<boolean>
   /** Every group of the apps with a file on Drive, as `Sync.sync` says. Call it from a click handler. */
   sync(): Promise<void>
   /** Whether a sync is under way, as `Sync.running` says. */
@@ -175,6 +178,7 @@ export function startPageSync(apps: readonly Pick<AppContribution, 'id' | 'name'
     run,
     control,
     someOnDrive: computed(() => driveGroups().length > 0),
+    keysSync: computed(() => driveGroups().some((group) => group.steps().some((step) => step.id === SECRETS_STEP))),
     sync: () => (driveGroups().length > 0 ? sync.sync() : Promise.resolve()),
     running: sync.running,
     settled: sync.settled,

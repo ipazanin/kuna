@@ -6,16 +6,27 @@ import type { ModelChoice, ProviderId } from './providerPresets'
 /**
  * This device's choices for the assistant, each under its own key: a switch per app that sends without asking, a
  * switch per task that can send employee data, the provider in use and the model of each provider. Every screen reads
- * these choices here and keeps no copy. Absent or denied storage means off and the defaults, and a choice made while
- * storage is denied holds for the visit.
+ * these choices here and keeps no copy, and a change in another tab arrives here. Absent or denied storage means off and
+ * the defaults, and a choice made while storage is denied holds for the visit.
  */
 const APP_PREFIX = 'kuna.assist.'
 const TASK_PREFIX = 'kuna.assist-task.'
 const PROVIDER_KEY = 'kuna.assist-provider'
 const MODEL_PREFIX = 'kuna.assist-model.'
+const ASSIST_KEYS = /^kuna\.assist[.-]/
 
 /** What this visit read or chose, by storage key, so a switch shows its new state at once. */
 const choices = reactive<Record<string, string | null>>({})
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === null) {
+      for (const key of Object.keys(choices)) delete choices[key]
+    } else if (ASSIST_KEYS.test(event.key)) {
+      choices[event.key] = event.newValue
+    }
+  })
+}
 
 function choice(key: string): string | null {
   if (!Object.hasOwn(choices, key)) {
@@ -59,9 +70,9 @@ export function pickedProvider(): ProviderId | null {
   return PROVIDER_PRESETS.find((preset) => preset.id === picked)?.id ?? null
 }
 
-/** Stores the provider already in use as the pick, which moves nothing and takes no yes back. A pick already stored stays. */
+/** Stores the provider already in use as the pick, which moves nothing and takes no yes back. A pick already stored stays, also one another tab has only just made. */
 export function pinProvider(id: ProviderId): void {
-  if (pickedProvider() === null) choose(PROVIDER_KEY, id)
+  if (pickedProvider() === null && read(PROVIDER_KEY) === null) choose(PROVIDER_KEY, id)
 }
 
 /**

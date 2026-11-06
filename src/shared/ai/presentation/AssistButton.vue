@@ -5,21 +5,20 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import type { AssistTaskSummary } from '../../app/appContribution'
 import { assistOn, employeesOn, switchAssist, switchEmployees } from '../infrastructure/assistSettings'
 import AssistConsent from './AssistConsent.vue'
-import { assistKeyKept, pinProviderInUse, providerInUse } from './useAiTask'
+import { allowOnce, assistKeyKept, forgetOnce, providerInUse } from './useAiTask'
 
 /**
  * An app's button for one assist task, shown only while a key is kept for the provider in use. While a switch the run
- * needs is off, the tap asks first, and Run follows only once the person said yes.
+ * needs is off, each tap asks. A yes sends once, and Don't ask again turns on what this run needed.
  */
 const props = withDefaults(
   defineProps<{
     app: string
-    appName: string
     task: AssistTaskSummary
     label: string
     icon?: string
     loading?: boolean
-    /** True when this run would send employee names or pay, which the task's own switch must allow. */
+    /** True when this run would send employee names or pay, which the dialog then says, whatever the switches say. */
     sendsEmployees?: boolean
   }>(),
   { icon: 'i-lucide-sparkles', loading: false, sendsEmployees: false },
@@ -28,35 +27,34 @@ const props = withDefaults(
 const emit = defineEmits<{ run: [] }>()
 
 const provider = computed(() => providerInUse())
-const asking = ref<'app' | 'employees' | null>(null)
-const consentOpen = computed({
-  get: () => asking.value !== null,
-  set: (open) => {
-    if (!open) asking.value = null
-  },
-})
+const asking = ref(false)
 
-function waitsFor(): 'app' | 'employees' | null {
-  if (!assistOn(props.app)) return 'app'
-  return props.sendsEmployees && !employeesOn(props.task.id) ? 'employees' : null
-}
-
+/** A press of the button. A screen's Try again calls it too, so a retry asks as the first send did. */
 function tap(): void {
-  pinProviderInUse()
-  asking.value = waitsFor()
-  if (asking.value === null) emit('run')
+  forgetOnce(props.task.id)
+  if (!assistOn(props.app) || (props.sendsEmployees && !employeesOn(props.task.id))) asking.value = true
+  else emit('run')
 }
 
-function confirm(): void {
-  if (asking.value === 'app') switchAssist(props.app, true)
-  if (asking.value === 'employees') switchEmployees(props.task.id, true)
-  tap()
+function sendOnce(): void {
+  allowOnce(props.task.id)
+  asking.value = false
+  emit('run')
 }
+
+function dontAskAgain(): void {
+  switchAssist(props.app, true)
+  if (props.sendsEmployees) switchEmployees(props.task.id, true)
+  asking.value = false
+  emit('run')
+}
+
+defineExpose({ tap })
 </script>
 
 <template>
   <template v-if="assistKeyKept && provider">
     <UButton :label="label" :icon="icon" color="neutral" variant="outline" size="sm" :loading="loading" :disabled="loading" :data-testid="`assist-${task.id}`" @click="tap" />
-    <AssistConsent v-if="asking" v-model:open="consentOpen" :task="task" :app-name="appName" :provider="provider" :asks="asking" @confirm="confirm" />
+    <AssistConsent v-if="asking" v-model:open="asking" :task="task" :provider="provider" :sends-employees="sendsEmployees" @once="sendOnce" @always="dontAskAgain" />
   </template>
 </template>

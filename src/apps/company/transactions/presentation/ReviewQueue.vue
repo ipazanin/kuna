@@ -37,7 +37,6 @@ import ReviewQueueItem from './ReviewQueueItem.vue'
 import SessionChanges from './SessionChanges.vue'
 import SplitDialog from './SplitDialog.vue'
 import { words } from './words'
-import { words as appWords } from '../../words'
 
 /** The To review tab: the rows that wait for a person, the model's suggestions for them, the pack's cards about them, and this page's changes with Undo. */
 const props = defineProps<{
@@ -192,9 +191,9 @@ function openSplit(row: Transaction): void {
           <template #actions>
             <AssistButton
               :app="suggestCategories.app"
-              :app-name="appWords.name"
               :task="SUGGEST_CATEGORIES_SUMMARY"
               :label="assistWords.suggest.title"
+              :sends-employees="paysEmployees && employeesOn(SUGGEST_CATEGORIES)"
               :loading="suggesting.state.value.kind === 'running'"
               @run="suggest"
             />

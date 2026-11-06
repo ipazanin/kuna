@@ -195,6 +195,44 @@ describe('a run through the door to the keys', () => {
     scope.stop()
   })
 
+  it('sends once on a yes with the app switched off, then is off again, also for employee data', async () => {
+    const { allowOnce } = await import('../src/shared/ai/presentation/useAiTask')
+    switchAssist('test', false)
+    pickProvider('anthropic')
+    storeSecret('anthropic', 'made-up-anthropic-key-0042', '2026-10-30T10:00:00.000Z')
+    const sent: unknown[] = []
+    vi.stubGlobal('fetch', async (_input: string, init: RequestInit) => {
+      sent.push(init.body)
+      return reply()
+    })
+    const scope = effectScope()
+    const run = scope.run(() => useAiTask(TASK))!
+
+    expect(await run.run('Before a yes.')).toMatchObject({ kind: 'switched-off', which: 'app' })
+    expect(sent).toHaveLength(0)
+    allowOnce(TASK.id)
+    expect(await run.run('Once.', true)).toMatchObject({ kind: 'draft' })
+    expect(sent).toHaveLength(1)
+    expect(localStorage.getItem('kuna.assist.test')).toBeNull()
+    expect(await run.run('Again.')).toMatchObject({ kind: 'switched-off', which: 'app' })
+    expect(sent).toHaveLength(1)
+    scope.stop()
+  })
+
+  it('takes back a yes no run used', async () => {
+    const { allowOnce, forgetOnce } = await import('../src/shared/ai/presentation/useAiTask')
+    switchAssist('test', false)
+    pickProvider('anthropic')
+    storeSecret('anthropic', 'made-up-anthropic-key-0042', '2026-10-30T10:00:00.000Z')
+    vi.stubGlobal('fetch', async () => reply())
+    const scope = effectScope()
+    const run = scope.run(() => useAiTask(TASK))!
+    allowOnce(TASK.id)
+    forgetOnce(TASK.id)
+    expect(await run.run('After a tap that sent nothing.')).toMatchObject({ kind: 'switched-off', which: 'app' })
+    scope.stop()
+  })
+
   it("runs a typed model with no price, and shows the provider's words when it refuses one", async () => {
     pickProvider('anthropic')
     pickModel('anthropic', '  claude-made-up-model ')

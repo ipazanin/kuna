@@ -5,13 +5,14 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { AppContribution } from '../src/shared/app/appContribution'
 import type { GoogleScope } from '../src/shared/google/googleScopes'
 import { loadNeededScopes } from '../src/shared/google/googleSession'
+import type { SyncStep } from '../src/shared/sync/application/sync'
 import type { AppSyncGroup } from '../src/shared/sync/presentation/pageSync'
 import { startPageSync } from '../src/shared/sync/presentation/pageSync'
 
 type FakeApp = Pick<AppContribution, 'id' | 'name' | 'syncGroup'>
 
 /** An app whose file is on Drive, in this browser or not chosen, and whose books need these scopes once they are on screen. */
-function appOf(id: string, source: 'drive' | 'browser' | null, scopes: readonly GoogleScope[], syncedAt: string | null = '2026-10-28T08:00:00.000Z') {
+function appOf(id: string, source: 'drive' | 'browser' | null, scopes: readonly GoogleScope[], syncedAt: string | null = '2026-10-28T08:00:00.000Z', steps: readonly SyncStep[] = []) {
   const state = shallowReactive({
     choice: source === null ? null : { source, id: `${id}-file`, name: `kuna-${id}.json` },
     workbook: null as unknown,
@@ -26,7 +27,7 @@ function appOf(id: string, source: 'drive' | 'browser' | null, scopes: readonly 
   })
   const group: AppSyncGroup = {
     store: { state: state as AppSyncGroup['store']['state'], open: async () => {}, sync: async () => {}, canSyncSilently: () => false },
-    steps: () => [],
+    steps: () => steps,
     needs: () => [{ scope: 'drive.file', label: 'Books' }, ...(state.workbook === null ? [] : scopes.map((scope) => ({ scope, label: id })))],
     undo: async () => {},
     exportControl: {},
@@ -109,6 +110,20 @@ describe('a file in the bin or gone', () => {
     state.error = '500 from Drive.'
 
     expect(startPageSync([loans.app]).run.value?.groups[0]?.steps[0]?.state).toEqual({ kind: 'failed', line: '500 from Drive.', link: null })
+  })
+})
+
+describe('whether a sync carries the keys', () => {
+  const keysStep = { id: 'secrets' } as unknown as SyncStep
+
+  it('holds only while an app with a file on Drive lists the Keys step, as Loans and Assets do not', () => {
+    const loans = appOf('loans', 'drive', [])
+    const company = appOf('company', 'browser', [], undefined, [keysStep])
+    const page = startPageSync([loans.app, company.app])
+    expect(page.someOnDrive.value).toBe(true)
+    expect(page.keysSync.value).toBe(false)
+    company.state.choice = { source: 'drive', id: 'company-file', name: 'kuna-company.json' }
+    expect(page.keysSync.value).toBe(true)
   })
 })
 

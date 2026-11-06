@@ -26,9 +26,9 @@ export interface SecretRow<Test> {
 
 export interface SecretRows<Owner extends SecretOwner, Test> {
   readonly rows: Readonly<Record<string, SecretRow<Test>>>
-  /** Keeps the typed key, and says whether there was one to keep. */
-  save(id: string, typed: string): boolean
-  /** Forgets the key, and returns what puts it back, which does nothing once another key was saved. */
+  /** Keeps the typed key, with the Test it already passed if any, and returns what puts back the key before it, or null with no key to keep. */
+  save(id: string, typed: string, test?: Test): (() => void) | null
+  /** Forgets the key, and returns what puts it back. */
   forget(id: string): () => void
   /** Reads every row's key again, as after a sync took the keys another browser saved. A row keeps its last Test only while its key still ends the same. */
   reread(): void
@@ -44,26 +44,26 @@ export function useSecretRows<Owner extends SecretOwner, Test>(owners: readonly 
   }
   const rows = reactive<Record<string, SecretRow<Test>>>(Object.fromEntries(owners.map((owner) => [owner.id, rowOf(owner.id)])))
 
+  /** Writes the key, and returns what puts back the one before it, which does nothing once the key changed again. */
+  const write = (id: string, key: string | null, test: Test | null = null): (() => void) => {
+    const before = store.read(id)
+    store.write(id, key)
+    const written = store.read(id)
+    rows[id] = rowOf(id, test)
+    return () => {
+      if (store.read(id) !== written) return
+      store.write(id, before)
+      rows[id] = rowOf(id)
+    }
+  }
+
   return {
     rows,
-    save(id, typed) {
-      if (typed.trim() === '') {
-        return false
-      }
-      store.write(id, typed)
-      const row = rowOf(id)
-      rows[id] = row
-      return row.kept
+    save(id, typed, test) {
+      return typed.trim() === '' ? null : write(id, typed, test ?? null)
     },
     forget(id) {
-      const key = store.read(id)
-      store.write(id, null)
-      rows[id] = rowOf(id)
-      return () => {
-        if (key === null || store.read(id) !== null) return
-        store.write(id, key)
-        rows[id] = rowOf(id)
-      }
+      return write(id, null)
     },
     reread() {
       for (const owner of owners) {
@@ -74,8 +74,10 @@ export function useSecretRows<Owner extends SecretOwner, Test>(owners: readonly 
     },
     async test(owner) {
       rows[owner.id] = { ...rows[owner.id]!, test: 'testing' }
-      const result = await request(owner, owner.needsKey ? store.read(owner.id) : null)
-      rows[owner.id] = rowOf(owner.id, result)
+      const key = owner.needsKey ? store.read(owner.id) : null
+      const result = await request(owner, key)
+      // A key changed meanwhile is not the key this result is about.
+      rows[owner.id] = rowOf(owner.id, !owner.needsKey || store.read(owner.id) === key ? result : null)
     },
   }
 }
