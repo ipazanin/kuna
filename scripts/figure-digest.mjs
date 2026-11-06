@@ -111,20 +111,21 @@ import { triedRate, whatIfChange, whatIfExtraPayment } from '../src/apps/loans/b
 import { offerEks } from '../src/apps/loans/scenarios/domain/effectiveRate.ts'
 import { moveBreakEven, scenarioOutcome } from '../src/apps/loans/scenarios/domain/scenarioOutcome.ts'
 import { scenarioBaseOf, scenarioPlan } from '../src/apps/loans/scenarios/domain/scenarioPlan.ts'
-import { MOST_COMPARED } from '../src/apps/loans/scenarios/presentation/scenarioComparison.ts'
-import { offersComparison, scenarioKey, scenarioRows, slotted, workedOffers } from '../src/apps/loans/scenarios/presentation/scenariosView.ts'
-import { askedSlots, pickedOf } from '../src/apps/loans/scenarios/presentation/useScenarioCompare.ts'
+import { MOST_COMPARED, askedSlots, pickedOf } from '../src/apps/loans/scenarios/domain/scenarioSlots.ts'
+import { scenarioKey, workedOffers } from '../src/apps/loans/scenarios/domain/workedScenario.ts'
+import { offersComparison, scenarioRows, slotted } from '../src/apps/loans/scenarios/presentation/scenariosView.ts'
 import { rateOfText } from '../src/apps/loans/bankLoans/domain/yearlyRate.ts'
-import { bankLoanFigures, bankLoanMonths, bankLoanMoves, bankLoanPaidOffOn, planYears } from '../src/apps/loans/bankLoans/presentation/bankLoanView.ts'
+import { bankLoanFigures, bankLoanMonths, bankLoanPaidOffOn } from '../src/apps/loans/bankLoans/domain/bankLoanFigures.ts'
+import { bankLoanMoves, planYearsOnScreen } from '../src/apps/loans/bankLoans/presentation/bankLoanView.ts'
 import { savedTries } from '../src/apps/loans/bankLoans/presentation/savedTries.ts'
-import { wordsFor } from '../src/apps/loans/bankLoans/presentation/words.ts'
 import { planStanding, plannedOwed } from '../src/apps/loans/informalLoans/domain/expectedPlan.ts'
 import { informalBalances } from '../src/apps/loans/informalLoans/domain/informalBalance.ts'
-import { informalClosedOn, informalLoanFigures, informalLoanMonths, informalLoanMoves, movementLines } from '../src/apps/loans/informalLoans/presentation/informalLoanView.ts'
+import { informalClosedOn, informalLoanFigures, informalLoanMonths } from '../src/apps/loans/informalLoans/domain/informalLoanFigures.ts'
+import { informalLoanMoves, movementLines } from '../src/apps/loans/informalLoans/presentation/informalLoanView.ts'
 import { debtFreeOn, estimateFrom, interestAfter, interestInYear, outgoingByMonth, owedByMonth, plannedLoans, upcomingPayments } from '../src/apps/loans/overview/domain/loansTogether.ts'
-import { owedOnDay } from '../src/apps/loans/overview/presentation/owedTotals.ts'
+import { owedOnDay } from '../src/apps/loans/overview/domain/owedTotals.ts'
 import { bankLoansOf } from '../src/apps/loans/facts.ts'
-import { loansHubFigures } from '../src/apps/loans/home/presentation/loansHubFigures.ts'
+import { loansNetWorthParts } from '../src/apps/loans/home/domain/loansNetWorthParts.ts'
 import { fakeLoansDocument } from '../src/apps/loans/workbook/infrastructure/fake/fakeLoans.ts'
 import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument.ts'
 import { moneyFromAmount } from '../src/shared/money/money.ts'
@@ -417,12 +418,12 @@ function loansGroups(add) {
     const at = `loans.bank-loan-${index + 1}`
     add(`${at}.plan`, book.plan)
     add(`${at}.figures`, () => [bankLoanFigures(book, today), book.plan && paidSoFar(book.plan, book.lateInstalments, today)])
-    add(`${at}.years`, () => planYears(book, today))
+    add(`${at}.years`, () => planYearsOnScreen(book, today))
     add(`${at}.payments`, () => book.plan && [...paymentsByYear(book.plan), splitOfRows(book.plan)])
     add(`${at}.months`, () => bankLoanMonths(book))
     add(`${at}.what-if`, () => whatIfExtraPayment(book, today, moneyFromAmount(1000)))
     add(`${at}.moves`, () => bankLoanMoves(book, today))
-    add(`${at}.saved-tries`, () => savedTries(book, workbook.scenarios, today, wordsFor(book.loan.repayment)))
+    add(`${at}.saved-tries`, () => savedTries(book, workbook.scenarios, today))
     add(`${at}.what-if-rate`, () => {
       const next = book.plan?.find((row) => row.kind === 'instalment' && row.date > today) ?? null
       return next && whatIfChange(book, triedRate(book, next.date, rateOfText('3')))
@@ -480,7 +481,7 @@ function loansGroups(add) {
   ])
   add('loans.closed', () => [workbook.bankLoans.map((book) => bankLoanPaidOffOn(book, today)), workbook.informalLoans.map((book) => informalClosedOn(book, today))])
   add('loans.published', () => bankLoansOf(workbook, today))
-  return { hub: () => loansHubFigures(workbook, today), book: workbook }
+  return { hub: () => ({ parts: loansNetWorthParts(workbook, today), notes: [] }), book: workbook }
 }
 
 /** The prices file of an Investments input: the fake one for the fake set, the one given, or none. */

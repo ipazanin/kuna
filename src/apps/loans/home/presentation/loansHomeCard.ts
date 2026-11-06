@@ -1,7 +1,7 @@
 import type { AppHomeCard } from '../../../../shared/app/appContribution'
 import { homeCardFigures } from '../../../../shared/app/homeCardFigures'
 import { today } from '../../../../shared/calendar/civilDate'
-import { owedOnDay } from '../../overview/presentation/owedTotals'
+import { owedOnDay } from '../../overview/domain/owedTotals'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import { words } from './words'
 

@@ -1,11 +1,14 @@
 import type { ChangeLine } from './ChangeListCard.vue'
+import { wordsFor } from './words'
 import type { words } from './words'
 import { NO_COSTS } from '../../scenarios/domain/loanScenario'
 import type { LoanChange } from '../../scenarios/domain/loanScenario'
 import { scenarioOutcome } from '../../scenarios/domain/scenarioOutcome'
+import { payoffMonthsLater } from '../../scenarios/domain/scenarioComparison'
 import { asItStands } from '../../scenarios/domain/scenarioPlan'
-import { payoffMonthsLater, refusalText, spanOf, spanText } from '../../scenarios/presentation/scenarioComparison'
-import { interestAgainst, scenarioKey, triedSummary, workedScenario } from '../../scenarios/presentation/scenariosView'
+import { scenarioKey, workedScenario } from '../../scenarios/domain/workedScenario'
+import { refusalText, spanOf, spanText } from '../../scenarios/presentation/scenarioComparison'
+import { interestAgainst, triedSummary } from '../../scenarios/presentation/scenariosView'
 import type { BankLoanBook, ScenarioBook } from '../../workbook/domain/readLoanBook'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -37,7 +40,8 @@ export function tryName(change: TriedChange, loanWords: typeof words): string {
  * then the interest it saves and how much sooner the loan is paid off, or why Kuna cannot work it out.
  * A try of one term change takes its name from the change, whatever name the file keeps.
  */
-export function savedTries(book: BankLoanBook, scenarios: readonly ScenarioBook[], today: CivilDate, loanWords: typeof words): SavedTry[] {
+export function savedTries(book: BankLoanBook, scenarios: readonly ScenarioBook[], today: CivilDate): SavedTry[] {
+  const loanWords = wordsFor(book.loan.repayment)
   const plan = asItStands(book)
   const stands = plan === null ? null : scenarioOutcome(plan, today)
   return scenarios

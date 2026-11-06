@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
-import { bankLoanFigures, bankLoanMoves, planYears } from '../src/apps/loans/bankLoans/presentation/bankLoanView'
+import { bankLoanFigures } from '../src/apps/loans/bankLoans/domain/bankLoanFigures'
+import { planYears } from '../src/apps/loans/bankLoans/domain/planYears'
+import { bankLoanMoves, planYearsOnScreen } from '../src/apps/loans/bankLoans/presentation/bankLoanView'
 import { wordsFor } from '../src/apps/loans/bankLoans/presentation/words'
 import { plural } from '../src/shared/text/translation'
 import { euros } from './fixtures/ledger'
@@ -18,6 +20,24 @@ describe("a bank loan's plan by year", () => {
 
     // August and September 2026 fell due at the variable rate before the day, so the bank's rate for them is known.
     expect(lines.filter((line) => line.estimate).map((line) => line.date)).toEqual(['2026-10-05', '2026-11-05', '2026-12-05', '2027-01-05'])
+  })
+})
+
+describe("a bank loan's plan on the table", () => {
+  it('words each line by how it stands, a late one with the day it went out, and adds nothing else to the plan', () => {
+    const loan = bankLoan()
+    const periods = [ratePeriod(loan, '2026-02-05', '12')]
+    const book = { loan, ratePeriods: periods, extraPayments: [], lateInstalments: [lateInstalment(loan, '2026-03-05', '2026-03-09')], plan: loanPlan(loan, periods, []) }
+    const day = civil('2026-03-20')
+
+    const onScreen = planYearsOnScreen(book, day)
+
+    expect(onScreen[0]!.lines.slice(0, 3).map((line) => [line.date, line.late, line.status])).toEqual([
+      ['2026-02-05', false, 'Paid'],
+      ['2026-03-05', true, 'Paid 9 Mar, 4 days late'],
+      ['2026-04-05', false, 'Due'],
+    ])
+    expect(onScreen.map((year) => ({ ...year, lines: year.lines.map(({ status: _status, ...line }) => line) }))).toEqual(planYears(book, day))
   })
 })
 

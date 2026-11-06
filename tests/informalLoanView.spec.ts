@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { informalClosedOn, informalLoanChartMonths, informalLoanMonths, informalLoanMoves, movementLines, whoOwes } from '../src/apps/loans/informalLoans/presentation/informalLoanView'
+import { informalClosedOn, informalLoanChartMonths, informalLoanMonths } from '../src/apps/loans/informalLoans/domain/informalLoanFigures'
+import { informalLoanMoves, movementLines, whoOwes } from '../src/apps/loans/informalLoans/presentation/informalLoanView'
 import { civil, euros } from './fixtures/ledger'
 import { informalLoan, movement } from './fixtures/loans'
 

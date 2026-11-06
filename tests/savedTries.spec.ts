@@ -27,7 +27,7 @@ function sample() {
 describe("the tries saved on a loan's page", () => {
   it("reads the sample's three Home loan scenarios, works each out from today and says what it saves", () => {
     const workbook = sample()
-    const tries = savedTries(workbook.bankLoans[0]!, workbook.scenarios, TODAY, words)
+    const tries = savedTries(workbook.bankLoans[0]!, workbook.scenarios, TODAY)
 
     expect(tries.map((entry) => entry.title)).toEqual(['€5,000 next spring', '€150 every month', 'Move to Jadran Bank'])
     expect(tries.map((entry) => entry.detail)).toEqual([
@@ -41,7 +41,7 @@ describe("the tries saved on a loan's page", () => {
     const workbook = sample()
     const [spring] = workbook.scenarios
     const offDue = { ...spring!, changes: [{ ...spring!.changes[0]!, kind: 'rate-change', from: civil('2027-04-21'), rate: percent('3'), rateType: 'fixed' } as const] }
-    const [tried] = savedTries(workbook.bankLoans[0]!, [offDue], TODAY, words)
+    const [tried] = savedTries(workbook.bankLoans[0]!, [offDue], TODAY)
 
     expect(tried!.detail).toBe('The rate is 3% fixed from 21 Apr 2027. 21 Apr 2027 is not a due date of Home loan.')
   })
@@ -51,7 +51,7 @@ describe("the tries saved on a loan's page", () => {
     const [spring] = workbook.scenarios
     const term = { ...spring!.changes[0]!, kind: 'term-change', from: civil('2026-11-20'), instalments: 180 } as const
     const earlier = { ...spring!, scenario: { ...spring!.scenario, name: '15 y left from 20 Nov 2026' }, changes: [term] }
-    const [tried] = savedTries(workbook.bankLoans[0]!, [earlier], TODAY, words)
+    const [tried] = savedTries(workbook.bankLoans[0]!, [earlier], TODAY)
 
     expect(tried!.title).toBe('Term change, 15 y left from 20 Nov 2026')
     expect(tryName(term, words)).toBe(tried!.title)
@@ -62,7 +62,7 @@ describe("the tries saved on a loan's page", () => {
   it('keeps no try of another loan', () => {
     const workbook = sample()
 
-    expect(savedTries({ ...workbook.bankLoans[0]!, loan: { ...workbook.bankLoans[0]!.loan, id: recordIdOf(BANK_LOAN_RECORDS, 'other') } }, workbook.scenarios, TODAY, words)).toEqual([])
+    expect(savedTries({ ...workbook.bankLoans[0]!, loan: { ...workbook.bankLoans[0]!.loan, id: recordIdOf(BANK_LOAN_RECORDS, 'other') } }, workbook.scenarios, TODAY)).toEqual([])
   })
 })
 

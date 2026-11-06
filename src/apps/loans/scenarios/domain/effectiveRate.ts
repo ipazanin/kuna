@@ -2,6 +2,7 @@ import type { LoanChange } from './loanScenario'
 import { scenarioPlan } from './scenarioPlan'
 import type { DatedCost, ScenarioBase } from './scenarioPlan'
 import type { PlanRow } from '../../bankLoans/domain/loanPlan'
+import { rateOfFraction } from '../../bankLoans/domain/yearlyRate'
 import type { YearlyRate } from '../../bankLoans/domain/yearlyRate'
 import { daysBetween } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -18,13 +19,13 @@ function monthsAndDaysOver365(from: CivilDate, to: CivilDate): number {
 
 /**
  * Kuna's estimate of the effective rate (EKS): the yearly rate at which the principal on the drawdown
- * equals every payment and cost, each discounted from its day, rounded half up to two decimals of a
+ * equals every payment and cost, each discounted from its day, rounded half away from zero to two decimals of a
  * percent. Rows count their full payment, so a subsidy stays out, as it does in the bank's figure.
  * Null when no rate balances them.
  */
 export function effectiveRate(principal: Money, drawdown: CivilDate, rows: readonly PlanRow[], costs: readonly DatedCost[]): YearlyRate | null {
   const rate = solvedRate([{ date: drawdown, amount: negateMoney(principal) }, ...rows.map((row) => ({ date: row.date, amount: row.payment })), ...costs], monthsAndDaysOver365)
-  return rate === null ? null : ((Math.round(rate * 10_000) * 100) as YearlyRate)
+  return rate === null ? null : rateOfFraction(rate)
 }
 
 /**

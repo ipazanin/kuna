@@ -17,7 +17,7 @@ import {
 } from '../src/apps/loans/bankLoans/domain/loanFigures'
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
 import type { PlanRow } from '../src/apps/loans/bankLoans/domain/loanPlan'
-import { annuity, equalPrincipalInstalment, monthlyInterest, rateOfText, rateText, typedRate } from '../src/apps/loans/bankLoans/domain/yearlyRate'
+import { annuity, equalPrincipalInstalment, monthlyInterest, percentagePoints, rateMovedBy, rateOfFraction, rateOfText, rateText, typedRate } from '../src/apps/loans/bankLoans/domain/yearlyRate'
 import { sumMoney } from '../src/shared/money/money'
 import { civil, euros } from './fixtures/ledger'
 import { bankLoan, extraPayment, lateInstalment, percent, ratePeriod } from './fixtures/loans'
@@ -28,6 +28,23 @@ function table(rows: readonly PlanRow[]): [string, number, number, number, numbe
 }
 
 describe('yearly rates', () => {
+  it.each([
+    [0.8, 800_000],
+    [0.0318, 31_800],
+    [0.031849, 31_800],
+    [0.03185, 31_900],
+    [0, 0],
+    [-0.03185, -31_900],
+  ])('keeps a rate worked out as the fraction %d to two decimals of a percent, as %d millionths', (fraction, millionths) => {
+    expect(rateOfFraction(fraction)).toBe(millionths)
+  })
+
+  it('moves a rate by percentage points and measures two rates apart in them, whichever way', () => {
+    expect(rateMovedBy(percent('3.18'), 2)).toBe(percent('5.18'))
+    expect(percentagePoints(percent('3.5') - percent('3'))).toBe(0.5)
+    expect(percentagePoints(percent('3') - percent('3.5'))).toBe(0.5)
+  })
+
   it('reads a percent with up to four decimals into exact millionths and writes it back in its shortest form', () => {
     expect(rateOfText('3.18')).toBe(31_800)
     expect(rateOfText('2.143')).toBe(21_430)

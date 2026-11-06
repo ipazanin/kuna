@@ -3,9 +3,12 @@ import { createApp } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import type { ScenarioOutcome } from '../src/apps/loans/scenarios/domain/scenarioOutcome'
+import { comparedScenarios } from '../src/apps/loans/scenarios/domain/scenarioComparison'
+import type { ComparedScenario } from '../src/apps/loans/scenarios/domain/scenarioComparison'
+import { slotsOf, slotsText, toggledSlots } from '../src/apps/loans/scenarios/domain/scenarioSlots'
 import { compareScenarios, letterOf, refusalText } from '../src/apps/loans/scenarios/presentation/scenarioComparison'
-import type { ComparedScenario, ScenarioComparison } from '../src/apps/loans/scenarios/presentation/scenarioComparison'
-import { slotsOf, slotsText, toggledSlots, useScenarioCompare } from '../src/apps/loans/scenarios/presentation/useScenarioCompare'
+import type { ScenarioComparison } from '../src/apps/loans/scenarios/presentation/scenarioComparison'
+import { useScenarioCompare } from '../src/apps/loans/scenarios/presentation/useScenarioCompare'
 import { civil, euros } from './fixtures/ledger'
 import { percent } from './fixtures/loans'
 
@@ -35,6 +38,23 @@ function scenario(key: string, slot: number, overrides: Partial<ScenarioOutcome>
 function line(comparison: ScenarioComparison, key: string) {
   return comparison.lines.find((entry) => entry.key === key)!
 }
+
+describe('the figures of offers side by side', () => {
+  const sooner = scenario('sooner', 2, { payoff: civil('2045-08-20'), interest: euros(34_500), instalments: 209, costs: euros(1500) })
+  const compared = comparedScenarios([sooner, scenario('plain', 1)], 'plain')
+  const lineOf = (key: string) => compared.lines.find((entry) => entry.key === key)!
+
+  it('gives each figure its distance above the base in its own unit, with none in the base column', () => {
+    // March 2048 to August 2045 is 31 months sooner, and the interest is 5,500.00 lower.
+    expect(lineOf('payoff').cells.map((cell) => cell.aboveBase)).toEqual([0, -31])
+    expect(lineOf('interest').cells.map((cell) => cell.aboveBase)).toEqual([0, euros(-5500)])
+  })
+
+  it('keeps a line nobody has a figure on out, and a line one offer has a figure on in, with the one without it at nothing', () => {
+    expect(compared.lines.map((entry) => entry.key)).toEqual(['instalment', 'interest', 'total', 'payoff', 'costs'])
+    expect(lineOf('costs').cells.map((cell) => cell.figure)).toEqual([euros(0), euros(1500)])
+  })
+})
 
 describe('offers side by side', () => {
   const plain = scenario('plain', 1)

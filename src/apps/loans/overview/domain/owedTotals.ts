@@ -1,10 +1,10 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { negateMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
-import { bankLoanFigures } from '../../bankLoans/presentation/bankLoanView'
-import type { BankLoanFigures } from '../../bankLoans/presentation/bankLoanView'
-import { informalLoanFigures } from '../../informalLoans/presentation/informalLoanView'
-import type { InformalLoanFigures } from '../../informalLoans/presentation/informalLoanView'
+import { bankLoanFigures } from '../../bankLoans/domain/bankLoanFigures'
+import type { BankLoanFigures } from '../../bankLoans/domain/bankLoanFigures'
+import { informalLoanFigures } from '../../informalLoans/domain/informalLoanFigures'
+import type { InformalLoanFigures } from '../../informalLoans/domain/informalLoanFigures'
 import type { LoanBook } from '../../workbook/domain/readLoanBook'
 
 export interface OwedTotals {

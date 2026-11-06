@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 
 import { paymentOf } from '../domain/loanFigures'
-import type { BankLoanFigures } from './bankLoanView'
+import type { BankLoanFigures } from '../domain/bankLoanFigures'
 import PaymentSplitFigures from './PaymentSplitFigures.vue'
 import type { BankLoan } from '../../workbook/domain/bankLoan'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'

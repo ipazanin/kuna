@@ -1,12 +1,14 @@
-import { dividedRounded, moneyFromCents } from '../../../../shared/money/money'
+import { dividedRounded, moneyFromCents, roundHalfAwayFromZero } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { basisPointsOfRatio } from '../../../../shared/money/percent'
 
 /** A yearly interest rate in millionths, so 3.18% is 31_800 and 2.143% is 21_430, exact to four decimals of a percent. */
 export type YearlyRate = number & { readonly __unit: 'millionths' }
 
 const MILLIONTHS_PER_WHOLE = 1_000_000
 /** One percent, or one percentage point between two rates. */
-export const MILLIONTHS_PER_PERCENT = 10_000
+const MILLIONTHS_PER_PERCENT = 10_000
+const MILLIONTHS_PER_BASIS_POINT = 100
 const MONTHS_PER_YEAR = 12
 
 /** A percent as a bank writes it, such as `3.18` or `3.1825`: up to two whole digits and up to four decimals. */
@@ -29,6 +31,21 @@ export function typedRate(text: string): YearlyRate | null {
 /** The rate as a fraction of one, such as 0.0318 for 3.18%. */
 export function fractionOf(rate: YearlyRate): number {
   return rate / MILLIONTHS_PER_WHOLE
+}
+
+/** A rate worked out as a fraction of one, to two decimals of a percent, rounded half away from zero, so 0.031849 is 3.18%. */
+export function rateOfFraction(fraction: number): YearlyRate {
+  return (roundHalfAwayFromZero(basisPointsOfRatio(fraction)) * MILLIONTHS_PER_BASIS_POINT) as YearlyRate
+}
+
+/** The rate some percentage points higher. */
+export function rateMovedBy(rate: YearlyRate, points: number): YearlyRate {
+  return (rate + points * MILLIONTHS_PER_PERCENT) as YearlyRate
+}
+
+/** A difference between two rates in percentage points, whichever way it goes. */
+export function percentagePoints(difference: number): number {
+  return Math.abs(difference) / MILLIONTHS_PER_PERCENT
 }
 
 /** The percent as its shortest text, such as `3.18` for 31_800 and `3` for 30_000. */

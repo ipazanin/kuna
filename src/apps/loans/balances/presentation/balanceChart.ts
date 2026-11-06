@@ -1,3 +1,4 @@
+import type { MonthBalance } from '../domain/monthBalance'
 import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { shortDayLabel } from '../../../../shared/calendar/dayLabel'
@@ -17,12 +18,6 @@ import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
 import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
-
-/** What a loan owes at the end of a month. */
-export interface MonthBalance {
-  readonly month: MonthKey
-  readonly owed: Money
-}
 
 /** Something that changed a loan on a day, which the chart marks with a dot on its month. */
 export interface BalanceMove {

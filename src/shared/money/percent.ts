@@ -108,6 +108,11 @@ export function basisPointsOfRatio(ratio: number): number {
   return ratio * BASIS_POINTS_PER_WHOLE
 }
 
+/** The whole percent a part is of a whole, rounded down and worked out on the cents, so 29 cents of 100 is 29. */
+export function wholePercentOf(part: Money, whole: Money): number {
+  return Math.floor((part * PERCENT_PER_WHOLE) / whole)
+}
+
 /** A rate as people write it: 2150 basis points is 21.5%, or 21,5 % in Croatian. */
 export function percentText(rate: Percent): string {
   return formatRate(shareOfPercent(rate))

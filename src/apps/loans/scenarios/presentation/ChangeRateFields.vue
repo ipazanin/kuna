@@ -7,7 +7,7 @@ import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 
 import type { RateTexts } from './changeTexts'
 import { words } from './words'
-import { MILLIONTHS_PER_PERCENT, rateText, typedRate } from '../../bankLoans/domain/yearlyRate'
+import { rateMovedBy, rateText, typedRate } from '../../bankLoans/domain/yearlyRate'
 import type { YearlyRate } from '../../bankLoans/domain/yearlyRate'
 import { words as bankWords } from '../../bankLoans/presentation/words'
 import { plural } from '../../../../shared/text/translation'
@@ -31,7 +31,7 @@ const RATE_TYPES = [
 const error = computed(() => (props.tried && typedRate(texts.value.rate) === null ? bankWords.rateFields.rateError : false))
 
 function plus(points: number): void {
-  if (props.current !== null) texts.value.rate = rateText((props.current + points * MILLIONTHS_PER_PERCENT) as YearlyRate)
+  if (props.current !== null) texts.value.rate = rateText(rateMovedBy(props.current, points))
 }
 </script>
 

@@ -15,6 +15,7 @@ import {
   restOf,
   shareFromPercent,
   shareOfPercent,
+  wholePercentOf,
   writtenPercent,
 } from '../src/shared/money/percent'
 import type { Percent, Share } from '../src/shared/money/percent'
@@ -144,5 +145,17 @@ describe('percent', () => {
     const rate: Percent = share
 
     expect([amount, rate, stillANumber]).toEqual([2500, 0.25, 2500])
+  })
+
+  it.each([
+    [29, 100, 29],
+    [98_994, 120_000, 82],
+    [99, 100, 99],
+    [100, 100, 100],
+    [0, 100, 0],
+    [1, 3, 33],
+    [2, 3, 66],
+  ])('gives %d cents of %d as %d whole percent, rounded down', (part, whole, percent) => {
+    expect(wholePercentOf(moneyFromCents(part), moneyFromCents(whole))).toBe(percent)
   })
 })

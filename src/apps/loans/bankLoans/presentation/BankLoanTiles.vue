@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BankLoanFigures } from './bankLoanView'
+import type { BankLoanFigures } from '../domain/bankLoanFigures'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'

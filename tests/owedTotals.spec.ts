@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
-import { bankLoanFigures } from '../src/apps/loans/bankLoans/presentation/bankLoanView'
-import { informalLoanFigures } from '../src/apps/loans/informalLoans/presentation/informalLoanView'
-import { owedOnDay, owedTotals } from '../src/apps/loans/overview/presentation/owedTotals'
+import { bankLoanFigures } from '../src/apps/loans/bankLoans/domain/bankLoanFigures'
+import { informalLoanFigures } from '../src/apps/loans/informalLoans/domain/informalLoanFigures'
+import { loansNetWorthParts } from '../src/apps/loans/home/domain/loansNetWorthParts'
+import { owedOnDay, owedTotals } from '../src/apps/loans/overview/domain/owedTotals'
 import type { BankLoan } from '../src/apps/loans/workbook/domain/bankLoan'
 import type { InformalLoan } from '../src/apps/loans/workbook/domain/informalLoan'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
@@ -69,5 +70,20 @@ describe('what you owe over every loan of the file on a day', () => {
       loansYouOwe: 1,
       loansOwedToYou: 1,
     })
+  })
+})
+
+describe('what Loans adds to the sum on Net worth', () => {
+  const toMarko = informalLoan({ id: recordIdOf(INFORMAL_LOAN_RECORDS, 'to-marko'), name: 'To Marko', direction: 'owed-to-you', openingBalance: euros(800), start: civil('2026-01-02') })
+
+  it('adds what others owe you when they do, then what you owe', () => {
+    expect(loansNetWorthParts({ bankLoans: [bankBook(bankLoan())], informalLoans: [informalBook(toMarko)] }, civil('2026-01-20'))).toEqual([
+      { side: 'has', cents: euros(800) },
+      { side: 'owes', cents: euros(1200) },
+    ])
+  })
+
+  it('leaves out what others owe you when nobody does, and keeps what you owe at zero', () => {
+    expect(loansNetWorthParts({ bankLoans: [], informalLoans: [] }, civil('2026-01-20'))).toEqual([{ side: 'owes', cents: euros(0) }])
   })
 })

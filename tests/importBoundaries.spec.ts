@@ -194,13 +194,8 @@ const FIGURES_IN_PRESENTATION = [
   'src/apps/investments/performance/presentation/performanceLinks.ts',
   'src/apps/loans/bankLoans/presentation/bankLoanView.ts',
   'src/apps/loans/bankLoans/presentation/savedTries.ts',
-  'src/apps/loans/bankLoans/presentation/words.ts',
-  'src/apps/loans/home/presentation/loansHubFigures.ts',
   'src/apps/loans/informalLoans/presentation/informalLoanView.ts',
-  'src/apps/loans/overview/presentation/owedTotals.ts',
-  'src/apps/loans/scenarios/presentation/scenarioComparison.ts',
   'src/apps/loans/scenarios/presentation/scenariosView.ts',
-  'src/apps/loans/scenarios/presentation/useScenarioCompare.ts',
   'src/apps/spending/analytics/presentation/spendingFigures.ts',
   'src/apps/spending/home/presentation/spendingHubFigures.ts',
 ]

@@ -14,7 +14,8 @@ import { useLoansBooks } from '../../workbook/application/loansStore'
 import BalanceHero from './BalanceHero.vue'
 import BankLoanDialog from './BankLoanDialog.vue'
 import BankLoanTiles from './BankLoanTiles.vue'
-import { bankLoanFigures, bankLoanMonths, bankLoanMoves, planYears } from './bankLoanView'
+import { bankLoanFigures, bankLoanMonths } from '../domain/bankLoanFigures'
+import { bankLoanMoves, planYearsOnScreen } from './bankLoanView'
 import ChangeListCard from './ChangeListCard.vue'
 import type { ChangeLine } from './ChangeListCard.vue'
 import ExtraPaymentDialog from './ExtraPaymentDialog.vue'
@@ -57,7 +58,7 @@ const day = today()
 const book = computed(() => (state.workbook === null ? null : bankLoanNamed(state.workbook, route.query.loan)))
 const loanWords = provideLoanWords(() => book.value?.loan.repayment ?? 'annuity')
 const figures = computed(() => (book.value === null ? null : bankLoanFigures(book.value, day)))
-const years = computed(() => (book.value === null ? [] : planYears(book.value, day)))
+const years = computed(() => (book.value === null ? [] : planYearsOnScreen(book.value, day)))
 const payer = computed(() => book.value?.loan.subsidy?.payer ?? '')
 const phone = usePhoneLayout()
 const estimateFrom = computed(() => years.value.flatMap((year) => year.lines).find((line) => line.estimate)?.date ?? null)
@@ -151,7 +152,7 @@ function changeExtra(key: string): void {
   if (payment !== undefined) openExtra({ date: payment.date, amount: payment.amount, effect: payment.effect, editing: payment })
 }
 
-const tries = computed(() => (book.value === null || state.workbook === null ? [] : savedTries(book.value, state.workbook.scenarios, day, loanWords.value)))
+const tries = computed(() => (book.value === null || state.workbook === null ? [] : savedTries(book.value, state.workbook.scenarios, day)))
 
 async function removeTry(key: string): Promise<void> {
   const records = state.records

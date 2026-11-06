@@ -4,7 +4,7 @@ import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
-import type { PlanLine, PlanYear } from './bankLoanView'
+import type { PlanLineOnScreen, PlanYearOnScreen } from './bankLoanView'
 import { shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
@@ -17,7 +17,7 @@ import { useLoanWords } from './useLoanWords'
  * card's width, so a phone shows the date, your share and the balance, and a tap on a row shows the rest.
  */
 const props = defineProps<{
-  years: readonly PlanYear[]
+  years: readonly PlanYearOnScreen[]
   /** The year that starts open, the current one. */
   openYear: number
   hasSubsidy: boolean
@@ -39,7 +39,7 @@ const summary = computed(() => {
   return loanWords.value.plan.summary(plural(loanWords.value.plan.instalments(instalments), instalments), plural(loanWords.value.plan.years(years), years))
 })
 
-function dateOf(line: PlanLine): string {
+function dateOf(line: PlanLineOnScreen): string {
   return line.number === null ? shortDayLabel(line.date) : loanWords.value.plan.numbered(shortDayLabel(line.date), line.number)
 }
 </script>

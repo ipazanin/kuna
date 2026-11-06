@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
 import { bankLoansOf, publishedBankLoans } from '../src/apps/loans/facts'
-import { owedOnDay } from '../src/apps/loans/overview/presentation/owedTotals'
+import { owedOnDay } from '../src/apps/loans/overview/domain/owedTotals'
 import type { BankLoan } from '../src/apps/loans/workbook/domain/bankLoan'
 import type { BankLoanBook } from '../src/apps/loans/workbook/domain/readLoanBook'
 import { fakeLoansDocument } from '../src/apps/loans/workbook/infrastructure/fake/fakeLoans'
