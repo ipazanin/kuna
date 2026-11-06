@@ -28,9 +28,11 @@ After adding a task or changing its frontmatter, run `npm run tasks-index`. `npm
 
 ### Planned
 
-| Task                                  | Feature  | Summary                                                                                                     |
-| ------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------- |
-| [Receipt reading](receipt-reading.md) | spending | A receipt photo read by an AI model with the user's own key, its lines sorted into the spending categories. |
+| Task                                                  | Feature    | Summary                                                                                                      |
+| ----------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
+| [AI chat across the apps](ai-chat.md)                 | ai-assist  | One docked chat in every app that knows the app on screen, reads what the owner allows and proposes changes. |
+| [Onboarding with and without AI](onboarding-flows.md) | onboarding | A first useful figure in each app with or without AI, starting from one choice of whether to set up AI.      |
+| [Receipt reading](receipt-reading.md)                 | spending   | A receipt photo read by an AI model with the user's own key, its lines sorted into the spending categories.  |
 
 ### Waiting
 
