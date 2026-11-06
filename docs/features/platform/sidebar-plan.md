@@ -240,7 +240,7 @@ After stage 2, use it for a few days before building stage 3. If landing on Over
 - Kuna's own Overview becomes Net worth, in Croatian Neto imovina.
 - The totals on Investments' Holdings and Transactions go, so every pill means something waits.
 - The sidebar shrinks to icons while the chat is docked, which docks it from about 1224 px, replacing the 1408 px in the chat plan.
-- Someone with one app still sees all five, with a quiet Set up word, as the agent recommended.
+- The sidebar adjusts to what is set up. An app with no file is left out, since the person may not use it. It is reached from the home, through one quiet Add an app row shown while any app is hidden. An app stays listed while it is on screen, so the person can finish setting it up. This replaces the agent's recommendation to show all five.
 
 ## 8. Decisions for you
 
