@@ -15,7 +15,8 @@ import { LOANS_ASSISTANT } from '../src/apps/loans/assistant/loansAssistant'
 import { SPENDING_ASSISTANT } from '../src/apps/spending/assistant/spendingAssistant'
 import * as spendingKinds from '../src/apps/spending/workbook/domain/spendingKinds'
 import { en as spendingWords, hr as spendingCroatian } from '../src/apps/spending/assistant/words'
-import { catalogueOf } from '../src/shared/ai/application/catalogue'
+import { catalogueOf, placeAt } from '../src/shared/ai/application/catalogue'
+import { words as companyTransactionWords } from '../src/apps/company/transactions/presentation/words'
 import type { CatalogueApp } from '../src/shared/ai/application/catalogue'
 import { words as statementWords } from '../src/apps/spending/statements/presentation/words'
 
@@ -52,6 +53,12 @@ describe('the catalogue', () => {
     expect(again.system).toBe(catalogue.system)
     expect([...again.pages]).toEqual([...catalogue.pages])
     expect([...again.routes]).toEqual([...catalogue.routes])
+  })
+
+  it('finds the place a person is on by the query values it names, and only those', () => {
+    expect(placeAt(catalogue, '/company/transactions', { tab: 'review', counterparty: 'anyone' })).toEqual({ address: '/company/transactions?tab=review', title: companyTransactionWords.tabs.review })
+    expect(placeAt(catalogue, '/company/transactions', { tab: 'rows' })).toBeNull()
+    expect(placeAt(catalogue, '/company/transactions', {})).toBeNull()
   })
 
   it('keeps its instructions under their budget of 4,000 tokens at three characters each', () => {

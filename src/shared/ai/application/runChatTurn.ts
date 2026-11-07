@@ -11,20 +11,24 @@ export const CHAT_TASK_ID = 'chat.turn'
 /** The most lookups one message may take. A chat has no other limit: the panel shows the cost and never stops it, as the spend limit on the key is the only ceiling. */
 const MOST_ROUNDS = 8
 
-/** Where the person is and what they tagged, in names only: an app, a screen, an address without its query, and a label. */
+/** Where the person is and what they tagged, in names only: an app, a screen, a declared place such as a tab, an address and a label. */
 export interface ChatContext {
   readonly app: string | null
   readonly screen: string | null
+  /** The tab or other declared place on the screen, or null when none matches. */
+  readonly place: string | null
+  /** The screen's address, or the declared place's when one matches. Never the rest of the query. */
   readonly path: string
   readonly tag: { readonly label: string; readonly screen: string | null } | null
 }
 
 /** The line that tells the model where the person is. It holds names only, and it goes at the start of a person's turn, never inside a tool loop. */
 export function contextLine(context: ChatContext): string {
-  const place = context.app === null ? 'Kuna' : context.app
+  const app = context.app === null ? 'Kuna' : context.app
   const screen = context.screen === null ? '' : `, on the screen ${context.screen}`
+  const place = context.place === null ? '' : `, tab ${context.place}`
   const tag = context.tag === null ? '' : ` Tagged element: ${context.tag.label}${context.tag.screen === null ? '' : `, on the screen ${context.tag.screen}`}.`
-  return `<context>The person is in ${place}${screen} (${context.path}).${tag}</context>`
+  return `<context>The person is in ${app}${screen}${place} (${context.path}).${tag}</context>`
 }
 
 export interface ChatTurn {

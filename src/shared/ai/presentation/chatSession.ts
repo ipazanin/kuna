@@ -1,7 +1,7 @@
 import { computed, reactive, readonly, shallowRef } from 'vue'
 
 import type { AppContribution } from '../../app/appContribution'
-import { catalogueOf } from '../application/catalogue'
+import { catalogueOf, placeAt } from '../application/catalogue'
 import type { Catalogue, CatalogueScreen } from '../application/catalogue'
 import type { ChatChip } from '../application/chatTools'
 import type { ModelTurn } from '../application/modelPort'
@@ -93,8 +93,18 @@ export function loadCatalogue(apps: readonly AppContribution[], kunaScreens: rea
   return catalogue
 }
 
+/** Where the person is, as the screen knows it. The query is read only for a place the catalogue declares. */
+export interface ChatWhere extends Omit<ChatContext, 'place'> {
+  readonly query: Readonly<Record<string, unknown>>
+}
+
+function contextAt(where: ChatWhere, known: Catalogue): ChatContext {
+  const place = placeAt(known, where.path, where.query)
+  return { app: where.app, screen: where.screen, place: place?.title ?? null, path: place?.address ?? where.path, tag: where.tag }
+}
+
 /** Sends one message and writes what comes back on its line. A failed message leaves the turns as they were, so the next one goes on from the last answer. */
-export async function sendChatMessage(message: string, context: ChatContext, knowledge: () => Promise<Catalogue>): Promise<void> {
+export async function sendChatMessage(message: string, where: ChatWhere, knowledge: () => Promise<Catalogue>): Promise<void> {
   const preset = providerInUse()
   if (preset !== null) startChainOn(`${preset.id}/${modelOf(preset.id).id}`)
   added('user', message)
@@ -111,10 +121,11 @@ export async function sendChatMessage(message: string, context: ChatContext, kno
       line.failure = words.addKey
       return
     }
-    const contextNow = contextLine(context)
+    const known = await knowledge()
+    const contextNow = contextLine(contextAt(where, known))
     const end = await runChatTurn({
       model,
-      catalogue: await knowledge(),
+      catalogue: known,
       history,
       context: contextNow === lastContext ? null : contextNow,
       message,

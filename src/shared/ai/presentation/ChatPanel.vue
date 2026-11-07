@@ -29,6 +29,8 @@ const props = defineProps<{
   screen: string | null
   /** The address, without its query. */
   path: string
+  /** The query, read only to tell which declared tab is open. */
+  query: Readonly<Record<string, unknown>>
   apps: readonly AppContribution[]
   kunaScreens: readonly CatalogueScreen[]
 }>()
@@ -63,7 +65,7 @@ function send(message: string): void {
 
 function run(message: string): void {
   const tag = chatTag.value
-  void sendChatMessage(message, { app: props.app?.name ?? null, screen: props.screen, path: props.path, tag: tag === null ? null : { label: tag.label, screen: tag.screen } }, () =>
+  void sendChatMessage(message, { app: props.app?.name ?? null, screen: props.screen, path: props.path, query: props.query, tag: tag === null ? null : { label: tag.label, screen: tag.screen } }, () =>
     loadCatalogue(props.apps, props.kunaScreens),
   )
 }

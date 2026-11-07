@@ -168,12 +168,18 @@ describe('a chat run by a hostile model', () => {
 
 describe('the context line', () => {
   it('names the app, the screen, the address and a tag, and nothing else', () => {
-    expect(contextLine({ app: 'Spending', screen: 'Entries', path: '/spending/transactions', tag: { label: 'Cash on hand', screen: 'Overview' } })).toBe(
+    expect(contextLine({ app: 'Spending', screen: 'Entries', place: null, path: '/spending/transactions', tag: { label: 'Cash on hand', screen: 'Overview' } })).toBe(
       '<context>The person is in Spending, on the screen Entries (/spending/transactions). Tagged element: Cash on hand, on the screen Overview.</context>',
     )
   })
 
+  it('names the tab after the screen, with its address', () => {
+    expect(contextLine({ app: 'Company', screen: 'Transactions', place: 'To review', path: '/company/transactions?tab=review', tag: null })).toBe(
+      '<context>The person is in Company, on the screen Transactions, tab To review (/company/transactions?tab=review).</context>',
+    )
+  })
+
   it('says Kuna outside the apps', () => {
-    expect(contextLine({ app: null, screen: null, path: '/', tag: null })).toBe('<context>The person is in Kuna (/).</context>')
+    expect(contextLine({ app: null, screen: null, place: null, path: '/', tag: null })).toBe('<context>The person is in Kuna (/).</context>')
   })
 })

@@ -15,10 +15,15 @@ const { allowThisChat, allowedThisChat, chatLines, chatSpent, chatStatus, clearC
 const { pickProvider, pickModel } = await import('../src/shared/ai/application/assistSettings')
 const { words } = await import('../src/shared/ai/presentation/words')
 
-const CATALOGUE: Catalogue = { system: 'Be Kuna.', pages: new Map([['spending', 'The Spending page.']]), routes: new Map([['/spending', 'Spending: Overview']]) }
+const CATALOGUE: Catalogue = {
+  system: 'Be Kuna.',
+  pages: new Map([['spending', 'The Spending page.']]),
+  routes: new Map([['/spending', 'Spending: Overview']]),
+  places: new Map([['/spending/transactions?tab=review', 'To review']]),
+}
 const knowledge = async (): Promise<Catalogue> => CATALOGUE
 const TOKENS = { input: 1000, cacheRead: 0, cacheWrite: 0, output: 1000 }
-const CONTEXT = { app: 'Spending', screen: 'Entries', path: '/spending/transactions', tag: null }
+const CONTEXT = { app: 'Spending', screen: 'Entries', path: '/spending/transactions', query: {}, tag: null }
 
 function scripted(
   replies: readonly (ModelReply | ((request: ModelRequest) => Promise<ModelReply>))[],
@@ -65,6 +70,16 @@ describe('a chat in memory', () => {
     expect(textOf(model.requests[2]!)[0]).toContain('in Loans')
     expect(model.requests[2]!.turns).toHaveLength(5)
     expect(model.requests[0]!.system[0]!.text).toBe('Be Kuna.')
+  })
+
+  it('names the tab open when the catalogue declares it, and sends no other part of the query', async () => {
+    const model = scripted([answer('One')])
+    port.current = model
+    await sendChatMessage('First', { ...CONTEXT, query: { tab: 'review', counterparty: 'Shop on the corner' } }, knowledge)
+    const first = model.requests[0]!.turns.at(-1)!
+    const text = first.role === 'user' ? first.parts.map((part) => (part.kind === 'text' ? part.text : '')).join('') : ''
+    expect(text).toContain('on the screen Entries, tab To review (/spending/transactions?tab=review)')
+    expect(text).not.toContain('Shop on the corner')
   })
 
   it('shows a cost that adds up and never stops on it', async () => {

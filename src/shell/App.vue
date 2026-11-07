@@ -106,7 +106,7 @@ const uiLocale = language === 'hr' ? hr : en_gb
         <ScreenNavigation :navigation="navigation" :rail="rail" :chat="chat" @toggle="togglePages" @open="openApp = $event" />
       </template>
       <template #chat>
-        <ChatPanel :app="appOnScreen" :screen="screenName" :path="route.path" :apps="installedApps()" :kuna-screens="KUNA_SCREENS" />
+        <ChatPanel :app="appOnScreen" :screen="screenName" :path="route.path" :query="route.query" :apps="installedApps()" :kuna-screens="KUNA_SCREENS" />
       </template>
       <template v-if="someFileChosen" #sync="{ compact, rail }">
         <TopBarSync :compact="compact" :rail="rail" />
