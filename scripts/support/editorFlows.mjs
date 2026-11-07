@@ -8713,6 +8713,7 @@ export function chatReadFlowIn(language) {
       await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
       if (await page.$('[data-testid="chat-sent"]')) throw new Error('a no still read the books')
 
+      await startOver()
       await page.evaluate(() => localStorage.setItem('kuna.assist-anonymise', 'off'))
       await page.evaluate(() => {
         window.location.hash = '#/spending'
@@ -8736,6 +8737,62 @@ export function chatReadFlowIn(language) {
         localStorage.removeItem('kuna.assist.spending')
         localStorage.removeItem('kuna.assist-provider')
         localStorage.removeItem('kuna.assist-anonymise')
+      })
+    }
+  }
+}
+
+/**
+ * A proposal from a quick action: the card shows what would change and writes nothing, Accept is one write with Undo, and
+ * a reload leaves the outcome and aliases with a line that says so.
+ */
+export function chatProposeFlowIn(language) {
+  const words = ASSIST_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const rulesHeld = () => page.evaluate(() => document.querySelector('[data-testid="chat-proposal"]')?.dataset.state)
+    try {
+      await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
+      await page.reload({ waitUntil: 'networkidle0' })
+      await pressSelector(page, press, '[data-testid="chat-open"]')
+      await page.waitForSelector('[data-testid="chat-quick-action"]', { visible: true, timeout: 10_000 }).catch(() => {
+        throw new Error('the empty chat offers no quick action')
+      })
+      await inspect?.('the empty chat with its quick actions')
+      await shoot('chat-quick-actions')
+      await pressSelector(page, press, '[data-testid="chat-quick-action"]')
+      await pressSelector(page, press, '[data-testid="chat-allow"]')
+      await page.waitForSelector('[data-testid="chat-proposal-accept"]', { visible: true, timeout: 15_000 }).catch(() => {
+        throw new Error('the quick action showed no card')
+      })
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      await elementSays(page, '[data-testid="chat-proposal"]', [words.proposal.accept, words.proposal.notNow], 'the card offers no Accept or Not now')
+      await inspect?.('a proposal')
+      await shoot('chat-proposal')
+      if ((await rulesHeld()) !== 'open') throw new Error('the card is not open')
+      await pressSelector(page, press, '[data-testid="chat-proposal-accept"]')
+      await page.waitForSelector('[data-testid="chat-proposal-done"]', { visible: true, timeout: 15_000 }).catch(async () => {
+        const refused = await page.evaluate(() => document.querySelector('[data-testid="chat-proposal-refused"]')?.textContent)
+        throw new Error(`Accept did not land: ${refused}`)
+      })
+      await inspect?.('an accepted proposal with Undo')
+      await shoot('chat-proposal-done')
+      await pressSelector(page, press, '[data-testid="chat-proposal-undo"]')
+      await elementSays(page, '[data-testid="chat-proposal-over"]', [words.proposal.undone], 'Undo did not say it was undone')
+
+      await page.reload({ waitUntil: 'networkidle0' })
+      if ((await page.$('[data-testid="chat-panel"]')) === null) await pressSelector(page, press, '[data-testid="chat-open"]')
+      await elementSays(page, '[data-testid="chat-note"]', [words.history.restored], 'a reloaded chat does not say what changed')
+      if (await page.$('[data-testid="chat-proposal-accept"], [data-testid="chat-proposal-undo"]')) throw new Error('a reloaded card can still write')
+      await inspect?.('a chat after a reload')
+      await shoot('chat-restored')
+      await pressSelector(page, press, '[data-testid="chat-new"]')
+      await page.waitForSelector('[data-testid="chat-empty"]', { visible: true, timeout: 5_000 })
+    } finally {
+      await page.evaluate(() => {
+        localStorage.removeItem('kuna.secret.anthropic')
+        localStorage.removeItem('kuna.assist.spending')
+        localStorage.removeItem('kuna.assist-provider')
       })
     }
   }

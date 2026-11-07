@@ -28,4 +28,7 @@ export const INVESTMENTS_ASSISTANT: AppAssistant = {
     { id: 'ibkr-mail', title: words.automations.ibkrMail.title, what: words.automations.ibkrMail.what(AUTOMATION_LABELS), setUpRoute: INVESTMENTS_GENERAL_ROUTE, guide: 'ibkr-mail' },
   ],
   reader: null,
+  proposer: null,
+  acceptance: null,
+  quickActions: [],
 }

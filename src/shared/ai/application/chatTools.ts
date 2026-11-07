@@ -1,8 +1,11 @@
 import { schemaProblems } from '../domain/strictSchema'
 import type { StrictSchema } from '../domain/strictSchema'
+import type { CheckedProposal } from '../../app/assistantOperations'
 import type { Catalogue } from './catalogue'
 import { ISSUES_ROUTE } from './catalogue'
 import { findRecords, getRecord, readFigures } from './chatReads'
+import { proposeChanges } from './chatProposals'
+import type { ProposeInput } from './chatProposals'
 import type { ChatReads, ChatToolAnswer, FindRecordsInput } from './chatReads'
 import type { ModelTool, ToolCall } from './modelPort'
 
@@ -12,7 +15,7 @@ export type ChatChip = { readonly kind: 'screen'; readonly to: string; readonly 
 const APP: StrictSchema = { type: 'string', description: 'The id of the app, as the instructions list it, such as "spending".' }
 const TEXT_OR_NULL = (description: string): StrictSchema => ({ type: ['string', 'null'], description })
 
-/** Every tool a chat has, a closed list. None takes a path to a file, an address outside Kuna or a key, and none writes. */
+/** Every tool a chat has, a closed list. None takes a path to a file, an address outside Kuna or a key, and none writes: a proposal only shows a card. */
 export const CHAT_TOOLS: readonly ModelTool[] = [
   {
     name: 'kuna_docs',
@@ -69,6 +72,32 @@ export const CHAT_TOOLS: readonly ModelTool[] = [
       additionalProperties: false,
     },
   },
+  {
+    name: 'propose_changes',
+    description: "Checks changes against the person's books and shows them a card to accept. It writes nothing. Each step is an operation the app's page lists.",
+    input: {
+      type: 'object',
+      properties: {
+        app: APP,
+        title: { type: 'string', description: 'A few words on what this is for.' },
+        steps: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              op: { type: 'string', description: 'The name of the operation.' },
+              input: { type: 'string', description: "The operation's input as a JSON string, as its page shows." },
+              as: TEXT_OR_NULL('A name starting with $ that a later step can use for what this one makes, or null.'),
+            },
+            required: ['op', 'input', 'as'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['app', 'title', 'steps'],
+      additionalProperties: false,
+    },
+  },
 ]
 
 /** What a chat's tools work from. */
@@ -76,6 +105,7 @@ export interface ChatTools {
   readonly catalogue: Catalogue
   readonly reads: ChatReads
   readonly showChip: (chip: ChatChip) => void
+  readonly showProposal: (app: string, proposal: CheckedProposal) => void
 }
 
 /** Answers one tool call of a chat. A name, an argument, a path, an address or a ref it does not know gets a refusal, repeats none of it, and reaches nothing. */
@@ -99,6 +129,8 @@ export async function runChatTool(tools: ChatTools, call: ToolCall): Promise<Cha
       const { app, ref } = call.args as { readonly app: string; readonly ref: string }
       return getRecord(app, ref, tools.reads)
     }
+    case 'propose_changes':
+      return proposeChanges(call.args as ProposeInput, tools.catalogue.proposers, tools.reads, tools.showProposal)
     default: {
       const { app, report, period } = call.args as { readonly app: string; readonly report: string; readonly period: string | null }
       return readFigures(app, report, period, tools.reads)

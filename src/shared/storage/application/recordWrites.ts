@@ -61,6 +61,32 @@ export function changesOf(work: (unit: UnitOfWork) => void): RuledChange[] {
   return changes
 }
 
+/** Work that makes these changes again, exactly as a check saw them, so a record changed since is refused rather than overwritten. */
+export function workOf(changes: readonly RuledChange[]): (unit: UnitOfWork) => void {
+  return (unit) => {
+    for (const { rules, change } of changes) {
+      const records = unit.of(rules)
+      switch (change.verb) {
+        case 'add':
+          records.add(change.after)
+          break
+        case 'change':
+          records.change(change.before, change.after)
+          break
+        case 'remove':
+          records.remove(change.before)
+          break
+        case 'repair':
+          records.repair(change.refused, change.after)
+          break
+        case 'discard':
+          records.discard(change.refused)
+          break
+      }
+    }
+  }
+}
+
 /** Whether Undo can put back what the write did: every kind it touched keeps Undo, and it repaired or discarded no refused record, which nothing could store again. */
 export function isUndoable(receipt: WriteReceipt): boolean {
   return receipt.records.every(({ rules, change }) => rules.undoable && change.verb !== 'repair' && change.verb !== 'discard')

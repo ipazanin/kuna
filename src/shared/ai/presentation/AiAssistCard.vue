@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
@@ -49,6 +49,15 @@ const {
   typeModel,
   testKey,
 } = assistant
+
+const historyCleared = ref(false)
+
+/** Through the chat's own code, loaded only now, so the first load holds none of it. */
+async function clearHistory(): Promise<void> {
+  const { clearChat } = await import('./chatSession')
+  clearChat()
+  historyCleared.value = true
+}
 
 const keyLine = computed(() => (row.value.ending === null ? secretWords.keyRow.kept : secretWords.keyRow.keptEnding(row.value.ending)))
 const modelIds = computed(() => shown.value.models.map((listed) => listed.id))
@@ -162,6 +171,20 @@ const showsAllModels = computed(() => modelIds.value.includes(modelText.value))
         data-testid="assist-anonymise"
         @update:model-value="switchAnonymise($event)"
       />
+
+      <p v-if="row.kept" class="flex flex-wrap items-center gap-x-1 type-caption" data-testid="assist-history">
+        <span role="status">{{ historyCleared ? words.history.cleared : words.history.kept }}</span>
+        <UButton
+          v-if="!historyCleared"
+          :label="words.history.clear"
+          color="neutral"
+          variant="link"
+          size="sm"
+          class="inline-target quiet-link px-0"
+          data-testid="assist-history-clear"
+          @click="clearHistory"
+        />
+      </p>
 
       <section v-if="row.kept && apps.length > 0" class="flex flex-col gap-2 border-t border-default pt-3" :aria-label="words.card.inApps">
         <h3 class="type-label">{{ words.card.inApps }}</h3>

@@ -105,6 +105,9 @@ New cases in `tests/importBoundaries.spec.ts`, written like the existing ones, e
 9. **One file reads docs/law.** `src/apps/investments/tax/infrastructure/lawText.ts` is the only file that imports outside `src`, and only `docs/law/*.md?raw`. The no-dangle check (`:130`) strips `?raw` before it looks for the file. Stage 5.
 10. **What a chat can reach.** Its catalogue, tools and reads, the reader contract and every `src/apps/*/assistant/` file load no secrets, no Google, no sync, no store and no app's application or infrastructure code through anything they import, and they import no writes. An app hands its reader the store from its `app.ts`. Chat stage 3.
 11. **One key door.** Only `src/shared/ai/infrastructure/modelAccess.ts` in the AI module reads a stored secret, and the same chat code touches no browser storage, cookie or network. Chat stage 3.
+12. **Only the card accepts.** `ProposalCard.vue` is the one file outside an app's own wiring that reaches an app's `acceptance`, and the only one that calls `.accept(`. No tool holds it. Chat stage 4.
+13. **Readers read, operations write.** A file directly under `assistant/` imports no writes, and loads nothing under `assistant/operations/` but by a dynamic import. Operations import no secrets, Google or sync. Chat stage 4.
+14. **Links resolve.** Every address a chat can link has its path among the screens. The spec checks that against each app's declared screens, in `tests/chatCatalogue.spec.ts`. Chat stage 4.
 
 ## What the owner sees
 

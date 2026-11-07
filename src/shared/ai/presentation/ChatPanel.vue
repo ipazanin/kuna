@@ -1,21 +1,37 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onMounted, provide, ref, useTemplateRef, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UChatMessages from '@nuxt/ui/components/ChatMessages.vue'
 import UChatPrompt from '@nuxt/ui/components/ChatPrompt.vue'
 import UChatPromptSubmit from '@nuxt/ui/components/ChatPromptSubmit.vue'
 
 import type { AppContribution } from '../../app/appContribution'
+import type { AssistantQuickAction } from '../../app/assistantOperations'
 import { usePhoneLayout } from '../../layout/viewport'
 import AppMark from '../../ui/AppMark.vue'
 import RemovableChip from '../../ui/RemovableChip.vue'
 import type { CatalogueScreen } from '../application/catalogue'
 import { today } from '../../calendar/civilDate'
 import { anonymiseOn, assistOn, switchAssist } from '../application/assistSettings'
+import { CHAT_APPS } from './chatApps'
 import GrantCard from './GrantCard.vue'
 import ChatLineView from './ChatLineView.vue'
 import { chatTag, closeChat, removeChatTag } from './chatDock'
-import { allowThisChat, allowedThisChat, answerReadAsk, chatAsking, chatDraft, chatLines, chatSpent, chatStatus, clearChat, loadCatalogue, sendChatMessage, stopChatMessage } from './chatSession'
+import {
+  allowThisChat,
+  allowedThisChat,
+  answerReadAsk,
+  chatAsking,
+  chatDraft,
+  chatLines,
+  chatSpent,
+  chatStatus,
+  clearChat,
+  loadCatalogue,
+  restoreChat,
+  sendChatMessage,
+  stopChatMessage,
+} from './chatSession'
 import { providerInUse } from './useAiTask'
 import { words } from './words'
 
@@ -42,6 +58,10 @@ const provider = computed(() => providerInUse())
 const asking = ref<string | null>(null)
 /** Whether the chat can read the app on screen, which the app's lazy assistant says. */
 const readsHere = ref(false)
+const quickActions = ref<readonly AssistantQuickAction[]>([])
+
+provide(CHAT_APPS, props.apps)
+onMounted(() => void restoreChat())
 const panel = useTemplateRef<HTMLElement>('panel')
 
 /** The card's buttons leave with the card, so focus goes back to the prompt. A phone keeps its keyboard down. */
@@ -52,8 +72,10 @@ watch([asking, chatAsking], ([message, read]) => {
 watch(
   () => props.app,
   async (app) => {
-    const reader = app === null ? null : (await app.assistant()).reader
-    if (app === props.app) readsHere.value = reader !== null
+    const assistant = app === null ? null : await app.assistant()
+    if (app !== props.app) return
+    readsHere.value = assistant !== null && assistant.reader !== null
+    quickActions.value = assistant?.quickActions ?? []
   },
   { immediate: true },
 )
@@ -141,7 +163,21 @@ function startOver(): void {
 
     <div class="min-h-0 flex-1 overflow-y-auto px-3 py-3" data-testid="chat-messages">
       <div class="mx-auto w-full max-w-2xl">
-        <p v-if="chatLines.length === 0" class="type-body text-muted" data-testid="chat-empty">{{ readsHere && app ? words.chat.emptyReads(app.name) : words.chat.empty }}</p>
+        <div v-if="chatLines.length === 0" class="flex flex-col items-start gap-3">
+          <p class="type-body text-muted" data-testid="chat-empty">{{ readsHere && app ? words.chat.emptyReads(app.name) : words.chat.empty }}</p>
+          <div v-if="quickActions.length > 0" class="flex flex-wrap gap-1.5">
+            <UButton
+              v-for="action in quickActions"
+              :key="action.label"
+              :label="action.label"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              data-testid="chat-quick-action"
+              @click="send(action.prompt)"
+            />
+          </div>
+        </div>
         <UChatMessages
           v-else
           :messages="messages"

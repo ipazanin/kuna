@@ -138,13 +138,27 @@ Built, waiting for the first run with a real key:
 - **Anonymising:** [the anonymising plan](anonymising-plan.md).
 - **Automations:** `AppAssistant.automations`, listed on each app page with a page of their own, and a line in the instructions that a suggestion uses only the screen on show or what was read with leave. Declared so far: bank sync in Spending, statement mail, statement folder and the accountant's mail in Company, daily closes in Investments. The IBKR report by mail is not in this version of Kuna, so it is not listed.
 - **Explain did not move.** It is a Company task of the hr-doo pack, and Company has no reader until stage 5, so it moves with that turn, as do its button and `AssistConsent`.
-- **Left for later:** the price step for long prompts, the cache breakpoint on the conversation's tail, thinking settings, `eager_input_streaming` and the refusal fallback. Reads now make the first two matter more, and no real key was at hand to check either.
+- **Left for later:** thinking settings, `eager_input_streaming` and the refusal fallback. Stage 4 took the price step and the tail cache breakpoint.
 
 ### Stage 4. Proposals with one Undo, Spending first
 
 - **Work:** `store.check`, operations for category, rule, limit, account, entry and settings, `ProposalCard`, settings `undoable: true` for Spending, `$` refs, `never-propose` on `bank_sync_deployment`, IndexedDB history, quick actions, boundary cases 12 to 14.
 - **The owner gets:** "Set up categories and rules from these rows" as one card, reviewed, accepted, Undo. This is the first stage that delivers the request in full, for one app.
 - **Check:** every operation's example through `checkWrite`, accept and Undo specs, stale proposal refused, touch flow at 360 and 430 px.
+
+Built, waiting for the first run with a real key:
+
+- **The dry run:** `store.check` runs `checkWrite` on the copy on screen, with nothing queued, written or asked of Drive. Accept writes the same changes through `store.write`, so a record changed since is refused for that card alone and the file's other writes go on.
+- **Operations:** 13 in `src/apps/spending/assistant/operations/`, each calling the write functions the screens use: add, change and delete a category, add, fix and delete a rule, set a limit, add and change an account, add, change and delete an entry, and set a setting. `propose_changes` is the sixth tool. A step names records by ref, or by a `$` name of an earlier step. An alias in a step's text goes back to what it stands for before it is written.
+- **The owner's rule on many proposals:** rules go together on one card with the rows they file, and one Undo. A new category goes one to a card, and a rule on that card can file into it by its `$` name. Spending has no tax class, so Company brings that with stage 5.
+- **Never proposed:** `bank_sync_deployment` and the bank links are outside the `set-setting` schema's list, so a step naming them never reaches a write. The app page says only a person sets them.
+- **`ProposalCard`:** a count, the model's title apart, and lines in Kuna's words from the dry run, grouped by verb and kind, with a warning on a line that says where money or mail goes. Over four lines a group shows three and Show all. Accept and Not now, then Done and Undo. There are no checkboxes per line, to keep less on screen.
+- **Settings keep Undo** in Spending. A write with several rule changes re-runs the rules once, through `writeRules`.
+- **History:** IndexedDB, this browser only, 30 days. Only the last chat stays, a new chat replaces it, and Kuna settings has Clear chat history. It keeps what was said and how cards ended, and never a tool result, a ref or the alias map.
+- **After a reload:** answers show their aliases as they were written, as nothing can map them back, and a figure ref is written out when it is kept. One line says the assistant no longer sees these messages and names show as aliases. Cards show their outcome and can no longer write. The model starts fresh, so a hostile row does not come back.
+- **Quick actions:** one tap in an empty chat, which only a person can start.
+- **Cost:** each request is priced on its own, with Haiku 5.5 five times dearer over 100,000 tokens a request and GPT-6 twice for input and one and a half times for output over 272,000, from each pricing page on 7 Nov 2026. Anthropic requests of a chat carry a cache breakpoint on the tail of the conversation.
+- **Receipt reading stays where it is.** The chat has no way to take a photo until stage 6, and the screen's QR read and split draft have no chat path yet, so moving the button now would lose the job. It moves with stage 6, and `AssistConsent` stays for it.
 
 ### Stage 5. The other apps, one at a time
 

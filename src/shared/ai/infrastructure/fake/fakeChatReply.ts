@@ -11,6 +11,8 @@ const ANSWERS = {
     paid: (who: string, amount: string) => `The latest payment to a person went to ${who}: ${amount}.`,
     notRead: "You didn't allow reading Spending, so I can only tell you how it works.",
     invented: 'Last year it was €4,300.00.',
+    proposed: 'The card below sorts them. Nothing changes until you accept it.',
+    proposalTitle: 'Rules for what keeps coming',
   },
   hr: {
     rules: 'Odaberite kategoriju na **Za pregled** i zatim **Uvijek za ovog primatelja**.\n- Svako pravilo zatim razvrstava nove retke\n- Redak koji ste sami razvrstali ostaje kakav jest',
@@ -20,6 +22,8 @@ const ANSWERS = {
     paid: (who: string, amount: string) => `Zadnja uplata osobi otišla je na ${who}: ${amount}.`,
     notRead: 'Niste dopustili čitanje Potrošnje, pa vam mogu reći samo kako radi.',
     invented: 'Prošle godine bilo je 4.300,00 €.',
+    proposed: 'Kartica ispod ih razvrstava. Ništa se ne mijenja dok je ne prihvatite.',
+    proposalTitle: 'Pravila za ono što se ponavlja',
   },
 }
 
@@ -48,6 +52,20 @@ function spendingReply(request: ModelRequest, tokens: ModelTokens, invents: bool
   return answered(request, parts.join(' '), tokens)
 }
 
+/** Reads the latest rows and proposes a rule from the first with a shop's name, into the category that row is under. */
+function sortReply(request: ModelRequest, tokens: ModelTokens, says: (typeof ANSWERS)['en']): ModelReply {
+  const answers = answersSince(request)
+  if (answers.length === 0) return lookup(0, 'find_records', { app: 'spending', kind: 'transaction', query: null, from: null, to: null, about: null, limit: 5, cursor: null }, tokens)
+  if (answers[0]!.isError) return answered(request, says.notRead, tokens)
+  if (answers.length === 1) {
+    const { records } = JSON.parse(answers[0]!.text) as { readonly records: readonly { readonly ref: string; readonly payee?: string; readonly category?: string }[] }
+    const row = records.find((record) => record.category !== undefined && record.payee?.startsWith('Person') !== true) ?? records[0]!
+    const step = { op: 'add-rule', input: JSON.stringify({ row: row.ref, fragment: null, category: row.category }), as: null }
+    return lookup(1, 'propose_changes', { app: 'spending', title: says.proposalTitle, steps: [step] }, tokens)
+  }
+  return answered(request, says.proposed, tokens)
+}
+
 /** The last thing the person typed, and how many lookups have been answered since. */
 function whereTheTurnIs(request: ModelRequest): { readonly typed: string; readonly lookups: number } {
   const lastPerson = request.turns.map((turn) => turn.role).lastIndexOf('user')
@@ -74,6 +92,7 @@ function answered(request: ModelRequest, text: string, tokens: ModelTokens): Mod
 export function fakeChatReply(request: ModelRequest, tokens: ModelTokens, invents: boolean): ModelReply {
   const { typed, lookups } = whereTheTurnIs(request)
   const says = ANSWERS[language === 'hr' ? 'hr' : 'en']
+  if (/^sort|^razvrstaj/i.test(typed)) return sortReply(request, tokens, says)
   if (/spent|spend|potroš/i.test(typed)) return spendingReply(request, tokens, invents, says)
   if (/rule|pravil/i.test(typed)) {
     if (lookups === 0) return lookup(lookups, 'kuna_docs', { path: 'spending/guide/first-rules' }, tokens)

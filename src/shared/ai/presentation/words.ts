@@ -1,5 +1,5 @@
 import { language } from '../../text/language'
-import type { Translation } from '../../text/translation'
+import type { EnglishForms, Translation } from '../../text/translation'
 import type { ProviderId } from '../domain/providerPresets'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
@@ -97,7 +97,7 @@ export const en = {
     empty: "The chat can't see this app's books yet.",
     emptyReads: (app: string) => `Ask about your figures or how Kuna works. The chat reads ${app} only once you allow it.`,
     placeholder: 'Ask how something works',
-    placeholderReads: 'Ask about your figures or how something works',
+    placeholderReads: 'Ask about your figures',
     sends: 'what you type here, the screen you are on and the name of anything you tagged. Nothing from your books.',
     sendsAndReads: (app: string) => `what you type here, the screen you are on, the name of anything you tagged and, when a question needs them, records and figures from ${app}.`,
     reads: (app: string) => `the records and figures from ${app} this chat asks for.`,
@@ -114,6 +114,27 @@ export const en = {
     records: (count: string, noun: string, app: string) => `Read ${count} ${noun} from ${app}`,
     figures: (title: string, app: string) => `Read ${title} from ${app}`,
     exact: 'The exact text sent:',
+  },
+  proposal: {
+    changes: (count: number): EnglishForms => ({ one: `${count} change`, other: `${count} changes` }),
+    verb: { add: 'Add', change: 'Change', remove: 'Delete' },
+    accept: 'Accept',
+    notNow: 'Not now',
+    showAll: (count: string) => `Show all ${count}`,
+    warns: 'Check this. It says where money or mail goes.',
+    done: 'Done',
+    undo: 'Undo',
+    undone: 'Undone',
+    declined: 'Not accepted',
+    ended: 'Not accepted. The page was reloaded.',
+    undoEnded: 'Done. Undo ended with the reload.',
+    refused: 'Kuna refused it, and nothing was written.',
+  },
+  history: {
+    restored: 'Since the reload the assistant no longer sees these messages, and names show as aliases such as Person 3.',
+    clear: 'Clear chat history',
+    cleared: 'Chat history cleared.',
+    kept: 'The last chat stays in this browser for 30 days. A new chat replaces it.',
   },
   usage: {
     line: (model: string, counts: string, cost: string) => `${model}, ${counts}, ${cost}`,
@@ -239,7 +260,7 @@ export const hr: Translation<typeof en> = {
     empty: 'Asistent još ne vidi podatke ove aplikacije.',
     emptyReads: (app) => `Pitajte o svojim iznosima ili o tome kako Kuna radi. Asistent čita aplikaciju ${app} tek kad to dopustite.`,
     placeholder: 'Pitajte kako nešto radi',
-    placeholderReads: 'Pitajte o iznosima ili kako nešto radi',
+    placeholderReads: 'Pitajte o svojim iznosima',
     sends: 'ono što ovdje upišete, zaslon na kojem ste i naziv onoga što ste označili. Ništa iz vaših podataka.',
     sendsAndReads: (app) => `ono što ovdje upišete, zaslon na kojem ste, naziv onoga što ste označili i, kad pitanje to traži, zapisi i iznosi iz aplikacije ${app}.`,
     reads: (app) => `zapisi i iznosi iz aplikacije ${app} koje ovaj razgovor zatraži.`,
@@ -256,6 +277,27 @@ export const hr: Translation<typeof en> = {
     records: (count, noun, app) => `Pročitano iz aplikacije ${app}: ${count} ${noun}`,
     figures: (title, app) => `Pročitano iz aplikacije ${app}: ${title}`,
     exact: 'Točan poslani tekst:',
+  },
+  proposal: {
+    changes: (count) => ({ one: `${count} promjena`, few: `${count} promjene`, other: `${count} promjena` }),
+    verb: { add: 'Dodavanje', change: 'Promjena', remove: 'Brisanje' },
+    accept: 'Prihvati',
+    notNow: 'Ne sada',
+    showAll: (count) => `Prikaži svih ${count}`,
+    warns: 'Provjerite ovo. Određuje kamo idu novac ili pošta.',
+    done: 'Gotovo',
+    undo: 'Poništi',
+    undone: 'Poništeno',
+    declined: 'Nije prihvaćeno',
+    ended: 'Nije prihvaćeno. Stranica je ponovno učitana.',
+    undoEnded: 'Gotovo. Poništavanje je isteklo ponovnim učitavanjem.',
+    refused: 'Kuna je to odbila i ništa nije zapisano.',
+  },
+  history: {
+    restored: 'Nakon ponovnog učitavanja asistent više ne vidi ove poruke, a imena se prikazuju kao zamjenski nazivi poput Person 3.',
+    clear: 'Obriši povijest razgovora',
+    cleared: 'Povijest razgovora je obrisana.',
+    kept: 'Posljednji razgovor ostaje u ovom pregledniku 30 dana. Novi razgovor ga zamjenjuje.',
   },
   usage: {
     line: (model, counts, cost) => `${model}, ${counts}, ${cost}`,

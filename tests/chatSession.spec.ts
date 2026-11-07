@@ -24,6 +24,7 @@ const CATALOGUE: Catalogue = {
   routes: new Map([['/spending', 'Spending: Overview']]),
   places: new Map([['/spending/transactions?tab=review', 'To review']]),
   readers: new Map([['spending', { name: 'Spending', reader: spendingReader(CHAT_READING) }]]),
+  proposers: new Map(),
 }
 const knowledge = async (): Promise<Catalogue> => CATALOGUE
 const TOKENS = { input: 1000, cacheRead: 0, cacheWrite: 0, output: 1000 }

@@ -577,3 +577,56 @@ describe('an aborted Messages request', () => {
     await expect(sending).rejects.toMatchObject({ status: 0, message: 'Too slow.', tokens: { input: 412, cacheRead: 3000, cacheWrite: 1800, output: 1 } })
   })
 })
+
+describe('the cache breakpoint on the tail of a chat', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  const answerStream = (): Response =>
+    streamResponse(
+      eventsAsStream([
+        { type: 'message_start', message: { usage: { input_tokens: 1 } } },
+        { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 1 } },
+        { type: 'message_stop' },
+      ]),
+    )
+  const lastBlock = (body: Record<string, unknown>) => (body['messages'] as { content: Record<string, unknown>[] }[]).at(-1)!.content.at(-1)!
+
+  it('sits on the last block of a person’s turn or a tool result, and on no earlier one', async () => {
+    const requests = stubFetch(answerStream(), answerStream())
+    const model = anthropicMessages(KEY, SONNET)
+    const base = { system: [{ kind: 'text' as const, text: 'Be Kuna.' }], output: null, tools: [], effort: 'low' as const }
+    await model.send({ ...base, turns: [{ role: 'user', parts: [{ kind: 'text', text: 'One' }] }] })
+    expect(lastBlock(requests[0]!.body)['cache_control']).toEqual({ type: 'ephemeral' })
+    await model.send({
+      ...base,
+      turns: [
+        { role: 'user', parts: [{ kind: 'text', text: 'One' }] },
+        { role: 'assistant', calls: [], raw: [{ type: 'text', text: 'Two' }] },
+        { role: 'tool-results', results: [{ callId: 'a', text: 'Three', isError: false }] },
+      ],
+    })
+    const messages = requests[1]!.body['messages'] as { content: Record<string, unknown>[] }[]
+    expect(messages[0]!.content[0]!['cache_control']).toBeUndefined()
+    expect(lastBlock(requests[1]!.body)['cache_control']).toEqual({ type: 'ephemeral' })
+  })
+
+  it('stays off a one-shot task with a schema', async () => {
+    const requests = stubFetch(
+      streamResponse(
+        eventsAsStream([
+          { type: 'message_start', message: { usage: { input_tokens: 1 } } },
+          { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 1 } },
+          { type: 'message_stop' },
+        ]),
+      ),
+    )
+    await anthropicMessages(KEY, SONNET).send({
+      system: [{ kind: 'text', text: 'Be Kuna.' }],
+      output: { type: 'string' },
+      tools: [],
+      effort: 'low',
+      turns: [{ role: 'user', parts: [{ kind: 'text', text: 'One' }] }],
+    })
+    expect(lastBlock(requests[0]!.body)['cache_control']).toBeUndefined()
+  })
+})

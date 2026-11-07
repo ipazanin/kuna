@@ -34,7 +34,8 @@ Each stored field has a class, and a new field fails the typecheck until someone
 ## How the pieces keep working
 
 - **A stable alias per chat.** One person has one alias whichever way a statement spells the name, so `HORVAT ANA` and `Ana Horvat` are both `Person 1`. The word stays in English in every language, and the screen also maps it back when a Croatian sentence wrote `Osobi 1`. The prompt tells the model to copy it exactly.
-- **Memory only.** The map lives in the chat's memory, and a new chat or a reload forgets it. Stage 4 stores history in IndexedDB as text and outcomes, so a stored answer will show its aliases with no map behind them. That stage has to say so on screen, or store the restored text and accept what that keeps on the device.
+- **Memory only.** The map lives in the chat's memory, and a new chat or a reload forgets it. The chat kept in this browser holds answers as the model wrote them, so after a reload they show `Person 3`, with one line saying so. Nothing real is lost, since the names stay in the file on screen. While the setting is on, no name from a read reaches the chat's store. What the person typed is kept as typed, and with the setting off an answer is kept with the names it wrote.
+- **Proposals.** A model writes an alias in a step, and Kuna turns it back before anything is written, so a rule holds the real name. The card shows real values, and what the model hears of a card holds none of them. A refusal it hears goes through the same scrub as free text.
 - **Refs and citations.** Refs stand for ids and aliases stand for values, and neither is in the other's way. A search by alias finds every spelling. The figure check leaves aliases and refs out before it reads a text for amounts, so `Person 3 €40` reads as one amount.
 - **No third gate.** This sits inside the read grant. The card says in one line what goes as an alias, and the row under an answer shows the exact text that went.
 

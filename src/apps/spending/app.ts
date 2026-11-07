@@ -77,12 +77,18 @@ export const spendingApp: AppContribution = {
   subtitle: () => null,
   // Every figure on the Spending screens and on Net worth is in euros, so it shows them in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
-  assistant: async () =>
-    (await import('./assistant/spendingAssistant')).spendingAssistant({
-      status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'),
-      book: () => state.workbook,
-      rates: () => ratesIn(rates.value),
-    }),
+  assistant: async () => {
+    const [{ spendingAssistant }, { spendingProposer, spendingAcceptance }] = await Promise.all([import('./assistant/spendingAssistant'), import('./assistant/operations/spendingOperations')])
+    const store = useSpendingBooks()
+    return spendingAssistant(
+      {
+        status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'),
+        book: () => state.workbook,
+        rates: () => ratesIn(rates.value),
+      },
+      { proposer: spendingProposer(store), acceptance: spendingAcceptance(store) },
+    )
+  },
   homeCard: SPENDING_HOME_CARD,
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => spendingHubFigures(book, rates.value, today())) },
   assist: SPENDING_ASSIST,

@@ -81,36 +81,55 @@ function rerun(unit: UnitOfWork, book: SpendingBook, rules: readonly SpendingRul
 }
 
 /** The rule this condition makes: new and tried last, or the one it already has on the new category. */
-function ruleFor(book: SpendingBook, condition: SpendingRuleCondition, category: RecordId): { readonly held: SpendingRule | null; readonly rule: SpendingRule } {
-  const held = book.rules.find((rule) => sameCondition(rule.condition, condition)) ?? null
-  const rule = held !== null ? { ...held, category } : { id: recordIdOf(RULE_RECORDS, newRecordId()), order: Math.max(0, ...book.rules.map((other) => other.order)) + 1, condition, category }
+function ruleFor(rules: readonly SpendingRule[], condition: SpendingRuleCondition, category: RecordId): { readonly held: SpendingRule | null; readonly rule: SpendingRule } {
+  const held = rules.find((rule) => sameCondition(rule.condition, condition)) ?? null
+  const rule = held !== null ? { ...held, category } : { id: recordIdOf(RULE_RECORDS, newRecordId()), order: Math.max(0, ...rules.map((other) => other.order)) + 1, condition, category }
   return { held, rule }
 }
 
-function rulesWith(book: SpendingBook, held: SpendingRule | null, rule: SpendingRule): readonly SpendingRule[] {
-  return held === null ? [...book.rules, rule] : book.rules.map((other) => (other === held ? rule : other))
+function rulesWith(rules: readonly SpendingRule[], held: SpendingRule | null, rule: SpendingRule): readonly SpendingRule[] {
+  return held === null ? [...rules, rule] : rules.map((other) => (other === held ? rule : other))
 }
 
 /** How many rows the rule would file, for you to read before it is written. */
 export function rowsRuleWouldFile(book: SpendingBook, condition: SpendingRuleCondition, category: RecordId): number {
-  const { held, rule } = ruleFor(book, condition, category)
-  return rulesRerun(book, rulesWith(book, held, rule)).length
+  const { held, rule } = ruleFor(book.rules, condition, category)
+  return rulesRerun(book, rulesWith(book.rules, held, rule)).length
+}
+
+/** Several changes to the rules, with the rules re-run once over all of them. */
+export interface RuleEdits {
+  /** Each made new, or on the rule that already has its condition. */
+  readonly filing?: readonly { readonly condition: SpendingRuleCondition; readonly category: RecordId }[]
+  readonly fixing?: readonly { readonly rule: SpendingRule; readonly condition: SpendingRuleCondition; readonly category: RecordId }[]
+  readonly deleting?: readonly SpendingRule[]
+}
+
+/** The rules changed and the rows re-filed by them in one write, so one Undo puts it all back. A row a rule no longer files follows the rules that are left. */
+export function writeRules(unit: UnitOfWork, book: SpendingBook, { filing = [], fixing = [], deleting = [] }: RuleEdits): void {
+  const rules = unit.of(RULE_WRITES)
+  let after: readonly SpendingRule[] = book.rules.filter((rule) => !deleting.includes(rule))
+  deleting.forEach((rule) => rules.remove(rule))
+  for (const { rule, condition, category } of fixing) {
+    const fixed = { ...rule, condition, category }
+    rules.change(rule, fixed)
+    after = after.map((other) => (other === rule ? fixed : other))
+  }
+  for (const { condition, category } of filing) {
+    const { held, rule } = ruleFor(after, condition, category)
+    if (held === null) rules.add(rule)
+    else rules.change(held, rule)
+    after = rulesWith(after, held, rule)
+  }
+  rerun(unit, book, after)
 }
 
 /** The rule written, with the rules re-run in the same write. */
 export function writeRule(unit: UnitOfWork, book: SpendingBook, condition: SpendingRuleCondition, category: RecordId): void {
-  const { held, rule } = ruleFor(book, condition, category)
-  if (held === null) unit.of(RULE_WRITES).add(rule)
-  else unit.of(RULE_WRITES).change(held, rule)
-  rerun(unit, book, rulesWith(book, held, rule))
+  writeRules(unit, book, { filing: [{ condition, category }] })
 }
 
 /** The rule gone, and the rows it filed follow the rules that are left, in the same write. */
 export function deleteRule(unit: UnitOfWork, book: SpendingBook, rule: SpendingRule): void {
-  unit.of(RULE_WRITES).remove(rule)
-  rerun(
-    unit,
-    book,
-    book.rules.filter((other) => other !== rule),
-  )
+  writeRules(unit, book, { deleting: [rule] })
 }

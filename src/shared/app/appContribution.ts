@@ -7,6 +7,7 @@ import type { AppData } from '../storage/application/appData'
 import type { RecordKind } from '../storage/domain/recordKind'
 import type { AppSyncGroup } from '../sync/presentation/pageSync'
 import type { Money } from '../money/money'
+import type { AppAcceptance, AppProposer, AssistantQuickAction } from './assistantOperations'
 import type { AppReader } from './assistantReader'
 
 /** A screen of an app, on a route under the app's id such as `/company/transactions`. Each one loads as its own chunk. */
@@ -132,6 +133,8 @@ export interface AssistantPlace {
 export interface AssistantSetting {
   readonly key: string
   readonly note: string
+  /** The chat can never propose it, as it routes bank data or only a screen sets it. */
+  readonly neverPropose?: true
 }
 
 /** A short how-to the chat can read, written in the language on screen, with the places it sends a person to. */
@@ -163,6 +166,12 @@ export interface AppAssistant {
   readonly automations: readonly AssistantAutomation[]
   /** What the chat can read of the app once allowed, or null for an app it cannot read yet. */
   readonly reader: AppReader | null
+  /** The changes the chat can propose, or null for an app that takes none yet. */
+  readonly proposer: AppProposer | null
+  /** Writes a checked proposal. Only the proposal card reaches it, and no tool does. */
+  readonly acceptance: AppAcceptance | null
+  /** One tap in an empty chat. */
+  readonly quickActions: readonly AssistantQuickAction[]
 }
 
 /** The app that is better set up first, and what a person gains by it. */

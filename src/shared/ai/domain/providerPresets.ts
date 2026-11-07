@@ -8,9 +8,13 @@ export interface ModelChoice {
   readonly price: ModelPrice | null
 }
 
-function priced(inputPerMillion: number, cacheReadPerMillion: number, cacheWritePerMillion: number, outputPerMillion: number): ModelPrice {
-  return { inputPerMillion, cacheReadPerMillion, cacheWritePerMillion, outputPerMillion }
+function priced(inputPerMillion: number, cacheReadPerMillion: number, cacheWritePerMillion: number, outputPerMillion: number, longPrompt?: ModelPrice['longPrompt']): ModelPrice {
+  return { inputPerMillion, cacheReadPerMillion, cacheWritePerMillion, outputPerMillion, ...(longPrompt === undefined ? {} : { longPrompt }) }
 }
+
+/** From each company's pricing page: Haiku costs five times as much over 100,000 tokens a request, and GPT-6 twice for input and one and a half times for output over 272,000. */
+const HAIKU_LONG_PROMPT = { overTokens: 100_000, inputTimes: 5, outputTimes: 5 }
+const GPT_6_LONG_PROMPT = { overTokens: 272_000, inputTimes: 2, outputTimes: 1.5 }
 
 export type ProviderId = 'anthropic' | 'openai' | 'openrouter'
 
@@ -41,7 +45,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     adapter: 'anthropic-messages',
     baseUrl: 'https://api.anthropic.com',
     models: [
-      { id: 'claude-haiku-5-5', name: 'Haiku 5.5', price: priced(0.1, 0.01, 0.125, 0.5) },
+      { id: 'claude-haiku-5-5', name: 'Haiku 5.5', price: priced(0.1, 0.01, 0.125, 0.5, HAIKU_LONG_PROMPT) },
       { id: 'claude-sonnet-5-5', name: 'Sonnet 5.5', price: priced(2, 0.1, 2.5, 10) },
       { id: 'claude-opus-5-5', name: 'Opus 5.5', price: priced(4, 0.2, 5, 20) },
     ],
@@ -56,10 +60,10 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     adapter: 'openai-responses',
     baseUrl: 'https://api.openai.com/v1',
     models: [
-      { id: 'gpt-6-luna', name: 'GPT-6 Luna', price: priced(0.1, 0.01, 0.125, 0.5) },
-      { id: 'gpt-6.1-terra', name: 'GPT-6.1 Terra', price: priced(1, 0.05, 1.25, 5) },
-      { id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol', price: priced(2, 0.1, 2.5, 10) },
-      { id: 'gpt-6-astra', name: 'GPT-6 Astra', price: priced(10, 1, 12.5, 50) },
+      { id: 'gpt-6-luna', name: 'GPT-6 Luna', price: priced(0.1, 0.01, 0.125, 0.5, GPT_6_LONG_PROMPT) },
+      { id: 'gpt-6.1-terra', name: 'GPT-6.1 Terra', price: priced(1, 0.05, 1.25, 5, GPT_6_LONG_PROMPT) },
+      { id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol', price: priced(2, 0.1, 2.5, 10, GPT_6_LONG_PROMPT) },
+      { id: 'gpt-6-astra', name: 'GPT-6 Astra', price: priced(10, 1, 12.5, 50, GPT_6_LONG_PROMPT) },
     ],
     defaultModel: 'gpt-6.1-sol',
     keyTestUrl: 'https://api.openai.com/v1/models',
@@ -73,8 +77,8 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     baseUrl: 'https://openrouter.ai/api/v1',
     models: [
       { id: 'anthropic/claude-sonnet-5-5', name: 'Sonnet 5.5', price: priced(2, 0.1, 2.5, 10) },
-      { id: 'anthropic/claude-haiku-5-5', name: 'Haiku 5.5', price: priced(0.1, 0.01, 0.125, 0.5) },
-      { id: 'openai/gpt-6.1-sol', name: 'GPT-6.1 Sol', price: priced(2, 0.1, 2.5, 10) },
+      { id: 'anthropic/claude-haiku-5-5', name: 'Haiku 5.5', price: priced(0.1, 0.01, 0.125, 0.5, HAIKU_LONG_PROMPT) },
+      { id: 'openai/gpt-6.1-sol', name: 'GPT-6.1 Sol', price: priced(2, 0.1, 2.5, 10, GPT_6_LONG_PROMPT) },
     ],
     defaultModel: 'anthropic/claude-sonnet-5-5',
     // Its list of models answers without a key, so the Test asks about the key itself.

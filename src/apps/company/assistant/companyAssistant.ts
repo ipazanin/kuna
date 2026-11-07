@@ -63,5 +63,8 @@ export function companyAssistant(pack: Pick<AppAssistant, 'kinds' | 'settings' |
       ...pack.automations,
     ],
     reader: null,
+    proposer: null,
+    acceptance: null,
+    quickActions: [],
   }
 }

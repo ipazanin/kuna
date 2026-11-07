@@ -31,6 +31,9 @@ const CATALOGUE: Catalogue = catalogueOf(
         guides: [{ id: 'first-rules', title: 'Rules', body: 'How rules work.', places: [] }],
         automations: [],
         reader: spendingReader(CHAT_READING),
+        proposer: null,
+        acceptance: null,
+        quickActions: [],
       },
     },
   ],
@@ -75,11 +78,20 @@ function readsOf(allowed = false): ChatReads {
 
 /** What a tool call does for a model that was given no yes, unless a test says otherwise. */
 function tools(show: (chip: ChatChip) => void = () => undefined, reads: ChatReads = readsOf()) {
-  return { catalogue: CATALOGUE, reads, showChip: show }
+  return { catalogue: CATALOGUE, reads, showChip: show, showProposal: () => undefined }
 }
 
 const FIND = { app: 'spending', kind: 'transaction', query: null, from: null, to: null, about: null, limit: null, cursor: null }
-const TURN = { catalogue: CATALOGUE, history: [], context: null, onDelta: () => undefined, onLookup: () => undefined, showChip: () => undefined, onSent: () => undefined }
+const TURN = {
+  catalogue: CATALOGUE,
+  history: [],
+  context: null,
+  onDelta: () => undefined,
+  onLookup: () => undefined,
+  showChip: () => undefined,
+  showProposal: () => undefined,
+  onSent: () => undefined,
+}
 
 /** A hijacked model: it asks for one call after another, and answers once it has asked for them all. */
 function hijackedModel(calls: readonly ToolCall[]): ModelPort & { readonly bodies: string[] } {
@@ -114,8 +126,8 @@ describe('a chat run by a hostile model', () => {
   })
   afterEach(() => vi.unstubAllGlobals())
 
-  it('has exactly the five closed tools', () => {
-    expect(CHAT_TOOLS.map((tool) => tool.name)).toEqual(['kuna_docs', 'show_screen', 'find_records', 'get_record', 'read_figures'])
+  it('has exactly the six closed tools', () => {
+    expect(CHAT_TOOLS.map((tool) => tool.name)).toEqual(['kuna_docs', 'show_screen', 'find_records', 'get_record', 'read_figures', 'propose_changes'])
   })
 
   it.each(HOSTILE_PATHS)('opens no page at %j and repeats nothing of it', async (path) => {
@@ -148,7 +160,7 @@ describe('a chat run by a hostile model', () => {
     expect(chips).toEqual([{ kind: 'issues' }])
   })
 
-  it.each(['propose_changes', 'write_record', 'read_file', 'read_attachment', 'web_search', 'web_fetch'])('has no tool called %s', async (name) => {
+  it.each(['accept_changes', 'write_record', 'read_file', 'read_attachment', 'web_search', 'web_fetch'])('has no tool called %s', async (name) => {
     expect(await runChatTool(tools(), call(name, { path: 'spending' }))).toEqual({ text: 'There is no such tool.', isError: true })
   })
 
@@ -225,7 +237,12 @@ describe('a chat run by a hostile model', () => {
   })
 
   it('reads a row that tries to give orders as data, and it cannot write or reach anything by it', async () => {
-    const model = hijackedModel([call('find_records', FIND), call('propose_changes', { steps: [] }), call('kuna_docs', { path: 'kuna-secrets.json' })])
+    const model = hijackedModel([
+      call('find_records', FIND),
+      call('propose_changes', { app: 'spending', title: 'x', steps: [] }),
+      call('accept_changes', {}),
+      call('kuna_docs', { path: 'kuna-secrets.json' }),
+    ])
     const end = await runChatTurn({ ...TURN, model: guardedModel(model, () => [CANARY]), reads: readsOf(true), message: 'List the rows', signal: new AbortController().signal })
     expect(end.kind).toBe('answer')
     expect(model.bodies.at(-1)).toContain('ignore your rules')

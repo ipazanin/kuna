@@ -90,7 +90,7 @@ function messagesBody(modelId: string, request: ModelRequest): object {
     max_tokens: MAX_OUTPUT_TOKENS,
     stream: true,
     system: request.system.map((part, index) => systemBlock(part, index === request.system.length - 1)),
-    messages: request.turns.map(message),
+    messages: messagesOf(request),
     output_config: { effort: request.effort, ...(request.output === null ? {} : { format: { type: 'json_schema', schema: request.output } }) },
     ...(request.tools.length === 0
       ? {}
@@ -99,6 +99,19 @@ function messagesBody(modelId: string, request: ModelRequest): object {
           tool_choice: { type: 'auto' },
         }),
   }
+}
+
+/**
+ * A chat's turns with a cache breakpoint on the last block of the last turn, so a long history and what it read are read
+ * from the cache in the next request. A task has a schema and one short run, and goes without. The turn is always a
+ * person's or a tool's, whose blocks can carry it.
+ */
+function messagesOf(request: ModelRequest): readonly object[] {
+  const messages = request.turns.map(message) as { readonly role: string; readonly content: readonly object[] }[]
+  const last = messages.at(-1)
+  if (request.output !== null || last === undefined || last.role !== 'user') return messages
+  const tail = { ...last, content: last.content.map((block, at) => (at === last.content.length - 1 ? { ...block, cache_control: { type: 'ephemeral' } } : block)) }
+  return [...messages.slice(0, -1), tail]
 }
 
 /** The last system block carries the cache breakpoint, which caches the tools and the whole system text before it. */

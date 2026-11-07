@@ -13,6 +13,7 @@ import { words as statementWords } from '../statements/presentation/words'
 import * as spendingKinds from '../workbook/domain/spendingKinds'
 import { BANK_SYNC_DEPLOYMENT_KEY, COMPANY_OIB_KEY, LINKABLE_BANKS, bankLinkKey } from '../workbook/domain/spendingSettings'
 import type { AppAssistant } from '../../../shared/app/appContribution'
+import type { AppAcceptance, AppProposer } from '../../../shared/app/assistantOperations'
 import { spendingReader } from './spendingReader'
 import type { SpendingReading } from './spendingReader'
 import { words } from './words'
@@ -36,7 +37,7 @@ const LABELS: GuideLabels = {
 }
 
 /** What Spending tells the chat: what it keeps and where things are, with the first guides, its automation and what it can read. */
-export const spendingAssistant = (reading: SpendingReading): AppAssistant => ({
+export const spendingAssistant = (reading: SpendingReading, changes: { readonly proposer: AppProposer; readonly acceptance: AppAcceptance } | null = null): AppAssistant => ({
   kinds: Object.values(spendingKinds),
   places: [
     { route: SPENDING_REVIEW_LINK, title: statementWords.tabs.review },
@@ -48,8 +49,8 @@ export const spendingAssistant = (reading: SpendingReading): AppAssistant => ({
   ],
   automations: [{ id: 'bank-sync', title: words.automations.bankSync.title, what: words.automations.bankSync.what(LABELS), setUpRoute: SPENDING_BANK_SYNC_LINK, guide: 'link-a-bank' }],
   settings: [
-    { key: BANK_SYNC_DEPLOYMENT_KEY, note: words.settings.bankSyncDeployment },
-    ...LINKABLE_BANKS.map((bank) => ({ key: bankLinkKey(bank), note: words.settings.bankLink(bankSyncWords.banks[bank]) })),
+    { key: BANK_SYNC_DEPLOYMENT_KEY, note: words.settings.bankSyncDeployment, neverPropose: true },
+    ...LINKABLE_BANKS.map((bank) => ({ key: bankLinkKey(bank), note: words.settings.bankLink(bankSyncWords.banks[bank]), neverPropose: true as const })),
     { key: COMPANY_OIB_KEY, note: words.settings.companyOib },
   ],
   guides: [
@@ -60,4 +61,7 @@ export const spendingAssistant = (reading: SpendingReading): AppAssistant => ({
     { id: 'categories', title: words.guides.categories.title, body: words.guides.categories.body(LABELS), places: [SPENDING_SETTINGS_ROUTE] },
   ],
   reader: spendingReader(reading),
+  proposer: changes?.proposer ?? null,
+  acceptance: changes?.acceptance ?? null,
+  quickActions: [words.quickActions.sort, words.quickActions.rules, words.quickActions.higher],
 })

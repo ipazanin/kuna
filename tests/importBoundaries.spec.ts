@@ -389,11 +389,13 @@ describe('import boundaries', () => {
         'src/shared/ai/application/catalogue.ts',
         'src/shared/ai/application/chatTools.ts',
         'src/shared/ai/application/chatReads.ts',
+        'src/shared/ai/application/chatProposals.ts',
         'src/shared/ai/application/runChatTurn.ts',
         'src/shared/ai/domain/chatText.ts',
         'src/shared/ai/domain/chatRefs.ts',
         'src/shared/ai/domain/sensitiveText.ts',
         'src/shared/app/assistantReader.ts',
+        'src/shared/app/assistantOperations.ts',
       ].includes(file) || /^src\/apps\/.*\/assistant\/[^/]+\.ts$/.test(file)
 
     it('covers the catalogue, the tools and every app with a page', () => {
@@ -414,6 +416,20 @@ describe('import boundaries', () => {
     it('reads a store only through what an app hands in, and imports no writes', () => {
       const assistantFiles = SOURCE_FILES.filter((file) => /^src\/apps\/.*\/assistant\/[^/]+\.ts$/.test(file))
       expect(IMPORTS.filter((entry) => assistantFiles.includes(entry.from) && entry.target !== null && /Writes\.ts$|useRecordWrites|recordWrites|Store\.ts$/.test(entry.target))).toEqual([])
+    })
+
+    it('reaches an accept only from the card, and no tool holds one', () => {
+      const declares = (file: string): boolean =>
+        file === 'src/shared/app/appContribution.ts' || file === 'src/shared/app/assistantOperations.ts' || /^src\/apps\/[^/]+\/(app\.ts$|assistant\/)/.test(file)
+      expect(linesHolding(/\bacceptance\b|\.accept\(/, (file) => file === 'src/shared/ai/presentation/ProposalCard.vue' || declares(file))).toEqual([])
+      expect(linesHolding(/\.accept\(/, (file) => file === 'src/shared/ai/presentation/ProposalCard.vue')).toEqual([])
+    })
+
+    it('lets only the operations write, off secrets and Google, and leaves the readers to read', () => {
+      const operations = SOURCE_FILES.filter((file) => /^src\/apps\/.*\/assistant\/operations\//.test(file))
+      expect(operations.length).toBeGreaterThanOrEqual(2)
+      expect(IMPORTS.filter((entry) => operations.includes(entry.from) && entry.target !== null && /^src\/shared\/(secrets|google|sync)\//.test(entry.target))).toEqual([])
+      expect(IMPORTS.filter((entry) => CHAT_CODE(entry.from) && !entry.dynamic && entry.target !== null && entry.target.includes('/assistant/operations/'))).toEqual([])
     })
 
     it('touches no browser storage, no cookie and no network itself', () => {

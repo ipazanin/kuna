@@ -1,6 +1,6 @@
 import type { AiPart, AiTextPart } from '../domain/aiTask'
 import { maskIdentifiers } from '../domain/maskIdentifiers'
-import { NO_TOKENS, addedTokens, fullRateTokens, promptTokens, spentNothing, usageOf } from '../domain/modelUsage'
+import { NO_TOKENS, addedTokens, costOfRequest, fullRateTokens, promptTokens, spentNothing, usageOf } from '../domain/modelUsage'
 import type { AiUsage, ModelTokens } from '../domain/modelUsage'
 import type { StrictSchema } from '../domain/strictSchema'
 import { SecretInRequest } from './egressGuard'
@@ -35,7 +35,12 @@ export async function runModelLoop(loop: ModelLoop): Promise<LoopEnd> {
   const turns = loop.turns.map(maskedTurn)
   let used: ModelTokens = NO_TOKENS
   let lastPrompt = 0
-  const usageSoFar = (): AiUsage | null => (spentNothing(used) ? null : usageOf(model.model, used))
+  let listDollars = 0
+  const spend = (tokens: ModelTokens): void => {
+    used = addedTokens(used, tokens)
+    if (model.model.price !== null) listDollars += costOfRequest(tokens, model.model.price)
+  }
+  const usageSoFar = (): AiUsage | null => (spentNothing(used) ? null : usageOf(model.model, used, listDollars))
 
   for (let round = 0; round <= limits.rounds; round += 1) {
     // A person may stop a run while a tool waits for their answer, and then nothing more may go.
@@ -57,12 +62,12 @@ export async function runModelLoop(loop: ModelLoop): Promise<LoopEnd> {
         return { kind: 'holds-secret', reason: '', usage: usageSoFar() }
       }
       if (failure instanceof ModelRequestFailed) {
-        used = addedTokens(used, failure.tokens)
+        spend(failure.tokens)
         return { kind: 'failed', reason: failure.message, usage: usageSoFar() }
       }
       throw failure
     }
-    used = addedTokens(used, reply.tokens)
+    spend(reply.tokens)
     lastPrompt = promptTokens(reply.tokens)
     const usage = usageSoFar()
     switch (reply.kind) {

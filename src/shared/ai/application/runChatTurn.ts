@@ -1,3 +1,4 @@
+import type { CheckedProposal } from '../../app/assistantOperations'
 import type { Catalogue } from './catalogue'
 import type { ChatReads, ReadSent } from './chatReads'
 import { CHAT_TOOLS, runChatTool } from './chatTools'
@@ -54,6 +55,7 @@ export interface ChatTurn {
   /** A lookup started, so what the model wrote before it is not part of the answer. */
   readonly onLookup: () => void
   readonly showChip: (chip: ChatChip) => void
+  readonly showProposal: (app: string, proposal: CheckedProposal) => void
   /** A read's result went out in a request. */
   readonly onSent: (sent: SentRead) => void
 }
@@ -98,7 +100,7 @@ export function runChatTurn(turn: ChatTurn): Promise<LoopEnd> {
     tools: CHAT_TOOLS,
     runTool: async (call) => {
       turn.onLookup()
-      const answer = await runChatTool({ catalogue: turn.catalogue, reads: turn.reads, showChip: turn.showChip }, call)
+      const answer = await runChatTool({ catalogue: turn.catalogue, reads: turn.reads, showChip: turn.showChip, showProposal: turn.showProposal }, call)
       if (answer.read !== undefined) awaiting.set(call.id, answer.read)
       return { text: answer.text, isError: answer.isError }
     },

@@ -69,7 +69,7 @@ describe('the catalogue', () => {
   })
 
   it('names every page the instructions and each app page list', () => {
-    const named = [...catalogue.system.matchAll(/^- ([a-z-]+):/gm), ...[...catalogue.pages.values()].flatMap((page) => [...page.matchAll(/^- ([a-z-]+\/(?:guide|kind|report)\/[a-z-]+):/gm)])].map(
+    const named = [...catalogue.system.matchAll(/^- ([a-z-]+):/gm), ...[...catalogue.pages.values()].flatMap((page) => [...page.matchAll(/^- ([a-z-]+\/(?:guide|kind|report|op)\/[a-z-]+):/gm)])].map(
       (match) => match[1]!,
     )
     expect(named).toEqual(expect.arrayContaining(['spending/guide/first-rules', 'spending/kind/transaction', 'spending/report/month']))
@@ -114,6 +114,17 @@ describe('the catalogue', () => {
       expect(catalogue.system).toContain('or what you already read with their leave')
       expect(catalogue.system).toContain('Never read records only to look for one')
     })
+  })
+
+  it("resolves every address a chat can link to one of the app's screens", () => {
+    const screens = [...APPS.flatMap((app) => app.screens.map((screen) => screen.path as string)), ...KUNA_SCREENS.map((screen) => screen.path as string)]
+    for (const route of catalogue.routes.keys()) expect(screens, route).toContain(route.split('?')[0])
+  })
+
+  it('never offers a setting that routes bank data, and says who sets it', () => {
+    const spending = catalogue.pages.get('spending')!
+    expect(spending).toContain('- bank_sync_deployment: ')
+    expect(spending.split('- bank_sync_deployment: ')[1]!.split('\n')[0]).toContain('Only a person sets it')
   })
 
   it('holds no secret, however the code spells a key', () => {

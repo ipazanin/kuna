@@ -1,6 +1,8 @@
-import { computed, reactive, readonly, shallowRef } from 'vue'
+import { computed, markRaw, reactive, readonly, shallowRef } from 'vue'
 
 import type { AppContribution } from '../../app/appContribution'
+import type { CheckedProposal, UndoResult } from '../../app/assistantOperations'
+import { plainAmount } from '../../money/money'
 import { catalogueOf, placeAt } from '../application/catalogue'
 import type { Catalogue, CatalogueScreen } from '../application/catalogue'
 import type { ChatReads } from '../application/chatReads'
@@ -12,6 +14,8 @@ import type { LoopEnd } from '../application/runModelLoop'
 import { chatRefs } from '../domain/chatRefs'
 import type { ChatFigure } from '../domain/chatRefs'
 import { chatAliases } from '../domain/sensitiveText'
+import { forgetSavedChat, readSavedChat, saveChat } from '../application/chatHistory'
+import type { ProposalState, SavedChat, SavedLine, SavedProposal } from '../application/chatHistory'
 import { modelPort } from '../application/modelAccess'
 import { anonymiseOn, assistOn, modelOf, switchAssist } from '../application/assistSettings'
 import type { ProviderId } from '../domain/providerPresets'
@@ -33,6 +37,18 @@ export interface ChatLine {
   sent: SentRead[]
   /** The answer writes an amount no tool returned, or a figure ref no tool gave. */
   strayFigure: boolean
+  /** The cards this message showed. */
+  proposals: ChatProposal[]
+}
+
+/** A card in the chat. `checked` is gone after a reload, and with it Accept and Undo. */
+export interface ChatProposal extends SavedProposal {
+  readonly checked: CheckedProposal | null
+  state: ProposalState
+  /** Why Kuna refused it, in a sentence that can name a record, so it stays out of what this browser keeps. */
+  reason: string | null
+  /** Puts back what Accept wrote, while this page lives. */
+  undo: (() => Promise<UndoResult>) | null
 }
 
 /** The chat wants to read an app and waits for the person. */
@@ -74,13 +90,15 @@ const asks: { readonly ask: ReadAsk; readonly answer: (answer: ReadAnswer) => vo
 const asking = shallowRef<ReadAsk | null>(null)
 /** The apps a person said no to on this message, so a model cannot ask again and again within it. */
 const refusedThisMessage = new Set<string>()
+/** What the model has not heard yet of how its cards ended, which goes at the start of the next message. */
+const outcomes: string[] = []
 /** The aliases and refs of this chat, held in memory only, and gone with it. */
 let aliases = chatAliases()
 let refs = chatRefs()
 
 function added(role: ChatLine['role'], text: string, note = false): ChatLine {
   nextId += 1
-  lines.push({ id: `chat-${nextId}`, role, text, chips: [], failure: null, retry: null, note, sent: [], strayFigure: false })
+  lines.push({ id: `chat-${nextId}`, role, text, chips: [], failure: null, retry: null, note, sent: [], strayFigure: false, proposals: [] })
   return lines[lines.length - 1]!
 }
 
@@ -127,6 +145,76 @@ export interface ChatWhere extends Omit<ChatContext, 'place'> {
 function contextAt(where: ChatWhere, known: Catalogue): ChatContext {
   const place = placeAt(known, where.path, where.query)
   return { app: where.app, screen: where.screen, place: place?.title ?? null, path: place?.address ?? where.path, tag: where.tag, today: where.today }
+}
+
+/** An answer as this browser keeps it: no alias is turned back, as the map is never stored, and a figure ref is written out, as its figure goes with the page. */
+function storedText(text: string): string {
+  return text.replace(/\[(f\d+)\]/g, (written, ref: string) => {
+    const figure = refs.figureOf(ref)
+    return figure === null ? written : `${plainAmount(figure.cents)} ${figure.currency}`
+  })
+}
+
+function savedLine(line: ChatLine): SavedLine {
+  return {
+    role: line.role,
+    text: line.role === 'assistant' ? storedText(line.text) : line.text,
+    note: line.note,
+    chips: [...line.chips],
+    strayFigure: line.strayFigure,
+    failure: line.failure,
+    proposals: line.proposals.map(({ id, app, title, count, state }) => ({ id, app, title, count, state })),
+  }
+}
+
+/** Keeps the chat in this browser: what was said and how cards ended, with no tool result, no alias map and nothing to accept. */
+function keepChat(): void {
+  void saveChat({ savedAt: Date.now(), lines: lines.map(savedLine), spent: { ...spent } })
+}
+
+/** What a card shows after a reload: its outcome, as nothing is left to accept or undo. */
+function restoredState(state: ProposalState): ProposalState {
+  if (state === 'open') return 'ended'
+  return state === 'done' ? 'undo-ended' : state
+}
+
+function restored(saved: SavedChat): void {
+  added('assistant', words.history.restored, true)
+  for (const line of saved.lines) {
+    const shown = added(line.role, line.text, line.note)
+    shown.chips = [...line.chips]
+    shown.strayFigure = line.strayFigure
+    shown.failure = line.failure
+    shown.proposals = line.proposals.map((proposal) => ({ ...proposal, checked: null, state: restoredState(proposal.state), reason: null, undo: null }))
+  }
+  Object.assign(spent, saved.spent)
+}
+
+let restoring: Promise<void> | null = null
+
+/** Brings back the last chat of this browser, once a visit, unless one was begun. The model starts fresh from here, so what it read last time does not come back. */
+export function restoreChat(): Promise<void> {
+  restoring ??= readSavedChat().then((saved) => {
+    if (saved !== null && lines.length === 0) restored(saved)
+  })
+  return restoring
+}
+
+/** How a card ended, kept in this browser and told to the model with the next message. */
+export function settleProposal(proposal: ChatProposal, state: ProposalState, reason: string | null = null, undo: ChatProposal['undo'] = null): void {
+  const held = lines.flatMap((line) => line.proposals).find((candidate) => candidate.id === proposal.id)
+  if (held === undefined) return
+  held.state = state
+  held.reason = reason
+  held.undo = undo
+  const outcome = {
+    done: `The person accepted the card "${proposal.title}", and it is written.`,
+    undone: `The person undid the card "${proposal.title}".`,
+    declined: `The person did not accept the card "${proposal.title}".`,
+    refused: `Kuna refused the card "${proposal.title}" when the person answered it, as a record changed since.`,
+  }[state as 'done' | 'undone' | 'declined' | 'refused']
+  if (outcome !== undefined) outcomes.push(outcome)
+  keepChat()
 }
 
 /** Puts the question on the card and waits. The clock of the run stops meanwhile, as a person may take their time. */
@@ -202,12 +290,14 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
     }
     const catalogue = await knowledge()
     const contextNow = contextLine(contextAt(where, catalogue))
+    const heard = outcomes.splice(0).map((outcome) => `<context>${outcome}</context>`)
+    const changedContext = contextNow === lastContext ? [] : [contextNow]
     const end = await runChatTurn({
       model,
       catalogue,
       reads: readsOf(catalogue, preset.id, pauseClock),
       history,
-      context: contextNow === lastContext ? null : contextNow,
+      context: heard.length + changedContext.length === 0 ? null : [...changedContext, ...heard].join('\n'),
       message,
       signal: controller.signal,
       onDelta: (delta) => {
@@ -221,6 +311,11 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
       },
       onSent: (sent) => {
         if (current === controller) line.sent.push(sent)
+      },
+      showProposal: (app, proposal) => {
+        if (current !== controller) return
+        nextId += 1
+        line.proposals.push({ id: `card-${nextId}`, app, title: proposal.title, count: proposal.count, checked: markRaw(proposal), state: 'open', reason: null, undo: null })
       },
     })
     if (current !== controller) return
@@ -244,7 +339,8 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
     if (current === controller) {
       current = null
       status.value = 'ready'
-      if (stoppedByPerson && line.text === '' && line.chips.length === 0 && line.sent.length === 0) lines.splice(lines.indexOf(line), 1)
+      if (stoppedByPerson && line.text === '' && line.chips.length === 0 && line.sent.length === 0 && line.proposals.length === 0) lines.splice(lines.indexOf(line), 1)
+      keepChat()
     }
   }
 }
@@ -283,6 +379,8 @@ export function clearChat(): void {
   appsAllowed.clear()
   aliases = chatAliases()
   refs = chatRefs()
+  outcomes.splice(0)
+  void forgetSavedChat()
   chatDraft.value = ''
   Object.assign(spent, { dollars: 0, unknown: false, any: false })
 }

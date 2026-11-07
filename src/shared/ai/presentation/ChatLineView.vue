@@ -6,12 +6,13 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { KUNA_ISSUES_ADDRESS } from '../application/catalogue'
 import ChatMessageText from './ChatMessageText.vue'
+import ProposalCard from './ProposalCard.vue'
 import SentRow from './SentRow.vue'
 import { chatFigure, shownOnScreen } from './chatSession'
 import type { ChatLine } from './chatSession'
 import { words } from './words'
 
-/** One line of a chat: what it read, a message, what is coming back for it, the links under it, or why nothing came. An answer shows with aliases back as what they stand for. */
+/** One line of a chat: what it read, a message, what is coming back for it, the cards and links under it, or why nothing came. An answer shows with aliases back as what they stand for. */
 defineProps<{
   line: DeepReadonly<ChatLine>
   /** True while a message is under way, which an empty line then waits for. */
@@ -33,6 +34,7 @@ const emit = defineEmits<{ retry: [message: string] }>()
     <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
     {{ words.answer.strayFigure }}
   </p>
+  <ProposalCard v-for="proposal in line.proposals" :key="proposal.id" :proposal="proposal" />
   <div v-if="line.chips.length > 0" class="mt-2 flex flex-wrap gap-1.5">
     <template v-for="(chip, at) in line.chips" :key="at">
       <UButton v-if="chip.kind === 'screen'" :to="chip.to" :label="chip.label" trailing-icon="i-lucide-arrow-right" color="neutral" variant="outline" size="sm" data-testid="chat-chip" />

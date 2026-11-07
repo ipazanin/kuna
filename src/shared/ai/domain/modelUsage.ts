@@ -15,6 +15,8 @@ export interface ModelPrice {
   readonly cacheReadPerMillion: number
   readonly cacheWritePerMillion: number
   readonly outputPerMillion: number
+  /** The dearer rates of a request whose prompt runs over a size, cached tokens counted, which a provider prices whole. */
+  readonly longPrompt?: { readonly overTokens: number; readonly inputTimes: number; readonly outputTimes: number }
 }
 
 /** What one run used, and what the provider said it charged or else its cost at list price. `dollars` is null when Kuna knows neither. */
@@ -60,17 +62,27 @@ export function promptTokens(tokens: ModelTokens): number {
   return tokens.input + tokens.cacheRead + tokens.cacheWrite
 }
 
-export function usageOf(model: { readonly name: string; readonly price: ModelPrice | null }, tokens: ModelTokens): AiUsage {
+/** What one request cost at list price. A price step goes by each request's own prompt, so requests are priced apart and then added. */
+export function costOfRequest(tokens: ModelTokens, price: ModelPrice): number {
+  const step = price.longPrompt
+  const long = step !== undefined && promptTokens(tokens) > step.overTokens
+  const inputTimes = long ? step.inputTimes : 1
+  const outputTimes = long ? step.outputTimes : 1
+  return (
+    ((tokens.input * price.inputPerMillion + tokens.cacheRead * price.cacheReadPerMillion + tokens.cacheWrite * price.cacheWritePerMillion) * inputTimes +
+      tokens.output * price.outputPerMillion * outputTimes) /
+    1_000_000
+  )
+}
+
+/** What a run used. `listDollars` adds up each request's own cost. */
+export function usageOf(model: { readonly name: string; readonly price: ModelPrice | null }, tokens: ModelTokens, listDollars: number): AiUsage {
   return {
     model: model.name,
     inputTokens: tokens.input,
     cacheReadTokens: tokens.cacheRead,
     cacheWriteTokens: tokens.cacheWrite,
     outputTokens: tokens.output,
-    dollars: tokens.chargedDollars ?? (model.price === null ? null : costOf(tokens, model.price)),
+    dollars: tokens.chargedDollars ?? (model.price === null ? null : listDollars),
   }
-}
-
-function costOf(tokens: ModelTokens, price: ModelPrice): number {
-  return (tokens.input * price.inputPerMillion + tokens.cacheRead * price.cacheReadPerMillion + tokens.cacheWrite * price.cacheWritePerMillion + tokens.output * price.outputPerMillion) / 1_000_000
 }
