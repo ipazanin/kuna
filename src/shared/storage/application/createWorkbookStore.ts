@@ -5,7 +5,7 @@ import { BooksAlreadyOnDrive } from './booksAlreadyOnDrive'
 import { DriveFileMissing } from './driveFileMissing'
 import { changesOf, checkWrite, isUndoable, receiptOf, undoOf } from './recordWrites'
 import type { RecordChange, StorageView } from './recordStorage'
-import type { RuledChange, WriteReceipt } from './recordWrites'
+import type { CheckedWrite, RuledChange, WriteReceipt } from './recordWrites'
 import type { UnitOfWork } from './repository'
 import type { CopyMeta, CopyStorage, DriveFileBeside, DriveFileLookup, DriveFilePlace, DriveMovePlan, PickedFolder, WorkbookCache, WorkbookChoice, WorkbookCopy } from './workbookPorts'
 import { words } from './words'
@@ -52,6 +52,9 @@ export interface BooksRead {
   readonly records: unknown
   readonly workbook: unknown
 }
+
+/** What a write would meet on the copy on screen: ready to be made, nothing to change, or the reason it would be refused. */
+export type WriteCheck = { readonly status: 'ready'; readonly checked: CheckedWrite } | { readonly status: 'nothingToChange' } | { readonly status: 'refused'; readonly reason: string }
 
 export interface WorkbookState<Books extends BooksRead, Copy extends WorkbookCopy> {
   /** What the screen shows, the copy with the queued changes marked shown at once made on top of it. Null until a cached copy, a sync or an import supplies one. */
@@ -232,6 +235,11 @@ export interface WorkbookStore<Books extends BooksRead, Copy extends WorkbookCop
    * back, or null when nothing differed. Throws `WorkbookWriteRefused` when it writes nothing.
    */
   write(title: string, work: (unit: UnitOfWork) => void, options?: WriteOptions): Promise<WriteReceipt | null>
+  /**
+   * Runs the checks `write` runs first, on the copy on screen, and makes nothing: no queued write, no change on screen, no request and no
+   * Undo. Gives the checked write, or the reason `write` would throw `WorkbookWriteRefused`. The file may still have moved by the time a real write reads it.
+   */
+  check(title: string, work: (unit: UnitOfWork) => void): Promise<WriteCheck>
   /**
    * Puts back what a write of this session changed, through the checks of its kinds. A removed
    * record comes back with the same identity. Refused for a write `canUndo` rules out.
@@ -447,17 +455,28 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
     state.waiting = state.waiting.filter((waiting) => waiting !== queued)
   }
 
+  /** The books on screen, or a refusal when there are none to write to. */
+  function booksToWrite(): Copy {
+    const current = state.snapshot
+    if (current === null || state.choice === null || state.choice.id !== current.meta.id) {
+      throw new WorkbookWriteRefused(words.noBooks)
+    }
+    return current
+  }
+
+  /** The checks every write meets first, against the copy on screen with the queued changes made on it. Null when nothing differs. */
+  function checkOnScreen(current: Copy, title: string, changes: readonly RuledChange[], undoing: boolean): Promise<CheckedWrite | null> {
+    return checkWrite(ports.viewOf(shownCopy(current)), title, changes, { undoing })
+  }
+
   /**
    * Queues a write at the tap. A write with no books on screen is refused straight away, and so is one shown at once that the checks refuse on what
    * the screen shows. That check reads only memory and finishes in microtasks, so the next tap cannot pass it, and the change never reaches the screen.
    */
   function writeRecords(title: string, changes: readonly RuledChange[], undid: WriteReceipt | null, keys: readonly string[], shownAtOnce: boolean): Promise<WriteReceipt | null> {
     return trackWrite(async () => {
-      const current = state.snapshot
-      if (current === null || state.choice === null || state.choice.id !== current.meta.id) {
-        throw new WorkbookWriteRefused(words.noBooks)
-      }
-      if (shownAtOnce && (await checkWrite(ports.viewOf(shownCopy(current)), title, changes, { undoing: undid !== null })) === null) {
+      const current = booksToWrite()
+      if (shownAtOnce && (await checkOnScreen(current, title, changes, undid !== null)) === null) {
         return null
       }
       const queued: QueuedWrite = { id: nextWriteId++, title, keys, shownAtOnce, workbookId: current.meta.id, changes, undid }
@@ -718,6 +737,18 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
 
     async write(title, work, options) {
       return await writeRecords(title, changesOf(work), null, options?.key === undefined ? [] : [options.key], options?.shownAtOnce === true)
+    },
+
+    async check(title, work) {
+      try {
+        const checked = await checkOnScreen(booksToWrite(), title, changesOf(work), false)
+        return checked === null ? { status: 'nothingToChange' } : { status: 'ready', checked }
+      } catch (failure) {
+        if (failure instanceof WorkbookWriteRefused) {
+          return { status: 'refused', reason: failure.message }
+        }
+        throw failure
+      }
     },
 
     async undo(write) {

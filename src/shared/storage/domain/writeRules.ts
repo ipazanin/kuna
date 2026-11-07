@@ -40,7 +40,7 @@ export interface WriteRules<R> {
   readonly reads: readonly RecordKind<unknown>[]
   /** The names of the record's fields a change may touch. Unset means all. */
   readonly changeable?: readonly string[]
-  /** False for settings, which keep no Undo. */
+  /** Whether Undo can put back a write of this kind. */
   readonly undoable: boolean
   /** The kind's own reader against the other kinds as given: which records count, and why the rest do not or are doubted. */
   read(read: RecordsRead<R>, records: FreshRecords): Reading<{ readonly id: RecordId }>

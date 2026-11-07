@@ -4,11 +4,11 @@ import { SETTING_RECORDS } from '../domain/spendingKinds'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 
-/** Settings read nothing else, and keep no Undo. */
+/** Settings read nothing else. */
 export const SETTING_WRITES: WriteRules<SettingRow> = {
   kind: SETTING_RECORDS,
   reads: [],
-  undoable: false,
+  undoable: true,
   read: readSettingRows,
   refusals: () => [],
 }
