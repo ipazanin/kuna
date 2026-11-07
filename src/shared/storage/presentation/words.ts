@@ -65,6 +65,7 @@ export const en = {
   alreadyHeld: 'The workbook already holds this.',
   nothingWritten: 'Nothing was written',
   mayNotHaveFinished: 'The save may not have finished',
+  driveFailed: 'Google Drive did not answer as expected, so check your connection and sync to see what the file holds.',
   booksFile: {
     inBrowser: 'Kept in this browser. Your exported files are its only other copies.',
     lastChanged: (stamp: string) => `Last changed ${stamp}. `,
@@ -162,6 +163,7 @@ export const hr: Translation<typeof en> = {
   alreadyHeld: 'Datoteka to već sadrži.',
   nothingWritten: 'Ništa nije upisano',
   mayNotHaveFinished: 'Spremanje možda nije završilo',
+  driveFailed: 'Google Drive nije odgovorio kako treba, pa provjerite vezu i sinkronizirajte da vidite što je u datoteci.',
   booksFile: {
     inBrowser: 'Čuva se u ovom pregledniku. Datoteke koje izvezete njezine su jedine druge kopije.',
     lastChanged: (stamp) => `Zadnja promjena ${stamp}. `,

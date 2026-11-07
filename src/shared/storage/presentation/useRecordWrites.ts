@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import type { Ref } from 'vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
+import { GoogleApiError } from '../../google/googleApi'
 import { canUndo } from '../application/createWorkbookStore'
 import type { BooksRead, SessionWrite, WorkbookStore } from '../application/createWorkbookStore'
 import type { WriteReceipt } from '../application/recordWrites'
@@ -34,6 +35,14 @@ const SAVE_KEY = 'save'
 
 let composablesMade = 0
 
+const DRIVE_FAILED_TOAST = 'drive-failed'
+let titlesFailedOnDrive: readonly string[] = []
+
+/** A refusal from Drive or a request that never reached it, whose own text is no use to a person. */
+function failedOnDrive(failure: unknown): boolean {
+  return failure instanceof GoogleApiError || failure instanceof TypeError
+}
+
 export interface RecordWrites {
   /** True while a write of this composable waits or runs. */
   readonly busy: Readonly<Ref<boolean>>
@@ -59,10 +68,17 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
   composablesMade += 1
   const ownSaveKey = `save-${composablesMade}`
   const queueKey = (key: string): string => (key === SAVE_KEY ? ownSaveKey : key)
-  const saving: WriteSaving = (key) => store.state.waiting.some((waiting) => waiting.key === queueKey(key))
+  const saving: WriteSaving = (key) => store.state.waiting.some((waiting) => waiting.keys.includes(queueKey(key)))
 
-  function refused(title: string, failure: unknown): void {
-    toast.add({ title, description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error', duration: UNDO_TOAST_DURATION })
+  /** Says which write failed and why. Writes that fail on Drive share one toast, since a queue offline would otherwise say the same sentence once for each. */
+  function refused(title: string, failure: unknown, writeTitle: string): void {
+    const shared = { title, icon: 'i-lucide-triangle-alert', color: 'error' as const, duration: UNDO_TOAST_DURATION }
+    if (failedOnDrive(failure)) {
+      titlesFailedOnDrive = toast.toasts.value.some((shown) => shown.id === DRIVE_FAILED_TOAST) ? [...titlesFailedOnDrive, writeTitle] : [writeTitle]
+      toast.add({ ...shared, id: DRIVE_FAILED_TOAST, description: `${titlesFailedOnDrive.join(', ')}: ${words.driveFailed}` })
+      return
+    }
+    toast.add({ ...shared, description: `${writeTitle}: ${failure instanceof Error ? failure.message : String(failure)}` })
   }
 
   async function undo(write: SessionWrite): Promise<void> {
@@ -70,9 +86,10 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
     try {
       await store.undo(write)
       const undone = store.state.writes.find((written) => written.undid === write.receipt)
-      toast.add({ title: words.undone, ...(undone === undefined ? {} : { description: recordsChangeInWords(undone.receipt, undone.undid) }), icon: 'i-lucide-undo-2', color: 'neutral' })
+      const description = write.shownAtOnce ? write.receipt.title : undone === undefined ? null : recordsChangeInWords(undone.receipt, undone.undid)
+      toast.add({ title: words.undone, ...(description === null ? {} : { description }), icon: 'i-lucide-undo-2', color: 'neutral' })
     } catch (failure) {
-      refused(words.notUndone, failure)
+      refused(words.notUndone, failure, write.receipt.title)
     } finally {
       running.value -= 1
     }
@@ -83,7 +100,8 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
     if (recorded === undefined) return
     toast.add({
       title: receipt.title,
-      description: options.description ?? recordsChangeInWords(receipt, null),
+      // The control already shows what changed, so its toast keeps to one row and stacks low on a phone.
+      ...(recorded.shownAtOnce ? { orientation: 'horizontal' as const } : { description: options.description ?? recordsChangeInWords(receipt, null) }),
       icon: 'i-lucide-check',
       color: 'success',
       duration: UNDO_TOAST_DURATION,
@@ -106,7 +124,7 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
       return true
     } catch (failure) {
       // Any other failure may come after the file took the save, such as an edit from outside the app during it.
-      refused(failure instanceof WorkbookWriteRefused ? (options.failedTitle ?? words.nothingWritten) : words.mayNotHaveFinished, failure)
+      refused(failure instanceof WorkbookWriteRefused ? (options.failedTitle ?? words.nothingWritten) : words.mayNotHaveFinished, failure, title)
       return false
     } finally {
       running.value -= 1

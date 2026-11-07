@@ -75,7 +75,7 @@ describe('a write shown at once', () => {
 
     expect(labelOf(store, 'revenue')).toBe('Sales')
     expect(heldLabelOf(store.state.snapshot!.document, 'revenue')).toBeUndefined()
-    expect(store.state.waiting.map((queued) => queued.key)).toEqual(['revenue'])
+    expect(store.state.waiting.map((queued) => queued.keys)).toEqual([['revenue']])
 
     upload.land()
     await written
@@ -324,7 +324,7 @@ describe('Undo in the queue', () => {
     const undoing = store.undo(store.state.writes[0]!)
     await upload.uploading()
     expect(labelOf(store, 'revenue')).not.toBe('Sales')
-    expect(store.state.waiting[0]?.key).toBe(`undo-${store.state.writes[0]!.id}`)
+    expect(store.state.waiting[0]?.keys).toEqual([`undo-${store.state.writes[0]!.id}`, 'revenue'])
 
     upload.land()
     await undoing

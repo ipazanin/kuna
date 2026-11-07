@@ -13,7 +13,7 @@ const { named: hrNamed, namedFirst: hrFirst } = domainCroatian
 export const en = {
   nothingWritten: (refusals: string) => `Nothing was written. ${refusals}`,
   noBooks: 'There is no workbook on screen to change.',
-  busy: 'Changes are still saving or a sync is running, so the file cannot be moved or removed yet. Try again when they finish.',
+  busy: 'Changes are still saving or a sync is running. Try again when they finish.',
   moveRefused: (reason: string) =>
     `Google would not move the file out of its folder, so nothing moved and it keeps working where it is. Google's docs do not say whether an app may take a file out of a folder the app was never given, which may be why. Google said: ${reason}`,
   savedElsewhere: 'Nothing was written. Another device kept saving the workbook during this change. Sync and try again.',
@@ -52,7 +52,7 @@ export const en = {
 export const hr: Translation<typeof en> = {
   nothingWritten: (refusals) => `Ništa nije upisano. ${refusals}`,
   noBooks: 'Na zaslonu nema datoteke koja bi se mogla promijeniti.',
-  busy: 'Promjene se još spremaju ili traje sinkronizacija, pa se datoteka još ne može premjestiti ni ukloniti. Pokušajte ponovno kad završe.',
+  busy: 'Promjene se još spremaju ili traje sinkronizacija. Pokušajte ponovno kad završe.',
   moveRefused: (reason) =>
     `Google nije htio premjestiti datoteku iz njezine mape, pa se ništa nije pomaknulo i datoteka i dalje radi tamo gdje jest. Googleova dokumentacija ne kaže smije li aplikacija izvaditi datoteku iz mape koju nikad nije dobila, a to bi mogao biti razlog. Google je rekao: ${reason}`,
   savedElsewhere: 'Ništa nije upisano. Drugi je uređaj tijekom ove promjene stalno spremao datoteku. Sinkronizirajte i pokušajte ponovno.',

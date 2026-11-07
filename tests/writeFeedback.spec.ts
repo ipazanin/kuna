@@ -2,25 +2,45 @@ import { globSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parse } from '@vue/compiler-sfc'
 import type { ElementNode, RootNode, TemplateChildNode } from '@vue/compiler-dom'
-import { shallowReactive } from 'vue'
+import { ref, shallowReactive } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { WorkbookStore, BooksRead } from '../src/shared/storage/application/createWorkbookStore'
+import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
 import type { WriteOptions } from '../src/shared/storage/application/writeQueue'
 import { trackWrite, writesInFlight } from '../src/shared/storage/application/writesInFlight'
+import { GoogleApiError } from '../src/shared/google/googleApi'
+import { words } from '../src/shared/storage/presentation/words'
 import { useRecordWrites } from '../src/shared/storage/presentation/useRecordWrites'
 
-vi.mock('@nuxt/ui/composables/useToast', () => ({ useToast: () => ({ add: () => undefined }) }))
+interface ToastShown {
+  readonly id?: string
+  readonly title?: string
+  readonly description?: string
+  readonly orientation?: string
+  readonly actions?: readonly unknown[]
+}
+
+const toasts = ref<ToastShown[]>([])
+
+vi.mock('@nuxt/ui/composables/useToast', () => ({
+  useToast: () => ({
+    toasts,
+    add(shown: ToastShown) {
+      toasts.value = [...toasts.value.filter((held) => held.id === undefined || held.id !== shown.id), shown]
+    },
+  }),
+}))
 
 /** A store whose writes wait in `waiting` until the test lets each go, as the real queue holds them. */
 function queueingStore() {
-  const state = shallowReactive<{ waiting: readonly { readonly key: string | null }[]; writes: readonly never[] }>({ waiting: [], writes: [] })
+  const state = shallowReactive<{ waiting: readonly { readonly keys: readonly string[] }[]; writes: readonly never[] }>({ waiting: [], writes: [] })
   const landings: (() => void)[] = []
   const store = {
     state,
     write: (_title: string, _work: unknown, options?: WriteOptions) =>
       new Promise<null>((resolve) => {
-        const queued = { key: options?.key ?? null }
+        const queued = { keys: options?.key === undefined ? [] : [options.key] }
         state.waiting = [...state.waiting, queued]
         landings.push(() => {
           state.waiting = state.waiting.filter((waiting) => waiting !== queued)
@@ -78,6 +98,14 @@ function savesOnChangeWithoutLoading(source: string): string[] {
 const CHANGES_NOTHING_ON_FILE = ['src/apps/company/imports/presentation/ImportPanel.vue', 'src/apps/company/transactions/presentation/ReviewQueue.vue']
 
 describe('what a control shows while its save waits', () => {
+  it('spins the control of a write while an Undo of it waits, under either key', () => {
+    const { store } = queueingStore()
+    const writes = useRecordWrites(store)
+    ;(store.state as { waiting: unknown }).waiting = [{ keys: ['undo-3', 'loan-bucket'] }]
+
+    expect([writes.saving('loan-bucket'), writes.saving('undo-3'), writes.saving('other')]).toEqual([true, true, false])
+  })
+
   it('keeps the second write spinning when the first one lands', async () => {
     const { store, landings } = queueingStore()
     const writes = useRecordWrites(store)
@@ -116,6 +144,56 @@ describe('what a control shows while its save waits', () => {
 
     landings[0]!()
     await written
+  })
+})
+
+describe('what a toast says of a write', () => {
+  /** A store whose next write records a receipt with this shape, or fails with this. */
+  function storeThat(outcome: { readonly shownAtOnce: boolean } | { readonly fails: unknown }) {
+    const receipt = { title: 'Switched off', records: [] }
+    const state = shallowReactive<{ waiting: readonly never[]; writes: readonly unknown[] }>({ waiting: [], writes: [] })
+    return {
+      state,
+      write: async () => {
+        if ('fails' in outcome) throw outcome.fails
+        state.writes = [{ receipt, undid: null, id: 1, keys: [], shownAtOnce: outcome.shownAtOnce }]
+        return receipt
+      },
+      undo: async () => {},
+    } as unknown as Pick<WorkbookStore<BooksRead>, 'state' | 'write' | 'undo'>
+  }
+
+  it('keeps a write shown at once to one row, with no line under the title', async () => {
+    toasts.value = []
+    await useRecordWrites(storeThat({ shownAtOnce: true })).write('Switched off', () => {}, { shownAtOnce: true })
+
+    expect(toasts.value[0]).toMatchObject({ title: 'Switched off', orientation: 'horizontal' })
+    expect(toasts.value[0]).not.toHaveProperty('description')
+  })
+
+  it('names the write that failed and puts a Drive failure in one plain sentence', async () => {
+    toasts.value = []
+    const failure = new GoogleApiError('https://www.googleapis.com/upload/drive/v3/files/x', 500, 'Backend Error')
+    await useRecordWrites(storeThat({ fails: failure })).write('Switched off', () => {})
+
+    expect(toasts.value[0]?.description).toBe(`Switched off: ${words.driveFailed}`)
+  })
+
+  it('puts a browser network failure in the same sentence, and several in one toast', async () => {
+    toasts.value = []
+    const failure = new TypeError('NetworkError when attempting to fetch resource.')
+    await useRecordWrites(storeThat({ fails: failure })).write('First', () => {})
+    await useRecordWrites(storeThat({ fails: failure })).write('Second', () => {})
+
+    expect(toasts.value).toHaveLength(1)
+    expect(toasts.value[0]?.description).toBe(`First, Second: ${words.driveFailed}`)
+  })
+
+  it('keeps the reason of a refusal, led by the write', async () => {
+    toasts.value = []
+    await useRecordWrites(storeThat({ fails: new WorkbookWriteRefused('Nothing was written. It changed.') })).write('Switched off', () => {}, { failedTitle: 'Not changed' })
+
+    expect(toasts.value[0]).toMatchObject({ title: 'Not changed', description: 'Switched off: Nothing was written. It changed.' })
   })
 })
 

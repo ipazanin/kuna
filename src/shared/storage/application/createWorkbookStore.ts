@@ -26,6 +26,10 @@ export interface SessionWrite {
   readonly receipt: WriteReceipt
   /** The receipt of the write this one undid, or null. */
   readonly undid: WriteReceipt | null
+  /** What names it to `saving(key)`, which its undo carries too, so the control that started it spins again. */
+  readonly keys: readonly string[]
+  /** Whether a one-tap control's value carried it, so its toast needs no line under the title. */
+  readonly shownAtOnce: boolean
 }
 
 /** Whether the write put back what an earlier one of the session changed. */
@@ -153,6 +157,7 @@ export interface WorkbookStore<Books extends BooksRead, Copy extends WorkbookCop
   /**
    * Shows the books on Drive, found by the app's mark or picked, as `lookup` says. On a cancel or a
    * failure the previous workbook stays chosen. Leaving a workbook kept in this browser deletes it.
+   * Throws `WorkbookWriteRefused` while anything of the file is queued, since the Picker needs the tap.
    */
   chooseDriveFile(lookup: DriveFileLookup): Promise<void>
   /** A folder the person picks, as `WorkbookStorePorts.pickDriveFolder` says. */
@@ -177,7 +182,8 @@ export interface WorkbookStore<Books extends BooksRead, Copy extends WorkbookCop
    * Keeps the contents, an opened file's, a fresh start's or the workbook kept in this browser, in a
    * new file in the folder, and shows that file once it reads back with the same records. Leaving a
    * workbook kept in this browser deletes it. On a failure the previous workbook stays chosen.
-   * Throws `BooksAlreadyOnDrive`, changing nothing, when Drive already holds the app's file.
+   * Throws `BooksAlreadyOnDrive`, changing nothing, when Drive already holds the app's file, and
+   * `WorkbookWriteRefused` while anything of the file is queued.
    */
   keepOnDrive(folderId: string, contents: Contents): Promise<void>
   /** Where the chosen Drive file sits and its newest backup. Null for a workbook kept in this browser, or while the page holds no token. */
@@ -417,17 +423,16 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
    * Queues a write at the tap. A write with no books on screen is refused straight away, and so is one shown at once that the checks refuse on what
    * the screen shows. That check reads only memory and finishes in microtasks, so the next tap cannot pass it, and the change never reaches the screen.
    */
-  function writeRecords(title: string, changes: readonly RuledChange[], undid: WriteReceipt | null, options: WriteOptions = {}): Promise<WriteReceipt | null> {
+  function writeRecords(title: string, changes: readonly RuledChange[], undid: WriteReceipt | null, keys: readonly string[], shownAtOnce: boolean): Promise<WriteReceipt | null> {
     return trackWrite(async () => {
       const current = state.snapshot
       if (current === null || state.choice === null || state.choice.id !== current.meta.id) {
         throw new WorkbookWriteRefused(words.noBooks)
       }
-      const shownAtOnce = options.shownAtOnce === true
       if (shownAtOnce && (await checkWrite(ports.viewOf(shownCopy(current)), title, changes, { undoing: undid !== null })) === null) {
         return null
       }
-      const queued: QueuedWrite = { id: nextWriteId++, title, key: options.key ?? null, shownAtOnce, workbookId: current.meta.id, changes, undid }
+      const queued: QueuedWrite = { id: nextWriteId++, title, keys, shownAtOnce, workbookId: current.meta.id, changes, undid }
       const asked = askDuringTap(current)
       state.waiting = [...state.waiting, queued]
       if (shownAtOnce) show(state.snapshot ?? current)
@@ -442,7 +447,7 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
    * then failed reads it again where it can.
    */
   async function writeInTurn(queued: QueuedWrite, asked: Promise<unknown>): Promise<WriteReceipt | null> {
-    const { title, changes, undid } = queued
+    const { title, changes, undid, keys, shownAtOnce } = queued
     const options = { undoing: undid !== null }
     let storage: CopyStorage<Copy> | null = null
     let sent = false
@@ -469,7 +474,7 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
           const after = await storage.read(checked.kinds)
           await keep(readBack(storage, state.snapshot ?? current), queued)
           const receipt = receiptOf(checked, after)
-          state.writes = [{ receipt, undid, id: state.writes.length + 1, at: ports.now(), workbookId: current.meta.id }, ...state.writes]
+          state.writes = [{ receipt, undid, id: state.writes.length + 1, at: ports.now(), workbookId: current.meta.id, keys, shownAtOnce }, ...state.writes]
           return receipt
         }
         sent = false
@@ -488,14 +493,14 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
         await refreshAfterFailedWrite(storage, queued)
       }
       const madeOnFailedWrite = queued.id <= madeOnFailedWriteUpTo && failure instanceof WorkbookWriteRefused
-      if (queued.shownAtOnce) {
+      if (shownAtOnce) {
         madeOnFailedWriteUpTo = nextWriteId - 1
       }
       throw madeOnFailedWrite ? new WorkbookWriteRefused(words.nothingWritten(words.madeOnFailedWrite)) : failure
     } finally {
       if (state.waiting.includes(queued)) {
         leaveQueue(queued)
-        if (queued.shownAtOnce && state.snapshot !== null) show(state.snapshot)
+        if (shownAtOnce && state.snapshot !== null) show(state.snapshot)
       }
     }
   }
@@ -533,9 +538,8 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
     },
 
     async chooseDriveFile(lookup) {
-      if (jobsInLane === 0) {
-        await inLane(() => readDrive(() => ports.findDriveFile(lookup)))
-      }
+      refuseWhileAnythingQueued()
+      await inLane(() => readDrive(() => ports.findDriveFile(lookup)))
     },
 
     pickDriveFolder(title) {
@@ -578,9 +582,8 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
     },
 
     async keepOnDrive(folderId, contents) {
-      if (jobsInLane === 0) {
-        await inLane(() => readDrive(() => ports.createDriveFile(folderId, contents)))
-      }
+      refuseWhileAnythingQueued()
+      await inLane(() => readDrive(() => ports.createDriveFile(folderId, contents)))
     },
 
     async driveFilePlace() {
@@ -635,14 +638,14 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
     },
 
     async write(title, work, options) {
-      return await writeRecords(title, changesOf(work), null, options)
+      return await writeRecords(title, changesOf(work), null, options?.key === undefined ? [] : [options.key], options?.shownAtOnce === true)
     },
 
     async undo(write) {
       if (!canUndo(write, state.writes) || state.waiting.some((queued) => queued.undid === write.receipt)) {
         throw new WorkbookWriteRefused(words.notUndoable)
       }
-      await writeRecords(words.undone, undoOf(write.receipt), write.receipt, { key: `undo-${write.id}`, shownAtOnce: true })
+      await writeRecords(words.undone, undoOf(write.receipt), write.receipt, [`undo-${write.id}`, ...write.keys], true)
     },
 
     async settled() {

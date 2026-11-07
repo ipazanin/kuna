@@ -38,7 +38,6 @@ const props = defineProps<{
   isCollapsed: (key: string) => boolean
   /** Off when only one account is in view, where naming it on every row says nothing. */
   showAccount: boolean
-  /** True while a change is being written, when no split can be opened. */
   /** The record a row's owner share sits on, or null where none is set here. */
   shareTargetOf: (row: ListedRow) => ShareTarget | null
 }>()

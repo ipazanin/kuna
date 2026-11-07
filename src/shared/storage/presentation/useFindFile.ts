@@ -2,6 +2,7 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 
 import type { BooksRead, WorkbookStore } from '../application/createWorkbookStore'
 import type { DriveFileLookup } from '../application/workbookPorts'
+import { WorkbookWriteRefused } from '../application/workbookWriteRefused'
 import type { WorkbookDocument } from '../infrastructure/documentFormat'
 import type { DocumentCopy } from '../infrastructure/documentRecordStorage'
 
@@ -22,7 +23,13 @@ export function useFindFile(store: Pick<WorkbookStore<BooksRead, DocumentCopy, W
 
   return async (lookup) => {
     const before = store.state.choice
-    await store.chooseDriveFile(lookup)
+    try {
+      await store.chooseDriveFile(lookup)
+    } catch (failure) {
+      if (!(failure instanceof WorkbookWriteRefused)) throw failure
+      toast.add({ title: words.notOpened, description: failure.message, icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
+      return false
+    }
     const chosen = store.state.choice
     if (store.state.status === 'error') {
       toast.add({ title: words.notOpened, description: store.state.error ?? '', icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })

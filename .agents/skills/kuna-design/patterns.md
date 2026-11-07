@@ -61,8 +61,8 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 ## Saving feedback
 
 - Every write to the books shows itself with no code on the screen: `WriteProgress` along the top of the page, and "Saving…" in the sync control, for as long as any write runs.
-- The control that started a write also spins. Give the write a `key` in its options and bind `:loading="writes.saving('key')"` on that control. A write without a key is `save`, so a dialog's Save binds `writes.saving('save')`.
-- A control that would start a second write while one runs may stay `:disabled` on the busy flag, but only with its own `:loading` beside it. `tests/writeFeedback.spec.ts` fails on any other disabled-on-busy control. A control that only opens or closes something stays enabled.
+- Writes queue, so nothing disables on another write. Only the control that started a write grays out and spins. Give the write a `key` in its options, unique within the file, and bind `:loading="writes.saving('key')"` on that control. A write without a key is `save`, its own composable's, so a dialog's Save binds `writes.saving('save')`. `USelect` needs `:disabled` beside `:loading`. An Undo of the write spins the same control.
+- A one-tap control whose value is on it (a switch, a select, an arrow, a threshold) passes `shownAtOnce: true`: it moves at once, its figures follow, a failure flips it back, and its toast is one row, the title with Undo beside it. A dialog or a form's Save leaves it out and changes the screen when the write lands. `tests/writeFeedback.spec.ts` fails on a switch or select that saves on change with no `:loading`, and on a control disabled on a busy flag with no `:loading` beside it.
 
 ## Forms
 

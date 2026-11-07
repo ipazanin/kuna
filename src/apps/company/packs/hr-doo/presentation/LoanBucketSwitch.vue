@@ -39,7 +39,6 @@ async function choose(asPay: boolean): Promise<void> {
     asPay ? words.loanBucket.countAsPay : words.loanBucket.countAsFinancing,
     (unit) => stored.forEach(({ record }) => unit.of(CATEGORY_WRITES).change(record, { ...record, bucket })),
     {
-      description: words.loanBucket.moved(listInWords(loanCategories.value.map((category) => category.slug)), bucket),
       failedTitle: words.loanBucket.notChanged,
       key: LOAN_BUCKET_KEY,
       shownAtOnce: true,

@@ -34,6 +34,10 @@ export default defineConfig({
             footer: 'pb-[max(1rem,env(safe-area-inset-bottom))]',
           },
         },
+        switch: {
+          // Nuxt only dims an amber track, which still reads as on. The thumb keeps showing the value.
+          compoundVariants: [{ loading: true, class: { base: 'data-[state=checked]:bg-accented', icon: 'group-data-[state=checked]:text-muted' } }],
+        },
         table: {
           slots: {
             th: 'px-3 py-2.5 text-xs font-medium text-muted',

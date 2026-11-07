@@ -85,7 +85,6 @@ export const en = {
     inBucket: (category: string, bucket: string) => `${category} (${bucket})`,
     countAsPay: 'Loans count as owner pay',
     countAsFinancing: 'Loans count as financing',
-    moved: (categories: string, bucket: string) => `The categories tab now puts ${categories} in the ${bucket} bucket.`,
     notChanged: 'Not changed',
   },
   /** The pack's lines on Overview's Waiting for you card. */
@@ -561,7 +560,6 @@ export const hr: Translation<typeof en> = {
     inBucket: (category, bucket) => `${category} (${croatianBucket(bucket)})`,
     countAsPay: 'Pozajmice se broje kao isplate vlasniku',
     countAsFinancing: 'Pozajmice se broje kao financiranje',
-    moved: (categories, bucket) => `List „categories” sada stavlja ${categories} u skupinu ${croatianBucket(bucket)}.`,
     notChanged: 'Nije promijenjeno',
   },
   waiting: {

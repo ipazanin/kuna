@@ -236,7 +236,7 @@ Affects nothing on screen, only how every record type is stored. Today an invoic
 
 ## Changes queue while a save runs
 
-Each store runs one job of its file at a time, in tap order: a write, a sync's read, a move or a drop. A second change never gets refused because a save runs. It waits its turn, and a sync waits behind the saves ahead of it and reads what they left. A move and a drop are refused while anything is queued, and choosing another file does nothing then, since the Picker needs the tap.
+Each store runs one job of its file at a time, in tap order: a write, a sync's read, a move or a drop. A second change never gets refused because a save runs. It waits its turn, and a sync waits behind the saves ahead of it and reads what they left. A move, a drop and choosing another file are refused while anything is queued, the last since the Picker needs the tap.
 
 `state.snapshot` is what the file holds, which the cache keeps and an export writes. `state.records` and `state.workbook` are what is on screen: the snapshot with the queued changes marked `shownAtOnce` made on top of it. So a later tap reads an earlier queued change and its `before` is what the file will hold by its turn. A one-tap control asks for `shownAtOnce`, and a dialog or a form's Save does not, so its record changes when it lands.
 

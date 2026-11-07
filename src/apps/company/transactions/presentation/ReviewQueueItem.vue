@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef, watch } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
+import UIcon from '@nuxt/ui/components/Icon.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -85,7 +86,10 @@ function recategorise(category: string | undefined): void {
   <li class="queue-item" data-testid="review-row">
     <button type="button" class="queue-summary" :aria-expanded="expanded" @click="emit('toggle')">
       <span class="flex items-baseline justify-between gap-3">
-        <span class="min-w-0 truncate font-medium text-highlighted">{{ transaction.counterparty || words.noCounterparty }}</span>
+        <span class="flex min-w-0 items-center gap-1.5">
+          <span class="min-w-0 truncate font-medium text-highlighted">{{ transaction.counterparty || words.noCounterparty }}</span>
+          <UIcon v-if="rowSaving" name="i-lucide-loader-circle" class="size-3.5 shrink-0 animate-spin text-muted" data-testid="review-row-saving" />
+        </span>
         <MoneyText :cents="transaction.amount" tone="flow" class="shrink-0 font-medium" />
       </span>
       <span class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-xs text-muted">

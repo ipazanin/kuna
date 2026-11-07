@@ -15,7 +15,8 @@ export interface QueuedWrite {
   /** Counts up from 1 in the order the writes were asked for. */
   readonly id: number
   readonly title: string
-  readonly key: string | null
+  /** What names it to `saving(key)`: the control that started it, and for an undo the undo and the control of the write it undoes. */
+  readonly keys: readonly string[]
   readonly shownAtOnce: boolean
   /** The workbook on screen when it was asked for. Its turn refuses it on any other. */
   readonly workbookId: string

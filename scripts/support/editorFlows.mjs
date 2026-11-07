@@ -1995,31 +1995,35 @@ export async function statementAccessFlow(page, { press, shoot, inspect }) {
 /** With a slow statements folder, the control names the running step and its place, and a screen reader hears it, until the sync is done. */
 /** What the control under this selector shows while a save waits: where it stands, whether it is grayed and whether it spins. */
 function savingControl(page, selector) {
-  return page.evaluate((chosen) => {
-    const control = document.querySelector(chosen)
-    return {
-      value: control?.getAttribute('aria-checked') ?? control?.textContent?.trim() ?? null,
-      disabled: control?.matches(':disabled') ?? false,
-      spinning: (control?.querySelector('.animate-spin') ?? control?.parentElement?.querySelector('.animate-spin')) != null,
-    }
-  }, selector)
+  return page.evaluate(savingLook, selector)
+}
+
+/** A switch's track while it saves is the off colour whichever way it goes, so one saving towards On does not already read as on. Its thumb shows the value. */
+function savingLook(chosen) {
+  const control = document.querySelector(chosen)
+  const probe = document.createElement('div')
+  probe.style.background = 'var(--ui-bg-accented)'
+  document.body.append(probe)
+  const accented = getComputedStyle(probe).backgroundColor
+  probe.remove()
+  return {
+    value: control?.getAttribute('aria-checked') ?? control?.textContent?.trim() ?? null,
+    disabled: control?.matches(':disabled') ?? false,
+    spinning: (control?.querySelector('.animate-spin') ?? control?.parentElement?.querySelector('.animate-spin')) != null,
+    looksSaving: control?.getAttribute('role') !== 'switch' || getComputedStyle(control).backgroundColor === accented,
+  }
 }
 
 async function controlSaving(page, selector, was) {
-  await page
-    .waitForFunction(
-      (chosen, before) => {
-        const control = document.querySelector(chosen)
-        const value = control?.getAttribute('aria-checked') ?? control?.textContent?.trim()
-        return value !== before && control?.matches(':disabled') && (control?.querySelector('.animate-spin') ?? control?.parentElement?.querySelector('.animate-spin')) != null
-      },
-      { timeout: 1_500 },
-      selector,
-      was,
-    )
-    .catch(async () => {
-      throw new Error(`the control did not move at once, grayed with a spinner: ${JSON.stringify(await savingControl(page, selector))}, it stood at ${was}`)
-    })
+  const deadline = Date.now() + 1_500
+  let look = await savingControl(page, selector)
+  while (Date.now() < deadline && !(look.value !== was && look.disabled && look.spinning && look.looksSaving)) {
+    await delay(50)
+    look = await savingControl(page, selector)
+  }
+  if (!(look.value !== was && look.disabled && look.spinning && look.looksSaving)) {
+    throw new Error(`the control did not move at once, grayed with a spinner: ${JSON.stringify(look)}, it stood at ${was}`)
+  }
 }
 
 async function controlLanded(page, selector) {
@@ -2053,6 +2057,21 @@ export async function savesWaitingFlow(page, { press, shoot, inspect }) {
   await inspect?.('the switch once its save landed')
   if ((await folder.evaluate((input) => input.value)) !== 'Typed/while/saving') throw new Error('the save that landed wiped what was typed in the form')
   if ((await savingControl(page, LOAN_SWITCH)).value === was) throw new Error('the switch went back after its save landed')
+
+  // The fake books start on, so this tap saves towards On, where a track left amber would already read as on.
+  const off = (await savingControl(page, LOAN_SWITCH)).value
+  await press(handle)
+  await controlSaving(page, LOAN_SWITCH, off)
+  await shoot(await shotInLanguage(page, 'saves-waiting-switch-on'))
+  await controlLanded(page, LOAN_SWITCH)
+
+  const undo = await page.waitForFunction(
+    () => [...document.querySelectorAll('[data-slot="actions"] button')].filter((button) => ['Undo', 'Poništi'].includes(button.textContent?.trim())).at(-1) ?? null,
+    { timeout: 5_000 },
+  )
+  await undo.asElement().evaluate((button) => button.click())
+  await controlSaving(page, LOAN_SWITCH, 'true')
+  await controlLanded(page, LOAN_SWITCH)
 
   const save = await page.waitForSelector('form button[type="submit"]:not(:disabled)', { timeout: 5_000 })
   await save.evaluate((element) => element.scrollIntoView({ block: 'center' }))
@@ -2093,14 +2112,15 @@ export async function saveFailsFlow(page, { press, shoot }) {
   const { value: was } = await savingControl(page, LOAN_SWITCH)
   await press(handle)
   await controlSaving(page, LOAN_SWITCH, was)
+  const plainSentence = (await page.evaluate(() => document.documentElement.lang)) === 'hr' ? writesCroatian.driveFailed : writesEnglish.driveFailed
   await page
-    .waitForFunction(() => [...document.querySelectorAll('[data-slot="description"]')].some((toast) => toast.textContent?.includes('Drive answered 500.')), { timeout: 15_000 })
+    .waitForFunction((sentence) => [...document.querySelectorAll('[data-slot="description"]')].some((toast) => toast.textContent?.endsWith(`: ${sentence}`)), { timeout: 15_000 }, plainSentence)
     .catch(() => {
-      throw new Error('no toast says why the save failed')
+      throw new Error('no toast names the write that failed in one plain sentence')
     })
   await controlLanded(page, LOAN_SWITCH)
   if ((await savingControl(page, LOAN_SWITCH)).value !== was) throw new Error('the switch did not flip back after its save failed')
-  await shoot('save-fails')
+  await shoot(await shotInLanguage(page, 'save-fails'))
 }
 
 export async function syncRunningFlow(page, { press, shoot, inspect }) {

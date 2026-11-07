@@ -1,4 +1,5 @@
 import { FOLDER_MIME_TYPE } from '../../../google/driveClient'
+import { GoogleApiError } from '../../../google/googleApi'
 import { currentToken } from '../../../google/googleAuth'
 import type { DriveAccess } from '../documentStorePorts'
 import { APP_PROPERTY } from '../driveDocument'
@@ -89,7 +90,7 @@ export function fakeDriveAccess(app: string): DriveAccess {
         if (uploadMs > 0) await new Promise((resolve) => setTimeout(resolve, uploadMs))
         if (failingUpload) {
           failingUpload = false
-          throw new Error('Drive answered 500.')
+          throw new GoogleApiError(`https://www.googleapis.com/upload/drive/v3/files/${fileId}`, 500, '')
         }
         if (racing !== null) {
           const otherDeviceSave = racing

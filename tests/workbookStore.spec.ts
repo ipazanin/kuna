@@ -988,7 +988,7 @@ describe('workbook store queueing what happens to its file', () => {
     const second = store.write('Second', addAccount('second'), { key: 'two' })
     await uploading()
 
-    expect(store.state.waiting.map((queued) => queued.key)).toEqual(['one', 'two'])
+    expect(store.state.waiting.map((queued) => queued.keys)).toEqual([['one'], ['two']])
     letUploadGo()
     await Promise.all([first, second])
 
@@ -1140,12 +1140,13 @@ describe('workbook store queueing what happens to its file', () => {
     await deleteBrowserDocument(store.state.choice!.id)
   })
 
-  it('does nothing when another file is chosen while the lane is busy, since the Picker needs the tap', async () => {
+  it('refuses to choose another file or keep one on Drive while the lane is busy, since the Picker needs the tap', async () => {
     const { store, side, holdNextUpload, letUploadGo, uploading } = await queueHarness()
     holdNextUpload()
     const written = store.write('First', addAccount('first'))
     await uploading()
-    await store.chooseDriveFile('pick')
+    await expect(store.chooseDriveFile('pick')).rejects.toThrow(storageWords.busy)
+    await expect(store.keepOnDrive('root', documentOf([1]))).rejects.toThrow(storageWords.busy)
     expect(side.signIns).not.toContainEqual({ resume: 'pick', app: 'company' })
     letUploadGo()
     await written

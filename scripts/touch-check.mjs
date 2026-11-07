@@ -1774,6 +1774,9 @@ async function checkWidth(width) {
     await page.waitForSelector('[data-testid="review-details"] .animate-spin', { timeout: 2_000 }).catch(() => {
       throw new Error('the second row does not spin while its save waits')
     })
+    await page.waitForSelector('[data-testid="review-row-saving"]', { timeout: 2_000 }).catch(() => {
+      throw new Error('a row saving shows no spinner in its summary')
+    })
     await waitForText(page, '[data-slot="title"]', 'Confirmed')
     await page
       .waitForFunction(() => document.querySelectorAll('[data-testid="review-row"]').length === 0, { timeout: 15_000 })
