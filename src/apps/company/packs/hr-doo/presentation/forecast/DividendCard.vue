@@ -7,6 +7,7 @@ import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import type { PayoutOptionId } from '../../domain/dividend/dividendCapacity'
+import ConfidenceBadge from '../../ruleset/presentation/ConfidenceBadge.vue'
 import type { RuleChip } from '../yearEnd/LineBuildUp.vue'
 import BuildUpList from './BuildUpList.vue'
 import type { BuildUpLine } from './BuildUpList.vue'
@@ -69,9 +70,13 @@ const option = computed(() => props.payouts.find((entry) => entry.id === props.c
           />
         </div>
         <div class="flex flex-col gap-1">
-          <p class="text-sm text-highlighted">{{ option.label }}</p>
+          <p class="flex flex-wrap items-center gap-2 text-sm text-highlighted">
+            {{ option.label }}
+            <ConfidenceBadge v-if="option.confidence" :confidence="option.confidence" />
+          </p>
           <p class="text-xs text-muted">{{ option.when }}</p>
         </div>
+        <p v-if="option.reading" class="text-xs text-muted" data-testid="payout-reading">{{ option.reading }}</p>
         <p v-if="option.warning" class="flex items-start gap-2 text-xs text-error" data-testid="payout-warning">
           <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
           <span>{{ option.warning }}</span>

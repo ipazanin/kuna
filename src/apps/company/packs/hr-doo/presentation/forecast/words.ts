@@ -24,6 +24,7 @@ export const en = {
   asPlanned: 'As planned',
   difference: (amount: string, cost: boolean, more: boolean) => `${amount} ${cost ? (more ? 'more spent' : 'less spent') : more ? 'more' : 'less'} than planned`,
   payout: {
+    interimReading: "Company law says nothing about a d.o.o. paying out this year's profit in advance. Tax law mentions such advances but never allows them outright. Kuna treats them as allowed.",
     when: (earliest: string, latest: string) => `Earliest on ${earliest}, and no later than ${latest}.`,
     gross: 'Payout before tax',
     tax: 'Dividend tax',
@@ -269,6 +270,8 @@ export const hr: Translation<typeof en> = {
   asPlanned: 'Prema planu',
   difference: (amount, cost, more) => `${amount} ${cost ? (more ? 'više potrošeno' : 'manje potrošeno') : more ? 'više' : 'manje'} od plana`,
   payout: {
+    interimReading:
+      'Zakon o trgovačkim društvima ne govori o predujmu dobiti tekuće godine za d.o.o. Porezni propisi takav predujam spominju, ali ga nigdje izričito ne dopuštaju. Kuna ga tretira kao dopušten.',
     when: (earliest, latest) => `Najranije ${earliest}, a najkasnije ${withFullStop(latest)}`,
     gross: 'Isplata prije poreza',
     tax: 'Porez na dividendu',

@@ -4,6 +4,7 @@ import { dividendCapacity } from '../src/apps/company/packs/hr-doo/domain/divide
 import type { DividendCapacity, PayoutOption, PayoutOptionId } from '../src/apps/company/packs/hr-doo/domain/dividend/dividendCapacity'
 import { forecastYear } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastYear'
 import { forecastState } from '../src/apps/company/packs/hr-doo/presentation/forecast/forecastView'
+import { words } from '../src/apps/company/packs/hr-doo/presentation/forecast/words'
 import type { HrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 import { subtractMoney } from '../src/shared/money/money'
 import { percentFromBasisPoints } from '../src/shared/money/percent'
@@ -406,5 +407,11 @@ describe('the Pay tab’s cash warning', () => {
 
     expect(keptNow?.figures.find((figure) => figure.key === 'kept-profit')?.cents).toBe(euros(4800))
     expect(keptNow?.warning).toBe('Kept profit €4,800.00, cash allows €2,000.00.')
+  })
+
+  it('explains the reading under the interim payout only, as the law leaves only that one in doubt', () => {
+    const payouts = view(steadyStudio()).payouts
+    expect(payouts.find((payout) => payout.id === 'interim')?.reading).toBe(words.payout.interimReading)
+    expect(payouts.filter((payout) => payout.id !== 'interim').map((payout) => payout.reading)).toEqual(payouts.filter((payout) => payout.id !== 'interim').map(() => null))
   })
 })

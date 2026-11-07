@@ -11,7 +11,7 @@ import type { Money } from '../../../../../../shared/money/money'
 import { moneyAt, percentText } from '../../../../../../shared/money/percent'
 import type { Percent } from '../../../../../../shared/money/percent'
 import { ruleValue } from '../../ruleset/ruleset'
-import type { RuleCitation } from '../../ruleset/schema'
+import type { Confidence, RuleCitation } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { withDrill } from '../accrual/accrualAdjustment'
 import { equityBroughtForward } from '../accrual/accrualBalanceSheet'
@@ -65,6 +65,8 @@ export interface PayoutOption {
   readonly shortfall: TracedFigure | null
   /** What stays in the company as retained earnings for later years. */
   readonly retainedAfter: TracedFigure
+  /** How sure the law is that the payout is allowed. Null when nothing is in doubt. */
+  readonly confidence: Confidence | null
 }
 
 /** The cash a payout made now is paid from, on the day of the forecast. */
@@ -318,6 +320,7 @@ function payoutOption(context: PayoutContext, choice: PayoutChoice): PayoutOptio
     clawbackExposure: choice.earliestOn === null ? tracedFigure(words.capacity.nothingAtRisk, ZERO, 'assets', []) : clawbackOn(context.workbook, choice.earliestOn),
     shortfall: choice.shortfall,
     retainedAfter: summed(words.capacity.retainedAfter, [context.distributable, deducted(gross)], 'ledger'),
+    confidence: choice.id === 'interim' ? 'reading' : null,
   }
 }
 

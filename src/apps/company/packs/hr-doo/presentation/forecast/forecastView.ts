@@ -5,6 +5,7 @@ import { expectedInvoices } from '../../../../billingPlan/domain/expectedInvoice
 import type { DrillTarget } from '../../../../filters/domain/drillTarget'
 import { runwayInWords } from '../../../../overview/domain/headline'
 import type { HrDooWorkbook } from '../../domain/hrDooPart'
+import type { Confidence } from '../../ruleset/schema'
 import { civilDate, yearOf } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { monthKey, yearOfMonth } from '../../../../../../shared/calendar/monthKey'
@@ -53,6 +54,10 @@ export interface PayoutView {
   readonly warning: string | null
   readonly figures: readonly ShownFigure[]
   readonly capitalProtected: boolean
+  /** Set when the law leaves the payout in doubt, so the card marks it. */
+  readonly confidence: Confidence | null
+  /** Why the law leaves this payout in doubt, shown under it with the badge. Null when nothing is in doubt. */
+  readonly reading: string | null
   readonly rules: readonly RuleChip[]
 }
 
@@ -376,6 +381,9 @@ function differenceWords(difference: Money, cost: boolean): string {
   return words.difference(formatMoney(absMoney(difference)), cost, difference > 0)
 }
 
+/** Why the law leaves each payout in doubt, for the options marked so. */
+const READINGS: Readonly<Partial<Record<PayoutOptionId, string>>> = { interim: words.payout.interimReading }
+
 /** `keptProfit` is what the kept profit paid out now starts from, and null for the other options. */
 function payoutView(option: PayoutOption, keptProfit: TracedFigure | null, linkOf: (figure: TracedFigure | null) => RouteLocationRaw | null): PayoutView {
   const shown = (key: string, label: string, figure: TracedFigure | null): ShownFigure[] => (figure === null ? [] : [{ key, label, cents: figure.amount, to: linkOf(figure) }])
@@ -407,6 +415,8 @@ function payoutView(option: PayoutOption, keptProfit: TracedFigure | null, linkO
       ...shown('retained', words.payout.retained, option.retainedAfter),
     ],
     capitalProtected: option.capitalProtected,
+    confidence: option.confidence,
+    reading: option.confidence === null ? null : (READINGS[option.id] ?? null),
     rules: ruleChips([option.gross, option.dividendTax, option.loanBenefitPerYear, ...(option.shortfall === null ? [] : [option.shortfall])].flatMap((figure) => figure.rules)),
   }
 }

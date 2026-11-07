@@ -45,6 +45,7 @@ Mark: `confirmed-nn`.
 ## Open points
 
 - The part of the Naputak read names 1651 for profit tax and no separate code for the monthly advance. Whether the advance also uses 1651 is `unconfirmed`, so the 1651 rule's note says it covers what the Naputak calls "porez na dobit".
+- Whether a d.o.o. may pay an advance on this year's profit (_predujam dobiti_) is not settled. Research of 7 November 2026 found company law silent on it for a d.o.o., and the tax law assumes advances exist without granting them, which needs a court decision or a Porezna uprava opinion. The company acts behind that finding were not loaded in this session, so the point is `unconfirmed` here. The Year tab's Pay part marks the interim payout option as a reading. Whether PravPD Art. 35.a(2) lets the retained profit join the interim amount, as `dividendCapacity.ts` adds it, is also open.
 - The amendment of the Naputak in NN 39/26 was not loaded. It may change a code. It is on the [watch list](../sources/watch-list.md#company-classes).
 
 ## Sources

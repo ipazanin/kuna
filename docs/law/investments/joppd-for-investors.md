@@ -84,7 +84,9 @@ Screen: Settled for 1006 and 02, A reading for the 30-day codes.
 
 Gains through a foreign broker are capital income from abroad, which the wording of 1003 fits. Both broker guides tell their clients to use 1001, and one of them is Finax, a Slovak firm. Porezna uprava's capital gains page names no code, and its crypto example has no taxable line. No source picks between them. The tax and the deadline are the same either way. Kuna writes 1001.
 
-Mark: `unconfirmed`. Screen: Unconfirmed.
+A difference does exist in the form. PravPDoh Art. 82(1) item 7 (JOPPD field 3, "Šifra općine/grada rada") says that for recipient codes "1003, 1004, 1103, 1104" and others "upisuju se prve dvije znamenke 99 te oznaka države u kojoj je primitak ostvaren". Under 1003 the line would carry 99 and one country code, so one yearly line could name only one country, and gains through a foreign broker can span several. Kuna shows no field 3 for gains. Only a written answer from Porezna uprava or a current logical check set would settle the code. Read in the Porezna uprava consolidation, loaded 7 November 2026.
+
+Mark: `unconfirmed`, waiting for Porezna uprava in writing. Screen: Unconfirmed.
 
 ### The code-02 line
 
