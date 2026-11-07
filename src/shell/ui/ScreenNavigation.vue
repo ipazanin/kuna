@@ -3,7 +3,11 @@ import { onMounted, useId, useTemplateRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UCollapsible from '@nuxt/ui/components/Collapsible.vue'
+import UIcon from '@nuxt/ui/components/Icon.vue'
+import UTooltip from '@nuxt/ui/components/Tooltip.vue'
 
+import { chatOpen, closeChat, openChat } from '../../shared/ai/presentation/chatDock'
+import { words as chatWords } from '../../shared/ai/presentation/words'
 import type { Navigation } from './navigation'
 import NavigationLink from './NavigationLink.vue'
 import { words } from './words'
@@ -13,8 +17,10 @@ withDefaults(
     navigation: Navigation
     /** The icon sidebar while the chat is docked: every row an icon, the open app's pages under its tile, and no arrows. */
     rail?: boolean
+    /** Whether the chat's row closes the list, which the sidebar shows while a key is kept. The top bar has its own button. */
+    chat?: boolean
   }>(),
-  { rail: false },
+  { rail: false, chat: false },
 )
 
 const emit = defineEmits<{
@@ -114,6 +120,14 @@ watch(() => route.path, showCurrentPage, { flush: 'post' })
     </div>
     <div class="border-t border-default py-2" :class="rail ? 'mx-1.5' : 'mx-3'">
       <NavigationLink v-bind="navigation.kunaSettings" :rail="rail" data-testid="nav-kuna-settings" />
+      <UTooltip v-if="chat" :text="chatWords.chat.open" :disabled="!rail" :content="{ side: 'right' }">
+        <button type="button" class="nav-link mt-0.5 w-full" :class="{ 'in-rail': rail }" :aria-pressed="chatOpen" data-testid="chat-open" @click="chatOpen ? closeChat() : openChat()">
+          <span class="grid size-6 shrink-0 place-items-center">
+            <UIcon name="i-lucide-sparkles" class="size-4" aria-hidden="true" />
+          </span>
+          <span :class="rail ? 'sr-only' : 'min-w-0 truncate'" data-testid="nav-label">{{ chatWords.chat.open }}</span>
+        </button>
+      </UTooltip>
     </div>
   </nav>
 </template>

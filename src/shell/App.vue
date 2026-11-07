@@ -76,8 +76,10 @@ void router.isReady().then(() => {
 })
 
 const docks = useMediaQuery(CHAT_DOCK_QUERY)
-/** Toasts rise from the bottom, clear of the gesture bar in the installed app and of the docked chat's 24rem column. */
-const toaster = computed(() => ({ ui: { viewport: `bottom-[max(1rem,env(safe-area-inset-bottom))] ${assistKeyKept.value && chatOpen.value && docks.value ? 'right-[25rem]' : ''}` } }))
+/** Toasts rise from the bottom, clear of the gesture bar in the installed app and of the docked chat's column. */
+const toaster = computed(() => ({
+  ui: { viewport: `bottom-[max(1rem,env(safe-area-inset-bottom))] ${assistKeyKept.value && chatOpen.value && docks.value ? 'right-[calc(var(--spacing-chat-dock)+1rem)]' : ''}` },
+}))
 
 /** The chat's code loads only once a person with a key opens it. */
 const ChatPanel = defineAsyncComponent(() => import('../shared/ai/presentation/ChatPanel.vue'))
@@ -100,8 +102,8 @@ const uiLocale = language === 'hr' ? hr : en_gb
         <ScreenSkeleton v-if="screenLoading || !Component" />
         <component :is="Component" v-else />
       </RouterView>
-      <template #navigation="{ rail }">
-        <ScreenNavigation :navigation="navigation" :rail="rail" @toggle="togglePages" @open="openApp = $event" />
+      <template #navigation="{ rail, chat }">
+        <ScreenNavigation :navigation="navigation" :rail="rail" :chat="chat" @toggle="togglePages" @open="openApp = $event" />
       </template>
       <template #chat>
         <ChatPanel :app="appOnScreen" :screen="screenName" :path="route.path" :apps="installedApps()" :kuna-screens="KUNA_SCREENS" />

@@ -89,6 +89,8 @@ const emit = defineEmits<{
 }>()
 
 const phone = usePhoneLayout()
+/** Beside a taller card a plot grows to fill its row up to this, and the spare space stays below it. */
+const TALLEST_STRETCH = 420
 const plotHeight = computed(() => (phone.value ? (props.phoneHeight ?? props.height) : props.height))
 
 const showTable = ref(false)
@@ -163,7 +165,7 @@ function valueOf(point: unknown): number | null {
       <slot v-else name="legend" />
     </template>
 
-    <div class="chart-body grow px-2 pt-2 pb-3 sm:px-3" :style="{ height: `${plotHeight}px` }">
+    <div class="chart-body grow px-2 pt-2 pb-3 sm:px-3" :style="{ height: `${plotHeight}px`, maxHeight: `${Math.max(plotHeight, TALLEST_STRETCH)}px` }">
       <UEmpty v-if="empty && !loading" icon="i-lucide-chart-no-axes-column" :title="emptyTitle" :description="emptyDescription" variant="naked" size="sm" class="h-full" />
       <FigureTable v-else-if="showTable" class="h-full overflow-auto" data-testid="chart-table">
         <slot name="table">

@@ -3,7 +3,6 @@ import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import USlideover from '@nuxt/ui/components/Slideover.vue'
-import UTooltip from '@nuxt/ui/components/Tooltip.vue'
 
 import { CHAT_DOCK_QUERY, chatOpen, closeChat, openChat } from '../../shared/ai/presentation/chatDock'
 import { words as chatWords } from '../../shared/ai/presentation/words'
@@ -34,7 +33,7 @@ const emit = defineEmits<{
 
 defineSlots<{
   default(): unknown
-  navigation(props: { rail: boolean }): unknown
+  navigation(props: { rail: boolean; chat: boolean }): unknown
   chat(): unknown
   sync(props: { compact: boolean; rail: boolean }): unknown
 }>()
@@ -136,30 +135,14 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
 </script>
 
 <template>
-  <div ref="shell" class="flex min-h-dvh flex-col lg:grid" :class="docked ? 'lg:grid-cols-[3.5rem_minmax(0,1fr)_24rem]' : 'lg:grid-cols-[15rem_minmax(0,1fr)]'">
+  <div ref="shell" class="flex min-h-dvh flex-col lg:grid" :class="docked ? 'lg:grid-cols-[3.5rem_minmax(0,1fr)_var(--spacing-chat-dock)]' : 'lg:grid-cols-[15rem_minmax(0,1fr)]'">
     <WriteProgress :active="writesInFlight > 0" :label="sharedWords.saving" class="write-progress fixed inset-x-0 z-top-bar" />
     <aside v-if="wide" class="border-e border-default bg-raised/60" :aria-label="words.navigation.sidebar">
       <div class="sticky top-0 flex h-dvh flex-col">
         <div class="border-b border-default py-2" :class="docked ? 'mx-1.5' : 'mx-3'">
           <HomeLink :label="sharedWords.homeLink" :look="docked ? 'rail' : 'standard'" />
         </div>
-        <slot name="navigation" :rail="docked" />
-        <div v-if="chatAvailable" class="border-t border-default py-2" :class="docked ? 'flex justify-center' : 'mx-3'">
-          <UTooltip :text="chatWords.chat.open" :disabled="!docked" :content="{ side: 'right' }">
-            <UButton
-              icon="i-lucide-sparkles"
-              :label="docked ? '' : chatWords.chat.open"
-              :aria-label="chatWords.chat.open"
-              :aria-pressed="chatShows"
-              color="neutral"
-              :variant="chatShows ? 'soft' : 'ghost'"
-              :block="!docked"
-              class="justify-start"
-              data-testid="chat-open"
-              @click="chatShows ? closeChat() : openChat()"
-            />
-          </UTooltip>
-        </div>
+        <slot name="navigation" :rail="docked" :chat="chatAvailable" />
         <div v-if="$slots.sync" class="border-t border-default py-4" :class="docked ? 'flex justify-center px-1' : 'px-4'" data-testid="sidebar-sync">
           <slot name="sync" :compact="docked" :rail="docked" />
         </div>
@@ -186,7 +169,7 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
         </template>
         <template #body>
           <div class="contents" @click="closeOnCurrentPage">
-            <slot name="navigation" :rail="false" />
+            <slot name="navigation" :rail="false" :chat="false" />
           </div>
         </template>
       </USlideover>

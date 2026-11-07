@@ -412,6 +412,11 @@ section + section > .group-row:not(tr) {
   background: var(--surface-elevated);
 }
 
+.nav-link[aria-pressed='true'] {
+  color: var(--ink-strong);
+  background: var(--surface-elevated);
+}
+
 /* An open app's name is heavier, so colour is not the only cue that it is the open one. */
 .nav-link.is-open {
   color: var(--ink-strong);

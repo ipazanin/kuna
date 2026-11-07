@@ -8,7 +8,7 @@ withDefaults(
   defineProps<{
     /**
      * `tiles`: two to a row, an odd last one across both, then one row from @4xl. Three take one row from @2xl.
-     * Five or six take three to a row from @3xl and one row from @8xl.
+     * Five or six take three to a row beside the sidebar, where a page never has less than 704 px, and one row from @8xl.
      * `cards`: one column, two from @4xl, and three from @8xl when there are three or more. As the second part of a pair, one column again from @8xl, beside the first part.
      * `pair`: two cards, or a long card and a column of cards, side by side from @8xl. Below it the parts
      * stack in the screen's own column.
@@ -21,8 +21,8 @@ withDefaults(
 const LAYOUTS = {
   tiles: [
     'grid grid-cols-2 gap-3 @4xl:auto-cols-fr @4xl:grid-flow-col @4xl:grid-cols-none',
-    '[&>:last-child:nth-child(odd)]:col-span-2 @4xl:[&>:last-child:nth-child(odd)]:col-span-1 @3xl:has-[>:nth-child(5)]:[&>:last-child:nth-child(odd)]:col-span-1',
-    '@3xl:has-[>:nth-child(5)]:grid-cols-3 @4xl:has-[>:nth-child(5)]:grid-flow-row @8xl:has-[>:nth-child(5)]:grid-flow-col @8xl:has-[>:nth-child(5)]:grid-cols-none',
+    '[&>:last-child:nth-child(odd)]:col-span-2 @4xl:[&>:last-child:nth-child(odd)]:col-span-1 lg:has-[>:nth-child(5)]:[&>:last-child:nth-child(odd)]:col-span-1',
+    'lg:has-[>:nth-child(5)]:grid-cols-3 @4xl:has-[>:nth-child(5)]:grid-flow-row @8xl:has-[>:nth-child(5)]:grid-flow-col @8xl:has-[>:nth-child(5)]:grid-cols-none',
     '@2xl:has-[>:nth-child(3):last-child]:grid-cols-3 @2xl:has-[>:nth-child(3):last-child]:[&>:last-child]:col-span-1',
   ],
   cards: ['grid gap-4 @4xl:grid-cols-2 @8xl:has-[>:nth-child(3)]:grid-cols-3'],

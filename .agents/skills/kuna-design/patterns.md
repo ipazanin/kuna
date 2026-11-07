@@ -78,12 +78,14 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 ## Layout and width
 
 - A page's grids follow the room the shell gives the screen, never the window, because the chat's dock narrows a page without narrowing the window. From 640 px the shell's content area is a container, so `@2xl:` and the like read how wide the screen really is. A window breakpoint on a page's grid fails lint, and `sm:` stays allowed: it is the phone step and every layout above it has the room.
-- `DashboardGrid` has three layouts. `tiles`: two to a row, one row from `@4xl`, three tiles one row from `@2xl`, and five or six tiles take three to a row from `@3xl` and one row from `@8xl`. `cards`: one column, two from `@4xl`, and three from `@8xl` when there are three or more. `pair`: side by side from `@8xl`.
+- `DashboardGrid` has three layouts. `tiles`: two to a row, one row from `@4xl`, three tiles one row from `@2xl`, and five or six tiles take three to a row from `lg`, the one window step in the grid, and one row from `@8xl`. `cards`: one column, two from `@4xl`, and three from `@8xl` when there are three or more. `pair`: side by side from `@8xl`.
 - A card that runs across both columns below `@8xl` says so itself, such as `@4xl:col-span-2 @8xl:col-span-1`.
 - Two columns inside a full-width card start at `@2xl`, such as `@2xl:grid-cols-2`. A style block asks the same way, with `@container (min-width: 42rem)`.
 - Without the chat, `@2xl` is reached in a 768 px window and from 1024 px beside the sidebar, `@4xl` from 1216 px and `@8xl` from 1664 px. With the chat docked, `@4xl` needs a 1416 px window and `@8xl` a 1864 px one. The steps come from what fits: a tile of about 215 px and a card of about 440 px. A rule that needs another step asks what the grid's parts need, not what a window is called.
 - A part outside the content area has no such container and keeps window breakpoints: the shell's own frame, and a dialog or drawer's body, which the app draws outside the page. So does what depends on the top bar and the sidebar, such as the sticky bands' `top`.
 - Cards rearrange as the width grows. The visual check fails a dashboard whose cards keep one arrangement at 768, 1440 and 1920 px, and cards side by side in a grid that is not a `DashboardGrid`, outside the gallery.
+
+- Every screen ends with `CompanyFooter` in `type-caption`: the company's logo and name, its contact and the privacy page, left out of print.
 
 ## Navigation
 
@@ -95,7 +97,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - Kuna's home at `#/` has a card per app, and no app is open in its menu. The phone home has the same drawer as every screen, so Net worth and Kuna settings are reached there and the home carries no buttons for them.
 - Kuna settings at `#/settings` holds only what is the same for every app: sync, sign-out, where new files go, the AI key and model, theme and language. What an app may send sits in that app's Settings, with a read-only line and a link in Kuna settings.
 - A first run starts with the quiet `HomeLink`, so it can be left for the home.
-- With a key kept, one chat button sits above Sync in the sidebar and beside it in the top bar, and nothing shows without a key. From 1224 px the chat docks beside the page and the sidebar shrinks to icons, each with its name as a tooltip and what waits as a small figure on its corner. Narrower, the chat takes the page's place, so it is never a popup.
+- With a key kept, the chat is a row under Kuna settings in the sidebar and a button beside Sync in the top bar, and nothing shows without a key. From 1224 px the chat docks beside the page and the sidebar shrinks to icons, each with its name as a tooltip and what waits as a small figure on its corner. Narrower, the chat takes the page's place, so it is never a popup.
 - A button that asks the chat about one element calls `useChatTagging` with a key and a label that names the element, never an amount or a payee. The element binds `chatTagAttrs` and carries the one highlight, `data-chat-tagged`, while the open chat is about it.
 
 ## Sync steps

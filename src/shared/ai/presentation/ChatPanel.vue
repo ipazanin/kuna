@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UChatMessages from '@nuxt/ui/components/ChatMessages.vue'
 import UChatPrompt from '@nuxt/ui/components/ChatPrompt.vue'
@@ -36,6 +36,12 @@ const props = defineProps<{
 const phone = usePhoneLayout()
 const provider = computed(() => providerInUse())
 const asking = ref<string | null>(null)
+const panel = useTemplateRef<HTMLElement>('panel')
+
+/** The card's buttons leave with the card, so focus goes back to the prompt. A phone keeps its keyboard down. */
+watch(asking, (message) => {
+  if (message === null && !phone.value) void nextTick(() => panel.value?.querySelector('textarea')?.focus())
+})
 
 /** An app with no Assistant tab has no switch a person could see or take back, so outside Company and Spending only a yes for this chat stops the asking. */
 const switchApp = computed(() => (props.app?.assist === undefined ? null : props.app.id))
@@ -92,9 +98,9 @@ function startOver(): void {
 </script>
 
 <template>
-  <section class="flex h-full min-h-0 flex-col" :aria-label="words.chat.panel" data-testid="chat-panel">
+  <section ref="panel" class="flex h-full min-h-0 flex-col" :aria-label="words.chat.panel" data-testid="chat-panel">
     <header class="flex min-h-12 items-center gap-2 border-b border-default px-3 py-1.5">
-      <AppMark v-if="app" :icon="app.homeCard.icon" :colour="app.colour" />
+      <AppMark v-if="app && !phone" :icon="app.homeCard.icon" :colour="app.colour" />
       <p class="min-w-0 flex-1 truncate type-label" data-testid="chat-label">{{ app ? words.chat.inApp(app.name) : words.chat.inKuna }}</p>
       <UButton
         v-if="chatLines.length > 0"

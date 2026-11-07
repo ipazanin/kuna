@@ -8255,7 +8255,20 @@ export function chatPanelFlowIn(language) {
       await inspect?.('the card before a chat sends')
       await shoot('chat-consent')
       if ((await page.evaluate(() => localStorage.getItem('kuna.assist.spending'))) !== null) throw new Error('asking changed the switch')
+      const promptFocusAfter = async (how) => {
+        await delay(200)
+        const focused = await page.evaluate(() => document.activeElement?.matches('textarea[data-testid="chat-prompt"]') === true)
+        const phone = await page.evaluate(() => window.innerWidth < 640)
+        if (focused === phone) throw new Error(phone ? `${how} on the card opened a phone's keyboard` : `${how} on the card did not bring focus back to the prompt`)
+      }
+      await pressSelector(page, press, '[data-testid="chat-allow-cancel"]')
+      await page.waitForSelector(CHAT_CONSENT, { hidden: true, timeout: 5_000 })
+      await promptFocusAfter('Cancel')
+      await pressSelector(page, press, '[data-testid="chat-send"]')
+      await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 })
       await pressSelector(page, press, '[data-testid="chat-allow"]')
+      await page.waitForSelector(CHAT_CONSENT, { hidden: true, timeout: 5_000 })
+      await promptFocusAfter('Allow')
       await page.waitForSelector('[data-testid="chat-chip"]', { visible: true, timeout: 15_000 }).catch(() => {
         throw new Error('the answer brought no link to the screen')
       })

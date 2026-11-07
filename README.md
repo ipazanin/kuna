@@ -409,7 +409,7 @@ A dashboard screen's tiles and cards rearrange as the content area grows, by one
 640 px, and not the window, so a page beside the chat's dock takes what its width allows. Tiles go
 two to a row, an odd last one across both, then all in one row from 896 px of content (`@4xl`, a
 1216 px window beside the sidebar). Three tiles take one row from 672 px of content (`@2xl`), and
-five or six go three to a row from 768 px of content (`@3xl`) and join one row from 1344 px of content (`@8xl`). Cards go two to a row from
+five or six go three to a row from a 1024 px window and join one row from 1344 px of content (`@8xl`). Cards go two to a row from
 `@4xl`, as on Overview and the Loans Overview, and three from `@8xl` when there are three or more,
 and a card that should run across both says so itself. From `@8xl` a pair sets related cards side by side, or a long list
 beside a column of the cards that sum it up: the Invoices and Plan tabs of Invoicing, the Compare

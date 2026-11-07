@@ -74,8 +74,11 @@ const windowGridClasses = {
   pattern: String.raw`^(?:\S*:)?(?:md|lg|xl|2xl):(?:\S*:)?(?:grid-cols|col-span|grid-flow|auto-cols)-.*$`,
   message: '"$0": a page\'s grid follows its container, such as @4xl:grid-cols-2, because the chat\'s dock narrows a page without narrowing the window.',
 }
-/** The shell's own frame and a dialog's body sit outside the content area, so the window is their room. */
-const windowGridFiles = ['src/shell/ui/AppShell.vue', 'src/apps/loans/scenarios/presentation/ScenarioEditor.vue']
+/**
+ * The shell's own frame and a dialog's body sit outside the content area, so the window is their room. DashboardGrid sets
+ * five or six tiles three to a row at lg, since 1024 px has less room than 768 px and the visual check wants 768 px to differ from 1440 px.
+ */
+const windowGridFiles = ['src/shell/ui/AppShell.vue', 'src/apps/loans/scenarios/presentation/ScenarioEditor.vue', 'src/shared/ui/DashboardGrid.vue']
 
 // Tailwind only knows the classes of its entry point, so a class a stylesheet declares is known where that stylesheet
 // applies: app.css and a :deep() or :slotted() selector everywhere, the rest of a scoped style block in its own
