@@ -121,13 +121,24 @@ Built, waiting for the first run with a real key:
 - **The tag:** `useChatTagging` opens the panel about one element, a `RemovableChip` shows it, and `chatTagAttrs` marks the element through `data-chat-tagged`, one rule in `app.css`. Only the gallery's specimen calls it so far, since the buttons stay as they are until the chat can do their jobs.
 - **Sends:** by the owner's answer, a chat asks once, in a card above the prompt that says what is sent and what the company keeps, and stage 3's grant card can grow from it. The yes lasts until a new chat or a change of AI company, held in memory with nothing stored. Where the app's switch is on, it does not ask. Always allow writes that switch and shows only where a switch can be seen, so not in Loans, Investments, Assets or outside the apps. `AssistConsent` stays for the buttons outside the chat.
 - **Cost:** a line in the panel adds up what each message reports. A chat has no budget, no prompt limit and a limit of 8 lookups a message.
-- **Left for stage 3:** the price step for long prompts, as this stage sends no record and cannot reach it without a very long paste. The cache breakpoint on the conversation's tail, since each message's history here is small. Thinking settings, `eager_input_streaming` and the refusal fallback.
 
 ### Stage 3. Reading with grants, Spending first
 
 - **Work:** field classes for Spending's six kinds, `find_records`, `get_record`, `read_figures`, refs, `GrantCard`, `SentRow`, hostile-model spec, boundary cases 10 and 11. `AssistConsent` stays for the buttons outside the chat (Suggest categories, Explain, Read a receipt, and onboarding's), and goes only once all of them route through the chat. `GrantCard` asks inside the chat, and its Always writes the same switch as the app's Send without asking.
 - **The owner gets:** "What did I spend on food in October, and why was it higher?" with figures Kuna computed, an inline ask before the first read, and the exact text sent one tap away.
 - **Check:** hostile model, canaries, `figuresIn`, a live pass with a hostile statement row.
+
+Built, waiting for the first run with a real key:
+
+- **What it reads:** `AppAssistant.reader`, which `app.ts` builds over its own store. Spending offers seven kinds, the plan's six and the receipt lines the figures count, each with a `FieldDocs` table with no default. Settings stay out, as a value can route bank data. Fields of the `never-read` class never reach the chat's code: `importKey`, the fiscal codes, the photo's Drive id, the position and a category's colour.
+- **Tools:** `find_records`, `get_record` and `read_figures` join the two of stage 2, closed and with no path, address or key among their arguments. Refs are handed out per chat, and a made-up one reaches nothing. A page holds 20 records unless the model asks, and 50 at most.
+- **Figures:** `read_figures` calls the functions the screens use, through four reports: `month`, `categories` with the month before and the change, `limits` and `balances`. An amount written as `[f3]` shows through `MoneyText`. Any other amount in an answer must equal one a tool returned, or the line is flagged. An amount in a stranger's text does not count as returned.
+- **The one card:** the stage 2 card is now `GrantCard`. Its yes covers sending and reading the app on screen, so a first question asks once. A read of another app, or from outside the apps, pauses the turn on the same card. A yes lasts the chat and the company it named. Always writes the app's Send without asking. A no goes back to the model, which cannot ask again within the message. The run's five minutes stop while the card waits.
+- **What went:** `SentRow` opens to the exact text of the tool result, taken from the request itself. A request the egress guard refused shows no row.
+- **Anonymising:** [the anonymising plan](anonymising-plan.md).
+- **Automations:** `AppAssistant.automations`, listed on each app page with a page of their own, and a line in the instructions that a suggestion uses only the screen on show or what was read with leave. Declared so far: bank sync in Spending, statement mail, statement folder and the accountant's mail in Company, daily closes in Investments. The IBKR report by mail is not in this version of Kuna, so it is not listed.
+- **Explain did not move.** It is a Company task of the hr-doo pack, and Company has no reader until stage 5, so it moves with that turn, as do its button and `AssistConsent`.
+- **Left for later:** the price step for long prompts, the cache breakpoint on the conversation's tail, thinking settings, `eager_input_streaming` and the refusal fallback. Reads now make the first two matter more, and no real key was at hand to check either.
 
 ### Stage 4. Proposals with one Undo, Spending first
 

@@ -6,9 +6,15 @@ import AppCard from '../../ui/AppCard.vue'
 import type { ProviderPreset } from '../domain/providerPresets'
 import { words } from './words'
 
-/** Asks inside the chat before its first send: what leaves the device and what the provider keeps. Always shows only where a visible switch can take it back. */
+/**
+ * Asks inside the chat: before its first send, and again before reading an app that yes did not cover. It says what
+ * leaves the device and what the company keeps. Always shows only where a visible switch can take it back.
+ */
 defineProps<{
   provider: ProviderPreset
+  title: string
+  /** What leaves this device, each sentence as the case at hand words it. */
+  lines: readonly string[]
   offersAlways: boolean
 }>()
 
@@ -19,10 +25,10 @@ onMounted(() => allow.value?.$el.focus())
 </script>
 
 <template>
-  <AppCard :title="words.consent.title(provider.name)" heading="h3" data-testid="chat-consent">
+  <AppCard :title="title" heading="h3" data-testid="chat-consent">
     <div class="flex flex-col gap-3 px-4 pt-2 pb-4 sm:px-5">
       <div class="flex flex-col gap-1 type-caption">
-        <p>{{ words.consent.sends(words.chat.sends) }}</p>
+        <p v-for="line in lines" :key="line">{{ line }}</p>
         <p>{{ words.retention[provider.id] }}</p>
       </div>
       <div class="flex flex-wrap justify-end gap-2">

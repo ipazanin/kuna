@@ -42,7 +42,7 @@ export function fakeModelPort(taskId: string, model: ModelChoice): ModelPort {
         return { kind: 'cut-off', tokens: TOKENS }
       }
       if (taskId === CHAT_TASK_ID) {
-        return fakeChatReply(request, TOKENS)
+        return fakeChatReply(request, TOKENS, variant === 'invented-figure')
       }
       const answer = answers.get(taskId)
       if (answer === undefined) {

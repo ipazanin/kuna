@@ -10,17 +10,19 @@ import { usePhoneLayout } from '../../layout/viewport'
 import AppMark from '../../ui/AppMark.vue'
 import RemovableChip from '../../ui/RemovableChip.vue'
 import type { CatalogueScreen } from '../application/catalogue'
-import { assistOn, switchAssist } from '../application/assistSettings'
-import ChatConsentCard from './ChatConsentCard.vue'
+import { today } from '../../calendar/civilDate'
+import { anonymiseOn, assistOn, switchAssist } from '../application/assistSettings'
+import GrantCard from './GrantCard.vue'
 import ChatLineView from './ChatLineView.vue'
 import { chatTag, closeChat, removeChatTag } from './chatDock'
-import { allowThisChat, allowedThisChat, chatDraft, chatLines, chatSpent, chatStatus, clearChat, loadCatalogue, sendChatMessage, stopChatMessage } from './chatSession'
+import { allowThisChat, allowedThisChat, answerReadAsk, chatAsking, chatDraft, chatLines, chatSpent, chatStatus, clearChat, loadCatalogue, sendChatMessage, stopChatMessage } from './chatSession'
 import { providerInUse } from './useAiTask'
 import { words } from './words'
 
 /**
- * The chat beside the page or in its place, labelled with the app on screen. It knows this version of Kuna and reads
- * nothing from a person's books, and it asks once per chat unless the app's switch says not to ask.
+ * The chat beside the page or in its place, labelled with the app on screen. It knows this version of Kuna, and it
+ * asks once per chat before it sends, which also lets it read the app on screen, unless the app's switch says not to ask.
+ * A read of another app asks again.
  */
 const props = defineProps<{
   /** The app on screen, or null on the home and Kuna's own screens. */
@@ -38,15 +40,32 @@ const props = defineProps<{
 const phone = usePhoneLayout()
 const provider = computed(() => providerInUse())
 const asking = ref<string | null>(null)
+/** Whether the chat can read the app on screen, which the app's lazy assistant says. */
+const readsHere = ref(false)
 const panel = useTemplateRef<HTMLElement>('panel')
 
 /** The card's buttons leave with the card, so focus goes back to the prompt. A phone keeps its keyboard down. */
-watch(asking, (message) => {
-  if (message === null && !phone.value) void nextTick(() => panel.value?.querySelector('textarea')?.focus())
+watch([asking, chatAsking], ([message, read]) => {
+  if (message === null && read === null && !phone.value) void nextTick(() => panel.value?.querySelector('textarea')?.focus())
 })
+
+watch(
+  () => props.app,
+  async (app) => {
+    const reader = app === null ? null : (await app.assistant()).reader
+    if (app === props.app) readsHere.value = reader !== null
+  },
+  { immediate: true },
+)
 
 /** An app with no Assistant tab has no switch a person could see or take back, so outside Company and Spending only a yes for this chat stops the asking. */
 const switchApp = computed(() => (props.app?.assist === undefined ? null : props.app.id))
+
+const asksAlways = computed(() => props.apps.find((app) => app.id === chatAsking.value?.app)?.assist !== undefined)
+const aliasLine = computed(() => (anonymiseOn() ? words.chat.aliases : words.chat.noAliases))
+const sendLines = computed(() => (readsHere.value && props.app !== null ? [words.consent.sends(words.chat.sendsAndReads(props.app.name)), aliasLine.value] : [words.consent.sends(words.chat.sends)]))
+const readLines = computed(() => (chatAsking.value === null ? [] : [words.consent.sends(words.chat.reads(chatAsking.value.name)), aliasLine.value]))
+const held = computed(() => asking.value !== null || chatAsking.value !== null)
 
 const messages = computed(() => chatLines.map((line) => ({ id: line.id, role: line.role, parts: [{ type: 'text' as const, text: line.text }], line })))
 const lineOf = (id: string) => chatLines.find((line) => line.id === id)
@@ -65,8 +84,10 @@ function send(message: string): void {
 
 function run(message: string): void {
   const tag = chatTag.value
-  void sendChatMessage(message, { app: props.app?.name ?? null, screen: props.screen, path: props.path, query: props.query, tag: tag === null ? null : { label: tag.label, screen: tag.screen } }, () =>
-    loadCatalogue(props.apps, props.kunaScreens),
+  void sendChatMessage(
+    message,
+    { app: props.app?.name ?? null, screen: props.screen, path: props.path, query: props.query, tag: tag === null ? null : { label: tag.label, screen: tag.screen }, today: today() },
+    () => loadCatalogue(props.apps, props.kunaScreens),
   )
 }
 
@@ -81,7 +102,7 @@ function submit(): void {
 function allowInChat(): void {
   const message = asking.value
   asking.value = null
-  if (provider.value !== null) allowThisChat(provider.value.id)
+  if (provider.value !== null) allowThisChat(provider.value.id, readsHere.value && props.app !== null ? props.app.id : null)
   if (message === null) return
   if (chatDraft.value.trim() === message) chatDraft.value = ''
   run(message)
@@ -120,7 +141,7 @@ function startOver(): void {
 
     <div class="min-h-0 flex-1 overflow-y-auto px-3 py-3" data-testid="chat-messages">
       <div class="mx-auto w-full max-w-2xl">
-        <p v-if="chatLines.length === 0" class="type-body text-muted" data-testid="chat-empty">{{ words.chat.empty }}</p>
+        <p v-if="chatLines.length === 0" class="type-body text-muted" data-testid="chat-empty">{{ readsHere && app ? words.chat.emptyReads(app.name) : words.chat.empty }}</p>
         <UChatMessages
           v-else
           :messages="messages"
@@ -140,22 +161,42 @@ function startOver(): void {
 
     <div class="border-t border-default px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       <div class="mx-auto flex w-full max-w-2xl flex-col gap-1.5">
-        <ChatConsentCard v-if="asking !== null && provider" :provider="provider" :offers-always="switchApp !== null" @allow="allowInChat" @always="allowAlways" @cancel="asking = null" />
+        <GrantCard
+          v-if="asking !== null && provider"
+          :provider="provider"
+          :title="words.consent.title(provider.name)"
+          :lines="sendLines"
+          :offers-always="switchApp !== null"
+          @allow="allowInChat"
+          @always="allowAlways"
+          @cancel="asking = null"
+        />
+        <GrantCard
+          v-else-if="chatAsking !== null && provider"
+          :key="chatAsking.app"
+          :provider="provider"
+          :title="words.chat.readTitle(chatAsking.name)"
+          :lines="readLines"
+          :offers-always="asksAlways"
+          @allow="answerReadAsk('chat')"
+          @always="answerReadAsk('always')"
+          @cancel="answerReadAsk('no')"
+        />
         <div v-if="chatTag" class="flex min-w-0 items-center gap-1" data-testid="chat-tag">
           <RemovableChip :label="chatTag.label" :remove-label="words.chat.removeTag(chatTag.label)" data-testid="chat-tag-remove" @remove="removeChatTag" />
         </div>
         <UChatPrompt
           v-model="chatDraft"
-          :placeholder="words.chat.placeholder"
+          :placeholder="readsHere ? words.chat.placeholderReads : words.chat.placeholder"
           :autofocus="!phone"
-          :disabled="asking !== null"
+          :disabled="held"
           variant="subtle"
           :maxrows="6"
           class="chat-prompt"
           data-testid="chat-prompt"
           @submit="submit"
         >
-          <UChatPromptSubmit :status="chatStatus" :disabled="chatDraft.trim() === '' || asking !== null" color="neutral" data-testid="chat-send" @stop="stopChatMessage" />
+          <UChatPromptSubmit :status="chatStatus" :disabled="(chatDraft.trim() === '' && chatStatus === 'ready') || asking !== null" color="neutral" data-testid="chat-send" @stop="stopChatMessage" />
         </UChatPrompt>
         <p v-if="chatSpent" class="type-caption" data-testid="chat-spent">{{ words.chat.spent(chatSpent) }}</p>
       </div>

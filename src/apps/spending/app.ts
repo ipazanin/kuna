@@ -13,6 +13,7 @@ import {
   SPENDING_TRANSACTIONS_ROUTE,
 } from './overview/presentation/spendingLinks'
 import { spendingSetUp } from './overview/presentation/spendingSetUp'
+import { ratesIn } from './rates/domain/ratesState'
 import { startRates, useRates } from './rates/presentation/useRates'
 import { words as screenWords } from './screenWords'
 import { SPENDING_ASSIST } from './receipts/assist/presentation/receiptAssist'
@@ -76,7 +77,12 @@ export const spendingApp: AppContribution = {
   subtitle: () => null,
   // Every figure on the Spending screens and on Net worth is in euros, so it shows them in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
-  assistant: async () => (await import('./assistant/spendingAssistant')).SPENDING_ASSISTANT,
+  assistant: async () =>
+    (await import('./assistant/spendingAssistant')).spendingAssistant({
+      status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'),
+      book: () => state.workbook,
+      rates: () => ratesIn(rates.value),
+    }),
   homeCard: SPENDING_HOME_CARD,
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => spendingHubFigures(book, rates.value, today())) },
   assist: SPENDING_ASSIST,

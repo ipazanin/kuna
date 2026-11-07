@@ -439,6 +439,7 @@ import {
   syncRunningFlow,
   syncStatesFlowIn,
   chatPanelFlowIn,
+  chatReadFlowIn,
   chatTagFlow,
 } from './support/editorFlows.mjs'
 import { writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
@@ -4505,6 +4506,8 @@ const FLOWS = [
     run: chatPanelFlowIn('hr'),
     queries: { drive: '&spending=sample&lang=hr', browser: '&fake=browser&spending=sample&lang=hr' },
   },
+  { name: 'chat-read', hash: '#/spending', title: 'Overview', run: chatReadFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=people' } },
+  { name: 'chat-read-croatian', hash: '#/spending', title: 'Pregled', run: chatReadFlowIn('hr'), modes: ['drive'], queries: { drive: '&spending=people&lang=hr' } },
   { name: 'chat-tag', hash: '#/gallery', title: 'Gallery', run: chatTagFlow },
   { name: 'page-tabs', hash: '#/company/settings', title: 'Settings', run: pageTabsFlow },
   { name: 'year-tab-link', hash: '#/company/year?tab=statements', title: 'Year', run: yearTabLinkFlow },

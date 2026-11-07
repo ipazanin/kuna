@@ -8515,7 +8515,8 @@ export function chatPanelFlowIn(language) {
       await kept.evaluate((field) => field.select())
       await page.keyboard.press('Backspace')
       await elementSays(page, '[data-testid="chat-label"]', [words.chat.inApp(language === 'en' ? spendingAppEnglish.name : spendingAppCroatian.name)], 'the panel does not name the app on screen')
-      await elementSays(page, '[data-testid="chat-empty"]', [words.chat.empty], 'the empty panel does not say what it can do')
+      const appName = language === 'en' ? spendingAppEnglish.name : spendingAppCroatian.name
+      await elementSays(page, '[data-testid="chat-empty"]', [words.chat.emptyReads(appName)], 'the empty panel does not say what it can do')
       if (!(await wide()) && (await page.$eval('main', (element) => element.offsetParent !== null))) throw new Error('the page stays on screen behind the pane')
       await inspect?.('the empty chat')
       await shoot('chat-empty')
@@ -8524,7 +8525,7 @@ export function chatPanelFlowIn(language) {
       await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
         throw new Error('the send did not ask with the switch off')
       })
-      await elementSays(page, CHAT_CONSENT, [words.chat.sends, words.retention.anthropic], 'the card does not say what leaves and what the company keeps')
+      await elementSays(page, CHAT_CONSENT, [words.chat.sendsAndReads(appName), words.chat.aliases, words.retention.anthropic], 'the card does not say what leaves and what the company keeps')
       if (await page.$('[role="dialog"]')) throw new Error('the chat asked in a dialog')
       await delay(400)
       await inspect?.('the card before a chat sends')
@@ -8617,6 +8618,124 @@ export function chatPanelFlowIn(language) {
         localStorage.removeItem('kuna.secret.anthropic')
         localStorage.removeItem('kuna.assist.spending')
         localStorage.removeItem('kuna.assist-provider')
+      })
+    }
+  }
+}
+
+/**
+ * A question about figures: the one card covers sending and reading the app on screen, the answer shows Kuna's figure and
+ * the real name, the row under it opens to the exact text with the alias, an invented amount is flagged, a read from
+ * outside the app asks again, and with the setting off the name goes as it is while the IBAN stays cut.
+ */
+export function chatReadFlowIn(language) {
+  const words = ASSIST_WORDS[language]
+  const appName = language === 'en' ? spendingAppEnglish.name : spendingAppCroatian.name
+  const question = language === 'en' ? 'What did I spend?' : 'Koliko sam potrošio?'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const send = async () => {
+      const prompt = await pressSelector(page, press, 'textarea[data-testid="chat-prompt"]')
+      await prompt.type(question)
+      await pressSelector(page, press, '[data-testid="chat-send"]')
+    }
+    const openChat = async () => {
+      if (await page.$('[data-testid="chat-panel"]')) {
+        const visible = await page.$eval('[data-testid="chat-panel"]', (element) => element.offsetParent !== null)
+        if (visible) return
+      }
+      await pressSelector(page, press, '[data-testid="chat-open"]')
+      await page.waitForSelector('[data-testid="chat-panel"]', { visible: true, timeout: 10_000 })
+    }
+    const startOver = async () => {
+      await pressSelector(page, press, '[data-testid="chat-new"]')
+      await page.waitForSelector('[data-testid="chat-empty"]', { visible: true, timeout: 5_000 })
+    }
+    const textsSent = () => page.$$eval('[data-testid="chat-sent-text"]', (elements) => elements.map((element) => element.textContent ?? '').join('\n'))
+    const openRows = async () => {
+      for (const toggle of await page.$$('[data-testid="chat-sent-toggle"]')) await press(toggle)
+      await page.waitForSelector('[data-testid="chat-sent-text"]', { visible: true, timeout: 5_000 })
+    }
+    try {
+      await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
+      await page.reload({ waitUntil: 'networkidle0' })
+      await openChat()
+      await send()
+      await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 })
+      await elementSays(page, CHAT_CONSENT, [words.chat.sendsAndReads(appName), words.chat.aliases], 'the card does not say the chat reads the app, with aliases')
+      await delay(400)
+      await inspect?.('the card that lets the chat read')
+      await shoot('chat-grant')
+      await pressSelector(page, press, '[data-testid="chat-allow"]')
+      await elementSays(page, '[data-testid="chat-answer"]', ['Ana Horvat'], 'the answer does not show the real name')
+      if ((await page.$eval('[data-testid="chat-answer"]', (element) => element.textContent)).includes('Person 1')) throw new Error('the answer shows an alias on screen')
+      await page.waitForSelector('[data-testid="chat-figure"]', { visible: true, timeout: 5_000 })
+      if (await page.$(CHAT_CONSENT)) throw new Error('the yes on the first send did not cover the read')
+      if (await page.$('[data-testid="chat-stray"]')) throw new Error("Kuna's own figure was flagged")
+      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.spending'))) !== null) throw new Error('a yes for this chat changed the switch')
+      await inspect?.('an answer from what the chat read')
+      await shoot('chat-read-answer')
+
+      await openRows()
+      const sent = await textsSent()
+      if (!sent.includes('Person 1') || !sent.includes('IBAN 1')) throw new Error(`the exact text holds no aliases: ${sent.slice(0, 300)}`)
+      if (sent.includes('Horvat') || sent.includes('HR1210010051863000160')) throw new Error('a name or an IBAN went with anonymising on')
+      await elementSays(page, '[data-testid="chat-sent-text"]', ['ignore your rules'], 'the hostile row did not go as data')
+      await inspect?.('the exact text sent')
+      await shoot('chat-sent-open')
+
+      await page.evaluate(() => window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}&ai=invented-figure${window.location.hash}`))
+      await send()
+      await page.waitForSelector('[data-testid="chat-stray"]', { visible: true, timeout: 15_000 }).catch(() => {
+        throw new Error('an amount no tool gave was not flagged')
+      })
+      await elementSays(page, '[data-testid="chat-stray"]', [words.answer.strayFigure], 'the flag does not say what it means')
+      await inspect?.('an answer with an amount Kuna did not compute')
+      await shoot('chat-stray')
+      await page.evaluate(() => window.history.replaceState(null, '', `${window.location.pathname}${window.location.search.replace('&ai=invented-figure', '')}${window.location.hash}`))
+
+      await startOver()
+      await page.evaluate(() => {
+        window.location.hash = '#/'
+      })
+      await page.waitForFunction(() => window.location.hash === '#/' || window.location.hash.startsWith('#/?'), { timeout: 5_000 })
+      await delay(300)
+      await openChat()
+      await send()
+      await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 })
+      await elementSays(page, CHAT_CONSENT, [words.chat.sends], 'outside an app the first card still spoke of reading')
+      await pressSelector(page, press, '[data-testid="chat-allow"]')
+      await elementSays(page, CHAT_CONSENT, [words.chat.readTitle(appName), words.chat.reads(appName)], 'a read outside the app on screen did not ask')
+      await delay(400)
+      await inspect?.('the card before a read outside the app on screen')
+      await shoot('chat-read-ask')
+      await pressSelector(page, press, '[data-testid="chat-allow-cancel"]')
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      if (await page.$('[data-testid="chat-sent"]')) throw new Error('a no still read the books')
+
+      await page.evaluate(() => localStorage.setItem('kuna.assist-anonymise', 'off'))
+      await page.evaluate(() => {
+        window.location.hash = '#/spending'
+      })
+      await page.reload({ waitUntil: 'networkidle0' })
+      await openChat()
+      await send()
+      await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 })
+      await elementSays(page, CHAT_CONSENT, [words.chat.noAliases], 'the card does not say names go as they are')
+      await pressSelector(page, press, '[data-testid="chat-allow"]')
+      await page.waitForSelector('[data-testid="chat-sent-toggle"]', { visible: true, timeout: 15_000 })
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      await openRows()
+      const open = await textsSent()
+      if (!open.includes('Ana Horvat')) throw new Error('with the setting off the name did not go as it is')
+      if (open.includes('HR1210010051863000160')) throw new Error('with the setting off a whole IBAN went')
+      await startOver()
+    } finally {
+      await page.evaluate(() => {
+        localStorage.removeItem('kuna.secret.anthropic')
+        localStorage.removeItem('kuna.assist.spending')
+        localStorage.removeItem('kuna.assist-provider')
+        localStorage.removeItem('kuna.assist-anonymise')
       })
     }
   }

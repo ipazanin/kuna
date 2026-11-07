@@ -38,6 +38,10 @@ export async function runModelLoop(loop: ModelLoop): Promise<LoopEnd> {
   const usageSoFar = (): AiUsage | null => (spentNothing(used) ? null : usageOf(model.model, used))
 
   for (let round = 0; round <= limits.rounds; round += 1) {
+    // A person may stop a run while a tool waits for their answer, and then nothing more may go.
+    if (loop.signal?.aborted === true) {
+      return { kind: 'failed', reason: loop.signal.reason instanceof Error ? loop.signal.reason.message : '', usage: usageSoFar() }
+    }
     if (fullRateTokens(used) >= limits.runTokens) {
       return { kind: 'over-budget', reason: '', usage: usageSoFar() }
     }

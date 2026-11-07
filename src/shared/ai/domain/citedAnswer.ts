@@ -67,14 +67,18 @@ export function checkCitedAnswer(output: unknown, sent: CitedInput, log: ToolLog
   const sources = new Set([...sent.sources, ...log.answers.flatMap((tool) => tool.sources)])
   const figures = new Map([...sent.figures, ...log.answers.flatMap((tool) => tool.figures.map((figure): [string, Money] => [figure.ref, figure.cents]))])
   const amounts = new Set([...sent.amounts, ...[...figures.values()].map(Math.abs)])
-  const stray = (text: string) =>
-    !figuresIn(text).every((figure) => (figure.kind === 'rate' ? figure.basisPoints.some((points) => sent.rates.has(points)) : figure.cents.some((cents) => amounts.has(cents))))
+  const stray = (text: string) => holdsStrayFigure(text, amounts, sent.rates)
   const kept = answer.parts.filter((part) => part.sources.every((source) => sources.has(source)) && part.figures.every((ref) => figures.has(ref)))
   return {
     parts: kept.map((part) => ({ text: part.text, sources: part.sources, figures: part.figures.map((ref) => ({ ref, cents: figures.get(ref)! })), strayFigure: stray(part.text) })),
     ownKnowledge: answer.ownKnowledge === null || answer.ownKnowledge.trim() === '' ? null : { text: answer.ownKnowledge, strayFigure: stray(answer.ownKnowledge) },
     partlyUnchecked: kept.length < answer.parts.length || (sources.size > 0 && kept.some((part) => part.sources.length === 0)),
   }
+}
+
+/** Whether the text writes an amount or a rate equal to none of those, in cents and basis points. */
+export function holdsStrayFigure(text: string, amounts: ReadonlySet<number>, rates: ReadonlySet<number>): boolean {
+  return !figuresIn(text).every((figure) => (figure.kind === 'rate' ? figure.basisPoints.some((points) => rates.has(points)) : figure.cents.some((cents) => amounts.has(cents))))
 }
 
 /** Whether an answer holds a figure Kuna did not compute anywhere. */

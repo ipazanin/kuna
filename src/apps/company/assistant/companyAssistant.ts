@@ -33,7 +33,7 @@ const AUTOMATION_LABELS: AutomationLabels = {
 }
 
 /** What Company tells the chat, with what its pack adds, as only `app.ts` may name the pack. */
-export function companyAssistant(pack: Pick<AppAssistant, 'kinds' | 'settings'>): AppAssistant {
+export function companyAssistant(pack: Pick<AppAssistant, 'kinds' | 'settings' | 'automations'>): AppAssistant {
   return {
     kinds: [...Object.values(coreKinds), ...pack.kinds],
     places: [
@@ -54,6 +54,14 @@ export function companyAssistant(pack: Pick<AppAssistant, 'kinds' | 'settings'>)
         what: words.automations.statementsFromMail.what(AUTOMATION_LABELS),
         setUpRoute: GENERAL_SETTINGS_LINK,
       },
+      {
+        id: 'statements-on-sync',
+        title: words.automations.statementsOnSync.title,
+        what: words.automations.statementsOnSync.what(AUTOMATION_LABELS),
+        setUpRoute: GENERAL_SETTINGS_LINK,
+      },
+      ...pack.automations,
     ],
+    reader: null,
   }
 }

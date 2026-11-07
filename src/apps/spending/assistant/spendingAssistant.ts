@@ -13,6 +13,8 @@ import { words as statementWords } from '../statements/presentation/words'
 import * as spendingKinds from '../workbook/domain/spendingKinds'
 import { BANK_SYNC_DEPLOYMENT_KEY, COMPANY_OIB_KEY, LINKABLE_BANKS, bankLinkKey } from '../workbook/domain/spendingSettings'
 import type { AppAssistant } from '../../../shared/app/appContribution'
+import { spendingReader } from './spendingReader'
+import type { SpendingReading } from './spendingReader'
 import { words } from './words'
 import type { GuideLabels } from './words'
 
@@ -33,8 +35,8 @@ const LABELS: GuideLabels = {
   deployment: bankSyncWords.deployment,
 }
 
-/** What Spending tells the chat: what it keeps and where things are, with the first guides. */
-export const SPENDING_ASSISTANT: AppAssistant = {
+/** What Spending tells the chat: what it keeps and where things are, with the first guides, its automation and what it can read. */
+export const spendingAssistant = (reading: SpendingReading): AppAssistant => ({
   kinds: Object.values(spendingKinds),
   places: [
     { route: SPENDING_REVIEW_LINK, title: statementWords.tabs.review },
@@ -57,4 +59,5 @@ export const SPENDING_ASSISTANT: AppAssistant = {
     { id: 'first-limit', title: words.guides.limits.title, body: words.guides.limits.body(LABELS), places: [SPENDING_BUDGETS_ROUTE] },
     { id: 'categories', title: words.guides.categories.title, body: words.guides.categories.body(LABELS), places: [SPENDING_SETTINGS_ROUTE] },
   ],
-}
+  reader: spendingReader(reading),
+})

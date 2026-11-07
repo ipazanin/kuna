@@ -9,10 +9,11 @@ import type { AutomationLabels } from './words'
 const AUTOMATION_LABELS: AutomationLabels = {
   settings: settingsWords.title,
   general: settingsWords.tabs.general,
+  prices: settingsWords.tabs.prices,
   mail: mailWords.card.title,
 }
 
-/** What Investments tells the chat: what it keeps, the tabs of its Settings and the automation it offers. It has no settings table of its own. */
+/** What Investments tells the chat: what it keeps, the tabs of its Settings and the automations it offers. It has no settings table of its own. */
 export const INVESTMENTS_ASSISTANT: AppAssistant = {
   kinds: Object.values(investmentKinds),
   places: [
@@ -22,5 +23,9 @@ export const INVESTMENTS_ASSISTANT: AppAssistant = {
   ],
   settings: [],
   guides: [{ id: 'ibkr-mail', title: mailWords.guide.title, body: mailWords.guide.body, places: [INVESTMENTS_GENERAL_ROUTE] }],
-  automations: [{ id: 'ibkr-mail', title: words.automations.ibkrMail.title, what: words.automations.ibkrMail.what(AUTOMATION_LABELS), setUpRoute: INVESTMENTS_GENERAL_ROUTE, guide: 'ibkr-mail' }],
+  automations: [
+    { id: 'daily-closes', title: words.automations.dailyCloses.title, what: words.automations.dailyCloses.what(AUTOMATION_LABELS), setUpRoute: INVESTMENTS_PRICES_ROUTE },
+    { id: 'ibkr-mail', title: words.automations.ibkrMail.title, what: words.automations.ibkrMail.what(AUTOMATION_LABELS), setUpRoute: INVESTMENTS_GENERAL_ROUTE, guide: 'ibkr-mail' },
+  ],
+  reader: null,
 }

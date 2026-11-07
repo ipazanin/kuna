@@ -303,6 +303,11 @@ function ruleNotes() {
  */
 export const ENGLISH_ALLOWED = [
   {
+    name: 'what a read sent',
+    reason: 'The exact text a provider got, which is data with its keys in English, shown as it went.',
+    selector: '[data-testid="chat-sent-text"]',
+  },
+  {
     name: 'identifier style',
     reason: 'A setting key, a slug or a file name in the identifier style is shown as the file stores it.',
     selector: '.identifier',

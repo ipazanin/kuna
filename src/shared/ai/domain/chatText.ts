@@ -1,6 +1,6 @@
-/** A stretch of a line: plain, bold or code. */
+/** A stretch of a line: plain, bold, code, or the ref of a figure Kuna computed, as `f3`, which the screen shows in Kuna's own amount. */
 export interface ChatInline {
-  readonly kind: 'plain' | 'bold' | 'code'
+  readonly kind: 'plain' | 'bold' | 'code' | 'figure'
   readonly text: string
 }
 
@@ -9,20 +9,35 @@ export type ChatBlock = { readonly kind: 'paragraph'; readonly inlines: readonly
 
 const INLINE = /\*\*([^*]+)\*\*|`([^`]+)`/g
 const LIST_ITEM = /^\s*(?:[-*]|\d+\.)\s+/
+const FIGURE_REF = /\[(f\d+)\]/g
+
+/** The stretch with each `[f3]` in it split out as a figure. */
+function withFigures(kind: 'plain' | 'bold', text: string): readonly ChatInline[] {
+  const inlines: ChatInline[] = []
+  let at = 0
+  for (const match of text.matchAll(FIGURE_REF)) {
+    if (match.index > at) inlines.push({ kind, text: text.slice(at, match.index) })
+    inlines.push({ kind: 'figure', text: match[1] ?? '' })
+    at = match.index + match[0].length
+  }
+  if (at < text.length) inlines.push({ kind, text: text.slice(at) })
+  return inlines
+}
 
 function inlinesOf(line: string): readonly ChatInline[] {
   const inlines: ChatInline[] = []
   let at = 0
   for (const match of line.matchAll(INLINE)) {
-    if (match.index > at) inlines.push({ kind: 'plain', text: line.slice(at, match.index) })
-    inlines.push(match[1] === undefined ? { kind: 'code', text: match[2] ?? '' } : { kind: 'bold', text: match[1] })
+    if (match.index > at) inlines.push(...withFigures('plain', line.slice(at, match.index)))
+    if (match[1] === undefined) inlines.push({ kind: 'code', text: match[2] ?? '' })
+    else inlines.push(...withFigures('bold', match[1]))
     at = match.index + match[0].length
   }
-  if (at < line.length) inlines.push({ kind: 'plain', text: line.slice(at) })
+  if (at < line.length) inlines.push(...withFigures('plain', line.slice(at)))
   return inlines
 }
 
-/** Reads a model's text into the few shapes a chat shows: paragraphs, lists, bold and code. Anything else stays the text it is, so no link, picture or HTML can come of it. */
+/** Reads a model's text into the few shapes a chat shows: paragraphs, lists, bold, code and figure refs. Anything else stays the text it is, so no link, picture or HTML can come of it. */
 export function chatBlocksOf(text: string): readonly ChatBlock[] {
   const blocks: ChatBlock[] = []
   let items: (readonly ChatInline[])[] = []

@@ -103,6 +103,8 @@ New cases in `tests/importBoundaries.spec.ts`, written like the existing ones, e
 7. **Assist code reaches a model only through the module's door.** No `/assist/` file outside a fake folder imports `src/shared/ai/infrastructure/`. Stage 3.
 8. **The cases read real imports.** At least one `/assist/` file imports `src/shared/ai/`, and at least one app file imports `src/shared/secrets/`, like `reads the imports it checks` (`:123-131`). Stage 3.
 9. **One file reads docs/law.** `src/apps/investments/tax/infrastructure/lawText.ts` is the only file that imports outside `src`, and only `docs/law/*.md?raw`. The no-dangle check (`:130`) strips `?raw` before it looks for the file. Stage 5.
+10. **What a chat can reach.** Its catalogue, tools and reads, the reader contract and every `src/apps/*/assistant/` file load no secrets, no Google, no sync, no store and no app's application or infrastructure code through anything they import, and they import no writes. An app hands its reader the store from its `app.ts`. Chat stage 3.
+11. **One key door.** Only `src/shared/ai/infrastructure/modelAccess.ts` in the AI module reads a stored secret, and the same chat code touches no browser storage, cookie or network. Chat stage 3.
 
 ## What the owner sees
 

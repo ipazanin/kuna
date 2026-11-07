@@ -385,8 +385,16 @@ describe('import boundaries', () => {
 
   describe('what a chat can reach', () => {
     const CHAT_CODE = (file: string): boolean =>
-      ['src/shared/ai/application/catalogue.ts', 'src/shared/ai/application/chatTools.ts', 'src/shared/ai/application/runChatTurn.ts', 'src/shared/ai/domain/chatText.ts'].includes(file) ||
-      /^src\/apps\/.*\/assistant\/[^/]+\.ts$/.test(file)
+      [
+        'src/shared/ai/application/catalogue.ts',
+        'src/shared/ai/application/chatTools.ts',
+        'src/shared/ai/application/chatReads.ts',
+        'src/shared/ai/application/runChatTurn.ts',
+        'src/shared/ai/domain/chatText.ts',
+        'src/shared/ai/domain/chatRefs.ts',
+        'src/shared/ai/domain/sensitiveText.ts',
+        'src/shared/app/assistantReader.ts',
+      ].includes(file) || /^src\/apps\/.*\/assistant\/[^/]+\.ts$/.test(file)
 
     it('covers the catalogue, the tools and every app with a page', () => {
       expect(SOURCE_FILES.filter((file) => /\/assistant\//.test(file) && /\.ts$/.test(file) && !/words\.ts$/.test(file)).length).toBeGreaterThanOrEqual(6)
@@ -401,6 +409,11 @@ describe('import boundaries', () => {
       }
       const outOfReach = /^src\/shared\/(secrets|google|sync)\/|^src\/shared\/storage\/(application|infrastructure|presentation)\/|^src\/apps\/.*\/(application|infrastructure)\//
       expect([...loaded].filter((file) => outOfReach.test(file))).toEqual([])
+    })
+
+    it('reads a store only through what an app hands in, and imports no writes', () => {
+      const assistantFiles = SOURCE_FILES.filter((file) => /^src\/apps\/.*\/assistant\/[^/]+\.ts$/.test(file))
+      expect(IMPORTS.filter((entry) => assistantFiles.includes(entry.from) && entry.target !== null && /Writes\.ts$|useRecordWrites|recordWrites|Store\.ts$/.test(entry.target))).toEqual([])
     })
 
     it('touches no browser storage, no cookie and no network itself', () => {

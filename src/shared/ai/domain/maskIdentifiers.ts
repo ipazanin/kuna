@@ -14,25 +14,31 @@ function isIban(compact: string): boolean {
   return [...digits].reduce((rest, digit) => (rest * 10 + Number(digit)) % 97, 0) === 1
 }
 
-/** The run with the longest IBAN at its start cut, and any later IBAN too. */
-function maskedRun(run: string): string {
+/** The run with the longest IBAN at its start replaced, and any later IBAN too. */
+function replacedRun(run: string, replaceIban: (compact: string) => string): string {
+  const later = (text: string): string => replacedIbans(text, replaceIban)
   const wordEnds = [...run.matchAll(/[a-z0-9]+/gi)].map((word) => word.index + word[0].length)
   for (const end of [...wordEnds].reverse()) {
     const compact = run.slice(0, end).replace(/[\s-]/g, '').toUpperCase().replace(/^IBAN/, '')
     if (isIban(compact)) {
-      return `${compact.slice(0, 2)}•• ••••${compact.slice(-4)}${maskedIbans(run.slice(end))}`
+      return `${replaceIban(compact)}${later(run.slice(end))}`
     }
   }
   const firstWord = run.slice(0, wordEnds[0]).toUpperCase().replace(/^IBAN/, '')
   // An unbroken run of an IBAN's shape is cut even with a wrong check digit, since it is likely a mistyped account.
   if (IBAN_SHAPE.test(firstWord)) {
-    return `${firstWord.slice(0, 2)}•• ••••${firstWord.slice(-4)}${maskedIbans(run.slice(wordEnds[0]))}`
+    return `${replaceIban(firstWord)}${later(run.slice(wordEnds[0]))}`
   }
-  return `${run.slice(0, wordEnds[0])}${maskedIbans(run.slice(wordEnds[0]))}`
+  return `${run.slice(0, wordEnds[0])}${later(run.slice(wordEnds[0]))}`
 }
 
-function maskedIbans(text: string): string {
-  return text.replace(IBAN_RUN, maskedRun)
+function replacedIbans(text: string, replaceIban: (compact: string) => string): string {
+  return text.replace(IBAN_RUN, (run) => replacedRun(run, replaceIban))
+}
+
+/** The text with each IBAN and each OIB as the two functions say, so masking and aliases find the same things. */
+export function replacedIdentifiers(text: string, replaceIban: (compact: string) => string, replaceOib: (oib: string) => string): string {
+  return replacedIbans(text, replaceIban).replace(OIB, replaceOib)
 }
 
 /**
@@ -40,5 +46,9 @@ function maskedIbans(text: string): string {
  * by `[OIB]`, so no identifier Kuna built a row from leaves the device.
  */
 export function maskIdentifiers(text: string): string {
-  return maskedIbans(text).replace(OIB, '[OIB]')
+  return replacedIdentifiers(
+    text,
+    (compact) => `${compact.slice(0, 2)}•• ••••${compact.slice(-4)}`,
+    () => '[OIB]',
+  )
 }

@@ -7,6 +7,7 @@ import type { AppData } from '../storage/application/appData'
 import type { RecordKind } from '../storage/domain/recordKind'
 import type { AppSyncGroup } from '../sync/presentation/pageSync'
 import type { Money } from '../money/money'
+import type { AppReader } from './assistantReader'
 
 /** A screen of an app, on a route under the app's id such as `/company/transactions`. Each one loads as its own chunk. */
 export interface AppScreen {
@@ -153,13 +154,15 @@ export interface AssistantAutomation {
   readonly guide?: string
 }
 
-/** What the app tells the chat about itself. It is built from what the code declares and holds nothing from a person's books. */
+/** What the app tells the chat about itself. All but `reader` is built from what the code declares and holds nothing from a person's books. */
 export interface AppAssistant {
   readonly kinds: readonly RecordKind[]
   readonly places: readonly AssistantPlace[]
   readonly settings: readonly AssistantSetting[]
   readonly guides: readonly AssistantGuide[]
   readonly automations: readonly AssistantAutomation[]
+  /** What the chat can read of the app once allowed, or null for an app it cannot read yet. */
+  readonly reader: AppReader | null
 }
 
 /** The app that is better set up first, and what a person gains by it. */

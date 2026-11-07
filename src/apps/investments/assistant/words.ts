@@ -7,11 +7,17 @@ import type { Translation } from '../../../shared/text/translation'
 export interface AutomationLabels {
   readonly settings: string
   readonly general: string
+  readonly prices: string
   readonly mail: string
 }
 
 export const en = {
   automations: {
+    dailyCloses: {
+      title: 'Daily closes',
+      what: (labels: AutomationLabels) =>
+        `Kuna fetches the closing prices itself once a day, with your own free keys, for the instruments that name a vendor. Add the keys and pick each instrument's vendor on ${labels.settings}, ${labels.prices}.`,
+    },
     ibkrMail: {
       title: 'IBKR report from mail',
       what: (labels: AutomationLabels) =>
@@ -22,6 +28,11 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   automations: {
+    dailyCloses: {
+      title: 'Dnevne zaključne cijene',
+      what: (labels) =>
+        `Kuna sama jednom dnevno dohvaća zaključne cijene, vašim besplatnim ključevima, za instrumente kojima je odabran izvor. Dodajte ključeve i odaberite izvor svakog instrumenta na zaslonu ${labels.settings}, na kartici ${labels.prices}.`,
+    },
     ibkrMail: {
       title: 'Izvješće IBKR-a iz pošte',
       what: (labels) =>

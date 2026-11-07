@@ -27,6 +27,11 @@ export const en = {
       what: (labels: AutomationLabels) =>
         `Each sync looks in Gmail for the statement mail of your bank, saves its attachments into the statements folder in Drive, and files the new statements into the ledger. Rows no rule decides wait on ${labels.review}. It is set up on ${labels.settings}, ${labels.general}, on the ${labels.mail} card.`,
     },
+    statementsOnSync: {
+      title: 'New statements read on sync',
+      what: (labels: AutomationLabels) =>
+        `Each sync reads the camt statements in your statements folder that the books lack, with no file to import by hand. Rows no rule decides wait on ${labels.review}. It is set up on ${labels.settings}, ${labels.general}, by naming the folder and turning on filing new statements on sync.`,
+    },
   },
   guides: {
     review: {
@@ -48,6 +53,11 @@ export const hr: Translation<typeof en> = {
       title: 'Izvodi banke iz pošte',
       what: (labels) =>
         `Svaka sinkronizacija u Gmailu traži poštu s izvodima vaše banke, sprema privitke u mapu izvoda na Driveu i upisuje nove izvode u evidenciju. Retci koje nijedno pravilo ne razvrsta čekaju na kartici ${labels.review}. Postavlja se na zaslonu ${labels.settings}, na kartici ${labels.general}, u kartici ${labels.mail}.`,
+    },
+    statementsOnSync: {
+      title: 'Novi izvodi pri sinkronizaciji',
+      what: (labels) =>
+        `Svaka sinkronizacija čita camt izvode iz vaše mape izvoda koji još nisu u knjigama, bez ručnog uvoza datoteke. Retci koje nijedno pravilo ne razvrsta čekaju na kartici ${labels.review}. Postavlja se na zaslonu ${labels.settings}, na kartici ${labels.general}, tako da navedete mapu i uključite spremanje novih izvoda pri sinkronizaciji.`,
     },
   },
   guides: {

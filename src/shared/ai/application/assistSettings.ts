@@ -5,7 +5,8 @@ import type { ModelChoice, ProviderId } from '../domain/providerPresets'
 
 /**
  * This device's choices for the assistant, each under its own key: a switch per app that sends without asking, a
- * switch per task that can send employee data, the provider in use and the model of each provider. Every screen reads
+ * switch per task that can send employee data, the provider in use, the model of each provider, and whether the chat
+ * sends sensitive values as aliases. Every screen reads
  * these choices here and keeps no copy, and a change in another tab arrives here. Absent or denied storage means off and
  * the defaults, and a choice made while storage is denied holds for the visit.
  */
@@ -13,6 +14,7 @@ const APP_PREFIX = 'kuna.assist.'
 const TASK_PREFIX = 'kuna.assist-task.'
 const PROVIDER_KEY = 'kuna.assist-provider'
 const MODEL_PREFIX = 'kuna.assist-model.'
+const ANONYMISE_KEY = 'kuna.assist-anonymise'
 const ASSIST_KEYS = /^kuna\.assist[.-]/
 
 /** What this visit read or chose, by storage key, so a switch shows its new state at once. */
@@ -62,6 +64,16 @@ export function employeesOn(taskId: string): boolean {
 
 export function switchEmployees(taskId: string, on: boolean): void {
   choose(`${TASK_PREFIX}${taskId}`, on ? 'on' : null)
+}
+
+/** Whether a chat's reads send names and identifiers as aliases. On until switched off, whatever storage does. */
+export function anonymiseOn(): boolean {
+  return choice(ANONYMISE_KEY) !== 'off'
+}
+
+/** Switches aliases on or off, and on forgets the choice. */
+export function switchAnonymise(on: boolean): void {
+  choose(ANONYMISE_KEY, on ? null : 'off')
 }
 
 /** The provider picked on this device, or null while none was picked. */

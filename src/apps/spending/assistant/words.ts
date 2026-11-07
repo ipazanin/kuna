@@ -28,6 +28,21 @@ export const en = {
     bankLink: (bank: string) => `The day the approval for ${bank} runs out, set by linking the bank.`,
     companyOib: "The company's OIB, which tells an R1 receipt for it.",
   },
+  reads: {
+    transaction: 'Money in or out of one account: each row of a statement and each typed entry.',
+    account: 'Your own accounts, one per currency.',
+    category: 'Groups and their categories.',
+    budget: 'Monthly limits on spending categories.',
+    rule: 'What files a bank row by itself.',
+    receipt: 'Fiscal receipts and the entry each split.',
+    line: 'The parts of an entry a receipt split, which the figures count instead of the entry.',
+  },
+  reports: {
+    month: { title: "a month's totals", about: "A month's spending, income, money saved and savings rate, as the Overview shows them." },
+    categories: { title: 'spending by category', about: 'What each group and category counted in a month, the month before and the change, for asking why a month was higher.' },
+    limits: { title: 'the monthly limits', about: 'Each limited category in a month: its limit, what carried in, what it spent and what is left.' },
+    balances: { title: 'the account balances', about: 'What each account holds at the end of a day, and all of them in euros.' },
+  },
   guides: {
     rules: {
       title: 'Set up rules for your bank',
@@ -82,6 +97,21 @@ export const hr: Translation<typeof en> = {
     bankSyncDeployment: 'ID implementacije skripte. Ako je prazno, sinkronizacija je isključena.',
     bankLink: (bank) => `Datum isteka odobrenja za ${bank}. Postavlja se povezivanjem banke.`,
     companyOib: 'OIB tvrtke, po kojem se prepoznaje R1 račun za nju.',
+  },
+  reads: {
+    transaction: 'Novac koji ulazi na račun ili izlazi s njega: svaki redak izvoda i svaki upisani unos.',
+    account: 'Vaši računi, po jedan za svaku valutu.',
+    category: 'Skupine i njihove kategorije.',
+    budget: 'Mjesečna ograničenja na kategorije potrošnje.',
+    rule: 'Ono što sâmo razvrstava bankovni redak.',
+    receipt: 'Fiskalni računi i unos koji je svaki podijelio.',
+    line: 'Dijelovi unosa koji je račun podijelio, a iznosi broje njih umjesto unosa.',
+  },
+  reports: {
+    month: { title: 'zbroj mjeseca', about: 'Potrošnja, prihodi, ušteđeni novac i stopa štednje u mjesecu, kako ih prikazuje Pregled.' },
+    categories: { title: 'potrošnja po kategorijama', about: 'Koliko je svaka skupina i kategorija brojala u mjesecu, u mjesecu prije i razlika, za pitanja zašto je mjesec bio viši.' },
+    limits: { title: 'mjesečna ograničenja', about: 'Svaka ograničena kategorija u mjesecu: ograničenje, preneseno, potrošeno i preostalo.' },
+    balances: { title: 'stanja računa', about: 'Koliko svaki račun ima na kraju dana i svi zajedno u eurima.' },
   },
   guides: {
     rules: {

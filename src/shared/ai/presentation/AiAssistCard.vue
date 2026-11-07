@@ -4,11 +4,12 @@ import type { RouteLocationRaw } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInputMenu from '@nuxt/ui/components/InputMenu.vue'
+import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { useKeyUndo } from '../../secrets/presentation/useKeyUndo'
 import { words as secretWords } from '../../secrets/presentation/words'
 import AppCard from '../../ui/AppCard.vue'
-import { assistOn } from '../application/assistSettings'
+import { anonymiseOn, assistOn, switchAnonymise } from '../application/assistSettings'
 import { turnsOnWebSearch } from '../domain/providerPresets'
 import AssistKeyForm from './AssistKeyForm.vue'
 import { assistKeyKept } from './useAiTask'
@@ -151,6 +152,16 @@ const showsAllModels = computed(() => modelIds.value.includes(modelText.value))
           @focusout="modelDraft = null"
         />
       </UFormField>
+
+      <USwitch
+        v-if="row.kept"
+        :model-value="anonymiseOn()"
+        :label="words.card.anonymise"
+        :description="words.card.anonymiseNote"
+        class="border-t border-default pt-3"
+        data-testid="assist-anonymise"
+        @update:model-value="switchAnonymise($event)"
+      />
 
       <section v-if="row.kept && apps.length > 0" class="flex flex-col gap-2 border-t border-default pt-3" :aria-label="words.card.inApps">
         <h3 class="type-label">{{ words.card.inApps }}</h3>

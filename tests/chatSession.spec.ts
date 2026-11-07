@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { Catalogue } from '../src/shared/ai/application/catalogue'
 import type { ModelPort, ModelReply, ModelRequest } from '../src/shared/ai/application/modelPort'
+import { spendingReader } from '../src/apps/spending/assistant/spendingReader'
+import { CHAT_READING, IBAN_OF_ANA } from './fixtures/chatBook'
 
 const port = vi.hoisted(() => ({ current: null as ModelPort | null }))
 vi.mock('../src/shared/ai/application/modelAccess', () => ({ modelPort: async () => port.current, keyKept: () => true }))
@@ -11,8 +13,9 @@ vi.mock('../src/shared/secrets/presentation/pageSecrets', async () => {
   return { useSecretsChanged: () => ref(0) }
 })
 
-const { allowThisChat, allowedThisChat, chatLines, chatSpent, chatStatus, clearChat, sendChatMessage, stopChatMessage } = await import('../src/shared/ai/presentation/chatSession')
-const { pickProvider, pickModel } = await import('../src/shared/ai/application/assistSettings')
+const { allowThisChat, allowedThisChat, answerReadAsk, chatAsking, chatFigure, chatLines, chatSpent, chatStatus, clearChat, sendChatMessage, shownOnScreen, stopChatMessage } =
+  await import('../src/shared/ai/presentation/chatSession')
+const { assistOn, pickProvider, pickModel, switchAnonymise, switchAssist } = await import('../src/shared/ai/application/assistSettings')
 const { words } = await import('../src/shared/ai/presentation/words')
 
 const CATALOGUE: Catalogue = {
@@ -20,10 +23,13 @@ const CATALOGUE: Catalogue = {
   pages: new Map([['spending', 'The Spending page.']]),
   routes: new Map([['/spending', 'Spending: Overview']]),
   places: new Map([['/spending/transactions?tab=review', 'To review']]),
+  readers: new Map([['spending', { name: 'Spending', reader: spendingReader(CHAT_READING) }]]),
 }
 const knowledge = async (): Promise<Catalogue> => CATALOGUE
 const TOKENS = { input: 1000, cacheRead: 0, cacheWrite: 0, output: 1000 }
-const CONTEXT = { app: 'Spending', screen: 'Entries', path: '/spending/transactions', query: {}, tag: null }
+const CONTEXT = { app: 'Spending', screen: 'Entries', path: '/spending/transactions', query: {}, tag: null, today: '2026-11-07' }
+const READ_ROWS = { app: 'spending', kind: 'transaction', query: null, from: null, to: null, about: null, limit: null, cursor: null }
+const lookup = (name: string, args: unknown, id = 'call'): ModelReply => ({ kind: 'tool-calls', calls: [{ id, name, args }], raw: [], tokens: TOKENS })
 
 function scripted(
   replies: readonly (ModelReply | ((request: ModelRequest) => Promise<ModelReply>))[],
@@ -49,6 +55,7 @@ const answer = (text: string): ModelReply => ({ kind: 'answer', text, raw: [{ te
 beforeEach(() => {
   clearChat()
   localStorage.clear()
+  switchAssist('spending', false)
   pickProvider('anthropic')
 })
 
@@ -161,6 +168,145 @@ describe('a chat in memory', () => {
     expect(localStorage.length).toBe(storedBefore)
     clearChat()
     expect(allowedThisChat('anthropic')).toBe(false)
+  })
+
+  describe('reading', () => {
+    /** The text of the tool result that went in the given request. */
+    const resultIn = (request: ModelRequest): string => {
+      const last = request.turns.at(-1)!
+      return last.role === 'tool-results' ? last.results[0]!.text : ''
+    }
+
+    it('asks before the first read, reads once allowed, and shows the exact text that went, aliases and all', async () => {
+      const model = scripted([lookup('find_records', READ_ROWS), answer('Person 1 got 600,00 €.')])
+      port.current = model
+      const sending = sendChatMessage('Who got the rent?', CONTEXT, knowledge)
+      await vi.waitFor(() => expect(chatAsking.value).toEqual({ app: 'spending', name: 'Spending' }))
+      expect(model.requests).toHaveLength(1)
+      answerReadAsk('chat')
+      await sending
+      const line = chatLines.at(-1)!
+      expect(line.sent).toHaveLength(1)
+      expect(line.sent[0]!.text).toBe(resultIn(model.requests[1]!))
+      expect(line.sent[0]!.text).toContain('Person 1')
+      expect(line.sent[0]!.text).not.toContain('Horvat')
+      expect(line.sent[0]!.read).toMatchObject({ kind: 'records', app: 'Spending', count: 3 })
+      expect(line.text).toBe('Person 1 got 600,00 €.')
+      expect(shownOnScreen(line.text)).toContain('Ana Horvat')
+      expect(line.strayFigure).toBe(false)
+    })
+
+    it('keeps a yes for the chat and asks no more, and stores nothing', async () => {
+      port.current = scripted([lookup('find_records', READ_ROWS), answer('One'), lookup('find_records', READ_ROWS), answer('Two')])
+      const storedBefore = localStorage.length
+      const sending = sendChatMessage('First', CONTEXT, knowledge)
+      await vi.waitFor(() => expect(chatAsking.value).not.toBeNull())
+      answerReadAsk('chat')
+      await sending
+      await sendChatMessage('Second', CONTEXT, knowledge)
+      expect(chatAsking.value).toBeNull()
+      expect(chatLines.at(-1)!.text).toBe('Two')
+      expect(assistOn('spending')).toBe(false)
+      expect(localStorage.length).toBe(storedBefore)
+    })
+
+    it('does not ask when a yes came with the first send, or the switch is on', async () => {
+      port.current = scripted([lookup('find_records', READ_ROWS), answer('One')])
+      allowThisChat('anthropic', 'spending')
+      await sendChatMessage('First', CONTEXT, knowledge)
+      expect(chatLines.at(-1)!.sent).toHaveLength(1)
+      clearChat()
+      switchAssist('spending', true)
+      port.current = scripted([lookup('find_records', READ_ROWS), answer('Two')])
+      await sendChatMessage('Second', CONTEXT, knowledge)
+      expect(chatLines.at(-1)!.sent).toHaveLength(1)
+    })
+
+    it('holds the yes to the company it named, so another company asks again', async () => {
+      allowThisChat('anthropic', 'spending')
+      pickProvider('openai')
+      port.current = scripted([lookup('find_records', READ_ROWS), answer('One')])
+      const sending = sendChatMessage('First', CONTEXT, knowledge)
+      await vi.waitFor(() => expect(chatAsking.value).not.toBeNull())
+      answerReadAsk('no')
+      await sending
+    })
+
+    it('writes the switch on Always', async () => {
+      port.current = scripted([lookup('find_records', READ_ROWS), answer('One')])
+      const sending = sendChatMessage('First', CONTEXT, knowledge)
+      await vi.waitFor(() => expect(chatAsking.value).not.toBeNull())
+      answerReadAsk('always')
+      await sending
+      expect(assistOn('spending')).toBe(true)
+    })
+
+    it('on a no sends nothing from the books, tells the model, and does not ask again within the message', async () => {
+      const model = scripted([lookup('find_records', READ_ROWS), lookup('read_figures', { app: 'spending', report: 'month', period: null }), answer('Could not read.')])
+      port.current = model
+      const sending = sendChatMessage('First', CONTEXT, knowledge)
+      await vi.waitFor(() => expect(chatAsking.value).not.toBeNull())
+      answerReadAsk('no')
+      await sending
+      expect(chatLines.at(-1)!.sent).toEqual([])
+      expect(chatLines.at(-1)!.text).toBe('Could not read.')
+      for (const request of model.requests) expect(JSON.stringify(request)).not.toContain('Corner market')
+      expect(resultIn(model.requests[1]!)).toContain('did not allow')
+    })
+
+    it('ends the ask when the person stops the message, and reads nothing', async () => {
+      const model = scripted([lookup('find_records', READ_ROWS), answer('Never')])
+      port.current = model
+      const sending = sendChatMessage('First', CONTEXT, knowledge)
+      await vi.waitFor(() => expect(chatAsking.value).not.toBeNull())
+      stopChatMessage()
+      await sending
+      expect(chatAsking.value).toBeNull()
+      expect(model.requests).toHaveLength(1)
+      expect(chatLines.map((line) => line.text)).toEqual(['First'])
+    })
+
+    it('shows the figure of a ref, and flags an amount no tool gave', async () => {
+      allowThisChat('anthropic', 'spending')
+      port.current = scripted([lookup('read_figures', { app: 'spending', report: 'month', period: '2026-10' }), answer('You spent [f1], and €4,300.00 last year.')])
+      await sendChatMessage('First', CONTEXT, knowledge)
+      expect(chatLines.at(-1)!.strayFigure).toBe(true)
+      expect(chatFigure('f1')).toMatchObject({ cents: 64530, currency: 'EUR' })
+      expect(chatFigure('f9')).toBeNull()
+    })
+
+    it('sends real names with the setting off, while the loop still cuts an IBAN', async () => {
+      switchAnonymise(false)
+      allowThisChat('anthropic', 'spending')
+      const model = scripted([lookup('find_records', READ_ROWS), answer('One')])
+      port.current = model
+      await sendChatMessage('First', CONTEXT, knowledge)
+      const sent = chatLines.at(-1)!.sent[0]!.text
+      expect(sent).toContain('Ana Horvat')
+      expect(sent).not.toContain(IBAN_OF_ANA)
+      expect(sent).toBe(resultIn(model.requests[1]!))
+      switchAnonymise(true)
+    })
+
+    it('forgets the aliases and the refs on a new chat', async () => {
+      allowThisChat('anthropic', 'spending')
+      port.current = scripted([lookup('find_records', READ_ROWS), answer('Person 1')])
+      await sendChatMessage('First', CONTEXT, knowledge)
+      expect(shownOnScreen('Person 1')).not.toBe('Person 1')
+      clearChat()
+      expect(shownOnScreen('Person 1')).toBe('Person 1')
+    })
+
+    it('says the row went only once the request left: a guarded request sent nothing', async () => {
+      allowThisChat('anthropic', 'spending')
+      const { guardedModel } = await import('../src/shared/ai/application/egressGuard')
+      const inner = scripted([lookup('find_records', READ_ROWS), answer('Never')])
+      port.current = guardedModel(inner, () => ['Corner market'])
+      await sendChatMessage('First', CONTEXT, knowledge)
+      expect(chatLines.at(-1)!.sent).toEqual([])
+      expect(chatLines.at(-1)!.failure).toBe(words.result.holdsSecret)
+      expect(inner.requests).toHaveLength(1)
+    })
   })
 
   it('forgets everything on a new chat', async () => {
