@@ -1,7 +1,6 @@
 import { shallowReactive, shallowReadonly } from 'vue'
 
 import { deviceTimeZone, startOfDayIn, today } from '../../../../shared/calendar/civilDate'
-import { sha256Hex } from '../../../../shared/files/sha256'
 import { isUnauthorized } from '../../../../shared/google/googleApi'
 import { currentToken } from '../../../../shared/google/googleAuth'
 import { folderReadScope, scopesOf } from '../../../../shared/google/googleScopes'
@@ -9,7 +8,6 @@ import type { GoogleScope } from '../../../../shared/google/googleScopes'
 import type { SyncStep } from '../../../../shared/sync/application/sync'
 import type { AccessNeed } from '../../../../shared/sync/application/syncRun'
 import { loadImportFile } from '../../imports/infrastructure/importFiles'
-import { installedPack, shownPack } from '../../packs/packContribution'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { fileMail, hasProblem, planLine } from '../../../../shared/mail-filing/application/mailFiling'
@@ -37,14 +35,12 @@ const DEVICE_TIME_ZONE = deviceTimeZone()
 
 const STATEMENTS = statementMailSource(loadImportFile, DEVICE_TIME_ZONE)
 
-/** Core's source, then the pack's while the owner-pay module shows it. */
-function sourcesOf(workbook: Workbook): readonly MailSource<Workbook>[] {
-  return [STATEMENTS, ...installedPack().mailSources.filter((source) => shownPack(workbook.settings).mailSources.includes(source))]
-}
+/** The kinds of mail the step files, which today is the bank's statements alone. */
+const SOURCES: readonly MailSource<Workbook>[] = [STATEMENTS]
 
 /** On while any source is, so a source switched on without all it needs says so in the step's line. */
 function isOn(workbook: Workbook): boolean {
-  return sourcesOf(workbook).some((source) => source.terms(workbook).kind !== 'off')
+  return SOURCES.some((source) => source.terms(workbook).kind !== 'off')
 }
 
 /**
@@ -56,7 +52,7 @@ function mailScopes(workbook: Workbook | null): GoogleScope[] {
   if (workbook === null) {
     return ['gmail.readonly']
   }
-  const folders = sourcesOf(workbook).flatMap((source) => {
+  const folders = SOURCES.flatMap((source) => {
     const terms = source.terms(workbook)
     return terms.kind === 'on' ? [terms.terms.folder] : []
   })
@@ -117,11 +113,10 @@ export function useMailSync(): MailSync {
         try {
           state.plan = await fileMail({
             open: () => openMail(workbook, choice.id),
-            sources: sourcesOf(workbook),
+            sources: SOURCES,
             books: workbook,
             sinceStart: startOfDayIn(since, DEVICE_TIME_ZONE),
             years: yearsSince(since, now),
-            hash: sha256Hex,
             report,
           })
           state.stopped = null

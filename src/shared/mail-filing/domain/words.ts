@@ -34,8 +34,6 @@ export const en = {
       [
         counts.filed === 0 ? (counts.notFiled === 0 ? 'nothing new' : 'nothing filed') : `filed ${counts.filed}`,
         counts.already === 0 ? '' : `already there ${counts.already}`,
-        counts.corrections === 0 ? '' : `${counts.corrections} ${counts.corrections === 1 ? 'correction' : 'corrections'}`,
-        counts.unchecked === 0 ? '' : `${counts.unchecked} not compared`,
         counts.unmatched === 0 ? '' : `${counts.unmatched} unmatched`,
       ]
         .filter((part) => part !== '')
@@ -64,8 +62,6 @@ export const hr: Translation<typeof en> = {
       [
         counts.filed === 0 ? (counts.notFiled === 0 ? 'ništa novo' : 'ništa nije spremljeno') : `spremljeno ${counts.filed}`,
         counts.already === 0 ? '' : `već postoji ${counts.already}`,
-        counts.corrections === 0 ? '' : `ispravci ${counts.corrections}`,
-        counts.unchecked === 0 ? '' : `nije uspoređeno ${counts.unchecked}`,
         counts.unmatched === 0 ? '' : `bez pravila ${counts.unmatched}`,
       ]
         .filter((part) => part !== '')

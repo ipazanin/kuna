@@ -193,7 +193,7 @@ describe('moving a file into the Kuna folder', () => {
 })
 
 describe('moving only what Kuna made', () => {
-  /** A statements folder at a path from My Drive with one statement Kuna filed from mail, one a script filed, and the accountant's mail Kuna filed there. */
+  /** A statements folder at a path from My Drive with one statement Kuna filed from mail, one a script filed, and a file another mail source filed there. */
   async function mixedStatements() {
     const drive = createFakeDrive()
     const folder = await drive.createFolder('root', 'books')
@@ -204,19 +204,19 @@ describe('moving only what Kuna made', () => {
     const { id: filed } = await drive.createFile(year, '2026-09-01-statement-010-main.xml', 'camt', { 'kuna-mail': 'statements', 'kuna-mail-id': 'a', 'kuna-mail-date': '2026-09-01T08:00:00.000Z' })
     const { id: scripted } = await drive.createFile(year, '2026-09-02-statement-011-main.xml', 'camt')
     drive.file(scripted).isAppAuthorized = false
-    const { id: accountant } = await drive.createFile(year, '2026-09-pdv.xlsx', 'pdv', { 'kuna-mail': 'vat', 'kuna-mail-id': 'b', 'kuna-mail-date': '2026-09-03T08:00:00.000Z' })
+    const { id: otherSource } = await drive.createFile(year, '2026-09-report.pdf', 'report', { 'kuna-mail': 'reports', 'kuna-mail-id': 'b', 'kuna-mail-date': '2026-09-03T08:00:00.000Z' })
     const beside: DriveFileBeside = { ...NOTHING, folders: [{ name: 'statements', fromPath: ['work', 'statements'], mailSource: 'statements' }] }
-    return { drive, fileId, statements, year, filed, scripted, accountant, beside }
+    return { drive, fileId, statements, year, filed, scripted, otherSource, beside }
   }
 
-  it('takes a statement Kuna filed from mail, with its id, and leaves the script’s file, the accountant’s and the folder itself', async () => {
-    const { drive, fileId, statements, year, filed, scripted, accountant, beside } = await mixedStatements()
+  it('takes a statement Kuna filed from mail, with its id, and leaves the script’s file, another source’s and the folder itself', async () => {
+    const { drive, fileId, statements, year, filed, scripted, otherSource, beside } = await mixedStatements()
 
     await moveDriveDocument(drive, fileId, 'company', beside, null)
 
     expect(await pathOf(drive, filed)).toBe('Kuna/company/statements/2026-statements/2026-09-01-statement-010-main.xml')
     expect(drive.file(scripted).parents).toEqual([year])
-    expect(drive.file(accountant).parents).toEqual([year])
+    expect(drive.file(otherSource).parents).toEqual([year])
     expect(drive.file(year).parents).toEqual([statements])
     expect(await drive.folderAtPath(['work', 'statements', '2026-statements'])).toBe(year)
   })

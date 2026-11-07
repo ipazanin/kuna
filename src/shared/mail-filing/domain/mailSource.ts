@@ -1,6 +1,5 @@
 import { civilDate } from '../../calendar/civilDate'
 import type { CivilDate } from '../../calendar/civilDate'
-import { fold } from '../../text/fold'
 import { words } from './words'
 
 /** One file attached to a mail, by Gmail's id and the name the sender gave it. */
@@ -118,17 +117,6 @@ export function strippedSubject(subject: string): string {
 }
 
 /**
- * What follows the phrase at the start of the subject, once the replies' prefixes are off, in the
- * folded form `fold` gives, so case and diacritics do not matter. Null for a subject that does not
- * start with the phrase.
- */
-export function afterPhrase(subject: string, phrase: string): string | null {
-  const folded = fold(strippedSubject(subject))
-  const start = fold(phrase)
-  return start !== '' && folded.startsWith(start) ? folded.slice(start.length) : null
-}
-
-/**
  * What a sync's mail step did for one source, counted the way its line says it: what it filed, what
  * it found already there, and what needs a look. `notFiled` counts the uploads that failed, which
  * the line names instead of counting.
@@ -137,8 +125,6 @@ export interface MailCounts {
   readonly filed: number
   readonly notFiled: number
   readonly already: number
-  readonly corrections: number
-  readonly unchecked: number
   readonly unmatched: number
 }
 

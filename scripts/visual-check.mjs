@@ -136,16 +136,14 @@
  * tab.
  * The mail step is off until the Mail card on Settings, General saves a sender with the subject it
  * asks for, and the next sync files the bank's new mail. With the fake mailbox it files the bank's
- * PDF and statement and the accountant's new mail, the statements step of the same sync files the statement on the ledger, its
- * link opens the list on the Mail card, a second sync files nothing new, and the facts card shows the
- * accountant's mail. Mail all filed already says nothing new, a source that fails and an upload that
- * fails each give 1 problem with the steps open, and a token without Gmail read gets Allow access,
- * which runs the step. Saving a sender on the Mail card without Gmail read asks for it in the same
- * tap and syncs, and Allow access whose Google window closed says so beside the button. With the
- * accountant's kinds switched off the step reads the bank's mail alone, the payroll switched on
- * without a sender fails with what it lacks in the line and under its switch, Gmail asking to slow
- * down fails the step with one plain sentence, which the Mail card says too, and mail all filed by another app moves every
- * source's search to a week before the newest file in its folder.
+ * PDF and statement, the statements step of the same sync files the statement on the ledger, its
+ * link opens the list on the Mail card, and a second sync files nothing new. Mail all filed already
+ * says nothing new, a source that fails and an upload that fails each give 1 problem with the steps
+ * open, and a token without Gmail read gets Allow access, which runs the step. Saving a sender on the
+ * Mail card without Gmail read asks for it in the same tap and syncs, and Allow access whose Google
+ * window closed says so beside the button. Gmail asking to slow down fails the step with one plain
+ * sentence, which the Mail card says too, and mail all filed by another app moves the source's
+ * search to a week before the newest file in its folder.
  * The first run keeps an empty workbook on the fake Drive and one in this browser, goes back to the
  * step that made them, which shows them made and starts over, and offers to open the books the fake
  * Drive already holds when new books, a move from this browser or the Loans file would make a
@@ -373,11 +371,10 @@ import {
   mailNothingNewFlow,
   mailFiledFlow,
   mailOffFlow,
+  mailPlanSpecimenFlow,
   mailSaveAsksFlow,
   mailUploadFailedFlow,
-  mailNoSenderFlow,
   mailRateLimitedFlow,
-  mailSwitchesOffFlow,
   mailWindowFlow,
   moveFromBrowserFlow,
   moveFromBrowserFlowIn,
@@ -1301,7 +1298,7 @@ const SCREENS = [
     hash: '#/company/settings#owner-loan-interest',
     title: 'Settings',
     charts: 0,
-    shows: "Interest the owner's loans carry",
+    shows: ["Interest the owner's loans carry", 'Categories to sort'],
     collapsedBefore: ['settings.facts'],
     linkedPart: 'owner-loan-interest',
   },
@@ -1338,7 +1335,7 @@ const SCREENS = [
     hash: '#/company/settings#owner-loan-interest',
     title: 'Postavke',
     charts: 0,
-    shows: ['Kamata na pozajmice vlasniku', 'Pošta knjigovođe'],
+    shows: ['Kamata na pozajmice vlasniku', 'Kategorije za razvrstavanje'],
     collapsedBefore: ['settings.facts'],
     linkedPart: 'owner-loan-interest',
   },
@@ -4856,8 +4853,7 @@ const FLOWS = [
   { name: 'mail-access', hash: '#/company', title: 'Overview', run: mailAccessFlow, modes: ['drive'], queries: { drive: '&fake=mail' } },
   { name: 'mail-save-asks', hash: '#/company', title: 'Overview', run: mailSaveAsksFlow, modes: ['drive'] },
   { name: 'mail-save-asks-croatian', hash: '#/company', title: 'Pregled', run: mailSaveAsksFlowIn('hr'), modes: ['drive'], queries: { drive: '&lang=hr' } },
-  { name: 'mail-switches-off', hash: '#/company', title: 'Overview', run: mailSwitchesOffFlow, modes: ['drive'], queries: { drive: '&fake=mail-switches-off' } },
-  { name: 'mail-no-sender', hash: '#/company', title: 'Overview', run: mailNoSenderFlow, modes: ['drive'], queries: { drive: '&fake=mail-no-sender' } },
+  { name: 'mail-plan-specimen', hash: '#/gallery', title: 'Gallery', run: mailPlanSpecimenFlow, modes: ['drive'] },
   { name: 'mail-rate-limited', hash: '#/company', title: 'Overview', run: mailRateLimitedFlow, modes: ['drive'], queries: { drive: '&fake=mail-rate-limited' } },
   { name: 'set-up-in-other-tab', hash: '#/', title: 'All apps', run: setUpInOtherTabFlow, modes: ['drive'] },
   { name: 'mail-window', hash: '#/company', title: 'Overview', run: mailWindowFlow, modes: ['drive'], queries: { drive: '&fake=mail-nothing-new' } },
@@ -4871,8 +4867,6 @@ const FLOWS = [
     { name: 'mail-nothing-new-croatian', variant: '&fake=mail-nothing-new' },
     { name: 'mail-failed-croatian', variant: '&fake=mail-failed' },
     { name: 'mail-access-croatian', variant: '&fake=mail', stored: { 'kuna.google-granted': JSON.stringify(['drive.file', 'drive.readonly', 'gmail.compose']) } },
-    { name: 'mail-switches-off-croatian', variant: '&fake=mail-switches-off' },
-    { name: 'mail-no-sender-croatian', variant: '&fake=mail-no-sender' },
     { name: 'mail-rate-limited-croatian', variant: '&fake=mail-rate-limited' },
     { name: 'sync-access-closed-croatian', variant: '&fake=google-closed', stored: { 'kuna.google-silent-refused': 'interaction_required' } },
   ].map(({ name, variant, stored }) => ({ name, hash: '#/company', title: 'Pregled', run: syncStatesFlowIn('hr', stored), modes: ['drive'], queries: { drive: `${variant}&lang=hr` } })),

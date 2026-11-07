@@ -4,7 +4,6 @@ import { readWorkbook } from '../src/apps/company/workbook/domain/readWorkbook'
 import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
 import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
 import { HR_DOO, HR_DOO_PART, hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
-import { hrDooPack } from '../src/apps/company/packs/hr-doo/hrDooPack'
 
 const snapshot = fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z', 'browser')
 const { records, workbook } = readSnapshot(snapshot)
@@ -21,23 +20,6 @@ describe('the pack part', () => {
     expect(workbook.ownerAdvances).toBe(books.ownerAdvances)
     expect(workbook.ownerAdvances.length).toBeGreaterThan(0)
     expect(workbook.rowsKeptWhole.size).toBeGreaterThan(0)
-  })
-
-  it('puts drafted company facts on the books, so the mail a save of them switches on is read before it', () => {
-    const facts = {
-      ...hrDooWorkbook(workbook).companyFacts,
-      accountantMailFrom: ['office@accountant.example.com'],
-      payrollMailSync: true,
-      payrollMailSubject: 'Plaća za',
-      payrollFolder: ['finance', 'payroll'],
-    }
-    const drafted = hrDooPack.companyFacts!.withFacts(workbook, facts)
-    const payroll = hrDooPack.mailSources[0]!
-
-    expect(hrDooWorkbook(drafted).companyFacts).toEqual(facts)
-    expect(drafted.transactions).toBe(workbook.transactions)
-    expect(payroll.terms(workbook)).toEqual({ kind: 'off' })
-    expect(payroll.terms(drafted)).toMatchObject({ kind: 'on', terms: { senders: ['office@accountant.example.com'], subject: 'Plaća za' } })
   })
 
   it('leaves core as it is without the pack, which then reads none of its records and reports its keys as unknown', () => {

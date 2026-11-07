@@ -233,6 +233,13 @@ export interface SettingDefinition<Values> {
 export interface PackSettings<Values> {
   readonly definitions: readonly SettingDefinition<Values>[]
   readonly defaults: Values
+  /** Keys the pack no longer reads that older books may still hold. They read silently, and a save leaves their rows alone. */
+  readonly retired: readonly string[]
+}
+
+/** The keys core leaves to a pack: those it reads and those it retired. */
+export function packSettingKeys(pack: PackSettings<unknown> | null): ReadonlySet<string> {
+  return new Set([...(pack?.definitions.map((definition) => definition.key) ?? []), ...(pack?.retired ?? [])])
 }
 
 function bucketLabelKey(bucket: DefinedBucket): BucketLabelKey {
@@ -571,7 +578,7 @@ function applySettingRow<Values>(
  * The settings a `settings` tab describes, and what in it could not be used. A blank value means the
  * default. An unknown key is kept in the tab and reported. A value that does not hold falls back to
  * the default and is reported. A key set on more than one row takes its default. The keys a pack
- * reads are left to it, so they are neither read nor reported here.
+ * reads or retired are left to it, so they are neither read nor reported here.
  */
 export function parseSettings(rows: readonly SettingRow[], packKeys: ReadonlySet<string> = new Set()): { readonly settings: Settings; readonly problems: RecordProblem[] } {
   const problems: RecordProblem[] = []
@@ -625,12 +632,12 @@ function isUnknownSettingKey(key: string, packKeys: ReadonlySet<string>): boolea
 }
 
 /**
- * The keys of the settings that no setting of core or the pack reads, unknown keys and import
- * profiles, each with how many rows hold it. A person may take one off the tab while one row holds it,
+ * The keys of the settings that no setting of core or the pack reads and the pack did not retire, unknown keys
+ * and import profiles, each with how many rows hold it. A person may take one off the tab while one row holds it,
  * since a write refuses a key on two rows.
  */
 export function unreadSettingKeys(rows: readonly SettingRow[], pack: PackSettings<unknown> | null): ReadonlyMap<string, number> {
-  const packKeys = new Set(pack?.definitions.map((definition) => definition.key))
+  const packKeys = packSettingKeys(pack)
   const holding = new Map<string, number>()
   for (const key of rows.map(keyOfRow).filter((candidate) => candidate !== '' && !packKeys.has(candidate) && !DEFINITION_BY_KEY.has(candidate))) {
     holding.set(key, (holding.get(key) ?? 0) + 1)
@@ -659,7 +666,7 @@ export function readSettingsTab<Values>(
   rows: readonly SettingRow[],
   pack: PackSettings<Values> | null,
 ): { readonly settings: Settings; readonly packValues: Values | null; readonly problems: RecordProblem[] } {
-  const core = parseSettings(rows, new Set(pack?.definitions.map((definition) => definition.key)))
+  const core = parseSettings(rows, packSettingKeys(pack))
   const packRead = pack === null ? null : readPackSettings(rows, pack)
   return { settings: core.settings, packValues: packRead?.values ?? null, problems: [...core.problems, ...(packRead?.problems ?? [])] }
 }

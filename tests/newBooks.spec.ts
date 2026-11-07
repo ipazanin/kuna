@@ -5,6 +5,7 @@ import type { WorkbookDocument } from '../src/shared/storage/infrastructure/docu
 import { readDocument } from '../src/apps/company/workbook/infrastructure/companyDocument'
 import { newBooksDocument } from '../src/apps/company/workbook/presentation/workbookFiles'
 import { STATEMENTS_BY_HAND } from '../src/apps/company/onboarding/domain/statementsChoice'
+import { COMPANY_FACT_SETTINGS } from '../src/apps/company/packs/hr-doo/domain/companyFacts'
 import { STARTING_CATEGORIES } from '../src/apps/company/packs/hr-doo/preset/domain/startingCategories'
 import { startingRules } from '../src/apps/company/packs/hr-doo/preset/domain/startingRules'
 import { civil } from './fixtures/ledger'
@@ -40,10 +41,9 @@ describe('new books', () => {
       owner_pay_module: 'false',
       statements_sync: 'false',
       statements_folder: '',
-      hr_vat_returns_folder: '',
-      hr_payroll_folder: '',
       currency: 'EUR',
     })
+    expect(Object.keys(rows).filter((key) => COMPANY_FACT_SETTINGS.retired.includes(key))).toEqual([])
     const { workbook } = read(document)
     expect(workbook.settings).toMatchObject({ ownerPayModule: false, statementsSync: false, statementsFolder: [] })
     expect(workbook.accounts).toEqual([])

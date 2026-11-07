@@ -9,7 +9,7 @@ export const FAKE_BOOKS_STATEMENTS: readonly string[] = [BOOKS_FOLDER, MAIL_STAT
 export const PAGE_FAKE_MADE_FILES: FakeMadeFile[] = []
 
 /** The variants whose sample statement comes by mail, so the fake statements folder lacks it until a sync files it from the mail. */
-const SAMPLE_BY_MAIL = ['mail', 'mail-failed', 'mail-upload-failed', 'mail-switches-off', 'mail-no-sender']
+const SAMPLE_BY_MAIL = ['mail', 'mail-failed', 'mail-upload-failed']
 
 export function sampleStatementByMail(variant: string | null): boolean {
   return variant !== null && SAMPLE_BY_MAIL.includes(variant)

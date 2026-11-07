@@ -19,13 +19,11 @@ const props = defineProps<{
 const dayFormat = dateFormat({ day: 'numeric', month: 'short', year: 'numeric' })
 
 /** The kinds in the order a person reads them: what failed, what was filed, what needs a look, then what is already there. */
-const ORDER: readonly PlanEntry['kind'][] = ['not-filed', 'filed', 'correction', 'unchecked', 'unmatched', 'already']
+const ORDER: readonly PlanEntry['kind'][] = ['not-filed', 'filed', 'unmatched', 'already']
 
 const ICONS: Readonly<Record<PlanEntry['kind'], { readonly name: string; readonly tone: string }>> = {
   'not-filed': { name: 'i-lucide-file-x', tone: 'text-error' },
   filed: { name: 'i-lucide-file-check', tone: 'text-success' },
-  correction: { name: 'i-lucide-file-diff', tone: 'text-warning' },
-  unchecked: { name: 'i-lucide-file-question-mark', tone: 'text-warning' },
   unmatched: { name: 'i-lucide-mail-x', tone: 'text-warning' },
   already: { name: 'i-lucide-check', tone: 'text-success' },
 }
@@ -48,17 +46,7 @@ function target(entry: Exclude<PlanEntry, { kind: 'unmatched' }>): string[] {
 }
 
 function note(entry: PlanEntry): string {
-  switch (entry.kind) {
-    case 'correction':
-      return words.plan.correction
-    case 'unchecked':
-      return words.plan.unchecked
-    case 'unmatched':
-    case 'not-filed':
-      return entry.reason.replace(/\.?$/, '.')
-    default:
-      return ''
-  }
+  return entry.kind === 'unmatched' || entry.kind === 'not-filed' ? entry.reason.replace(/\.?$/, '.') : ''
 }
 
 function rowOf(entry: PlanEntry, index: number): MailResultRow {

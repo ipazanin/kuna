@@ -16,7 +16,7 @@ import { startOfDayIn } from '../src/shared/calendar/civilDate'
 import type { CivilDate } from '../src/shared/calendar/civilDate'
 import { GoogleApiError } from '../src/shared/google/googleApi'
 import { exampleStudio } from './fixtures/exampleStudio'
-import { hashOf, testFolders, testMailbox } from './fixtures/mailbox'
+import { testFolders, testMailbox } from './fixtures/mailbox'
 import type { TestFiled, TestMail } from './fixtures/mailbox'
 
 /** A statement anonymised from a real bank's camt file, label 2031-03-12-statement-042, of the IBAN below. */
@@ -59,7 +59,6 @@ async function plan(
     books: options.workbook ?? books(),
     sinceStart: SINCE,
     years: [2031],
-    hash: hashOf,
     report: (line) => options.reports?.push(line),
   })
 }
@@ -101,7 +100,7 @@ describe('the bank statements in mail', () => {
     ]
 
     const fresh = await plan(mails)
-    const filed = await plan(mails, [{ folders: ['2031-statements'], name: '2031-03-12-statement-042-main.xml', created: '2031-03-12T05:00:00Z', content: null }])
+    const filed = await plan(mails, [{ folders: ['2031-statements'], name: '2031-03-12-statement-042-main.xml', created: '2031-03-12T05:00:00Z' }])
 
     expect(targets(fresh.sources[0])).toEqual([
       'filed work/bank/statements/2031-statements/2031-03-12-statement-042-main.xml',
@@ -114,7 +113,7 @@ describe('the bank statements in mail', () => {
   it('names a statement of an IBAN no account has by its label alone, so another account’s statement of the same number is not taken for it', async () => {
     const { sources } = await plan(
       [{ id: 'unknown', subject: 'Izvadak 042', at: '2031-03-12T04:00:00Z', attachments: [['izvod.xml', CREDIT]] }],
-      [{ folders: ['2031-statements'], name: '2031-03-12-statement-042-second.xml', created: '2031-03-12T05:00:00Z', content: null }],
+      [{ folders: ['2031-statements'], name: '2031-03-12-statement-042-second.xml', created: '2031-03-12T05:00:00Z' }],
       { workbook: exampleStudio({ settings: books().settings, accounts: [] }) },
     )
 
@@ -168,7 +167,7 @@ describe('the bank statements in mail', () => {
   it('reads the statement number after the phrase wherever the subject carries it, as the fetch does', async () => {
     const { sources } = await plan(
       [{ id: 'pdf', subject: 'EXAMPLE BANK Izvadak 042, Example Studio d.o.o.', at: '2031-03-12T04:00:00Z', attachments: [['IZV_2031_03_12 03_05_19_314_503.pdf', 'pdf']] }],
-      [{ folders: ['2031-statements'], name: '2031-03-12-statement-042.pdf', created: '2031-03-12T05:00:00Z', content: null }],
+      [{ folders: ['2031-statements'], name: '2031-03-12-statement-042.pdf', created: '2031-03-12T05:00:00Z' }],
     )
 
     expect(targets(sources[0])).toEqual(['already work/bank/statements/2031-statements/2031-03-12-statement-042.pdf'])
@@ -191,7 +190,7 @@ describe('the mail step', () => {
   it('searches from the mail-since day while its year folders are empty, and from a week before the mail of the newest file the app filed', async () => {
     const fresh = testMailbox([])
     const later = testMailbox([])
-    const filed: TestFiled = { folders: ['2031-statements'], name: '2031-03-20-statement-050.pdf', created: '2031-03-21T09:00:00Z', content: null, filedFrom: '2031-03-20T08:00:00Z' }
+    const filed: TestFiled = { folders: ['2031-statements'], name: '2031-03-20-statement-050.pdf', created: '2031-03-21T09:00:00Z', filedFrom: '2031-03-20T08:00:00Z' }
 
     await plan([], [], { mailbox: fresh })
     await plan([], [filed], { mailbox: later })
@@ -211,7 +210,6 @@ describe('the mail step', () => {
       folders: ['2031-statements'],
       name: `2031-03-1${index}-statement-04${index}.pdf`,
       created: `2031-03-1${index}T06:00:00Z`,
-      content: null,
     }))
     const mailbox = testMailbox(mails)
 
@@ -225,13 +223,13 @@ describe('the mail step', () => {
   it('never searches from before the mail-since day, however old the newest file', async () => {
     const mailbox = testMailbox([])
 
-    const result = await plan([], [{ folders: ['2031-statements'], name: '2031-01-02-statement-001.pdf', created: '2031-01-02T06:00:00Z', content: null }], { mailbox })
+    const result = await plan([], [{ folders: ['2031-statements'], name: '2031-01-02-statement-001.pdf', created: '2031-01-02T06:00:00Z' }], { mailbox })
 
     expect(result.sources[0]).toMatchObject({ window: { from: SINCE, after: 'since' } })
   })
 
   it('lists the year folders from the mail-since year before it searches, and a folder of an older year a mail names after', async () => {
-    const folders = testFolders([{ folders: ['2030-statements'], name: '2030-12-31-statement-099.pdf', created: '2031-01-01T06:00:00Z', content: null }])
+    const folders = testFolders([{ folders: ['2030-statements'], name: '2030-12-31-statement-099.pdf', created: '2031-01-01T06:00:00Z' }])
     const mailbox = testMailbox([
       { id: 'late', subject: 'Izvadak 099', at: '2031-01-01T05:00:00Z', attachments: [['IZV_2030_12_31 03_05_19_314_503.pdf', 'pdf 099']] },
       { id: 'new', subject: 'Izvadak 001', at: '2031-01-02T05:00:00Z', attachments: [['IZV_2031_01_02 03_05_19_314_503.pdf', 'pdf 001']] },
@@ -275,8 +273,7 @@ describe('the mail step', () => {
     const failing: MailSource<Workbook> = {
       id: 'broken',
       label: 'VAT returns',
-      duplicates: 'correction',
-      terms: () => ({ kind: 'on', terms: { senders: ['office@accountant.example.com'], subject: 'PDV za', folder: ['finance', 'vat'] } }),
+      terms: () => ({ kind: 'on', terms: { senders: ['office@bookkeeper.example.com'], subject: 'PDV za', folder: ['finance', 'vat'] } }),
       name: async () => [],
     }
     const mails: TestMail[] = [{ id: 'pdf', subject: 'Izvadak 042', at: '2031-03-12T04:00:00Z', attachments: [['IZV_2031_03_12 03_05_19_314_503.pdf', 'pdf']] }]
@@ -309,10 +306,10 @@ describe('the mail step', () => {
     await expect(plan([], [], { mailbox })).rejects.toBeInstanceOf(GoogleApiError)
   })
 
-  it('reads a PDF’s bytes from Gmail only to compare or file them, never to name it', async () => {
+  it('reads a PDF’s bytes from Gmail only to file them, never to name it', async () => {
     const mailbox = testMailbox([{ id: 'pdf', subject: 'Izvadak 042', at: '2031-03-12T04:00:00Z', attachments: [['IZV_2031_03_12 03_05_19_314_503.pdf', 'pdf']] }])
 
-    await plan([], [{ folders: ['2031-statements'], name: '2031-03-12-statement-042.pdf', created: '2031-03-12T05:00:00Z', content: null }], { mailbox })
+    await plan([], [{ folders: ['2031-statements'], name: '2031-03-12-statement-042.pdf', created: '2031-03-12T05:00:00Z' }], { mailbox })
 
     expect(mailbox.downloads).toEqual([])
   })
@@ -363,7 +360,7 @@ describe('filing the bank statements', () => {
   })
 
   it('files what the folder lacks and nothing it holds, and a run after that files nothing new, searching from a week before the newest mail it filed', async () => {
-    const folders = testFolders([{ folders: ['2031-statements'], name: '2031-03-12-statement-042.pdf', created: '2031-03-12T05:00:00Z', content: null }])
+    const folders = testFolders([{ folders: ['2031-statements'], name: '2031-03-12-statement-042.pdf', created: '2031-03-12T05:00:00Z' }])
     const mailbox = testMailbox([PAIR, NEXT])
 
     const first = await plan([], [], { folders, mailbox })
@@ -453,7 +450,7 @@ describe('a blank mail-since day at the turn of the year', () => {
     const today = '2032-01-03' as CivilDate
     const since = mailSinceDefault(today)
     const mailbox = testMailbox([{ id: 'dec30', subject: 'Izvadak 250', at: '2031-12-30T05:00:00Z', attachments: [['IZV_2031_12_30 03_05_19_314_503.pdf', 'pdf 250']] }])
-    const folders = testFolders([{ folders: ['2031-statements'], name: '2031-12-29-statement-249.pdf', created: '2031-12-29T06:00:00Z', content: null, filedFrom: '2031-12-29T05:00:00Z' }])
+    const folders = testFolders([{ folders: ['2031-statements'], name: '2031-12-29-statement-249.pdf', created: '2031-12-29T06:00:00Z', filedFrom: '2031-12-29T05:00:00Z' }])
 
     const found = await fileMail({
       open: async () => ({ mailbox, folders }),
@@ -461,7 +458,6 @@ describe('a blank mail-since day at the turn of the year', () => {
       books: books(),
       sinceStart: startOfDayIn(since, 'Europe/Zagreb'),
       years: yearsSince(since, today),
-      hash: hashOf,
       report: () => {},
     })
 
@@ -478,8 +474,7 @@ describe('the sources at the same time', () => {
     return {
       id,
       label,
-      duplicates: 'correction',
-      terms: () => ({ kind: 'on', terms: { senders: ['office@accountant.example.com'], subject, folder: ['finance', id] } }),
+      terms: () => ({ kind: 'on', terms: { senders: ['office@bookkeeper.example.com'], subject, folder: ['finance', id] } }),
       name: (message, terms, reading) =>
         Promise.all(
           message.attachments.map(async (attachment, index): Promise<AttachmentNaming> => {

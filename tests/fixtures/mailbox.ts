@@ -1,5 +1,3 @@
-import { createHash } from 'node:crypto'
-
 import type { FiledFile, MailFolders, Mailbox } from '../../src/shared/mail-filing/application/mailFiling'
 import { MailRateLimited } from '../../src/shared/mail-filing/application/mailFiling'
 import { MAIL_DATE_PROPERTY } from '../../src/shared/mail-filing/domain/mailSource'
@@ -13,17 +11,12 @@ export interface TestMail {
   readonly attachments: readonly (readonly [name: string, content: string])[]
 }
 
-/** A file a test's folder holds, below the source folder, with the text its bytes are, or null for a file Drive gives no checksum for, and for a file the app filed the ISO time of its mail. */
+/** A file a test's folder holds, below the source folder, and for a file the app filed the ISO time of its mail. */
 export interface TestFiled {
   readonly folders: readonly string[]
   readonly name: string
   readonly created: string
-  readonly content: string | null
   readonly filedFrom?: string
-}
-
-export function sha256Of(text: string): string {
-  return createHash('sha256').update(text).digest('hex')
 }
 
 /**
@@ -94,14 +87,12 @@ export function testFolders(
           folders: file.folders,
           name: file.name,
           createdTime: Date.parse(file.created),
-          sha256: file.content === null ? null : sha256Of(file.content),
           filedFrom: file.filedFrom === undefined ? null : Date.parse(file.filedFrom),
         })),
         ...created.map((file) => ({
           folders: file.below,
           name: file.name,
           createdTime: Date.parse(options.madeAt ?? '2031-12-31T00:00:00Z'),
-          sha256: sha256Of(file.content),
           filedFrom: Date.parse(file.properties[MAIL_DATE_PROPERTY] ?? ''),
         })),
       ].filter((file) => below.some((path) => path.every((name, index) => file.folders[index] === name)))
@@ -113,9 +104,4 @@ export function testFolders(
       created.push({ folder, below, name: file.name, properties: file.properties, content: new TextDecoder().decode(file.bytes) })
     },
   }
-}
-
-/** The SHA-256 of bytes, as the page works it out. */
-export async function hashOf(bytes: ArrayBuffer): Promise<string> {
-  return createHash('sha256').update(new Uint8Array(bytes)).digest('hex')
 }

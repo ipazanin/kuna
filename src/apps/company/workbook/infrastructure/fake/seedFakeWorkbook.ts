@@ -8,7 +8,7 @@ import { failNextUpload, fakeBooksFolder, fakeDriveSession, raceTheNextSave, see
 import { openWorkbookCache } from '../../../../../shared/storage/infrastructure/workbookCache'
 import { saveWorkbookChoice } from '../../../../../shared/storage/infrastructure/workbookChoice'
 import { MAIL_SOURCE_PROPERTY } from '../../../../../shared/mail-filing/domain/mailSource'
-import { fakeMailSettings } from '../../../mail/infrastructure/fake/fakeMailbox'
+import { FAKE_MAIL_SETTINGS } from '../../../mail/infrastructure/fake/fakeMailbox'
 import { FAKE_FOLDERS, FAKE_WORKBOOK_ID, fakeWorkbookDocument } from './fakeWorkbook'
 import type { FakeStaff } from './fakeWorkbook'
 
@@ -34,7 +34,7 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
  * device made on the fake Drive too. `?fake=empty` keeps nothing, which is a first run. A variant that ends
  * in `no-billing-plan`, `no-scenarios` or `no-plan` starts without those records. `?fake=newer-file`
  * is a file a newer app saved, and with `?fake=race` another device saves at the same moment as the
- * first save, with `?fake=slow-writes` every save takes a few seconds to land, and with `?fake=save-fails` the first of them then fails. A variant that starts with `mail` names the bank's and the accountant's mail, which the
+ * first save, with `?fake=slow-writes` every save takes a few seconds to land, and with `?fake=save-fails` the first of them then fails. A variant that starts with `mail` names the bank's mail, which the
  * fake mailbox answers. A variant a pack pays a made-up staff in, which `staffOf` gives, pays them in place of
  * the owner's flat salary. Only the company app's install imports this, behind an inline VITE_FAKE_WORKBOOK comparison,
  * so the module and its fixture never reach a production chunk. `?start=drive` or `?start=browser` is a person who already answered the home welcome, and `?backups` puts backups beside a file on the fake Drive.
@@ -51,7 +51,7 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
   const full = fakeWorkbookDocument(savedAt, source, staffOf(variant))
   const missing = LEFT_OUT.find(([suffix]) => variant?.endsWith(suffix))?.[1] ?? null
   const kept = missing === null ? full : { ...full, records: { ...full.records, [missing]: [] } }
-  const mailed = variant?.startsWith('mail') ? { ...kept, records: { ...kept.records, setting: [...(kept.records.setting ?? []), ...fakeMailSettings(variant)] } } : kept
+  const mailed = variant?.startsWith('mail') ? { ...kept, records: { ...kept.records, setting: [...(kept.records.setting ?? []), ...FAKE_MAIL_SETTINGS] } } : kept
   const document = variant === 'newer-file' ? { ...mailed, schema: { ...mailed.schema, core: (mailed.schema.core ?? 0) + 1 } } : mailed
   if (variant === 'race') {
     raceTheNextSave(otherDeviceSave)
@@ -103,7 +103,7 @@ function otherDeviceSave(text: string): string {
   return encodeDocument({ ...document, records: { ...document.records, 'ledger-row': ledger } })
 }
 
-/** A made-up statements folder holding a statement Kuna filed from mail, one a script filed and the accountant's mail, for the move to sort out. */
+/** A made-up statements folder holding a statement Kuna filed from mail, one a script filed and a file another mail source filed, for the move to sort out. */
 async function seedMixedStatements(): Promise<void> {
   const drive = fakeDriveSession()
   const finance = await drive.createFolder('root', FAKE_FOLDERS.statements[0])

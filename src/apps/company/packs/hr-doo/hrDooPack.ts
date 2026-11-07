@@ -2,13 +2,11 @@ import { defineAsyncComponent } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
 import type { PackContribution } from '../packContribution'
-import { packPart } from '../../workbook/domain/packPart'
-import { ACCOUNTANT_MAIL_SOURCES } from './application/accountantMailSources'
 import { EXPLAIN_FIGURE_SUMMARY } from './assist/presentation/packAssist'
 import { COMPANY_FACT_SETTINGS, companyFactsErrors } from './domain/companyFacts'
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
 import { EMPLOYEE_RECORDS } from './domain/hrDooKinds'
-import { HR_DOO, HR_DOO_PART, hrDooWorkbook } from './domain/hrDooPart'
+import { HR_DOO_PART, hrDooWorkbook } from './domain/hrDooPart'
 import { unaccountedInView } from './domain/ownerAdvances'
 import { ownerTakeOut } from './presentation/ownerTakeOut'
 import { packWaitingJobs } from './presentation/packWaitingJobs'
@@ -46,19 +44,10 @@ export const hrDooPack: PackContribution = {
     card: defineAsyncComponent(() => import('./presentation/CompanyFactsCard.vue')),
     factsOf: (workbook) => (workbook === null ? COMPANY_FACT_SETTINGS.defaults : hrDooWorkbook(workbook).companyFacts),
     errors: companyFactsErrors,
-    withFacts: (workbook, facts) => {
-      const part = packPart(workbook, HR_DOO)
-      return part === null ? workbook : { ...workbook, packParts: { ...workbook.packParts, [HR_DOO.name]: { ...part, companyFacts: facts } } }
-    },
   },
   costGroupLinks: (group) => COST_GROUP_LINKS[group] ?? null,
   categoryClassHelp,
   categoriesToSort,
-  mailSources: ACCOUNTANT_MAIL_SOURCES,
-  folderSettings: (workbook) => {
-    const facts = packPart(workbook, HR_DOO)?.companyFacts
-    return facts === undefined ? [] : [facts.vatReturnsFolder, facts.payrollFolder, facts.incomingInvoicesFolder]
-  },
   onboarding: packWords.onboarding,
   assist: [EXPLAIN_FIGURE_SUMMARY],
   // The records, not the workbook's employees, which drop an IBAN two of them share and a row listed twice.

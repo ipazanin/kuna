@@ -296,17 +296,17 @@ function money(amount: number): string {
 /** The folders of the fake Drive the made-up books name, which the fake statements folder and the fake mail folders answer for. */
 export const FAKE_FOLDERS = {
   statements: ['finance', 'statements'],
-  vatReturns: ['finance', 'vat-returns'],
-  payroll: ['finance', 'payroll'],
-  incomingInvoices: ['finance', 'incoming-invoices'],
 } as const satisfies Readonly<Record<string, readonly string[]>>
 
-/** The rows the made-up books name their folders and the owner-pay module in, as the books saved from the app hold them. */
+/**
+ * The rows the made-up books name their folders and the owner-pay module in, as the books saved from the app hold them. Two are retired
+ * folder rows that older books still hold, which read without a problem.
+ */
 const FAKE_CHOICES: readonly (readonly [key: string, value: FieldValue])[] = [
   ['owner_pay_module', true],
   ['statements_folder', FAKE_FOLDERS.statements.join('/')],
-  ['hr_vat_returns_folder', FAKE_FOLDERS.vatReturns.join('/')],
-  ['hr_payroll_folder', FAKE_FOLDERS.payroll.join('/')],
+  ['hr_vat_returns_folder', 'finance/vat-returns'],
+  ['hr_payroll_folder', 'finance/payroll'],
 ]
 
 /** What the made-up company's invoices print. The invoice folder is left to pick, as on a first run. */

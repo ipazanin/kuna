@@ -5,11 +5,14 @@ import {
   SETTING_DEFINITIONS,
   amountLocaleOf,
   changedPackSettings,
+  packSettingKeys,
   parseSettings,
   readPackSettings,
+  readSettingsTab,
   settingCodec,
   settingsErrors,
   settingsTabEntries,
+  unreadSettingKeys,
 } from '../src/apps/company/settings/domain/settings'
 import type { PackSettings, SettingRow } from '../src/apps/company/settings/domain/settings'
 import { costLabelsInSentence, inSentence, lineLabel, presentedTransactions, shownLines } from '../src/apps/company/settings/domain/profitAndLossLabels'
@@ -239,45 +242,19 @@ describe('the mail keys', () => {
 })
 
 describe('company facts', () => {
-  it('default to no registration day, the accrual return, the invoice principle, owner loans at 0%, no accountant folders and every kind of the accountant’s mail switched off', () => {
+  it('default to no registration day, the accrual return, the invoice principle and owner loans at 0%', () => {
     expect(COMPANY_FACT_SETTINGS.defaults).toEqual({
       companyRegistered: null,
       citReturn: 'pd',
       vatPrinciple: 'invoice',
       depreciationDoubled: false,
       ownerLoanInterest: 0,
-      vatReturnsFolder: [],
-      payrollFolder: [],
-      accountantMailFrom: [],
-      payrollMailSync: false,
-      vatMailSync: false,
-      invoicesMailSync: false,
-      payrollMailSubject: '',
-      vatMailSubject: '',
-      invoicesMailSubject: '',
-      incomingInvoicesFolder: [],
     })
   })
 
   it('read every key, a registration day from a date cell or from text, and write them back the same way', () => {
     const { values, problems } = readPackSettings(
-      rows(
-        ['hr_company_registered', 45789],
-        ['hr_cit_return', 'PD-NN'],
-        ['hr_vat_principle', 'cash'],
-        ['hr_depreciation_doubled', 'TRUE'],
-        ['hr_owner_loan_interest', '2.5%'],
-        ['hr_vat_returns_folder', ' finance / vat '],
-        ['hr_payroll_folder', 'finance/payroll/'],
-        ['hr_accountant_mail_from', 'Office@Accountant.example.com, desk@accountant.example.com'],
-        ['hr_payroll_mail_sync', 'TRUE'],
-        ['hr_vat_mail_sync', false],
-        ['hr_invoices_mail_sync', true],
-        ['hr_payroll_mail_subject', ' Plaća za '],
-        ['hr_vat_mail_subject', 'PDV za'],
-        ['hr_invoices_mail_subject', 'Račun za'],
-        ['hr_incoming_invoices_folder', 'finance/incoming-invoices'],
-      ),
+      rows(['hr_company_registered', 45789], ['hr_cit_return', 'PD-NN'], ['hr_vat_principle', 'cash'], ['hr_depreciation_doubled', 'TRUE'], ['hr_owner_loan_interest', '2.5%']),
       COMPANY_FACT_SETTINGS,
     )
 
@@ -288,16 +265,6 @@ describe('company facts', () => {
       vatPrinciple: 'cash',
       depreciationDoubled: true,
       ownerLoanInterest: 250,
-      vatReturnsFolder: ['finance', 'vat'],
-      payrollFolder: ['finance', 'payroll'],
-      accountantMailFrom: ['office@accountant.example.com', 'desk@accountant.example.com'],
-      payrollMailSync: true,
-      vatMailSync: false,
-      invoicesMailSync: true,
-      payrollMailSubject: 'Plaća za',
-      vatMailSubject: 'PDV za',
-      invoicesMailSubject: 'Račun za',
-      incomingInvoicesFolder: ['finance', 'incoming-invoices'],
     })
     expect(readPackSettings(rows(['hr_company_registered', '2025-05-12']), COMPANY_FACT_SETTINGS).values.companyRegistered).toBe('2025-05-12')
     const written = settingsTabEntries(DEFAULT_SETTINGS, { settings: COMPANY_FACT_SETTINGS, values })
@@ -317,21 +284,39 @@ describe('company facts', () => {
   })
 
   it('are left to the pack by the core parser, which neither reads nor reports them', () => {
-    const packKeys = new Set(COMPANY_FACT_SETTINGS.definitions.map((definition) => definition.key))
-
-    expect(parseSettings(rows(['hr_cit_return', 'pd'], ['hr_company_registered', 'unknown']), packKeys)).toEqual({ settings: DEFAULT_SETTINGS, problems: [] })
+    expect(parseSettings(rows(['hr_cit_return', 'pd'], ['hr_company_registered', 'unknown']), packSettingKeys(COMPANY_FACT_SETTINGS))).toEqual({ settings: DEFAULT_SETTINGS, problems: [] })
     expect(parseSettings(rows(['hr_cit_return', 'pd'])).problems).toEqual([settingProblem('hr_cit_return', 'not a setting this app knows, so it is kept but not used')])
   })
 
-  it('report the owner keys that the director row on the employees tab holds and the retired accountant read switch as keys the app does not know', () => {
-    const packKeys = new Set(COMPANY_FACT_SETTINGS.definitions.map((definition) => definition.key))
-
+  it('report the owner keys that the director row on the employees tab holds as keys the app does not know', () => {
     expect(
-      parseSettings(rows(['hr_residence_city', 'Zagreb'], ['hr_birth_year', 1990], ['hr_pension_pillar_2', true], ['hr_dependants', 0], ['hr_accountant_sync', true]), packKeys).problems.map(
+      parseSettings(rows(['hr_residence_city', 'Zagreb'], ['hr_birth_year', 1990], ['hr_pension_pillar_2', true], ['hr_dependants', 0]), packSettingKeys(COMPANY_FACT_SETTINGS)).problems.map(
         (problem) => problem.label,
       ),
-    ).toEqual(['hr_residence_city', 'hr_birth_year', 'hr_pension_pillar_2', 'hr_dependants', 'hr_accountant_sync'])
-    expect(readPackSettings(rows(['hr_accountant_sync', false]), COMPANY_FACT_SETTINGS)).toEqual({ values: COMPANY_FACT_SETTINGS.defaults, problems: [] })
+    ).toEqual(['hr_residence_city', 'hr_birth_year', 'hr_pension_pillar_2', 'hr_dependants'])
+  })
+
+  it('read the retired rows of the accountant’s mail silently, list none of them as unread, and leave them out of a save', () => {
+    const retired = rows(
+      ['hr_accountant_sync', true],
+      ['hr_accountant_mail_from', 'office@bookkeeper.example.com'],
+      ['hr_payroll_mail_sync', 'TRUE'],
+      ['hr_vat_mail_sync', false],
+      ['hr_invoices_mail_sync', 'TRUE'],
+      ['hr_payroll_mail_subject', 'Plaća za'],
+      ['hr_vat_mail_subject', 'PDV "za"'],
+      ['hr_invoices_mail_subject', 'Račun za'],
+      ['hr_payroll_folder', 'finance/payroll'],
+      ['hr_vat_returns_folder', ' / '],
+      ['hr_incoming_invoices_folder', 'finance/incoming-invoices'],
+      ['old_switch', 'TRUE'],
+    )
+    const read = readSettingsTab(retired, COMPANY_FACT_SETTINGS)
+
+    expect(read.problems).toEqual([settingProblem('old_switch', 'not a setting this app knows, so it is kept but not used')])
+    expect(read.packValues).toEqual(COMPANY_FACT_SETTINGS.defaults)
+    expect(unreadSettingKeys(retired, COMPANY_FACT_SETTINGS as PackSettings<unknown>)).toEqual(new Map([['old_switch', 1]]))
+    expect(changedPackSettings(COMPANY_FACT_SETTINGS, COMPANY_FACT_SETTINGS.defaults, { ...COMPANY_FACT_SETTINGS.defaults, citReturn: 'pd-nn' })).toEqual([{ key: 'hr_cit_return', value: 'pd-nn' }])
   })
 
   it('change only the keys whose value differs, in template order', () => {
@@ -345,7 +330,7 @@ describe('company facts', () => {
 
   it('fall back to the default for a value that does not hold, and say which key', () => {
     const { values, problems } = readPackSettings(
-      rows(['hr_company_registered', '12.05.2025.'], ['hr_cit_return', 'cash'], ['hr_vat_principle', 'monthly'], ['hr_depreciation_doubled', 'perhaps'], ['hr_payroll_folder', ' / ']),
+      rows(['hr_company_registered', '12.05.2025.'], ['hr_cit_return', 'cash'], ['hr_vat_principle', 'monthly'], ['hr_depreciation_doubled', 'perhaps']),
       COMPANY_FACT_SETTINGS,
     )
 
@@ -355,9 +340,8 @@ describe('company facts', () => {
       settingProblem('hr_cit_return', '"cash" is neither pd nor pd-nn, so the default is used'),
       settingProblem('hr_vat_principle', '"monthly" is neither invoice nor cash, so the default is used'),
       settingProblem('hr_depreciation_doubled', '"perhaps" is neither TRUE nor FALSE, so the default is used'),
-      settingProblem('hr_payroll_folder', '"/" names no folder, so the default is used'),
     ])
-    expect(companyFactsErrors({ ...COMPANY_FACT_SETTINGS.defaults, vatReturnsFolder: [] })).toEqual({})
+    expect(companyFactsErrors(COMPANY_FACT_SETTINGS.defaults)).toEqual({})
   })
 
   it('read the owner loan interest as a percentage cell or as a percent typed as text', () => {
@@ -426,31 +410,7 @@ describe('company facts', () => {
       { key: 'hr_vat_principle', value: 'invoice' },
       { key: 'hr_depreciation_doubled', value: 'FALSE' },
       { key: 'hr_owner_loan_interest', value: '0%' },
-      { key: 'hr_vat_returns_folder', value: '' },
-      { key: 'hr_payroll_folder', value: '' },
-      { key: 'hr_accountant_mail_from', value: '' },
-      { key: 'hr_payroll_mail_sync', value: 'FALSE' },
-      { key: 'hr_vat_mail_sync', value: 'FALSE' },
-      { key: 'hr_invoices_mail_sync', value: 'FALSE' },
-      { key: 'hr_payroll_mail_subject', value: '' },
-      { key: 'hr_vat_mail_subject', value: '' },
-      { key: 'hr_invoices_mail_subject', value: '' },
-      { key: 'hr_incoming_invoices_folder', value: '' },
     ])
-  })
-
-  it('refuse an accountant address that is not one and a subject with a double quote, in the tab and in the app', () => {
-    const { values, problems } = readPackSettings(rows(['hr_accountant_mail_from', 'accountant.example.com'], ['hr_vat_mail_subject', 'PDV "za"']), COMPANY_FACT_SETTINGS)
-
-    expect(values).toEqual(COMPANY_FACT_SETTINGS.defaults)
-    expect(problems).toEqual([
-      settingProblem('hr_accountant_mail_from', '"accountant.example.com" is not a mail address, so the default is used'),
-      settingProblem('hr_vat_mail_subject', 'a subject cannot hold a double quote, which would end the phrase Gmail searches for, so the default is used'),
-    ])
-    expect(companyFactsErrors({ ...COMPANY_FACT_SETTINGS.defaults, accountantMailFrom: ['accountant'], payrollMailSubject: 'Plaća "za"' })).toEqual({
-      accountantMailFrom: '"accountant" is not a mail address',
-      payrollMailSubject: 'a subject cannot hold a double quote, which would end the phrase Gmail searches for',
-    })
   })
 })
 
@@ -542,7 +502,7 @@ describe('settingsErrors', () => {
   })
 
   it('names the company facts the editor must not save', () => {
-    const errors = companyFactsErrors({ ...COMPANY_FACT_SETTINGS.defaults, ownerLoanInterest: null, payrollFolder: [] })
+    const errors = companyFactsErrors({ ...COMPANY_FACT_SETTINGS.defaults, ownerLoanInterest: null })
 
     expect(errors).toEqual({ ownerLoanInterest: 'use a rate from 0% to 100% with at most two decimals, such as 2%' })
   })

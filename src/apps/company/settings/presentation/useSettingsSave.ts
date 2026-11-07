@@ -58,8 +58,7 @@ export function useSettingsSave(): SettingsSave {
         await write(changes)
         return
       }
-      const saved = { ...workbook, settings: next }
-      await sync.saveAllowing(pack.companyFacts?.withFacts(saved, nextFacts) ?? saved, () => write(changes))
+      await sync.saveAllowing({ ...workbook, settings: next }, () => write(changes))
     },
   }
 }

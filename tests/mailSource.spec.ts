@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  afterPhrase,
   filedMailProperties,
   mailAddressesOf,
   mailAddressesProblem,
@@ -28,7 +27,7 @@ describe('a mail source', () => {
     expect(mailQuery({ senders: ['statements@bank.example.com', 'notices@bank.example.com'], subject: 'Izvadak' }, window)).toBe(
       'from:(statements@bank.example.com OR notices@bank.example.com) subject:"Izvadak" has:attachment after:1735686000',
     )
-    expect(mailQuery({ senders: ['office@accountant.example.com'], subject: 'Plaća za' }, window)).toBe('from:(office@accountant.example.com) subject:"Plaća za" has:attachment after:1735686000')
+    expect(mailQuery({ senders: ['reports@broker.example.com'], subject: 'Račun za' }, window)).toBe('from:(reports@broker.example.com) subject:"Račun za" has:attachment after:1735686000')
   })
 
   it('starts from the mail-since day while its folder holds nothing, and a week before the newest file once that is later', () => {
@@ -51,7 +50,7 @@ describe('a mail source', () => {
   })
 
   it('is off while the books turn it off, and on without all it needs names what it lacks', () => {
-    const terms = { senders: ['office@accountant.example.com'], subject: 'PDV za', folder: ['finance', 'vat-returns'] }
+    const terms = { senders: ['reports@broker.example.com'], subject: 'Activity statement', folder: ['finance', 'broker-reports'] }
 
     expect(sourceTerms(false, { senders: [], subject: '', folder: [] })).toEqual({ kind: 'off' })
     expect(sourceTerms(true, terms)).toEqual({ kind: 'on', terms })
@@ -71,27 +70,21 @@ describe('a mail source', () => {
 
   it('names the folder of a year by the year and the source folder’s own name', () => {
     expect(yearFolderName(2026, ['work', 'dss', 'erste', 'statements'])).toBe('2026-statements')
-    expect(yearFolderName('2026', ['finance', 'vat-returns'])).toBe('2026-vat-returns')
+    expect(yearFolderName('2026', ['finance', 'broker-reports'])).toBe('2026-broker-reports')
     expect(yearFolderName(2025, ['incoming-invoices'])).toBe('2025-incoming-invoices')
   })
 
-  it('reads what follows the subject phrase once the replies’ prefixes are off, whatever the case and the Croatian characters', () => {
-    expect(strippedSubject('RE: FW: Re:Plaća za 9/2026')).toBe('Plaća za 9/2026')
-    expect(strippedSubject('Fwd: PDV za 8/25')).toBe('PDV za 8/25')
-    expect(afterPhrase('RE: FW: Plaća za 9/2026', 'Plaća za')).toBe(' 9/2026')
-    expect(afterPhrase('PLACA ZA 9/2026', 'Plaća za')).toBe(' 9/2026')
-    expect(afterPhrase('Račun za 6/2026', 'Racun za')).toBe(' 6/2026')
-    expect(afterPhrase('Informacija: Plaća za 9/2026', 'Plaća za')).toBeNull()
-    expect(afterPhrase('Plaća za 9/2026', '')).toBeNull()
+  it('takes the replies’ prefixes off a subject', () => {
+    expect(strippedSubject('RE: FW: Re:Izvadak 9/2026')).toBe('Izvadak 9/2026')
+    expect(strippedSubject('Fwd: Račun za 8/25')).toBe('Račun za 8/25')
   })
 
   it('counts what it found in one line, with nothing new said when nothing was filed', () => {
-    const none = { filed: 0, notFiled: 0, already: 0, corrections: 0, unchecked: 0, unmatched: 0 }
+    const none = { filed: 0, notFiled: 0, already: 0, unmatched: 0 }
 
     expect(en.counts({ ...none, filed: 2, already: 50 })).toBe('Filed 2, already there 50')
     expect(en.counts({ ...none, filed: 2, already: 50, unmatched: 1 })).toBe('Filed 2, already there 50, 1 unmatched')
     expect(en.counts({ ...none, already: 50 })).toBe('Nothing new, already there 50')
-    expect(en.counts({ ...none, corrections: 2, unchecked: 1 })).toBe('Nothing new, 2 corrections, 1 not compared')
     expect(en.counts({ ...none, notFiled: 1, already: 50 })).toBe('Nothing filed, already there 50')
     expect(en.counts({ ...none, filed: 1, notFiled: 1 })).toBe('Filed 1')
   })
@@ -103,9 +96,9 @@ describe('a mail source', () => {
   })
 
   it('marks a filed file with its source, the mail’s Gmail id and the mail’s date, each property within the 124 bytes Drive keeps with its key', () => {
-    const properties = filedMailProperties('hr-doo.vat-returns', { id: '19a3f2c4b5d6e7f8', date: Date.parse('2026-10-14T12:00:00Z') })
+    const properties = filedMailProperties('broker.flex-report', { id: '19a3f2c4b5d6e7f8', date: Date.parse('2026-10-14T12:00:00Z') })
 
-    expect(properties).toEqual({ 'kuna-mail': 'hr-doo.vat-returns', 'kuna-mail-id': '19a3f2c4b5d6e7f8', 'kuna-mail-date': '2026-10-14T12:00:00.000Z' })
+    expect(properties).toEqual({ 'kuna-mail': 'broker.flex-report', 'kuna-mail-id': '19a3f2c4b5d6e7f8', 'kuna-mail-date': '2026-10-14T12:00:00.000Z' })
     expect(Object.entries(properties).map(([key, value]) => new TextEncoder().encode(`${key}${value}`).length)).toEqual([27, 28, 38])
     expect(() => filedMailProperties('statements', { id: 'x'.repeat(113), date: 0 })).toThrow('Its kuna-mail-id property would be longer than the 124 bytes Drive keeps')
     expect(filedMailProperties('statements', { id: 'x'.repeat(112), date: 0 })['kuna-mail-id']).toHaveLength(112)
@@ -118,7 +111,7 @@ describe('a mail source', () => {
   })
 
   it('refuses a subject with a double quote, which would end the phrase Gmail searches for', () => {
-    expect(mailSubjectProblem('Plaća za')).toBeNull()
+    expect(mailSubjectProblem('Račun za')).toBeNull()
     expect(mailSubjectProblem('Izvod "dnevni"')).toBe('a subject cannot hold a double quote, which would end the phrase Gmail searches for')
   })
 })

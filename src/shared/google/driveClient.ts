@@ -24,8 +24,6 @@ export interface DriveFile {
   readonly parents: readonly string[]
   /** RFC 3339 time the file was made in Drive. */
   readonly createdTime: string
-  /** The SHA-256 of the file's content in lower-case hex. Drive leaves it out for a Google document and for some uploads. */
-  readonly sha256Checksum?: string
   /** The properties this app gave the file, which only it sees. */
   readonly appProperties?: Readonly<Record<string, string>>
   /** Whether this app made the file, or a person opened it with this app. */

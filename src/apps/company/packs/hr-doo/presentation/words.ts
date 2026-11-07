@@ -13,7 +13,7 @@ import { monthCase } from '../../../../../shared/calendar/monthCase'
 import { hr as assetsCroatian } from './assets/words'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
-// The accountant is knjigovođa, a loan to the owner pozajmica vlasniku. A subject phrase such as Plaća za is the accountant's own words, so it is never translated.
+// The accountant is knjigovođa, a loan to the owner pozajmica vlasniku.
 
 const ENGLISH_LOAN_NOTE = ' Loans to the owner and their repayments stay out, since a loan is not pay.'
 const ENGLISH_RENT_NOTE = ' Rent counts after the rent tax, which the owner pays the tax office out of it.'
@@ -44,34 +44,6 @@ export const en = {
     onPayment: 'When it is paid',
     doubled: 'Depreciation rates are doubled',
     doubledHelp: 'The default for assets. An asset row can still say otherwise.',
-    accountantMail: "The accountant's mail",
-    accountantMailNote: 'Each sync looks in Gmail for the kinds switched on and files what is new into their folders, which the Mail card lists. Nothing in the app reads those files.',
-    accountantFrom: 'The accountant mails from',
-    accountantFromHelp: 'Mail addresses, comma separated, which every kind below searches for.',
-    notRead: 'Not read',
-    notSet: 'Not set',
-    kindOffNote: 'Off makes no Gmail or Drive call for it.',
-    payroll: {
-      label: 'Read the payroll mail',
-      subject: 'Payroll subject starts with',
-      subjectHelp: 'The words before the month, such as Plaća za.',
-      folder: 'Payroll folder',
-      folderHelp: 'Where it goes in Google Drive, as a path from My Drive, with a folder for each year and month inside.',
-    },
-    vat: {
-      label: 'Read the VAT return mail',
-      subject: 'VAT return subject starts with',
-      subjectHelp: 'The words before the period, such as PDV za.',
-      folder: 'VAT returns folder',
-      folderHelp: 'Where it goes in Google Drive, as a path from My Drive, with a folder for each year inside.',
-    },
-    invoices: {
-      label: "Read the accountant's invoice mail",
-      subject: 'Invoice subject starts with',
-      subjectHelp: "The words the accountant's own invoice mail starts with, such as Račun za.",
-      folder: "Accountant's invoices folder",
-      folderHelp: 'Where it goes in Google Drive, as a path from My Drive, with a folder for each year and month inside.',
-    },
   },
   /** The switch of Settings, General that puts loans to the owner in owner pay or in financing. */
   loanBucket: {
@@ -520,34 +492,6 @@ export const hr: Translation<typeof en> = {
     onPayment: 'Prema naplaćenim naknadama',
     doubled: 'Stope amortizacije su udvostručene',
     doubledHelp: 'Zadano za sredstva. Redak sredstva i dalje može navesti drukčije.',
-    accountantMail: 'Pošta knjigovođe',
-    accountantMailNote: 'Svaka sinkronizacija u Gmailu traži uključene vrste pošte i novo sprema u njihove mape, koje navodi kartica Pošta. Ništa u aplikaciji ne čita te datoteke.',
-    accountantFrom: 'Knjigovođa šalje s adresa',
-    accountantFromHelp: 'Adrese e-pošte, odvojene zarezom, koje traži svaka vrsta pošte ispod.',
-    notRead: 'Ne čita se',
-    notSet: 'Nije postavljeno',
-    kindOffNote: 'Kad je isključeno, za nju se ne poziva ni Gmail ni Drive.',
-    payroll: {
-      label: 'Čitaj poštu o plaćama',
-      subject: 'Predmet pošte o plaćama počinje s',
-      subjectHelp: 'Riječi ispred mjeseca, na primjer Plaća za.',
-      folder: 'Mapa plaća',
-      folderHelp: 'Kamo se sprema na Google Driveu, kao put od mape Moj disk, s mapom za svaku godinu i mjesec unutra.',
-    },
-    vat: {
-      label: 'Čitaj poštu s prijavama PDV-a',
-      subject: 'Predmet pošte s prijavom PDV-a počinje s',
-      subjectHelp: 'Riječi ispred razdoblja, na primjer PDV za.',
-      folder: 'Mapa prijava PDV-a',
-      folderHelp: 'Kamo se sprema na Google Driveu, kao put od mape Moj disk, s mapom za svaku godinu unutra.',
-    },
-    invoices: {
-      label: 'Čitaj poštu s računima knjigovođe',
-      subject: 'Predmet pošte s računom počinje s',
-      subjectHelp: 'Riječi kojima počinje pošta s računima samog knjigovođe, na primjer Račun za.',
-      folder: 'Mapa računa knjigovođe',
-      folderHelp: 'Kamo se sprema na Google Driveu, kao put od mape Moj disk, s mapom za svaku godinu i mjesec unutra.',
-    },
   },
   loanBucket: {
     title: 'Pozajmice vlasniku',

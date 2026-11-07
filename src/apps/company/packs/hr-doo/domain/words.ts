@@ -36,21 +36,6 @@ export const en = {
     planTabRows: (count: number): EnglishForms => ({ one: `${count} plan tab row`, other: `${count} plan tab rows` }),
     assets: (count: number): EnglishForms => ({ one: `${count} asset`, other: `${count} assets` }),
   },
-  /** The accountant's kinds of mail as the Mail card lists them, and why an attachment of one is not filed. */
-  accountantMail: {
-    payroll: 'Payroll',
-    vatReturns: 'VAT returns',
-    invoices: "Accountant's invoices",
-    notStartingWith: (phrase: string) => `The subject does not start with ${phrase}.`,
-    noMonth: 'The subject names no month, such as 9/2026.',
-    noPeriod: 'The subject names no period, such as 9/2026.',
-    noEmployee: 'It names no one on the employees tab, and no single employee worked that month to file it for.',
-    unknownOrder: 'It is a payment order of a kind the app does not know, so it is not filed under a guess.',
-    orderWithoutPdf: 'No payment order PDF in the same mail says which order it carries.',
-    notPayroll: 'It is not a payroll document the app knows how to name.',
-    notVatReturn: "It is not the accountant's VAT return workbook.",
-    notInvoice: "It is not the accountant's invoice PDF.",
-  },
   /** Why a row of the pack's tabs cannot be read, as the problems card lists it. A field keeps its name as the tab stores it. */
   reading: {
     listedTwice: (key: string) => `"${key}" is listed on more than one row, so none of them counts`,
@@ -168,20 +153,6 @@ export const hr: Translation<typeof en> = {
     yearEndKontoRows: (count) => ({ one: `${count} konto stavka zaključka godine`, few: `${count} konto stavke zaključka godine`, other: `${count} konto stavki zaključka godine` }),
     planTabRows: (count) => ({ one: `${count} stavka plana`, few: `${count} stavke plana`, other: `${count} stavki plana` }),
     assets: (count) => ({ one: `${count} sredstvo`, few: `${count} sredstva`, other: `${count} sredstava` }),
-  },
-  accountantMail: {
-    payroll: 'Plaće',
-    vatReturns: 'Prijave PDV-a',
-    invoices: 'Računi knjigovođe',
-    notStartingWith: (phrase) => `Predmet ne počinje s ${phrase}.`,
-    noMonth: 'Predmet ne navodi mjesec, na primjer 9/2026.',
-    noPeriod: 'Predmet ne navodi razdoblje, na primjer 9/2026.',
-    noEmployee: 'Ne navodi nikoga s lista „employees”, a taj mjesec nije radio samo jedan zaposlenik za kojeg bi se spremio.',
-    unknownOrder: 'To je platni nalog vrste koju aplikacija ne poznaje, pa se ne sprema nagađanjem.',
-    orderWithoutPdf: 'Nijedan PDF platnog naloga u istoj poruci ne kaže koji nalog nosi.',
-    notPayroll: 'To nije dokument o plaćama koji aplikacija zna nazvati.',
-    notVatReturn: 'To nije datoteka s prijavom PDV-a koju šalje knjigovođa.',
-    notInvoice: 'To nije PDF računa koji šalje knjigovođa.',
   },
   reading: {
     listedTwice: (key) => `„${key}” naveden je u više redaka, pa se nijedan ne broji`,

@@ -1,7 +1,6 @@
 import type { DriveFileBeside } from '../../../../shared/storage/application/workbookPorts'
 import { BOOKS_FOLDER, folderTrail, startsAtBooksFolder } from '../../../../shared/text/folderPath'
 import { MAIL_STATEMENTS_FOLDER } from '../../onboarding/domain/statementsChoice'
-import { installedPack } from '../../packs/packContribution'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { words } from './words'
 
@@ -15,15 +14,12 @@ function statementsFollowFile(workbook: Workbook): boolean {
 }
 
 /**
- * What goes along when the books file moves: only what Kuna made, so the statements it filed from mail come and the accountant's files stay. A statements
- * folder Kuna does not file into keeps its path, since whatever does file there goes on being read. The invoice folder is one the person picked, and its
- * id finds it wherever the file is. An accountant's folder named from the books file cannot follow, and holds the move back, or it would be lost.
+ * What goes along when the books file moves: only what Kuna made, so the statements it filed from mail come. A statements folder Kuna does not file
+ * into keeps its path, since whatever does file there goes on being read. The invoice folder is one the person picked, and its id finds it wherever
+ * the file is.
  */
 export function companyFileBeside(workbook: Workbook): DriveFileBeside {
   const { statementsFolder, invoicing } = workbook.settings
-  const packFolders = installedPack()
-    .folderSettings(workbook)
-    .filter((path) => path.length > 0)
   const statements = statementsFollowFile(workbook)
     ? [{ name: MAIL_STATEMENTS_FOLDER, fromPath: statementsFolder, mailSource: STATEMENTS_MAIL_SOURCE }]
     : startsAtBooksFolder(statementsFolder) && statementsFolder[1] !== undefined
@@ -32,12 +28,8 @@ export function companyFileBeside(workbook: Workbook): DriveFileBeside {
   return {
     files: [],
     folders: statements,
-    stays: [
-      ...(statementsFolder.length > 0 && statements.length === 0 ? [folderTrail(statementsFolder)] : []),
-      ...packFolders.filter((path) => !startsAtBooksFolder(path)).map((path) => folderTrail(path)),
-      ...(invoicing.folderId === '' ? [] : [words.books.invoiceFolder]),
-    ],
-    blockedBy: packFolders.filter(startsAtBooksFolder).map((path) => path.join('/')),
+    stays: [...(statementsFolder.length > 0 && statements.length === 0 ? [folderTrail(statementsFolder)] : []), ...(invoicing.folderId === '' ? [] : [words.books.invoiceFolder])],
+    blockedBy: [],
   }
 }
 

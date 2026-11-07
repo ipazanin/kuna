@@ -17,7 +17,7 @@ import { words } from './words'
 /**
  * The mail card of Settings, General: where each sync looks in Gmail for the bank's statements,
  * edited in the settings form's draft and saved by its Save, and what the last sync's mail step
- * found and filed for every kind of mail. A link to `#mail`, as the mail step's line gives, opens it.
+ * found and filed of them. A link to `#mail`, as the mail step's line gives, opens it.
  */
 const props = defineProps<{
   /** The settings as drafted. */

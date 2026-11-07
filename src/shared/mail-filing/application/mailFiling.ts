@@ -20,12 +20,11 @@ export interface Mailbox {
   attachment(messageId: string, attachmentId: string): Promise<ArrayBuffer>
 }
 
-/** A file already in a source's folder: its folders below the source's folder, when Drive made it in epoch milliseconds, and its SHA-256 when Drive gives one. */
+/** A file already in a source's folder: its folders below the source's folder, and when Drive made it in epoch milliseconds. */
 export interface FiledFile {
   readonly folders: readonly string[]
   readonly name: string
   readonly createdTime: number
-  readonly sha256: string | null
   /** The date of the mail the app filed it from, as its properties say, or null for a file another app or a person made. */
   readonly filedFrom: number | null
 }
@@ -53,17 +52,11 @@ export interface MailReading<Books> {
   bytes(attachment: MailAttachment): Promise<ArrayBuffer>
 }
 
-/**
- * One kind of mail the step files, such as the bank's statements, which an app contributes. A
- * redelivery source skips any file of the same name, or of the same redelivery ending. A correction
- * source takes a same-named file from an older mail with other bytes as a correction, as the
- * accountant's resends are.
- */
+/** One kind of mail the step files, such as the bank's statements, which an app contributes. It skips any file of the same name, or of the same redelivery ending. */
 export interface MailSource<Books> {
   readonly id: string
   /** Its name in the step's line and the list, such as Bank statements. */
   readonly label: string
-  readonly duplicates: 'redelivery' | 'correction'
   /** Whether the books turn it on, and what they search for and file into. */
   terms(books: Books): SourceTerms
   /** Where each attachment of one mail goes, or why it matches no rule. */
@@ -85,13 +78,9 @@ export interface PlacedAttachment {
   readonly name: string
 }
 
-/**
- * What the step did with one attachment: filed it at its path, failed to upload it, found it
- * already there, found a same-named file from an older mail with other bytes, which is a
- * correction, or with no SHA-256 to compare, or matched it to no rule.
- */
+/** What the step did with one attachment: filed it at its path, failed to upload it, found it already there, or matched it to no rule. */
 export type PlanEntry =
-  | (PlacedAttachment & { readonly kind: 'filed' | 'already' | 'unchecked' | 'correction' })
+  | (PlacedAttachment & { readonly kind: 'filed' | 'already' })
   | (PlacedAttachment & { readonly kind: 'not-filed'; readonly reason: string })
   | { readonly kind: 'unmatched'; readonly mail: PlannedMail; readonly attachment: string; readonly reason: string }
 
@@ -118,8 +107,7 @@ export interface MailFilingPorts<Books> {
   readonly sinceStart: number
   /** The years from the mail-since day's to this one's, whose folders a source lists before it searches. */
   readonly years: readonly number[]
-  hash(bytes: ArrayBuffer): Promise<string>
-  /** The step's line while it runs: each source still running with what it does, such as "Bank statements: filing 2 of 3 · VAT returns: searching". */
+  /** The step's line while it runs: each source still running with what it does, such as "Bank statements: filing 2 of 3 · Broker reports: searching". */
   report(line: string): void
 }
 
@@ -261,12 +249,7 @@ export async function eachAtMost<Item, Result>(items: readonly Item[], count: nu
 }
 
 /** A file to compare a new name with: one the folder holds, or one an earlier mail of this run files. */
-interface Comparable {
-  readonly folders: readonly string[]
-  readonly name: string
-  readonly createdTime: number
-  sha256(): Promise<string | null>
-}
+type Comparable = Pick<FiledFile, 'folders' | 'name'>
 
 /**
  * One source's plan. Its year folders from the mail-since year on are listed before the search, so
@@ -302,7 +285,7 @@ async function planSource<Books>(source: MailSource<Books>, terms: MailTerms, { 
   if (olderListing.kind === 'refused') {
     return { kind: 'failed', id: source.id, label: source.label, reason: olderListing.reason }
   }
-  const comparables: Comparable[] = [...listing.files, ...olderListing.files].map((file) => ({ ...file, sha256: async () => file.sha256 }))
+  const comparables: Comparable[] = [...listing.files, ...olderListing.files]
   const found: (PlanEntry | ToFile)[] = []
   for (const { message, naming, bytes } of named) {
     const mail = { id: message.id, subject: message.subject, date: message.date }
@@ -311,25 +294,12 @@ async function planSource<Books>(source: MailSource<Books>, terms: MailTerms, { 
       continue
     }
     const at: PlacedAttachment = { mail, attachment: naming.attachment.name, path: [...terms.folder, ...naming.folders], name: naming.name }
-    const hash = once(async () => ports.hash(await bytes()))
-    const filedFromThisMail: Comparable = { folders: naming.folders, name: naming.name, createdTime: message.date, sha256: hash }
-    const same = comparables.find((file) => samePath(file.folders, naming.folders) && (file.name === naming.name || (naming.redelivery !== null && file.name.endsWith(naming.redelivery))))
-    if (same === undefined) {
-      found.push({ kind: 'to-file', at, folders: naming.folders, bytes })
-      comparables.push(filedFromThisMail)
-      continue
-    }
-    const sameFile = source.duplicates === 'redelivery' || same.createdTime >= message.date
-    const filed = sameFile ? null : await same.sha256()
-    if (sameFile) {
-      found.push({ kind: 'already', ...at })
-    } else if (filed === null) {
-      found.push({ kind: 'unchecked', ...at })
-    } else if (filed === (await hash())) {
+    const same = comparables.some((file) => samePath(file.folders, naming.folders) && (file.name === naming.name || (naming.redelivery !== null && file.name.endsWith(naming.redelivery))))
+    if (same) {
       found.push({ kind: 'already', ...at })
     } else {
-      found.push({ kind: 'correction', ...at })
-      comparables.splice(comparables.indexOf(same), 1, filedFromThisMail)
+      found.push({ kind: 'to-file', at, folders: naming.folders, bytes })
+      comparables.push({ folders: naming.folders, name: naming.name })
     }
   }
   const toFile = found.filter((outcome) => outcome.kind === 'to-file').length
@@ -407,7 +377,7 @@ function uniquePaths(paths: readonly (readonly string[])[]): (readonly string[])
 /** What the step did, counted over the entries of every source that ran. */
 export function mailCounts(entries: readonly PlanEntry[]): MailCounts {
   const count = (kind: PlanEntry['kind']): number => entries.filter((entry) => entry.kind === kind).length
-  return { filed: count('filed'), notFiled: count('not-filed'), already: count('already'), corrections: count('correction'), unchecked: count('unchecked'), unmatched: count('unmatched') }
+  return { filed: count('filed'), notFiled: count('not-filed'), already: count('already'), unmatched: count('unmatched') }
 }
 
 /** The files of a source whose upload failed, named in a sentence, or null when none did. */
@@ -423,7 +393,7 @@ export function hasProblem(plan: MailPlan): boolean {
 
 /**
  * The step's line: the counts over every source that ran, then each source that failed with why,
- * such as "VAT returns: Gmail did not answer.", and each file that was not filed, by source.
+ * such as "Bank statements: Gmail did not answer.", and each file that was not filed, by source.
  */
 export function planLine(plan: MailPlan): string {
   const planned = plan.sources.flatMap((source) => (source.kind === 'planned' ? source.entries : []))

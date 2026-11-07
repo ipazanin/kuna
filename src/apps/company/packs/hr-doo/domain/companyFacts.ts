@@ -2,10 +2,8 @@ import { parseCivilDate } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { percentFromBasisPoints, percentFromWhole, percentFromWritten, writtenPercent } from '../../../../../shared/money/percent'
 import type { Percent } from '../../../../../shared/money/percent'
-import { folderPathOf } from '../../../../../shared/text/folderPath'
-import { mailAddressesOf, mailAddressesProblem, mailSubjectProblem } from '../../../../../shared/mail-filing/domain/mailSource'
 import { booleanOf, flagText } from '../../../settings/domain/settings'
-import type { PackSettings, SettingDefinition } from '../../../settings/domain/settings'
+import type { PackSettings } from '../../../settings/domain/settings'
 import { words as settingsWords } from '../../../settings/domain/words'
 import { words } from './words'
 
@@ -35,22 +33,6 @@ export interface CompanyFacts {
   readonly depreciationDoubled: boolean
   /** The yearly interest rate the owner's loans carry. */
   readonly ownerLoanInterest: Percent
-  /** The Drive folder the accountant's VAT return mail is filed in, as folder names from My Drive down. None until one is chosen. */
-  readonly vatReturnsFolder: readonly string[]
-  /** The Drive folder the accountant's payroll mail is filed in, as folder names from My Drive down. None until one is chosen. */
-  readonly payrollFolder: readonly string[]
-  /** The addresses the accountant mails from, in lower case. */
-  readonly accountantMailFrom: readonly string[]
-  /** Whether each sync reads each kind of the accountant's mail. Each is off until the person switches it on. */
-  readonly payrollMailSync: boolean
-  readonly vatMailSync: boolean
-  readonly invoicesMailSync: boolean
-  /** The words the subject of each kind of the accountant's mail starts with. */
-  readonly payrollMailSubject: string
-  readonly vatMailSubject: string
-  readonly invoicesMailSubject: string
-  /** The Drive folder the accountant's own invoices are filed in, as folder names from My Drive down. None until one is chosen. */
-  readonly incomingInvoicesFolder: readonly string[]
 }
 
 /** The facts as the settings form drafts them. Loan interest that is typed but is no rate is null, so the field shows its error and the form does not save. */
@@ -64,16 +46,6 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
     vatPrinciple: 'invoice',
     depreciationDoubled: false,
     ownerLoanInterest: percentFromBasisPoints(0),
-    vatReturnsFolder: [],
-    payrollFolder: [],
-    accountantMailFrom: [],
-    payrollMailSync: false,
-    vatMailSync: false,
-    invoicesMailSync: false,
-    payrollMailSubject: '',
-    vatMailSubject: '',
-    invoicesMailSubject: '',
-    incomingInvoicesFolder: [],
   },
   definitions: [
     {
@@ -126,85 +98,20 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
         return typeof rate === 'string' ? rate : withFacts(facts, { ownerLoanInterest: rate })
       },
     },
-    {
-      key: 'hr_vat_returns_folder',
-      note: "The Google Drive folder the accountant's VAT return mail is filed in, as a path from My Drive, with a folder for each year inside. Blank names none.",
-      type: 'text',
-      valueOf: (facts) => facts.vatReturnsFolder.join('/'),
-      apply: (facts, value) => {
-        const folders = folderPathOf(value)
-        return folders.length === 0 ? settingsWords.settings.namesNoFolder(value) : withFacts(facts, { vatReturnsFolder: folders })
-      },
-    },
-    {
-      key: 'hr_payroll_folder',
-      note: "The Google Drive folder the accountant's payroll mail is filed in, as a path from My Drive, with a folder for each year and month inside. Blank names none.",
-      type: 'text',
-      valueOf: (facts) => facts.payrollFolder.join('/'),
-      apply: (facts, value) => {
-        const folders = folderPathOf(value)
-        return folders.length === 0 ? settingsWords.settings.namesNoFolder(value) : withFacts(facts, { payrollFolder: folders })
-      },
-    },
-    {
-      key: 'hr_accountant_mail_from',
-      note: "The addresses the accountant mails from, comma separated, which each kind of the accountant's mail that is switched on searches Gmail for.",
-      type: 'text',
-      valueOf: (facts) => facts.accountantMailFrom.join(', '),
-      apply: (facts, value) => {
-        const senders = mailAddressesOf(value)
-        return mailAddressesProblem(senders) ?? withFacts(facts, { accountantMailFrom: senders })
-      },
-    },
-    mailSyncDefinition('hr_payroll_mail_sync', 'payrollMailSync', "TRUE to have each sync read the accountant's payroll mail. FALSE, the default, makes no Gmail or Drive call for it."),
-    mailSyncDefinition('hr_vat_mail_sync', 'vatMailSync', "TRUE to have each sync read the accountant's VAT return mail. FALSE, the default, makes no Gmail or Drive call for it."),
-    mailSyncDefinition('hr_invoices_mail_sync', 'invoicesMailSync', "TRUE to have each sync read the accountant's invoice mail. FALSE, the default, makes no Gmail or Drive call for it."),
-    mailSubjectDefinition('hr_payroll_mail_subject', 'payrollMailSubject', 'The words the subject of the payroll mail starts with, before the month, such as Plaća za.'),
-    mailSubjectDefinition('hr_vat_mail_subject', 'vatMailSubject', 'The words the subject of the VAT return mail starts with, before the period, such as PDV za.'),
-    mailSubjectDefinition(
-      'hr_invoices_mail_subject',
-      'invoicesMailSubject',
-      "The words the subject of the accountant's invoice mail starts with, such as Račun za. Mail whose subject does not start with them is not filed.",
-    ),
-    {
-      key: 'hr_incoming_invoices_folder',
-      note: "The Google Drive folder the accountant's own invoices are filed in, as a path from My Drive, with a folder for each year and month inside. Blank names none.",
-      type: 'text',
-      valueOf: (facts) => facts.incomingInvoicesFolder.join('/'),
-      apply: (facts, value) => {
-        const folders = folderPathOf(value)
-        return folders.length === 0 ? settingsWords.settings.namesNoFolder(value) : withFacts(facts, { incomingInvoicesFolder: folders })
-      },
-    },
   ],
-}
-
-type MailSubjectFact = 'payrollMailSubject' | 'vatMailSubject' | 'invoicesMailSubject'
-
-function mailSyncDefinition(key: string, fact: 'payrollMailSync' | 'vatMailSync' | 'invoicesMailSync', note: string): SettingDefinition<CompanyFacts> {
-  return {
-    key,
-    note,
-    type: 'flag',
-    valueOf: (facts) => flagText(facts[fact]),
-    apply: (facts, value) => {
-      const on = booleanOf(value)
-      return on === null ? settingsWords.settings.notAFlag(value) : withFacts(facts, { [fact]: on })
-    },
-  }
-}
-
-function mailSubjectDefinition(key: string, fact: MailSubjectFact, note: string): SettingDefinition<CompanyFacts> {
-  return {
-    key,
-    note,
-    type: 'text',
-    valueOf: (facts) => facts[fact],
-    apply: (facts, value) => {
-      const subject = value.trim()
-      return mailSubjectProblem(subject) ?? withFacts(facts, { [fact]: subject })
-    },
-  }
+  retired: [
+    'hr_accountant_sync',
+    'hr_accountant_mail_from',
+    'hr_payroll_mail_sync',
+    'hr_vat_mail_sync',
+    'hr_invoices_mail_sync',
+    'hr_payroll_mail_subject',
+    'hr_vat_mail_subject',
+    'hr_invoices_mail_subject',
+    'hr_payroll_folder',
+    'hr_vat_returns_folder',
+    'hr_incoming_invoices_folder',
+  ],
 }
 
 function withFacts(facts: CompanyFacts, changed: Partial<CompanyFacts>): CompanyFacts {
@@ -212,19 +119,11 @@ function withFacts(facts: CompanyFacts, changed: Partial<CompanyFacts>): Company
 }
 
 /** The facts a typed value can be wrong in, which the facts card shows an error under. */
-export type CompanyFactsField = 'ownerLoanInterest' | 'accountantMailFrom' | MailSubjectFact
+export type CompanyFactsField = 'ownerLoanInterest'
 
 /** What is wrong with facts typed in the app, by field. The same rules as reading the keys, so facts saved from the app read back without a problem. */
 export function companyFactsErrors(facts: CompanyFactsDraft): Partial<Record<CompanyFactsField, string>> {
-  const errors: Partial<Record<CompanyFactsField, string>> = {}
-  if (facts.ownerLoanInterest === null) errors.ownerLoanInterest = words.facts.rateRange
-  const senders = mailAddressesProblem(facts.accountantMailFrom)
-  if (senders !== null) errors.accountantMailFrom = senders
-  for (const fact of ['payrollMailSubject', 'vatMailSubject', 'invoicesMailSubject'] as const) {
-    const subject = mailSubjectProblem(facts[fact])
-    if (subject !== null) errors[fact] = subject
-  }
-  return errors
+  return facts.ownerLoanInterest === null ? { ownerLoanInterest: words.facts.rateRange } : {}
 }
 
 /**

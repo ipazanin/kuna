@@ -100,15 +100,13 @@ export function googleMailFolders(accessToken: string, booksFileId: string): Mai
           const files = await filesInside(
             accessToken,
             targets.map((target) => target.id),
-            ['name', 'parents', 'createdTime', 'sha256Checksum', 'appProperties'],
+            ['name', 'parents', 'createdTime', 'appProperties'],
           )
           return {
             kind: 'listed',
             files: files.flatMap((file) => {
               const target = targets.find((candidate) => file.parents.includes(candidate.id))
-              return target === undefined
-                ? []
-                : [{ folders: target.folders, name: file.name, createdTime: Date.parse(file.createdTime), sha256: file.sha256Checksum ?? null, filedFrom: filedFrom(file.appProperties) }]
+              return target === undefined ? [] : [{ folders: target.folders, name: file.name, createdTime: Date.parse(file.createdTime), filedFrom: filedFrom(file.appProperties) }]
             }),
           }
         }

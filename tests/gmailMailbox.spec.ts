@@ -35,7 +35,7 @@ describe('gmailMailbox', () => {
           internalDate: '1791273600000',
           payload: {
             headers: [
-              { name: 'From', value: 'Ured <office@accountant.example.com>' },
+              { name: 'From', value: 'Ured <office@bookkeeper.example.com>' },
               { name: 'Subject', value: 'RE: Plaća za 9/2026' },
             ],
             parts: [
@@ -50,10 +50,10 @@ describe('gmailMailbox', () => {
     })
     const mailbox = gmailMailbox('token')
 
-    expect(await mailbox.search('from:(office@accountant.example.com) subject:"Plaća za" has:attachment after:1', null)).toEqual({ ids: ['m1'], next: 'page-2' })
+    expect(await mailbox.search('from:(office@bookkeeper.example.com) subject:"Plaća za" has:attachment after:1', null)).toEqual({ ids: ['m1'], next: 'page-2' })
     expect(await mailbox.message('m1')).toEqual({ id: 'm1', subject: 'RE: Plaća za 9/2026', date: 1791273600000, attachments: [{ id: 'a1', name: 'Example plaća 9 2026.xlsx' }] })
     expect([...new Uint8Array(await mailbox.attachment('m1', 'a1'))]).toEqual([0x00, 0xff, 0xfe])
-    expect(requests[0]!.searchParams.get('q')).toBe('from:(office@accountant.example.com) subject:"Plaća za" has:attachment after:1')
+    expect(requests[0]!.searchParams.get('q')).toBe('from:(office@bookkeeper.example.com) subject:"Plaća za" has:attachment after:1')
     expect(requests[0]!.searchParams.get('maxResults')).toBe('500')
     expect(requests[1]!.searchParams.get('format')).toBe('full')
     expect(requests.map((url) => url.origin)).toEqual(Array(3).fill('https://gmail.googleapis.com'))
@@ -148,8 +148,8 @@ describe('googleMailFolders', () => {
       [`('m08' in parents or 'm09' in parents) and ${FOLDER}`]: { files: [] },
       [`('y2026' in parents or 'm08' in parents or 'm09' in parents) and ${FILES}`]: {
         files: [
-          { name: '2026-08-salary.xlsx', parents: ['m08'], createdTime: '2026-09-05T10:00:00.000Z', sha256Checksum: 'def' },
-          { name: '2026-09-salary.xlsx', parents: ['m09'], createdTime: '2026-10-05T10:00:00.000Z', sha256Checksum: 'abc' },
+          { name: '2026-08-salary.xlsx', parents: ['m08'], createdTime: '2026-09-05T10:00:00.000Z' },
+          { name: '2026-09-salary.xlsx', parents: ['m09'], createdTime: '2026-10-05T10:00:00.000Z' },
           { name: '2026-09-salary', parents: ['m09'], createdTime: '2026-10-06T10:00:00.000Z', appProperties: { 'kuna-mail': 'hr-doo.payroll', 'kuna-mail-date': '2026-10-05T08:30:00.000Z' } },
         ],
       },
@@ -161,13 +161,13 @@ describe('googleMailFolders', () => {
     expect(listing).toEqual({
       kind: 'listed',
       files: [
-        { folders: ['2026-payroll', '2026-08'], name: '2026-08-salary.xlsx', createdTime: Date.parse('2026-09-05T10:00:00.000Z'), sha256: 'def', filedFrom: null },
-        { folders: ['2026-payroll', '2026-09'], name: '2026-09-salary.xlsx', createdTime: Date.parse('2026-10-05T10:00:00.000Z'), sha256: 'abc', filedFrom: null },
-        { folders: ['2026-payroll', '2026-09'], name: '2026-09-salary', createdTime: Date.parse('2026-10-06T10:00:00.000Z'), sha256: null, filedFrom: Date.parse('2026-10-05T08:30:00.000Z') },
+        { folders: ['2026-payroll', '2026-08'], name: '2026-08-salary.xlsx', createdTime: Date.parse('2026-09-05T10:00:00.000Z'), filedFrom: null },
+        { folders: ['2026-payroll', '2026-09'], name: '2026-09-salary.xlsx', createdTime: Date.parse('2026-10-05T10:00:00.000Z'), filedFrom: null },
+        { folders: ['2026-payroll', '2026-09'], name: '2026-09-salary', createdTime: Date.parse('2026-10-06T10:00:00.000Z'), filedFrom: Date.parse('2026-10-05T08:30:00.000Z') },
       ],
     })
     expect(requests.some((url) => url.searchParams.get('q')?.includes("'y2025'"))).toBe(false)
-    expect(requests.at(-1)!.searchParams.get('fields')).toBe('nextPageToken,files(name,parents,createdTime,sha256Checksum,appProperties)')
+    expect(requests.at(-1)!.searchParams.get('fields')).toBe('nextPageToken,files(name,parents,createdTime,appProperties)')
   })
 
   it('refuses a path where a folder is missing', async () => {

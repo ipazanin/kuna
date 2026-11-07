@@ -12,7 +12,7 @@ import { previewRulesChange } from '../src/apps/company/rules/domain/rulesChange
 import { rulesChangeInWords } from '../src/apps/company/rules/domain/ruleSummary'
 import { categorisationContextOf } from '../src/apps/company/rules/domain/categorisationContext'
 import { removeSettings, setSettings } from '../src/apps/company/settings/application/settingWrites'
-import { changedSettings, unreadSettingKeys } from '../src/apps/company/settings/domain/settings'
+import { changedPackSettings, changedSettings, unreadSettingKeys } from '../src/apps/company/settings/domain/settings'
 import { installedPack } from '../src/apps/company/packs/packContribution'
 import { recordsOf } from '../src/shared/storage/domain/recordsRead'
 import { canUndo } from '../src/shared/storage/application/createWorkbookStore'
@@ -267,6 +267,23 @@ describe.each([
     expect(hrDooWorkbook(store.state.workbook!).companyFacts.ownerLoanInterest).toBe(200)
     expect(store.state.workbook!.problems.filter((problem) => problem.tab === 'settings')).toEqual([])
     await expect(changeSettings(store, [{ key: 'hr_company_registered', value: 'soon' }])).rejects.toThrow('"soon" is not a date such as 2025-05-12')
+  })
+
+  it('keeps the retired rows of the accountant’s mail through a save of the facts, and reports none of them', async () => {
+    const grids = workbookGrids()
+    const { store } = await harnessOf(used, {
+      ...grids,
+      settings: [...grids.settings!, ['hr_payroll_folder', 'finance/payroll'], ['hr_accountant_mail_from', 'office@bookkeeper.example.com'], ['hr_vat_mail_sync', 'TRUE']],
+    })
+    const before = hrDooWorkbook(store.state.workbook!).companyFacts
+    const pack = installedPack().workbook!.settings
+
+    await changeSettings(store, changedPackSettings(pack, before, { ...before, citReturn: 'pd-nn' }))
+
+    expect(hrDooWorkbook(store.state.workbook!).companyFacts.citReturn).toBe('pd-nn')
+    expect(store.state.workbook!.problems.filter((problem) => problem.tab === 'settings')).toEqual([])
+    expect(unreadSettingKeys(recordsOf(store.state.records!.settings), pack)).toEqual(new Map())
+    expect(store.state.records!.settings.records.map((stored) => stored.record.key)).toEqual(expect.arrayContaining(['hr_payroll_folder', 'hr_accountant_mail_from', 'hr_vat_mail_sync']))
   })
 
   it('takes import profiles, one it cannot read among them, and a key the app does not know off the settings, so none is offered or reported again', async () => {

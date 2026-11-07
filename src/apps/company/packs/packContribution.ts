@@ -3,7 +3,6 @@ import type { RouteLocationRaw } from 'vue-router'
 
 import type { AppScreen, AssistTaskSummary } from '../../../shared/app/appContribution'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
-import type { MailSource } from '../../../shared/mail-filing/application/mailFiling'
 import type { WaitingJob } from '../overview/presentation/waitingForYou'
 import type { Settings } from '../settings/domain/settings'
 import type { SettingsTab } from '../settings/presentation/settingsTabs'
@@ -35,8 +34,6 @@ export interface PackCompanyFacts<Facts> {
   factsOf(workbook: Workbook | null): Facts
   /** What is wrong with the drafted facts, by field. Empty when they may be saved. */
   errors(facts: Facts): Readonly<Record<string, string>>
-  /** The books with these facts in place of theirs, as a save of them leaves the books, so the steps they switch on can be read before it. */
-  withFacts(workbook: Workbook, facts: Facts): Workbook
 }
 
 /** What onboarding asks for the pack: one question whose Yes switches on the owner-pay module. */
@@ -91,10 +88,6 @@ export interface PackContribution {
    * force on the day. They are no reading problem: the figures still count each by its bucket and VAT.
    */
   categoriesToSort(categories: readonly Category[], on: CivilDate): readonly RecordProblem[]
-  /** Kinds of mail the sync's mail step looks for after core's, in order. */
-  readonly mailSources: readonly MailSource<Workbook>[]
-  /** The Drive folders the pack's settings name, as paths, which a move of the books file has to respect. */
-  folderSettings(workbook: Workbook): readonly (readonly string[])[]
   readonly onboarding: PackOnboarding | null
   /** The pack's assist tasks, for the Assistant tab after core's. */
   readonly assist: readonly AssistTaskSummary[]
@@ -116,8 +109,6 @@ const NO_PACK: PackContribution = {
   costGroupLinks: () => null,
   categoryClassHelp: () => null,
   categoriesToSort: () => [],
-  mailSources: [],
-  folderSettings: () => [],
   onboarding: null,
   assist: [],
   employeeIbans: () => new Set(),

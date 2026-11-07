@@ -1,4 +1,3 @@
-import { sha256Hex } from '../../../files/sha256'
 import { fold } from '../../../text/fold'
 import { MailRateLimited } from '../../application/mailFiling'
 import type { FiledFile, MailFolders, Mailbox } from '../../application/mailFiling'
@@ -23,14 +22,13 @@ export interface FakeMail {
   readonly filed: boolean
 }
 
-/** A file the fake folders hold, by its source folder, the folders below it and its name, with the content its bytes come from or no checksum. */
+/** A file the fake folders hold, by its source folder, the folders below it and its name. */
 export interface FakeFiled {
   readonly folder: readonly string[]
   readonly folders: readonly string[]
   readonly name: string
   /** An ISO time. */
   readonly created: string
-  readonly content: string | null
 }
 
 /** A file a sync of the fake build made in one of the fake folders: its source folder, the folders below it, its name, when it was made, its bytes and its properties. */
@@ -90,13 +88,9 @@ export function fakeMailboxOf(seed: { readonly mails: readonly FakeMail[]; reado
 
 /**
  * Fake folders that hold what another app filed and what a sync made, kept in `made`. `?fake=mail-upload-failed`
- * fails the upload of every PDF, so a statement's PDF fails beside its XML and the accountant's PDFs beside the other files.
+ * fails the upload of every PDF, so a statement's PDF fails beside its XML.
  */
-export function fakeMailFoldersOf(
-  seed: { readonly filed: readonly FakeFiled[]; readonly known: readonly (readonly string[])[]; bytesOf(content: string): ArrayBuffer },
-  variant: string | null,
-  made: FakeMadeFile[],
-): MailFolders {
+export function fakeMailFoldersOf(seed: { readonly filed: readonly FakeFiled[]; readonly known: readonly (readonly string[])[] }, variant: string | null, made: FakeMadeFile[]): MailFolders {
   const known = seed.known.map((folder) => folder.join('/'))
   return {
     async filesIn(folder, below) {
@@ -106,21 +100,14 @@ export function fakeMailFoldersOf(
       }
       const inFolder = (file: { readonly folder: readonly string[]; readonly folders: readonly string[] }): boolean =>
         file.folder.join('/') === where && below.some((path) => path.every((name, index) => file.folders[index] === name))
-      const byOthers: Promise<FiledFile>[] = seed.filed.filter(inFolder).map(async (file) => ({
+      const byOthers: FiledFile[] = seed.filed.filter(inFolder).map((file) => ({ folders: file.folders, name: file.name, createdTime: Date.parse(file.created), filedFrom: null }))
+      const byApp: FiledFile[] = made.filter(inFolder).map((file) => ({
         folders: file.folders,
         name: file.name,
         createdTime: Date.parse(file.created),
-        sha256: file.content === null ? null : await sha256Hex(seed.bytesOf(file.content)),
-        filedFrom: null,
-      }))
-      const byApp: Promise<FiledFile>[] = made.filter(inFolder).map(async (file) => ({
-        folders: file.folders,
-        name: file.name,
-        createdTime: Date.parse(file.created),
-        sha256: await sha256Hex(file.bytes),
         filedFrom: Date.parse(file.appProperties[MAIL_DATE_PROPERTY] ?? file.created),
       }))
-      return { kind: 'listed', files: await Promise.all([...byOthers, ...byApp]) }
+      return { kind: 'listed', files: [...byOthers, ...byApp] }
     },
 
     async create(folder, below, file) {

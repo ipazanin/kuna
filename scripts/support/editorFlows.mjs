@@ -2171,7 +2171,7 @@ export function heldStatementFlowIn(language) {
 
 const MAIL_CARD = '[data-testid="mail-settings"]'
 const MAIL_PLAN = '[data-testid="mail-plan"]'
-const MAIL_FILED = /Filed 9, already there 4, 1 correction, 1 not compared, 2 unmatched\./
+const MAIL_FILED = /Filed 2, already there 2, 1 unmatched\./
 
 /** Waits until the mail card lists the sources in these states, and returns what each source's line says. */
 async function mailListShows(page, wanted) {
@@ -2211,7 +2211,7 @@ async function scrollToTop(page, selector) {
   await delay(300)
 }
 
-const ALL_SOURCES = ['statements:planned', 'hr-doo.payroll:planned', 'hr-doo.vat-returns:planned', 'hr-doo.invoices:planned']
+const ALL_SOURCES = ['statements:planned']
 
 /**
  * A sync in a language and every place that says how it went: the sync control before, during and
@@ -2291,6 +2291,40 @@ export function mailListFlowIn(language) {
 }
 
 /**
+ * The mail list specimens in the Company gallery: the bank's statements with every kind of entry, more than ten so Show all shows
+ * the rest, and a second source that failed, then a list whose step stopped. The fake mailbox's bank mail alone never shows those.
+ * The gallery is English only.
+ */
+export async function mailPlanSpecimenFlow(page, { press, shoot, inspect }) {
+  const specimen = '[data-testid="gallery-mail-plan"]'
+  await page.waitForSelector(specimen, { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('the Company gallery has no mail list specimen')
+  })
+  await mailListShows(page, ['statements:planned', 'savings-statements:failed'])
+  const entries = () => page.$$eval(`${specimen} [data-entry]`, (rows) => rows.map((row) => row.dataset.entry))
+  if ((await entries()).length !== 10) throw new Error(`the mail list specimen shows ${(await entries()).length} entries before Show all, not 10`)
+  await scrollToTop(page, specimen)
+  await inspect?.('the mail list specimen')
+  await shoot('mail-plan-specimen')
+  await pressSelector(page, press, `${specimen} [data-testid="show-all"]`)
+  await page
+    .waitForFunction((css) => document.querySelectorAll(css).length === 12, { timeout: 5_000 }, `${specimen} [data-entry]`)
+    .catch(() => {
+      throw new Error('Show all on the mail list specimen did not show all 12 entries')
+    })
+  const kinds = new Set(await entries())
+  for (const kind of ['not-filed', 'filed', 'unmatched', 'already']) {
+    if (!kinds.has(kind)) throw new Error(`the mail list specimen has no ${kind} entry`)
+  }
+  await inspect?.('the mail list specimen with every entry')
+  const stopped = await page.$eval('[data-testid="gallery-mail-stopped"] [data-testid="mail-stopped"]', (paragraph) => paragraph.textContent?.trim() ?? '').catch(() => '')
+  if (stopped !== 'Gmail asked us to slow down. Sync again in a minute.') throw new Error(`the stopped mail list specimen says "${stopped}"`)
+  await scrollToTop(page, '[data-testid="gallery-mail-stopped"]')
+  await inspect?.('the mail list specimen whose step stopped')
+  await shoot('mail-plan-specimen-stopped')
+}
+
+/**
  * With no sender named, the mail step is off in the steps of a sync. On Settings, General the mail
  * card takes a sender, asks for the subject a sender needs, and saves both, and the next sync's mail
  * step files the bank's new PDF and lists the rest. The page holds every scope, as a first open
@@ -2343,10 +2377,9 @@ export async function mailOffFlow(page, { press, shoot, inspect }) {
 }
 
 /**
- * With the bank's and the accountant's mail named, the mail step files the bank's PDF and statement
- * and the accountant's new mail into the fake Drive, and the statements step of the same sync files
- * that statement on the ledger. Its link opens the list on the mail card, which marks what was filed
- * beside what was there already or needs a look, with the accountant's mail fields on the facts card.
+ * With the bank's mail named, the mail step files the bank's PDF and statement into the fake Drive,
+ * and the statements step of the same sync files that statement on the ledger. Its link opens the
+ * list on the mail card, which marks what was filed beside what was there already or needs a look.
  * A second sync files nothing new.
  */
 export async function mailFiledFlow(page, { press, shoot, inspect }) {
@@ -2361,9 +2394,8 @@ export async function mailFiledFlow(page, { press, shoot, inspect }) {
   await shoot('mail-step')
   await openMailList(page, press, SYNC_CARD)
   const lines = await mailListShows(page, ALL_SOURCES)
-  const expected = ['Filed 2, already there 2, 1 unmatched.', 'Filed 5, already there 1, 1 unmatched.', 'Filed 1, 1 correction, 1 not compared.', 'Filed 1, already there 1.']
-  if (JSON.stringify(lines) !== JSON.stringify(expected)) throw new Error(`the sources read ${JSON.stringify(lines)}`)
-  for (const kind of ['filed', 'already', 'correction', 'unchecked', 'unmatched']) {
+  if (lines[0] !== 'Filed 2, already there 2, 1 unmatched.') throw new Error(`the bank's mail reads "${lines[0]}"`)
+  for (const kind of ['filed', 'already', 'unmatched']) {
     if ((await page.$(`${MAIL_PLAN} [data-entry="${kind}"]`)) === null) throw new Error(`the list has no ${kind} entry`)
   }
   await scrollToTop(page, MAIL_PLAN)
@@ -2374,24 +2406,13 @@ export async function mailFiledFlow(page, { press, shoot, inspect }) {
   const again = await mailListShows(page, ALL_SOURCES)
   if (again[0] !== 'Nothing new, already there 3.') throw new Error(`a second sync's bank mail reads "${again[0]}"`)
   await openKunaSettings(page)
-  const line = await stepSays(page, SYNC_CARD, 'mail', 'done', /Nothing new, already there 10, 1 unmatched\./)
+  const line = await stepSays(page, SYNC_CARD, 'mail', 'done', /Nothing new, already there 3\./)
   if (line.includes('Filed')) throw new Error(`a second sync's mail step says "${line}"`)
   await stepSays(page, SYNC_CARD, 'statements', 'done', /Nothing new/)
-
-  await page.evaluate(() => {
-    window.location.hash = '#/company/settings#accountant-mail'
-  })
-  const sender = await page.waitForSelector('[data-testid="accountant-mail-from"] input', { visible: true, timeout: 10_000 }).catch(() => {
-    throw new Error('the facts card has no accountant mail fields at #accountant-mail')
-  })
-  if ((await sender.evaluate((element) => element.value)) !== 'office@accountant.example.com') throw new Error('the accountant mail field does not show the sender the books name')
-  await scrollToTop(page, '[data-testid="accountant-mail"]')
-  await inspect?.("the accountant's mail fields")
-  await shoot('accountant-mail-fields')
 }
 
 /**
- * The upload of every PDF fails beside the other files: the mail step fails with each PDF named by
+ * The upload of every PDF fails beside the other files: the mail step fails with the PDF named by
  * its source, 1 problem in the control, the statement still on the ledger from the same sync, and the
  * list marks the bank's PDF not filed with why.
  */
@@ -2400,13 +2421,7 @@ export async function mailUploadFailedFlow(page, { press, shoot, inspect }) {
   const control = await controlShows(page, 'problems')
   if (control.label !== '1 problem') throw new Error(`the sync control says "${control.label}", not 1 problem`)
   await press(await syncButton(page))
-  await stepSays(
-    page,
-    '',
-    'mail',
-    'failed',
-    /Filed 5, already there 4, 1 correction, 1 not compared, 2 unmatched\. Bank statements: \d{4}-\d{2}-\d{2}-statement-\d{3}\.pdf was not filed\. Payroll: 2026-09-payment-order-salary\.pdf and 2026-09-payment-order-rent\.pdf were not filed\. Accountant's invoices: 2026-10-03-accounting\.pdf was not filed\./,
-  )
+  await stepSays(page, '', 'mail', 'failed', /Filed 1, already there 2, 1 unmatched\. Bank statements: \d{4}-\d{2}-\d{2}-statement-\d{3}\.pdf was not filed\./)
   await stepSays(page, '', 'statements', 'done', FILED)
   await delay(400)
   await inspect?.('the steps with an upload that failed')
@@ -2427,26 +2442,26 @@ export async function mailNothingNewFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   await controlShows(page, 'ready')
   await openKunaSettings(page)
-  await stepSays(page, SYNC_CARD, 'mail', 'done', /Nothing new, already there 5\./)
+  await stepSays(page, SYNC_CARD, 'mail', 'done', /Nothing new, already there 3\./)
   await scrollToTop(page, SYNC_CARD)
   await inspect?.('the mail step with nothing new')
   await shoot('mail-nothing-new')
 }
 
-/** A source whose search fails fails the mail step with the others' counts in its line: 1 problem in the control, and the steps open on it with the list a link away. */
+/** A source whose search fails fails the mail step with why in its line: 1 problem in the control, and the steps open on it with the list a link away. */
 export async function mailFailedFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   const control = await controlShows(page, 'problems')
   if (control.label !== '1 problem') throw new Error(`the sync control says "${control.label}", not 1 problem`)
   await press(await syncButton(page))
-  await stepSays(page, '', 'mail', 'failed', /Filed 8, already there 4, 2 unmatched\. VAT returns: Gmail did not answer the search/)
+  await stepSays(page, '', 'mail', 'failed', /Bank statements: Gmail did not answer the search/)
   await delay(400)
   await inspect?.('the steps with a mail source that failed')
   await shoot('mail-failed-steps')
   await openMailList(page, press, '')
-  const lines = await mailListShows(page, ['statements:planned', 'hr-doo.payroll:planned', 'hr-doo.vat-returns:failed', 'hr-doo.invoices:planned'])
-  if (lines[2] !== 'Gmail did not answer the search. Sync again later.') throw new Error(`the failed source reads "${lines[2]}"`)
-  await page.$eval(`${MAIL_PLAN} [data-source="hr-doo.vat-returns"]`, (element) => element.scrollIntoView({ block: 'center' }))
+  const lines = await mailListShows(page, ['statements:failed'])
+  if (lines[0] !== 'Gmail did not answer the search. Sync again later.') throw new Error(`the failed source reads "${lines[0]}"`)
+  await page.$eval(`${MAIL_PLAN} [data-source="statements"]`, (element) => element.scrollIntoView({ block: 'center' }))
   await delay(300)
   await shoot('mail-failed-list')
 }
@@ -2473,7 +2488,7 @@ export async function mailAccessFlow(page, { press, shoot, inspect }) {
  */
 export function mailSaveAsksFlowIn(language) {
   const words = SCREEN_WORDS[language]
-  const filed = `${words.mailCounts({ filed: 1, notFiled: 0, already: 3, corrections: 0, unchecked: 0, unmatched: 1 })}.`
+  const filed = `${words.mailCounts({ filed: 1, notFiled: 0, already: 3, unmatched: 1 })}.`
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await page.evaluate(() => {
@@ -2518,63 +2533,6 @@ async function switchIs(page, testId, checked) {
   return page.$(selector)
 }
 
-/** Opens the facts card on the accountant's mail and scrolls to it. */
-async function openAccountantMail(page) {
-  await page.evaluate(() => {
-    window.location.hash = '#/company/settings#accountant-mail'
-  })
-  await page.waitForSelector('[data-testid="accountant-mail-from"] input', { visible: true, timeout: 10_000 }).catch(() => {
-    throw new Error('the facts card has no accountant mail fields at #accountant-mail')
-  })
-  await scrollToTop(page, '[data-testid="accountant-mail"]')
-}
-
-/**
- * With every kind of the accountant's mail switched off, as new books have them, the mail step reads
- * the bank's mail alone, and the facts card shows the three switches off above their subjects and
- * folders.
- */
-export async function mailSwitchesOffFlow(page, { press, shoot, inspect }) {
-  await syncAndSettle(page, press)
-  await controlShows(page, 'ready')
-  await openKunaSettings(page)
-  await stepSays(page, SYNC_CARD, 'mail', 'done', /Filed 2, already there 2, 1 unmatched\./)
-  await page.evaluate(() => {
-    window.location.hash = '#/company/settings#mail'
-  })
-  await mailListShows(page, ['statements:planned'])
-  await openAccountantMail(page)
-  for (const kind of ['payroll', 'vat', 'invoices']) await switchIs(page, `${kind}-mail-sync`, false)
-  if (await page.$('[data-testid="mail-kind-missing"]')) throw new Error('a kind switched off says what it lacks')
-  await inspect?.("the accountant's mail switched off")
-  await shoot('mail-switches-off')
-}
-
-/**
- * The payroll switched on without the accountant's address fails the mail step with what it lacks:
- * 1 problem in the control, the step's line naming the sender, the list marking the payroll failed,
- * and the facts card saying it under the switch.
- */
-export async function mailNoSenderFlow(page, { press, shoot, inspect }) {
-  await syncAndSettle(page, press)
-  const control = await controlShows(page, 'problems')
-  if (control.label !== '1 problem') throw new Error(`the sync control says "${control.label}", not 1 problem`)
-  await press(await syncButton(page))
-  await stepSays(page, '', 'mail', 'failed', /Filed 2, already there 2, 1 unmatched\. Payroll: It is on, but has no sender on Settings, General\./)
-  await delay(400)
-  await inspect?.('the steps with the payroll switched on without a sender')
-  await shoot('mail-no-sender-steps')
-  await openMailList(page, press, '')
-  const lines = await mailListShows(page, ['statements:planned', 'hr-doo.payroll:failed'])
-  if (lines[1] !== 'It is on, but has no sender on Settings, General.') throw new Error(`the payroll reads "${lines[1]}"`)
-  await openAccountantMail(page)
-  await switchIs(page, 'payroll-mail-sync', true)
-  const missing = await page.$eval('[data-testid="payroll-mail-kind"] [data-testid="mail-kind-missing"]', (element) => element.textContent?.trim()).catch(() => null)
-  if (missing !== 'It is on, but has no sender.') throw new Error(`the payroll switch says "${missing}" under it`)
-  await inspect?.("the payroll switched on without the accountant's address")
-  await shoot('mail-no-sender-card')
-}
-
 /** Gmail still asking to slow down after the retries fails the mail step with one plain sentence, and none of Google's answer. The mail card says the same sentence in place of its list. */
 export async function mailRateLimitedFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
@@ -2604,7 +2562,7 @@ export async function mailRateLimitedFlow(page, { press, shoot, inspect }) {
   await shoot('mail-rate-limited-card')
 }
 
-/** With every mail already in its folder, filed by another app, each source searches from a week before the newest file there and not from the mail-since day. */
+/** With every mail already in its folder, filed by another app, the source searches from a week before the newest file there and not from the mail-since day. */
 export async function mailWindowFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   await controlShows(page, 'ready')
@@ -2613,10 +2571,10 @@ export async function mailWindowFlow(page, { press, shoot, inspect }) {
   })
   await mailListShows(page, ALL_SOURCES)
   const windows = await page.$$eval(`${MAIL_PLAN} [data-testid="mail-source-window"]`, (lines) => lines.map((line) => line.textContent?.trim() ?? ''))
-  if (windows.length !== 4 || !windows.every((line) => /^Searched from \d{1,2} \w{3,4} 2026, a week before the newest file in its folder$/.test(line)))
+  if (windows.length !== 1 || !windows.every((line) => /^Searched from \d{1,2} \w{3,4} 2026, a week before the newest file in its folder$/.test(line)))
     throw new Error(`the sources searched ${JSON.stringify(windows)}`)
   await scrollToTop(page, MAIL_PLAN)
-  await inspect?.('the list searched from a week before the newest file in each folder')
+  await inspect?.('the list searched from a week before the newest file in the folder')
   await shoot('mail-window')
 }
 
@@ -3237,8 +3195,7 @@ export function onboardingDriveFlowIn(language) {
 export const onboardingDriveFlow = onboardingDriveFlowIn('en')
 
 /**
- * New books of a Croatian d.o.o. on the fake Drive: the company step answers Yes and asks for no folder
- * of the accountant's, the statement is skipped, and Getting set up lists the first statement and the categories.
+ * New books of a Croatian d.o.o. on the fake Drive: the company step answers Yes, the statement is skipped, and Getting set up lists the first statement and the categories.
  */
 export function onboardingPackFlowIn(language) {
   const words = SCREEN_WORDS[language]
@@ -3788,7 +3745,7 @@ export function moveIntoKunaFlowIn(language) {
 export const moveIntoKunaFlow = moveIntoKunaFlowIn('en')
 
 /**
- * The statements folder holds a statement Kuna filed from mail, one a script filed and the accountant's mail. The dialog counts one going and two
+ * The statements folder holds a statement Kuna filed from mail, one a script filed and a file another mail source filed. The dialog counts one going and two
  * staying, and says it cannot tell who made them. Moving takes the one, and the setting then names the folder beside the file.
  */
 export function moveStatementsIntoKunaFlowIn(language) {
