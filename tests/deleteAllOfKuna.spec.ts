@@ -13,8 +13,9 @@ function appOf(id: string, source: HeldData['source'], { busy = false, refused =
     name: id,
     held: () => held,
     backUp: async () => `${id}.json`,
-    async remove(places: readonly DataPlace[]) {
-      calls.push(`remove ${id} ${places.join()}`)
+    backupsOnDrive: async () => null,
+    async remove(places: readonly DataPlace[], withBackups = false) {
+      calls.push(`remove ${id} ${places.join()}${withBackups ? ' and backups' : ''}`)
       if (refused !== null) return { steps: [{ step: 'drive-file', outcome: { kind: 'failed', message: refused } }], removed: false }
       held = null
       return { steps: [{ step: 'drive-file', outcome: { kind: 'done' } }], removed: true }
@@ -58,14 +59,22 @@ describe('deleting all of Kuna', () => {
     const report = await deleteAllOfKuna(
       portsOf(calls),
       [
-        { data: company, places: ['drive-file', 'browser-copy'] },
-        { data: loans, places: ['browser-copy'] },
+        { data: company, places: ['drive-file', 'browser-copy'], backups: false },
+        { data: loans, places: ['browser-copy'], backups: false },
       ],
       ['google-keys', 'browser-keys', 'browser-settings'],
     )
 
     expect(calls).toEqual(['syncs over', 'remove company drive-file,browser-copy', 'remove loans browser-copy', 'google keys', 'browser keys', 'settings'])
     expect(report.complete).toBe(true)
+  })
+
+  it('hands each app whether its backups go too', async () => {
+    const calls: string[] = []
+
+    await deleteAllOfKuna(portsOf(calls), [{ data: appOf('company', 'drive', {}, calls), places: [], backups: true }], [])
+
+    expect(calls).toContain('remove company  and backups')
   })
 
   it('leaves the Google keys alone unless they were ticked', async () => {
@@ -84,8 +93,8 @@ describe('deleting all of Kuna', () => {
     const report = await deleteAllOfKuna(
       portsOf(calls),
       [
-        { data: refused, places: ['drive-file', 'browser-copy'] },
-        { data: loans, places: ['browser-copy'] },
+        { data: refused, places: ['drive-file', 'browser-copy'], backups: false },
+        { data: loans, places: ['browser-copy'], backups: false },
       ],
       [],
     )
@@ -113,7 +122,7 @@ describe('deleting all of Kuna', () => {
     const calls: string[] = []
     const busy = appOf('company', 'drive', { busy: true }, calls)
 
-    await expect(deleteAllOfKuna(portsOf(calls), [{ data: busy, places: ['browser-copy'] }], ['browser-keys'])).rejects.toThrow(new WorkbookWriteRefused(storageWords.busy))
+    await expect(deleteAllOfKuna(portsOf(calls), [{ data: busy, places: ['browser-copy'], backups: false }], ['browser-keys'])).rejects.toThrow(new WorkbookWriteRefused(storageWords.busy))
 
     expect(calls).toEqual(['syncs over'])
   })

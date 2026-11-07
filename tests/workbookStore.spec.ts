@@ -1,3 +1,4 @@
+import { BACKUPS_FOLDER } from '../src/shared/storage/infrastructure/driveDocument'
 import { words as storageInfrastructureWords } from '../src/shared/storage/infrastructure/words'
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -963,6 +964,76 @@ describe('workbook store dropping the workbook a first run made', () => {
     expect(side.drive.file(choice.id).trashed).toBe(false)
     expect(store.state).toMatchObject({ choice, status: 'ready', missing: false })
     expect(await storedCopy(choice.id)).not.toBeNull()
+  })
+
+  /** A file with two backups Kuna made, a file a person put among them, and a look-alike Kuna did not make, plus one beside the file and not in the folder. */
+  async function withBackups() {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([1]))
+    const home = side.drive.file(choice.id).parents[0]!
+    const folder = await side.drive.createFolder(home, BACKUPS_FOLDER)
+    const first = await side.drive.createFile(folder, `kuna-${COMPANY_APP}-2026-10-01.json`, '{}')
+    const second = await side.drive.createFile(folder, `kuna-${COMPANY_APP}-2026-10-02.json`, '{}')
+    const notes = await side.drive.createFile(folder, 'my-notes.json', '{}')
+    const lookAlike = await side.drive.createFile(folder, `kuna-${COMPANY_APP}-2026-10-03.json`, '{}')
+    side.drive.file(lookAlike.id).isAppAuthorized = false
+    const otherApp = await side.drive.createFile(folder, 'kuna-loans-2026-10-04.json', '{}')
+    const beside = await side.drive.createFile(home, `kuna-${COMPANY_APP}-2026-10-05.json`, '{}')
+    return { side, choice, folder, first, second, notes, lookAlike, otherApp, beside }
+  }
+
+  it('counts and bins only the backups Kuna made of this file, and the file and everything else stay', async () => {
+    const { side, choice, folder, first, second, notes, lookAlike, otherApp, beside } = await withBackups()
+    const store = storeOf(harness(choice, side).ports)
+    await store.open()
+
+    expect(await store.backupsOnDrive()).toBe(2)
+    await store.trashBackups(choice.id)
+
+    expect([first, second].map(({ id }) => side.drive.file(id).trashed)).toEqual([true, true])
+    expect([notes, lookAlike, otherApp, beside].map(({ id }) => side.drive.file(id).trashed)).toEqual([false, false, false, false])
+    expect(side.drive.file(folder).trashed).toBe(false)
+    expect(side.drive.file(choice.id).trashed).toBe(false)
+    expect(store.state.choice).toEqual(choice)
+  })
+
+  it('tries every backup and names the ones Drive refused', async () => {
+    const { side, choice, first, second } = await withBackups()
+    side.drive.file(first.id).ownedByMe = false
+    const store = storeOf(harness(choice, side).ports)
+    await store.open()
+
+    await expect(store.trashBackups(choice.id)).rejects.toThrow(`kuna-${COMPANY_APP}-2026-10-01.json`)
+
+    expect(side.drive.file(second.id).trashed).toBe(true)
+    expect(store.state).toMatchObject({ choice, status: 'ready' })
+  })
+
+  it('counts no backups for a file with no backups folder, and none for a file kept in this browser', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([1]))
+    const store = storeOf(harness(choice, side).ports)
+    await store.open()
+    expect(await store.backupsOnDrive()).toBe(0)
+
+    const browser = storeOf(harness(null).ports)
+    await browser.open()
+    await browser.replaceLocalWorkbook(documentOf([1]), 'New books')
+    expect(await browser.backupsOnDrive()).toBeNull()
+  })
+
+  it('refuses to bin the backups while a save waits', async () => {
+    const { side, choice, first } = await withBackups()
+    const store = storeOf(harness(choice, side).ports)
+    await store.open()
+    let release: () => void = () => {}
+    side.before = (request) => (request === 'headRevision' ? new Promise<void>((resolve) => (release = resolve)) : Promise.resolve())
+    const syncing = store.sync()
+
+    await expect(store.trashBackups(choice.id)).rejects.toThrow(storageWords.busy)
+    release()
+    await syncing
+    expect(side.drive.file(first.id).trashed).toBe(false)
   })
 
   it('leaves the Drive file where it is when only this browser forgets it, so a later find opens it again', async () => {

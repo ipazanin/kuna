@@ -3071,8 +3071,8 @@ async function checkWidth(width) {
     ['delete-data-copy', 'drive&investments=sample', deleteDataCopyFlow, '#/investments/settings', 'Settings'],
     ['delete-data-given', 'drive&investments=given', deleteDataGivenFlowIn('en'), '#/investments/settings', 'Settings'],
     ['delete-data-browser', 'drive&investments=browser', deleteDataBrowserFlow, '#/investments/settings', 'Settings'],
-    ['delete-kuna', 'drive&investments=browser', deleteKunaFlowIn('en'), '#/settings', 'Kuna settings'],
-    ['delete-kuna-croatian', 'drive&investments=browser&lang=hr', deleteKunaFlowIn('hr'), '#/settings', 'Postavke Kune'],
+    ['delete-kuna', 'drive&investments=browser&backups', deleteKunaFlowIn('en'), '#/settings', 'Kuna settings'],
+    ['delete-kuna-croatian', 'drive&investments=browser&backups&lang=hr', deleteKunaFlowIn('hr'), '#/settings', 'Postavke Kune'],
     ['investments-binned', 'drive&investments=binned', investmentsBinnedFlow, '#/investments', 'Overview'],
   ]) {
     await step(name, async () => {

@@ -5555,7 +5555,7 @@ const FLOWS = [
     run: deleteKunaFlowIn('en'),
     viewports: EVERY_VIEWPORT,
     modes: ['drive'],
-    queries: { drive: '&investments=browser' },
+    queries: { drive: '&investments=browser&backups' },
   },
   {
     name: 'delete-kuna-croatian',
@@ -5564,7 +5564,7 @@ const FLOWS = [
     run: deleteKunaFlowIn('hr'),
     viewports: EVERY_VIEWPORT,
     modes: ['drive'],
-    queries: { drive: '&investments=browser&lang=hr' },
+    queries: { drive: '&investments=browser&backups&lang=hr' },
   },
   {
     name: 'investments-holding-dot-hover',

@@ -5,7 +5,7 @@ import { placesHeld, removeAppData } from '../application/appData'
 import type { AppData, DataBeside } from '../application/appData'
 import type { BooksRead, WorkbookStore } from '../application/createWorkbookStore'
 
-type StoreOfData = Pick<WorkbookStore<BooksRead>, 'state' | 'dropWorkbook'>
+type StoreOfData = Pick<WorkbookStore<BooksRead>, 'state' | 'dropWorkbook' | 'backupsOnDrive' | 'trashBackups'>
 
 /** An app's data as the delete dialogs reach it, over the app's store and the page's sync. */
 export function pageAppData(app: {
@@ -34,13 +34,15 @@ export function pageAppData(app: {
       }
     },
     backUp: () => app.backUp(),
-    async remove(places) {
+    backupsOnDrive: () => app.store.backupsOnDrive(),
+    async remove(places, withBackups = false) {
       const { choice } = state
       if (choice === null) return { steps: [], removed: false }
       const sync = usePageSync()
       return removeAppData(
         {
           dropFile: (fileId, options) => app.store.dropWorkbook(fileId, options),
+          trashBackups: (fileId) => app.store.trashBackups(fileId),
           syncsOver: () => sync.settled(),
           syncing: () => sync.running(),
           beside: app.beside ?? null,
@@ -52,6 +54,7 @@ export function pageAppData(app: {
         },
         choice,
         places,
+        withBackups,
       )
     },
   }

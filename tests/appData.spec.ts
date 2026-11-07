@@ -42,6 +42,10 @@ function portsOf({
     },
   }
   const ports: DataRemovalPorts = {
+    async trashBackups(id) {
+      calls.push(`trash backups of ${id}`)
+      fail('backups')
+    },
     async dropFile(id, { first, keepDriveFile }) {
       calls.push(`drop ${id} starts`)
       await first?.()
@@ -171,6 +175,69 @@ describe('removing an app’s data', () => {
 
     expect(report.removed).toBe(true)
     expect(report.steps.at(-1)?.outcome).toEqual({ kind: 'failed', message: 'Drive refused beside-copy.' })
+  })
+
+  it('bins the backups before anything else, since forgetting the file forgets the id that finds them', async () => {
+    const { ports, calls } = portsOf()
+
+    const report = await removeAppData(ports, ON_DRIVE, BOTH, true)
+
+    expect(calls.indexOf('trash backups of file-1')).toBeLessThan(calls.indexOf('trash beside file-1'))
+    expect(report.steps.map(({ step }) => step)).toEqual(['backups', 'beside-file', 'drive-file', 'beside-copy'])
+    expect(report.removed).toBe(true)
+  })
+
+  it('leaves the backups alone unless they were ticked', async () => {
+    const { ports, calls } = portsOf()
+
+    await removeAppData(ports, ON_DRIVE, BOTH)
+
+    expect(calls).not.toContain('trash backups of file-1')
+  })
+
+  it('bins only the backups when nothing else was chosen, and the file stays', async () => {
+    const { ports, calls } = portsOf()
+
+    const report = await removeAppData(ports, ON_DRIVE, [], true)
+
+    expect(calls).toContain('trash backups of file-1')
+    expect(calls).not.toContain('drop file-1 starts')
+    expect(calls).not.toContain('forget device state of file-1')
+    expect(report.steps.map(({ step, outcome }) => [step, outcome.kind])).toEqual([['backups', 'done']])
+    expect(report.removed).toBe(false)
+  })
+
+  it('stops at failed backups with the file still chosen, so the delete can run again', async () => {
+    const { ports, calls } = portsOf({ failing: ['backups'] })
+
+    const report = await removeAppData(ports, ON_DRIVE, BOTH, true)
+
+    expect(report.removed).toBe(false)
+    expect(calls).not.toContain('drop file-1 starts')
+    expect(report.steps.map(({ step, outcome }) => [step, outcome.kind])).toEqual([
+      ['backups', 'failed'],
+      ['beside-file', 'not-run'],
+      ['drive-file', 'not-run'],
+      ['beside-copy', 'not-run'],
+    ])
+  })
+
+  it('has no backups to bin for a file kept in this browser', async () => {
+    const { ports, calls } = portsOf()
+
+    const report = await removeAppData(ports, IN_BROWSER, COPY, true)
+
+    expect(calls).not.toContain('trash backups of local-1')
+    expect(report.steps.map(({ step }) => step)).toEqual(['browser-file', 'beside-copy'])
+  })
+
+  it('refuses the backups too while a sync started meanwhile', async () => {
+    const { ports, calls } = portsOf({ syncing: () => true })
+
+    const report = await removeAppData(ports, ON_DRIVE, BOTH, true)
+
+    expect(calls).not.toContain('trash backups of file-1')
+    expect(report.steps[0]?.outcome).toEqual({ kind: 'failed', message: storageWords.busy })
   })
 
   it('waits for a sync under way before it starts', async () => {

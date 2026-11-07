@@ -1,5 +1,11 @@
 import type { RemovalReport } from '../application/appData'
+import { plural } from '../../text/translation'
 import { words } from './words'
+
+/** The label of the backups' row, with how many when that is known. */
+export function backupsLabel(count: number | null): string {
+  return count === null ? words.deleteData.backups : plural(words.deleteData.backupsCounted(count), count)
+}
 
 /** Each step of a removal as a line, with what came of it. */
 export function removalLines(report: RemovalReport): readonly string[] {

@@ -4388,11 +4388,14 @@ export async function deleteDataBrowserFlow(page, { press, shoot, inspect }) {
 
 /**
  * Kuna settings with the company on the fake Drive and Investments in this browser: Delete all of Kuna lists both with what they share, the keys in
- * the Google account unticked, and Delete stays off until the name is typed. Once confirmed, every app is on its first run and the home welcomes again.
+ * the Google account and the backups unticked, and Delete stays off until the name is typed. Once confirmed with the backups ticked, every app is on its first run, the home welcomes again, and only the file Kuna did not make is left in the backups folder.
  */
 export function deleteKunaFlowIn(language) {
   const words = language === 'hr' ? kunaSettingsCroatian : kunaSettingsEnglish
   const text = words.deleteData.all
+  const storage = DELETE_WORDS[language]
+  // Node picks plural forms by English rules, and the page by the language's.
+  const twoBackups = storage.backupsCounted(2)
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const grants = await googleGrants(page)
@@ -4403,6 +4406,8 @@ export function deleteKunaFlowIn(language) {
       if ((await page.$(`[data-testid="delete-data-${app}"]`)) === null) throw new Error(`the delete of all of Kuna does not list ${app}`)
     }
     if ((await checkboxState(page, 'delete-kuna-google-keys')).checked) throw new Error('the keys in the Google account start ticked, and they go for good')
+    if ((await checkboxState(page, 'delete-kuna-backups')).checked) throw new Error('the backups start ticked')
+    await elementSays(page, '[data-testid="delete-kuna-dialog"]', [twoBackups.few ?? twoBackups.other, storage.backupsNote], 'the backups row does not say how many there are and where they go')
     if (!(await page.$eval('[data-testid="delete-kuna-confirm"]', (button) => button.disabled))) throw new Error('Delete can be pressed before the name is typed')
     await inspect?.('the delete of all of Kuna asking first')
     await shoot('delete-kuna')
@@ -4414,6 +4419,7 @@ export function deleteKunaFlowIn(language) {
       .catch(() => {
         throw new Error('typing the name does not let Delete be pressed')
       })
+    await pressSelector(page, press, '[data-testid="delete-kuna-backups"]')
     await shoot('delete-kuna-typed')
     await pressSelector(page, press, '[data-testid="delete-kuna-confirm"]')
     await toastMatching(page, exactly(text.deleted))
@@ -4422,6 +4428,8 @@ export function deleteKunaFlowIn(language) {
     })
     const left = await page.evaluate(() => Object.keys(localStorage).filter((name) => name.startsWith('kuna.workbook-file.')))
     if (left.length > 0) throw new Error(`this browser still names ${left.join(', ')} after the delete`)
+    const backupsLeft = await page.evaluate(() => window.kunaFakeBackupsLeft())
+    if (backupsLeft.join() !== 'my-notes.json') throw new Error(`the backups folder holds ${backupsLeft.join(', ') || 'nothing'}, not only the file Kuna did not make`)
     await inspect?.('the home after deleting all of Kuna')
     await shoot('delete-kuna-done')
     await dismissToasts(page)

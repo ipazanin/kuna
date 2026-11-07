@@ -2423,7 +2423,11 @@ someone shared, the dialog says so, and the copy stays and keeps working. Invest
 `kuna-investments-prices.json` beside the file to the bin and last deletes the prices this browser
 kept. Forgetting the file also forgets this device's set-up answers about it and the app's assistant
 switches. Either way this browser lands on the app's first run, and another open tab follows through a
-`storage` event. The Kuna folder, backups, files beside it and exports stay, and so do the keys. A step
+`storage` event. Both deletes also offer, unticked, the backups Kuna made on Drive, with their count while
+the page holds a token. They are found by the `backups` folder beside the file, a daily backup's name and
+`isAppAuthorized`, and go to the bin one by one, so the folder and anything else in it stay. A backup that
+fails is named, and that app's file stays so the delete can run again. The Kuna folder, other files beside
+it and exports stay, and so do the keys. A step
 that fails stops the removal, and the dialog lists each step's outcome. It waits for a sync under way,
 and is refused with nothing done when a sync starts in the meantime or a save waits
 (`src/shared/storage/application/appData.ts`).

@@ -2,7 +2,7 @@ import { FOLDER_MIME_TYPE } from '../../../google/driveClient'
 import { GoogleApiError } from '../../../google/googleApi'
 import { currentToken } from '../../../google/googleAuth'
 import type { DriveAccess } from '../documentStorePorts'
-import { APP_PROPERTY } from '../driveDocument'
+import { APP_PROPERTY, BACKUPS_FOLDER } from '../driveDocument'
 import { createFakeDrive } from './fakeDrive'
 import type { FakeDrive } from './fakeDrive'
 
@@ -28,6 +28,20 @@ export async function fakeBooksFolder(): Promise<string> {
   const drive = fakeDriveSession()
   const existing = (await drive.children('root')).find((entry) => entry.mimeType === FOLDER_MIME_TYPE && entry.name === FAKE_BOOKS_FOLDER)
   return existing?.id ?? (await drive.createFolder('root', FAKE_BOOKS_FOLDER))
+}
+
+/**
+ * Two backups Kuna made beside the app's file and one file a person put in that folder, so a check can see which go to the bin. Also lets a check
+ * list what is left in the folder through `window.kunaFakeBackupsLeft()`, since the fake Drive lives only in the page.
+ */
+export async function seedFakeBackups(fileId: string, app: string): Promise<void> {
+  const drive = fakeDriveSession()
+  const folder = await drive.createFolder(drive.file(fileId).parents[0] ?? 'root', BACKUPS_FOLDER)
+  await drive.createFile(folder, `kuna-${app}-2026-10-01.json`, '{}')
+  await drive.createFile(folder, `kuna-${app}-2026-10-02.json`, '{}')
+  const theirs = await drive.createFile(folder, 'my-notes.json', '{}')
+  drive.file(theirs.id).isAppAuthorized = false
+  ;(window as unknown as { kunaFakeBackupsLeft: () => Promise<string[]> }).kunaFakeBackupsLeft = async () => (await drive.children(folder)).map((entry) => entry.name).sort()
 }
 
 /** Makes the next save meet a save another device made a moment before its upload, which `otherDeviceSave` makes from the file as it stands. */

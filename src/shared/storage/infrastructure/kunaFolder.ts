@@ -93,6 +93,19 @@ async function backupsOf(drive: DocumentDrive, sourceId: string, app: string): P
   return id === null ? null : { id, files: (await drive.children(id)).filter((entry) => entry.isAppAuthorized && backupDayOf(app, entry.name) !== null) }
 }
 
+/**
+ * The backups Kuna made of the file: in the `backups` folder of its folder, and of the folder a move left unfinished, under a daily backup's name and made by the app.
+ * They carry no property of their own, so these three are what tells them from anything else in there.
+ */
+export async function backupsOfDocument(drive: DocumentDrive, fileId: string, app: string): Promise<readonly DriveEntry[]> {
+  const homes = new Set([await homeOfFile(drive, fileId), await drive.parentOf(fileId)])
+  const found: DriveEntry[] = []
+  for (const home of homes) {
+    found.push(...((await backupsOf(drive, home, app))?.files ?? []))
+  }
+  return found
+}
+
 /** What a move of the file into the app's subfolder would take and leave, reading Drive and changing nothing. */
 export async function planDriveMove(drive: DocumentDrive, fileId: string, app: string, beside: DriveFileBeside): Promise<DriveMovePlan> {
   const sourceId = await homeOfFile(drive, fileId)

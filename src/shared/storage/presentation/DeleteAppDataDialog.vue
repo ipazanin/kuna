@@ -2,13 +2,15 @@
 import { computed, ref, watch } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
+import UCheckbox from '@nuxt/ui/components/Checkbox.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { withGoogleAccess } from '../../google/withGoogleAccess'
 import AppDialog from '../../ui/AppDialog.vue'
+import { removalWent } from '../application/appData'
 import type { AppData, DataPlace, HeldData, RemovalReport } from '../application/appData'
 import DataPlaceChoices from './DataPlaceChoices.vue'
-import { removalLines } from './removalLines'
+import { backupsLabel, removalLines } from './removalLines'
 import { words } from './words'
 
 /** Asks before deleting an app's data, offering what it really has and a backup, and lists each step's outcome when one fails. */
@@ -20,13 +22,21 @@ const text = words.deleteData
 const toast = useToast()
 const held = computed(() => props.data.held())
 const chosen = ref<readonly DataPlace[]>([])
+const withBackups = ref(false)
+const backupCount = ref<number | null>(null)
+const offersBackups = computed(() => held.value?.source === 'drive' && backupCount.value !== 0)
 const deleting = ref(false)
 const failure = ref<readonly string[] | null>(null)
 
 watch(open, (opened) => {
   if (!opened) return
   chosen.value = props.data.held()?.places ?? []
+  withBackups.value = false
+  backupCount.value = null
   failure.value = null
+  void props.data.backupsOnDrive().then((count) => {
+    backupCount.value = count
+  })
 })
 
 /** A file that fell into the bin during a failed delete offers only the copy from then on. */
@@ -58,13 +68,17 @@ async function remove(): Promise<void> {
   if (was === null) return
   const places = chosen.value
   const trashed = places.includes('drive-file')
+  const backups = withBackups.value && offersBackups.value
   deleting.value = true
   failure.value = null
   try {
-    const report = await withGoogleAccess(trashed ? ['drive.file'] : [], () => props.data.remove(places))
+    const report = await withGoogleAccess(trashed || backups ? ['drive.file'] : [], () => props.data.remove(places, backups))
     if (report.removed) {
       open.value = false
       sayDeleted(report, was, trashed)
+    } else if (removalWent(report)) {
+      open.value = false
+      toast.add({ title: text.backupsBinned, icon: 'i-lucide-trash-2', color: 'success', duration: 10_000 })
     } else {
       failure.value = removalLines(report)
     }
@@ -80,6 +94,7 @@ async function remove(): Promise<void> {
   <AppDialog v-model:open="open" :title="text.title(data.name)" :description="text.description" :dismissible="!deleting">
     <div class="flex flex-col gap-4" data-testid="delete-data-dialog">
       <DataPlaceChoices v-model:chosen="chosen" :data="data" :disabled="deleting" />
+      <UCheckbox v-if="offersBackups" v-model="withBackups" :label="backupsLabel(backupCount)" :description="text.backupsNote" :disabled="deleting" data-testid="delete-data-backups" />
       <p class="type-caption" data-testid="delete-data-stays">{{ held?.source === 'drive' ? text.staysDrive : text.staysBrowser }}</p>
       <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="text.failed" :description="text.stillHere" data-testid="delete-data-failed" />
       <ul v-if="failure" class="space-y-1 text-sm text-toned" data-testid="delete-data-steps">
@@ -88,7 +103,7 @@ async function remove(): Promise<void> {
     </div>
     <template #end>
       <UButton :label="text.cancel" color="neutral" variant="ghost" :disabled="deleting" data-testid="delete-data-cancel" @click="open = false" />
-      <UButton :label="text.confirm" icon="i-lucide-trash-2" color="error" :loading="deleting" :disabled="chosen.length === 0" data-testid="delete-data-confirm" @click="remove" />
+      <UButton :label="text.confirm" icon="i-lucide-trash-2" color="error" :loading="deleting" :disabled="chosen.length === 0 && !withBackups" data-testid="delete-data-confirm" @click="remove" />
     </template>
   </AppDialog>
 </template>

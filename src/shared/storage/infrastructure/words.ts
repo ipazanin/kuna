@@ -9,6 +9,8 @@ import { agreeing } from '../domain/words'
 
 export const en = {
   moveBlocked: (folders: string) => `These folders are named from this file's own folder and hold what Kuna may not move: ${folders}. Name them as a path from My Drive in Settings first.`,
+  backupsNotBinned: (names: string, reason: string) => `Google Drive did not move these backups to the bin: ${names}. ${reason}`,
+  onlyOwnerBins: 'Only its owner can move a file to the bin.',
   trashRefused:
     "Google Drive would not move the file to the bin. Only its owner can, from the account Kuna is signed in to, so a file someone shared with you stays theirs. Untick the Drive file to delete only this browser's copy.",
   browserLost: 'This browser no longer holds the workbook. Open an Excel file or a backup to start again.',
@@ -32,6 +34,8 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   moveBlocked: (folders) => `Ove su mape imenovane iz mape ove datoteke i sadrže ono što Kuna ne smije premjestiti: ${folders}. Najprije ih u postavkama imenujte putem od mape Moj disk.`,
+  backupsNotBinned: (names, reason) => `Google Drive nije premjestio ove sigurnosne kopije u otpad: ${names}. ${reason}`,
+  onlyOwnerBins: 'Datoteku u otpad može premjestiti samo njezin vlasnik.',
   trashRefused:
     'Google Drive nije premjestio datoteku u otpad. To može samo njezin vlasnik, s računa na koji je Kuna prijavljena, pa datoteka koju vam je netko podijelio ostaje njegova. Odznačite datoteku na Driveu kako biste obrisali samo kopiju u ovom pregledniku.',
   browserLost: 'Ovaj preglednik više nema datoteku. Otvorite Excel datoteku ili sigurnosnu kopiju da biste počeli ponovno.',

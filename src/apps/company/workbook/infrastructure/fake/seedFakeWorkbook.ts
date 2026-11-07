@@ -4,7 +4,7 @@ import { decodeDocument, encodeDocument } from '../../../../../shared/storage/in
 import type { DocumentCopy } from '../../../../../shared/storage/infrastructure/documentRecordStorage'
 import { COMPANY_APP } from '../companyDocument'
 import { createDriveDocument, documentName } from '../../../../../shared/storage/infrastructure/driveDocument'
-import { failNextUpload, fakeBooksFolder, fakeDriveSession, raceTheNextSave, slowUploads } from '../../../../../shared/storage/infrastructure/fake/fakeDriveSession'
+import { failNextUpload, fakeBooksFolder, fakeDriveSession, raceTheNextSave, seedFakeBackups, slowUploads } from '../../../../../shared/storage/infrastructure/fake/fakeDriveSession'
 import { openWorkbookCache } from '../../../../../shared/storage/infrastructure/workbookCache'
 import { saveWorkbookChoice } from '../../../../../shared/storage/infrastructure/workbookChoice'
 import { MAIL_SOURCE_PROPERTY } from '../../../../../shared/mail-filing/domain/mailSource'
@@ -37,7 +37,7 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
  * first save, with `?fake=slow-writes` every save takes a few seconds to land, and with `?fake=save-fails` the first of them then fails. A variant that starts with `mail` names the bank's and the accountant's mail, which the
  * fake mailbox answers. A variant a pack pays a made-up staff in, which `staffOf` gives, pays them in place of
  * the owner's flat salary. Only the company app's install imports this, behind an inline VITE_FAKE_WORKBOOK comparison,
- * so the module and its fixture never reach a production chunk. `?start=drive` or `?start=browser` is a person who already answered the home welcome.
+ * so the module and its fixture never reach a production chunk. `?start=drive` or `?start=browser` is a person who already answered the home welcome, and `?backups` puts backups beside a file on the fake Drive.
  */
 export async function seedFakeWorkbook(variant: string | null, staffOf: (variant: string | null) => FakeStaff | null): Promise<void> {
   seedFakeStart(new URLSearchParams(window.location.search).get('start'))
@@ -83,6 +83,9 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
       : await onFakeDrive(text, savedAt, document)
   if (variant === 'mail-move') {
     await seedMixedStatements()
+  }
+  if (source === 'drive' && new URLSearchParams(window.location.search).has('backups')) {
+    await seedFakeBackups(copy.meta.id, COMPANY_APP)
   }
   const cache = openWorkbookCache(copy.meta.id)
   try {

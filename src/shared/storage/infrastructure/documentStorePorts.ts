@@ -12,7 +12,7 @@ import { decodeDocument, encodeDocument } from './documentFormat'
 import type { WorkbookDocument } from './documentFormat'
 import { documentRecordStorage, documentRecords } from './documentRecordStorage'
 import type { DocumentCopy } from './documentRecordStorage'
-import { findKunaFolder, finishDriveMove, isKunaFolderOfApp, kunaFolderOfApp, moveDriveDocument, planDriveMove, unfinishedMoveOf } from './kunaFolder'
+import { backupsOfDocument, findKunaFolder, finishDriveMove, isKunaFolderOfApp, kunaFolderOfApp, moveDriveDocument, planDriveMove, unfinishedMoveOf } from './kunaFolder'
 import { APP_PROPERTY, createDriveDocument, documentName, driveDocumentHome, findDriveDocument, placeOfDriveDocument, refuseBackup } from './driveDocument'
 import type { DocumentDrive } from './driveDocument'
 import { openWorkbookCache } from './workbookCache'
@@ -59,6 +59,8 @@ export type DocumentStorePorts<Books extends BooksRead> = Pick<
   | 'finishMoveIntoKuna'
   | 'driveFilePlace'
   | 'trashDriveFile'
+  | 'countBackups'
+  | 'trashBackups'
   | 'read'
   | 'withChanges'
   | 'viewOf'
@@ -228,6 +230,26 @@ export function documentStorePorts<Books extends BooksRead>(
         throw refused
       }
       driveHomes.delete(fileId)
+    },
+
+    async countBackups(fileId) {
+      const access = await driveAccess()
+      return access.signedIn() ? (await backupsOfDocument(access.drive, fileId, app)).length : null
+    },
+
+    async trashBackups(fileId) {
+      const access = await driveAccess()
+      await access.signIn(null)
+      const failed: { readonly name: string; readonly failure: unknown }[] = []
+      for (const backup of await backupsOfDocument(access.drive, fileId, app)) {
+        await access.drive.trash(backup.id).catch((failure: unknown) => failed.push({ name: backup.name, failure }))
+      }
+      const first = failed[0]
+      if (first !== undefined) {
+        const refused = first.failure instanceof GoogleApiError && first.failure.status === 403 && !isRateLimited(first.failure)
+        const reason = refused ? words.onlyOwnerBins : first.failure instanceof Error ? first.failure.message : String(first.failure)
+        throw new Error(words.backupsNotBinned(failed.map(({ name }) => name).join(', '), reason))
+      }
     },
 
     read,

@@ -1,3 +1,4 @@
+import { removalWent } from '../../shared/storage/application/appData'
 import type { AppData, DataPlace, RemovalReport } from '../../shared/storage/application/appData'
 import { words as storageWords } from '../../shared/storage/application/words'
 import { WorkbookWriteRefused } from '../../shared/storage/application/workbookWriteRefused'
@@ -19,6 +20,8 @@ export interface KunaDeletionPorts {
 export interface AppPick {
   readonly data: AppData
   readonly places: readonly DataPlace[]
+  /** Whether the backups Kuna made of this app's file go to the bin too. */
+  readonly backups: boolean
 }
 
 export interface KunaDeletionReport {
@@ -47,8 +50,8 @@ export async function deleteAllOfKuna(ports: KunaDeletionPorts, picks: readonly 
     throw new WorkbookWriteRefused(storageWords.busy)
   }
   const apps: { data: AppData; report: RemovalReport }[] = []
-  for (const { data, places } of picks) {
-    apps.push({ data, report: await data.remove(places) })
+  for (const { data, places, backups } of picks) {
+    apps.push({ data, report: await data.remove(places, backups) })
   }
   const shared: { thing: SharedThing; failure: string | null }[] = []
   async function run(thing: SharedThing, work: () => void | Promise<void>): Promise<void> {
@@ -63,6 +66,6 @@ export async function deleteAllOfKuna(ports: KunaDeletionPorts, picks: readonly 
   await run('google-keys', () => ports.deleteGoogleKeys())
   await run('browser-keys', () => ports.forgetBrowserKeys())
   await run('browser-settings', () => ports.forgetBrowserSettings())
-  const complete = apps.every(({ report }) => report.steps.every(({ outcome }) => outcome.kind === 'done')) && shared.every(({ failure }) => failure === null)
+  const complete = apps.every(({ report }) => removalWent(report)) && shared.every(({ failure }) => failure === null)
   return { apps, shared, complete }
 }

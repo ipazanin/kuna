@@ -123,6 +123,10 @@ export interface WorkbookStorePorts<Books extends BooksRead, Copy extends Workbo
   driveFilePlace(fileId: string): Promise<DriveFilePlace | null>
   /** Moves the Drive file to the bin, from which the person can restore it for 30 days. `drive.file` allows it for a file the app made or was given in the Picker, and Drive only for its owner. */
   trashDriveFile(fileId: string): Promise<void>
+  /** How many backups Kuna made of the file are on Drive, or null while the page holds no token, since asking for one needs a click. */
+  countBackups(fileId: string): Promise<number | null>
+  /** Moves every backup Kuna made of the file to the bin, trying them all, and throws naming those that did not go. */
+  trashBackups(fileId: string): Promise<void>
   /** Loads whatever the next sync's click needs, so the click is not kept waiting. Never called for a workbook kept in this browser. */
   prepareSync(): void
   /** Whether the page's Google token is still good, so a sync needs no popup. */
@@ -204,6 +208,10 @@ export interface WorkbookStore<Books extends BooksRead, Copy extends WorkbookCop
    * go counts as missing. Resolves to whether the workbook was dropped.
    */
   dropWorkbook(workbookId: string, options?: DropOptions): Promise<boolean>
+  /** How many backups Kuna made of the chosen Drive file are on Drive. Null for a workbook kept in this browser, or when that is not known without a sign-in or a working read. */
+  backupsOnDrive(): Promise<number | null>
+  /** Moves the backups Kuna made of the chosen Drive file to the bin. Does nothing for another workbook, and throws `WorkbookWriteRefused` while anything of the file is queued. The file stays chosen either way. */
+  trashBackups(workbookId: string): Promise<void>
   /** Another tab dropped the workbook, so this one shows none either, as a first run, once the file's jobs ahead of it are over. */
   forgottenElsewhere(): Promise<void>
   /**
@@ -634,6 +642,18 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
         showNone()
         return true
       })
+    },
+
+    async backupsOnDrive() {
+      const choice = state.choice
+      return choice?.source === 'drive' ? ports.countBackups(choice.id).catch(() => null) : null
+    },
+
+    async trashBackups(workbookId) {
+      const choice = state.choice
+      if (choice?.id !== workbookId || choice.source !== 'drive') return
+      refuseWhileAnythingQueued()
+      await inLane(() => ports.trashBackups(choice.id))
     },
 
     forgottenElsewhere() {
