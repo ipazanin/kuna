@@ -3,8 +3,9 @@ import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import USlideover from '@nuxt/ui/components/Slideover.vue'
+import UTooltip from '@nuxt/ui/components/Tooltip.vue'
 
-import { chatOpen, closeChat, openChat } from '../../shared/ai/presentation/chatDock'
+import { CHAT_DOCK_QUERY, chatOpen, closeChat, openChat } from '../../shared/ai/presentation/chatDock'
 import { words as chatWords } from '../../shared/ai/presentation/words'
 import { words as sharedWords } from '../../shared/app/words'
 import { useStickyBandPart } from '../../shared/layout/stickyBand'
@@ -34,7 +35,7 @@ defineSlots<{
   default(): unknown
   navigation(props: { rail: boolean }): unknown
   chat(): unknown
-  sync(props: { compact: boolean }): unknown
+  sync(props: { compact: boolean; rail: boolean }): unknown
 }>()
 
 const wide = useMediaQuery('(min-width: 1024px)')
@@ -72,8 +73,7 @@ useStickyBandPart(useTemplateRef<HTMLElement>('topBar'))
 
 const CHAT_QUERY = 'chat'
 const router = useRouter()
-/** Wide enough for a 56 px sidebar, a screen's smallest 784 px and a 384 px chat, so no screen gets less than a 1024 px window gives it. */
-const docks = useMediaQuery('(min-width: 1224px)')
+const docks = useMediaQuery(CHAT_DOCK_QUERY)
 const chatShows = computed(() => props.chatAvailable && chatOpen.value)
 const docked = computed(() => chatShows.value && docks.value)
 /** Narrower, the chat takes the page's place. The page stays mounted, so its filters and its scroll survive. */
@@ -108,6 +108,24 @@ watch(
   },
 )
 
+/** Hiding the page collapses the document and loses its scroll, so the pane keeps it and gives it back, unless a link led to another screen. */
+let placeBeforePane: { readonly path: string; readonly scrollY: number } | null = null
+watch(inPane, (shown) => {
+  if (shown) placeBeforePane = { path: route.path, scrollY: window.scrollY }
+})
+/** The page is back only once its history step is too, as Back also makes the router restore a scroll it read from the collapsed document. */
+const pageIsBack = computed(() => !inPane.value && route.query[CHAT_QUERY] === undefined)
+watch(pageIsBack, (back) => {
+  const place = placeBeforePane
+  if (!back || place === null) return
+  placeBeforePane = null
+  void nextTick(() =>
+    requestAnimationFrame(() => {
+      if (route.path === place.path) window.scrollTo(0, place.scrollY)
+    }),
+  )
+})
+
 const shell = useTemplateRef<HTMLElement>('shell')
 const pane = useTemplateRef<HTMLElement>('pane')
 const paneHeight = useHeightAboveKeyboard(pane)
@@ -126,22 +144,23 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
         </div>
         <slot name="navigation" :rail="docked" />
         <div v-if="chatAvailable" class="border-t border-default py-2" :class="docked ? 'flex justify-center' : 'mx-3'">
-          <UButton
-            icon="i-lucide-sparkles"
-            :label="docked ? '' : chatWords.chat.open"
-            :aria-label="chatWords.chat.open"
-            :aria-pressed="chatShows"
-            :title="docked ? chatWords.chat.open : undefined"
-            color="neutral"
-            :variant="chatShows ? 'soft' : 'ghost'"
-            :block="!docked"
-            class="justify-start"
-            data-testid="chat-open"
-            @click="chatShows ? closeChat() : openChat()"
-          />
+          <UTooltip :text="chatWords.chat.open" :disabled="!docked" :content="{ side: 'right' }">
+            <UButton
+              icon="i-lucide-sparkles"
+              :label="docked ? '' : chatWords.chat.open"
+              :aria-label="chatWords.chat.open"
+              :aria-pressed="chatShows"
+              color="neutral"
+              :variant="chatShows ? 'soft' : 'ghost'"
+              :block="!docked"
+              class="justify-start"
+              data-testid="chat-open"
+              @click="chatShows ? closeChat() : openChat()"
+            />
+          </UTooltip>
         </div>
-        <div v-if="$slots.sync" class="border-t border-default py-4" :class="docked ? 'rail-control flex justify-center px-1' : 'px-4'" data-testid="sidebar-sync">
-          <slot name="sync" :compact="docked" />
+        <div v-if="$slots.sync" class="border-t border-default py-4" :class="docked ? 'flex justify-center px-1' : 'px-4'" data-testid="sidebar-sync">
+          <slot name="sync" :compact="docked" :rail="docked" />
         </div>
       </div>
     </aside>
@@ -185,7 +204,7 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
           data-testid="chat-open"
           @click="chatShows ? closeChat() : openChat()"
         />
-        <slot v-if="$slots.sync" name="sync" :compact="true" />
+        <slot v-if="$slots.sync" name="sync" :compact="true" :rail="false" />
       </div>
     </header>
 

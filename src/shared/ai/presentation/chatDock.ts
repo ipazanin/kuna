@@ -14,6 +14,9 @@ export interface ChatTag {
   readonly screen: string | null
 }
 
+/** Wide enough for a 56 px sidebar, a screen's smallest 784 px and a 384 px chat, so no screen gets less than a 1024 px window gives it. */
+export const CHAT_DOCK_QUERY = '(min-width: 1224px)'
+
 const open = ref(false)
 const tag = shallowRef<ChatTag | null>(null)
 

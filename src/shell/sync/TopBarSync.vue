@@ -18,8 +18,10 @@ withDefaults(
   defineProps<{
     /** The narrow top-bar form. */
     compact?: boolean
+    /** On the icon sidebar: the icon alone, with its name as a tooltip. */
+    rail?: boolean
   }>(),
-  { compact: false },
+  { compact: false, rail: false },
 )
 
 const sync = usePageSync()
@@ -33,14 +35,15 @@ const exportReminder = computed(() => {
 </script>
 
 <template>
-  <div v-if="!onDrive && inBrowser.length > 0" class="flex" :class="compact ? 'items-center justify-end gap-2' : 'flex-col gap-3'">
-    <component :is="group.exportControl" v-for="group in inBrowser" :key="group.app" :compact="compact" />
+  <div v-if="!onDrive && inBrowser.length > 0" class="flex" :class="rail ? 'flex-col items-center gap-2' : compact ? 'items-center justify-end gap-2' : 'flex-col gap-3'">
+    <component :is="group.exportControl" v-for="group in inBrowser" :key="group.app" :compact="compact" :rail="rail" />
   </div>
   <SyncStatus
     v-else-if="onDrive"
     :control="sync.control.value"
     :run="sync.run.value"
     :compact="compact"
+    :rail="rail"
     :export-reminder="exportReminder"
     :saving="writesInFlight > 0"
     @sync="sync.sync"

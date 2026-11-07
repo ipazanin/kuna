@@ -5,16 +5,16 @@ import UChatMessages from '@nuxt/ui/components/ChatMessages.vue'
 import UChatPrompt from '@nuxt/ui/components/ChatPrompt.vue'
 import UChatPromptSubmit from '@nuxt/ui/components/ChatPromptSubmit.vue'
 
-import type { AppContribution, AssistTaskSummary } from '../../app/appContribution'
+import type { AppContribution } from '../../app/appContribution'
 import { usePhoneLayout } from '../../layout/viewport'
 import AppMark from '../../ui/AppMark.vue'
 import RemovableChip from '../../ui/RemovableChip.vue'
 import type { CatalogueScreen } from '../application/catalogue'
 import { assistOn, switchAssist } from '../infrastructure/assistSettings'
-import AssistConsent from './AssistConsent.vue'
+import ChatConsentCard from './ChatConsentCard.vue'
 import ChatLineView from './ChatLineView.vue'
 import { chatTag, closeChat, removeChatTag } from './chatDock'
-import { allowThisChat, allowedThisChat, chatLines, chatSpent, chatStatus, clearChat, loadCatalogue, sendChatMessage, stopChatMessage } from './chatSession'
+import { allowThisChat, allowedThisChat, chatDraft, chatLines, chatSpent, chatStatus, clearChat, loadCatalogue, sendChatMessage, stopChatMessage } from './chatSession'
 import { providerInUse } from './useAiTask'
 import { words } from './words'
 
@@ -33,11 +33,8 @@ const props = defineProps<{
   kunaScreens: readonly CatalogueScreen[]
 }>()
 
-const CHAT_SUMMARY: AssistTaskSummary = { id: 'chat.turn', title: words.chat.title, sends: words.chat.sends, employees: null }
-
 const phone = usePhoneLayout()
 const provider = computed(() => providerInUse())
-const draft = ref('')
 const asking = ref<string | null>(null)
 
 /** An app with no Assistant tab has no switch a person could see or take back, so outside Company and Spending only a yes for this chat stops the asking. */
@@ -46,10 +43,15 @@ const switchApp = computed(() => (props.app?.assist === undefined ? null : props
 const messages = computed(() => chatLines.map((line) => ({ id: line.id, role: line.role, parts: [{ type: 'text' as const, text: line.text }], line })))
 const lineOf = (id: string) => chatLines.find((line) => line.id === id)
 
-function send(message: string): void {
+/** Whether a send may go without asking: the app's switch is on, or this chat already has a yes for the provider. */
+function allowed(): boolean {
   const app = switchApp.value
   const preset = provider.value
-  if ((app !== null && assistOn(app)) || (preset !== null && allowedThisChat(preset.id))) run(message)
+  return (app !== null && assistOn(app)) || (preset !== null && allowedThisChat(preset.id))
+}
+
+function send(message: string): void {
+  if (allowed()) run(message)
   else asking.value = message
 }
 
@@ -60,32 +62,30 @@ function run(message: string): void {
   )
 }
 
+/** The question stays in the prompt until it goes, so Cancel on the card loses nothing. */
 function submit(): void {
-  const message = draft.value.trim()
+  const message = chatDraft.value.trim()
   if (message === '' || chatStatus.value !== 'ready') return
-  draft.value = ''
+  if (allowed()) chatDraft.value = ''
   send(message)
 }
 
-function sendOnce(): void {
+function allowInChat(): void {
   const message = asking.value
   asking.value = null
   if (provider.value !== null) allowThisChat(provider.value.id)
-  if (message !== null) run(message)
+  if (message === null) return
+  if (chatDraft.value.trim() === message) chatDraft.value = ''
+  run(message)
 }
 
-function dontAskAgain(): void {
+function allowAlways(): void {
   if (switchApp.value !== null) switchAssist(switchApp.value, true)
-  sendOnce()
-}
-
-function askingClosed(open: boolean): void {
-  if (open || asking.value === null) return
-  if (draft.value === '') draft.value = asking.value
-  asking.value = null
+  allowInChat()
 }
 
 function startOver(): void {
+  asking.value = null
   clearChat()
   removeChatTag()
 }
@@ -111,44 +111,46 @@ function startOver(): void {
     </header>
 
     <div class="min-h-0 flex-1 overflow-y-auto px-3 py-3" data-testid="chat-messages">
-      <p v-if="chatLines.length === 0" class="type-body text-muted" data-testid="chat-empty">{{ words.chat.empty }}</p>
-      <UChatMessages
-        v-else
-        :messages="messages"
-        :status="chatStatus"
-        should-auto-scroll
-        :user="{ side: 'right', variant: 'soft' }"
-        :assistant="{ side: 'left', variant: 'naked' }"
-        :spacing-offset="0"
-        compact
-      >
-        <template #content="{ message }">
-          <ChatLineView v-if="lineOf(message.id)" :line="lineOf(message.id)!" :streaming="chatStatus === 'streaming'" @retry="send" />
-        </template>
-      </UChatMessages>
-    </div>
-
-    <div class="flex flex-col gap-1.5 border-t border-default px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-      <div v-if="chatTag" class="flex min-w-0 items-center gap-1" data-testid="chat-tag">
-        <RemovableChip :label="words.chat.tagged(chatTag.label)" :remove-label="words.chat.removeTag(chatTag.label)" data-testid="chat-tag-remove" @remove="removeChatTag" />
+      <div class="mx-auto w-full max-w-2xl">
+        <p v-if="chatLines.length === 0" class="type-body text-muted" data-testid="chat-empty">{{ words.chat.empty }}</p>
+        <UChatMessages
+          v-else
+          :messages="messages"
+          :status="chatStatus"
+          should-auto-scroll
+          :user="{ side: 'right', variant: 'soft' }"
+          :assistant="{ side: 'left', variant: 'naked' }"
+          :spacing-offset="0"
+          compact
+        >
+          <template #content="{ message }">
+            <ChatLineView v-if="lineOf(message.id)" :line="lineOf(message.id)!" :streaming="chatStatus === 'streaming'" @retry="send" />
+          </template>
+        </UChatMessages>
       </div>
-      <UChatPrompt v-model="draft" :placeholder="words.chat.placeholder" :autofocus="!phone" variant="subtle" :maxrows="6" data-testid="chat-prompt" @submit="submit">
-        <UChatPromptSubmit :status="chatStatus" :disabled="draft.trim() === ''" color="neutral" data-testid="chat-send" @stop="stopChatMessage" />
-      </UChatPrompt>
-      <p v-if="chatSpent" class="type-caption" data-testid="chat-spent">{{ words.chat.spent(chatSpent) }}</p>
     </div>
 
-    <AssistConsent
-      v-if="asking !== null && provider"
-      :open="true"
-      :task="CHAT_SUMMARY"
-      :provider="provider"
-      :sends-employees="false"
-      :offers-always="switchApp !== null"
-      :send-label="words.chat.sendInChat"
-      @update:open="askingClosed"
-      @once="sendOnce"
-      @always="dontAskAgain"
-    />
+    <div class="border-t border-default px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <div class="mx-auto flex w-full max-w-2xl flex-col gap-1.5">
+        <ChatConsentCard v-if="asking !== null && provider" :provider="provider" :offers-always="switchApp !== null" @allow="allowInChat" @always="allowAlways" @cancel="asking = null" />
+        <div v-if="chatTag" class="flex min-w-0 items-center gap-1" data-testid="chat-tag">
+          <RemovableChip :label="chatTag.label" :remove-label="words.chat.removeTag(chatTag.label)" data-testid="chat-tag-remove" @remove="removeChatTag" />
+        </div>
+        <UChatPrompt
+          v-model="chatDraft"
+          :placeholder="words.chat.placeholder"
+          :autofocus="!phone"
+          :disabled="asking !== null"
+          variant="subtle"
+          :maxrows="6"
+          class="chat-prompt"
+          data-testid="chat-prompt"
+          @submit="submit"
+        >
+          <UChatPromptSubmit :status="chatStatus" :disabled="chatDraft.trim() === '' || asking !== null" color="neutral" data-testid="chat-send" @stop="stopChatMessage" />
+        </UChatPrompt>
+        <p v-if="chatSpent" class="type-caption" data-testid="chat-spent">{{ words.chat.spent(chatSpent) }}</p>
+      </div>
+    </div>
   </section>
 </template>

@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UPopover from '@nuxt/ui/components/Popover.vue'
 import USlideover from '@nuxt/ui/components/Slideover.vue'
+import UTooltip from '@nuxt/ui/components/Tooltip.vue'
 
 import { dateFormat } from '../../calendar/dateFormat'
 import { syncAge } from '../../calendar/syncAge'
@@ -29,12 +30,14 @@ const props = withDefaults(
     run?: SyncRun | null
     /** The top bar's form: one button, with the full time and the step in what a screen reader hears. */
     compact?: boolean
+    /** The icon sidebar's form of the top bar's: the icon alone, with its name as a tooltip. */
+    rail?: boolean
     /** What a file kept in this browser has not exported yet, in a sentence, or null while every such file is exported in time. */
     exportReminder?: string | null
     /** True while a write to the books is under way, which the sync waits for. */
     saving?: boolean
   }>(),
-  { run: null, compact: false, exportReminder: null, saving: false },
+  { run: null, compact: false, rail: false, exportReminder: null, saving: false },
 )
 
 const emit = defineEmits<{
@@ -99,7 +102,7 @@ const label = computed(() => {
   if (props.saving && control.kind !== 'running') return appWords.saving
   switch (control.kind) {
     case 'running':
-      return props.compact ? `${control.label} ${control.position}/${control.of}` : words.syncing
+      return props.compact && !props.rail ? `${control.label} ${control.position}/${control.of}` : words.syncing
     case 'sign-in':
       return words.signIn
     case 'allow-access':
@@ -107,7 +110,7 @@ const label = computed(() => {
     case 'problems':
       return problemWords.value
     case 'ready':
-      return props.compact && syncedAt.value !== null ? syncAge(syncedAt.value, now.value) : words.sync
+      return props.compact && !props.rail && syncedAt.value !== null ? syncAge(syncedAt.value, now.value) : words.sync
   }
 })
 
@@ -187,7 +190,13 @@ function syncAgain(): void {
 </script>
 
 <template>
-  <div ref="root" class="flex min-w-0 items-center gap-2" :class="compact ? 'justify-end' : 'flex-wrap justify-between'" data-testid="sync-status" :data-control="control.kind">
+  <div
+    ref="root"
+    class="flex min-w-0 items-center gap-2"
+    :class="rail ? 'justify-center' : compact ? 'justify-end' : 'flex-wrap justify-between'"
+    data-testid="sync-status"
+    :data-control="control.kind"
+  >
     <p v-if="compact" class="sr-only" role="status">
       {{ saving ? appWords.saving : control.kind === 'running' || control.kind === 'problems' || control.kind === 'allow-access' || control.kind === 'sign-in' ? name : '' }}
     </p>
@@ -201,26 +210,28 @@ function syncAgain(): void {
       <time v-if="control.kind === 'ready' && syncedAt && !saving" :datetime="control.syncedAt ?? undefined" :title="fullStamp(syncedAt)" class="figure">{{ statusLine }}</time>
       <span v-else>{{ statusLine }}</span>
     </p>
-    <UButton
-      :icon="ICONS[control.kind]"
-      loading-icon="i-lucide-refresh-cw"
-      :label="label"
-      :aria-label="name"
-      :title="compact ? (failureWords ?? undefined) : undefined"
-      :loading="working"
-      :disabled="working"
-      color="neutral"
-      variant="outline"
-      size="sm"
-      :class="{
-        'top-bar-action': compact,
-        'has-reminder': exportReminder !== null,
-        'text-error': control.kind === 'problems',
-        'text-warning': control.kind === 'allow-access' || control.kind === 'sign-in',
-      }"
-      data-testid="sync-button"
-      @click="tap"
-    />
+    <UTooltip :text="label" :disabled="!rail" :content="{ side: 'right' }">
+      <UButton
+        :icon="ICONS[control.kind]"
+        loading-icon="i-lucide-refresh-cw"
+        :label="rail ? '' : label"
+        :aria-label="name"
+        :title="compact ? (failureWords ?? undefined) : undefined"
+        :loading="working"
+        :disabled="working"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        :class="{
+          'top-bar-action': compact && !rail,
+          'has-reminder': exportReminder !== null,
+          'text-error': control.kind === 'problems',
+          'text-warning': control.kind === 'allow-access' || control.kind === 'sign-in',
+        }"
+        data-testid="sync-button"
+        @click="tap"
+      />
+    </UTooltip>
     <UButton
       v-if="!compact && run !== null && control.kind !== 'running' && control.kind !== 'problems'"
       icon="i-lucide-list-checks"
@@ -237,7 +248,7 @@ function syncAgain(): void {
       <SyncStepList :run="run" @sync="syncAgain" />
     </template>
   </USlideover>
-  <UPopover v-else v-model:open="listOpen" :reference="root ?? undefined" :content="{ side: compact ? 'bottom' : 'right', align: 'end', collisionPadding: 12, onCloseAutoFocus: focusButton }">
+  <UPopover v-else v-model:open="listOpen" :reference="root ?? undefined" :content="{ side: compact && !rail ? 'bottom' : 'right', align: 'end', collisionPadding: 12, onCloseAutoFocus: focusButton }">
     <template #content>
       <SyncStepList :run="run" class="w-80 max-w-[calc(100vw-2rem)] p-4" @sync="syncAgain" />
     </template>

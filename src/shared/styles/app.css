@@ -446,25 +446,21 @@ section + section > .group-row:not(tr) {
   line-height: 1rem;
 }
 
-/* The sync or export control on the icon sidebar, whose buttons keep their names for a screen reader through their aria-label. */
-.rail-control > div {
-  flex-direction: column;
-  align-items: center;
+/* The open app's tile on the icon sidebar, where its name's weight cannot show. It takes the tile's own colour. */
+.nav-link.in-rail.is-open > span:first-child {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
 }
 
-.rail-control button {
-  padding-inline: 0.625rem;
-}
-
-.rail-control button [data-slot='label'] {
-  display: none;
+/* The chat's prompt draws its own ring around the field, so the field inside it draws none. */
+.chat-prompt textarea:focus-visible {
+  outline: none;
 }
 
 /* The element the open chat is about. An element takes it through `chatTagAttrs`. */
 [data-chat-tagged] {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: var(--radius-control);
 }
 
 /* The key beside a legend's label or a figure: its mark in the colour passed as --swatch. */

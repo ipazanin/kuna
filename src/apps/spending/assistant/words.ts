@@ -65,8 +65,8 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   settings: {
-    bankSyncDeployment: 'Izvršna API implementacija skripte za sinkronizaciju s bankom. Prazno ostavlja cijelu sinkronizaciju isključenom.',
-    bankLink: (bank) => `Dan kad istječe odobrenje za ${bank}, a postavlja se povezivanjem banke.`,
+    bankSyncDeployment: 'ID implementacije skripte. Ako je prazno, sinkronizacija je isključena.',
+    bankLink: (bank) => `Datum isteka odobrenja za ${bank}. Postavlja se povezivanjem banke.`,
     companyOib: 'OIB tvrtke, po kojem se prepoznaje R1 račun za nju.',
   },
   guides: {
@@ -74,10 +74,10 @@ export const hr: Translation<typeof en> = {
       title: 'Postavite pravila za svoju banku',
       body: (labels) =>
         [
-          'Pravilo samo razvrstava redak izvoda. Gleda primatelja ili IBAN druge strane, pa jednako radi za svaku banku koja donosi retke u Kunu.',
-          `1. Donesite retke preko ${labels.entries}, ${labels.import} ili ${labels.settings}, ${labels.bankSync}. Retci koje nijedno pravilo ne razvrsta čekaju na ${labels.entries}, ${labels.review}.`,
-          `2. Na ${labels.review} odaberite kategoriju za redak i zatim ${labels.always}. Prije spremanja Kuna pokaže koliko redaka pravilo razvrstava.`,
-          `3. Sva pravila navedena su na ${labels.settings}, ${labels.rules}, gdje ih možete i obrisati.`,
+          'Pravilo automatski razvrstava redak izvoda. Gleda primatelja ili IBAN druge strane, pa jednako radi za svaku banku čiji retci dolaze u Kunu.',
+          `1. Uvezite retke na zaslonu ${labels.entries}, na kartici ${labels.import}, ili ih donesite sinkronizacijom na zaslonu ${labels.settings}, na kartici ${labels.bankSync}. Retci koje nijedno pravilo ne razvrsta čekaju na zaslonu ${labels.entries}, na kartici ${labels.review}.`,
+          `2. Na kartici ${labels.review} odaberite kategoriju za redak i zatim ${labels.always}. Prije spremanja Kuna pokaže koliko redaka pravilo razvrstava.`,
+          `3. Sva pravila navedena su na zaslonu ${labels.settings}, na kartici ${labels.rules}, gdje ih možete i obrisati.`,
           'Redak koji ste sami razvrstali ostaje kakav jest, što god pravilo kaže.',
         ].join('\n'),
     },
@@ -85,28 +85,28 @@ export const hr: Translation<typeof en> = {
       title: 'Uvezite izvod',
       body: (labels) =>
         [
-          `Na ${labels.entries}, ${labels.import} ispustite izvoz iz Revoluta, kao datoteku .xlsx ili .csv. Za druge banke ovdje još nema čitača datoteka, a njihovi retci dolaze sinkronizacijom s bankom.`,
+          `Na zaslonu ${labels.entries}, na kartici ${labels.import} ispustite izvoz iz Revoluta, kao datoteku .xlsx ili .csv. Za druge banke ovdje još nema čitača datoteka, a njihovi retci dolaze sinkronizacijom s bankom.`,
           'Kuna najprije pokaže što bi datoteka učinila i ne zapisuje ništa dok je ne uvezete. Uvoz možete poništiti iz poruke koja slijedi.',
-          `Retci koje nijedno pravilo ne razvrsta zatim čekaju na ${labels.review}.`,
+          `Retci koje nijedno pravilo ne razvrsta zatim čekaju na kartici ${labels.review}.`,
         ].join('\n'),
     },
     bankSync: {
       title: 'Povežite banku',
       body: (labels) =>
         [
-          `Sinkronizacija s bankom donosi proknjižene retke iz OTP-a i Revoluta preko vaše vlastite skripte, u isti pregled kao i izvod. Nalazi se na ${labels.settings}, ${labels.bankSync}.`,
-          `1. Implementirajte skriptu i ondje spremite ${labels.deployment}. Bez toga sinkronizacija ostaje isključena.`,
-          '2. Povežite svaku banku. Odobrenje istječe na datum koji piše na kartici i tada je ponovno povežete.',
+          `Sinkronizacija s bankom donosi proknjižene retke iz OTP-a i Revoluta preko vaše vlastite skripte, u isti pregled kao i izvod. Nalazi se na zaslonu ${labels.settings}, na kartici ${labels.bankSync}.`,
+          `1. Objavite skriptu (Deploy u uređivaču skripte) pa tamo spremite ${labels.deployment}. Bez toga sinkronizacija ostaje isključena.`,
+          '2. Povežite svaku banku. Odobrenje istječe na datum s kartice i tada banku ponovno povežite.',
         ].join('\n'),
     },
     limits: {
       title: 'Postavite mjesečno ograničenje',
       body: (labels) =>
-        `Na ${labels.limits} postavite mjesečno ograničenje u eurima na skupinu kao što je Hrana ili na neku od njezinih kategorija. Ono što mjesec ne potroši prenosi se u sljedeći, a prekoračenje umanjuje sljedeći mjesec.`,
+        `Na zaslonu ${labels.limits} postavite mjesečno ograničenje u eurima na skupinu kao što je Hrana ili na neku od njezinih kategorija. Ono što u mjesecu ne potrošite prenosi se u sljedeći, a prekoračenje umanjuje sljedeći mjesec.`,
     },
     categories: {
       title: 'Promijenite kategorije',
-      body: (labels) => `Skupine i kategorije nalaze se na ${labels.settings}, ${labels.general}. Skrivena kategorija zadržava svoje unose.`,
+      body: (labels) => `Skupine i kategorije nalaze se na zaslonu ${labels.settings}, na kartici ${labels.general}. Skrivena kategorija zadržava svoje unose.`,
     },
   },
 }

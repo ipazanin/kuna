@@ -7826,6 +7826,8 @@ const COMPANY_SWITCH = '[data-testid="assist-switch-company"]'
 const SUGGEST_BUTTON = '[data-testid="assist-company.suggest-categories"]'
 const EXPLAIN_BUTTON = '[data-testid="assist-hr-doo.explain-figure"]'
 const CONSENT = '[data-testid="assist-consent"]'
+const CHAT_CONSENT = '[data-testid="chat-consent"]'
+const SHELL_SETTINGS_NAME = { en: 'Kuna settings', hr: 'Postavke Kune' }
 
 /** Keeps the made-up Anthropic key in this browser, and with `companyOn` Company's assistant switched on, then loads the page again with them. */
 async function keepAssistKey(page, { companyOn = false } = {}) {
@@ -8202,8 +8204,41 @@ export function chatPanelFlowIn(language) {
       await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
       await page.reload({ waitUntil: 'networkidle0' })
 
+      if (!(await wide())) {
+        const scrolledTo = async (how) => {
+          await page.waitForSelector('[data-testid="chat-panel"]', { hidden: true, timeout: 5_000 })
+          await delay(300)
+          const scrollY = await page.evaluate(() => window.scrollY)
+          if (Math.abs(scrollY - 200) > 2) throw new Error(`closing the pane by ${how} left the page at ${scrollY}, not 200`)
+        }
+        const openFromPlace = async () => {
+          await page.evaluate(() => window.scrollTo(0, 200))
+          await delay(100)
+          await (await page.waitForSelector('[data-testid="chat-open"]', { visible: true })).evaluate((button) => button.click())
+          await page.waitForSelector('[data-testid="chat-panel"]', { visible: true, timeout: 10_000 })
+        }
+        await openFromPlace()
+        await pressSelector(page, press, '[data-testid="chat-close"]')
+        await scrolledTo('its close button')
+        await openFromPlace()
+        await pressSelector(page, press, '[data-testid="chat-open"]')
+        await scrolledTo('the chat button')
+        await openFromPlace()
+        await page.goBack()
+        await scrolledTo('Back')
+      }
+
       await pressSelector(page, press, '[data-testid="chat-open"]')
       await page.waitForSelector('[data-testid="chat-panel"]', { visible: true, timeout: 10_000 })
+      const half = await pressSelector(page, press, 'textarea[data-testid="chat-prompt"]')
+      await half.type('half')
+      await pressSelector(page, press, '[data-testid="chat-close"]')
+      await page.waitForSelector('[data-testid="chat-panel"]', { hidden: true, timeout: 5_000 })
+      await pressSelector(page, press, '[data-testid="chat-open"]')
+      const kept = await page.waitForSelector('textarea[data-testid="chat-prompt"]', { visible: true, timeout: 10_000 })
+      if ((await kept.evaluate((field) => field.value)) !== 'half') throw new Error('closing the panel lost a half-typed question')
+      await kept.evaluate((field) => field.select())
+      await page.keyboard.press('Backspace')
       await elementSays(page, '[data-testid="chat-label"]', [words.chat.inApp(language === 'en' ? spendingAppEnglish.name : spendingAppCroatian.name)], 'the panel does not name the app on screen')
       await elementSays(page, '[data-testid="chat-empty"]', [words.chat.empty], 'the empty panel does not say what it can do')
       if (!(await wide()) && (await page.$eval('main', (element) => element.offsetParent !== null))) throw new Error('the page stays on screen behind the pane')
@@ -8211,15 +8246,16 @@ export function chatPanelFlowIn(language) {
       await shoot('chat-empty')
 
       await send(language === 'en' ? 'How do I set up rules for my bank?' : 'Kako da postavim pravila za svoju banku?')
-      await page.waitForSelector(CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
+      await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
         throw new Error('the send did not ask with the switch off')
       })
-      await elementSays(page, '[role="dialog"]', [words.chat.sends], 'the dialog does not say what leaves')
+      await elementSays(page, CHAT_CONSENT, [words.chat.sends, words.retention.anthropic], 'the card does not say what leaves and what the company keeps')
+      if (await page.$('[role="dialog"]')) throw new Error('the chat asked in a dialog')
       await delay(400)
-      await inspect?.('the dialog before a chat sends')
+      await inspect?.('the card before a chat sends')
       await shoot('chat-consent')
       if ((await page.evaluate(() => localStorage.getItem('kuna.assist.spending'))) !== null) throw new Error('asking changed the switch')
-      await pressSelector(page, press, '[data-testid="assist-consent-confirm"]')
+      await pressSelector(page, press, '[data-testid="chat-allow"]')
       await page.waitForSelector('[data-testid="chat-chip"]', { visible: true, timeout: 15_000 }).catch(() => {
         throw new Error('the answer brought no link to the screen')
       })
@@ -8230,7 +8266,7 @@ export function chatPanelFlowIn(language) {
 
       await send(language === 'en' ? 'crypto?' : 'kripto?')
       const issues = await page.waitForSelector('[data-testid="chat-issues"]', { visible: true, timeout: 15_000 })
-      if (await page.$(CONSENT)) throw new Error('a second message of a chat asked again')
+      if (await page.$(CHAT_CONSENT)) throw new Error('a second message of a chat asked again')
       const address = await issues.evaluate((element) => element.getAttribute('href'))
       if (address !== 'https://github.com/ipazanin/kuna/issues') throw new Error(`the issues link goes to ${address}`)
       if ((await page.evaluate(() => localStorage.getItem('kuna.assist.spending'))) !== null) throw new Error('a yes for this chat changed the switch')
@@ -8240,10 +8276,10 @@ export function chatPanelFlowIn(language) {
       await pressSelector(page, press, '[data-testid="chat-new"]')
       await page.waitForSelector('[data-testid="chat-empty"]', { visible: true, timeout: 5_000 })
       await send(greeting)
-      await page.waitForSelector(CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
+      await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
         throw new Error('a new chat did not ask again')
       })
-      await pressSelector(page, press, '[data-testid="assist-consent-always"]')
+      await pressSelector(page, press, '[data-testid="chat-allow-always"]')
       await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
       if ((await page.evaluate(() => localStorage.getItem('kuna.assist.spending'))) !== 'on') throw new Error("Don't ask again left the switch off")
 
@@ -8251,7 +8287,7 @@ export function chatPanelFlowIn(language) {
       await page.waitForSelector('[data-testid="chat-empty"]', { visible: true, timeout: 5_000 })
       await send(language === 'en' ? 'And the rules?' : 'A pravila?')
       await page.waitForSelector('[data-testid="chat-chip"]', { visible: true, timeout: 15_000 })
-      if (await page.$(CONSENT)) throw new Error("a new chat asked with Don't ask again on")
+      if (await page.$(CHAT_CONSENT)) throw new Error("a new chat asked with Don't ask again on")
 
       await pressSelector(page, press, '[data-testid="chat-chip"]')
       await page
@@ -8265,6 +8301,9 @@ export function chatPanelFlowIn(language) {
         await page.setViewport({ ...page.viewport(), width: 1224 })
         await delay(300)
         await inspect?.('the dock at the narrowest width it docks')
+        await page.focus('[data-testid="nav-kuna-settings"]')
+        await elementSays(page, '[role="tooltip"]', [SHELL_SETTINGS_NAME[language]], 'a row of the icon sidebar does not say its name on focus')
+        await page.focus('[data-testid="sync-button"], [data-testid="chat-open"]')
         await shoot('chat-dock-1224')
         await page.setViewport({ ...page.viewport(), width: 1440 })
       } else {
@@ -8297,12 +8336,11 @@ export function chatPanelFlowIn(language) {
 
 /** A button that opens the chat about one element: the tag shows and can be removed, and the element is marked while it stays. */
 export async function chatTagFlow(page, { press, shoot, inspect }) {
-  const words = ASSIST_WORDS.en
   try {
     await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
     await page.reload({ waitUntil: 'networkidle0' })
     await pressSelector(page, press, '[data-testid="gallery-chat-ask"]')
-    await elementSays(page, '[data-testid="chat-tag"]', [words.chat.tagged('Cash on hand')], 'the panel does not show the tag')
+    await elementSays(page, '[data-testid="chat-tag"]', ['Cash on hand'], 'the panel does not show the tag')
     await inspect?.('a tagged chat')
     await shoot('chat-tag')
     const marked = () => page.$eval('[data-testid="gallery-chat-element"]', (element) => element.hasAttribute('data-chat-tagged'))

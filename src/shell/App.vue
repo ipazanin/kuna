@@ -4,7 +4,9 @@ import { RouterView, useRoute, useRouter } from 'vue-router'
 import UApp from '@nuxt/ui/components/App.vue'
 import { en_gb, hr } from '@nuxt/ui/locale'
 
+import { CHAT_DOCK_QUERY, chatOpen } from '../shared/ai/presentation/chatDock'
 import { assistKeyKept } from '../shared/ai/presentation/useAiTask'
+import { useMediaQuery } from '../shared/layout/viewport'
 import { resumedBy } from '../shared/google/googleRedirect'
 import type { RedirectReturn } from '../shared/google/googleRedirect'
 import { DEFAULT_MONEY_FORMAT, setMoneyFormat } from '../shared/money/moneyFormat'
@@ -73,8 +75,9 @@ void router.isReady().then(() => {
   )
 })
 
-/** Toasts rise from the bottom, clear of the gesture bar in the installed app. */
-const toaster = { ui: { viewport: 'bottom-[max(1rem,env(safe-area-inset-bottom))]' } }
+const docks = useMediaQuery(CHAT_DOCK_QUERY)
+/** Toasts rise from the bottom, clear of the gesture bar in the installed app and of the docked chat's 24rem column. */
+const toaster = computed(() => ({ ui: { viewport: `bottom-[max(1rem,env(safe-area-inset-bottom))] ${assistKeyKept.value && chatOpen.value && docks.value ? 'right-[25rem]' : ''}` } }))
 
 /** The chat's code loads only once a person with a key opens it. */
 const ChatPanel = defineAsyncComponent(() => import('../shared/ai/presentation/ChatPanel.vue'))
@@ -103,8 +106,8 @@ const uiLocale = language === 'hr' ? hr : en_gb
       <template #chat>
         <ChatPanel :app="appOnScreen" :screen="screenName" :path="route.path" :apps="installedApps()" :kuna-screens="KUNA_SCREENS" />
       </template>
-      <template v-if="someFileChosen" #sync="{ compact }">
-        <TopBarSync :compact="compact" />
+      <template v-if="someFileChosen" #sync="{ compact, rail }">
+        <TopBarSync :compact="compact" :rail="rail" />
       </template>
     </AppShell>
     <UpdatePrompt />

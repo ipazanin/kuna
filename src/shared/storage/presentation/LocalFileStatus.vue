@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
+import UTooltip from '@nuxt/ui/components/Tooltip.vue'
 
 import { dateFormat } from '../../calendar/dateFormat'
 import type { CopyMeta } from '../application/workbookPorts'
@@ -18,8 +19,10 @@ const props = withDefaults(
     exporting: boolean
     /** The narrow top-bar form: the button alone, with the reminder in its label. */
     compact?: boolean
+    /** On the icon sidebar: the icon alone, with its name as a tooltip. */
+    rail?: boolean
   }>(),
-  { compact: false },
+  { compact: false, rail: false },
 )
 
 const emit = defineEmits<{ export: [] }>()
@@ -37,23 +40,25 @@ const reminder = computed(() => {
 </script>
 
 <template>
-  <div class="flex min-w-0 items-center gap-2" :class="compact ? 'justify-end' : 'flex-wrap justify-between'" data-testid="local-status">
+  <div class="flex min-w-0 items-center gap-2" :class="rail ? 'justify-center' : compact ? 'justify-end' : 'flex-wrap justify-between'" data-testid="local-status">
     <div v-if="!compact" class="min-w-0">
       <p class="truncate text-xs text-toned">{{ words.localFile.kept }}</p>
       <p class="figure truncate text-xs text-muted">{{ exportedText }}</p>
     </div>
-    <UButton
-      icon="i-lucide-download"
-      :label="compact ? words.localFile.export : label"
-      :loading="exporting"
-      :disabled="exporting || meta === null"
-      :aria-label="compact ? [label, reminder].filter(Boolean).join('. ') : undefined"
-      color="neutral"
-      variant="outline"
-      size="sm"
-      :class="{ 'top-bar-action': compact, 'has-reminder': compact && reminder }"
-      @click="emit('export')"
-    />
+    <UTooltip :text="words.localFile.export" :disabled="!rail" :content="{ side: 'right' }">
+      <UButton
+        icon="i-lucide-download"
+        :label="rail ? '' : compact ? words.localFile.export : label"
+        :loading="exporting"
+        :disabled="exporting || meta === null"
+        :aria-label="compact ? [label, reminder].filter(Boolean).join('. ') : undefined"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        :class="{ 'top-bar-action': compact && !rail, 'has-reminder': compact && reminder }"
+        @click="emit('export')"
+      />
+    </UTooltip>
     <p v-if="reminder && !compact" class="flex w-full items-start gap-1.5 text-xs text-warning" role="status">
       <UIcon name="i-lucide-clock-alert" class="mt-px size-3.5 shrink-0" aria-hidden="true" />
       <span>{{ reminder }}</span>

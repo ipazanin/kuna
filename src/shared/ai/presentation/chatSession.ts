@@ -39,6 +39,9 @@ const lines = reactive<ChatLine[]>([])
 const spent = reactive<Spent>({ dollars: 0, unknown: false, any: false })
 const status = shallowRef<'ready' | 'streaming'>('ready')
 
+/** A question not sent yet, which stays while the panel is closed and goes with a new chat. */
+export const chatDraft = shallowRef('')
+
 let history: readonly ModelTurn[] = []
 let lastContext: string | null = null
 /** The provider and model `history` belongs to, since a provider's turns mean nothing to another and thinking blocks are tied to the model. */
@@ -178,6 +181,7 @@ export function clearChat(): void {
   lastContext = null
   chain = null
   allowedFor = null
+  chatDraft.value = ''
   Object.assign(spent, { dollars: 0, unknown: false, any: false })
 }
 

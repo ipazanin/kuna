@@ -4486,7 +4486,7 @@ const MENU_VIEWPORTS = ['phone', 'small-tablet', 'tablet-wide', 'desktop']
 
 /** The editors' flows, each on a fresh load, so the fake file on Drive and the workbook kept in this browser start from their seed. */
 const FLOWS = [
-  { name: 'chat-panel', hash: '#/spending', title: 'Overview', run: chatPanelFlowIn('en'), queries: { drive: '&spending=sample', browser: '&fake=browser&spending=sample' } },
+  { name: 'chat-panel-flow', hash: '#/spending', title: 'Overview', run: chatPanelFlowIn('en'), queries: { drive: '&spending=sample', browser: '&fake=browser&spending=sample' } },
   {
     name: 'chat-panel-flow-croatian',
     hash: '#/spending',
