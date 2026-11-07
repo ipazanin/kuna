@@ -1,6 +1,6 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
-import type { Money } from '../../../../shared/money/money'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /** A current account at a bank, cash in hand, or savings kept apart. */
@@ -22,7 +22,7 @@ export interface Account {
   readonly bank: AccountBank | null
   readonly currency: CurrencyCode
   /** What the account held at the start of `openedOn`, in its currency. */
-  readonly opening: Money
+  readonly opening: AccountMoney
   readonly openedOn: CivilDate
   /** Blank on cash. */
   readonly iban: string

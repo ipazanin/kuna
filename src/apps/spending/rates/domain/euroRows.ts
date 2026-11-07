@@ -4,10 +4,10 @@ import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { ReceiptLine } from '../../workbook/domain/receiptLine'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { EURO } from '../../../../shared/money/currencyCode'
-import { decimalOfMoney } from '../../../../shared/money/decimal'
 import type { Money } from '../../../../shared/money/money'
-import { eurosAtEcbRate } from '../../../../shared/money/rateBook'
+import { eurosOfAccountMoney } from '../../../../shared/money/rateBook'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
@@ -27,22 +27,20 @@ export function euroRows(book: Pick<SpendingBook, 'accounts' | 'transactions' | 
   for (const line of book.lines) linesOf.set(line.transaction, [...(linesOf.get(line.transaction) ?? []), line])
   return book.transactions.flatMap((transaction) => {
     const account = accounts.get(transaction.account)
-    return account === undefined
-      ? []
-      : [{ transaction, account, euros: eurosAtEcbRate(decimalOfMoney(transaction.amount), account.currency, transaction.date, rates), lines: linesOf.get(transaction.id) ?? [] }]
+    return account === undefined ? [] : [{ transaction, account, euros: eurosOfAccountMoney(transaction.amount, account.currency, transaction.date, rates), lines: linesOf.get(transaction.id) ?? [] }]
   })
 }
 
 /** An account's balance on the day, in its currency and in euros at that day's rate, null while the rates do not reach it. */
 export interface AccountOnDay {
   readonly account: Account
-  readonly balance: Money
+  readonly balance: AccountMoney
   readonly euros: Money | null
 }
 
 export function accountOnDay(account: Account, rows: readonly Transaction[], day: CivilDate, rates: RateBook): AccountOnDay {
   const balance = accountBalance(account, rows, day)
-  return { account, balance, euros: eurosAtEcbRate(decimalOfMoney(balance), account.currency, day, rates) }
+  return { account, balance, euros: eurosOfAccountMoney(balance, account.currency, day, rates) }
 }
 
 /** The accounts Bank and cash adds up on the day: the open ones, and a closed one that still holds money, so closing an account never drops money from the sum. */

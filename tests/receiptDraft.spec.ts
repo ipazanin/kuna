@@ -7,6 +7,7 @@ import type { AnsweredLine, DraftContext, ReceiptAnswer } from '../src/apps/spen
 import type { FiscalQr } from '../src/apps/spending/receipts/domain/fiscalQr'
 import { LINE_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { civil, euros } from './fixtures/ledger'
 import { CATEGORIES, category } from './fixtures/spending'
 
@@ -40,7 +41,7 @@ describe('a read receipt', () => {
 
     expect(notes).toEqual([])
     expect(read).toMatchObject({ merchant: 'Corner market', merchantOib: MADE_UP_MERCHANT_OIB, issuedOn: civil('2026-11-03'), issuedTime: '18:42', total: euros(23.49), r1: false })
-    expect(read.lines.map((held) => held.amount)).toEqual([euros(-20), euros(-3.49)])
+    expect(read.lines.map((held) => held.amount)).toEqual([accountMoneyFromAmount(-20), accountMoneyFromAmount(-3.49)])
   })
 
   it('notes lines that do not add up and changes no figure', () => {
@@ -48,7 +49,7 @@ describe('a read receipt', () => {
 
     expect(notes).toEqual(['The lines add up to €22.99, the receipt says €23.49'])
     expect(read.total).toEqual(euros(23.49))
-    expect(read.lines.map((held) => held.amount)).toEqual([euros(-20), euros(-2.99)])
+    expect(read.lines.map((held) => held.amount)).toEqual([accountMoneyFromAmount(-20), accountMoneyFromAmount(-2.99)])
   })
 
   it('lets the sum be off by a cent a line, for rounding per line', () => {
@@ -60,7 +61,7 @@ describe('a read receipt', () => {
     const { read, notes } = receiptDraft({ ...ANSWER, lines: [line('MLIJEKO', 20), line('KRUH', 3.49, { quantity: 2, unitPrice: 1.5 })] }, CONTEXT)
 
     expect(notes).toEqual(['KRUH: quantity times price gives €3.00, the line says €3.49'])
-    expect(read.lines[1]!.amount).toEqual(euros(-3.49))
+    expect(read.lines[1]!.amount).toEqual(accountMoneyFromAmount(-3.49))
   })
 
   it('takes weighed goods within a cent', () => {
@@ -71,7 +72,7 @@ describe('a read receipt', () => {
     const { read, notes } = receiptDraft({ ...ANSWER, lines: [line('MLIJEKO', 25), line('POPUST', -1.51, { kind: 'discount' })] }, CONTEXT)
 
     expect(notes).toEqual([])
-    expect(read.lines[1]!.amount).toEqual(euros(1.51))
+    expect(read.lines[1]!.amount).toEqual(accountMoneyFromAmount(1.51))
   })
 
   it('notes a VAT table that does not reach the total, and shows no note without a table', () => {
@@ -193,7 +194,7 @@ describe('what the review found in a read', () => {
     const { read, notes } = receiptDraft({ ...ANSWER, lines: [line('MLIJEKO', 22.48), line('POPUST', 1.01, { kind: 'discount' })] }, CONTEXT)
 
     expect(notes).toEqual(['POPUST is a discount, but its amount reads as a cost'])
-    expect(read.lines[1]!.amount).toEqual(euros(-1.01))
+    expect(read.lines[1]!.amount).toEqual(accountMoneyFromAmount(-1.01))
   })
 
   it('keeps a JIR from the QR code and a ZKI only the read has, and the reverse', () => {
@@ -250,7 +251,7 @@ describe('a line remembered from a confirmed receipt', () => {
     receipt: recordIdOf(RECEIPT_RECORDS, receiptKey),
     printed,
     text: '',
-    amount: euros(-1),
+    amount: accountMoneyFromAmount(-1),
     category: category(path).id,
   })
   const OLD = '5e000000-0000-4000-8000-000000008001'

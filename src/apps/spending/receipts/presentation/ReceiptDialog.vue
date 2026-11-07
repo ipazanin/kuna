@@ -37,7 +37,7 @@ import { resultLine, usageLine, useAiTask } from '../../../../shared/ai/presenta
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
-import { ZERO, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { accountMoneyOfEuros, negateAccountMoney, subtractAccountMoney, sumAccountMoney, ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
 import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
@@ -244,8 +244,8 @@ function waitsForChoice(choice: string): boolean {
 /** What the confirmed lines leave of the row, which one Difference line then shows. */
 const linesDifference = computed(() => {
   const read = readDraft.value
-  if (read === null || total.value === null) return ZERO
-  return subtractMoney(chosenRow.value?.amount ?? negateMoney(total.value), sumMoney(read.lines.map((line) => line.amount)))
+  if (read === null || total.value === null) return ZERO_ACCOUNT_MONEY
+  return subtractAccountMoney(chosenRow.value?.amount ?? negateAccountMoney(accountMoneyOfEuros(total.value)), sumAccountMoney(read.lines.map((line) => line.amount)))
 })
 
 /** Each new category you accepted that a line still names, by the name suggested. */

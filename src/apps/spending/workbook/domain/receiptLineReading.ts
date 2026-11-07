@@ -1,3 +1,4 @@
+import { requiredAccountMoney } from './fieldReading'
 import { requiredReference } from './recordReference'
 import type { ReceiptLine } from './receiptLine'
 import { CATEGORY_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
@@ -7,11 +8,11 @@ import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
 import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { ownId, refuse, requiredMoney, textOf } from '../../../../shared/storage/domain/storedFields'
+import { ownId, refuse, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 
 export function receiptLineOf(fields: StoredFields, id: RecordId | null): ReceiptLine {
-  const amount = requiredMoney(fields, 'amount')
+  const amount = requiredAccountMoney(fields, 'amount')
   if (amount === 0) refuse(words.amountIsZero)
   return {
     id: ownId(id),

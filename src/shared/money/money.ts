@@ -95,6 +95,6 @@ export function ratioOf(part: Money, whole: Money): Share | null {
 }
 
 /** An amount written for a person to read in a problem, such as `-1234.50`, the same in every locale. */
-export function plainAmount(money: Money): string {
-  return (money / 100).toFixed(2)
+export function plainAmount(cents: number): string {
+  return (cents / 100).toFixed(2)
 }

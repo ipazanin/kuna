@@ -1,6 +1,7 @@
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { Category } from '../../workbook/domain/category'
-import { ZERO, addMoney, dividedRounded, moneyFromCents, negateMoney, subtractMoney } from '../../../../shared/money/money'
+import { addAccountMoney, ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
+import { ZERO, dividedRounded, moneyFromCents, negateMoney, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
@@ -35,10 +36,10 @@ export function sideOf(category: Category | null): Side {
  */
 function eurosOfLines({ transaction, euros, lines }: EuroRow): readonly (Money | null)[] {
   if (euros === null) return lines.map(() => null)
-  let running = ZERO
+  let running = ZERO_ACCOUNT_MONEY
   let shared = ZERO
   return lines.map((line) => {
-    running = addMoney(running, line.amount)
+    running = addAccountMoney(running, line.amount)
     const upToHere = moneyFromCents(Math.sign(transaction.amount) * dividedRounded(running * euros, Math.abs(transaction.amount)))
     const share = subtractMoney(upToHere, shared)
     shared = upToHere

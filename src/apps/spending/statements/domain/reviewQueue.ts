@@ -7,7 +7,7 @@ import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { ZERO } from '../../../../shared/money/money'
+import { ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
 
 /** How far back To review lists the transfers it can still undo. */
 const PAIRS_SHOWN_DAYS = 30
@@ -49,7 +49,7 @@ export function reviewQueue(book: SpendingBook, day: CivilDate): ReviewQueue {
     typedRowsOf(book),
     waitingRows.filter((row) => row.source === 'statement'),
   )
-  const maybeTyped = new Map<Transaction, NearMatch<Transaction, Transaction>>([...matches.map((match) => ({ ...match, difference: ZERO })), ...near].map((match) => [match.bank, match]))
+  const maybeTyped = new Map<Transaction, NearMatch<Transaction, Transaction>>([...matches.map((match) => ({ ...match, difference: ZERO_ACCOUNT_MONEY })), ...near].map((match) => [match.bank, match]))
   const { offered } = transferPairs(waitingRows.filter(isPairable), book.accounts)
   const maybeTransfer = new Map<Transaction, TransferPair>(offered.flatMap((pair) => [[pair.debit, pair] as const, [pair.credit, pair] as const]))
 

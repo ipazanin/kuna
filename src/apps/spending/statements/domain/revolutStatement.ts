@@ -4,9 +4,10 @@ import { bankFeesCategory } from '../../categories/domain/starterCategories'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { civilDateFromSerial, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { absAccountMoney, accountMoneyFromAmount, addAccountMoney, negateAccountMoney, subtractAccountMoney, ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { EURO, currencyCodeOf } from '../../../../shared/money/currencyCode'
-import { addMoney, moneyFromAmount, moneyFromCents, subtractMoney, ZERO } from '../../../../shared/money/money'
-import type { Money } from '../../../../shared/money/money'
+import { roundHalfAwayFromZero } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { amountText } from '../../../../shared/storage/domain/recordFields'
 import { decimalOf } from '../../../../shared/storage/domain/storedFields'
@@ -41,7 +42,7 @@ interface Started {
 /** A started time as one text, whether the file writes it as text or as a date cell, so one row gets one key from either file. */
 function startedOf(cell: SheetCell): Started | null {
   if (typeof cell === 'number') {
-    const seconds = Math.round(cell * SECONDS_PER_DAY)
+    const seconds = roundHalfAwayFromZero(cell * SECONDS_PER_DAY)
     const date = civilDateFromSerial(Math.floor(seconds / SECONDS_PER_DAY))
     const inDay = seconds % SECONDS_PER_DAY
     const [hours, minutes, rest] = [Math.floor(inDay / 3600), Math.floor(inDay / 60) % 60, inDay % 60].map((part) => String(part).padStart(2, '0'))
@@ -52,10 +53,10 @@ function startedOf(cell: SheetCell): Started | null {
   return date === null ? null : { date, at: `${date} ${hours.padStart(2, '0')}:${minutes}:${seconds}` }
 }
 
-function moneyOf(cell: SheetCell): Money | null {
-  if (typeof cell === 'number') return moneyFromAmount(cell)
+function moneyOf(cell: SheetCell): AccountMoney | null {
+  if (typeof cell === 'number') return accountMoneyFromAmount(cell)
   const amount = decimalOf(cellText(cell))
-  return amount === null ? null : moneyFromAmount(amount)
+  return amount === null ? null : accountMoneyFromAmount(amount)
 }
 
 class Refused extends Error {}
@@ -63,15 +64,15 @@ class Refused extends Error {}
 /** A row the file completed, on a product Kuna reads. */
 interface CompletedRow {
   readonly started: Started
-  readonly amount: Money
-  readonly fee: Money
+  readonly amount: AccountMoney
+  readonly fee: AccountMoney
   readonly onSavings: boolean
   readonly exchange: boolean
   readonly currency: string
   readonly description: string
   /** Empty or null where the file leaves them out. */
   readonly completedAt: string
-  readonly balance: Money | null
+  readonly balance: AccountMoney | null
 }
 
 /**
@@ -90,7 +91,7 @@ function balanceNotes(rows: readonly CompletedRow[]): string[] {
     const [first, ...later] = [...chain].sort((earlier, next) => earlier.completedAt.localeCompare(next.completedAt))
     const last = later.at(-1)
     if (first?.balance == null || last?.balance == null) return []
-    const worked = later.reduce((sum, row) => addMoney(sum, subtractMoney(row.amount, row.fee)), first.balance)
+    const worked = later.reduce((sum, row) => addAccountMoney(sum, subtractAccountMoney(row.amount, row.fee)), first.balance)
     if (worked === last.balance) return []
     const [product = '', currency = ''] = key.split(' ')
     const format = { currency: currencyCodeOf(currency) ?? EURO, locale: intlLocale }
@@ -107,7 +108,7 @@ function pocketMoves(rows: readonly CompletedRow[]): ReadonlyMap<CompletedRow, s
   }
   const times = new Map<CompletedRow, string>()
   for (const row of rows) {
-    const mirror = row.onSavings || row.amount === ZERO ? undefined : savingsRows.get(keyOf(row, -row.amount))?.shift()
+    const mirror = row.onSavings || row.amount === ZERO_ACCOUNT_MONEY ? undefined : savingsRows.get(keyOf(row, -row.amount))?.shift()
     if (mirror !== undefined) {
       times.set(row, row.started.at)
       times.set(mirror, row.started.at)
@@ -160,7 +161,7 @@ function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, boo
     const fileRow = headerAt + offset + 2
     const started = startedOf(cellOf(row, 'Started Date')) ?? refuseRow(words.notADay(fileRow, cellText(cellOf(row, 'Started Date'))))
     const amount = moneyOf(cellOf(row, 'Amount')) ?? refuseRow(words.notAnAmount(fileRow, cellText(cellOf(row, 'Amount'))))
-    const fee = cellText(cellOf(row, 'Fee')) === '' ? ZERO : (moneyOf(cellOf(row, 'Fee')) ?? refuseRow(words.notAnAmount(fileRow, cellText(cellOf(row, 'Fee')))))
+    const fee = cellText(cellOf(row, 'Fee')) === '' ? ZERO_ACCOUNT_MONEY : (moneyOf(cellOf(row, 'Fee')) ?? refuseRow(words.notAnAmount(fileRow, cellText(cellOf(row, 'Fee')))))
     const product = cellText(cellOf(row, 'Product'))
     const onSavings = product.toLowerCase() === 'savings'
     if (!onSavings && product.toLowerCase() !== 'current') {
@@ -183,7 +184,7 @@ function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, boo
   const pocketTimes = pocketMoves(completed)
   const kept: Omit<StatementRow, 'importKey'>[] = []
   const facts: string[][] = []
-  const fees: Money[] = []
+  const fees: AccountMoney[] = []
 
   for (const row of completed) {
     const fitting = revolut.filter((candidate) => candidate.currency === row.currency && candidate.kind === (row.onSavings ? 'savings' : 'bank'))
@@ -216,13 +217,13 @@ function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, boo
     const importKey = keys[index]!
     const fee = fees[index]!
     return [
-      ...(row.amount === ZERO ? [] : [{ ...row, importKey }]),
-      ...(fee === ZERO
+      ...(row.amount === ZERO_ACCOUNT_MONEY ? [] : [{ ...row, importKey }]),
+      ...(fee === ZERO_ACCOUNT_MONEY
         ? []
         : [
             {
               ...row,
-              amount: moneyFromCents(-Math.abs(fee)),
+              amount: negateAccountMoney(absAccountMoney(fee)),
               payee: words.revolut,
               category: feeCategory,
               description: words.feeOn(row.description),

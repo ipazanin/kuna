@@ -1,15 +1,15 @@
 import { ACCOUNT_BANKS, ACCOUNT_KINDS } from './account'
 import type { Account } from './account'
-import { flagOf } from './fieldReading'
+import { flagOf, optionalAccountMoney } from './fieldReading'
 import { ACCOUNT_RECORDS } from './spendingKinds'
 import { words } from './words'
+import { ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
 import { currencyCodeOf } from '../../../../shared/money/currencyCode'
-import { ZERO } from '../../../../shared/money/money'
 import { labelWords, withIdField } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { optionalMoney, ownId, refuse, requiredChoice, requiredDate, textOf } from '../../../../shared/storage/domain/storedFields'
+import { ownId, refuse, requiredChoice, requiredDate, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import { words as storedWords } from '../../../../shared/storage/domain/words'
 
@@ -35,7 +35,7 @@ export function accountOf(fields: StoredFields, id: RecordId | null): Account {
     kind,
     bank,
     currency,
-    opening: optionalMoney(fields, 'opening') ?? ZERO,
+    opening: optionalAccountMoney(fields, 'opening') ?? ZERO_ACCOUNT_MONEY,
     openedOn: requiredDate(fields, 'opened_on'),
     iban,
     closed: flagOf(fields, 'closed'),

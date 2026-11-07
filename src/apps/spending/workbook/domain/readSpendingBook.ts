@@ -12,8 +12,9 @@ import type { SettingRow, SpendingSettings } from './spendingSettings'
 import type { Transaction } from './transaction'
 import { words } from './words'
 import { limitRuns, runsOverlap } from '../../budgets/domain/budgetCarry'
-import { plainAmount, sumMoney } from '../../../../shared/money/money'
-import type { Money } from '../../../../shared/money/money'
+import { sumAccountMoney } from '../../../../shared/money/accountMoney'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
+import { plainAmount } from '../../../../shared/money/money'
 import type { RecordKind, RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import { problemOf, readEach } from '../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
@@ -191,7 +192,7 @@ function readLines(read: RecordsRead<ReceiptLine>, transactions: readonly Transa
     if (receiptOf.get(line.receipt)?.transaction !== line.transaction) return words.noReceipt
     return categories.has(line.category) ? null : words.noCategory
   }
-  const sums = new Map<RecordId, Money[]>()
+  const sums = new Map<RecordId, AccountMoney[]>()
   const brokenRows = new Set<RecordId>()
   for (const { record: line } of read.records) {
     sums.set(line.transaction, [...(sums.get(line.transaction) ?? []), line.amount])
@@ -202,7 +203,7 @@ function readLines(read: RecordsRead<ReceiptLine>, transactions: readonly Transa
     if (own !== null) return [own]
     // All or none, since lines left counting without their sibling would drop its money from every figure.
     if (brokenRows.has(line.transaction)) return [words.siblingLineLeftOut]
-    const sum = sumMoney(sums.get(line.transaction) ?? [])
+    const sum = sumAccountMoney(sums.get(line.transaction) ?? [])
     const amount = rows.get(line.transaction)?.amount
     return sum === amount ? [] : [words.linesDoNotAddUp(plainAmount(sum), plainAmount(amount ?? sum))]
   })

@@ -1,3 +1,5 @@
+import { roundHalfAwayFromZero } from '../../../../shared/money/money'
+
 /** Where a photo was taken, in decimal degrees, as the receipt stores it. */
 export interface PhotoPlace {
   readonly latitude: string
@@ -34,7 +36,7 @@ function entryOf(view: DataView, directory: number, tag: number, littleEndian: b
 
 /** Decimal degrees to six places, as data rather than a figure on screen, the same in every language. */
 function coordinateText(degrees: number): string {
-  const millionths = Math.round(Math.abs(degrees) * 1_000_000)
+  const millionths = roundHalfAwayFromZero(Math.abs(degrees) * 1_000_000)
   return `${degrees < 0 ? '-' : ''}${Math.floor(millionths / 1_000_000)}.${String(millionths % 1_000_000).padStart(6, '0')}`
 }
 

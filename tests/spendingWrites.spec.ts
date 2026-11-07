@@ -16,7 +16,9 @@ import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { recordsChangeInWords } from '../src/shared/storage/presentation/recordsChangeInWords'
-import { civil, euros, month } from './fixtures/ledger'
+import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
+import { moneyFromAmount } from '../src/shared/money/money'
+import { civil, month } from './fixtures/ledger'
 import { ACCOUNTS, CATEGORIES, DAY, OTP, REVOLUT_EUR, REVOLUT_USD, category } from './fixtures/spending'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
 
@@ -46,11 +48,15 @@ function byId<R extends { readonly id: string }>(records: readonly R[]): R[] {
 }
 
 function topUp(amount = 200, into = REVOLUT_EUR, received = amount) {
-  return newTransfer({ account: OTP.id, amount: euros(amount) }, { account: into.id, amount: euros(received) }, { date: civil('2026-10-03'), payee: ' Top-up ', note: '', category: BETWEEN.id })
+  return newTransfer(
+    { account: OTP.id, amount: accountMoneyFromAmount(amount) },
+    { account: into.id, amount: accountMoneyFromAmount(received) },
+    { date: civil('2026-10-03'), payee: ' Top-up ', note: '', category: BETWEEN.id },
+  )
 }
 
 function coffee(date: string, amount: number) {
-  return newEntry({ account: OTP.id, date: civil(date), amount: euros(amount), payee: ' Café on the square ', category: category('Food/Coffee').id, note: '' })
+  return newEntry({ account: OTP.id, date: civil(date), amount: accountMoneyFromAmount(amount), payee: ' Café on the square ', category: category('Food/Coffee').id, note: '' })
 }
 
 describe('Spending writes', () => {
@@ -59,7 +65,7 @@ describe('Spending writes', () => {
 
     await store.write('Added', (unit) => unit.of(TRANSACTION_WRITES).add(coffee('2026-10-16', -3.5)))
 
-    expect(store.state.workbook!.transactions).toMatchObject([{ payee: 'Café on the square', source: 'typed', pair: null, amount: euros(-3.5) }])
+    expect(store.state.workbook!.transactions).toMatchObject([{ payee: 'Café on the square', source: 'typed', pair: null, amount: accountMoneyFromAmount(-3.5) }])
     expect(store.state.workbook!.problems).toEqual([])
   })
 
@@ -72,11 +78,11 @@ describe('Spending writes', () => {
     expect(store.state.writes).toHaveLength(1)
     expect(store.state.workbook!.problems).toEqual([])
     expect(store.state.workbook!.transactions.map((leg) => [leg.account, leg.amount, leg.payee, leg.pair])).toEqual([
-      [OTP.id, euros(-200), 'Top-up', into.id],
-      [REVOLUT_EUR.id, euros(200), 'Top-up', out.id],
+      [OTP.id, accountMoneyFromAmount(-200), 'Top-up', into.id],
+      [REVOLUT_EUR.id, accountMoneyFromAmount(200), 'Top-up', out.id],
     ])
     // OTP 1,550.00 − 200.00 and Revolut EUR 300.00 + 200.00.
-    expect([OTP, REVOLUT_EUR].map((account) => accountBalance(account, store.state.workbook!.transactions, DAY))).toEqual([euros(1_350), euros(500)])
+    expect([OTP, REVOLUT_EUR].map((account) => accountBalance(account, store.state.workbook!.transactions, DAY))).toEqual([accountMoneyFromAmount(1_350), accountMoneyFromAmount(500)])
   })
 
   it('writes a transfer between two currencies with an amount on each side', async () => {
@@ -84,7 +90,7 @@ describe('Spending writes', () => {
 
     await store.write('Added', (unit) => topUp(100, REVOLUT_USD, 108.5).forEach((leg) => unit.of(TRANSACTION_WRITES).add(leg)))
 
-    expect([OTP, REVOLUT_USD].map((account) => accountBalance(account, store.state.workbook!.transactions, DAY))).toEqual([euros(1_450), euros(308.5)])
+    expect([OTP, REVOLUT_USD].map((account) => accountBalance(account, store.state.workbook!.transactions, DAY))).toEqual([accountMoneyFromAmount(1_450), accountMoneyFromAmount(308.5)])
   })
 
   it('deletes the other leg with the one deleted, in one write that one Undo puts back whole', async () => {
@@ -123,7 +129,7 @@ describe('a statement in the Spending file', () => {
   const rowOf = (payee: string, amount: number, date = '2026-10-20') => ({
     account: OTP.id,
     date: civil(date),
-    amount: euros(amount),
+    amount: accountMoneyFromAmount(amount),
     payee,
     category: null,
     description: payee,
@@ -211,7 +217,7 @@ describe('a statement in the Spending file', () => {
 
     const receipt = await store.write('Joined', (unit) => joinWithTyped(unit, near.typed, near.bank, []))
 
-    expect(store.state.workbook!.transactions).toMatchObject([{ id: typed.id, amount: euros(-5.2), importKey: 'key-CAFE', category: typed.category }])
+    expect(store.state.workbook!.transactions).toMatchObject([{ id: typed.id, amount: accountMoneyFromAmount(-5.2), importKey: 'key-CAFE', category: typed.category }])
     await store.undo(store.state.writes.find((write) => write.receipt === receipt)!)
     expect(byId(store.state.workbook!.transactions)).toEqual(byId(before))
   })
@@ -239,8 +245,8 @@ describe('a statement in the Spending file', () => {
     const credit = { ...coffee('2026-10-19', 75), account: REVOLUT_EUR.id, importKey: 'kept', source: 'statement' as const }
     const { kept, added } = transferOver(credit, topUp(75))
 
-    expect(kept).toMatchObject({ id: credit.id, amount: euros(75), account: REVOLUT_EUR.id, importKey: 'kept', pair: added.id, category: BETWEEN.id })
-    expect(added).toMatchObject({ amount: euros(-75), account: OTP.id, pair: credit.id })
+    expect(kept).toMatchObject({ id: credit.id, amount: accountMoneyFromAmount(75), account: REVOLUT_EUR.id, importKey: 'kept', pair: added.id, category: BETWEEN.id })
+    expect(added).toMatchObject({ amount: accountMoneyFromAmount(-75), account: OTP.id, pair: credit.id })
   })
 
   it('refuses to move a row a statement brought to another account, since the next export would bring it again', async () => {
@@ -262,7 +268,7 @@ describe('a statement in the Spending file', () => {
 
     await store.write('Filed', (unit) => fileRow(unit, row!, category('Personal/Clothes and shoes')))
 
-    expect(store.state.workbook!.transactions).toMatchObject([{ amount: euros(40), category: category('Personal/Clothes and shoes').id, categorisedBy: 'person' }])
+    expect(store.state.workbook!.transactions).toMatchObject([{ amount: accountMoneyFromAmount(40), category: category('Personal/Clothes and shoes').id, categorisedBy: 'person' }])
   })
 
   it('says a deleted statement row comes back, and it does on the next overlapping export, while a typed row does not', async () => {
@@ -294,8 +300,8 @@ describe('a statement in the Spending file', () => {
 
   it('keeps what the bank said on a row you retype, so a later statement still skips it, and marks a changed category as yours', () => {
     const filed = { ...coffee('2026-10-19', -5), importKey: 'kept', description: 'CAFE 12', statement: 'export.csv', source: 'statement' as const, categorisedBy: 'rule' as const }
-    const typedSame = newEntry({ account: OTP.id, date: civil('2026-10-20'), amount: euros(-6), payee: 'Coffee', category: filed.category, note: '' })
-    const typedOther = newEntry({ account: OTP.id, date: civil('2026-10-20'), amount: euros(-6), payee: 'Coffee', category: category('Food/Groceries').id, note: '' })
+    const typedSame = newEntry({ account: OTP.id, date: civil('2026-10-20'), amount: accountMoneyFromAmount(-6), payee: 'Coffee', category: filed.category, note: '' })
+    const typedOther = newEntry({ account: OTP.id, date: civil('2026-10-20'), amount: accountMoneyFromAmount(-6), payee: 'Coffee', category: category('Food/Groceries').id, note: '' })
 
     expect(retypedEntry(filed, typedSame)).toMatchObject({
       id: filed.id,
@@ -303,7 +309,7 @@ describe('a statement in the Spending file', () => {
       importKey: 'kept',
       description: 'CAFE 12',
       statement: 'export.csv',
-      amount: euros(-6),
+      amount: accountMoneyFromAmount(-6),
       categorisedBy: 'rule',
     })
     expect(retypedEntry(filed, typedOther)).toMatchObject({ importKey: 'kept', categorisedBy: 'person' })
@@ -341,21 +347,23 @@ describe('a statement in the Spending file', () => {
 
 describe('Spending account writes', () => {
   it('keeps an account that opened overdrawn at −€300.00, and a rename leaves its opening as it is', async () => {
-    const overdrawn = { ...OTP, opening: euros(-300) }
+    const overdrawn = { ...OTP, opening: accountMoneyFromAmount(-300) }
     const document = spendingDocumentOf('2026-11-04T09:00:00.000Z', { ...stored(ACCOUNT_RECORDS, [overdrawn, REVOLUT_EUR]), ...stored(CATEGORY_RECORDS, CATEGORIES) })
     const { store } = await browserHarness(used, document, SPENDING)
 
     await store.write('Renamed', (unit) => unit.of(ACCOUNT_WRITES).change(overdrawn, { ...overdrawn, name: 'OTP current, overdraft' }))
 
     expect(store.state.workbook!.problems).toEqual([])
-    expect(store.state.workbook!.accounts.find((account) => account.id === OTP.id)).toMatchObject({ name: 'OTP current, overdraft', opening: euros(-300) })
-    expect(accountBalance(store.state.workbook!.accounts[0]!, [], DAY)).toEqual(euros(-300))
+    expect(store.state.workbook!.accounts.find((account) => account.id === OTP.id)).toMatchObject({ name: 'OTP current, overdraft', opening: accountMoneyFromAmount(-300) })
+    expect(accountBalance(store.state.workbook!.accounts[0]!, [], DAY)).toEqual(accountMoneyFromAmount(-300))
   })
 
   it('refuses a new currency on an account its entries name, and allows it on one without entries', async () => {
     const store = await spendingStore()
     await store.write('Added', (unit) =>
-      unit.of(TRANSACTION_WRITES).add(newEntry({ account: REVOLUT_USD.id, date: civil('2026-10-10'), amount: euros(-30), payee: 'Diner', category: category('Food/Restaurants').id, note: '' })),
+      unit
+        .of(TRANSACTION_WRITES)
+        .add(newEntry({ account: REVOLUT_USD.id, date: civil('2026-10-10'), amount: accountMoneyFromAmount(-30), payee: 'Diner', category: category('Food/Restaurants').id, note: '' })),
     )
     const euro = REVOLUT_EUR.currency
 
@@ -372,12 +380,13 @@ describe('Spending category writes', () => {
   it('deletes Groceries into Restaurants: its entries move, its limits end, and Restaurants keeps its own limit, all undone at once', async () => {
     const store = await spendingStore()
     const [groceries, restaurants] = [category('Food/Groceries'), category('Food/Restaurants')]
-    const shopping = (date: string, amount: number) => newEntry({ account: OTP.id, date: civil(date), amount: euros(amount), payee: 'Corner market', category: groceries.id, note: '' })
+    const shopping = (date: string, amount: number) =>
+      newEntry({ account: OTP.id, date: civil(date), amount: accountMoneyFromAmount(amount), payee: 'Corner market', category: groceries.id, note: '' })
     await store.write('Added', (unit) => {
       unit.of(TRANSACTION_WRITES).add(shopping('2026-10-12', -45.3))
       unit.of(TRANSACTION_WRITES).add(shopping('2026-10-19', -60))
-      setLimit(unit, store.state.records!, restaurants.id, month('2026-01'), euros(100))
-      setLimit(unit, store.state.records!, groceries.id, month('2026-09'), euros(300))
+      setLimit(unit, store.state.records!, restaurants.id, month('2026-01'), moneyFromAmount(100))
+      setLimit(unit, store.state.records!, groceries.id, month('2026-09'), moneyFromAmount(300))
     })
     const before = store.state.workbook!
 
@@ -387,7 +396,7 @@ describe('Spending category writes', () => {
     expect(after.problems).toEqual([])
     expect(after.categories.map((held) => held.id)).not.toContain(groceries.id)
     expect(after.transactions.map((entry) => entry.category)).toEqual([restaurants.id, restaurants.id])
-    expect(after.budgets.map((limit) => [limit.category, limit.from, limit.amount])).toEqual([[restaurants.id, '2026-01', euros(100)]])
+    expect(after.budgets.map((limit) => [limit.category, limit.from, limit.amount])).toEqual([[restaurants.id, '2026-01', moneyFromAmount(100)]])
     await store.undo(store.state.writes[0]!)
     const undone = store.state.workbook!
     expect([byId(undone.categories), byId(undone.transactions), byId(undone.budgets)]).toEqual([byId(before.categories), byId(before.transactions), byId(before.budgets)])
@@ -416,28 +425,28 @@ describe('Spending limit writes', () => {
     const store = await spendingStore()
     const food = category('Food').id
 
-    await store.write('Set', (unit) => setLimit(unit, store.state.records!, food, month('2026-09'), euros(400)))
-    await store.write('Set', (unit) => setLimit(unit, store.state.records!, food, month('2026-09'), euros(450)))
-    await store.write('Set', (unit) => setLimit(unit, store.state.records!, food, month('2026-12'), euros(0)))
+    await store.write('Set', (unit) => setLimit(unit, store.state.records!, food, month('2026-09'), moneyFromAmount(400)))
+    await store.write('Set', (unit) => setLimit(unit, store.state.records!, food, month('2026-09'), moneyFromAmount(450)))
+    await store.write('Set', (unit) => setLimit(unit, store.state.records!, food, month('2026-12'), moneyFromAmount(0)))
 
     expect(store.state.workbook!.budgets.map((limit) => [limit.from, limit.amount])).toEqual([
-      ['2026-09', euros(450)],
-      ['2026-12', euros(0)],
+      ['2026-09', moneyFromAmount(450)],
+      ['2026-12', moneyFromAmount(0)],
     ])
   })
 
   it('refuses a limit on a child while its group has one in the same months, and takes it once the group’s has ended', async () => {
     const store = await spendingStore()
     const [food, groceries] = [category('Food').id, category('Food/Groceries').id]
-    await store.write('Set', (unit) => setLimit(unit, store.state.records!, food, month('2026-09'), euros(400)))
+    await store.write('Set', (unit) => setLimit(unit, store.state.records!, food, month('2026-09'), moneyFromAmount(400)))
 
-    await expect(store.write('Set', (unit) => setLimit(unit, store.state.records!, groceries, month('2026-10'), euros(250)))).rejects.toThrow(
+    await expect(store.write('Set', (unit) => setLimit(unit, store.state.records!, groceries, month('2026-10'), moneyFromAmount(250)))).rejects.toThrow(
       'is on a group and on one of its children in the same months',
     )
 
     await store.write('Set', (unit) => {
-      setLimit(unit, store.state.records!, food, month('2026-11'), euros(0))
-      setLimit(unit, store.state.records!, groceries, month('2026-11'), euros(250))
+      setLimit(unit, store.state.records!, food, month('2026-11'), moneyFromAmount(0))
+      setLimit(unit, store.state.records!, groceries, month('2026-11'), moneyFromAmount(250))
     })
     expect(store.state.workbook!.budgets).toHaveLength(3)
     expect(store.state.workbook!.problems).toEqual([])
@@ -446,7 +455,7 @@ describe('Spending limit writes', () => {
   it('refuses a limit on an income category', async () => {
     const store = await spendingStore()
 
-    await expect(store.write('Set', (unit) => setLimit(unit, store.state.records!, category('Income/Salary').id, month('2026-09'), euros(100)))).rejects.toThrow(
+    await expect(store.write('Set', (unit) => setLimit(unit, store.state.records!, category('Income/Salary').id, month('2026-09'), moneyFromAmount(100)))).rejects.toThrow(
       'is on a category that is not spending',
     )
   })

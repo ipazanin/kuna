@@ -172,6 +172,7 @@ const BRAND_OWNERS = [
   'src/apps/loans/bankLoans/domain/yearlyRate.ts',
   'src/shared/calendar/civilDate.ts',
   'src/shared/calendar/monthKey.ts',
+  'src/shared/money/accountMoney.ts',
   'src/shared/money/currencyCode.ts',
   'src/shared/money/decimal.ts',
   'src/shared/money/money.ts',

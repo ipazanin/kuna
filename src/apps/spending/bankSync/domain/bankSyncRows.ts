@@ -5,7 +5,7 @@ import type { StatementRow, StatementRows } from '../../statements/domain/statem
 import type { Account } from '../../workbook/domain/account'
 import { ibanKey } from '../../workbook/domain/accountReading'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
-import { moneyFromAmount, subtractMoney, ZERO } from '../../../../shared/money/money'
+import { accountMoneyFromAmount, negateAccountMoney, ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
 import { decimalOf } from '../../../../shared/storage/domain/storedFields'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
 import { plural } from '../../../../shared/text/translation'
@@ -23,13 +23,13 @@ function rowOf(transaction: BankTransaction, account: Account): KeylessRow | nul
   const date = parseCivilDate((transaction.madeOn ?? transaction.bookedOn ?? transaction.valueOn ?? '').slice(0, 10))
   const number = decimalOf(transaction.amount)
   if (date === null || number === null) return null
-  const money = moneyFromAmount(Math.abs(number))
+  const money = accountMoneyFromAmount(Math.abs(number))
   const out = transaction.direction === 'DBIT'
   const description = transaction.remittance.join(' ').trim()
   return {
     account: account.id,
     date,
-    amount: out ? subtractMoney(ZERO, money) : money,
+    amount: out ? negateAccountMoney(money) : money,
     payee: (out ? transaction.creditorName : transaction.debtorName) ?? description,
     category: null,
     description,
@@ -62,7 +62,7 @@ export function bankSyncRows(answer: readonly BankTransaction[], account: Accoun
     const row = rowOf(transaction, account)
     return row === null ? [] : [{ transaction, row }]
   })
-  const withMoney = read.filter(({ row }) => row.amount !== ZERO)
+  const withMoney = read.filter(({ row }) => row.amount !== ZERO_ACCOUNT_MONEY)
   const keys = occurrenceKeys(withMoney.map(({ transaction, row }) => keyFacts(transaction, row)))
   const unreadable = booked.length - read.length
   const zero = read.length - withMoney.length

@@ -7,7 +7,7 @@ paths:
 
 # Money and percentages
 
-- Amounts are `Money`, whole cents in the module's base currency. A foreign amount is a `Decimal` beside a `CurrencyCode`. Spending's rows hold cents of the account's own currency, kept apart from `euros`. `eurosAtEcbRate` is the only conversion.
+- Amounts are `Money`, whole cents in the module's base currency. A foreign amount is a `Decimal` beside a `CurrencyCode`. Spending's rows, openings, balances and receipt lines are `AccountMoney`, cents of the account's own currency, a brand `Money` does not accept. `eurosOfAccountMoney` turns it into euros at the ECB rate of a day, and `eurosAtEcbRate` does the same for a `Decimal`. Those two are the only conversions.
 - A rate applied to money is a `Percent`, in basis points. A measured ratio is a `Share`, where 1 is the whole. Formatters take a `Share`. Loans keeps `YearlyRate`, and `OwnerShare` and `Decimal` percents stay as they are.
 - Round only through `src/shared/money`, half away from zero to the cent, once per business line, and let totals add rounded lines. Half away from zero is Kuna's convention, since `docs/law` states no rounding rule.
 - Every split rounds a running sum, so no cent is lost and no part goes below zero. `moneyParts` owns that. Never write another split.

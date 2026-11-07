@@ -5,8 +5,8 @@ import type { Receipt } from '../../workbook/domain/receipt'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { daysBetween } from '../../../../shared/calendar/civilDate'
 import { EURO } from '../../../../shared/money/currencyCode'
-import { addMoney, negateMoney } from '../../../../shared/money/money'
-import type { Money } from '../../../../shared/money/money'
+import { accountMoneyOfEuros, addAccountMoney, negateAccountMoney } from '../../../../shared/money/accountMoney'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { fold, normaliseIban } from '../../../../shared/text/fold'
 
 /** What the matching reads of a receipt. */
@@ -16,7 +16,7 @@ export type ReceiptFacts = Pick<Receipt, 'merchant' | 'issuedOn' | 'total'>
 export interface ReceiptCandidate {
   readonly row: Transaction
   /** The row's amount less minus the total, zero for an equal amount. */
-  readonly difference: Money
+  readonly difference: AccountMoney
 }
 
 /** One clear candidate offered ready, several to pick from, or none, which makes a new row. */
@@ -81,7 +81,8 @@ export function receiptMatches(receipt: ReceiptFacts, book: Pick<SpendingBook, '
       (transfer === null || row.category !== transfer) &&
       !ownIbans.has(normaliseIban(row.counterpartyIban)),
   )
-  const asTyped = { date: receipt.issuedOn, amount: negateMoney(receipt.total) }
+  const total = accountMoneyOfEuros(receipt.total)
+  const asTyped = { date: receipt.issuedOn, amount: negateAccountMoney(total) }
   const words = distinctWords(receipt.merchant)
   const wordsIn = (row: Transaction): number => {
     const named = distinctWords(`${row.payee} ${row.description}`)
@@ -89,7 +90,7 @@ export function receiptMatches(receipt: ReceiptFacts, book: Pick<SpendingBook, '
   }
   const away = (row: Transaction): number => Math.abs(daysBetween(receipt.issuedOn, row.date))
   const ranked = (rows: readonly Transaction[]): Transaction[] => [...rows].sort((one, other) => wordsIn(other) - wordsIn(one) || away(one) - away(other) || one.date.localeCompare(other.date))
-  const candidateOf = (row: Transaction): ReceiptCandidate => ({ row, difference: addMoney(row.amount, receipt.total) })
+  const candidateOf = (row: Transaction): ReceiptCandidate => ({ row, difference: addAccountMoney(row.amount, total) })
 
   const equal = ranked(open.filter((row) => row.amount === asTyped.amount && inWindow(asTyped, row)))
   const [first, second] = equal

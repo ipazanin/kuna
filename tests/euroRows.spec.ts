@@ -7,6 +7,7 @@ const GBP_CODE = currencyCodeOf('GBP')!
 
 import { accountOnDay, euroRows } from '../src/apps/spending/rates/domain/euroRows'
 import { ratesNeeded } from '../src/apps/spending/rates/domain/ratesNeeded'
+import { moneyFromCents } from '../src/shared/money/money'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import { civil, euros } from './fixtures/ledger'
 import { ACCOUNTS, CASH, DAY, OTP, RATES, REVOLUT_EUR, REVOLUT_USD, ROWS, USD, account, row } from './fixtures/spending'
@@ -40,7 +41,7 @@ describe('a row in euros', () => {
     const rows = euroRows({ accounts: ACCOUNTS, transactions: ROWS, lines: [] }, RATES)
 
     expect(rows.map((entry) => entry.account.name)).toEqual(ROWS.map((entry) => ACCOUNTS.find((held) => held.id === entry.account)!.name))
-    expect(rows.filter((entry) => entry.euros !== entry.transaction.amount).map((entry) => [entry.transaction.payee, entry.euros])).toEqual([['Diner in Boston', euros(-27.78)]])
+    expect(rows.filter((entry) => entry.euros !== moneyFromCents(entry.transaction.amount)).map((entry) => [entry.transaction.payee, entry.euros])).toEqual([['Diner in Boston', euros(-27.78)]])
   })
 
   it('leaves out a row whose account is not in the book', () => {

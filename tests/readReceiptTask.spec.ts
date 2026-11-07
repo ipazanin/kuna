@@ -10,6 +10,7 @@ import type { ModelPort } from '../src/shared/ai/application/modelPort'
 import { sentSize } from '../src/shared/ai/presentation/imagePartOf'
 import { LINE_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { civil, euros } from './fixtures/ledger'
 import { CATEGORIES, category } from './fixtures/spending'
 
@@ -107,7 +108,7 @@ describe('the read-a-receipt task', () => {
       receipt: receipt.id,
       printed: 'DET.TEK.',
       text: '',
-      amount: euros(-1),
+      amount: accountMoneyFromAmount(-1),
       category: category('Food/Groceries').id,
     }
     const book = { categories: CATEGORIES, receipts: [receipt], lines: [line] }
@@ -146,7 +147,7 @@ describe('the read-a-receipt task', () => {
       receipt: receipt.id,
       printed: 'DET.TEK.',
       text: '',
-      amount: euros(-1),
+      amount: accountMoneyFromAmount(-1),
       category: category('Food/Groceries').id,
     }
     const sent = JSON.stringify(readReceipt.input({ ...INPUT, book: { categories: CATEGORIES, receipts: [receipt], lines: [line] }, merchant: 'Corner market' })) + JSON.stringify(readReceipt.system())

@@ -1,7 +1,7 @@
 import { optionalReference, requiredReference } from './recordReference'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
 import { ibanKey } from './accountReading'
-import { flagOf } from './fieldReading'
+import { flagOf, requiredAccountMoney } from './fieldReading'
 import { CATEGORISED_BY, TRANSACTION_SOURCES } from './transaction'
 import type { Transaction } from './transaction'
 import { words } from './words'
@@ -10,11 +10,11 @@ import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
 import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { ownId, refuse, requiredChoice, requiredDate, requiredMoney, textOf } from '../../../../shared/storage/domain/storedFields'
+import { ownId, refuse, requiredChoice, requiredDate, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 
 export function transactionOf(fields: StoredFields, id: RecordId | null): Transaction {
-  const amount = requiredMoney(fields, 'amount')
+  const amount = requiredAccountMoney(fields, 'amount')
   if (amount === 0) refuse(words.amountIsZero)
   return {
     id: ownId(id),

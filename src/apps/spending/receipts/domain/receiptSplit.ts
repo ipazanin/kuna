@@ -4,7 +4,8 @@ import type { ReceiptLine } from '../../workbook/domain/receiptLine'
 import { LINE_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { NO_BANK_FACTS } from '../../workbook/domain/transaction'
 import type { Transaction } from '../../workbook/domain/transaction'
-import { negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { accountMoneyOfEuros, negateAccountMoney, subtractAccountMoney, sumAccountMoney } from '../../../../shared/money/accountMoney'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { Money } from '../../../../shared/money/money'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -17,7 +18,7 @@ export type ReceiptPart = Pick<ReceiptLine, 'printed' | 'text' | 'amount' | 'cat
 
 /** The one line of a receipt filed whole under one category. */
 export function wholeReceipt(total: Money, category: RecordId): readonly ReceiptPart[] {
-  return [{ printed: '', text: '', amount: negateMoney(total), category }]
+  return [{ printed: '', text: '', amount: negateAccountMoney(accountMoneyOfEuros(total)), category }]
 }
 
 /** The row a receipt splits, or the account of the new row it makes. */
@@ -33,7 +34,7 @@ export interface ReceiptSplit {
 }
 
 /** The line that keeps a row's lines adding up when the row's amount is not the receipt's: a tip, or what the bank booked. */
-export function differenceLine(firstLine: Pick<ReceiptLine, 'transaction' | 'receipt' | 'category'>, amount: Money, newKey: () => string = newRecordId): ReceiptLine {
+export function differenceLine(firstLine: Pick<ReceiptLine, 'transaction' | 'receipt' | 'category'>, amount: AccountMoney, newKey: () => string = newRecordId): ReceiptLine {
   return { id: recordIdOf(LINE_RECORDS, newKey()), transaction: firstLine.transaction, receipt: firstLine.receipt, printed: '', text: words.difference, amount, category: firstLine.category }
 }
 
@@ -61,7 +62,7 @@ export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: re
           id: recordIdOf(TRANSACTION_RECORDS, newKey()),
           account: place.account,
           date: draft.issuedOn,
-          amount: negateMoney(draft.total),
+          amount: negateAccountMoney(accountMoneyOfEuros(draft.total)),
           payee: merchant,
           category,
           note: '',
@@ -71,6 +72,6 @@ export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: re
         }
   const receipt: Receipt = { ...draft, id: recordIdOf(RECEIPT_RECORDS, newKey()), transaction: row.id, merchant: merchant === '' ? row.payee : merchant }
   const lines = parts.map((part): ReceiptLine => ({ ...part, id: recordIdOf(LINE_RECORDS, newKey()), transaction: row.id, receipt: receipt.id }))
-  const difference = subtractMoney(row.amount, sumMoney(parts.map((part) => part.amount)))
+  const difference = subtractAccountMoney(row.amount, sumAccountMoney(parts.map((part) => part.amount)))
   return { before, row, receipt, lines: difference === 0 ? lines : [...lines, differenceLine({ transaction: row.id, receipt: receipt.id, category }, difference, newKey)] }
 }

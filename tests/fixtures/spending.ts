@@ -6,6 +6,7 @@ import type { Category } from '../../src/apps/spending/workbook/domain/category'
 import { ACCOUNT_RECORDS, BUDGET_RECORDS, TRANSACTION_RECORDS } from '../../src/apps/spending/workbook/domain/spendingKinds'
 import { NO_BANK_FACTS } from '../../src/apps/spending/workbook/domain/transaction'
 import type { Transaction } from '../../src/apps/spending/workbook/domain/transaction'
+import { accountMoneyFromAmount } from '../../src/shared/money/accountMoney'
 import { EURO, currencyCodeOf } from '../../src/shared/money/currencyCode'
 import { recordIdOf } from '../../src/shared/storage/domain/recordId'
 import type { RecordId } from '../../src/shared/storage/domain/recordId'
@@ -41,10 +42,37 @@ export function account(place: number, fields: Omit<Account, 'id'>): Account {
 
 const OPENED_ON = civil('2026-09-01')
 
-export const OTP = account(1, { name: 'OTP current', kind: 'bank', bank: 'otp', currency: EURO, opening: euros(1_550), openedOn: OPENED_ON, iban: 'HR0000000000000000001', closed: false })
-export const REVOLUT_EUR = account(2, { name: 'Revolut EUR', kind: 'bank', bank: 'revolut', currency: EURO, opening: euros(300), openedOn: OPENED_ON, iban: 'LT000000000000000001', closed: false })
-export const REVOLUT_USD = account(3, { name: 'Revolut USD', kind: 'bank', bank: 'revolut', currency: USD, opening: euros(200), openedOn: OPENED_ON, iban: 'LT000000000000000001', closed: false })
-export const CASH = account(4, { name: 'Cash', kind: 'cash', bank: null, currency: EURO, opening: euros(100), openedOn: OPENED_ON, iban: '', closed: false })
+export const OTP = account(1, {
+  name: 'OTP current',
+  kind: 'bank',
+  bank: 'otp',
+  currency: EURO,
+  opening: accountMoneyFromAmount(1_550),
+  openedOn: OPENED_ON,
+  iban: 'HR0000000000000000001',
+  closed: false,
+})
+export const REVOLUT_EUR = account(2, {
+  name: 'Revolut EUR',
+  kind: 'bank',
+  bank: 'revolut',
+  currency: EURO,
+  opening: accountMoneyFromAmount(300),
+  openedOn: OPENED_ON,
+  iban: 'LT000000000000000001',
+  closed: false,
+})
+export const REVOLUT_USD = account(3, {
+  name: 'Revolut USD',
+  kind: 'bank',
+  bank: 'revolut',
+  currency: USD,
+  opening: accountMoneyFromAmount(200),
+  openedOn: OPENED_ON,
+  iban: 'LT000000000000000001',
+  closed: false,
+})
+export const CASH = account(4, { name: 'Cash', kind: 'cash', bank: null, currency: EURO, opening: accountMoneyFromAmount(100), openedOn: OPENED_ON, iban: '', closed: false })
 
 export const ACCOUNTS: readonly Account[] = [OTP, REVOLUT_EUR, REVOLUT_USD, CASH]
 
@@ -56,7 +84,7 @@ export function row(on: Account, date: string, amount: number, path: string | nu
     id: recordIdOf(TRANSACTION_RECORDS, keyOf((rowPlace += 1))),
     account: on.id,
     date: civil(date),
-    amount: euros(amount),
+    amount: accountMoneyFromAmount(amount),
     payee: '',
     category: path === null ? null : category(path).id,
     note: '',

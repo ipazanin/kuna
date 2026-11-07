@@ -17,9 +17,9 @@ import type { Account, AccountBank, AccountKind } from '../../workbook/domain/ac
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { absAccountMoney, negateAccountMoney, typedAccountAmount, ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
 import { CURRENCY_CODES, EURO } from '../../../../shared/money/currencyCode'
-import { ZERO, negateMoney } from '../../../../shared/money/money'
-import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
+import { amountForTyping } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
@@ -68,7 +68,7 @@ watch(open, (opened) => {
   kind.value = account?.kind ?? 'bank'
   bank.value = account?.bank ?? NONE
   currency.value = account?.currency ?? EURO
-  opening.value = account === null ? '' : amountForTyping(account.opening < 0 ? negateMoney(account.opening) : account.opening)
+  opening.value = account === null ? '' : amountForTyping(absAccountMoney(account.opening))
   overdrawn.value = account !== null && account.opening < 0
   openedOn.value = account?.openedOn ?? props.openingDay ?? today()
   iban.value = account?.iban ?? ''
@@ -76,8 +76,8 @@ watch(open, (opened) => {
 })
 
 const openingAmount = computed(() => {
-  const typed = opening.value.trim() === '' ? ZERO : typedAmount(opening.value)
-  return typed !== null && overdrawn.value ? negateMoney(typed) : typed
+  const typed = opening.value.trim() === '' ? ZERO_ACCOUNT_MONEY : typedAccountAmount(opening.value)
+  return typed !== null && overdrawn.value ? negateAccountMoney(typed) : typed
 })
 const openedDay = computed(() => parseCivilDate(openedOn.value))
 const pickedCurrency = computed(() => CURRENCY_CODES.find((code) => code === currency.value) ?? null)

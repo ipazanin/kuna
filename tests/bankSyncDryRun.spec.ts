@@ -17,8 +17,9 @@ import { fakeSpendingDocument } from '../src/apps/spending/workbook/infrastructu
 import { GoogleApiError } from '../src/shared/google/googleApi'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { RULE_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { ACCOUNTS, CATEGORIES, category, OTP, REVOLUT_EUR, row } from './fixtures/spending'
-import { civil, euros } from './fixtures/ledger'
+import { civil } from './fixtures/ledger'
 
 const DAY = civil('2026-10-30')
 
@@ -66,7 +67,7 @@ function fileStatement(rows: readonly Partial<StatementRow>[]): StatementRows {
     rows: rows.map((fields, place) => ({
       account: OTP.id,
       date: civil('2026-10-28'),
-      amount: euros(-6.5),
+      amount: accountMoneyFromAmount(-6.5),
       payee: 'Corner bakery',
       category: null,
       description: '',
@@ -140,8 +141,12 @@ describe('a file against rows a sync brought', () => {
   })
 
   it("keeps an exchange's legs pairing from a file, whatever the sync brought", () => {
-    const usd = fileStatement([{ movedAt: '2026-10-28 09:30:00', amount: euros(-54), importKey: 'leg-1', payee: 'Exchanged to USD' }])
-    const run = statementDryRun(bookOf([]), { ...usd, rows: [...usd.rows, { ...usd.rows[0]!, account: REVOLUT_EUR.id, amount: euros(54), importKey: 'leg-2', payee: 'Exchanged from EUR' }] }, DAY)
+    const usd = fileStatement([{ movedAt: '2026-10-28 09:30:00', amount: accountMoneyFromAmount(-54), importKey: 'leg-1', payee: 'Exchanged to USD' }])
+    const run = statementDryRun(
+      bookOf([]),
+      { ...usd, rows: [...usd.rows, { ...usd.rows[0]!, account: REVOLUT_EUR.id, amount: accountMoneyFromAmount(54), importKey: 'leg-2', payee: 'Exchanged from EUR' }] },
+      DAY,
+    )
     expect(run.added.every((added) => added.pair !== null)).toBe(true)
   })
 })

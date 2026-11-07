@@ -12,8 +12,9 @@ import type { Transaction } from '../src/apps/spending/workbook/domain/transacti
 import { spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
 import type { UnitOfWork } from '../src/shared/storage/application/repository'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { account, ACCOUNTS, CATEGORIES, category, OTP, REVOLUT_EUR, REVOLUT_USD, row, transactionId } from './fixtures/spending'
-import { civil, euros } from './fixtures/ledger'
+import { civil } from './fixtures/ledger'
 
 const DAY = civil('2026-10-30')
 
@@ -36,7 +37,7 @@ function statementRow(on: typeof OTP, date: string, amount: number, payee: strin
   return {
     account: on.id,
     date: civil(date),
-    amount: euros(amount),
+    amount: accountMoneyFromAmount(amount),
     payee,
     category: null,
     description: payee,
@@ -172,7 +173,16 @@ describe('the dry run of a statement', () => {
   describe('a pocket move', () => {
     const at = '2026-10-20 09:00:00'
     const between = category('Between my accounts').id
-    const pocket = account(9, { name: 'Revolut pocket', kind: 'savings', bank: 'revolut', currency: REVOLUT_EUR.currency, opening: euros(0), openedOn: civil('2026-09-01'), iban: '', closed: false })
+    const pocket = account(9, {
+      name: 'Revolut pocket',
+      kind: 'savings',
+      bank: 'revolut',
+      currency: REVOLUT_EUR.currency,
+      opening: accountMoneyFromAmount(0),
+      openedOn: civil('2026-09-01'),
+      iban: '',
+      closed: false,
+    })
     const currentLeg = statementRow(REVOLUT_EUR, '2026-10-20', -20, 'Pocket Summer trip', { movedAt: at, pocket: true })
     const savingsLeg = statementRow(pocket, '2026-10-20', 20, 'From current', { movedAt: at, pocket: true })
     const withPocket = (transactions: readonly Transaction[] = []) => ({ ...bookOf(transactions), accounts: [...ACCOUNTS, pocket] })
@@ -355,8 +365,8 @@ describe('a rule change', () => {
     const run = statementDryRun(bookOf([], rules), statementOf(statementRow(OTP, '2026-10-20', -50, 'Zara'), statementRow(OTP, '2026-10-21', 50, 'Zara')), DAY)
 
     expect(run.added.map((row) => [row.amount, row.category, row.categorisedBy])).toEqual([
-      [euros(-50), null, null],
-      [euros(50), category('Income/Other income').id, 'rule'],
+      [accountMoneyFromAmount(-50), null, null],
+      [accountMoneyFromAmount(50), category('Income/Other income').id, 'rule'],
     ])
   })
 
@@ -452,14 +462,14 @@ describe('To review', () => {
     const typed = row(OTP, '2026-10-20', -10, 'Food/Coffee')
     const bank = onFile(OTP, '2026-10-21', -10.5)
 
-    expect(reviewQueue(bookOf([typed, bank]), DAY).waiting[0]?.maybeTyped).toEqual({ typed, bank, difference: euros(-0.5) })
+    expect(reviewQueue(bookOf([typed, bank]), DAY).waiting[0]?.maybeTyped).toEqual({ typed, bank, difference: accountMoneyFromAmount(-0.5) })
   })
 
   it('offers a typed row of the same money too, since one typed after the import never met a dry run', () => {
     const typed = row(OTP, '2026-10-20', -10, 'Food/Coffee')
     const bank = onFile(OTP, '2026-10-21', -10)
 
-    expect(reviewQueue(bookOf([typed, bank]), DAY).waiting[0]?.maybeTyped).toEqual({ typed, bank, difference: euros(0) })
+    expect(reviewQueue(bookOf([typed, bank]), DAY).waiting[0]?.maybeTyped).toEqual({ typed, bank, difference: accountMoneyFromAmount(0) })
   })
 
   it('offers an amount and date alone as a transfer on both rows, and stops once you said no', () => {
@@ -543,7 +553,7 @@ describe('a rule-filed bank row near a typed row', () => {
     const run = statementDryRun(bookOf([typed], [rule]), { label: 'export.csv', rows: [statementRow(OTP, '2026-10-21', -25.84, 'KONZUM')], notes: [] }, DAY)
     const [waiting] = reviewQueue(bookOf([typed, ...run.added], [rule]), DAY).waiting
 
-    expect(waiting?.maybeTyped).toMatchObject({ typed, difference: euros(-2.35) })
+    expect(waiting?.maybeTyped).toMatchObject({ typed, difference: accountMoneyFromAmount(-2.35) })
   })
 
   it('stays waiting when any rule is written or removed, until you answer', () => {

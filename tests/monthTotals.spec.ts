@@ -7,6 +7,7 @@ import type { ReceiptLine } from '../src/apps/spending/workbook/domain/receiptLi
 import { LINE_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import type { RateBook } from '../src/shared/money/rateBook'
 import { euros, month } from './fixtures/ledger'
@@ -24,7 +25,7 @@ function linesOf(transaction: Transaction, parts: readonly (readonly [number, st
     receipt: recordIdOf(RECEIPT_RECORDS, '5e000000-0000-4000-8000-000000006000'),
     printed: '',
     text: '',
-    amount: euros(amount),
+    amount: accountMoneyFromAmount(amount),
     category: category(path).id,
   }))
 }

@@ -26,7 +26,7 @@ const TOTAL = /^(\d+)(?:[.,](\d{0,2}))?$/
 function totalOf(text: string): Money | null {
   const [, whole, decimals] = TOTAL.exec(text) ?? []
   if (whole === undefined) return null
-  const cents = decimals === undefined ? Number(whole) : Number(whole) * 100 + Number(decimals.padEnd(2, '0'))
+  const cents = Number(decimals === undefined ? whole : `${whole}${decimals.padEnd(2, '0')}`)
   return Number.isSafeInteger(cents) && cents > 0 ? moneyFromCents(cents) : null
 }
 

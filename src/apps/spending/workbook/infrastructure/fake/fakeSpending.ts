@@ -20,8 +20,9 @@ import { addDays, parseCivilDate, today } from '../../../../../shared/calendar/c
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { addMonths, firstDayOf, monthOf } from '../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../shared/calendar/monthKey'
+import { accountMoneyFromAmount, subtractAccountMoney, ZERO_ACCOUNT_MONEY } from '../../../../../shared/money/accountMoney'
 import { EURO, currencyCodeOf } from '../../../../../shared/money/currencyCode'
-import { moneyFromAmount, subtractMoney } from '../../../../../shared/money/money'
+import { moneyFromAmount } from '../../../../../shared/money/money'
 import { recordIdOf } from '../../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../../shared/storage/domain/recordId'
 import type { RecordKind } from '../../../../../shared/storage/domain/recordKind'
@@ -131,7 +132,7 @@ function statementRow(place: number, account: RecordId, date: CivilDate, amount:
     id: fixedId(TRANSACTION_RECORDS, place),
     account,
     date,
-    amount: moneyFromAmount(amount),
+    amount: accountMoneyFromAmount(amount),
     payee,
     category: null,
     note: '',
@@ -160,7 +161,7 @@ function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, 
     id: fixedId(TRANSACTION_RECORDS, place),
     account,
     date,
-    amount: moneyFromAmount(amount),
+    amount: accountMoneyFromAmount(amount),
     payee,
     category: idOf(category),
     note: '',
@@ -206,7 +207,7 @@ function receiptRows(day: CivilDate, idOf: (path: string) => RecordId): readonly
       id: fixedId(TRANSACTION_RECORDS, 1905),
       account: CASH,
       date: day,
-      amount: moneyFromAmount(-8.4),
+      amount: accountMoneyFromAmount(-8.4),
       payee: 'Café on the square',
       category: idOf('Food/Coffee'),
       note: '',
@@ -228,7 +229,7 @@ function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { re
     receipt,
     printed: '',
     text: '',
-    amount: moneyFromAmount(amount),
+    amount: accountMoneyFromAmount(amount),
     category: idOf(category),
   })
   return {
@@ -271,10 +272,10 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
   const [twoBack, oneBack] = [addMonths(month, -2), addMonths(month, -1)]
   const openedOn = firstDayOf(addMonths(month, -3))
   const accounts: readonly Account[] = [
-    { id: OTP, name: 'OTP current', kind: 'bank', bank: 'otp', currency: EURO, opening: moneyFromAmount(0), openedOn, iban: 'HR0000000000000000001', closed: false },
-    { id: REVOLUT_EUR, name: 'Revolut EUR', kind: 'bank', bank: 'revolut', currency: EURO, opening: moneyFromAmount(0), openedOn, iban: 'LT000000000000000001', closed: false },
-    { id: REVOLUT_USD, name: 'Revolut USD', kind: 'bank', bank: 'revolut', currency: USD, opening: moneyFromAmount(0), openedOn, iban: 'LT000000000000000001', closed: false },
-    { id: CASH, name: 'Cash', kind: 'cash', bank: null, currency: EURO, opening: moneyFromAmount(0), openedOn, iban: '', closed: false },
+    { id: OTP, name: 'OTP current', kind: 'bank', bank: 'otp', currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, iban: 'HR0000000000000000001', closed: false },
+    { id: REVOLUT_EUR, name: 'Revolut EUR', kind: 'bank', bank: 'revolut', currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, iban: 'LT000000000000000001', closed: false },
+    { id: REVOLUT_USD, name: 'Revolut USD', kind: 'bank', bank: 'revolut', currency: USD, opening: ZERO_ACCOUNT_MONEY, openedOn, iban: 'LT000000000000000001', closed: false },
+    { id: CASH, name: 'Cash', kind: 'cash', bank: null, currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, iban: '', closed: false },
   ]
   const shown = set === 'foreign' ? accounts.filter((account) => account.id === REVOLUT_USD) : accounts
   const rows: Row[] = set === 'foreign' ? dollarRows(oneBack, day) : [...monthRows(twoBack, 2, day), ...monthRows(oneBack, 1, day), ...monthSoFar(month), ...dollarRows(oneBack, day)]
@@ -283,7 +284,7 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
     id: fixedId(TRANSACTION_RECORDS, (place += 1)),
     account: row.account,
     date: row.date,
-    amount: moneyFromAmount(row.amount),
+    amount: accountMoneyFromAmount(row.amount),
     payee: row.payee,
     category: idOf(row.category),
     note: '',
@@ -299,12 +300,12 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
     const date = dayIn(oneBack, 3, day)
     const between = idOf('Between my accounts')
     transactions.push(
-      { ...NO_BANK_FACTS, id: out, account: OTP, date, amount: moneyFromAmount(-200), payee: 'Top-up', category: between, note: '', source: 'typed', pair: into, categorisedBy: null },
-      { ...NO_BANK_FACTS, id: into, account: REVOLUT_EUR, date, amount: moneyFromAmount(200), payee: 'Top-up', category: between, note: '', source: 'typed', pair: out, categorisedBy: null },
+      { ...NO_BANK_FACTS, id: out, account: OTP, date, amount: accountMoneyFromAmount(-200), payee: 'Top-up', category: between, note: '', source: 'typed', pair: into, categorisedBy: null },
+      { ...NO_BANK_FACTS, id: into, account: REVOLUT_EUR, date, amount: accountMoneyFromAmount(200), payee: 'Top-up', category: between, note: '', source: 'typed', pair: out, categorisedBy: null },
     )
   }
   // Each account opens with what makes its balance on the day the worked example's.
-  const opened = shown.map((account) => ({ ...account, opening: subtractMoney(moneyFromAmount(BALANCES[account.id]!), accountBalance(account, transactions, day)) }))
+  const opened = shown.map((account) => ({ ...account, opening: subtractAccountMoney(accountMoneyFromAmount(BALANCES[account.id]!), accountBalance(account, transactions, day)) }))
   const budgets: Budget[] =
     set === 'foreign'
       ? []

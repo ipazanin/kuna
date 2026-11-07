@@ -5,7 +5,9 @@ import type { Category } from '../../workbook/domain/category'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { addMoney, moneyFromAmount, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { accountMoneyOfEuros, negateAccountMoney } from '../../../../shared/money/accountMoney'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
+import { addMoney, moneyFromAmount, subtractMoney, sumMoney, ZERO } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { fold } from '../../../../shared/text/fold'
@@ -51,7 +53,7 @@ export interface ReceiptAnswer {
 export interface DraftLine {
   readonly printed: string
   readonly text: string
-  readonly amount: Money
+  readonly amount: AccountMoney
   /** Null while it waits for you: the model asked for a new category or picked none. */
   readonly category: RecordId | null
   /** The new category the model suggests, which you accept, rename or map. Never made silently. */
@@ -192,7 +194,7 @@ export function receiptDraft(answer: ReceiptAnswer, { refs, qr, book, companyOib
     // A line remembered under For the company, or a category hidden since, says nothing of this receipt.
     const picked = (memory !== undefined && pickable.has(memory.category) ? memory.category : refOf.get(line.category)) ?? null
     const suggested = picked === null && line.category === NEW_CATEGORY && (line.newCategory ?? '').trim() !== '' ? line.newCategory!.trim() : null
-    return [{ cents, line: { printed: line.printed, text: line.text, amount: negateMoney(cents), category: r1 ? company : picked, suggested: r1 ? null : suggested } }]
+    return [{ cents, line: { printed: line.printed, text: line.text, amount: negateAccountMoney(accountMoneyOfEuros(cents)), category: r1 ? company : picked, suggested: r1 ? null : suggested } }]
   })
 
   const readTotal = moneyFromAmount(answer.total)
@@ -203,7 +205,7 @@ export function receiptDraft(answer: ReceiptAnswer, { refs, qr, book, companyOib
   const sum = sumMoney(answered.map(({ cents }) => cents))
   if (total !== null && answered.length > 0 && Math.abs(subtractMoney(sum, total)) > answered.length) notes.push(words.linesOff(sum, total))
   if (total !== null && answer.vat.length > 0) {
-    const table = answer.vat.reduce((held, row) => addMoney(addMoney(held, moneyFromAmount(row.base)), moneyFromAmount(row.tax)), 0 as Money)
+    const table = answer.vat.reduce((held, row) => addMoney(addMoney(held, moneyFromAmount(row.base)), moneyFromAmount(row.tax)), ZERO)
     if (Math.abs(subtractMoney(table, total)) > answer.vat.length) notes.push(words.vatOff(table, total))
   }
 

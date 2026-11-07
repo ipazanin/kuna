@@ -118,13 +118,7 @@
     "src/shared/ui/SparkLine.vue",
     "src/shell/gallery/FoundationsGallery.vue"
   ],
-  "moneyCasts": ["src/apps/spending/receipts/domain/receiptDraft.ts"],
-  "moneyScale": [
-    "src/apps/spending/receipts/domain/fiscalQr.ts",
-    "src/shared/ai/domain/citedAnswer.ts",
-    "src/shared/ai/presentation/useAiTask.ts",
-    "src/shared/storage/domain/recordFields.ts",
-    "src/shared/ui/DonutCard.vue"
-  ],
-  "domainRounding": ["src/apps/spending/receipts/domain/photoPlace.ts", "src/apps/spending/statements/domain/revolutStatement.ts", "src/shared/ai/domain/citedAnswer.ts"]
+  "moneyCasts": [],
+  "moneyScale": ["src/shared/ai/domain/citedAnswer.ts", "src/shared/ai/presentation/useAiTask.ts", "src/shared/storage/domain/recordFields.ts", "src/shared/ui/DonutCard.vue"],
+  "domainRounding": ["src/shared/ai/domain/citedAnswer.ts"]
 }

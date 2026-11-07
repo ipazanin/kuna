@@ -1,3 +1,4 @@
+import type { AccountMoney } from './accountMoney'
 import { moneyFromCents } from './money'
 import type { Money } from './money'
 import { dividedHalfAwayFromZero, stepsOfNumber } from './numberRounding'
@@ -94,6 +95,11 @@ export function sumDecimal(values: Iterable<Decimal>): Decimal {
 /** An amount of euros as an exact decimal. */
 export function decimalOfMoney(money: Money): Decimal {
   return (BigInt(money) * STEPS_PER_CENT) as Decimal
+}
+
+/** An amount of an account's own currency as an exact decimal. */
+export function decimalOfAccountMoney(amount: AccountMoney): Decimal {
+  return (BigInt(amount) * STEPS_PER_CENT) as Decimal
 }
 
 /** The product, rounded half away from zero to twelve places. */

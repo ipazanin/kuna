@@ -1,8 +1,9 @@
 import { parseCivilDate } from '../calendar/civilDate'
 import type { CivilDate } from '../calendar/civilDate'
+import type { AccountMoney } from './accountMoney'
 import { EURO } from './currencyCode'
 import type { CurrencyCode } from './currencyCode'
-import { decimalOfText, inEuros } from './decimal'
+import { decimalOfAccountMoney, decimalOfText, inEuros } from './decimal'
 import type { Decimal } from './decimal'
 import type { Money } from './money'
 
@@ -24,6 +25,11 @@ export function eurosAtEcbRate(amount: Decimal, currency: CurrencyCode, day: Civ
   }
   const rate = rates.unitsPerEuroOnOrBefore(currency, day)
   return rate === null ? null : inEuros(amount, rate)
+}
+
+/** An account's amount in euros at the ECB rate on or before the day, the one place account money becomes `Money`. Null while the series has no rate for the currency yet. */
+export function eurosOfAccountMoney(amount: AccountMoney, currency: CurrencyCode, day: CivilDate, rates: RateBook): Money | null {
+  return eurosAtEcbRate(decimalOfAccountMoney(amount), currency, day, rates)
 }
 
 /** One day's rate as the ECB writes it, in units of the currency per euro. */

@@ -7,6 +7,7 @@ import { inTryingOrder } from '../../../../shared/categorising/domain/rule'
 import type { Rule, RuleCondition } from '../../../../shared/categorising/domain/rule'
 import type { CategorisableRow, CategorisationContext, TransactionSignals } from '../../../../shared/categorising/domain/transactionFacts'
 import { EURO } from '../../../../shared/money/currencyCode'
+import { moneyFromCents } from '../../../../shared/money/money'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { foldRuleText, normaliseIban } from '../../../../shared/text/fold'
 
@@ -51,7 +52,7 @@ export function ruleVerdicts(
   return (row) => {
     const categorisable: CategorisableRow = {
       account: row.account,
-      amount: row.amount,
+      amount: moneyFromCents(row.amount),
       counterparty: row.payee,
       counterpartyIban: row.counterpartyIban,
       description: row.description,

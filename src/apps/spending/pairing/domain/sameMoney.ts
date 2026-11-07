@@ -1,8 +1,8 @@
 import type { Transaction } from '../../workbook/domain/transaction'
 import { daysBetween } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { subtractMoney } from '../../../../shared/money/money'
-import type { Money } from '../../../../shared/money/money'
+import { subtractAccountMoney } from '../../../../shared/money/accountMoney'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
 
 /** How long before and after the typed day a bank may book the same money. */
 const BOOKED_DAYS_BEFORE = 3
@@ -24,7 +24,7 @@ export interface SameMoneyMatch<Typed, Bank> {
 
 export interface NearMatch<Typed, Bank> extends SameMoneyMatch<Typed, Bank> {
   /** The bank's amount less the typed one, zero for an equal amount on days further apart. */
-  readonly difference: Money
+  readonly difference: AccountMoney
 }
 
 export interface SameMoney<Typed, Bank> {
@@ -100,7 +100,7 @@ export function sameMoney<Typed extends MoneyRow, Bank extends MoneyRow>(typedRo
     )
     if (bank !== undefined) {
       taken.add(bank)
-      near.push({ typed, bank, difference: subtractMoney(bank.amount, typed.amount) })
+      near.push({ typed, bank, difference: subtractAccountMoney(bank.amount, typed.amount) })
     }
   }
   return { matches, near }

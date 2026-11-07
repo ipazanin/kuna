@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement'
 import type { StatementRows } from '../src/apps/spending/statements/domain/statementRows'
+import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { account, ACCOUNTS, CATEGORIES, category, REVOLUT_EUR, REVOLUT_USD } from './fixtures/spending'
-import { civil, euros } from './fixtures/ledger'
+import { civil } from './fixtures/ledger'
 
 const HEADER = ['Type', 'Product', 'Started Date', 'Completed Date', 'Description', 'Amount', 'Fee', 'Currency', 'State', 'Balance']
 
@@ -43,7 +44,7 @@ describe("Revolut's export", () => {
     ]
     const reading = revolutStatement(shuffled, 'export.csv', BOOK)
 
-    expect('statement' in reading && reading.statement.rows).toMatchObject([{ payee: 'Corner market', amount: euros(-5), date: civil('2026-10-01'), account: REVOLUT_EUR.id }])
+    expect('statement' in reading && reading.statement.rows).toMatchObject([{ payee: 'Corner market', amount: accountMoneyFromAmount(-5), date: civil('2026-10-01'), account: REVOLUT_EUR.id }])
   })
 
   it('takes a date by the started day, not the completed one', () => {
@@ -57,8 +58,8 @@ describe("Revolut's export", () => {
     const { rows } = read([line('CARD_PAYMENT', 46296.5, 'Corner market', -5.5, 0.25)])
 
     expect(rows.map((row) => [row.date, row.amount])).toEqual([
-      [civil('2026-10-01'), euros(-5.5)],
-      [civil('2026-10-01'), euros(-0.25)],
+      [civil('2026-10-01'), accountMoneyFromAmount(-5.5)],
+      [civil('2026-10-01'), accountMoneyFromAmount(-0.25)],
     ])
   })
 
@@ -88,8 +89,8 @@ describe("Revolut's export", () => {
     const { rows } = read([line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Fuel station', '-40.00', '1.50')])
 
     expect(rows.map((row) => [row.payee, row.amount, row.category])).toEqual([
-      ['Fuel station', euros(-40), null],
-      ['Revolut', euros(-1.5), category('Money and fees/Bank fees').id],
+      ['Fuel station', accountMoneyFromAmount(-40), null],
+      ['Revolut', accountMoneyFromAmount(-1.5), category('Money and fees/Bank fees').id],
     ])
     expect(rows[1]?.importKey).toBe(`${rows[0]?.importKey}-fee`)
   })
@@ -104,8 +105,8 @@ describe("Revolut's export", () => {
     const { rows } = read([line('EXCHANGE', '2026-10-01 10:00:00', 'Exchanged to USD', '-54.00'), line('EXCHANGE', '2026-10-01 10:00:00', 'Exchanged from EUR', '58.00', '0.00', 'USD')])
 
     expect(rows.map((row) => [row.account, row.amount, row.movedAt])).toEqual([
-      [REVOLUT_EUR.id, euros(-54), '2026-10-01 10:00:00'],
-      [REVOLUT_USD.id, euros(58), '2026-10-01 10:00:00'],
+      [REVOLUT_EUR.id, accountMoneyFromAmount(-54), '2026-10-01 10:00:00'],
+      [REVOLUT_USD.id, accountMoneyFromAmount(58), '2026-10-01 10:00:00'],
     ])
   })
 
@@ -133,7 +134,16 @@ describe("Revolut's export", () => {
   it('leaves a Savings row out with a note without a Revolut savings account, and sends it to one when there is', () => {
     const row = line('TRANSFER', '2026-10-01 10:00:00', 'To pocket', '-5.00', '0.00', 'EUR', 'COMPLETED', 'Savings')
     const left = read([row])
-    const savings = account(9, { name: 'Revolut pocket', kind: 'savings', bank: 'revolut', currency: REVOLUT_EUR.currency, opening: euros(0), openedOn: civil('2026-09-01'), iban: '', closed: false })
+    const savings = account(9, {
+      name: 'Revolut pocket',
+      kind: 'savings',
+      bank: 'revolut',
+      currency: REVOLUT_EUR.currency,
+      opening: accountMoneyFromAmount(0),
+      openedOn: civil('2026-09-01'),
+      iban: '',
+      closed: false,
+    })
 
     expect(left.rows).toEqual([])
     expect(left.notes).toEqual(['1 savings row left out, since no Revolut savings account keeps EUR.'])
@@ -152,15 +162,24 @@ describe("Revolut's export", () => {
     const POCKET_AT = '2026-10-01 10:00:00'
     const current = (amount: string, started: string | number = POCKET_AT) => line('TRANSFER', started, 'Pocket Summer trip', amount)
     const savingsRow = (amount: string, started: string | number = POCKET_AT) => line('TRANSFER', started, 'From current', amount, '0.00', 'EUR', 'COMPLETED', 'Savings')
-    const pocket = account(9, { name: 'Revolut pocket', kind: 'savings', bank: 'revolut', currency: REVOLUT_EUR.currency, opening: euros(0), openedOn: civil('2026-09-01'), iban: '', closed: false })
+    const pocket = account(9, {
+      name: 'Revolut pocket',
+      kind: 'savings',
+      bank: 'revolut',
+      currency: REVOLUT_EUR.currency,
+      opening: accountMoneyFromAmount(0),
+      openedOn: civil('2026-09-01'),
+      iban: '',
+      closed: false,
+    })
     const withPocket = { accounts: [...ACCOUNTS, pocket], categories: CATEGORIES }
 
     it('gives both legs one time and sends them to their accounts, with a savings account', () => {
       const { rows, notes } = read([current('-20.00'), savingsRow('20.00')], withPocket)
 
       expect(rows.map((row) => [row.account, row.amount, row.movedAt, row.pocket])).toEqual([
-        [REVOLUT_EUR.id, euros(-20), POCKET_AT, true],
-        [pocket.id, euros(20), POCKET_AT, true],
+        [REVOLUT_EUR.id, accountMoneyFromAmount(-20), POCKET_AT, true],
+        [pocket.id, accountMoneyFromAmount(20), POCKET_AT, true],
       ])
       expect(notes).toEqual([])
     })
@@ -197,7 +216,7 @@ describe("Revolut's export", () => {
     it('sends a savings row with no mirror, such as interest, to the savings account as ordinary money in', () => {
       const { rows } = read([line('INTEREST', POCKET_AT, 'Example Bank UAB', '0.12', '0.00', 'EUR', 'COMPLETED', 'Savings')], withPocket)
 
-      expect(rows).toMatchObject([{ account: pocket.id, amount: euros(0.12), movedAt: '', pocket: false, category: null }])
+      expect(rows).toMatchObject([{ account: pocket.id, amount: accountMoneyFromAmount(0.12), movedAt: '', pocket: false, category: null }])
     })
 
     it('keeps the key of each leg whether it paired or not, so adding a savings account later leaves the current leg already in', () => {
@@ -213,7 +232,16 @@ describe("Revolut's export", () => {
       row[9] = balance
       return row
     }
-    const pocket = account(9, { name: 'Revolut pocket', kind: 'savings', bank: 'revolut', currency: REVOLUT_EUR.currency, opening: euros(0), openedOn: civil('2026-09-01'), iban: '', closed: false })
+    const pocket = account(9, {
+      name: 'Revolut pocket',
+      kind: 'savings',
+      bank: 'revolut',
+      currency: REVOLUT_EUR.currency,
+      opening: accountMoneyFromAmount(0),
+      openedOn: civil('2026-09-01'),
+      iban: '',
+      closed: false,
+    })
     const withPocket = { accounts: [...ACCOUNTS, pocket], categories: CATEGORIES }
     const whole = [on('2026-10-01 10:00:00', '-10.00', '0.00', '90.00'), on('2026-10-02 10:00:00', '-20.00', '1.00', '69.00'), on('2026-10-03 10:00:00', '5.00', '0.00', '74.00')]
 

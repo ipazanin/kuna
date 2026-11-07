@@ -5,7 +5,7 @@ import { TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { NO_BANK_FACTS } from '../../workbook/domain/transaction'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { words } from '../../workbook/domain/words'
-import { moneyFromCents, negateMoney } from '../../../../shared/money/money'
+import { absAccountMoney, negateAccountMoney } from '../../../../shared/money/accountMoney'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
@@ -54,8 +54,8 @@ export function newTransfer(from: TransferLeg, to: TransferLeg, entry: Pick<Tran
   const inId = recordIdOf(TRANSACTION_RECORDS, newRecordId())
   const shared = { ...NO_BANK_FACTS, date: entry.date, payee: entry.payee.trim(), note: entry.note.trim(), category: entry.category, source: 'typed' as const, categorisedBy: 'person' as const }
   return [
-    { ...shared, id: outId, account: from.account, amount: negateMoney(moneyFromCents(Math.abs(from.amount))), pair: inId },
-    { ...shared, id: inId, account: to.account, amount: moneyFromCents(Math.abs(to.amount)), pair: outId },
+    { ...shared, id: outId, account: from.account, amount: negateAccountMoney(absAccountMoney(from.amount)), pair: inId },
+    { ...shared, id: inId, account: to.account, amount: absAccountMoney(to.amount), pair: outId },
   ]
 }
 

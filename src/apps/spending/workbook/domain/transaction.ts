@@ -1,5 +1,5 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import type { Money } from '../../../../shared/money/money'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /** Typed by you, brought by a bank statement, or made from a receipt that no payment matched yet. */
@@ -18,7 +18,7 @@ export interface Transaction {
   readonly account: RecordId
   readonly date: CivilDate
   /** Credits above zero, debits below, never zero. */
-  readonly amount: Money
+  readonly amount: AccountMoney
   /** Who was paid, or who paid you. */
   readonly payee: string
   /** Null while the row waits on review, when it counts nowhere. */

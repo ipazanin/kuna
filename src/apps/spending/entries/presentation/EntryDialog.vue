@@ -21,10 +21,10 @@ import type { Transaction } from '../../workbook/domain/transaction'
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { moneyFromCents, negateMoney } from '../../../../shared/money/money'
-import type { Money } from '../../../../shared/money/money'
+import { absAccountMoney, negateAccountMoney, typedAccountAmount } from '../../../../shared/money/accountMoney'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
-import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
+import { amountForTyping } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
@@ -110,8 +110,8 @@ watch(open, (opened) => {
   kind.value = pair !== null ? 'transfer' : entry === null || entry.amount < 0 ? 'out' : 'in'
   account.value = (pair?.[0] ?? entry)?.account ?? first?.id ?? ''
   toAccount.value = pair?.[1].account ?? choosable.value.find((candidate) => candidate.id !== account.value)?.id ?? ''
-  amount.value = entry === null ? '' : amountForTyping(moneyFromCents(Math.abs((pair?.[0] ?? entry).amount)))
-  toAmount.value = pair === null ? '' : amountForTyping(moneyFromCents(Math.abs(pair[1].amount)))
+  amount.value = entry === null ? '' : amountForTyping(absAccountMoney((pair?.[0] ?? entry).amount))
+  toAmount.value = pair === null ? '' : amountForTyping(absAccountMoney(pair[1].amount))
   category.value = entry?.category ?? ''
   date.value = entry?.date ?? today()
   payee.value = entry?.payee ?? ''
@@ -139,8 +139,8 @@ const fromFixed = computed(() => (rowOnFrom.value?.importKey ?? '') !== '')
 const toFixed = computed(() => (rowOnTo.value?.importKey ?? '') !== '')
 
 /** An amount above zero, or null. */
-function positive(text: string): Money | null {
-  const typed = typedAmount(text)
+function positive(text: string): AccountMoney | null {
+  const typed = typedAccountAmount(text)
   return typed === null || typed <= 0 ? null : typed
 }
 
@@ -174,10 +174,10 @@ async function save(): Promise<void> {
 }
 
 /** One entry added, or changed in place, which drops the other leg of what was a transfer. */
-function entryWrite(fromAccount: Account, typed: Money, on: CivilDate): ((unit: UnitOfWork) => void) | null {
+function entryWrite(fromAccount: Account, typed: AccountMoney, on: CivilDate): ((unit: UnitOfWork) => void) | null {
   const filed = categories.value.find((candidate) => candidate.id === category.value)
   if (filed === undefined) return null
-  const entry = newEntry({ account: fromAccount.id, date: on, amount: kind.value === 'out' ? negateMoney(typed) : typed, payee: payee.value, category: filed.id, note: note.value })
+  const entry = newEntry({ account: fromAccount.id, date: on, amount: kind.value === 'out' ? negateAccountMoney(typed) : typed, payee: payee.value, category: filed.id, note: note.value })
   const before = props.entry
   const other = legs.value?.find((leg) => leg.id !== before?.id)
   return (unit) => {
@@ -192,7 +192,7 @@ function entryWrite(fromAccount: Account, typed: Money, on: CivilDate): ((unit: 
 }
 
 /** Both legs in one write: added, changed in place, or a plain entry turned into the money-out leg with the other leg beside it. */
-function transferWrite(fromAccount: Account, typed: Money, on: CivilDate): ((unit: UnitOfWork) => void) | null {
+function transferWrite(fromAccount: Account, typed: AccountMoney, on: CivilDate): ((unit: UnitOfWork) => void) | null {
   const toAccountPicked = to.value
   const fixed = transferCategory.value
   if (toAccountPicked === null || fixed === null) return null

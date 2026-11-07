@@ -10,9 +10,9 @@ import { words } from './words'
 import type { DraftLine } from '../domain/receiptDraft'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
 import type { Category } from '../../workbook/domain/category'
-import { sumMoney } from '../../../../shared/money/money'
+import { sumAccountMoney } from '../../../../shared/money/accountMoney'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
-import type { Money } from '../../../../shared/money/money'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 
 /** The read lines grouped by category, so a long receipt is a few groups to confirm. Each line can change category, and a new category is accepted, renamed or mapped, never made silently. */
@@ -20,7 +20,7 @@ const props = defineProps<{
   lines: readonly DraftLine[]
   categories: readonly Category[]
   /** What the lines left of the row, zero when they add up. */
-  difference: Money
+  difference: AccountMoney
 }>()
 
 /** Each line's choice in the lines' order: a category id, `new:` and the name suggested, or blank. */
@@ -49,7 +49,7 @@ const groups = computed(() => {
   })
   return [...held.values()].map((group) => {
     const suggested = group.key.startsWith(NEW_PREFIX) ? group.key.slice(NEW_PREFIX.length) : null
-    return { ...group, suggested, name: props.categories.find((category) => category.id === group.key)?.name ?? '', sum: sumMoney(group.lines.map(({ line }) => line.amount)) }
+    return { ...group, suggested, name: props.categories.find((category) => category.id === group.key)?.name ?? '', sum: sumAccountMoney(group.lines.map(({ line }) => line.amount)) }
   })
 })
 

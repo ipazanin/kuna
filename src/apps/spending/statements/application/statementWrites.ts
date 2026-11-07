@@ -13,7 +13,7 @@ import type { ReceiptLine } from '../../workbook/domain/receiptLine'
 import { RULE_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
 import type { Transaction } from '../../workbook/domain/transaction'
-import { subtractMoney } from '../../../../shared/money/money'
+import { subtractAccountMoney } from '../../../../shared/money/accountMoney'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -63,7 +63,7 @@ export function joinWithTyped(unit: UnitOfWork, typed: Transaction, bank: Transa
   entries.remove(bank)
   entries.change(typed, filledByBank(typed, bank))
   const first = lines.find((line) => line.transaction === typed.id)
-  if (first !== undefined && bank.amount !== typed.amount) unit.of(LINE_WRITES).add(differenceLine(first, subtractMoney(bank.amount, typed.amount)))
+  if (first !== undefined && bank.amount !== typed.amount) unit.of(LINE_WRITES).add(differenceLine(first, subtractAccountMoney(bank.amount, typed.amount)))
 }
 
 /** What "Always for this payee" tests on a row: its IBAN, else its payee's name. Null for a row with neither. */

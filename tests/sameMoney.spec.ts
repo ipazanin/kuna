@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { sameBooking, sameMoney } from '../src/apps/spending/pairing/domain/sameMoney'
+import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { OTP, REVOLUT_EUR, row } from './fixtures/spending'
-import { civil, euros } from './fixtures/ledger'
+import { civil } from './fixtures/ledger'
 
 const typedOn = (date: string, amount = -10) => row(OTP, date, amount, 'Food/Coffee')
 const bankOn = (date: string, amount = -10, on = OTP) => row(on, date, amount, null, { source: 'statement' })
@@ -57,14 +58,14 @@ describe('same money', () => {
     const typed = typedOn('2026-10-10')
     const bank = bankOn('2026-10-11', -10.5)
 
-    expect(sameMoney([typed], [bank])).toEqual({ matches: [], near: [{ typed, bank, difference: euros(-0.5) }] })
+    expect(sameMoney([typed], [bank])).toEqual({ matches: [], near: [{ typed, bank, difference: accountMoneyFromAmount(-0.5) }] })
   })
 
   it('offers an equal amount on days further apart as near, with no difference', () => {
     const typed = typedOn('2026-10-10')
     const bank = bankOn('2026-10-20')
 
-    expect(sameMoney([typed], [bank]).near).toEqual([{ typed, bank, difference: euros(0) }])
+    expect(sameMoney([typed], [bank]).near).toEqual([{ typed, bank, difference: accountMoneyFromAmount(0) }])
   })
 
   it('offers neither an amount far off, money the other way, nor a date a month away', () => {
@@ -75,7 +76,7 @@ describe('same money', () => {
 })
 
 describe('sameBooking', () => {
-  const held = (date: string, amount: number) => ({ account: OTP.id, date: civil(date), amount: euros(amount) })
+  const held = (date: string, amount: number) => ({ account: OTP.id, date: civil(date), amount: accountMoneyFromAmount(amount) })
 
   it('matches only an equal account, amount and day', () => {
     expect(sameBooking([held('2026-10-28', -6.5)], [held('2026-10-28', -6.5)])).toHaveLength(1)
