@@ -1,5 +1,5 @@
 import { INCOME_KINDS } from './income'
-import type { Income } from './income'
+import type { DividendFacts, Income } from './income'
 import { decimalField, importKeyOf, namedAccount, namedInstrument, optionalDecimal, rateFor, requiredCurrency, requiredDecimal } from './investmentFields'
 import { INCOME_RECORDS, INSTRUMENT_RECORDS, INVESTMENT_ACCOUNT_RECORDS } from './investmentKinds'
 import { words } from './words'
@@ -9,9 +9,22 @@ import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { filledFields } from '../../../../shared/storage/domain/recordFields'
 import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { ownId, refuse, requiredChoice, requiredDate, textOf } from '../../../../shared/storage/domain/storedFields'
+import { optionalDate, ownId, refuse, requiredChoice, requiredDate, textOf } from '../../../../shared/storage/domain/storedFields'
 import { words as storedWords } from '../../../../shared/storage/domain/words'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
+
+/** A dividend's facts from a broker's report, or nothing when the record holds none. */
+function dividendFactsOf(fields: StoredFields): { readonly dividend?: DividendFacts } {
+  const sourceCountry = textOf(fields.source_country)
+  const dividendType = textOf(fields.dividend_type)
+  const facts: DividendFacts = {
+    exDate: optionalDate(fields, 'ex_date'),
+    payDate: optionalDate(fields, 'pay_date'),
+    sourceCountry: sourceCountry === '' ? null : sourceCountry,
+    dividendType: dividendType === '' ? null : dividendType,
+  }
+  return Object.values(facts).every((fact) => fact === null) ? {} : { dividend: facts }
+}
 
 /**
  * A gross below zero is a reversal the broker booked against an earlier payment, which its note has to say, and its
@@ -41,6 +54,7 @@ export function incomeOf(fields: StoredFields, id: RecordId | null): Income {
     rate: rateFor(fields, currency),
     importKey: importKeyOf(fields),
     note: textOf(fields.note),
+    ...dividendFactsOf(fields),
   }
 }
 
@@ -56,5 +70,9 @@ export const INCOME_CODEC: RecordCodec<Income> = withIdField(INCOME_RECORDS, wor
     rate: decimalField(income.rate),
     import_key: income.importKey,
     note: income.note,
+    ex_date: income.dividend?.exDate,
+    pay_date: income.dividend?.payDate,
+    source_country: income.dividend?.sourceCountry,
+    dividend_type: income.dividend?.dividendType,
   }),
 )

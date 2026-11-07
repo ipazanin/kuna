@@ -37,8 +37,12 @@ export function sameInstrument(first: WorkbookRow, second: WorkbookRow): boolean
  * none to lower stays alone. A transfer out joins a transfer in of another account with the same
  * instrument and quantity, and an internal cash transfer out its opposite in the same currency, the nearest by date.
  * Split rows of one instrument and day are one split. A row that needs a partner and has none stays alone.
+ *
+ * In a rolling report a withholding row instead joins the income that shares its action id, or with neither an ISIN nor a
+ * partner by id, the interest of its account, day and currency. An entry keeps its lead row's key there, so a partner that
+ * only a later file gives does not make the same income a second record.
  */
-export function workbookEntries(rows: readonly WorkbookRow[]): RowEntry[] {
+export function workbookEntries(rows: readonly WorkbookRow[], rolling = false): RowEntry[] {
   const partners = new Map<WorkbookRow, WorkbookRow[]>()
   const taken = new Set<WorkbookRow>()
   const join = (row: WorkbookRow, partner: WorkbookRow): void => {
@@ -50,14 +54,16 @@ export function workbookEntries(rows: readonly WorkbookRow[]): RowEntry[] {
   const withholdings = ofType('WITHHOLDING TAX')
   const refunds = withholdings.filter(isWithheldRefund)
   for (const withholding of [...withholdings.filter((row) => !isWithheldRefund(row)), ...refunds]) {
-    const candidates = rows.filter(
-      (row) =>
-        WITHHELD_FROM.has(row.type) &&
-        row.account === withholding.account &&
-        row.date === withholding.date &&
-        sameInstrument(row, withholding) &&
-        (isWithheldRefund(withholding) ? isIncomeReversal(row) || partners.has(row) : !isIncomeReversal(row)),
-    )
+    const candidates = rolling
+      ? reportPartners(withholding, rows)
+      : rows.filter(
+          (row) =>
+            WITHHELD_FROM.has(row.type) &&
+            row.account === withholding.account &&
+            row.date === withholding.date &&
+            sameInstrument(row, withholding) &&
+            (isWithheldRefund(withholding) ? isIncomeReversal(row) || partners.has(row) : !isIncomeReversal(row)),
+        )
     const shared = (row: WorkbookRow): number => sharedStart(fold(row.note), fold(withholding.note))
     const [best] = [...candidates].sort((first, second) => shared(second) - shared(first) || Number(partners.has(first)) - Number(partners.has(second)))
     if (best !== undefined) {
@@ -99,8 +105,16 @@ export function workbookEntries(rows: readonly WorkbookRow[]): RowEntry[] {
     .filter((row) => !taken.has(row))
     .map((row) => {
       const joined = (partners.get(row) ?? []).sort((first, second) => position.get(first)! - position.get(second)!)
-      return { rows: [row, ...joined], key: joined.length === 0 ? row.key : factKey([row, ...joined].map((member) => member.key)) }
+      return { rows: [row, ...joined], key: joined.length === 0 || rolling ? row.key : factKey([row, ...joined].map((member) => member.key)) }
     })
+}
+
+/** The income a report's withholding row belongs to. Nothing else is close enough to say, so a row with neither waits. */
+function reportPartners(withholding: WorkbookRow, rows: readonly WorkbookRow[]): WorkbookRow[] {
+  const ofAccount = rows.filter((row) => WITHHELD_FROM.has(row.type) && row.account === withholding.account)
+  const byAction = withholding.actionId === null ? [] : ofAccount.filter((row) => row.actionId === withholding.actionId)
+  if (byAction.length > 0 || withholding.isin !== '') return byAction
+  return ofAccount.filter((row) => row.type === 'INTEREST' && row.date === withholding.date && row.currency === withholding.currency)
 }
 
 /** The income whose row pays out to reverse an earlier payment. Interest that pays out is debit interest instead. */

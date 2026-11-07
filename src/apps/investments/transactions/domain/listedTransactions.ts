@@ -32,6 +32,16 @@ export const TRANSACTION_KINDS = ['trade', 'income', 'cash-movement', 'exchange'
 /** A record as the Transactions screen lists it: every kind the latest records have, and a price entered by hand with its instrument. */
 export type ListedTransaction = LatestRecord | { readonly kind: 'price'; readonly record: HandPrice; readonly instrument: Instrument }
 
+/**
+ * The record a person's edit makes, keeping what they cannot see in the dialog: the key of the rows it came from, or a
+ * report that overlaps would add it again, and what a report said about a dividend.
+ */
+export function withImportFacts(before: TransactionRecord, after: TransactionRecord): TransactionRecord {
+  if (before.kind === 'price' || after.kind === 'price') return after
+  const dividend = before.kind === 'income' && before.record.dividend !== undefined && after.kind === 'income' ? { dividend: before.record.dividend } : {}
+  return { ...after, record: { ...after.record, importKey: before.record.importKey, ...dividend } } as TransactionRecord
+}
+
 /** Every record of what happened and every hand price, newest first. Records of one day keep the order the latest records give them, with prices last. */
 export function listedTransactions(book: InvestmentBook, rates: RateBook): ListedTransaction[] {
   const instrumentOf = new Map(book.instruments.map((instrument) => [instrument.id, instrument]))

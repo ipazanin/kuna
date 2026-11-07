@@ -1,4 +1,5 @@
 import type { RoundedCell, SkipReason, SkippedRow, WorkbookColumn, WorkbookRow, WorkbookType } from './portfolioWorkbook'
+import { accountScopeOf, isReportKey } from './reportKey'
 import { isIncomeReversal, isWithheldRefund, workbookEntries } from './workbookEntries'
 import type { RowEntry } from './workbookEntries'
 import { words } from './words'
@@ -49,6 +50,7 @@ import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recor
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { refusalOr, storedFieldsOfValues } from '../../../../shared/storage/domain/storedFields'
 import { fold } from '../../../../shared/text/fold'
+import type { AskedRow } from '../../../../shared/recipes/domain/runRecipe'
 
 /** A split of `newUnits` for every `oldUnits`, both whole numbers. */
 export interface SplitRatio {
@@ -96,6 +98,8 @@ export type WaitReason =
   | { readonly kind: 'same-account' }
   /** A sale or transfer of more units than its account holds on its day. */
   | { readonly kind: 'beyond-held' }
+  /** A rolling report now gives other figures for a record Kuna has, such as tax withheld a day after its dividend. */
+  | { readonly kind: 'differs-from-kuna' }
 
 export type ImportedRecord =
   | { readonly kind: 'trade'; readonly record: Trade }
@@ -198,16 +202,28 @@ export interface WorkbookDryRun {
   readonly questions: WorkbookQuestions
   readonly commissionDifferences: readonly CommissionDifference[]
   readonly reversals: readonly ReversedRow[]
+  /** What a rolling report held back from its recipe for the person, none for a workbook. */
+  readonly report: ReportFacts | null
   /** What Import writes in one unit of work: the new accounts and instruments the new entries name, then their records. */
   readonly added: InvestmentBook
   /** The records in Kuna with those added. */
   readonly planned: InvestmentBook
 }
 
+/** What a rolling report held back from its rows. */
+export interface ReportFacts {
+  /** The rows its recipe would not guess at. */
+  readonly asked: readonly AskedRow[]
+  /** How many rows were left out for being dated before the reader's start day. */
+  readonly beforeStart: number
+}
+
 export interface WorkbookRows {
   readonly rows: readonly WorkbookRow[]
   readonly skipped: readonly SkippedRow[]
   readonly rounded: readonly RoundedCell[]
+  /** Set for rows of a rolling report, whose files overlap and leave out almost everything, so absence from them means nothing. */
+  readonly report?: ReportFacts
 }
 
 const CENT = decimalOfText('0.01')!
@@ -270,15 +286,17 @@ class EntrySkipped extends Error {
  * against its type imports as what it reverses, such as debit interest as a fee, a deposit that pays out as a
  * withdrawal or a dividend that pays out as income below zero, and is listed so it is seen. A buy or a sale whose cash
  * goes the other way from its units, and a row whose record the write rules of its kind would refuse, is skipped. A record an earlier import wrote, of an account
- * and dates the file covers, whose key the file no longer gives, is listed as gone.
+ * and dates the file covers, whose key the file no longer gives, is listed as gone. A rolling report lists nothing as
+ * gone, and a record of one is never gone from a workbook. A record a report's row now gives other figures for waits.
  */
 export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): WorkbookDryRun {
   const { book, answers } = inputs
-  const entries = workbookEntries(reading.rows)
+  const rolling = reading.report !== undefined
+  const entries = workbookEntries(reading.rows, rolling)
   const keyed = importedByKey(book)
   const identityOf = identities(reading.rows)
   const inKuna = entries.filter((entry) => keyed.has(entry.key))
-  const knownAccounts = knownAccountsOf(inKuna, keyed)
+  const knownAccounts = rolling ? new Map([...knownAccountsOf(inKuna, keyed), ...accountsOfReportScope(reading.rows, keyed)]) : knownAccountsOf(inKuna, keyed)
   const knownInstruments = knownInstrumentsOf(inKuna, keyed, identityOf)
   const accountOf = (row: WorkbookRow): InvestmentAccount | null => answers.accounts.get(row.account) ?? book.accounts.find((account) => account.id === knownAccounts.get(row.account)) ?? null
   const accountsSoFar = [...book.accounts, ...answers.accounts.values()]
@@ -292,7 +310,7 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
 
   const firstPass = entries.flatMap((entry): { entry: RowEntry; outcome: EntryOutcome }[] => {
     if (keyed.has(entry.key)) {
-      return [{ entry, outcome: { kind: 'in-kuna' } }]
+      return [{ entry, outcome: rolling && differsFromKuna(entry, keyed.get(entry.key)!, mapping) ? { kind: 'waiting', reason: { kind: 'differs-from-kuna' } } : { kind: 'in-kuna' } }]
     }
     try {
       return [{ entry, outcome: { kind: 'new', imported: importedRecord(entry, mapping) } }]
@@ -327,7 +345,7 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
     entries: outcomes,
     skipped: skipped.sort((first, second) => first.fileRow - second.fileRow),
     rounded: reading.rounded,
-    gone: goneRecords(reading.rows, entries, keyed, accountOf),
+    gone: rolling ? [] : goneRecords(reading.rows, entries, keyed, accountOf),
     questions: {
       accounts: accountQuestions(toImport, knownAccounts, book.accounts),
       instruments: instrumentQuestions(toImport, book, knownInstruments, identityOf),
@@ -336,6 +354,7 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
     },
     commissionDifferences: commissionDifferences(outcomes),
     reversals: reversedRows(outcomes),
+    report: reading.report ?? null,
     added: addedRecords(book, planned),
     planned,
   }
@@ -401,6 +420,37 @@ interface Mapping {
   readonly identityOf: (row: WorkbookRow) => string
   readonly questions: { readonly spinOffs: SpinOffQuestion[] }
   readonly instruments: readonly Instrument[]
+}
+
+/** Whether the record a report's row would make now differs in its figures from the one Kuna has. A row that cannot make a record yet says nothing. */
+function differsFromKuna(entry: RowEntry, kept: ImportedRecord, mapping: Mapping): boolean {
+  try {
+    const now = recordOf(entry, mapping)
+    return JSON.stringify(figuresOf(now), bigintText) !== JSON.stringify(figuresOf(kept), bigintText)
+  } catch (failure) {
+    if (failure instanceof EntryWaits || failure instanceof EntrySkipped) return false
+    throw failure
+  }
+}
+
+function bigintText(_key: string, value: unknown): unknown {
+  return typeof value === 'bigint' ? value.toString() : value
+}
+
+/** The amounts of a record a report can change. */
+function figuresOf(imported: ImportedRecord): readonly unknown[] {
+  switch (imported.kind) {
+    case 'trade':
+      return [imported.record.quantity, imported.record.price]
+    case 'income':
+      return [imported.record.gross, imported.record.withheld]
+    case 'cash-movement':
+      return [imported.record.amount]
+    case 'exchange':
+      return [imported.record.sold, imported.record.bought]
+    default:
+      return []
+  }
 }
 
 /** The entry's record, skipped when the write rules of its kind would refuse it, so Import never fails on one row. */
@@ -612,6 +662,7 @@ function incomeOf(entry: RowEntry, mapping: Mapping): Income {
     rate,
     importKey: entry.key,
     note: [reversal ?? '', label, lowered, row.note].filter((part) => part !== '').join('. '),
+    ...(row.dividend === null ? {} : { dividend: row.dividend }),
   }
 }
 
@@ -679,7 +730,7 @@ function exchangeOf(row: WorkbookRow, key: string, mapping: Mapping): Exchange {
     soldCurrency: sells ? currency : counterCurrency,
     bought: sells ? counter : net,
     boughtCurrency: sells ? counterCurrency : currency,
-    fees: row.commission !== null && row.commission > DECIMAL_ZERO ? { amount: row.commission, currency: EURO } : null,
+    fees: row.commission !== null && row.commission > DECIMAL_ZERO ? { amount: row.commission, currency: row.commissionCurrency ?? EURO } : null,
     importKey: key,
     note: row.note,
   }
@@ -782,6 +833,20 @@ function knownAccountsOf(inKuna: readonly RowEntry[], keyed: ReadonlyMap<string,
   return known
 }
 
+/** The account a report's rows belong to, read off any record of the same recipe and account, however old, since a rolling file overlaps with few of them. */
+function accountsOfReportScope(rows: readonly WorkbookRow[], keyed: ReadonlyMap<string, ImportedRecord>): Map<string, RecordId> {
+  const byScope = new Map<string, RecordId>()
+  for (const [key, imported] of keyed) {
+    if (isReportKey(key) && 'account' in imported.record) byScope.set(accountScopeOf(key), imported.record.account)
+  }
+  return new Map(
+    rows.flatMap((row) => {
+      const account = byScope.get(accountScopeOf(row.key))
+      return account === undefined ? [] : [[row.account, account] as const]
+    }),
+  )
+}
+
 /** The instrument each identity was imported as, read off the records its rows already made. */
 function knownInstrumentsOf(inKuna: readonly RowEntry[], keyed: ReadonlyMap<string, ImportedRecord>, identityOf: (row: WorkbookRow) => string): Map<string, RecordId> {
   const known = new Map<string, RecordId>()
@@ -867,7 +932,7 @@ function proposedInstrument(rows: readonly WorkbookRow[], isin: string | null, t
           ? { exchange: 'XAMS', prices: 'alphavantage', sourceSymbol: `${base}.AMS` }
           : { exchange: null, prices: 'manual', sourceSymbol: '' }
   return {
-    name: symbol,
+    name: rows.find((row) => row.name !== '')?.name ?? symbol,
     type,
     class: 'stocks',
     isin,
@@ -994,6 +1059,7 @@ function addedRecords(book: InvestmentBook, planned: InvestmentBook): Investment
     fundMixes: [],
     targets: [],
     checks: [],
+    mailReaders: [],
   }
 }
 
@@ -1022,7 +1088,7 @@ function goneRecords(
     return range !== undefined && date >= range.from && date <= range.to
   }
   return [...keyed]
-    .filter(([key]) => !fileKeys.has(key))
+    .filter(([key]) => !fileKeys.has(key) && !isReportKey(key))
     .map(([, imported]) => imported)
     .filter((imported) => {
       const record = imported.record

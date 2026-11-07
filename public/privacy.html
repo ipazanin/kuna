@@ -152,7 +152,7 @@
         </svg>
         <h1>Privacy</h1>
       </header>
-      <p class="lead">Kuna is a web page that works out company finance figures in your browser. Updated 6 November 2026.</p>
+      <p class="lead">Kuna is a web page that works out company finance figures in your browser. Updated 7 November 2026.</p>
 
       <article>
         <section>
@@ -184,11 +184,12 @@
               Kuna made, one per Investments file, once their keys are in the new file. It reads, writes and deletes nothing else with it.
             </li>
             <li>
-              <code>gmail.readonly</code>, "View your email messages and settings". Asked only while you name the address your bank mails from, or switch on a kind of your accountant's mail. Google's
-              wording covers your whole mailbox. On each sync the app searches it for mail from those addresses whose subject starts with the words you set, reads each one's subject, date and
-              attachment names, downloads a bank statement's XML to read its number and account, and downloads an attachment to file it or to compare it with a file of the same name in your Drive. It
-              files your bank's new statements and the kinds of your accountant's mail you switched on into your Drive, as "What the app writes" says. Nothing it reads leaves your browser except those
-              files, which go to your own Drive. It never sends, deletes, labels or marks a mail as read, and it reads nothing else.
+              <code>gmail.readonly</code>, "View your email messages and settings". Asked only while you name the address your bank mails from, switch on a kind of your accountant's mail, or switch on
+              IBKR report by mail in Investments. Google's wording covers your whole mailbox. On each sync the app searches it for mail from those addresses whose subject starts with the words you
+              set, reads each one's subject, date and attachment names, downloads a bank statement's XML to read its number and account, and downloads an attachment to file it or to compare it with a
+              file of the same name in your Drive. It files your bank's new statements and the kinds of your accountant's mail you switched on into your Drive, as "What the app writes" says. Nothing
+              it reads leaves your browser except those files, which go to your own Drive. For IBKR's report it downloads the XML file of each mail it finds and reads it in this browser, filing
+              nothing. It never sends, deletes, labels or marks a mail as read, and it reads nothing else.
             </li>
             <li>
               <code>gmail.compose</code>, "Manage drafts and send emails". Asked only while "Create the mail draft" is on for invoices. The app saves one draft per invoice in your Gmail. It never
@@ -225,6 +226,10 @@
           <p>
             When you make an invoice, it files the PDF in the invoice folder you picked, making a year or month folder there only when you ask it to, and it never overwrites a file except on a
             re-export you start.
+          </p>
+          <p>
+            When you accept IBKR's report in Investments, its trades, dividends, tax withheld, conversions and cash movements go into your Investments file on your own Drive, each with a key made from
+            the report's account number and its id of the row.
           </p>
           <p>
             For Investments, it writes the closes and rates it fetched into <code>kuna-investments-prices.json</code> beside your Investments file, so your other devices read them without asking the

@@ -129,7 +129,8 @@ describe('the catalogue', () => {
     }
     expect(SPENDING_ASSISTANT.automations).toHaveLength(1)
     expect(COMPANY.automations).toHaveLength(1)
-    for (const app of [LOANS_ASSISTANT, INVESTMENTS_ASSISTANT, ASSETS_ASSISTANT]) expect(app.automations).toEqual([])
+    expect(INVESTMENTS_ASSISTANT.automations).toHaveLength(1)
+    for (const app of [LOANS_ASSISTANT, ASSETS_ASSISTANT]) expect(app.automations).toEqual([])
   })
 
   it('links each automation to a route show_screen can open and a guide its app has', () => {

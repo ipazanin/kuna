@@ -6,6 +6,7 @@ import { HAND_PRICE_CODEC } from '../domain/handPriceReading'
 import { INCOME_CODEC } from '../domain/incomeReading'
 import { INSTRUMENT_CODEC } from '../domain/instrumentReading'
 import { INVESTMENT_ACCOUNT_CODEC } from '../domain/investmentAccountReading'
+import { MAIL_READER_CODEC } from '../domain/mailReaderReading'
 import { SPIN_OFF_CODEC } from '../domain/spinOffReading'
 import { SPLIT_CODEC } from '../domain/splitReading'
 import { TARGET_CODEC } from '../domain/targetReading'
@@ -28,6 +29,7 @@ const INVESTMENTS_CODECS = [
   FUND_MIX_CODEC,
   TARGET_CODEC,
   CHECK_CODEC,
+  MAIL_READER_CODEC,
 ] as readonly RecordCodec<unknown>[]
 
 /** The codec of an Investments kind. Throws for a kind the Investments file does not keep. */

@@ -128,7 +128,7 @@ export interface MailFilingPorts<Books> {
  * under Gmail's per-user rate. A source also reads and names this many of its mails at once, since
  * more would only wait for a turn.
  */
-const GMAIL_AT_ONCE = 10
+export const GMAIL_AT_ONCE = 10
 
 /**
  * The mail step: the sources that are on run at the same time. Each lists the files of its year
@@ -240,7 +240,7 @@ function turns(count: number): <Result>(call: () => Promise<Result>) => Promise<
  * The work of each item, at most `count` at once, in the items' order. Once one fails no other
  * starts, and the first failure is thrown after the ones running end.
  */
-async function eachAtMost<Item, Result>(items: readonly Item[], count: number, work: (item: Item) => Promise<Result>): Promise<Result[]> {
+export async function eachAtMost<Item, Result>(items: readonly Item[], count: number, work: (item: Item) => Promise<Result>): Promise<Result[]> {
   const results: Result[] = []
   const failures: unknown[] = []
   let next = 0
@@ -373,7 +373,7 @@ async function fileOne<Books>(filing: ToFile, source: MailSource<Books>, terms: 
   }
 }
 
-async function searchAll(mailbox: Mailbox, query: string): Promise<string[]> {
+export async function searchAll(mailbox: Mailbox, query: string): Promise<string[]> {
   const ids: string[] = []
   let page: string | null = null
   do {

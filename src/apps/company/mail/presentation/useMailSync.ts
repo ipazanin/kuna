@@ -1,6 +1,6 @@
 import { shallowReactive, shallowReadonly } from 'vue'
 
-import { startOfDayIn, today } from '../../../../shared/calendar/civilDate'
+import { deviceTimeZone, startOfDayIn, today } from '../../../../shared/calendar/civilDate'
 import { sha256Hex } from '../../../../shared/files/sha256'
 import { isUnauthorized } from '../../../../shared/google/googleApi'
 import { currentToken } from '../../../../shared/google/googleAuth'
@@ -33,7 +33,7 @@ interface MailSyncState {
 const state = shallowReactive<{ plan: MailPlan | null; stopped: string | null }>({ plan: null, stopped: null })
 
 /** This device's time zone, which the day of a bank's mail and the mail-since day are read in. */
-const DEVICE_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
+const DEVICE_TIME_ZONE = deviceTimeZone()
 
 const STATEMENTS = statementMailSource(loadImportFile, DEVICE_TIME_ZONE)
 

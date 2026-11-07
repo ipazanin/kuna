@@ -8,6 +8,16 @@ export const INCOME_KINDS = ['dividend', 'coupon', 'interest', 'lending', 'refer
 
 export type IncomeKind = (typeof INCOME_KINDS)[number]
 
+/** What a broker's report says about a dividend beyond its amounts, each blank where it does not say. */
+export interface DividendFacts {
+  readonly exDate: CivilDate | null
+  readonly payDate: CivilDate | null
+  /** The country of the issuer as the broker codes it, such as US. */
+  readonly sourceCountry: string | null
+  /** The broker's words for the dividend's type, such as Ordinary Dividend. */
+  readonly dividendType: string | null
+}
+
 /** Money an account received for holding something, with the tax withheld at source, or a reversal of such a payment. */
 export interface Income {
   readonly id: RecordId
@@ -25,4 +35,6 @@ export interface Income {
   /** The key of the imported rows it came from, so importing them again adds nothing. Null for a record typed in. */
   readonly importKey: string | null
   readonly note: string
+  /** Only a dividend read from a broker's report has these. */
+  readonly dividend?: DividendFacts
 }

@@ -6,6 +6,7 @@ import type { HandPrice } from './handPrice'
 import type { Income } from './income'
 import type { Instrument } from './instrument'
 import type { InvestmentAccount } from './investmentAccount'
+import type { MailReader } from './mailReader'
 import type { InvestmentBook } from './investmentBook'
 import { HUNDRED_PERCENT, groupField } from './investmentFields'
 import {
@@ -16,6 +17,7 @@ import {
   INCOME_RECORDS,
   INSTRUMENT_RECORDS,
   INVESTMENT_ACCOUNT_RECORDS,
+  MAIL_READER_RECORDS,
   PRICE_RECORDS,
   SPIN_OFF_RECORDS,
   SPLIT_RECORDS,
@@ -53,6 +55,7 @@ export interface InvestmentsRecords {
   readonly fundMixes: RecordsRead<FundMixLine>
   readonly targets: RecordsRead<Target>
   readonly checks: RecordsRead<CheckSetting>
+  readonly mailReaders: RecordsRead<MailReader>
 }
 
 /** The kind each part of the records holds. */
@@ -70,6 +73,7 @@ export const INVESTMENT_PARTS: { readonly [Part in keyof InvestmentsRecords]: Re
   fundMixes: FUND_MIX_RECORDS,
   targets: TARGET_RECORDS,
   checks: CHECK_RECORDS,
+  mailReaders: MAIL_READER_RECORDS,
 }
 
 /** The records of every Investments kind, as `of` gives each kind. */
@@ -88,6 +92,7 @@ export function investmentsRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead
     fundMixes: of(INVESTMENT_PARTS.fundMixes),
     targets: of(INVESTMENT_PARTS.targets),
     checks: of(INVESTMENT_PARTS.checks),
+    mailReaders: of(INVESTMENT_PARTS.mailReaders),
   }
 }
 
@@ -113,7 +118,7 @@ export interface InvestmentBookReading {
  * counts, and no two instruments share an ISIN. A trade is in its instrument's quote currency, so its rate is filled
  * exactly when that currency is not the euro, and only a bond quoted in percent has accrued interest. A spin-off's
  * received instrument quotes in its parent's currency, and an instrument has one hand price a day. The lines of a fund's
- * mix add up to 100% with each group once, and so do the targets of each mix. A check is changed by one record at most.
+ * mix add up to 100% with each group once, and so do the targets of each mix. A check is changed by one record at most, and a recipe's mail is read by one reader.
  * Whether a sale or a transfer is within what its account holds waits for the lots, so the write rules refuse it and the
  * figures leave it out.
  */
@@ -200,6 +205,9 @@ export function readInvestmentBook(records: InvestmentsRecords): InvestmentBookR
   const checksShared = sharedKeys(records.checks.records, ({ record }) => record.check)
   const checks = readEach(records.checks, ({ record: setting }) => (checksShared.has(setting.check) ? [words.checkShared(setting.check)] : []))
 
+  const readersShared = sharedKeys(records.mailReaders.records, ({ record }) => record.recipe)
+  const mailReaders = readEach(records.mailReaders, ({ record: reader }) => (readersShared.has(reader.recipe) ? [words.mailReaderShared(reader.recipe)] : []))
+
   const readings: InvestmentReadings = {
     accounts: accountReading,
     instruments: instrumentReading,
@@ -214,6 +222,7 @@ export function readInvestmentBook(records: InvestmentsRecords): InvestmentBookR
     fundMixes,
     targets,
     checks,
+    mailReaders,
   }
   return {
     book: {
@@ -230,6 +239,7 @@ export function readInvestmentBook(records: InvestmentsRecords): InvestmentBookR
       fundMixes: fundMixes.facts,
       targets: targets.facts,
       checks: checks.facts,
+      mailReaders: mailReaders.facts,
     },
     readings,
     problems: (Object.keys(INVESTMENT_PARTS) as (keyof InvestmentsRecords)[]).flatMap((part) =>

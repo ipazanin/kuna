@@ -10,6 +10,8 @@ const props = defineProps<{
   lines: readonly ImportLine[]
   /** Whether the note under each line says why it is held back. */
   warns?: boolean
+  /** Whether each caption is the file's own text, such as a report's columns, shown as the file writes it. */
+  verbatim?: boolean
 }>()
 
 const expanded = ref(false)
@@ -26,7 +28,7 @@ const shown = computed(() => (expanded.value ? props.lines : props.lines.slice(0
           <span v-else-if="line.figure !== ''" class="figure shrink-0 text-muted">{{ line.figure }}</span>
         </span>
         <span v-if="line.caption !== '' || (line.euros !== null && line.figure !== '')" class="flex items-baseline justify-between gap-3 type-caption">
-          <span class="min-w-0 break-words">{{ line.caption }}</span>
+          <span class="min-w-0 break-words" :class="{ identifier: verbatim }">{{ line.caption }}</span>
           <span v-if="line.euros !== null && line.figure !== ''" class="shrink-0">{{ line.figure }}</span>
         </span>
         <span v-if="line.note !== ''" class="type-caption break-words" :class="{ 'text-warning': warns }">{{ line.note }}</span>

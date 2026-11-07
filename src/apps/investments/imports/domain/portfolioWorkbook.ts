@@ -8,6 +8,7 @@ import { roundHalfAwayFromZero } from '../../../../shared/money/money'
 import { cellText } from '../../../../shared/text/cellText'
 import { factKey } from '../../../../shared/text/factKey'
 import { fold } from '../../../../shared/text/fold'
+import type { DividendFacts } from '../../workbook/domain/income'
 
 /** A cell as a spreadsheet file gives it: text, a number, a date as a serial number, or a flag. */
 export type WorkbookCell = string | number | boolean
@@ -126,6 +127,13 @@ export interface WorkbookRow {
   readonly costShareText: string
   /** The row's facts with its count among rows of the file with the same facts. */
   readonly key: string
+  /** A holding's name where a report gives one. The workbook names a holding by its symbol. */
+  readonly name: string
+  /** The broker's id of the event behind the row, which pairs a report's withholding with its dividend exactly. */
+  readonly actionId: string | null
+  /** The currency of the Commission cell where a report gives one. A workbook's exchange gives its commission in euros. */
+  readonly commissionCurrency: CurrencyCode | null
+  readonly dividend: DividendFacts | null
 }
 
 /** Why a row of the tab is not imported. The dry run adds the last three, for a row read whole that Kuna cannot keep as booked. */
@@ -278,6 +286,10 @@ function rowOf(fileRow: number, cellAt: (column: WorkbookColumn | OptionalColumn
     spinOffFrom: text('spinOffFrom'),
     ...costShareOf(cellAt('costShare')),
     costShareText: text('costShare'),
+    name: '',
+    actionId: null,
+    commissionCurrency: null,
+    dividend: null,
   }
 }
 

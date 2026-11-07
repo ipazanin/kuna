@@ -3,6 +3,7 @@ import type { AppSyncGroup } from '../../../../shared/sync/presentation/pageSync
 import { INVESTMENTS_SETTINGS_ROUTE } from '../../overview/presentation/investmentLinks'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import LocalInvestmentsStatus from '../../workbook/presentation/LocalInvestmentsStatus.vue'
+import { MAIL_SCOPE, MAIL_STEP, mailReaderOf } from '../../mail/presentation/useMailReports'
 import { PRICES_STEP } from '../../prices/presentation/usePrices'
 import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
 import { secretsNeeds, secretsStep } from '../../../../shared/secrets/presentation/secretsStep'
@@ -13,16 +14,21 @@ function pricedByKey(book: InvestmentBook | null): boolean {
   return book?.instruments.some((instrument) => PRICE_VENDORS.some((vendor) => vendor.needsKey && vendor.id === instrument.prices)) ?? false
 }
 
-/** The Investments part of the page's sync: its file, then the keys in the app's hidden folder, then the prices file beside it. */
+/** The Investments part of the page's sync: its file, then the keys in the app's hidden folder, then the prices file beside it, then IBKR's report while its reader is on. */
 export function investmentsSyncGroup(): AppSyncGroup {
   const store = useInvestmentsBooks()
   // Before the first copy the keys count as wanted, so the day's fetch has the keys another browser saved.
   const keysStep = secretsStep(() => store.state.workbook === null || pricedByKey(store.state.workbook.book))
+  const readsMail = (): boolean => mailReaderOf(store.state.workbook?.book)?.on === true
   return {
     store,
-    steps: () => [keysStep, PRICES_STEP],
+    steps: () => [keysStep, PRICES_STEP, ...(readsMail() ? [MAIL_STEP] : [])],
     // A file in the bin or gone has no keys to carry, so it asks for no access the keys would need.
-    needs: () => [...BOOKS_STEP.scopes.map((scope) => ({ scope, label: BOOKS_STEP.label })), ...(store.state.missing ? [] : secretsNeeds(() => pricedByKey(store.state.workbook?.book ?? null)))],
+    needs: () => [
+      ...BOOKS_STEP.scopes.map((scope) => ({ scope, label: BOOKS_STEP.label })),
+      ...(store.state.missing ? [] : secretsNeeds(() => pricedByKey(store.state.workbook?.book ?? null))),
+      ...(readsMail() ? [{ scope: MAIL_SCOPE, label: MAIL_STEP.label }] : []),
+    ],
     undo: (write) => store.undo(write),
     exportControl: LocalInvestmentsStatus,
     fileCard: INVESTMENTS_SETTINGS_ROUTE,

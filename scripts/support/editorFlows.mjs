@@ -7926,7 +7926,7 @@ async function toDryRun(page, press) {
 export function investmentsImportFlowIn(language, { workbook: path, edited }, { undoing = false } = {}) {
   const croatian = language === 'hr'
   const text = croatian ? workbookImportCroatian : workbookImportEnglish
-  const firstSummary = croatian ? 'Uvoz dodaje 21 zapis, a novo je: 3 računa i 4 pozicije.' : 'Import adds 21 records, with 3 accounts and 4 holdings new.'
+  const firstSummary = croatian ? 'Dodaje 21 zapis, a novo je: 3 računa i 4 pozicije.' : 'Adds 21 records, with 3 accounts and 4 holdings new.'
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(croatian ? `${name}-${language}` : name)
     await page.waitForSelector('[data-testid="investments-empty"]', { visible: true, timeout: 10_000 })
@@ -8013,7 +8013,7 @@ export function investmentsImportFlowIn(language, { workbook: path, edited }, { 
 
     await dropWorkbook(page, press, edited)
     await toDryRun(page, press)
-    await importSummarySays(page, croatian ? 'Uvoz dodaje 1 zapis.' : 'Import adds 1 record.')
+    await importSummarySays(page, croatian ? 'Dodaje 1 zapis.' : 'Adds 1 record.')
     const gone = await page.waitForSelector('[data-testid="import-gone"] [data-testid="import-gone-now"]', { visible: true, timeout: 5_000 }).catch(() => {
       throw new Error('the dry run does not show the edited deposit beside the one in Kuna')
     })
@@ -8030,6 +8030,92 @@ export function investmentsImportFlowIn(language, { workbook: path, edited }, { 
     await page.keyboard.press('Escape')
     await dialogGone(page, '[data-testid="workbook-import"]')
     await forgetImportKeys(page)
+  }
+}
+
+/**
+ * IBKR's report by mail on the sample: a sync reads two overlapping made-up mails, Overview offers the review, the first
+ * asks for the account, and Accept writes it all with one Undo. With `?fake=flex-unseen` the kinds no real report has shown
+ * stop and ask, one is left out for good, and with `?fake=flex-misfit` the step fails and Settings says why.
+ */
+export function investmentsMailFlowIn(language, variant = 'plain') {
+  const croatian = language === 'hr'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(croatian ? `${name}-${language}` : name)
+    await syncAndSettle(page, press)
+    if (variant === 'misfit') {
+      await page.goto(page.url().replace(/#.*$/, '#/investments/settings?tab=general#mail'), { waitUntil: 'networkidle0' })
+      await page.waitForSelector('[data-testid="investments-mail"]', { visible: true, timeout: 10_000 })
+      await syncAndSettle(page, press)
+      await page.waitForSelector('[data-testid="investments-mail"] [data-testid="mail-entry"][data-entry="misfit"]', { visible: true, timeout: 10_000 }).catch(() => {
+        throw new Error('the settings card does not say the report no longer fits')
+      })
+      await inspect?.('a report that does not fit')
+      await shoot('investments-mail-misfit')
+      return
+    }
+    const banner = await page.waitForSelector('[data-testid="mail-report-review"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the Overview offers no review after the sync read the report')
+    })
+    await banner.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await inspect?.('the Overview offering the review')
+    await shoot(`investments-mail-review-${variant}`)
+    await pressSelector(page, press, '[data-testid="mail-report-open"]')
+    await importStep(page, 'accounts')
+    await chooseStartingWith(page, press, '[data-testid="import-account-choice"]', 'Broker One')
+    await inspect?.('the account of the report')
+    await shoot(`investments-mail-account-${variant}`)
+    await pressSelector(page, press, '[data-testid="workbook-import-next"]')
+    if (variant === 'unseen') {
+      await importStep(page, 'questions')
+      const rows = await page.$$('[data-testid="import-asked-row"]')
+      // Each of the two mails adds six unseen rows on its own first day, so twelve rows are asked about, each once.
+      if (rows.length !== 12) throw new Error(`the questions step asks about ${rows.length} rows, not 12`)
+      await inspect?.('the rows not seen yet')
+      await shoot('investments-mail-asked')
+      const leaveOut = await page.$('[data-testid="import-asked-row"] [data-testid="import-asked-choice"] button:last-child')
+      if (leaveOut === null) throw new Error('a row not seen yet offers no way to leave it out')
+      await press(leaveOut)
+      await pressSelector(page, press, '[data-testid="workbook-import-next"]')
+    }
+    await importStep(page, 'dry-run')
+    if ((await page.$('[data-testid="import-group-gone"]')) !== null) throw new Error('a rolling report lists records as gone')
+    if ((await page.$('[data-testid="import-group-new"]')) === null) throw new Error('the review shows nothing new')
+    if (variant === 'unseen' && (await page.$('[data-testid="import-group-asked"]')) === null) throw new Error('the review does not list the rows held back')
+    await inspect?.('the review')
+    await shoot(`investments-mail-dry-run-${variant}`)
+    await pressSelector(page, press, '[data-testid="workbook-import-confirm"]')
+    await dialogGone(page, '[data-testid="workbook-import"]')
+    if (variant === 'plain') {
+      await page.waitForSelector('[data-testid="mail-report-review"]', { hidden: true, timeout: 10_000 }).catch(() => {
+        throw new Error('the Overview still offers the review once it is accepted')
+      })
+      await inspect?.('the Overview after Accept')
+      if (!croatian) {
+        await undoIn(page, press, { writes: writesEnglish })
+        await page.waitForSelector('[data-testid="mail-report-review"]', { visible: true, timeout: 10_000 }).catch(() => {
+          throw new Error('Undo did not bring the review back')
+        })
+      }
+    }
+    await dismissToasts(page)
+  }
+}
+
+/** The report's card on the sample with the reader off: switched on, it says its filters are not confirmed. */
+export function investmentsMailCardFlowIn(language) {
+  const croatian = language === 'hr'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(croatian ? `${name}-${language}` : name)
+    const card = await page.waitForSelector('[data-testid="investments-mail"]', { visible: true, timeout: 10_000 })
+    await card.evaluate((element) => element.scrollIntoView({ block: 'start' }))
+    await page.waitForSelector('[data-testid="investments-mail-senders"] input', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('the card of the report did not open from its link')
+    })
+    if ((await page.$('[data-testid="investments-mail-unconfirmed"]')) === null) throw new Error('the card does not say its filters are not confirmed')
+    await pressSelector(page, press, '[data-testid="investments-mail-on"]')
+    await inspect?.('the card of the report, switched on')
+    await shoot('investments-mail-card')
   }
 }
 

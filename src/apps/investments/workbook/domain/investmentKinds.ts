@@ -6,6 +6,7 @@ import type { HandPrice } from './handPrice'
 import type { Income } from './income'
 import type { Instrument } from './instrument'
 import type { InvestmentAccount } from './investmentAccount'
+import type { MailReader } from './mailReader'
 import type { SpinOff } from './spinOff'
 import type { Split } from './split'
 import type { Target } from './target'
@@ -64,4 +65,8 @@ export const TARGET_RECORDS = recordKind<Target>('target', {
 export const CHECK_RECORDS = recordKind<CheckSetting>('check', {
   en: { one: 'portfolio check', many: 'portfolio checks', article: 'a' },
   hr: { one: 'provjera portfelja', of: 'provjere portfelja', few: 'provjere portfelja', other: 'provjera portfelja', gender: 'feminine' },
+})
+export const MAIL_READER_RECORDS = recordKind<MailReader>('mail-reader', {
+  en: { one: 'mail report', many: 'mail reports', article: 'a' },
+  hr: { one: 'izvješće iz pošte', of: 'izvješća iz pošte', few: 'izvješća iz pošte', other: 'izvješća iz pošte', gender: 'neuter' },
 })

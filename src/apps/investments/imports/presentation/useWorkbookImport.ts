@@ -53,6 +53,8 @@ export interface WorkbookImport {
   /** The records gone from the workbook that the person ticked to delete. */
   readonly deleting: Readonly<Ref<ReadonlySet<RecordId>>>
   load(fileName: string, bytes: () => Promise<ArrayBuffer | Uint8Array>): Promise<void>
+  /** Starts from rows already read, such as a mailed report's, fetching the rates they need. */
+  loadRows(fileName: string, rows: WorkbookRows): Promise<void>
   /** Fetches the rates the workbook read needs again, after a fetch that left some missing. */
   fetchRates(): Promise<void>
   /** Puts the file and every choice away, as a dialog opened again starts. */
@@ -198,6 +200,13 @@ export function useWorkbookImport(): WorkbookImport {
     await fetchRates()
   }
 
+  async function loadRows(name: string, rows: WorkbookRows): Promise<void> {
+    forget()
+    fileName.value = name
+    reading.value = rows
+    await fetchRates()
+  }
+
   async function fetchRates(): Promise<void> {
     const read = reading.value
     const wanted = read === null ? null : ratesWanted(read.rows, rates.value)
@@ -229,6 +238,7 @@ export function useWorkbookImport(): WorkbookImport {
     choices,
     deleting,
     load,
+    loadRows,
     fetchRates,
     forget,
     choose(part, key, choice) {

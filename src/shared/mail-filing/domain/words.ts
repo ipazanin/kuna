@@ -51,6 +51,8 @@ export const en = {
   notAddresses: (addresses: readonly string[]) => `${addresses.map((address) => `"${address}"`).join(', ')} ${addresses.length === 1 ? 'is not a mail address' : 'are not mail addresses'}`,
   subjectQuote: 'a subject cannot hold a double quote, which would end the phrase Gmail searches for',
   subjectTooLong: (most: number) => `a subject can be at most ${most} characters`,
+  contentsQuote: 'the contents cannot hold a double quote, which would end the phrase Gmail searches for',
+  contentsTooLong: (most: number) => `the contents can be at most ${most} characters`,
 }
 
 export const hr: Translation<typeof en> = {
@@ -77,6 +79,8 @@ export const hr: Translation<typeof en> = {
   notAddresses: (addresses) => `${addresses.map((address) => `„${address}”`).join(', ')} ${addresses.length === 1 ? 'nije adresa e-pošte' : 'nisu adrese e-pošte'}`,
   subjectQuote: 'predmet ne smije sadržavati dvostruke navodnike jer bi završili izraz koji Gmail traži',
   subjectTooLong: (most) => `predmet može imati najviše ${most} znakova`,
+  contentsQuote: 'sadržaj ne smije sadržavati dvostruke navodnike jer bi završili izraz koji Gmail traži',
+  contentsTooLong: (most) => `sadržaj može imati najviše ${most} znakova`,
 }
 
 export const words = language === 'hr' ? hr : en

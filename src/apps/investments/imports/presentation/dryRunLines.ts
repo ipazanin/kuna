@@ -15,6 +15,7 @@ import type { Decimal } from '../../../../shared/money/decimal'
 import { formatCurrencyAmount, formatQuantity, formatUnitPrice } from '../../../../shared/money/moneyFormat'
 import type { Money } from '../../../../shared/money/money'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import type { AskedRow, AskedWhy } from '../../../../shared/recipes/domain/runRecipe'
 import { capitalised } from '../../../../shared/text/capitalised'
 import { plural } from '../../../../shared/text/translation'
 
@@ -51,6 +52,8 @@ export interface DryRunGroups {
   readonly waiting: readonly ImportLine[]
   readonly inKuna: readonly ImportLine[]
   readonly skipped: readonly ImportLine[]
+  /** The rows a report's recipe asks about. */
+  readonly asked: readonly ImportLine[]
   /** The edited ones first. */
   readonly gone: readonly GoneLine[]
   readonly rounded: readonly string[]
@@ -66,16 +69,18 @@ export interface DryRunGroups {
  */
 export function dryRunGroups(dryRun: WorkbookDryRun, book: InvestmentBook, rates: RateBook, accountName: (row: WorkbookRow) => string): DryRunGroups {
   const plannedOf = listedById(dryRun.planned, rates)
+  // A report's rows are numbered across its files, which no file's own rows would match, so they name only the file.
+  const rowsLabelOf = (rows: readonly WorkbookRow[]): string => (dryRun.report === null ? rowsLabel(rows) : '')
   const keptOf = listedById(book, rates)
   const reversalNotes = (record: RecordId): string[] => [...new Set(dryRun.reversals.filter((reversal) => reversal.record === record).map((reversal) => reversal.note))]
   const recordLine = (key: string, record: ImportedRecord, listed: ReadonlyMap<RecordId, ListedTransaction>, rows: readonly WorkbookRow[]): ImportLine => {
     const entry = listed.get(record.record.id)
-    if (entry === undefined) return rowLine(key, rows[0]!, rows, accountName, '')
+    if (entry === undefined) return rowLine(key, rows[0]!, rowsLabelOf(rows), accountName, '')
     const line = transactionLine(entry)
     return {
       key,
       title: [line.kind, line.subject].join(' · '),
-      caption: [dayLabel(entry.record.date), line.account, rowsLabel(rows), rows[0]?.sourceFile ?? ''].filter((part) => part !== '').join(' · '),
+      caption: [dayLabel(entry.record.date), line.account, rowsLabelOf(rows), rows[0]?.sourceFile ?? ''].filter((part) => part !== '').join(' · '),
       euros: line.euros,
       flows: line.flows,
       figure: line.moved,
@@ -89,8 +94,9 @@ export function dryRunGroups(dryRun: WorkbookDryRun, book: InvestmentBook, rates
   const rowsOfRecord = new Map(dryRun.entries.flatMap((entry) => (entry.outcome.kind === 'new' ? [[entry.outcome.imported.record.id, entry.rows] as const] : [])))
   return {
     fresh: dryRun.entries.flatMap(({ key, rows, outcome }) => (outcome.kind === 'new' ? [recordLine(key, outcome.imported, plannedOf, rows)] : [])),
-    waiting: dryRun.entries.flatMap(({ key, rows, outcome }) => (outcome.kind === 'waiting' ? [rowLine(key, rows[0], rows, accountName, waitText(outcome.reason))] : [])),
-    inKuna: dryRun.entries.flatMap(({ key, rows, outcome }) => (outcome.kind === 'in-kuna' ? [rowLine(key, rows[0], rows, accountName, '')] : [])),
+    waiting: dryRun.entries.flatMap(({ key, rows, outcome }) => (outcome.kind === 'waiting' ? [rowLine(key, rows[0], rowsLabelOf(rows), accountName, waitText(outcome.reason))] : [])),
+    inKuna: dryRun.entries.flatMap(({ key, rows, outcome }) => (outcome.kind === 'in-kuna' ? [rowLine(key, rows[0], rowsLabelOf(rows), accountName, '')] : [])),
+    asked: (dryRun.report?.asked ?? []).map(askedLine),
     skipped: dryRun.skipped.map((row) => ({
       key: `skipped-${row.fileRow}`,
       title: capitalised(words.dryRun.row(row.fileRow)),
@@ -149,17 +155,33 @@ function listedById(book: InvestmentBook, rates: RateBook): Map<RecordId, Listed
 }
 
 /** A row as the workbook books it: its type, what it is about, and its amount or units. */
-function rowLine(key: string, row: WorkbookRow, rows: readonly WorkbookRow[], accountName: (row: WorkbookRow) => string, note: string): ImportLine {
+function rowLine(key: string, row: WorkbookRow, rowsWords: string, accountName: (row: WorkbookRow) => string, note: string): ImportLine {
   const amount = row.netCash ?? row.gross
   const figure = amount !== null && row.currency !== null ? formatCurrencyAmount(amount, row.currency) : row.quantity !== null ? words.dryRun.units(formatQuantity(row.quantity, QUANTITY_PLACES)) : ''
   return {
     key,
     title: [words.types[row.type], row.yahooSymbol || row.brokerSymbol].filter((part) => part !== '').join(' · '),
-    caption: [dayLabel(row.date), accountName(row), rowsLabel(rows), row.sourceFile].filter((part) => part !== '').join(' · '),
+    caption: [dayLabel(row.date), accountName(row), rowsWords, row.sourceFile].filter((part) => part !== '').join(' · '),
     euros: null,
     flows: false,
     figure,
     note,
+  }
+}
+
+/** A row a report's recipe asks about, in the words its file writes it, with why it asks. */
+export function askedLine(row: AskedRow): ImportLine {
+  return { key: row.key, title: row.section, caption: row.shown.map(([column, text]) => `${column} ${text}`).join(' · '), euros: null, flows: false, figure: '', note: askedText(row.why) }
+}
+
+function askedText(why: AskedWhy): string {
+  switch (why.kind) {
+    case 'no-kind':
+      return words.dryRun.askedNoKind
+    case 'unreadable':
+      return words.dryRun.askedUnreadable(why.field, why.text)
+    case 'changed':
+      return words.dryRun.askedChanged
   }
 }
 

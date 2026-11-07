@@ -34,6 +34,7 @@ import { fakeSpendingDocument } from '../../src/apps/spending/workbook/infrastru
 import { fakeInvestmentsDocument } from '../../src/apps/investments/workbook/infrastructure/fake/fakeInvestments.ts'
 import { fakePricesFile } from '../../src/apps/investments/prices/infrastructure/fake/fakePrices.ts'
 import { sampleWorkbookGrid } from '../../src/apps/investments/imports/infrastructure/fake/sampleWorkbook.ts'
+import { IBKR_FLEX_RECIPE } from '../../src/apps/investments/mail/domain/ibkrFlexRecipe.ts'
 import { civilDate } from '../../src/shared/calendar/civilDate.ts'
 import { installHrDooPack } from './installPack.mjs'
 
@@ -370,6 +371,17 @@ export const ENGLISH_ALLOWED = [
     name: 'fake Google failures',
     reason: 'The fake Gmail and Drive fail a search or an upload with these answers, which stand in for the answer Google sends and a real failure shows as Google wrote it.',
     texts: [FAKE_SEARCH_FAILURE, FAKE_UPLOAD_FAILURE],
+  },
+  {
+    name: "IBKR's section names",
+    reason: "IBKR's query names its sections in English whatever the language, so the IBKR report's card and its misfit lines name them as IBKR prints them.",
+    texts: IBKR_FLEX_RECIPE.sections.map((section) => section.name),
+    oneWordAnywhere: true,
+  },
+  {
+    name: "IBKR's product and menu names",
+    reason: 'IBKR names its report, its query and its portal in English whatever the language, so Croatian copy names them as IBKR does.',
+    texts: ['Activity Flex Query', 'Activity Flex', 'Flex Query', 'Client Portal'],
   },
   {
     name: 'vendor words in fetched facts',

@@ -46,23 +46,36 @@ const summary = computed(() => {
   return dryRunSummary(added, transactionCount(added), props.deleting)
 })
 
-const sections = computed((): { readonly id: string; readonly title: string; readonly intro: string; readonly lines: readonly ImportLine[]; readonly warns: boolean }[] => {
+const sections = computed((): { readonly id: string; readonly title: string; readonly intro: string; readonly lines: readonly ImportLine[]; readonly warns: boolean; readonly verbatim: boolean }[] => {
   const run = groups.value
   if (run === null) return []
   return [
-    { id: 'new', title: words.dryRun.groups.new, intro: '', lines: run.fresh, warns: false },
-    { id: 'waiting', title: words.dryRun.groups.waiting, intro: words.dryRun.waitingIntro, lines: run.waiting, warns: true },
-    { id: 'skipped', title: words.dryRun.groups.skipped, intro: words.dryRun.skippedIntro, lines: run.skipped, warns: true },
-    { id: 'in-kuna', title: words.dryRun.groups.inKuna, intro: '', lines: run.inKuna, warns: false },
+    { id: 'new', title: words.dryRun.groups.new, intro: '', lines: run.fresh, warns: false, verbatim: false },
+    { id: 'waiting', title: words.dryRun.groups.waiting, intro: words.dryRun.waitingIntro, lines: run.waiting, warns: true, verbatim: false },
+    {
+      id: 'asked',
+      title: words.dryRun.groups.asked,
+      intro: words.dryRun.askedIntro,
+      lines: run.asked.filter((line) => props.workbookImport.choices.value.asked[line.key] !== 'leave-out'),
+      warns: true,
+      verbatim: true,
+    },
+    { id: 'skipped', title: words.dryRun.groups.skipped, intro: words.dryRun.skippedIntro, lines: run.skipped, warns: true, verbatim: false },
+    { id: 'in-kuna', title: words.dryRun.groups.inKuna, intro: '', lines: run.inKuna, warns: false, verbatim: false },
   ].filter((section) => section.lines.length > 0)
 })
+
+const beforeStart = computed(() => props.settled.dryRun.report?.beforeStart ?? 0)
 
 const ticked = (id: RecordId): boolean => props.workbookImport.deleting.value.has(id)
 </script>
 
 <template>
   <div class="flex flex-col gap-6" data-testid="import-dry-run">
-    <p class="type-body text-highlighted" data-testid="import-dry-run-summary">{{ summary }}</p>
+    <div class="flex flex-col gap-1">
+      <p class="type-body text-highlighted" data-testid="import-dry-run-summary">{{ summary }}</p>
+      <p v-if="beforeStart > 0" class="type-caption" data-testid="import-before-start">{{ plural(words.dryRun.beforeStart(beforeStart), beforeStart) }}</p>
+    </div>
 
     <section v-for="section in sections" :key="section.id" class="flex flex-col gap-1" :data-testid="`import-group-${section.id}`">
       <h3 class="flex items-baseline gap-2">
@@ -70,7 +83,7 @@ const ticked = (id: RecordId): boolean => props.workbookImport.deleting.value.ha
         <span class="figure type-caption">{{ formatCount(section.lines.length) }}</span>
       </h3>
       <p v-if="section.intro !== ''" class="type-caption">{{ section.intro }}</p>
-      <ImportLines :lines="section.lines" :warns="section.warns" />
+      <ImportLines :lines="section.lines" :warns="section.warns" :verbatim="section.verbatim" />
     </section>
 
     <section v-if="groups && groups.gone.length > 0" class="flex flex-col gap-1" data-testid="import-group-gone">

@@ -118,6 +118,7 @@ const DOMAIN_SHARED = [
   'src/shared/charts/swatches.ts',
   'src/shared/categorising/domain/',
   'src/shared/mail-filing/domain/',
+  'src/shared/recipes/domain/',
 ]
 
 /** Where the books are kept: the kernel's document storage and each app's workbook. */

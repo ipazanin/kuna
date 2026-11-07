@@ -7,6 +7,7 @@ import { usePortfolio } from '../../holdings/presentation/usePortfolio'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { hasTransactions } from '../../workbook/domain/investmentBook'
 import WorkbookImportDialog from '../../imports/presentation/WorkbookImportDialog.vue'
+import MailReportReview from '../../mail/presentation/MailReportReview.vue'
 import TransactionDialog from '../../transactions/presentation/TransactionDialog.vue'
 import GainSourcesCard from './GainSourcesCard.vue'
 import LatestTransactionsCard from './LatestTransactionsCard.vue'
@@ -65,6 +66,7 @@ const importing = ref(false)
     <ScreenSkeleton v-if="loading" :heading="false" :cards="2" data-testid="investments-loading" />
     <template v-else-if="state.workbook !== null">
       <PricesStatus />
+      <MailReportReview />
       <RecordProblemsAlert v-if="problems.length > 0" :title="plural(words.problems.title(problems.length), problems.length)" :problems="problems" data-testid="investments-problems" />
       <EmptyState v-if="noTransactions" icon="i-lucide-trending-up" :title="words.empty.title" data-testid="investments-empty">
         <template #description>

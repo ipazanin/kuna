@@ -91,7 +91,7 @@ export const en = {
     ],
   },
   accounts: {
-    intro: 'Each account of the workbook becomes an account in Kuna. Name a new one, or pick one Kuna has already.',
+    intro: 'Each account the rows name becomes an account in Kuna. Name a new one, or pick one Kuna has already.',
     rows: (count: number): EnglishForms => ({ one: `${count} row to import`, other: `${count} rows to import` }),
     kunaAccount: 'Account in Kuna',
     newAccount: 'New account',
@@ -100,7 +100,7 @@ export const en = {
     nameMissing: 'Name the account',
   },
   instruments: {
-    intro: 'Each holding of the workbook, found by its ISIN or its symbol. A holding Kuna has already comes first, and a new one starts from a guess you can change.',
+    intro: 'Each holding the rows name, found by its ISIN or its symbol. A holding Kuna has already comes first, and a new one starts from a guess you can change.',
     rows: (count: number): EnglishForms => ({ one: `${count} row to import`, other: `${count} rows to import` }),
     kunaHolding: 'Holding in Kuna',
     newHolding: 'New holding',
@@ -112,7 +112,13 @@ export const en = {
     needsLook: 'A field needs a look',
   },
   questions: {
-    intro: 'What the rows cannot say by themselves. A row without its answer waits, and the next import of the workbook asks again.',
+    intro: 'What the rows cannot say by themselves. A row without its answer waits and is asked about again next time.',
+    asked: 'Rows Kuna has not seen before',
+    askedIntro:
+      'Kuna does not guess at these, so none of them goes in. Book one by hand in Transactions if it matters, then leave it out so it stops asking. A row you hold back asks again with the next report.',
+    askedChoice: 'What to do with this row',
+    askedHold: 'Hold back',
+    askedLeaveOut: 'Leave out for good',
     splits: 'Splits',
     split: (holding: string, day: string) => `${holding}, split on ${day}`,
     splitRows: (_count: number, added: string, held: string): EnglishForms => ({
@@ -160,18 +166,27 @@ export const en = {
     listedSplits: 'Splits found',
   },
   dryRun: {
-    adds: (records: number): EnglishForms => ({ one: `Import adds ${records} record`, other: `Import adds ${records} records` }),
+    askedIntro: 'Rows Kuna has not seen before. None of them goes in.',
+    askedNoKind: 'Kuna has not seen a row like this',
+    askedUnreadable: (field: string, text: string) => `Its ${field} cannot be read${text === '' ? ', as it is blank' : `: "${text}"`}`,
+    askedChanged: 'A later file writes this row differently, and the report does not say which is right',
+    beforeStart: (count: number): EnglishForms => ({
+      one: `${count} row dated before your first day to read was left out.`,
+      other: `${count} rows dated before your first day to read were left out.`,
+    }),
+    adds: (records: number): EnglishForms => ({ one: `Adds ${records} record`, other: `Adds ${records} records` }),
     addsAccounts: (count: number): EnglishForms => ({ one: `${count} account`, other: `${count} accounts` }),
     addsHoldings: (count: number): EnglishForms => ({ one: `${count} holding`, other: `${count} holdings` }),
     addsWith: (records: string, parts: string) => `${records}, with ${parts} new.`,
     addsOnly: (records: string) => `${records}.`,
-    addsNothing: 'Import adds nothing.',
+    addsNothing: 'Adds nothing.',
     deletes: (count: number): EnglishForms => ({ one: `It deletes ${count} record gone from the workbook.`, other: `It deletes ${count} records gone from the workbook.` }),
     and: (first: string, second: string) => `${first} and ${second}`,
     groups: {
       new: 'New',
       waiting: 'Waiting',
       inKuna: 'Already in Kuna',
+      asked: 'Held back',
       skipped: 'Skipped',
       gone: 'Gone from the workbook',
       look: 'Worth a look',
@@ -227,6 +242,7 @@ export const en = {
     'other-currency': (currency: string) => `Is in ${currency}, which its holding does not quote in`,
     'same-account': 'Moves between two workbook accounts that are one account in Kuna',
     'beyond-held': 'Sells or moves more units than its account holds on its day',
+    'differs-from-kuna': 'The report now gives other figures for this record. Open it in Transactions and put them right, and this goes away.',
   } satisfies { readonly [Kind in WaitReason['kind']]: string | ((currency: string) => string) },
   skips: {
     unknownType: (text: string) => `Its type ${text} is not one Kuna reads`,
@@ -325,7 +341,7 @@ export const hr: Translation<typeof en> = {
     ],
   },
   accounts: {
-    intro: 'Svaki račun iz radne knjige postaje račun u Kuni. Imenujte novi ili odaberite onaj koji Kuna već ima.',
+    intro: 'Svaki račun koji retci navode postaje račun u Kuni. Imenujte novi ili odaberite onaj koji Kuna već ima.',
     rows: (count) => ({ one: `${count} redak za uvoz`, few: `${count} retka za uvoz`, other: `${count} redaka za uvoz` }),
     kunaAccount: 'Račun u Kuni',
     newAccount: 'Novi račun',
@@ -334,7 +350,7 @@ export const hr: Translation<typeof en> = {
     nameMissing: 'Imenujte račun',
   },
   instruments: {
-    intro: 'Svaka pozicija iz radne knjige, prema ISIN-u ili simbolu. Pozicija koju Kuna već ima dolazi prva, a nova kreće od pretpostavke koju možete promijeniti.',
+    intro: 'Svaka pozicija koju retci navode, prema ISIN-u ili simbolu. Pozicija koju Kuna već ima dolazi prva, a nova kreće od pretpostavke koju možete promijeniti.',
     rows: (count) => ({ one: `${count} redak za uvoz`, few: `${count} retka za uvoz`, other: `${count} redaka za uvoz` }),
     kunaHolding: 'Pozicija u Kuni',
     newHolding: 'Nova pozicija',
@@ -346,7 +362,13 @@ export const hr: Translation<typeof en> = {
     needsLook: 'Jedno polje treba provjeriti',
   },
   questions: {
-    intro: 'Ono što retci sami ne mogu reći. Redak bez odgovora čeka, a sljedeći uvoz radne knjige pita ponovno.',
+    intro: 'Ono što retci sami ne mogu reći. Redak bez odgovora čeka i sljedeći put se pita ponovno.',
+    asked: 'Retci kakve Kuna još nije vidjela',
+    askedIntro:
+      'Kuna ih ne nagađa, pa nijedan od njih ne ulazi. Ako je važan, upišite ga ručno u Transakcijama, a zatim ga izostavite da više ne pita. Redak koji zadržite pita ponovno uz sljedeće izvješće.',
+    askedChoice: 'Što s ovim retkom',
+    askedHold: 'Zadrži',
+    askedLeaveOut: 'Izostavi zauvijek',
     splits: 'Podjele',
     split: (holding, day) => `${holding}: podjela ${day}`,
     splitRows: (_count, added, held) => ({
@@ -401,16 +423,25 @@ export const hr: Translation<typeof en> = {
     listedSplits: 'Pronađene podjele',
   },
   dryRun: {
+    askedIntro: 'Retci kakve Kuna još nije vidjela. Nijedan od njih ne ulazi.',
+    askedNoKind: 'Kuna još nije vidjela ovakav redak',
+    askedUnreadable: (field, text) => `Polje ${field} ne može se pročitati${text === '' ? ' jer je prazno' : `: „${text}”`}`,
+    askedChanged: 'Kasnija datoteka drukčije piše ovaj redak, a izvješće ne kaže što je točno',
+    beforeStart: (count) => ({
+      one: `Izostavljen je ${count} redak prije prvog dana za čitanje.`,
+      few: `Izostavljena su ${count} retka prije prvog dana za čitanje.`,
+      other: `Izostavljeno je ${count} redaka prije prvog dana za čitanje.`,
+    }),
     adds: (records) => ({
-      one: `Uvoz dodaje ${records} zapis`,
-      few: `Uvoz dodaje ${records} zapisa`,
-      other: `Uvoz dodaje ${records} zapisa`,
+      one: `Dodaje ${records} zapis`,
+      few: `Dodaje ${records} zapisa`,
+      other: `Dodaje ${records} zapisa`,
     }),
     addsAccounts: (count) => ({ one: `${count} račun`, few: `${count} računa`, other: `${count} računa` }),
     addsHoldings: (count) => ({ one: `${count} pozicija`, few: `${count} pozicije`, other: `${count} pozicija` }),
     addsWith: (records, parts) => `${records}, a novo je: ${parts}.`,
     addsOnly: (records) => `${records}.`,
-    addsNothing: 'Uvoz ništa ne dodaje.',
+    addsNothing: 'Ništa se ne dodaje.',
     deletes: (count) => ({
       one: `Briše ${count} zapis kojeg više nema u radnoj knjizi.`,
       few: `Briše ${count} zapisa kojih više nema u radnoj knjizi.`,
@@ -421,6 +452,7 @@ export const hr: Translation<typeof en> = {
       new: 'Novo',
       waiting: 'Čeka',
       inKuna: 'Već u Kuni',
+      asked: 'Zadržano',
       skipped: 'Preskočeno',
       gone: 'Nema ih više u radnoj knjizi',
       look: 'Vrijedi provjeriti',
@@ -485,6 +517,7 @@ export const hr: Translation<typeof en> = {
     'other-currency': (currency) => `U valuti je ${currency}, u kojoj njegova pozicija ne kotira`,
     'same-account': 'Prenosi između dva računa radne knjige koji su u Kuni jedan račun',
     'beyond-held': 'Prodaje ili prenosi više jedinica nego što račun drži na taj dan',
+    'differs-from-kuna': 'Izvješće sada daje druge iznose za ovaj zapis. Otvorite ga u Transakcijama i ispravite ih, pa će ovo nestati.',
   },
   skips: {
     unknownType: (text) => `Vrsta „${text}” nije ona koju Kuna čita`,

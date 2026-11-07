@@ -124,6 +124,9 @@ export const en = {
   targetsNotWhole: (mix: string, sum: Decimal) => `the targets by ${mix} add up to ${decimalText(sum)}%, not 100%`,
   targetGroupShared: (group: string) => `another target is for ${group} too`,
   checkShared: (check: string) => `another record changes the ${check} check too`,
+  mailReaderShared: (recipe: string) => `another record reads the mail of ${recipe} too`,
+  mailReaderNoRecipe: 'it names no recipe',
+  mailReaderNoSender: 'it is on, but has no sender',
   checkChangesNothing: 'threshold is blank or the default, and off is not true, so it changes nothing',
 }
 
@@ -195,6 +198,9 @@ export const hr: Translation<typeof en> = {
   targetsNotWhole: (mix, sum) => `ciljevi za ${mix} zbrajaju se na ${formatQuantity(sum, LABEL_PLACES)} %, a ne na 100 %`,
   targetGroupShared: (group) => `i drugi cilj je za ${group}`,
   checkShared: (check) => `i drugi zapis mijenja provjeru ${check}`,
+  mailReaderShared: (recipe) => `i drugi zapis čita poštu recepta ${recipe}`,
+  mailReaderNoRecipe: 'ne navodi recept',
+  mailReaderNoSender: 'uključeno je, ali nema pošiljatelja',
   checkChangesNothing: 'polje threshold je prazno ili jednako zadanom, a off nije true, pa zapis ništa ne mijenja',
 }
 

@@ -22,6 +22,7 @@ import SplitFields from './SplitFields.vue'
 import TradeFields from './TradeFields.vue'
 import TradeSummary from './TradeSummary.vue'
 import TransferFields from './TransferFields.vue'
+import { withImportFacts } from '../domain/listedTransactions'
 import { HAPPENINGS, ecbRateText, happeningsOfKind, kindOfHappening, keyOf, rateCurrency, textsOf, transactionDraft } from './transactionForm'
 import type { Happening, TransactionStart, TransactionTexts } from './transactionForm'
 import { words } from './words'
@@ -122,7 +123,7 @@ async function save(): Promise<void> {
   const written = await writes.write(
     before === null ? words.dialog.added(kindName.value) : words.dialog.saved(kindName.value),
     (unit) => {
-      writeTransaction(unit, before, record)
+      writeTransaction(unit, before, before === null ? record : withImportFacts(before, record))
       if (deposit !== null) writeTransaction(unit, null, { kind: 'cash-movement', record: deposit })
     },
     { failedTitle: before === null ? words.dialog.notAdded : words.dialog.notSaved },

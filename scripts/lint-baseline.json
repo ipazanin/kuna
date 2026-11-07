@@ -106,7 +106,6 @@
     "src/apps/company/imports/infrastructure/fake/sampleImportFiles.ts",
     "src/apps/company/invoicing/domain/invoiceMail.ts",
     "src/apps/company/invoicing/infrastructure/invoicePdf.ts",
-    "src/apps/company/mail/presentation/useMailSync.ts",
     "src/apps/company/packs/hr-doo/presentation/TakenPanel.vue",
     "src/apps/company/packs/hr-doo/presentation/taxes/TaxesPanel.vue",
     "src/apps/company/packs/hr-doo/ruleset/presentation/ruleWording.ts",

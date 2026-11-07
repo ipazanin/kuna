@@ -89,6 +89,11 @@ export function civilDateIn(instant: number, timeZone: string): CivilDate {
   return civilDate(part('year'), part('month'), part('day'))
 }
 
+/** This device's time zone, such as Europe/Zagreb. */
+export function deviceTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone
+}
+
 /** The instant, in epoch milliseconds, a day starts in a time zone such as Europe/Zagreb. */
 export function startOfDayIn(date: CivilDate, timeZone: string): number {
   const midnightUtc = toUtc(date)

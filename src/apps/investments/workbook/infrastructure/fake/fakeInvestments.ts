@@ -7,6 +7,7 @@ import type { HandPrice } from '../../domain/handPrice'
 import type { Income } from '../../domain/income'
 import type { Instrument } from '../../domain/instrument'
 import type { InvestmentAccount } from '../../domain/investmentAccount'
+import type { MailReader } from '../../domain/mailReader'
 import {
   CASH_MOVEMENT_RECORDS,
   CHECK_RECORDS,
@@ -15,6 +16,7 @@ import {
   INCOME_RECORDS,
   INSTRUMENT_RECORDS,
   INVESTMENT_ACCOUNT_RECORDS,
+  MAIL_READER_RECORDS,
   PRICE_RECORDS,
   SPIN_OFF_RECORDS,
   SPLIT_RECORDS,
@@ -455,7 +457,21 @@ function stored<R>(kind: RecordKind<R>, records: readonly R[]): WorkbookDocument
  * `sample` is the whole made-up file, `cash-below-zero` leaves out the second account's deposit, so its euros fall below
  * zero, and `young` is a file whose first deposit is seven months old, with no benchmark chosen.
  */
-export type FakeInvestmentsVariant = 'sample' | 'cash-below-zero' | 'young'
+/** IBKR's report switched on, at made-up filters, reading the last month. */
+function fakeMailReader(today: CivilDate): MailReader {
+  return {
+    id: fixedId(MAIL_READER_RECORDS, 990),
+    recipe: 'ibkr-activity-flex',
+    on: true,
+    senders: ['reports@broker.example.com'],
+    subject: 'Flex',
+    contents: '',
+    since: addDays(today, -30),
+    leftOut: [],
+  }
+}
+
+export type FakeInvestmentsVariant = 'sample' | 'cash-below-zero' | 'young' | 'mail'
 
 /** The weekday on or before the day. */
 function weekdayBefore(date: CivilDate): CivilDate {
@@ -497,7 +513,7 @@ export function fakeInvestmentsDocument(savedAt: string, variant: FakeInvestment
     return { ...emptyInvestmentsDocument(savedAt), records: youngRecords(today) }
   }
   const allMovements = [...CASH_MOVEMENTS, ...LATER_CASH_MOVEMENTS]
-  const movements = variant === 'sample' ? allMovements : allMovements.filter((movement) => !(movement.account === BROKER_TWO.id && movement.kind === 'deposit'))
+  const movements = variant !== 'cash-below-zero' ? allMovements : allMovements.filter((movement) => !(movement.account === BROKER_TWO.id && movement.kind === 'deposit'))
   return {
     ...emptyInvestmentsDocument(savedAt),
     records: {
@@ -514,6 +530,7 @@ export function fakeInvestmentsDocument(savedAt: string, variant: FakeInvestment
       ...stored(FUND_MIX_RECORDS, FUND_MIXES),
       ...stored(TARGET_RECORDS, TARGETS),
       ...stored(CHECK_RECORDS, CHECKS),
+      ...(variant === 'mail' ? stored(MAIL_READER_RECORDS, [fakeMailReader(today)]) : {}),
     },
   }
 }

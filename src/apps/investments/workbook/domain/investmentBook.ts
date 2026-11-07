@@ -6,6 +6,7 @@ import type { HandPrice } from './handPrice'
 import type { Income } from './income'
 import type { Instrument } from './instrument'
 import type { InvestmentAccount } from './investmentAccount'
+import type { MailReader } from './mailReader'
 import type { SpinOff } from './spinOff'
 import type { Split } from './split'
 import type { Target } from './target'
@@ -27,6 +28,7 @@ export interface InvestmentBook {
   readonly fundMixes: readonly FundMixLine[]
   readonly targets: readonly Target[]
   readonly checks: readonly CheckSetting[]
+  readonly mailReaders: readonly MailReader[]
 }
 
 /** Whether the file holds any record of what happened, beyond its accounts, instruments and prices. */

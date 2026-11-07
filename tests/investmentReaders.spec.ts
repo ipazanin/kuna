@@ -551,6 +551,7 @@ describe('the Investments file', () => {
       fundMixes: 19,
       targets: 3,
       checks: 1,
+      mailReaders: 0,
     })
     expect([...investmentLots(books.book).values()].flatMap((lots) => [...lots.refused, ...lots.emptied])).toEqual([])
   })

@@ -4,7 +4,9 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
-import type { SettledImport, SpinOffStep, SplitStep } from './importChoices'
+import { askedLine } from './dryRunLines'
+import ImportLines from './ImportLines.vue'
+import type { AskedChoice, SettledImport, SpinOffStep, SplitStep } from './importChoices'
 import type { WorkbookImport } from './useWorkbookImport'
 import { words } from './words'
 import { QUANTITY_PLACES } from '../../holdings/presentation/holdingText'
@@ -48,6 +50,13 @@ const asked = computed(() => ({
   splits: props.settled.splits.filter((step) => step.listed === null),
   spinOffs: props.settled.spinOffs.filter((step) => !step.answeredByRow),
 }))
+
+const askedRows = computed(() => (props.settled.dryRun.report?.asked ?? []).map(askedLine))
+
+const askedItems: { value: AskedChoice; label: string }[] = [
+  { value: 'hold', label: words.questions.askedHold },
+  { value: 'leave-out', label: words.questions.askedLeaveOut },
+]
 
 function unlistedLine(step: SplitStep): string {
   return step.unlisted === null ? '' : words.questions.unlisted[step.unlisted](props.workbookImport.splitVendor)
@@ -97,6 +106,23 @@ function shareHelp(step: SpinOffStep): string {
 <template>
   <div class="flex flex-col gap-6" data-testid="import-questions">
     <p class="type-body">{{ words.questions.intro }}</p>
+
+    <section v-if="askedRows.length > 0" class="flex flex-col gap-1" data-testid="import-asked">
+      <h3 class="type-card-title">{{ words.questions.asked }}</h3>
+      <p class="type-caption">{{ words.questions.askedIntro }}</p>
+      <ul class="flex flex-col">
+        <li v-for="row in askedRows" :key="row.key" class="flex flex-col gap-1 border-t border-default pb-4 first:border-t-0" data-testid="import-asked-row">
+          <ImportLines :lines="[row]" warns verbatim />
+          <ChoiceButtons
+            :model-value="workbookImport.choices.value.asked[row.key] ?? 'hold'"
+            :options="askedItems"
+            :label="words.questions.askedChoice"
+            data-testid="import-asked-choice"
+            @update:model-value="workbookImport.choose('asked', row.key, $event as AskedChoice)"
+          />
+        </li>
+      </ul>
+    </section>
 
     <section v-if="asked.splits.length > 0" class="flex flex-col gap-1" data-testid="import-splits">
       <h3 class="type-card-title">{{ words.questions.splits }}</h3>

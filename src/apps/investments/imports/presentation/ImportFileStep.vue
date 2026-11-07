@@ -5,10 +5,10 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
+import ImportRatesStatus from './ImportRatesStatus.vue'
 import type { WorkbookImport } from './useWorkbookImport'
 import { words } from './words'
 import { PORTFOLIO_TEMPLATE_FILE_NAME, portfolioTemplateFile } from '../infrastructure/portfolioTemplate'
-import PricesProgress from '../../prices/presentation/PricesProgress.vue'
 import { downloadFile } from '../../../../shared/files/downloadFile'
 import { XLSX_MIME_TYPE } from '../../../../shared/xlsx/sheetGrids'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -20,7 +20,7 @@ const props = defineProps<{
   workbookImport: WorkbookImport
 }>()
 
-const { fileName, loading, failure, reading, ratesFetch, fetching, settled, ready } = props.workbookImport
+const { fileName, loading, failure, reading, settled, ready } = props.workbookImport
 
 /** The splits a vendor lists for the workbook's split rows, which answer their questions. */
 const listedSplits = computed(() => (ready.value ? (settled.value?.splits ?? []).flatMap((step) => (step.listed === null ? [] : [{ step, listed: step.listed }])) : []))
@@ -88,28 +88,7 @@ async function loadSample(): Promise<void> {
       <UIcon name="i-lucide-file-check" class="size-4 shrink-0 text-success" aria-hidden="true" />
       <span class="min-w-0 break-words">{{ plural(words.file.read(reading.rows.length + reading.skipped.length, fileName), reading.rows.length + reading.skipped.length) }}</span>
     </p>
-    <div v-if="ratesFetch?.kind === 'fetching'" class="flex flex-col gap-2" data-testid="import-rates-fetching">
-      <p class="type-body">{{ words.file.fetchingRates }}</p>
-      <PricesProgress v-if="fetching" :fetching="fetching" />
-    </div>
-    <UAlert
-      v-if="ratesFetch?.kind === 'failed'"
-      icon="i-lucide-triangle-alert"
-      color="error"
-      variant="subtle"
-      :title="words.file.ratesFailed(ratesFetch.currencies.join(', '), dayLabel(ratesFetch.from))"
-      data-testid="import-rates-failed"
-    />
-    <UButton
-      v-if="ratesFetch?.kind === 'failed'"
-      :label="words.file.tryAgain"
-      icon="i-lucide-refresh-cw"
-      color="neutral"
-      variant="outline"
-      class="self-start"
-      data-testid="import-rates-retry"
-      @click="workbookImport.fetchRates()"
-    />
+    <ImportRatesStatus :workbook-import="workbookImport" />
     <section v-if="listedSplits.length > 0" class="flex flex-col gap-1" data-testid="import-listed-splits">
       <h3 class="type-label">{{ words.questions.listedSplits }}</h3>
       <ul class="flex flex-col gap-1">

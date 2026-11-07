@@ -43,9 +43,13 @@ export interface ImportChoices {
   /** By the key of the split's entry. */
   readonly splits: Readonly<Record<string, SplitTexts>>
   readonly spinOffs: Readonly<Record<string, SpinOffTexts>>
+  /** What to do with a row a report's recipe asks about, by its key. A row not here is held back. */
+  readonly asked: Readonly<Record<string, AskedChoice>>
 }
 
-export const NO_CHOICES: ImportChoices = { accounts: {}, instruments: {}, splits: {}, spinOffs: {} }
+export type AskedChoice = 'hold' | 'leave-out'
+
+export const NO_CHOICES: ImportChoices = { accounts: {}, instruments: {}, splits: {}, spinOffs: {}, asked: {} }
 
 /** A new random id for each key, the same one every time it is asked for that key. */
 export type NewIds = (key: string) => string

@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../../shared/ui/PageTabs.vue'
 import { needsThePerson } from '../../prices/presentation/failureLines'
+import MailReportCard from '../../mail/presentation/MailReportCard.vue'
 import ImportClosesCard from '../../prices/presentation/ImportClosesCard.vue'
 import LastFetchCard from '../../prices/presentation/LastFetchCard.vue'
 import PriceVendorsCard from '../../prices/presentation/PriceVendorsCard.vue'
@@ -33,6 +34,7 @@ const tabs = computed(() => [
         <div class="flex flex-col gap-6">
           <InvestmentsBooksCard />
           <AccountsCard />
+          <MailReportCard />
           <BenchmarkCard />
           <HistoryCard />
         </div>

@@ -83,10 +83,11 @@ export function yearsSince(since: CivilDate, today: CivilDate): number[] {
 /**
  * The Gmail search of a source. The window is given in epoch seconds, since Gmail reads a date in
  * a search as midnight in California. A double quote would end the subject's phrase, so the
- * settings refuse one.
+ * settings refuse one. A blank subject or contents phrase searches for no such phrase.
  */
-export function mailQuery(terms: Pick<MailTerms, 'senders' | 'subject'>, window: MailWindow): string {
-  return `from:(${terms.senders.join(' OR ')}) subject:"${terms.subject}" has:attachment after:${Math.floor(window.from / 1000)}`
+export function mailQuery(terms: Pick<MailTerms, 'senders' | 'subject'> & { readonly contents?: string }, window: MailWindow): string {
+  const phrases = [terms.subject === '' ? '' : `subject:"${terms.subject}"`, (terms.contents ?? '') === '' ? '' : `"${terms.contents}"`]
+  return [`from:(${terms.senders.join(' OR ')})`, ...phrases.filter((phrase) => phrase !== ''), 'has:attachment', `after:${Math.floor(window.from / 1000)}`].join(' ')
 }
 
 /** What a source's search needs from the books. */
@@ -167,4 +168,10 @@ const SUBJECT_MAX_LENGTH = 80
 export function mailSubjectProblem(subject: string): string | null {
   if (subject.includes('"')) return words.subjectQuote
   return subject.length > SUBJECT_MAX_LENGTH ? words.subjectTooLong(SUBJECT_MAX_LENGTH) : null
+}
+
+/** Why a phrase of a mail's contents cannot be searched for, or null. */
+export function mailContentsProblem(contents: string): string | null {
+  if (contents.includes('"')) return words.contentsQuote
+  return contents.length > SUBJECT_MAX_LENGTH ? words.contentsTooLong(SUBJECT_MAX_LENGTH) : null
 }
