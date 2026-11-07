@@ -206,7 +206,7 @@ export function kunaConfig(exempt) {
   return defineConfig(
     {
       name: 'kuna/ignores',
-      ignores: ['dist', 'dist-fake', 'visual-check', 'coverage', 'spike.local', 'src/apps/company/packs/hr-doo/ruleset/rules/generatedLocalRates.ts'],
+      ignores: ['dist', 'dist-fake', 'visual-check', 'coverage', 'spike.local', '.claude/worktrees', 'src/apps/company/packs/hr-doo/ruleset/rules/generatedLocalRates.ts'],
     },
     typescript.configs.recommended,
     vue.configs['flat/recommended'],

@@ -4,5 +4,6 @@ dist-fake
 visual-check
 coverage
 spike.local
+.claude/worktrees
 package-lock.json
 src/apps/company/packs/hr-doo/ruleset/rules/generatedLocalRates.ts
