@@ -2415,9 +2415,10 @@ is `--app-investments`, a plum.
 
 Every app's Settings offers Delete this app's data on its file card. It asks first, offering what the
 app really has: a file kept in this browser offers that file, which goes for good, and a file on Drive
-offers the Drive file and this browser's copy, or only the copy once the file is in the bin or gone.
-Ticking the Drive file takes the copy with it, since a copy of a file in the bin can no longer be saved.
-Download a backup first runs the app's export. A Drive file goes to the bin (`files.update` with
+offers the Drive file, whose row says this browser's copy goes with it since a copy of a file in the bin can
+no longer be saved, the copy on a row of its own once the Drive file is unticked, and only the copy once the
+file is in the bin or gone.
+A file kept only in this browser starts unticked, so Delete stays off until it is ticked. Download an export runs the app's export. A Drive file goes to the bin (`files.update` with
 `trashed: true` under `drive.file`) for 30 days. Only its owner can do that, so Drive refuses a file
 someone shared, the dialog says so, and the copy stays and keeps working. Investments first moves every
 `kuna-investments-prices.json` beside the file to the bin and last deletes the prices this browser
@@ -2428,7 +2429,7 @@ the page holds a token. They are found by the `backups` folder beside the file, 
 `isAppAuthorized`, and go to the bin one by one, so the folder and anything else in it stay. A backup that
 fails is named, and that app's file stays so the delete can run again. The Kuna folder, other files beside
 it and exports stay, and so do the keys. A step
-that fails stops the removal, and the dialog lists each step's outcome. It waits for a sync under way,
+that fails stops the removal, and the dialog says first what failed and what already went, by file name. It waits for a sync under way,
 and is refused with nothing done when a sync starts in the meantime or a save waits
 (`src/shared/storage/application/appData.ts`).
 

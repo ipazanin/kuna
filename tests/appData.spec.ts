@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { placesHeld, removeAppData, withPlace } from '../src/shared/storage/application/appData'
+import { placesHeld, placesTickedFirst, removalCanRetry, removeAppData, withPlace } from '../src/shared/storage/application/appData'
 import type { DataBeside, DataPlace, DataRemovalPorts, RemovalStep } from '../src/shared/storage/application/appData'
+import { DriveTrashRefused } from '../src/shared/storage/application/driveTrashRefused'
 import { words as storageWords } from '../src/shared/storage/application/words'
 import type { WorkbookChoice } from '../src/shared/storage/application/workbookPorts'
 
@@ -92,7 +93,38 @@ describe('what a delete offers', () => {
   })
 })
 
+describe('what starts ticked', () => {
+  it('leaves a file kept only in this browser unticked, since it goes for good', () => {
+    expect(placesTickedFirst(IN_BROWSER, COPY)).toEqual([])
+  })
+
+  it('ticks what a file on Drive has, which the bin can give back', () => {
+    expect(placesTickedFirst(ON_DRIVE, BOTH)).toEqual(BOTH)
+  })
+})
+
 describe('removing an app’s data', () => {
+  it('says a second try can change an ordinary failure', async () => {
+    const report = await removeAppData(portsOf({ refused: 'Drive answered 500.' }).ports, ON_DRIVE, BOTH)
+
+    expect(removalCanRetry(report)).toBe(true)
+  })
+
+  it('says a second try cannot change a file only its owner can bin', async () => {
+    const { ports } = portsOf()
+    const refusing: DataRemovalPorts = {
+      ...ports,
+      async dropFile() {
+        throw new DriveTrashRefused('Only its owner can.')
+      },
+    }
+
+    const report = await removeAppData(refusing, ON_DRIVE, BOTH)
+
+    expect(report.steps.find(({ step }) => step === 'drive-file')?.outcome).toEqual({ kind: 'failed', message: 'Only its owner can.', final: true })
+    expect(removalCanRetry(report)).toBe(false)
+  })
+
   it('on Drive trashes what is beside the file, then drops the file, then forgets what is kept here, with nothing fetched meanwhile', async () => {
     const { ports, calls } = portsOf()
 

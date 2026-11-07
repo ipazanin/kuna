@@ -427,5 +427,6 @@ describe('exporting', () => {
 
     expect(exportFileName({ title: 'Books', settings: { ...DEFAULT_SETTINGS, companyName: 'Đurić & Co.' } }, day)).toBe('kuna-duric-co-2026-10-16.xlsx')
     expect(exportFileName({ title: 'Shadow accounting', settings: DEFAULT_SETTINGS }, day)).toBe('kuna-shadow-accounting-2026-10-16.xlsx')
+    expect(exportFileName({ title: 'kuna-company.json', settings: DEFAULT_SETTINGS }, day)).toBe('kuna-company-2026-10-16.xlsx')
   })
 })

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { AppData, DataPlace, HeldData } from '../src/shared/storage/application/appData'
 import { words as storageWords } from '../src/shared/storage/application/words'
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
-import { deleteAllOfKuna, nameTyped } from '../src/shell/settings/deleteAllOfKuna'
+import { deleteAllOfKuna, nameTyped, picksStillHeld } from '../src/shell/settings/deleteAllOfKuna'
 import type { KunaDeletionPorts } from '../src/shell/settings/deleteAllOfKuna'
 
 function appOf(id: string, source: HeldData['source'], { busy = false, refused = null }: { busy?: boolean; refused?: string | null } = {}, calls: string[] = []): AppData {
@@ -43,6 +43,17 @@ function portsOf(calls: string[], { syncing = false, googleFails = false }: { sy
 }
 
 describe('deleting all of Kuna', () => {
+  it('keeps what the person unticked after a failure, and drops only what no longer exists', () => {
+    const untickedKept = appOf('company', 'drive')
+    const refused = appOf('investments', 'drive')
+    const gone = { id: 'loans', held: () => null }
+    const fellInBin = { id: 'assets', held: () => ({ ...refused.held()!, places: ['browser-copy'] as const }) }
+
+    expect(
+      picksStillHeld({ company: [], investments: ['drive-file', 'browser-copy'], loans: ['browser-copy'], assets: ['drive-file', 'browser-copy'] }, [untickedKept, refused, gone, fellInBin]),
+    ).toEqual({ company: [], investments: ['drive-file', 'browser-copy'], assets: ['browser-copy'] })
+  })
+
   it('needs the name typed, whatever a phone keyboard does to its case or a space', () => {
     expect(nameTyped('Kuna', 'Kuna')).toBe(true)
     expect(nameTyped(' kuna ', 'Kuna')).toBe(true)

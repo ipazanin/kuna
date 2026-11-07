@@ -2,6 +2,7 @@ import { FOLDER_MIME_TYPE } from '../../google/driveClient'
 import { GoogleApiError, isRateLimited } from '../../google/googleApi'
 import type { RedirectResume } from '../../google/googleRedirect'
 import { BooksAlreadyOnDrive } from '../application/booksAlreadyOnDrive'
+import { DriveTrashRefused } from '../application/driveTrashRefused'
 import type { BooksRead, WorkbookStorePorts } from '../application/createWorkbookStore'
 import type { DocumentHome } from '../application/documentHome'
 import type { CopyMeta, PickedFolder } from '../application/workbookPorts'
@@ -226,7 +227,7 @@ export function documentStorePorts<Books extends BooksRead>(
       try {
         await access.drive.trash(fileId)
       } catch (refused) {
-        if (refused instanceof GoogleApiError && (refused.status === 404 || (refused.status === 403 && !isRateLimited(refused)))) throw new Error(words.trashRefused)
+        if (refused instanceof GoogleApiError && (refused.status === 404 || (refused.status === 403 && !isRateLimited(refused)))) throw new DriveTrashRefused(words.trashRefused)
         throw refused
       }
       driveHomes.delete(fileId)
@@ -248,7 +249,8 @@ export function documentStorePorts<Books extends BooksRead>(
       if (first !== undefined) {
         const refused = first.failure instanceof GoogleApiError && first.failure.status === 403 && !isRateLimited(first.failure)
         const reason = refused ? words.onlyOwnerBins : first.failure instanceof Error ? first.failure.message : String(first.failure)
-        throw new Error(words.backupsNotBinned(failed.map(({ name }) => name).join(', '), reason))
+        const message = words.backupsNotBinned(failed.map(({ name }) => name).join(', '), reason)
+        throw refused ? new DriveTrashRefused(message) : new Error(message)
       }
     },
 

@@ -217,7 +217,7 @@ describe('the Keys step', () => {
     await page.drive.createFile(APP_DATA_FOLDER, SECRETS_FILE_NAME, 'not json')
     expect(await secretsStep(() => true).run(() => {}, nextRun())).toEqual({
       kind: 'failed',
-      line: 'A keys file in your Google account is not one Kuna can read, so Kuna left it as it is. Delete my keys from my Google account, in Kuna settings, clears it.',
+      line: 'A keys file in your Google account is not one Kuna can read, so Kuna left it as it is. Delete my keys from the Google account, in Kuna settings, clears it.',
       link: { label: 'Kuna settings', to: '/settings' },
     })
   })

@@ -1,4 +1,5 @@
 import type { DropOptions } from './createWorkbookStore'
+import { DriveTrashRefused } from './driveTrashRefused'
 import { words } from './words'
 import type { WorkbookChoice } from './workbookPorts'
 import { WorkbookWriteRefused } from './workbookWriteRefused'
@@ -12,6 +13,16 @@ export function placesHeld(choice: WorkbookChoice | null, missing: boolean): rea
   return choice.source === 'drive' && !missing ? ['drive-file', 'browser-copy'] : ['browser-copy']
 }
 
+/** What starts ticked. A file kept only in this browser goes for good, so it starts unticked and Delete stays off until the person ticks it. */
+export function placesTickedFirst(choice: Pick<WorkbookChoice, 'source'>, places: readonly DataPlace[]): readonly DataPlace[] {
+  return choice.source === 'browser' ? [] : places
+}
+
+/** What the person chose that the app still has, after a failed delete took some of it. */
+export function placesStillHeld(chosen: readonly DataPlace[], held: readonly DataPlace[]): readonly DataPlace[] {
+  return chosen.filter((place) => held.includes(place))
+}
+
 /** The choice with a place ticked or unticked. The copy goes with the Drive file, since a copy of a file in the bin can no longer be saved. */
 export function withPlace(chosen: readonly DataPlace[], place: DataPlace, on: boolean): readonly DataPlace[] {
   if (place === 'drive-file') return on ? ['drive-file', 'browser-copy'] : ['browser-copy']
@@ -22,7 +33,11 @@ export function withPlace(chosen: readonly DataPlace[], place: DataPlace, on: bo
 /** The steps of a removal, in the order they can run. `backups` goes first, since forgetting the file also forgets the id that finds them. `browser-file` is a file kept only here, and `browser-copy` the copy of a file that stays on Drive. */
 export type RemovalStep = 'backups' | 'beside-file' | 'drive-file' | 'browser-file' | 'browser-copy' | 'beside-copy'
 
-export type RemovalOutcome = { readonly kind: 'done' } | { readonly kind: 'failed'; readonly message: string } | { readonly kind: 'not-run' }
+export type RemovalOutcome =
+  | { readonly kind: 'done' }
+  /** `final` says a second try cannot change it. */
+  | { readonly kind: 'failed'; readonly message: string; readonly final?: true }
+  | { readonly kind: 'not-run' }
 
 export interface RemovalReport {
   /** Each step with what came of it, in order. */
@@ -57,8 +72,9 @@ export interface DataRemovalPorts {
   forgetOnThisDevice(fileId: string): void
 }
 
-function messageOf(failure: unknown): string {
-  return failure instanceof Error ? failure.message : String(failure)
+function failedWith(failure: unknown): RemovalOutcome {
+  const message = failure instanceof Error ? failure.message : String(failure)
+  return failure instanceof DriveTrashRefused ? { kind: 'failed', message, final: true } : { kind: 'failed', message }
 }
 
 /**
@@ -87,7 +103,7 @@ export async function removeAppData(ports: DataRemovalPorts, choice: WorkbookCho
       await work()
       outcomes.set(step, { kind: 'done' })
     } catch (failure) {
-      outcomes.set(step, { kind: 'failed', message: messageOf(failure) })
+      outcomes.set(step, failedWith(failure))
       throw failure
     }
   }
@@ -114,7 +130,7 @@ export async function removeAppData(ports: DataRemovalPorts, choice: WorkbookCho
     } catch (failure) {
       // A failed step before the file has its own line already, and anything else belongs to the file's step.
       if (![...outcomes.values()].some((outcome) => outcome.kind === 'failed')) {
-        outcomes.set(fileStep, { kind: 'failed', message: messageOf(failure) })
+        outcomes.set(fileStep, failedWith(failure))
       }
       return report(false)
     }
@@ -136,6 +152,11 @@ export async function removeAppData(ports: DataRemovalPorts, choice: WorkbookCho
 /** Whether every step ran and went, so nothing is left to say. */
 export function removalWent(report: RemovalReport): boolean {
   return report.steps.every(({ outcome }) => outcome.kind === 'done')
+}
+
+/** Whether a second try could change something that failed. */
+export function removalCanRetry(report: RemovalReport): boolean {
+  return report.steps.some(({ outcome }) => outcome.kind === 'failed' && outcome.final !== true)
 }
 
 /** What an app holds now, for the delete dialog to offer. */

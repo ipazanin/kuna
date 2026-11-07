@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UCheckbox from '@nuxt/ui/components/Checkbox.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { withGoogleAccess } from '../../google/withGoogleAccess'
 import AppDialog from '../../ui/AppDialog.vue'
-import { removalWent } from '../application/appData'
+import { placesStillHeld, placesTickedFirst, removalCanRetry, removalWent } from '../application/appData'
 import type { AppData, DataPlace, HeldData, RemovalReport } from '../application/appData'
 import DataPlaceChoices from './DataPlaceChoices.vue'
-import { backupsLabel, removalLines } from './removalLines'
+import DeleteFailure from './DeleteFailure.vue'
+import { removalLines } from './removalLines'
+import type { RemovalLine } from './removalLines'
 import { words } from './words'
 
-/** Asks before deleting an app's data, offering what it really has and a backup, and lists each step's outcome when one fails. */
+/** Asks before deleting an app's data, offering what it really has and an export, and says first what failed when something does. */
 const open = defineModel<boolean>('open', { required: true })
 
 const props = defineProps<{ data: AppData }>()
@@ -23,34 +23,40 @@ const toast = useToast()
 const held = computed(() => props.data.held())
 const chosen = ref<readonly DataPlace[]>([])
 const withBackups = ref(false)
-const backupCount = ref<number | null>(null)
-const offersBackups = computed(() => held.value?.source === 'drive' && backupCount.value !== 0)
 const deleting = ref(false)
-const failure = ref<readonly string[] | null>(null)
+const failure = ref<{ readonly lines: readonly RemovalLine[]; readonly canRetry: boolean } | null>(null)
+const description = computed(() => (held.value?.source === 'drive' ? `${text.description} ${text.binRule}` : text.description))
+const stays = computed(() => {
+  if (held.value?.source !== 'drive') return text.staysBrowser
+  return chosen.value.includes('drive-file') ? `${text.staysDrive} ${text.otherBrowser}` : text.staysDrive
+})
 
 watch(open, (opened) => {
   if (!opened) return
-  chosen.value = props.data.held()?.places ?? []
+  const nowHeld = props.data.held()
+  chosen.value = nowHeld === null ? [] : placesTickedFirst(nowHeld, nowHeld.places)
   withBackups.value = false
-  backupCount.value = null
   failure.value = null
-  void props.data.backupsOnDrive().then((count) => {
-    backupCount.value = count
-  })
 })
 
 /** A file that fell into the bin during a failed delete offers only the copy from then on. */
 watch(
   () => held.value?.places,
   (places) => {
-    if (places !== undefined) chosen.value = chosen.value.filter((place) => places.includes(place))
+    if (places !== undefined) chosen.value = placesStillHeld(chosen.value, places)
   },
 )
 
 function sayDeleted(report: RemovalReport, was: HeldData, trashed: boolean): void {
   const { fileName, besideFileName } = was
   if (report.steps.some(({ outcome }) => outcome.kind === 'failed')) {
-    toast.add({ title: text.besideLeft(props.data.name), description: removalLines(report).at(-1) ?? '', icon: 'i-lucide-triangle-alert', color: 'warning', duration: 10_000 })
+    toast.add({
+      title: text.besideLeft(props.data.name),
+      description: removalLines(report, was).find((line) => line.kind === 'failed')?.text ?? '',
+      icon: 'i-lucide-triangle-alert',
+      color: 'warning',
+      duration: 10_000,
+    })
     return
   }
   const description = trashed
@@ -68,7 +74,7 @@ async function remove(): Promise<void> {
   if (was === null) return
   const places = chosen.value
   const trashed = places.includes('drive-file')
-  const backups = withBackups.value && offersBackups.value
+  const backups = withBackups.value
   deleting.value = true
   failure.value = null
   try {
@@ -80,10 +86,10 @@ async function remove(): Promise<void> {
       open.value = false
       toast.add({ title: text.backupsBinned, icon: 'i-lucide-trash-2', color: 'success', duration: 10_000 })
     } else {
-      failure.value = removalLines(report)
+      failure.value = { lines: removalLines(report, was), canRetry: removalCanRetry(report) }
     }
   } catch (refused) {
-    failure.value = [refused instanceof Error ? refused.message : String(refused)]
+    failure.value = { lines: [{ kind: 'failed', text: refused instanceof Error ? refused.message : String(refused) }], canRetry: true }
   } finally {
     deleting.value = false
   }
@@ -91,15 +97,11 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="text.title(data.name)" :description="text.description" :dismissible="!deleting">
+  <AppDialog v-model:open="open" :title="text.title(data.name)" :description="description" :dismissible="!deleting">
     <div class="flex flex-col gap-4" data-testid="delete-data-dialog">
-      <DataPlaceChoices v-model:chosen="chosen" :data="data" :disabled="deleting" />
-      <UCheckbox v-if="offersBackups" v-model="withBackups" :label="backupsLabel(backupCount)" :description="text.backupsNote" :disabled="deleting" data-testid="delete-data-backups" />
-      <p class="type-caption" data-testid="delete-data-stays">{{ held?.source === 'drive' ? text.staysDrive : text.staysBrowser }}</p>
-      <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="text.failed" :description="text.stillHere" data-testid="delete-data-failed" />
-      <ul v-if="failure" class="space-y-1 text-sm text-toned" data-testid="delete-data-steps">
-        <li v-for="line in failure" :key="line">{{ line }}</li>
-      </ul>
+      <DeleteFailure v-if="failure" :title="text.failed" :note="failure.canRetry ? `${text.stillHere} ${text.tryAgain}` : text.stillHere" :lines="failure.lines" data-testid="delete-data-failed" />
+      <DataPlaceChoices v-model:chosen="chosen" v-model:backups="withBackups" :data="data" :disabled="deleting" />
+      <p class="type-caption" data-testid="delete-data-stays">{{ stays }}</p>
     </div>
     <template #end>
       <UButton :label="text.cancel" color="neutral" variant="ghost" :disabled="deleting" data-testid="delete-data-cancel" @click="open = false" />

@@ -129,10 +129,11 @@ export async function downloadTemplate(): Promise<void> {
 
 /** `kuna-<company or sheet name>-<yyyy-mm-dd>.xlsx`, in plain ASCII. */
 export function exportFileName(workbook: Pick<Workbook, 'title' | 'settings'>, day: Date): string {
-  const name = fold(workbook.settings.companyName || workbook.title)
+  const name = fold(workbook.settings.companyName || workbook.title.replace(/\.json$/i, ''))
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
+    .replace(/^kuna-(?=.)/, '')
   const date = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
   return `kuna-${name || 'workbook'}-${date}.xlsx`
 }

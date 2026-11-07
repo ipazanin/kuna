@@ -1,4 +1,4 @@
-import { removalWent } from '../../shared/storage/application/appData'
+import { placesStillHeld, removalWent } from '../../shared/storage/application/appData'
 import type { AppData, DataPlace, RemovalReport } from '../../shared/storage/application/appData'
 import { words as storageWords } from '../../shared/storage/application/words'
 import { WorkbookWriteRefused } from '../../shared/storage/application/workbookWriteRefused'
@@ -34,6 +34,16 @@ export interface KunaDeletionReport {
 /** Whether the person typed the name, as a phone's keyboard may capitalise it or leave a space. */
 export function nameTyped(typed: string, name: string): boolean {
   return typed.trim().toLowerCase() === name.toLowerCase()
+}
+
+/** What the person chose of each app that it still has after a failed delete. What they left unticked stays unticked, and a retry takes nothing more. */
+export function picksStillHeld(chosen: Readonly<Record<string, readonly DataPlace[]>>, apps: readonly Pick<AppData, 'id' | 'held'>[]): Readonly<Record<string, readonly DataPlace[]>> {
+  return Object.fromEntries(
+    apps.flatMap((app) => {
+      const held = app.held()
+      return held === null ? [] : [[app.id, placesStillHeld(chosen[app.id] ?? [], held.places)]]
+    }),
+  )
 }
 
 function messageOf(failure: unknown): string {

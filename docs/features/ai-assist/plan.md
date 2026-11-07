@@ -198,7 +198,7 @@ Move, rename, migrate. No model is called yet.
 **The sync.** `syncSecrets(ports)` replaces `syncVendorKeys(ports, investmentsFileId)` (`keysSync.ts:27`):
 
 1. List the hidden folder once. Take the `kuna-secrets.json` whose id sorts first, and every other file: a second `kuna-secrets.json` and each `kuna-investments-keys-*.json`. The old name holds an Investments file id the sync no longer knows, so it lists instead of asking by name.
-2. Decode every file. If any is refused (`not-keys` or `newer`), stop: write nothing, delete nothing, and say so, as today (`keysSync.ts:33-35`). The `not-keys` message points to Delete my keys from my Google account in Kuna settings.
+2. Decode every file. If any is refused (`not-keys` or `newer`), stop: write nothing, delete nothing, and say so, as today (`keysSync.ts:33-35`). The `not-keys` message points to Delete my keys from the Google account in Kuna settings.
 3. Merge all files and this browser's secrets, the newest change of each id winning, a removal as much as a save (`keysFile.ts:72-81`). There is no list of known ids any more. Every id in the file or in this browser syncs.
 4. Write `kuna-secrets.json` when the merge differs from it, or create it.
 5. Only after that write resolved, delete every other file. A failed delete leaves the file to fold again on the next sync, which changes nothing.
@@ -212,7 +212,7 @@ A stale Kuna tab in another browser may make an old file again from its own keys
 
 **One file for every app.** Any app's file on Drive turns the step on, so a key saved beside a browser-kept Investments file also goes to the secrets file. The Prices card and the Assistant card word their subtitles by whether any app's file is on Drive, through `PageSync.someOnDrive`.
 
-**Delete my keys from my Google account.** A card in Kuna settings, shown with or without a file on Drive. After a confirmation it deletes the secrets file and every old keys file, read or not, and leaves this browser's keys alone. It is the way out of a refused file, and the way to clear a key once the last file has left Drive, where no sync runs. While a file is on Drive, the next sync of any browser holding keys saves them again, which the confirmation says.
+**Delete my keys from the Google account.** A card in Kuna settings, shown with or without a file on Drive. After a confirmation it deletes the secrets file and every old keys file, read or not, and leaves this browser's keys alone. It is the way out of a refused file, and the way to clear a key once the last file has left Drive, where no sync runs. While a file is on Drive, the next sync of any browser holding keys saves them again, which the confirmation says.
 
 **Changed**
 
@@ -243,7 +243,7 @@ A stale Kuna tab in another browser may make an old file again from its own keys
 | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | Access to the app's hidden folder on Drive was not allowed, so your keys stay in this browser alone. | Pristup skrivenoj mapi aplikacije na Driveu nije dopušten, pa vaši ključevi ostaju samo u ovom pregledniku. |
 | Your keys in your Google account, which every Kuna app uses.                                         | Vaši ključevi na Google računu, koje koriste sve aplikacije Kune.                                           |
-| Delete my keys from my Google account                                                                | Obriši moje ključeve s mog Google računa                                                                    |
+| Delete my keys from the Google account                                                               | Obriši moje ključeve s Google računa                                                                        |
 
 **Cost.** None. No model is called.
 

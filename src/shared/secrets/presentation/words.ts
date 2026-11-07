@@ -27,7 +27,7 @@ export const en = {
     settings: 'Kuna settings',
   },
   refused: {
-    'not-keys': 'A keys file in your Google account is not one Kuna can read, so Kuna left it as it is. Delete my keys from my Google account, in Kuna settings, clears it.',
+    'not-keys': 'A keys file in your Google account is not one Kuna can read, so Kuna left it as it is. Delete my keys from the Google account, in Kuna settings, clears it.',
     newer: 'A newer version of Kuna wrote the keys file. Reload Kuna to read it.',
   } satisfies Record<SecretsFileRefusal, string>,
 }
@@ -55,8 +55,7 @@ export const hr: Translation<typeof en> = {
     settings: 'Postavke Kune',
   },
   refused: {
-    'not-keys':
-      'Datoteku ključeva na vašem Google računu Kuna ne može pročitati, pa ju je ostavila kakva jest. Možete je ukloniti radnjom „Obriši moje ključeve s mog Google računa” u postavkama Kune.',
+    'not-keys': 'Datoteku ključeva na vašem Google računu Kuna ne može pročitati, pa ju je ostavila kakva jest. Možete je ukloniti radnjom „Obriši moje ključeve s Google računa” u postavkama Kune.',
     newer: 'Datoteku ključeva zapisala je novija Kuna. Ponovno učitajte Kunu da je pročitate.',
   },
 }

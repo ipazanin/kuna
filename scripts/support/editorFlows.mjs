@@ -4237,6 +4237,17 @@ async function openDeleteDialog(page, press, says) {
   await delay(300)
 }
 
+/** The failure is first in the dialog's body and on screen, not somewhere below the rows. */
+async function failureInView(page, testId) {
+  const seen = await page.$eval(`[data-testid="${testId}"]`, (failure) => {
+    const { top, bottom } = failure.getBoundingClientRect()
+    return { role: failure.getAttribute('role'), first: failure.parentElement?.firstElementChild === failure, inView: top >= 0 && top < window.innerHeight && bottom > 0 }
+  })
+  if (seen.role !== 'alert') throw new Error('the failure has no alert role')
+  if (!seen.first) throw new Error('the failure is not first in the dialog')
+  if (!seen.inView) throw new Error('the failure is out of view')
+}
+
 async function checkboxState(page, testId) {
   return page.$eval(`[data-testid="${testId}"]`, (box) => ({
     checked: box.getAttribute('aria-checked') === 'true' || box.dataset.state === 'checked',
@@ -4252,7 +4263,7 @@ async function checkboxState(page, testId) {
  */
 export function deleteDataDriveFlowIn(language) {
   const text = DELETE_WORDS[language]
-  const says = [text.driveFile('kuna-investments.json'), text.driveFileBeside('kuna-investments-prices.json'), text.driveCopyGoes, text.staysDrive]
+  const says = [text.driveFile('kuna-investments.json'), text.driveFileGoesBeside('kuna-investments-prices.json'), text.staysDrive, text.otherBrowser]
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     // A step before this one, with no Investments file on Drive, leaves needs without drive.appdata, and the silent token on open carries only those.
@@ -4267,13 +4278,23 @@ export function deleteDataDriveFlowIn(language) {
     const before = await investmentsDatabases(page)
     if (!before.some((name) => name.startsWith('kuna-prices-'))) throw new Error(`this browser keeps no prices of the sample, only ${before.join(', ')}`)
     await openDeleteDialog(page, press, says)
-    const copy = await checkboxState(page, 'delete-data-copy-investments')
-    if (!copy.checked || !copy.disabled) throw new Error('the copy does not go along with the Drive file')
+    await elementSays(page, '[role="dialog"]', [text.binRule], 'the dialog does not state the bin rule at its top')
+    if ((await page.$('[data-testid="delete-data-copy-investments"]')) !== null) throw new Error('the copy still has a row of its own while the Drive file is ticked')
     await inspect?.('the delete asking first for a file on Drive')
     await shoot('delete-data-drive')
     await pressSelector(page, press, '[data-testid="delete-data-backup-investments"]')
-    await toastMatching(page, exactly(text.backedUp))
-    await dismissToasts(page)
+    await page
+      .waitForFunction((wanted) => document.querySelector('[data-testid="delete-data-backup-investments"]')?.textContent?.includes(wanted) === true, { timeout: 5_000 }, text.exported)
+      .catch(() => {
+        throw new Error('the export button does not say it downloaded')
+      })
+    if (
+      !(await page.$eval(
+        '[data-testid="delete-data-backup-investments"]',
+        (button) => button.getAttribute('aria-label')?.includes('Ulaganja') || button.getAttribute('aria-label')?.includes('Investments'),
+      ))
+    )
+      throw new Error('the export button does not name its app')
     await pressSelector(page, press, '[data-testid="delete-data-cancel"]')
     await dialogGone(page, DELETE_DIALOG)
     if ((await page.$('[data-testid="investments-books-card"]')) === null) throw new Error('Cancel left the Investments Settings')
@@ -4304,9 +4325,9 @@ export async function deleteDataCopyFlow(page, { press, shoot, inspect }) {
   const grants = await googleGrants(page)
   await openDeleteDialog(page, press, [text.driveFile('kuna-investments.json')])
   await pressSelector(page, press, '[data-testid="delete-data-drive-investments"]')
-  await elementSays(page, DELETE_DIALOG, [text.driveCopyNote], 'unticking the Drive file does not say the file stays')
+  await elementSays(page, DELETE_DIALOG, [text.driveCopyGoes, text.staysOnDrive], 'unticking the Drive file does not say the file stays')
   const copy = await checkboxState(page, 'delete-data-copy-investments')
-  if (!copy.checked || copy.disabled) throw new Error('unticking the Drive file does not free the copy')
+  if (!copy.checked || copy.disabled) throw new Error('unticking the Drive file does not offer the copy')
   await delay(300)
   await inspect?.('the delete with only the copy ticked')
   await shoot('delete-data-copy')
@@ -4333,7 +4354,14 @@ export function deleteDataGivenFlowIn(language) {
     await page.waitForSelector('[data-testid="delete-data-failed"]', { visible: true, timeout: 10_000 }).catch(() => {
       throw new Error('a refused bin does not say so')
     })
-    await elementSays(page, DELETE_DIALOG, [text.stillHere, refusal], 'the delete does not say Drive refused and the copy stays')
+    await elementSays(
+      page,
+      DELETE_DIALOG,
+      [text.stillHere, refusal, text.lineGone.besideFile('kuna-investments-prices.json')],
+      'the delete does not say Drive refused, the copy stays and the prices file can be restored',
+    )
+    if ((await page.$eval(DELETE_DIALOG, (dialog) => dialog.textContent)).includes(text.tryAgain)) throw new Error('the delete offers a retry that cannot work for a file only its owner can bin')
+    await failureInView(page, 'delete-data-failed')
     await delay(300)
     await inspect?.('the delete refused for a file someone shared')
     await shoot('delete-data-given')
@@ -4364,7 +4392,10 @@ export async function deleteDataBrowserFlow(page, { press, shoot, inspect }) {
     await otherTab.goto(page.url().replace('#/investments/settings', '#/investments'), { waitUntil: 'networkidle0' })
     await otherTab.waitForSelector('[data-testid="investments-cards"]', { visible: true, timeout: 10_000 })
     await page.bringToFront()
-    await openDeleteDialog(page, press, [text.browserFile, text.browserFileNote, text.staysBrowser])
+    await openDeleteDialog(page, press, [text.browserFile, text.staysHere, text.staysBrowser])
+    if (!(await page.$eval('[data-testid="delete-data-confirm"]', (button) => button.disabled))) throw new Error('Delete can be pressed before a file kept in this browser is ticked')
+    await pressSelector(page, press, '[data-testid="delete-data-copy-investments"]')
+    await elementSays(page, DELETE_DIALOG, [text.forGood, text.browserFileGoes], 'ticking the file kept here does not say it goes for good')
     if ((await page.$('[data-testid="delete-data-drive-investments"]')) !== null) throw new Error('a file kept in this browser offers a Drive file')
     await inspect?.('the delete asking first for a file kept in this browser')
     await shoot('delete-data-browser')
@@ -4387,6 +4418,33 @@ export async function deleteDataBrowserFlow(page, { press, shoot, inspect }) {
 }
 
 /**
+ * All of Kuna with Investments a file someone shared (`?investments=given`) and the company unticked: Drive refuses the bin, what failed comes first and in
+ * view, and the company's rows stay unticked, so a retry would bin nothing the person kept.
+ */
+export function deleteKunaFailsFlowIn(language) {
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await pressSelector(page, press, '[data-testid="delete-kuna"]')
+    await page.waitForSelector('[data-testid="delete-data-drive-company"]', { visible: true, timeout: 5_000 })
+    await pressSelector(page, press, '[data-testid="delete-data-drive-company"]')
+    await pressSelector(page, press, '[data-testid="delete-data-copy-company"]')
+    await page.type('[data-testid="delete-kuna-name"]', 'Kuna')
+    await pressSelector(page, press, '[data-testid="delete-kuna-confirm"]')
+    await page.waitForSelector('[data-testid="delete-kuna-failed"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('a refused bin in all of Kuna does not say so')
+    })
+    await delay(300)
+    await failureInView(page, 'delete-kuna-failed')
+    if ((await checkboxState(page, 'delete-data-drive-company')).checked || (await checkboxState(page, 'delete-data-copy-company')).checked)
+      throw new Error('a failure ticked again what the person unticked')
+    await inspect?.('all of Kuna after a refused bin')
+    await shoot('delete-kuna-fails')
+    await pressSelector(page, press, '[data-testid="delete-kuna-cancel"]')
+    await dialogGone(page, '[data-testid="delete-kuna-dialog"]')
+  }
+}
+
+/**
  * Kuna settings with the company on the fake Drive and Investments in this browser: Delete all of Kuna lists both with what they share, the keys in
  * the Google account and the backups unticked, and Delete stays off until the name is typed. Once confirmed with the backups ticked, every app is on its first run, the home welcomes again, and only the file Kuna did not make is left in the backups folder.
  */
@@ -4406,8 +4464,9 @@ export function deleteKunaFlowIn(language) {
       if ((await page.$(`[data-testid="delete-data-${app}"]`)) === null) throw new Error(`the delete of all of Kuna does not list ${app}`)
     }
     if ((await checkboxState(page, 'delete-kuna-google-keys')).checked) throw new Error('the keys in the Google account start ticked, and they go for good')
-    if ((await checkboxState(page, 'delete-kuna-backups')).checked) throw new Error('the backups start ticked')
-    await elementSays(page, '[data-testid="delete-kuna-dialog"]', [twoBackups.few ?? twoBackups.other, storage.backupsNote], 'the backups row does not say how many there are and where they go')
+    if ((await checkboxState(page, 'delete-data-backups-company')).checked) throw new Error('the backups start ticked')
+    if ((await checkboxState(page, 'delete-data-copy-investments')).checked) throw new Error('a file kept only in this browser starts ticked')
+    await elementSays(page, '[data-testid="delete-kuna-dialog"]', [twoBackups.few ?? twoBackups.other, storage.backupsStay, text.googleKeysStay], 'the unticked rows do not say what stays')
     if (!(await page.$eval('[data-testid="delete-kuna-confirm"]', (button) => button.disabled))) throw new Error('Delete can be pressed before the name is typed')
     await inspect?.('the delete of all of Kuna asking first')
     await shoot('delete-kuna')
@@ -4419,7 +4478,9 @@ export function deleteKunaFlowIn(language) {
       .catch(() => {
         throw new Error('typing the name does not let Delete be pressed')
       })
-    await pressSelector(page, press, '[data-testid="delete-kuna-backups"]')
+    await pressSelector(page, press, '[data-testid="delete-data-backups-company"]')
+    await elementSays(page, '[data-testid="delete-kuna-dialog"]', [storage.backupsGo], 'ticking the backups does not say they go')
+    await pressSelector(page, press, '[data-testid="delete-data-copy-investments"]')
     await shoot('delete-kuna-typed')
     await pressSelector(page, press, '[data-testid="delete-kuna-confirm"]')
     await toastMatching(page, exactly(text.deleted))
@@ -4475,7 +4536,7 @@ export async function investmentsBinnedFlow(page, { press, shoot, inspect }) {
   if ((await page.$('[data-testid="investments-switch-storage"]')) === null) throw new Error('the Investments Settings offer no Switch storage beside the file in the bin')
   await inspect?.('the Investments Settings on a file in the bin')
   await shoot('investments-binned-settings')
-  await openDeleteDialog(page, press, [DELETE_WORDS.en.driveCopy, DELETE_WORDS.en.missingCopyNote])
+  await openDeleteDialog(page, press, [DELETE_WORDS.en.driveCopy, DELETE_WORDS.en.missingCopyGoes])
   if ((await page.$('[data-testid="delete-data-drive-investments"]')) !== null) throw new Error('the delete offers a Drive file already in the bin')
   await pressSelector(page, press, '[data-testid="delete-data-cancel"]')
   await dialogGone(page, DELETE_DIALOG)
