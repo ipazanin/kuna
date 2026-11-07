@@ -215,7 +215,7 @@ const TYPE_ROLES = [
   </GallerySection>
 
   <GallerySection id="shape" title="Radii and elevation">
-    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="grid gap-3 sm:grid-cols-2 @4xl:grid-cols-4">
       <div class="flex h-24 items-end rounded-card border border-default bg-raised p-3 type-caption"><span class="identifier">rounded-card</span>, cards and tiles</div>
       <div class="flex h-24 items-end rounded-control border border-default bg-raised p-3 type-caption"><span class="identifier">rounded-control</span>, controls and swatches</div>
       <div class="flex h-24 items-end rounded-card border border-default bg-raised p-3 shadow-raised type-caption"><span class="identifier">shadow-raised</span>, a card on the page</div>

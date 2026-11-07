@@ -74,7 +74,7 @@ function isMoney(value: ShownValue): value is { readonly cents: Money } {
 </script>
 
 <template>
-  <ul v-if="narrow" class="grid grid-cols-[minmax(0,1fr)] gap-2 md:grid-cols-2" :data-testid="testId">
+  <ul v-if="narrow" class="grid grid-cols-[minmax(0,1fr)] gap-2 @2xl:grid-cols-2" :data-testid="testId">
     <li v-for="row in rows" :key="row.key" class="flex min-w-0 flex-col rounded-control border border-default px-3 py-2.5" :data-status="row.status">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">

@@ -67,7 +67,7 @@ const shown = computed(() => (folds.value && !expanded.value ? props.items.slice
   column-gap: 2rem;
 }
 
-@media (min-width: 1280px) {
+@container (min-width: 56rem) {
   .watch-items {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

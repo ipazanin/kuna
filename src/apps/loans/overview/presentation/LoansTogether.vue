@@ -84,6 +84,6 @@ const bands = computed((): LegendEntry[] => props.loans.map((loan, place) => ({ 
         <ChartLegend :entries="[...bands, ...(outgoing.hasAhead ? [{ label: words.together.ahead, colour: 'var(--loan-ahead)', mark: 'line' as const }] : [])]" />
       </template>
     </ChartCard>
-    <UpcomingPaymentsCard :payments="upcoming" :loans="loans" class="xl:col-span-2 3xl:col-span-1" />
+    <UpcomingPaymentsCard :payments="upcoming" :loans="loans" class="@4xl:col-span-2 @8xl:col-span-1" />
   </DashboardGrid>
 </template>

@@ -65,7 +65,7 @@ const facts = computed((): Fact[] => {
 </script>
 
 <template>
-  <RouterLink :to="bankLoanLink(book.loan)" class="group block h-full rounded-card" :class="{ 'xl:col-span-2': hero }" data-testid="loan-card">
+  <RouterLink :to="bankLoanLink(book.loan)" class="group block h-full rounded-card" :class="{ '@4xl:col-span-2': hero }" data-testid="loan-card">
     <AppCard as="article" class="h-full gap-4 p-4 transition-colors group-hover:border-accented sm:p-5">
       <div class="flex items-start gap-3">
         <span class="grid size-8 shrink-0 place-items-center rounded-control bg-elevated text-primary" aria-hidden="true"><UIcon name="i-lucide-landmark" class="size-4" /></span>
@@ -93,7 +93,7 @@ const facts = computed((): Fact[] => {
             fill
             :width="160"
             :height="hero ? 96 : 44"
-            :class="hero ? 'sm:max-w-xl sm:flex-1' : 'sm:w-40'"
+            :class="hero ? 'min-w-0 sm:max-w-xl sm:flex-1' : 'min-w-0 sm:w-40 sm:shrink'"
           />
         </div>
         <div class="flex flex-col gap-2">

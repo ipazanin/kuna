@@ -4288,7 +4288,7 @@ function readPage(page) {
 
     /**
      * Each dashboard grid laid out as a grid, in page order, with how many of its parts sit in each
-     * of its rows. Below 3xl a pair is not a grid, its parts stacking in the screen's column.
+     * of its rows. Below @8xl a pair is not a grid, its parts stacking in the screen's column.
      */
     function dashboardGrids() {
       const grids = []

@@ -61,7 +61,7 @@ const NAMED = 2
   column-gap: 2.5rem;
 }
 
-@media (min-width: 1024px) {
+@container (min-width: 42rem) {
   .bridge-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-auto-flow: column;

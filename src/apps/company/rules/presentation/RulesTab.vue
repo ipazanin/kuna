@@ -245,7 +245,7 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
   overflow-wrap: anywhere;
 }
 
-@media (min-width: 1024px) {
+@container (min-width: 42rem) {
   .rule-row {
     grid-template-columns: auto minmax(0, 1fr) 15rem auto;
     align-items: start;

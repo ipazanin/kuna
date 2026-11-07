@@ -84,7 +84,7 @@ const deltaPresentation = computed(() => {
         </p>
         <p v-if="caption" class="mt-1.5 text-xs text-muted">{{ caption }}</p>
         <p v-if="delta && deltaPresentation" class="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
-          <span class="inline-flex items-center gap-0.5 font-medium" :class="deltaPresentation.tone">
+          <span class="inline-flex items-center gap-0.5 font-medium whitespace-nowrap" :class="deltaPresentation.tone">
             <UIcon :name="deltaPresentation.icon" class="size-3.5" aria-hidden="true" />
             <span class="figure">{{ delta.text }}</span>
             <span class="sr-only">, {{ deltaPresentation.verdict }}</span>
@@ -99,7 +99,7 @@ const deltaPresentation = computed(() => {
 </template>
 
 <style scoped>
-/* Four tiles share a row from lg, where a signed figure with cents can be wider than a tile on a small laptop. */
+/* Four tiles share a row once the screen has the room, where a signed figure with cents can still be wider than a tile. */
 .kpi-tile {
   container-type: inline-size;
 }

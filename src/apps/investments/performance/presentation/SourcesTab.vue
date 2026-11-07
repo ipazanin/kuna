@@ -23,6 +23,6 @@ const gains = computed(() => periodGains(props.sources, props.performance, props
   <DashboardGrid data-testid="performance-sources">
     <GainBridgeCard :gains="gains" />
     <DriversCard :gains="gains" />
-    <CurrencyEffectCard :gains="gains" class="xl:col-span-2 3xl:col-span-1" />
+    <CurrencyEffectCard :gains="gains" class="@4xl:col-span-2 @8xl:col-span-1" />
   </DashboardGrid>
 </template>

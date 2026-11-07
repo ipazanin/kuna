@@ -51,7 +51,7 @@ const groups = computed(() => ORDER.map((group) => ({ group, wording: GROUP_WORD
 </script>
 
 <template>
-  <div class="grid gap-x-8 gap-y-5 lg:grid-cols-2" data-testid="open-items">
+  <div class="grid gap-x-8 gap-y-5 @2xl:grid-cols-2" data-testid="open-items">
     <section v-for="entry in groups" :key="entry.group" :aria-label="entry.wording.title" class="flex min-w-0 flex-col gap-2">
       <div>
         <h3 class="text-sm font-medium text-highlighted">{{ entry.wording.title }}</h3>

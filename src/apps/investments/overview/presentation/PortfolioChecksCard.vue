@@ -61,7 +61,7 @@ const summary = computed(() => {
       <UButton :to="INVESTMENTS_CHECKS_ROUTE" :label="text.thresholds" icon="i-lucide-sliders-horizontal" color="neutral" variant="outline" size="sm" data-testid="checks-thresholds" />
     </template>
     <p v-if="lines.length === 0 && troubled.length === 0" class="px-4 pt-3 pb-4 type-body sm:px-5" data-testid="checks-none">{{ none }}</p>
-    <ul v-else class="grid gap-x-6 px-4 pt-1 pb-3 sm:px-5 lg:grid-cols-2" data-testid="checks-lines">
+    <ul v-else class="grid gap-x-6 px-4 pt-1 pb-3 sm:px-5 @2xl:grid-cols-2" data-testid="checks-lines">
       <li v-for="line in lines" :key="line.check" class="flex items-start gap-2.5 border-t border-default py-2.5" :data-check="line.check" :data-over="String(line.over)" data-testid="check-line">
         <UIcon :name="line.over ? 'i-lucide-triangle-alert' : 'i-lucide-circle-check'" class="mt-0.5 size-4 shrink-0" :class="line.over ? 'text-warning' : 'text-success'" aria-hidden="true" />
         <span class="flex min-w-0 flex-1 flex-col gap-0.5">

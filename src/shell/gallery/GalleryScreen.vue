@@ -368,7 +368,7 @@ const chatSpecimenTagged = chatTagAttrs('gallery.cash')
             <li v-for="row in ['September fee', 'October fee', 'Travel to the client']" :key="row" class="border-b border-default py-2 type-body last:border-b-0">{{ row }}</li>
           </ul>
         </AppCard>
-        <AppCard as="div" class="gap-2 p-5 xl:col-span-2 3xl:col-span-1">
+        <AppCard as="div" class="gap-2 p-5 @4xl:col-span-2 @8xl:col-span-1">
           <p class="type-card-title">The bare surface</p>
           <p class="type-body">Without a title a card has no header, as a tile has none.</p>
         </AppCard>
@@ -462,7 +462,7 @@ const chatSpecimenTagged = chatTagAttrs('gallery.cash')
     <GallerySection
       id="dashboard-grid"
       title="DashboardGrid"
-      description="How a dashboard rearranges with the width. Tiles go two to a row, then one row from lg, five or six three to a row and one row from 3xl. Cards go two to a row from xl and three from 3xl. A pair sets two parts side by side from 3xl. A row of up to four cards is under ScenarioComparison."
+      description="How a dashboard rearranges with the room it has, which the chat's dock takes from. Tiles go two to a row, then one row from @4xl, five or six three to a row from @3xl and one row from @8xl. Cards go two to a row from @4xl and three from @8xl. A pair sets two parts side by side from @8xl. A row of up to four cards is under ScenarioComparison."
     >
       <h3 class="type-label">Six tiles</h3>
       <DashboardGrid layout="tiles">
@@ -474,19 +474,19 @@ const chatSpecimenTagged = chatTagAttrs('gallery.cash')
       </DashboardGrid>
       <h3 class="type-label">A pair: a long card beside a column of cards</h3>
       <DashboardGrid layout="pair">
-        <AppCard title="A long list" subtitle="Beside the column from 3xl, above it below.">
+        <AppCard title="A long list" subtitle="Beside the column from @8xl, above it below.">
           <ul class="flex flex-col px-4 pt-2 pb-3 sm:px-5">
             <li v-for="index in 8" :key="index" class="border-b border-default py-2 type-body last:border-b-0">Row {{ index }}</li>
           </ul>
         </AppCard>
         <DashboardGrid>
-          <AppCard title="A wide card" subtitle="Across both columns from xl, one of the column from 3xl." class="xl:col-span-2 3xl:col-span-1">
-            <p class="px-4 pt-3 pb-4 type-body sm:px-5">It says so with xl:col-span-2 3xl:col-span-1.</p>
+          <AppCard title="A wide card" subtitle="Across both columns once two fit, one of the column once three do." class="@4xl:col-span-2 @8xl:col-span-1">
+            <p class="px-4 pt-3 pb-4 type-body sm:px-5">It says so with @4xl:col-span-2 @8xl:col-span-1.</p>
           </AppCard>
-          <AppCard title="A card" subtitle="Half the width from xl.">
+          <AppCard title="A card" subtitle="Half the width from @4xl.">
             <p class="px-4 pt-3 pb-4 type-body sm:px-5">Two to a row.</p>
           </AppCard>
-          <AppCard title="Another card" subtitle="Half the width from xl.">
+          <AppCard title="Another card" subtitle="Half the width from @4xl.">
             <p class="px-4 pt-3 pb-4 type-body sm:px-5">Two to a row.</p>
           </AppCard>
         </DashboardGrid>
@@ -504,7 +504,7 @@ const chatSpecimenTagged = chatTagAttrs('gallery.cash')
       </p>
       <DashboardGrid>
         <ChartCard
-          class="xl:col-span-2"
+          class="@4xl:col-span-2"
           title="Income and costs by month"
           description="Made-up income and costs by month for the gallery."
           subtitle="Income above zero, costs below it by bucket. October is still running."
@@ -741,7 +741,7 @@ const chatSpecimenTagged = chatTagAttrs('gallery.cash')
     <DialogSpecimens />
 
     <GallerySection id="step-card" title="StepCard" description="One step of a first run, with Back once there is a step before it. Its screen tells it where the run stands.">
-      <div class="grid gap-4 lg:grid-cols-2">
+      <div class="grid gap-4 @2xl:grid-cols-2">
         <StepSpecimen start="where" />
         <StepSpecimen start="folder" />
       </div>
@@ -850,7 +850,7 @@ const chatSpecimenTagged = chatTagAttrs('gallery.cash')
             <span class="identifier">{{ swatchColour || 'blank' }}</span>
           </div>
         </AppCard>
-        <AppCard title="ShowAllButton" subtitle="A long list shows its first ten entries." class="xl:col-span-2 3xl:col-span-1">
+        <AppCard title="ShowAllButton" subtitle="A long list shows its first ten entries." class="@4xl:col-span-2 @8xl:col-span-1">
           <ul class="flex flex-col px-4 pt-2 sm:px-5">
             <li v-for="payee in shownPayees" :key="payee.name" class="flex justify-between border-b border-default py-2 type-body last:border-b-0">
               {{ payee.name }}<MoneyText :cents="payee.cents" sign="magnitude" />
@@ -861,7 +861,7 @@ const chatSpecimenTagged = chatTagAttrs('gallery.cash')
         <AppCard
           title="HomeLink"
           subtitle="The Kuna mark and name, which open the home. The standard look opens every menu, the quiet one every first run. Its label is the link's name for a screen reader."
-          class="xl:col-span-2 3xl:col-span-1"
+          class="@4xl:col-span-2 @8xl:col-span-1"
         >
           <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
             <HomeLink label="Kuna, all apps" look="standard" class="max-w-60" />
@@ -908,7 +908,7 @@ const chatSpecimenTagged = chatTagAttrs('gallery.cash')
     </GallerySection>
 
     <GallerySection id="sync-status" title="Sync status" description="Every state of the sync control, in the sidebar and compact in the phone top bar.">
-      <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div class="grid gap-3 sm:grid-cols-2 @4xl:grid-cols-4">
         <AppCard v-for="(control, index) in SYNC_CONTROLS" :key="index" as="div" class="p-4"><SyncStatus :control="control" :run="SYNC_RUN" /></AppCard>
       </div>
       <h3 class="type-label">Compact, as in the phone top bar</h3>

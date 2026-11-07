@@ -36,7 +36,7 @@ const option = computed(() => props.payouts.find((entry) => entry.id === props.c
 
 <template>
   <AppCard :title="words.dividend.title" :subtitle="words.dividend.subtitle(year, decideBy)" collapse-id="year.dividend" :summary="summary" data-testid="dividend-capacity">
-    <div class="grid gap-x-8 gap-y-5 px-4 pt-3 pb-4 sm:px-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+    <div class="grid gap-x-8 gap-y-5 px-4 pt-3 pb-4 sm:px-5 @2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
       <div class="flex min-w-0 flex-col gap-4">
         <section :aria-label="words.dividend.canBePaidOut">
           <h3 class="mb-1 text-xs font-medium text-muted">{{ words.dividend.canBePaidOut }}</h3>
@@ -107,7 +107,7 @@ const option = computed(() => props.payouts.find((entry) => entry.id === props.c
   gap: 0.625rem 1rem;
 }
 
-@media (min-width: 1280px) {
+@container (min-width: 56rem) {
   .payout-cells {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { words } from '../app/words'
+import DashboardGrid from './DashboardGrid.vue'
 
 /** Stands in for a screen while its code or its books load: a heading, a row of tiles and its cards. */
 withDefaults(
@@ -18,12 +19,12 @@ withDefaults(
       <span class="skeleton h-8 w-48" />
       <span class="skeleton h-4 w-80 max-w-full" />
     </div>
-    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <DashboardGrid layout="tiles">
       <span v-for="tile in 4" :key="tile" class="skeleton h-28" />
-    </div>
-    <div class="grid gap-4 xl:grid-cols-2">
+    </DashboardGrid>
+    <DashboardGrid>
       <span v-for="card in cards" :key="card" class="skeleton h-72" />
-    </div>
+    </DashboardGrid>
   </div>
 </template>
 

@@ -209,7 +209,7 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
     </header>
 
     <main v-show="!inPane" class="app-main min-w-0 px-4 pt-6 pb-16 sm:px-6 lg:px-10 lg:pt-9">
-      <div class="mx-auto max-w-shell">
+      <div class="mx-auto max-w-shell sm:@container">
         <slot />
       </div>
     </main>

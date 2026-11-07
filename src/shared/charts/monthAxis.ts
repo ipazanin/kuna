@@ -17,6 +17,7 @@ export function monthAxisLabels(months: readonly MonthKey[], tokens: ChartTokens
   const step = yearStep(yearOfMonth(last) - yearOfMonth(first), phone)
   return {
     color: tokens.inkMuted,
+    hideOverlap: true,
     interval: (_index: number, month: string) => month.endsWith('-01') && Number(month.slice(0, 4)) % step === 0,
     formatter: (month: string) => month.slice(0, 4),
   }

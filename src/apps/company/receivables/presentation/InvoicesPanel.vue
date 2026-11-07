@@ -304,7 +304,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
             <DashboardGrid>
               <DrillChartCard
                 id="invoices-ageing"
-                class="xl:col-span-2 3xl:col-span-1"
+                class="@4xl:col-span-2 @8xl:col-span-1"
                 :chart="view.ageing"
                 :title="words.panel.ageingTitle"
                 :subtitle="words.panel.ageingSubtitle(view.asOf)"

@@ -107,7 +107,7 @@ const facts = computed((): Fact[] =>
         :option="rhythmChart.option"
         :description="rhythmChart.description"
         :phone-height="220"
-        class="xl:col-span-2 3xl:col-span-1"
+        class="@4xl:col-span-2 @8xl:col-span-1"
         data-testid="saving-months"
       />
       <AppCard :title="projectionText.title" :subtitle="projectionText.subtitle" data-testid="projection">

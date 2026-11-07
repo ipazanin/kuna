@@ -50,7 +50,7 @@ defineProps<{
 
 <template>
   <p v-if="grants.length === 0" class="text-sm text-muted">{{ words.grants.none }}</p>
-  <div v-else class="grid gap-x-8 gap-y-5 lg:grid-cols-2" data-testid="grant-panel">
+  <div v-else class="grid gap-x-8 gap-y-5 @2xl:grid-cols-2" data-testid="grant-panel">
     <section v-for="grant in grants" :key="grant.key" :aria-label="grant.name" class="flex min-w-0 flex-col gap-3">
       <div>
         <h3 class="text-sm font-medium text-highlighted">

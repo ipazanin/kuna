@@ -133,7 +133,7 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
     <component :is="packFacts.card" v-if="packFacts" :facts="factsDraft" :saved="facts" :errors="factErrors" @update="factsDraft = $event" />
 
     <AppCard :title="words.general.bucketLabels" :subtitle="words.general.bucketLabelsHelp" collapse-id="settings.bucket-labels" start-collapsed :summary="labelsSummary" :reveal="labelsRevealed">
-      <div class="grid gap-3 px-4 pt-4 pb-4 sm:grid-cols-2 sm:px-5 sm:pb-5 lg:grid-cols-3">
+      <div class="grid gap-3 px-4 pt-4 pb-4 sm:grid-cols-2 sm:px-5 sm:pb-5 @2xl:grid-cols-3">
         <UFormField v-for="bucket in BUCKETS" :key="bucket" :error="errors[bucket] ?? false">
           <template #label>
             <span class="inline-flex items-center gap-1.5">

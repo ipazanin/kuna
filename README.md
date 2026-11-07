@@ -405,16 +405,18 @@ of a short page lets it.
 ## Wide screens
 
 A dashboard screen's tiles and cards rearrange as the content area grows, by one rule in
-`DashboardGrid` in `src/shared/ui/`. Tiles go two to a row, an odd last one across both, then all
-in one row from 1024 px (`lg`), or three to a row when there are five or six, which join one row
-from 1920 px. Cards go two to a row from 1280 px (`xl`), as on Overview and the Loans Overview, and
-three from 1920 px when there are three or more, and a card that should run across both says so
-itself. From 1920 px (the `3xl` breakpoint) a pair sets related cards side by side, or a long list
+`DashboardGrid` in `src/shared/ui/`. The grids follow the shell's content area, a container from
+640 px, and not the window, so a page beside the chat's dock takes what its width allows. Tiles go
+two to a row, an odd last one across both, then all in one row from 896 px of content (`@4xl`, a
+1216 px window beside the sidebar). Three tiles take one row from 672 px of content (`@2xl`), and
+five or six go three to a row from 768 px of content (`@3xl`) and join one row from 1344 px of content (`@8xl`). Cards go two to a row from
+`@4xl`, as on Overview and the Loans Overview, and three from `@8xl` when there are three or more,
+and a card that should run across both says so itself. From `@8xl` a pair sets related cards side by side, or a long list
 beside a column of the cards that sum it up: the Invoices and Plan tabs of Invoicing, the Compare
 tab of Analysis, the Who owes whom tab of Owner, and the bank loan and informal loan screens. The content grows to 160rem beside the sidebar. A screen that is one table,
 one list, one form or a long report keeps a 100rem measure instead, so its rows stay readable:
 Transactions, Year and every Settings. The other screens simply widen. The widths are the
-`--container-shell`, `--container-measure` and `--breakpoint-3xl` tokens in `tokens.css`.
+`--container-shell`, `--container-measure` and `--container-8xl` tokens in `tokens.css`.
 `check:visual` fails a `DashboardGrid` that keeps the same number of cards in each row from 768 to
 1440 px, or from 1440 to 1920 px, while they still take more than one row. It also fails cards set
 side by side by a grid that is not a `DashboardGrid`, outside the gallery.

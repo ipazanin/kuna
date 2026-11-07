@@ -77,8 +77,12 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 
 ## Layout and width
 
-- `DashboardGrid` has three layouts. `tiles`: two to a row, one row from `lg`, and five or six tiles take three to a row from `lg` and one row from `3xl`. `cards`: one column, two from `xl`, and three from `3xl` when there are three or more. `pair`: side by side from `3xl`.
-- A card that runs across both columns below `3xl` says so itself, such as `xl:col-span-2 3xl:col-span-1`.
+- A page's grids follow the room the shell gives the screen, never the window, because the chat's dock narrows a page without narrowing the window. From 640 px the shell's content area is a container, so `@2xl:` and the like read how wide the screen really is. A window breakpoint on a page's grid fails lint, and `sm:` stays allowed: it is the phone step and every layout above it has the room.
+- `DashboardGrid` has three layouts. `tiles`: two to a row, one row from `@4xl`, three tiles one row from `@2xl`, and five or six tiles take three to a row from `@3xl` and one row from `@8xl`. `cards`: one column, two from `@4xl`, and three from `@8xl` when there are three or more. `pair`: side by side from `@8xl`.
+- A card that runs across both columns below `@8xl` says so itself, such as `@4xl:col-span-2 @8xl:col-span-1`.
+- Two columns inside a full-width card start at `@2xl`, such as `@2xl:grid-cols-2`. A style block asks the same way, with `@container (min-width: 42rem)`.
+- Without the chat, `@2xl` is reached in a 768 px window and from 1024 px beside the sidebar, `@4xl` from 1216 px and `@8xl` from 1664 px. With the chat docked, `@4xl` needs a 1416 px window and `@8xl` a 1864 px one. The steps come from what fits: a tile of about 215 px and a card of about 440 px. A rule that needs another step asks what the grid's parts need, not what a window is called.
+- A part outside the content area has no such container and keeps window breakpoints: the shell's own frame, and a dialog or drawer's body, which the app draws outside the page. So does what depends on the top bar and the sidebar, such as the sticky bands' `top`.
 - Cards rearrange as the width grows. The visual check fails a dashboard whose cards keep one arrangement at 768, 1440 and 1920 px, and cards side by side in a grid that is not a `DashboardGrid`, outside the gallery.
 
 ## Navigation

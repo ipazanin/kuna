@@ -88,7 +88,7 @@ const importing = ref(false)
         <OverviewTiles :sources="sources" :figures="figures" />
         <PortfolioChecksCard :sources="sources" :figures="figures" :facts="facts" />
         <DashboardGrid data-testid="investments-cards">
-          <ValueOverTimeCard :sources="sources" class="xl:col-span-2" />
+          <ValueOverTimeCard :sources="sources" class="@4xl:col-span-2" />
           <WhereTheMoneyIsCard :figures="figures" :book="sources.book" />
           <GainSourcesCard :figures="figures" />
           <MoversCard :figures="figures" />

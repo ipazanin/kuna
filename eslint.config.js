@@ -68,6 +68,15 @@ const restrictedClasses = [
   },
 ]
 
+// A page's grid answers to the room the shell's content area has, which the chat's dock takes from, and not to the window.
+// `sm:` stays allowed: it is the phone step, the fields of FormGrid follow it, and every layout from it up has the room.
+const windowGridClasses = {
+  pattern: String.raw`^(?:\S*:)?(?:md|lg|xl|2xl):(?:\S*:)?(?:grid-cols|col-span|grid-flow|auto-cols)-.*$`,
+  message: '"$0": a page\'s grid follows its container, such as @4xl:grid-cols-2, because the chat\'s dock narrows a page without narrowing the window.',
+}
+/** The shell's own frame and a dialog's body sit outside the content area, so the window is their room. */
+const windowGridFiles = ['src/shell/ui/AppShell.vue', 'src/apps/loans/scenarios/presentation/ScenarioEditor.vue']
+
 // Tailwind only knows the classes of its entry point, so a class a stylesheet declares is known where that stylesheet
 // applies: app.css and a :deep() or :slotted() selector everywhere, the rest of a scoped style block in its own
 // component. The browser checks find charts by chart-body, which no stylesheet declares.
@@ -236,10 +245,11 @@ export function kunaConfig(exempt) {
         'better-tailwindcss/no-unknown-classes': unknownClasses(classesEverywhere),
         'better-tailwindcss/no-conflicting-classes': 'error',
         'better-tailwindcss/no-duplicate-classes': 'error',
-        'better-tailwindcss/no-restricted-classes': ['error', { restrict: restrictedClasses }],
+        'better-tailwindcss/no-restricted-classes': ['error', { restrict: [...restrictedClasses, windowGridClasses] }],
         'no-restricted-syntax': ['error', ...scriptColourStrings],
       },
     },
+    { name: 'kuna/window-grids', files: windowGridFiles, rules: { 'better-tailwindcss/no-restricted-classes': ['error', { restrict: restrictedClasses }] } },
     ...scopedClassConfigs,
     { name: 'kuna/plugin', plugins: { kuna: kunaPlugin } },
     { name: 'kuna/domain-classes', ...domainCode, rules: { 'kuna/domain-classes': 'error' } },
