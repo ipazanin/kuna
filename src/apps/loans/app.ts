@@ -41,8 +41,8 @@ export const loansApp: AppContribution = {
   screens: [
     OVERVIEW,
     SCENARIOS,
-    { path: BANK_LOAN_ROUTE, title: bankLoanWords.bankLoan, icon: 'i-lucide-landmark', component: () => import('./bankLoans/presentation/BankLoanScreen.vue') },
-    { path: INFORMAL_LOAN_ROUTE, title: informalLoanWords.informalLoan, icon: 'i-lucide-handshake', component: () => import('./informalLoans/presentation/InformalLoanScreen.vue') },
+    { path: BANK_LOAN_ROUTE, needsRecord: true, title: bankLoanWords.bankLoan, icon: 'i-lucide-landmark', component: () => import('./bankLoans/presentation/BankLoanScreen.vue') },
+    { path: INFORMAL_LOAN_ROUTE, needsRecord: true, title: informalLoanWords.informalLoan, icon: 'i-lucide-handshake', component: () => import('./informalLoans/presentation/InformalLoanScreen.vue') },
     SETTINGS,
     { path: LOANS_START_ROUTE, title: words.start, icon: 'i-lucide-door-open', component: () => import('./onboarding/presentation/StartScreen.vue'), bare: true },
   ],
@@ -52,6 +52,7 @@ export const loansApp: AppContribution = {
   subtitle: () => null,
   // Until Loans has settings of its own, it shows euros in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
+  assistant: async () => (await import('./assistant/loansAssistant')).LOANS_ASSISTANT,
   homeCard: LOANS_HOME_CARD,
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => loansHubFigures(book, today())) },
   setUpLines: () => (state.workbook === null ? [] : loansSetUp(state.workbook)),

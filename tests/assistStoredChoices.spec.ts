@@ -79,7 +79,7 @@ describe('the lines of the apps in Kuna settings', () => {
   })
 
   it.each(['loans', 'assets', 'investments'])('%s names no assistant in its registration, so it gets no tab and no line', (id) => {
-    expect(readFileSync(join(import.meta.dirname, `../src/apps/${id}/app.ts`), 'utf8')).not.toMatch(/assist/i)
+    expect(readFileSync(join(import.meta.dirname, `../src/apps/${id}/app.ts`), 'utf8')).not.toMatch(/^\s*assist:/m)
   })
 })
 

@@ -25,6 +25,8 @@
  *
  * With saves that take seconds (`?fake=slow-writes`) the loan bucket switch on Settings and the benchmark select on Investments, Settings move at once, grayed with a
  * spinner, in Croatian too, and what is typed in the Settings form survives the switch's save.
+ * With a key kept, every app shows with the chat open (`?chat=1`), docked from 1224 px and in the page's place below. A flow asks in
+ * English and Croatian, answers the dialog, follows the link the fake model shows, and a second one tags an element from the gallery.
  *
  * Kuna settings shows the assistant's card with no key, with a made-up Anthropic key kept, with a key refused and after a
  * switch of company, in Croatian too, and Company and Spending show their Assistant tabs. On the To review tab Suggest categories asks to switch Company on, says what it did, shows the suggestion on
@@ -425,6 +427,8 @@ import {
   savesWaitingFlow,
   syncRunningFlow,
   syncStatesFlowIn,
+  chatPanelFlowIn,
+  chatTagFlow,
 } from './support/editorFlows.mjs'
 import { writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
 import { screenMenusFlow } from './support/menuFlows.mjs'
@@ -1410,6 +1414,23 @@ const SCREENS = [
     ],
     cards: false,
   },
+  ...[
+    { name: 'chat-panel-home', hash: '#/?chat=1', title: 'All apps', label: 'In Kuna' },
+    { name: 'chat-panel-spending', query: 'spending=sample', hash: '#/spending/transactions?chat=1', title: 'Entries', label: 'In Spending' },
+    { name: 'chat-panel-spending-croatian', query: 'spending=sample&lang=hr', hash: '#/spending/transactions?chat=1', title: 'Unosi', label: 'U aplikaciji Potrošnja' },
+    { name: 'chat-panel-company', hash: '#/company?chat=1', title: 'Overview', label: 'In Company' },
+    { name: 'chat-panel-company-transactions', hash: '#/company/transactions?chat=1', title: 'Transactions', label: 'In Company' },
+    { name: 'chat-panel-loans', query: 'loans=sample', hash: '#/loans?chat=1', title: 'Overview', label: 'In Loans' },
+    { name: 'chat-panel-investments', query: 'investments=sample', hash: '#/investments?chat=1', title: 'Overview', label: 'In Investments' },
+    { name: 'chat-panel-assets', query: 'assets=sample&loans=sample', hash: '#/assets?chat=1', title: 'Overview', label: 'In Assets' },
+  ].map(({ label, ...visit }) => ({
+    charts: 0,
+    ready: '[data-testid="chat-panel"]',
+    stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
+    shows: [label],
+    chatOpen: true,
+    ...visit,
+  })),
   {
     name: 'kuna-settings-assist',
     hash: '#/settings',
@@ -4465,6 +4486,15 @@ const MENU_VIEWPORTS = ['phone', 'small-tablet', 'tablet-wide', 'desktop']
 
 /** The editors' flows, each on a fresh load, so the fake file on Drive and the workbook kept in this browser start from their seed. */
 const FLOWS = [
+  { name: 'chat-panel', hash: '#/spending', title: 'Overview', run: chatPanelFlowIn('en'), queries: { drive: '&spending=sample', browser: '&fake=browser&spending=sample' } },
+  {
+    name: 'chat-panel-flow-croatian',
+    hash: '#/spending',
+    title: 'Pregled',
+    run: chatPanelFlowIn('hr'),
+    queries: { drive: '&spending=sample&lang=hr', browser: '&fake=browser&spending=sample&lang=hr' },
+  },
+  { name: 'chat-tag', hash: '#/gallery', title: 'Gallery', run: chatTagFlow },
   { name: 'page-tabs', hash: '#/company/settings', title: 'Settings', run: pageTabsFlow },
   { name: 'year-tab-link', hash: '#/company/year?tab=statements', title: 'Year', run: yearTabLinkFlow },
   { name: 'page-tabs-croatian', hash: '#/company/settings', title: 'Postavke', run: pageTabsFlowIn('hr'), queries: { drive: '&lang=hr', browser: '&fake=browser&lang=hr' } },
@@ -5071,9 +5101,23 @@ const FLOWS = [
   },
   { name: 'spending-review-editor', hash: '#/spending/transactions?tab=review', title: 'Entries', run: spendingReviewFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=statements' } },
   { name: 'spending-rule-editor', hash: '#/spending/transactions?tab=review', title: 'Entries', run: spendingRuleFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=statements' } },
-  { name: 'spending-credit-transfer-editor', hash: '#/spending/transactions', title: 'Entries', run: spendingCreditToTransferFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=sample' } },
+  {
+    name: 'spending-credit-transfer-editor',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    run: spendingCreditToTransferFlowIn('en'),
+    modes: ['drive'],
+    queries: { drive: '&spending=sample', browser: '&fake=browser&spending=sample' },
+  },
   { name: 'spending-delete-note', hash: '#/spending/transactions', title: 'Entries', run: spendingDeleteNoteFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=statements' } },
-  { name: 'spending-entry-editor', hash: '#/spending/transactions', title: 'Entries', run: spendingEntryFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=sample' } },
+  {
+    name: 'spending-entry-editor',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    run: spendingEntryFlowIn('en'),
+    modes: ['drive'],
+    queries: { drive: '&spending=sample', browser: '&fake=browser&spending=sample' },
+  },
   { name: 'spending-first-account', hash: '#/spending', title: 'Overview', run: spendingFirstAccountFlow, viewports: EVERY_VIEWPORT, modes: ['drive'], queries: { drive: '&spending=drive' } },
   {
     name: 'investments-add-held',
@@ -5084,9 +5128,30 @@ const FLOWS = [
     modes: ['drive'],
     queries: { drive: '&investments=partial-history' },
   },
-  { name: 'spending-transfer-editor', hash: '#/spending/accounts', title: 'Accounts', run: spendingTransferFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=sample' } },
-  { name: 'spending-category-editor', hash: '#/spending/settings', title: 'Settings', run: spendingCategoryFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=sample' } },
-  { name: 'spending-limit-editor', hash: '#/spending/budgets', title: 'Limits', run: spendingLimitFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=sample' } },
+  {
+    name: 'spending-transfer-editor',
+    hash: '#/spending/accounts',
+    title: 'Accounts',
+    run: spendingTransferFlowIn('en'),
+    modes: ['drive'],
+    queries: { drive: '&spending=sample', browser: '&fake=browser&spending=sample' },
+  },
+  {
+    name: 'spending-category-editor',
+    hash: '#/spending/settings',
+    title: 'Settings',
+    run: spendingCategoryFlowIn('en'),
+    modes: ['drive'],
+    queries: { drive: '&spending=sample', browser: '&fake=browser&spending=sample' },
+  },
+  {
+    name: 'spending-limit-editor',
+    hash: '#/spending/budgets',
+    title: 'Limits',
+    run: spendingLimitFlowIn('en'),
+    modes: ['drive'],
+    queries: { drive: '&spending=sample', browser: '&fake=browser&spending=sample' },
+  },
   {
     name: 'spending-entry-croatian',
     hash: '#/spending/transactions',
@@ -5265,10 +5330,38 @@ const FLOWS = [
     queries: { drive: '&spending=sample&lang=hr' },
   },
   { name: 'spending-delete-note-croatian', hash: '#/spending/transactions', title: 'Unosi', run: spendingDeleteNoteFlowIn('hr'), modes: ['drive'], queries: { drive: '&spending=statements&lang=hr' } },
-  { name: 'spending-entry-editor-croatian', hash: '#/spending/transactions', title: 'Unosi', run: spendingEntryFlowIn('hr'), modes: ['drive'], queries: { drive: '&spending=sample&lang=hr' } },
-  { name: 'spending-transfer-editor-croatian', hash: '#/spending/accounts', title: 'Računi', run: spendingTransferFlowIn('hr'), modes: ['drive'], queries: { drive: '&spending=sample&lang=hr' } },
-  { name: 'spending-category-editor-croatian', hash: '#/spending/settings', title: 'Postavke', run: spendingCategoryFlowIn('hr'), modes: ['drive'], queries: { drive: '&spending=sample&lang=hr' } },
-  { name: 'spending-limit-editor-croatian', hash: '#/spending/budgets', title: 'Ograničenja', run: spendingLimitFlowIn('hr'), modes: ['drive'], queries: { drive: '&spending=sample&lang=hr' } },
+  {
+    name: 'spending-entry-editor-croatian',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    run: spendingEntryFlowIn('hr'),
+    modes: ['drive'],
+    queries: { drive: '&spending=sample&lang=hr', browser: '&fake=browser&spending=sample&lang=hr' },
+  },
+  {
+    name: 'spending-transfer-editor-croatian',
+    hash: '#/spending/accounts',
+    title: 'Računi',
+    run: spendingTransferFlowIn('hr'),
+    modes: ['drive'],
+    queries: { drive: '&spending=sample&lang=hr', browser: '&fake=browser&spending=sample&lang=hr' },
+  },
+  {
+    name: 'spending-category-editor-croatian',
+    hash: '#/spending/settings',
+    title: 'Postavke',
+    run: spendingCategoryFlowIn('hr'),
+    modes: ['drive'],
+    queries: { drive: '&spending=sample&lang=hr', browser: '&fake=browser&spending=sample&lang=hr' },
+  },
+  {
+    name: 'spending-limit-editor-croatian',
+    hash: '#/spending/budgets',
+    title: 'Ograničenja',
+    run: spendingLimitFlowIn('hr'),
+    modes: ['drive'],
+    queries: { drive: '&spending=sample&lang=hr', browser: '&fake=browser&spending=sample&lang=hr' },
+  },
   {
     name: 'spending-start-on-drive',
     hash: '#/spending/start?step=folder',
@@ -5800,7 +5893,8 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
       if (!report.text.includes(text)) fail(scope, `"${text}" is missing, so the fake workbook did not reach the screen`)
     }
     const expectedCharts = visit.gallery ? GALLERY_CHARTS : visit.charts
-    if (report.chartHeights.length !== expectedCharts) fail(scope, `drew ${report.chartHeights.length} charts, expected ${expectedCharts}`)
+    // With the chat open, the charts are the screen's own and those under a pane do not draw, and its cards are the screen's visit's to check.
+    if (!visit.chatOpen && report.chartHeights.length !== expectedCharts) fail(scope, `drew ${report.chartHeights.length} charts, expected ${expectedCharts}`)
     const collapsed = report.chartHeights.filter((height) => height < 100)
     if (collapsed.length) fail(scope, `${collapsed.length} chart(s) drew under 100px tall: ${collapsed.join(', ')}`)
     if (visit.gallery && report.iconCount < 10) fail(scope, `only ${report.iconCount} icons rendered as SVG`)
@@ -5834,7 +5928,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     }
 
     // A linked rule opens its side panel over the screen, so the plain visit of that tab collapses its card instead.
-    if (viewport.cardFlow && rendered && !visit.linkedRule) {
+    if (viewport.cardFlow && rendered && !visit.linkedRule && !visit.chatOpen) {
       const collapsible = (await page.$('[data-card]')) !== null
       if (visit.cards === false) {
         if (collapsible) fail(scope, 'has a collapsible card, so it should not say cards: false')

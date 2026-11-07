@@ -18,18 +18,27 @@ withDefaults(
     count?: number | undefined
     /** False on an app's row, whose link repeats the first page in the app's list, which is the one marked. */
     marksCurrent?: boolean
+    /** On the icon sidebar: the icon alone, with the name for a screen reader and as its tooltip. */
+    rail?: boolean
   }>(),
-  { marksCurrent: true },
+  { marksCurrent: true, rail: false },
 )
 </script>
 
 <template>
-  <RouterLink :to="to" class="nav-link" :active-class="marksCurrent ? 'is-active' : 'router-link-active'" :aria-current-value="marksCurrent ? 'page' : 'false'">
+  <RouterLink
+    :to="to"
+    class="nav-link"
+    :class="{ 'in-rail': rail }"
+    :title="rail ? label : undefined"
+    :active-class="marksCurrent ? 'is-active' : 'router-link-active'"
+    :aria-current-value="marksCurrent ? 'page' : 'false'"
+  >
     <AppMark v-if="colour !== undefined" :icon="icon" :colour="colour" />
     <span v-else class="grid size-6 shrink-0 place-items-center">
       <UIcon :name="icon" class="size-4" aria-hidden="true" />
     </span>
-    <span class="min-w-0 truncate" data-testid="nav-label">{{ label }}</span>
+    <span :class="rail ? 'sr-only' : 'min-w-0 truncate'" data-testid="nav-label">{{ label }}</span>
     <template v-if="count">
       <span class="nav-count figure" aria-hidden="true" data-testid="nav-count">{{ count }}</span>
       <span class="sr-only">{{ plural(words.navigation.waiting(count), count) }}</span>

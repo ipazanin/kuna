@@ -61,7 +61,7 @@ export const spendingApp: AppContribution = {
     TRANSACTIONS,
     BUDGETS,
     ACCOUNTS,
-    { path: SPENDING_ACCOUNT_ROUTE, title: screenWords.account, icon: 'i-lucide-landmark', component: () => import('./accounts/presentation/AccountScreen.vue') },
+    { path: SPENDING_ACCOUNT_ROUTE, needsRecord: true, title: screenWords.account, icon: 'i-lucide-landmark', component: () => import('./accounts/presentation/AccountScreen.vue') },
     SETTINGS,
     { path: SPENDING_START_ROUTE, title: words.start, icon: 'i-lucide-door-open', component: () => import('./onboarding/presentation/StartScreen.vue'), bare: true },
   ],
@@ -74,6 +74,7 @@ export const spendingApp: AppContribution = {
   subtitle: () => null,
   // Every figure on the Spending screens and on Net worth is in euros, so it shows them in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
+  assistant: async () => (await import('./assistant/spendingAssistant')).SPENDING_ASSISTANT,
   homeCard: SPENDING_HOME_CARD,
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => spendingHubFigures(book, rates.value, today())) },
   assist: SPENDING_ASSIST,

@@ -67,7 +67,7 @@ export const investmentsApp: AppContribution = {
     TRANSACTIONS,
     PERFORMANCE,
     TAX,
-    { path: HOLDING_ROUTE, title: holdingsWords.holding, icon: 'i-lucide-chart-line', component: () => import('./holdings/presentation/HoldingScreen.vue') },
+    { path: HOLDING_ROUTE, needsRecord: true, title: holdingsWords.holding, icon: 'i-lucide-chart-line', component: () => import('./holdings/presentation/HoldingScreen.vue') },
     SETTINGS,
     { path: INVESTMENTS_START_ROUTE, title: words.start, icon: 'i-lucide-door-open', component: () => import('./onboarding/presentation/StartScreen.vue'), bare: true },
   ],
@@ -77,6 +77,7 @@ export const investmentsApp: AppContribution = {
   subtitle: () => null,
   // Every figure leaves the app in euros, so it shows them in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
+  assistant: async () => (await import('./assistant/investmentsAssistant')).INVESTMENTS_ASSISTANT,
   homeCard: INVESTMENTS_HOME_CARD,
   hub: { counts: true, figures: () => shownPortfolio(({ figures }) => investmentsHubFigures(figures)) },
   setUpLines: () => (state.workbook === null ? [] : investmentsSetUp(state.workbook.book, figures.value, taxShown.value)),

@@ -40,7 +40,7 @@ export const assetsApp: AppContribution = {
   },
   screens: [
     OVERVIEW,
-    { path: ASSET_ROUTE, title: assetWords.asset, icon: 'i-lucide-house', component: () => import('./asset/presentation/AssetScreen.vue') },
+    { path: ASSET_ROUTE, needsRecord: true, title: assetWords.asset, icon: 'i-lucide-house', component: () => import('./asset/presentation/AssetScreen.vue') },
     SETTINGS,
     { path: ASSETS_START_ROUTE, title: words.start, icon: 'i-lucide-door-open', component: () => import('./onboarding/presentation/StartScreen.vue'), bare: true },
   ],
@@ -50,6 +50,7 @@ export const assetsApp: AppContribution = {
   subtitle: () => null,
   // Every figure is in euros, so it shows them in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
+  assistant: async () => (await import('./assistant/assetsAssistant')).ASSETS_ASSISTANT,
   homeCard: ASSETS_HOME_CARD,
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => assetsHubFigures(book, today(), index.value, assetLoans(today()))) },
   setUpLines: () => (state.workbook === null ? [] : assetsSetUp(state.workbook)),

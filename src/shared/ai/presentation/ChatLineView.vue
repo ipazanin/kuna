@@ -1,0 +1,50 @@
+<script setup lang="ts">
+import type { DeepReadonly } from 'vue'
+import UButton from '@nuxt/ui/components/Button.vue'
+import UChatShimmer from '@nuxt/ui/components/ChatShimmer.vue'
+import UIcon from '@nuxt/ui/components/Icon.vue'
+
+import { KUNA_ISSUES_ADDRESS } from '../application/catalogue'
+import ChatMessageText from './ChatMessageText.vue'
+import type { ChatLine } from './chatSession'
+import { words } from './words'
+
+/** One line of a chat: a message, what is coming back for it, the links under it, or why nothing came. */
+defineProps<{
+  line: DeepReadonly<ChatLine>
+  /** True while a message is under way, which an empty line then waits for. */
+  streaming: boolean
+}>()
+
+const emit = defineEmits<{ retry: [message: string] }>()
+</script>
+
+<template>
+  <p v-if="line.note" class="type-caption" data-testid="chat-note">{{ line.text }}</p>
+  <UChatShimmer v-else-if="line.text === '' && line.failure === null && streaming" :text="words.chat.thinking" class="type-body" data-testid="chat-thinking" />
+  <ChatMessageText v-else-if="line.text !== ''" :text="line.text" :data-testid="line.role === 'user' ? 'chat-question' : 'chat-answer'" />
+  <div v-if="line.chips.length > 0" class="mt-2 flex flex-wrap gap-1.5">
+    <template v-for="(chip, at) in line.chips" :key="at">
+      <UButton v-if="chip.kind === 'screen'" :to="chip.to" :label="chip.label" trailing-icon="i-lucide-arrow-right" color="neutral" variant="outline" size="sm" data-testid="chat-chip" />
+      <UButton
+        v-else
+        :to="KUNA_ISSUES_ADDRESS"
+        target="_blank"
+        rel="noopener"
+        :label="words.chat.report"
+        trailing-icon="i-lucide-external-link"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        data-testid="chat-issues"
+      />
+    </template>
+  </div>
+  <div v-if="line.failure" class="flex flex-col items-start gap-1.5">
+    <p class="flex items-start gap-1.5 type-body text-error" data-testid="chat-failure">
+      <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+      <span class="min-w-0 wrap-anywhere">{{ line.failure }}</span>
+    </p>
+    <UButton v-if="line.retry" :label="words.answer.tryAgain" color="neutral" variant="outline" size="sm" :disabled="streaming" data-testid="chat-retry" @click="emit('retry', line.retry)" />
+  </div>
+</template>

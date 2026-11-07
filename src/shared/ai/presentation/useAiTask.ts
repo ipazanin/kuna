@@ -18,7 +18,7 @@ import type { Money } from '../../money/money'
 const secretsChanged = useSecretsChanged()
 
 /** How long one run may take, its rounds together, which also ends a stream that stalls. */
-const MOST_RUN_MILLISECONDS = 5 * 60_000
+export const MOST_RUN_MILLISECONDS = 5 * 60_000
 
 /** The provider this device runs: the one picked, or else the first that has a key kept here. Reactive. */
 export function providerInUse(): ProviderPreset | null {
@@ -139,7 +139,8 @@ export function usageLine(result: DeepReadonly<TaskResult<unknown>>): string | n
   return words.usage.line(usage.model, counts.join(', '), costWords(usage.dollars))
 }
 
-function costWords(dollars: number | null): string {
+/** What a run or a chat spent, as "about $0.02" or "price unknown". */
+export function costWords(dollars: number | null): string {
   if (dollars === null) {
     return words.usage.priceUnknown
   }

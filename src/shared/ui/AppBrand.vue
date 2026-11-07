@@ -7,15 +7,15 @@ withDefaults(
     title: string
     icon?: string | undefined
     colour?: `--${string}` | undefined
-    /** `quiet` is a smaller mark and a muted name, for a link that should not outrank the heading under it. */
-    look?: 'standard' | 'quiet'
+    /** `quiet` is a smaller mark and a muted name, for a link that should not outrank the heading under it. `rail` is the mark alone, with the name kept for a screen reader. */
+    look?: 'standard' | 'quiet' | 'rail'
   }>(),
   { look: 'standard' },
 )
 
-const GAP = { standard: 'gap-2.5', quiet: 'gap-2' }
-const MARK = { standard: 'size-6', quiet: 'size-5' }
-const NAME = { standard: 'type-wordmark', quiet: 'type-label' }
+const GAP = { standard: 'gap-2.5', quiet: 'gap-2', rail: '' }
+const MARK = { standard: 'size-6', quiet: 'size-5', rail: 'size-6' }
+const NAME = { standard: 'type-wordmark', quiet: 'type-label', rail: 'sr-only' }
 </script>
 
 <template>

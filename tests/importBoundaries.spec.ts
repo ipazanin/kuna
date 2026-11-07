@@ -357,6 +357,42 @@ describe('import boundaries', () => {
     expect(linesHolding(/web_search|web_fetch|:online\b/, (file) => file === 'src/shared/ai/infrastructure/providerPresets.ts')).toEqual([])
   })
 
+  describe('what a chat can reach', () => {
+    const CHAT_CODE = (file: string): boolean =>
+      ['src/shared/ai/application/catalogue.ts', 'src/shared/ai/application/chatTools.ts', 'src/shared/ai/application/runChatTurn.ts', 'src/shared/ai/domain/chatText.ts'].includes(file) ||
+      /^src\/apps\/.*\/assistant\/[^/]+\.ts$/.test(file)
+
+    it('covers the catalogue, the tools and every app with a page', () => {
+      expect(SOURCE_FILES.filter((file) => /\/assistant\//.test(file) && /\.ts$/.test(file) && !/words\.ts$/.test(file)).length).toBeGreaterThanOrEqual(6)
+    })
+
+    it('loads no secrets, no Google, no store and no books through anything it imports', () => {
+      const loaded = new Set(SOURCE_FILES.filter(CHAT_CODE))
+      for (const file of loaded) {
+        for (const entry of IMPORTS) {
+          if (entry.from === file && entry.target !== null && !entry.dynamic && !entry.typeOnly) loaded.add(entry.target)
+        }
+      }
+      const outOfReach = /^src\/shared\/(secrets|google|sync)\/|^src\/shared\/storage\/(application|infrastructure|presentation)\/|^src\/apps\/.*\/(application|infrastructure)\//
+      expect([...loaded].filter((file) => outOfReach.test(file))).toEqual([])
+    })
+
+    it('touches no browser storage, no cookie and no network itself', () => {
+      expect(linesHolding(/localStorage|sessionStorage|indexedDB|document\.cookie|\bfetch\(|XMLHttpRequest/, (file) => !CHAT_CODE(file))).toEqual([])
+    })
+
+    it('spells the issues page in one place, with no draft in its address and no GitHub token anywhere', () => {
+      expect(linesHolding(/github\.com\/ipazanin\/kuna\/issues/, (file) => file === 'src/shared/ai/application/catalogue.ts')).toEqual([])
+      expect(linesHolding(/KUNA_ISSUES_ADDRESS\s*[+`]|issues\/new/, () => false)).toEqual([])
+      expect(linesHolding(/api\.github\.com|ghp_|github_pat_/, () => false)).toEqual([])
+    })
+
+    it('keeps the chat out of the first load, so without a key its code never loads', () => {
+      const staticImports = IMPORTS.filter((entry) => !entry.dynamic && !entry.typeOnly && entry.target === 'src/shared/ai/presentation/ChatPanel.vue')
+      expect(staticImports).toEqual([])
+    })
+  })
+
   it("keeps an app's assist code to reading: no writes, no mail, no invoice run and no Google", () => {
     expect(
       broken(

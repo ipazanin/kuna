@@ -83,6 +83,10 @@ export const companyApp: AppContribution = {
   homeCard: COMPANY_HOME_CARD,
   hub: { counts: false, figures: () => homeCardFigures(state, companyHubFigures) },
   assist: COMPANY_ASSIST,
+  assistant: async () => {
+    const [{ companyAssistant }, { HR_DOO_ASSISTANT }] = await Promise.all([import('./assistant/companyAssistant'), import('./packs/hr-doo/assistant/hrDooAssistant')])
+    return companyAssistant(HR_DOO_ASSISTANT)
+  },
   // Nothing chosen and nothing kept: onboarding takes it, whatever screen the address names.
   setUpLines: () => (state.workbook === null ? [] : gettingSetUp(state.workbook, categoriesLookRight.value, deliveryOffered.value)),
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,

@@ -32,7 +32,8 @@ interface FinishedResponse {
 }
 
 type StreamEvent =
-  | { readonly type: 'response.output_text.delta'; readonly delta: string }
+  | { readonly type: 'response.output_item.added'; readonly item?: { readonly id?: string; readonly phase?: string } }
+  | { readonly type: 'response.output_text.delta'; readonly item_id?: string; readonly delta: string }
   | { readonly type: 'response.completed' | 'response.incomplete' | 'response.failed'; readonly response?: FinishedResponse }
   | { readonly type: 'error'; readonly message?: string }
 
@@ -53,11 +54,16 @@ export function openAiResponses(baseUrl: string, key: string, model: ModelChoice
         key,
         signal: request.signal,
       } as const
+      // A commentary message is kept to replay and is no part of the answer, so what it says never reaches the screen.
+      const commentary = new Set<string>()
       for await (const untyped of streamedEvents(call)) {
         const event = untyped as StreamEvent
         switch (event.type) {
+          case 'response.output_item.added':
+            if (event.item?.phase === 'commentary' && event.item.id !== undefined) commentary.add(event.item.id)
+            break
           case 'response.output_text.delta':
-            request.onDelta?.(event.delta)
+            if (event.item_id === undefined || !commentary.has(event.item_id)) request.onDelta?.(event.delta)
             break
           case 'response.completed':
             return completedReply(event.response ?? {})

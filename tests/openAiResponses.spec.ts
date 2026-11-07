@@ -137,6 +137,26 @@ describe('the Responses stream', () => {
     expect((reply as { raw: { type: string }[] }).raw.map((item) => item.type)).toEqual(['reasoning', 'made_up_server_call', 'function_call'])
   })
 
+  it('streams none of a commentary message to the screen', async () => {
+    const usage = { input_tokens: 10, output_tokens: 5 }
+    const commentary = { id: 'msg_commentary', type: 'message', phase: 'commentary', role: 'assistant', content: [{ type: 'output_text', text: 'Let me think.' }] }
+    const final = { id: 'msg_final', type: 'message', phase: 'final_answer', role: 'assistant', content: [{ type: 'output_text', text: 'Done.' }] }
+    stubFetch(
+      streamResponse(
+        eventsAsStream([
+          { type: 'response.output_item.added', item: commentary },
+          { type: 'response.output_text.delta', item_id: 'msg_commentary', delta: 'Let me think.' },
+          { type: 'response.output_item.added', item: final },
+          { type: 'response.output_text.delta', item_id: 'msg_final', delta: 'Done.' },
+          { type: 'response.completed', response: { output: [commentary, final], usage } },
+        ]),
+      ),
+    )
+    const heard: string[] = []
+    await openAiResponses(BASE_URL, KEY, SOL).send(request({ onDelta: (text) => heard.push(text) }))
+    expect(heard).toEqual(['Done.'])
+  })
+
   it('leaves commentary out of the answer and keeps it to send back, with an answer read whole', async () => {
     const usage = { input_tokens: 10, output_tokens: 5 }
     const commentary = { type: 'message', phase: 'commentary', role: 'assistant', content: [{ type: 'output_text', text: 'Let me think.' }] }

@@ -10,11 +10,16 @@ import { words } from './words'
 /** Asks before a task sends with a switch off: what leaves the device, what the provider keeps, and employee names or pay whenever this run sends them. Buttons outside the chat need it until they route through the chat. */
 const open = defineModel<boolean>('open', { required: true })
 
-defineProps<{
-  task: AssistTaskSummary
-  provider: ProviderPreset
-  sendsEmployees: boolean
-}>()
+withDefaults(
+  defineProps<{
+    task: AssistTaskSummary
+    provider: ProviderPreset
+    sendsEmployees: boolean
+    /** False where no switch shows that could take Don't ask again back. */
+    offersAlways?: boolean
+  }>(),
+  { offersAlways: true },
+)
 
 const emit = defineEmits<{ once: []; always: [] }>()
 </script>
@@ -28,7 +33,7 @@ const emit = defineEmits<{ once: []; always: [] }>()
     </div>
     <template #end>
       <UButton :label="words.consent.cancel" color="neutral" variant="outline" @click="open = false" />
-      <UButton :label="words.consent.dontAsk" color="neutral" variant="outline" data-testid="assist-consent-always" @click="emit('always')" />
+      <UButton v-if="offersAlways" :label="words.consent.dontAsk" color="neutral" variant="outline" data-testid="assist-consent-always" @click="emit('always')" />
       <UButton :label="words.consent.sendOnce" icon="i-lucide-sparkles" data-testid="assist-consent-confirm" @click="emit('once')" />
     </template>
   </AppDialog>

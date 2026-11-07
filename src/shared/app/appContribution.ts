@@ -3,6 +3,7 @@ import type { RouteComponent, RouteLocationRaw, Router } from 'vue-router'
 
 import type { RedirectReturn } from '../google/googleRedirect'
 import type { MoneyFormat, MoneyTone, SignDisplay } from '../money/moneyFormat'
+import type { RecordKind } from '../storage/domain/recordKind'
 import type { AppSyncGroup } from '../sync/presentation/pageSync'
 import type { Money } from '../money/money'
 
@@ -14,6 +15,8 @@ export interface AppScreen {
   readonly component: () => Promise<RouteComponent>
   /** Shown without the menu, as a first run is, and the browser tab says only Kuna. */
   readonly bare?: true
+  /** Opens one record named in its address, such as one account, so no link can lead here without that record. */
+  readonly needsRecord?: true
 }
 
 /** What waits on a screen, shown beside its menu item. */
@@ -117,6 +120,34 @@ export interface AppAssist {
   tasks(): readonly AssistTaskSummary[]
 }
 
+/** A part of a screen the chat can link to, such as a tab, with the address that opens it. */
+export interface AssistantPlace {
+  readonly route: `/${string}`
+  readonly title: string
+}
+
+/** A settings key the app reads and what it means. Only ever the meaning, never the value a file holds. */
+export interface AssistantSetting {
+  readonly key: string
+  readonly note: string
+}
+
+/** A short how-to the chat can read, written in the language on screen, with the places it sends a person to. */
+export interface AssistantGuide {
+  readonly id: string
+  readonly title: string
+  readonly body: string
+  readonly places: readonly `/${string}`[]
+}
+
+/** What the app tells the chat about itself. It is built from what the code declares and holds nothing from a person's books. */
+export interface AppAssistant {
+  readonly kinds: readonly RecordKind[]
+  readonly places: readonly AssistantPlace[]
+  readonly settings: readonly AssistantSetting[]
+  readonly guides: readonly AssistantGuide[]
+}
+
 /** The app that is better set up first, and what a person gains by it. */
 export interface SetUpOrder {
   readonly after: string
@@ -161,6 +192,8 @@ export interface AppContribution {
   readonly gallery?: () => Promise<Component>
   /** What the app's assistant may do, for an app that has one. */
   readonly assist?: AppAssist
+  /** What the app tells the chat about itself, which loads only once a chat starts. */
+  readonly assistant: () => Promise<AppAssistant>
   /** Whether the page should fetch its Google token on the way in, with no screen at Google. */
   asksGoogleOnOpen(): boolean
   /**

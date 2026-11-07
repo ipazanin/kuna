@@ -8,9 +8,14 @@ import type { Navigation } from './navigation'
 import NavigationLink from './NavigationLink.vue'
 import { words } from './words'
 
-defineProps<{
-  navigation: Navigation
-}>()
+withDefaults(
+  defineProps<{
+    navigation: Navigation
+    /** The icon sidebar while the chat is docked: every row an icon, the open app's pages under its tile, and no arrows. */
+    rail?: boolean
+  }>(),
+  { rail: false },
+)
 
 const emit = defineEmits<{
   /** The arrow on an app's row, which opens or closes its pages without leaving the screen. */
@@ -50,8 +55,8 @@ watch(() => route.path, showCurrentPage, { flush: 'post' })
 
 <template>
   <nav :aria-label="words.navigation.label" class="flex min-h-0 flex-1 flex-col">
-    <div ref="list" class="min-h-0 flex-1 overflow-y-auto px-3 py-1 [scrollbar-gutter:stable]" @animationend="showCurrentPageOnceOpen">
-      <NavigationLink v-if="navigation.netWorth !== null" v-bind="navigation.netWorth" class="mb-1.5" data-testid="nav-net-worth" />
+    <div ref="list" class="min-h-0 flex-1 overflow-y-auto py-1" :class="rail ? 'px-1.5 [scrollbar-width:none]' : 'px-3 [scrollbar-gutter:stable]'" @animationend="showCurrentPageOnceOpen">
+      <NavigationLink v-if="navigation.netWorth !== null" v-bind="navigation.netWorth" :rail="rail" class="mb-1.5" data-testid="nav-net-worth" />
       <ul class="flex flex-col sm:gap-0.5" data-testid="nav-apps">
         <li v-for="app in navigation.apps" :key="app.id" data-testid="nav-app" :data-app="app.id">
           <div class="flex items-center gap-0.5">
@@ -62,6 +67,7 @@ watch(() => route.path, showCurrentPage, { flush: 'post' })
               :colour="app.colour"
               :count="app.open ? undefined : app.waiting"
               :marks-current="false"
+              :rail="rail"
               class="min-w-0 flex-1"
               :class="{ 'is-open': app.open }"
               :data-app="app.id"
@@ -69,6 +75,7 @@ watch(() => route.path, showCurrentPage, { flush: 'post' })
               @click="emit('open', app.id)"
             />
             <UButton
+              v-if="!rail"
               :icon="app.open ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
               color="neutral"
               variant="ghost"
@@ -82,7 +89,12 @@ watch(() => route.path, showCurrentPage, { flush: 'post' })
               @click="emit('toggle', app.id)"
             />
           </div>
-          <UCollapsible :open="app.open" :ui="{ content: 'overflow-hidden' }">
+          <ul v-if="rail && app.open" :aria-label="app.name" class="flex flex-col pt-0.5 pb-1 sm:gap-0.5" data-testid="nav-entries">
+            <li v-for="entry in app.entries" :key="entry.to">
+              <NavigationLink v-bind="entry" rail />
+            </li>
+          </ul>
+          <UCollapsible v-else-if="!rail" :open="app.open" :ui="{ content: 'overflow-hidden' }">
             <template #content>
               <div :id="`${id}-${app.id}`">
                 <p v-if="app.subtitle" :id="`${id}-${app.id}-subtitle`" class="truncate ps-11.5 type-caption" data-testid="nav-subtitle">{{ app.subtitle }}</p>
@@ -96,12 +108,12 @@ watch(() => route.path, showCurrentPage, { flush: 'post' })
           </UCollapsible>
         </li>
         <li v-if="navigation.addApp !== null">
-          <NavigationLink v-bind="navigation.addApp" :marks-current="false" data-testid="nav-add-app" @click="showWhereToAddApp" />
+          <NavigationLink v-bind="navigation.addApp" :marks-current="false" :rail="rail" data-testid="nav-add-app" @click="showWhereToAddApp" />
         </li>
       </ul>
     </div>
-    <div class="mx-3 border-t border-default py-2">
-      <NavigationLink v-bind="navigation.kunaSettings" data-testid="nav-kuna-settings" />
+    <div class="border-t border-default py-2" :class="rail ? 'mx-1.5' : 'mx-3'">
+      <NavigationLink v-bind="navigation.kunaSettings" :rail="rail" data-testid="nav-kuna-settings" />
     </div>
   </nav>
 </template>

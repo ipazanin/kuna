@@ -1,5 +1,7 @@
 import type { ModelPort, ModelReply, ModelRequest } from '../../application/modelPort'
+import { CHAT_TASK_ID } from '../../application/runChatTurn'
 import type { KeyTest, ModelChoice, ProviderPreset } from '../providerPresets'
+import { fakeChatReply } from './fakeChatReply'
 
 /**
  * How the fake model answers, as `?ai=` names it: `ok` with a good answer, `refused` with a refusal, `cut-off` at the
@@ -38,6 +40,9 @@ export function fakeModelPort(taskId: string, model: ModelChoice): ModelPort {
       }
       if (variant === 'cut-off') {
         return { kind: 'cut-off', tokens: TOKENS }
+      }
+      if (taskId === CHAT_TASK_ID) {
+        return fakeChatReply(request, TOKENS)
       }
       const answer = answers.get(taskId)
       if (answer === undefined) {

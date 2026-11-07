@@ -112,6 +112,17 @@ The chat knows the automations Kuna offers, such as filing or parsing mail, bank
 - **The owner gets:** with a key, a button in every app. "How do I set up rules for my bank?" answered from what this version of Kuna really has, with a chip to the right screen. Without a key, nothing changes. No user data leaves, since nothing can read it yet.
 - **Check:** catalogue spec, visual pages with the panel open at 360, 640, 1024 and 1440, touch flow.
 
+Built, waiting for the first run with a real key:
+
+- **The layout:** from 1224 px the panel docks as a third column and the sidebar shrinks to icons, with a 56 px rail, the page's 784 px and a 384 px panel. Narrower it takes the page's place and the page stays mounted. There `?chat=1` is a step in the history, so Back closes it, and any link to a screen does too. The chunk loads only when the panel opens with a key kept. Open or closed is not remembered, since a reload loses the chat anyway.
+- **What it knows:** `catalogueOf` builds the instructions and the pages once, from each app's `assistant()` and its `screens`. It takes every screen but a first run and those marked `needsRecord`, and it reads no `menu()`, as Company's menu depends on the books. So the pack's screens, kinds and settings are always listed, also for a company with owner pay off.
+- **Tools:** `kuna_docs` and `show_screen`, closed and looked up in two maps. `show_screen` also takes `issues`, which puts the bare link to the issues page under the answer.
+- **The context turn:** app, screen name, address without its query, and the tag's label. It goes at the start of a person's message, only when it changed.
+- **The tag:** `useChatTagging` opens the panel about one element, a `RemovableChip` shows it, and `chatTagAttrs` marks the element through `data-chat-tagged`, one rule in `app.css`. Only the gallery's specimen calls it so far, since the buttons stay as they are until the chat can do their jobs.
+- **Sends:** each send follows the app's switch and `AssistConsent`. Loans, Investments, Assets and the screens outside the apps have no switch a person can see, so there each send asks, with Send once alone. The owner's decision may change this.
+- **Cost:** a line in the panel adds up what each message reports. A chat has no budget, no prompt limit and a limit of 8 lookups a message.
+- **Left for stage 3:** the price step for long prompts, as this stage sends no record and cannot reach it without a very long paste. The cache breakpoint on the conversation's tail, since each message's history here is small. Thinking settings, `eager_input_streaming` and the refusal fallback.
+
 ### Stage 3. Reading with grants, Spending first
 
 - **Work:** field classes for Spending's six kinds, `find_records`, `get_record`, `read_figures`, refs, `GrantCard`, `SentRow`, hostile-model spec, boundary cases 10 and 11. `AssistConsent` stays for the buttons outside the chat (Suggest categories, Explain, Read a receipt, and onboarding's), and goes only once all of them route through the chat. `GrantCard` asks inside the chat, and its Always writes the same switch as the app's Send without asking.

@@ -30,6 +30,8 @@ import FactGrid from '../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../shared/ui/FactGrid.vue'
 import FigureTable from '../../shared/ui/FigureTable.vue'
 import FileDrop from '../../shared/ui/FileDrop.vue'
+import { chatTagAttrs, useChatTagging } from '../../shared/ai/presentation/chatDock'
+import { assistKeyKept } from '../../shared/ai/presentation/useAiTask'
 import AppBrand from '../../shared/ui/AppBrand.vue'
 import AppMark from '../../shared/ui/AppMark.vue'
 import HomeLink from '../../shared/ui/HomeLink.vue'
@@ -322,6 +324,9 @@ const columns: TableColumn<SampleTransaction>[] = [
     footer: () => h(MoneyText, { cents: tableTotal, class: 'font-semibold text-highlighted' }),
   },
 ]
+
+const tagChatSpecimen = useChatTagging()
+const chatSpecimenTagged = chatTagAttrs('gallery.cash')
 </script>
 
 <template>
@@ -797,6 +802,25 @@ const columns: TableColumn<SampleTransaction>[] = [
       </div>
     </GallerySection>
 
+    <GallerySection
+      id="chat-tag"
+      title="Asking the chat about an element"
+      description="A button calls useChatTagging with a key and a label, which opens the chat with a tag. The element binds chatTagAttrs and is highlighted while the open chat is about it. It shows with a key kept."
+    >
+      <div v-if="assistKeyKept" class="flex flex-wrap items-center gap-4">
+        <span v-bind="chatSpecimenTagged" class="type-body" data-testid="gallery-chat-element">Cash on hand</span>
+        <UButton
+          label="Ask about this"
+          icon="i-lucide-sparkles"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          data-testid="gallery-chat-ask"
+          @click="tagChatSpecimen({ key: 'gallery.cash', label: 'Cash on hand' })"
+        />
+      </div>
+    </GallerySection>
+
     <GallerySection id="controls" title="Small controls" description="InfoPopover, ChoiceButtons, RemovableChip, ShowAllButton, ColourSwatchPicker, HomeLink, AppBrand and AppMark.">
       <DashboardGrid>
         <AppCard title="InfoPopover" subtitle="A definition, or richer content such as a legend.">
@@ -851,6 +875,7 @@ const columns: TableColumn<SampleTransaction>[] = [
           <div class="flex flex-col items-start gap-3 px-4 pt-3 pb-4 sm:px-5">
             <AppBrand title="Kuna" />
             <AppBrand title="Kuna" look="quiet" />
+            <AppBrand title="Kuna" look="rail" />
             <AppBrand title="Overview" icon="i-lucide-landmark" colour="--app-loans" />
           </div>
         </AppCard>

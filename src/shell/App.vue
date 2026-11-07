@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch, watchEffect } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch, watchEffect } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import UApp from '@nuxt/ui/components/App.vue'
 import { en_gb, hr } from '@nuxt/ui/locale'
 
+import { assistKeyKept } from '../shared/ai/presentation/useAiTask'
 import { resumedBy } from '../shared/google/googleRedirect'
 import type { RedirectReturn } from '../shared/google/googleRedirect'
 import { DEFAULT_MONEY_FORMAT, setMoneyFormat } from '../shared/money/moneyFormat'
@@ -74,19 +75,32 @@ void router.isReady().then(() => {
 /** Toasts rise from the bottom, clear of the gesture bar in the installed app. */
 const toaster = { ui: { viewport: 'bottom-[max(1rem,env(safe-area-inset-bottom))]' } }
 
+/** The chat's code loads only once a person with a key opens it. */
+const ChatPanel = defineAsyncComponent(() => import('../shared/ai/presentation/ChatPanel.vue'))
+const KUNA_SCREENS = [NET_WORTH_SCREEN, KUNA_SETTINGS_SCREEN].map(({ path, title }) => ({ path, title }))
+const screenName = computed(() => (typeof route.meta.title === 'string' ? route.meta.title : null))
+
 const uiLocale = language === 'hr' ? hr : en_gb
 </script>
 
 <template>
   <UApp :toaster="toaster" :locale="uiLocale">
     <RouterView v-if="bare" />
-    <AppShell v-else-if="inFirstRun === null" :app-on-screen="appOnScreen === null ? null : { icon: appOnScreen.homeCard.icon, colour: appOnScreen.colour }" @drawer-closed="followAddress">
+    <AppShell
+      v-else-if="inFirstRun === null"
+      :app-on-screen="appOnScreen === null ? null : { icon: appOnScreen.homeCard.icon, colour: appOnScreen.colour }"
+      :chat-available="assistKeyKept"
+      @drawer-closed="followAddress"
+    >
       <RouterView v-slot="{ Component }">
         <ScreenSkeleton v-if="screenLoading || !Component" />
         <component :is="Component" v-else />
       </RouterView>
-      <template #navigation>
-        <ScreenNavigation :navigation="navigation" @toggle="togglePages" @open="openApp = $event" />
+      <template #navigation="{ rail }">
+        <ScreenNavigation :navigation="navigation" :rail="rail" @toggle="togglePages" @open="openApp = $event" />
+      </template>
+      <template #chat>
+        <ChatPanel :app="appOnScreen" :screen="screenName" :path="route.path" :apps="installedApps()" :kuna-screens="KUNA_SCREENS" />
       </template>
       <template v-if="someFileChosen" #sync="{ compact }">
         <TopBarSync :compact="compact" />
