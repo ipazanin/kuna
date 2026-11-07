@@ -11,7 +11,7 @@ vi.mock('../src/shared/secrets/presentation/pageSecrets', async () => {
   return { useSecretsChanged: () => ref(0) }
 })
 
-const { chatLines, chatSpent, chatStatus, clearChat, sendChatMessage, stopChatMessage } = await import('../src/shared/ai/presentation/chatSession')
+const { allowThisChat, allowedThisChat, chatLines, chatSpent, chatStatus, clearChat, sendChatMessage, stopChatMessage } = await import('../src/shared/ai/presentation/chatSession')
 const { pickProvider, pickModel } = await import('../src/shared/ai/infrastructure/assistSettings')
 const { words } = await import('../src/shared/ai/presentation/words')
 
@@ -135,6 +135,17 @@ describe('a chat in memory', () => {
     await sending
     expect(chatLines.map((line) => line.text)).toEqual(['First'])
     expect(chatStatus.value).toBe('ready')
+  })
+
+  it('keeps a yes for this chat until a new chat, on the provider it was given for, and stores nothing', () => {
+    const storedBefore = localStorage.length
+    expect(allowedThisChat('anthropic')).toBe(false)
+    allowThisChat('anthropic')
+    expect(allowedThisChat('anthropic')).toBe(true)
+    expect(allowedThisChat('openai')).toBe(false)
+    expect(localStorage.length).toBe(storedBefore)
+    clearChat()
+    expect(allowedThisChat('anthropic')).toBe(false)
   })
 
   it('forgets everything on a new chat', async () => {

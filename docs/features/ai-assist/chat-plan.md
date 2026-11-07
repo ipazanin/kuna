@@ -119,7 +119,7 @@ Built, waiting for the first run with a real key:
 - **Tools:** `kuna_docs` and `show_screen`, closed and looked up in two maps. `show_screen` also takes `issues`, which puts the bare link to the issues page under the answer.
 - **The context turn:** app, screen name, address without its query, and the tag's label. It goes at the start of a person's message, only when it changed.
 - **The tag:** `useChatTagging` opens the panel about one element, a `RemovableChip` shows it, and `chatTagAttrs` marks the element through `data-chat-tagged`, one rule in `app.css`. Only the gallery's specimen calls it so far, since the buttons stay as they are until the chat can do their jobs.
-- **Sends:** each send follows the app's switch and `AssistConsent`. Loans, Investments, Assets and the screens outside the apps have no switch a person can see, so there each send asks, with Send once alone. The owner's decision may change this.
+- **Sends:** by the owner's answer, a chat asks once through `AssistConsent`, and the yes lasts until a new chat or a change of AI company. It is held in memory and nothing is stored. Where the app's switch is on, it does not ask. Loans, Investments, Assets and the screens outside the apps have no switch a person can see, so there the dialog offers Send once alone.
 - **Cost:** a line in the panel adds up what each message reports. A chat has no budget, no prompt limit and a limit of 8 lookups a message.
 - **Left for stage 3:** the price step for long prompts, as this stage sends no record and cannot reach it without a very long paste. The cache breakpoint on the conversation's tail, since each message's history here is small. Thinking settings, `eager_input_streaming` and the refusal fallback.
 

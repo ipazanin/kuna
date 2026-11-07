@@ -10,6 +10,7 @@ import type { ChatContext } from '../application/runChatTurn'
 import type { LoopEnd } from '../application/runModelLoop'
 import { modelPort } from '../infrastructure/modelAccess'
 import { modelOf } from '../infrastructure/assistSettings'
+import type { ProviderId } from '../infrastructure/providerPresets'
 import { MOST_RUN_MILLISECONDS, costWords, providerInUse, resultLine } from './useAiTask'
 import { words } from './words'
 
@@ -45,6 +46,8 @@ let chain: string | null = null
 let current: AbortController | null = null
 let stoppedByPerson = false
 let nextId = 0
+/** The provider this chat got a yes for, held in memory only. The dialog names the provider, so a yes does not carry to another. */
+let allowedFor: ProviderId | null = null
 
 function added(role: ChatLine['role'], text: string, note = false): ChatLine {
   nextId += 1
@@ -148,6 +151,16 @@ export async function sendChatMessage(message: string, context: ChatContext, kno
   }
 }
 
+/** Takes the person's yes for the rest of this chat, on the provider the dialog named. */
+export function allowThisChat(provider: ProviderId): void {
+  allowedFor = provider
+}
+
+/** Whether this chat already has a yes for the provider. */
+export function allowedThisChat(provider: ProviderId): boolean {
+  return allowedFor === provider
+}
+
 /** Stops the message under way. What it spent so far is lost to the count, as the provider reports it only at the end. */
 export function stopChatMessage(): void {
   stoppedByPerson = true
@@ -164,6 +177,7 @@ export function clearChat(): void {
   history = []
   lastContext = null
   chain = null
+  allowedFor = null
   Object.assign(spent, { dollars: 0, unknown: false, any: false })
 }
 

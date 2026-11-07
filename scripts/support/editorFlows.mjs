@@ -8229,17 +8229,29 @@ export function chatPanelFlowIn(language) {
       await shoot('chat-answer')
 
       await send(language === 'en' ? 'crypto?' : 'kripto?')
-      await pressSelector(page, press, '[data-testid="assist-consent-always"]')
       const issues = await page.waitForSelector('[data-testid="chat-issues"]', { visible: true, timeout: 15_000 })
+      if (await page.$(CONSENT)) throw new Error('a second message of a chat asked again')
       const address = await issues.evaluate((element) => element.getAttribute('href'))
       if (address !== 'https://github.com/ipazanin/kuna/issues') throw new Error(`the issues link goes to ${address}`)
-      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.spending'))) !== 'on') throw new Error("Don't ask again left the switch off")
+      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.spending'))) !== null) throw new Error('a yes for this chat changed the switch')
       await inspect?.('what Kuna cannot do, with the issues link')
       await shoot('chat-issues')
 
+      await pressSelector(page, press, '[data-testid="chat-new"]')
+      await page.waitForSelector('[data-testid="chat-empty"]', { visible: true, timeout: 5_000 })
       await send(greeting)
-      await page.waitForFunction((css) => document.querySelectorAll(css).length >= 3, { timeout: 15_000 }, '[data-testid="chat-answer"]')
-      if (await page.$(CONSENT)) throw new Error("Don't ask again still asks")
+      await page.waitForSelector(CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
+        throw new Error('a new chat did not ask again')
+      })
+      await pressSelector(page, press, '[data-testid="assist-consent-always"]')
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.spending'))) !== 'on') throw new Error("Don't ask again left the switch off")
+
+      await pressSelector(page, press, '[data-testid="chat-new"]')
+      await page.waitForSelector('[data-testid="chat-empty"]', { visible: true, timeout: 5_000 })
+      await send(language === 'en' ? 'And the rules?' : 'A pravila?')
+      await page.waitForSelector('[data-testid="chat-chip"]', { visible: true, timeout: 15_000 })
+      if (await page.$(CONSENT)) throw new Error("a new chat asked with Don't ask again on")
 
       await pressSelector(page, press, '[data-testid="chat-chip"]')
       await page
@@ -8268,7 +8280,7 @@ export function chatPanelFlowIn(language) {
         })
         await pressSelector(page, press, '[data-testid="chat-open"]')
       }
-      await elementSays(page, '[data-testid="chat-question"]', [greeting], 'the chat did not stay in memory')
+      await elementSays(page, '[data-testid="chat-question"]', [language === 'en' ? 'And the rules?' : 'A pravila?'], 'the chat did not stay in memory')
       await pressSelector(page, press, '[data-testid="chat-new"]')
       await page.waitForSelector('[data-testid="chat-empty"]', { visible: true, timeout: 5_000 })
       await pressSelector(page, press, '[data-testid="chat-close"]')

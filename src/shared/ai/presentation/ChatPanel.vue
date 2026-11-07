@@ -14,13 +14,13 @@ import { assistOn, switchAssist } from '../infrastructure/assistSettings'
 import AssistConsent from './AssistConsent.vue'
 import ChatLineView from './ChatLineView.vue'
 import { chatTag, closeChat, removeChatTag } from './chatDock'
-import { chatLines, chatSpent, chatStatus, clearChat, loadCatalogue, sendChatMessage, stopChatMessage } from './chatSession'
+import { allowThisChat, allowedThisChat, chatLines, chatSpent, chatStatus, clearChat, loadCatalogue, sendChatMessage, stopChatMessage } from './chatSession'
 import { providerInUse } from './useAiTask'
 import { words } from './words'
 
 /**
  * The chat beside the page or in its place, labelled with the app on screen. It knows this version of Kuna and reads
- * nothing from a person's books, and each send follows the app's switch as a button's does.
+ * nothing from a person's books, and it asks once per chat unless the app's switch says not to ask.
  */
 const props = defineProps<{
   /** The app on screen, or null on the home and Kuna's own screens. */
@@ -40,7 +40,7 @@ const provider = computed(() => providerInUse())
 const draft = ref('')
 const asking = ref<string | null>(null)
 
-/** An app with no Assistant tab has no switch a person could see or take back, so outside Company and Spending each send asks. */
+/** An app with no Assistant tab has no switch a person could see or take back, so outside Company and Spending only a yes for this chat stops the asking. */
 const switchApp = computed(() => (props.app?.assist === undefined ? null : props.app.id))
 
 const messages = computed(() => chatLines.map((line) => ({ id: line.id, role: line.role, parts: [{ type: 'text' as const, text: line.text }], line })))
@@ -48,8 +48,9 @@ const lineOf = (id: string) => chatLines.find((line) => line.id === id)
 
 function send(message: string): void {
   const app = switchApp.value
-  if (app === null || !assistOn(app)) asking.value = message
-  else run(message)
+  const preset = provider.value
+  if ((app !== null && assistOn(app)) || (preset !== null && allowedThisChat(preset.id))) run(message)
+  else asking.value = message
 }
 
 function run(message: string): void {
@@ -69,6 +70,7 @@ function submit(): void {
 function sendOnce(): void {
   const message = asking.value
   asking.value = null
+  if (provider.value !== null) allowThisChat(provider.value.id)
   if (message !== null) run(message)
 }
 
