@@ -9,6 +9,7 @@ import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../shared/charts/chartTooltip'
 import type { ChartOption, LineSeries } from '../../../../shared/charts/echarts'
 import { monthAxisLabels, shownPoints } from '../../../../shared/charts/monthAxis'
+import { ZERO } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { listInWords } from '../../../../shared/text/listInWords'
@@ -57,7 +58,6 @@ export function valueChart(over: ValueOverTime, tokens: ChartTokens, phone: bool
           axisTooltip({
             tokens,
             categoryLabel: monthAxisLabel('long'),
-            formatAmount: (amount) => formatMoney(amount),
             footnotes: (month) => {
               const gain = gainOf.get(month) ?? null
               return gain === null ? [] : [words.value.gain(formatMoney(gain, 'always'))]
@@ -71,6 +71,6 @@ export function valueChart(over: ValueOverTime, tokens: ChartTokens, phone: bool
     description:
       first === undefined || last === undefined
         ? words.value.emptyDescription
-        : words.value.description(dayLabel(first.date), dayLabel(last.date), formatMoney(last.value ?? 0), formatMoney(last.putIn)) + (heldBack === '' ? '' : words.value.heldBack(heldBack)),
+        : words.value.description(dayLabel(first.date), dayLabel(last.date), formatMoney(last.value ?? ZERO), formatMoney(last.putIn)) + (heldBack === '' ? '' : words.value.heldBack(heldBack)),
   }
 }

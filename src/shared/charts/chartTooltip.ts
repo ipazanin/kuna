@@ -1,5 +1,5 @@
 import type { ChartTokens } from './chartTokens'
-import { formatMoney } from '../money/moneyFormat'
+import { formatChartMoney } from '../money/moneyFormat'
 import { words } from './words'
 
 interface AxisTooltipPoint {
@@ -28,7 +28,7 @@ export interface AxisTooltipSettings {
  * not, so a tooltip is never wider than its chart, which keeps it on a phone's screen.
  */
 export function axisTooltip(settings: AxisTooltipSettings): (points: unknown) => string {
-  const { tokens, incompleteCategories = [], formatAmount = (amount: number) => formatMoney(amount), categoryLabel = (category: string) => category, footnotes = () => [] } = settings
+  const { tokens, incompleteCategories = [], formatAmount = (amount: number) => formatChartMoney(amount), categoryLabel = (category: string) => category, footnotes = () => [] } = settings
   return (points: unknown) => {
     const rows = (Array.isArray(points) ? points : [points]) as AxisTooltipPoint[]
     const category = rows[0]?.axisValueLabel ?? rows[0]?.name ?? ''

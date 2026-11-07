@@ -7,7 +7,7 @@ import type { InvoiceStatus } from '../domain/invoiceMatching'
 export interface InvoicePaymentLine {
   readonly key: string
   readonly date: string
-  readonly amount: number
+  readonly amount: Money
   readonly to: RouteLocationRaw | null
 }
 
@@ -20,8 +20,8 @@ export interface InvoiceLine {
   /** "due 3 Nov", "no due date", or for a late one "41 days past due". */
   readonly timing: string
   readonly late: boolean
-  readonly amount: number
-  readonly remaining: number
+  readonly amount: Money
+  readonly remaining: Money
   readonly status: InvoiceStatus
   readonly received: string | null
   readonly payments: readonly InvoicePaymentLine[]
@@ -36,6 +36,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { words } from './words'
+import type { Money } from '../../../../shared/money/money'
 
 /** Each invoice, newest first, with the payments the matching gave it. */
 defineProps<{

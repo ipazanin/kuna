@@ -4,6 +4,7 @@ import type { RouteComponent, RouteLocationRaw, Router } from 'vue-router'
 import type { RedirectReturn } from '../google/googleRedirect'
 import type { MoneyFormat, MoneyTone, SignDisplay } from '../money/moneyFormat'
 import type { AppSyncGroup } from '../sync/presentation/pageSync'
+import type { Money } from '../money/money'
 
 /** A screen of an app, on a route under the app's id such as `/company/transactions`. Each one loads as its own chunk. */
 export interface AppScreen {
@@ -26,7 +27,7 @@ export interface MenuCount {
 /** A figure on the app's card on the Kuna home, such as cash on hand. */
 export interface HomeAmount {
   readonly label: string
-  readonly cents: number
+  readonly cents: Money
   /** As on `MoneyText`, such as `always` for a gain that shows its plus. */
   readonly sign?: SignDisplay
   /** As on `MoneyText`, such as `outcome` for a gain that is green and a loss that is red. */
@@ -62,7 +63,7 @@ export interface AppHomeCard {
 /** A figure of the app on Net worth, which opens the screen it comes from. */
 export interface HubPart {
   readonly label: string
-  readonly cents: number
+  readonly cents: Money
   readonly caption: string | null
   readonly to: RouteLocationRaw
 }

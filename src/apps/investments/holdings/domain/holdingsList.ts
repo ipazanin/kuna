@@ -9,6 +9,7 @@ import { ZERO, ratioOf, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { fold } from '../../../../shared/text/fold'
 import { naturalOrder } from '../../../../shared/text/naturalOrder'
+import type { Share } from '../../../../shared/money/percent'
 
 /** A class of instrument, or the cash of every account. */
 export type HoldingGroup = InstrumentClass | 'cash'
@@ -40,13 +41,13 @@ export type HoldingsLine =
       readonly kind: 'holding'
       readonly holding: HoldingFigures
       /** The gain on what is held over its cost. */
-      readonly gainShare: number | null
+      readonly gainShare: Share | null
     }
   | {
       readonly kind: 'cash'
       readonly balance: CashFigures
       readonly account: string
-      readonly weight: number | null
+      readonly weight: Share | null
     }
 
 /** The sums over some lines. Cash has a value but no cost or gain. */
@@ -56,8 +57,8 @@ export interface HoldingsTotals {
   /** The holdings' gain on what is held. Null when no line has one. */
   readonly gain: Money | null
   /** The gain over the cost of the lines that have one. */
-  readonly gainShare: number | null
-  readonly weight: number | null
+  readonly gainShare: Share | null
+  readonly weight: Share | null
   readonly lastDay: DayChange | null
 }
 

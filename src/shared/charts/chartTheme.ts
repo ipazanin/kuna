@@ -1,5 +1,6 @@
 import type { ChartTokens } from './chartTokens'
 import { formatCompactMoney } from '../money/moneyFormat'
+import { moneyOfChart } from '../money/money'
 
 /**
  * One ECharts theme for both colour schemes, built from the tokens of whichever scheme is active.
@@ -71,7 +72,7 @@ export function stackGap(tokens: ChartTokens): { borderColor: string; borderWidt
 }
 
 export function moneyAxisLabel(tokens: ChartTokens): { color: string; fontSize: number; formatter: (cents: number) => string } {
-  return { color: tokens.inkMuted, fontSize: 11, formatter: (cents: number) => formatCompactMoney(cents) }
+  return { color: tokens.inkMuted, fontSize: 11, formatter: (cents: number) => formatCompactMoney(moneyOfChart(cents)) }
 }
 
 /**

@@ -201,7 +201,6 @@ export function balanceChart(months: readonly MonthBalance[], current: MonthKey,
           axisTooltip({
             tokens,
             categoryLabel: monthAxisLabel('long'),
-            formatAmount: (amount) => formatMoney(amount),
             footnotes: (month) => [...linesOf(month), ...(estimateFrom !== null && month >= estimateFrom ? [words.estimate] : [])],
           })(shownPoints(points)),
       },

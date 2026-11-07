@@ -9,6 +9,7 @@ import type { ChartTokens } from '../src/shared/charts/chartTokens'
 import { formatPercentChange } from '../src/shared/money/moneyFormat'
 import { BROKER, USD, book, cashMovement, priceBookOf, rateBookOf, split, trade, instrument } from './fixtures/investments'
 import { civil } from './fixtures/ledger'
+import { shareFromRatio } from '../src/shared/money/percent'
 
 vi.stubGlobal('document', { documentElement: {} })
 vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: (token: string) => token }))
@@ -113,10 +114,10 @@ describe("Performance's growth chart compared with a ticker", () => {
   ]
 
   it('turns the portfolio from €100 into change and draws the ticker beside it in place of the benchmark', () => {
-    const chart = growthChart(growth, 'Example Index Fund', TOKENS, false, { name: 'EXQ', change: [0, 0.2] })
+    const chart = growthChart(growth, 'Example Index Fund', TOKENS, false, { name: 'EXQ', change: [0, 0.2].map(shareFromRatio) })
     const series = (chart.option as { series: DrawnLine[] }).series
     expect(series.map((line) => line.name)).toEqual(['Your portfolio', 'EXQ'])
-    expect(series[0]!.data.map(formatPercentChange)).toEqual(['0.00%', '+10.00%'])
+    expect(series[0]!.data.map((share) => formatPercentChange(shareFromRatio(share)))).toEqual(['0.00%', '+10.00%'])
     expect(chart.title).toBe('Change since 30 Jan 2026')
     expect(chart.formatValue(0.2)).toBe('+20.00%')
     expect(chart.description).toBe('From 30 Jan 2026 to 27 Feb 2026, your portfolio changed +10.00% and EXQ +20.00%.')
@@ -157,7 +158,7 @@ describe("a holding's price chart compared with a ticker", () => {
     today: civil('2026-02-27'),
   }
   const holding = portfolioFigures(sources).holdings.find((figures) => figures.instrument.id === fund.id)!
-  const chart = priceChart(priceHistory(holding, sources), holding, TOKENS, false, { name: 'EXQ', change: [0, 0.2] })
+  const chart = priceChart(priceHistory(holding, sources), holding, TOKENS, false, { name: 'EXQ', change: [0, 0.2].map(shareFromRatio) })
 
   it('reads the holding and the ticker as change since its first month end, with the buy on its line and no average cost', () => {
     const series = (chart.option as { series: { name: string; data: unknown[] }[] }).series

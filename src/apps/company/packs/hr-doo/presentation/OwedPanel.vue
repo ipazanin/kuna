@@ -5,7 +5,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../../shared/calendar/dayLabel'
 import { chartTokens } from '../../../../../shared/charts/chartTokens'
-import { negateMoney } from '../../../../../shared/money/money'
+import { negateMoney, sumMoney } from '../../../../../shared/money/money'
 import { formatMoney } from '../../../../../shared/money/moneyFormat'
 import AppCard from '../../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../../shared/ui/ChartLegend.vue'
@@ -88,8 +88,8 @@ const owed = computed(() => {
   const on = dayLabel(inPeriod.on)
   const unaccounted = ownerAdvances(workbook.ownerAdvances, transactions, categories).unaccounted
   const months = loanMonths(transactions, categories, periodMonths(filters.period, window), window)
-  const lentInMonths = months.reduce((sum, month) => sum + month.lent.amount, 0)
-  const repaidInMonths = months.reduce((sum, month) => sum + month.repaid.amount, 0)
+  const lentInMonths = sumMoney(months.map((month) => month.lent.amount))
+  const repaidInMonths = sumMoney(months.map((month) => month.repaid.amount))
   const colours = { lent: tokens.buckets['owner-pay'], repaid: tokens.buckets.income }
   const figuresOf = (balances: PeriodBalance, labels: readonly [string, string, string, string]) =>
     [balances.start, balances.added, balances.settled, balances.end].map((figure, index) => ({

@@ -17,6 +17,7 @@ import type { Money } from '../../../../shared/money/money'
 import { daysOver365, solvedRate } from '../../../../shared/money/rateSolver'
 import type { DatedFlow } from '../../../../shared/money/rateSolver'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import type { Share } from '../../../../shared/money/percent'
 
 /** An account's cash in one currency, valued in euros. */
 export interface CashFigures extends CashBalance {
@@ -36,7 +37,7 @@ export interface IncomeTotals {
 }
 
 /** The money-weighted return a year, once the first deposit is a year old. */
-export type YearlyReturn = { readonly kind: 'rate'; readonly rate: number } | { readonly kind: 'under-a-year' } | { readonly kind: 'none' }
+export type YearlyReturn = { readonly kind: 'rate'; readonly rate: Share } | { readonly kind: 'under-a-year' } | { readonly kind: 'none' }
 
 export interface LastDay extends LastDayDates, DayChange {}
 
@@ -63,7 +64,7 @@ export interface PortfolioFigures {
    */
   readonly totalGain: Money
   /** The total gain over what was put in, null when nothing more was put in than taken out. */
-  readonly totalGainShare: number | null
+  readonly totalGainShare: Share | null
   readonly yearlyReturn: YearlyReturn
   readonly lastDay: LastDay | null
   /** Trading and exchange fees, which are already inside costs, proceeds and amounts exchanged. */

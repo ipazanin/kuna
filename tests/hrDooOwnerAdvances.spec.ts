@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { netOwed, ownerAdvances } from '../src/apps/company/packs/hr-doo/domain/ownerAdvances'
+import { netOwed, ownerAdvances, unaccountedInView } from '../src/apps/company/packs/hr-doo/domain/ownerAdvances'
 import { ownerLoans } from '../src/apps/company/packs/hr-doo/domain/ownerLoans'
 import { bucketTotals } from '../src/apps/company/workbook/domain/bucketTotals'
 import { bookingOfAdvance } from '../src/apps/company/workbook/domain/workbook'
 import type { OwnerAdvance, Workbook } from '../src/apps/company/workbook/domain/workbook'
-import { unaccountedInView } from '../src/apps/company/packs/hr-doo/presentation/unaccountedInView'
-import type { FilteredLedger } from '../src/apps/company/transactions/application/useFilteredLedger'
 import { categoryTotals } from '../src/apps/company/spending/domain/categoryTotals'
 import { monthlyProfitAndLoss } from '../src/apps/company/trends/domain/monthlyProfitAndLoss'
 import { DEFAULT_FILTERS, EVERY_OWNER_ADVANCE } from '../src/apps/company/filters/domain/filterState'
@@ -88,7 +86,7 @@ describe('owner advances', () => {
       { date: '2026-03-28', amount: -45, category: 'reimbursement-to-owner', account: 'otp' },
     ])
     const booked = { ownerAdvances: [advance('2026-01-20', 100)], transactions: ledgerRows, categories: PACK_CATEGORIES } as unknown as Workbook
-    const inView = (filters: FilterState) => unaccountedInView({ booked, filters } as FilteredLedger).map((line) => line.payment.date)
+    const inView = (filters: FilterState) => unaccountedInView(booked, filters).map((line) => line.payment.date)
 
     expect(inView(DEFAULT_FILTERS)).toEqual([civil('2026-03-28')])
     expect(inView({ ...DEFAULT_FILTERS, accounts: ['erste', 'otp'] })).toEqual([civil('2026-03-28')])

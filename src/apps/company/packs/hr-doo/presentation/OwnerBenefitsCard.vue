@@ -22,6 +22,7 @@ import { benefitsRing, categorySeries } from './packCharts'
 import { figureDetail } from './tracedFigureView'
 import type { FigureDetail } from './tracedFigureView'
 import { words } from './words'
+import type { Money } from '../../../../../shared/money/money'
 
 /** The owner's parts of shared company costs by the category they come from, and the tax the same money would have paid as a dividend. */
 const props = defineProps<{
@@ -62,7 +63,7 @@ const ring = computed(() => {
 const workbook = computed(() => hrDooWorkbook(props.ledger.booked))
 
 type Comparison =
-  { readonly state: 'unregistered' } | { readonly state: 'failed'; readonly failure: string } | { readonly state: 'ready'; readonly taxAvoided: FigureDetail; readonly asDividend: number }
+  { readonly state: 'unregistered' } | { readonly state: 'failed'; readonly failure: string } | { readonly state: 'ready'; readonly taxAvoided: FigureDetail; readonly asDividend: Money }
 
 const comparison = computed((): Comparison => {
   if (workbook.value.companyFacts.companyRegistered === null) {

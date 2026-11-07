@@ -12,6 +12,7 @@ import type { PackPart } from '../workbook/domain/packPart'
 import type { WorkbookRecords } from '../workbook/domain/readWorkbook'
 import type { Category, Workbook } from '../workbook/domain/workbook'
 import type { RecordProblem } from '../../../shared/storage/domain/recordsRead'
+import type { Money } from '../../../shared/money/money'
 
 /**
  * A card on the To review tab of Transactions, under the rows to review. It stays mounted while it shows nothing, so
@@ -50,7 +51,7 @@ export type OwnerTakeOut =
   | {
       readonly kind: 'figure'
       readonly label: string
-      readonly cents: number
+      readonly cents: Money
       /** What it is after, the owner's loan or the dividend tax, or why it is nothing. */
       readonly caption: string
       readonly to: RouteLocationRaw

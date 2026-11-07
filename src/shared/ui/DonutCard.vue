@@ -1,12 +1,12 @@
 <script lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
 
-export interface DonutPart {
+export interface DonutPart<Value extends number = Money> {
   /** Stays the same for the same thing on every screen, such as a bucket or a tax. */
   readonly key: string
   readonly label: string
   /** Above zero. A part of zero is listed and leaves no slice. */
-  readonly value: number
+  readonly value: Value
   /**
    * The colour token of the thing the part stands for, such as `--bucket-taxes`. Only an open list such
    * as sectors colours by size, its four largest parts `--series-1` to `--series-4` and the rest `--chart-deemphasis`.
@@ -29,10 +29,12 @@ import type { ChartOption } from '../charts/echarts'
 import { buildChartTheme } from '../charts/chartTheme'
 import { chartTokens, tokenColour } from '../charts/chartTokens'
 import { usePhoneLayout } from '../layout/viewport'
-import { formatMoney, formatPercent } from '../money/moneyFormat'
+import { formatChartMoney, formatPercent } from '../money/moneyFormat'
 import AppCard from './AppCard.vue'
 import DrillLink from './DrillLink.vue'
 import { words } from './words'
+import { pointsOfShare, shareFromPercent, shareOfScale } from '../money/percent'
+import type { Money } from '../money/money'
 
 /**
  * One snapshot of at most five parts as a ring, or six for a fixed list with a colour per entry, with the total in
@@ -47,7 +49,7 @@ const props = withDefaults(
     definition?: string
     /** What the ring shows, in words and figures, for a screen reader. */
     description: string
-    parts: readonly DonutPart[]
+    parts: readonly DonutPart<number>[]
     /** The figure in the middle of the ring, already written out, such as "€84,210.35". */
     total: string
     /** What the middle figure is, such as "income, last 12 months". */
@@ -60,7 +62,7 @@ const props = withDefaults(
     startCollapsed?: boolean
     reveal?: boolean
   }>(),
-  { formatValue: (value: number) => formatMoney(value), opens: words.donut.rows, startCollapsed: false, reveal: false },
+  { formatValue: formatChartMoney, opens: words.donut.rows, startCollapsed: false, reveal: false },
 )
 
 const router = useRouter()
@@ -73,10 +75,11 @@ const totalSize = computed(() => (props.total.length <= 13 ? 'text-xl' : props.t
 
 const whole = computed(() => props.parts.reduce((sum, part) => sum + Math.max(part.value, 0), 0))
 
+/** A whole percent of the ring, so a label never claims more than it can show. A part too small to round to 1% says less than 1%. */
 function share(value: number): string {
-  if (whole.value <= 0 || value <= 0) return formatPercent(0)
-  const percent = (value / whole.value) * 100
-  return percent < 0.5 ? `<${formatPercent(0.01)}` : formatPercent(Math.round(percent) / 100)
+  if (whole.value <= 0 || value <= 0) return formatPercent(shareFromPercent(0))
+  const points = pointsOfShare(shareOfScale(value, whole.value))
+  return points < 0.5 ? `<${formatPercent(shareFromPercent(1))}` : formatPercent(shareFromPercent(Math.round(points)))
 }
 
 const option = computed<ChartOption>(() => {

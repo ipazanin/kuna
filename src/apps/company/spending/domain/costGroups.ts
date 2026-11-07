@@ -1,12 +1,13 @@
-import { ZERO, addMoney, negateMoney } from '../../../../shared/money/money'
+import { addMoney, negateMoney, ratioOf, subtractMoney, ZERO } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { Figure } from '../../filters/domain/drillTarget'
 import { COST_BUCKETS } from '../../workbook/domain/bucket'
 import type { Bucket } from '../../workbook/domain/bucket'
 import type { CategoryTotal } from './categoryTotals'
+import type { Share } from '../../../../shared/money/percent'
 
 /** A change against the period before: a fraction of the prior amount, or new when there was none. */
-export type CostChange = number | 'new'
+export type CostChange = Share | 'new'
 
 export interface CostRow {
   readonly category: string
@@ -83,5 +84,5 @@ function changeOf(now: Money, before: Money): CostChange | null {
   if (before === 0) {
     return now === 0 ? null : 'new'
   }
-  return (now - before) / before
+  return ratioOf(subtractMoney(now, before), before)
 }

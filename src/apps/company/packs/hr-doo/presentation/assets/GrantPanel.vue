@@ -3,8 +3,8 @@ import type { RouteLocationRaw } from 'vue-router'
 
 export interface GrantYearLine {
   readonly year: number
-  readonly released: number
-  readonly deferred: number
+  readonly released: Money
+  readonly deferred: Money
   readonly when: 'past' | 'current' | 'ahead'
 }
 
@@ -14,24 +14,24 @@ export interface GrantLine {
   readonly received: string
   /** The grant's receipt on the ledger, by its day and the grant categories. */
   readonly receipt: RouteLocationRaw | null
-  readonly amount: number
+  readonly amount: Money
   readonly policy: string
   readonly employmentUntil: string | null
   /** "231 days to go" until the day, then "The required period is over". */
   readonly employmentState: string | null
   /** What the grantor could claim back if employment ended today, or null when the grants tab has no terms for today. */
-  readonly clawback: { readonly amount: number; readonly until: string | null } | null
+  readonly clawback: { readonly amount: Money; readonly until: string | null } | null
   readonly years: readonly GrantYearLine[]
   /** The variable part no funded cost will ever release. */
-  readonly neverReleased: number
+  readonly neverReleased: Money
 }
 
 export interface GrantComparisonLine {
   readonly key: string
   readonly label: string
-  readonly accountant: number
-  readonly ours: number
-  readonly residual: number
+  readonly accountant: Money
+  readonly ours: Money
+  readonly residual: Money
 }
 </script>
 
@@ -39,6 +39,7 @@ export interface GrantComparisonLine {
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import { words } from './words'
+import type { Money } from '../../../../../../shared/money/money'
 
 /** Each grant's release beside the assets it paid for, its employment condition and what a broken condition would cost today. */
 defineProps<{

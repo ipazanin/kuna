@@ -4,7 +4,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { bridgeChart } from '../../../../../../shared/charts/bridgeChart'
 import { chartTokens } from '../../../../../../shared/charts/chartTokens'
-import { formatMoney } from '../../../../../../shared/money/moneyFormat'
+import { formatChartMoney, formatMoney } from '../../../../../../shared/money/moneyFormat'
 import ChartLegend from '../../../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../../../shared/ui/DashboardGrid.vue'
 import DonutCard from '../../../../../../shared/ui/DonutCard.vue'
@@ -65,7 +65,7 @@ const dialogOpen = computed({
         :parts="view.ring.parts"
         :total="formatMoney(view.ring.total)"
         :total-label="words.month.costToCompany"
-        :format-value="(value: number) => formatMoney(value)"
+        :format-value="formatChartMoney"
         data-testid="salaries-ring"
       >
         <template #below>

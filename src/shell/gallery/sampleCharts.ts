@@ -5,7 +5,9 @@ import type { ChartTokens } from '../../shared/charts/chartTokens'
 import { DOT_SIZE, RING_SIZE } from '../../shared/charts/chartDots'
 import { axisTooltip } from '../../shared/charts/chartTooltip'
 import { changeTreemap, changeTreemapTooltip } from '../../shared/charts/treemap'
-import { formatCompactMoney, formatMoney, formatPercent } from '../../shared/money/moneyFormat'
+import { formatChartMoney, formatCompactMoney, formatPercent } from '../../shared/money/moneyFormat'
+import { moneyFromCents } from '../../shared/money/money'
+import { shareFromRatio } from '../../shared/money/percent'
 
 /** Made-up figures in cents for a small one-person company. None of it comes from a real ledger. */
 export const SAMPLE_MONTHS = ['Nov 2025', 'Dec 2025', 'Jan 2026', 'Feb 2026', 'Mar 2026', 'Apr 2026', 'May 2026', 'Jun 2026', 'Jul 2026', 'Aug 2026', 'Sep 2026', 'Oct 2026']
@@ -88,7 +90,7 @@ export function incomeAgainstCosts(tokens: ChartTokens): ChartOption {
         tokens,
         incompleteCategories: INCOMPLETE_MONTHS,
         // Costs read positive. Only the net keeps its sign.
-        formatAmount: (amount, seriesName) => formatMoney(amount, seriesName === 'Net' ? 'negative' : 'magnitude'),
+        formatAmount: (amount, seriesName) => formatChartMoney(amount, seriesName === 'Net' ? 'negative' : 'magnitude'),
       }),
     },
     xAxis: { ...monthAxis(tokens), axisLine: { onZero: true, lineStyle: { color: tokens.axis } } },
@@ -148,7 +150,7 @@ export function cashAtMonthEnd(tokens: ChartTokens): ChartOption {
           show: true,
           color: tokens.ink,
           fontWeight: 600,
-          formatter: ({ value }: { value: unknown }) => (typeof value === 'number' ? formatCompactMoney(value) : ''),
+          formatter: ({ value }: { value: unknown }) => (typeof value === 'number' ? formatCompactMoney(moneyFromCents(value)) : ''),
         },
       },
     ],
@@ -196,7 +198,7 @@ export function costsByCategory(tokens: ChartTokens): ChartOption {
           distance: 8,
           color: tokens.inkSecondary,
           fontSize: 11,
-          formatter: ({ value }: { value: unknown }) => (typeof value === 'number' ? formatCompactMoney(value) : ''),
+          formatter: ({ value }: { value: unknown }) => (typeof value === 'number' ? formatCompactMoney(moneyFromCents(value)) : ''),
         },
         data: [...CATEGORY_NOW].reverse(),
         z: 2,
@@ -226,7 +228,7 @@ export function everyEuroEarned(tokens: ChartTokens): ChartOption {
       color: tokens.onFill,
       fontSize: 11,
       fontWeight: 600,
-      formatter: ({ value }: { value: unknown }) => (typeof value === 'number' && value >= 0.12 ? formatPercent(value) : ''),
+      formatter: ({ value }: { value: unknown }) => (typeof value === 'number' && value >= 0.12 ? formatPercent(shareFromRatio(value)) : ''),
     },
     data: [...shares].reverse(),
   })
@@ -235,9 +237,9 @@ export function everyEuroEarned(tokens: ChartTokens): ChartOption {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      formatter: axisTooltip({ tokens, formatAmount: (share) => formatPercent(share) }),
+      formatter: axisTooltip({ tokens, formatAmount: (share) => formatPercent(shareFromRatio(share)) }),
     },
-    xAxis: { type: 'value', max: 1, axisLabel: { formatter: (share: number) => formatPercent(share) } },
+    xAxis: { type: 'value', max: 1, axisLabel: { formatter: (share: number) => formatPercent(shareFromRatio(share)) } },
     yAxis: { type: 'category', data: [...WINDOWS].reverse(), axisLine: { show: false }, axisLabel: { color: tokens.inkSecondary, fontSize: 12 } },
     series: [
       segment('Kept', tokens.buckets.income, SPLIT.kept, false),
@@ -250,13 +252,13 @@ export function everyEuroEarned(tokens: ChartTokens): ChartOption {
 
 /** Made-up holdings with their value in cents and their gain on what is held. */
 export const SAMPLE_HOLDINGS = [
-  { name: 'World fund', value: 1_875_000, gain: 0.207 },
-  { name: 'Share A', value: 942_310, gain: 0.284 },
-  { name: 'Bond fund', value: 810_000, gain: 0.012 },
-  { name: 'Share B', value: 776_790, gain: 0.086 },
-  { name: 'Share C', value: 402_150, gain: -0.143 },
-  { name: 'Small caps fund', value: 265_400, gain: -0.041 },
-  { name: 'Share D', value: 118_900, gain: -0.312 },
+  { name: 'World fund', value: moneyFromCents(1_875_000), gain: shareFromRatio(0.207) },
+  { name: 'Share A', value: moneyFromCents(942_310), gain: shareFromRatio(0.284) },
+  { name: 'Bond fund', value: moneyFromCents(810_000), gain: shareFromRatio(0.012) },
+  { name: 'Share B', value: moneyFromCents(776_790), gain: shareFromRatio(0.086) },
+  { name: 'Share C', value: moneyFromCents(402_150), gain: shareFromRatio(-0.143) },
+  { name: 'Small caps fund', value: moneyFromCents(265_400), gain: shareFromRatio(-0.041) },
+  { name: 'Share D', value: moneyFromCents(118_900), gain: shareFromRatio(-0.312) },
 ] as const
 
 /** The made-up holdings as tiles sized by their value and tinted by their gain. */

@@ -8,6 +8,7 @@ import type { Target } from '../src/apps/investments/workbook/domain/target'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { decimal } from './fixtures/investments'
 import { euros } from './fixtures/ledger'
+import { shareFromRatio } from '../src/shared/money/percent'
 
 function classTargets(percents: readonly (readonly [ClassGroup, string])[]): Target[] {
   return percents.map(([group, percent]) => ({ id: recordIdOf(TARGET_RECORDS, group), slice: { mix: 'class', group }, percent: decimal(percent) }))
@@ -21,9 +22,9 @@ function sectorTargets(percents: readonly (readonly [Sector, string])[]): Target
 const CLASSES: HoldingMix<'class'> = {
   mix: 'class',
   parts: [
-    { group: 'stocks', value: euros(7000), share: 0.7 },
-    { group: 'bonds', value: euros(2000), share: 0.2 },
-    { group: 'cash', value: euros(1000), share: 0.1 },
+    { group: 'stocks', value: euros(7000), share: shareFromRatio(0.7) },
+    { group: 'bonds', value: euros(2000), share: shareFromRatio(0.2) },
+    { group: 'cash', value: euros(1000), share: shareFromRatio(0.1) },
   ],
   whole: euros(10000),
   unknown: euros(0),
@@ -34,8 +35,8 @@ const CLASSES: HoldingMix<'class'> = {
 const SECTORS: HoldingMix<'sector'> = {
   mix: 'sector',
   parts: [
-    { group: 'financials', value: euros(4000), share: 0.4 },
-    { group: 'information-technology', value: euros(4000), share: 0.4 },
+    { group: 'financials', value: euros(4000), share: shareFromRatio(0.4) },
+    { group: 'information-technology', value: euros(4000), share: shareFromRatio(0.4) },
   ],
   whole: euros(10000),
   unknown: euros(2000),

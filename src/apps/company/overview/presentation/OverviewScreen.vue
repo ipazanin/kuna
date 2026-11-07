@@ -48,6 +48,7 @@ import { capitalised } from '../../../../shared/text/capitalised'
 import { plural } from '../../../../shared/text/translation'
 import type { CroatianForms, EnglishForms } from '../../../../shared/text/translation'
 import { words } from './words'
+import { subtractMoney } from '../../../../shared/money/money'
 
 const ledger = useFilteredLedger()
 const { state } = useWorkbook()
@@ -91,7 +92,7 @@ const overview = computed(() => {
   const balanceMonths = balanceSeries(accountRows, window)
   const cashMonths = balanceMonths.months.slice(-13)
   const lastMonthEnd = [...cashMonths].reverse().find((month) => month.complete) ?? null
-  const cashChange = lastMonthEnd === null ? null : balances.cashOnHand.amount - lastMonthEnd.total.amount
+  const cashChange = lastMonthEnd === null ? null : subtractMoney(balances.cashOnHand.amount, lastMonthEnd.total.amount)
   const sinceLabel = averages.allTime === null ? null : words.typicalMonth.allTime(averages.allTime.span.from)
   const known = workbook.accounts.map((account) => account.slug)
   const colours = accountColours([...known, ...balanceMonths.accounts.filter((account) => !known.includes(account))], tokens)
@@ -108,7 +109,7 @@ const overview = computed(() => {
       recentChange: recentChange(averages.last3.lines[line].perMonth, averages.last12.lines[line].perMonth),
     }))
 
-  const costChange = averages.last3.lines.cost.perMonth - averages.last12.lines.cost.perMonth
+  const costChange = subtractMoney(averages.last3.lines.cost.perMonth, averages.last12.lines.cost.perMonth)
   const said = headline(months)
   const lastTwelveTotals = bucketTotals(transactionsInPeriod(profitAndLossRows, LAST_12_MONTHS, window))
   const averagedMonths = `${monthLabel(averages.last12.span.from)} – ${monthLabel(averages.last12.span.to)}`

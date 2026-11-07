@@ -9,6 +9,7 @@ import ScenarioPicker from '../../shared/ui/ScenarioPicker.vue'
 import SparkLine from '../../shared/ui/SparkLine.vue'
 import type { PickerOption } from '../../shared/ui/ScenarioPicker.vue'
 import GallerySection from './GallerySection.vue'
+import { moneyFromCents } from '../../shared/money/money'
 
 /** Made-up scenarios A to E, four picked, colours by slot. */
 const OPTIONS: readonly PickerOption[] = [
@@ -36,7 +37,7 @@ const COLUMNS: readonly ComparedColumn[] = [
   { key: 'd', label: 'D', isBase: false },
 ]
 
-const cell = (cents: number, best = false, difference: string | null = null) => ({ text: formatMoney(cents), best, difference })
+const cell = (cents: number, best = false, difference: string | null = null) => ({ text: formatMoney(moneyFromCents(cents)), best, difference })
 
 const LINES: readonly ComparedLine[] = [
   {

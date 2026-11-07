@@ -9,6 +9,7 @@ import type { Mix, MixGroup } from '../../workbook/domain/mixGroup'
 import { DECIMAL_ZERO, moneyParts } from '../../../../shared/money/decimal'
 import { ZERO, ratioOf, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import type { Share } from '../../../../shared/money/percent'
 
 export type GroupOf<Of extends Mix> = Extract<MixGroup, { readonly mix: Of }>['group']
 
@@ -17,7 +18,7 @@ export interface MixPart<Group extends string> {
   readonly group: Group
   readonly value: Money
   /** Null when the whole is zero. */
-  readonly share: number | null
+  readonly share: Share | null
 }
 
 export interface HoldingMix<Of extends Mix> {

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import MoneyText from '../../../../../shared/ui/MoneyText.vue'
 import { words } from './words'
+import type { Money } from '../../../../../shared/money/money'
 
 /** An amount that opens how it is worked out, set like a drill link but with a dotted underline, since it opens a dialog and not the rows. */
 defineProps<{
-  cents: number
+  cents: Money
   /** What the amount is, for a screen reader, such as "Benefit in kind in 2026". */
   label: string
 }>()

@@ -5,7 +5,7 @@ import type { PeriodGains } from '../domain/periodGains'
 import { driversChart, periodDrivers } from './driversChart'
 import { words } from './words'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
-import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { formatChartMoney } from '../../../../shared/money/moneyFormat'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
 
 /** What each holding gained in the period, with the cash's currency effect, the income of no holding and the fees. */
@@ -19,7 +19,7 @@ const chart = computed(() => driversChart(drivers.value, chartTokens()))
 const height = computed(() => Math.max(160, 40 + drivers.value.length * 32))
 
 function gain(amount: number): string {
-  return formatMoney(amount, 'always')
+  return formatChartMoney(amount, 'always')
 }
 </script>
 

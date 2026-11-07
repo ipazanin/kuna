@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { missingAccrualRoles } from '../src/apps/company/packs/hr-doo/presentation/accrualRoles'
+import { missingAccrualRoles } from '../src/apps/company/packs/hr-doo/domain/accrual/accrualRoles'
 import { STUDIO_CATEGORIES } from './fixtures/exampleStudio'
 
 describe('missingAccrualRoles', () => {
@@ -14,6 +14,6 @@ describe('missingAccrualRoles', () => {
       roles: category.roles.filter((role) => role !== 'personal-transport' && role !== 'non-deductible'),
     }))
 
-    expect(missingAccrualRoles(withoutAddBacks).map((entry) => entry.role)).toEqual(['personal-transport', 'non-deductible'])
+    expect(missingAccrualRoles(withoutAddBacks)).toEqual(['personal-transport', 'non-deductible'])
   })
 })

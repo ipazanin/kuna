@@ -7,6 +7,7 @@ import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { DrillChart } from '../../filters/presentation/chartDrill'
 import type { MonthOfProfitAndLoss } from '../domain/monthlyProfitAndLoss'
 import { words } from './words'
+import { ZERO } from '../../../../shared/money/money'
 
 interface TrendLine {
   readonly name: string
@@ -37,7 +38,7 @@ export function rollingNetChart(months: readonly MonthOfProfitAndLoss[], tokens:
       description:
         latest === undefined
           ? words.notEnoughMonths
-          : words.rollingDescription(monthLabel(latest.month), formatMoney(latest.rolling3?.net ?? 0), latest.rolling12 === null ? null : formatMoney(latest.rolling12.net)),
+          : words.rollingDescription(monthLabel(latest.month), formatMoney(latest.rolling3?.net ?? ZERO), latest.rolling12 === null ? null : formatMoney(latest.rolling12.net)),
     },
   )
 }
@@ -63,7 +64,6 @@ function trendChart(months: readonly MonthOfProfitAndLoss[], tokens: ChartTokens
         tokens,
         incompleteCategories: categories.filter((_, index) => incomplete[index]),
         categoryLabel: monthAxisLabel('long'),
-        formatAmount: (amount) => formatMoney(amount),
       }),
     },
     xAxis: {

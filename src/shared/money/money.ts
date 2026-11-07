@@ -38,6 +38,11 @@ export function moneyFromCents(cents: number): Money {
   return (cents + 0) as Money
 }
 
+/** A number a chart hands back from a series of cents. It stays as it is, since a tick between two values can hold a fraction of a cent, which `moneyFromCents` refuses. */
+export function moneyOfChart(value: number): Money {
+  return value as Money
+}
+
 /** The decimal amount, for charts and for comparing with a Sheet figure. */
 export function amountOf(money: Money): number {
   return money / 100

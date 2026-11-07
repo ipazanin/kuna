@@ -26,7 +26,7 @@ import type { ChartRange } from '../charts/chartRange'
 import { categoryData, isCategoryAxis } from '../charts/chartAxes'
 import { monthAxisLabel } from '../calendar/monthLabel'
 import { usePhoneLayout } from '../layout/viewport'
-import { formatMoney } from '../money/moneyFormat'
+import { formatChartMoney } from '../money/moneyFormat'
 import AppCard from './AppCard.vue'
 import ChartCanvas from './ChartCanvas.vue'
 import ChoiceButtons from './ChoiceButtons.vue'
@@ -66,7 +66,7 @@ const props = withDefaults(
     ranges?: readonly ChartRange[]
   }>(),
   {
-    formatValue: (value: number) => formatMoney(value),
+    formatValue: formatChartMoney,
     categoryLabel: monthAxisLabel('long'),
     linkAt: () => null,
     loading: false,

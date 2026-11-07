@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+import type { Money } from '../money/money'
 import { formatCompactMoney, formatMoney } from '../money/moneyFormat'
 import type { MoneyFormat, MoneyTone, SignDisplay } from '../money/moneyFormat'
+import { moneyToneClass } from './moneyTone'
 
 const props = withDefaults(
   defineProps<{
-    cents: number
+    cents: Money
     /** `magnitude` drops the sign, for costs that read positive. `always` adds a plus, for changes. */
     sign?: SignDisplay | undefined
     precision?: 'cents' | 'compact'
@@ -25,14 +27,8 @@ const formatted = computed(() => {
   if (props.precision === 'compact') return formatCompactMoney(props.cents, props.sign, props.format)
   return formatMoney(props.cents, props.sign, props.format)
 })
-
-const tone = computed(() => {
-  if (props.tone === undefined || props.cents === 0) return ''
-  if (props.cents > 0) return 'text-success'
-  return props.tone === 'outcome' ? 'text-error' : ''
-})
 </script>
 
 <template>
-  <span class="figure whitespace-nowrap" :class="tone">{{ formatted }}</span>
+  <span class="figure whitespace-nowrap" :class="moneyToneClass(cents, tone)">{{ formatted }}</span>
 </template>

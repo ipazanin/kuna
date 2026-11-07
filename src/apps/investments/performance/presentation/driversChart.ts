@@ -4,7 +4,7 @@ import { moneyAxisLabel } from '../../../../shared/charts/chartTheme'
 import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../shared/charts/chartTooltip'
 import type { BarSeries, ChartOption } from '../../../../shared/charts/echarts'
-import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { formatChartMoney, formatMoney } from '../../../../shared/money/moneyFormat'
 import { sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 
@@ -56,7 +56,7 @@ export function driversChart(drivers: readonly Driver[], tokens: ChartTokens): D
   return {
     option: {
       grid: { top: 8, right: 16 },
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: axisTooltip({ tokens, formatAmount: (amount) => formatMoney(amount, 'always') }) },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: axisTooltip({ tokens, formatAmount: (amount) => formatChartMoney(amount, 'always') }) },
       xAxis: { type: 'value', axisLabel: { ...moneyAxisLabel(tokens), hideOverlap: true } },
       yAxis: { type: 'category', inverse: true, data: drivers.map((driver) => driver.label), axisLabel: { color: tokens.inkSecondary, width: 160, overflow: 'truncate' } },
       series: [bars],

@@ -53,7 +53,6 @@ export function balanceChart(
           tokens,
           incompleteCategories: categories.filter((_, index) => incomplete[index]),
           categoryLabel: monthAxisLabel('long'),
-          formatAmount: (amount) => formatMoney(amount),
         }),
       },
       xAxis: {

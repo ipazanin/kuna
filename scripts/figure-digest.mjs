@@ -90,18 +90,18 @@ import { ownerCost } from '../src/apps/company/packs/hr-doo/domain/ownerCost.ts'
 import { loanMonths } from '../src/apps/company/packs/hr-doo/domain/ownerLoans.ts'
 import { ownerNetWithProfit } from '../src/apps/company/packs/hr-doo/domain/ownerNetWithProfit.ts'
 import { netPayPerMonth, ownerTake, ownerTakeByMonth } from '../src/apps/company/packs/hr-doo/domain/ownerTake.ts'
+import { unaccountedInView } from '../src/apps/company/packs/hr-doo/domain/ownerAdvances.ts'
 import { payrollCadence } from '../src/apps/company/packs/hr-doo/domain/payrollCadence.ts'
 import { salaryReconciliation } from '../src/apps/company/packs/hr-doo/domain/salaries/salaryReconciliation.ts'
 import { payScenarios } from '../src/apps/company/packs/hr-doo/domain/scenarios/payScenarios.ts'
+import { missingAccrualRoles } from '../src/apps/company/packs/hr-doo/domain/accrual/accrualRoles.ts'
+import { packWaiting } from '../src/apps/company/packs/hr-doo/domain/packWaiting.ts'
+import { paydayYears, salaryYearRows } from '../src/apps/company/packs/hr-doo/domain/salaries/salaryFigures.ts'
 import { taxByType } from '../src/apps/company/packs/hr-doo/domain/taxByType.ts'
+import { yearOptions } from '../src/apps/company/packs/hr-doo/domain/yearChoice.ts'
 import { compareYearEnd } from '../src/apps/company/packs/hr-doo/domain/yearEnd/yearEndComparison.ts'
 import { yearEndOpenItems } from '../src/apps/company/packs/hr-doo/domain/yearEnd/yearEndOpenItems.ts'
 import { fakeStaffOf } from '../src/apps/company/packs/hr-doo/infrastructure/fake/fakeStaff.ts'
-import { missingAccrualRoles } from '../src/apps/company/packs/hr-doo/presentation/accrualRoles.ts'
-import { packWaitingJobs } from '../src/apps/company/packs/hr-doo/presentation/packWaitingJobs.ts'
-import { paydayYears, salaryYearRows } from '../src/apps/company/packs/hr-doo/presentation/salaries/salariesView.ts'
-import { unaccountedInView } from '../src/apps/company/packs/hr-doo/presentation/unaccountedInView.ts'
-import { yearOptions } from '../src/apps/company/packs/hr-doo/presentation/year/yearChoice.ts'
 import { ruleValue } from '../src/apps/company/packs/hr-doo/ruleset/ruleset.ts'
 import { civilDate, parseCivilDate, yearOf } from '../src/shared/calendar/civilDate.ts'
 import { addMonths, monthOf, monthsFrom, yearOfMonth } from '../src/shared/calendar/monthKey.ts'
@@ -285,7 +285,7 @@ if (companyAsked) {
   group('overview.headline', () => headline(months))
   group('overview.euro-split', () => euroSplit(bucketTotals(transactionsInPeriod(rows, { preset: 'l12' }, window)), { preset: 'l12' }))
   group('overview.waiting', () => waitingJobs(booked, raw.transactions))
-  group('overview.pack-waiting', () => packWaitingJobs(books, asOf))
+  group('overview.pack-waiting', () => packWaiting(books, asOf))
 
   group('review.queue', () =>
     scopeTransactions(raw.transactions, DEFAULT_FILTERS)
@@ -293,7 +293,7 @@ if (companyAsked) {
       .map((row) => categorise(row, cash.rules, context)),
   )
   group('review.rules', () => withoutDismissed(ruleCoverage(raw.transactions, raw.rules, context), raw.dismissals))
-  group('review.unaccounted', () => unaccountedInView({ booked, filters: DEFAULT_FILTERS }))
+  group('review.unaccounted', () => unaccountedInView(booked, DEFAULT_FILTERS))
 
   const invoiceDay = newestBookingOf(raw.transactions)
   const receivables = receivablesOf(booked.transactions, booked.categories, booked.invoices, booked.clients)

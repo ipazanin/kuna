@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-
-import { formatAccountMoney } from '../../accounts/presentation/accountMoney'
 import { euroLine } from '../../accounts/presentation/euroLine'
 import { spendingHubFigures } from '../../home/presentation/spendingHubFigures'
 import { words as homeWords } from '../../home/presentation/words'
@@ -13,7 +11,7 @@ import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { SPENDING_ACCOUNTS_ROUTE, accountLink } from './spendingLinks'
 import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { formatAccountMoney, formatMoney } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'

@@ -4,6 +4,8 @@ import { addMoney, negateMoney, subtractMoney } from '../../../../shared/money/m
 import type { Money } from '../../../../shared/money/money'
 import { daysOver365, solvedRate } from '../../../../shared/money/rateSolver'
 import type { DatedFlow } from '../../../../shared/money/rateSolver'
+import { shareFromRatio } from '../../../../shared/money/percent'
+import type { Share } from '../../../../shared/money/percent'
 
 /** A portfolio's value at a day's close and that day's deposits less its withdrawals, which the value includes. A flow is positive when money enters. */
 export interface ValuedDay {
@@ -14,13 +16,13 @@ export interface ValuedDay {
 
 /** A time-weighted return over a whole period, and for a period of a year or more the same as a rate a year. */
 export interface TimeWeightedReturn {
-  readonly total: number
+  readonly total: Share
   /** (1 + total)^(365 ÷ days) − 1, null for a period under a year. */
-  readonly yearly: number | null
+  readonly yearly: Share | null
 }
 
-export function timeWeightedReturn(total: number, from: CivilDate, to: CivilDate): TimeWeightedReturn {
-  return { total, yearly: lastsAYear(from, to) ? (1 + total) ** (1 / daysOver365(from, to)) - 1 : null }
+export function timeWeightedReturn(total: Share, from: CivilDate, to: CivilDate): TimeWeightedReturn {
+  return { total, yearly: lastsAYear(from, to) ? shareFromRatio((1 + total) ** (1 / daysOver365(from, to)) - 1) : null }
 }
 
 /**
@@ -50,7 +52,7 @@ export function timeWeightedIndex(days: readonly ValuedDay[]): number[] {
  * The money-weighted return a year (XIRR) from the first day to the last, in the investor's view: the first day's value
  * and every later deposit negative, every later withdrawal and the last day's value positive. Null when no rate balances them.
  */
-export function moneyWeightedRate(days: readonly ValuedDay[]): number | null {
+export function moneyWeightedRate(days: readonly ValuedDay[]): Share | null {
   const [first, ...later] = days
   const last = days.at(-1)
   if (first === undefined || last === undefined) {

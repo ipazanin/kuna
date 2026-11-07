@@ -119,6 +119,6 @@
     "src/shell/gallery/FoundationsGallery.vue"
   ],
   "moneyCasts": [],
-  "moneyScale": ["src/shared/ai/domain/citedAnswer.ts", "src/shared/ai/presentation/useAiTask.ts", "src/shared/storage/domain/recordFields.ts", "src/shared/ui/DonutCard.vue"],
-  "domainRounding": ["src/shared/ai/domain/citedAnswer.ts"]
+  "moneyScale": [],
+  "domainRounding": []
 }

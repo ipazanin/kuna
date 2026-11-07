@@ -4,8 +4,9 @@ import { BAR_END_DOWN, BAR_END_UP, incompleteBand, markIncomplete, moneyAxisLabe
 import type { ChartTokens } from '../../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../../shared/charts/chartTooltip'
 import type { BarSeries, ChartOption, LineSeries } from '../../../../../shared/charts/echarts'
-import { negateMoney } from '../../../../../shared/money/money'
-import { formatMoney, formatPercent } from '../../../../../shared/money/moneyFormat'
+import { negateMoney, sumMoney } from '../../../../../shared/money/money'
+import type { Money } from '../../../../../shared/money/money'
+import { formatChartMoney, formatMoney, formatPercent } from '../../../../../shared/money/moneyFormat'
 import { shareFromPercent } from '../../../../../shared/money/percent'
 import type { LegendEntry } from '../../../../../shared/ui/ChartLegend.vue'
 import { drillToTransactions } from '../../../filters/domain/drillTarget'
@@ -136,18 +137,18 @@ export function ownerPaySeries(
 export interface OwnerTakeAside {
   readonly key: string
   readonly label: string
-  readonly amount: number
+  readonly amount: Money
   readonly drill: DrillTarget
 }
 
 export interface OwnerTakeRing {
   /** Each category paid to the owner on balance, in its series colour. */
-  readonly parts: readonly { readonly key: string; readonly label: string; readonly value: number; readonly colour: string; readonly drill: DrillTarget }[]
+  readonly parts: readonly { readonly key: string; readonly label: string; readonly value: Money; readonly colour: string; readonly drill: DrillTarget }[]
   /** The ring's total, in its middle. */
-  readonly ringTotal: number
+  readonly ringTotal: Money
   /** Loans, net, any category that took back more than it paid, and the rent tax, which with the ring make the owner take. */
   readonly aside: readonly OwnerTakeAside[]
-  readonly total: number
+  readonly total: Money
 }
 
 /**
@@ -170,21 +171,21 @@ export function ownerTakeRing(take: OwnerTake, period: Period, series: readonly 
           {
             key: 'loans',
             label: LOANS_NET_SERIES,
-            amount: loanLines.reduce((sum, line) => sum + line.amount.amount, 0),
+            amount: sumMoney(loanLines.map((line) => line.amount.amount)),
             drill: drillToTransactions({ period, categories: loans }),
           },
         ]),
     ...others.filter((line) => line.amount.amount < 0).map((line) => ({ key: line.category, label: nameOf(line.category), amount: line.amount.amount, drill: line.amount.drill })),
     ...(take.rentTax.amount === 0 ? [] : [{ key: 'rent-tax', label: RENT_TAX_LABEL, amount: negateMoney(take.rentTax.amount), drill: take.rentTax.drill }]),
   ]
-  return { parts, ringTotal: parts.reduce((sum, part) => sum + part.value, 0), aside, total: take.total.amount }
+  return { parts, ringTotal: sumMoney(parts.map((part) => part.value)), aside, total: take.total.amount }
 }
 
 /** One category the benefits come from, as a part of their ring. */
 export interface BenefitsRingPart {
   readonly key: string
   readonly label: string
-  readonly value: number
+  readonly value: Money
   readonly colour: string
   /** The owner share its rows were counted at, such as "50%", or "mixed" when they differ. */
   readonly note: string
@@ -220,7 +221,7 @@ export interface CategoryMonth {
 }
 
 function amountOf(month: CategoryMonth, series: CategorySeries): number {
-  return series.categories.reduce((total, category) => total + (month.byCategory[category]?.amount ?? 0), 0)
+  return sumMoney(series.categories.map((category) => month.byCategory[category]?.amount ?? 0))
 }
 
 function drillOf(month: CategoryMonth, series: CategorySeries | undefined): DrillTarget | null {
@@ -239,7 +240,7 @@ function monthTooltip(months: readonly { readonly month: MonthKey; readonly comp
     tokens,
     incompleteCategories: months.filter((month) => !month.complete).map((month) => month.month),
     categoryLabel: monthAxisLabel('long'),
-    formatAmount: (amount) => formatMoney(amount, sign),
+    formatAmount: (amount) => formatChartMoney(amount, sign),
   })
 }
 
@@ -285,7 +286,7 @@ export function taxByTypeChart(months: readonly CategoryMonth[], series: readonl
     yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },
     series: areas,
   }
-  const total = months.reduce((sum, month) => sum + month.total.amount, 0)
+  const total = sumMoney(months.map((month) => month.total.amount))
   return {
     option,
     description: months.length === 0 ? words.charts.noMonths : words.charts.taxesByMonth(spanOf(months), series.map((entry) => entry.name).join(', '), formatMoney(total)),
@@ -321,7 +322,7 @@ export function ownerDrawsChart(months: readonly OwnerTakeMonth[], series: reado
       tokens,
     ),
   }))
-  const total = months.reduce((sum, month) => sum + month.total.amount, 0)
+  const total = sumMoney(months.map((month) => month.total.amount))
   return {
     option: {
       grid: { top: 16 },
@@ -384,8 +385,8 @@ export function loanTimelineChart(months: readonly LoanMonth[], colours: LoanCol
       ),
     },
   ]
-  const lent = months.reduce((sum, month) => sum + month.lent.amount, 0)
-  const repaid = months.reduce((sum, month) => sum + month.repaid.amount, 0)
+  const lent = sumMoney(months.map((month) => month.lent.amount))
+  const repaid = sumMoney(months.map((month) => month.repaid.amount))
   return {
     option: {
       grid: { top: 16 },

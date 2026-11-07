@@ -7,7 +7,7 @@ import { axisTooltip } from '../../../../../../shared/charts/chartTooltip'
 import type { BarSeries, ChartOption, LineSeries } from '../../../../../../shared/charts/echarts'
 import { sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
-import { formatMoney } from '../../../../../../shared/money/moneyFormat'
+import { formatChartMoney, formatMoney } from '../../../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../../../shared/ui/ChartLegend.vue'
 import type { DrillTarget } from '../../../../filters/domain/drillTarget'
 import type { DrillChart } from '../../../../filters/presentation/chartDrill'
@@ -102,7 +102,7 @@ export function forecastChart(months: readonly ForecastChartMonth[], running: Mo
           }
           return [monthLabel(month), month === running ? words.chart.runningInTooltip : null, basisOf.get(category) ?? null].filter((part) => part !== null).join(', ')
         },
-        formatAmount: (amount, seriesName) => formatMoney(amount, seriesName === PROFIT ? 'negative' : 'magnitude'),
+        formatAmount: (amount, seriesName) => formatChartMoney(amount, seriesName === PROFIT ? 'negative' : 'magnitude'),
       }),
     },
     xAxis: {

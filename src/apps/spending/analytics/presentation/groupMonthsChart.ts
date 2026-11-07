@@ -56,8 +56,7 @@ export function groupMonthsChart(months: readonly MonthTotals[], groups: readonl
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
-        formatter: (points: unknown) =>
-          axisTooltip({ tokens, incompleteCategories: [current], categoryLabel: monthAxisLabel('long'), formatAmount: (amount) => formatMoney(amount) })(shownPoints(points)),
+        formatter: (points: unknown) => axisTooltip({ tokens, incompleteCategories: [current], categoryLabel: monthAxisLabel('long') })(shownPoints(points)),
       },
       xAxis: { type: 'category', data: months.map((month) => month.month), axisLabel: { color: tokens.inkMuted, formatter: monthAxisLabel('short') } },
       yAxis: { type: 'value', axisLabel: moneyAxisLabel(tokens) },

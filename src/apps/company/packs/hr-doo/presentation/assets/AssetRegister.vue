@@ -8,25 +8,25 @@ export interface AssetLine {
   readonly payment: RouteLocationRaw | null
   readonly bought: string
   readonly inUse: string
-  readonly cost: number
+  readonly cost: Money
   readonly group: string
   /** "50%", "100%, doubled", or "Small inventory". */
   readonly rate: string
   readonly rateLink: RouteLocationRaw
   /** Null when the asset carries no depreciation this year. */
-  readonly charge: number | null
-  readonly accumulated: number
-  readonly bookValue: number
+  readonly charge: Money | null
+  readonly accumulated: Money
+  readonly bookValue: Money
   /** "Written off 12 Jun 2025" once nothing is left on the books, else null. */
   readonly gone: string | null
   readonly fundedBy: string | null
 }
 
 export interface AssetTotals {
-  readonly cost: number
-  readonly charge: number
-  readonly accumulated: number
-  readonly bookValue: number
+  readonly cost: Money
+  readonly charge: Money
+  readonly accumulated: Money
+  readonly bookValue: Money
 }
 </script>
 
@@ -35,6 +35,7 @@ import { useMediaQuery } from '../../../../../../shared/layout/viewport'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import { words } from './words'
+import type { Money } from '../../../../../../shared/money/money'
 
 /** The assets tab with what the books make of each asset: a table on a wide screen, one card per asset below 1440 px, where ten columns do not fit beside the sidebar. */
 defineProps<{

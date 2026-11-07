@@ -6,6 +6,7 @@ import { formatPercent } from '../../shared/money/moneyFormat'
 import AppCard from '../../shared/ui/AppCard.vue'
 import { contrastRatio } from './contrast'
 import GallerySection from './GallerySection.vue'
+import { shareFromRatio } from '../../shared/money/percent'
 
 interface Swatch {
   readonly name: string
@@ -176,7 +177,7 @@ const TYPE_ROLES = [
         <ul class="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-2">
           <li v-for="swatch in group.swatches" :key="swatch.token" class="overflow-hidden rounded-control border border-default bg-raised" data-testid="gallery-swatch">
             <span class="figure block h-10 px-2 py-2.5 text-sm font-semibold text-default" :class="swatch.fill" :style="swatch.fill ? undefined : { background: `var(${swatch.token})` }">
-              <template v-if="swatch.figure !== undefined">{{ formatPercent(swatch.figure, 'always') }}</template>
+              <template v-if="swatch.figure !== undefined">{{ formatPercent(shareFromRatio(swatch.figure), 'always') }}</template>
             </span>
             <span class="block px-2 py-1.5 text-xs">
               <span class="block text-highlighted">{{ swatch.name }}</span>

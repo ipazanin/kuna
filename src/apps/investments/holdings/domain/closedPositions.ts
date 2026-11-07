@@ -7,6 +7,7 @@ import type { Decimal } from '../../../../shared/money/decimal'
 import { ratioOf, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { naturalOrder } from '../../../../shared/text/naturalOrder'
+import type { Share } from '../../../../shared/money/percent'
 
 /** An instrument nothing is held of any more, from its first units to its last sale. The money figures are in euros. */
 export interface ClosedPosition {
@@ -22,7 +23,7 @@ export interface ClosedPosition {
   readonly proceeds: Money
   readonly realised: Money
   /** The realised gain over the cost, null for a cost of zero. */
-  readonly realisedShare: number | null
+  readonly realisedShare: Share | null
   /** Received after the tax withheld while it was held. */
   readonly income: Money
   readonly firstBought: CivilDate

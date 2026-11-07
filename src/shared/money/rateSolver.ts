@@ -1,6 +1,8 @@
 import { daysBetween } from '../calendar/civilDate'
 import type { CivilDate } from '../calendar/civilDate'
 import type { Money } from './money'
+import { shareFromRatio } from './percent'
+import type { Share } from './percent'
 
 /** Money that moved on a day, signed by the caller's convention, such as a deposit negative and a withdrawal positive. */
 export interface DatedFlow {
@@ -30,7 +32,7 @@ const MOST_HALVINGS = 200
  * them, it is the one nearest zero. Null when no rate between −99.99% and 10,000% balances them, as
  * when every flow has the same sign.
  */
-export function solvedRate(flows: readonly DatedFlow[], yearsBetween: YearsBetween): number | null {
+export function solvedRate(flows: readonly DatedFlow[], yearsBetween: YearsBetween): Share | null {
   if (flows.length === 0) {
     return null
   }
@@ -42,7 +44,8 @@ export function solvedRate(flows: readonly DatedFlow[], yearsBetween: YearsBetwe
     .map((high, index) => ({ low: SEARCH_GRID[index]!, high }))
     .filter((bracket) => Math.sign(presentValue(bracket.low)) !== Math.sign(presentValue(bracket.high)))
     .map((bracket) => bisected(presentValue, bracket.low, bracket.high))
-  return roots.reduce<number | null>((nearest, root) => (nearest === null || Math.abs(root) < Math.abs(nearest) ? root : nearest), null)
+  const nearest = roots.reduce<number | null>((found, root) => (found === null || Math.abs(root) < Math.abs(found) ? root : found), null)
+  return nearest === null ? null : shareFromRatio(nearest)
 }
 
 function bisected(presentValue: (rate: number) => number, low: number, high: number): number {

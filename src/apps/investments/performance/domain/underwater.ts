@@ -1,11 +1,13 @@
 import type { GrowthPoint } from './portfolioPerformance'
 import { daysBetween } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { shareFromRatio } from '../../../../shared/money/percent'
+import type { Share } from '../../../../shared/money/percent'
 
 /** How far the growth line stood below its highest point so far, at one of its points, as a fraction at or below zero. */
 export interface BelowPeak {
   readonly date: CivilDate
-  readonly below: number
+  readonly below: Share
 }
 
 /** A stretch below a peak, from the peak's day to the day the line got back to it, or to its last day. */
@@ -19,8 +21,8 @@ export interface TimeBelowPeak {
 export interface Underwater {
   readonly points: readonly BelowPeak[]
   /** The same as the period's largest fall. */
-  readonly deepest: number
-  readonly now: number
+  readonly deepest: Share
+  readonly now: Share
   /** The first of the longest, null when the line never fell below a peak. */
   readonly longest: TimeBelowPeak | null
 }
@@ -45,14 +47,14 @@ export function underwater(growth: readonly GrowthPoint[]): Underwater | null {
     } else {
       fell = true
     }
-    return { date: point.date, below: point.portfolio / peak.portfolio - 1 }
+    return { date: point.date, below: shareFromRatio(point.portfolio / peak.portfolio - 1) }
   })
   if (fell) {
     stretches.push({ from: peak.date, to: last.date, days: daysBetween(peak.date, last.date), regained: false })
   }
   return {
     points,
-    deepest: Math.min(...points.map((point) => point.below)),
+    deepest: shareFromRatio(Math.min(...points.map((point) => point.below))),
     now: points.at(-1)!.below,
     longest: stretches.reduce<TimeBelowPeak | null>((found, stretch) => (found === null || stretch.days > found.days ? stretch : found), null),
   }

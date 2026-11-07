@@ -3,11 +3,11 @@ import type { RouteLocationRaw } from 'vue-router'
 
 export interface KontoGroupView {
   readonly key: string
-  readonly konto: readonly { readonly line: string; readonly label: string; readonly cents: number }[]
-  readonly categories: readonly { readonly key: string; readonly label: string; readonly cents: number; readonly to: RouteLocationRaw | null }[]
-  readonly accountant: number
-  readonly ours: number
-  readonly difference: number
+  readonly konto: readonly { readonly line: string; readonly label: string; readonly cents: Money }[]
+  readonly categories: readonly { readonly key: string; readonly label: string; readonly cents: Money; readonly to: RouteLocationRaw | null }[]
+  readonly accountant: Money
+  readonly ours: Money
+  readonly difference: Money
 }
 </script>
 
@@ -16,6 +16,7 @@ import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import { words as packWords } from '../words'
 import { words } from './words'
+import type { Money } from '../../../../../../shared/money/money'
 
 /**
  * Each konto group beside our accrual figure for its categories. A category slip, such as a cost
@@ -23,7 +24,7 @@ import { words } from './words'
  */
 defineProps<{
   groups: readonly KontoGroupView[]
-  unnamed: readonly { readonly line: string; readonly label: string; readonly cents: number }[]
+  unnamed: readonly { readonly line: string; readonly label: string; readonly cents: Money }[]
 }>()
 </script>
 

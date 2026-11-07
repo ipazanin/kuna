@@ -3,7 +3,7 @@ import type { GrowthPoint } from '../domain/portfolioPerformance'
 import { words } from './words'
 import { percentChange } from '../../compare/domain/comparedLine'
 import type { ComparedLine } from '../../compare/domain/comparedLine'
-import { changeAxisLabel, comparedSeries } from '../../compare/presentation/comparedSeries'
+import { changeAxisLabel, comparedSeries, formatChartChange } from '../../compare/presentation/comparedSeries'
 import { words as compareWords } from '../../compare/presentation/words'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { moneyAxisLabel } from '../../../../shared/charts/chartTheme'
@@ -15,7 +15,8 @@ import type { ChartOption, LineSeries } from '../../../../shared/charts/echarts'
 import { shownPoints } from '../../../../shared/charts/monthAxis'
 import { moneyFromAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
-import { formatMoney, formatPercentChange } from '../../../../shared/money/moneyFormat'
+import { formatChartMoney, formatMoney, formatPercentChange } from '../../../../shared/money/moneyFormat'
+import { ZERO_SHARE } from '../../../../shared/money/percent'
 
 export interface GrowthChart {
   readonly option: ChartOption
@@ -49,7 +50,7 @@ export function growthChart(growth: readonly GrowthPoint[], benchmarkName: strin
     return {
       option: {
         grid: { top: 24, right: 16 },
-        tooltip: { trigger: 'axis', formatter: (points: unknown) => axisTooltip({ tokens, categoryLabel: dayOfCategory, formatAmount: formatPercentChange })(shownPoints(points)) },
+        tooltip: { trigger: 'axis', formatter: (points: unknown) => axisTooltip({ tokens, categoryLabel: dayOfCategory, formatAmount: formatChartChange })(shownPoints(points)) },
         xAxis,
         yAxis: { type: 'value', scale: true, axisLabel: changeAxisLabel(tokens) },
         series: [portfolioLine(change), comparedSeries(compared)],
@@ -58,13 +59,13 @@ export function growthChart(growth: readonly GrowthPoint[], benchmarkName: strin
         dayLabel(first.date),
         dayLabel(last.date),
         words.growth.portfolioInSentence,
-        formatPercentChange(change.at(-1) ?? 0),
+        formatPercentChange(change.at(-1) ?? ZERO_SHARE),
         compared.name,
-        formatPercentChange(compared.change.at(-1) ?? 0),
+        formatPercentChange(compared.change.at(-1) ?? ZERO_SHARE),
       ),
       title: compareWords.since(dayLabel(first.date)),
       subtitle: compareWords.inEuros(compared.name),
-      formatValue: formatPercentChange,
+      formatValue: formatChartChange,
     }
   }
   const cents = (grown: number): Money => moneyFromAmount(grown)
@@ -87,7 +88,7 @@ export function growthChart(growth: readonly GrowthPoint[], benchmarkName: strin
       grid: { top: 24, right: 16 },
       tooltip: {
         trigger: 'axis',
-        formatter: (points: unknown) => axisTooltip({ tokens, categoryLabel: dayOfCategory, formatAmount: (amount) => formatMoney(amount) })(shownPoints(points)),
+        formatter: (points: unknown) => axisTooltip({ tokens, categoryLabel: dayOfCategory })(shownPoints(points)),
       },
       xAxis,
       yAxis: { type: 'value', scale: true, minInterval: 100, axisLabel: moneyAxisLabel(tokens) },
@@ -100,6 +101,6 @@ export function growthChart(growth: readonly GrowthPoint[], benchmarkName: strin
           (hasBenchmark && last.benchmark !== null ? words.growth.benchmarkLine(benchmarkName, formatMoney(cents(last.benchmark))) : ''),
     title: words.growth.title(start),
     subtitle: words.growth.subtitle,
-    formatValue: (value) => formatMoney(value),
+    formatValue: formatChartMoney,
   }
 }

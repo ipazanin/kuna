@@ -1,7 +1,8 @@
 import type { MonthTotals } from './monthTotals'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
-import { subtractMoney } from '../../../../shared/money/money'
+import { ratioOf, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import type { Share } from '../../../../shared/money/percent'
 
 /** A month's income, spending and saving side by side, with the share of income not spent. */
 export interface MonthFlow {
@@ -10,7 +11,7 @@ export interface MonthFlow {
   readonly spent: Money
   readonly saved: Money
   /** Income less spending, over income. Null for a month with no income. */
-  readonly savingsRate: number | null
+  readonly savingsRate: Share | null
 }
 
 export function monthFlow(totals: readonly MonthTotals[]): MonthFlow[] {
@@ -19,6 +20,6 @@ export function monthFlow(totals: readonly MonthTotals[]): MonthFlow[] {
     income: month.income,
     spent: month.spent,
     saved: month.saved,
-    savingsRate: month.income > 0 ? subtractMoney(month.income, month.spent) / month.income : null,
+    savingsRate: month.income > 0 ? ratioOf(subtractMoney(month.income, month.spent), month.income) : null,
   }))
 }

@@ -5,6 +5,8 @@ import type { DrillTarget } from '../../filters/domain/drillTarget'
 import type { Period } from '../../filters/domain/filterState'
 import { LINE_BUCKETS } from '../../workbook/domain/bucketTotals'
 import type { ProfitAndLoss } from '../../workbook/domain/bucketTotals'
+import { ZERO_SHARE } from '../../../../shared/money/percent'
+import type { Share } from '../../../../shared/money/percent'
 
 export type EuroSplitPart = 'operating' | 'taxes' | 'ownerPay' | 'kept'
 
@@ -12,7 +14,7 @@ export interface EuroSplitSlice {
   readonly part: EuroSplitPart
   readonly total: Money
   /** The slice over the whole. The slices of one split add up to 1. */
-  readonly share: number
+  readonly share: Share
   readonly drill: DrillTarget
 }
 
@@ -38,7 +40,7 @@ export function euroSplit(totals: ProfitAndLoss, period: Period): EuroSplit {
   const sliceOf = (part: EuroSplitPart, total: Money): EuroSplitSlice => ({
     part,
     total,
-    share: ratioOf(total, whole) ?? 0,
+    share: ratioOf(total, whole) ?? ZERO_SHARE,
     drill: drillToTransactions({ period, buckets: LINE_BUCKETS[part === 'kept' ? 'net' : part] }),
   })
   const costSlices = [sliceOf('operating', totals.operating), sliceOf('taxes', totals.taxes), sliceOf('ownerPay', totals.ownerPay)]

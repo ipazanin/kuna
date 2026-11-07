@@ -11,11 +11,11 @@ export interface CitObligationLine {
   readonly key: string
   readonly label: string
   readonly dueOn: string
-  readonly expected: number
-  readonly paid: number
+  readonly expected: Money
+  readonly paid: Money
   /** The bank rows that paid it, or null when none did. */
   readonly paidTo: RouteLocationRaw | null
-  readonly outstanding: number
+  readonly outstanding: Money
   readonly status: CitObligationStatus
 }
 
@@ -47,6 +47,7 @@ import UBadge from '@nuxt/ui/components/Badge.vue'
 import { usePhoneLayout } from '../../../../../shared/layout/viewport'
 import DrillLink from '../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../shared/ui/MoneyText.vue'
+import type { Money } from '../../../../../shared/money/money'
 
 /**
  * Expected against paid, oldest due date first: a table on a wide screen, one card per payment on a

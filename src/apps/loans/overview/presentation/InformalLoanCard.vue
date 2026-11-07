@@ -19,6 +19,7 @@ import FactGrid from '../../../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../../../shared/ui/FactGrid.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import SparkLine from '../../../../shared/ui/SparkLine.vue'
+import { absMoney } from '../../../../shared/money/money'
 
 /** An informal loan on the Overview: which way it runs, who owes how much, its balance as a sparkline, how it stands against its expected plan, its last movement and its start, opening the loan's page. */
 const props = defineProps<{
@@ -73,7 +74,7 @@ const facts = computed((): Fact[] => {
       </div>
       <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
         <div>
-          <MoneyText :cents="Math.abs(figures.owedByYou)" class="block font-semibold text-highlighted" :class="hero ? 'text-figure-xl' : 'text-figure-lg'" />
+          <MoneyText :cents="absMoney(figures.owedByYou)" class="block font-semibold text-highlighted" :class="hero ? 'text-figure-xl' : 'text-figure-lg'" />
           <p class="type-caption">{{ owedLine }}</p>
         </div>
         <SparkLine

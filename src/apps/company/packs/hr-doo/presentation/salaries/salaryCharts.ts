@@ -4,13 +4,15 @@ import type { ChartTokens } from '../../../../../../shared/charts/chartTokens'
 import { tokenColour } from '../../../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../../../shared/charts/chartTooltip'
 import type { BarSeries } from '../../../../../../shared/charts/echarts'
-import { formatMoney } from '../../../../../../shared/money/moneyFormat'
+import { formatChartMoney, formatMoney } from '../../../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../../../shared/ui/ChartLegend.vue'
 import type { DrillChart } from '../../../../filters/presentation/chartDrill'
-import { PAY_PARTS, PAY_PART_COLOURS, PAY_PART_LABELS } from './salariesView'
-import type { SalaryMonthRow } from './salariesView'
+import { PAY_PARTS } from '../../domain/salaries/salaryFigures'
+import type { SalaryMonthRow } from '../../domain/salaries/salaryFigures'
+import { PAY_PART_COLOURS, PAY_PART_LABELS } from './salariesView'
 import { words } from './words'
 import { uncapitalised } from '../../../../../../shared/text/capitalised'
+import { sumMoney } from '../../../../../../shared/money/money'
 
 /** The cost to the company of each payday, stacked in the ring's five parts. The month still running is hatched. */
 export function salaryMonthsChart(rows: readonly SalaryMonthRow[], tokens: ChartTokens): DrillChart & { readonly legend: readonly LegendEntry[] } {
@@ -31,7 +33,7 @@ export function salaryMonthsChart(rows: readonly SalaryMonthRow[], tokens: Chart
   }))
   const first = rows[0]
   const final = rows[rows.length - 1]
-  const total = rows.reduce((sum, row) => sum + row.cost, 0)
+  const total = sumMoney(rows.map((row) => row.cost))
   return {
     option: {
       grid: { top: 16 },
@@ -42,7 +44,6 @@ export function salaryMonthsChart(rows: readonly SalaryMonthRow[], tokens: Chart
           tokens,
           incompleteCategories: rows.filter((row) => row.unpaid).map((row) => row.payday),
           categoryLabel: monthAxisLabel('long'),
-          formatAmount: (amount) => formatMoney(amount),
         }),
       },
       xAxis: {
@@ -58,7 +59,7 @@ export function salaryMonthsChart(rows: readonly SalaryMonthRow[], tokens: Chart
       first === undefined || final === undefined
         ? words.chart.none
         : words.chart.description(first.payday, final.payday, PAY_PARTS.map((part) => uncapitalised(PAY_PART_LABELS[part])).join(', '), formatMoney(total)),
-    formatValue: (value) => formatMoney(value),
+    formatValue: formatChartMoney,
     drillAt: ({ seriesName, dataIndex }) => {
       const part = PAY_PARTS.find((candidate) => PAY_PART_LABELS[candidate] === seriesName)
       return part === undefined ? null : (rows[dataIndex]?.drills[part] ?? null)

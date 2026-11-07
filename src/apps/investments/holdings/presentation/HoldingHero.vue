@@ -18,6 +18,7 @@ import FactGrid from '../../../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../../../shared/ui/FactGrid.vue'
 import InfoPopover from '../../../../shared/ui/InfoPopover.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import type { Money } from '../../../../shared/money/money'
 
 /** What a holding's page leads with: its value at the last close beside its total return and the parts it comes from, then its facts. */
 const props = defineProps<{
@@ -63,7 +64,7 @@ interface ReturnPart {
   readonly key: string
   readonly label: string
   readonly caption: string
-  readonly amount: number
+  readonly amount: Money
 }
 
 const parts = computed((): ReturnPart[] => {

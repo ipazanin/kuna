@@ -24,6 +24,7 @@ import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { negateMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -112,7 +113,7 @@ const instalmentFact = (instalment: Money | null): Fact => ({ label: loanWords.v
 const soonerFact = (months: number): Fact => ({ label: loanWords.value.whatIf.soonerBy, value: monthsText(months) })
 /** Interest saved, or the interest added where a try costs more. */
 const interestFact = (saved: Money): Fact =>
-  saved < 0 ? { label: loanWords.value.whatIf.moreInterest, value: formatMoney(-saved) } : { label: loanWords.value.whatIf.interestSaved, value: formatMoney(saved) }
+  saved < 0 ? { label: loanWords.value.whatIf.moreInterest, value: formatMoney(negateMoney(saved)) } : { label: loanWords.value.whatIf.interestSaved, value: formatMoney(saved) }
 
 const shorterFacts = computed((): Fact[] => (shorter.value === null ? [] : [payoffFact(shorter.value.payoff), soonerFact(shorter.value.monthsSaved), interestFact(shorter.value.interestSaved)]))
 const lowerFacts = computed((): Fact[] => (lower.value === null ? [] : [instalmentFact(lower.value.nextInstalment), payoffFact(lower.value.payoff), interestFact(lower.value.interestSaved)]))

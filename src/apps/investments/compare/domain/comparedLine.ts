@@ -12,6 +12,8 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { recordIdOf } from '../../../../shared/storage/domain/recordId'
+import { shareFromRatio } from '../../../../shared/money/percent'
+import type { Share } from '../../../../shared/money/percent'
 
 /** A listing compared with on a chart, by the vendor that prices it and its symbol there, as the address keeps it. */
 export type ComparedTicker = Pick<ComparedListing, 'source' | 'symbol'>
@@ -87,18 +89,18 @@ export function comparedSources(sources: PortfolioSources, compared: Instrument,
 }
 
 /** A point over a first point above zero, less one, so lines that start at 100 and at 50 read alike. */
-export function changeSince(first: number, point: number): number {
-  return point / first - 1
+export function changeSince(first: number, point: number): Share {
+  return shareFromRatio(point / first - 1)
 }
 
 /** Each point as change since the first. Empty when the first is not above zero. */
-export function percentChange(points: readonly number[]): number[] {
+export function percentChange(points: readonly number[]): Share[] {
   const first = points[0]
   return first === undefined || !(first > 0) ? [] : points.map((point) => changeSince(first, point))
 }
 
 /** The compared closes on or before each day in their own currency, as change since the first day. Null when the first day has no close yet. */
-export function changeAsQuoted(compared: Instrument, days: readonly CivilDate[], sources: PortfolioSources): number[] | null {
+export function changeAsQuoted(compared: Instrument, days: readonly CivilDate[], sources: PortfolioSources): Share[] | null {
   const closes = days.map((day) => sources.prices.closeOnOrBefore(compared, day))
   if (closes.length === 0 || closes[0] === null) {
     return null
@@ -107,7 +109,7 @@ export function changeAsQuoted(compared: Instrument, days: readonly CivilDate[],
 }
 
 /** The compared closes in euros at the ECB rate of each close's day, as the benchmark's line is, as change since the first day. Null when a day has no close or no rate. */
-export function changeInEuros(compared: Instrument, days: readonly CivilDate[], sources: PortfolioSources): number[] | null {
+export function changeInEuros(compared: Instrument, days: readonly CivilDate[], sources: PortfolioSources): Share[] | null {
   const line = priceLine(compared, days, sources)
   return line === null ? null : percentChange(line)
 }
@@ -115,5 +117,5 @@ export function changeInEuros(compared: Instrument, days: readonly CivilDate[], 
 /** A line a chart compares with: its name, and its change since the chart's first day at each of the chart's points. */
 export interface ComparedLine {
   readonly name: string
-  readonly change: readonly number[]
+  readonly change: readonly Share[]
 }

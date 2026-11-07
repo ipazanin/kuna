@@ -7,6 +7,8 @@ import type { DrillTarget } from '../../filters/domain/drillTarget'
 import { currencyUnitName, formatMoney, formatPercent } from '../../../../shared/money/moneyFormat'
 import type { EuroSplit, EuroSplitPart } from '../domain/euroSplit'
 import { words } from './words'
+import { ZERO } from '../../../../shared/money/money'
+import { ZERO_SHARE } from '../../../../shared/money/percent'
 
 interface SplitPart {
   readonly part: EuroSplitPart
@@ -33,9 +35,9 @@ export function euroDonut(split: EuroSplit, settings: Settings, linkOf: (drill: 
     const slice = split.slices.find((candidate) => candidate.part === part)
     return slice === undefined ? [] : [{ key: part, label: name, value: slice.total, colour, to: linkOf(slice.drill) }]
   })
-  const shares = parts.map((part) => `${inSentence(part.label)} ${formatPercent(split.slices.find((slice) => slice.part === part.key)?.share ?? 0)}`).join(', ')
+  const shares = parts.map((part) => `${inSentence(part.label)} ${formatPercent(split.slices.find((slice) => slice.part === part.key)?.share ?? ZERO_SHARE)}`).join(', ')
   return {
     parts,
-    description: split.basis === 'income' ? words.euro.ofIncome(unit, shares) : words.euro.ofCost(formatMoney(split.shortfall ?? 0), unit, shares),
+    description: split.basis === 'income' ? words.euro.ofIncome(unit, shares) : words.euro.ofCost(formatMoney(split.shortfall ?? ZERO), unit, shares),
   }
 }

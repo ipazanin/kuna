@@ -8,6 +8,7 @@ import type { BridgeBar, BridgeWording } from '../src/shared/charts/bridgeChart'
 import type { ChartTokens } from '../src/shared/charts/chartTokens'
 import type { BarSeries } from '../src/shared/charts/echarts'
 import { civil, euros } from './fixtures/ledger'
+import { moneyFromCents } from '../src/shared/money/money'
 
 const TOKENS = new Proxy({}, { get: (_target, name) => String(name) }) as unknown as ChartTokens
 
@@ -26,12 +27,12 @@ const WORDING: BridgeWording<string> = {
 }
 
 const PROFIT: readonly BridgeBar<string>[] = [
-  { label: 'Start', kind: 'total', amount: 1000, drill: 'start' },
-  { label: 'Sales', kind: 'step', amount: 500, drill: null },
-  { label: 'Costs', kind: 'step', amount: -800, drill: 'costs' },
-  { label: 'Moved', kind: 'transfer', amount: 100, drill: null },
-  { label: 'Fee', kind: 'residual', amount: -30, drill: null },
-  { label: 'End', kind: 'total', amount: 770, drill: null },
+  { label: 'Start', kind: 'total', amount: moneyFromCents(1000), drill: 'start' },
+  { label: 'Sales', kind: 'step', amount: moneyFromCents(500), drill: null },
+  { label: 'Costs', kind: 'step', amount: moneyFromCents(-800), drill: 'costs' },
+  { label: 'Moved', kind: 'transfer', amount: moneyFromCents(100), drill: null },
+  { label: 'Fee', kind: 'residual', amount: moneyFromCents(-30), drill: null },
+  { label: 'End', kind: 'total', amount: moneyFromCents(770), drill: null },
 ]
 
 function seriesOf(option: unknown): readonly [BarSeries, BarSeries] {
@@ -97,9 +98,9 @@ describe('the shared bridge chart', () => {
     const { total: _total, ...steps } = WORDING
     const chart = bridgeChart(
       [
-        { label: 'Put in', kind: 'transfer', amount: 2000, drill: null },
-        { label: 'Price', kind: 'step', amount: -300, drill: null },
-        { label: 'Fees', kind: 'residual', amount: -20, drill: null },
+        { label: 'Put in', kind: 'transfer', amount: moneyFromCents(2000), drill: null },
+        { label: 'Price', kind: 'step', amount: moneyFromCents(-300), drill: null },
+        { label: 'Fees', kind: 'residual', amount: moneyFromCents(-20), drill: null },
       ],
       TOKENS,
       steps,

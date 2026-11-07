@@ -5,10 +5,11 @@ import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { words } from './words'
+import type { Money } from '../../../../shared/money/money'
 
 /** One small column per month, every payee on the same scale, so a large payee looks large beside a small one. */
 const props = defineProps<{
-  cells: readonly { readonly month: MonthKey; readonly amount: number }[]
+  cells: readonly { readonly month: MonthKey; readonly amount: Money }[]
   /** The largest month of any payee in the table. */
   scale: number
 }>()

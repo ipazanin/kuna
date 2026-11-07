@@ -8,8 +8,9 @@ import { axisTooltip } from '../../../../shared/charts/chartTooltip'
 import { shownPoints } from '../../../../shared/charts/monthAxis'
 import type { BarSeries, ChartOption, LineSeries } from '../../../../shared/charts/echarts'
 import type { Money } from '../../../../shared/money/money'
-import { formatMoney, formatPercent, formatShare } from '../../../../shared/money/moneyFormat'
+import { formatChartMoney, formatMoney, formatPercent, formatShare } from '../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
+import { shareFromRatio } from '../../../../shared/money/percent'
 
 /** The chart's figures as a table, since a savings rate does not read as money. */
 export interface MonthFlowTable {
@@ -70,13 +71,13 @@ export function monthFlowChart(months: readonly MonthFlow[], current: MonthKey, 
             tokens,
             incompleteCategories: [current],
             categoryLabel: monthAxisLabel('long'),
-            formatAmount: (amount, seriesName) => (seriesName === words.savingsRate ? formatShare(amount) : formatMoney(amount)),
+            formatAmount: (amount, seriesName) => (seriesName === words.savingsRate ? formatShare(shareFromRatio(amount)) : formatChartMoney(amount)),
           })(shownPoints(points)),
       },
       xAxis: { type: 'category', data: months.map((month) => month.month), axisLabel: { color: tokens.inkMuted, formatter: monthAxisLabel('short') } },
       yAxis: [
         { type: 'value', axisLabel: moneyAxisLabel(tokens) },
-        { type: 'value', splitLine: { show: false }, axisLabel: { color: tokens.inkMuted, fontSize: 11, formatter: (fraction: number) => formatPercent(fraction) } },
+        { type: 'value', splitLine: { show: false }, axisLabel: { color: tokens.inkMuted, fontSize: 11, formatter: (fraction: number) => formatPercent(shareFromRatio(fraction)) } },
       ],
       series: [...bars, rate],
     },

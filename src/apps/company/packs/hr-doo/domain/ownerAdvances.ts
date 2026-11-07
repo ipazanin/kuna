@@ -6,8 +6,9 @@ import { advanceDrill, drillToTransactions, rowDrill } from '../../../filters/do
 import type { DrillTarget, Figure } from '../../../filters/domain/drillTarget'
 import { EVERY_OWNER_ADVANCE } from '../../../filters/domain/filterState'
 import type { AmountRange, FilterState } from '../../../filters/domain/filterState'
+import { scopeTransactions } from '../../../transactions/domain/filterTransactions'
 import { ownerAdvanceOrder } from '../../../workbook/domain/workbook'
-import type { Category, OwnerAdvance, Transaction } from '../../../workbook/domain/workbook'
+import type { Category, OwnerAdvance, Transaction, Workbook } from '../../../workbook/domain/workbook'
 import type { OwnerLoanBook } from './ownerLoans'
 import { PACK_ROLES, categoriesWithRole } from './packRoles'
 import { netReimbursements } from './reimbursements'
@@ -157,4 +158,13 @@ export function netOwed(loans: OwnerLoanBook, advances: OwnerAdvanceBook, catego
       ],
     }),
   }
+}
+
+/**
+ * Payments to the owner under the filters that no cost the owner paid accounts for, which wait until a person
+ * adds the cost. Payments match every cost on file, so a filter changes which are shown, never which match.
+ */
+export function unaccountedInView(booked: Workbook, filters: FilterState): readonly UnaccountedReimbursement[] {
+  const inView = new Set(scopeTransactions(booked.transactions, filters))
+  return ownerAdvances(booked.ownerAdvances, booked.transactions, booked.categories).unaccounted.filter((line) => inView.has(line.payment))
 }

@@ -26,6 +26,7 @@ import MonthStrip from './MonthStrip.vue'
 import PayeeCategories from './PayeeCategories.vue'
 import { plural } from '../../../../shared/text/translation'
 import { words } from './words'
+import { ZERO } from '../../../../shared/money/money'
 
 /** Where the money goes in the period: cost by category and who the company paid most. */
 const ledger = useFilteredLedger()
@@ -62,7 +63,7 @@ const spending = computed(() => {
         key: row.category,
         name: names.value.category(row.category),
         colour: colours.value(row.category, row.bucket),
-        current: row.current?.amount ?? 0,
+        current: row.current?.amount ?? ZERO,
         prior: row.prior?.amount ?? null,
         change: row.change,
         to: row.current === null ? (row.prior === null ? null : drillLocation(row.prior.drill)) : drillLocation(row.current.drill),

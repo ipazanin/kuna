@@ -1,10 +1,10 @@
 <script lang="ts">
 export interface DoubledRatesLine {
   readonly year: number
-  readonly depreciation: number
-  readonly grantReleased: number
-  readonly profitBeforeTax: number
-  readonly profitTax: number
+  readonly depreciation: Money
+  readonly grantReleased: Money
+  readonly profitBeforeTax: Money
+  readonly profitTax: Money
   /** The corporate tax rate the profit tax change used, such as "10%". */
   readonly rate: string
 }
@@ -15,6 +15,7 @@ import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import FigureTable from '../../../../../../shared/ui/FigureTable.vue'
 import { words } from './words'
+import type { Money } from '../../../../../../shared/money/money'
 
 /** Per year, what doubled rates would change against the rates the workbook asks for. */
 defineProps<{

@@ -1,4 +1,5 @@
 import type { AccountMoney } from '../../money/accountMoney'
+import { plainAmount } from '../../money/money'
 import type { Money } from '../../money/money'
 
 /** One field as a record gives it to a storage: text, with a day as `yyyy-mm-dd` and an amount as decimal text, or a flag. */
@@ -9,9 +10,7 @@ export type RecordFields = Readonly<Record<string, FieldValue>>
 
 /** An amount as decimal text from its cents, such as `-95.49` or `1200.00`. */
 export function amountText(money: AccountMoney | Money): string {
-  const cents = Math.abs(money)
-  const sign = money < 0 ? '-' : ''
-  return `${sign}${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, '0')}`
+  return plainAmount(money)
 }
 
 /** The fields that are filled. A blank text or a missing value is left out, and a false flag is kept. */

@@ -8,11 +8,10 @@ import { absAccountMoney, accountMoneyFromAmount, addAccountMoney, negateAccount
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { EURO, currencyCodeOf } from '../../../../shared/money/currencyCode'
 import { roundHalfAwayFromZero } from '../../../../shared/money/money'
-import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { amountText } from '../../../../shared/storage/domain/recordFields'
 import { decimalOf } from '../../../../shared/storage/domain/storedFields'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
-import { intlLocale } from '../../../../shared/text/language'
 import { plural } from '../../../../shared/text/translation'
 
 /** A cell of a spreadsheet file: text, a number, a date as a serial number, or a flag. */
@@ -94,8 +93,8 @@ function balanceNotes(rows: readonly CompletedRow[]): string[] {
     const worked = later.reduce((sum, row) => addAccountMoney(sum, subtractAccountMoney(row.amount, row.fee)), first.balance)
     if (worked === last.balance) return []
     const [product = '', currency = ''] = key.split(' ')
-    const format = { currency: currencyCodeOf(currency) ?? EURO, locale: intlLocale }
-    return [words.balanceDiffers(product, formatMoney(last.balance, 'negative', format), formatMoney(worked, 'negative', format))]
+    const statedIn = currencyCodeOf(currency) ?? EURO
+    return [words.balanceDiffers(product, formatAccountMoney(last.balance, statedIn), formatAccountMoney(worked, statedIn))]
   })
 }
 

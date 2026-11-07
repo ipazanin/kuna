@@ -6,7 +6,7 @@ import type { RecordId } from '../../../../../shared/storage/domain/recordId'
 export interface AdvanceRepaymentLine {
   readonly key: string
   readonly date: string
-  readonly applied: number
+  readonly applied: Money
   readonly to: RouteLocationRaw | null
 }
 
@@ -16,10 +16,10 @@ export interface AdvanceLine {
   readonly paidOn: string
   readonly description: string
   readonly category: string
-  readonly amount: number
+  readonly amount: Money
   /** The advance on Transactions. */
   readonly to: RouteLocationRaw | null
-  readonly remaining: number
+  readonly remaining: Money
   readonly open: boolean
   readonly repaidOn: string | null
   readonly repayments: readonly AdvanceRepaymentLine[]
@@ -33,6 +33,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import DrillLink from '../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../shared/ui/MoneyText.vue'
 import { words } from './words'
+import type { Money } from '../../../../../shared/money/money'
 
 /** Each cost the owner paid privately, newest first, with the reimbursements the matching gave it. */
 defineProps<{

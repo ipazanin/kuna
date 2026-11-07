@@ -29,9 +29,9 @@ const wrongMoney = ref('')
 const readMoney = computed(() => typedAmount(typedMoney.value))
 
 const ROWS = [
-  { due: '20 Oct 2026', payment: 82220, interest: 39992, principal: 42228 },
-  { due: '20 Nov 2026', payment: 82220, interest: 39854, principal: 42366 },
-  { due: '20 Dec 2026', payment: 82220, interest: 39716, principal: 42504 },
+  { due: '20 Oct 2026', payment: moneyFromCents(82220), interest: moneyFromCents(39992), principal: moneyFromCents(42228) },
+  { due: '20 Nov 2026', payment: moneyFromCents(82220), interest: moneyFromCents(39854), principal: moneyFromCents(42366) },
+  { due: '20 Dec 2026', payment: moneyFromCents(82220), interest: moneyFromCents(39716), principal: moneyFromCents(42504) },
 ] as const
 </script>
 

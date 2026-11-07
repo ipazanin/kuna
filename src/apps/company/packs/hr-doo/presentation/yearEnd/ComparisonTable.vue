@@ -5,7 +5,7 @@ import type { LineStatus } from '../../domain/yearEnd/yearEndComparison'
 import type { BuildUpStep, RuleChip } from './LineBuildUp.vue'
 
 /** An amount in cents, or a rate or a count written out. */
-export type ShownValue = { readonly cents: number } | { readonly text: string }
+export type ShownValue = { readonly cents: Money } | { readonly text: string }
 
 export interface ComparisonRow {
   readonly key: string
@@ -17,10 +17,10 @@ export interface ComparisonRow {
   readonly ours: ShownValue | null
   readonly oursTo: RouteLocationRaw | null
   /** Null where the cash view has no figure for the line. */
-  readonly cash: number | null
+  readonly cash: Money | null
   readonly cashTo: RouteLocationRaw | null
-  readonly difference: number | null
-  readonly residual: number | null
+  readonly difference: Money | null
+  readonly residual: Money | null
   readonly status: LineStatus
   readonly explainedBy: readonly BuildUpStep[]
   readonly oursSteps: readonly BuildUpStep[]
@@ -40,6 +40,7 @@ import LineBuildUp from './LineBuildUp.vue'
 import StatusBadge from './StatusBadge.vue'
 import { words as packWords } from '../words'
 import { words } from './words'
+import type { Money } from '../../../../../../shared/money/money'
 
 /**
  * The accountant's lines of one statement beside ours: a table on a wide screen, one card per line
@@ -67,7 +68,7 @@ function toggle(key: string): void {
   open.value = next
 }
 
-function isMoney(value: ShownValue): value is { readonly cents: number } {
+function isMoney(value: ShownValue): value is { readonly cents: Money } {
   return 'cents' in value
 }
 </script>

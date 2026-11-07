@@ -19,6 +19,7 @@ const SCREEN = 'src/apps/loans/planted/presentation/Planted.vue'
 describe('money and domain lint rules', { timeout: 120_000 }, () => {
   it.each([
     ['a cast', DOMAIN, 'export const a = 1 as Money', 'kuna/money-casts'],
+    ['a cast to an account amount', DOMAIN, 'export const a = 1 as AccountMoney', 'kuna/money-casts'],
     ['a cast through unknown', DOMAIN, 'export const a = 1 as unknown as Percent', 'kuna/money-casts'],
     ['a cast to a nullable brand', DOMAIN, 'export const a = 1 as Share | null', 'kuna/money-casts'],
     ['a cast to a list of a brand', DOMAIN, 'export const a = [] as Decimal[]', 'kuna/money-casts'],

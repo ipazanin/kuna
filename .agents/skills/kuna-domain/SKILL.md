@@ -21,14 +21,14 @@ Do not build a generic `Scaled<Unit>`, an add or multiply for percents with no c
 
 ## Scales
 
-| Scale                | Type         | Holds                                                    | Applied to money by                    |
-| -------------------- | ------------ | -------------------------------------------------------- | -------------------------------------- |
-| Basis points         | `Percent`    | Rates the law states, coefficients, VAT                  | `moneyAt` and the rest of `percent.ts` |
-| Ratio where 1 is all | `Share`      | What `ratioOf` measures. A gain can be below 0 or over 1 | Never. Formatters take it              |
-| Millionths           | `YearlyRate` | A bank's rate with four decimals of a percent            | `monthlyInterest`, `annuity`, in Loans |
-| Whole percent, 0-100 | `OwnerShare` | An owner's share, whole by that feature's rule           | `ownerPartOf`                          |
-| Percent, exact       | `Decimal`    | `target.percent`, TER, fund weights, check thresholds    | `partOf`, `fundCost`                   |
-| Fraction, exact      | `Decimal`    | `spinOff.costShare`, stored 0 to 1                       | `lots.ts`                              |
+| Scale                | Type         | Holds                                                                                         | Applied to money by                    |
+| -------------------- | ------------ | --------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Basis points         | `Percent`    | Rates the law states, coefficients, VAT                                                       | `moneyAt` and the rest of `percent.ts` |
+| Ratio where 1 is all | `Share`      | What `ratioOf` measures, and a return `shareFromRatio` makes. A gain can be below 0 or over 1 | Never. Formatters take it              |
+| Millionths           | `YearlyRate` | A bank's rate with four decimals of a percent                                                 | `monthlyInterest`, `annuity`, in Loans |
+| Whole percent, 0-100 | `OwnerShare` | An owner's share, whole by that feature's rule                                                | `ownerPartOf`                          |
+| Percent, exact       | `Decimal`    | `target.percent`, TER, fund weights, check thresholds                                         | `partOf`, `fundCost`                   |
+| Fraction, exact      | `Decimal`    | `spinOff.costShare`, stored 0 to 1                                                            | `lots.ts`                              |
 
 The key `rate` means basis points in hr-doo, millionths in Loans, a fraction in Investments' `portfolio` and an exchange rate in Investments' records. Read the type, never the name. Where two scales meet, convert by a named function, and give the parser a table test.
 
@@ -73,13 +73,14 @@ A change that means to move a figure states it. Land it in a commit of its own, 
 
 ## The checks
 
-| Rule                                | Check                            | Baseline                                     |
-| ----------------------------------- | -------------------------------- | -------------------------------------------- |
-| No cast to a money brand            | `kuna/money-casts`               | `moneyCasts` in `scripts/lint-baseline.json` |
-| No hand scaling by 100 or 10,000    | `kuna/money-scale`               | `moneyScale`                                 |
-| No `Math.round` in domain code      | `kuna/domain-rounding`           | `domainRounding`                             |
-| No class in domain code             | `kuna/domain-classes`            | None                                         |
-| Brands declared by their owners     | `tests/importBoundaries.spec.ts` | `BRAND_OWNERS`                               |
-| Digest reads no presentation module | `tests/importBoundaries.spec.ts` | `FIGURES_IN_PRESENTATION`, only shrinks      |
+| Rule                                | Check                            | Baseline                                            |
+| ----------------------------------- | -------------------------------- | --------------------------------------------------- |
+| No cast to a money brand            | `kuna/money-casts`               | `moneyCasts` in `scripts/lint-baseline.json`, empty |
+| No hand scaling by 100 or 10,000    | `kuna/money-scale`               | `moneyScale`, empty                                 |
+| No `Math.round` in domain code      | `kuna/domain-rounding`           | `domainRounding`, empty                             |
+| Formatters take a brand             | `npm run typecheck`              | None                                                |
+| No class in domain code             | `kuna/domain-classes`            | None                                                |
+| Brands declared by their owners     | `tests/importBoundaries.spec.ts` | `BRAND_OWNERS`                                      |
+| Digest reads no presentation module | `tests/importBoundaries.spec.ts` | `FIGURES_IN_PRESENTATION`, only shrinks             |
 
 `tests/moneyLintRules.spec.ts` plants an example of each lint rule, so a selector that stops matching fails a test. A baseline entry covers a whole file. Take the file off in the change that fixes it, and `tests/lintBaseline.spec.ts` fails if a listed file no longer breaks the rule. Never add a file to a list to get a change through.

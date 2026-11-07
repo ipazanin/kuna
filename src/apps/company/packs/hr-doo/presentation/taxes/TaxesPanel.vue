@@ -90,7 +90,7 @@ const taxes = computed(() => {
   const refunds = byType.types
     .filter((type) => type.total.amount < 0)
     .map((type) => ({ key: type.category, label: categoryName(type.category), amount: type.total.amount, to: drillLocation(type.total.drill) }))
-  const paid = parts.reduce((sum, part) => sum + part.value, 0)
+  const paid = sumMoney(parts.map((part) => part.value))
   const cadences = payrollCadence(bookings, categories, window).map((cadence) => {
     const first = cadence.months[0]?.month
     return {

@@ -18,7 +18,7 @@ import type { ScenarioBook } from '../../workbook/domain/readLoanBook'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { lastDayOf, monthOf } from '../../../../shared/calendar/monthKey'
-import { subtractMoney } from '../../../../shared/money/money'
+import { negateMoney, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney, formatRate } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
@@ -150,5 +150,5 @@ export function scenarioRows(worked: readonly WorkedScenario[], compared: readon
 export function interestAgainst(figure: Money, base: Money): string {
   const difference = subtractMoney(figure, base)
   if (difference === 0) return words.list.sameInterest
-  return difference < 0 ? words.list.lessInterest(formatMoney(-difference)) : words.list.moreInterest(formatMoney(difference))
+  return difference < 0 ? words.list.lessInterest(formatMoney(negateMoney(difference))) : words.list.moreInterest(formatMoney(difference))
 }

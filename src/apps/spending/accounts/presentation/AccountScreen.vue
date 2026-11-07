@@ -4,7 +4,6 @@ import { useRoute } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import AccountDialog from './AccountDialog.vue'
-import { formatAccountMoney } from './accountMoney'
 import { euroLine } from './euroLine'
 import { words } from './words'
 import { accountBalance } from '../domain/accountBalance'
@@ -26,6 +25,7 @@ import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import SparkLine from '../../../../shared/ui/SparkLine.vue'
+import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 
 /** One account: what it holds today, in euros too for a foreign one, its balance over the last 90 days, and its entries newest first, each opening the entry dialog. */
 const { state } = useSpendingBooks()

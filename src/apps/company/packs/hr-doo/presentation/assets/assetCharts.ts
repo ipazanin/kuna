@@ -13,6 +13,7 @@ import type { LegendEntry } from '../../../../../../shared/ui/ChartLegend.vue'
 import { bookValueOn } from '../../domain/assets/depreciationSchedule'
 import type { DepreciationSchedule } from '../../domain/assets/depreciationSchedule'
 import { words } from './words'
+import { sumMoney } from '../../../../../../shared/money/money'
 
 /** The categorical slots a chart may use before the rest fold into one series. */
 const SLOTS = 8
@@ -59,7 +60,7 @@ export function bookValueChart(schedules: readonly DepreciationSchedule[], today
     data: valuesOf(line.schedules, months),
     ...(index === 0 ? { markArea: aheadBand(months, today, tokens) } : {}),
   }))
-  const tooltip = axisTooltip({ tokens, categoryLabel: monthAxisLabel('long'), formatAmount: (amount) => formatMoney(amount) })
+  const tooltip = axisTooltip({ tokens, categoryLabel: monthAxisLabel('long') })
   const option: ChartOption = {
     grid: { top: 16, right: 16 },
     tooltip: {
@@ -79,7 +80,7 @@ export function bookValueChart(schedules: readonly DepreciationSchedule[], today
   }
   const first = months[0]
   const last = months[months.length - 1]
-  const todayValue = depreciated.reduce((total, schedule) => total + bookValueOn(schedule, today).amount, 0)
+  const todayValue = sumMoney(depreciated.map((schedule) => bookValueOn(schedule, today).amount))
   return {
     option,
     empty: series.length === 0,
@@ -122,7 +123,7 @@ function valuesOf(schedules: readonly DepreciationSchedule[], months: readonly M
     if (held.length === 0 || reachedZero) {
       return null
     }
-    const value = held.reduce((total, schedule) => total + bookValueOn(schedule, end).amount, 0)
+    const value = sumMoney(held.map((schedule) => bookValueOn(schedule, end).amount))
     reachedZero = value === 0 && held.length === schedules.length
     return value
   })

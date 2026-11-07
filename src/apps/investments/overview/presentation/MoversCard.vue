@@ -10,6 +10,8 @@ import { formatPercentChange } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import { ZERO } from '../../../../shared/money/money'
+import { ZERO_SHARE } from '../../../../shared/money/percent'
 
 /** The three holdings that rose most on the last day and the three that fell most, by share, each with its change in euros. */
 const props = defineProps<{
@@ -42,11 +44,11 @@ const lastDay = computed(() => props.figures.lastDay)
           <td class="text-end">
             <span class="inline-flex items-center gap-0.5 font-medium" :class="row.rose ? 'text-success' : 'text-error'">
               <UIcon :name="row.rose ? 'i-lucide-arrow-up-right' : 'i-lucide-arrow-down-right'" class="size-3.5" aria-hidden="true" />
-              <span class="figure">{{ formatPercentChange(row.holding.lastDay?.share ?? 0) }}</span>
+              <span class="figure">{{ formatPercentChange(row.holding.lastDay?.share ?? ZERO_SHARE) }}</span>
               <span class="sr-only">{{ row.rose ? words.movers.up : words.movers.down }}</span>
             </span>
           </td>
-          <td class="text-end"><MoneyText :cents="row.holding.lastDay?.change ?? 0" sign="always" tone="outcome" /></td>
+          <td class="text-end"><MoneyText :cents="row.holding.lastDay?.change ?? ZERO" sign="always" tone="outcome" /></td>
         </tr>
       </tbody>
     </FigureTable>

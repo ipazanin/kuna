@@ -2,9 +2,10 @@ import { moneyAxisLabel } from './chartTheme'
 import type { ChartTokens } from './chartTokens'
 import { axisTooltip } from './chartTooltip'
 import type { BarSeries, ChartOption } from './echarts'
-import { formatMoney } from '../money/moneyFormat'
+import { formatChartMoney } from '../money/moneyFormat'
 import type { ChartPointSelection } from '../ui/ChartCard.vue'
 import type { LegendEntry } from '../ui/ChartLegend.vue'
+import type { Money } from '../money/money'
 
 /**
  * One bar of the bridge. A total starts at zero and the other kinds start where the bar before them ended. A step takes
@@ -13,7 +14,7 @@ import type { LegendEntry } from '../ui/ChartLegend.vue'
 export interface BridgeBar<Target> {
   readonly label: string
   readonly kind: 'total' | 'step' | 'transfer' | 'residual'
-  readonly amount: number
+  readonly amount: Money
   readonly drill: Target | null
 }
 
@@ -98,7 +99,7 @@ export function bridgeChart<Target>(
     barMaxWidth: 18,
     data: placed.map((entry) => ({ value: entry.bar.amount, itemStyle: { color: colours[legendGroupOf(entry.bar)], borderRadius: 2 } })),
   }
-  const tooltip = axisTooltip({ tokens, formatAmount: (amount) => formatMoney(amount, 'always') })
+  const tooltip = axisTooltip({ tokens, formatAmount: (amount) => formatChartMoney(amount, 'always') })
   return {
     option: {
       grid: { top: 8, right: 16 },
@@ -113,7 +114,7 @@ export function bridgeChart<Target>(
       series: [base, shown],
     },
     description: wording.description(bars),
-    formatValue: (value) => formatMoney(value),
+    formatValue: formatChartMoney,
     drillAt: ({ dataIndex }) => bars[dataIndex]?.drill ?? null,
     legend: named.map((name): LegendEntry => ({ label: name, colour: colours[name] ?? tokens.ink })),
   }

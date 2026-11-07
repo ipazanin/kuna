@@ -4,14 +4,14 @@ export interface DepreciationChargeLine {
   readonly asset: string
   /** How the charge came about, such as "9 months at 50%". */
   readonly basis: string
-  readonly amount: number
+  readonly amount: Money
   /** What the profit tax allows, shown only when it is less than the charge. */
-  readonly deductible: number | null
+  readonly deductible: Money | null
 }
 
 export interface DepreciationYearLine {
   readonly year: number
-  readonly total: number
+  readonly total: Money
   readonly when: 'past' | 'current' | 'ahead'
   readonly charges: readonly DepreciationChargeLine[]
 }
@@ -23,6 +23,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import { words } from './words'
+import type { Money } from '../../../../../../shared/money/money'
 
 /** One figure per year, which opens on the charge of each asset behind it. */
 const props = defineProps<{

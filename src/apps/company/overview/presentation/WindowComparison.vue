@@ -1,6 +1,6 @@
 <script lang="ts">
 export interface WindowCell {
-  readonly perMonth: number
+  readonly perMonth: Money
   readonly to: RouteLocationRaw | null
 }
 
@@ -9,7 +9,7 @@ export interface WindowRow {
   /** One cell per column, in the columns' order. */
   readonly cells: readonly WindowCell[]
   /** The last 3 months against the last 12, as a fraction. Null when the 12-month figure is zero. */
-  readonly recentChange: number | null
+  readonly recentChange: Share | null
   /** Net and owner earns read better against the costs above them when set apart. */
   readonly emphasised?: boolean
 }
@@ -23,6 +23,8 @@ import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { words } from './words'
+import type { Money } from '../../../../shared/money/money'
+import type { Share } from '../../../../shared/money/percent'
 
 defineProps<{
   columns: readonly string[]

@@ -13,6 +13,8 @@ import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../shared/charts/chartTooltip'
 import type { ChartOption, LineSeries } from '../../../../shared/charts/echarts'
 import { formatCompactMoney, formatMoney } from '../../../../shared/money/moneyFormat'
+import { ZERO } from '../../../../shared/money/money'
+import type { Money } from '../../../../shared/money/money'
 
 /** One compared scenario as the charts draw it. */
 export interface ChartedScenario {
@@ -71,7 +73,6 @@ function frame(months: readonly MonthKey[], scenarios: readonly ChartedScenario[
       formatter: axisTooltip({
         tokens,
         categoryLabel: monthAxisLabel('long'),
-        formatAmount: (amount) => formatMoney(amount),
         footnotes: (month) => (variable !== null && month >= variable ? [balanceWords.estimate] : []),
       }),
     },
@@ -150,9 +151,9 @@ export function scenarioBalanceChart(scenarios: readonly ChartedScenario[], base
 export function scenarioInterestChart(scenarios: readonly ChartedScenario[], base: string, tokens: ChartTokens, phone: boolean, shownDays: DateRange | null): ScenarioChart {
   const months = monthsOfAll(scenarios).filter((month) => monthInRange(shownDays, month))
   const edge = months.at(-1)
-  const totals = new Map(scenarios.map((scenario) => [scenario.key, scenario.months.at(-1)?.interest ?? 0]))
+  const totals = new Map(scenarios.map((scenario) => [scenario.key, scenario.months.at(-1)?.interest ?? ZERO]))
   const interestBy = new Map(scenarios.map((scenario) => [scenario.key, new Map(scenario.months.map((entry) => [entry.month, entry.interest]))]))
-  const interestOn = (scenario: ChartedScenario, month: MonthKey): number | null => {
+  const interestOn = (scenario: ChartedScenario, month: MonthKey): Money | null => {
     const first = scenario.months[0]?.month
     return first === undefined || month < first ? null : (interestBy.get(scenario.key)!.get(month) ?? totals.get(scenario.key)!)
   }

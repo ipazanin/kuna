@@ -25,6 +25,7 @@ import { ADJUSTMENT_LABELS, STATUSES, STATUS_WORDING, lineLabel } from './yearEn
 import { plural } from '../../../../../../shared/text/translation'
 import { words } from './words'
 import { uncapitalised } from '../../../../../../shared/text/capitalised'
+import { ZERO } from '../../../../../../shared/money/money'
 
 type Link = (drill: DrillTarget | null) => RouteLocationRaw | null
 
@@ -63,7 +64,7 @@ export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link
     { label: words.bridge.profitBeforeTax, kind: 'total', amount: bridge.profitBeforeTax.amount, drill: null },
     { label: ADJUSTMENT_LABELS['corporate-income-tax'], kind: 'step', amount: bridge.corporateIncomeTax.figure.amount, drill: null },
     { label: words.bridge.profitAfterTax, kind: 'total', amount: bridge.profitAfterTax.amount, drill: null },
-    { label: words.bridge.notExplained, kind: 'residual', amount: bridge.unexplainedAfterTax?.figure.amount ?? 0, drill: null },
+    { label: words.bridge.notExplained, kind: 'residual', amount: bridge.unexplainedAfterTax?.figure.amount ?? ZERO, drill: null },
   ]
   const total = (key: string, figure: TracedFigure): BridgeStepView => ({ key, label: figureLabel(figure), cents: figure.amount, to: drillOf(figure), kind: null, rules: [] })
   const adjustment = (entry: AccrualAdjustment): BridgeStepView => ({
@@ -77,7 +78,7 @@ export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link
   const residual = (id: string, label: string, entry: AccrualAdjustment | null): BridgeStepView => ({
     key: id,
     label,
-    cents: entry?.figure.amount ?? 0,
+    cents: entry?.figure.amount ?? ZERO,
     to: null,
     kind: entry === null ? 'matched' : 'open',
     rules: [],
@@ -114,7 +115,7 @@ export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link
 
   return {
     lines: {
-      parts: statusCounts.map(({ status, count }): DonutPart => ({ key: status, label: STATUS_WORDING[status].label, value: count, colour: STATUS_TONES[status], to: statements })),
+      parts: statusCounts.map(({ status, count }): DonutPart<number> => ({ key: status, label: STATUS_WORDING[status].label, value: count, colour: STATUS_TONES[status], to: statements })),
       total: comparison.lines.length,
       description: words.linesDescription(comparison.lines.length, year, statusCounts.map(({ status, count }) => `${count} ${uncapitalised(STATUS_WORDING[status].label)}`).join(', ')),
     },
@@ -142,13 +143,13 @@ export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link
     distribution: comparison.distribution,
     konto: comparison.konto.map((group) => ({
       key: group.konto.map((line) => line.line).join('-'),
-      konto: group.konto.map((line) => ({ line: line.line, label: line.label, cents: line.figure.kind === 'money' ? line.figure.amount : 0 })),
+      konto: group.konto.map((line) => ({ line: line.line, label: line.label, cents: line.figure.kind === 'money' ? line.figure.amount : ZERO })),
       categories: group.categories.map((figure, index) => ({ key: `${index}-${figure.label}`, label: figureLabel(figure), cents: figure.amount, to: drillOf(figure) })),
       accountant: group.accountant,
       ours: group.ours,
       difference: group.difference,
     })),
-    unnamedKonto: comparison.unnamedKonto.map((line) => ({ line: line.line, label: line.label, cents: line.figure.kind === 'money' ? line.figure.amount : 0 })),
+    unnamedKonto: comparison.unnamedKonto.map((line) => ({ line: line.line, label: line.label, cents: line.figure.kind === 'money' ? line.figure.amount : ZERO })),
     kontoSummary: words.kontoSummary(comparison.konto.length, comparison.konto.filter((group) => group.difference !== 0).length),
     openItems: openItems.map((item) => ({
       key: item.key,

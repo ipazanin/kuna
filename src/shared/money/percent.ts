@@ -11,6 +11,9 @@ export type Percent = number & { readonly __unit: 'basis-points' }
 /** A measured ratio where 1 is the whole, as a float, never multiplied back into money. A part of a whole is 0 to 1, and a gain or a change can fall outside that. */
 export type Share = number & { readonly __unit: 'share-of-one' }
 
+/** A ratio of nothing, for a part with no whole to measure against. */
+export const ZERO_SHARE = 0 as Share
+
 const BASIS_POINTS_PER_WHOLE = 10_000
 const BASIS_POINTS_PER_PERCENT = 100
 const PERCENT_PER_WHOLE = 100
@@ -105,6 +108,11 @@ export function shareOfDecimalPercent(percent: Decimal): Share {
   return shareFromPercent(Number(decimalText(percent)))
 }
 
+/** A ratio already worked out in floats, such as a return or a chart's value, as a share. It holds whatever it is given, since a return can be any size. */
+export function shareFromRatio(ratio: number): Share {
+  return ratio as Share
+}
+
 /** A measured part over its whole, such as days along a scale of days. A whole of 0 gives no number. */
 export function shareOfScale(part: number, whole: number): Share {
   return (part / whole) as Share
@@ -118,6 +126,11 @@ export function pointsOfShare(share: Share): number {
 /** A ratio where 1 is the whole, in basis points and not rounded, so 0.00005 is 0.5. */
 export function basisPointsOfRatio(ratio: number): number {
   return ratio * BASIS_POINTS_PER_WHOLE
+}
+
+/** A percent as somebody wrote it, in basis points to the nearest one, so 2.5 is 250. */
+export function nearestBasisPoints(written: number): number {
+  return Number(stepsOfNumber(written, 2))
 }
 
 /** The whole percent a part is of a whole, rounded down and worked out on the cents, so 29 cents of 100 is 29. */

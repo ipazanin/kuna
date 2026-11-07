@@ -1,5 +1,5 @@
 import { formatRate } from '../../../../../shared/money/moneyFormat'
-import { shareFromPercent } from '../../../../../shared/money/percent'
+import { shareFromPercent, shareFromRatio } from '../../../../../shared/money/percent'
 import { language } from '../../../../../shared/text/language'
 import { listInWords } from '../../../../../shared/text/listInWords'
 import { plural } from '../../../../../shared/text/translation'
@@ -24,9 +24,9 @@ export const en = {
     notADay: (value: string) => `"${value}" is not a date such as 2025-05-12`,
     neither: (value: string, choices: readonly string[]) => `"${value}" is neither ${choices.join(' nor ')}`,
     notARate: (value: string) => `"${value}" is not a rate such as 2%`,
-    rateAboveOne: (number: number) => `${number} reads as ${formatRate(number)}. Write the rate with its percent sign, such as 2%`,
+    rateAboveOne: (number: number) => `${number} reads as ${formatRate(shareFromRatio(number))}. Write the rate with its percent sign, such as 2%`,
     rateNeedsSign: (number: number) =>
-      `${number} has no percent sign, so it could be ${formatRate(shareFromPercent(number))} or ${formatRate(number)}. Write the rate with its percent sign, such as 2%`,
+      `${number} has no percent sign, so it could be ${formatRate(shareFromPercent(number))} or ${formatRate(shareFromRatio(number))}. Write the rate with its percent sign, such as 2%`,
     rateRange: 'use a rate from 0% to 100% with at most two decimals, such as 2%',
   },
   /** How a refusal counts the pack's records that name a category, a grant or a scenario. */
@@ -96,7 +96,7 @@ export const en = {
     amountNotANumber: (text: string) => `amount "${text}" is not a number`,
     amountNotADate: (text: string) => `amount "${text}" is not a date cell, and this line is a date`,
     amountNotARate: (text: string) => `amount "${text}" is not a rate`,
-    rateAboveOne: (rate: number) => `amount ${rate} reads as ${formatRate(rate)}. Enter the rate as a percentage cell, such as 10%`,
+    rateAboveOne: (rate: number) => `amount ${rate} reads as ${formatRate(shareFromRatio(rate))}. Enter the rate as a percentage cell, such as 10%`,
     amountNotWhole: (text: string) => `amount "${text}" is not a whole number`,
     categoriesOnKontoOnly: 'categories is read on konto rows only, so it is ignored here',
     notOnCategoriesTab: (categories: readonly string[]) => `${categories.map((category) => `"${category}"`).join(', ')} ${categories.length === 1 ? 'is' : 'are'} not on the categories tab`,
@@ -158,8 +158,9 @@ export const hr: Translation<typeof en> = {
     notADay: (value) => `„${value}” nije datum poput 2025-05-12`,
     neither: (value, choices) => `„${value}” nije ni ${choices.join(' ni ')}`,
     notARate: (value) => `„${value}” nije stopa poput 2 %`,
-    rateAboveOne: (number) => `${number} se čita kao ${formatRate(number)}. Upišite stopu sa znakom postotka, na primjer 2 %`,
-    rateNeedsSign: (number) => `${number} nema znak postotka, pa može značiti ${formatRate(shareFromPercent(number))} ili ${formatRate(number)}. Upišite stopu sa znakom postotka, na primjer 2 %`,
+    rateAboveOne: (number) => `${number} se čita kao ${formatRate(shareFromRatio(number))}. Upišite stopu sa znakom postotka, na primjer 2 %`,
+    rateNeedsSign: (number) =>
+      `${number} nema znak postotka, pa može značiti ${formatRate(shareFromPercent(number))} ili ${formatRate(shareFromRatio(number))}. Upišite stopu sa znakom postotka, na primjer 2 %`,
     rateRange: 'upišite stopu od 0 % do 100 % s najviše dvije decimale, na primjer 2 %',
   },
   uses: {
@@ -226,7 +227,7 @@ export const hr: Translation<typeof en> = {
     amountNotANumber: (text) => `amount „${text}” nije broj`,
     amountNotADate: (text) => `amount „${text}” nije ćelija s datumom, a ova je pozicija datum`,
     amountNotARate: (text) => `amount „${text}” nije stopa`,
-    rateAboveOne: (rate) => `amount ${rate} čita se kao ${formatRate(rate)}. Upišite stopu kao postotnu ćeliju, na primjer 10 %`,
+    rateAboveOne: (rate) => `amount ${rate} čita se kao ${formatRate(shareFromRatio(rate))}. Upišite stopu kao postotnu ćeliju, na primjer 10 %`,
     amountNotWhole: (text) => `amount „${text}” nije cijeli broj`,
     categoriesOnKontoOnly: 'polje categories čita se samo u retcima konta, pa se ovdje zanemaruje',
     notOnCategoriesTab: (categories) => `${categories.map((category) => `„${category}”`).join(', ')} ${categories.length === 1 ? 'nije' : 'nisu'} na listu „categories”`,

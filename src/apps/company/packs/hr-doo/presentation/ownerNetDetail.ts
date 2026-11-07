@@ -3,6 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import { dayLabel } from '../../../../../shared/calendar/dayLabel'
 import { monthLabel } from '../../../../../shared/calendar/monthLabel'
 import { addMoney, negateMoney } from '../../../../../shared/money/money'
+import type { Money } from '../../../../../shared/money/money'
 import type { DrillTarget } from '../../../filters/domain/drillTarget'
 import type { OwnerNetWithProfit } from '../domain/ownerNetWithProfit'
 import { RENT_TAX_LABEL } from './packCharts'
@@ -17,7 +18,7 @@ export const OWNER_NET_TITLE = words.ownerNet.title
 /** The build-up of the monthly net with the profit included, each line opening its rows, or Year for a year's profit. */
 export function ownerNetDetail(net: OwnerNetWithProfit, period: string, link: (drill: DrillTarget) => RouteLocationRaw | null): FigureDetail {
   const months = (count: number) => plural(words.ownerNet.months(count), count)
-  const step = (key: string, label: string, cents: number | null, to: RouteLocationRaw | null = null, depth: 0 | 1 = 0): BuildUpStep => ({ key, label, cents, to, depth })
+  const step = (key: string, label: string, cents: Money | null, to: RouteLocationRaw | null = null, depth: 0 | 1 = 0): BuildUpStep => ({ key, label, cents, to, depth })
   const several = net.years.length > 1
   const profitLines = net.years.flatMap(({ year, months: inYear, amount, route }) => {
     const first = inYear[0]

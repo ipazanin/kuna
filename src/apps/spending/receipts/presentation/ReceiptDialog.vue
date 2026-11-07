@@ -36,7 +36,7 @@ import { imagePartOf } from '../../../../shared/ai/presentation/imagePartOf'
 import { resultLine, usageLine, useAiTask } from '../../../../shared/ai/presentation/useAiTask'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { formatAccountMoney, formatMoney } from '../../../../shared/money/moneyFormat'
 import { accountMoneyOfEuros, negateAccountMoney, subtractAccountMoney, sumAccountMoney, ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
 import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -45,6 +45,7 @@ import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import FileDrop from '../../../../shared/ui/FileDrop.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
+import { EURO } from '../../../../shared/money/currencyCode'
 
 /** A receipt photo to the payment it splits: the QR code's date and total, or typed ones, with one category for the whole receipt or the lines the assistant read. The model only drafts: nothing is written until Save, and closing the dialog drops the photo and aborts a read under way. */
 const open = defineModel<boolean>('open', { required: true })
@@ -159,8 +160,10 @@ const heading = computed(() => {
 const placeItems = computed(() => [
   ...candidates.value.map(({ row, difference }) => ({
     value: row.id as string,
-    label: `${row.payee === '' ? (accountOfRow(row.account)?.name ?? '') : row.payee} · ${formatMoney(row.amount)}`,
-    description: [dayLabel(row.date), accountOfRow(row.account)?.name ?? '', difference === 0 ? '' : words.differs(formatMoney(difference, 'always'))].filter((part) => part !== '').join(' · '),
+    label: `${row.payee === '' ? (accountOfRow(row.account)?.name ?? '') : row.payee} · ${formatAccountMoney(row.amount, EURO)}`,
+    description: [dayLabel(row.date), accountOfRow(row.account)?.name ?? '', difference === 0 ? '' : words.differs(formatAccountMoney(difference, EURO, 'always'))]
+      .filter((part) => part !== '')
+      .join(' · '),
   })),
   { value: NEW_ENTRY, label: words.newEntry },
 ])
@@ -219,7 +222,7 @@ const newAccount = computed(() => euroAccounts.value.find((candidate) => candida
 const newEntryPlaced = computed(() => place.value === NEW_ENTRY)
 
 const errors = computed(() => ({
-  held: heldRow.value === null ? null : words.alreadyHeld(heldRow.value.date, formatMoney(heldRow.value.amount)),
+  held: heldRow.value === null ? null : words.alreadyHeld(heldRow.value.date, formatAccountMoney(heldRow.value.amount, EURO)),
   total: total.value === null ? words.aTotal : null,
   date: issuedOn.value === null ? spendingWords.form.aDate(civilDate(2026, 3, 15)) : null,
   place: place.value === '' ? words.pickError : null,

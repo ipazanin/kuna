@@ -2,6 +2,7 @@ import { BAR_END_RIGHT, moneyAxisLabel, stackGap } from '../../../../shared/char
 import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../shared/charts/chartTooltip'
 import type { BarSeries } from '../../../../shared/charts/echarts'
+import { sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
@@ -35,14 +36,14 @@ export function ageingChart(clients: readonly ClientAgeing[], tokens: ChartToken
     itemStyle: stackGap(tokens),
     data: clients.map((client) => ({ value: client.byBucket[bucket], itemStyle: { borderRadius: step === lastFilledStep(client) ? BAR_END_RIGHT : 0 } })),
   }))
-  const total = clients.reduce((sum, client) => sum + AGEING_BUCKETS.reduce((owed, bucket) => owed + client.byBucket[bucket], 0), 0)
+  const total = sumMoney(clients.flatMap((client) => AGEING_BUCKETS.map((bucket) => client.byBucket[bucket])))
   return {
     option: {
       grid: { top: 8, right: 16 },
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
-        formatter: axisTooltip({ tokens, formatAmount: (amount) => formatMoney(amount) }),
+        formatter: axisTooltip({ tokens }),
       },
       xAxis: { type: 'value', axisLabel: { ...moneyAxisLabel(tokens), hideOverlap: true } },
       yAxis: { type: 'category', inverse: true, data: clients.map((client) => client.name), axisLabel: { color: tokens.inkSecondary } },

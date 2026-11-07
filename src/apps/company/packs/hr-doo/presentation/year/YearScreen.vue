@@ -26,7 +26,7 @@ import { sourcesCheckedSince } from '../../ruleset/ruleset'
 import { planDefaults } from '../../domain/forecast/forecastYear'
 import { PACK_ROLES, categoriesWithRole } from '../../domain/packRoles'
 import { employmentFreeFrom } from '../../domain/scenarios/startingScenarios'
-import { missingAccrualRoles } from '../accrualRoles'
+import { accrualRolesLeftOut } from '../accrualRoles'
 import AssetsPanel from '../assets/AssetsPanel.vue'
 import ForecastPanel from '../forecast/ForecastPanel.vue'
 import { forecastState } from '../forecast/forecastView'
@@ -40,8 +40,8 @@ import { WATCHED_WORDING, watchedGroups } from '../tracedFigureView'
 import AccountantPanel from '../yearEnd/AccountantPanel.vue'
 import { closedYearView } from '../yearEnd/closedYearView'
 import StatementsPanel from '../yearEnd/StatementsPanel.vue'
-import { shownYear, yearOptions } from './yearChoice'
-import type { YearTab } from './yearChoice'
+import { shownYear, yearOptions } from '../../domain/yearChoice'
+import type { YearTab } from '../../domain/yearChoice'
 import { words as packWords } from '../words'
 import { words } from './words'
 
@@ -182,7 +182,7 @@ const watched = computed(() =>
 /** The roles the tabs read, said once under the header. */
 const missingRoles = computed(() => {
   const categories = ledger.value?.workbook.categories ?? []
-  return [...missingAccrualRoles(categories), ...(categoriesWithRole(categories, PACK_ROLES.watched).length === 0 ? [{ role: PACK_ROLES.watched, leftOut: words.noPaymentCalendar }] : [])]
+  return [...accrualRolesLeftOut(categories), ...(categoriesWithRole(categories, PACK_ROLES.watched).length === 0 ? [{ role: PACK_ROLES.watched, leftOut: words.noPaymentCalendar }] : [])]
 })
 
 const noVat = computed(() => closed.value?.view?.noVat ?? false)

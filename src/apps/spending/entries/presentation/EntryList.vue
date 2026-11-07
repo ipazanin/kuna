@@ -11,8 +11,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
-import { intlLocale } from '../../../../shared/text/language'
-import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 
 /** Entries by day in the order given, each a row that opens it: who was paid or paid you, its category with its colour, its account and its amount in the account's currency, with euros under a foreign one. */
 const props = withDefaults(
@@ -81,7 +80,7 @@ const days = computed(() => {
               <RowLines v-if="line.row.lines.length > 0" :lines="line.row.lines" :categories="categories" :currency="line.row.account.currency" />
             </span>
             <span class="flex shrink-0 flex-col items-end gap-0.5 type-body">
-              <MoneyText :cents="line.row.transaction.amount" sign="always" tone="flow" :format="{ currency: line.row.account.currency, locale: intlLocale }" />
+              <AccountMoneyText :cents="line.row.transaction.amount" :currency="line.row.account.currency" sign="always" tone="flow" />
               <span v-if="line.euros !== ''" class="figure type-caption">{{ line.euros }}</span>
             </span>
           </button>

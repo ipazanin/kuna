@@ -1,6 +1,9 @@
 import { CURRENCY_CODES } from '../../money/currencyCode'
 import type { ToolLog } from './aiTask'
 import type { StrictSchema } from './strictSchema'
+import { moneyFromAmount } from '../../money/money'
+import type { Money } from '../../money/money'
+import { nearestBasisPoints } from '../../money/percent'
 
 /** The one answer shape of every explanation and question: parts that cite their sources and figures, and what the model adds from its own knowledge. */
 export const CITED_ANSWER_SCHEMA: StrictSchema = {
@@ -30,7 +33,7 @@ export interface CitedInput {
   /** The source ids sent, such as rule ids. */
   readonly sources: ReadonlySet<string>
   /** Each figure's ref and its amount in cents. */
-  readonly figures: ReadonlyMap<string, number>
+  readonly figures: ReadonlyMap<string, Money>
   /** Other amounts sent, such as a rule's money terms, in cents. */
   readonly amounts: ReadonlySet<number>
   /** The rates sent, in basis points. */
@@ -41,7 +44,7 @@ export interface CheckedPart {
   readonly text: string
   readonly sources: readonly string[]
   /** The figures the part quotes, with Kuna's own amounts. */
-  readonly figures: readonly { readonly ref: string; readonly cents: number }[]
+  readonly figures: readonly { readonly ref: string; readonly cents: Money }[]
   /** The text holds an amount or a rate Kuna did not send. */
   readonly strayFigure: boolean
 }
@@ -62,7 +65,7 @@ export interface CitedAnswer {
 export function checkCitedAnswer(output: unknown, sent: CitedInput, log: ToolLog): CitedAnswer {
   const answer = output as { parts: readonly { text: string; sources: readonly string[]; figures: readonly string[] }[]; ownKnowledge: string | null }
   const sources = new Set([...sent.sources, ...log.answers.flatMap((tool) => tool.sources)])
-  const figures = new Map([...sent.figures, ...log.answers.flatMap((tool) => tool.figures.map((figure): [string, number] => [figure.ref, figure.cents]))])
+  const figures = new Map([...sent.figures, ...log.answers.flatMap((tool) => tool.figures.map((figure): [string, Money] => [figure.ref, figure.cents]))])
   const amounts = new Set([...sent.amounts, ...[...figures.values()].map(Math.abs)])
   const stray = (text: string) =>
     !figuresIn(text).every((figure) => (figure.kind === 'rate' ? figure.basisPoints.some((points) => sent.rates.has(points)) : figure.cents.some((cents) => amounts.has(cents))))
@@ -113,11 +116,11 @@ export function figuresIn(text: string): WrittenFigure[] {
     const after = text.slice(match.index + match[0].length)
     const readings = [readNumber(written, ',', '.'), readNumber(written, '.', ',')].filter((value) => value !== null)
     if (RATE_AFTER.test(after)) {
-      return [{ kind: 'rate', basisPoints: [...new Set(readings.map((value) => Math.round(value * 100)))] }]
+      return [{ kind: 'rate', basisPoints: [...new Set(readings.map(nearestBasisPoints))] }]
     }
     const carriesCurrency = isCurrency(WORD_BEFORE.exec(text.slice(0, match.index))?.[1]) || isCurrency(WORD_AFTER.exec(after)?.[1])
     const looksLikeMoney = /[.,]\d{3}(?:\D|$)|[.,]\d{2}$/.test(written) && !isDayAndMonth(written)
-    return (carriesCurrency || looksLikeMoney) && readings.length > 0 ? [{ kind: 'amount', cents: [...new Set(readings.map((value) => Math.round(value * 100)))] }] : []
+    return (carriesCurrency || looksLikeMoney) && readings.length > 0 ? [{ kind: 'amount', cents: [...new Set(readings.map(moneyFromAmount))] }] : []
   })
 }
 

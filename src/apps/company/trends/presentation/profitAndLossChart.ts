@@ -3,7 +3,7 @@ import { BAR_END_DOWN, BAR_END_UP, markIncomplete, moneyAxisLabel, stackGap } fr
 import type { ChartTokens } from '../../../../shared/charts/chartTokens'
 import { axisTooltip } from '../../../../shared/charts/chartTooltip'
 import type { BarSeries, ChartOption, LineSeries } from '../../../../shared/charts/echarts'
-import { formatMoney } from '../../../../shared/money/moneyFormat'
+import { formatChartMoney, formatMoney } from '../../../../shared/money/moneyFormat'
 import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
 import type { DrillChart } from '../../filters/presentation/chartDrill'
 import { shownBucketLines } from '../../settings/domain/profitAndLossLabels'
@@ -92,7 +92,7 @@ export function profitAndLossChart(months: readonly MonthOfProfitAndLoss[], toke
         tokens,
         incompleteCategories: months.filter((month) => !month.complete).map((month) => month.month),
         categoryLabel: monthAxisLabel('long'),
-        formatAmount: (amount, seriesName) => formatMoney(amount, settings.series.some((series) => series.name === seriesName) ? 'magnitude' : 'negative'),
+        formatAmount: (amount, seriesName) => formatChartMoney(amount, settings.series.some((series) => series.name === seriesName) ? 'magnitude' : 'negative'),
       }),
     },
     xAxis: {

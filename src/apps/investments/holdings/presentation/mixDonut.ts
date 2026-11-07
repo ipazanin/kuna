@@ -9,6 +9,7 @@ import { ZERO, sumMoney } from '../../../../shared/money/money'
 import { formatMoney, formatShare } from '../../../../shared/money/moneyFormat'
 import { countryName } from '../../../../shared/text/countryName'
 import type { DonutPart } from '../../../../shared/ui/DonutCard.vue'
+import { shareOfScale } from '../../../../shared/money/percent'
 
 /** What a `DonutCard` of one mix shows. */
 export interface MixDonut {
@@ -66,7 +67,7 @@ export function mixDonut<Of extends Mix>(mix: HoldingMix<Of>, book: Pick<Investm
 }
 
 function shareOf(value: number, whole: number): string {
-  return whole === 0 ? '–' : formatShare(value / whole)
+  return whole === 0 ? '–' : formatShare(shareOfScale(value, whole))
 }
 
 /** A group as the screen names it: a class, a sector or a region in words, a country by its name, an account by its own and a currency by its code. */

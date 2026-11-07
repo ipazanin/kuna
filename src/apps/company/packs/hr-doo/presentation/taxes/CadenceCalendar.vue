@@ -7,7 +7,7 @@ import type { CadenceState } from '../../domain/payrollCadence'
 export interface CadenceCell {
   readonly month: MonthKey
   readonly state: CadenceState
-  readonly amount: number
+  readonly amount: Money
   readonly to: RouteLocationRaw | null
 }
 </script>
@@ -22,6 +22,7 @@ import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
 import { formatCompactMoney, formatMoney } from '../../../../../../shared/money/moneyFormat'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import { words } from './words'
+import type { Money } from '../../../../../../shared/money/money'
 
 /**
  * One watched tax as a calendar: a row per year and a column per month, each month paid, missed

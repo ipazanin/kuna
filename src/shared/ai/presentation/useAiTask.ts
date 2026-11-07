@@ -12,6 +12,8 @@ import { useSecretsChanged } from '../../secrets/presentation/pageSecrets'
 import { formatCount, formatMoney } from '../../money/moneyFormat'
 import { intlLocale } from '../../text/language'
 import { words } from './words'
+import { moneyFromAmount, moneyFromCents, ZERO } from '../../money/money'
+import type { Money } from '../../money/money'
 
 const secretsChanged = useSecretsChanged()
 
@@ -141,9 +143,9 @@ function costWords(dollars: number | null): string {
   if (dollars === null) {
     return words.usage.priceUnknown
   }
-  const cents = Math.round(dollars * 100)
-  const amount = (wholeCents: number): string => formatMoney(wholeCents, 'negative', { currency: 'USD', locale: intlLocale })
-  return cents === 0 ? words.usage.underCent(amount(1)) : words.usage.about(amount(cents))
+  const cost = moneyFromAmount(dollars)
+  const amount = (cents: Money): string => formatMoney(cents, 'negative', { currency: 'USD', locale: intlLocale })
+  return cost === ZERO ? words.usage.underCent(amount(moneyFromCents(1))) : words.usage.about(amount(cost))
 }
 
 /** What a run that gave no draft says, or null for a draft. */

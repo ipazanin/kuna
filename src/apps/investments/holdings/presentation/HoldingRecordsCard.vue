@@ -15,6 +15,7 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
+import type { Money } from '../../../../shared/money/money'
 
 /** A holding's trades, the transfers that moved its units, its splits and its spin-offs, newest first, with what each moved. */
 const props = defineProps<{
@@ -32,7 +33,7 @@ interface Line {
   /** Each on a line of its own, so a narrow card wraps between them rather than inside one. */
   readonly details: readonly string[]
   /** Signed as it moved the account's cash, null for a record that moved none. */
-  readonly euros: number | null
+  readonly euros: Money | null
   /** The amount in the quote currency and the rate it was converted at, for a trade in another currency. */
   readonly foreign: readonly string[]
 }

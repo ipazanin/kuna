@@ -1,6 +1,7 @@
 import { allTime, lastMonths, spanRange } from '../../../../shared/calendar/ledgerWindow'
 import type { LedgerWindow, MonthSpan } from '../../../../shared/calendar/ledgerWindow'
 import { rangeContains } from '../../../../shared/calendar/dateRange'
+import { absMoney, ratioOf, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { drillToTransactions } from '../../filters/domain/drillTarget'
 import type { DrillTarget } from '../../filters/domain/drillTarget'
@@ -8,6 +9,7 @@ import type { Period } from '../../filters/domain/filterState'
 import { LINE_BUCKETS, averagePerMonth, bucketTotals, forEachLine } from '../../workbook/domain/bucketTotals'
 import type { ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
 import type { Booking } from '../../workbook/domain/workbook'
+import type { Share } from '../../../../shared/money/percent'
 
 /** One line of the profit and loss over a window: its total, its average month, and its rows. */
 export interface WindowFigure {
@@ -63,6 +65,6 @@ function windowColumn(bookings: readonly Booking[], span: MonthSpan): WindowColu
  * How far a recent monthly figure sits from a longer one, as a fraction of the longer one's size.
  * Null when the longer one is zero, where no fraction means anything.
  */
-export function recentChange(recent: Money, longer: Money): number | null {
-  return longer === 0 ? null : (recent - longer) / Math.abs(longer)
+export function recentChange(recent: Money, longer: Money): Share | null {
+  return longer === 0 ? null : ratioOf(subtractMoney(recent, longer), absMoney(longer))
 }

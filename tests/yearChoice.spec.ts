@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { shownYear, yearOptions } from '../src/apps/company/packs/hr-doo/presentation/year/yearChoice'
+import { shownYear, yearOptions } from '../src/apps/company/packs/hr-doo/domain/yearChoice'
 
 describe('year options', () => {
   it('offers the years with accountant lines, the year just ended, this year and the next, oldest first', () => {

@@ -8,13 +8,14 @@ import { changeTreemap, changeTreemapTooltip } from '../../../../shared/charts/t
 import { ratioOf, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney, formatPercent } from '../../../../shared/money/moneyFormat'
+import type { Share } from '../../../../shared/money/percent'
 
 /** A holding on the map, with what its table row shows. */
 export interface MapTile {
   readonly holding: HoldingFigures
   readonly value: Money
   /** The gain on what is held over its cost, null with no cost. */
-  readonly gain: number | null
+  readonly gain: Share | null
 }
 
 export interface HoldingsMap {

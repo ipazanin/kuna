@@ -56,6 +56,7 @@ import { cashAtMonthEnd, costsByCategory, everyEuroEarned, incomeAgainstCosts, i
 import { SAMPLE_TRANSACTIONS } from './sampleTransactions'
 import type { SampleTransaction } from './sampleTransactions'
 import StepSpecimen from './StepSpecimen.vue'
+import { moneyFromCents, sumMoney } from '../../shared/money/money'
 
 /**
  * The design library's living page: the foundations, the formatters, and every shared component in
@@ -98,16 +99,16 @@ const lastSelection = ref<ChartPointSelection | null>(null)
 const BALANCE_POINTS = [180, 176, 171, 167, 154, 148, 140, 131, 121, 110, 97, 83, 67, 49, 29, 0]
 
 const FOUR_FACTS: readonly Fact[] = [
-  { label: 'Principal', value: formatMoney(15_427_421), swatch: { colour: 'var(--loan-principal)' } },
-  { label: 'Interest', value: formatMoney(7_060_232), swatch: { colour: 'var(--loan-interest)' } },
-  { label: 'Subsidy pays', value: formatMoney(105_000), caption: 'Five instalments to go', swatch: { colour: 'var(--chart-deemphasis)', mark: 'hatched' } },
-  { label: 'You pay', value: formatMoney(22_382_653) },
+  { label: 'Principal', value: formatMoney(moneyFromCents(15_427_421)), swatch: { colour: 'var(--loan-principal)' } },
+  { label: 'Interest', value: formatMoney(moneyFromCents(7_060_232)), swatch: { colour: 'var(--loan-interest)' } },
+  { label: 'Subsidy pays', value: formatMoney(moneyFromCents(105_000)), caption: 'Five instalments to go', swatch: { colour: 'var(--chart-deemphasis)', mark: 'hatched' } },
+  { label: 'You pay', value: formatMoney(moneyFromCents(22_382_653)) },
 ]
 
 /** Labels that are a Croatian form's own field names, read in Croatian whatever the screen's language. */
 const FORM_FACTS: readonly Fact[] = [
-  { label: '11 Primitak', value: formatMoney(21_584), caption: 'A reading', lang: 'hr' },
-  { label: '14.1 Porez', value: formatMoney(1_630), caption: 'Settled', lang: 'hr' },
+  { label: '11 Primitak', value: formatMoney(moneyFromCents(21_584)), caption: 'A reading', lang: 'hr' },
+  { label: '14.1 Porez', value: formatMoney(moneyFromCents(1_630)), caption: 'Settled', lang: 'hr' },
 ]
 
 const bucketLegend = [
@@ -139,30 +140,30 @@ const gainLegend = [
 
 /** Made-up shares of a year's income, coloured by bucket as every chart colours them. */
 const EURO_PARTS: readonly DonutPart[] = [
-  { key: 'operating', label: 'Operating', value: 2_908_487, colour: '--bucket-operating', to: galleryLink },
-  { key: 'taxes', label: 'Taxes', value: 1_454_243, colour: '--bucket-taxes', to: galleryLink },
-  { key: 'owner-pay', label: 'Owner pay', value: 2_492_988, colour: '--bucket-owner-pay', to: galleryLink },
-  { key: 'kept', label: 'Kept', value: 3_531_734, colour: '--chart-deemphasis', to: null },
+  { key: 'operating', label: 'Operating', value: moneyFromCents(2_908_487), colour: '--bucket-operating', to: galleryLink },
+  { key: 'taxes', label: 'Taxes', value: moneyFromCents(1_454_243), colour: '--bucket-taxes', to: galleryLink },
+  { key: 'owner-pay', label: 'Owner pay', value: moneyFromCents(2_492_988), colour: '--bucket-owner-pay', to: galleryLink },
+  { key: 'kept', label: 'Kept', value: moneyFromCents(3_531_734), colour: '--chart-deemphasis', to: null },
 ]
 const TAX_PARTS: readonly DonutPart[] = [
-  { key: 'contributions', label: 'Payroll contributions', value: 486_000, colour: '--series-3', to: galleryLink },
-  { key: 'corporate', label: 'Corporate income tax', value: 412_500, colour: '--series-7', to: galleryLink },
-  { key: 'payroll-tax', label: 'Payroll tax', value: 98_400, colour: '--series-1', to: galleryLink },
-  { key: 'dividend', label: 'Dividend tax', value: 31_000, colour: '--series-5', to: galleryLink },
+  { key: 'contributions', label: 'Payroll contributions', value: moneyFromCents(486_000), colour: '--series-3', to: galleryLink },
+  { key: 'corporate', label: 'Corporate income tax', value: moneyFromCents(412_500), colour: '--series-7', to: galleryLink },
+  { key: 'payroll-tax', label: 'Payroll tax', value: moneyFromCents(98_400), colour: '--series-1', to: galleryLink },
+  { key: 'dividend', label: 'Dividend tax', value: moneyFromCents(31_000), colour: '--series-5', to: galleryLink },
 ]
 /** Made-up sectors, an open list: the four largest in size order, the rest grey. */
 const SECTOR_PARTS: readonly DonutPart[] = [
-  { key: 'technology', label: 'Information technology', value: 700_000, colour: '--series-1', to: null },
-  { key: 'industrials', label: 'Industrials', value: 200_000, colour: '--series-2', to: null },
-  { key: 'financials', label: 'Financials', value: 60_000, colour: '--series-3', to: null },
-  { key: 'health-care', label: 'Health care', value: 40_000, colour: '--series-4', to: null },
-  { key: 'other', label: 'Other and not known', value: 35_000, colour: '--chart-deemphasis', to: null },
+  { key: 'technology', label: 'Information technology', value: moneyFromCents(700_000), colour: '--series-1', to: null },
+  { key: 'industrials', label: 'Industrials', value: moneyFromCents(200_000), colour: '--series-2', to: null },
+  { key: 'financials', label: 'Financials', value: moneyFromCents(60_000), colour: '--series-3', to: null },
+  { key: 'health-care', label: 'Health care', value: moneyFromCents(40_000), colour: '--series-4', to: null },
+  { key: 'other', label: 'Other and not known', value: moneyFromCents(35_000), colour: '--chart-deemphasis', to: null },
 ]
 const REGION_PARTS: readonly DonutPart[] = [
-  { key: 'north-america', label: 'North America', value: 640_000, colour: '--series-1', to: null },
-  { key: 'europe', label: 'Europe', value: 250_000, colour: '--series-2', to: null },
-  { key: 'asia-pacific', label: 'Asia and Pacific', value: 100_000, colour: '--series-3', to: null },
-  { key: 'other', label: 'Other and not known', value: 45_000, colour: '--chart-deemphasis', to: null },
+  { key: 'north-america', label: 'North America', value: moneyFromCents(640_000), colour: '--series-1', to: null },
+  { key: 'europe', label: 'Europe', value: moneyFromCents(250_000), colour: '--series-2', to: null },
+  { key: 'asia-pacific', label: 'Asia and Pacific', value: moneyFromCents(100_000), colour: '--series-3', to: null },
+  { key: 'other', label: 'Other and not known', value: moneyFromCents(45_000), colour: '--chart-deemphasis', to: null },
 ]
 const OPEN_SPLITS = [
   { value: 'sector', label: 'By sector' },
@@ -221,7 +222,7 @@ const galleryChips = ref<readonly string[]>(GALLERY_CHIPS)
 const SWATCHES = [1, 2, 3, 4, 5].map((slot) => ({ value: `series-${slot}`, name: `Slot ${slot}`, token: `--series-${slot}` }))
 
 /** A long list for Show all, of made-up payees. */
-const PAYEES = Array.from({ length: 14 }, (_, index) => ({ name: `Supplier ${index + 1}`, cents: -(140_000 - index * 8_500) }))
+const PAYEES = Array.from({ length: 14 }, (_, index) => ({ name: `Supplier ${index + 1}`, cents: moneyFromCents(-(140_000 - index * 8_500)) }))
 const showAllPayees = ref(false)
 const droppedFile = ref<File | null>(null)
 const droppedName = ref('')
@@ -235,7 +236,7 @@ const sortedPayees = computed(() => {
   const sign = amountOrder.value === 'ascending' ? 1 : -1
   return [...listed].sort((first, second) => sign * (first.cents - second.cents))
 })
-const payeesTotal = PAYEES.slice(0, 5).reduce((total, payee) => total + payee.cents, 0)
+const payeesTotal = sumMoney(PAYEES.slice(0, 5).map((payee) => payee.cents))
 
 const shortDay = dateFormat({ day: 'numeric', month: 'short' })
 
@@ -265,7 +266,7 @@ const grouping = computed<GroupingState>({
 const sorting = ref<SortingState>([{ id: 'date', desc: true }])
 const expanded = ref<ExpandedState>(true)
 
-const tableTotal = SAMPLE_TRANSACTIONS.reduce((total, transaction) => total + transaction.amountCents, 0)
+const tableTotal = moneyFromCents(SAMPLE_TRANSACTIONS.reduce((total, transaction) => total + transaction.amountCents, 0))
 
 /** As on Transactions, the category moves under the counterparty in a narrow card. */
 function sampleCategory(transaction: SampleTransaction) {
@@ -314,7 +315,7 @@ const columns: TableColumn<SampleTransaction>[] = [
     meta: { class: { th: 'text-end', td: 'text-end' } },
     cell: ({ row }) =>
       h(MoneyText, {
-        cents: Number(row.getValue('amountCents')),
+        cents: moneyFromCents(Number(row.getValue('amountCents'))),
         ...(row.getIsGrouped() ? {} : { tone: 'flow' as const }),
         class: row.getIsGrouped() ? 'font-medium text-highlighted' : '',
       }),
@@ -399,7 +400,7 @@ const columns: TableColumn<SampleTransaction>[] = [
           definition="Operating costs, taxes and owner pay over the last three complete months, divided by three."
         />
         <KpiTile label="Needs review" value="7 rows" :to="galleryLink" :higher-is-better="false" :delta="{ change: -1, text: '−4', comparison: 'since the last sync' }" />
-        <KpiTile label="Next payment" :value="formatMoney(61220)" caption="On 20 Nov, of €822.20" :to="null" />
+        <KpiTile label="Next payment" :value="formatMoney(moneyFromCents(61220))" caption="On 20 Nov, of €822.20" :to="null" />
       </DashboardGrid>
       <DashboardGrid layout="tiles">
         <KpiTile label="Failed checks" value="2" caption="since the last run" icon="i-lucide-circle-x" icon-tone="error" :to="null" />
@@ -460,11 +461,11 @@ const columns: TableColumn<SampleTransaction>[] = [
     >
       <h3 class="type-label">Six tiles</h3>
       <DashboardGrid layout="tiles">
-        <KpiTile v-for="index in 6" :key="index" :label="`Tile ${index}`" :value="formatMoney(index * 123_400)" :to="null" />
+        <KpiTile v-for="index in 6" :key="index" :label="`Tile ${index}`" :value="formatMoney(moneyFromCents(index * 123_400))" :to="null" />
       </DashboardGrid>
       <h3 class="type-label">Three tiles, the odd last one across both on a phone</h3>
       <DashboardGrid layout="tiles">
-        <KpiTile v-for="index in 3" :key="index" :label="`Tile ${index}`" :value="formatMoney(index * 51_000)" :to="null" />
+        <KpiTile v-for="index in 3" :key="index" :label="`Tile ${index}`" :value="formatMoney(moneyFromCents(index * 51_000))" :to="null" />
       </DashboardGrid>
       <h3 class="type-label">A pair: a long card beside a column of cards</h3>
       <DashboardGrid layout="pair">
@@ -643,7 +644,7 @@ const columns: TableColumn<SampleTransaction>[] = [
           description="Made-up split of a year's income for the gallery: operating 28%, taxes 14%, owner pay 24%, kept 34%."
           subtitle="Where each euro of income went"
           :parts="EURO_PARTS"
-          :total="formatMoney(10_387_452)"
+          :total="formatMoney(moneyFromCents(10_387_452))"
           total-label="income"
         />
         <DonutCard
@@ -651,14 +652,14 @@ const columns: TableColumn<SampleTransaction>[] = [
           description="Made-up taxes paid in a year for the gallery, by type."
           subtitle="Taxes paid in the year"
           :parts="TAX_PARTS"
-          :total="formatMoney(1_027_900)"
+          :total="formatMoney(moneyFromCents(1_027_900))"
           total-label="paid"
           collapse-id="gallery.donut"
-          :summary="`4 kinds of tax, ${formatMoney(1_027_900)} paid`"
+          :summary="`4 kinds of tax, ${formatMoney(moneyFromCents(1_027_900))} paid`"
         >
           <template #below>
             <p class="mt-2 type-caption">
-              Less <span class="figure">{{ formatMoney(64_000) }}</span> refunded, so the year's taxes come to <span class="figure">{{ formatMoney(963_900) }}</span
+              Less <span class="figure">{{ formatMoney(moneyFromCents(64_000)) }}</span> refunded, so the year's taxes come to <span class="figure">{{ formatMoney(moneyFromCents(963_900)) }}</span
               >.
             </p>
           </template>
@@ -672,7 +673,7 @@ const columns: TableColumn<SampleTransaction>[] = [
           "
           subtitle="An open list, its four largest in size order and the rest grey, picked in the header"
           :parts="openSplit === 'sector' ? SECTOR_PARTS : REGION_PARTS"
-          :total="formatMoney(1_035_000)"
+          :total="formatMoney(moneyFromCents(1_035_000))"
           total-label="of holdings"
         >
           <template #actions>

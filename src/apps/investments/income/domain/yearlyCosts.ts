@@ -15,6 +15,7 @@ import { decimalOfMoney, inEuros, scaledDecimal, timesDecimal } from '../../../.
 import type { Decimal } from '../../../../shared/money/decimal'
 import { ZERO, divideMoney, ratioOf, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import type { Share } from '../../../../shared/money/percent'
 
 /** A fund's estimated cost over a year, already taken inside its price. */
 export interface FundCost {
@@ -43,7 +44,7 @@ export interface YearCosts {
   /** The portfolio's value averaged over the year's month ends up to the day. */
   readonly averageValue: Money
   /** The total over the average value, null when the average is zero. */
-  readonly share: number | null
+  readonly share: Share | null
 }
 
 /** What the twelve months up to the day cost, against the portfolio's average value at their month ends. */

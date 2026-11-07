@@ -3,6 +3,7 @@ import { isBucket } from '../../workbook/domain/bucket'
 import { DEFAULT_FILTERS, EVERY_OWNER_ADVANCE } from './filterState'
 import type { FilterState } from './filterState'
 import { words } from './words'
+import { ZERO } from '../../../../shared/money/money'
 
 /** One active narrowing the user can see and remove, such as "Category: travel". */
 export interface FilterChip {
@@ -42,7 +43,7 @@ export function filterChips(filters: FilterState, labels: ChipLabels): FilterChi
   }
   const { min, max } = filters.amount
   if (min !== null || max !== null) {
-    const bounds = min === null ? words.chips.atMost(formatMoney(max ?? 0)) : max === null ? words.chips.atLeast(formatMoney(min)) : words.chips.between(formatMoney(min), formatMoney(max))
+    const bounds = min === null ? words.chips.atMost(formatMoney(max ?? ZERO)) : max === null ? words.chips.atLeast(formatMoney(min)) : words.chips.between(formatMoney(min), formatMoney(max))
     chips.push({ id: 'amount', label: words.chips.amount(bounds) })
   }
   if (filters.needsReview) {

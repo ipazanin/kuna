@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { accountMoneyFromCents } from '../src/shared/money/accountMoney'
 import type { CurrencyCode } from '../src/shared/money/currencyCode'
 import { decimalOfText } from '../src/shared/money/decimal'
 import type { Decimal } from '../src/shared/money/decimal'
+import { moneyFromCents } from '../src/shared/money/money'
+import { shareFromRatio } from '../src/shared/money/percent'
 import {
   DEFAULT_MONEY_FORMAT,
   currencyUnitName,
@@ -13,6 +16,8 @@ import {
   formatMoney,
   formatPercent,
   formatPercentChange,
+  formatRate,
+  formatAccountMoney,
   formatQuantity,
   formatShare,
   formatUnitPrice,
@@ -27,58 +32,81 @@ afterEach(() => {
   setMoneyFormat(DEFAULT_MONEY_FORMAT)
 })
 
+describe('what the formatters accept', () => {
+  it('refuses a bare number, so a percent on the wrong scale cannot show as 1,250%', () => {
+    // @ts-expect-error a number is no Money
+    expect(formatMoney(5)).toBe('€0.05')
+    // @ts-expect-error a number is no Share
+    expect(formatPercent(12.5)).toBe('1,250%')
+    // @ts-expect-error a number is no Share
+    expect(formatShare(12.5)).toBe('1,250.0%')
+    // @ts-expect-error a number is no Share
+    expect(formatCostShare(0.2)).toBe('20.00%')
+    // @ts-expect-error a number is no Share
+    expect(formatPercentChange(0.2)).toBe('+20.00%')
+    // @ts-expect-error a number is no Share
+    expect(formatRate(0.2)).toBe('20%')
+  })
+
+  it('refuses an account amount as Money, since it may not be euros', () => {
+    // @ts-expect-error AccountMoney is no Money
+    expect(formatMoney(accountMoneyFromCents(5))).toBe('€0.05')
+    expect(formatAccountMoney(accountMoneyFromCents(17000), 'USD' as CurrencyCode)).toBe('$170.00')
+  })
+})
+
 describe('money formatting with the default settings', () => {
   it('groups like the Sheet, with the euro sign in front and cents kept', () => {
-    expect(formatMoney(123456789)).toBe('€1,234,567.89')
-    expect(formatMoney(5)).toBe('€0.05')
+    expect(formatMoney(moneyFromCents(123456789))).toBe('€1,234,567.89')
+    expect(formatMoney(moneyFromCents(5))).toBe('€0.05')
   })
 
   it('writes a negative amount with a true minus sign before the euro sign', () => {
-    expect(formatMoney(-98765)).toBe('−€987.65')
+    expect(formatMoney(moneyFromCents(-98765))).toBe('−€987.65')
   })
 
   it('drops the sign for magnitudes and adds a plus when asked', () => {
-    expect(formatMoney(-412050, 'magnitude')).toBe('€4,120.50')
-    expect(formatMoney(31000, 'always')).toBe('+€310.00')
-    expect(formatMoney(0, 'always')).toBe('€0.00')
+    expect(formatMoney(moneyFromCents(-412050), 'magnitude')).toBe('€4,120.50')
+    expect(formatMoney(moneyFromCents(31000), 'always')).toBe('+€310.00')
+    expect(formatMoney(moneyFromCents(0), 'always')).toBe('€0.00')
   })
 
   it('compacts for axis ticks', () => {
-    expect(formatCompactMoney(4821049)).toBe('€48.2k')
-    expect(formatCompactMoney(-120000)).toBe('−€1.2k')
+    expect(formatCompactMoney(moneyFromCents(4821049))).toBe('€48.2k')
+    expect(formatCompactMoney(moneyFromCents(-120000))).toBe('−€1.2k')
   })
 
   it('drops the cents under a thousand in compact form, so no decimal stands beside a k', () => {
-    expect(formatCompactMoney(90750)).toBe('€908')
-    expect(formatCompactMoney(-4510)).toBe('−€45')
+    expect(formatCompactMoney(moneyFromCents(90750))).toBe('€908')
+    expect(formatCompactMoney(moneyFromCents(-4510))).toBe('−€45')
   })
 
   it('formats shares as percentages with the same sign rules', () => {
-    expect(formatPercent(0.124, 'always')).toBe('+12.4%')
-    expect(formatPercent(-0.05)).toBe('−5%')
+    expect(formatPercent(shareFromRatio(0.124), 'always')).toBe('+12.4%')
+    expect(formatPercent(shareFromRatio(-0.05))).toBe('−5%')
   })
 
   it("writes a day's change with two decimals, signed unless it rounds to zero", () => {
-    expect(formatPercentChange(0.0029)).toBe('+0.29%')
-    expect(formatPercentChange(-0.00017)).toBe('−0.02%')
-    expect(formatPercentChange(0.012)).toBe('+1.20%')
-    expect(formatPercentChange(-0.00004)).toBe('0.00%')
-    expect(formatPercentChange(0)).toBe('0.00%')
+    expect(formatPercentChange(shareFromRatio(0.0029))).toBe('+0.29%')
+    expect(formatPercentChange(shareFromRatio(-0.00017))).toBe('−0.02%')
+    expect(formatPercentChange(shareFromRatio(0.012))).toBe('+1.20%')
+    expect(formatPercentChange(shareFromRatio(-0.00004))).toBe('0.00%')
+    expect(formatPercentChange(shareFromRatio(0))).toBe('0.00%')
   })
 
   it('writes a cost as a share with two decimals and a minus when refunds outweigh it', () => {
-    expect(formatCostShare(0.002)).toBe('0.20%')
-    expect(formatCostShare(0.00034)).toBe('0.03%')
-    expect(formatCostShare(-0.0001)).toBe('−0.01%')
-    expect(formatCostShare(-0.00004)).toBe('0.00%')
+    expect(formatCostShare(shareFromRatio(0.002))).toBe('0.20%')
+    expect(formatCostShare(shareFromRatio(0.00034))).toBe('0.03%')
+    expect(formatCostShare(shareFromRatio(-0.0001))).toBe('−0.01%')
+    expect(formatCostShare(shareFromRatio(-0.00004))).toBe('0.00%')
   })
 
   it('writes a share of a whole with one decimal on every row, unsigned when it rounds to zero', () => {
-    expect(formatShare(0.01)).toBe('1.0%')
-    expect(formatShare(0.394)).toBe('39.4%')
-    expect(formatShare(1)).toBe('100.0%')
-    expect(formatShare(-0.0213)).toBe('−2.1%')
-    expect(formatShare(-0.0004)).toBe('0.0%')
+    expect(formatShare(shareFromRatio(0.01))).toBe('1.0%')
+    expect(formatShare(shareFromRatio(0.394))).toBe('39.4%')
+    expect(formatShare(shareFromRatio(1))).toBe('100.0%')
+    expect(formatShare(shareFromRatio(-0.0213))).toBe('−2.1%')
+    expect(formatShare(shareFromRatio(-0.0004))).toBe('0.0%')
   })
 
   it('names the unit for running text', () => {
@@ -92,25 +120,25 @@ describe('money formatting with another currency and locale', () => {
     setMoneyFormat({ currency: 'EUR', locale: 'de-DE' })
 
     // German puts a no-break space between the amount and the sign.
-    expect(formatMoney(123456789)).toBe('1.234.567,89\u00a0€')
-    expect(formatMoney(-98765)).toBe('−987,65\u00a0€')
+    expect(formatMoney(moneyFromCents(123456789))).toBe('1.234.567,89\u00a0€')
+    expect(formatMoney(moneyFromCents(-98765))).toBe('−987,65\u00a0€')
     expect(formatDecimal(7.44)).toBe('7,4')
   })
 
   it('uses the configured currency and its name', () => {
     setMoneyFormat({ currency: 'USD', locale: 'en-US' })
 
-    expect(formatMoney(4821049)).toBe('$48,210.49')
+    expect(formatMoney(moneyFromCents(4821049))).toBe('$48,210.49')
     expect(currencyUnitName()).toBe('US dollar')
   })
 
   it("formats a figure in the format it is given, whatever the page's", () => {
     setMoneyFormat({ currency: 'USD', locale: 'en-US' })
 
-    expect(formatMoney(4821049, 'negative', { currency: 'EUR', locale: 'de-DE' })).toBe('48.210,49\u00a0€')
-    expect(formatMoney(-98765, 'negative', { currency: 'EUR', locale: 'de-DE' })).toBe('−987,65\u00a0€')
-    expect(formatCompactMoney(1240000, 'negative', { currency: 'EUR', locale: 'en-GB' })).toBe('€12.4k')
-    expect(formatMoney(4821049)).toBe('$48,210.49')
+    expect(formatMoney(moneyFromCents(4821049), 'negative', { currency: 'EUR', locale: 'de-DE' })).toBe('48.210,49\u00a0€')
+    expect(formatMoney(moneyFromCents(-98765), 'negative', { currency: 'EUR', locale: 'de-DE' })).toBe('−987,65\u00a0€')
+    expect(formatCompactMoney(moneyFromCents(1240000), 'negative', { currency: 'EUR', locale: 'en-GB' })).toBe('€12.4k')
+    expect(formatMoney(moneyFromCents(4821049))).toBe('$48,210.49')
   })
 })
 
@@ -165,12 +193,12 @@ describe('quantity and unit price formatting', () => {
 
 describe('a figure that rounds to zero', () => {
   it('shows no sign on an amount or a share', () => {
-    expect(formatCompactMoney(-40)).toBe(formatCompactMoney(40))
-    expect(formatCompactMoney(-40, 'always')).toBe(formatCompactMoney(0))
-    expect(formatCompactMoney(-50)).toBe(`−${formatCompactMoney(50)}`)
-    expect(formatPercent(-0.0004)).toBe('0%')
-    expect(formatPercent(0.0004, 'always')).toBe('0%')
-    expect(formatPercent(-0.0005)).toBe('−0.1%')
-    expect(formatPercent(0.0005, 'always')).toBe('+0.1%')
+    expect(formatCompactMoney(moneyFromCents(-40))).toBe(formatCompactMoney(moneyFromCents(40)))
+    expect(formatCompactMoney(moneyFromCents(-40), 'always')).toBe(formatCompactMoney(moneyFromCents(0)))
+    expect(formatCompactMoney(moneyFromCents(-50))).toBe(`−${formatCompactMoney(moneyFromCents(50))}`)
+    expect(formatPercent(shareFromRatio(-0.0004))).toBe('0%')
+    expect(formatPercent(shareFromRatio(0.0004), 'always')).toBe('0%')
+    expect(formatPercent(shareFromRatio(-0.0005))).toBe('−0.1%')
+    expect(formatPercent(shareFromRatio(0.0005), 'always')).toBe('+0.1%')
   })
 })

@@ -110,7 +110,6 @@ export function paymentsChart(
           axisTooltip({
             tokens,
             categoryLabel: (year) => plural(loanWords.payments.year(year, yearsByLabel.get(year)?.instalments ?? 0), yearsByLabel.get(year)?.instalments ?? 0),
-            formatAmount: (amount) => formatMoney(amount),
             footnotes: footnotesOf,
           })((Array.isArray(points) ? points : [points]).filter((point: { seriesName?: string; value?: unknown }) => point.seriesName !== '' && typeof point.value === 'number' && point.value > 0)),
       },

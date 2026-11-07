@@ -6,7 +6,9 @@ import { axisTooltip } from '../../../../shared/charts/chartTooltip'
 import { dayAxisLabels, dayOfCategory } from '../../../../shared/charts/dayAxis'
 import type { ChartOption, LineSeries } from '../../../../shared/charts/echarts'
 import { shownPoints } from '../../../../shared/charts/monthAxis'
-import { formatPercent, formatPercentChange } from '../../../../shared/money/moneyFormat'
+import { formatPercent } from '../../../../shared/money/moneyFormat'
+import { shareFromRatio } from '../../../../shared/money/percent'
+import { formatChartChange } from '../../compare/presentation/comparedSeries'
 
 export interface UnderwaterChart {
   readonly option: ChartOption
@@ -31,12 +33,12 @@ export function underwaterChart(below: Underwater, tokens: ChartTokens, phone: b
       grid: { top: 16, right: 16 },
       tooltip: {
         trigger: 'axis',
-        formatter: (points: unknown) => axisTooltip({ tokens, categoryLabel: dayOfCategory, formatAmount: formatPercentChange })(shownPoints(points)),
+        formatter: (points: unknown) => axisTooltip({ tokens, categoryLabel: dayOfCategory, formatAmount: formatChartChange })(shownPoints(points)),
       },
       xAxis: { type: 'category', boundaryGap: false, data: dates, axisLabel: dayAxisLabels(dates, tokens, phone) },
-      yAxis: { type: 'value', max: 0, axisLabel: { color: tokens.inkMuted, formatter: (share: number) => formatPercent(share) } },
+      yAxis: { type: 'value', max: 0, axisLabel: { color: tokens.inkMuted, formatter: (share: number) => formatPercent(shareFromRatio(share)) } },
       series: [line],
     },
-    description: below.deepest === 0 ? words.falls.neverFellDescription : words.falls.description(formatPercent(-below.deepest), formatPercent(-below.now)),
+    description: below.deepest === 0 ? words.falls.neverFellDescription : words.falls.description(formatPercent(below.deepest, 'magnitude'), formatPercent(below.now, 'magnitude')),
   }
 }

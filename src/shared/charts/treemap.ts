@@ -3,6 +3,7 @@ import type { TreemapSeriesOption } from 'echarts/charts'
 import type { ChartTokens } from './chartTokens'
 import { escapeHtml } from './chartTooltip'
 import { formatMoney } from '../money/moneyFormat'
+import type { Money } from '../money/money'
 
 /** A tile of a map, sized by its value and tinted by how far it moved up or down. */
 export interface ChangeTile {
@@ -12,7 +13,7 @@ export interface ChangeTile {
   /** The line under the label, such as the signed change. */
   readonly caption: string
   /** In cents, above zero. */
-  readonly value: number
+  readonly value: Money
   /** The change as a fraction, such as 0.207, or null for a tile with nothing to measure, which takes the card's surface. */
   readonly change: number | null
 }

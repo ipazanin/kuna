@@ -18,6 +18,7 @@ import type { Decimal } from '../../../../shared/money/decimal'
 import { ZERO, ratioOf, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import type { Share } from '../../../../shared/money/percent'
 
 /** What the figures are worked out from. */
 export interface PortfolioSources {
@@ -46,7 +47,7 @@ export interface DayChange {
   readonly later: Money
   readonly change: Money
   /** The change over the earlier value, null when that is zero. */
-  readonly share: number | null
+  readonly share: Share | null
 }
 
 /** The two dates "Last day" compares: the newest close among held instruments and the latest earlier day any of them closed. */
@@ -84,10 +85,10 @@ export interface HoldingFigures {
   /** Received after the tax withheld, without the part of a coupon that paid back accrued interest. */
   readonly income: Money
   /** Its value over the portfolio's. */
-  readonly weight: number | null
+  readonly weight: Share | null
   readonly lastDay: DayChange | null
   /** The income of the last twelve months over the value. */
-  readonly dividendYield: number | null
+  readonly dividendYield: Share | null
   /** The fees of its trades, already inside its cost and proceeds. */
   readonly feesPaid: Money
   /** A trade without its fees entered, so the gain may be too high. */
@@ -194,7 +195,7 @@ export interface HoldingReturn {
   /** The price and currency parts with what its sales realised and its income. Null while what is held has no price. */
   readonly total: Money | null
   /** The total over what every unit it held cost: the open lots and the lots its sales closed. */
-  readonly share: number | null
+  readonly share: Share | null
   /** Null when nothing is held or what is held has no price. */
   readonly price: Money | null
   readonly currency: Money | null

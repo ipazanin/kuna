@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
+import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../../../../shared/charts/chartTokens'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../../../shared/ui/ChartLegend.vue'
@@ -10,7 +11,7 @@ import FigureTable from '../../../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import DrillChartCard from '../../../../filters/presentation/DrillChartCard.vue'
 import { salaryMonthsChart } from './salaryCharts'
-import type { SalaryMonthRow } from './salariesView'
+import type { SalaryMonthRow } from '../../domain/salaries/salaryFigures'
 import { words } from './words'
 
 /** A year of paydays: the cost of each in the ring's parts, then the same as a table whose months open on the Month tab. */
@@ -52,7 +53,7 @@ const chart = computed(() => salaryMonthsChart(props.rows, chartTokens()))
         <tbody>
           <tr v-for="row in rows" :key="row.payday" :data-payday="row.payday">
             <th scope="row" class="text-start font-normal">
-              <DrillLink :to="monthLink(row.payday)" :label="words.overTime.openMonth(row.label)" class="text-highlighted">{{ row.label }}</DrillLink>
+              <DrillLink :to="monthLink(row.payday)" :label="words.overTime.openMonth(monthLabel(row.payday))" class="text-highlighted">{{ monthLabel(row.payday) }}</DrillLink>
             </th>
             <td class="text-end"><MoneyText :cents="row.cost" /></td>
             <td class="hidden text-end @lg:table-cell"><MoneyText :cents="row.parts.employee" /></td>

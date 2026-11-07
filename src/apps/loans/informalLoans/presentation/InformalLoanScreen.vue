@@ -37,6 +37,7 @@ import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { TONE_TEXT } from '../../../../shared/ui/toneText'
+import { absMoney } from '../../../../shared/money/money'
 
 /** One informal loan: who owes how much and what made it so, how repayments stand against its expected plan, the balance over time, and its movements newest first. */
 const { state } = useLoansBooks()
@@ -128,7 +129,7 @@ function openMovement(movement: Movement | null): void {
         <div class="flex min-w-0 flex-col gap-2 sm:flex-1 sm:pe-6">
           <UBadge :label="look.label" :icon="look.icon" :color="look.tone" variant="subtle" class="self-start" data-testid="loan-direction" />
           <p class="text-sm text-muted">{{ owedLabel }}</p>
-          <MoneyText :cents="Math.abs(figures.owedByYou)" class="block text-figure-lg font-semibold text-highlighted sm:text-figure-xl" />
+          <MoneyText :cents="absMoney(figures.owedByYou)" class="block text-figure-lg font-semibold text-highlighted sm:text-figure-xl" />
           <p class="type-caption">{{ words.hero.atTheEnd(dayLabel(day)) }}</p>
         </div>
         <FactGrid :facts="facts" class="border-t border-default pt-5 sm:flex-1 sm:border-t-0 sm:border-s sm:ps-6 sm:pt-0" />
@@ -187,7 +188,7 @@ function openMovement(movement: Movement | null): void {
               </div>
               <p class="text-end text-xs text-muted">
                 {{ whoOwes(line.owedAfter) }}<br />
-                <MoneyText :cents="Math.abs(line.owedAfter)" class="text-sm text-toned" />
+                <MoneyText :cents="absMoney(line.owedAfter)" class="text-sm text-toned" />
               </p>
               <UButton
                 icon="i-lucide-pencil"

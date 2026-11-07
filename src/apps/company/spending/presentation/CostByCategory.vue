@@ -8,8 +8,8 @@ export interface CostLine {
   readonly name: string
   /** The bar's colour: the category's own, or its bucket's. */
   readonly colour: string
-  readonly current: number
-  readonly prior: number | null
+  readonly current: Money
+  readonly prior: Money | null
   readonly change: CostChange | null
   readonly to: RouteLocationRaw | null
 }
@@ -19,7 +19,7 @@ export interface CostSection {
   readonly title: string
   /** The page that breaks the group down further, such as Owner for owner pay. */
   readonly link: { readonly label: string; readonly to: RouteLocationRaw } | null
-  readonly total: number
+  readonly total: Money
   readonly priorTotal: number | null
   readonly change: CostChange | null
   readonly lines: readonly CostLine[]
@@ -37,6 +37,7 @@ import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import { plural } from '../../../../shared/text/translation'
 import { words } from './words'
+import type { Money } from '../../../../shared/money/money'
 
 /**
  * Cost by category as a list of bars under their buckets, each against a mark for the period

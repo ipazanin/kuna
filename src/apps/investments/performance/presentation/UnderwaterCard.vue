@@ -14,6 +14,7 @@ import { plural } from '../../../../shared/text/translation'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
 import FactGrid from '../../../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../../../shared/ui/FactGrid.vue'
+import { formatChartChange } from '../../compare/presentation/comparedSeries'
 
 /** The period's growth line as its fall below the running peak, with the fall now, the deepest and the longest time below a peak. */
 const props = defineProps<{
@@ -55,7 +56,7 @@ const facts = computed((): Fact[] => {
     :empty-title="performance.belowZeroOn === null ? text.emptyTitle : words.growth.belowZeroTitle"
     :empty-description="performance.belowZeroOn === null ? text.emptyDescription : words.growth.belowZeroDescription"
     :category-label="dayOfCategory"
-    :format-value="formatPercentChange"
+    :format-value="formatChartChange"
     :height="260"
     :phone-height="200"
     data-testid="performance-underwater"

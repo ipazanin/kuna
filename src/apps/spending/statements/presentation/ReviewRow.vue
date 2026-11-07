@@ -9,10 +9,10 @@ import { entryCategoryChoices } from '../../entries/presentation/categoryChoices
 import type { Account } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { formatMoney } from '../../../../shared/money/moneyFormat'
-import { moneyFromCents } from '../../../../shared/money/money'
-import { intlLocale } from '../../../../shared/text/language'
-import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
+import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
+import { EURO } from '../../../../shared/money/currencyCode'
+import { absAccountMoney } from '../../../../shared/money/accountMoney'
 
 /** One row waiting for a category: picking one files it, and what the file offers for it sits underneath. */
 const props = defineProps<{
@@ -32,13 +32,13 @@ const emit = defineEmits<{
 const accountOf = (id: string): Account | undefined => props.accounts.find((account) => account.id === id)
 
 const account = computed(() => accountOf(props.waiting.row.account))
-const format = computed(() => ({ currency: account.value?.currency ?? 'EUR', locale: intlLocale }))
+const currency = computed(() => account.value?.currency ?? EURO)
 const items = computed(() => entryCategoryChoices(props.categories, props.waiting.row.amount < 0 ? 'out' : 'in', null, true))
 
 const typedLine = computed(() => {
   const match = props.waiting.maybeTyped
   if (match === null) return null
-  return match.difference === 0 ? words.review.maybeApart(match.typed.date) : words.review.maybeDifferent(formatMoney(moneyFromCents(Math.abs(match.difference)), 'negative', format.value))
+  return match.difference === 0 ? words.review.maybeApart(match.typed.date) : words.review.maybeDifferent(formatAccountMoney(absAccountMoney(match.difference), currency.value))
 })
 
 const transferLine = computed(() => {
@@ -61,7 +61,7 @@ function picked(id: string | undefined): void {
         <span class="break-words text-sm text-highlighted">{{ waiting.row.payee || waiting.row.description }}</span>
         <span class="break-words type-caption">{{ [dayLabel(waiting.row.date), account?.name ?? ''].filter((part) => part !== '').join(' · ') }}</span>
       </span>
-      <MoneyText :cents="waiting.row.amount" sign="always" tone="flow" class="shrink-0 text-sm" :format="format" />
+      <AccountMoneyText :cents="waiting.row.amount" :currency="currency" sign="always" tone="flow" class="shrink-0 text-sm" />
     </div>
     <USelectMenu
       :items="items"

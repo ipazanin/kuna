@@ -6,6 +6,7 @@ import { DECIMAL_ZERO, moneyParts, subtractDecimal } from '../../../../shared/mo
 import type { Decimal } from '../../../../shared/money/decimal'
 import { ZERO, addMoney, ratioOf, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import type { Share } from '../../../../shared/money/percent'
 
 /** The mix the targets are set for, with its targets. */
 export interface TargetedMix {
@@ -28,7 +29,7 @@ export interface TargetGap<Group extends string> {
   /** What the group holds now. */
   readonly now: Money
   /** Its share of the placed value now, null when nothing is placed. */
-  readonly share: number | null
+  readonly share: Share | null
   /** In percent, zero for a group held with no target. */
   readonly target: Decimal
   /** The target's part of the placed value less what the group holds: above zero it lacks that much, below zero it holds that much beyond its target. */

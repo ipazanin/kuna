@@ -1,9 +1,13 @@
 import { shallowRef } from 'vue'
 
 import { intlLocale } from '../text/language'
+import type { AccountMoney } from './accountMoney'
 import type { CurrencyCode } from './currencyCode'
 import { decimalText, roundedDecimal } from './decimal'
 import type { Decimal } from './decimal'
+import { moneyOfChart } from './money'
+import type { Money } from './money'
+import type { Share } from './percent'
 
 /**
  * Money and share formatting in the workbook's currency and number locale, with the sign in front.
@@ -129,12 +133,22 @@ function signedAsShown(fraction: number, decimals: number): number {
   return Math.round(Math.abs(fraction) * 10 ** (decimals + 2)) === 0 ? 0 : fraction
 }
 
-export function formatMoney(cents: number, sign: SignDisplay = 'negative', format?: MoneyFormat): string {
+export function formatMoney(cents: Money, sign: SignDisplay = 'negative', format?: MoneyFormat): string {
   return withSign(cents, formatters(format).full.format(Math.abs(cents) / 100), sign)
 }
 
+/** A value a chart hands to its tooltip or its table, from a series of cents. */
+export function formatChartMoney(value: number, sign: SignDisplay = 'negative'): string {
+  return formatMoney(moneyOfChart(value), sign)
+}
+
+/** An amount in an account's own currency, in the language's format, such as $170.00. */
+export function formatAccountMoney(cents: AccountMoney, currency: CurrencyCode, sign: SignDisplay = 'negative'): string {
+  return withSign(cents, formatters({ currency, locale: intlLocale }).full.format(Math.abs(cents) / 100), sign)
+}
+
 /** €12.4K style, for axis ticks and tight labels. Under a thousand it drops the cents, so €907 sits beside €5.6K. An amount that rounds to zero carries no sign. */
-export function formatCompactMoney(cents: number, sign: SignDisplay = 'negative', format?: MoneyFormat): string {
+export function formatCompactMoney(cents: Money, sign: SignDisplay = 'negative', format?: MoneyFormat): string {
   const units = Math.abs(cents) / 100
   const { compactSmall, compact } = formatters(format)
   const wholeUnits = Math.round(units)
@@ -142,27 +156,27 @@ export function formatCompactMoney(cents: number, sign: SignDisplay = 'negative'
 }
 
 /** A share with at most one decimal. A share that rounds to zero carries no sign. */
-export function formatPercent(fraction: number, sign: SignDisplay = 'negative'): string {
+export function formatPercent(fraction: Share, sign: SignDisplay = 'negative'): string {
   return withSign(signedAsShown(fraction, PERCENT_DECIMALS), formatters().percent.format(Math.abs(fraction)), sign)
 }
 
 /** A change as a share with two decimals and its sign, such as +0.29%. A change that rounds to zero carries no sign. */
-export function formatPercentChange(fraction: number): string {
+export function formatPercentChange(fraction: Share): string {
   return withSign(signedAsShown(fraction, CHANGE_DECIMALS), formatters().change.format(Math.abs(fraction)), 'always')
 }
 
 /** A share of a whole with one decimal, such as 5.0% or 39.4%. A share that rounds to zero carries no sign. */
-export function formatShare(fraction: number): string {
+export function formatShare(fraction: Share): string {
   return withSign(signedAsShown(fraction, SHARE_DECIMALS), formatters().share.format(Math.abs(fraction)), 'negative')
 }
 
 /** A cost as a share with two decimals, such as a fund's yearly cost of 0.20%. A cost that rounds to zero carries no sign. */
-export function formatCostShare(fraction: number): string {
+export function formatCostShare(fraction: Share): string {
   return withSign(signedAsShown(fraction, CHANGE_DECIMALS), formatters().change.format(Math.abs(fraction)), 'negative')
 }
 
 /** An interest rate as a bank writes it, with up to four decimals of a percent, such as 2.99% or 3.1825%. */
-export function formatRate(fraction: number): string {
+export function formatRate(fraction: Share): string {
   return formatters().rate.format(fraction)
 }
 

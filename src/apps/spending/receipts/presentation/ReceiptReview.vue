@@ -12,8 +12,9 @@ import { entryCategoryChoices } from '../../entries/presentation/categoryChoices
 import type { Category } from '../../workbook/domain/category'
 import { sumAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
-import { formatMoney } from '../../../../shared/money/moneyFormat'
-import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
+import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
+import { EURO } from '../../../../shared/money/currencyCode'
 
 /** The read lines grouped by category, so a long receipt is a few groups to confirm. Each line can change category, and a new category is accepted, renamed or mapped, never made silently. */
 const props = defineProps<{
@@ -69,7 +70,7 @@ function rename(suggested: string, name: string): void {
       <header class="flex flex-col gap-2 border-b border-default px-3 py-2">
         <div class="flex items-center gap-2">
           <h3 class="min-w-0 flex-1 break-words text-sm text-highlighted">{{ group.suggested === null ? group.name || words.pickCategory : words.newSuggested(group.suggested) }}</h3>
-          <MoneyText :cents="group.sum" class="shrink-0 text-sm" />
+          <AccountMoneyText :cents="group.sum" :currency="EURO" class="shrink-0 text-sm" />
         </div>
         <div v-if="group.suggested !== null" class="flex flex-col items-start gap-2">
           <UButton
@@ -97,7 +98,7 @@ function rename(suggested: string, name: string): void {
               <span class="break-words text-sm text-highlighted">{{ line.text || line.printed }}</span>
               <span v-if="line.text !== '' && line.printed !== ''" class="break-words type-caption">{{ line.printed }}</span>
             </span>
-            <MoneyText :cents="line.amount" class="shrink-0 text-sm" />
+            <AccountMoneyText :cents="line.amount" :currency="EURO" class="shrink-0 text-sm" />
           </div>
           <USelectMenu
             :model-value="choices[place]"
@@ -113,6 +114,6 @@ function rename(suggested: string, name: string): void {
         </li>
       </ul>
     </section>
-    <p v-if="difference !== 0" class="text-sm text-muted" data-testid="spending-receipt-difference">{{ words.willDifference(formatMoney(difference, 'always')) }}</p>
+    <p v-if="difference !== 0" class="text-sm text-muted" data-testid="spending-receipt-difference">{{ words.willDifference(formatAccountMoney(difference, EURO, 'always')) }}</p>
   </div>
 </template>

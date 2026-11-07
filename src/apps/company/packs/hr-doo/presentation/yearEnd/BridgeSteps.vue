@@ -7,7 +7,7 @@ import type { RuleChip } from './LineBuildUp.vue'
 export interface BridgeStepView {
   readonly key: string
   readonly label: string
-  readonly cents: number
+  readonly cents: Money
   readonly to: RouteLocationRaw | null
   /** Null for a total, which is no adjustment. */
   readonly kind: LineStatus | null
@@ -21,6 +21,7 @@ import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import StatusBadge from './StatusBadge.vue'
 import { words as packWords } from '../words'
 import { words } from './words'
+import type { Money } from '../../../../../../shared/money/money'
 
 /** The bridge as a list: each adjustment in words, with its amount, its rows and its rules. */
 defineProps<{

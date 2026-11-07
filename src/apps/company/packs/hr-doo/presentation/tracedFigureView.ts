@@ -11,6 +11,7 @@ import type { TracedFigure } from '../ruleset/tracedFigure'
 import type { BuildUpStep, RuleChip } from './yearEnd/LineBuildUp.vue'
 import { words } from './words'
 import { ruleTitle } from '../ruleset/presentation/ruleTitles'
+import type { Money } from '../../../../../shared/money/money'
 
 /** A step this deep inside another names this many of its own steps, and the rest by count. */
 const NESTED = 6
@@ -52,7 +53,7 @@ export function chipsOf(ids: readonly RuleId[]): RuleChip[] {
 export interface FigureDetail {
   readonly title: string
   readonly subtitle: string
-  readonly cents: number
+  readonly cents: Money
   readonly to: RouteLocationRaw | null
   readonly steps: readonly BuildUpStep[]
   readonly rules: readonly RuleChip[]

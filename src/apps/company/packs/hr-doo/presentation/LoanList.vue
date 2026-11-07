@@ -4,7 +4,7 @@ import type { RouteLocationRaw } from 'vue-router'
 export interface LoanRepaymentLine {
   readonly key: string
   readonly date: string
-  readonly applied: number
+  readonly applied: Money
   readonly to: RouteLocationRaw | null
 }
 
@@ -13,8 +13,8 @@ export interface LoanLine {
   readonly lentOn: string
   /** The payment it is a part of, when the loan is the owner's part of a split company payment. */
   readonly part: string | null
-  readonly amount: number
-  readonly remaining: number
+  readonly amount: Money
+  readonly remaining: Money
   readonly open: boolean
   readonly repaidOn: string | null
   readonly to: RouteLocationRaw | null
@@ -28,6 +28,7 @@ import UBadge from '@nuxt/ui/components/Badge.vue'
 import DrillLink from '../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../shared/ui/MoneyText.vue'
 import { words } from './words'
+import type { Money } from '../../../../../shared/money/money'
 
 /** Each loan to the owner, newest first, with the repayments the matching gave it. */
 defineProps<{

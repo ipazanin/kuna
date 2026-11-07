@@ -1,6 +1,7 @@
 import { dividedRounded, moneyFromCents, roundHalfAwayFromZero } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
-import { basisPointsOfRatio } from '../../../../shared/money/percent'
+import { basisPointsOfRatio, shareOfScale } from '../../../../shared/money/percent'
+import type { Share } from '../../../../shared/money/percent'
 
 /** A yearly interest rate in millionths, so 3.18% is 31_800 and 2.143% is 21_430, exact to four decimals of a percent. */
 export type YearlyRate = number & { readonly __unit: 'millionths' }
@@ -29,8 +30,8 @@ export function typedRate(text: string): YearlyRate | null {
 }
 
 /** The rate as a fraction of one, such as 0.0318 for 3.18%. */
-export function fractionOf(rate: YearlyRate): number {
-  return rate / MILLIONTHS_PER_WHOLE
+export function fractionOf(rate: YearlyRate): Share {
+  return shareOfScale(rate, MILLIONTHS_PER_WHOLE)
 }
 
 /** A rate worked out as a fraction of one, to two decimals of a percent, rounded half away from zero, so 0.031849 is 3.18%. */

@@ -13,7 +13,7 @@ import { civilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
-import { subtractMoney } from '../../../../shared/money/money'
+import { subtractMoney, ZERO } from '../../../../shared/money/money'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
@@ -60,7 +60,7 @@ const joppdFacts = computed((): Fact[] => {
         field(fields.expenses, formatMoney(gains.lossesOffset), marks.reading),
         field(fields.base, formatMoney(gains.base), marks.reading),
         field(fields.tax, formatMoney(gains.tax), text.joppd.rateSettled),
-        field(fields.surtax, surtax.value ? text.joppd.citySurtax : formatMoney(0), marks.settled),
+        field(fields.surtax, surtax.value ? text.joppd.citySurtax : formatMoney(ZERO), marks.settled),
         surtax.value
           ? field(fields.payment, text.joppd.paymentWithSurtax(formatMoney(gains.payout)), marks.reading)
           : field(fields.payment, `1, ${formatMoney(gains.payout)}`, text.joppd.payoutSettled),

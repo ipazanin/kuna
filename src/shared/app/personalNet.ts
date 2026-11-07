@@ -1,4 +1,4 @@
-import { moneyFromCents, negateMoney, sumMoney } from '../money/money'
+import { negateMoney, sumMoney } from '../money/money'
 import type { Money } from '../money/money'
 import type { CountedHubPart, HubState } from './appContribution'
 
@@ -46,6 +46,6 @@ export function personalNet<App extends PersonalApp>(apps: readonly App[]): Pers
           ? { state: 'opening' }
           : currencies.size > 1
             ? { state: 'currencies' }
-            : { state: 'ready', cents: sumMoney(parts.map((part) => (part.side === 'has' ? moneyFromCents(part.cents) : negateMoney(moneyFromCents(part.cents))))) }
+            : { state: 'ready', cents: sumMoney(parts.map((part) => (part.side === 'has' ? part.cents : negateMoney(part.cents)))) }
   return { sum, notSetUp: apps.filter((app) => app.notSetUp), leavesOut: withFigures.flatMap((entry) => entry.figures.notes) }
 }

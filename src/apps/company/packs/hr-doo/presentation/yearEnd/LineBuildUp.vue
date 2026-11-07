@@ -6,7 +6,7 @@ export interface BuildUpStep {
   readonly key: string
   readonly label: string
   /** Null for a step with no amount of its own, such as a rule. */
-  readonly cents: number | null
+  readonly cents: Money | null
   readonly to: RouteLocationRaw | null
   /** 1 for a step inside the one above it. */
   readonly depth: 0 | 1
@@ -24,6 +24,7 @@ import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import { words as packWords } from '../words'
 import { words } from './words'
+import type { Money } from '../../../../../../shared/money/money'
 
 /** How our figure for a line is built, the cash view's figure, the adjustments between them and the rules behind them. */
 defineProps<{

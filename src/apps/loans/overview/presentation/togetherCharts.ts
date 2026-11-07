@@ -65,7 +65,6 @@ function optionOf(months: readonly LoansMonth[], series: LineSeries[], tokens: C
         axisTooltip({
           tokens,
           categoryLabel: monthAxisLabel('long'),
-          formatAmount: (amount) => formatMoney(amount),
           footnotes: (month) => {
             const total = totals.get(month)
             return [...(total === undefined ? [] : [totalLine(formatMoney(total))]), ...(estimateFrom !== null && month >= estimateFrom ? [words.together.estimate] : [])]

@@ -9,6 +9,8 @@ import { monthOf } from '../../../../shared/calendar/monthKey'
 import { formatMoney, formatPoints, formatRate } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import { words } from './words'
+import { moneyFromCents } from '../../../../shared/money/money'
+import type { Money } from '../../../../shared/money/money'
 
 export interface ComparisonColumn {
   readonly key: string
@@ -90,8 +92,8 @@ function subsidyWarning(outcome: ScenarioOutcome): string | null {
 }
 
 function moneyCells(line: Extract<ComparedLine, { readonly unit: 'money' }>): ComparisonCell[] {
-  const signed = (cents: number): string => formatMoney(cents, 'always')
-  const text = line.key === 'left-over' ? signed : (cents: number): string => formatMoney(cents)
+  const signed = (cents: number): string => formatMoney(moneyFromCents(cents), 'always')
+  const text = line.key === 'left-over' ? signed : (cents: Money): string => formatMoney(cents)
   const second = line.key === 'instalment' ? lastInstalmentText : undefined
   const warning = line.key === 'subsidy' ? subsidyWarning : undefined
   return line.cells.map((cell) => cellOf(cell, text, signed, second, warning))

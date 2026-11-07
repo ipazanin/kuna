@@ -11,7 +11,7 @@ export interface OpenItemView {
   readonly title: string
   readonly settledBy: string
   readonly settled: boolean
-  readonly cents: number | null
+  readonly cents: Money | null
   readonly to: RouteLocationRaw | null
   /** A figure with no rows of its own, such as interest worked out per loan, opens its build-up instead. */
   readonly detail: FigureDetail | null
@@ -30,6 +30,7 @@ import FigureDialog from '../FigureDialog.vue'
 import { GROUP_WORDING } from './yearEndWording'
 import { words as packWords } from '../words'
 import { words } from './words'
+import type { Money } from '../../../../../../shared/money/money'
 
 /** The items to settle with the accountant, by group, each with what would settle it. */
 const props = defineProps<{

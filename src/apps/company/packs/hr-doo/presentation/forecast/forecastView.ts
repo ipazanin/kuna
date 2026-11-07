@@ -39,7 +39,7 @@ export interface ForecastViewContext {
 export interface ShownFigure {
   readonly key: string
   readonly label: string
-  readonly cents: number
+  readonly cents: Money
   readonly to: RouteLocationRaw | null
 }
 
@@ -60,12 +60,12 @@ export interface PayoutView {
 export interface PlanActualView {
   readonly key: string
   readonly label: string
-  readonly plan: number
-  readonly actual: number
-  readonly difference: number
+  readonly plan: Money
+  readonly actual: Money
+  readonly difference: Money
   /** In words, such as "120.00 more than planned". */
   readonly verdict: string
-  readonly months: readonly { readonly key: string; readonly month: string; readonly plan: number; readonly actual: number; readonly difference: number }[]
+  readonly months: readonly { readonly key: string; readonly month: string; readonly plan: Money; readonly actual: Money; readonly difference: Money }[]
 }
 
 const PAYOUT_NAMES: Readonly<Record<PayoutOptionId, string>> = words.payouts
@@ -353,6 +353,7 @@ function partSteps(part: LinePart, key: string, year: number, context: ForecastV
   if (line.total.amount === 0) {
     return []
   }
+  const signed = (amount: Money): Money => (sign < 0 ? negateMoney(amount) : amount)
   const scheduled = line.total.basis === 'assets'
   const rows = rowsBehind(line.months.flatMap((_, index) => knownFigures([part], index)))
   const guessed = line.months.filter(isGuessed)
@@ -360,11 +361,11 @@ function partSteps(part: LinePart, key: string, year: number, context: ForecastV
     {
       key,
       label: line.label,
-      cents: sign * line.total.amount,
+      cents: signed(line.total.amount),
       to: rows === null ? (scheduled ? { path: '/company/year', query: { year: String(year), tab: 'assets' } } : null) : context.link(rows),
       depth: 0,
     },
-    ...guessed.map((entry): BuildUpStep => ({ key: `${key}-${entry.month}`, label: `${monthLabel(entry.month)}, ${basisWords(entry.bases)}`, cents: sign * entry.figure.amount, to: null, depth: 1 })),
+    ...guessed.map((entry): BuildUpStep => ({ key: `${key}-${entry.month}`, label: `${monthLabel(entry.month)}, ${basisWords(entry.bases)}`, cents: signed(entry.figure.amount), to: null, depth: 1 })),
   ]
 }
 

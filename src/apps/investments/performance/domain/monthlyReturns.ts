@@ -2,13 +2,15 @@ import type { GrowthPoint } from './portfolioPerformance'
 import { yearOf } from '../../../../shared/calendar/civilDate'
 import { monthOf, yearOfMonth } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
+import { shareFromRatio } from '../../../../shared/money/percent'
+import type { Share } from '../../../../shared/money/percent'
 
 /** A month's or a year's return, the benchmark's over the same days, and the portfolio's less the benchmark's. */
 export interface ReturnAgainstIndex {
-  readonly portfolio: number
+  readonly portfolio: Share
   /** Null when the growth line has no benchmark. */
-  readonly benchmark: number | null
-  readonly gap: number | null
+  readonly benchmark: Share | null
+  readonly gap: Share | null
 }
 
 export interface MonthReturn extends ReturnAgainstIndex {
@@ -30,19 +32,19 @@ export function monthlyReturns(growth: readonly GrowthPoint[]): YearReturns[] {
   const compared = growth.every((point) => point.benchmark !== null)
   const months = growth.slice(1).map((point, position): MonthReturn => {
     const before = growth[position]!
-    const portfolio = point.portfolio / before.portfolio - 1
-    const benchmark = compared ? point.benchmark! / before.benchmark! - 1 : null
-    return { month: monthOf(point.date), portfolio, benchmark, gap: benchmark === null ? null : portfolio - benchmark }
+    const portfolio = shareFromRatio(point.portfolio / before.portfolio - 1)
+    const benchmark = compared ? shareFromRatio(point.benchmark! / before.benchmark! - 1) : null
+    return { month: monthOf(point.date), portfolio, benchmark, gap: benchmark === null ? null : shareFromRatio(portfolio - benchmark) }
   })
   const years = [...new Set(growth.slice(1).map((point) => yearOf(point.date)))]
   return years.map((year) => {
     const inYear = months.filter((month) => yearOfMonth(month.month) === year)
     const portfolio = chained(inYear.map((month) => month.portfolio))
     const benchmark = compared ? chained(inYear.map((month) => month.benchmark!)) : null
-    return { year, portfolio, benchmark, gap: benchmark === null ? null : portfolio - benchmark, months: inYear }
+    return { year, portfolio, benchmark, gap: benchmark === null ? null : shareFromRatio(portfolio - benchmark), months: inYear }
   })
 }
 
-function chained(returns: readonly number[]): number {
-  return returns.reduce((grown, monthly) => grown * (1 + monthly), 1) - 1
+function chained(returns: readonly Share[]): Share {
+  return shareFromRatio(returns.reduce((grown, monthly) => grown * (1 + monthly), 1) - 1)
 }

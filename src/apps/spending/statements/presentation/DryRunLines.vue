@@ -8,9 +8,9 @@ import { isBankSyncKey } from '../domain/statementRows'
 import { words } from './words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { intlLocale } from '../../../../shared/text/language'
-import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
+import { EURO } from '../../../../shared/money/currencyCode'
 
 /** Each row of a statement and what importing it would do. */
 const props = defineProps<{ lines: readonly DryRunLine[] }>()
@@ -52,7 +52,7 @@ const shown = computed(() => {
         <span class="break-words type-caption">{{ [dayLabel(line.row.date), account?.name ?? ''].filter((part) => part !== '').join(' · ') }}</span>
         <UBadge :label="outcome.label" :color="outcome.color" variant="subtle" size="sm" class="self-start" data-testid="spending-dry-run-outcome" />
       </span>
-      <MoneyText :cents="line.row.amount" sign="always" tone="flow" class="shrink-0 text-sm" :format="{ currency: account?.currency ?? 'EUR', locale: intlLocale }" />
+      <AccountMoneyText :cents="line.row.amount" :currency="account?.currency ?? EURO" sign="always" tone="flow" class="shrink-0 text-sm" />
     </li>
   </ul>
   <ShowAllButton v-if="lines.length > FIRST_SHOWN" v-model:expanded="allShown" :total="lines.length" class="self-start" />

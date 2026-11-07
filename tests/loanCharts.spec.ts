@@ -20,7 +20,7 @@ import type { MonthBalance } from '../src/apps/loans/balances/domain/monthBalanc
 import type { BalanceMove } from '../src/apps/loans/balances/presentation/balanceChart'
 import type { ChartTokens } from '../src/shared/charts/chartTokens'
 import { parseMonthKey } from '../src/shared/calendar/monthKey'
-import { ZERO } from '../src/shared/money/money'
+import { moneyFromCents, ZERO } from '../src/shared/money/money'
 import { formatCompactMoney, formatMoney } from '../src/shared/money/moneyFormat'
 import { civil, euros } from './fixtures/ledger'
 import { bankLoan, extraPayment, ratePeriod } from './fixtures/loans'
@@ -87,17 +87,17 @@ describe('the payments chart', () => {
   })
 
   it('describes the subsidy total over the subsidised years and the year with the most interest', () => {
-    const subsidised = formatMoney(years.reduce((total, entry) => total + entry.subsidyPrincipal + entry.subsidyInterest, 0))
+    const subsidised = formatMoney(moneyFromCents(years.reduce((total, entry) => total + entry.subsidyPrincipal + entry.subsidyInterest, 0)))
     const interest = (entry: (typeof years)[number]): number => entry.interest + entry.subsidyInterest
     const most = years.reduce((largest, entry) => (interest(entry) > interest(largest) ? entry : largest))
 
     expect(chart.description).toContain(`APN pays ${subsidised} of them from 2026 to 2026.`)
-    expect(chart.description).toContain(`Interest is largest in ${most.year} at ${formatMoney(interest(most))}`)
+    expect(chart.description).toContain(`Interest is largest in ${most.year} at ${formatMoney(moneyFromCents(interest(most)))}`)
   })
 
   it('adds what you pay, what the subsidy pays and the estimate to the tooltip of a year', () => {
     const first = years[0]!
-    const youPay = formatMoney(first.principal + first.interest + first.extra)
+    const youPay = formatMoney(moneyFromCents(first.principal + first.interest + first.extra))
 
     expect(tooltipOf(chart, '2026')).toContain(`You pay ${youPay}`)
     expect(tooltipOf(chart, '2026')).toContain('APN pays')
@@ -362,7 +362,7 @@ describe('the scenario charts', () => {
     expect((seriesOf(owed) as unknown as { markPoint: { data: unknown[] } }[]).map((entry) => entry.markPoint.data)).toEqual([[], [], []])
     expect(interestSeries.map((entry) => entry.markPoint.data[0]!.coord[0])).toEqual(['2026-10', '2026-10', '2026-10'])
     expect(interestSeries.map((entry) => entry.markPoint.data[0]!.label.formatter.split(' ')[0])).toEqual(['B', 'C', 'A'])
-    expect(interestSeries.every((entry) => entry.markPoint.data[0]!.label.formatter.endsWith(formatCompactMoney(entry.data.at(-1)!)))).toBe(true)
+    expect(interestSeries.every((entry) => entry.markPoint.data[0]!.label.formatter.endsWith(formatCompactMoney(moneyFromCents(entry.data.at(-1)!))))).toBe(true)
     // The descriptions keep every payoff and every total, cut or not.
     expect(owed.description).toBe(scenarioBalanceChart(scenarios, 'as it stands', TOKENS, false, null).description)
     expect(interest.description).toBe(all.description)

@@ -4,6 +4,7 @@ import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import type { DrillTarget } from '../../../../filters/domain/drillTarget'
 import type { HrDooWorkbook } from '../../domain/hrDooPart'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
+import { addMoney, negateMoney, subtractMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
@@ -54,10 +55,10 @@ export function payState(workbook: HrDooWorkbook, year: number, asOf: CivilDate)
 }
 
 export interface ComparedCell {
-  readonly cents: number
+  readonly cents: Money
   readonly best: boolean
   /** Against the comparison base, or null in the base's own column. */
-  readonly vsBase: number | null
+  readonly vsBase: Money | null
   readonly detail: FigureDetail
 }
 
@@ -83,7 +84,7 @@ export interface ScenarioColumn {
 export interface ScenarioSplit {
   readonly label: string
   readonly whole: Money
-  readonly parts: readonly { readonly segment: SplitSegment; readonly cents: number }[]
+  readonly parts: readonly { readonly segment: SplitSegment; readonly cents: Money }[]
 }
 
 export type SplitSegment = 'net' | 'pillar-two' | 'pillar-one' | 'health' | 'income-tax' | 'rent-tax' | 'dividend-tax' | 'corporate-tax' | 'kept'
@@ -162,10 +163,10 @@ export function warningText(warning: ScenarioWarning): string {
       return words.warnings.aboveCapacity(formatMoney(warning.dividend.amount), formatMoney(warning.distributable.amount))
     case 'net-assets-below-capital':
       return warning.netAssetsAfter.amount < 0
-        ? words.warnings.belowZero(formatMoney(-warning.netAssetsAfter.amount), formatMoney(warning.shareCapital.amount))
+        ? words.warnings.belowZero(formatMoney(negateMoney(warning.netAssetsAfter.amount)), formatMoney(warning.shareCapital.amount))
         : words.warnings.belowCapital(formatMoney(warning.netAssetsAfter.amount), formatMoney(warning.shareCapital.amount))
     case 'cash-short':
-      return words.warnings.cashShort(formatMoney(-warning.cashAfter.amount))
+      return words.warnings.cashShort(formatMoney(negateMoney(warning.cashAfter.amount)))
   }
 }
 
@@ -216,7 +217,7 @@ export function comparedScenarios(result: PayScenarios, chosen: readonly string[
           return {
             cents: figure.amount,
             best: best !== null && figure.amount === best,
-            vsBase: baseFigure === null || outcome === baseOutcome ? null : figure.amount - baseFigure.amount,
+            vsBase: baseFigure === null || outcome === baseOutcome ? null : subtractMoney(figure.amount, baseFigure.amount),
             detail: figureDetail(figure, nameOf(outcome), link),
           }
         }),
@@ -239,7 +240,7 @@ export function comparedScenarios(result: PayScenarios, chosen: readonly string[
       { segment: 'pillar-two', cents: outcome.taxes.pensionPillarTwo.amount },
       { segment: 'pillar-one', cents: outcome.taxes.pensionPillarOne.amount },
       { segment: 'health', cents: outcome.taxes.health.amount },
-      { segment: 'income-tax', cents: outcome.taxes.incomeTaxWithheld.amount + outcome.taxes.settlementChange.amount },
+      { segment: 'income-tax', cents: addMoney(outcome.taxes.incomeTaxWithheld.amount, outcome.taxes.settlementChange.amount) },
       { segment: 'rent-tax', cents: outcome.taxes.rentTax.amount },
       { segment: 'dividend-tax', cents: outcome.taxes.dividendTax.amount },
       { segment: 'corporate-tax', cents: outcome.taxes.corporateTax.amount },

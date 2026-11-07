@@ -20,13 +20,13 @@ import { words as spendingWords } from '../../words'
 import { today } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
-import { intlLocale } from '../../../../shared/text/language'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
-import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
+import { EURO } from '../../../../shared/money/currencyCode'
 
 /** The rows waiting for a category, the transfers the pairing made and the lone legs waiting for their other side. */
 const store = useSpendingBooks()
@@ -45,7 +45,7 @@ const allShown = ref(false)
 const shownWaiting = computed(() => (allShown.value ? (queue.value?.waiting ?? []) : (queue.value?.waiting ?? []).slice(0, FIRST_SHOWN)))
 
 const accountOf = (row: Transaction) => accounts.value.find((account) => account.id === row.account)
-const formatOf = (row: Transaction) => ({ currency: accountOf(row)?.currency ?? 'EUR', locale: intlLocale })
+const currencyOf = (row: Transaction) => accountOf(row)?.currency ?? EURO
 
 /** The rule Always for this payee would make, while its dialog asks. */
 const askedRule = ref<{ readonly condition: SpendingRuleCondition; readonly category: Category } | null>(null)
@@ -119,7 +119,7 @@ async function undoPair(legs: TransferPair): Promise<void> {
               <span class="break-words text-sm text-highlighted">{{ accountOf(legs.debit)?.name }} → {{ accountOf(legs.credit)?.name }}</span>
               <span class="break-words type-caption">{{ dayLabel(legs.debit.date) }}</span>
             </span>
-            <MoneyText :cents="legs.debit.amount" sign="always" tone="flow" class="shrink-0 text-sm" :format="formatOf(legs.debit)" />
+            <AccountMoneyText :cents="legs.debit.amount" :currency="currencyOf(legs.debit)" sign="always" tone="flow" class="shrink-0 text-sm" />
           </div>
           <UButton
             class="self-start"
@@ -144,7 +144,7 @@ async function undoPair(legs: TransferPair): Promise<void> {
               data-testid="spending-lone-leg-state"
             />
           </span>
-          <MoneyText :cents="leg.amount" sign="always" tone="flow" class="shrink-0 text-sm" :format="formatOf(leg)" />
+          <AccountMoneyText :cents="leg.amount" :currency="currencyOf(leg)" sign="always" tone="flow" class="shrink-0 text-sm" />
         </li>
       </ul>
     </AppCard>

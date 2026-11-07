@@ -21,6 +21,8 @@ import type { Decimal } from '../../../../shared/money/decimal'
 import { ZERO, addMoney, negateMoney, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { DatedFlow } from '../../../../shared/money/rateSolver'
+import { shareFromRatio } from '../../../../shared/money/percent'
+import type { Share } from '../../../../shared/money/percent'
 
 /** A year of monthly returns, which the volatility waits for. */
 const VOLATILITY_MONTHS = 12
@@ -51,7 +53,7 @@ export interface BenchmarkComparison {
    * The portfolio's time-weighted return less the benchmark's price return, over the whole period. Null when the
    * portfolio was worth nothing all period, or its time-weighted return is left out.
    */
-  readonly difference: number | null
+  readonly difference: Share | null
   readonly replay: ReplayReturns
   /** The portfolio's value less the replay's at the last close, below zero when the portfolio is behind. */
   readonly valueDifference: Money
@@ -94,9 +96,9 @@ export interface PeriodPerformance extends PeriodSpan {
   /** On the period's first day, each month end and its last day. Deposit and withdrawal days split the return but are no points. */
   readonly growth: readonly GrowthPoint[]
   /** Of the portfolio's growth points. */
-  readonly largestFall: number | null
+  readonly largestFall: Share | null
   /** From the monthly returns that end on the period's last day, once there are 12. */
-  readonly volatility: number | null
+  readonly volatility: Share | null
 }
 
 /** `empty` when nothing was deposited by the period's end. `held-back` when no day of it could be valued, so the chart would have no days. */
@@ -170,7 +172,7 @@ export function portfolioPerformance(sources: PortfolioSources, benchmark: Bench
   const line = indexed.filter((point, position) => position === 0 || (point.date > first.date && (isMonthEnd(point.date) || position === indexed.length - 1)))
   const portfolio: PeriodReturns = {
     ...moneyReturnsOf(portfolioDays),
-    timeWeighted: belowZeroOn === null ? timeWeightedReturn((indexed.at(-1)?.reached ?? 1) - 1, first.date, last.date) : null,
+    timeWeighted: belowZeroOn === null ? timeWeightedReturn(shareFromRatio((indexed.at(-1)?.reached ?? 1) - 1), first.date, last.date) : null,
   }
   const benchmarkSources = (compared: Benchmark): PortfolioSources => ({ ...sources, book: { ...sources.book, splits: compared.splits } })
   const benchmarkLine =
@@ -298,11 +300,11 @@ export function priceLine(instrument: Instrument, days: readonly CivilDate[], so
 }
 
 function benchmarkComparison(portfolio: PeriodReturns, benchmarkLine: readonly number[], replay: BenchmarkReplay, span: PeriodSpan, nothingHeld: boolean): BenchmarkComparison {
-  const priceReturn = timeWeightedReturn((benchmarkLine.at(-1) ?? 1) - 1, span.from, span.to)
+  const priceReturn = timeWeightedReturn(shareFromRatio((benchmarkLine.at(-1) ?? 1) - 1), span.from, span.to)
   const replayReturns: ReplayReturns = { ...moneyReturnsOf(replay.days), unpaid: replay.unpaid }
   return {
     priceReturn,
-    difference: portfolio.timeWeighted === null || nothingHeld ? null : portfolio.timeWeighted.total - priceReturn.total,
+    difference: portfolio.timeWeighted === null || nothingHeld ? null : shareFromRatio(portfolio.timeWeighted.total - priceReturn.total),
     replay: replayReturns,
     valueDifference: subtractMoney(portfolio.value, replayReturns.value),
   }

@@ -30,6 +30,7 @@ import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
+import { EURO } from '../../../../shared/money/currencyCode'
 
 /** Money out of an account, money into one, or a move between two of your accounts, typed as a positive amount. */
 const open = defineModel<boolean>('open', { required: true })
@@ -270,7 +271,7 @@ async function remove(): Promise<void> {
       </UFormField>
       <div v-if="split" class="flex flex-col items-start gap-2 sm:col-span-2" data-testid="spending-entry-lines">
         <p class="type-caption">{{ receiptWords.splitNote }}</p>
-        <RowLines :lines="entryLines" :categories="categories" :currency="from?.currency ?? 'EUR'" class="w-full" />
+        <RowLines :lines="entryLines" :categories="categories" :currency="from?.currency ?? EURO" class="w-full" />
         <p v-if="receiptPlace !== null" class="flex flex-col items-start text-sm" data-testid="spending-entry-place">
           <span>{{ receiptPlace.text }}</span>
           <a :href="receiptPlace.link" target="_blank" rel="noopener noreferrer" class="quiet-link" data-testid="spending-entry-place-link">{{ receiptWords.openMap }}</a>

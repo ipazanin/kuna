@@ -9,11 +9,11 @@ import { COMPANY_FACT_SETTINGS, companyFactsErrors } from './domain/companyFacts
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
 import { EMPLOYEE_RECORDS } from './domain/hrDooKinds'
 import { HR_DOO, HR_DOO_PART, hrDooWorkbook } from './domain/hrDooPart'
+import { unaccountedInView } from './domain/ownerAdvances'
 import { ownerTakeOut } from './presentation/ownerTakeOut'
 import { packWaitingJobs } from './presentation/packWaitingJobs'
 import { categoriesToSort } from './preset/presentation/categoriesToSort'
 import { categoryClassHelp } from './preset/presentation/categoryClassHelp'
-import { unaccountedInView } from './presentation/unaccountedInView'
 import { words as packWords } from './presentation/words'
 import { TAX_RULES_TAB } from './ruleset/presentation/taxRuleLinks'
 import { words as rulesetWords } from './ruleset/presentation/words'
@@ -37,7 +37,7 @@ export const hrDooPack: PackContribution = {
   reviewCards: [
     {
       component: defineAsyncComponent(() => import('./presentation/UnaccountedCard.vue')),
-      shows: (ledger) => unaccountedInView(ledger).length > 0,
+      shows: (ledger) => unaccountedInView(ledger.booked, ledger.filters).length > 0,
     },
   ],
   settingsTabs: [{ value: TAX_RULES_TAB, label: rulesetWords.tab, icon: 'i-lucide-scale', component: defineAsyncComponent(() => import('./ruleset/presentation/RulesetPanel.vue')) }],

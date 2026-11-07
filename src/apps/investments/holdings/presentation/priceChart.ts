@@ -2,7 +2,7 @@ import type { HoldingFigures } from '../domain/holding'
 import type { PriceHistory, PricePoint, TradeDot } from '../domain/priceHistory'
 import { changeSince } from '../../compare/domain/comparedLine'
 import type { ComparedLine } from '../../compare/domain/comparedLine'
-import { changeAxisLabel, comparedLegend, comparedSeries } from '../../compare/presentation/comparedSeries'
+import { changeAxisLabel, comparedLegend, comparedSeries, formatChartChange } from '../../compare/presentation/comparedSeries'
 import { words as compareWords } from '../../compare/presentation/words'
 import type { TradeSide } from '../../workbook/domain/trade'
 import { QUANTITY_PLACES, averageCostText } from './holdingText'
@@ -24,6 +24,7 @@ import { sumMoney } from '../../../../shared/money/money'
 import { formatCurrencyAmount, formatMoney, formatPercentChange, formatQuantity, formatUnitPrice } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import type { LegendEntry } from '../../../../shared/ui/ChartLegend.vue'
+import { shareFromRatio, ZERO_SHARE } from '../../../../shared/money/percent'
 
 /** A point of the table view: its close, or with a comparison on its change and the compared change, and its buys and its sales as their dots' units at their price and amount. */
 export interface PriceRow {
@@ -140,7 +141,7 @@ export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 
     const price = dot.marks.length === 1 ? formatUnitPrice(dot.price, currency) : formatCurrencyAmount(dot.price, currency)
     return words.chart.dot(unitsText(dot.units), price, formatMoney(dot.amount))
   }
-  const ourChange = comparing ? onAxis(last.price) : 0
+  const ourChange = shareFromRatio(comparing ? onAxis(last.price) : 0)
   const dotsLine = trades === 0 ? '' : plural(words.chart.trades(trades, daily ? words.chart.periods.day : words.chart.periods.month), trades)
   return {
     option: {
@@ -150,7 +151,7 @@ export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 
         // A point with trades has a wider tooltip than its neighbours, and sliding it over from one of them carries it past a phone's edge.
         transitionDuration: 0,
         formatter: (shown: unknown) =>
-          axisTooltip({ tokens, categoryLabel, formatAmount: comparing ? formatPercentChange : formatPrice, footnotes: linesOf })(
+          axisTooltip({ tokens, categoryLabel, formatAmount: comparing ? formatChartChange : formatPrice, footnotes: linesOf })(
             (shownPoints(shown) as { seriesName?: string }[]).filter((point) => lines.includes(point.seriesName ?? '')),
           ),
       },
@@ -177,7 +178,14 @@ export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 
       first === undefined || last === undefined
         ? words.chart.emptyDescription
         : (comparing
-            ? compareWords.chartDescription(dayLabel(first.date), dayLabel(last.date), lineName, formatPercentChange(ourChange), compared.name, formatPercentChange(compared.change.at(-1) ?? 0))
+            ? compareWords.chartDescription(
+                dayLabel(first.date),
+                dayLabel(last.date),
+                lineName,
+                formatPercentChange(ourChange),
+                compared.name,
+                formatPercentChange(compared.change.at(-1) ?? ZERO_SHARE),
+              )
             : (daily ? words.chart.dailyDescription : words.chart.description)(
                 dayLabel(first.date),
                 dayLabel(last.date),
@@ -200,8 +208,8 @@ export function priceChart(history: PriceHistory, holding: Pick<HoldingFigures, 
       sales: sides.has('sell'),
       rows: points.map((point, place) => ({
         label: categoryLabel(categories[place]!),
-        close: comparing ? formatPercentChange(onAxis(point.price)) : formatUnitPrice(point.price, currency),
-        compared: comparing ? formatPercentChange(compared.change[place] ?? 0) : null,
+        close: comparing ? formatPercentChange(shareFromRatio(onAxis(point.price))) : formatUnitPrice(point.price, currency),
+        compared: comparing ? formatPercentChange(compared.change[place] ?? ZERO_SHARE) : null,
         bought: dotCell(point, 'buy'),
         sold: dotCell(point, 'sell'),
       })),

@@ -10,6 +10,7 @@ import { listedRowKey } from '../../../workbook/domain/splits'
 import type { UnaccountedReimbursement } from '../domain/ownerAdvances'
 import type { AdvancePrefill } from './AdvanceDialog.vue'
 import { words } from './words'
+import { negateMoney } from '../../../../../shared/money/money'
 
 /** Payments to the owner that no cost on the owner-advances tab accounts for, newest first, each with a way to add its cost. */
 const props = defineProps<{
@@ -35,7 +36,7 @@ function addCost(line: UnaccountedReimbursement): void {
         <p class="truncate text-sm text-highlighted">{{ line.payment.description || line.payment.counterparty || words.unaccounted.reimbursement }}</p>
         <p class="truncate text-xs text-muted">
           {{ words.unaccounted.paid(dayLabel(line.payment.date))
-          }}<template v-if="line.amount !== -line.payment.amount">, <MoneyText :cents="line.amount" /> {{ words.unaccounted.partOf }} <MoneyText :cents="-line.payment.amount" /></template>
+          }}<template v-if="line.amount !== -line.payment.amount">, <MoneyText :cents="line.amount" /> {{ words.unaccounted.partOf }} <MoneyText :cents="negateMoney(line.payment.amount)" /></template>
         </p>
       </div>
       <DrillLink :to="drillLocation(line.drill)" :label="words.unaccounted.openRow(dayLabel(line.payment.date))" class="text-end">

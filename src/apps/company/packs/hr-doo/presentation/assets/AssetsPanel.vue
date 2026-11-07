@@ -54,6 +54,7 @@ import GrantPanel from './GrantPanel.vue'
 import type { GrantComparisonLine, GrantLine } from './GrantPanel.vue'
 import { plural } from '../../../../../../shared/text/translation'
 import { words } from './words'
+import { sumMoney, ZERO } from '../../../../../../shared/money/money'
 
 /**
  * What the company owns, what it is worth today and what it costs in the year, with any grant that
@@ -128,11 +129,11 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
 
   const lines = shown.schedules.map((schedule, index) => assetLine(schedule, register.assets[index]?.payment?.drill ?? null))
   const years = depreciationByYear(shown.schedules)
-  const yearsDepreciation = years.find((entry) => entry.year === year)?.total.amount ?? 0
-  const bookValue = lines.reduce((total, line) => total + line.bookValue, 0)
+  const yearsDepreciation = years.find((entry) => entry.year === year)?.total.amount ?? ZERO
+  const bookValue = sumMoney(lines.map((line) => line.bookValue))
   const grantLines = shown.grants.map(grantLine)
-  const deferredToday = shown.grants.reduce((total, schedule) => total + deferredOn(schedule, today).amount, 0)
-  const releasedInYear = shown.grants.reduce((total, schedule) => total + (schedule.years.find((entry) => entry.year === year)?.released.amount ?? 0), 0)
+  const deferredToday = sumMoney(shown.grants.map((schedule) => deferredOn(schedule, today).amount))
+  const releasedInYear = sumMoney(shown.grants.map((schedule) => schedule.years.find((entry) => entry.year === year)?.released.amount ?? ZERO))
   const exposures = grants.flatMap((grant) => {
     const exposure = clawbackExposure(grant, today)
     return exposure === null ? [] : [exposure.amount.amount]
@@ -172,7 +173,7 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
             },
             {
               label: words.tiles.clawback,
-              value: exposures.length === 0 ? '–' : formatMoney(exposures.reduce((total, amount) => total + amount, 0)),
+              value: exposures.length === 0 ? '–' : formatMoney(sumMoney(exposures.map((amount) => amount))),
               to: null,
               caption: firstCondition === undefined ? words.tiles.repaidToday : words.tiles.repaidTodayUntil(dayLabel(firstCondition)),
               definition: words.tiles.clawbackDefinition,
@@ -181,9 +182,9 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
     ],
     lines,
     totals: {
-      cost: lines.reduce((total, line) => total + line.cost, 0),
-      charge: lines.reduce((total, line) => total + (line.charge ?? 0), 0),
-      accumulated: lines.reduce((total, line) => total + line.accumulated, 0),
+      cost: sumMoney(lines.map((line) => line.cost)),
+      charge: sumMoney(lines.map((line) => line.charge ?? ZERO)),
+      accumulated: sumMoney(lines.map((line) => line.accumulated)),
       bookValue,
     },
     registerSummary: words.registerSummary(plural(words.assets(lines.length), lines.length), formatMoney(bookValue)),

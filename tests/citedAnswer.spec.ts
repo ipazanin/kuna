@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest'
 
 import { checkCitedAnswer, figuresIn, hasStrayFigure } from '../src/shared/ai/domain/citedAnswer'
 import type { CitedInput } from '../src/shared/ai/domain/citedAnswer'
+import { moneyFromCents } from '../src/shared/money/money'
 
 const SENT: CitedInput = {
   sources: new Set(['hr.cit.rate', 'hr.vat.rates']),
   figures: new Map([
-    ['f', 422400],
-    ['f.0', -50000],
+    ['f', moneyFromCents(422400)],
+    ['f.0', moneyFromCents(-50000)],
   ]),
   amounts: new Set([100000]),
   rates: new Set([1200, 2500]),
@@ -54,7 +55,7 @@ describe('the check of a cited answer', () => {
 
   it('takes a source and a figure a tool returned in this run', () => {
     const checked = checkCitedAnswer(answer([{ text: 'From the lookup, 3.000,00 EUR.', sources: ['hr.pit.local-rates'], figures: ['t.0'] }]), SENT, {
-      answers: [{ text: '', sources: ['hr.pit.local-rates'], figures: [{ ref: 't.0', cents: 300000 }] }],
+      answers: [{ text: '', sources: ['hr.pit.local-rates'], figures: [{ ref: 't.0', cents: moneyFromCents(300000) }] }],
     })
     expect(checked.parts).toHaveLength(1)
     expect(checked.parts[0]!.strayFigure).toBe(false)

@@ -9,6 +9,8 @@ import AppCard from '../../shared/ui/AppCard.vue'
 import DrillLink from '../../shared/ui/DrillLink.vue'
 import MoneyText from '../../shared/ui/MoneyText.vue'
 import GallerySection from './GallerySection.vue'
+import { moneyFromCents } from '../../shared/money/money'
+import { shareFromRatio } from '../../shared/money/percent'
 
 const SAMPLE_DAY = civilDate(2026, 11, 20)
 const SAMPLE_MONTH = monthKey(2026, 10)
@@ -16,11 +18,11 @@ const galleryLink = { path: '/gallery', hash: '#formatting' }
 
 /** Each formatter of shared/money, shared/calendar and shared/text, with what it is for. */
 const FORMATTED = [
-  { name: 'formatMoney', use: 'An amount to the cent', text: formatMoney(1234567) },
-  { name: 'formatMoney, negative', use: 'A true minus, so columns keep their width', text: formatMoney(-98765) },
-  { name: 'formatMoney, always', use: 'A change, with its sign either way', text: formatMoney(31000, 'always') },
-  { name: 'formatCompactMoney', use: 'Axis ticks and tight labels', text: `${formatCompactMoney(4821049)}, ${formatCompactMoney(90700)}` },
-  { name: 'formatPercent', use: 'A share', text: `${formatPercent(0.284)}, ${formatPercent(-0.031, 'always')}` },
+  { name: 'formatMoney', use: 'An amount to the cent', text: formatMoney(moneyFromCents(1234567)) },
+  { name: 'formatMoney, negative', use: 'A true minus, so columns keep their width', text: formatMoney(moneyFromCents(-98765)) },
+  { name: 'formatMoney, always', use: 'A change, with its sign either way', text: formatMoney(moneyFromCents(31000), 'always') },
+  { name: 'formatCompactMoney', use: 'Axis ticks and tight labels', text: `${formatCompactMoney(moneyFromCents(4821049))}, ${formatCompactMoney(moneyFromCents(90700))}` },
+  { name: 'formatPercent', use: 'A share', text: `${formatPercent(shareFromRatio(0.284))}, ${formatPercent(shareFromRatio(-0.031), 'always')}` },
   { name: 'formatDecimal', use: 'A plain number with one decimal', text: formatDecimal(7.4) },
   { name: 'formatDays', use: 'A number of days', text: formatDays(12.5) },
   { name: 'currencyUnitName', use: 'One unit of the currency in running text', text: currencyUnitName() },
@@ -33,12 +35,12 @@ const FORMATTED = [
 ] as const
 
 const MONEY_TEXTS = [
-  { label: 'Plain', cents: 1234567, props: {} },
-  { label: 'Money out, as a flow', cents: -98765, props: { tone: 'flow' } },
-  { label: 'Change, sign always', cents: 31000, props: { sign: 'always', tone: 'flow' } },
-  { label: 'A loss, as an outcome', cents: -31000, props: { tone: 'outcome' } },
-  { label: 'Cost as magnitude', cents: -412050, props: { sign: 'magnitude' } },
-  { label: 'Compact', cents: 4821049, props: { precision: 'compact' } },
+  { label: 'Plain', cents: moneyFromCents(1234567), props: {} },
+  { label: 'Money out, as a flow', cents: moneyFromCents(-98765), props: { tone: 'flow' } },
+  { label: 'Change, sign always', cents: moneyFromCents(31000), props: { sign: 'always', tone: 'flow' } },
+  { label: 'A loss, as an outcome', cents: moneyFromCents(-31000), props: { tone: 'outcome' } },
+  { label: 'Cost as magnitude', cents: moneyFromCents(-412050), props: { sign: 'magnitude' } },
+  { label: 'Compact', cents: moneyFromCents(4821049), props: { precision: 'compact' } },
 ] as const
 </script>
 
@@ -70,13 +72,13 @@ const MONEY_TEXTS = [
         </p>
         <p class="flex justify-between gap-4">
           <span class="text-muted">Drill link</span>
-          <DrillLink :to="galleryLink" label="Open the 14 travel transactions"><MoneyText :cents="-391000" sign="magnitude" /></DrillLink>
+          <DrillLink :to="galleryLink" label="Open the 14 travel transactions"><MoneyText :cents="moneyFromCents(-391000)" sign="magnitude" /></DrillLink>
         </p>
       </div>
     </AppCard>
     <p class="max-w-[65ch] text-sm text-default">
-      Travel cost <DrillLink :to="galleryLink" in-prose><MoneyText :cents="391000" /></DrillLink> over the last 12 months, down from
-      <DrillLink :to="galleryLink" in-prose><MoneyText :cents="512000" /></DrillLink>. Every figure opens the rows behind it.
+      Travel cost <DrillLink :to="galleryLink" in-prose><MoneyText :cents="moneyFromCents(391000)" /></DrillLink> over the last 12 months, down from
+      <DrillLink :to="galleryLink" in-prose><MoneyText :cents="moneyFromCents(512000)" /></DrillLink>. Every figure opens the rows behind it.
     </p>
   </GallerySection>
 </template>

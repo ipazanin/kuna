@@ -1,5 +1,6 @@
 import type { AiUsage } from './modelUsage'
 import type { StrictSchema } from './strictSchema'
+import type { Money } from '../../money/money'
 
 export interface AiTextPart {
   readonly kind: 'text'
@@ -13,7 +14,7 @@ export type AiPart = AiTextPart | { readonly kind: 'pdf'; readonly base64: strin
 export interface ToolAnswer {
   readonly text: string
   readonly sources: readonly string[]
-  readonly figures: readonly { readonly ref: string; readonly cents: number }[]
+  readonly figures: readonly { readonly ref: string; readonly cents: Money }[]
 }
 
 /** A read-only lookup over an app's own functions, which the model may call while it works on a task. */
