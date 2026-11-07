@@ -120,6 +120,32 @@ describe('the catalogue', () => {
     }
   })
 
+  it('lists each automation on its app page and tells the model to suggest one that fits', () => {
+    expect(catalogue.system).toContain('Automations')
+    for (const app of APPS) {
+      const page = catalogue.pages.get(app.id)!
+      expect(page.includes('## Automations'), app.id).toBe(app.assistant.automations.length > 0)
+      for (const automation of app.assistant.automations) expect(page).toContain(`- ${automation.title}: ${automation.what} Set up: ${automation.setUpRoute}`)
+    }
+    expect(SPENDING_ASSISTANT.automations).toHaveLength(1)
+    expect(COMPANY.automations).toHaveLength(1)
+    for (const app of [LOANS_ASSISTANT, INVESTMENTS_ASSISTANT, ASSETS_ASSISTANT]) expect(app.automations).toEqual([])
+  })
+
+  it('links each automation to a route show_screen can open and a guide its app has', () => {
+    for (const app of APPS) {
+      for (const automation of app.assistant.automations) {
+        expect(catalogue.routes.has(automation.setUpRoute), `${app.id}/${automation.id}: ${automation.setUpRoute}`).toBe(true)
+        if (automation.guide !== undefined) {
+          expect(
+            app.assistant.guides.map((guide) => guide.id),
+            `${app.id}/${automation.id}`,
+          ).toContain(automation.guide)
+        }
+      }
+    }
+  })
+
   it('calls things in a guide what the screen calls them, in both languages', () => {
     const guide = catalogue.pages.get('spending/guide/first-rules')!
     expect(guide).toContain(statementWords.review.always)

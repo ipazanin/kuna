@@ -16,6 +16,13 @@ export interface GuideLabels {
 }
 
 export const en = {
+  automations: {
+    bankSync: {
+      title: 'Bank sync',
+      what: (labels: GuideLabels) =>
+        `While a bank is linked, every sync brings its new booked rows from OTP or Revolut into ${labels.entries}, ${labels.review}, with no file to upload. It is set up on ${labels.settings}, ${labels.bankSync}.`,
+    },
+  },
   settings: {
     bankSyncDeployment: "The bank sync script's API executable deployment. Blank leaves the whole sync off.",
     bankLink: (bank: string) => `The day the approval for ${bank} runs out, set by linking the bank.`,
@@ -64,6 +71,13 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
+  automations: {
+    bankSync: {
+      title: 'Sinkronizacija s bankom',
+      what: (labels) =>
+        `Dok je banka povezana, svaka sinkronizacija donosi nove proknjižene retke iz OTP-a ili Revoluta na zaslon ${labels.entries}, na karticu ${labels.review}, bez datoteke za učitavanje. Postavlja se na zaslonu ${labels.settings}, na kartici ${labels.bankSync}.`,
+    },
+  },
   settings: {
     bankSyncDeployment: 'ID implementacije skripte. Ako je prazno, sinkronizacija je isključena.',
     bankLink: (bank) => `Datum isteka odobrenja za ${bank}. Postavlja se povezivanjem banke.`,

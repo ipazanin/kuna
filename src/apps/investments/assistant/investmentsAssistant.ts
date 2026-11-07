@@ -12,4 +12,5 @@ export const INVESTMENTS_ASSISTANT: AppAssistant = {
   ],
   settings: [],
   guides: [],
+  automations: [],
 }

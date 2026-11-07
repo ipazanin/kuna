@@ -44,6 +44,7 @@ export const SPENDING_ASSISTANT: AppAssistant = {
     { route: RECEIPTS_LINK, title: settingsWords.tabs.receipts },
     { route: SPENDING_ASSISTANT_LINK, title: settingsWords.tabs.assistant },
   ],
+  automations: [{ id: 'bank-sync', title: words.automations.bankSync.title, what: words.automations.bankSync.what(LABELS), setUpRoute: SPENDING_BANK_SYNC_LINK, guide: 'link-a-bank' }],
   settings: [
     { key: BANK_SYNC_DEPLOYMENT_KEY, note: words.settings.bankSyncDeployment },
     ...LINKABLE_BANKS.map((bank) => ({ key: bankLinkKey(bank), note: words.settings.bankLink(bankSyncWords.banks[bank]) })),

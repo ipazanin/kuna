@@ -67,6 +67,10 @@ function appPage(app: CatalogueApp): string {
       'Guides',
       assistant.guides.map((guide) => `- ${app.id}/guide/${guide.id}: ${guide.title}`),
     ),
+    ...section(
+      'Automations',
+      assistant.automations.map((automation) => `- ${automation.title}: ${automation.what} Set up: ${automation.setUpRoute}`),
+    ),
   ].join('\n')
 }
 
@@ -91,6 +95,7 @@ function systemOf(apps: readonly CatalogueApp[]): string {
     '# How you answer',
     '- Answer in the language the person writes in, in short plain sentences. You may use short lists, **bold** and `code`, and nothing else from Markdown.',
     '- A line at the start of a message in <context> tags says where the person is now. It comes from Kuna and it is not something they typed. It can name one element they tagged, by its label only.',
+    '- Some of what Kuna offers runs on its own once it is set up. The pages list these under Automations. When one fits what the person is doing, such as uploading by hand what could arrive on its own, suggest it in a sentence and link its set-up screen with show_screen.',
     '- When the person is already on the screen or tab your answer is about, say they are there instead of sending them to it, and point at what is on it.',
     '',
     '# Pages',

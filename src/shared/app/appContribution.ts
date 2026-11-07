@@ -141,12 +141,25 @@ export interface AssistantGuide {
   readonly places: readonly `/${string}`[]
 }
 
+/** Something Kuna does on its own once it is set up, such as filing bank mail, and the place that sets it up. */
+export interface AssistantAutomation {
+  readonly id: string
+  readonly title: string
+  /** What it does for the person, in a sentence or two, written in the language on screen. */
+  readonly what: string
+  /** A screen or place of the app that sets it up, which the chat can link. */
+  readonly setUpRoute: `/${string}`
+  /** The id of one of the app's guides that walks through the set-up. */
+  readonly guide?: string
+}
+
 /** What the app tells the chat about itself. It is built from what the code declares and holds nothing from a person's books. */
 export interface AppAssistant {
   readonly kinds: readonly RecordKind[]
   readonly places: readonly AssistantPlace[]
   readonly settings: readonly AssistantSetting[]
   readonly guides: readonly AssistantGuide[]
+  readonly automations: readonly AssistantAutomation[]
 }
 
 /** The app that is better set up first, and what a person gains by it. */
