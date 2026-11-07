@@ -5746,13 +5746,14 @@ export function spendingReceiptReadFlowIn(language, photos) {
 
     await uploadReceiptPhoto(page, press, photos.oneMatch)
     await pressSelector(page, press, READ_RECEIPT_BUTTON)
+    await consentTo(page, press, { inspect, shoot: shootAs }, [words.spendingReceiptAssist.sends], null)
     await page.keyboard.press('Escape')
     await dialogGone(page, SPENDING_RECEIPT_FORM)
     await delay(800)
     await uploadReceiptPhoto(page, press, photos.oneMatch)
     if ((await page.$(RECEIPT_REVIEW)) !== null) throw new Error('a read aborted by closing the dialog still left a draft')
 
-    await readReceiptLines(page, press, words, { inspect, shoot: shootAs }, false)
+    await readReceiptLines(page, press, words, { inspect, shoot: shootAs }, true)
     await page.waitForSelector('[data-testid="spending-receipt-usage"]', { visible: true, timeout: 5_000 })
     if ((await page.$('[data-testid="spending-receipt-notes"]')) !== null) throw new Error('a read whose checks hold shows notes')
     await pressSelector(page, press, '[data-testid="spending-receipt-save"]')

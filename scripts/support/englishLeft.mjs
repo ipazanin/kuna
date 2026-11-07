@@ -307,6 +307,11 @@ export const ENGLISH_ALLOWED = [
     selector: '.identifier',
   },
   {
+    name: 'a Drive path',
+    reason: "A folder on Drive keeps one name in every language, such as an app's subfolder under Kuna.",
+    pattern: /„Moj disk › [^”]+”/gu,
+  },
+  {
     name: 'stored value in quotes',
     reason: 'A Croatian sentence quotes a stored key, kind or slug as the file stores it, such as „categories” or „accountant”.',
     pattern: /„[\p{Ll}\d_.-]+”/gu,
