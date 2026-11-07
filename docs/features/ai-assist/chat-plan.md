@@ -99,6 +99,13 @@ The chat becomes the one way to use AI, which is simpler on screen and does more
 - The inline task goes only once the chat does its job, so Explain moves with stage 3 and Suggest and receipts with stage 4 or their app's turn in stage 5. Nothing goes missing in between.
 - A button still sends nothing by itself. Its element goes in as context under the same read grants and switches as a typed question.
 
+### Knows the automations, the owner's request of 2026-11-07
+
+The chat knows the automations Kuna offers, such as filing or parsing mail, bank sync and the IBKR report by mail. It suggests one when asked, and when it relates to what the owner is doing, such as uploading by hand a statement that could arrive by mail. It explains the setup and links the screen.
+
+- Each app declares its automations in the catalogue, so a new one reaches the chat without changing the chat.
+- Stage 2's catalogue lists them, which answers a direct question. A suggestion from what the owner is doing follows the read grants of stage 3, or uses only the screen on show.
+
 ### Stage 2. The panel, knowing the app
 
 - **Work:** dock and pane in `AppShell.vue`, `ChatPanel`, the label and context turn, `catalogue.ts` over screens, settings tables, kinds, words, `kuna_docs` and `show_screen`, first guides for Spending. History in memory.
