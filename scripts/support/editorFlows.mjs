@@ -4912,6 +4912,35 @@ export function firstRunBrowserFlowIn(id, language) {
   }
 }
 
+/** Assets set up in a second tab reach this one without a reload: the home card stops offering Set up and the menu lists the app. */
+export async function setUpInOtherTabFlow(page, { shoot, inspect }) {
+  const words = SCREEN_WORDS.en
+  const card = (state) => `[data-testid="home-card"][data-app="assets"][data-state="${state}"]`
+  await page.evaluate(() => {
+    window.location.hash = '#/'
+  })
+  await page.waitForSelector(card('set-up'), { visible: true, timeout: 10_000 })
+  const otherTab = await page.browserContext().newPage()
+  try {
+    await otherTab.goto(page.url().replace(/#.*$/, '#/assets'), { waitUntil: 'networkidle0' })
+    await firstRunAt(otherTab, ASSETS, 'home')
+    const clickIt = (element) => element.click()
+    await chooseOption(otherTab, clickIt, 'assets-start-home', words.writes.firstRun.home.browser)
+    await pressSelector(otherTab, clickIt, '[data-testid="assets-start-continue"]')
+    await firstRunAt(otherTab, ASSETS, 'overview')
+  } finally {
+    await otherTab.close()
+  }
+  await page.bringToFront()
+  await page.waitForSelector(card('open'), { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('the home card still offers Set up after the other tab set Assets up')
+  })
+  const hasMenu = await page.$('[data-testid="nav-apps"]')
+  if (hasMenu !== null && (await page.$('[data-testid="nav-app"][data-app="assets"]')) === null) throw new Error('the menu does not list Assets after the other tab set it up')
+  await inspect?.('the home after a second tab set Assets up')
+  await shoot('set-up-in-other-tab')
+}
+
 /** The Loans first run on a device that has not chosen the Loans file another device made on the fake Drive: Find the file opens it by its mark. */
 export function loansOpenFlowIn(language) {
   const words = SCREEN_WORDS[language]

@@ -5,6 +5,14 @@ const KEY_PREFIX = 'kuna.set-up-answer.'
 /** What this visit kept, since storage can be denied in a private window. */
 const kept = ref<ReadonlySet<string>>(new Set())
 
+if (typeof window !== 'undefined') {
+  // A fresh set makes every reader look at the storage again, which now holds what the other tab did.
+  window.addEventListener('storage', (event) => {
+    if (event.key === null) kept.value = new Set()
+    else if (event.key.startsWith(KEY_PREFIX)) kept.value = new Set([...kept.value].filter((held) => held !== event.key))
+  })
+}
+
 function storageKeyOf(fileId: string, answer: string): string {
   return `${KEY_PREFIX}${fileId}.${answer}`
 }

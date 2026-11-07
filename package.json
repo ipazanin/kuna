@@ -20,6 +20,7 @@
     "import:local-rates": "node scripts/import-local-rates.mjs",
     "check:round-trip": "node --no-experimental-webstorage --import ./scripts/support/typescriptResolve.mjs scripts/round-trip-workbook.mjs",
     "check:touch": "node --no-experimental-webstorage --import ./scripts/support/typescriptResolve.mjs scripts/touch-check.mjs",
+    "check:firefox": "node --disable-warning=ExperimentalWarning scripts/firefox-check.mjs",
     "check:pwa": "node --no-experimental-webstorage --import ./scripts/support/typescriptResolve.mjs scripts/check-pwa.mjs",
     "check:import": "node scripts/check-foreign-import.mjs",
     "check:figures": "node --no-experimental-webstorage --import ./scripts/support/typescriptResolve.mjs scripts/figure-digest.mjs",

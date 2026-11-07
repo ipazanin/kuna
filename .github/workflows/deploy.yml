@@ -70,6 +70,7 @@ jobs:
           - { check: visual, selection: --shard 10/10 }
           - { check: touch, selection: --widths 360 }
           - { check: touch, selection: --widths 430 }
+          - { check: firefox, selection: '' }
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
@@ -77,7 +78,7 @@ jobs:
           node-version: lts/*
           cache: 'npm'
       - run: npm ci
-      # ubuntu-latest ships Chrome at /usr/bin/google-chrome, which the checks probe for.
+      # ubuntu-latest ships Chrome at /usr/bin/google-chrome and Firefox at /usr/bin/firefox, which the checks probe for.
       # They run against the fake build, so every screen has data and no Google call is made.
       - name: Check
         run: |

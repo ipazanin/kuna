@@ -258,6 +258,7 @@ import {
   assetFlowIn,
   assetsEditorFlow,
   firstRunBrowserFlowIn,
+  setUpInOtherTabFlow,
   firstRunOnDriveFlowIn,
   assetsEditorFlowIn,
   assetsValuationFlow,
@@ -4850,6 +4851,7 @@ const FLOWS = [
   { name: 'mail-switches-off', hash: '#/company', title: 'Overview', run: mailSwitchesOffFlow, modes: ['drive'], queries: { drive: '&fake=mail-switches-off' } },
   { name: 'mail-no-sender', hash: '#/company', title: 'Overview', run: mailNoSenderFlow, modes: ['drive'], queries: { drive: '&fake=mail-no-sender' } },
   { name: 'mail-rate-limited', hash: '#/company', title: 'Overview', run: mailRateLimitedFlow, modes: ['drive'], queries: { drive: '&fake=mail-rate-limited' } },
+  { name: 'set-up-in-other-tab', hash: '#/', title: 'All apps', run: setUpInOtherTabFlow, modes: ['drive'] },
   { name: 'mail-window', hash: '#/company', title: 'Overview', run: mailWindowFlow, modes: ['drive'], queries: { drive: '&fake=mail-nothing-new' } },
   { name: 'sync-access-closed', hash: '#/company', title: 'Overview', run: accessClosedFlow, modes: ['drive'], queries: { drive: '&fake=google-closed' } },
   ...[

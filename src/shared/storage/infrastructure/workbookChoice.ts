@@ -25,12 +25,14 @@ export function saveWorkbookChoice(app: string, choice: WorkbookChoice | null): 
   }
 }
 
-/** Tells the page when another tab forgot the app's choice, or cleared this site's storage. */
-export function onChoiceForgottenElsewhere(app: string, forgotten: () => void): void {
+/** Tells the page when another tab chose a file for the app, forgot its choice, or cleared this site's storage. */
+export function onChoiceChangedElsewhere(app: string, changed: { forgotten(): void; chosen(): void }): void {
   if (typeof window === 'undefined') return
   window.addEventListener('storage', (event) => {
     if (event.storageArea !== localStorage) return
-    if (event.key === null || (event.key === `${KEY_PREFIX}${app}` && event.newValue === null)) forgotten()
+    if (event.key !== null && event.key !== `${KEY_PREFIX}${app}`) return
+    if (event.key === null || event.newValue === null) changed.forgotten()
+    else changed.chosen()
   })
 }
 

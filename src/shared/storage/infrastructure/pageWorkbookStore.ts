@@ -6,7 +6,7 @@ import type { DocumentCopy } from './documentRecordStorage'
 import { documentStorePorts } from './documentStorePorts'
 import type { AppDocument, DriveAccess } from './documentStorePorts'
 import { googleDriveAccess } from './googleDriveAccess'
-import { loadWorkbookChoice, onChoiceForgottenElsewhere, saveWorkbookChoice, someWorkbookOnDrive } from './workbookChoice'
+import { loadWorkbookChoice, onChoiceChangedElsewhere, saveWorkbookChoice, someWorkbookOnDrive } from './workbookChoice'
 
 const now = (): string => new Date().toISOString()
 
@@ -51,6 +51,6 @@ export function pageWorkbookStore<Books extends BooksRead>(app: string, document
       })
     },
   })
-  onChoiceForgottenElsewhere(app, () => void store.forgottenElsewhere())
+  onChoiceChangedElsewhere(app, { forgotten: () => void store.forgottenElsewhere(), chosen: () => void store.chosenElsewhere() })
   return store
 }

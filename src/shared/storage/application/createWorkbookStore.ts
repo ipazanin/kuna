@@ -214,6 +214,8 @@ export interface WorkbookStore<Books extends BooksRead, Copy extends WorkbookCop
   trashBackups(workbookId: string): Promise<void>
   /** Another tab dropped the workbook, so this one shows none either, as a first run, once the file's jobs ahead of it are over. */
   forgottenElsewhere(): Promise<void>
+  /** Another tab chose a file, such as by setting the app up, so this one shows it too from the copy this browser holds, once the file's jobs ahead of it are over. */
+  chosenElsewhere(): Promise<void>
   /**
    * Makes this the workbook kept in this browser, as an import or a fresh start does, and chooses
    * it. A workbook already kept here is replaced.
@@ -669,6 +671,23 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
         state.choice = null
         state.missing = false
         showNone()
+      })
+    },
+
+    chosenElsewhere() {
+      return inLane(async () => {
+        const stored = ports.loadChoice()
+        if (stored === null || stored.id === state.choice?.id) return
+        try {
+          const copy = await withCache(stored.id, (cache) => cache.read())
+          state.choice = stored
+          state.missing = false
+          if (copy === null) showNone()
+          else show(copy)
+          state.status = 'ready'
+        } catch (failure) {
+          fail(failure)
+        }
       })
     },
 

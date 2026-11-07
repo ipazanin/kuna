@@ -1068,6 +1068,44 @@ describe('workbook store dropping the workbook a first run made', () => {
   })
 })
 
+describe('another tab choosing a file', () => {
+  it('shows the file set up there, from the copy this browser holds', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([1]))
+    const elsewhere = storeOf(harness(choice, side).ports)
+    await elsewhere.open()
+    await elsewhere.sync()
+    const { ports } = harness(null, side)
+    const store = storeOf(ports)
+    await store.open()
+    expect(store.state.workbook).toBeNull()
+
+    ports.saveChoice(choice)
+    await store.chosenElsewhere()
+
+    expect(store.state.choice).toEqual(choice)
+    expect(store.state.workbook).not.toBeNull()
+    expect(store.state.status).toBe('ready')
+  })
+
+  it('leaves the file it already shows alone, and does nothing once the choice is gone again', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([1]))
+    const { ports } = harness(choice, side)
+    const store = storeOf(ports)
+    await store.open()
+    const shown = store.state.snapshot
+
+    await store.chosenElsewhere()
+
+    expect(store.state.snapshot).toBe(shown)
+    const none = storeOf(harness(null, side).ports)
+    await none.open()
+    await none.chosenElsewhere()
+    expect(none.state.choice).toBeNull()
+  })
+})
+
 describe('workbook store queueing what happens to its file', () => {
   /** The store over a Drive file with the transactions and an account to edit, and a way to hold the next upload until the test lets it go. */
   async function queueHarness() {
