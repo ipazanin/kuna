@@ -13,6 +13,7 @@ import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { settingsErrors } from '../../settings/domain/settings'
 import type { BillingAmountField, BillingItemField, BillingTerms, InvoicingField, Settings } from '../../settings/domain/settings'
 import { words } from './words'
+import { useDraftOf } from '../../../../shared/ui/useDraftOf'
 
 /** The billing plan's terms and what an invoice prints, as rows of the settings tab. */
 const props = defineProps<{
@@ -28,13 +29,7 @@ const emit = defineEmits<{
   save: [settings: Settings]
 }>()
 
-const draft = ref<Settings>(props.settings)
-watch(
-  () => props.settings,
-  (saved) => {
-    draft.value = saved
-  },
-)
+const draft = useDraftOf(() => props.settings)
 
 const dirty = computed(() => JSON.stringify(draft.value) !== JSON.stringify(props.settings))
 const errors = computed(() => settingsErrors(draft.value))

@@ -49,7 +49,6 @@ const store = useWorkbook()
 const { state } = store
 const names = useDisplayNames()
 const writes = useRecordWrites(store)
-const busy = computed(() => writes.busy.value || state.writing)
 
 const settings = useSettings()
 const packCards = computed(() => shownPack(settings.value).reviewCards)
@@ -220,7 +219,6 @@ function openSplit(row: Transaction): void {
               :categories="ledger.workbook.categories"
               :expanded="expandedRow === entry.transaction.id"
               :split="splitOf(entry.transaction) !== null"
-              :busy="busy"
               :saving="writes.saving"
               :suggestion="suggestionOf.get(entry.transaction.id) ?? null"
               @toggle="toggle(entry.transaction.id)"
@@ -232,9 +230,9 @@ function openSplit(row: Transaction): void {
           </ul>
         </AppCard>
 
-        <component :is="card.component" v-for="(card, index) in packCards" :key="index" :busy="busy" />
+        <component :is="card.component" v-for="(card, index) in packCards" :key="index" />
 
-        <SessionChanges :writes="sessionWrites" :categories="ledger.workbook.categories" :busy="busy" :saving="writes.saving" @undo="writes.undo" />
+        <SessionChanges :writes="sessionWrites" :categories="ledger.workbook.categories" :saving="writes.saving" @undo="writes.undo" />
 
         <SplitDialog v-if="splitting" v-model:open="splitOpen" :row="splitting.row" :split="splitting.split" :categories="ledger.workbook.categories" />
       </template>

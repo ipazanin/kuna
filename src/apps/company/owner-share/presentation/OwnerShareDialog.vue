@@ -104,7 +104,7 @@ async function save(): Promise<void> {
         :label="words.shareDialog.save"
         icon="i-lucide-check"
         :loading="writes.saving('save')"
-        :disabled="!changed || writes.busy.value || state.writing"
+        :disabled="!changed || writes.busy.value"
         data-testid="owner-share-save"
       />
     </template>

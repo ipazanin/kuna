@@ -286,7 +286,6 @@ function splitButton(payment: Transaction) {
         size: 'xs',
         'aria-label': words.splitPayment(payment.counterparty),
         'data-testid': 'split-row',
-        disabled: state.writing,
         onClick: () => openSplit(payment),
       })
 }
@@ -417,7 +416,6 @@ const columns: TableColumn<TableEntry>[] = [
           size: 'xs',
           'aria-label': words.editSplit(entry.whole.counterparty),
           'data-testid': 'edit-split',
-          disabled: state.writing,
           onClick: () => openSplit(entry.whole),
         })
       }
@@ -433,7 +431,6 @@ const columns: TableColumn<TableEntry>[] = [
                 size: 'xs',
                 'aria-label': words.editOwnerShare(whole.counterparty),
                 'data-testid': 'edit-owner-share',
-                disabled: state.writing,
                 onClick: () => setOwnerShare(whole),
               }),
           whole.kind === 'bank' ? splitButton(whole) : null,
@@ -453,7 +450,6 @@ const columns: TableColumn<TableEntry>[] = [
               size: 'xs',
               'aria-label': words.changeCategoryOf(named),
               'data-testid': 'change-category-row',
-              disabled: state.writing,
               onClick: () => changeCategory(listed),
             }),
         listed.kind !== 'bank' || listed.split !== undefined || listed.ownerPart !== undefined ? null : splitButton(listed),
@@ -466,7 +462,6 @@ const columns: TableColumn<TableEntry>[] = [
               size: 'xs',
               'aria-label': words.ownerShareOf(named),
               'data-testid': 'owner-share-row',
-              disabled: state.writing,
               onClick: () => setOwnerShare(listed),
             }),
       ])
@@ -539,7 +534,6 @@ function exportCsv(): void {
                 :bucket-labels="bucketLabels"
                 :is-collapsed="collapsed.isCollapsed"
                 :show-account="severalAccounts"
-                :writing="state.writing"
                 :share-target-of="shareTargetOf"
                 @toggle="collapsed.toggle"
                 @split="openSplit"

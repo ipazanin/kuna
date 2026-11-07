@@ -18,6 +18,8 @@ import { words } from './words'
  * lives on the categories tab, in the bucket of the categories with the two loan roles, so the
  * switch writes those cells and reads them back.
  */
+const LOAN_BUCKET_KEY = 'loan-bucket'
+
 const store = useWorkbook()
 const names = useDisplayNames()
 const writes = useRecordWrites(store)
@@ -39,6 +41,8 @@ async function choose(asPay: boolean): Promise<void> {
     {
       description: words.loanBucket.moved(listInWords(loanCategories.value.map((category) => category.slug)), bucket),
       failedTitle: words.loanBucket.notChanged,
+      key: LOAN_BUCKET_KEY,
+      shownAtOnce: true,
     },
   )
 }
@@ -51,8 +55,7 @@ async function choose(asPay: boolean): Promise<void> {
       <template v-else>
         <USwitch
           :model-value="countsAsPay"
-          :loading="writes.busy.value || store.state.writing"
-          :disabled="writes.busy.value || store.state.writing"
+          :loading="writes.saving(LOAN_BUCKET_KEY)"
           :label="words.loanBucket.label"
           :description="countsAsPay ? words.loanBucket.on : words.loanBucket.off"
           @update:model-value="choose($event)"

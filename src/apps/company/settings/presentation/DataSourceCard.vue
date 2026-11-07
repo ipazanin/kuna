@@ -84,7 +84,7 @@ function takeFile(event: Event): void {
         color="neutral"
         variant="outline"
         size="sm"
-        :disabled="state.workbook === null || state.writing"
+        :disabled="state.workbook === null"
         data-testid="keep-on-drive"
         @click="moveToDrive"
       />

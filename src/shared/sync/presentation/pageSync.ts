@@ -98,21 +98,6 @@ function booksStep(group: PageSyncGroup): SyncStep {
   }
 }
 
-/** Resolves once no read or write of the books is under way. */
-export function whenIdle(store: Pick<AppSyncGroup['store'], 'state'>): Promise<void> {
-  return new Promise<void>((resolve) => {
-    const stop = watch(
-      () => !store.state.writing && store.state.status !== 'syncing',
-      (idle) => {
-        if (!idle) return
-        queueMicrotask(() => stop())
-        resolve()
-      },
-      { immediate: true },
-    )
-  })
-}
-
 let pageSync: PageSync | null = null
 
 /**
@@ -138,7 +123,7 @@ export function startPageSync(apps: readonly Pick<AppContribution, 'id' | 'name'
   )
 
   const sync = createSync({
-    groups: (): SyncGroup[] => driveGroups().map((group) => ({ app: group.app, name: group.name, books: booksStep(group), steps: () => group.steps(), whenIdle: () => whenIdle(group.store) })),
+    groups: (): SyncGroup[] => driveGroups().map((group) => ({ app: group.app, name: group.name, books: booksStep(group), steps: () => group.steps() })),
     granted,
     askForAccess,
     asksByLeaving: signsInByRedirect,

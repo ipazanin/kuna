@@ -280,9 +280,6 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
       const drive = google.value ? await invoiceDrive() : null
       if (drive !== null) {
         await store.sync()
-        if (store.state.status === 'syncing' || store.state.writing) {
-          throw new Error(words.run.busy)
-        }
         if (store.state.error !== null) throw new Error(words.run.unreadable(store.state.error))
       }
       if (problems.value.length > 0 || document.value === null || path.value === null) {

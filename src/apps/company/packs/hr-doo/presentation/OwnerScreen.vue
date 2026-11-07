@@ -8,7 +8,6 @@ import PageTabs from '../../../../../shared/ui/PageTabs.vue'
 import type { PageTab } from '../../../../../shared/ui/PageTabs.vue'
 import { useSettings } from '../../../settings/application/useSettings'
 import { useFilteredLedger } from '../../../transactions/application/useFilteredLedger'
-import { useWorkbook } from '../../../workbook/application/workbookStore'
 import { newestBookingOf } from '../../../workbook/domain/workbook'
 import LedgerGate from '../../../workbook/presentation/LedgerGate.vue'
 import { periodRange } from '../../../filters/domain/filterState'
@@ -30,7 +29,6 @@ const TABS: readonly PageTab[] = [
 
 const ledger = useFilteredLedger()
 const settings = useSettings()
-const { state } = useWorkbook()
 const addingAdvance = ref(false)
 
 const asOf = computed(() => newestBookingOf(ledger.value?.workbook.transactions ?? []))
@@ -61,7 +59,7 @@ const missing = computed(() => {
   <section class="flex flex-col gap-6">
     <PageHeader :title="words.screens.owner" :description="words.owner.description">
       <template v-if="settings.ownerPayModule" #actions>
-        <UButton :label="words.owner.addAdvance" icon="i-lucide-plus" size="sm" :disabled="ledger === null || state.writing" data-testid="open-add-advance" @click="addingAdvance = true" />
+        <UButton :label="words.owner.addAdvance" icon="i-lucide-plus" size="sm" :disabled="ledger === null" data-testid="open-add-advance" @click="addingAdvance = true" />
         <UButton :label="words.owner.comparePayMixes" icon="i-lucide-scale" :to="payMixes" color="neutral" variant="outline" size="sm" data-testid="owner-pay-scenarios" />
       </template>
     </PageHeader>

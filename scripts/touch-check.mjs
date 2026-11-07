@@ -56,6 +56,7 @@
  * run, imported and undone, a receipt photo read by its QR code, split and undone, a pick of two payments, a near one and a new entry, the assistant's read with a line moved and undone, an R1 receipt,
  * Not a pair and a category on To review undone, and a rule made from To review, read on Settings,
  * Rules, deleted and brought back,
+ * saves that wait: a switch that moves at once and spins, a second review row while the first saves, one that fails and flips back (`?fake=save-fails`), and the browser's warning on closing the page during a save,
  * and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
  * the payee breakdown has to stay inside the window and off its own row.
@@ -227,6 +228,9 @@ import {
   investmentsAddHeldFlow,
   statementSyncFlow,
   statementsFolderFlow,
+  saveFailsFlow,
+  savesWaitingBenchmarkFlow,
+  savesWaitingFlow,
   syncRunningFlow,
 } from './support/editorFlows.mjs'
 import { writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
@@ -1452,6 +1456,9 @@ async function checkWidth(width) {
     ['statements-held-croatian', '&fake=held-statement&lang=hr', heldStatementFlowIn('hr'), '#/company', overviewCroatian.title],
     ['statements-access', '', statementAccessFlow],
     ['sync-running', '&fake=slow-statements', syncRunningFlow],
+    ['saves-waiting', '&fake=slow-writes', savesWaitingFlow, '#/company/settings', 'Settings'],
+    ['saves-waiting-benchmark', '&fake=slow-writes&investments=sample', savesWaitingBenchmarkFlow, '#/investments/settings', 'Settings'],
+    ['save-fails', '&fake=save-fails', saveFailsFlow, '#/company/settings', 'Settings'],
     ['mail-off', '', mailOffFlow],
     ['mail-filed', '&fake=mail', mailFiledFlow],
     ['mail-list-croatian', '&fake=mail&lang=hr', mailListFlowIn('hr'), '#/company', overviewCroatian.title],
@@ -1715,6 +1722,30 @@ async function checkWidth(width) {
     await expect(reviewCount(page), (count) => count === 2, 'Undo did not bring the row back')
   })
 
+  await step('write-leaving-warns', async () => {
+    const leaving = await context.newPage()
+    await leaving.setViewport({ width, height: 800, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+    const dialogs = []
+    leaving.on('dialog', async (dialog) => {
+      dialogs.push(dialog.type())
+      await dialog.dismiss()
+    })
+    await leaving.goto(`${BASE}?theme=dark&fake=slow-writes&load=${Date.now()}#/company/transactions?tab=review`, { waitUntil: 'networkidle0' })
+    await waitForTitle(leaving, 'Transactions')
+    await (await reviewRow(leaving, 'GADGET CORNER')).tap()
+    await leaving.waitForSelector('[data-testid="review-details"]')
+    await leaving.tap('[data-testid="review-details"] [data-testid="confirm-row"]')
+    await leaving.waitForSelector('[data-testid="write-progress"]')
+    await leaving.close({ runBeforeUnload: true })
+    await delay(300)
+    await expect(Promise.resolve(dialogs), (seen) => seen.join() === 'beforeunload', 'closing the page during a save brings up no warning')
+    await waitForText(leaving, '[data-slot="title"]', 'Confirmed')
+    await leaving.waitForSelector('[data-testid="write-progress"]', { hidden: true })
+    await leaving.close({ runBeforeUnload: true })
+    await delay(300)
+    await expect(Promise.resolve(dialogs), (seen) => seen.length === 1 && leaving.isClosed(), 'closing the page after the save landed still warns')
+  })
+
   await step('write-in-progress', async () => {
     await page.goto(`${BASE}?theme=dark&fake=slow-writes&load=${Date.now()}#/company/transactions?tab=review`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Transactions')
@@ -1734,7 +1765,21 @@ async function checkWidth(width) {
     )
     await inspect(page, `${width}px write in progress`)
     await shoot('write-in-progress')
+    await (await reviewRow(page, 'SNACK KIOSK')).tap()
+    const picker = await page.waitForSelector('[data-testid="review-details"] [data-testid="recategorise-row"]:not(:disabled)', { timeout: 5_000 }).catch(() => {
+      throw new Error('another row stays disabled while the first row saves')
+    })
+    await picker.tap()
+    await (await page.waitForSelector('[role="option"]', { visible: true, timeout: 5_000 })).tap()
+    await page.waitForSelector('[data-testid="review-details"] .animate-spin', { timeout: 2_000 }).catch(() => {
+      throw new Error('the second row does not spin while its save waits')
+    })
     await waitForText(page, '[data-slot="title"]', 'Confirmed')
+    await page
+      .waitForFunction(() => document.querySelectorAll('[data-testid="review-row"]').length === 0, { timeout: 15_000 })
+      .catch(() => {
+        throw new Error('the two rows tapped in a row did not both land')
+      })
     await expect(
       page.evaluate(() => document.querySelector('[data-testid="write-progress"]') === null),
       (gone) => gone,

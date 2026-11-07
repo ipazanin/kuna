@@ -7,7 +7,6 @@ import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
-import { useWorkbook } from '../../../../workbook/application/workbookStore'
 import type { OwnerPayScenario } from '../../domain/scenarios/ownerPayScenarios'
 import { scenarioName } from '../../domain/scenarios/startingScenarios'
 import type { PlanLine } from '../../domain/forecast/plan'
@@ -49,8 +48,6 @@ const props = defineProps<{
   suggestedSwitch: CivilDate | null
   categoryName: (slug: string) => string
 }>()
-
-const store = useWorkbook()
 
 const ownerPayLines = computed(() => props.lines.filter((line): line is OwnerPayLine => line.kind === 'owner-pay-scenario'))
 const purchases = computed(() => props.lines.filter((line): line is PurchaseLine => line.kind === 'purchase').sort((earlier, later) => earlier.date.localeCompare(later.date)))
@@ -153,7 +150,6 @@ function editPurchase(purchase: PurchaseLine | null): void {
             color="neutral"
             variant="outline"
             size="sm"
-            :disabled="store.state.writing"
             data-testid="plan-owner-pay-edit"
             @click="ownerPayOpen = true"
           />
@@ -183,7 +179,7 @@ function editPurchase(purchase: PurchaseLine | null): void {
               class="plan-row"
               :data-category="entry.category.slug"
               :aria-label="words.plan.editCategory(entry.name, entry.caption)"
-              :disabled="store.state.writing || (ownerPaySet && isOwnerPayCost(entry.category))"
+              :disabled="ownerPaySet && isOwnerPayCost(entry.category)"
               data-testid="plan-category"
               @click="editCategory(entry)"
             >
@@ -201,16 +197,7 @@ function editPurchase(purchase: PurchaseLine | null): void {
       <section class="flex flex-col gap-1" data-testid="plan-purchases">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h3 class="text-sm font-medium text-highlighted">{{ words.plan.purchases }}</h3>
-          <UButton
-            :label="words.plan.planPurchase"
-            icon="i-lucide-plus"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            :disabled="store.state.writing"
-            data-testid="plan-add-purchase"
-            @click="editPurchase(null)"
-          />
+          <UButton :label="words.plan.planPurchase" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="plan-add-purchase" @click="editPurchase(null)" />
         </div>
         <p v-if="purchases.length === 0" class="py-2 text-sm text-muted">{{ words.plan.nonePlanned }}</p>
         <ul v-else class="flex flex-col">
@@ -219,7 +206,6 @@ function editPurchase(purchase: PurchaseLine | null): void {
               type="button"
               class="plan-row"
               :aria-label="words.plan.editPurchase(purchase.note || words.plan.purchase, dayLabel(purchase.date))"
-              :disabled="store.state.writing"
               data-testid="plan-purchase"
               @click="editPurchase(purchase)"
             >
@@ -244,13 +230,12 @@ function editPurchase(purchase: PurchaseLine | null): void {
             color="neutral"
             variant="outline"
             size="sm"
-            :disabled="store.state.writing"
             data-testid="plan-add-dividend"
             @click="dividendOpen = true"
           />
         </div>
         <p v-if="dividend === null" class="py-2 text-sm text-muted">{{ words.plan.noDividend }}</p>
-        <button v-else type="button" class="plan-row" :aria-label="words.plan.editDividend" :disabled="store.state.writing" data-testid="plan-dividend-row" @click="dividendOpen = true">
+        <button v-else type="button" class="plan-row" :aria-label="words.plan.editDividend" data-testid="plan-dividend-row" @click="dividendOpen = true">
           <span class="min-w-0 text-start">
             <span class="block text-sm text-toned">{{ words.plan.paidIn(dividend.month === null ? String(year) : monthLabel(monthKey(year, dividend.month))) }}</span>
             <span v-if="dividend.note" class="block text-xs text-muted">{{ dividend.note }}</span>

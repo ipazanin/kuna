@@ -37,8 +37,7 @@ function harness(options: {
     ...options.grants,
   }
   const books = options.books ?? step(BOOKS_STEP.id, 'drive.file')
-  let idle: Promise<void> = Promise.resolve()
-  const company: SyncGroup = { app: 'company', name: 'Company', books, steps: () => options.steps ?? [], whenIdle: () => idle }
+  const company: SyncGroup = { app: 'company', name: 'Company', books, steps: () => options.steps ?? [] }
   const ports: SyncPorts = {
     groups: () => options.groups ?? [company],
     granted: (scope) => grants[scope],
@@ -55,9 +54,6 @@ function harness(options: {
     books,
     states: () => stepsOf(sync.state.run).map((candidate) => [candidate.id, candidate.state.kind]),
     control: (access: PageAccess = { kind: 'enough' }) => syncControlOf(sync.state.run, { reading: false, syncedAt: AT }, access, sync.state.askFailure),
-    holdUntil(save: Promise<void>) {
-      idle = save
-    },
   }
 }
 
@@ -189,20 +185,18 @@ describe('a sync', () => {
     expect(control()).toMatchObject({ kind: 'allow-access', labels: ['Statements', 'Accountant'] })
   })
 
-  it('waits for a save under way, then syncs once for every tap during it', async () => {
+  it('syncs once for every tap while one runs', async () => {
     const statements = step('statements', 'drive.readonly')
-    const { sync, books, holdUntil } = harness({ steps: [statements] })
-    let saved: () => void = () => {}
-    holdUntil(new Promise<void>((resolve) => (saved = resolve)))
+    let read: () => void = () => {}
+    const books = step(BOOKS_STEP.id, 'drive.file', () => new Promise<StepResult>((resolve) => (read = () => resolve(DONE))))
+    const { sync } = harness({ books, steps: [statements] })
 
     const first = sync.sync()
     const second = sync.sync()
-    await Promise.resolve()
-
-    expect(books.runs).not.toHaveBeenCalled()
+    await vi.waitFor(() => expect(books.runs).toHaveBeenCalledOnce())
     expect(second).toBe(first)
 
-    saved()
+    read()
     await first
 
     expect(books.runs).toHaveBeenCalledOnce()
@@ -271,7 +265,7 @@ describe('a sync', () => {
 
 describe('a sync over several apps', () => {
   function group(app: string, books: FakeStep, steps: readonly FakeStep[]): SyncGroup {
-    return { app, name: app[0]!.toUpperCase() + app.slice(1), books, steps: () => steps, whenIdle: async () => {} }
+    return { app, name: app[0]!.toUpperCase() + app.slice(1), books, steps: () => steps }
   }
 
   it("runs each app's group in turn, and skips only the steps of the app whose books could not be read", async () => {
@@ -323,30 +317,6 @@ describe('a sync over several apps', () => {
     companyDone()
     await running
     expect(loansBooks.runs).toHaveBeenCalledOnce()
-  })
-
-  it("waits for a save of an app's books that starts while the group ahead of it runs", async () => {
-    let loansIdle: Promise<void> = Promise.resolve()
-    let saved: () => void = () => {}
-    const statements = step('statements', 'drive.readonly', async () => {
-      loansIdle = new Promise<void>((resolve) => (saved = resolve))
-      return DONE
-    })
-    const loansBooks = step('books', 'drive.file')
-    const loans: SyncGroup = { ...group('loans', loansBooks, []), whenIdle: () => loansIdle }
-    const { sync } = harness({ groups: [group('company', step('books', 'drive.file'), [statements]), loans] })
-
-    const running = sync.sync()
-    await vi.waitFor(() => expect(statements.runs).toHaveBeenCalledOnce())
-    await Promise.resolve()
-
-    expect(loansBooks.runs).not.toHaveBeenCalled()
-    expect(sync.running()).toBe(true)
-    saved()
-    await sync.settled()
-    expect(loansBooks.runs).toHaveBeenCalledOnce()
-    expect(sync.running()).toBe(false)
-    await running
   })
 })
 

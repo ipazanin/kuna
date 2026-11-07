@@ -255,15 +255,6 @@ async function remove(row: ScenarioRow): Promise<void> {
       </ChartCard>
     </DashboardGrid>
 
-    <ScenarioList
-      :title="words.list.title"
-      :subtitle="words.list.subtitle"
-      :rows="rows"
-      :busy="writes.busy.value"
-      :saving="writes.saving"
-      @edit="(row) => emit('edit', row.kept, row.mark)"
-      @copy="copy"
-      @remove="remove"
-    />
+    <ScenarioList :title="words.list.title" :subtitle="words.list.subtitle" :rows="rows" :saving="writes.saving" @edit="(row) => emit('edit', row.kept, row.mark)" @copy="copy" @remove="remove" />
   </div>
 </template>

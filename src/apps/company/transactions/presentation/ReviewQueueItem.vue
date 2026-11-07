@@ -29,7 +29,6 @@ const props = defineProps<{
   expanded: boolean
   /** True when the splits tab already splits the row, so Split edits its parts. */
   split: boolean
-  busy: boolean
   saving: WriteSaving
   /** What the model suggests for the row on this page, or null. */
   suggestion: CategorySuggestion | null
@@ -44,6 +43,7 @@ const emit = defineEmits<{
 }>()
 
 const names = useDisplayNames()
+const rowSaving = computed(() => props.saving(`confirm-${props.transaction.id}`) || props.saving(`recategorise-${props.transaction.id}`))
 
 const SIGNAL_LABELS: Readonly<Record<keyof TransactionSignals, string>> = words.review.item.signals
 
@@ -133,7 +133,7 @@ function recategorise(category: string | undefined): void {
               variant="outline"
               size="sm"
               :loading="saving(`recategorise-${transaction.id}`)"
-              :disabled="busy"
+              :disabled="rowSaving"
               data-testid="use-suggestion"
               @click="emit('recategorise', suggestion.category)"
             />
@@ -161,7 +161,7 @@ function recategorise(category: string | undefined): void {
           icon="i-lucide-check"
           size="sm"
           :loading="saving(`confirm-${transaction.id}`)"
-          :disabled="busy"
+          :disabled="rowSaving"
           data-testid="confirm-row"
           @click="emit('confirm')"
         />
@@ -170,7 +170,7 @@ function recategorise(category: string | undefined): void {
           :categories="categories"
           :placeholder="words.review.item.recategorise"
           :loading="saving(`recategorise-${transaction.id}`)"
-          :disabled="busy"
+          :disabled="rowSaving"
           size="sm"
           data-testid="recategorise-row"
           @update:model-value="recategorise"

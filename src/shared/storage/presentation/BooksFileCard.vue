@@ -110,7 +110,6 @@ const lastBackup = computed(() => (shownPlace.value?.lastBackup ? day(new Date(`
           color="neutral"
           variant="outline"
           size="sm"
-          :disabled="state.writing"
           data-testid="move-into-kuna-open"
           @click="moving = true"
         />

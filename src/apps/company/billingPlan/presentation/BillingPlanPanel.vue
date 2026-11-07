@@ -137,8 +137,8 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
         </template>
         <template #actions>
           <div class="flex flex-wrap justify-center gap-2">
-            <UButton :label="words.panel.addFirst" icon="i-lucide-plus" :disabled="state.writing" data-testid="billing-start" @click="addRow" />
-            <UButton v-if="fillCount > 0" :label="fillLabel" icon="i-lucide-calendar-plus" color="neutral" variant="outline" :disabled="state.writing" @click="fillDialogOpen = true" />
+            <UButton :label="words.panel.addFirst" icon="i-lucide-plus" data-testid="billing-start" @click="addRow" />
+            <UButton v-if="fillCount > 0" :label="fillLabel" icon="i-lucide-calendar-plus" color="neutral" variant="outline" @click="fillDialogOpen = true" />
           </div>
         </template>
       </EmptyState>
@@ -181,17 +181,8 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
           <AppCard id="billing-rows-card" :title="words.panel.rowsTitle(year)" collapse-id="invoicing.plan-rows" :summary="view.rowsSummary" :reveal="route.hash === '#billing-rows-card'">
             <template #subtitle>{{ words.panel.rowsSubtitle }}</template>
             <template #actions>
-              <UButton :label="words.panel.addRow" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" :disabled="state.writing" data-testid="billing-add" @click="addRow" />
-              <UButton
-                :label="fillLabel"
-                icon="i-lucide-calendar-plus"
-                color="neutral"
-                variant="outline"
-                size="sm"
-                :disabled="state.writing"
-                data-testid="billing-fill"
-                @click="fillDialogOpen = true"
-              />
+              <UButton :label="words.panel.addRow" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="billing-add" @click="addRow" />
+              <UButton :label="fillLabel" icon="i-lucide-calendar-plus" color="neutral" variant="outline" size="sm" data-testid="billing-fill" @click="fillDialogOpen = true" />
             </template>
             <div v-if="problems.length > 0" class="flex items-start gap-2 px-4 pt-3 text-sm text-toned sm:px-5" data-testid="billing-problems">
               <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-4 shrink-0 text-error" aria-hidden="true" />
@@ -206,7 +197,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
               {{ words.panel.noRowsInYear(year) }} <DrillLink :to="TERMS_LINK" in-prose class="text-highlighted">{{ words.panel.setTerms }}</DrillLink> {{ words.panel.fillOrAdd }}
             </p>
             <div v-else class="px-4 pt-2 pb-3 sm:px-5">
-              <BillingRowList :rows="view.rows" :show-client="showClient" :editable="!state.writing" @edit="editRow" />
+              <BillingRowList :rows="view.rows" :show-client="showClient" @edit="editRow" />
             </div>
           </AppCard>
 

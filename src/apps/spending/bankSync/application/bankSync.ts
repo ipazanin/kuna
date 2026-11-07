@@ -128,7 +128,7 @@ export function saveLink(unit: UnitOfWork, book: Pick<SpendingBook, 'readings'>,
   setSetting(unit, book.readings.settings.facts, bankLinkKey(bank), validUntil.slice(0, 10))
 }
 
-type SpendingStore = Pick<ReturnType<typeof useSpendingBooks>, 'state' | 'write'>
+type SpendingStore = Pick<ReturnType<typeof useSpendingBooks>, 'state' | 'write' | 'settled'>
 
 /** What one fetch did. */
 export interface BankSyncOutcome {
@@ -142,8 +142,6 @@ export interface BankSyncOutcome {
 export interface BankImportPorts {
   script(deployment: string): Promise<BankSyncPort>
   readonly store: SpendingStore
-  /** Resolves once no read or write of the file is under way, since the store refuses a write during one. */
-  whenIdle(): Promise<void>
   /** The banks answered, so the hold on the next automatic fetch starts from here. A call that never reached them holds nothing. */
   asked(read: BankRead): void
   day(): CivilDate
@@ -169,13 +167,13 @@ export function bankImporter(ports: BankImportPorts): BankImporter {
     const asking = openBook(store)
     const read = await readBanks(await ports.script(asking.settings.bankSyncDeployment), asking, day)
     ports.asked(read)
-    await ports.whenIdle()
+    await store.settled()
     const stillLive = read.ended.filter((bank) => (openBook(store).settings.bankLinks[bank] ?? '') >= day)
     if (stillLive.length > 0) {
       // Yesterday, so the home card and Settings say it ended and the step stops asking for it. The bank gives no day of its own.
       const book = openBook(store)
       await store.write(words.linkEndedTitle, (unit) => stillLive.forEach((bank) => saveLink(unit, book, bank, addDays(day, -1))))
-      await ports.whenIdle()
+      await store.settled()
     }
     // The file as it stands now, not as it stood before the banks answered, which can take minutes and a file dropped meanwhile.
     const book = openBook(store)
@@ -204,14 +202,13 @@ export interface BankLinkPorts {
   readonly script: BankSyncPort
   readonly pending: PendingLinks
   readonly store: SpendingStore
-  whenIdle(): Promise<void>
 }
 
 /**
  * Trades the code a bank came back with and writes down the day the link ends. A code works once, so what it was traded for
  * is kept until the write lands and a retry only writes. A code the script refuses is forgotten, since it will never work.
  */
-export async function finishBankLink({ script, pending, store, whenIdle }: BankLinkPorts): Promise<void> {
+export async function finishBankLink({ script, pending, store }: BankLinkPorts): Promise<void> {
   const held = pending.load()
   if (held === null || held.code === null) return
   let validUntil = held.validUntil
@@ -224,7 +221,6 @@ export async function finishBankLink({ script, pending, store, whenIdle }: BankL
     }
     pending.save({ ...held, validUntil })
   }
-  await whenIdle()
   const book = openBook(store)
   const until = validUntil
   await store.write(words.linked, (unit) => saveLink(unit, book, held.bank, until))

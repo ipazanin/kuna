@@ -14,8 +14,8 @@ import type { Category, Workbook } from '../workbook/domain/workbook'
 import type { RecordProblem } from '../../../shared/storage/domain/recordsRead'
 
 /**
- * A card on the To review tab of Transactions, under the rows to review. It takes `busy`, true while another write
- * runs, and stays mounted while it shows nothing, so a dialog it opened outlives the card.
+ * A card on the To review tab of Transactions, under the rows to review. It stays mounted while it shows nothing, so
+ * a dialog it opened outlives the card.
  */
 export interface PackReviewCard {
   readonly component: Component

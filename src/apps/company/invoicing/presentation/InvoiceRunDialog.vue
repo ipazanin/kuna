@@ -220,7 +220,7 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
           :label="words.run.check"
           icon="i-lucide-list-checks"
           :loading="stage.kind === 'checking'"
-          :disabled="running || run.problems.value.length > 0 || store.state.writing"
+          :disabled="running || run.problems.value.length > 0"
           data-testid="invoice-run-check"
           @click="run.check()"
         />

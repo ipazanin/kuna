@@ -14,8 +14,6 @@ import { words } from './words'
 /** Payments to the owner that no cost on the owner-advances tab accounts for, newest first, each with a way to add its cost. */
 const props = defineProps<{
   payments: readonly UnaccountedReimbursement[]
-  /** Off while another write runs. */
-  editable: boolean
 }>()
 
 const emit = defineEmits<{
@@ -50,7 +48,6 @@ function addCost(line: UnaccountedReimbursement): void {
         variant="outline"
         size="sm"
         class="justify-self-end"
-        :disabled="!editable"
         :aria-label="words.unaccounted.addCostOf(dayLabel(line.payment.date))"
         data-testid="add-unaccounted-cost"
         @click="addCost(line)"

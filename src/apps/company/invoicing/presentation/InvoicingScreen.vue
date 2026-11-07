@@ -103,14 +103,7 @@ const tiles = computed(() => {
   <section class="flex flex-col gap-6">
     <PageHeader :title="words.title" :description="words.description">
       <template v-if="hasClients" #actions>
-        <UButton
-          :label="words.make"
-          icon="i-lucide-file-plus-2"
-          size="sm"
-          :disabled="state.writing"
-          data-testid="invoice-make"
-          @click="openRun({ kind: 'new', client: billing?.expected[0]?.client ?? null })"
-        />
+        <UButton :label="words.make" icon="i-lucide-file-plus-2" size="sm" data-testid="invoice-make" @click="openRun({ kind: 'new', client: billing?.expected[0]?.client ?? null })" />
       </template>
     </PageHeader>
 

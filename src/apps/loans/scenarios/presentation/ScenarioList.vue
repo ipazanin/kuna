@@ -12,7 +12,6 @@ defineProps<{
   title: string
   subtitle: string
   rows: readonly ScenarioRow[]
-  busy: boolean
   saving: WriteSaving
 }>()
 
@@ -48,7 +47,6 @@ const emit = defineEmits<{
             variant="ghost"
             :aria-label="words.list.copy(row.name)"
             :loading="saving(`copy-${row.key}`)"
-            :disabled="busy"
             data-testid="scenario-copy"
             @click="emit('copy', row)"
           />
@@ -58,7 +56,6 @@ const emit = defineEmits<{
             variant="ghost"
             :aria-label="words.list.delete(row.name)"
             :loading="saving(`delete-${row.key}`)"
-            :disabled="busy"
             data-testid="scenario-delete"
             @click="emit('remove', row)"
           />

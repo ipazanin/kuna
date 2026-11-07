@@ -130,7 +130,7 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
 <template>
   <AppCard :title="words.tab.title" :subtitle="words.tab.subtitle" collapse-id="settings.category-rules" :summary="summary" :reveal="highlightedId !== null" data-testid="rules-tab">
     <template #actions>
-      <UButton :label="words.tab.add" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" :disabled="state.writing" data-testid="add-rule" @click="addRule" />
+      <UButton :label="words.tab.add" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="add-rule" @click="addRule" />
     </template>
 
     <div v-if="problems.length" class="flex flex-col gap-3 px-4 pt-4 sm:px-5">
@@ -152,7 +152,6 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
           :model-value="rule.enabled"
           :label="rule.enabled ? words.tab.on : words.tab.off"
           :aria-label="words.tab.switchName(rule.enabled, rule.id)"
-          :disabled="state.writing"
           class="rule-switch"
           @update:model-value="toggleRule(rule)"
         />
@@ -171,25 +170,17 @@ function moveRule(rule: Rule, way: 'earlier' | 'later'): void {
           <p class="figure text-xs text-muted">{{ words.tab.decides(decided.get(rule.id) ?? 0, rule.order) }}</p>
         </div>
         <div class="rule-actions">
-          <UButton
-            icon="i-lucide-arrow-up"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            :aria-label="words.tab.earlier(rule.id)"
-            :disabled="index === 0 || state.writing"
-            @click="moveRule(rule, 'earlier')"
-          />
+          <UButton icon="i-lucide-arrow-up" color="neutral" variant="ghost" size="sm" :aria-label="words.tab.earlier(rule.id)" :disabled="index === 0" @click="moveRule(rule, 'earlier')" />
           <UButton
             icon="i-lucide-arrow-down"
             color="neutral"
             variant="ghost"
             size="sm"
             :aria-label="words.tab.later(rule.id)"
-            :disabled="index === ordered.length - 1 || state.writing"
+            :disabled="index === ordered.length - 1"
             @click="moveRule(rule, 'later')"
           />
-          <UButton :label="words.tab.edit" icon="i-lucide-pencil" color="neutral" variant="outline" size="sm" :disabled="state.writing" data-testid="edit-rule" @click="editRule(rule)" />
+          <UButton :label="words.tab.edit" icon="i-lucide-pencil" color="neutral" variant="outline" size="sm" data-testid="edit-rule" @click="editRule(rule)" />
         </div>
       </li>
     </ol>

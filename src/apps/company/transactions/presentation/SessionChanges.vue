@@ -27,7 +27,6 @@ import { words } from './words'
 const props = defineProps<{
   writes: readonly SessionWrite[]
   categories: readonly Category[]
-  busy: boolean
   saving: WriteSaving
 }>()
 
@@ -130,7 +129,6 @@ function flaggedByInWords(flaggedBy: string): string {
               size="sm"
               class="shrink-0"
               :loading="saving(`undo-${write.id}`)"
-              :disabled="busy"
               data-testid="session-undo"
               @click="emit('undo', write)"
             />

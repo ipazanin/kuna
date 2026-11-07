@@ -4,7 +4,7 @@ import { decodeDocument, encodeDocument } from '../../../../../shared/storage/in
 import type { DocumentCopy } from '../../../../../shared/storage/infrastructure/documentRecordStorage'
 import { COMPANY_APP } from '../companyDocument'
 import { createDriveDocument, documentName } from '../../../../../shared/storage/infrastructure/driveDocument'
-import { fakeBooksFolder, fakeDriveSession, raceTheNextSave, slowUploads } from '../../../../../shared/storage/infrastructure/fake/fakeDriveSession'
+import { failNextUpload, fakeBooksFolder, fakeDriveSession, raceTheNextSave, slowUploads } from '../../../../../shared/storage/infrastructure/fake/fakeDriveSession'
 import { openWorkbookCache } from '../../../../../shared/storage/infrastructure/workbookCache'
 import { saveWorkbookChoice } from '../../../../../shared/storage/infrastructure/workbookChoice'
 import { MAIL_SOURCE_PROPERTY } from '../../../../../shared/mail-filing/domain/mailSource'
@@ -34,7 +34,7 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
  * device made on the fake Drive too. `?fake=empty` keeps nothing, which is a first run. A variant that ends
  * in `no-billing-plan`, `no-scenarios` or `no-plan` starts without those records. `?fake=newer-file`
  * is a file a newer app saved, and with `?fake=race` another device saves at the same moment as the
- * first save, and with `?fake=slow-writes` every save takes a few seconds to land. A variant that starts with `mail` names the bank's and the accountant's mail, which the
+ * first save, with `?fake=slow-writes` every save takes a few seconds to land, and with `?fake=save-fails` the first of them then fails. A variant that starts with `mail` names the bank's and the accountant's mail, which the
  * fake mailbox answers. A variant a pack pays a made-up staff in, which `staffOf` gives, pays them in place of
  * the owner's flat salary. Only the company app's install imports this, behind an inline VITE_FAKE_WORKBOOK comparison,
  * so the module and its fixture never reach a production chunk. `?start=drive` or `?start=browser` is a person who already answered the home welcome.
@@ -56,8 +56,11 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
   if (variant === 'race') {
     raceTheNextSave(otherDeviceSave)
   }
-  if (variant === 'slow-writes') {
+  if (variant === 'slow-writes' || variant === 'save-fails') {
     slowUploads()
+  }
+  if (variant === 'save-fails') {
+    failNextUpload()
   }
   const text = encodeDocument(document)
   if (variant === 'browser-beside-drive') {

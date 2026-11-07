@@ -23,6 +23,9 @@
  * on its own or inside another, such as the Settings tabs, Year's tab link, both imports, Salaries,
  * the home, its Set up and the race on the To review tab.
  *
+ * With saves that take seconds (`?fake=slow-writes`) the loan bucket switch on Settings and the benchmark select on Investments, Settings move at once, grayed with a
+ * spinner, in Croatian too, and what is typed in the Settings form survives the switch's save.
+ *
  * Kuna settings shows the assistant's card with no key, with a made-up Anthropic key kept, with a key refused and after a
  * switch of company, in Croatian too, and Company and Spending show their Assistant tabs. On the To review tab Suggest categories asks to switch Company on, says what it did, shows the suggestion on
  * each closed row and opens the first with its Use button, in Croatian too, or says the model declined (`?ai=refused`). A pay scenario's figure on Year's Pay tab explains
@@ -418,6 +421,8 @@ import {
   statementAccessFlow,
   statementSyncFlow,
   statementsFolderFlow,
+  savesWaitingBenchmarkFlow,
+  savesWaitingFlow,
   syncRunningFlow,
   syncStatesFlowIn,
 } from './support/editorFlows.mjs'
@@ -4745,6 +4750,42 @@ const FLOWS = [
   },
   { name: 'statements-access', hash: '#/company', title: 'Overview', run: statementAccessFlow, modes: ['drive'] },
   { name: 'sync-running', hash: '#/company', title: 'Overview', run: syncRunningFlow, modes: ['drive'], queries: { drive: '&fake=slow-statements' } },
+  {
+    name: 'saves-waiting',
+    hash: '#/company/settings',
+    title: 'Settings',
+    run: savesWaitingFlow,
+    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
+    modes: ['drive'],
+    queries: { drive: '&fake=slow-writes' },
+  },
+  {
+    name: 'saves-waiting-croatian',
+    hash: '#/company/settings',
+    title: 'Postavke',
+    run: savesWaitingFlow,
+    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
+    modes: ['drive'],
+    queries: { drive: '&fake=slow-writes&lang=hr' },
+  },
+  {
+    name: 'saves-waiting-benchmark',
+    hash: '#/investments/settings',
+    title: 'Settings',
+    run: savesWaitingBenchmarkFlow,
+    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
+    modes: ['drive'],
+    queries: { drive: '&fake=slow-writes&investments=sample' },
+  },
+  {
+    name: 'saves-waiting-benchmark-croatian',
+    hash: '#/investments/settings',
+    title: 'Postavke',
+    run: savesWaitingBenchmarkFlow,
+    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
+    modes: ['drive'],
+    queries: { drive: '&fake=slow-writes&investments=sample&lang=hr' },
+  },
   { name: 'mail-off', hash: '#/company', title: 'Overview', run: mailOffFlow, modes: ['drive'] },
   { name: 'mail-filed', hash: '#/company', title: 'Overview', run: mailFiledFlow, modes: ['drive'], queries: { drive: '&fake=mail' } },
   { name: 'mail-upload-failed', hash: '#/company', title: 'Overview', run: mailUploadFailedFlow, modes: ['drive'], queries: { drive: '&fake=mail-upload-failed' } },

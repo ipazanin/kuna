@@ -30,8 +30,6 @@ export interface SyncGroup {
   readonly books: SyncStep
   /** The steps after the books, in order. */
   steps(): readonly SyncStep[]
-  /** Resolves once no save or other read of the app's books is under way, which the group waits for before its books step. */
-  whenIdle(): Promise<void>
 }
 
 export interface SyncPorts {
@@ -113,8 +111,6 @@ export function createSync(ports: SyncPorts): Sync {
   }
 
   async function runGroup(group: SyncGroup, steps: readonly SyncStep[], startedAt: string): Promise<void> {
-    // Waited for here, not once for the whole run, so a save that starts while an earlier group runs is over before these books are read.
-    await group.whenIdle()
     await runStep(group.app, group.books, startedAt)
     if (stateOf(group.app, group.books.id) !== 'done') {
       update((run) => skippedAfter(run, group.app, group.books.id))

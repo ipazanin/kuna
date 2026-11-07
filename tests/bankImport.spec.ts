@@ -74,6 +74,7 @@ function storeOver(first: SpendingBooks) {
         work(unit)
         return { title } as never
       }),
+      settled: async () => {},
     } as unknown as BankImportPorts['store'],
     state,
   }
@@ -86,7 +87,7 @@ function portOf(fields: Partial<BankSyncPort> = {}): BankSyncPort {
 }
 
 function importerOver(port: BankSyncPort, store: BankImportPorts['store'], asked: (read: BankRead) => void = () => undefined) {
-  return bankImporter({ script: async () => port, store, whenIdle: async () => undefined, asked, day: () => DAY })
+  return bankImporter({ script: async () => port, store, asked, day: () => DAY })
 }
 
 afterEach(() => {
@@ -125,25 +126,19 @@ describe('a fetch', () => {
     expect(sessions).toHaveBeenCalledTimes(2)
   })
 
-  it('waits for the file to be idle before it writes', async () => {
+  it('works out what is new only once nothing of the file is queued, since a waiting save may change it', async () => {
     const fake = storeOver(bookOf([]))
-    let idle = false
-    const importer = bankImporter({
-      script: async () => portOf(),
-      store: fake.store,
-      whenIdle: async () => {
-        await Promise.resolve()
-        idle = true
-      },
-      asked: () => undefined,
-      day: () => DAY,
-    })
+    const steps: string[] = []
+    fake.store.settled = async () => {
+      await Promise.resolve()
+      steps.push('settled')
+    }
     vi.mocked(fake.store.write).mockImplementationOnce(async () => {
-      expect(idle).toBe(true)
+      steps.push('write')
       return null
     })
-    await importer.run()
-    expect(fake.store.write).toHaveBeenCalledOnce()
+    await importerOver(portOf(), fake.store).run()
+    expect(steps).toEqual(['settled', 'write'])
   })
 
   it('holds the next one back only once the banks answered', async () => {
@@ -187,30 +182,16 @@ describe('finishing a link', () => {
   it('writes the day and forgets the link', async () => {
     const fake = storeOver(bookOf([], null))
     const pending = pendingOver(WAITING)
-    await finishBankLink({ script: portOf(), pending, store: fake.store, whenIdle: async () => undefined })
+    await finishBankLink({ script: portOf(), pending, store: fake.store })
     expect(fake.settings).toEqual([expect.objectContaining({ key: 'bank_link_revolut', value: '2027-05-03' })])
     expect(pending.held()).toBeNull()
-  })
-
-  it('waits for the file to be idle before it writes, since the store refuses a write during a read', async () => {
-    const fake = storeOver(bookOf([], null))
-    const steps: string[] = []
-    vi.mocked(fake.store.write).mockImplementationOnce(async () => {
-      steps.push('write')
-      return null
-    })
-    const whenIdle = async () => {
-      steps.push('idle')
-    }
-    await finishBankLink({ script: portOf(), pending: pendingOver(WAITING), store: fake.store, whenIdle })
-    expect(steps).toEqual(['idle', 'write'])
   })
 
   it('keeps what the code was traded for when the write fails, and a retry only writes', async () => {
     const fake = storeOver(bookOf([], null))
     const pending = pendingOver(WAITING)
     const finishLink = vi.fn(async () => '2027-05-03T12:00:00+00:00')
-    const ports = { script: portOf({ finishLink }), pending, store: fake.store, whenIdle: async () => undefined }
+    const ports = { script: portOf({ finishLink }), pending, store: fake.store }
     vi.mocked(fake.store.write).mockRejectedValueOnce(new Error('The file is being read'))
 
     await expect(finishBankLink(ports)).rejects.toThrow('being read')
@@ -230,7 +211,7 @@ describe('finishing a link', () => {
         throw new BankScriptFailure('The bank sync script did not answer: EXPIRED_AUTHORIZATION_CODE')
       },
     })
-    await expect(finishBankLink({ script, pending, store: fake.store, whenIdle: async () => undefined })).rejects.toThrow('EXPIRED_AUTHORIZATION_CODE')
+    await expect(finishBankLink({ script, pending, store: fake.store })).rejects.toThrow('EXPIRED_AUTHORIZATION_CODE')
     expect(pending.held()).toBeNull()
   })
 
@@ -242,7 +223,7 @@ describe('finishing a link', () => {
         throw new Error('The bank sync script did not answer: Failed to fetch')
       },
     })
-    await expect(finishBankLink({ script, pending, store: fake.store, whenIdle: async () => undefined })).rejects.toThrow('Failed to fetch')
+    await expect(finishBankLink({ script, pending, store: fake.store })).rejects.toThrow('Failed to fetch')
     expect(pending.held()?.code).toBe('made-up')
   })
 })

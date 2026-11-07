@@ -39,7 +39,6 @@ const props = defineProps<{
   /** Off when only one account is in view, where naming it on every row says nothing. */
   showAccount: boolean
   /** True while a change is being written, when no split can be opened. */
-  writing: boolean
   /** The record a row's owner share sits on, or null where none is set here. */
   shareTargetOf: (row: ListedRow) => ShareTarget | null
 }>()
@@ -132,7 +131,6 @@ function ownerPartNote(row: ListedRow): string | null {
                 icon="i-lucide-pencil"
                 color="neutral"
                 variant="ghost"
-                :disabled="writing"
                 :aria-label="words.editOwnerShare(entry.whole.counterparty)"
                 data-testid="edit-owner-share"
                 @click="emit('ownerShare', entry.whole)"
@@ -142,7 +140,6 @@ function ownerPartNote(row: ListedRow): string | null {
                 icon="i-lucide-split"
                 color="neutral"
                 variant="ghost"
-                :disabled="writing"
                 :aria-label="words.splitPayment(entry.whole.counterparty)"
                 data-testid="split-row"
                 @click="entry.whole.kind === 'bank' && emit('split', entry.whole)"
@@ -162,15 +159,7 @@ function ownerPartNote(row: ListedRow): string | null {
                 >
               </span>
             </span>
-            <UButton
-              icon="i-lucide-pencil"
-              color="neutral"
-              variant="ghost"
-              :disabled="writing"
-              :aria-label="words.editSplit(entry.whole.counterparty)"
-              data-testid="edit-split"
-              @click="emit('split', entry.whole)"
-            />
+            <UButton icon="i-lucide-pencil" color="neutral" variant="ghost" :aria-label="words.editSplit(entry.whole.counterparty)" data-testid="edit-split" @click="emit('split', entry.whole)" />
           </li>
           <li v-else class="card" :class="{ part: partLabel(entry.row) !== null }" data-testid="transaction-card">
             <button type="button" class="card-summary" :aria-expanded="openRows.has(entry.row.key)" @click="toggleRow(entry.row.key)">
@@ -215,7 +204,6 @@ function ownerPartNote(row: ListedRow): string | null {
                   color="neutral"
                   variant="link"
                   class="inline-target px-0 text-sm"
-                  :disabled="writing"
                   data-testid="change-category-row"
                   @click="entry.row.kind === 'bank' && emit('changeCategory', entry.row)"
                 />
@@ -226,7 +214,6 @@ function ownerPartNote(row: ListedRow): string | null {
                   color="neutral"
                   variant="link"
                   class="inline-target px-0 text-sm"
-                  :disabled="writing"
                   data-testid="split-row"
                   @click="entry.row.kind === 'bank' && emit('split', entry.row)"
                 />
@@ -237,7 +224,6 @@ function ownerPartNote(row: ListedRow): string | null {
                   color="neutral"
                   variant="link"
                   class="inline-target px-0 text-sm"
-                  :disabled="writing"
                   data-testid="owner-share-row"
                   @click="emit('ownerShare', entry.row)"
                 />

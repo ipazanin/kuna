@@ -12,6 +12,7 @@ let session: FakeDrive | null = null
 let racing: ((text: string) => string) | null = null
 let held: ReadonlySet<string> = new Set()
 let uploadMs = 0
+let failingUpload = false
 
 const SLOW_UPLOAD_MS = 2_500
 
@@ -36,6 +37,11 @@ export function raceTheNextSave(otherDeviceSave: (text: string) => string): void
 /** Makes every save take a few seconds to land, so a check can see the page while it writes. */
 export function slowUploads(): void {
   uploadMs = SLOW_UPLOAD_MS
+}
+
+/** Makes the next save fail once it has waited its upload, as a Drive that answers with an error does. */
+export function failNextUpload(): void {
+  failingUpload = true
 }
 
 /** Makes every read of the file wait for good, so a screen shows what it shows while its books open. */
@@ -81,6 +87,10 @@ export function fakeDriveAccess(app: string): DriveAccess {
       },
       async upload(fileId, text) {
         if (uploadMs > 0) await new Promise((resolve) => setTimeout(resolve, uploadMs))
+        if (failingUpload) {
+          failingUpload = false
+          throw new Error('Drive answered 500.')
+        }
         if (racing !== null) {
           const otherDeviceSave = racing
           racing = null

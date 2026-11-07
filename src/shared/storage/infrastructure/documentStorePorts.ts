@@ -9,7 +9,7 @@ import { sameRecord } from '../domain/recordsRead'
 import { browserDocumentHome, deleteBrowserDocument, replaceBrowserDocument } from './browserDocument'
 import { decodeDocument, encodeDocument } from './documentFormat'
 import type { WorkbookDocument } from './documentFormat'
-import { documentRecordStorage } from './documentRecordStorage'
+import { documentRecordStorage, documentRecords } from './documentRecordStorage'
 import type { DocumentCopy } from './documentRecordStorage'
 import { findKunaFolder, finishDriveMove, isKunaFolderOfApp, kunaFolderOfApp, moveDriveDocument, planDriveMove, unfinishedMoveOf } from './kunaFolder'
 import { APP_PROPERTY, createDriveDocument, documentName, driveDocumentHome, findDriveDocument, placeOfDriveDocument, refuseBackup } from './driveDocument'
@@ -59,6 +59,8 @@ export type DocumentStorePorts<Books extends BooksRead> = Pick<
   | 'driveFilePlace'
   | 'trashDriveFile'
   | 'read'
+  | 'withChanges'
+  | 'viewOf'
   | 'keepInBrowser'
   | 'forgetBrowserWorkbook'
   | 'openStorage'
@@ -223,6 +225,14 @@ export function documentStorePorts<Books extends BooksRead>(
     },
 
     read,
+
+    withChanges(copy, changes) {
+      return { ...copy, document: documentRecords(copy.document, schema(), codecOf, now).changed(changes) }
+    },
+
+    viewOf(copy) {
+      return documentRecords(copy.document, schema(), codecOf, now)
+    },
 
     async keepInBrowser(meta, document) {
       const stored = await replaceBrowserDocument(meta.id, encodeDocument(document))

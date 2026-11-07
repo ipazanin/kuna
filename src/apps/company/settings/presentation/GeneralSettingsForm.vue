@@ -18,6 +18,7 @@ import type { Settings, SettingsField } from '../domain/settings'
 import IbanTagsField from './IbanTagsField.vue'
 import { CURRENCY_ITEMS } from './moneyChoices'
 import { words } from './words'
+import { useDraftOf } from '../../../../shared/ui/useDraftOf'
 
 /**
  * The settings tab as cards, the workbook's basics open and the rest collapsed, with one Save under
@@ -36,15 +37,8 @@ const emit = defineEmits<{
   save: [settings: Settings, facts: unknown]
 }>()
 
-const draft = ref<Settings>(props.settings)
-const factsDraft = ref<unknown>(props.facts)
-watch(
-  () => [props.settings, props.facts] as const,
-  ([saved, facts]) => {
-    draft.value = saved
-    factsDraft.value = facts
-  },
-)
+const draft = useDraftOf(() => props.settings)
+const factsDraft = useDraftOf(() => props.facts)
 
 const dirty = computed(() => JSON.stringify(draft.value) !== JSON.stringify(props.settings) || JSON.stringify(factsDraft.value) !== JSON.stringify(props.facts))
 const packFacts = computed(() => shownPack(draft.value).companyFacts)

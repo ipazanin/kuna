@@ -47,6 +47,9 @@ const props = defineProps<{
 
 const open = defineModel<boolean>('open', { required: true })
 
+const SAVE_RULE_KEY = 'save-rule'
+const DELETE_RULE_KEY = 'delete-rule'
+
 const store = useWorkbook()
 const { state } = store
 const names = useDisplayNames()
@@ -91,7 +94,7 @@ watch(change, () => {
 })
 
 const needsAcceptance = computed(() => (preview.value?.backtest.brokenAgreements.length ?? 0) + (preview.value?.backtest.humanConflicts.length ?? 0) > 0)
-const canSave = computed(() => preview.value !== null && preview.value.refusals.length === 0 && (!needsAcceptance.value || accepted.value) && !state.writing)
+const canSave = computed(() => preview.value !== null && preview.value.refusals.length === 0 && (!needsAcceptance.value || accepted.value))
 
 function notWritten(title: string, failure: unknown): void {
   toast.add({ title, description: failure instanceof Error ? failure.message : String(failure), icon: 'i-lucide-triangle-alert', color: 'error', duration: 10_000 })
@@ -102,7 +105,7 @@ async function save(): Promise<void> {
   if (pending === null || draft.value === null || !canSave.value) return
   const id = draft.value.id.trim()
   try {
-    savedReceipt.value = await store.write(rulesChangeInWords(pending), (unit) => writeRulesChange(unit, pending))
+    savedReceipt.value = await store.write(rulesChangeInWords(pending), (unit) => writeRulesChange(unit, pending), { key: SAVE_RULE_KEY })
     savedId.value = id
   } catch (failure) {
     notWritten(words.editor.notSaved, failure)
@@ -113,7 +116,7 @@ async function deleteRule(): Promise<void> {
   const pending = change.value
   const edited = props.source?.edited ?? null
   if (pending === null || edited === null || !canSave.value) return
-  if (await recordWrites.write(rulesChangeInWords(pending), (unit) => writeRulesChange(unit, pending), { failedTitle: words.editor.notDeleted })) open.value = false
+  if (await recordWrites.write(rulesChangeInWords(pending), (unit) => writeRulesChange(unit, pending), { key: DELETE_RULE_KEY, failedTitle: words.editor.notDeleted })) open.value = false
 }
 
 const waiting = computed(() => {
@@ -184,16 +187,31 @@ async function applyToWaiting(): Promise<void> {
     </div>
 
     <template v-if="savedId === null && !deleting && source?.edited" #start>
-      <UButton :label="words.editor.delete" icon="i-lucide-trash-2" color="error" variant="ghost" :disabled="state.writing" data-testid="delete-rule" @click="deleting = true" />
+      <UButton :label="words.editor.delete" icon="i-lucide-trash-2" color="error" variant="ghost" data-testid="delete-rule" @click="deleting = true" />
     </template>
     <template #end>
       <template v-if="savedId === null && deleting">
         <UButton :label="words.editor.keep" color="neutral" variant="ghost" data-testid="keep-rule" @click="deleting = false" />
-        <UButton :label="words.editor.deleteRule" icon="i-lucide-trash-2" color="error" :loading="state.writing" :disabled="!canSave" data-testid="confirm-delete-rule" @click="deleteRule" />
+        <UButton
+          :label="words.editor.deleteRule"
+          icon="i-lucide-trash-2"
+          color="error"
+          :loading="recordWrites.saving(DELETE_RULE_KEY)"
+          :disabled="!canSave"
+          data-testid="confirm-delete-rule"
+          @click="deleteRule"
+        />
       </template>
       <template v-else-if="savedId === null">
         <UButton :label="words.editor.cancel" color="neutral" variant="ghost" @click="open = false" />
-        <UButton :label="source?.edited ? words.editor.save : words.editor.add" icon="i-lucide-save" :loading="state.writing" :disabled="!canSave" data-testid="save-rule" @click="save" />
+        <UButton
+          :label="source?.edited ? words.editor.save : words.editor.add"
+          icon="i-lucide-save"
+          :loading="recordWrites.saving(SAVE_RULE_KEY)"
+          :disabled="!canSave"
+          data-testid="save-rule"
+          @click="save"
+        />
       </template>
       <template v-else>
         <UButton :label="words.editor.done" color="neutral" :variant="waiting.length ? 'ghost' : 'solid'" @click="open = false" />
@@ -202,7 +220,6 @@ async function applyToWaiting(): Promise<void> {
           :label="plural(words.editor.apply(waiting.length), waiting.length)"
           icon="i-lucide-check-check"
           :loading="recordWrites.busy.value"
-          :disabled="state.writing"
           data-testid="apply-rule"
           @click="applyToWaiting"
         />

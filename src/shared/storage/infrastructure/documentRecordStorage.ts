@@ -167,7 +167,7 @@ function changedDocument(
 }
 
 /** The records of a document, as one write reads, checks and changes them, with nothing stored. */
-function documentRecords(document: WorkbookDocument, schema: WorkbookDocument['schema'], codecOf: CodecOfKind, now: () => string) {
+export function documentRecords(document: WorkbookDocument, schema: WorkbookDocument['schema'], codecOf: CodecOfKind, now: () => string) {
   return {
     async read(): Promise<FreshRecords> {
       return freshRecordsOf(document, codecOf)

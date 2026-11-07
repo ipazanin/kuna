@@ -39,7 +39,7 @@ const classes = installedPack().workbook?.categoryClasses ?? []
 const sharesOn = computed(() => newestBookingOf(state.workbook?.transactions ?? []) ?? today())
 const classHelp = (role: string) => installedPack().categoryClassHelp(role, sharesOn.value)
 const categories = computed(() => state.records?.categories ?? NO_RECORDS)
-const saving = computed(() => writes.busy.value || state.writing)
+const saving = computed(() => writes.busy.value)
 
 type MadeCategories = readonly { readonly saved: number | null; readonly record: CategoryRecord }[]
 

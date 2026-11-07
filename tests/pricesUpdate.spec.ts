@@ -212,7 +212,6 @@ describe('the Prices step of a sync', () => {
           name: 'Investments',
           books: { id: 'books', label: 'Books', scopes: () => ['drive.file'], startLine: '', on: () => true, run: async () => ({ kind: 'done', line: '', writeId: null, link: null }) },
           steps: () => [pricesStep(world.update, () => world.records)],
-          whenIdle: async () => {},
         },
       ],
       granted: () => true,

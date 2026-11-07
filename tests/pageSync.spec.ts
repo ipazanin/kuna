@@ -22,7 +22,7 @@ function appOf(id: string, source: 'drive' | 'browser' | null, scopes: readonly 
     status: 'ready' as const,
     error: null,
     missing: false,
-    writing: false,
+    waiting: [],
     writes: [],
   })
   const group: AppSyncGroup = {

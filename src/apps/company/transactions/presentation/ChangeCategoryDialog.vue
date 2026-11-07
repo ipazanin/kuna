@@ -97,14 +97,7 @@ async function change(): Promise<void> {
     </div>
     <template #end>
       <UButton :label="words.changeDialog.cancel" color="neutral" variant="ghost" @click="open = false" />
-      <UButton
-        :label="words.changeDialog.change"
-        icon="i-lucide-check"
-        :loading="writes.saving('save')"
-        :disabled="!changed || writes.busy.value || state.writing"
-        data-testid="change-category-save"
-        @click="change"
-      />
+      <UButton :label="words.changeDialog.change" icon="i-lucide-check" :loading="writes.saving('save')" :disabled="!changed || writes.busy.value" data-testid="change-category-save" @click="change" />
     </template>
   </AppDialog>
 </template>

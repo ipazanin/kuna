@@ -51,6 +51,7 @@ async function move(siblings: readonly Category[], place: number, step: -1 | 1):
   await writes.write(words.moved, (unit) => changes.forEach(([before, after]) => unit.of(CATEGORY_WRITES).change(before, after)), {
     key: `${step === -1 ? 'up' : 'down'}-${moving.id}`,
     failedTitle: spendingWords.form.notSaved,
+    shownAtOnce: true,
   })
 }
 </script>

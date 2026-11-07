@@ -54,6 +54,6 @@ function save(made: readonly { readonly saved: number | null; readonly record: R
     <template #subtitle>
       {{ description }}
     </template>
-    <FactTabEditor :records="records" :columns="columns" :read="read" :make="make" :new-row="newRow" :noun="rules.kind.noun" :saving="writes.busy.value || state.writing" @save="save" />
+    <FactTabEditor :records="records" :columns="columns" :read="read" :make="make" :new-row="newRow" :noun="rules.kind.noun" :saving="writes.busy.value" @save="save" />
   </AppCard>
 </template>

@@ -278,7 +278,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
                   color="neutral"
                   variant="outline"
                   size="sm"
-                  :disabled="state.writing || noClients"
+                  :disabled="noClients"
                   :title="noClients ? words.panel.clientFirst : words.panel.recordHelp"
                   data-testid="invoice-add"
                   @click="openInvoice(null)"
@@ -295,7 +295,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
               <p v-if="view.invoices.length === 0" class="px-5 py-8 text-sm text-muted">{{ words.panel.noneInPeriod }}</p>
               <template v-else>
                 <div class="px-4 pt-1 pb-2 sm:px-5">
-                  <InvoiceList :invoices="shownInvoices" :show-client="view.showClient" :editable="!state.writing" @edit="openInvoice" />
+                  <InvoiceList :invoices="shownInvoices" :show-client="view.showClient" @edit="openInvoice" />
                 </div>
                 <ShowAllButton v-if="view.invoices.length > FIRST_SHOWN" v-model:expanded="showAllInvoices" :total="view.invoices.length" class="px-4 pb-4 sm:px-5" />
               </template>

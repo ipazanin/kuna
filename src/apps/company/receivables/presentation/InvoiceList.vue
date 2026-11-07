@@ -42,8 +42,6 @@ defineProps<{
   invoices: readonly InvoiceLine[]
   /** Shows each invoice's client, when more than one is in view. */
   showClient: boolean
-  /** Off while another write runs. */
-  editable: boolean
 }>()
 
 const emit = defineEmits<{
@@ -84,7 +82,6 @@ const STATUS = {
           variant="ghost"
           size="xs"
           class="invoice-edit"
-          :disabled="!editable"
           :aria-label="words.list.edit(invoice.number)"
           data-testid="invoice-edit"
           @click="emit('edit', invoice.id)"

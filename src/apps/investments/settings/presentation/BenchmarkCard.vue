@@ -20,6 +20,7 @@ const { state } = store
 const writes = useRecordWrites(store)
 const { sources } = usePortfolio()
 const text = words.benchmark
+const BENCHMARK_KEY = 'benchmark'
 
 /** Kept apart from every record id, so the select can offer no benchmark at all. */
 const NONE = 'none'
@@ -44,7 +45,7 @@ async function choose(value: string): Promise<void> {
       const repository = unit.of(INSTRUMENT_WRITES)
       changes.forEach((change) => repository.change(change.before, change.after))
     },
-    { failedTitle: text.notChosen },
+    { failedTitle: text.notChosen, key: BENCHMARK_KEY, shownAtOnce: true },
   )
 }
 </script>
@@ -56,8 +57,8 @@ async function choose(value: string): Promise<void> {
         <USelect
           :model-value="chosen?.id ?? NONE"
           :items="items"
-          :loading="writes.busy.value"
-          :disabled="writes.busy.value"
+          :loading="writes.saving(BENCHMARK_KEY)"
+          :disabled="writes.saving(BENCHMARK_KEY)"
           class="w-full"
           data-testid="benchmark-choice"
           @update:model-value="choose(String($event))"

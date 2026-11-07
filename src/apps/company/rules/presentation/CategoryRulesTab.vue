@@ -25,7 +25,7 @@ import { words } from './words'
 const store = useWorkbook()
 const { state } = store
 const writes = useRecordWrites(store)
-const busy = computed(() => writes.busy.value || state.writing)
+const busy = computed(() => writes.busy.value)
 
 /** The tab has no filters, so the rows no rule repeats come from the whole ledger. */
 const coverage = computed(() => {

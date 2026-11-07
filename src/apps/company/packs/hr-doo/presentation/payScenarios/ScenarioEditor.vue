@@ -4,7 +4,6 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
-import { useWorkbook } from '../../../../workbook/application/workbookStore'
 import type { Grant } from '../../domain/grants/grants'
 import type { OwnerPayScenario, ScenarioComponent } from '../../domain/scenarios/ownerPayScenarios'
 import { scenarioName } from '../../domain/scenarios/startingScenarios'
@@ -24,8 +23,6 @@ const props = defineProps<{
   /** Every scenario name the tab uses, of any year. */
   taken: readonly string[]
 }>()
-
-const store = useWorkbook()
 
 const editing = ref<{ readonly scenario: OwnerPayScenario; readonly component: ScenarioComponent | null } | null>(null)
 const componentOpen = ref(false)
@@ -57,16 +54,7 @@ function name(scenario: OwnerPayScenario, mode: 'rename' | 'copy'): void {
     data-testid="scenario-editor"
   >
     <template v-if="!startingTaken" #actions>
-      <UButton
-        :label="words.editor.addStarting"
-        icon="i-lucide-list-plus"
-        color="neutral"
-        variant="outline"
-        size="sm"
-        :disabled="store.state.writing"
-        data-testid="add-starting-scenarios"
-        @click="startingOpen = true"
-      />
+      <UButton :label="words.editor.addStarting" icon="i-lucide-list-plus" color="neutral" variant="outline" size="sm" data-testid="add-starting-scenarios" @click="startingOpen = true" />
     </template>
     <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
       <p v-if="scenarios.length === 0" class="py-4 text-sm text-muted">{{ words.editor.noneForYear(year) }}</p>
@@ -77,26 +65,8 @@ function name(scenario: OwnerPayScenario, mode: 'rename' | 'copy'): void {
             <p class="identifier text-xs text-muted">{{ scenario.slug }}</p>
           </div>
           <div class="flex flex-wrap gap-1">
-            <UButton
-              :label="words.editor.rename"
-              icon="i-lucide-pencil"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              :disabled="store.state.writing"
-              data-testid="scenario-rename"
-              @click="name(scenario, 'rename')"
-            />
-            <UButton
-              :label="words.editor.copy"
-              icon="i-lucide-copy"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              :disabled="store.state.writing"
-              data-testid="scenario-copy"
-              @click="name(scenario, 'copy')"
-            />
+            <UButton :label="words.editor.rename" icon="i-lucide-pencil" color="neutral" variant="ghost" size="sm" data-testid="scenario-rename" @click="name(scenario, 'rename')" />
+            <UButton :label="words.editor.copy" icon="i-lucide-copy" color="neutral" variant="ghost" size="sm" data-testid="scenario-copy" @click="name(scenario, 'copy')" />
           </div>
         </header>
         <ul v-if="refusals.get(scenario.slug)" class="mt-2 flex flex-col gap-1" role="alert">
@@ -129,7 +99,6 @@ function name(scenario: OwnerPayScenario, mode: 'rename' | 'copy'): void {
           variant="link"
           size="sm"
           class="mt-1 px-0"
-          :disabled="store.state.writing"
           data-testid="scenario-add-component"
           @click="editComponent(scenario, null)"
         />

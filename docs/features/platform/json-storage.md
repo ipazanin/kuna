@@ -233,3 +233,13 @@ Affects nothing on screen, only how every record type is stored. Today an invoic
 3. The move goes through an xlsx download of the Sheet.
 4. Each record type declares its own typed fields.
 5. Ledger rows get their id during the move (decided with Wave 13).
+
+## Changes queue while a save runs
+
+Each store runs one job of its file at a time, in tap order: a write, a sync's read, a move or a drop. A second change never gets refused because a save runs. It waits its turn, and a sync waits behind the saves ahead of it and reads what they left. A move and a drop are refused while anything is queued, and choosing another file does nothing then, since the Picker needs the tap.
+
+`state.snapshot` is what the file holds, which the cache keeps and an export writes. `state.records` and `state.workbook` are what is on screen: the snapshot with the queued changes marked `shownAtOnce` made on top of it. So a later tap reads an earlier queued change and its `before` is what the file will hold by its turn. A one-tap control asks for `shownAtOnce`, and a dialog or a form's Save does not, so its record changes when it lands.
+
+Every check still runs at the write's turn on a fresh read. A write shown at once also runs them at the tap, on what the screen shows, so the screen never shows what the rules refuse. A failed write leaves the queue and its control flips back. The writes behind it go on, and one that was made on top of it is refused alone and says so.
+
+A control reads `writes.saving(key)` from `state.waiting`, so it spins from the tap until the write lands, even on a screen left and reopened. Closing the tab while a save waits brings up the browser's own warning where the browser has one. Nothing is kept across a close, and a phone may lose a waiting save with no warning. [The plan](saves-plan.md) has the reasoning.

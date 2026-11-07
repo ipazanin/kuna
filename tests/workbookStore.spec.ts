@@ -1,8 +1,9 @@
 import 'fake-indexeddb/auto'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { ACCOUNT_WRITES, CATEGORY_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
 import { BooksAlreadyOnDrive } from '../src/shared/storage/application/booksAlreadyOnDrive'
+import type { UnitOfWork } from '../src/shared/storage/application/repository'
 import { words as storageWords } from '../src/shared/storage/application/words'
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
 import { createWorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
@@ -26,8 +27,11 @@ import { openWorkbookCache } from '../src/shared/storage/infrastructure/workbook
 import { ASSET_WRITES, GRANT_WRITES, YEAR_END_WRITES } from '../src/apps/company/packs/hr-doo/domain/hrDooWrites'
 import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 import { addRows, editRow } from './fixtures/recordWrites'
+import { recordOf } from './fixtures/records'
 
 const used = new Set<string>()
+
+const accountOf = (name: string) => recordOf(ACCOUNT_WRITES.kind, { account: name, iban: '' })
 
 function documentOf(amounts: readonly number[]): WorkbookDocument {
   return newDocument(
@@ -884,14 +888,14 @@ describe('workbook store dropping the workbook a first run made', () => {
     const seen: string[] = []
 
     const dropped = await store.dropWorkbook(choice.id, async () => {
-      seen.push(`writing ${store.state.writing}, trashed ${side.drive.file(choice.id).trashed}`)
-      await store.sync()
+      seen.push(`trashed ${side.drive.file(choice.id).trashed}`)
+      void store.sync()
     })
 
     expect(dropped).toBe(true)
-    expect(seen).toEqual(['writing true, trashed false'])
+    expect(seen).toEqual(['trashed false'])
     expect(side.drive.requests).toEqual(['trash'])
-    expect(store.state).toMatchObject({ choice: null, writing: false })
+    expect(store.state).toMatchObject({ choice: null, waiting: [] })
   })
 
   it('drops nothing when the step it runs first fails, and passes the failure on', async () => {
@@ -907,7 +911,7 @@ describe('workbook store dropping the workbook a first run made', () => {
     ).rejects.toThrow('The keys file was not deleted.')
 
     expect(side.drive.file(choice.id).trashed).toBe(false)
-    expect(store.state).toMatchObject({ choice, status: 'ready', error: null, writing: false })
+    expect(store.state).toMatchObject({ choice, status: 'ready', error: null, waiting: [] })
     expect(await storedCopy(choice.id)).not.toBeNull()
   })
 
@@ -939,5 +943,270 @@ describe('workbook store dropping the workbook a first run made', () => {
 
     expect(store.state).toMatchObject({ choice, status: 'error', error: 'Drive answered 500.' })
     expect(await storedCopy(choice.id)).not.toBeNull()
+  })
+})
+
+describe('workbook store queueing what happens to its file', () => {
+  /** The store over a Drive file with the transactions and an account to edit, and a way to hold the next upload until the test lets it go. */
+  async function queueHarness() {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([1]))
+    const held = harness(choice, side)
+    const store = storeOf(held.ports)
+    await store.open()
+    let holding = false
+    let release: () => void = () => {}
+    const before = side.before
+    side.before = async (request) => {
+      await before(request)
+      if (request === 'upload' && holding) {
+        holding = false
+        await new Promise<void>((resolve) => (release = resolve))
+      }
+    }
+    return {
+      ...held,
+      side,
+      choice,
+      store,
+      holdNextUpload: () => {
+        holding = true
+      },
+      letUploadGo: () => release(),
+      uploading: () => vi.waitFor(() => expect(holding).toBe(false)),
+    }
+  }
+
+  const addAccount = (name: string) => (unit: UnitOfWork) => unit.of(ACCOUNT_WRITES).add(accountOf(name))
+  const accountsOnDrive = async (drive: FakeDrive, fileId: string) => decodeDocument(await drive.download(fileId)).records['account']?.map((record) => record['account'])
+
+  it('lands writes in the order they were tapped, the second waiting for the first', async () => {
+    const { store, side, choice, holdNextUpload, letUploadGo, uploading } = await queueHarness()
+    holdNextUpload()
+
+    const first = store.write('First', addAccount('first'), { key: 'one' })
+    const second = store.write('Second', addAccount('second'), { key: 'two' })
+    await uploading()
+
+    expect(store.state.waiting.map((queued) => queued.key)).toEqual(['one', 'two'])
+    letUploadGo()
+    await Promise.all([first, second])
+
+    expect(await accountsOnDrive(side.drive, choice.id)).toEqual(['main', 'first', 'second'])
+    expect(store.state.waiting).toEqual([])
+    expect(store.state.writes.map((written) => written.receipt.title)).toEqual(['Second', 'First'])
+  })
+
+  it('makes a write during a sync wait for it, and it goes on what the sync read', async () => {
+    const { store, side, choice } = await queueHarness()
+    let readDone: () => void = () => {}
+    const before = side.before
+    side.before = async (request) => {
+      await before(request)
+      if (request === 'headRevision') {
+        side.before = before
+        await new Promise<void>((resolve) => (readDone = resolve))
+      }
+    }
+    const syncing = store.sync()
+    await vi.waitFor(() => expect(store.state.status).toBe('syncing'))
+    const written = store.write('During a sync', addAccount('during'))
+    await savedElsewhere(side.drive, choice.id, 'account', { account: 'spare', iban: 'XX00FAKE0002' })
+
+    readDone()
+    await Promise.all([syncing, written])
+
+    expect(await accountsOnDrive(side.drive, choice.id)).toEqual(['main', 'spare', 'during'])
+    expect(store.state.status).toBe('ready')
+  })
+
+  it('makes a sync during writes wait behind them and read what they left, and a second sync share it', async () => {
+    const { store, side, holdNextUpload, letUploadGo, uploading } = await queueHarness()
+    holdNextUpload()
+    const written = store.write('First', addAccount('first'))
+    await uploading()
+    const syncing = store.sync()
+    const again = store.sync()
+
+    expect(again).toBe(syncing)
+    expect(store.state.status).toBe('ready')
+    side.drive.requests.length = 0
+    letUploadGo()
+    await Promise.all([written, syncing])
+
+    expect(store.state.status).toBe('ready')
+    expect(store.state.workbook?.accounts.map((account) => account.slug)).toEqual(['main', 'first'])
+    expect(side.drive.requests.filter((request) => request === 'download')).toEqual([])
+  })
+
+  it('lets the next write go on after one is refused', async () => {
+    const { store, side, choice, holdNextUpload, letUploadGo, uploading } = await queueHarness()
+    holdNextUpload()
+    const first = store.write('First', addAccount('first'))
+    await uploading()
+    const refused = store.write('Same again', addAccount('first'))
+    const after = store.write('After', addAccount('after'))
+    letUploadGo()
+
+    await first
+    await expect(refused).rejects.toBeInstanceOf(WorkbookWriteRefused)
+    await after
+
+    expect(await accountsOnDrive(side.drive, choice.id)).toEqual(['main', 'first', 'after'])
+    expect(store.state.waiting).toEqual([])
+  })
+
+  it('refuses a move and a drop while anything is queued', async () => {
+    const { store, side, choice, holdNextUpload, letUploadGo, uploading } = await queueHarness()
+    holdNextUpload()
+    const written = store.write('First', addAccount('first'))
+    await uploading()
+
+    await expect(store.moveIntoKuna(() => ({ files: [], folders: [], stays: [], blockedBy: [] }), null)).rejects.toThrow(storageWords.busy)
+    await expect(store.dropWorkbook(choice.id)).rejects.toThrow(storageWords.busy)
+
+    letUploadGo()
+    await written
+    expect(side.drive.file(choice.id).trashed).toBe(false)
+  })
+
+  it('makes a write tapped during a move wait for the move', async () => {
+    const { ports, side } = await queueHarness()
+    const order: string[] = []
+    let moved: () => void = () => {}
+    const before = side.before
+    side.before = async (request) => {
+      await before(request)
+      if (request === 'upload') order.push('upload')
+    }
+    const moving = storeOf({
+      ...ports,
+      moveIntoKuna: async () => {
+        order.push('move starts')
+        await new Promise<void>((resolve) => (moved = resolve))
+        order.push('move ends')
+        return []
+      },
+    })
+    await moving.open()
+    const move = moving.moveIntoKuna(() => ({ files: [], folders: [], stays: [], blockedBy: [] }), null)
+    await vi.waitFor(() => expect(order).toEqual(['move starts']))
+    const written = moving.write('During the move', addAccount('during'))
+    moved()
+    await Promise.all([move, written])
+
+    expect(order).toEqual(['move starts', 'move ends', 'upload'])
+  })
+
+  it('holds the queue through the retries on a file another device keeps saving, then lets it go', async () => {
+    const { store, side, choice, pauses } = await queueHarness()
+    let headChecks = 0
+    const before = side.before
+    side.before = async (request) => {
+      await before(request)
+      if (request !== 'headRevision') return
+      headChecks += 1
+      if (pauses.length < 4 && headChecks % 2 === 0) await savedElsewhere(side.drive, choice.id, 'account', { account: `spare-${headChecks}`, iban: `XX00FAKE${headChecks}` })
+    }
+    const retried = store.write('Retried', addAccount('retried'))
+    const next = store.write('Next', addAccount('next'))
+    let nextDone = false
+    void next.finally(() => {
+      nextDone = true
+    })
+
+    await expect(retried).rejects.toThrow(storageWords.savedElsewhere)
+    expect(pauses).toHaveLength(3)
+    expect(nextDone).toBe(false)
+    side.before = before
+    await next
+    expect(await accountsOnDrive(side.drive, choice.id)).toContain('next')
+  })
+
+  it('refuses a queued write when another workbook was chosen before its turn', async () => {
+    const { store, side, holdNextUpload, letUploadGo, uploading } = await queueHarness()
+    holdNextUpload()
+    const first = store.write('First', addAccount('first'))
+    await uploading()
+    const replacing = store.replaceLocalWorkbook(documentOf([5]), 'Other')
+    const second = store.write('Second', addAccount('second'))
+    letUploadGo()
+
+    await first
+    await expect(second).rejects.toThrow(storageWords.noBooks)
+    await replacing
+    expect(store.state.choice?.source).toBe('browser')
+    expect(side.drive.requests.filter((request) => request === 'upload')).toHaveLength(1)
+    await deleteBrowserDocument(store.state.choice!.id)
+  })
+
+  it('does nothing when another file is chosen while the lane is busy, since the Picker needs the tap', async () => {
+    const { store, side, holdNextUpload, letUploadGo, uploading } = await queueHarness()
+    holdNextUpload()
+    const written = store.write('First', addAccount('first'))
+    await uploading()
+    await store.chooseDriveFile('pick')
+    expect(side.signIns).not.toContainEqual({ resume: 'pick', app: 'company' })
+    letUploadGo()
+    await written
+  })
+
+  it('asks Google once during the tap, even for two taps while the ask is open', async () => {
+    const { store, side, holdNextUpload, letUploadGo, uploading } = await queueHarness()
+    let granted: () => void = () => {}
+    const signIn = side.access.signIn
+    side.access = {
+      ...side.access,
+      signIn: async (then) => {
+        await signIn(then)
+        await new Promise<void>((resolve) => (granted = resolve))
+        side.access = { ...side.access, signIn }
+      },
+    }
+    holdNextUpload()
+    const first = store.write('First', addAccount('first'))
+    const second = store.write('Second', addAccount('second'))
+    await vi.waitFor(() => expect(side.signIns).toEqual([null]))
+    granted()
+    await uploading()
+    letUploadGo()
+    await Promise.all([first, second])
+  })
+
+  it('settles once nothing of the file is queued or running', async () => {
+    const { store, holdNextUpload, letUploadGo, uploading } = await queueHarness()
+    holdNextUpload()
+    const first = store.write('First', addAccount('first'))
+    const second = store.write('Second', addAccount('second'))
+    let settled = false
+    const settling = store.settled().then(() => {
+      settled = true
+    })
+    await uploading()
+    expect(settled).toBe(false)
+    letUploadGo()
+    await Promise.all([first, second, settling])
+    expect(settled).toBe(true)
+    expect(store.state.waiting).toEqual([])
+  })
+
+  it('keeps a save that landed after an export counted as not exported', async () => {
+    const side = driveSide()
+    const id = 'local-queue-export'
+    used.add(id)
+    const { ports } = harness({ source: 'browser', id, name: 'Books' }, side)
+    const store = storeOf(ports)
+    await store.open()
+    await store.replaceLocalWorkbook(documentOf([1]), 'Books')
+    const browserId = store.state.choice!.id
+    await store.write('Before', addAccount('before'))
+    const written = store.write('During', addAccount('during'))
+    await store.recordExport()
+    await written
+
+    expect(store.state.snapshot?.meta.unexportedSince).not.toBeNull()
+    await store.recordExport()
+    expect(store.state.snapshot?.meta.unexportedSince).toBeNull()
+    await deleteBrowserDocument(browserId)
   })
 })

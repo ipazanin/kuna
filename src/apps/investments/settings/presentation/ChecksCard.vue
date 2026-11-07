@@ -50,13 +50,18 @@ function typedThreshold(check: CheckName): Decimal | null {
 async function commit(check: CheckName): Promise<void> {
   const threshold = typedThreshold(check)
   if (threshold === null || threshold === thresholdOf(check)) return
-  await writes.write(text.changed(labels[check]), (unit) => writeCheck(unit, heldOf(check), check, threshold, heldOf(check)?.off !== true), { key: check, failedTitle: text.notChanged })
+  await writes.write(text.changed(labels[check]), (unit) => writeCheck(unit, heldOf(check), check, threshold, heldOf(check)?.off !== true), {
+    key: check,
+    failedTitle: text.notChanged,
+    shownAtOnce: true,
+  })
 }
 
 async function switchTo(check: CheckName, on: boolean): Promise<void> {
   await writes.write(on ? text.switchedOn(labels[check]) : text.switchedOff(labels[check]), (unit) => writeCheck(unit, heldOf(check), check, thresholdOf(check), on), {
-    key: check,
+    key: `on-${check}`,
     failedTitle: text.notChanged,
+    shownAtOnce: true,
   })
 }
 </script>
@@ -77,6 +82,7 @@ async function switchTo(check: CheckName, on: boolean): Promise<void> {
           <USwitch
             :id="`check-on-${check}`"
             :model-value="heldOf(check)?.off !== true"
+            :loading="writes.saving(`on-${check}`)"
             :label="text.on"
             :aria-label="`${labels[check]}, ${text.on}`"
             data-testid="check-on"

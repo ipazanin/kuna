@@ -245,7 +245,7 @@ const summary = computed(() => {
                 color="error"
                 variant="ghost"
                 :loading="writes.saving('delete-profile')"
-                :disabled="writes.busy.value || store.state.writing"
+                :disabled="writes.busy.value"
                 :aria-label="words.panel.deleteProfile(profileChoice)"
                 data-testid="profile-delete"
                 @click="deleteProfile"

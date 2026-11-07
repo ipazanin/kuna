@@ -1993,6 +1993,116 @@ export async function statementAccessFlow(page, { press, shoot, inspect }) {
 }
 
 /** With a slow statements folder, the control names the running step and its place, and a screen reader hears it, until the sync is done. */
+/** What the control under this selector shows while a save waits: where it stands, whether it is grayed and whether it spins. */
+function savingControl(page, selector) {
+  return page.evaluate((chosen) => {
+    const control = document.querySelector(chosen)
+    return {
+      value: control?.getAttribute('aria-checked') ?? control?.textContent?.trim() ?? null,
+      disabled: control?.matches(':disabled') ?? false,
+      spinning: (control?.querySelector('.animate-spin') ?? control?.parentElement?.querySelector('.animate-spin')) != null,
+    }
+  }, selector)
+}
+
+async function controlSaving(page, selector, was) {
+  await page
+    .waitForFunction(
+      (chosen, before) => {
+        const control = document.querySelector(chosen)
+        const value = control?.getAttribute('aria-checked') ?? control?.textContent?.trim()
+        return value !== before && control?.matches(':disabled') && (control?.querySelector('.animate-spin') ?? control?.parentElement?.querySelector('.animate-spin')) != null
+      },
+      { timeout: 1_500 },
+      selector,
+      was,
+    )
+    .catch(async () => {
+      throw new Error(`the control did not move at once, grayed with a spinner: ${JSON.stringify(await savingControl(page, selector))}, it stood at ${was}`)
+    })
+}
+
+async function controlLanded(page, selector) {
+  await page
+    .waitForFunction((chosen) => document.querySelector(chosen)?.matches(':disabled') === false, { timeout: 15_000 }, selector)
+    .catch(() => {
+      throw new Error('the control stays grayed after its save')
+    })
+}
+
+const LOAN_SWITCH = '[data-testid="loan-bucket"] [role="switch"]'
+
+/** The shot's name in the page's language, so the English and the Croatian run of one flow keep a shot each. */
+async function shotInLanguage(page, name) {
+  return (await page.evaluate(() => document.documentElement.lang)) === 'hr' ? `${name}-croatian` : name
+}
+
+/** Settings, General, with saves that take seconds: the switch moves at once and spins while the form stays usable, and what is typed there survives the switch's save. */
+export async function savesWaitingFlow(page, { press, shoot, inspect }) {
+  const handle = await page.waitForSelector(LOAN_SWITCH, { visible: true, timeout: 10_000 })
+  await handle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  const { value: was } = await savingControl(page, LOAN_SWITCH)
+  await press(handle)
+  await controlSaving(page, LOAN_SWITCH, was)
+  await shoot(await shotInLanguage(page, 'saves-waiting-switch'))
+
+  const folder = await page.waitForSelector('[data-testid="statements-folder"] input', { visible: true, timeout: 5_000 })
+  await setField(folder, 'Typed/while/saving')
+  await controlLanded(page, LOAN_SWITCH)
+  await inspect?.('the switch once its save landed')
+  if ((await folder.evaluate((input) => input.value)) !== 'Typed/while/saving') throw new Error('the save that landed wiped what was typed in the form')
+  if ((await savingControl(page, LOAN_SWITCH)).value === was) throw new Error('the switch went back after its save landed')
+
+  const save = await page.waitForSelector('form button[type="submit"]:not(:disabled)', { timeout: 5_000 })
+  await save.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await press(save)
+  await page.waitForSelector('form button[type="submit"] .animate-spin', { timeout: 2_000 }).catch(() => {
+    throw new Error('the form Save does not spin while its save waits')
+  })
+  await shoot(await shotInLanguage(page, 'saves-waiting-form'))
+  await page.waitForFunction(() => document.querySelector('[data-testid="write-progress"]') === null, { timeout: 15_000 })
+}
+
+/** Investments, Settings, with saves that take seconds: the benchmark select shows the choice at once, grayed with a spinner. */
+export async function savesWaitingBenchmarkFlow(page, { press, shoot }) {
+  const selector = '[data-testid="benchmark-choice"]'
+  const trigger = await page.waitForSelector(selector, { visible: true, timeout: 10_000 })
+  const { value: was } = await savingControl(page, selector)
+  await trigger.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await press(trigger)
+  const option = await page.waitForFunction(
+    (current) => [...document.querySelectorAll('[role="option"]')].find((candidate) => candidate.textContent?.trim() !== current) ?? null,
+    { timeout: 5_000 },
+    was,
+  )
+  await press(option.asElement())
+  await controlSaving(page, selector, was)
+  await shoot(await shotInLanguage(page, 'saves-waiting-benchmark'))
+  await controlLanded(page, selector)
+  if ((await savingControl(page, selector)).value === was) throw new Error('the select went back after its save landed')
+}
+
+/** Settings, General, with a save that fails: the switch moves at once, then flips back, and a toast says why. */
+export async function saveFailsFlow(page, { press, shoot }) {
+  const handle = await page.waitForSelector(LOAN_SWITCH, { visible: true, timeout: 10_000 })
+  await handle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  const { value: was } = await savingControl(page, LOAN_SWITCH)
+  await press(handle)
+  await controlSaving(page, LOAN_SWITCH, was)
+  await page
+    .waitForFunction(() => [...document.querySelectorAll('[data-slot="description"]')].some((toast) => toast.textContent?.includes('Drive answered 500.')), { timeout: 15_000 })
+    .catch(() => {
+      throw new Error('no toast says why the save failed')
+    })
+  await controlLanded(page, LOAN_SWITCH)
+  if ((await savingControl(page, LOAN_SWITCH)).value !== was) throw new Error('the switch did not flip back after its save failed')
+  await shoot('save-fails')
+}
+
 export async function syncRunningFlow(page, { press, shoot, inspect }) {
   await press(await syncButton(page))
   const running = await controlShows(page, 'running')

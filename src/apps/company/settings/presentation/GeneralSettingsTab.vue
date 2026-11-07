@@ -43,12 +43,12 @@ function removeKey(key: string): void {
   })
 }
 
-const saving = computed(() => writes.busy.value || state.writing)
+const saving = computed(() => writes.busy.value)
 </script>
 
 <template>
   <div v-if="state.workbook" class="flex flex-col gap-6">
-    <GeneralSettingsForm :settings="settings" :facts="packFacts" :saving="savingSettings || state.writing" @save="saveGeneral" />
+    <GeneralSettingsForm :settings="settings" :facts="packFacts" :saving="savingSettings" @save="saveGeneral" />
     <component :is="card" v-for="(card, index) in pack.settingsCards" :key="index" />
     <AppCard
       :title="words.problems.title"

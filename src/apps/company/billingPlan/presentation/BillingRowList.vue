@@ -13,8 +13,6 @@ import { words } from './words'
 defineProps<{
   rows: readonly BillingRowLine[]
   showClient: boolean
-  /** Off while another write runs. */
-  editable: boolean
 }>()
 
 const emit = defineEmits<{
@@ -49,7 +47,6 @@ const phone = usePhoneLayout()
           variant="ghost"
           size="sm"
           class="-me-2"
-          :disabled="!editable"
           :aria-label="words.rows.editRow(row.item, dayLabel(row.date))"
           data-testid="billing-row-edit"
           @click="emit('edit', row)"
@@ -95,7 +92,6 @@ const phone = usePhoneLayout()
               color="neutral"
               variant="ghost"
               size="xs"
-              :disabled="!editable"
               :aria-label="words.rows.editRow(row.item, dayLabel(row.date))"
               data-testid="billing-row-edit"
               @click="emit('edit', row)"

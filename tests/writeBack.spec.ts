@@ -118,7 +118,7 @@ describe.each([
 
     await expect(setVerdicts(store, [recategorisation(row(store, 'GADGET CORNER'), 'snacks', settings(store))])).rejects.toThrow('"snacks" is not a category on the categories tab.')
     expect(row(store, 'GADGET CORNER')).toMatchObject({ category: 'unknown', flaggedBy: 'ai' })
-    expect(store.state.writing).toBe(false)
+    expect(store.state.waiting).toEqual([])
   })
 
   it('refuses Undo once the row changed again since', async () => {

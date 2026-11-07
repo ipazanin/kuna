@@ -13,7 +13,7 @@ import { invoiceOf } from './fixtures/billingPlan'
 import { exampleStudio } from './fixtures/exampleStudio'
 
 const store = vi.hoisted(() => ({
-  state: null as unknown as { workbook: Workbook | null; snapshot: null; status: string; error: string | null; writing: boolean },
+  state: null as unknown as { workbook: Workbook | null; snapshot: null; status: string; error: string | null },
   sync: async (): Promise<void> => undefined,
   written: [] as Invoice[],
   async write(_title: string, work: (unit: UnitOfWork) => void): Promise<null> {
@@ -66,7 +66,7 @@ function openedRun() {
 describe('the checks before an invoice is made', () => {
   beforeEach(() => {
     vi.useFakeTimers({ now: new Date('2026-10-21T10:00:00'), toFake: ['Date'] })
-    store.state = reactive({ workbook: googleWorkbook(), snapshot: null, status: 'ready', error: null, writing: false })
+    store.state = reactive({ workbook: googleWorkbook(), snapshot: null, status: 'ready', error: null })
     store.sync = async () => undefined
     store.written = []
     google.session = createFakeInvoiceGoogle((_title, offered) => offered, 2026)
@@ -75,14 +75,6 @@ describe('the checks before an invoice is made', () => {
 
   afterEach(() => {
     vi.useRealTimers()
-  })
-
-  it('refuses to go on when a sync already running kept the register from being read again', async () => {
-    const run = openedRun()
-    store.state.status = 'syncing'
-    await run.check()
-    expect(run.stage.value).toMatchObject({ kind: 'edit', message: expect.stringContaining('was not read again') })
-    run.dispose()
   })
 
   it('writes the register row under the number the PDF printed, even when a sync after the check moves the next number on', async () => {

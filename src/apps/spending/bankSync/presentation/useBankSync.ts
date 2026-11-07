@@ -12,19 +12,15 @@ import type { LinkableBank } from '../../workbook/domain/spendingSettings'
 import { today } from '../../../../shared/calendar/civilDate'
 import { isUnauthorized } from '../../../../shared/google/googleApi'
 import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
-import { whenIdle } from '../../../../shared/sync/presentation/pageSync'
 
 const store = useSpendingBooks()
 const lastOutcome = shallowRef<BankSyncOutcome | null>(null)
 const failure = ref<string | null>(null)
 const busy = ref(false)
 
-const idle = (): Promise<void> => whenIdle(store)
-
 const importer = bankImporter({
   script: bankSyncPort,
   store,
-  whenIdle: idle,
   asked: (read: BankRead) => saveLastFetch({ at: Date.now(), problems: bankProblemLines(read) }),
   day: today,
 })
@@ -76,7 +72,7 @@ export function useBankSync() {
     busy.value = true
     try {
       return await withGoogleAccess([BANK_SYNC_SCOPE], async () => {
-        await finishBankLink({ script: await bankSyncPort(book.settings.bankSyncDeployment), pending: { load: loadPendingLink, save: savePendingLink }, store, whenIdle: idle })
+        await finishBankLink({ script: await bankSyncPort(book.settings.bankSyncDeployment), pending: { load: loadPendingLink, save: savePendingLink }, store })
         return await fetchAndImport()
       })
     } catch (reason) {
