@@ -24,8 +24,14 @@ export const en = {
   }),
   balanceDiffers: (product: string, balance: string, worked: string) => `The export's last ${product} balance is ${balance}, but its rows add up to ${worked}, so a row may be missing.`,
   beforeOpeningLeftOut: (count: number): EnglishForms => ({ one: '1 row before its account opened left out.', other: `${count} rows before their accounts opened left out.` }),
-  broughtByFile: (count: number): EnglishForms => ({ one: '1 row already brought by a file.', other: `${count} rows already brought by a file.` }),
-  broughtBySync: (count: number): EnglishForms => ({ one: '1 row already brought by the bank sync.', other: `${count} rows already brought by the bank sync.` }),
+  coveredByFile: (count: number, account: string, day: string): EnglishForms => ({
+    one: `1 row of ${account} left out, since a file covers the days up to ${day}.`,
+    other: `${count} rows of ${account} left out, since a file covers the days up to ${day}.`,
+  }),
+  coveredBySync: (count: number, account: string, day: string): EnglishForms => ({
+    one: `1 row of ${account} left out, since the bank sync covers the days from ${day}.`,
+    other: `${count} rows of ${account} left out, since the bank sync covers the days from ${day}.`,
+  }),
 }
 
 export const hr: Translation<typeof en> = {
@@ -67,11 +73,15 @@ export const hr: Translation<typeof en> = {
     few: `Izostavljeno redaka prije otvaranja računa: ${count}.`,
     other: `Izostavljeno redaka prije otvaranja računa: ${count}.`,
   }),
-  broughtByFile: (count): CroatianForms => ({ one: `Već uneseno iz datoteke: ${count}.`, few: `Već uneseno iz datoteke: ${count}.`, other: `Već uneseno iz datoteke: ${count}.` }),
-  broughtBySync: (count): CroatianForms => ({
-    one: `Već uneseno sinkronizacijom s bankom: ${count}.`,
-    few: `Već uneseno sinkronizacijom s bankom: ${count}.`,
-    other: `Već uneseno sinkronizacijom s bankom: ${count}.`,
+  coveredByFile: (count, account, day): CroatianForms => ({
+    one: `Izostavljeno redaka računa ${account}: ${count}, jer datoteka pokriva dane do ${day}`,
+    few: `Izostavljeno redaka računa ${account}: ${count}, jer datoteka pokriva dane do ${day}`,
+    other: `Izostavljeno redaka računa ${account}: ${count}, jer datoteka pokriva dane do ${day}`,
+  }),
+  coveredBySync: (count, account, day): CroatianForms => ({
+    one: `Izostavljeno redaka računa ${account}: ${count}, jer sinkronizacija s bankom pokriva dane od ${day}`,
+    few: `Izostavljeno redaka računa ${account}: ${count}, jer sinkronizacija s bankom pokriva dane od ${day}`,
+    other: `Izostavljeno redaka računa ${account}: ${count}, jer sinkronizacija s bankom pokriva dane od ${day}`,
   }),
 }
 

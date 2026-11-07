@@ -16,13 +16,16 @@ export const BANK_SYNC_LABEL = 'Enable Banking'
 /** The statuses of money that may still book. Any other status but `BOOK`, such as a cancelled row, is no money at all and goes unmentioned. */
 const PENDING_STATUSES: readonly string[] = ['PDNG', 'HOLD']
 
+/** A row with any other direction might be money in or out, so it is not read as either. */
+const KNOWN_DIRECTIONS: readonly string[] = ['CRDT', 'DBIT']
+
 /** What a row would be, before its key. */
 type KeylessRow = Omit<StatementRow, 'importKey'>
 
 function rowOf(transaction: BankTransaction, account: Account): KeylessRow | null {
   const date = parseCivilDate((transaction.madeOn ?? transaction.bookedOn ?? transaction.valueOn ?? '').slice(0, 10))
   const number = decimalOf(transaction.amount)
-  if (date === null || number === null) return null
+  if (date === null || number === null || !KNOWN_DIRECTIONS.includes(transaction.direction)) return null
   const money = accountMoneyFromAmount(Math.abs(number))
   const out = transaction.direction === 'DBIT'
   const description = transaction.remittance.join(' ').trim()

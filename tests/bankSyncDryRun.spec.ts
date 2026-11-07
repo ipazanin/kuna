@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import { BankScriptFailure, readBanks } from '../src/apps/spending/bankSync/application/bankSync'
 import type { BankRead, BankSyncPort } from '../src/apps/spending/bankSync/application/bankSync'
-import { fetchFrom } from '../src/apps/spending/bankSync/domain/bankLinks'
+import { accountsOfLinked, fetchFrom } from '../src/apps/spending/bankSync/domain/bankLinks'
 import { bankSyncRows } from '../src/apps/spending/bankSync/domain/bankSyncRows'
 import type { BankSession, BankTransaction } from '../src/apps/spending/bankSync/domain/bankAnswer'
 import { fakeBankSync } from '../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync'
+import { reviewCount } from '../src/apps/spending/statements/domain/reviewQueue'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
 import type { StatementRow, StatementRows } from '../src/apps/spending/statements/domain/statementRows'
+import type { Account } from '../src/apps/spending/workbook/domain/account'
 import type { SpendingBook } from '../src/apps/spending/workbook/domain/readSpendingBook'
 import { spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
 import type { SpendingRule } from '../src/apps/spending/workbook/domain/spendingRule'
@@ -16,9 +18,9 @@ import { SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/
 import { fakeSpendingDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending'
 import { GoogleApiError } from '../src/shared/google/googleApi'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
-import { RULE_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, RULE_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
-import { ACCOUNTS, CATEGORIES, category, OTP, REVOLUT_EUR, row } from './fixtures/spending'
+import { ACCOUNTS, CATEGORIES, category, OTP, REVOLUT_EUR, REVOLUT_USD, row } from './fixtures/spending'
 import { civil } from './fixtures/ledger'
 
 const DAY = civil('2026-10-30')
@@ -81,28 +83,34 @@ function fileStatement(rows: readonly Partial<StatementRow>[]): StatementRows {
 }
 
 describe('a synced row against the file', () => {
-  it('skips a row a file brought on the same day, adds nothing and says so', () => {
+  it('leaves out a row on the last day a file covers, adds nothing and says so with the account and the day', () => {
     const run = statementDryRun(bookOf([fileRow(1)]), syncOf([BANK]), DAY, () => '00000000-0000-4000-8000-000000000001')
     expect(run.added).toEqual([])
     expect(run.lines.map((line) => line.outcome)).toEqual(['other-source'])
-    expect(run.notes).toEqual(['1 row already brought by a file.'])
+    expect(run.notes).toEqual(['1 row of OTP current left out, since a file covers the days up to 28 Oct 2026.'])
   })
 
-  it('keeps a sync row of the same amount on another day', () => {
+  it('leaves out a row before that day whatever its amount, since a sync row may hold a fee the file split off', () => {
+    const run = statementDryRun(bookOf([fileRow(1)]), syncOf([{ ...BANK, amount: '7.00', bookedOn: '2026-10-20' }]), DAY)
+    expect(run.lines.map((line) => line.outcome)).toEqual(['other-source'])
+  })
+
+  it('takes a row the day after, of the same money too', () => {
     const run = statementDryRun(bookOf([fileRow(1, '2026-10-27')]), syncOf([BANK]), DAY)
     expect(run.lines.map((line) => line.outcome)).toEqual(['new'])
   })
 
-  it('keeps two equal payments on one day two: one a file brought is skipped, and the other is new', () => {
-    const run = statementDryRun(bookOf([fileRow(1)]), syncOf([BANK, { ...BANK, reference: 'ref-2' }]), DAY)
-    expect(run.lines.map((line) => line.outcome).sort()).toEqual(['new', 'other-source'])
-    expect(run.added.map((added) => added.importKey)).toHaveLength(1)
+  it('keeps the days apart per account, so a file on one account leaves another whole', () => {
+    const elsewhere = row(REVOLUT_EUR, '2026-10-29', -1, null, { source: 'statement', importKey: '0123456789abcdef-9' })
+    const run = statementDryRun(bookOf([elsewhere]), syncOf([BANK]), DAY)
+    expect(run.lines.map((line) => line.outcome)).toEqual(['new'])
   })
 
-  it('stays the same on the next sync, once one of the two is on the file by its key', () => {
-    const first = statementDryRun(bookOf([fileRow(1)]), syncOf([BANK, { ...BANK, reference: 'ref-2' }]), DAY)
-    const after = bookOf([fileRow(1), ...first.added])
-    const again = statementDryRun(after, syncOf([BANK, { ...BANK, reference: 'ref-2' }]), DAY)
+  it('stays the same on the next sync, however many times the rows are fetched', () => {
+    const answer = [BANK, { ...BANK, reference: 'ref-2', bookedOn: '2026-10-29' }]
+    const first = statementDryRun(bookOf([fileRow(1)]), syncOf(answer), DAY)
+    expect(first.added).toHaveLength(1)
+    const again = statementDryRun(bookOf([fileRow(1), ...first.added]), syncOf(answer), DAY)
     expect(again.added).toEqual([])
     expect(again.lines.map((line) => line.outcome).sort()).toEqual(['already-in', 'other-source'])
   })
@@ -127,12 +135,18 @@ describe('a synced row against the file', () => {
 })
 
 describe('a file against rows a sync brought', () => {
-  it('skips a row of the same money and day, and says the sync brought it', () => {
-    const synced = row(OTP, '2026-10-28', -6.5, null, { payee: 'Corner bakery', source: 'statement', importKey: 'bank-ref-1', statement: 'Enable Banking' })
-    const run = statementDryRun(bookOf([synced]), fileStatement([{}]), DAY)
+  const synced = (date: string) => row(OTP, date, -6.5, null, { payee: 'Corner bakery', source: 'statement', importKey: 'bank-ref-1', statement: 'Enable Banking' })
+
+  it('leaves out a row from the first day the sync covers, and says so with the account and the day', () => {
+    const run = statementDryRun(bookOf([synced('2026-10-28')]), fileStatement([{ date: civil('2026-10-29'), amount: accountMoneyFromAmount(-99) }]), DAY)
     expect(run.added).toEqual([])
     expect(run.lines.map((line) => line.outcome)).toEqual(['other-source'])
-    expect(run.notes).toEqual(['1 row already brought by the bank sync.'])
+    expect(run.notes).toEqual(['1 row of OTP current left out, since the bank sync covers the days from 28 Oct 2026.'])
+  })
+
+  it('takes a row from before the sync began, so a file can fill what came earlier', () => {
+    const run = statementDryRun(bookOf([synced('2026-10-29')]), fileStatement([{}]), DAY)
+    expect(run.lines.map((line) => line.outcome)).toEqual(['new'])
   })
 
   it('leaves a second file of the same rows to the rows it brought, by key', () => {
@@ -148,6 +162,31 @@ describe('a file against rows a sync brought', () => {
       DAY,
     )
     expect(run.added.every((added) => added.pair !== null)).toBe(true)
+  })
+})
+
+describe('an exchange or a pocket move from the sync, whose fields are not known yet', () => {
+  const leg = (account: Account, direction: string, amount: string, currency: string, payee: string, reference: string): StatementRows =>
+    bankSyncRows([{ ...BANK, reference, direction, amount, currency, creditorName: payee, debtorName: payee }], account)
+
+  it('leaves both legs of an exchange on review, unpaired, each moving its own balance once', () => {
+    const rows = [...leg(REVOLUT_EUR, 'DBIT', '100.00', 'EUR', 'Exchanged to USD', 'x-1').rows, ...leg(REVOLUT_USD, 'CRDT', '108.00', 'USD', 'Exchanged from EUR', 'x-2').rows]
+    const run = statementDryRun(bookOf([]), { label: 'Enable Banking', notes: [], rows }, DAY)
+    expect(run.added.map((added) => [added.amount, added.category, added.pair])).toEqual([
+      [accountMoneyFromAmount(-100), null, null],
+      [accountMoneyFromAmount(108), null, null],
+    ])
+    expect(reviewCount({ ...bookOf(run.added) })).toBe(2)
+  })
+
+  it('leaves a pocket move on one account on review, where the two legs cancel out', () => {
+    const rows = [...leg(REVOLUT_EUR, 'DBIT', '15.00', 'EUR', 'To pocket', 'p-1').rows, ...leg(REVOLUT_EUR, 'CRDT', '15.00', 'EUR', 'To pocket', 'p-2').rows]
+    const run = statementDryRun(bookOf([]), { label: 'Enable Banking', notes: [], rows }, DAY)
+    expect(run.added.map((added) => [added.category, added.pair])).toEqual([
+      [null, null],
+      [null, null],
+    ])
+    expect(run.added[0]!.amount + run.added[1]!.amount).toBe(0)
   })
 })
 
@@ -236,6 +275,32 @@ describe('readBanks', () => {
     expect((await readBanks(onRows, bookOf([]), DAY)).ended).toEqual(['otp'])
   })
 
+  it('reads neither of two linked accounts that fit one Spending account, says so, and reads the rest', async () => {
+    const twice: BankSyncPort = {
+      ...port,
+      sessions: async () => [
+        {
+          bank: 'Revolut',
+          status: 'AUTHORIZED',
+          accounts: [
+            { uid: 'current', iban: REVOLUT_EUR.iban, currency: 'EUR' },
+            { uid: 'pocket', iban: REVOLUT_EUR.iban, currency: 'EUR' },
+          ],
+        },
+        OTP_SESSION,
+      ],
+      transactions: async () => [BANK],
+    }
+    const read = await readBanks(twice, bookOf([]), DAY)
+    expect(read.problems).toEqual(['Revolut has more than one account that fits Revolut EUR, so none of them was read.'])
+    expect(new Set(read.statement.rows.map((statementRow) => statementRow.account))).toEqual(new Set([OTP.id]))
+  })
+
+  it('sends a linked account to the current account when a savings account keeps the same IBAN', async () => {
+    const savings = { ...REVOLUT_EUR, id: recordIdOf(ACCOUNT_RECORDS, 'a0000000-0000-4000-8000-000000000009'), name: 'Pocket', kind: 'savings' as const }
+    expect(accountsOfLinked({ uid: 'u', iban: REVOLUT_EUR.iban, currency: 'EUR' }, 'revolut', [savings, REVOLUT_EUR])).toEqual([REVOLUT_EUR])
+  })
+
   it('asks plainly for recent rows, two weeks back of the newest row, and for all it can have the first time', async () => {
     const asked: [string, string, boolean][] = []
     const counting: BankSyncPort = {
@@ -257,6 +322,20 @@ describe('fetchFrom', () => {
 
   it('asks for what the bank has once the newest row is past a period a bank may refuse', () => {
     expect(fetchFrom(OTP, synced('2026-03-01'), DAY)).toEqual({ from: civil('2026-02-15'), longest: true })
+  })
+
+  it('starts a little back of the last day a file covers and asks plainly, so a file holding every row never repeats the longest fetch', () => {
+    const fromFile = [{ account: OTP.id, date: civil('2026-10-20'), importKey: '0123456789abcdef-1' }]
+    expect(fetchFrom(OTP, fromFile, DAY)).toEqual({ from: civil('2026-10-06'), longest: false })
+  })
+
+  it('asks for what the bank has when a file ended longer ago than a bank may allow', () => {
+    const fromFile = [{ account: OTP.id, date: civil('2026-05-01'), importKey: '0123456789abcdef-1' }]
+    expect(fetchFrom(OTP, fromFile, DAY)).toEqual({ from: civil('2026-04-17'), longest: true })
+  })
+
+  it('leaves typed rows out of it, since they say nothing of what a bank has given', () => {
+    expect(fetchFrom(OTP, [{ account: OTP.id, date: civil('2026-10-20'), importKey: '' }], DAY)).toEqual({ from: OTP.openedOn, longest: true })
   })
 
   it('stays plain within it', () => {

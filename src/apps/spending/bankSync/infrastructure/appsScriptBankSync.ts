@@ -1,6 +1,6 @@
 import { BankScriptFailure } from '../application/bankSync'
 import type { BankSyncPort } from '../application/bankSync'
-import type { BankSession, BankTransaction } from '../domain/bankAnswer'
+import type { BankBalance, BankSession, BankTransaction } from '../domain/bankAnswer'
 import { words } from '../domain/words'
 import { googleFetch, isUnauthorized } from '../../../../shared/google/googleApi'
 
@@ -12,8 +12,10 @@ interface RunAnswer {
   readonly error?: { readonly message?: string; readonly details?: readonly { readonly errorMessage?: string }[] }
 }
 
-/** The bank sync script, called with the page's Google token through the Apps Script API. */
-export function appsScriptBankSync(deployment: string, tokenFor: () => string): BankSyncPort {
+/** The bank sync script, called with the page's Google token through the Apps Script API. `psuUserAgent` is the browser's on a fetch a person started, and goes with each call that reads a bank. */
+export function appsScriptBankSync(deployment: string, tokenFor: () => string, psuUserAgent: string | null = null): BankSyncPort {
+  const present = psuUserAgent === null ? [] : [psuUserAgent]
+
   async function run<Answer>(name: string, parameters: readonly unknown[]): Promise<Answer> {
     let answer: RunAnswer
     try {
@@ -35,7 +37,8 @@ export function appsScriptBankSync(deployment: string, tokenFor: () => string): 
     startLink: async (bankName, redirectUrl, state) => (await run<{ readonly url: string }>('startLink', [bankName, redirectUrl, state])).url,
     finishLink: async (code) => (await run<{ readonly validUntil: string }>('finishLink', [code])).validUntil,
     // Google's page does not say whether an empty list comes back as `[]` or as no result at all.
-    sessions: async () => (await run<readonly BankSession[] | undefined>('accounts', [])) ?? [],
-    transactions: async (accountUid, from, longest) => (await run<readonly BankTransaction[] | undefined>('transactions', [accountUid, from, longest ? 'longest' : 'default'])) ?? [],
+    sessions: async () => (await run<readonly BankSession[] | undefined>('accounts', present)) ?? [],
+    transactions: async (accountUid, from, longest) => (await run<readonly BankTransaction[] | undefined>('transactions', [accountUid, from, longest ? 'longest' : 'default', ...present])) ?? [],
+    balances: async (accountUid) => (await run<readonly BankBalance[] | undefined>('balances', [accountUid, ...present])) ?? [],
   }
 }

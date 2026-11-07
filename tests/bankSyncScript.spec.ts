@@ -16,6 +16,7 @@ interface Call {
   readonly method: string
   readonly token: string
   readonly body: unknown
+  readonly psuUserAgent: string | undefined
 }
 
 type Answers = (call: Call) => unknown
@@ -24,7 +25,9 @@ type Answers = (call: Call) => unknown
 function script(answers: Answers, properties: Record<string, string> = {}) {
   const store: Record<string, string> = { ENABLE_BANKING_APP_ID: 'made-up-app-id', ENABLE_BANKING_PRIVATE_KEY: privateKey, ...properties }
   const calls: Call[] = []
+  const logged: string[] = []
   const sandbox: Record<string, unknown> = {
+    Logger: { log: (line: string) => logged.push(line) },
     PropertiesService: {
       getScriptProperties: () => ({
         getProperty: (key: string) => store[key] ?? null,
@@ -40,8 +43,14 @@ function script(answers: Answers, properties: Record<string, string> = {}) {
       computeRsaSha256Signature: (value: string, key: string) => createSign('RSA-SHA256').update(value).sign(key),
     },
     UrlFetchApp: {
-      fetch: (url: string, params: { method: string; headers: { Authorization: string }; payload?: string }) => {
-        const call = { url, method: params.method, token: params.headers.Authorization.replace('Bearer ', ''), body: params.payload === undefined ? undefined : JSON.parse(params.payload) }
+      fetch: (url: string, params: { method: string; headers: { Authorization: string; 'Psu-User-Agent'?: string }; payload?: string }) => {
+        const call = {
+          url,
+          method: params.method,
+          token: params.headers.Authorization.replace('Bearer ', ''),
+          body: params.payload === undefined ? undefined : JSON.parse(params.payload),
+          psuUserAgent: params.headers['Psu-User-Agent'],
+        }
         calls.push(call)
         const answer = answers(call) as { status?: number } | undefined
         return { getResponseCode: () => answer?.status ?? 200, getContentText: () => JSON.stringify(answer ?? {}) }
@@ -50,8 +59,8 @@ function script(answers: Answers, properties: Record<string, string> = {}) {
   }
   runInNewContext(SOURCE, sandbox)
   // `run` crosses back out of the sandbox as plain JSON, as `scripts.run` hands the answer over.
-  const run = (name: string, ...parameters: unknown[]): unknown => JSON.parse(JSON.stringify((sandbox[name] as (...inputs: unknown[]) => unknown)(...parameters)))
-  return { run, calls, store }
+  const run = (name: string, ...parameters: unknown[]): unknown => JSON.parse(JSON.stringify((sandbox[name] as (...inputs: unknown[]) => unknown)(...parameters) ?? null))
+  return { run, calls, store, logged }
 }
 
 function base64urlJson(part: string): Record<string, unknown> {
@@ -178,6 +187,94 @@ describe('the bank sync script', () => {
       'https://api.enablebanking.com/accounts/account-uid/transactions?date_from=2026-10-01&strategy=default&continuation_key=k2',
     ])
     expect(Object.keys(store).sort()).toEqual(['ENABLE_BANKING_APP_ID', 'ENABLE_BANKING_PRIVATE_KEY'])
+  })
+
+  it('marks a fetch as a person being there on each call that reads a bank, only when told to', () => {
+    const answers: Answers = ({ url }) => {
+      if (url.endsWith('/sessions/live')) return { status: 'AUTHORIZED', accounts: ['u1'] }
+      if (url.endsWith('/details')) return { account_id: { iban: 'LT000000000000000001' }, currency: 'EUR' }
+      return { transactions: [], balances: [] }
+    }
+    const present = script(answers, { 'SESSION Revolut': 'live' })
+    present.run('accounts', 'made-up browser')
+    present.run('transactions', 'u1', '2026-10-01', 'default', 'made-up browser')
+    present.run('balances', 'u1', 'made-up browser')
+    expect(present.calls.map(({ url, psuUserAgent }) => [new URL(url).pathname, psuUserAgent])).toEqual([
+      ['/sessions/live', undefined],
+      ['/accounts/u1/details', 'made-up browser'],
+      ['/accounts/u1/transactions', 'made-up browser'],
+      ['/accounts/u1/balances', 'made-up browser'],
+    ])
+
+    const absent = script(answers, { 'SESSION Revolut': 'live' })
+    absent.run('accounts')
+    absent.run('transactions', 'u1', '2026-10-01', 'default')
+    absent.run('balances', 'u1')
+    expect(absent.calls.every(({ psuUserAgent }) => psuUserAgent === undefined)).toBe(true)
+  })
+
+  it('reads each balance with its currency and kind', () => {
+    const { run } = script(() => ({ balances: [{ name: 'Made-up', balance_amount: { amount: '12.50', currency: 'EUR' }, balance_type: 'ITBD' }] }))
+    expect(run('balances', 'u1')).toEqual([{ amount: '12.50', currency: 'EUR', type: 'ITBD' }])
+  })
+
+  it('hands over a row without the usual fields rather than failing the whole account', () => {
+    const { run } = script(() => ({ transactions: [{ status: 'BOOK' }] }))
+    expect(run('transactions', 'u1', '2026-10-01', 'default')).toMatchObject([{ amount: '', currency: '', direction: '', status: 'BOOK' }])
+  })
+
+  describe('logBankFields', () => {
+    const SECRETS = ['LT000000000000000001', 'Made-up Owner', 'made-up-uid', 'made-up-session', '123.45', 'made-up-reference', 'Made-up shop', 'made-up-proprietary']
+    const answers: Answers = ({ url }) => {
+      if (url.includes('/sessions/')) return { status: 'AUTHORIZED', session_id: 'made-up-session', accounts: ['made-up-uid'] }
+      if (url.endsWith('/details')) return { account_id: { iban: 'LT000000000000000001' }, currency: 'XXX', name: 'Made-up Owner', cash_account_type: 'CACC' }
+      if (url.endsWith('/balances')) return { balances: [{ balance_amount: { amount: '123.45', currency: 'EUR' }, balance_type: 'ITAV' }] }
+      if (url.includes('continuation_key')) {
+        return { transactions: [{ transaction_amount: { amount: '123.45', currency: 'EUR' }, status: 'made-up-proprietary', booking_date: '2026-10-02' }] }
+      }
+      return {
+        transactions: [
+          {
+            entry_reference: 'made-up-reference',
+            transaction_amount: { amount: '123.45', currency: 'EUR' },
+            credit_debit_indicator: 'DBIT',
+            status: 'BOOK',
+            booking_date: '2026-10-02',
+            transaction_date: '2026-10-01T10:00:00',
+            creditor: { name: 'Made-up shop' },
+            exchange_rate: { unit_currency: 'USD' },
+            remittance_information: ['Made-up shop'],
+            note: '',
+          },
+        ],
+        continuation_key: 'next',
+      }
+    }
+
+    it('logs field names and counts for every page, and no value at all', () => {
+      const { run, logged, calls } = script(answers, { 'SESSION Revolut': 'made-up-session' })
+      expect(run('logBankFields') ?? null).toBeNull()
+      const log = logged.join('\n')
+      SECRETS.forEach((secret) => expect(log).not.toContain(secret))
+      expect(logged).toHaveLength(4)
+      const rows = JSON.parse(logged[3]!.slice(logged[3]!.indexOf('{'))) as { count: number; fields: Record<string, number>; codes: Record<string, number>; days: Record<string, number> }
+      expect(logged[3]).toContain('Revolut account 1 transactions')
+      expect(rows.count).toBe(2)
+      expect(rows.fields).toMatchObject({ 'transaction_amount.amount': 2, entry_reference: 1, 'exchange_rate.unit_currency': 1, 'remittance_information[]': 1, 'creditor.name': 1 })
+      expect(rows.fields.note).toBeUndefined()
+      expect(rows.codes).toEqual({ 'status BOOK': 1, 'status other': 1, 'credit_debit_indicator DBIT': 1 })
+      expect(rows.days).toEqual({ bookingDateWithTime: 0, transactionDateWithTime: 1, valueDateWithTime: 0, madeOnAnotherDay: 1 })
+      expect(logged[2]).toContain('balance_type ITAV')
+      expect(logged[1]).toContain('"singleCurrency":false')
+      expect(calls.filter(({ url }) => !url.includes('/sessions/')).every(({ psuUserAgent }) => psuUserAgent !== undefined)).toBe(true)
+    })
+
+    it('writes nothing to Script Properties', () => {
+      const { run, store } = script(answers, { 'SESSION Revolut': 'made-up-session' })
+      const before = JSON.stringify(store)
+      run('logBankFields')
+      expect(JSON.stringify(store)).toBe(before)
+    })
   })
 
   it("throws Enable Banking's own error, for Kuna to show", () => {

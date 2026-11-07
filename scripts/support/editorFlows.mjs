@@ -6132,11 +6132,24 @@ export function spendingBankSyncRowsFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-result"]')
-    await waitForTextIn(page, '[data-testid="spending-bank-sync-notes"] li', words.spendingStatementReading.broughtByFile(1).one)
+    await waitForTextIn(page, '[data-testid="spending-bank-sync-notes"] li', words.spendingStatementReading.coveredByFile(1, 'OTP current', '').one)
     await page.waitForSelector('[data-testid="spending-bank-sync-unknown"]', { visible: true, timeout: 5_000 })
     await delay(300)
     await inspect?.('the bank sync with rows a file brought')
     await shoot('spending-import-bank-sync')
+  }
+}
+
+/** On Settings, Bank sync when Revolut states a balance Kuna does not reach: the note about it, with the rows in. */
+export function spendingBankSyncBalanceFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-result"]')
+    await waitForTextIn(page, '[data-testid="spending-bank-sync-notes"] li', words.spendingBankSyncReading.balanceDiffers('Revolut EUR', '|', '').split('|')[0])
+    await delay(300)
+    await inspect?.('the bank sync when a balance differs')
+    await shoot('spending-bank-sync-balance')
   }
 }
 

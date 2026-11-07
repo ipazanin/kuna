@@ -29,7 +29,7 @@ const shown = computed(() => {
       line.outcome === 'already-in'
         ? { label: words.import.outcome.alreadyIn, color: 'neutral' as const }
         : line.outcome === 'other-source'
-          ? { label: isBankSyncKey(line.row.importKey) ? words.import.outcome.broughtByFile : words.import.outcome.broughtBySync, color: 'neutral' as const }
+          ? { label: isBankSyncKey(line.row.importKey) ? words.import.outcome.coveredByFile : words.import.outcome.coveredBySync, color: 'neutral' as const }
           : line.outcome === 'filled'
             ? { label: words.import.outcome.filled, color: 'info' as const }
             : line.outcome === 'before-opening'

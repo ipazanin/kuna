@@ -7,7 +7,8 @@ export interface BankTransaction {
   /** A decimal without a sign, as `transaction_amount.amount`. */
   readonly amount: string
   readonly currency: string
-  readonly direction: 'CRDT' | 'DBIT'
+  /** `CRDT` or `DBIT`. A row with neither cannot be read. */
+  readonly direction: string
   /** Enable Banking's `status`, such as `BOOK` or `PDNG`. */
   readonly status: string
   readonly bookedOn: string | null
@@ -19,6 +20,15 @@ export interface BankTransaction {
   readonly debtorName: string | null
   readonly debtorIban: string | null
   readonly remittance: readonly string[]
+}
+
+/** One of the balances a bank states for an account. */
+export interface BankBalance {
+  /** A decimal, negative for an overdrawn account, or blank if the bank gave none. */
+  readonly amount: string
+  readonly currency: string
+  /** Enable Banking's `balance_type`, such as `ITBD` or `ITAV`. */
+  readonly type: string
 }
 
 /** One account a session reaches. */

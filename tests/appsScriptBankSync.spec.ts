@@ -50,6 +50,33 @@ describe('appsScriptBankSync', () => {
     ])
   })
 
+  it("sends the browser's user agent with each call that reads a bank when a person started the fetch", async () => {
+    const present = appsScriptBankSync('AKfycb-made-up', () => 'script-token', 'made-up browser')
+    const requests = stubScript(() => Response.json({ done: true, response: { result: [] } }))
+
+    await present.sessions()
+    await present.transactions('account-uid', civil('2026-10-20'), false)
+    await present.balances('account-uid')
+
+    expect(requests.map(({ init }) => JSON.parse(String(init.body)))).toEqual([
+      { function: 'accounts', parameters: ['made-up browser'] },
+      { function: 'transactions', parameters: ['account-uid', '2026-10-20', 'default', 'made-up browser'] },
+      { function: 'balances', parameters: ['account-uid', 'made-up browser'] },
+    ])
+  })
+
+  it('sends none on a fetch nobody started', async () => {
+    const requests = stubScript(() => Response.json({ done: true, response: { result: [] } }))
+
+    await port.sessions()
+    await port.balances('account-uid')
+
+    expect(requests.map(({ init }) => JSON.parse(String(init.body)))).toEqual([
+      { function: 'accounts', parameters: [] },
+      { function: 'balances', parameters: ['account-uid'] },
+    ])
+  })
+
   it('returns what `finishLink` and `accounts` answer', async () => {
     stubScript(() => Response.json({ done: true, response: { result: { validUntil: '2027-05-03T12:00:00+00:00' } } }))
     await expect(port.finishLink('made-up-code')).resolves.toBe('2027-05-03T12:00:00+00:00')

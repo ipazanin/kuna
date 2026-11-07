@@ -8,12 +8,23 @@ The real path has not been tried yet. Your first run is its first trial, and the
 
 ## 1. The Enable Banking application
 
-1. Sign in at [enablebanking.com](https://enablebanking.com/) with your email and open API applications in the Control Panel.
-2. Add a new application, in the **production** environment, keeping the default of a key made in your browser.
-3. Give it a name, which your banks show you when you approve. A production application also asks for a data protection email and a privacy address, for which `https://ipazanin.github.io/kuna/privacy.html` is the one to give.
-4. Add `https://ipazanin.github.io/kuna/` as the redirect URL, exactly so, with no `#`. Enable Banking adds `?code=...&state=...` to it, and Kuna reads them from there.
-5. Register. Your browser downloads `<application id>.pem`, and the file's name is the application's id. Keep the file out of this repository.
-6. Press Activate by linking accounts and approve your OTP and Revolut accounts. This puts the application in restricted mode, which reads only the accounts linked here. It does not replace the approval Kuna asks for later, so you approve each bank twice.
+1. Enter your email at [enablebanking.com](https://enablebanking.com/) and open the one-time link. There is no separate signup. Open API applications in the Control Panel.
+2. Add a new application, in the **production** environment, keeping the default of a key made in your browser. No certificate is involved.
+3. Fill in the form:
+
+   | Field                 | Value                                                  |
+   | --------------------- | ------------------------------------------------------ |
+   | Name                  | `Kuna`. Your banks show it when you approve            |
+   | Description           | A line such as `Personal budgeting, read only`         |
+   | Data protection email | Your own email                                         |
+   | Privacy URL           | `https://ipazanin.github.io/kuna/privacy.html`         |
+   | Terms URL             | The same address, since Kuna has no terms page         |
+   | Redirect URL          | `https://ipazanin.github.io/kuna/`, exactly so, no `#` |
+
+   Enable Banking adds `?code=...&state=...` to the redirect, and Kuna reads them from there.
+
+4. Register. Your browser downloads `<application id>.pem`, and the file's name is the application's id. Keep the file out of this repository.
+5. Press Activate by linking accounts and approve **every account Revolut and OTP offer**, since the API leaves out anything not linked here. This puts the application in restricted mode. It does not replace the approval Kuna asks for later, so you approve each bank twice. OTP is listed as beta, which Enable Banking says means only low traffic, and its page asks for your token's serial number as the username.
 
 ## 2. The Cloud project
 
@@ -42,11 +53,20 @@ The script and Kuna's OAuth client must share one standard Cloud project, so use
 
 ## 4. In Kuna
 
-1. On Spending, Settings, Bank sync, paste the deployment ID and tap Save. Google asks for the one new permission.
-2. Tap Link OTP. Approve at the bank, and Kuna comes back and fetches at once, since many banks give more than 90 days only in the first hour after an approval. Then the same for Revolut.
-3. Each account goes to the Spending account with its IBAN and currency, so give those accounts their IBANs first. An account Kuna does not keep is listed with Add an account.
+Set aside a quiet quarter of an hour. Revolut gives more than 90 days only for 5 minutes after you approve, and the fetch writes straight to the file.
 
-The sync step then runs with the page's sync, and leaves the banks alone for six hours on one device after they last answered, since many banks allow four background fetches a day. A bank that fails or a link that ended early shows as a line on the step and on Settings, and the other bank's rows still come. Sync now on Settings asks whenever you tap it. The home card says so from 14 days before a link's 180 days run out, and Link again starts it over.
+1. Import your last Revolut file first, as recent as you can, and any other file you still mean to bring in. The sync takes over the day after a file's last row, for each account. Rows on or before that day are left out and the result says how many.
+2. Give each Spending account its real IBAN, and the opening day and opening balance it should start from. An account that does not match by IBAN and currency is not fetched, and is listed with Add an account.
+3. On Spending, Settings, Bank sync, paste the deployment ID and tap Save. Google asks for the one new permission.
+4. Tap Link Revolut and approve. Tap Finish linking at once if it shows, which Firefox may need. Kuna then fetches by itself.
+5. Read the result: what is new, what was left out, and any balance note. Undo there if it looks wrong. A fetch after Undo reaches back only 90 days.
+6. Tap Link OTP and do the same. Its page asks for your token's serial number first.
+7. In the script's editor, pick `logBankFields` from the function list and press Run. The execution log shows, for each linked account, the names of the fields Enable Banking returned and how many rows carry each, a count of each fixed bank code such as `status BOOK`, and no value. Copy it for the checks below.
+8. Add a calendar reminder at day 165 of the 180. Kuna's home card warns from day 166, but only when you open it.
+
+The sync step then runs with the page's sync, and leaves the banks alone for six hours on one device after they last answered, since many banks allow four unattended fetches a day. Sync now and the fetch after a link tell the bank you are there, which lifts that limit. A bank that fails or a link that ended early shows as a line on the step and on Settings, and the other bank's rows still come. The home card says so from 14 days before a link's 180 days run out, and Link again starts it over.
+
+Each fetch reads the balance too, and a note says so when the bank's differs from Kuna's. That is how rows lost after 90 days away or a wrong opening balance show up.
 
 ## Ending a link
 
@@ -58,12 +78,31 @@ Deploy, Manage deployments, edit the deployment and pick New version. The deploy
 
 ## What to check on the first run
 
-| Question                                                                                                         | Where it shows                                                                  | If it goes wrong                                                                                                                                    |
-| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Do Script Properties need a scope of their own? Google's reference names none, unlike `UrlFetchApp`'s            | The first Link fails with "Specified permissions are not sufficient" or similar | Add `https://www.googleapis.com/auth/script.storage` to the manifest, add it to the Data Access scopes, and tell Kuna's `GoogleScope` to ask for it |
-| Does `Project OAuth Scopes` on the script's Overview list only `script.external_request`?                        | The script's Overview                                                           | The token must cover every scope listed there, so Kuna must ask for each                                                                            |
-| Does Apps Script take the key as Enable Banking's browser saves it?                                              | The first Link fails naming the key                                             | Turn it into PKCS#8 with `openssl pkcs8 -topk8 -nocrypt -in <id>.pem` and store that                                                                |
-| Does the script answer `PERMISSION_DENIED`?                                                                      | Bank sync says the script did not answer: 403                                   | The script's Cloud project differs from Kuna's, so repeat step 3.2                                                                                  |
-| Does a Revolut card row carry `transaction_date`, the day a Revolut file calls Started Date?                     | A file dropped after a sync doubles a card row that booked days later           | Tell Claude which fields it carries, since the same-day test depends on it                                                                          |
-| How does Revolut split currencies and pockets? Enable Banking's docs say a multi-currency account comes as `XXX` | Rows land on the wrong account, or an account shows as one Kuna does not keep   | Tell Claude what the accounts look like                                                                                                             |
-| Do both ways back from a phone work? A bank app may open another browser                                         | Bank sync says a bank came back to a browser that did not start the link        | Link from the browser your phone opens links in, or from a computer                                                                                 |
+Setting up:
+
+| Question                                                                                              | Where it shows                                                                  | If it goes wrong                                                                                                                                    |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Do Script Properties need a scope of their own? Google's reference names none, unlike `UrlFetchApp`'s | The first Link fails with "Specified permissions are not sufficient" or similar | Add `https://www.googleapis.com/auth/script.storage` to the manifest, add it to the Data Access scopes, and tell Kuna's `GoogleScope` to ask for it |
+| Does `Project OAuth Scopes` on the script's Overview list only `script.external_request`?             | The script's Overview                                                           | The token must cover every scope listed there, so Kuna must ask for each                                                                            |
+| Does Apps Script sign with the 4096-bit key the panel saves?                                          | The first Link fails naming the key                                             | Tell Claude what it says                                                                                                                            |
+| Does the script answer `PERMISSION_DENIED`?                                                           | Bank sync says the script did not answer: 403                                   | The script's Cloud project differs from Kuna's, so repeat step 3.2                                                                                  |
+| Do both ways back from a phone work? A bank app may open another browser                              | Bank sync says a bank came back to a browser that did not start the link        | Link from the browser your phone opens links in, or from a computer                                                                                 |
+| Does OTP link at all? It is listed as beta, and one Enable Banking page still says not yet supported  | The approval or the first fetch fails with a line naming OTP                    | Keep OTP's statements as they are, since only one approval is lost                                                                                  |
+
+For what the banks return, read the `logBankFields` log and the first result, and tell Claude the answers:
+
+| Question                                                                                                          | Where it shows                                                                          |
+| ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| How does each bank split accounts? One per currency, one `XXX`, and do pockets or savings come as accounts?       | The log's account lines, and "has more than one account that fits" on the result        |
+| Does every account carry an IBAN?                                                                                 | `hasIban` in the log. An account without one is listed as one Kuna does not keep        |
+| Which balances does each bank give, and is a booked one (`ITBD` or `CLBD`) among them?                            | `balance_type` in the log. Without a booked one a note may just mean rows are pending   |
+| Does `/balances` count towards the four unattended reads?                                                         | "was not checked" on a later automatic sync                                             |
+| Is the first balance note clear of differences, with no gap and the right opening?                                | The result line, and each account's balance in the bank's app                           |
+| Does a card row carry `transaction_date`, and how often is it another day than `booking_date`?                    | `transaction_date` and `madeOnAnotherDay` in the log                                    |
+| Is `entry_reference` on every row, and does a second Sync now bring nothing new?                                  | `entry_reference` in the log, and "already in" on the second result                     |
+| Do days carry a time? Pairing an exchange like a file does needs the same second on both legs                     | The `...WithTime` counts in the log                                                     |
+| How does an exchange look: both legs, on which accounts, with `exchange_rate` filled? Its two legs wait on review | `exchange_rate` in the log, and the rows on To review                                   |
+| How does a pocket move look: one leg or two, and on which account? They wait on review too                        | The rows on To review                                                                   |
+| Is a fee inside the row's amount? Compare one row with a fee with the bank's app                                  | The row's amount. There is no fee field to read, so Bank fees reads low if it is inside |
+| Is a foreign card payment's amount in the account's currency?                                                     | A row on the wrong currency's account, or a note of a row in another currency left out  |
+| Does the first row after the last file day double a row, or does one go missing?                                  | The balance note, in the days after the switch. Fix it by hand and tell Claude          |

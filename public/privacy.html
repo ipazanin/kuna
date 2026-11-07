@@ -197,8 +197,9 @@
             <li>
               <code>script.external_request</code>, which lets a script of yours reach other sites. Asked only while you saved the deployment of a bank sync script in Spending's settings. The app
               calls that script, which runs in your own Google account, through <code>script.googleapis.com</code>. The script holds your Enable Banking key and calls
-              <code>api.enablebanking.com</code>, which brings the booked rows of the banks you linked into your Spending file. The script stores only one session id per bank and no bank data. Nothing
-              leaves your browser for this while no script is saved.
+              <code>api.enablebanking.com</code>, which brings the booked rows of the banks you linked into your Spending file and reads each account's balance to check them against. On a fetch you
+              start, the app also passes your browser's user agent, which tells the bank you are there. The script stores only one session id per bank and no bank data. Nothing leaves your browser for
+              this while no script is saved.
             </li>
             <li>
               <code>openid</code> and <code>email</code>, "Associate you with your personal info on Google" and "See your primary Google Account email address". Always asked. They tell the app which

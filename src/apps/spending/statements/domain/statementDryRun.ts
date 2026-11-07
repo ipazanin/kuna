@@ -3,14 +3,16 @@ import type { RowChange } from './spendingCategorisation'
 import { isBankSyncKey } from './statementRows'
 import type { StatementRow, StatementRows } from './statementRows'
 import { words } from './words'
-import { sameBooking, sameMoney, typedRowsOf } from '../../pairing/domain/sameMoney'
+import { sameMoney, typedRowsOf } from '../../pairing/domain/sameMoney'
 import { wantsSavingsAccount } from '../../pairing/domain/wantsSavingsAccount'
 import { isPairable, legsOfPair, transferPairs } from '../../pairing/domain/transferPairs'
+import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { normaliseIban } from '../../../../shared/text/fold'
@@ -19,7 +21,7 @@ import { plural } from '../../../../shared/text/translation'
 /** How far before today and before the statement's oldest new row the pairing looks for the other leg among rows on the file. */
 const PAIRING_DAYS = 30
 
-/** What happens to a row: `before-opening` is left out, `already-in` skipped, `other-source` skipped since the other of a file and the bank sync brought it, `filled` joins a typed row, `new` is added, and `refiled` is a row already on the file that the pairing changes. */
+/** What happens to a row: `before-opening` is left out, `already-in` skipped, `other-source` skipped since the other of a file and the bank sync covers its day, `filled` joins a typed row, `new` is added, and `refiled` is a row already on the file that the pairing changes. */
 export type DryRunOutcome = 'before-opening' | 'already-in' | 'other-source' | 'filled' | 'new' | 'refiled'
 
 export interface DryRunLine {
@@ -61,11 +63,44 @@ export function filledByBank(
   }
 }
 
+/** Where an account's files end and its bank sync begins: the last day a file brought a row, and the first day the sync did. */
+interface SourceDays {
+  readonly lastFileDay: CivilDate | null
+  readonly firstSyncDay: CivilDate | null
+}
+
+function sourceDaysOf(rows: readonly Pick<Transaction, 'account' | 'date' | 'importKey'>[]): ReadonlyMap<RecordId, SourceDays> {
+  const days = new Map<RecordId, SourceDays>()
+  for (const { account, date, importKey } of rows) {
+    if (importKey === '') continue
+    const { lastFileDay, firstSyncDay } = days.get(account) ?? { lastFileDay: null, firstSyncDay: null }
+    days.set(
+      account,
+      isBankSyncKey(importKey)
+        ? { lastFileDay, firstSyncDay: firstSyncDay === null || date < firstSyncDay ? date : firstSyncDay }
+        : { firstSyncDay, lastFileDay: lastFileDay === null || date > lastFileDay ? date : lastFileDay },
+    )
+  }
+  return days
+}
+
+/** One note per account for the rows the other source's days left out. */
+function otherSourceNotes(rows: readonly StatementRow[], days: ReadonlyMap<RecordId, SourceDays>, accounts: ReadonlyMap<RecordId, Account>): readonly string[] {
+  return [...new Set(rows.map((row) => row.account))].map((account) => {
+    const ofAccount = rows.filter((row) => row.account === account)
+    const name = accounts.get(account)?.name ?? ''
+    const { lastFileDay, firstSyncDay } = days.get(account)!
+    const forms = isBankSyncKey(ofAccount[0]!.importKey) ? words.coveredByFile(ofAccount.length, name, dayLabel(lastFileDay!)) : words.coveredBySync(ofAccount.length, name, dayLabel(firstSyncDay!))
+    return plural(forms, ofAccount.length)
+  })
+}
+
 /**
  * Works out a statement against the file, row by row: a row before its account opened is left out, as the entry dialog
- * refuses one, and a row whose key is on the account is skipped, as is a row the other of a file and the bank sync brought
- * on the same day. Else a row of the same money as a typed row fills it, and
- * any other row is new, filed by the reader or the first rule that holds, or waiting on review. A row near a typed row waits
+ * refuses one, and a row whose key is on the account is skipped. Each account's days belong to one source, so a bank sync
+ * row on or before the last day a file covers is left out, and so is a file's row from the sync's first day on. The two
+ * never match row by row, since a sync may date a row by its booking and hold a file's fee inside it. Else a row of the
+ * same money as a typed row fills it, and any other row is new, filed by the reader or the first rule that holds, or waiting on review. A row near a typed row waits
  * whatever a rule says, since filing it would count that money twice until you noticed. A row that moves money
  * between your accounts fills only a typed transfer leg, and a row the reader filed fills nothing. Then the new rows and the
  * unpaired rows from 30 days back are paired into transfers. `newKey` makes each new row's bare UUID.
@@ -76,19 +111,12 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   const beforeOpening = (row: StatementRow): boolean => row.date < (accounts.get(row.account)?.openedOn ?? row.date)
   const alreadyIn = (row: StatementRow): boolean => onFile.has(`${row.account} ${row.importKey}`)
   const notOnFile = statement.rows.filter((row) => !beforeOpening(row) && !alreadyIn(row))
-  const onFileWithKey = book.transactions.filter((row) => row.importKey !== '')
-  const otherSource = new Set<StatementRow>(
-    [
-      ...sameBooking(
-        onFileWithKey.filter((row) => !isBankSyncKey(row.importKey)),
-        notOnFile.filter((row) => isBankSyncKey(row.importKey)),
-      ),
-      ...sameBooking(
-        onFileWithKey.filter((row) => isBankSyncKey(row.importKey)),
-        notOnFile.filter((row) => !isBankSyncKey(row.importKey)),
-      ),
-    ].map(({ bank }) => bank),
-  )
+  const sourceDays = sourceDaysOf(book.transactions)
+  const coveredByOtherSource = (row: StatementRow): boolean => {
+    const { lastFileDay, firstSyncDay } = sourceDays.get(row.account) ?? { lastFileDay: null, firstSyncDay: null }
+    return isBankSyncKey(row.importKey) ? lastFileDay !== null && row.date <= lastFileDay : firstSyncDay !== null && row.date >= firstSyncDay
+  }
+  const otherSource = new Set<StatementRow>(notOnFile.filter(coveredByOtherSource))
   const coming = notOnFile.filter((row) => !otherSource.has(row))
 
   const context = spendingCategorisationContext(book)
@@ -151,8 +179,6 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   const lines = [...fileLines, ...pairedOnFile.map(({ before, after }): DryRunLine => ({ row: before, outcome: 'refiled', category: after.category }))]
   const leftOut = lines.filter((line) => line.outcome === 'before-opening').length
   const wanting = added.filter((row) => wantsSavingsAccount(row, book.accounts)).length
-  const broughtByFile = [...otherSource].filter((row) => isBankSyncKey(row.importKey)).length
-  const broughtBySync = otherSource.size - broughtByFile
   return {
     lines,
     added,
@@ -164,10 +190,15 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
       ...statement.notes,
       ...(leftOut === 0 ? [] : [plural(words.beforeOpeningLeftOut(leftOut), leftOut)]),
       ...(wanting === 0 ? [] : [plural(words.pocketsWaiting(wanting), wanting)]),
-      ...(broughtByFile === 0 ? [] : [plural(words.broughtByFile(broughtByFile), broughtByFile)]),
-      ...(broughtBySync === 0 ? [] : [plural(words.broughtBySync(broughtBySync), broughtBySync)]),
+      ...otherSourceNotes([...otherSource], sourceDays, accounts),
     ],
   }
+}
+
+/** The file's rows as they stand once the dry run is written. */
+export function rowsAfterDryRun(rows: readonly Transaction[], run: Pick<StatementDryRun, 'added' | 'changed'>): readonly Transaction[] {
+  const changedTo = new Map(run.changed.map(({ before, after }) => [before, after]))
+  return [...rows.map((row) => changedTo.get(row) ?? row), ...run.added]
 }
 
 /** Each row the pairing changes, as it becomes: a pair's leg, or a lone leg that counts as a transfer and waits. */

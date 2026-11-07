@@ -29,11 +29,11 @@ function messageOf(reason: unknown): string {
   return reason instanceof Error ? reason.message : String(reason)
 }
 
-/** Asks the banks and imports what is new. Throws why not, Google's 401 as it came, which the page's sync turns into asking for access. */
-export async function fetchAndImport(): Promise<BankSyncOutcome> {
+/** Asks the banks and imports what is new. Throws why not, Google's 401 as it came, which the page's sync turns into asking for access. `personHere` is true when a tap started it. */
+export async function fetchAndImport(personHere: boolean): Promise<BankSyncOutcome> {
   failure.value = null
   try {
-    const outcome = await importer.run()
+    const outcome = await importer.run(personHere)
     lastOutcome.value = outcome
     return outcome
   } catch (reason) {
@@ -64,7 +64,7 @@ export function useBankSync() {
     }
   }
 
-  /** Writes down the link a bank came back with and fetches at once, since many banks give more than 90 days only in the first hour. */
+  /** Writes down the link a bank came back with and fetches at once, since a bank gives more than 90 days only just after an approval: Revolut for 5 minutes, and many others for an hour. */
   async function finishLink(): Promise<BankSyncOutcome | null> {
     const book = store.state.workbook
     if (book === null || loadPendingLink()?.code == null) return null
@@ -73,7 +73,7 @@ export function useBankSync() {
     try {
       return await withGoogleAccess([BANK_SYNC_SCOPE], async () => {
         await finishBankLink({ script: await bankSyncPort(book.settings.bankSyncDeployment), pending: { load: loadPendingLink, save: savePendingLink }, store })
-        return await fetchAndImport()
+        return await fetchAndImport(true)
       })
     } catch (reason) {
       failure.value = messageOf(reason)
@@ -87,7 +87,7 @@ export function useBankSync() {
   async function syncNow(): Promise<BankSyncOutcome | null> {
     busy.value = true
     try {
-      return await withGoogleAccess([BANK_SYNC_SCOPE], fetchAndImport)
+      return await withGoogleAccess([BANK_SYNC_SCOPE], () => fetchAndImport(true))
     } catch (reason) {
       failure.value = messageOf(reason)
       return null

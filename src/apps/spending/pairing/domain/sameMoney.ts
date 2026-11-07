@@ -110,11 +110,3 @@ export function sameMoney<Typed extends MoneyRow, Bank extends MoneyRow>(typedRo
 export function typedRowsOf(book: { readonly transactions: readonly Transaction[] }): readonly Transaction[] {
   return book.transactions.filter((row) => row.source !== 'statement' && row.importKey === '')
 }
-
-/**
- * Pairs what one bank source brought with the same money from another, a file and the bank sync. They are one row when the
- * account, the amount and the day are equal, one to one, so two equal payments on a day stay two until both sources hold both.
- */
-export function sameBooking<Held extends MoneyRow, Coming extends MoneyRow>(heldRows: readonly Held[], comingRows: readonly Coming[]): readonly SameMoneyMatch<Held, Coming>[] {
-  return oneToOne(heldRows, byDate(comingRows), new Set<Coming>(), (held, coming) => held.date === coming.date).matches
-}

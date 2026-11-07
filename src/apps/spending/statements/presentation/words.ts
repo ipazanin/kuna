@@ -22,8 +22,8 @@ export const en = {
     notImported: 'Not imported',
     outcome: {
       alreadyIn: 'Already in',
-      broughtByFile: 'Already brought by a file',
-      broughtBySync: 'Already brought by the bank sync',
+      coveredByFile: 'A file covers this day',
+      coveredBySync: 'The bank sync covers this day',
       filled: 'Paired with what you typed',
       beforeOpening: 'Before the account opened',
       waits: 'Waits on review',
@@ -90,8 +90,8 @@ export const hr: Translation<typeof en> = {
     notImported: 'Nije uvezeno',
     outcome: {
       alreadyIn: 'Već uneseno',
-      broughtByFile: 'Već uneseno iz datoteke',
-      broughtBySync: 'Već uneseno sinkronizacijom s bankom',
+      coveredByFile: 'Ovaj dan pokriva datoteka',
+      coveredBySync: 'Ovaj dan pokriva sinkronizacija s bankom',
       filled: 'Spojeno s vašim unosom',
       beforeOpening: 'Prije otvaranja računa',
       waits: 'Čeka pregled',

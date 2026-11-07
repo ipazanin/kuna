@@ -83,7 +83,7 @@ function storeOver(first: SpendingBooks) {
 const OTP_SESSION = { bank: 'OTP banka', status: 'AUTHORIZED', accounts: [{ uid: 'otp', iban: OTP.iban, currency: 'EUR' }] }
 
 function portOf(fields: Partial<BankSyncPort> = {}): BankSyncPort {
-  return { startLink: async () => '', finishLink: async () => '2027-05-03T12:00:00+00:00', sessions: async () => [OTP_SESSION], transactions: async () => [BANK], ...fields }
+  return { startLink: async () => '', finishLink: async () => '2027-05-03T12:00:00+00:00', sessions: async () => [OTP_SESSION], transactions: async () => [BANK], balances: async () => [], ...fields }
 }
 
 function importerOver(port: BankSyncPort, store: BankImportPorts['store'], asked: (read: BankRead) => void = () => undefined) {
@@ -105,11 +105,69 @@ describe('a fetch', () => {
       },
     })
 
-    const { dryRun, receipt } = await importerOver(port, fake.store).run()
+    const { dryRun, receipt } = await importerOver(port, fake.store).run(false)
 
     expect(dryRun.added).toEqual([])
     expect(dryRun.lines.map((line) => line.outcome)).toEqual(['other-source'])
     expect(receipt).toBeNull()
+  })
+
+  it('tells the script a person is there only when a tap started the fetch', async () => {
+    const fake = storeOver(bookOf([]))
+    const script = vi.fn(async () => portOf())
+    const importer = bankImporter({ script, store: fake.store, asked: () => undefined, day: () => DAY })
+
+    await importer.run(true)
+    await importer.run(false)
+
+    expect(script.mock.calls.map((call) => (call as unknown as [string, boolean])[1])).toEqual([true, false])
+  })
+
+  describe('the balance check', () => {
+    const stated =
+      (amount: string, type = 'ITBD') =>
+      async () => [{ amount, currency: 'EUR', type }]
+    // The account's opening less the one €6.50 row the fetch brings.
+    const afterImport = ((OTP.opening - 650) / 100).toFixed(2)
+
+    it('says nothing when the bank agrees with the file once the rows are in', async () => {
+      const { dryRun } = await importerOver(portOf({ balances: stated(afterImport) }), storeOver(bookOf([])).store).run(false)
+      expect(dryRun.notes).toEqual([])
+    })
+
+    it('notes a difference, as a file does, and still imports', async () => {
+      const fake = storeOver(bookOf([]))
+      const { dryRun } = await importerOver(portOf({ balances: stated('1.00') }), fake.store).run(false)
+      expect(dryRun.notes).toHaveLength(1)
+      expect(dryRun.notes[0]).toMatch(/^OTP current: the bank says .*1\.00 and Kuna works out .*, so a row may be missing or the opening balance may be wrong\.$/)
+      expect(fake.added).toHaveLength(1)
+    })
+
+    it('reads a booked balance before an available one', async () => {
+      const balances = async () => [
+        { amount: '1.00', currency: 'EUR', type: 'ITAV' },
+        { amount: afterImport, currency: 'EUR', type: 'CLBD' },
+      ]
+      const { dryRun } = await importerOver(portOf({ balances }), storeOver(bookOf([])).store).run(false)
+      expect(dryRun.notes).toEqual([])
+    })
+
+    it('counts a row the fetch filled in, not twice', async () => {
+      const typed = row(OTP, '2026-10-27', -6.5, 'Food/Coffee', { payee: 'Bakery' })
+      const { dryRun } = await importerOver(portOf({ balances: stated(afterImport) }), storeOver(bookOf([typed])).store).run(false)
+      expect(dryRun.filled).toBe(1)
+      expect(dryRun.notes).toEqual([])
+    })
+
+    it('says the balance was not checked when the bank refuses it, and keeps the rows', async () => {
+      const fake = storeOver(bookOf([]))
+      const balances = async () => {
+        throw new BankScriptFailure('Enable Banking answered 429: ASPSP_RATE_LIMIT_EXCEEDED')
+      }
+      const { dryRun } = await importerOver(portOf({ balances }), fake.store).run(false)
+      expect(dryRun.notes).toEqual(['The balance of OTP current was not checked, since the bank did not give it: Enable Banking answered 429: ASPSP_RATE_LIMIT_EXCEEDED'])
+      expect(fake.added).toHaveLength(1)
+    })
   })
 
   it('shares one fetch between two callers, and the next call makes its own', async () => {
@@ -117,12 +175,12 @@ describe('a fetch', () => {
     const sessions = vi.fn(async () => [OTP_SESSION])
     const importer = importerOver(portOf({ sessions }), fake.store)
 
-    const [one, other] = await Promise.all([importer.run(), importer.run()])
+    const [one, other] = await Promise.all([importer.run(false), importer.run(false)])
 
     expect(one).toBe(other)
     expect(sessions).toHaveBeenCalledTimes(1)
     expect(fake.added).toHaveLength(1)
-    await importer.run()
+    await importer.run(false)
     expect(sessions).toHaveBeenCalledTimes(2)
   })
 
@@ -137,7 +195,7 @@ describe('a fetch', () => {
       steps.push('write')
       return null
     })
-    await importerOver(portOf(), fake.store).run()
+    await importerOver(portOf(), fake.store).run(false)
     expect(steps).toEqual(['settled', 'write'])
   })
 
@@ -149,9 +207,9 @@ describe('a fetch', () => {
         throw new Error('The bank sync script did not answer: 404')
       },
     })
-    await expect(importerOver(down, fake.store, asked).run()).rejects.toThrow('404')
+    await expect(importerOver(down, fake.store, asked).run(false)).rejects.toThrow('404')
     expect(asked).not.toHaveBeenCalled()
-    await importerOver(portOf(), fake.store, asked).run()
+    await importerOver(portOf(), fake.store, asked).run(false)
     expect(asked).toHaveBeenCalledOnce()
   })
 
@@ -159,7 +217,7 @@ describe('a fetch', () => {
     const fake = storeOver(bookOf([]))
     const port = portOf({ sessions: async () => [{ bank: 'OTP banka', status: 'EXPIRED', accounts: [] }] })
 
-    const { problems } = await importerOver(port, fake.store).run()
+    const { problems } = await importerOver(port, fake.store).run(false)
 
     expect(fake.settings).toEqual([expect.objectContaining({ key: 'bank_link_otp', value: '2026-10-29' })])
     expect(problems).toEqual(['The link to OTP banka ended early. Link it again.'])
@@ -167,7 +225,7 @@ describe('a fetch', () => {
 
   it('leaves the day alone for a link already over', async () => {
     const fake = storeOver(bookOf([], '2026-10-01'))
-    await importerOver(portOf({ sessions: async () => [{ bank: 'OTP banka', status: 'EXPIRED', accounts: [] }] }), fake.store).run()
+    await importerOver(portOf({ sessions: async () => [{ bank: 'OTP banka', status: 'EXPIRED', accounts: [] }] }), fake.store).run(false)
     expect(fake.settings).toEqual([])
   })
 })

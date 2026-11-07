@@ -1,6 +1,6 @@
 import { BankScriptFailure } from '../../application/bankSync'
 import type { BankSyncPort } from '../../application/bankSync'
-import type { BankSession, BankTransaction } from '../../domain/bankAnswer'
+import type { BankBalance, BankSession, BankTransaction } from '../../domain/bankAnswer'
 import { words } from '../../domain/words'
 import { addDays, today } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
@@ -56,6 +56,9 @@ export function fakeBankTransactions(accountUid: string, day: CivilDate): readon
   return []
 }
 
+/** What the fake script's Revolut says it holds in `balance-differs`, which no fake set adds up to. Every other variant gives no balance, so nothing is checked. */
+const DIFFERING_BALANCE: BankBalance = { amount: '1.00', currency: 'EUR', type: 'ITBD' }
+
 /** The sessions the fake script holds, with Revolut as one multi-currency account. `unknown-account` has one more account at OTP, `otp-failed` has OTP not answering, and `ended` has OTP's approval over early. */
 export function fakeBankSessions(variant: string | null): readonly BankSession[] {
   const revolut: BankSession = { bank: 'Revolut', status: 'AUTHORIZED', accounts: [{ uid: REVOLUT_UID, iban: 'LT000000000000000001', currency: 'XXX' }] }
@@ -71,7 +74,7 @@ export function fakeBankSessions(variant: string | null): readonly BankSession[]
   ]
 }
 
-/** The fake build's script as `?banksync=` names it, which answers from the page and sends nothing away. `failed` answers an error, and a link's trip comes straight back to this address. */
+/** The fake build's script as `?banksync=` names it, which answers from the page and sends nothing away. `failed` answers an error, `balance-differs` has Revolut state a balance Kuna does not reach, and a link's trip comes straight back to this address. */
 export function fakeBankSync(variant: string | null, day: CivilDate = today()): BankSyncPort {
   const failed = (): void => {
     if (variant === 'failed') throw new BankScriptFailure(words.didNotAnswer('HTTP 503'))
@@ -95,5 +98,6 @@ export function fakeBankSync(variant: string | null, day: CivilDate = today()): 
       return fakeBankSessions(variant)
     },
     transactions: async (accountUid) => fakeBankTransactions(accountUid, day),
+    balances: async (accountUid) => (variant === 'balance-differs' && accountUid === REVOLUT_UID ? [DIFFERING_BALANCE] : []),
   }
 }

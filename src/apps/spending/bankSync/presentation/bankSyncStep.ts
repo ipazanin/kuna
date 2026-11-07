@@ -22,7 +22,7 @@ export const BANK_SYNC_STEP: SyncStep = {
   async run() {
     const last = loadLastFetch()
     if (last !== null && Date.now() - last.at < FETCH_INTERVAL_MS) return bankHeldResult(last.problems)
-    const outcome = await fetchAndImport()
+    const outcome = await fetchAndImport(false)
     const writeId = store.state.writes.find((written) => written.receipt === outcome.receipt)?.id ?? null
     return bankStepResult(outcome, writeId, store.state.workbook === null ? 0 : reviewCount(store.state.workbook))
   },

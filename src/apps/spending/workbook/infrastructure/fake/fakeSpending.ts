@@ -257,10 +257,10 @@ function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { re
 
 /**
  * The bank sync's settings as `?banksync=` names them: `saved` a saved script with no link, `linked`, `failed`,
- * `unknown-account`, `otp-failed` and `ended` both banks linked for months yet, and `ending` OTP's link with 13 days left. Any other variant holds none.
+ * `unknown-account`, `otp-failed`, `ended` and `balance-differs` both banks linked for months yet, and `ending` OTP's link with 13 days left. Any other variant holds none.
  */
 function fakeBankSyncSettings(variant: string | null, day: CivilDate): readonly SettingRow[] {
-  if (variant === null || !['saved', 'linked', 'ending', 'failed', 'unknown-account', 'otp-failed', 'ended'].includes(variant)) return []
+  if (variant === null || !['saved', 'linked', 'ending', 'failed', 'unknown-account', 'otp-failed', 'ended', 'balance-differs'].includes(variant)) return []
   const deployment = settingRow(BANK_SYNC_DEPLOYMENT_KEY, 'AKfycb-fake-deployment')
   if (variant === 'saved') return [deployment]
   return [deployment, settingRow(bankLinkKey('otp'), addDays(day, variant === 'ending' ? 13 : 120)), settingRow(bankLinkKey('revolut'), addDays(day, 120))]

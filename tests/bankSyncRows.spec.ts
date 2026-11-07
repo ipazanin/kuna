@@ -29,6 +29,12 @@ const TRANSACTION: BankTransaction = {
 const statementOf = (answer: readonly BankTransaction[], account: Account = OTP): StatementRows => bankSyncRows(answer, account)
 
 describe('bankSyncRows', () => {
+  it('leaves out a row with no direction with the note for rows it cannot read, since it might be money in or out', () => {
+    const { rows, notes } = statementOf([{ ...TRANSACTION, direction: '' }])
+    expect(rows).toEqual([])
+    expect(notes).toEqual(['1 row of OTP current left out, since its day or amount cannot be read.'])
+  })
+
   it('turns a debit into money out, dated on the day of the transaction and keyed by the bank reference', () => {
     const [only] = statementOf([TRANSACTION]).rows
     expect(only?.importKey).toMatch(/^bank-[0-9a-f]{16}-1$/)
