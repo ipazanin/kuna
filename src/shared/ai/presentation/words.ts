@@ -54,6 +54,14 @@ export const en = {
     refused: (provider: string) => `${provider} refused this key. Copy it again, or make a new one.`,
     testFailed: (reason: string) => `The test did not finish: ${reason}`,
   },
+  setUp: {
+    chat: 'You can now use the chat. Ask it how something in Kuna works.',
+    sends: 'Kuna sends only when you tap a button or write in the chat, straight from this browser.',
+    forApps: (apps: string) => `In the apps: ${apps}.`,
+    back: 'Back',
+    later: 'Not now',
+    continue: 'Continue',
+  },
   appCard: {
     uses: (provider: string) => `Uses your ${provider} key. Nothing is sent until you tap a button.`,
     switch: 'Send without asking',
@@ -172,6 +180,14 @@ export const hr: Translation<typeof en> = {
     getKey: 'Nabavi ključ',
     refused: (provider) => `Tvrtka ${provider} odbila je ovaj ključ. Ponovno ga kopirajte ili napravite novi.`,
     testFailed: (reason) => `Provjera nije završila: ${reason}`,
+  },
+  setUp: {
+    chat: 'Sada možete koristiti razgovor. Pitajte ga kako nešto u Kuni radi.',
+    sends: 'Kuna šalje samo kad dodirnete gumb ili napišete nešto u razgovoru, izravno iz ovog preglednika.',
+    forApps: (apps) => `U aplikacijama: ${apps}.`,
+    back: 'Natrag',
+    later: 'Ne sada',
+    continue: 'Nastavi',
   },
   appCard: {
     uses: (provider) => `Koristi vaš ključ za ${provider}. Ništa se ne šalje dok ne dodirnete gumb.`,

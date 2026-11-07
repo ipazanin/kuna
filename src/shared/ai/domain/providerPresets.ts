@@ -29,6 +29,8 @@ export interface ProviderPreset {
   readonly keyTestUrl: string | null
   /** Where a person makes a key. */
   readonly keyAddress: string
+  /** Whether its adapter takes a PDF, so a person setting up documents is not walked to a company that cannot read them. */
+  readonly readsPdf: boolean
 }
 
 // No preset lists a model that searches the web, OpenRouter's web variants among them.
@@ -46,6 +48,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     defaultModel: 'claude-sonnet-5-5',
     keyTestUrl: null,
     keyAddress: 'https://platform.claude.com/settings/keys',
+    readsPdf: true,
   },
   {
     id: 'openai',
@@ -61,6 +64,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     defaultModel: 'gpt-6.1-sol',
     keyTestUrl: 'https://api.openai.com/v1/models',
     keyAddress: 'https://platform.openai.com/api-keys',
+    readsPdf: true,
   },
   {
     id: 'openrouter',
@@ -76,6 +80,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = [
     // Its list of models answers without a key, so the Test asks about the key itself.
     keyTestUrl: 'https://openrouter.ai/api/v1/key',
     keyAddress: 'https://openrouter.ai/settings/keys',
+    readsPdf: false,
   },
 ]
 

@@ -11,13 +11,8 @@ import type { KeyTest, ProviderId, ProviderPreset } from '../domain/providerPres
 import { providerInUse, switchProvider } from './useAiTask'
 import { words } from './words'
 
-/** What the card of Kuna settings is told from outside. */
-export interface AssistantCardPorts {
-  /** Asks Google for the keys another browser saved, and says why they could not be read, or null. */
-  fetchKeys(): Promise<string | null>
-  /** Says a key was removed or replaced, with what puts it back. */
-  announce(title: string, undo: () => void): void
-}
+/** Says a key was removed or replaced, with what puts it back. */
+type AnnounceKeyChange = (title: string, undo: () => void) => void
 
 function testLineOf(preset: ProviderPreset, test: KeyTest): string {
   if (test.kind === 'works') return words.card.accepted(preset.name)
@@ -25,12 +20,12 @@ function testLineOf(preset: ProviderPreset, test: KeyTest): string {
 }
 
 /**
- * The rules of the assistant's card. The provider changes only by a person's act on the select: saving a key, a Test, a
+ * The rules of the assistant's key, on Kuna settings' card and in the welcome's walk-through. The provider changes only by a person's act on the select: saving a key, a Test, a
  * fetch from Google, a sync and an Undo never move it. A company with a key takes over at once. One with no key changes
  * nothing while another key is in use, so a person who is only looking keeps the assistant they had. A key the company
  * refuses is never kept, so it cannot take over and cannot push out a working key.
  */
-export function useAssistantCard(ports: AssistantCardPorts) {
+export function useAssistantCard(announce: AnnounceKeyChange) {
   const keys = useSecretRows(
     PROVIDER_PRESETS.map((preset) => ({ ...preset, needsKey: true })),
     PAGE_SECRET_STORE,
@@ -61,6 +56,7 @@ export function useAssistantCard(ports: AssistantCardPorts) {
 
   const tested = computed(() => (row.value.test === null || row.value.test === 'testing' ? null : row.value.test))
   const typedRefused = computed(() => typedRefusedBy.value === shownId.value)
+  const testWorks = computed(() => tested.value?.kind === 'works' && !typedRefused.value)
   const fieldOpen = computed(() => !row.value.kept || replacing.value || tested.value?.kind === 'refused')
   const testLine = computed(() => {
     if (typedRefused.value) return words.card.refused(shown.value.name)
@@ -148,7 +144,7 @@ export function useAssistantCard(ports: AssistantCardPorts) {
       return
     }
     const undo = keys.save(id, key, test)
-    if (undo !== null && hadKey) ports.announce(secretWords.keyRow.replaced, undo)
+    if (undo !== null && hadKey) announce(secretWords.keyRow.replaced, undo)
     if (shownId.value !== id) return
     replacing.value = false
     const current = inUse.value
@@ -165,16 +161,19 @@ export function useAssistantCard(ports: AssistantCardPorts) {
 
   /** Removes a key at once with Undo. The assistant stays on the company it was on, even with another key saved. */
   function remove(id: ProviderId): void {
-    ports.announce(secretWords.keyRow.removed, keys.forget(id))
+    announce(secretWords.keyRow.removed, keys.forget(id))
   }
 
-  /** Takes the keys another browser saved. It moves nothing, and says what it found when that is not a key for the company on screen. */
-  async function fetchKey(): Promise<void> {
+  /**
+   * Takes the keys another browser saved, which `fetchKeys` asks Google for, answering why they could not be read or null.
+   * It moves nothing, and says what it found when that is not a key for the company on screen.
+   */
+  async function fetchKey(fetchKeys: () => Promise<string | null>): Promise<void> {
     const keptBefore = PROVIDER_PRESETS.filter((preset) => kept(preset.id))
     fetching.value = true
     fetchLine.value = null
     try {
-      const refusal = await ports.fetchKeys()
+      const refusal = await fetchKeys()
       keys.reread()
       const brought = PROVIDER_PRESETS.filter((preset) => kept(preset.id) && !keptBefore.includes(preset))
       if (refusal !== null) fetchLine.value = refusal
@@ -201,6 +200,7 @@ export function useAssistantCard(ports: AssistantCardPorts) {
     replacing,
     trying,
     typedRefused,
+    testWorks,
     fieldOpen,
     testLine,
     companies,
@@ -222,3 +222,5 @@ export function useAssistantCard(ports: AssistantCardPorts) {
     testKey: (preset: ProviderPreset) => keys.test({ ...preset, needsKey: true }),
   }
 }
+
+export type AssistantCard = ReturnType<typeof useAssistantCard>

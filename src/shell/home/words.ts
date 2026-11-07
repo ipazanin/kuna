@@ -17,6 +17,10 @@ export const en = {
     driveNote: 'A folder inside it for each app. Open them on your phone and computer. Backed up daily.',
     browser: 'Only this browser',
     browserNote: 'No Google. One device. Export to keep a copy.',
+    ai: 'Do you want to set up the AI assistant?',
+    aiYes: 'Yes',
+    aiLater: 'Not now',
+    aiNote: 'It needs your own key from an AI company.',
     continue: 'Continue',
   },
 }
@@ -35,6 +39,10 @@ export const hr: Translation<typeof en> = {
     driveNote: 'U njoj mapa za svaku aplikaciju. Otvarate ih na mobitelu i računalu. Sigurnosna kopija svaki dan.',
     browser: 'Samo ovaj preglednik',
     browserNote: 'Bez Googlea. Jedan uređaj. Izvezite da sačuvate kopiju.',
+    ai: 'Želite li postaviti AI asistenta?',
+    aiYes: 'Da',
+    aiLater: 'Ne sada',
+    aiNote: 'Treba mu vaš ključ AI tvrtke.',
     continue: 'Nastavi',
   },
 }

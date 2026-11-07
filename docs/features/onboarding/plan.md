@@ -22,7 +22,7 @@ These override the recommendations further down wherever the two differ.
 
 ## Built
 
-Stages 1 to 3 are built and work with no AI.
+Stages 1 to 3 are built and work with no AI. Stage 4 adds the AI choice and the key.
 
 - **Set-up lines.** `AppContribution.setUpLines()` publishes what each app still lacks. `GettingSetUpCard` moved to `src/shared/ui`. Company, Investments and Spending show it on Overview, and the home card shows each app's next line.
 - **Answers stay on the device.** "These look right" and "My history is complete" live in this browser through `src/shared/app/setUpAnswer.ts`, per file. A new setting or record kind would have moved `read.workbook` and `investments.read.records`. A person's file stays untouched, a second device asks once more, and a lost answer can only hide figures that read past buys, never show a wrong one.
@@ -34,10 +34,18 @@ Stages 1 to 3 are built and work with no AI.
 ### Stage 3: one start
 
 - **The welcome.** A new device with no app set up sees one card on the home in place of the app cards: which apps, and where the files live. `src/shell/home/KunaWelcome.vue`. It writes one answer to this device through `src/shared/app/kunaStart.ts`, and makes nothing on Drive. The apps left out wait under the others until they have a file, and no app without a file is in the sidebar, whichever list holds its card. Add an app moves focus to the welcome's first app, or once answered to the first card in Set up. An app can suggest an order through `AppContribution.setUpOrder`, which Assets uses to name Loans first.
-- **The AI part.** Stage 4 adds a section to `KunaWelcome.vue` and a field to `KunaStart`. There is no key UI and no AI words yet.
 - **The answer skips the steps.** Said Drive, `useFirstRun` starts on the folder step and Company's `stepsOf` drops the home step. Said this browser, the home step stays as the one tap that makes the file, with no question on it. Someone with no answer, such as a person with files from before who opens an app they never set up, gets the home step once, and that counts as the answer. An app whose file is open and whose Settings leads back to its start still asks, because that person came to change it. Kuna settings says where new files go and offers Ask me again.
 - **One Kuna folder.** `Kuna` at the top of My Drive, with a folder inside it named by the app's id, so a second device in another language finds the same one. It is marked with the `kuna` app property and found by search wherever the person puts it, so its id is never stored. Where it goes is asked only until it exists. Nothing is made until a tap on Create the file here. `src/shared/storage/infrastructure/kunaFolder.ts`.
 - **Delivery after the first statement.** The access step asks for the books file and invoice drafts only. New books take statements by hand. Once a first statement is in books on Drive, Getting set up offers a line that opens `StatementDeliveryDialog`, with the Erste preset, another bank, or a Drive folder, or "I import by hand", which clears it on this device. The dialog writes the settings, and the next sync asks Google for what they need, so a phone that leaves for Google loses nothing typed. Books that already name a folder or a sender never see the line.
+
+### Stage 4: the AI choice and the key
+
+- **One question.** The welcome asks whether to set up the AI assistant, with Not now already chosen, so a stranger cannot land on a paid step by accident. A device that already holds a key is not asked. The answer leaves no field in `KunaStart`, because nothing reads it later: Kuna settings' card offers a key whatever was said.
+- **The key step.** A yes swaps the same card's body for `AssistSetUp`, with no page and no dialog. The welcome counts as answered only when that step ends, so a reload asks again and a kept key skips the question. "I have no key" needs no path of its own, since the step shows the numbered steps and the field together.
+- **One owner for the key's rules.** `useAssistantCard` holds them and `AssistKeyForm` draws the company, the steps, the field and the test for both the card and the step. A typed key is tested before it is kept, a refused one is not kept, and a Save never moves the provider.
+- **Which companies.** The step offers only those whose adapter reads a PDF, read from `ProviderPreset.readsPdf`, so OpenRouter stays in Kuna settings. Anthropic comes first only because it is first in the list. The five real documents have not been tried, and that test still decides it.
+- **The one consent.** Once a company accepts the key, the step says what it opens, what Kuna sends and what the company keeps, and offers "Send without asking", off by default. It writes the existing switch of each picked app that has an assistant, which each app's Assistant tab can take back. A run with employee data still asks. Left off, each app asks at its first send as before.
+- **Not tried with a real key.** Only the fake model has run this step. [Issue #41](https://github.com/ipazanin/kuna/issues/41) still lists the first real call as open.
 
 ### The move into Kuna's folder
 
@@ -120,7 +128,7 @@ _A new user gets one true figure in each app, and knows what is left._
 
 **Stage 3: one start (built).** Add a home welcome asking which apps and where the files live, once. `FirstRunHomeStep` and `FirstRunFolderStep` skip themselves if answered. _Five storage questions become one, and the order Loans then Assets is suggested._ This also moves delivery to set-up lines if decision 5 agrees.
 
-**Stage 4: the AI choice and the key.** First-screen question, key walk-through, one consent. Before this, make the first real call with a real key, which [issue #41](https://github.com/ipazanin/kuna/issues/41) still lists as open. _A person with a key has it working, with Explain and suggested categories already useful._
+**Stage 4: the AI choice and the key (built, no real key yet).** First-screen question, key walk-through, one consent. Before this, make the first real call with a real key, which [issue #41](https://github.com/ipazanin/kuna/issues/41) still lists as open. _A person with a key has it working, with Explain and suggested categories already useful._
 
 **Stage 5: documents one by one, from each app's own screen, no chat needed.** In order: loan contract, asset photo, court extract, broker PDF (the plan's stage 6, plus `imagePartOf`). Test each on real Croatian documents before it ships. _Documents fill forms. This has most of the value, and proves accuracy before a chat depends on it._
 

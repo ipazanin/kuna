@@ -3698,6 +3698,8 @@ export function kunaWelcomeFlowIn(language) {
     })
     const card = await page.waitForSelector('[data-testid="files-home-answer"]', { visible: true, timeout: 10_000 })
     if ((await card.evaluate((element) => element.textContent ?? '')) !== words.filesHome.onDrive) throw new Error('Kuna settings does not say where new files go')
+    if (!(await page.$('[data-testid="assist-key-steps"]'))) throw new Error('Kuna settings does not offer the assistant after Not now')
+    if (await page.$('[data-testid="chat-open"]')) throw new Error('the chat shows after Not now')
     await inspect?.('Kuna settings with the answer')
     await shoot('kuna-welcome-settings')
     await pressSelector(page, press, '[data-testid="files-home-ask-again"]')
@@ -8777,6 +8779,167 @@ export function assistKeyRefusedFlowIn(language) {
     } finally {
       await forgetAssist(page)
     }
+  }
+}
+
+const SET_UP = '[data-testid="assist-set-up"]'
+
+/** Answers yes to the welcome's AI question with the given apps picked and goes on to the key, which changes no answer yet and offers only the companies that read documents. */
+async function reachKeyStep(page, press, language, appNames) {
+  const screen = SCREEN_WORDS[language]
+  const words = ASSIST_WORDS[language]
+  await page.waitForSelector('[data-testid="kuna-welcome"]', { visible: true, timeout: 10_000 })
+  for (const name of appNames) await pressButton(page, press, '[data-testid="kuna-welcome-apps"] label', name)
+  await pressButton(page, press, '[data-testid="kuna-welcome-ai"] label', screen.home.welcome.aiYes)
+  await pressSelector(page, press, '[data-testid="kuna-welcome-continue"]')
+  await page.waitForSelector(SET_UP, { visible: true, timeout: 5_000 }).catch(() => {
+    throw new Error('a yes to the AI question does not lead to the key')
+  })
+  await screenTitled(page, words.card.title)
+  if (await page.evaluate(() => localStorage.getItem('kuna.start'))) throw new Error('the welcome counted as answered before the key step ended')
+  if (await page.$('[data-testid="home-card"]')) throw new Error('the key step shows beside the cards')
+  if (await page.$('[role="dialog"]')) throw new Error('the key step opened a dialog')
+  const companies = await openCompanies(page, press)
+  if (companies.some((company) => company.startsWith('OpenRouter'))) throw new Error('the walk-through offers a company that cannot read documents')
+  await pickCompany(page, press, 'Anthropic')
+}
+
+/**
+ * Yes at the welcome, with Company and Loans picked: the key step in the same card, a key tested and kept, one line on the chat and the one consent, which turns on only Company,
+ * the picked app that can send. Back on the way keeps what was picked.
+ */
+export function kunaWelcomeAiFlowIn(language) {
+  const screen = SCREEN_WORDS[language]
+  const words = ASSIST_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      const question = await page.waitForSelector('[data-testid="kuna-welcome-ai"]', { visible: true, timeout: 10_000 })
+      await question.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+      await inspect?.('the welcome with its AI question')
+      await shoot('kuna-welcome-ai-question')
+      await reachKeyStep(page, press, language, [screen.company, screen.loans])
+      await elementSays(page, SET_UP, [words.card.steps.credit, words.card.pay('Anthropic'), words.retention.anthropic], 'the key step leaves out what a key takes')
+      await inspect?.('the key step')
+      await shoot('kuna-welcome-ai-key')
+
+      await pressSelector(page, press, '[data-testid="assist-set-up-back"]')
+      await screenTitled(page, screen.home.welcome.title)
+      const picked = await page.$$eval(
+        '[data-testid="kuna-welcome-apps"] [role="checkbox"][aria-checked="true"], [data-testid="kuna-welcome-apps"] [data-state="checked"][role="checkbox"]',
+        (boxes) => boxes.length,
+      )
+      if (picked !== 2) throw new Error(`Back keeps ${picked} apps picked, not 2`)
+      await pressSelector(page, press, '[data-testid="kuna-welcome-continue"]')
+      await page.waitForSelector(SET_UP, { visible: true, timeout: 5_000 })
+
+      await saveTypedKey(page, press, SET_UP, MADE_UP_ANTHROPIC_KEY)
+      await testLineSays(page, SET_UP, words.card.accepted('Anthropic'), 'the key step does not say the company took the key')
+      await elementSays(page, '[data-testid="assist-set-up-chat"]', [words.setUp.chat], 'the key step does not say what the key opens')
+      await elementSays(page, '[data-testid="assist-set-up-consent"]', [words.setUp.sends, words.retention.anthropic, words.appCard.switch, screen.company], 'the consent does not say what it covers')
+      if (await page.$(`${SET_UP} [data-testid="assist-key"]`)) throw new Error('the key field stays after the company took the key')
+      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== null) throw new Error('the consent turned on before anyone said so')
+      await page.waitForSelector('[data-testid="chat-open"]', { visible: true, timeout: 5_000 }).catch(() => {
+        throw new Error('the chat does not open with a key that works')
+      })
+      await inspect?.('the key accepted')
+      await shoot('kuna-welcome-ai-accepted')
+
+      await pressSelector(page, press, '[data-testid="assist-set-up-switch"]')
+      await pressSelector(page, press, '[data-testid="assist-set-up-continue"]')
+      await page.waitForSelector('[data-testid="home-card"][data-app="company"]', { visible: true, timeout: 10_000 }).catch(() => {
+        throw new Error('the key step does not go on to the home')
+      })
+      const [company, loans, kept, pick] = await page.evaluate(() => [
+        localStorage.getItem('kuna.assist.company'),
+        localStorage.getItem('kuna.assist.loans'),
+        localStorage.getItem('kuna.secret.anthropic'),
+        localStorage.getItem('kuna.assist-provider'),
+      ])
+      if (company !== 'on') throw new Error('the consent did not turn on Company')
+      if (loans !== null) throw new Error('the consent turned on an app with no assistant')
+      if (kept !== MADE_UP_ANTHROPIC_KEY) throw new Error('the key was not kept')
+      if (pick !== 'anthropic') throw new Error(`the assistant is on "${pick}" after the walk-through`)
+    } finally {
+      await forgetAssist(page)
+    }
+  }
+}
+
+export const kunaWelcomeAiFlow = kunaWelcomeAiFlowIn('en')
+
+/** A key the company refuses at the welcome (`?ai=key-refused`): not kept, the field stays open, nothing moves, and Not now goes on with no AI, with Kuna settings still offering it. */
+export function kunaWelcomeAiRefusedFlowIn(language) {
+  const screen = SCREEN_WORDS[language]
+  const words = ASSIST_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await reachKeyStep(page, press, language, [screen.loans])
+      await saveTypedKey(page, press, SET_UP, MADE_UP_ANTHROPIC_KEY)
+      await testLineSays(page, SET_UP, words.card.refused('Anthropic'), 'the refusal of the key does not show')
+      await page.waitForSelector(`${SET_UP} [data-testid="assist-get-key"]`, { visible: true, timeout: 5_000 })
+      const kept = await page.evaluate(() => localStorage.getItem('kuna.secret.anthropic'))
+      if (kept !== null) throw new Error('a refused key was kept')
+      if (await page.$('[data-testid="chat-open"]')) throw new Error('the chat opens with a refused key')
+      await inspect?.('a key refused at the welcome')
+      await shoot('kuna-welcome-ai-refused')
+      await pressSelector(page, press, '[data-testid="assist-set-up-later"]')
+      await page.waitForSelector('[data-testid="home-card"][data-app="loans"]', { visible: true, timeout: 10_000 })
+      if (await page.$('[data-testid="chat-open"]')) throw new Error('the chat shows after Not now')
+      await goToRoute(page, '#/settings', '[data-testid="assist-key-steps"]')
+      await inspect?.('Kuna settings after Not now')
+    } finally {
+      await forgetAssist(page)
+    }
+  }
+}
+
+export const kunaWelcomeAiRefusedFlow = kunaWelcomeAiRefusedFlowIn('en')
+
+/** A key whose test could not finish at the welcome (a model no preset lists): it stays kept with Test beside it and no way back, and after a reload a device with a key is not asked about AI. */
+export async function kunaWelcomeAiUnfinishedFlow(page, { press, shoot, inspect }) {
+  const screen = SCREEN_WORDS.en
+  try {
+    await page.evaluate(() => localStorage.setItem('kuna.assist-model.anthropic', 'claude-made-up-model'))
+    await page.reload({ waitUntil: 'networkidle0' })
+    await reachKeyStep(page, press, 'en', [screen.loans])
+    await saveTypedKey(page, press, SET_UP, MADE_UP_ANTHROPIC_KEY)
+    await page.waitForSelector(`${SET_UP} [data-testid="assist-key-test"]`, { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('a test that could not finish offers no second try')
+    })
+    if ((await page.evaluate(() => localStorage.getItem('kuna.secret.anthropic'))) !== MADE_UP_ANTHROPIC_KEY) throw new Error('a test that could not finish lost the key')
+    if (await page.$('[data-testid="assist-set-up-back"]')) throw new Error('the key step offers Back with a key kept')
+    if (await page.$('[data-testid="assist-set-up-chat"]')) throw new Error('the key step says the chat is open before the company took the key')
+    await inspect?.('a test that could not finish')
+    await shoot('kuna-welcome-ai-unfinished')
+    await page.reload({ waitUntil: 'networkidle0' })
+    await page.waitForSelector('[data-testid="kuna-welcome"]', { visible: true, timeout: 10_000 })
+    if (await page.$('[data-testid="kuna-welcome-ai"]')) throw new Error('a device with a key is asked about AI')
+    await pressButton(page, press, '[data-testid="kuna-welcome-apps"] label', screen.loans)
+    await pressSelector(page, press, '[data-testid="kuna-welcome-continue"]')
+    await page.waitForSelector('[data-testid="home-card"][data-app="loans"]', { visible: true, timeout: 10_000 })
+  } finally {
+    await forgetAssist(page)
+  }
+}
+
+/** A key accepted with only an app that has no assistant picked: the line on the chat and what Kuna sends show, with no switch to turn on. */
+export async function kunaWelcomeAiNoAppToSwitchFlow(page, { press, shoot, inspect }) {
+  const screen = SCREEN_WORDS.en
+  const words = ASSIST_WORDS.en
+  try {
+    await reachKeyStep(page, press, 'en', [screen.loans])
+    await saveTypedKey(page, press, SET_UP, MADE_UP_ANTHROPIC_KEY)
+    await elementSays(page, '[data-testid="assist-set-up-consent"]', [words.setUp.sends, words.retention.anthropic], 'the key step does not say what Kuna sends')
+    if (await page.$('[data-testid="assist-set-up-switch"]')) throw new Error('the consent offers a switch that would change nothing')
+    await inspect?.('a key accepted with no app to switch')
+    await shoot('kuna-welcome-ai-no-switch')
+    await pressSelector(page, press, '[data-testid="assist-set-up-continue"]')
+    await page.waitForSelector('[data-testid="home-card"][data-app="loans"]', { visible: true, timeout: 10_000 })
+    if ((await page.evaluate(() => localStorage.getItem('kuna.assist.loans'))) !== null) throw new Error('the consent wrote a switch for an app with no assistant')
+  } finally {
+    await forgetAssist(page)
   }
 }
 

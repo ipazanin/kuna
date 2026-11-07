@@ -38,16 +38,13 @@ async function card({ stored = {}, brought }: Started = {}) {
   holdProviderInUse()
   const announced: { title: string; undo: () => void }[] = []
   const scope = effectScope()
-  const view = scope.run(() =>
-    useAssistantCard({
-      fetchKeys: async () => {
-        brought?.()
-        return null
-      },
-      announce: (title, undo) => announced.push({ title, undo }),
-    }),
-  )!
-  return { view, announced, inUse: () => providerInUse()?.id ?? null, yes: () => employeesOn('hr-doo.explain-figure'), keepSyncedSecrets }
+  const view = scope.run(() => useAssistantCard((title, undo) => announced.push({ title, undo })))!
+  const fetchKey = () =>
+    view.fetchKey(async () => {
+      brought?.()
+      return null
+    })
+  return { view, fetchKey, announced, inUse: () => providerInUse()?.id ?? null, yes: () => employeesOn('hr-doo.explain-figure'), keepSyncedSecrets }
 }
 
 async function saveTyped(view: Awaited<ReturnType<typeof card>>['view'], key: string): Promise<void> {
@@ -202,10 +199,10 @@ describe('a key the company refuses', () => {
 
 describe('Get it from Google', () => {
   it('moves nothing and says so when it finds nothing for the company on screen', async () => {
-    const { view, inUse, yes } = await card({ stored: { ...OPENAI_IN_USE, 'kuna.assist-provider': 'openai', 'kuna.secret.anthropic': ANTHROPIC_KEY } })
+    const { view, fetchKey, inUse, yes } = await card({ stored: { ...OPENAI_IN_USE, 'kuna.assist-provider': 'openai', 'kuna.secret.anthropic': ANTHROPIC_KEY } })
     view.pick('openrouter')
     await nextTick()
-    await view.fetchKey()
+    await fetchKey()
     await nextTick()
 
     expect(inUse()).toBe('openai')
@@ -219,7 +216,7 @@ describe('Get it from Google', () => {
       stored: { 'kuna.assist-provider': 'openai' },
       brought: () => started.keepSyncedSecrets({ anthropic: { key: ANTHROPIC_KEY, changedAt: SAVED_AT } }),
     })
-    await started.view.fetchKey()
+    await started.fetchKey()
     await nextTick()
     expect(started.inUse()).toBe('openai')
     expect(started.view.fetchLine.value).toBe('Your Google account holds a key for Anthropic. Pick it here to use it.')
@@ -227,7 +224,7 @@ describe('Get it from Google', () => {
 
   it('puts a new browser on the key it brought, as there was nothing to move from', async () => {
     const started = await card({ brought: () => started.keepSyncedSecrets({ openai: { key: OPENAI_KEY, changedAt: SAVED_AT } }) })
-    await started.view.fetchKey()
+    await started.fetchKey()
     await nextTick()
     expect(started.inUse()).toBe('openai')
     expect(started.view.shownId.value).toBe('openai')
@@ -236,7 +233,43 @@ describe('Get it from Google', () => {
 
   it('does not count a price key as an AI key', async () => {
     const started = await card({ brought: () => started.keepSyncedSecrets({ twelvedata: { key: 'made-up-twelve-data-key-8642', changedAt: SAVED_AT } }) })
-    await started.view.fetchKey()
+    await started.fetchKey()
     expect(started.view.fetchLine.value).toBe('Your Google account holds no Anthropic key for Kuna.')
+  })
+})
+
+describe('a test of the key', () => {
+  it('counts as working only when the company took the key, and not after a typed key is refused', async () => {
+    const { view } = await card()
+    await saveTyped(view, ANTHROPIC_KEY)
+    expect(view.testWorks.value).toBe(true)
+
+    test.answer = { kind: 'refused' }
+    view.replacing.value = true
+    await saveTyped(view, TYPO)
+    expect(view.testWorks.value).toBe(false)
+    expect(localStorage.getItem('kuna.secret.anthropic')).toBe(ANTHROPIC_KEY)
+  })
+
+  it('does not count as working when it could not finish, though the key stays', async () => {
+    test.answer = { kind: 'failed', reason: 'offline' }
+    const { view } = await card()
+    await saveTyped(view, ANTHROPIC_KEY)
+    expect(view.testWorks.value).toBe(false)
+    expect(view.row.value.kept).toBe(true)
+  })
+})
+
+describe('which companies read a PDF', () => {
+  it('is what each adapter says', async () => {
+    const { presetOf } = await import('../src/shared/ai/domain/providerPresets')
+    const { anthropicMessages } = await import('../src/shared/ai/infrastructure/anthropicMessages')
+    const { openAiResponses } = await import('../src/shared/ai/infrastructure/openAiResponses')
+    const { openRouterChat } = await import('../src/shared/ai/infrastructure/openRouterChat')
+    const model = { id: 'made-up', name: 'Made up', price: null }
+
+    expect(presetOf('anthropic').readsPdf).toBe(anthropicMessages(ANTHROPIC_KEY, model).readsPdf)
+    expect(presetOf('openai').readsPdf).toBe(openAiResponses('https://made.up', OPENAI_KEY, model).readsPdf)
+    expect(presetOf('openrouter').readsPdf).toBe(openRouterChat('https://made.up', OPENAI_KEY, model).readsPdf)
   })
 })
