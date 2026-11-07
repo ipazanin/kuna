@@ -37,7 +37,7 @@ export interface Transaction {
   readonly statement: string
   /** Null on a row waiting on review, and on one filed by the file reader or the transfer pairing. */
   readonly categorisedBy: CategorisedBy | null
-  /** When a move between your own accounts started, which its two legs share: an exchange's or a pocket's. Blank on any other row. */
+  /** What the two legs of a move between your own accounts share, an exchange's or a pocket's: the time it started on a file, or both legs' import keys from a bank sync. Blank on any other row. */
   readonly movedAt: string
   /** A move to or from a savings pocket, whose other leg is a savings account's. */
   readonly pocket: boolean

@@ -220,7 +220,20 @@ describe('the bank sync script', () => {
 
   it('hands over a row without the usual fields rather than failing the whole account', () => {
     const { run } = script(() => ({ transactions: [{ status: 'BOOK' }] }))
-    expect(run('transactions', 'u1', '2026-10-01', 'default')).toMatchObject([{ amount: '', currency: '', direction: '', status: 'BOOK' }])
+    expect(run('transactions', 'u1', '2026-10-01', 'default')).toMatchObject([{ amount: '', currency: '', direction: '', status: 'BOOK', madeOn: null, exchangeRate: null }])
+  })
+
+  it('hands over the transaction day with its time and the exchange rate, only when the bank gives them', () => {
+    const { run } = script(() => ({
+      transactions: [
+        { status: 'BOOK', booking_date: '2026-10-02', transaction_date: '2026-10-01T09:30:00', exchange_rate: { unit_currency: 'EUR', exchange_rate: '1.0850', rate_type: 'SPOT' } },
+        { status: 'BOOK', booking_date: '2026-10-02', exchange_rate: { unit_currency: 'EUR' } },
+      ],
+    }))
+    expect(run('transactions', 'u1', '2026-10-01', 'default')).toMatchObject([
+      { bookedOn: '2026-10-02', madeOn: '2026-10-01T09:30:00', exchangeRate: '1.0850' },
+      { bookedOn: '2026-10-02', madeOn: null, exchangeRate: null },
+    ])
   })
 
   describe('logBankFields', () => {

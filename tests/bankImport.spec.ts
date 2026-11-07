@@ -33,6 +33,7 @@ const BANK: BankTransaction = {
   debtorName: null,
   debtorIban: null,
   remittance: [],
+  exchangeRate: null,
 }
 
 function bookOf(transactions: readonly Transaction[], otpLink: string | null = '2027-01-01'): SpendingBooks {

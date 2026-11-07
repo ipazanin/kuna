@@ -8,9 +8,9 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 const TRANSFER_DAYS = 3
 
 /** A transfer's two legs: the money out and the money in. */
-export interface TransferPair {
-  readonly debit: Transaction
-  readonly credit: Transaction
+export interface TransferPair<Leg = Transaction> {
+  readonly debit: Leg
+  readonly credit: Leg
 }
 
 export interface TransferPairs {
@@ -27,6 +27,16 @@ export function isPairable(row: Transaction): boolean {
   return row.source === 'statement' && row.pair === null && row.categorisedBy !== 'person'
 }
 
+/** The IBANs of your accounts that have one. */
+export function ownIbansOf(accounts: readonly Account[]): ReadonlySet<string> {
+  return new Set(accounts.flatMap((account) => (account.iban === '' ? [] : [account.iban])))
+}
+
+/** Whether a row names no IBAN, or one of your own. */
+export function namesNoStranger(row: Pick<Transaction, 'counterpartyIban'>, ownIbans: ReadonlySet<string>): boolean {
+  return row.counterpartyIban === '' || ownIbans.has(row.counterpartyIban)
+}
+
 /**
  * Finds the transfers between two of your accounts among rows `isPairable` lets through. A friend paid the same amount on
  * the same day names an IBAN that is not yours, so that payment is neither paired nor offered. A row that has a category
@@ -34,7 +44,7 @@ export function isPairable(row: Transaction): boolean {
  */
 export function transferPairs(rows: readonly Transaction[], accounts: readonly Account[]): TransferPairs {
   const accountById = new Map<RecordId, Account>(accounts.map((account) => [account.id, account]))
-  const ownIbans = new Set(accounts.flatMap((account) => (account.iban === '' ? [] : [account.iban])))
+  const ownIbans = ownIbansOf(accounts)
   const inDateOrder = [...rows].sort((earlier, later) => earlier.date.localeCompare(later.date))
   const debits = inDateOrder.filter((row) => row.amount < 0)
   const credits = inDateOrder.filter((row) => row.amount > 0)
@@ -67,8 +77,9 @@ export function transferPairs(rows: readonly Transaction[], accounts: readonly A
   const pairs = [...pairWhere(movedTogether), ...pairWhere((debit, credit) => sameMoneyMoved(debit, credit) && namesTheOther(debit, credit))]
   const waiting = inDateOrder.filter((row) => !paired.has(row) && (row.movedAt !== '' || (row.amount < 0 && ownIbans.has(row.counterpartyIban))))
   waiting.forEach((row) => paired.add(row))
-  const namesNoStranger = (row: Transaction): boolean => row.counterpartyIban === '' || ownIbans.has(row.counterpartyIban)
-  const offered = pairWhere((debit, credit) => debit.category === null && credit.category === null && sameMoneyMoved(debit, credit) && namesNoStranger(debit) && namesNoStranger(credit))
+  const offered = pairWhere(
+    (debit, credit) => debit.category === null && credit.category === null && sameMoneyMoved(debit, credit) && namesNoStranger(debit, ownIbans) && namesNoStranger(credit, ownIbans),
+  )
   return { pairs, waiting, offered }
 }
 

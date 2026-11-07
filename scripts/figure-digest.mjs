@@ -685,11 +685,22 @@ async function spendingGroups(add) {
   if (options['fake-spending'] === 'statements') {
     const reading = revolutStatement(await readFirstSheet(sampleRevolutCsv(today)), SAMPLE_REVOLUT_FILE_NAME, workbook)
     add('spending.import.revolut', () => ('statement' in reading ? statementDryRun(workbook, reading.statement, today) : reading))
-    const bankRead = await readBanks(fakeBankSync('linked', today), workbook, today)
-    add('spending.import.bank-sync', () => {
-      let place = 0
-      return statementDryRun(workbook, bankRead.statement, today, () => `fa4e3000-0000-4000-8000-${String((place += 1)).padStart(12, '0')}`)
-    })
+    // `pocket` adds a savings account to the file, so each variant reads the file it is built against.
+    for (const [variant, group] of [
+      ['linked', 'spending.import.bank-sync'],
+      ['exchange', 'spending.import.bank-sync.exchange'],
+      ['pocket', 'spending.import.bank-sync.pocket'],
+    ]) {
+      const book =
+        variant === 'pocket'
+          ? SPENDING_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document: fakeSpendingDocument(AT, 'statements', today, variant) }).workbook
+          : workbook
+      const bankRead = await readBanks(fakeBankSync(variant, today), book, today)
+      add(group, () => {
+        let place = 0
+        return statementDryRun(book, bankRead.statement, today, () => `fa4e3000-0000-4000-8000-${String((place += 1)).padStart(12, '0')}`)
+      })
+    }
   }
   if (options['fake-spending'] === 'receipts') {
     add('spending.receipts.matches', () => Object.values(SAMPLE_RECEIPT_TOTALS).map((total) => receiptMatches({ merchant: '', issuedOn: today, total }, workbook)))

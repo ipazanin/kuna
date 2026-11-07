@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import type { BankTransaction } from '../src/apps/spending/bankSync/domain/bankAnswer'
-import { bankSyncRows } from '../src/apps/spending/bankSync/domain/bankSyncRows'
+import { bankSyncRows, rowsWithMoves } from '../src/apps/spending/bankSync/domain/bankSyncRows'
+import type { SyncedRows } from '../src/apps/spending/bankSync/domain/bankSyncRows'
 import { fakeBankTransactions } from '../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync'
-import type { StatementRows } from '../src/apps/spending/statements/domain/statementRows'
 import type { Account } from '../src/apps/spending/workbook/domain/account'
-import { OTP, REVOLUT_EUR, REVOLUT_USD } from './fixtures/spending'
+import { decimalOfText } from '../src/shared/money/decimal'
+import { ACCOUNTS, OTP, REVOLUT_EUR, REVOLUT_USD } from './fixtures/spending'
 import { civil, euros } from './fixtures/ledger'
 
 const DAY = civil('2026-10-30')
@@ -24,9 +25,10 @@ const TRANSACTION: BankTransaction = {
   debtorName: 'Made-up Owner',
   debtorIban: null,
   remittance: ['Card', 'payment'],
+  exchangeRate: null,
 }
 
-const statementOf = (answer: readonly BankTransaction[], account: Account = OTP): StatementRows => bankSyncRows(answer, account)
+const statementOf = (answer: readonly BankTransaction[], account: Account = OTP): SyncedRows => bankSyncRows(answer, account)
 
 describe('bankSyncRows', () => {
   it('leaves out a row with no direction with the note for rows it cannot read, since it might be money in or out', () => {
@@ -119,5 +121,39 @@ describe('bankSyncRows', () => {
     const { rows, notes } = statementOf([TRANSACTION, { ...TRANSACTION, madeOn: 'soon' }, { ...TRANSACTION, amount: 'a lot' }])
     expect(rows).toHaveLength(1)
     expect(notes).toEqual([`2 rows of ${OTP.name} left out, since their day or amount cannot be read.`])
+  })
+
+  it.each([
+    ['0.8', decimalOfText('0.8')],
+    ['1.0850', decimalOfText('1.085')],
+    [' 1.0850 ', decimalOfText('1.085')],
+    ['0', undefined],
+    ['-1.085', undefined],
+    ['1,085', undefined],
+    ['', undefined],
+    [null, undefined],
+  ])('reads the exchange rate %j as a plain multiplier, and keeps none that is not above zero', (exchangeRate, expected) => {
+    const { rows, exchangeRates } = statementOf([{ ...TRANSACTION, exchangeRate }])
+    expect(exchangeRates.get(rows[0]!)).toEqual(expected)
+  })
+})
+
+describe('rowsWithMoves', () => {
+  const exchange = (account = REVOLUT_USD) => {
+    const sold = statementOf([{ ...TRANSACTION, creditorIban: null, reference: 'x-1', currency: 'EUR', amount: '100.00', exchangeRate: '1.0850' }], REVOLUT_EUR)
+    const bought = statementOf([{ ...TRANSACTION, reference: 'x-2', currency: account.currency, direction: 'CRDT', amount: '108.50' }], account)
+    return { rows: [...sold.rows, ...bought.rows], rates: new Map([...sold.exchangeRates, ...bought.exchangeRates]) }
+  }
+
+  it("gives an exchange's two legs one key, made of their import keys, and leaves them no pocket", () => {
+    const { rows, rates } = exchange()
+    const [sold, bought] = rowsWithMoves(rows, rates, ACCOUNTS)
+    expect(sold!.movedAt).toBe(`${rows[0]!.importKey} ${rows[1]!.importKey}`)
+    expect([bought!.movedAt, sold!.pocket, bought!.pocket]).toEqual([sold!.movedAt, false, false])
+  })
+
+  it('leaves rows that are no move as they were', () => {
+    const { rows, rates } = exchange(OTP)
+    expect(rowsWithMoves(rows, rates, ACCOUNTS)).toEqual(rows)
   })
 })

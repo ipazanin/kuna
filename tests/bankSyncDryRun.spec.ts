@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { BankScriptFailure, readBanks } from '../src/apps/spending/bankSync/application/bankSync'
 import type { BankRead, BankSyncPort } from '../src/apps/spending/bankSync/application/bankSync'
 import { accountsOfLinked, fetchFrom } from '../src/apps/spending/bankSync/domain/bankLinks'
-import { bankSyncRows } from '../src/apps/spending/bankSync/domain/bankSyncRows'
+import { bankSyncRows, rowsWithMoves } from '../src/apps/spending/bankSync/domain/bankSyncRows'
+import type { SyncedRows } from '../src/apps/spending/bankSync/domain/bankSyncRows'
 import type { BankSession, BankTransaction } from '../src/apps/spending/bankSync/domain/bankAnswer'
 import { fakeBankSync } from '../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync'
 import { reviewCount } from '../src/apps/spending/statements/domain/reviewQueue'
@@ -54,6 +55,7 @@ const BANK: BankTransaction = {
   debtorName: null,
   debtorIban: null,
   remittance: [],
+  exchangeRate: null,
 }
 
 const syncOf = (answer: readonly BankTransaction[]): StatementRows => bankSyncRows(answer, OTP)
@@ -165,13 +167,27 @@ describe('a file against rows a sync brought', () => {
   })
 })
 
-describe('an exchange or a pocket move from the sync, whose fields are not known yet', () => {
-  const leg = (account: Account, direction: string, amount: string, currency: string, payee: string, reference: string): StatementRows =>
-    bankSyncRows([{ ...BANK, reference, direction, amount, currency, creditorName: payee, debtorName: payee }], account)
+describe('an exchange or a pocket move from the sync, whose shape is a guess until the first real run', () => {
+  const leg = (account: Account, direction: string, amount: string, currency: string, payee: string, reference: string, exchangeRate: string | null = null): SyncedRows =>
+    bankSyncRows([{ ...BANK, reference, direction, amount, currency, creditorName: payee, debtorName: payee, exchangeRate }], account)
+  const synced = (legs: readonly SyncedRows[], accounts: readonly Account[] = ACCOUNTS): StatementRows => {
+    const rows = legs.flatMap((one) => one.rows)
+    const rates = new Map(legs.flatMap((one) => [...one.exchangeRates]))
+    return { label: 'Enable Banking', notes: [], rows: rowsWithMoves(rows, rates, accounts) }
+  }
+  const between = category('Between my accounts').id
 
-  it('leaves both legs of an exchange on review, unpaired, each moving its own balance once', () => {
-    const rows = [...leg(REVOLUT_EUR, 'DBIT', '100.00', 'EUR', 'Exchanged to USD', 'x-1').rows, ...leg(REVOLUT_USD, 'CRDT', '108.00', 'USD', 'Exchanged from EUR', 'x-2').rows]
-    const run = statementDryRun(bookOf([]), { label: 'Enable Banking', notes: [], rows }, DAY)
+  it('pairs both legs of an exchange whose amounts follow the rate, under Between my accounts', () => {
+    const statement = synced([leg(REVOLUT_EUR, 'DBIT', '100.00', 'EUR', 'Exchanged to USD', 'x-1', '1.08'), leg(REVOLUT_USD, 'CRDT', '108.00', 'USD', 'Exchanged from EUR', 'x-2')])
+    const run = statementDryRun(bookOf([]), statement, DAY)
+    const [sold, bought] = run.added
+    expect([sold?.pair, bought?.pair]).toEqual([bought?.id, sold?.id])
+    expect([sold?.category, bought?.category]).toEqual([between, between])
+    expect(reviewCount({ ...bookOf(run.added) })).toBe(0)
+  })
+
+  it('leaves both legs of an exchange without a rate on review, unpaired, each moving its own balance once', () => {
+    const run = statementDryRun(bookOf([]), synced([leg(REVOLUT_EUR, 'DBIT', '100.00', 'EUR', 'Exchanged to USD', 'x-1'), leg(REVOLUT_USD, 'CRDT', '108.00', 'USD', 'Exchanged from EUR', 'x-2')]), DAY)
     expect(run.added.map((added) => [added.amount, added.category, added.pair])).toEqual([
       [accountMoneyFromAmount(-100), null, null],
       [accountMoneyFromAmount(108), null, null],
@@ -179,9 +195,19 @@ describe('an exchange or a pocket move from the sync, whose fields are not known
     expect(reviewCount({ ...bookOf(run.added) })).toBe(2)
   })
 
+  it('pairs a pocket move into a savings account of the same bank as a pocket', () => {
+    const pocket: Account = { ...REVOLUT_EUR, id: recordIdOf(ACCOUNT_RECORDS, 'a0000000-0000-4000-8000-000000000009'), name: 'Revolut pocket', kind: 'savings', iban: 'LT000000000000000002' }
+    const accounts = [...ACCOUNTS, pocket]
+    const statement = synced([leg(REVOLUT_EUR, 'DBIT', '15.00', 'EUR', 'To pocket', 'p-1'), leg(pocket, 'CRDT', '15.00', 'EUR', 'From current', 'p-2')], accounts)
+    const run = statementDryRun({ ...bookOf([]), accounts }, statement, DAY)
+    expect(run.added.map((added) => [added.category, added.pocket, added.pair !== null])).toEqual([
+      [between, true, true],
+      [between, true, true],
+    ])
+  })
+
   it('leaves a pocket move on one account on review, where the two legs cancel out', () => {
-    const rows = [...leg(REVOLUT_EUR, 'DBIT', '15.00', 'EUR', 'To pocket', 'p-1').rows, ...leg(REVOLUT_EUR, 'CRDT', '15.00', 'EUR', 'To pocket', 'p-2').rows]
-    const run = statementDryRun(bookOf([]), { label: 'Enable Banking', notes: [], rows }, DAY)
+    const run = statementDryRun(bookOf([]), synced([leg(REVOLUT_EUR, 'DBIT', '15.00', 'EUR', 'To pocket', 'p-1'), leg(REVOLUT_EUR, 'CRDT', '15.00', 'EUR', 'To pocket', 'p-2')]), DAY)
     expect(run.added.map((added) => [added.category, added.pair])).toEqual([
       [null, null],
       [null, null],
@@ -362,5 +388,22 @@ describe('the fake Spending file', () => {
     expect(run.lines.filter((line) => line.outcome === 'other-source').map((line) => line.row.payee)).toEqual(['Transfer to Revolut'])
     expect(run.lines.filter((line) => line.row.payee === 'Corner bakery').map((line) => line.outcome)).toEqual(['new', 'new'])
     expect(run.lines.find((line) => line.row.payee === 'Café on the square')?.outcome).toBe('filled')
+  })
+
+  it.each([
+    ['exchange', ['Exchanged to USD', 'Exchanged from EUR'], false],
+    ['pocket', ['To pocket Summer trip', 'From current'], true],
+  ])("pairs the %s variant's two legs under Between my accounts", async (variant, payees, pocket) => {
+    const document = fakeSpendingDocument('2026-10-30T09:00:00.000Z', 'statements', DAY, variant)
+    const { workbook } = SPENDING_DOCUMENT.read({
+      meta: { id: 'fake', source: 'browser', title: 'fake', syncedAt: '2026-10-30T09:00:00.000Z', lastExportedAt: null, unexportedSince: null },
+      revision: '1',
+      document,
+    })
+    const { statement } = await readBanks(fakeBankSync(variant, DAY), workbook, DAY)
+    const run = statementDryRun(workbook, statement, DAY)
+    const legs = run.added.filter((added) => payees.includes(added.payee))
+    const between = workbook.categories.find((each) => each.kind === 'transfer')?.id
+    expect(legs.map((added) => [added.payee, added.category === between, added.pair !== null, added.pocket])).toEqual(payees.map((payee) => [payee, true, true, pocket]))
   })
 })

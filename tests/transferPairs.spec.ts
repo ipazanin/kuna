@@ -50,6 +50,14 @@ describe('transfer pairs', () => {
     expect(transferPairs([debit, other, credit], ACCOUNTS)).toEqual({ pairs: [{ debit, credit }], waiting: [other], offered: [] })
   })
 
+  it("pairs a synced exchange's two legs by the key the sync gave them, through the same rule as a file's", () => {
+    const key = 'bank-0123456789abcdef-1 bank-fedcba9876543210-1'
+    const debit = bank(REVOLUT_EUR, '2026-10-10', -54, { importKey: 'bank-0123456789abcdef-1', movedAt: key })
+    const credit = bank(REVOLUT_USD, '2026-10-10', 58, { importKey: 'bank-fedcba9876543210-1', movedAt: key })
+
+    expect(transferPairs([debit, credit], ACCOUNTS)).toEqual({ pairs: [{ debit, credit }], waiting: [], offered: [] })
+  })
+
   it('leaves a lone debit to an own IBAN waiting', () => {
     const debit = bank(OTP, '2026-10-10', -75, { counterpartyIban: REVOLUT_EUR.iban })
 

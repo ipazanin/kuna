@@ -20,6 +20,8 @@ export interface BankTransaction {
   readonly debtorName: string | null
   readonly debtorIban: string | null
   readonly remittance: readonly string[]
+  /** Enable Banking's `exchange_rate.exchange_rate`, a decimal such as `1.0850`, or null when the bank gives none. Which rows carry it and which way round it reads are guesses until the first real run. */
+  readonly exchangeRate: string | null
 }
 
 /** One of the balances a bank states for an account. */

@@ -11,6 +11,7 @@ import type { SpendingRule } from '../../domain/spendingRule'
 import { BANK_SYNC_DEPLOYMENT_KEY, bankLinkKey, settingRow } from '../../domain/spendingSettings'
 import type { SettingRow } from '../../domain/spendingSettings'
 import { NO_BANK_FACTS } from '../../domain/transaction'
+import { FAKE_POCKET_IBAN } from '../../../bankSync/infrastructure/fake/fakeBankSync'
 import type { Transaction } from '../../domain/transaction'
 import { spendingDocumentOf } from '../spendingDocument'
 import { SAMPLE_RECEIPT_TOTALS } from '../../../receipts/infrastructure/fake/sampleReceiptPhoto'
@@ -83,9 +84,10 @@ const OTP = fixedId(ACCOUNT_RECORDS, 1001)
 const REVOLUT_EUR = fixedId(ACCOUNT_RECORDS, 1002)
 const REVOLUT_USD = fixedId(ACCOUNT_RECORDS, 1003)
 const CASH = fixedId(ACCOUNT_RECORDS, 1004)
+const REVOLUT_POCKET = fixedId(ACCOUNT_RECORDS, 1005)
 
 /** What each account holds on the day, as the worked example has it. */
-const BALANCES: Readonly<Record<string, number>> = { [OTP]: 1_850, [REVOLUT_EUR]: 320.5, [REVOLUT_USD]: 170, [CASH]: 64 }
+const BALANCES: Readonly<Record<string, number>> = { [OTP]: 1_850, [REVOLUT_EUR]: 320.5, [REVOLUT_USD]: 170, [CASH]: 64, [REVOLUT_POCKET]: 40 }
 
 /** The rows of a complete month `back` months before the day's: salary, rent, food, fuel, a loan instalment, money saved and a company cost paid back. */
 function monthRows(month: MonthKey, back: number, day: CivilDate): Row[] {
@@ -257,10 +259,10 @@ function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { re
 
 /**
  * The bank sync's settings as `?banksync=` names them: `saved` a saved script with no link, `linked`, `failed`,
- * `unknown-account`, `otp-failed`, `ended` and `balance-differs` both banks linked for months yet, and `ending` OTP's link with 13 days left. Any other variant holds none.
+ * `unknown-account`, `otp-failed`, `ended`, `balance-differs`, `exchange` and `pocket` both banks linked for months yet, and `ending` OTP's link with 13 days left. Any other variant holds none.
  */
 function fakeBankSyncSettings(variant: string | null, day: CivilDate): readonly SettingRow[] {
-  if (variant === null || !['saved', 'linked', 'ending', 'failed', 'unknown-account', 'otp-failed', 'ended', 'balance-differs'].includes(variant)) return []
+  if (variant === null || !['saved', 'linked', 'ending', 'failed', 'unknown-account', 'otp-failed', 'ended', 'balance-differs', 'exchange', 'pocket'].includes(variant)) return []
   const deployment = settingRow(BANK_SYNC_DEPLOYMENT_KEY, 'AKfycb-fake-deployment')
   if (variant === 'saved') return [deployment]
   return [deployment, settingRow(bankLinkKey('otp'), addDays(day, variant === 'ending' ? 13 : 120)), settingRow(bankLinkKey('revolut'), addDays(day, 120))]
@@ -276,6 +278,21 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
     { id: REVOLUT_EUR, name: 'Revolut EUR', kind: 'bank', bank: 'revolut', currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, iban: 'LT000000000000000001', closed: false },
     { id: REVOLUT_USD, name: 'Revolut USD', kind: 'bank', bank: 'revolut', currency: USD, opening: ZERO_ACCOUNT_MONEY, openedOn, iban: 'LT000000000000000001', closed: false },
     { id: CASH, name: 'Cash', kind: 'cash', bank: null, currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, iban: '', closed: false },
+    ...(bankSync === 'pocket'
+      ? [
+          {
+            id: REVOLUT_POCKET,
+            name: 'Revolut pocket',
+            kind: 'savings' as const,
+            bank: 'revolut' as const,
+            currency: EURO,
+            opening: ZERO_ACCOUNT_MONEY,
+            openedOn,
+            iban: FAKE_POCKET_IBAN,
+            closed: false,
+          },
+        ]
+      : []),
   ]
   const shown = set === 'foreign' ? accounts.filter((account) => account.id === REVOLUT_USD) : accounts
   const rows: Row[] = set === 'foreign' ? dollarRows(oneBack, day) : [...monthRows(twoBack, 2, day), ...monthRows(oneBack, 1, day), ...monthSoFar(month), ...dollarRows(oneBack, day)]

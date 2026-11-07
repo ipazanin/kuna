@@ -115,6 +115,7 @@ function transactionOf_(transaction) {
     debtorName: transaction.debtor?.name ?? null,
     debtorIban: transaction.debtor_account?.iban ?? null,
     remittance: transaction.remittance_information ?? [],
+    exchangeRate: transaction.exchange_rate?.exchange_rate ?? null,
   }
 }
 

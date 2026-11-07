@@ -4,7 +4,7 @@ import { balanceNotes, statedBalance } from '../domain/bankBalance'
 import type { StatedBalance } from '../domain/bankBalance'
 import { accountsOfLinked, fetchFrom, linkableBankNamed } from '../domain/bankLinks'
 import type { PendingLink } from '../domain/bankReturn'
-import { BANK_SYNC_LABEL, bankSyncRows } from '../domain/bankSyncRows'
+import { BANK_SYNC_LABEL, bankSyncRows, rowsWithMoves } from '../domain/bankSyncRows'
 import { words } from '../domain/words'
 import { writeDryRun } from '../../statements/application/statementWrites'
 import { rowsAfterDryRun, statementDryRun } from '../../statements/domain/statementDryRun'
@@ -18,6 +18,7 @@ import { BANK_SYNC_DEPLOYMENT_KEY, bankLinkKey } from '../../workbook/domain/spe
 import type { LinkableBank } from '../../workbook/domain/spendingSettings'
 import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import type { Decimal } from '../../../../shared/money/decimal'
 import { isUnauthorized } from '../../../../shared/google/googleApi'
 import type { WriteReceipt } from '../../../../shared/storage/application/recordWrites'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
@@ -70,11 +71,13 @@ function accountsFitTwice(linkedAccounts: readonly LinkedAccount[], bank: Linkab
 
 /**
  * Asks the script for every session's accounts and each account's transactions, and reads them into one statement for the
- * dry run. A bank or an account that fails is a problem line and leaves the others' rows, so one bank's bad day never costs
- * another's early history. Google turning the token away ends it all, since no later call would go through.
+ * dry run, with the legs of each exchange and pocket move among them keyed to pair. A bank or an account that fails is a
+ * problem line and leaves the others' rows, so one bank's bad day never costs another's early history. Google turning the
+ * token away ends it all, since no later call would go through.
  */
 export async function readBanks(port: BankSyncPort, book: Pick<SpendingBook, 'accounts' | 'transactions'>, day: CivilDate): Promise<BankRead> {
   const rows: StatementRow[] = []
+  const exchangeRates = new Map<StatementRow, Decimal>()
   const notes: string[] = []
   const unknown: UnknownAccount[] = []
   const problems: string[] = []
@@ -126,6 +129,7 @@ export async function readBanks(port: BankSyncPort, book: Pick<SpendingBook, 'ac
       for (const account of accounts) {
         const statement = bankSyncRows(answer, account)
         rows.push(...statement.rows)
+        statement.exchangeRates.forEach((rate, row) => exchangeRates.set(row, rate))
         notes.push(...statement.notes)
       }
       const kept = new Set<string>(accounts.map((account) => account.currency))
@@ -146,7 +150,7 @@ export async function readBanks(port: BankSyncPort, book: Pick<SpendingBook, 'ac
       }
     }
   }
-  return { statement: { label: BANK_SYNC_LABEL, rows, notes }, unknown, problems, ended: [...ended], stated }
+  return { statement: { label: BANK_SYNC_LABEL, rows: rowsWithMoves(rows, exchangeRates, book.accounts), notes }, unknown, problems, ended: [...ended], stated }
 }
 
 /** The script's deployment saved, or cleared by a blank one, which turns the sync off. */
