@@ -223,7 +223,7 @@ describe('a task run over the Responses adapter', () => {
     tools: [{ name: 'rule', description: 'Reads one rule by its id.', input: RULE_INPUT, run: async () => ({ text: 'Rule pdv-25.', sources: ['pdv-25'], figures: [] }) }],
     check: (output) => ({ draft: output as { category: string }, problems: [] }),
   }
-  const ports = { model: openAiResponses(BASE_URL, KEY, SOL), appOn: true, employees: { sends: false, on: false } }
+  const ports = { model: openAiResponses(BASE_URL, KEY, SOL), appOn: true, employees: { sends: false, anonymising: true } }
 
   it('replays every item of the last reply, encrypted reasoning first, then the tool output, with nothing kept at OpenAI', async () => {
     const requests = stubFetch(streamResponse(streamFixture('openai/tool-round')), streamResponse(streamFixture('openai/answer')))

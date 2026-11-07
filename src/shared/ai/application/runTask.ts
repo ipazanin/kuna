@@ -17,8 +17,8 @@ export interface RunPorts {
   readonly model: ModelPort | null
   /** Whether the app's switch is on. */
   readonly appOn: boolean
-  /** Whether this run would send employee data, and whether the task's switch for it is on. */
-  readonly employees: { readonly sends: boolean; readonly on: boolean }
+  /** Whether this run would send rows about employees or their pay, and whether Anonymise, which keeps them on the device, is on. */
+  readonly employees: { readonly sends: boolean; readonly anonymising: boolean }
   /** Aborts the request under way, which then ends as `failed`. */
   readonly signal?: AbortSignal
 }
@@ -32,7 +32,7 @@ export async function runTask<Input, Output>(task: AiTask<Input, Output>, input:
   if (!ports.appOn) {
     return { kind: 'switched-off', which: 'app' }
   }
-  if (ports.employees.sends && !ports.employees.on) {
+  if (ports.employees.sends && ports.employees.anonymising) {
     return { kind: 'switched-off', which: 'employees' }
   }
   const model = ports.model

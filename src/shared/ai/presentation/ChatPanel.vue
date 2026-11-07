@@ -12,7 +12,7 @@ import AppMark from '../../ui/AppMark.vue'
 import RemovableChip from '../../ui/RemovableChip.vue'
 import type { CatalogueScreen } from '../application/catalogue'
 import { today } from '../../calendar/civilDate'
-import { anonymiseOn, assistOn, switchAssist } from '../application/assistSettings'
+import { assistOn, switchAssist } from '../application/assistSettings'
 import { CHAT_APPS } from './chatApps'
 import GrantCard from './GrantCard.vue'
 import ChatLineView from './ChatLineView.vue'
@@ -32,7 +32,7 @@ import {
   sendChatMessage,
   stopChatMessage,
 } from './chatSession'
-import { providerInUse } from './useAiTask'
+import { anonymisingNow, providerInUse } from './useAiTask'
 import { words } from './words'
 
 /**
@@ -84,7 +84,7 @@ watch(
 const switchApp = computed(() => (props.app?.assist === undefined ? null : props.app.id))
 
 const asksAlways = computed(() => props.apps.find((app) => app.id === chatAsking.value?.app)?.assist !== undefined)
-const aliasLine = computed(() => (anonymiseOn() ? words.chat.aliases : words.chat.noAliases))
+const aliasLine = computed(() => (anonymisingNow() ? words.chat.aliases : words.chat.noAliases(provider.value?.name ?? '')))
 const sendLines = computed(() => (readsHere.value && props.app !== null ? [words.consent.sends(words.chat.sendsAndReads(props.app.name)), aliasLine.value] : [words.consent.sends(words.chat.sends)]))
 const readLines = computed(() => (chatAsking.value === null ? [] : [words.consent.sends(words.chat.reads(chatAsking.value.name)), aliasLine.value]))
 const held = computed(() => asking.value !== null || chatAsking.value !== null)

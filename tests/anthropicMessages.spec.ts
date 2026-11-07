@@ -373,7 +373,7 @@ describe('a task run over the Anthropic adapter', () => {
       }),
     )
 
-    const result = await runTask(task, 'Which VAT rate applies to office chairs?', { model: anthropicMessages(KEY, SONNET), appOn: true, employees: { sends: false, on: false } })
+    const result = await runTask(task, 'Which VAT rate applies to office chairs?', { model: anthropicMessages(KEY, SONNET), appOn: true, employees: { sends: false, anonymising: true } })
 
     expect(result).toEqual({
       kind: 'draft',
@@ -547,7 +547,7 @@ describe('a whole stream', () => {
       tools: [],
       check: () => ({ draft: null, problems: [] }),
     }
-    expect(await runTask(offered, null, { model: anthropicMessages(KEY, SONNET), appOn: true, employees: { sends: false, on: false } })).toMatchObject({
+    expect(await runTask(offered, null, { model: anthropicMessages(KEY, SONNET), appOn: true, employees: { sends: false, anonymising: true } })).toMatchObject({
       kind: 'failed',
       reason: 'category is not one of the allowed values',
       usage: { inputTokens: 412 },

@@ -14,12 +14,14 @@ import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, LINE_RECORDS, RECEIP
 import type { SpendingRule } from '../workbook/domain/spendingRule'
 import type { Transaction } from '../workbook/domain/transaction'
 import { readableKind } from '../../../shared/app/assistantReader'
-import type { AppReader, FieldDocs, ReportFigure } from '../../../shared/app/assistantReader'
+import type { AppReader, ReportFigure } from '../../../shared/app/assistantReader'
+import type { FieldDocs } from '../../../shared/privacy/domain/exposure'
 import { parseCivilDate, today } from '../../../shared/calendar/civilDate'
 import { addMonths, monthOf, parseMonthKey } from '../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../shared/calendar/monthKey'
 import { EURO } from '../../../shared/money/currencyCode'
 import { ZERO, addMoney, subtractMoney } from '../../../shared/money/money'
+import type { Money } from '../../../shared/money/money'
 import { nearestBasisPoints, pointsOfShare } from '../../../shared/money/percent'
 import type { RateBook } from '../../../shared/money/rateBook'
 import { words } from './words'
@@ -35,89 +37,89 @@ export interface SpendingReading {
 export const UNREAD_KINDS: readonly string[] = [SETTING_RECORDS.name]
 
 const ACCOUNT_FIELDS: FieldDocs<Account> = {
-  id: { class: 'ref', to: ACCOUNT_RECORDS.name, meaning: 'The account.' },
-  name: { class: 'plain', meaning: 'The name the owner gave it.' },
-  kind: { class: 'plain', meaning: 'bank, cash or savings.' },
-  bank: { class: 'plain', meaning: 'otp, revolut, other or empty.' },
-  currency: { class: 'plain', meaning: 'Its one currency.' },
-  opening: { class: 'money', meaning: 'What it held at the start of openedOn.' },
-  openedOn: { class: 'plain', meaning: 'The day its figures start.' },
-  iban: { class: 'iban', meaning: "The account's own IBAN." },
-  closed: { class: 'plain', meaning: 'Closed by the owner.' },
+  id: { exposure: 'ref', to: ACCOUNT_RECORDS.name, meaning: 'The account.' },
+  name: { exposure: 'plain', meaning: 'The name the owner gave it.' },
+  kind: { exposure: 'plain', meaning: 'bank, cash or savings.' },
+  bank: { exposure: 'plain', meaning: 'otp, revolut, other or empty.' },
+  currency: { exposure: 'plain', meaning: 'Its one currency.' },
+  opening: { exposure: 'plain', amount: 'account', meaning: 'What it held at the start of openedOn.' },
+  openedOn: { exposure: 'plain', meaning: 'The day its figures start.' },
+  iban: { exposure: 'identifier', meaning: "The account's own IBAN." },
+  closed: { exposure: 'plain', meaning: 'Closed by the owner.' },
 }
 
 const CATEGORY_FIELDS: FieldDocs<Category> = {
-  id: { class: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The category.' },
-  name: { class: 'plain', meaning: 'The name the owner gave it.' },
-  kind: { class: 'plain', meaning: 'spending, income, saving, transfer or company. Only spending and income count as such in the figures.' },
-  parent: { class: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The group it sits in, or none for a group.' },
-  order: { class: 'plain', meaning: 'Its place among its siblings.' },
-  colour: { class: 'never-read', meaning: 'Its colour on screen.' },
-  hidden: { class: 'plain', meaning: 'Hidden from the pickers, while its rows keep counting.' },
+  id: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The category.' },
+  name: { exposure: 'plain', meaning: 'The name the owner gave it.' },
+  kind: { exposure: 'plain', meaning: 'spending, income, saving, transfer or company. Only spending and income count as such in the figures.' },
+  parent: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The group it sits in, or none for a group.' },
+  order: { exposure: 'plain', meaning: 'Its place among its siblings.' },
+  colour: { exposure: 'never', meaning: 'Its colour on screen.' },
+  hidden: { exposure: 'plain', meaning: 'Hidden from the pickers, while its rows keep counting.' },
 }
 
 const TRANSACTION_FIELDS: FieldDocs<Transaction> = {
-  id: { class: 'ref', to: TRANSACTION_RECORDS.name, meaning: 'The entry.' },
-  account: { class: 'ref', to: ACCOUNT_RECORDS.name, meaning: 'The account it is on.' },
-  date: { class: 'plain', meaning: 'The day.' },
-  amount: { class: 'money', meaning: "Credits above zero, debits below, in the account's currency." },
-  payee: { class: 'counterparty', meaning: 'Who was paid or who paid. An alias when it names a person, a shop or a company as it is.' },
-  category: { class: 'ref', to: CATEGORY_RECORDS.name, meaning: 'Its category, or none while it waits on To review, when it counts nowhere.' },
-  note: { class: 'free-text', meaning: "The owner's note." },
-  source: { class: 'plain', meaning: 'typed, statement or receipt.' },
-  pair: { class: 'ref', to: TRANSACTION_RECORDS.name, meaning: 'The other leg of a transfer between own accounts.' },
-  description: { class: 'free-text', meaning: "The bank's text for the row." },
-  counterpartyIban: { class: 'iban', meaning: "The other side's IBAN." },
-  importKey: { class: 'never-read', meaning: 'What names the row in its statement.' },
-  statement: { class: 'free-text', meaning: 'The label of the statement file that brought it.' },
-  categorisedBy: { class: 'plain', meaning: 'person or rule, or empty.' },
-  movedAt: { class: 'plain', meaning: 'When a move between own accounts started.' },
-  pocket: { class: 'plain', meaning: 'A move to or from a savings pocket.' },
+  id: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: 'The entry.' },
+  account: { exposure: 'ref', to: ACCOUNT_RECORDS.name, meaning: 'The account it is on.' },
+  date: { exposure: 'plain', meaning: 'The day.' },
+  amount: { exposure: 'plain', amount: 'account', meaning: "Credits above zero, debits below, in the account's currency." },
+  payee: { exposure: 'party', meaning: 'Who was paid or who paid. An alias for a person Kuna knows, a shop or a company as it is.' },
+  category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'Its category, or none while it waits on To review, when it counts nowhere.' },
+  note: { exposure: 'free-text', meaning: "The owner's note." },
+  source: { exposure: 'plain', meaning: 'typed, statement or receipt.' },
+  pair: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: 'The other leg of a transfer between own accounts.' },
+  description: { exposure: 'free-text', meaning: "The bank's text for the row." },
+  counterpartyIban: { exposure: 'identifier', meaning: "The other side's IBAN." },
+  importKey: { exposure: 'never', meaning: 'What names the row in its statement.' },
+  statement: { exposure: 'free-text', meaning: 'The label of the statement file that brought it.' },
+  categorisedBy: { exposure: 'plain', meaning: 'person or rule, or empty.' },
+  movedAt: { exposure: 'plain', meaning: 'When a move between own accounts started.' },
+  pocket: { exposure: 'plain', meaning: 'A move to or from a savings pocket.' },
 }
 
 const BUDGET_FIELDS: FieldDocs<Budget> = {
-  id: { class: 'ref', to: BUDGET_RECORDS.name, meaning: 'The limit.' },
-  category: { class: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The spending category it limits.' },
-  from: { class: 'plain', meaning: 'The month it starts, until a later one of the category.' },
-  amount: { class: 'money', meaning: 'A month in euros. Zero ends the limit.' },
+  id: { exposure: 'ref', to: BUDGET_RECORDS.name, meaning: 'The limit.' },
+  category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The spending category it limits.' },
+  from: { exposure: 'plain', meaning: 'The month it starts, until a later one of the category.' },
+  amount: { exposure: 'plain', amount: 'app', meaning: 'A month in euros. Zero ends the limit.' },
 }
 
 const RULE_FIELDS: FieldDocs<SpendingRule> = {
-  id: { class: 'ref', to: RULE_RECORDS.name, meaning: 'The rule.' },
-  order: { class: 'plain', meaning: 'The first rule that holds decides a row.' },
+  id: { exposure: 'ref', to: RULE_RECORDS.name, meaning: 'The rule.' },
+  order: { exposure: 'plain', meaning: 'The first rule that holds decides a row.' },
   condition: {
-    class: 'counterparty',
+    exposure: 'party',
     meaning: "What it tests: words in a payee's name, or the other side's IBAN.",
     read: (rule) => (rule.condition.column === 'counterparty_contains' ? rule.condition.fragment : rule.condition.iban),
   },
-  category: { class: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The category it files into.' },
+  category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The category it files into.' },
 }
 
 const RECEIPT_FIELDS: FieldDocs<Receipt> = {
-  id: { class: 'ref', to: RECEIPT_RECORDS.name, meaning: 'The receipt.' },
-  transaction: { class: 'ref', to: TRANSACTION_RECORDS.name, meaning: 'The entry it split.' },
-  merchant: { class: 'counterparty', meaning: 'The shop. An alias only when it names a person.' },
-  merchantOib: { class: 'oib', meaning: "The shop's OIB." },
-  buyerOib: { class: 'oib', meaning: 'The buyer named on an R1 receipt.' },
-  issuedOn: { class: 'plain', meaning: 'The day.' },
-  issuedTime: { class: 'plain', meaning: 'The time, or empty.' },
-  total: { class: 'money', meaning: 'Its total in euros.' },
-  jir: { class: 'never-read', meaning: 'The fiscal code.' },
-  zki: { class: 'never-read', meaning: 'The fiscal code.' },
-  readBy: { class: 'plain', meaning: 'The model that read it, or empty.' },
-  photo: { class: 'never-read', meaning: "The photo's file on Drive." },
-  latitude: { class: 'never-read', meaning: 'Where the photo was taken.' },
-  longitude: { class: 'never-read', meaning: 'Where the photo was taken.' },
+  id: { exposure: 'ref', to: RECEIPT_RECORDS.name, meaning: 'The receipt.' },
+  transaction: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: 'The entry it split.' },
+  merchant: { exposure: 'party', meaning: 'The shop. An alias for a person Kuna knows.' },
+  merchantOib: { exposure: 'identifier', meaning: "The shop's OIB." },
+  buyerOib: { exposure: 'identifier', meaning: 'The buyer named on an R1 receipt.' },
+  issuedOn: { exposure: 'plain', meaning: 'The day.' },
+  issuedTime: { exposure: 'plain', meaning: 'The time, or empty.' },
+  total: { exposure: 'plain', amount: 'app', meaning: 'Its total in euros.' },
+  jir: { exposure: 'never', meaning: 'The fiscal code.' },
+  zki: { exposure: 'never', meaning: 'The fiscal code.' },
+  readBy: { exposure: 'plain', meaning: 'The model that read it, or empty.' },
+  photo: { exposure: 'never', meaning: "The photo's file on Drive." },
+  latitude: { exposure: 'never', meaning: 'Where the photo was taken.' },
+  longitude: { exposure: 'never', meaning: 'Where the photo was taken.' },
 }
 
 const LINE_FIELDS: FieldDocs<ReceiptLine> = {
-  id: { class: 'ref', to: LINE_RECORDS.name, meaning: 'The line.' },
-  transaction: { class: 'ref', to: TRANSACTION_RECORDS.name, meaning: 'The entry it is part of.' },
-  receipt: { class: 'ref', to: RECEIPT_RECORDS.name, meaning: 'The receipt.' },
-  printed: { class: 'free-text', meaning: 'As the till printed it.' },
-  text: { class: 'free-text', meaning: 'In plain words.' },
-  amount: { class: 'money', meaning: 'Signed as the entry is.' },
-  category: { class: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The figures count this instead of the entry.' },
+  id: { exposure: 'ref', to: LINE_RECORDS.name, meaning: 'The line.' },
+  transaction: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: 'The entry it is part of.' },
+  receipt: { exposure: 'ref', to: RECEIPT_RECORDS.name, meaning: 'The receipt.' },
+  printed: { exposure: 'free-text', meaning: 'As the till printed it.' },
+  text: { exposure: 'free-text', meaning: 'In plain words.' },
+  amount: { exposure: 'plain', amount: 'account', meaning: 'Signed as the entry is.' },
+  category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The figures count this instead of the entry.' },
 }
 
 function monthOfPeriod(period: string | null): MonthKey {
@@ -128,8 +130,8 @@ function monthOfPeriod(period: string | null): MonthKey {
 }
 
 /** One figure in euros, as the screens count them. */
-function euros(label: string, cents: number): ReportFigure {
-  return { label, cents, currency: EURO }
+function euros(label: string, cents: Money): ReportFigure {
+  return { label, of: 'app', cents, currency: EURO }
 }
 
 function monthReport(book: SpendingBook, rates: RateBook, period: string | null): readonly ReportFigure[] {
@@ -176,7 +178,7 @@ function balancesReport(book: SpendingBook, rates: RateBook, period: string | nu
   const accounts = countedAccounts(book, day, rates)
   const inEuros = accounts.reduce((sum, { euros: amount }) => (amount === null ? sum : addMoney(sum, amount)), ZERO)
   return [
-    ...accounts.map(({ account, balance }): ReportFigure => ({ label: account.name, cents: balance, currency: account.currency })),
+    ...accounts.map(({ account, balance }): ReportFigure => ({ label: account.name, of: 'account', cents: balance, currency: account.currency })),
     euros('all accounts, in euros', inEuros),
     { label: 'accounts left out of that sum because no exchange rate reaches them yet', count: accounts.filter((account) => account.euros === null).length },
   ]

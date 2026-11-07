@@ -10,6 +10,7 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { readEach } from '../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { ownId, slugOf, textOf } from '../../../../shared/storage/domain/storedFields'
+import { personPayeesOf } from '../../../../shared/privacy/domain/personPayees'
 
 /** One setting as stored, kept by its key. */
 export interface SettingRow {
@@ -31,16 +32,21 @@ export interface SpendingSettings {
   readonly bankLinks: Readonly<Record<LinkableBank, CivilDate | null>>
   /** The company's OIB, which tells an R1 receipt for it. Blank until you save one. */
   readonly companyOib: string
+  /** The payees the owner flagged as people, whose names the chat and the AI tasks send as aliases. */
+  readonly personPayees: readonly string[]
 }
 
 export const BANK_SYNC_DEPLOYMENT_KEY = 'bank_sync_deployment'
 export const COMPANY_OIB_KEY = 'company_oib'
+export const PERSON_PAYEES_KEY = 'person_payees'
 
 export function bankLinkKey(bank: LinkableBank): string {
   return `bank_link_${bank}`
 }
 
 const LINK_KEYS: readonly string[] = LINKABLE_BANKS.map(bankLinkKey)
+
+const PLAIN_KEYS: readonly string[] = [BANK_SYNC_DEPLOYMENT_KEY, COMPANY_OIB_KEY, PERSON_PAYEES_KEY]
 
 export const SETTING_CODEC: RecordCodec<SettingRow> = {
   kind: SETTING_RECORDS,
@@ -58,7 +64,7 @@ export function settingRow(key: string, value: string): SettingRow {
 /** A key Kuna does not know is listed and left out, so a newer app's setting never stops this file from opening. */
 export function readSettingRows(read: RecordsRead<SettingRow>): Reading<SettingRow> {
   return readEach(read, ({ record: { key, value } }) => {
-    if (key !== BANK_SYNC_DEPLOYMENT_KEY && key !== COMPANY_OIB_KEY && !LINK_KEYS.includes(key)) return [words.settingUnknown(key)]
+    if (!PLAIN_KEYS.includes(key) && !LINK_KEYS.includes(key)) return [words.settingUnknown(key)]
     return LINK_KEYS.includes(key) && parseCivilDate(value) === null ? [words.settingNotADay(key, value)] : []
   })
 }
@@ -67,5 +73,10 @@ export function readSettingRows(read: RecordsRead<SettingRow>): Reading<SettingR
 export function spendingSettingsOf(rows: readonly SettingRow[]): SpendingSettings {
   const valueOf = (key: string): string => rows.find((row) => row.key === key)?.value ?? ''
   const linkOf = (bank: LinkableBank): CivilDate | null => parseCivilDate(valueOf(bankLinkKey(bank)))
-  return { bankSyncDeployment: valueOf(BANK_SYNC_DEPLOYMENT_KEY), bankLinks: { otp: linkOf('otp'), revolut: linkOf('revolut') }, companyOib: valueOf(COMPANY_OIB_KEY) }
+  return {
+    bankSyncDeployment: valueOf(BANK_SYNC_DEPLOYMENT_KEY),
+    bankLinks: { otp: linkOf('otp'), revolut: linkOf('revolut') },
+    companyOib: valueOf(COMPANY_OIB_KEY),
+    personPayees: personPayeesOf(valueOf(PERSON_PAYEES_KEY)),
+  }
 }

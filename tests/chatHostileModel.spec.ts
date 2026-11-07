@@ -11,8 +11,8 @@ import type { ModelPort, ModelReply, ModelRequest, ToolCall } from '../src/share
 import { contextLine, runChatTurn } from '../src/shared/ai/application/runChatTurn'
 import { chatRefs } from '../src/shared/ai/domain/chatRefs'
 import { NO_TOKENS } from '../src/shared/ai/domain/modelUsage'
-import { chatAliases } from '../src/shared/ai/domain/sensitiveText'
-import { CHAT_READING, IBAN_OF_ANA } from './fixtures/chatBook'
+import { newPseudonyms } from '../src/shared/privacy/domain/pseudonyms'
+import { CHAT_PERSONS, CHAT_READING, IBAN_OF_ANA } from './fixtures/chatBook'
 
 const CANARY = 'made-up-anthropic-key-0042'
 const BOOK_CANARY = 'Corner market'
@@ -34,6 +34,7 @@ const CATALOGUE: Catalogue = catalogueOf(
         proposer: null,
         acceptance: null,
         quickActions: [],
+        persons: () => CHAT_PERSONS,
       },
     },
   ],
@@ -73,7 +74,7 @@ function call(name: string, args: unknown): ToolCall {
 }
 
 function readsOf(allowed = false): ChatReads {
-  return { readers: CATALOGUE.readers, aliases: chatAliases(), refs: chatRefs(), anonymising: () => true, mayRead: async () => allowed }
+  return { readers: CATALOGUE.readers, pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => CHAT_PERSONS, mayRead: async () => allowed }
 }
 
 /** What a tool call does for a model that was given no yes, unless a test says otherwise. */

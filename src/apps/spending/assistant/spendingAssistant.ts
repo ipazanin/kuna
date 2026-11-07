@@ -64,4 +64,5 @@ export const spendingAssistant = (reading: SpendingReading, changes: { readonly 
   proposer: changes?.proposer ?? null,
   acceptance: changes?.acceptance ?? null,
   quickActions: [words.quickActions.sort, words.quickActions.rules, words.quickActions.higher],
+  persons: () => (reading.book()?.settings.personPayees ?? []).map((name) => ({ name, employee: false, ibans: [] })),
 })

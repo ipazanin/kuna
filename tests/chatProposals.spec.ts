@@ -10,7 +10,7 @@ import type { CheckedProposal } from '../src/shared/app/assistantOperations'
 import { proposeChanges } from '../src/shared/ai/application/chatProposals'
 import type { ChatReads } from '../src/shared/ai/application/chatReads'
 import { chatRefs } from '../src/shared/ai/domain/chatRefs'
-import { chatAliases } from '../src/shared/ai/domain/sensitiveText'
+import { newPseudonyms } from '../src/shared/privacy/domain/pseudonyms'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
@@ -30,7 +30,7 @@ interface Desk {
 async function desk(): Promise<Desk> {
   const { store } = await browserHarness(used, fakeSpendingDocument('2026-11-07T09:00:00.000Z', 'people', DAY), SPENDING)
   const typed = store as unknown as WorkbookStore<SpendingBooks>
-  const reads: ChatReads = { readers: new Map(), aliases: chatAliases(), refs: chatRefs(), anonymising: () => true, mayRead: async () => true }
+  const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => true }
   const cards: CheckedProposal[] = []
   const proposers = new Map([['spending', spendingProposer(typed)]])
   return {
@@ -104,7 +104,25 @@ describe('a proposal', () => {
     const [card] = d.cards
     expect(card!.groups.map((group) => [group.verb, group.noun.en.one])).toContainEqual(['add', 'rule'])
     const rule = card!.groups.find((group) => group.noun.en.one === 'rule')!.lines[0]!
-    expect(rule.fields).toContainEqual({ name: 'Category', before: null, after: 'Coffee' })
+    expect(rule.label).toBe('Corner market')
+    expect(rule.fields).toContainEqual({ name: 'Category', before: null, after: 'Coffee', warns: false })
+  })
+
+  it('labels a rule from an IBAN by what it files, warns on that field first, and shows amounts and days as the screens do', async () => {
+    const d = await desk()
+    const account = bookOf(d).accounts[0]!
+    await d.propose([
+      { op: 'change-account', input: { account: d.ref('account', account.id), name: null, iban: 'HR1210010051863000160', closed: 'yes' } },
+      { op: 'add-entry', input: { account: d.ref('account', account.id), date: '2026-11-03', amount: -12.5, payee: 'Corner market', category: null, note: '' } },
+    ])
+    const lines = d.cards[0]!.groups.flatMap((group) => group.lines)
+    const changed = lines.find((line) => line.label === account.name)!
+    expect(changed.fields[0]).toMatchObject({ name: 'IBAN', warns: true })
+    expect(changed.fields.slice(1).every((field) => !field.warns)).toBe(true)
+    const entry = lines.find((line) => line.label === 'Corner market')!
+    expect(entry.fields.find((field) => field.name === 'Amount')?.after).toMatch(/12[.,]50/)
+    expect(entry.fields.find((field) => field.name === 'Amount')?.after).not.toBe('-12.50 EUR')
+    expect(entry.fields.find((field) => field.name === 'Date')?.after).not.toBe('2026-11-03')
   })
 
   it('fixes and deletes a rule, with the rows following', async () => {
@@ -149,17 +167,55 @@ describe('a proposal', () => {
 
   it('turns an alias back into what it stands for in what it writes, and marks an IBAN', async () => {
     const d = await desk()
-    const alias = d.reads.aliases.aliasOf('Person', 'Ana Horvat')
-    const iban = d.reads.aliases.aliasOf('IBAN', 'HR1210010051863000160')
+    d.reads.pseudonyms.know(['Ana Horvat'])
+    const alias = d.reads.pseudonyms.pseudonymised('Ana Horvat')
+    const iban = d.reads.pseudonyms.identifierToken('HR1210010051863000160')
     await d.propose([
       { op: 'add-rule', input: { row: null, fragment: alias, category: d.ref('category', named(d, 'Rent').id) } },
       { op: 'change-account', input: { account: d.ref('account', bookOf(d).accounts[0]!.id), name: null, iban, closed: null } },
     ])
     const lines = d.cards[0]!.groups.flatMap((group) => group.lines)
-    expect(lines.some((line) => line.warns)).toBe(true)
+    expect(lines.some((line) => line.fields.some((field) => field.warns))).toBe(true)
     await accept(d)
     expect(bookOf(d).rules.at(-1)!.condition).toEqual({ column: 'counterparty_contains', fragment: 'Ana Horvat' })
     expect(bookOf(d).accounts[0]!.iban).toBe('HR1210010051863000160')
+  })
+
+  it('makes a rule from an alias cover every way its person was written', async () => {
+    const d = await desk()
+    d.reads.pseudonyms.know(['Ana Horvat'])
+    d.reads.pseudonyms.pseudonymised('HORVAT ANA')
+    const alias = d.reads.pseudonyms.pseudonymised('Ana Horvat')
+    const rulesBefore = bookOf(d).rules.length
+    await d.propose([{ op: 'add-rule', input: { row: null, fragment: alias, category: d.ref('category', named(d, 'Rent').id) } }])
+    await accept(d)
+    expect(
+      bookOf(d)
+        .rules.slice(rulesBefore)
+        .map((rule) => rule.condition),
+    ).toEqual([
+      { column: 'counterparty_contains', fragment: 'Ana Horvat' },
+      { column: 'counterparty_contains', fragment: 'HORVAT ANA' },
+    ])
+  })
+
+  it('writes an ordinary word that only looks like an alias as the model wrote it', async () => {
+    const d = await desk()
+    d.reads.pseudonyms.know(['Ana Horvat'])
+    d.reads.pseudonyms.pseudonymised('Ana Horvat')
+    await d.propose([
+      { op: 'add-rule', input: { row: null, fragment: 'Osobnu 1', category: d.ref('category', named(d, 'Rent').id) } },
+      { op: 'add-rule', input: { row: null, fragment: 'Adresama 1', category: d.ref('category', named(d, 'Rent').id) } },
+    ])
+    await accept(d)
+    expect(
+      bookOf(d)
+        .rules.slice(-2)
+        .map((rule) => rule.condition),
+    ).toEqual([
+      { column: 'counterparty_contains', fragment: 'Osobnu 1' },
+      { column: 'counterparty_contains', fragment: 'Adresama 1' },
+    ])
   })
 
   it('tells the model nothing the card holds, and no name when Kuna refuses it', async () => {
@@ -170,9 +226,18 @@ describe('a proposal', () => {
     expect(refused.isError).toBe(true)
   })
 
+  it('shows the person every refusal the model reads, with known people under their alias', async () => {
+    const d = await desk()
+    d.reads.pseudonyms.know(['Ana Horvat'])
+    const refused = await d.propose([{ op: 'delete-category', input: { category: d.ref('category', named(d, 'Between my accounts').id), into: d.ref('category', named(d, 'Rent').id) } }])
+    expect(refused.isError).toBe(true)
+    expect(refused.read).toEqual({ kind: 'refusal', app: 'spending' })
+    expect(refused.text).not.toContain('Ana Horvat')
+  })
+
   it('keeps the model’s title as it wrote it, so no real name goes back to the model or into what this browser keeps', async () => {
     const d = await desk()
-    d.reads.aliases.aliasOf('Person', 'Ana Horvat')
+    d.reads.pseudonyms.know(['Ana Horvat'])
     const answer = await proposeChanges(
       { app: 'spending', title: 'Rules for Person 1', steps: [{ op: 'set-setting', input: JSON.stringify({ key: COMPANY_OIB_KEY, value: '12345678903' }), as: null }] },
       new Map([['spending', spendingProposer(d.store)]]),

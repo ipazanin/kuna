@@ -1,41 +1,14 @@
+import type { Exposure, FieldDoc, FieldDocs, StoredValue } from '../privacy/domain/exposure'
+import type { AccountMoney } from '../money/accountMoney'
+import type { CurrencyCode } from '../money/currencyCode'
+import type { Money } from '../money/money'
 import type { RecordKind, RecordNoun } from '../storage/domain/recordKind'
 
-/**
- * How a stored field may leave the device.
- * - `plain`: as stored, such as a date, a flag or a name the owner gave a category.
- * - `ref`: the id of a record, as a ref that lasts one chat.
- * - `money`: an amount, which is ordinary data for reading.
- * - `counterparty`: who was paid or who paid, as an alias only when it names a person, so a shop's name still helps to sort a row.
- * - `person`, `iban`, `oib`, `address`: always as an alias while anonymising is on.
- * - `free-text`: what someone wrote, with anything in it that reads as one of those replaced by an alias.
- * - `never-read`: never, and the reader does not hand it over at all.
- */
-export type FieldClass = 'plain' | 'ref' | 'money' | 'counterparty' | 'person' | 'iban' | 'oib' | 'address' | 'free-text' | 'never-read'
-
-export type StoredValue = string | number | boolean | null
-
-/** A field that goes as text or a flag, with `read` for one stored in another shape. */
-interface ValueField<R> {
-  readonly meaning: string
-  readonly class: 'plain' | 'counterparty' | 'person' | 'iban' | 'oib' | 'address' | 'free-text'
-  readonly read?: (record: R) => StoredValue
-}
-
-/** What a field means and how it may leave the device. */
-export type FieldDoc<R> =
-  | ValueField<R>
-  | { readonly meaning: string; readonly class: 'ref'; readonly to: string }
-  | { readonly meaning: string; readonly class: 'money' }
-  | { readonly meaning: string; readonly class: 'never-read' }
-
-/** Every stored field of a record type, with no default, so a new field fails the typecheck until someone classifies it. */
-export type FieldDocs<R> = { readonly [Field in keyof R]-?: FieldDoc<R> }
-
-/** One field of a record, handed to the chat as its class says. A `never-read` field is not among them. */
+/** One field of a record, handed to the chat as its exposure says. A field that never leaves is not among them. */
 export type ReadableField =
-  | { readonly name: string; readonly class: ValueField<never>['class']; readonly value: StoredValue }
-  | { readonly name: string; readonly class: 'ref'; readonly to: string; readonly id: string | null }
-  | { readonly name: string; readonly class: 'money'; readonly cents: number; readonly currency: string }
+  | { readonly name: string; readonly exposure: 'plain' | 'identifier' | 'party' | 'free-text'; readonly value: StoredValue }
+  | { readonly name: string; readonly exposure: 'ref'; readonly to: string; readonly id: string | null }
+  | { readonly name: string; readonly exposure: 'plain'; readonly of: 'account' | 'app'; readonly cents: number; readonly currency: string }
 
 export interface ReadableRow {
   readonly id: string
@@ -47,7 +20,7 @@ export interface ReadableKind {
   readonly name: string
   readonly noun: RecordNoun
   readonly about: string
-  readonly fields: readonly { readonly name: string; readonly meaning: string; readonly class: FieldClass }[]
+  readonly fields: readonly { readonly name: string; readonly meaning: string; readonly exposure: Exposure; readonly amount: boolean }[]
   /** The field a date filter and the newest-first order read, or null for a kind with no date. */
   readonly dated: string | null
   rows(): readonly ReadableRow[]
@@ -65,16 +38,16 @@ export interface ReadableKindOf<R extends { readonly id: string }> {
 
 function readableFields<R extends { readonly id: string }>(kind: ReadableKindOf<R>, record: R): readonly ReadableField[] {
   return (Object.entries(kind.fields) as [keyof R & string, FieldDoc<R>][]).flatMap(([name, doc]): ReadableField[] => {
-    switch (doc.class) {
-      case 'never-read':
-        return []
-      case 'ref':
-        return [{ name, class: 'ref', to: doc.to, id: record[name] as string | null }]
-      case 'money':
-        return [{ name, class: 'money', cents: record[name] as number, currency: kind.currencyOf(record) }]
-      default:
-        return [{ name, class: doc.class, value: doc.read === undefined ? (record[name] as StoredValue) : doc.read(record) }]
+    if (doc.exposure === 'never') {
+      return []
     }
+    if (doc.exposure === 'ref') {
+      return [{ name, exposure: 'ref', to: doc.to, id: record[name] as string | null }]
+    }
+    if ('amount' in doc) {
+      return [{ name, exposure: 'plain', of: doc.amount, cents: record[name] as number, currency: kind.currencyOf(record) }]
+    }
+    return [{ name, exposure: doc.exposure, value: doc.read === undefined ? (record[name] as StoredValue) : doc.read(record) }]
   })
 }
 
@@ -84,15 +57,18 @@ export function readableKind<R extends { readonly id: string }>(kind: ReadableKi
     name: kind.kind.name,
     noun: kind.kind.noun,
     about: kind.about,
-    fields: Object.entries<FieldDoc<R>>(kind.fields).map(([name, doc]) => ({ name, meaning: doc.meaning, class: doc.class })),
+    fields: Object.entries<FieldDoc<R>>(kind.fields).map(([name, doc]) => ({ name, meaning: doc.meaning, exposure: doc.exposure, amount: 'amount' in doc })),
     dated: kind.dated,
     rows: () => kind.rows().map((record) => ({ id: record.id, fields: readableFields(kind, record) })),
   }
 }
 
-/** A figure Kuna computed: an amount, a rate in basis points, or a count. */
+/** A figure Kuna computed: an amount in the app's own currency, an account's amount in the account's currency, a rate in basis points, or a count. */
 export type ReportFigure =
-  { readonly label: string; readonly cents: number; readonly currency: string } | { readonly label: string; readonly basisPoints: number } | { readonly label: string; readonly count: number }
+  | { readonly label: string; readonly of: 'app'; readonly cents: Money; readonly currency: CurrencyCode }
+  | { readonly label: string; readonly of: 'account'; readonly cents: AccountMoney; readonly currency: CurrencyCode }
+  | { readonly label: string; readonly basisPoints: number }
+  | { readonly label: string; readonly count: number }
 
 /** Named figures from the app's own functions, for a month or a day. */
 export interface AssistantReport {

@@ -1,5 +1,4 @@
 import type { AppProposer, CheckedProposal, ProposalStep } from '../../app/assistantOperations'
-import { anonymisedText } from '../domain/sensitiveText'
 import { schemaProblems } from '../domain/strictSchema'
 import type { ChatReads, ChatToolAnswer } from './chatReads'
 
@@ -24,7 +23,11 @@ function parsed(input: string): Readonly<Record<string, unknown>> | null {
   }
 }
 
-/** A step with refs turned into ids and aliases into what they stand for, so a model writes `Person 3` and the record holds the name. Or why not, in a sentence. */
+/**
+ * A step with refs turned into ids and aliases into what they stand for, so a model writes `Person 3` and the record holds
+ * the name. A field the operation lists under `spellings` gets every way the person was written, so a rule covers each.
+ * Or why not, in a sentence.
+ */
 function resolvedStep(app: string, proposer: AppProposer, step: ProposeInput['steps'][number], names: Set<string>, reads: ChatReads): ProposalStep | string {
   const operation = proposer.operations.find((candidate) => candidate.name === step.op)
   if (operation === undefined) return "There is no such operation. Take it from the app's page."
@@ -36,7 +39,8 @@ function resolvedStep(app: string, proposer: AppProposer, step: ProposeInput['st
   for (const [field, value] of Object.entries(input)) {
     const kind = operation.refs[field]
     if (kind === undefined || value === null) {
-      resolved[field] = typeof value === 'string' ? reads.aliases.restored(value) : value
+      const spellings = typeof value === 'string' && operation.spellings?.includes(field) === true ? reads.pseudonyms.spellingsOf(value) : []
+      resolved[field] = spellings.length > 1 ? spellings : typeof value === 'string' ? reads.pseudonyms.restored(value) : value
     } else if (typeof value === 'string' && names.has(value)) {
       resolved[field] = value
     } else {
@@ -75,7 +79,8 @@ export async function proposeChanges(
   const checked = await proposer.check(input.title, steps)
   if ('refused' in checked) {
     const reasons = checked.refused.join(' ')
-    return refusal(reads.anonymising() ? anonymisedText(reasons, reads.aliases) : reasons)
+    const sent = reads.anonymising() ? reads.pseudonyms.pseudonymised(reasons) : reasons
+    return { text: sent, isError: true, read: { kind: 'refusal', app: reads.readers.get(input.app)?.name ?? input.app } }
   }
   showProposal(input.app, checked)
   return { text: `The card shows ${checked.count} changes. Say so in one short line and stop. Nothing is written until the person accepts.`, isError: false }

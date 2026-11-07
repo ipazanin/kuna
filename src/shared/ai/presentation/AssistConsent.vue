@@ -7,7 +7,7 @@ import AppDialog from '../../ui/AppDialog.vue'
 import type { ProviderPreset } from '../domain/providerPresets'
 import { words } from './words'
 
-/** Asks before a task sends with a switch off: what leaves the device, what the provider keeps, and employee names or pay whenever this run sends them. Buttons outside the chat need it until they route through the chat. */
+/** Asks before a task sends while its app asks first: what leaves the device, what the provider keeps, and rows about employees whenever this run sends them. Buttons outside the chat need it until they route through the chat. */
 const open = defineModel<boolean>('open', { required: true })
 
 defineProps<{
@@ -24,7 +24,7 @@ const emit = defineEmits<{ once: []; always: [] }>()
     <div class="flex flex-col gap-3" data-testid="assist-consent">
       <p class="type-label">{{ task.title }}</p>
       <p class="type-body">{{ words.retention[provider.id] }}</p>
-      <UAlert v-if="sendsEmployees && task.employees" color="neutral" variant="subtle" icon="i-lucide-info" :title="task.employees.goes(provider.name)" data-testid="assist-consent-employees" />
+      <UAlert v-if="sendsEmployees" color="neutral" variant="subtle" icon="i-lucide-info" :title="words.consent.employees(provider.name)" data-testid="assist-consent-employees" />
     </div>
     <template #end>
       <UButton :label="words.consent.cancel" color="neutral" variant="outline" @click="open = false" />

@@ -119,6 +119,7 @@ const DOMAIN_SHARED = [
   'src/shared/categorising/domain/',
   'src/shared/mail-filing/domain/',
   'src/shared/recipes/domain/',
+  'src/shared/privacy/domain/',
 ]
 
 /** Where the books are kept: the kernel's document storage and each app's workbook. */
@@ -133,7 +134,7 @@ function isStorageAdapter(file: string): boolean {
 /** The spreadsheet adapter's mapping of kinds to tabs, which a pack's own mappings build on. */
 const SPREADSHEET_MAPPING = ['spreadsheetTab.ts', 'packTabs.ts', 'workbookTemplate.ts', 'cellFormats.ts'].map((file) => `src/apps/company/workbook/infrastructure/${file}`)
 
-/** The files that wire adapters to the application: the workbook store's, and the invoice run's Google ports. */
+/** The files that wire adapters to the application: each workbook store, the invoice run's Google ports, the model adapters and the saved chat. */
 const ADAPTER_WIRING = [
   'src/apps/company/workbook/application/workbookStore.ts',
   'src/apps/company/invoicing/application/invoiceGoogle.ts',
@@ -142,6 +143,7 @@ const ADAPTER_WIRING = [
   'src/apps/assets/workbook/application/assetsStore.ts',
   'src/apps/spending/workbook/application/spendingStore.ts',
   'src/shared/ai/application/modelAccess.ts',
+  'src/shared/ai/application/savedChat.ts',
 ]
 
 /** What presentation in the shared kernel still imports from an adapter, a list that only shrinks. */
@@ -178,7 +180,7 @@ function readsPublished(entry: Import): boolean {
 }
 
 /** The shared modules that each hold one capability two apps use, which stay apart so none grows into another. */
-const CAPABILITIES = ['src/shared/rates/', 'src/shared/categorising/', 'src/shared/mail-filing/']
+const CAPABILITIES = ['src/shared/rates/', 'src/shared/categorising/', 'src/shared/mail-filing/', 'src/shared/privacy/']
 
 function capabilityOf(file: string): string | null {
   return CAPABILITIES.find((folder) => file.startsWith(folder)) ?? null
@@ -393,7 +395,10 @@ describe('import boundaries', () => {
         'src/shared/ai/application/runChatTurn.ts',
         'src/shared/ai/domain/chatText.ts',
         'src/shared/ai/domain/chatRefs.ts',
-        'src/shared/ai/domain/sensitiveText.ts',
+        'src/shared/privacy/domain/pseudonyms.ts',
+        'src/shared/privacy/domain/names.ts',
+        'src/shared/privacy/domain/maskIdentifiers.ts',
+        'src/shared/privacy/domain/exposure.ts',
         'src/shared/app/assistantReader.ts',
         'src/shared/app/assistantOperations.ts',
       ].includes(file) || /^src\/apps\/.*\/assistant\/[^/]+\.ts$/.test(file)
@@ -433,7 +438,7 @@ describe('import boundaries', () => {
     })
 
     it('touches no browser storage, no cookie and no network itself', () => {
-      expect(linesHolding(/localStorage|sessionStorage|indexedDB|document\.cookie|\bfetch\(|XMLHttpRequest/, (file) => !CHAT_CODE(file))).toEqual([])
+      expect(linesHolding(/localStorage|sessionStorage|indexedDB|\bDexie\b|from 'dexie'|document\.cookie|\bfetch\(|XMLHttpRequest/, (file) => !CHAT_CODE(file))).toEqual([])
     })
 
     it('spells the issues page in one place, with no draft in its address and no GitHub token anywhere', () => {

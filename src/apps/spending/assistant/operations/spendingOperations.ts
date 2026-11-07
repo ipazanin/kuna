@@ -59,7 +59,7 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
     refs: { category: CATEGORY_RECORDS.name },
     creates: null,
     alone: false,
-    example: { category: 'category', name: 'Renamed', hidden: null },
+    example: { category: 'category', name: 'Renamed', hidden: 'yes' },
   },
   {
     name: 'delete-category',
@@ -72,9 +72,11 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   },
   {
     name: 'add-rule',
-    about: "A rule that files rows into a category: as a row's payee or IBAN, by its ref, or by words in a payee's name. Rows follow at once, and the card shows them.",
+    about:
+      "A rule that files rows into a category: as a row's payee or IBAN, by its ref, or by words in a payee's name. An alias of a person as the words covers every way they were written. Rows follow at once, and the card shows them.",
     input: inputOf({ row: TEXT_OR_NULL, fragment: TEXT_OR_NULL, category: TEXT }),
     refs: { row: TRANSACTION_RECORDS.name, category: CATEGORY_RECORDS.name },
+    spellings: ['fragment'],
     creates: null,
     alone: false,
     example: { row: 'transaction', fragment: null, category: 'category' },
@@ -122,7 +124,7 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
     refs: { account: ACCOUNT_RECORDS.name },
     creates: null,
     alone: false,
-    example: { account: 'account', name: 'Renamed', iban: null, closed: null },
+    example: { account: 'account', name: 'Renamed', iban: null, closed: 'yes' },
   },
   {
     name: 'add-entry',
@@ -222,10 +224,14 @@ function planned(unit: UnitOfWork, books: SpendingBooks, steps: readonly Proposa
         break
       case 'add-rule': {
         const row = field['row'] === null ? null : found(book.transactions, idOf(field['row']), 'row')
-        const condition = row === null ? conditionOf(field['fragment'], null, { column: 'counterparty_contains', fragment: '' }) : payeeCondition(row)
-        if (condition === null || (condition.column === 'counterparty_contains' && condition.fragment === ''))
-          throw new StepRefused('A rule needs a row with a payee or an IBAN, or words to look for.')
-        edits.filing.push({ condition, category: categoryOf(field['category']).id })
+        const fragments: readonly (string | null)[] = Array.isArray(field['fragment']) ? field['fragment'] : [field['fragment']]
+        const conditions = row === null ? fragments.map((fragment) => conditionOf(fragment, null, { column: 'counterparty_contains', fragment: '' })) : [payeeCondition(row)]
+        const category = categoryOf(field['category']).id
+        for (const condition of conditions) {
+          if (condition === null || (condition.column === 'counterparty_contains' && condition.fragment === ''))
+            throw new StepRefused('A rule needs a row with a payee or an IBAN, or words to look for.')
+          edits.filing.push({ condition, category })
+        }
         break
       }
       case 'change-rule': {

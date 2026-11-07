@@ -34,6 +34,8 @@ export const en = {
     makeRule: 'Make a rule',
     makeRuleFromRow: 'Make a rule from this row',
     notWritten: 'Not written',
+    treatedAsPerson: 'Counterparty treated as a person',
+    treatedAsCompany: 'Counterparty treated as a shop or company',
     item: {
       signals: {
         purpose: 'Purpose code',
@@ -55,11 +57,14 @@ export const en = {
       makeThisARule: 'Make this a rule',
       editSplit: 'Edit the split',
       split: 'Split',
+      asPerson: 'Treat this counterparty as a person',
+      asCompany: 'Treat as a shop or company again',
+      asPersonHelp: 'Kuna matches the name as written here. Flag each other spelling too.',
     },
     session: {
       title: 'Changes in this session',
       newest: (change: string) => `The newest: ${change}`,
-      about: 'Newest first. Kept until the page reloads. Undo puts back what the workbook held, if nothing changed it since. Rules and settings are changed back on Settings.',
+      about: 'Newest first. Kept until the page reloads. Undo puts back what the workbook held, if nothing changed it since. Rules are changed back on Settings.',
       undidOne: 'Undid a change',
       undidRows: (count: number): EnglishForms => ({ one: `Undid a change to ${count} row`, other: `Undid a change to ${count} rows` }),
       filedByRule: (count: number): EnglishForms => ({ one: `Filed ${count} row by a rule`, other: `Filed ${count} rows by a rule` }),
@@ -208,6 +213,8 @@ export const hr: Translation<typeof en> = {
     makeRule: 'Napravi pravilo',
     makeRuleFromRow: 'Napravi pravilo iz ove stavke',
     notWritten: 'Nije upisano',
+    treatedAsPerson: 'Partner je označen kao osoba',
+    treatedAsCompany: 'Partner je označen kao trgovina ili tvrtka',
     item: {
       signals: {
         purpose: 'Šifra namjene',
@@ -229,12 +236,14 @@ export const hr: Translation<typeof en> = {
       makeThisARule: 'Napravi pravilo',
       editSplit: 'Uredi podjelu',
       split: 'Podijeli',
+      asPerson: 'Označi partnera kao osobu',
+      asCompany: 'Označi kao trgovinu ili tvrtku',
+      asPersonHelp: 'Kuna prepoznaje ime kako je ovdje napisano. Označite i svaki drugi način pisanja.',
     },
     session: {
       title: 'Promjene u ovoj sesiji',
       newest: (change) => `Najnovija: ${change}`,
-      about:
-        'Najnovije prvo. Čuvaju se dok se stranica ne učita ponovno. Poništavanje vraća ono što je datoteka sadržavala, ako je od tada ništa nije promijenilo. Pravila i postavke vraćaju se u Postavkama.',
+      about: 'Najnovije prvo. Čuvaju se dok se stranica ne učita ponovno. Poništavanje vraća ono što je datoteka sadržavala, ako je od tada ništa nije promijenilo. Pravila se vraćaju u Postavkama.',
       undidOne: 'Poništena je promjena',
       undidRows: (count) => ({
         one: `Poništena je promjena ${count} stavke`,

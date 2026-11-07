@@ -6,9 +6,6 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
-import { forgetAssistChoices } from '../../shared/ai/application/assistSettings'
-import { forgetKunaStart } from '../../shared/app/kunaStart'
-import { forgetGoogleSignIn } from '../../shared/google/googleAuth'
 import type { GoogleScope } from '../../shared/google/googleScopes'
 import { withGoogleAccess } from '../../shared/google/withGoogleAccess'
 import { forgetKeysHere } from '../../shared/secrets/presentation/pageSecrets'
@@ -21,11 +18,10 @@ import DeleteRow from '../../shared/storage/presentation/DeleteRow.vue'
 import { removalLines } from '../../shared/storage/presentation/removalLines'
 import type { RemovalLine } from '../../shared/storage/presentation/removalLines'
 import { words as storageWords } from '../../shared/storage/presentation/words'
-import { switchAutoSync } from '../../shared/sync/infrastructure/autoSyncSwitch'
 import { usePageSync } from '../../shared/sync/presentation/pageSync'
 import AppDialog from '../../shared/ui/AppDialog.vue'
 import { installedApps } from '../routing/appRegistry'
-import { deleteAllOfKuna, nameTyped, picksStillHeld } from './deleteAllOfKuna'
+import { deleteAllOfKuna, forgetBrowserSettings, nameTyped, picksStillHeld } from './deleteAllOfKuna'
 import type { KunaDeletionPorts, KunaDeletionReport, SharedThing } from './deleteAllOfKuna'
 import { words } from './words'
 
@@ -87,12 +83,7 @@ const PORTS: KunaDeletionPorts = {
   syncing: () => sync.running(),
   forgetBrowserKeys: forgetKeysHere,
   deleteGoogleKeys: deleteKeysFromGoogle,
-  forgetBrowserSettings() {
-    forgetKunaStart()
-    forgetAssistChoices()
-    switchAutoSync(true)
-    if (!installedApps().some((app) => app.data.held()?.source === 'drive')) forgetGoogleSignIn()
-  },
+  forgetBrowserSettings: () => forgetBrowserSettings(installedApps().some((app) => app.data.held()?.source === 'drive')),
 }
 
 function linesOf(report: KunaDeletionReport, heldBefore: ReadonlyMap<string, HeldData | null>): readonly RemovalLine[] {

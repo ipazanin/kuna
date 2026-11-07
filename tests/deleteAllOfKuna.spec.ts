@@ -1,10 +1,18 @@
-import { describe, expect, it } from 'vitest'
+import 'fake-indexeddb/auto'
+import { describe, expect, it, vi } from 'vitest'
 
+import { readSavedChat, saveChat } from '../src/shared/ai/application/savedChat'
 import type { AppData, DataPlace, HeldData } from '../src/shared/storage/application/appData'
 import { words as storageWords } from '../src/shared/storage/application/words'
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
-import { deleteAllOfKuna, nameTyped, picksStillHeld } from '../src/shell/settings/deleteAllOfKuna'
+import { deleteAllOfKuna, forgetBrowserSettings, nameTyped, picksStillHeld } from '../src/shell/settings/deleteAllOfKuna'
 import type { KunaDeletionPorts } from '../src/shell/settings/deleteAllOfKuna'
+
+const forgotten = vi.hoisted(() => [] as string[])
+vi.mock('../src/shared/app/kunaStart', () => ({ forgetKunaStart: () => forgotten.push('start') }))
+vi.mock('../src/shared/ai/application/assistSettings', () => ({ forgetAssistChoices: () => forgotten.push('assistant') }))
+vi.mock('../src/shared/google/googleAuth', () => ({ forgetGoogleSignIn: () => forgotten.push('google sign-in') }))
+vi.mock('../src/shared/sync/infrastructure/autoSyncSwitch', () => ({ switchAutoSync: () => forgotten.push('auto sync') }))
 
 function appOf(id: string, source: HeldData['source'], { busy = false, refused = null }: { busy?: boolean; refused?: string | null } = {}, calls: string[] = []): AppData {
   let held: HeldData | null = { source, fileName: `kuna-${id}.json`, places: source === 'drive' ? ['drive-file', 'browser-copy'] : ['browser-copy'], besideFileName: null, canBackUp: true, busy }
@@ -36,7 +44,7 @@ function portsOf(calls: string[], { syncing = false, googleFails = false }: { sy
       calls.push('google keys')
       if (googleFails) throw new Error('Drive answered 500.')
     },
-    forgetBrowserSettings() {
+    async forgetBrowserSettings() {
       calls.push('settings')
     },
   }
@@ -144,5 +152,21 @@ describe('deleting all of Kuna', () => {
     await expect(deleteAllOfKuna(portsOf(calls, { syncing: true }), [], ['browser-keys'])).rejects.toBeInstanceOf(WorkbookWriteRefused)
 
     expect(calls).toEqual(['syncs over'])
+  })
+
+  it("forgets this browser's settings and the chat it saved, and keeps the Google sign-in while an app keeps a file on Drive", async () => {
+    await saveChat({
+      lines: [{ role: 'user', at: Date.now(), text: 'Made-up question', note: false, chips: [], strayFigure: false, failure: null, proposals: [] }],
+      spent: { dollars: 0, unknown: false, any: false },
+    })
+    expect(await readSavedChat()).not.toBeNull()
+    forgotten.splice(0)
+
+    await forgetBrowserSettings(true)
+
+    expect(await readSavedChat()).toBeNull()
+    expect(forgotten).toEqual(['start', 'assistant', 'auto sync'])
+    await forgetBrowserSettings(false)
+    expect(forgotten).toContain('google sign-in')
   })
 })

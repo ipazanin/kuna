@@ -141,18 +141,18 @@ describe('what Explain sends for a figure', () => {
         ownKnowledge: null,
       }),
       appOn: true,
-      employees: { sends: false, on: false },
+      employees: { sends: false, anonymising: true },
     })
     expect(result).toMatchObject({ kind: 'draft', draft: { parts: [{ figures: [{ ref: 'f', cents: FIGURE.amount }], strayFigure: false }], partlyUnchecked: true } })
   })
 
-  it('sends nothing for a salary figure while its switch is off', async () => {
+  it('sends nothing for a salary figure while Anonymise is on', async () => {
     const model = answering({ parts: [], ownKnowledge: null })
-    expect(await runTask(explainFigure, INPUT, { model, appOn: true, employees: { sends: true, on: false } })).toEqual({ kind: 'switched-off', which: 'employees' })
+    expect(await runTask(explainFigure, INPUT, { model, appOn: true, employees: { sends: true, anonymising: true } })).toEqual({ kind: 'switched-off', which: 'employees' })
     expect(model.sent).toEqual([])
   })
 
-  it('marks every figure the salaries tab opens as naming employees, so its dialog asks for the switch first', () => {
+  it('marks every figure the salaries tab opens as naming employees, so Anonymise keeps it on the device', () => {
     const view = readFileSync(join(import.meta.dirname, '..', 'src/apps/company/packs/hr-doo/presentation/salaries/salariesView.ts'), 'utf8')
     const calls = view.match(/figureDetail\([^\n]*\)/g) ?? []
     expect(calls.length).toBe(5)

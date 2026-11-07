@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { maskIdentifiers } from '../src/shared/ai/domain/maskIdentifiers'
+import { maskIdentifiers } from '../src/shared/privacy/domain/maskIdentifiers'
 
 describe('masking the identifiers in a row Kuna builds', () => {
   it('cuts a Croatian IBAN to its country and last four digits, with or without spaces', () => {

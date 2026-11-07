@@ -12,10 +12,12 @@ import { CHAT_TASK_ID, contextLine, runChatTurn } from '../application/runChatTu
 import type { ChatContext, SentRead } from '../application/runChatTurn'
 import type { LoopEnd } from '../application/runModelLoop'
 import { chatRefs } from '../domain/chatRefs'
+import { newPseudonyms } from '../../privacy/domain/pseudonyms'
+import type { PersonWord } from '../../privacy/domain/pseudonyms'
+import { language } from '../../text/language'
 import type { ChatFigure } from '../domain/chatRefs'
-import { chatAliases } from '../domain/sensitiveText'
-import { forgetSavedChat, readSavedChat, saveChat } from '../application/chatHistory'
-import type { ProposalState, SavedChat, SavedLine, SavedProposal } from '../application/chatHistory'
+import { forgetSavedChat, readSavedChat, saveChat } from '../application/savedChat'
+import type { ProposalState, SavedChat, SavedLine, SavedProposal } from '../application/savedChat'
 import { modelPort } from '../application/modelAccess'
 import { anonymiseOn, assistOn, modelOf, switchAssist } from '../application/assistSettings'
 import type { ProviderId } from '../domain/providerPresets'
@@ -25,6 +27,8 @@ import { words } from './words'
 export interface ChatLine {
   readonly id: string
   readonly role: 'user' | 'assistant'
+  /** When the line was written, in milliseconds, which tells this browser when to let it go. */
+  readonly at: number
   text: string
   chips: ChatChip[]
   /** Why a message got no answer, in a sentence. */
@@ -92,13 +96,16 @@ const asking = shallowRef<ReadAsk | null>(null)
 const refusedThisMessage = new Set<string>()
 /** What the model has not heard yet of how its cards ended, which goes at the start of the next message. */
 const outcomes: string[] = []
-/** The aliases and refs of this chat, held in memory only, and gone with it. */
-let aliases = chatAliases()
+/** People go out as aliases in the screen's language, so the person reads the same word the model writes. */
+const PERSON_WORD: PersonWord = language === 'hr' ? 'Osoba' : 'Person'
+
+/** The aliases, tokens and refs of this chat, held in memory only, and gone with it. */
+let pseudonyms = newPseudonyms(PERSON_WORD)
 let refs = chatRefs()
 
-function added(role: ChatLine['role'], text: string, note = false): ChatLine {
+function added(role: ChatLine['role'], text: string, note = false, at = Date.now()): ChatLine {
   nextId += 1
-  lines.push({ id: `chat-${nextId}`, role, text, chips: [], failure: null, retry: null, note, sent: [], strayFigure: false, proposals: [] })
+  lines.push({ id: `chat-${nextId}`, role, at, text, chips: [], failure: null, retry: null, note, sent: [], strayFigure: false, proposals: [] })
   return lines[lines.length - 1]!
 }
 
@@ -158,6 +165,7 @@ function storedText(text: string): string {
 function savedLine(line: ChatLine): SavedLine {
   return {
     role: line.role,
+    at: line.at,
     text: line.role === 'assistant' ? storedText(line.text) : line.text,
     note: line.note,
     chips: [...line.chips],
@@ -167,9 +175,12 @@ function savedLine(line: ChatLine): SavedLine {
   }
 }
 
+/** The line that says a chat came back, which shows once per restore and is never kept. */
+let restoredNote: string | null = null
+
 /** Keeps the chat in this browser: what was said and how cards ended, with no tool result, no alias map and nothing to accept. */
 function keepChat(): void {
-  void saveChat({ savedAt: Date.now(), lines: lines.map(savedLine), spent: { ...spent } })
+  void saveChat({ lines: lines.filter((line) => line.id !== restoredNote).map(savedLine), spent: { ...spent } })
 }
 
 /** What a card shows after a reload: its outcome, as nothing is left to accept or undo. */
@@ -179,9 +190,9 @@ function restoredState(state: ProposalState): ProposalState {
 }
 
 function restored(saved: SavedChat): void {
-  added('assistant', words.history.restored, true)
+  restoredNote = added('assistant', words.history.restored, true).id
   for (const line of saved.lines) {
-    const shown = added(line.role, line.text, line.note)
+    const shown = added(line.role, line.text, line.note, line.at)
     shown.chips = [...line.chips]
     shown.strayFigure = line.strayFigure
     shown.failure = line.failure
@@ -200,9 +211,13 @@ export function restoreChat(): Promise<void> {
   return restoring
 }
 
+function heldProposal(id: string): ChatProposal | undefined {
+  return lines.flatMap((line) => line.proposals).find((candidate) => candidate.id === id)
+}
+
 /** How a card ended, kept in this browser and told to the model with the next message. */
 export function settleProposal(proposal: ChatProposal, state: ProposalState, reason: string | null = null, undo: ChatProposal['undo'] = null): void {
-  const held = lines.flatMap((line) => line.proposals).find((candidate) => candidate.id === proposal.id)
+  const held = heldProposal(proposal.id)
   if (held === undefined) return
   held.state = state
   held.reason = reason
@@ -215,6 +230,28 @@ export function settleProposal(proposal: ChatProposal, state: ProposalState, rea
   }[state as 'done' | 'undone' | 'declined' | 'refused']
   if (outcome !== undefined) outcomes.push(outcome)
   keepChat()
+}
+
+/**
+ * Puts back what the card wrote. When Kuna refuses, the card stays done with no Undo and says why, and the model hears
+ * with the next message that the person tried and the write stands.
+ */
+export async function undoProposal(proposal: Pick<ChatProposal, 'id'>): Promise<void> {
+  const held = heldProposal(proposal.id)
+  if (held === undefined || held.undo === null) return
+  let result: UndoResult
+  try {
+    result = await held.undo()
+  } catch {
+    result = { kind: 'refused', reason: words.proposal.undoFailed }
+  }
+  if (result.kind === 'undone') {
+    settleProposal(held, 'undone')
+    return
+  }
+  held.undo = null
+  held.reason = result.reason
+  outcomes.push(`The person tried to undo the card "${held.title}", but Kuna refused, so what it wrote stands.`)
 }
 
 /** Puts the question on the card and waits. The clock of the run stops meanwhile, as a person may take their time. */
@@ -232,6 +269,27 @@ function askToRead(ask: ReadAsk, pauseClock: () => () => void): Promise<ReadAnsw
   })
 }
 
+/** The question open for each app, so a second read of it in the same round waits for that answer instead of asking again. */
+const openReadAsks = new Map<string, Promise<boolean>>()
+
+/** Whether the person lets the chat read the app, asked once however many reads wait on it. */
+function readAnswered(ask: ReadAsk, provider: ProviderId, pauseClock: () => () => void): Promise<boolean> {
+  const open = openReadAsks.get(ask.app)
+  if (open !== undefined) return open
+  const answered = askToRead(ask, pauseClock).then((answer) => {
+    openReadAsks.delete(ask.app)
+    if (answer === 'no') {
+      refusedThisMessage.add(ask.app)
+      return false
+    }
+    if (answer === 'always') switchAssist(ask.app, true)
+    allowThisChat(provider, ask.app)
+    return true
+  })
+  openReadAsks.set(ask.app, answered)
+  return answered
+}
+
 /** Answers the question on the card. Always stays on this device and shows only where a switch can take it back, and any yes lasts this chat. */
 export function answerReadAsk(answer: ReadAnswer): void {
   const waiting = asks.shift()
@@ -243,21 +301,15 @@ export function answerReadAsk(answer: ReadAnswer): void {
 function readsOf(catalogue: Catalogue, provider: ProviderId, pauseClock: () => () => void): ChatReads {
   return {
     readers: catalogue.readers,
-    aliases,
+    pseudonyms,
     refs,
-    anonymising: anonymiseOn,
+    anonymising: () => anonymiseOn(provider),
+    persons: () => catalogue.persons(),
     mayRead: async (app) => {
       if (assistOn(app) || (allowedFor === provider && appsAllowed.has(app))) return true
       const name = catalogue.readers.get(app)?.name
       if (refusedThisMessage.has(app) || name === undefined) return false
-      const answer = await askToRead({ app, name }, pauseClock)
-      if (answer === 'no') {
-        refusedThisMessage.add(app)
-        return false
-      }
-      if (answer === 'always') switchAssist(app, true)
-      allowThisChat(provider, app)
-      return true
+      return readAnswered({ app, name }, provider, pauseClock)
     },
   }
 }
@@ -377,7 +429,7 @@ export function clearChat(): void {
   chain = null
   allowedFor = null
   appsAllowed.clear()
-  aliases = chatAliases()
+  pseudonyms = newPseudonyms(PERSON_WORD)
   refs = chatRefs()
   outcomes.splice(0)
   void forgetSavedChat()
@@ -392,7 +444,7 @@ export const chatAsking = readonly(asking)
 
 /** An answer as the person sees it, with this chat's aliases back as what they stand for. Neither leaves the page. */
 export function shownOnScreen(text: string): string {
-  return aliases.restored(text)
+  return pseudonyms.restored(text)
 }
 
 /** Kuna's own figure behind a ref in an answer, or null for one no tool gave. */

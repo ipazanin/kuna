@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import 'fake-indexeddb/auto'
 import { effectScope, nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -8,7 +9,8 @@ const ANTHROPIC_KEY = 'made-up-anthropic-key-0042'
 const OPENAI_KEY = 'made-up-openai-key-0077'
 const TYPO = 'made-up-typo-in-the-key-1234'
 const SAVED_AT = '2026-10-30T10:00:00.000Z'
-const YES = 'kuna.assist-task.hr-doo.explain-figure'
+/** Anonymise switched off for OpenAI, which a real change of AI company turns back on. */
+const ANONYMISE_OFF = 'kuna.assist-anonymise'
 
 const test = vi.hoisted(() => ({ answer: { kind: 'works' } as KeyTest }))
 
@@ -32,7 +34,7 @@ interface Started {
 async function card({ stored = {}, brought }: Started = {}) {
   for (const [name, value] of Object.entries(stored)) localStorage.setItem(name, value)
   const { holdProviderInUse, providerInUse } = await import('../src/shared/ai/presentation/useAiTask')
-  const { employeesOn } = await import('../src/shared/ai/application/assistSettings')
+  const { anonymiseOn } = await import('../src/shared/ai/application/assistSettings')
   const { keepSyncedSecrets } = await import('../src/shared/secrets/presentation/pageSecrets')
   const { useAssistantCard } = await import('../src/shared/ai/presentation/useAssistantCard')
   holdProviderInUse()
@@ -44,7 +46,7 @@ async function card({ stored = {}, brought }: Started = {}) {
       brought?.()
       return null
     })
-  return { view, fetchKey, announced, inUse: () => providerInUse()?.id ?? null, yes: () => employeesOn('hr-doo.explain-figure'), keepSyncedSecrets }
+  return { view, fetchKey, announced, inUse: () => providerInUse()?.id ?? null, anonymiseOff: () => !anonymiseOn('openai'), keepSyncedSecrets }
 }
 
 async function saveTyped(view: Awaited<ReturnType<typeof card>>['view'], key: string): Promise<void> {
@@ -53,11 +55,11 @@ async function saveTyped(view: Awaited<ReturnType<typeof card>>['view'], key: st
   await nextTick()
 }
 
-const OPENAI_IN_USE = { 'kuna.secret.openai': OPENAI_KEY, [YES]: 'on' }
+const OPENAI_IN_USE = { 'kuna.secret.openai': OPENAI_KEY, [ANONYMISE_OFF]: 'openai' }
 
 describe('the provider changes only by a person on the select', () => {
   it('stays on the company in use when a key for another is accepted, with no pick stored before, and says how to switch', async () => {
-    const { view, inUse, yes } = await card({ stored: OPENAI_IN_USE })
+    const { view, inUse, anonymiseOff } = await card({ stored: OPENAI_IN_USE })
     view.pick('anthropic')
     await nextTick()
     expect(view.keepsUsing.value).toContain('Kuna keeps using OpenAI')
@@ -66,13 +68,13 @@ describe('the provider changes only by a person on the select', () => {
     expect(localStorage.getItem('kuna.secret.anthropic')).toBe(ANTHROPIC_KEY)
     expect(inUse()).toBe('openai')
     expect(localStorage.getItem('kuna.assist-provider')).toBe('openai')
-    expect(yes()).toBe(true)
+    expect(anonymiseOff()).toBe(true)
     expect(view.shownId.value).toBe('openai')
     expect(view.savedAsideLines.value.join(' ')).toContain('Your Anthropic key is saved. Kuna keeps using OpenAI until you pick Anthropic here.')
   })
 
-  it('moves on the pick that follows, and takes the yes back then', async () => {
-    const { view, inUse, yes } = await card({ stored: OPENAI_IN_USE })
+  it('moves on the pick that follows, and turns Anonymise back on then', async () => {
+    const { view, inUse, anonymiseOff } = await card({ stored: OPENAI_IN_USE })
     view.pick('anthropic')
     await nextTick()
     await saveTyped(view, ANTHROPIC_KEY)
@@ -80,17 +82,17 @@ describe('the provider changes only by a person on the select', () => {
     await nextTick()
 
     expect(inUse()).toBe('anthropic')
-    expect(yes()).toBe(false)
-    expect(view.movedHere.value).toMatchObject({ to: 'anthropic', from: 'openai', employeesReset: true })
+    expect(anonymiseOff()).toBe(false)
+    expect(view.movedHere.value).toMatchObject({ to: 'anthropic', from: 'openai', anonymiseBack: true })
     expect(view.otherKept.value?.id).toBe('openai')
   })
 
   it('leaves the assistant alone when someone only looks at a company with no key', async () => {
-    const { view, inUse, yes } = await card({ stored: OPENAI_IN_USE })
+    const { view, inUse, anonymiseOff } = await card({ stored: OPENAI_IN_USE })
     view.pick('openrouter')
     await nextTick()
     expect(inUse()).toBe('openai')
-    expect(yes()).toBe(true)
+    expect(anonymiseOff()).toBe(true)
     expect(view.shownId.value).toBe('openrouter')
   })
 
@@ -114,7 +116,7 @@ describe('the provider changes only by a person on the select', () => {
   })
 
   it('stays where it is through Remove and its Undo', async () => {
-    const { view, announced, inUse, yes } = await card({ stored: { ...OPENAI_IN_USE, 'kuna.secret.anthropic': ANTHROPIC_KEY } })
+    const { view, announced, inUse, anonymiseOff } = await card({ stored: { ...OPENAI_IN_USE, 'kuna.secret.anthropic': ANTHROPIC_KEY } })
     expect(inUse()).toBe('anthropic')
     view.remove('anthropic')
     await nextTick()
@@ -124,25 +126,25 @@ describe('the provider changes only by a person on the select', () => {
     await nextTick()
     expect(inUse()).toBe('anthropic')
     expect(localStorage.getItem('kuna.secret.anthropic')).toBe(ANTHROPIC_KEY)
-    expect(yes()).toBe(true)
+    expect(anonymiseOff()).toBe(true)
   })
 
   it('stays where it is when a sync brings a key that sorts first, and the card keeps showing it', async () => {
-    const { view, inUse, yes, keepSyncedSecrets } = await card({ stored: OPENAI_IN_USE })
+    const { view, inUse, anonymiseOff, keepSyncedSecrets } = await card({ stored: OPENAI_IN_USE })
     keepSyncedSecrets({ anthropic: { key: ANTHROPIC_KEY, changedAt: SAVED_AT } })
     await nextTick()
     expect(inUse()).toBe('openai')
-    expect(yes()).toBe(true)
+    expect(anonymiseOff()).toBe(true)
     expect(view.shownId.value).toBe('openai')
   })
 
   it('stays where it is when a sync takes its key, and does not fall to the other saved key', async () => {
-    const { inUse, yes, keepSyncedSecrets } = await card({ stored: { ...OPENAI_IN_USE, 'kuna.secret.anthropic': ANTHROPIC_KEY } })
+    const { inUse, anonymiseOff, keepSyncedSecrets } = await card({ stored: { ...OPENAI_IN_USE, 'kuna.secret.anthropic': ANTHROPIC_KEY } })
     expect(inUse()).toBe('anthropic')
     keepSyncedSecrets({ anthropic: { key: null, changedAt: SAVED_AT } })
     await nextTick()
     expect(inUse()).toBe('anthropic')
-    expect(yes()).toBe(true)
+    expect(anonymiseOff()).toBe(true)
   })
 
   it('holds the first company a sync brings when a later sync brings another', async () => {
@@ -155,7 +157,7 @@ describe('the provider changes only by a person on the select', () => {
 
 describe('a key the company refuses', () => {
   it('is not kept, so it cannot take over from the key in use', async () => {
-    const { view, inUse, yes } = await card({ stored: OPENAI_IN_USE })
+    const { view, inUse, anonymiseOff } = await card({ stored: OPENAI_IN_USE })
     view.pick('anthropic')
     await nextTick()
     test.answer = { kind: 'refused' }
@@ -164,7 +166,7 @@ describe('a key the company refuses', () => {
     expect(localStorage.getItem('kuna.secret.anthropic')).toBeNull()
     expect(localStorage.getItem('kuna.secret-changed.anthropic')).toBeNull()
     expect(inUse()).toBe('openai')
-    expect(yes()).toBe(true)
+    expect(anonymiseOff()).toBe(true)
     expect(view.testLine.value).toBe('Anthropic refused this key. Copy it again, or make a new one.')
     expect(view.keepsUsing.value).toContain('Kuna keeps using OpenAI')
     expect(view.fieldOpen.value).toBe(true)
@@ -199,14 +201,14 @@ describe('a key the company refuses', () => {
 
 describe('Get it from Google', () => {
   it('moves nothing and says so when it finds nothing for the company on screen', async () => {
-    const { view, fetchKey, inUse, yes } = await card({ stored: { ...OPENAI_IN_USE, 'kuna.assist-provider': 'openai', 'kuna.secret.anthropic': ANTHROPIC_KEY } })
+    const { view, fetchKey, inUse, anonymiseOff } = await card({ stored: { ...OPENAI_IN_USE, 'kuna.assist-provider': 'openai', 'kuna.secret.anthropic': ANTHROPIC_KEY } })
     view.pick('openrouter')
     await nextTick()
     await fetchKey()
     await nextTick()
 
     expect(inUse()).toBe('openai')
-    expect(yes()).toBe(true)
+    expect(anonymiseOff()).toBe(true)
     expect(view.movedHere.value).toBeNull()
     expect(view.fetchLine.value).toBe('Your Google account holds no OpenRouter key for Kuna.')
   })
@@ -271,5 +273,35 @@ describe('which companies read a PDF', () => {
     expect(presetOf('anthropic').readsPdf).toBe(anthropicMessages(ANTHROPIC_KEY, model).readsPdf)
     expect(presetOf('openai').readsPdf).toBe(openAiResponses('https://made.up', OPENAI_KEY, model).readsPdf)
     expect(presetOf('openrouter').readsPdf).toBe(openRouterChat('https://made.up', OPENAI_KEY, model).readsPdf)
+  })
+})
+
+describe('the line about the saved chat', () => {
+  const A_LINE = { role: 'user', at: Date.now(), text: 'Made-up question', note: false, chips: [], strayFigure: false, failure: null, proposals: [] } as const
+  const NOTHING_SPENT = { dollars: 0, unknown: false, any: false }
+
+  async function line() {
+    const { useSavedChatLine } = await import('../src/shared/ai/presentation/useSavedChatLine')
+    return effectScope().run(() => useSavedChatLine())!
+  }
+
+  it('shows Clear whenever a chat is saved, with no key kept, and says once it is cleared', async () => {
+    const { readSavedChat, saveChat } = await import('../src/shared/ai/application/savedChat')
+    await saveChat({ lines: [A_LINE], spent: NOTHING_SPENT })
+    const history = await line()
+    await vi.waitFor(() => expect(history.shown.value).toBe(true))
+
+    await history.clear()
+    await vi.waitFor(async () => expect(await readSavedChat()).toBeNull())
+    expect(history.shown.value).toBe(true)
+    expect(history.cleared.value).toBe(true)
+  })
+
+  it('hides when no chat is saved', async () => {
+    const { forgetSavedChat } = await import('../src/shared/ai/application/savedChat')
+    await forgetSavedChat()
+    const history = await line()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(history.shown.value).toBe(false)
   })
 })

@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import USwitch from '@nuxt/ui/components/Switch.vue'
 
-import { employeesOn, switchEmployees } from '../../../../shared/ai/application/assistSettings'
 import AssistButton from '../../../../shared/ai/presentation/AssistButton.vue'
-import { assistKeyKept, providerInUse, resultLine, usageLine, useAiTask } from '../../../../shared/ai/presentation/useAiTask'
+import { anonymisingNow, assistKeyKept, resultLine, usageLine, useAiTask } from '../../../../shared/ai/presentation/useAiTask'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -14,7 +12,7 @@ import type { RecordWriteOptions } from '../../../../shared/storage/presentation
 import { plural } from '../../../../shared/text/translation'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
 import { installedPack, shownPack } from '../../packs/packContribution'
-import { SUGGEST_CATEGORIES, namesEmployee, sendsEmployees, sentRows, suggestCategories } from '../../assist/application/suggestCategories'
+import { sendsEmployees, sentRows, suggestCategories } from '../../assist/application/suggestCategories'
 import type { CategorySuggestion, SuggestInput } from '../../assist/application/suggestCategories'
 import { SUGGEST_CATEGORIES_SUMMARY } from '../../assist/presentation/companyAssist'
 import { words as assistWords } from '../../assist/presentation/words'
@@ -24,6 +22,8 @@ import { categorisationContextOf } from '../../rules/domain/categorisationContex
 import RuleEditor from '../../rules/presentation/RuleEditor.vue'
 import type { RuleEditorSource } from '../../rules/presentation/RuleEditor.vue'
 import { useSettings } from '../../settings/application/useSettings'
+import { treatPayeeAsPerson } from '../../settings/application/settingWrites'
+import { flaggedAsPerson } from '../../../../shared/privacy/domain/personPayees'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { LedgerSplit } from '../../workbook/domain/splits'
@@ -74,14 +74,12 @@ const suggestionOf = computed(() => {
 /** The rows still waiting that have a suggestion, so a row filed by its suggestion stops counting. */
 const suggestedRows = computed(() => props.queue.filter(({ transaction }) => suggestionOf.value.has(transaction.id)))
 
-const employees = computed(() =>
-  state.records === null
-    ? { employeeIbans: new Set<string>(), employeeNames: [] }
-    : { employeeIbans: installedPack().employeeIbans(state.records), employeeNames: installedPack().employeeNames(state.records) },
-)
-const paysEmployees = computed(() => props.queue.some(({ transaction }) => namesEmployee(transaction, employees.value)))
+const employees = computed(() => {
+  const known = state.records === null ? [] : installedPack().employees(state.records)
+  return { employeeIbans: new Set(known.flatMap((employee) => employee.ibans)), employeeNames: known.map((employee) => employee.name) }
+})
 
-/** The queue holds rows, yet the employee switch keeps every one of them from a request. */
+/** The queue holds rows, yet Anonymise keeps every one of them from a request, as each names an employee. */
 const heldBack = computed(() => {
   const input = suggestInput()
   return input !== null && input.rows.length > 0 && sentRows(input).length === 0
@@ -108,10 +106,17 @@ function suggestInput(): SuggestInput | null {
     categories: workbook.categories,
     accounts: workbook.accounts,
     ...employees.value,
-    includeEmployees: employeesOn(SUGGEST_CATEGORIES),
+    personPayees: workbook.settings.personPayees,
+    anonymising: anonymisingNow(),
     packPairSides: installedPack().workbook?.pairSides ?? {},
   }
 }
+
+/** Whether a request now would send rows about employees, which only happens with Anonymise off. */
+const sendsEmployeesNow = computed(() => {
+  const input = suggestInput()
+  return input !== null && sendsEmployees(input)
+})
 
 async function suggest(): Promise<void> {
   const input = suggestInput()
@@ -165,6 +170,17 @@ function splitOf(row: Transaction): LedgerSplit | null {
   return state.workbook?.splits.find((split) => split.row.id === row.id) ?? null
 }
 
+async function treatCounterparty(transaction: Transaction): Promise<void> {
+  const counterparty = transaction.counterparty.trim()
+  if (counterparty === '') return
+  const asPerson = !flaggedAsPerson(settings.value.personPayees, counterparty)
+  await writes.write(asPerson ? words.review.treatedAsPerson : words.review.treatedAsCompany, (unit) => treatPayeeAsPerson(unit, state.records?.settings ?? NO_RECORDS, counterparty, asPerson), {
+    key: `person-${transaction.id}`,
+    description: counterparty,
+    failedTitle: words.review.notWritten,
+  })
+}
+
 function openSplit(row: Transaction): void {
   splitting.value = { row, split: splitOf(row) }
   splitOpen.value = true
@@ -192,21 +208,13 @@ function openSplit(row: Transaction): void {
               :app="suggestCategories.app"
               :task="SUGGEST_CATEGORIES_SUMMARY"
               :label="assistWords.suggest.title"
-              :sends-employees="paysEmployees && employeesOn(SUGGEST_CATEGORIES)"
+              :sends-employees="sendsEmployeesNow"
               :loading="suggesting.state.value.kind === 'running'"
               @run="suggest"
             />
           </template>
-          <template v-if="assistKeyKept && (paysEmployees || suggestLines.length > 0)" #header>
+          <template v-if="assistKeyKept && suggestLines.length > 0" #header>
             <div class="flex flex-col gap-2" data-testid="review-suggest-status">
-              <USwitch
-                v-if="paysEmployees"
-                :model-value="employeesOn(SUGGEST_CATEGORIES)"
-                :label="assistWords.suggest.employees"
-                :description="assistWords.suggest.employeesNote(providerInUse()?.name ?? '')"
-                data-testid="review-suggest-employees"
-                @update:model-value="switchEmployees(SUGGEST_CATEGORIES, $event)"
-              />
               <p v-for="line in suggestLines" :key="line" class="text-xs text-muted" data-testid="review-suggest-line">{{ line }}</p>
             </div>
           </template>
@@ -221,11 +229,13 @@ function openSplit(row: Transaction): void {
               :split="splitOf(entry.transaction) !== null"
               :saving="writes.saving"
               :suggestion="suggestionOf.get(entry.transaction.id) ?? null"
+              :person-counterparty="flaggedAsPerson(settings.personPayees, entry.transaction.counterparty)"
               @toggle="toggle(entry.transaction.id)"
               @confirm="confirm(entry.transaction)"
               @recategorise="recategorise(entry.transaction, $event)"
               @make-rule="makeRule(entry.transaction)"
               @split="openSplit(entry.transaction)"
+              @treat-counterparty="treatCounterparty(entry.transaction)"
             />
           </ul>
         </AppCard>

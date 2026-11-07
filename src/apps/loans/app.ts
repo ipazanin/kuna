@@ -53,7 +53,7 @@ export const loansApp: AppContribution = {
   subtitle: () => null,
   // Until Loans has settings of its own, it shows euros in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
-  assistant: async () => (await import('./assistant/loansAssistant')).LOANS_ASSISTANT,
+  assistant: async () => (await import('./assistant/loansAssistant')).loansAssistant(() => state.workbook),
   homeCard: LOANS_HOME_CARD,
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => loansHubFigures(book, today())) },
   setUpLines: () => (state.workbook === null ? [] : loansSetUp(state.workbook)),

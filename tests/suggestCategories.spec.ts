@@ -14,7 +14,7 @@ import { ledger } from './fixtures/ledger'
 
 const EMPLOYEE_IBAN = 'HR2123400091110123456'
 const ROWS = ledger([
-  { date: '2026-10-08', amount: -6.4, counterparty: 'Snack Kiosk Žminj', description: 'Card purchase, OIB 12345678903', flaggedBy: 'ai' },
+  { date: '2026-10-08', amount: -6.4, counterparty: 'Snack Kiosk Žminj', description: 'Card purchase, OIB [OIB]', flaggedBy: 'ai' },
   { date: '2026-10-09', amount: -38.9, counterparty: 'Gadget Corner', iban: 'HR1210010051863000160', description: 'Paid to HR12 1001 0051 8630 0016 0', flaggedBy: 'ai' },
   { date: '2026-10-10', amount: -1500, counterparty: 'Ana Example', iban: EMPLOYEE_IBAN, description: 'Salary October', flaggedBy: 'ai' },
   { date: '2026-10-11', amount: 1200, counterparty: 'Client Example', description: 'Invoice 7', flaggedBy: 'ai' },
@@ -29,7 +29,8 @@ function inputOf(change: Partial<SuggestInput> = {}): SuggestInput {
     accounts: ACCOUNTS,
     employeeIbans: new Set([EMPLOYEE_IBAN]),
     employeeNames: ['Mia Primjer', 'Đuro Šimić'],
-    includeEmployees: false,
+    personPayees: [],
+    anonymising: true,
     packPairSides: { 'owner-loan-out': 'debit', 'owner-loan-repaid': 'credit' },
     ...change,
   }
@@ -59,13 +60,13 @@ function answering(answer: unknown): ModelPort & { readonly sent: ModelRequest[]
 describe('what Suggest categories sends', () => {
   it('folds the counterparty, sends the signed amount, the account name and the month, and never the counterparty IBAN', () => {
     const rows = JSON.parse(sentText(inputOf()).split('Rows:\n')[1]!)
-    expect(rows[0]).toEqual({ ref: 'r1', counterparty: 'SNACK KIOSK ZMINJ', description: 'Card purchase, OIB 12345678903', amount: '-6.40', account: 'Main account', month: '2026-10' })
+    expect(rows[0]).toEqual({ ref: 'r1', counterparty: 'SNACK KIOSK ZMINJ', description: 'Card purchase, OIB [OIB]', amount: '-6.40', account: 'Main account', month: '2026-10' })
     expect(sentText(inputOf())).not.toContain('HR1210010051863000160')
   })
 
   it('masks an IBAN and an OIB in a description once the run sends it', async () => {
     const model = answering({ suggestions: [] })
-    await runTask(suggestCategories, inputOf(), { model, appOn: true, employees: { sends: false, on: false } })
+    await runTask(suggestCategories, inputOf(), { model, appOn: true, employees: { sends: false, anonymising: true } })
     const text = (model.sent[0]!.turns[0] as { parts: readonly AiTextPart[] }).parts[0]!.text
     expect(text).toContain('Card purchase, OIB [OIB]')
     expect(text).toContain('Paid to HR•• ••••0160')
@@ -77,12 +78,12 @@ describe('what Suggest categories sends', () => {
     expect(categories).toContainEqual({ slug: 'revenue', name: 'revenue', family: 'income', bucket: 'income', roles: ['revenue'] })
   })
 
-  it('leaves the rows paid to employees out until their switch is on', () => {
+  it('leaves the rows paid to employees out while Anonymise is on', () => {
     expect(sentRows(inputOf()).map(({ row }) => row.counterparty)).toEqual(['Snack Kiosk Žminj', 'Gadget Corner', 'Client Example'])
     expect(sentText(inputOf())).not.toContain('Ana Example'.toUpperCase())
     expect(sendsEmployees(inputOf())).toBe(false)
-    expect(sentRows(inputOf({ includeEmployees: true })).map(({ ref }) => ref)).toEqual(['r1', 'r2', 'r3', 'r4'])
-    expect(sendsEmployees(inputOf({ includeEmployees: true }))).toBe(true)
+    expect(sentRows(inputOf({ anonymising: false })).map(({ ref }) => ref)).toEqual(['r1', 'r2', 'r3', 'r4'])
+    expect(sendsEmployees(inputOf({ anonymising: false }))).toBe(true)
   })
 
   it(`sends at most ${MOST_ROWS} rows in one request`, () => {
@@ -123,7 +124,7 @@ describe('the check of the suggestions', () => {
   })
 
   it('counts the rows sent, so the screen can say how many got no suggestion', async () => {
-    const result = await runTask(suggestCategories, inputOf(), { model: answering({ suggestions: [one('r2', 'equipment')] }), appOn: true, employees: { sends: false, on: false } })
+    const result = await runTask(suggestCategories, inputOf(), { model: answering({ suggestions: [one('r2', 'equipment')] }), appOn: true, employees: { sends: false, anonymising: true } })
     expect(result).toMatchObject({ kind: 'draft', draft: { asked: 3, suggestions: [{ category: 'equipment' }] } })
   })
 })
@@ -145,13 +146,21 @@ describe('a row that names an employee', () => {
     expect(namesEmployee(row('Anyone'), { employeeIbans: new Set(), employeeNames: ['-'] })).toBe(false)
   })
 
-  it('stays home with the switch off, and with it on the request says it sends one', () => {
+  it('stays home while Anonymise is on, and with it off the request says it sends one', () => {
     const rows = ledger([
       { date: '2026-10-10', amount: -1500, counterparty: 'MIA PRIMJER', iban: 'HR1210010051863000160', description: 'Salary', flaggedBy: 'ai' },
       { date: '2026-10-11', amount: -20, counterparty: 'Gadget Corner', flaggedBy: 'ai' },
     ])
     expect(sentRows(inputOf({ rows })).map(({ row: sent }) => sent.counterparty)).toEqual(['Gadget Corner'])
-    expect(sendsEmployees(inputOf({ rows, includeEmployees: true }))).toBe(true)
+    expect(sendsEmployees(inputOf({ rows, anonymising: false }))).toBe(true)
+  })
+
+  it('sends a flagged payee under an alias while Anonymise is on, and as written while it is off', () => {
+    const rows = ledger([{ date: '2026-10-10', amount: -40, counterparty: 'IVEK HORVAT', description: 'Povrat Iveku Horvatu', flaggedBy: 'ai' }])
+    const flagged = { rows, personPayees: ['Ivek Horvat'] }
+    expect(sentText(inputOf(flagged))).not.toMatch(/HORVAT|Horvat/)
+    expect(sentText(inputOf(flagged))).toContain('PERSON 1')
+    expect(sentText(inputOf({ ...flagged, anonymising: false }))).toContain('Povrat Iveku Horvatu')
   })
 
   it('leaves nothing to send when every waiting row names one', () => {

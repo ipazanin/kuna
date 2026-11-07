@@ -1,0 +1,137 @@
+import { fold } from '../../text/fold'
+import { eachIdentifier, maskedIdentifier } from './maskIdentifiers'
+import type { FoundIdentifier } from './maskIdentifiers'
+import { isName, nameRuns, sameName } from './names'
+
+/** A person an app knows by name. Their name goes under an alias, and an employee's rows stay on the device while Anonymise is on. */
+export interface KnownPerson {
+  readonly name: string
+  readonly employee: boolean
+  /** The IBANs the person is paid into, normalised, which name them as surely as their name. */
+  readonly ibans: readonly string[]
+}
+
+/** An IBAN or OIB that went out under a token, kept as first written so restoring gives it back as the person typed it. */
+interface IdentifierPseudonym {
+  readonly token: string
+  readonly compact: string
+  readonly written: string
+}
+
+/** The word an alias of a person starts with, in English and in Croatian. Restoring reads both, so a chat that changed language still reads back. */
+export type PersonWord = 'Person' | 'Osoba'
+
+const PERSON_WORDS: readonly PersonWord[] = ['Person', 'Osoba']
+
+/** A person's name that goes out under an alias such as `Person 1`, with every way a text wrote it. */
+interface PersonPseudonym {
+  readonly number: number
+  readonly alias: string
+  readonly name: string
+  readonly spellings: string[]
+}
+
+/** The tokens and aliases one conversation hands out, held in memory only, so the same identifier or person always reads the same and can be read back. */
+export interface Pseudonyms {
+  /** Gives each name an alias, unless it has one or cannot be matched. Aliases follow the order names are first known. */
+  know(names: readonly string[]): void
+  /** The text with each IBAN and OIB under its token and each known person under their alias. */
+  pseudonymised(text: string): string
+  /** A field that holds one identifier, under its token whatever its shape. */
+  identifierToken(value: string): string
+  /** What a token or an alias stands for, or null for text Kuna never handed out. */
+  valueOf(token: string): string | null
+  /** Every way the text Kuna sent wrote the person behind an alias, the known name first, or the value behind a token. Empty for text Kuna never handed out. */
+  spellingsOf(token: string): readonly string[]
+  /** The text with each token and alias Kuna handed out back as what it stands for, and any other left as written. */
+  restored(text: string): string
+}
+
+function compactOf(written: string): string {
+  return written.replace(/[\s-]/g, '').toUpperCase().replace(/^IBAN/, '')
+}
+
+function escaped(token: string): string {
+  return token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** The pseudonyms of one conversation, whose people go out as `Person 1` or, on a Croatian screen, `Osoba 1`. */
+export function newPseudonyms(personWord: PersonWord = 'Person'): Pseudonyms {
+  const identifiers: IdentifierPseudonym[] = []
+  const persons: PersonPseudonym[] = []
+
+  /** The token an identifier already has, or a new one shaped like its mask, with ` #2` and on when another identifier holds that mask. */
+  function tokenOf(identifier: FoundIdentifier): string {
+    const known = identifiers.find((pseudonym) => pseudonym.compact === identifier.compact)
+    if (known !== undefined) {
+      return known.token
+    }
+    const mask = maskedIdentifier(identifier)
+    const sharing = identifiers.filter((pseudonym) => pseudonym.token === mask || pseudonym.token.startsWith(`${mask} #`)).length
+    const token = sharing === 0 ? mask : `${mask} #${sharing + 1}`
+    identifiers.push({ token, compact: identifier.compact, written: identifier.written })
+    return token
+  }
+
+  function aliasedRuns(text: string, person: PersonPseudonym): string {
+    return nameRuns(text, person.name).reduceRight((replaced, run) => {
+      const written = text.slice(run.start, run.end)
+      if (!person.spellings.some((spelling) => fold(spelling) === fold(written))) {
+        person.spellings.push(written)
+      }
+      return `${replaced.slice(0, run.start)}${person.alias}${replaced.slice(run.end)}`
+    }, text)
+  }
+
+  function realValues(): ReadonlyMap<string, string> {
+    const everyAlias = persons.flatMap((person) => PERSON_WORDS.map((word) => [`${word} ${person.number}`, person.name] as const))
+    return new Map([...identifiers.map((pseudonym) => [pseudonym.token, pseudonym.written] as const), ...everyAlias])
+  }
+
+  function personOf(token: string): PersonPseudonym | undefined {
+    const match = /^(?:Person|Osoba) (\d+)$/.exec(token.trim())
+    return match === null ? undefined : persons.find((person) => person.number === Number(match[1]))
+  }
+
+  return {
+    know(names) {
+      for (const name of names) {
+        if (isName(name) && !persons.some((person) => sameName(person.name, name))) {
+          persons.push({ number: persons.length + 1, alias: `${personWord} ${persons.length + 1}`, name, spellings: [name] })
+        }
+      }
+    },
+    pseudonymised(text) {
+      const tokened = eachIdentifier(text, tokenOf)
+      const longestNameFirst = [...persons].sort((one, other) => other.name.length - one.name.length)
+      return longestNameFirst.reduce(aliasedRuns, tokened)
+    },
+    identifierToken(value) {
+      const compact = compactOf(value)
+      if (compact === '') {
+        return value
+      }
+      return tokenOf({ kind: /^\d{11}$/.test(compact) ? 'oib' : 'iban', written: value, compact })
+    },
+    valueOf(token) {
+      return realValues().get(token.trim()) ?? null
+    },
+    spellingsOf(token) {
+      const person = personOf(token)
+      if (person !== undefined) {
+        return [...person.spellings]
+      }
+      const value = realValues().get(token.trim())
+      return value === undefined ? [] : [value]
+    },
+    restored(text) {
+      const real = realValues()
+      if (real.size === 0) {
+        return text
+      }
+      const tokens = [...real.keys()].sort((one, other) => other.length - one.length).map(escaped)
+      const handedOut = new RegExp(`(?<![\\p{L}\\p{N}])(?:${tokens.join('|')})(?![\\p{L}\\p{N}]| #\\d)`, 'gu')
+      return text.replace(handedOut, (token) => real.get(token) ?? token)
+    },
+  }
+}

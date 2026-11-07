@@ -1,0 +1,113 @@
+import { fold } from '../../text/fold'
+
+interface Word {
+  readonly start: number
+  readonly end: number
+  readonly folded: string
+}
+
+/** A run of the text that belongs to a name, such as `HORVAT, ANA`. */
+export interface NameRun {
+  readonly start: number
+  readonly end: number
+}
+
+/** A one-word name shorter than this matches too much prose, as `Ana` would, so it never matches alone. */
+const SHORTEST_ONE_WORD_NAME = 4
+
+const A_ENDINGS = ['A', 'E', 'I', 'U', 'O', 'OM']
+const O_E_ENDINGS = ['O', 'E', 'A', 'I', 'U', 'OM', 'EM']
+const CONSONANT_ENDINGS = ['', 'A', 'U', 'E', 'OM', 'EM']
+const POSSESSIVE_ENDINGS = ['', 'A', 'E', 'I', 'O', 'U', 'OM', 'OJ']
+const VOWEL = /[AEIOU]$/
+
+/** A word folded for names: no accents, upper case, and `DJ` read as `Đ`, so `DJURDJEVIC` and `Đurđević` meet. */
+function foldedWord(word: string): string {
+  return fold(word).replace(/DJ/g, 'D')
+}
+
+function wordsOf(text: string): readonly Word[] {
+  return [...text.matchAll(/[\p{L}\p{M}\p{N}]+/gu)].map((match) => ({ start: match.index, end: match.index + match[0].length, folded: foldedWord(match[0]) })).filter((word) => word.folded !== '')
+}
+
+function endedWith(stem: string, endings: readonly string[]): readonly string[] {
+  return endings.map((ending) => `${stem}${ending}`)
+}
+
+/**
+ * The Croatian case forms of one word of a name, from its nominative, and the possessive forms such as `Anin` or
+ * `Horvatov`. Vocative sound changes and nicknames are left out.
+ */
+function formsOf(word: string): ReadonlySet<string> {
+  if (word.endsWith('A')) {
+    const stem = word.slice(0, -1)
+    return new Set([...endedWith(stem, A_ENDINGS), ...endedWith(`${stem}IN`, POSSESSIVE_ENDINGS)])
+  }
+  if (word.endsWith('O') || word.endsWith('E')) {
+    const forms = endedWith(word.slice(0, -1), O_E_ENDINGS)
+    return new Set(word.endsWith('AO') ? [...forms, ...endedWith(`${word.slice(0, -2)}L`, CONSONANT_ENDINGS.slice(1))] : forms)
+  }
+  if (VOWEL.test(word)) {
+    return new Set([word])
+  }
+  const fleetingA = word.length >= 4 && /A[^AEIOU]$/.test(word) ? endedWith(`${word.slice(0, -2)}${word.slice(-1)}`, CONSONANT_ENDINGS.slice(1)) : []
+  return new Set([...endedWith(word, CONSONANT_ENDINGS), ...endedWith(`${word}OV`, POSSESSIVE_ENDINGS), ...endedWith(`${word}EV`, POSSESSIVE_ENDINGS), ...fleetingA])
+}
+
+/** The form sets of each word of a name, or none for a name that cannot be matched safely. */
+function formsOfName(name: string): readonly ReadonlySet<string>[] {
+  const words = [...new Set(wordsOf(name).map((word) => word.folded))]
+  if (words.length === 0 || (words.length === 1 && words[0]!.length < SHORTEST_ONE_WORD_NAME)) {
+    return []
+  }
+  return words.map(formsOf)
+}
+
+/** The words of the text that belong to the name, or none unless every word of the name has a form in the text, in any order. */
+function wordsOfName(text: string, name: string): readonly Word[] {
+  const nameForms = formsOfName(name)
+  if (nameForms.length === 0) {
+    return []
+  }
+  const textWords = wordsOf(text)
+  if (!nameForms.every((forms) => textWords.some((word) => forms.has(word.folded)))) {
+    return []
+  }
+  return textWords.filter((word) => nameForms.some((forms) => forms.has(word.folded)))
+}
+
+/** Whether a name can be matched at all: it holds a word, and a name of one word has at least four letters. */
+export function isName(text: string): boolean {
+  return formsOfName(text).length > 0
+}
+
+/**
+ * Whether the text names the person: every word of the name stands in it in some case, in any order and any case, as
+ * `Plaća Ivanu Horvatu` names Ivan Horvat. `Ivana Horvat` names him too, as Ivana is also his genitive.
+ */
+export function nameIn(text: string, name: string): boolean {
+  return wordsOfName(text, name).length > 0
+}
+
+/** Whether two names have the same words, such as a name written surname first. */
+export function sameName(one: string, other: string): boolean {
+  const ones = new Set(wordsOf(one).map((word) => word.folded))
+  const others = new Set(wordsOf(other).map((word) => word.folded))
+  return ones.size > 0 && ones.size === others.size && [...ones].every((word) => others.has(word))
+}
+
+/** The runs of the text that name the person, each word of the name with what stands between them, such as `HORVAT, ANA`. */
+export function nameRuns(text: string, name: string): readonly NameRun[] {
+  return wordsOfName(text, name).reduce<NameRun[]>((joined, word) => {
+    const last = joined.at(-1)
+    if (last !== undefined && /^[\s,-]+$/.test(text.slice(last.end, word.start))) {
+      return [...joined.slice(0, -1), { start: last.start, end: word.end }]
+    }
+    return [...joined, { start: word.start, end: word.end }]
+  }, [])
+}
+
+/** The text with each run that names the person swapped for the alias. */
+export function nameReplaced(text: string, name: string, alias: string): string {
+  return nameRuns(text, name).reduceRight((replaced, run) => `${replaced.slice(0, run.start)}${alias}${replaced.slice(run.end)}`, text)
+}

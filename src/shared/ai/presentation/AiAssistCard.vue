@@ -9,11 +9,13 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 import { useKeyUndo } from '../../secrets/presentation/useKeyUndo'
 import { words as secretWords } from '../../secrets/presentation/words'
 import AppCard from '../../ui/AppCard.vue'
+import AppDialog from '../../ui/AppDialog.vue'
 import { anonymiseOn, assistOn, switchAnonymise } from '../application/assistSettings'
 import { turnsOnWebSearch } from '../domain/providerPresets'
 import AssistKeyForm from './AssistKeyForm.vue'
 import { assistKeyKept } from './useAiTask'
 import { useAssistantCard } from './useAssistantCard'
+import { useSavedChatLine } from './useSavedChatLine'
 import { words } from './words'
 
 /** Kuna settings' assistant: one company at a time, its key and its model, and a line per app with a link to that app's own switches. `useAssistantCard` holds its rules. */
@@ -29,6 +31,7 @@ const assistant = useAssistantCard(useKeyUndo())
 const {
   shownId,
   shown,
+  inUse,
   row,
   replacing,
   trying,
@@ -50,13 +53,13 @@ const {
   testKey,
 } = assistant
 
-const historyCleared = ref(false)
+const { shown: historyShown, cleared: historyCleared, clear: clearHistory } = useSavedChatLine()
+const confirmingClear = ref(false)
 
-/** Through the chat's own code, loaded only now, so the first load holds none of it. */
-async function clearHistory(): Promise<void> {
-  const { clearChat } = await import('./chatSession')
-  clearChat()
-  historyCleared.value = true
+/** Clears once the person said yes, as no Undo can bring a cleared chat back. */
+async function confirmClear(): Promise<void> {
+  confirmingClear.value = false
+  await clearHistory()
 }
 
 const keyLine = computed(() => (row.value.ending === null ? secretWords.keyRow.kept : secretWords.keyRow.keptEnding(row.value.ending)))
@@ -76,7 +79,7 @@ const showsAllModels = computed(() => modelIds.value.includes(modelText.value))
           </div>
           <div v-if="movedHere !== null" role="status" class="flex flex-col gap-0.5" data-testid="assist-moved">
             <p class="type-caption">{{ words.card.nowSends(shown.name) }}</p>
-            <p v-if="movedHere.employeesReset" class="type-caption" data-testid="assist-employees-reset">{{ words.card.employeesReset }}</p>
+            <p v-if="movedHere.anonymiseBack" class="type-caption" data-testid="assist-anonymise-back">{{ words.card.anonymiseBack }}</p>
             <p v-if="otherKept !== null" class="flex flex-wrap items-center gap-x-1 type-caption" data-testid="assist-other-kept">
               {{ words.card.otherKept(otherKept.name) }}
               <UButton :label="words.card.removeIt" color="neutral" variant="link" size="sm" class="inline-target quiet-link px-0" data-testid="assist-other-forget" @click="remove(otherKept.id)" />
@@ -163,16 +166,16 @@ const showsAllModels = computed(() => modelIds.value.includes(modelText.value))
       </UFormField>
 
       <USwitch
-        v-if="row.kept"
-        :model-value="anonymiseOn()"
+        v-if="row.kept && inUse?.id === shownId"
+        :model-value="anonymiseOn(shownId)"
         :label="words.card.anonymise"
-        :description="words.card.anonymiseNote"
+        :description="anonymiseOn(shownId) ? words.card.anonymiseOn(shown.name) : words.card.anonymiseOff(shown.name)"
         class="border-t border-default pt-3"
         data-testid="assist-anonymise"
-        @update:model-value="switchAnonymise($event)"
+        @update:model-value="switchAnonymise(shownId, $event)"
       />
 
-      <p v-if="row.kept" class="flex flex-wrap items-center gap-x-1 type-caption" data-testid="assist-history">
+      <p v-if="historyShown" class="flex flex-wrap items-center gap-x-1 type-caption" data-testid="assist-history">
         <span role="status">{{ historyCleared ? words.history.cleared : words.history.kept }}</span>
         <UButton
           v-if="!historyCleared"
@@ -182,9 +185,17 @@ const showsAllModels = computed(() => modelIds.value.includes(modelText.value))
           size="sm"
           class="inline-target quiet-link px-0"
           data-testid="assist-history-clear"
-          @click="clearHistory"
+          @click="confirmingClear = true"
         />
       </p>
+      <AppDialog v-model:open="confirmingClear" :title="words.history.confirmTitle" :description="words.history.confirmNote(inUse?.name ?? shown.name)">
+        <template #start>
+          <UButton :label="words.history.clear" color="error" variant="outline" data-testid="assist-history-confirm" @click="confirmClear" />
+        </template>
+        <template #end>
+          <UButton :label="words.history.cancel" color="neutral" variant="outline" @click="confirmingClear = false" />
+        </template>
+      </AppDialog>
 
       <section v-if="row.kept && apps.length > 0" class="flex flex-col gap-2 border-t border-default pt-3" :aria-label="words.card.inApps">
         <h3 class="type-label">{{ words.card.inApps }}</h3>

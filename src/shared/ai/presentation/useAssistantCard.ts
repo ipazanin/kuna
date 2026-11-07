@@ -48,7 +48,7 @@ export function useAssistantCard(announce: AnnounceKeyChange) {
   /** A company whose key was saved while another stayed in use, so the card went back to the one in use. */
   const savedAside = ref<ProviderId | null>(null)
   /** The last pick on the select that moved the assistant, for the lines that say what it did. */
-  const moved = ref<{ readonly to: ProviderId; readonly from: ProviderId | null; readonly employeesReset: boolean } | null>(null)
+  const moved = ref<{ readonly to: ProviderId; readonly from: ProviderId | null; readonly anonymiseBack: boolean } | null>(null)
   const fetching = ref(false)
   const fetchLine = ref<string | null>(null)
   /** What the model field holds while it has focus, which may be empty while the stored model falls back to the default. */
@@ -120,8 +120,8 @@ export function useAssistantCard(announce: AnnounceKeyChange) {
     const before = inUse.value
     const keyInUse = before !== null && kept(before.id)
     if (!kept(id) && keyInUse) return
-    const employeesReset = switchProvider(id)
-    if (before?.id !== id) moved.value = { to: id, from: keyInUse ? before.id : null, employeesReset }
+    const anonymiseBack = switchProvider(id)
+    if (before?.id !== id) moved.value = { to: id, from: keyInUse ? before.id : null, anonymiseBack }
   }
 
   /** Tests what was typed and keeps it unless the company refuses it, since a Test can also fail for being offline. It moves nothing. */
@@ -194,6 +194,7 @@ export function useAssistantCard(announce: AnnounceKeyChange) {
     keys,
     shownId,
     shown,
+    inUse,
     row,
     tested,
     typed,

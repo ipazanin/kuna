@@ -224,7 +224,9 @@ describe('what the pack says of who must not reach a model', () => {
     )
     const records = { pack: new Map([[EMPLOYEE_RECORDS.name, read]]) } as unknown as WorkbookRecords
     expect(readEmployees(read).facts.flatMap((employee) => employee.ibans)).toEqual(['DE89370400440532013000'])
-    expect([...hrDooPack.employeeIbans(records)]).toEqual([shared, 'DE89370400440532013000', 'NL91ABNA0417164300'])
-    expect(hrDooPack.employeeNames(records)).toEqual(['Mia Primjer', 'tomo', 'Ana Dvaput', 'Ana Dvaput'])
+    const employees = hrDooPack.employees(records)
+    expect([...new Set(employees.flatMap((employee) => employee.ibans))]).toEqual([shared, 'DE89370400440532013000', 'NL91ABNA0417164300'])
+    expect(employees.map((employee) => employee.name)).toEqual(['Mia Primjer', 'tomo', 'Ana Dvaput', 'Ana Dvaput'])
+    expect(employees.every((employee) => employee.employee)).toBe(true)
   })
 })

@@ -1,9 +1,10 @@
 import type { AiTask } from '../../../../shared/ai/domain/aiTask'
 import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
 import { plainAmount } from '../../../../shared/money/money'
+import { nameIn } from '../../../../shared/privacy/domain/names'
+import { newPseudonyms } from '../../../../shared/privacy/domain/pseudonyms'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { fold, normaliseIban } from '../../../../shared/text/fold'
-import { foldRuleText } from '../../../../shared/text/fold'
+import { foldRuleText, normaliseIban } from '../../../../shared/text/fold'
 import type { Account, Category, Transaction } from '../../workbook/domain/workbook'
 
 export const SUGGEST_CATEGORIES = 'company.suggest-categories'
@@ -36,8 +37,10 @@ export interface SuggestInput {
   readonly employeeIbans: ReadonlySet<string>
   /** The employees' names, as the employees tab writes them. */
   readonly employeeNames: readonly string[]
-  /** Whether the rows that name employees may go too. */
-  readonly includeEmployees: boolean
+  /** The payees the owner flagged as people, whose names go under an alias while Anonymise is on. */
+  readonly personPayees: readonly string[]
+  /** Whether Anonymise is on: rows that name employees stay out, and flagged payees go under an alias. */
+  readonly anonymising: boolean
   /** The side each of the installed pack's paired roles takes. */
   readonly packPairSides: Readonly<Record<string, 'credit' | 'debit'>>
 }
@@ -48,33 +51,35 @@ export interface SuggestInput {
  */
 const CORE_PAIR_SIDES: Readonly<Record<string, 'credit' | 'debit'>> = { revenue: 'credit', 'client-refund': 'debit' }
 
-function wordsIn(text: string): readonly string[] {
-  return fold(text).match(/[\p{L}\p{N}]+/gu) ?? []
-}
-
-/** Whether the row goes to an employee's IBAN, or its counterparty and description hold every word of an employee's name, since banks write a name in either order. */
+/** Whether the row goes to an employee's IBAN, or its counterparty and description name an employee. */
 export function namesEmployee(row: Pick<Transaction, 'counterparty' | 'counterpartyIban' | 'description'>, employees: Pick<SuggestInput, 'employeeIbans' | 'employeeNames'>): boolean {
   if (employees.employeeIbans.has(normaliseIban(row.counterpartyIban))) {
     return true
   }
-  const rowWords = new Set(wordsIn(`${row.counterparty} ${row.description}`))
-  return employees.employeeNames.some((name) => {
-    const nameWords = wordsIn(name)
-    return nameWords.length > 0 && nameWords.every((word) => rowWords.has(word))
-  })
+  return employees.employeeNames.some((name) => nameIn(`${row.counterparty} ${row.description}`, name))
 }
 
-/** The rows a request sends, each under its ref: at most `MOST_ROWS`, and no row that names an employee unless that is switched on. */
+/** The rows a request sends, each under its ref: at most `MOST_ROWS`, and no row that names an employee while Anonymise is on. */
 export function sentRows(input: SuggestInput): { readonly ref: string; readonly row: SuggestInput['rows'][number] }[] {
   return input.rows
-    .filter((row) => input.includeEmployees || !namesEmployee(row, input))
+    .filter((row) => !input.anonymising || !namesEmployee(row, input))
     .slice(0, MOST_ROWS)
     .map((row, index) => ({ ref: `r${index + 1}`, row }))
 }
 
-/** Whether a request would send a row that names an employee, which the task's own switch must allow. */
+/** Whether a request would send a row that names an employee, which only happens with Anonymise off. */
 export function sendsEmployees(input: SuggestInput): boolean {
-  return input.includeEmployees && sentRows(input).some(({ row }) => namesEmployee(row, input))
+  return sentRows(input).some(({ row }) => namesEmployee(row, input))
+}
+
+/** A row's text as it leaves: flagged payees under an alias while Anonymise is on, and as written otherwise. */
+function leavingText(input: SuggestInput): (text: string) => string {
+  if (!input.anonymising) {
+    return (text) => text
+  }
+  const pseudonyms = newPseudonyms()
+  pseudonyms.know(input.personPayees)
+  return (text) => pseudonyms.pseudonymised(text)
 }
 
 function nameOf(entry: { readonly slug: string; readonly label?: string }): string {
@@ -98,10 +103,11 @@ export const suggestCategories: AiTask<SuggestInput, SuggestionsDraft> = {
   input(input) {
     const accounts = new Map(input.accounts.map((account) => [account.slug, nameOf(account)]))
     const categories = input.categories.map((category) => ({ slug: category.slug, name: nameOf(category), family: category.family, bucket: category.bucket, roles: category.roles }))
+    const leaving = leavingText(input)
     const rows = sentRows(input).map(({ ref, row }) => ({
       ref,
-      counterparty: foldRuleText(row.counterparty),
-      description: row.description,
+      counterparty: foldRuleText(leaving(row.counterparty)),
+      description: leaving(row.description),
       amount: plainAmount(row.amount),
       account: accounts.get(row.account) ?? row.account,
       month: row.date.slice(0, 7),

@@ -7,9 +7,11 @@ import type { ProviderId } from '../domain/providerPresets'
 export const en = {
   card: {
     title: 'AI assistant',
-    anonymise: 'Hide names and identifiers',
-    anonymiseNote:
-      'What the chat reads goes with names of people, IBANs, OIBs and addresses as aliases such as Person 3, and you see the real ones in the chat. Amounts go as they are. Documents and photos you send still go whole.',
+    anonymise: 'Anonymise',
+    anonymiseOn: (company: string) =>
+      `Rows about employees and their pay are left out of what Kuna sends to ${company}. The names of informal lenders and of payees you mark as a person go as aliases such as Person 1. Shops, other payees, amounts and dates go as written. IBANs and OIBs are masked either way. Photos and documents go whole.`,
+    anonymiseOff: (company: string) =>
+      `Rows about employees and their pay go to ${company} as written, and to no other company. Names marked as a person go as written too, and IBANs and OIBs stay masked. Your employees should know ${company} receives their pay. Changing AI company turns this back on.`,
     subtitleNoKey: 'Optional. Kuna works without it. Pick one AI company and add your key.',
     subtitleKey: 'Runs on your own key, straight from this browser.',
     company: 'AI company',
@@ -33,7 +35,7 @@ export const en = {
     nowSends: (provider: string) => `The assistant now sends to ${provider}.`,
     otherKept: (provider: string) => `Your ${provider} key stays saved in case you switch back.`,
     removeIt: 'Remove it',
-    employeesReset: 'Employee data is left out again until you allow it.',
+    anonymiseBack: 'Anonymise is on again, so rows about employees and their pay stay on this device.',
     accepted: (provider: string) => `${provider} accepted the key. If you have no credit, the first use will say so.`,
     synced: 'A sync also saves it in your Google account, so your other browsers can get it.',
     fetchAsk: 'Saved a key in another browser?',
@@ -66,7 +68,9 @@ export const en = {
     continue: 'Continue',
   },
   appCard: {
-    uses: (provider: string) => `Uses your ${provider} key. Nothing is sent until you tap a button.`,
+    uses: (provider: string) => `Uses your ${provider} key, straight from this browser.`,
+    chatTitle: 'Chat',
+    chatSends: (app: string) => `records and figures from ${app} the chat asks for, once you allow it.`,
     switch: 'Send without asking',
     switchNote: 'While off, Kuna asks each time before it sends.',
     canHelp: (titles: string) => `The assistant can help here with: ${titles}.`,
@@ -82,6 +86,7 @@ export const en = {
     sendOnce: 'Send once',
     dontAsk: "Send, don't ask again",
     sends: (sends: string) => `What leaves this device: ${sends}`,
+    employees: (company: string) => `Rows about employees and their pay go too, as Anonymise is off for ${company}.`,
     cancel: 'Cancel',
   },
   addKey: 'Add a key in Kuna settings to use the assistant.',
@@ -102,8 +107,9 @@ export const en = {
     sendsAndReads: (app: string) => `what you type here, the screen you are on, the name of anything you tagged and, when a question needs them, records and figures from ${app}.`,
     reads: (app: string) => `the records and figures from ${app} this chat asks for.`,
     readTitle: (app: string) => `Let the chat read ${app}?`,
-    aliases: 'Names, IBANs, OIBs and addresses go as aliases such as Person 3, and you see the real ones here. Amounts go as they are, and what you type goes as you type it.',
-    noAliases: 'Names and addresses go as they are, as you turned hiding them off in Kuna settings. IBANs and OIBs stay cut short.',
+    aliases:
+      'Rows about employees stay on this device. Informal lenders and payees you mark as a person go as aliases such as Person 1, and you see the real names here. Shops, payees you have not marked, amounts and dates go as written, and what you type goes as you type it.',
+    noAliases: (company: string) => `Anonymise is off for ${company}, so rows about employees and every name go as written. IBANs and OIBs stay masked.`,
     thinking: 'Looking it up…',
     spent: (cost: string) => `Spent so far: ${cost}`,
     chainChanged: 'You changed the AI company or model, so the assistant no longer sees the messages above.',
@@ -113,6 +119,7 @@ export const en = {
   sent: {
     records: (count: string, noun: string, app: string) => `Read ${count} ${noun} from ${app}`,
     figures: (title: string, app: string) => `Read ${title} from ${app}`,
+    refusal: (app: string) => `Why ${app} refused a card`,
     exact: 'The exact text sent:',
   },
   proposal: {
@@ -122,6 +129,9 @@ export const en = {
     notNow: 'Not now',
     showAll: (count: string) => `Show all ${count}`,
     warns: 'Check this. It says where money or mail goes.',
+    empty: 'nothing',
+    failed: 'Kuna could not write this card. Nothing changed.',
+    undoFailed: 'Kuna could not undo this card, so what it wrote stays.',
     done: 'Done',
     undo: 'Undo',
     undone: 'Undone',
@@ -131,10 +141,13 @@ export const en = {
     refused: 'Kuna refused it, and nothing was written.',
   },
   history: {
-    restored: 'Since the reload the assistant no longer sees these messages, and names show as aliases such as Person 3.',
+    restored: 'Since the reload the assistant no longer sees these messages, and names show as aliases such as Person 1.',
     clear: 'Clear chat history',
     cleared: 'Chat history cleared.',
-    kept: 'The last chat stays in this browser for 30 days. A new chat replaces it.',
+    confirmTitle: 'Clear chat history?',
+    confirmNote: (company: string) => `The last 30 days of chat in this browser go. What ${company} keeps under its own terms stays.`,
+    cancel: 'Cancel',
+    kept: 'Each message of the last chat stays in this browser for 30 days. A new chat replaces it.',
   },
   usage: {
     line: (model: string, counts: string, cost: string) => `${model}, ${counts}, ${cost}`,
@@ -156,6 +169,7 @@ export const en = {
     holdsSecret: 'This request holds a key or a token, so Kuna did not send it.',
     failed: (reason: string) => `The assistant could not answer: ${reason}`,
     noPdf: (provider: string) => `${provider} does not read PDFs in Kuna. Pick Anthropic or OpenAI in Kuna settings.`,
+    keptByAnonymise: 'This is about employees or their pay, so it stays on this device while Anonymise is on in Kuna settings.',
   },
   answer: {
     notFromRules: "Not from Kuna's rules",
@@ -170,9 +184,11 @@ export const en = {
 export const hr: Translation<typeof en> = {
   card: {
     title: 'AI asistent',
-    anonymise: 'Skrivaj imena i identifikatore',
-    anonymiseNote:
-      'Ono što razgovor pročita šalje se tako da su imena osoba, IBAN-ovi, OIB-i i adrese zamijenjeni nazivima poput Person 3, a vi u razgovoru vidite prave. Iznosi se šalju kakvi jesu. Dokumenti i fotografije koje pošaljete i dalje idu cijeli.',
+    anonymise: 'Anonimiziraj',
+    anonymiseOn: (company) =>
+      `Retci o zaposlenicima i njihovim plaćama ne šalju se tvrtki ${company}. Imena neformalnih zajmodavaca i primatelja koje označite kao osobu šalju se kao zamjenski nazivi poput Osoba 1. Trgovine, ostali primatelji, iznosi i datumi šalju se kako su zapisani. IBAN-ovi i OIB-ovi uvijek se skrivaju. Fotografije i dokumenti šalju se cijeli.`,
+    anonymiseOff: (company) =>
+      `Retci o zaposlenicima i njihovim plaćama šalju se tvrtki ${company} kako su zapisani i ne šalju se nijednoj drugoj tvrtki. Imena označena kao osoba također se šalju kako su zapisana, a IBAN-ovi i OIB-ovi i dalje su skriveni. Vaši zaposlenici trebali bi znati da tvrtka ${company} dobiva podatke o njihovim plaćama. Ako promijenite AI tvrtku, ovo se ponovno uključuje.`,
     subtitleNoKey: 'Neobavezno. Kuna radi i bez njega. Odaberite jednu AI tvrtku i dodajte svoj ključ.',
     subtitleKey: 'Radi na vašem ključu, izravno iz ovog preglednika.',
     company: 'AI tvrtka',
@@ -196,7 +212,7 @@ export const hr: Translation<typeof en> = {
     nowSends: (provider) => `Asistent sada šalje tvrtki ${provider}.`,
     otherKept: (provider) => `Vaš ključ za ${provider} ostaje spremljen za slučaj da se želite vratiti.`,
     removeIt: 'Ukloni ga',
-    employeesReset: 'Podaci o zaposlenicima opet su izostavljeni dok to ne dopustite.',
+    anonymiseBack: 'Anonimizacija je ponovno uključena, pa retci o zaposlenicima i njihovim plaćama ostaju na ovom uređaju.',
     accepted: (provider) => `Tvrtka ${provider} prihvatila je ključ. Ako nemate uplaćenih sredstava, to ćete vidjeti pri prvoj upotrebi.`,
     synced: 'Sinkronizacija ga sprema i na vaš Google račun, pa ga mogu dobiti i drugi vaši preglednici.',
     fetchAsk: 'Spremili ste ključ u drugom pregledniku?',
@@ -229,7 +245,9 @@ export const hr: Translation<typeof en> = {
     continue: 'Nastavi',
   },
   appCard: {
-    uses: (provider) => `Koristi vaš ključ za ${provider}. Ništa se ne šalje dok ne dodirnete gumb.`,
+    uses: (provider) => `Koristi vaš ključ za ${provider}, izravno iz ovog preglednika.`,
+    chatTitle: 'Razgovor',
+    chatSends: (app) => `zapisi i iznosi iz aplikacije ${app} koje razgovor zatraži, kad to dopustite.`,
     switch: 'Šalji bez pitanja',
     switchNote: 'Dok je isključeno, Kuna svaki put pita prije slanja.',
     canHelp: (titles) => `Asistent ovdje može pomoći s ovim: ${titles}.`,
@@ -245,6 +263,7 @@ export const hr: Translation<typeof en> = {
     sendOnce: 'Pošalji jednom',
     dontAsk: 'Pošalji, ne pitaj više',
     sends: (sends) => `Što napušta ovaj uređaj: ${sends}`,
+    employees: (company) => `Šalju se i retci o zaposlenicima i njihovim plaćama jer je anonimizacija isključena za tvrtku ${company}.`,
     cancel: 'Odustani',
   },
   addKey: 'Dodajte ključ u postavkama Kune da biste koristili asistenta.',
@@ -265,8 +284,9 @@ export const hr: Translation<typeof en> = {
     sendsAndReads: (app) => `ono što ovdje upišete, zaslon na kojem ste, naziv onoga što ste označili i, kad pitanje to traži, zapisi i iznosi iz aplikacije ${app}.`,
     reads: (app) => `zapisi i iznosi iz aplikacije ${app} koje ovaj razgovor zatraži.`,
     readTitle: (app) => `Dopustiti asistentu da čita aplikaciju ${app}?`,
-    aliases: 'Imena, IBAN-ovi, OIB-i i adrese šalju se kao zamjenski nazivi poput Person 3, a vi ovdje vidite prave. Iznosi se šalju kakvi jesu, a ono što upišete šalje se kako ste upisali.',
-    noAliases: 'Imena i adrese šalju se kakvi jesu, jer ste skrivanje isključili u postavkama Kune. IBAN-ovi i OIB-i i dalje su skraćeni.',
+    aliases:
+      'Retci o zaposlenicima ostaju na ovom uređaju. Neformalni zajmodavci i primatelji koje označite kao osobu šalju se kao zamjenski nazivi poput Osoba 1, a vi ovdje vidite prava imena. Trgovine, primatelji koje niste označili, iznosi i datumi šalju se kako su zapisani, a ono što upišete šalje se kako ste upisali.',
+    noAliases: (company) => `Anonimizacija je isključena za tvrtku ${company}, pa se retci o zaposlenicima i sva imena šalju kako su zapisani. IBAN-ovi i OIB-ovi i dalje su skriveni.`,
     thinking: 'Tražim…',
     spent: (cost) => `Dosad potrošeno: ${cost}`,
     chainChanged: 'Promijenili ste AI tvrtku ili model, pa asistent više ne vidi poruke iznad.',
@@ -276,6 +296,7 @@ export const hr: Translation<typeof en> = {
   sent: {
     records: (count, noun, app) => `Pročitano iz aplikacije ${app}: ${count} ${noun}`,
     figures: (title, app) => `Pročitano iz aplikacije ${app}: ${title}`,
+    refusal: (app) => `Zašto je aplikacija ${app} odbila karticu`,
     exact: 'Točan poslani tekst:',
   },
   proposal: {
@@ -285,6 +306,9 @@ export const hr: Translation<typeof en> = {
     notNow: 'Ne sada',
     showAll: (count) => `Prikaži svih ${count}`,
     warns: 'Provjerite ovo. Određuje kamo idu novac ili pošta.',
+    empty: 'ništa',
+    failed: 'Kuna nije mogla zapisati ovu karticu. Ništa se nije promijenilo.',
+    undoFailed: 'Kuna nije mogla poništiti ovu karticu, pa zapisano ostaje.',
     done: 'Gotovo',
     undo: 'Poništi',
     undone: 'Poništeno',
@@ -294,10 +318,13 @@ export const hr: Translation<typeof en> = {
     refused: 'Kuna je to odbila i ništa nije zapisano.',
   },
   history: {
-    restored: 'Nakon ponovnog učitavanja asistent više ne vidi ove poruke, a imena se prikazuju kao zamjenski nazivi poput Person 3.',
+    restored: 'Nakon ponovnog učitavanja asistent više ne vidi ove poruke, a imena se prikazuju kao zamjenski nazivi poput Osoba 1.',
     clear: 'Obriši povijest razgovora',
     cleared: 'Povijest razgovora je obrisana.',
-    kept: 'Posljednji razgovor ostaje u ovom pregledniku 30 dana. Novi razgovor ga zamjenjuje.',
+    confirmTitle: 'Obrisati povijest razgovora?',
+    confirmNote: (company) => `Razgovor iz posljednjih 30 dana u ovom pregledniku se briše. Ono što tvrtka ${company} čuva prema svojim uvjetima ostaje.`,
+    cancel: 'Odustani',
+    kept: 'Svaka poruka posljednjeg razgovora ostaje u ovom pregledniku 30 dana. Novi razgovor ga zamjenjuje.',
   },
   usage: {
     line: (model, counts, cost) => `${model}, ${counts}, ${cost}`,
@@ -319,6 +346,7 @@ export const hr: Translation<typeof en> = {
     holdsSecret: 'Ovaj zahtjev sadrži ključ ili token, pa ga Kuna nije poslala.',
     failed: (reason) => `Asistent nije mogao odgovoriti: ${reason}`,
     noPdf: (provider) => `${provider} u Kuni ne čita PDF-ove. Odaberite Anthropic ili OpenAI u postavkama Kune.`,
+    keptByAnonymise: 'Ovo se odnosi na zaposlenike ili njihove plaće, pa ostaje na ovom uređaju dok je anonimizacija uključena u postavkama Kune.',
   },
   answer: {
     notFromRules: 'Nije iz Kuninih pravila',

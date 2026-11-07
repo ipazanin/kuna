@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { AppProposer } from '../src/shared/app/assistantOperations'
 import type { Catalogue } from '../src/shared/ai/application/catalogue'
 import type { ModelPort, ModelReply, ModelRequest } from '../src/shared/ai/application/modelPort'
 import { spendingReader } from '../src/apps/spending/assistant/spendingReader'
-import { CHAT_READING, IBAN_OF_ANA } from './fixtures/chatBook'
+import type { ChatProposal } from '../src/shared/ai/presentation/chatSession'
+import { CHAT_PERSONS, CHAT_READING, IBAN_OF_ANA } from './fixtures/chatBook'
 
 const port = vi.hoisted(() => ({ current: null as ModelPort | null }))
 vi.mock('../src/shared/ai/application/modelAccess', () => ({ modelPort: async () => port.current, keyKept: () => true }))
@@ -13,8 +15,22 @@ vi.mock('../src/shared/secrets/presentation/pageSecrets', async () => {
   return { useSecretsChanged: () => ref(0) }
 })
 
-const { allowThisChat, allowedThisChat, answerReadAsk, chatAsking, chatFigure, chatLines, chatSpent, chatStatus, clearChat, sendChatMessage, shownOnScreen, stopChatMessage } =
-  await import('../src/shared/ai/presentation/chatSession')
+const {
+  allowThisChat,
+  allowedThisChat,
+  answerReadAsk,
+  chatAsking,
+  chatFigure,
+  chatLines,
+  chatSpent,
+  chatStatus,
+  clearChat,
+  sendChatMessage,
+  settleProposal,
+  shownOnScreen,
+  stopChatMessage,
+  undoProposal,
+} = await import('../src/shared/ai/presentation/chatSession')
 const { assistOn, pickProvider, pickModel, switchAnonymise, switchAssist } = await import('../src/shared/ai/application/assistSettings')
 const { words } = await import('../src/shared/ai/presentation/words')
 
@@ -25,6 +41,7 @@ const CATALOGUE: Catalogue = {
   places: new Map([['/spending/transactions?tab=review', 'To review']]),
   readers: new Map([['spending', { name: 'Spending', reader: spendingReader(CHAT_READING) }]]),
   proposers: new Map(),
+  persons: () => CHAT_PERSONS,
 }
 const knowledge = async (): Promise<Catalogue> => CATALOGUE
 const TOKENS = { input: 1000, cacheRead: 0, cacheWrite: 0, output: 1000 }
@@ -255,6 +272,26 @@ describe('a chat in memory', () => {
       expect(resultIn(model.requests[1]!)).toContain('did not allow')
     })
 
+    it('asks once when two reads of one app go in the same round, and gives both the answer', async () => {
+      const bothReads: ModelReply = {
+        kind: 'tool-calls',
+        calls: [
+          { id: 'rows', name: 'find_records', args: READ_ROWS },
+          { id: 'month', name: 'read_figures', args: { app: 'spending', report: 'month', period: '2026-10' } },
+        ],
+        raw: [],
+        tokens: TOKENS,
+      }
+      port.current = scripted([bothReads, answer('Both.')])
+      const sending = sendChatMessage('Rent and the month?', CONTEXT, knowledge)
+      await vi.waitFor(() => expect(chatAsking.value).not.toBeNull())
+      answerReadAsk('chat')
+      expect(chatAsking.value).toBeNull()
+      await sending
+      expect(chatLines.at(-1)!.sent).toHaveLength(2)
+      expect(chatLines.at(-1)!.text).toBe('Both.')
+    })
+
     it('ends the ask when the person stops the message, and reads nothing', async () => {
       const model = scripted([lookup('find_records', READ_ROWS), answer('Never')])
       port.current = model
@@ -277,7 +314,7 @@ describe('a chat in memory', () => {
     })
 
     it('sends real names with the setting off, while the loop still cuts an IBAN', async () => {
-      switchAnonymise(false)
+      switchAnonymise('anthropic', false)
       allowThisChat('anthropic', 'spending')
       const model = scripted([lookup('find_records', READ_ROWS), answer('One')])
       port.current = model
@@ -286,7 +323,7 @@ describe('a chat in memory', () => {
       expect(sent).toContain('Ana Horvat')
       expect(sent).not.toContain(IBAN_OF_ANA)
       expect(sent).toBe(resultIn(model.requests[1]!))
-      switchAnonymise(true)
+      switchAnonymise('anthropic', true)
     })
 
     it('forgets the aliases and the refs on a new chat', async () => {
@@ -319,5 +356,28 @@ describe('a chat in memory', () => {
     expect(chatSpent.value).toBeNull()
     await sendChatMessage('Again', CONTEXT, knowledge)
     expect(model.requests[1]!.turns).toHaveLength(1)
+  })
+})
+
+describe('a card in the chat', () => {
+  const TIDY: AppProposer = {
+    operations: [{ name: 'tidy', about: 'Tidies.', input: { type: 'object', properties: {}, required: [], additionalProperties: false }, refs: {}, creates: null, alone: false, example: {} }],
+    check: async (title) => ({ title, count: 1, groups: [], held: {} }),
+  }
+  const WITH_TIDY: Catalogue = { ...CATALOGUE, proposers: new Map([['spending', TIDY]]) }
+
+  it('stays done with no Undo when Kuna refuses the Undo, says why, and tells the model the write stands', async () => {
+    allowThisChat('anthropic', 'spending')
+    const model = scripted([lookup('propose_changes', { app: 'spending', title: 'Tidy up', steps: [{ op: 'tidy', input: '{}', as: null }] }), answer('Card shown.'), answer('Noted.')])
+    port.current = model
+    await sendChatMessage('Tidy', CONTEXT, async () => WITH_TIDY)
+    const card = chatLines.at(-1)!.proposals[0]!
+    settleProposal(card as ChatProposal, 'done', null, async () => ({ kind: 'refused', reason: 'A later write stands on it.' }))
+
+    await undoProposal(card)
+
+    expect(card).toMatchObject({ state: 'done', undo: null, reason: 'A later write stands on it.' })
+    await sendChatMessage('And now?', CONTEXT, async () => WITH_TIDY)
+    expect(JSON.stringify(model.requests[2]!.turns)).toContain('tried to undo the card \\"Tidy up\\"')
   })
 })

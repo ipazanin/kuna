@@ -6,17 +6,18 @@ import * as spendingKinds from '../src/apps/spending/workbook/domain/spendingKin
 import { findRecords, getRecord, readFigures } from '../src/shared/ai/application/chatReads'
 import type { ChatReads, FindRecordsInput } from '../src/shared/ai/application/chatReads'
 import { chatRefs } from '../src/shared/ai/domain/chatRefs'
-import { chatAliases } from '../src/shared/ai/domain/sensitiveText'
 import { NO_RATES } from '../src/shared/money/rateBook'
+import { newPseudonyms } from '../src/shared/privacy/domain/pseudonyms'
 import { parseMonthKey } from '../src/shared/calendar/monthKey'
-import { CHAT_BOOK, CHAT_READING, HOSTILE_TEXT, IBAN_OF_ANA } from './fixtures/chatBook'
+import { CHAT_BOOK, CHAT_PERSONS, CHAT_READING, HOSTILE_TEXT, IBAN_OF_ANA } from './fixtures/chatBook'
 
 function readsOf(overrides: Partial<ChatReads> = {}): ChatReads {
   return {
     readers: new Map([['spending', { name: 'Spending', reader: spendingReader(CHAT_READING) }]]),
-    aliases: chatAliases(),
+    pseudonyms: newPseudonyms(),
     refs: chatRefs(),
     anonymising: () => true,
+    persons: () => CHAT_PERSONS,
     mayRead: async () => true,
     ...overrides,
   }
@@ -42,12 +43,47 @@ describe('what a read gives the chat', () => {
     expect((await readFigures('spending', 'month', '2026-10', reads)).isError).toBe(true)
   })
 
-  it('sends a person as an alias under every spelling, a shop as it is, and identifiers and addresses as aliases', async () => {
+  it('sends a flagged payee as an alias under every spelling, a shop and a street as written, and identifiers as masked tokens', async () => {
     const { answer, records } = await found({}, readsOf())
     expect(records.map((record) => record['payee'])).toEqual(['Corner market', 'Person 1', 'Person 1'])
-    expect(answer.text).not.toMatch(/Horvat|HORVAT|Ilica|12345678903/)
+    expect(answer.text).not.toMatch(/Horvat|HORVAT|12345678903/)
     expect(answer.text).not.toContain(IBAN_OF_ANA)
-    expect(records[1]).toMatchObject({ counterpartyIban: 'IBAN 1', description: 'Person 2, Address 1', note: 'OIB OIB 1', amount: '-600.00 EUR' })
+    expect(records[1]).toMatchObject({ counterpartyIban: 'HR•• ••••0160', description: 'Stanarina Person 1, Ilica 15', note: 'OIB [OIB]', amount: { amount: '-600.00 EUR' } })
+  })
+
+  it('gives each record amount a figure ref, so the screen shows it as an account amount', async () => {
+    const reads = readsOf()
+    const { records } = await found({}, reads)
+    const { ref } = records[1]!['amount'] as unknown as { ref: string }
+    expect(reads.refs.figureOf(ref)).toMatchObject({ of: 'account', cents: -60000, currency: 'EUR' })
+  })
+
+  it('aliases only the people Kuna knows, never a name it would have to guess', async () => {
+    const { records } = await found({}, readsOf({ persons: () => [] }))
+    expect(records.map((record) => record['payee'])).toEqual(['Corner market', 'Ana Horvat', 'HORVAT ANA'])
+  })
+
+  it('leaves out every record about an employee while Anonymise is on, and says how many', async () => {
+    const employee = [{ name: 'Ana Horvat', employee: true, ibans: [] }]
+    const { answer, records, total } = await found({}, readsOf({ persons: () => employee }))
+    expect(records.map((record) => record['payee'])).toEqual(['Corner market'])
+    expect(total).toBe(1)
+    expect(JSON.parse(answer.text).leftOutAboutEmployees).toBe(2)
+    expect(answer.text).not.toMatch(/Horvat|HORVAT|-600|-500/)
+    const off = await found({}, readsOf({ persons: () => employee, anonymising: () => false }))
+    expect(off.total).toBe(3)
+    expect(JSON.parse(off.answer.text).leftOutAboutEmployees).toBeUndefined()
+  })
+
+  it('leaves out a record paid into an employee’s IBAN, whatever its text names', async () => {
+    const employee = [{ name: 'Mia Izmišljena', employee: true, ibans: [IBAN_OF_ANA] }]
+    const reads = readsOf({ persons: () => employee })
+    expect((await found({}, reads)).total).toBe(1)
+    const open = readsOf({ persons: () => employee, anonymising: () => false })
+    const { records } = await found({}, open)
+    const answer = await getRecord('spending', records[1]!['ref']!, readsOf({ persons: () => employee, refs: open.refs }))
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain('Anonymise')
   })
 
   it('sends a stranger’s text as data, marked as untrusted, without obeying or dropping it', async () => {
@@ -75,8 +111,15 @@ describe('what a read gives the chat', () => {
     const reads = readsOf()
     await found({}, reads)
     expect((await found({ query: 'Person 1' }, reads)).total).toBe(2)
-    expect((await found({ query: 'Ana Horvat' }, reads)).total).toBe(1)
     expect((await found({ query: '1001005186' }, reads)).total).toBe(0)
+  })
+
+  it('never matches inside a name that goes out as an alias, so a search cannot spell one out', async () => {
+    const reads = readsOf()
+    expect((await found({ query: 'hor' }, reads)).total).toBe(0)
+    expect((await found({ query: 'Ana Horvat' }, reads)).total).toBe(0)
+    expect((await found({ query: 'Person 1' }, reads)).total).toBe(2)
+    expect((await found({ query: 'hor' }, readsOf({ anonymising: () => false }))).total).toBe(2)
   })
 
   it('pages newest first and caps what a page holds', async () => {
@@ -186,7 +229,7 @@ describe('what Spending lets the chat read', () => {
 
   it('classes an address as a place to reach nobody on a receipt, and no setting value can leave', () => {
     const fields = spendingReader(CHAT_READING).kinds.find((kind) => kind.name === 'receipt')!.fields
-    expect(fields.filter((field) => field.class === 'never-read').map((field) => field.name)).toEqual(['jir', 'zki', 'photo', 'latitude', 'longitude'])
+    expect(fields.filter((field) => field.exposure === 'never').map((field) => field.name)).toEqual(['jir', 'zki', 'photo', 'latitude', 'longitude'])
     expect(UNREAD_KINDS).toContain(spendingKinds.SETTING_RECORDS.name)
   })
 })

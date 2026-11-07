@@ -195,7 +195,7 @@ describe('a run through the door to the keys', () => {
     scope.stop()
   })
 
-  it('sends once on a yes with the app switched off, then is off again, also for employee data', async () => {
+  it('sends once on a yes with the app switched off, then is off again, and never sends employee data while Anonymise is on', async () => {
     const { allowOnce } = await import('../src/shared/ai/presentation/useAiTask')
     switchAssist('test', false)
     pickProvider('anthropic')
@@ -211,7 +211,10 @@ describe('a run through the door to the keys', () => {
     expect(await run.run('Before a yes.')).toMatchObject({ kind: 'switched-off', which: 'app' })
     expect(sent).toHaveLength(0)
     allowOnce(TASK.id)
-    expect(await run.run('Once.', true)).toMatchObject({ kind: 'draft' })
+    expect(await run.run('About an employee.', true)).toMatchObject({ kind: 'switched-off', which: 'employees' })
+    expect(sent).toHaveLength(0)
+    allowOnce(TASK.id)
+    expect(await run.run('Once.')).toMatchObject({ kind: 'draft' })
     expect(sent).toHaveLength(1)
     expect(localStorage.getItem('kuna.assist.test')).toBeNull()
     expect(await run.run('Again.')).toMatchObject({ kind: 'switched-off', which: 'app' })

@@ -5,7 +5,8 @@ import type { Translation } from '../../shared/text/translation'
 
 export const en = {
   menu: 'Kuna settings',
-  description: "Sync, the assistant, look and language on this device, for every app. Where an app keeps its books, and what it may send to the assistant, is on that app's Settings.",
+  description:
+    "Sync, the assistant and its Anonymise switch for each AI company, look and language on this device, for every app. Where an app keeps its books, and what it may send to the assistant, is on that app's Settings.",
   language: {
     legend: 'Language',
     browser: 'Browser language',
@@ -84,7 +85,8 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   menu: 'Postavke Kune',
-  description: 'Sinkronizacija, asistent, izgled i jezik na ovom uređaju, za sve aplikacije. Gdje aplikacija čuva svoju datoteku i što smije slati asistentu, piše u postavkama te aplikacije.',
+  description:
+    'Sinkronizacija, asistent i njegova anonimizacija za svaku AI tvrtku, izgled i jezik na ovom uređaju, za sve aplikacije. Gdje aplikacija čuva svoju datoteku i što smije slati asistentu, piše u postavkama te aplikacije.',
   language: {
     legend: 'Jezik',
     browser: 'Jezik preglednika',

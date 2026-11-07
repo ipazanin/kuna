@@ -30,6 +30,7 @@ export const en = {
   },
   proposals: {
     noUndo: 'Undo ended, as something else was changed since.',
+    ibanRule: (iban: string) => `Files every row from this IBAN: ${iban}`,
     yes: 'yes',
     no: 'no',
     fields: {
@@ -50,6 +51,8 @@ export const en = {
       note: 'Note',
       from: 'From',
       condition: 'Looks for',
+      closed: 'Closed',
+      hidden: 'Hidden',
       key: 'Setting',
       value: 'Value',
     },
@@ -131,6 +134,7 @@ export const hr: Translation<typeof en> = {
   },
   proposals: {
     noUndo: 'Poništavanje je isteklo jer je u međuvremenu promijenjeno nešto drugo.',
+    ibanRule: (iban) => `Razvrstava svaki redak s ovog IBAN-a: ${iban}`,
     yes: 'da',
     no: 'ne',
     fields: {
@@ -151,6 +155,8 @@ export const hr: Translation<typeof en> = {
       note: 'Bilješka',
       from: 'Od',
       condition: 'Traži',
+      closed: 'Zatvoren',
+      hidden: 'Skrivena',
       key: 'Postavka',
       value: 'Vrijednost',
     },

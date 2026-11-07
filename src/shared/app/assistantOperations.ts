@@ -10,13 +10,15 @@ export interface AssistantOperation {
   readonly refs: Readonly<Record<string, string>>
   /** What it creates that a later step may name by `$`, or null. */
   readonly creates: string | null
+  /** Text fields where an alias stands for every way its person was written, so the step gets the list, such as the words of a rule. */
+  readonly spellings?: readonly string[]
   /** Goes one to a card, as a new category does. */
   readonly alone: boolean
   /** A working input, with a ref named after its kind, such as `category`, which a spec runs through the app's checks. */
   readonly example: Readonly<Record<string, unknown>>
 }
 
-/** One step of a proposal, with refs turned into ids and aliases into what they stand for, or left as a `$` name of an earlier step. */
+/** One step of a proposal, with refs turned into ids and aliases into what they stand for, or left as a `$` name of an earlier step. A field listed under `spellings` may hold a list. */
 export interface ProposalStep {
   readonly operation: string
   readonly input: Readonly<Record<string, unknown>>
@@ -24,12 +26,19 @@ export interface ProposalStep {
   readonly as: string | null
 }
 
-/** One record on the card, in Kuna's words. */
-export interface ProposalLine {
-  readonly label: string
-  readonly fields: readonly { readonly name: string; readonly before: string | null; readonly after: string | null }[]
+/** One field a change sets, in Kuna's words. */
+export interface ProposalField {
+  readonly name: string
+  readonly before: string | null
+  readonly after: string | null
   /** It says where money or mail goes, so the card marks it. */
   readonly warns: boolean
+}
+
+/** One record on the card, by its name on screen, with the fields that say where money or mail goes first. */
+export interface ProposalLine {
+  readonly label: string
+  readonly fields: readonly ProposalField[]
 }
 
 /** The lines of one kind and one verb. */

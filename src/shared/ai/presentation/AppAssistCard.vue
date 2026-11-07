@@ -7,18 +7,19 @@ import type { AssistTaskSummary } from '../../app/appContribution'
 import { KUNA_SETTINGS_ROUTE } from '../../secrets/presentation/pageSecrets'
 import { listInWords } from '../../text/listInWords'
 import AppCard from '../../ui/AppCard.vue'
-import { assistOn, employeesOn, switchAssist, switchEmployees } from '../application/assistSettings'
+import { assistOn, switchAssist } from '../application/assistSettings'
 import { assistKeyKept, providerInUse } from './useAiTask'
 import { words } from './words'
 
 /**
- * An app's Assistant tab: whether it sends without asking, what each task sends, and each task's employee switch, which
- * shows while the app sends without asking and always while its yes is on, so a yes can be seen and taken back. It
- * reads and writes the choices in `assistSettings` and holds none. With no key it only says what the assistant could do here.
+ * An app's Assistant tab: whether it sends without asking, what each task sends, and what the chat reads of an app it can
+ * read. It reads and writes the choices in `assistSettings` and holds none. With no key it only says what the assistant could do here.
  */
 const props = defineProps<{
   app: string
   tasks: readonly AssistTaskSummary[]
+  /** The app's name, for an app whose records the chat can read, or null for one it cannot. */
+  chatReads?: string | null
 }>()
 
 const provider = computed(() => (assistKeyKept.value ? providerInUse() : null))
@@ -37,14 +38,10 @@ const sendsFreely = computed(() => assistOn(props.app))
         <li v-for="task in tasks" :key="task.id" class="flex flex-col gap-1.5 border-t border-default pt-3" data-testid="assist-task">
           <p class="type-body text-highlighted">{{ task.title }}</p>
           <p class="type-caption">{{ words.consent.sends(task.sends) }}</p>
-          <USwitch
-            v-if="task.employees && (sendsFreely || employeesOn(task.id))"
-            :model-value="employeesOn(task.id)"
-            :label="task.employees.label"
-            :description="task.employees.note(provider.name)"
-            :data-testid="`assist-employees-${task.id}`"
-            @update:model-value="switchEmployees(task.id, $event)"
-          />
+        </li>
+        <li v-if="chatReads" class="flex flex-col gap-1.5 border-t border-default pt-3" data-testid="assist-chat-reads">
+          <p class="type-body text-highlighted">{{ words.appCard.chatTitle }}</p>
+          <p class="type-caption">{{ words.consent.sends(words.appCard.chatSends(chatReads)) }}</p>
         </li>
       </ul>
     </div>

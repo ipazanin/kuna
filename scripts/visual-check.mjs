@@ -27,12 +27,16 @@
  * spinner, in Croatian too, and what is typed in the Settings form survives the switch's save.
  * With a key kept, every app shows with the chat open (`?chat=1`), docked from 1224 px and in the page's place below. A flow asks in
  * English and Croatian, answers the dialog, follows the link the fake model shows, and a second one tags an element from the gallery.
+ * Another flags a payee as a person on its Spending entry, lets the chat read Spending from its card and opens the exact text sent,
+ * with that person's alias and the IBAN masked, and again with Anonymise off. A proposal shows its card with Accept and one Undo.
  *
- * Kuna settings shows the assistant's card with no key, with a made-up Anthropic key kept, with a key refused and after a
- * switch of company, in Croatian too, and Company and Spending show their Assistant tabs. On the To review tab Suggest categories asks to switch Company on, says what it did, shows the suggestion on
+ * Kuna settings shows the assistant's card with no key, with a made-up Anthropic key kept and Anonymise on, with Anonymise off
+ * for Anthropic, with a key refused and after a switch of company, which turns Anonymise back on, in Croatian too, and Company
+ * and Spending show their Assistant tabs. Spending's entry dialog and an opened row of Company's To review tab treat a payee
+ * as a person, in Croatian too. On the To review tab Suggest categories asks to switch Company on, says what it did, shows the suggestion on
  * each closed row and opens the first with its Use button, in Croatian too, or says the model declined (`?ai=refused`). A pay scenario's figure on Year's Pay tab explains
  * itself with its sources, in Croatian too, flagged for a figure Kuna did not compute (`?ai=invented-figure`), and a figure
- * on Salaries that names employees asks for the employee switch first.
+ * on Salaries that names employees stays on this device while Anonymise is on.
  *
  * Net worth renders on the sample Loans and Investments files beside the company on Drive and in this browser,
  * while the Loans file opens, once its read fails (`?loans=failed`), with Investments alone and on a first run, with its
@@ -161,6 +165,8 @@
  * While working on one screen, `--only billing,owner` limits the run to the screens and flows with those names,
  * or names that start with them and a hyphen, and `--widths 360,1440` to those widths. A limited
  * run keeps the other screenshots and says it was limited. The full run without options is the check.
+ * `--every-theme` shoots both themes at every width, for a design review, which looks at 360, 640, 1024 and 1440 px:
+ *   npm run check:visual -- http://localhost:4173/kuna/ --every-theme --widths 360,640,1024,1440 --only chat-read
  *
  * Screenshots go to visual-check/ (gitignored), or to VISUAL_OUTPUT_DIR.
  */
@@ -315,7 +321,7 @@ import {
   deleteKeysFlowIn,
   reviewSuggestFlowIn,
   salariesFlowIn,
-  salaryFigureExplainAsksFlowIn,
+  salaryFigureKeptFlowIn,
   assistKeyRefusedFlowIn,
   assistProviderSwitchFlowIn,
   setUpFlowIn,
@@ -439,8 +445,11 @@ import {
   syncRunningFlow,
   syncStatesFlowIn,
   chatPanelFlowIn,
+  chatCloseAccountFlowIn,
   chatProposeFlowIn,
   chatReadFlowIn,
+  reviewFlagPersonFlowIn,
+  spendingFlagPersonFlowIn,
   chatTagFlow,
 } from './support/editorFlows.mjs'
 import { writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
@@ -1451,7 +1460,15 @@ const SCREENS = [
     charts: 0,
     ready: '[data-testid="assist-key-kept"]',
     stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
-    shows: ['A key ending in 0042 is kept in this browser.', 'A sync also saves it in your Google account', 'Sonnet 5.5 (default)', 'In your apps', 'Asks first'],
+    shows: [
+      'A key ending in 0042 is kept in this browser.',
+      'A sync also saves it in your Google account',
+      'Sonnet 5.5 (default)',
+      'In your apps',
+      'Asks first',
+      'Anonymise',
+      'Rows about employees and their pay are left out of what Kuna sends to Anthropic.',
+    ],
     cards: false,
   },
   {
@@ -1462,7 +1479,35 @@ const SCREENS = [
     charts: 0,
     ready: '[data-testid="assist-key-kept"]',
     stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
-    shows: ['U ovom pregledniku čuva se ključ koji završava na 0042.', 'Sonnet 5.5 (zadano)', 'U vašim aplikacijama', 'Prvo pita'],
+    shows: [
+      'U ovom pregledniku čuva se ključ koji završava na 0042.',
+      'Sonnet 5.5 (zadano)',
+      'U vašim aplikacijama',
+      'Prvo pita',
+      'Anonimiziraj',
+      'Retci o zaposlenicima i njihovim plaćama ne šalju se tvrtki Anthropic.',
+    ],
+    cards: false,
+  },
+  {
+    name: 'kuna-settings-anonymise-off',
+    hash: '#/settings',
+    title: 'Kuna settings',
+    charts: 0,
+    ready: '[data-testid="assist-anonymise"][aria-checked="false"]',
+    stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042', 'kuna.assist-anonymise': 'anthropic' },
+    shows: ['Rows about employees and their pay go to Anthropic as written, and to no other company.', 'Changing AI company turns this back on.'],
+    cards: false,
+  },
+  {
+    name: 'kuna-settings-anonymise-off-croatian',
+    query: 'lang=hr',
+    hash: '#/settings',
+    title: 'Postavke Kune',
+    charts: 0,
+    ready: '[data-testid="assist-anonymise"][aria-checked="false"]',
+    stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042', 'kuna.assist-anonymise': 'anthropic' },
+    shows: ['Retci o zaposlenicima i njihovim plaćama šalju se tvrtki Anthropic kako su zapisani', 'Ako promijenite AI tvrtku, ovo se ponovno uključuje.'],
     cards: false,
   },
   {
@@ -1523,14 +1568,7 @@ const SCREENS = [
     charts: 0,
     ready: '[data-testid="assist-switch-company"][aria-checked="true"]',
     stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042', 'kuna.assist.company': 'on' },
-    shows: [
-      'Uses your Anthropic key.',
-      'Send without asking',
-      'Suggest categories',
-      'Include rows that name employees',
-      'Include figures that name employees',
-      'Then their names and pay go to Anthropic.',
-    ],
+    shows: ['Uses your Anthropic key, straight from this browser.', 'Send without asking', 'Suggest categories', 'Anonymise keeps rows about employees out.', 'Explain'],
     cards: false,
   },
   {
@@ -1541,7 +1579,7 @@ const SCREENS = [
     charts: 0,
     ready: '[data-testid="assist-switch-company"][aria-checked="true"]',
     stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042', 'kuna.assist.company': 'on' },
-    shows: ['Koristi vaš ključ za Anthropic.', 'Šalji bez pitanja', 'Predloži kategorije', 'Uključi retke koji navode zaposlenike', 'Tada njihova imena i plaće idu tvrtki Anthropic.'],
+    shows: ['Koristi vaš ključ za Anthropic, izravno iz ovog preglednika.', 'Šalji bez pitanja', 'Predloži kategorije', 'anonimizacija izostavlja retke o zaposlenicima', 'Objasni'],
     cards: false,
   },
   {
@@ -2829,7 +2867,7 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="assist-switch-spending"]',
     stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
-    shows: ['Uses your Anthropic key.', 'Send without asking', 'Read a receipt'],
+    shows: ['Uses your Anthropic key, straight from this browser.', 'Send without asking', 'Read a receipt', 'records and figures from Spending the chat asks for'],
     cards: false,
   },
   {
@@ -2840,7 +2878,7 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="assist-switch-spending"]',
     stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
-    shows: ['Koristi vaš ključ za Anthropic.', 'Šalji bez pitanja', 'Pročitaj fiskalni račun'],
+    shows: ['Koristi vaš ključ za Anthropic, izravno iz ovog preglednika.', 'Šalji bez pitanja', 'Pročitaj fiskalni račun', 'zapisi i iznosi iz aplikacije Potrošnja'],
     cards: false,
   },
   {
@@ -4496,6 +4534,8 @@ const CLOSES_SAMPLES = writeClosesSamples(SCREENSHOT_DIR)
 const EVERY_VIEWPORT = VIEWPORTS.map((viewport) => viewport.name)
 /** The menu flows run at the widths where a menu's text wraps differently, so the text overlap rule sees every picker open. */
 const MENU_VIEWPORTS = ['phone', 'small-tablet', 'tablet-wide', 'desktop']
+/** The widths a design review looks at, for the flows that shoot what it needs. */
+const DESIGN_REVIEW_VIEWPORTS = ['phone', 'small-tablet', 'tablet-wide', 'desktop']
 
 /** The editors' flows, each on a fresh load, so the fake file on Drive and the workbook kept in this browser start from their seed. */
 const FLOWS = [
@@ -4507,10 +4547,72 @@ const FLOWS = [
     run: chatPanelFlowIn('hr'),
     queries: { drive: '&spending=sample&lang=hr', browser: '&fake=browser&spending=sample&lang=hr' },
   },
-  { name: 'chat-read', hash: '#/spending', title: 'Overview', run: chatReadFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=people' } },
-  { name: 'chat-read-croatian', hash: '#/spending', title: 'Pregled', run: chatReadFlowIn('hr'), modes: ['drive'], queries: { drive: '&spending=people&lang=hr' } },
-  { name: 'chat-propose', hash: '#/spending', title: 'Overview', run: chatProposeFlowIn('en'), modes: ['drive'], queries: { drive: '&spending=people' } },
-  { name: 'chat-propose-croatian', hash: '#/spending', title: 'Pregled', run: chatProposeFlowIn('hr'), modes: ['drive'], queries: { drive: '&spending=people&lang=hr' } },
+  { name: 'chat-read', hash: '#/spending', title: 'Overview', run: chatReadFlowIn('en'), modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS, queries: { drive: '&spending=people' } },
+  {
+    name: 'chat-read-croatian',
+    hash: '#/spending',
+    title: 'Pregled',
+    run: chatReadFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=people&lang=hr' },
+  },
+  { name: 'chat-propose', hash: '#/spending', title: 'Overview', run: chatProposeFlowIn('en'), modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS, queries: { drive: '&spending=people' } },
+  {
+    name: 'chat-propose-croatian',
+    hash: '#/spending',
+    title: 'Pregled',
+    run: chatProposeFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=people&lang=hr' },
+  },
+  {
+    name: 'chat-close-account',
+    hash: '#/spending',
+    title: 'Overview',
+    run: chatCloseAccountFlowIn('en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=people' },
+  },
+  {
+    name: 'chat-close-account-croatian',
+    hash: '#/spending',
+    title: 'Pregled',
+    run: chatCloseAccountFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=people&lang=hr' },
+  },
+  {
+    name: 'spending-flag-person',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    run: spendingFlagPersonFlowIn('en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=people' },
+  },
+  {
+    name: 'spending-flag-person-croatian',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    run: spendingFlagPersonFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=people&lang=hr' },
+  },
+  { name: 'review-flag-person', hash: '#/company/transactions?tab=review', title: 'Transactions', run: reviewFlagPersonFlowIn('en'), modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS },
+  {
+    name: 'review-flag-person-croatian',
+    hash: '#/company/transactions?tab=review',
+    title: 'Transakcije',
+    run: reviewFlagPersonFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&lang=hr' },
+  },
   { name: 'chat-tag', hash: '#/gallery', title: 'Gallery', run: chatTagFlow },
   { name: 'page-tabs', hash: '#/company/settings', title: 'Settings', run: pageTabsFlow },
   { name: 'year-tab-link', hash: '#/company/year?tab=statements', title: 'Year', run: yearTabLinkFlow },
@@ -5905,8 +6007,16 @@ const FLOWS = [
   { name: 'race-croatian', hash: '#/company/transactions?tab=review', title: 'Transakcije', run: raceFlowIn('hr'), modes: ['drive'], queries: { drive: '&fake=race&lang=hr' } },
   { name: 'kuna-settings-assist-failed', hash: '#/settings', title: 'Kuna settings', run: assistKeyRefusedFlowIn('en'), modes: ['drive'], queries: { drive: '&ai=key-refused' } },
   { name: 'kuna-settings-assist-failed-croatian', hash: '#/settings', title: 'Postavke Kune', run: assistKeyRefusedFlowIn('hr'), modes: ['drive'], queries: { drive: '&ai=key-refused&lang=hr' } },
-  { name: 'kuna-settings-provider-switch', hash: '#/settings', title: 'Kuna settings', run: assistProviderSwitchFlowIn('en'), modes: ['drive'] },
-  { name: 'kuna-settings-provider-switch-croatian', hash: '#/settings', title: 'Postavke Kune', run: assistProviderSwitchFlowIn('hr'), modes: ['drive'], queries: { drive: '&lang=hr' } },
+  { name: 'kuna-settings-provider-switch', hash: '#/settings', title: 'Kuna settings', run: assistProviderSwitchFlowIn('en'), modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS },
+  {
+    name: 'kuna-settings-provider-switch-croatian',
+    hash: '#/settings',
+    title: 'Postavke Kune',
+    run: assistProviderSwitchFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&lang=hr' },
+  },
   {
     name: 'review-suggested',
     hash: '#/company/transactions?tab=review',
@@ -5979,10 +6089,10 @@ const FLOWS = [
     queries: { browser: '&fake=browser&ai=invented-figure' },
   },
   {
-    name: 'salary-figure-explain-asks',
+    name: 'salary-figure-explain-kept',
     hash: '#/company/salaries',
     title: 'Salaries',
-    run: salaryFigureExplainAsksFlowIn('en'),
+    run: salaryFigureKeptFlowIn('en'),
     viewports: EVERY_VIEWPORT,
     modes: ['drive'],
     queries: { drive: '&fake=five-employees' },
@@ -6010,7 +6120,7 @@ let checked = 0
 
 for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(candidate.width))) {
   for (const visit of visits) {
-    if (viewport.theme && visit.theme !== viewport.theme) continue
+    if (!selection.takesTheme(visit.theme, viewport.theme)) continue
     const scope = `${viewport.name} ${visit.name}`
     const context = await browser.createBrowserContext()
     const page = await context.newPage()
@@ -6182,7 +6292,7 @@ if (REFLOW_WIDTHS.every((width) => selection.takesWidth(width))) {
 for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(candidate.width))) {
   for (const mode of MODES) {
     for (const theme of THEMES) {
-      if (viewport.theme && theme !== viewport.theme) continue
+      if (!selection.takesTheme(theme, viewport.theme)) continue
       for (const flow of flows.filter((candidate) => (candidate.viewports ?? ['phone', 'desktop']).includes(viewport.name) && (candidate.modes ?? ['drive', 'browser']).includes(mode.name))) {
         const scope = `${viewport.name} ${mode.name} ${flow.name} ${theme}`
         const context = await browser.createBrowserContext()

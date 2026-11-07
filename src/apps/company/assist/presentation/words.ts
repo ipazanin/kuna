@@ -7,11 +7,8 @@ import type { SuggestionConfidence } from '../application/suggestCategories'
 export const en = {
   suggest: {
     title: 'Suggest categories',
-    sends: 'names, descriptions, amounts, months and accounts of the rows waiting for review, and your categories. IBANs and OIBs are hidden.',
-    employees: 'Include rows that name employees',
-    heldBack: 'Every row waiting here names an employee, so nothing goes until you switch on Include rows that name employees.',
-    employeesNote: (provider: string) => `Left out until you switch this on. Then their names and the amounts paid go to ${provider}.`,
-    employeesGo: (provider: string) => `Rows that name employees go too. Their names and the amounts paid go to ${provider}.`,
+    sends: 'names, descriptions, amounts, months and accounts of the rows waiting for review, and your categories. IBANs and OIBs are masked, and Anonymise keeps rows about employees out.',
+    heldBack: 'Every row waiting here is about an employee, so nothing goes while Anonymise is on in Kuna settings.',
     suggested: (category: string, confidence: string) => `Suggested: ${category}, ${confidence}`,
     confidence: { high: 'sure', medium: 'likely', low: 'unsure' } satisfies Record<SuggestionConfidence, string>,
     use: (category: string) => `Use ${category}`,
@@ -23,11 +20,8 @@ export const en = {
 export const hr: Translation<typeof en> = {
   suggest: {
     title: 'Predloži kategorije',
-    sends: 'nazivi, opisi, iznosi, mjeseci i računi redaka koji čekaju pregled te vaše kategorije. IBAN-ovi i OIB-i su skriveni.',
-    employees: 'Uključi retke koji navode zaposlenike',
-    heldBack: 'Svaki redak koji ovdje čeka navodi zaposlenika, pa se ništa ne šalje dok ne uključite „Uključi retke koji navode zaposlenike”.',
-    employeesNote: (provider) => `Izostavljeno dok ovo ne uključite. Tada njihova imena i isplaćeni iznosi idu tvrtki ${provider}.`,
-    employeesGo: (provider) => `Šalju se i retci koji navode zaposlenike. Njihova imena i isplaćeni iznosi idu tvrtki ${provider}.`,
+    sends: 'nazivi, opisi, iznosi, mjeseci i računi redaka koji čekaju pregled te vaše kategorije. IBAN-ovi i OIB-i su skriveni, a anonimizacija izostavlja retke o zaposlenicima.',
+    heldBack: 'Svaki redak koji ovdje čeka odnosi se na zaposlenika, pa se ništa ne šalje dok je anonimizacija uključena u postavkama Kune.',
     suggested: (category, confidence) => `Prijedlog: ${category}, ${confidence}`,
     confidence: { high: 'sigurno', medium: 'vjerojatno', low: 'nesigurno' },
     use: (category) => `Koristi ${category}`,

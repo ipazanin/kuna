@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { assistKeyKept } from '../../../../shared/ai/presentation/useAiTask'
 import { computed, ref, useTemplateRef, watch } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
@@ -33,6 +34,8 @@ const props = defineProps<{
   saving: WriteSaving
   /** What the model suggests for the row on this page, or null. */
   suggestion: CategorySuggestion | null
+  /** True when the owner flagged the row's counterparty as a person. */
+  personCounterparty: boolean
 }>()
 
 const emit = defineEmits<{
@@ -41,6 +44,7 @@ const emit = defineEmits<{
   recategorise: [category: string]
   makeRule: []
   split: []
+  treatCounterparty: []
 }>()
 
 const names = useDisplayNames()
@@ -190,6 +194,20 @@ function recategorise(category: string | undefined): void {
           :data-testid="split ? 'edit-split' : 'split-row'"
           @click="emit('split')"
         />
+      </div>
+      <div v-if="transaction.counterparty.trim() !== '' && assistKeyKept" class="flex flex-col items-start gap-1" data-testid="review-person">
+        <UButton
+          :label="personCounterparty ? words.review.item.asCompany : words.review.item.asPerson"
+          :icon="personCounterparty ? 'i-lucide-store' : 'i-lucide-user-round'"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          :loading="saving(`person-${transaction.id}`)"
+          :disabled="saving(`person-${transaction.id}`)"
+          data-testid="treat-counterparty"
+          @click="emit('treatCounterparty')"
+        />
+        <p class="type-caption">{{ words.review.item.asPersonHelp }}</p>
       </div>
     </div>
   </li>

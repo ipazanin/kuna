@@ -51,6 +51,5 @@ export const hrDooPack: PackContribution = {
   onboarding: packWords.onboarding,
   assist: [EXPLAIN_FIGURE_SUMMARY],
   // The records, not the workbook's employees, which drop an IBAN two of them share and a row listed twice.
-  employeeIbans: (records) => new Set(recordsOfKindIn(records, EMPLOYEE_RECORDS).records.flatMap((stored) => stored.record.ibans)),
-  employeeNames: (records) => recordsOfKindIn(records, EMPLOYEE_RECORDS).records.map((stored) => stored.record.name || stored.record.slug),
+  employees: (records) => recordsOfKindIn(records, EMPLOYEE_RECORDS).records.map(({ record }) => ({ name: record.name || record.slug, employee: true, ibans: record.ibans })),
 }

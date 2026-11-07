@@ -4,14 +4,14 @@ import { PROVIDER_PRESETS, modelChoice, presetOf } from '../domain/providerPrese
 import type { ModelChoice, ProviderId } from '../domain/providerPresets'
 
 /**
- * This device's choices for the assistant, each under its own key: a switch per app that sends without asking, a
- * switch per task that can send employee data, the provider in use, the model of each provider, and whether the chat
- * sends sensitive values as aliases. Every screen reads
+ * This device's choices for the assistant, each under its own key: a switch per app that sends without asking, the
+ * provider in use, the model of each provider, and the one AI company Anonymise was switched off for. Every screen reads
  * these choices here and keeps no copy, and a change in another tab arrives here. Absent or denied storage means off and
  * the defaults, and a choice made while storage is denied holds for the visit.
  */
 const APP_PREFIX = 'kuna.assist.'
-const TASK_PREFIX = 'kuna.assist-task.'
+/** Where each task kept its own employee switch, which the one Anonymise switch replaced. */
+const RETIRED_TASK_PREFIX = 'kuna.assist-task.'
 const PROVIDER_KEY = 'kuna.assist-provider'
 const MODEL_PREFIX = 'kuna.assist-model.'
 const ANONYMISE_KEY = 'kuna.assist-anonymise'
@@ -57,23 +57,17 @@ export function switchAssist(app: string, on: boolean): void {
   choose(`${APP_PREFIX}${app}`, on ? 'on' : null)
 }
 
-/** Whether the task may send employee names or pay. Off until switched on. */
-export function employeesOn(taskId: string): boolean {
-  return choice(`${TASK_PREFIX}${taskId}`) === 'on'
+/**
+ * Whether Anonymise is on for the AI company: rows about employees and their pay stay on this device, and known people
+ * go under an alias. On for every company but the one it was switched off for, whatever storage does.
+ */
+export function anonymiseOn(provider: ProviderId): boolean {
+  return choice(ANONYMISE_KEY) !== provider
 }
 
-export function switchEmployees(taskId: string, on: boolean): void {
-  choose(`${TASK_PREFIX}${taskId}`, on ? 'on' : null)
-}
-
-/** Whether a chat's reads send names and identifiers as aliases. On until switched off, whatever storage does. */
-export function anonymiseOn(): boolean {
-  return choice(ANONYMISE_KEY) !== 'off'
-}
-
-/** Switches aliases on or off, and on forgets the choice. */
-export function switchAnonymise(on: boolean): void {
-  choose(ANONYMISE_KEY, on ? null : 'off')
+/** Switches Anonymise for the AI company. Off names the company it holds for, and on forgets the choice. */
+export function switchAnonymise(provider: ProviderId, on: boolean): void {
+  choose(ANONYMISE_KEY, on ? null : provider)
 }
 
 /** The provider picked on this device, or null while none was picked. */
@@ -88,19 +82,15 @@ export function pinProvider(id: ProviderId): void {
 }
 
 /**
- * Picks the provider. A yes on employee data named the provider it was given for, so a real change takes every such yes
- * back, and the next run with employee data asks again. Says whether it took one back. App switches stay.
+ * Picks the provider. Anonymise was switched off for one company, so a real change turns it back on. Says whether it did.
+ * App switches stay.
  */
 export function pickProvider(id: ProviderId): boolean {
   const changed = pickedProvider() !== id
   choose(PROVIDER_KEY, id)
-  return changed && forgetEmployeeChoices()
-}
-
-function forgetEmployeeChoices(): boolean {
-  const yeses = knownNames().filter((key) => key.startsWith(TASK_PREFIX) && choice(key) === 'on')
-  yeses.forEach((key) => choose(key, null))
-  return yeses.length > 0
+  const wasOff = choice(ANONYMISE_KEY) !== null
+  if (changed && wasOff) choose(ANONYMISE_KEY, null)
+  return changed && wasOff
 }
 
 /** The model this device runs on the provider, its default unless another was picked or typed. */
@@ -114,12 +104,9 @@ export function pickModel(id: ProviderId, model: string): void {
   choose(`${MODEL_PREFIX}${id}`, typed === '' || typed === presetOf(id).defaultModel ? null : typed)
 }
 
-/** Forgets the app's switch and the yes of each of its tasks, whose ids start with the app's. */
+/** Forgets the app's switch. */
 export function forgetAppAssist(app: string): void {
   choose(`${APP_PREFIX}${app}`, null)
-  knownNames()
-    .filter((key) => key.startsWith(`${TASK_PREFIX}${app}.`))
-    .forEach((key) => choose(key, null))
 }
 
 /** Forgets every choice of the assistant on this device, as one that never made any. */
@@ -140,6 +127,15 @@ function storedNames(): readonly string[] {
     return []
   }
 }
+
+/** Clears the employee switch each task once kept, which nothing reads any more. */
+function forgetRetiredTaskSwitches(): void {
+  storedNames()
+    .filter((key) => key.startsWith(RETIRED_TASK_PREFIX))
+    .forEach((key) => choose(key, null))
+}
+
+forgetRetiredTaskSwitches()
 
 function read(key: string): string | null {
   try {

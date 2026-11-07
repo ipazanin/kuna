@@ -2,6 +2,7 @@ import type { Component } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
 import type { AppScreen, AssistTaskSummary } from '../../../shared/app/appContribution'
+import type { KnownPerson } from '../../../shared/privacy/domain/pseudonyms'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { WaitingJob } from '../overview/presentation/waitingForYou'
 import type { Settings } from '../settings/domain/settings'
@@ -91,10 +92,8 @@ export interface PackContribution {
   readonly onboarding: PackOnboarding | null
   /** The pack's assist tasks, for the Assistant tab after core's. */
   readonly assist: readonly AssistTaskSummary[]
-  /** The IBANs on the employees' records, normalised, shared ones too, so a row paid to one can be kept from a model. */
-  employeeIbans(records: WorkbookRecords): ReadonlySet<string>
-  /** The employees' names from their records, so a row that names one can be kept from a model whatever its IBAN. */
-  employeeNames(records: WorkbookRecords): readonly string[]
+  /** The employees from their records, each with the IBANs they are paid into, so a row that names one or pays one can be kept from a model. */
+  employees(records: WorkbookRecords): readonly KnownPerson[]
 }
 
 const NO_PACK: PackContribution = {
@@ -111,8 +110,7 @@ const NO_PACK: PackContribution = {
   categoriesToSort: () => [],
   onboarding: null,
   assist: [],
-  employeeIbans: () => new Set(),
-  employeeNames: () => [],
+  employees: () => [],
 }
 
 let installed: PackContribution = NO_PACK

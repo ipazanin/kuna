@@ -46,6 +46,11 @@ export const en = {
     saved: 'Entry saved',
     deleted: 'Entry deleted',
     comesBack: 'A statement brought this entry. If you delete it, the next export that covers its day brings it back.',
+    asPerson: 'Treat this payee as a person',
+    asCompany: 'Treat as a shop or company again',
+    asPersonHelp: 'Kuna matches the name as written here. Flag each other spelling too.',
+    treatedAsPerson: 'Payee treated as a person',
+    treatedAsCompany: 'Payee treated as a shop or company',
   },
 }
 
@@ -89,6 +94,11 @@ export const hr: Translation<typeof en> = {
     saved: 'Unos je spremljen',
     deleted: 'Unos je obrisan',
     comesBack: 'Ovaj je unos došao iz izvoda. Ako ga obrišete, vratit će ga sljedeći izvoz koji obuhvaća taj dan.',
+    asPerson: 'Označi primatelja kao osobu',
+    asCompany: 'Označi kao trgovinu ili tvrtku',
+    asPersonHelp: 'Kuna prepoznaje ime kako je ovdje napisano. Označite i svaki drugi način pisanja.',
+    treatedAsPerson: 'Primatelj je označen kao osoba',
+    treatedAsCompany: 'Primatelj je označen kao trgovina ili tvrtka',
   },
 }
 

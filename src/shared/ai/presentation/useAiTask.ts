@@ -4,7 +4,7 @@ import type { ComputedRef, DeepReadonly, Ref } from 'vue'
 import { runTask } from '../application/runTask'
 import type { AiTask, TaskResult } from '../domain/aiTask'
 import type { AiUsage } from '../domain/modelUsage'
-import { assistOn, employeesOn, pickProvider, pickedProvider, pinProvider } from '../application/assistSettings'
+import { anonymiseOn, assistOn, pickProvider, pickedProvider, pinProvider } from '../application/assistSettings'
 import { keyKept, modelPort } from '../application/modelAccess'
 import { PROVIDER_PRESETS, presetOf } from '../domain/providerPresets'
 import type { ProviderId, ProviderPreset } from '../domain/providerPresets'
@@ -29,7 +29,7 @@ export function providerInUse(): ProviderPreset | null {
 
 /**
  * Stores the provider in use as the pick. With none stored, a key a sync brought could otherwise move the assistant, and
- * any yes on employee data, to another company without a word.
+ * Anonymise switched off, to another company without a word.
  */
 export function pinProviderInUse(): void {
   const preset = providerInUse()
@@ -42,10 +42,16 @@ export function holdProviderInUse(): void {
   watch(secretsChanged, pinProviderInUse, { flush: 'sync' })
 }
 
-/** A person's act on the select: moves the assistant to the provider, and says whether that took back a yes on employee data. Staying on the provider in use takes none back. */
+/** A person's act on the select: moves the assistant to the provider, and says whether that turned Anonymise back on. Staying on the provider in use changes nothing. */
 export function switchProvider(id: ProviderId): boolean {
   pinProviderInUse()
   return pickProvider(id)
+}
+
+/** Whether Anonymise is on for the provider in use, so a task leaves employees out and sends known people under an alias. On while no provider is in use. Reactive. */
+export function anonymisingNow(): boolean {
+  const preset = providerInUse()
+  return preset === null || anonymiseOn(preset.id)
 }
 
 /** Whether a key is kept here for the provider in use, so an app shows its assist buttons. Reactive. */
@@ -57,7 +63,7 @@ export const assistKeyKept: ComputedRef<boolean> = computed(() => {
 /** The tasks a person allowed for their next send alone. */
 const allowedOnce = new Set<string>()
 
-/** Lets the task's next run send once, whatever its switches say. Every run starts from a tap on its button, which says this first. */
+/** Lets the task's next run send once while its app asks first. Every run starts from a tap on its button, which says this first. */
 export function allowOnce(taskId: string): void {
   allowedOnce.add(taskId)
 }
@@ -71,14 +77,14 @@ export type AiRunState<Output> = { readonly kind: 'idle' | 'running' } | { reado
 
 export interface AiTaskRun<Input, Output> {
   readonly state: Readonly<Ref<DeepReadonly<AiRunState<Output>>>>
-  /** Runs the task on the provider in use. `sendsEmployees` says this input holds employee names or pay. */
+  /** Runs the task on the provider in use. `sendsEmployees` says this input holds rows about employees or their pay, which Anonymise keeps back. */
   run(input: Input, sendsEmployees?: boolean): Promise<TaskResult<Output>>
   reset(): void
 }
 
 /**
- * A task run from a screen, with its state for the screen to show. Nothing is sent with no key kept, or while a switch is
- * off unless the person allowed this one send. A new run, a reset and leaving the screen each abort the run under way, whose result is then dropped.
+ * A task run from a screen, with its state for the screen to show. Nothing is sent with no key kept, while the app asks
+ * first unless the person allowed this one send, or with employees in it while Anonymise is on. A new run, a reset and leaving the screen each abort the run under way, whose result is then dropped.
  */
 export function useAiTask<Input, Output>(task: AiTask<Input, Output>): AiTaskRun<Input, Output> {
   const state = shallowRef<AiRunState<Output>>({ kind: 'idle' })
@@ -106,7 +112,7 @@ export function useAiTask<Input, Output>(task: AiTask<Input, Output>): AiTaskRun
         result = await runTask(task, input, {
           model: preset === null ? null : await modelPort(task.id, preset),
           appOn: once || assistOn(task.app),
-          employees: { sends: sendsEmployees, on: once || employeesOn(task.id) },
+          employees: { sends: sendsEmployees, anonymising: preset === null || anonymiseOn(preset.id) },
           signal: controller.signal,
         })
       } catch (failure) {
@@ -171,6 +177,6 @@ export function resultLine(result: DeepReadonly<TaskResult<unknown>>): string | 
     case 'no-key':
       return words.addKey
     case 'switched-off':
-      return null
+      return result.which === 'employees' ? words.result.keptByAnonymise : null
   }
 }

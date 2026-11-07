@@ -273,7 +273,7 @@ describe('the Chat Completions reply', () => {
       tools: [{ name: 'rule', description: 'Reads one rule.', input: RULE_INPUT, run: async () => ({ text: 'A rule.', sources: [], figures: [] }) }],
       check: (output) => ({ draft: output, problems: [] }),
     }
-    const result = await runTask(task, null, { model: openRouterChat(BASE_URL, KEY, typed), appOn: true, employees: { sends: false, on: false } })
+    const result = await runTask(task, null, { model: openRouterChat(BASE_URL, KEY, typed), appOn: true, employees: { sends: false, anonymising: true } })
     expect(result).toMatchObject({ kind: 'draft', usage: { dollars: 0.0123 + 0.0077 } })
   })
 
@@ -417,7 +417,7 @@ describe('a task run over the OpenRouter adapter', () => {
       completion('tool_calls', { tool_calls: [functionCall('call_Ans1', 'answer', '{"rate":25,"rule":"pdv-25"}')] }, { prompt_tokens: 980, completion_tokens: 30, total_tokens: 1010 }),
     )
 
-    const result = await runTask(task, 'Which VAT rate applies to office chairs?', { model: openRouterChat(BASE_URL, KEY, SOL), appOn: true, employees: { sends: false, on: false } })
+    const result = await runTask(task, 'Which VAT rate applies to office chairs?', { model: openRouterChat(BASE_URL, KEY, SOL), appOn: true, employees: { sends: false, anonymising: true } })
 
     expect(result).toEqual({
       kind: 'draft',

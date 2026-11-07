@@ -15,16 +15,20 @@ import { removeReceiptOf } from '../../receipts/application/receiptRecords'
 import { mapLinkOf } from '../../receipts/domain/photoPlace'
 import RowLines from '../../receipts/presentation/RowLines.vue'
 import { words as receiptWords } from '../../receipts/presentation/words'
+import { treatPayeeAsPerson } from '../../workbook/application/settingWrites'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Account } from '../../workbook/domain/account'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { flaggedAsPerson } from '../../../../shared/privacy/domain/personPayees'
+import { assistKeyKept } from '../../../../shared/ai/presentation/useAiTask'
 import { absAccountMoney, negateAccountMoney, typedAccountAmount } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { amountForTyping } from '../../../../shared/money/typedAmount'
+import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
@@ -222,6 +226,22 @@ function transferWrite(fromAccount: Account, typed: AccountMoney, on: CivilDate)
   }
 }
 
+/** The payee as the file holds it, which the person flag names, or blank for an entry with none. */
+const savedPayee = computed(() => props.entry?.payee.trim() ?? '')
+const payeeIsPerson = computed(() => flaggedAsPerson(store.state.workbook?.settings.personPayees ?? [], savedPayee.value))
+
+async function treatPayee(): Promise<void> {
+  const records = store.state.records
+  const payeeName = savedPayee.value
+  if (records === null || payeeName === '') return
+  const asPerson = !payeeIsPerson.value
+  await writes.write(asPerson ? words.dialog.treatedAsPerson : words.dialog.treatedAsCompany, (unit) => treatPayeeAsPerson(unit, recordsOf(records.settings), payeeName, asPerson), {
+    key: 'person-payee',
+    description: payeeName,
+    failedTitle: spendingWords.form.notSaved,
+  })
+}
+
 async function removeReceipt(): Promise<void> {
   const entry = props.entry
   const records = store.state.records
@@ -286,6 +306,19 @@ async function remove(): Promise<void> {
           data-testid="spending-entry-remove-receipt"
           @click="removeReceipt"
         />
+      </div>
+      <div v-if="savedPayee !== '' && assistKeyKept" class="flex flex-col items-start gap-1 sm:col-span-2" data-testid="spending-entry-person">
+        <UButton
+          :label="payeeIsPerson ? words.dialog.asCompany : words.dialog.asPerson"
+          :icon="payeeIsPerson ? 'i-lucide-store' : 'i-lucide-user-round'"
+          color="neutral"
+          variant="outline"
+          :loading="writes.saving('person-payee')"
+          :disabled="writes.busy.value"
+          data-testid="spending-entry-treat-payee"
+          @click="treatPayee"
+        />
+        <p class="type-caption">{{ words.dialog.asPersonHelp }}</p>
       </div>
       <p v-if="deleteComesBack(legs ?? (entry === null ? [] : [entry]))" class="type-caption sm:col-span-2" data-testid="spending-entry-comes-back">{{ words.dialog.comesBack }}</p>
     </FormGrid>

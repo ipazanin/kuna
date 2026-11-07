@@ -13,6 +13,9 @@ const ANSWERS = {
     invented: 'Last year it was €4,300.00.',
     proposed: 'The card below sorts them. Nothing changes until you accept it.',
     proposalTitle: 'Rules for what keeps coming',
+    closeTitle: 'Close the old account',
+    closeProposed: 'The card below closes the account and gives it the new IBAN. Check the IBAN before you accept.',
+    nothingToSort: 'None of the latest rows names a shop I could make a rule for.',
   },
   hr: {
     rules: 'Odaberite kategoriju na **Za pregled** i zatim **Uvijek za ovog primatelja**.\n- Svako pravilo zatim razvrstava nove retke\n- Redak koji ste sami razvrstali ostaje kakav jest',
@@ -24,6 +27,9 @@ const ANSWERS = {
     invented: 'Prošle godine bilo je 4.300,00 €.',
     proposed: 'Kartica ispod ih razvrstava. Ništa se ne mijenja dok je ne prihvatite.',
     proposalTitle: 'Pravila za ono što se ponavlja',
+    closeTitle: 'Zatvori stari račun',
+    closeProposed: 'Kartica ispod zatvara račun i daje mu novi IBAN. Provjerite IBAN prije nego što prihvatite.',
+    nothingToSort: 'Nijedan od zadnjih redaka ne navodi trgovinu za koju bih mogao napraviti pravilo.',
   },
 }
 
@@ -35,9 +41,9 @@ function answersSince(request: ModelRequest): readonly { readonly text: string; 
 
 /** A person's name came as an alias, or as it is with aliases off: the first payee of the rows that reads as a name. */
 function latestPersonPaid(found: string): { readonly payee: string; readonly amount: string } | null {
-  const { records } = JSON.parse(found) as { readonly records: readonly { readonly payee?: string; readonly amount: string }[] }
-  const row = records.find((record) => /^(?:Person \d+|\p{Lu}\p{L}+ \p{Lu}\p{L}+)$/u.test(record.payee ?? ''))
-  return row === undefined ? null : { payee: row.payee ?? '', amount: row.amount }
+  const { records } = JSON.parse(found) as { readonly records: readonly { readonly payee?: string; readonly amount: { readonly ref: string } }[] }
+  const row = records.find((record) => /^(?:(?:Person|Osoba) \d+|\p{Lu}\p{L}+ \p{Lu}\p{L}+)$/u.test(record.payee ?? ''))
+  return row === undefined ? null : { payee: row.payee ?? '', amount: `[${row.amount.ref}]` }
 }
 
 /** Reads the month's figures and the latest rows as a real model would, and answers from what the tools gave, with an amount of its own if told to invent one. */
@@ -52,18 +58,37 @@ function spendingReply(request: ModelRequest, tokens: ModelTokens, invents: bool
   return answered(request, parts.join(' '), tokens)
 }
 
-/** Reads the latest rows and proposes a rule from the first with a shop's name, into the category that row is under. */
+/** Reads the latest rows and proposes a rule from the first filed row with a shop's name and no IBAN, into the category that row is under, so the rule never files a person's payments. */
 function sortReply(request: ModelRequest, tokens: ModelTokens, says: (typeof ANSWERS)['en']): ModelReply {
   const answers = answersSince(request)
   if (answers.length === 0) return lookup(0, 'find_records', { app: 'spending', kind: 'transaction', query: null, from: null, to: null, about: null, limit: 5, cursor: null }, tokens)
   if (answers[0]!.isError) return answered(request, says.notRead, tokens)
   if (answers.length === 1) {
-    const { records } = JSON.parse(answers[0]!.text) as { readonly records: readonly { readonly ref: string; readonly payee?: string; readonly category?: string }[] }
-    const row = records.find((record) => record.category !== undefined && record.payee?.startsWith('Person') !== true) ?? records[0]!
+    const { records } = JSON.parse(answers[0]!.text) as {
+      readonly records: readonly { readonly ref: string; readonly payee?: string; readonly category?: string; readonly counterpartyIban?: string }[]
+    }
+    const row = records.find((record) => record.category !== undefined && record.counterpartyIban === undefined && !/^(?:Person|Osoba) \d+$/.test(record.payee ?? ''))
+    if (row === undefined) return answered(request, says.nothingToSort, tokens)
     const step = { op: 'add-rule', input: JSON.stringify({ row: row.ref, fragment: null, category: row.category }), as: null }
     return lookup(1, 'propose_changes', { app: 'spending', title: says.proposalTitle, steps: [step] }, tokens)
   }
   return answered(request, says.proposed, tokens)
+}
+
+/** A made-up IBAN that passes the check, as a person might give it for the account's new number. */
+const NEW_IBAN = 'HR1210010051863000160'
+
+/** Reads the accounts and proposes closing the first, with a new IBAN on it, so the card shows a closed account and a line it warns on. */
+function closeAccountReply(request: ModelRequest, tokens: ModelTokens, says: (typeof ANSWERS)['en']): ModelReply {
+  const answers = answersSince(request)
+  if (answers.length === 0) return lookup(0, 'find_records', { app: 'spending', kind: 'account', query: null, from: null, to: null, about: null, limit: 5, cursor: null }, tokens)
+  if (answers[0]!.isError) return answered(request, says.notRead, tokens)
+  if (answers.length === 1) {
+    const { records } = JSON.parse(answers[0]!.text) as { readonly records: readonly { readonly ref: string }[] }
+    const step = { op: 'change-account', input: JSON.stringify({ account: records[0]!.ref, name: null, iban: NEW_IBAN, closed: 'yes' }), as: null }
+    return lookup(1, 'propose_changes', { app: 'spending', title: says.closeTitle, steps: [step] }, tokens)
+  }
+  return answered(request, says.closeProposed, tokens)
 }
 
 /** The last thing the person typed, and how many lookups have been answered since. */
@@ -87,12 +112,14 @@ function answered(request: ModelRequest, text: string, tokens: ModelTokens): Mod
 
 /**
  * The fake build's chat, which walks the tools as a real model would: a question about spending reads figures and rows,
- * one about rules reads the guide and links its tab, one about something Kuna lacks links the issues page, and anything else gets a line.
+ * one about rules reads the guide and links its tab, one about something Kuna lacks links the issues page, one that starts
+ * with close proposes closing an account with a new IBAN, and anything else gets a line.
  */
 export function fakeChatReply(request: ModelRequest, tokens: ModelTokens, invents: boolean): ModelReply {
   const { typed, lookups } = whereTheTurnIs(request)
   const says = ANSWERS[language === 'hr' ? 'hr' : 'en']
   if (/^sort|^razvrstaj/i.test(typed)) return sortReply(request, tokens, says)
+  if (/^close|^zatvori/i.test(typed)) return closeAccountReply(request, tokens, says)
   if (/spent|spend|potroš/i.test(typed)) return spendingReply(request, tokens, invents, says)
   if (/rule|pravil/i.test(typed)) {
     if (lookups === 0) return lookup(lookups, 'kuna_docs', { path: 'spending/guide/first-rules' }, tokens)

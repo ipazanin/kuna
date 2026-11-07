@@ -159,7 +159,7 @@ describe('the read-a-receipt task', () => {
 
   it('runs to a draft with its notes and what it spent, and writes nothing, since it holds no way to', async () => {
     const seen: unknown[] = []
-    const result = await runTask(readReceipt, INPUT, { model: modelAnswering(JSON.stringify({ ...ANSWER, total: 30 }), seen), appOn: true, employees: { sends: false, on: false } })
+    const result = await runTask(readReceipt, INPUT, { model: modelAnswering(JSON.stringify({ ...ANSWER, total: 30 }), seen), appOn: true, employees: { sends: false, anonymising: true } })
 
     expect(result).toMatchObject({ kind: 'draft', problems: ['The lines add up to €23.49, the receipt says €30.00'], usage: { inputTokens: 5000, outputTokens: 1500, dollars: 0.025 } })
     expect(seen).toHaveLength(1)
@@ -168,14 +168,16 @@ describe('the read-a-receipt task', () => {
   it('sends nothing while Spending is switched off', async () => {
     const seen: unknown[] = []
 
-    expect(await runTask(readReceipt, INPUT, { model: modelAnswering('{}', seen), appOn: false, employees: { sends: false, on: false } })).toEqual({ kind: 'switched-off', which: 'app' })
+    expect(await runTask(readReceipt, INPUT, { model: modelAnswering('{}', seen), appOn: false, employees: { sends: false, anonymising: true } })).toEqual({ kind: 'switched-off', which: 'app' })
     expect(seen).toEqual([])
   })
 
   it('stays under the input cap with a photo at its largest size', async () => {
     const photo = { ...PHOTO, base64: 'A'.repeat(Math.ceil((600_000 * 4) / 3)) }
 
-    expect(await runTask(readReceipt, { ...INPUT, photo }, { model: modelAnswering(JSON.stringify(ANSWER)), appOn: true, employees: { sends: false, on: false } })).toMatchObject({ kind: 'draft' })
+    expect(await runTask(readReceipt, { ...INPUT, photo }, { model: modelAnswering(JSON.stringify(ANSWER)), appOn: true, employees: { sends: false, anonymising: true } })).toMatchObject({
+      kind: 'draft',
+    })
   })
 })
 

@@ -2,12 +2,13 @@ import { words as assistWords } from '../assist/presentation/words'
 import { words as mailWords } from '../mail/presentation/words'
 import { CATEGORY_RULES_TAB } from '../rules/presentation/ruleLinks'
 import { ASSISTANT_SETTINGS_LINK } from '../settings/presentation/settingsTabs'
-import { SETTING_DEFINITIONS } from '../settings/domain/settings'
+import { PERSON_PAYEES_KEY, SETTING_DEFINITIONS } from '../settings/domain/settings'
 import { words as settingsWords } from '../settings/presentation/words'
 import { REVIEW_LINK } from '../transactions/presentation/transactionsLinks'
 import { words as transactionWords } from '../transactions/presentation/words'
 import * as coreKinds from '../workbook/domain/coreKinds'
 import type { AppAssistant } from '../../../shared/app/appContribution'
+import type { KnownPerson } from '../../../shared/privacy/domain/pseudonyms'
 import { words } from './words'
 import type { AutomationLabels, GuideLabels } from './words'
 
@@ -32,8 +33,8 @@ const AUTOMATION_LABELS: AutomationLabels = {
   review: transactionWords.tabs.review,
 }
 
-/** What Company tells the chat, with what its pack adds, as only `app.ts` may name the pack. */
-export function companyAssistant(pack: Pick<AppAssistant, 'kinds' | 'settings' | 'automations'>): AppAssistant {
+/** What Company tells the chat, with what its pack adds, as only `app.ts` may name the pack. `persons` reads the books `app.ts` holds: the employees through the pack, and the payees the owner flagged. */
+export function companyAssistant(pack: Pick<AppAssistant, 'kinds' | 'settings' | 'automations'>, persons: () => readonly KnownPerson[]): AppAssistant {
   return {
     kinds: [...Object.values(coreKinds), ...pack.kinds],
     places: [
@@ -45,7 +46,7 @@ export function companyAssistant(pack: Pick<AppAssistant, 'kinds' | 'settings' |
       { route: `${SETTINGS_ROUTE}?tab=accounts`, title: settingsWords.tabNames.accounts },
       { route: ASSISTANT_SETTINGS_LINK, title: settingsWords.tabNames.assistant },
     ],
-    settings: [...SETTING_DEFINITIONS.map(({ key, note }) => ({ key, note })), ...pack.settings],
+    settings: [...SETTING_DEFINITIONS.filter(({ key }) => key !== PERSON_PAYEES_KEY).map(({ key, note }) => ({ key, note })), ...pack.settings],
     guides: [{ id: 'review', title: words.guides.review.title, body: words.guides.review.body(LABELS), places: [REVIEW_LINK, CATEGORY_RULES_LINK] }],
     automations: [
       {
@@ -66,5 +67,6 @@ export function companyAssistant(pack: Pick<AppAssistant, 'kinds' | 'settings' |
     proposer: null,
     acceptance: null,
     quickActions: [],
+    persons,
   }
 }

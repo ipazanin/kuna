@@ -5,8 +5,9 @@ import { recordIdOf } from '../../../../shared/storage/domain/recordId'
 import { recordsOf, storedOf } from '../../../../shared/storage/domain/recordsRead'
 import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { slugOf } from '../../../../shared/storage/domain/storedFields'
+import { personPayeesOf, personPayeesText, withPayeeAsPerson } from '../../../../shared/privacy/domain/personPayees'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
-import { readSettingsTab } from '../domain/settings'
+import { PERSON_PAYEES_KEY, heldSettingValue, readSettingsTab } from '../domain/settings'
 import type { SettingEntry, SettingRow } from '../domain/settings'
 import { words } from './words'
 
@@ -16,12 +17,12 @@ function problemsOf(read: RecordsRead<SettingRow>): string[] {
 
 /**
  * Settings, core's keys and the installed pack's. A key set on two records, or a value the settings
- * reader would not use, is refused. Settings keep no Undo.
+ * reader would not use, is refused.
  */
 export const SETTING_WRITES: WriteRules<SettingRow> = {
   kind: SETTING_RECORDS,
   reads: [],
-  undoable: false,
+  undoable: true,
   read: (read) => ({
     facts: read.records.flatMap((stored) => (stored.id === null ? [] : [{ id: stored.id }])),
     problems: readSettingsTab(recordsOf(read), installedPack().workbook?.settings ?? null).problems,
@@ -68,5 +69,15 @@ export function removeSettings(unit: UnitOfWork, held: RecordsRead<SettingRow>, 
     if (stored !== undefined) {
       settings.remove(stored.record)
     }
+  }
+}
+
+/** Flags the counterparty as a person, whose name the chat and the AI tasks then send as an alias, or takes every spelling of it off the flags. */
+export function treatPayeeAsPerson(unit: UnitOfWork, held: RecordsRead<SettingRow>, payee: string, asPerson: boolean): void {
+  const flagged = personPayeesText(withPayeeAsPerson(personPayeesOf(heldSettingValue(held, PERSON_PAYEES_KEY) ?? ''), payee, asPerson))
+  if (flagged === '') {
+    removeSettings(unit, held, [PERSON_PAYEES_KEY])
+  } else {
+    setSettings(unit, held, [{ key: PERSON_PAYEES_KEY, value: flagged }])
   }
 }

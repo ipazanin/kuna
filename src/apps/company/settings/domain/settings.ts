@@ -25,6 +25,7 @@ import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT, mailTemplateProblem } from '..
 import { DEFAULT_NUMBER_PATTERN, numberPatternProblem } from '../../invoicing/domain/invoiceNumber'
 import { mailAddressesOf, mailAddressesProblem, mailSubjectProblem } from '../../../../shared/mail-filing/domain/mailSource'
 import { words as recordWords } from '../../../../shared/storage/domain/words'
+import { personPayeesOf, personPayeesText } from '../../../../shared/privacy/domain/personPayees'
 import { words } from './words'
 
 /** The workbook format this app writes. A higher number comes from a newer app. */
@@ -65,6 +66,8 @@ export interface Settings {
   readonly statementsMailSubject: string
   /** The day the earliest mail a source reads may come, for a source the app filed nothing for yet. Null means the first day of last year. */
   readonly mailSince: CivilDate | null
+  /** The counterparties the owner flagged as people, whose names the chat and the AI tasks send as aliases. */
+  readonly personPayees: readonly string[]
 }
 
 /**
@@ -186,6 +189,7 @@ export const DEFAULT_SETTINGS: Settings = {
   statementsMailFrom: [],
   statementsMailSubject: '',
   mailSince: null,
+  personPayees: [],
 }
 
 /** `flagged_by` values the categoriser writes, which a person's label must not reuse. */
@@ -381,6 +385,9 @@ const INVOICING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   invoicingDefinition('invoice_reverse_charge_note', 'reverseChargeNote', 'The note a reverse-charge invoice prints under its totals. Blank means the Croatian VAT law’s Article 17 note.'),
 ]
 
+/** The key of the counterparties the owner flagged as people. Only a person sets it, from a row in To review. */
+export const PERSON_PAYEES_KEY = 'person_payees'
+
 /** Every key the app reads, in the order the template lists them. */
 export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   {
@@ -513,6 +520,13 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
       const since = parseCivilDate(value.trim())
       return since === null ? words.settings.notADay(value) : { ...settings, mailSince: since }
     },
+  },
+  {
+    key: PERSON_PAYEES_KEY,
+    note: 'The counterparties that are people, one per line, whose names the assistant sends as aliases. A row in To review flags one. Optional.',
+    type: 'text',
+    valueOf: (settings) => personPayeesText(settings.personPayees),
+    apply: (settings, value) => ({ ...settings, personPayees: personPayeesOf(value) }),
   },
 ]
 

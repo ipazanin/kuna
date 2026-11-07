@@ -1,7 +1,11 @@
+import { forgetAssistChoices } from '../../shared/ai/application/assistSettings'
+import { forgetKunaStart } from '../../shared/app/kunaStart'
+import { forgetGoogleSignIn } from '../../shared/google/googleAuth'
 import { placesStillHeld, removalWent } from '../../shared/storage/application/appData'
 import type { AppData, DataPlace, RemovalReport } from '../../shared/storage/application/appData'
 import { words as storageWords } from '../../shared/storage/application/words'
 import { WorkbookWriteRefused } from '../../shared/storage/application/workbookWriteRefused'
+import { switchAutoSync } from '../../shared/sync/infrastructure/autoSyncSwitch'
 
 /** What every app shares: the keys in this browser and in the Google account, and this browser's own settings. */
 export type SharedThing = 'browser-keys' | 'google-keys' | 'browser-settings'
@@ -13,8 +17,8 @@ export interface KunaDeletionPorts {
   forgetBrowserKeys(): void
   /** Deletes the keys files in the Google account for good, since Drive keeps no bin for an app's hidden folder. */
   deleteGoogleKeys(): Promise<void>
-  /** Forgets this browser's settings, and the Google sign-in unless an app still keeps a file on Drive. */
-  forgetBrowserSettings(): void
+  /** Forgets this browser's settings and its saved chat, and the Google sign-in unless an app still keeps a file on Drive. */
+  forgetBrowserSettings(): Promise<void>
 }
 
 export interface AppPick {
@@ -44,6 +48,19 @@ export function picksStillHeld(chosen: Readonly<Record<string, readonly DataPlac
       return held === null ? [] : [[app.id, placesStillHeld(chosen[app.id] ?? [], held.places)]]
     }),
   )
+}
+
+/**
+ * Forgets this browser's settings and the chat it saved, and the Google sign-in unless an app still keeps a file on
+ * Drive. The chat's storage loads only now, so it stays out of the first load.
+ */
+export async function forgetBrowserSettings(fileOnDrive: boolean): Promise<void> {
+  forgetKunaStart()
+  forgetAssistChoices()
+  switchAutoSync(true)
+  if (!fileOnDrive) forgetGoogleSignIn()
+  const { forgetSavedChat } = await import('../../shared/ai/application/savedChat')
+  await forgetSavedChat()
 }
 
 function messageOf(failure: unknown): string {

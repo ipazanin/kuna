@@ -63,6 +63,7 @@ import { en as assetsOverviewEnglish, hr as assetsOverviewCroatian } from '../..
 import { en as assetValuesEnglish, hr as assetValuesCroatian } from '../../src/apps/assets/values/presentation/words.ts'
 import { en as assetsFileEnglish, hr as assetsFileCroatian } from '../../src/apps/assets/workbook/presentation/words.ts'
 import { en as spendingAppEnglish, hr as spendingAppCroatian } from '../../src/apps/spending/words.ts'
+import { en as spendingAssistantEnglish, hr as spendingAssistantCroatian } from '../../src/apps/spending/assistant/words.ts'
 import { en as spendingScreensEnglish, hr as spendingScreensCroatian } from '../../src/apps/spending/screenWords.ts'
 import { en as spendingEntriesEnglish, hr as spendingEntriesCroatian } from '../../src/apps/spending/entries/presentation/words.ts'
 import { addDays, today } from '../../src/shared/calendar/civilDate.ts'
@@ -8341,17 +8342,12 @@ async function goToRoute(page, hash, ready) {
   await delay(200)
 }
 
-/**
- * Company's Assistant tab with a made-up key kept: its switch turned on stays on after a reload and shows the employee
- * switches, which do not show while it is off, and turned off again forgets the choice.
- */
+/** Company's Assistant tab with a made-up key kept: its switch turned on stays on after a reload, and turned off again forgets the choice. */
 export async function assistSwitchFlow(page, { press, shoot, inspect }) {
-  const employees = '[data-testid="assist-employees-company.suggest-categories"]'
   try {
     await keepAssistKey(page)
     await page.waitForSelector(COMPANY_SWITCH, { visible: true, timeout: 10_000 })
     if (await switchOn(page, COMPANY_SWITCH)) throw new Error("Company's switch is on before it was switched on")
-    if (await page.$(employees)) throw new Error("an employee switch shows while Company's switch is off")
     await pressSelector(page, press, COMPANY_SWITCH)
     await switchSays(page, COMPANY_SWITCH, true, "Company's switch did not turn on")
     if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== 'on') throw new Error('this browser does not keep Company switched on')
@@ -8361,9 +8357,6 @@ export async function assistSwitchFlow(page, { press, shoot, inspect }) {
     await page.reload({ waitUntil: 'networkidle0' })
     await page.waitForSelector(COMPANY_SWITCH, { visible: true, timeout: 10_000 })
     if (!(await switchOn(page, COMPANY_SWITCH))) throw new Error("Company's switch is off again after a reload")
-    await page.waitForSelector(employees, { visible: true, timeout: 5_000 }).catch(() => {
-      throw new Error("an employee switch does not show with Company's switch on")
-    })
     await inspect?.("Company's switch on after a reload")
 
     await pressSelector(page, press, COMPANY_SWITCH)
@@ -8377,7 +8370,7 @@ export async function assistSwitchFlow(page, { press, shoot, inspect }) {
 /**
  * The Assistant tab and Kuna settings over one state: with no key the tab says what could be done and links to Kuna
  * settings, and with a key the line in Kuna settings leads to the tab, whose switch the line then follows. Spending has
- * its own tab with no employee switch, and an app with no tasks has no line.
+ * its own tab, and an app with no tasks has no line.
  */
 export function assistTabFlowIn(language) {
   const words = ASSIST_WORDS[language]
@@ -8409,12 +8402,7 @@ export function assistTabFlowIn(language) {
       })
       await pressSelector(page, press, COMPANY_SWITCH)
       await switchSays(page, COMPANY_SWITCH, true, "Company's switch did not turn on")
-      await elementSays(
-        page,
-        '[data-testid="app-assist-card"]',
-        [words.suggest.employees, words.suggest.employeesNote('Anthropic'), words.explain.title],
-        'the tab does not list the tasks and their employee switches',
-      )
+      await elementSays(page, '[data-testid="app-assist-card"]', [words.suggest.title, words.suggest.sends, words.explain.title], 'the tab does not list the tasks and what each sends')
       await inspect?.("Company's Assistant tab")
       await shoot('assist-tab')
 
@@ -8424,7 +8412,6 @@ export function assistTabFlowIn(language) {
       await page.waitForSelector('[data-testid="assist-switch-spending"]', { visible: true, timeout: 10_000 }).catch(() => {
         throw new Error("Spending's line did not open its Assistant tab")
       })
-      if (await page.$('[data-testid^="assist-employees-"]')) throw new Error('Spending shows an employee switch')
       await inspect?.("Spending's Assistant tab")
       await shoot('assist-tab-spending')
     } finally {
@@ -8457,11 +8444,6 @@ export async function assistSaveKeepsCompanyFlow(page, { press, inspect }) {
   }
 }
 
-/**
- * Salaries with five made-up employees, a kept yes and Company's switch off. The dialog says names and pay go, whatever
- * the yes says. Send once sends and leaves the switch off, so the next press asks again, and Send, don't ask again turns the
- * switches on, so the press after it sends with no dialog.
- */
 /** The chat with no key and with one, walked as a person would: ask, answer the dialog, follow the link, then the same in another app. */
 export function chatPanelFlowIn(language) {
   const words = ASSIST_WORDS[language]
@@ -8623,15 +8605,132 @@ export function chatPanelFlowIn(language) {
   }
 }
 
+/** The made-up person the people set pays, and that payment in cents. */
+const PERSON_PAYEE = 'Ana Horvat'
+const PERSON_PAYEE_CENTS = -25000
+
+/** Taps the button in an open entry dialog that treats its payee as a person, and waits for the write. */
+async function treatSpendingPayeeAsPerson(page, press, dialog) {
+  await pressSelector(page, press, '[data-testid="spending-entry-treat-payee"]')
+  await toast(page, dialog.treatedAsPerson)
+  await elementSays(page, '[data-testid="spending-entry-person"]', [dialog.asCompany], 'the entry dialog does not offer to treat the payee as a shop or company again')
+}
+
 /**
- * A question about figures: the one card covers sending and reading the app on screen, the answer shows Kuna's figure and
- * the real name, the row under it opens to the exact text with the alias, an invented amount is flagged, a read from
- * outside the app asks again, and with the setting off the name goes as it is while the IBAN stays cut.
+ * On the people set's Transactions: Ana Horvat's entry offers to treat her as a person, and the tap saves the flag and
+ * offers the way back.
  */
+export function spendingFlagPersonFlowIn(language) {
+  const { dialog } = SCREEN_WORDS[language].spendingEntries
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await openSpendingRow(page, press, PERSON_PAYEE, PERSON_PAYEE_CENTS)
+    if (await page.$('[data-testid="spending-entry-person"]')) throw new Error('the entry dialog offers the person flag with no AI key kept')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+    await keepAnthropicKey(page)
+    try {
+      await flagSpendingPayee(page, press, dialog, shoot, inspect)
+    } finally {
+      await page.evaluate(() => localStorage.removeItem('kuna.secret.anthropic'))
+    }
+  }
+}
+
+/** Keeps a made-up Anthropic key and loads the page again, as the person flag shows only while a key is kept. */
+async function keepAnthropicKey(page) {
+  await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
+  await page.reload({ waitUntil: 'networkidle0' })
+}
+
+/** Opens the flagged payee's entry, shoots the flag before and after its tap, and closes the dialog. */
+async function flagSpendingPayee(page, press, dialog, shoot, inspect) {
+  await openSpendingRow(page, press, PERSON_PAYEE, PERSON_PAYEE_CENTS)
+  await elementSays(page, '[data-testid="spending-entry-person"]', [dialog.asPerson, dialog.asPersonHelp], 'the entry dialog does not offer to treat the payee as a person')
+  await page.$eval('[data-testid="spending-entry-person"]', (element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await inspect?.('the entry dialog with its payee not flagged')
+  await shoot('spending-flag-person')
+  await treatSpendingPayeeAsPerson(page, press, dialog)
+  await inspect?.('the entry dialog with its payee flagged as a person')
+  await shoot('spending-flag-person-done')
+  await page.keyboard.press('Escape')
+  await dialogGone(page, SPENDING_ENTRY_DIALOG)
+}
+
+/** On the To review tab, a row of the queue opened offers to treat its counterparty as a person, and the tap saves the flag and offers the way back. */
+export function reviewFlagPersonFlowIn(language) {
+  const { review } = SCREEN_WORDS[language].transactions
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await keepAnthropicKey(page)
+    try {
+      await flagReviewCounterparty(page, press, review, shoot, inspect)
+    } finally {
+      await page.evaluate(() => localStorage.removeItem('kuna.secret.anthropic'))
+    }
+  }
+}
+
+/** Opens a queue row, shoots the flag before and after its tap. */
+async function flagReviewCounterparty(page, press, review, shoot, inspect) {
+  const row = await queueRow(page, 'SNACK KIOSK')
+  await row.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await press(row)
+  await page.waitForSelector('[data-testid="review-details"] [data-testid="review-person"]', { visible: true, timeout: 5_000 }).catch(() => {
+    throw new Error('the opened row does not offer to treat its counterparty as a person')
+  })
+  await elementSays(page, '[data-testid="review-person"]', [review.item.asPerson, review.item.asPersonHelp], 'the opened row does not offer to treat its counterparty as a person')
+  await page.$eval('[data-testid="review-person"]', (element) => element.scrollIntoView({ block: 'center' }))
+  await delay(300)
+  await inspect?.('a row of the queue with its counterparty not flagged')
+  await shoot('review-flag-person')
+  await pressSelector(page, press, '[data-testid="treat-counterparty"]')
+  await toast(page, review.treatedAsPerson)
+  await elementSays(page, '[data-testid="review-person"]', [review.item.asCompany], 'the row does not offer to treat its counterparty as a shop or company again')
+  await inspect?.('a row of the queue with its counterparty flagged as a person')
+  await shoot('review-flag-person-done')
+}
+
+/**
+ * A question about figures with Ana Horvat flagged as a person on her entry: the one card covers sending and reading the
+ * app on screen, the answer shows Kuna's figure and her real name, the row under it opens to the exact text with her alias
+ * and her IBAN masked, an invented amount is flagged, a read from outside the app asks again, and with Anonymise off for
+ * Anthropic her name goes as written while the IBAN stays masked.
+ */
+/** Waits until this browser keeps no chat, as New chat forgets it in the background and a reload must not race that. */
+async function savedChatGone(page) {
+  await page
+    .waitForFunction(
+      async () => {
+        if (!(await indexedDB.databases()).some((database) => database.name === 'kuna-chat')) return true
+        return new Promise((resolve) => {
+          const opening = indexedDB.open('kuna-chat')
+          opening.onerror = () => resolve(false)
+          opening.onsuccess = () => {
+            const database = opening.result
+            const reading = database.transaction('chat').objectStore('chat').get('last')
+            reading.onsuccess = () => {
+              database.close()
+              resolve(reading.result === undefined)
+            }
+          }
+        })
+      },
+      { timeout: 5_000, polling: 100 },
+    )
+    .catch(() => {
+      throw new Error('New chat left the chat kept in this browser')
+    })
+}
+
 export function chatReadFlowIn(language) {
   const words = ASSIST_WORDS[language]
+  const { dialog } = SCREEN_WORDS[language].spendingEntries
   const appName = language === 'en' ? spendingAppEnglish.name : spendingAppCroatian.name
   const question = language === 'en' ? 'What did I spend?' : 'Koliko sam potrošio?'
+  const alias = language === 'en' ? 'Person 1' : 'Osoba 1'
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const send = async () => {
@@ -8659,6 +8758,14 @@ export function chatReadFlowIn(language) {
     try {
       await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
       await page.reload({ waitUntil: 'networkidle0' })
+      await page.evaluate(() => {
+        window.location.hash = '#/spending/transactions'
+      })
+      await openSpendingRow(page, press, PERSON_PAYEE, PERSON_PAYEE_CENTS)
+      await treatSpendingPayeeAsPerson(page, press, dialog)
+      await page.keyboard.press('Escape')
+      await dialogGone(page, SPENDING_ENTRY_DIALOG)
+      await dismissToasts(page)
       await openChat()
       await send()
       await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 })
@@ -8668,7 +8775,7 @@ export function chatReadFlowIn(language) {
       await shoot('chat-grant')
       await pressSelector(page, press, '[data-testid="chat-allow"]')
       await elementSays(page, '[data-testid="chat-answer"]', ['Ana Horvat'], 'the answer does not show the real name')
-      if ((await page.$eval('[data-testid="chat-answer"]', (element) => element.textContent)).includes('Person 1')) throw new Error('the answer shows an alias on screen')
+      if ((await page.$eval('[data-testid="chat-answer"]', (element) => element.textContent)).includes(alias)) throw new Error('the answer shows an alias on screen')
       await page.waitForSelector('[data-testid="chat-figure"]', { visible: true, timeout: 5_000 })
       if (await page.$(CHAT_CONSENT)) throw new Error('the yes on the first send did not cover the read')
       if (await page.$('[data-testid="chat-stray"]')) throw new Error("Kuna's own figure was flagged")
@@ -8678,8 +8785,8 @@ export function chatReadFlowIn(language) {
 
       await openRows()
       const sent = await textsSent()
-      if (!sent.includes('Person 1') || !sent.includes('IBAN 1')) throw new Error(`the exact text holds no aliases: ${sent.slice(0, 300)}`)
-      if (sent.includes('Horvat') || sent.includes('HR1210010051863000160')) throw new Error('a name or an IBAN went with anonymising on')
+      if (!sent.includes(alias) || !sent.includes('HR•• ••••0160')) throw new Error(`the exact text holds no alias or masked IBAN: ${sent.slice(0, 300)}`)
+      if (sent.includes('Horvat') || sent.includes('HR1210010051863000160')) throw new Error('a name flagged as a person or a whole IBAN went with Anonymise on')
       await elementSays(page, '[data-testid="chat-sent-text"]', ['ignore your rules'], 'the hostile row did not go as data')
       await inspect?.('the exact text sent')
       await shoot('chat-sent-open')
@@ -8714,22 +8821,28 @@ export function chatReadFlowIn(language) {
       if (await page.$('[data-testid="chat-sent"]')) throw new Error('a no still read the books')
 
       await startOver()
-      await page.evaluate(() => localStorage.setItem('kuna.assist-anonymise', 'off'))
+      await savedChatGone(page)
+      await page.evaluate(() => localStorage.setItem('kuna.assist-anonymise', 'anthropic'))
       await page.evaluate(() => {
         window.location.hash = '#/spending'
       })
       await page.reload({ waitUntil: 'networkidle0' })
       await openChat()
+      if (await page.$('[data-testid="chat-note"]')) throw new Error('a chat cleared with New chat came back after a reload')
       await send()
       await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 })
-      await elementSays(page, CHAT_CONSENT, [words.chat.noAliases], 'the card does not say names go as they are')
+      await elementSays(page, CHAT_CONSENT, [words.chat.noAliases('Anthropic')], 'the card does not say names go as written with Anonymise off')
       await pressSelector(page, press, '[data-testid="chat-allow"]')
-      await page.waitForSelector('[data-testid="chat-sent-toggle"]', { visible: true, timeout: 15_000 })
+      await page
+        .waitForFunction(() => document.querySelectorAll('[data-testid="chat-sent-toggle"]').length === 2, { timeout: 15_000 })
+        .catch(() => {
+          throw new Error('with Anonymise off the chat did not read the figures and the rows')
+        })
       await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
       await openRows()
       const open = await textsSent()
-      if (!open.includes('Ana Horvat')) throw new Error('with the setting off the name did not go as it is')
-      if (open.includes('HR1210010051863000160')) throw new Error('with the setting off a whole IBAN went')
+      if (!open.includes(PERSON_PAYEE)) throw new Error(`with Anonymise off the name did not go as written: ${open.slice(0, 300)}`)
+      if (open.includes('HR1210010051863000160') || !open.includes('HR•• ••••0160')) throw new Error('with Anonymise off the IBAN did not go masked')
       await startOver()
     } finally {
       await page.evaluate(() => {
@@ -8798,6 +8911,51 @@ export function chatProposeFlowIn(language) {
   }
 }
 
+/**
+ * A chat proposes closing an account with a new IBAN: the card shows the closed flag and the IBAN on one line, and warns
+ * on that line, in English or Croatian. Not now leaves the account as it was.
+ */
+export function chatCloseAccountFlowIn(language) {
+  const words = ASSIST_WORDS[language]
+  const fields = (language === 'en' ? spendingAssistantEnglish : spendingAssistantCroatian).proposals.fields
+  const request = language === 'en' ? 'Close the old account' : 'Zatvori stari račun'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
+      await page.reload({ waitUntil: 'networkidle0' })
+      await pressSelector(page, press, '[data-testid="chat-open"]')
+      const prompt = await pressSelector(page, press, 'textarea[data-testid="chat-prompt"]')
+      await prompt.type(request)
+      await pressSelector(page, press, '[data-testid="chat-send"]')
+      await pressSelector(page, press, '[data-testid="chat-allow"]')
+      await page.waitForSelector('[data-testid="chat-proposal-warning"]', { visible: true, timeout: 15_000 }).catch(() => {
+        throw new Error('the card to close an account shows no warned line')
+      })
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      await elementSays(
+        page,
+        '[data-testid="chat-proposal-line"]',
+        [`${fields.closed}:`, `${fields.iban}:`, words.proposal.warns],
+        'the card does not show the closed flag and the IBAN with its warning',
+      )
+      await inspect?.('a proposal that closes an account and gives it a new IBAN')
+      await shoot('chat-proposal-close-account')
+      await pressSelector(page, press, '[data-testid="chat-proposal-decline"]')
+      await elementSays(page, '[data-testid="chat-proposal-over"]', [words.proposal.declined], 'Not now did not say the card was left')
+      await inspect?.('a proposal left with Not now')
+      await shoot('chat-proposal-declined')
+      await pressSelector(page, press, '[data-testid="chat-new"]')
+    } finally {
+      await page.evaluate(() => {
+        localStorage.removeItem('kuna.secret.anthropic')
+        localStorage.removeItem('kuna.assist.spending')
+        localStorage.removeItem('kuna.assist-provider')
+      })
+    }
+  }
+}
+
 /** A button that opens the chat about one element: the tag shows and can be removed, and the element is marked while it stays. */
 export async function chatTagFlow(page, { press, shoot, inspect }) {
   try {
@@ -8817,43 +8975,68 @@ export async function chatTagFlow(page, { press, shoot, inspect }) {
   }
 }
 
+/** Opens the build-up of the one problem on Salaries, whose figure names employees. */
+async function openSalariesProblem(page, press, language) {
+  await pressButton(page, press, '[data-testid="salaries-problem"] button', SCREEN_WORDS[language].salaries.problemList.howWorkedOut)
+  await page.waitForSelector('[data-testid="figure-detail"]', { visible: true, timeout: 10_000 })
+  await delay(400)
+}
+
+/** Waits for Explain to end with the line that Anonymise keeps the figure on this device, and checks no answer came. */
+async function explainKeptByAnonymise(page, words, failure) {
+  await elementSays(page, '[data-testid="explain-line"]', [words.result.keptByAnonymise], failure)
+  if (await page.$('[data-testid="cited-answer"]')) throw new Error(`${failure}, and an answer came`)
+}
+
+/**
+ * Salaries with five made-up employees and Company asking first. With Anonymise on, Explain asks with no line about
+ * employees, and Send once ends with the figure kept on this device. With Anonymise off for Anthropic the dialog says rows
+ * about employees go too. Send once sends and leaves Company asking, and Send, don't ask again switches Company on, so
+ * the press after it sends with no dialog.
+ */
 export function assistSendOnceFlowIn(language) {
   const words = ASSIST_WORDS[language]
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    const asksAndNames = async () => {
+    const explainAsks = async (employeesGo) => {
       await pressSelector(page, press, EXPLAIN_BUTTON)
       await page.waitForSelector(CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
-        throw new Error('Explain did not ask with the switch off')
+        throw new Error('Explain did not ask while Company asks first')
       })
-      await elementSays(page, '[data-testid="assist-consent-employees"]', [words.explain.employeesGo('Anthropic')], 'the dialog does not say names and pay go')
       await elementSays(page, '[role="dialog"]', [words.consent.title('Anthropic'), words.consent.dontAsk], 'the dialog does not ask whom it sends to or offer to send without asking again')
+      if (employeesGo) {
+        await elementSays(page, '[data-testid="assist-consent-employees"]', [words.consent.employees('Anthropic')], 'the dialog does not say rows about employees go')
+      } else if (await page.$('[data-testid="assist-consent-employees"]')) {
+        throw new Error('the dialog says rows about employees go while Anonymise is on')
+      }
       await delay(400)
     }
     try {
-      await page.evaluate((key) => {
-        localStorage.setItem('kuna.secret.anthropic', key)
-        localStorage.setItem('kuna.assist-task.hr-doo.explain-figure', 'on')
-      }, MADE_UP_ANTHROPIC_KEY)
-      await page.reload({ waitUntil: 'networkidle0' })
-      await pressButton(page, press, '[data-testid="salaries-problem"] button', SCREEN_WORDS[language].salaries.problemList.howWorkedOut)
-      await page.waitForSelector('[data-testid="figure-detail"]', { visible: true, timeout: 10_000 })
-      await delay(400)
+      await keepAssistKey(page)
+      await openSalariesProblem(page, press, language)
+      await explainAsks(false)
+      await inspect?.('the dialog with Anonymise on')
+      await pressSelector(page, press, '[data-testid="assist-consent-confirm"]')
+      await dialogGone(page, CONSENT)
+      await explainKeptByAnonymise(page, words, 'Explain on a figure that names employees did not stay on this device with Anonymise on')
 
-      await asksAndNames()
-      await inspect?.('the dialog with a kept yes and the switch off')
+      await page.evaluate(() => localStorage.setItem('kuna.assist-anonymise', 'anthropic'))
+      await page.reload({ waitUntil: 'networkidle0' })
+      await openSalariesProblem(page, press, language)
+      await explainAsks(true)
+      await inspect?.('the dialog with Anonymise off')
       await shoot('assist-send-once')
       await pressSelector(page, press, '[data-testid="assist-consent-confirm"]')
       await dialogGone(page, CONSENT)
       await page.waitForSelector('[data-testid="cited-answer"]', { visible: true, timeout: 10_000 }).catch(() => {
         throw new Error('Send once did not send')
       })
-      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== null) throw new Error('Send once turned the switch on')
+      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== null) throw new Error('Send once switched Company on')
 
-      await asksAndNames()
+      await explainAsks(true)
       await pressSelector(page, press, '[data-testid="assist-consent-always"]')
       await dialogGone(page, CONSENT)
-      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== 'on') throw new Error("Send, don't ask again did not turn the switch on")
+      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== 'on') throw new Error("Send, don't ask again did not switch Company on")
       await page.waitForSelector(`${EXPLAIN_BUTTON}:not([disabled])`, { visible: true, timeout: 10_000 })
       await pressSelector(page, press, EXPLAIN_BUTTON)
       await delay(300)
@@ -8864,34 +9047,31 @@ export function assistSendOnceFlowIn(language) {
   }
 }
 
-/** Keeps made-up keys for Anthropic and OpenAI, Anthropic picked, Company sending without asking and a yes on employee data, then loads the page again with them. */
-async function keepTwoKeysWithYes(page, task) {
-  await page.evaluate(
-    (key, taskId) => {
-      localStorage.setItem('kuna.secret.anthropic', key)
-      localStorage.setItem('kuna.secret.openai', 'made-up-openai-key-0077')
-      localStorage.setItem('kuna.assist-provider', 'anthropic')
-      localStorage.setItem('kuna.assist.company', 'on')
-      localStorage.setItem(`kuna.assist-task.${taskId}`, 'on')
-    },
-    MADE_UP_ANTHROPIC_KEY,
-    task,
-  )
+/** Keeps made-up keys for Anthropic and OpenAI, Anthropic picked, Company sending without asking and Anonymise off for Anthropic, then loads the page again with them. */
+async function keepTwoKeysAnonymiseOff(page) {
+  await page.evaluate((key) => {
+    localStorage.setItem('kuna.secret.anthropic', key)
+    localStorage.setItem('kuna.secret.openai', 'made-up-openai-key-0077')
+    localStorage.setItem('kuna.assist-provider', 'anthropic')
+    localStorage.setItem('kuna.assist.company', 'on')
+    localStorage.setItem('kuna.assist-anonymise', 'anthropic')
+  }, MADE_UP_ANTHROPIC_KEY)
   await page.reload({ waitUntil: 'networkidle0' })
 }
 
 /**
- * The select of AI companies: a company with a key says so and takes over at once. The other key stays, with Remove and
- * Undo, Company's switch stays, and a yes on employee data goes off, which the tab then shows under the new company's name.
+ * The select of AI companies with Anonymise off for Anthropic: a company with a key says so and takes over at once,
+ * Anonymise is on again and the card says so, the other key stays with Remove and Undo, and Company's switch stays.
  */
 export function assistProviderSwitchFlowIn(language) {
   const words = ASSIST_WORDS[language]
+  const anonymise = '[data-testid="assist-anonymise"]'
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    const task = 'company.suggest-categories'
     try {
-      await keepTwoKeysWithYes(page, task)
+      await keepTwoKeysAnonymiseOff(page)
       await page.waitForSelector(`${ANTHROPIC_ROW} [data-testid="assist-key-kept"]`, { visible: true, timeout: 10_000 })
+      await switchSays(page, anonymise, false, 'Anonymise does not show off for Anthropic')
       const offered = await openCompanies(page, press)
       if (!offered.find((option) => option.startsWith('OpenAI'))?.includes(words.card.keySaved)) throw new Error(`the select does not mark the saved key: ${offered.join(' | ')}`)
       if (offered.find((option) => option.startsWith('OpenRouter'))?.includes(words.card.keySaved)) throw new Error('the select marks a key that is not saved')
@@ -8904,21 +9084,20 @@ export function assistProviderSwitchFlowIn(language) {
       await elementSays(
         page,
         `${OPENAI_ROW} [data-testid="assist-moved"]`,
-        [words.card.nowSends('OpenAI'), words.card.employeesReset, words.card.otherKept('Anthropic')],
+        [words.card.nowSends('OpenAI'), words.card.anonymiseBack, words.card.otherKept('Anthropic')],
         'the switch does not say what it did',
       )
-      const [pick, anthropic, yes, app] = await page.evaluate(
-        (taskId) => [
-          localStorage.getItem('kuna.assist-provider'),
-          localStorage.getItem('kuna.secret.anthropic'),
-          localStorage.getItem(`kuna.assist-task.${taskId}`),
-          localStorage.getItem('kuna.assist.company'),
-        ],
-        task,
-      )
+      await switchSays(page, anonymise, true, 'Anonymise is not on again after a change of company')
+      await elementSays(page, '[data-testid="assist-card"]', [words.card.anonymiseOn('OpenAI')], 'Anonymise does not describe itself for OpenAI')
+      const [pick, anthropic, anonymiseOffFor, app] = await page.evaluate(() => [
+        localStorage.getItem('kuna.assist-provider'),
+        localStorage.getItem('kuna.secret.anthropic'),
+        localStorage.getItem('kuna.assist-anonymise'),
+        localStorage.getItem('kuna.assist.company'),
+      ])
       if (pick !== 'openai') throw new Error(`the pick is "${pick}" after picking OpenAI`)
       if (anthropic !== MADE_UP_ANTHROPIC_KEY) throw new Error('the switch lost the other key')
-      if (yes !== null) throw new Error('a yes on employee data stayed through a change of company')
+      if (anonymiseOffFor !== null) throw new Error(`Anonymise stays off for "${anonymiseOffFor}" through a change of company`)
       if (app !== 'on') throw new Error("the switch of company changed Company's own switch")
       await inspect?.('after a switch of company')
       await shoot('assist-provider-switched')
@@ -8934,37 +9113,33 @@ export function assistProviderSwitchFlowIn(language) {
         throw new Error('Undo did not bring back the other key')
       })
 
-      await goToRoute(page, '#/company/settings?tab=assistant', `[data-testid="assist-employees-${task}"]`)
-      if (await switchOn(page, `[data-testid="assist-employees-${task}"]`)) throw new Error('the tab shows the yes on employee data still on')
-      await elementSays(page, '[data-testid="app-assist-card"]', [words.appCard.uses('OpenAI'), words.suggest.employeesNote('OpenAI')], 'the tab does not name the new company')
+      await goToRoute(page, '#/company/settings?tab=assistant', COMPANY_SWITCH)
+      if (!(await switchOn(page, COMPANY_SWITCH))) throw new Error("Company's switch went off with the change of company")
+      await elementSays(page, '[data-testid="app-assist-card"]', [words.appCard.uses('OpenAI')], 'the tab does not name the new company')
     } finally {
       await forgetAssist(page)
     }
   }
 }
 
-/** Five made-up employees, a yes on employee data for Explain under Anthropic, then a switch to OpenAI: Explain on an employee's figure asks again and names OpenAI. */
+/**
+ * Five made-up employees, Company sending without asking and Anonymise off for Anthropic, then a switch to OpenAI:
+ * Anonymise is on again, so Explain on an employee's figure keeps it on this device.
+ */
 export async function assistEmployeesAskAfterSwitchFlow(page, { press, shoot, inspect }) {
   const words = ASSIST_WORDS.en
   try {
-    await keepTwoKeysWithYes(page, 'hr-doo.explain-figure')
+    await keepTwoKeysAnonymiseOff(page)
     await page.waitForSelector(COMPANY_SELECT, { visible: true, timeout: 10_000 })
     await openCompanies(page, press)
     await pickCompany(page, press, 'OpenAI')
     await goToRoute(page, '#/company/salaries', '[data-testid="salaries-problem"]')
-    await pressButton(page, press, '[data-testid="salaries-problem"] button', SCREEN_WORDS.en.salaries.problemList.howWorkedOut)
-    await page.waitForSelector('[data-testid="figure-detail"]', { visible: true, timeout: 10_000 })
-    await delay(400)
+    await openSalariesProblem(page, press, 'en')
     await pressSelector(page, press, EXPLAIN_BUTTON)
-    await page.waitForSelector(CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error("Explain on an employee's figure did not ask again after a change of company")
-    })
-    await elementSays(page, '[role="dialog"]', [words.explain.employeesGo('OpenAI'), words.retention.openai], 'the dialog does not name the new company')
-    await delay(400)
-    await inspect?.('Explain asking again after a change of company')
+    await explainKeptByAnonymise(page, words, "Explain on an employee's figure did not stay on this device after a change of company")
+    if (await page.$(CONSENT)) throw new Error('Explain asked while Company sends without asking')
+    await inspect?.('Explain kept on this device after a change of company')
     await shoot('assist-employees-after-switch')
-    await pressButton(page, press, '[role="dialog"] button', words.consent.cancel)
-    await dialogGone(page, CONSENT)
   } finally {
     await forgetAssist(page)
   }
@@ -9479,29 +9654,20 @@ export function payFigureExplainFlowIn(language, { stray = false } = {}) {
 }
 
 /**
- * Salaries with five made-up employees, the made-up key kept and Company switched on: the one problem's build-up names
- * an employee, so Explain asks for the task's employee switch first with the warning of what it sends, and Cancel sends
- * nothing.
+ * Salaries with five made-up employees, the made-up key kept, Company switched on and Anonymise on as it starts: the one
+ * problem's build-up names an employee, so Explain sends nothing and says Anonymise keeps it on this device.
  */
-export function salaryFigureExplainAsksFlowIn(language) {
+export function salaryFigureKeptFlowIn(language) {
   const words = ASSIST_WORDS[language]
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await keepAssistKey(page, { companyOn: true })
-    await pressButton(page, press, '[data-testid="salaries-problem"] button', SCREEN_WORDS[language].salaries.problemList.howWorkedOut)
-    await page.waitForSelector('[data-testid="figure-detail"]', { visible: true, timeout: 10_000 })
-    await delay(400)
+    await openSalariesProblem(page, press, language)
     await pressSelector(page, press, EXPLAIN_BUTTON)
-    await page.waitForSelector(CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error("Explain on an employee's figure did not ask first")
-    })
-    await elementSays(page, '[role="dialog"]', [words.explain.employeesGo('Anthropic'), words.consent.sendOnce, words.consent.dontAsk], 'the dialog does not say that the figure names employees')
-    await delay(400)
-    await inspect?.("Explain asking before it sends an employee's pay")
-    await shoot('salary-figure-explain-asks')
-    await pressButton(page, press, `[role="dialog"] button`, words.consent.cancel)
-    await dialogGone(page, CONSENT)
-    if (await page.$('[data-testid="cited-answer"]')) throw new Error('Cancel still explained the figure')
+    await explainKeptByAnonymise(page, words, "Explain on an employee's figure did not stay on this device with Anonymise on")
+    if (await page.$(CONSENT)) throw new Error('Explain asked while Company sends without asking')
+    await inspect?.("Explain keeping an employee's figure on this device")
+    await shoot('salary-figure-explain-kept')
   }
 }
 

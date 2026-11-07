@@ -19,6 +19,7 @@ const open = ref(false)
 const summary = computed(() => {
   const { read } = props.sent
   if (read.kind === 'figures') return words.sent.figures(read.title, read.app)
+  if (read.kind === 'refusal') return words.sent.refusal(read.app)
   const { en, hr } = read.noun
   const noun = language === 'hr' ? plural({ one: hr.one, few: hr.few, other: hr.other }, read.count) : plural({ one: en.one, other: en.many }, read.count)
   return words.sent.records(formatCount(read.count), noun, read.app)
@@ -35,6 +36,7 @@ const summary = computed(() => {
       variant="ghost"
       size="sm"
       class="-ms-2 text-start"
+      :ui="{ label: 'whitespace-normal text-start' }"
       data-testid="chat-sent-toggle"
       @click="open = !open"
     />

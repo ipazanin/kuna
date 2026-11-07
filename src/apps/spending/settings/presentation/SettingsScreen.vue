@@ -11,6 +11,7 @@ import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../../shared/ui/PageTabs.vue'
 import SpendingBooksCard from './SpendingBooksCard.vue'
 import { words } from './words'
+import { words as spendingWords } from '../../words'
 
 const TABS = [
   { value: 'general', label: words.tabs.general, icon: 'i-lucide-settings' },
@@ -41,7 +42,7 @@ const TABS = [
         <ReceiptsCard />
       </template>
       <template #assistant>
-        <AppAssistCard :app="readReceipt.app" :tasks="SPENDING_ASSIST.tasks()" />
+        <AppAssistCard :app="readReceipt.app" :tasks="SPENDING_ASSIST.tasks()" :chat-reads="spendingWords.name" />
       </template>
     </PageTabs>
   </section>

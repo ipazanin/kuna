@@ -1,11 +1,13 @@
+import type { AccountMoney } from '../../money/accountMoney'
+import type { CurrencyCode } from '../../money/currencyCode'
+import type { Money } from '../../money/money'
 import { figuresIn, holdsStrayFigure } from './citedAnswer'
 
+/** An amount Kuna computed, in the app's own currency or in an account's, as the figure says. */
+export type FigureAmount = { readonly of: 'app'; readonly cents: Money; readonly currency: CurrencyCode } | { readonly of: 'account'; readonly cents: AccountMoney; readonly currency: CurrencyCode }
+
 /** A figure Kuna computed and handed to the model under a ref. */
-export interface ChatFigure {
-  readonly ref: string
-  readonly cents: number
-  readonly currency: string
-}
+export type ChatFigure = FigureAmount & { readonly ref: string }
 
 /** The record a ref stands for. */
 export interface RecordOfRef {
@@ -21,7 +23,7 @@ export interface RecordOfRef {
 export interface ChatRefs {
   recordRef(record: RecordOfRef): string
   recordOf(ref: string): RecordOfRef | null
-  figureRef(key: string, cents: number, currency: string): string
+  figureRef(key: string, amount: FigureAmount): string
   figureOf(ref: string): ChatFigure | null
   /** An amount a tool returned without a ref, such as a record's. */
   noteAmount(cents: number): void
@@ -32,8 +34,8 @@ export interface ChatRefs {
   holdsStrayFigure(answer: string): boolean
 }
 
-/** Aliases and record refs hold digits that are no amounts, as in `Person 3 €40`, so they leave the text before it is read for figures. */
-const NOT_A_FIGURE = /(?<![\p{L}\p{N}])(?:(?:Person|Osob\p{L}*|IBAN|OIB|Address|Adres\p{L}*) \d+|[a-z]+-\d+)(?![\p{L}\p{N}])/gu
+/** Aliases, masked identifiers and record refs hold digits that are no amounts, as in `Person 3 €40`, so they leave the text before it is read for figures. */
+const NOT_A_FIGURE = /(?<![\p{L}\p{N}])(?:(?:Person|Osoba) \d+|[A-Z]{2}•• ••••[A-Z0-9]{4}(?: #\d+)?|[a-z]+-\d+)(?![\p{L}\p{N}])|\[OIB\](?: #\d+)?/gu
 const FIGURE_REF = /\[(f\d+)\]/g
 
 export function chatRefs(): ChatRefs {
@@ -57,12 +59,12 @@ export function chatRefs(): ChatRefs {
       return ref
     },
     recordOf: (ref) => records.get(ref) ?? null,
-    figureRef(key, cents, currency) {
-      amounts.add(Math.abs(cents))
+    figureRef(key, amount) {
+      amounts.add(Math.abs(amount.cents))
       const held = figureRefs.get(key)
-      if (held !== undefined && figures.get(held)?.cents === cents) return held
+      if (held !== undefined && figures.get(held)?.cents === amount.cents) return held
       const ref = `f${figures.size + 1}`
-      figures.set(ref, { ref, cents, currency })
+      figures.set(ref, { ...amount, ref })
       figureRefs.set(key, ref)
       return ref
     },

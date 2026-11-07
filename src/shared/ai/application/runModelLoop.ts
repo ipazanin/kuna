@@ -1,5 +1,5 @@
 import type { AiPart, AiTextPart } from '../domain/aiTask'
-import { maskIdentifiers } from '../domain/maskIdentifiers'
+import { maskIdentifiers } from '../../privacy/domain/maskIdentifiers'
 import { NO_TOKENS, addedTokens, costOfRequest, fullRateTokens, promptTokens, spentNothing, usageOf } from '../domain/modelUsage'
 import type { AiUsage, ModelTokens } from '../domain/modelUsage'
 import type { StrictSchema } from '../domain/strictSchema'

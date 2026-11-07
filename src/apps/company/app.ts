@@ -11,7 +11,7 @@ import { companyHubFigures } from './home/presentation/companyHubFigures'
 import { ONBOARDING_ROUTE } from './onboarding/presentation/useOnboarding'
 import { hrDooPack } from './packs/hr-doo/hrDooPack'
 import { HR_DOO_TABS } from './packs/hr-doo/infrastructure/hrDooTabs'
-import { installPack, shownPack } from './packs/packContribution'
+import { installPack, installedPack, shownPack } from './packs/packContribution'
 import { useSettings } from './settings/application/useSettings'
 import { moneyFormatOf } from './settings/domain/settings'
 import { words as analysisWords } from './analysis/presentation/words'
@@ -87,7 +87,10 @@ export const companyApp: AppContribution = {
   assist: COMPANY_ASSIST,
   assistant: async () => {
     const [{ companyAssistant }, { HR_DOO_ASSISTANT }] = await Promise.all([import('./assistant/companyAssistant'), import('./packs/hr-doo/assistant/hrDooAssistant')])
-    return companyAssistant(HR_DOO_ASSISTANT)
+    return companyAssistant(HR_DOO_ASSISTANT, () => [
+      ...(state.records === null ? [] : installedPack().employees(state.records)),
+      ...(state.workbook?.settings.personPayees ?? []).map((name) => ({ name, employee: false, ibans: [] })),
+    ])
   },
   // Nothing chosen and nothing kept: onboarding takes it, whatever screen the address names.
   setUpLines: () => (state.workbook === null ? [] : gettingSetUp(state.workbook, categoriesLookRight.value, deliveryOffered.value)),

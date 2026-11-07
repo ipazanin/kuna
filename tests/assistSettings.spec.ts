@@ -15,10 +15,11 @@ async function settings() {
 }
 
 describe("this device's assistant settings", () => {
-  it('starts with every app and every employee switch off, no provider picked and each default model', async () => {
-    const { assistOn, employeesOn, modelOf, pickedProvider } = await settings()
+  it('starts with every app off, Anonymise on for every AI company, no provider picked and each default model', async () => {
+    const { anonymiseOn, assistOn, modelOf, pickedProvider } = await settings()
     expect(assistOn('company')).toBe(false)
-    expect(employeesOn('company.suggest-categories')).toBe(false)
+    expect(anonymiseOn('anthropic')).toBe(true)
+    expect(anonymiseOn('openai')).toBe(true)
     expect(pickedProvider()).toBeNull()
     expect(modelOf('anthropic').id).toBe('claude-sonnet-5-5')
   })
@@ -61,23 +62,34 @@ describe("this device's assistant settings", () => {
     expect(modelOf('openrouter').id).toBe('anthropic/claude-sonnet-5-5')
   })
 
-  it('takes back every yes on employee data on a real change of provider, and nothing else', async () => {
-    localStorage.setItem('kuna.assist-task.company.suggest-categories', 'on')
-    localStorage.setItem('kuna.assist-task.hr-doo.explain-figure', 'on')
+  it('keeps Anonymise off only for the AI company it was switched off for, and reads every other as on', async () => {
+    const first = await settings()
+    first.switchAnonymise('anthropic', false)
+    expect(localStorage.getItem('kuna.assist-anonymise')).toBe('anthropic')
+    vi.resetModules()
+    const next = await settings()
+    expect(next.anonymiseOn('anthropic')).toBe(false)
+    expect(next.anonymiseOn('openai')).toBe(true)
+    expect(next.anonymiseOn('openrouter')).toBe(true)
+    next.switchAnonymise('anthropic', true)
+    expect(localStorage.getItem('kuna.assist-anonymise')).toBeNull()
+  })
+
+  it('turns Anonymise back on at a real change of AI company, and nothing else', async () => {
     localStorage.setItem('kuna.assist.company', 'on')
     localStorage.setItem('kuna.assist-provider', 'anthropic')
+    localStorage.setItem('kuna.assist-anonymise', 'anthropic')
     localStorage.setItem('kuna.assist-model.anthropic', 'claude-opus-5-5')
     localStorage.setItem('kuna.secret.anthropic', 'made-up-anthropic-key-0042')
-    const { assistOn, employeesOn, modelOf, pickProvider } = await settings()
+    const { anonymiseOn, assistOn, modelOf, pickProvider } = await settings()
 
     expect(pickProvider('anthropic')).toBe(false)
-    expect(employeesOn('hr-doo.explain-figure')).toBe(true)
+    expect(anonymiseOn('anthropic')).toBe(false)
 
     expect(pickProvider('openai')).toBe(true)
-    expect(employeesOn('company.suggest-categories')).toBe(false)
-    expect(employeesOn('hr-doo.explain-figure')).toBe(false)
-    expect(localStorage.getItem('kuna.assist-task.company.suggest-categories')).toBeNull()
-    expect(localStorage.getItem('kuna.assist-task.hr-doo.explain-figure')).toBeNull()
+    expect(anonymiseOn('openai')).toBe(true)
+    expect(anonymiseOn('anthropic')).toBe(true)
+    expect(localStorage.getItem('kuna.assist-anonymise')).toBeNull()
     expect(assistOn('company')).toBe(true)
     expect(modelOf('anthropic').id).toBe('claude-opus-5-5')
     expect(localStorage.getItem('kuna.secret.anthropic')).toBe('made-up-anthropic-key-0042')
@@ -85,27 +97,37 @@ describe("this device's assistant settings", () => {
     expect(pickProvider('anthropic')).toBe(false)
   })
 
-  it('takes back a yes given this visit while storage is denied', async () => {
-    const { employeesOn, pickProvider, switchEmployees } = await settings()
+  it('turns Anonymise back on at a change of AI company made while storage is denied', async () => {
+    const { anonymiseOn, pickProvider, switchAnonymise } = await settings()
     pickProvider('anthropic')
     for (const method of ['getItem', 'setItem', 'removeItem'] as const) {
       vi.spyOn(Storage.prototype, method).mockImplementation(() => {
         throw new DOMException('denied', 'SecurityError')
       })
     }
-    switchEmployees('company.suggest-categories', true)
+    switchAnonymise('anthropic', false)
     expect(pickProvider('openai')).toBe(true)
-    expect(employeesOn('company.suggest-categories')).toBe(false)
+    expect(anonymiseOn('anthropic')).toBe(true)
   })
 
-  it('pins the provider in use with no yes taken back, and leaves a stored pick alone', async () => {
-    localStorage.setItem('kuna.assist-task.company.suggest-categories', 'on')
-    const { employeesOn, pickedProvider, pinProvider } = await settings()
+  it('pins the provider in use with Anonymise left as it is, and leaves a stored pick alone', async () => {
+    localStorage.setItem('kuna.assist-anonymise', 'openai')
+    const { anonymiseOn, pickedProvider, pinProvider } = await settings()
     pinProvider('openai')
     expect(pickedProvider()).toBe('openai')
-    expect(employeesOn('company.suggest-categories')).toBe(true)
+    expect(anonymiseOn('openai')).toBe(false)
     pinProvider('anthropic')
     expect(pickedProvider()).toBe('openai')
+  })
+
+  it('clears the employee switch each task kept before Anonymise replaced them', async () => {
+    localStorage.setItem('kuna.assist-task.company.suggest-categories', 'on')
+    localStorage.setItem('kuna.assist-task.hr-doo.explain-figure', 'on')
+    localStorage.setItem('kuna.assist.company', 'on')
+    const { assistOn } = await settings()
+    expect(localStorage.getItem('kuna.assist-task.company.suggest-categories')).toBeNull()
+    expect(localStorage.getItem('kuna.assist-task.hr-doo.explain-figure')).toBeNull()
+    expect(assistOn('company')).toBe(true)
   })
 
   it('holds a choice for the visit when storage is denied', async () => {

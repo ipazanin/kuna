@@ -7,6 +7,7 @@ import type { AppData } from '../storage/application/appData'
 import type { RecordKind } from '../storage/domain/recordKind'
 import type { AppSyncGroup } from '../sync/presentation/pageSync'
 import type { Money } from '../money/money'
+import type { KnownPerson } from '../privacy/domain/pseudonyms'
 import type { AppAcceptance, AppProposer, AssistantQuickAction } from './assistantOperations'
 import type { AppReader } from './assistantReader'
 
@@ -95,24 +96,12 @@ export type HubState<Part extends HubPart = HubPart> = HubFigures<Part> | 'openi
  */
 export type AppHub = { readonly counts: true; figures(): HubState<CountedHubPart> } | { readonly counts: false; figures(): HubState }
 
-/** The switch a task needs before it may send employee names or pay, with what it says as it asks. */
-export interface AssistEmployeeSwitch {
-  /** Its label on the app's Assistant tab, such as "Include rows that name employees". */
-  readonly label: string
-  /** What stays out until it is on and what goes then, to the provider named. */
-  note(provider: string): string
-  /** What the dialog says when this run sends them, to the provider named. */
-  goes(provider: string): string
-}
-
 /** What one task sends, for the app's Assistant tab and the dialog that asks first. */
 export interface AssistTaskSummary {
   readonly id: `${string}.${string}`
   readonly title: string
   /** What leaves the device, in plain sentences that follow "What leaves this device:". */
   readonly sends: string
-  /** The switch of a task that can send employee names or pay, or null for one that never does. */
-  readonly employees: AssistEmployeeSwitch | null
 }
 
 /** What the app's assistant may do, for its Assistant tab and its line in Kuna settings. */
@@ -172,6 +161,8 @@ export interface AppAssistant {
   readonly acceptance: AppAcceptance | null
   /** One tap in an empty chat. */
   readonly quickActions: readonly AssistantQuickAction[]
+  /** The people the app knows by name, read from its books at each call, whose names go under an alias while Anonymise is on. */
+  persons(): readonly KnownPerson[]
 }
 
 /** The app that is better set up first, and what a person gains by it. */

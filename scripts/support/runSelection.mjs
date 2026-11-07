@@ -5,6 +5,7 @@
  *   --only billing,owner   a name picks what is called that, and whatever is called that and a hyphen and more
  *   --widths 360,1440      only these of the check's widths
  *   --shard 3/8            the third of eight shares of the visual check's screens and flows, so CI runs the shares side by side
+ *   --every-theme          the dark and the light theme at every width, as a design review needs, not only at the widths that check both
  */
 
 import { parseArgs } from 'node:util'
@@ -14,7 +15,10 @@ import { parseArgs } from 'node:util'
  * knows, and a width it does not know stops the run.
  */
 export function runSelection(widths) {
-  const { values, positionals } = parseArgs({ allowPositionals: true, options: { only: { type: 'string' }, widths: { type: 'string' }, shard: { type: 'string' } } })
+  const { values, positionals } = parseArgs({
+    allowPositionals: true,
+    options: { only: { type: 'string' }, widths: { type: 'string' }, shard: { type: 'string' }, 'every-theme': { type: 'boolean' } },
+  })
   const listOf = (text) =>
     (text ?? '')
       .split(',')
@@ -30,6 +34,7 @@ export function runSelection(widths) {
     console.error(`--widths takes a comma-separated list of ${widths.join(', ')}, --only a comma-separated list of names, and --shard a share and a count, like 3/8.`)
     process.exit(2)
   }
+  const everyTheme = values['every-theme'] === true
   const matched = new Set()
   const seen = new Set()
   return {
@@ -38,6 +43,10 @@ export function runSelection(widths) {
     sharded: shard !== null,
     /** Whether the run takes this width. */
     takesWidth: (width) => chosenWidths === null || chosenWidths.includes(width),
+    /** Whether the run takes this theme at a width that checks only `pinned`, or both while `pinned` is undefined. */
+    takesTheme(theme, pinned) {
+      return everyTheme || pinned === undefined || theme === pinned
+    },
     /** Whether the run takes what this name stands for. Every name asked about is remembered for `unmatched`. */
     takes(name) {
       seen.add(name)
@@ -61,7 +70,12 @@ export function runSelection(widths) {
     },
     /** What the run was limited to, for its last line. */
     summary: () =>
-      [only === null ? '' : `--only ${only.join(',')}`, chosenWidths === null ? '' : `--widths ${chosenWidths.join(',')}`, shard === null ? '' : `--shard ${shard.join('/')}`]
+      [
+        only === null ? '' : `--only ${only.join(',')}`,
+        chosenWidths === null ? '' : `--widths ${chosenWidths.join(',')}`,
+        shard === null ? '' : `--shard ${shard.join('/')}`,
+        everyTheme ? '--every-theme' : '',
+      ]
         .filter((part) => part !== '')
         .join(' '),
   }

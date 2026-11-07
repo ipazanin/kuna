@@ -31,4 +31,5 @@ export const INVESTMENTS_ASSISTANT: AppAssistant = {
   proposer: null,
   acceptance: null,
   quickActions: [],
+  persons: () => [],
 }

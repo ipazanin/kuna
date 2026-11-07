@@ -56,7 +56,7 @@ function modelOf(replies: readonly ModelReply[], readsPdf = true): ModelPort & {
 }
 
 function portsOf(model: ModelPort | null, change: Partial<RunPorts> = {}): RunPorts {
-  return { model, appOn: true, employees: { sends: false, on: false }, ...change }
+  return { model, appOn: true, employees: { sends: false, anonymising: true }, ...change }
 }
 
 const answer = (label: string): ModelReply => ({ kind: 'answer', text: JSON.stringify({ label }), raw: null, tokens: TOKENS })
@@ -116,11 +116,11 @@ describe('a run that sends nothing', () => {
     expect(model.sent).toEqual([])
   })
 
-  it("sends nothing with employee data while the task's switch for it is off", async () => {
+  it('sends nothing about employees while Anonymise is on, and sends it once Anonymise is off', async () => {
     const model = modelOf([answer('software')])
-    expect(await runTask(taskOf([ROW]), null, portsOf(model, { employees: { sends: true, on: false } }))).toEqual({ kind: 'switched-off', which: 'employees' })
+    expect(await runTask(taskOf([ROW]), null, portsOf(model, { employees: { sends: true, anonymising: true } }))).toEqual({ kind: 'switched-off', which: 'employees' })
     expect(model.sent).toEqual([])
-    expect(await runTask(taskOf([ROW]), null, portsOf(model, { employees: { sends: true, on: true } }))).toMatchObject({ kind: 'draft' })
+    expect(await runTask(taskOf([ROW]), null, portsOf(model, { employees: { sends: true, anonymising: false } }))).toMatchObject({ kind: 'draft' })
   })
 
   it('sends nothing without a key', async () => {

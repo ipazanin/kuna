@@ -7,5 +7,4 @@ export const EXPLAIN_FIGURE_SUMMARY: AssistTaskSummary = {
   id: EXPLAIN_FIGURE,
   title: words.explain.title,
   sends: words.explain.sends,
-  employees: { label: words.explain.employees, note: words.explain.employeesNote, goes: words.explain.employeesGo },
 }

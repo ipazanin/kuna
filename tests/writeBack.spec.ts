@@ -339,7 +339,7 @@ describe.each([
 
     expect(settings(store).statementsFolder).toEqual(['finance', 'bank statements'])
     expect(folderRows().map((stored) => stored.record.value)).toEqual(['finance/bank statements'])
-    expect(canUndo(store.state.writes[0]!, store.state.writes)).toBe(false)
+    expect(canUndo(store.state.writes[0]!, store.state.writes)).toBe(true)
   })
 
   it('refuses a setting the reader would not use', async () => {
