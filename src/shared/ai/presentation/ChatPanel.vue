@@ -145,6 +145,7 @@ function startOver(): void {
       :provider="provider"
       :sends-employees="false"
       :offers-always="switchApp !== null"
+      :send-label="words.chat.sendInChat"
       @update:open="askingClosed"
       @once="sendOnce"
       @always="dontAskAgain"

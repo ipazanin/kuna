@@ -17,8 +17,10 @@ withDefaults(
     sendsEmployees: boolean
     /** False where no switch shows that could take Don't ask again back. */
     offersAlways?: boolean
+    /** The send button's words where a yes lasts longer than one send. */
+    sendLabel?: string
   }>(),
-  { offersAlways: true },
+  { offersAlways: true, sendLabel: words.consent.sendOnce },
 )
 
 const emit = defineEmits<{ once: []; always: [] }>()
@@ -34,7 +36,7 @@ const emit = defineEmits<{ once: []; always: [] }>()
     <template #end>
       <UButton :label="words.consent.cancel" color="neutral" variant="outline" @click="open = false" />
       <UButton v-if="offersAlways" :label="words.consent.dontAsk" color="neutral" variant="outline" data-testid="assist-consent-always" @click="emit('always')" />
-      <UButton :label="words.consent.sendOnce" icon="i-lucide-sparkles" data-testid="assist-consent-confirm" @click="emit('once')" />
+      <UButton :label="sendLabel" icon="i-lucide-sparkles" data-testid="assist-consent-confirm" @click="emit('once')" />
     </template>
   </AppDialog>
 </template>

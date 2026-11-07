@@ -20,6 +20,7 @@ import ScreenNavigation from './ui/ScreenNavigation.vue'
 import ScreenSkeleton from '../shared/ui/ScreenSkeleton.vue'
 import UpdatePrompt from './ui/UpdatePrompt.vue'
 import { warnWhileSaving } from './ui/warnWhileSaving'
+import { KUNA_SETTINGS_SCREEN, NET_WORTH_SCREEN } from './routing/screens'
 
 const props = defineProps<{
   /** Google's answer to a redirect sign-in, taken from the address before the router started. */
