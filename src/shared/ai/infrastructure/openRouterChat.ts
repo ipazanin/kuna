@@ -61,8 +61,8 @@ function completionsBody(modelId: string, request: ModelRequest): object {
     model: modelId,
     max_completion_tokens: MAX_OUTPUT_TOKENS,
     messages: [...(system === '' ? [] : [{ role: 'system', content: system }]), ...request.turns.flatMap(messages)],
-    // Strict answers need every endpoint OpenRouter routes to to honour every parameter.
-    provider: { require_parameters: true },
+    // Strict answers need every endpoint OpenRouter routes to to honour every parameter. Endpoints that keep or train on prompts are never chosen.
+    provider: { require_parameters: true, data_collection: 'deny' },
     ...(request.tools.length === 0 && request.output !== null ? { response_format: { type: 'json_schema', json_schema: { name: ANSWER_FUNCTION, strict: true, schema: request.output } } } : {}),
     ...(request.tools.length === 0
       ? {}

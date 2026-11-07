@@ -456,10 +456,10 @@ describe('a Chat Completions reply off the documented shape', () => {
 })
 
 describe('the routing of a Chat Completions request', () => {
-  it('asks OpenRouter to route only to endpoints that honour every parameter', async () => {
+  it('asks OpenRouter to route only to endpoints that honour every parameter and keep no prompts', async () => {
     const requests = stubFetch(completion('stop', { content: '{}' }))
     await openRouterChat(BASE_URL, KEY, SOL).send(request())
-    expect(requests[0]!.body!.provider).toEqual({ require_parameters: true })
+    expect(requests[0]!.body!.provider).toEqual({ require_parameters: true, data_collection: 'deny' })
   })
 
   it('hands fetch the signal', async () => {
