@@ -49,16 +49,11 @@ const component = computed(() => {
   if (place.step === 'find') return null
   return onboarding.madeBooks.value !== null && place.step === makingStep(place) ? MadeStep : STEPS[place.step]
 })
-
-const privacyPage = `${import.meta.env.BASE_URL}privacy.html`
 </script>
 
 <template>
   <FirstRunPage :app-name="appWords.name" :lead="words.lead" :footer="words.footer" :flow="flow" :stepper="stepper">
     <component :is="component" v-if="component" :key="onboarding.place.value.step" />
     <FirstRunFindStep v-else :first-run="firstRun" :steps="steps" />
-    <template #footer>
-      <a :href="privacyPage" class="quiet-link inline-target">{{ words.privacy }}</a>
-    </template>
   </FirstRunPage>
 </template>

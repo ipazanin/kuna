@@ -332,6 +332,11 @@ export const ENGLISH_ALLOWED = [
     texts: ['English', 'en'],
   },
   {
+    name: 'the maker in the footer',
+    reason: "The company's name is a proper noun and reads the same in every language.",
+    texts: ['Domain Software Solutions'],
+  },
+  {
     name: 'file and folder on the books card',
     reason: 'The books card names the file and its Drive folder as they are stored, such as a folder named Books.',
     selector: '[data-testid="books-file-name"], [data-testid="drive-file-place"] a',

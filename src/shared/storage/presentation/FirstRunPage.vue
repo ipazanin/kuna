@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, provide, watch } from 'vue'
 
+import CompanyFooter from '../../app/CompanyFooter.vue'
 import { words as sharedWords } from '../../app/words'
 import HomeLink from '../../ui/HomeLink.vue'
 import { STEP_FLOW } from '../../ui/StepCard.vue'
@@ -9,7 +10,7 @@ import { words } from './words'
 
 /**
  * The ruled page of a first run: the app's name and lead, the step's card in the default slot, and the
- * footer, which the `footer` slot adds to. It hands `flow` to the step cards.
+ * footer. It hands `flow` to the step cards.
  */
 const props = defineProps<{
   appName: string
@@ -36,8 +37,8 @@ const marks = computed(() => {
 </script>
 
 <template>
-  <main class="first-run min-h-dvh">
-    <div class="mx-auto flex max-w-2xl flex-col gap-6 px-4 pt-10 pb-16 sm:px-6 sm:pt-16">
+  <main class="first-run flex min-h-dvh flex-col">
+    <div class="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 pt-10 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-16">
       <header class="flex flex-col gap-3">
         <HomeLink :label="sharedWords.homeLink" look="quiet" class="self-start" />
         <h1 data-testid="screen-title" tabindex="-1" class="screen-title text-title font-semibold text-highlighted">{{ appName }}</h1>
@@ -52,8 +53,8 @@ const marks = computed(() => {
       <slot />
       <footer class="flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted">
         <span>{{ footer }}</span>
-        <slot name="footer" />
       </footer>
+      <CompanyFooter class="mt-auto" />
     </div>
   </main>
 </template>

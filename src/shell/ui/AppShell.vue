@@ -7,6 +7,7 @@ import UTooltip from '@nuxt/ui/components/Tooltip.vue'
 
 import { CHAT_DOCK_QUERY, chatOpen, closeChat, openChat } from '../../shared/ai/presentation/chatDock'
 import { words as chatWords } from '../../shared/ai/presentation/words'
+import CompanyFooter from '../../shared/app/CompanyFooter.vue'
 import { words as sharedWords } from '../../shared/app/words'
 import { useStickyBandPart } from '../../shared/layout/stickyBand'
 import { useHeightAboveKeyboard, useMediaQuery, usePhoneLayout } from '../../shared/layout/viewport'
@@ -135,7 +136,7 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
 </script>
 
 <template>
-  <div ref="shell" class="min-h-dvh lg:grid" :class="docked ? 'lg:grid-cols-[3.5rem_minmax(0,1fr)_24rem]' : 'lg:grid-cols-[15rem_minmax(0,1fr)]'">
+  <div ref="shell" class="flex min-h-dvh flex-col lg:grid" :class="docked ? 'lg:grid-cols-[3.5rem_minmax(0,1fr)_24rem]' : 'lg:grid-cols-[15rem_minmax(0,1fr)]'">
     <WriteProgress :active="writesInFlight > 0" :label="sharedWords.saving" class="write-progress fixed inset-x-0 z-top-bar" />
     <aside v-if="wide" class="border-e border-default bg-raised/60" :aria-label="words.navigation.sidebar">
       <div class="sticky top-0 flex h-dvh flex-col">
@@ -208,10 +209,11 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
       </div>
     </header>
 
-    <main v-show="!inPane" class="app-main min-w-0 px-4 pt-6 pb-16 sm:px-6 lg:px-10 lg:pt-9">
-      <div class="mx-auto max-w-shell sm:@container">
+    <main v-show="!inPane" class="app-main flex min-w-0 flex-1 flex-col px-4 pt-6 pb-6 sm:px-6 lg:px-10 lg:pt-9">
+      <div class="mx-auto w-full max-w-shell flex-1 sm:@container">
         <slot />
       </div>
+      <CompanyFooter class="mx-auto mt-12 w-full max-w-shell" />
     </main>
 
     <div
@@ -251,7 +253,7 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
   .app-main {
     padding-top: 1rem;
     padding-inline: max(1rem, env(safe-area-inset-left)) max(1rem, env(safe-area-inset-right));
-    padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
   }
 }
 </style>

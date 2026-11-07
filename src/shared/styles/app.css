@@ -236,6 +236,14 @@ section + section > .group-row:not(tr) {
   text-decoration-color: var(--accent);
 }
 
+/* The maker's icon, drawn from one file as a mask so it takes the ink of the theme. It is 24 px high, the smallest size its standards book allows. */
+.company-logo {
+  width: 27px;
+  height: 24px;
+  background-color: var(--ink-strong);
+  mask: url('../app/logo/domain-icon.svg') center / contain no-repeat;
+}
+
 /* The page of a first run: faint ruled lines, as on a ledger page, fading out further down. */
 .first-run {
   background-color: var(--surface-page);
