@@ -1,7 +1,7 @@
 import { readonly, ref } from 'vue'
 import type { Ref } from 'vue'
 
-import { keepSecretChanges, namesSecret, storeSecret, storedSecret } from '../infrastructure/browserSecrets'
+import { forgetBrowserSecrets, keepSecretChanges, namesSecret, storeSecret, storedSecret } from '../infrastructure/browserSecrets'
 import type { SecretChanges } from '../domain/secretsFile'
 import type { SecretStore } from './useSecretRows'
 
@@ -29,6 +29,12 @@ export const PAGE_SECRET_STORE: SecretStore = {
 /** Keeps what a sync brought in this browser. */
 export function keepSyncedSecrets(changes: SecretChanges): void {
   keepSecretChanges(changes)
+  changed.value += 1
+}
+
+/** Forgets every key kept in this browser. */
+export function forgetKeysHere(): void {
+  forgetBrowserSecrets()
   changed.value += 1
 }
 

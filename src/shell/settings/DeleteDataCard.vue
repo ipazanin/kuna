@@ -8,12 +8,15 @@ import { deleteKeysFromGoogle } from '../../shared/secrets/presentation/secretsS
 import { usePageSync } from '../../shared/sync/presentation/pageSync'
 import AppCard from '../../shared/ui/AppCard.vue'
 import AppDialog from '../../shared/ui/AppDialog.vue'
+import DeleteKunaDialog from './DeleteKunaDialog.vue'
 import { words } from './words'
 
-/** Kuna settings: deletes the files that hold keys in the Google account after asking first, also with no file on Drive, where no sync can reach them. */
+/** Kuna settings: deletes all of Kuna, or only the files that hold keys in the Google account after asking first, also with no file on Drive, where no sync can reach them. */
 const sync = usePageSync()
 const toast = useToast()
 const text = words.keys
+const card = words.deleteData
+const deletingAll = ref(false)
 const open = ref(false)
 const deleting = ref(false)
 const failure = ref<string | null>(null)
@@ -39,10 +42,12 @@ async function deleteKeys(): Promise<void> {
 </script>
 
 <template>
-  <AppCard :title="text.title" :subtitle="text.subtitle" data-testid="delete-keys-card">
-    <div class="px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
-      <UButton icon="i-lucide-trash-2" :label="text.action" color="neutral" variant="outline" size="sm" data-testid="delete-keys" @click="open = true" />
+  <AppCard :title="card.title" :subtitle="card.subtitle" data-testid="delete-data-card">
+    <div class="flex flex-wrap gap-2 px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
+      <UButton icon="i-lucide-trash-2" :label="card.all.action" color="error" variant="ghost" size="sm" data-testid="delete-kuna" @click="deletingAll = true" />
+      <UButton icon="i-lucide-trash-2" :label="text.action" color="error" variant="ghost" size="sm" data-testid="delete-keys" @click="open = true" />
     </div>
+    <DeleteKunaDialog v-model:open="deletingAll" />
     <AppDialog v-model:open="open" :title="text.confirmTitle" :description="text.confirmDescription" :dismissible="!deleting">
       <div class="flex flex-col gap-4" data-testid="delete-keys-dialog">
         <ul class="list-disc space-y-1 ps-4 text-sm text-toned">

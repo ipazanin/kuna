@@ -10,7 +10,7 @@ import { SECRETS_STEP } from '../../sync/application/syncSteps'
 import { words } from './words'
 
 /** Whether this browser saved or removed some secret, reactively, which the sync then carries. */
-function secretsHeldHere(): boolean {
+export function secretsHeldHere(): boolean {
   void useSecretsChanged().value
   return Object.keys(storedSecretChanges()).length > 0
 }

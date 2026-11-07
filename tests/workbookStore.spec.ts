@@ -1,3 +1,4 @@
+import { words as storageInfrastructureWords } from '../src/shared/storage/infrastructure/words'
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -887,9 +888,11 @@ describe('workbook store dropping the workbook a first run made', () => {
     await store.open()
     const seen: string[] = []
 
-    const dropped = await store.dropWorkbook(choice.id, async () => {
-      seen.push(`trashed ${side.drive.file(choice.id).trashed}`)
-      void store.sync()
+    const dropped = await store.dropWorkbook(choice.id, {
+      first: async () => {
+        seen.push(`trashed ${side.drive.file(choice.id).trashed}`)
+        void store.sync()
+      },
     })
 
     expect(dropped).toBe(true)
@@ -905,8 +908,10 @@ describe('workbook store dropping the workbook a first run made', () => {
     await store.open()
 
     await expect(
-      store.dropWorkbook(choice.id, async () => {
-        throw new Error('The keys file was not deleted.')
+      store.dropWorkbook(choice.id, {
+        first: async () => {
+          throw new Error('The keys file was not deleted.')
+        },
       }),
     ).rejects.toThrow('The keys file was not deleted.')
 
@@ -939,10 +944,56 @@ describe('workbook store dropping the workbook a first run made', () => {
       if (request === 'trash') throw new Error('Drive answered 500.')
     }
 
-    await store.dropWorkbook(choice.id)
+    await expect(store.dropWorkbook(choice.id)).rejects.toThrow('Drive answered 500.')
 
-    expect(store.state).toMatchObject({ choice, status: 'error', error: 'Drive answered 500.' })
+    expect(store.state).toMatchObject({ choice, status: 'ready', error: null, missing: false })
+    expect(store.state.workbook).not.toBeNull()
     expect(await storedCopy(choice.id)).not.toBeNull()
+  })
+
+  it('says a shared file cannot be binned, and keeps it chosen and its copy', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([1]))
+    side.drive.file(choice.id).ownedByMe = false
+    const store = storeOf(harness(choice, side).ports)
+    await store.open()
+
+    await expect(store.dropWorkbook(choice.id)).rejects.toThrow(storageInfrastructureWords.trashRefused)
+
+    expect(side.drive.file(choice.id).trashed).toBe(false)
+    expect(store.state).toMatchObject({ choice, status: 'ready', missing: false })
+    expect(await storedCopy(choice.id)).not.toBeNull()
+  })
+
+  it('leaves the Drive file where it is when only this browser forgets it, so a later find opens it again', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([1]))
+    const { ports, chosen } = harness(choice, side)
+    const store = storeOf(ports)
+    await store.open()
+
+    expect(await store.dropWorkbook(choice.id, { keepDriveFile: true })).toBe(true)
+
+    expect(side.drive.file(choice.id).trashed).toBe(false)
+    expect(side.drive.requests).not.toContain('trash')
+    expect(chosen()).toBeNull()
+    expect(store.state).toMatchObject({ choice: null, workbook: null, status: 'ready' })
+    expect(await storedCopy(choice.id)).toBeNull()
+  })
+
+  it('shows none once another tab forgot the workbook, after a job already running here', async () => {
+    const side = driveSide()
+    const choice = await onDrive(side, documentOf([1]))
+    const { ports, chosen } = harness(choice, side)
+    const store = storeOf(ports)
+    await store.open()
+
+    await store.forgottenElsewhere()
+
+    expect(chosen()).toBeNull()
+    expect(store.state).toMatchObject({ choice: null, workbook: null, records: null, snapshot: null, status: 'ready', missing: false })
+    expect(side.drive.file(choice.id).trashed).toBe(false)
+    await expect(store.write('Late', () => {})).rejects.toThrow(storageWords.noBooks)
   })
 })
 

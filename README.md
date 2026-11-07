@@ -2409,33 +2409,37 @@ found by its mark or else picked. Investments can be set up from its card on the
 Set up until the file exists and then says what the app keeps. The Overview at `#/investments` says
 which records the file leaves out or doubts, and an empty file shows an empty state that names where
 the file is kept. While the file opens it shows skeleton cards. Its Settings at
-`#/investments/settings` show where the file is, with Export, Switch storage and Remove the
-Investments file. Export downloads `kuna-investments-export-<yyyy-mm-dd>.json`. Its identity colour
+`#/investments/settings` show where the file is, with Export, Switch storage and the delete of its
+data. Export downloads `kuna-investments-export-<yyyy-mm-dd>.json`. Its identity colour
 is `--app-investments`, a plum.
 
-Remove the Investments file always asks first, in a dialog that names what goes and what stays. For
-a file on Drive it moves every `kuna-investments-prices.json` beside the file to the bin
-(`files.update` with `trashed: true` under `drive.file`), then moves the Investments file to the bin,
-where Drive keeps it for 30 days, and forgets it here, and last deletes the prices this browser kept
-of it. For a file kept in this browser it deletes the file, then its prices here. Either way this
-browser lands on the Investments first run, as one that never had a file. The keys stay, in this
-browser and in the Google account's secrets file, since every Kuna app uses them, and so do the
-backups folder and the exported files. A step that fails stops the removal, and the dialog lists each
-step's outcome. The prices files go first, so a failure there leaves the Investments file chosen and
-readable, and Remove can run again. The Investments file goes after them, since forgetting it also
-forgets the id that finds them. It waits for a sync under way, and is refused with nothing done when
-a sync starts in the meantime. No sync, write or price fetch starts while it runs
-(`settings/application/fileRemoval.ts`). Once done, a note says to restore both the Investments file
-and its prices file from the bin to get it back. A device that still holds the prices file in the
-bin reads the one beside the Investments file instead, as _Investments prices_ says.
+Every app's Settings offers Delete this app's data on its file card. It asks first, offering what the
+app really has: a file kept in this browser offers that file, which goes for good, and a file on Drive
+offers the Drive file and this browser's copy, or only the copy once the file is in the bin or gone.
+Ticking the Drive file takes the copy with it, since a copy of a file in the bin can no longer be saved.
+Download a backup first runs the app's export. A Drive file goes to the bin (`files.update` with
+`trashed: true` under `drive.file`) for 30 days. Only its owner can do that, so Drive refuses a file
+someone shared, the dialog says so, and the copy stays and keeps working. Investments first moves every
+`kuna-investments-prices.json` beside the file to the bin and last deletes the prices this browser
+kept. Forgetting the file also forgets this device's set-up answers about it and the app's assistant
+switches. Either way this browser lands on the app's first run, and another open tab follows through a
+`storage` event. The Kuna folder, backups, files beside it and exports stay, and so do the keys. A step
+that fails stops the removal, and the dialog lists each step's outcome. It waits for a sync under way,
+and is refused with nothing done when a sync starts in the meantime or a save waits
+(`src/shared/storage/application/appData.ts`).
+
+Kuna settings has Delete all of Kuna, which lists the same choices for every app that holds a file, the
+keys in this browser, the keys in the Google account and this browser's settings, and asks for the name
+to be typed. The keys in the Google account start unticked, because Drive keeps no bin for an app's
+hidden folder, so they go for good. Theme, language and the counts of requests to price vendors stay.
 
 Another device that still has the file finds it in the bin on its next sync: the books step fails
 with "The file is in the Drive bin, so Kuna no longer reads or saves it. Restore it from the bin in
 Drive and sync, or switch to another file." and a link to the app's file card in Settings, and the
 Keys and Prices steps are skipped. Its copy stays on screen, a write is refused with the same words
 and marks the file the same way, no price fetch starts, so no new prices file is made beside it, and
-the file card says Kuna stopped using the file, beside Switch storage. Remove is not offered for
-such a file, since it is already in the bin or gone. A file Drive no longer has, or no longer lets
+the file card says Kuna stopped using the file, beside Switch storage. The delete then offers only
+this browser's copy. A file Drive no longer has, or no longer lets
 Kuna open, reads the same way with words of its own. This holds for every app's file, as _The file on
 Drive_ says. `?investments=binned` sets it up in the fake build, and `?investments=browser` keeps the
 sample in this browser.
@@ -2921,7 +2925,7 @@ Drive or the fake Drive, the keys and the vendors.
   over, since the new file has a new id. The copy of the prices of an Investments file that leaves the
   screen is deleted from this browser. When Switch storage or Find moves this browser to another
   file, the prices file beside the old one stays, for the devices that still use it.
-  Remove the Investments file moves the prices file to the bin and leaves the keys alone.
+  Deleting the Investments file on Drive moves the prices file to the bin and leaves the keys alone.
 - **The Overview** says how recent the holdings' closes are, and once they are late, a warning with
   the newest close, how many series the last fetch missed and a link to the Prices card.
 - **The Prices card** in the Investments Settings shows the last fetch's time, what it missed and why,

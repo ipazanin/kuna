@@ -6,7 +6,7 @@ import type { DocumentCopy } from './documentRecordStorage'
 import { documentStorePorts } from './documentStorePorts'
 import type { AppDocument, DriveAccess } from './documentStorePorts'
 import { googleDriveAccess } from './googleDriveAccess'
-import { loadWorkbookChoice, saveWorkbookChoice, someWorkbookOnDrive } from './workbookChoice'
+import { loadWorkbookChoice, onChoiceForgottenElsewhere, saveWorkbookChoice, someWorkbookOnDrive } from './workbookChoice'
 
 const now = (): string => new Date().toISOString()
 
@@ -26,7 +26,7 @@ export function pageWorkbookStore<Books extends BooksRead>(app: string, document
     return google
   }
 
-  return createWorkbookStore({
+  const store = createWorkbookStore({
     ...documentStorePorts(app, document, driveAccess, now),
     loadChoice: () => loadWorkbookChoice(app),
     saveChoice: (choice) => saveWorkbookChoice(app, choice),
@@ -51,4 +51,6 @@ export function pageWorkbookStore<Books extends BooksRead>(app: string, document
       })
     },
   })
+  onChoiceForgottenElsewhere(app, () => void store.forgottenElsewhere())
+  return store
 }

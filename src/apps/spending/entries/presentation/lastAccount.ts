@@ -25,3 +25,11 @@ export function rememberLastAccount(account: Account): void {
     // Storage denied. The next entry starts on the first open account.
   }
 }
+
+export function forgetLastAccount(): void {
+  try {
+    localStorage.removeItem(LAST_ACCOUNT_KEY)
+  } catch {
+    // Storage denied, so nothing was kept.
+  }
+}

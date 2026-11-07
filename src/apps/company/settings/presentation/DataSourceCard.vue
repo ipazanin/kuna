@@ -14,6 +14,7 @@ import NewerFileNotice from '../../workbook/presentation/NewerFileNotice.vue'
 import { NEW_BOOKS_TITLE, WORKBOOK_FILE_TYPES } from '../../workbook/presentation/workbookFiles'
 import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import { setSettings } from '../application/settingWrites'
+import { companyData } from '../../workbook/presentation/companyData'
 import { companyFileBeside, settingsAfterMove } from './companyFileBeside'
 import { words } from './words'
 
@@ -54,6 +55,7 @@ function takeFile(event: Event): void {
 
 <template>
   <BooksFileCard
+    :data="companyData"
     :title="words.books.title"
     app-id="company"
     :store="store"

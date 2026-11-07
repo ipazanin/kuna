@@ -3,6 +3,7 @@ import type { RouteComponent, RouteLocationRaw, Router } from 'vue-router'
 
 import type { RedirectReturn } from '../google/googleRedirect'
 import type { MoneyFormat, MoneyTone, SignDisplay } from '../money/moneyFormat'
+import type { AppData } from '../storage/application/appData'
 import type { RecordKind } from '../storage/domain/recordKind'
 import type { AppSyncGroup } from '../sync/presentation/pageSync'
 import type { Money } from '../money/money'
@@ -188,6 +189,8 @@ export interface AppContribution {
   readonly setUpOrder?: SetUpOrder
   /** The app's part of the page's one sync, which the shell asks for once as it starts. */
   syncGroup(): AppSyncGroup
+  /** What the app holds and how it goes, for the delete in the app's Settings and in Kuna settings. */
+  readonly data: AppData
   /** The app's own specimens for the gallery, which only development and fake builds load. */
   readonly gallery?: () => Promise<Component>
   /** What the app's assistant may do, for an app that has one. */

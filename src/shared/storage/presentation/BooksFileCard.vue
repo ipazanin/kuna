@@ -6,11 +6,13 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import { dateFormat } from '../../calendar/dateFormat'
 import { googleAccess } from '../../google/googleAuth'
 import AppCard from '../../ui/AppCard.vue'
+import type { AppData } from '../application/appData'
 import type { BooksRead, WorkbookStore } from '../application/createWorkbookStore'
 import type { DriveFileBeside } from '../application/workbookPorts'
 import { exportReminderDue } from '../domain/exportReminder'
 import type { WorkbookDocument } from '../infrastructure/documentFormat'
 import type { DocumentCopy } from '../infrastructure/documentRecordStorage'
+import DeleteAppDataDialog from './DeleteAppDataDialog.vue'
 import MoveIntoKunaDialog from './MoveIntoKunaDialog.vue'
 import { useDriveFilePlace } from './useDriveFilePlace'
 import { words } from './words'
@@ -19,13 +21,15 @@ import { words } from './words'
 const NOTHING_BESIDE: DriveFileBeside = { files: [], folders: [], stays: [], blockedBy: [] }
 
 /**
- * An app's Settings: where its file is kept, when it was saved, synced and exported, a link to it on Drive, and while it sits
- * elsewhere the move into the Kuna folder. The app's own buttons go in `actions`, and its notices in the default slot.
+ * An app's Settings: where its file is kept, when it was saved, synced and exported, a link to it on Drive, while it sits
+ * elsewhere the move into the Kuna folder, and the delete of the app's data. The app's own buttons go in `actions`, and its notices in the default slot.
  */
 const props = defineProps<{
   title: string
   /** The app's id, which names its subfolder of the Kuna folder. */
   appId: string
+  /** What the app holds and how it goes, for the delete. */
+  data: AppData
   store: Pick<WorkbookStore<BooksRead, DocumentCopy, WorkbookDocument>, 'state' | 'driveFilePlace' | 'hasKunaFolder' | 'pickDriveFolder' | 'planMoveIntoKuna' | 'moveIntoKuna'>
   /** What goes along when the file moves, read as the move opens, for a file that has more beside it than its backups. */
   beside?: (() => DriveFileBeside) | undefined
@@ -57,6 +61,8 @@ const fileLink = computed(() => (source.value === 'drive' && meta.value !== null
 
 const { place: shownPlace, read: readPlace } = useDriveFilePlace(props.store, () => googleAccess().scopes !== null)
 const moving = ref(false)
+const deleting = ref(false)
+const holdsData = computed(() => props.data.held() !== null)
 const movable = computed(() => shownPlace.value !== null && (!shownPlace.value.inKunaFolder || shownPlace.value.moveUnfinished) && !state.value.missing)
 const beside = (): DriveFileBeside => props.beside?.() ?? NOTHING_BESIDE
 const folderLink = computed(() => (shownPlace.value === null ? null : `https://drive.google.com/drive/folders/${encodeURIComponent(shownPlace.value.folderId)}`))
@@ -114,9 +120,11 @@ const lastBackup = computed(() => (shownPlace.value?.lastBackup ? day(new Date(`
           @click="moving = true"
         />
         <UButton v-if="fileLink" :to="fileLink" target="_blank" :label="words.booksFile.openInDrive" icon="i-lucide-external-link" color="neutral" variant="ghost" size="sm" />
+        <UButton v-if="holdsData" icon="i-lucide-trash-2" :label="words.deleteData.open" color="error" variant="ghost" size="sm" data-testid="delete-data" @click="deleting = true" />
       </div>
     </div>
     <MoveIntoKunaDialog v-model:open="moving" :app-id="appId" :file-name="fileName ?? ''" :store="store" :beside="beside" :after-move="afterMove" @ended="readPlace" />
+    <DeleteAppDataDialog v-model:open="deleting" :data="data" />
   </AppCard>
 </template>
 

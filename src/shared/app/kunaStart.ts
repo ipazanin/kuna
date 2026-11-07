@@ -26,6 +26,12 @@ function stored(): KunaStart | null {
 
 const answer = ref<KunaStart | null>(stored())
 
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === null || event.key === STORAGE_KEY) answer.value = stored()
+  })
+}
+
 /** The person's answer on this device, reactively, or null before they gave one. */
 export function kunaStart(): KunaStart | null {
   return answer.value

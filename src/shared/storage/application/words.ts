@@ -21,6 +21,8 @@ export const en = {
   notUndoable: 'This change cannot be undone from here.',
   undone: 'Undone',
   alreadyOnDrive: (fileName: string) => `Drive already holds ${fileName}, so the app does not make a second one. Open that file, or trash it in Drive first.`,
+  copyLeft: (reason: string) => `This browser's copy was not deleted, so the app still shows it. ${reason}`,
+  binnedCopyLeft: (reason: string) => `The file is in the Drive bin, but this browser's copy was not deleted, so the app still shows it. ${reason}`,
   inBin: 'The file is in the Drive bin, so Kuna no longer reads or saves it. Restore it from the bin in Drive and sync, or switch to another file.',
   goneFromDrive: 'Drive no longer has the file, or no longer lets Kuna open it, so Kuna no longer reads or saves it. Switch to another file.',
   refusals: {
@@ -60,6 +62,8 @@ export const hr: Translation<typeof en> = {
   notUndoable: 'Ova se promjena ne može poništiti odavde.',
   undone: 'Poništeno',
   alreadyOnDrive: (fileName) => `Na Driveu već postoji „${fileName}”, pa aplikacija ne stvara drugu. Otvorite tu datoteku ili je najprije bacite u otpad na Driveu.`,
+  copyLeft: (reason) => `Kopija u ovom pregledniku nije obrisana, pa je aplikacija i dalje prikazuje. ${reason}`,
+  binnedCopyLeft: (reason) => `Datoteka je u otpadu na Driveu, ali kopija u ovom pregledniku nije obrisana, pa je aplikacija i dalje prikazuje. ${reason}`,
   inBin: 'Datoteka je u otpadu na Driveu, pa je Kuna više ne čita i ne sprema. Vratite je iz otpada na Driveu i sinkronizirajte ili prijeđite na drugu datoteku.',
   goneFromDrive: 'Drive više nema datoteku ili Kuni više ne dopušta da je otvori, pa je Kuna više ne čita i ne sprema. Prijeđite na drugu datoteku.',
   refusals: {

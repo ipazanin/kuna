@@ -36,6 +36,17 @@ export function namesSecret(name: string): boolean {
   return name.startsWith(KEY_PREFIX) || name.startsWith(CHANGED_PREFIX)
 }
 
+/** Forgets every secret here with its time, leaving no removal behind, so a newer or older key elsewhere can still come back by a sync. */
+export function forgetBrowserSecrets(): void {
+  try {
+    Object.keys(localStorage)
+      .filter(namesSecret)
+      .forEach((name) => localStorage.removeItem(name))
+  } catch {
+    // Storage denied: this browser keeps no secret.
+  }
+}
+
 /** Keeps each change as it is, its time too. */
 export function keepSecretChanges(changes: SecretChanges): void {
   try {

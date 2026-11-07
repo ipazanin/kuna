@@ -1,4 +1,5 @@
 import { FOLDER_MIME_TYPE } from '../../google/driveClient'
+import { GoogleApiError, isRateLimited } from '../../google/googleApi'
 import type { RedirectResume } from '../../google/googleRedirect'
 import { BooksAlreadyOnDrive } from '../application/booksAlreadyOnDrive'
 import type { BooksRead, WorkbookStorePorts } from '../application/createWorkbookStore'
@@ -220,7 +221,12 @@ export function documentStorePorts<Books extends BooksRead>(
     async trashDriveFile(fileId) {
       const access = await driveAccess()
       await access.signIn(null)
-      await access.drive.trash(fileId)
+      try {
+        await access.drive.trash(fileId)
+      } catch (refused) {
+        if (refused instanceof GoogleApiError && (refused.status === 404 || (refused.status === 403 && !isRateLimited(refused)))) throw new Error(words.trashRefused)
+        throw refused
+      }
       driveHomes.delete(fileId)
     },
 

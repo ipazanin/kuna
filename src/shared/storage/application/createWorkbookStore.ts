@@ -74,6 +74,14 @@ export interface WorkbookState<Books extends BooksRead, Copy extends WorkbookCop
   readonly writes: readonly SessionWrite[]
 }
 
+/** How `dropWorkbook` goes about it. */
+export interface DropOptions {
+  /** Runs before anything is dropped, and a failure of it throws with nothing dropped. No sync or write starts until it is all over, so it must not wait for one of this file. */
+  readonly first?: () => Promise<void>
+  /** Leaves a Drive file where it is, and only this browser forgets it and its copy. */
+  readonly keepDriveFile?: boolean
+}
+
 export interface WorkbookStorePorts<Books extends BooksRead, Copy extends WorkbookCopy, Contents> {
   loadChoice(): WorkbookChoice | null
   saveChoice(choice: WorkbookChoice | null): void
@@ -113,7 +121,7 @@ export interface WorkbookStorePorts<Books extends BooksRead, Copy extends Workbo
   createDriveFile(folderId: string, contents: Contents): Promise<Copy>
   /** Where the Drive file sits and its newest backup, or null while the page holds no token, since asking for one needs a click. */
   driveFilePlace(fileId: string): Promise<DriveFilePlace | null>
-  /** Moves the Drive file to the bin, from which the person can restore it for 30 days. `drive.file` allows it for a file the app made. */
+  /** Moves the Drive file to the bin, from which the person can restore it for 30 days. `drive.file` allows it for a file the app made or was given in the Picker, and Drive only for its owner. */
   trashDriveFile(fileId: string): Promise<void>
   /** Loads whatever the next sync's click needs, so the click is not kept waiting. Never called for a workbook kept in this browser. */
   prepareSync(): void
@@ -191,12 +199,13 @@ export interface WorkbookStore<Books extends BooksRead, Copy extends WorkbookCop
   /**
    * Trashes the Drive file or deletes the workbook kept in this browser under this id, and chooses
    * none, as a first run that starts over. Does nothing unless that workbook is the one chosen, and
-   * throws `WorkbookWriteRefused` while anything of the file is queued. On a failure it stays chosen,
-   * in the error state. `first` runs before the trash or the delete, and a failure of it throws with
-   * nothing dropped. No sync or write starts until it is all over, so `first` must not wait for one
-   * of this file. Resolves to whether the workbook was dropped.
+   * throws `WorkbookWriteRefused` while anything of the file is queued. A failure throws, and the
+   * workbook stays chosen and on screen as it was. A file already trashed when only the copy failed to
+   * go counts as missing. Resolves to whether the workbook was dropped.
    */
-  dropWorkbook(workbookId: string, first?: () => Promise<void>): Promise<boolean>
+  dropWorkbook(workbookId: string, options?: DropOptions): Promise<boolean>
+  /** Another tab dropped the workbook, so this one shows none either, as a first run, once the file's jobs ahead of it are over. */
+  forgottenElsewhere(): Promise<void>
   /**
    * Makes this the workbook kept in this browser, as an import or a fresh start does, and chooses
    * it. A workbook already kept here is replaced.
@@ -314,6 +323,15 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
     await withCache(copy.meta.id, (cache) => cache.replace(copy))
     if (landed !== null) leaveQueue(landed)
     show(copy)
+  }
+
+  function showNone(): void {
+    state.snapshot = null
+    state.records = null
+    state.workbook = null
+    state.syncedAt = null
+    state.status = 'ready'
+    state.error = null
   }
 
   function fail(failure: unknown): void {
@@ -591,7 +609,7 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
       return choice?.source === 'drive' ? ports.driveFilePlace(choice.id) : null
     },
 
-    async dropWorkbook(workbookId, first) {
+    async dropWorkbook(workbookId, { first, keepDriveFile = false } = {}) {
       const choice = state.choice
       if (choice?.id !== workbookId) {
         return false
@@ -599,16 +617,38 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
       refuseWhileAnythingQueued()
       return inLane(async () => {
         await first?.()
-        await underLocalWork(async () => {
-          await (choice.source === 'drive' ? ports.trashDriveFile(choice.id) : ports.forgetBrowserWorkbook(choice.id))
+        const trashing = choice.source === 'drive' && !keepDriveFile
+        if (trashing) {
+          await ports.trashDriveFile(choice.id)
+          state.missing = true
+        } else if (choice.source === 'browser') {
+          await ports.forgetBrowserWorkbook(choice.id)
+        }
+        try {
           await withCache(choice.id, (cache) => cache.delete())
-          choose(null)
-          state.snapshot = null
-          state.records = null
-          state.workbook = null
-          state.syncedAt = null
+        } catch (failure) {
+          const reason = failure instanceof Error ? failure.message : String(failure)
+          throw new Error(trashing ? words.binnedCopyLeft(reason) : words.copyLeft(reason))
+        }
+        choose(null)
+        showNone()
+        return true
+      })
+    },
+
+    forgottenElsewhere() {
+      return inLane(async () => {
+        const held = state.choice
+        if (held === null) return
+        // A sync of this tab may have named the file again since the other tab forgot it, and a file set up there since is left alone.
+        const stored = ports.loadChoice()
+        if (stored === null || stored.id === held.id) ports.saveChoice(null)
+        await withCache(held.id, (cache) => cache.delete()).catch(() => {
+          // The other tab deleted it, and this is only for a copy a sync here made since.
         })
-        return state.choice === null
+        state.choice = null
+        state.missing = false
+        showNone()
       })
     },
 

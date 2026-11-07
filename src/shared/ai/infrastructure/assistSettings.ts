@@ -86,7 +86,7 @@ export function pickProvider(id: ProviderId): boolean {
 }
 
 function forgetEmployeeChoices(): boolean {
-  const yeses = [...new Set([...storedNames(), ...Object.keys(choices)])].filter((key) => key.startsWith(TASK_PREFIX) && choice(key) === 'on')
+  const yeses = knownNames().filter((key) => key.startsWith(TASK_PREFIX) && choice(key) === 'on')
   yeses.forEach((key) => choose(key, null))
   return yeses.length > 0
 }
@@ -100,6 +100,25 @@ export function modelOf(id: ProviderId): ModelChoice {
 export function pickModel(id: ProviderId, model: string): void {
   const typed = model.trim()
   choose(`${MODEL_PREFIX}${id}`, typed === '' || typed === presetOf(id).defaultModel ? null : typed)
+}
+
+/** Forgets the app's switch and the yes of each of its tasks, whose ids start with the app's. */
+export function forgetAppAssist(app: string): void {
+  choose(`${APP_PREFIX}${app}`, null)
+  knownNames()
+    .filter((key) => key.startsWith(`${TASK_PREFIX}${app}.`))
+    .forEach((key) => choose(key, null))
+}
+
+/** Forgets every choice of the assistant on this device, as one that never made any. */
+export function forgetAssistChoices(): void {
+  knownNames()
+    .filter((key) => ASSIST_KEYS.test(key))
+    .forEach((key) => choose(key, null))
+}
+
+function knownNames(): readonly string[] {
+  return [...new Set([...storedNames(), ...Object.keys(choices)])]
 }
 
 function storedNames(): readonly string[] {

@@ -25,6 +25,15 @@ export function saveWorkbookChoice(app: string, choice: WorkbookChoice | null): 
   }
 }
 
+/** Tells the page when another tab forgot the app's choice, or cleared this site's storage. */
+export function onChoiceForgottenElsewhere(app: string, forgotten: () => void): void {
+  if (typeof window === 'undefined') return
+  window.addEventListener('storage', (event) => {
+    if (event.storageArea !== localStorage) return
+    if (event.key === null || (event.key === `${KEY_PREFIX}${app}` && event.newValue === null)) forgotten()
+  })
+}
+
 /** Whether some app keeps its workbook on Drive on this device. */
 export function someWorkbookOnDrive(): boolean {
   try {

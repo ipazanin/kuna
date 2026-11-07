@@ -30,7 +30,7 @@ import { AUTO_SYNC_INTERVAL_MS } from '../../../../../shared/sync/application/au
  * first run. The sample has the fake prices file beside it, in this browser too, as `?prices=late-prices` or
  * `?prices=no-benchmark` names it or else `sample`, and the empty file has it only when `?prices=` names it, so a first
  * import finds its rates. `?keys=` puts what another browser left in the app's hidden folder, as `seedFakeSecrets`
- * says, the old keys file named after the chosen file. With it, and for `binned`, the copy here is marked read longer ago than a sync on
+ * says, the old keys file named after the chosen file. `given` is the sample as a file someone shared, which Drive will not bin. With it, and for `binned`, the copy here is marked read longer ago than a sync on
  * open waits, so the open syncs. Only the Investments app's install imports this, behind an inline VITE_FAKE_WORKBOOK
  * comparison.
  */
@@ -40,13 +40,24 @@ export async function seedFakeInvestments(variant: string | null, pricesVariant:
     await seedInBrowser(pricesVariant)
     return
   }
-  if (variant !== 'drive' && variant !== 'sample' && variant !== 'cash-below-zero' && variant !== 'young' && variant !== 'partial-history' && variant !== 'opening' && variant !== 'binned') {
+  if (
+    variant !== 'drive' &&
+    variant !== 'sample' &&
+    variant !== 'cash-below-zero' &&
+    variant !== 'young' &&
+    variant !== 'partial-history' &&
+    variant !== 'opening' &&
+    variant !== 'binned' &&
+    variant !== 'given'
+  ) {
     saveWorkbookChoice(INVESTMENTS_APP, null)
     return
   }
   const savedAt = new Date().toISOString()
   const document =
-    variant === 'drive' ? emptyInvestmentsDocument(savedAt) : fakeInvestmentsDocument(savedAt, variant === 'opening' || variant === 'binned' || variant === 'partial-history' ? 'sample' : variant)
+    variant === 'drive'
+      ? emptyInvestmentsDocument(savedAt)
+      : fakeInvestmentsDocument(savedAt, variant === 'opening' || variant === 'binned' || variant === 'given' || variant === 'partial-history' ? 'sample' : variant)
   const folder = await fakeBooksFolder()
   const created = await createDriveDocument(fakeDriveSession(), folder, INVESTMENTS_APP, encodeDocument(document))
   const choice = { source: 'drive', id: created.fileId, name: documentName(INVESTMENTS_APP) } as const
@@ -77,6 +88,9 @@ export async function seedFakeInvestments(variant: string | null, pricesVariant:
     cache.close()
   }
   saveWorkbookChoice(INVESTMENTS_APP, choice)
+  if (variant === 'given') {
+    fakeDriveSession().file(created.fileId).ownedByMe = false
+  }
   if (variant === 'binned') {
     await fakeDriveSession().trash(created.fileId)
     if (pricesFileId !== null) await fakeDriveSession().trash(pricesFileId)

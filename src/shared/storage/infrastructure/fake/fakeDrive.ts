@@ -1,5 +1,6 @@
 import { APP_DATA_FOLDER, FOLDER_MIME_TYPE, JSON_MIME_TYPE } from '../../../google/driveClient'
 import type { DriveRevision } from '../../../google/driveClient'
+import { GoogleApiError } from '../../../google/googleApi'
 import { DriveFileMissing } from '../../application/driveFileMissing'
 import type { DocumentDrive, DocumentUpload } from '../driveDocument'
 
@@ -272,6 +273,9 @@ export function createFakeDrive(): FakeDrive {
       const file = fileOf(fileId)
       if (file.parents.includes(APP_DATA_FOLDER)) {
         throw new Error(`403 from the fake Drive: ${fileId} is in the app's hidden folder, whose files cannot go to the bin.`)
+      }
+      if (!file.ownedByMe) {
+        throw new GoogleApiError(`https://www.googleapis.com/drive/v3/files/${fileId}`, 403, JSON.stringify({ error: { errors: [{ reason: 'insufficientFilePermissions' }] } }))
       }
       file.trashed = true
     },

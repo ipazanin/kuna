@@ -52,16 +52,12 @@ async function startOver(): Promise<void> {
   failure.value = null
   try {
     await withGoogleAccess(made.source === 'drive' ? ['drive.file'] : [], () => store.dropWorkbook(made.id))
+    await onboarding.choose({ made: null })
   } catch (refused) {
     failure.value = refused instanceof Error ? refused.message : String(refused)
   } finally {
     dropping.value = false
     confirming.value = false
-  }
-  if (store.state.status === 'error') {
-    failure.value = store.state.error
-  } else if (store.state.choice === null) {
-    await onboarding.choose({ made: null })
   }
 }
 </script>

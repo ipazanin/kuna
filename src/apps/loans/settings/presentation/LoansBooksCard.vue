@@ -6,6 +6,7 @@ import { LOANS_START_ROUTE } from '../../overview/presentation/loanLinks'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import { LOCAL_LOANS_TITLE } from '../../workbook/presentation/loansFile'
 import { useLoansExport } from '../../workbook/presentation/useLoansExport'
+import { loansData } from '../../workbook/presentation/loansData'
 import { words } from './words'
 
 /** Loans Settings: where the Loans file is, with its export and the switch to another home. */
@@ -15,7 +16,7 @@ const { exporting, exportNow } = useLoansExport()
 </script>
 
 <template>
-  <BooksFileCard :title="words.books" app-id="loans" :store="store" :seeded-title="{ stored: LOCAL_LOANS_TITLE, shown: words.localTitle }" data-testid="loans-books-card">
+  <BooksFileCard :title="words.books" app-id="loans" :data="loansData" :store="store" :seeded-title="{ stored: LOCAL_LOANS_TITLE, shown: words.localTitle }" data-testid="loans-books-card">
     <template #actions>
       <UButton icon="i-lucide-download" :label="words.export" color="neutral" variant="outline" size="sm" :loading="exporting" :disabled="exporting || state.snapshot === null" @click="exportNow" />
       <UButton :to="LOANS_START_ROUTE" icon="i-lucide-arrow-left-right" :label="words.switchStorage" color="neutral" variant="outline" size="sm" data-testid="loans-switch-storage" />

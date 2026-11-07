@@ -1,4 +1,5 @@
 import type { AppContribution, AppScreen } from '../../shared/app/appContribution'
+import { investmentsData } from './workbook/presentation/investmentsData'
 import { DEFAULT_MONEY_FORMAT } from '../../shared/money/moneyFormat'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
 import { autoSyncOn } from '../../shared/sync/infrastructure/autoSyncSwitch'
@@ -81,6 +82,7 @@ export const investmentsApp: AppContribution = {
   homeCard: INVESTMENTS_HOME_CARD,
   hub: { counts: true, figures: () => shownPortfolio(({ figures }) => investmentsHubFigures(figures)) },
   setUpLines: () => (state.workbook === null ? [] : investmentsSetUp(state.workbook.book, figures.value, taxShown.value)),
+  data: investmentsData,
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
   startPath: INVESTMENTS_START_ROUTE,
   syncGroup: investmentsSyncGroup,

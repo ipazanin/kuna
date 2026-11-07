@@ -7,6 +7,7 @@ import { SPENDING_START_ROUTE } from '../../overview/presentation/spendingLinks'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { LOCAL_SPENDING_TITLE } from '../../workbook/presentation/spendingFile'
 import { useSpendingExport } from '../../workbook/presentation/useSpendingExport'
+import { spendingData } from '../../workbook/presentation/spendingData'
 import { words } from './words'
 
 /** Spending Settings: where the Spending file is, with its export and the switch to another home. */
@@ -17,6 +18,7 @@ const { exporting, exportNow } = useSpendingExport()
 
 <template>
   <BooksFileCard
+    :data="spendingData"
     :title="words.books"
     app-id="spending"
     :beside="() => ({ files: [], folders: [{ name: RECEIPTS_FOLDER, mailSource: null }], stays: [], blockedBy: [] })"

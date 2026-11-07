@@ -1,4 +1,5 @@
 import type { AppContribution, AppScreen } from '../../shared/app/appContribution'
+import { loansData } from './workbook/presentation/loansData'
 import { homeCardFigures } from '../../shared/app/homeCardFigures'
 import { today } from '../../shared/calendar/civilDate'
 import { DEFAULT_MONEY_FORMAT } from '../../shared/money/moneyFormat'
@@ -56,6 +57,7 @@ export const loansApp: AppContribution = {
   homeCard: LOANS_HOME_CARD,
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => loansHubFigures(book, today())) },
   setUpLines: () => (state.workbook === null ? [] : loansSetUp(state.workbook)),
+  data: loansData,
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
   startPath: LOANS_START_ROUTE,
   syncGroup: loansSyncGroup,

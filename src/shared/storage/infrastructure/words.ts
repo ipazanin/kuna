@@ -9,6 +9,8 @@ import { agreeing } from '../domain/words'
 
 export const en = {
   moveBlocked: (folders: string) => `These folders are named from this file's own folder and hold what Kuna may not move: ${folders}. Name them as a path from My Drive in Settings first.`,
+  trashRefused:
+    "Google Drive would not move the file to the bin. Only its owner can, from the account Kuna is signed in to, so a file someone shared with you stays theirs. Untick the Drive file to delete only this browser's copy.",
   browserLost: 'This browser no longer holds the workbook. Open an Excel file or a backup to start again.',
   newerFile: 'This file was saved by a newer version of Kuna. Reload to update before you change anything.',
   notJson: 'The file is not a Kuna file: it does not read as JSON.',
@@ -30,6 +32,8 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   moveBlocked: (folders) => `Ove su mape imenovane iz mape ove datoteke i sadrže ono što Kuna ne smije premjestiti: ${folders}. Najprije ih u postavkama imenujte putem od mape Moj disk.`,
+  trashRefused:
+    'Google Drive nije premjestio datoteku u otpad. To može samo njezin vlasnik, s računa na koji je Kuna prijavljena, pa datoteka koju vam je netko podijelio ostaje njegova. Odznačite datoteku na Driveu kako biste obrisali samo kopiju u ovom pregledniku.',
   browserLost: 'Ovaj preglednik više nema datoteku. Otvorite Excel datoteku ili sigurnosnu kopiju da biste počeli ponovno.',
   newerFile: 'Ovu je datoteku spremila novija inačica Kune. Ponovno učitajte stranicu da se aplikacija ažurira prije bilo kakve promjene.',
   notJson: 'Datoteka nije Kunina datoteka: ne čita se kao JSON.',

@@ -26,6 +26,7 @@ import { en as billingEnglish, hr as billingCroatian } from '../../src/apps/comp
 import { en as companyOverviewEnglish, hr as companyOverviewCroatian } from '../../src/apps/company/overview/presentation/words.ts'
 import { en as ownerShareEnglish, hr as ownerShareCroatian } from '../../src/apps/company/owner-share/presentation/words.ts'
 import { en as writesEnglish, hr as writesCroatian } from '../../src/shared/storage/presentation/words.ts'
+import { en as storageInfrastructureEnglish, hr as storageInfrastructureCroatian } from '../../src/shared/storage/infrastructure/words.ts'
 import { en as bankLoanEnglish, hr as bankLoanCroatian } from '../../src/apps/loans/bankLoans/presentation/words.ts'
 import { en as informalLoanEnglish, hr as informalLoanCroatian } from '../../src/apps/loans/informalLoans/presentation/words.ts'
 import { en as overviewEnglish, hr as overviewCroatian } from '../../src/apps/loans/overview/presentation/words.ts'
@@ -55,7 +56,6 @@ import { en as companyHomeEnglish, hr as companyHomeCroatian } from '../../src/a
 import { en as loansHomeEnglish, hr as loansHomeCroatian } from '../../src/apps/loans/home/presentation/words.ts'
 import { en as investmentsHomeEnglish, hr as investmentsHomeCroatian } from '../../src/apps/investments/home/presentation/words.ts'
 import { en as investmentsOverviewEnglish, hr as investmentsOverviewCroatian } from '../../src/apps/investments/overview/presentation/words.ts'
-import { en as investmentsSettingsEnglish, hr as investmentsSettingsCroatian } from '../../src/apps/investments/settings/presentation/words.ts'
 import { en as assetsAppEnglish, hr as assetsAppCroatian } from '../../src/apps/assets/words.ts'
 import { en as assetPageEnglish, hr as assetPageCroatian } from '../../src/apps/assets/asset/presentation/words.ts'
 import { en as assetsHomeEnglish, hr as assetsHomeCroatian } from '../../src/apps/assets/home/presentation/words.ts'
@@ -4206,8 +4206,8 @@ export async function investmentsKeyLegacyAndNewFlow(page, { shoot, inspect }) {
   })
 }
 
-const INVESTMENTS_SETTINGS_WORDS = { en: investmentsSettingsEnglish, hr: investmentsSettingsCroatian }
-const REMOVE_DIALOG = '[data-testid="investments-remove-dialog"]'
+const DELETE_DIALOG = '[data-testid="delete-data-dialog"]'
+const DELETE_WORDS = { en: writesEnglish.deleteData, hr: writesCroatian.deleteData }
 
 /** The IndexedDB databases this browser holds for Investments files, by name. */
 async function investmentsDatabases(page) {
@@ -4230,23 +4230,29 @@ async function restoreGoogleGrants(page, grants) {
   }, grants)
 }
 
-/** Opens Remove the Investments file on the Investments Settings and waits for its dialog to name what goes and what stays. */
-async function openRemoveDialog(page, press, goes, stays) {
-  await pressSelector(page, press, '[data-testid="investments-remove"]')
-  await elementSays(page, REMOVE_DIALOG, [...goes, ...stays], 'the Remove dialog does not name what goes and what stays')
+/** Opens Delete this app's data on the app's Settings and waits for its dialog to name what it offers and what stays. */
+async function openDeleteDialog(page, press, says) {
+  await pressSelector(page, press, '[data-testid="delete-data"]')
+  await elementSays(page, DELETE_DIALOG, says, 'the delete dialog does not name what it offers and what stays')
   await delay(300)
 }
 
+async function checkboxState(page, testId) {
+  return page.$eval(`[data-testid="${testId}"]`, (box) => ({
+    checked: box.getAttribute('aria-checked') === 'true' || box.dataset.state === 'checked',
+    disabled: box.disabled === true || box.hasAttribute('data-disabled'),
+  }))
+}
+
 /**
- * Investments Settings on the sample on the fake Drive, whose secrets file another browser left in the app's hidden folder
- * (`?keys=other-browser`), so the sync on open brings a made-up Twelve Data key into this browser. Remove the Investments
- * file asks first, naming what goes and what stays, and Cancel keeps the file. Remove then moves the file and its prices
- * file to the bin, and this browser lands on the Investments first run, as one that never had a file, with its copy and
- * its prices gone, the vendor key still kept and the secrets file still in the hidden folder, since every app uses it.
+ * Investments Settings on the sample on the fake Drive, whose secrets file another browser left in the app's hidden folder (`?keys=other-browser`),
+ * so the sync on open brings a made-up Twelve Data key into this browser. The delete offers the Drive file, with the copy going along, and a backup,
+ * and Cancel keeps the file. Delete then moves the file and its prices file to the bin, and this browser lands on the first run with its copy
+ * and its prices gone, the vendor key still kept and the secrets file still in the hidden folder, since every app uses it.
  */
-export function investmentsRemoveDriveFlowIn(language) {
-  const text = INVESTMENTS_SETTINGS_WORDS[language].removal
-  const goes = [text.driveGoes.file('kuna-investments.json'), text.driveGoes.prices('kuna-investments-prices.json')]
+export function deleteDataDriveFlowIn(language) {
+  const text = DELETE_WORDS[language]
+  const says = [text.driveFile('kuna-investments.json'), text.driveFileBeside('kuna-investments-prices.json'), text.driveCopyGoes, text.staysDrive]
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     // A step before this one, with no Investments file on Drive, leaves needs without drive.appdata, and the silent token on open carries only those.
@@ -4260,63 +4266,173 @@ export function investmentsRemoveDriveFlowIn(language) {
     const grants = await googleGrants(page)
     const before = await investmentsDatabases(page)
     if (!before.some((name) => name.startsWith('kuna-prices-'))) throw new Error(`this browser keeps no prices of the sample, only ${before.join(', ')}`)
-    await openRemoveDialog(page, press, goes, text.driveStays)
-    await inspect?.('Remove the Investments file asking first')
-    await shoot('investments-remove-drive')
-    await pressSelector(page, press, '[data-testid="investments-remove-cancel"]')
-    await dialogGone(page, REMOVE_DIALOG)
+    await openDeleteDialog(page, press, says)
+    const copy = await checkboxState(page, 'delete-data-copy-investments')
+    if (!copy.checked || !copy.disabled) throw new Error('the copy does not go along with the Drive file')
+    await inspect?.('the delete asking first for a file on Drive')
+    await shoot('delete-data-drive')
+    await pressSelector(page, press, '[data-testid="delete-data-backup-investments"]')
+    await toastMatching(page, exactly(text.backedUp))
+    await dismissToasts(page)
+    await pressSelector(page, press, '[data-testid="delete-data-cancel"]')
+    await dialogGone(page, DELETE_DIALOG)
     if ((await page.$('[data-testid="investments-books-card"]')) === null) throw new Error('Cancel left the Investments Settings')
 
-    await openRemoveDialog(page, press, goes, text.driveStays)
-    await pressSelector(page, press, '[data-testid="investments-remove-confirm"]')
-    await toastMatching(page, exactly(text.driveRemoved))
+    await openDeleteDialog(page, press, says)
+    await pressSelector(page, press, '[data-testid="delete-data-confirm"]')
+    await toastMatching(page, exactly(text.deleted(language === 'hr' ? 'Ulaganja' : 'Investments')))
     await firstRunAt(page, INVESTMENTS, 'home')
     const [choice, key] = await page.evaluate(() => [localStorage.getItem('kuna.workbook-file.investments'), localStorage.getItem('kuna.secret.twelvedata')])
-    if (choice !== null) throw new Error(`this browser still names an Investments file after Remove: ${choice}`)
-    if (key !== 'made-up-twelve-data-key-8642') throw new Error('Remove took the vendor key kept in this browser')
+    if (choice !== null) throw new Error(`this browser still names an Investments file after the delete: ${choice}`)
+    if (key !== 'made-up-twelve-data-key-8642') throw new Error('the delete took the vendor key kept in this browser')
     const hidden = await page.evaluate(() => window.kunaFakeHiddenFiles())
-    if (!hidden.includes('kuna-secrets.json')) throw new Error(`Remove took the secrets file from the hidden folder, which holds ${hidden.join(', ') || 'nothing'}`)
+    if (!hidden.includes('kuna-secrets.json')) throw new Error(`the delete took the secrets file from the hidden folder, which holds ${hidden.join(', ') || 'nothing'}`)
     const after = await investmentsDatabases(page)
-    if (after.some((name) => name.startsWith('kuna-prices-'))) throw new Error(`the prices kept in this browser stayed after Remove: ${after.join(', ')}`)
-    await inspect?.('the Investments first run after Remove')
-    await shoot('investments-removed-drive')
+    if (after.some((name) => name.startsWith('kuna-prices-'))) throw new Error(`the prices kept in this browser stayed after the delete: ${after.join(', ')}`)
+    await inspect?.('the Investments first run after the delete')
+    await shoot('delete-data-drive-done')
     await dismissToasts(page)
     await forgetTwelveDataKey(page)
     await restoreGoogleGrants(page, grants)
   }
 }
 
+/** The sample on the fake Drive with the Drive file unticked: only this browser forgets it, and a find on the first run opens the same file again. */
+export async function deleteDataCopyFlow(page, { press, shoot, inspect }) {
+  const text = DELETE_WORDS.en
+  await page.waitForSelector('[data-testid="investments-books-card"]', { visible: true, timeout: 10_000 })
+  const grants = await googleGrants(page)
+  await openDeleteDialog(page, press, [text.driveFile('kuna-investments.json')])
+  await pressSelector(page, press, '[data-testid="delete-data-drive-investments"]')
+  await elementSays(page, DELETE_DIALOG, [text.driveCopyNote], 'unticking the Drive file does not say the file stays')
+  const copy = await checkboxState(page, 'delete-data-copy-investments')
+  if (!copy.checked || copy.disabled) throw new Error('unticking the Drive file does not free the copy')
+  await delay(300)
+  await inspect?.('the delete with only the copy ticked')
+  await shoot('delete-data-copy')
+  await pressSelector(page, press, '[data-testid="delete-data-copy-investments"]')
+  const confirm = await page.$eval('[data-testid="delete-data-confirm"]', (button) => button.disabled)
+  if (!confirm) throw new Error('Delete can be pressed with nothing ticked')
+  await pressSelector(page, press, '[data-testid="delete-data-copy-investments"]')
+  await pressSelector(page, press, '[data-testid="delete-data-confirm"]')
+  await toastMatching(page, exactly(text.deleted('Investments')))
+  await firstRunAt(page, INVESTMENTS, 'home')
+  await dismissToasts(page)
+  await restoreGoogleGrants(page, grants)
+}
+
+/** A file someone shared with the person (`?investments=given`): Drive refuses the bin, the dialog says so and stays, and the copy and the app go on as before. */
+export function deleteDataGivenFlowIn(language) {
+  const text = DELETE_WORDS[language]
+  const refusal = language === 'hr' ? storageInfrastructureCroatian.trashRefused : storageInfrastructureEnglish.trashRefused
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="investments-books-card"]', { visible: true, timeout: 10_000 })
+    await openDeleteDialog(page, press, [text.driveFile('kuna-investments.json')])
+    await pressSelector(page, press, '[data-testid="delete-data-confirm"]')
+    await page.waitForSelector('[data-testid="delete-data-failed"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('a refused bin does not say so')
+    })
+    await elementSays(page, DELETE_DIALOG, [text.stillHere, refusal], 'the delete does not say Drive refused and the copy stays')
+    await delay(300)
+    await inspect?.('the delete refused for a file someone shared')
+    await shoot('delete-data-given')
+    const before = await page.evaluate(() => localStorage.getItem('kuna.workbook-file.investments'))
+    if (before === null) throw new Error('a refused bin forgot the file')
+    const databases = await investmentsDatabases(page)
+    if (!databases.some((name) => name.startsWith('kuna-workbook-'))) throw new Error(`a refused bin deleted the copy, leaving ${databases.join(', ')}`)
+    await pressSelector(page, press, '[data-testid="delete-data-cancel"]')
+    await dialogGone(page, DELETE_DIALOG)
+    if ((await page.$('[data-testid="investments-books-card"]')) === null) throw new Error('a refused bin left the Investments Settings')
+  }
+}
+
 /**
- * Investments Settings on the sample kept in this browser (`?investments=browser`): Remove names the browser copy and
- * its prices as what goes, and once confirmed both are deleted and the browser lands on the Investments first run.
+ * The sample kept in this browser (`?investments=browser`), with a second tab open on its Overview: the delete offers only the file here, and once
+ * confirmed the file and its prices are gone, this tab lands on the first run and the other tab follows it there by itself.
  */
-export async function investmentsRemoveBrowserFlow(page, { press, shoot, inspect }) {
-  const text = investmentsSettingsEnglish.removal
+export async function deleteDataBrowserFlow(page, { press, shoot, inspect }) {
+  const text = DELETE_WORDS.en
   await page.waitForSelector('[data-testid="investments-books-card"]', { visible: true, timeout: 10_000 })
   const grants = await googleGrants(page)
   const before = await investmentsDatabases(page)
   for (const name of ['kuna-document-local-fake-investments', 'kuna-prices-local-fake-investments']) {
-    if (!before.includes(name)) throw new Error(`this browser holds no ${name} before Remove, only ${before.join(', ')}`)
+    if (!before.includes(name)) throw new Error(`this browser holds no ${name} before the delete, only ${before.join(', ')}`)
   }
-  await openRemoveDialog(page, press, text.browserGoes, text.browserStays)
-  await inspect?.('Remove asking first for a file kept in this browser')
-  await shoot('investments-remove-browser')
-  await pressSelector(page, press, '[data-testid="investments-remove-confirm"]')
-  await toastMatching(page, exactly(text.browserRemoved))
-  await firstRunAt(page, INVESTMENTS, 'home')
+  const otherTab = await page.browserContext().newPage()
+  try {
+    await otherTab.goto(page.url().replace('#/investments/settings', '#/investments'), { waitUntil: 'networkidle0' })
+    await otherTab.waitForSelector('[data-testid="investments-cards"]', { visible: true, timeout: 10_000 })
+    await page.bringToFront()
+    await openDeleteDialog(page, press, [text.browserFile, text.browserFileNote, text.staysBrowser])
+    if ((await page.$('[data-testid="delete-data-drive-investments"]')) !== null) throw new Error('a file kept in this browser offers a Drive file')
+    await inspect?.('the delete asking first for a file kept in this browser')
+    await shoot('delete-data-browser')
+    await pressSelector(page, press, '[data-testid="delete-data-confirm"]')
+    await toastMatching(page, exactly(text.deleted('Investments')))
+    await firstRunAt(page, INVESTMENTS, 'home')
+    await firstRunAt(otherTab, INVESTMENTS, 'home').catch(() => {
+      throw new Error('the other open tab did not notice the delete')
+    })
+  } finally {
+    await otherTab.close()
+  }
   const after = await investmentsDatabases(page)
   const left = after.filter((name) => name.endsWith('local-fake-investments'))
-  if (left.length > 0) throw new Error(`Remove left ${left.join(', ')} in this browser`)
-  if ((await page.evaluate(() => localStorage.getItem('kuna.workbook-file.investments'))) !== null) throw new Error('this browser still names the Investments file after Remove')
-  await inspect?.('the Investments first run after removing the file kept here')
+  if (left.length > 0) throw new Error(`the delete left ${left.join(', ')} in this browser`)
+  if ((await page.evaluate(() => localStorage.getItem('kuna.workbook-file.investments'))) !== null) throw new Error('this browser still names the Investments file after the delete')
+  await inspect?.('the Investments first run after deleting the file kept here')
   await dismissToasts(page)
   await restoreGoogleGrants(page, grants)
 }
 
 /**
+ * Kuna settings with the company on the fake Drive and Investments in this browser: Delete all of Kuna lists both with what they share, the keys in
+ * the Google account unticked, and Delete stays off until the name is typed. Once confirmed, every app is on its first run and the home welcomes again.
+ */
+export function deleteKunaFlowIn(language) {
+  const words = language === 'hr' ? kunaSettingsCroatian : kunaSettingsEnglish
+  const text = words.deleteData.all
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const grants = await googleGrants(page)
+    await pressSelector(page, press, '[data-testid="delete-kuna"]')
+    await elementSays(page, '[data-testid="delete-kuna-dialog"]', [text.googleKeys, text.browserSettings, text.stays], 'the delete of all of Kuna does not list what the apps share')
+    await delay(300)
+    for (const app of ['company', 'investments']) {
+      if ((await page.$(`[data-testid="delete-data-${app}"]`)) === null) throw new Error(`the delete of all of Kuna does not list ${app}`)
+    }
+    if ((await checkboxState(page, 'delete-kuna-google-keys')).checked) throw new Error('the keys in the Google account start ticked, and they go for good')
+    if (!(await page.$eval('[data-testid="delete-kuna-confirm"]', (button) => button.disabled))) throw new Error('Delete can be pressed before the name is typed')
+    await inspect?.('the delete of all of Kuna asking first')
+    await shoot('delete-kuna')
+    await page.type('[data-testid="delete-kuna-name"]', 'Kun')
+    if (!(await page.$eval('[data-testid="delete-kuna-confirm"]', (button) => button.disabled))) throw new Error('Delete can be pressed on part of the name')
+    await page.type('[data-testid="delete-kuna-name"]', 'a')
+    await page
+      .waitForFunction(() => document.querySelector('[data-testid="delete-kuna-confirm"]')?.disabled === false, { timeout: 5_000 })
+      .catch(() => {
+        throw new Error('typing the name does not let Delete be pressed')
+      })
+    await shoot('delete-kuna-typed')
+    await pressSelector(page, press, '[data-testid="delete-kuna-confirm"]')
+    await toastMatching(page, exactly(text.deleted))
+    await page.waitForSelector('[data-testid="kuna-welcome"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('deleting all of Kuna does not land on the home welcome')
+    })
+    const left = await page.evaluate(() => Object.keys(localStorage).filter((name) => name.startsWith('kuna.workbook-file.')))
+    if (left.length > 0) throw new Error(`this browser still names ${left.join(', ')} after the delete`)
+    await inspect?.('the home after deleting all of Kuna')
+    await shoot('delete-kuna-done')
+    await dismissToasts(page)
+    await restoreGoogleGrants(page, grants)
+  }
+}
+
+/**
  * Another device's Investments file in the Drive bin (`?investments=binned`), read longer ago than a sync on open waits:
  * the sync on open finds it there and stops, the sync control counts the problem, the books step says so and links to
- * the Settings, and the Settings' file card says Kuna stopped using the file beside Switch storage, with no Remove for it.
+ * the Settings, and the Settings' file card says Kuna stopped using the file beside Switch storage, and the delete offers only this browser's copy.
  */
 export async function investmentsBinnedFlow(page, { press, shoot, inspect }) {
   const control = await controlShows(page, 'problems')
@@ -4349,9 +4465,12 @@ export async function investmentsBinnedFlow(page, { press, shoot, inspect }) {
     })
   await delay(300)
   if ((await page.$('[data-testid="investments-switch-storage"]')) === null) throw new Error('the Investments Settings offer no Switch storage beside the file in the bin')
-  if ((await page.$('[data-testid="investments-remove"]')) !== null) throw new Error('the Investments Settings offer Remove for a file already in the bin')
   await inspect?.('the Investments Settings on a file in the bin')
   await shoot('investments-binned-settings')
+  await openDeleteDialog(page, press, [DELETE_WORDS.en.driveCopy, DELETE_WORDS.en.missingCopyNote])
+  if ((await page.$('[data-testid="delete-data-drive-investments"]')) !== null) throw new Error('the delete offers a Drive file already in the bin')
+  await pressSelector(page, press, '[data-testid="delete-data-cancel"]')
+  await dialogGone(page, DELETE_DIALOG)
 }
 
 /**

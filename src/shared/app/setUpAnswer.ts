@@ -31,6 +31,19 @@ export function forgetSetUpAnswer(fileId: string, answer: string): void {
   kept.value = new Set([...kept.value].filter((held) => held !== key))
 }
 
+/** Takes back every answer about the file, once this device no longer has it. */
+export function forgetSetUpAnswersOf(fileId: string): void {
+  const prefix = storageKeyOf(fileId, '')
+  try {
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith(prefix))
+      .forEach((key) => localStorage.removeItem(key))
+  } catch {
+    // Storage denied: only this visit held the answers.
+  }
+  kept.value = new Set([...kept.value].filter((held) => !held.startsWith(prefix)))
+}
+
 export function keepSetUpAnswer(fileId: string, answer: string): void {
   const key = storageKeyOf(fileId, answer)
   try {

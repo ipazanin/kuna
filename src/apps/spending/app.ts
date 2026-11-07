@@ -1,4 +1,5 @@
 import { noteBankReturn, openBankSyncAfterReturn } from './bankSync/presentation/bankReturnOnOpen'
+import { spendingData } from './workbook/presentation/spendingData'
 import { SPENDING_HOME_CARD } from './home/presentation/spendingHomeCard'
 import { spendingHubFigures } from './home/presentation/spendingHubFigures'
 import {
@@ -79,6 +80,7 @@ export const spendingApp: AppContribution = {
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => spendingHubFigures(book, rates.value, today())) },
   assist: SPENDING_ASSIST,
   setUpLines: () => (state.workbook === null ? [] : spendingSetUp(state.workbook)),
+  data: spendingData,
   firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
   startPath: SPENDING_START_ROUTE,
   syncGroup: spendingSyncGroup,
