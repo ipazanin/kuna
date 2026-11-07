@@ -16,7 +16,7 @@ export interface StepLink {
  * is skipped when its app's books could not be read.
  */
 export type StepState =
-  | { readonly kind: 'off'; readonly line: string }
+  | { readonly kind: 'off'; readonly leftOut: boolean }
   | { readonly kind: 'queued' }
   | { readonly kind: 'running'; readonly line: string }
   | { readonly kind: 'done'; readonly line: string; readonly writeId: number | null; readonly link: StepLink | null }
@@ -56,17 +56,23 @@ export interface SyncRun {
 /** The books step, which every group of a sync runs first. */
 export const BOOKS_STEP: Pick<RunStep, 'id' | 'label' | 'scopes'> = { id: 'books', label: words.books, scopes: ['drive.file'] }
 
-/** A step as a run starts it: on or off, with the line it shows while off. */
+/** A step as a run starts it: on or off, as the settings say. */
 export interface PlannedStep {
   readonly id: string
   readonly label: string
   readonly scopes: readonly GoogleScope[]
   readonly on: boolean
-  readonly offLine: string
+  /** Whether the step stays out of the step list while it is off, because the file has nothing for it and no setting turned it off. */
+  readonly leftOutWhenOff: boolean
 }
 
 function plannedState(step: PlannedStep): StepState {
-  return step.on ? { kind: 'queued' } : { kind: 'off', line: step.offLine }
+  return step.on ? { kind: 'queued' } : { kind: 'off', leftOut: step.leftOutWhenOff }
+}
+
+/** The steps of a group that the step list shows. A step left out while off has no line, and is not counted either, since `syncControlOf` counts only steps that are not off. */
+export function listedSteps(group: RunGroup): readonly RunStep[] {
+  return group.steps.filter((step) => step.state.kind !== 'off' || !step.state.leftOut)
 }
 
 /** An app's group as a run starts it, its books step first. */

@@ -17,7 +17,7 @@ export const BANK_SYNC_STEP: SyncStep = {
   label: words.step.label,
   scopes: () => [BANK_SYNC_SCOPE],
   startLine: words.step.start,
-  offLine: words.step.noLiveLink,
+  leftOutWhenOff: true,
   on: () => store.state.workbook !== null && hasLiveLink(store.state.workbook.settings, today()),
   async run() {
     const last = loadLastFetch()

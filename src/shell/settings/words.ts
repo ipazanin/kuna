@@ -26,8 +26,10 @@ export const en = {
     title: 'Where new files go',
     onDrive: "New files go in Kuna's folder on Google Drive, with a folder inside it for each app. Your existing files stay where they are. Each app's Settings can move its file.",
     inBrowser: 'New files stay in this browser. Your existing files stay where they are.',
-    askAgainNote: 'The next app you set up on this device asks again. Nothing moves.',
+    askAgainNote: 'The next app you set up on this device asks again.',
     askAgain: 'Ask me again',
+    askedAgain: 'Kuna will ask again where new files go',
+    undo: 'Undo',
   },
   sync: {
     title: 'Sync',
@@ -76,8 +78,10 @@ export const hr: Translation<typeof en> = {
     title: 'Gdje idu nove datoteke',
     onDrive: 'Nove datoteke idu u mapu Kuna na Google Driveu, s mapom za svaku aplikaciju. Postojeće datoteke ostaju gdje jesu. Postavke svake aplikacije mogu premjestiti njezinu datoteku.',
     inBrowser: 'Nove datoteke ostaju u ovom pregledniku. Postojeće datoteke ostaju gdje jesu.',
-    askAgainNote: 'Sljedeća aplikacija koju postavite na ovom uređaju ponovno pita. Ništa se ne premješta.',
+    askAgainNote: 'Sljedeća aplikacija koju postavite na ovom uređaju ponovno pita.',
     askAgain: 'Pitaj me ponovno',
+    askedAgain: 'Kuna će ponovno pitati gdje idu nove datoteke',
+    undo: 'Poništi',
   },
   sync: {
     title: 'Sinkronizacija',

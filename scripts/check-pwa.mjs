@@ -196,7 +196,7 @@ try {
   console.log(`PASS: manifest, icons, scoped worker, complete precache${browserName === 'chrome' ? ', installable' : ''}`)
 
   // The first visit opens the home. Its Company card starts onboarding, which brings an xlsx file into this browser, kept in IndexedDB.
-  await waitForTitle(page, 'All apps')
+  await waitForTitle(page, 'Welcome to Kuna')
   await clickStart(page, '[data-testid="kuna-welcome-apps"] label', 'Company')
   await clickStart(page, '[data-testid="kuna-welcome-home"] label', 'Only this browser')
   await clickText(page, '[data-testid="kuna-welcome-continue"]', 'Continue')

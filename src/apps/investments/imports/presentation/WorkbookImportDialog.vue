@@ -31,11 +31,13 @@ const prices = usePrices()
 const workbookImport = useWorkbookImport()
 const { settled, ready, splitsLookup, closesLookup, splitVendor } = workbookImport
 const step = ref<ImportStep>('file')
+const triedQuestions = ref(false)
 
 watch(open, (opened) => {
   if (opened) {
     workbookImport.forget()
     step.value = 'file'
+    triedQuestions.value = false
   }
 })
 
@@ -49,10 +51,16 @@ const steps = computed((): ImportStep[] => {
 const shown = computed((): ImportStep => (steps.value.includes(step.value) ? step.value : 'dry-run'))
 const place = computed(() => steps.value.indexOf(shown.value))
 
+const parentUnpicked = computed(() => settled.value?.spinOffs.some((spinOff) => !spinOff.answeredByRow && spinOff.parent === null) ?? false)
+
 const top = ref<HTMLElement | null>(null)
 
-/** Each step starts at its top, however far down the step before it was read. */
+/** Each step starts at its top, however far down the step before it was read. The first Next past a spin-off with no parent stays and shows what is missing, and the second goes on and leaves it waiting. */
 async function move(by: number): Promise<void> {
+  if (by > 0 && shown.value === 'questions' && parentUnpicked.value && !triedQuestions.value) {
+    triedQuestions.value = true
+    return
+  }
   step.value = steps.value[place.value + by] ?? shown.value
   await nextTick()
   top.value?.scrollIntoView({ block: 'start' })
@@ -89,7 +97,7 @@ async function importWorkbook(): Promise<void> {
       <ImportFileStep v-if="shown === 'file'" :workbook-import="workbookImport" />
       <ImportAccountsStep v-else-if="shown === 'accounts' && settled" :workbook-import="workbookImport" :settled="settled" />
       <ImportInstrumentsStep v-else-if="shown === 'instruments' && settled" :workbook-import="workbookImport" :settled="settled" />
-      <ImportQuestionsStep v-else-if="shown === 'questions' && settled" :workbook-import="workbookImport" :settled="settled" />
+      <ImportQuestionsStep v-else-if="shown === 'questions' && settled" :workbook-import="workbookImport" :settled="settled" :tried="triedQuestions" />
       <ImportDryRunStep v-else-if="settled" :workbook-import="workbookImport" :settled="settled" :deleting="toDelete.length" />
     </div>
     <template #end>

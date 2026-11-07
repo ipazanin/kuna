@@ -32,7 +32,6 @@ export const en = {
   step: {
     label: 'Bank sync',
     start: 'Asking the banks',
-    noLiveLink: 'No bank link is still good',
     tooSoon: 'Asked the banks less than six hours ago, so they are left alone for now.',
     review: (count: number): EnglishForms => ({ one: '1 row to review', other: `${count} rows to review` }),
     settings: 'Bank sync',
@@ -67,7 +66,6 @@ export const hr: Translation<typeof en> = {
   step: {
     label: 'Sinkronizacija s bankom',
     start: 'Pita banke',
-    noLiveLink: 'Nijedna veza s bankom više ne vrijedi',
     tooSoon: 'Banke su pitane prije manje od šest sati, pa ih zasad ne pita ponovno.',
     review: (count): CroatianForms => ({ one: `Za pregled: ${count}`, few: `Za pregled: ${count}`, other: `Za pregled: ${count}` }),
     settings: 'Sinkronizacija s bankom',

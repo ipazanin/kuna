@@ -2174,6 +2174,11 @@ export async function mailOffFlow(page, { press, shoot, inspect }) {
   await syncAndSettle(page, press)
   await openKunaSettings(page)
   await stepSays(page, SYNC_CARD, 'mail', 'off', /Off in Settings/)
+  const leftOut = await page.evaluate(
+    (css) => ['rates', 'secrets', 'bank-sync'].filter((id) => document.querySelector(`${css} [data-step="${id}"][data-state="off"]`) !== null),
+    `${SYNC_CARD} ${SYNC_STEPS}`,
+  )
+  if (leftOut.length > 0) throw new Error(`the step list shows ${leftOut.join(', ')}, which are left out while the file has nothing for them`)
   await page.evaluate(() => {
     window.location.hash = '#/company/settings#mail'
   })
@@ -3565,6 +3570,13 @@ export function kunaWelcomeFlowIn(language) {
     if ((await card.evaluate((element) => element.textContent ?? '')) !== words.filesHome.onDrive) throw new Error('Kuna settings does not say where new files go')
     await inspect?.('Kuna settings with the answer')
     await shoot('kuna-welcome-settings')
+    await pressSelector(page, press, '[data-testid="files-home-ask-again"]')
+    await toastMatching(page, exactly(words.filesHome.askedAgain))
+    if (await page.$('[data-testid="files-home-card"]')) throw new Error('Ask me again leaves the answer on Kuna settings')
+    await pressButton(page, press, `${TOAST} button`, words.filesHome.undo)
+    await page.waitForSelector('[data-testid="files-home-card"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('Undo on the Ask me again toast did not bring the answer back')
+    })
   }
 }
 
@@ -5108,8 +5120,8 @@ export function homeFlowIn(language) {
 export const homeFlow = homeFlowIn('en')
 
 /**
- * A fresh device opens the home with the welcome in place of the cards, and a sidebar with Add an app alone, which moves focus to the welcome's first
- * app, no Net worth and no empty strip where Sync would be. Once answered every app shows in Set up. Loans, Investments, Assets and Spending can be set
+ * A fresh device opens the home with the welcome in place of the cards, and a sidebar with no Add an app until the welcome is answered, no Net worth
+ * and no empty strip where Sync would be. Once answered every app shows in Set up. Loans, Investments, Assets and Spending can be set
  * up first: each card opens its first run, whose link home comes back, and the Company card opens the company's welcome.
  */
 export function setUpFlowIn(language) {
@@ -5122,12 +5134,9 @@ export function setUpFlowIn(language) {
     if (await page.evaluate(() => document.querySelector('[data-testid="sync-status"]') !== null)) throw new Error('the fresh home shows a sync control')
     if ((await page.evaluate(homeMenu)) !== null) {
       const fresh = await page.evaluate(menuShown)
-      if (fresh.apps.length !== 0 || fresh.addApp !== words.addApp || fresh.netWorth !== null)
+      if (fresh.apps.length !== 0 || fresh.addApp !== null || fresh.netWorth !== null)
         throw new Error(`before any app is set up the sidebar shows ${fresh.apps.join()}, ${fresh.addApp} and ${fresh.netWorth}`)
       if (await page.$('[data-testid="sidebar-sync"]')) throw new Error('before any app is set up the sidebar keeps an empty strip where Sync would be')
-      await pressSelector(page, press, '[data-testid="nav-add-app"]')
-      const inWelcome = await page.evaluate(() => Boolean(document.activeElement?.closest('[data-testid="kuna-welcome-apps"]')))
-      if (!inWelcome) throw new Error('Add an app on the welcome did not move focus to its first app')
     }
     await inspect?.('the home on a fresh device')
     await shoot('home-set-up')
@@ -8043,7 +8052,7 @@ export async function assistSaveKeepsCompanyFlow(page, { press, inspect }) {
 
 /**
  * Salaries with five made-up employees, a kept yes and Company's switch off. The dialog says names and pay go, whatever
- * the yes says. Send once sends and leaves the switch off, so the next press asks again, and Don't ask again turns the
+ * the yes says. Send once sends and leaves the switch off, so the next press asks again, and Send, don't ask again turns the
  * switches on, so the press after it sends with no dialog.
  */
 export function assistSendOnceFlowIn(language) {
@@ -8056,6 +8065,7 @@ export function assistSendOnceFlowIn(language) {
         throw new Error('Explain did not ask with the switch off')
       })
       await elementSays(page, '[data-testid="assist-consent-employees"]', [words.explain.employeesGo('Anthropic')], 'the dialog does not say names and pay go')
+      await elementSays(page, '[role="dialog"]', [words.consent.title('Anthropic'), words.consent.dontAsk], 'the dialog does not ask whom it sends to or offer to send without asking again')
       await delay(400)
     }
     try {
@@ -8081,11 +8091,11 @@ export function assistSendOnceFlowIn(language) {
       await asksAndNames()
       await pressSelector(page, press, '[data-testid="assist-consent-always"]')
       await dialogGone(page, CONSENT)
-      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== 'on') throw new Error("Don't ask again did not turn the switch on")
+      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== 'on') throw new Error("Send, don't ask again did not turn the switch on")
       await page.waitForSelector(`${EXPLAIN_BUTTON}:not([disabled])`, { visible: true, timeout: 10_000 })
       await pressSelector(page, press, EXPLAIN_BUTTON)
       await delay(300)
-      if (await page.$(CONSENT)) throw new Error("Explain still asks after Don't ask again")
+      if (await page.$(CONSENT)) throw new Error("Explain still asks after Send, don't ask again")
     } finally {
       await forgetAssist(page)
     }
@@ -8281,7 +8291,7 @@ async function suggestOnQueue(page, press, language, { inspect, shoot }, shotNam
   const words = ASSIST_WORDS[language]
   await keepAssistKey(page)
   await pressSelector(page, press, SUGGEST_BUTTON)
-  await consentTo(page, press, { inspect, shoot }, [words.suggest.sends, words.retention.anthropic, words.consent.sendOnce], shotName)
+  await consentTo(page, press, { inspect, shoot }, [words.consent.title('Anthropic'), words.suggest.sends, words.retention.anthropic, words.consent.sendOnce], shotName)
   await page.waitForSelector('[data-testid="review-suggest-line"]', { visible: true, timeout: 10_000 }).catch(() => {
     throw new Error('Suggest categories gave no line under the queue card')
   })
@@ -8504,7 +8514,7 @@ async function openPayFigure(page, press) {
 async function explainOpenFigure(page, press, language, { inspect, shoot }) {
   const words = ASSIST_WORDS[language]
   await pressSelector(page, press, EXPLAIN_BUTTON)
-  await consentTo(page, press, { inspect, shoot }, [words.explain.sends, words.consent.sendOnce])
+  await consentTo(page, press, { inspect, shoot }, [words.consent.title('Anthropic'), words.explain.sends, words.consent.sendOnce])
   await page.waitForSelector('[data-testid="cited-answer"]', { visible: true, timeout: 10_000 }).catch(async () => {
     const line = await page.evaluate(() => document.querySelector('[data-testid="explain-line"]')?.textContent?.trim() ?? 'nothing')
     throw new Error(`Explain gave no answer, the dialog says: ${line}`)

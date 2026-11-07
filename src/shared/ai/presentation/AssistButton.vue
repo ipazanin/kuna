@@ -9,7 +9,7 @@ import { allowOnce, assistKeyKept, forgetOnce, providerInUse } from './useAiTask
 
 /**
  * An app's button for one assist task, shown only while a key is kept for the provider in use. While a switch the run
- * needs is off, each tap asks. A yes sends once, and Don't ask again turns on what this run needed.
+ * needs is off, each tap asks. A yes sends once, and Send, don't ask again turns on what this run needed.
  */
 const props = withDefaults(
   defineProps<{

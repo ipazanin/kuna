@@ -1,4 +1,5 @@
 import type { AppContribution, AppScreen } from '../../shared/app/appContribution'
+import { kunaStart } from '../../shared/app/kunaStart'
 import { entryPath, waitingIn } from '../routing/appRegistry'
 import { HOME_SCREEN, KUNA_SETTINGS_SCREEN, NET_WORTH_SCREEN } from '../routing/screens'
 import { words } from './words'
@@ -34,7 +35,7 @@ export interface Navigation {
   readonly netWorth: NavigationEntry | null
   /** The apps that are set up. */
   readonly apps: readonly NavigationApp[]
-  /** The way to the home's cards, which offer every app, while any app is left out. */
+  /** The way to the home's cards, which offer every app, while any app is left out and the welcome has an answer. */
   readonly addApp: NavigationEntry | null
   readonly kunaSettings: NavigationEntry
 }
@@ -73,7 +74,7 @@ export function navigationOf(apps: readonly AppContribution[], openAppId: string
   return {
     netWorth: inUse.length === 0 ? null : entryOf(NET_WORTH_SCREEN),
     apps: inUse.map((app) => navigationAppOf(app, openAppId)),
-    addApp: inUse.length === apps.length ? null : { to: HOME_SCREEN.path, label: words.navigation.addApp, icon: 'i-lucide-plus' },
+    addApp: kunaStart() === null || inUse.length === apps.length ? null : { to: HOME_SCREEN.path, label: words.navigation.addApp, icon: 'i-lucide-plus' },
     kunaSettings: entryOf(KUNA_SETTINGS_SCREEN),
   }
 }

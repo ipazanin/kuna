@@ -11,7 +11,6 @@ export const en = {
   otherApps: 'Other apps',
   welcome: {
     title: 'Welcome to Kuna',
-    subtitle: 'Two questions, once. Every app is still there if you leave it out, and Kuna settings can ask again about where new files go.',
     which: 'Which apps do you want to use?',
     where: 'Where should your files live?',
     drive: 'One Kuna folder on Google Drive',
@@ -30,7 +29,6 @@ export const hr: Translation<typeof en> = {
   otherApps: 'Ostale aplikacije',
   welcome: {
     title: 'Dobrodošli u Kunu',
-    subtitle: 'Dva pitanja, jednom. Svaka aplikacija ostaje dostupna i ako je izostavite, a postavke Kune mogu ponovno pitati gdje idu nove datoteke.',
     which: 'Koje aplikacije želite koristiti?',
     where: 'Gdje će biti vaše datoteke?',
     drive: 'Jedna mapa Kuna na Google Driveu',

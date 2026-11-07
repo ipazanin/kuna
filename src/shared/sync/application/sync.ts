@@ -4,7 +4,6 @@ import { isUnauthorized } from '../../google/googleApi'
 import type { GoogleScope } from '../../google/googleScopes'
 import { accessLostFrom, finishedRun, needsAccess, replanned, skippedAfter, startedRun, stepsNeedingAccess, withStep } from './syncRun'
 import type { PlannedStep, StepResult, SyncRun } from './syncRun'
-import { words } from './words'
 
 /** One step of a sync, which an app contributes. It reads its own app's books on screen for its scopes and its switch. */
 export interface SyncStep {
@@ -17,8 +16,8 @@ export interface SyncStep {
   readonly startLine: string
   /** Whether the settings of the books on screen turn it on. Before the first copy it counts as on. */
   on(): boolean
-  /** What the step says while it is off, where the default "Off in Settings" would not be true. */
-  readonly offLine?: string
+  /** True for a step that is off because the file has nothing for it, such as rates with no foreign account, so the step list leaves it out. Without it an off step shows as Off in Settings. */
+  readonly leftOutWhenOff?: boolean
   /** Runs the step and says what it did. `report` changes the line it shows while it runs, and `startedAt` names the run, which every group's steps share. */
   run(report: (line: string) => void, startedAt: string): Promise<StepResult>
 }
@@ -79,7 +78,7 @@ export interface Sync {
 
 /** A step as the books on screen plan it. */
 function planned(step: SyncStep): PlannedStep {
-  return { id: step.id, label: step.label, scopes: step.scopes(), on: step.on(), offLine: step.offLine ?? words.off }
+  return { id: step.id, label: step.label, scopes: step.scopes(), on: step.on(), leftOutWhenOff: step.leftOutWhenOff ?? false }
 }
 
 export function createSync(ports: SyncPorts): Sync {

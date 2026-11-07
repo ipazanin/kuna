@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import type { AppContribution, AppScreen, MenuCount } from '../src/shared/app/appContribution'
+import { answerKunaStart, forgetKunaStart } from '../src/shared/app/kunaStart'
 import { appAt, waitingIn } from '../src/shell/routing/appRegistry'
 import { navigationOf } from '../src/shell/ui/navigation'
 
@@ -71,7 +72,16 @@ describe('the menu', () => {
     ])
   })
 
+  afterEach(() => {
+    forgetKunaStart()
+  })
+
+  it('offers no Add an app until the welcome has an answer', () => {
+    expect(navigationOf([appWith(new Map()), appWith(new Map(), true, 'other')], null).addApp).toBeNull()
+  })
+
   it('leaves out an app in its first run and offers Add an app', () => {
+    answerKunaStart({ apps: ['other'], home: 'drive' })
     const inUse = appWith(new Map())
     const unused = appWith(new Map(), true, 'other')
     const { apps, addApp, netWorth } = navigationOf([inUse, unused], null)
@@ -86,6 +96,7 @@ describe('the menu', () => {
   })
 
   it('shows Add an app and no Net worth before any app is set up', () => {
+    answerKunaStart({ apps: ['books'], home: 'drive' })
     const { apps, addApp, netWorth, kunaSettings } = navigationOf([appWith(new Map(), true)], null)
 
     expect(apps).toEqual([])

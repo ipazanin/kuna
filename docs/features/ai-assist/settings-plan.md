@@ -380,7 +380,7 @@ Built on the `chat` branch, issue #50. Delete my keys stays out of the card, and
 - Another tab's change of a switch, the pick or a key arrives through a `storage` listener.
 - The card's rules live in `useAssistantCard.ts`, which specs run without mounting the card.
 
-**The dialog, by the owner's answer.** Send once sends this one time, through `allowOnce`, and leaves the switches as they are, so off asks each time. Don't ask again turns on the app's switch, and the task's yes on employee data when this run sends it. A run that sends employee data says so plainly in the dialog, naming the company, whatever the switches say. Try again on Explain goes through the same tap, so it asks too.
+**The dialog, by the owner's answer.** Send once sends this one time, through `allowOnce`, and leaves the switches as they are, so off asks each time. Send, don't ask again turns on the app's switch, and the task's yes on employee data when this run sends it. A run that sends employee data says so plainly in the dialog, naming the company, whatever the switches say. Try again on Explain goes through the same tap, so it asks too.
 
 **Where the code overruled this plan.**
 

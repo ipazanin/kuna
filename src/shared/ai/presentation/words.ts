@@ -67,8 +67,9 @@ export const en = {
     openrouter: 'OpenRouter keeps nothing by default. The company behind the model you pick keeps what its own terms say.',
   } satisfies Record<ProviderId, string>,
   consent: {
+    title: (company: string) => `Send to ${company}?`,
     sendOnce: 'Send once',
-    dontAsk: "Don't ask again",
+    dontAsk: "Send, don't ask again",
     sends: (sends: string) => `What leaves this device: ${sends}`,
     cancel: 'Cancel',
   },
@@ -167,8 +168,9 @@ export const hr: Translation<typeof en> = {
     openrouter: 'OpenRouter prema zadanim postavkama ništa ne čuva. Tvrtka koja stoji iza odabranog modela čuva ono što kažu njezini uvjeti.',
   },
   consent: {
+    title: (company) => `Poslati tvrtki ${company}?`,
     sendOnce: 'Pošalji jednom',
-    dontAsk: 'Ne pitaj više',
+    dontAsk: 'Pošalji, ne pitaj više',
     sends: (sends) => `Što napušta ovaj uređaj: ${sends}`,
     cancel: 'Odustani',
   },

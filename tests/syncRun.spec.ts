@@ -4,6 +4,7 @@ import {
   BOOKS_STEP,
   accessLostFrom,
   finishedRun,
+  listedSteps,
   oldestRead,
   pageAccessOf,
   replanned,
@@ -24,8 +25,6 @@ const ENOUGH: PageAccess = { kind: 'enough' }
 
 const DONE: StepState = { kind: 'done', line: 'Up to date', writeId: null, link: null }
 
-const OFF_LINE = 'Off in Settings'
-
 const COMPANY = { app: 'company', name: 'Company' } as const
 
 /** The company's books, statements, a mail step that is off, and the accountant, as a run starts them. */
@@ -35,10 +34,10 @@ function started(): SyncRun {
       {
         ...COMPANY,
         steps: [
-          { ...BOOKS_STEP, on: true, offLine: OFF_LINE },
-          { id: 'statements', label: 'Statements', scopes: ['drive.readonly'], on: true, offLine: OFF_LINE },
-          { id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.readonly'], on: false, offLine: OFF_LINE },
-          { id: 'accountant', label: 'Accountant', scopes: ['drive.readonly'], on: true, offLine: OFF_LINE },
+          { ...BOOKS_STEP, on: true, leftOutWhenOff: false },
+          { id: 'statements', label: 'Statements', scopes: ['drive.readonly'], on: true, leftOutWhenOff: false },
+          { id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.readonly'], on: false, leftOutWhenOff: false },
+          { id: 'accountant', label: 'Accountant', scopes: ['drive.readonly'], on: true, leftOutWhenOff: false },
         ],
       },
     ],
@@ -59,17 +58,48 @@ describe('a sync run', () => {
     expect(started().finishedAt).toBeNull()
   })
 
-  it('gives an off step the line its plan names', () => {
-    const run = startedRun([{ ...COMPANY, steps: [{ id: 'rates', label: 'Rates', scopes: [], on: false, offLine: 'No account is in another currency' }] }], STARTED)
+  it('lists a step that is off by a setting and leaves out one the file has nothing for', () => {
+    const run = startedRun(
+      [
+        {
+          ...COMPANY,
+          steps: [
+            { ...BOOKS_STEP, on: true, leftOutWhenOff: false },
+            { id: 'mail', label: 'Mail', scopes: ['gmail.readonly'], on: false, leftOutWhenOff: false },
+            { id: 'rates', label: 'Rates', scopes: [], on: false, leftOutWhenOff: true },
+          ],
+        },
+      ],
+      STARTED,
+    )
 
-    expect(stepsOf(run)[0]!.state).toEqual({ kind: 'off', line: 'No account is in another currency' })
+    expect(stepsOf(run).map((step) => step.id)).toEqual(['books', 'mail', 'rates'])
+    expect(listedSteps(run.groups[0]!).map((step) => step.id)).toEqual(['books', 'mail'])
+  })
+
+  it('counts neither an off step nor a left out one among the steps the control runs through', () => {
+    const run = startedRun(
+      [
+        {
+          ...COMPANY,
+          steps: [
+            { ...BOOKS_STEP, on: true, leftOutWhenOff: false },
+            { id: 'mail', label: 'Mail', scopes: ['gmail.readonly'], on: false, leftOutWhenOff: false },
+            { id: 'rates', label: 'Rates', scopes: [], on: false, leftOutWhenOff: true },
+          ],
+        },
+      ],
+      STARTED,
+    )
+
+    expect(syncControlOf(run, BOOKS_READ, ENOUGH, null)).toMatchObject({ kind: 'running', label: 'Books', position: 1, of: 1 })
   })
 
   it('turns the queued steps on or off again with their scopes once the books are read, and leaves a step the plan does not name as it was', () => {
     const run = replanned(withStep(started(), 'company', 'books', DONE), 'company', [
-      { id: 'books', label: 'Books', scopes: ['drive.file'], on: false, offLine: OFF_LINE },
-      { id: 'statements', label: 'Statements', scopes: ['drive.file'], on: false, offLine: OFF_LINE },
-      { id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.file'], on: true, offLine: OFF_LINE },
+      { id: 'books', label: 'Books', scopes: ['drive.file'], on: false, leftOutWhenOff: false },
+      { id: 'statements', label: 'Statements', scopes: ['drive.file'], on: false, leftOutWhenOff: false },
+      { id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.file'], on: true, leftOutWhenOff: false },
     ])
 
     expect(kinds(run)).toEqual([
@@ -105,7 +135,7 @@ describe('a sync run', () => {
   })
 
   it('turns a later step that shares any scope with the one Google turned away into Allow access, and names every scope in its line', () => {
-    const mailOn = replanned(withStep(started(), 'company', 'books', DONE), 'company', [{ id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.readonly'], on: true, offLine: OFF_LINE }])
+    const mailOn = replanned(withStep(started(), 'company', 'books', DONE), 'company', [{ id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.readonly'], on: true, leftOutWhenOff: false }])
     const run = accessLostFrom(withStep(mailOn, 'company', 'statements', { kind: 'running', line: 'Filing 4 rows' }), 'company', 'statements')
 
     expect(stepsOf(run)[2]!.state).toEqual({ kind: 'needs-access', scopes: ['gmail.readonly', 'drive.readonly'], line: 'Waits for your Gmail read access and your Drive read access' })
@@ -117,13 +147,13 @@ describe('a run over two apps', () => {
   function twoApps(): SyncRun {
     return startedRun(
       [
-        ...started().groups.map((group) => ({ ...group, steps: group.steps.map((step) => ({ ...step, on: step.state.kind === 'queued', offLine: OFF_LINE })) })),
+        ...started().groups.map((group) => ({ ...group, steps: group.steps.map((step) => ({ ...step, on: step.state.kind === 'queued', leftOutWhenOff: false })) })),
         {
           app: 'loans',
           name: 'Loans',
           steps: [
-            { ...BOOKS_STEP, on: true, offLine: OFF_LINE },
-            { id: 'rates', label: 'Rates', scopes: ['drive.readonly'], on: true, offLine: OFF_LINE },
+            { ...BOOKS_STEP, on: true, leftOutWhenOff: false },
+            { id: 'rates', label: 'Rates', scopes: ['drive.readonly'], on: true, leftOutWhenOff: false },
           ],
         },
       ],

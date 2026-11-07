@@ -539,7 +539,7 @@ async function checkWidth(width) {
       ['', 'Overview', 'Company', 'Net worth', 'Add an app', 'All apps'],
       ['&lang=hr', 'Pregled', 'Tvrtka', 'Neto imovina', 'Dodaj aplikaciju', 'Sve aplikacije'],
     ]) {
-      await page.goto(`${BASE}?theme=dark${query}&load=${Date.now()}#/company`, { waitUntil: 'networkidle0' })
+      await page.goto(`${BASE}?theme=dark${query}&start=drive&load=${Date.now()}#/company`, { waitUntil: 'networkidle0' })
       await waitForTitle(page, title)
       await openDrawer(page)
       await expect(
@@ -2895,7 +2895,7 @@ async function checkWidth(width) {
 
   await step('open-file-browser', async () => {
     await page.goto(`${BASE}?theme=dark&fake=empty#/`, { waitUntil: 'networkidle0' })
-    await waitForTitle(page, 'All apps')
+    await waitForTitle(page, 'Welcome to Kuna')
     await expect(
       page.evaluate(() => document.querySelector('[data-testid="kuna-welcome"]') !== null && document.querySelector('[data-testid="home-card"]') === null),
       (welcomed) => welcomed,
@@ -2932,8 +2932,8 @@ async function checkWidth(width) {
     ['onboarding-drive', 'empty', onboardingDriveFlow],
     ['onboarding-pack', 'empty', onboardingPackFlow],
     ['onboarding-delivery', 'empty', onboardingDeliveryFlow],
-    ['kuna-welcome', 'empty', kunaWelcomeFlow, '#/', 'All apps'],
-    ['kuna-welcome-browser', 'empty', kunaWelcomeBrowserFlow, '#/', 'All apps'],
+    ['kuna-welcome', 'empty', kunaWelcomeFlow, '#/', 'Welcome to Kuna'],
+    ['kuna-welcome-browser', 'empty', kunaWelcomeBrowserFlow, '#/', 'Welcome to Kuna'],
     ['move-into-kuna', 'drive', moveIntoKunaFlow, '#/company/settings?tab=books', 'Settings'],
     ['move-into-kuna-statements', 'mail-move', moveStatementsIntoKunaFlow, '#/company/settings?tab=books', 'Settings'],
     ['onboarding-browser', 'empty', onboardingBrowserFlow],

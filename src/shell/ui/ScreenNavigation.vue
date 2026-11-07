@@ -24,11 +24,11 @@ const route = useRoute()
 const list = useTemplateRef<HTMLElement>('list')
 
 /**
- * On the home the row's link stays put, so it moves to where an app is added: the first card that offers Set up, the picked apps' before the others',
- * or the welcome's first app while the welcome shows in place of the cards. Elsewhere the home is not drawn yet and the link does the work.
+ * On the home the row's link stays put, so it moves to where an app is added: the first card that offers Set up, the picked apps' before the others'.
+ * Elsewhere the home is not drawn yet and the link does the work.
  */
 function showWhereToAddApp(): void {
-  document.querySelector<HTMLElement>('[data-testid="home-card"][data-state="set-up"], [data-testid="kuna-welcome-apps"] [role="checkbox"]')?.focus({ focusVisible: true })
+  document.querySelector<HTMLElement>('[data-testid="home-card"][data-state="set-up"]')?.focus({ focusVisible: true })
 }
 
 function currentPage(): Element | null {

@@ -5,6 +5,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 ## Screens and cards
 
 - A screen opens with `PageHeader`, then cards. Every card is an `AppCard`, with a title, or bare for a tile.
+- The welcome on a fresh device has no `PageHeader` and no subtitle. Its card is the page, with its title as the `h1` and `max-w-2xl` for a measure that suits a laptop.
 - A long list or table sits in a collapsible `AppCard` with a `collapse-id` named as screen and card, such as `invoicing.months`. Its `summary` is the one line shown when collapsed. A deep link into a card passes `reveal`.
 - A screen made of one table, one list or one form keeps the narrower measure (`max-w-measure`). A dashboard screen widens with `DashboardGrid`.
 - A screen whose books are still opening shows `ScreenSkeleton` below its header.
@@ -86,10 +87,15 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - One app is open at a time, and the address decides which, so nothing about it is stored. An open app shows its optional subtitle in `type-caption`, its menu and its Settings. The small arrow on a closed app's row opens its pages without leaving the screen, and the next change of address closes them. The arrow is a button beside the row's link, never inside it, and 44 px on a phone.
 - Menu items and app rows share one grid: a 24 px column for the icon or tile, then the name, so an item's name lines up with its app's. The open app stands out by weight and its tile, never by indenting or tinting. The selected item keeps the accent.
 - A pill on a menu item means something waits there, and nothing else. A closed app's row adds up its items' pills, and an open app's row shows none, since its item carries it. An app in its first run has no file, so it is left out.
-- While any app is left out, a quiet Add an app row closes the list and leads to the home, whose cards offer every app. Before any app is set up, Net worth is left out too, since it has nothing to show.
+- While any app is left out and the welcome has an answer, a quiet Add an app row closes the list and leads to the home, whose cards offer every app. Before any app is set up, Net worth is left out too, since it has nothing to show.
 - Kuna's home at `#/` has a card per app, and no app is open in its menu. The phone home has the same drawer as every screen, so Net worth and Kuna settings are reached there and the home carries no buttons for them.
 - Kuna settings at `#/settings` holds only what is the same for every app: sync, sign-out, where new files go, the AI key and model, theme and language. What an app may send sits in that app's Settings, with a read-only line and a link in Kuna settings.
 - A first run starts with the quiet `HomeLink`, so it can be left for the home.
+
+## Sync steps
+
+- A step that a setting turned off, such as Mail or Statements, shows in the step list as "Off in Settings". A step that is off because the file has nothing for it, such as ECB rates with no foreign account, Keys with no key in use or Bank sync with no good link, sets `leftOutWhenOff` and is not listed. Neither kind is counted in the sync control's place among the steps.
+- Do not explain why a step is not needed. Leave it out.
 
 ## Phone
 

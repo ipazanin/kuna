@@ -20,8 +20,9 @@ const emit = defineEmits<{ once: []; always: [] }>()
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="task.title" :description="words.consent.sends(task.sends)">
+  <AppDialog v-model:open="open" :title="words.consent.title(provider.name)" :description="words.consent.sends(task.sends)">
     <div class="flex flex-col gap-3" data-testid="assist-consent">
+      <p class="type-label">{{ task.title }}</p>
       <p class="type-body">{{ words.retention[provider.id] }}</p>
       <UAlert v-if="sendsEmployees && task.employees" color="neutral" variant="subtle" icon="i-lucide-info" :title="task.employees.goes(provider.name)" data-testid="assist-consent-employees" />
     </div>

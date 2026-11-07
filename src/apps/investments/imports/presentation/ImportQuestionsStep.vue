@@ -10,7 +10,8 @@ import { words } from './words'
 import { QUANTITY_PLACES } from '../../holdings/presentation/holdingText'
 import { decimalText } from '../../../../shared/money/decimal'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { formatCurrencyAmount, formatPercent, formatQuantity } from '../../../../shared/money/moneyFormat'
+import { formatCurrencyAmount, formatQuantity } from '../../../../shared/money/moneyFormat'
+import { plural } from '../../../../shared/text/translation'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 
@@ -18,6 +19,8 @@ import FormGrid from '../../../../shared/ui/FormGrid.vue'
 const props = defineProps<{
   workbookImport: WorkbookImport
   settled: SettledImport
+  /** True once Next was pressed with a spin-off's parent still unpicked, which is when the parent field shows its error. */
+  tried: boolean
 }>()
 
 /** Each holding of the workbook by its identity, by the name it has in Kuna or will have. */
@@ -36,8 +39,9 @@ const units = (quantity: Parameters<typeof formatQuantity>[0]): string => format
 
 function splitLine(step: SplitStep): string {
   const { added, held } = step.question
-  if (held === null) return words.questions.splitNoHolding(units(added))
-  return held > 0n ? words.questions.splitRows(units(added), units(held)) : words.questions.splitNothingHeld(units(added))
+  const count = Number(decimalText(added))
+  if (held === null) return plural(words.questions.splitNoHolding(count, units(added)), count)
+  return held > 0n ? plural(words.questions.splitRows(count, units(added), units(held)), count) : plural(words.questions.splitNothingHeld(count, units(added)), count)
 }
 
 const asked = computed(() => ({
@@ -55,6 +59,11 @@ function typeSplit(step: SplitStep, part: 'newUnits' | 'oldUnits', text: string)
 
 function parentItems(step: SpinOffStep): { value: string; label: string }[] {
   return props.settled.parents.filter((instrument) => instrument.id !== step.received).map((instrument) => ({ value: instrument.id as string, label: instrument.name }))
+}
+
+function spinOffLine(step: SpinOffStep): string {
+  const count = Number(decimalText(step.question.quantity))
+  return plural(words.questions.spinOffRows(count, units(step.question.quantity), worthOf(step)), count)
 }
 
 function worthOf(step: SpinOffStep): string {
@@ -81,8 +90,7 @@ function readingItems(readings: readonly string[]): { value: string; label: stri
 
 function shareHelp(step: SpinOffStep): string {
   if (step.proposed === null) return words.questions.costShareHelp
-  const share = formatPercent(Number(decimalText(step.proposed)))
-  return step.proposedOn === null ? words.questions.costShareProposed(share) : words.questions.costShareFromCloses(share, dayLabel(step.proposedOn))
+  return step.proposedOn === null ? words.questions.costShareProposed : words.questions.costShareFromCloses(dayLabel(step.proposedOn))
 }
 </script>
 
@@ -117,21 +125,11 @@ function shareHelp(step: SpinOffStep): string {
         <li v-for="step in asked.spinOffs" :key="step.question.key" class="flex flex-col gap-3 border-t border-default py-4 first:border-t-0" data-testid="import-spin-off">
           <p class="flex flex-col gap-0.5">
             <span class="type-label">{{ words.questions.spinOff(nameOf(step.question.identity), dayLabel(step.question.date)) }}</span>
-            <span class="type-caption">{{ words.questions.spinOffRows(units(step.question.quantity), worthOf(step)) }}</span>
+            <span class="type-caption">{{ spinOffLine(step) }}</span>
             <span v-if="step.workbookProblem" class="type-caption text-warning" data-testid="import-spin-off-row-problem">{{ step.workbookProblem }}</span>
           </p>
-          <div v-if="step.costShareReadings" class="flex flex-col gap-1.5">
-            <p class="type-caption text-warning" data-testid="import-spin-off-unclear">{{ unclearLine(step, step.costShareReadings) }}</p>
-            <ChoiceButtons
-              :model-value="step.costShare"
-              :options="readingItems(step.costShareReadings)"
-              :label="words.questions.costShareReadings"
-              data-testid="import-spin-off-readings"
-              @update:model-value="typeShare(step, String($event))"
-            />
-          </div>
           <FormGrid>
-            <UFormField :label="words.questions.parent" :error="step.problems.parent ?? false">
+            <UFormField :label="words.questions.parent" :error="(tried && step.problems.parent) || false">
               <USelect
                 v-bind="step.parent === null ? {} : { modelValue: step.parent }"
                 :items="parentItems(step)"
@@ -142,6 +140,18 @@ function shareHelp(step: SpinOffStep): string {
               />
             </UFormField>
             <UFormField :label="words.questions.costShare" :help="shareHelp(step)" :error="(step.parent !== null && step.problems.costShare) || false">
+              <template v-if="step.costShareReadings" #description>
+                <div class="flex flex-col gap-1.5">
+                  <p class="type-caption text-warning" data-testid="import-spin-off-unclear">{{ unclearLine(step, step.costShareReadings) }}</p>
+                  <ChoiceButtons
+                    :model-value="step.costShare"
+                    :options="readingItems(step.costShareReadings)"
+                    :label="words.questions.costShareReadings"
+                    data-testid="import-spin-off-readings"
+                    @update:model-value="typeShare(step, String($event))"
+                  />
+                </div>
+              </template>
               <UInput :model-value="step.costShare" inputmode="decimal" class="w-full" data-testid="import-spin-off-share" @update:model-value="typeShare(step, String($event))" />
             </UFormField>
           </FormGrid>

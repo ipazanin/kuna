@@ -33,7 +33,10 @@ function answer(): void {
 </script>
 
 <template>
-  <AppCard :title="text.title" :subtitle="text.subtitle" class="max-w-measure" data-testid="kuna-welcome">
+  <AppCard :title="text.title" heading="h1" class="max-w-2xl" data-testid="kuna-welcome">
+    <template #title>
+      <span data-testid="screen-title" tabindex="-1" class="screen-title">{{ text.title }}</span>
+    </template>
     <div class="flex flex-col gap-5 px-4 pt-4 pb-5 sm:px-5">
       <UCheckboxGroup v-model="chosenApps" :items="APP_CHOICES" :legend="text.which" variant="card" :ui="{ legend: 'type-label mb-2', fieldset: 'gap-2' }" data-testid="kuna-welcome-apps" />
       <p v-for="line in orderLines" :key="line" class="type-caption" data-testid="kuna-welcome-order">{{ line }}</p>

@@ -5,7 +5,7 @@ import type { CroatianForms, EnglishForms, Translation } from '../../../../share
 // A note under Kuna's sum ends the sentence "Ne uključuje …, ni …", so Croatian writes it in the accusative.
 
 export const en = {
-  purpose: 'Your accounts, what you spend and your monthly limits, in a file of their own.',
+  purpose: 'Your accounts, what you spend and your monthly limits.',
   spentThisMonth: 'Spent this month',
   leftThisMonth: 'Left this month',
   toReview: (count: number): EnglishForms => ({ one: '1 row to review', other: `${count} rows to review` }),
@@ -23,7 +23,7 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
-  purpose: 'Vaši računi, potrošnja i mjesečna ograničenja u zasebnoj datoteci.',
+  purpose: 'Vaši računi, potrošnja i mjesečna ograničenja.',
   spentThisMonth: 'Potrošeno ovaj mjesec',
   leftThisMonth: 'Preostalo ovaj mjesec',
   toReview: (count): CroatianForms => ({ one: `Za pregled: ${count}`, few: `Za pregled: ${count}`, other: `Za pregled: ${count}` }),

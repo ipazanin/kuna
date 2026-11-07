@@ -20,7 +20,6 @@ export const en = {
   },
   step: {
     label: 'Keys',
-    off: 'No key is in use',
     reading: 'Reading the keys in your Google account',
     unchanged: 'Up to date',
     sent: "Saved this browser's keys to your Google account",
@@ -49,7 +48,6 @@ export const hr: Translation<typeof en> = {
   },
   step: {
     label: 'Ključevi',
-    off: 'Nijedan ključ nije u upotrebi',
     reading: 'Čitanje ključeva s vašeg Google računa',
     unchanged: 'Ažurno',
     sent: 'Ključevi ovog preglednika spremljeni su na vaš Google račun',

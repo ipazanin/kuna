@@ -5,6 +5,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { dateFormat } from '../../calendar/dateFormat'
 import DrillLink from '../../ui/DrillLink.vue'
+import { listedSteps } from '../application/syncRun'
 import type { RunStep, StepState, SyncRun } from '../application/syncRun'
 import { words as syncWords } from '../application/words'
 import { usePageSync } from './pageSync'
@@ -45,6 +46,8 @@ const when = computed(() => {
 function lineOf(step: RunStep): string {
   const { state } = step
   switch (state.kind) {
+    case 'off':
+      return syncWords.off
     case 'queued':
       return syncWords.waiting
     default:
@@ -70,7 +73,7 @@ function linkOf(step: RunStep) {
       <section v-for="group in run.groups" :key="group.app" class="flex flex-col gap-2" :aria-label="run.groups.length > 1 ? group.name : undefined" :data-group="group.app">
         <h3 v-if="run.groups.length > 1" class="text-xs font-medium text-muted">{{ group.name }}</h3>
         <ol class="flex flex-col gap-2.5">
-          <li v-for="step in group.steps" :key="step.id" class="flex items-start gap-2" :data-step="step.id" :data-state="step.state.kind">
+          <li v-for="step in listedSteps(group)" :key="step.id" class="flex items-start gap-2" :data-step="step.id" :data-state="step.state.kind">
             <UIcon :name="ICONS[step.state.kind].name" class="mt-0.5 size-4 shrink-0" :class="ICONS[step.state.kind].tone" aria-hidden="true" />
             <div class="flex min-w-0 flex-1 flex-col gap-1">
               <p class="text-sm break-words text-toned">

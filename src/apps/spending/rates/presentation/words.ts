@@ -16,7 +16,6 @@ export const en = {
     label: 'ECB rates',
     start: 'Asking the ECB for its rates',
     done: (currencies: string) => `The ECB rates of ${currencies} are up to date`,
-    none: 'No account is in another currency',
     failed: 'The ECB rates did not load, so accounts in another currency show in their own currency',
   },
 }
@@ -33,7 +32,6 @@ export const hr: Translation<typeof en> = {
     label: 'Tečajevi ESB-a',
     start: 'Traže se tečajevi ESB-a',
     done: (currencies) => `Tečajevi ESB-a za ${currencies} su ažurni`,
-    none: 'Nijedan račun nije u drugoj valuti',
     failed: 'Tečajevi ESB-a nisu se učitali, pa se računi u drugoj valuti prikazuju u svojoj valuti',
   },
 }

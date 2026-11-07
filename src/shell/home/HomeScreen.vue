@@ -25,7 +25,7 @@ const used = computed(() => apps.filter((app) => !left.value.includes(app)))
 
 <template>
   <section class="flex flex-col gap-6">
-    <PageHeader :title="sharedWords.allApps" :description="words.description" />
+    <PageHeader v-if="!welcomes" :title="sharedWords.allApps" :description="words.description" />
     <KunaWelcome v-if="welcomes" />
     <template v-else>
       <DashboardGrid data-testid="home-cards">

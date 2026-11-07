@@ -5,7 +5,7 @@ import type { CroatianForms, EnglishForms, Translation } from '../../../../share
 // A note under Kuna's sum ends the sentence "Ne uključuje …, ni …", so Croatian writes it in the accusative.
 
 export const en = {
-  purpose: 'Your flat, your car and the other things you own, in a file of their own, with what each is worth today.',
+  purpose: 'Your flat, your car and the other things you own, with what each is worth today.',
   value: 'Assets value',
   withoutValue: (count: number): EnglishForms => ({ one: '1 asset without a value', other: `${count} assets without a value` }),
   withoutValueNote: (count: number): EnglishForms => ({ one: '1 asset without a value', other: `${count} assets without a value` }),
@@ -15,7 +15,7 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
-  purpose: 'Vaš stan, automobil i ostala imovina u zasebnoj datoteci, s današnjom vrijednošću svake stavke.',
+  purpose: 'Vaš stan, automobil i ostala imovina, s današnjom vrijednošću svake stavke.',
   value: 'Vrijednost imovine',
   withoutValue: (count): CroatianForms => ({ one: `${count} stavka imovine bez vrijednosti`, few: `${count} stavke imovine bez vrijednosti`, other: `${count} stavki imovine bez vrijednosti` }),
   withoutValueNote: (count): CroatianForms => ({ one: `${count} stavku imovine bez vrijednosti`, few: `${count} stavke imovine bez vrijednosti`, other: `${count} stavki imovine bez vrijednosti` }),

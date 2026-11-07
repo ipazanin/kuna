@@ -17,7 +17,7 @@ const props = withDefaults(
     /** What the card's figure means, behind an info button in the header. */
     definition?: string | undefined
     as?: string
-    heading?: 'h2' | 'h3'
+    heading?: 'h1' | 'h2' | 'h3'
     /** Makes the card collapsible and names it for this device's memory, as screen and card, such as "invoicing.months". */
     collapseId?: string
     /** The one line a collapsed card shows under its title, such as the row count or the total. */
