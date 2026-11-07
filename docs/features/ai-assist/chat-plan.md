@@ -90,6 +90,15 @@ Built, waiting for the first run with a real key:
 - **Reading OpenAI's `phase`:** a `commentary` message is kept to replay and left out of the answer. Chat must also leave commentary out of what it streams, as `onDelta` hears every text delta today.
 - **Left for the stage that first uses them:** the `context` turn, a cache breakpoint on the conversation's tail, chat's effort and thinking settings, `eager_input_streaming` and Anthropic's refusal fallback.
 
+### One way in, the owner's decision of 2026-11-07
+
+The chat becomes the one way to use AI, which is simpler on screen and does more.
+
+- Inline suggestions go away. Every AI button opens the chat, including Explain on a figure, Suggest categories on the review queue and the receipt reading.
+- The chat shows a tag for the element in context, such as a figure, a row or a receipt, and that element is highlighted in the app while it is in context.
+- The inline task goes only once the chat does its job, so Explain moves with stage 3 and Suggest and receipts with stage 4 or their app's turn in stage 5. Nothing goes missing in between.
+- A button still sends nothing by itself. Its element goes in as context under the same read grants and switches as a typed question.
+
 ### Stage 2. The panel, knowing the app
 
 - **Work:** dock and pane in `AppShell.vue`, `ChatPanel`, the label and context turn, `catalogue.ts` over screens, settings tables, kinds, words, `kuna_docs` and `show_screen`, first guides for Spending. History in memory.
