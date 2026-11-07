@@ -1,6 +1,7 @@
 import type { AppContribution, AppScreen } from '../../shared/app/appContribution'
 import { assetsData } from './workbook/presentation/assetsData'
 import { homeCardFigures } from '../../shared/app/homeCardFigures'
+import { isFirstRun } from '../../shared/app/isFirstRun'
 import { today } from '../../shared/calendar/civilDate'
 import { DEFAULT_MONEY_FORMAT } from '../../shared/money/moneyFormat'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
@@ -47,7 +48,6 @@ export const assetsApp: AppContribution = {
   ],
   menu: () => [OVERVIEW],
   settings: SETTINGS,
-  menuCount: () => null,
   subtitle: () => null,
   // Every figure is in euros, so it shows them in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
@@ -56,7 +56,7 @@ export const assetsApp: AppContribution = {
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => assetsHubFigures(book, today(), index.value, assetLoans(today()))) },
   setUpLines: () => (state.workbook === null ? [] : assetsSetUp(state.workbook)),
   data: assetsData,
-  firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
+  firstRun: () => isFirstRun(state),
   startPath: ASSETS_START_ROUTE,
   setUpOrder: { after: 'loans', why: words.setUpAfterLoans },
   syncGroup: assetsSyncGroup,

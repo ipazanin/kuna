@@ -1,6 +1,7 @@
 import type { AppContribution, AppScreen } from '../../shared/app/appContribution'
 import { loansData } from './workbook/presentation/loansData'
 import { homeCardFigures } from '../../shared/app/homeCardFigures'
+import { isFirstRun } from '../../shared/app/isFirstRun'
 import { today } from '../../shared/calendar/civilDate'
 import { DEFAULT_MONEY_FORMAT } from '../../shared/money/moneyFormat'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
@@ -49,7 +50,6 @@ export const loansApp: AppContribution = {
   ],
   menu: () => [OVERVIEW, SCENARIOS],
   settings: SETTINGS,
-  menuCount: () => null,
   subtitle: () => null,
   // Until Loans has settings of its own, it shows euros in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
@@ -58,7 +58,7 @@ export const loansApp: AppContribution = {
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => loansHubFigures(book, today())) },
   setUpLines: () => (state.workbook === null ? [] : loansSetUp(state.workbook)),
   data: loansData,
-  firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
+  firstRun: () => isFirstRun(state),
   startPath: LOANS_START_ROUTE,
   syncGroup: loansSyncGroup,
   asksGoogleOnOpen: () => loadWorkbookChoice(LOANS_APP)?.source === 'drive' && autoSyncOn.value,

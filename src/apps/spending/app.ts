@@ -24,6 +24,7 @@ import { SPENDING_APP } from './workbook/infrastructure/spendingDocument'
 import { words as fileWords } from './workbook/presentation/words'
 import type { AppContribution, AppScreen } from '../../shared/app/appContribution'
 import { homeCardFigures } from '../../shared/app/homeCardFigures'
+import { isFirstRun } from '../../shared/app/isFirstRun'
 import { today } from '../../shared/calendar/civilDate'
 import { DEFAULT_MONEY_FORMAT } from '../../shared/money/moneyFormat'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
@@ -81,7 +82,7 @@ export const spendingApp: AppContribution = {
   assist: SPENDING_ASSIST,
   setUpLines: () => (state.workbook === null ? [] : spendingSetUp(state.workbook)),
   data: spendingData,
-  firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
+  firstRun: () => isFirstRun(state),
   startPath: SPENDING_START_ROUTE,
   syncGroup: spendingSyncGroup,
   asksGoogleOnOpen: () => loadWorkbookChoice(SPENDING_APP)?.source === 'drive' && autoSyncOn.value,

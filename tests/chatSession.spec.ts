@@ -5,14 +5,14 @@ import type { Catalogue } from '../src/shared/ai/application/catalogue'
 import type { ModelPort, ModelReply, ModelRequest } from '../src/shared/ai/application/modelPort'
 
 const port = vi.hoisted(() => ({ current: null as ModelPort | null }))
-vi.mock('../src/shared/ai/infrastructure/modelAccess', () => ({ modelPort: async () => port.current, keyKept: () => true }))
+vi.mock('../src/shared/ai/application/modelAccess', () => ({ modelPort: async () => port.current, keyKept: () => true }))
 vi.mock('../src/shared/secrets/presentation/pageSecrets', async () => {
   const { ref } = await import('vue')
   return { useSecretsChanged: () => ref(0) }
 })
 
 const { allowThisChat, allowedThisChat, chatLines, chatSpent, chatStatus, clearChat, sendChatMessage, stopChatMessage } = await import('../src/shared/ai/presentation/chatSession')
-const { pickProvider, pickModel } = await import('../src/shared/ai/infrastructure/assistSettings')
+const { pickProvider, pickModel } = await import('../src/shared/ai/application/assistSettings')
 const { words } = await import('../src/shared/ai/presentation/words')
 
 const CATALOGUE: Catalogue = { system: 'Be Kuna.', pages: new Map([['spending', 'The Spending page.']]), routes: new Map([['/spending', 'Spending: Overview']]) }

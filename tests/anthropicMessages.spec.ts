@@ -5,7 +5,7 @@ import { runTask } from '../src/shared/ai/application/runTask'
 import type { AiTask } from '../src/shared/ai/domain/aiTask'
 import type { StrictSchema } from '../src/shared/ai/domain/strictSchema'
 import { anthropicMessages, testAnthropicKey } from '../src/shared/ai/infrastructure/anthropicMessages'
-import type { ModelChoice } from '../src/shared/ai/infrastructure/providerPresets'
+import type { ModelChoice } from '../src/shared/ai/domain/providerPresets'
 import { eventsAsStream, streamCutByAbort, streamFixture, streamResponse } from './support/sseResponse'
 
 const KEY = 'made-up-anthropic-key-0042'

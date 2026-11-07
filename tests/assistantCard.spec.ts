@@ -2,7 +2,7 @@
 import { effectScope, nextTick } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { KeyTest } from '../src/shared/ai/infrastructure/providerPresets'
+import type { KeyTest } from '../src/shared/ai/domain/providerPresets'
 
 const ANTHROPIC_KEY = 'made-up-anthropic-key-0042'
 const OPENAI_KEY = 'made-up-openai-key-0077'
@@ -12,8 +12,8 @@ const YES = 'kuna.assist-task.hr-doo.explain-figure'
 
 const test = vi.hoisted(() => ({ answer: { kind: 'works' } as KeyTest }))
 
-vi.mock('../src/shared/ai/infrastructure/modelAccess', async (original) => ({
-  ...(await original<typeof import('../src/shared/ai/infrastructure/modelAccess')>()),
+vi.mock('../src/shared/ai/application/modelAccess', async (original) => ({
+  ...(await original<typeof import('../src/shared/ai/application/modelAccess')>()),
   testProviderKey: async () => test.answer,
 }))
 
@@ -32,7 +32,7 @@ interface Started {
 async function card({ stored = {}, brought }: Started = {}) {
   for (const [name, value] of Object.entries(stored)) localStorage.setItem(name, value)
   const { holdProviderInUse, providerInUse } = await import('../src/shared/ai/presentation/useAiTask')
-  const { employeesOn } = await import('../src/shared/ai/infrastructure/assistSettings')
+  const { employeesOn } = await import('../src/shared/ai/application/assistSettings')
   const { keepSyncedSecrets } = await import('../src/shared/secrets/presentation/pageSecrets')
   const { useAssistantCard } = await import('../src/shared/ai/presentation/useAssistantCard')
   holdProviderInUse()

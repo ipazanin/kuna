@@ -6,7 +6,7 @@ import { runTask } from '../src/shared/ai/application/runTask'
 import type { AiTask } from '../src/shared/ai/domain/aiTask'
 import type { StrictSchema } from '../src/shared/ai/domain/strictSchema'
 import { openAiResponses } from '../src/shared/ai/infrastructure/openAiResponses'
-import type { ModelChoice } from '../src/shared/ai/infrastructure/providerPresets'
+import type { ModelChoice } from '../src/shared/ai/domain/providerPresets'
 import { eventsAsStream, streamCutByAbort, streamFixture, streamResponse } from './support/sseResponse'
 
 const KEY = 'made-up-openai-key-0042'

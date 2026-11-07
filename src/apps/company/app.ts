@@ -1,6 +1,7 @@
 import type { AppContribution, AppScreen } from '../../shared/app/appContribution'
 import { companyData } from './workbook/presentation/companyData'
 import { homeCardFigures } from '../../shared/app/homeCardFigures'
+import { isFirstRun } from '../../shared/app/isFirstRun'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
 import { autoSyncOn } from '../../shared/sync/infrastructure/autoSyncSwitch'
 import { COMPANY_ASSIST } from './assist/presentation/companyAssist'
@@ -91,7 +92,7 @@ export const companyApp: AppContribution = {
   // Nothing chosen and nothing kept: onboarding takes it, whatever screen the address names.
   setUpLines: () => (state.workbook === null ? [] : gettingSetUp(state.workbook, categoriesLookRight.value, deliveryOffered.value)),
   data: companyData,
-  firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
+  firstRun: () => isFirstRun(state),
   startPath: ONBOARDING_ROUTE,
   syncGroup: companySyncGroup,
   // Written inline so the production build folds it away with the gallery's chunk.

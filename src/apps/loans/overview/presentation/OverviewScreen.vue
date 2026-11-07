@@ -21,6 +21,7 @@ import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import RecordProblemsAlert from '../../../../shared/storage/presentation/RecordProblemsAlert.vue'
+import { fileKeptNote } from '../../../../shared/storage/presentation/fileKeptNote'
 import { plural } from '../../../../shared/text/translation'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
@@ -39,8 +40,7 @@ const day = today()
 const year = yearOf(day)
 
 const loading = computed(() => state.workbook === null && state.status !== 'error')
-const fileNote = computed(() => (state.choice?.source === 'drive' ? words.empty.onDrive(state.choice.name) : words.empty.inBrowser))
-const problemLines = computed(() => (state.workbook?.problems ?? []).map((problem) => words.problems.line(problem.noun, problem.label, problem.reason)))
+const fileNote = computed(() => fileKeptNote(state.choice, words.empty))
 
 const overview = computed(() => loansOverview(state.workbook ?? { bankLoans: [], informalLoans: [] }, day))
 const loanCount = computed(() => (state.workbook?.bankLoans.length ?? 0) + (state.workbook?.informalLoans.length ?? 0))
@@ -153,7 +153,7 @@ const addingInformal = ref(false)
         <RecordProblemsAlert
           v-if="state.workbook.problems.length > 0"
           :title="plural(words.problems.title(state.workbook.problems.length), state.workbook.problems.length)"
-          :lines="problemLines"
+          :problems="state.workbook.problems"
           data-testid="loans-problems"
         />
         <LoansTogether v-if="planned.length >= 2" :loans="planned" :informal="informal" :day="day" :free-of-debt-on="freeOfAllDebt" />

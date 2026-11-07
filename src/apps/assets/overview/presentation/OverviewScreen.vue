@@ -16,6 +16,7 @@ import { words } from './words'
 import { today } from '../../../../shared/calendar/civilDate'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import RecordProblemsAlert from '../../../../shared/storage/presentation/RecordProblemsAlert.vue'
+import { fileKeptNote } from '../../../../shared/storage/presentation/fileKeptNote'
 import { plural } from '../../../../shared/text/translation'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
@@ -29,8 +30,7 @@ const index = useHouseIndex()
 const day = today()
 
 const loading = computed(() => state.workbook === null && state.status !== 'error')
-const fileNote = computed(() => (state.choice?.source === 'drive' ? words.empty.onDrive(state.choice.name) : words.empty.inBrowser))
-const problemLines = computed(() => (state.workbook?.problems ?? []).map((problem) => words.problems.line(problem.noun, problem.label, problem.reason)))
+const fileNote = computed(() => fileKeptNote(state.choice, words.empty))
 
 const loans = computed(() => assetLoans(day))
 const assets = computed(() => (state.workbook === null ? [] : assetsOnDay(state.workbook, day, index.value, loans.value)))
@@ -84,7 +84,7 @@ const adding = ref(false)
         <RecordProblemsAlert
           v-if="state.workbook.problems.length > 0"
           :title="plural(words.problems.title(state.workbook.problems.length), state.workbook.problems.length)"
-          :lines="problemLines"
+          :problems="state.workbook.problems"
           data-testid="assets-problems"
         />
         <DashboardGrid data-testid="asset-cards">

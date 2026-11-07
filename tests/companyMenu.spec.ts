@@ -20,7 +20,7 @@ const waiting = { ...settled, flaggedBy: 'ai' } as const
 function transactionsItem() {
   const screen = companyApp.menu().find((candidate) => candidate.path === '/company/transactions')
   if (screen === undefined) throw new Error('The Company menu has no Transactions item.')
-  return companyApp.menuCount(screen)
+  return companyApp.menuCount!(screen)
 }
 
 describe("the Company menu's Transactions item", () => {
@@ -41,6 +41,6 @@ describe("the Company menu's Transactions item", () => {
 
     const others = companyApp.menu().filter((screen) => screen.path !== '/company/transactions')
 
-    expect(others.map((screen) => companyApp.menuCount(screen))).toEqual(others.map(() => null))
+    expect(others.map((screen) => companyApp.menuCount!(screen))).toEqual(others.map(() => null))
   })
 })

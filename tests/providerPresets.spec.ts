@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-import { PROVIDER_PRESETS, modelChoice, presetOf, turnsOnWebSearch } from '../src/shared/ai/infrastructure/providerPresets'
+import { PROVIDER_PRESETS, modelChoice, presetOf, turnsOnWebSearch } from '../src/shared/ai/domain/providerPresets'
 import { PRICE_VENDORS } from '../src/apps/investments/prices/infrastructure/vendors/priceVendors'
 
 describe('the AI providers', () => {

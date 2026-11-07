@@ -6,7 +6,7 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
-import { forgetAssistChoices } from '../../shared/ai/infrastructure/assistSettings'
+import { forgetAssistChoices } from '../../shared/ai/application/assistSettings'
 import { forgetKunaStart } from '../../shared/app/kunaStart'
 import { forgetGoogleSignIn } from '../../shared/google/googleAuth'
 import type { GoogleScope } from '../../shared/google/googleScopes'

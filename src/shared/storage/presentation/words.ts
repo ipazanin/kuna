@@ -66,6 +66,8 @@ export const en = {
   nothingWritten: 'Nothing was written',
   mayNotHaveFinished: 'The save may not have finished',
   driveFailed: 'Google Drive did not answer as expected, so check your connection and sync to see what the file holds.',
+  /** One problem in a file: the record, named by its kind and label, and why. */
+  recordProblem: (noun: RecordNoun, label: string, reason: string) => `${capitalised(noun.en.one)} "${label}": ${reason}`,
   deleteData: {
     open: "Delete this app's data",
     title: (app: string) => `Delete ${app} data?`,
@@ -221,6 +223,7 @@ export const hr: Translation<typeof en> = {
   nothingWritten: 'Ništa nije upisano',
   mayNotHaveFinished: 'Spremanje možda nije završilo',
   driveFailed: 'Google Drive nije odgovorio kako treba, pa provjerite vezu i sinkronizirajte da vidite što je u datoteci.',
+  recordProblem: (noun, label, reason) => `${capitalised(noun.hr.one)} „${label}”: ${reason}`,
   deleteData: {
     open: 'Obriši podatke ove aplikacije',
     title: (app) => `Obrisati podatke aplikacije ${app}?`,

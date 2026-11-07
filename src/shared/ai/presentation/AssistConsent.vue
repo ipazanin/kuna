@@ -4,7 +4,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 
 import type { AssistTaskSummary } from '../../app/appContribution'
 import AppDialog from '../../ui/AppDialog.vue'
-import type { ProviderPreset } from '../infrastructure/providerPresets'
+import type { ProviderPreset } from '../domain/providerPresets'
 import { words } from './words'
 
 /** Asks before a task sends with a switch off: what leaves the device, what the provider keeps, and employee names or pay whenever this run sends them. Buttons outside the chat need it until they route through the chat. */

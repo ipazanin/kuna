@@ -1,4 +1,4 @@
-import type { ModelPrice } from '../domain/modelUsage'
+import type { ModelPrice } from './modelUsage'
 
 /** A model to run: one a provider's preset lists, or one typed by hand, whose price Kuna does not know. */
 export interface ModelChoice {

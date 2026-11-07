@@ -11,7 +11,7 @@ afterEach(() => {
 })
 
 async function settings() {
-  return import('../src/shared/ai/infrastructure/assistSettings')
+  return import('../src/shared/ai/application/assistSettings')
 }
 
 describe("this device's assistant settings", () => {

@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
-import { employeesOn, switchEmployees } from '../../../../shared/ai/infrastructure/assistSettings'
+import { employeesOn, switchEmployees } from '../../../../shared/ai/application/assistSettings'
 import AssistButton from '../../../../shared/ai/presentation/AssistButton.vue'
 import { assistKeyKept, providerInUse, resultLine, usageLine, useAiTask } from '../../../../shared/ai/presentation/useAiTask'
 import AppCard from '../../../../shared/ui/AppCard.vue'

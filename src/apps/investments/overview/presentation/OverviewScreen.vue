@@ -23,6 +23,7 @@ import { investmentsSetUp } from './investmentsSetUp'
 import { words } from './words'
 import { weekdayDayLabel } from '../../../../shared/calendar/dayLabel'
 import RecordProblemsAlert from '../../../../shared/storage/presentation/RecordProblemsAlert.vue'
+import { fileKeptNote } from '../../../../shared/storage/presentation/fileKeptNote'
 import { plural } from '../../../../shared/text/translation'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
@@ -36,9 +37,8 @@ import PricesStatus from '../../prices/presentation/PricesStatus.vue'
 const { state } = useInvestmentsBooks()
 const { sources, figures, facts } = usePortfolio()
 
-const fileNote = computed(() => (state.choice?.source === 'drive' ? words.empty.onDrive(state.choice.name) : words.empty.inBrowser))
+const fileNote = computed(() => fileKeptNote(state.choice, words.empty))
 const problems = computed(() => state.workbook?.problems ?? [])
-const problemLines = computed(() => problems.value.map((problem) => words.problems.line(problem.noun, problem.label, problem.reason)))
 const noTransactions = computed(() => state.workbook !== null && !hasTransactions(state.workbook.book))
 /** The file, and for a file with transactions this browser's copy of its prices too. */
 const loading = computed(() => (state.workbook === null && state.status !== 'error') || (state.workbook !== null && !noTransactions.value && figures.value === null))
@@ -65,7 +65,7 @@ const importing = ref(false)
     <ScreenSkeleton v-if="loading" :heading="false" :cards="2" data-testid="investments-loading" />
     <template v-else-if="state.workbook !== null">
       <PricesStatus />
-      <RecordProblemsAlert v-if="problems.length > 0" :title="plural(words.problems.title(problems.length), problems.length)" :lines="problemLines" data-testid="investments-problems" />
+      <RecordProblemsAlert v-if="problems.length > 0" :title="plural(words.problems.title(problems.length), problems.length)" :problems="problems" data-testid="investments-problems" />
       <EmptyState v-if="noTransactions" icon="i-lucide-trending-up" :title="words.empty.title" data-testid="investments-empty">
         <template #description>
           <span class="block">{{ words.empty.description }}</span>

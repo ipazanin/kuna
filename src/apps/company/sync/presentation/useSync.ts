@@ -13,7 +13,7 @@ import LocalWorkbookStatus from '../../workbook-files/presentation/LocalWorkbook
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
-import { assistOn } from '../../../../shared/ai/infrastructure/assistSettings'
+import { assistOn } from '../../../../shared/ai/application/assistSettings'
 import { secretsNeeds, secretsStep } from '../../../../shared/secrets/presentation/secretsStep'
 import { suggestCategories } from '../../assist/application/suggestCategories'
 import { words } from './words'

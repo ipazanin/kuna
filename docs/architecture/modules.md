@@ -50,20 +50,21 @@ An app may publish facts in one file, `src/apps/<app>/facts.ts`, with types of i
 
 `tests/importBoundaries.spec.ts` runs with the unit tests and names the file, the line and the import of each break.
 
-| Rule                                                                                           | Lines                     |
-| ---------------------------------------------------------------------------------------------- | ------------------------- |
-| The spec reads the imports it checks: each app is loaded by `main.ts`, and no import dangles   | `:123-131`                |
-| `src/shared` imports nothing outside `src/shared`                                              | `:133-135`                |
-| `src/shell` imports no app. Only `main.ts` reaches an app, by a dynamic import of its `app.ts` | `:137-141`                |
-| An app imports its own folder and `src/shared`, so no app imports another                      | `:143-145`                |
-| An app's code outside its packs imports no pack code. Only the app's `app.ts` does             | `:147-149`                |
-| A pack imports its own folder, its app and `src/shared`                                        | `:151-162`                |
-| Domain code imports its own app's domain and the kernel's domain folders                       | `:164-172`                |
-| Row numbers stay in the spreadsheet adapter and record ids with their maker                    | `:174-178`                |
-| Storage adapters are imported only by storage code, `app.ts`, fake seeds and pack mappings     | `:180-192`                |
-| Application code imports no infrastructure, except the adapter wiring files                    | `:194-196`                |
-| A brand is declared only in the files that own one                                             | `BRAND_OWNERS`            |
-| `figure-digest.mjs` reads figures from domain code, but for a list that only shrinks           | `FIGURES_IN_PRESENTATION` |
+| Rule                                                                                           | Lines                             |
+| ---------------------------------------------------------------------------------------------- | --------------------------------- |
+| The spec reads the imports it checks: each app is loaded by `main.ts`, and no import dangles   | `:123-131`                        |
+| `src/shared` imports nothing outside `src/shared`                                              | `:133-135`                        |
+| `src/shell` imports no app. Only `main.ts` reaches an app, by a dynamic import of its `app.ts` | `:137-141`                        |
+| An app imports its own folder and `src/shared`, so no app imports another                      | `:143-145`                        |
+| An app's code outside its packs imports no pack code. Only the app's `app.ts` does             | `:147-149`                        |
+| A pack imports its own folder, its app and `src/shared`                                        | `:151-162`                        |
+| Domain code imports its own app's domain and the kernel's domain folders                       | `:164-172`                        |
+| Row numbers stay in the spreadsheet adapter and record ids with their maker                    | `:174-178`                        |
+| Storage adapters are imported only by storage code, `app.ts`, fake seeds and pack mappings     | `:180-192`                        |
+| Application code imports no infrastructure, except the adapter wiring files                    | `:194-196`                        |
+| A brand is declared only in the files that own one                                             | `BRAND_OWNERS`                    |
+| Presentation in `src/shared` imports no infrastructure, but for a list that only shrinks       | `SHARED_PRESENTATION_ON_ADAPTERS` |
+| `figure-digest.mjs` reads figures from domain code, but for a list that only shrinks           | `FIGURES_IN_PRESENTATION`         |
 
 The rules "no app imports another" and "shared imports no app" are what force every reuse through `src/shared`.
 
@@ -71,7 +72,7 @@ The rules "no app imports another" and "shared imports no app" are what force ev
 
 | Folder                    | Holds                                                                                                                                                                                                                                                                                                                |
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/app`          | `AppContribution`, the hub contract, `personalNet`, `homeCardFigures` and this device's set-up answers                                                                                                                                                                                                               |
+| `src/shared/app`          | `AppContribution`, the hub contract, `personalNet`, `homeCardFigures`, `isFirstRun` and this device's set-up answers                                                                                                                                                                                                 |
 | `src/shared/ai`           | The AI tasks and tools as types, masking, the cited answer, the model loop, the egress guard, one adapter per provider, the one file that reads a key, the provider list, this device's assistant switches, the Assistant card, and the chat: its catalogue, its two tools, the panel and the tag. It writes nothing |
 | `src/shared/calendar`     | `CivilDate`, month keys, date ranges and their labels                                                                                                                                                                                                                                                                |
 | `src/shared/categorising` | `Rule`, `categorise`, `TransactionFacts`, the IBAN and card tests, and `CategorisableRow`, the structural row the rules read                                                                                                                                                                                         |

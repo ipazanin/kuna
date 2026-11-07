@@ -171,8 +171,8 @@ export interface AppContribution {
   menu(): readonly AppScreen[]
   /** The app's Settings, one of its screens, last among its pages in the menu. */
   readonly settings: AppScreen
-  /** What waits on a screen, shown beside its menu item, or null when nothing waits. */
-  menuCount(screen: AppScreen): MenuCount | null
+  /** What waits on a screen, shown beside its menu item, or null when nothing waits. An app where nothing ever waits leaves it out. */
+  menuCount?(screen: AppScreen): MenuCount | null
   /** The line under the app's name in the menu and on its card, such as the company the books belong to. */
   subtitle(): string | null
   /** The currency and number locale of the app's books, which its screens and its card on the home format money in. */

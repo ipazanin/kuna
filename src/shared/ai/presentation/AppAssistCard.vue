@@ -7,7 +7,7 @@ import type { AssistTaskSummary } from '../../app/appContribution'
 import { KUNA_SETTINGS_ROUTE } from '../../secrets/presentation/pageSecrets'
 import { listInWords } from '../../text/listInWords'
 import AppCard from '../../ui/AppCard.vue'
-import { assistOn, employeesOn, switchAssist, switchEmployees } from '../infrastructure/assistSettings'
+import { assistOn, employeesOn, switchAssist, switchEmployees } from '../application/assistSettings'
 import { assistKeyKept, providerInUse } from './useAiTask'
 import { words } from './words'
 

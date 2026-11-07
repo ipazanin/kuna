@@ -1,6 +1,6 @@
 import type { ModelPort, ModelReply, ModelRequest } from '../../application/modelPort'
 import { CHAT_TASK_ID } from '../../application/runChatTurn'
-import type { KeyTest, ModelChoice, ProviderPreset } from '../providerPresets'
+import type { KeyTest, ModelChoice, ProviderPreset } from '../../domain/providerPresets'
 import { fakeChatReply } from './fakeChatReply'
 
 /**

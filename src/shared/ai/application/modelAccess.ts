@@ -1,8 +1,8 @@
-import { guardedModel } from '../application/egressGuard'
-import type { ModelPort } from '../application/modelPort'
+import { guardedModel } from './egressGuard'
+import type { ModelPort } from './modelPort'
 import { storedSecret, storedSecretChanges } from '../../secrets/infrastructure/browserSecrets'
 import { modelOf } from './assistSettings'
-import type { KeyTest, ProviderId, ProviderPreset } from './providerPresets'
+import type { KeyTest, ProviderId, ProviderPreset } from '../domain/providerPresets'
 
 /** The one place in the AI module that reads a key: it hands an adapter its key, and everything else only learns whether one is kept. */
 export function keyKept(id: ProviderId): boolean {
@@ -22,20 +22,20 @@ async function adapterOf(taskId: string, preset: ProviderPreset, key: string): P
   const model = modelOf(preset.id)
   // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
   if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
-    const { fakeModelPort } = await import('./fake/fakeModel')
+    const { fakeModelPort } = await import('../infrastructure/fake/fakeModel')
     return fakeModelPort(taskId, model)
   }
   switch (preset.adapter) {
     case 'anthropic-messages': {
-      const { anthropicMessages } = await import('./anthropicMessages')
+      const { anthropicMessages } = await import('../infrastructure/anthropicMessages')
       return anthropicMessages(key, model)
     }
     case 'openai-responses': {
-      const { openAiResponses } = await import('./openAiResponses')
+      const { openAiResponses } = await import('../infrastructure/openAiResponses')
       return openAiResponses(preset.baseUrl, key, model)
     }
     case 'openrouter-chat': {
-      const { openRouterChat } = await import('./openRouterChat')
+      const { openRouterChat } = await import('../infrastructure/openRouterChat')
       return openRouterChat(preset.baseUrl, key, model)
     }
   }
@@ -44,14 +44,14 @@ async function adapterOf(taskId: string, preset: ProviderPreset, key: string): P
 /** One cheap request with the provider's key that sends nothing from the books. The fake build takes any key. */
 export async function testProviderKey(preset: ProviderPreset, key: string): Promise<KeyTest> {
   if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
-    const { fakeKeyTest } = await import('./fake/fakeModel')
+    const { fakeKeyTest } = await import('../infrastructure/fake/fakeModel')
     return fakeKeyTest(preset, modelOf(preset.id))
   }
   if (preset.keyTestUrl === null) {
-    const { testAnthropicKey } = await import('./anthropicMessages')
+    const { testAnthropicKey } = await import('../infrastructure/anthropicMessages')
     return testAnthropicKey(key, modelOf(preset.id).id)
   }
-  const { bearerHeaders, keyTestOf } = await import('./providerFetch')
+  const { bearerHeaders, keyTestOf } = await import('../infrastructure/providerFetch')
   return keyTestOf({ address: preset.keyTestUrl, method: 'GET', headers: bearerHeaders(key), key })
 }
 

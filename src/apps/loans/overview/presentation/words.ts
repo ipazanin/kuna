@@ -1,6 +1,4 @@
-import { capitalised } from '../../../../shared/text/capitalised'
 import { language } from '../../../../shared/text/language'
-import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 import { monthCase } from '../../../../shared/calendar/monthCase'
 import { listInWords } from '../../../../shared/text/listInWords'
@@ -24,8 +22,6 @@ export const en = {
   },
   problems: {
     title: (count: number): EnglishForms => ({ one: 'A record in the Loans file is left out or doubted', other: `${count} records in the Loans file are left out or doubted` }),
-    /** One problem: the record, named by its kind and label, and why. */
-    line: (noun: RecordNoun, label: string, reason: string) => `${capitalised(noun.en.one)} "${label}": ${reason}`,
   },
   tiles: {
     onLoans: (count: number): EnglishForms => ({ one: 'on 1 loan', other: `on ${count} loans` }),
@@ -142,7 +138,6 @@ export const hr: Translation<typeof en> = {
       few: `${count} zapisa u datoteci kredita izostavljena su ili upitna`,
       other: `${count} zapisa u datoteci kredita izostavljeno je ili upitno`,
     }),
-    line: (noun, label, reason) => `${capitalised(noun.hr.one)} „${label}”: ${reason}`,
   },
   tiles: {
     onLoans: (count) => ({ one: `${count} kredit ili pozajmica`, few: `${count} kredita ili pozajmice`, other: `${count} kredita ili pozajmica` }),

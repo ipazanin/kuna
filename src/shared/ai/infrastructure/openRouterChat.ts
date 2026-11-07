@@ -4,7 +4,7 @@ import type { AiPart } from '../domain/aiTask'
 import type { ModelTokens } from '../domain/modelUsage'
 import type { StrictSchema } from '../domain/strictSchema'
 import { bearerHeaders, jsonAnswer } from './providerFetch'
-import type { ModelChoice } from './providerPresets'
+import type { ModelChoice } from '../domain/providerPresets'
 
 const MAX_OUTPUT_TOKENS = 16_000
 /** The function a model with tools calls to hand in its final answer, since a strict answer format may not combine with tools. */

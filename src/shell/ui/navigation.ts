@@ -46,7 +46,7 @@ function entryOf(screen: AppScreen): NavigationEntry {
 
 function menuEntriesOf(app: AppContribution): NavigationEntry[] {
   return app.menu().map((screen) => {
-    const waiting = app.menuCount(screen)
+    const waiting = app.menuCount?.(screen) ?? null
     return waiting === null ? entryOf(screen) : { ...entryOf(screen), to: waiting.opens ?? screen.path, count: waiting.count }
   })
 }

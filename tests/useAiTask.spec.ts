@@ -3,7 +3,7 @@ import { effectScope } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AiTask } from '../src/shared/ai/domain/aiTask'
-import { pickModel, pickProvider, switchAssist } from '../src/shared/ai/infrastructure/assistSettings'
+import { pickModel, pickProvider, switchAssist } from '../src/shared/ai/application/assistSettings'
 import { hr } from '../src/shared/ai/presentation/words'
 import { resultLine, usageLine, useAiTask } from '../src/shared/ai/presentation/useAiTask'
 import { storeSecret } from '../src/shared/secrets/infrastructure/browserSecrets'

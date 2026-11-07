@@ -1,6 +1,6 @@
 import { language } from '../../text/language'
 import type { Translation } from '../../text/translation'
-import type { ProviderId } from '../infrastructure/providerPresets'
+import type { ProviderId } from '../domain/providerPresets'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 

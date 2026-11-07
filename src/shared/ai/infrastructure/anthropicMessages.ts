@@ -5,7 +5,7 @@ import { NO_TOKENS } from '../domain/modelUsage'
 import type { ModelTokens } from '../domain/modelUsage'
 import { keyTestOf, streamedEvents, withoutKey } from './providerFetch'
 import type { ProviderCall } from './providerFetch'
-import type { KeyTest, ModelChoice } from './providerPresets'
+import type { KeyTest, ModelChoice } from '../domain/providerPresets'
 
 const MESSAGES_ADDRESS = 'https://api.anthropic.com/v1/messages'
 const COUNT_TOKENS_ADDRESS = 'https://api.anthropic.com/v1/messages/count_tokens'

@@ -32,7 +32,7 @@ beforeEach(() => {
 })
 
 async function page() {
-  return { ...(await import('../src/shared/ai/infrastructure/assistSettings')), ...(await import('../src/shared/ai/presentation/useAiTask')) }
+  return { ...(await import('../src/shared/ai/application/assistSettings')), ...(await import('../src/shared/ai/presentation/useAiTask')) }
 }
 
 describe('what a browser already holds of the assistant', () => {

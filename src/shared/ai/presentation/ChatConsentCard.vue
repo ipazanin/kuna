@@ -3,7 +3,7 @@ import { onMounted, useTemplateRef } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import AppCard from '../../ui/AppCard.vue'
-import type { ProviderPreset } from '../infrastructure/providerPresets'
+import type { ProviderPreset } from '../domain/providerPresets'
 import { words } from './words'
 
 /** Asks inside the chat before its first send: what leaves the device and what the provider keeps. Always shows only where a visible switch can take it back. */

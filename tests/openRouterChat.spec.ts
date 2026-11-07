@@ -7,7 +7,7 @@ import type { AiTask } from '../src/shared/ai/domain/aiTask'
 import type { StrictSchema } from '../src/shared/ai/domain/strictSchema'
 import { bearerHeaders, keyTestOf } from '../src/shared/ai/infrastructure/providerFetch'
 import { openRouterChat } from '../src/shared/ai/infrastructure/openRouterChat'
-import type { ModelChoice } from '../src/shared/ai/infrastructure/providerPresets'
+import type { ModelChoice } from '../src/shared/ai/domain/providerPresets'
 import { streamCutByAbort } from './support/sseResponse'
 
 const KEY = 'made-up-openrouter-key-0042'

@@ -33,6 +33,7 @@ import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { formatMoney, formatShare } from '../../../../shared/money/moneyFormat'
 import RecordProblemsAlert from '../../../../shared/storage/presentation/RecordProblemsAlert.vue'
+import { fileKeptNote } from '../../../../shared/storage/presentation/fileKeptNote'
 import { plural } from '../../../../shared/text/translation'
 import type { ChartPointSelection } from '../../../../shared/ui/ChartCard.vue'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
@@ -57,8 +58,7 @@ const month = monthOf(day)
 const addingAccount = ref(false)
 
 const loading = computed(() => state.workbook === null && state.status !== 'error')
-const fileNote = computed(() => (state.choice?.source === 'drive' ? words.empty.onDrive(state.choice.name) : words.empty.inBrowser))
-const problemLines = computed(() => (state.workbook?.problems ?? []).map((problem) => words.problems.line(problem.noun, problem.label, problem.reason)))
+const fileNote = computed(() => fileKeptNote(state.choice, words.empty))
 
 /** While the ECB rates load, a file with a foreign account shows no euro figure rather than one that leaves its rows out. */
 const waiting = computed(() => waitsForRates(state.workbook?.accounts ?? [], rates.value))
@@ -116,7 +116,7 @@ function openGroupMonth(selection: ChartPointSelection): void {
       <RecordProblemsAlert
         v-if="state.workbook.problems.length > 0"
         :title="plural(words.problems.title(state.workbook.problems.length), state.workbook.problems.length)"
-        :lines="problemLines"
+        :problems="state.workbook.problems"
         data-testid="spending-problems"
       />
       <EmptyState v-if="state.workbook.accounts.length === 0" icon="i-lucide-wallet" :title="words.empty.title" data-testid="spending-empty">

@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import type { AssistTaskSummary } from '../../app/appContribution'
-import { assistOn, employeesOn, switchAssist, switchEmployees } from '../infrastructure/assistSettings'
+import { assistOn, employeesOn, switchAssist, switchEmployees } from '../application/assistSettings'
 import AssistConsent from './AssistConsent.vue'
 import { allowOnce, assistKeyKept, forgetOnce, providerInUse } from './useAiTask'
 

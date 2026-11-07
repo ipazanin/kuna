@@ -1,5 +1,5 @@
 import { forgetSetUpAnswersOf } from '../../app/setUpAnswer'
-import { forgetAppAssist } from '../../ai/infrastructure/assistSettings'
+import { forgetAppAssist } from '../../ai/application/assistSettings'
 import { usePageSync } from '../../sync/presentation/pageSync'
 import { placesHeld, removeAppData } from '../application/appData'
 import type { AppData, DataBeside } from '../application/appData'

@@ -1,4 +1,5 @@
 import type { AppContribution, AppScreen } from '../../shared/app/appContribution'
+import { isFirstRun } from '../../shared/app/isFirstRun'
 import { investmentsData } from './workbook/presentation/investmentsData'
 import { DEFAULT_MONEY_FORMAT } from '../../shared/money/moneyFormat'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
@@ -74,7 +75,6 @@ export const investmentsApp: AppContribution = {
   ],
   menu: () => [OVERVIEW, HOLDINGS, TRANSACTIONS, PERFORMANCE, TAX],
   settings: SETTINGS,
-  menuCount: () => null,
   subtitle: () => null,
   // Every figure leaves the app in euros, so it shows them in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
@@ -83,7 +83,7 @@ export const investmentsApp: AppContribution = {
   hub: { counts: true, figures: () => shownPortfolio(({ figures }) => investmentsHubFigures(figures)) },
   setUpLines: () => (state.workbook === null ? [] : investmentsSetUp(state.workbook.book, figures.value, taxShown.value)),
   data: investmentsData,
-  firstRun: () => state.status !== 'opening' && state.choice === null && state.workbook === null,
+  firstRun: () => isFirstRun(state),
   startPath: INVESTMENTS_START_ROUTE,
   syncGroup: investmentsSyncGroup,
   // Written inline so the production build folds it away with the gallery's chunk.

@@ -3,7 +3,7 @@ import { ModelRequestFailed } from '../application/modelPort'
 import type { AiPart } from '../domain/aiTask'
 import type { ModelTokens } from '../domain/modelUsage'
 import { bearerHeaders, streamedEvents, withoutKey } from './providerFetch'
-import type { ModelChoice } from './providerPresets'
+import type { ModelChoice } from '../domain/providerPresets'
 
 /** Bounds what one request can write, reasoning included. Streaming would allow more, and no task needs it. */
 const MAX_OUTPUT_TOKENS = 16_000

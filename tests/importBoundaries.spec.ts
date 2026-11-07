@@ -140,6 +140,30 @@ const ADAPTER_WIRING = [
   'src/apps/investments/workbook/application/investmentsStore.ts',
   'src/apps/assets/workbook/application/assetsStore.ts',
   'src/apps/spending/workbook/application/spendingStore.ts',
+  'src/shared/ai/application/modelAccess.ts',
+]
+
+/** What presentation in the shared kernel still imports from an adapter, a list that only shrinks. */
+const SHARED_PRESENTATION_ON_ADAPTERS = [
+  'src/shared/secrets/presentation/pageSecrets.ts -> src/shared/secrets/infrastructure/browserSecrets.ts',
+  'src/shared/secrets/presentation/secretsStep.ts -> src/shared/secrets/infrastructure/browserSecrets.ts',
+  'src/shared/secrets/presentation/secretsStep.ts -> src/shared/secrets/infrastructure/fake/fakeSecretsDrive.ts',
+  'src/shared/secrets/presentation/secretsStep.ts -> src/shared/secrets/infrastructure/googleSecretsDrive.ts',
+  'src/shared/storage/presentation/BooksFileCard.vue -> src/shared/storage/infrastructure/documentFormat.ts',
+  'src/shared/storage/presentation/BooksFileCard.vue -> src/shared/storage/infrastructure/documentRecordStorage.ts',
+  'src/shared/storage/presentation/FirstRunFolderStep.vue -> src/shared/storage/infrastructure/documentFormat.ts',
+  'src/shared/storage/presentation/MoveIntoKunaDialog.vue -> src/shared/storage/infrastructure/documentFormat.ts',
+  'src/shared/storage/presentation/MoveIntoKunaDialog.vue -> src/shared/storage/infrastructure/documentRecordStorage.ts',
+  'src/shared/storage/presentation/exportAppFile.ts -> src/shared/storage/infrastructure/documentFormat.ts',
+  'src/shared/storage/presentation/exportAppFile.ts -> src/shared/storage/infrastructure/documentRecordStorage.ts',
+  'src/shared/storage/presentation/fileFirstRun.ts -> src/shared/storage/infrastructure/documentFormat.ts',
+  'src/shared/storage/presentation/fileFirstRun.ts -> src/shared/storage/infrastructure/documentRecordStorage.ts',
+  'src/shared/storage/presentation/resumeFileLookup.ts -> src/shared/storage/infrastructure/documentFormat.ts',
+  'src/shared/storage/presentation/resumeFileLookup.ts -> src/shared/storage/infrastructure/documentRecordStorage.ts',
+  'src/shared/storage/presentation/useDriveFilePlace.ts -> src/shared/storage/infrastructure/documentFormat.ts',
+  'src/shared/storage/presentation/useDriveFilePlace.ts -> src/shared/storage/infrastructure/documentRecordStorage.ts',
+  'src/shared/storage/presentation/useFindFile.ts -> src/shared/storage/infrastructure/documentFormat.ts',
+  'src/shared/storage/presentation/useFindFile.ts -> src/shared/storage/infrastructure/documentRecordStorage.ts',
 ]
 
 /** Each app's published file and the one file of another app that may import it. */
@@ -319,8 +343,9 @@ describe('import boundaries', () => {
 
   it('leaves the AI hosts and the AI SDKs to the AI adapters', () => {
     expect(
-      linesHolding(/api\.anthropic\.com|api\.openai\.com|openrouter\.ai|generativelanguage\.googleapis\.com|api\.mistral\.ai|api\.groq\.com|localhost:11434|localhost:1234/, (file) =>
-        file.startsWith('src/shared/ai/infrastructure/'),
+      linesHolding(
+        /api\.anthropic\.com|api\.openai\.com|openrouter\.ai|generativelanguage\.googleapis\.com|api\.mistral\.ai|api\.groq\.com|localhost:11434|localhost:1234/,
+        (file) => file.startsWith('src/shared/ai/infrastructure/') || file === 'src/shared/ai/domain/providerPresets.ts',
       ),
     ).toEqual([])
     expect(broken((entry) => !/^(@anthropic-ai\/sdk|openai)(\/|$)/.test(entry.specifier) || entry.from.startsWith('src/shared/ai/infrastructure/'))).toEqual([])
@@ -350,11 +375,11 @@ describe('import boundaries', () => {
   })
 
   it('reads a key in the AI module only through its one door', () => {
-    expect(linesHolding(/\bstoredSecret(Changes)?\b/, (file) => !file.startsWith('src/shared/ai/') || file === 'src/shared/ai/infrastructure/modelAccess.ts')).toEqual([])
+    expect(linesHolding(/\bstoredSecret(Changes)?\b/, (file) => !file.startsWith('src/shared/ai/') || file === 'src/shared/ai/application/modelAccess.ts')).toEqual([])
   })
 
   it('offers no model the web, and names the suffix that would turn it on only where a typed model is refused for it', () => {
-    expect(linesHolding(/web_search|web_fetch|:online\b/, (file) => file === 'src/shared/ai/infrastructure/providerPresets.ts')).toEqual([])
+    expect(linesHolding(/web_search|web_fetch|:online\b/, (file) => file === 'src/shared/ai/domain/providerPresets.ts')).toEqual([])
   })
 
   describe('what a chat can reach', () => {
@@ -403,7 +428,15 @@ describe('import boundaries', () => {
   })
 
   it("lets an app's assist code reach a model only through the AI module's door, but for its fake answers", () => {
-    expect(broken((entry) => !/\/assist\//.test(entry.from) || isFakeSeed(entry.from) || entry.target === null || !entry.target.startsWith('src/shared/ai/infrastructure/'))).toEqual([])
+    expect(
+      broken(
+        (entry) =>
+          !/\/assist\//.test(entry.from) ||
+          isFakeSeed(entry.from) ||
+          entry.target === null ||
+          !(entry.target.startsWith('src/shared/ai/infrastructure/') || entry.target === 'src/shared/ai/application/modelAccess.ts'),
+      ),
+    ).toEqual([])
   })
 
   it('reads the assist and secrets imports the cases above check', () => {
@@ -413,6 +446,13 @@ describe('import boundaries', () => {
 
   it('keeps application code off infrastructure, but for the files that wire the adapters', () => {
     expect(broken((entry) => !/\/application\//.test(entry.from) || entry.target === null || !/\/infrastructure\//.test(entry.target) || ADAPTER_WIRING.includes(entry.from))).toEqual([])
+  })
+
+  it('keeps presentation in the shared kernel off infrastructure, but for a list that only shrinks', () => {
+    const found = IMPORTS.filter((entry) => /^src\/shared\/.*\/presentation\//.test(entry.from) && entry.target !== null && /\/infrastructure\//.test(entry.target)).map(
+      (entry) => `${entry.from} -> ${entry.target}`,
+    )
+    expect([...new Set(found)].sort()).toEqual(SHARED_PRESENTATION_ON_ADAPTERS)
   })
 
   it("keeps a pack's ruleset off its preset, which reads the ruleset", () => {

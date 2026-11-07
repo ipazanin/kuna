@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
 
-import { PROVIDER_PRESETS, modelChoice, presetOf } from './providerPresets'
-import type { ModelChoice, ProviderId } from './providerPresets'
+import { PROVIDER_PRESETS, modelChoice, presetOf } from '../domain/providerPresets'
+import type { ModelChoice, ProviderId } from '../domain/providerPresets'
 
 /**
  * This device's choices for the assistant, each under its own key: a switch per app that sends without asking, a

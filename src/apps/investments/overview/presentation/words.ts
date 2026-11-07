@@ -1,7 +1,5 @@
 import type { GainSource } from '../domain/overviewFigures'
 import type { CheckName } from '../../workbook/domain/checkSetting'
-import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
-import { capitalised } from '../../../../shared/text/capitalised'
 import { language } from '../../../../shared/text/language'
 import { withFullStop } from '../../../../shared/text/withFullStop'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
@@ -37,8 +35,6 @@ export const en = {
   },
   problems: {
     title: (count: number): EnglishForms => ({ one: 'A record in the Investments file is left out or doubted', other: `${count} records in the Investments file are left out or doubted` }),
-    /** One problem: the record, named by its kind and label, and why. */
-    line: (noun: RecordNoun, label: string, reason: string) => `${capitalised(noun.en.one)} "${label}": ${reason}`,
   },
   notice: {
     toCheck: 'Some figures need a look',
@@ -190,7 +186,6 @@ export const hr: Translation<typeof en> = {
       few: `${count} zapisa u datoteci ulaganja izostavljena su ili upitna`,
       other: `${count} zapisa u datoteci ulaganja izostavljeno je ili upitno`,
     }),
-    line: (noun, label, reason) => `${capitalised(noun.hr.one)} „${label}”: ${reason}`,
   },
   notice: {
     toCheck: 'Neke brojke treba provjeriti',

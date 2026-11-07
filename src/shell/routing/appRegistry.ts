@@ -34,5 +34,5 @@ export function entryPath(app: AppContribution): string {
 
 /** What waits across the app's menu, for its row in the menu while its pages are closed. */
 export function waitingIn(app: AppContribution): number {
-  return app.menu().reduce((total, screen) => total + (app.menuCount(screen)?.count ?? 0), 0)
+  return app.menu().reduce((total, screen) => total + (app.menuCount?.(screen)?.count ?? 0), 0)
 }

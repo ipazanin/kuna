@@ -1,5 +1,5 @@
 import { ModelRequestFailed } from '../application/modelPort'
-import type { KeyTest } from './providerPresets'
+import type { KeyTest } from '../domain/providerPresets'
 import { serverSentEvents } from './serverSentEvents'
 
 export interface ProviderCall {

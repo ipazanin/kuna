@@ -1,6 +1,4 @@
-import { capitalised } from '../../../../shared/text/capitalised'
 import { language } from '../../../../shared/text/language'
-import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import type { CroatianForms, EnglishForms, Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
@@ -21,8 +19,6 @@ export const en = {
   },
   problems: {
     title: (count: number): EnglishForms => ({ one: 'A record in the Spending file is left out or doubted', other: `${count} records in the Spending file are left out or doubted` }),
-    /** One problem: the record, named by its kind and label, and why. */
-    line: (noun: RecordNoun, label: string, reason: string) => `${capitalised(noun.en.one)} "${label}": ${reason}`,
   },
   tiles: {
     savingsRateDefinition: 'Income less spending, over income.',
@@ -88,7 +84,6 @@ export const hr: Translation<typeof en> = {
       few: `${count} zapisa u datoteci potrošnje izostavljena su ili upitna`,
       other: `${count} zapisa u datoteci potrošnje izostavljeno je ili upitno`,
     }),
-    line: (noun, label, reason) => `${capitalised(noun.hr.one)} „${label}”: ${reason}`,
   },
   tiles: {
     savingsRateDefinition: 'Prihodi umanjeni za potrošnju, podijeljeni s prihodima.',
