@@ -7,7 +7,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import { ASSET_WRITES, newAsset, removeAsset } from '../application/assetWrites'
-import { loanChoices, NO_LOAN } from './loanChoices'
+import { loanChoices, loanReasonOf, NO_LOAN } from './loanChoices'
 import { assetLoans } from '../../loans/application/assetLoans'
 import { assetLink, ASSETS_OVERVIEW_ROUTE } from '../../overview/presentation/assetLinks'
 import { words as valueWords } from '../../values/presentation/words'
@@ -16,11 +16,10 @@ import { ASSET_KINDS, HOUSE_REGIONS } from '../../workbook/domain/asset'
 import type { AssetKind, HouseRegion } from '../../workbook/domain/asset'
 import type { AssetWithValuations } from '../../workbook/domain/readAssetBook'
 import { words as assetsWords } from '../../words'
+import { typedAssetTerms, NO_REGION } from './assetTexts'
 import { words } from './words'
-import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
-import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { today } from '../../../../shared/calendar/civilDate'
 import { plainAmount } from '../../../../shared/money/money'
-import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
@@ -39,23 +38,18 @@ const store = useAssetsBooks()
 const writes = useRecordWrites(store)
 const router = useRouter()
 
-/** What the region select holds for no region, since a select's value cannot be empty. */
-const NONE = 'none'
-
 const KIND_OPTIONS = ASSET_KINDS.map((kind) => ({ value: kind, label: valueWords.kinds[kind] }))
-const REGION_ITEMS = [{ label: words.assetDialog.noRegion, value: NONE }, ...HOUSE_REGIONS.map((region) => ({ label: valueWords.regions[region], value: region }))]
+const REGION_ITEMS = [{ label: words.assetDialog.noRegion, value: NO_REGION }, ...HOUSE_REGIONS.map((region) => ({ label: valueWords.regions[region], value: region }))]
 
 const loans = computed(() => assetLoans(today()))
 const loanItems = computed(() => loanChoices(loans.value, store.state.workbook ?? { assets: [] }, props.entry?.asset ?? null))
-const loanReason = computed(() =>
-  loans.value === null ? words.assetDialog.loansNotSetUp : loans.value === 'opening' ? words.assetDialog.loansOpening : loans.value === 'failed' ? words.assetDialog.loansFailed : '',
-)
+const loanReason = computed(() => loanReasonOf(loans.value))
 
 const name = ref('')
 const kind = ref<AssetKind>('home')
 const bought = ref('')
 const price = ref('')
-const region = ref<HouseRegion | typeof NONE>(NONE)
+const region = ref<HouseRegion | typeof NO_REGION>(NO_REGION)
 const firstRegistration = ref('')
 const loan = ref(NO_LOAN)
 const note = ref('')
@@ -68,59 +62,30 @@ watch(open, (opened) => {
   kind.value = asset?.kind ?? 'home'
   bought.value = asset?.bought ?? ''
   price.value = asset === null || asset.price === null ? '' : plainAmount(asset.price)
-  region.value = asset?.region ?? NONE
+  region.value = asset?.region ?? NO_REGION
   firstRegistration.value = asset?.firstRegistration ?? ''
   loan.value = asset?.loan ?? NO_LOAN
   note.value = asset?.note ?? ''
   tried.value = false
 })
 
-/** A typed day, null for a blank field, or undefined for text that is no day. */
-function typedDay(text: string): CivilDate | null | undefined {
-  return text.trim() === '' ? null : (parseCivilDate(text) ?? undefined)
-}
-
-const boughtDay = computed(() => typedDay(bought.value))
-const registrationDay = computed(() => typedDay(firstRegistration.value))
-const pricePaid = computed(() => (price.value.trim() === '' ? null : typedAmount(price.value)))
-
-const errors = computed(() => ({
-  name: name.value.trim() === '' ? words.assetDialog.nameError : null,
-  bought: boughtDay.value === undefined ? assetsWords.form.aDate(civilDate(2025, 3, 15)) : null,
-  price:
-    pricePaid.value === undefined || (pricePaid.value !== null && pricePaid.value <= 0)
-      ? words.assetDialog.anAmount
-      : pricePaid.value !== null && boughtDay.value === null
-        ? words.assetDialog.priceNeedsBought
-        : null,
-  firstRegistration: kind.value === 'car' && registrationDay.value === undefined ? assetsWords.form.aDate(civilDate(2024, 1, 15)) : null,
-}))
+const typed = computed(() => typedAssetTerms({ name: name.value, kind: kind.value, bought: bought.value, price: price.value, region: region.value, firstRegistration: firstRegistration.value }))
+const errors = computed(() => typed.value.errors)
 
 async function save(): Promise<void> {
   tried.value = true
-  const boughtOn = boughtDay.value
-  const registered = registrationDay.value
-  const paid = pricePaid.value
-  if (Object.values(errors.value).some((error) => error !== null) || boughtOn === undefined || registered === undefined || paid === undefined) return
-  const typed = newAsset({
-    name: name.value,
-    kind: kind.value,
-    bought: boughtOn,
-    price: paid,
-    region: kind.value === 'home' && region.value !== NONE ? region.value : null,
-    firstRegistration: kind.value === 'car' ? registered : null,
-    loan: loan.value === NO_LOAN ? null : loan.value,
-    note: note.value,
-  })
+  const { terms } = typed.value
+  if (terms === null) return
+  const asset = newAsset({ ...terms, loan: loan.value === NO_LOAN ? null : loan.value, note: note.value })
   const before = props.entry?.asset ?? null
   if (before === null) {
-    if (await writes.write(words.assetDialog.added, (unit) => unit.of(ASSET_WRITES).add(typed), { failedTitle: assetsWords.form.notAdded })) {
+    if (await writes.write(words.assetDialog.added, (unit) => unit.of(ASSET_WRITES).add(asset), { failedTitle: assetsWords.form.notAdded })) {
       open.value = false
-      await router.push(assetLink(typed))
+      await router.push(assetLink(asset))
     }
     return
   }
-  if (await writes.write(words.assetDialog.saved, (unit) => unit.of(ASSET_WRITES).change(before, { ...typed, id: before.id }), { failedTitle: assetsWords.form.notSaved })) open.value = false
+  if (await writes.write(words.assetDialog.saved, (unit) => unit.of(ASSET_WRITES).change(before, { ...asset, id: before.id }), { failedTitle: assetsWords.form.notSaved })) open.value = false
 }
 
 async function remove(): Promise<void> {

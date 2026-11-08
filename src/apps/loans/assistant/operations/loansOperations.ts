@@ -1,5 +1,5 @@
 import { OFFER_OPERATIONS, planOfferStep } from './offerOperation'
-import { RATE, RATE_OR_NULL, amountText, choiceOrNull, countText, moneyOf, refuseOnErrors } from './operationTexts'
+import { RATE, RATE_OR_NULL } from './operationTexts'
 import { proposalGroupsOf } from './proposalLines'
 import {
   BANK_LOAN_WRITES,
@@ -37,6 +37,7 @@ import { RATE_TYPES } from '../../workbook/domain/ratePeriod'
 import type { RatePeriod } from '../../workbook/domain/ratePeriod'
 import type { BankLoanBook, LoanBook, ScenarioBook } from '../../workbook/domain/readLoanBook'
 import { NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, choiceOf, dayOf, found, inputOf } from '../../../../shared/app/operationInput'
+import { amountText, choiceOrNull, countText, moneyOf, refuseOnErrors } from '../../../../shared/app/operationTexts'
 import type { AppAcceptance, AppProposer, AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
 import { StepRefused, proposedWrites } from '../../../../shared/app/proposedWrites'
 import type { OpenBooks, ProposalWork } from '../../../../shared/app/proposedWrites'

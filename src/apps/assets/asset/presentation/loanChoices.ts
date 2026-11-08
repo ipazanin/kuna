@@ -26,3 +26,8 @@ export function loanChoices(loans: LoansOnScreen, book: Pick<AssetBook, 'assets'
     ...(own === null || listed.some((loan) => loan.key === own) ? [] : [{ label: words.assetDialog.notInLoans, value: own }]),
   ]
 }
+
+/** Why no loan can be picked or taken off, or an empty text while Loans lists its bank loans. */
+export function loanReasonOf(loans: LoansOnScreen): string {
+  return loans === null ? words.assetDialog.loansNotSetUp : loans === 'opening' ? words.assetDialog.loansOpening : loans === 'failed' ? words.assetDialog.loansFailed : ''
+}

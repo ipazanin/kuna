@@ -1,6 +1,4 @@
 // @vitest-environment jsdom
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AppContribution } from '../src/shared/app/appContribution'
@@ -84,10 +82,6 @@ describe('the lines of the apps in Kuna settings', () => {
       { id: 'chat-only', name: 'chat-only', to: '/0' },
       { id: 'company', name: 'company', to: '/2' },
     ])
-  })
-
-  it.each(['assets'])('%s names no assistant in its registration, so it gets no tab and no line', (id) => {
-    expect(readFileSync(join(import.meta.dirname, `../src/apps/${id}/app.ts`), 'utf8')).not.toMatch(/^\s*assist:/m)
   })
 })
 

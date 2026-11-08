@@ -9,11 +9,10 @@ import { useAssetsBooks } from '../../workbook/application/assetsStore'
 import type { AssetWithValuations } from '../../workbook/domain/readAssetBook'
 import type { Valuation } from '../../workbook/domain/valuation'
 import { words as assetsWords } from '../../words'
+import { typedValuationTerms } from './valuationTexts'
 import { words } from './words'
-import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { plainAmount } from '../../../../shared/money/money'
-import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
@@ -46,37 +45,21 @@ watch(open, (opened) => {
   tried.value = false
 })
 
-const typedValue = computed(() => {
-  const cents = typedAmount(value.value)
-  return cents !== null && cents >= 0 ? cents : null
-})
-
-const errors = computed(() => {
-  const day = parseCivilDate(date.value)
-  const { bought } = props.entry.asset
-  return {
-    date:
-      day === null
-        ? assetsWords.form.aDate(civilDate(2026, 5, 1))
-        : bought !== null && day < bought
-          ? words.valuationDialog.notBeforeBought
-          : props.entry.valuations.some((other) => other.date === day && other.id !== props.editing?.id)
-            ? words.valuationDialog.sharesDay
-            : null,
-    value: typedValue.value === null ? words.valuationDialog.anAmount : null,
-  }
-})
+const typed = computed(() =>
+  typedValuationTerms({ date: date.value, value: value.value }, { bought: props.entry.asset.bought, valuations: props.entry.valuations, editing: props.editing?.id ?? null }),
+)
+const errors = computed(() => typed.value.errors)
 
 async function save(): Promise<void> {
   tried.value = true
-  const day = parseCivilDate(date.value)
-  if (Object.values(errors.value).some((error) => error !== null) || day === null || typedValue.value === null) return
-  const typed = newValuation({ asset: props.entry.asset.id, date: day, value: typedValue.value, note: note.value })
+  const { terms } = typed.value
+  if (terms === null) return
+  const valuation = newValuation({ asset: props.entry.asset.id, date: terms.date, value: terms.value, note: note.value })
   const before = props.editing
   const written =
     before === null
-      ? await writes.write(words.valuationDialog.added, (unit) => unit.of(VALUATION_WRITES).add(typed), { failedTitle: assetsWords.form.notAdded })
-      : await writes.write(words.valuationDialog.saved, (unit) => unit.of(VALUATION_WRITES).change(before, { ...typed, id: before.id }), { failedTitle: assetsWords.form.notSaved })
+      ? await writes.write(words.valuationDialog.added, (unit) => unit.of(VALUATION_WRITES).add(valuation), { failedTitle: assetsWords.form.notAdded })
+      : await writes.write(words.valuationDialog.saved, (unit) => unit.of(VALUATION_WRITES).change(before, { ...valuation, id: before.id }), { failedTitle: assetsWords.form.notSaved })
   if (written) open.value = false
 }
 

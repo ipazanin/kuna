@@ -27,6 +27,7 @@ import type { RatePeriod } from '../workbook/domain/ratePeriod'
 import type { LoanBook } from '../workbook/domain/readLoanBook'
 import { readableKind } from '../../../shared/app/assistantReader'
 import type { AppReader, ReportFigure } from '../../../shared/app/assistantReader'
+import { distinctNames } from '../../../shared/app/distinctNames'
 import { parseCivilDate, today } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { EURO } from '../../../shared/money/currencyCode'
@@ -207,20 +208,12 @@ function rate(label: string, yearly: YearlyRate): ReportFigure {
   return { label, basisPoints: nearestBasisPoints(pointsOfShare(fractionOf(yearly))) }
 }
 
-/** The names as given, with a number after each repeat, such as `(2)`, in the order the screens list them, so no two figures share a label. */
-function distinct(names: readonly string[]): readonly string[] {
-  return names.map((name, at) => {
-    const repeat = names.slice(0, at).filter((earlier) => earlier === name).length
-    return repeat === 0 ? name : `${name} (${repeat + 1})`
-  })
-}
-
 /** What each loan owes on the day, and what falls due next, as the Overview and each loan's page show it. Loans go by their lender and payout or start day, never by a name a person gave. */
 function balancesReport(book: LoanBook, period: string | null): readonly ReportFigure[] {
   const day = dayOfPeriod(period)
   const totals = owedOnDay(book, day)
-  const bankNames = distinct(book.bankLoans.map(({ loan }) => `bank loan from ${loan.lender} paid out ${loan.drawdown}`))
-  const informalNames = distinct(book.informalLoans.map(({ loan }) => `informal loan started ${loan.start}`))
+  const bankNames = distinctNames(book.bankLoans.map(({ loan }) => `bank loan from ${loan.lender} paid out ${loan.drawdown}`))
+  const informalNames = distinctNames(book.informalLoans.map(({ loan }) => `informal loan started ${loan.start}`))
   const bank = book.bankLoans.flatMap((loanBook, at): ReportFigure[] => {
     const figures = bankLoanFigures(loanBook, day)
     const named = bankNames[at]!
@@ -265,7 +258,7 @@ function offersReport(book: LoanBook, period: string | null): readonly ReportFig
   const offers = workedOffers(book.scenarios).flatMap((worked) =>
     worked.kept?.scenario.start.kind === 'offer' ? [{ worked, terms: worked.kept.scenario.start.terms, changes: worked.kept.changes }] : [],
   )
-  const names = distinct(offers.map(({ terms, changes }) => offerName(terms, changes)))
+  const names = distinctNames(offers.map(({ terms, changes }) => offerName(terms, changes)))
   return offers.flatMap(({ worked, terms }, at): ReportFigure[] => {
     const named = names[at]!
     const outcome = worked.outcome

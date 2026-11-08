@@ -7,6 +7,7 @@ import { DEFAULT_MONEY_FORMAT } from '../../shared/money/moneyFormat'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
 import { resumeFileLookup } from '../../shared/storage/presentation/resumeFileLookup'
 import { autoSyncOn } from '../../shared/sync/infrastructure/autoSyncSwitch'
+import { ASSETS_ASSIST } from './assistant/assetsAssist'
 import { words as assetWords } from './asset/presentation/words'
 import { ASSETS_HOME_CARD } from './home/presentation/assetsHomeCard'
 import { assetsHubFigures } from './home/presentation/assetsHubFigures'
@@ -37,6 +38,8 @@ export const assetsApp: AppContribution = {
     // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
       const { seedFakeAssets } = await import('./workbook/infrastructure/fake/seedFakeAssets')
+      const { registerFakeAssetsChat } = await import('./assistant/infrastructure/fake/fakeAssetsChat')
+      registerFakeAssetsChat()
       await seedFakeAssets(new URLSearchParams(window.location.search).get('assets'))
     }
   },
@@ -51,7 +54,16 @@ export const assetsApp: AppContribution = {
   subtitle: () => null,
   // Every figure is in euros, so it shows them in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
-  assistant: async () => (await import('./assistant/assetsAssistant')).ASSETS_ASSISTANT,
+  assist: ASSETS_ASSIST,
+  assistant: async () => {
+    const [{ assetsAssistant }, { assetsProposer, assetsAcceptance }] = await Promise.all([import('./assistant/assetsAssistant'), import('./assistant/operations/assetsOperations')])
+    const store = useAssetsBooks()
+    const loansToday = () => assetLoans(today())
+    return assetsAssistant(
+      { status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'), book: () => state.workbook, index: () => index.value, loans: assetLoans },
+      { proposer: assetsProposer(store, loansToday), acceptance: assetsAcceptance(store, loansToday) },
+    )
+  },
   homeCard: ASSETS_HOME_CARD,
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => assetsHubFigures(book, today(), index.value, assetLoans(today()))) },
   setUpLines: () => (state.workbook === null ? [] : assetsSetUp(state.workbook)),

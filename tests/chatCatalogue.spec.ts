@@ -4,8 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
-import { ASSETS_ASSISTANT } from '../src/apps/assets/assistant/assetsAssistant'
-import { ASSETS_SETTINGS_ROUTE } from '../src/apps/assets/overview/presentation/assetLinks'
+import { assetsAssistant } from '../src/apps/assets/assistant/assetsAssistant'
 import { companyAssistant } from '../src/apps/company/assistant/companyAssistant'
 import { HR_DOO_ASSISTANT } from '../src/apps/company/packs/hr-doo/assistant/hrDooAssistant'
 import { COMPANY_FACT_SETTINGS } from '../src/apps/company/packs/hr-doo/domain/companyFacts'
@@ -28,6 +27,7 @@ import { fakeCompanyBooks, readingOf } from './fixtures/companyChatBooks'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 const COMPANY = companyAssistant(HR_DOO_ASSISTANT, readingOf(fakeCompanyBooks()), () => [])
+const ASSETS_ASSISTANT = assetsAssistant({ status: () => 'none', book: () => null, index: () => 'loading', loans: () => null })
 const LOANS_ASSISTANT = loansAssistant({ status: () => 'none', book: () => null })
 const SPENDING_ASSISTANT = spendingAssistant(CHAT_READING)
 const INVESTMENTS_ASSISTANT = investmentsAssistant({ status: () => 'none', book: () => null, sources: () => null, taxShown: () => false })
@@ -48,7 +48,7 @@ const APPS: readonly CatalogueApp[] = [
     '/investments/tax',
     '/investments/settings',
   ]),
-  appOf('assets', ASSETS_ASSISTANT, ['/assets', ASSETS_SETTINGS_ROUTE as `/${string}`]),
+  appOf('assets', ASSETS_ASSISTANT, ['/assets', '/assets/asset', '/assets/settings']),
   appOf('spending', SPENDING_ASSISTANT, ['/spending', '/spending/transactions', '/spending/budgets', '/spending/accounts', '/spending/account', '/spending/settings']),
 ]
 const KUNA: CatalogueApp = { ...KUNA_CHAT, assistant: kunaAssistant() }
@@ -118,7 +118,7 @@ describe('the catalogue', () => {
   })
 
   it('lets the chat read only an app that offers a reader', () => {
-    expect([...catalogue.readers.keys()]).toEqual(['company', 'loans', 'investments', 'spending'])
+    expect([...catalogue.readers.keys()]).toEqual(['company', 'loans', 'investments', 'assets', 'spending'])
   })
 
   it('tells the model what a read holds: data, aliases, and no amount of its own', () => {
@@ -174,6 +174,7 @@ describe('the catalogue', () => {
       '/investments/performance': 'src/apps/investments/performance/presentation',
       '/investments/tax': 'src/apps/investments/tax/presentation',
       '/investments/settings': 'src/apps/investments/settings/presentation',
+      '/assets/settings': 'src/apps/assets/settings/presentation',
       '/loans/settings': 'src/apps/loans/settings/presentation',
       '/spending/settings': 'src/apps/spending/settings/presentation',
       '/spending/transactions': 'src/apps/spending/entries/presentation',
