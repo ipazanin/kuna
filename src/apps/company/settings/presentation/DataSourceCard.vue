@@ -35,7 +35,7 @@ function moveToDrive(): void {
 const switching = ref(false)
 
 function beside(): DriveFileBeside {
-  return state.workbook === null ? { files: [], folders: [], stays: [], blockedBy: [] } : companyFileBeside(state.workbook)
+  return state.workbook === null ? { files: [], folders: [], stays: [] } : companyFileBeside(state.workbook)
 }
 
 async function afterMove(): Promise<void> {

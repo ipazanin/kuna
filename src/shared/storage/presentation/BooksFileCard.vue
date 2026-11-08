@@ -18,7 +18,7 @@ import { useDriveFilePlace } from './useDriveFilePlace'
 import { words } from './words'
 
 /** A file with nothing of Kuna's beside it but its backups. */
-const NOTHING_BESIDE: DriveFileBeside = { files: [], folders: [], stays: [], blockedBy: [] }
+const NOTHING_BESIDE: DriveFileBeside = { files: [], folders: [], stays: [] }
 
 /**
  * An app's Settings: where its file is kept, when it was saved, synced and exported, a link to it on Drive, while it sits

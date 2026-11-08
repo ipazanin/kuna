@@ -29,7 +29,6 @@ export function companyFileBeside(workbook: Workbook): DriveFileBeside {
     files: [],
     folders: statements,
     stays: [...(statementsFolder.length > 0 && statements.length === 0 ? [folderTrail(statementsFolder)] : []), ...(invoicing.folderId === '' ? [] : [words.books.invoiceFolder])],
-    blockedBy: [],
   }
 }
 

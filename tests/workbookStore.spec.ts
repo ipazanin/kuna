@@ -728,7 +728,7 @@ describe('workbook store moving its file into the Kuna folder', () => {
     const seen: number[] = []
     const beside = () => {
       seen.push(store.state.workbook?.transactions.length ?? 0)
-      return { files: [], folders: [{ name: 'statements', mailSource: null }], stays: [], blockedBy: [] }
+      return { files: [], folders: [{ name: 'statements', mailSource: null }], stays: [] }
     }
     await store.moveIntoKuna(beside, null)
 
@@ -741,7 +741,7 @@ describe('workbook store moving its file into the Kuna folder', () => {
     used.add(choice.id)
     const store = storeOf(harness(choice, side).ports)
     await store.open()
-    const nothing = () => ({ files: [], folders: [], stays: [], blockedBy: [] })
+    const nothing = () => ({ files: [], folders: [], stays: [] })
 
     await expect(store.moveIntoKuna(nothing, null, async () => Promise.reject(new Error('not saved')))).rejects.toThrow('not saved')
     expect(side.drive.file(choice.id).appProperties.movedFrom).toBeDefined()
@@ -759,7 +759,7 @@ describe('workbook store moving its file into the Kuna folder', () => {
     const parent = side.drive.file(choice.id).parents[0]!
     await side.drive.trash(choice.id)
 
-    await expect(store.moveIntoKuna(() => ({ files: [], folders: [], stays: [], blockedBy: [] }), null)).rejects.toThrow()
+    await expect(store.moveIntoKuna(() => ({ files: [], folders: [], stays: [] }), null)).rejects.toThrow()
 
     expect(side.drive.file(choice.id).parents).toEqual([parent])
   })
@@ -1222,7 +1222,7 @@ describe('workbook store queueing what happens to its file', () => {
     const written = store.write('First', addAccount('first'))
     await uploading()
 
-    await expect(store.moveIntoKuna(() => ({ files: [], folders: [], stays: [], blockedBy: [] }), null)).rejects.toThrow(storageWords.busy)
+    await expect(store.moveIntoKuna(() => ({ files: [], folders: [], stays: [] }), null)).rejects.toThrow(storageWords.busy)
     await expect(store.dropWorkbook(choice.id)).rejects.toThrow(storageWords.busy)
 
     letUploadGo()
@@ -1249,7 +1249,7 @@ describe('workbook store queueing what happens to its file', () => {
       },
     })
     await moving.open()
-    const move = moving.moveIntoKuna(() => ({ files: [], folders: [], stays: [], blockedBy: [] }), null)
+    const move = moving.moveIntoKuna(() => ({ files: [], folders: [], stays: [] }), null)
     await vi.waitFor(() => expect(order).toEqual(['move starts']))
     const written = moving.write('During the move', addAccount('during'))
     moved()

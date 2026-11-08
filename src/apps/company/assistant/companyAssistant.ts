@@ -34,7 +34,7 @@ const AUTOMATION_LABELS: AutomationLabels = {
 }
 
 /** What Company tells the chat, with what its pack adds, as only `app.ts` may name the pack. `persons` reads the books `app.ts` holds: the employees through the pack, and the payees the owner flagged. */
-export function companyAssistant(pack: Pick<AppAssistant, 'kinds' | 'settings' | 'automations'>, persons: () => readonly KnownPerson[]): AppAssistant {
+export function companyAssistant(pack: Pick<AppAssistant, 'kinds' | 'settings'>, persons: () => readonly KnownPerson[]): AppAssistant {
   return {
     kinds: [...Object.values(coreKinds), ...pack.kinds],
     places: [
@@ -61,7 +61,6 @@ export function companyAssistant(pack: Pick<AppAssistant, 'kinds' | 'settings' |
         what: words.automations.statementsOnSync.what(AUTOMATION_LABELS),
         setUpRoute: GENERAL_SETTINGS_LINK,
       },
-      ...pack.automations,
     ],
     reader: null,
     proposer: null,

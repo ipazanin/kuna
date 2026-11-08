@@ -75,8 +75,6 @@ export interface DriveFileBeside {
   readonly folders: readonly KunaFilesFolder[]
   /** Words for what a setting reaches elsewhere and stays, by a path from My Drive or an id. */
   readonly stays: readonly string[]
-  /** Folders named from the file's own folder that hold what may not move, so a move would lose them. A move waits until these name a path from My Drive. */
-  readonly blockedBy: readonly string[]
 }
 
 /** How many files of one folder go, and how many stay because Kuna cannot say it made them. */
@@ -95,7 +93,6 @@ export interface DriveMovePlan {
   /** How many of this app's backups go with it. */
   readonly backups: number
   readonly stays: readonly string[]
-  readonly blockedBy: readonly string[]
 }
 
 /** A Drive folder the person picked, with the names of the folders from My Drive down to it, or null where the app cannot see them. */

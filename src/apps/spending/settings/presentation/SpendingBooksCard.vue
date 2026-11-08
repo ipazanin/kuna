@@ -21,7 +21,7 @@ const { exporting, exportNow } = useSpendingExport()
     :data="spendingData"
     :title="words.books"
     app-id="spending"
-    :beside="() => ({ files: [], folders: [{ name: RECEIPTS_FOLDER, mailSource: null }], stays: [], blockedBy: [] })"
+    :beside="() => ({ files: [], folders: [{ name: RECEIPTS_FOLDER, mailSource: null }], stays: [] })"
     :store="store"
     :seeded-title="{ stored: LOCAL_SPENDING_TITLE, shown: words.localTitle }"
     data-testid="spending-books-card"

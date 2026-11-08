@@ -131,7 +131,7 @@ describe("Company's person_payees setting", () => {
   })
 
   it('is never told to the chat', () => {
-    const told = companyAssistant({ kinds: [], settings: [], automations: [] }, () => []).settings.map((setting) => setting.key)
+    const told = companyAssistant({ kinds: [], settings: [] }, () => []).settings.map((setting) => setting.key)
 
     expect(told).toContain('company_name')
     expect(told).not.toContain(COMPANY_PERSON_PAYEES_KEY)

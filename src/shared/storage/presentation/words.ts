@@ -196,7 +196,6 @@ export const en = {
     }),
     stopsReading:
       ': Kuna stops reading this folder and files the same statements from your mail into its own folder, so nothing is lost. A script that files there is not touched, and goes on filing. A file you put there by hand and have not imported needs Import.',
-    blockedTitle: "These folders are named from this file's own folder, so a move would lose them. Name them as a path from My Drive first:",
     keepsWorking:
       'Kuna goes on finding the file on your other devices, with nothing to do there. Anything outside Kuna that reaches it by its path, such as Drive for Desktop or a script, needs the new path.',
     partWay: 'The file goes first. If what follows stops part way, a sync may not find a folder that has not caught up, and the button stays until you press it again.',
@@ -357,7 +356,6 @@ export const hr: Translation<typeof en> = {
     }),
     stopsReading:
       ': Kuna prestaje čitati ovu mapu i sprema iste izvode iz vaše pošte u svoju mapu, pa se ništa ne gubi. Skripta koja ondje sprema ostaje netaknuta i nastavlja spremati. Datoteku koju ste ondje stavili ručno, a niste je uvezli, treba uvesti kroz Uvoz.',
-    blockedTitle: 'Ove su mape imenovane iz mape ove datoteke, pa bi ih premještanje izgubilo. Najprije ih imenujte putem od mape Moj disk:',
     keepsWorking: 'Kuna i dalje pronalazi datoteku na vašim drugim uređajima, bez ikakve radnje. Sve izvan Kune što do nje dolazi po putu, poput Drivea za računala ili skripte, treba novi put.',
     partWay: 'Datoteka ide prva. Ako ono što slijedi stane na pola puta, sinkronizacija možda neće naći mapu koja još nije stigla, a gumb ostaje dok ga ponovno ne pritisnete.',
     cancel: 'Ne sada',

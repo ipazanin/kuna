@@ -23,7 +23,7 @@ const { exporting, exportNow } = useInvestmentsExport()
     :data="investmentsData"
     :title="words.books"
     app-id="investments"
-    :beside="() => ({ files: [PRICES_FILE_NAME], folders: [], stays: [], blockedBy: [] })"
+    :beside="() => ({ files: [PRICES_FILE_NAME], folders: [], stays: [] })"
     :store="store"
     :seeded-title="{ stored: LOCAL_INVESTMENTS_TITLE, shown: words.localTitle }"
     data-testid="investments-books-card"

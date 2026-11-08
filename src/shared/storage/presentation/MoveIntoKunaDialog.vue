@@ -111,15 +111,6 @@ async function move(): Promise<void> {
         <span class="identifier">{{ trail }}</span
         >{{ text.stopsReading }}
       </p>
-      <UAlert
-        v-if="plan && plan.blockedBy.length > 0"
-        icon="i-lucide-triangle-alert"
-        color="warning"
-        variant="subtle"
-        :title="text.blockedTitle"
-        :description="plan.blockedBy.join(', ')"
-        data-testid="move-into-kuna-blocked"
-      />
       <p class="text-sm text-muted">{{ text.keepsWorking }}</p>
       <p class="text-sm text-muted">{{ text.partWay }}</p>
       <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="text.failed" :description="failure" data-testid="move-into-kuna-failed" />
@@ -137,7 +128,7 @@ async function move(): Promise<void> {
         data-testid="move-into-kuna-elsewhere"
         @click="kunaFolder.chooseElsewhere().catch((refused) => (failure = reasonOf(refused)))"
       />
-      <UButton :label="text.confirm" icon="i-lucide-folder-input" :loading="moving" :disabled="plan === null || plan.blockedBy.length > 0" data-testid="move-into-kuna-confirm" @click="move" />
+      <UButton :label="text.confirm" icon="i-lucide-folder-input" :loading="moving" :disabled="plan === null" data-testid="move-into-kuna-confirm" @click="move" />
     </template>
   </AppDialog>
 </template>

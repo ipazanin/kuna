@@ -8,7 +8,6 @@ import { agreeing } from '../domain/words'
 // The books file is datoteka in Croatian, so that knjige keeps its legal sense.
 
 export const en = {
-  moveBlocked: (folders: string) => `These folders are named from this file's own folder and hold what Kuna may not move: ${folders}. Name them as a path from My Drive in Settings first.`,
   backupsNotBinned: (names: string, reason: string) => `Google Drive did not move these backups to the bin: ${names}. ${reason}`,
   onlyOwnerBins: 'Only its owner can move a file to the bin.',
   trashRefused:
@@ -33,7 +32,6 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
-  moveBlocked: (folders) => `Ove su mape imenovane iz mape ove datoteke i sadrže ono što Kuna ne smije premjestiti: ${folders}. Najprije ih u postavkama imenujte putem od mape Moj disk.`,
   backupsNotBinned: (names, reason) => `Google Drive nije premjestio ove sigurnosne kopije u otpad: ${names}. ${reason}`,
   onlyOwnerBins: 'Datoteku u otpad može premjestiti samo njezin vlasnik.',
   trashRefused:

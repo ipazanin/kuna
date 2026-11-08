@@ -5,7 +5,6 @@ import type { DriveFileBeside, DriveMovePlan, KunaFilesFolder, KunaFilesInFolder
 import { KUNA_FOLDER_NAME } from '../domain/kunaFolderName'
 import { APP_PROPERTY, backupDayOf, BACKUPS_FOLDER } from './driveDocument'
 import type { DocumentDrive } from './driveDocument'
-import { words } from './words'
 
 /** The mark on that folder, under the key the apps' files use, so a search from any device finds it wherever the person put it. */
 const KUNA_FOLDER_MARK = 'folder'
@@ -123,7 +122,6 @@ export async function planDriveMove(drive: DocumentDrive, fileId: string, app: s
     folders,
     backups: (await backupsOf(drive, sourceId, app))?.files.length ?? 0,
     stays: beside.stays,
-    blockedBy: beside.blockedBy,
   }
 }
 
@@ -174,7 +172,6 @@ async function moveBeside(drive: DocumentDrive, sourceId: string, targetId: stri
  * was taken. Trashes nothing, and a folder stays where it is with whatever Kuna did not make.
  */
 export async function moveDriveDocument(drive: DocumentDrive, fileId: string, app: string, beside: DriveFileBeside, parentId: string | null): Promise<readonly string[]> {
-  if (beside.blockedBy.length > 0) throw new Error(words.moveBlocked(beside.blockedBy.join(', ')))
   const parent = await drive.parentOf(fileId)
   const targetId = await kunaFolderOfApp(drive, app, parentId)
   const unfinished = await unfinishedMoveOf(drive, fileId)

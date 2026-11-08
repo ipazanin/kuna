@@ -11,7 +11,7 @@ import { createFakeDrive } from '../src/shared/storage/infrastructure/fake/fakeD
 import type { FakeDrive } from '../src/shared/storage/infrastructure/fake/fakeDrive'
 import { finishDriveMove, findKunaFolder, isKunaFolderOfApp, kunaFolderOfApp, moveDriveDocument, planDriveMove, unfinishedMoveOf } from '../src/shared/storage/infrastructure/kunaFolder'
 
-const NOTHING: DriveFileBeside = { files: [], folders: [], stays: [], blockedBy: [] }
+const NOTHING: DriveFileBeside = { files: [], folders: [], stays: [] }
 
 async function pathOf(drive: FakeDrive, fileId: string): Promise<string> {
   const names = [drive.file(fileId).name]
@@ -106,7 +106,7 @@ describe('moving a file into the Kuna folder', () => {
   it('takes what the app names and its own backups, a photo keeping its id, and leaves another app’s backup and the person’s own file', async () => {
     const { drive, fileId, photo, backup, otherBackup, mine, backups, folder } = await spendingFolder()
 
-    expect(await planDriveMove(drive, fileId, 'spending', BESIDE)).toEqual({ files: [], folders: [{ name: 'Receipts', kuna: 1, others: 0 }], backups: 1, stays: [], blockedBy: [] })
+    expect(await planDriveMove(drive, fileId, 'spending', BESIDE)).toEqual({ files: [], folders: [{ name: 'Receipts', kuna: 1, others: 0 }], backups: 1, stays: [] })
     await moveDriveDocument(drive, fileId, 'spending', BESIDE, null)
 
     expect(await pathOf(drive, photo)).toBe('Kuna/spending/Receipts/receipt-2026-10-01.jpg')
@@ -246,13 +246,6 @@ describe('moving only what Kuna made', () => {
     expect(drive.file(mine).parents).toEqual([receipts])
     expect(drive.file(receipts).parents).toEqual([folder])
     expect(await pathOf(drive, photo)).toBe('Kuna/spending/Receipts/receipt-2026-10-01.jpg')
-  })
-
-  it('refuses to start while a folder that cannot follow would be lost', async () => {
-    const { drive, fileId, folder } = await spendingFolder()
-
-    await expect(moveDriveDocument(drive, fileId, 'spending', { ...BESIDE, blockedBy: ['./payroll'] }, null)).rejects.toThrow('./payroll')
-    expect(drive.file(fileId).parents).toEqual([folder])
   })
 })
 
