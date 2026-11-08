@@ -15,7 +15,7 @@ export interface TransferredCash {
   readonly amount: Decimal
 }
 
-/** Units or cash moved between two of Ivan's accounts. It closes no lot and is no gain. */
+/** Units or cash moved between two of the person's accounts. It closes no lot and is no gain. */
 export interface Transfer {
   readonly id: RecordId
   readonly from: RecordId

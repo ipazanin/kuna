@@ -65,7 +65,7 @@ export interface GramQuoting {
 
 export type Quoting = UnitQuoting | PercentQuoting | GramQuoting
 
-/** Something Ivan buys and sells, with the one listing that prices it. Its trades are in its quote currency. */
+/** Something the person buys and sells, with the one listing that prices it. Its trades are in its quote currency. */
 export interface Instrument {
   readonly id: RecordId
   readonly name: string

@@ -121,7 +121,7 @@ Each move is a relocation plus import paths, lands in its own commit with `npm r
 7. The secrets file, as the first stage of the AI assist plan.
 8. Spending's receipts stage.
 
-The [spending plan](../features/spending/plan.md) and the [AI assist plan](../features/ai-assist/plan.md) give each step's files and checks.
+The [spending plan](https://github.com/ipazanin/kuna/blob/cd621ab/docs/features/spending/plan.md) and the [AI assist plan](https://github.com/ipazanin/kuna/blob/cd621ab/docs/features/ai-assist/plan.md) gave each step's files and checks. Both are summarised on their issues, [Spending v1](https://github.com/ipazanin/kuna/issues/27) and [AI help across the apps](https://github.com/ipazanin/kuna/issues/41).
 
 ## How the boundary spec will state it
 
@@ -137,5 +137,5 @@ None of these is a new kind of rule.
 ## Sources
 
 - [Hub design](hub.md), its target and its boundary rules
-- [Assets plan](../features/assets/plan.md), its module map
-- [Spending code research](../features/spending/research/lane1-code.md), its module map
+- [Assets plan](https://github.com/ipazanin/kuna/blob/cd621ab/docs/features/assets/plan.md), its module map
+- [Spending code research](https://github.com/ipazanin/kuna/blob/cd621ab/docs/features/spending/research/lane1-code.md), its module map

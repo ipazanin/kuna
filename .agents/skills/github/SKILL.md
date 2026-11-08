@@ -5,14 +5,15 @@ description: Track Kuna's work in GitHub issues and deliver it straight to main 
 
 # GitHub workflow
 
-Kuna has one developer, so there is no pull request step. Work is an issue, its commits go to `main` with its number, and it closes once its CI is green. Issues are the only list of open work. Plans and research stay under `docs/features` and the issue links to them.
+Kuna has one developer, so there is no pull request step. Work is an issue, its commits go to `main` with its number, and it closes once its CI is green. Issues are the only list of open work. A feature's plan lives in its issue body, and its research and what was built go in the issue's comments, not in `docs`.
 
 The repo is public, so an issue holds no personal data: no names, IBANs, OIBs, amounts or file contents from real books.
 
 ## An issue
 
 - Search before creating, including closed issues: `gh issue list --state all --search "<words>"`.
-- Write the outcome in plain words, what is decided, what is open and links to its docs. Link docs by full URL, so links work on GitHub.
+- Write the outcome in plain words, what is decided and what is open. Link a repo file by full URL, so links work on GitHub.
+- Keep the body current as decisions land. Post research and a "what was built" summary as comments.
 - Label each with one `app:<feature>` (`app:company`, `app:spending`, `app:architecture`, and so on) and one status: `idea`, `waiting`, `planned` or `building`. Done issues are closed and carry no status label.
 - Move the status label when the work moves: `gh issue edit <n> --remove-label planned --add-label building`.
 - Let a large issue's plan list its stages. One issue can take many commits.

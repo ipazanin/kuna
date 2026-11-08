@@ -4,7 +4,7 @@ Primary sources on the modular monolith, micro-frontends, DDD context mapping, V
 
 Read-only research on HEAD 7128551, 2026-10-22. Code paths are relative to the HEAD copy. Every web source was downloaded with curl into a scratch folder, turned into plain text and searched there, so each quote below is checked against the loaded page. One source could not be loaded as text and is marked unconfirmed. No real figure or name from the workbook appears here.
 
-The design sits on the Wave 12b target shape ([plan](../../features/platform/storage-boundary-plan.md)): repositories per record kind behind one unit of work, `RecordId` identity, the import-boundary spec and the typed pack seam. Where this file says "the pack seam" it means `PackContribution` and `installPack` from that plan, not today's code.
+The design sits on the Wave 12b target shape ([plan](https://github.com/ipazanin/kuna/blob/cd621ab/docs/features/platform/storage-boundary-plan.md)): repositories per record kind behind one unit of work, `RecordId` identity, the import-boundary spec and the typed pack seam. Where this file says "the pack seam" it means `PackContribution` and `installPack` from that plan, not today's code.
 
 ## Recommendation in short
 

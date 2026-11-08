@@ -916,7 +916,7 @@ function instrumentQuestions(entries: readonly DryRunEntry[], book: InvestmentBo
 }
 
 /**
- * A first guess Ivan corrects: stocks of the type the workbook shows, named by its symbol, quoting in the currency of
+ * A first guess the person corrects: stocks of the type the workbook shows, named by its symbol, quoting in the currency of
  * its trades, priced by Twelve Data for a US symbol and by Alpha Vantage for Xetra and Amsterdam, by hand otherwise.
  */
 function proposedInstrument(rows: readonly WorkbookRow[], isin: string | null, type: InstrumentType | null): Omit<Instrument, 'id'> {

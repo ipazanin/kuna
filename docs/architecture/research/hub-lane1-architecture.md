@@ -1,6 +1,6 @@
 # Hub, lane 1: architecture inventory
 
-Read-only research on the HEAD copy of ledgerboard at 7128551. Every path is relative to that copy. Designed on top of the Wave 12b target shape ([the Wave 12b plan](../../features/platform/storage-boundary-plan.md)), not only today's code. Counts come from the commands or scratch scripts named beside them. The scripts were in a scratch folder: `imports.mjs` builds the relative-import edge list of `src` (423 files, 3,179 import lines), `agg.mjs` and `cycles.mjs` query it, and `classify.mjs` sorts every file into a class. No web source is cited, so nothing here needed a page load.
+Read-only research on the HEAD copy of ledgerboard at 7128551. Every path is relative to that copy. Designed on top of the Wave 12b target shape ([the Wave 12b plan](https://github.com/ipazanin/kuna/blob/cd621ab/docs/features/platform/storage-boundary-plan.md)), not only today's code. Counts come from the commands or scratch scripts named beside them. The scripts were in a scratch folder: `imports.mjs` builds the relative-import edge list of `src` (423 files, 3,179 import lines), `agg.mjs` and `cycles.mjs` query it, and `classify.mjs` sorts every file into a class. No web source is cited, so nothing here needed a page load.
 
 ## Headline facts
 
