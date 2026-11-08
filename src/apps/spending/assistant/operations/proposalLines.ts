@@ -1,9 +1,10 @@
 import { words as accountWords } from '../../accounts/presentation/words'
+import { words as categoryWords } from '../../categories/presentation/words'
 import type { StatementDryRun } from '../../statements/domain/statementDryRun'
 import type { StatementRows } from '../../statements/domain/statementRows'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { words } from '../words'
 import type { ProposalGroup, ProposalLine } from '../../../../shared/app/assistantOperations'
 import { proposalGroups } from '../../../../shared/app/proposalGroups'
@@ -18,7 +19,7 @@ import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 import { plural } from '../../../../shared/text/translation'
 
 /** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */
-export const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id', 'categorisedBy', 'source', 'importKey', 'statement', 'movedAt', 'pocket', 'pair', 'description'])
+export const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id', 'categorisedBy', 'source', 'importKey', 'statement', 'movedAt', 'pocket', 'pair', 'description', 'transaction', 'receipt'])
 
 /** The fields that say where money or mail goes, which the owner lets a model fill with a warning on the field. */
 const WARNS: ReadonlySet<string> = new Set(['iban', 'counterpartyIban', 'value'])
@@ -46,6 +47,7 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   const value = record[field]
   if (value === null || value === undefined || value === '') return null
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'colour') return swatchOf(record.colour)?.name ?? null
+  if (isKind(kind, CATEGORY_RECORDS, record) && field === 'kind') return categoryWords.kinds[record.kind]
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'kind') return accountWords.kinds[record.kind]
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'bank') return record.bank === null ? null : accountWords.banks[record.bank]
   if (typeof value === 'boolean') return value ? words.proposals.yes : words.proposals.no
@@ -57,6 +59,9 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
     return currency === null ? null : formatAccountMoney(record.amount, currency)
   }
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'opening') return formatAccountMoney(record.opening, record.currency)
+  if (isKind(kind, LINE_RECORDS, record) && field === 'amount') return formatAccountMoney(record.amount, EURO)
+  if (isKind(kind, RECEIPT_RECORDS, record) && field === 'total') return formatMoney(record.total, 'negative', { ...DEFAULT_MONEY_FORMAT, currency: EURO })
+  if (isKind(kind, RECEIPT_RECORDS, record) && field === 'issuedOn') return dayLabel(record.issuedOn)
   if (isKind(kind, BUDGET_RECORDS, record) && field === 'amount') return formatMoney(record.amount, 'negative', { ...DEFAULT_MONEY_FORMAT, currency: EURO })
   if (isKind(kind, BUDGET_RECORDS, record) && field === 'from') return monthLabel(record.from)
   if (isKind(kind, TRANSACTION_RECORDS, record) && field === 'date') return dayLabel(record.date)
@@ -69,6 +74,8 @@ function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: st
   if (isKind(kind, TRANSACTION_RECORDS, record)) return record.payee !== '' ? record.payee : (namesOf.get(record.category) ?? fallback)
   if (isKind(kind, RULE_RECORDS, record)) return record.condition.column === 'counterparty_iban' ? words.proposals.ibanRule(record.condition.iban) : record.condition.fragment
   if (isKind(kind, BUDGET_RECORDS, record)) return namesOf.get(record.category) ?? fallback
+  if (isKind(kind, RECEIPT_RECORDS, record)) return record.merchant !== '' ? record.merchant : fallback
+  if (isKind(kind, LINE_RECORDS, record)) return record.text !== '' ? record.text : record.printed !== '' ? record.printed : fallback
   if (isKind(kind, ACCOUNT_RECORDS, record) || isKind(kind, CATEGORY_RECORDS, record)) return record.name
   return fallback
 }
@@ -95,8 +102,25 @@ function leftOutLine({ label, rows, fileNotes }: StatementLeftOut): ProposalLine
   return warnings.length === 0 ? null : { label, fields: [], warning: warnings.join(' ') }
 }
 
-/** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's. An import that leaves rows out warns on its first group of entries. */
-export function proposalGroupsOf(checked: CheckedWrite, book: SpendingBook, leftOut: StatementLeftOut | null = null): readonly ProposalGroup[] {
+/** Lines that warn on what a card writes beyond its changes, and the kind whose group shows them first. */
+export interface CardWarnings {
+  readonly leftOut: StatementLeftOut | null
+  /** One line for each receipt whose read failed a check or that may be a payment already on the file. */
+  readonly receipts: readonly ProposalLine[]
+}
+
+/** The lines put first in the first group of a kind, or the groups as they are when that kind has none or no line is given. */
+function withLinesFirst(groups: readonly ProposalGroup[], noun: ProposalGroup['noun'], lines: readonly ProposalLine[]): readonly ProposalGroup[] {
+  if (lines.length === 0) return groups
+  const at = Math.max(
+    0,
+    groups.findIndex((group) => group.noun === noun),
+  )
+  return groups.map((group, place) => (place === at ? { ...group, lines: [...lines, ...group.lines] } : group))
+}
+
+/** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's. An import that leaves rows out warns on its first group of entries, and a receipt on its group of receipts. */
+export function proposalGroupsOf(checked: CheckedWrite, book: SpendingBook, { leftOut, receipts }: CardWarnings = { leftOut: null, receipts: [] }): readonly ProposalGroup[] {
   const namesOf = new Map<unknown, string>([...book.categories, ...book.accounts].map((record) => [record.id, record.name]))
   checked.changes.forEach(({ change }) => {
     if (change.verb === 'add' && 'name' in (change.after as object) && 'id' in (change.after as object)) namesOf.set((change.after as { id: string }).id, (change.after as { name: string }).name)
@@ -110,10 +134,5 @@ export function proposalGroupsOf(checked: CheckedWrite, book: SpendingBook, left
   }
   const groups = proposalGroups(checked, () => describer)
   const line = leftOut === null ? null : leftOutLine(leftOut)
-  if (line === null) return groups
-  const at = Math.max(
-    0,
-    groups.findIndex((group) => group.noun === TRANSACTION_RECORDS.noun),
-  )
-  return groups.map((group, place) => (place === at ? { ...group, lines: [line, ...group.lines] } : group))
+  return withLinesFirst(withLinesFirst(groups, TRANSACTION_RECORDS.noun, line === null ? [] : [line]), RECEIPT_RECORDS.noun, receipts)
 }

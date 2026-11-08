@@ -22,9 +22,13 @@ async function spendingStore(): Promise<WorkbookStore<SpendingBooks>> {
   return store as unknown as WorkbookStore<SpendingBooks>
 }
 
-/** Renames categories, each step one, with what `beforeWrite` kept added to the name once it has run. A kept `other:` names another category to rename instead. */
+/**
+ * Renames categories, each step one, with what `beforeWrite` kept added to the name once it has run. A kept `other:` names another category to rename instead.
+ * A work that keeps something says so outside the books unless `effects` says otherwise.
+ */
 function renaming(events: string[] = [], effects: Pick<ProposalWork<SpendingBooks, string>, 'beforeWrite' | 'outside'> = {}): ProposalWork<SpendingBooks, string> {
   return {
+    ...(effects.beforeWrite === undefined ? {} : { outside: () => ['A file stays on Drive after Undo.'] }),
     notOpen: 'Not open.',
     plan(unit, books, steps, kept) {
       events.push(`plan ${kept ?? 'unrun'}`)
@@ -140,6 +144,24 @@ describe('a proposed write', () => {
     expect(result.kind).toBe('done')
     expect(events).toEqual(['plan unrun', 'before write', 'plan kept-on-drive'])
     expect(named(store, 'Food shop kept-on-drive')).toBeDefined()
+  })
+
+  it('writes the checked changes without beforeWrite when the steps keep nothing outside the books', async () => {
+    const store = await spendingStore()
+    const groceries = named(store, 'Groceries')!
+    const events: string[] = []
+    const work = renaming(events, {
+      beforeWrite: async () => {
+        events.push('before write')
+        return 'kept'
+      },
+      outside: () => [],
+    })
+    const proposal = await checked(store, work, [rename(groceries.id, 'Food shop')])
+
+    expect((await proposedWrites(store, work).accept(proposal)).kind).toBe('done')
+    expect(events).toEqual(['plan unrun'])
+    expect(named(store, 'Food shop')).toBeDefined()
   })
 
   it('refuses with the reason when beforeWrite fails, and writes nothing', async () => {

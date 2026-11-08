@@ -1,3 +1,4 @@
+import type { ChatAttachment } from '../ai/domain/chatAttachments'
 import type { StrictSchema } from '../ai/domain/strictSchema'
 import { StepRefused } from './proposedWrites'
 import { parseCivilDate } from '../calendar/civilDate'
@@ -37,3 +38,8 @@ export function found<R extends { readonly id: string }>(records: readonly R[], 
 
 /** Why an import reads no statement off an attached photo or PDF: the model reads it and transcribes the rows. */
 export const NOT_READ_OFF_A_PAGE = 'Kuna reads no statement off a photo or a PDF. Read it yourself and transcribe its rows as printed, with file null.'
+
+/** Whether a step's field holds a file attached to the chat, as an `attachment` ref resolves to. */
+export function isAttachment(value: unknown): value is ChatAttachment {
+  return typeof value === 'object' && value !== null && 'kind' in value && 'bytes' in value && 'original' in value
+}

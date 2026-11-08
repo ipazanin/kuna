@@ -15,6 +15,7 @@ import { chatRefs } from '../src/shared/ai/domain/chatRefs'
 import { newPseudonyms } from '../src/shared/privacy/domain/pseudonyms'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
+import { receiptPorts } from './fixtures/spendingDesk'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
 
 const DAY = parseCivilDate('2026-11-07')!
@@ -34,7 +35,7 @@ async function desk(): Promise<Desk> {
   const typed = store as unknown as WorkbookStore<SpendingBooks>
   const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => true }
   const cards: CheckedProposal[] = []
-  const proposers = new Map([['spending', spendingProposer(typed)]])
+  const proposers = new Map([['spending', spendingProposer(typed, receiptPorts())]])
   return {
     store: typed,
     reads,
@@ -54,7 +55,7 @@ async function desk(): Promise<Desk> {
 const bookOf = ({ store }: Desk) => store.state.workbook!
 const named = (desk: Desk, name: string) => bookOf(desk).categories.find((category) => category.name === name)!
 const rowOf = (desk: Desk, payee: string) => bookOf(desk).transactions.find((row) => row.payee === payee)!
-const accept = (desk: Desk, at = 0) => spendingAcceptance(desk.store).accept(desk.cards[at]!)
+const accept = (desk: Desk, at = 0) => spendingAcceptance(desk.store, receiptPorts()).accept(desk.cards[at]!)
 
 describe('a proposal', () => {
   it('writes nothing until it is accepted, and then one write with one Undo', async () => {
@@ -226,7 +227,7 @@ describe('a proposal', () => {
     d.reads.pseudonyms.know(['Ana Horvat'])
     const answer = await proposeChanges(
       { app: 'spending', title: 'Rules for Person 1', steps: [{ op: 'set-setting', input: JSON.stringify({ key: COMPANY_OIB_KEY, value: '12345678903' }), as: null }] },
-      new Map([['spending', spendingProposer(d.store)]]),
+      new Map([['spending', spendingProposer(d.store, receiptPorts())]]),
       d.reads,
       [],
       (_app, card) => d.cards.push(card),

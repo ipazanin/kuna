@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { accountBalance } from '../src/apps/spending/accounts/domain/accountBalance'
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
-import { deleteInto, newCategory } from '../src/apps/spending/categories/application/categoryWrites'
+import { deleteInto } from '../src/apps/spending/categories/application/categoryWrites'
 import { TRANSACTION_WRITES, removeEntry } from '../src/apps/spending/entries/application/entryWrites'
 import { LINE_WRITES, RECEIPT_WRITES, removeReceiptOf } from '../src/apps/spending/receipts/application/receiptRecords'
 import { writeReceiptSplit } from '../src/apps/spending/receipts/application/receiptWrites'
@@ -203,22 +203,6 @@ describe('a receipt read into lines', () => {
       [accountMoneyFromAmount(-8.49), false],
       [accountMoneyFromAmount(-0.5), true],
     ])
-  })
-
-  it('adds a category you accepted in the same write, and one Undo takes it back with the rest', async () => {
-    const store = await spendingStore()
-    const card = await withRow(store, row(OTP, '2026-11-04', -23.49, null))
-    const pets = newCategory({ name: 'Pet food', kind: 'spending', parent: null, order: 99, colour: '', hidden: false })
-    const parts = [PARTS[0]!, { ...PARTS[1]!, category: pets.id }]
-
-    const written = await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { row: card }, parts), [pets]))
-
-    expect(store.state.workbook!.problems).toEqual([])
-    expect(store.state.workbook!.lines[1]!.category).toBe(pets.id)
-    await store.undo(store.state.writes.find((write) => write.receipt === written)!)
-    expect(store.state.workbook!.categories.some((held) => held.id === pets.id)).toBe(false)
-    expect(store.state.workbook!.lines).toEqual([])
-    expect(store.state.workbook!.problems).toEqual([])
   })
 
   it('counts nothing as spending for an R1 receipt, whose lines are all For the company', async () => {

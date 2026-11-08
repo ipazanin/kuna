@@ -29,12 +29,17 @@
  * English and Croatian, answers the dialog, follows the link the fake model shows, and a second one tags an element from the gallery.
  * Another flags a payee as a person on its Spending entry, lets the chat read Spending from its card and opens the exact text sent,
  * with that person's alias and the IBAN masked, and again with Anonymise off. A proposal shows its card with Accept and one Undo.
+ * Spending's To review asks the chat from its card's header and from a waiting row, each outlined while the chat is about it.
+ * Entries puts a receipt photo on the prompt, the chat proposes its new category on one card and the receipt on the next, and
+ * Accept splits the payment with one Undo. The receipt dialog shows no part of the assistant.
+ * Company's To review keeps Suggest categories, which opens the chat about the queue and files the sure rows on a card, and an
+ * opened row asks about itself. An invoice asked of the chat is a link to the Invoices tab, dollars are a currency card with a
+ * warned line, a rule for Laptop Store re-files a confirmed row with a warning, and Kuna's dark look is a card with Undo.
  *
  * Kuna settings shows the assistant's card with no key, with a made-up Anthropic key kept and Anonymise on, with Anonymise off
  * for Anthropic, with a key refused and after a switch of company, which turns Anonymise back on, in Croatian too, and Company
- * and Spending show their Assistant tabs. Spending's entry dialog and an opened row of Company's To review tab treat a payee
- * as a person, in Croatian too. On the To review tab Suggest categories asks to switch Company on, says what it did, shows the suggestion on
- * each closed row and opens the first with its Use button, in Croatian too, or says the model declined (`?ai=refused`). With a key kept, the build-up amounts on Owner, Salaries, Year's Pay tab
+ * and Spending show their Assistant tabs, Spending's naming only the chat when no key is kept. Spending's entry dialog and an opened row of Company's To review tab treat a payee
+ * as a person, in Croatian too. With a key kept, the build-up amounts on Owner, Salaries, Year's Pay tab
  * and a closed year's open items have Ask the chat beside them, which opens the chat with the figure's build-up as its tag, in Croatian too.
  *
  * Net worth renders on the sample Loans and Investments files beside the company on Drive and in this browser,
@@ -286,11 +291,7 @@ import {
   spendingReceiptFlowIn,
   spendingReceiptPickFlowIn,
   spendingReceiptPlaceFlowIn,
-  spendingReceiptR1BareFlowIn,
-  spendingReceiptR1FlowIn,
   spendingReviewNearFlowIn,
-  spendingReceiptReadFlowIn,
-  spendingReceiptSumOffFlowIn,
   spendingLimitFlowIn,
   spendingReviewFlowIn,
   spendingRuleFlowIn,
@@ -318,7 +319,6 @@ import {
   ownerNetUnregisteredFlowIn,
   raceFlowIn,
   deleteKeysFlowIn,
-  reviewSuggestFlowIn,
   salariesFlowIn,
   assistKeyRefusedFlowIn,
   assistProviderSwitchFlowIn,
@@ -455,9 +455,13 @@ import {
   chatConsentFilesFlow,
   chatQuestionFilesFlow,
   chatStatementCardFlowIn,
+  chatReceiptFlowIn,
+  spendingReceiptDialogFlowIn,
+  spendingReviewAskFlowIn,
 } from './support/editorFlows.mjs'
 import { writeChatAttachmentSamples } from './support/chatAttachmentFiles.mjs'
 import { figureAskFlowIn } from './support/figureAskFlows.mjs'
+import { companyChatCardFlowIn, companyReviewAskFlowIn, kunaChatThemeFlowIn } from './support/companyChatFlows.mjs'
 import { writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
 import { screenMenusFlow } from './support/menuFlows.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
@@ -497,7 +501,7 @@ const CARD_SELECTOR = '.rounded-card'
  * `linkedPart` is the element a deep link's hash names, and `linkedRow` the row a deep link's query
  * marks, each inside a card that has to open for it. `linkedCard` is a card a link from another
  * screen points at, which has to open. `collapsedBefore` names the cards this device
- * remembers as collapsed, and `expandedBefore` those it remembers as open. `stored` is what this device keeps in localStorage before the page loads, such as made-up price vendor keys. `cards: false` marks a screen with no collapsible card.
+ * remembers as collapsed, and `expandedBefore` those it remembers as open. `stored` is what this device keeps in localStorage before the page loads, such as made-up price vendor keys. `lacks` is text the screen must not show. `cards: false` marks a screen with no collapsible card.
  */
 /** The ids of the sample Loans file's bank loan, its informal loan you owe and its informal loan owed to you whose borrower is behind on the plan, `?loans=sample`. */
 const SAMPLE_BANK_LOAN = 'fa4e0000-0000-4000-8000-000000000001'
@@ -1574,7 +1578,7 @@ const SCREENS = [
     charts: 0,
     ready: '[data-testid="assist-switch-company"][aria-checked="true"]',
     stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042', 'kuna.assist.company': 'on' },
-    shows: ['Uses your Anthropic key, straight from this browser.', 'Send without asking', 'Suggest categories', 'Anonymise keeps rows about employees out.', 'Explain'],
+    shows: ['Uses your Anthropic key, straight from this browser.', 'Send without asking', 'Explain', 'Chat'],
     cards: false,
   },
   {
@@ -1585,7 +1589,7 @@ const SCREENS = [
     charts: 0,
     ready: '[data-testid="assist-switch-company"][aria-checked="true"]',
     stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042', 'kuna.assist.company': 'on' },
-    shows: ['Koristi vaš ključ za Anthropic, izravno iz ovog preglednika.', 'Šalji bez pitanja', 'Predloži kategorije', 'anonimizacija izostavlja retke o zaposlenicima', 'Objasni'],
+    shows: ['Koristi vaš ključ za Anthropic, izravno iz ovog preglednika.', 'Šalji bez pitanja', 'Objasni', 'Razgovor'],
     cards: false,
   },
   {
@@ -2676,6 +2680,28 @@ const SOURCE_SCREENS = [
     cards: false,
   },
   {
+    name: 'spending-entries',
+    query: 'spending=receipts',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    charts: 0,
+    ready: '[data-testid="spending-receipt-to-chat"]',
+    stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
+    shows: ['Add a receipt', 'Read a receipt in the chat'],
+    cards: false,
+  },
+  {
+    name: 'spending-entries-croatian',
+    query: 'spending=receipts&lang=hr',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    charts: 0,
+    ready: '[data-testid="spending-receipt-to-chat"]',
+    stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
+    shows: ['Dodaj fiskalni račun', 'Pročitaj fiskalni račun u chatu'],
+    cards: false,
+  },
+  {
     name: 'spending-review',
     query: 'spending=statements',
     hash: '#/spending/transactions?tab=review',
@@ -2873,7 +2899,8 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="assist-switch-spending"]',
     stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
-    shows: ['Uses your Anthropic key, straight from this browser.', 'Send without asking', 'Read a receipt', 'records and figures from Spending the chat asks for'],
+    shows: ['Uses your Anthropic key, straight from this browser.', 'Send without asking', 'records and figures from Spending the chat asks for'],
+    lacks: ['Read a receipt'],
     cards: false,
   },
   {
@@ -2884,7 +2911,30 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="assist-switch-spending"]',
     stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
-    shows: ['Koristi vaš ključ za Anthropic, izravno iz ovog preglednika.', 'Šalji bez pitanja', 'Pročitaj fiskalni račun', 'zapisi i iznosi iz aplikacije Potrošnja'],
+    shows: ['Koristi vaš ključ za Anthropic, izravno iz ovog preglednika.', 'Šalji bez pitanja', 'zapisi i iznosi iz aplikacije Potrošnja'],
+    lacks: ['Pročitaj fiskalni račun'],
+    cards: false,
+  },
+  {
+    name: 'spending-settings-assist-no-key',
+    query: 'spending=drive',
+    hash: '#/spending/settings?tab=assistant',
+    title: 'Settings',
+    charts: 0,
+    ready: '[data-testid="assist-add-key"]',
+    shows: ['With a key, the chat can read and change your records in Spending.', 'Add a key in Kuna settings'],
+    lacks: ['can help here with'],
+    cards: false,
+  },
+  {
+    name: 'spending-settings-assist-no-key-croatian',
+    query: 'spending=drive&lang=hr',
+    hash: '#/spending/settings?tab=assistant',
+    title: 'Postavke',
+    charts: 0,
+    ready: '[data-testid="assist-add-key"]',
+    shows: ['S ključem razgovor može čitati i mijenjati vaše zapise u aplikaciji Potrošnja.', 'Dodajte ključ u postavkama Kune'],
+    lacks: ['pomoći s ovim'],
     cards: false,
   },
   {
@@ -4704,6 +4754,183 @@ const FLOWS = [
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&spending=sample&lang=hr' },
   },
+  // Spending's ways into the chat: To review's asks, a receipt from Entries and its cards, and the receipt dialog without the assistant.
+  {
+    name: 'spending-review-ask',
+    hash: '#/spending/transactions?tab=review',
+    title: 'Entries',
+    run: spendingReviewAskFlowIn('en', ['queue']),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=statements' },
+  },
+  {
+    name: 'spending-review-ask-croatian',
+    hash: '#/spending/transactions?tab=review',
+    title: 'Unosi',
+    run: spendingReviewAskFlowIn('hr', ['queue']),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=statements&lang=hr' },
+  },
+  {
+    name: 'spending-review-row-tagged',
+    hash: '#/spending/transactions?tab=review',
+    title: 'Entries',
+    run: spendingReviewAskFlowIn('en', ['row']),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=statements' },
+  },
+  {
+    name: 'spending-review-row-tagged-croatian',
+    hash: '#/spending/transactions?tab=review',
+    title: 'Unosi',
+    run: spendingReviewAskFlowIn('hr', ['row']),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=statements&lang=hr' },
+  },
+  {
+    name: 'spending-receipt-dialog',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    run: spendingReceiptDialogFlowIn('en', SPENDING_RECEIPT_SAMPLES),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=receipts' },
+  },
+  {
+    name: 'spending-receipt-dialog-croatian',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    run: spendingReceiptDialogFlowIn('hr', SPENDING_RECEIPT_SAMPLES),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=receipts&lang=hr' },
+  },
+  {
+    name: 'chat-category-then-receipt',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    run: chatReceiptFlowIn('en', SPENDING_RECEIPT_SAMPLES),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=receipts' },
+  },
+  {
+    name: 'chat-category-then-receipt-croatian',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    run: chatReceiptFlowIn('hr', SPENDING_RECEIPT_SAMPLES),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=receipts&lang=hr' },
+  },
+  {
+    name: 'chat-receipt-card',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    run: chatReceiptFlowIn('en', SPENDING_RECEIPT_SAMPLES, { accept: true }),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=receipts' },
+  },
+  {
+    name: 'chat-receipt-card-croatian',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    run: chatReceiptFlowIn('hr', SPENDING_RECEIPT_SAMPLES, { accept: true }),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=receipts&lang=hr' },
+  },
+  // Company's ways into the chat and its cards, and Kuna's theme card.
+  {
+    name: 'company-review-ask',
+    hash: '#/company/transactions?tab=review',
+    title: 'Transactions',
+    run: companyReviewAskFlowIn('en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+  },
+  {
+    name: 'company-review-ask-croatian',
+    hash: '#/company/transactions?tab=review',
+    title: 'Transakcije',
+    run: companyReviewAskFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&lang=hr' },
+  },
+  {
+    name: 'company-chat-invoice',
+    hash: '#/company',
+    title: 'Overview',
+    run: companyChatCardFlowIn('en', 'invoice'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+  },
+  {
+    name: 'company-chat-invoice-croatian',
+    hash: '#/company',
+    title: 'Pregled',
+    run: companyChatCardFlowIn('hr', 'invoice'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&lang=hr' },
+  },
+  {
+    name: 'company-chat-currency',
+    hash: '#/company',
+    title: 'Overview',
+    run: companyChatCardFlowIn('en', 'currency'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+  },
+  {
+    name: 'company-chat-currency-croatian',
+    hash: '#/company',
+    title: 'Pregled',
+    run: companyChatCardFlowIn('hr', 'currency'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&lang=hr' },
+  },
+  {
+    name: 'company-chat-refile',
+    hash: '#/company',
+    title: 'Overview',
+    run: companyChatCardFlowIn('en', 'refile'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+  },
+  {
+    name: 'company-chat-refile-croatian',
+    hash: '#/company',
+    title: 'Pregled',
+    run: companyChatCardFlowIn('hr', 'refile'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&lang=hr' },
+  },
+  {
+    name: 'kuna-chat-theme',
+    hash: '#/',
+    title: 'All apps',
+    run: kunaChatThemeFlowIn('en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+  },
+  {
+    name: 'kuna-chat-theme-croatian',
+    hash: '#/',
+    title: 'Sve aplikacije',
+    run: kunaChatThemeFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&lang=hr' },
+  },
   { name: 'page-tabs', hash: '#/company/settings', title: 'Settings', run: pageTabsFlow },
   { name: 'year-tab-link', hash: '#/company/year?tab=statements', title: 'Year', run: yearTabLinkFlow },
   { name: 'page-tabs-croatian', hash: '#/company/settings', title: 'Postavke', run: pageTabsFlowIn('hr'), queries: { drive: '&lang=hr', browser: '&fake=browser&lang=hr' } },
@@ -5228,33 +5455,6 @@ const FLOWS = [
     queries: { drive: '&spending=receipts' },
   },
   {
-    name: 'spending-receipt-review',
-    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
-    hash: '#/spending/transactions',
-    title: 'Entries',
-    run: spendingReceiptReadFlowIn('en', SPENDING_RECEIPT_SAMPLES),
-    modes: ['drive'],
-    queries: { drive: '&spending=receipts' },
-  },
-  {
-    name: 'spending-receipt-sum-off',
-    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
-    hash: '#/spending/transactions',
-    title: 'Entries',
-    run: spendingReceiptSumOffFlowIn('en', SPENDING_RECEIPT_SAMPLES),
-    modes: ['drive'],
-    queries: { drive: '&spending=receipts&receipt=sum-off' },
-  },
-  {
-    name: 'spending-receipt-r1',
-    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
-    hash: '#/spending/transactions',
-    title: 'Entries',
-    run: spendingReceiptR1FlowIn('en', SPENDING_RECEIPT_SAMPLES),
-    modes: ['drive'],
-    queries: { drive: '&spending=receipts&receipt=r1' },
-  },
-  {
     name: 'spending-receipt-place',
     viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
     hash: '#/spending/transactions',
@@ -5262,15 +5462,6 @@ const FLOWS = [
     run: spendingReceiptPlaceFlowIn('en', SPENDING_RECEIPT_SAMPLES),
     modes: ['drive'],
     queries: { drive: '&spending=receipts' },
-  },
-  {
-    name: 'spending-receipt-r1-ask',
-    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
-    hash: '#/spending/transactions',
-    title: 'Entries',
-    run: spendingReceiptR1BareFlowIn('en', SPENDING_RECEIPT_SAMPLES),
-    modes: ['drive'],
-    queries: { drive: '&spending=receipts&receipt=r1-bare' },
   },
   {
     name: 'spending-review-near',
@@ -5685,33 +5876,6 @@ const FLOWS = [
     queries: { drive: '&spending=receipts&lang=hr' },
   },
   {
-    name: 'spending-receipt-review-croatian',
-    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
-    hash: '#/spending/transactions',
-    title: 'Unosi',
-    run: spendingReceiptReadFlowIn('hr', SPENDING_RECEIPT_SAMPLES),
-    modes: ['drive'],
-    queries: { drive: '&spending=receipts&lang=hr' },
-  },
-  {
-    name: 'spending-receipt-sum-off-croatian',
-    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
-    hash: '#/spending/transactions',
-    title: 'Unosi',
-    run: spendingReceiptSumOffFlowIn('hr', SPENDING_RECEIPT_SAMPLES),
-    modes: ['drive'],
-    queries: { drive: '&spending=receipts&receipt=sum-off&lang=hr' },
-  },
-  {
-    name: 'spending-receipt-r1-croatian',
-    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
-    hash: '#/spending/transactions',
-    title: 'Unosi',
-    run: spendingReceiptR1FlowIn('hr', SPENDING_RECEIPT_SAMPLES),
-    modes: ['drive'],
-    queries: { drive: '&spending=receipts&receipt=r1&lang=hr' },
-  },
-  {
     name: 'spending-receipt-place-croatian',
     viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
     hash: '#/spending/transactions',
@@ -5719,15 +5883,6 @@ const FLOWS = [
     run: spendingReceiptPlaceFlowIn('hr', SPENDING_RECEIPT_SAMPLES),
     modes: ['drive'],
     queries: { drive: '&spending=receipts&lang=hr' },
-  },
-  {
-    name: 'spending-receipt-r1-ask-croatian',
-    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
-    hash: '#/spending/transactions',
-    title: 'Unosi',
-    run: spendingReceiptR1BareFlowIn('hr', SPENDING_RECEIPT_SAMPLES),
-    modes: ['drive'],
-    queries: { drive: '&spending=receipts&receipt=r1-bare&lang=hr' },
   },
   {
     name: 'spending-review-near-croatian',
@@ -6295,24 +6450,7 @@ const FLOWS = [
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&lang=hr' },
   },
-  {
-    name: 'review-suggested',
-    hash: '#/company/transactions?tab=review',
-    title: 'Transactions',
-    run: reviewSuggestFlowIn('en'),
-    viewports: EVERY_VIEWPORT,
-    modes: ['drive'],
-    queries: { drive: '&ai=ok' },
-  },
-  {
-    name: 'review-suggested-croatian',
-    hash: '#/company/transactions?tab=review',
-    title: 'Transakcije',
-    run: reviewSuggestFlowIn('hr'),
-    viewports: EVERY_VIEWPORT,
-    modes: ['drive'],
-    queries: { drive: '&ai=ok&lang=hr' },
-  },
+
   {
     name: 'kuna-settings-delete-keys',
     hash: '#/settings',
@@ -6329,15 +6467,6 @@ const FLOWS = [
     viewports: EVERY_VIEWPORT,
     modes: ['drive'],
     queries: { drive: '&lang=hr' },
-  },
-  {
-    name: 'review-suggest-refused',
-    hash: '#/company/transactions?tab=review',
-    title: 'Transactions',
-    run: reviewSuggestFlowIn('en', { refused: true }),
-    viewports: EVERY_VIEWPORT,
-    modes: ['drive'],
-    queries: { drive: '&ai=refused' },
   },
   { name: 'owner-figure-ask', hash: '#/company/owner?p=all', title: 'Owner', run: figureAskFlowIn('en', 'owner'), viewports: DESIGN_REVIEW_VIEWPORTS, modes: ['browser'] },
   {
@@ -6508,6 +6637,9 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     if (report.themeClass !== visit.theme) fail(scope, `rendered ${report.themeClass}, expected the ${visit.theme} theme`)
     for (const text of [visit.shows ?? []].flat()) {
       if (!report.text.includes(text)) fail(scope, `"${text}" is missing, so the fake workbook did not reach the screen`)
+    }
+    for (const text of [visit.lacks ?? []].flat()) {
+      if (report.text.includes(text)) fail(scope, `"${text}" shows, though the screen should no longer say it`)
     }
     const expectedCharts = visit.gallery ? GALLERY_CHARTS : visit.charts
     // With the chat open, the charts are the screen's own and those under a pane do not draw, and its cards are the screen's visit's to check.

@@ -12,10 +12,12 @@ withDefaults(
   defineProps<{
     /** The element's name as the page shows it, which the button's name for a screen reader holds. */
     label: string
-    /** An icon alone, for a dense row. Otherwise it reads "Ask the chat". */
+    /** An icon alone, for a dense row. Otherwise it reads "Ask the chat", or `text`. */
     iconOnly?: boolean
+    /** The page's own name for what the chat does here, such as Suggest categories, in place of "Ask the chat". */
+    text?: string | null
   }>(),
-  { iconOnly: false },
+  { iconOnly: false, text: null },
 )
 
 const emit = defineEmits<{ ask: [] }>()
@@ -24,12 +26,12 @@ const emit = defineEmits<{ ask: [] }>()
 <template>
   <UButton
     v-if="assistKeyKept"
-    v-bind="iconOnly ? {} : { label: words.ask.button }"
+    v-bind="iconOnly ? {} : { label: text ?? words.ask.button }"
     icon="i-lucide-sparkles"
     color="neutral"
     :variant="iconOnly ? 'ghost' : 'outline'"
     size="sm"
-    :aria-label="words.ask.about(label)"
+    :aria-label="text ?? words.ask.about(label)"
     :title="words.ask.about(label)"
     data-testid="ask-chat"
     @click="emit('ask')"

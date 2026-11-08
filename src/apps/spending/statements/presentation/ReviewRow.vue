@@ -4,17 +4,20 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import type { WaitingRow } from '../domain/reviewQueue'
+import { waitingRowAsked } from './reviewAsks'
 import { words } from './words'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
 import type { Account } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
+import { useChatElement } from '../../../../shared/ai/presentation/chatDock'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { absAccountMoney } from '../../../../shared/money/accountMoney'
 
-/** One row waiting for a category: picking one files it, and what the file offers for it sits underneath. */
+/** One row waiting for a category: picking one files it, what the file offers for it sits underneath, and the chat can be asked about it. */
 const props = defineProps<{
   waiting: WaitingRow
   categories: readonly Category[]
@@ -33,6 +36,9 @@ const accountOf = (id: string): Account | undefined => props.accounts.find((acco
 
 const account = computed(() => accountOf(props.waiting.row.account))
 const currency = computed(() => account.value?.currency ?? EURO)
+const asked = computed(() => waitingRowAsked(props.waiting.row, account.value))
+const { ask, marked } = useChatElement(asked, 'row')
+
 const items = computed(() => entryCategoryChoices(props.categories, props.waiting.row.amount < 0 ? 'out' : 'in', null, true))
 
 const typedLine = computed(() => {
@@ -55,13 +61,14 @@ function picked(id: string | undefined): void {
 </script>
 
 <template>
-  <li class="flex flex-col gap-2 px-4 py-3 sm:px-5" data-testid="spending-review-row">
+  <li class="flex flex-col gap-2 px-4 py-3 sm:px-5" v-bind="marked" data-testid="spending-review-row">
     <div class="flex items-start gap-3">
       <span class="flex min-w-0 flex-1 flex-col gap-0.5">
         <span class="break-words text-sm text-highlighted">{{ waiting.row.payee || waiting.row.description }}</span>
         <span class="break-words type-caption">{{ [dayLabel(waiting.row.date), account?.name ?? ''].filter((part) => part !== '').join(' · ') }}</span>
       </span>
       <AccountMoneyText :cents="waiting.row.amount" :currency="currency" sign="always" tone="flow" class="shrink-0 text-sm" />
+      <AskChatButton :label="asked.label" icon-only class="shrink-0" data-testid="spending-review-row-ask" @ask="ask" />
     </div>
     <USelectMenu
       :items="items"

@@ -1,4 +1,5 @@
 import type { CardNote } from './companyCard'
+import { settingName } from './settingNames'
 import { WARNED_SETTING_KEYS } from './settingsOperations'
 import { INVOICING_KINDS, invoicingDescriber } from './invoicingLines'
 import { words } from './words'
@@ -80,13 +81,13 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   return String(value)
 }
 
-/** What the record is called on screen: a row by its counterparty or else its category, a part by its category, a rule by its id, and others by their name. */
-function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: string, names: DisplayNames): string {
+/** What the record is called on screen: a row by its counterparty or else its category, a part by its category, a setting by its form's name, a rule by its id, and others by their name. */
+function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: string, names: DisplayNames, packSettingNames: Readonly<Record<string, string>>): string {
   if (isKind(kind, LEDGER_RECORDS, record)) return record.counterparty !== '' ? record.counterparty : names.category(record.category)
   if (isKind(kind, SPLIT_PART_RECORDS, record)) return names.category(record.category)
   if (isKind(kind, CATEGORY_RECORDS, record)) return displayName(record.slug, record.label)
   if (isKind(kind, ACCOUNT_RECORDS, record)) return displayName(record.slug, record.label)
-  if (isKind(kind, SETTING_RECORDS, record)) return record.key
+  if (isKind(kind, SETTING_RECORDS, record)) return settingName(record.key, packSettingNames)
   if (isKind(kind, DISMISSAL_RECORDS, record)) return words.suggestion[record.kind]
   if (isKind(kind, RULE_RECORDS, record)) return String(record.fields['rule'] ?? fallback)
   return fallback
@@ -108,16 +109,16 @@ function movesConfirmed(kind: RecordKind<unknown>, before: ProposedRecord, after
 /** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words, with the card's notes on the group of their kind. Each kind reads through its own screens' describer. */
 export function proposalGroupsOf(checked: CheckedWrite, workbook: Workbook, notes: readonly CardNote[], pack: PackOperations | null): readonly ProposalGroup[] {
   const names = displayNamesOf(workbook)
+  const packs = pack?.describer(workbook) ?? null
   const core: ProposalDescriber = {
     keptByKuna: KEPT_BY_KUNA,
     fieldName,
     shown: (kind, field, record) => shownValue(kind, field, record, workbook, names),
-    label: (kind, record, fallback) => labelOf(kind, record, fallback, names),
+    label: (kind, record, fallback) => labelOf(kind, record, fallback, names, packs?.settingNames ?? {}),
     warns,
     movesConfirmed,
   }
   const invoicing = invoicingDescriber(workbook)
-  const packs = pack?.describer(workbook) ?? null
   const groups = proposalGroups(checked, (kind) => (packs?.kinds.has(kind.name) === true ? packs : INVOICING_KINDS.has(kind.name) ? invoicing : core))
   return notes.reduce((shown, { noun, line }) => {
     const at = shown.findIndex((group) => group.noun === noun)

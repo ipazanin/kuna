@@ -1,12 +1,10 @@
 import { codecOfSpendingKind } from '../application/spendingCodecs'
+import { SPENDING_APP } from '../domain/spendingBooks'
 import type { SpendingBooks } from '../domain/spendingBooks'
 import { readSpendingBook, spendingRecordsOf } from '../domain/readSpendingBook'
 import type { WorkbookDocument } from '../../../../shared/storage/infrastructure/documentFormat'
 import { newDocument, recordsOfDocument } from '../../../../shared/storage/infrastructure/documentRecordStorage'
 import type { AppDocument } from '../../../../shared/storage/infrastructure/documentStorePorts'
-
-/** The app of the hub whose file this store keeps. */
-export const SPENDING_APP = 'spending'
 
 const SPENDING_SCHEMA: WorkbookDocument['schema'] = { spending: 1 }
 

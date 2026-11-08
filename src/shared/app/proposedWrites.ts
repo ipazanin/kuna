@@ -37,7 +37,8 @@ export interface ProposalWork<Books extends BooksRead, Kept> {
   groups(checked: CheckedWrite, books: OpenBooks<Books>): readonly ProposalGroup[]
   /**
    * Keeps a file the write points to, such as a receipt photo in Kuna's receipts folder, with access the person already gave.
-   * It runs on Accept after the card is found current and before the records write. It throws, in the person's words, when access is missing.
+   * It runs on Accept after the card is found current and before the records write, and only for steps whose `outside` lists what stays.
+   * It throws, in the person's words, when access is missing.
    */
   beforeWrite?(steps: readonly ProposalStep[]): Promise<Kept>
   /** What Accept leaves outside the books, which Undo does not take back, each a line on the card. */
@@ -81,7 +82,7 @@ function touchesSameRecords(planned: readonly RuledChange[], shown: readonly Rul
 /**
  * An app's dry run of the chat's steps over its own store, and the one write with one Undo that Accept makes of it.
  * The write holds the changes as they were checked, so a record changed since is refused rather than overwritten, and the file's other writes go on.
- * With `beforeWrite`, the steps are planned again with what it kept, and that plan must touch the records the card showed.
+ * When the steps keep a file outside the books, `beforeWrite` keeps it and the steps are planned again with what it kept, and that plan must touch the records the card showed.
  */
 export function proposedWrites<Books extends BooksRead, Kept = never>(
   store: Pick<WorkbookStore<Books>, 'state' | 'check' | 'write' | 'undo'>,
@@ -90,9 +91,9 @@ export function proposedWrites<Books extends BooksRead, Kept = never>(
   check(title: string, steps: readonly ProposalStep[]): Promise<CheckedProposal | { readonly refused: readonly string[] }>
   accept(proposal: CheckedProposal): Promise<AcceptResult>
 } {
-  /** The changes Accept writes: the checked ones, or with `beforeWrite` the same records planned again with what it kept. */
+  /** The changes Accept writes: the checked ones, or for steps that keep a file outside the books the same records planned again with what `beforeWrite` kept. */
   async function writtenChanges({ title, changes, books, steps }: HeldWrite<Books>): Promise<readonly RuledChange[] | Refused> {
-    if (work.beforeWrite === undefined) return changes
+    if (work.beforeWrite === undefined || (work.outside?.(steps) ?? []).length === 0) return changes
     const current = await store.check(title, workOf(changes))
     if (current.status === 'refused') return { kind: 'refused', reason: current.reason }
     let kept: Kept

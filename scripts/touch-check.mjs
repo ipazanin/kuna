@@ -23,8 +23,10 @@
  * forged answer leaving Allow access with no message, a refused silent trip marking the device so the next open waits for Allow access, Sign in to Google when Google asks
  * for a sign-in, the find and the Picker a tap resumes, Scenarios' picker, base select and Delete with Undo, 100,000 at 4% over 10 years typed into a new scenario with the editor's headline reading the annuity and then equal principal, a rate change tried on a loan's page, saved in Saved tries, deleted and undone, a k typed into the what-if's amount expanding at once, 1.255m keeping its third decimal, with its cents shown once the field is left, the Loans find a tap resumes ending on the Loans Overview, a tap near a movement's dot on an informal loan's balance chart reading that month's repayment and its note, the Investments first run making its file on Drive and ending on its empty Overview and its Settings, a Holdings row opening its holding's page and the way back, a tap near a holding's dot on its daily line reading that day's buy in the tooltip, Compare with on a holding's chart and on Performance's growth chart opened with no key, its funds waiting for a Twelve Data key with a link to the Prices settings, then searching, picking, reading percent and removing the ticker, then pressing S&P 500 (SPY), named so on its chip and in the chart's words, and removing it, By class picked in the Mix card's select and a part of its class ring listing Holdings grouped by class with the ring kept, By currency picked in the grouping select with its sticky heading, Type its mix on a fund with no mix opening the Change dialog with its Dividends field, Paste from factsheet in a fund's Change dialog reading an English and Croatian country table, flagging what it cannot read and filling the country mix on Fill, a fund's empty fund profile warning on its Details card cleared by Ask again, a closed position opening its page and the way back, a past close picked in On and Today, a tap on the map of holdings opening a holding's page, targets set with what 2k buys read and undone, a check's threshold changed on the Investments Checks tab and undone, the period of Investments Performance changed to 1Y, to a year in its dropdown, to Q2 of that year, to another year keeping Q2 and back to All, with Returns by year tinting only Yours and Difference, its Months tab switched to Against the index, the period changed on its Sources tab, the Overview's Income tile opening Performance on its Income tab without the period bar and its Coming and Returns tabs, 1k typed into the projection's Each month on the Saving tab and its end value read, a dollar buy typed on Investments Transactions with 0.01k in its fees, the ECB rate filled in and the summary read, then added and undone, a dollar sale typed with its tax line read as about, the Tax screen's Sales tab listing the sales by their lots and handing over kuna-porez-2026.xlsx, a Twelve Data key typed, saved, tested against the fake responder and removed on the Investments Prices tab, a key another browser saved taken by the sync on open, removed here and kept removed by the next sync, a key this browser saved lost to another browser's newer removal, a key in the Investments file's old keys file taken by the sync on open, alone and beside an older one in the secrets file, with the secrets file left alone in the hidden folder, the delete of an app's data on the sample on Drive asked first, backed up, cancelled and then done to the first run with the vendor key and the secrets file kept, in English and Croatian, with only the copy ticked, refused for a file someone shared, for a file kept in this browser with another tab following, the delete of all of Kuna needing its name typed, another device's file in the Drive bin failing the sync on open with a link to its Settings, a two-word country and a code in brackets typed into a holding's Country field and into a fund's country mix and picked with Enter, the Country field set back to Not set the same way, three made-up CSV files of closes imported on the Prices tab, the made-up portfolio workbook imported into an empty Investments file through every step and undone, and the note to tap again after a file made on Drive,
  * a made-up AI key typed, saved, tested, given Opus 5.5, removed and put back on Kuna settings, a key refused, a key fetched from Google, a switch of company that keeps the other key, Company's Assistant tab and Spending's, and Company's switch still on after a reload,
- * Suggest categories on the To review tab asking first, a suggestion used, undone and used again with Make a rule from its toast,
  * Ask the chat beside a build-up amount on Owner, Salaries, Year's Pay tab and a closed year's open items opening the chat with the figure's build-up as the tag,
+ * Spending's To review asking the chat from its header and from a waiting row, a receipt photo from Entries read by the chat into a
+ * category card and then a receipt card, accepted and undone, Company's queue sorted by the chat from Suggest categories, and an
+ * invoice asked of the chat answered with a link to the Invoices tab,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
@@ -53,7 +55,7 @@
  * out added by touch with its amount on the number pad and a category and undone, a move between two accounts read in
  * both balances, deleted and brought back, a group of the spending ring opening its categories and one of them opening
  * Transactions filtered by it and Back, Food's limit raised with its carry kept, a Revolut export dropped, read as a dry
- * run, imported and undone, a receipt photo read by its QR code, split and undone, a pick of two payments, a near one and a new entry, the assistant's read with a line moved and undone, an R1 receipt,
+ * run, imported and undone, a receipt photo read by its QR code, split and undone, a pick of two payments, a near one and a new entry, a receipt's place read from its photo,
  * Not a pair and a category on To review undone, and a rule made from To review, read on Settings,
  * Rules, deleted and brought back,
  * saves that wait: a switch that moves at once and spins, a second review row while the first saves, one that fails and flips back (`?fake=save-fails`), and the browser's warning on closing the page during a save,
@@ -103,6 +105,8 @@ import {
   chatReadFlowIn,
   chatTagFlowIn,
   chatStatementCardFlowIn,
+  chatReceiptFlowIn,
+  spendingReviewAskFlowIn,
   assistSwitchFlow,
   assistTabFlowIn,
   assistProviderSwitchFlowIn,
@@ -167,10 +171,7 @@ import {
   spendingReceiptNoEuroFlow,
   spendingReceiptPickFlowIn,
   spendingReceiptPlaceFlowIn,
-  spendingReceiptR1BareFlowIn,
-  spendingReceiptR1FlowIn,
   spendingReviewNearFlowIn,
-  spendingReceiptReadFlowIn,
   spendingMoneyOutFlow,
   spendingReviewFlowIn,
   spendingRuleFlowIn,
@@ -212,7 +213,6 @@ import {
   ownerNetUnregisteredFlow,
   ownerShareFlow,
   ownerShareFlowIn,
-  reviewSuggestUseFlow,
   salariesFlow,
   planFlow,
   planFlowIn,
@@ -245,6 +245,7 @@ import {
   syncRunningFlow,
 } from './support/editorFlows.mjs'
 import { figureAskFlowIn } from './support/figureAskFlows.mjs'
+import { companyChatCardFlowIn, companyReviewAskFlowIn } from './support/companyChatFlows.mjs'
 import { writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
@@ -3102,10 +3103,7 @@ async function checkWidth(width) {
     ['spending-receipt', 'drive&spending=receipts', spendingReceiptFlowIn('en', SPENDING_RECEIPT_SAMPLES), '#/spending/transactions', 'Entries'],
     ['spending-receipt-pick', 'drive&spending=receipts', spendingReceiptPickFlowIn('en', SPENDING_RECEIPT_SAMPLES), '#/spending/transactions', 'Entries'],
     ['spending-receipt-no-euro', 'drive&spending=foreign', spendingReceiptNoEuroFlow, '#/spending/transactions', 'Entries'],
-    ['spending-receipt-read', 'drive&spending=receipts', spendingReceiptReadFlowIn('en', SPENDING_RECEIPT_SAMPLES), '#/spending/transactions', 'Entries'],
-    ['spending-receipt-r1', 'drive&spending=receipts&receipt=r1', spendingReceiptR1FlowIn('en', SPENDING_RECEIPT_SAMPLES), '#/spending/transactions', 'Entries'],
     ['spending-receipt-place', 'drive&spending=receipts', spendingReceiptPlaceFlowIn('en', SPENDING_RECEIPT_SAMPLES), '#/spending/transactions', 'Entries'],
-    ['spending-receipt-r1-ask', 'drive&spending=receipts&receipt=r1-bare', spendingReceiptR1BareFlowIn('en', SPENDING_RECEIPT_SAMPLES), '#/spending/transactions', 'Entries'],
     ['spending-review-near', 'drive&spending=statements', spendingReviewNearFlowIn('en', SPENDING_IMPORT_SAMPLES), '#/spending/transactions?tab=import', 'Entries'],
     ['spending-review', 'drive&spending=statements', spendingReviewFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     ['spending-rule', 'drive&spending=statements', spendingRuleFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
@@ -3126,6 +3124,12 @@ async function checkWidth(width) {
     ['pay-figure-ask', 'browser', figureAskFlowIn('en', 'pay'), '#/company/year?year=2027&tab=pay', 'Year'],
     ['year-open-items-figure-ask', 'browser', figureAskFlowIn('en', 'open-items'), '#/company/year?year=2025', 'Year'],
     ['chat-statement-paste', 'drive&spending=sample', chatStatementCardFlowIn('en'), '#/spending/transactions?tab=import', 'Entries'],
+    // Spending's ways into the chat.
+    ['spending-review-ask', 'drive&spending=statements', spendingReviewAskFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
+    ['chat-receipt', 'drive&spending=receipts', chatReceiptFlowIn('en', SPENDING_RECEIPT_SAMPLES, { accept: true }), '#/spending/transactions', 'Entries'],
+    // Company's ways into the chat.
+    ['company-review-sort', 'drive', companyReviewAskFlowIn('en'), '#/company/transactions?tab=review', 'Transactions'],
+    ['company-chat-invoice', 'drive', companyChatCardFlowIn('en', 'invoice'), '#/company', 'Overview'],
     ['assist-key', 'drive', assistKeyFlow, '#/settings', 'Kuna settings'],
     ['assist-switch', 'drive', assistSwitchFlow, '#/company/settings?tab=assistant', 'Settings'],
     ['assist-tab', 'drive&spending=drive', assistTabFlowIn('en'), '#/company/settings?tab=assistant', 'Settings'],
@@ -3137,7 +3141,6 @@ async function checkWidth(width) {
     ['assist-key-refused-croatian', 'drive&ai=key-refused&lang=hr', assistKeyRefusedFlowIn('hr'), '#/settings', 'Postavke Kune'],
     ['assist-fetch-key', 'drive&investments=sample&keys=ai-key', assistFetchKeyFlow, '#/settings', 'Kuna settings'],
     ['assist-fetch-none', 'drive', assistFetchNoneFlow, '#/settings', 'Kuna settings'],
-    ['review-suggest', 'browser', reviewSuggestUseFlow, '#/company/transactions?tab=review', 'Transactions'],
     ['investments-instrument-search', 'drive&investments=sample', investmentsInstrumentSearchFlow, '#/investments/settings', 'Settings'],
     [
       'investments-holding-compare',

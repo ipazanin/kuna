@@ -1,5 +1,4 @@
 import { words as analysisWords } from '../analysis/presentation/words'
-import { words as assistWords } from '../assist/presentation/words'
 import { words as invoicingWords } from '../invoicing/presentation/words'
 import { words as mailWords } from '../mail/presentation/words'
 import { CATEGORY_RULES_TAB } from '../rules/presentation/ruleLinks'
@@ -10,7 +9,8 @@ import { REVIEW_LINK } from '../transactions/presentation/transactionsLinks'
 import { words as transactionWords } from '../transactions/presentation/words'
 import * as coreKinds from '../workbook/domain/coreKinds'
 import type { AppAssistant, AssistantPlace } from '../../../shared/app/appContribution'
-import type { AssistantOperation, ProposalStep } from '../../../shared/app/assistantOperations'
+import type { AppAcceptance, AppProposer, AssistantOperation, ProposalStep } from '../../../shared/app/assistantOperations'
+import { words as chatWords } from '../../../shared/ai/presentation/words'
 import type { ProposalDescriber } from '../../../shared/app/proposalGroups'
 import type { UnitOfWork } from '../../../shared/storage/application/repository'
 import type { CompanyBooks } from '../workbook/domain/readWorkbook'
@@ -28,7 +28,8 @@ const CATEGORY_RULES_LINK = `${SETTINGS_ROUTE}?tab=${CATEGORY_RULES_TAB}`
 const LABELS: GuideLabels = {
   transactions: transactionWords.title,
   review: transactionWords.tabs.review,
-  suggest: assistWords.suggest.title,
+  suggest: transactionWords.review.suggestCategories,
+  ask: chatWords.ask.button,
   recategorise: transactionWords.review.item.recategorise,
   makeRule: transactionWords.review.makeRule,
   settings: settingsWords.title,
@@ -76,6 +77,8 @@ export interface PackAssistant extends Pick<AppAssistant, 'kinds' | 'settings' |
 /** How a card reads a pack's records, for the kinds it names. Company's own describer reads the rest. */
 export interface PackDescriber extends ProposalDescriber {
   readonly kinds: ReadonlySet<string>
+  /** The pack's setting keys by the names its screens show them. */
+  readonly settingNames: Readonly<Record<string, string>>
 }
 
 /** The changes a pack lets the chat propose, which Company's proposer plans in the same write as its own steps. */
@@ -92,8 +95,14 @@ export interface PackOperations {
 /**
  * What Company tells the chat and lets it read, with what its pack adds, as only `app.ts` may name the pack. `reading` and
  * `persons` read the books `app.ts` holds: the persons are the employees through the pack and the payees the owner flagged.
+ * `changes` are the proposer and acceptance `app.ts` builds over the store, or null for a chat that only reads.
  */
-export function companyAssistant(pack: PackAssistant, reading: CompanyReading, persons: () => readonly KnownPerson[]): AppAssistant {
+export function companyAssistant(
+  pack: PackAssistant,
+  reading: CompanyReading,
+  persons: () => readonly KnownPerson[],
+  changes: { readonly proposer: AppProposer; readonly acceptance: AppAcceptance } | null = null,
+): AppAssistant {
   return {
     kinds: [...Object.values(coreKinds), ...pack.kinds],
     places: [...PLACES, ...pack.places],
@@ -114,9 +123,9 @@ export function companyAssistant(pack: PackAssistant, reading: CompanyReading, p
       },
     ],
     reader: companyReader(reading, pack.reader(reading)),
-    proposer: null,
-    acceptance: null,
-    quickActions: [],
+    proposer: changes?.proposer ?? null,
+    acceptance: changes?.acceptance ?? null,
+    quickActions: [words.quickActions.sort, words.quickActions.month, words.quickActions.rules],
     persons,
   }
 }

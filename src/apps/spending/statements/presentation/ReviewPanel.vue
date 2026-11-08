@@ -8,6 +8,7 @@ import { reviewQueue } from '../domain/reviewQueue'
 import { ruleVerdicts } from '../domain/spendingCategorisation'
 import type { WaitingRow } from '../domain/reviewQueue'
 import ReviewRow from './ReviewRow.vue'
+import { REVIEW_ASKED } from './reviewAsks'
 import { ruleTestOf } from './ruleTest'
 import { words } from './words'
 import type { TransferPair } from '../../pairing/domain/transferPairs'
@@ -19,6 +20,8 @@ import type { Transaction } from '../../workbook/domain/transaction'
 import { words as spendingWords } from '../../words'
 import { today } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
+import { useChatElement } from '../../../../shared/ai/presentation/chatDock'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -33,6 +36,7 @@ const store = useSpendingBooks()
 const writes = useRecordWrites(store)
 
 const book = computed(() => store.state.workbook)
+const { ask: askAboutQueue, marked: queueMarked } = useChatElement(REVIEW_ASKED, 'card')
 const queue = computed(() => (book.value === null ? null : reviewQueue(book.value, today())))
 const accounts = computed(() => book.value?.accounts ?? [])
 /** What your rules would file a row under, which To review only suggests for a row that may be the same money as a typed one. */
@@ -93,7 +97,10 @@ async function undoPair(legs: TransferPair): Promise<void> {
   <div v-if="queue !== null" class="flex flex-col gap-6">
     <p v-if="queue.wantingSavings > 0" class="text-sm text-muted" data-testid="spending-wants-savings">{{ plural(words.review.pocketsWaiting(queue.wantingSavings), queue.wantingSavings) }}</p>
     <EmptyState v-if="queue.waiting.length === 0" icon="i-lucide-inbox" :title="words.review.empty" :description="words.review.emptyDescription" data-testid="spending-review-empty" />
-    <AppCard v-else :title="words.review.title" :subtitle="words.review.subtitle" data-testid="spending-review">
+    <AppCard v-else :title="words.review.title" :subtitle="words.review.subtitle" v-bind="queueMarked" data-testid="spending-review">
+      <template #actions>
+        <AskChatButton :label="words.review.title" data-testid="spending-review-ask" @ask="askAboutQueue" />
+      </template>
       <ul class="divide-y divide-default pt-1 pb-1">
         <ReviewRow
           v-for="waiting in shownWaiting"

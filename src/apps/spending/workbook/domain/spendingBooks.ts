@@ -1,5 +1,8 @@
 import type { SpendingBook, SpendingRecords } from './readSpendingBook'
 
+/** The app of the hub whose file this is. */
+export const SPENDING_APP = 'spending'
+
 /** The Spending book the file holds, with the name of the file on screen. */
 export interface SpendingWorkbook extends SpendingBook {
   readonly title: string

@@ -69,7 +69,6 @@ import { en as spendingEntriesEnglish, hr as spendingEntriesCroatian } from '../
 import { addDays, today } from '../../src/shared/calendar/civilDate.ts'
 import { monthOf } from '../../src/shared/calendar/monthKey.ts'
 import { writeJpegWithPlace } from './importSampleFiles.mjs'
-import { en as spendingReceiptAssistEnglish, hr as spendingReceiptAssistCroatian } from '../../src/apps/spending/receipts/assist/presentation/words.ts'
 import { en as spendingReceiptsEnglish, hr as spendingReceiptsCroatian } from '../../src/apps/spending/receipts/presentation/words.ts'
 import { en as spendingReceiptNotesEnglish, hr as spendingReceiptNotesCroatian } from '../../src/apps/spending/receipts/domain/words.ts'
 import { en as spendingStatementsEnglish, hr as spendingStatementsCroatian } from '../../src/apps/spending/statements/presentation/words.ts'
@@ -88,7 +87,6 @@ import { settleCharts } from './settleCharts.mjs'
 import { en as mailDomainEnglish, hr as mailDomainCroatian } from '../../src/shared/mail-filing/domain/words.ts'
 import { en as assistEnglish, hr as assistCroatian } from '../../src/shared/ai/presentation/words.ts'
 import { en as secretsEnglish, hr as secretsCroatian } from '../../src/shared/secrets/presentation/words.ts'
-import { en as suggestEnglish, hr as suggestCroatian } from '../../src/apps/company/assist/presentation/words.ts'
 
 const TOAST = 'li[data-slot="base"]'
 
@@ -173,7 +171,6 @@ const SCREEN_WORDS = {
     spendingEntries: spendingEntriesEnglish,
     spendingStatements: spendingStatementsEnglish,
     spendingReceipts: spendingReceiptsEnglish,
-    spendingReceiptAssist: spendingReceiptAssistEnglish,
     spendingReceiptNotes: spendingReceiptNotesEnglish,
     spendingStatementReading: spendingStatementReadingEnglish,
     spendingBankSync: spendingBankSyncEnglish,
@@ -258,7 +255,6 @@ const SCREEN_WORDS = {
     spendingEntries: spendingEntriesCroatian,
     spendingStatements: spendingStatementsCroatian,
     spendingReceipts: spendingReceiptsCroatian,
-    spendingReceiptAssist: spendingReceiptAssistCroatian,
     spendingReceiptNotes: spendingReceiptNotesCroatian,
     spendingStatementReading: spendingStatementReadingCroatian,
     spendingBankSync: spendingBankSyncCroatian,
@@ -6017,182 +6013,19 @@ export function spendingReceiptPickFlowIn(language, photos) {
   }
 }
 
-const READ_RECEIPT_BUTTON = '[data-testid="assist-spending.read-receipt"]'
-const RECEIPT_REVIEW = '[data-testid="spending-receipt-review"]'
-
-/** Taps Read the lines and waits for the draft, with the dialog that asks first when `asks`. */
-async function readReceiptLines(page, press, words, context, asks) {
-  await pressSelector(page, press, READ_RECEIPT_BUTTON)
-  if (asks) await consentTo(page, press, context, [words.spendingReceiptAssist.sends], null)
-  await page.waitForSelector(RECEIPT_REVIEW, { visible: true, timeout: 15_000 }).catch(async () => {
-    const said = await page.$eval('[data-testid="spending-receipt-assist-line"]', (element) => element.textContent).catch(() => 'nothing')
-    throw new Error(`the read gave no lines, and says ${said}`)
-  })
-  await delay(300)
-}
-
-async function receiptLineCategory(page, printed) {
-  const line = await page.evaluateHandle((wanted) => [...document.querySelectorAll('[data-testid="spending-receipt-line"]')].find((element) => element.textContent?.includes(wanted)) ?? null, printed)
-  const trigger = await line.asElement()?.$('[data-testid="spending-receipt-line-category"]')
-  if (trigger === undefined || trigger === null) throw new Error(`no read line says ${printed}`)
-  return trigger
-}
-
-async function acceptSuggestedCategory(page, press, words) {
-  await pressSelector(page, press, '[data-testid="spending-receipt-new-accept"]')
-  await page.waitForFunction((text) => document.querySelector('[data-testid="spending-receipt-review"]')?.textContent?.includes(text) ?? false, { timeout: 5_000 }, words.spendingReceipts.newAccepted)
-}
-
 /**
- * The assistant on the receipts set: a read aborted by closing the dialog leaves no draft, and a read cancelled writes nothing.
- * Then a read shows the lines in groups and what it cost, Save waits for the new category to be accepted, one line moves to
- * Household goods, and Save writes it all with one Undo.
- */
-export function spendingReceiptReadFlowIn(language, photos) {
-  const words = SCREEN_WORDS[language]
-  return async (page, { press, shoot: shootAs, inspect }) => {
-    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    await keepAssistKey(page)
-    await uploadReceiptPhoto(page, press, photos.oneMatch)
-    await readReceiptLines(page, press, words, { inspect, shoot: shootAs }, true)
-    await page.keyboard.press('Escape')
-    await dialogGone(page, SPENDING_RECEIPT_FORM)
-    await rowLinesAre(page, 'Corner market', -2349, 0)
-
-    await uploadReceiptPhoto(page, press, photos.oneMatch)
-    await pressSelector(page, press, READ_RECEIPT_BUTTON)
-    await consentTo(page, press, { inspect, shoot: shootAs }, [words.spendingReceiptAssist.sends], null)
-    await page.keyboard.press('Escape')
-    await dialogGone(page, SPENDING_RECEIPT_FORM)
-    await delay(800)
-    await uploadReceiptPhoto(page, press, photos.oneMatch)
-    if ((await page.$(RECEIPT_REVIEW)) !== null) throw new Error('a read aborted by closing the dialog still left a draft')
-
-    await readReceiptLines(page, press, words, { inspect, shoot: shootAs }, true)
-    await page.waitForSelector('[data-testid="spending-receipt-usage"]', { visible: true, timeout: 5_000 })
-    if ((await page.$('[data-testid="spending-receipt-notes"]')) !== null) throw new Error('a read whose checks hold shows notes')
-    await pressSelector(page, press, '[data-testid="spending-receipt-save"]')
-    await page.waitForSelector('[data-testid="spending-receipt-lines-error"]', { visible: true, timeout: 5_000 }).catch(() => {
-      throw new Error('Save went ahead with a new category nobody accepted')
-    })
-    await acceptSuggestedCategory(page, press, words)
-    await choose(page, press, await receiptLineCategory(page, 'kruh polubijeli'), words.spendingStarter['Household goods'])
-    await delay(300)
-    const titleInset = await page.$eval('[role="dialog"]', (dialog) => dialog.querySelector('h2').getBoundingClientRect().top - dialog.getBoundingClientRect().top)
-    if (titleInset < 12) throw new Error(`a long dialog squeezes its header, with its title ${titleInset} px from the top`)
-    await inspect?.('the lines the assistant read')
-    await shoot('spending-receipt-review')
-    await saveReceipt(page, press, words)
-    await rowLinesAre(page, 'Corner market', -2349, 5)
-    await undoIn(page, press, words)
-    await rowLinesAre(page, 'Corner market', -2349, 0)
-    await dismissToasts(page)
-    await forgetAssist(page)
-  }
-}
-
-/** `?receipt=sum-off`: lines of €22.99 against €23.49 show the note and the Difference line, and Save keeps the read lines as they are and adds that line. */
-export function spendingReceiptSumOffFlowIn(language, photos) {
-  const words = SCREEN_WORDS[language]
-  return async (page, { press, shoot: shootAs, inspect }) => {
-    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    await keepAssistKey(page)
-    await uploadReceiptPhoto(page, press, photos.oneMatch)
-    await readReceiptLines(page, press, words, { inspect, shoot: shootAs }, true)
-    await page.waitForSelector('[data-testid="spending-receipt-notes"]', { visible: true, timeout: 5_000 })
-    await page.waitForSelector('[data-testid="spending-receipt-difference"]', { visible: true, timeout: 5_000 })
-    await delay(300)
-    await inspect?.('a read whose lines do not add up')
-    await shoot('spending-receipt-sum-off')
-    await acceptSuggestedCategory(page, press, words)
-    await saveReceipt(page, press, words)
-    await rowLinesAre(page, 'Corner market', -2349, 6)
-    await undoIn(page, press, words)
-    await rowLinesAre(page, 'Corner market', -2349, 0)
-    await dismissToasts(page)
-    await forgetAssist(page)
-  }
-}
-
-/** `?receipt=r1`: a buyer's OIB with no Company OIB saved lands every line in For the company and says so. */
-export function spendingReceiptR1FlowIn(language, photos) {
-  const words = SCREEN_WORDS[language]
-  return async (page, { press, shoot: shootAs, inspect }) => {
-    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    await keepAssistKey(page)
-    await uploadReceiptPhoto(page, press, photos.oneMatch)
-    await readReceiptLines(page, press, words, { inspect, shoot: shootAs }, true)
-    await waitForTextIn(page, '[data-testid="spending-receipt-r1"]', words.spendingReceipts.r1)
-    const groups = await page.$$eval('[data-testid="spending-receipt-group"]', (shown) => shown.length)
-    if (groups !== 1) throw new Error(`an R1 receipt shows ${groups} groups, not one`)
-    await delay(300)
-    await inspect?.('an R1 receipt')
-    await shoot('spending-receipt-r1')
-    await saveReceipt(page, press, words)
-    await rowLinesAre(page, 'Corner market', -2349, 5)
-    await undoIn(page, press, words)
-    await rowLinesAre(page, 'Corner market', -2349, 0)
-    await dismissToasts(page)
-    await forgetAssist(page)
-  }
-}
-
-/** `?receipt=r1-bare`: marked R1 with no OIB, the draft asks whose it is and Save waits, nothing is under For the company until the answer, and Personal puts the lines back. */
-export function spendingReceiptR1BareFlowIn(language, photos) {
-  const words = SCREEN_WORDS[language]
-  const receipt = words.spendingReceipts
-  const company = words.spendingStarter['For the company']
-  return async (page, { press, shoot: shootAs, inspect }) => {
-    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    const groupNames = () => page.$$eval('[data-testid="spending-receipt-group"] h3', (titles) => titles.map((title) => title.textContent?.trim()))
-    await keepAssistKey(page)
-    await uploadReceiptPhoto(page, press, photos.oneMatch)
-    await readReceiptLines(page, press, words, { inspect, shoot: shootAs }, true)
-    await page.waitForSelector('[data-testid="spending-receipt-r1-ask"]', { visible: true, timeout: 5_000 })
-    if ((await groupNames()).includes(company)) throw new Error('a line went under For the company before the answer')
-    await acceptSuggestedCategory(page, press, words)
-    await pressSelector(page, press, '[data-testid="spending-receipt-save"]')
-    await page.waitForSelector('[data-testid="spending-receipt-r1-error"]', { visible: true, timeout: 5_000 }).catch(() => {
-      throw new Error('Save went ahead with nobody saying whose the receipt is')
-    })
-    await delay(300)
-    await inspect?.('a receipt marked R1 with no OIB')
-    await shoot('spending-receipt-r1-ask')
-    await pressButton(page, press, '[data-testid="spending-receipt-r1-choice"] button', company)
-    await page.waitForFunction(
-      (name) => {
-        const titles = [...document.querySelectorAll('[data-testid="spending-receipt-group"] h3')].map((title) => title.textContent?.trim())
-        return titles.length === 1 && titles[0] === name
-      },
-      { timeout: 5_000 },
-      company,
-    )
-    await pressButton(page, press, '[data-testid="spending-receipt-r1-choice"] button', receipt.r1Personal)
-    await page.waitForFunction(() => document.querySelectorAll('[data-testid="spending-receipt-group"]').length > 1, { timeout: 5_000 })
-    await pressButton(page, press, '[data-testid="spending-receipt-r1-choice"] button', company)
-    await saveReceipt(page, press, words)
-    await rowLinesAre(page, 'Corner market', -2349, 5)
-    await undoIn(page, press, words)
-    await dismissToasts(page)
-    await forgetAssist(page)
-  }
-}
-
-/**
- * A made-up JPEG with GPS in its Exif: the dialog shows the place before Save, the read sends a photo with none, as the fake model
- * checks, and the entry shows the coordinates with a link that leaves only on a tap. The set's own split row shows its place too.
+ * A made-up JPEG with GPS in its Exif: the dialog shows the place before Save, and the entry shows the coordinates with a link
+ * that leaves only on a tap. The set's own split row shows its place too.
  */
 export function spendingReceiptPlaceFlowIn(language, photos) {
   const words = SCREEN_WORDS[language]
   const receipt = words.spendingReceipts
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    await keepAssistKey(page)
     const jpeg = await writeJpegWithPlace(page, photos.oneMatch, photos.oneMatch.replace(/\.png$/, `-place-${language}.jpg`))
     await uploadReceiptPhoto(page, press, jpeg)
     await waitForTextIn(page, '[data-testid="spending-receipt-place-found"]', '43.508100, 16.440200')
-    await readReceiptLines(page, press, words, { inspect, shoot: shootAs }, true)
-    await acceptSuggestedCategory(page, press, words)
+    await pickReceiptCategory(page, press, words, 'Groceries')
     await delay(300)
     await inspect?.('a receipt photo with a place')
     await shoot('spending-receipt-place-found')
@@ -6211,7 +6044,6 @@ export function spendingReceiptPlaceFlowIn(language, photos) {
     await waitForTextIn(page, '[data-testid="spending-entry-place"]', '43.508100')
     await page.keyboard.press('Escape')
     await dialogGone(page, SPENDING_ENTRY_DIALOG)
-    await forgetAssist(page)
   }
 }
 
@@ -8115,9 +7947,9 @@ async function forgetImportKeys(page) {
   })
 }
 
-const ASSIST_WORDS = {
-  en: { ...assistEnglish, keyRow: secretsEnglish.keyRow, suggest: suggestEnglish.suggest },
-  hr: { ...assistCroatian, keyRow: secretsCroatian.keyRow, suggest: suggestCroatian.suggest },
+export const ASSIST_WORDS = {
+  en: { ...assistEnglish, keyRow: secretsEnglish.keyRow },
+  hr: { ...assistCroatian, keyRow: secretsCroatian.keyRow },
 }
 
 /** A made-up Anthropic key the assistant's card is given, whose whole text must never come back on screen. */
@@ -8127,8 +7959,6 @@ const OPENAI_ROW = '[data-testid="assist-card"] [data-provider="openai"]'
 const OPENROUTER_ROW = '[data-testid="assist-card"] [data-provider="openrouter"]'
 const COMPANY_SELECT = '[data-testid="assist-provider-select"]'
 const COMPANY_SWITCH = '[data-testid="assist-switch-company"]'
-const SUGGEST_BUTTON = '[data-testid="assist-company.suggest-categories"]'
-const CONSENT = '[data-testid="assist-consent"]'
 const CHAT_CONSENT = '[data-testid="chat-consent"]'
 const SHELL_SETTINGS_NAME = { en: 'Kuna settings', hr: 'Postavke Kune' }
 
@@ -8152,20 +7982,6 @@ async function forgetAssist(page) {
       .filter((key) => /^kuna\.secret(-changed)?\.(anthropic|openai|openrouter)$/.test(key) || key.startsWith('kuna.assist'))
       .forEach((key) => localStorage.removeItem(key)),
   )
-}
-
-/** Opens the dialog of an assist button that asks first and waits for it to say what it asks, then presses Send once. */
-async function consentTo(page, press, { inspect, shoot }, texts, shotName) {
-  await page.waitForSelector(CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
-    throw new Error('the first tap opened no consent dialog')
-  })
-  await elementSays(page, '[role="dialog"]', texts, 'the consent dialog does not say what it asks')
-  // The dialog grows in, and its controls reach their size once it has.
-  await delay(400)
-  await inspect?.('the consent dialog')
-  if (shotName) await shoot(shotName)
-  await pressSelector(page, press, '[data-testid="assist-consent-confirm"]')
-  await dialogGone(page, CONSENT)
 }
 
 /** Opens the select of AI companies, and returns what each option says, by its company's name. */
@@ -8401,6 +8217,7 @@ export async function assistSwitchFlow(page, { press, shoot, inspect }) {
  */
 export function assistTabFlowIn(language) {
   const words = ASSIST_WORDS[language]
+  const companyName = (language === 'en' ? companyEnglish : companyCroatian).name
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const companyState = '[data-testid="assist-app"][data-app="company"] [data-testid="assist-app-state"]'
@@ -8409,7 +8226,7 @@ export function assistTabFlowIn(language) {
         throw new Error('the tab with no key does not link to Kuna settings')
       })
       if (await page.$(COMPANY_SWITCH)) throw new Error('the tab shows a switch with no key')
-      await elementSays(page, '[data-testid="app-assist-card"]', [words.suggest.title], 'the tab with no key does not say what the assistant could do')
+      await elementSays(page, '[data-testid="app-assist-card"]', [words.appCard.addKey], 'the tab with no key does not offer to add one')
       await inspect?.('the Assistant tab with no key')
       await pressSelector(page, press, '[data-testid="assist-add-key"]')
       await page.waitForSelector('[data-testid="assist-card"]', { visible: true, timeout: 10_000 }).catch(() => {
@@ -8428,7 +8245,7 @@ export function assistTabFlowIn(language) {
       })
       await pressSelector(page, press, COMPANY_SWITCH)
       await switchSays(page, COMPANY_SWITCH, true, "Company's switch did not turn on")
-      await elementSays(page, '[data-testid="app-assist-card"]', [words.suggest.title, words.suggest.sends], 'the tab does not list the tasks and what each sends')
+      await elementSays(page, '[data-testid="app-assist-card"]', [words.appCard.chatTitle, words.appCard.chatSends(companyName)], 'the tab does not say what the chat reads')
       await inspect?.("Company's Assistant tab")
       await shoot('assist-tab')
 
@@ -8724,7 +8541,7 @@ async function flagReviewCounterparty(page, press, review, shoot, inspect) {
  * Waits until this browser keeps no chat, as New chat forgets it in the background. A reload must not race that, and
  * neither must the next flow of a touch session, or that flow opens on the chat brought back instead of an empty one.
  */
-async function savedChatGone(page) {
+export async function savedChatGone(page) {
   await page
     .waitForFunction(
       async () => {
@@ -9245,6 +9062,201 @@ export function chatStatementCardFlowIn(language) {
   }
 }
 
+/** Closes the chat where it covers the page, below the width that docks it beside the page. */
+async function giveThePageBack(page, press) {
+  const close = await page.$('[data-testid="chat-close"]')
+  const docked = await page.evaluate(() => window.matchMedia('(min-width: 1224px)').matches)
+  if (close !== null && !docked) {
+    await press(close)
+    await page.waitForFunction(() => !document.querySelector('[data-testid="chat-panel"]'), { timeout: 5_000 })
+  }
+}
+
+/**
+ * Spending's To review with a made-up key kept. `queue`: the card's header offers Ask the chat, which opens the chat about To
+ * review with the card outlined. `row`: a waiting row's Ask the chat tags that row alone, named by its day and account, never its payee.
+ */
+export function spendingReviewAskFlowIn(language, parts = ['queue', 'row']) {
+  const words = SCREEN_WORDS[language]
+  const { review } = words.spendingStatements
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await keepAssistKey(page)
+      if (parts.includes('queue')) {
+        await page.waitForSelector('[data-testid="spending-review-ask"]', { visible: true, timeout: 10_000 }).catch(() => {
+          throw new Error('To review offers no Ask the chat on its header')
+        })
+        await inspect?.('To review with Ask the chat on its header')
+        await shoot('spending-review-ask')
+        await pressSelector(page, press, '[data-testid="spending-review-ask"]')
+        await page.waitForSelector('[data-testid="chat-panel"]', { visible: true, timeout: 10_000 })
+        await elementSays(page, '[data-testid="chat-tag"]', [review.title], 'the chat is not about To review')
+        if ((await page.$('[data-testid="spending-review"][data-chat-tagged="card"]')) === null) throw new Error('the To review card takes no outline while the chat is about it')
+        await delay(300)
+        await inspect?.('the chat about To review')
+        await shoot('spending-review-tagged')
+        await giveThePageBack(page, press)
+      }
+      if (parts.includes('row')) {
+        const row = await page.waitForSelector('[data-testid="spending-review-row"]', { visible: true, timeout: 10_000 })
+        const payee = await row.$eval('.text-highlighted', (element) => element.textContent?.trim() ?? '')
+        await press(await row.$('[data-testid="spending-review-row-ask"]'))
+        await page.waitForSelector('[data-testid="spending-review-row"][data-chat-tagged="row"]', { timeout: 10_000 }).catch(() => {
+          throw new Error('the row asked about takes no highlight')
+        })
+        const tag = await page
+          .waitForSelector('[data-testid="chat-tag"]', { visible: true, timeout: 10_000 })
+          .then((chip) => chip.evaluate((element) => element.textContent ?? ''))
+          .catch(() => {
+            throw new Error('the chat about the row shows no chip')
+          })
+        if (payee !== '' && tag.includes(payee)) throw new Error(`the chip names the row by its payee ${payee}`)
+        await delay(300)
+        await inspect?.('the chat about one waiting row')
+        await shoot('spending-review-row-tagged')
+      }
+    } finally {
+      await forgetAssist(page)
+    }
+  }
+}
+
+/** The receipt dialog with a key kept: after a photo it shows the photo, QR code, match, category and keep, and nothing of the assistant. */
+export function spendingReceiptDialogFlowIn(language, photos) {
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await keepAssistKey(page)
+      await uploadReceiptPhoto(page, press, photos.oneMatch)
+      await page.waitForSelector('[data-testid="spending-receipt-place"][data-match="ready"]', { visible: true, timeout: 10_000 }).catch(() => {
+        throw new Error('the receipt is not offered its one payment ready')
+      })
+      const assistant = await page.$eval(SPENDING_RECEIPT_FORM, (form) => form.querySelectorAll('[data-testid^="assist"], [data-testid="ask-chat"], [data-testid^="spending-receipt-line"]').length)
+      if (assistant > 0) throw new Error('the receipt dialog still holds a part of the assistant')
+      await inspect?.('the receipt dialog without the assistant')
+      await shoot('spending-receipt-dialog')
+      await page.keyboard.press('Escape')
+      await dialogGone(page, SPENDING_RECEIPT_FORM)
+    } finally {
+      await forgetAssist(page)
+    }
+  }
+}
+
+/** Waits for a card on the chat after `count` cards, and returns the newest. */
+async function newestCard(page, count, failure) {
+  await page
+    .waitForFunction((cards) => document.querySelectorAll('[data-testid="chat-proposal"]').length === cards, { timeout: 15_000 }, count)
+    .catch(() => {
+      throw new Error(failure)
+    })
+  const cards = await page.$$('[data-testid="chat-proposal"]')
+  return cards.at(-1)
+}
+
+/** Waits until the row of this payee and amount on Entries shows at least one line. */
+async function rowHasLines(page, title, cents) {
+  await page
+    .waitForFunction(
+      (selector, wanted, amount) =>
+        [...document.querySelectorAll(selector)].some(
+          (row) => row.dataset.amount === String(amount) && row.textContent?.includes(wanted) && row.querySelectorAll('[data-testid="spending-row-line"]').length > 0,
+        ),
+      { timeout: 10_000 },
+      SPENDING_ROW,
+      title,
+      cents,
+    )
+    .catch(() => {
+      throw new Error(`the "${title}" row of ${cents} cents shows no receipt lines`)
+    })
+}
+
+/**
+ * On the receipts set's Entries with a made-up key kept: Read a receipt in the chat puts the photo on the prompt and fills in
+ * nothing. Asked to read it, the chat proposes the Pet food category alone, and asked again once that is accepted, the receipt
+ * card that splits the Corner market payment. With `accept`, Accept splits the row and Undo takes it back.
+ */
+export function chatReceiptFlowIn(language, photos, { accept = false } = {}) {
+  const words = ASSIST_WORDS[language]
+  const request = language === 'en' ? 'Read the receipt' : 'Pročitaj fiskalni račun'
+  const petFood = language === 'en' ? 'Pet food' : 'Hrana za ljubimce'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const allowIfAsked = async () => {
+      const allow = await page.waitForSelector('[data-testid="chat-allow"]', { visible: true, timeout: 5_000 }).catch(() => null)
+      if (allow !== null) await press(allow)
+    }
+    try {
+      await keepAssistKey(page)
+      await page.waitForSelector('[data-testid="spending-receipt-to-chat"]', { visible: true, timeout: 10_000 }).catch(() => {
+        throw new Error('Entries offers no Read a receipt in the chat with a key kept')
+      })
+      const input = await page.$('[data-testid="spending-receipt-to-chat-input"]')
+      await input.uploadFile(photos.oneMatch)
+      await page.waitForSelector('[data-testid="chat-panel"]', { visible: true, timeout: 10_000 })
+      await page.waitForSelector('[data-testid="chat-file"][data-state="ready"]', { visible: true, timeout: 15_000 }).catch(() => {
+        throw new Error('the photo is not ready on the chat prompt')
+      })
+      const typed = await page.$eval('textarea[data-testid="chat-prompt"]', (prompt) => prompt.value)
+      if (typed !== '') throw new Error(`the prompt was filled in with "${typed}"`)
+      if (!accept) {
+        await delay(300)
+        await inspect?.('the receipt photo on the prompt')
+        await shoot('chat-receipt-on-prompt')
+      }
+
+      await sendInChat(page, press, request)
+      await allowIfAsked()
+      const category = await newestCard(page, 1, 'the chat proposed no category card')
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      if (!(await category.evaluate((card, name) => card.textContent?.includes(name) ?? false, petFood))) throw new Error(`the first card does not add ${petFood}`)
+      if (!accept) {
+        await inspect?.('the category card before the receipt')
+        await shoot('chat-category-card')
+      }
+      await press(await category.$('[data-testid="chat-proposal-accept"]'))
+      await category.waitForSelector('[data-testid="chat-proposal-undo"]', { visible: true, timeout: 15_000 })
+
+      await sendInChat(page, press, request)
+      await allowIfAsked()
+      const receipt = await newestCard(page, 2, 'the chat proposed no receipt card once the category was there')
+      await page.waitForFunction(() => document.querySelectorAll('[data-testid="chat-answer"]').length >= 2, { timeout: 15_000 })
+      const receiptSays = await receipt.evaluate((card) => card.textContent ?? '')
+      if (!receiptSays.includes('Corner market')) throw new Error(`the receipt card does not name the payment it splits, and says "${receiptSays}"`)
+      await delay(300)
+      if (!accept) {
+        await inspect?.('the receipt card after the category card')
+        await shoot('chat-category-then-receipt')
+        return
+      }
+      await inspect?.('the receipt card')
+      await shoot('chat-receipt-card')
+      await press(await receipt.$('[data-testid="chat-proposal-accept"]'))
+      await receipt.waitForSelector('[data-testid="chat-proposal-done"]', { visible: true, timeout: 15_000 }).catch(async () => {
+        const refused = await page.evaluate(() => document.querySelector('[data-testid="chat-proposal-refused"]')?.textContent)
+        throw new Error(`Accept did not land: ${refused}`)
+      })
+      await rowHasLines(page, 'Corner market', -2349)
+      await inspect?.('the accepted receipt card with Undo')
+      await shoot('chat-receipt-card-done')
+      await press(await receipt.$('[data-testid="chat-proposal-undo"]'))
+      await page
+        .waitForFunction((card, text) => card.textContent?.includes(text) ?? false, { timeout: 10_000 }, receipt, words.proposal.undone)
+        .catch(() => {
+          throw new Error('Undo did not say it was undone')
+        })
+      await rowLinesAre(page, 'Corner market', -2349, 0)
+    } finally {
+      const started = await page.$('[data-testid="chat-new"]')
+      if (started !== null) await press(started)
+      await savedChatGone(page)
+      await forgetAssist(page)
+    }
+  }
+}
+
 /** Keeps made-up keys for Anthropic and OpenAI, Anthropic picked, Company sending without asking and Anonymise off for Anthropic, then loads the page again with them. */
 async function keepTwoKeysAnonymiseOff(page) {
   await page.evaluate((key) => {
@@ -9546,7 +9558,7 @@ export async function assistFetchNoneFlow(page, { press, inspect }) {
 }
 
 /** A queue row's summary, which opens and closes its details. */
-async function queueRow(page, counterparty) {
+export async function queueRow(page, counterparty) {
   const row = await page
     .waitForFunction(
       (wanted) => [...document.querySelectorAll('[data-testid="review-row"] > button')].find((button) => button.textContent?.includes(wanted)) ?? null,
@@ -9559,57 +9571,6 @@ async function queueRow(page, counterparty) {
   return row.asElement()
 }
 
-/** Suggest categories on the To review tab with the made-up key kept: the first tap asks to switch Company on, and its confirm runs the fake model. */
-async function suggestOnQueue(page, press, language, { inspect, shoot }, shotName = null) {
-  const words = ASSIST_WORDS[language]
-  await keepAssistKey(page)
-  await pressSelector(page, press, SUGGEST_BUTTON)
-  await consentTo(page, press, { inspect, shoot }, [words.consent.title('Anthropic'), words.suggest.sends, words.retention.anthropic, words.consent.sendOnce], shotName)
-  await page.waitForSelector('[data-testid="review-suggest-line"]', { visible: true, timeout: 10_000 }).catch(() => {
-    throw new Error('Suggest categories gave no line under the queue card')
-  })
-}
-
-/** A finished run with no row open opens the first row with a suggestion, its reason and Use in view. */
-async function firstSuggestionOpened(page, counterparty) {
-  await page.waitForSelector('[data-testid="review-details"] [data-testid="use-suggestion"]', { visible: true, timeout: 5_000 }).catch(() => {
-    throw new Error('the run opened no row with its suggestion')
-  })
-  await delay(300)
-  const opened = await page.evaluate(() => {
-    const rows = [...document.querySelectorAll('[data-testid="review-row"] > button[aria-expanded="true"]')]
-    const use = document.querySelector('[data-testid="use-suggestion"]').getBoundingClientRect()
-    return { rows: rows.map((row) => row.textContent ?? ''), useInView: use.top >= 0 && use.bottom <= window.innerHeight }
-  })
-  if (opened.rows.length !== 1 || !opened.rows[0].includes(counterparty)) throw new Error(`the run opened ${opened.rows.join(' | ') || 'no row'}, not ${counterparty}`)
-  if (!opened.useInView) throw new Error('the row the run opened keeps Use out of view')
-}
-
-/** A run leaves the queue as it was and the page's changes empty, since nothing is written until Use. */
-async function suggestionsWroteNothing(page) {
-  const after = await page.evaluate(() => ({ rows: document.querySelectorAll('[data-testid="review-row"]').length, changes: document.querySelectorAll('[data-testid="session-write"]').length }))
-  if (after.rows !== 2 || after.changes !== 0) throw new Error(`the run wrote something: ${after.rows} rows wait and the page lists ${after.changes} changes`)
-}
-
-/** Opens a queue row's details, unless they are open, and waits for its suggestion. */
-async function openSuggestion(page, press, counterparty) {
-  const row = await queueRow(page, counterparty)
-  if ((await row.evaluate((element) => element.getAttribute('aria-expanded'))) !== 'true') {
-    await row.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await delay(200)
-    await press(row)
-  }
-  await page.waitForSelector('[data-testid="review-details"] [data-testid="review-suggestion"]', { visible: true, timeout: 10_000 }).catch(() => {
-    throw new Error(`the details of ${counterparty} show no suggestion`)
-  })
-  await delay(300)
-}
-
-/**
- * The To review tab with the made-up key kept and the fake model as `?ai=` names it: Suggest categories asks to switch
- * Company on, and after it the snack kiosk's row suggests Representation, likely, with its Use button, or with `refused`
- * the card says the model declined and no row has a suggestion.
- */
 export function deleteKeysFlowIn(language) {
   const words = language === 'hr' ? kunaSettingsCroatian : kunaSettingsEnglish
   return async (page, { press, shoot: shootAs, inspect }) => {
@@ -9624,56 +9585,6 @@ export function deleteKeysFlowIn(language) {
     if (await page.$('[data-testid="delete-keys-dialog"]')) throw new Error('the delete keys dialog stayed open')
     await inspect?.('the keys deleted')
     await shoot('delete-keys-done')
-  }
-}
-
-export function reviewSuggestFlowIn(language, { refused = false } = {}) {
-  const words = ASSIST_WORDS[language]
-  const representation = SCREEN_WORDS[language].categoryName('representation')
-  return async (page, { press, shoot: shootAs, inspect }) => {
-    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    await suggestOnQueue(page, press, language, { inspect, shoot }, refused ? null : 'review-suggest-consent')
-    const lines = await page.$$eval('[data-testid="review-suggest-line"]', (elements) => elements.map((element) => element.textContent?.trim() ?? ''))
-    if (refused) {
-      const declined = words.result.refused('')
-      if (!lines.some((line) => line.startsWith(declined))) throw new Error(`the card does not say the model declined, it says: ${lines.join(' | ')}`)
-      if (await page.$('[data-testid="review-suggestion"]')) throw new Error('a row shows a suggestion after the model declined')
-      await inspect?.('the model declined')
-      await shoot('review-suggest-refused')
-      return
-    }
-    const outcome = words.suggest.outcome(2)
-    if (lines.length !== 2 || lines[0] !== (outcome.few ?? outcome.other) || !lines[1].includes('Sonnet 5.5'))
-      throw new Error(`the card does not say what the run did and then what it spent, it says: ${lines.join(' | ')}`)
-    await firstSuggestionOpened(page, 'SNACK KIOSK')
-    await elementSays(
-      page,
-      '[data-testid="review-details"] [data-testid="review-suggestion"]',
-      [words.suggest.suggested(representation, words.suggest.confidence.medium), words.suggest.use(representation)],
-      'the snack kiosk does not suggest Representation, likely, with its Use button',
-    )
-    await inspect?.('the suggestions')
-    await shoot('review-suggested-open')
-    await press(await queueRow(page, 'SNACK KIOSK'))
-    await page.waitForFunction(() => !document.querySelector('[data-testid="review-details"]'), { timeout: 5_000 })
-    const equipment = SCREEN_WORDS[language].categoryName('equipment')
-    for (const [counterparty, says] of [
-      ['SNACK KIOSK', words.suggest.suggested(representation, words.suggest.confidence.medium)],
-      ['GADGET CORNER', words.suggest.suggested(equipment, words.suggest.confidence.high)],
-    ]) {
-      const badge = await (await queueRow(page, counterparty)).$eval('[data-testid="review-suggestion-badge"]', (element) => element.textContent?.trim() ?? '').catch(() => null)
-      if (badge !== says) throw new Error(`the closed row of ${counterparty} says "${badge}", not "${says}"`)
-    }
-    await suggestionsWroteNothing(page)
-    await delay(200)
-    await inspect?.('the closed rows with their suggestions')
-    await shoot('review-suggested')
-    await press(await queueRow(page, 'GADGET CORNER'))
-    await page.waitForSelector('[data-testid="review-details"]', { visible: true, timeout: 5_000 })
-    await pressSelector(page, press, SUGGEST_BUTTON)
-    await delay(800)
-    const open = await page.$$eval('[data-testid="review-row"] > button[aria-expanded="true"]', (rows) => rows.map((row) => row.textContent ?? ''))
-    if (open.length !== 1 || !open[0].includes('GADGET CORNER')) throw new Error(`a second run with a row open left these open: ${open.join(' | ')}`)
   }
 }
 
@@ -9709,62 +9620,6 @@ export function categoryPickerFlowIn(language) {
     await openEachMenuIn(page, press, '[data-testid="change-category"]')
     await page.keyboard.press('Escape')
     await dialogGone(page, '[data-testid="change-category"]')
-  }
-}
-
-/**
- * The To review tab in the workbook kept in this browser with the made-up key kept: Suggest categories asks first, the
- * snack kiosk's Use Representation files the row with Undo, Undo brings it back, and Use again offers Make a rule, which
- * opens the rule editor on the row's counterparty.
- */
-export async function reviewSuggestUseFlow(page, { press, shoot, inspect }) {
-  const words = SCREEN_WORDS.en
-  try {
-    await suggestOnQueue(page, press, 'en', { inspect, shoot })
-    const waiting = () => page.evaluate(() => document.querySelectorAll('[data-testid="review-row"]').length)
-    if ((await waiting()) !== 2) throw new Error(`the queue holds ${await waiting()} rows, not the two fake rows`)
-    const lines = await page.$$eval('[data-testid="review-suggest-line"]', (elements) => elements.map((element) => element.textContent?.trim() ?? ''))
-    if (lines[0] !== ASSIST_WORDS.en.suggest.outcome(2).other) throw new Error(`the card's first line is "${lines[0]}", not what the run did`)
-    await firstSuggestionOpened(page, 'SNACK KIOSK')
-    const badge = await (await queueRow(page, 'GADGET CORNER')).$('[data-testid="review-suggestion-badge"]')
-    if (badge === null) throw new Error('the closed row of GADGET CORNER shows no suggestion')
-    await suggestionsWroteNothing(page)
-    await openSuggestion(page, press, 'SNACK KIOSK')
-    await inspect?.('a suggestion on a phone')
-    await shoot('review-suggest')
-    await pressSelector(page, press, '[data-testid="review-details"] [data-testid="use-suggestion"]')
-    await toast(page, words.transactions.review.filedAs('Representation'))
-    if ((await waiting()) !== 1) throw new Error('the row filed by its suggestion is still waiting')
-    await undoIn(page, press, words)
-    if ((await waiting()) !== 2) throw new Error('Undo did not bring the row back')
-    await dismissToasts(page)
-
-    await openSuggestion(page, press, 'SNACK KIOSK')
-    await pressSelector(page, press, '[data-testid="review-details"] [data-testid="use-suggestion"]')
-    await toast(page, words.transactions.review.filedAs('Representation'))
-    const makeRule = await page
-      .waitForFunction(
-        (selector, label) => [...document.querySelectorAll(`${selector} button`)].find((element) => element.textContent?.trim() === label) ?? null,
-        { timeout: 5_000 },
-        TOAST,
-        words.transactions.review.makeRule,
-      )
-      .catch(() => {
-        throw new Error(`the toast does not offer ${words.transactions.review.makeRule}`)
-      })
-    await press(makeRule.asElement())
-    await page.waitForSelector('[data-testid="rule-editor"]', { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error('Make a rule opened no rule editor')
-    })
-    await delay(400)
-    const conditions = await page.$$eval('[data-testid="rule-condition"] input', (inputs) => inputs.map((input) => input.value))
-    if (!conditions.some((value) => value.includes('SNACK'))) throw new Error(`the rule editor's conditions do not name the row, they read ${conditions.join(', ') || 'nothing'}`)
-    await inspect?.('the rule editor from a suggestion')
-    await page.keyboard.press('Escape')
-    await dialogGone(page, '[role="dialog"] [data-testid="rule-editor"]')
-    await dismissToasts(page)
-  } finally {
-    await forgetAssist(page)
   }
 }
 

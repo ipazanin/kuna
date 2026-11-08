@@ -246,7 +246,7 @@ export function packSettingKeys(pack: PackSettings<unknown> | null): ReadonlySet
   return new Set([...(pack?.definitions.map((definition) => definition.key) ?? []), ...(pack?.retired ?? [])])
 }
 
-function bucketLabelKey(bucket: DefinedBucket): BucketLabelKey {
+export function bucketLabelKey(bucket: DefinedBucket): BucketLabelKey {
   return `label_${bucket.replace('-', '_')}`
 }
 

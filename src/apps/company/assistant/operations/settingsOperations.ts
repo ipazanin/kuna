@@ -1,4 +1,5 @@
 import { fieldsOf } from './companyCard'
+import { settingName } from './settingNames'
 import type { CompanyCard, CompanyOperationSet } from './companyCard'
 import { words } from './words'
 import { fillShares } from '../../owner-share/application/ownerShareWrites'
@@ -33,20 +34,10 @@ const ACCOUNT = ACCOUNT_RECORDS.name
 
 /**
  * The keys no card sets. Kuna's version marker and the review label are the owner's. The payees flagged as people are the chat's
- * own guard. The invoice folder needs Google's picker. Statement delivery from a folder or mail needs Google's consent, so the
- * chat links its screen.
+ * own guard. The invoice folder needs Google's picker. The statements folder and the bank's mail address need Google's consent,
+ * so the chat links their screen. The subject of the bank's mail and the day mail is read from need none, so a card sets them.
  */
-const NEVER_PROPOSED: ReadonlySet<string> = new Set([
-  'template_version',
-  'review_label',
-  PERSON_PAYEES_KEY,
-  'invoice_folder_id',
-  'statements_folder',
-  'statements_sync',
-  'statements_mail_from',
-  'statements_mail_subject',
-  'mail_since',
-])
+const NEVER_PROPOSED: ReadonlySet<string> = new Set(['template_version', 'review_label', PERSON_PAYEES_KEY, 'invoice_folder_id', 'statements_folder', 'statements_sync', 'statements_mail_from'])
 
 /** The keys whose value says where money or mail goes, or where an invoice is filed, which a card warns on. */
 export const WARNED_SETTING_KEYS: ReadonlySet<string> = new Set([
@@ -338,7 +329,7 @@ function setSetting(card: CompanyCard, step: ProposalStep): void {
   const value = String(field['value'])
   if (!proposedKeys().includes(key)) throw new StepRefused('Only a person sets that key, on its own screen.')
   setSettings(card.unit, card.records().settings, [{ key, value: value.trim() === '' ? '' : savedValue(card, key, value) }])
-  if (key === 'currency' || key === 'number_locale') card.note({ noun: SETTING_RECORDS.noun, line: { label: key, fields: [], warning: words.everyFigure[key] } })
+  if (key === 'currency' || key === 'number_locale') card.note({ noun: SETTING_RECORDS.noun, line: { label: settingName(key, {}), fields: [], warning: words.everyFigure[key] } })
 }
 
 /** Refuses the card when its settings together break a rule the settings forms keep across fields, such as an amount with no item, unless the books broke it already. */

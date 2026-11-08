@@ -42,7 +42,7 @@ import { moneyFromAmount } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
 import type { UnitOfWork } from '../../../../../../shared/storage/application/repository'
 import { recordsOf } from '../../../../../../shared/storage/domain/recordsRead'
-import type { ReadRecord, RecordsRead } from '../../../../../../shared/storage/domain/recordsRead'
+import type { ReadRecord, RecordsRead, StoredRecord } from '../../../../../../shared/storage/domain/recordsRead'
 import { refusalOr } from '../../../../../../shared/storage/domain/storedFields'
 import type { WriteRules } from '../../../../../../shared/storage/domain/writeRules'
 
@@ -90,7 +90,13 @@ function columnFields(columns: readonly DraftColumn[]): Readonly<Record<string, 
   return Object.fromEntries(columns.map((column) => [column.name, { type: ['string', 'null'], description: COLUMN_HINTS[column.kind] } satisfies StrictSchema]))
 }
 
-/** The add, change and delete of an editor kind. A row is named by `row`, since each editor has a column named after its kind. */
+/** An unreadable row of an editor, by its place among the rows Kuna cannot read, as the editor lists them from the top. */
+const UNREADABLE_ROW: StrictSchema = { type: 'integer', description: 'The place of the row among the rows the editor says Kuna cannot read, 1 for the first from the top.' }
+
+/**
+ * The add, change and delete of an editor kind, and the fix and removal of a row Kuna cannot read. A row is named by `row`,
+ * since each editor has a column named after its kind. Like the editor's own save, a fix or a removal of an unreadable row has no Undo.
+ */
 function editorOperations(
   name: EditorName,
   about: { readonly add: string; readonly change: string; readonly delete: string },
@@ -99,6 +105,7 @@ function editorOperations(
 ): AssistantOperation[] {
   const fields = columnFields(EDITOR_KINDS[name].columns)
   const left = Object.fromEntries(Object.keys(fields).map((field) => [field, null]))
+  const noun = EDITOR_KINDS[name].rules.kind.noun.en.one
   return [
     { name: `add-${name}`, about: about.add, input: inputOf(fields), refs: {}, creates: null, alone: false, example: { ...left, ...examples.add } },
     {
@@ -111,6 +118,24 @@ function editorOperations(
       example: { row: name, ...left, ...examples.change },
     },
     { name: `delete-${name}`, about: about.delete, input: inputOf({ row: TEXT }), refs: { row: refKind }, creates: null, alone: false, example: { row: examples.deleted ?? name } },
+    {
+      name: `fix-unreadable-${name}`,
+      about: `Fixes a ${noun} row the editor says Kuna cannot read, with the columns the person gives. Null keeps what the row holds. It has no Undo, as the editor's save of such a row has none, so it goes alone on a card.`,
+      input: inputOf({ row: UNREADABLE_ROW, ...fields }),
+      refs: {},
+      creates: null,
+      alone: true,
+      example: { row: 1, ...left, ...examples.change },
+    },
+    {
+      name: `remove-unreadable-${name}`,
+      about: `Removes a ${noun} row the editor says Kuna cannot read. It has no Undo, as the editor's save without such a row has none, so it goes alone on a card.`,
+      input: inputOf({ row: UNREADABLE_ROW }),
+      refs: {},
+      creates: null,
+      alone: true,
+      example: { row: 1 },
+    },
   ]
 }
 
@@ -288,18 +313,19 @@ export const PACK_OPERATIONS: readonly AssistantOperation[] = [
   ),
 ]
 
-/** What only a person changes while Anonymise is on: the employees and the pay a scenario or the plan's owner pay gives a person. */
+/** What only a person changes while Anonymise is on: the employees and the pay a scenario gives a person. Which scenario the owner's pay follows in the plan is the owner's own. */
 const PAYS_A_PERSON: ReadonlySet<string> = new Set([
   'add-employee',
   'change-employee',
   'delete-employee',
+  'fix-unreadable-employee',
+  'remove-unreadable-employee',
   'add-starting-scenarios',
   'add-component',
   'change-component',
   'delete-component',
   'rename-scenario',
   'copy-scenario',
-  'plan-owner-pay',
 ])
 
 const ANONYMISING =
@@ -377,16 +403,8 @@ function newScenarioSlug(books: CompanyBooks, from: string, text: string): strin
   return slug
 }
 
-/** One editor row added, changed or removed, through the editor's columns and factory, as its Save writes it. */
-function writeEditorRow(unit: UnitOfWork, books: CompanyBooks, name: EditorName, verb: string, field: Readonly<Record<string, never>>): void {
-  const kind = EDITOR_KINDS[name] as EditorKind<unknown>
-  const read = recordsOfKindIn(books.records, kind.rules.kind)
-  const held = verb === 'add' ? undefined : kind.held(read, field['row'])
-  if (verb !== 'add' && held === undefined) throw new StepRefused(`That ${kind.rules.kind.noun.en.one} is no longer in the file, or the file cannot read it.`)
-  if (verb === 'delete') {
-    unit.of(kind.rules).remove(held!.record)
-    return
-  }
+/** A row as the editor makes it from its columns over what the row holds: the typed columns win, and a null one keeps the row's. */
+function editorRowOf<R>(kind: EditorKind<R>, name: EditorName, held: StoredRecord<R> | undefined, field: Readonly<Record<string, never>>): R {
   const stored = held === undefined ? [] : [held]
   const [draft] = held === undefined ? [{ saved: null, fields: {} }] : draftsOfRecords(stored, kind.columns)
   const typed = Object.fromEntries(kind.columns.flatMap((column) => (field[column.name] === null ? [] : [[column.name, field[column.name] as string]])))
@@ -394,8 +412,31 @@ function writeEditorRow(unit: UnitOfWork, books: CompanyBooks, name: EditorName,
   const [rowFields] = fieldsOfDrafts([{ saved: draft!.saved, fields }], kind.columns, stored)
   const made = refusalOr(() => kind.make(rowFields!, held?.id ?? null))
   if ('refused' in made) throw new StepRefused(made.refused)
-  if (held === undefined) unit.of(kind.rules).add(made.made)
-  else unit.of(kind.rules).change(held.record, made.made)
+  return made.made
+}
+
+/** One editor row added, changed or removed, through the editor's columns and factory, as its Save writes it. */
+function writeEditorRow(unit: UnitOfWork, books: CompanyBooks, name: EditorName, verb: string, field: Readonly<Record<string, never>>): void {
+  const kind = EDITOR_KINDS[name] as EditorKind<unknown>
+  const read = recordsOfKindIn(books.records, kind.rules.kind)
+  const held = verb === 'add' ? undefined : kind.held(read, field['row'])
+  if (verb !== 'add' && held === undefined) throw new StepRefused(`That ${kind.rules.kind.noun.en.one} is no longer in the file, or the file cannot read it.`)
+  if (verb === 'delete') unit.of(kind.rules).remove(held!.record)
+  else if (held === undefined) unit.of(kind.rules).add(editorRowOf(kind, name, undefined, field))
+  else unit.of(kind.rules).change(held.record, editorRowOf(kind, name, held, field))
+}
+
+/** A row Kuna cannot read, fixed through the editor's columns and factory or removed, as the editor's Save repairs or drops it. */
+function writeUnreadableRow(unit: UnitOfWork, books: CompanyBooks, name: EditorName, verb: string, field: Readonly<Record<string, never>>): void {
+  const kind = EDITOR_KINDS[name] as EditorKind<unknown>
+  const unreadable = recordsOfKindIn(books.records, kind.rules.kind).refused
+  const place = field['row'] as number
+  const refused = unreadable[place - 1]
+  if (!Number.isInteger(place) || refused === undefined) {
+    throw new StepRefused(unreadable.length === 0 ? `Kuna reads every ${kind.rules.kind.noun.en.one} row.` : `row is a whole number from 1 to ${unreadable.length}.`)
+  }
+  if (verb === 'remove') unit.of(kind.rules).discard(refused)
+  else unit.of(kind.rules).repair(refused, editorRowOf(kind, name, refused, field))
 }
 
 /** The owner share an advance takes, as Transactions sets it on the advance's line: only while owner pay is on, and on an operating cost. */
@@ -456,8 +497,11 @@ function planned(unit: UnitOfWork, books: CompanyBooks, { operation, input }: Pr
       const category = idOf(field['category'])
       const year = field['year'] as number
       const month = field['month'] === null ? null : monthOf(field['month'])
+      const amount = moneyFromAmount(field['amount'])
+      // The plan's dialog takes zero or more, read positive for income and costs alike.
+      if (amount < 0) throw new StepRefused('amount is zero or more, read positive for income and costs alike.')
       const held = yearLines(books, year, (line) => line.kind === 'amount' && line.item === category && line.month === month)
-      replaceLine(unit, held, 'category', categoryPlanLine(year, month, category, moneyFromAmount(field['amount']), held[0]?.note ?? ''))
+      replaceLine(unit, held, 'category', categoryPlanLine(year, month, category, amount, held[0]?.note ?? ''))
       return
     }
     case 'plan-dividend': {
@@ -500,7 +544,6 @@ function planned(unit: UnitOfWork, books: CompanyBooks, { operation, input }: Pr
     }
     case 'clear-plan': {
       const line = heldOf(recordsOfKindIn(books.records, PLAN_RECORDS), 'plan row', (candidate) => candidate.id === field['line'])
-      if (anonymising && line.kind === 'owner-pay-scenario') throw new StepRefused(ANONYMISING)
       const cleared = line.kind === 'owner-pay-scenario' ? yearLines(books, line.year, (candidate) => candidate.kind === 'owner-pay-scenario') : [line]
       cleared.forEach((each) => unit.of(PLAN_WRITES).remove(each))
       return
@@ -543,6 +586,11 @@ function planned(unit: UnitOfWork, books: CompanyBooks, { operation, input }: Pr
       return
     }
     default: {
+      const unreadable = /^(fix|remove)-unreadable-(.+)$/.exec(operation)
+      if (unreadable !== null && unreadable[2]! in EDITOR_KINDS) {
+        writeUnreadableRow(unit, books, unreadable[2] as EditorName, unreadable[1]!, field)
+        return
+      }
       const [verb, ...rest] = operation.split('-')
       const name = rest.join('-')
       if ((verb === 'add' || verb === 'change' || verb === 'delete') && name in EDITOR_KINDS) {

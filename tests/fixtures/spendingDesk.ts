@@ -1,3 +1,4 @@
+import type { ReceiptPorts } from '../../src/apps/spending/assistant/operations/receiptOperation'
 import { spendingAcceptance, spendingProposer } from '../../src/apps/spending/assistant/operations/spendingOperations'
 import { codecOfSpendingKind } from '../../src/apps/spending/workbook/application/spendingCodecs'
 import type { Account } from '../../src/apps/spending/workbook/domain/account'
@@ -48,6 +49,7 @@ const RESTAURANTS = category('category-restaurants', 'Restaurants', 'spending', 
 const RENT = category('category-rent', 'Rent', 'spending', null, 2)
 const SALARY = category('category-salary', 'Salary', 'income', null, 1)
 const TRANSFER = category('category-transfer', 'Between my accounts', 'transfer', null, 1)
+const FOR_COMPANY = category('category-company', 'For the company', 'company', null, 1)
 
 function row(key: string, date: string, amount: number, payee: string, fields: Partial<Transaction> = {}): Transaction {
   return {
@@ -119,6 +121,24 @@ function stored<R>(kind: RecordKind<R>, records: readonly R[]): WorkbookDocument
   return { [kind.name]: records.map((record) => codecOfSpendingKind(kind).fieldsOf(record)) }
 }
 
+/** Receipt ports that read no QR code, keep a photo on a made-up Drive at once, and name a made-up model. */
+export function receiptPorts(fields: Partial<ReceiptPorts> = {}): ReceiptPorts {
+  return {
+    qrTextOn: async () => null,
+    keepsOnDrive: () => true,
+    mayKeepNow: () => true,
+    photos: async () => ({ keep: async () => 'made-up-drive-photo' }),
+    reader: () => 'made-up-model',
+    ...fields,
+  }
+}
+
+/** A photo attached to the chat, of a few made-up bytes with no QR code and no place in them. */
+export function attachedPhoto(id = 'a1'): ChatAttachment {
+  const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9])
+  return { id, kind: 'photo', name: 'receipt.jpg', bytes, original: new Blob([bytes], { type: 'image/jpeg' }), pages: 1, sent: { width: 1, height: 1 } }
+}
+
 /** A Spending file where every operation's example has what it needs, with the chat's refs and the cards it was shown. */
 export interface SpendingDesk {
   readonly store: WorkbookStore<SpendingBooks>
@@ -129,10 +149,10 @@ export interface SpendingDesk {
   accept(at?: number): ReturnType<ReturnType<typeof spendingAcceptance>['accept']>
 }
 
-export async function spendingDesk(used: Set<string>): Promise<SpendingDesk> {
+export async function spendingDesk(used: Set<string>, receipts: ReceiptPorts = receiptPorts()): Promise<SpendingDesk> {
   const document = spendingDocumentOf('2026-11-07T09:00:00.000Z', {
     ...stored(ACCOUNT_RECORDS, [CURRENT, SAVINGS, DOLLARS, WALLET, REVOLUT]),
-    ...stored(CATEGORY_RECORDS, [FOOD, GROCERIES, RESTAURANTS, RENT, SALARY, TRANSFER]),
+    ...stored(CATEGORY_RECORDS, [FOOD, GROCERIES, RESTAURANTS, RENT, SALARY, TRANSFER, FOR_COMPANY]),
     ...stored(TRANSACTION_RECORDS, ROWS),
     ...stored(RULE_RECORDS, [RULE]),
     ...stored(RECEIPT_RECORDS, [RECEIPT]),
@@ -141,7 +161,8 @@ export async function spendingDesk(used: Set<string>): Promise<SpendingDesk> {
   const typed = store as unknown as WorkbookStore<SpendingBooks>
   const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => true }
   const cards: CheckedProposal[] = []
-  const proposers = new Map([['spending', spendingProposer(typed)]])
+  const proposers = new Map([['spending', spendingProposer(typed, receipts)]])
+  const acceptance = spendingAcceptance(typed, receipts)
   return {
     store: typed,
     reads,
@@ -155,6 +176,6 @@ export async function spendingDesk(used: Set<string>): Promise<SpendingDesk> {
         attachments,
         (_app, card) => cards.push(card),
       ),
-    accept: (at = cards.length - 1) => spendingAcceptance(typed).accept(cards[at]!),
+    accept: (at = cards.length - 1) => acceptance.accept(cards[at]!),
   }
 }

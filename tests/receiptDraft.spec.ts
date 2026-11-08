@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { MADE_UP_BUYER_OIB, MADE_UP_MERCHANT_OIB } from '../src/apps/spending/receipts/assist/infrastructure/fake/fakeReceiptRead'
+import { MADE_UP_BUYER_OIB, MADE_UP_MERCHANT_OIB } from '../src/apps/spending/assistant/infrastructure/fake/fakeSpendingChat'
 import { entryCategoryChoices } from '../src/apps/spending/entries/presentation/categoryChoices'
-import { categoryRefs, choicesAfterR1, fiscalFactsOf, receiptDraft } from '../src/apps/spending/receipts/domain/receiptDraft'
+import { receiptCategories, receiptDraft, withR1Answer } from '../src/apps/spending/receipts/domain/receiptDraft'
 import type { AnsweredLine, DraftContext, ReceiptAnswer } from '../src/apps/spending/receipts/domain/receiptDraft'
 import type { FiscalQr } from '../src/apps/spending/receipts/domain/fiscalQr'
 import { LINE_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
@@ -11,14 +11,13 @@ import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { civil, euros } from './fixtures/ledger'
 import { CATEGORIES, category } from './fixtures/spending'
 
-const REFS = categoryRefs(CATEGORIES)
-const refOf = (path: string): string => REFS.find((entry) => entry.category.id === category(path).id)!.ref
+const refOf = (path: string): string => category(path).id
 
-const CONTEXT: DraftContext = { refs: REFS, qr: null, book: { receipts: [], lines: [], categories: CATEGORIES }, companyOib: '' }
+const CONTEXT: DraftContext = { qr: null, book: { receipts: [], lines: [], categories: CATEGORIES }, companyOib: '' }
 const QR: FiscalQr = { jir: '1a2b3c4d-0000-4000-8000-1234567890ab', zki: '', issuedOn: civil('2026-11-03'), issuedTime: '18:42', total: euros(23.49) }
 
 function line(printed: string, lineTotal: number, fields: Partial<AnsweredLine> = {}): AnsweredLine {
-  return { printed, text: '', kind: 'product', quantity: null, unitPrice: null, lineTotal, category: refOf('Food/Groceries'), newCategory: null, ...fields }
+  return { printed, text: '', kind: 'product', quantity: null, unitPrice: null, lineTotal, category: refOf('Food/Groceries'), ...fields }
 }
 
 const ANSWER: ReceiptAnswer = {
@@ -101,10 +100,13 @@ describe('a read receipt', () => {
     expect(read.merchantOib).toBe(wrong)
   })
 
-  it('leaves a new category as a suggestion, never as a category', () => {
-    const { read } = receiptDraft({ ...ANSWER, lines: [line('MLIJEKO', 20), line('PSEC.HR.', 3.49, { category: 'new', newCategory: ' Pet food ' })] }, CONTEXT)
+  it('leaves a line under a category it may not go under without one, so the chat refuses it', () => {
+    const { read } = receiptDraft(
+      { ...ANSWER, lines: [line('MLIJEKO', 20), line('ULOG', 3.49, { category: refOf('For the company') }), line('PSEC.HR.', 3.49, { category: 'no-such-category' })] },
+      CONTEXT,
+    )
 
-    expect(read.lines[1]).toMatchObject({ category: null, suggested: 'Pet food' })
+    expect(read.lines.map((held) => held.category)).toEqual([category('Food/Groceries').id, null, null])
   })
 
   it('names what could not be read, a missing total and a missing date', () => {
@@ -175,10 +177,10 @@ describe('what the review found in a read', () => {
 
   it('puts every line under For the company on that answer, and back as read on Personal', () => {
     const company = category('For the company').id
-    const { read } = receiptDraft({ ...ANSWER, markedR1: true, lines: [line('A', 20), line('B', 3.49, { category: 'new', newCategory: 'Toner' })] }, CONTEXT)
+    const { read } = receiptDraft({ ...ANSWER, markedR1: true, lines: [line('A', 20), line('B', 3.49, { category: refOf('Food/Coffee') })] }, CONTEXT)
 
-    expect(choicesAfterR1(read, 'company', company)).toEqual([company, company])
-    expect(choicesAfterR1(read, 'personal', company)).toEqual([category('Food/Groceries').id, 'new:Toner'])
+    expect(withR1Answer(read, 'company', company).lines.map((held) => held.category)).toEqual([company, company])
+    expect(withR1Answer(read, 'personal', company).lines.map((held) => held.category)).toEqual([category('Food/Groceries').id, category('Food/Coffee').id])
   })
 
   it('reads an OIB with HR before it or in groups', () => {
@@ -201,14 +203,13 @@ describe('what the review found in a read', () => {
     const zki = '0123456789abcdef0123456789abcdef'
     const { read } = receiptDraft({ ...ANSWER, zki }, { ...CONTEXT, qr: QR })
 
-    expect(fiscalFactsOf(read, QR)).toEqual({ issuedTime: '18:42', jir: QR.jir, zki })
-    expect(fiscalFactsOf(null, QR)).toEqual({ issuedTime: '18:42', jir: QR.jir, zki: '' })
-    expect(fiscalFactsOf(null, null)).toEqual({ issuedTime: '', jir: '', zki: '' })
+    expect([read.issuedTime, read.jir, read.zki]).toEqual(['18:42', QR.jir, zki])
+    expect(receiptDraft({ ...ANSWER, jir: 'read-jir' }, CONTEXT).read.jir).toBe('read-jir')
   })
 })
 
 describe('what the model may file a line under', () => {
-  const filed = (categories = CATEGORIES) => categoryRefs(categories).map(({ category: held }) => held.id)
+  const filed = (categories = CATEGORIES) => receiptCategories(categories).map((held) => held.id)
 
   it('holds no fixed category, so only the R1 rule starts a line under For the company', () => {
     expect(filed()).not.toContain(category('For the company').id)
@@ -277,10 +278,7 @@ describe('a line remembered from a confirmed receipt', () => {
 
   it("stays with the model's pick for a category hidden since", () => {
     const hidden = CATEGORIES.map((entry) => (entry.id === category('Home/Household goods').id ? { ...entry, hidden: true } : entry))
-    const { read } = receiptDraft(
-      { ...ANSWER, lines: [line('DET.TEK.', 23.49, { category: refOf('Food/Coffee') })] },
-      { ...CONTEXT, refs: categoryRefs(hidden), book: { ...book, categories: hidden } },
-    )
+    const { read } = receiptDraft({ ...ANSWER, lines: [line('DET.TEK.', 23.49, { category: refOf('Food/Coffee') })] }, { ...CONTEXT, book: { ...book, categories: hidden } })
 
     expect(read.lines[0]!.category).not.toBe(category('Home/Household goods').id)
   })
@@ -295,17 +293,11 @@ describe('a line remembered from a confirmed receipt', () => {
 describe('an R1 receipt', () => {
   const COMPANY = category('For the company').id
 
-  it('sets every line to For the company when its buyer is the Company OIB, and new suggestions go with them', () => {
-    const { read } = receiptDraft(
-      { ...ANSWER, buyerOib: MADE_UP_BUYER_OIB, lines: [line('A', 20), line('B', 3.49, { category: 'new', newCategory: 'Toner' })] },
-      { ...CONTEXT, companyOib: MADE_UP_BUYER_OIB },
-    )
+  it('sets every line to For the company when its buyer is the Company OIB, whatever the read filed it under', () => {
+    const { read } = receiptDraft({ ...ANSWER, buyerOib: MADE_UP_BUYER_OIB, lines: [line('A', 20), line('B', 3.49, { category: 'no-such-category' })] }, { ...CONTEXT, companyOib: MADE_UP_BUYER_OIB })
 
     expect(read.r1).toBe(true)
-    expect(read.lines).toMatchObject([
-      { category: COMPANY, suggested: null },
-      { category: COMPANY, suggested: null },
-    ])
+    expect(read.lines.map((held) => held.category)).toEqual([COMPANY, COMPANY])
   })
 
   it('flags any buyer OIB with no Company OIB saved', () => {

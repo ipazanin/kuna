@@ -30,6 +30,11 @@ async function start(): Promise<void> {
   await installApp(investmentsApp)
   await installApp(assetsApp)
   await installApp(spendingApp)
+  // Inline, not hoisted into a constant, so a production build folds it away with the fake chat.
+  if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
+    const { registerFakeKunaChat } = await import('./shell/assistant/infrastructure/fake/fakeKunaChat')
+    registerFakeKunaChat()
+  }
   const { holdProviderInUse } = await import('./shared/ai/presentation/useAiTask')
   holdProviderInUse()
   const googleReturn = takeGoogleRedirect()

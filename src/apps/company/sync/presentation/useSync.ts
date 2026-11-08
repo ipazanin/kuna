@@ -11,11 +11,11 @@ import { mailNeeds, useMailSync } from '../../mail/presentation/useMailSync'
 import { BOOKS_FILE_LINK } from '../../settings/presentation/settingsTabs'
 import LocalWorkbookStatus from '../../workbook-files/presentation/LocalWorkbookStatus.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import { COMPANY_APP } from '../../workbook/domain/companyApp'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { assistOn } from '../../../../shared/ai/application/assistSettings'
 import { secretsNeeds, secretsStep } from '../../../../shared/secrets/presentation/secretsStep'
-import { suggestCategories } from '../../assist/application/suggestCategories'
 import { words } from './words'
 
 /** The Google permissions books on Drive and this device's settings need, by what needs each: the books, each step their settings turn on, and Gmail while invoice drafts are on. */
@@ -31,7 +31,7 @@ function needsOfBooks(workbook: Workbook | null): AccessNeed[] {
 export function companySyncGroup(): AppSyncGroup {
   const store = useWorkbook()
   const writes = useRecordWrites(store)
-  const assistWanted = () => assistOn(suggestCategories.app)
+  const assistWanted = () => assistOn(COMPANY_APP)
   const steps = [useMailSync().step, useStatementSync().step, secretsStep(assistWanted)]
   return {
     store,

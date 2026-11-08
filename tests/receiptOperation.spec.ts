@@ -1,0 +1,228 @@
+import 'fake-indexeddb/auto'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import { words } from '../src/apps/spending/assistant/words'
+import type { ReceiptPhotos } from '../src/apps/spending/receipts/application/receiptPhotos'
+import { jpegWithMadeUpPlace, sampleFiscalQrText } from '../src/apps/spending/receipts/infrastructure/fake/sampleReceiptPhoto'
+import type { ChatAttachment } from '../src/shared/ai/domain/chatAttachments'
+import { parseCivilDate } from '../src/shared/calendar/civilDate'
+import { DESK_ACCOUNTS, EXAMPLE_RECORDS, attachedPhoto, receiptPorts, spendingDesk } from './fixtures/spendingDesk'
+import type { SpendingDesk } from './fixtures/spendingDesk'
+import { forgetCaches } from './fixtures/writeBack'
+
+const used = new Set<string>()
+afterEach(async () => forgetCaches(used))
+
+const bookOf = ({ store }: SpendingDesk) => store.state.workbook!
+const categoryNamed = (desk: SpendingDesk, name: string) => bookOf(desk).categories.find((category) => category.name === name)!
+
+/** The pharmacy's €31 bank row on Current, which has no receipt. */
+const PHARMACY = EXAMPLE_RECORDS['transaction-joinable']!
+
+function line(desk: SpendingDesk, printed: string, lineTotal: number, category = 'Rent', fields: Readonly<Record<string, unknown>> = {}) {
+  return { printed, text: printed.toLowerCase(), kind: 'product', quantity: null, unitPrice: null, lineTotal, category: desk.ref('category', categoryNamed(desk, category).id), ...fields }
+}
+
+/** An add-receipt step of the pharmacy's €31, splitting its row unless told otherwise. */
+function receipt(desk: SpendingDesk, fields: Readonly<Record<string, unknown>> = {}) {
+  return {
+    op: 'add-receipt',
+    input: {
+      photo: 'a1',
+      entry: desk.ref('transaction', PHARMACY),
+      account: null,
+      merchant: 'Pharmacy',
+      merchantOib: null,
+      buyerOib: null,
+      markedR1: false,
+      whose: null,
+      issuedOn: '2026-10-21',
+      issuedAt: '09:15',
+      jir: null,
+      zki: null,
+      lines: [line(desk, 'VITAMIN C', 20), line(desk, 'FLASTER', 11)],
+      vat: [],
+      total: 31,
+      unreadable: [],
+      keepPhoto: false,
+      ...fields,
+    },
+  }
+}
+
+/** A receipt of €7.77, which no payment on the desk may be. */
+function unmatched(desk: SpendingDesk) {
+  return { lines: [line(desk, 'VITAMIN C', 5), line(desk, 'FLASTER', 2.77)], total: 7.77 }
+}
+
+describe('a receipt from the chat', () => {
+  it('splits the payment named into its lines in one write, with the model that read it, and one Undo takes it all back', async () => {
+    const desk = await spendingDesk(used)
+    const answer = await desk.propose([receipt(desk)], [attachedPhoto()])
+    expect(answer.isError).toBe(false)
+    const [card] = desk.cards
+    expect(card!.outside).toEqual([])
+    expect(card!.undoable).toBe(true)
+
+    const result = await desk.accept()
+
+    expect(result.kind).toBe('done')
+    const held = bookOf(desk).receipts.find((candidate) => candidate.transaction === PHARMACY)!
+    expect([held.merchant, held.readBy, held.photo, held.issuedTime]).toEqual(['Pharmacy', 'made-up-model', '', '09:15'])
+    expect(
+      bookOf(desk)
+        .lines.filter((candidate) => candidate.receipt === held.id)
+        .map((candidate) => candidate.amount),
+    ).toEqual([-2000, -1100])
+    if (result.kind === 'done') expect((await result.undo!()).kind).toBe('undone')
+    expect(bookOf(desk).receipts.some((candidate) => candidate.transaction === PHARMACY)).toBe(false)
+    expect(bookOf(desk).lines.some((candidate) => candidate.transaction === PHARMACY)).toBe(false)
+  })
+
+  it("takes the QR code's date and total over the read's, and warns on the card", async () => {
+    const qrText = sampleFiscalQrText(parseCivilDate('2026-10-21')!, 3100)
+    const desk = await spendingDesk(used, receiptPorts({ qrTextOn: async () => qrText }))
+
+    await desk.propose([receipt(desk, { total: 30, issuedOn: '2026-10-20' })], [attachedPhoto()])
+    await desk.accept()
+
+    const held = bookOf(desk).receipts.find((candidate) => candidate.transaction === PHARMACY)!
+    expect([held.total, held.issuedOn, held.issuedTime, held.jir]).toEqual([3100, '2026-10-21', '18:42', '1a2b3c4d-0000-4000-8000-1234567890ab'])
+    const warned = desk.cards[0]!.groups.flatMap((group) => group.lines).filter((shown) => shown.warning !== null)
+    expect(warned.map((shown) => shown.warning)).toEqual([expect.stringContaining('The QR code says €31.00')])
+  })
+
+  it('keeps where the photo was taken, read from the photo as attached', async () => {
+    const desk = await spendingDesk(used)
+    const placed = jpegWithMadeUpPlace(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), { latitude: 43.5081, longitude: 16.4402 })
+    const photo: ChatAttachment = { ...attachedPhoto(), original: new Blob([placed.slice()], { type: 'image/jpeg' }) }
+
+    await desk.propose([receipt(desk)], [photo])
+    await desk.accept()
+
+    const held = bookOf(desk).receipts.find((candidate) => candidate.transaction === PHARMACY)!
+    expect([held.latitude, held.longitude]).toEqual(['43.508100', '16.440200'])
+  })
+
+  it('makes a new entry on a euro account when no payment on the file may be this receipt', async () => {
+    const desk = await spendingDesk(used)
+    const before = bookOf(desk).transactions.length
+
+    await desk.propose([receipt(desk, { ...unmatched(desk), entry: null, account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id) })], [attachedPhoto()])
+    await desk.accept()
+
+    expect(bookOf(desk).transactions).toHaveLength(before + 1)
+    expect(bookOf(desk).transactions.filter((row) => row.source === 'receipt')).toMatchObject([{ amount: -777, payee: 'Pharmacy', date: '2026-10-21' }])
+  })
+
+  it('refuses a new entry while a payment on the file may be this receipt, so the model names that payment', async () => {
+    const desk = await spendingDesk(used)
+
+    const answer = await desk.propose([receipt(desk, { entry: null, account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id) })], [attachedPhoto()])
+
+    expect(answer.text).toContain('A payment on the file may be this receipt: −€31.00 on 21 Oct 2026.')
+    expect(answer.text).toContain('name it in entry')
+    expect(desk.cards).toEqual([])
+  })
+
+  it('refuses a payment that Entries, Add a receipt would not offer for this receipt', async () => {
+    const desk = await spendingDesk(used)
+
+    const answer = await desk.propose([receipt(desk, { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!) })], [attachedPhoto()])
+
+    expect(answer.text).toContain('That payment is not one this receipt may be')
+    expect(desk.cards).toEqual([])
+  })
+
+  it('refuses a dollar account, an entry that has a receipt, and a fiscal receipt already on the file', async () => {
+    const desk = await spendingDesk(used)
+    const refused = async (fields: Readonly<Record<string, unknown>>) => (await desk.propose([receipt(desk, fields)], [attachedPhoto()])).text
+
+    expect(await refused({ ...unmatched(desk), entry: null, account: desk.ref('account', DESK_ACCOUNTS.DOLLARS.id) })).toContain('open euro account')
+    expect(await refused({ entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction-receipt']!) })).toContain('cannot take a receipt')
+    expect(await refused({ jir: 'made-up-jir' })).toContain('already on the file')
+    expect(desk.cards).toEqual([])
+  })
+
+  it('asks whose an R1 receipt is when no company OIB tells, and files every line under For the company on that answer', async () => {
+    const desk = await spendingDesk(used)
+
+    expect((await desk.propose([receipt(desk, { markedR1: true })], [attachedPhoto()])).text).toContain('Ask the person whether it is for the company')
+    await desk.propose([receipt(desk, { markedR1: true, whose: 'company' })], [attachedPhoto()])
+    await desk.accept()
+
+    const company = categoryNamed(desk, 'For the company').id
+    expect(
+      bookOf(desk)
+        .lines.filter((candidate) => candidate.transaction === PHARMACY)
+        .map((candidate) => candidate.category),
+    ).toEqual([company, company])
+  })
+
+  it('refuses a line under a group, under For the company, and a new category on the same card, which goes on a card of its own first', async () => {
+    const desk = await spendingDesk(used)
+    const lines = (category: string) => ({ lines: [line(desk, 'VITAMIN C', 20), line(desk, 'FLASTER', 11, category)] })
+
+    expect((await desk.propose([receipt(desk, lines('Food'))], [attachedPhoto()])).text).toContain('FLASTER')
+    expect((await desk.propose([receipt(desk, lines('For the company'))], [attachedPhoto()])).text).toContain('FLASTER')
+    const answer = await desk.propose([{ op: 'add-category', input: { name: 'Pharmacy', kind: 'spending', parent: null }, as: '$pharmacy' }, receipt(desk)], [attachedPhoto()])
+    expect(answer.text).toContain('A new category goes on a card before the receipt')
+  })
+
+  it('reads a receipt only off a photo', async () => {
+    const desk = await spendingDesk(used)
+    const pdf: ChatAttachment = { ...attachedPhoto(), kind: 'pdf', sent: null }
+
+    expect((await desk.propose([receipt(desk)], [pdf])).text).toContain('from a photo')
+  })
+})
+
+describe("a receipt's photo kept on Drive", () => {
+  it('is kept in the click before the write, under the id the receipt holds, and the card says it stays after Undo', async () => {
+    const keep = vi.fn<ReceiptPhotos['keep']>(async () => 'kept-photo-id')
+    const desk = await spendingDesk(used, receiptPorts({ photos: async () => ({ keep }) }))
+
+    await desk.propose([receipt(desk, { keepPhoto: true })], [attachedPhoto()])
+    expect(desk.cards[0]!.outside).toEqual([words.receipts.photoStays])
+    expect(keep).not.toHaveBeenCalled()
+    const result = await desk.accept()
+
+    expect(keep).toHaveBeenCalledOnce()
+    expect(keep.mock.calls[0]![1]).toBe('2026-10-21')
+    expect(bookOf(desk).receipts.find((candidate) => candidate.transaction === PHARMACY)!.photo).toBe('kept-photo-id')
+    if (result.kind === 'done') expect((await result.undo!()).kind).toBe('undone')
+  })
+
+  it('is refused with the books off Drive, or with no way to Drive on this device, before a card shows', async () => {
+    const offDrive = await spendingDesk(used, receiptPorts({ keepsOnDrive: () => false }))
+    expect((await offDrive.propose([receipt(offDrive, { keepPhoto: true })], [attachedPhoto()])).text).toContain('keepPhoto false')
+    const noAccess = await spendingDesk(used, receiptPorts({ mayKeepNow: () => false }))
+    expect((await noAccess.propose([receipt(noAccess, { keepPhoto: true })], [attachedPhoto()])).text).toContain('keepPhoto false')
+  })
+
+  it('is not kept again when the card is proposed again after a write refused once the photo was kept', async () => {
+    const keep = vi.fn<ReceiptPhotos['keep']>(async () => 'kept-photo-id')
+    let asked = 0
+    // The check, the keep and the plan with the kept photo each ask for Drive. The third ask of the first Accept fails after the keep.
+    const desk = await spendingDesk(used, receiptPorts({ photos: async () => ({ keep }), mayKeepNow: () => ++asked !== 3 }))
+    const photo = attachedPhoto()
+
+    await desk.propose([receipt(desk, { keepPhoto: true })], [photo])
+    expect((await desk.accept()).kind).toBe('refused')
+    await desk.propose([receipt(desk, { keepPhoto: true })], [photo])
+    expect((await desk.accept()).kind).toBe('done')
+
+    expect(keep).toHaveBeenCalledOnce()
+    expect(bookOf(desk).receipts.find((candidate) => candidate.transaction === PHARMACY)!.photo).toBe('kept-photo-id')
+  })
+
+  it('refuses Accept and writes nothing when the way to Drive went after the card showed', async () => {
+    let reachable = true
+    const desk = await spendingDesk(used, receiptPorts({ mayKeepNow: () => reachable }))
+    await desk.propose([receipt(desk, { keepPhoto: true })], [attachedPhoto()])
+    reachable = false
+
+    expect(await desk.accept()).toEqual({ kind: 'refused', reason: words.receipts.keepNoAccess })
+    expect(bookOf(desk).receipts.some((candidate) => candidate.transaction === PHARMACY)).toBe(false)
+  })
+})

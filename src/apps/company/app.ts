@@ -2,9 +2,9 @@ import type { AppContribution, AppScreen } from '../../shared/app/appContributio
 import { companyData } from './workbook/presentation/companyData'
 import { homeCardFigures } from '../../shared/app/homeCardFigures'
 import { isFirstRun } from '../../shared/app/isFirstRun'
+import { forgetSetUpAnswer, hasSetUpAnswer, keepSetUpAnswer } from '../../shared/app/setUpAnswer'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
 import { autoSyncOn } from '../../shared/sync/infrastructure/autoSyncSwitch'
-import { COMPANY_ASSIST } from './assist/presentation/companyAssist'
 import { bindFiltersToRouter } from './filters/application/filterStore'
 import { COMPANY_HOME_CARD } from './home/presentation/companyHomeCard'
 import { companyHubFigures } from './home/presentation/companyHubFigures'
@@ -13,6 +13,7 @@ import { hrDooPack } from './packs/hr-doo/hrDooPack'
 import { HR_DOO_TABS } from './packs/hr-doo/infrastructure/hrDooTabs'
 import { installPack, installedPack, shownPack } from './packs/packContribution'
 import { useSettings } from './settings/application/useSettings'
+import { COMPANY_ASSIST } from './settings/presentation/companyAssist'
 import { moneyFormatOf } from './settings/domain/settings'
 import { words as analysisWords } from './analysis/presentation/words'
 import { words as invoicingWords } from './invoicing/presentation/words'
@@ -56,13 +57,13 @@ export const companyApp: AppContribution = {
     installPackTabs(HR_DOO_TABS)
     // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
-      const [{ seedFakeWorkbook }, { fakeStaffOf }, { registerFakeSuggestions }] = await Promise.all([
+      const [{ seedFakeWorkbook }, { fakeStaffOf }, { registerFakeCompanyChat }] = await Promise.all([
         import('./workbook/infrastructure/fake/seedFakeWorkbook'),
         import('./packs/hr-doo/infrastructure/fake/fakeStaff'),
-        import('./assist/infrastructure/fake/fakeSuggestions'),
+        import('./assistant/infrastructure/fake/fakeCompanyChat'),
       ])
       await seedFakeWorkbook(new URLSearchParams(window.location.search).get('fake'), fakeStaffOf)
-      registerFakeSuggestions()
+      registerFakeCompanyChat()
     }
   },
   screens: [
@@ -84,7 +85,32 @@ export const companyApp: AppContribution = {
   hub: { counts: false, figures: () => homeCardFigures(state, companyHubFigures) },
   assist: COMPANY_ASSIST,
   assistant: async () => {
-    const [{ companyAssistant }, { HR_DOO_ASSISTANT }] = await Promise.all([import('./assistant/companyAssistant'), import('./packs/hr-doo/assistant/hrDooAssistant')])
+    const [{ companyAssistant }, { HR_DOO_ASSISTANT }, { companyProposer, companyAcceptance }, { hrDooOperations }, { loadImportFile }, { useStatementSync }, { anonymisingNow }] = await Promise.all([
+      import('./assistant/companyAssistant'),
+      import('./packs/hr-doo/assistant/hrDooAssistant'),
+      import('./assistant/operations/companyOperations'),
+      import('./packs/hr-doo/assistant/operations/packOperations'),
+      import('./imports/infrastructure/importFiles'),
+      import('./imports/presentation/useStatementSync'),
+      import('../../shared/ai/presentation/useAiTask'),
+    ])
+    const store = useWorkbook()
+    const statementSync = useStatementSync()
+    const ports = {
+      readStatementFile: loadImportFile,
+      heldStatements: () => statementSync.state.outcome?.held ?? [],
+      // The answers are kept per file on this device, as the set-up card keeps them, so with no file open none is given.
+      setUpAnswers: {
+        given: (answer: string) => state.choice !== null && hasSetUpAnswer(state.choice.id, answer),
+        give: (answer: string) => {
+          if (state.choice !== null) keepSetUpAnswer(state.choice.id, answer)
+        },
+        takeBack: (answer: string) => {
+          if (state.choice !== null) forgetSetUpAnswer(state.choice.id, answer)
+        },
+      },
+      pack: hrDooOperations(anonymisingNow),
+    }
     return companyAssistant(
       HR_DOO_ASSISTANT,
       {
@@ -93,6 +119,7 @@ export const companyApp: AppContribution = {
         records: () => state.records,
       },
       () => [...(state.records === null ? [] : installedPack().employees(state.records)), ...(state.workbook?.settings.personPayees ?? []).map((name) => ({ name, employee: false, ibans: [] }))],
+      { proposer: companyProposer(store, ports), acceptance: companyAcceptance(store, ports) },
     )
   },
   // Nothing chosen and nothing kept: onboarding takes it, whatever screen the address names.

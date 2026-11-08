@@ -1,4 +1,4 @@
-import type { FixedKind } from '../../workbook/domain/category'
+import type { CategoryKind, FixedKind } from '../../workbook/domain/category'
 import { language } from '../../../../shared/text/language'
 import type { CroatianForms, EnglishForms, Translation } from '../../../../shared/text/translation'
 
@@ -19,6 +19,8 @@ export const en = {
   fixedHeading: 'Outside spending and income',
   /** What each fixed category is, whatever it is named in the file. */
   fixedKinds: { transfer: 'Between my accounts', saving: 'Saved to investments', company: 'For the company' } satisfies Record<FixedKind, string>,
+  /** What money in a category of each kind counts as, where a card names the kind. */
+  kinds: { spending: 'Spending', income: 'Income', transfer: 'Between my accounts', saving: 'Saved to investments', company: 'For the company' } satisfies Record<CategoryKind, string>,
   /** What each fixed category counts as, under its name. */
   fixedCounts: {
     transfer: 'Counted in no spending, income or limit figure',
@@ -75,6 +77,7 @@ export const hr: Translation<typeof en> = {
   edit: (name) => `Uredi „${name}”`,
   fixedHeading: 'Izvan potrošnje i prihoda',
   fixedKinds: { transfer: 'Između mojih računa', saving: 'Prijenos u ulaganja', company: 'Za tvrtku' },
+  kinds: { spending: 'Potrošnja', income: 'Prihodi', transfer: 'Između mojih računa', saving: 'Prijenos u ulaganja', company: 'Za tvrtku' },
   fixedCounts: {
     transfer: 'Ne ulazi ni u potrošnju, ni u prihode, ni u ograničenja',
     saving: 'Ulazi u ušteđeno, ne u potrošnju',

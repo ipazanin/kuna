@@ -1,4 +1,4 @@
-import { NOT_READ_OFF_A_PAGE, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, inputOf } from '../../../../shared/app/operationInput'
+import { NOT_READ_OFF_A_PAGE, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, inputOf, isAttachment } from '../../../../shared/app/operationInput'
 import { revolutStatement } from '../../statements/domain/revolutStatement'
 import { transcribedImportKeys } from '../../statements/domain/statementRows'
 import type { StatementRow, StatementRows } from '../../statements/domain/statementRows'
@@ -7,7 +7,6 @@ import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS } from '../../workbook/domain/spendingKinds'
 import { words } from '../words'
-import type { ChatAttachment } from '../../../../shared/ai/domain/chatAttachments'
 import { ATTACHMENT_REF } from '../../../../shared/app/assistantOperations'
 import type { AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
 import { ROWS_A_PART, StepRefused } from '../../../../shared/app/proposedWrites'
@@ -59,10 +58,6 @@ interface TranscribedRow {
 interface SheetRead {
   readonly name: string
   readonly grid: Awaited<ReturnType<typeof readFirstSheet>>
-}
-
-function isAttachment(file: unknown): file is ChatAttachment {
-  return typeof file === 'object' && file !== null && 'kind' in file && 'bytes' in file && 'name' in file
 }
 
 function isSheetRead(file: unknown): file is SheetRead {

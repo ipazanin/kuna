@@ -1,4 +1,4 @@
-import { SPENDING_APP } from '../spendingDocument'
+import { SPENDING_APP } from '../../domain/spendingBooks'
 import { fakeSpendingDocument, fakeStarterDocument } from './fakeSpending'
 import type { FakeSpendingSet } from './fakeSpending'
 import { replaceBrowserDocument } from '../../../../../shared/storage/infrastructure/browserDocument'

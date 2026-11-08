@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
-import AssistButton from '../../../../shared/ai/presentation/AssistButton.vue'
-import { anonymisingNow, assistKeyKept, resultLine, usageLine, useAiTask } from '../../../../shared/ai/presentation/useAiTask'
+import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
+import { useChatElement } from '../../../../shared/ai/presentation/chatDock'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -12,10 +12,6 @@ import type { RecordWriteOptions } from '../../../../shared/storage/presentation
 import { plural } from '../../../../shared/text/translation'
 import FilterBar from '../../filters/presentation/FilterBar.vue'
 import { installedPack, shownPack } from '../../packs/packContribution'
-import { sendsEmployees, sentRows, suggestCategories } from '../../assist/application/suggestCategories'
-import type { CategorySuggestion, SuggestInput } from '../../assist/application/suggestCategories'
-import { SUGGEST_CATEGORIES_SUMMARY } from '../../assist/presentation/companyAssist'
-import { words as assistWords } from '../../assist/presentation/words'
 import type { Verdict } from '../../../../shared/categorising/domain/categorise'
 import { draftForRow } from '../../rules/domain/ruleDraft'
 import { categorisationContextOf } from '../../rules/domain/categorisationContext'
@@ -28,6 +24,7 @@ import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { LedgerSplit } from '../../workbook/domain/splits'
 import type { Transaction } from '../../workbook/domain/workbook'
+import { COMPANY_APP } from '../../workbook/domain/companyApp'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { fileRows } from '../application/fileRows'
 import { useFilteredLedger } from '../application/useFilteredLedger'
@@ -36,9 +33,10 @@ import type { RowVerdict } from '../domain/verdictChanges'
 import ReviewQueueItem from './ReviewQueueItem.vue'
 import SessionChanges from './SessionChanges.vue'
 import SplitDialog from './SplitDialog.vue'
+import { REVIEW_LINK } from './transactionsLinks'
 import { words } from './words'
 
-/** The To review tab: the rows that wait for a person, the model's suggestions for them, the pack's cards about them, and this page's changes with Undo. */
+/** The To review tab: the rows that wait for a person, the pack's cards about them, and this page's changes with Undo. Suggest categories asks the chat about the queue. */
 const props = defineProps<{
   /** The rows that wait, each with what the rules would file it as today. */
   queue: readonly { readonly transaction: Transaction; readonly verdict: Verdict }[]
@@ -64,67 +62,8 @@ function toggle(id: RecordId): void {
   expandedRow.value = expandedRow.value === id ? null : id
 }
 
-/** The model's suggestions, kept by row for this page only. Using one files the row as picking its category by hand would. */
-const suggesting = useAiTask(suggestCategories)
-const suggestionOf = computed(() => {
-  const run = suggesting.state.value
-  const suggestions: readonly CategorySuggestion[] = run.kind === 'done' && run.result.kind === 'draft' ? run.result.draft.suggestions : []
-  return new Map(suggestions.map((suggestion) => [suggestion.rowId, suggestion]))
-})
-/** The rows still waiting that have a suggestion, so a row filed by its suggestion stops counting. */
-const suggestedRows = computed(() => props.queue.filter(({ transaction }) => suggestionOf.value.has(transaction.id)))
-
-const employees = computed(() => {
-  const known = state.records === null ? [] : installedPack().employees(state.records)
-  return { employeeIbans: new Set(known.flatMap((employee) => employee.ibans)), employeeNames: known.map((employee) => employee.name) }
-})
-
-/** The queue holds rows, yet Anonymise keeps every one of them from a request, as each names an employee. */
-const heldBack = computed(() => {
-  const input = suggestInput()
-  return input !== null && input.rows.length > 0 && sentRows(input).length === 0
-})
-
-const suggestLines = computed(() => {
-  const run = suggesting.state.value
-  const result = run.kind === 'done' ? run.result : null
-  const missing = result?.kind === 'draft' ? result.draft.asked - result.draft.suggestions.length : 0
-  return [
-    heldBack.value ? assistWords.suggest.heldBack : null,
-    suggestedRows.value.length > 0 ? plural(assistWords.suggest.outcome(suggestedRows.value.length), suggestedRows.value.length) : null,
-    missing > 0 ? plural(assistWords.suggest.none(missing), missing) : null,
-    result === null ? null : resultLine(result),
-    result === null ? null : usageLine(result),
-  ].filter((line) => line !== null)
-})
-
-function suggestInput(): SuggestInput | null {
-  const workbook = state.workbook
-  if (workbook === null) return null
-  return {
-    rows: props.queue.map(({ transaction }) => transaction),
-    categories: workbook.categories,
-    accounts: workbook.accounts,
-    ...employees.value,
-    personPayees: workbook.settings.personPayees,
-    anonymising: anonymisingNow(),
-    packPairSides: installedPack().workbook?.pairSides ?? {},
-  }
-}
-
-/** Whether a request now would send rows about employees, which only happens with Anonymise off. */
-const sendsEmployeesNow = computed(() => {
-  const input = suggestInput()
-  return input !== null && sendsEmployees(input)
-})
-
-async function suggest(): Promise<void> {
-  const input = suggestInput()
-  if (input !== null && sentRows(input).length > 0) {
-    await suggesting.run(input, sendsEmployees(input))
-    expandedRow.value ??= suggestedRows.value[0]?.transaction.id ?? null
-  }
-}
+/** The queue as a place, so the chat reads the rows waiting on it. Nothing is typed for the person. */
+const { ask: askAboutQueue, marked: queueMarked } = useChatElement({ key: 'company-review-queue', label: words.tabs.review, about: { kind: 'place', app: COMPANY_APP, route: REVIEW_LINK } }, 'card')
 
 function file(title: string, verdict: RowVerdict, options: RecordWriteOptions): Promise<boolean> {
   return writes.write(title, (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, [verdict], state.workbook?.categories ?? []), { failedTitle: words.review.notWritten, ...options })
@@ -202,21 +141,10 @@ function openSplit(row: Transaction): void {
           collapse-id="review.queue"
           :summary="words.review.queueSummary"
           data-testid="review-queue"
+          v-bind="queueMarked"
         >
           <template #actions>
-            <AssistButton
-              :app="suggestCategories.app"
-              :task="SUGGEST_CATEGORIES_SUMMARY"
-              :label="assistWords.suggest.title"
-              :sends-employees="sendsEmployeesNow"
-              :loading="suggesting.state.value.kind === 'running'"
-              @run="suggest"
-            />
-          </template>
-          <template v-if="assistKeyKept && suggestLines.length > 0" #header>
-            <div class="flex flex-col gap-2" data-testid="review-suggest-status">
-              <p v-for="line in suggestLines" :key="line" class="text-xs text-muted" data-testid="review-suggest-line">{{ line }}</p>
-            </div>
+            <AskChatButton :label="words.tabs.review" :text="words.review.suggestCategories" data-testid="review-queue-ask" @ask="askAboutQueue" />
           </template>
           <ul class="mt-3 border-t border-default">
             <ReviewQueueItem
@@ -228,7 +156,6 @@ function openSplit(row: Transaction): void {
               :expanded="expandedRow === entry.transaction.id"
               :split="splitOf(entry.transaction) !== null"
               :saving="writes.saving"
-              :suggestion="suggestionOf.get(entry.transaction.id) ?? null"
               :person-counterparty="flaggedAsPerson(settings.personPayees, entry.transaction.counterparty)"
               @toggle="toggle(entry.transaction.id)"
               @confirm="confirm(entry.transaction)"

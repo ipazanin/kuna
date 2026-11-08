@@ -1,7 +1,7 @@
 import { useFileExport } from '../../../../shared/storage/presentation/useFileExport'
 import type { FileExport } from '../../../../shared/storage/presentation/useFileExport'
 import { useSpendingBooks } from '../application/spendingStore'
-import { SPENDING_APP } from '../infrastructure/spendingDocument'
+import { SPENDING_APP } from '../domain/spendingBooks'
 import { words } from './words'
 
 /** One export button's behaviour, shared by the top bar and the Spending Settings. */

@@ -2,8 +2,8 @@ import { BANK_SYNC_SCOPE } from '../../bankSync/presentation/bankSyncPort'
 import { BANK_SYNC_STEP } from '../../bankSync/presentation/bankSyncStep'
 import { SPENDING_SETTINGS_ROUTE } from '../../overview/presentation/spendingLinks'
 import { RATES_STEP } from '../../rates/presentation/ratesStep'
-import { readReceipt } from '../../receipts/assist/application/readReceipt'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
+import { SPENDING_APP } from '../../workbook/domain/spendingBooks'
 import LocalSpendingStatus from '../../workbook/presentation/LocalSpendingStatus.vue'
 import { assistOn } from '../../../../shared/ai/application/assistSettings'
 import { secretsNeeds, secretsStep } from '../../../../shared/secrets/presentation/secretsStep'
@@ -14,7 +14,7 @@ import type { AppSyncGroup } from '../../../../shared/sync/presentation/pageSync
 export function spendingSyncGroup(): AppSyncGroup {
   const store = useSpendingBooks()
   const savedScript = (): boolean => (store.state.workbook?.settings.bankSyncDeployment ?? '') !== ''
-  const assistWanted = (): boolean => assistOn(readReceipt.app)
+  const assistWanted = (): boolean => assistOn(SPENDING_APP)
   const keysStep = secretsStep(assistWanted)
   return {
     store,

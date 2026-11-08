@@ -9,6 +9,9 @@ import { kunaAssistant } from '../src/shell/assistant/kunaAssistant'
 import { KUNA_CHAT } from '../src/shell/assistant/kunaChat'
 import { INVOICING_OPERATIONS } from '../src/apps/company/assistant/operations/invoicingOperations'
 import { KEPT_BY_KUNA } from '../src/apps/company/assistant/operations/proposalLines'
+import { settingName } from '../src/apps/company/assistant/operations/settingNames'
+import { hrDooOperations } from '../src/apps/company/packs/hr-doo/assistant/operations/packOperations'
+import { packDescriber } from '../src/apps/company/packs/hr-doo/assistant/operations/proposalLines'
 import { words } from '../src/apps/company/assistant/operations/words'
 import { installedPack } from '../src/apps/company/packs/packContribution'
 import { transcribedStatement } from '../src/apps/company/imports/domain/importedStatement'
@@ -295,11 +298,23 @@ describe('splits and owner shares', () => {
 describe('settings, categories and accounts', () => {
   it('never sets a key only a person sets', async () => {
     const desk = await companyDesk(used)
-    for (const key of ['person_payees', 'review_label', 'invoice_folder_id', 'statements_folder', 'template_version']) {
+    for (const key of ['person_payees', 'review_label', 'invoice_folder_id', 'statements_folder', 'statements_sync', 'statements_mail_from', 'template_version']) {
       const answer = await desk.propose([{ op: 'set-setting', input: { key, value: 'x' } }])
       expect(answer.isError, key).toBe(true)
     }
     expect(desk.cards).toEqual([])
+  })
+
+  it("sets the subject of the bank's mail and the day mail is read from, which need no Google consent", async () => {
+    const desk = await companyDesk(used)
+
+    const answer = await desk.propose([
+      { op: 'set-setting', input: { key: 'statements_mail_subject', value: 'Izvadak' } },
+      { op: 'set-setting', input: { key: 'mail_since', value: '2026-01-01' } },
+    ])
+
+    expect(answer.isError, answer.text).toBe(false)
+    expect(desk.cards[0]!.groups.flatMap((group) => group.lines).map((line) => line.label)).toEqual(['Subject words', 'Mail since'])
   })
 
   it('warns on a value that says where money goes, and on currency with a line of its own', async () => {
@@ -309,8 +324,18 @@ describe('settings, categories and accounts', () => {
       { op: 'set-setting', input: { key: 'currency', value: 'USD' } },
     ])
     const lines = desk.cards[0]!.groups.flatMap((group) => group.lines)
-    expect(lines.filter((line) => line.fields.some((field) => field.warns)).map((line) => line.label)).toEqual(['invoice_iban', 'currency'])
+    expect(lines.filter((line) => line.fields.some((field) => field.warns)).map((line) => line.label)).toEqual(['IBAN', 'Currency'])
     expect(lines.find((line) => line.fields.length === 0)!.warning).toBe(words.everyFigure.currency)
+  })
+
+  it('names every key it may set as its screen does, never by the key the settings tab stores', () => {
+    const setSetting = companyOperations(deskPorts({ pack: hrDooOperations(() => false) })).find((operation) => operation.name === 'set-setting')!
+    const key = setSetting.input.type === 'object' ? setSetting.input.properties['key'] : undefined
+    const keys = key !== undefined && 'enum' in key ? (key.enum as readonly string[]) : []
+    const names = packDescriber(fakeCompanyBooks().workbook).settingNames
+
+    expect(keys.length).toBeGreaterThan(30)
+    expect(keys.filter((proposed) => settingName(proposed, names) === proposed)).toEqual([])
   })
 
   it('refuses to delete a category or an account something names', async () => {

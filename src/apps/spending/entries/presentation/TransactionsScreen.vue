@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, useTemplateRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
@@ -30,6 +30,8 @@ import { today } from '../../../../shared/calendar/civilDate'
 import { monthOf, monthsFrom, parseMonthKey } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
+import { openChat } from '../../../../shared/ai/presentation/chatDock'
+import { assistKeyKept } from '../../../../shared/ai/presentation/useAiTask'
 import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
@@ -124,6 +126,19 @@ const receiptOpen = ref(false)
 const dialogOpen = ref(false)
 const editing = ref<Transaction | null>(null)
 
+const receiptPicker = useTemplateRef<HTMLInputElement>('receiptPicker')
+
+/** Puts the photo picked or taken on the chat's prompt and opens the chat, where the person asks for it to be read. The chat's code loads only then. */
+async function receiptToChat(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const files = [...(input.files ?? [])]
+  input.value = ''
+  if (files.length === 0) return
+  openChat()
+  const { attachFiles } = await import('../../../../shared/ai/presentation/chatSession')
+  await attachFiles(files)
+}
+
 function openEntry(entry: Transaction | null): void {
   editing.value = entry
   dialogOpen.value = true
@@ -135,6 +150,10 @@ function openEntry(entry: Transaction | null): void {
     <PageHeader :title="screenWords.entries">
       <template v-if="canAdd" #actions>
         <UButton v-if="canAddReceipt" :label="receiptWords.add" icon="i-lucide-receipt" color="neutral" variant="outline" data-testid="spending-add-receipt" @click="receiptOpen = true" />
+        <template v-if="canAddReceipt && assistKeyKept">
+          <UButton :label="words.receiptToChat" icon="i-lucide-sparkles" color="neutral" variant="outline" data-testid="spending-receipt-to-chat" @click="receiptPicker?.click()" />
+          <input ref="receiptPicker" type="file" accept="image/*" class="hidden" data-testid="spending-receipt-to-chat-input" @change="receiptToChat" />
+        </template>
         <UButton :label="words.add" icon="i-lucide-plus" data-testid="spending-add-entry" @click="openEntry(null)" />
       </template>
     </PageHeader>

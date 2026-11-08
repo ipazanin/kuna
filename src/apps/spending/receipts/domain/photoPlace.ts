@@ -1,5 +1,8 @@
 import { roundHalfAwayFromZero } from '../../../../shared/money/money'
 
+/** An Exif segment sits at the start of a JPEG and cannot pass 64 KB, so this reaches it past any segment before it. */
+const PLACE_BYTES = 256 * 1024
+
 /** Where a photo was taken, in decimal degrees, as the receipt stores it. */
 export interface PhotoPlace {
   readonly latitude: string
@@ -86,4 +89,9 @@ export function mapLinkOf({ latitude, longitude }: PhotoPlace): string | null {
   const [lat, lon] = [Number(latitude), Number(longitude)]
   if (latitude === '' || longitude === '' || !Number.isFinite(lat) || !Number.isFinite(lon)) return null
   return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=18/${lat}/${lon}`
+}
+
+/** Where the photo as taken was, read from the file itself, since a downscaled copy leaves the position behind. */
+export async function placeInPhoto(photo: Blob): Promise<PhotoPlace | null> {
+  return placeInJpeg(new Uint8Array(await photo.slice(0, PLACE_BYTES).arrayBuffer()))
 }

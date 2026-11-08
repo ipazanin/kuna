@@ -119,11 +119,11 @@ export const en = {
     chainChanged: 'You changed the AI company or model, so the assistant no longer sees the messages above.',
     report: 'Suggest it on GitHub',
     removeTag: (label: string) => `Remove the tag: ${label}`,
-    placeholderAbout: (label: string) => `Ask about ${label}`,
+    placeholderAbout: (label: string) => `Ask about this: ${label}`,
   },
   ask: {
     button: 'Ask the chat',
-    about: (label: string) => `Ask the chat about ${label}`,
+    about: (label: string) => `Ask the chat about this: ${label}`,
   },
   files: {
     attach: 'Attach a photo, PDF or statement',
@@ -325,11 +325,11 @@ export const hr: Translation<typeof en> = {
     chainChanged: 'Promijenili ste AI tvrtku ili model, pa asistent više ne vidi poruke iznad.',
     report: 'Predložite to na GitHubu',
     removeTag: (label) => `Ukloni oznaku: ${label}`,
-    placeholderAbout: (label) => `Pitajte o stavci ${label}`,
+    placeholderAbout: (label) => `Pitajte o ovome: ${label}`,
   },
   ask: {
     button: 'Pitaj asistenta',
-    about: (label) => `Pitaj asistenta o stavci ${label}`,
+    about: (label) => `Pitaj asistenta o ovome: ${label}`,
   },
   files: {
     attach: 'Priloži fotografiju, PDF ili izvod',

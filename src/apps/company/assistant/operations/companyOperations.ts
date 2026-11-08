@@ -107,7 +107,11 @@ export function companyProposer(store: CompanyStore, ports: CompanyOperationPort
     async check(title, steps) {
       if (steps.some((step) => step.operation === SET_UP_ANSWER.name)) return setUpAnswerCheck(title, steps, ports.setUpAnswers)
       const read = await withStatementFilesRead(steps, ports.readStatementFile)
-      return 'refused' in read ? read : proposedWrites(store, companyWork(sets, ports.pack)).check(title, read)
+      if ('refused' in read) return read
+      const checked = await proposedWrites(store, companyWork(sets, ports.pack)).check(title, read)
+      return 'refused' in checked || checked.undoable || steps.length === 1
+        ? checked
+        : { refused: ['A change with no Undo goes alone on a card, so propose it first and the rest once it is answered.'] }
     },
   }
 }

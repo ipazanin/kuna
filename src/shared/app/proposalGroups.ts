@@ -39,17 +39,20 @@ function lineOf(describer: ProposalDescriber, kind: RecordKind<unknown>, fallbac
   }
 }
 
-/** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's, each kind read by its describer. A repair or a discard shows no line. */
+/**
+ * What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's, each kind
+ * read by its describer. A repaired row shows as a change with every field it will hold, and a discarded one as a removal by its label.
+ */
 export function proposalGroups(checked: CheckedWrite, describerOf: (kind: RecordKind<unknown>) => ProposalDescriber): readonly ProposalGroup[] {
   const groups = new Map<string, { verb: ProposalGroup['verb']; noun: RecordNoun; lines: ProposalLine[] }>()
   checked.changes.forEach(({ change }, at) => {
-    if (change.verb === 'repair' || change.verb === 'discard') return
-    const key = `${change.verb}/${change.kind.name}`
-    const group = groups.get(key) ?? { verb: change.verb, noun: change.kind.noun, lines: [] }
+    const verb = change.verb === 'repair' ? 'change' : change.verb === 'discard' ? 'remove' : change.verb
+    const key = `${verb}/${change.kind.name}`
+    const group = groups.get(key) ?? { verb, noun: change.kind.noun, lines: [] }
     groups.set(key, group)
-    const fallback = checked.written[at]?.label ?? checked.found[at]?.label ?? ''
-    const before = change.verb === 'add' ? null : (change.before as ProposedRecord)
-    const after = change.verb === 'remove' ? null : (change.after as ProposedRecord)
+    const fallback = checked.written[at]?.label ?? checked.found[at]?.label ?? ('refused' in change ? change.refused.label : '')
+    const before = change.verb === 'change' || change.verb === 'remove' ? (change.before as ProposedRecord) : null
+    const after = change.verb === 'add' || change.verb === 'change' || change.verb === 'repair' ? (change.after as ProposedRecord) : null
     group.lines.push(lineOf(describerOf(change.kind), change.kind, fallback, before, after))
   })
   return [...groups.values()]

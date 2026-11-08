@@ -1,23 +1,25 @@
 <script setup lang="ts">
-import { assistKeyKept } from '../../../../shared/ai/presentation/useAiTask'
-import { computed, ref, useTemplateRef, watch } from 'vue'
+import { computed, ref } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
+import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
+import { useChatElement } from '../../../../shared/ai/presentation/chatDock'
+import { assistKeyKept } from '../../../../shared/ai/presentation/useAiTask'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { capitalised } from '../../../../shared/text/capitalised'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { reviewReasonLabel } from '../../imports/domain/camtStatement'
-import type { CategorySuggestion } from '../../assist/application/suggestCategories'
-import { words as assistWords } from '../../assist/presentation/words'
 import type { Verdict } from '../../../../shared/categorising/domain/categorise'
 import CategoryChip from './CategoryChip.vue'
 import CategoryPicker from './CategoryPicker.vue'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import type { Bucket } from '../../workbook/domain/bucket'
+import { LEDGER_RECORDS } from '../../workbook/domain/coreKinds'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
+import { COMPANY_APP } from '../../workbook/domain/companyApp'
 import type { TransactionSignals } from '../../../../shared/categorising/domain/transactionFacts'
 import type { WriteSaving } from '../../../../shared/storage/presentation/useRecordWrites'
 import { words } from './words'
@@ -32,8 +34,6 @@ const props = defineProps<{
   /** True when the splits tab already splits the row, so Split edits its parts. */
   split: boolean
   saving: WriteSaving
-  /** What the model suggests for the row on this page, or null. */
-  suggestion: CategorySuggestion | null
   /** True when the owner flagged the row's counterparty as a person. */
   personCounterparty: boolean
 }>()
@@ -74,9 +74,16 @@ const confirmable = computed(() => props.transaction.bucket !== UNCLASSIFIED)
 
 const picked = ref<string | undefined>(undefined)
 
-/** A suggestion comes into view as it appears, whether a run or a tap opened the row, so its reason and Use are not below the fold. */
-const suggestionFact = useTemplateRef<HTMLElement>('suggestionFact')
-watch(suggestionFact, (fact) => fact?.scrollIntoView({ block: 'nearest' }), { flush: 'post' })
+/** The row by its day and account, as its summary line reads, never by its counterparty or amount, so the chat tag names no payee. */
+const rowName = computed(() => `${dayLabel(props.transaction.date)}, ${names.value.account(props.transaction.account)}`)
+const { ask, marked } = useChatElement(
+  () => ({
+    key: `company-review-row-${props.transaction.id}`,
+    label: rowName.value,
+    about: { kind: 'record', app: COMPANY_APP, recordKind: LEDGER_RECORDS.name, id: props.transaction.id },
+  }),
+  'row',
+)
 
 function recategorise(category: string | undefined): void {
   if (category !== undefined && category !== '') {
@@ -87,7 +94,7 @@ function recategorise(category: string | undefined): void {
 </script>
 
 <template>
-  <li class="queue-item" data-testid="review-row">
+  <li class="queue-item" data-testid="review-row" v-bind="marked">
     <button type="button" class="queue-summary" :aria-expanded="expanded" @click="emit('toggle')">
       <span class="flex items-baseline justify-between gap-3">
         <span class="flex min-w-0 items-center gap-1.5">
@@ -100,18 +107,8 @@ function recategorise(category: string | undefined): void {
         <span class="flex min-w-0 flex-wrap items-center gap-1.5">
           <CategoryChip :category="transaction.category" :bucket="transaction.bucket" />
           <UBadge v-for="reason in reasons" :key="reason.label" :label="reason.label" :color="reason.color" variant="subtle" size="sm" />
-          <UBadge
-            v-if="suggestion"
-            :label="assistWords.suggest.suggested(names.category(suggestion.category), assistWords.suggest.confidence[suggestion.confidence])"
-            icon="i-lucide-wand-sparkles"
-            color="primary"
-            variant="subtle"
-            size="sm"
-            class="max-w-full"
-            data-testid="review-suggestion-badge"
-          />
         </span>
-        <span class="figure shrink-0">{{ dayLabel(transaction.date) }}, {{ names.account(transaction.account) }}</span>
+        <span class="figure shrink-0">{{ rowName }}</span>
       </span>
     </button>
 
@@ -128,23 +125,6 @@ function recategorise(category: string | undefined): void {
               >{{ verdict.flaggedBy === 'ai' ? words.review.item.sendsToReview : '' }}
             </span>
             <span v-else class="text-xs text-muted">{{ words.review.item.noRuleDecides }}</span>
-          </dd>
-        </div>
-        <div v-if="suggestion" ref="suggestionFact" data-testid="review-suggestion">
-          <dt>{{ assistWords.suggest.suggested(names.category(suggestion.category), assistWords.suggest.confidence[suggestion.confidence]) }}</dt>
-          <dd class="flex flex-col items-start gap-1.5">
-            <span class="text-xs text-muted" data-testid="review-suggestion-why">{{ suggestion.why }}</span>
-            <UButton
-              :label="assistWords.suggest.use(names.category(suggestion.category))"
-              icon="i-lucide-wand-sparkles"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              :loading="saving(`recategorise-${transaction.id}`)"
-              :disabled="rowSaving"
-              data-testid="use-suggestion"
-              @click="emit('recategorise', suggestion.category)"
-            />
           </dd>
         </div>
         <div v-if="transaction.counterpartyIban">
@@ -194,6 +174,7 @@ function recategorise(category: string | undefined): void {
           :data-testid="split ? 'edit-split' : 'split-row'"
           @click="emit('split')"
         />
+        <AskChatButton :label="rowName" data-testid="review-row-ask" @ask="ask" />
       </div>
       <div v-if="transaction.counterparty.trim() !== '' && assistKeyKept" class="flex flex-col items-start gap-1" data-testid="review-person">
         <UButton

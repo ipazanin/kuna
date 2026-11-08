@@ -62,17 +62,14 @@ export function heldReceiptOf(codes: Pick<Receipt, 'jir' | 'zki'>, receipts: rea
 
 /**
  * The rows a receipt may split, which only a row on a euro account can, since a fiscal total is in euros and a row on
- * another account is not the same money at the same number. No row with a receipt, and no row that moves money between
- * your accounts. Rows at minus the total within `sameMoney`'s window come first, by the merchant's words among the row's words and then
- * the nearest day. One is clear when more of the merchant's words name it than the next, or when it is alone and no merchant is known to
- * disagree with it. Only with none of those do the near ones show, such as a card payment with a tip, and those are always a pick.
+ * another account is not the same money at the same number. No row with a receipt, and no row that moves money between your accounts.
  */
-export function receiptMatches(receipt: ReceiptFacts, book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'receipts'>): ReceiptMatches {
+export function splittableRows(book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'receipts'>): readonly Transaction[] {
   const euroAccounts = new Set(book.accounts.filter((account) => account.currency === EURO).map((account) => account.id))
   const ownIbans = new Set(book.accounts.flatMap((account) => (account.iban === '' ? [] : [normaliseIban(account.iban)])))
   const transfer = book.categories.find((category) => category.kind === 'transfer')?.id ?? null
   const withReceipt = new Set(book.receipts.map((held) => held.transaction))
-  const open = book.transactions.filter(
+  return book.transactions.filter(
     (row) =>
       euroAccounts.has(row.account) &&
       !withReceipt.has(row.id) &&
@@ -81,6 +78,15 @@ export function receiptMatches(receipt: ReceiptFacts, book: Pick<SpendingBook, '
       (transfer === null || row.category !== transfer) &&
       !ownIbans.has(normaliseIban(row.counterpartyIban)),
   )
+}
+
+/**
+ * The splittable rows this receipt may be. Rows at minus the total within `sameMoney`'s window come first, by the merchant's words among the row's words and then
+ * the nearest day. One is clear when more of the merchant's words name it than the next, or when it is alone and no merchant is known to
+ * disagree with it. Only with none of those do the near ones show, such as a card payment with a tip, and those are always a pick.
+ */
+export function receiptMatches(receipt: ReceiptFacts, book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'receipts'>): ReceiptMatches {
+  const open = splittableRows(book)
   const total = accountMoneyOfEuros(receipt.total)
   const asTyped = { date: receipt.issuedOn, amount: negateAccountMoney(total) }
   const words = distinctWords(receipt.merchant)

@@ -139,5 +139,12 @@ export function packDescriber(workbook: Workbook): PackDescriber {
     shown: (kind, field, record) => shownValue(kind, field, record, format, category),
     label: (kind, record, fallback) => labelOf(kind, record, fallback, category),
     warns: (kind, field) => kind.name === EMPLOYEE_RECORDS.name && field === 'ibans',
+    settingNames: {
+      hr_company_registered: packWords.facts.registered,
+      hr_cit_return: packWords.facts.citReturn,
+      hr_vat_principle: packWords.facts.vatPrinciple,
+      hr_depreciation_doubled: packWords.facts.doubled,
+      hr_owner_loan_interest: packWords.facts.loanInterest,
+    },
   }
 }

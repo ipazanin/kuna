@@ -16,12 +16,13 @@ import { spendingSetUp } from './overview/presentation/spendingSetUp'
 import { ratesIn } from './rates/domain/ratesState'
 import { startRates, useRates } from './rates/presentation/useRates'
 import { words as screenWords } from './screenWords'
-import { SPENDING_ASSIST } from './receipts/assist/presentation/receiptAssist'
+import { SPENDING_ASSIST } from './assistant/spendingAssist'
+import type { ReceiptPorts } from './assistant/operations/receiptOperation'
 import { reviewCount } from './statements/domain/reviewQueue'
 import { spendingSyncGroup } from './sync/presentation/spendingSyncGroup'
 import { words } from './words'
 import { useSpendingBooks } from './workbook/application/spendingStore'
-import { SPENDING_APP } from './workbook/infrastructure/spendingDocument'
+import { SPENDING_APP } from './workbook/domain/spendingBooks'
 import { words as fileWords } from './workbook/presentation/words'
 import type { AppContribution, AppScreen } from '../../shared/app/appContribution'
 import { homeCardFigures } from '../../shared/app/homeCardFigures'
@@ -52,10 +53,8 @@ export const spendingApp: AppContribution = {
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
       const { seedFakeSpending } = await import('./workbook/infrastructure/fake/seedFakeSpending')
       const { saveLastFetch } = await import('./bankSync/infrastructure/bankBrowserState')
-      const { registerFakeReceiptRead } = await import('./receipts/assist/infrastructure/fake/fakeReceiptRead')
       const { registerFakeSpendingChat } = await import('./assistant/infrastructure/fake/fakeSpendingChat')
       saveLastFetch(null)
-      registerFakeReceiptRead()
       registerFakeSpendingChat()
       const query = new URLSearchParams(window.location.search)
       await seedFakeSpending(query.get('spending'), query.get('banksync'))
@@ -80,15 +79,32 @@ export const spendingApp: AppContribution = {
   // Every figure on the Spending screens and on Net worth is in euros, so it shows them in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
   assistant: async () => {
-    const [{ spendingAssistant }, { spendingProposer, spendingAcceptance }] = await Promise.all([import('./assistant/spendingAssistant'), import('./assistant/operations/spendingOperations')])
+    const [{ spendingAssistant }, { spendingProposer, spendingAcceptance }, { qrTextOn }, { canKeepPhotoNow, receiptPhotos }, { providerInUse }, { modelOf }] = await Promise.all([
+      import('./assistant/spendingAssistant'),
+      import('./assistant/operations/spendingOperations'),
+      import('./receipts/infrastructure/qrDecode'),
+      import('./receipts/presentation/receiptPhotosPort'),
+      import('../../shared/ai/presentation/useAiTask'),
+      import('../../shared/ai/application/assistSettings'),
+    ])
     const store = useSpendingBooks()
+    const receipts: ReceiptPorts = {
+      qrTextOn,
+      keepsOnDrive: () => store.state.choice?.source === 'drive',
+      mayKeepNow: canKeepPhotoNow,
+      photos: () => receiptPhotos(store.state.choice?.id ?? ''),
+      reader: () => {
+        const preset = providerInUse()
+        return preset === null ? '' : modelOf(preset.id).id
+      },
+    }
     return spendingAssistant(
       {
         status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'),
         book: () => state.workbook,
         rates: () => ratesIn(rates.value),
       },
-      { proposer: spendingProposer(store), acceptance: spendingAcceptance(store) },
+      { proposer: spendingProposer(store, receipts), acceptance: spendingAcceptance(store, receipts) },
     )
   },
   homeCard: SPENDING_HOME_CARD,

@@ -481,29 +481,7 @@ describe('import boundaries', () => {
     })
   })
 
-  it("keeps an app's assist code to reading: no writes, no mail, no invoice run and no Google", () => {
-    expect(
-      broken(
-        (entry) =>
-          !/\/assist\//.test(entry.from) || entry.target === null || !/Writes\.ts$|useRecordWrites|recordWrites|\/mail\/|\/invoicing\/infrastructure\/|src\/shared\/google\//.test(entry.target),
-      ),
-    ).toEqual([])
-  })
-
-  it("lets an app's assist code reach a model only through the AI module's door, but for its fake answers", () => {
-    expect(
-      broken(
-        (entry) =>
-          !/\/assist\//.test(entry.from) ||
-          isFakeSeed(entry.from) ||
-          entry.target === null ||
-          !(entry.target.startsWith('src/shared/ai/infrastructure/') || entry.target === 'src/shared/ai/application/modelAccess.ts'),
-      ),
-    ).toEqual([])
-  })
-
-  it('reads the assist and secrets imports the cases above check', () => {
-    expect(IMPORTS.some((entry) => /\/assist\//.test(entry.from) && entry.target?.startsWith('src/shared/ai/'))).toBe(true)
+  it('reads the secrets imports the cases above check', () => {
     expect(IMPORTS.some((entry) => appOf(entry.from) !== null && entry.target?.startsWith('src/shared/secrets/'))).toBe(true)
   })
 

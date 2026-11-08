@@ -8,6 +8,7 @@ import { grantOfFields } from '../src/apps/company/packs/hr-doo/domain/grants/gr
 import { GRANT_WRITES } from '../src/apps/company/packs/hr-doo/domain/hrDooWrites'
 import { fakeStaffOf } from '../src/apps/company/packs/hr-doo/infrastructure/fake/fakeStaff'
 import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
+import { CATEGORY_RECORDS, LEDGER_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { recordsOfKindIn } from '../src/apps/company/workbook/domain/readWorkbook'
 import { fakeWorkbookDocument } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
 import type { CheckedProposal } from '../src/shared/app/assistantOperations'
@@ -127,30 +128,36 @@ function fieldsOnCard(card: CheckedProposal): { readonly shown: readonly string[
 
 const recordsOfKind = <R>(desk: PackDesk, kind: RecordKind<R>) => recordsOf(recordsOfKindIn(desk.store.state.records!, kind))
 
+/** The operations on a row Kuna cannot read, which have no Undo, as the editor's save of such a row has none. */
+const ON_UNREADABLE_ROWS = PACK_OPERATIONS.filter((operation) => operation.name.includes('-unreadable-'))
+
 describe('every operation of the d.o.o. pack', () => {
-  it.each(PACK_OPERATIONS.map((operation) => [operation.name, operation] as const))('has an example that passes the checks, writes once and is undone once: %s', async (_name, operation) => {
-    const desk = await packDesk()
-    const before = JSON.stringify(desk.store.state.records)
+  it.each(PACK_OPERATIONS.filter((operation) => !ON_UNREADABLE_ROWS.includes(operation)).map((operation) => [operation.name, operation] as const))(
+    'has an example that passes the checks, writes once and is undone once: %s',
+    async (_name, operation) => {
+      const desk = await packDesk()
+      const before = JSON.stringify(desk.store.state.records)
 
-    const answer = await desk.propose([{ op: operation.name, input: exampleInput(desk, operation) }])
+      const answer = await desk.propose([{ op: operation.name, input: exampleInput(desk, operation) }])
 
-    expect(answer.text).toContain('The card shows')
-    const [card] = desk.cards
-    expect(card!.undoable).toBe(true)
-    for (const { shown, set } of fieldsOnCard(card!)) expect(shown).toEqual(expect.arrayContaining([...set]))
-    const accepted = await desk.accept()
-    expect(accepted.kind).toBe('done')
-    expect(desk.store.state.writes).toHaveLength(2)
-    expect(accepted.kind === 'done' && (await accepted.undo!())).toEqual({ kind: 'undone' })
-    expect(JSON.stringify(desk.store.state.records)).toBe(before)
-  })
+      expect(answer.text).toContain('The card shows')
+      const [card] = desk.cards
+      expect(card!.undoable).toBe(true)
+      for (const { shown, set } of fieldsOnCard(card!)) expect(shown).toEqual(expect.arrayContaining([...set]))
+      const accepted = await desk.accept()
+      expect(accepted.kind).toBe('done')
+      expect(desk.store.state.writes).toHaveLength(2)
+      expect(accepted.kind === 'done' && (await accepted.undo!())).toEqual({ kind: 'undone' })
+      expect(JSON.stringify(desk.store.state.records)).toBe(before)
+    },
+  )
 })
 
 describe('employees and pay', () => {
-  it('refuses to change an employee, a pay scenario or the owner pay plan while Anonymise is on, and asks to turn it off', async () => {
+  it('refuses to change an employee or a pay scenario while Anonymise is on, and asks to turn it off', async () => {
     const desk = await packDesk()
     desk.anonymising = true
-    for (const name of ['change-employee', 'add-employee', 'add-component', 'plan-owner-pay']) {
+    for (const name of ['change-employee', 'add-employee', 'add-component']) {
       const operation = PACK_OPERATIONS.find((candidate) => candidate.name === name)!
 
       const answer = await desk.propose([{ op: name, input: exampleInput(desk, operation) }])
@@ -159,6 +166,18 @@ describe('employees and pay', () => {
       expect(answer.text).toContain('turn Anonymise off')
     }
     expect(desk.cards).toEqual([])
+  })
+
+  it("plans and clears the owner's own pay while Anonymise is on, as it is the owner's", async () => {
+    const desk = await packDesk()
+    desk.anonymising = true
+    const switched = recordsOfKind(desk, PLAN_RECORDS).find((line) => line.kind === 'owner-pay-scenario' && line.from !== null)!
+
+    const planned = await desk.propose([{ op: 'plan-owner-pay', input: { year: 2027, scenario: 'early-exit', switchTo: null, switchOn: null } }])
+    const cleared = await desk.propose([{ op: 'clear-plan', input: { line: desk.ref(PLAN_RECORDS.name, switched.id) } }])
+
+    for (const answer of [planned, cleared]) expect(answer.isError, answer.text).toBe(false)
+    expect(desk.cards).toHaveLength(2)
   })
 
   it("warns on the accounts an employee's pay goes to", async () => {
@@ -360,6 +379,14 @@ describe('the plan rows', () => {
     expect(answer).toMatchObject({ isError: true, text: `That purchase is planned for ${purchase.year}, so year is ${purchase.year}.` })
   })
 
+  it('refuses an amount below zero, as the plan dialog takes zero or more', async () => {
+    const desk = await packDesk()
+
+    const answer = await desk.propose([{ op: 'plan-category', input: { category: desk.ref('category', 'ai-services'), year: 2027, month: null, amount: -40 } }])
+
+    expect(answer).toMatchObject({ isError: true, text: expect.stringContaining('zero or more') })
+  })
+
   it("shows a category's amount for every month as every month", async () => {
     const desk = await packDesk()
 
@@ -367,5 +394,76 @@ describe('the plan rows', () => {
 
     const [line] = desk.cards[0]!.groups[0]!.lines
     expect(line!.fields).toContainEqual(expect.objectContaining({ name: 'Month', after: 'every month' }))
+  })
+})
+
+/** The fake company with an asset whose cost reads as no amount, as a person might type it in a file, so the Assets editor cannot read the row. */
+async function unreadableAssetDesk(): Promise<PackDesk> {
+  const document = fakeWorkbookDocument('2026-11-07T09:00:00.000Z', 'browser', fakeStaffOf('five-employees'))
+  const assets = (document.records['hr-doo.asset'] ?? []).map((record, at) => (at === 0 ? { ...record, cost_net: 'lots' } : record))
+  const { store } = await browserHarness(used, { ...document, records: { ...document.records, 'hr-doo.asset': assets } })
+  const desk = { anonymising: false } as { anonymising: boolean }
+  return Object.assign(desk, { ...companyChat(store, deskPorts({ pack: hrDooOperations(() => desk.anonymising) }), false), store })
+}
+
+describe('a row the editor cannot read', () => {
+  it('is fixed through the editor’s columns on a card with no Undo, which shows the row as it will be', async () => {
+    const desk = await unreadableAssetDesk()
+    expect(recordsOfKindIn(desk.store.state.records!, ASSET_RECORDS).refused).toHaveLength(1)
+
+    const answer = await desk.propose([{ op: 'fix-unreadable-asset', input: { ...editorRow('fix-unreadable-asset', { cost_net: '1519.20' }), row: 1 } }])
+
+    expect(answer.isError, answer.text).toBe(false)
+    const [card] = desk.cards
+    expect(card!.undoable).toBe(false)
+    expect(card!.groups).toEqual([expect.objectContaining({ verb: 'change', lines: [expect.objectContaining({ label: 'Laptop 14 inch' })] })])
+    const accepted = await desk.accept()
+    expect(accepted).toEqual({ kind: 'done', undo: null })
+    expect(recordsOfKindIn(desk.store.state.records!, ASSET_RECORDS).refused).toEqual([])
+    expect(recordsOfKind(desk, ASSET_RECORDS).find((asset) => asset.name === 'Laptop 14 inch')?.costNet).toBe(151920)
+  })
+
+  it('is removed on a card with no Undo that names it', async () => {
+    const desk = await unreadableAssetDesk()
+
+    await desk.propose([{ op: 'remove-unreadable-asset', input: { row: 1 } }])
+
+    expect(desk.cards[0]!.undoable).toBe(false)
+    expect(desk.cards[0]!.groups).toEqual([expect.objectContaining({ verb: 'remove', lines: [expect.objectContaining({ label: 'Laptop 14 inch' })] })])
+    await desk.accept()
+    expect(recordsOfKindIn(desk.store.state.records!, ASSET_RECORDS).refused).toEqual([])
+  })
+
+  it('goes alone on its card, so a fix never takes the Undo of other changes with it', async () => {
+    const desk = await unreadableAssetDesk()
+    const [waiting] = recordsOf(recordsOfKindIn(desk.store.state.records!, LEDGER_RECORDS))
+
+    const answer = await desk.propose([
+      { op: 'file-row', input: { row: desk.ref(LEDGER_RECORDS.name, waiting!.id), category: desk.ref(CATEGORY_RECORDS.name, 'office-supplies') } },
+      { op: 'fix-unreadable-asset', input: { ...editorRow('fix-unreadable-asset', { cost_net: '1519.20' }), row: 1 } },
+    ])
+
+    expect(answer).toMatchObject({ isError: true, text: expect.stringContaining('A change with no Undo goes alone on a card') })
+    expect(desk.cards).toEqual([])
+  })
+
+  it('is refused by a place past the rows Kuna cannot read, and when it reads every row', async () => {
+    const unreadable = await unreadableAssetDesk()
+    const readable = await packDesk()
+
+    const past = await unreadable.propose([{ op: 'remove-unreadable-asset', input: { row: 2 } }])
+    const none = await readable.propose([{ op: 'remove-unreadable-grant', input: { row: 1 } }])
+
+    expect(past).toMatchObject({ isError: true, text: 'row is a whole number from 1 to 1.' })
+    expect(none).toMatchObject({ isError: true, text: 'Kuna reads every grant row.' })
+  })
+
+  it("leaves an employee's row to the person while Anonymise is on", async () => {
+    const desk = await packDesk()
+    desk.anonymising = true
+
+    const answer = await desk.propose([{ op: 'remove-unreadable-employee', input: { row: 1 } }])
+
+    expect(answer).toMatchObject({ isError: true, text: expect.stringContaining('turn Anonymise off') })
   })
 })

@@ -1,6 +1,8 @@
 import { FLAG_OR_NULL, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, choiceOf, dayOf, found, inputOf } from '../../../../shared/app/operationInput'
 import { proposalGroupsOf, statementLeftOut } from './proposalLines'
-import type { StatementLeftOut } from './proposalLines'
+import type { CardWarnings } from './proposalLines'
+import { ADD_RECEIPT, keptPhotos, receiptsOutside, withPhotosRead, writeReceiptStep } from './receiptOperation'
+import type { KeptPhotos, ReceiptPorts } from './receiptOperation'
 import { REVIEW_OPERATIONS, writeReviewStep } from './reviewPairs'
 import { IMPORT_STATEMENT, importedStatement, withSheetsRead } from './statementImport'
 import { ACCOUNT_WRITES, keptAccount, newAccount } from '../../accounts/application/accountWrites'
@@ -23,7 +25,7 @@ import type { SpendingRule, SpendingRuleCondition } from '../../workbook/domain/
 import { COMPANY_OIB_KEY } from '../../workbook/domain/spendingSettings'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
-import type { AppAcceptance, AppProposer, AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
+import type { AppAcceptance, AppProposer, AssistantOperation, ProposalLine, ProposalStep } from '../../../../shared/app/assistantOperations'
 import { StepRefused, proposedWrites } from '../../../../shared/app/proposedWrites'
 import type { OpenBooks, ProposalWork } from '../../../../shared/app/proposedWrites'
 import { today } from '../../../../shared/calendar/civilDate'
@@ -223,6 +225,7 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
     alone: false,
     example: { entry: 'transaction-receipt' },
   },
+  ADD_RECEIPT,
   {
     name: 'flag-person',
     about: "Flags an entry's payee as a person, so the chat sends the name under an alias from then on. Only a person takes a flag off, on the entry's dialog.",
@@ -327,15 +330,19 @@ function legsOf(book: SpendingBook, row: Transaction): readonly [Transaction, Tr
 
 /**
  * Plans the steps into one write, in order. A `$` name stands for what an earlier step made, and the rules are re-run once,
- * over all of them, and file a statement's new rows. Gives what the import leaves out of its statement, or null for a card with no import.
+ * over all of them, and file a statement's new rows. `kept` holds the Drive id of each receipt photo Accept kept. Gives what
+ * the card warns on: what the import leaves out of its statement, and each receipt's checks that failed.
  */
-function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: readonly ProposalStep[]): StatementLeftOut | null {
+function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: readonly ProposalStep[], receipts: ReceiptPorts, kept: KeptPhotos | undefined): CardWarnings {
   if (steps.some((step) => step.operation === IMPORT_STATEMENT.name) && steps.some((step) => step.operation === 'add-category'))
     throw new StepRefused('A new category goes on a card before the import, and the import card files into it once that card is accepted.')
+  if (steps.some((step) => step.operation === ADD_RECEIPT.name) && steps.some((step) => step.operation === 'add-category'))
+    throw new StepRefused('A new category goes on a card before the receipt, and the receipt card files into it once that card is accepted.')
   let book = books.workbook
   const made = new Map<string, string>()
   const edits: { filing: NonNullable<RuleEdits['filing']>[number][]; fixing: NonNullable<RuleEdits['fixing']>[number][]; deleting: SpendingRule[] } = { filing: [], fixing: [], deleting: [] }
   let imported: StatementRows | null = null
+  const receiptWarnings: ProposalLine[] = []
   const idOf = (value: unknown): string => {
     const text = String(value)
     return made.get(text) ?? text
@@ -344,7 +351,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
   const accountOf = (value: unknown): Account => found(book.accounts, idOf(value), 'account')
   const rowOf = (value: unknown): Transaction => found(book.transactions, idOf(value), 'row')
 
-  for (const { operation, input, as } of steps) {
+  for (const [at, { operation, input, as }] of steps.entries()) {
     // The chat checked the input against this operation's schema, so each field has the type the schema gives it.
     const field = input as Readonly<Record<string, never>>
     switch (operation) {
@@ -524,6 +531,16 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
         removeReceiptOf(unit, books.records, row)
         break
       }
+      case 'add-receipt': {
+        const { split, warning } = writeReceiptStep(unit, book, field, idOf, receipts, kept?.[at] ?? '')
+        book = {
+          ...book,
+          transactions: split.before === null ? [...book.transactions, split.row] : book.transactions.map((row) => (row.id === split.row.id ? split.row : row)),
+          receipts: [...book.receipts, split.receipt],
+        }
+        if (warning !== null) receiptWarnings.push(warning)
+        break
+      }
       case 'flag-person': {
         const payee = rowOf(field['entry']).payee.trim()
         if (payee === '') throw new StepRefused('That entry has no payee to flag.')
@@ -546,20 +563,21 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
         throw new StepRefused('There is no such operation.')
     }
   }
-  if (imported !== null) return statementLeftOut(imported, importWithRules(unit, book, edits, imported, today()))
+  if (imported !== null) return { leftOut: statementLeftOut(imported, importWithRules(unit, book, edits, imported, today())), receipts: receiptWarnings }
   if (edits.filing.length + edits.fixing.length + edits.deleting.length > 0) writeRules(unit, book, edits)
-  return null
+  return { leftOut: null, receipts: receiptWarnings }
 }
 
-/** How the chat's steps become one write of the Spending file. The card warns on what the plan's import leaves out, so each check gets its own. */
-function spendingWork(): ProposalWork<SpendingBooks, never> {
-  let leftOut: StatementLeftOut | null = null
+/** How the chat's steps become one write of the Spending file. The card warns on what the plan leaves out or doubts, so each check gets its own. A receipt photo kept on Drive stays there after Undo. */
+function spendingWork(receipts: ReceiptPorts): ProposalWork<SpendingBooks, KeptPhotos> {
+  let warnings: CardWarnings = { leftOut: null, receipts: [] }
   return {
     notOpen: 'The Spending file is not open on this device.',
-    plan: (unit, books, steps) => {
-      leftOut = planned(unit, books, steps)
+    plan: (unit, books, steps, kept) => {
+      warnings = planned(unit, books, steps, receipts, kept)
     },
-    groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook, leftOut),
+    groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook, warnings),
+    outside: receiptsOutside,
     overLimit: (steps) =>
       steps.some((step) => step.operation === IMPORT_STATEMENT.name)
         ? 'A part of a statement cannot shrink, so put the rules on a card of their own before the import, then propose the import again.'
@@ -567,19 +585,22 @@ function spendingWork(): ProposalWork<SpendingBooks, never> {
   }
 }
 
-/** The changes the chat can propose and their dry run, over the app's own store, which `app.ts` hands in. An attached sheet is read before the dry run. */
-export function spendingProposer(store: Pick<WorkbookStore<SpendingBooks>, 'state' | 'check' | 'write' | 'undo'>): AppProposer {
+/** The changes the chat can propose and their dry run, over the app's own store and the receipt ports, which `app.ts` hands in. An attached sheet and a receipt photo are read before the dry run. */
+export function spendingProposer(store: Pick<WorkbookStore<SpendingBooks>, 'state' | 'check' | 'write' | 'undo'>, receipts: ReceiptPorts): AppProposer {
   return {
     operations: SPENDING_OPERATIONS,
     readsBooks: true,
     async check(title, steps) {
-      const read = await withSheetsRead(steps)
-      return 'refused' in read ? read : proposedWrites(store, spendingWork()).check(title, read)
+      const sheetsRead = await withSheetsRead(steps)
+      if ('refused' in sheetsRead) return sheetsRead
+      const read = await withPhotosRead(sheetsRead, receipts)
+      return 'refused' in read ? read : proposedWrites(store, spendingWork(receipts)).check(title, read)
     },
   }
 }
 
-/** Writes a proposal as it was checked, in one write with one Undo. A record changed since refuses this proposal alone, and the file's other writes go on. */
-export function spendingAcceptance(store: Pick<WorkbookStore<SpendingBooks>, 'state' | 'check' | 'write' | 'undo'>): AppAcceptance {
-  return { accept: proposedWrites(store, spendingWork()).accept }
+/** Writes a proposal as it was checked, in one write with one Undo, after keeping any receipt photo it asks to keep. A record changed since refuses this proposal alone, and the file's other writes go on. */
+export function spendingAcceptance(store: Pick<WorkbookStore<SpendingBooks>, 'state' | 'check' | 'write' | 'undo'>, receipts: ReceiptPorts): AppAcceptance {
+  const keptBefore = new WeakMap<Blob, string>()
+  return { accept: proposedWrites(store, { ...spendingWork(receipts), beforeWrite: (steps) => keptPhotos(steps, receipts, keptBefore) }).accept }
 }

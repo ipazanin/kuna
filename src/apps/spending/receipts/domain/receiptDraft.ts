@@ -12,12 +12,6 @@ import type { Money } from '../../../../shared/money/money'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { fold } from '../../../../shared/text/fold'
 
-/** How a line's choice names a new category the model suggests. */
-export const NEW_CHOICE_PREFIX = 'new:'
-
-/** The category a model's answer names for a line that fits none of the list. */
-export const NEW_CATEGORY = 'new'
-
 export const LINE_KINDS = ['product', 'discount', 'deposit', 'tip', 'fee'] as const
 
 /** One line as the model wrote it. */
@@ -28,9 +22,8 @@ export interface AnsweredLine {
   readonly quantity: number | null
   readonly unitPrice: number | null
   readonly lineTotal: number
-  /** A category's ref, or `new`. */
+  /** A category's id, which must be one a receipt line may be filed under. */
   readonly category: string
-  readonly newCategory: string | null
 }
 
 /** A model's read of a receipt, as the schema lets it answer, with amounts in euros as numbers. */
@@ -54,10 +47,8 @@ export interface DraftLine {
   readonly printed: string
   readonly text: string
   readonly amount: AccountMoney
-  /** Null while it waits for you: the model asked for a new category or picked none. */
+  /** Null for a category a receipt line may not be filed under. */
   readonly category: RecordId | null
-  /** The new category the model suggests, which you accept, rename or map. Never made silently. */
-  readonly suggested: string | null
 }
 
 /** A checked read, which nothing writes until you confirm it. */
@@ -82,31 +73,16 @@ export interface ReceiptRead {
 /** Your answer to a receipt marked R1 with no buyer's OIB. */
 export type R1Answer = 'company' | 'personal'
 
-/** The choice each line starts with: its category, its suggestion, or blank. */
-export function firstChoices(read: ReceiptRead): readonly string[] {
-  return read.lines.map((line) => line.category ?? (line.suggested === null ? '' : `${NEW_CHOICE_PREFIX}${line.suggested}`))
+/** The read once you say whose an R1 receipt is: every line under For the company, or as read. */
+export function withR1Answer(read: ReceiptRead, answer: R1Answer, company: RecordId): ReceiptRead {
+  return answer === 'company' ? { ...read, r1: true, lines: read.lines.map((line) => ({ ...line, category: company })) } : read
 }
 
-/** Each line's choice after you answer: all under For the company, or back as the read had them. */
-export function choicesAfterR1(read: ReceiptRead, answer: R1Answer, company: RecordId): readonly string[] {
-  return answer === 'company' ? read.lines.map(() => company) : firstChoices(read)
-}
-
-/** A category the model may name, under the ref a request knows it by. */
-export interface CategoryRef {
-  readonly ref: string
-  readonly category: Category
-  /** Its group's name, blank for a category with no parent. */
-  readonly group: string
-}
-
-/** What the model may file a line under: spending categories a person can pick, so no group with children and nothing hidden, itself or by its group. For the company stays with the R1 rule in code. Refs follow the file's order. */
-export function categoryRefs(categories: readonly Category[]): readonly CategoryRef[] {
+/** What a receipt line may be filed under: spending categories a person can pick, so no group with children and nothing hidden, itself or by its group. For the company stays with the R1 rule. */
+export function receiptCategories(categories: readonly Category[]): readonly Category[] {
   const byId = new Map(categories.map((category) => [category.id, category]))
   const parents = new Set(categories.map((category) => category.parent))
-  return categories
-    .filter((category) => category.kind === 'spending' && !category.hidden && !parents.has(category.id) && !(category.parent !== null && byId.get(category.parent)?.hidden))
-    .map((category, place) => ({ ref: `c${place + 1}`, category, group: category.parent === null ? '' : (byId.get(category.parent)?.name ?? '') }))
+  return categories.filter((category) => category.kind === 'spending' && !category.hidden && !parents.has(category.id) && !(category.parent !== null && byId.get(category.parent)?.hidden))
 }
 
 function sameMerchant(heldOib: string, heldName: string, oib: string, name: string): boolean {
@@ -125,18 +101,8 @@ function rememberedLines(
     .flatMap((receipt) => book.lines.filter((line) => line.receipt === receipt.id && line.printed !== ''))
 }
 
-/** The newest confirmed lines of a merchant, which a request sends as examples. */
-export function recentLinesOf(
-  book: Pick<SpendingBook, 'receipts' | 'lines'>,
-  merchant: string,
-  most: number,
-): readonly { readonly printed: string; readonly text: string; readonly category: RecordId }[] {
-  return merchant.trim() === '' ? [] : rememberedLines(book, '', merchant).slice(0, most)
-}
-
 /** What a read is checked against beside the answer itself. */
 export interface DraftContext {
-  readonly refs: readonly CategoryRef[]
   readonly qr: FiscalQr | null
   readonly book: Pick<SpendingBook, 'receipts' | 'lines' | 'categories'>
   /** The Company OIB on Settings, blank when none is saved. */
@@ -152,20 +118,14 @@ function clockOf(text: string): string | null {
   return `${hours.padStart(2, '0')}:${minutes}`
 }
 
-/** The time and codes a confirmed receipt keeps. A read already holds the QR code's, so the two never overwrite each other with a blank. */
-export function fiscalFactsOf(read: ReceiptRead | null, qr: FiscalQr | null): Pick<ReceiptRead, 'issuedTime' | 'jir' | 'zki'> {
-  const held = read ?? qr
-  return { issuedTime: held?.issuedTime ?? '', jir: held?.jir ?? '', zki: held?.zki ?? '' }
-}
-
 /**
- * Turns a model's answer into a draft: amounts become cents at once, and the checks run on cents. Each failed check is a note
+ * Turns a model's read into a draft: amounts become cents at once, and the checks run on cents. Each failed check is a note
  * with the difference, and no figure is changed to pass one. The QR code's total and time win over the read's, with a note
  * when they differ. A line's category comes from the newest confirmed line of the same printed text at the same merchant, then
  * the model's pick. A receipt whose buyer is the company, or with no Company OIB saved any receipt naming a buyer, starts
  * every line under For the company. One marked R1 with no buyer's OIB starts them as read, and asks.
  */
-export function receiptDraft(answer: ReceiptAnswer, { refs, qr, book, companyOib }: DraftContext): { readonly read: ReceiptRead; readonly notes: readonly string[] } {
+export function receiptDraft(answer: ReceiptAnswer, { qr, book, companyOib }: DraftContext): { readonly read: ReceiptRead; readonly notes: readonly string[] } {
   const notes: string[] = []
   const merchantOib = oibIn(answer.merchant.oib ?? '')
   const buyerOib = oibIn(answer.buyerOib ?? '')
@@ -176,8 +136,8 @@ export function receiptDraft(answer: ReceiptAnswer, { refs, qr, book, companyOib
   const r1 = buyerOib !== '' && company !== null && (companyOib === '' || buyerOib === companyOib)
   const r1Asked = buyerOib === '' && company !== null && (answer.markedR1 || (answer.buyerOib ?? '').trim() !== '')
   const remembered = rememberedLines(book, merchantOib, answer.merchant.name)
-  const refOf = new Map(refs.map(({ ref, category }) => [ref, category.id]))
-  const pickable = new Set(refOf.values())
+  const pickable = receiptCategories(book.categories)
+  const pickableId = (id: string): RecordId | null => pickable.find((category) => category.id === id)?.id ?? null
 
   const answered = answer.lines.flatMap((line) => {
     const cents = moneyFromAmount(line.lineTotal)
@@ -192,9 +152,8 @@ export function receiptDraft(answer: ReceiptAnswer, { refs, qr, book, companyOib
     if (line.kind === 'discount' && cents > 0) notes.push(words.discountAboveZero(line.printed))
     const memory = line.printed === '' ? undefined : remembered.find((held) => fold(held.printed) === fold(line.printed))
     // A line remembered under For the company, or a category hidden since, says nothing of this receipt.
-    const picked = (memory !== undefined && pickable.has(memory.category) ? memory.category : refOf.get(line.category)) ?? null
-    const suggested = picked === null && line.category === NEW_CATEGORY && (line.newCategory ?? '').trim() !== '' ? line.newCategory!.trim() : null
-    return [{ cents, line: { printed: line.printed, text: line.text, amount: negateAccountMoney(accountMoneyOfEuros(cents)), category: r1 ? company : picked, suggested: r1 ? null : suggested } }]
+    const picked = (memory === undefined ? null : pickableId(memory.category)) ?? pickableId(line.category)
+    return [{ cents, line: { printed: line.printed, text: line.text, amount: negateAccountMoney(accountMoneyOfEuros(cents)), category: r1 ? company : picked } }]
   })
 
   const readTotal = moneyFromAmount(answer.total)

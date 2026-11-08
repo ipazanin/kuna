@@ -10,10 +10,9 @@ import type { StatementReading } from '../../imports/domain/importedStatement'
 import { removeSettings, setSettings } from '../../settings/application/settingWrites'
 import { heldSettingValue } from '../../settings/domain/settings'
 import { ACCOUNT_RECORDS, LEDGER_RECORDS } from '../../workbook/domain/coreKinds'
-import type { ChatAttachment } from '../../../../shared/ai/domain/chatAttachments'
 import { ATTACHMENT_REF } from '../../../../shared/app/assistantOperations'
 import type { AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
-import { NOT_READ_OFF_A_PAGE, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, inputOf } from '../../../../shared/app/operationInput'
+import { NOT_READ_OFF_A_PAGE, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, inputOf, isAttachment } from '../../../../shared/app/operationInput'
 import { ROWS_A_PART, StepRefused } from '../../../../shared/app/proposedWrites'
 import { moneyFromAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
@@ -123,10 +122,6 @@ const OPERATIONS: readonly AssistantOperation[] = [
     example: { name: 'saved-profile' },
   },
 ]
-
-function isAttachment(file: unknown): file is ChatAttachment {
-  return typeof file === 'object' && file !== null && 'kind' in file && 'bytes' in file && 'name' in file
-}
 
 function isLoaded(file: unknown): file is LoadedImportFile {
   return typeof file === 'object' && file !== null && 'fileName' in file && ('document' in file || 'grid' in file)

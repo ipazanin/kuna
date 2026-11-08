@@ -18,6 +18,12 @@ const ANSWERS = {
     nothingToSort: 'None of the latest rows names a shop I could make a rule for.',
     statementTitle: 'Import the pasted statement',
     statementProposed: 'I misread one amount at first, so Kuna refused it as not adding up. The card below now ties from the opening balance to the closing one.',
+    noPhoto: 'Attach a photo of the receipt first, and I will read its lines.',
+    petFood: 'Pet food',
+    categoryTitle: 'A category for pet food',
+    categoryFirst: 'One line is pet food, which has no category yet. Accept the card below, then ask me to read the receipt again.',
+    receiptTitle: 'The receipt from Corner market',
+    receiptProposed: 'The card below splits the payment into the lines I read. Nothing changes until you accept it.',
   },
   hr: {
     rules: 'Odaberite kategoriju na **Za pregled** i zatim **Uvijek za ovog primatelja**.\n- Svako pravilo zatim razvrstava nove retke\n- Redak koji ste sami razvrstali ostaje kakav jest',
@@ -32,8 +38,23 @@ const ANSWERS = {
     nothingToSort: 'Nijedan od zadnjih redaka ne navodi trgovinu za koju bih mogao napraviti pravilo.',
     statementTitle: 'Uvezi zalijepljeni izvod',
     statementProposed: 'Isprva sam krivo pročitao jedan iznos, pa ga je Kuna odbila jer se ne zbraja. Kartica ispod sada se slaže od početnog do završnog stanja.',
+    noPhoto: 'Najprije priložite fotografiju fiskalnog računa, pa ću pročitati stavke.',
+    petFood: 'Hrana za ljubimce',
+    categoryTitle: 'Kategorija za hranu za ljubimce',
+    categoryFirst: 'Jedna je stavka hrana za ljubimce, za koju još nema kategorije. Prihvatite karticu ispod, pa me ponovno zamolite da pročitam račun.',
+    receiptTitle: 'Fiskalni račun iz trgovine Corner market',
+    receiptProposed: 'Kartica ispod dijeli plaćanje na stavke koje sam pročitao. Ništa se ne mijenja dok je ne prihvatite.',
   },
 }
+
+/** A made-up OIB whose check digit is right. */
+export const MADE_UP_MERCHANT_OIB = '12345678903'
+/** Another, the made-up buyer of an R1 receipt. */
+export const MADE_UP_BUYER_OIB = '11111111119'
+
+const GROCERIES: readonly string[] = ['Groceries', 'Namirnice']
+const HOUSEHOLD: readonly string[] = ['Household goods', 'Kućanske potrepštine']
+const PET_FOOD: readonly string[] = [ANSWERS.en.petFood, ANSWERS.hr.petFood]
 
 type Says = (typeof ANSWERS)['en']
 
@@ -117,9 +138,90 @@ function statementReply({ request, tokens }: FakeChatTurn, says: Says): ModelRep
   return answered(request, says.statementProposed, tokens)
 }
 
+/** The id of the last photo the context lines name, or null for none. */
+function lastPhotoId(request: FakeChatTurn['request']): string | null {
+  const said = request.turns.flatMap((turn) => (turn.role === 'user' ? turn.parts.flatMap((part) => (part.kind === 'text' ? [part.text] : [])) : [])).join('\n')
+  return [...said.matchAll(/\b(a\d+) \(photo\)/g)].at(-1)?.[1] ?? null
+}
+
+interface FoundRecord {
+  readonly ref: string
+  readonly name?: string
+  readonly payee?: string
+  readonly category?: string
+  readonly currency?: string
+  readonly closed?: boolean
+}
+
+function recordsIn(text: string): readonly FoundRecord[] {
+  return (JSON.parse(text) as { readonly records: readonly FoundRecord[] }).records
+}
+
+/** A line of the sample receipt, whose lines add up to its QR code's €23.49. */
+function receiptLine(printed: string, text: string, lineTotal: number, category: string, fields: Readonly<Record<string, unknown>> = {}) {
+  return { printed, text, kind: 'product', quantity: null, unitPrice: null, lineTotal, category, ...fields }
+}
+
+/**
+ * Reads the attached photo as the sample €23.49 receipt and looks Pet food up by name. It has no category yet, so the first time it
+ * proposes that category alone, and once it is there it finds the Corner market payment and proposes the receipt that splits it.
+ */
+function receiptReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
+  const photo = lastPhotoId(request)
+  if (photo === null) return answered(request, says.noPhoto, tokens)
+  const answers = answersSince(request)
+  if (answers.length === 0) return lookup(0, 'read_attachment', { attachment: photo, pages: null }, tokens)
+  if (answers.length === 1) return lookup(1, 'find_records', { app: 'spending', kind: 'category', query: says.petFood, from: null, to: null, about: null, only: null, limit: 5, cursor: null }, tokens)
+  if (answers[1]!.isError) return answered(request, says.notRead, tokens)
+  const petFood = recordsIn(answers[1]!.text).find((category) => PET_FOOD.includes(category.name ?? ''))?.ref
+  if (petFood === undefined) {
+    if (answers.length > 2) return answered(request, says.categoryFirst, tokens)
+    const step = { op: 'add-category', input: JSON.stringify({ name: says.petFood, kind: 'spending', parent: null }), as: null }
+    return lookup(2, 'propose_changes', { app: 'spending', title: says.categoryTitle, steps: [step] }, tokens)
+  }
+  if (answers.length === 2) return lookup(2, 'find_records', { app: 'spending', kind: 'category', query: null, from: null, to: null, about: null, only: null, limit: 50, cursor: null }, tokens)
+  const categories = recordsIn(answers[2]!.text)
+  const refOf = (names: readonly string[]): string | undefined => categories.find((category) => names.includes(category.name ?? ''))?.ref
+  if (answers.length === 3)
+    return lookup(3, 'find_records', { app: 'spending', kind: 'transaction', query: 'Corner market', from: null, to: null, about: null, only: null, limit: 5, cursor: null }, tokens)
+  if (answers.length === 4) return lookup(4, 'find_records', { app: 'spending', kind: 'account', query: null, from: null, to: null, about: null, only: null, limit: 20, cursor: null }, tokens)
+  if (answers.length === 5) {
+    const payment = recordsIn(answers[3]!.text).find((row) => row.category === undefined)
+    const euros = recordsIn(answers[4]!.text).find((account) => account.currency === 'EUR' && account.closed !== true)
+    const groceries = refOf(GROCERIES) ?? petFood
+    const input = {
+      photo,
+      entry: payment?.ref ?? null,
+      account: payment === undefined ? (euros?.ref ?? null) : null,
+      merchant: 'Corner market',
+      merchantOib: MADE_UP_MERCHANT_OIB,
+      buyerOib: null,
+      markedR1: false,
+      whose: null,
+      issuedOn: today(),
+      issuedAt: '18:42',
+      jir: null,
+      zki: null,
+      lines: [
+        receiptLine('MLIJ.TR.2,8%1L', 'mlijeko trajno 2,8% 1 l', 12.3, groceries),
+        receiptLine('KRUH POLUBIJ.', 'kruh polubijeli', 3.2, groceries, { quantity: 2, unitPrice: 1.6 }),
+        receiptLine('POPUST', 'popust', -1.01, groceries, { kind: 'discount' }),
+        receiptLine('DET.TEK.', 'deterdžent tekući', 5.5, refOf(HOUSEHOLD) ?? groceries),
+        receiptLine('PSEC.HR.', 'pseća hrana', 3.5, petFood),
+      ],
+      vat: [{ base: 18.79, tax: 4.7 }],
+      total: 23.49,
+      unreadable: [],
+      keepPhoto: false,
+    }
+    return lookup(5, 'propose_changes', { app: 'spending', title: says.receiptTitle, steps: [{ op: 'add-receipt', input: JSON.stringify(input), as: null }] }, tokens)
+  }
+  return answered(request, says.receiptProposed, tokens)
+}
+
 /**
  * Spending's part of the fake chat: one that starts with sort proposes a rule, one that starts with close proposes closing
- * an account with a new IBAN, one that starts with import transcribes a pasted statement, a question about spending reads figures and rows, and one about rules reads the guide and links its tab.
+ * an account with a new IBAN, one that starts with import transcribes a pasted statement, one that asks to read the receipt reads the photo attached and proposes it, a question about spending reads figures and rows, and one about rules reads the guide and links its tab.
  */
 function spendingChat(turn: FakeChatTurn): ModelReply | null {
   const says = ANSWERS[language === 'hr' ? 'hr' : 'en']
@@ -127,6 +229,7 @@ function spendingChat(turn: FakeChatTurn): ModelReply | null {
   if (/^sort|^razvrstaj/i.test(typed)) return sortReply(turn, says)
   if (/^close|^zatvori/i.test(typed)) return closeAccountReply(turn, says)
   if (/^import|^uvezi/i.test(typed)) return statementReply(turn, says)
+  if (/^read (the|this|a) receipt|^pročitaj (fiskalni )?račun/i.test(typed)) return receiptReply(turn, says)
   if (/spent|spend|potroš/i.test(typed)) return spendingReply(turn, says)
   if (/rule|pravil/i.test(typed)) {
     if (lookups === 0) return lookup(lookups, 'kuna_docs', { path: 'spending/guide/first-rules' }, tokens)

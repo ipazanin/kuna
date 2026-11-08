@@ -4,7 +4,7 @@ import { saveLastFetch, savePendingLink, takeReturnNote } from '../../bankSync/i
 import { forgetLastAccount } from '../../entries/presentation/lastAccount'
 import { words as appWords } from '../../words'
 import { useSpendingBooks } from '../application/spendingStore'
-import { SPENDING_APP } from '../infrastructure/spendingDocument'
+import { SPENDING_APP } from '../domain/spendingBooks'
 import { words as fileWords } from './words'
 
 const store = useSpendingBooks()
