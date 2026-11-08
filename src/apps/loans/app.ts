@@ -6,6 +6,7 @@ import { today } from '../../shared/calendar/civilDate'
 import { DEFAULT_MONEY_FORMAT } from '../../shared/money/moneyFormat'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
 import { autoSyncOn } from '../../shared/sync/infrastructure/autoSyncSwitch'
+import { LOANS_ASSIST } from './assistant/loansAssist'
 import { words as bankLoanWords } from './bankLoans/presentation/words'
 import { LOANS_HOME_CARD } from './home/presentation/loansHomeCard'
 import { loansHubFigures } from './home/presentation/loansHubFigures'
@@ -37,6 +38,8 @@ export const loansApp: AppContribution = {
     // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
       const { seedFakeLoans } = await import('./workbook/infrastructure/fake/seedFakeLoans')
+      const { registerFakeLoansChat } = await import('./assistant/infrastructure/fake/fakeLoansChat')
+      registerFakeLoansChat()
       await seedFakeLoans(new URLSearchParams(window.location.search).get('loans'))
     }
   },
@@ -53,7 +56,15 @@ export const loansApp: AppContribution = {
   subtitle: () => null,
   // Until Loans has settings of its own, it shows euros in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
-  assistant: async () => (await import('./assistant/loansAssistant')).loansAssistant(() => state.workbook),
+  assist: LOANS_ASSIST,
+  assistant: async () => {
+    const [{ loansAssistant }, { loansProposer, loansAcceptance }] = await Promise.all([import('./assistant/loansAssistant'), import('./assistant/operations/loansOperations')])
+    const store = useLoansBooks()
+    return loansAssistant(
+      { status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'), book: () => state.workbook },
+      { proposer: loansProposer(store), acceptance: loansAcceptance(store) },
+    )
+  },
   homeCard: LOANS_HOME_CARD,
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => loansHubFigures(book, today())) },
   setUpLines: () => (state.workbook === null ? [] : loansSetUp(state.workbook)),

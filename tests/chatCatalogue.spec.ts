@@ -10,7 +10,7 @@ import { companyAssistant } from '../src/apps/company/assistant/companyAssistant
 import { HR_DOO_ASSISTANT } from '../src/apps/company/packs/hr-doo/assistant/hrDooAssistant'
 import { COMPANY_FACT_SETTINGS } from '../src/apps/company/packs/hr-doo/domain/companyFacts'
 import { PERSON_PAYEES_KEY, SETTING_DEFINITIONS } from '../src/apps/company/settings/domain/settings'
-import { INVESTMENTS_ASSISTANT } from '../src/apps/investments/assistant/investmentsAssistant'
+import { investmentsAssistant } from '../src/apps/investments/assistant/investmentsAssistant'
 import { loansAssistant } from '../src/apps/loans/assistant/loansAssistant'
 import { spendingAssistant } from '../src/apps/spending/assistant/spendingAssistant'
 import * as spendingKinds from '../src/apps/spending/workbook/domain/spendingKinds'
@@ -28,8 +28,9 @@ import { fakeCompanyBooks, readingOf } from './fixtures/companyChatBooks'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 const COMPANY = companyAssistant(HR_DOO_ASSISTANT, readingOf(fakeCompanyBooks()), () => [])
-const LOANS_ASSISTANT = loansAssistant(() => null)
+const LOANS_ASSISTANT = loansAssistant({ status: () => 'none', book: () => null })
 const SPENDING_ASSISTANT = spendingAssistant(CHAT_READING)
+const INVESTMENTS_ASSISTANT = investmentsAssistant({ status: () => 'none', book: () => null, sources: () => null, taxShown: () => false })
 
 function appOf(id: string, assistant: CatalogueApp['assistant'], paths: readonly `/${string}`[]): CatalogueApp {
   return { id, name: id, purpose: `What ${id} keeps.`, screens: paths.map((path) => ({ path, title: path })), assistant }
@@ -37,8 +38,16 @@ function appOf(id: string, assistant: CatalogueApp['assistant'], paths: readonly
 
 const APPS: readonly CatalogueApp[] = [
   appOf('company', COMPANY, ['/company', '/company/transactions', '/company/invoicing', '/company/analysis', '/company/owner', '/company/year', '/company/salaries', '/company/settings']),
-  appOf('loans', LOANS_ASSISTANT, ['/loans']),
-  appOf('investments', INVESTMENTS_ASSISTANT, ['/investments', '/investments/settings']),
+  appOf('loans', LOANS_ASSISTANT, ['/loans', '/loans/scenarios', '/loans/bank-loan', '/loans/informal-loan', '/loans/settings']),
+  appOf('investments', INVESTMENTS_ASSISTANT, [
+    '/investments',
+    '/investments/holdings',
+    '/investments/holding',
+    '/investments/transactions',
+    '/investments/performance',
+    '/investments/tax',
+    '/investments/settings',
+  ]),
   appOf('assets', ASSETS_ASSISTANT, ['/assets', ASSETS_SETTINGS_ROUTE as `/${string}`]),
   appOf('spending', SPENDING_ASSISTANT, ['/spending', '/spending/transactions', '/spending/budgets', '/spending/accounts', '/spending/account', '/spending/settings']),
 ]
@@ -109,7 +118,7 @@ describe('the catalogue', () => {
   })
 
   it('lets the chat read only an app that offers a reader', () => {
-    expect([...catalogue.readers.keys()]).toEqual(['company', 'spending'])
+    expect([...catalogue.readers.keys()]).toEqual(['company', 'loans', 'investments', 'spending'])
   })
 
   it('tells the model what a read holds: data, aliases, and no amount of its own', () => {
@@ -162,7 +171,10 @@ describe('the catalogue', () => {
       '/company/owner': 'src/apps/company/packs/hr-doo/presentation',
       '/company/year': 'src/apps/company/packs/hr-doo/domain',
       '/company/salaries': 'src/apps/company/packs/hr-doo/presentation/salaries',
+      '/investments/performance': 'src/apps/investments/performance/presentation',
+      '/investments/tax': 'src/apps/investments/tax/presentation',
       '/investments/settings': 'src/apps/investments/settings/presentation',
+      '/loans/settings': 'src/apps/loans/settings/presentation',
       '/spending/settings': 'src/apps/spending/settings/presentation',
       '/spending/transactions': 'src/apps/spending/entries/presentation',
     }

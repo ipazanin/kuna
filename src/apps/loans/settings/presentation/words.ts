@@ -5,7 +5,8 @@ import type { Translation } from '../../../../shared/text/translation'
 
 export const en = {
   title: 'Settings',
-  description: 'Where the Loans file is kept, with its export and the switch to another place.',
+  description: 'Where the Loans file is kept, with its export and the switch to another place, and what the assistant may do here.',
+  tabs: { label: 'Parts of the settings', general: 'General', assistant: 'Assistant' },
   books: 'Loans books',
   localTitle: 'Loans file',
   export: 'Export',
@@ -14,7 +15,8 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   title: 'Postavke',
-  description: 'Gdje se čuva datoteka kredita, s izvozom i premještanjem na drugo mjesto.',
+  description: 'Gdje se čuva datoteka kredita, s izvozom i premještanjem na drugo mjesto, i što asistent ovdje smije.',
+  tabs: { label: 'Dijelovi postavki', general: 'Općenito', assistant: 'Asistent' },
   books: 'Datoteka kredita',
   localTitle: 'Datoteka kredita',
   export: 'Izvezi',

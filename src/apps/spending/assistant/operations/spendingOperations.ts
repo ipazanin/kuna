@@ -1,4 +1,4 @@
-import { FLAG_OR_NULL, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, found, inputOf } from '../../../../shared/app/operationInput'
+import { FLAG_OR_NULL, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, choiceOf, dayOf, found, inputOf } from '../../../../shared/app/operationInput'
 import { proposalGroupsOf, statementLeftOut } from './proposalLines'
 import type { StatementLeftOut } from './proposalLines'
 import { REVIEW_OPERATIONS, writeReviewStep } from './reviewPairs'
@@ -255,13 +255,6 @@ function conditionOf(fragment: string | null, iban: string | null, kept: Spendin
   return kept
 }
 
-function oneOf<T extends string>(choices: readonly T[], text: string | null, what: string): T | null {
-  if (text === null) return null
-  const choice = choices.find((candidate) => candidate === text)
-  if (choice === undefined) throw new StepRefused(`${what} is one of ${choices.join(', ')}.`)
-  return choice
-}
-
 /** An amount above zero, as a transfer's legs are typed. */
 function positiveOf(amount: number): AccountMoney {
   const money = accountMoneyFromAmount(amount)
@@ -412,7 +405,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
         const account = newAccount({
           name: field['name'],
           kind: field['kind'] as AccountKind,
-          bank: oneOf(ACCOUNT_BANKS, field['bank'], 'bank'),
+          bank: choiceOf(ACCOUNT_BANKS, field['bank'], 'bank'),
           currency,
           opening: accountMoneyFromAmount(field['opening']),
           openedOn: dayOf(field['openedOn']),
@@ -428,13 +421,13 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
         const before = accountOf(field['account'])
         const currency = field['currency'] === null ? before.currency : currencyCodeOf(field['currency'])
         if (currency === null) throw new StepRefused('That currency is not one Kuna knows.')
-        const bank: AccountBank | 'none' | null = oneOf([...ACCOUNT_BANKS, 'none'], field['bank'], 'bank')
+        const bank: AccountBank | 'none' | null = choiceOf([...ACCOUNT_BANKS, 'none'], field['bank'], 'bank')
         unit.of(ACCOUNT_WRITES).change(
           before,
           keptAccount({
             ...before,
             name: (field['name'] as string | null) ?? before.name,
-            kind: oneOf(ACCOUNT_KINDS, field['kind'], 'kind') ?? before.kind,
+            kind: choiceOf(ACCOUNT_KINDS, field['kind'], 'kind') ?? before.kind,
             bank: bank === null ? before.bank : bank === 'none' ? null : bank,
             currency,
             opening: field['opening'] === null ? before.opening : accountMoneyFromAmount(field['opening']),
@@ -465,7 +458,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
       }
       case 'change-entry': {
         const before = rowOf(field['entry'])
-        const kind = oneOf(['out', 'in'], field['kind'], 'kind')
+        const kind = choiceOf(['out', 'in'], field['kind'], 'kind')
         const filedUnder = field['category'] === null ? null : categoryOf(field['category'])
         const onlyFiled = [field['account'], field['kind'], field['date'], field['amount'], field['payee'], field['note']].every((value) => value === null)
         const legs = legsOf(book, before)

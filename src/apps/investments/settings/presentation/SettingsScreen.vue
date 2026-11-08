@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+import AppAssistCard from '../../../../shared/ai/presentation/AppAssistCard.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../../shared/ui/PageTabs.vue'
 import { needsThePerson } from '../../prices/presentation/failureLines'
@@ -15,14 +16,18 @@ import ChecksCard from './ChecksCard.vue'
 import HistoryCard from './HistoryCard.vue'
 import InvestmentsBooksCard from './InvestmentsBooksCard.vue'
 import { words } from './words'
+import { INVESTMENTS_ASSIST } from '../../assistant/investmentsAssist'
+import { investmentsData } from '../../workbook/presentation/investmentsData'
+import { words as investmentsWords } from '../../words'
 
-/** The Investments settings: the file, accounts and benchmark, then on tabs of their own where the prices come from and the portfolio checks' thresholds. */
+/** The Investments settings: the file, accounts and benchmark, then on tabs of their own where the prices come from, the portfolio checks' thresholds and the assistant's switch. */
 const prices = usePrices()
 const waiting = computed(() => (prices.state.copy?.file.failures ?? []).filter(needsThePerson).length)
 const tabs = computed(() => [
   { value: 'general', label: words.tabs.general, icon: 'i-lucide-settings' },
   { value: 'prices', label: words.tabs.prices, icon: 'i-lucide-chart-candlestick', count: waiting.value },
   { value: 'checks', label: words.tabs.checks, icon: 'i-lucide-list-checks' },
+  { value: 'assistant', label: words.tabs.assistant, icon: 'i-lucide-sparkles' },
 ])
 </script>
 
@@ -48,6 +53,9 @@ const tabs = computed(() => [
       </template>
       <template #checks>
         <ChecksCard />
+      </template>
+      <template #assistant>
+        <AppAssistCard :app="investmentsData.id" :tasks="INVESTMENTS_ASSIST.tasks()" :chat-reads="investmentsWords.name" />
       </template>
     </PageTabs>
   </section>

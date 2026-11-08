@@ -9,7 +9,7 @@ export const en = {
   title: 'Settings',
   description:
     'Where the Investments file is kept, with its export, the switch to another place and the delete of its data, your accounts, the benchmark, where the prices come from, and the thresholds of the portfolio checks.',
-  tabs: { label: 'Parts of the settings', general: 'General', prices: 'Prices', checks: 'Checks' },
+  tabs: { label: 'Parts of the settings', general: 'General', prices: 'Prices', checks: 'Checks', assistant: 'Assistant' },
   books: 'Investments books',
   localTitle: 'Investments file',
   export: 'Export',
@@ -75,7 +75,7 @@ export const en = {
 export const hr: Translation<typeof en> = {
   title: 'Postavke',
   description: 'Gdje se čuva datoteka ulaganja, s izvozom, premještanjem na drugo mjesto i brisanjem podataka, vaši računi, referentni indeks, odakle dolaze cijene te pragovi provjera portfelja.',
-  tabs: { label: 'Dijelovi postavki', general: 'Općenito', prices: 'Cijene', checks: 'Provjere' },
+  tabs: { label: 'Dijelovi postavki', general: 'Općenito', prices: 'Cijene', checks: 'Provjere', assistant: 'Asistent' },
   books: 'Datoteka ulaganja',
   localTitle: 'Datoteka ulaganja',
   export: 'Izvezi',

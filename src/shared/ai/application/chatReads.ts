@@ -146,7 +146,10 @@ function amountOf(field: Extract<ReadableField, { readonly cents: number }>): Fi
   return field.of === 'account' ? { of: 'account', cents: accountMoneyFromCents(field.cents), currency } : { of: 'app', cents: moneyFromCents(field.cents), currency }
 }
 
-/** One record as the model reads it: a ref for itself and each it points at, each amount with a figure ref the answer can cite, blanks and false flags left out. */
+/**
+ * One record as the model reads it: a ref for itself and each it points at, each amount with a figure ref the answer can
+ * cite, blanks and false flags left out. Figures in a plain field, such as a rate Kuna writes as text, are noted too.
+ */
 function shownRow(app: string, kind: ReadableKind, row: ReadableRow, reads: ChatReads): Readonly<Record<string, unknown>> {
   const shown: Record<string, unknown> = { ref: reads.refs.recordRef({ app, kind: kind.name, id: row.id }) }
   for (const field of row.fields) {
@@ -162,6 +165,7 @@ function shownRow(app: string, kind: ReadableKind, row: ReadableRow, reads: Chat
       reads.refs.noteAmount(field.cents)
     } else {
       const value = leaving(field, reads)
+      if (field.exposure === 'plain') textsOf(value).forEach((text) => reads.refs.noteFiguresIn(text))
       if (value !== '' && value !== null && value !== false && !(Array.isArray(value) && value.length === 0)) shown[field.name] = value
     }
   }
@@ -269,6 +273,7 @@ export async function getRecord(appId: string, ref: string, reads: ChatReads): P
 
 function shownFigures(appId: string, report: AssistantReport, period: string | null, reads: ChatReads): readonly Readonly<Record<string, unknown>>[] {
   return report.figures(period).map((figure) => {
+    reads.refs.noteFiguresIn(figure.label)
     if ('cents' in figure) {
       return {
         ref: reads.refs.figureRef(`${appId}/${report.id}/${period ?? ''}/${figure.label}`, figure),

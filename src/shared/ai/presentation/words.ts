@@ -9,7 +9,7 @@ export const en = {
     title: 'AI assistant',
     anonymise: 'Anonymise',
     anonymiseOn: (company: string) =>
-      `Rows about employees and their pay are left out of what Kuna sends to ${company}. The names of informal lenders and of payees you mark as a person go as aliases such as Person 1. Shops, other payees, amounts and dates go as written. IBANs and OIBs are masked either way. Photos and documents go whole.`,
+      `Rows about employees and their pay are left out of what Kuna sends to ${company}. The names of the people in your informal loans and of payees you mark as a person go as aliases such as Person 1. Shops, other payees, amounts and dates go as written. IBANs and OIBs are masked either way. Photos and documents go whole.`,
     anonymiseOff: (company: string) =>
       `Rows about employees and their pay go to ${company} as written, and to no other company. Names marked as a person go as written too, and IBANs and OIBs stay masked. Your employees should know ${company} receives their pay. Changing AI company turns this back on.`,
     subtitleNoKey: 'Optional. Kuna works without it. Pick one AI company and add your key.',
@@ -74,6 +74,7 @@ export const en = {
     switch: 'Send without asking',
     switchNote: 'While off, Kuna asks each time before it sends.',
     canHelp: (titles: string) => `The assistant can help here with: ${titles}.`,
+    chatOnly: (app: string) => `With a key, the chat can read and change your records in ${app}.`,
     addKey: 'Add a key in Kuna settings',
   },
   retention: {
@@ -218,7 +219,7 @@ export const hr: Translation<typeof en> = {
     title: 'AI asistent',
     anonymise: 'Anonimiziraj',
     anonymiseOn: (company) =>
-      `Retci o zaposlenicima i njihovim plaćama ne šalju se tvrtki ${company}. Imena neformalnih zajmodavaca i primatelja koje označite kao osobu šalju se kao zamjenski nazivi poput Osoba 1. Trgovine, ostali primatelji, iznosi i datumi šalju se kako su zapisani. IBAN-ovi i OIB-ovi uvijek se skrivaju. Fotografije i dokumenti šalju se cijeli.`,
+      `Retci o zaposlenicima i njihovim plaćama ne šalju se tvrtki ${company}. Imena osoba iz vaših neformalnih zajmova i primatelja koje označite kao osobu šalju se kao zamjenski nazivi poput Osoba 1. Trgovine, ostali primatelji, iznosi i datumi šalju se kako su zapisani. IBAN-ovi i OIB-ovi uvijek se skrivaju. Fotografije i dokumenti šalju se cijeli.`,
     anonymiseOff: (company) =>
       `Retci o zaposlenicima i njihovim plaćama šalju se tvrtki ${company} kako su zapisani i ne šalju se nijednoj drugoj tvrtki. Imena označena kao osoba također se šalju kako su zapisana, a IBAN-ovi i OIB-ovi i dalje su skriveni. Vaši zaposlenici trebali bi znati da tvrtka ${company} dobiva podatke o njihovim plaćama. Ako promijenite AI tvrtku, ovo se ponovno uključuje.`,
     subtitleNoKey: 'Neobavezno. Kuna radi i bez njega. Odaberite jednu AI tvrtku i dodajte svoj ključ.',
@@ -283,6 +284,7 @@ export const hr: Translation<typeof en> = {
     switch: 'Šalji bez pitanja',
     switchNote: 'Dok je isključeno, Kuna svaki put pita prije slanja.',
     canHelp: (titles) => `Asistent ovdje može pomoći s ovim: ${titles}.`,
+    chatOnly: (app) => `S ključem razgovor može čitati i mijenjati vaše zapise u aplikaciji ${app}.`,
     addKey: 'Dodajte ključ u postavkama Kune',
   },
   retention: {

@@ -16,7 +16,7 @@ Every `.vue` in `src/shared/ui` has a row here and a specimen in the gallery at 
 | `StepCard`         | `title`, `subtitle?`. Reads `STEP_FLOW` from its screen                                                                                                                                                                | 7       | 0     | 0           | 0      | 0        | 0     | 3      |
 | `PageHeader`       | `title`, `description?`                                                                                                                                                                                                | 8       | 5     | 7           | 3      | 6        | 3     | 0      |
 | `ScreenSkeleton`   | `heading?`, `cards?`. Stands in for a screen while its code or its books load                                                                                                                                          | 0       | 4     | 6           | 2      | 5        | 1     | 0      |
-| `PageTabs`         | `tabs`, `label`. Slots per tab and `above`. Keeps `?tab=`                                                                                                                                                              | 7       | 0     | 3           | 0      | 2        | 0     | 0      |
+| `PageTabs`         | `tabs`, `label`. Slots per tab and `above`. Keeps `?tab=`                                                                                                                                                              | 7       | 1     | 3           | 0      | 2        | 0     | 0      |
 
 ## Layout
 

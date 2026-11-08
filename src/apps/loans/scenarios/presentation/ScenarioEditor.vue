@@ -23,9 +23,9 @@ import ChangeBlock from './ChangeBlock.vue'
 import { blankChange, changeTextsOf, typedChange } from './changeTexts'
 import type { ChangeRules, ChangeTexts } from './changeTexts'
 import OfferTermsFields from './OfferTermsFields.vue'
-import { fillsMore, offerTexts, typedOffer, wrongInMore } from './offerTexts'
+import { fillsMore, offerAutoName, offerTexts, typedOffer, wrongInMore } from './offerTexts'
 import type { OfferTexts } from './offerTexts'
-import { refusalText, spanOf } from './scenarioComparison'
+import { refusalText } from './scenarioComparison'
 import { scenarioMonths } from './scenarioMonths'
 import { workedScenario } from '../domain/workedScenario'
 import { changeSummary } from './scenariosView'
@@ -42,9 +42,6 @@ import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import { formatMoney, formatRate } from '../../../../shared/money/moneyFormat'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
-import { typedAmount } from '../../../../shared/money/typedAmount'
-import { typedRate } from '../../bankLoans/domain/yearlyRate'
-import { typedTerm } from '../../bankLoans/presentation/typedTerm'
 import { typedCount } from '../../../../shared/text/typedCount'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
@@ -99,13 +96,7 @@ watch(open, (opened) => {
 
 const typed = computed(() => typedOffer(offer.value))
 
-/** The name a blank one becomes, such as "€100,000.00 at 4% over 10 y", or empty until the figures are typed. */
-const autoName = computed(() => {
-  const principal = typedAmount(offer.value.principal)
-  const rate = typedRate(offer.value.rate)
-  const instalments = typedTerm(offer.value.years, offer.value.months)
-  return principal === null || rate === null || instalments === null ? '' : words.editor.autoName(formatMoney(principal), formatRate(fractionOf(rate)), spanOf(instalments))
-})
+const autoName = computed(() => offerAutoName(offer.value))
 const name = computed(() => offer.value.name.trim() || autoName.value)
 
 /** The offer's terms as a bank loan, which its changes apply to. */

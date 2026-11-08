@@ -79,11 +79,14 @@ describe('the lines of the apps in Kuna settings', () => {
   const app = (id: string, assist: unknown, firstRun = false) => ({ id, name: id, assist, firstRun: () => firstRun }) as unknown as AppContribution
   const tasks = (count: number) => ({ settings: `/${count}`, tasks: () => Array.from({ length: count }) })
 
-  it('leaves out an app with no assistant, with no tasks or in its first run', () => {
-    expect(assistLines([app('none', undefined), app('empty', tasks(0)), app('setting-up', tasks(1), true), app('company', tasks(2))])).toEqual([{ id: 'company', name: 'company', to: '/2' }])
+  it('lists an app that names an assistant, tasks or none, and leaves out one with no assistant or in its first run', () => {
+    expect(assistLines([app('none', undefined), app('chat-only', tasks(0)), app('setting-up', tasks(1), true), app('company', tasks(2))])).toEqual([
+      { id: 'chat-only', name: 'chat-only', to: '/0' },
+      { id: 'company', name: 'company', to: '/2' },
+    ])
   })
 
-  it.each(['loans', 'assets', 'investments'])('%s names no assistant in its registration, so it gets no tab and no line', (id) => {
+  it.each(['assets'])('%s names no assistant in its registration, so it gets no tab and no line', (id) => {
     expect(readFileSync(join(import.meta.dirname, `../src/apps/${id}/app.ts`), 'utf8')).not.toMatch(/^\s*assist:/m)
   })
 })

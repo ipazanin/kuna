@@ -20,6 +20,14 @@ export function dayOf(text: string): CivilDate {
   return day
 }
 
+/** The choice a step names, or null to keep the field, refused when it is not one of the list. */
+export function choiceOf<T extends string>(choices: readonly T[], text: string | null, what: string): T | null {
+  if (text === null) return null
+  const choice = choices.find((candidate) => candidate === text)
+  if (choice === undefined) throw new StepRefused(`${what} is one of ${choices.join(', ')}.`)
+  return choice
+}
+
 /** The record by its id, as the proposal has left the books so far. */
 export function found<R extends { readonly id: string }>(records: readonly R[], id: string, what: string): R {
   const record = records.find((candidate) => candidate.id === id)

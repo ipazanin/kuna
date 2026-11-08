@@ -23,12 +23,13 @@ const props = defineProps<{
 }>()
 
 const provider = computed(() => (assistKeyKept.value ? providerInUse() : null))
-const taskTitles = computed(() => listInWords(props.tasks.map((task) => task.title)))
+/** An app with no task of its own has only the chat, which the card names instead of an empty list. */
+const withoutKey = computed(() => (props.tasks.length === 0 && props.chatReads ? words.appCard.chatOnly(props.chatReads) : words.appCard.canHelp(listInWords(props.tasks.map((task) => task.title)))))
 const sendsFreely = computed(() => assistOn(props.app))
 </script>
 
 <template>
-  <AppCard :title="words.card.title" :subtitle="provider === null ? words.appCard.canHelp(taskTitles) : words.appCard.uses(provider.name)" data-testid="app-assist-card" :data-app="app">
+  <AppCard :title="words.card.title" :subtitle="provider === null ? withoutKey : words.appCard.uses(provider.name)" data-testid="app-assist-card" :data-app="app">
     <div v-if="provider === null" class="px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
       <UButton :to="KUNA_SETTINGS_ROUTE" :label="words.appCard.addKey" trailing-icon="i-lucide-arrow-right" color="neutral" variant="outline" size="sm" data-testid="assist-add-key" />
     </div>

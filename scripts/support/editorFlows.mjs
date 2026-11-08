@@ -8399,7 +8399,7 @@ export async function assistSwitchFlow(page, { press, shoot, inspect }) {
 /**
  * The Assistant tab and Kuna settings over one state: with no key the tab says what could be done and links to Kuna
  * settings, and with a key the line in Kuna settings leads to the tab, whose switch the line then follows. Spending has
- * its own tab, and an app with no tasks has no line.
+ * its own tab, and an app with no assistant has no line.
  */
 export function assistTabFlowIn(language) {
   const words = ASSIST_WORDS[language]
@@ -8421,7 +8421,7 @@ export function assistTabFlowIn(language) {
       await keepAssistKey(page)
       await page.waitForSelector(companyState, { visible: true, timeout: 10_000 })
       await elementSays(page, companyState, [words.card.asksFirst], "Company's line does not say it asks first")
-      if (await page.$('[data-testid="assist-app"][data-app="loans"]')) throw new Error('an app with no tasks has a line')
+      if (await page.$('[data-testid="assist-app"][data-app="assets"]')) throw new Error('an app with no assistant has a line')
       if (await page.$('[data-testid="assist-app"][data-app="investments"]')) throw new Error('an app with no tasks has a line')
       if (await page.$('[data-testid="assist-app"][data-app="assets"]')) throw new Error('an app with no tasks has a line')
       await inspect?.('the lines of the apps')

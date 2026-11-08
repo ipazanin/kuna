@@ -27,7 +27,8 @@ import { useInvestmentsBooks } from './workbook/application/investmentsStore'
 import { INVESTMENTS_APP } from './workbook/infrastructure/investmentsDocument'
 import { resumeFileLookup } from '../../shared/storage/presentation/resumeFileLookup'
 import { words as fileWords } from './workbook/presentation/words'
-import { startPrices } from './prices/presentation/usePrices'
+import { startPrices, usePrices } from './prices/presentation/usePrices'
+import { INVESTMENTS_ASSIST } from './assistant/investmentsAssist'
 
 const OVERVIEW: AppScreen = { path: INVESTMENTS_OVERVIEW_ROUTE, title: overviewWords.title, icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') }
 const HOLDINGS: AppScreen = { path: HOLDINGS_ROUTE, title: holdingsWords.title, icon: 'i-lucide-layers', component: () => import('./holdings/presentation/HoldingsScreen.vue') }
@@ -47,7 +48,7 @@ const TAX: AppScreen = { path: TAX_ROUTE, title: taxWords.title, icon: 'i-lucide
 const SETTINGS: AppScreen = { path: INVESTMENTS_SETTINGS_ROUTE, title: settingsWords.title, icon: 'i-lucide-settings', component: () => import('./settings/presentation/SettingsScreen.vue') }
 
 const { state } = useInvestmentsBooks()
-const { figures } = usePortfolio()
+const { figures, sources } = usePortfolio()
 const taxShown = useTaxShown()
 
 /** The investments kept in a file of their own: every trade, income, deposit, exchange and transfer of the brokers' accounts. */
@@ -59,6 +60,8 @@ export const investmentsApp: AppContribution = {
     // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
       const { seedFakeInvestments } = await import('./workbook/infrastructure/fake/seedFakeInvestments')
+      const { registerFakeInvestmentsChat } = await import('./assistant/infrastructure/fake/fakeInvestmentsChat')
+      registerFakeInvestmentsChat()
       const query = new URLSearchParams(window.location.search)
       await seedFakeInvestments(query.get('investments'), query.get('prices'), query.get('keys'))
     }
@@ -78,7 +81,25 @@ export const investmentsApp: AppContribution = {
   subtitle: () => null,
   // Every figure leaves the app in euros, so it shows them in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
-  assistant: async () => (await import('./assistant/investmentsAssistant')).INVESTMENTS_ASSISTANT,
+  assistant: async () => {
+    const [{ investmentsAssistant }, { investmentsProposer, investmentsAcceptance }, { fetchAddedInBackground }] = await Promise.all([
+      import('./assistant/investmentsAssistant'),
+      import('./assistant/operations/investmentsOperations'),
+      import('./prices/presentation/pricesStep'),
+    ])
+    const store = useInvestmentsBooks()
+    const ports = { rates: () => sources.value?.rates ?? null, fetchAddedPrices: () => fetchAddedInBackground(usePrices()) }
+    return investmentsAssistant(
+      {
+        status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'),
+        book: () => state.workbook?.book ?? null,
+        sources: () => sources.value,
+        taxShown: () => taxShown.value,
+      },
+      { proposer: investmentsProposer(store, ports), acceptance: investmentsAcceptance(store, ports) },
+    )
+  },
+  assist: INVESTMENTS_ASSIST,
   homeCard: INVESTMENTS_HOME_CARD,
   hub: { counts: true, figures: () => shownPortfolio(({ figures }) => investmentsHubFigures(figures)) },
   setUpLines: () => (state.workbook === null ? [] : investmentsSetUp(state.workbook.book, figures.value, taxShown.value)),

@@ -1,8 +1,9 @@
 import { costTexts, typedCosts } from './changeTexts'
+import { spanOf } from './scenarioComparison'
 import { words } from './words'
 import type { CostTexts } from './changeTexts'
 import type { LoanChange, OfferTerms } from '../domain/loanScenario'
-import { rateText, typedRate } from '../../bankLoans/domain/yearlyRate'
+import { fractionOf, rateText, typedRate } from '../../bankLoans/domain/yearlyRate'
 import { typedLoanTerms } from '../../bankLoans/presentation/loanTermsTexts'
 import type { LoanTermsErrors } from '../../bankLoans/presentation/loanTermsTexts'
 import { subsidyTexts, typedSubsidy } from '../../bankLoans/presentation/subsidyTexts'
@@ -15,6 +16,8 @@ import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayMonthsLater } from '../../../../shared/calendar/monthKey'
 import { plainAmount } from '../../../../shared/money/money'
+import { formatMoney, formatRate } from '../../../../shared/money/moneyFormat'
+import { typedAmount } from '../../../../shared/money/typedAmount'
 import { typedCount } from '../../../../shared/text/typedCount'
 
 type RateChange = Extract<LoanChange, { kind: 'rate-change' }>
@@ -89,6 +92,14 @@ export function offerTexts(name: string, terms: OfferTerms | null, changes: read
     },
     later: changes.filter((change) => change !== first && change !== variable?.change),
   }
+}
+
+/** The name a blank one becomes, such as "€100,000.00 at 4% over 10 y", or empty until the figures are typed. */
+export function offerAutoName(texts: OfferTexts): string {
+  const principal = typedAmount(texts.principal)
+  const rate = typedRate(texts.rate)
+  const instalments = typedTerm(texts.years, texts.months)
+  return principal === null || rate === null || instalments === null ? '' : words.editor.autoName(formatMoney(principal), formatRate(fractionOf(rate)), spanOf(instalments))
 }
 
 /** Whether the fields fill anything under More terms that changes a figure, so the section opens on them. */

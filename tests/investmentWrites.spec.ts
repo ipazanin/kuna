@@ -7,7 +7,7 @@ import { COUNTRY_ITEMS, NOT_SET, SECTOR_ITEMS, instrumentErrors, instrumentOfTex
 import { fundMixChanges, fundMixErrors, fundMixTexts, mixLineTexts, mixSum } from '../src/apps/investments/holdings/presentation/instrumentMixForm'
 import { writeCheck } from '../src/apps/investments/overview/application/checkWrites'
 import { writeTransaction } from '../src/apps/investments/transactions/application/transactionWrites'
-import { listedTransactions, passesFilter, transactionCount } from '../src/apps/investments/transactions/domain/listedTransactions'
+import { listedTransactions, passesFilter, transactionCount, withImportFacts } from '../src/apps/investments/transactions/domain/listedTransactions'
 import type { TransactionRecord } from '../src/apps/investments/transactions/domain/listedTransactions'
 import { tradePreview } from '../src/apps/investments/transactions/domain/tradePreview'
 import { DIVIDEND_CO, EXAMPLE_RATES, TECH, WORLD, exampleYear } from './fixtures/taxExample'
@@ -119,6 +119,18 @@ describe('the transaction dialog writes', () => {
     await expect(store.write('Changed', (unit) => writeTransaction(unit, { kind: 'trade', record: BUY }, { kind: 'cash-movement', record: DEPOSIT }))).rejects.toThrow(
       'A trade cannot become a cash-movement.',
     )
+  })
+
+  it("keeps a bond trade's accrued interest through an edit, which neither the dialog nor the chat shows, until the trade names another instrument", () => {
+    const bond = instrument('bond', { quoted: { kind: 'percent', coupon: decimal('3'), maturity: civil('2030-03-02') } })
+    const bought = { ...trade('buy', ONE, bond, '2026-03-02', '1000', '99.5', '2'), accrued: decimal('12.34') }
+    const edited = { ...bought, accrued: null, note: 'Checked' }
+
+    const kept = withImportFacts({ kind: 'trade', record: bought }, { kind: 'trade', record: edited })
+    const moved = withImportFacts({ kind: 'trade', record: bought }, { kind: 'trade', record: { ...edited, instrument: SHARE.id } })
+
+    expect(kept.record).toEqual({ ...edited, accrued: decimal('12.34') })
+    expect(moved.record).toEqual({ ...edited, instrument: SHARE.id })
   })
 })
 
