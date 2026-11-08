@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { ROWS_A_PART } from '../src/apps/spending/assistant/operations/statementImport'
+import { ROWS_A_PART } from '../src/shared/app/proposedWrites'
 import { words } from '../src/apps/spending/assistant/words'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import type { ChatAttachment } from '../src/shared/ai/domain/chatAttachments'

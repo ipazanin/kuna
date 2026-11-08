@@ -10,6 +10,11 @@ import { REVIEW_LINK } from '../transactions/presentation/transactionsLinks'
 import { words as transactionWords } from '../transactions/presentation/words'
 import * as coreKinds from '../workbook/domain/coreKinds'
 import type { AppAssistant, AssistantPlace } from '../../../shared/app/appContribution'
+import type { AssistantOperation, ProposalStep } from '../../../shared/app/assistantOperations'
+import type { ProposalDescriber } from '../../../shared/app/proposalGroups'
+import type { UnitOfWork } from '../../../shared/storage/application/repository'
+import type { CompanyBooks } from '../workbook/domain/readWorkbook'
+import type { Workbook } from '../workbook/domain/workbook'
 import type { KnownPerson } from '../../../shared/privacy/domain/pseudonyms'
 import { companyReader } from './companyReader'
 import type { CompanyReading, PackReader } from './companyReader'
@@ -45,7 +50,11 @@ const PLACES: readonly AssistantPlace[] = [
   { route: '/company/transactions?tab=rows', title: transactionWords.tabs.rows, params: LEDGER_FILTERS },
   { route: REVIEW_LINK, title: transactionWords.tabs.review, params: { acc: { kind: coreKinds.ACCOUNT_RECORDS.name }, cat: { kind: coreKinds.CATEGORY_RECORDS.name } } },
   { route: '/company/transactions?tab=import', title: transactionWords.tabs.import },
-  { route: '/company/invoicing?tab=invoices', title: invoicingWords.tabs.invoices, params: { client: { kind: coreKinds.CLIENT_RECORDS.name } } },
+  {
+    route: '/company/invoicing?tab=invoices',
+    title: invoicingWords.tabs.invoices,
+    params: { client: { kind: coreKinds.CLIENT_RECORDS.name }, make: { kind: coreKinds.CLIENT_RECORDS.name }, reexport: { kind: coreKinds.INVOICE_RECORDS.name } },
+  },
   { route: '/company/invoicing?tab=plan', title: invoicingWords.tabs.plan, params: { year: 'year', month: 'month' } },
   { route: '/company/invoicing?tab=clients', title: invoicingWords.tabs.clients },
   { route: '/company/analysis?tab=breakdown', title: analysisWords.tabs.breakdown, params: LEDGER_FILTERS },
@@ -62,6 +71,22 @@ const PLACES: readonly AssistantPlace[] = [
 /** What a pack tells the chat beside core, and what it adds to what the chat reads of the company. */
 export interface PackAssistant extends Pick<AppAssistant, 'kinds' | 'settings' | 'places'> {
   reader(reading: CompanyReading): PackReader
+}
+
+/** How a card reads a pack's records, for the kinds it names. Company's own describer reads the rest. */
+export interface PackDescriber extends ProposalDescriber {
+  readonly kinds: ReadonlySet<string>
+}
+
+/** The changes a pack lets the chat propose, which Company's proposer plans in the same write as its own steps. */
+export interface PackOperations {
+  readonly operations: readonly AssistantOperation[]
+  /**
+   * Plans one of the pack's steps through the pack's own write functions, and throws `StepRefused` for one that cannot go.
+   * `idOf` gives the id a value stands for, the id itself or what a `$` name of an earlier step made, such as a category's short name.
+   */
+  plan(unit: UnitOfWork, books: CompanyBooks, step: ProposalStep, idOf: (value: unknown) => string): void
+  describer(workbook: Workbook): PackDescriber
 }
 
 /**

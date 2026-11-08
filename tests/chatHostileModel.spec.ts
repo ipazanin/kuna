@@ -26,6 +26,8 @@ import { newPseudonyms } from '../src/shared/privacy/domain/pseudonyms'
 import type { KnownPerson } from '../src/shared/privacy/domain/pseudonyms'
 import type { AssistantReport } from '../src/shared/app/assistantReader'
 import { EURO } from '../src/shared/money/currencyCode'
+import { kunaAssistant } from '../src/shell/assistant/kunaAssistant'
+import { KUNA_CHAT } from '../src/shell/assistant/kunaChat'
 import { CHAT_BOOK, CHAT_PERSONS, CHAT_READING, IBAN_OF_ANA } from './fixtures/chatBook'
 
 const DOCUMENTS = join(dirname(fileURLToPath(import.meta.url)), 'fixtures/documents')
@@ -60,7 +62,7 @@ const CATALOGUE: Catalogue = catalogueOf(
       },
     },
   ],
-  [{ path: '/settings', title: 'Kuna settings' }],
+  { ...KUNA_CHAT, assistant: kunaAssistant() },
 )
 
 const HOSTILE_PATHS = [

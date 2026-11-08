@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
@@ -36,6 +36,7 @@ const TABS: readonly PageTab[] = [
 const { state } = useWorkbook()
 const ledger = useFilteredLedger()
 const route = useRoute()
+const router = useRouter()
 
 const asOf = computed(() => newestBookingOf(state.workbook?.transactions ?? []))
 const billing = useBillingPlan(asOf)
@@ -50,6 +51,24 @@ function openRun(mode: InvoiceRunMode): void {
   runMode.value = mode
   runOpen.value = true
 }
+
+/**
+ * A link such as the chat's opens the run for a client by `make`, or an invoice's re-export by `reexport`, once the books are
+ * on screen. The address then drops the key, so a reload or Back does not open the run again.
+ */
+watch(
+  () => [route.query.make, route.query.reexport, state.workbook] as const,
+  ([make, reexport, workbook]) => {
+    if (workbook === null || (make === undefined && reexport === undefined)) return
+    if (typeof make === 'string' && workbook.clients.some((client) => client.slug === make)) openRun({ kind: 'new', client: make })
+    else if (typeof reexport === 'string') {
+      const invoice = workbook.invoices.find((candidate) => candidate.id === reexport)
+      if (invoice !== undefined) openRun({ kind: 'reexport', id: invoice.id })
+    }
+    void router.replace({ query: { ...route.query, make: undefined, reexport: undefined }, hash: route.hash })
+  },
+  { immediate: true },
+)
 
 const hasClients = computed(() => (state.workbook?.clients.length ?? 0) > 0)
 

@@ -1,4 +1,4 @@
-import { TEXT, inputOf } from './operationInput'
+import { TEXT, inputOf } from '../../../../shared/app/operationInput'
 import { joinWithTyped, notAPair, pairRows } from '../../statements/application/statementWrites'
 import { reviewQueue } from '../../statements/domain/reviewQueue'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'

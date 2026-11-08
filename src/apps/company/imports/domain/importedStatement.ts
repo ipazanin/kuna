@@ -1,7 +1,12 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../shared/money/money'
+import { addMoney } from '../../../../shared/money/money'
 import type { TransactionSignals } from '../../../../shared/categorising/domain/transactionFacts'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
+import { statementTies, tieRefusal } from './statementTies'
+
+/** The bank's codes of a row whose file gives none. */
+export const NO_SIGNALS: TransactionSignals = { purpose: '', txDomain: '', txFamily: '', txSubFamily: '', creditorReference: '', instructedCurrency: '' }
 
 /** One booked entry of a statement, as the ledger will hold it. */
 export interface ImportedRow {
@@ -22,7 +27,8 @@ export interface ImportedRow {
 }
 
 /** Where a statement came from and which one it is. */
-export type StatementSource = { readonly kind: 'camt'; readonly iban: string; readonly sequence: number } | { readonly kind: 'table'; readonly profile: string; readonly fileHash: string }
+export type StatementSource =
+  { readonly kind: 'camt'; readonly iban: string; readonly sequence: number } | { readonly kind: 'table'; readonly profile: string; readonly fileHash: string } | { readonly kind: 'transcribed' }
 
 /** One statement read from a file: an account's entries in booking order, oldest first. */
 export interface ImportedStatement {
@@ -74,4 +80,23 @@ const TRANSCRIBED_PREFIX = 'read-'
  */
 export function transcribedReferences(account: string, rows: readonly Pick<ImportedRow, 'date' | 'amount'>[]): string[] {
   return occurrenceKeys(rows.map((row) => [account, row.date, String(row.amount)])).map((key) => `${TRANSCRIBED_PREFIX}${key}`)
+}
+
+/** An entry as read off a printed statement. */
+export type TranscribedRow = Pick<ImportedRow, 'date' | 'amount' | 'counterparty' | 'counterpartyIban' | 'description'>
+
+/**
+ * A statement read off a page, its entries oldest first, each with the balance it leaves from the printed opening. It is refused
+ * unless its entries lead from the printed opening to the printed closing balance, since nothing is filled in to close the gap.
+ */
+export function transcribedStatement(account: string, label: string, opening: Money, closing: Money, rows: readonly TranscribedRow[]): ImportedStatement {
+  const tie = statementTies({ opening, amounts: rows.map((row) => row.amount), closing })
+  if (tie.kind === 'off') throw new StatementRefused(tieRefusal(tie))
+  const references = transcribedReferences(account, rows)
+  let balance = opening
+  const entries = rows.map((row, at): ImportedRow => {
+    balance = addMoney(balance, row.amount)
+    return { ...row, balance, reference: references[at]!, signals: NO_SIGNALS, reviewReasons: [] }
+  })
+  return { fileName: label, source: { kind: 'transcribed' }, label, account, opening, closing, rows: entries, notes: [] }
 }

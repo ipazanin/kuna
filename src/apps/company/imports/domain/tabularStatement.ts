@@ -6,7 +6,7 @@ import { occurrenceKeys } from '../../../../shared/text/factKey'
 import { fold, normaliseIban } from '../../../../shared/text/fold'
 import { profileColumns } from './importProfile'
 import type { DateFormat, DecimalMark, ImportProfile } from './importProfile'
-import { StatementRefused } from './importedStatement'
+import { NO_SIGNALS, StatementRefused } from './importedStatement'
 import type { ImportedRow, ImportedStatement, StatementReading } from './importedStatement'
 import { words } from './words'
 
@@ -18,8 +18,6 @@ export type CellGrid = readonly (readonly (StatementCell | undefined)[])[]
 
 /** How far down a file the header row is looked for, past a bank's title and account lines. */
 const HEADER_SEARCH_ROWS = 40
-
-const NO_SIGNALS = { purpose: '', txDomain: '', txFamily: '', txSubFamily: '', creditorReference: '', instructedCurrency: '' } as const
 
 /** The first row that carries every header the profile names, 0-based, or null. */
 export function headerRowOf(grid: CellGrid, profile: ImportProfile): number | null {

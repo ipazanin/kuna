@@ -9,6 +9,7 @@ export interface AssistantOperation {
   /**
    * The input's fields that name a record, each with its kind. A model writes a ref Kuna handed out, or a `$` name of this
    * proposal. A field of the kind `ATTACHMENT_REF` takes the id of a file attached to the chat, and the step gets the file.
+   * A field of a list's items is named by the list and the field, such as `parts.category`.
    */
   readonly refs: Readonly<Record<string, string>>
   /** What it creates that a later step may name by `$`, or null. */

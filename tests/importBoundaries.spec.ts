@@ -431,7 +431,10 @@ describe('import boundaries', () => {
 
     it('reaches an accept only from the card, and no tool holds one', () => {
       const declares = (file: string): boolean =>
-        file === 'src/shared/app/appContribution.ts' || file === 'src/shared/app/assistantOperations.ts' || /^src\/apps\/[^/]+\/(app\.ts$|assistant\/)/.test(file)
+        file === 'src/shared/app/appContribution.ts' ||
+        file === 'src/shared/app/assistantOperations.ts' ||
+        file === 'src/shell/assistant/kunaAssistant.ts' ||
+        /^src\/apps\/[^/]+\/(app\.ts$|assistant\/)/.test(file)
       expect(linesHolding(/\bacceptance\b|\.accept\(/, (file) => file === 'src/shared/ai/presentation/ProposalCard.vue' || declares(file))).toEqual([])
       expect(linesHolding(/\.accept\(/, (file) => file === 'src/shared/ai/presentation/ProposalCard.vue')).toEqual([])
     })
@@ -441,6 +444,25 @@ describe('import boundaries', () => {
       expect(operations.length).toBeGreaterThanOrEqual(2)
       expect(IMPORTS.filter((entry) => operations.includes(entry.from) && entry.target !== null && /^src\/shared\/(secrets|google|sync)\//.test(entry.target))).toEqual([])
       expect(IMPORTS.filter((entry) => CHAT_CODE(entry.from) && !entry.dynamic && entry.target !== null && entry.target.includes('/assistant/operations/'))).toEqual([])
+    })
+
+    it("sets this device's settings only through what Kuna's assistant hands in, so neither reaches a secret, Google or a sync beyond the auto sync switch", () => {
+      expect(
+        IMPORTS.filter((entry) => entry.from === 'src/shell/assistant/kunaOperations.ts' && entry.target !== null && !entry.typeOnly && /^src\/shared\/(secrets|google|sync|ai)\//.test(entry.target)),
+      ).toEqual([])
+      const handedIn = [
+        'src/shared/ai/presentation/chatSession.ts',
+        'src/shared/app/kunaStart.ts',
+        'src/shared/sync/infrastructure/autoSyncSwitch.ts',
+        'src/shared/text/language.ts',
+        'src/shared/theme/theme.ts',
+        'src/shell/routing/appRegistry.ts',
+        'src/shell/assistant/kunaOperations.ts',
+        'src/shell/assistant/words.ts',
+      ]
+      expect(
+        IMPORTS.filter((entry) => entry.from === 'src/shell/assistant/kunaAssistant.ts' && !entry.typeOnly && !handedIn.includes(entry.target ?? entry.specifier)).map((entry) => entry.at),
+      ).toEqual([])
     })
 
     it('touches no browser storage, no cookie and no network itself', () => {

@@ -19,6 +19,7 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { INVOICE_WRITES } from '../application/invoiceWrites'
+import { invoiceDatesProblems } from '../domain/invoiceGuards'
 import { newInvoiceDates } from '../../invoicing/domain/invoiceDates'
 import { words } from './words'
 
@@ -103,20 +104,14 @@ const errors = computed(() => {
   const due = optionalDate(fields.value.due)
   const from = optionalDate(fields.value.period_from)
   const to = optionalDate(fields.value.period_to)
+  const dates = invoiceDatesProblems(issued, due ?? null, from ?? null, to ?? null)
   return {
     number: fields.value.number.trim() === '' ? words.dialog.numberError : null,
     client: fields.value.client === '' ? words.dialog.clientError : null,
     amount: parsedAmount.value === null ? words.dialog.amountError : null,
     issued: issued === null ? words.dialog.issuedError : null,
-    due: due === undefined ? words.dialog.dueError : due !== null && issued !== null && due < issued ? words.dialog.dueBeforeIssue : null,
-    period:
-      from === undefined || to === undefined
-        ? words.dialog.periodError
-        : (from === null) !== (to === null)
-          ? words.dialog.periodBoth
-          : from !== null && to !== null && to < from
-            ? words.dialog.periodOrder
-            : null,
+    due: due === undefined ? words.dialog.dueError : dates.due === 'before-issue' ? words.dialog.dueBeforeIssue : null,
+    period: from === undefined || to === undefined ? words.dialog.periodError : dates.period === 'one-end' ? words.dialog.periodBoth : dates.period === 'order' ? words.dialog.periodOrder : null,
   }
 })
 

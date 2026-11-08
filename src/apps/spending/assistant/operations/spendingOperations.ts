@@ -1,4 +1,4 @@
-import { FLAG_OR_NULL, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, found, inputOf } from './operationInput'
+import { FLAG_OR_NULL, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, found, inputOf } from '../../../../shared/app/operationInput'
 import { proposalGroupsOf, statementLeftOut } from './proposalLines'
 import type { StatementLeftOut } from './proposalLines'
 import { REVIEW_OPERATIONS, writeReviewStep } from './reviewPairs'

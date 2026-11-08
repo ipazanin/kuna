@@ -1,7 +1,7 @@
-import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
-import { StepRefused } from '../../../../shared/app/proposedWrites'
-import { parseCivilDate } from '../../../../shared/calendar/civilDate'
-import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import type { StrictSchema } from '../ai/domain/strictSchema'
+import { StepRefused } from './proposedWrites'
+import { parseCivilDate } from '../calendar/civilDate'
+import type { CivilDate } from '../calendar/civilDate'
 
 export const TEXT: StrictSchema = { type: 'string' }
 export const TEXT_OR_NULL: StrictSchema = { type: ['string', 'null'] }
@@ -26,3 +26,6 @@ export function found<R extends { readonly id: string }>(records: readonly R[], 
   if (record === undefined) throw new StepRefused(`That ${what} is no longer in the file.`)
   return record
 }
+
+/** Why an import reads no statement off an attached photo or PDF: the model reads it and transcribes the rows. */
+export const NOT_READ_OFF_A_PAGE = 'Kuna reads no statement off a photo or a PDF. Read it yourself and transcribe its rows as printed, with file null.'

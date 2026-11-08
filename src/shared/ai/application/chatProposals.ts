@@ -43,22 +43,41 @@ function resolvedStep(app: string, proposer: AppProposer, step: ProposeInput['st
   if (input === null) return `The input of ${operation.name} is not a JSON object.`
   const problems = schemaProblems(input, operation.input)
   if (problems.length > 0) return `${operation.name}: ${problems.join('. ')}`
+  /** The id a ref stands for, a `$` name as it is, or null for neither. */
+  const idOf = (value: unknown, kind: string): string | null => {
+    if (typeof value === 'string' && names.has(value)) return value
+    const record = typeof value === 'string' ? reads.refs.recordOf(value) : null
+    return record === null || record.app !== app || record.kind !== kind ? null : record.id
+  }
+  const notARef = (field: string, kind: string) => `${operation.name}: ${field} is not a ref Kuna handed out for a ${kind}, or a $ name of an earlier step.`
   const resolved: Record<string, unknown> = {}
   for (const [field, value] of Object.entries(input)) {
     const kind = operation.refs[field]
-    if (kind === undefined || value === null) {
+    const itemRefs = Object.entries(operation.refs).flatMap(([name, of]) => (name.startsWith(`${field}.`) ? [[name.slice(field.length + 1), of] as const] : []))
+    if (itemRefs.length > 0 && Array.isArray(value)) {
+      const items: unknown[] = []
+      for (const item of value as readonly Readonly<Record<string, unknown>>[]) {
+        const restored = restoredIn(item, reads.pseudonyms) as Record<string, unknown>
+        for (const [name, of] of itemRefs) {
+          if (restored[name] === null) continue
+          const id = idOf(item[name], of)
+          if (id === null) return notARef(`${field}.${name}`, of)
+          restored[name] = id
+        }
+        items.push(restored)
+      }
+      resolved[field] = items
+    } else if (kind === undefined || value === null) {
       const spellings = typeof value === 'string' && operation.spellings?.includes(field) === true ? reads.pseudonyms.spellingsOf(value) : []
       resolved[field] = spellings.length > 1 ? spellings : restoredIn(value, reads.pseudonyms)
     } else if (kind === ATTACHMENT_REF) {
       const attachment = attachments.find((held) => held.id === value)
       if (attachment === undefined) return `${operation.name}: ${field} is not the id of a file attached to this chat.`
       resolved[field] = attachment
-    } else if (typeof value === 'string' && names.has(value)) {
-      resolved[field] = value
     } else {
-      const record = typeof value === 'string' ? reads.refs.recordOf(value) : null
-      if (record === null || record.app !== app || record.kind !== kind) return `${operation.name}: ${field} is not a ref Kuna handed out for a ${kind}, or a $ name of an earlier step.`
-      resolved[field] = record.id
+      const id = idOf(value, kind)
+      if (id === null) return notARef(field, kind)
+      resolved[field] = id
     }
   }
   if (step.as !== null) {

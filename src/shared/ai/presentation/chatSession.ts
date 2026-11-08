@@ -4,7 +4,7 @@ import type { AppContribution } from '../../app/appContribution'
 import type { CheckedProposal, UndoResult } from '../../app/assistantOperations'
 import { plainAmount } from '../../money/money'
 import { catalogueOf, placeAt } from '../application/catalogue'
-import type { Catalogue, CatalogueScreen } from '../application/catalogue'
+import type { Catalogue } from '../application/catalogue'
 import type { ChatReads } from '../application/chatReads'
 import type { ChatChip } from '../application/chatTools'
 import type { ModelTurn } from '../application/modelPort'
@@ -26,6 +26,7 @@ import type { ProposalState, SavedChat, SavedLine, SavedProposal } from '../appl
 import { modelPort } from '../application/modelAccess'
 import { anonymiseOn, assistOn, modelOf, switchAssist } from '../application/assistSettings'
 import type { ProviderId, ProviderPreset } from '../domain/providerPresets'
+import type { KunaChat } from './chatApps'
 import { imagePartOf } from './imagePartOf'
 import { MOST_RUN_MILLISECONDS, costWords, providerInUse, resultLine } from './useAiTask'
 import { words } from './words'
@@ -159,20 +160,23 @@ let catalogue: Promise<Catalogue> | null = null
  * none of what a person's books decide, so it takes every screen but a first run. A screen that opens one record is
  * taken only when the app declares it as a place, whose parameters a link fills from a record's ref.
  */
-export function loadCatalogue(apps: readonly AppContribution[], kunaScreens: readonly CatalogueScreen[]): Promise<Catalogue> {
-  catalogue ??= Promise.all(
-    apps.map(async (app) => {
-      const assistant = await app.assistant()
-      const linkable = new Set(assistant.places.map((place) => place.route.split('?')[0]))
-      return {
-        id: app.id,
-        name: app.name,
-        purpose: app.homeCard.purpose,
-        screens: app.screens.filter((screen) => screen.bare !== true && (screen.needsRecord !== true || linkable.has(screen.path))).map(({ path, title }) => ({ path, title })),
-        assistant,
-      }
-    }),
-  ).then((catalogueApps) => catalogueOf(catalogueApps, kunaScreens))
+export function loadCatalogue(apps: readonly AppContribution[], kuna: KunaChat): Promise<Catalogue> {
+  catalogue ??= Promise.all([
+    kuna.assistant(),
+    Promise.all(
+      apps.map(async (app) => {
+        const assistant = await app.assistant()
+        const linkable = new Set(assistant.places.map((place) => place.route.split('?')[0]))
+        return {
+          id: app.id,
+          name: app.name,
+          purpose: app.homeCard.purpose,
+          screens: app.screens.filter((screen) => screen.bare !== true && (screen.needsRecord !== true || linkable.has(screen.path))).map(({ path, title }) => ({ path, title })),
+          assistant,
+        }
+      }),
+    ),
+  ]).then(([kunaAssistant, catalogueApps]) => catalogueOf(catalogueApps, { id: kuna.id, name: kuna.name, purpose: kuna.purpose, screens: kuna.screens, assistant: kunaAssistant }))
   return catalogue
 }
 
@@ -213,9 +217,17 @@ function savedLine(line: ChatLine): SavedLine {
 /** The line that says a chat came back, which shows once per restore and is never kept. */
 let restoredNote: string | null = null
 
+/** The latest save of the chat to this browser. */
+let lastKept: Promise<void> = Promise.resolve()
+
 /** Keeps the chat in this browser: what was said and how cards ended, with no tool result, no alias map and nothing to accept. */
 function keepChat(): void {
-  void saveChat({ lines: lines.filter((line) => line.id !== restoredNote).map(savedLine), spent: { ...spent } })
+  lastKept = saveChat({ lines: lines.filter((line) => line.id !== restoredNote).map(savedLine), spent: { ...spent } })
+}
+
+/** Resolves once the chat as it stands is written to this browser, so a reload keeps how each card ended. */
+export function chatKept(): Promise<void> {
+  return lastKept
 }
 
 /** What a card shows after a reload: its outcome, as nothing is left to accept or undo. */

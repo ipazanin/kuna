@@ -16,8 +16,8 @@ export interface ProposalDescriber {
   shown(kind: RecordKind<unknown>, field: string, record: ProposedRecord): string | null
   /** What the record is called on screen, or the write's own label when the app has no better one. */
   label(kind: RecordKind<unknown>, record: ProposedRecord, fallback: string): string
-  /** Whether the field says where money or mail goes, as the record will hold it, or null for a removal. */
-  warns(kind: RecordKind<unknown>, field: string, after: ProposedRecord | null): boolean
+  /** Whether the field says where money or mail goes, from the record as it will be held, null for a removal, and as it was, null for an add. */
+  warns(kind: RecordKind<unknown>, field: string, after: ProposedRecord | null, before: ProposedRecord | null): boolean
   /** Whether the change files a row a person confirmed under another category. Without it, no change does. */
   movesConfirmed?(kind: RecordKind<unknown>, before: ProposedRecord, after: ProposedRecord): boolean
 }
@@ -28,7 +28,7 @@ function lineOf(describer: ProposalDescriber, kind: RecordKind<unknown>, fallbac
   const fields = altered.flatMap((field): ProposalField[] => {
     const was = before === null ? null : describer.shown(kind, field, before)
     const will = after === null ? null : describer.shown(kind, field, after)
-    return was === null && will === null ? [] : [{ name: describer.fieldName(field), before: was, after: will, warns: describer.warns(kind, field, after) }]
+    return was === null && will === null ? [] : [{ name: describer.fieldName(field), before: was, after: will, warns: describer.warns(kind, field, after, before) }]
   })
   const shown = after ?? before
   const movesConfirmed = before !== null && after !== null && describer.movesConfirmed?.(kind, before, after) === true
@@ -39,8 +39,8 @@ function lineOf(describer: ProposalDescriber, kind: RecordKind<unknown>, fallbac
   }
 }
 
-/** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's. A repair or a discard shows no line. */
-export function proposalGroups(checked: CheckedWrite, describer: ProposalDescriber): readonly ProposalGroup[] {
+/** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's, each kind read by its describer. A repair or a discard shows no line. */
+export function proposalGroups(checked: CheckedWrite, describerOf: (kind: RecordKind<unknown>) => ProposalDescriber): readonly ProposalGroup[] {
   const groups = new Map<string, { verb: ProposalGroup['verb']; noun: RecordNoun; lines: ProposalLine[] }>()
   checked.changes.forEach(({ change }, at) => {
     if (change.verb === 'repair' || change.verb === 'discard') return
@@ -50,7 +50,7 @@ export function proposalGroups(checked: CheckedWrite, describer: ProposalDescrib
     const fallback = checked.written[at]?.label ?? checked.found[at]?.label ?? ''
     const before = change.verb === 'add' ? null : (change.before as ProposedRecord)
     const after = change.verb === 'remove' ? null : (change.after as ProposedRecord)
-    group.lines.push(lineOf(describer, change.kind, fallback, before, after))
+    group.lines.push(lineOf(describerOf(change.kind), change.kind, fallback, before, after))
   })
   return [...groups.values()]
 }

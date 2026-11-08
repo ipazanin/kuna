@@ -7,7 +7,7 @@ import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, TRANSA
 import { words } from '../words'
 import type { ProposalGroup, ProposalLine } from '../../../../shared/app/assistantOperations'
 import { proposalGroups } from '../../../../shared/app/proposalGroups'
-import type { ProposedRecord } from '../../../../shared/app/proposalGroups'
+import type { ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { swatchOf } from '../../../../shared/charts/swatches'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
@@ -101,13 +101,14 @@ export function proposalGroupsOf(checked: CheckedWrite, book: SpendingBook, left
   checked.changes.forEach(({ change }) => {
     if (change.verb === 'add' && 'name' in (change.after as object) && 'id' in (change.after as object)) namesOf.set((change.after as { id: string }).id, (change.after as { name: string }).name)
   })
-  const groups = proposalGroups(checked, {
+  const describer: ProposalDescriber = {
     keptByKuna: KEPT_BY_KUNA,
     fieldName,
     shown: (kind, field, record) => shownValue(kind, field, record, book, namesOf),
     label: (kind, record, fallback) => labelOf(kind, record, fallback, namesOf),
     warns: (kind, field, after) => WARNS.has(field) || (field === 'condition' && after !== null && isKind(kind, RULE_RECORDS, after) && after.condition.column === 'counterparty_iban'),
-  })
+  }
+  const groups = proposalGroups(checked, () => describer)
   const line = leftOut === null ? null : leftOutLine(leftOut)
   if (line === null) return groups
   const at = Math.max(

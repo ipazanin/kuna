@@ -117,6 +117,17 @@ describe('a chat kept in this browser', () => {
     expect(second.chatLines.find((line) => line.role === 'user')?.attachments).toEqual(['October.csv'])
   })
 
+  it('is written by the time chatKept resolves, so a reload right after keeps it', async () => {
+    const session = await loadSession()
+    const { storedChat } = await import('../src/shared/ai/infrastructure/chatHistory')
+    port.current = scripted([{ kind: 'answer', text: 'Kept', raw: [], tokens: TOKENS }])
+    await session.sendChatMessage('Keep this', CONTEXT, async () => CATALOGUE)
+
+    await session.chatKept()
+
+    expect(JSON.stringify(await storedChat())).toContain('Keep this')
+  })
+
   it('starts the model fresh after a reload', async () => {
     const first = await loadSession()
     port.current = scripted([{ kind: 'answer', text: 'One', raw: [], tokens: TOKENS }])

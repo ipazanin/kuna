@@ -15,6 +15,9 @@ export class StepRefused extends Error {}
 /** The most changes a card may hold. Larger ones go as several cards, so a person can still read them. */
 const MOST_CHANGES = 200
 
+/** The most statement rows one card imports, which leaves room under the most changes for the accounts, pairs and rules that come with them. */
+export const ROWS_A_PART = 150
+
 /** The books on screen, once the app's file is open. */
 export interface OpenBooks<Books extends BooksRead> {
   readonly workbook: NonNullable<Books['workbook']>

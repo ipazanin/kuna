@@ -16,6 +16,8 @@ import { spendingAssistant } from '../src/apps/spending/assistant/spendingAssist
 import * as spendingKinds from '../src/apps/spending/workbook/domain/spendingKinds'
 import { en as spendingWords, hr as spendingCroatian } from '../src/apps/spending/assistant/words'
 import { catalogueOf, placeAt, recordPageParam } from '../src/shared/ai/application/catalogue'
+import { kunaAssistant } from '../src/shell/assistant/kunaAssistant'
+import { KUNA_CHAT } from '../src/shell/assistant/kunaChat'
 import { words as companyTransactionWords } from '../src/apps/company/transactions/presentation/words'
 import type { CatalogueApp } from '../src/shared/ai/application/catalogue'
 import { words as statementWords } from '../src/apps/spending/statements/presentation/words'
@@ -40,7 +42,7 @@ const APPS: readonly CatalogueApp[] = [
   appOf('assets', ASSETS_ASSISTANT, ['/assets', ASSETS_SETTINGS_ROUTE as `/${string}`]),
   appOf('spending', SPENDING_ASSISTANT, ['/spending', '/spending/transactions', '/spending/budgets', '/spending/accounts', '/spending/account', '/spending/settings']),
 ]
-const KUNA_SCREENS = [{ path: '/settings', title: 'Kuna settings' }] as const
+const KUNA: CatalogueApp = { ...KUNA_CHAT, assistant: kunaAssistant() }
 
 /** The source of each screen a place's tab belongs to, read as text, since a screen needs the Vue compiler to load. */
 function sourceUnder(folder: string): string {
@@ -51,7 +53,7 @@ function sourceUnder(folder: string): string {
 }
 
 describe('the catalogue', () => {
-  const catalogue = catalogueOf(APPS, KUNA_SCREENS)
+  const catalogue = catalogueOf(APPS, KUNA)
 
   it('links each kind with a page of its own to a place of its app that takes a ref of that kind', () => {
     for (const app of APPS) {
@@ -62,7 +64,7 @@ describe('the catalogue', () => {
   })
 
   it('gives the same bytes on every run, as a cached prefix needs', () => {
-    const again = catalogueOf(APPS, KUNA_SCREENS)
+    const again = catalogueOf(APPS, KUNA)
     expect(again.system).toBe(catalogue.system)
     expect([...again.pages]).toEqual([...catalogue.pages])
     expect([...again.routes]).toEqual([...catalogue.routes])
@@ -119,7 +121,7 @@ describe('the catalogue', () => {
 
   describe('the automations', () => {
     it('reaches the chat from one more entry in an app, with no change to the chat', () => {
-      const added = catalogueOf([appOf('loans', { ...LOANS_ASSISTANT, automations: [{ id: 'bank-letter', title: 'Bank letters', what: 'How.', setUpRoute: '/loans' }] }, ['/loans'])], KUNA_SCREENS)
+      const added = catalogueOf([appOf('loans', { ...LOANS_ASSISTANT, automations: [{ id: 'bank-letter', title: 'Bank letters', what: 'How.', setUpRoute: '/loans' }] }, ['/loans'])], KUNA)
       expect(added.pages.get('loans')).toContain('- Bank letters: How. Set up: /loans')
     })
 
@@ -130,7 +132,7 @@ describe('the catalogue', () => {
   })
 
   it("resolves every address a chat can link to one of the app's screens", () => {
-    const screens = [...APPS.flatMap((app) => app.screens.map((screen) => screen.path as string)), ...KUNA_SCREENS.map((screen) => screen.path as string)]
+    const screens = [...APPS.flatMap((app) => app.screens.map((screen) => screen.path as string)), ...KUNA.screens.map((screen) => screen.path as string)]
     for (const route of catalogue.routes.keys()) expect(screens, route).toContain(route.split('?')[0])
   })
 
@@ -231,7 +233,7 @@ describe('what a page says a link and a search take', () => {
         '/spending/transactions',
       ]),
     ],
-    KUNA_SCREENS,
+    KUNA,
   )
 
   it("lists a place's parameters with its address, and keeps what a link fills", () => {

@@ -22,7 +22,7 @@ import ScreenNavigation from './ui/ScreenNavigation.vue'
 import ScreenSkeleton from '../shared/ui/ScreenSkeleton.vue'
 import UpdatePrompt from './ui/UpdatePrompt.vue'
 import { warnWhileSaving } from './ui/warnWhileSaving'
-import { KUNA_SETTINGS_SCREEN, NET_WORTH_SCREEN } from './routing/screens'
+import { KUNA_CHAT } from './assistant/kunaChat'
 
 const props = defineProps<{
   /** Google's answer to a redirect sign-in, taken from the address before the router started. */
@@ -83,7 +83,6 @@ const toaster = computed(() => ({
 
 /** The chat's code loads only once a person with a key opens it. */
 const ChatPanel = defineAsyncComponent(() => import('../shared/ai/presentation/ChatPanel.vue'))
-const KUNA_SCREENS = [NET_WORTH_SCREEN, KUNA_SETTINGS_SCREEN].map(({ path, title }) => ({ path, title }))
 const screenName = computed(() => (typeof route.meta.title === 'string' ? route.meta.title : null))
 
 const uiLocale = language === 'hr' ? hr : en_gb
@@ -106,7 +105,7 @@ const uiLocale = language === 'hr' ? hr : en_gb
         <ScreenNavigation :navigation="navigation" :rail="rail" :chat="chat" @toggle="togglePages" @open="openApp = $event" />
       </template>
       <template #chat>
-        <ChatPanel :app="appOnScreen" :screen="screenName" :path="route.path" :query="route.query" :apps="installedApps()" :kuna-screens="KUNA_SCREENS" />
+        <ChatPanel :app="appOnScreen" :screen="screenName" :path="route.path" :query="route.query" :apps="installedApps()" :kuna="KUNA_CHAT" />
       </template>
       <template v-if="someFileChosen" #sync="{ compact, rail }">
         <TopBarSync :compact="compact" :rail="rail" />

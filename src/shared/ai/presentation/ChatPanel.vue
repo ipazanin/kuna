@@ -11,11 +11,11 @@ import type { AssistantQuickAction } from '../../app/assistantOperations'
 import { usePhoneLayout } from '../../layout/viewport'
 import AppMark from '../../ui/AppMark.vue'
 import RemovableChip from '../../ui/RemovableChip.vue'
-import type { CatalogueScreen } from '../application/catalogue'
 import { today } from '../../calendar/civilDate'
 import { assistOn, switchAssist } from '../application/assistSettings'
 import { ATTACHABLE } from '../domain/chatAttachments'
 import { CHAT_APPS } from './chatApps'
+import type { KunaChat } from './chatApps'
 import GrantCard from './GrantCard.vue'
 import ChatLineView from './ChatLineView.vue'
 import PromptFiles from './PromptFiles.vue'
@@ -57,7 +57,8 @@ const props = defineProps<{
   /** The query, read only to tell which declared tab is open. */
   query: Readonly<Record<string, unknown>>
   apps: readonly AppContribution[]
-  kunaScreens: readonly CatalogueScreen[]
+  /** Kuna itself, whose screens belong to no one app and whose settings of this device the chat may change. */
+  kuna: KunaChat
 }>()
 
 const phone = usePhoneLayout()
@@ -67,7 +68,7 @@ const asking = ref<string | null>(null)
 const readsHere = ref(false)
 const quickActions = ref<readonly AssistantQuickAction[]>([])
 
-provide(CHAT_APPS, props.apps)
+provide(CHAT_APPS, [...props.apps, props.kuna])
 onMounted(() => void restoreChat())
 const panel = useTemplateRef<HTMLElement>('panel')
 
@@ -126,7 +127,7 @@ function run(message: string): void {
   void sendChatMessage(
     message,
     { app: props.app?.name ?? null, screen: props.screen, path: props.path, query: props.query, element: tagged === null ? null : toRaw(tagged.about), today: today() },
-    () => loadCatalogue(props.apps, props.kunaScreens),
+    () => loadCatalogue(props.apps, props.kuna),
   )
 }
 

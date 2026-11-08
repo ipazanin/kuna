@@ -28,7 +28,7 @@ const filed: ProposedRecord = { payee: 'Corner market', category: 'groceries', c
 
 describe('the lines of a proposal', () => {
   it('warn when a change files a confirmed row under another category', () => {
-    const [group] = proposalGroups(checkedOf({ kind: KIND, verb: 'change', before: filed, after: { ...filed, category: 'eating-out' } }), DESCRIBER)
+    const [group] = proposalGroups(checkedOf({ kind: KIND, verb: 'change', before: filed, after: { ...filed, category: 'eating-out' } }), () => DESCRIBER)
 
     expect(group!.lines[0]!.warning).toBe(words.confirmedRowMoves)
   })
@@ -38,12 +38,12 @@ describe('the lines of a proposal', () => {
     const moved: RecordChange = { kind: KIND, verb: 'change', before: filed, after: { ...filed, category: 'eating-out' } }
     const { movesConfirmed: _left, ...plain } = DESCRIBER
 
-    expect(proposalGroups(checkedOf(renamed), DESCRIBER)[0]!.lines[0]!.warning).toBeNull()
-    expect(proposalGroups(checkedOf(moved), plain)[0]!.lines[0]!.warning).toBeNull()
+    expect(proposalGroups(checkedOf(renamed), () => DESCRIBER)[0]!.lines[0]!.warning).toBeNull()
+    expect(proposalGroups(checkedOf(moved), () => plain)[0]!.lines[0]!.warning).toBeNull()
   })
 
   it('never ask about an add or a removal', () => {
-    const groups = proposalGroups(checkedOf({ kind: KIND, verb: 'add', after: filed }, { kind: KIND, verb: 'remove', before: filed }), DESCRIBER)
+    const groups = proposalGroups(checkedOf({ kind: KIND, verb: 'add', after: filed }, { kind: KIND, verb: 'remove', before: filed }), () => DESCRIBER)
 
     expect(groups.flatMap((group) => group.lines.map((line) => line.warning))).toEqual([null, null])
   })

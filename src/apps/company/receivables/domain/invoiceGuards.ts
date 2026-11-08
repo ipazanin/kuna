@@ -1,3 +1,4 @@
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { words } from './words'
 
 /** What the checks need of one invoices row. */
@@ -37,4 +38,18 @@ export function invoiceChangeRefusals(edits: readonly InvoiceEdit[], untouched: 
     }
   }
   return refusals
+}
+
+/** What is wrong with an invoice's dates: a due day before its issue day, and a delivery period with one end only or ending before it starts. */
+export interface InvoiceDatesProblems {
+  readonly due: 'before-issue' | null
+  readonly period: 'one-end' | 'order' | null
+}
+
+/** An invoice falls due on or after its issue day, and its delivery period has both ends or none, the first not after the last. */
+export function invoiceDatesProblems(issued: CivilDate | null, due: CivilDate | null, from: CivilDate | null, to: CivilDate | null): InvoiceDatesProblems {
+  return {
+    due: due !== null && issued !== null && due < issued ? 'before-issue' : null,
+    period: (from === null) !== (to === null) ? 'one-end' : from !== null && to !== null && to < from ? 'order' : null,
+  }
 }

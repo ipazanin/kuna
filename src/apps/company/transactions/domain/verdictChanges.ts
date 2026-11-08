@@ -1,6 +1,7 @@
 import { filedIn } from '../../owner-share/domain/ownerShare'
 import type { ShareDefault } from '../../owner-share/domain/ownerShare'
 import { categorise } from '../../../../shared/categorising/domain/categorise'
+import type { Verdict } from '../../../../shared/categorising/domain/categorise'
 import type { Rule } from '../../../../shared/categorising/domain/rule'
 import type { CategorisableRow, CategorisationContext } from '../../../../shared/categorising/domain/transactionFacts'
 import type { Settings } from '../../settings/domain/settings'
@@ -64,4 +65,14 @@ export function waitingRowsSettledBy(ruleId: string, transactions: readonly (Rev
     verdicts.push({ id: transaction.id, verdict: { category: verdict.category, flaggedBy: 'rule' } })
   }
   return verdicts
+}
+
+/**
+ * The rows a person confirmed that a rule now files elsewhere, out of the rows whose verdict a rule change alters. Each takes the
+ * rule's category and `rule`. Rows another rule decides, or the rule leaves waiting, are not among them.
+ */
+export function confirmedRowsRefiledBy(ruleId: string, conflicts: readonly { readonly transaction: Pick<Transaction, 'id'>; readonly after: Verdict }[]): RowVerdict[] {
+  return conflicts
+    .filter(({ after }) => after.flaggedBy === 'rule' && after.ruleId?.toLowerCase() === ruleId.toLowerCase())
+    .map(({ transaction, after }) => ({ id: transaction.id, verdict: { category: after.category, flaggedBy: 'rule' } }))
 }

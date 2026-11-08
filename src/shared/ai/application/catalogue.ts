@@ -152,11 +152,7 @@ function reportPage(report: AssistantReport): string {
   return [`# ${report.id}`, report.about, `The period is a ${report.period}, such as ${report.period === 'month' ? '2026-10' : '2026-10-31'}, or null for the current one.`].join('\n')
 }
 
-function kunaPage(screens: readonly CatalogueScreen[]): string {
-  return ['# Kuna', 'Screens that belong to no one app.', ...section('Screens', [...screens.map((screen) => `- ${screen.title}: ${screen.path}`)])].join('\n')
-}
-
-function systemOf(apps: readonly CatalogueApp[]): string {
+function systemOf(apps: readonly CatalogueApp[], kuna: CatalogueApp): string {
   return [
     "You are the assistant inside Kuna, an app that keeps a person's company books, loans, investments, assets and spending in their own files, computed in the browser.",
     '',
@@ -196,25 +192,29 @@ function systemOf(apps: readonly CatalogueApp[]): string {
     '- When the person is already on the screen or tab your answer is about, say they are there instead of sending them to it, and point at what is on it.',
     '',
     '# Pages',
-    '- kuna: screens that belong to no one app',
+    `- ${kuna.id}: ${kuna.purpose}`,
     ...apps.map((app) => `- ${app.id}: ${app.name}. ${app.purpose}`),
   ].join('\n')
 }
 
-/** Builds what a chat knows. Given the same apps it gives the same bytes, with no dates and nothing from a person's books, whose readers it only holds on to. */
-export function catalogueOf(apps: readonly CatalogueApp[], kunaScreens: readonly CatalogueScreen[]): Catalogue {
-  const pages = new Map<string, string>([['kuna', kunaPage(kunaScreens)]])
-  const routes = new Map<string, string>(kunaScreens.map((screen) => [screen.path, screen.title]))
+/**
+ * Builds what a chat knows. Given the same apps it gives the same bytes, with no dates and nothing from a person's books, whose readers it only holds on to.
+ * Kuna itself is read as an app whose screens belong to no one app, so its links carry their own titles.
+ */
+export function catalogueOf(apps: readonly CatalogueApp[], kuna: CatalogueApp): Catalogue {
+  const pages = new Map<string, string>()
+  const routes = new Map<string, string>(kuna.screens.map((screen) => [screen.path, screen.title]))
   const places = new Map<string, string>()
   const placeParams = new Map<string, PlaceParams>()
   const readers = new Map<string, { readonly name: string; readonly reader: AppReader }>()
   const proposers = new Map<string, AppProposer>()
-  for (const app of apps) {
+  const everyApp = [kuna, ...apps]
+  for (const app of everyApp) {
     for (const place of app.assistant.places) {
       if (place.params !== undefined) placeParams.set(place.route, { app: app.id, params: place.params })
     }
   }
-  for (const app of apps) {
+  for (const app of everyApp) {
     pages.set(app.id, appPage(app))
     if (app.assistant.reader !== null) readers.set(app.id, { name: app.name, reader: app.assistant.reader })
     if (app.assistant.proposer !== null) proposers.set(app.id, app.assistant.proposer)
@@ -222,13 +222,13 @@ export function catalogueOf(apps: readonly CatalogueApp[], kunaScreens: readonly
     for (const kind of app.assistant.reader?.kinds ?? []) pages.set(`${app.id}/kind/${kind.name}`, kindPage(kind, recordPageParam(placeParams, app.id, kind) !== null))
     for (const report of app.assistant.reader?.reports ?? []) pages.set(`${app.id}/report/${report.id}`, reportPage(report))
     for (const guide of app.assistant.guides) pages.set(`${app.id}/guide/${guide.id}`, [`# ${guide.title}`, guide.body, ...section('Places', [...guide.places])].join('\n'))
-    for (const screen of app.screens) routes.set(screen.path, `${app.name}: ${screen.title}`)
+    for (const screen of app === kuna ? [] : app.screens) routes.set(screen.path, `${app.name}: ${screen.title}`)
     for (const place of app.assistant.places) {
       routes.set(place.route, `${app.name}: ${place.title}`)
       places.set(place.route, place.title)
     }
   }
-  return { system: systemOf(apps), pages, routes, places, placeParams, readers, proposers, persons: () => apps.flatMap((app) => app.assistant.persons()) }
+  return { system: systemOf(apps, kuna), pages, routes, places, placeParams, readers, proposers, persons: () => everyApp.flatMap((app) => app.assistant.persons()) }
 }
 
 /** The declared place a person is on, matched by its path and every query value its address names. No other part of the query is read, as filters can hold names. */

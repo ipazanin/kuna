@@ -3,16 +3,22 @@ import type { UnitOfWork } from '../../../../shared/storage/application/reposito
 import { SETTING_RECORDS } from '../../workbook/domain/coreKinds'
 import { recordIdOf } from '../../../../shared/storage/domain/recordId'
 import { recordsOf, storedOf } from '../../../../shared/storage/domain/recordsRead'
-import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
+import type { RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { slugOf } from '../../../../shared/storage/domain/storedFields'
 import { personPayeesOf, personPayeesText, withPayeeAsPerson } from '../../../../shared/privacy/domain/personPayees'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 import { PERSON_PAYEES_KEY, heldSettingValue, readSettingsTab } from '../domain/settings'
 import type { SettingEntry, SettingRow } from '../domain/settings'
+import { words as settingWords } from '../domain/words'
 import { words } from './words'
 
+/** What the settings reader reports of the records, which a write may not add to. A key nothing reads is kept and not used, so putting one back, as Undo of its removal does, is left out. */
+function readProblems(read: RecordsRead<SettingRow>): RecordProblem[] {
+  return readSettingsTab(recordsOf(read), installedPack().workbook?.settings ?? null).problems.filter((problem) => problem.reason !== settingWords.settings.unknownKey)
+}
+
 function problemsOf(read: RecordsRead<SettingRow>): string[] {
-  return readSettingsTab(recordsOf(read), installedPack().workbook?.settings ?? null).problems.map((problem) => `${problem.label}: ${problem.reason}`)
+  return readProblems(read).map((problem) => `${problem.label}: ${problem.reason}`)
 }
 
 /**
@@ -25,7 +31,7 @@ export const SETTING_WRITES: WriteRules<SettingRow> = {
   undoable: true,
   read: (read) => ({
     facts: read.records.flatMap((stored) => (stored.id === null ? [] : [{ id: stored.id }])),
-    problems: readSettingsTab(recordsOf(read), installedPack().workbook?.settings ?? null).problems,
+    problems: readProblems(read),
   }),
   refusals: (change) => {
     const stored = storedOf(change.before)

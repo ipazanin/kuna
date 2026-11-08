@@ -66,6 +66,17 @@ export function recordsOfKindIn<R>(records: WorkbookRecords, kind: RecordKind<R>
   return part === undefined ? recordsOfKind(records.pack, kind) : (records[part] as RecordsRead<unknown> as RecordsRead<R>)
 }
 
+/** Whether the records hold a kind, core's or the installed pack's. */
+export function holdsKind(records: WorkbookRecords, kind: RecordKind<unknown>): boolean {
+  return CORE_PARTS.has(kind.name) || records.pack.has(kind.name)
+}
+
+/** The records with what they hold of one kind put in place, core's or the installed pack's. */
+export function withRecordsOfKind<R>(records: WorkbookRecords, kind: RecordKind<R>, read: RecordsRead<R>): WorkbookRecords {
+  const part = CORE_PARTS.get(kind.name)
+  return part === undefined ? { ...records, pack: new Map([...records.pack, [kind.name, read as RecordsRead<unknown>]]) } : { ...records, [part]: read }
+}
+
 /** The records of every kind, core's and the pack's, as `of` gives each kind. */
 export function workbookRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>, pack: PackPart<unknown, unknown> | null): WorkbookRecords {
   return {

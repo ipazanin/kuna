@@ -1,4 +1,4 @@
-import { NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, inputOf } from './operationInput'
+import { NOT_READ_OFF_A_PAGE, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, inputOf } from '../../../../shared/app/operationInput'
 import { revolutStatement } from '../../statements/domain/revolutStatement'
 import { transcribedImportKeys } from '../../statements/domain/statementRows'
 import type { StatementRow, StatementRows } from '../../statements/domain/statementRows'
@@ -10,13 +10,10 @@ import { words } from '../words'
 import type { ChatAttachment } from '../../../../shared/ai/domain/chatAttachments'
 import { ATTACHMENT_REF } from '../../../../shared/app/assistantOperations'
 import type { AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
-import { StepRefused } from '../../../../shared/app/proposedWrites'
+import { ROWS_A_PART, StepRefused } from '../../../../shared/app/proposedWrites'
 import { accountMoneyFromAmount } from '../../../../shared/money/accountMoney'
 import { normaliseIban } from '../../../../shared/text/fold'
 import { readFirstSheet } from '../../../../shared/xlsx/sheetGrids'
-
-/** The most statement rows one card imports. A card holds 200 changes, and this leaves room for the pairs and rules that come with them. */
-export const ROWS_A_PART = 150
 
 export const IMPORT_STATEMENT: AssistantOperation = {
   name: 'import-statement',
@@ -78,7 +75,7 @@ async function sheetOf(file: unknown): Promise<SheetRead | string> {
   switch (file.kind) {
     case 'photo':
     case 'pdf':
-      return 'Kuna reads no statement off a photo or a PDF. Read it yourself and transcribe its rows as printed, with file null.'
+      return NOT_READ_OFF_A_PAGE
     case 'xml':
       return "Spending reads only Revolut's export, as a sheet or a CSV."
     case 'sheet':
