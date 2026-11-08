@@ -28,7 +28,15 @@ const emit = defineEmits<{ retry: [message: string] }>()
   </div>
   <p v-if="line.note" class="type-caption" data-testid="chat-note">{{ line.text }}</p>
   <UChatShimmer v-else-if="line.text === '' && line.failure === null && streaming" :text="words.chat.thinking" class="type-body" data-testid="chat-thinking" />
-  <ChatMessageText v-else-if="line.text !== '' && line.role === 'user'" :text="line.text" data-testid="chat-question" />
+  <template v-else-if="line.role === 'user'">
+    <ChatMessageText v-if="line.text !== ''" :text="line.text" data-testid="chat-question" />
+    <ul v-if="line.attachments.length > 0" class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5" :aria-label="words.files.sentWith" data-testid="chat-question-files">
+      <li v-for="(name, at) in line.attachments" :key="at" class="flex min-w-0 items-center gap-1 type-caption">
+        <UIcon name="i-lucide-paperclip" class="size-3.5 shrink-0" aria-hidden="true" />
+        <span class="wrap-anywhere">{{ name }}</span>
+      </li>
+    </ul>
+  </template>
   <ChatMessageText v-else-if="line.text !== ''" :text="shownOnScreen(line.text)" :figure="chatFigure" data-testid="chat-answer" />
   <p v-if="line.strayFigure" class="mt-1.5 flex items-start gap-1.5 type-caption text-warning" data-testid="chat-stray">
     <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />

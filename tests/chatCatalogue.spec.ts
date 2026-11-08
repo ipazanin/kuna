@@ -15,16 +15,17 @@ import { loansAssistant } from '../src/apps/loans/assistant/loansAssistant'
 import { spendingAssistant } from '../src/apps/spending/assistant/spendingAssistant'
 import * as spendingKinds from '../src/apps/spending/workbook/domain/spendingKinds'
 import { en as spendingWords, hr as spendingCroatian } from '../src/apps/spending/assistant/words'
-import { catalogueOf, placeAt } from '../src/shared/ai/application/catalogue'
+import { catalogueOf, placeAt, recordPageParam } from '../src/shared/ai/application/catalogue'
 import { words as companyTransactionWords } from '../src/apps/company/transactions/presentation/words'
 import type { CatalogueApp } from '../src/shared/ai/application/catalogue'
 import { words as statementWords } from '../src/apps/spending/statements/presentation/words'
 
 import { CHAT_READING } from './fixtures/chatBook'
+import { fakeCompanyBooks, readingOf } from './fixtures/companyChatBooks'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
-const COMPANY = companyAssistant(HR_DOO_ASSISTANT, () => [])
+const COMPANY = companyAssistant(HR_DOO_ASSISTANT, readingOf(fakeCompanyBooks()), () => [])
 const LOANS_ASSISTANT = loansAssistant(() => null)
 const SPENDING_ASSISTANT = spendingAssistant(CHAT_READING)
 
@@ -33,11 +34,11 @@ function appOf(id: string, assistant: CatalogueApp['assistant'], paths: readonly
 }
 
 const APPS: readonly CatalogueApp[] = [
-  appOf('company', COMPANY, ['/company', '/company/transactions', '/company/settings']),
+  appOf('company', COMPANY, ['/company', '/company/transactions', '/company/invoicing', '/company/analysis', '/company/owner', '/company/year', '/company/salaries', '/company/settings']),
   appOf('loans', LOANS_ASSISTANT, ['/loans']),
   appOf('investments', INVESTMENTS_ASSISTANT, ['/investments', '/investments/settings']),
   appOf('assets', ASSETS_ASSISTANT, ['/assets', ASSETS_SETTINGS_ROUTE as `/${string}`]),
-  appOf('spending', SPENDING_ASSISTANT, ['/spending', '/spending/transactions', '/spending/budgets', '/spending/settings']),
+  appOf('spending', SPENDING_ASSISTANT, ['/spending', '/spending/transactions', '/spending/budgets', '/spending/accounts', '/spending/account', '/spending/settings']),
 ]
 const KUNA_SCREENS = [{ path: '/settings', title: 'Kuna settings' }] as const
 
@@ -52,6 +53,14 @@ function sourceUnder(folder: string): string {
 describe('the catalogue', () => {
   const catalogue = catalogueOf(APPS, KUNA_SCREENS)
 
+  it('links each kind with a page of its own to a place of its app that takes a ref of that kind', () => {
+    for (const app of APPS) {
+      for (const kind of app.assistant.reader?.kinds ?? []) {
+        if (kind.page !== undefined) expect(recordPageParam(catalogue.placeParams, app.id, kind), `${app.id}/${kind.name}`).not.toBeNull()
+      }
+    }
+  })
+
   it('gives the same bytes on every run, as a cached prefix needs', () => {
     const again = catalogueOf(APPS, KUNA_SCREENS)
     expect(again.system).toBe(catalogue.system)
@@ -61,7 +70,7 @@ describe('the catalogue', () => {
 
   it('finds the place a person is on by the query values it names, and only those', () => {
     expect(placeAt(catalogue, '/company/transactions', { tab: 'review', counterparty: 'anyone' })).toEqual({ address: '/company/transactions?tab=review', title: companyTransactionWords.tabs.review })
-    expect(placeAt(catalogue, '/company/transactions', { tab: 'rows' })).toBeNull()
+    expect(placeAt(catalogue, '/company/invoicing', { tab: 'review' })).toBeNull()
     expect(placeAt(catalogue, '/company/transactions', {})).toBeNull()
   })
 
@@ -98,7 +107,7 @@ describe('the catalogue', () => {
   })
 
   it('lets the chat read only an app that offers a reader', () => {
-    expect([...catalogue.readers.keys()]).toEqual(['spending'])
+    expect([...catalogue.readers.keys()]).toEqual(['company', 'spending'])
   })
 
   it('tells the model what a read holds: data, aliases, and no amount of its own', () => {
@@ -142,23 +151,28 @@ describe('the catalogue', () => {
     expect(catalogue.system).not.toContain('github.com')
   })
 
-  it('links each place to a screen of its app and a tab that screen has', () => {
+  it('links each place to a screen of its app, and a tab to a tab that screen has', () => {
     const owners: Readonly<Record<string, string>> = {
       '/company/settings': 'src/apps/company/settings/presentation',
       '/company/transactions': 'src/apps/company/transactions/presentation',
+      '/company/invoicing': 'src/apps/company/invoicing/presentation',
+      '/company/analysis': 'src/apps/company/analysis/presentation',
+      '/company/owner': 'src/apps/company/packs/hr-doo/presentation',
+      '/company/year': 'src/apps/company/packs/hr-doo/domain',
+      '/company/salaries': 'src/apps/company/packs/hr-doo/presentation/salaries',
       '/investments/settings': 'src/apps/investments/settings/presentation',
       '/spending/settings': 'src/apps/spending/settings/presentation',
       '/spending/transactions': 'src/apps/spending/entries/presentation',
     }
     for (const app of APPS) {
       for (const place of app.assistant.places) {
-        const [path, query] = place.route.split('?') as [string, string]
+        const [path, query = ''] = place.route.split('?') as [string, string?]
         expect(
           app.screens.map((screen) => screen.path as string),
           place.route,
         ).toContain(path)
-        const tab = new URLSearchParams(query).get('tab')!
-        expect(sourceUnder(owners[path]!), place.route).toMatch(new RegExp(`['"\`]${tab}['"\`]|_TAB\\b`))
+        const tab = new URLSearchParams(query).get('tab')
+        if (tab !== null) expect(sourceUnder(owners[path]!), place.route).toMatch(new RegExp(`['"\`]${tab}['"\`]|_TAB\\b`))
       }
     }
   })
@@ -206,5 +220,35 @@ describe('the catalogue', () => {
       expect(words.guides.rules.body(labels)).toContain('A')
       expect(Object.keys(words.guides)).toEqual(['rules', 'import', 'bankSync', 'limits', 'categories'])
     }
+  })
+})
+
+describe('what a page says a link and a search take', () => {
+  const catalogue = catalogueOf(
+    [
+      appOf('spending', { ...SPENDING_ASSISTANT, places: [...SPENDING_ASSISTANT.places, { route: '/spending/account', title: 'Account', params: { account: { kind: 'account' } } }] }, [
+        '/spending',
+        '/spending/transactions',
+      ]),
+    ],
+    KUNA_SCREENS,
+  )
+
+  it("lists a place's parameters with its address, and keeps what a link fills", () => {
+    expect(catalogue.pages.get('spending')).toContain('- Account: /spending/account. Takes account (a ref of the kind account)')
+    expect(catalogue.placeParams.get('/spending/account')).toEqual({ app: 'spending', params: { account: { kind: 'account' } } })
+  })
+
+  it('names the sets a search keeps to, and says which kind links to its own page', () => {
+    expect(catalogue.pages.get('spending/kind/transaction')).toContain('## Sets find_records keeps to with only\n- waiting: ')
+    expect(catalogue.pages.get('spending/kind/account')).toContain('A ref of one links to its own page')
+    expect(catalogue.pages.get('spending/kind/category')).not.toContain('own page')
+  })
+
+  it('tells the model how files, statements and build-ups are read', () => {
+    expect(catalogue.system).toContain('read_attachment')
+    expect(catalogue.system).toContain('Never fill in a balance')
+    expect(catalogue.system).toContain('read_build_up')
+    expect(catalogue.system).not.toContain('by its label only')
   })
 })

@@ -1,3 +1,4 @@
+import { base64OfBytes } from '../../text/base64'
 import type { AiImagePart } from '../domain/aiTask'
 
 /** Enough pixels to read a till's small print, about 2,300 of Anthropic's image tokens. An area, since a long edge alone leaves a tall receipt too narrow to read. */
@@ -20,13 +21,6 @@ function jpegOf(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
   })
 }
 
-async function base64Of(blob: Blob): Promise<string> {
-  const bytes = new Uint8Array(await blob.arrayBuffer())
-  let text = ''
-  for (let start = 0; start < bytes.length; start += 0x8000) text += String.fromCharCode(...bytes.subarray(start, start + 0x8000))
-  return btoa(text)
-}
-
 /**
  * A photo as a task sends it: a JPEG every provider reads, downscaled here, which also drops the camera's EXIF block with any
  * GPS. Throws for a photo this browser cannot decode, such as a HEIC on Firefox.
@@ -46,7 +40,7 @@ export async function imagePartOf(photo: Blob): Promise<AiImagePart> {
       if (jpeg.size <= MOST_BYTES) break
       jpeg = await jpegOf(canvas, quality)
     }
-    return { kind: 'image', mediaType: 'image/jpeg', base64: await base64Of(jpeg), width, height }
+    return { kind: 'image', mediaType: 'image/jpeg', base64: base64OfBytes(new Uint8Array(await jpeg.arrayBuffer())), width, height }
   } finally {
     bitmap.close()
   }

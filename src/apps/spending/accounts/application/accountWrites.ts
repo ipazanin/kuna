@@ -23,7 +23,13 @@ export const ACCOUNT_WRITES: WriteRules<Account> = {
   },
 }
 
-/** A new account, its text trimmed, with an id of its own. */
+/** An account as the file keeps it: its text trimmed, and cash with no bank and no IBAN. */
+export function keptAccount(account: Account): Account {
+  const cash = account.kind === 'cash'
+  return { ...account, name: account.name.trim(), bank: cash ? null : account.bank, iban: cash ? '' : account.iban.trim() }
+}
+
+/** A new account as the file keeps it, with an id of its own. */
 export function newAccount(account: Omit<Account, 'id'>): Account {
-  return { ...account, name: account.name.trim(), iban: account.iban.trim(), id: recordIdOf(ACCOUNT_RECORDS, newRecordId()) }
+  return keptAccount({ ...account, id: recordIdOf(ACCOUNT_RECORDS, newRecordId()) })
 }

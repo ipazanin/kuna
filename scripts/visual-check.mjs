@@ -450,8 +450,15 @@ import {
   chatReadFlowIn,
   reviewFlagPersonFlowIn,
   spendingFlagPersonFlowIn,
-  chatTagFlow,
+  chatTagFlowIn,
+  chatAttachFlow,
+  chatAttachPdfOpenRouterFlow,
+  chatAttachDropFlow,
+  chatConsentFilesFlow,
+  chatQuestionFilesFlow,
+  chatStatementCardFlowIn,
 } from './support/editorFlows.mjs'
+import { writeChatAttachmentSamples } from './support/chatAttachmentFiles.mjs'
 import { writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
 import { screenMenusFlow } from './support/menuFlows.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
@@ -4539,6 +4546,7 @@ const IMPORT_FILE = writeImportFile()
 const IMPORT_SAMPLES = await writeImportSamples(SCREENSHOT_DIR)
 const SPENDING_IMPORT_SAMPLES = writeSpendingImportSamples(SCREENSHOT_DIR)
 const SPENDING_RECEIPT_SAMPLES = writeSpendingReceiptSamples(SCREENSHOT_DIR)
+const CHAT_ATTACHMENT_SAMPLES = await writeChatAttachmentSamples(SCREENSHOT_DIR)
 const WORKBOOK_SAMPLES = await writeWorkbookSamples(SCREENSHOT_DIR)
 const CLOSES_SAMPLES = writeClosesSamples(SCREENSHOT_DIR)
 
@@ -4625,7 +4633,78 @@ const FLOWS = [
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&lang=hr' },
   },
-  { name: 'chat-tag', hash: '#/gallery', title: 'Gallery', run: chatTagFlow },
+  // The gallery is in English alone, so the chat's Croatian twins open the chat on the Croatian home. The tag has none until a screen tags an element.
+  { name: 'chat-tag', hash: '#/gallery', title: 'Gallery', run: chatTagFlowIn('en'), viewports: DESIGN_REVIEW_VIEWPORTS },
+  { name: 'chat-attach-photo', hash: '#/gallery', title: 'Gallery', run: chatAttachFlow('photo', CHAT_ATTACHMENT_SAMPLES), modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS },
+  {
+    name: 'chat-attach-photo-croatian',
+    hash: '#/',
+    title: 'Sve aplikacije',
+    run: chatAttachFlow('photo', CHAT_ATTACHMENT_SAMPLES, 'hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&lang=hr' },
+  },
+  { name: 'chat-attach-pdf', hash: '#/gallery', title: 'Gallery', run: chatAttachFlow('pdf', CHAT_ATTACHMENT_SAMPLES), modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS },
+  {
+    name: 'chat-attach-pdf-croatian',
+    hash: '#/',
+    title: 'Sve aplikacije',
+    run: chatAttachFlow('pdf', CHAT_ATTACHMENT_SAMPLES, 'hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&lang=hr' },
+  },
+  { name: 'chat-attach-sheet', hash: '#/gallery', title: 'Gallery', run: chatAttachFlow('sheet', CHAT_ATTACHMENT_SAMPLES), modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS },
+  { name: 'chat-attach-pdf-openrouter', hash: '#/gallery', title: 'Gallery', run: chatAttachPdfOpenRouterFlow(CHAT_ATTACHMENT_SAMPLES), modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS },
+  { name: 'chat-attach-drop', hash: '#/gallery', title: 'Gallery', run: chatAttachDropFlow(), modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS },
+  {
+    name: 'chat-attach-drop-croatian',
+    hash: '#/',
+    title: 'Sve aplikacije',
+    run: chatAttachDropFlow('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample&lang=hr' },
+  },
+  { name: 'chat-question-files', hash: '#/gallery', title: 'Gallery', run: chatQuestionFilesFlow(CHAT_ATTACHMENT_SAMPLES), modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS },
+  {
+    name: 'chat-question-files-croatian',
+    hash: '#/',
+    title: 'Sve aplikacije',
+    run: chatQuestionFilesFlow(CHAT_ATTACHMENT_SAMPLES, 'hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&lang=hr' },
+  },
+  { name: 'chat-consent-files', hash: '#/gallery', title: 'Gallery', run: chatConsentFilesFlow(CHAT_ATTACHMENT_SAMPLES), modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS },
+  {
+    name: 'chat-consent-files-croatian',
+    hash: '#/',
+    title: 'Sve aplikacije',
+    run: chatConsentFilesFlow(CHAT_ATTACHMENT_SAMPLES, 'hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&lang=hr' },
+  },
+  {
+    name: 'chat-statement-card',
+    hash: '#/spending/transactions?tab=import',
+    title: 'Entries',
+    run: chatStatementCardFlowIn('en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample' },
+  },
+  {
+    name: 'chat-statement-card-croatian',
+    hash: '#/spending/transactions?tab=import',
+    title: 'Unosi',
+    run: chatStatementCardFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample&lang=hr' },
+  },
   { name: 'page-tabs', hash: '#/company/settings', title: 'Settings', run: pageTabsFlow },
   { name: 'year-tab-link', hash: '#/company/year?tab=statements', title: 'Year', run: yearTabLinkFlow },
   { name: 'page-tabs-croatian', hash: '#/company/settings', title: 'Postavke', run: pageTabsFlowIn('hr'), queries: { drive: '&lang=hr', browser: '&fake=browser&lang=hr' } },
@@ -6126,6 +6205,10 @@ if (unmatched !== null) {
 const shared = selection.share([...chosenVisits, ...chosenFlows].map((checked) => checked.name))
 const visits = chosenVisits.filter((visit) => shared.has(visit.name))
 const flows = chosenFlows.filter((flow) => shared.has(flow.name))
+// A flow that fails fails the run and leaves a `-failed` shot. One left by an earlier run is removed, so a review never reads it as this run's.
+for (const stale of readdirSync(SCREENSHOT_DIR).filter((file) => flows.some((flow) => file.includes(`-${flow.name}-failed-`)))) {
+  rmSync(join(SCREENSHOT_DIR, stale))
+}
 
 const browser = await launch({ executablePath: chromePath(), headless: true, args: ['--hide-scrollbars', ENGLISH_CHROME_ARG] })
 let checked = 0

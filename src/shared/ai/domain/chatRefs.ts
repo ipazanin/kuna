@@ -1,6 +1,7 @@
 import type { AccountMoney } from '../../money/accountMoney'
 import type { CurrencyCode } from '../../money/currencyCode'
 import type { Money } from '../../money/money'
+import type { ChatElementAbout } from './chatElement'
 import { figuresIn, holdsStrayFigure } from './citedAnswer'
 
 /** An amount Kuna computed, in the app's own currency or in an account's, as the figure says. */
@@ -8,6 +9,9 @@ export type FigureAmount = { readonly of: 'app'; readonly cents: Money; readonly
 
 /** A figure Kuna computed and handed to the model under a ref. */
 export type ChatFigure = FigureAmount & { readonly ref: string }
+
+/** A figure's build-up a person tagged, which the chat holds in memory and `read_build_up` reads. */
+export type ChatBuildUp = Extract<ChatElementAbout, { readonly kind: 'build-up' }>
 
 /** The record a ref stands for. */
 export interface RecordOfRef {
@@ -23,6 +27,9 @@ export interface RecordOfRef {
 export interface ChatRefs {
   recordRef(record: RecordOfRef): string
   recordOf(ref: string): RecordOfRef | null
+  /** The ref of a build-up, the same one for the same build-up through the chat. */
+  buildUpRef(buildUp: ChatBuildUp): string
+  buildUpOf(ref: string): ChatBuildUp | null
   figureRef(key: string, amount: FigureAmount): string
   figureOf(ref: string): ChatFigure | null
   /** An amount a tool returned without a ref, such as a record's. */
@@ -42,6 +49,7 @@ export function chatRefs(): ChatRefs {
   const records = new Map<string, RecordOfRef>()
   const recordRefs = new Map<string, string>()
   const counts = new Map<string, number>()
+  const buildUps = new Map<string, ChatBuildUp>()
   const figures = new Map<string, ChatFigure>()
   const figureRefs = new Map<string, string>()
   const amounts = new Set<number>()
@@ -59,6 +67,14 @@ export function chatRefs(): ChatRefs {
       return ref
     },
     recordOf: (ref) => records.get(ref) ?? null,
+    buildUpRef(buildUp) {
+      const known = [...buildUps].find(([, held]) => held === buildUp)?.[0]
+      if (known !== undefined) return known
+      const ref = `build-up-${buildUps.size + 1}`
+      buildUps.set(ref, buildUp)
+      return ref
+    },
+    buildUpOf: (ref) => buildUps.get(ref) ?? null,
     figureRef(key, amount) {
       amounts.add(Math.abs(amount.cents))
       const held = figureRefs.get(key)

@@ -93,6 +93,8 @@ export interface AssistantReport {
   readonly title: string
   readonly about: string
   readonly period: 'month' | 'day'
+  /** Set on a report that holds employees' pay, which stays on the device while Anonymise is on and the app knows an employee. */
+  readonly employees?: true
   /** The figures of the period, or of the current one for null. Throws a RangeError for a period that does not read as one. */
   figures(period: string | null): readonly ReportFigure[]
 }
@@ -103,6 +105,8 @@ export interface TraceRules {
   versionsOf(trace: FigureTrace): readonly object[]
   /** The day the rules' sources were last checked. */
   readonly checkedSince: string
+  /** The ref kind a rule's page takes as its parameter, so a build-up hands out a ref for each rule it cites. */
+  readonly ruleKind?: string
 }
 
 /** What the chat can read of an app, once the person allows it. Nothing here writes. */

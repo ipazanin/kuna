@@ -9,6 +9,9 @@ import { chatRefs } from '../src/shared/ai/domain/chatRefs'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import { newPseudonyms } from '../src/shared/privacy/domain/pseudonyms'
 import { parseMonthKey } from '../src/shared/calendar/monthKey'
+import { readableKind } from '../src/shared/app/assistantReader'
+import type { AppReader } from '../src/shared/app/assistantReader'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { CHAT_BOOK, CHAT_PERSONS, CHAT_READING, HOSTILE_TEXT, IBAN_OF_ANA } from './fixtures/chatBook'
 
 function readsOf(overrides: Partial<ChatReads> = {}): ChatReads {
@@ -23,7 +26,7 @@ function readsOf(overrides: Partial<ChatReads> = {}): ChatReads {
   }
 }
 
-const ALL: FindRecordsInput = { app: 'spending', kind: 'transaction', query: null, from: null, to: null, about: null, limit: null, cursor: null }
+const ALL: FindRecordsInput = { app: 'spending', kind: 'transaction', query: null, from: null, to: null, about: null, only: null, limit: null, cursor: null }
 
 async function found(input: Partial<FindRecordsInput>, reads: ChatReads) {
   const answer = await findRecords({ ...ALL, ...input }, reads)
@@ -231,5 +234,74 @@ describe('what Spending lets the chat read', () => {
     const fields = spendingReader(CHAT_READING).kinds.find((kind) => kind.name === 'receipt')!.fields
     expect(fields.filter((field) => field.exposure === 'never').map((field) => field.name)).toEqual(['jir', 'zki', 'photo', 'latitude', 'longitude'])
     expect(UNREAD_KINDS).toContain(spendingKinds.SETTING_RECORDS.name)
+  })
+})
+
+describe('a search kept to a set', () => {
+  const waiting = { ...CHAT_BOOK.transactions[1]!, id: recordIdOf(spendingKinds.TRANSACTION_RECORDS, 'transaction-9'), category: null }
+  const reading = { ...CHAT_READING, book: () => ({ ...CHAT_BOOK, transactions: [...CHAT_BOOK.transactions, waiting] }) }
+  const reads = () => readsOf({ readers: new Map([['spending', { name: 'Spending', reader: spendingReader(reading) }]]) })
+
+  it('keeps to the rows waiting on To review', async () => {
+    const { total, records } = await found({ only: 'waiting' }, reads())
+    expect(total).toBe(1)
+    expect(records[0]!['category']).toBeUndefined()
+    expect((await found({}, reads())).total).toBe(4)
+  })
+
+  it.each([
+    ['transaction', 'filed'],
+    ['account', 'waiting'],
+  ])('refuses on %s a set it does not name, %j, and repeats nothing', async (kind, only) => {
+    const answer = await findRecords({ ...ALL, kind, only }, reads())
+    expect(answer.isError).toBe(true)
+    if (kind === 'transaction') expect(answer.text).not.toContain(only)
+  })
+})
+
+interface Holder {
+  readonly id: string
+  readonly ibans: readonly string[]
+  readonly names: readonly string[]
+}
+
+describe('a field that holds a list', () => {
+  const holder: Holder = { id: 'holder:1', ibans: [IBAN_OF_ANA, 'HR6523400091110000001'], names: ['Ana Horvat', 'Corner market'] }
+  const kind = readableKind<Holder>({
+    kind: { name: 'holder', noun: spendingKinds.TRANSACTION_RECORDS.noun },
+    about: 'Holders.',
+    fields: {
+      id: { exposure: 'ref', to: 'holder', meaning: 'The holder.' },
+      ibans: { exposure: 'identifier', meaning: 'Every IBAN it names.' },
+      names: { exposure: 'party', meaning: 'Who it names.' },
+    },
+    dated: null,
+    rows: () => [holder],
+    currencyOf: () => 'EUR',
+  })
+  const reader: AppReader = { status: () => 'open', kinds: [kind], reports: [] }
+  const listReads = (overrides: Partial<ChatReads> = {}) => readsOf({ readers: new Map([['spending', { name: 'Spending', reader }]]), ...overrides })
+
+  it('sends each text of the list under its token or alias while Anonymise is on', async () => {
+    const { answer, records } = await found({ kind: 'holder' }, listReads())
+    expect(records[0]).toMatchObject({ ibans: ['HR•• ••••0160', 'HR•• ••••0001'], names: ['Person 1', 'Corner market'] })
+    expect(answer.text).not.toMatch(/Horvat|1001005186|2340009111/)
+  })
+
+  it('matches a query in a list as it leaves, and never an identifier in it', async () => {
+    const reads = listReads()
+    expect((await found({ kind: 'holder', query: 'Corner' }, reads)).total).toBe(1)
+    expect((await found({ kind: 'holder', query: 'Horvat' }, reads)).total).toBe(0)
+    expect((await found({ kind: 'holder', query: '10010051' }, reads)).total).toBe(0)
+  })
+
+  it('keeps the record home when a list names an employee or an IBAN one is paid into', async () => {
+    expect((await found({ kind: 'holder' }, listReads({ persons: () => [{ name: 'Ana Horvat', employee: true, ibans: [] }] }))).total).toBe(0)
+    expect((await found({ kind: 'holder' }, listReads({ persons: () => [{ name: 'Mia Izmišljena', employee: true, ibans: [IBAN_OF_ANA] }] }))).total).toBe(0)
+  })
+
+  it('sends the list as stored with Anonymise off', async () => {
+    const { records } = await found({ kind: 'holder' }, listReads({ anonymising: () => false }))
+    expect(records[0]).toMatchObject({ ibans: [IBAN_OF_ANA, 'HR6523400091110000001'], names: ['Ana Horvat', 'Corner market'] })
   })
 })

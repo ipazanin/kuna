@@ -1,8 +1,8 @@
-import type { AcceptResult, CheckedProposal, ProposalGroup, ProposalStep } from './assistantOperations'
+import type { AcceptResult, CheckedProposal, ProposalGroup, ProposalStep, UndoResult } from './assistantOperations'
 import { words } from './words'
 import { canUndo } from '../storage/application/createWorkbookStore'
 import type { BooksRead, WorkbookStore, WriteCheck } from '../storage/application/createWorkbookStore'
-import { changesOf, workOf } from '../storage/application/recordWrites'
+import { changesOf, isUndoable, workOf } from '../storage/application/recordWrites'
 import type { CheckedWrite, RuledChange } from '../storage/application/recordWrites'
 import type { RecordChange } from '../storage/application/recordStorage'
 import type { UnitOfWork } from '../storage/application/repository'
@@ -39,6 +39,8 @@ export interface ProposalWork<Books extends BooksRead, Kept> {
   beforeWrite?(steps: readonly ProposalStep[]): Promise<Kept>
   /** What Accept leaves outside the books, which Undo does not take back, each a line on the card. */
   outside?(steps: readonly ProposalStep[]): readonly string[]
+  /** What the model should do with steps that make more changes than a card holds, when proposing fewer is no way out, or null for that. */
+  overLimit?(steps: readonly ProposalStep[]): string | null
 }
 
 /** What a proposal holds for Accept, which only this file reads: the checked changes, and the books and steps they were planned from. */
@@ -121,9 +123,11 @@ export function proposedWrites<Books extends BooksRead, Kept = never>(
       if (check.status === 'refused') return { refused: [check.reason] }
       if (check.status === 'nothingToChange') return { refused: ['Nothing would change.'] }
       const { checked } = check
-      if (checked.changes.length > MOST_CHANGES) return { refused: [`That is ${checked.changes.length} changes. A card holds ${MOST_CHANGES}, so propose fewer and then the rest.`] }
+      if (checked.changes.length > MOST_CHANGES) {
+        return { refused: [`That is ${checked.changes.length} changes. A card holds ${MOST_CHANGES}.`, work.overLimit?.(steps) ?? 'Propose fewer, and then the rest.'] }
+      }
       const held: HeldWrite<Books> = { title, changes: checked.changes, books, steps }
-      return { title, count: checked.changes.length, groups: work.groups(checked, books), outside: work.outside?.(steps) ?? [], held }
+      return { title, count: checked.changes.length, groups: work.groups(checked, books), outside: work.outside?.(steps) ?? [], undoable: isUndoable(checked.changes), held }
     },
 
     async accept(proposal) {
@@ -132,19 +136,17 @@ export function proposedWrites<Books extends BooksRead, Kept = never>(
       if ('kind' in written) return written
       try {
         const receipt = await store.write(held.title, workOf(written))
-        return {
-          kind: 'done',
-          async undo() {
-            const write = store.state.writes.find((candidate) => candidate.receipt === receipt)
-            if (write === undefined || !canUndo(write, store.state.writes)) return { kind: 'refused', reason: words.proposalUndoEnded }
-            try {
-              await store.undo(write)
-              return { kind: 'undone' }
-            } catch (failure) {
-              return refusedBy(failure)
-            }
-          },
+        const undo = async (): Promise<UndoResult> => {
+          const write = store.state.writes.find((candidate) => candidate.receipt === receipt)
+          if (write === undefined || !canUndo(write, store.state.writes)) return { kind: 'refused', reason: words.proposalUndoEnded }
+          try {
+            await store.undo(write)
+            return { kind: 'undone' }
+          } catch (failure) {
+            return refusedBy(failure)
+          }
         }
+        return { kind: 'done', undo: isUndoable(written) ? undo : null }
       } catch (failure) {
         return refusedBy(failure)
       }

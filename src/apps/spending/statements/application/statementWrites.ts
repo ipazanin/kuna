@@ -1,7 +1,8 @@
 import { TRANSACTION_WRITES } from '../../entries/application/entryWrites'
-import { filledByBank } from '../domain/statementDryRun'
+import { filledByBank, statementDryRun } from '../domain/statementDryRun'
 import type { StatementDryRun } from '../domain/statementDryRun'
 import { rulesRerun } from '../domain/spendingCategorisation'
+import type { StatementRows } from '../domain/statementRows'
 import { legsOfPair } from '../../pairing/domain/transferPairs'
 import { LINE_WRITES } from '../../receipts/application/receiptRecords'
 import { differenceLine } from '../../receipts/domain/receiptSplit'
@@ -13,6 +14,7 @@ import type { ReceiptLine } from '../../workbook/domain/receiptLine'
 import { RULE_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
 import type { Transaction } from '../../workbook/domain/transaction'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { subtractAccountMoney } from '../../../../shared/money/accountMoney'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
@@ -29,7 +31,7 @@ export const RULE_WRITES: WriteRules<SpendingRule> = {
 }
 
 /** Everything the import does in one write, so one Undo takes it all back. */
-export function writeDryRun(unit: UnitOfWork, run: StatementDryRun): void {
+export function writeDryRun(unit: UnitOfWork, run: Pick<StatementDryRun, 'added' | 'changed'>): void {
   const entries = unit.of(TRANSACTION_WRITES)
   run.added.forEach((row) => entries.add(row))
   run.changed.forEach(({ before, after }) => entries.change(before, after))
@@ -105,23 +107,45 @@ export interface RuleEdits {
   readonly deleting?: readonly SpendingRule[]
 }
 
-/** The rules changed and the rows re-filed by them in one write, so one Undo puts it all back. A row a rule no longer files follows the rules that are left. */
-export function writeRules(unit: UnitOfWork, book: SpendingBook, { filing = [], fixing = [], deleting = [] }: RuleEdits): void {
-  const rules = unit.of(RULE_WRITES)
-  let after: readonly SpendingRule[] = book.rules.filter((rule) => !deleting.includes(rule))
-  deleting.forEach((rule) => rules.remove(rule))
+/** Writes the rule records the edits change, and gives the rules as they then stand. */
+function editRules(unit: UnitOfWork, rules: readonly SpendingRule[], { filing = [], fixing = [], deleting = [] }: RuleEdits): readonly SpendingRule[] {
+  const records = unit.of(RULE_WRITES)
+  let after: readonly SpendingRule[] = rules.filter((rule) => !deleting.includes(rule))
+  deleting.forEach((rule) => records.remove(rule))
   for (const { rule, condition, category } of fixing) {
     const fixed = { ...rule, condition, category }
-    rules.change(rule, fixed)
+    records.change(rule, fixed)
     after = after.map((other) => (other === rule ? fixed : other))
   }
   for (const { condition, category } of filing) {
     const { held, rule } = ruleFor(after, condition, category)
-    if (held === null) rules.add(rule)
-    else rules.change(held, rule)
+    if (held === null) records.add(rule)
+    else records.change(held, rule)
     after = rulesWith(after, held, rule)
   }
-  rerun(unit, book, after)
+  return after
+}
+
+/** The rules changed and the rows re-filed by them in one write, so one Undo puts it all back. A row a rule no longer files follows the rules that are left. */
+export function writeRules(unit: UnitOfWork, book: SpendingBook, edits: RuleEdits): void {
+  rerun(unit, book, editRules(unit, book.rules, edits))
+}
+
+/**
+ * A statement imported with the rules that come with it, in one write with one Undo. The rules file the statement's new
+ * rows in its dry run and re-file the rows on the file as `writeRules` does, and a row both change is written once. Gives the dry run.
+ */
+export function importWithRules(unit: UnitOfWork, book: SpendingBook, edits: RuleEdits, statement: StatementRows, day: CivilDate): StatementDryRun {
+  const editing = (edits.filing?.length ?? 0) + (edits.fixing?.length ?? 0) + (edits.deleting?.length ?? 0) > 0
+  const rules = editing ? editRules(unit, book.rules, edits) : book.rules
+  const refiled = editing ? rulesRerun(book, rules) : []
+  const refiledTo = new Map(refiled.map(({ before, after }) => [before, after]))
+  const refiledFrom = new Map(refiled.map(({ before, after }) => [after, before]))
+  const run = statementDryRun({ ...book, rules, transactions: book.transactions.map((row) => refiledTo.get(row) ?? row) }, statement, day)
+  const changedByRun = run.changed.map(({ before, after }) => ({ before: refiledFrom.get(before) ?? before, after }))
+  const startsOfRun = new Set(changedByRun.map(({ before }) => before))
+  writeDryRun(unit, { added: run.added, changed: [...refiled.filter(({ before }) => !startsOfRun.has(before)), ...changedByRun] })
+  return run
 }
 
 /** The rule written, with the rules re-run in the same write. */

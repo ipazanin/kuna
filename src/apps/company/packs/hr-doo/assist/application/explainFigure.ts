@@ -2,17 +2,13 @@ import type { AiTask } from '../../../../../../shared/ai/domain/aiTask'
 import { CITED_ANSWER_SCHEMA, checkCitedAnswer, figuresIn } from '../../../../../../shared/ai/domain/citedAnswer'
 import type { CitedAnswer, CitedInput } from '../../../../../../shared/ai/domain/citedAnswer'
 import { plainAmount } from '../../../../../../shared/money/money'
-import { RULES, sourcesCheckedSince, versionOn } from '../../ruleset/ruleset'
-import type { GeneralRule, RuleCitation, RuleTerms, Term } from '../../ruleset/schema'
-import { NAMES_A_PARTY } from '../../ruleset/tracedFigure'
+import type { FigureTrace } from '../../../../../../shared/ai/domain/chatElement'
+import { HR_DOO_TRACE_RULES, MOST_TABLE_ROWS, citationsOf, figureTraceOf, stepsByRef } from '../../assistant/buildUpRead'
+import { citedVersion } from '../../ruleset/ruleset'
+import type { RuleTerms, Term } from '../../ruleset/schema'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 
 export const EXPLAIN_FIGURE = 'hr-doo.explain-figure'
-
-/** A table term longer than this goes as its size alone, since the local income tax rates run to some 760,000 characters. */
-const MOST_TABLE_ROWS = 40
-/** A figure's tree goes down only as far as this many steps, about 15,000 tokens. A forecast's cash runs to thousands of steps. */
-const MOST_STEPS_SENT = 300
 
 export interface ExplainInput {
   readonly figure: TracedFigure
@@ -20,80 +16,18 @@ export interface ExplainInput {
   readonly subtitle: string
 }
 
-/** A figure as Explain sends it, with how many of its steps stayed home: those for one ledger row and those that name a client or an item. */
-interface SentFigure extends TracedFigure {
-  readonly steps: readonly SentFigure[]
-  readonly stepsLeftOut: number
-}
-
-/** A step for one ledger row or owner advance, found again by its exact amount. Its label names the other side of the payment. */
-function isOneRow(figure: TracedFigure): boolean {
-  const amount = figure.drill?.filters.amount
-  return amount !== undefined && amount.min === amount.max
-}
-
-function withoutRows(figure: TracedFigure): SentFigure {
-  const steps = figure.steps.filter((step) => !isOneRow(step) && step[NAMES_A_PARTY] !== true).map(withoutRows)
-  return { ...figure, steps, stepsLeftOut: figure.steps.length - steps.length }
-}
-
-/** How many levels below the figure fit in the most steps sent, counting only whole levels. */
-function levelsThatFit(figure: SentFigure): number {
-  let level = figure.steps
-  let sent = 1
-  let levels = 0
-  while (level.length > 0 && sent + level.length <= MOST_STEPS_SENT) {
-    sent += level.length
-    levels += 1
-    level = level.flatMap((step) => step.steps)
-  }
-  return levels
-}
-
-function cutBelow(figure: SentFigure, levels: number): SentFigure {
-  if (levels === 0) {
-    return { ...figure, steps: [], stepsLeftOut: figure.stepsLeftOut + figure.steps.length }
-  }
-  return { ...figure, steps: figure.steps.map((step) => cutBelow(step, levels - 1)) }
-}
-
-function sentFigureOf(figure: TracedFigure): SentFigure {
-  const noRows = withoutRows(figure)
-  return cutBelow(noRows, levelsThatFit(noRows))
-}
-
 /** The figure's tree under refs `f`, `f.0`, `f.0.2`, with each step's label, day, amount and basis, and the ids of the rules it rests on. */
-function treeOf(figure: SentFigure, ref: string): object {
+function treeOf(figure: FigureTrace, ref: string): object {
   return {
     ref,
     label: figure.label,
     on: figure.on,
     amount: plainAmount(figure.amount),
     basis: figure.basis,
-    rules: [...new Set(figure.rules.map((citation) => citation.ruleId))],
+    rules: [...new Set(figure.rules.map((citation) => citation.id))],
     steps: figure.steps.map((step, index) => treeOf(step, `${ref}.${index}`)),
     ...(figure.stepsLeftOut === 0 ? {} : { stepsLeftOut: figure.stepsLeftOut }),
   }
-}
-
-function eachFigure(figure: SentFigure, ref: string): [string, SentFigure][] {
-  return [[ref, figure], ...figure.steps.flatMap((step, index) => eachFigure(step, `${ref}.${index}`))]
-}
-
-/** Each distinct rule version the sent tree cites, by rule id and first day. */
-function citationsOf(figure: SentFigure): RuleCitation[] {
-  const all = eachFigure(figure, 'f').flatMap(([, node]) => node.rules)
-  return [...new Map(all.map((citation) => [`${citation.ruleId} ${citation.validFrom}`, citation])).values()]
-}
-
-function termsOf(citation: RuleCitation): RuleTerms | null {
-  const rules: readonly GeneralRule[] = RULES
-  const rule = rules.find((candidate) => candidate.id === citation.ruleId)
-  return rule === undefined ? null : versionOn(rule, citation.validFrom).value
-}
-
-function sentTerm(term: Term): object {
-  return term.kind === 'table' && term.rows.length > MOST_TABLE_ROWS ? { kind: 'table', rows: term.rows.length, leftOut: true } : term
 }
 
 /** Every scalar term of the terms sent, the rows of each table sent with them. */
@@ -103,16 +37,16 @@ function scalarsOf(terms: RuleTerms): Term[] {
 
 /** What the run sends that an answer may cite and quote: the cited rule ids, each step's amount by its ref, the rules' money and rate terms, and the amounts and rates its labels and subtitle write out. */
 export function citedInputOf(input: ExplainInput): CitedInput {
-  const figure = sentFigureOf(input.figure)
+  const figure = figureTraceOf(input.figure)
   const citations = citationsOf(figure)
   const terms = citations.flatMap((citation) => {
-    const value = termsOf(citation)
-    return value === null ? [] : scalarsOf(value)
+    const version = citedVersion(citation.id, citation.validFrom)
+    return version === null ? [] : scalarsOf(version.value)
   })
-  const steps = eachFigure(figure, 'f')
+  const steps = stepsByRef(figure)
   const written = [input.subtitle, ...steps.map(([, node]) => node.label)].flatMap(figuresIn)
   return {
-    sources: new Set(citations.map((citation) => citation.ruleId)),
+    sources: new Set(citations.map((citation) => citation.id)),
     figures: new Map(steps.map(([ref, node]) => [ref, node.amount])),
     amounts: new Set([...terms.flatMap((term) => (term.kind === 'money' ? [Math.abs(term.cents)] : [])), ...written.flatMap((found) => (found.kind === 'amount' ? found.cents : []))]),
     rates: new Set([...terms.flatMap((term) => (term.kind === 'rate' ? [term.basisPoints] : [])), ...written.flatMap((found) => (found.kind === 'rate' ? found.basisPoints : []))]),
@@ -135,18 +69,8 @@ export const explainFigure: AiTask<ExplainInput, CitedAnswer> = {
   effort: 'medium',
   system: () => [{ kind: 'text', text: SYSTEM }],
   input(input) {
-    const figure = sentFigureOf(input.figure)
-    const rules = citationsOf(figure).map((citation) => {
-      const terms = termsOf(citation)
-      return {
-        id: citation.ruleId,
-        validFrom: citation.validFrom,
-        validTo: citation.validTo,
-        confidence: citation.confidence,
-        sources: citation.sources,
-        terms: terms === null ? null : Object.fromEntries(Object.entries(terms).map(([name, term]) => [name, sentTerm(term)])),
-      }
-    })
+    const figure = figureTraceOf(input.figure)
+    const rules = HR_DOO_TRACE_RULES.versionsOf(figure)
     return [
       {
         kind: 'text',
@@ -157,7 +81,7 @@ export const explainFigure: AiTask<ExplainInput, CitedAnswer> = {
           'Rules:',
           JSON.stringify(rules),
           '',
-          `Every rule's sources were last checked on ${sourcesCheckedSince()} or later.`,
+          `Every rule's sources were last checked on ${HR_DOO_TRACE_RULES.checkedSince} or later.`,
         ].join('\n'),
       },
     ]

@@ -72,12 +72,21 @@ export function versionOn<Value>(rule: Rule<string, Value>, on: CivilDate): Rule
 }
 
 function ruleOf(id: RuleId): GeneralRule {
-  const rules: readonly GeneralRule[] = RULES
-  const rule = rules.find((candidate) => candidate.id === id)
+  const rule = ruleWithId(id)
   if (rule === undefined) {
     throw new RangeError(`The ruleset has no rule ${id}.`)
   }
   return rule
+}
+
+function ruleWithId(id: string): GeneralRule | undefined {
+  const rules: readonly GeneralRule[] = RULES
+  return rules.find((candidate) => candidate.id === id)
+}
+
+/** The version a citation names by its rule's id and the version's first day, or null for one the ruleset does not hold. */
+export function citedVersion(ruleId: string, validFrom: string): RuleVersion<RuleTerms> | null {
+  return ruleWithId(ruleId)?.versions.find((version) => version.validFrom === validFrom) ?? null
 }
 
 function versionInForce<Value>(rule: Rule<string, Value>, on: CivilDate): RuleVersion<Value> | undefined {

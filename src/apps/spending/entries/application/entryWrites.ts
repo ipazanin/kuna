@@ -68,6 +68,35 @@ export function transferOver(before: Transaction, [outLeg, inLeg]: readonly [Tra
   return { kept: { ...retypedEntry(before, stays), pair: joins.id }, added: { ...joins, pair: before.id } }
 }
 
+/** The entry typed over a row on the file, or added when there is none. A transfer's other leg goes, since the row is a plain entry now. */
+export function writeEntry(unit: UnitOfWork, before: Transaction | null, entry: Transaction, otherLeg: Transaction | null): void {
+  const entries = unit.of(TRANSACTION_WRITES)
+  if (before === null) {
+    entries.add(entry)
+    return
+  }
+  entries.change(before, retypedEntry(before, entry))
+  if (otherLeg !== null) entries.remove(otherLeg)
+}
+
+/** Both legs of a transfer in one write: added, a plain row turned into the leg its money already is, or written over the transfer it was. */
+export function writeTransfer(unit: UnitOfWork, before: Transaction | null, legs: readonly [Transaction, Transaction] | null, typed: readonly [Transaction, Transaction]): void {
+  const entries = unit.of(TRANSACTION_WRITES)
+  const [outLeg, inLeg] = typed
+  if (before === null) {
+    entries.add(outLeg)
+    entries.add(inLeg)
+  } else if (legs === null) {
+    const { kept, added } = transferOver(before, typed)
+    entries.change(before, kept)
+    entries.add(added)
+  } else {
+    const [oldOut, oldIn] = legs
+    entries.change(oldOut, { ...retypedEntry(oldOut, outLeg), pair: oldIn.id })
+    entries.change(oldIn, { ...retypedEntry(oldIn, inLeg), pair: oldOut.id })
+  }
+}
+
 /** Whether deleting these rows lets the next overlapping statement bring one back, since nothing remembers a deleted row's key. */
 export function deleteComesBack(rows: readonly Transaction[]): boolean {
   return rows.some((row) => row.importKey !== '')

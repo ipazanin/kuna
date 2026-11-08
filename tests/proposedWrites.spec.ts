@@ -86,9 +86,27 @@ describe('a proposed write', () => {
     expect(named(store, 'Food shop')).toBeDefined()
     expect(store.state.writes).toHaveLength(writes + 1)
     if (result.kind !== 'done') return
-    expect(await result.undo()).toEqual({ kind: 'undone' })
+    expect(proposal.undoable).toBe(true)
+    expect(await result.undo!()).toEqual({ kind: 'undone' })
     expect(named(store, 'Groceries')).toBeDefined()
-    expect((await result.undo()).kind).toBe('refused')
+    expect((await result.undo!()).kind).toBe('refused')
+  })
+
+  it('says a card has no Undo when it writes a kind that keeps none, and Accept gives none', async () => {
+    const store = await spendingStore()
+    const groceries = named(store, 'Groceries')!
+    const work: ProposalWork<SpendingBooks, string> = {
+      ...renaming(),
+      plan(unit, books, steps) {
+        const category = books.workbook.categories.find((candidate) => candidate.id === steps[0]!.input['category'])!
+        unit.of({ ...CATEGORY_WRITES, undoable: false }).change(category, { ...category, name: 'Food shop' })
+      },
+    }
+    const proposal = await checked(store, work, [rename(groceries.id, 'Food shop')])
+    expect(proposal.undoable).toBe(false)
+
+    const result = await proposedWrites(store, work).accept(proposal)
+    expect(result).toMatchObject({ kind: 'done', undo: null })
   })
 
   it('refuses a card whose record changed since its check, and writes nothing of it', async () => {
@@ -185,7 +203,7 @@ describe('a proposed write', () => {
 
     const result = await proposedWrites(store, work).accept(proposal)
     if (result.kind !== 'done') throw new Error('Accept was refused.')
-    expect(await result.undo()).toEqual({ kind: 'undone' })
+    expect(await result.undo!()).toEqual({ kind: 'undone' })
 
     expect(named(store, 'Groceries')).toBeDefined()
     expect(drive).toEqual(['photo.jpg'])

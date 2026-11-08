@@ -6,7 +6,10 @@ export interface AssistantOperation {
   readonly name: string
   readonly about: string
   readonly input: StrictSchema
-  /** The input's fields that name a record, each with its kind. A model writes a ref Kuna handed out, or a `$` name of this proposal. */
+  /**
+   * The input's fields that name a record, each with its kind. A model writes a ref Kuna handed out, or a `$` name of this
+   * proposal. A field of the kind `ATTACHMENT_REF` takes the id of a file attached to the chat, and the step gets the file.
+   */
   readonly refs: Readonly<Record<string, string>>
   /** What it creates that a later step may name by `$`, or null. */
   readonly creates: string | null
@@ -17,6 +20,9 @@ export interface AssistantOperation {
   /** A working input, with a ref named after its kind, such as `category`, which a spec runs through the app's checks. */
   readonly example: Readonly<Record<string, unknown>>
 }
+
+/** What an operation's `refs` names a field that takes a file attached to the chat, such as a statement to import. */
+export const ATTACHMENT_REF = 'attachment'
 
 /** One step of a proposal, with refs turned into ids and aliases into what they stand for, or left as a `$` name of an earlier step. A field listed under `spellings` may hold a list. */
 export interface ProposalStep {
@@ -60,6 +66,8 @@ export interface CheckedProposal {
   readonly groups: readonly ProposalGroup[]
   /** What Accept does outside the books, which Undo leaves as it is, each a line such as "The PDF stays on Drive after Undo". */
   readonly outside: readonly string[]
+  /** False when Undo could not put the write back, as for a kind that keeps no Undo or a repaired row. The card then says it has no Undo. */
+  readonly undoable: boolean
   readonly held: object
 }
 
@@ -72,7 +80,8 @@ export interface AppProposer {
   check(title: string, steps: readonly ProposalStep[]): Promise<CheckedProposal | { readonly refused: readonly string[] }>
 }
 
-export type AcceptResult = { readonly kind: 'done'; undo(): Promise<UndoResult> } | { readonly kind: 'refused'; readonly reason: string }
+/** A done write's `undo` is null when the card has no Undo. */
+export type AcceptResult = { readonly kind: 'done'; readonly undo: (() => Promise<UndoResult>) | null } | { readonly kind: 'refused'; readonly reason: string }
 export type UndoResult = { readonly kind: 'undone' } | { readonly kind: 'refused'; readonly reason: string }
 
 /** What only the proposal card reaches: one write of one proposal, by a person's click. */

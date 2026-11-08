@@ -1,12 +1,5 @@
+import { base64OfBytes } from '../../../../shared/text/base64'
 import type { InvoiceMail } from '../domain/invoiceMail'
-
-function base64OfBytes(bytes: Uint8Array): string {
-  let binary = ''
-  for (let start = 0; start < bytes.length; start += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(start, start + 0x8000))
-  }
-  return btoa(binary)
-}
 
 function base64OfText(text: string): string {
   return base64OfBytes(new TextEncoder().encode(text))

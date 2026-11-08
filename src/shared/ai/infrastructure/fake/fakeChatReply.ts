@@ -71,7 +71,7 @@ export function fakeChatReply(request: ModelRequest, tokens: ModelTokens, invent
   }
   const says = ANSWERS[language === 'hr' ? 'hr' : 'en']
   if (/crypto|kripto/i.test(typed)) {
-    if (lookups === 0) return lookup(lookups, 'show_screen', { route: 'issues' }, tokens)
+    if (lookups === 0) return lookup(lookups, 'show_screen', { route: 'issues', params: [] }, tokens)
     return answered(request, says.cannot, tokens)
   }
   return answered(request, says.other, tokens)

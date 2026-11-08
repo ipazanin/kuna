@@ -1,15 +1,23 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AppProposer } from '../src/shared/app/assistantOperations'
 import type { Catalogue } from '../src/shared/ai/application/catalogue'
 import type { ModelPort, ModelReply, ModelRequest } from '../src/shared/ai/application/modelPort'
 import { spendingReader } from '../src/apps/spending/assistant/spendingReader'
-import type { ChatProposal } from '../src/shared/ai/presentation/chatSession'
-import { CHAT_PERSONS, CHAT_READING, IBAN_OF_ANA } from './fixtures/chatBook'
+import type { ChatProposal, PromptFile } from '../src/shared/ai/presentation/chatSession'
+import type { ChatElementAbout } from '../src/shared/ai/domain/chatElement'
+import { NOTHING_TAGGED } from '../src/shared/ai/application/runChatTurn'
+import { moneyFromCents } from '../src/shared/money/money'
+import { CHAT_BOOK, CHAT_PERSONS, CHAT_READING, IBAN_OF_ANA } from './fixtures/chatBook'
 
 const port = vi.hoisted(() => ({ current: null as ModelPort | null }))
 vi.mock('../src/shared/ai/application/modelAccess', () => ({ modelPort: async () => port.current, keyKept: () => true }))
+vi.mock('../src/shared/ai/presentation/imagePartOf', () => ({
+  imagePartOf: async () => ({ kind: 'image', mediaType: 'image/jpeg', base64: btoa('jpeg'), width: 1092, height: 1092 }),
+}))
 vi.mock('../src/shared/secrets/presentation/pageSecrets', async () => {
   const { ref } = await import('vue')
   return { useSecretsChanged: () => ref(0) }
@@ -19,7 +27,11 @@ const {
   allowThisChat,
   allowedThisChat,
   answerReadAsk,
+  attachFiles,
   chatAsking,
+  chatPromptFiles,
+  promptFilesCost,
+  removePromptFile,
   chatFigure,
   chatLines,
   chatSpent,
@@ -39,14 +51,15 @@ const CATALOGUE: Catalogue = {
   pages: new Map([['spending', 'The Spending page.']]),
   routes: new Map([['/spending', 'Spending: Overview']]),
   places: new Map([['/spending/transactions?tab=review', 'To review']]),
+  placeParams: new Map(),
   readers: new Map([['spending', { name: 'Spending', reader: spendingReader(CHAT_READING) }]]),
   proposers: new Map(),
   persons: () => CHAT_PERSONS,
 }
 const knowledge = async (): Promise<Catalogue> => CATALOGUE
 const TOKENS = { input: 1000, cacheRead: 0, cacheWrite: 0, output: 1000 }
-const CONTEXT = { app: 'Spending', screen: 'Entries', path: '/spending/transactions', query: {}, tag: null, today: '2026-11-07' }
-const READ_ROWS = { app: 'spending', kind: 'transaction', query: null, from: null, to: null, about: null, limit: null, cursor: null }
+const CONTEXT = { app: 'Spending', screen: 'Entries', path: '/spending/transactions', query: {}, element: null, today: '2026-11-07' }
+const READ_ROWS = { app: 'spending', kind: 'transaction', query: null, from: null, to: null, about: null, only: null, limit: null, cursor: null }
 const lookup = (name: string, args: unknown, id = 'call'): ModelReply => ({ kind: 'tool-calls', calls: [{ id, name, args }], raw: [], tokens: TOKENS })
 
 function scripted(
@@ -69,6 +82,15 @@ function scripted(
 }
 
 const answer = (text: string): ModelReply => ({ kind: 'answer', text, raw: [{ text }], tokens: TOKENS })
+
+/** A file as a picker gives it, with the bytes a browser reads back. */
+function picked(name: string, bytes: Uint8Array<ArrayBuffer>, type = ''): File {
+  const file = new File([bytes], name, { type })
+  Object.defineProperty(file, 'arrayBuffer', { value: async () => bytes.slice().buffer })
+  return file
+}
+
+const statementPdf = (): File => picked('Statement October.pdf', new Uint8Array(readFileSync(join(import.meta.dirname, 'fixtures/documents/statement-ties.pdf'))), 'application/pdf')
 
 beforeEach(() => {
   clearChat()
@@ -149,7 +171,7 @@ describe('a chat in memory', () => {
         request.onDelta?.('Let me look.')
         return { kind: 'tool-calls', calls: [{ id: 'one', name: 'kuna_docs', args: { path: 'spending' } }], raw: [], tokens: TOKENS }
       },
-      { kind: 'tool-calls', calls: [{ id: 'two', name: 'show_screen', args: { route: '/spending' } }], raw: [], tokens: TOKENS },
+      { kind: 'tool-calls', calls: [{ id: 'two', name: 'show_screen', args: { route: '/spending', params: [] } }], raw: [], tokens: TOKENS },
       async (request) => {
         request.onDelta?.('Here it is.')
         return answer('Here it is.')
@@ -363,7 +385,7 @@ describe('a card in the chat', () => {
   const TIDY: AppProposer = {
     operations: [{ name: 'tidy', about: 'Tidies.', input: { type: 'object', properties: {}, required: [], additionalProperties: false }, refs: {}, creates: null, alone: false, example: {} }],
     readsBooks: true,
-    check: async (title) => ({ title, count: 1, groups: [], outside: [], held: {} }),
+    check: async (title) => ({ title, count: 1, groups: [], outside: [], undoable: true, held: {} }),
   }
   const WITH_TIDY: Catalogue = { ...CATALOGUE, proposers: new Map([['spending', TIDY]]) }
 
@@ -380,5 +402,138 @@ describe('a card in the chat', () => {
     expect(card).toMatchObject({ state: 'done', undo: null, reason: 'A later write stands on it.' })
     await sendChatMessage('And now?', CONTEXT, async () => WITH_TIDY)
     expect(JSON.stringify(model.requests[2]!.turns)).toContain('tried to undo the card \\"Tidy up\\"')
+  })
+})
+
+describe('files on the prompt', () => {
+  it('reads each file on the device, refuses one Kuna takes no kind of with why, and lets a person remove one', async () => {
+    await attachFiles([statementPdf(), picked('notes.docx', new Uint8Array([1])), picked('receipt.jpg', new Uint8Array([1]), 'image/jpeg')])
+
+    const [pdf, notes, photo] = chatPromptFiles.value
+    expect(chatPromptFiles.value.map((file) => file.state)).toEqual(['ready', 'refused', 'ready'])
+    expect(notes).toMatchObject({ name: 'notes.docx', refusal: { reason: 'unknown-kind' } })
+    expect(pdf).toMatchObject({ attachment: { kind: 'pdf', pages: 1, sent: null } })
+    expect(photo).toMatchObject({ attachment: { kind: 'photo', sent: { width: 1092, height: 1092 } } })
+    removePromptFile(pdf!.key)
+    expect(chatPromptFiles.value.map((file) => file.name)).toEqual(['notes.docx', 'receipt.jpg'])
+  })
+
+  it('says what photos and PDFs add to the cost, and nothing for a sheet Kuna reads alone', async () => {
+    await attachFiles([picked('october.csv', new Uint8Array([1]), 'text/csv')])
+    expect(promptFilesCost.value).toBeNull()
+    await attachFiles([picked('receipt.jpg', new Uint8Array([1]), 'image/jpeg')])
+    expect(promptFilesCost.value).toMatch(/^Reading them costs .+, then .+ with each later message\.$/)
+  })
+
+  it('sends the files with the message by id and kind, keeps only their names on its line, and empties the prompt', async () => {
+    allowThisChat('anthropic')
+    const model = scripted([answer('Read.')])
+    port.current = model
+    await attachFiles([statementPdf(), picked('notes.docx', new Uint8Array([1]))])
+    const id = (chatPromptFiles.value[0] as Extract<PromptFile, { readonly state: 'ready' }>).attachment.id
+
+    await sendChatMessage('Import this', CONTEXT, knowledge)
+
+    expect(chatLines.find((line) => line.role === 'user')?.attachments).toEqual(['Statement October.pdf'])
+    expect(chatPromptFiles.value).toEqual([])
+    const sent = JSON.stringify(model.requests[0]!.turns)
+    expect(sent).toContain(`Files attached to this chat: ${id} (pdf, 1 pages).`)
+    expect(sent).not.toContain('Statement October')
+  })
+
+  it('keeps a PDF waiting while the provider reads none, and lets it go once the provider does', async () => {
+    pickProvider('openrouter')
+    await attachFiles([statementPdf()])
+    expect(chatPromptFiles.value[0]).toMatchObject({ state: 'refused', refusal: { reason: 'no-pdf', provider: 'OpenRouter' } })
+    expect(promptFilesCost.value).toBeNull()
+    pickProvider('anthropic')
+    expect(chatPromptFiles.value[0]).toMatchObject({ state: 'ready' })
+    expect(promptFilesCost.value).not.toBeNull()
+  })
+
+  it('refuses a PDF before any request when the provider reads none, and keeps the message unsent', async () => {
+    pickProvider('openrouter')
+    const model = scripted([answer('Read.')])
+    port.current = model
+    await attachFiles([statementPdf()])
+
+    await sendChatMessage('Import this', CONTEXT, knowledge)
+
+    expect(model.requests).toEqual([])
+    expect(chatLines).toEqual([])
+    expect(chatPromptFiles.value[0]).toMatchObject({ state: 'refused', refusal: { reason: 'no-pdf', provider: 'OpenRouter' } })
+  })
+
+  it("drops every file on a new chat, and a read still under way from the last one cannot take a new file's place", async () => {
+    const reading = attachFiles([statementPdf()])
+    clearChat()
+    await attachFiles([picked('receipt.jpg', new Uint8Array([1]), 'image/jpeg')])
+    await reading
+    expect(chatPromptFiles.value.map((file) => file.name)).toEqual(['receipt.jpg'])
+  })
+})
+
+describe('the tagged element', () => {
+  const RECORD: ChatElementAbout = { kind: 'record', app: 'spending', recordKind: 'transaction', id: CHAT_BOOK.transactions[0]!.id }
+  const BUILD_UP: ChatElementAbout = {
+    kind: 'build-up',
+    app: 'spending',
+    trace: { label: 'Spent', on: null, amount: moneyFromCents(100), basis: 'Sum', rules: [], steps: [], stepsLeftOut: 0 },
+    subtitle: 'October 2026',
+    employees: false,
+  }
+  const userText = (request: ModelRequest): string => {
+    const last = request.turns.at(-1)!
+    return last.role === 'user' ? last.parts.map((part) => (part.kind === 'text' ? part.text : '')).join('\n') : ''
+  }
+
+  it('names the element once while it stays tagged, by the same ref, and says when the tag goes', async () => {
+    allowThisChat('anthropic')
+    const model = scripted([answer('One'), answer('Two'), answer('Three')])
+    port.current = model
+    await sendChatMessage('What is this?', { ...CONTEXT, element: RECORD }, knowledge)
+    await sendChatMessage('And now?', { ...CONTEXT, element: RECORD }, knowledge)
+    await sendChatMessage('Anything else?', CONTEXT, knowledge)
+
+    expect(userText(model.requests[0]!)).toContain('Tagged element: the transaction transaction-1 of spending')
+    expect(userText(model.requests[1]!)).not.toContain('Tagged element')
+    expect(userText(model.requests[2]!)).toContain(NOTHING_TAGGED)
+  })
+
+  it('gives a build-up the same ref each time the same object is tagged', async () => {
+    allowThisChat('anthropic')
+    const model = scripted([answer('One'), answer('Two'), answer('Three')])
+    port.current = model
+    await sendChatMessage('Explain', { ...CONTEXT, element: BUILD_UP }, knowledge)
+    await sendChatMessage('And this row?', { ...CONTEXT, element: RECORD }, knowledge)
+    await sendChatMessage('Back to the figure', { ...CONTEXT, element: BUILD_UP }, knowledge)
+
+    expect(userText(model.requests[0]!)).toContain('the build-up build-up-1 of a figure of spending')
+    expect(userText(model.requests[2]!)).toContain('the build-up build-up-1 of a figure of spending')
+  })
+})
+
+describe('what a card says it leaves outside the books', () => {
+  const proposerWith = (outside: readonly string[], undoable: boolean): AppProposer => ({
+    operations: [{ name: 'fetch', about: 'Fetches.', input: { type: 'object', properties: {}, required: [], additionalProperties: false }, refs: {}, creates: null, alone: false, example: {} }],
+    readsBooks: false,
+    check: async (title) => ({ title, count: 1, groups: [], outside, undoable, held: {} }),
+  })
+
+  async function shownCard(proposer: AppProposer): Promise<ChatProposal> {
+    allowThisChat('anthropic', 'spending')
+    port.current = scripted([lookup('propose_changes', { app: 'spending', title: 'Fetch prices', steps: [{ op: 'fetch', input: '{}', as: null }] }), answer('Card shown.')])
+    await sendChatMessage('Fetch', CONTEXT, async () => ({ ...CATALOGUE, proposers: new Map([['spending', proposer]]) }))
+    return chatLines.at(-1)!.proposals[0]! as ChatProposal
+  }
+
+  it('carries the lines of what stays outside on the card', async () => {
+    const card = await shownCard(proposerWith(['The PDF stays on Drive after Undo.'], true))
+    expect(card.checked?.outside).toEqual(['The PDF stays on Drive after Undo.'])
+  })
+
+  it('carries a card that has no Undo, so it says so before Accept', async () => {
+    const card = await shownCard(proposerWith([], false))
+    expect(card.checked?.undoable).toBe(false)
   })
 })

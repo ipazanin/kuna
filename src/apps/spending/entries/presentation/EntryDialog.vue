@@ -9,7 +9,7 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import { entryCategoryChoices } from './categoryChoices'
 import { rememberLastAccount, startingAccount } from './lastAccount'
 import { words } from './words'
-import { newEntry, newTransfer, otherLegOf, deleteComesBack, removeEntry, retypedEntry, transferOver, TRANSACTION_WRITES } from '../application/entryWrites'
+import { newEntry, newTransfer, otherLegOf, deleteComesBack, removeEntry, writeEntry, writeTransfer } from '../application/entryWrites'
 import { fixedCategories } from '../../categories/domain/categoryTree'
 import { removeReceiptOf } from '../../receipts/application/receiptRecords'
 import { mapLinkOf } from '../../receipts/domain/photoPlace'
@@ -184,16 +184,8 @@ function entryWrite(fromAccount: Account, typed: AccountMoney, on: CivilDate): (
   if (filed === undefined) return null
   const entry = newEntry({ account: fromAccount.id, date: on, amount: kind.value === 'out' ? negateAccountMoney(typed) : typed, payee: payee.value, category: filed.id, note: note.value })
   const before = props.entry
-  const other = legs.value?.find((leg) => leg.id !== before?.id)
-  return (unit) => {
-    const entries = unit.of(TRANSACTION_WRITES)
-    if (before === null) {
-      entries.add(entry)
-      return
-    }
-    entries.change(before, retypedEntry(before, entry))
-    if (other !== undefined) entries.remove(other)
-  }
+  const other = legs.value?.find((leg) => leg.id !== before?.id) ?? null
+  return (unit) => writeEntry(unit, before, entry, other)
 }
 
 /** Both legs in one write: added, changed in place, or a plain entry turned into the money-out leg with the other leg beside it. */
@@ -209,21 +201,7 @@ function transferWrite(fromAccount: Account, typed: AccountMoney, on: CivilDate)
   )
   const before = props.entry
   const pair = legs.value
-  return (unit) => {
-    const entries = unit.of(TRANSACTION_WRITES)
-    if (before === null) {
-      entries.add(outLeg)
-      entries.add(inLeg)
-    } else if (pair === null) {
-      const { kept, added } = transferOver(before, [outLeg, inLeg])
-      entries.change(before, kept)
-      entries.add(added)
-    } else {
-      const [oldOut, oldIn] = pair
-      entries.change(oldOut, { ...retypedEntry(oldOut, outLeg), pair: oldIn.id })
-      entries.change(oldIn, { ...retypedEntry(oldIn, inLeg), pair: oldOut.id })
-    }
-  }
+  return (unit) => writeTransfer(unit, before, pair, [outLeg, inLeg])
 }
 
 /** The payee as the file holds it, which the person flag names, or blank for an entry with none. */

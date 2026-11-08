@@ -1,5 +1,5 @@
 import { language } from '../../../shared/text/language'
-import type { Translation } from '../../../shared/text/translation'
+import type { CroatianForms, EnglishForms, Translation } from '../../../shared/text/translation'
 
 /** The words on the screens a guide names, passed in so a guide calls each thing what the screen calls it. */
 export interface GuideLabels {
@@ -30,6 +30,8 @@ export const en = {
   },
   proposals: {
     ibanRule: (iban: string) => `Files every row from this IBAN: ${iban}`,
+    rowsLeftOut: (count: number): EnglishForms => ({ one: '1 row of the statement is left out.', other: `${count} rows of the statement are left out.` }),
+    fileNotes: 'The file has notes this card does not show.',
     yes: 'yes',
     no: 'no',
     fields: {
@@ -54,8 +56,12 @@ export const en = {
       hidden: 'Hidden',
       key: 'Setting',
       value: 'Value',
+      colour: 'Colour',
+      order: 'Place',
     },
   },
+  statementRead: (account: string, from: string, to: string) => `${account}, statement read in the chat, ${from} to ${to}`,
+  sheetNotRead: 'Kuna could not read that file as a Revolut export.',
   quickActions: {
     sort: { label: 'Sort what is waiting', prompt: 'Sort the rows waiting on To review, and propose rules where the same payee keeps coming.' },
     rules: { label: 'Check my rules', prompt: 'Read my rules and rows, and propose fixing or deleting any rule that files rows wrongly.' },
@@ -69,6 +75,7 @@ export const en = {
     rule: 'What files a bank row by itself.',
     receipt: 'Fiscal receipts and the entry each split.',
     line: 'The parts of an entry a receipt split, which the figures count instead of the entry.',
+    waiting: 'The rows waiting on To review for a category, which count nowhere until filed.',
   },
   reports: {
     month: { title: "a month's totals", about: "A month's spending, income, money saved and savings rate, as the Overview shows them." },
@@ -93,6 +100,7 @@ export const en = {
       body: (labels: GuideLabels) =>
         [
           `On ${labels.entries}, ${labels.import}, drop a Revolut export, as its .xlsx or .csv file. Other banks have no file reader here yet, and their rows come through the bank sync.`,
+          "In the chat, attach the Revolut file, or paste any bank's statement or attach it as a PDF or photo. The chat reads its rows as printed and imports them only when they add up from the opening balance to the closing one.",
           'Kuna first shows what the file would do, and writes nothing until you import it. An import can be undone from the message that follows it.',
           `Rows no rule files then wait on ${labels.review}.`,
         ].join('\n'),
@@ -133,6 +141,12 @@ export const hr: Translation<typeof en> = {
   },
   proposals: {
     ibanRule: (iban) => `Razvrstava svaki redak s ovog IBAN-a: ${iban}`,
+    rowsLeftOut: (count): CroatianForms => ({
+      one: `Izostavljen je ${count} redak izvoda.`,
+      few: `Izostavljena su ${count} retka izvoda.`,
+      other: `Izostavljeno je ${count} redaka izvoda.`,
+    }),
+    fileNotes: 'Datoteka ima napomene koje ova kartica ne prikazuje.',
     yes: 'da',
     no: 'ne',
     fields: {
@@ -157,8 +171,12 @@ export const hr: Translation<typeof en> = {
       hidden: 'Skrivena',
       key: 'Postavka',
       value: 'Vrijednost',
+      colour: 'Boja',
+      order: 'Mjesto',
     },
   },
+  statementRead: (account, from, to) => `${account}, izvod pročitan u chatu, od ${from} do ${to}`,
+  sheetNotRead: 'Kuna tu datoteku ne može pročitati kao izvoz iz Revoluta.',
   quickActions: {
     sort: { label: 'Razvrstaj ono što čeka', prompt: 'Razvrstaj retke koji čekaju na kartici Za pregled i predloži pravila gdje se isti primatelj ponavlja.' },
     rules: { label: 'Provjeri moja pravila', prompt: 'Pročitaj moja pravila i retke te predloži ispravak ili brisanje pravila koje pogrešno razvrstava.' },
@@ -172,6 +190,7 @@ export const hr: Translation<typeof en> = {
     rule: 'Ono što sâmo razvrstava bankovni redak.',
     receipt: 'Fiskalni računi i unos koji je svaki podijelio.',
     line: 'Dijelovi unosa koji je račun podijelio, a iznosi broje njih umjesto unosa.',
+    waiting: 'Retci koji na Za pregled čekaju kategoriju i ne broje se nigdje dok se ne razvrstaju.',
   },
   reports: {
     month: { title: 'zbroj mjeseca', about: 'Potrošnja, prihodi, ušteđeni novac i stopa štednje u mjesecu, kako ih prikazuje Pregled.' },
@@ -196,6 +215,7 @@ export const hr: Translation<typeof en> = {
       body: (labels) =>
         [
           `Na zaslonu ${labels.entries}, na kartici ${labels.import} ispustite izvoz iz Revoluta, kao datoteku .xlsx ili .csv. Za druge banke ovdje još nema čitača datoteka, a njihovi retci dolaze sinkronizacijom s bankom.`,
+          'U chatu priložite datoteku iz Revoluta ili zalijepite izvod bilo koje banke, ili ga priložite kao PDF ili fotografiju. Chat čita retke kako su ispisani i uvozi ih samo ako se od početnog stanja zbrajaju do završnog.',
           'Kuna najprije pokaže što bi datoteka učinila i ne zapisuje ništa dok je ne uvezete. Uvoz možete poništiti iz poruke koja slijedi.',
           `Retci koje nijedno pravilo ne razvrsta zatim čekaju na kartici ${labels.review}.`,
         ].join('\n'),

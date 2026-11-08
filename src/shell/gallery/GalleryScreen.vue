@@ -30,7 +30,8 @@ import FactGrid from '../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../shared/ui/FactGrid.vue'
 import FigureTable from '../../shared/ui/FigureTable.vue'
 import FileDrop from '../../shared/ui/FileDrop.vue'
-import { chatTagAttrs, useChatTagging } from '../../shared/ai/presentation/chatDock'
+import AskChatButton from '../../shared/ai/presentation/AskChatButton.vue'
+import { useChatElement } from '../../shared/ai/presentation/chatDock'
 import { assistKeyKept } from '../../shared/ai/presentation/useAiTask'
 import AppBrand from '../../shared/ui/AppBrand.vue'
 import AppMark from '../../shared/ui/AppMark.vue'
@@ -325,8 +326,22 @@ const columns: TableColumn<SampleTransaction>[] = [
   },
 ]
 
-const tagChatSpecimen = useChatTagging()
-const chatSpecimenTagged = chatTagAttrs('gallery.cash')
+const { ask: askAboutCash, marked: cashMarked } = useChatElement(
+  {
+    key: 'gallery.cash',
+    label: 'Cash on hand',
+    about: { kind: 'figure', app: 'company', report: 'overview', period: null, label: 'Cash on hand' },
+  },
+  'card',
+)
+const { ask: askAboutRent, marked: rentMarked } = useChatElement(
+  {
+    key: 'gallery.rent',
+    label: 'Rent',
+    about: { kind: 'record', app: 'spending', recordKind: 'transaction', id: 'gallery-rent' },
+  },
+  'row',
+)
 </script>
 
 <template>
@@ -805,19 +820,24 @@ const chatSpecimenTagged = chatTagAttrs('gallery.cash')
     <GallerySection
       id="chat-tag"
       title="Asking the chat about an element"
-      description="A button calls useChatTagging with a key and a label, which opens the chat with a tag. The element binds chatTagAttrs and is highlighted while the open chat is about it. It shows with a key kept."
+      description="A page calls useChatElement with a key, a label and what the element is. AskChatButton calls its ask, which opens the chat about it, and the element binds its marked, with the shape it draws on. While the open chat is about it, a card keeps its surface under the accent wash with its border in accent, and a row takes the selected sidebar row's wash and bar. A dense row takes the icon alone. It shows with a key kept."
     >
-      <div v-if="assistKeyKept" class="flex flex-wrap items-center gap-4">
-        <span v-bind="chatSpecimenTagged" class="type-body" data-testid="gallery-chat-element">Cash on hand</span>
-        <UButton
-          label="Ask about this"
-          icon="i-lucide-sparkles"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          data-testid="gallery-chat-ask"
-          @click="tagChatSpecimen({ key: 'gallery.cash', label: 'Cash on hand' })"
-        />
+      <div v-if="assistKeyKept" class="flex flex-col gap-4">
+        <DashboardGrid layout="tiles">
+          <KpiTile v-bind="cashMarked" label="Cash on hand" :value="formatMoney(moneyFromCents(1_248_000))" :to="null" data-testid="gallery-chat-element">
+            <AskChatButton label="Cash on hand" class="mt-3" data-testid="gallery-chat-ask" @ask="askAboutCash" />
+          </KpiTile>
+        </DashboardGrid>
+        <ul class="flex max-w-md flex-col">
+          <li v-bind="rentMarked" class="flex items-center justify-between gap-2 rounded-control px-2 py-0.5 type-body" data-testid="gallery-chat-row">
+            Rent
+            <AskChatButton label="Rent" icon-only data-testid="gallery-chat-row-ask" @ask="askAboutRent" />
+          </li>
+          <li class="flex items-center justify-between gap-2 rounded-control px-2 py-0.5 type-body">
+            Groceries
+            <AskChatButton label="Groceries" icon-only />
+          </li>
+        </ul>
       </div>
     </GallerySection>
 
@@ -841,6 +861,9 @@ const chatSpecimenTagged = chatTagAttrs('gallery.cash')
         <AppCard title="RemovableChip" subtitle="Names something picked, such as a filter or a ticker to compare with. A press anywhere on it removes it.">
           <div class="flex flex-wrap items-center gap-1.5 px-4 pt-3 pb-4 sm:px-5">
             <RemovableChip v-for="chip in galleryChips" :key="chip" :label="chip" :remove-label="`Remove ${chip}`" @remove="galleryChips = galleryChips.filter((shown) => shown !== chip)" />
+            <RemovableChip label="receipt.jpg" remove-label="Remove receipt.jpg" icon="i-lucide-image" />
+            <RemovableChip label="statement.pdf" remove-label="Remove statement.pdf" icon="i-lucide-file-text" />
+            <RemovableChip label="scan.pdf" remove-label="Remove scan.pdf" icon="i-lucide-file" loading />
             <UButton v-if="galleryChips.length < GALLERY_CHIPS.length" label="Put them back" color="neutral" variant="link" size="xs" @click="galleryChips = GALLERY_CHIPS" />
           </div>
         </AppCard>

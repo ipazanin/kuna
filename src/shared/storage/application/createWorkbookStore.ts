@@ -44,7 +44,7 @@ export function wasUndone(write: SessionWrite, writes: readonly SessionWrite[]):
 
 /** Whether Undo can put back what a write changed: records of kinds that keep Undo, unless it is an undo itself or was undone since. */
 export function canUndo(write: SessionWrite, writes: readonly SessionWrite[]): boolean {
-  return isUndoable(write.receipt) && !isUndo(write) && !wasUndone(write, writes)
+  return isUndoable(write.receipt.records) && !isUndo(write) && !wasUndone(write, writes)
 }
 
 /** What an app reads from a copy: the records it holds of each kind and the workbook they make. */

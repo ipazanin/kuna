@@ -26,6 +26,8 @@ export interface SavedLine {
   readonly strayFigure: boolean
   readonly failure: string | null
   readonly proposals: readonly SavedProposal[]
+  /** The names of the files a message went with, absent when none. The files themselves are never kept. */
+  readonly attachments?: readonly string[]
 }
 
 /** What this browser keeps of a chat. No tool result, no alias map and no ref, so a hostile row does not come back into a later chat. */

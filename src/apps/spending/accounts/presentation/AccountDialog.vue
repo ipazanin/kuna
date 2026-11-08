@@ -94,15 +94,14 @@ async function save(): Promise<void> {
   const day = openedDay.value
   const code = pickedCurrency.value
   if (Object.values(errors.value).some((error) => error !== null) || amount === null || day === null || code === null) return
-  const cash = kind.value === 'cash'
   const typed = newAccount({
     name: name.value,
     kind: kind.value,
-    bank: cash || bank.value === NONE ? null : bank.value,
+    bank: bank.value === NONE ? null : bank.value,
     currency: code,
     opening: amount,
     openedOn: day,
-    iban: cash ? '' : iban.value,
+    iban: iban.value,
     closed: props.account?.closed ?? false,
   })
   const before = props.account

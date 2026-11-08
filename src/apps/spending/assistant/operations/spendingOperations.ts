@@ -1,40 +1,47 @@
-import { ACCOUNT_WRITES, newAccount } from '../../accounts/application/accountWrites'
+import { FLAG_OR_NULL, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, found, inputOf } from './operationInput'
+import { proposalGroupsOf, statementLeftOut } from './proposalLines'
+import type { StatementLeftOut } from './proposalLines'
+import { REVIEW_OPERATIONS, writeReviewStep } from './reviewPairs'
+import { IMPORT_STATEMENT, importedStatement, withSheetsRead } from './statementImport'
+import { ACCOUNT_WRITES, keptAccount, newAccount } from '../../accounts/application/accountWrites'
 import { setLimit } from '../../budgets/application/budgetWrites'
 import { CATEGORY_WRITES, deleteInto, newCategory } from '../../categories/application/categoryWrites'
-import { TRANSACTION_WRITES, newEntry, removeEntry, retypedEntry } from '../../entries/application/entryWrites'
-import { fileRow, payeeCondition, writeRules } from '../../statements/application/statementWrites'
+import { lastOrder, siblingsUnder, swappedPlaces } from '../../categories/domain/categoryPlaces'
+import { TRANSACTION_WRITES, newEntry, newTransfer, removeEntry, writeEntry, writeTransfer } from '../../entries/application/entryWrites'
+import { removeReceiptOf } from '../../receipts/application/receiptRecords'
+import { fileRow, importWithRules, payeeCondition, writeRules } from '../../statements/application/statementWrites'
 import type { RuleEdits } from '../../statements/application/statementWrites'
-import { SETTING_WRITES } from '../../workbook/application/settingWrites'
-import { setSetting } from '../../../../shared/storage/application/settingWrites'
+import type { StatementRows } from '../../statements/domain/statementRows'
+import { SETTING_WRITES, treatPayeeAsPerson } from '../../workbook/application/settingWrites'
+import { ACCOUNT_BANKS, ACCOUNT_KINDS } from '../../workbook/domain/account'
 import type { Account, AccountBank, AccountKind } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
+import { isFixedKind } from '../../workbook/domain/category'
+import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { SpendingBooks } from '../../workbook/domain/spendingBooks'
 import type { SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
 import { COMPANY_OIB_KEY } from '../../workbook/domain/spendingSettings'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { AppAcceptance, AppProposer, AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
-import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
-import { parseCivilDate } from '../../../../shared/calendar/civilDate'
+import { StepRefused, proposedWrites } from '../../../../shared/app/proposedWrites'
+import type { OpenBooks, ProposalWork } from '../../../../shared/app/proposedWrites'
+import { today } from '../../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { parseMonthKey } from '../../../../shared/calendar/monthKey'
-import { accountMoneyFromAmount } from '../../../../shared/money/accountMoney'
+import { SWATCHES, swatchOf } from '../../../../shared/charts/swatches'
+import { absAccountMoney, accountMoneyFromAmount, negateAccountMoney } from '../../../../shared/money/accountMoney'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import { moneyFromAmount } from '../../../../shared/money/money'
 import type { WorkbookStore } from '../../../../shared/storage/application/createWorkbookStore'
-import { StepRefused, proposedWrites } from '../../../../shared/app/proposedWrites'
-import type { ProposalWork } from '../../../../shared/app/proposedWrites'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
-import { proposalGroupsOf } from './proposalLines'
+import { setSetting } from '../../../../shared/storage/application/settingWrites'
 
-const TEXT: StrictSchema = { type: 'string' }
-const TEXT_OR_NULL: StrictSchema = { type: ['string', 'null'] }
-const NUMBER: StrictSchema = { type: 'number' }
-const NUMBER_OR_NULL: StrictSchema = { type: ['number', 'null'] }
-const FLAG_OR_NULL: StrictSchema = { type: ['string', 'null'], description: '"yes", "no", or null to leave it.' }
-
-function inputOf(properties: Readonly<Record<string, StrictSchema>>): StrictSchema {
-  return { type: 'object', properties, required: Object.keys(properties), additionalProperties: false }
-}
+const COLOUR_OR_NULL = {
+  type: ['string', 'null'],
+  description: `A swatch by its code, ${SWATCHES.map((swatch) => `${swatch.hex} ${swatch.name}`).join(', ')}, or "" for its group's colour, or null to leave it.`,
+} as const
 
 /** Every change the chat can propose in Spending. Each calls the write functions the screens use. A setting that is not listed here cannot be proposed, whatever a model asks. */
 export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
@@ -49,12 +56,22 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   },
   {
     name: 'change-category',
-    about: 'A new name, or hidden from the pickers or shown again. Null leaves a field as it is.',
-    input: inputOf({ category: TEXT, name: TEXT_OR_NULL, hidden: FLAG_OR_NULL }),
+    about:
+      'A new name, another group of the same kind for a category in a group, a colour, or hidden from the pickers or shown again. A group stays a group, and a fixed category such as Between my accounts takes only a name. Null leaves a field as it is.',
+    input: inputOf({ category: TEXT, name: TEXT_OR_NULL, group: TEXT_OR_NULL, colour: COLOUR_OR_NULL, hidden: FLAG_OR_NULL }),
+    refs: { category: CATEGORY_RECORDS.name, group: CATEGORY_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { category: 'category-child', name: 'Renamed', group: 'category', colour: SWATCHES[0]!.hex, hidden: 'yes' },
+  },
+  {
+    name: 'move-category',
+    about: 'Moves a category one place up or down among the categories of its group, or a group among the groups of its kind.',
+    input: inputOf({ category: TEXT, direction: { type: 'string', enum: ['up', 'down'] } }),
     refs: { category: CATEGORY_RECORDS.name },
     creates: null,
     alone: false,
-    example: { category: 'category', name: 'Renamed', hidden: 'yes' },
+    example: { category: 'category', direction: 'up' },
   },
   {
     name: 'delete-category',
@@ -68,7 +85,7 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-rule',
     about:
-      "A rule that files rows into a category: as a row's payee or IBAN, by its ref, or by words in a payee's name. An alias of a person as the words covers every way they were written. Rows follow at once, and the card shows them.",
+      "A rule that files rows into a category: as a row's payee or IBAN, by its ref, or by words in a payee's name. An alias of a person as the words covers every way they were written. Rows follow at once, and the card shows them. A rule never re-files a row a person filed.",
     input: inputOf({ row: TEXT_OR_NULL, fragment: TEXT_OR_NULL, category: TEXT }),
     refs: { row: TRANSACTION_RECORDS.name, category: CATEGORY_RECORDS.name },
     spellings: ['fragment'],
@@ -105,8 +122,8 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   },
   {
     name: 'add-account',
-    about: 'A new account in one currency. kind is bank, cash or savings. bank is otp, revolut, other or null.',
-    input: inputOf({ name: TEXT, kind: { type: 'string', enum: ['bank', 'cash', 'savings'] }, bank: TEXT_OR_NULL, currency: TEXT, opening: NUMBER, openedOn: TEXT, iban: TEXT_OR_NULL }),
+    about: 'A new account in one currency. kind is bank, cash or savings. bank is otp, revolut, other or null. Cash has no bank and no IBAN.',
+    input: inputOf({ name: TEXT, kind: { type: 'string', enum: [...ACCOUNT_KINDS] }, bank: TEXT_OR_NULL, currency: TEXT, opening: NUMBER, openedOn: TEXT, iban: TEXT_OR_NULL }),
     refs: {},
     creates: ACCOUNT_RECORDS.name,
     alone: false,
@@ -114,12 +131,31 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   },
   {
     name: 'change-account',
-    about: 'A new name or IBAN, or closed or open again. Null leaves a field as it is.',
-    input: inputOf({ account: TEXT, name: TEXT_OR_NULL, iban: TEXT_OR_NULL, closed: FLAG_OR_NULL }),
+    about: 'A new name, type, bank, currency, opening balance, opening day or IBAN, or closed or open again. An account with entries keeps its currency. Null leaves a field as it is.',
+    input: inputOf({
+      account: TEXT,
+      name: TEXT_OR_NULL,
+      kind: { type: ['string', 'null'], description: `${ACCOUNT_KINDS.join(', ')}, or null to leave it.` },
+      bank: { type: ['string', 'null'], description: `${ACCOUNT_BANKS.join(', ')}, none for no bank, or null to leave it.` },
+      currency: TEXT_OR_NULL,
+      opening: NUMBER_OR_NULL,
+      openedOn: TEXT_OR_NULL,
+      iban: TEXT_OR_NULL,
+      closed: FLAG_OR_NULL,
+    }),
     refs: { account: ACCOUNT_RECORDS.name },
     creates: null,
     alone: false,
-    example: { account: 'account', name: 'Renamed', iban: null, closed: 'yes' },
+    example: { account: 'account', name: 'Renamed', kind: null, bank: null, currency: null, opening: 250, openedOn: null, iban: null, closed: 'yes' },
+  },
+  {
+    name: 'delete-account',
+    about: 'Deletes an account no entry is on. One with entries is closed instead.',
+    input: inputOf({ account: TEXT }),
+    refs: { account: ACCOUNT_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { account: 'account-empty' },
   },
   {
     name: 'add-entry',
@@ -132,12 +168,42 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   },
   {
     name: 'change-entry',
-    about: 'Files a row under a category, or fixes its date, amount, payee or note. Null leaves a field as it is. A row keeps what the bank said.',
-    input: inputOf({ entry: TEXT, category: TEXT_OR_NULL, date: TEXT_OR_NULL, amount: NUMBER_OR_NULL, payee: TEXT_OR_NULL, note: TEXT_OR_NULL }),
-    refs: { entry: TRANSACTION_RECORDS.name, category: CATEGORY_RECORDS.name },
+    about:
+      "Files a row under a category, or fixes its account, kind, date, amount, payee or note. kind is out or in, and sets the amount's sign. A row a statement brought keeps its account and what the bank said. A transfer's leg given a kind or another category becomes a plain entry, and its other leg goes. Otherwise a leg takes a new account, date or amount only through change-transfer. Null leaves a field as it is.",
+    input: inputOf({
+      entry: TEXT,
+      account: TEXT_OR_NULL,
+      kind: { type: ['string', 'null'], description: 'out, in, or null to leave it.' },
+      category: TEXT_OR_NULL,
+      date: TEXT_OR_NULL,
+      amount: NUMBER_OR_NULL,
+      payee: TEXT_OR_NULL,
+      note: TEXT_OR_NULL,
+    }),
+    refs: { entry: TRANSACTION_RECORDS.name, account: ACCOUNT_RECORDS.name, category: CATEGORY_RECORDS.name },
     creates: null,
     alone: false,
-    example: { entry: 'transaction', category: 'category', date: null, amount: null, payee: null, note: 'Checked' },
+    example: { entry: 'transaction', account: null, kind: null, category: 'category', date: null, amount: null, payee: null, note: 'Checked' },
+  },
+  {
+    name: 'add-transfer',
+    about:
+      "Money moved between two of your accounts, as two legs under Between my accounts that name each other. amount is what left from, above zero. toAmount is what reached to in its own currency, and is needed only when the two accounts' currencies differ.",
+    input: inputOf({ from: TEXT, to: TEXT, date: TEXT, amount: NUMBER, toAmount: NUMBER_OR_NULL, payee: TEXT, note: TEXT }),
+    refs: { from: ACCOUNT_RECORDS.name, to: ACCOUNT_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { from: 'account', to: 'account-other', date: '2026-11-02', amount: 50, toAmount: null, payee: '', note: '' },
+  },
+  {
+    name: 'change-transfer',
+    about:
+      'Makes an entry a transfer between two of your accounts, or changes a transfer through either leg. The entry stays the leg its money already is, so an entry that is no transfer yet needs the account on its other side. Amounts are above zero as in add-transfer. Null leaves a field as it is.',
+    input: inputOf({ entry: TEXT, from: TEXT_OR_NULL, to: TEXT_OR_NULL, date: TEXT_OR_NULL, amount: NUMBER_OR_NULL, toAmount: NUMBER_OR_NULL, payee: TEXT_OR_NULL, note: TEXT_OR_NULL }),
+    refs: { entry: TRANSACTION_RECORDS.name, from: ACCOUNT_RECORDS.name, to: ACCOUNT_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { entry: 'transaction', from: null, to: 'account-other', date: null, amount: null, toAmount: null, payee: null, note: null },
   },
   {
     name: 'delete-entry',
@@ -149,6 +215,26 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
     example: { entry: 'transaction' },
   },
   {
+    name: 'remove-receipt',
+    about: 'Takes the receipt off an entry, with the lines it split the entry into, and keeps the entry. The photo stays where it was kept.',
+    input: inputOf({ entry: TEXT }),
+    refs: { entry: TRANSACTION_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { entry: 'transaction-receipt' },
+  },
+  {
+    name: 'flag-person',
+    about: "Flags an entry's payee as a person, so the chat sends the name under an alias from then on. Only a person takes a flag off, on the entry's dialog.",
+    input: inputOf({ entry: TEXT }),
+    refs: { entry: TRANSACTION_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { entry: 'transaction' },
+  },
+  ...REVIEW_OPERATIONS,
+  IMPORT_STATEMENT,
+  {
     name: 'set-setting',
     about: "A setting's value, for the keys listed here. Blank removes it.",
     input: inputOf({ key: { type: 'string', enum: [COMPANY_OIB_KEY] }, value: TEXT }),
@@ -159,20 +245,8 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   },
 ]
 
-function dayOf(text: string): Transaction['date'] {
-  const day = parseCivilDate(text)
-  if (day === null) throw new StepRefused(`${text} does not read as a day such as 2026-10-31.`)
-  return day
-}
-
 function flagOf(text: string | null, kept: boolean): boolean {
   return text === null ? kept : text === 'yes'
-}
-
-function found<R extends { readonly id: string }>(records: readonly R[], id: string, what: string): R {
-  const record = records.find((candidate) => candidate.id === id)
-  if (record === undefined) throw new StepRefused(`That ${what} is no longer in the file.`)
-  return record
 }
 
 function conditionOf(fragment: string | null, iban: string | null, kept: SpendingRuleCondition): SpendingRuleCondition {
@@ -181,17 +255,101 @@ function conditionOf(fragment: string | null, iban: string | null, kept: Spendin
   return kept
 }
 
-/** Plans the steps into one write, in order. A `$` name stands for what an earlier step made, and the rules are re-run once, over all of them. */
-function planned(unit: UnitOfWork, books: SpendingBooks, steps: readonly ProposalStep[]): void {
+function oneOf<T extends string>(choices: readonly T[], text: string | null, what: string): T | null {
+  if (text === null) return null
+  const choice = choices.find((candidate) => candidate === text)
+  if (choice === undefined) throw new StepRefused(`${what} is one of ${choices.join(', ')}.`)
+  return choice
+}
+
+/** An amount above zero, as a transfer's legs are typed. */
+function positiveOf(amount: number): AccountMoney {
+  const money = accountMoneyFromAmount(amount)
+  if (money <= 0) throw new StepRefused('A transfer amount is above zero.')
+  return money
+}
+
+/** The swatch a step names, blank for the group's colour, or the colour kept. */
+function colourOf(text: string | null, kept: string): string {
+  if (text === null) return kept
+  if (text.trim() === '') return ''
+  const swatch = swatchOf(text)
+  if (swatch === null) throw new StepRefused('colour is a swatch code from the list, or "".')
+  return swatch.hex
+}
+
+/** A category with its changes, last among its new siblings when it moves to another group, as the category dialog writes it. */
+function changedCategory(book: SpendingBook, before: Category, field: Readonly<Record<string, never>>, groupOf: (value: unknown) => Category): Category {
+  const name = (field['name'] as string | null)?.trim() ?? before.name
+  if (isFixedKind(before.kind)) {
+    if (field['group'] !== null || field['colour'] !== null || field['hidden'] !== null) throw new StepRefused('A fixed category takes only a name.')
+    return { ...before, name }
+  }
+  let { parent, order } = before
+  if (field['group'] !== null) {
+    const group = groupOf(field['group'])
+    if (before.parent === null) throw new StepRefused('A group stays a group, so it takes no other group.')
+    if (group.parent !== null || group.kind !== before.kind) throw new StepRefused('group is a group of the same kind.')
+    if (group.id !== before.parent) {
+      parent = group.id
+      order = lastOrder(siblingsUnder(book.categories, group.id, before.kind).filter((sibling) => sibling.id !== before.id))
+    }
+  }
+  return { ...before, name, parent, order, colour: colourOf(field['colour'], before.colour), hidden: flagOf(field['hidden'], before.hidden) }
+}
+
+/** A day on which both accounts were open, as the entry dialog asks. */
+function openedBy(day: CivilDate, accounts: readonly Account[]): CivilDate {
+  if (accounts.some((account) => day < account.openedOn)) throw new StepRefused('That day is before the account opened.')
+  return day
+}
+
+/** The two legs of a transfer the step asks for, with the amount that reached the other account when its currency differs. */
+function transferLegs(
+  book: SpendingBook,
+  from: Account,
+  to: Account,
+  day: CivilDate,
+  amount: AccountMoney,
+  arrived: AccountMoney | null,
+  entry: Pick<Transaction, 'payee' | 'note'>,
+): readonly [Transaction, Transaction] {
+  const transfer = book.categories.find((category) => category.kind === 'transfer')
+  if (transfer === undefined) throw new StepRefused('The file has no Between my accounts category to file a transfer under.')
+  if (from.id === to.id) throw new StepRefused('A transfer moves money between two different accounts.')
+  if (from.currency !== to.currency && arrived === null) throw new StepRefused("The two accounts' currencies differ, so toAmount says what reached the other one.")
+  return newTransfer(
+    { account: from.id, amount },
+    { account: to.id, amount: from.currency === to.currency ? amount : arrived! },
+    { date: openedBy(day, [from, to]), payee: entry.payee, note: entry.note, category: transfer.id },
+  )
+}
+
+/** A transfer's legs from either one, the money-out leg first, or null for a plain entry. */
+function legsOf(book: SpendingBook, row: Transaction): readonly [Transaction, Transaction] | null {
+  const other = row.pair === null ? undefined : book.transactions.find((candidate) => candidate.id === row.pair)
+  if (other === undefined) return null
+  return row.amount < 0 ? [row, other] : [other, row]
+}
+
+/**
+ * Plans the steps into one write, in order. A `$` name stands for what an earlier step made, and the rules are re-run once,
+ * over all of them, and file a statement's new rows. Gives what the import leaves out of its statement, or null for a card with no import.
+ */
+function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: readonly ProposalStep[]): StatementLeftOut | null {
+  if (steps.some((step) => step.operation === IMPORT_STATEMENT.name) && steps.some((step) => step.operation === 'add-category'))
+    throw new StepRefused('A new category goes on a card before the import, and the import card files into it once that card is accepted.')
   let book = books.workbook
   const made = new Map<string, string>()
   const edits: { filing: NonNullable<RuleEdits['filing']>[number][]; fixing: NonNullable<RuleEdits['fixing']>[number][]; deleting: SpendingRule[] } = { filing: [], fixing: [], deleting: [] }
+  let imported: StatementRows | null = null
   const idOf = (value: unknown): string => {
     const text = String(value)
     return made.get(text) ?? text
   }
   const categoryOf = (value: unknown): Category => found(book.categories, idOf(value), 'category')
   const accountOf = (value: unknown): Account => found(book.accounts, idOf(value), 'account')
+  const rowOf = (value: unknown): Transaction => found(book.transactions, idOf(value), 'row')
 
   for (const { operation, input, as } of steps) {
     // The chat checked the input against this operation's schema, so each field has the type the schema gives it.
@@ -199,8 +357,8 @@ function planned(unit: UnitOfWork, books: SpendingBooks, steps: readonly Proposa
     switch (operation) {
       case 'add-category': {
         const parent = field['parent'] === null ? null : categoryOf(field['parent']).id
-        const siblings = book.categories.filter((category) => category.parent === parent)
-        const category: Category = newCategory({ name: field['name'], kind: field['kind'], parent, order: Math.max(0, ...siblings.map((sibling) => sibling.order)) + 1, colour: '', hidden: false })
+        const kind = field['kind'] as Category['kind']
+        const category: Category = newCategory({ name: field['name'], kind, parent, order: lastOrder(siblingsUnder(book.categories, parent, kind)), colour: '', hidden: false })
         unit.of(CATEGORY_WRITES).add(category)
         book = { ...book, categories: [...book.categories, category] }
         if (as !== null) made.set(as, category.id)
@@ -208,14 +366,22 @@ function planned(unit: UnitOfWork, books: SpendingBooks, steps: readonly Proposa
       }
       case 'change-category': {
         const before = categoryOf(field['category'])
-        unit.of(CATEGORY_WRITES).change(before, { ...before, name: (field['name'] as string | null)?.trim() ?? before.name, hidden: flagOf(field['hidden'], before.hidden) })
+        unit.of(CATEGORY_WRITES).change(before, changedCategory(book, before, field, categoryOf))
+        break
+      }
+      case 'move-category': {
+        const category = categoryOf(field['category'])
+        const siblings = siblingsUnder(book.categories, category.parent, category.kind)
+        const changes = swappedPlaces(siblings, siblings.indexOf(category), field['direction'] === 'up' ? -1 : 1)
+        if (changes.length === 0) throw new StepRefused(`That category is already ${field['direction'] === 'up' ? 'first' : 'last'} where it is.`)
+        changes.forEach(([before, after]) => unit.of(CATEGORY_WRITES).change(before, after))
         break
       }
       case 'delete-category':
         deleteInto(unit, books.records, categoryOf(field['category']), categoryOf(field['into']))
         break
       case 'add-rule': {
-        const row = field['row'] === null ? null : found(book.transactions, idOf(field['row']), 'row')
+        const row = field['row'] === null ? null : rowOf(field['row'])
         const fragments: readonly (string | null)[] = Array.isArray(field['fragment']) ? field['fragment'] : [field['fragment']]
         const conditions = row === null ? fragments.map((fragment) => conditionOf(fragment, null, { column: 'counterparty_contains', fragment: '' })) : [payeeCondition(row)]
         const category = categoryOf(field['category']).id
@@ -246,7 +412,7 @@ function planned(unit: UnitOfWork, books: SpendingBooks, steps: readonly Proposa
         const account = newAccount({
           name: field['name'],
           kind: field['kind'] as AccountKind,
-          bank: field['bank'] as AccountBank | null,
+          bank: oneOf(ACCOUNT_BANKS, field['bank'], 'bank'),
           currency,
           opening: accountMoneyFromAmount(field['opening']),
           openedOn: dayOf(field['openedOn']),
@@ -260,18 +426,33 @@ function planned(unit: UnitOfWork, books: SpendingBooks, steps: readonly Proposa
       }
       case 'change-account': {
         const before = accountOf(field['account'])
-        unit.of(ACCOUNT_WRITES).change(before, {
-          ...before,
-          name: (field['name'] as string | null)?.trim() ?? before.name,
-          iban: (field['iban'] as string | null)?.trim() ?? before.iban,
-          closed: flagOf(field['closed'], before.closed),
-        })
+        const currency = field['currency'] === null ? before.currency : currencyCodeOf(field['currency'])
+        if (currency === null) throw new StepRefused('That currency is not one Kuna knows.')
+        const bank: AccountBank | 'none' | null = oneOf([...ACCOUNT_BANKS, 'none'], field['bank'], 'bank')
+        unit.of(ACCOUNT_WRITES).change(
+          before,
+          keptAccount({
+            ...before,
+            name: (field['name'] as string | null) ?? before.name,
+            kind: oneOf(ACCOUNT_KINDS, field['kind'], 'kind') ?? before.kind,
+            bank: bank === null ? before.bank : bank === 'none' ? null : bank,
+            currency,
+            opening: field['opening'] === null ? before.opening : accountMoneyFromAmount(field['opening']),
+            openedOn: field['openedOn'] === null ? before.openedOn : dayOf(field['openedOn']),
+            iban: (field['iban'] as string | null) ?? before.iban,
+            closed: flagOf(field['closed'], before.closed),
+          }),
+        )
         break
       }
+      case 'delete-account':
+        unit.of(ACCOUNT_WRITES).remove(accountOf(field['account']))
+        break
       case 'add-entry': {
+        const account = accountOf(field['account'])
         const entry = newEntry({
-          account: accountOf(field['account']).id,
-          date: dayOf(field['date']),
+          account: account.id,
+          date: openedBy(dayOf(field['date']), [account]),
           amount: accountMoneyFromAmount(field['amount']),
           payee: field['payee'],
           category: field['category'] === null ? null : categoryOf(field['category']).id,
@@ -283,26 +464,87 @@ function planned(unit: UnitOfWork, books: SpendingBooks, steps: readonly Proposa
         break
       }
       case 'change-entry': {
-        const before = found(book.transactions, idOf(field['entry']), 'row')
-        const onlyFiled = field['date'] === null && field['amount'] === null && field['payee'] === null && field['note'] === null
+        const before = rowOf(field['entry'])
+        const kind = oneOf(['out', 'in'], field['kind'], 'kind')
         const filedUnder = field['category'] === null ? null : categoryOf(field['category'])
-        if (onlyFiled && filedUnder !== null) {
+        const onlyFiled = [field['account'], field['kind'], field['date'], field['amount'], field['payee'], field['note']].every((value) => value === null)
+        const legs = legsOf(book, before)
+        const plain = legs !== null && (kind !== null || (filedUnder !== null && filedUnder.kind !== 'transfer'))
+        if (onlyFiled && filedUnder !== null && legs === null) {
           fileRow(unit, before, filedUnder)
-        } else {
-          const typed: Transaction = {
-            ...before,
-            date: field['date'] === null ? before.date : dayOf(field['date']),
-            amount: field['amount'] === null ? before.amount : accountMoneyFromAmount(field['amount']),
-            payee: (field['payee'] as string | null) ?? before.payee,
-            note: (field['note'] as string | null) ?? before.note,
-            category: filedUnder?.id ?? before.category,
-          }
-          unit.of(TRANSACTION_WRITES).change(before, retypedEntry(before, typed))
+          break
         }
+        const amount = field['amount'] === null ? before.amount : accountMoneyFromAmount(field['amount'])
+        const account = accountOf(field['account'] ?? before.account)
+        const date = field['date'] === null ? before.date : dayOf(field['date'])
+        const typed: Transaction = {
+          ...before,
+          account: account.id,
+          date,
+          amount: kind === null ? amount : kind === 'out' ? negateAccountMoney(absAccountMoney(amount)) : absAccountMoney(amount),
+          payee: (field['payee'] as string | null) ?? before.payee,
+          note: (field['note'] as string | null) ?? before.note,
+          category: filedUnder?.id ?? before.category,
+          pair: plain ? null : before.pair,
+        }
+        if (legs !== null && !plain && (typed.account !== before.account || typed.date !== before.date || typed.amount !== before.amount))
+          throw new StepRefused("That entry is a transfer's leg, so its account, date or amount change through change-transfer, which keeps both legs in step.")
+        if (field['account'] !== null || field['date'] !== null) openedBy(date, [account])
+        writeEntry(unit, before, typed, plain ? (legs.find((leg) => leg !== before) ?? null) : null)
+        break
+      }
+      case 'add-transfer': {
+        const from = accountOf(field['from'])
+        const to = accountOf(field['to'])
+        const arrived = field['toAmount'] === null ? null : positiveOf(field['toAmount'])
+        writeTransfer(unit, null, null, transferLegs(book, from, to, dayOf(field['date']), positiveOf(field['amount']), arrived, { payee: field['payee'], note: field['note'] }))
+        break
+      }
+      case 'change-transfer': {
+        const before = rowOf(field['entry'])
+        const legs = legsOf(book, before)
+        const isOut = legs !== null || before.amount < 0
+        const keptFrom = legs?.[0].account ?? (isOut ? before.account : null)
+        const keptTo = legs?.[1].account ?? (isOut ? null : before.account)
+        const fromId = field['from'] === null ? keptFrom : accountOf(field['from']).id
+        const toId = field['to'] === null ? keptTo : accountOf(field['to']).id
+        if (fromId === null || toId === null) throw new StepRefused('An entry that is no transfer yet needs the account on its other side.')
+        const from = accountOf(fromId)
+        const to = accountOf(toId)
+        const sameCurrency = from.currency === to.currency
+        const keptAmount = legs !== null ? absAccountMoney(legs[0].amount) : isOut || sameCurrency ? absAccountMoney(before.amount) : null
+        const keptArrived = legs !== null ? absAccountMoney(legs[1].amount) : !isOut || sameCurrency ? absAccountMoney(before.amount) : null
+        const amount = field['amount'] === null ? keptAmount : positiveOf(field['amount'])
+        if (amount === null) throw new StepRefused('amount says what left the other account in its own currency.')
+        const arrived = field['toAmount'] === null ? keptArrived : positiveOf(field['toAmount'])
+        const day = field['date'] === null ? (legs?.[0].date ?? before.date) : dayOf(field['date'])
+        const entry = { payee: (field['payee'] as string | null) ?? before.payee, note: (field['note'] as string | null) ?? before.note }
+        writeTransfer(unit, before, legs, transferLegs(book, from, to, day, amount, arrived, entry))
         break
       }
       case 'delete-entry':
-        removeEntry(unit, books.records, found(book.transactions, idOf(field['entry']), 'row'))
+        removeEntry(unit, books.records, rowOf(field['entry']))
+        break
+      case 'remove-receipt': {
+        const row = rowOf(field['entry'])
+        if (!book.receipts.some((receipt) => receipt.transaction === row.id) && !book.lines.some((line) => line.transaction === row.id)) throw new StepRefused('That entry has no receipt.')
+        removeReceiptOf(unit, books.records, row)
+        break
+      }
+      case 'flag-person': {
+        const payee = rowOf(field['entry']).payee.trim()
+        if (payee === '') throw new StepRefused('That entry has no payee to flag.')
+        treatPayeeAsPerson(unit, book.readings.settings.facts, payee, true)
+        break
+      }
+      case 'join-rows':
+      case 'pair-rows':
+      case 'unpair-rows':
+        writeReviewStep(unit, book, operation, rowOf(field['row']))
+        break
+      case 'import-statement':
+        if (imported !== null) throw new StepRefused('A card imports one statement.')
+        imported = importedStatement(field, book, accountOf)
         break
       case 'set-setting':
         setSetting(unit, SETTING_WRITES, book.readings.settings.facts, field['key'], field['value'])
@@ -311,22 +553,40 @@ function planned(unit: UnitOfWork, books: SpendingBooks, steps: readonly Proposa
         throw new StepRefused('There is no such operation.')
     }
   }
+  if (imported !== null) return statementLeftOut(imported, importWithRules(unit, book, edits, imported, today()))
   if (edits.filing.length + edits.fixing.length + edits.deleting.length > 0) writeRules(unit, book, edits)
+  return null
 }
 
-/** How the chat's steps become one write of the Spending file. */
-const SPENDING_WORK: ProposalWork<SpendingBooks, never> = {
-  notOpen: 'The Spending file is not open on this device.',
-  plan: (unit, books, steps) => planned(unit, books, steps),
-  groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook),
+/** How the chat's steps become one write of the Spending file. The card warns on what the plan's import leaves out, so each check gets its own. */
+function spendingWork(): ProposalWork<SpendingBooks, never> {
+  let leftOut: StatementLeftOut | null = null
+  return {
+    notOpen: 'The Spending file is not open on this device.',
+    plan: (unit, books, steps) => {
+      leftOut = planned(unit, books, steps)
+    },
+    groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook, leftOut),
+    overLimit: (steps) =>
+      steps.some((step) => step.operation === IMPORT_STATEMENT.name)
+        ? 'A part of a statement cannot shrink, so put the rules on a card of their own before the import, then propose the import again.'
+        : null,
+  }
 }
 
-/** The changes the chat can propose and their dry run, over the app's own store, which `app.ts` hands in. */
+/** The changes the chat can propose and their dry run, over the app's own store, which `app.ts` hands in. An attached sheet is read before the dry run. */
 export function spendingProposer(store: Pick<WorkbookStore<SpendingBooks>, 'state' | 'check' | 'write' | 'undo'>): AppProposer {
-  return { operations: SPENDING_OPERATIONS, readsBooks: true, check: proposedWrites(store, SPENDING_WORK).check }
+  return {
+    operations: SPENDING_OPERATIONS,
+    readsBooks: true,
+    async check(title, steps) {
+      const read = await withSheetsRead(steps)
+      return 'refused' in read ? read : proposedWrites(store, spendingWork()).check(title, read)
+    },
+  }
 }
 
 /** Writes a proposal as it was checked, in one write with one Undo. A record changed since refuses this proposal alone, and the file's other writes go on. */
 export function spendingAcceptance(store: Pick<WorkbookStore<SpendingBooks>, 'state' | 'check' | 'write' | 'undo'>): AppAcceptance {
-  return { accept: proposedWrites(store, SPENDING_WORK).accept }
+  return { accept: proposedWrites(store, spendingWork()).accept }
 }

@@ -1,4 +1,4 @@
-import { computed, markRaw, reactive, readonly, shallowRef } from 'vue'
+import { computed, markRaw, reactive, readonly, shallowReactive, shallowRef } from 'vue'
 
 import type { AppContribution } from '../../app/appContribution'
 import type { CheckedProposal, UndoResult } from '../../app/assistantOperations'
@@ -8,19 +8,25 @@ import type { Catalogue, CatalogueScreen } from '../application/catalogue'
 import type { ChatReads } from '../application/chatReads'
 import type { ChatChip } from '../application/chatTools'
 import type { ModelTurn } from '../application/modelPort'
-import { CHAT_TASK_ID, contextLine, runChatTurn } from '../application/runChatTurn'
+import { CHAT_TASK_ID, NOTHING_TAGGED, contextLine, elementLine, runChatTurn } from '../application/runChatTurn'
 import type { ChatContext, SentRead } from '../application/runChatTurn'
 import type { LoopEnd } from '../application/runModelLoop'
 import { chatRefs } from '../domain/chatRefs'
+import { documentSizeOf, nextAttachmentId, sendsToModel } from '../domain/chatAttachments'
+import type { AttachmentRefusal, ChatAttachment } from '../domain/chatAttachments'
+import { costOfDocument } from '../domain/modelUsage'
+import { attachedFile } from '../application/chatFiles'
 import { newPseudonyms } from '../../privacy/domain/pseudonyms'
 import type { PersonWord } from '../../privacy/domain/pseudonyms'
 import { language } from '../../text/language'
 import type { ChatFigure } from '../domain/chatRefs'
+import type { ChatElementAbout } from '../domain/chatElement'
 import { forgetSavedChat, readSavedChat, saveChat } from '../application/savedChat'
 import type { ProposalState, SavedChat, SavedLine, SavedProposal } from '../application/savedChat'
 import { modelPort } from '../application/modelAccess'
 import { anonymiseOn, assistOn, modelOf, switchAssist } from '../application/assistSettings'
-import type { ProviderId } from '../domain/providerPresets'
+import type { ProviderId, ProviderPreset } from '../domain/providerPresets'
+import { imagePartOf } from './imagePartOf'
 import { MOST_RUN_MILLISECONDS, costWords, providerInUse, resultLine } from './useAiTask'
 import { words } from './words'
 
@@ -43,6 +49,8 @@ export interface ChatLine {
   strayFigure: boolean
   /** The cards this message showed. */
   proposals: ChatProposal[]
+  /** The names of the files a message went with. */
+  attachments: string[]
 }
 
 /** A card in the chat. `checked` is gone after a reload, and with it Accept and Undo. */
@@ -64,6 +72,15 @@ export interface ReadAsk {
 /** How a person answered: yes for this chat, yes on this device, or no. */
 export type ReadAnswer = 'chat' | 'always' | 'no'
 
+/** Why a file on the prompt cannot go: Kuna's own check, or a provider that reads no PDFs. */
+export type FileRefusal = AttachmentRefusal | { readonly reason: 'no-pdf'; readonly provider: string }
+
+/** A file on the prompt: being read on this device, waiting to go with the next message, or refused, with why. */
+export type PromptFile =
+  | { readonly key: string; readonly name: string; readonly state: 'reading' }
+  | { readonly key: string; readonly name: string; readonly state: 'ready'; readonly attachment: ChatAttachment }
+  | { readonly key: string; readonly name: string; readonly state: 'refused'; readonly refusal: FileRefusal }
+
 interface Spent {
   dollars: number
   /** Some request ran on a model whose price Kuna does not know. */
@@ -79,8 +96,17 @@ const status = shallowRef<'ready' | 'streaming'>('ready')
 /** A question not sent yet, which stays while the panel is closed and goes with a new chat. */
 export const chatDraft = shallowRef('')
 
+/** The files on the prompt as Kuna read them, in the order they were attached. */
+const promptFiles = shallowReactive<PromptFile[]>([])
+/** Every file sent in this chat, held in memory only, which the model reads by its id and which goes with the chat. */
+const attached: ChatAttachment[] = []
+/** How many attachment ids this page handed out. A new chat goes on counting, so a read still under way from the last one cannot take a new file's place. */
+let idsHandedOut = 0
+
 let history: readonly ModelTurn[] = []
 let lastContext: string | null = null
+/** The line naming the tag and the files that the model last read, or null when it read none. */
+let lastElement: string | null = null
 /** The provider and model `history` belongs to, since a provider's turns mean nothing to another and thinking blocks are tied to the model. */
 let chain: string | null = null
 let current: AbortController | null = null
@@ -105,7 +131,7 @@ let refs = chatRefs()
 
 function added(role: ChatLine['role'], text: string, note = false, at = Date.now()): ChatLine {
   nextId += 1
-  lines.push({ id: `chat-${nextId}`, role, at, text, chips: [], failure: null, retry: null, note, sent: [], strayFigure: false, proposals: [] })
+  lines.push({ id: `chat-${nextId}`, role, at, text, chips: [], failure: null, retry: null, note, sent: [], strayFigure: false, proposals: [], attachments: [] })
   return lines[lines.length - 1]!
 }
 
@@ -121,6 +147,7 @@ function startChainOn(next: string): void {
   if (chain !== next) {
     history = []
     lastContext = null
+    lastElement = null
   }
   chain = next
 }
@@ -129,29 +156,36 @@ let catalogue: Promise<Catalogue> | null = null
 
 /**
  * What a chat knows, built once as the first message goes and kept for the visit. It reads what each app declares and
- * none of what a person's books decide, so it takes every screen but a first run and those that open one record.
+ * none of what a person's books decide, so it takes every screen but a first run. A screen that opens one record is
+ * taken only when the app declares it as a place, whose parameters a link fills from a record's ref.
  */
 export function loadCatalogue(apps: readonly AppContribution[], kunaScreens: readonly CatalogueScreen[]): Promise<Catalogue> {
   catalogue ??= Promise.all(
-    apps.map(async (app) => ({
-      id: app.id,
-      name: app.name,
-      purpose: app.homeCard.purpose,
-      screens: app.screens.filter((screen) => screen.bare !== true && screen.needsRecord !== true).map(({ path, title }) => ({ path, title })),
-      assistant: await app.assistant(),
-    })),
+    apps.map(async (app) => {
+      const assistant = await app.assistant()
+      const linkable = new Set(assistant.places.map((place) => place.route.split('?')[0]))
+      return {
+        id: app.id,
+        name: app.name,
+        purpose: app.homeCard.purpose,
+        screens: app.screens.filter((screen) => screen.bare !== true && (screen.needsRecord !== true || linkable.has(screen.path))).map(({ path, title }) => ({ path, title })),
+        assistant,
+      }
+    }),
   ).then((catalogueApps) => catalogueOf(catalogueApps, kunaScreens))
   return catalogue
 }
 
-/** Where the person is, as the screen knows it. The query is read only for a place the catalogue declares. */
+/** Where the person is, as the screen knows it, and what they tagged there. The query is read only for a place the catalogue declares. */
 export interface ChatWhere extends Omit<ChatContext, 'place'> {
   readonly query: Readonly<Record<string, unknown>>
+  /** The element the chat is about, the same object for as long as it stays tagged, or null. */
+  readonly element: ChatElementAbout | null
 }
 
 function contextAt(where: ChatWhere, known: Catalogue): ChatContext {
   const place = placeAt(known, where.path, where.query)
-  return { app: where.app, screen: where.screen, place: place?.title ?? null, path: place?.address ?? where.path, tag: where.tag, today: where.today }
+  return { app: where.app, screen: where.screen, place: place?.title ?? null, path: place?.address ?? where.path, today: where.today }
 }
 
 /** An answer as this browser keeps it: no alias is turned back, as the map is never stored, and a figure ref is written out, as its figure goes with the page. */
@@ -172,6 +206,7 @@ function savedLine(line: ChatLine): SavedLine {
     strayFigure: line.strayFigure,
     failure: line.failure,
     proposals: line.proposals.map(({ id, app, title, count, state }) => ({ id, app, title, count, state })),
+    ...(line.attachments.length === 0 ? {} : { attachments: [...line.attachments] }),
   }
 }
 
@@ -197,6 +232,7 @@ function restored(saved: SavedChat): void {
     shown.strayFigure = line.strayFigure
     shown.failure = line.failure
     shown.proposals = line.proposals.map((proposal) => ({ ...proposal, checked: null, state: restoredState(proposal.state), reason: null, undo: null }))
+    shown.attachments = [...(line.attachments ?? [])]
   }
   Object.assign(spent, saved.spent)
 }
@@ -314,11 +350,63 @@ function readsOf(catalogue: Catalogue, provider: ProviderId, pauseClock: () => (
   }
 }
 
+/** Reads each file on this device and puts it on the prompt, or puts it there refused with why, so a person sees what did not take. */
+export async function attachFiles(files: readonly File[]): Promise<void> {
+  await Promise.all(
+    files.map(async (file) => {
+      const waiting = promptFiles.filter((shown) => shown.state !== 'refused').length
+      const id = nextAttachmentId(idsHandedOut)
+      idsHandedOut += 1
+      const key = `file-${id}`
+      promptFiles.push({ key, name: file.name, state: 'reading' })
+      const read = await attachedFile(file, id, waiting, imagePartOf)
+      const at = promptFiles.findIndex((shown) => shown.key === key)
+      if (at === -1) return
+      promptFiles[at] = 'reason' in read ? { key, name: file.name, state: 'refused', refusal: read } : { key, name: file.name, state: 'ready', attachment: markRaw(read) }
+    }),
+  )
+}
+
+export function removePromptFile(key: string): void {
+  const at = promptFiles.findIndex((shown) => shown.key === key)
+  if (at === -1) return
+  promptFiles.splice(at, 1)
+}
+
+function dropPromptFiles(): void {
+  promptFiles.splice(0)
+}
+
+function noPdfBy(preset: ProviderPreset | null): FileRefusal | null {
+  return preset === null || preset.readsPdf ? null : { reason: 'no-pdf', provider: preset.name }
+}
+
+/** The files on the prompt as their chips show them. A PDF waits refused while the provider in use reads none, and is ready again once it does. */
+export const chatPromptFiles = computed<readonly PromptFile[]>(() => {
+  const noPdf = noPdfBy(providerInUse())
+  return promptFiles.map((file) => (noPdf !== null && file.state === 'ready' && file.attachment.kind === 'pdf' ? { key: file.key, name: file.name, state: 'refused', refusal: noPdf } : file))
+})
+
+/** Whether a PDF on the prompt waits for a provider that reads it, which holds the message back. */
+export const promptPdfsRefused = computed(() => chatPromptFiles.value.some((file) => file.state === 'refused' && file.refusal.reason === 'no-pdf'))
+
+/** Whether a photo or a PDF on the prompt goes to the model whole. */
+export const promptSendsDocument = computed(() => chatPromptFiles.value.some((file) => file.state === 'ready' && sendsToModel(file.attachment.kind)))
+
+/** The files that go with a message leave the prompt, with any refused, and the chat holds them for the model's reads. */
+function sentFiles(): readonly ChatAttachment[] {
+  const going = promptFiles.flatMap((file) => (file.state === 'ready' ? [file.attachment] : []))
+  for (const file of promptFiles.filter((shown) => shown.state !== 'reading')) removePromptFile(file.key)
+  attached.push(...going)
+  return going
+}
+
 /** Sends one message and writes what comes back on its line. A failed message leaves the turns as they were, so the next one goes on from the last answer. */
 export async function sendChatMessage(message: string, where: ChatWhere, knowledge: () => Promise<Catalogue>): Promise<void> {
   const preset = providerInUse()
+  if (promptPdfsRefused.value) return
   if (preset !== null) startChainOn(`${preset.id}/${modelOf(preset.id).id}`)
-  added('user', message)
+  added('user', message).attachments = sentFiles().map((attachment) => attachment.name)
   const line = added('assistant', '')
   current?.abort()
   const controller = new AbortController()
@@ -341,15 +429,18 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
       return
     }
     const catalogue = await knowledge()
+    const reads = readsOf(catalogue, preset.id, pauseClock)
     const contextNow = contextLine(contextAt(where, catalogue))
+    const elementNow = elementLine(where.element, attached, catalogue, reads)
     const heard = outcomes.splice(0).map((outcome) => `<context>${outcome}</context>`)
-    const changedContext = contextNow === lastContext ? [] : [contextNow]
+    const changed = [...(contextNow === lastContext ? [] : [contextNow]), ...(elementNow === lastElement ? [] : [elementNow ?? NOTHING_TAGGED]), ...heard]
     const end = await runChatTurn({
       model,
       catalogue,
-      reads: readsOf(catalogue, preset.id, pauseClock),
+      reads,
       history,
-      context: heard.length + changedContext.length === 0 ? null : [...changedContext, ...heard].join('\n'),
+      context: changed.length === 0 ? null : changed.join('\n'),
+      attachments: [...attached],
       message,
       signal: controller.signal,
       onDelta: (delta) => {
@@ -377,6 +468,7 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
       line.strayFigure = refs.holdsStrayFigure(end.text)
       history = end.turns
       lastContext = contextNow
+      lastElement = elementNow
     } else if (!stoppedByPerson) {
       line.failure = resultLine(end)
       line.retry = message
@@ -426,11 +518,14 @@ export function clearChat(): void {
   lines.splice(0)
   history = []
   lastContext = null
+  lastElement = null
   chain = null
   allowedFor = null
   appsAllowed.clear()
   pseudonyms = newPseudonyms(PERSON_WORD)
   refs = chatRefs()
+  dropPromptFiles()
+  attached.splice(0)
   outcomes.splice(0)
   void forgetSavedChat()
   chatDraft.value = ''
@@ -454,3 +549,20 @@ export function chatFigure(ref: string): ChatFigure | null {
 
 /** What the chat has spent so far, as "about $0.04", or null before it spent anything. It only ever informs, and nothing stops on it. */
 export const chatSpent = computed(() => (spent.any ? costWords(spent.unknown ? null : spent.dollars) : null))
+
+/**
+ * What the files waiting on the prompt add, to read and to each later message while they stay in the chat, or null when
+ * none goes to the model. It informs only. Each file is counted alone, as the chat's own prompt is not known before it goes.
+ */
+export const promptFilesCost = computed(() => {
+  const sizes = chatPromptFiles.value.flatMap((file) => {
+    const size = file.state === 'ready' ? documentSizeOf(file.attachment) : null
+    return size === null ? [] : [size]
+  })
+  const preset = providerInUse()
+  if (sizes.length === 0 || preset === null) return null
+  const price = modelOf(preset.id).price
+  if (price === null) return words.files.costUnknown
+  const costs = sizes.map((size) => costOfDocument(size, price, 0))
+  return words.files.cost(costWords(costs.reduce((sum, cost) => sum + cost.toRead, 0)), costWords(costs.reduce((sum, cost) => sum + cost.eachLaterRequest, 0)))
+})

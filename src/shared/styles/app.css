@@ -470,10 +470,26 @@ section + section > .group-row:not(tr) {
   outline: none;
 }
 
-/* The element the open chat is about. An element takes it through `chatTagAttrs`. */
-[data-chat-tagged] {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+/* The element the open chat is about, which takes it through `useChatElement`. A card keeps its surface and shadow under the accent wash, and its own border turns accent. */
+[data-chat-tagged='card'] {
+  background-image: linear-gradient(var(--accent-wash), var(--accent-wash));
+  border-color: var(--accent);
+}
+
+/* A row has no border, so it takes the selected sidebar row's look: the wash and a short bar on its leading edge. */
+[data-chat-tagged='row'] {
+  position: relative;
+  background: var(--accent-wash);
+}
+
+[data-chat-tagged='row']::before {
+  content: '';
+  position: absolute;
+  inset-block: 0.4375rem;
+  inset-inline-start: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
 }
 
 /* The key beside a legend's label or a figure: its mark in the colour passed as --swatch. */

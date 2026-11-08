@@ -21,15 +21,16 @@ const CATALOGUE: Catalogue = {
   pages: new Map(),
   routes: new Map(),
   places: new Map(),
+  placeParams: new Map(),
   readers: new Map([['spending', { name: 'Spending', reader: spendingReader(CHAT_READING) }]]),
   proposers: new Map(),
   persons: () => CHAT_PERSONS,
 }
-const CONTEXT = { app: 'Spending', screen: 'Entries', path: '/spending', query: {}, tag: null, today: '2026-11-07' }
+const CONTEXT = { app: 'Spending', screen: 'Entries', path: '/spending', query: {}, element: null, today: '2026-11-07' }
 const TOKENS = { input: 1, cacheRead: 0, cacheWrite: 0, output: 1 }
 const DAY = 86_400_000
 const NOTHING_SPENT = { dollars: 0, unknown: false, any: false }
-const FIND = { app: 'spending', kind: 'transaction', query: null, from: null, to: null, about: null, limit: null, cursor: null }
+const FIND = { app: 'spending', kind: 'transaction', query: null, from: null, to: null, about: null, only: null, limit: null, cursor: null }
 
 function scripted(replies: readonly ModelReply[]): ModelPort & { readonly turns: (readonly ModelTurn[])[] } {
   let at = 0
@@ -92,6 +93,28 @@ describe('a chat kept in this browser', () => {
     expect(texts).toContain('Person 1 got -45.30 EUR. The month spent 645.30 EUR.')
     expect(second.shownOnScreen('Person 1')).toBe('Person 1')
     expect(second.chatLines.at(-1)!.sent).toEqual([])
+  })
+
+  it('keeps only the names of the files a message went with, never the files', async () => {
+    const first = await loadSession()
+    const { pickProvider } = await import('../src/shared/ai/application/assistSettings')
+    pickProvider('anthropic')
+    first.allowThisChat('anthropic')
+    const bytes = new TextEncoder().encode('date,amount\n2026-10-01,-12.00')
+    const sheet = new File([bytes], 'October.csv', { type: 'text/csv' })
+    Object.defineProperty(sheet, 'arrayBuffer', { value: async () => bytes.slice().buffer })
+    await first.attachFiles([sheet])
+    port.current = scripted([{ kind: 'answer', text: 'Read.', raw: [], tokens: TOKENS }])
+    await first.sendChatMessage('Import it', CONTEXT, async () => CATALOGUE)
+    await settled()
+
+    const stored = JSON.stringify(await readSavedChat())
+    expect(stored).toContain('"attachments":["October.csv"]')
+    expect(stored).not.toContain('2026-10-01')
+
+    const second = await loadSession()
+    await second.restoreChat()
+    expect(second.chatLines.find((line) => line.role === 'user')?.attachments).toEqual(['October.csv'])
   })
 
   it('starts the model fresh after a reload', async () => {

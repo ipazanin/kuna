@@ -7,7 +7,7 @@ import type { InvestmentsBooks } from '../src/apps/investments/workbook/domain/i
 import { ACCOUNT_WRITES, CATEGORY_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
 import { CATEGORY_WRITES as SPENDING_CATEGORY_WRITES } from '../src/apps/spending/categories/application/categoryWrites'
 import { categoryTree } from '../src/apps/spending/categories/domain/categoryTree'
-import { swappedPlaces } from '../src/apps/spending/categories/presentation/categoryPlaces'
+import { swappedPlaces } from '../src/apps/spending/categories/domain/categoryPlaces'
 import { starterSpendingDocument } from '../src/apps/spending/workbook/presentation/spendingFile'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'

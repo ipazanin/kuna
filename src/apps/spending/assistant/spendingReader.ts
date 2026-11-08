@@ -3,7 +3,8 @@ import { monthFlow } from '../analytics/domain/monthFlow'
 import { categoryTotal } from '../analytics/domain/monthTotals'
 import { categoryTree } from '../categories/domain/categoryTree'
 import { countedAccounts } from '../rates/domain/euroRows'
-import { reviewCount } from '../statements/domain/reviewQueue'
+import { isWaiting, reviewCount } from '../statements/domain/reviewQueue'
+import { SPENDING_ACCOUNT_ROUTE } from '../overview/presentation/spendingLinks'
 import type { Account } from '../workbook/domain/account'
 import type { Budget } from '../workbook/domain/budget'
 import type { Category } from '../workbook/domain/category'
@@ -205,8 +206,17 @@ export function spendingReader(reading: SpendingReading): AppReader {
         dated: 'date',
         rows: () => rows((book) => book.transactions),
         currencyOf: (row) => accountCurrency(row.account),
+        sets: [{ name: 'waiting', about: words.reads.waiting, holds: isWaiting }],
       }),
-      readableKind({ kind: ACCOUNT_RECORDS, about: words.reads.account, fields: ACCOUNT_FIELDS, dated: null, rows: () => rows((book) => book.accounts), currencyOf: (account) => account.currency }),
+      readableKind({
+        kind: ACCOUNT_RECORDS,
+        about: words.reads.account,
+        fields: ACCOUNT_FIELDS,
+        dated: null,
+        rows: () => rows((book) => book.accounts),
+        currencyOf: (account) => account.currency,
+        page: SPENDING_ACCOUNT_ROUTE,
+      }),
       readableKind({ kind: CATEGORY_RECORDS, about: words.reads.category, fields: CATEGORY_FIELDS, dated: null, rows: () => rows((book) => book.categories), currencyOf: () => EURO }),
       readableKind({ kind: BUDGET_RECORDS, about: words.reads.budget, fields: BUDGET_FIELDS, dated: 'from', rows: () => rows((book) => book.budgets), currencyOf: () => EURO }),
       readableKind({ kind: RULE_RECORDS, about: words.reads.rule, fields: RULE_FIELDS, dated: null, rows: () => rows((book) => book.rules), currencyOf: () => EURO }),

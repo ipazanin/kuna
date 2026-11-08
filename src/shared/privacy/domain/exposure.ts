@@ -9,7 +9,8 @@
  */
 export type Exposure = 'plain' | 'ref' | 'identifier' | 'party' | 'free-text' | 'never'
 
-export type StoredValue = string | number | boolean | null
+/** A stored value as a reader hands it over. A list holds texts of one exposure, such as every IBAN a record names, and each leaves as that exposure says. */
+export type StoredValue = string | number | boolean | null | readonly string[]
 
 /** A field that goes as text or a flag, with `read` for one stored in another shape. */
 interface ValueField<R> {

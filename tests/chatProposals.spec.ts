@@ -1,12 +1,14 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { SPENDING_OPERATIONS, spendingAcceptance, spendingProposer } from '../src/apps/spending/assistant/operations/spendingOperations'
+import { spendingAcceptance, spendingProposer } from '../src/apps/spending/assistant/operations/spendingOperations'
 import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settingWrites'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
 import { BANK_SYNC_DEPLOYMENT_KEY, COMPANY_OIB_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { fakeSpendingDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending'
-import type { CheckedProposal } from '../src/shared/app/assistantOperations'
+import { ATTACHMENT_REF } from '../src/shared/app/assistantOperations'
+import type { AppProposer, AssistantOperation, CheckedProposal, ProposalStep } from '../src/shared/app/assistantOperations'
+import type { ChatAttachment } from '../src/shared/ai/domain/chatAttachments'
 import { proposeChanges } from '../src/shared/ai/application/chatProposals'
 import type { ChatReads } from '../src/shared/ai/application/chatReads'
 import { chatRefs } from '../src/shared/ai/domain/chatRefs'
@@ -43,6 +45,7 @@ async function desk(): Promise<Desk> {
         { app: 'spending', title: 'A title', steps: steps.map((step) => ({ op: step.op, input: JSON.stringify(step.input), as: step.as ?? null })) },
         proposers,
         allowed ? reads : { ...reads, mayRead: async () => false },
+        [],
         (_app, card) => cards.push(card),
       ),
   }
@@ -52,26 +55,6 @@ const bookOf = ({ store }: Desk) => store.state.workbook!
 const named = (desk: Desk, name: string) => bookOf(desk).categories.find((category) => category.name === name)!
 const rowOf = (desk: Desk, payee: string) => bookOf(desk).transactions.find((row) => row.payee === payee)!
 const accept = (desk: Desk, at = 0) => spendingAcceptance(desk.store).accept(desk.cards[at]!)
-
-describe('every operation', () => {
-  it.each(SPENDING_OPERATIONS.map((operation) => [operation.name, operation] as const))('has an example that passes the checks of the file: %s', async (_name, operation) => {
-    const d = await desk()
-    const rule = await d.propose([{ op: 'add-rule', input: { row: null, fragment: 'Corner', category: d.ref('category', named(d, 'Groceries').id) } }])
-    expect(rule.isError).toBe(false)
-    await accept(d)
-    const records: Readonly<Record<string, string>> = {
-      category: d.ref('category', named(d, 'Rent').id),
-      'category-other': d.ref('category', named(d, 'Groceries').id),
-      transaction: d.ref('transaction', rowOf(d, 'Harbour bistro').id),
-      account: d.ref('account', bookOf(d).accounts[0]!.id),
-      rule: d.ref('rule', bookOf(d).rules[0]!.id),
-    }
-    const input = Object.fromEntries(Object.entries(operation.example).map(([field, value]) => [field, field in operation.refs && typeof value === 'string' ? records[value] : value]))
-    const answer = await d.propose([{ op: operation.name, input }])
-    expect(answer.text).toContain('The card shows')
-    expect(answer.isError).toBe(false)
-  })
-})
 
 describe('a proposal', () => {
   it('writes nothing until it is accepted, and then one write with one Undo', async () => {
@@ -92,9 +75,9 @@ describe('a proposal', () => {
     expect(d.store.state.writes).toHaveLength(writesBefore + 1)
 
     if (result.kind !== 'done') return
-    expect((await result.undo()).kind).toBe('undone')
+    expect((await result.undo!()).kind).toBe('undone')
     expect(bookOf(d).rules).toHaveLength(before)
-    expect((await result.undo()).kind).toBe('refused')
+    expect((await result.undo!()).kind).toBe('refused')
   })
 
   it('shows the rows a rule files, in one group, in Kuna’s words', async () => {
@@ -112,7 +95,10 @@ describe('a proposal', () => {
     const d = await desk()
     const account = bookOf(d).accounts[0]!
     await d.propose([
-      { op: 'change-account', input: { account: d.ref('account', account.id), name: null, iban: 'HR1210010051863000160', closed: 'yes' } },
+      {
+        op: 'change-account',
+        input: { account: d.ref('account', account.id), name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban: 'HR1210010051863000160', closed: 'yes' },
+      },
       { op: 'add-entry', input: { account: d.ref('account', account.id), date: '2026-11-03', amount: -12.5, payee: 'Corner market', category: null, note: '' } },
     ])
     const lines = d.cards[0]!.groups.flatMap((group) => group.lines)
@@ -172,7 +158,7 @@ describe('a proposal', () => {
     const iban = d.reads.pseudonyms.identifierToken('HR1210010051863000160')
     await d.propose([
       { op: 'add-rule', input: { row: null, fragment: alias, category: d.ref('category', named(d, 'Rent').id) } },
-      { op: 'change-account', input: { account: d.ref('account', bookOf(d).accounts[0]!.id), name: null, iban, closed: null } },
+      { op: 'change-account', input: { account: d.ref('account', bookOf(d).accounts[0]!.id), name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban, closed: null } },
     ])
     const lines = d.cards[0]!.groups.flatMap((group) => group.lines)
     expect(lines.some((line) => line.fields.some((field) => field.warns))).toBe(true)
@@ -242,6 +228,7 @@ describe('a proposal', () => {
       { app: 'spending', title: 'Rules for Person 1', steps: [{ op: 'set-setting', input: JSON.stringify({ key: COMPANY_OIB_KEY, value: '12345678903' }), as: null }] },
       new Map([['spending', spendingProposer(d.store)]]),
       d.reads,
+      [],
       (_app, card) => d.cards.push(card),
     )
     expect(answer.isError).toBe(false)
@@ -272,9 +259,9 @@ describe('a proposal', () => {
   it('refuses alone when a record changed before Accept, and the next proposal still goes', async () => {
     const d = await desk()
     const groceries = named(d, 'Groceries')
-    await d.propose([{ op: 'change-category', input: { category: d.ref('category', groceries.id), name: 'Food shop', hidden: null } }])
-    await d.propose([{ op: 'change-category', input: { category: d.ref('category', groceries.id), name: 'Shop', hidden: null } }])
-    await d.propose([{ op: 'change-category', input: { category: d.ref('category', named(d, 'Coffee').id), name: 'Kava', hidden: null } }])
+    await d.propose([{ op: 'change-category', input: { category: d.ref('category', groceries.id), name: 'Food shop', group: null, colour: null, hidden: null } }])
+    await d.propose([{ op: 'change-category', input: { category: d.ref('category', groceries.id), name: 'Shop', group: null, colour: null, hidden: null } }])
+    await d.propose([{ op: 'change-category', input: { category: d.ref('category', named(d, 'Coffee').id), name: 'Kava', group: null, colour: null, hidden: null } }])
     expect((await accept(d, 0)).kind).toBe('done')
     const stale = await accept(d, 1)
     expect(stale.kind).toBe('refused')
@@ -289,7 +276,77 @@ describe('a proposal', () => {
     await d.propose([{ op: 'set-setting', input: { key: COMPANY_OIB_KEY, value: '12345678903' } }])
     const result = await accept(d)
     expect(bookOf(d).settings.companyOib).toBe('12345678903')
-    if (result.kind === 'done') await result.undo()
+    if (result.kind === 'done') await result.undo!()
     expect(bookOf(d).settings.companyOib).toBe('')
+  })
+})
+
+describe('a proposal of another app', () => {
+  const STATEMENT: ChatAttachment = { id: 'a1', kind: 'sheet', name: 'Statement of Ana Horvat.xlsx', bytes: new Uint8Array([1, 2, 3]), original: new Blob(), pages: 1, sent: null }
+  const IMPORT: AssistantOperation = {
+    name: 'import-statement',
+    about: 'Imports an attached statement.',
+    input: { type: 'object', properties: { file: { type: 'string' } }, required: ['file'], additionalProperties: false },
+    refs: { file: ATTACHMENT_REF },
+    creates: null,
+    alone: false,
+    example: { file: 'a1' },
+  }
+
+  function stubProposer(readsBooks: boolean, seen: ProposalStep[][]): AppProposer {
+    return {
+      operations: [IMPORT],
+      readsBooks,
+      check: async (title, steps) => {
+        seen.push([...steps])
+        return { title, count: 1, groups: [], outside: [], undoable: true, held: {} }
+      },
+    }
+  }
+
+  const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => false }
+  const propose = (proposer: AppProposer, file: string) =>
+    proposeChanges({ app: 'kuna', title: 'Import', steps: [{ op: 'import-statement', input: JSON.stringify({ file }), as: null }] }, new Map([['kuna', proposer]]), reads, [STATEMENT], () => undefined)
+
+  it('hands the operation the attached file itself, by its id', async () => {
+    const seen: ProposalStep[][] = []
+    const answer = await propose(stubProposer(false, seen), 'a1')
+    expect(answer.isError).toBe(false)
+    expect(seen[0]![0]!.input['file']).toBe(STATEMENT)
+  })
+
+  it.each(['a2', 'Statement of Ana Horvat.xlsx', '../a1'])('refuses %j, which is not a file attached to this chat', async (file) => {
+    const seen: ProposalStep[][] = []
+    const answer = await propose(stubProposer(false, seen), file)
+    expect(answer.isError).toBe(true)
+    expect(answer.text).not.toContain(file)
+    expect(seen).toEqual([])
+  })
+
+  it('turns an alias back into the name inside a list of rows, as a statement transcribes them', async () => {
+    const seen: ProposalStep[][] = []
+    const anonymised: ChatReads = { ...reads, pseudonyms: newPseudonyms() }
+    anonymised.pseudonyms.know(['Ana Horvat'])
+    const alias = anonymised.pseudonyms.pseudonymised('Ana Horvat')
+    const ROWS: AssistantOperation = {
+      ...IMPORT,
+      input: {
+        type: 'object',
+        properties: { file: { type: 'string' }, rows: { type: 'array', items: { type: 'object', properties: { payee: { type: 'string' } }, required: ['payee'], additionalProperties: false } } },
+        required: ['file', 'rows'],
+        additionalProperties: false,
+      },
+    }
+    const proposer: AppProposer = { ...stubProposer(false, seen), operations: [ROWS] }
+    const input = JSON.stringify({ file: 'a1', rows: [{ payee: `${alias}, rent` }] })
+    await proposeChanges({ app: 'kuna', title: 'Import', steps: [{ op: 'import-statement', input, as: null }] }, new Map([['kuna', proposer]]), anonymised, [STATEMENT], () => undefined)
+    expect(seen[0]![0]!.input['rows']).toEqual([{ payee: 'Ana Horvat, rent' }])
+  })
+
+  it('asks for no yes to read when the proposer reads no books, and still needs it when it does', async () => {
+    expect((await propose(stubProposer(false, []), 'a1')).isError).toBe(false)
+    const seen: ProposalStep[][] = []
+    expect((await propose(stubProposer(true, seen), 'a1')).isError).toBe(true)
+    expect(seen).toEqual([])
   })
 })

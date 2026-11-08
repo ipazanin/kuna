@@ -1,4 +1,4 @@
-import { categoryTree } from '../domain/categoryTree'
+import { categoryTree } from './categoryTree'
 import type { Category } from '../../workbook/domain/category'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 

@@ -99,7 +99,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - A first run starts with the quiet `HomeLink`, so it can be left for the home.
 - With a key kept, the chat is a row under Kuna settings in the sidebar and a button beside Sync in the top bar, and nothing shows without a key. From 1224 px the chat docks beside the page and the sidebar shrinks to icons, each with its name as a tooltip and what waits as a small figure on its corner. Narrower, the chat takes the page's place, so it is never a popup.
 - The chat asks in `GrantCard`, inside itself, never in a dialog. A read shows as `SentRow` above its answer, closed to one line and one tap from the exact text sent. An amount Kuna did not compute shows the warning line under the answer. A change shows as `ProposalCard` under its answer, in Kuna's words, with Accept, and Undo after it.
-- A button that asks the chat about one element calls `useChatTagging` with a key and a label that names the element, never an amount or a payee. The element binds `chatTagAttrs` and carries the one highlight, `data-chat-tagged`, while the open chat is about it.
+- An element a person can ask the chat about calls `useChatElement({ key, label, about })`, with a label that names the element, never an amount or a payee. `AskChatButton` sits on the page, never in a dialog, and calls its `ask`. The element binds its `marked` and carries the one highlight, `data-chat-tagged`, while the open chat is about it.
 
 ## Sync steps
 

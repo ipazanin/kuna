@@ -31,6 +31,9 @@ const held = computed(() => props.proposal as ChatProposal)
 const groups = computed(() => held.value.checked?.groups ?? [])
 /** The lines stay while the card waits and once it is written, so a person still sees what Done and Undo are about. */
 const shownGroups = computed(() => (props.proposal.state === 'open' || props.proposal.state === 'done' ? groups.value : []))
+/** What Accept does outside the books, and whether it has no Undo, shown while the card waits and once it is written. */
+const outside = computed(() => (props.proposal.state === 'open' || props.proposal.state === 'done' ? (held.value.checked?.outside ?? []) : []))
+const noUndo = computed(() => held.value.checked?.undoable === false)
 const summary = computed(() => plural(words.proposal.changes(props.proposal.count), props.proposal.count))
 const title = computed(() => shownOnScreen(props.proposal.title))
 const endedWords = computed(() => {
@@ -127,6 +130,16 @@ async function undo(event: Event): Promise<void> {
           @click="showAll(at)"
         />
       </div>
+      <ul v-if="outside.length > 0 || (noUndo && proposal.state === 'open')" class="flex flex-col gap-1" data-testid="chat-proposal-outside">
+        <li v-for="line in outside" :key="line" class="flex items-start gap-1.5 type-caption wrap-anywhere">
+          <UIcon name="i-lucide-info" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+          {{ line }}
+        </li>
+        <li v-if="noUndo && proposal.state === 'open'" class="flex items-start gap-1.5 type-caption text-warning" data-testid="chat-proposal-no-undo-note">
+          <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+          {{ words.proposal.noUndoNote }}
+        </li>
+      </ul>
       <div v-if="proposal.state === 'open'" class="flex flex-wrap justify-end gap-2">
         <UButton :label="words.proposal.notNow" color="neutral" variant="ghost" size="sm" :disabled="working" data-testid="chat-proposal-decline" @click="settleProposal(held, 'declined')" />
         <UButton :label="words.proposal.accept" size="sm" :loading="working" :disabled="working" data-testid="chat-proposal-accept" @click="accept" />
@@ -147,6 +160,7 @@ async function undo(event: Event): Promise<void> {
           data-testid="chat-proposal-undo"
           @click="undo"
         />
+        <p v-else-if="noUndo" class="type-caption" data-testid="chat-proposal-no-undo">{{ words.proposal.noUndo }}</p>
         <p v-if="proposal.reason !== null" class="flex basis-full items-start gap-1.5 type-caption wrap-anywhere text-error" role="status" data-testid="chat-proposal-undo-refused">
           <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
           {{ proposal.reason }}

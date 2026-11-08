@@ -1,4 +1,5 @@
 import type { AiPdfPart } from './aiTask'
+import type { DocumentSize } from './modelUsage'
 
 /** What a file attached to the chat is. Only a photo or a PDF reaches the model. A sheet, XML or CSV reaches only an operation that names it. */
 export type AttachmentKind = 'photo' | 'pdf' | 'sheet' | 'xml' | 'csv'
@@ -8,7 +9,7 @@ export type AttachmentKind = 'photo' | 'pdf' | 'sheet' | 'xml' | 'csv'
  * history keeps only `name`.
  */
 export interface ChatAttachment {
-  /** Handed out per chat, `a1`, `a2` and on, never reused. */
+  /** Handed out in order, `a1`, `a2` and on, never reused while the page lives. */
   readonly id: string
   readonly kind: AttachmentKind
   /** The file's name, shown on its chip and never sent. */
@@ -19,6 +20,8 @@ export interface ChatAttachment {
   readonly original: Blob
   /** A PDF's page count. Every other kind has one page. */
   readonly pages: number
+  /** A photo's size as sent, after downscaling, which its image part and its cost read. Null for every other kind. */
+  readonly sent: { readonly width: number; readonly height: number } | null
 }
 
 const MEGABYTE = 1024 * 1024
@@ -71,6 +74,11 @@ const KIND_OF_EXTENSION: Readonly<Record<string, AttachmentKind>> = {
   csv: 'csv',
 }
 
+/** What a file picker offers, as its `accept` takes it: every extension Kuna knows a kind of. */
+export const ATTACHABLE = Object.keys(KIND_OF_EXTENSION)
+  .map((extension) => `.${extension}`)
+  .join(',')
+
 /**
  * The kind of a file by its name's extension, or by its media type when the extension is not one Kuna knows, or null for a
  * file the chat takes no kind of. The extension comes first, as a browser on Windows calls a CSV an Excel file.
@@ -83,6 +91,13 @@ export function attachmentKindOf(name: string, mediaType: string): AttachmentKin
 /** Whether a file of this kind may be sent to the model. */
 export function sendsToModel(kind: AttachmentKind): boolean {
   return kind === 'photo' || kind === 'pdf'
+}
+
+/** What an attachment weighs once sent, for its cost, or null for a kind that never reaches the model. */
+export function documentSizeOf(attachment: ChatAttachment): DocumentSize | null {
+  if (attachment.kind === 'pdf') return { kind: 'pdf', pages: attachment.pages }
+  if (attachment.kind === 'photo' && attachment.sent !== null) return { kind: 'photo', ...attachment.sent }
+  return null
 }
 
 /** Why a file is refused on its chip. A PDF's `encrypted` and `unreadable` come from reading it. */

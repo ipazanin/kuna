@@ -8963,22 +8963,259 @@ export function chatCloseAccountFlowIn(language) {
   }
 }
 
-/** A button that opens the chat about one element: the tag shows and can be removed, and the element is marked while it stays. */
-export async function chatTagFlow(page, { press, shoot, inspect }) {
-  try {
-    await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
-    await page.reload({ waitUntil: 'networkidle0' })
-    await pressSelector(page, press, '[data-testid="gallery-chat-ask"]')
-    await elementSays(page, '[data-testid="chat-tag"]', ['Cash on hand'], 'the panel does not show the tag')
-    await inspect?.('a tagged chat')
-    await shoot('chat-tag')
-    const marked = () => page.$eval('[data-testid="gallery-chat-element"]', (element) => element.hasAttribute('data-chat-tagged'))
-    if (!(await marked())) throw new Error('the tagged element is not highlighted')
-    await pressSelector(page, press, '[data-testid="chat-tag-remove"]')
-    await page.waitForSelector('[data-testid="chat-tag"]', { hidden: true, timeout: 5_000 })
-    if (await marked()) throw new Error('the highlight stayed after the tag went')
-  } finally {
-    await page.evaluate(() => localStorage.removeItem('kuna.secret.anthropic'))
+/**
+ * A button that opens the chat about one element: the tag shows and can be removed, and the element is marked while it stays.
+ * A tagged card keeps its own surface under the wash, so its computed background colour does not change. A row takes the bar.
+ */
+export function chatTagFlowIn(language) {
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const card = '[data-testid="gallery-chat-element"]'
+    const row = '[data-testid="gallery-chat-row"]'
+    const tagged = (selector) => page.$eval(selector, (element) => element.getAttribute('data-chat-tagged'))
+    const surface = () => page.$eval(card, (element) => getComputedStyle(element).backgroundColor)
+    try {
+      await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
+      await page.reload({ waitUntil: 'networkidle0' })
+      await page.waitForSelector(card, { visible: true, timeout: 10_000 })
+      const untagged = await surface()
+      await pressSelector(page, press, '[data-testid="gallery-chat-ask"]')
+      await elementSays(page, '[data-testid="chat-tag"]', ['Cash on hand'], 'the panel does not show the tag')
+      // Below the dock's width the chat takes the page's place, so the marked elements show only beside a docked chat.
+      const docked = await page.evaluate((selector) => (document.querySelector(selector)?.getClientRects().length ?? 0) > 0, card)
+      if (docked) {
+        if ((await tagged(card)) !== 'card') throw new Error('the tagged card is not highlighted as a card')
+        const underWash = await surface()
+        if (underWash !== untagged) throw new Error(`the tagged card lost its own surface: ${untagged} became ${underWash}`)
+        await page.$eval(card, (element) => element.scrollIntoView({ block: 'center' }))
+      }
+      await inspect?.('a tagged chat')
+      await shoot('chat-tag')
+      if (docked) {
+        await pressSelector(page, press, '[data-testid="gallery-chat-row-ask"]')
+        await elementSays(page, '[data-testid="chat-tag"]', ['Rent'], 'the panel does not show the row as the tag')
+        if ((await tagged(row)) !== 'row') throw new Error('the tagged row is not highlighted as a row')
+        if ((await tagged(card)) !== null) throw new Error('the card stayed highlighted after the row was asked about')
+        await page.$eval(row, (element) => element.scrollIntoView({ block: 'center' }))
+        await shoot('chat-tag-row')
+      }
+      await pressSelector(page, press, '[data-testid="chat-tag-remove"]')
+      await page.waitForSelector('[data-testid="chat-tag"]', { hidden: true, timeout: 5_000 })
+      if (docked && (await tagged(row)) !== null) throw new Error('the highlight stayed after the tag went')
+    } finally {
+      await page.evaluate(() => localStorage.removeItem('kuna.secret.anthropic'))
+    }
+  }
+}
+
+/** Keeps the made-up Anthropic key, loads the page again and opens the chat from the shell. */
+async function openChatWithKey(page, press, { alsoOpenRouter = false } = {}) {
+  await page.evaluate(
+    (key, openRouter) => {
+      localStorage.setItem('kuna.secret.anthropic', key)
+      if (openRouter) localStorage.setItem('kuna.secret.openrouter', key)
+    },
+    MADE_UP_ANTHROPIC_KEY,
+    alsoOpenRouter,
+  )
+  await page.reload({ waitUntil: 'networkidle0' })
+  if (!(await page.$('[data-testid="chat-panel"]'))) await pressSelector(page, press, '[data-testid="chat-open"]')
+  await page.waitForSelector('[data-testid="chat-panel"]', { visible: true, timeout: 10_000 })
+}
+
+/** Forgets the key, the picked provider and the saved chat this flow made. */
+async function forgetChatKey(page) {
+  await page.evaluate(() => {
+    localStorage.removeItem('kuna.secret.anthropic')
+    localStorage.removeItem('kuna.secret.openrouter')
+    localStorage.removeItem('kuna.assist.spending')
+    localStorage.removeItem('kuna.assist-provider')
+  })
+}
+
+/** Sets the chat input to the files, as a person picks them, and waits until none is still being read. */
+async function attachToChat(page, ...paths) {
+  const input = await page.waitForSelector('[data-testid="chat-attach-input"]', { timeout: 10_000 })
+  await input.uploadFile(...paths)
+  await page.waitForFunction(
+    (count) => {
+      const chips = document.querySelectorAll('[data-testid="chat-file"]')
+      return chips.length === count && [...chips].every((chip) => chip.getAttribute('data-state') !== 'reading')
+    },
+    { timeout: 15_000 },
+    paths.length,
+  )
+  await delay(300)
+}
+
+/** Types a message in the open chat and sends it. */
+async function sendInChat(page, press, text) {
+  const prompt = await pressSelector(page, press, 'textarea[data-testid="chat-prompt"]')
+  await prompt.type(text)
+  await pressSelector(page, press, '[data-testid="chat-send"]')
+}
+
+/**
+ * One file of a kind on the chat's prompt: its chip, and under it the line that photos and PDFs go whole with the cost
+ * line, or for a sheet the line that Kuna reads it alone.
+ */
+export function chatAttachFlow(kind, samples, language = 'en') {
+  const words = ASSIST_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await openChatWithKey(page, press)
+      await attachToChat(page, samples[kind])
+      const states = await page.$$eval('[data-testid="chat-file"]', (chips) => chips.map((chip) => chip.getAttribute('data-state')))
+      if (states.join() !== 'ready') throw new Error(`the ${kind} chip is ${states.join() || 'missing'}, not ready`)
+      if (kind === 'sheet') {
+        await elementSays(page, '[data-testid="chat-file-note"]', [words.files.readByKuna('chat-sample-turnover.xlsx')], 'the sheet is not said to be read by Kuna alone')
+        if (await page.$('[data-testid="chat-files-whole"]')) throw new Error('a sheet is said to go whole')
+      } else {
+        await elementSays(page, '[data-testid="chat-files-whole"]', [words.files.goesWhole], 'the files do not say photos and PDFs go whole')
+        await page.waitForSelector('[data-testid="chat-files-cost"]', { visible: true, timeout: 5_000 }).catch(() => {
+          throw new Error('the files show no cost line')
+        })
+      }
+      await inspect?.(`a ${kind} on the prompt`)
+      await shoot(`chat-attach-${kind}`)
+    } finally {
+      await forgetChatKey(page)
+    }
+  }
+}
+
+/** A PDF waits refused while OpenRouter is picked, which reads none, and is ready again once Anthropic is picked back. */
+export function chatAttachPdfOpenRouterFlow(samples) {
+  return async (page, { press, shoot, inspect }) => {
+    const pickProvider = (id) =>
+      page.evaluate((picked) => {
+        localStorage.setItem('kuna.assist-provider', picked)
+        window.dispatchEvent(new StorageEvent('storage', { key: 'kuna.assist-provider', newValue: picked }))
+      }, id)
+    try {
+      await openChatWithKey(page, press, { alsoOpenRouter: true })
+      await attachToChat(page, samples.pdf)
+      await pickProvider('openrouter')
+      await page.waitForSelector('[data-testid="chat-file"][data-state="refused"]', { visible: true, timeout: 5_000 }).catch(() => {
+        throw new Error('the PDF chip is not refused while OpenRouter is picked')
+      })
+      await elementSays(page, '[data-testid="chat-file-note"]', [ASSIST_WORDS.en.result.noPdf('OpenRouter')], 'the refused PDF does not say OpenRouter reads none')
+      await inspect?.('a PDF refused by OpenRouter')
+      await shoot('chat-attach-pdf-openrouter')
+      await pickProvider('anthropic')
+      await page.waitForSelector('[data-testid="chat-file"][data-state="ready"]', { visible: true, timeout: 5_000 }).catch(() => {
+        throw new Error('the PDF chip is not ready again after Anthropic is picked back')
+      })
+      await inspect?.('the PDF ready again')
+      await shoot('chat-attach-pdf-openrouter-back')
+    } finally {
+      await forgetChatKey(page)
+    }
+  }
+}
+
+/** A drag of files over the panel shows the drop target. */
+export function chatAttachDropFlow(language = 'en') {
+  const words = ASSIST_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await openChatWithKey(page, press)
+      await page.$eval('[data-testid="chat-panel"]', (panel) => {
+        const transfer = new DataTransfer()
+        transfer.items.add(new File(['x'], 'dragged.pdf', { type: 'application/pdf' }))
+        panel.dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer: transfer }))
+      })
+      await elementSays(page, '[data-testid="chat-drop"]', [words.files.drop], 'a drag of files shows no drop target')
+      await inspect?.('a drag of files over the chat')
+      await shoot('chat-attach-drop')
+    } finally {
+      await forgetChatKey(page)
+    }
+  }
+}
+
+/** The first send with a photo attached asks on its card, and the message sent shows the file under it, then a message with none shows no list. */
+export function chatConsentFilesFlow(samples, language = 'en') {
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await openChatWithKey(page, press)
+      await attachToChat(page, samples.photo)
+      await sendInChat(page, press, language === 'en' ? 'What is on this receipt?' : 'Što piše na ovom računu?')
+      await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 })
+      await elementSays(page, '[data-testid="chat-consent-caution"]', [ASSIST_WORDS[language].files.goesWhole], 'the card does not warn that photos and PDFs go whole')
+      if (await page.$('[data-testid="chat-files-whole"]')) throw new Error('the files under the prompt say they go whole while the card says it too')
+      await delay(400)
+      await inspect?.('the card before a send with a photo')
+      await shoot('chat-consent-files')
+      await pressSelector(page, press, '[data-testid="chat-allow"]')
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+    } finally {
+      await forgetChatKey(page)
+    }
+  }
+}
+
+/** A sent message with a file lists it under the text, and one without lists nothing. */
+export function chatQuestionFilesFlow(samples, language = 'en') {
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await openChatWithKey(page, press)
+      await attachToChat(page, samples.photo, samples.sheet)
+      await sendInChat(page, press, language === 'en' ? 'What is on these?' : 'Što piše na ovima?')
+      await pressSelector(page, press, '[data-testid="chat-allow"]')
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      await elementSays(page, '[data-testid="chat-question-files"]', ['chat-sample-receipt.png', 'chat-sample-turnover.xlsx'], 'the sent message does not list its files')
+      await sendInChat(page, press, language === 'en' ? 'And with no file?' : 'A bez datoteke?')
+      await page.waitForFunction(() => document.querySelectorAll('[data-testid="chat-answer"]').length === 2, { timeout: 15_000 })
+      const lists = await page.$$eval('[data-testid="chat-question-files"]', (elements) => elements.length)
+      if (lists !== 1) throw new Error(`${lists} sent messages list files, not 1`)
+      await inspect?.('a sent message with files and one without')
+      await shoot('chat-question-files')
+    } finally {
+      await forgetChatKey(page)
+    }
+  }
+}
+
+/**
+ * On Spending's import tab, "import" makes the fake model transcribe a pasted statement: Kuna refuses the first try for an
+ * amount that does not add up, and the second ties, with the card Accept writes and Undo takes back.
+ */
+export function chatStatementCardFlowIn(language) {
+  const words = ASSIST_WORDS[language]
+  const appName = language === 'en' ? spendingAppEnglish.name : spendingAppCroatian.name
+  const request = language === 'en' ? 'import' : 'uvezi'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await openChatWithKey(page, press)
+      await sendInChat(page, press, request)
+      await pressSelector(page, press, '[data-testid="chat-allow"]')
+      await page.waitForSelector('[data-testid="chat-proposal-accept"]', { visible: true, timeout: 15_000 }).catch(() => {
+        throw new Error('the statement import showed no card')
+      })
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      await elementSays(page, '[data-testid="chat-sent"]', [words.sent.refusal(appName)], 'the refused first try is not shown')
+      await inspect?.('the import card after a refused first try')
+      await shoot('chat-statement-card')
+      await pressSelector(page, press, '[data-testid="chat-proposal-accept"]')
+      await page.waitForSelector('[data-testid="chat-proposal-done"]', { visible: true, timeout: 15_000 }).catch(async () => {
+        const refused = await page.evaluate(() => document.querySelector('[data-testid="chat-proposal-refused"]')?.textContent)
+        throw new Error(`Accept did not land: ${refused}`)
+      })
+      await inspect?.('the accepted import card with Undo')
+      await shoot('chat-statement-card-done')
+      await pressSelector(page, press, '[data-testid="chat-proposal-undo"]')
+      await elementSays(page, '[data-testid="chat-proposal-over"]', [words.proposal.undone], 'Undo did not say it was undone')
+      await pressSelector(page, press, '[data-testid="chat-new"]')
+      await savedChatGone(page)
+    } finally {
+      await forgetChatKey(page)
+    }
   }
 }
 

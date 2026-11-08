@@ -33,6 +33,31 @@ export const en = {
         `Each sync reads the camt statements in your statements folder that the books lack, with no file to import by hand. Rows no rule decides wait on ${labels.review}. It is set up on ${labels.settings}, ${labels.general}, by naming the folder and turning on filing new statements on sync.`,
     },
   },
+  reads: {
+    ledgerRow: 'One row of a bank statement in the ledger, with its category once it is filed.',
+    category: 'The categories rows are filed in, each with its bucket in profit and loss.',
+    account: "The company's own bank accounts.",
+    rule: 'What files a bank row by itself, tried in order.',
+    client: 'The clients the company invoices.',
+    invoice: 'The invoices on the register, each to a client.',
+    billingItem: 'What is to be invoiced and when, from the billing plan.',
+    setting: "The settings that say how the company's figures and invoices read.",
+  },
+  reports: {
+    month: {
+      title: "a month's income and operating cost",
+      about:
+        "A month's income under the label on screen, its operating cost while owner pay is shown apart from it, and how many rows wait on To review. Taxes hold the taxes on pay, so they are in the owner pay report.",
+    },
+    profit: {
+      title: "a month's taxes, owner pay and profit",
+      about:
+        "A month's taxes, owner pay, whole cost, what is left and what the owner earns, under the labels on screen, with each category of pay and of the taxes on pay. It holds pay, so it stays on this device while Anonymise is on and the company has an employee.",
+    },
+    categories: { title: 'income and cost by category', about: 'What each category counted in a month, the month before and the change. Pay and the taxes on pay are left out.' },
+    balances: { title: 'the account balances', about: "Each account's balance at the end of a day, and all of them together." },
+    receivables: { title: 'what clients owe', about: 'What the invoices still have unpaid on a day, how much of it is late, and how late.' },
+  },
   guides: {
     review: {
       title: 'Sort the rows waiting for review',
@@ -59,6 +84,31 @@ export const hr: Translation<typeof en> = {
       what: (labels) =>
         `Svaka sinkronizacija čita camt izvode iz vaše mape izvoda koji još nisu u knjigama, bez ručnog uvoza datoteke. Retci koje nijedno pravilo ne razvrsta čekaju na kartici ${labels.review}. Postavlja se na zaslonu ${labels.settings}, na kartici ${labels.general}, tako da navedete mapu i uključite spremanje novih izvoda pri sinkronizaciji.`,
     },
+  },
+  reads: {
+    ledgerRow: 'Jedan redak izvoda banke u evidenciji, s kategorijom kad je razvrstan.',
+    category: 'Kategorije u koje se razvrstavaju retci, svaka sa svojom skupinom u računu dobiti i gubitka.',
+    account: 'Bankovni računi tvrtke.',
+    rule: 'Ono što sâmo razvrstava bankovni redak, redom kojim se pravila isprobavaju.',
+    client: 'Klijenti kojima tvrtka izdaje račune.',
+    invoice: 'Računi u knjizi računa, svaki jednom klijentu.',
+    billingItem: 'Što treba fakturirati i kada, iz plana fakturiranja.',
+    setting: 'Postavke koje određuju kako se čitaju iznosi i računi tvrtke.',
+  },
+  reports: {
+    month: {
+      title: 'prihodi i poslovni troškovi mjeseca',
+      about:
+        'Prihodi u mjesecu pod nazivom sa zaslona, poslovni troškovi dok je plaća vlasnika prikazana odvojeno od njih te koliko redaka čeka provjeru. Porezi sadrže poreze na plaću, pa su u izvještaju o plaći vlasnika.',
+    },
+    profit: {
+      title: 'porezi, plaća vlasnika i dobit mjeseca',
+      about:
+        'Porezi, plaća vlasnika, ukupni trošak, ono što ostaje i koliko vlasnik zarađuje u mjesecu, pod nazivima sa zaslona, sa svakom kategorijom plaće i poreza na plaću. Sadrži plaću, pa ostaje na ovom uređaju dok je uključena anonimizacija i tvrtka ima zaposlenika.',
+    },
+    categories: { title: 'prihodi i troškovi po kategorijama', about: 'Koliko je svaka kategorija brojala u mjesecu, u mjesecu prije i razlika. Plaća i porezi na plaću nisu uključeni.' },
+    balances: { title: 'stanja računa', about: 'Stanje svakog računa na kraju dana i svih zajedno.' },
+    receivables: { title: 'što klijenti duguju', about: 'Što je na dan još neplaćeno po računima, koliko od toga kasni i koliko.' },
   },
   guides: {
     review: {

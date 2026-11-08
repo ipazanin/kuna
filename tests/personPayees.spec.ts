@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { companyAssistant } from '../src/apps/company/assistant/companyAssistant'
+import { HR_DOO_ASSISTANT } from '../src/apps/company/packs/hr-doo/assistant/hrDooAssistant'
 import { SETTING_WRITES as COMPANY_SETTING_WRITES, treatPayeeAsPerson as treatCounterpartyAsPerson } from '../src/apps/company/settings/application/settingWrites'
 import { DEFAULT_SETTINGS, PERSON_PAYEES_KEY as COMPANY_PERSON_PAYEES_KEY, parseSettings, settingsTabEntries } from '../src/apps/company/settings/domain/settings'
 import type { SettingRow as CompanySettingRow } from '../src/apps/company/settings/domain/settings'
@@ -131,7 +132,7 @@ describe("Company's person_payees setting", () => {
   })
 
   it('is never told to the chat', () => {
-    const told = companyAssistant({ kinds: [], settings: [] }, () => []).settings.map((setting) => setting.key)
+    const told = companyAssistant(HR_DOO_ASSISTANT, { status: () => 'none', workbook: () => null, records: () => null }, () => []).settings.map((setting) => setting.key)
 
     expect(told).toContain('company_name')
     expect(told).not.toContain(COMPANY_PERSON_PAYEES_KEY)

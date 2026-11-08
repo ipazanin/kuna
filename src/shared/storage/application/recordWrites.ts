@@ -87,9 +87,9 @@ export function workOf(changes: readonly RuledChange[]): (unit: UnitOfWork) => v
   }
 }
 
-/** Whether Undo can put back what the write did: every kind it touched keeps Undo, and it repaired or discarded no refused record, which nothing could store again. */
-export function isUndoable(receipt: WriteReceipt): boolean {
-  return receipt.records.every(({ rules, change }) => rules.undoable && change.verb !== 'repair' && change.verb !== 'discard')
+/** Whether Undo can put back these changes: every kind they touch keeps Undo, and they repair or discard no refused record, which nothing could store again. */
+export function isUndoable(changes: readonly RuledChange[]): boolean {
+  return changes.every(({ rules, change }) => rules.undoable && change.verb !== 'repair' && change.verb !== 'discard')
 }
 
 /** The changes that put back what a write did: its added records removed, its changed ones changed back, its removed ones added again with the same identity. */

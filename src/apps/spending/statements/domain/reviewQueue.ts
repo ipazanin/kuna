@@ -33,9 +33,14 @@ export interface ReviewQueue {
   readonly wantingSavings: number
 }
 
+/** Whether a row waits on To review for a category. */
+export function isWaiting(row: Transaction): boolean {
+  return row.category === null
+}
+
 /** How many rows wait for a category. */
 export function reviewCount(book: Pick<SpendingBook, 'transactions'>): number {
-  return book.transactions.filter((row) => row.category === null).length
+  return book.transactions.filter(isWaiting).length
 }
 
 /**
@@ -44,7 +49,7 @@ export function reviewCount(book: Pick<SpendingBook, 'transactions'>): number {
  */
 export function reviewQueue(book: SpendingBook, day: CivilDate): ReviewQueue {
   const since = addDays(day, -PAIRS_SHOWN_DAYS)
-  const waitingRows = book.transactions.filter((row) => row.category === null)
+  const waitingRows = book.transactions.filter(isWaiting)
   const { matches, near } = sameMoney(
     typedRowsOf(book),
     waitingRows.filter((row) => row.source === 'statement'),

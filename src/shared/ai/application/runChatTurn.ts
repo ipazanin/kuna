@@ -1,5 +1,10 @@
 import type { CheckedProposal } from '../../app/assistantOperations'
+import { sendsToModel } from '../domain/chatAttachments'
+import type { ChatAttachment } from '../domain/chatAttachments'
+import type { ChatElementAbout } from '../domain/chatElement'
+import { placeAt } from './catalogue'
 import type { Catalogue } from './catalogue'
+import { labelLeaving, recordKeptHome } from './chatReads'
 import type { ChatReads, ReadSent } from './chatReads'
 import { CHAT_TOOLS, runChatTool } from './chatTools'
 import type { ChatChip } from './chatTools'
@@ -14,7 +19,7 @@ export const CHAT_TASK_ID = 'chat.turn'
 /** The most lookups one message may take. A chat has no other limit: the panel shows the cost and never stops it, as the spend limit on the key is the only ceiling. */
 const MOST_ROUNDS = 8
 
-/** Where the person is and what they tagged, in names only: an app, a screen, a declared place such as a tab, an address and a label, with today's date. */
+/** Where the person is, in names only: an app, a screen, a declared place such as a tab and an address, with today's date. */
 export interface ChatContext {
   readonly app: string | null
   readonly screen: string | null
@@ -22,7 +27,6 @@ export interface ChatContext {
   readonly place: string | null
   /** The screen's address, or the declared place's when one matches. Never the rest of the query. */
   readonly path: string
-  readonly tag: { readonly label: string; readonly screen: string | null } | null
   readonly today: string
 }
 
@@ -31,8 +35,54 @@ export function contextLine(context: ChatContext): string {
   const app = context.app === null ? 'Kuna' : context.app
   const screen = context.screen === null ? '' : `, on the screen ${context.screen}`
   const place = context.place === null ? '' : `, tab ${context.place}`
-  const tag = context.tag === null ? '' : ` Tagged element: ${context.tag.label}${context.tag.screen === null ? '' : `, on the screen ${context.tag.screen}`}.`
-  return `<context>The person is in ${app}${screen}${place} (${context.path}). Today is ${context.today}.${tag}</context>`
+  return `<context>The person is in ${app}${screen}${place} (${context.path}). Today is ${context.today}.</context>`
+}
+
+/**
+ * What the person tagged, in Kuna's words: a record or a build-up by a ref, a figure by its report and label, a place by
+ * the address the catalogue declares. A record's label and a build-up's content stay out, so they reach the model only
+ * through a read past the gate. While Anonymise is on, a record or a figure about an employee gets no ref and no label.
+ */
+function elementText(element: ChatElementAbout, catalogue: Catalogue, reads: ChatReads): string | null {
+  switch (element.kind) {
+    case 'record':
+      return recordKeptHome(element.app, element.recordKind, element.id, reads)
+        ? `a record of ${element.app} that stays on this device`
+        : `the ${element.recordKind} ${reads.refs.recordRef({ app: element.app, kind: element.recordKind, id: element.id })} of ${element.app}, which get_record reads`
+    case 'figure': {
+      const label = labelLeaving(element.label, reads)
+      const named = label === null ? 'a figure' : `the figure "${label}"`
+      return `${named} of the report ${element.app}/report/${element.report}${element.period === null ? '' : ` for ${element.period}`}`
+    }
+    case 'place': {
+      const [path = '', query = ''] = element.route.split('?')
+      const place = placeAt(catalogue, path, Object.fromEntries(new URLSearchParams(query)))
+      return place === null ? null : `the place ${place.title} (${place.address}) of ${element.app}`
+    }
+    default:
+      return `the build-up ${reads.refs.buildUpRef(element)} of a figure of ${element.app}, which read_build_up reads`
+  }
+}
+
+/** A file by its id and kind, with a PDF's pages, and whether only Kuna reads it. */
+function fileText(file: ChatAttachment): string {
+  if (file.kind === 'pdf') return `${file.id} (pdf, ${file.pages} pages)`
+  return sendsToModel(file.kind) ? `${file.id} (${file.kind})` : `${file.id} (${file.kind}, read by Kuna, never sent)`
+}
+
+/** What a chat says once a tag it named is removed and no file is attached. */
+export const NOTHING_TAGGED = '<context>Nothing is tagged now.</context>'
+
+/**
+ * The line that names the tagged element and the files attached to this chat, by id and kind, never by a file's name.
+ * Null when there are neither. The chat sends it only when it changed, so a ref it mints must stay the same for the same element.
+ */
+export function elementLine(element: ChatElementAbout | null, attachments: readonly ChatAttachment[], catalogue: Catalogue, reads: ChatReads): string | null {
+  const text = element === null ? null : elementText(element, catalogue, reads)
+  const tagged = text === null ? [] : [`Tagged element: ${text}.`]
+  const files = attachments.length === 0 ? [] : [`Files attached to this chat: ${attachments.map(fileText).join(', ')}.`]
+  const said = [...tagged, ...files]
+  return said.length === 0 ? null : `<context>${said.join(' ')}</context>`
 }
 
 /** What a read really sent: the exact text of its tool result as it left in a request. */
@@ -47,8 +97,10 @@ export interface ChatTurn {
   readonly reads: ChatReads
   /** The turns so far in this chain of requests, which only ever grows. */
   readonly history: readonly ModelTurn[]
-  /** The context line, only when it differs from the one the model last read. */
+  /** The context lines, each only when it differs from the one the model last read. */
   readonly context: string | null
+  /** Every file attached to this chat, held in memory with it. Only `read_attachment` sends a photo or a PDF, and nothing sends another kind. */
+  readonly attachments: readonly ChatAttachment[]
   readonly message: string
   readonly signal: AbortSignal
   readonly onDelta: (text: string) => void
@@ -100,9 +152,12 @@ export function runChatTurn(turn: ChatTurn): Promise<LoopEnd> {
     tools: CHAT_TOOLS,
     runTool: async (call) => {
       turn.onLookup()
-      const answer = await runChatTool({ catalogue: turn.catalogue, reads: turn.reads, showChip: turn.showChip, showProposal: turn.showProposal }, call)
+      const answer = await runChatTool(
+        { catalogue: turn.catalogue, reads: turn.reads, attachments: turn.attachments, readsPdf: turn.model.readsPdf, showChip: turn.showChip, showProposal: turn.showProposal },
+        call,
+      )
       if (answer.read !== undefined) awaiting.set(call.id, answer.read)
-      return { text: answer.text, parts: [], isError: answer.isError }
+      return { text: answer.text, parts: answer.parts ?? [], isError: answer.isError }
     },
     effort: 'low',
     signal: turn.signal,
