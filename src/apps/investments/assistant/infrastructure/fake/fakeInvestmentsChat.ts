@@ -12,6 +12,10 @@ const ANSWERS = {
     buyProposed: 'The card below records the buy at the rate of its day. Nothing changes until you accept it.',
     sellTitle: 'Record the sale',
     sellRefused: 'Kuna refused that sale: the account does not hold that many units on that day. Check the quantity, or add the buy it came from first.',
+    workbookTitle: 'Import the portfolio workbook',
+    workbookProposed: 'Kuna read the workbook itself. The card below shows what its import adds, and what waits for an answer in Overview, Import.',
+    workbookRefused: 'Kuna could not import that file. Check that it is the portfolio workbook with its Transactions tab.',
+    noWorkbook: 'Attach the portfolio workbook with the paperclip, and I will propose its import.',
   },
   hr: {
     worth: (value: string, gain: string) => `Vaš portfelj vrijedi ${value}, uz ukupnu dobit od ${gain} na uloženo.`,
@@ -20,6 +24,10 @@ const ANSWERS = {
     buyProposed: 'Kartica ispod zapisuje kupnju po tečaju njezina dana. Ništa se ne mijenja dok je ne prihvatite.',
     sellTitle: 'Zapiši prodaju',
     sellRefused: 'Kuna je odbila tu prodaju: račun toga dana nema toliko jedinica. Provjerite količinu ili najprije dodajte kupnju iz koje dolaze.',
+    workbookTitle: 'Uvezi radnu knjigu portfelja',
+    workbookProposed: 'Kuna je sama pročitala radnu knjigu. Kartica ispod pokazuje što uvoz dodaje i što čeka odgovor u Uvozu na Pregledu.',
+    workbookRefused: 'Kuna nije mogla uvesti tu datoteku. Provjerite je li to radna knjiga portfelja s karticom Transactions.',
+    noWorkbook: 'Priložite radnu knjigu portfelja spajalicom i predložit ću njezin uvoz.',
   },
 }
 
@@ -61,11 +69,32 @@ function tradeReply({ request, tokens }: FakeChatTurn, says: Says, side: 'buy' |
   return answered(request, answers[2]!.isError ? says.sellRefused : says.buyProposed, tokens)
 }
 
-/** Investments' part of the fake chat: one that starts with buy or sell proposes a trade, and a question about the portfolio reads its figures. */
+/** The last spreadsheet attached to the chat, by the id its context line gives, or null for none. */
+function attachedSheet({ request }: FakeChatTurn): string | null {
+  const said = request.turns.flatMap((turn) => (turn.role === 'user' ? turn.parts.flatMap((part) => (part.kind === 'text' ? [part.text] : [])) : []))
+  const ids = said.flatMap((text) => [...text.matchAll(/\b(a\d+) \(sheet\b/g)].map((match) => match[1]!))
+  return ids.at(-1) ?? null
+}
+
+/** Proposes the import of the spreadsheet attached last, which Kuna reads itself, keeping records gone from it. */
+function workbookReply(turn: FakeChatTurn, says: Says): ModelReply {
+  const { request, tokens } = turn
+  const file = attachedSheet(turn)
+  if (file === null) return answered(request, says.noWorkbook, tokens)
+  const answers = answersSince(request)
+  if (answers.length === 0) {
+    const step = { op: 'import-workbook', input: JSON.stringify({ file, gone: 'keep' }), as: null }
+    return lookup(0, 'propose_changes', { app: 'investments', title: says.workbookTitle, steps: [step] }, tokens)
+  }
+  return answered(request, answers[0]!.isError ? says.workbookRefused : says.workbookProposed, tokens)
+}
+
+/** Investments' part of the fake chat: one that starts with buy or sell proposes a trade, one about the workbook imports the sheet attached, and a question about the portfolio reads its figures. */
 function investmentsChat(turn: FakeChatTurn): ModelReply | null {
   const says = ANSWERS[language === 'hr' ? 'hr' : 'en']
   if (/^buy|^kupi/i.test(turn.typed)) return tradeReply(turn, says, 'buy')
   if (/^sell|^prodaj/i.test(turn.typed)) return tradeReply(turn, says, 'sell')
+  if (/workbook|radn\w* knjig/i.test(turn.typed)) return workbookReply(turn, says)
   if (/portfolio|portfelj/i.test(turn.typed)) return worthReply(turn, says)
   return null
 }

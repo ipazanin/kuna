@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { INVESTMENTS_OPERATIONS } from '../src/apps/investments/assistant/operations/investmentsOperations'
+import { ATTACHMENT_REF } from '../src/shared/app/assistantOperations'
 import { words as transactionWords } from '../src/apps/investments/transactions/presentation/words'
 import { decimalText } from '../src/shared/money/decimal'
 import { DESK, EXAMPLE_RECORDS, investmentsDesk } from './fixtures/investmentsDesk'
@@ -22,7 +23,7 @@ function exampleInput(desk: InvestmentsDesk, operation: (typeof INVESTMENTS_OPER
   return Object.fromEntries(
     Object.entries(operation.example).map(([field, value]) => {
       const kind = operation.refs[field]
-      return [field, kind !== undefined && typeof value === 'string' ? desk.ref(kind, EXAMPLE_RECORDS[value]!) : value]
+      return [field, kind !== undefined && kind !== ATTACHMENT_REF && typeof value === 'string' ? desk.ref(kind, EXAMPLE_RECORDS[value]!) : value]
     }),
   )
 }
@@ -48,9 +49,10 @@ function addTrade(desk: InvestmentsDesk, fields: Readonly<Record<string, unknown
 
 describe('every Investments operation', () => {
   it.each(INVESTMENTS_OPERATIONS.map((operation) => [operation.name, operation] as const))(
-    'has an example that passes the checks of the file, and an Accept with one Undo: %s',
+    'has an example that passes the checks of the file, and an Accept with one Undo, or none for a card beside the books: %s',
     async (_name, operation) => {
       const desk = await investmentsDesk(used, OCTOBER_RATES)
+      desk.history.complete = operation.name === 'forget-history'
       const before = JSON.stringify(bookOf(desk), (_key, value: unknown) => (typeof value === 'bigint' ? String(value) : value))
 
       const answer = await desk.propose([{ op: operation.name, input: exampleInput(desk, operation) }])
@@ -61,7 +63,11 @@ describe('every Investments operation', () => {
       expect(card!.groups.flatMap((group) => group.lines).every((line) => line.label !== '')).toBe(true)
       const result = await desk.accept()
       expect(result.kind).toBe('done')
-      if (result.kind === 'done') expect((await result.undo!()).kind).toBe('undone')
+      if (result.kind === 'done') {
+        expect(result.undo === null).toBe(!card!.undoable)
+        if (result.undo !== null) expect((await result.undo()).kind).toBe('undone')
+      }
+      expect(desk.history.complete).toBe(operation.name === 'forget-history')
       expect(JSON.stringify(bookOf(desk), (_key, value: unknown) => (typeof value === 'bigint' ? String(value) : value))).toBe(before)
     },
   )

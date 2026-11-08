@@ -60,6 +60,8 @@ export interface ChatProposal extends SavedProposal {
   state: ProposalState
   /** Why Kuna refused it, in a sentence that can name a record, so it stays out of what this browser keeps. */
   reason: string | null
+  /** What the person should know of a write that went through, kept out of what this browser keeps as the reason is. */
+  warning: string | null
   /** Puts back what Accept wrote, while this page lives. */
   undo: (() => Promise<UndoResult>) | null
 }
@@ -243,7 +245,7 @@ function restored(saved: SavedChat): void {
     shown.chips = [...line.chips]
     shown.strayFigure = line.strayFigure
     shown.failure = line.failure
-    shown.proposals = line.proposals.map((proposal) => ({ ...proposal, checked: null, state: restoredState(proposal.state), reason: null, undo: null }))
+    shown.proposals = line.proposals.map((proposal) => ({ ...proposal, checked: null, state: restoredState(proposal.state), reason: null, warning: null, undo: null }))
     shown.attachments = [...(line.attachments ?? [])]
   }
   Object.assign(spent, saved.spent)
@@ -264,11 +266,12 @@ function heldProposal(id: string): ChatProposal | undefined {
 }
 
 /** How a card ended, kept in this browser and told to the model with the next message. */
-export function settleProposal(proposal: ChatProposal, state: ProposalState, reason: string | null = null, undo: ChatProposal['undo'] = null): void {
+export function settleProposal(proposal: ChatProposal, state: ProposalState, reason: string | null = null, undo: ChatProposal['undo'] = null, warning: string | null = null): void {
   const held = heldProposal(proposal.id)
   if (held === undefined) return
   held.state = state
   held.reason = reason
+  held.warning = warning
   held.undo = undo
   const outcome = {
     done: `The person accepted the card "${proposal.title}", and it is written.`,
@@ -470,7 +473,7 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
       showProposal: (app, proposal) => {
         if (current !== controller) return
         nextId += 1
-        line.proposals.push({ id: `card-${nextId}`, app, title: proposal.title, count: proposal.count, checked: markRaw(proposal), state: 'open', reason: null, undo: null })
+        line.proposals.push({ id: `card-${nextId}`, app, title: proposal.title, count: proposal.count, checked: markRaw(proposal), state: 'open', reason: null, warning: null, undo: null })
       },
     })
     if (current !== controller) return

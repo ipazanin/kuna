@@ -8,20 +8,17 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { MAIL_READER_WRITES } from '../application/mailReaderWrites'
 import type { ReportMail } from '../application/mailReports'
-import { IBKR_FLEX_RECIPE } from '../domain/ibkrFlexRecipe'
+import { heldOrNewReader, mailReaderErrors, mailReaderTexts, withMailField } from './mailReaderForm'
+import type { MailReaderField } from './mailReaderForm'
 import MailReportReview from './MailReportReview.vue'
 import { MAIL_SCOPE, misfitLine, useMailReports } from './useMailReports'
 import { words } from './words'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
-import { MAIL_READER_RECORDS } from '../../workbook/domain/investmentKinds'
 import type { MailReader } from '../../workbook/domain/mailReader'
-import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import { dateFormat } from '../../../../shared/calendar/dateFormat'
-import { mailAddressesOf, mailAddressesProblem, mailContentsProblem, mailSubjectProblem } from '../../../../shared/mail-filing/domain/mailSource'
 import MailSearchResults from '../../../../shared/mail-filing/presentation/MailSearchResults.vue'
 import type { MailResultRow, MailSearchShown } from '../../../../shared/mail-filing/presentation/MailSearchResults.vue'
 import { words as mailFilingWords } from '../../../../shared/mail-filing/presentation/words'
-import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { usePageSync } from '../../../../shared/sync/presentation/pageSync'
 import { plural } from '../../../../shared/text/translation'
@@ -40,50 +37,21 @@ const { state, reader, confirmed } = useMailReports()
 
 const dayFormat = dateFormat({ day: 'numeric', month: 'short', year: 'numeric' })
 
-type TextField = 'senders' | 'subject' | 'contents' | 'since'
-
-function textsOf(saved: MailReader | null): Record<TextField, string> {
-  const { senders, subject, contents } = saved ?? IBKR_FLEX_RECIPE.mail
-  return { senders: senders.join(', '), subject, contents, since: saved?.since ?? today() }
-}
-
 /** A write or an Undo resets only the field it changed, so what another field holds stays. */
-const shown = computed(() => textsOf(reader.value))
-const texts = ref(textsOf(reader.value))
+const shown = computed(() => mailReaderTexts(reader.value))
+const texts = ref({ ...mailReaderTexts(reader.value) })
 watch(shown, (now, before) => {
-  for (const field of Object.keys(now) as TextField[]) {
+  for (const field of Object.keys(now) as MailReaderField[]) {
     if (now[field] !== before[field]) texts.value[field] = now[field]
   }
 })
 
 const on = computed(() => reader.value?.on === true)
-const senders = computed(() => mailAddressesOf(texts.value.senders))
-const since = computed(() => parseCivilDate(texts.value.since))
-const errors = computed((): Record<TextField, string | null> => ({
-  senders: senders.value.length === 0 ? (on.value ? words.card.sendersHelp : null) : mailAddressesProblem(senders.value),
-  subject: mailSubjectProblem(texts.value.subject),
-  contents: mailContentsProblem(texts.value.contents),
-  since: since.value === null ? words.card.sinceMissing : null,
-}))
+const errors = computed(() => mailReaderErrors(texts.value, on.value))
 
 const summary = computed(() => (on.value ? words.card.readFrom(reader.value?.senders ?? []) : words.card.off))
 const revealed = computed(() => route.hash === '#mail')
 const switchHelp = `${words.card.onHelp} ${words.card.format}`
-
-function stored(): MailReader {
-  return (
-    reader.value ?? {
-      id: recordIdOf(MAIL_READER_RECORDS, newRecordId()),
-      recipe: IBKR_FLEX_RECIPE.id,
-      on: false,
-      senders: IBKR_FLEX_RECIPE.mail.senders,
-      subject: IBKR_FLEX_RECIPE.mail.subject,
-      contents: IBKR_FLEX_RECIPE.mail.contents,
-      since: today(),
-      leftOut: [],
-    }
-  )
-}
 
 async function writeReader(after: MailReader, key: string): Promise<void> {
   const before = reader.value
@@ -101,29 +69,18 @@ async function writeReader(after: MailReader, key: string): Promise<void> {
   )
 }
 
-function changed(field: TextField): MailReader | null {
-  const current = stored()
-  const day = since.value
-  if (errors.value[field] !== null || texts.value[field] === shown.value[field] || day === null) return null
-  switch (field) {
-    case 'senders':
-      return { ...current, senders: senders.value }
-    case 'subject':
-      return { ...current, subject: texts.value.subject.trim() }
-    case 'contents':
-      return { ...current, contents: texts.value.contents.trim() }
-    case 'since':
-      return { ...current, since: day }
-  }
+function changed(field: MailReaderField): MailReader | null {
+  if (errors.value[field] !== null || errors.value.since !== null || texts.value[field] === shown.value[field]) return null
+  return withMailField(heldOrNewReader(reader.value), field, texts.value)
 }
 
-async function commit(field: TextField): Promise<void> {
+async function commit(field: MailReaderField): Promise<void> {
   const after = changed(field)
   if (after !== null) await writeReader(after, field)
 }
 
 async function switchTo(turnedOn: boolean): Promise<void> {
-  const current = stored()
+  const current = heldOrNewReader(reader.value)
   if (turnedOn && current.senders.length === 0) return
   await writeReader({ ...current, on: turnedOn }, 'on')
 }

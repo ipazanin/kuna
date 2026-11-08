@@ -11,7 +11,7 @@ import { groupName } from './mixDonut'
 import { words } from './words'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
-import { HUNDRED_PERCENT } from '../../workbook/domain/investmentFields'
+import { HUNDRED_PERCENT, fitsPercent } from '../../workbook/domain/investmentFields'
 import { CLASS_GROUPS, MIXES, SECTORS } from '../../workbook/domain/mixGroup'
 import type { Mix, MixGroup } from '../../workbook/domain/mixGroup'
 import type { Target } from '../../workbook/domain/target'
@@ -86,7 +86,7 @@ function percentOf(group: string): Decimal | null | undefined {
   const typed = (percents.value[group] ?? '').trim()
   if (typed === '') return null
   const percent = typedDecimal(typed)
-  return percent === null || percent <= DECIMAL_ZERO || percent > HUNDRED_PERCENT ? undefined : percent
+  return percent === null || !fitsPercent(percent) ? undefined : percent
 }
 
 const sum = computed(() => sumDecimal(groups.value.map((group) => percentOf(group) ?? DECIMAL_ZERO)))

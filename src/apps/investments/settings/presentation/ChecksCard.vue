@@ -10,9 +10,9 @@ import { words as overviewWords } from '../../overview/presentation/words'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { CHECKS, CHECK_DEFAULTS } from '../../workbook/domain/checkSetting'
 import type { CheckName, CheckSetting } from '../../workbook/domain/checkSetting'
-import { HUNDRED_PERCENT } from '../../workbook/domain/investmentFields'
+import { fitsPercent } from '../../workbook/domain/investmentFields'
 import { words } from './words'
-import { DECIMAL_ZERO, decimalShown, typedDecimal } from '../../../../shared/money/decimal'
+import { decimalShown, typedDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -44,7 +44,7 @@ watch(shown, (now, before) => {
 
 function typedThreshold(check: CheckName): Decimal | null {
   const threshold = typedDecimal(typed.value[check])
-  return threshold === null || threshold <= DECIMAL_ZERO || threshold > HUNDRED_PERCENT ? null : threshold
+  return threshold === null || !fitsPercent(threshold) ? null : threshold
 }
 
 async function commit(check: CheckName): Promise<void> {

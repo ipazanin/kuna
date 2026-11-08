@@ -1,5 +1,7 @@
+import type { CivilDate } from '../../../shared/calendar/civilDate'
+import { dayLabel } from '../../../shared/calendar/dayLabel'
 import { language } from '../../../shared/text/language'
-import type { Translation } from '../../../shared/text/translation'
+import type { CroatianForms, EnglishForms, Translation } from '../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. IBKR's report is izvješće, and the Investments app is Ulaganja.
 
@@ -70,6 +72,26 @@ export const en = {
     units: (quantity: string, instrument: string) => `${quantity} of ${instrument}`,
     percent: (value: string) => `${value}%`,
     pricesFetched: (instrument: string) => `Kuna fetches the prices of ${instrument} after Accept. Undo leaves the prices it fetched.`,
+    ratesMissing: (currencies: string, from: CivilDate, place: string) =>
+      `The prices file lacks the ECB rates of ${currencies} from ${dayLabel(from)}, which the rows need. Import with ${place}, which fetches them first.`,
+    holdingsAsked: (holdings: string, place: string) =>
+      `The import asks about the split or spin-off of ${holdings}, whose answer sets the cost and so the tax. Link ${place} and leave the answer to the person.`,
+    rowsWaiting: (count: number, place: string): EnglishForms => ({
+      one: `1 row waits. Answer it in ${place}.`,
+      other: `${count} rows wait. Answer them in ${place}.`,
+    }),
+    rowsSkipped: (count: number, place: string): EnglishForms => ({
+      one: `1 row Kuna cannot read stays out, and ${place} lists it.`,
+      other: `${count} rows Kuna cannot read stay out, and ${place} lists them.`,
+    }),
+    rowsAsked: (count: number): EnglishForms => ({ one: '1 row the report asks about stays waiting.', other: `${count} rows the report asks about stay waiting.` }),
+    goneKept: (count: number): EnglishForms => ({
+      one: '1 record an earlier import wrote is gone from the workbook and stays in Kuna.',
+      other: `${count} records an earlier import wrote are gone from the workbook and stay in Kuna.`,
+    }),
+    rowsLeftOut: (count: number): EnglishForms => ({ one: '1 row left out', other: `${count} rows left out` }),
+    workbook: { label: 'Portfolio workbook', place: 'Import on the Overview' },
+    mailReport: { label: 'IBKR report by mail', place: 'the review on Settings, General' },
     fields: {
       name: 'Name',
       note: 'Note',
@@ -111,7 +133,20 @@ export const en = {
       distribution: 'Dividends',
       slice: 'Group',
       percent: 'Percent',
+      check: 'Check',
+      threshold: 'Threshold',
+      off: 'Switched off',
+      benchmark: 'Benchmark',
+      leftOut: 'Rows asked about',
     },
+  },
+  cards: {
+    historyComplete: 'The file holds every buy and sale since the first, so tax shows',
+    everyHolding: "The day's closes and ECB rates of every holding",
+    vendorsOutside: 'Kuna asks the price vendors with the keys of this browser and writes what they send to the prices file beside the books.',
+    closes: 'Closes',
+    closesOutside: 'The closes go into the prices file beside the books, and Kuna then fetches only the days after the last one.',
+    failuresListed: 'Settings, Prices lists each with what to do.',
   },
 }
 
@@ -174,6 +209,32 @@ export const hr: Translation<typeof en> = {
     units: (quantity, instrument) => `${quantity} instrumenta ${instrument}`,
     percent: (value) => `${value}\u00a0%`,
     pricesFetched: (instrument) => `Kuna nakon prihvaćanja dohvaća cijene instrumenta ${instrument}. Poništavanje ostavlja dohvaćene cijene.`,
+    ratesMissing: (currencies, from, place) =>
+      `Datoteci cijena nedostaju tečajevi ESB-a za ${currencies} od ${dayLabel(from)}, a trebaju ih redci. Uvezite ondje, putem: ${place}, što ih najprije dohvati.`,
+    holdingsAsked: (holdings, place) => `Uvoz pita o podjeli ili izdvajanju za ${holdings}, a odgovor određuje trošak, pa time i porez. Povežite ovo mjesto: ${place}, i odgovor prepustite osobi.`,
+    rowsWaiting: (count, place): CroatianForms => ({
+      one: `${count} redak čeka. Odgovorite na njega: ${place}.`,
+      few: `${count} retka čekaju. Odgovorite na njih: ${place}.`,
+      other: `${count} redaka čeka. Odgovorite na njih: ${place}.`,
+    }),
+    rowsSkipped: (count, place): CroatianForms => ({
+      one: `${count} redak koji Kuna ne može pročitati ostaje izvan, a popis je ovdje: ${place}.`,
+      few: `${count} retka koja Kuna ne može pročitati ostaju izvan, a popis je ovdje: ${place}.`,
+      other: `${count} redaka koje Kuna ne može pročitati ostaje izvan, a popis je ovdje: ${place}.`,
+    }),
+    rowsAsked: (count): CroatianForms => ({
+      one: `${count} redak o kojem izvješće pita i dalje čeka.`,
+      few: `${count} retka o kojima izvješće pita i dalje čekaju.`,
+      other: `${count} redaka o kojima izvješće pita i dalje čeka.`,
+    }),
+    goneKept: (count): CroatianForms => ({
+      one: `${count} zapis ranijeg uvoza više nije u radnoj knjizi i ostaje u Kuni.`,
+      few: `${count} zapisa ranijeg uvoza više nisu u radnoj knjizi i ostaju u Kuni.`,
+      other: `${count} zapisa ranijeg uvoza više nije u radnoj knjizi i ostaje u Kuni.`,
+    }),
+    rowsLeftOut: (count): CroatianForms => ({ one: `${count} izostavljen redak`, few: `${count} izostavljena retka`, other: `${count} izostavljenih redaka` }),
+    workbook: { label: 'Radna knjiga portfelja', place: 'Uvoz na Pregledu' },
+    mailReport: { label: 'Izvješće IBKR-a poštom', place: 'pregled u Postavkama, Općenito' },
     fields: {
       name: 'Naziv',
       note: 'Bilješka',
@@ -215,7 +276,20 @@ export const hr: Translation<typeof en> = {
       distribution: 'Dividende',
       slice: 'Skupina',
       percent: 'Postotak',
+      check: 'Provjera',
+      threshold: 'Prag',
+      off: 'Isključena',
+      benchmark: 'Referentni indeks',
+      leftOut: 'Redci o kojima se pita',
     },
+  },
+  cards: {
+    historyComplete: 'Datoteka ima svaku kupnju i prodaju od prve, pa se porez prikazuje',
+    everyHolding: 'Današnje zaključne cijene i tečajevi ESB-a svih pozicija',
+    vendorsOutside: 'Kuna pita izvore cijena ključevima ovog preglednika i ono što pošalju zapisuje u datoteku cijena pokraj knjiga.',
+    closes: 'Zaključne cijene',
+    closesOutside: 'Zaključne cijene idu u datoteku cijena pokraj knjiga, a Kuna zatim dohvaća samo dane nakon posljednje.',
+    failuresListed: 'Postavke, Cijene navode svaki niz i što učiniti.',
   },
 }
 

@@ -1,3 +1,5 @@
+import type { InvestmentBook } from '../../workbook/domain/investmentBook'
+import type { MailReader } from '../../workbook/domain/mailReader'
 import type { RecipeField, RecipeFields, Recipe, RowTest } from '../../../../shared/recipes/domain/recipe'
 
 const DATE_FORMATS = ['yyyyMMdd;HHmmss', 'yyyyMMdd']
@@ -151,3 +153,8 @@ export const IBKR_FLEX_RECIPE: Recipe = {
 
 /** The recipes Kuna brings with it. */
 export const BUILT_IN_RECIPES: readonly Recipe[] = [IBKR_FLEX_RECIPE]
+
+/** The file's reader of IBKR's report, or null before one is saved. */
+export function ibkrMailReader(book: InvestmentBook | null | undefined): MailReader | null {
+  return book?.mailReaders.find((reader) => reader.recipe === IBKR_FLEX_RECIPE.id) ?? null
+}

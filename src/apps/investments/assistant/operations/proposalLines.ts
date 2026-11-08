@@ -1,7 +1,11 @@
 import { QUANTITY_PLACES } from '../../holdings/presentation/holdingText'
 import { words as holdingsWords } from '../../holdings/presentation/words'
+import { words as mailWords } from '../../mail/presentation/words'
+import { thresholdText } from '../../overview/presentation/checkLines'
+import { words as overviewWords } from '../../overview/presentation/words'
 import { words as vendorWords } from '../../prices/infrastructure/vendors/words'
 import type { CashMovement } from '../../workbook/domain/cashMovement'
+import type { CheckSetting } from '../../workbook/domain/checkSetting'
 import type { Exchange } from '../../workbook/domain/exchange'
 import type { FundMixLine } from '../../workbook/domain/fundMix'
 import type { HandPrice } from '../../workbook/domain/handPrice'
@@ -10,23 +14,29 @@ import type { Instrument, PriceSource } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import {
   CASH_MOVEMENT_RECORDS,
+  CHECK_RECORDS,
   EXCHANGE_RECORDS,
   FUND_MIX_RECORDS,
   INCOME_RECORDS,
   INSTRUMENT_RECORDS,
   INVESTMENT_ACCOUNT_RECORDS,
+  MAIL_READER_RECORDS,
   PRICE_RECORDS,
   SPIN_OFF_RECORDS,
+  TARGET_RECORDS,
   TRADE_RECORDS,
   TRANSFER_RECORDS,
 } from '../../workbook/domain/investmentKinds'
 import { REGIONS } from '../../workbook/domain/mixGroup'
+import type { MailReader } from '../../workbook/domain/mailReader'
 import type { MixGroup, Region } from '../../workbook/domain/mixGroup'
 import type { SpinOff } from '../../workbook/domain/spinOff'
+import type { Target } from '../../workbook/domain/target'
 import type { Trade } from '../../workbook/domain/trade'
 import type { Transfer } from '../../workbook/domain/transfer'
 import { words as recordWords } from '../../workbook/domain/words'
 import { words } from '../words'
+import type { StepNote } from './investmentSteps'
 import type { ProposalGroup } from '../../../../shared/app/assistantOperations'
 import { proposalGroups } from '../../../../shared/app/proposalGroups'
 import type { ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
@@ -40,9 +50,22 @@ import type { CheckedWrite } from '../../../../shared/storage/application/record
 import type { RecordChange } from '../../../../shared/storage/application/recordStorage'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 import { countryName } from '../../../../shared/text/countryName'
+import { plural } from '../../../../shared/text/translation'
 
 /** The fields Kuna keeps by itself or an import brought, which no operation sets, so a card leaves them off. */
-const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id', 'importKey', 'dividend', 'quoted', 'benchmark'])
+const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id', 'importKey', 'dividend', 'quoted', 'recipe'])
+
+/** The mail reader's fields by the names its card gives them. */
+const MAIL_FIELD_NAMES: Readonly<Record<string, string>> = {
+  on: mailWords.card.on,
+  senders: mailWords.card.senders,
+  subject: mailWords.card.subject,
+  contents: mailWords.card.contents,
+  since: mailWords.card.since,
+}
+
+/** The mail reader's senders say whose mail Kuna reads, so the card marks them. */
+const WARNS: ReadonlySet<string> = new Set(['senders'])
 
 /** A spin-off keeps its cost share as a fraction, which the dialog shows in percent. */
 const HUNDRED = decimalOfText('100')!
@@ -186,13 +209,41 @@ function holdingValue(kind: RecordKind<unknown>, field: string, record: Proposed
       country: record.country === null ? null : countryText(record.country),
       ter: record.ter === null ? null : percentText(record.ter),
       distribution: record.distribution === null ? null : holdingsWords.distributions[record.distribution],
+      benchmark: record.benchmark ? words.proposals.yes : null,
     }
     return shown[field as keyof Instrument]
+  }
+  if (isKind(kind, TARGET_RECORDS, record)) {
+    const target: Target = record
+    const shown: Partial<Record<keyof Target, string>> = { slice: sliceText(target.slice, namesOf), percent: percentText(target.percent) }
+    return shown[field as keyof Target]
   }
   if (isKind(kind, FUND_MIX_RECORDS, record)) {
     const line: FundMixLine = record
     const shown: Partial<Record<keyof FundMixLine, string>> = { slice: sliceText(line.slice, namesOf), percent: percentText(line.percent) }
     return shown[field as keyof FundMixLine]
+  }
+  return undefined
+}
+
+/** A field of a check's setting or of the mail reader in the words of the Checks tab and the mail card, or undefined for a field shown as it is. */
+function settingValue(kind: RecordKind<unknown>, field: string, record: ProposedRecord): string | null | undefined {
+  if (isKind(kind, CHECK_RECORDS, record)) {
+    const setting: CheckSetting = record
+    const shown: Partial<Record<keyof CheckSetting, string | null>> = {
+      check: overviewWords.checks.labels[setting.check],
+      threshold: setting.threshold === null ? null : thresholdText(setting.check, setting.threshold),
+      off: setting.off ? words.proposals.yes : null,
+    }
+    return shown[field as keyof CheckSetting]
+  }
+  if (isKind(kind, MAIL_READER_RECORDS, record)) {
+    const reader: MailReader = record
+    const shown: Partial<Record<keyof MailReader, string | null>> = {
+      senders: reader.senders.join(', '),
+      leftOut: reader.leftOut.length === 0 ? null : plural(words.proposals.rowsLeftOut(reader.leftOut.length), reader.leftOut.length),
+    }
+    return shown[field as keyof MailReader]
   }
   return undefined
 }
@@ -208,8 +259,10 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   if (ofTransaction !== undefined) return ofTransaction
   const ofHolding = holdingValue(kind, field, record, namesOf)
   if (ofHolding !== undefined) return ofHolding
+  const ofSetting = settingValue(kind, field, record)
+  if (ofSetting !== undefined) return ofSetting
   if (typeof value === 'boolean') return value ? words.proposals.yes : words.proposals.no
-  const day = field === 'date' && typeof value === 'string' ? parseCivilDate(value) : null
+  const day = (field === 'date' || field === 'since') && typeof value === 'string' ? parseCivilDate(value) : null
   if (day !== null) return dayLabel(day)
   return namesOf.get(value) ?? String(value)
 }
@@ -219,11 +272,14 @@ function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: st
   if (isKind(kind, INVESTMENT_ACCOUNT_RECORDS, record) || isKind(kind, INSTRUMENT_RECORDS, record)) return record.name
   if (isKind(kind, TRADE_RECORDS, record)) return `${recordWords.sides[record.side]} ${namesOf.get(record.instrument) ?? ''}`.trim()
   if (isKind(kind, FUND_MIX_RECORDS, record)) return namesOf.get(record.instrument) ?? fallback
+  if (isKind(kind, TARGET_RECORDS, record)) return sliceText(record.slice, namesOf)
+  if (isKind(kind, CHECK_RECORDS, record)) return overviewWords.checks.labels[record.check]
+  if (isKind(kind, MAIL_READER_RECORDS, record)) return mailWords.card.title
   return fallback
 }
 
-/** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's. */
-export function proposalGroupsOf(checked: CheckedWrite, book: InvestmentBook): readonly ProposalGroup[] {
+/** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's. Each step's warned lines lead the group of its records. */
+export function proposalGroupsOf(checked: CheckedWrite, book: InvestmentBook, notes: readonly StepNote[] = []): readonly ProposalGroup[] {
   const namesOf = new Map<unknown, string>([...book.accounts, ...book.instruments].map((record) => [record.id, record.name]))
   checked.changes.forEach(({ change }) => {
     if (change.verb === 'add' && (change.kind.name === INVESTMENT_ACCOUNT_RECORDS.name || change.kind.name === INSTRUMENT_RECORDS.name)) {
@@ -236,10 +292,16 @@ export function proposalGroupsOf(checked: CheckedWrite, book: InvestmentBook): r
   const original = (record: ProposedRecord): ProposedRecord => originals.get(record) ?? record
   const describer: ProposalDescriber = {
     keptByKuna: KEPT_BY_KUNA,
-    fieldName: (field) => (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field,
+    fieldName: (field) => MAIL_FIELD_NAMES[field] ?? (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field,
     shown: (kind, field, record) => shownValue(kind, field, original(record), book, namesOf),
     label: (kind, record, fallback) => labelOf(kind, original(record), fallback, namesOf),
-    warns: () => false,
+    warns: (kind, field) => kind.name === MAIL_READER_RECORDS.name && WARNS.has(field),
   }
-  return proposalGroups(comparableWrite, () => describer)
+  return notes.reduce(
+    (groups, { noun, line }) => {
+      const at = groups.findIndex((group) => group.noun === noun)
+      return at < 0 ? [...groups, { verb: 'change', noun, lines: [line] }] : groups.map((group, place) => (place === at ? { ...group, lines: [line, ...group.lines] } : group))
+    },
+    proposalGroups(comparableWrite, () => describer),
+  )
 }

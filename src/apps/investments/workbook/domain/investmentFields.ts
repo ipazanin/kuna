@@ -32,6 +32,11 @@ export function positiveDecimal(fields: StoredFields, name: string): Decimal {
 /** The whole, which a fund's mix and the targets add up to. */
 export const HUNDRED_PERCENT = decimalOfText('100')!
 
+/** Whether a percent is above zero and at most 100, as a target and a check's threshold are. */
+export function fitsPercent(value: Decimal): boolean {
+  return value > DECIMAL_ZERO && value <= HUNDRED_PERCENT
+}
+
 /** A percent above zero and at most 100. */
 export function percentField(fields: StoredFields, name: string): Decimal {
   const value = positiveDecimal(fields, name)

@@ -19,7 +19,7 @@ import { PERFORMANCE_ROUTE } from './performance/presentation/performanceLinks'
 import { words as performanceWords } from './performance/presentation/words'
 import { words as settingsWords } from './settings/presentation/words'
 import { TAX_ROUTE } from './tax/presentation/taxLinks'
-import { useTaxShown } from './tax/presentation/useTaxShown'
+import { confirmHistoryComplete, forgetHistoryComplete, useTaxShown } from './tax/presentation/useTaxShown'
 import { words as taxWords } from './tax/presentation/words'
 import { investmentsSyncGroup } from './sync/presentation/investmentsSyncGroup'
 import { words } from './words'
@@ -29,6 +29,7 @@ import { resumeFileLookup } from '../../shared/storage/presentation/resumeFileLo
 import { words as fileWords } from './workbook/presentation/words'
 import { startPrices, usePrices } from './prices/presentation/usePrices'
 import { INVESTMENTS_ASSIST } from './assistant/investmentsAssist'
+import type { InvestmentsPorts } from './assistant/operations/investmentsOperations'
 
 const OVERVIEW: AppScreen = { path: INVESTMENTS_OVERVIEW_ROUTE, title: overviewWords.title, icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') }
 const HOLDINGS: AppScreen = { path: HOLDINGS_ROUTE, title: holdingsWords.title, icon: 'i-lucide-layers', component: () => import('./holdings/presentation/HoldingsScreen.vue') }
@@ -82,13 +83,23 @@ export const investmentsApp: AppContribution = {
   // Every figure leaves the app in euros, so it shows them in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
   assistant: async () => {
-    const [{ investmentsAssistant }, { investmentsProposer, investmentsAcceptance }, { fetchAddedInBackground }] = await Promise.all([
+    const [{ investmentsAssistant }, { investmentsProposer, investmentsAcceptance }, { fetchAddedInBackground }, { useMailReports }] = await Promise.all([
       import('./assistant/investmentsAssistant'),
       import('./assistant/operations/investmentsOperations'),
       import('./prices/presentation/pricesStep'),
+      import('./mail/presentation/useMailReports'),
     ])
     const store = useInvestmentsBooks()
-    const ports = { rates: () => sources.value?.rates ?? null, fetchAddedPrices: () => fetchAddedInBackground(usePrices()) }
+    const prices = usePrices()
+    const { reading } = useMailReports()
+    const ports: InvestmentsPorts = {
+      rates: () => sources.value?.rates ?? null,
+      fetchAddedPrices: () => fetchAddedInBackground(prices),
+      prices,
+      pricesFile: () => prices.state.copy?.file ?? null,
+      mailReport: () => reading.value,
+      history: { file: () => state.choice?.id ?? null, given: () => taxShown.value, give: confirmHistoryComplete, takeBack: forgetHistoryComplete },
+    }
     return investmentsAssistant(
       {
         status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'),

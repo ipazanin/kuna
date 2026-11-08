@@ -14,7 +14,7 @@ import { StepRefused } from '../../../../shared/app/proposedWrites'
 import { decimalShown } from '../../../../shared/money/decimal'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { decimalOf } from './investmentSteps'
+import { decimalOf, unchanged } from './investmentSteps'
 import type { CardBooks, InvestmentSteps, StepWritten } from './investmentSteps'
 
 function choices(values: readonly string[], blank: string): StrictSchema {
@@ -119,7 +119,8 @@ function savedInstrument(unit: Parameters<InvestmentSteps['write']>[0], card: Ca
   return {
     book: before === null ? { ...book, instruments: [...book.instruments, record] } : book,
     made: before === null ? id : null,
-    fetchesPricesOf: startsAPriceSeries(before, record) ? record.name : null,
+    fetchesPricesOf: startsAPriceSeries(before, record) ? [record.name] : [],
+    notes: [],
   }
 }
 
@@ -210,6 +211,6 @@ export const INSTRUMENT_STEPS: InvestmentSteps = {
       [],
     )
     unit.of(INSTRUMENT_WRITES).remove(before)
-    return { book: card.book, made: null, fetchesPricesOf: null }
+    return unchanged(card)
   },
 }

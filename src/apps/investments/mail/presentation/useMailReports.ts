@@ -3,7 +3,7 @@ import type { ComputedRef } from 'vue'
 
 import { readMailReports } from '../application/mailReports'
 import type { MailReportPlan, MailReportPorts } from '../application/mailReports'
-import { IBKR_FLEX_RECIPE } from '../domain/ibkrFlexRecipe'
+import { IBKR_FLEX_RECIPE, ibkrMailReader } from '../domain/ibkrFlexRecipe'
 import { newestReportDay, reportNews } from '../domain/mailReview'
 import type { ReportNews } from '../domain/mailReview'
 import { reportRows } from '../domain/reportRows'
@@ -13,7 +13,6 @@ import type { WorkbookRows } from '../../imports/domain/importDryRun'
 import { usePortfolio } from '../../holdings/presentation/usePortfolio'
 import { INVESTMENTS_GENERAL_ROUTE } from '../../overview/presentation/investmentLinks'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
-import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import type { MailReader } from '../../workbook/domain/mailReader'
 import { deviceTimeZone, parseCivilDate, startOfDayIn } from '../../../../shared/calendar/civilDate'
 import { isUnauthorized } from '../../../../shared/google/googleApi'
@@ -38,10 +37,6 @@ const state = shallowReactive<{ plan: MailReportPlan | null; stopped: string | n
 
 /** What this page already made of each file. A sync on a timer would otherwise fetch every file of the window again. */
 const known = new Map<string, RecipeRun>()
-
-export function mailReaderOf(book: InvestmentBook | null | undefined): MailReader | null {
-  return book?.mailReaders.find((reader) => reader.recipe === IBKR_FLEX_RECIPE.id) ?? null
-}
 
 async function openMailbox(): Promise<Mailbox> {
   // Inline, not hoisted, so a production build folds the fake away.
@@ -118,7 +113,7 @@ export function useMailReports(): MailReports {
   const store = useInvestmentsBooks()
   const { sources } = usePortfolio()
   const book = computed(() => store.state.workbook?.book ?? null)
-  const reader = computed(() => mailReaderOf(book.value))
+  const reader = computed(() => ibkrMailReader(book.value))
   const reading = computed(() => (state.plan === null || reader.value === null ? null : rowsOfPlan(state.plan, reader.value)))
   return {
     state: shallowReadonly(state),
@@ -139,7 +134,7 @@ export const MAIL_STEP: SyncStep = {
   async run() {
     const { state: books } = useInvestmentsBooks()
     const { workbook, choice } = books
-    const reader = mailReaderOf(workbook?.book)
+    const reader = ibkrMailReader(workbook?.book)
     if (workbook === null || reader === null || choice?.source !== 'drive') {
       return { kind: 'done', line: words.step.beforeBooks, writeId: null, link: null }
     }

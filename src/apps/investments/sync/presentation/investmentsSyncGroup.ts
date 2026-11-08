@@ -3,7 +3,8 @@ import type { AppSyncGroup } from '../../../../shared/sync/presentation/pageSync
 import { INVESTMENTS_SETTINGS_ROUTE } from '../../overview/presentation/investmentLinks'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import LocalInvestmentsStatus from '../../workbook/presentation/LocalInvestmentsStatus.vue'
-import { MAIL_SCOPE, MAIL_STEP, mailReaderOf } from '../../mail/presentation/useMailReports'
+import { ibkrMailReader } from '../../mail/domain/ibkrFlexRecipe'
+import { MAIL_SCOPE, MAIL_STEP } from '../../mail/presentation/useMailReports'
 import { PRICES_STEP } from '../../prices/presentation/usePrices'
 import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
 import { secretsNeeds, secretsStep } from '../../../../shared/secrets/presentation/secretsStep'
@@ -19,7 +20,7 @@ export function investmentsSyncGroup(): AppSyncGroup {
   const store = useInvestmentsBooks()
   // Before the first copy the keys count as wanted, so the day's fetch has the keys another browser saved.
   const keysStep = secretsStep(() => store.state.workbook === null || pricedByKey(store.state.workbook.book))
-  const readsMail = (): boolean => mailReaderOf(store.state.workbook?.book)?.on === true
+  const readsMail = (): boolean => ibkrMailReader(store.state.workbook?.book)?.on === true
   return {
     store,
     steps: () => [keysStep, PRICES_STEP, ...(readsMail() ? [MAIL_STEP] : [])],

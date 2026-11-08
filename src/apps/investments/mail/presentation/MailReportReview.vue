@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
-import { MAIL_READER_WRITES } from '../application/mailReaderWrites'
+import { writeLeftOut } from '../application/mailReaderWrites'
 import { useMailReports } from './useMailReports'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
@@ -33,7 +33,7 @@ const report = computed((): ReportReview | null => {
     words: { title: words.review.title, description: words.review.description, accept: words.review.accept, accepted: words.review.accepted, notAccepted: words.review.notAccepted },
     fileName: words.card.title,
     reading: rows,
-    writeLeftOut: (unit, keys) => unit.of(MAIL_READER_WRITES).change(current, { ...current, leftOut: [...current.leftOut, ...keys] }),
+    writeLeftOut: (unit, keys) => writeLeftOut(unit, current, keys),
   }
 })
 </script>

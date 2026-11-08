@@ -81,8 +81,8 @@ export interface AppProposer {
   check(title: string, steps: readonly ProposalStep[]): Promise<CheckedProposal | { readonly refused: readonly string[] }>
 }
 
-/** A done write's `undo` is null when the card has no Undo. */
-export type AcceptResult = { readonly kind: 'done'; readonly undo: (() => Promise<UndoResult>) | null } | { readonly kind: 'refused'; readonly reason: string }
+/** A done write's `undo` is null when the card has no Undo. Its `warning` says what the person should know of a write that went through, such as series a fetch got nothing for. */
+export type AcceptResult = { readonly kind: 'done'; readonly undo: (() => Promise<UndoResult>) | null; readonly warning?: string } | { readonly kind: 'refused'; readonly reason: string }
 export type UndoResult = { readonly kind: 'undone' } | { readonly kind: 'refused'; readonly reason: string }
 
 /** What only the proposal card reaches: one write of one proposal, by a person's click. */

@@ -11,6 +11,7 @@ import type { Split } from '../../workbook/domain/split'
 import type { Trade } from '../../workbook/domain/trade'
 import type { Transfer } from '../../workbook/domain/transfer'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
+import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 
 /** A trade moves units, so no write of it may leave a sale beyond what its account holds. */
@@ -83,6 +84,11 @@ const TRANSACTION_WRITES: { readonly [Kind in TransactionKind]: WriteRules<Extra
   split: SPLIT_WRITES,
   'spin-off': SPIN_OFF_WRITES,
   price: HAND_PRICE_WRITES,
+}
+
+/** The record kind a transaction of this kind is kept as. */
+export function transactionRecordKind(kind: TransactionKind): RecordKind<unknown> {
+  return TRANSACTION_WRITES[kind].kind
 }
 
 /** Adds a record when there is none before, removes it when there is none after, and otherwise changes it, keeping its kind. */

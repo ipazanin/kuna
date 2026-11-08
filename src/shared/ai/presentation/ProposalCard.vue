@@ -74,7 +74,7 @@ async function accept(event: Event): Promise<void> {
     const result = await assistant?.acceptance?.accept(checked)
     if (result === undefined) return
     if (result.kind === 'done') {
-      settleProposal(held.value, 'done', null, result.undo)
+      settleProposal(held.value, 'done', null, result.undo, result.warning ?? null)
     } else {
       settleProposal(held.value, 'refused', result.reason)
     }
@@ -165,6 +165,10 @@ async function undo(event: Event): Promise<void> {
           @click="undo"
         />
         <p v-else-if="noUndo" class="type-caption" data-testid="chat-proposal-no-undo">{{ words.proposal.noUndo }}</p>
+        <p v-if="proposal.warning !== null" class="flex basis-full items-start gap-1.5 type-caption wrap-anywhere text-warning" role="status" data-testid="chat-proposal-done-warning">
+          <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+          {{ proposal.warning }}
+        </p>
         <p v-if="proposal.reason !== null" class="flex basis-full items-start gap-1.5 type-caption wrap-anywhere text-error" role="status" data-testid="chat-proposal-undo-refused">
           <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
           {{ proposal.reason }}
