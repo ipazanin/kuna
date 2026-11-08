@@ -140,7 +140,7 @@ function logAccountFields_(label, uid) {
   const options = { psuUserAgent: EDITOR_USER_AGENT }
   const details = call_('get', `/accounts/${uid}/details`, options)
   const balanceRows = call_('get', `/accounts/${uid}/balances`, options).balances ?? []
-  const from = new Date(Date.now() - DAYS_LOGGED * 86_400_000).toISOString().slice(0, 10)
+  const from = new Date(Date.now() - DAYS_LOGGED * 86400000).toISOString().slice(0, 10)
   const rows = bankRows_(uid, from, 'default', EDITOR_USER_AGENT)
   Logger.log(
     `${label} details: ${JSON.stringify({ singleCurrency: details.currency !== 'XXX', hasIban: Boolean(details.account_id?.iban), fields: fieldCounts_([details]), codes: codeCounts_([details]) })}`,
