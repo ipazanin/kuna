@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import AskChatButton from '../../../../../../shared/ai/presentation/AskChatButton.vue'
 import { bridgeChart } from '../../../../../../shared/charts/bridgeChart'
 import { chartTokens } from '../../../../../../shared/charts/chartTokens'
 import { formatChartMoney, formatMoney } from '../../../../../../shared/money/moneyFormat'
@@ -12,9 +13,10 @@ import KpiTile from '../../../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import DrillChartCard from '../../../../filters/presentation/DrillChartCard.vue'
 import BuildUpButton from '../BuildUpButton.vue'
+import FigureAsk from '../FigureAsk.vue'
 import FigureDialog from '../FigureDialog.vue'
 import { PROFIT_BRIDGE } from '../profitBridge'
-import type { FigureDetail } from '../tracedFigureView'
+import type { AskableDetail } from '../tracedFigureView'
 import SalaryProblemList from './SalaryProblemList.vue'
 import SalaryReconciliationCard from './SalaryReconciliationCard.vue'
 import type { SalaryMonthView } from './salariesView'
@@ -27,7 +29,7 @@ const props = defineProps<{
 
 const bridge = computed(() => bridgeChart(props.view.bridge, chartTokens(), { ...PROFIT_BRIDGE, raises: words.bridge.raises, lowers: words.bridge.lowers }))
 
-const opened = ref<FigureDetail | null>(null)
+const opened = ref<AskableDetail | null>(null)
 const dialogOpen = computed({
   get: () => opened.value !== null,
   set: (open: boolean) => {
@@ -47,14 +49,17 @@ const dialogOpen = computed({
       <KpiTile v-for="tile in view.tiles" :key="tile.label" v-bind="tile" />
     </DashboardGrid>
 
-    <p v-if="view.strip" class="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-toned" data-testid="salaries-strip">
-      <span class="font-medium text-highlighted">{{ view.strip.name }}</span>
-      <span>
-        {{ words.month.gross }}<MoneyText :cents="view.strip.gross" />{{ words.month.toNet }}
-        <BuildUpButton v-if="view.strip.netDetail" :cents="view.strip.net" :label="words.month.netIn(view.strip.name, view.label)" @open="opened = view.strip.netDetail" />
-        <MoneyText v-else :cents="view.strip.net" /><template v-if="view.strip.paidOn">{{ words.month.paidOn(view.strip.paidOn) }}</template>
-      </span>
-    </p>
+    <FigureAsk v-if="view.strip" v-slot="{ ask, askLabel, marked }" :detail="view.strip.netDetail">
+      <p class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-toned" data-testid="salaries-strip" v-bind="marked">
+        <span class="font-medium text-highlighted">{{ view.strip.name }}</span>
+        <span>
+          {{ words.month.gross }}<MoneyText :cents="view.strip.gross" />{{ words.month.toNet }}
+          <BuildUpButton v-if="view.strip.netDetail" :cents="view.strip.net" :label="words.month.netIn(view.strip.name, view.label)" @open="opened = view.strip.netDetail" />
+          <MoneyText v-else :cents="view.strip.net" /><template v-if="view.strip.paidOn">{{ words.month.paidOn(view.strip.paidOn) }}</template>
+        </span>
+        <AskChatButton v-if="askLabel" :label="askLabel" icon-only @ask="ask" />
+      </p>
+    </FigureAsk>
 
     <DashboardGrid>
       <DonutCard

@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import AskChatButton from '../../../../../../shared/ai/presentation/AskChatButton.vue'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
-import type { FigureDetail } from '../tracedFigureView'
+import FigureAsk from '../FigureAsk.vue'
+import type { AskableDetail } from '../tracedFigureView'
 import type { ProblemView } from './salariesView'
 import { words } from './words'
 
@@ -15,7 +17,7 @@ defineProps<{
 }>()
 
 defineEmits<{
-  open: [detail: FigureDetail]
+  open: [detail: AskableDetail]
 }>()
 
 const FACT = { hash: '#employee-rows' }
@@ -28,17 +30,22 @@ const FACT = { hash: '#employee-rows' }
       {{ words.problemList.allAgree }}
     </p>
     <ul v-else class="flex flex-col px-4 pb-3 sm:px-5">
-      <li v-for="problem in problems" :key="problem.key" class="problem-row" data-testid="salaries-problem">
-        <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
-        <div class="flex min-w-0 flex-1 flex-col gap-1">
-          <p class="text-sm text-toned">{{ problem.text }}</p>
-          <div v-if="problem.detail || problem.rows || problem.fact" class="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-            <button v-if="problem.detail" type="button" class="problem-action text-highlighted" @click="$emit('open', problem.detail)">{{ words.problemList.howWorkedOut }}</button>
-            <DrillLink v-if="problem.rows" :to="problem.rows" class="text-highlighted">{{ words.problemList.viewRows }}</DrillLink>
-            <DrillLink v-if="problem.fact" :to="FACT" class="text-highlighted">{{ words.problemList.openEmployees }}</DrillLink>
+      <FigureAsk v-for="problem in problems" :key="problem.key" v-slot="{ ask, askLabel, marked }" :detail="problem.detail">
+        <li class="problem-row" data-testid="salaries-problem" v-bind="marked">
+          <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+          <div class="flex min-w-0 flex-1 flex-col gap-1">
+            <p class="text-sm text-toned">{{ problem.text }}</p>
+            <div v-if="problem.detail || problem.rows || problem.fact" class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+              <span v-if="problem.detail" class="inline-flex items-center gap-0.5">
+                <button type="button" class="problem-action text-highlighted" @click="$emit('open', problem.detail)">{{ words.problemList.howWorkedOut }}</button>
+                <AskChatButton v-if="askLabel" :label="askLabel" icon-only @ask="ask" />
+              </span>
+              <DrillLink v-if="problem.rows" :to="problem.rows" class="text-highlighted">{{ words.problemList.viewRows }}</DrillLink>
+              <DrillLink v-if="problem.fact" :to="FACT" class="text-highlighted">{{ words.problemList.openEmployees }}</DrillLink>
+            </div>
           </div>
-        </div>
-      </li>
+        </li>
+      </FigureAsk>
     </ul>
   </AppCard>
 </template>

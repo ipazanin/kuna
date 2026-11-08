@@ -34,6 +34,11 @@ export function weekdaysEmployed(employee: Pick<Employee, 'from' | 'to'>, month:
   return from > to ? null : weekdaysBetween(from, to)
 }
 
+/** Whether the company pays anyone besides the director, so a company-wide figure that counts salaries holds someone else's pay. */
+export function paysBesidesOwner(workbook: { readonly employees: readonly Employee[]; readonly director: Employee | null }): boolean {
+  return workbook.employees.some((employee) => employee.slug !== workbook.director?.slug)
+}
+
 /** The director whose facts the owner's payroll is worked out on, or null while no single row is the director's or it names no city. */
 export function payrollDirector(workbook: { readonly director: Employee | null }): Employee | null {
   return workbook.director !== null && workbook.director.residenceCity !== '' ? workbook.director : null

@@ -2,7 +2,7 @@ import { answerKunaStart, forgetKunaStart } from '../../../../../shared/app/kuna
 import { replaceBrowserDocument } from '../../../../../shared/storage/infrastructure/browserDocument'
 import { decodeDocument, encodeDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
 import type { DocumentCopy } from '../../../../../shared/storage/infrastructure/documentRecordStorage'
-import { COMPANY_APP } from '../companyDocument'
+import { COMPANY_APP } from '../../domain/companyApp'
 import { createDriveDocument, documentName } from '../../../../../shared/storage/infrastructure/driveDocument'
 import { failNextUpload, fakeBooksFolder, fakeDriveSession, raceTheNextSave, seedFakeBackups, slowUploads } from '../../../../../shared/storage/infrastructure/fake/fakeDriveSession'
 import { openWorkbookCache } from '../../../../../shared/storage/infrastructure/workbookCache'

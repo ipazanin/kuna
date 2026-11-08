@@ -492,6 +492,15 @@ section + section > .group-row:not(tr) {
   background: var(--accent);
 }
 
+/* A table row lays its children out as cells, so its bar is drawn on its first cell instead. */
+tr[data-chat-tagged='row']::before {
+  content: none;
+}
+
+tr[data-chat-tagged='row'] > :first-child {
+  box-shadow: inset 2px 0 var(--accent);
+}
+
 /* The key beside a legend's label or a figure: its mark in the colour passed as --swatch. */
 .swatch {
   display: inline-block;

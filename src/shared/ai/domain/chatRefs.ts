@@ -2,7 +2,7 @@ import type { AccountMoney } from '../../money/accountMoney'
 import type { CurrencyCode } from '../../money/currencyCode'
 import type { Money } from '../../money/money'
 import type { ChatElementAbout } from './chatElement'
-import { figuresIn, holdsStrayFigure } from './citedAnswer'
+import { figuresIn, holdsStrayFigure } from './writtenFigures'
 
 /** An amount Kuna computed, in the app's own currency or in an account's, as the figure says. */
 export type FigureAmount = { readonly of: 'app'; readonly cents: Money; readonly currency: CurrencyCode } | { readonly of: 'account'; readonly cents: AccountMoney; readonly currency: CurrencyCode }

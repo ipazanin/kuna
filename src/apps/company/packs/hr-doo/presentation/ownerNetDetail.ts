@@ -7,16 +7,29 @@ import type { Money } from '../../../../../shared/money/money'
 import type { DrillTarget } from '../../../filters/domain/drillTarget'
 import type { OwnerNetWithProfit } from '../domain/ownerNetWithProfit'
 import { RENT_TAX_LABEL } from './packCharts'
-import { ruleChips, watchedIn } from './tracedFigureView'
-import type { FigureDetail } from './tracedFigureView'
+import { askLabelOf, ruleChips, watchedIn } from './tracedFigureView'
+import type { AskableDetail } from './tracedFigureView'
+import { summed, tracedFigure } from '../domain/payroll/payrollArithmetic'
+import type { TracedFigure } from '../ruleset/tracedFigure'
 import type { BuildUpStep } from './yearEnd/LineBuildUp.vue'
 import { plural } from '../../../../../shared/text/translation'
 import { words } from './words'
 
 export const OWNER_NET_TITLE = words.ownerNet.title
 
+/** The monthly net as the chat reads it: the pay a month over the owner's pay, and the profit a month over the profit after both taxes. */
+function ownerNetFigure(net: OwnerNetWithProfit, months: string): TracedFigure {
+  const payLabel = net.rentTax.amount === 0 ? words.ownerNet.pay(months) : words.ownerNet.payAfterRentTax
+  const pay = { ...tracedFigure(payLabel, net.pay.amount, 'ledger', []), drill: net.pay.drill }
+  return summed(
+    OWNER_NET_TITLE,
+    [tracedFigure(words.ownerNet.payAMonth, net.payPerMonth, 'ledger', [], [pay]), tracedFigure(words.ownerNet.profitAMonth, net.profitPerMonth, net.profit.basis, net.profit.rules, [net.profit])],
+    'ledger',
+  )
+}
+
 /** The build-up of the monthly net with the profit included, each line opening its rows, or Year for a year's profit. */
-export function ownerNetDetail(net: OwnerNetWithProfit, period: string, link: (drill: DrillTarget) => RouteLocationRaw | null): FigureDetail {
+export function ownerNetDetail(net: OwnerNetWithProfit, period: string, link: (drill: DrillTarget) => RouteLocationRaw | null): AskableDetail {
   const months = (count: number) => plural(words.ownerNet.months(count), count)
   const step = (key: string, label: string, cents: Money | null, to: RouteLocationRaw | null = null, depth: 0 | 1 = 0): BuildUpStep => ({ key, label, cents, to, depth })
   const several = net.years.length > 1
@@ -57,7 +70,8 @@ export function ownerNetDetail(net: OwnerNetWithProfit, period: string, link: (d
     steps,
     rules: ruleChips(net.profit.rules),
     watched: watchedIn([net.profit]),
-    figure: null,
+    figure: ownerNetFigure(net, months(net.payMonths)),
+    askLabel: askLabelOf(OWNER_NET_TITLE, [period]),
     employees: false,
   }
 }

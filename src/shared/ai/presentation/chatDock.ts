@@ -7,7 +7,10 @@ import type { ChatElementAbout } from '../domain/chatElement'
 export interface AskedElement {
   /** Tells this element apart on the screen, so only it takes the highlight. */
   readonly key: string
-  /** Its name as the screen shows it, such as "Cash on hand", on the chip and in the prompt. Never an amount or a payee. */
+  /**
+   * Its short name, such as "Cash on hand" or "Gross II, Alex Example, Sep 2026", on the chip and, for a report's figure, in
+   * the prompt. Never an amount or a payee. A build-up's label may name an employee, since it stays on this device and the model gets only a ref.
+   */
   readonly label: string
   readonly about: ChatElementAbout
 }
@@ -41,16 +44,22 @@ export type ChatElementShape = 'card' | 'row'
 /**
  * For an element a person can ask the chat about. `ask` opens the chat about it, in place of any element before. The
  * element binds `marked` with `v-bind`, so it takes the highlight while the open chat is about it. The looks are in `app.css`.
+ * While `asked` is null, as for a row with nothing to ask about, `ask` does nothing and `marked` stays empty.
  */
 export function useChatElement(
-  asked: MaybeRefOrGetter<AskedElement>,
+  asked: MaybeRefOrGetter<AskedElement | null>,
   shape: ChatElementShape,
 ): { readonly ask: () => void; readonly marked: ComputedRef<{ readonly 'data-chat-tagged'?: ChatElementShape }> } {
   return {
     ask: () => {
-      element.value = toValue(asked)
+      const about = toValue(asked)
+      if (about === null) return
+      element.value = about
       open.value = true
     },
-    marked: computed(() => (open.value && element.value?.key === toValue(asked).key ? { 'data-chat-tagged': shape } : {})),
+    marked: computed(() => {
+      const about = toValue(asked)
+      return open.value && about !== null && element.value?.key === about.key ? { 'data-chat-tagged': shape } : {}
+    }),
   }
 }

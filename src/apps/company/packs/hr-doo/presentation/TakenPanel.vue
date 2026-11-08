@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
+import AskChatButton from '../../../../../shared/ai/presentation/AskChatButton.vue'
 import { chartTokens } from '../../../../../shared/charts/chartTokens'
 import { addMoney } from '../../../../../shared/money/money'
 import { formatMoney } from '../../../../../shared/money/moneyFormat'
@@ -33,6 +34,7 @@ import { loanMonths } from '../domain/ownerLoans'
 import { netPayPerMonth, ownerTake, ownerTakeByMonth } from '../domain/ownerTake'
 import { PACK_ROLES, categoriesWithRole } from '../domain/packRoles'
 import BuildUpButton from './BuildUpButton.vue'
+import FigureAsk from './FigureAsk.vue'
 import FigureDialog from './FigureDialog.vue'
 import OwnerBenefitsCard from './OwnerBenefitsCard.vue'
 import { OWNER_NET_TITLE, ownerNetDetail } from './ownerNetDetail'
@@ -221,16 +223,21 @@ const taken = computed(() => {
   <div class="flex flex-col gap-6">
     <DashboardGrid layout="tiles" data-testid="owner-taken-tiles">
       <KpiTile v-for="tile in taken.tiles" :key="tile.label" v-bind="tile" />
-      <KpiTile v-bind="net.tile" data-testid="owner-net-with-profit">
-        <template v-if="net.detail" #value>
-          <BuildUpButton :cents="net.detail.cents" :label="OWNER_NET_TITLE" @open="netOpen = true" />
-        </template>
-        <p v-if="net.unregistered" class="mt-1.5 text-xs text-muted" data-testid="owner-net-unregistered">
-          {{ words.taken.profitNeeds }}<span class="identifier break-all">hr_company_registered</span>.
-          <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" in-prose class="text-highlighted">{{ words.taken.setOnSettings }}</DrillLink>
-        </p>
-        <p v-else-if="net.detail && net.periodOnly" class="mt-1.5 text-xs text-muted" data-testid="owner-net-period-only">{{ words.taken.profitFollowsPeriod }}</p>
-      </KpiTile>
+      <FigureAsk v-slot="{ ask, askLabel, marked }" :detail="net.detail" shape="card">
+        <KpiTile v-bind="{ ...net.tile, ...marked }" data-testid="owner-net-with-profit">
+          <template v-if="net.detail" #value>
+            <span class="inline-flex items-center gap-0.5">
+              <BuildUpButton :cents="net.detail.cents" :label="OWNER_NET_TITLE" @open="netOpen = true" />
+              <AskChatButton v-if="askLabel" :label="askLabel" icon-only @ask="ask" />
+            </span>
+          </template>
+          <p v-if="net.unregistered" class="mt-1.5 text-xs text-muted" data-testid="owner-net-unregistered">
+            {{ words.taken.profitNeeds }}<span class="identifier break-all">hr_company_registered</span>.
+            <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" in-prose class="text-highlighted">{{ words.taken.setOnSettings }}</DrillLink>
+          </p>
+          <p v-else-if="net.detail && net.periodOnly" class="mt-1.5 text-xs text-muted" data-testid="owner-net-period-only">{{ words.taken.profitFollowsPeriod }}</p>
+        </KpiTile>
+      </FigureAsk>
     </DashboardGrid>
     <FigureDialog v-if="net.detail" v-model:open="netOpen" :detail="net.detail" />
 

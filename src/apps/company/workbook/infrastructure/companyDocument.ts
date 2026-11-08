@@ -6,9 +6,6 @@ import type { WorkbookDocument } from '../../../../shared/storage/infrastructure
 import { recordsOfDocument } from '../../../../shared/storage/infrastructure/documentRecordStorage'
 import type { AppDocument } from '../../../../shared/storage/infrastructure/documentStorePorts'
 
-/** The app of the hub whose books this store keeps. */
-export const COMPANY_APP = 'company'
-
 /** The contributor that stores core's kinds. */
 const CORE = 'core'
 const CORE_SCHEMA_VERSION = 1

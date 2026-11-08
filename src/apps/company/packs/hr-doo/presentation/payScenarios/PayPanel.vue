@@ -6,6 +6,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import UPopover from '@nuxt/ui/components/Popover.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
+import AskChatButton from '../../../../../../shared/ai/presentation/AskChatButton.vue'
 import { chartTokens } from '../../../../../../shared/charts/chartTokens'
 import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
 import { formatPercent } from '../../../../../../shared/money/moneyFormat'
@@ -23,11 +24,12 @@ import { HUNDRED } from '../../domain/scenarios/marginalEuro'
 import { scenarioGuards } from '../../domain/scenarios/scenarioGuards'
 import { scenarioName } from '../../domain/scenarios/startingScenarios'
 import BuildUpButton from '../BuildUpButton.vue'
+import FigureAsk from '../FigureAsk.vue'
 import FigureDialog from '../FigureDialog.vue'
 import DividendCard from '../forecast/DividendCard.vue'
 import type { ForecastView } from '../forecast/forecastView'
 import { figureDetail } from '../tracedFigureView'
-import type { FigureDetail } from '../tracedFigureView'
+import type { AskableDetail } from '../tracedFigureView'
 import { comparedScenarios } from './payScenariosView'
 import type { PayState, ScenarioColumn } from './payScenariosView'
 import { scenarioBars } from './scenarioBars'
@@ -61,6 +63,7 @@ const yearScenarios = computed(() => props.workbook.payScenarios.filter((scenari
 const taken = computed(() => props.workbook.payScenarios.map((scenario) => scenario.slug))
 
 const ready = computed(() => (props.pay.state === 'ready' ? props.pay.figures : null))
+const staffPay = computed(() => props.pay.state === 'ready' && props.pay.staffPay)
 const workedOut = computed(() => ready.value?.entries.flatMap((entry) => (entry.kind === 'outcome' ? [entry.scenario] : [])) ?? [])
 /** Guards need no company figures, so the editor shows why a scenario is stopped even before the settings are complete. */
 const refusals = computed(
@@ -100,7 +103,7 @@ function pickPayout(picked: PayoutOptionId): void {
   void router.replace({ query: { ...route.query, payout: picked === 'after-adoption' ? undefined : picked } })
 }
 
-const shown = computed(() => (ready.value === null ? null : comparedScenarios(ready.value, chosen.value, base.value, link)))
+const shown = computed(() => (ready.value === null ? null : comparedScenarios(ready.value, chosen.value, base.value, link, staffPay.value)))
 const bars = computed(() => (shown.value === null ? null : scenarioBars(shown.value.splits, chartTokens(), phone.value)))
 
 const companyLines = computed(() => {
@@ -108,10 +111,12 @@ const companyLines = computed(() => {
   if (figures === null) return []
   const { company } = figures
   const subtitle = words.panel.startFromSubtitle(company.takenFrom)
-  return [company.profitBeforeOwnerPay, company.ownerPayInForecast, company.cashBeforeOwnerPay, company.owedByOwner, company.retainedBroughtIn].map((figure) => figureDetail(figure, subtitle, link))
+  return [company.profitBeforeOwnerPay, company.ownerPayInForecast, company.cashBeforeOwnerPay, company.owedByOwner, company.retainedBroughtIn].map((figure) =>
+    figureDetail(figure, subtitle, [String(company.takenFrom)], link, staffPay.value),
+  )
 })
 
-const marginal = computed(() => ready.value?.marginal.map((route) => figureDetail(route.net, words.panel.nextHundredOf(HUNDRED, props.year), link)) ?? [])
+const marginal = computed(() => ready.value?.marginal.map((route) => figureDetail(route.net, words.panel.nextHundredOf(HUNDRED, props.year), [String(props.year)], link)) ?? [])
 
 /** Each scenario's warnings and notes behind one badge, which counts the warnings, or the notes when it has no warning. */
 const warningRows = computed(() => (shown.value?.columns ?? []).map((column) => ({ column, badge: badgeOf(column) })))
@@ -124,10 +129,10 @@ function badgeOf(column: ScenarioColumn): { readonly label: string; readonly war
 }
 
 const startingOpen = ref(false)
-const detail = ref<FigureDetail | null>(null)
+const detail = ref<AskableDetail | null>(null)
 const detailOpen = ref(false)
 
-function openDetail(opened: FigureDetail): void {
+function openDetail(opened: AskableDetail): void {
   startingOpen.value = false
   detail.value = opened
   detailOpen.value = true
@@ -250,13 +255,16 @@ function openDetail(opened: FigureDetail): void {
         start-collapsed
         data-testid="marginal-euro"
       >
-        <ul class="flex flex-col px-4 pt-2 pb-3 sm:px-5">
-          <li v-for="entry in marginal" :key="entry.title">
-            <button type="button" class="route-row" :aria-label="words.panel.openRoute(entry.title)" @click="openDetail(entry)">
-              <span class="min-w-0 text-start text-sm text-toned">{{ entry.title }}</span>
-              <MoneyText :cents="entry.cents" class="shrink-0 text-sm font-medium text-highlighted" />
-            </button>
-          </li>
+        <ul class="route-list flex flex-col px-4 pt-2 pb-3 sm:px-5">
+          <FigureAsk v-for="entry in marginal" :key="entry.title" v-slot="{ ask, askLabel, marked }" :detail="entry">
+            <li class="flex items-center gap-1" v-bind="marked">
+              <button type="button" class="route-row" :aria-label="words.panel.openRoute(entry.title)" @click="openDetail(entry)">
+                <span class="min-w-0 text-start text-sm text-toned">{{ entry.title }}</span>
+                <MoneyText :cents="entry.cents" class="shrink-0 text-sm font-medium text-highlighted" />
+              </button>
+              <AskChatButton v-if="askLabel" :label="askLabel" icon-only @ask="ask" />
+            </li>
+          </FigureAsk>
         </ul>
       </AppCard>
     </template>
@@ -293,7 +301,8 @@ function openDetail(opened: FigureDetail): void {
 
 .route-row {
   display: flex;
-  width: 100%;
+  min-width: 0;
+  flex: 1;
   min-height: 2.75rem;
   align-items: center;
   justify-content: space-between;
@@ -301,7 +310,7 @@ function openDetail(opened: FigureDetail): void {
   border-radius: var(--radius-control);
 }
 
-li + li > .route-row {
+.route-list > li + li {
   border-top: 1px solid var(--border-default);
 }
 

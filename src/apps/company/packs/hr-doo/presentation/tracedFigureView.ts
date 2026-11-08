@@ -59,10 +59,20 @@ export interface FigureDetail {
   readonly rules: readonly RuleChip[]
   /** Rules among them the ruleset marks estimated, pending or unconfirmed for the year. */
   readonly watched: readonly WatchedRules[]
-  /** The figure itself, which Explain sends, or null for a build-up made of several figures. */
-  readonly figure: TracedFigure | null
-  /** Whether the figure names employees or their pay, so Explain asks for its own switch first. */
+}
+
+/** A build-up of one figure, which the chat can be asked about. */
+export interface AskableDetail extends FigureDetail {
+  readonly figure: TracedFigure
+  /** The title and what tells the figure apart, such as "Gross II, Alex Example, Sep 2026", for the chat's tag and the ask's name. Never an amount. */
+  readonly askLabel: string
+  /** Whether the figure names employees or their pay, which the chat does not read while Anonymise is on. */
   readonly employees: boolean
+}
+
+/** A figure's short name for the chat: its title and what tells it apart from others with that title. */
+export function askLabelOf(title: string, tellsApart: readonly string[]): string {
+  return [title, ...tellsApart].join(', ')
 }
 
 /** The rules a figure rests on that carry one watched mark. */
@@ -97,10 +107,14 @@ export function watchedIn(figures: readonly TracedFigure[]): WatchedRules[] {
   return watchedGroups(watchedCitations(figures))
 }
 
-/** A figure ready to open on its build-up. `employees` marks one that names employees or their pay. */
-export function figureDetail(figure: TracedFigure, subtitle: string, link: (drill: DrillTarget | null) => RouteLocationRaw | null, employees = false): FigureDetail {
+/**
+ * A figure ready to open on its build-up. `tellsApart` names what sets it apart from others with its title, such as an
+ * employee and a month, and `employees` marks one that names employees or their pay.
+ */
+export function figureDetail(figure: TracedFigure, subtitle: string, tellsApart: readonly string[], link: (drill: DrillTarget | null) => RouteLocationRaw | null, employees = false): AskableDetail {
+  const title = figureLabel(figure)
   return {
-    title: figureLabel(figure),
+    title,
     subtitle,
     cents: figure.amount,
     to: link(figure.drill),
@@ -108,6 +122,7 @@ export function figureDetail(figure: TracedFigure, subtitle: string, link: (dril
     rules: ruleChips(figure.rules),
     watched: watchedIn([figure]),
     figure,
+    askLabel: askLabelOf(title, tellsApart),
     employees,
   }
 }

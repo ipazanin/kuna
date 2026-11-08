@@ -3,13 +3,17 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import AskChatButton from '../../../../../../shared/ai/presentation/AskChatButton.vue'
+import { assistKeyKept } from '../../../../../../shared/ai/presentation/useAiTask'
+import { words as aiWords } from '../../../../../../shared/ai/presentation/words'
 import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import BuildUpButton from '../BuildUpButton.vue'
-import type { FigureDetail } from '../tracedFigureView'
+import FigureAsk from '../FigureAsk.vue'
+import type { AskableDetail } from '../tracedFigureView'
 import type { SalaryMonthView } from './salariesView'
 import { words } from './words'
 
@@ -24,7 +28,7 @@ const props = defineProps<{
 }>()
 
 defineEmits<{
-  open: [detail: FigureDetail]
+  open: [detail: AskableDetail]
 }>()
 
 const route = useRoute()
@@ -48,39 +52,45 @@ const allAgree = computed(() => props.view.agreeing === props.view.compared)
       <section v-for="section in view.sections" :key="section.key" :aria-label="section.title" :data-section="section.key" class="flex flex-col gap-2">
         <h3 class="text-sm font-medium text-highlighted sm:px-2">{{ section.title }}</h3>
         <ul v-if="phone" class="flex flex-col">
-          <li v-for="line in section.lines" :key="line.key" class="line-card" :data-verdict="line.verdict">
-            <p class="flex items-center justify-between gap-2 text-sm">
-              <span class="text-toned">{{ line.label }}</span>
-              <span v-if="line.verdict === 'agrees'" class="inline-flex items-center gap-1 text-xs text-muted"
-                ><UIcon name="i-lucide-check" class="size-3.5" aria-hidden="true" />{{ words.reconciliation.agrees }}</span
-              >
-              <span v-else-if="line.verdict === 'differs'" class="inline-flex items-center gap-1 text-xs text-error"
-                ><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />{{ words.reconciliation.differs }}</span
-              >
-            </p>
-            <dl class="line-cells">
-              <div>
-                <dt>{{ words.reconciliation.app }}</dt>
-                <dd>
-                  <BuildUpButton v-if="line.app" :cents="line.app.cents" :label="words.reconciliation.byApp(section.title, line.label)" @open="$emit('open', line.app)" />
-                  <span v-else class="text-muted">–</span>
-                </dd>
-              </div>
-              <div>
-                <dt>{{ words.reconciliation.bank }}</dt>
-                <dd>
-                  <DrillLink v-if="line.bank" :to="line.bank.to" :label="words.reconciliation.bankRows(section.title, line.label)"><MoneyText :cents="line.bank.cents" /></DrillLink>
-                  <span v-else class="text-muted">–</span>
-                </dd>
-              </div>
-            </dl>
-          </li>
+          <FigureAsk v-for="line in section.lines" :key="line.key" v-slot="{ ask, askLabel, marked }" :detail="line.app">
+            <li class="line-card" :data-verdict="line.verdict" v-bind="marked">
+              <p class="flex items-center justify-between gap-2 text-sm">
+                <span class="text-toned">{{ line.label }}</span>
+                <span v-if="line.verdict === 'agrees'" class="inline-flex items-center gap-1 text-xs text-muted"
+                  ><UIcon name="i-lucide-check" class="size-3.5" aria-hidden="true" />{{ words.reconciliation.agrees }}</span
+                >
+                <span v-else-if="line.verdict === 'differs'" class="inline-flex items-center gap-1 text-xs text-error"
+                  ><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />{{ words.reconciliation.differs }}</span
+                >
+              </p>
+              <dl class="line-cells">
+                <div>
+                  <dt>{{ words.reconciliation.app }}</dt>
+                  <dd class="flex items-center gap-0.5">
+                    <BuildUpButton v-if="line.app" :cents="line.app.cents" :label="words.reconciliation.byApp(section.title, line.label)" @open="$emit('open', line.app)" />
+                    <span v-else class="text-muted">–</span>
+                    <AskChatButton v-if="askLabel" :label="askLabel" icon-only @ask="ask" />
+                  </dd>
+                </div>
+                <div>
+                  <dt>{{ words.reconciliation.bank }}</dt>
+                  <dd>
+                    <DrillLink v-if="line.bank" :to="line.bank.to" :label="words.reconciliation.bankRows(section.title, line.label)"><MoneyText :cents="line.bank.cents" /></DrillLink>
+                    <span v-else class="text-muted">–</span>
+                  </dd>
+                </div>
+              </dl>
+            </li>
+          </FigureAsk>
         </ul>
         <FigureTable v-else>
           <thead>
             <tr>
               <th scope="col" class="text-start">{{ words.reconciliation.line }}</th>
               <th scope="col" class="w-28 text-end">{{ words.reconciliation.app }}</th>
+              <th v-if="assistKeyKept" scope="col" class="w-10">
+                <span class="sr-only">{{ aiWords.ask.button }}</span>
+              </th>
               <th scope="col" class="w-28 text-end">{{ words.reconciliation.bank }}</th>
               <th scope="col" class="w-24 text-start">
                 <span class="sr-only">{{ words.reconciliation.verdict }}</span>
@@ -88,25 +98,30 @@ const allAgree = computed(() => props.view.agreeing === props.view.compared)
             </tr>
           </thead>
           <tbody>
-            <tr v-for="line in section.lines" :key="line.key" :data-verdict="line.verdict">
-              <th scope="row" class="text-start font-normal text-toned">{{ line.label }}</th>
-              <td class="text-end">
-                <BuildUpButton v-if="line.app" :cents="line.app.cents" :label="words.reconciliation.byApp(section.title, line.label)" @open="$emit('open', line.app)" />
-                <span v-else class="text-muted">–</span>
-              </td>
-              <td class="text-end">
-                <DrillLink v-if="line.bank" :to="line.bank.to" :label="words.reconciliation.bankRows(section.title, line.label)"><MoneyText :cents="line.bank.cents" /></DrillLink>
-                <span v-else class="text-muted">–</span>
-              </td>
-              <td>
-                <span v-if="line.verdict === 'agrees'" class="inline-flex items-center gap-1 text-xs text-muted"
-                  ><UIcon name="i-lucide-check" class="size-3.5" aria-hidden="true" />{{ words.reconciliation.agrees }}</span
-                >
-                <span v-else-if="line.verdict === 'differs'" class="inline-flex items-center gap-1 text-xs text-error"
-                  ><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />{{ words.reconciliation.differs }}</span
-                >
-              </td>
-            </tr>
+            <FigureAsk v-for="line in section.lines" :key="line.key" v-slot="{ ask, askLabel, marked }" :detail="line.app">
+              <tr :data-verdict="line.verdict" v-bind="marked">
+                <th scope="row" class="text-start font-normal text-toned">{{ line.label }}</th>
+                <td class="text-end">
+                  <BuildUpButton v-if="line.app" :cents="line.app.cents" :label="words.reconciliation.byApp(section.title, line.label)" @open="$emit('open', line.app)" />
+                  <span v-else class="text-muted">–</span>
+                </td>
+                <td v-if="assistKeyKept">
+                  <AskChatButton v-if="askLabel" :label="askLabel" icon-only @ask="ask" />
+                </td>
+                <td class="text-end">
+                  <DrillLink v-if="line.bank" :to="line.bank.to" :label="words.reconciliation.bankRows(section.title, line.label)"><MoneyText :cents="line.bank.cents" /></DrillLink>
+                  <span v-else class="text-muted">–</span>
+                </td>
+                <td>
+                  <span v-if="line.verdict === 'agrees'" class="inline-flex items-center gap-1 text-xs text-muted"
+                    ><UIcon name="i-lucide-check" class="size-3.5" aria-hidden="true" />{{ words.reconciliation.agrees }}</span
+                  >
+                  <span v-else-if="line.verdict === 'differs'" class="inline-flex items-center gap-1 text-xs text-error"
+                    ><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />{{ words.reconciliation.differs }}</span
+                  >
+                </td>
+              </tr>
+            </FigureAsk>
           </tbody>
         </FigureTable>
       </section>

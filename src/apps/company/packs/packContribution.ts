@@ -1,7 +1,7 @@
 import type { Component } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
-import type { AppScreen, AssistTaskSummary } from '../../../shared/app/appContribution'
+import type { AppScreen } from '../../../shared/app/appContribution'
 import type { KnownPerson } from '../../../shared/privacy/domain/pseudonyms'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { WaitingJob } from '../overview/presentation/waitingForYou'
@@ -90,8 +90,6 @@ export interface PackContribution {
    */
   categoriesToSort(categories: readonly Category[], on: CivilDate): readonly RecordProblem[]
   readonly onboarding: PackOnboarding | null
-  /** The pack's assist tasks, for the Assistant tab after core's. */
-  readonly assist: readonly AssistTaskSummary[]
   /** The employees from their records, each with the IBANs they are paid into, so a row that names one or pays one can be kept from a model. */
   employees(records: WorkbookRecords): readonly KnownPerson[]
 }
@@ -109,7 +107,6 @@ const NO_PACK: PackContribution = {
   categoryClassHelp: () => null,
   categoriesToSort: () => [],
   onboarding: null,
-  assist: [],
   employees: () => [],
 }
 

@@ -3,10 +3,12 @@ import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import AskChatButton from '../../../../../../shared/ai/presentation/AskChatButton.vue'
 import { useMediaQuery } from '../../../../../../shared/layout/viewport'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import { GROUP_LABELS } from './payScenariosView'
-import type { FigureDetail } from '../tracedFigureView'
+import FigureAsk from '../FigureAsk.vue'
+import type { AskableDetail } from '../tracedFigureView'
 import type { ComparedCell, ComparedLine, LineGroup, ScenarioColumn } from './payScenariosView'
 import { words } from './words'
 
@@ -14,6 +16,7 @@ import { words } from './words'
  * The lines of each scenario side by side, the base first. The best value of a line that has a
  * better direction is marked, and every figure opens its build-up. Below the lg breakpoint, where
  * four columns of figures do not fit, the base sits beside one other scenario, picked above the table.
+ * A figure has Ask the chat beside it only while the table is wide enough to hold both on one line.
  */
 const props = defineProps<{
   columns: readonly ScenarioColumn[]
@@ -21,7 +24,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  open: [detail: FigureDetail]
+  open: [detail: AskableDetail]
 }>()
 
 const narrow = useMediaQuery('(max-width: 1023px)')
@@ -68,36 +71,43 @@ function cellLabel(line: ComparedLine, cell: ComparedCell, column: ScenarioColum
         @click="against = entry.slug"
       />
     </div>
-    <table class="comparison" :class="{ 'is-narrow': narrow }">
-      <thead>
-        <tr>
-          <th scope="col" class="line-head">
-            <span class="sr-only">{{ words.comparison.line }}</span>
-          </th>
-          <th v-for="entry in shownColumns" :key="entry.column.slug" scope="col" class="figure-head">
-            <span class="block text-sm font-medium text-highlighted">{{ entry.column.label }}</span>
-            <span v-if="entry.column.isBase" class="block text-xs font-normal text-muted">{{ words.comparison.base }}</span>
-          </th>
-        </tr>
-      </thead>
-      <tbody v-for="entry in groups" :key="entry.group">
-        <tr>
-          <th :colspan="shownColumns.length + 1" scope="colgroup" class="group-head">{{ entry.label }}</th>
-        </tr>
-        <tr v-for="{ line, cells } in entry.lines" :key="line.key" :class="{ 'is-total': line.total }" :data-line="line.key">
-          <th scope="row" class="line-label" :class="line.total ? 'font-medium text-highlighted' : 'font-normal text-toned'">{{ line.label }}</th>
-          <td v-for="{ column, cell } in cells" :key="column.slug" class="figure-cell">
-            <button type="button" class="figure-button" :aria-label="cellLabel(line, cell, column)" @click="emit('open', cell.detail)">
-              <span class="inline-flex items-center gap-1">
-                <UIcon v-if="cell.best" name="i-lucide-circle-check" class="size-3.5 text-success" aria-hidden="true" />
-                <MoneyText :cents="cell.cents" :class="line.total || cell.best ? 'font-medium text-highlighted' : 'text-toned'" />
-              </span>
-              <MoneyText v-if="cell.vsBase !== null && cell.vsBase !== 0" :cents="cell.vsBase" sign="always" class="block text-xs text-muted" />
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="@container" data-testid="comparison-table">
+      <table class="comparison" :class="{ 'is-narrow': narrow }">
+        <thead>
+          <tr>
+            <th scope="col" class="line-head">
+              <span class="sr-only">{{ words.comparison.line }}</span>
+            </th>
+            <th v-for="entry in shownColumns" :key="entry.column.slug" scope="col" class="figure-head">
+              <span class="block text-sm font-medium text-highlighted">{{ entry.column.label }}</span>
+              <span v-if="entry.column.isBase" class="block text-xs font-normal text-muted">{{ words.comparison.base }}</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody v-for="entry in groups" :key="entry.group">
+          <tr>
+            <th :colspan="shownColumns.length + 1" scope="colgroup" class="group-head">{{ entry.label }}</th>
+          </tr>
+          <tr v-for="{ line, cells } in entry.lines" :key="line.key" :class="{ 'is-total': line.total }" :data-line="line.key">
+            <th scope="row" class="line-label" :class="line.total ? 'font-medium text-highlighted' : 'font-normal text-toned'">{{ line.label }}</th>
+            <FigureAsk v-for="{ column, cell } in cells" :key="column.slug" v-slot="{ ask, askLabel, marked }" :detail="cell.detail">
+              <td class="figure-cell" v-bind="marked">
+                <div class="flex items-center">
+                  <button type="button" class="figure-button" :aria-label="cellLabel(line, cell, column)" @click="emit('open', cell.detail)">
+                    <span class="inline-flex items-center gap-1">
+                      <UIcon v-if="cell.best" name="i-lucide-circle-check" class="size-3.5 text-success" aria-hidden="true" />
+                      <MoneyText :cents="cell.cents" :class="line.total || cell.best ? 'font-medium text-highlighted' : 'text-toned'" />
+                    </span>
+                    <MoneyText v-if="cell.vsBase !== null && cell.vsBase !== 0" :cents="cell.vsBase" sign="always" class="block text-xs text-muted" />
+                  </button>
+                  <AskChatButton v-if="askLabel" :label="askLabel" icon-only class="hidden shrink-0 @4xl:inline-flex" @ask="ask" />
+                </div>
+              </td>
+            </FigureAsk>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
 
@@ -147,7 +157,8 @@ tr.is-total {
 .figure-button {
   display: inline-flex;
   min-height: 2.75rem;
-  width: 100%;
+  min-width: 0;
+  flex: 1;
   flex-direction: column;
   align-items: flex-end;
   justify-content: center;

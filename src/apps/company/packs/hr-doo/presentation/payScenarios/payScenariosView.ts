@@ -3,6 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import type { DrillTarget } from '../../../../filters/domain/drillTarget'
 import type { HrDooWorkbook } from '../../domain/hrDooPart'
+import { paysBesidesOwner } from '../../domain/employees/employees'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { addMoney, negateMoney, subtractMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
@@ -14,14 +15,15 @@ import { HUNDRED } from '../../domain/scenarios/marginalEuro'
 import type { ScenarioNote, ScenarioOutcome, ScenarioWarning } from '../../domain/scenarios/scenarioOutcome'
 import { scenarioName } from '../../domain/scenarios/startingScenarios'
 import { figureDetail } from '../tracedFigureView'
-import type { FigureDetail } from '../tracedFigureView'
+import type { AskableDetail } from '../tracedFigureView'
 import { words } from './words'
 
 /** The pay scenarios of a year, the fact their figures wait for and where it is set, or why they could not be worked out. */
 export type PayState =
   | { readonly state: 'needs'; readonly need: string; readonly why: string; readonly action: { readonly label: string; readonly to: RouteLocationRaw } }
   | { readonly state: 'failed'; readonly failure: string }
-  | { readonly state: 'ready'; readonly figures: PayScenarios }
+  /** `staffPay` says whether the company pays others besides the owner, whose pay the figures' salary costs then hold. */
+  | { readonly state: 'ready'; readonly figures: PayScenarios; readonly staffPay: boolean }
 
 export function payState(workbook: HrDooWorkbook, year: number, asOf: CivilDate): PayState {
   if (workbook.companyFacts.companyRegistered === null) {
@@ -45,7 +47,7 @@ export function payState(workbook: HrDooWorkbook, year: number, asOf: CivilDate)
     return { state: 'needs', need: words.needs.city, why: words.needs.cityWhy, action: { label: words.needs.setOnSalaries, to: employees } }
   }
   try {
-    return { state: 'ready', figures: payScenarios(workbook, year, asOf) }
+    return { state: 'ready', figures: payScenarios(workbook, year, asOf), staffPay: paysBesidesOwner(workbook) }
   } catch (failure) {
     if (failure instanceof RangeError) {
       return { state: 'failed', failure: failure.message }
@@ -59,7 +61,7 @@ export interface ComparedCell {
   readonly best: boolean
   /** Against the comparison base, or null in the base's own column. */
   readonly vsBase: Money | null
-  readonly detail: FigureDetail
+  readonly detail: AskableDetail
 }
 
 export type LineGroup = 'net' | 'pension' | 'company' | 'state' | 'kept'
@@ -189,8 +191,11 @@ export interface ShownScenarios {
   readonly splits: readonly ScenarioSplit[]
 }
 
-/** The chosen scenarios side by side, the base first, each line with its one best value marked and every figure opening its build-up. */
-export function comparedScenarios(result: PayScenarios, chosen: readonly string[], base: string, link: (drill: DrillTarget | null) => RouteLocationRaw | null): ShownScenarios {
+/**
+ * The chosen scenarios side by side, the base first, each line with its one best value marked and every figure opening
+ * its build-up. `staffPay` marks every figure as naming employees' pay, since a scenario's figures count the company's salaries.
+ */
+export function comparedScenarios(result: PayScenarios, chosen: readonly string[], base: string, link: (drill: DrillTarget | null) => RouteLocationRaw | null, staffPay: boolean): ShownScenarios {
   const outcomes = result.entries.flatMap((entry) => (entry.kind === 'outcome' && chosen.includes(entry.scenario.slug) ? [entry.outcome] : []))
   const ordered = [...outcomes.filter((outcome) => outcome.scenario.slug === base), ...outcomes.filter((outcome) => outcome.scenario.slug !== base)]
   const baseOutcome = ordered[0]?.scenario.slug === base ? ordered[0] : null
@@ -218,7 +223,7 @@ export function comparedScenarios(result: PayScenarios, chosen: readonly string[
             cents: figure.amount,
             best: best !== null && figure.amount === best,
             vsBase: baseFigure === null || outcome === baseOutcome ? null : subtractMoney(figure.amount, baseFigure.amount),
-            detail: figureDetail(figure, nameOf(outcome), link),
+            detail: figureDetail(figure, nameOf(outcome), [nameOf(outcome)], link, staffPay),
           }
         }),
       },

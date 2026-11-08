@@ -27,7 +27,7 @@ import { useCategoriesLookRight } from './onboarding/presentation/useCategoriesL
 import { useDeliveryOffer } from './onboarding/presentation/useDeliveryOffer'
 import { useWorkbook } from './workbook/application/workbookStore'
 import { reviewCount } from './workbook/domain/needsReview'
-import { COMPANY_APP } from './workbook/infrastructure/companyDocument'
+import { COMPANY_APP } from './workbook/domain/companyApp'
 import { installPackTabs } from './workbook/infrastructure/packTabs'
 import { useGoogleReturn } from './workbook/presentation/useGoogleReturn'
 import { REVIEW_LINK } from './transactions/presentation/transactionsLinks'
@@ -56,15 +56,13 @@ export const companyApp: AppContribution = {
     installPackTabs(HR_DOO_TABS)
     // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
-      const [{ seedFakeWorkbook }, { fakeStaffOf }, { registerFakeSuggestions }, { registerFakeExplanation }] = await Promise.all([
+      const [{ seedFakeWorkbook }, { fakeStaffOf }, { registerFakeSuggestions }] = await Promise.all([
         import('./workbook/infrastructure/fake/seedFakeWorkbook'),
         import('./packs/hr-doo/infrastructure/fake/fakeStaff'),
         import('./assist/infrastructure/fake/fakeSuggestions'),
-        import('./packs/hr-doo/assist/infrastructure/fake/fakeExplanation'),
       ])
       await seedFakeWorkbook(new URLSearchParams(window.location.search).get('fake'), fakeStaffOf)
       registerFakeSuggestions()
-      registerFakeExplanation()
     }
   },
   screens: [

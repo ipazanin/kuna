@@ -9,7 +9,7 @@ import type { TracedFigure } from '../ruleset/tracedFigure'
 export const TAX_RULE_KIND = 'hr-doo.tax-rule'
 
 /** A table term longer than this goes as its size alone, since the local income tax rates run to some 760,000 characters. */
-export const MOST_TABLE_ROWS = 40
+const MOST_TABLE_ROWS = 40
 /** A figure's build-up goes down only as far as this many steps, about 15,000 tokens. A forecast's cash runs to thousands of steps. */
 const MOST_STEPS_SENT = 300
 
@@ -62,14 +62,14 @@ export function figureTraceOf(figure: TracedFigure): FigureTrace {
   return cutBelow(noRows, levelsThatFit(noRows))
 }
 
-/** Each step of the trace by its ref, `f` for the figure itself, `f.0` for its first step and `f.0.2` below that, the figure first. */
-export function stepsByRef(trace: FigureTrace, ref = 'f'): (readonly [string, FigureTrace])[] {
-  return [[ref, trace], ...trace.steps.flatMap((step, index) => stepsByRef(step, `${ref}.${index}`))]
+/** The trace and every step under it, the figure first. */
+function eachStep(trace: FigureTrace): FigureTrace[] {
+  return [trace, ...trace.steps.flatMap(eachStep)]
 }
 
 /** The rule versions a trace cites, each once, in the order the tree first cites them. */
-export function citationsOf(trace: FigureTrace): FigureTrace['rules'] {
-  const cited = stepsByRef(trace).flatMap(([, step]) => step.rules)
+function citationsOf(trace: FigureTrace): FigureTrace['rules'] {
+  const cited = eachStep(trace).flatMap((step) => step.rules)
   return [...new Map(cited.map((citation) => [`${citation.id} ${citation.validFrom}`, citation])).values()]
 }
 

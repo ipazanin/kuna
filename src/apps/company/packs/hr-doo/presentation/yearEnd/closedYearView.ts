@@ -17,6 +17,7 @@ import { amountOnLine } from '../../domain/accrual/closedYear'
 import { compareYearEnd } from '../../domain/yearEnd/yearEndComparison'
 import type { ComparedLine, ComparedStatement, LineStatus } from '../../domain/yearEnd/yearEndComparison'
 import { yearEndOpenItems } from '../../domain/yearEnd/yearEndOpenItems'
+import { paysBesidesOwner } from '../../domain/employees/employees'
 import { chipsOf, figureDetail, figureLabel, ruleChips, stepsOf } from '../tracedFigureView'
 import { PROFIT_BRIDGE } from '../profitBridge'
 import type { BridgeStepView } from './BridgeSteps.vue'
@@ -84,6 +85,12 @@ export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link
     rules: [],
   })
   const openItems = yearEndOpenItems(workbook, accrual)
+  // An open item's build-up can count the year's personnel costs, which hold the pay of anyone else the company pays.
+  const staffPay = paysBesidesOwner(workbook)
+  const openItemDetail = (title: string, figure: TracedFigure) => {
+    const sameTitle = title === figureLabel(figure)
+    return figureDetail(figure, sameTitle ? words.openItemOf(year) : title, sameTitle ? [String(year)] : [title, String(year)], link, staffPay)
+  }
   const statusCounts = STATUSES.map((status) => ({ status, count: comparison.lines.filter((line) => line.status === status).length }))
 
   function rowOf(compared: ComparedLine): ComparisonRow {
@@ -159,10 +166,7 @@ export function closedYearView(workbook: HrDooWorkbook, year: number, link: Link
       settled: item.settled,
       cents: item.figure?.amount ?? null,
       to: drillOf(item.figure),
-      detail:
-        item.figure !== null && item.figure.drill === null && item.figure.steps.length > 0
-          ? figureDetail(item.figure, item.title === figureLabel(item.figure) ? words.openItemOf(year) : item.title, link)
-          : null,
+      detail: item.figure !== null && item.figure.drill === null && item.figure.steps.length > 0 ? openItemDetail(item.title, item.figure) : null,
       rules: chipsOf(item.rules),
     })),
     openItemsSummary: words.openItemsSummary(openItems.filter((item) => !item.settled).length, openItems.filter((item) => item.settled).length),

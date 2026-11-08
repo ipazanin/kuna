@@ -2,7 +2,6 @@ import { defineAsyncComponent } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
 import type { PackContribution } from '../packContribution'
-import { EXPLAIN_FIGURE_SUMMARY } from './assist/presentation/packAssist'
 import { COMPANY_FACT_SETTINGS, companyFactsErrors } from './domain/companyFacts'
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
 import { EMPLOYEE_RECORDS } from './domain/hrDooKinds'
@@ -49,7 +48,6 @@ export const hrDooPack: PackContribution = {
   categoryClassHelp,
   categoriesToSort,
   onboarding: packWords.onboarding,
-  assist: [EXPLAIN_FIGURE_SUMMARY],
   // The records, not the workbook's employees, which drop an IBAN two of them share and a row listed twice.
   employees: (records) => recordsOfKindIn(records, EMPLOYEE_RECORDS).records.map(({ record }) => ({ name: record.name || record.slug, employee: true, ibans: record.ibans })),
 }

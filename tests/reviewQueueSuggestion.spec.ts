@@ -34,13 +34,5 @@ describe('using a suggested category in the review queue', () => {
 
   it('shows what a run spent whether or not it gave a draft', () => {
     expect(queue).toContain('result === null ? null : usageLine(result)')
-    const dialog = readFileSync(join(import.meta.dirname, '..', 'src/apps/company/packs/hr-doo/presentation/FigureDialog.vue'), 'utf8')
-    expect(dialog).toContain('usage: usageLine(run.result)')
-    expect(dialog).toContain('data-testid="explain-usage"')
-  })
-
-  it('stops the run of the figure dialog when it closes or moves to another figure', () => {
-    const dialog = readFileSync(join(import.meta.dirname, '..', 'src/apps/company/packs/hr-doo/presentation/FigureDialog.vue'), 'utf8')
-    expect(dialog).toContain('watch([() => props.detail, open], () => explaining.reset())')
   })
 })

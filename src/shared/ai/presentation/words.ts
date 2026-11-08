@@ -205,12 +205,8 @@ export const en = {
     keptByAnonymise: 'This is about employees or their pay, so it stays on this device while Anonymise is on in Kuna settings.',
   },
   answer: {
-    notFromRules: "Not from Kuna's rules",
-    ownKnowledge: 'The model added this from its own knowledge. Kuna did not check it.',
     strayFigure: 'Contains a figure Kuna did not compute',
-    partlyUnchecked: 'Partly unchecked: the model named a source it was not given, or none at all',
     tryAgain: 'Try again',
-    sources: 'Sources',
   },
 }
 
@@ -415,12 +411,8 @@ export const hr: Translation<typeof en> = {
     keptByAnonymise: 'Ovo se odnosi na zaposlenike ili njihove plaće, pa ostaje na ovom uređaju dok je anonimizacija uključena u postavkama Kune.',
   },
   answer: {
-    notFromRules: 'Nije iz Kuninih pravila',
-    ownKnowledge: 'Model je ovo dodao iz vlastitog znanja. Kuna to nije provjerila.',
     strayFigure: 'Sadrži iznos koji Kuna nije izračunala',
-    partlyUnchecked: 'Djelomično neprovjereno: model je naveo izvor koji nije dobio ili nije naveo nijedan',
     tryAgain: 'Pokušaj ponovno',
-    sources: 'Izvori',
   },
 }
 

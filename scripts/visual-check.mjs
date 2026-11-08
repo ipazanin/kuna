@@ -34,9 +34,8 @@
  * for Anthropic, with a key refused and after a switch of company, which turns Anonymise back on, in Croatian too, and Company
  * and Spending show their Assistant tabs. Spending's entry dialog and an opened row of Company's To review tab treat a payee
  * as a person, in Croatian too. On the To review tab Suggest categories asks to switch Company on, says what it did, shows the suggestion on
- * each closed row and opens the first with its Use button, in Croatian too, or says the model declined (`?ai=refused`). A pay scenario's figure on Year's Pay tab explains
- * itself with its sources, in Croatian too, flagged for a figure Kuna did not compute (`?ai=invented-figure`), and a figure
- * on Salaries that names employees stays on this device while Anonymise is on.
+ * each closed row and opens the first with its Use button, in Croatian too, or says the model declined (`?ai=refused`). With a key kept, the build-up amounts on Owner, Salaries, Year's Pay tab
+ * and a closed year's open items have Ask the chat beside them, which opens the chat with the figure's build-up as its tag, in Croatian too.
  *
  * Net worth renders on the sample Loans and Investments files beside the company on Drive and in this browser,
  * while the Loans file opens, once its read fails (`?loans=failed`), with Investments alone and on a first run, with its
@@ -317,12 +316,10 @@ import {
   loansOpenFlowIn,
   mailSaveAsksFlowIn,
   ownerNetUnregisteredFlowIn,
-  payFigureExplainFlowIn,
   raceFlowIn,
   deleteKeysFlowIn,
   reviewSuggestFlowIn,
   salariesFlowIn,
-  salaryFigureKeptFlowIn,
   assistKeyRefusedFlowIn,
   assistProviderSwitchFlowIn,
   setUpFlowIn,
@@ -460,6 +457,7 @@ import {
   chatStatementCardFlowIn,
 } from './support/editorFlows.mjs'
 import { writeChatAttachmentSamples } from './support/chatAttachmentFiles.mjs'
+import { figureAskFlowIn } from './support/figureAskFlows.mjs'
 import { writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
 import { screenMenusFlow } from './support/menuFlows.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
@@ -6341,41 +6339,60 @@ const FLOWS = [
     modes: ['drive'],
     queries: { drive: '&ai=refused' },
   },
+  { name: 'owner-figure-ask', hash: '#/company/owner?p=all', title: 'Owner', run: figureAskFlowIn('en', 'owner'), viewports: DESIGN_REVIEW_VIEWPORTS, modes: ['browser'] },
   {
-    name: 'pay-figure-explained',
-    hash: '#/company/year?year=2027&tab=pay',
-    title: 'Year',
-    run: payFigureExplainFlowIn('en'),
-    viewports: EVERY_VIEWPORT,
+    name: 'owner-figure-ask-croatian',
+    hash: '#/company/owner?p=all',
+    title: 'Vlasnik',
+    run: figureAskFlowIn('hr', 'owner'),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
     modes: ['browser'],
-    queries: { browser: '&fake=browser&ai=ok' },
+    queries: { browser: '&fake=browser&lang=hr' },
   },
   {
-    name: 'pay-figure-explained-croatian',
-    hash: '#/company/year?year=2027&tab=pay',
-    title: 'Godina',
-    run: payFigureExplainFlowIn('hr'),
-    viewports: EVERY_VIEWPORT,
-    modes: ['browser'],
-    queries: { browser: '&fake=browser&ai=ok&lang=hr' },
-  },
-  {
-    name: 'pay-figure-explain-stray',
-    hash: '#/company/year?year=2027&tab=pay',
-    title: 'Year',
-    run: payFigureExplainFlowIn('en', { stray: true }),
-    viewports: EVERY_VIEWPORT,
-    modes: ['browser'],
-    queries: { browser: '&fake=browser&ai=invented-figure' },
-  },
-  {
-    name: 'salary-figure-explain-kept',
+    name: 'salaries-figure-ask',
     hash: '#/company/salaries',
     title: 'Salaries',
-    run: salaryFigureKeptFlowIn('en'),
-    viewports: EVERY_VIEWPORT,
+    run: figureAskFlowIn('en', 'salaries'),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
     modes: ['drive'],
     queries: { drive: '&fake=five-employees' },
+  },
+  {
+    name: 'salaries-figure-ask-croatian',
+    hash: '#/company/salaries',
+    title: 'Plaće',
+    run: figureAskFlowIn('hr', 'salaries'),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&fake=five-employees&lang=hr' },
+  },
+  { name: 'pay-figure-ask', hash: '#/company/year?year=2027&tab=pay', title: 'Year', run: figureAskFlowIn('en', 'pay'), viewports: DESIGN_REVIEW_VIEWPORTS, modes: ['browser'] },
+  {
+    name: 'year-open-items-figure-ask',
+    hash: '#/company/year?year=2025',
+    title: 'Year',
+    run: figureAskFlowIn('en', 'open-items'),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['browser'],
+  },
+  {
+    name: 'year-open-items-figure-ask-croatian',
+    hash: '#/company/year?year=2025',
+    title: 'Godina',
+    run: figureAskFlowIn('hr', 'open-items'),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['browser'],
+    queries: { browser: '&fake=browser&lang=hr' },
+  },
+  {
+    name: 'pay-figure-ask-croatian',
+    hash: '#/company/year?year=2027&tab=pay',
+    title: 'Godina',
+    run: figureAskFlowIn('hr', 'pay'),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    modes: ['browser'],
+    queries: { browser: '&fake=browser&lang=hr' },
   },
 ]
 const MODES = [

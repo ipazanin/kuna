@@ -14,7 +14,7 @@ import { PAY_PARTS, differenceFromBank, lastPaidOn, lineVerdict, peoplePay, prob
 import type { PayFigures, PayPart, PersonPay } from '../../domain/salaries/salaryFigures'
 import type { EmployeeLine, EmployeePayday, LineCheck, SalaryPayday, SalaryProblem } from '../../domain/salaries/salaryReconciliation'
 import { figureDetail } from '../tracedFigureView'
-import type { FigureDetail } from '../tracedFigureView'
+import type { AskableDetail } from '../tracedFigureView'
 import { words } from './words'
 
 type LinkOf = (drill: DrillTarget | null) => RouteLocationRaw | null
@@ -59,7 +59,7 @@ export interface TileView {
 export interface LineRow {
   readonly key: string
   readonly label: string
-  readonly app: FigureDetail | null
+  readonly app: AskableDetail | null
   readonly bank: { readonly cents: Money; readonly to: RouteLocationRaw | null } | null
   /** Null for a line only one source states, which nothing compares. */
   readonly verdict: 'agrees' | 'differs' | null
@@ -75,7 +75,7 @@ export interface ProblemView {
   readonly key: string
   readonly text: string
   /** How the engine works the line out, when the problem is a line it states. */
-  readonly detail: FigureDetail | null
+  readonly detail: AskableDetail | null
   /** The bank rows behind it, when there are any. */
   readonly rows: RouteLocationRaw | null
   /** The fact to put right on the employees tab, when that is the fix. */
@@ -87,7 +87,7 @@ export interface PersonStrip {
   readonly gross: Money
   readonly net: Money
   readonly paidOn: string | null
-  readonly netDetail: FigureDetail | null
+  readonly netDetail: AskableDetail | null
 }
 
 export interface SalaryMonthView {
@@ -165,18 +165,21 @@ export function salaryMonthView(payday: SalaryPayday, choice: SalaryChoice, part
   const parts = PAY_PARTS.map((part): DonutPart => ({ key: part, label: PAY_PART_LABELS[part], value: month.parts[part], colour: PAY_PART_COLOURS[part], to: linkOf(drills[part]) }))
 
   const sections: ReconciliationSection[] = [
-    ...month.people.map((person) => ({
-      key: person.payday.employee.slug,
-      title: employeeName(person.payday.employee),
-      lines: person.lines.map((check) => lineRow(check, words.sections.lineOf(employeeName(person.payday.employee), LINE_LABELS[check.line], label), linkOf)),
-    })),
+    ...month.people.map((person) => {
+      const name = employeeName(person.payday.employee)
+      return {
+        key: person.payday.employee.slug,
+        title: name,
+        lines: person.lines.map((check) => lineRow(check, words.sections.lineOf(name, LINE_LABELS[check.line], label), [name, label], linkOf)),
+      }
+    }),
     ...(month.contributions === null
       ? []
       : [
           {
             key: 'contributions',
             title: words.sections.contributions,
-            lines: month.contributions.map((check) => lineRow(check, words.sections.contributionOf(LINE_LABELS[check.line], label), linkOf)),
+            lines: month.contributions.map((check) => lineRow(check, words.sections.contributionOf(LINE_LABELS[check.line], label), [label], linkOf)),
           },
         ]),
   ]
@@ -201,11 +204,11 @@ export function salaryMonthView(payday: SalaryPayday, choice: SalaryChoice, part
   }
 }
 
-function lineRow<Line extends EmployeeLine>(check: LineCheck<Line>, subject: string, linkOf: LinkOf): LineRow {
+function lineRow<Line extends EmployeeLine>(check: LineCheck<Line>, subject: string, tellsApart: readonly string[], linkOf: LinkOf): LineRow {
   return {
     key: check.line,
     label: LINE_LABELS[check.line],
-    app: check.app === null ? null : figureDetail(check.app, words.byApp(subject), linkOf, true),
+    app: check.app === null ? null : figureDetail(check.app, words.byApp(subject), tellsApart, linkOf, true),
     bank: check.bank === null ? null : { cents: check.bank.amount, to: linkOf(check.bank.drill) },
     verdict: lineVerdict(check),
   }
@@ -235,7 +238,7 @@ function personStrip(entry: EmployeePayday, figures: PayFigures, label: string, 
     gross: figures.gross,
     net: figures.net,
     paidOn: paidOn === null ? null : dayLabel(paidOn),
-    netDetail: net === null ? null : figureDetail(net, words.grossToNetOf(employeeName(entry.employee), label), linkOf, true),
+    netDetail: net === null ? null : figureDetail(net, words.grossToNetOf(employeeName(entry.employee), label), [employeeName(entry.employee), label], linkOf, true),
   }
 }
 
@@ -257,7 +260,7 @@ function problemView(problem: SalaryProblem, index: number, month: string, linkO
       return {
         ...plain,
         text: who === null ? words.problems.differsForEveryone(line, amountsText(problem.check)) : words.problems.differs(name, line, amountsText(problem.check)),
-        detail: problem.check.app === null ? null : figureDetail(problem.check.app, words.problems.asApp(subject), linkOf, true),
+        detail: problem.check.app === null ? null : figureDetail(problem.check.app, words.problems.asApp(subject), who === null ? [month] : [name, month], linkOf, true),
         rows: linkOf(problem.check.bank?.drill ?? null),
       }
     }
@@ -273,14 +276,14 @@ function problemView(problem: SalaryProblem, index: number, month: string, linkO
       return {
         ...plain,
         text: words.problems.belowMinimum(name, formatMoney(problem.warning.agreed.amount), formatMoney(problem.warning.minimum.amount)),
-        detail: figureDetail(problem.warning.minimum, words.problems.minimumIn(name, month), linkOf, true),
+        detail: figureDetail(problem.warning.minimum, words.problems.minimumIn(name, month), [name, month], linkOf, true),
         fact: true,
       }
     case 'over-cap':
       return {
         ...plain,
         text: words.problems.overCap(name, problem.usage.payment, problem.usage.periodKey, formatMoney(problem.usage.excess.amount)),
-        detail: figureDetail(problem.usage.paid, words.problems.againstCap(name, problem.usage.payment, problem.usage.periodKey), linkOf, true),
+        detail: figureDetail(problem.usage.paid, words.problems.againstCap(name, problem.usage.payment, problem.usage.periodKey), [name, problem.usage.periodKey], linkOf, true),
         rows: linkOf(problem.usage.paid.drill),
       }
   }

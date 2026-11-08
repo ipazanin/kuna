@@ -2,7 +2,7 @@ import { pageAppData } from '../../../../shared/storage/presentation/pageAppData
 import { switchMailDrafts } from '../../invoicing/infrastructure/mailDraftSwitch'
 import { words as appWords } from '../../words'
 import { useWorkbook } from '../application/workbookStore'
-import { COMPANY_APP } from '../infrastructure/companyDocument'
+import { COMPANY_APP } from '../domain/companyApp'
 
 const store = useWorkbook()
 

@@ -89,7 +89,6 @@ import { en as mailDomainEnglish, hr as mailDomainCroatian } from '../../src/sha
 import { en as assistEnglish, hr as assistCroatian } from '../../src/shared/ai/presentation/words.ts'
 import { en as secretsEnglish, hr as secretsCroatian } from '../../src/shared/secrets/presentation/words.ts'
 import { en as suggestEnglish, hr as suggestCroatian } from '../../src/apps/company/assist/presentation/words.ts'
-import { en as explainEnglish, hr as explainCroatian } from '../../src/apps/company/packs/hr-doo/assist/presentation/words.ts'
 
 const TOAST = 'li[data-slot="base"]'
 
@@ -297,7 +296,7 @@ export function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds))
 }
 
-async function pressSelector(page, press, selector) {
+export async function pressSelector(page, press, selector) {
   const handle = await page.waitForSelector(selector, { visible: true, timeout: 10_000 }).catch(() => {
     throw new Error(`no visible ${selector} within 10 s`)
   })
@@ -3843,7 +3842,7 @@ export const raceFlow = raceFlowIn('en')
 const SALARIES_TABS = '[data-testid="salaries-tabs"] [role="tab"]'
 
 /** Waits until the element under `selector` says every text given. */
-async function elementSays(page, selector, texts, failure) {
+export async function elementSays(page, selector, texts, failure) {
   await page
     .waitForFunction((css, wanted) => [...document.querySelectorAll(css)].some((element) => wanted.every((text) => element.textContent?.includes(text))), { timeout: 10_000 }, selector, texts)
     .catch(async () => {
@@ -8117,19 +8116,18 @@ async function forgetImportKeys(page) {
 }
 
 const ASSIST_WORDS = {
-  en: { ...assistEnglish, keyRow: secretsEnglish.keyRow, suggest: suggestEnglish.suggest, explain: explainEnglish.explain },
-  hr: { ...assistCroatian, keyRow: secretsCroatian.keyRow, suggest: suggestCroatian.suggest, explain: explainCroatian.explain },
+  en: { ...assistEnglish, keyRow: secretsEnglish.keyRow, suggest: suggestEnglish.suggest },
+  hr: { ...assistCroatian, keyRow: secretsCroatian.keyRow, suggest: suggestCroatian.suggest },
 }
 
 /** A made-up Anthropic key the assistant's card is given, whose whole text must never come back on screen. */
-const MADE_UP_ANTHROPIC_KEY = 'made-up-anthropic-key-0042'
+export const MADE_UP_ANTHROPIC_KEY = 'made-up-anthropic-key-0042'
 const ANTHROPIC_ROW = '[data-testid="assist-card"] [data-provider="anthropic"]'
 const OPENAI_ROW = '[data-testid="assist-card"] [data-provider="openai"]'
 const OPENROUTER_ROW = '[data-testid="assist-card"] [data-provider="openrouter"]'
 const COMPANY_SELECT = '[data-testid="assist-provider-select"]'
 const COMPANY_SWITCH = '[data-testid="assist-switch-company"]'
 const SUGGEST_BUTTON = '[data-testid="assist-company.suggest-categories"]'
-const EXPLAIN_BUTTON = '[data-testid="assist-hr-doo.explain-figure"]'
 const CONSENT = '[data-testid="assist-consent"]'
 const CHAT_CONSENT = '[data-testid="chat-consent"]'
 const SHELL_SETTINGS_NAME = { en: 'Kuna settings', hr: 'Postavke Kune' }
@@ -8430,7 +8428,7 @@ export function assistTabFlowIn(language) {
       })
       await pressSelector(page, press, COMPANY_SWITCH)
       await switchSays(page, COMPANY_SWITCH, true, "Company's switch did not turn on")
-      await elementSays(page, '[data-testid="app-assist-card"]', [words.suggest.title, words.suggest.sends, words.explain.title], 'the tab does not list the tasks and what each sends')
+      await elementSays(page, '[data-testid="app-assist-card"]', [words.suggest.title, words.suggest.sends], 'the tab does not list the tasks and what each sends')
       await inspect?.("Company's Assistant tab")
       await shoot('assist-tab')
 
@@ -9247,78 +9245,6 @@ export function chatStatementCardFlowIn(language) {
   }
 }
 
-/** Opens the build-up of the one problem on Salaries, whose figure names employees. */
-async function openSalariesProblem(page, press, language) {
-  await pressButton(page, press, '[data-testid="salaries-problem"] button', SCREEN_WORDS[language].salaries.problemList.howWorkedOut)
-  await page.waitForSelector('[data-testid="figure-detail"]', { visible: true, timeout: 10_000 })
-  await delay(400)
-}
-
-/** Waits for Explain to end with the line that Anonymise keeps the figure on this device, and checks no answer came. */
-async function explainKeptByAnonymise(page, words, failure) {
-  await elementSays(page, '[data-testid="explain-line"]', [words.result.keptByAnonymise], failure)
-  if (await page.$('[data-testid="cited-answer"]')) throw new Error(`${failure}, and an answer came`)
-}
-
-/**
- * Salaries with five made-up employees and Company asking first. With Anonymise on, Explain asks with no line about
- * employees, and Send once ends with the figure kept on this device. With Anonymise off for Anthropic the dialog says rows
- * about employees go too. Send once sends and leaves Company asking, and Send, don't ask again switches Company on, so
- * the press after it sends with no dialog.
- */
-export function assistSendOnceFlowIn(language) {
-  const words = ASSIST_WORDS[language]
-  return async (page, { press, shoot: shootAs, inspect }) => {
-    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    const explainAsks = async (employeesGo) => {
-      await pressSelector(page, press, EXPLAIN_BUTTON)
-      await page.waitForSelector(CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
-        throw new Error('Explain did not ask while Company asks first')
-      })
-      await elementSays(page, '[role="dialog"]', [words.consent.title('Anthropic'), words.consent.dontAsk], 'the dialog does not ask whom it sends to or offer to send without asking again')
-      if (employeesGo) {
-        await elementSays(page, '[data-testid="assist-consent-employees"]', [words.consent.employees('Anthropic')], 'the dialog does not say rows about employees go')
-      } else if (await page.$('[data-testid="assist-consent-employees"]')) {
-        throw new Error('the dialog says rows about employees go while Anonymise is on')
-      }
-      await delay(400)
-    }
-    try {
-      await keepAssistKey(page)
-      await openSalariesProblem(page, press, language)
-      await explainAsks(false)
-      await inspect?.('the dialog with Anonymise on')
-      await pressSelector(page, press, '[data-testid="assist-consent-confirm"]')
-      await dialogGone(page, CONSENT)
-      await explainKeptByAnonymise(page, words, 'Explain on a figure that names employees did not stay on this device with Anonymise on')
-
-      await page.evaluate(() => localStorage.setItem('kuna.assist-anonymise', 'anthropic'))
-      await page.reload({ waitUntil: 'networkidle0' })
-      await openSalariesProblem(page, press, language)
-      await explainAsks(true)
-      await inspect?.('the dialog with Anonymise off')
-      await shoot('assist-send-once')
-      await pressSelector(page, press, '[data-testid="assist-consent-confirm"]')
-      await dialogGone(page, CONSENT)
-      await page.waitForSelector('[data-testid="cited-answer"]', { visible: true, timeout: 10_000 }).catch(() => {
-        throw new Error('Send once did not send')
-      })
-      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== null) throw new Error('Send once switched Company on')
-
-      await explainAsks(true)
-      await pressSelector(page, press, '[data-testid="assist-consent-always"]')
-      await dialogGone(page, CONSENT)
-      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== 'on') throw new Error("Send, don't ask again did not switch Company on")
-      await page.waitForSelector(`${EXPLAIN_BUTTON}:not([disabled])`, { visible: true, timeout: 10_000 })
-      await pressSelector(page, press, EXPLAIN_BUTTON)
-      await delay(300)
-      if (await page.$(CONSENT)) throw new Error("Explain still asks after Send, don't ask again")
-    } finally {
-      await forgetAssist(page)
-    }
-  }
-}
-
 /** Keeps made-up keys for Anthropic and OpenAI, Anthropic picked, Company sending without asking and Anonymise off for Anthropic, then loads the page again with them. */
 async function keepTwoKeysAnonymiseOff(page) {
   await page.evaluate((key) => {
@@ -9391,29 +9317,6 @@ export function assistProviderSwitchFlowIn(language) {
     } finally {
       await forgetAssist(page)
     }
-  }
-}
-
-/**
- * Five made-up employees, Company sending without asking and Anonymise off for Anthropic, then a switch to OpenAI:
- * Anonymise is on again, so Explain on an employee's figure keeps it on this device.
- */
-export async function assistEmployeesAskAfterSwitchFlow(page, { press, shoot, inspect }) {
-  const words = ASSIST_WORDS.en
-  try {
-    await keepTwoKeysAnonymiseOff(page)
-    await page.waitForSelector(COMPANY_SELECT, { visible: true, timeout: 10_000 })
-    await openCompanies(page, press)
-    await pickCompany(page, press, 'OpenAI')
-    await goToRoute(page, '#/company/salaries', '[data-testid="salaries-problem"]')
-    await openSalariesProblem(page, press, 'en')
-    await pressSelector(page, press, EXPLAIN_BUTTON)
-    await explainKeptByAnonymise(page, words, "Explain on an employee's figure did not stay on this device after a change of company")
-    if (await page.$(CONSENT)) throw new Error('Explain asked while Company sends without asking')
-    await inspect?.('Explain kept on this device after a change of company')
-    await shoot('assist-employees-after-switch')
-  } finally {
-    await forgetAssist(page)
   }
 }
 
@@ -9860,107 +9763,6 @@ export async function reviewSuggestUseFlow(page, { press, shoot, inspect }) {
     await page.keyboard.press('Escape')
     await dialogGone(page, '[role="dialog"] [data-testid="rule-editor"]')
     await dismissToasts(page)
-  } finally {
-    await forgetAssist(page)
-  }
-}
-
-/** Year's Pay tab of 2027: opens the comparison, unless it is open, and the net salary of its first scenario on its build-up. */
-async function openPayFigure(page, press) {
-  const toggle = await page.waitForSelector('[data-card="year.comparison"] [data-testid="card-toggle"]', { timeout: 10_000 })
-  if ((await toggle.evaluate((element) => element.getAttribute('aria-expanded'))) === 'false') {
-    await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await delay(200)
-    await press(toggle)
-    await delay(300)
-  }
-  await pressSelector(page, press, '[data-testid="scenario-comparison"] [data-line="net-salary"] button')
-  await page.waitForSelector('[data-testid="figure-detail"]', { visible: true, timeout: 10_000 })
-  // The dialog grows in, and its controls reach their size once it has.
-  await delay(400)
-}
-
-/** Explain in an open figure's dialog: the first tap asks to switch Company on, and its confirm runs the fake model until the answer shows. */
-async function explainOpenFigure(page, press, language, { inspect, shoot }) {
-  const words = ASSIST_WORDS[language]
-  await pressSelector(page, press, EXPLAIN_BUTTON)
-  await consentTo(page, press, { inspect, shoot }, [words.consent.title('Anthropic'), words.explain.sends, words.consent.sendOnce])
-  await page.waitForSelector('[data-testid="cited-answer"]', { visible: true, timeout: 10_000 }).catch(async () => {
-    const line = await page.evaluate(() => document.querySelector('[data-testid="explain-line"]')?.textContent?.trim() ?? 'nothing')
-    throw new Error(`Explain gave no answer, the dialog says: ${line}`)
-  })
-  await page.$eval('[data-testid="cited-answer"]', (element) => element.scrollIntoView({ block: 'start' }))
-  await delay(300)
-}
-
-/**
- * Year's Pay tab in the workbook kept in this browser with the made-up key kept: a scenario's net salary opens on its
- * build-up, Explain asks to switch Company on and then shows the fake model's answer, its parts with source chips, what
- * the model added on its own apart, and the day the rules were checked. With `stray`, on `?ai=invented-figure`, the
- * answer is flagged for a figure Kuna did not compute and offers Try again.
- */
-export function payFigureExplainFlowIn(language, { stray = false } = {}) {
-  const words = ASSIST_WORDS[language]
-  return async (page, { press, shoot: shootAs, inspect }) => {
-    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    await keepAssistKey(page)
-    await openPayFigure(page, press)
-    await explainOpenFigure(page, press, language, { inspect, shoot })
-    const answer = await page.$eval('[data-testid="cited-answer"]', (element) => ({
-      parts: element.querySelectorAll('[data-testid="cited-part"]').length,
-      sources: element.querySelectorAll('[data-testid="cited-source"]').length,
-      text: element.textContent ?? '',
-    }))
-    if (answer.parts < 2 || answer.sources < 1) throw new Error(`the answer shows ${answer.parts} parts and ${answer.sources} source chips`)
-    for (const text of [words.answer.notFromRules, words.answer.ownKnowledge, words.explain.checked('')]) {
-      if (!answer.text.includes(text)) throw new Error(`the answer lacks "${text}"`)
-    }
-    const flagged = (await page.$('[data-testid="cited-flags"]')) !== null
-    if (flagged !== stray) throw new Error(stray ? 'the answer with a figure Kuna did not compute is not flagged' : "an answer of Kuna's own figures is flagged")
-    if (stray) {
-      await elementSays(page, '[data-testid="cited-flags"]', [words.answer.strayFigure, words.answer.tryAgain], 'the flags do not name the figure Kuna did not compute and offer Try again')
-    }
-    await inspect?.(stray ? 'an answer with a figure Kuna did not compute' : 'a figure explained')
-    await shoot(stray ? 'pay-figure-explain-stray' : 'pay-figure-explained')
-  }
-}
-
-/**
- * Salaries with five made-up employees, the made-up key kept, Company switched on and Anonymise on as it starts: the one
- * problem's build-up names an employee, so Explain sends nothing and says Anonymise keeps it on this device.
- */
-export function salaryFigureKeptFlowIn(language) {
-  const words = ASSIST_WORDS[language]
-  return async (page, { press, shoot: shootAs, inspect }) => {
-    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    await keepAssistKey(page, { companyOn: true })
-    await openSalariesProblem(page, press, language)
-    await pressSelector(page, press, EXPLAIN_BUTTON)
-    await explainKeptByAnonymise(page, words, "Explain on an employee's figure did not stay on this device with Anonymise on")
-    if (await page.$(CONSENT)) throw new Error('Explain asked while Company sends without asking')
-    await inspect?.("Explain keeping an employee's figure on this device")
-    await shoot('salary-figure-explain-kept')
-  }
-}
-
-/**
- * Year's Pay tab in the workbook kept in this browser with the made-up key kept: Explain on a scenario's net salary
- * shows the answer, a rule's chip opens Settings on the tax rules tab with the rule in the address, and Back returns to
- * Year.
- */
-export async function figureExplainFlow(page, { press, shoot, inspect }) {
-  try {
-    await keepAssistKey(page)
-    await openPayFigure(page, press)
-    await explainOpenFigure(page, press, 'en', { inspect })
-    await inspect?.('a figure explained on a phone')
-    await shoot('figure-explain')
-    await pressSelector(page, press, '[data-testid="cited-answer"] [data-testid="cited-source"]')
-    await screenTitled(page, SCREEN_WORDS.en.companySettings)
-    const hash = await page.evaluate(() => window.location.hash)
-    if (!hash.includes('tab=tax-rules') || !/[?&]rule=/.test(hash)) throw new Error(`the rule's chip opened ${hash}, not the tax rules tab with the rule`)
-    await page.goBack()
-    await screenTitled(page, SCREEN_WORDS.en.pack.screens.year)
   } finally {
     await forgetAssist(page)
   }

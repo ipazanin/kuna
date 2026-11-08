@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 
+import AskChatButton from '../../../../../shared/ai/presentation/AskChatButton.vue'
 import { chartTokens } from '../../../../../shared/charts/chartTokens'
 import { formatMoney } from '../../../../../shared/money/moneyFormat'
 import AppCard from '../../../../../shared/ui/AppCard.vue'
@@ -17,10 +18,11 @@ import { hrDooWorkbook } from '../domain/hrDooPart'
 import { dividendComparison } from '../domain/ownerBenefits'
 import type { OwnerBenefits } from '../domain/ownerBenefits'
 import BuildUpButton from './BuildUpButton.vue'
+import FigureAsk from './FigureAsk.vue'
 import FigureDialog from './FigureDialog.vue'
 import { benefitsRing, categorySeries } from './packCharts'
 import { figureDetail } from './tracedFigureView'
-import type { FigureDetail } from './tracedFigureView'
+import type { AskableDetail } from './tracedFigureView'
 import { words } from './words'
 import type { Money } from '../../../../../shared/money/money'
 
@@ -63,7 +65,7 @@ const ring = computed(() => {
 const workbook = computed(() => hrDooWorkbook(props.ledger.booked))
 
 type Comparison =
-  { readonly state: 'unregistered' } | { readonly state: 'failed'; readonly failure: string } | { readonly state: 'ready'; readonly taxAvoided: FigureDetail; readonly asDividend: Money }
+  { readonly state: 'unregistered' } | { readonly state: 'failed'; readonly failure: string } | { readonly state: 'ready'; readonly taxAvoided: AskableDetail; readonly asDividend: Money }
 
 const comparison = computed((): Comparison => {
   if (workbook.value.companyFacts.companyRegistered === null) {
@@ -71,7 +73,9 @@ const comparison = computed((): Comparison => {
   }
   try {
     const figures = dividendComparison(props.benefits.byYear, title.value, props.corporateRateOf)
-    const taxAvoided = figureDetail(figures.taxAvoided, words.benefits.asDividend(title.value, props.period), (drill: DrillTarget | null) => (drill === null ? null : drillLocation(drill)))
+    const taxAvoided = figureDetail(figures.taxAvoided, words.benefits.asDividend(title.value, props.period), [title.value, props.period], (drill: DrillTarget | null) =>
+      drill === null ? null : drillLocation(drill),
+    )
     return { state: 'ready', taxAvoided, asDividend: figures.asDividend.amount }
   } catch (failure) {
     if (failure instanceof RangeError) {
@@ -105,10 +109,15 @@ const dialogOpen = ref(false)
     <template #aside>
       <div class="flex flex-col" data-testid="owner-benefits-dividend">
         <template v-if="comparison.state === 'ready'">
-          <p class="donut-row comparison-row">
-            <span class="min-w-0 text-toned">{{ words.benefits.taxAvoided }}</span>
-            <BuildUpButton :cents="comparison.taxAvoided.cents" :label="words.benefits.taxAvoided" class="shrink-0 font-medium text-highlighted" @open="dialogOpen = true" />
-          </p>
+          <FigureAsk v-slot="{ ask, askLabel, marked }" :detail="comparison.taxAvoided">
+            <p class="donut-row comparison-row" v-bind="marked">
+              <span class="min-w-0 text-toned">{{ words.benefits.taxAvoided }}</span>
+              <span class="inline-flex shrink-0 items-center gap-0.5">
+                <BuildUpButton :cents="comparison.taxAvoided.cents" :label="words.benefits.taxAvoided" class="font-medium text-highlighted" @open="dialogOpen = true" />
+                <AskChatButton v-if="askLabel" :label="askLabel" icon-only @ask="ask" />
+              </span>
+            </p>
+          </FigureAsk>
           <p class="donut-row comparison-row">
             <span class="min-w-0 text-toned">{{ words.benefits.wouldNet }}</span>
             <MoneyText :cents="comparison.asDividend" class="shrink-0 text-highlighted" />
