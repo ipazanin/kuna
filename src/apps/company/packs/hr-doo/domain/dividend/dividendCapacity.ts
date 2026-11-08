@@ -127,8 +127,8 @@ export interface DividendCapacity {
 /**
  * What the year's forecast leaves to pay out, and the four ways to do it: one payout once the
  * members adopt the statements, the profit kept from closed years paid out now, an interim payout in
- * the year on the profit of its complete months, or keeping it in the company. The first three are
- * set off against what the owner owes. Distributable profit is the year's profit after tax plus
+ * the year capped at the profit of its complete months, or keeping it in the company. The first three
+ * are set off against what the owner owes. Distributable profit is the year's profit after tax plus
  * retained earnings, less losses brought forward and what the year has paid out already. Planning
  * figures only.
  */
@@ -214,7 +214,7 @@ export function dividendCapacity(year: number, forecast: YearForecast, workbook:
     cashNow: null,
   })
   const keptNow = keptNowPayout(payout, forecast, rows, keptProfit)
-  const interim = interimPayout(payout, forecast, rows, opening.retained, paidOutInYear)
+  const interim = interimPayout(payout, forecast, rows, retainedEarnings, lossesBroughtForward, paidOutInYear)
   const keep = payoutOption(payout, {
     id: 'keep',
     label: words.capacity.keep,
@@ -326,11 +326,21 @@ function payoutOption(context: PayoutContext, choice: PayoutChoice): PayoutOptio
 
 /**
  * An interim payout now, on the profit of the year's complete months after corporate tax at the
- * year's rate, with what was retained and less what the year paid out. The part the year's own
- * distributable profit does not cover is taxed as the owner's income.
+ * year's rate. What the year paid out counts against retained earnings first, since the ledger does
+ * not tell a dividend from an earlier advance, and only the rest, with any losses brought forward,
+ * comes off the interim profit. Retained earnings themselves are paid out by the kept profit option.
+ * The part that the year's own profit, split from retained earnings the same way, does not cover is
+ * taxed as the owner's income.
  */
-function interimPayout(context: PayoutContext, forecast: YearForecast, rows: readonly Transaction[], openingRetained: TracedFigure, paidOut: TracedFigure): PayoutOption {
-  const { year, yearEnd, rules, distributable } = context
+function interimPayout(
+  context: PayoutContext,
+  forecast: YearForecast,
+  rows: readonly Transaction[],
+  retainedEarnings: TracedFigure,
+  lossesBroughtForward: TracedFigure,
+  paidOut: TracedFigure,
+): PayoutOption {
+  const { year, yearEnd, rules } = context
   const { lastComplete } = forecast.calendar
   const december = monthKey(year, 12)
   const through = lastComplete === null || lastComplete < monthKey(year, 1) ? null : lastComplete > december ? december : lastComplete
@@ -355,11 +365,11 @@ function interimPayout(context: PayoutContext, forecast: YearForecast, rows: rea
   const { rate } = forecast.liability
   const tax = tracedFigure(words.capacity.taxOnIt(percentText(rate.basisPoints)), moneyAt(toDate.amount > 0 ? toDate.amount : ZERO, rate.basisPoints), 'ledger', rate.rules, [toDate])
   const interimProfit = summed(words.capacity.interimProfit, [toDate, deducted(tax)], 'ledger')
-  const available = summed(words.capacity.available, [interimProfit, openingRetained, deducted(paidOut)], 'ledger')
+  const beyondRetained = summed(words.capacity.beyondRetained, [paidOut, lossesBroughtForward, deducted(retainedEarnings)], 'ledger')
   const shortfallRule = rules('hr.cit.profit-advance-shortfall', yearEnd)
-  const gross = tracedFigure(words.capacity.interimPayout, available.amount > 0 ? available.amount : ZERO, 'ledger', available.rules, [available])
-  const covered = distributable.amount > 0 ? distributable.amount : ZERO
-  const uncovered = subtractMoney(gross.amount, covered)
+  const gross = atLeastZero(yearsOwnProfit(words.capacity.interimPayout, interimProfit, beyondRetained))
+  const covered = atLeastZero(yearsOwnProfit(words.capacity.yearsOwnProfit, forecast.profitAfterTax, beyondRetained))
+  const uncovered = subtractMoney(gross.amount, covered.amount)
   const cashNow = cashNowFor(context, forecast, rows, through, gross.amount)
   return payoutOption(context, {
     id: 'interim',
@@ -368,9 +378,18 @@ function interimPayout(context: PayoutContext, forecast: YearForecast, rows: rea
     latestOn: yearEnd,
     gross,
     setsOff: true,
-    shortfall: tracedFigure(words.capacity.shortfall, uncovered > 0 ? uncovered : ZERO, 'ledger', [shortfallRule.citation], [gross, deducted(distributable)]),
+    shortfall: tracedFigure(words.capacity.shortfall, uncovered > 0 ? uncovered : ZERO, 'ledger', [shortfallRule.citation], [gross, deducted(covered)]),
     cashNow,
   })
+}
+
+/** A profit of this year with what retained earnings do not cover taken off, so an advance never draws on earlier years. */
+function yearsOwnProfit(label: string, profit: TracedFigure, beyondRetained: TracedFigure): TracedFigure {
+  return summed(label, beyondRetained.amount > 0 ? [profit, deducted(beyondRetained)] : [profit], 'ledger')
+}
+
+function atLeastZero(figure: TracedFigure): TracedFigure {
+  return figure.amount > 0 ? figure : { ...figure, amount: ZERO }
 }
 
 /**

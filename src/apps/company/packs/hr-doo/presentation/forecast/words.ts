@@ -24,7 +24,8 @@ export const en = {
   asPlanned: 'As planned',
   difference: (amount: string, cost: boolean, more: boolean) => `${amount} ${cost ? (more ? 'more spent' : 'less spent') : more ? 'more' : 'less'} than planned`,
   payout: {
-    interimReading: "Company law says nothing about a d.o.o. paying out this year's profit in advance. Tax law mentions such advances but never allows them outright. Kuna treats them as allowed.",
+    interimReading:
+      "Company law says nothing about a d.o.o. paying out this year's profit in advance. Tax law mentions such advances but never allows them outright. Kuna treats them as allowed and takes the cautious reading of how much: no more than this year's profit so far. The profit tax act (Art. 10.a) weighs an advance against the profit of the tax year, and the profit tax rulebook (Art. 35.a) ties it to an interim income statement. Profit kept from earlier years can be paid out now with the option for kept profit.",
     when: (earliest: string, latest: string) => `Earliest on ${earliest}, and no later than ${latest}.`,
     gross: 'Payout before tax',
     tax: 'Dividend tax',
@@ -271,7 +272,7 @@ export const hr: Translation<typeof en> = {
   difference: (amount, cost, more) => `${amount} ${cost ? (more ? 'više potrošeno' : 'manje potrošeno') : more ? 'više' : 'manje'} od plana`,
   payout: {
     interimReading:
-      'Zakon o trgovačkim društvima ne govori o predujmu dobiti tekuće godine za d.o.o. Porezni propisi takav predujam spominju, ali ga nigdje izričito ne dopuštaju. Kuna ga tretira kao dopušten.',
+      'Zakon o trgovačkim društvima ne govori o predujmu dobiti tekuće godine za d.o.o. Porezni propisi takav predujam spominju, ali ga nigdje izričito ne dopuštaju. Kuna ga tretira kao dopušten i iznos tumači oprezno: najviše dobit ostvarena ove godine do sada. Zakon o porezu na dobit (čl. 10.a) uspoređuje predujam s dobiti ostvarenom u poreznom razdoblju, a Pravilnik o porezu na dobit (čl. 35.a) veže ga uz privremeni račun dobiti i gubitka. Zadržanu dobit iz ranijih godina možete isplatiti sada opcijom za zadržanu dobit.',
     when: (earliest, latest) => `Najranije ${earliest}, a najkasnije ${withFullStop(latest)}`,
     gross: 'Isplata prije poreza',
     tax: 'Porez na dividendu',

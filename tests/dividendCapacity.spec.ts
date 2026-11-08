@@ -89,26 +89,30 @@ describe('dividendCapacity, after a payout already made in the year', () => {
     expect(payout.retainedAfter.amount).toBe(euros(0))
   })
 
-  it('pays an interim payout now on the profit of the complete months, settling the owner’s loan first', () => {
+  it('pays an interim payout now capped at the profit of the complete months, settling the owner’s loan first', () => {
     const payout = option(result, 'interim')
 
     expect([payout.earliestOn, payout.latestOn]).toEqual(['2026-10-19', '2026-12-31'])
     // January to September: revenue 54,000.00 less pay 9,000.00, payroll tax 1,800.00, the tool
     // 1,080.00, insurance 30.00 and depreciation 200.00 is 41,890.00, and 37,701.00 after 10% tax.
-    // With the 10,800.00 retained and less the 6,000.00 paid out, 42,501.00.
-    expect(payout.gross.amount).toBe(euros(42501))
-    expect(payout.dividendTax.amount).toBe(euros(5100.12))
-    expect(payout.net.amount).toBe(euros(37400.88))
+    // The 10,800.00 retained, less the 6,000.00 paid out, would make 42,501.00, but retained profit
+    // does not join the advance. The 6,000.00 paid out sits within the 10,800.00 retained, so nothing
+    // comes off the interim profit.
+    expect(payout.gross.amount).toBe(euros(37701))
+    expect(payout.gross.steps.map((step) => [step.label, step.amount])).toEqual([['Profit after tax in an interim statement', euros(37701)]])
+    expect(payout.dividendTax.amount).toBe(euros(4524.12))
+    expect(payout.net.amount).toBe(euros(33176.88))
     expect(payout.setOff.amount).toBe(euros(3000))
-    expect(payout.paidToOwner.amount).toBe(euros(34400.88))
-    // 5,100.12 of tax and 34,400.88 paid to the owner.
-    expect(payout.cashOut.amount).toBe(euros(39501))
-    // 72,595.00 on 10 October less the September advance of 100.00 due on 31 October, less the 39,501.00.
-    expect(payout.cashLeft.amount).toBe(euros(32994))
+    expect(payout.paidToOwner.amount).toBe(euros(30176.88))
+    // 4,524.12 of tax and 30,176.88 paid to the owner.
+    expect(payout.cashOut.amount).toBe(euros(34701))
+    // 72,595.00 on 10 October less the September advance of 100.00 due on 31 October, less the 34,701.00.
+    expect(payout.cashLeft.amount).toBe(euros(37794))
     expect(payout.owedByOwnerAfter.amount).toBe(euros(0))
     expect(payout.loanBenefitPerYear.amount).toBe(euros(0))
     expect(payout.shortfall?.amount).toBe(euros(0))
-    expect(payout.retainedAfter.amount).toBe(euros(12283.2))
+    // The distributable 54,784.20 less the 37,701.00.
+    expect(payout.retainedAfter.amount).toBe(euros(17083.2))
     expect(payout.capitalProtected).toBe(true)
   })
 
@@ -118,7 +122,7 @@ describe('dividendCapacity, after a payout already made in the year', () => {
     expect([cash?.cash.amount, cash?.cash.on]).toEqual([euros(72595), '2026-10-10'])
     expect([cash?.fallingDue.amount, cash?.fallingDue.on]).toEqual([euros(100), '2026-10-31'])
     expect(cash?.available.amount).toBe(euros(72495))
-    expect(cash?.largestPayout.amount).toBe(euros(42501))
+    expect(cash?.largestPayout.amount).toBe(euros(37701))
     expect(option(result, 'after-adoption').cashNow).toBeNull()
     expect(option(result, 'keep').cashNow).toBeNull()
   })
@@ -151,13 +155,13 @@ describe('dividendCapacity of an interim payout the cash does not cover', () => 
   const payout = option(result, 'interim')
 
   it('keeps the payout the profit allows and gives the largest one the cash covers', () => {
-    expect(payout.gross.amount).toBe(euros(42501))
+    expect(payout.gross.amount).toBe(euros(37701))
     // 32,595.00 less the 100.00 advance due on 31 October.
     expect(payout.cashNow?.available.amount).toBe(euros(32495))
     expect(payout.cashNow?.largestPayout.amount).toBe(euros(32495))
-    // The owner owes 43,000.00, so the whole net of 37,400.88 settles the loan and only the 5,100.12 of tax leaves the bank.
-    expect(payout.setOff.amount).toBe(euros(37400.88))
-    expect(payout.cashLeft.amount).toBe(euros(27394.88))
+    // The owner owes 43,000.00, so the whole net of 33,176.88 settles the loan and only the 4,524.12 of tax leaves the bank.
+    expect(payout.setOff.amount).toBe(euros(33176.88))
+    expect(payout.cashLeft.amount).toBe(euros(27970.88))
   })
 
   it('weighs the payouts after the year against cash at the year end', () => {
@@ -192,26 +196,43 @@ describe('dividendCapacity when the rest of the year makes a loss', () => {
   it('flags the part of an interim payout the year does not cover, and the share capital it breaks', () => {
     const payout = option(result, 'interim')
 
-    expect(payout.gross.amount).toBe(euros(42501))
-    expect(payout.shortfall?.amount).toBe(euros(42163))
+    expect(payout.gross.amount).toBe(euros(37701))
+    // The year ends at a loss of 4,462.00, so none of the 37,701.00 is covered. The 10,800.00 retained
+    // from 2025 is no cover for an advance.
+    expect(payout.shortfall?.amount).toBe(euros(37701))
+    expect(payout.shortfall?.steps.map((step) => [step.label, step.amount])).toEqual([
+      ['Interim payout, no more than the interim profit', euros(37701)],
+      ['This year’s profit after tax, less what retained earnings do not cover', euros(0)],
+    ])
     expect(payout.shortfall?.rules.map((citation) => citation.ruleId)).toEqual(['hr.cit.profit-advance-shortfall'])
     expect(payout.capitalProtected).toBe(false)
   })
 })
 
 describe('dividendCapacity with losses brought forward', () => {
-  it('takes them off before anything is distributable', () => {
-    const lines = [
-      ...STEADY_YEAR_END_2025.filter((line) => line.line !== 'retained-earnings' && line.line !== 'profit-of-year'),
-      yearEndLine(2025, 'balance', 'retained-earnings', -2000),
-      yearEndLine(2025, 'balance', 'profit-of-year', 500),
-    ]
-    const result = capacity(2026, steadyStudio({ yearEndLines: lines }))
+  const lines = [
+    ...STEADY_YEAR_END_2025.filter((line) => line.line !== 'retained-earnings' && line.line !== 'profit-of-year'),
+    yearEndLine(2025, 'balance', 'retained-earnings', -2000),
+    yearEndLine(2025, 'balance', 'profit-of-year', 500),
+  ]
+  const result = capacity(2026, steadyStudio({ yearEndLines: lines }))
 
+  it('takes them off before anything is distributable', () => {
     expect(result.retainedEarnings.amount).toBe(euros(0))
     expect(result.lossesBroughtForward.amount).toBe(euros(1500))
     // 49,984.20 less the 1,500.00 of losses and the 6,000.00 paid out.
     expect(result.distributable.amount).toBe(euros(42484.2))
+  })
+
+  it('takes the losses and what the year paid out off the interim profit when nothing retained covers them', () => {
+    // The interim profit of 37,701.00 less the 1,500.00 of losses and the 6,000.00 paid out.
+    const { gross } = option(result, 'interim')
+
+    expect(gross.amount).toBe(euros(30201))
+    expect(gross.steps.map((step) => [step.label, step.amount])).toEqual([
+      ['Profit after tax in an interim statement', euros(37701)],
+      ['Paid out this year and losses brought forward, as far as retained earnings do not cover them', euros(-7500)],
+    ])
   })
 })
 
@@ -392,7 +413,7 @@ describe('the Pay tab’s cash warning', () => {
   }
 
   it('tests the cash that leaves the bank, so a set-off that takes the whole net raises no warning', () => {
-    // The owner owes 43,000.00, so of the 42,501.00 interim payout only the 5,100.12 of tax leaves the 32,495.00 available.
+    // The owner owes 43,000.00, so of the 37,701.00 interim payout only the 4,524.12 of tax leaves the 32,495.00 available.
     const rows = [...STEADY_ROWS, { date: '2026-10-06', amount: -40000, category: 'owner-loan-out' }].sort((earlier, later) => earlier.date.localeCompare(later.date))
     const interim = view(steadyStudio({ transactions: withPackBuckets(ledger(rows), STEADY_CATEGORIES) })).payouts.find((payout) => payout.id === 'interim')
 
