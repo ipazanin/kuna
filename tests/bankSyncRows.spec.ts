@@ -79,7 +79,7 @@ describe('bankSyncRows', () => {
   })
 
   it('takes only the rows in the currency of the account', () => {
-    const answer = fakeBankTransactions('fake-revolut-account', DAY)
+    const answer = fakeBankTransactions('fake-revolut-account', DAY, 'multi-currency')
     expect(statementOf(answer, REVOLUT_EUR).rows.map((row) => row.payee)).toEqual(['Café on the square', 'Corner market'])
     expect(statementOf(answer, REVOLUT_USD).rows.map((row) => row.payee)).toEqual(['Diner in Boston'])
   })

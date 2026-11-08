@@ -10,7 +10,7 @@ const DAY = civil('2026-10-30')
 
 function settings(otpIn: number | null, revolutIn: number | null = null, deployment = 'AKfycb-made-up'): SpendingSettings {
   const until = (days: number | null) => (days === null ? null : addDays(DAY, days))
-  return { bankSyncDeployment: deployment, bankLinks: { otp: until(otpIn), revolut: until(revolutIn) }, companyOib: '', personPayees: [] }
+  return { bankSyncDeployment: deployment, bankLinks: { otp: until(otpIn), revolut: until(revolutIn) }, companyOib: '', personPayees: [], bankAccountsNotInKuna: [], bankAccountsKeepMine: [] }
 }
 
 describe('the end of a link', () => {

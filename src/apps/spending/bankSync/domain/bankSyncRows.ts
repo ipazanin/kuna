@@ -95,6 +95,11 @@ export function bankSyncRows(answer: readonly BankTransaction[], account: Accoun
   }
 }
 
+/** Whether the answer holds money in the currency that may still book, which a bank's balance may already count. */
+export function hasPendingRows(answer: readonly BankTransaction[], currency: string): boolean {
+  return answer.some((transaction) => transaction.currency === currency && PENDING_STATUSES.includes(transaction.status))
+}
+
 /** The bank's exchange rate as a plain multiplier, so `0.8` is 0.8. Null when it gives none, or one that is not above zero. */
 function exchangeRateOf(transaction: BankTransaction): Decimal | null {
   const rate = decimalOfText(transaction.exchangeRate?.trim() ?? '')

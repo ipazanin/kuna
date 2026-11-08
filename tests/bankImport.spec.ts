@@ -3,18 +3,21 @@ import { fileURLToPath } from 'node:url'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import type { BankRead } from '../src/apps/spending/bankSync/application/bankRead'
+import { proposeAccount } from '../src/apps/spending/bankSync/domain/bankAccountSetup'
 import { bankImporter, BankScriptFailure, finishBankLink } from '../src/apps/spending/bankSync/application/bankSync'
-import type { BankImportPorts, BankRead, BankSyncPort, PendingLinks } from '../src/apps/spending/bankSync/application/bankSync'
-import type { BankTransaction } from '../src/apps/spending/bankSync/domain/bankAnswer'
+import type { BankImportPorts, BankSyncPort, PendingLinks } from '../src/apps/spending/bankSync/application/bankSync'
+import type { BankTransaction, LinkedAccount } from '../src/apps/spending/bankSync/domain/bankAnswer'
 import type { PendingLink } from '../src/apps/spending/bankSync/domain/bankReturn'
-import { saveLastFetch } from '../src/apps/spending/bankSync/infrastructure/bankBrowserState'
-import { bankStepResult } from '../src/apps/spending/bankSync/presentation/bankStepResult'
+import { loadLastFetch, saveLastFetch } from '../src/apps/spending/bankSync/infrastructure/bankBrowserState'
+import { bankHeldResult, bankStepResult } from '../src/apps/spending/bankSync/presentation/bankStepResult'
 import { BANK_SYNC_STEP } from '../src/apps/spending/bankSync/presentation/bankSyncStep'
+import type { SpendingBook } from '../src/apps/spending/workbook/domain/readSpendingBook'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
 import { spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import type { UnitOfWork } from '../src/shared/storage/application/repository'
-import { ACCOUNTS, CATEGORIES, OTP, row } from './fixtures/spending'
+import { ACCOUNTS, CATEGORIES, OTP, REVOLUT_USD, row } from './fixtures/spending'
 import { civil } from './fixtures/ledger'
 
 const DAY = civil('2026-10-30')
@@ -81,7 +84,11 @@ function storeOver(first: SpendingBooks) {
   }
 }
 
-const OTP_SESSION = { bank: 'OTP banka', status: 'AUTHORIZED', accounts: [{ uid: 'otp', iban: OTP.iban, currency: 'EUR' }] }
+function linked(uid: string, iban: string, currency: string): LinkedAccount {
+  return { uid, iban, currency, product: null, details: null, cashAccountType: null, usage: null, identificationHash: null }
+}
+
+const OTP_SESSION = { bank: 'OTP banka', status: 'AUTHORIZED', accounts: [linked('otp', OTP.iban, 'EUR')] }
 
 function portOf(fields: Partial<BankSyncPort> = {}): BankSyncPort {
   return { startLink: async () => '', finishLink: async () => '2027-05-03T12:00:00+00:00', sessions: async () => [OTP_SESSION], transactions: async () => [BANK], balances: async () => [], ...fields }
@@ -132,16 +139,24 @@ describe('a fetch', () => {
     const afterImport = ((OTP.opening - 650) / 100).toFixed(2)
 
     it('says nothing when the bank agrees with the file once the rows are in', async () => {
-      const { dryRun } = await importerOver(portOf({ balances: stated(afterImport) }), storeOver(bookOf([])).store).run(false)
-      expect(dryRun.notes).toEqual([])
+      const { differences } = await importerOver(portOf({ balances: stated(afterImport) }), storeOver(bookOf([])).store).run(false)
+      expect(differences).toEqual([])
     })
 
-    it('notes a difference, as a file does, and still imports', async () => {
+    it('offers the opening that makes a differing balance agree, and still imports', async () => {
       const fake = storeOver(bookOf([]))
-      const { dryRun } = await importerOver(portOf({ balances: stated('1.00') }), fake.store).run(false)
-      expect(dryRun.notes).toHaveLength(1)
-      expect(dryRun.notes[0]).toMatch(/^OTP current: the bank says .*1\.00 and Kuna works out .*, so a row may be missing or the opening balance may be wrong\.$/)
+      const outcome = await importerOver(portOf({ balances: stated('1.00') }), fake.store).run(false)
+      // The bank says 1.00 where Kuna works out the opening less 6.50, so the opening moves by 1.00 − (opening − 6.50).
+      expect(outcome.differences).toEqual([{ account: OTP, stated: 100, worked: OTP.opening - 650, fixedOpening: 750 }])
       expect(fake.added).toHaveLength(1)
+      const line = bankStepResult(outcome, null, null, 0)
+      expect('line' in line && line.line).toMatch(/OTP current: the bank says .*1\.00 and Kuna works out .*, so a row may be missing or the opening balance may be wrong\./)
+    })
+
+    it('offers no opening while the bank holds pending rows its balance may count', async () => {
+      const pending: BankTransaction = { ...BANK, reference: 'ref-2', status: 'PDNG' }
+      const { differences } = await importerOver(portOf({ balances: stated('1.00', 'ITAV'), transactions: async () => [BANK, pending] }), storeOver(bookOf([])).store).run(false)
+      expect(differences.map((difference) => difference.fixedOpening)).toEqual([null])
     })
 
     it('reads a booked balance before an available one', async () => {
@@ -149,15 +164,15 @@ describe('a fetch', () => {
         { amount: '1.00', currency: 'EUR', type: 'ITAV' },
         { amount: afterImport, currency: 'EUR', type: 'CLBD' },
       ]
-      const { dryRun } = await importerOver(portOf({ balances }), storeOver(bookOf([])).store).run(false)
-      expect(dryRun.notes).toEqual([])
+      const { differences } = await importerOver(portOf({ balances }), storeOver(bookOf([])).store).run(false)
+      expect(differences).toEqual([])
     })
 
     it('counts a row the fetch filled in, not twice', async () => {
       const typed = row(OTP, '2026-10-27', -6.5, 'Food/Coffee', { payee: 'Bakery' })
-      const { dryRun } = await importerOver(portOf({ balances: stated(afterImport) }), storeOver(bookOf([typed])).store).run(false)
+      const { dryRun, differences } = await importerOver(portOf({ balances: stated(afterImport) }), storeOver(bookOf([typed])).store).run(false)
       expect(dryRun.filled).toBe(1)
-      expect(dryRun.notes).toEqual([])
+      expect(differences).toEqual([])
     })
 
     it('says the balance was not checked when the bank refuses it, and keeps the rows', async () => {
@@ -289,10 +304,12 @@ describe('finishing a link', () => {
 
 describe('what the step says', () => {
   const dryRun = { newRows: 2, alreadyIn: 1, filled: 0, notes: [] } as never
-  const noWrite = { dryRun, unknown: [], problems: [], receipt: null }
+  const noWrite = { dryRun, problems: [], linked: [], proposals: [], differences: [], olderRows: [], receipt: null }
+  const bookNow = () => bookOf([]) as unknown as SpendingBook
+  const other = { bank: 'otp' as const, account: linked('u', 'HR0000000000000000077', 'EUR') }
 
   it('is done with a link to review when nothing went wrong', () => {
-    expect(bankStepResult(noWrite, 7, 3)).toEqual({
+    expect(bankStepResult(noWrite, bookNow(), 7, 3)).toEqual({
       kind: 'done',
       line: '2 new, 1 already in, 0 paired with what you typed.',
       writeId: 7,
@@ -300,15 +317,42 @@ describe('what the step says', () => {
     })
   })
 
-  it('waits and names a linked account Kuna does not keep, with a way to Settings', () => {
-    const result = bankStepResult({ ...noWrite, unknown: [{ bank: 'otp', account: { uid: 'u', iban: 'HR0000000000000000077', currency: 'EUR' } }] }, null, 3)
+  it('waits and names a linked account Kuna does not keep with its currency, with a way to Settings', () => {
+    const result = bankStepResult({ ...noWrite, linked: [other] }, bookNow(), null, 3)
     expect(result).toMatchObject({ kind: 'waits', link: { to: '/spending/settings?tab=bank-sync' } })
-    expect('line' in result && result.line).toContain('OTP has an account Kuna does not keep: HR0000000000000000077')
+    expect('line' in result && result.line).toContain('OTP has an account in EUR that Kuna does not keep (HR0000000000000000077).')
+  })
+
+  it('names a multi-currency account by the currency the fetch drafted', () => {
+    const all = linked('all', 'LT000000000000000009', 'XXX')
+    const gbp = proposeAccount(all, 'revolut', 'GBP' as never, [], [], 'account:gbp' as never, DAY, ACCOUNTS)
+    const result = bankStepResult({ ...noWrite, linked: [{ bank: 'revolut', account: all }], proposals: [gbp] }, bookNow(), null, 0)
+    expect('line' in result && result.line).toContain('Revolut has an account in GBP that Kuna does not keep (LT000000000000000009).')
+  })
+
+  it('says an account that fits one without its IBAN needs updating, not that Kuna does not keep it', () => {
+    const typed = { ...REVOLUT_USD, iban: '' }
+    const book = { ...bookNow(), accounts: [...bookNow().accounts.filter((account) => account.id !== REVOLUT_USD.id), typed] }
+    const result = bankStepResult({ ...noWrite, linked: [{ bank: 'revolut', account: linked('usd', 'LT000000000000000009', 'USD') }] }, book, null, 0)
+    expect('line' in result && result.line).toContain(`Revolut has an account in USD that ${REVOLUT_USD.name} keeps once you update it with the bank's details.`)
+  })
+
+  it('stays quiet about an account added since the fetch', () => {
+    const added = { ...OTP, id: 'account:added', iban: 'HR0000000000000000077' } as typeof OTP
+    const book = { ...bookNow(), accounts: [...bookNow().accounts, added] }
+    expect(bankHeldResult([], [other], book)).toMatchObject({ kind: 'done' })
+    expect(bankHeldResult([], [other], bookNow())).toMatchObject({ kind: 'waits' })
   })
 
   it('waits and says which bank gave no rows, keeping the write for Undo', () => {
-    const result = bankStepResult({ ...noWrite, problems: ['OTP banka did not answer, so its rows wait for a later sync: HTTP 503'] }, 9, 0)
+    const result = bankStepResult({ ...noWrite, problems: ['OTP did not answer, so its rows wait for a later sync: HTTP 503'] }, bookNow(), 9, 0)
     expect(result).toMatchObject({ kind: 'waits', writeId: 9 })
+  })
+
+  it('waits and says older rows need a new link when a fetch reached back further than the bank gave', () => {
+    const result = bankStepResult({ ...noWrite, olderRows: [{ bank: 'revolut', account: OTP, reached: civil('2026-08-10') }] }, bookNow(), null, 0)
+    expect(result).toMatchObject({ kind: 'waits' })
+    expect('line' in result && result.line).toContain('Older rows come only if you link Revolut again')
   })
 })
 
@@ -320,16 +364,26 @@ describe('the step while it holds back', () => {
 
   it('is done when the last fetch left nothing', async () => {
     stubStorage()
-    saveLastFetch({ at: Date.now() - 1000, problems: [] })
+    saveLastFetch({ at: Date.now() - 1000, problems: [], linked: [] })
     expect(await BANK_SYNC_STEP.run(() => undefined, '')).toMatchObject({ kind: 'done', writeId: null })
+  })
+
+  it("keeps of each account only what names it, never the bank's product or the description you set", () => {
+    stubStorage()
+    const described = { ...linked('u', 'HR0000000000000000077', 'EUR'), product: 'Standard', details: 'Holiday money', cashAccountType: 'CACC', usage: 'PRIV', identificationHash: 'hash-1' }
+    saveLastFetch({ at: 1, problems: [], linked: [{ bank: 'otp', account: described }] })
+    expect(JSON.parse(localStorage.getItem('kuna.bank-sync-fetched')!).linked).toEqual([
+      { bank: 'otp', account: { uid: 'u', iban: 'HR0000000000000000077', currency: 'EUR', identificationHash: 'hash-1' } },
+    ])
+    expect(loadLastFetch()?.linked[0]?.account).toEqual({ ...described, product: null, details: null, cashAccountType: null, usage: null })
   })
 
   it('keeps saying what the last fetch left, so a failure is not hidden for six hours', async () => {
     stubStorage()
-    saveLastFetch({ at: Date.now() - 1000, problems: ['OTP banka did not answer, so its rows wait for a later sync: HTTP 503'] })
+    saveLastFetch({ at: Date.now() - 1000, problems: ['OTP did not answer, so its rows wait for a later sync: HTTP 503'], linked: [] })
     const result = await BANK_SYNC_STEP.run(() => undefined, '')
     expect(result).toMatchObject({ kind: 'waits', link: { to: '/spending/settings?tab=bank-sync' } })
-    expect('line' in result && result.line).toContain('OTP banka did not answer')
+    expect('line' in result && result.line).toContain('OTP did not answer')
   })
 })
 

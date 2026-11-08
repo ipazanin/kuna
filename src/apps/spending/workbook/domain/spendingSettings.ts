@@ -22,11 +22,36 @@ export interface SpendingSettings {
   readonly companyOib: string
   /** The payees the owner flagged as people, whose names the chat and the AI tasks send as aliases. */
   readonly personPayees: readonly string[]
+  /** The bank accounts the owner said Kuna does not keep, each as its IBAN and currency, so the bank sync neither offers nor reads them. */
+  readonly bankAccountsNotInKuna: readonly string[]
+  /** The bank accounts whose Spending account keeps its own bank and kind, so the bank sync stops offering the bank's. Named as in `bankAccountsNotInKuna`. */
+  readonly bankAccountsKeepMine: readonly string[]
 }
 
 export const BANK_SYNC_DEPLOYMENT_KEY = 'bank_sync_deployment'
 export const COMPANY_OIB_KEY = 'company_oib'
 export const PERSON_PAYEES_KEY = 'person_payees'
+export const BANK_ACCOUNTS_NOT_IN_KUNA_KEY = 'bank_sync_not_in_kuna'
+export const BANK_ACCOUNTS_KEEP_MINE_KEY = 'bank_sync_keep_mine'
+
+/** One bank account per line: its IBAN, or the bank's hash for an account without one, then its currency. */
+const BANK_ACCOUNT_LINE = /^\S+ [A-Z]{3}$/
+
+function linesOf(value: string): readonly string[] {
+  return value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+}
+
+/** The bank accounts as the setting's value holds them, one per line. */
+export function bankAccountsText(keys: readonly string[]): string {
+  return keys.join('\n')
+}
+
+function bankAccountLinesCheck(key: string): SettingValueCheck {
+  return (value: string) => linesOf(value).flatMap((line) => (BANK_ACCOUNT_LINE.test(line) ? [] : [words.settingNotABankAccount(key, line)]))
+}
 
 export function bankLinkKey(bank: LinkableBank): string {
   return `bank_link_${bank}`
@@ -37,6 +62,8 @@ export const SPENDING_SETTING_CHECKS: SettingChecks = new Map<string, SettingVal
   [BANK_SYNC_DEPLOYMENT_KEY, ANY_VALUE],
   [COMPANY_OIB_KEY, ANY_VALUE],
   [PERSON_PAYEES_KEY, ANY_VALUE],
+  [BANK_ACCOUNTS_NOT_IN_KUNA_KEY, bankAccountLinesCheck(BANK_ACCOUNTS_NOT_IN_KUNA_KEY)],
+  [BANK_ACCOUNTS_KEEP_MINE_KEY, bankAccountLinesCheck(BANK_ACCOUNTS_KEEP_MINE_KEY)],
   ...LINKABLE_BANKS.map(bankLinkKey).map((key) => [key, (value: string) => (parseCivilDate(value) === null ? [words.settingNotADay(key, value)] : [])] as const),
 ])
 
@@ -50,5 +77,7 @@ export function spendingSettingsOf(rows: readonly SettingRow[]): SpendingSetting
     bankLinks: { otp: linkOf('otp'), revolut: linkOf('revolut') },
     companyOib: settingValue(rows, COMPANY_OIB_KEY),
     personPayees: personPayeesOf(settingValue(rows, PERSON_PAYEES_KEY)),
+    bankAccountsNotInKuna: linesOf(settingValue(rows, BANK_ACCOUNTS_NOT_IN_KUNA_KEY)),
+    bankAccountsKeepMine: linesOf(settingValue(rows, BANK_ACCOUNTS_KEEP_MINE_KEY)),
   }
 }

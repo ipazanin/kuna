@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { BankScriptFailure, readBanks } from '../src/apps/spending/bankSync/application/bankSync'
-import type { BankRead, BankSyncPort } from '../src/apps/spending/bankSync/application/bankSync'
+import { readBanks } from '../src/apps/spending/bankSync/application/bankRead'
+import type { BankRead } from '../src/apps/spending/bankSync/application/bankRead'
+import { BankScriptFailure } from '../src/apps/spending/bankSync/application/bankSync'
+import type { BankSyncPort } from '../src/apps/spending/bankSync/application/bankSync'
 import { accountsOfLinked, fetchFrom } from '../src/apps/spending/bankSync/domain/bankLinks'
 import { bankSyncRows, rowsWithMoves } from '../src/apps/spending/bankSync/domain/bankSyncRows'
 import type { SyncedRows } from '../src/apps/spending/bankSync/domain/bankSyncRows'
-import type { BankSession, BankTransaction } from '../src/apps/spending/bankSync/domain/bankAnswer'
+import type { BankSession, BankTransaction, LinkedAccount } from '../src/apps/spending/bankSync/domain/bankAnswer'
 import { fakeBankSync } from '../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync'
 import { reviewCount } from '../src/apps/spending/statements/domain/reviewQueue'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
@@ -25,6 +27,10 @@ import { ACCOUNTS, CATEGORIES, category, OTP, REVOLUT_EUR, REVOLUT_USD, row } fr
 import { civil } from './fixtures/ledger'
 
 const DAY = civil('2026-10-30')
+
+function linked(uid: string, iban: string, currency: string): LinkedAccount {
+  return { uid, iban, currency, product: null, details: null, cashAccountType: null, usage: null, identificationHash: null }
+}
 
 function bookOf(transactions: readonly Transaction[], rules: readonly SpendingRule[] = []): SpendingBook {
   return {
@@ -222,24 +228,88 @@ describe('readBanks', () => {
     bank,
     status,
     ...(reason === undefined ? {} : { reason }),
-    accounts: status === 'AUTHORIZED' ? [{ uid, iban, currency }] : [],
+    accounts: status === 'AUTHORIZED' ? [linked(uid, iban, currency)] : [],
   })
   const OTP_SESSION = session('OTP banka', 'AUTHORIZED', 'otp', OTP.iban)
   const REVOLUT_SESSION = session('Revolut', 'AUTHORIZED', 'revolut', REVOLUT_EUR.iban)
   const payeesOf = (read: BankRead): readonly string[] => read.statement.rows.map((statementRow) => statementRow.payee)
 
   it('reads each live session onto the account with its IBAN and currency, Revolut split by currency', async () => {
-    const { statement, unknown, problems } = await readBanks(port, bookOf([]), DAY)
-    expect(unknown).toEqual([])
+    const { statement, proposals, problems } = await readBanks(port, bookOf([]), DAY)
+    expect(proposals).toEqual([])
     expect(problems).toEqual([])
     expect(new Set(statement.rows.map((statementRow) => statementRow.account))).toEqual(
       new Set(ACCOUNTS.filter((account) => account.bank !== null && account.kind === 'bank').map((account) => account.id)),
     )
   })
 
-  it('lists a linked account Kuna does not keep, and reads the rest', async () => {
-    const { unknown } = await readBanks(fakeBankSync('unknown-account', DAY), bookOf([]), DAY)
-    expect(unknown.map(({ bank, account }) => [bank, account.iban])).toEqual([['otp', 'HR0000000000000000077']])
+  it('drafts a linked account Kuna does not keep, and reads the rest', async () => {
+    const { proposals, statement } = await readBanks(fakeBankSync('unknown-account', DAY), bookOf([]), DAY)
+    expect(proposals.map(({ bank, account }) => [bank, account.iban, account.currency, account.name])).toEqual([['otp', 'HR0000000000000000077', 'EUR', 'OTP EUR']])
+    expect(statement.rows.some((statementRow) => statementRow.account === proposals[0]!.account.id)).toBe(false)
+  })
+
+  it('fetches a new account from years back, holds its rows and works out its opening from the balance', async () => {
+    const asked: [string, string, boolean][] = []
+    const port = fakeBankSync('new-accounts', DAY)
+    const counting: BankSyncPort = { ...port, transactions: async (uid, from, longest) => (asked.push([uid, from, longest]), port.transactions(uid, from, longest)) }
+    const { proposals } = await readBanks(counting, bookOf([]), DAY)
+    expect(asked.filter(([uid]) => uid.startsWith('fake-revolut-new'))).toEqual([
+      ['fake-revolut-new-usd', '2021-10-26', true],
+      ['fake-revolut-new-savings', '2021-10-26', true],
+    ])
+    expect(proposals.map(({ account, opening }) => [account.name, account.kind, account.openedOn, account.opening, opening.source, opening.rows])).toEqual([
+      // 40.00 in and 12.50 out add up to the 27.50 the bank says, so it opened empty the day before its first row.
+      ['Revolut USD 0003', 'bank', civil('2026-07-01'), 0, 'start', 2],
+      // 350.00 less the one 100.00 row.
+      ['Revolut EUR savings', 'savings', civil('2026-09-30'), 25_000, 'worked', 1],
+    ])
+    expect(proposals[0]!.rows.rows.map((statementRow) => statementRow.payee)).toEqual(['Top-up', 'Bookshop in Boston'])
+  })
+
+  it('reads no account you said Kuna does not keep', async () => {
+    const asked: string[] = []
+    const port = fakeBankSync('new-accounts', DAY)
+    const book = { ...bookOf([]), settings: { ...bookOf([]).settings, bankAccountsNotInKuna: ['LT000000000000000003 USD'] } }
+    const read = await readBanks({ ...port, transactions: async (uid, from, longest) => (asked.push(uid), port.transactions(uid, from, longest)) }, book, DAY)
+    expect(asked).not.toContain('fake-revolut-new-usd')
+    expect(read.proposals.map(({ account }) => account.name)).toEqual(['Revolut EUR savings'])
+    expect(read.linked.map(({ account }) => account.uid)).toContain('fake-revolut-new-usd')
+  })
+
+  it('reads an account you said is not in Kuna once you keep an account under its IBAN and currency', async () => {
+    const book = { ...bookOf([]), settings: { ...bookOf([]).settings, bankAccountsNotInKuna: [`${REVOLUT_USD.iban} USD`] } }
+    const read = await readBanks(port, book, DAY)
+    expect(read.statement.rows.some((statementRow) => statementRow.account === REVOLUT_USD.id)).toBe(true)
+  })
+
+  it('gives two new accounts of one bank and currency different names', async () => {
+    const twoUsd: BankSyncPort = {
+      ...port,
+      sessions: async () => [{ bank: 'Revolut', status: 'AUTHORIZED', accounts: [linked('usd-1', 'LT000000000000000004', 'USD'), linked('usd-2', 'LT000000000000000005', 'USD')] }],
+      transactions: async () => [],
+      balances: async () => [],
+    }
+    const { proposals } = await readBanks(twoUsd, { ...bookOf([]), accounts: [OTP, REVOLUT_EUR] }, DAY)
+    expect(proposals.map(({ account }) => account.name)).toEqual(['Revolut USD', 'Revolut USD 0005'])
+  })
+
+  it('says nothing of older rows on the fetch just after a link, which a new link could not better', async () => {
+    const openedLongAgo: SpendingBook = { ...bookOf([]), accounts: ACCOUNTS.map((account) => ({ ...account, openedOn: civil('2026-05-01') })) }
+    const { olderRows } = await readBanks(port, openedLongAgo, DAY, ['revolut'])
+    expect(olderRows.map(({ bank }) => bank)).toEqual(['otp'])
+  })
+
+  it('says a kept account wanted older rows than the bank gave, and not when a file covers those days', async () => {
+    const openedLongAgo = (transactions: readonly Transaction[]): SpendingBook => ({ ...bookOf(transactions), accounts: ACCOUNTS.map((account) => ({ ...account, openedOn: civil('2026-05-01') })) })
+    const { olderRows } = await readBanks(port, openedLongAgo([]), DAY)
+    expect(olderRows.map(({ bank, account, reached }) => [bank, account.name, reached])).toEqual([
+      ['otp', OTP.name, civil('2026-10-28')],
+      ['revolut', REVOLUT_EUR.name, civil('2026-10-28')],
+      ['revolut', REVOLUT_USD.name, civil('2026-10-29')],
+    ])
+    const covered = await readBanks(port, openedLongAgo([fileRow(1, '2026-10-20')]), DAY)
+    expect(covered.olderRows.map(({ account }) => account.name)).not.toContain(OTP.name)
   })
 
   it('keeps the other bank when the script could not ask one, and says why', async () => {
@@ -250,7 +320,7 @@ describe('readBanks', () => {
     }
     const read = await readBanks(failing, bookOf([]), DAY)
     expect(payeesOf(read)).toEqual(['Corner bakery'])
-    expect(read.problems).toEqual(['OTP banka did not answer, so its rows wait for a later sync: Enable Banking answered 429: ASPSP_RATE_LIMIT_EXCEEDED'])
+    expect(read.problems).toEqual(['OTP did not answer, so its rows wait for a later sync: Enable Banking answered 429: ASPSP_RATE_LIMIT_EXCEEDED'])
     expect(read.ended).toEqual([])
   })
 
@@ -265,7 +335,7 @@ describe('readBanks', () => {
     }
     const read = await readBanks(failing, bookOf([]), DAY)
     expect(payeesOf(read)).toEqual(['Corner bakery'])
-    expect(read.problems).toEqual(['OTP banka did not answer, so its rows wait for a later sync: The bank sync script did not answer: ASPSP_ERROR'])
+    expect(read.problems).toEqual(['OTP did not answer, so its rows wait for a later sync: The bank sync script did not answer: ASPSP_ERROR'])
   })
 
   it("lets Google's 401 through, which the page's sync turns into asking for access", async () => {
@@ -308,10 +378,7 @@ describe('readBanks', () => {
         {
           bank: 'Revolut',
           status: 'AUTHORIZED',
-          accounts: [
-            { uid: 'current', iban: REVOLUT_EUR.iban, currency: 'EUR' },
-            { uid: 'pocket', iban: REVOLUT_EUR.iban, currency: 'EUR' },
-          ],
+          accounts: [linked('current', REVOLUT_EUR.iban, 'EUR'), linked('pocket', REVOLUT_EUR.iban, 'EUR')],
         },
         OTP_SESSION,
       ],
@@ -324,7 +391,12 @@ describe('readBanks', () => {
 
   it('sends a linked account to the current account when a savings account keeps the same IBAN', async () => {
     const savings = { ...REVOLUT_EUR, id: recordIdOf(ACCOUNT_RECORDS, 'a0000000-0000-4000-8000-000000000009'), name: 'Pocket', kind: 'savings' as const }
-    expect(accountsOfLinked({ uid: 'u', iban: REVOLUT_EUR.iban, currency: 'EUR' }, 'revolut', [savings, REVOLUT_EUR])).toEqual([REVOLUT_EUR])
+    expect(accountsOfLinked(linked('u', REVOLUT_EUR.iban, 'EUR'), [savings, REVOLUT_EUR])).toEqual([REVOLUT_EUR])
+  })
+
+  it('sends a linked account to an account typed with a blank bank, since the IBAN already names it', () => {
+    const typed = { ...REVOLUT_EUR, bank: null }
+    expect(accountsOfLinked(linked('u', REVOLUT_EUR.iban, 'EUR'), [typed])).toEqual([typed])
   })
 
   it('asks plainly for recent rows, two weeks back of the newest row, and for all it can have the first time', async () => {

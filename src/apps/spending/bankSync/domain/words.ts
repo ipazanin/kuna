@@ -1,9 +1,13 @@
+import type { LinkableBank } from '../../workbook/domain/spendingSettings'
 import { language } from '../../../../shared/text/language'
 import type { CroatianForms, EnglishForms, Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence.
 
 export const en = {
+  banks: { otp: 'OTP', revolut: 'Revolut' } satisfies Record<LinkableBank, string>,
+  /** The name a drafted account is stored under. */
+  draftName: (bank: LinkableBank, currency: string, savings: boolean) => `${en.banks[bank]} ${currency}${savings ? ' savings' : ''}`,
   pendingLeftOut: (count: number, account: string): EnglishForms => ({
     one: `1 pending row of ${account} left out. It comes once it is booked.`,
     other: `${count} pending rows of ${account} left out. They come once they are booked.`,
@@ -17,7 +21,6 @@ export const en = {
     one: `1 row of ${account} left out, since its day or amount cannot be read.`,
     other: `${count} rows of ${account} left out, since their day or amount cannot be read.`,
   }),
-  balanceDiffers: (account: string, stated: string, worked: string) => `${account}: the bank says ${stated} and Kuna works out ${worked}, so a row may be missing or the opening balance may be wrong.`,
   balanceNotRead: (accounts: string, reason: string) => `The balance of ${accounts} was not checked, since the bank did not give it: ${reason}`,
   sameAccountTwice: (bank: string, account: string) => `${bank} has more than one account that fits ${account}, so none of them was read.`,
   didNotAnswer: (reason: string) => `The bank sync script did not answer: ${reason}`,
@@ -30,6 +33,8 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
+  banks: { otp: 'OTP', revolut: 'Revolut' },
+  draftName: (bank, currency, savings) => `${hr.banks[bank]} ${currency}${savings ? ' štednja' : ''}`,
   pendingLeftOut: (count, account): CroatianForms => ({
     one: `Izostavljeno transakcija na čekanju računa ${account}: ${count}. Stiže kad se proknjiži.`,
     few: `Izostavljeno transakcija na čekanju računa ${account}: ${count}. Stižu kad se proknjiže.`,
@@ -50,11 +55,10 @@ export const hr: Translation<typeof en> = {
     few: `Izostavljeno redaka računa ${account} kojima se ne mogu pročitati dan ili iznos: ${count}.`,
     other: `Izostavljeno redaka računa ${account} kojima se ne mogu pročitati dan ili iznos: ${count}.`,
   }),
-  balanceDiffers: (account, stated, worked) => `${account}: banka navodi ${stated}, a Kuna računa ${worked}, pa možda neki redak nedostaje ili početno stanje nije točno.`,
   balanceNotRead: (accounts, reason) => `Stanje računa ${accounts} nije provjereno jer ga banka nije dala: ${reason}`,
   sameAccountTwice: (bank, account) => `${bank} ima više računa koji odgovaraju računu ${account}, pa nijedan nije pročitan.`,
   didNotAnswer: (reason) => `Skripta za sinkronizaciju s bankom nije odgovorila: ${reason}`,
-  bankFailed: (bank, reason) => `${bank} nije odgovorila, pa njezini retci čekaju sljedeću sinkronizaciju: ${reason}`,
+  bankFailed: (bank, reason) => `Banka ${bank} nije odgovorila, pa njezini retci čekaju sljedeću sinkronizaciju: ${reason}`,
   sessionEnded: (bank) => `Veza s bankom ${bank} prekinuta je prije roka. Povežite je ponovno.`,
   noFile: 'Datoteka potrošnje još nije otvorena.',
   imported: 'Retci iz banke uvezeni',

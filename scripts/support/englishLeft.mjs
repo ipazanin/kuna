@@ -368,6 +368,11 @@ export const ENGLISH_ALLOWED = [
     pattern: /^(ALL|TOP|TRY)$/gu,
   },
   {
+    name: "a bank's description of an account",
+    reason: 'The IBAN, product and description a bank gives an account are shown as the bank sends them, and the fake banks send English.',
+    selector: '[data-testid="spending-bank-account-about"]',
+  },
+  {
     name: 'what the model wrote',
     reason: "A suggestion's reason and an answer's parts are the model's own words, shown as they came, and the fake model answers in English.",
     selector: '[data-testid="review-suggestion-why"], [data-testid="cited-text"], [data-testid="cited-own-text"]',

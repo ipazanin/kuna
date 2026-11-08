@@ -135,7 +135,7 @@ describe('the bank sync script', () => {
     )
     expect(run('accounts')).toEqual([
       { bank: 'OTP banka', status: 'FAILED', reason: 'Enable Banking answered 429: ASPSP_RATE_LIMIT_EXCEEDED Too many', accounts: [] },
-      { bank: 'Revolut', status: 'AUTHORIZED', accounts: [{ uid: 'u1', iban: 'LT000000000000000001', currency: 'XXX' }] },
+      { bank: 'Revolut', status: 'AUTHORIZED', accounts: [expect.objectContaining({ uid: 'u1', iban: 'LT000000000000000001', currency: 'XXX' })] },
     ])
   })
 
@@ -148,10 +148,39 @@ describe('the bank sync script', () => {
       },
       { 'SESSION Revolut': 'live', 'SESSION OTP banka': 'over' },
     )
+    const none = { product: null, details: null, cashAccountType: null, usage: null, identificationHash: null }
     expect(run('accounts')).toEqual([
-      { bank: 'Revolut', status: 'AUTHORIZED', accounts: [{ uid: 'u1', iban: 'LT000000000000000001', currency: 'XXX' }] },
+      { bank: 'Revolut', status: 'AUTHORIZED', accounts: [{ uid: 'u1', iban: 'LT000000000000000001', currency: 'XXX', ...none }] },
       { bank: 'OTP banka', status: 'EXPIRED', accounts: [] },
     ])
+  })
+
+  it("hands over the bank's description of an account and never the holder's name", () => {
+    const { run } = script(
+      ({ url }) => {
+        if (url.endsWith('/sessions/live')) return { status: 'AUTHORIZED', access: { valid_until: '2027-05-03' }, accounts: ['u1'] }
+        return {
+          account_id: { iban: 'LT000000000000000001' },
+          currency: 'USD',
+          name: 'Made-up Owner',
+          product: 'Savings',
+          details: 'Trip',
+          cash_account_type: 'SVGS',
+          usage: 'PRIV',
+          identification_hash: 'made-up-hash',
+        }
+      },
+      { 'SESSION Revolut': 'live' },
+    )
+    const answer = run('accounts')
+    expect(answer).toEqual([
+      {
+        bank: 'Revolut',
+        status: 'AUTHORIZED',
+        accounts: [{ uid: 'u1', iban: 'LT000000000000000001', currency: 'USD', product: 'Savings', details: 'Trip', cashAccountType: 'SVGS', usage: 'PRIV', identificationHash: 'made-up-hash' }],
+      },
+    ])
+    expect(JSON.stringify(answer)).not.toContain('Made-up Owner')
   })
 
   it('follows continuation_key through an empty page until none is named, keeping the other parameters', () => {

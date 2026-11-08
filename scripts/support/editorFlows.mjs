@@ -6303,30 +6303,59 @@ async function waitForTextIn(page, selector, text) {
   )
 }
 
-/** On Settings, Bank sync with both banks linked: the last sync's rows, the one a file brought skipped and the account Kuna does not keep listed. */
+/** On Settings, Bank sync with both banks linked: the last sync's rows, the one a file brought skipped, and the account Kuna does not keep offered in the setup list. */
 export function spendingBankSyncRowsFlowIn(language) {
   const words = SCREEN_WORDS[language]
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-result"]')
     await waitForTextIn(page, '[data-testid="spending-bank-sync-notes"] li', words.spendingStatementReading.coveredByFile(1, 'OTP current', '').one)
-    await page.waitForSelector('[data-testid="spending-bank-sync-unknown"]', { visible: true, timeout: 5_000 })
+    await page.waitForSelector('[data-testid="spending-bank-account"][data-kind="missing"]', { visible: true, timeout: 5_000 })
     await delay(300)
     await inspect?.('the bank sync with rows a file brought')
     await shoot('spending-import-bank-sync')
   }
 }
 
-/** On Settings, Bank sync when Revolut states a balance Kuna does not reach: the note about it, with the rows in. */
+/** On Settings, Bank sync when OTP states a balance Kuna does not reach while it holds a pending row: the note, with no opening offered. */
 export function spendingBankSyncBalanceFlowIn(language) {
   const words = SCREEN_WORDS[language]
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-result"]')
-    await waitForTextIn(page, '[data-testid="spending-bank-sync-notes"] li', words.spendingBankSyncReading.balanceDiffers('Revolut EUR', '|', '').split('|')[0])
+    await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-difference"]')
+    await waitForTextIn(page, '[data-testid="spending-bank-sync-difference"]', words.spendingBankSync.pendingNoFix)
+    if ((await page.$('[data-testid="spending-bank-sync-set-opening"]')) !== null) throw new Error('the opening is offered while pending rows may explain the difference')
     await delay(300)
     await inspect?.('the bank sync when a balance differs')
     await shoot('spending-bank-sync-balance')
+  }
+}
+
+/**
+ * On Settings, Bank sync, the setup list after a fetch: shoots it under `shot`, then when `tap` names a button, taps the
+ * first, waits for the toast `done` names, shoots it under `shot` and `after` when that is given, and takes it back.
+ */
+export function spendingBankSyncSetupFlowIn(language, shot, { waitFor, tap = null, done = null, after = null }) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-setup"]')
+    await page.waitForSelector(waitFor, { visible: true, timeout: 5_000 })
+    await dismissToasts(page)
+    // Below the top bar and the tabs, which stay on screen.
+    await page.$eval('[data-testid="spending-bank-sync-setup"]', (card) => window.scrollTo({ top: card.getBoundingClientRect().top + window.scrollY - 140 }))
+    await delay(300)
+    await inspect?.(`the setup list for ${shot}`)
+    await shoot(shot)
+    if (tap === null) return
+    await pressSelector(page, press, tap)
+    await toast(page, done(words.spendingBankSync))
+    if (after !== null) {
+      await delay(300)
+      await shoot(after)
+    }
+    await undoIn(page, press, words)
+    await dismissToasts(page)
   }
 }
 

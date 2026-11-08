@@ -169,9 +169,10 @@ import { receiptMatches } from '../src/apps/spending/receipts/domain/receiptMatc
 import { SAMPLE_RECEIPT_TOTALS } from '../src/apps/spending/receipts/infrastructure/fake/sampleReceiptPhoto.ts'
 import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement.ts'
 import { reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue.ts'
-import { readBanks } from '../src/apps/spending/bankSync/application/bankSync.ts'
+import { readBanks } from '../src/apps/spending/bankSync/application/bankRead.ts'
+import { balanceDifferences } from '../src/apps/spending/bankSync/domain/bankBalance.ts'
 import { fakeBankSync } from '../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync.ts'
-import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun.ts'
+import { rowsAfterDryRun, statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun.ts'
 import { SAMPLE_REVOLUT_FILE_NAME, sampleRevolutCsv } from '../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles.ts'
 import { readFirstSheet } from '../src/shared/xlsx/sheetGrids.ts'
 import { ratesStateOf } from '../src/apps/spending/rates/domain/ratesState.ts'
@@ -701,6 +702,14 @@ async function spendingGroups(add) {
         return statementDryRun(book, bankRead.statement, today, () => `fa4e3000-0000-4000-8000-${String((place += 1)).padStart(12, '0')}`)
       })
     }
+    // The accounts a link drafts, each with the opening its bank's rows and balance give, and the opening a differing balance offers.
+    let drafted = 0
+    const proposed = await readBanks(fakeBankSync('new-accounts', today), workbook, today, [], () => `account:fa4e3100-0000-4000-8000-${String((drafted += 1)).padStart(12, '0')}`)
+    add('spending.import.bank-sync.new-accounts', () => proposed.proposals.map(({ account, opening }) => [account, opening]))
+    const offBy = await readBanks(fakeBankSync('opening-off', today), workbook, today)
+    let row = 0
+    const offByRun = statementDryRun(workbook, offBy.statement, today, () => `fa4e3200-0000-4000-8000-${String((row += 1)).padStart(12, '0')}`)
+    add('spending.import.bank-sync.opening-off', () => balanceDifferences(offBy.stated, rowsAfterDryRun(workbook.transactions, offByRun), today))
   }
   if (options['fake-spending'] === 'receipts') {
     add('spending.receipts.matches', () => Object.values(SAMPLE_RECEIPT_TOTALS).map((total) => receiptMatches({ merchant: '', issuedOn: today, total }, workbook)))

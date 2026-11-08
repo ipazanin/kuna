@@ -56,17 +56,16 @@ The script and Kuna's OAuth client must share one standard Cloud project, so use
 Set aside a quiet quarter of an hour. Revolut gives more than 90 days only for 5 minutes after you approve, and the fetch writes straight to the file.
 
 1. Import your last Revolut file first, as recent as you can, and any other file you still mean to bring in. The sync takes over the day after a file's last row, for each account. Rows on or before that day are left out and the result says how many.
-2. Give each Spending account its real IBAN, and the opening day and opening balance it should start from. An account that does not match by IBAN and currency is not fetched, and is listed with Add an account.
-3. On Spending, Settings, Bank sync, paste the deployment ID and tap Save. Google asks for the one new permission.
-4. Tap Link Revolut and approve. Tap Finish linking at once if it shows, which Firefox may need. Kuna then fetches by itself.
-5. Read the result: what is new, what was left out, and any balance note. Undo there if it looks wrong. A fetch after Undo reaches back only 90 days.
-6. Tap Link OTP and do the same. Its page asks for your token's serial number first.
-7. In the script's editor, pick `logBankFields` from the function list and press Run. The execution log shows, for each linked account, the names of the fields Enable Banking returned and how many rows carry each, a count of each fixed bank code such as `status BOOK`, and no value. Copy it for the checks below.
-8. Add a calendar reminder at day 165 of the 180. Kuna's home card warns from day 166, but only when you open it.
+2. On Spending, Settings, Bank sync, paste the deployment ID and tap Save. Google asks for the one new permission.
+3. Tap Link Revolut and approve. Tap Finish linking at once if it shows, which Firefox may need. Kuna then fetches every account the bank gives, including those it does not keep yet.
+4. Read the result. An account Kuna keeps matches by IBAN and currency. Each one it does not keep is listed with a drafted name, kind and opening worked out from the bank's balance and rows, and Add, Add all or Leave out. An account that has the IBAN but other details offers Update account, or Keep mine to stop asking. The rows wait in the page until you tap, so add them before you reload. Undo there if it looks wrong. A fetch after Undo reaches back only 90 days.
+5. Tap Link OTP and do the same. Its page asks for your token's serial number first.
+6. In the script's editor, pick `logBankFields` from the function list and press Run. The execution log shows, for each linked account, the names of the fields Enable Banking returned and how many rows carry each, a count of each fixed bank code such as `status BOOK`, and no value. Copy it for the checks below.
+7. Add a calendar reminder at day 165 of the 180. Kuna's home card warns from day 166, but only when you open it.
 
 The sync step then runs with the page's sync, and leaves the banks alone for six hours on one device after they last answered, since many banks allow four unattended fetches a day. Sync now and the fetch after a link tell the bank you are there, which lifts that limit. A bank that fails or a link that ended early shows as a line on the step and on Settings, and the other bank's rows still come. The home card says so from 14 days before a link's 180 days run out, and Link again starts it over.
 
-Each fetch reads the balance too, and a note says so when the bank's differs from Kuna's. That is how rows lost after 90 days away or a wrong opening balance show up.
+Each fetch reads the balance too, and a note says so when the bank's differs from Kuna's, with Set the opening to the amount that makes them agree. A row missing in the middle shows the same way, so check the rows before you tap it. When a fetch wanted rows older than 90 days and the bank gave none, a note says to link that bank again.
 
 ## Ending a link
 
@@ -74,7 +73,7 @@ Removing Kuna at Google does not end a bank link. Withdraw the consent at your b
 
 ## After changing the code
 
-Deploy, Manage deployments, edit the deployment and pick New version. The deployment ID stays the same.
+Deploy, Manage deployments, edit the deployment and pick New version. The deployment ID stays the same. Until a new version is deployed, Kuna drafts every new account as a current account, since the old script does not say which are savings.
 
 ## What to check on the first run
 

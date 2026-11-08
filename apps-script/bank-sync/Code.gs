@@ -68,9 +68,19 @@ function accounts(psuUserAgent) {
     })
 }
 
+/** What Kuna drafts an account from. Never `name`, which Enable Banking fills with the holder's own name. */
 function accountOf_(uid, psuUserAgent) {
   const details = call_('get', `/accounts/${uid}/details`, { psuUserAgent })
-  return { uid, iban: details.account_id?.iban ?? '', currency: details.currency }
+  return {
+    uid,
+    iban: details.account_id?.iban ?? '',
+    currency: details.currency,
+    product: details.product ?? null,
+    details: details.details ?? null,
+    cashAccountType: details.cash_account_type ?? null,
+    usage: details.usage ?? null,
+    identificationHash: details.identification_hash ?? null,
+  }
 }
 
 /** Every page of an account's transactions from the day. A page may be empty and still name a next one, so only a missing key ends the list. */

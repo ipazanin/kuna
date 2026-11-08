@@ -70,15 +70,20 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
   const queueKey = (key: string): string => (key === SAVE_KEY ? ownSaveKey : key)
   const saving: WriteSaving = (key) => store.state.waiting.some((waiting) => waiting.keys.includes(queueKey(key)))
 
-  /** Says which write failed and why. Writes that fail on Drive share one toast, since a queue offline would otherwise say the same sentence once for each. */
-  function refused(title: string, failure: unknown, writeTitle: string): void {
+  /**
+   * Says why a write failed. Writes that fail on Drive share one toast that names each, since a queue offline would otherwise
+   * say the same sentence once for each. A refused write gives its reason under the title alone, since its title says what it
+   * would have done. A write that may not have finished and an undo name the write.
+   */
+  function refused(title: string, failure: unknown, writeTitle: string, naming: 'drive-only' | 'always'): void {
     const shared = { title, icon: 'i-lucide-triangle-alert', color: 'error' as const, duration: UNDO_TOAST_DURATION }
     if (failedOnDrive(failure)) {
       titlesFailedOnDrive = toast.toasts.value.some((shown) => shown.id === DRIVE_FAILED_TOAST) ? [...titlesFailedOnDrive, writeTitle] : [writeTitle]
       toast.add({ ...shared, id: DRIVE_FAILED_TOAST, description: `${titlesFailedOnDrive.join(', ')}: ${words.driveFailed}` })
       return
     }
-    toast.add({ ...shared, description: `${writeTitle}: ${failure instanceof Error ? failure.message : String(failure)}` })
+    const reason = failure instanceof Error ? failure.message : String(failure)
+    toast.add({ ...shared, description: naming === 'always' ? `${writeTitle}: ${reason}` : reason })
   }
 
   async function undo(write: SessionWrite): Promise<void> {
@@ -89,7 +94,7 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
       const description = write.shownAtOnce ? write.receipt.title : undone === undefined ? null : recordsChangeInWords(undone.receipt, undone.undid)
       toast.add({ title: words.undone, ...(description === null ? {} : { description }), icon: 'i-lucide-undo-2', color: 'neutral' })
     } catch (failure) {
-      refused(words.notUndone, failure, write.receipt.title)
+      refused(words.notUndone, failure, write.receipt.title, 'always')
     } finally {
       running.value -= 1
     }
@@ -124,7 +129,8 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
       return true
     } catch (failure) {
       // Any other failure may come after the file took the save, such as an edit from outside the app during it.
-      refused(failure instanceof WorkbookWriteRefused ? (options.failedTitle ?? words.nothingWritten) : words.mayNotHaveFinished, failure, title)
+      if (failure instanceof WorkbookWriteRefused) refused(options.failedTitle ?? words.nothingWritten, failure, title, 'drive-only')
+      else refused(words.mayNotHaveFinished, failure, title, 'always')
       return false
     } finally {
       running.value -= 1

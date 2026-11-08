@@ -8,9 +8,9 @@ import type { Receipt } from '../../domain/receipt'
 import type { ReceiptLine } from '../../domain/receiptLine'
 import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../../domain/spendingKinds'
 import type { SpendingRule } from '../../domain/spendingRule'
-import { BANK_SYNC_DEPLOYMENT_KEY, bankLinkKey } from '../../domain/spendingSettings'
+import { BANK_ACCOUNTS_NOT_IN_KUNA_KEY, BANK_SYNC_DEPLOYMENT_KEY, bankLinkKey } from '../../domain/spendingSettings'
 import { NO_BANK_FACTS } from '../../domain/transaction'
-import { FAKE_POCKET_IBAN } from '../../../bankSync/infrastructure/fake/fakeBankSync'
+import { FAKE_NEW_USD_IBAN, FAKE_POCKET_IBAN } from '../../../bankSync/infrastructure/fake/fakeBankSync'
 import type { Transaction } from '../../domain/transaction'
 import { spendingDocumentOf } from '../spendingDocument'
 import { SAMPLE_RECEIPT_TOTALS } from '../../../receipts/infrastructure/fake/sampleReceiptPhoto'
@@ -271,15 +271,41 @@ function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { re
   }
 }
 
+/** The variants of `?banksync=` that hold a saved script and both banks linked for months yet. */
+const LINKED_VARIANTS: readonly string[] = [
+  'linked',
+  'failed',
+  'unknown-account',
+  'otp-failed',
+  'ended',
+  'balance-differs',
+  'opening-off',
+  'exchange',
+  'pocket',
+  'multi-currency',
+  'new-accounts',
+  'new-pending',
+  'not-in-kuna',
+  'iban-blank',
+  'kind-differs',
+  'settled',
+]
+
 /**
- * The bank sync's settings as `?banksync=` names them: `saved` a saved script with no link, `linked`, `failed`,
- * `unknown-account`, `otp-failed`, `ended`, `balance-differs`, `exchange` and `pocket` both banks linked for months yet, and `ending` OTP's link with 13 days left. Any other variant holds none.
+ * The bank sync's settings as `?banksync=` names them: `saved` a saved script with no link, each of `LINKED_VARIANTS` both
+ * banks linked for months yet, `not-in-kuna` with the dollar account `new-accounts` adds left out, and `ending` OTP's link
+ * with 13 days left. Any other variant holds none.
  */
 function fakeBankSyncSettings(variant: string | null, day: CivilDate): readonly SettingRow[] {
-  if (variant === null || !['saved', 'linked', 'ending', 'failed', 'unknown-account', 'otp-failed', 'ended', 'balance-differs', 'exchange', 'pocket'].includes(variant)) return []
+  if (variant === null || (variant !== 'saved' && variant !== 'ending' && !LINKED_VARIANTS.includes(variant))) return []
   const deployment = settingRow(SETTING_RECORDS, BANK_SYNC_DEPLOYMENT_KEY, 'AKfycb-fake-deployment')
   if (variant === 'saved') return [deployment]
-  return [deployment, settingRow(SETTING_RECORDS, bankLinkKey('otp'), addDays(day, variant === 'ending' ? 13 : 120)), settingRow(SETTING_RECORDS, bankLinkKey('revolut'), addDays(day, 120))]
+  return [
+    deployment,
+    settingRow(SETTING_RECORDS, bankLinkKey('otp'), addDays(day, variant === 'ending' ? 13 : 120)),
+    settingRow(SETTING_RECORDS, bankLinkKey('revolut'), addDays(day, 120)),
+    ...(variant === 'not-in-kuna' ? [settingRow(SETTING_RECORDS, BANK_ACCOUNTS_NOT_IN_KUNA_KEY, `${FAKE_NEW_USD_IBAN} USD`)] : []),
+  ]
 }
 
 export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sample', day: CivilDate = today(), bankSync: string | null = null): WorkbookDocument {
@@ -290,7 +316,18 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
   const accounts: readonly Account[] = [
     { id: OTP, name: 'OTP current', kind: 'bank', bank: 'otp', currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, iban: 'HR0000000000000000001', closed: false },
     { id: REVOLUT_EUR, name: 'Revolut EUR', kind: 'bank', bank: 'revolut', currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, iban: 'LT000000000000000001', closed: false },
-    { id: REVOLUT_USD, name: 'Revolut USD', kind: 'bank', bank: 'revolut', currency: USD, opening: ZERO_ACCOUNT_MONEY, openedOn, iban: 'LT000000000000000001', closed: false },
+    // `iban-blank` keeps it as typed by hand without its IBAN, which the bank sync then offers to fill.
+    {
+      id: REVOLUT_USD,
+      name: 'Revolut USD',
+      kind: 'bank',
+      bank: 'revolut',
+      currency: USD,
+      opening: ZERO_ACCOUNT_MONEY,
+      openedOn,
+      iban: bankSync === 'iban-blank' ? '' : 'LT000000000000000001',
+      closed: false,
+    },
     { id: CASH, name: 'Cash', kind: 'cash', bank: null, currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, iban: '', closed: false },
     ...(bankSync === 'pocket'
       ? [

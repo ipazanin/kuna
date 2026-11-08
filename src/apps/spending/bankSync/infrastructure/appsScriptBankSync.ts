@@ -1,6 +1,6 @@
 import { BankScriptFailure } from '../application/bankSync'
 import type { BankSyncPort } from '../application/bankSync'
-import type { BankBalance, BankSession, BankTransaction } from '../domain/bankAnswer'
+import type { BankBalance, BankSession, BankTransaction, LinkedAccount } from '../domain/bankAnswer'
 import { words } from '../domain/words'
 import { googleFetch, isUnauthorized } from '../../../../shared/google/googleApi'
 
@@ -10,6 +10,27 @@ const SCRIPT_API = 'https://script.googleapis.com/v1/scripts'
 interface RunAnswer {
   readonly response?: { readonly result?: unknown }
   readonly error?: { readonly message?: string; readonly details?: readonly { readonly errorMessage?: string }[] }
+}
+
+/** A linked account as a script answers it. One deployed before the script returned the bank's descriptions leaves them out. */
+type AnsweredAccount = Pick<LinkedAccount, 'uid' | 'iban' | 'currency'> & Partial<LinkedAccount>
+
+type AnsweredSession = Omit<BankSession, 'accounts'> & { readonly accounts?: readonly AnsweredAccount[] }
+
+function sessionOf({ accounts, ...session }: AnsweredSession): BankSession {
+  return {
+    ...session,
+    accounts: (accounts ?? []).map((account) => ({
+      uid: account.uid,
+      iban: account.iban,
+      currency: account.currency,
+      product: account.product ?? null,
+      details: account.details ?? null,
+      cashAccountType: account.cashAccountType ?? null,
+      usage: account.usage ?? null,
+      identificationHash: account.identificationHash ?? null,
+    })),
+  }
 }
 
 /** The bank sync script, called with the page's Google token through the Apps Script API. `psuUserAgent` is the browser's on a fetch a person started, and goes with each call that reads a bank. */
@@ -37,7 +58,7 @@ export function appsScriptBankSync(deployment: string, tokenFor: () => string, p
     startLink: async (bankName, redirectUrl, state) => (await run<{ readonly url: string }>('startLink', [bankName, redirectUrl, state])).url,
     finishLink: async (code) => (await run<{ readonly validUntil: string }>('finishLink', [code])).validUntil,
     // Google's page does not say whether an empty list comes back as `[]` or as no result at all.
-    sessions: async () => (await run<readonly BankSession[] | undefined>('accounts', present)) ?? [],
+    sessions: async () => ((await run<readonly AnsweredSession[] | undefined>('accounts', present)) ?? []).map(sessionOf),
     transactions: async (accountUid, from, longest) => (await run<readonly BankTransaction[] | undefined>('transactions', [accountUid, from, longest ? 'longest' : 'default', ...present])) ?? [],
     balances: async (accountUid) => (await run<readonly BankBalance[] | undefined>('balances', [accountUid, ...present])) ?? [],
   }

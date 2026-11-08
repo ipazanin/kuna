@@ -33,12 +33,22 @@ export interface BankBalance {
   readonly type: string
 }
 
-/** One account a session reaches. */
+/** One account a session reaches. The fields after `currency` are null in an answer from a script deployed before it returned them. */
 export interface LinkedAccount {
   readonly uid: string
   readonly iban: string
   /** `XXX` for a multi-currency account, or one whose bank names no currency. */
   readonly currency: string
+  /** The bank's own name for the kind of account, such as a product's name. */
+  readonly product: string | null
+  /** A description the person or the bank set on the account. */
+  readonly details: string | null
+  /** Enable Banking's `cash_account_type`, such as `CACC` for a current account or `SVGS` for savings. */
+  readonly cashAccountType: string | null
+  /** Enable Banking's `usage`, `PRIV` or `ORGA`. */
+  readonly usage: string | null
+  /** Enable Banking's `identification_hash`, which names the account across sessions when it has no IBAN. */
+  readonly identificationHash: string | null
 }
 
 /** One bank's approval as the script holds it. */

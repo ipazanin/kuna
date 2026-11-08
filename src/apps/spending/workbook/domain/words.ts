@@ -29,7 +29,8 @@ export const en = {
   ibanOnCash: 'iban is for a bank or savings account, not cash',
   notAFlag: (name: string, text: string) => `${name} "${text}" is neither true nor false`,
   notAWholeNumber: (name: string, text: string) => `${name} "${text}" is not a whole number`,
-  ibanShared: (iban: string, currency: string) => `another account in ${currency} has the IBAN ${iban} too`,
+  ibanShared: (iban: string, currency: string) =>
+    `another account in ${currency} has the IBAN ${iban} too. A bank such as Revolut gives each currency its own account under one IBAN, so give this one the currency it holds`,
   fixedWithParent: 'a fixed category has no parent',
   fixedShared: (kind: string) => `another category is of kind ${kind} too. Each of transfer, saving and company is one category`,
   noParent: 'names a parent that is not in the file',
@@ -63,6 +64,7 @@ export const en = {
   siblingLineLeftOut: 'another line of its entry is left out, so the entry counts under its own category',
   linesDoNotAddUp: (sum: string, amount: string) => `the lines of its entry add up to ${sum}, and the entry says ${amount}`,
   settingNotADay: (key: string, text: string) => `${key} "${text}" is not a date such as 2027-05-03`,
+  settingNotABankAccount: (key: string, line: string) => `${key} line "${line}" is not an IBAN and a currency such as LT000000000000000001 USD`,
 }
 
 export const hr: Translation<typeof en> = {
@@ -73,7 +75,8 @@ export const hr: Translation<typeof en> = {
   ibanOnCash: 'iban vrijedi za bankovni ili štedni račun, ne za gotovinu',
   notAFlag: (name, text) => `${name} „${text}” nije ni true ni false`,
   notAWholeNumber: (name, text) => `${name} „${text}” nije cijeli broj`,
-  ibanShared: (iban, currency) => `i drugi račun u valuti ${currency} ima IBAN ${iban}`,
+  ibanShared: (iban, currency) =>
+    `i drugi račun u valuti ${currency} ima IBAN ${iban}. Banka kao Revolut daje svakoj valuti zaseban račun pod istim IBAN-om, pa postavite valutu u kojoj se ovaj račun vodi`,
   fixedWithParent: 'stalna kategorija nema nadređenu',
   fixedShared: (kind) => `i druga kategorija je vrste „${kind}”. Svaka od vrsta „transfer”, „saving” i „company” jedna je kategorija`,
   noParent: 'navodi nadređenu kategoriju koje nema u datoteci',
@@ -105,6 +108,7 @@ export const hr: Translation<typeof en> = {
   siblingLineLeftOut: 'druga stavka njezina unosa je izostavljena, pa se unos broji pod svojom kategorijom',
   linesDoNotAddUp: (sum, amount) => `stavke njezina unosa daju ${sum}, a na unosu piše ${amount}`,
   settingNotADay: (key, text) => `${key} „${text}” nije datum kao 2027-05-03`,
+  settingNotABankAccount: (key, line) => `${key} redak „${line}” nije IBAN i valuta kao LT000000000000000001 USD`,
 }
 
 /** A stored month as Croatian names it, or the text as it is when it is no month. */

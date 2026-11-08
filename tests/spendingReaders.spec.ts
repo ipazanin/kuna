@@ -150,8 +150,16 @@ describe('problems in the Spending file, listed by kind', () => {
 
     expect(book.accounts.map((account) => account.name)).toEqual(['OTP current', 'Revolut EUR', 'Revolut USD', 'Cash', 'Revolut EUR again'])
     expect(book.problems.map((problem) => [problem.kind, problem.label, problem.reason])).toEqual([
-      ['account', 'Revolut EUR', 'another account in EUR has the IBAN LT000000000000000001 too'],
-      ['account', 'Revolut EUR again', 'another account in EUR has the IBAN LT000000000000000001 too'],
+      [
+        'account',
+        'Revolut EUR',
+        'another account in EUR has the IBAN LT000000000000000001 too. A bank such as Revolut gives each currency its own account under one IBAN, so give this one the currency it holds',
+      ],
+      [
+        'account',
+        'Revolut EUR again',
+        'another account in EUR has the IBAN LT000000000000000001 too. A bank such as Revolut gives each currency its own account under one IBAN, so give this one the currency it holds',
+      ],
     ])
   })
 

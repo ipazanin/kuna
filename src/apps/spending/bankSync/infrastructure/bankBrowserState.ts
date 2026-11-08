@@ -1,3 +1,4 @@
+import type { LinkedOfBank } from '../domain/bankAccountSetup'
 import { bankReturnOf, searchWithoutReturn } from '../domain/bankReturn'
 import type { BankReturnNote, PendingLink } from '../domain/bankReturn'
 import { LINKABLE_BANKS } from '../../workbook/domain/spendingSettings'
@@ -38,20 +39,39 @@ export function savePendingLink(pending: PendingLink | null): void {
   write(PENDING_KEY, pending)
 }
 
-/** When this device's last fetch got an answer, and what it left wanting, which the step repeats while it holds back. */
+/**
+ * When this device's last fetch got an answer, and what it left wanting, which the step repeats while it holds back. The
+ * linked accounts are kept apart from the lines, so the step can leave out one that has been added since. Of each account
+ * the browser keeps only what names it, so the bank's product and the description the person set stay out.
+ */
 export interface LastFetch {
   /** Epoch milliseconds. */
   readonly at: number
   readonly problems: readonly string[]
+  readonly linked: readonly LinkedOfBank[]
+}
+
+function linkedOf(candidate: unknown): LinkedOfBank | null {
+  const { bank, account } = (candidate ?? {}) as Partial<LinkedOfBank>
+  if (!LINKABLE_BANKS.some((linkable) => linkable === bank) || account === undefined || typeof account.uid !== 'string' || typeof account.iban !== 'string' || typeof account.currency !== 'string')
+    return null
+  const hash = typeof account.identificationHash === 'string' ? account.identificationHash : null
+  return { bank: bank!, account: { uid: account.uid, iban: account.iban, currency: account.currency, product: null, details: null, cashAccountType: null, usage: null, identificationHash: hash } }
 }
 
 export function loadLastFetch(): LastFetch | null {
   const candidate = read(FETCHED_KEY) as Partial<LastFetch> | null
-  return candidate !== null && typeof candidate.at === 'number' ? { at: candidate.at, problems: Array.isArray(candidate.problems) ? candidate.problems.map(String) : [] } : null
+  if (candidate === null || typeof candidate.at !== 'number') return null
+  return {
+    at: candidate.at,
+    problems: Array.isArray(candidate.problems) ? candidate.problems.map(String) : [],
+    linked: Array.isArray(candidate.linked) ? candidate.linked.flatMap((linked) => linkedOf(linked) ?? []) : [],
+  }
 }
 
 export function saveLastFetch(fetch: LastFetch | null): void {
-  write(FETCHED_KEY, fetch)
+  const named = (linked: readonly LinkedOfBank[]) => linked.map(({ bank, account: { uid, iban, currency, identificationHash } }) => ({ bank, account: { uid, iban, currency, identificationHash } }))
+  write(FETCHED_KEY, fetch === null ? null : { ...fetch, linked: named(fetch.linked) })
 }
 
 /**

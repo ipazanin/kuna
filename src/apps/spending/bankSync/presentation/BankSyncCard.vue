@@ -7,12 +7,12 @@ import UInput from '@nuxt/ui/components/Input.vue'
 
 import { saveDeployment } from '../application/bankSync'
 import type { BankSyncOutcome } from '../application/bankSync'
-import { loadPendingLink } from '../infrastructure/bankBrowserState'
+import { loadLastFetch, loadPendingLink } from '../infrastructure/bankBrowserState'
 import { notedBankReturn } from './bankReturnOnOpen'
+import BankAccountsSetup from './BankAccountsSetup.vue'
 import { BANK_SYNC_SCOPE } from './bankSyncPort'
 import { useBankSync } from './useBankSync'
 import { words } from './words'
-import { SPENDING_ACCOUNTS_ROUTE } from '../../overview/presentation/spendingLinks'
 import DryRunLines from '../../statements/presentation/DryRunLines.vue'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { LINKABLE_BANKS } from '../../workbook/domain/spendingSettings'
@@ -62,6 +62,10 @@ const pendingBank = computed(() => {
 
 const returned = notedBankReturn()
 const returnLine = returned?.kind === 'refused' ? words.linkRefused(returned.reason) : returned?.kind === 'elsewhere' ? words.cameBackElsewhere : null
+
+/** After a reload the last fetch's accounts, against the file, with nothing held, so the step's link still lands on the list. */
+const heldFetch = loadLastFetch()
+const setup = computed(() => sync.lastOutcome.value ?? (heldFetch === null ? null : { linked: heldFetch.linked, proposals: [], differences: [], olderRows: [] }))
 
 function announced(outcome: BankSyncOutcome | null): void {
   if (outcome?.receipt) writes.announce(outcome.receipt)
@@ -129,6 +133,7 @@ onMounted(() => {
         </template>
       </div>
     </AppCard>
+    <BankAccountsSetup v-if="setup !== null && setup.linked.length > 0" :outcome="setup" />
     <AppCard v-if="sync.lastOutcome.value !== null" :title="words.lastSync" data-testid="spending-bank-sync-result">
       <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
         <p class="text-sm text-highlighted" data-testid="spending-bank-sync-summary">
@@ -146,10 +151,6 @@ onMounted(() => {
           :title="problem"
           data-testid="spending-bank-sync-problem"
         />
-        <div v-for="{ bank, account } in sync.lastOutcome.value.unknown" :key="account.uid" class="flex flex-wrap items-center gap-3 text-sm text-muted" data-testid="spending-bank-sync-unknown">
-          <span class="min-w-0 flex-1 break-words">{{ words.unknownAccount(words.banks[bank], account.iban) }}</span>
-          <UButton :to="SPENDING_ACCOUNTS_ROUTE" :label="words.addAccount" color="neutral" variant="outline" size="sm" />
-        </div>
         <DryRunLines v-if="sync.lastOutcome.value.dryRun.lines.length > 0" :lines="sync.lastOutcome.value.dryRun.lines" />
         <p v-else class="text-sm text-muted">{{ words.nothing }}</p>
       </div>

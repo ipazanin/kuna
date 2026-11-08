@@ -189,11 +189,18 @@ describe('what a toast says of a write', () => {
     expect(toasts.value[0]?.description).toBe(`First, Second: ${words.driveFailed}`)
   })
 
-  it('keeps the reason of a refusal, led by the write', async () => {
+  it('gives the reason of a refusal under its title alone, so the title of a write that did not happen never leads it', async () => {
     toasts.value = []
-    await useRecordWrites(storeThat({ fails: new WorkbookWriteRefused('Nothing was written. It changed.') })).write('Switched off', () => {}, { failedTitle: 'Not changed' })
+    await useRecordWrites(storeThat({ fails: new WorkbookWriteRefused('Nothing was written. It changed.') })).write('Account added', () => {}, { failedTitle: 'Not added' })
 
-    expect(toasts.value[0]).toMatchObject({ title: 'Not changed', description: 'Switched off: Nothing was written. It changed.' })
+    expect(toasts.value[0]).toMatchObject({ title: 'Not added', description: 'Nothing was written. It changed.' })
+  })
+
+  it('names the write when a save may not have finished, since its reason alone does not say which', async () => {
+    toasts.value = []
+    await useRecordWrites(storeThat({ fails: new Error('Failed to fetch') })).write('Account added', () => {}, { failedTitle: 'Not added' })
+
+    expect(toasts.value[0]).toMatchObject({ title: words.mayNotHaveFinished, description: 'Account added: Failed to fetch' })
   })
 })
 

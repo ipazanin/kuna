@@ -1,7 +1,9 @@
 import { ref, shallowRef } from 'vue'
 
+import type { BankRead } from '../application/bankRead'
 import { bankImporter, finishBankLink } from '../application/bankSync'
-import type { BankRead, BankSyncOutcome } from '../application/bankSync'
+import type { BankSyncOutcome } from '../application/bankSync'
+import { withOlderHistory } from '../domain/bankAccountSetup'
 import { ENABLE_BANKING_NAMES } from '../domain/bankAnswer'
 import { hasLiveLink } from '../domain/bankLinks'
 import { loadPendingLink, saveLastFetch, savePendingLink } from '../infrastructure/bankBrowserState'
@@ -21,7 +23,7 @@ const busy = ref(false)
 const importer = bankImporter({
   script: bankSyncPort,
   store,
-  asked: (read: BankRead) => saveLastFetch({ at: Date.now(), problems: bankProblemLines(read) }),
+  asked: (read: BankRead) => saveLastFetch({ at: Date.now(), problems: bankProblemLines(read), linked: read.linked }),
   day: today,
 })
 
@@ -29,12 +31,16 @@ function messageOf(reason: unknown): string {
   return reason instanceof Error ? reason.message : String(reason)
 }
 
-/** Asks the banks and imports what is new. Throws why not, Google's 401 as it came, which the page's sync turns into asking for access. `personHere` is true when a tap started it. */
-export async function fetchAndImport(personHere: boolean): Promise<BankSyncOutcome> {
+/**
+ * Asks the banks and imports what is new. Throws why not, Google's 401 as it came, which the page's sync turns into asking
+ * for access. `personHere` is true when a tap started it, and `freshLink` is the bank just linked. The drafts keep the
+ * older rows an earlier fetch held for them.
+ */
+export async function fetchAndImport(personHere: boolean, freshLink?: LinkableBank): Promise<BankSyncOutcome> {
   failure.value = null
   try {
-    const outcome = await importer.run(personHere)
-    lastOutcome.value = outcome
+    const outcome = await importer.run(personHere, freshLink)
+    lastOutcome.value = { ...outcome, proposals: withOlderHistory(outcome.proposals, lastOutcome.value?.proposals ?? []) }
     return outcome
   } catch (reason) {
     if (!isUnauthorized(reason)) failure.value = messageOf(reason)
@@ -67,13 +73,14 @@ export function useBankSync() {
   /** Writes down the link a bank came back with and fetches at once, since a bank gives more than 90 days only just after an approval: Revolut for 5 minutes, and many others for an hour. */
   async function finishLink(): Promise<BankSyncOutcome | null> {
     const book = store.state.workbook
-    if (book === null || loadPendingLink()?.code == null) return null
+    const pending = loadPendingLink()
+    if (book === null || pending?.code == null) return null
     failure.value = null
     busy.value = true
     try {
       return await withGoogleAccess([BANK_SYNC_SCOPE], async () => {
         await finishBankLink({ script: await bankSyncPort(book.settings.bankSyncDeployment), pending: { load: loadPendingLink, save: savePendingLink }, store })
-        return await fetchAndImport(true)
+        return await fetchAndImport(true, pending.bank)
       })
     } catch (reason) {
       failure.value = messageOf(reason)

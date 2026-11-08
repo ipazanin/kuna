@@ -84,6 +84,14 @@ describe('appsScriptBankSync', () => {
     await expect(port.sessions()).resolves.toEqual([])
   })
 
+  it("reads an account from a script deployed before it returned the bank's descriptions, with each of them null", async () => {
+    const session = { bank: 'Revolut', status: 'AUTHORIZED', accounts: [{ uid: 'u', iban: 'LT000000000000000001', currency: 'USD' }] }
+    stubScript(() => Response.json({ done: true, response: { result: [session] } }))
+    await expect(port.sessions()).resolves.toEqual([
+      { ...session, accounts: [{ uid: 'u', iban: 'LT000000000000000001', currency: 'USD', product: null, details: null, cashAccountType: null, usage: null, identificationHash: null }] },
+    ])
+  })
+
   it('reads an answer with no result as an empty list', async () => {
     stubScript(() => Response.json({ done: true, response: {} }))
     await expect(port.sessions()).resolves.toEqual([])
