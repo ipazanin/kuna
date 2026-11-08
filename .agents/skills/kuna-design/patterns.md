@@ -85,7 +85,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - A part outside the content area has no such container and keeps window breakpoints: the shell's own frame, and a dialog or drawer's body, which the app draws outside the page. So does what depends on the top bar and the sidebar, such as the sticky bands' `top`.
 - Cards rearrange as the width grows. The visual check fails a dashboard whose cards keep one arrangement at 768, 1440 and 1920 px, and cards side by side in a grid that is not a `DashboardGrid`, outside the gallery.
 
-- Every screen ends with `CompanyFooter` in `type-caption`: the company's logo and name, its contact and the privacy page, left out of print.
+- Every screen ends with `CompanyFooter` in `type-caption`: the company's logo and name, its contact, the privacy page and the terms page, left out of print.
 
 ## Navigation
 

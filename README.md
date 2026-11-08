@@ -3,7 +3,7 @@
 Five apps over files of their own, computed in the browser: Company's finance dashboards over a
 workbook of bank transactions, Loans, Investments, Assets and Spending. Company's workbook is one JSON document,
 `kuna-company.json`, in a Google Drive folder the user picks, or the same document kept in this browser. There is no backend. It deploys to GitHub Pages at
-`https://ipazanin.github.io/kuna/`, with a privacy page at `privacy.html`.
+`https://ipazanin.github.io/kuna/`, with a privacy page at `privacy.html` and a terms page at `terms.html`.
 
 With the file on Drive, the app asks Google for `drive.file`, which covers files the user picks in
 the Google Picker or that the app creates, and for `openid email`, which tells it which account

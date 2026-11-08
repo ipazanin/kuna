@@ -18,7 +18,7 @@ The real path has not been tried yet. Your first run is its first trial, and the
    | Description           | A line such as `Personal budgeting, read only`         |
    | Data protection email | Your own email                                         |
    | Privacy URL           | `https://ipazanin.github.io/kuna/privacy.html`         |
-   | Terms URL             | The same address, since Kuna has no terms page         |
+   | Terms URL             | `https://ipazanin.github.io/kuna/terms.html`           |
    | Redirect URL          | `https://ipazanin.github.io/kuna/`, exactly so, no `#` |
 
    Enable Banking adds `?code=...&state=...` to the redirect, and Kuna reads them from there.

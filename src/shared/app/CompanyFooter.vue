@@ -2,6 +2,7 @@
 import { companyFooter, words } from './words'
 
 const privacyPage = `${import.meta.env.BASE_URL}privacy.html`
+const termsPage = `${import.meta.env.BASE_URL}terms.html`
 </script>
 
 <template>
@@ -12,5 +13,6 @@ const privacyPage = `${import.meta.env.BASE_URL}privacy.html`
     </span>
     <a :href="`mailto:${companyFooter.email}`" class="quiet-link">{{ companyFooter.email }}</a>
     <a :href="privacyPage" class="quiet-link">{{ words.privacy }}</a>
+    <a :href="termsPage" class="quiet-link">{{ words.terms }}</a>
   </footer>
 </template>
