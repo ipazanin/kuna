@@ -10,7 +10,8 @@ import { writeDryRun } from '../../statements/application/statementWrites'
 import { rowsAfterDryRun, statementDryRun } from '../../statements/domain/statementDryRun'
 import type { StatementDryRun } from '../../statements/domain/statementDryRun'
 import type { StatementRow, StatementRows } from '../../statements/domain/statementRows'
-import { setSetting } from '../../workbook/application/settingWrites'
+import { SETTING_WRITES } from '../../workbook/application/settingWrites'
+import { setSetting } from '../../../../shared/storage/application/settingWrites'
 import type { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
@@ -155,12 +156,12 @@ export async function readBanks(port: BankSyncPort, book: Pick<SpendingBook, 'ac
 
 /** The script's deployment saved, or cleared by a blank one, which turns the sync off. */
 export function saveDeployment(unit: UnitOfWork, book: Pick<SpendingBook, 'readings'>, deployment: string): void {
-  setSetting(unit, book.readings.settings.facts, BANK_SYNC_DEPLOYMENT_KEY, deployment.trim())
+  setSetting(unit, SETTING_WRITES, book.readings.settings.facts, BANK_SYNC_DEPLOYMENT_KEY, deployment.trim())
 }
 
 /** The day a bank's approval runs out. */
 export function saveLink(unit: UnitOfWork, book: Pick<SpendingBook, 'readings'>, bank: LinkableBank, validUntil: string): void {
-  setSetting(unit, book.readings.settings.facts, bankLinkKey(bank), validUntil.slice(0, 10))
+  setSetting(unit, SETTING_WRITES, book.readings.settings.facts, bankLinkKey(bank), validUntil.slice(0, 10))
 }
 
 type SpendingStore = Pick<ReturnType<typeof useSpendingBooks>, 'state' | 'write' | 'settled'>

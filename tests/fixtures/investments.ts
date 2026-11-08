@@ -191,6 +191,7 @@ export function book(records: Partial<InvestmentBook>): InvestmentBook {
     targets: [],
     checks: [],
     mailReaders: [],
+    settings: [],
     ...records,
   }
 }

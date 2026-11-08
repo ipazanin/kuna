@@ -8,8 +8,7 @@ import type { Receipt } from '../../domain/receipt'
 import type { ReceiptLine } from '../../domain/receiptLine'
 import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../../domain/spendingKinds'
 import type { SpendingRule } from '../../domain/spendingRule'
-import { BANK_SYNC_DEPLOYMENT_KEY, bankLinkKey, settingRow } from '../../domain/spendingSettings'
-import type { SettingRow } from '../../domain/spendingSettings'
+import { BANK_SYNC_DEPLOYMENT_KEY, bankLinkKey } from '../../domain/spendingSettings'
 import { NO_BANK_FACTS } from '../../domain/transaction'
 import { FAKE_POCKET_IBAN } from '../../../bankSync/infrastructure/fake/fakeBankSync'
 import type { Transaction } from '../../domain/transaction'
@@ -27,6 +26,8 @@ import { moneyFromAmount } from '../../../../../shared/money/money'
 import { recordIdOf } from '../../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../../shared/storage/domain/recordId'
 import type { RecordKind } from '../../../../../shared/storage/domain/recordKind'
+import { settingRow } from '../../../../../shared/storage/domain/settingRows'
+import type { SettingRow } from '../../../../../shared/storage/domain/settingRows'
 import type { WorkbookDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
 import { language } from '../../../../../shared/text/language'
 
@@ -276,9 +277,9 @@ function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { re
  */
 function fakeBankSyncSettings(variant: string | null, day: CivilDate): readonly SettingRow[] {
   if (variant === null || !['saved', 'linked', 'ending', 'failed', 'unknown-account', 'otp-failed', 'ended', 'balance-differs', 'exchange', 'pocket'].includes(variant)) return []
-  const deployment = settingRow(BANK_SYNC_DEPLOYMENT_KEY, 'AKfycb-fake-deployment')
+  const deployment = settingRow(SETTING_RECORDS, BANK_SYNC_DEPLOYMENT_KEY, 'AKfycb-fake-deployment')
   if (variant === 'saved') return [deployment]
-  return [deployment, settingRow(bankLinkKey('otp'), addDays(day, variant === 'ending' ? 13 : 120)), settingRow(bankLinkKey('revolut'), addDays(day, 120))]
+  return [deployment, settingRow(SETTING_RECORDS, bankLinkKey('otp'), addDays(day, variant === 'ending' ? 13 : 120)), settingRow(SETTING_RECORDS, bankLinkKey('revolut'), addDays(day, 120))]
 }
 
 export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sample', day: CivilDate = today(), bankSync: string | null = null): WorkbookDocument {

@@ -12,6 +12,7 @@ import type { Split } from './split'
 import type { Target } from './target'
 import type { Trade } from './trade'
 import type { Transfer } from './transfer'
+import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
 
 /** The records of an Investments file that count, each kind in the file's order. */
 export interface InvestmentBook {
@@ -29,6 +30,7 @@ export interface InvestmentBook {
   readonly targets: readonly Target[]
   readonly checks: readonly CheckSetting[]
   readonly mailReaders: readonly MailReader[]
+  readonly settings: readonly SettingRow[]
 }
 
 /** Whether the file holds any record of what happened, beyond its accounts, instruments and prices. */

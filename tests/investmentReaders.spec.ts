@@ -22,6 +22,10 @@ import {
 import { fakeInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/fake/fakeInvestments'
 import { INVESTMENTS_APP, INVESTMENTS_DOCUMENT } from '../src/apps/investments/workbook/infrastructure/investmentsDocument'
 import { investmentLots } from '../src/apps/investments/holdings/domain/lots'
+import { pricesFileRateBook } from '../src/apps/investments/prices/domain/pricesFileBooks'
+import { fakePricesFile } from '../src/apps/investments/prices/infrastructure/fake/fakePrices'
+import { capitalGainsYear } from '../src/apps/investments/tax/domain/taxYear'
+import { civilDate } from '../src/shared/calendar/civilDate'
 import { decimalOfText } from '../src/shared/money/decimal'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
@@ -552,8 +556,18 @@ describe('the Investments file', () => {
       targets: 3,
       checks: 1,
       mailReaders: 0,
+      settings: 0,
     })
     expect([...investmentLots(books.book).values()].flatMap((lots) => [...lots.refused, ...lots.emptied])).toEqual([])
+  })
+
+  it("reads the fake build's 2023 sale whole, a gain whose year waits for the owner's city", () => {
+    const books = booksOf(fakeInvestmentsDocument('2026-10-30T09:00:00.000Z', 'sale-2023').records)
+    const rates = pricesFileRateBook(fakePricesFile('sample', civilDate(2026, 10, 30)))
+
+    expect(books.problems).toEqual([])
+    const year = capitalGainsYear(books.book, rates, 2023)
+    expect([year.gainsLine, year.surtax.kind, [...investmentLots(books.book).values()].flatMap((lots) => lots.refused)]).toEqual([true, 'no-city', []])
   })
 
   it('leaves out every record of an id another record holds too', () => {

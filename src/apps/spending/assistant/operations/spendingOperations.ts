@@ -4,7 +4,8 @@ import { CATEGORY_WRITES, deleteInto, newCategory } from '../../categories/appli
 import { TRANSACTION_WRITES, newEntry, removeEntry, retypedEntry } from '../../entries/application/entryWrites'
 import { fileRow, payeeCondition, writeRules } from '../../statements/application/statementWrites'
 import type { RuleEdits } from '../../statements/application/statementWrites'
-import { setSetting } from '../../workbook/application/settingWrites'
+import { SETTING_WRITES } from '../../workbook/application/settingWrites'
+import { setSetting } from '../../../../shared/storage/application/settingWrites'
 import type { Account, AccountBank, AccountKind } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingBooks } from '../../workbook/domain/spendingBooks'
@@ -313,7 +314,7 @@ function planned(unit: UnitOfWork, books: SpendingBooks, steps: readonly Proposa
         removeEntry(unit, books.records, found(book.transactions, idOf(field['entry']), 'row'))
         break
       case 'set-setting':
-        setSetting(unit, book.readings.settings.facts, field['key'], field['value'])
+        setSetting(unit, SETTING_WRITES, book.readings.settings.facts, field['key'], field['value'])
         break
       default:
         throw new StepRefused('There is no such operation.')

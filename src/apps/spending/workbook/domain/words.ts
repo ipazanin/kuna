@@ -62,7 +62,6 @@ export const en = {
   fiscalCodeShared: 'another receipt holds the same JIR or ZKI, which name one fiscal receipt',
   siblingLineLeftOut: 'another line of its entry is left out, so the entry counts under its own category',
   linesDoNotAddUp: (sum: string, amount: string) => `the lines of its entry add up to ${sum}, and the entry says ${amount}`,
-  settingUnknown: (key: string) => `this Kuna knows no setting ${key}`,
   settingNotADay: (key: string, text: string) => `${key} "${text}" is not a date such as 2027-05-03`,
 }
 
@@ -105,7 +104,6 @@ export const hr: Translation<typeof en> = {
   fiscalCodeShared: 'isti JIR ili ZKI ima i drugi fiskalni račun, a oni označavaju jedan fiskalni račun',
   siblingLineLeftOut: 'druga stavka njezina unosa je izostavljena, pa se unos broji pod svojom kategorijom',
   linesDoNotAddUp: (sum, amount) => `stavke njezina unosa daju ${sum}, a na unosu piše ${amount}`,
-  settingUnknown: (key) => `ova Kuna ne poznaje postavku ${key}`,
   settingNotADay: (key, text) => `${key} „${text}” nije datum kao 2027-05-03`,
 }
 

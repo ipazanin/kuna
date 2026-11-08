@@ -12,7 +12,8 @@ import type { ReceiptDraft } from '../src/apps/spending/receipts/domain/receiptS
 import { joinWithTyped, writeDryRun } from '../src/apps/spending/statements/application/statementWrites'
 import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
-import { setSetting } from '../src/apps/spending/workbook/application/settingWrites'
+import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settingWrites'
+import { setSetting } from '../src/shared/storage/application/settingWrites'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
@@ -243,7 +244,7 @@ describe('a receipt read into lines', () => {
 
   it('keeps the Company OIB in its setting, which no other reader refuses', async () => {
     const store = await spendingStore()
-    await store.write('Saved', (unit) => setSetting(unit, [], COMPANY_OIB_KEY, '11111111119'))
+    await store.write('Saved', (unit) => setSetting(unit, SETTING_WRITES, [], COMPANY_OIB_KEY, '11111111119'))
 
     expect(store.state.workbook!.settings.companyOib).toBe('11111111119')
     expect(store.state.workbook!.problems).toEqual([])

@@ -4,9 +4,9 @@ import type { Category } from './category'
 import type { Receipt } from './receipt'
 import type { ReceiptLine } from './receiptLine'
 import type { SpendingRule } from './spendingRule'
-import type { SettingRow } from './spendingSettings'
 import type { Transaction } from './transaction'
 import { recordKind } from '../../../../shared/storage/domain/recordKind'
+import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
 
 export const ACCOUNT_RECORDS = recordKind<Account>('account', {
   en: { one: 'account', many: 'accounts', article: 'an' },

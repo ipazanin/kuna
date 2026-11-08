@@ -6,10 +6,11 @@ import UInput from '@nuxt/ui/components/Input.vue'
 
 import { words } from './words'
 import { isValidOib, oibIn } from '../domain/oib'
-import { setSetting } from '../../workbook/application/settingWrites'
+import { SETTING_WRITES } from '../../workbook/application/settingWrites'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { COMPANY_OIB_KEY } from '../../workbook/domain/spendingSettings'
 import { words as spendingWords } from '../../words'
+import { setSetting } from '../../../../shared/storage/application/settingWrites'
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -34,7 +35,7 @@ async function save(): Promise<void> {
   const records = store.state.records
   if (error.value !== null || records === null) return
   const value = oib.value
-  await writes.write(words.settings.saved, (unit) => setSetting(unit, recordsOf(records.settings), COMPANY_OIB_KEY, value), { failedTitle: spendingWords.form.notSaved })
+  await writes.write(words.settings.saved, (unit) => setSetting(unit, SETTING_WRITES, recordsOf(records.settings), COMPANY_OIB_KEY, value), { failedTitle: spendingWords.form.notSaved })
 }
 </script>
 

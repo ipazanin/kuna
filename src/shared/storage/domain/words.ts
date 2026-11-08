@@ -18,6 +18,7 @@ export const en = {
   named: (noun: RecordNoun, label: string | null) => (label === null ? `${noun.en.article} ${noun.en.one}` : `the ${noun.en.one} "${label}"`),
   /** The same, starting a sentence. */
   namedFirst: (noun: RecordNoun, label: string | null) => capitalised(en.named(noun, label)),
+  settingUnknown: (key: string) => `this Kuna knows no setting ${key}`,
   reasons: {
     notADateCell: (name: string, text: string) => `${name} "${text}" is not a date cell`,
     noDate: (name: string) => `no ${name} date`,
@@ -38,6 +39,7 @@ export const hr: Translation<typeof en> = {
   unnamed: 'bez naziva',
   named: (noun, label) => (label === null ? noun.hr.one : `${noun.hr.one} „${label}”`),
   namedFirst: (noun, label) => capitalised(hr.named(noun, label)),
+  settingUnknown: (key) => `ova Kuna ne poznaje postavku ${key}`,
   reasons: {
     notADateCell: (name, text) => `${name} „${text}” nije ćelija s datumom`,
     noDate: (name) => `nema datuma ${name}`,

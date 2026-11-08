@@ -13,7 +13,7 @@ export type LanguageChoice = 'browser' | Language
 const STORED_LANGUAGE_KEY = 'kuna.language'
 
 /** The tag each language writes dates, numbers and sorted lists with. */
-const INTL_LOCALES: Readonly<Record<Language, string>> = { en: 'en-GB', hr: 'hr-HR' }
+export const INTL_LOCALES: Readonly<Record<Language, string>> = { en: 'en-GB', hr: 'hr-HR' }
 
 function isLanguage(candidate: unknown): candidate is Language {
   return candidate === 'en' || candidate === 'hr'

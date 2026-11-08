@@ -2,6 +2,7 @@ import type { CellObject } from 'xlsx'
 
 import { foreignIncomeYear } from '../domain/foreignIncome'
 import type { ForeignIncomeYear, ForeignPayment, IncomeRoute } from '../domain/foreignIncome'
+import type { YearSurtax } from '../domain/citySurtax'
 import type { DayRate } from '../domain/hnbRate'
 import { JOPPD_CODES } from '../domain/taxRules'
 import { capitalGainsYear, taxSales } from '../domain/taxYear'
@@ -17,7 +18,10 @@ import { DECIMAL_ZERO, addDecimal, decimalText, subtractDecimal, sumDecimal } fr
 import type { Decimal } from '../../../../shared/money/decimal'
 import { ZERO, amountOf } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import type { MoneyFormat } from '../../../../shared/money/moneyFormat'
+import { percentText } from '../../../../shared/money/percent'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import { INTL_LOCALES } from '../../../../shared/text/language'
 import { sheetJs } from '../../../../shared/xlsx/sheetGrids'
 
 const DAY_FORMAT = 'd.m.yyyy.'
@@ -80,9 +84,12 @@ const ROUTES: Readonly<Record<IncomeRoute, string>> = {
   none: 'Nema vlastitog poreza',
 }
 
+/** The register is in Croatian, so a rate in it is written as 7,5 %. */
+const CROATIAN_EUROS: MoneyFormat = { currency: 'EUR', locale: INTL_LOCALES.hr }
+
 const YES = 'Da'
 const NO = 'Ne'
-const CITY_SURTAX = 'Stopa prireza vašeg grada na 14.1'
+const CHOOSE_CITY = 'Odaberite grad iz 2023. na zaslonu Porez'
 const SALES_BY_SETTLEMENT = 'Po datumu namire, ZPDoh čl. 11. st. 3.'
 const NO_JOPPD_AFTER_LOSS = 'Ne, gubici su veći od dobitaka (Pravilnik o porezu na dohodak čl. 77. st. 13.)'
 const NO_JOPPD_WITHOUT_GAINS = 'Ne, nema dobitka za prijavu'
@@ -243,6 +250,13 @@ function incomeRow(entry: ForeignPayment): Cell[] {
   ]
 }
 
+/** Field 14.2 with the city's rate once it is known. */
+function surtaxRow(surtax: YearSurtax): Cell[] {
+  if (surtax.kind === 'none') return ['14.2 Prirez', eurosCell(ZERO)]
+  if (surtax.kind === 'no-city') return ['14.2 Prirez', CHOOSE_CITY]
+  return [`14.2 Prirez ${percentText(surtax.rate, CROATIAN_EUROS)}`, eurosCell(surtax.amount)]
+}
+
 function summaryRows(gains: CapitalGainsYear, income: ForeignIncomeYear): Cell[][] {
   return [
     ['Godina', gains.year],
@@ -257,9 +271,9 @@ function summaryRows(gains: CapitalGainsYear, income: ForeignIncomeYear): Cell[]
     ['13.3 Dohodak', eurosCell(gains.base)],
     ['13.5 Porezna osnovica', eurosCell(gains.base)],
     [`14.1 Porez na dohodak ${gains.rules.rules.gainsRate}%`, eurosCell(gains.tax)],
-    ['14.2 Prirez', gains.rules.rules.surtax ? CITY_SURTAX : eurosCell(ZERO)],
+    surtaxRow(gains.surtax),
     ['16.1 Oznaka načina isplate', 1],
-    [gains.rules.rules.surtax ? '16.2 Iznos za isplatu, prije oduzimanja prireza' : '16.2 Iznos za isplatu', eurosCell(gains.payout)],
+    [gains.surtax.kind === 'no-city' ? '16.2 Iznos za isplatu, prije oduzimanja prireza' : '16.2 Iznos za isplatu', eurosCell(gains.payout)],
     ['Primitak s oznakom 02, imovina dulje od dvije godine', eurosCell(gains.taxFreeGains)],
     ['Gubitak na imovini dulje od dvije godine, ne odbija se', eurosCell(gains.oldLosses)],
     ['Obveza JOPPD-a', joppdDutyOf(gains)],

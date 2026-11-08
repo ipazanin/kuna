@@ -1060,6 +1060,7 @@ function addedRecords(book: InvestmentBook, planned: InvestmentBook): Investment
     targets: [],
     checks: [],
     mailReaders: [],
+    settings: [],
   }
 }
 

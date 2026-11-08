@@ -6,6 +6,7 @@ import type { RateBook } from '../../../../shared/money/rateBook'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import type { Trade } from '../../workbook/domain/trade'
+import { taxWithSurtax } from '../../tax/domain/citySurtax'
 import { isEstimate } from '../../tax/domain/hnbRate'
 import { settlementDay } from '../../tax/domain/settlementDay'
 import { FIRST_TAX_YEAR } from '../../tax/domain/taxRules'
@@ -21,12 +22,12 @@ import type { Money } from '../../../../shared/money/money'
 export interface SaleTax {
   /** The year the sale settles in, whose JOPPD it goes on. */
   readonly year: number
-  /** The year's tax with the sale less the year's tax without it, so the year's losses count. */
+  /** The year's tax and known surtax with the sale less without it, so the year's losses count. */
   readonly onSale: Money
   readonly forYear: Money
   /** True while the settlement day's HNB rate is not out, as for a sale typed today. */
   readonly estimated: boolean
-  /** True for a year whose city surtax comes on top of the tax. */
+  /** True for a year whose city surtax is due and the owner has not said which city, so it is not in the figures. */
   readonly beforeSurtax: boolean
   /** The tax-free day of a lot it closes within five days of that day, or null. */
   readonly nearTaxFreeDay: CivilDate | null
@@ -66,10 +67,10 @@ function saleTax(book: InvestmentBook, after: InvestmentBook, rates: RateBook, i
   const without = capitalGainsYear({ ...book, trades: book.trades.filter((other) => other.id !== trade.id) }, rates, year)
   return {
     year,
-    onSale: subtractMoney(withSale.tax, without.tax),
-    forYear: withSale.tax,
+    onSale: subtractMoney(taxWithSurtax(withSale.tax, withSale.surtax), taxWithSurtax(without.tax, without.surtax)),
+    forYear: taxWithSurtax(withSale.tax, withSale.surtax),
     estimated: isEstimate(sale.rate),
-    beforeSurtax: withSale.rules.rules.surtax,
+    beforeSurtax: withSale.surtax.kind === 'no-city',
     nearTaxFreeDay: sale.lines.find((line) => line.nearTaxFreeDay)?.taxFreeFrom ?? null,
   }
 }

@@ -2,22 +2,10 @@ import { SETTING_RECORDS } from './spendingKinds'
 import { words } from './words'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { filledKey, labelWords } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
-import { filledFields } from '../../../../shared/storage/domain/recordFields'
-import { recordIdOf } from '../../../../shared/storage/domain/recordId'
-import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { readEach } from '../../../../shared/storage/domain/recordsRead'
-import type { Reading, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
-import { ownId, slugOf, textOf } from '../../../../shared/storage/domain/storedFields'
+import { ANY_VALUE, settingCodec, settingValue } from '../../../../shared/storage/domain/settingRows'
+import type { SettingChecks, SettingRow, SettingValueCheck } from '../../../../shared/storage/domain/settingRows'
 import { personPayeesOf } from '../../../../shared/privacy/domain/personPayees'
-
-/** One setting as stored, kept by its key. */
-export interface SettingRow {
-  readonly id: RecordId
-  readonly key: string
-  readonly value: string
-}
 
 /** The banks the bank sync can link. */
 export const LINKABLE_BANKS = ['otp', 'revolut'] as const
@@ -44,39 +32,23 @@ export function bankLinkKey(bank: LinkableBank): string {
   return `bank_link_${bank}`
 }
 
-const LINK_KEYS: readonly string[] = LINKABLE_BANKS.map(bankLinkKey)
+/** Each key Spending knows, and a bank's link ending only on a day. */
+export const SPENDING_SETTING_CHECKS: SettingChecks = new Map<string, SettingValueCheck>([
+  [BANK_SYNC_DEPLOYMENT_KEY, ANY_VALUE],
+  [COMPANY_OIB_KEY, ANY_VALUE],
+  [PERSON_PAYEES_KEY, ANY_VALUE],
+  ...LINKABLE_BANKS.map(bankLinkKey).map((key) => [key, (value: string) => (parseCivilDate(value) === null ? [words.settingNotADay(key, value)] : [])] as const),
+])
 
-const PLAIN_KEYS: readonly string[] = [BANK_SYNC_DEPLOYMENT_KEY, COMPANY_OIB_KEY, PERSON_PAYEES_KEY]
-
-export const SETTING_CODEC: RecordCodec<SettingRow> = {
-  kind: SETTING_RECORDS,
-  key: (fields) => filledKey(slugOf(fields.key)),
-  label: (fields) => labelWords([slugOf(fields.key)]),
-  make: (fields, id) => ({ id: ownId(id), key: textOf(fields.key), value: textOf(fields.value) }),
-  fieldsOf: (setting) => filledFields({ key: setting.key, value: setting.value }),
-}
-
-/** A setting's row, whose id is its key. */
-export function settingRow(key: string, value: string): SettingRow {
-  return { id: recordIdOf(SETTING_RECORDS, key), key, value }
-}
-
-/** A key Kuna does not know is listed and left out, so a newer app's setting never stops this file from opening. */
-export function readSettingRows(read: RecordsRead<SettingRow>): Reading<SettingRow> {
-  return readEach(read, ({ record: { key, value } }) => {
-    if (!PLAIN_KEYS.includes(key) && !LINK_KEYS.includes(key)) return [words.settingUnknown(key)]
-    return LINK_KEYS.includes(key) && parseCivilDate(value) === null ? [words.settingNotADay(key, value)] : []
-  })
-}
+export const SETTING_CODEC: RecordCodec<SettingRow> = settingCodec(SETTING_RECORDS)
 
 /** The settings the rows that count hold, and the defaults for the rest. */
 export function spendingSettingsOf(rows: readonly SettingRow[]): SpendingSettings {
-  const valueOf = (key: string): string => rows.find((row) => row.key === key)?.value ?? ''
-  const linkOf = (bank: LinkableBank): CivilDate | null => parseCivilDate(valueOf(bankLinkKey(bank)))
+  const linkOf = (bank: LinkableBank): CivilDate | null => parseCivilDate(settingValue(rows, bankLinkKey(bank)))
   return {
-    bankSyncDeployment: valueOf(BANK_SYNC_DEPLOYMENT_KEY),
+    bankSyncDeployment: settingValue(rows, BANK_SYNC_DEPLOYMENT_KEY),
     bankLinks: { otp: linkOf('otp'), revolut: linkOf('revolut') },
-    companyOib: valueOf(COMPANY_OIB_KEY),
-    personPayees: personPayeesOf(valueOf(PERSON_PAYEES_KEY)),
+    companyOib: settingValue(rows, COMPANY_OIB_KEY),
+    personPayees: personPayeesOf(settingValue(rows, PERSON_PAYEES_KEY)),
   }
 }

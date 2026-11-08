@@ -29,7 +29,7 @@ The tax is final, on the gross, with no allowance (ZPDoh Art. 12(4), PravPDoh Ar
 | 2025 | 12%                    | 30%            | no                 | `confirmed-nn`           |
 | 2026 | 12%                    | 30%            | no                 | `confirmed-nn`           |
 
-ZPDoh Art. 70(1) taxes interest and Art. 70(19) dividends "po stopi od 12%", both set by NN 114/23 Art. 28 from 1 January 2024. Income of 2023 stays at 10%, as [Capital gains](capital-gains.md#income-of-2023) sets out, with the city surtax on top, which Kuna does not hold. The mark covers the Croatian rate. The US columns are marked under "US withholding".
+ZPDoh Art. 70(1) taxes interest and Art. 70(19) dividends "po stopi od 12%", both set by NN 114/23 Art. 28 from 1 January 2024. Income of 2023 stays at 10%, as [Capital gains](capital-gains.md#income-of-2023) sets out, with the city surtax on top. Kuna adds that surtax to 2023's capital gains only, and shows foreign income of 2023 before it. The mark covers the Croatian rate. The US columns are marked under "US withholding".
 
 Screen: no row of its own. The rates row of capital gains covers the year table.
 

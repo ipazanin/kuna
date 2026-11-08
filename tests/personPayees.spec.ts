@@ -7,11 +7,13 @@ import type { SettingRow as CompanySettingRow } from '../src/apps/company/settin
 import { SETTING_RECORDS as COMPANY_SETTING_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { SPENDING_OPERATIONS } from '../src/apps/spending/assistant/operations/spendingOperations'
 import { treatPayeeAsPerson } from '../src/apps/spending/workbook/application/settingWrites'
-import { PERSON_PAYEES_KEY, readSettingRows, settingRow, spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
-import type { SettingRow } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { SETTING_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { PERSON_PAYEES_KEY, SPENDING_SETTING_CHECKS, spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { flaggedAsPerson, personPayeesOf, withPayeeAsPerson } from '../src/shared/privacy/domain/personPayees'
 import { changesOf } from '../src/shared/storage/application/recordWrites'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { readSettingRows, settingRow } from '../src/shared/storage/domain/settingRows'
+import type { SettingRow } from '../src/shared/storage/domain/settingRows'
 import type { RecordsRead } from '../src/shared/storage/domain/recordsRead'
 import { storedFieldOf } from '../src/shared/storage/domain/storedFields'
 
@@ -48,15 +50,15 @@ describe('the payees flagged as people', () => {
 
 describe("Spending's person_payees setting", () => {
   it('reads one payee per line with blank lines dropped, and none by default', () => {
-    const rows = [settingRow(PERSON_PAYEES_KEY, 'Ana Horvat\n\nMarko Kovač\n')]
+    const rows = [settingRow(SETTING_RECORDS, PERSON_PAYEES_KEY, 'Ana Horvat\n\nMarko Kovač\n')]
 
-    expect(readSettingRows(spendingRead(rows)).problems).toEqual([])
+    expect(readSettingRows(spendingRead(rows), SPENDING_SETTING_CHECKS).problems).toEqual([])
     expect(spendingSettingsOf(rows).personPayees).toEqual(['Ana Horvat', 'Marko Kovač'])
     expect(spendingSettingsOf([]).personPayees).toEqual([])
   })
 
   it('still refuses a key it does not know', () => {
-    const reading = readSettingRows(spendingRead([settingRow('person_payee', 'Ana Horvat')]))
+    const reading = readSettingRows(spendingRead([settingRow(SETTING_RECORDS, 'person_payee', 'Ana Horvat')]), SPENDING_SETTING_CHECKS)
 
     expect(reading.facts).toEqual([])
     expect(reading.problems.map((problem) => problem.reason)).toEqual(['this Kuna knows no setting person_payee'])
@@ -64,24 +66,24 @@ describe("Spending's person_payees setting", () => {
 
   it('adds a payee to the list, and a first one as a new row', () => {
     const first = changesOf((unit) => treatPayeeAsPerson(unit, [], 'Ana Horvat', true))
-    expect(first.map(({ change }) => change)).toMatchObject([{ verb: 'add', after: settingRow(PERSON_PAYEES_KEY, 'Ana Horvat') }])
+    expect(first.map(({ change }) => change)).toMatchObject([{ verb: 'add', after: settingRow(SETTING_RECORDS, PERSON_PAYEES_KEY, 'Ana Horvat') }])
 
-    const held = settingRow(PERSON_PAYEES_KEY, 'Ana Horvat')
+    const held = settingRow(SETTING_RECORDS, PERSON_PAYEES_KEY, 'Ana Horvat')
     const second = changesOf((unit) => treatPayeeAsPerson(unit, [held], 'Marko Kovač', true))
-    expect(second.map(({ change }) => change)).toMatchObject([{ verb: 'change', before: held, after: settingRow(PERSON_PAYEES_KEY, 'Ana Horvat\nMarko Kovač') }])
+    expect(second.map(({ change }) => change)).toMatchObject([{ verb: 'change', before: held, after: settingRow(SETTING_RECORDS, PERSON_PAYEES_KEY, 'Ana Horvat\nMarko Kovač') }])
   })
 
   it('writes nothing for a payee already flagged under another spelling', () => {
-    expect(changesOf((unit) => treatPayeeAsPerson(unit, [settingRow(PERSON_PAYEES_KEY, 'Ana Horvat')], 'HORVAT ANA', true))).toEqual([])
+    expect(changesOf((unit) => treatPayeeAsPerson(unit, [settingRow(SETTING_RECORDS, PERSON_PAYEES_KEY, 'Ana Horvat')], 'HORVAT ANA', true))).toEqual([])
   })
 
   it('removes a payee by the same words, and the row with the last one', () => {
-    const two = settingRow(PERSON_PAYEES_KEY, 'Ana Horvat\nMarko Kovač')
+    const two = settingRow(SETTING_RECORDS, PERSON_PAYEES_KEY, 'Ana Horvat\nMarko Kovač')
     expect(changesOf((unit) => treatPayeeAsPerson(unit, [two], 'KOVAČ MARKO', false)).map(({ change }) => change)).toMatchObject([
-      { verb: 'change', before: two, after: settingRow(PERSON_PAYEES_KEY, 'Ana Horvat') },
+      { verb: 'change', before: two, after: settingRow(SETTING_RECORDS, PERSON_PAYEES_KEY, 'Ana Horvat') },
     ])
 
-    const one = settingRow(PERSON_PAYEES_KEY, 'Ana Horvat')
+    const one = settingRow(SETTING_RECORDS, PERSON_PAYEES_KEY, 'Ana Horvat')
     expect(changesOf((unit) => treatPayeeAsPerson(unit, [one], 'horvat ana', false)).map(({ change }) => change)).toMatchObject([{ verb: 'remove', before: one }])
   })
 

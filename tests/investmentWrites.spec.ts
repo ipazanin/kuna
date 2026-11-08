@@ -15,7 +15,8 @@ import { ecbRateText, happeningsOfKind, keyOf, rateCurrency, textsOf, transactio
 import type { TransactionTexts } from '../src/apps/investments/transactions/presentation/transactionForm'
 import type { FundMixLine } from '../src/apps/investments/workbook/domain/fundMix'
 import type { InvestmentsBooks } from '../src/apps/investments/workbook/domain/investmentsBooks'
-import { FUND_MIX_RECORDS, INSTRUMENT_RECORDS, PRICE_RECORDS, TRADE_RECORDS } from '../src/apps/investments/workbook/domain/investmentKinds'
+import { FUND_MIX_RECORDS, INSTRUMENT_RECORDS, PRICE_RECORDS, SETTING_RECORDS, TRADE_RECORDS } from '../src/apps/investments/workbook/domain/investmentKinds'
+import { SURTAX_CITY_2023_KEY } from '../src/apps/investments/workbook/domain/investmentSettings'
 import { countryOf } from '../src/apps/investments/workbook/domain/mixGroup'
 import type { Target } from '../src/apps/investments/workbook/domain/target'
 import { emptyInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/investmentsDocument'
@@ -23,6 +24,7 @@ import type { WorkbookStore } from '../src/shared/storage/application/createWork
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
 import { EURO } from '../src/shared/money/currencyCode'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { settingRow } from '../src/shared/storage/domain/settingRows'
 import { BROKER, USD, account, book, cashMovement, cashTransfer, decimal, dividend, exchange, instrument, rateBookOf, spinOff, split, trade, unitTransfer } from './fixtures/investments'
 import { civil, euros } from './fixtures/ledger'
 import { INVESTMENTS, browserHarness, forgetCaches } from './fixtures/writeBack'
@@ -361,6 +363,19 @@ describe('the trade summary and the list', () => {
 
     // 10 units at 110.00 against 100.00 is 100.00 of gain, past two years in every case, so the tax line is zero.
     expect([sell('2026-12-30')?.year, sell('2023-06-01')?.year, sell('2023-06-01')?.beforeSurtax, sell('2022-06-01')]).toEqual([2027, 2023, true, null])
+  })
+
+  it("previews a 2023 sale with the owner's city saved as its tax and the city's surtax", () => {
+    const etf = instrument('etf')
+    const records = book({
+      instruments: [etf],
+      trades: [trade('buy', BROKER, etf, '2023-01-09', '20', '100', '0')],
+      settings: [settingRow(SETTING_RECORDS, SURTAX_CITY_2023_KEY, '133')],
+    })
+
+    // 10 units at 110.00 against 100.00 is 100.00 of gain under two years. 10% is 10.00, and Zagreb's 18% of it is 1.80.
+    const tax = tradePreview(records, EXAMPLE_RATES, etf, trade('sell', BROKER, etf, '2023-06-01', '10', '110', '0')).tax
+    expect([tax?.onSale, tax?.forYear, tax?.beforeSurtax]).toEqual([euros(11.8), euros(11.8), false])
   })
 
   it("tells the tax a sale adds apart from the year's tax with it", () => {

@@ -7,6 +7,7 @@ import { INCOME_CODEC } from '../domain/incomeReading'
 import { INSTRUMENT_CODEC } from '../domain/instrumentReading'
 import { INVESTMENT_ACCOUNT_CODEC } from '../domain/investmentAccountReading'
 import { MAIL_READER_CODEC } from '../domain/mailReaderReading'
+import { SETTING_CODEC } from '../domain/investmentSettings'
 import { SPIN_OFF_CODEC } from '../domain/spinOffReading'
 import { SPLIT_CODEC } from '../domain/splitReading'
 import { TARGET_CODEC } from '../domain/targetReading'
@@ -30,6 +31,7 @@ const INVESTMENTS_CODECS = [
   TARGET_CODEC,
   CHECK_CODEC,
   MAIL_READER_CODEC,
+  SETTING_CODEC,
 ] as readonly RecordCodec<unknown>[]
 
 /** The codec of an Investments kind. Throws for a kind the Investments file does not keep. */

@@ -38,7 +38,7 @@ Mark: `confirmed-consolidated` for a year that ends in a loss and for tax-free g
 | Page B, 13.1 Izdatak                   | Losses on lots under two years, up to field 11                                               | `reading`                |
 | Page B, 13.3 Dohodak and 13.5 Osnovica | Field 11 less 13.1                                                                           | `reading`                |
 | Page B, 14.1 Porez                     | The year's rate of 13.5                                                                      | `confirmed-consolidated` |
-| Page B, 14.2 Prirez                    | 0.00 from 2024. For 2023, the city's surtax on 14.1                                          | `reading`                |
+| Page B, 14.2 Prirez                    | 0.00 from 2024. For 2023, the rate of the owner's 2023 city on 14.1                          | `reading`                |
 | Page B, 16.1 Način isplate             | 1, payment to a current account                                                              | `reading`                |
 | Page B, 16.2 Iznos za isplatu          | Field 11 less the tax. For 2023, less the surtax too                                         | `confirmed-consolidated` |
 

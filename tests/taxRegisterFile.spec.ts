@@ -4,6 +4,9 @@ import { taxRegisterFile, taxRegisterFileName } from '../src/apps/investments/ta
 import { civilDateFromSerial } from '../src/shared/calendar/civilDate'
 import { readEveryTab } from '../src/shared/xlsx/sheetGrids'
 import { EURO } from '../src/shared/money/currencyCode'
+import { SETTING_RECORDS } from '../src/apps/investments/workbook/domain/investmentKinds'
+import { SURTAX_CITY_2023_KEY } from '../src/apps/investments/workbook/domain/investmentSettings'
+import { settingRow } from '../src/shared/storage/domain/settingRows'
 import { BROKER, book, instrument, trade } from './fixtures/investments'
 import { EXAMPLE_RATES, exampleYear, payment } from './fixtures/taxExample'
 
@@ -163,6 +166,24 @@ describe('the tax register file', () => {
         .map((row) => [dayOf(row[0]), dayOf(row[1])])
     expect([await sold(2026), await sold(2027)]).toEqual([[], [['2026-12-30', '2027-01-04']]])
     const summary = new Map((await exampleTabs(records, 2023)).get('Sažetak')!.map((row) => [row[0], row[1]]))
-    expect(['Oznaka izvješća', '14.1 Porez na dohodak 10%', '14.2 Prirez'].map((label) => summary.get(label))).toEqual(['23365', 10, 'Stopa prireza vašeg grada na 14.1'])
+    expect(['Oznaka izvješća', '14.1 Porez na dohodak 10%', '14.2 Prirez', '16.2 Iznos za isplatu, prije oduzimanja prireza'].map((label) => summary.get(label))).toEqual([
+      '23365',
+      10,
+      'Odaberite grad iz 2023. na zaslonu Porez',
+      90,
+    ])
+  })
+
+  it("writes 2023's surtax at the chosen city's rate into field 14.2 and takes it off field 16.2", async () => {
+    const etf = instrument('etf', { name: 'Example ETF' })
+    const records = book({
+      instruments: [etf],
+      trades: [trade('buy', BROKER, etf, '2023-01-09', '20', '100', '0'), trade('sell', BROKER, etf, '2023-06-01', '10', '110', '0')],
+      settings: [settingRow(SETTING_RECORDS, SURTAX_CITY_2023_KEY, '503')],
+    })
+
+    // Vojnić's 7.5% of the 10.00 tax is 0.75, so field 16.2 is 100.00 − 10.00 − 0.75 = 89.25. The label writes the rate the Croatian way.
+    const summary = new Map((await exampleTabs(records, 2023)).get('Sažetak')!.map((row) => [row[0], row[1]]))
+    expect(['14.2 Prirez 7,5\u00a0%', '16.2 Iznos za isplatu'].map((label) => summary.get(label))).toEqual([0.75, 89.25])
   })
 })

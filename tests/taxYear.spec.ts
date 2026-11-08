@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import { rulesOf } from '../src/apps/investments/tax/domain/taxRules'
+import { taxWithSurtax } from '../src/apps/investments/tax/domain/citySurtax'
 import { capitalGainsYear, taxYearsOf, yearsWithoutRules } from '../src/apps/investments/tax/domain/taxYear'
 import type { CapitalGainsYear } from '../src/apps/investments/tax/domain/taxYear'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
+import { SETTING_RECORDS } from '../src/apps/investments/workbook/domain/investmentKinds'
+import { SURTAX_CITY_2023_KEY } from '../src/apps/investments/workbook/domain/investmentSettings'
+import { settingRow } from '../src/shared/storage/domain/settingRows'
 import { decimalText } from '../src/shared/money/decimal'
 import { BROKER, USD, account, book, decimal, instrument, rateBookOf, spinOff, trade, unitTransfer } from './fixtures/investments'
 import { civil, euros } from './fixtures/ledger'
@@ -197,7 +201,34 @@ describe("a year's capital gains", () => {
     // 100.00 of gain on a lot under two years, and 10% of it is 10.00, with the surtax of the city on top.
     const year = capitalGainsYear(records, EXAMPLE_RATES, 2023)
     expect([...figuresOf(year), year.rules.rules.surtax, year.rules.ownRow, year.reportMark, year.due]).toEqual([100, 0, 100, 10, 0, 0, true, true, '23365', '2024-02-29'])
+    expect([year.surtax, year.payout]).toEqual([{ kind: 'no-city' }, euros(90)])
     expect(rulesOf(2024).rules.surtax).toBe(false)
+  })
+
+  it("adds the surtax of the owner's 2023 city on top of the tax and takes it off field 16.2", () => {
+    const etf = instrument('etf')
+    const trades = [trade('buy', BROKER, etf, '2023-01-09', '10', '100', '0'), trade('sell', BROKER, etf, '2023-06-01', '10', '110', '0')]
+    const inCity = (code: string) => capitalGainsYear(book({ instruments: [etf], trades, settings: [settingRow(SETTING_RECORDS, SURTAX_CITY_2023_KEY, code)] }), EXAMPLE_RATES, 2023)
+
+    // Zagreb's 18% of the 10.00 tax is 1.80, so field 16.2 is 100.00 − 10.00 − 1.80 = 88.20.
+    const zagreb = inCity('133')
+    expect([zagreb.surtax.kind === 'due' ? zagreb.surtax.amount : null, zagreb.payout, taxWithSurtax(zagreb.tax, zagreb.surtax)]).toEqual([euros(1.8), euros(88.2), euros(11.8)])
+    // A city Porezna's table leaves out set no surtax, and a code the table lacks counts as no answer.
+    const unlisted = inCity('none')
+    expect([unlisted.surtax.kind === 'due' ? unlisted.surtax.amount : null, unlisted.payout]).toEqual([euros(0), euros(90)])
+    expect(inCity('999').surtax).toEqual({ kind: 'no-city' })
+  })
+
+  it('leaves the surtax out of a year after 2023, whatever city is saved', () => {
+    const etf = instrument('etf')
+    const records = book({
+      instruments: [etf],
+      trades: [trade('buy', BROKER, etf, '2026-01-05', '10', '100', '0'), trade('sell', BROKER, etf, '2026-02-02', '10', '110', '0')],
+      settings: [settingRow(SETTING_RECORDS, SURTAX_CITY_2023_KEY, '133')],
+    })
+
+    const year = capitalGainsYear(records, EXAMPLE_RATES, 2026)
+    expect([year.surtax, year.tax, year.payout]).toEqual([{ kind: 'none' }, euros(12), euros(88)])
   })
 
   it('works out no year before 2023 and lists it apart', () => {

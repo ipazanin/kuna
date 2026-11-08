@@ -13,6 +13,7 @@ import type { Target } from './target'
 import type { Trade } from './trade'
 import type { Transfer } from './transfer'
 import { recordKind } from '../../../../shared/storage/domain/recordKind'
+import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
 
 export const INVESTMENT_ACCOUNT_RECORDS = recordKind<InvestmentAccount>('investment-account', {
   en: { one: 'investment account', many: 'investment accounts', article: 'an' },
@@ -69,4 +70,8 @@ export const CHECK_RECORDS = recordKind<CheckSetting>('check', {
 export const MAIL_READER_RECORDS = recordKind<MailReader>('mail-reader', {
   en: { one: 'mail report', many: 'mail reports', article: 'a' },
   hr: { one: 'izvješće iz pošte', of: 'izvješća iz pošte', few: 'izvješća iz pošte', other: 'izvješća iz pošte', gender: 'neuter' },
+})
+export const SETTING_RECORDS = recordKind<SettingRow>('setting', {
+  en: { one: 'setting', many: 'settings', article: 'a' },
+  hr: { one: 'postavka', of: 'postavke', few: 'postavke', other: 'postavki', gender: 'feminine' },
 })

@@ -3,6 +3,7 @@ import type { Money } from './money'
 import { decimalText } from './decimal'
 import type { Decimal } from './decimal'
 import { formatRate } from './moneyFormat'
+import type { MoneyFormat } from './moneyFormat'
 import { stepsOfNumber } from './numberRounding'
 
 /** A rate applied to money, as a whole number of basis points: 10% is 1000, 16.5% is 1650, a coefficient of 0.65 is 6500. */
@@ -138,7 +139,7 @@ export function wholePercentOf(part: Money, whole: Money): number {
   return Math.floor((part * PERCENT_PER_WHOLE) / whole)
 }
 
-/** A rate as people write it: 2150 basis points is 21.5%, or 21,5 % in Croatian. */
-export function percentText(rate: Percent): string {
-  return formatRate(shareOfPercent(rate))
+/** A rate as people write it: 2150 basis points is 21.5%, or 21,5 % in Croatian. A file in one language passes its format. */
+export function percentText(rate: Percent, format?: MoneyFormat): string {
+  return formatRate(shareOfPercent(rate), format)
 }

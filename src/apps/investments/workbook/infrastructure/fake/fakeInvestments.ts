@@ -448,15 +448,16 @@ const TAX_INCOME: readonly Income[] = [
   { ...interest(BROKER_ONE, '2026-09-02', '40.00'), kind: 'referral', note: '' },
 ]
 
+/** A sale of 2023 with a gain on a lot under two years, so its year owes a JOPPD with the city's surtax. Made only for its variant, so the sample's ids stay as they are. */
+function sale2023(): Trade {
+  return { ...trade('sell', BROKER_ONE, WORLD_ETF, '2023-09-14', '5', '112.00', '2.00', null), id: fixedId(TRADE_RECORDS, 980) }
+}
+
 function stored<R>(kind: RecordKind<R>, records: readonly R[]): WorkbookDocument['records'] {
   const codec = codecOfInvestmentsKind(kind)
   return { [kind.name]: records.map((record) => codec.fieldsOf(record)) }
 }
 
-/**
- * `sample` is the whole made-up file, `cash-below-zero` leaves out the second account's deposit, so its euros fall below
- * zero, and `young` is a file whose first deposit is seven months old, with no benchmark chosen.
- */
 /** IBKR's report switched on, at made-up filters, reading the last month. */
 function fakeMailReader(today: CivilDate): MailReader {
   return {
@@ -471,7 +472,12 @@ function fakeMailReader(today: CivilDate): MailReader {
   }
 }
 
-export type FakeInvestmentsVariant = 'sample' | 'cash-below-zero' | 'young' | 'mail'
+/**
+ * `sample` is the whole made-up file, `cash-below-zero` leaves out the second account's deposit, so its euros fall below
+ * zero, `young` is a file whose first deposit is seven months old, with no benchmark chosen, and `sale-2023` adds a sale
+ * of 2023 whose tax carries a city surtax, with no city chosen yet. `mail` is the sample with IBKR's report by mail switched on.
+ */
+export type FakeInvestmentsVariant = 'sample' | 'cash-below-zero' | 'young' | 'mail' | 'sale-2023'
 
 /** The weekday on or before the day. */
 function weekdayBefore(date: CivilDate): CivilDate {
@@ -519,7 +525,7 @@ export function fakeInvestmentsDocument(savedAt: string, variant: FakeInvestment
     records: {
       ...stored(INVESTMENT_ACCOUNT_RECORDS, [BROKER_ONE, BROKER_TWO]),
       ...stored(INSTRUMENT_RECORDS, [SHARE_A, SHARE_B, WORLD_ETF, MONEY_FUND, SPIN_CO, INDEX_FUND, RETIRED_CO]),
-      ...stored(TRADE_RECORDS, [...TRADES, ...LATER_TRADES, ...TAX_TRADES]),
+      ...stored(TRADE_RECORDS, [...TRADES, ...LATER_TRADES, ...TAX_TRADES, ...(variant === 'sale-2023' ? [sale2023()] : [])]),
       ...stored(INCOME_RECORDS, [...INCOME, ...LATER_INCOME, ...TAX_INCOME]),
       ...stored(CASH_MOVEMENT_RECORDS, movements),
       ...stored(EXCHANGE_RECORDS, EXCHANGES),

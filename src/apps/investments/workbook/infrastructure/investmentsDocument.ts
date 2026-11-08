@@ -1,4 +1,5 @@
 import { codecOfInvestmentsKind } from '../application/investmentsCodecs'
+import { INVESTMENT_SETTING_CHECKS } from '../application/settingWrites'
 import type { InvestmentsBooks } from '../domain/investmentsBooks'
 import { investmentsRecordsOf, readInvestmentBook } from '../domain/readInvestmentBook'
 import type { WorkbookDocument } from '../../../../shared/storage/infrastructure/documentFormat'
@@ -21,6 +22,6 @@ export const INVESTMENTS_DOCUMENT: AppDocument<InvestmentsBooks> = {
   codecOf: codecOfInvestmentsKind,
   read(copy) {
     const records = investmentsRecordsOf((kind) => recordsOfDocument(copy.document, kind, codecOfInvestmentsKind))
-    return { records, workbook: { title: copy.meta.title, ...readInvestmentBook(records) } }
+    return { records, workbook: { title: copy.meta.title, ...readInvestmentBook(records, INVESTMENT_SETTING_CHECKS) } }
   },
 }

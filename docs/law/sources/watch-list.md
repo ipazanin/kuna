@@ -26,10 +26,10 @@ Every value or matter these docs could not settle on 4 November 2026: steps stil
 
 List each new difference here, with the owning file, until the code picks it up.
 
-| Item                          | What Kuna does and the law says                                                                                                                                                                                                         | Owning file                                                     |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| 2023 city surtax              | Settled in law and not applied. Kuna shows 2023 as tax before surtax and holds no stored city or rate, until the owner decides. Porezna uprava's notice of 15 January 2024 applies the surtax and its 2023 table gives each city's rate | [Capital gains](../investments/capital-gains.md#income-of-2023) |
-| A personal car's depreciation | Kuna adds back nothing for a car kept as a capital purchase. ZPD Art. 7(3)(1) and 7(3)(3) count its depreciation among the car costs of which Art. 7(1)(4) adds half back                                                               | [Tax classes](../company/tax-classes.md#capital-purchase)       |
+| Item                          | What Kuna does and the law says                                                                                                                                                       | Owning file                                                          |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| 2023 surtax on foreign income | Kuna adds the owner's 2023 city surtax to capital gains only. Dividends and interest of 2023 still show before surtax, since how the foreign credit met the surtax was not researched | [Capital gains](../investments/capital-gains.md#city-surtax-of-2023) |
+| A personal car's depreciation | Kuna adds back nothing for a car kept as a capital purchase. ZPD Art. 7(3)(1) and 7(3)(3) count its depreciation among the car costs of which Art. 7(1)(4) adds half back             | [Tax classes](../company/tax-classes.md#capital-purchase)            |
 
 ## Readings a Porezna uprava answer would settle
 
@@ -47,6 +47,7 @@ List each new difference here, with the owning file, until the code picks it up.
 | December sales                 | A sale counts in its settlement year                                                                                                       | `reading`     | [Capital gains](../investments/capital-gains.md#which-year-a-sale-counts-in)              |
 | Fees                           | Whether a sale fee lowers the gain                                                                                                         | `reading`     | [Capital gains](../investments/capital-gains.md#fees)                                     |
 | Broker interest                | Whether broker cash is a demand deposit under Art. 65(2)(3), and receipt 1004 or 1005                                                      | `reading`     | [Foreign capital income](../investments/foreign-capital-income.md#interest-a-broker-pays) |
+| A move during 2023             | Which city's surtax applies to 2023 gains when the owner moved during the year. Kuna takes one city for the whole year                     | `reading`     | [Capital gains](../investments/capital-gains.md#city-surtax-of-2023)                      |
 
 OPZ Art. 10 provides a paid binding opinion only for future transactions, so a planned sale is the way to ask about conversion, FIFO and fees.
 
@@ -65,13 +66,14 @@ Readings and unloaded texts behind the [tax classes](../company/tax-classes.md) 
 
 ## Not loaded
 
-| Item                           | What is unknown                                                                              | What settles it                                                    |
-| ------------------------------ | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| The US Senate's consent        | Whether and when the Senate consents to Treaty Document 119-2                                | congress.gov, which refused an automated fetch on 4 November 2026  |
-| The 2023 surtax and the credit | How the foreign credit met the surtax, and the 2023 wording of field 16.2                    | A Porezna uprava answer, or the pravilnik version in force in 2024 |
-| The budget payment Naputak     | The payment reference for capital gains tax                                                  | The Naputak for the year in NN                                     |
-| The UK settlement cycle        | For a dollar line of a fund listed in London                                                 | The UK rule                                                        |
-| Amendments of Tablica 1        | Whether an NN issue after 1/2017 changed the customs table the Assets app estimates a car by | An NN search of the Pravilnik's amendments                         |
+| Item                           | What is unknown                                                                                                                                                                             | What settles it                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| The US Senate's consent        | Whether and when the Senate consents to Treaty Document 119-2                                                                                                                               | congress.gov, which refused an automated fetch on 4 November 2026                |
+| The 2023 surtax and the credit | How the foreign credit met the surtax, and the 2023 wording of field 16.2                                                                                                                   | A Porezna uprava answer, or the pravilnik version in force in 2024               |
+| Surtax changes during 2023     | Whether a city changed its surtax during 2023 in a decision on local taxes in general, which Porezna's table of 1 January 2023 would miss, and which rate of the year applies to 2023 gains | An NN search of 2023 decisions on local taxes, or a later Porezna table for 2023 |
+| The budget payment Naputak     | The payment reference for capital gains tax                                                                                                                                                 | The Naputak for the year in NN                                                   |
+| The UK settlement cycle        | For a dollar line of a fund listed in London                                                                                                                                                | The UK rule                                                                      |
+| Amendments of Tablica 1        | Whether an NN issue after 1/2017 changed the customs table the Assets app estimates a car by                                                                                                | An NN search of the Pravilnik's amendments                                       |
 
 ## Sources
 

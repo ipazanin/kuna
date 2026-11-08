@@ -26,7 +26,7 @@ import { AUTO_SYNC_INTERVAL_MS } from '../../../../../shared/sync/application/au
  * the sample with nobody having said its history is complete, as the others have, `opening`
  * the sample chosen with nothing in this browser and every read of it held, so the Investments screens stay opening,
  * `binned` the sample as another device left it, moved to the bin with its prices file after this browser last read it,
- * `mail` the sample with IBKR's report by mail switched on, and `browser` the sample kept in this browser with its prices. Without it nothing is chosen, which is the Investments
+ * `mail` the sample with IBKR's report by mail switched on, `sale-2023` the sample with a sale of 2023 whose city is not chosen yet, and `browser` the sample kept in this browser with its prices. Without it nothing is chosen, which is the Investments
  * first run. The sample has the fake prices file beside it, in this browser too, as `?prices=late-prices` or
  * `?prices=no-benchmark` names it or else `sample`, and the empty file has it only when `?prices=` names it, so a first
  * import finds its rates. `?keys=` puts what another browser left in the app's hidden folder, as `seedFakeSecrets`
@@ -44,6 +44,7 @@ export async function seedFakeInvestments(variant: string | null, pricesVariant:
     variant !== 'drive' &&
     variant !== 'sample' &&
     variant !== 'mail' &&
+    variant !== 'sale-2023' &&
     variant !== 'cash-below-zero' &&
     variant !== 'young' &&
     variant !== 'partial-history' &&

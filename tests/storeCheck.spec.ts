@@ -3,12 +3,14 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { CATEGORY_WRITES, newCategory } from '../src/apps/spending/categories/application/categoryWrites'
 import { TRANSACTION_WRITES, newEntry } from '../src/apps/spending/entries/application/entryWrites'
-import { SETTING_WRITES, setSetting } from '../src/apps/spending/workbook/application/settingWrites'
+import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settingWrites'
+import { setSetting } from '../src/shared/storage/application/settingWrites'
+import { settingRow } from '../src/shared/storage/domain/settingRows'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import { isFixedKind } from '../src/apps/spending/workbook/domain/category'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
-import { COMPANY_OIB_KEY, settingRow } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, SETTING_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { COMPANY_OIB_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { canUndo } from '../src/shared/storage/application/createWorkbookStore'
@@ -41,7 +43,7 @@ async function spendingStore(): Promise<SpendingStore> {
 }
 
 function saveOib(store: SpendingStore, oib: string): (unit: UnitOfWork) => void {
-  return (unit) => setSetting(unit, recordsOf(store.state.records!.settings), COMPANY_OIB_KEY, oib)
+  return (unit) => setSetting(unit, SETTING_WRITES, recordsOf(store.state.records!.settings), COMPANY_OIB_KEY, oib)
 }
 
 const fixedCategory = CATEGORIES.find((candidate) => isFixedKind(candidate.kind))!
@@ -70,7 +72,7 @@ const CASES: readonly { readonly name: string; readonly outcome: 'ready' | 'noth
   {
     name: 'a setting that is not in the file changed',
     outcome: 'refused',
-    work: () => (unit) => unit.of(SETTING_WRITES).change(settingRow('made_up_key', 'before'), settingRow('made_up_key', 'after')),
+    work: () => (unit) => unit.of(SETTING_WRITES).change(settingRow(SETTING_RECORDS, 'made_up_key', 'before'), settingRow(SETTING_RECORDS, 'made_up_key', 'after')),
   },
   {
     name: 'an entry on an account the file does not hold',

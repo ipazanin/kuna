@@ -12,6 +12,10 @@ export interface AutomationLabels {
 }
 
 export const en = {
+  settings: {
+    surtaxCity2023:
+      "Porezna's code of the city or municipality the owner lived in during 2023, or none for one with no surtax. Its city surtax goes on the 2023 capital gains tax. Only the Tax screen sets it.",
+  },
   automations: {
     dailyCloses: {
       title: 'Daily closes',
@@ -27,6 +31,10 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
+  settings: {
+    surtaxCity2023:
+      'Šifra Porezne za grad ili općinu u kojoj je vlasnik živio 2023., ili none za onu bez prireza. Njezin prirez ide na porez na kapitalne dobitke za 2023. Postavlja ga samo zaslon Porez.',
+  },
   automations: {
     dailyCloses: {
       title: 'Dnevne zaključne cijene',

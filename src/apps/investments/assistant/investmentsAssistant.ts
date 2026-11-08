@@ -2,6 +2,7 @@ import { words as mailWords } from '../mail/presentation/words'
 import { INVESTMENTS_CHECKS_ROUTE, INVESTMENTS_GENERAL_ROUTE, INVESTMENTS_PRICES_ROUTE } from '../overview/presentation/investmentLinks'
 import { words as settingsWords } from '../settings/presentation/words'
 import * as investmentKinds from '../workbook/domain/investmentKinds'
+import { SURTAX_CITY_2023_KEY } from '../workbook/domain/investmentSettings'
 import type { AppAssistant } from '../../../shared/app/appContribution'
 import { words } from './words'
 import type { AutomationLabels } from './words'
@@ -13,7 +14,7 @@ const AUTOMATION_LABELS: AutomationLabels = {
   mail: mailWords.card.title,
 }
 
-/** What Investments tells the chat: what it keeps, the tabs of its Settings and the automations it offers. It has no settings table of its own. */
+/** What Investments tells the chat: what it keeps, the tabs of its Settings, the one setting the Tax screen keeps and the automations it offers. */
 export const INVESTMENTS_ASSISTANT: AppAssistant = {
   kinds: Object.values(investmentKinds),
   places: [
@@ -21,7 +22,7 @@ export const INVESTMENTS_ASSISTANT: AppAssistant = {
     { route: INVESTMENTS_PRICES_ROUTE, title: settingsWords.tabs.prices },
     { route: INVESTMENTS_CHECKS_ROUTE, title: settingsWords.tabs.checks },
   ],
-  settings: [],
+  settings: [{ key: SURTAX_CITY_2023_KEY, note: words.settings.surtaxCity2023, neverPropose: true }],
   guides: [{ id: 'ibkr-mail', title: mailWords.guide.title, body: mailWords.guide.body, places: [INVESTMENTS_GENERAL_ROUTE] }],
   automations: [
     { id: 'daily-closes', title: words.automations.dailyCloses.title, what: words.automations.dailyCloses.what(AUTOMATION_LABELS), setUpRoute: INVESTMENTS_PRICES_ROUTE },

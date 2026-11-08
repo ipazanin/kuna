@@ -1,3 +1,5 @@
+import { cityOf2023, taxWithSurtax, yearSurtax } from './citySurtax'
+import type { YearSurtax } from './citySurtax'
 import { dayRate, inEurosAt, isEstimate } from './hnbRate'
 import type { DayRate } from './hnbRate'
 import { settlementDay } from './settlementDay'
@@ -63,9 +65,11 @@ export interface CapitalGainsYear {
   readonly lossesOffset: Money
   /** Gains less the losses offset: fields 13.3 and 13.5. */
   readonly base: Money
-  /** The year's rate of the base: field 14.1. For a year with surtax, the city's surtax comes on top. */
+  /** The year's rate of the base: field 14.1. */
   readonly tax: Money
-  /** Field 16.2: the gains of field 11 less the tax. For a year with surtax, the city's surtax of field 14.2 still comes off it. */
+  /** The city's surtax on the tax, field 14.2, in a year that had one. */
+  readonly surtax: YearSurtax
+  /** Field 16.2: the gains of field 11 less the tax and the surtax. While the surtax is not known, it is less the tax only. */
   readonly payout: Money
   /** Losses on lots under two years beyond the gains on them, which leave the year a capital loss. */
   readonly endsInLoss: boolean
@@ -154,6 +158,7 @@ export function capitalGainsYear(book: InvestmentBook, rates: RateBook, year: nu
   const base = subtractMoney(taxableGains, lossesOffset)
   const rules = rulesOf(year)
   const tax = moneyAt(base, percentFromWhole(rules.rules.gainsRate))
+  const surtax = yearSurtax(rules.rules, cityOf2023(book.settings), tax)
   const endsInLoss = losses > taxableGains
   const gainsLine = taxableGains > ZERO && !endsInLoss
   const taxFreeGains = sumOf(counted, 'tax-free')
@@ -165,7 +170,8 @@ export function capitalGainsYear(book: InvestmentBook, rates: RateBook, year: nu
     lossesOffset,
     base,
     tax,
-    payout: subtractMoney(taxableGains, tax),
+    surtax,
+    payout: subtractMoney(taxableGains, taxWithSurtax(tax, surtax)),
     endsInLoss,
     gainsLine,
     taxFreeGains,

@@ -14,6 +14,7 @@ export interface RuleBasis {
 export const TAX_RULES = {
   gainsRate: { mark: 'settled', law: 'investments/capital-gains.md#rates-by-year' },
   rates2023: { mark: 'settled', law: 'investments/capital-gains.md#income-of-2023' },
+  citySurtax2023: { mark: 'reading', law: 'investments/capital-gains.md#city-surtax-of-2023' },
   twoYears: { mark: 'settled', law: 'investments/capital-gains.md#the-two-year-exemption' },
   anniversary: { mark: 'reading', law: 'investments/capital-gains.md#counting-the-two-years' },
   fifoAcrossAccounts: { mark: 'reading', law: 'investments/capital-gains.md#fifo-per-isin-across-accounts' },

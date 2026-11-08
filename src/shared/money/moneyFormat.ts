@@ -176,8 +176,8 @@ export function formatCostShare(fraction: Share): string {
 }
 
 /** An interest rate as a bank writes it, with up to four decimals of a percent, such as 2.99% or 3.1825%. */
-export function formatRate(fraction: Share): string {
-  return formatters().rate.format(fraction)
+export function formatRate(fraction: Share, format?: MoneyFormat): string {
+  return formatters(format).rate.format(fraction)
 }
 
 /** How far apart two rates are in percentage points, with up to four decimals, such as 0.47. */

@@ -1,4 +1,5 @@
 import { dependentRefusalsOf } from '../../../../shared/storage/application/dependentRefusals'
+import { INVESTMENT_SETTING_CHECKS } from './settingWrites'
 import { INVESTMENT_PARTS, investmentsRecordsOf, readInvestmentBook } from '../domain/readInvestmentBook'
 import type { InvestmentBookReading } from '../domain/readInvestmentBook'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
@@ -10,11 +11,17 @@ export const INVESTMENT_KINDS = Object.values(INVESTMENT_PARTS) as readonly Reco
 
 /** The book the records make, with the kind's records as `read` gives them. */
 export function bookWith<R>(kind: RecordKind<R>, read: RecordsRead<R>, records: FreshRecords): InvestmentBookReading {
-  return readInvestmentBook(investmentsRecordsOf(<K>(other: RecordKind<K>) => (other.name === kind.name ? (read as RecordsRead<unknown> as RecordsRead<K>) : records.of(other))))
+  return readInvestmentBook(
+    investmentsRecordsOf(<K>(other: RecordKind<K>) => (other.name === kind.name ? (read as RecordsRead<unknown> as RecordsRead<K>) : records.of(other))),
+    INVESTMENT_SETTING_CHECKS,
+  )
 }
 
 export function bookOf(records: FreshRecords): InvestmentBookReading {
-  return readInvestmentBook(investmentsRecordsOf((kind) => records.of(kind)))
+  return readInvestmentBook(
+    investmentsRecordsOf((kind) => records.of(kind)),
+    INVESTMENT_SETTING_CHECKS,
+  )
 }
 
 /** Why a write would harm records of the investment parts that read the written kind. */

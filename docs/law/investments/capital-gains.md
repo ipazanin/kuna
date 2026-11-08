@@ -43,9 +43,27 @@ The city surtax (_prirez_) applied to 2023 income. NN 114/23, item 1610, amendin
 
 The 2023 surtax is therefore settled in law. The surtax comes off the payout: field 14.2 carries it and field 16.2 is the amount paid out after it. Only the current text of PravPDoh Art. 82(1) item 40 was loaded, and it names the tax and not the surtax, so the 2023 wording of field 16.2 is `unconfirmed` until the version in force in February 2024 is read.
 
-Kuna does not apply it yet because the owner has not decided. It still shows 2023 as tax before surtax and says so, with no stored city or rate. Years before 2023 are not computed.
+Kuna applies it for 2023 at the rate of the owner's city, as the next section sets out. Years before 2023 are not computed.
 
-Screen: Settled. The screen differs from the law here, see the [watch list](../sources/watch-list.md#where-the-screen-and-the-docs-differ).
+Screen: Settled.
+
+### City surtax of 2023
+
+The surtax was a city's or municipality's own tax, which it could choose to levy. ZLP Art. 20(1) (NN 115/16): "Jedinice lokalne samouprave mogu uvesti sljedeće poreze: 1. prirez porezu na dohodak". Art. 21(1) lets the council set it "svojom odlukom", up to 10% for a municipality, 12% for a city under 30,000 people, 15% for a larger city and 18% for Zagreb, and Art. 21(2) gives it to the place of "prebivalište ili uobičajeno boravište" (`confirmed-nn`, NN 115/16 item 2524 read on 8 November 2026). A place with no decision has no surtax.
+
+Kuna takes each rate from Porezna uprava's table "Pregled stopa prireza porezu na dohodak gradova i općina u Republici Hrvatskoj, primjena u 2023. godini", dated Zagreb, 1 January 2023, in `tax/domain/surtaxRates2023.ts`. It holds 322 rows, numbered 1 to 322 with 157 printed twice and 158 missing. Each row has Porezna's code, the place, its decisions and, in the last column, "godišnja stopa za 2023. godinu", which Kuna stores. The PDF was loaded on 8 November 2026 (created 2 January 2023 by Porezna's Excel export, 10 pages), and its rows were read from the PDF's text by position. A script checked the row count, the numbering, that each row has one code and one rate in the last column, and that no code repeats, and page 7 was compared with the rendered page. Two cells needed a reading. Cerovlje's last column prints "2,000/%", read as 2%. Grad Čabar prints 5,000% twice, once per decision row, both 5%. Two places are called Otok, code 535 under the Vinkovci office and 314 under Sinj, so the screen names each one's office. A sample, all `confirmed-table`: Grad Zagreb 18%, Grad Rijeka 13%, Grad Split 15%, Grad Osijek 13%, Grad Karlovac 9%, Vojnić 7.5%, Đurmanec 0%. No row is above the Art. 21(1) caps.
+
+The table lists the places that ever set a surtax, including some that later set it to 0%, and leaves the rest out. Kuna reads a place it leaves out as having no surtax, which follows from Art. 20(1) and 21(1). A search snippet of RRiF's copy of such a table reads the same way ("za gradove i općine koji su propisali obvezu plaćanja prireza"), but the page was not loaded, so that line is `unconfirmed` and only a lead.
+
+The table is dated 1 January 2023. A decision of 2023 would change a rate from the first day of the next month, as the decisions read here say ("stupa na snagu prvoga dana u mjesecu nakon mjeseca u kojem je objavljena"). An NN title search for "prirez" in 2023 found seven decisions. Gornji Bogićevci (NN 62/23, item 1035) set 5%, the rate the table already has. Lekenik's decision of NN 155/22 (item 2510), from 1 January 2023, is in the table at 10%. The other six, in NN 144/23 to 156/23, end a surtax when the act itself ends it. A decision titled as one on local taxes in general does not show in that search, so a change of that kind during 2023 is not ruled out.
+
+Which rate of the year applies to gains reported in February 2024 is not stated. Porezna's notice for 2023 gains names no rate. Kuna takes the table's yearly rate for 2023, which is the same as the rate on 1 January 2023 for every place without a change during the year. That is a `reading`.
+
+Kuna asks the owner once, on the Year tab of 2023, where they lived, and keeps Porezna's code of the place, or "none" for a place the table leaves out, as the setting `surtax_city_2023` in the Investments file. It takes one city for the whole of 2023, so an owner who moved during the year gets the rate of the city they choose, and splitting the surtax between two places is not handled. That is a `reading`. Field 14.2 is the city's rate of field 14.1, rounded half away from zero to the cent, and field 16.2 is field 11 less fields 14.1 and 14.2. Until the owner answers, the screen shows the tax before surtax and says so. Foreign income of 2023 still shows before surtax, see [Foreign capital income](foreign-capital-income.md#rates-by-year).
+
+Example, with made-up figures: a 2023 base of 1,000.00 is taxed 100.00 at 10%. A place with a 12% surtax adds 12.00 in field 14.2, and field 16.2 is 1,000.00 less 112.00, 888.00.
+
+Screen: A reading.
 
 ## The two-year exemption
 
@@ -140,7 +158,8 @@ Field 11 is 800.00, field 13.1 is 300.00 and the base is 500.00. The tax is 12% 
 
 - The day that counts for the two years, trade or settlement, is a reading.
 - Fees in the gain are a reading.
-- Kuna holds no 2023 surtax rate and shows 2023 before surtax until the owner decides to apply it. The wording of field 16.2 in 2023 is unconfirmed.
+- The wording of field 16.2 in 2023 is unconfirmed.
+- The 2023 surtax uses the yearly rate of Porezna's table of 1 January 2023. A change during 2023 made in a decision on local taxes in general was not searched for, and which rate of the year applies to the gains is a reading.
 - Gains on an exchange of fund units between two funds of different managers are not covered by Art. 67(4) item 4 and were not researched.
 
 ## Sources
@@ -149,6 +168,8 @@ Field 11 is 800.00, field 13.1 is 300.00 and the base is 500.00. The tax is 12% 
 - NN 114/23, item 1609, Zakon o izmjenama i dopunama Zakona o porezu na dohodak, Art. 28, 40, 42. <https://narodne-novine.nn.hr/clanci/sluzbeni/2023_10_114_1609.html>, loaded 4 November 2026.
 - NN 138/20, Art. 16 and 17, read in the transitional block of the zakon.hr consolidated ZPDoh, loaded 4 November 2026.
 - NN 114/23, item 1610, Zakon o izmjenama i dopuni Zakona o lokalnim porezima, Art. 5, 6, 11. <https://narodne-novine.nn.hr/clanci/sluzbeni/2023_10_114_1610.html>, loaded 4 November 2026.
+- ZLP, Zakon o lokalnim porezima, NN 115/16, item 2524, Art. 20, 21, 42. <https://narodne-novine.nn.hr/clanci/sluzbeni/2016_12_115_2524.html>, loaded 8 November 2026.
+- Surtax decisions: Lekenik, NN 155/22, item 2510, <https://narodne-novine.nn.hr/clanci/sluzbeni/2022_12_155_2510.html>, and Gornji Bogićevci, NN 62/23, item 1035, <https://narodne-novine.nn.hr/clanci/sluzbeni/2023_06_62_1035.html>, both loaded 8 November 2026. The NN title search for "prirez" in 2023, <https://narodne-novine.nn.hr/search.aspx?upit=prirez&naslovi=da&sortiraj=1&kategorija=1&godina=2023&rpp=200&qtype=3&pretraga=da>, run 8 November 2026.
 - PravPDoh, Pravilnik o porezu na dohodak: NN 10/17 to 157/25. Art. 11(4), 70(11), 71(13), 71(14). Porezna uprava consolidation, <https://porezna-uprava.gov.hr/Propisi/GetBasicData/4>, loaded 4 November 2026.
 - ZUP, Zakon o općem upravnom postupku: NN 47/09, 110/21. Art. 80(3). <https://www.zakon.hr/z/65/Zakon-o-op%C4%87em-upravnom-postupku>, loaded 4 November 2026.
-- Not acts: Porezna uprava notices of 13 January 2026 (8281), 19 January 2023 (6871) and 15 January 2024 (7026, <https://porezna-uprava.gov.hr/hr/oporezivanje-kapitalnih-dobitaka-i-izvjescivanje-putem-obrasca-joppd/7026>, loaded 7 November 2026). Porezna uprava's surtax table for 2023, dated 1 January 2023, <https://porezna-uprava.gov.hr/UserDocsImages/arhiva/obrazac_joppd/Documents/PREGLED%20STOPA%20PRIREZA%20POREZU%20NA%20DOHODAK%20%20GRADOVA%20I%20OP%C4%86INA%20U%20REPUBLICI%20HRVATSKOJ%20PRIMJENA%20U%202023_.pdf>, loaded 7 November 2026. RRiF 2/2024, <https://www.rrif.hr/clanak-22992/>. The 2016 opinion, RRiF copy, <https://www.rrif.hr/oporezivanje_kapitalnih_dobitaka_i_dinamika_placan-3338-misljenje/>. Raiffeisen KAG guide for 2025 gains, <https://a.storyblok.com/f/314998/x/1ac8f064a3/brosura-porez-na-kapitalne-dobitke_2025.pdf>. Finax guide for 2024, <http://www.finax.eu/themes/finax-rebranding/assets/_static_docs/hr/FInax-Brosura-porez-2024.pdf>. All loaded 4 November 2026.
+- Not acts: Porezna uprava notices of 13 January 2026 (8281), 19 January 2023 (6871) and 15 January 2024 (7026, <https://porezna-uprava.gov.hr/hr/oporezivanje-kapitalnih-dobitaka-i-izvjescivanje-putem-obrasca-joppd/7026>, loaded 7 November 2026). Porezna uprava's surtax table for 2023, dated 1 January 2023, <https://porezna-uprava.gov.hr/UserDocsImages/arhiva/obrazac_joppd/Documents/PREGLED%20STOPA%20PRIREZA%20POREZU%20NA%20DOHODAK%20%20GRADOVA%20I%20OP%C4%86INA%20U%20REPUBLICI%20HRVATSKOJ%20PRIMJENA%20U%202023_.pdf>, loaded 7 November 2026 and read in full on 8 November 2026. RRiF, "Pregled stopa prireza porezu na dohodak", <https://www.rrif.hr/pregled_stopa_prireza_porezu_na_dohodak-5-strucnainformacija/>, a search snippet only, not loaded. RRiF 2/2024, <https://www.rrif.hr/clanak-22992/>. The 2016 opinion, RRiF copy, <https://www.rrif.hr/oporezivanje_kapitalnih_dobitaka_i_dinamika_placan-3338-misljenje/>. Raiffeisen KAG guide for 2025 gains, <https://a.storyblok.com/f/314998/x/1ac8f064a3/brosura-porez-na-kapitalne-dobitke_2025.pdf>. Finax guide for 2024, <http://www.finax.eu/themes/finax-rebranding/assets/_static_docs/hr/FInax-Brosura-porez-2024.pdf>. All loaded 4 November 2026.

@@ -2,10 +2,12 @@
 import { computed } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
+import { surtaxChargedBy, taxWithSurtax } from '../domain/citySurtax'
 import type { ForeignIncomeYear } from '../domain/foreignIncome'
 import { JOPPD_CODES, TAX_RULES } from '../domain/taxRules'
 import type { TaxRule } from '../domain/taxRules'
 import type { CapitalGainsYear } from '../domain/taxYear'
+import SurtaxCityCard from './SurtaxCityCard.vue'
 import { taxLink } from './taxLinks'
 import { payerOf } from './taxText'
 import { words } from './words'
@@ -14,6 +16,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { subtractMoney, ZERO } from '../../../../shared/money/money'
+import { percentText } from '../../../../shared/money/percent'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
@@ -35,13 +38,32 @@ const hasSales = computed(() => props.gains.sales.length > 0)
 const lossesBeyond = computed(() => subtractMoney(props.gains.losses, props.gains.lossesOffset))
 const leftOut = computed(() => props.gains.leftOut + props.foreign.leftOut)
 const rulesYear = computed(() => (props.gains.rules.ownRow ? null : props.gains.rules.rules.year))
-const surtax = computed(() => props.gains.rules.rules.surtax)
+const surtax = computed(() => props.gains.surtax)
+const surtaxCity = computed(() => surtaxChargedBy(surtax.value))
+const taxLabel = computed(() => {
+  if (surtax.value.kind === 'no-city') return text.tiles.taxBeforeSurtax
+  return surtaxCity.value === null ? text.tiles.taxToPay : text.tiles.taxAndSurtax
+})
 const taxCaption = computed(() => {
   const { gains } = props
   if (gains.due === null) {
     return text.tiles.noJoppd
   }
-  return surtax.value ? text.tiles.taxBeforeSurtaxCaption(gains.rules.rules.gainsRate, dayLabel(gains.due)) : text.tiles.taxToPayCaption(dayLabel(gains.due))
+  const day = dayLabel(gains.due)
+  const owed = surtax.value
+  if (owed.kind === 'none') return text.tiles.taxToPayCaption(day)
+  if (owed.kind === 'no-city') return text.tiles.taxBeforeSurtaxCaption(gains.rules.rules.gainsRate, day)
+  return surtaxCity.value === null ? text.tiles.noSurtaxCaption(day) : text.tiles.taxAndSurtaxCaption(formatMoney(gains.tax), formatMoney(owed.amount), day)
+})
+
+/** Field 14.2: nothing in a year without surtax, the city's surtax once it is known, and a pointer to the city card until then. */
+const surtaxFact = computed((): Fact => {
+  const owed = surtax.value
+  const field = (value: string, caption: string): Fact => ({ label: text.joppd.fields.surtax, value, caption, lang: 'hr' })
+  if (owed.kind === 'none') return field(formatMoney(ZERO), marks.settled)
+  if (owed.kind === 'no-city') return field(text.joppd.cityNotChosen, text.joppd.chooseCity)
+  const city = surtaxCity.value
+  return field(formatMoney(owed.amount), city === null ? text.joppd.noSurtax : text.joppd.surtaxAt(percentText(owed.rate), city.name))
 })
 
 /** The year's JOPPD: its head, the line for lots under two years when it has one, and the code-02 line when it has tax-free gains. */
@@ -60,10 +82,12 @@ const joppdFacts = computed((): Fact[] => {
         field(fields.expenses, formatMoney(gains.lossesOffset), marks.reading),
         field(fields.base, formatMoney(gains.base), marks.reading),
         field(fields.tax, formatMoney(gains.tax), text.joppd.rateSettled),
-        field(fields.surtax, surtax.value ? text.joppd.citySurtax : formatMoney(ZERO), marks.settled),
-        surtax.value
-          ? field(fields.payment, text.joppd.paymentWithSurtax(formatMoney(gains.payout)), marks.reading)
-          : field(fields.payment, `1, ${formatMoney(gains.payout)}`, text.joppd.payoutSettled),
+        surtaxFact.value,
+        {
+          none: field(fields.payment, `1, ${formatMoney(gains.payout)}`, text.joppd.payoutSettled),
+          'no-city': field(fields.payment, text.joppd.paymentWithSurtax(formatMoney(gains.payout)), marks.reading),
+          due: field(fields.payment, `1, ${formatMoney(gains.payout)}`, marks.reading),
+        }[surtax.value.kind],
       ]
     : []
   const taxFreeLine =
@@ -123,7 +147,7 @@ const readings = computed(() => rules.value.filter((rule) => rule.mark !== 'sett
     <p v-if="rulesYear !== null" class="type-caption" data-testid="tax-other-rules">{{ text.otherRules(gains.year, rulesYear) }}</p>
     <template v-if="hasSales">
       <DashboardGrid layout="tiles" data-testid="tax-tiles">
-        <KpiTile :label="surtax ? text.tiles.taxBeforeSurtax : text.tiles.taxToPay" :value="formatMoney(gains.tax)" :to="null" :caption="taxCaption" icon="i-lucide-landmark" />
+        <KpiTile :label="taxLabel" :value="formatMoney(taxWithSurtax(gains.tax, gains.surtax))" :to="null" :caption="taxCaption" icon="i-lucide-landmark" />
         <KpiTile :label="text.tiles.taxableGains" :value="formatMoney(gains.taxableGains)" :to="taxLink(gains.year, 'sales')" :caption="text.tiles.taxableGainsCaption" />
         <KpiTile
           :label="text.tiles.lossesOffset"
@@ -136,6 +160,7 @@ const readings = computed(() => rules.value.filter((rule) => rule.mark !== 'sett
       <p v-if="gains.oldLosses > 0" class="type-caption" data-testid="tax-old-losses">{{ text.oldLosses(formatMoney(gains.oldLosses)) }}</p>
       <p v-if="gains.due === null" class="type-caption" data-testid="tax-no-joppd">{{ gains.endsInLoss ? text.noJoppd.lossYear : text.noJoppd.noGains }}</p>
     </template>
+    <SurtaxCityCard v-if="gains.gainsLine && surtax.kind !== 'none'" :surtax="surtax" />
     <DashboardGrid layout="cards">
       <AppCard v-if="gains.due !== null" :title="text.joppd.title" :subtitle="text.joppd.subtitle(gains.year)" data-testid="tax-joppd">
         <div class="px-4 pt-3 pb-4 sm:px-5">

@@ -7,8 +7,8 @@ import type { Receipt } from './receipt'
 import type { ReceiptLine } from './receiptLine'
 import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
 import type { SpendingRule } from './spendingRule'
-import { readSettingRows, spendingSettingsOf } from './spendingSettings'
-import type { SettingRow, SpendingSettings } from './spendingSettings'
+import { SPENDING_SETTING_CHECKS, spendingSettingsOf } from './spendingSettings'
+import type { SpendingSettings } from './spendingSettings'
 import type { Transaction } from './transaction'
 import { words } from './words'
 import { limitRuns, runsOverlap } from '../../budgets/domain/budgetCarry'
@@ -19,6 +19,8 @@ import type { RecordKind, RecordNoun } from '../../../../shared/storage/domain/r
 import { problemOf, readEach } from '../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import { readSettingRows } from '../../../../shared/storage/domain/settingRows'
+import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
 import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
 
 /** What the Spending file holds of each kind. */
@@ -226,7 +228,7 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const rules = readRules(records.rules, categoryIds)
   const receipts = readReceipts(records.receipts, new Set(transactions.facts.map((row) => row.id)))
   const lines = readLines(records.lines, transactions.facts, receipts.facts, categoryIds)
-  const settings = readSettingRows(records.settings)
+  const settings = readSettingRows(records.settings, SPENDING_SETTING_CHECKS)
   const readings: SpendingReadings = { accounts, categories, transactions, budgets, rules, receipts, lines, settings }
   return {
     accounts: accounts.facts,
