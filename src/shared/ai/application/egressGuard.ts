@@ -36,7 +36,7 @@ function holdsSecret(modelName: string, request: ModelRequest, secrets: readonly
 }
 
 /**
- * The text a shape is looked for in. A document's base64, a thinking signature and encrypted reasoning are left out,
+ * The text a shape is looked for in. The base64 of a photo or PDF, in a person's turn or a tool's result, a thinking signature and encrypted reasoning are left out,
  * as long opaque strings match these shapes by chance and would then refuse every later request of a run.
  */
 function readableText(modelName: string, request: ModelRequest): readonly string[] {

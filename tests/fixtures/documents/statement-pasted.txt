@@ -1,0 +1,13 @@
+Example Bank d.d. - promet po računu HR1723600001101234565
+Razdoblje: 2026-10-01 - 2026-10-31
+Početno stanje: 1.250,00 EUR
+
+Datum	Primatelj / platitelj	Opis	Iznos
+01.10.2026.	Corner market	Card payment	-42,15
+03.10.2026.	Example Studio d.o.o.	Salary October	2.400,00
+05.10.2026.	Harbour bistro	Card payment	-38,60
+08.10.2026.	Fuel station	Card payment	-61,20
+12.10.2026.	Cafe on the square	Card payment	-2,40
+12.10.2026.	Cafe on the square	Card payment	-2,40
+
+Završno stanje: 3.503,25 EUR

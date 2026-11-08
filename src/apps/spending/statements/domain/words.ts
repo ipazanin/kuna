@@ -32,6 +32,8 @@ export const en = {
     one: `1 row of ${account} left out, since the bank sync covers the days from ${day}.`,
     other: `${count} rows of ${account} left out, since the bank sync covers the days from ${day}.`,
   }),
+  doesNotTie: (opening: string, rows: string, reached: string, closing: string, gap: string) =>
+    `The statement does not add up: the opening balance ${opening} and its rows ${rows} reach ${reached}, but the printed closing balance is ${closing}, ${gap} apart.`,
 }
 
 export const hr: Translation<typeof en> = {
@@ -83,6 +85,8 @@ export const hr: Translation<typeof en> = {
     few: `Izostavljeno redaka računa ${account}: ${count}, jer sinkronizacija s bankom pokriva dane od ${day}`,
     other: `Izostavljeno redaka računa ${account}: ${count}, jer sinkronizacija s bankom pokriva dane od ${day}`,
   }),
+  doesNotTie: (opening, rows, reached, closing, gap) =>
+    `Izvod se ne slaže: početno stanje ${opening} i njegovi retci ${rows} daju ${reached}, a ispisano završno stanje je ${closing}, razlika ${gap}.`,
 }
 
 export const words = language === 'hr' ? hr : en

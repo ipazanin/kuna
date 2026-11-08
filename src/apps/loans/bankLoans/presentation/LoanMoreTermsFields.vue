@@ -5,8 +5,8 @@ import UInput from '@nuxt/ui/components/Input.vue'
 
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as loansWords } from '../../words'
-import { typedLoanTerms } from './LoanTermsFields.vue'
-import type { LoanTermsTexts } from './LoanTermsFields.vue'
+import { typedLoanTerms } from './loanTermsTexts'
+import type { LoanTermsTexts } from './loanTermsTexts'
 import { useLoanWords } from './useLoanWords'
 
 /** The terms a first figure can do without: the lender and the interest charged before the first instalment. */

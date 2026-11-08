@@ -154,7 +154,7 @@ describe('the Anthropic Messages request', () => {
             parts: [
               { kind: 'text', text: 'Read this offer.' },
               { kind: 'pdf', base64: 'JVBERi0xLjcK', name: 'offer.pdf' },
-              { kind: 'image', base64: '/9j/4AAQSkZJRg==', mediaType: 'image/jpeg' },
+              { kind: 'image', base64: '/9j/4AAQSkZJRg==', mediaType: 'image/jpeg', width: 1120, height: 1600 },
             ],
           },
         ],
@@ -184,8 +184,8 @@ describe('the Anthropic Messages request', () => {
           {
             role: 'tool-results',
             results: [
-              { callId: 'toolu_01A9q4Rm', text: 'PDV is 25 percent.', isError: false },
-              { callId: 'toolu_01B7xKp2', text: 'There is no rule pdv-13.', isError: true },
+              { callId: 'toolu_01A9q4Rm', text: 'PDV is 25 percent.', parts: [], isError: false },
+              { callId: 'toolu_01B7xKp2', text: 'There is no rule pdv-13.', parts: [], isError: true },
             ],
           },
         ],
@@ -202,6 +202,79 @@ describe('the Anthropic Messages request', () => {
         { type: 'tool_result', tool_use_id: 'toolu_01B7xKp2', content: 'There is no rule pdv-13.', is_error: true },
       ],
     })
+  })
+
+  it('sends a tool result with a photo or a PDF as a list, its envelope first, and one with text only as a string', async () => {
+    const requests = stubFetch(message({ content: [{ type: 'text', text: 'Read.' }], stop_reason: 'end_turn' }))
+
+    await anthropicMessages(KEY, SONNET).send(
+      request({
+        output: null,
+        turns: [
+          { role: 'user', parts: [{ kind: 'text', text: 'Read my receipt and the offer.' }] },
+          { role: 'assistant', calls: [], raw: TOOL_USE_CONTENT },
+          {
+            role: 'tool-results',
+            results: [
+              {
+                callId: 'toolu_01A9q4Rm',
+                text: '{"id":"a1","kind":"photo"}',
+                parts: [{ kind: 'image', base64: '/9j/4AAQSkZJRg==', mediaType: 'image/jpeg', width: 1120, height: 1600 }],
+                isError: false,
+              },
+              { callId: 'toolu_01B7xKp2', text: '{"id":"a2","kind":"pdf"}', parts: [{ kind: 'pdf', base64: 'JVBERi0xLjcK', name: 'a2' }], isError: false },
+              { callId: 'toolu_01C3mWq9', text: 'There is no attachment a3.', parts: [], isError: true },
+            ],
+          },
+        ],
+      }),
+    )
+
+    expect((requests[0]!.body.messages as unknown[])[2]).toEqual({
+      role: 'user',
+      content: [
+        {
+          type: 'tool_result',
+          tool_use_id: 'toolu_01A9q4Rm',
+          content: [
+            { type: 'text', text: '{"id":"a1","kind":"photo"}' },
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: '/9j/4AAQSkZJRg==' } },
+          ],
+          is_error: false,
+        },
+        {
+          type: 'tool_result',
+          tool_use_id: 'toolu_01B7xKp2',
+          content: [
+            { type: 'text', text: '{"id":"a2","kind":"pdf"}' },
+            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: 'JVBERi0xLjcK' }, title: 'a2' },
+          ],
+          is_error: false,
+        },
+        { type: 'tool_result', tool_use_id: 'toolu_01C3mWq9', content: 'There is no attachment a3.', is_error: true, cache_control: { type: 'ephemeral' } },
+      ],
+    })
+  })
+
+  it('sends no empty text block beside a photo, which Anthropic refuses', async () => {
+    const requests = stubFetch(message({ content: [{ type: 'text', text: 'Read.' }], stop_reason: 'end_turn' }))
+
+    await anthropicMessages(KEY, SONNET).send(
+      request({
+        turns: [
+          { role: 'user', parts: [{ kind: 'text', text: 'Read my receipt.' }] },
+          { role: 'assistant', calls: [], raw: TOOL_USE_CONTENT },
+          {
+            role: 'tool-results',
+            results: [{ callId: 'toolu_01A9q4Rm', text: '', parts: [{ kind: 'image', base64: '/9j/4AAQSkZJRg==', mediaType: 'image/jpeg', width: 1120, height: 1600 }], isError: false }],
+          },
+        ],
+      }),
+    )
+
+    expect((requests[0]!.body.messages as { content: { content: unknown }[] }[])[2]!.content[0]!.content).toEqual([
+      { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: '/9j/4AAQSkZJRg==' } },
+    ])
   })
 })
 
@@ -602,7 +675,7 @@ describe('the cache breakpoint on the tail of a chat', () => {
       turns: [
         { role: 'user', parts: [{ kind: 'text', text: 'One' }] },
         { role: 'assistant', calls: [], raw: [{ type: 'text', text: 'Two' }] },
-        { role: 'tool-results', results: [{ callId: 'a', text: 'Three', isError: false }] },
+        { role: 'tool-results', results: [{ callId: 'a', text: 'Three', parts: [], isError: false }] },
       ],
     })
     const messages = requests[1]!.body['messages'] as { content: Record<string, unknown>[] }[]

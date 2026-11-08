@@ -1,6 +1,7 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../shared/money/money'
 import type { TransactionSignals } from '../../../../shared/categorising/domain/transactionFacts'
+import { occurrenceKeys } from '../../../../shared/text/factKey'
 
 /** One booked entry of a statement, as the ledger will hold it. */
 export interface ImportedRow {
@@ -61,4 +62,16 @@ export class StatementRefused extends Error {
     super(reason)
     this.name = 'StatementRefused'
   }
+}
+
+/** What starts the reference of an entry read off a printed statement, so it is never taken for a bank's reference or a table's key. */
+const TRANSCRIBED_PREFIX = 'read-'
+
+/**
+ * References for entries read off a printed statement, in the statement's order: its account, day and amount, with the count
+ * among equal entries before it. The counterparty stays out, as two reads of one page spell it differently. Reading the same
+ * statement again gives the same references, so its entries are skipped.
+ */
+export function transcribedReferences(account: string, rows: readonly Pick<ImportedRow, 'date' | 'amount'>[]): string[] {
+  return occurrenceKeys(rows.map((row) => [account, row.date, String(row.amount)])).map((key) => `${TRANSCRIBED_PREFIX}${key}`)
 }

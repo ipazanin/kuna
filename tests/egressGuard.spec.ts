@@ -44,7 +44,7 @@ describe('the egress guard', () => {
   it.each([
     ['the system text', requestWith('x', { system: [{ kind: 'text', text: `Key ${CANARY}` }] })],
     ['a user turn', requestWith(`Key ${CANARY}`)],
-    ['a tool result', requestWith('x', { turns: [{ role: 'tool-results', results: [{ callId: 'a', text: `Key ${CANARY}`, isError: false }] }] })],
+    ['a tool result', requestWith('x', { turns: [{ role: 'tool-results', results: [{ callId: 'a', text: `Key ${CANARY}`, parts: [], isError: false }] }] })],
     ['what an assistant turn replays', requestWith('x', { turns: [{ role: 'assistant', calls: [], raw: [{ type: 'text', text: CANARY }] }] })],
     ['a schema', requestWith('x', { output: { type: 'string', enum: [CANARY] } })],
   ])('refuses a stored secret in %s and sends nothing', async (_where, request) => {
@@ -84,7 +84,7 @@ describe('the egress guard', () => {
   it('looks for shapes in no document, signature or encrypted reasoning, where they turn up by chance, but still for an exact secret', async () => {
     const chance = `AIza${'x'.repeat(40)}`
     const turns: ModelRequest['turns'] = [
-      { role: 'user', parts: [{ kind: 'image', base64: chance, mediaType: 'image/jpeg' }] },
+      { role: 'user', parts: [{ kind: 'image', base64: chance, mediaType: 'image/jpeg', width: 1120, height: 1600 }] },
       {
         role: 'assistant',
         calls: [],
@@ -96,6 +96,13 @@ describe('the egress guard', () => {
     ]
     expect(await refuses(modelNoting(), requestWith('x', { turns }), [])).toBe(false)
     expect(await refuses(modelNoting(), requestWith('x', { turns }), [chance])).toBe(true)
+  })
+
+  it('refuses a key in the envelope of a tool result that carries a photo, and reads no shape in the photo itself', async () => {
+    const photo = { kind: 'image' as const, base64: `AIza${'x'.repeat(40)}`, mediaType: 'image/jpeg' as const, width: 1120, height: 1600 }
+    const result = (text: string): ModelRequest['turns'] => [{ role: 'tool-results', results: [{ callId: 'a', text, parts: [photo], isError: false }] }]
+    expect(await refuses(modelNoting(), requestWith('x', { turns: result('{"id":"a1","kind":"photo","note":"sk-ant-api03-madeUpMadeUpMadeUpMadeUp"}') }), [])).toBe(true)
+    expect(await refuses(modelNoting(), requestWith('x', { turns: result('{"id":"a1","kind":"photo"}') }), [])).toBe(false)
   })
 
   it('turns away a request whatever else it asks, and reads a secret saved after it was built', async () => {

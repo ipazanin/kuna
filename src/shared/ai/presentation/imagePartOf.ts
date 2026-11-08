@@ -1,10 +1,10 @@
-import type { AiPart } from '../domain/aiTask'
+import type { AiImagePart } from '../domain/aiTask'
 
 /** Enough pixels to read a till's small print, about 2,300 of Anthropic's image tokens. An area, since a long edge alone leaves a tall receipt too narrow to read. */
 const MOST_PIXELS = 1_800_000
 /** The longest edge Anthropic reads at full detail. OpenAI's and OpenRouter's models take at least this much. */
 const MOST_EDGE = 2_576
-/** Each provider takes far more, but `runTask` counts a photo by its size against its input cap, so a photo stays well under that. */
+/** Each provider takes far more. This keeps a photo's request quick to send. */
 const MOST_BYTES = 600_000
 const QUALITIES: readonly number[] = [0.85, 0.7, 0.55]
 
@@ -31,7 +31,7 @@ async function base64Of(blob: Blob): Promise<string> {
  * A photo as a task sends it: a JPEG every provider reads, downscaled here, which also drops the camera's EXIF block with any
  * GPS. Throws for a photo this browser cannot decode, such as a HEIC on Firefox.
  */
-export async function imagePartOf(photo: Blob): Promise<Extract<AiPart, { kind: 'image' }>> {
+export async function imagePartOf(photo: Blob): Promise<AiImagePart> {
   const bitmap = await createImageBitmap(photo)
   try {
     const { width, height } = sentSize(bitmap.width, bitmap.height)
@@ -46,7 +46,7 @@ export async function imagePartOf(photo: Blob): Promise<Extract<AiPart, { kind: 
       if (jpeg.size <= MOST_BYTES) break
       jpeg = await jpegOf(canvas, quality)
     }
-    return { kind: 'image', mediaType: 'image/jpeg', base64: await base64Of(jpeg) }
+    return { kind: 'image', mediaType: 'image/jpeg', base64: await base64Of(jpeg), width, height }
   } finally {
     bitmap.close()
   }

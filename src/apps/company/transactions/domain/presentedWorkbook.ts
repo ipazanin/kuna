@@ -2,7 +2,7 @@ import { ownerShareProblems } from '../../owner-share/domain/ownerParts'
 import { presentedTransactions } from '../../settings/domain/profitAndLossLabels'
 import { splitLedger } from '../../workbook/domain/splits'
 import type { Workbook } from '../../workbook/domain/workbook'
-import { countedSplits } from '../domain/countedSplits'
+import { countedSplits } from './countedSplits'
 
 /**
  * The workbook as booked, as Year and the tax figures count it: each split row replaced by its parts,

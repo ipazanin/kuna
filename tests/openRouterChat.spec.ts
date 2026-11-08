@@ -130,7 +130,7 @@ describe('the Chat Completions request', () => {
             role: 'user',
             parts: [
               { kind: 'text', text: 'Read this offer.' },
-              { kind: 'image', base64: '/9j/4AAQSkZJRg==', mediaType: 'image/jpeg' },
+              { kind: 'image', base64: '/9j/4AAQSkZJRg==', mediaType: 'image/jpeg', width: 1120, height: 1600 },
             ],
           },
         ],
@@ -165,8 +165,8 @@ describe('the Chat Completions request', () => {
           {
             role: 'tool-results',
             results: [
-              { callId: 'call_Qm3x', text: 'PDV is 25 percent.', isError: false },
-              { callId: 'call_Zt8k', text: 'There is no rule pdv-13.', isError: true },
+              { callId: 'call_Qm3x', text: 'PDV is 25 percent.', parts: [], isError: false },
+              { callId: 'call_Zt8k', text: 'There is no rule pdv-13.', parts: [], isError: true },
             ],
           },
         ],
@@ -178,6 +178,59 @@ describe('the Chat Completions request', () => {
       { role: 'tool', tool_call_id: 'call_Qm3x', content: 'PDV is 25 percent.' },
       { role: 'tool', tool_call_id: 'call_Zt8k', content: 'Error: There is no rule pdv-13.' },
     ])
+  })
+
+  it('sends a tool result with a photo as a list, its envelope first, and one with text only as a string', async () => {
+    const requests = stubFetch(completion('stop', { content: 'Read.' }))
+
+    await openRouterChat(BASE_URL, KEY, SOL).send(
+      request({
+        ...WITH_TOOLS,
+        turns: [
+          { role: 'user', parts: [{ kind: 'text', text: 'Read my receipt.' }] },
+          { role: 'assistant', calls: [], raw: { role: 'assistant', content: null } },
+          {
+            role: 'tool-results',
+            results: [
+              { callId: 'call_a1', text: '{"id":"a1","kind":"photo"}', parts: [{ kind: 'image', base64: '/9j/4AAQSkZJRg==', mediaType: 'image/jpeg', width: 1120, height: 1600 }], isError: false },
+              { callId: 'call_a3', text: 'There is no attachment a3.', parts: [], isError: true },
+            ],
+          },
+        ],
+      }),
+    )
+
+    expect((requests[0]!.body!.messages as unknown[]).slice(3)).toEqual([
+      {
+        role: 'tool',
+        tool_call_id: 'call_a1',
+        content: [
+          { type: 'text', text: '{"id":"a1","kind":"photo"}' },
+          { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==' } },
+        ],
+      },
+      { role: 'tool', tool_call_id: 'call_a3', content: 'Error: There is no attachment a3.' },
+    ])
+  })
+
+  it('sends nothing when a tool result holds a PDF', async () => {
+    const requests = stubFetch()
+
+    const failure = await openRouterChat(BASE_URL, KEY, SOL)
+      .send(
+        request({
+          ...WITH_TOOLS,
+          turns: [
+            { role: 'user', parts: [{ kind: 'text', text: 'Read the offer.' }] },
+            { role: 'assistant', calls: [], raw: { role: 'assistant', content: null } },
+            { role: 'tool-results', results: [{ callId: 'call_a2', text: '{"id":"a2","kind":"pdf"}', parts: [{ kind: 'pdf', base64: 'JVBERi0xLjcK', name: 'a2' }], isError: false }] },
+          ],
+        }),
+      )
+      .catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(ModelRequestFailed)
+    expect(requests).toEqual([])
   })
 })
 

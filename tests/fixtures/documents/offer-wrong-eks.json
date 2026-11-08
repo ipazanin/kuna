@@ -1,0 +1,12 @@
+{
+  "file": "offer-wrong-eks.pdf",
+  "lender": "Example Bank d.d.",
+  "principal": "150000",
+  "rate": "3.18",
+  "drawdown": "2026-11-07",
+  "firstInstalment": "2026-12-07",
+  "instalments": 360,
+  "upfront": "1000",
+  "printedEks": "2.28",
+  "kunaEks": "3.28"
+}

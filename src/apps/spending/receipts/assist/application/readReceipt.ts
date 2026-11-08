@@ -2,7 +2,7 @@ import { LINE_KINDS, NEW_CATEGORY, categoryRefs, recentLinesOf, receiptDraft } f
 import type { ReceiptAnswer, ReceiptRead } from '../../domain/receiptDraft'
 import type { FiscalQr } from '../../domain/fiscalQr'
 import type { SpendingBook } from '../../../workbook/domain/readSpendingBook'
-import type { AiPart, AiTask } from '../../../../../shared/ai/domain/aiTask'
+import type { AiImagePart, AiTask } from '../../../../../shared/ai/domain/aiTask'
 import type { StrictSchema } from '../../../../../shared/ai/domain/strictSchema'
 
 export const READ_RECEIPT = 'spending.read-receipt'
@@ -11,7 +11,7 @@ export const READ_RECEIPT = 'spending.read-receipt'
 const MOST_EXAMPLES = 10
 
 export interface ReadReceiptInput {
-  readonly photo: Extract<AiPart, { kind: 'image' }>
+  readonly photo: AiImagePart
   readonly book: Pick<SpendingBook, 'categories' | 'receipts' | 'lines'>
   readonly qr: FiscalQr | null
   /** The merchant known before the read, typed or from the payment matched, blank when none is. The examples follow it. */

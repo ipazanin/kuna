@@ -14,7 +14,7 @@ import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { civil, euros } from './fixtures/ledger'
 import { CATEGORIES, category } from './fixtures/spending'
 
-const PHOTO = { kind: 'image', mediaType: 'image/jpeg', base64: 'bWFkZS11cA==' } as const
+const PHOTO = { kind: 'image', mediaType: 'image/jpeg', base64: 'bWFkZS11cA==', width: 1120, height: 1600 } as const
 const INPUT: ReadReceiptInput = { photo: PHOTO, book: { categories: CATEGORIES, receipts: [], lines: [] }, qr: null, merchant: '', companyOib: '' }
 
 const ANSWER = {

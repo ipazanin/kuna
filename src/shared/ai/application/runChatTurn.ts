@@ -102,7 +102,7 @@ export function runChatTurn(turn: ChatTurn): Promise<LoopEnd> {
       turn.onLookup()
       const answer = await runChatTool({ catalogue: turn.catalogue, reads: turn.reads, showChip: turn.showChip, showProposal: turn.showProposal }, call)
       if (answer.read !== undefined) awaiting.set(call.id, answer.read)
-      return { text: answer.text, isError: answer.isError }
+      return { text: answer.text, parts: [], isError: answer.isError }
     },
     effort: 'low',
     signal: turn.signal,

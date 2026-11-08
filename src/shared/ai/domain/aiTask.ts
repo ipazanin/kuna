@@ -7,8 +7,24 @@ export interface AiTextPart {
   readonly text: string
 }
 
+/** A PDF as it is sent. `name` reaches the provider, so it is the attachment's id, such as `a2`, and never the file's own name. */
+export interface AiPdfPart {
+  readonly kind: 'pdf'
+  readonly base64: string
+  readonly name: string
+}
+
+/** A photo as it is sent, with the size it is sent at, which the request's token count reads. */
+export interface AiImagePart {
+  readonly kind: 'image'
+  readonly base64: string
+  readonly mediaType: 'image/jpeg'
+  readonly width: number
+  readonly height: number
+}
+
 /** One part of what a task sends: text Kuna built, which is masked, or a whole document or photo, which cannot be. */
-export type AiPart = AiTextPart | { readonly kind: 'pdf'; readonly base64: string; readonly name: string } | { readonly kind: 'image'; readonly base64: string; readonly mediaType: 'image/jpeg' }
+export type AiPart = AiTextPart | AiPdfPart | AiImagePart
 
 /** What a tool hands back: text for the model, and the sources and figures an answer may then cite. */
 export interface ToolAnswer {

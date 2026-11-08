@@ -1,12 +1,13 @@
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { ZERO, addMoney, moneyFromAmount, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import type { EntrySide } from '../../../../shared/categorising/domain/rule'
+import { ZERO, addMoney, moneyFromAmount, negateMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { foldRuleText, normaliseIban } from '../../../../shared/text/fold'
 import { StatementRefused } from './importedStatement'
+import { statementTies } from './statementTies'
 import type { ImportedRow, ImportedStatement, StatementReading } from './importedStatement'
 import { words } from './words'
-import type { EntrySide } from './words'
 
 /**
  * Banks whose camt statements always carry TxsSummry, by the servicer's BIC. A statement from one
@@ -122,11 +123,11 @@ function readStatement(statement: Element, fileName: string, accountsByIban: Rea
     balance = addMoney(balance, entry.row.amount)
     return { ...entry.row, balance }
   })
-  const credits = sumMoney(entries.filter((entry) => entry.credit).map((entry) => entry.magnitude))
-  const debits = sumMoney(entries.filter((entry) => !entry.credit).map((entry) => entry.magnitude))
-  const expected = subtractMoney(addMoney(opening, credits), debits)
-  if (expected !== closing) {
-    throw new StatementRefused(words.camt.chainOpen(opening, credits, debits, expected, closing))
+  const tie = statementTies({ opening, amounts: rows.map((row) => row.amount), closing })
+  if (tie.kind === 'off') {
+    const credits = sumMoney(entries.filter((entry) => entry.credit).map((entry) => entry.magnitude))
+    const debits = sumMoney(entries.filter((entry) => !entry.credit).map((entry) => entry.magnitude))
+    throw new StatementRefused(words.camt.chainOpen(opening, credits, debits, tie.reached, closing))
   }
   const notes: string[] = []
   const summary = childNamed(statement, 'TxsSummry')

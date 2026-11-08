@@ -1,5 +1,5 @@
-import type { ModelPort, ModelReply, ModelRequest, ModelTurn, ToolCall } from '../application/modelPort'
-import { ModelRequestFailed } from '../application/modelPort'
+import type { ModelPort, ModelReply, ModelRequest, ModelTurn, ToolCall, ToolResult } from '../application/modelPort'
+import { ModelRequestFailed, resultParts } from '../application/modelPort'
 import type { AiPart } from '../domain/aiTask'
 import type { ModelTokens } from '../domain/modelUsage'
 import type { StrictSchema } from '../domain/strictSchema'
@@ -91,9 +91,19 @@ function messages(turn: ModelTurn): object[] {
       return [turn.raw as object]
     }
     case 'tool-results': {
-      return turn.results.map((result) => ({ role: 'tool', tool_call_id: result.callId, content: result.isError ? `Error: ${result.text}` : result.text }))
+      return turn.results.map((result) => ({ role: 'tool', tool_call_id: result.callId, content: resultContent(result) }))
     }
   }
+}
+
+/**
+ * Text alone goes as a string. With a photo it is a list, the text first, then the photo, as OpenRouter's schema for a
+ * tool message allows. A PDF is refused before anything is sent, as in a person's turn.
+ */
+function resultContent(result: ToolResult): string | readonly object[] {
+  const text = result.isError ? `Error: ${result.text}` : result.text
+  if (result.parts.length === 0) return text
+  return resultParts(text, result.parts).map(contentPart)
 }
 
 function contentPart(part: AiPart): object {

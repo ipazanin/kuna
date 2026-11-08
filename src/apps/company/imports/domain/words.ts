@@ -3,6 +3,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { plainAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
+import type { EntrySide } from '../../../../shared/categorising/domain/rule'
 import { capitalised } from '../../../../shared/text/capitalised'
 import { language } from '../../../../shared/text/language'
 import { plural } from '../../../../shared/text/translation'
@@ -12,9 +13,7 @@ import type { Translation } from '../../../../shared/text/translation'
 // A bank statement is izvod, its entries and the ledger's rows stavke, a row of the bank's own file redak, and the ledger evidencija.
 // camt element names, setting words such as date_format and the statement's own label stay as the file writes them.
 
-/** The side of a statement's entries a summary counts. */
-export type EntrySide = 'debit' | 'credit'
-
+/** The side of a statement's entries a summary counts, in Croatian. */
 const CROATIAN_SIDES: Readonly<Record<EntrySide, string>> = { debit: 'terećenja', credit: 'odobrenja' }
 
 /** "1 stavku", "2 stavke", "5 stavki", as a count of entries reads after a verb. */
@@ -110,6 +109,10 @@ export const en = {
       date: 'Pick the date column.',
       amount: 'Pick the amount columns.',
     },
+  },
+  transcribed: {
+    doesNotTie: (opening: Money, rows: Money, reached: Money, closing: Money, gap: Money) =>
+      `The statement does not add up: the opening balance ${plainAmount(opening)} and its entries ${plainAmount(rows)} reach ${plainAmount(reached)}, but the printed closing balance is ${plainAmount(closing)}, ${plainAmount(gap)} apart.`,
   },
 }
 
@@ -213,6 +216,10 @@ export const hr: Translation<typeof en> = {
       date: 'Odaberite stupac datuma.',
       amount: 'Odaberite stupce iznosa.',
     },
+  },
+  transcribed: {
+    doesNotTie: (opening, rows, reached, closing, gap) =>
+      `Izvod se ne slaže: početno stanje ${formatMoney(opening)} i njegove stavke ${formatMoney(rows)} daju ${formatMoney(reached)}, a ispisano završno stanje je ${formatMoney(closing)}, razlika ${formatMoney(gap)}.`,
   },
 }
 

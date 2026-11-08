@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { runModelLoop } from '../src/shared/ai/application/runModelLoop'
 import type { ModelPort, ModelReply } from '../src/shared/ai/application/modelPort'
-import { costOfRequest } from '../src/shared/ai/domain/modelUsage'
+import { costOfDocument, costOfRequest, documentTokens } from '../src/shared/ai/domain/modelUsage'
 import { PROVIDER_PRESETS } from '../src/shared/ai/domain/providerPresets'
 
 const HAIKU = PROVIDER_PRESETS.flatMap((preset) => preset.models).find((model) => model.id === 'claude-haiku-5-5')!.price!
@@ -37,11 +37,81 @@ describe('what a request costs', () => {
       turns: [],
       output: null,
       tools: [],
-      runTool: async () => ({ text: '', isError: false }),
+      runTool: async () => ({ text: '', parts: [], isError: false }),
       effort: 'low',
       limits: { rounds: 2, requestTokens: Number.POSITIVE_INFINITY, runTokens: Number.POSITIVE_INFINITY },
     })
     // Two requests of 60,000 at $0.10 a million, under the step each, not 120,000 at five times.
     expect(end.usage?.dollars).toBeCloseTo(0.012)
+  })
+})
+
+const SONNET = PROVIDER_PRESETS.flatMap((preset) => preset.models).find((model) => model.id === 'claude-sonnet-5-5')!.price!
+
+describe('what a document weighs and costs', () => {
+  it('weighs a photo by 28-pixel squares, up to the most Anthropic counts', () => {
+    // The receipt size Kuna sends, 1,120 by 1,600: 40 squares by 58 (1,600 / 28 is 57.1, rounded up).
+    expect(documentTokens({ kind: 'photo', width: 1120, height: 1600 })).toBe(2320)
+    expect(documentTokens({ kind: 'photo', width: 8000, height: 8000 })).toBe(4784)
+  })
+
+  it("weighs a PDF page at the top of Anthropic's range", () => {
+    expect(documentTokens({ kind: 'pdf', pages: 6 })).toBe(30_000)
+  })
+
+  it('prices the read as a cache write and each later request as a cache read', () => {
+    // 30,000 tokens at Sonnet's $2.50 a million to write is $0.075, and at $0.10 to read is $0.003.
+    const cost = costOfDocument({ kind: 'pdf', pages: 6 }, SONNET, 4_000)
+    expect(cost.toRead).toBeCloseTo(0.075)
+    expect(cost.eachLaterRequest).toBeCloseTo(0.003)
+  })
+
+  it("counts Haiku's dearer rate on the whole prompt when the document takes it over 100,000 tokens", () => {
+    // Under the step, 80,000 cached tokens cost $0.0008. Over it, they cost five times that, $0.004, and the
+    // 30,000 written cost $0.01875 instead of $0.00375. The read adds $0.004 - $0.0008 + $0.01875.
+    expect(costOfDocument({ kind: 'pdf', pages: 6 }, HAIKU, 80_000).toRead).toBeCloseTo(0.02195)
+  })
+})
+
+describe('the loop with a tool result that carries a photo', () => {
+  it('masks the text, sends the photo untouched, and counts it against the request limit', async () => {
+    const sent: unknown[] = []
+    const photo = { kind: 'image' as const, base64: 'A'.repeat(1_200_000), mediaType: 'image/jpeg' as const, width: 280, height: 280 }
+    const replies: ModelReply[] = [
+      { kind: 'tool-calls', calls: [{ id: 'a', name: 'read_attachment', args: {} }], raw: [], tokens: { input: 10, cacheRead: 0, cacheWrite: 0, output: 0 } },
+      { kind: 'answer', text: 'done', raw: [], tokens: { input: 10, cacheRead: 0, cacheWrite: 0, output: 0 } },
+    ]
+    const model: ModelPort = {
+      model: { name: 'Haiku', price: HAIKU },
+      readsPdf: true,
+      send: async (request) => {
+        sent.push(request.turns.at(-1))
+        return replies.shift()!
+      },
+    }
+    const loop = (requestTokens: number) =>
+      runModelLoop({
+        model,
+        system: [],
+        turns: [],
+        output: null,
+        tools: [],
+        runTool: async () => ({ text: 'Paid from HR1723600001101234565.', parts: [photo], isError: false }),
+        effort: 'low',
+        limits: { rounds: 2, requestTokens, runTokens: Number.POSITIVE_INFINITY },
+      })
+
+    const end = await loop(Number.POSITIVE_INFINITY)
+    expect(end.kind).toBe('answer')
+    expect(sent[1]).toEqual({ role: 'tool-results', results: [{ callId: 'a', text: expect.not.stringContaining('HR1723600001101234565') as unknown, parts: [photo], isError: false }] })
+
+    // The photo is 10 squares of 28 pixels by 10, so 100 tokens however long its base64. With the envelope's 30 or so, the second request goes over a limit of 100 and stays under 200.
+    replies.push({ kind: 'tool-calls', calls: [{ id: 'a', name: 'read_attachment', args: {} }], raw: [], tokens: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 } })
+    expect((await loop(100)).kind).toBe('too-long')
+    replies.push(
+      { kind: 'tool-calls', calls: [{ id: 'a', name: 'read_attachment', args: {} }], raw: [], tokens: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 } },
+      { kind: 'answer', text: 'done', raw: [], tokens: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 } },
+    )
+    expect((await loop(200)).kind).toBe('answer')
   })
 })

@@ -96,7 +96,7 @@ describe('the Responses request', () => {
             role: 'user',
             parts: [
               { kind: 'pdf', base64: 'JVBERi0xLjcK', name: 'offer.pdf' },
-              { kind: 'image', base64: '/9j/4AAQSkZJRg==', mediaType: 'image/jpeg' },
+              { kind: 'image', base64: '/9j/4AAQSkZJRg==', mediaType: 'image/jpeg', width: 1120, height: 1600 },
             ],
           },
         ],
@@ -110,6 +110,45 @@ describe('the Responses request', () => {
           { type: 'input_image', image_url: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==' },
         ],
       },
+    ])
+  })
+
+  it('sends a tool output with a photo or a PDF as a list, its envelope first, and one with text only as a string', async () => {
+    const requests = stubFetch(streamResponse(streamFixture('openai/answer')))
+    await openAiResponses(BASE_URL, KEY, SOL).send(
+      request({
+        turns: [
+          { role: 'user', parts: [{ kind: 'text', text: 'Read my receipt and the offer.' }] },
+          { role: 'assistant', calls: [], raw: [] },
+          {
+            role: 'tool-results',
+            results: [
+              { callId: 'call_a1', text: '{"id":"a1","kind":"photo"}', parts: [{ kind: 'image', base64: '/9j/4AAQSkZJRg==', mediaType: 'image/jpeg', width: 1120, height: 1600 }], isError: false },
+              { callId: 'call_a2', text: '{"id":"a2","kind":"pdf"}', parts: [{ kind: 'pdf', base64: 'JVBERi0xLjcK', name: 'a2' }], isError: false },
+              { callId: 'call_a3', text: 'There is no attachment a3.', parts: [], isError: true },
+            ],
+          },
+        ],
+      }),
+    )
+    expect((requests[0]!.body.input as unknown[]).slice(1)).toEqual([
+      {
+        type: 'function_call_output',
+        call_id: 'call_a1',
+        output: [
+          { type: 'input_text', text: '{"id":"a1","kind":"photo"}' },
+          { type: 'input_image', image_url: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==' },
+        ],
+      },
+      {
+        type: 'function_call_output',
+        call_id: 'call_a2',
+        output: [
+          { type: 'input_text', text: '{"id":"a2","kind":"pdf"}' },
+          { type: 'input_file', filename: 'a2', file_data: 'data:application/pdf;base64,JVBERi0xLjcK' },
+        ],
+      },
+      { type: 'function_call_output', call_id: 'call_a3', output: 'Error: There is no attachment a3.' },
     ])
   })
 

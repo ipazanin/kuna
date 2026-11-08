@@ -24,7 +24,7 @@ import { accrualYear } from '../src/apps/company/packs/hr-doo/domain/accrual/acc
 import { amountOnLine } from '../src/apps/company/packs/hr-doo/domain/accrual/closedYear.ts'
 import { compareYearEnd } from '../src/apps/company/packs/hr-doo/domain/yearEnd/yearEndComparison.ts'
 import { ruleValue } from '../src/apps/company/packs/hr-doo/ruleset/ruleset.ts'
-import { presentedWorkbook } from '../src/apps/company/transactions/application/presentedWorkbook.ts'
+import { presentedWorkbook } from '../src/apps/company/transactions/domain/presentedWorkbook.ts'
 import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab.ts'
 import { readWorkbookFile } from '../src/apps/company/workbook/infrastructure/workbookFile.ts'
 import { amountOf, sumMoney } from '../src/shared/money/money.ts'

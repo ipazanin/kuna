@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { latestBalances } from '../src/apps/company/cash/domain/balances'
-import { presentedWorkbook } from '../src/apps/company/transactions/application/presentedWorkbook'
+import { presentedWorkbook } from '../src/apps/company/transactions/domain/presentedWorkbook'
 import { countedSplits } from '../src/apps/company/transactions/domain/countedSplits'
 import { listedRows, withPartHeadings } from '../src/apps/company/transactions/domain/listedRows'
 import { bucketTotals } from '../src/apps/company/workbook/domain/bucketTotals'

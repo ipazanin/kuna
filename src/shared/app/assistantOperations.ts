@@ -39,6 +39,8 @@ export interface ProposalField {
 export interface ProposalLine {
   readonly label: string
   readonly fields: readonly ProposalField[]
+  /** Why the card warns on the record as a whole, such as a row a person confirmed that the change files elsewhere, or null. */
+  readonly warning: string | null
 }
 
 /** The lines of one kind and one verb. */
@@ -48,17 +50,24 @@ export interface ProposalGroup {
   readonly lines: readonly ProposalLine[]
 }
 
-/** A proposal the app's checks passed. `held` is what Accept writes, unchanged, so a record changed since is refused rather than overwritten. */
+/**
+ * A proposal the app's checks passed. `held` is the write as checked, which Accept makes so a record changed since is refused
+ * rather than overwritten. When the app keeps a file first, Accept plans it again with that file, and refuses a plan that touches other records.
+ */
 export interface CheckedProposal {
   readonly title: string
   readonly count: number
   readonly groups: readonly ProposalGroup[]
+  /** What Accept does outside the books, which Undo leaves as it is, each a line such as "The PDF stays on Drive after Undo". */
+  readonly outside: readonly string[]
   readonly held: object
 }
 
 /** What the chat's tools get of an app's changes: a dry run, and no way to write. */
 export interface AppProposer {
   readonly operations: readonly AssistantOperation[]
+  /** Whether a check reads the app's books, so the person must allow reading the app first. Settings of the device read none. */
+  readonly readsBooks: boolean
   /** Checks the steps against the file as it stands, writing nothing. Gives why not, each a sentence, when they would not go. */
   check(title: string, steps: readonly ProposalStep[]): Promise<CheckedProposal | { readonly refused: readonly string[] }>
 }

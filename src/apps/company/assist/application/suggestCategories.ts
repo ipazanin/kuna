@@ -5,6 +5,8 @@ import { nameIn } from '../../../../shared/privacy/domain/names'
 import { newPseudonyms } from '../../../../shared/privacy/domain/pseudonyms'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { foldRuleText, normaliseIban } from '../../../../shared/text/fold'
+import { fitsPairSide, pairSidesWith } from '../../transactions/domain/pairSides'
+import type { PairSides } from '../../transactions/domain/pairSides'
 import type { Account, Category, Transaction } from '../../workbook/domain/workbook'
 
 export const SUGGEST_CATEGORIES = 'company.suggest-categories'
@@ -42,14 +44,8 @@ export interface SuggestInput {
   /** Whether Anonymise is on: rows that name employees stay out, and flagged payees go under an alias. */
   readonly anonymising: boolean
   /** The side each of the installed pack's paired roles takes. */
-  readonly packPairSides: Readonly<Record<string, 'credit' | 'debit'>>
+  readonly packPairSides: PairSides
 }
-
-/**
- * The side of a credit and debit pair each paired role takes. A suggestion of one side for a row of the other sign is
- * dropped. A reimbursement goes either way, so it has no side here.
- */
-const CORE_PAIR_SIDES: Readonly<Record<string, 'credit' | 'debit'>> = { revenue: 'credit', 'client-refund': 'debit' }
 
 /** Whether the row goes to an employee's IBAN, or its counterparty and description name an employee. */
 export function namesEmployee(row: Pick<Transaction, 'counterparty' | 'counterpartyIban' | 'description'>, employees: Pick<SuggestInput, 'employeeIbans' | 'employeeNames'>): boolean {
@@ -142,7 +138,7 @@ export const suggestCategories: AiTask<SuggestInput, SuggestionsDraft> = {
   check(output, input) {
     const sent = new Map(sentRows(input).map(({ ref, row }) => [ref, row]))
     const categories = new Map(input.categories.map((category) => [category.slug, category]))
-    const pairSides = { ...CORE_PAIR_SIDES, ...input.packPairSides }
+    const pairSides = pairSidesWith(input.packPairSides)
     const problems: string[] = []
     const seen = new Set<string>()
     const suggestions = (output as { suggestions: readonly { row: string; category: string; confidence: SuggestionConfidence; why: string }[] }).suggestions.flatMap(
@@ -153,9 +149,7 @@ export const suggestCategories: AiTask<SuggestInput, SuggestionsDraft> = {
           problems.push(`Dropped a suggestion for ${suggestion.row}: it names a row or a category the books do not have, or a row twice.`)
           return []
         }
-        const sides = category.roles.flatMap((role) => (Object.hasOwn(pairSides, role) ? [pairSides[role]] : []))
-        const side = row.amount > 0 ? 'credit' : 'debit'
-        if (sides.some((wanted) => wanted !== side)) {
+        if (!fitsPairSide(category.roles, row.amount, pairSides)) {
           problems.push(`Dropped ${suggestion.category} for ${suggestion.row}: it is the other side of a pair.`)
           return []
         }

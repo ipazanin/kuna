@@ -29,7 +29,6 @@ export const en = {
     companyOib: "The company's OIB, which tells an R1 receipt for it.",
   },
   proposals: {
-    noUndo: 'Undo ended, as something else was changed since.',
     ibanRule: (iban: string) => `Files every row from this IBAN: ${iban}`,
     yes: 'yes',
     no: 'no',
@@ -133,7 +132,6 @@ export const hr: Translation<typeof en> = {
     companyOib: 'OIB tvrtke, po kojem se prepoznaje R1 račun za nju.',
   },
   proposals: {
-    noUndo: 'Poništavanje je isteklo jer je u međuvremenu promijenjeno nešto drugo.',
     ibanRule: (iban) => `Razvrstava svaki redak s ovog IBAN-a: ${iban}`,
     yes: 'da',
     no: 'ne',

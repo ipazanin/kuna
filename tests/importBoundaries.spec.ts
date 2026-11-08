@@ -248,6 +248,10 @@ describe('import boundaries', () => {
     expect(broken((entry) => !entry.from.startsWith('src/shared/') || entry.target === null || entry.target.startsWith('src/shared/'))).toEqual([])
   })
 
+  it("keeps the kernel's storage off the chat's contracts in shared/app, which build on the storage", () => {
+    expect(broken((entry) => !/^src\/shared\/storage\/(domain|application)\//.test(entry.from) || entry.target === null || !entry.target.startsWith('src/shared/app/'))).toEqual([])
+  })
+
   it('keeps the shell off the apps, which main.ts installs by importing each app.ts when it starts', () => {
     expect(
       broken((entry) => entry.target === null || !entry.target.startsWith('src/apps/') || appOf(entry.from) !== null || (entry.from === 'src/main.ts' && entry.dynamic && isAppEntry(entry.target))),

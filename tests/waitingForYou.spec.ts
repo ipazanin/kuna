@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { waitingJobs } from '../src/apps/company/overview/presentation/waitingForYou'
-import { presentedWorkbook } from '../src/apps/company/transactions/application/presentedWorkbook'
+import { presentedWorkbook } from '../src/apps/company/transactions/domain/presentedWorkbook'
 import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
 import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
 import type { Workbook } from '../src/apps/company/workbook/domain/workbook'

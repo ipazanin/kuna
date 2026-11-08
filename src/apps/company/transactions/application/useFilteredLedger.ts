@@ -10,7 +10,7 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import { bookingOfAdvance, ledgerWindowOf } from '../../workbook/domain/workbook'
 import type { Booking, OwnerAdvance, Transaction, Workbook } from '../../workbook/domain/workbook'
 import { filterTransactions, scopeOwnerAdvances, scopeTransactions } from '../domain/filterTransactions'
-import { presentedWorkbook } from './presentedWorkbook'
+import { presentedWorkbook } from '../domain/presentedWorkbook'
 
 /** The workbook on screen with the shared filters applied, in the cuts the screens compute from. */
 export interface FilteredLedger {

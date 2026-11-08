@@ -116,6 +116,8 @@ export interface AppAssist {
 export interface AssistantPlace {
   readonly route: `/${string}`
   readonly title: string
+  /** The query keys a link may fill: a month, a year, a day, a period, or a ref of a record of a kind. */
+  readonly params?: Readonly<Record<string, 'month' | 'year' | 'day' | 'period' | { readonly kind: string }>>
 }
 
 /** A settings key the app reads and what it means. Only ever the meaning, never the value a file holds. */

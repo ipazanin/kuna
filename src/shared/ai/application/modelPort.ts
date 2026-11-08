@@ -10,6 +10,21 @@ export interface ToolCall {
   readonly args: unknown
 }
 
+/** A photo or PDF that goes whole, beside a tool result's text, which is the only part Kuna can mask. */
+export type WholePart = Exclude<AiPart, AiTextPart>
+
+/** What a tool answered: text for the model, and photos or PDFs that go after it in the same result. */
+export interface ToolResult {
+  readonly text: string
+  readonly parts: readonly WholePart[]
+  readonly isError: boolean
+}
+
+/** A tool result with photos or PDFs as each provider takes it: the text first, left out when empty, then each part. */
+export function resultParts(text: string, parts: readonly WholePart[]): readonly AiPart[] {
+  return [...(text === '' ? [] : [{ kind: 'text' as const, text }]), ...parts]
+}
+
 /**
  * One turn of a run as the loop keeps it. An assistant turn keeps the provider's own message in `raw`, which only the
  * adapter that made it reads, so it goes back unchanged on the next request, whatever kinds of block it holds.
@@ -17,7 +32,7 @@ export interface ToolCall {
 export type ModelTurn =
   | { readonly role: 'user'; readonly parts: readonly AiPart[] }
   | { readonly role: 'assistant'; readonly calls: readonly ToolCall[]; readonly raw: unknown }
-  | { readonly role: 'tool-results'; readonly results: readonly { readonly callId: string; readonly text: string; readonly isError: boolean }[] }
+  | { readonly role: 'tool-results'; readonly results: readonly ({ readonly callId: string } & ToolResult)[] }
 
 export interface ModelTool {
   readonly name: string

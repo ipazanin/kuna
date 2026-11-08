@@ -53,9 +53,9 @@ export async function runTask<Input, Output>(task: AiTask<Input, Output>, input:
     tools: task.tools.map(({ name, description, input: schema }) => ({ name, description, input: schema })),
     runTool: async (call) => {
       const answer = await toolAnswer(task, call.name, call.args)
-      if (typeof answer === 'string') return { text: answer, isError: true }
+      if (typeof answer === 'string') return { text: answer, parts: [], isError: true }
       answers.push(answer)
-      return { text: answer.text, isError: false }
+      return { text: answer.text, parts: [], isError: false }
     },
     effort: task.effort,
     signal: ports.signal,

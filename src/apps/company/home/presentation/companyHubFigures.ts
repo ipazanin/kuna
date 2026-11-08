@@ -1,6 +1,6 @@
 import type { HubFigures } from '../../../../shared/app/appContribution'
 import { shownPack } from '../../packs/packContribution'
-import { presentedWorkbook } from '../../transactions/application/presentedWorkbook'
+import { presentedWorkbook } from '../../transactions/domain/presentedWorkbook'
 import { newestBookingOf } from '../../workbook/domain/workbook'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { words } from './words'

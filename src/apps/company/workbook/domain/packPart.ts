@@ -1,6 +1,7 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { Rule } from '../../../../shared/categorising/domain/rule'
 import type { PackSettings } from '../../settings/domain/settings'
+import type { PairSides } from '../../transactions/domain/pairSides'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
@@ -77,7 +78,7 @@ export interface PackPart<Part, Values> {
   /** The roles of categories that come in a credit and a debit pair, such as a loan out and its repayment, whose proposed rules go by direction. */
   readonly directionPairedRoles: readonly string[]
   /** The side each of the pack's paired roles takes, where a reimbursement has none since it goes either way. */
-  readonly pairSides: Readonly<Record<string, 'credit' | 'debit'>>
+  readonly pairSides: PairSides
   /** The categories new books start with. */
   readonly startingCategories: readonly StartingCategory[]
   /** The category rules new books made on the day start with. */

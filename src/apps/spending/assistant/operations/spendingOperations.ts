@@ -13,20 +13,17 @@ import type { SpendingRule, SpendingRuleCondition } from '../../workbook/domain/
 import { COMPANY_OIB_KEY } from '../../workbook/domain/spendingSettings'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
-import { words } from '../words'
-import type { AppAcceptance, AppProposer, AssistantOperation, CheckedProposal, ProposalStep } from '../../../../shared/app/assistantOperations'
+import type { AppAcceptance, AppProposer, AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
 import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { parseMonthKey } from '../../../../shared/calendar/monthKey'
 import { accountMoneyFromAmount } from '../../../../shared/money/accountMoney'
 import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import { moneyFromAmount } from '../../../../shared/money/money'
-import { canUndo } from '../../../../shared/storage/application/createWorkbookStore'
-import type { WorkbookStore, WriteCheck } from '../../../../shared/storage/application/createWorkbookStore'
-import { workOf } from '../../../../shared/storage/application/recordWrites'
-import type { RuledChange } from '../../../../shared/storage/application/recordWrites'
+import type { WorkbookStore } from '../../../../shared/storage/application/createWorkbookStore'
+import { StepRefused, proposedWrites } from '../../../../shared/app/proposedWrites'
+import type { ProposalWork } from '../../../../shared/app/proposedWrites'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
-import { WorkbookWriteRefused } from '../../../../shared/storage/application/workbookWriteRefused'
 import { proposalGroupsOf } from './proposalLines'
 
 const TEXT: StrictSchema = { type: 'string' }
@@ -38,9 +35,6 @@ const FLAG_OR_NULL: StrictSchema = { type: ['string', 'null'], description: '"ye
 function inputOf(properties: Readonly<Record<string, StrictSchema>>): StrictSchema {
   return { type: 'object', properties, required: Object.keys(properties), additionalProperties: false }
 }
-
-/** The most changes a card may hold. Larger ones go as several cards, so a person can still read them. */
-const MOST_CHANGES = 200
 
 /** Every change the chat can propose in Spending. Each calls the write functions the screens use. A setting that is not listed here cannot be proposed, whatever a model asks. */
 export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
@@ -164,9 +158,6 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
     example: { key: COMPANY_OIB_KEY, value: '12345678903' },
   },
 ]
-
-/** Says why a step cannot be planned, in words the model can act on. */
-class StepRefused extends Error {}
 
 function dayOf(text: string): Transaction['date'] {
   const day = parseCivilDate(text)
@@ -323,63 +314,19 @@ function planned(unit: UnitOfWork, books: SpendingBooks, steps: readonly Proposa
   if (edits.filing.length + edits.fixing.length + edits.deleting.length > 0) writeRules(unit, book, edits)
 }
 
-/** What a proposal holds for Accept, which only this file reads. */
-interface HeldWrite {
-  readonly title: string
-  readonly changes: readonly RuledChange[]
+/** How the chat's steps become one write of the Spending file. */
+const SPENDING_WORK: ProposalWork<SpendingBooks, never> = {
+  notOpen: 'The Spending file is not open on this device.',
+  plan: (unit, books, steps) => planned(unit, books, steps),
+  groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook),
 }
 
 /** The changes the chat can propose and their dry run, over the app's own store, which `app.ts` hands in. */
-export function spendingProposer(store: Pick<WorkbookStore<SpendingBooks>, 'state' | 'check'>): AppProposer {
-  return {
-    operations: SPENDING_OPERATIONS,
-    async check(title, steps) {
-      const { workbook, records } = store.state
-      if (workbook === null || records === null) return { refused: ['The Spending file is not open on this device.'] }
-      let check: WriteCheck
-      try {
-        check = await store.check(title, (unit) => planned(unit, { workbook, records }, steps))
-      } catch (failure) {
-        if (failure instanceof StepRefused) return { refused: [failure.message] }
-        throw failure
-      }
-      if (check.status === 'refused') return { refused: [check.reason] }
-      if (check.status === 'nothingToChange') return { refused: ['Nothing would change.'] }
-      const { checked } = check
-      if (checked.changes.length > MOST_CHANGES) return { refused: [`That is ${checked.changes.length} changes. A card holds ${MOST_CHANGES}, so propose fewer and then the rest.`] }
-      const held: HeldWrite = { title, changes: checked.changes }
-      return { title, count: checked.changes.length, groups: proposalGroupsOf(checked, workbook), held } satisfies CheckedProposal
-    },
-  }
+export function spendingProposer(store: Pick<WorkbookStore<SpendingBooks>, 'state' | 'check' | 'write' | 'undo'>): AppProposer {
+  return { operations: SPENDING_OPERATIONS, readsBooks: true, check: proposedWrites(store, SPENDING_WORK).check }
 }
 
 /** Writes a proposal as it was checked, in one write with one Undo. A record changed since refuses this proposal alone, and the file's other writes go on. */
-export function spendingAcceptance(store: Pick<WorkbookStore<SpendingBooks>, 'state' | 'write' | 'undo'>): AppAcceptance {
-  const refusedBy = (failure: unknown): { readonly kind: 'refused'; readonly reason: string } => {
-    if (failure instanceof WorkbookWriteRefused) return { kind: 'refused', reason: failure.message }
-    throw failure
-  }
-  return {
-    async accept(proposal) {
-      const { title, changes } = proposal.held as HeldWrite
-      try {
-        const receipt = await store.write(title, workOf(changes))
-        return {
-          kind: 'done',
-          async undo() {
-            const write = store.state.writes.find((candidate) => candidate.receipt === receipt)
-            if (write === undefined || !canUndo(write, store.state.writes)) return { kind: 'refused', reason: words.proposals.noUndo }
-            try {
-              await store.undo(write)
-              return { kind: 'undone' }
-            } catch (failure) {
-              return refusedBy(failure)
-            }
-          },
-        }
-      } catch (failure) {
-        return refusedBy(failure)
-      }
-    },
-  }
+export function spendingAcceptance(store: Pick<WorkbookStore<SpendingBooks>, 'state' | 'check' | 'write' | 'undo'>): AppAcceptance {
+  return { accept: proposedWrites(store, SPENDING_WORK).accept }
 }

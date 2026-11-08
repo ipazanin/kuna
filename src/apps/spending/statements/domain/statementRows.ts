@@ -1,4 +1,6 @@
 import type { Transaction } from '../../workbook/domain/transaction'
+import { amountText } from '../../../../shared/storage/domain/recordFields'
+import { occurrenceKeys } from '../../../../shared/text/factKey'
 
 /**
  * One row of a statement as a reader hands it to the dry run, on the account the reader found for it, with its import key
@@ -12,6 +14,18 @@ export const BANK_SYNC_KEY_PREFIX = 'bank-'
 
 export function isBankSyncKey(importKey: string): boolean {
   return importKey.startsWith(BANK_SYNC_KEY_PREFIX)
+}
+
+/** What starts the import key of a row read off a printed statement, so it is never taken for a file's or the bank sync's key. */
+const TRANSCRIBED_KEY_PREFIX = 'read-'
+
+/**
+ * Import keys for rows read off a printed statement, in the statement's order: its account, day and amount, with the count
+ * among equal rows before it. The payee stays out, as two reads of one page spell it differently. Reading the same statement
+ * again gives the same keys, so its rows are skipped.
+ */
+export function transcribedImportKeys(rows: readonly Pick<StatementRow, 'account' | 'date' | 'amount'>[]): string[] {
+  return occurrenceKeys(rows.map((row) => [row.account, row.date, amountText(row.amount)])).map((key) => `${TRANSCRIBED_KEY_PREFIX}${key}`)
 }
 
 /** What any bank's reader makes of a file, which is all the dry run knows of the bank. */

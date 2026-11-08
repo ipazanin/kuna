@@ -1,4 +1,5 @@
 import type { Exposure, FieldDoc, FieldDocs, StoredValue } from '../privacy/domain/exposure'
+import type { FigureTrace } from '../ai/domain/chatElement'
 import type { AccountMoney } from '../money/accountMoney'
 import type { CurrencyCode } from '../money/currencyCode'
 import type { Money } from '../money/money'
@@ -15,6 +16,14 @@ export interface ReadableRow {
   readonly fields: readonly ReadableField[]
 }
 
+/** A named part of a kind's rows that a search can keep to, such as the rows waiting on To review. */
+export interface ReadableSet {
+  readonly name: string
+  readonly about: string
+  /** The ids of the rows in it as the books stand. */
+  ids(): ReadonlySet<string>
+}
+
 /** A kind of record the chat can read: what its fields mean, which needs no books, and its rows, which do. */
 export interface ReadableKind {
   readonly name: string
@@ -24,16 +33,21 @@ export interface ReadableKind {
   /** The field a date filter and the newest-first order read, or null for a kind with no date. */
   readonly dated: string | null
   rows(): readonly ReadableRow[]
+  readonly sets?: readonly ReadableSet[]
+  /** The route of the app's place that opens one record of this kind, which a link to one of its records fills in. */
+  readonly page?: `/${string}`
 }
 
 export interface ReadableKindOf<R extends { readonly id: string }> {
-  readonly kind: RecordKind<R>
+  readonly kind: Pick<RecordKind<R>, 'name' | 'noun'>
   readonly about: string
   readonly fields: FieldDocs<R>
   readonly dated: (keyof R & string) | null
   rows(): readonly R[]
   /** The currency of the record's amounts. */
   currencyOf(record: R): string
+  readonly sets?: readonly { readonly name: string; readonly about: string; holds(record: R): boolean }[]
+  readonly page?: `/${string}`
 }
 
 function readableFields<R extends { readonly id: string }>(kind: ReadableKindOf<R>, record: R): readonly ReadableField[] {
@@ -60,6 +74,8 @@ export function readableKind<R extends { readonly id: string }>(kind: ReadableKi
     fields: Object.entries<FieldDoc<R>>(kind.fields).map(([name, doc]) => ({ name, meaning: doc.meaning, exposure: doc.exposure, amount: 'amount' in doc })),
     dated: kind.dated,
     rows: () => kind.rows().map((record) => ({ id: record.id, fields: readableFields(kind, record) })),
+    ...(kind.sets === undefined ? {} : { sets: kind.sets.map(({ name, about, holds }) => ({ name, about, ids: () => new Set(kind.rows().flatMap((record) => (holds(record) ? [record.id] : []))) })) }),
+    ...(kind.page === undefined ? {} : { page: kind.page }),
   }
 }
 
@@ -81,10 +97,20 @@ export interface AssistantReport {
   figures(period: string | null): readonly ReportFigure[]
 }
 
+/** The rules a trace cites, as the app's ruleset holds them. */
+export interface TraceRules {
+  /** The terms of each rule version the trace cites. */
+  versionsOf(trace: FigureTrace): readonly object[]
+  /** The day the rules' sources were last checked. */
+  readonly checkedSince: string
+}
+
 /** What the chat can read of an app, once the person allows it. Nothing here writes. */
 export interface AppReader {
   /** Whether the app's file is open in this page, so its records can be read. */
   status(): 'open' | 'opening' | 'none'
   readonly kinds: readonly ReadableKind[]
   readonly reports: readonly AssistantReport[]
+  /** The rules behind the app's figure build-ups, for an app whose figures cite any. */
+  readonly traceRules?: TraceRules
 }

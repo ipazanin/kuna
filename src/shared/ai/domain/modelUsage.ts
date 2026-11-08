@@ -75,6 +75,42 @@ export function costOfRequest(tokens: ModelTokens, price: ModelPrice): number {
   )
 }
 
+/** A photo as it is sent, by its pixels, or a PDF by its pages. */
+export type DocumentSize = { readonly kind: 'photo'; readonly width: number; readonly height: number } | { readonly kind: 'pdf'; readonly pages: number }
+
+/** What reading a document adds to the request that reads it, and to each later request while it stays in the chat. */
+export interface DocumentCost {
+  readonly toRead: number
+  readonly eachLaterRequest: number
+}
+
+/** Anthropic counts a photo by 28-pixel squares, and no photo above this many. OpenAI's count has not been checked, so Anthropic's rule stands for every provider. */
+const PHOTO_SQUARE_PIXELS = 28
+const MOST_PHOTO_TOKENS = 4_784
+/** A PDF page goes as a picture of the page plus its text, which Anthropic puts at 3,000 to 5,000 tokens. OpenAI gives no figure, so the top of that range stands for every provider. */
+const PDF_PAGE_TOKENS = 5_000
+
+/** About how many tokens a document weighs once sent. */
+export function documentTokens(document: DocumentSize): number {
+  if (document.kind === 'pdf') return document.pages * PDF_PAGE_TOKENS
+  return Math.min(MOST_PHOTO_TOKENS, Math.ceil(document.width / PHOTO_SQUARE_PIXELS) * Math.ceil(document.height / PHOTO_SQUARE_PIXELS))
+}
+
+/**
+ * About what a document adds at list price to a chat whose prompt already holds `promptBefore` tokens. The chat caches
+ * its last turn, so the prompt before is a cache read, the document a cache write, and later the document a cache read
+ * too. A document that takes the prompt over a price step also counts the dearer rate on the prompt before, as the
+ * provider prices a request whole.
+ */
+export function costOfDocument(document: DocumentSize, price: ModelPrice, promptBefore: number): DocumentCost {
+  const tokens = documentTokens(document)
+  const before = costOfRequest({ ...NO_TOKENS, cacheRead: promptBefore }, price)
+  return {
+    toRead: costOfRequest({ ...NO_TOKENS, cacheRead: promptBefore, cacheWrite: tokens }, price) - before,
+    eachLaterRequest: costOfRequest({ ...NO_TOKENS, cacheRead: promptBefore + tokens }, price) - before,
+  }
+}
+
 /** What a run used. `listDollars` adds up each request's own cost. */
 export function usageOf(model: { readonly name: string; readonly price: ModelPrice | null }, tokens: ModelTokens, listDollars: number): AiUsage {
   return {

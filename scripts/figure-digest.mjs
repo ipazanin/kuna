@@ -58,7 +58,7 @@ import { amountLocaleOf, unreadSettingKeys } from '../src/apps/company/settings/
 import { categoryTotals } from '../src/apps/company/spending/domain/categoryTotals.ts'
 import { costGroups } from '../src/apps/company/spending/domain/costGroups.ts'
 import { topCounterparties } from '../src/apps/company/spending/domain/topCounterparties.ts'
-import { presentedWorkbook } from '../src/apps/company/transactions/application/presentedWorkbook.ts'
+import { presentedWorkbook } from '../src/apps/company/transactions/domain/presentedWorkbook.ts'
 import { advancesLeftOutByBankFilters, filterTransactions, scopeOwnerAdvances, scopeTransactions } from '../src/apps/company/transactions/domain/filterTransactions.ts'
 import { listedRows } from '../src/apps/company/transactions/domain/listedRows.ts'
 import { groupTransactions } from '../src/apps/company/transactions/domain/transactionGroups.ts'

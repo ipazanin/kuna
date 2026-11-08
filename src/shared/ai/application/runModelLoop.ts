@@ -1,11 +1,11 @@
 import type { AiPart, AiTextPart } from '../domain/aiTask'
 import { maskIdentifiers } from '../../privacy/domain/maskIdentifiers'
-import { NO_TOKENS, addedTokens, costOfRequest, fullRateTokens, promptTokens, spentNothing, usageOf } from '../domain/modelUsage'
+import { NO_TOKENS, addedTokens, costOfRequest, documentTokens, fullRateTokens, promptTokens, spentNothing, usageOf } from '../domain/modelUsage'
 import type { AiUsage, ModelTokens } from '../domain/modelUsage'
 import type { StrictSchema } from '../domain/strictSchema'
 import { SecretInRequest } from './egressGuard'
 import { ModelRequestFailed } from './modelPort'
-import type { ModelPort, ModelTool, ModelTurn, ToolCall } from './modelPort'
+import type { ModelPort, ModelTool, ModelTurn, ToolCall, ToolResult } from './modelPort'
 
 export interface ModelLoop {
   readonly model: ModelPort
@@ -14,8 +14,8 @@ export interface ModelLoop {
   readonly turns: readonly ModelTurn[]
   readonly output: StrictSchema | null
   readonly tools: readonly ModelTool[]
-  /** Answers one tool call. The text comes back masked before the model reads it. */
-  readonly runTool: (call: ToolCall) => Promise<{ readonly text: string; readonly isError: boolean }>
+  /** Answers one tool call. The text comes back masked before the model reads it, and its photos or PDFs go whole. */
+  readonly runTool: (call: ToolCall) => Promise<ToolResult>
   readonly effort: 'low' | 'medium' | 'high'
   readonly signal?: AbortSignal | undefined
   readonly onDelta?: ((text: string) => void) | undefined
@@ -82,7 +82,7 @@ export async function runModelLoop(loop: ModelLoop): Promise<LoopEnd> {
         const results = await Promise.all(
           reply.calls.map(async (call) => {
             const answer = await loop.runTool(call)
-            return { callId: call.id, text: maskIdentifiers(answer.text), isError: answer.isError }
+            return { callId: call.id, text: maskIdentifiers(answer.text), parts: answer.parts, isError: answer.isError }
           }),
         )
         turns.push({ role: 'assistant', calls: reply.calls, raw: reply.raw }, { role: 'tool-results', results })
@@ -100,14 +100,17 @@ function maskedPart(part: AiPart): AiPart {
   return part.kind === 'text' ? { kind: 'text', text: maskIdentifiers(part.text) } : part
 }
 
-/** A cautious count of the tokens a request sends: three characters a token of text, and a PDF or photo by its size. */
+/** A cautious count of the tokens a request sends: three characters a token of text and of a PDF's bytes, and a photo by its pixels, in a person's turn or a tool's result alike. */
 function estimatedTokens(system: readonly { readonly text: string }[], turns: readonly ModelTurn[]): number {
+  const parts = turns.flatMap((turn) => (turn.role === 'user' ? turn.parts : turn.role === 'tool-results' ? turn.results.flatMap((result) => result.parts) : []))
   const characters =
     system.reduce((sum, part) => sum + part.text.length, 0) +
+    parts.reduce((sum, part) => sum + (part.kind === 'text' ? part.text.length : part.kind === 'pdf' ? part.base64.length / 4 : 0), 0) +
     turns.reduce((sum, turn) => {
-      if (turn.role === 'user') return sum + turn.parts.reduce((partSum, part) => partSum + (part.kind === 'text' ? part.text.length : part.base64.length / 4), 0)
       if (turn.role === 'tool-results') return sum + turn.results.reduce((resultSum, result) => resultSum + result.text.length, 0)
-      return sum + JSON.stringify(turn.calls).length
+      if (turn.role === 'assistant') return sum + JSON.stringify(turn.calls).length
+      return sum
     }, 0)
-  return Math.ceil(characters / 3)
+  const photos = parts.reduce((sum, part) => sum + (part.kind === 'image' ? documentTokens({ kind: 'photo', width: part.width, height: part.height }) : 0), 0)
+  return Math.ceil(characters / 3) + photos
 }

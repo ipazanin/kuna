@@ -362,7 +362,8 @@ describe('a chat in memory', () => {
 describe('a card in the chat', () => {
   const TIDY: AppProposer = {
     operations: [{ name: 'tidy', about: 'Tidies.', input: { type: 'object', properties: {}, required: [], additionalProperties: false }, refs: {}, creates: null, alone: false, example: {} }],
-    check: async (title) => ({ title, count: 1, groups: [], held: {} }),
+    readsBooks: true,
+    check: async (title) => ({ title, count: 1, groups: [], outside: [], held: {} }),
   }
   const WITH_TIDY: Catalogue = { ...CATALOGUE, proposers: new Map([['spending', TIDY]]) }
 

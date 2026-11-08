@@ -1,0 +1,131 @@
+[
+  {
+    "file": "statement-ties.pdf",
+    "opening": 125000,
+    "closing": 350325,
+    "rows": [
+      {
+        "date": "2026-10-01",
+        "payee": "Corner market",
+        "description": "Card payment",
+        "cents": -4215
+      },
+      {
+        "date": "2026-10-03",
+        "payee": "Example Studio d.o.o.",
+        "description": "Salary October",
+        "cents": 240000
+      },
+      {
+        "date": "2026-10-05",
+        "payee": "Harbour bistro",
+        "description": "Card payment",
+        "cents": -3860
+      },
+      {
+        "date": "2026-10-08",
+        "payee": "Fuel station",
+        "description": "Card payment",
+        "cents": -6120
+      },
+      {
+        "date": "2026-10-12",
+        "payee": "Cafe on the square",
+        "description": "Card payment",
+        "cents": -240
+      },
+      {
+        "date": "2026-10-12",
+        "payee": "Cafe on the square",
+        "description": "Card payment",
+        "cents": -240
+      }
+    ]
+  },
+  {
+    "file": "statement-not-tying.pdf",
+    "opening": 125000,
+    "closing": 350325,
+    "rows": [
+      {
+        "date": "2026-10-01",
+        "payee": "Corner market",
+        "description": "Card payment",
+        "cents": -4215
+      },
+      {
+        "date": "2026-10-03",
+        "payee": "Example Studio d.o.o.",
+        "description": "Salary October",
+        "cents": 240000
+      },
+      {
+        "date": "2026-10-05",
+        "payee": "Harbour bistro",
+        "description": "Card payment",
+        "cents": -3861
+      },
+      {
+        "date": "2026-10-08",
+        "payee": "Fuel station",
+        "description": "Card payment",
+        "cents": -6120
+      },
+      {
+        "date": "2026-10-12",
+        "payee": "Cafe on the square",
+        "description": "Card payment",
+        "cents": -240
+      },
+      {
+        "date": "2026-10-12",
+        "payee": "Cafe on the square",
+        "description": "Card payment",
+        "cents": -240
+      }
+    ]
+  },
+  {
+    "file": "statement-pasted.txt",
+    "opening": 125000,
+    "closing": 350325,
+    "rows": [
+      {
+        "date": "2026-10-01",
+        "payee": "Corner market",
+        "description": "Card payment",
+        "cents": -4215
+      },
+      {
+        "date": "2026-10-03",
+        "payee": "Example Studio d.o.o.",
+        "description": "Salary October",
+        "cents": 240000
+      },
+      {
+        "date": "2026-10-05",
+        "payee": "Harbour bistro",
+        "description": "Card payment",
+        "cents": -3860
+      },
+      {
+        "date": "2026-10-08",
+        "payee": "Fuel station",
+        "description": "Card payment",
+        "cents": -6120
+      },
+      {
+        "date": "2026-10-12",
+        "payee": "Cafe on the square",
+        "description": "Card payment",
+        "cents": -240
+      },
+      {
+        "date": "2026-10-12",
+        "payee": "Cafe on the square",
+        "description": "Card payment",
+        "cents": -240
+      }
+    ]
+  }
+]

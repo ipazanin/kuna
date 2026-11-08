@@ -8,7 +8,7 @@ import { categoryColourOf } from '../src/apps/company/workbook/domain/categoryCo
 import { ledgerWindowOf } from '../src/apps/company/workbook/domain/workbook'
 import type { Category } from '../src/apps/company/workbook/domain/workbook'
 import { fakeWorkbookDocument } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
-import { presentedWorkbook } from '../src/apps/company/transactions/application/presentedWorkbook'
+import { presentedWorkbook } from '../src/apps/company/transactions/domain/presentedWorkbook'
 import { loanMonths } from '../src/apps/company/packs/hr-doo/domain/ownerLoans'
 import { ownerTake, ownerTakeByMonth } from '../src/apps/company/packs/hr-doo/domain/ownerTake'
 import { PACK_ROLES, categoriesWithRole } from '../src/apps/company/packs/hr-doo/domain/packRoles'

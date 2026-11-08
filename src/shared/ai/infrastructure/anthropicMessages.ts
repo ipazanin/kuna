@@ -1,5 +1,5 @@
-import type { ModelPort, ModelReply, ModelRequest, ModelTurn, ToolCall } from '../application/modelPort'
-import { ModelRequestFailed } from '../application/modelPort'
+import type { ModelPort, ModelReply, ModelRequest, ModelTurn, ToolCall, ToolResult } from '../application/modelPort'
+import { ModelRequestFailed, resultParts } from '../application/modelPort'
 import type { AiPart, AiTextPart } from '../domain/aiTask'
 import { NO_TOKENS } from '../domain/modelUsage'
 import type { ModelTokens } from '../domain/modelUsage'
@@ -130,10 +130,16 @@ function message(turn: ModelTurn): object {
     case 'tool-results': {
       return {
         role: 'user',
-        content: turn.results.map((result) => ({ type: 'tool_result', tool_use_id: result.callId, content: result.text, is_error: result.isError })),
+        content: turn.results.map((result) => ({ type: 'tool_result', tool_use_id: result.callId, content: resultContent(result), is_error: result.isError })),
       }
     }
   }
+}
+
+/** Text alone goes as a string. With photos or PDFs it is a list, the text first, then each part. */
+function resultContent(result: ToolResult): string | readonly object[] {
+  if (result.parts.length === 0) return result.text
+  return resultParts(result.text, result.parts).map(contentBlock)
 }
 
 function contentBlock(part: AiPart): object {

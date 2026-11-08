@@ -161,8 +161,8 @@ describe('the tool rounds of a run', () => {
       {
         role: 'tool-results',
         results: [
-          { callId: 'call-0', text: 'Rule hr.vat.rates, paid to HR•• ••••0160.', isError: false },
-          { callId: 'call-1', text: 'Nothing is called missing.', isError: true },
+          { callId: 'call-0', text: 'Rule hr.vat.rates, paid to HR•• ••••0160.', parts: [], isError: false },
+          { callId: 'call-1', text: 'Nothing is called missing.', parts: [], isError: true },
         ],
       },
     ])
@@ -185,8 +185,8 @@ describe('the tool rounds of a run', () => {
     expect(model.sent[1]!.turns[2]).toEqual({
       role: 'tool-results',
       results: [
-        { callId: 'a', text: 'There is no tool named web_search.', isError: true },
-        { callId: 'b', text: 'id is not text', isError: true },
+        { callId: 'a', text: 'There is no tool named web_search.', parts: [], isError: true },
+        { callId: 'b', text: 'id is not text', parts: [], isError: true },
       ],
     })
   })

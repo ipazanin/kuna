@@ -6,7 +6,7 @@ import { ownerPartOrigin, ownerPartsOf, ownerShareProblems, withOwnerParts } fro
 import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import { categoryTotals } from '../src/apps/company/spending/domain/categoryTotals'
 import { transactionsCsv } from '../src/apps/company/transactions/application/transactionsCsv'
-import { presentedWorkbook } from '../src/apps/company/transactions/application/presentedWorkbook'
+import { presentedWorkbook } from '../src/apps/company/transactions/domain/presentedWorkbook'
 import { categoryChangeOf } from '../src/apps/company/transactions/domain/categoryChange'
 import { scopeOwnerAdvances, scopeTransactions } from '../src/apps/company/transactions/domain/filterTransactions'
 import { DEFAULT_FILTERS } from '../src/apps/company/filters/domain/filterState'

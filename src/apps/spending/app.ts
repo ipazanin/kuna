@@ -53,8 +53,10 @@ export const spendingApp: AppContribution = {
       const { seedFakeSpending } = await import('./workbook/infrastructure/fake/seedFakeSpending')
       const { saveLastFetch } = await import('./bankSync/infrastructure/bankBrowserState')
       const { registerFakeReceiptRead } = await import('./receipts/assist/infrastructure/fake/fakeReceiptRead')
+      const { registerFakeSpendingChat } = await import('./assistant/infrastructure/fake/fakeSpendingChat')
       saveLastFetch(null)
       registerFakeReceiptRead()
+      registerFakeSpendingChat()
       const query = new URLSearchParams(window.location.search)
       await seedFakeSpending(query.get('spending'), query.get('banksync'))
     }

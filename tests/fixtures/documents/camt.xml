@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08">
+  <BkToCstmrStmt>
+    <GrpHdr><MsgId>053.7</MsgId><CreDtTm>2031-04-02T03:00:00.000</CreDtTm></GrpHdr>
+    <Stmt>
+      <Id>CAMT053/7</Id>
+      <LglSeqNb>7</LglSeqNb>
+      <CreDtTm>2031-04-02T03:00:00.000</CreDtTm>
+      <Acct><Id><IBAN>HR2923400091110000001</IBAN></Id><Ccy>EUR</Ccy><Nm>Example Studio d.o.o.</Nm></Acct>
+      <Bal><Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp><Amt Ccy="EUR">9050.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2031-04-02</Dt></Dt></Bal>
+      <Bal><Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp><Amt Ccy="EUR">10617.50</Amt><CdtDbtInd>CRDT</CdtDbtInd><Dt><Dt>2031-04-02</Dt></Dt></Bal>
+      <TxsSummry>
+        <TtlCdtNtries><NbOfNtries>2</NbOfNtries><Sum>1655.00</Sum></TtlCdtNtries>
+        <TtlDbtNtries><NbOfNtries>1</NbOfNtries><Sum>87.50</Sum></TtlDbtNtries>
+      </TxsSummry>
+      <Ntry>
+        <NtryRef>2031-0402-0001</NtryRef>
+        <Amt Ccy="EUR">1200.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <RvslInd>false</RvslInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2031-04-02</Dt></BookgDt>
+        <ValDt><Dt>2031-04-02</Dt></ValDt>
+        <AcctSvcrRef>2031-0402-0001</AcctSvcrRef>
+        <NtryDtls><TxDtls>
+          <Refs><AcctSvcrRef>2031-0402-0001</AcctSvcrRef></Refs>
+          <RltdPties><Dbtr><Pty><Nm>Northwind Analytics Ltd</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>HR2420011116383368706</IBAN></Id></DbtrAcct></RltdPties>
+          <RmtInf><Ustrd>Invoice 4-1-31</Ustrd></RmtInf>
+        </TxDtls></NtryDtls>
+      </Ntry>
+      <Ntry>
+        <NtryRef>2031-0402-0002</NtryRef>
+        <Amt Ccy="EUR">87.50</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <RvslInd>false</RvslInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2031-04-02</Dt></BookgDt>
+        <ValDt><Dt>2031-04-02</Dt></ValDt>
+        <AcctSvcrRef>2031-0402-0002</AcctSvcrRef>
+        <NtryDtls><TxDtls>
+          <Refs><AcctSvcrRef>2031-0402-0002</AcctSvcrRef></Refs>
+          <RltdPties><Cdtr><Pty><Nm>Office supplies d.o.o.</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>HR6523400091234567890</IBAN></Id></CdtrAcct></RltdPties>
+          <RmtInf><Ustrd>Paper and toner</Ustrd></RmtInf>
+        </TxDtls></NtryDtls>
+      </Ntry>
+      <Ntry>
+        <NtryRef>2031-0402-0003</NtryRef>
+        <Amt Ccy="EUR">455.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <RvslInd>false</RvslInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2031-04-02</Dt></BookgDt>
+        <ValDt><Dt>2031-04-02</Dt></ValDt>
+        <AcctSvcrRef>2031-0402-0003</AcctSvcrRef>
+        <NtryDtls><TxDtls>
+          <Refs><AcctSvcrRef>2031-0402-0003</AcctSvcrRef></Refs>
+          <RltdPties><Dbtr><Pty><Nm>Contoso Studio GmbH</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>DE89370400440532013000</IBAN></Id></DbtrAcct></RltdPties>
+          <RmtInf><Ustrd>Invoice 4-2-31</Ustrd></RmtInf>
+        </TxDtls></NtryDtls>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>
